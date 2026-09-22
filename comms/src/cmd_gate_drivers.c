@@ -142,7 +142,7 @@ static cmd_status_t h_gate_drivers_pwm(rd_t *in, wr_t *out)
     Board_PwmDisable();
   }
 
-  cmd_took(out, refusal);
+  wr_took(out, refusal);
   return CMD_OK;
 }
 
@@ -172,7 +172,7 @@ static cmd_status_t h_gate_drivers_duty(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  cmd_took(out, Board_PwmSetAllCounted(ticks, periods));
+  wr_took(out, Board_PwmSetAllCounted(ticks, periods));
   return CMD_OK;
 }
 
@@ -198,7 +198,7 @@ static cmd_status_t h_gate_drivers_alternate(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  cmd_took(out, Board_PwmSetAlternate(a, b));
+  wr_took(out, Board_PwmSetAlternate(a, b));
   return CMD_OK;
 }
 
@@ -225,7 +225,7 @@ static cmd_status_t h_gate_drivers_duty_fine(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  cmd_took(out, Board_PwmSetAllFine(ticks));
+  wr_took(out, Board_PwmSetAllFine(ticks));
   return CMD_OK;
 }
 
@@ -252,7 +252,7 @@ static cmd_status_t h_gate_drivers_sync(rd_t *in, wr_t *out)
     Board_SyncDisarm();
   }
 
-  cmd_took(out, refusal);
+  wr_took(out, refusal);
   return CMD_OK;
 }
 
@@ -337,7 +337,7 @@ static cmd_status_t h_gate_drivers_deadtime(rd_t *in, wr_t *out)
     refusal = Board_PwmSetDeadTimeSkew(skew);
   }
 
-  cmd_took(out, refusal);
+  wr_took(out, refusal);
   wr_u32(out, Board_PwmDeadTimeNs());
   wr_i8(out, Board_PwmDeadTimeSkew());
   wr_u8(out, Board_PwmDeadTimeFloor());

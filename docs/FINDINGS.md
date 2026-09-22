@@ -2301,6 +2301,42 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   `CELLS = paper(...)` or `SETUP = []` across modules as a copy - so the
   package lays the papers out in one place and a paper that arms the
   stage says so in a section of its own. structure 667 -> 674.
+* THE BOOTLOADER'S CORE, PROVEN ON A RAM FLASH FIRST (2026-09-22). The
+  bench asked for an extremely slim bootloader: blank nodes taking
+  their image and their calibration record from the master over 10 Mbit
+  Modbus broadcast, switching on board type and position, everything on
+  the master, and the bench keeping its debugger. docs/BOOT.md is the
+  design, and this is its second commit: `boot/src/boot_core.c`, the
+  state machine over four calls - erase, program a word, read, say -
+  hardware-free like modbus/ and daq/, and `boot/test/harness.c` wiring
+  those to a two-megabyte byte array with 128 K sectors that refuses to
+  program a word twice, the way the controller does. Three designers
+  were put on it in parallel and hit the session's limit before any
+  reported, so the design is one engineer's; the core is tested by 39
+  checks through gcc and ctypes: the whole exchange (hold, who, assign,
+  erase, 301 chunks with a ragged last one, verify, a 768-byte record,
+  seal, go, dump), three chunks dropped and named by the bitmap then
+  re-sent with the repeats not programmed again, seal refused in words
+  before verify, go refused on the console before seal, the master dying
+  mid-stream leaving an invalid image that the next erase forgets, a
+  chunk before any erase counted and ignored, a wrong crc reported with
+  what was summed, an erase for another type ignored, an image that does
+  not fit refused, an image the debugger wrote valid by the four tests
+  and three kinds of wrong one not, a first word that will not program
+  leaving the image invalid, and CRC-32 equal to zlib's. TWO THINGS THE
+  TREE SETTLED ON THE WAY. The user-defined function codes the RTU core
+  routes end at 0x6E and every one is taken, so the bootloader is DEVICE
+  11 under 0x6E, its table in PROTOCOL.md held to `boot_core.c` by the
+  same structure check as every device's, its ops mirrored in
+  `protocol.BootOp`, its defines read from `boot/inc/boot.h`; and the
+  took byte is the wire's now - `wr_took` in wire.c, 49 sites renamed
+  from `cmd_took`, so a bootloader that links no command file refuses
+  in the board's words. The wire also gained `rd_bytes`, the raw payload
+  after an op's fields, which the request check already knew to read as
+  the rest. What is NOT built yet: the registers (`boot_main.c`, commit
+  4), the application relocated (commit 3), the master in Python
+  (commit 5); nothing has run on a board. structure 674 -> 676, the
+  boot core 39, tree 3136, firmware 0 warnings.
 
 ## The local model
 

@@ -269,16 +269,6 @@ against MB_MAX_PDU's 253. Part `state` is 0 unknown, 1 ready,
 hardware is one row in `s_parts` in `board/src/board_io.c`, its pins in
 `s_digital`, and a probe case.
 
-### 0x6F BOOT
-
-The bootloader's function code, served by a node in its bootloader and
-by nothing else: a blank node takes its image and its record from the
-master over broadcast, addressed by unique id until assigned a unit.
-The ops, the master's sequence, the flash map and what a node knows are
-in [BOOT.md](BOOT.md); the table there is held to `boot_core.c` by the
-same structure check as the device tables here. Designed 2026-09-22,
-not yet on a board.
-
 ### 0x6E DEVICE
 
 Request: `u8 device, u8 op, parameters`. Devices 0 .. 10; an unknown
@@ -619,6 +609,33 @@ Setpoint ids: 0 id_ref mA, 1 iq_ref mA, 2 theta mrad, 3 omega_target
 mrad/s, 4 accel mrad/s², 5 vd mV, 6 vq mV, 7 pol_volts, 8 pol_periods,
 9 pol_gap. The host names and scales are `coaxial.drive.SETPOINTS` and
 `PARAMS`.
+
+### 11 BOOT, `boot_core.c`
+
+The bootloader's device, served by a node in its bootloader; a running
+application serves ops 10 and 12 and refuses the rest in words. A
+blank node answers to unit 247 until `assign` gives it its own; `hold`,
+`erase`, `chunk` and `go` are broadcast and answered by nobody. The
+design - the flash map, the master's sequence, why the first flash word
+is written last - is [BOOT.md](BOOT.md). Ops:
+
+| op | Request | Reply |
+| --- | --- | --- |
+| 0 hold | `u32 session` | none; every node in its window stays |
+| 1 who | `u8 bits, bytes` | `u8 x12 uid, u8 type, u8 state, u8 unit`, from every node whose uid begins with those bits of the prefix; silence from the rest |
+| 2 assign | `u8 x12 uid, u8 unit, u8 position, u8 flags` | `u8 took`, from that node only; bit 0 of flags closes the termination |
+| 3 erase | `u8 type, u32 size, u32 crc, u16 chunks` | none; a node of that type erases and takes the image's shape, another ignores it |
+| 4 chunk | `u16 index, bytes` | none; 224 bytes at `index * 224`, programmed as it lands, the first word kept in RAM |
+| 5 missing | - | `u16 first, u16 count, bytes` - the bitmap of chunks held |
+| 6 verify | - | `u8 ok, u32 crc` over the image as it will stand |
+| 7 record | `u16 offset, bytes` | `u8 took`; the record's bytes into RAM |
+| 8 seal | - | `u8 took`; the record programmed, the first word programmed, the image valid |
+| 9 go | `u32 session` | none; a sealed node of the session jumps |
+| 10 state | - | `u8 state, u8 type, u8 unit, u8 position, u32 chunks_held, u32 chunks_of, u8 app_valid, u8 x12 uid` |
+| 11 dump | `u16 offset` | `u16 offset, bytes` - the record sector, 224 bytes a page |
+| 12 stay | - | `u8 took`; the application writes STAY and resets; the bootloader refuses |
+
+States: 0 blank, 1 held, 2 assigned, 3 erased, 4 verified, 5 sealed.
 
 ### Drive op 14, the observer chain
 

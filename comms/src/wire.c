@@ -69,6 +69,17 @@ void wr_i32(wr_t *w, int32_t v)
   wr_u32(w, (uint32_t)v);
 }
 
+void wr_took(wr_t *out, const char *refusal)
+{
+  if (refusal == NULL)
+  {
+    wr_u8(out, 1U);
+    return;
+  }
+  wr_u8(out, 0U);
+  wr_str(out, refusal);
+}
+
 void wr_str(wr_t *w, const char *s)
 {
   size_t n = (s == NULL) ? 0U : strlen(s);
@@ -107,6 +118,13 @@ static bool rd_take(rd_t *r, uint16_t n, const uint8_t **at)
   *at = &r->buf[r->pos];
   r->pos = (uint16_t)(r->pos + n);
   return true;
+}
+
+const uint8_t *rd_bytes(rd_t *r, uint16_t n)
+{
+  const uint8_t *p;
+
+  return rd_take(r, n, &p) ? p : NULL;
 }
 
 uint8_t rd_u8(rd_t *r)

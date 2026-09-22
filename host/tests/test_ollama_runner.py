@@ -459,17 +459,19 @@ def test_smart_selection(report):
     # DAQ_API joined at 12 % - the acquisition front door against the
     # stand-in, no board and no compiler - so both tiers below buy it.
     # THERMAL joined at 20 % with the other portable cores: a compiler and
-    # a second, and what it guards is whether a stage backs off.
+    # a second, and what it guards is whether a stage backs off. BOOT_CORE
+    # joined there too, 2026-09-22: the bootloader's state machine, the
+    # one thing that decides whether a blank node ever runs anything.
     for percent, expect in ((25, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
                                   run_tests.DRIVE, run_tests.FILTER,
-                                  run_tests.THERMAL,
+                                  run_tests.THERMAL, run_tests.BOOT_CORE,
                                   run_tests.SENSORLESS, run_tests.DAQ_API,
                                   } | set(run_tests.OLLAMA)),
                             (75, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
                                   run_tests.DRIVE, run_tests.FILTER,
-                                  run_tests.THERMAL,
+                                  run_tests.THERMAL, run_tests.BOOT_CORE,
                                   run_tests.SENSORLESS, run_tests.DAQ_API,
                                   'test_parity.py', 'test_mcp.py',
                                   run_tests.CONFORMANCE, run_tests.BENCH}

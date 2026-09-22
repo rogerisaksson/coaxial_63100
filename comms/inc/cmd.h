@@ -420,10 +420,6 @@ cmd_status_t cmd_power_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_drive_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);
 
-/** `u8 took`, and on a refusal the board's own reason after it: what is
-    wrong and what to do about it. The board is the only thing that knows
-    which check failed, so it is the only thing that should be saying. */
-void cmd_took(wr_t *out, const char *refusal);
 
 /**
   * @brief One subsystem: a command table, named, with what it is for.

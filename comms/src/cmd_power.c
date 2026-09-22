@@ -49,7 +49,7 @@ static cmd_status_t h_power_state(wr_t *out)
 static cmd_status_t h_power_release_all(wr_t *out)
 {
   Board_PowerReleaseAll();
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 

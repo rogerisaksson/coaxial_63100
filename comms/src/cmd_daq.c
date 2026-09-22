@@ -85,7 +85,7 @@ static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
 
   if (count > FILTER_MAX_SECTIONS)
   {
-    cmd_took(out, "the board runs four biquads - an eighth-order "
+    wr_took(out, "the board runs four biquads - an eighth-order "
                   "Bessel. Ask the design for a lower order");
     return CMD_OK;
   }
@@ -112,7 +112,7 @@ static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
        promised is worked out again. */
     daq_substitute_interval();
   }
-  cmd_took(out, refusal);
+  wr_took(out, refusal);
   return CMD_OK;
 }
 
@@ -128,7 +128,7 @@ static cmd_status_t h_daq_rung(rd_t *in, wr_t *out)
 
   if (count > FILTER_MAX_SECTIONS)
   {
-    cmd_took(out, "the board runs four biquads - an eighth-order "
+    wr_took(out, "the board runs four biquads - an eighth-order "
                   "Bessel");
     return CMD_OK;
   }
@@ -154,7 +154,7 @@ static cmd_status_t h_daq_rung(rd_t *in, wr_t *out)
   {
     daq_substitute_interval();
   }
-  cmd_took(out, refusal);
+  wr_took(out, refusal);
   return CMD_OK;
 }
 
@@ -176,7 +176,7 @@ static cmd_status_t h_daq_tone(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  cmd_took(out, Board_DaqSetTone(hz, rate, amplitude, offset, kind));
+  wr_took(out, Board_DaqSetTone(hz, rate, amplitude, offset, kind));
   return CMD_OK;
 }
 
@@ -258,20 +258,20 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
 
   if (refusal != NULL)
   {
-    cmd_took(out, refusal);
+    wr_took(out, refusal);
     return CMD_OK;
   }
 
   daq_substitute_interval();
 
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
 
 static cmd_status_t h_daq_start(wr_t *out)
 {
-  cmd_took(out, Board_DaqStart());
+  wr_took(out, Board_DaqStart());
   return CMD_OK;
 }
 

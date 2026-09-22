@@ -52,6 +52,10 @@ THERMAL = 'test_thermal_core.py'
 #: hardware-free since 2026-09-14 and, until then, tested only by the
 #: bench after a flash.
 DAQ_CORE = 'test_daq_core.py'
+#: The bootloader's state machine as the C that will run - the chunk
+#: stream, the bitmap, the seal - on a RAM flash, before any register
+#: is touched (docs/BOOT.md).
+BOOT_CORE = 'test_boot_core.py'
 SENSORLESS = 'test_sensorless.py'
 #: test_ollama.py was 5,496 lines and 733 checks - a third of every check
 #: this tree has, in one file, and the reason a tier could not be asked for at
@@ -68,7 +72,7 @@ BROKER = 'test_broker.py'
 DAQ_API = 'test_daq_api.py'
 VIEWS = 'test_views.py'
 RENDER = 'test_render.py'
-DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE,
+DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
                    SENSORLESS,
                    BROKER, DAQ_API, VIEWS,
                    RENDER) + OLLAMA
@@ -102,6 +106,9 @@ JOINS = (
     # thing that decides whether a stage backs off, and a tier that cannot
     # afford that check is a tier that should not be run before a bench day.
     (20, THERMAL),
+    # The bootloader's core: a compiler and a second, and the one thing
+    # that decides whether a blank node ever runs anything.
+    (20, BOOT_CORE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
     (45, 'test_mcp.py'),
@@ -440,6 +447,8 @@ TOUCHES = (
     # The acquisition engine is hardware-free like the observer, so the
     # host build covers it; the glue that reads the converter is
     # board_daq.c and the bench's, and the record's bytes cross the wire.
+    # The bootloader's core is hardware-free; boot_main.c is the bench's.
+    ('boot/',                         (BOOT_CORE, STRUCTURE)),
     ('daq/',                          (DAQ_CORE, CONFORMANCE, 'test_parity.py',
                                        BENCH)),
     ('host/coaxial/thermal.py',       (THERMAL, 'test_sensorless.py',

@@ -139,33 +139,19 @@ pins high-impedance. AFE_ON stays low. Nothing switches.
 
 ## The protocol
 
-One function code, `0x6F BOOT`, with ops in PROTOCOL.md's form. The
-RTU framing, CRC, unit addressing and the length oracle are the tree's
-own (`modbus/`, `comms/src/cmd_length.c`); the bootloader links the
-same three portable files the application does, and `boot/src/
-boot_core.c` is the state machine over them, hardware-free and
-host-tested like they are.
-
-| op | Request | Reply |
-| --- | --- | --- |
-| 0 hold | `u32 session` | none: broadcast. A node in the window stays; a node already staying notes the session |
-| 1 who | `u8 bits, bytes prefix` | `u8 12 uid, u8 type, u8 state, u8 unit` from every node whose unique id begins with `prefix` (`bits` of it); two answering at once garble, and the master narrows the prefix |
-| 2 assign | `u8 12 uid, u8 unit, u8 position, u8 flags` | `u8 took` from the one node with that uid, which answers to `unit` from now on; bit 0 of `flags` closes the termination |
-| 3 erase | `u8 type, u32 size, u32 crc, u16 chunks` | none: broadcast. Every node of `type` erases the sectors `size` needs, forgets what it held, and takes chunk 0's first word into RAM; a node of another type ignores it |
-| 4 chunk | `u16 index, bytes` | none: broadcast. 224 bytes at `index * 224`; a node programs it as it lands and sets the bit |
-| 5 missing | - | `u16 first, u16 count, bytes bitmap` - the chunks not yet held, as a bitmap from `first` |
-| 6 verify | - | `u8 ok, u32 crc` over the written range with the held first word in place; `ok` says it equals the erase's |
-| 7 record | `u16 offset, bytes` | `u8 took`; the calibration record's bytes into RAM at `offset` |
-| 8 seal | - | `u8 took`; the record programmed into its sector, the first word programmed, the image valid |
-| 9 go | `u32 session` | none: broadcast. Every sealed node of the session jumps; an unsealed one stays and says why on its console |
-| 10 state | - | `u8 state, u8 type, u8 unit, u8 position, u32 chunks_held, u32 chunks_of, u8 app_valid, u8 12 uid` |
-| 11 dump | `u16 offset` | `u16 offset, bytes` - the record sector as it stands, 224 bytes a page, so the master can take a commissioned board's record into its store whole |
-
-Refusals are the board's words, as everywhere: `assign` to an unknown
-uid answers nothing (it is not that node's request); `seal` before
-`verify` passed answers `u8 0` and `str "the image is not verified"`;
-`chunk` for a session not erased is ignored with a counter, since a
-broadcast cannot be refused.
+Device 11 under `0x6E`, since the user-defined function codes the RTU
+core routes end at 0x6E and every one of them is taken; the app's own
+device convention carries it. The op table is PROTOCOL.md's, held to
+`boot/src/boot_core.c` by the same structure check as every device's -
+`hold`, `who`, `assign`, `erase`, `chunk`, `missing`, `verify`,
+`record`, `seal`, `go`, `state`, `dump`, `stay`. A blank node answers to
+unit 247, the last legal one before the reserved 248..255, so a master
+reaches every blank node on a segment at once; `assign` gives it its
+own. Broadcasts are answered by nobody; `who` and `assign` are answered
+only by the node the prefix or the uid names, silence from the rest.
+The RTU framing, CRC and the length oracle are the tree's own
+(`modbus/`, `comms/src/cmd_length.c`), and the took byte is the wire's
+(`wr_took`), so a refusal reads as it does from the application.
 
 The master's sequence, per bus:
 
@@ -283,7 +269,7 @@ board's firmware follow the same steps.
   crc, seal refused before verify, the first word absent until seal,
   a power loss mid-stream leaving an invalid image, the prefix search
   terminating on any set of uids.
-* `coaxial/simulated/boot.py` is a blank node speaking `0x6F` over the
+* `coaxial/simulated/boot.py` is a blank node speaking device 11 over the
   stand-in's link, one per (bus, position) with its own uid; `host/
   tests/test_boot.py` runs `coaxial.boot`'s whole sequence against four
   of them on one bus, drops chunks, kills the master mid-stream, and
@@ -314,7 +300,7 @@ Changed:
 * `CMakeLists.txt` - the second executable, its warnings, its size line
 * `.github/workflows/firmware.yml` - both images sized and kept
 * `host/tools/build_and_flash.py` - `--boot`
-* `docs/PROTOCOL.md` - `0x6F BOOT` pointing here, and the link op
+* `docs/PROTOCOL.md` - device 11's table, held to `boot_core.c`
 * `docs/ARCHITECTURE.md`, `docs/HARDWARE.md` - the flash map, `boot/`
   in the layout
 

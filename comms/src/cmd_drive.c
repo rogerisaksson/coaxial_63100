@@ -89,7 +89,7 @@ static cmd_status_t h_drive_mode(rd_t *in, wr_t *out)
   {
     return CMD_ERR_LENGTH;
   }
-  cmd_took(out, Board_DriveSetMode(mode));
+  wr_took(out, Board_DriveSetMode(mode));
   return CMD_OK;
 }
 
@@ -104,7 +104,7 @@ static cmd_status_t h_drive_setpoint(rd_t *in, wr_t *out)
   {
     return CMD_ERR_LENGTH;
   }
-  cmd_took(out, Board_DriveSetpoint(id, value));
+  wr_took(out, Board_DriveSetpoint(id, value));
   return CMD_OK;
 }
 
@@ -134,7 +134,7 @@ static cmd_status_t h_drive_theta(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
   Board_DriveSetTheta(urad);
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -200,12 +200,12 @@ static cmd_status_t h_drive_moments_arm(rd_t *in, wr_t *out)
   }
   if (!Board_SyncArmed())
   {
-    cmd_took(out, "the sync is not armed, so no triple arrives to count - "
+    wr_took(out, "the sync is not armed, so no triple arrives to count - "
                   "arm it (gate drivers op 3) and ask again");
     return CMD_OK;
   }
   Board_DriveMomentsArm(periods);
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -249,7 +249,7 @@ static cmd_status_t h_drive_moments(wr_t *out)
 static cmd_status_t h_drive_reload(wr_t *out)
 {
   Board_DriveParamsFromCal();
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -263,7 +263,7 @@ static cmd_status_t h_drive_source(rd_t *in, wr_t *out)
   {
     return CMD_ERR_LENGTH;
   }
-  cmd_took(out, Board_DriveSetSource(source));
+  wr_took(out, Board_DriveSetSource(source));
   return CMD_OK;
 }
 
@@ -278,7 +278,7 @@ static cmd_status_t h_drive_model_param(rd_t *in, wr_t *out)
   {
     return CMD_ERR_LENGTH;
   }
-  cmd_took(out, Board_DriveModelParam(id, value));
+  wr_took(out, Board_DriveModelParam(id, value));
   return CMD_OK;
 }
 
@@ -306,7 +306,7 @@ static cmd_status_t h_drive_model(wr_t *out)
 static cmd_status_t h_drive_model_reset(wr_t *out)
 {
   Board_DriveModelReset();
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 

@@ -617,7 +617,7 @@ MIRRORS = (
 OP_CLASSES = {'IMU': 'ImuOp', 'ANGLE': 'AngleOp', 'LINK': 'LinkOp',
               'CAL': 'CalOp', 'GATEDRIVERS': 'GateOp', 'LOG': 'LogOp',
               'DAQ': 'DaqOp', 'TIME': 'TimeOp', 'THERMAL': 'ThermalOp',
-              'DRIVE': 'DriveOp', 'POWER': 'PowerOp'}
+              'DRIVE': 'DriveOp', 'POWER': 'PowerOp', 'BOOT': 'BootOp'}
 
 _NUMBER = re.compile(r'\b(\d+(?:\.\d*)?(?:[eE][-+]?\d+)?)[uUlL]*[fF]?\b')
 
@@ -660,12 +660,12 @@ def test_mirrors_agree(r):
             '; '.join(off[:3]) or '%d pairs' % len(MIRRORS))
 
     from coaxial import protocol
-    header = _defines('comms/inc/cmd.h')
+    header = dict(_defines('comms/inc/cmd.h'), **_defines('boot/inc/boot.h'))
     devices = {k: v for k, v in header.items() if k.startswith('DEVICE_')}
     wrong = ['%s: cmd.h %d, protocol %r' % (k, v, getattr(protocol, k, None))
              for k, v in sorted(devices.items()) if getattr(protocol, k, None) != v]
     r.check('protocol.py numbers the devices as cmd.h does',
-            len(devices) >= 10 and not wrong,
+            len(devices) >= 11 and not wrong,
             '; '.join(wrong[:3]) or '%d devices' % len(devices))
 
     ops = {}
@@ -683,7 +683,7 @@ def test_mirrors_agree(r):
         wrong += ['%s.%s: no %s_OP_%s in cmd.h' % (OP_CLASSES.get(prefix), op, prefix, op)
                   for op in sorted(set(members) - set(table))]
     r.check('and every op by name and number, both ways',
-            len(ops) >= 9 and not wrong,
+            len(ops) >= 10 and not wrong,
             '; '.join(wrong[:3]) or '%d op tables' % len(ops))
 
     from coaxial import thermal_ident as mirror
@@ -733,10 +733,19 @@ _C_TOKENS = re.compile(
     r'|(?P<leave>\b(?:return|continue)\b[^;]*;)'
     r'|for\s*\([^;]*;[^<]*<=?\s*(?:\([^)]*\)\s*)?(?P<bound>\w+)[^)]*\)'
     r'|\b(?P<callee>\w+)\s*\(\s*out\b')
-#: The command files whose helpers any handler may call - `cmd_took`
-#: writes the byte every acknowledging op answers with.
-_SHARED = ('comms/src/cmd_device.c', 'comms/src/cmd.c')
-_HEADERS = ('comms/inc', 'board/inc', 'drive/inc', 'thermal/inc', 'daq/inc',
+#: The command files whose helpers any handler may call - `wr_took` in
+#: the wire writes the byte every acknowledging op answers with.
+_SHARED = ('comms/src/cmd_device.c', 'comms/src/cmd.c', 'comms/src/wire.c')
+
+#: Every file that dispatches ops the way a command file does: `case
+#: PREFIX_OP_NAME: return handler(in, out)`. The bootloader's core is one
+#: outside comms/, served by a node in its bootloader.
+def _command_files():
+    folder = os.path.join(REPO, 'comms', 'src')
+    files = ['comms/src/' + name for name in sorted(os.listdir(folder))
+             if name.startswith('cmd_') and name != 'cmd_length.c']
+    return files + ['boot/src/boot_core.c']
+_HEADERS = ('comms/inc', 'board/inc', 'drive/inc', 'thermal/inc', 'daq/inc', 'boot/inc',
             'filter/inc', 'shtp/inc', 'modbus/inc')
 
 
@@ -1074,11 +1083,8 @@ def _c_reads(text, name, defines):
 def _c_requests():
     """{(PREFIX, OP): reads} for every op a command file dispatches."""
     found = {}
-    folder = os.path.join(REPO, 'comms', 'src')
-    for name in sorted(os.listdir(folder)):
-        if not name.startswith('cmd_') or name == 'cmd_length.c':
-            continue
-        text = io.open(os.path.join(folder, name), encoding='utf-8').read()
+    for rel in _command_files():
+        text = io.open(os.path.join(REPO, *rel.split('/')), encoding='utf-8').read()
         text = re.sub(r'/\*.*?\*/', ' ', text, flags=re.S)
         defines = _c_defines(text)
         for prefix, op, handler, first in _DISPATCH.findall(text):
@@ -1272,13 +1278,10 @@ def _doc_ops():
 def _c_ops():
     """{(PREFIX, op number): (reads, writes)} off the dispatch tables."""
     found = {}
-    folder = os.path.join(REPO, 'comms', 'src')
-    for name in sorted(os.listdir(folder)):
-        if not name.startswith('cmd_') or name == 'cmd_length.c':
-            continue
+    for rel in _command_files():
         own = re.sub(r'/\*.*?\*/', ' ',
-                     io.open(os.path.join(folder, name), encoding='utf-8').read(), flags=re.S)
-        text = _c_source('comms/src/' + name)
+                     io.open(os.path.join(REPO, *rel.split('/')), encoding='utf-8').read(), flags=re.S)
+        text = _c_source(rel)
         defines = _c_defines(text)
         for prefix, op, handler, first in _DISPATCH.findall(own):
             number = defines.get('%s_OP_%s' % (prefix, op))

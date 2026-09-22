@@ -42,6 +42,9 @@ void wr_bytes(wr_t *w, const void *src, uint16_t n);
 
 /** Length-prefixed ASCII: one length byte then the characters, no terminator. */
 void wr_str(wr_t *w, const char *s);
+/** The took byte, as every op taking parameters answers: 1, or 0 and
+    the board's words for what is wrong and what to do. */
+void wr_took(wr_t *out, const char *refusal);
 
 static inline bool wr_ok(const wr_t *w) { return !w->bad; }
 static inline uint16_t wr_len(const wr_t *w) { return w->len; }
@@ -65,6 +68,9 @@ uint16_t rd_u16(rd_t *r);
 uint32_t rd_u32(rd_t *r);
 int32_t  rd_i32(rd_t *r);
 
+/** `n` bytes off the reader, or NULL when fewer are left - the raw
+    payload an op carries after its fields. */
+const uint8_t *rd_bytes(rd_t *r, uint16_t n);
 static inline bool rd_ok(const rd_t *r) { return !r->bad; }
 static inline uint16_t rd_left(const rd_t *r) { return (uint16_t)(r->len - r->pos); }
 

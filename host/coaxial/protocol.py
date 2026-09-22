@@ -68,6 +68,7 @@ DEVICE_TIME = 7
 DEVICE_THERMAL = 8
 DEVICE_POWER = 9
 DEVICE_DRIVE = 10
+DEVICE_BOOT = 11
 
 
 class ImuOp(IntEnum):
@@ -178,6 +179,24 @@ class PowerOp(IntEnum):
     """Device 9, the rails' reference counts - `coaxial.power`."""
     STATE = 0
     RELEASE_ALL = 1
+
+
+class BootOp(IntEnum):
+    """Device 11, the bootloader - `coaxial.boot`; a running application
+    serves STATE and STAY and refuses the rest in words."""
+    HOLD = 0
+    WHO = 1
+    ASSIGN = 2
+    ERASE = 3
+    CHUNK = 4
+    MISSING = 5
+    VERIFY = 6
+    RECORD = 7
+    SEAL = 8
+    GO = 9
+    STATE = 10
+    DUMP = 11
+    STAY = 12
 
 
 class DriveOp(IntEnum):

@@ -116,22 +116,22 @@ static cmd_status_t h_thermal_set_node(rd_t *in, wr_t *out)
   }
   if (node >= (uint8_t)BOARD_THERMAL_NODES)
   {
-    cmd_took(out, "there are twenty nodes, 0..19 - op 0 lists them");
+    wr_took(out, "there are twenty nodes, 0..19 - op 0 lists them");
     return CMD_OK;
   }
   if ((k_per_w <= 0) || (capacity <= 0))
   {
-    cmd_took(out, "a K/W and a heat capacity are both positive; "
+    wr_took(out, "a K/W and a heat capacity are both positive; "
                   "milli-units, so 12000 is 12 K/W");
     return CMD_OK;
   }
   if (!Board_ThermalSetNode(node, (float)k_per_w / MILLI_PER_UNIT,
                             (float)capacity / MILLI_PER_UNIT))
   {
-    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    wr_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -147,17 +147,17 @@ static cmd_status_t h_thermal_set_board(rd_t *in, wr_t *out)
   }
   if ((to_ambient <= 0) || (capacity <= 0))
   {
-    cmd_took(out, "both are positive; milli-units, so 8330 is 8.33 K/W and "
+    wr_took(out, "both are positive; milli-units, so 8330 is 8.33 K/W and "
                   "49000 is 49 J/K");
     return CMD_OK;
   }
   if (!Board_ThermalSetBoard((float)to_ambient / MILLI_PER_UNIT,
                              (float)capacity / MILLI_PER_UNIT))
   {
-    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    wr_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -173,16 +173,16 @@ static cmd_status_t h_thermal_set_sample(rd_t *in, wr_t *out)
   }
   if ((every_ms != 0U) && (settle_ms >= every_ms))
   {
-    cmd_took(out, "the settle has to fit inside the period, or the rail is "
+    wr_took(out, "the settle has to fit inside the period, or the rail is "
                   "never given back; 300 ms in 5000 is the default");
     return CMD_OK;
   }
   if (!Board_ThermalSetSample(every_ms, settle_ms))
   {
-    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    wr_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -244,7 +244,7 @@ static cmd_status_t h_thermal_set_winding(rd_t *in, wr_t *out)
   }
   if ((limit_milli < 0) || (k_per_w_milli <= 0) || (j_per_k_milli <= 0))
   {
-    cmd_took(out, "milli-units: a ceiling of 120000 is 120 C and zero "
+    wr_took(out, "milli-units: a ceiling of 120000 is 120 C and zero "
                   "disables it; 2200 is 2.2 K/W and 180000 is 180 J/K, "
                   "both positive");
     return CMD_OK;
@@ -253,10 +253,10 @@ static cmd_status_t h_thermal_set_winding(rd_t *in, wr_t *out)
                                (float)k_per_w_milli / MILLI_PER_UNIT,
                                (float)j_per_k_milli / MILLI_PER_UNIT))
   {
-    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    wr_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -273,16 +273,16 @@ static cmd_status_t h_thermal_set_limit(rd_t *in, wr_t *out)
   }
   if (node >= (uint8_t)BOARD_THERMAL_NODES)
   {
-    cmd_took(out, "there are twenty nodes, 0..19 - op 0 lists them");
+    wr_took(out, "there are twenty nodes, 0..19 - op 0 lists them");
     return CMD_OK;
   }
   if (!Board_ThermalSetLimit(node, (float)limit_milli / MILLI_PER_UNIT,
                              (float)throttle_ppm / PPM_PER_UNIT))
   {
-    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    wr_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -365,21 +365,21 @@ static cmd_status_t h_thermal_set_edge(rd_t *in, wr_t *out)
   }
   if (edge >= (uint8_t)BOARD_THERMAL_EDGES)
   {
-    cmd_took(out, "there are thirty edges, 0..29 - op 8 lists them");
+    wr_took(out, "there are thirty edges, 0..29 - op 8 lists them");
     return CMD_OK;
   }
   if (k_per_w_milli == 0)
   {
-    cmd_took(out, "zero is no path at all - send a negative K/W to open an "
+    wr_took(out, "zero is no path at all - send a negative K/W to open an "
                   "edge, or a positive one in milli-units to set it");
     return CMD_OK;
   }
   if (!Board_ThermalSetEdge(edge, (float)k_per_w_milli / MILLI_PER_UNIT))
   {
-    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    wr_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -429,10 +429,10 @@ static cmd_status_t h_thermal_ident_reset(wr_t *out)
 {
   if (!Board_ThermalIdentReset())
   {
-    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    wr_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
@@ -449,16 +449,16 @@ static cmd_status_t h_thermal_set_margin(rd_t *in, wr_t *out)
   }
   if ((floor_ppm <= 0) || (floor_ppm > 1000000L))
   {
-    cmd_took(out, "the floor is a fraction of the span, 1 .. 1 000 000 ppm - "
+    wr_took(out, "the floor is a fraction of the span, 1 .. 1 000 000 ppm - "
                   "800 000 is the bench's; zero would trip the stage at boot");
     return CMD_OK;
   }
   if (!Board_ThermalSetMarginFloor((float)floor_ppm / PPM_PER_UNIT))
   {
-    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    wr_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
-  cmd_took(out, NULL);
+  wr_took(out, NULL);
   return CMD_OK;
 }
 
