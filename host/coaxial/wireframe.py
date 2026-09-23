@@ -244,9 +244,14 @@ def _decimate_missing(path, stamp, missing, progress):
 
 #: The coarsest grid a view with a crew draws. Grid 16 is a polygon with
 #: a notch in its rim and a hole in its face at the attitude view's
-#: size - decimation artefacts, seen; 32 is clean, and with eight
-#: workers a 94x36 frame at 32 costs ~35 ms, inside a 20 Hz budget.
-CREW_LEAST = 32
+#: size - decimation artefacts, seen; 32 looked clean face-on, but seen
+#: steeply its face around the bore was gaps - the bore wall's and the
+#: collar's triangles collapse on 0.0625 cells against a bore 0.2
+#: across, and the ground showed through beside the ring the outline
+#: drew where the hole is (the bench's "ghost hole", 2026-09-23).
+#: Grid 48 keeps 5 645 triangles against 32's 5 570 and closes them;
+#: measured in the attitude page's own loop, 31.4 -> 32.3 ms a frame.
+CREW_LEAST = 48
 
 
 #: The mesh a board of so many CELLS across earns: (cells below, grid

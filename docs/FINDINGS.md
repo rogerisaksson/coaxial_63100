@@ -4617,6 +4617,34 @@ looking at the estimate alone.
   a part's knows none; from above the bottom's rim adds no cell, from
   below the top's adds none, edge-on the second adds some.
   test_render 90, 3171 in all.
+* **The ghost hole was the decimation's, and the crew's floor is grid
+  48** (2026-09-23, the bench, with a screenshot of the stand-in seen
+  steeply from the side: the edge enhancer shifted down-left, the hole
+  as a ghost up-right - "some position or time sync error between the
+  edge enhancer and the model"). The view's own chain was rebuilt
+  frame by frame off the screen - the stand-in's IMU, latest(), the
+  deadband, attitude() with the tare, orientation.render with the crew
+  one pose ahead - and the picture reproduced; then run again without
+  the pose ahead, without the crew and without the steady vote: the
+  same picture every time, so none of them. At that pose (q -0.600,
+  0.264, -0.257, 0.710; the camera sees the solder side 73 degrees
+  from face-on, m8 -0.285) the bottom bore ring's cells sit ON the
+  bore's centre - centroid column 31.2 against the centre's 31.3 - and
+  the "hole" is two uncovered cells beside it at grid 32, none at 48
+  or 64. The decimate at 32 clusters on cells of 0.0625 against a
+  bore 0.2 across: the bore wall's triangles collapse and go, the
+  collar's with them, and the face around the hole is left with gaps
+  that show the ground - the ghost - while the ring, right where the
+  hole is, stands beside them. Rendered at the bore, magnified, at 32,
+  48 and 64: the 32 face full of gaps, the two finer ones closed with
+  the ring on the hole. CREW_LEAST 32 -> 48: the 48 decimate keeps
+  5 645 triangles against 32's 5 570 (64 keeps 12 430) and moves the
+  bore's vertices a mean 0.008 units against 0.030, and in the view's
+  own loop at 108x40 with the crew of 8 it costs 31.4 -> 32.3 ms a
+  frame of compose (46.7 -> 44.4 Hz in the harness, both past the 30
+  Hz cap) - a millisecond for the gaps closed. The chooser's turntable
+  rides the same floor. Not changed: the LOD table, so past zoom 3.6
+  the 64 decimate takes over as before.
 
 ## Ruled Out
 
