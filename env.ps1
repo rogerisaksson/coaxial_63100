@@ -50,11 +50,13 @@ $Wanted = [ordered]@{
 
 $added = @()
 $missing = @()
-foreach ($name in $Wanted.Keys) {
-    $bin = Get-NewestBundleBin $name
-    if ($null -eq $bin) { $missing += $name; continue }
+# Not $name: dot-sourced, it is the caller's, and coaxial_tty.ps1's -Name is
+# a ValidateSet - the first bundle name failed it (2026-09-23).
+foreach ($bundle in $Wanted.Keys) {
+    $bin = Get-NewestBundleBin $bundle
+    if ($null -eq $bin) { $missing += $bundle; continue }
     if ($env:Path -notlike "*$bin*") { $env:Path = "$bin;$env:Path" }
-    $added += ($name + ' ' + (Split-Path $bin -Parent | Split-Path -Leaf))
+    $added += ($bundle + ' ' + (Split-Path $bin -Parent | Split-Path -Leaf))
 }
 
 # cube.exe is the bundle manager - `cube bundle install`, `cube stlink-detect`

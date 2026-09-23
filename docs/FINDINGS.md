@@ -140,6 +140,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   grew to 3.0 dots half-width, pulled teeth floated loose. Stroke capped
   at 1.0 (0.8 broke into dots), undriven tooth length drawn as track,
   kept out of any cell an area holds (2026-09-23).
+- `env.ps1` dot-sourced into `coaxial_tty.ps1`: its `foreach ($name ...)` was the
+  caller's `[ValidateSet] $Name` and failed it; the loop is `$bundle` (2026-09-23).
 
 ## Local model
 
