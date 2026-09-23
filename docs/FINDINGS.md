@@ -5050,6 +5050,16 @@ looking at the estimate alone.
   degrees shows the choke as a frustum. Held in test_render: a box's
   loop is one block of twelve segments, a crest 0.2 on a base 0.4
   still leans four legs.
+* **The preload's inquiry shows once** (2026-09-23, the bench: "make
+  READOUT show that it preloads only once, not in a loop"). The
+  PRELOAD page was the first of the cycle and came round with it. Now
+  `readout.draw` drops it for good the moment the page index has
+  passed it - the state remembers, the index shifts back so the same
+  page goes on - and the cycle runs IDENTITY, FITMENT, PROVENANCE from
+  then on. Held in test_views on a scripted clock, 240 s of frames:
+  the inquiries run PRELOAD, IDENTITY, FITMENT, PROVENANCE, IDENTITY,
+  FITMENT, PROVENANCE, IDENTITY - the preload once. test_views 222,
+  3207 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

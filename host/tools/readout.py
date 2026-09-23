@@ -271,8 +271,19 @@ def frame(state, inquiry, count, now, width):
 
 def draw(state, identity, width, rows, now=None, note=None, preload=None):
     """One frame of the readout for a box `width` cells wide with `rows`
-    rows inside it, stepping `state` on the way."""
+    rows inside it, stepping `state` on the way. The preload's inquiry
+    shows ONCE: after it has typed, held and decayed the pages go on
+    without it and it never comes round again - what was fetched is
+    news the first time and a loop the second (the bench, 2026-09-23).
+    """
     now = time.monotonic() if now is None else now
+    if state.get('preloaded'):
+        preload = None
     cut = inquiries(pages(identity, width, note, preload), max(1, rows - 1))
     step(state, now, len(cut), cut[state['page'] % len(cut)][1])
+    ahead = sum(1 for title, _rows in cut if title == 'PRELOAD')
+    if ahead and state['page'] >= ahead:
+        state['preloaded'] = True
+        state['page'] -= ahead
+        cut = inquiries(pages(identity, width, note), max(1, rows - 1))
     return frame(state, cut[state['page'] % len(cut)], len(cut), now, width)

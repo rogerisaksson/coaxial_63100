@@ -2138,6 +2138,22 @@ def test_the_preload_is_the_first_inquiry(report):
                  and stale is None, '%d bytes, %s, %s' % (size, back is not None, stale))
     report.check('preload: the room is measured - no refusal, or one in '
                  'words', why is None or why.startswith('skipped'), str(why))
+    # ...and shown once: on a scripted clock the inquiries run PRELOAD,
+    # IDENTITY, FITMENT, PROVENANCE, and round again WITHOUT the preload.
+    scripted = readout.fresh(0.0)
+    seen = []
+    for tick in range(2400):
+        text = readout.draw(scripted, identity, 54, 12, now=tick * 0.1,
+                            preload=state).plain
+        head = text.split('\n', 1)[0]
+        title = head.split('  ', 1)[1] if '  ' in head else ''
+        if not seen or seen[-1] != title:
+            seen.append(title)
+    report.check('preload: shown once - the second time round the '
+                 'readout goes on without it',
+                 seen[:5] == ['PRELOAD', 'IDENTITY', 'FITMENT', 'PROVENANCE',
+                              'IDENTITY'] and seen.count('PRELOAD') == 1,
+                 str(seen[:8]))
 
 
 def test_the_readout_prints_what_the_bus_said(report):
