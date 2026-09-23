@@ -75,11 +75,6 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 4. Commit, push, move on: do not wait for CI. Read it at the next push
    (`curl -s https://api.github.com/repos/rogerisaksson/coaxial_63100/actions/runs?per_page=3`);
    a red run is fixed before anything else.
-5. End every item with exactly:
-
-> **Continue, or commit and push?**
-> *Continue* — keep working in this session
-> *Commit and push* — stage, commit, push to origin/main
 
 A mid-turn message from the bench is the next item.
 
