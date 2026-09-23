@@ -487,6 +487,34 @@ def test_ink_never_leans_below_the_floor(report):
                  '%d of %d blank, %.0f%%' % (blank, covered, 100 * share))
 
 
+def test_the_decimate_keeps_the_bore(report):
+    """The bore's wall is thinner than a grid-48 cell, so clustering
+    merged its rings and the see-through came out smaller and shifted
+    from the mesh's circle the art is drawn to - two holes on the
+    bench. Corners within BORE_KEEP of the axis stay exact: the 48
+    decimate holds the ring of 86 corners at radius 0.100, and nothing
+    of the plate's face inside it.
+    """
+    _edges, solid = wireframe._model(1.2672, wireframe.CREW_LEAST)
+    pts = solid[0]
+    top = wireframe._slab_top(pts)
+    bottom = wireframe._slab_bottom(pts, top)
+    ring = inside = 0
+    for i in range(len(pts) // 3):
+        z = pts[3 * i + 2]
+        if not (bottom - 0.005 <= z <= top + 0.005):
+            continue
+        r = math.hypot(pts[3 * i], pts[3 * i + 1])
+        if abs(r - 0.100) < 0.002:
+            ring += 1
+        elif r < 0.098:
+            inside += 1
+    report.check('decimate: the bore\'s ring of corners at radius 0.100 '
+                 'is kept exact', ring >= 80, '%d corners' % ring)
+    report.check('decimate: no corner of the plate inside the bore',
+                 inside == 0, '%d inside' % inside)
+
+
 def test_key_light(report):
     """The key light on a synthetic plane: leaning into the beam is
     brighter than flat, leaning away is darker - the sign, held exactly.
@@ -1081,6 +1109,7 @@ def main():
     test_outline(report)
     test_the_edge_is_the_rasters_silhouette(report)
     test_ink_never_leans_below_the_floor(report)
+    test_the_decimate_keeps_the_bore(report)
     test_key_light(report)
     test_the_face_is_a_halftone(report)
     test_triad(report)

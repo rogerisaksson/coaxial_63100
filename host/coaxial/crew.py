@@ -56,7 +56,7 @@ def _band(job) -> tuple:
                                                      rows)
     if shading is None:
         return depth, top, sun, coverage, reached
-    pivot, slope, floor, shadow, shadow_step, bias, art = shading
+    pivot, slope, floor, shadow, shadow_step, bias, art, planes = shading
     # shade() back-projects each cell from its row: hand it a camera
     # whose cy is shifted by the band's first row so row 0 of the strip
     # is row `first` of the frame.
@@ -66,7 +66,8 @@ def _band(job) -> tuple:
     classes = engine.shade(depth, top, sun, strip, m, pivot, slope, floor,
                            art=_Worker.art if art else None, shadow=shadow,
                            shadow_step=shadow_step, bias=bias,
-                           levels=levels, bare=bare, seed=seed)
+                           levels=levels, bare=bare, seed=seed,
+                           planes=planes)
     return depth, coverage, reached, classes, levels, bare, seed
 
 
@@ -234,6 +235,7 @@ class Crew:
         """(depth, coverage, reached, classes, levels, bare, seed) for the
         whole frame, each band rastered, folded AND shaded by its worker.
         `shading` = (pivot, slope, floor, shadow, shadow_step, bias,
-        art) - `art` a flag: the worker holds the face itself."""
+        art, planes) - `art` a flag: the worker holds the face itself;
+        `planes` the slab's (top, bottom) z the art is read on."""
         self.submit(solid, m, cam, beam, sun_min, shading)
         return self.collect()

@@ -266,29 +266,50 @@ def fold(depth, top, sun, width, height):
     return out_depth, out_top, out_sun, coverage, reached
 
 
-def _art_hit(m, u, v, distance, tz, back, art_w, art_h):
-    """Where a cell's view ray meets the art plane: the art cell it shows
-    and the cell's rise above the plane, or None when it misses the
-    plane's unit disc. The UNMIRRORED plane point is what the rise is
-    measured from, before the back view flips hx for the lookup."""
-    dz = m[2] * u + m[5] * v - m[8]
-    if abs(dz) <= 1e-9:
+def _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane=0.0):
+    """The art cell under a cell's OWN SURFACE POINT, and that point's
+    rise above the art's plane - or None outside the unit disc. The
+    view-space point (u/w, v/w, tz) goes back into model space through
+    the rotation's transpose; the art is a top view, so its x and y
+    are the lookup, mirrored for the back; the rise is its height over
+    `plane` - the face the art is drawn on - in view depth, the height
+    over the plane's own tilt, as the ray's hit measured it before.
+
+    IT WAS THE VIEW RAY'S HIT ON z = 0. The slab's faces sit at z
+    -0.069 and -0.101 - the model is centred on its whole height, the
+    parts included - so at a tilt the ray met z = 0 a parallax away
+    from the surface it was shading, 0.07 to 0.1 units' worth, and the
+    art slid over the geometry as the board turned: the bore's blank
+    up and right of the see-through at 66 degrees (two holes), the
+    parts' ink beside their bodies, nothing at face-on, worst at the
+    steep poses - what the bench had described from the first
+    screenshot, and what no edge drawn from the coverage could follow
+    (2026-09-23). A synthetic plane at z = 0 reads the same either way."""
+    d = distance - tz
+    tx, ty = u * d, v * d
+    hx = m[0] * tx + m[3] * ty + m[6] * tz
+    hy = m[1] * tx + m[4] * ty + m[7] * tz
+    hz = m[2] * tx + m[5] * ty + m[8] * tz
+    if hx * hx + hy * hy > 1.0:
         return None
-    t = -(distance * m[8]) / dz
-    hx = distance * m[6] + t * (m[0] * u + m[3] * v - m[6])
-    hy = distance * m[7] + t * (m[1] * u + m[4] * v - m[7])
-    if t <= 0.0 or hx * hx + hy * hy > 1.0:
-        return None
-    rise = tz - (m[6] * hx + m[7] * hy)
+    lean = m[8] if m[8] >= 0.05 else (m[8] if m[8] <= -0.05
+                                      else (0.05 if not back else -0.05))
+    rise = (hz - plane) / lean
     hx = -hx if back else hx
-    iy = int((1.0 - (hy + 1.0) * 0.5) * (art_h - 1))
-    ix = int((hx + 1.0) * 0.5 * (art_w - 1))
+    # An art cell covers [i/w, (i+1)/w) of the span, so the origin is
+    # cell w/2, not (w-1)/2: scaled by (w - 1) the lookup sat half a
+    # cell low and left - 0.02 units in x and 0.04 in y, a braille row
+    # on screen - and the bore's blank sat beside the see-through.
+    iy = int((1.0 - (hy + 1.0) * 0.5) * art_h)
+    ix = int((hx + 1.0) * 0.5 * art_w)
+    iy = 0 if iy < 0 else (art_h - 1 if iy >= art_h else iy)
+    ix = 0 if ix < 0 else (art_w - 1 if ix >= art_w else ix)
     return ix, iy, rise
 
 
 def shade(depth, top, sun, cam, m, pivot, slope, floor,
           art=None, shadow=None, shadow_step=0.0, bias=0.0, levels=None,
-          bare=None, seed=None):
+          bare=None, seed=None, planes=None):
     """Depth to classes 0..2: 0 blank, 1 the exporter's '.', 2 its ':'.
 
     Pass a preallocated float list as `levels` to also receive the
@@ -312,6 +333,12 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
     reach = cam.get('reach', 1.0)
     rows, art_w, art_h, dense = art if art else ([], 0, 0, [])
     back = m[8] < 0.0
+    # The face the art is read on: the slab's bottom from behind, its
+    # top from the front - `planes` is (top, bottom) - and z = 0 for a
+    # model that names none, like the suite's synthetic planes.
+    plane = 0.0
+    if planes is not None:
+        plane = planes[1] if back and planes[1] is not None else planes[0]
     if shadow:
         sbuf, s_n, s_ext, s_right, s_up, s_beam = shadow
         rx, ry, rz = s_right
@@ -342,7 +369,8 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
                 shaded = shadow_step if behind else 0.0
             ink = -1
             ix, iy = px, py
-            hit = (_art_hit(m, u, v, distance, tz, back, art_w, art_h)
+            hit = (_art_hit(m, u, v, distance, tz, back, art_w, art_h,
+                            plane)
                    if art_w and top[row + px] else None)
             if hit is not None:
                 ix, iy, rise = hit

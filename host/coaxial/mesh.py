@@ -70,7 +70,7 @@ def cell_key(point, step):
             int(math.floor(point[2] / step)))
 
 
-def _clustered(faces, divisions):
+def _clustered(faces, divisions, keep=None):
     """(positions, indices, normals) for `faces`, vertices snapped to a grid.
 
     Vertex clustering: every vertex in a grid cell becomes that cell's one
@@ -79,6 +79,13 @@ def _clustered(faces, divisions):
     dropped. Crude next to a proper edge-collapse decimator, and it needs
     no topology, no error quadrics and no half-edges - which is what makes
     it forty lines instead of four hundred.
+
+    `keep(corner)` names the corners that stay EXACT: each is its own
+    cluster, wherever the grid falls. For a feature thinner than a cell
+    - a bore's wall, 0.032 thick against a 0.042 cell at grid 48 - the
+    clustering merges the wall's top and bottom rings and the hole
+    comes out smaller and elsewhere than the mesh's circle; the caller
+    that knows where such a feature is keeps its corners.
 
     Indexed, because clustering is what makes sharing worth having: this
     board's 48,899 triangles have only 23,810 distinct corners between them,
@@ -100,12 +107,18 @@ def _clustered(faces, divisions):
     for corners, stated in faces:
         found = []
         for corner in corners:
-            key = cell_key(corner, step)
+            if keep is not None and keep(corner):
+                key = (round(corner[0], 6), round(corner[1], 6),
+                       round(corner[2], 6), 'exact')
+                centre = corner
+            else:
+                key = cell_key(corner, step)
+                centre = ((key[0] + 0.5) * step, (key[1] + 0.5) * step,
+                          (key[2] + 0.5) * step)
             got = cells.get(key)
             if got is None:
                 got = len(sums)
-                centres.append(((key[0] + 0.5) * step, (key[1] + 0.5) * step,
-                                (key[2] + 0.5) * step))
+                centres.append(centre)
                 sums.append([0.0, 0.0, 0.0, 0])
                 cells[key] = got
             acc = sums[got]

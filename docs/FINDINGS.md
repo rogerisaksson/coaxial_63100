@@ -4776,7 +4776,58 @@ looking at the estimate alone.
   glow pass, which skips class 0. The bench: "now the first picture
   looks crisp". Held in test_render at the screenshot pose: under a
   tenth of the covered cells blank, where half were. test_render 101,
-  3182 in all.
+  3182 in all. Cost, measured after the fact in the view's own loop at
+  108x40 over 200 frames, HEAD against the commit before: compose
+  32.1 ms median to 40.2 (p90 45.8 to 53.1), 23.0 to 23.7 frame to
+  frame - the plate drawn whole at the steep poses, where half its
+  cells were blank and skipped by the glow, the dots and the edge.
+* **THE ART SLID OVER THE GEOMETRY: the ray's hit on z = 0, and a
+  half-cell in the lookup** (2026-09-23, the bench, on the crisp
+  build: "still two holes at i -0.7063 j 0.2652 k -0.4117 real
+  0.5110"). At that pose (the solder side 66 degrees off face-on) the
+  bore's cells as numbers, reached dots over drawn: the art's blank -
+  covered, flat, ink 0 - four cells wide UP AND RIGHT of the
+  decimate's see-through, each ringed on its own. First hypothesis,
+  the decimate: at grid 48 the bore's wall (0.032 thick, a 0.042
+  cell) clusters its two rings into one and the hole comes out
+  smaller and elsewhere; `mesh._clustered` took a `keep` and the 86
+  corners at radius 0.100 stay exact (5 645 to 5 737 triangles) -
+  right, held in test_render, and it moved nothing: the same two
+  holes. The art's own blank measured next: 9 columns by 5 rows of
+  106x54, 0.17 by 0.19 units, centred - the size of the bore. So the
+  LOOKUP: `engine._art_hit` intersected the cell's view ray with the
+  plane z = 0, but the slab's faces sit at z -0.069 (top) and -0.101
+  (bottom) - the model is centred on its whole height, parts included
+  - so at a tilt the ray met z = 0 a parallax away from the surface
+  it was shading, 0.07 to 0.10 units' worth, and the art slid over the
+  geometry as the board turned: nothing at face-on, most at the steep
+  poses, the direction with the tilt - the bench's first description
+  of the fault, "clearest when it turns from the back toward the
+  component side", was of this, and every line drawn from the
+  coverage since was chasing a texture that had moved. Fixed: the
+  cell's own view-space point goes back into model space through the
+  rotation's transpose, its x and y are the top view's lookup, its z
+  against the face the art is read on - `planes` (top, bottom) from
+  the solid's own vertices, the bottom from behind - and the rise
+  keeps the ray's measure, height over the plane's lean. That moved
+  the blank to the other side: three cells UP AND LEFT. Measured
+  through the lookup along the four axes, the art's blank reached
+  0.105 along +x, 0.070 along -x, 0.060 along +y, 0.135 along -y: off
+  by 0.02 in x and 0.04 in y, exactly half an art cell each - the
+  index scaled by (w - 1), so the origin fell on cell 52 of 106 and
+  row 26 of 54, not 53 and 27. Scaled by w and clamped, the blank
+  and the see-through are one hole: at the bench's pose a two-cell
+  slit (too small for EDGE_HOLE_CELLS, no ring, the wall's dots round
+  it); at 60 and 44 degrees the ring tight on the hole with the
+  ground through it; face-on from below (0110, 0130) the ring on the
+  hole and smaller than before, art and geometry agreeing. The crew's
+  shading tuple carries `planes` too - the workers unpacked seven and
+  died with EOFError in the parent, the pose-ahead path had its own
+  copy of the tuple. A synthetic plane at z = 0 reads the same both
+  ways, so nothing else in the suite moved. Cost: none - the view's
+  loop at 108x40 measured 41.0 ms median against HEAD's 40.2, within
+  the run-to-run spread. test_render 103 (+2: the ring kept, no
+  corner inside it), 3184 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

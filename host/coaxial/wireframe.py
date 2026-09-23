@@ -135,9 +135,26 @@ def _decimated(path, divisions):
     # the lot.
     if len(_MESHES) > MESHES_KEPT:
         _forget()
-    got = _MESHES[stamp] = mesh._clustered(mesh.loaded(path), divisions)
+    got = _MESHES[stamp] = mesh._clustered(mesh.loaded(path), divisions,
+                                           keep=_bore_keep)
     _DIVISIONS[id(got)] = (stamp, divisions)
     return got
+
+
+#: THE BORE STAYS EXACT in every decimate: corners within BORE_KEEP of
+#: the axis - the hole is 0.2 across at the origin, its wall 0.032
+#: thick - are their own clusters. Clustered, the wall's rings merged
+#: (0.032 against a 0.042 cell at grid 48) and the see-through came
+#: out smaller and shifted from the mesh's circle the art is drawn
+#: to, so the bench saw TWO holes at i -0.7063 j 0.2652 k -0.4117
+#: real 0.5110 (2026-09-23): the art's blank, ringed, up and right of
+#: the decimate's slit. 86 corners at radius 0.100, 257 triangles
+#: touching them, against the 48 decimate's 5 645.
+BORE_KEEP = 0.115
+
+
+def _bore_keep(corner):
+    return corner[0] * corner[0] + corner[1] * corner[1] < BORE_KEEP * BORE_KEEP
 
 
 #: Which decimate a solid is, by identity; per decimate, its vertices'
@@ -2146,9 +2163,10 @@ def _cells(solid, m, cam, crew, face, foreign):
     needs neighbours. A foreign solid gets no cast shadows and no art;
     `face=False` leaves the class fields None for the wire drawing."""
     width, height = cam['width'], cam['height']
+    planes = None if foreign else _slab_planes(solid)
     if face and crew is not None and crew.holds(solid):
         shading = (PIVOT, SLOPE, FLOOR, None if foreign else _shadowmap(m),
-                   SHADOW_DIM, BIAS, not foreign)
+                   SHADOW_DIM, BIAS, not foreign, planes)
         return crew.frame(solid, m, cam, LIGHT, SUN_MIN, shading)
     buf, topf, sun, coverage, reached = _raster(solid, m, cam, crew)
     if not face:
@@ -2161,8 +2179,25 @@ def _cells(solid, m, cam, crew, face, foreign):
         art=None if foreign else _face(),
         shadow=None if foreign else _shadowmap(m),
         shadow_step=SHADOW_DIM, bias=BIAS, levels=levels, bare=bare,
-        seed=seed)
+        seed=seed, planes=planes)
     return buf, coverage, reached, classes, levels, bare, seed
+
+
+#: Per solid, by identity: the slab's (top, bottom) z, the faces the
+#: art is read on - measured off the solid's own vertices once.
+_PLANES = {}
+
+
+def _slab_planes(solid):
+    """(top, bottom) of `solid`'s slab, from its vertices (`_slab_top`,
+    `_slab_bottom`), once per solid."""
+    got = _PLANES.get(id(solid))
+    if got is None:
+        if len(_PLANES) > MESHES_KEPT:
+            _PLANES.clear()
+        top = _slab_top(solid[0])
+        got = _PLANES[id(solid)] = (top, _slab_bottom(solid[0], top))
+    return got
 
 
 def _paint(grid, tone, cells, cam, m, colour, persist, foreign, solid=None):
@@ -2440,7 +2475,8 @@ def _face_ahead(solid, m, cam, crew, colour, persist, foreign, key):
         crew.submit(solid, pose_m, cam, LIGHT, SUN_MIN,
                     (PIVOT, SLOPE, FLOOR,
                      None if foreign else _shadowmap(pose_m), SHADOW_DIM,
-                     BIAS, not foreign))
+                     BIAS, not foreign,
+                     None if foreign else _slab_planes(solid)))
         persist['flight'] = {'key': pose_key, 'm': pose_m}
 
     def paint(pose_key, pose_m, cells, settles):
