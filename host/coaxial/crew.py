@@ -10,7 +10,10 @@ shadow map, a row range and which solid cross the pipe; a strip of
 finished cells comes back: classes, tone levels, bare geometry, seeds
 and coverage. A band owns its rows outright, so the strips
 concatenate with nothing to merge. What every band repeats is the
-vertex pass.
+vertex pass AND the setup of every triangle before its row reject -
+measured on the threadripper 2026-09-23, 2.0 and 12.8 ms of an empty
+band's 15.3, so the setup is the floor and more workers past eight buy
+nothing (sixteen measured no faster).
 
     with Crew([solid16, solid24, solid32]) as crew:
         art = wireframe.render(q, width, height, crew=crew)
@@ -102,36 +105,83 @@ def split(height, workers):
     return bands
 
 
+def _serve(conn, solids, art):
+    """One worker: the solids and the art held from the start, then a
+    band a message until None."""
+    _load(solids, art)
+    while True:
+        job = conn.recv()
+        if job is None:
+            break
+        conn.send(_band(job))
+    conn.close()
+
+
+#: How long a worker gets to leave on its own before it is terminated.
+CLOSE_S = 1.0
+
+
 class Crew:
-    """A pool of workers holding some solids, ready to draw bands.
+    """Workers holding some solids, each on its own pipe, ready to draw
+    bands.
 
     Built once and reused: on Windows a process starts by importing
-    everything again, about a second each; per frame after that the
-    pool costs the pipe and nothing else."""
+    everything again, about a second each; per frame after that a crew
+    costs the pipe and nothing else. ITS OWN PIPES, NOT A POOL
+    (2026-09-23): multiprocessing.Pool sends every job from a handler
+    thread that needs the GIL, and a parent busy painting hands it over
+    every 5 ms - measured on the threadripper, the eight jobs left the
+    parent over ~40 ms and nothing could overlap the wait. Sent from the
+    calling thread they are in the workers in 1.5 ms. `submit` and
+    `collect` are the two halves of a frame, so a caller can hand the
+    crew one pose and paint another while it works
+    (wireframe._face_ahead); `frame` and `raster` are the two together.
+    """
 
     def __init__(self, solids, art=None, workers=None):
         if workers is None:
             workers = min(MAX_WORKERS, os.cpu_count() or 1)
         self.workers = max(1, workers)
         self.solids = tuple(solids)
-        self.pool = multiprocessing.Pool(self.workers, _load,
-                                         (self.solids, art))
+        context = multiprocessing.get_context('spawn')
+        self.conns, self.procs = [], []
+        for _ in range(self.workers):
+            ours, theirs = context.Pipe()
+            proc = context.Process(target=_serve, args=(theirs, self.solids, art),
+                                   daemon=True)
+            proc.start()
+            theirs.close()
+            self.conns.append(ours)
+            self.procs.append(proc)
+        #: Bands sent and not yet received - one frame at most.
+        self.pending = 0
 
     def holds(self, solid):
         """Whether `solid` - by identity - is one the workers were given."""
         return any(held is solid for held in self.solids)
 
     def close(self):
-        if self.pool is not None:
-            self.pool.terminate()
-            self.pool.join()
-            self.pool = None
+        if self.conns is None:
+            return
+        for conn in self.conns:
+            try:
+                conn.send(None)
+            except (OSError, ValueError, EOFError):   # a worker already gone
+                pass
+        for proc in self.procs:
+            proc.join(timeout=CLOSE_S)
+            if proc.is_alive():
+                proc.terminate()
+        for conn in self.conns:
+            conn.close()
+        self.conns = self.procs = None
 
     def _live(self):
-        """The pool, while there is one: a closed crew renders nothing."""
-        if self.pool is None:
+        """The pipes, while there are any: a closed crew renders nothing."""
+        if self.conns is None:
             raise RigError('the crew is closed')
-        return self.pool
+        return self.conns
+
     def __enter__(self):
         return self
 
@@ -142,37 +192,48 @@ class Crew:
     def _which(self, solid):
         return next(i for i, held in enumerate(self.solids) if held is solid)
 
+    def submit(self, solid, m, cam, beam, sun_min, shading):
+        """This frame's bands to the workers, one each. One frame in
+        flight at a time: a second submit before `collect` is refused,
+        because the pipes would then hold two frames' results in order
+        and a caller could not tell which it painted."""
+        if self.pending:
+            raise RigError('a frame is in flight; collect it first')
+        conns = self._live()
+        bands = split(cam['height'], self.workers)
+        which = self._which(solid)
+        for conn, band in zip(conns, bands):
+            conn.send((which, m, cam, beam, sun_min, band, shading))
+        self.pending = len(bands)
+
+    def collect(self):
+        """The frame `submit` sent, waited for and concatenated in band
+        order: (depth, top, sun, coverage, reached) for a raster, (depth,
+        coverage, reached, classes, levels, bare, seed) for a shaded
+        frame."""
+        if not self.pending:
+            raise RigError('nothing is in flight')
+        conns = self._live()
+        strips = [conn.recv() for conn in conns[:self.pending]]
+        self.pending = 0
+        whole = [[] if isinstance(field, list) else bytearray()
+                 for field in strips[0]]
+        for strip in strips:
+            for field, part in zip(whole, strip):
+                field += part
+        return tuple(whole)
+
     def raster(self, solid, m, cam, beam=None, sun_min=0.0):
         """(depth, top, sun, coverage, reached) at cell resolution for the
         whole frame: the dot raster and fold, as bands, concatenated in
         order."""
-        jobs = [(self._which(solid), m, cam, beam, sun_min, band, None)
-                for band in split(cam['height'], self.workers)]
-        depth, top, sun, coverage = [], bytearray(), bytearray(), []
-        reached = bytearray()
-        for d, t, s, c, q in self._live().map(_band, jobs):
-            depth += d
-            top += t
-            sun += s
-            coverage += c
-            reached += q
-        return depth, top, sun, coverage, reached
+        self.submit(solid, m, cam, beam, sun_min, None)
+        return self.collect()
 
     def frame(self, solid, m, cam, beam, sun_min, shading):
         """(depth, coverage, reached, classes, levels, bare, seed) for the
         whole frame, each band rastered, folded AND shaded by its worker.
         `shading` = (pivot, slope, floor, shadow, shadow_step, bias,
         art) - `art` a flag: the worker holds the face itself."""
-        jobs = [(self._which(solid), m, cam, beam, sun_min, band, shading)
-                for band in split(cam['height'], self.workers)]
-        depth, coverage, reached, classes = [], [], bytearray(), bytearray()
-        levels, bare, seed = [], [], []
-        for d, c, q, k, lv, b, s in self._live().map(_band, jobs):
-            depth += d
-            coverage += c
-            reached += q
-            classes += k
-            levels += lv
-            bare += b
-            seed += s
-        return depth, coverage, reached, classes, levels, bare, seed
+        self.submit(solid, m, cam, beam, sun_min, shading)
+        return self.collect()

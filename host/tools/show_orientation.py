@@ -360,7 +360,9 @@ def compose(origin, args, view, colour, console):
         shop=view['shop'], toon=not args.photo, wire=not args.photo,
         colour=colour, frame_on=view['frame_on'],
         crew=view.get('crew'), persist=view.get('persist'),
-        scroll=view.get('scroll')).splitlines()
+        # ONE POSE AHEAD: the crew rasters the pose just read while the
+        # previous one is painted - wireframe._face_ahead has the numbers.
+        scroll=view.get('scroll'), ahead=True).splitlines()
     margin = min((len(l) - len(l.lstrip(' '))
                   for l in art if l.strip()), default=0)
     art = [l[margin:] for l in art]

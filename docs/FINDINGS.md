@@ -4437,6 +4437,47 @@ looking at the estimate alone.
   one-pose-ahead crew with the settle memo (a held pose is re-rastered
   FACE_SETTLE times today, ~347 ms every time the board rests) and the
   y-reject; then the parent's passes.
+* **The crew one pose ahead, on its own pipes** (2026-09-23, the second
+  step of the above). `Crew` is eight worker processes on their own
+  `multiprocessing.Pipe`s with the sends on the calling thread, in place
+  of a `Pool`: the Pool's handler thread needs the GIL to pickle and send
+  each job and a parent busy painting hands it over every 5 ms, so the
+  eight jobs left the parent over ~40 ms and nothing could overlap the
+  wait (measured by the crew lens, and again with
+  `sys.setswitchinterval(0.0005)` as the other cure - the pipes need no
+  process-wide setting). `submit` and `collect` are a frame's two halves;
+  `frame` and `raster` are the two together, so every other caller is as
+  it was. `wireframe._face_ahead`, chosen by `render(ahead=True)` with a
+  crew and `persist` (the attitude page passes it): the pose asked for
+  goes to the crew and the pose whose bands are ready - the previous one
+  - is painted meanwhile, with its own rotation for the triad; the pose
+  the board rests on is collected and painted at once; a flight made
+  stale by a framing change is dropped; with nothing in flight the held
+  picture stands one more frame, which is where the one-frame lag begins,
+  and with no picture to stand (the first frame, a resize) the crew is
+  waited for as before. The settle memo rode along: `_face_layer` keeps
+  the cells beside the layer and repaints from them while the pose
+  settles, one raster per pose instead of FACE_SETTLE + 1 (held in
+  test_render: "from ONE raster"). Identity held in test_render on the
+  same crew, a rest then four poses then a rest: every ahead picture is
+  the sync path's a frame later, the lag's first frame is the held
+  picture, and a rest drains the flight; the steady vote makes this
+  exact because at rest its two held frames are already equal. Measured
+  in the view's own loop, 120 frames at --hz 30, crew of 8: 108x40
+  compose 56.2 -> 28.4 ms (the crew wait gone from it), 69.8 -> 42.7 ms
+  a frame, 14.3 -> 23.4 Hz - past the 20 Hz default for the first time
+  on this machine, 92.3 ms and 10.8 Hz two steps ago; 150x44 (the
+  chooser's own framing) 93.6 -> 59.4 ms, 10.7 -> 16.8 Hz, from 134 and
+  7.5. The picture is one frame late: 43 ms at that rate, under the
+  IMU's report interval and the steady vote's own frame. crew.py's
+  "what every band repeats is the vertex pass" was wrong and says so
+  now: the crew lens measured an empty band at 15.3 ms of which 12.8 is
+  the setup of every triangle before its row reject and 2.0 the vertex
+  pass - that setup is the floor, which is why sixteen workers measured
+  no faster than eight. NEXT: the y-reject hoisted to the top of the
+  triangle loop (36 -> 32 ms wall, identical, measured by the lens), the
+  parent's passes (9 of 19 ms identically), and the grain seed on the
+  frame row before any band balancing. test_render 86, 3157 in all.
 
 ## Ruled Out
 

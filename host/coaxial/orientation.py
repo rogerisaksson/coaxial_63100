@@ -616,7 +616,8 @@ LIFT = 0.42
 
 def render(q, width=44, height=19, zoom=1.0, shop=None,
            ramp=ascii3d.CHARACTERS, toon=False, colour=False, wire=False,
-           frame_on=True, crew=None, persist=None, scroll=None):
+           frame_on=True, crew=None, persist=None, scroll=None,
+           ahead=False):
     """The board under rotation `q`, as `height` lines of `width` characters.
 
     The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
@@ -634,7 +635,8 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
         # cued strokes - coaxial.wireframe, not a wireframed mesh.
         return wireframe.render(q, width, height, zoom=zoom, colour=colour,
                                 horizon=frame_on, triad=frame_on, lift=LIFT,
-                                crew=crew, persist=persist, scroll=scroll)
+                                crew=crew, persist=persist, scroll=scroll,
+                                ahead=ahead)
 
     cols, rows, _cell = ascii3d.grid(width, height)
     if (toon or wire) and shop is None:

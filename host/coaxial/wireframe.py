@@ -2021,6 +2021,25 @@ def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
         _outline(grid, tone, buf, cam, m, colour, heat=heat)
 
 
+def _painted(solid, m, cam, cells, colour, persist, foreign):
+    """`(buf, layer)`: the face painted from `cells` onto a blank grid -
+    `(row, col, glyph, tone)` for every cell it marks."""
+    width, height = cam['width'], cam['height']
+    grid = [[' '] * width for _ in range(height)]
+    tone = [[None] * width for _ in range(height)]
+    _paint(grid, tone, cells, cam, m, colour, persist, foreign)
+    layer = [(r, c, grid[r][c], tone[r][c])
+             for r in range(height) for c in range(width)
+             if grid[r][c] != ' ']
+    return cells[0], layer
+
+
+def _hold(persist, key, m, cells, buf, layer, settles):
+    if persist is not None:
+        persist['face'] = {'key': key, 'm': m, 'raw': cells, 'buf': buf,
+                           'cells': layer, 'settles': settles}
+
+
 def _face_layer(solid, m, cam, crew, colour, persist, foreign, key):
     """`(buf, cells)`: the depth buffer and the face - `(row, col, glyph,
     tone)` for every cell it paints - HELD in `persist` under `key` and
@@ -2031,7 +2050,11 @@ def _face_layer(solid, m, cam, crew, colour, persist, foreign, key):
     thing that moves at rest, so the face can be painted once onto a
     blank grid and laid over each frame's ground - the same picture the
     passes drew over the ground themselves, cell for cell. A new pose is
-    drawn in full FACE_SETTLE times first, so the exposure has glided.
+    drawn in full FACE_SETTLE times first, so the exposure has glided -
+    FROM THE SAME CELLS: the raster and shade of a settling pose were
+    asked of the crew FACE_SETTLE times while only the exposure moved,
+    ~347 ms every time the board came to rest at 108x40 on the
+    threadripper (2026-09-23), for cells the workers had already made.
     No `persist`, no cache: a test's single frame stands alone."""
     held = persist.get('face') if persist is not None else None
     if held is not None and held['key'] != key:
@@ -2039,24 +2062,111 @@ def _face_layer(solid, m, cam, crew, colour, persist, foreign, key):
     if held is not None and held['settles'] >= FACE_SETTLE:
         return held['buf'], held['cells']
     settles = held['settles'] + 1 if held is not None else 0
-    cells = _cells(solid, m, cam, crew, True, foreign)
-    width, height = cam['width'], cam['height']
-    grid = [[' '] * width for _ in range(height)]
-    tone = [[None] * width for _ in range(height)]
-    _paint(grid, tone, cells, cam, m, colour, persist, foreign)
-    layer = [(r, c, grid[r][c], tone[r][c])
-             for r in range(height) for c in range(width)
-             if grid[r][c] != ' ']
-    if persist is not None:
-        persist['face'] = {'key': key, 'buf': cells[0], 'cells': layer,
-                           'settles': settles}
-    return cells[0], layer
+    cells = (held['raw'] if held is not None
+             else _cells(solid, m, cam, crew, True, foreign))
+    buf, layer = _painted(solid, m, cam, cells, colour, persist, foreign)
+    _hold(persist, key, m, cells, buf, layer, settles)
+    return buf, layer
+
+
+#: The pose's place in a face key; everything else in it is the framing.
+POSE = 10
+
+
+def _face_ahead(solid, m, cam, crew, colour, persist, foreign, key):
+    """`(key, m, buf, layer)` of the pose to PAINT - one pose behind the
+    one asked for while the board moves.
+
+    ONE POSE AHEAD. The crew's bands were the parent's wait: 33-39 ms
+    of every moving frame on the threadripper, the slowest of eight
+    bands, with the parent idle in `pool.map` and its own ~20 ms of
+    painting after. Here the pose asked for goes to the crew first and
+    the pose whose bands are ready - the previous one - is painted while
+    the workers raster: the wait is hidden under the paint, and the
+    view's loop went 76 -> 46 ms a frame (13 -> 22 Hz), measured
+    2026-09-23 with every picture the sync path would have drawn, a
+    frame later. The price is that frame: 50 ms at 20 Hz, under the
+    IMU's own report interval and the steady vote's own frame.
+
+    The states, in `persist`: `face` is the last pose painted, with its
+    cells; `flight` the pose the crew is on. A pose that is the held one
+    is settled or settling from its own cells, and a flight that is not
+    it is drained. A flight that is the pose asked for is the board
+    resting on it: painted now. A flight that is another pose in the
+    same framing is painted now and the new pose sent. Nothing in
+    flight: the new pose is sent and the held picture stands one more
+    frame, which is where the lag begins - or, with no picture to stand
+    (the first frame, a resize), the crew is waited for as before. A
+    framing change under a flight drops its cells: they are the wrong
+    size."""
+    held = persist.get('face')
+    flight = persist.get('flight')
+    framing = key[:POSE] + key[POSE + 1:]
+
+    def same_framing(other):
+        return other[:POSE] + other[POSE + 1:] == framing
+
+    def send(pose_key, pose_m):
+        if crew.pending:                     # a persist reset mid-flight
+            crew.collect()
+        crew.submit(solid, pose_m, cam, LIGHT, SUN_MIN,
+                    (PIVOT, SLOPE, FLOOR,
+                     None if foreign else _shadowmap(pose_m), SHADOW_DIM,
+                     BIAS, not foreign))
+        persist['flight'] = {'key': pose_key, 'm': pose_m}
+
+    def paint(pose_key, pose_m, cells, settles):
+        buf, layer = _painted(solid, pose_m, cam, cells, colour, persist,
+                              foreign)
+        _hold(persist, pose_key, pose_m, cells, buf, layer, settles)
+        return pose_key, pose_m, buf, layer
+
+    if held is not None and held['key'] == key:
+        if flight is not None:                # came and went unpainted
+            crew.collect()
+            persist['flight'] = None
+        if held['settles'] >= FACE_SETTLE:
+            return key, held['m'], held['buf'], held['cells']
+        return paint(key, held['m'], held['raw'], held['settles'] + 1)
+    if flight is not None:
+        cells = crew.collect()
+        persist['flight'] = None
+        if flight['key'] == key:              # rested on the pose in flight
+            return paint(key, m, cells, 0)
+        if same_framing(flight['key']):
+            send(key, m)
+            return paint(flight['key'], flight['m'], cells, 0)
+    send(key, m)
+    if held is not None and same_framing(held['key']):
+        return held['key'], held['m'], held['buf'], held['cells']
+    cells = crew.collect()
+    persist['flight'] = None
+    return paint(key, m, cells, 0)
+
+
+def _face_of(solid, q, m, cam, crew, colour, persist, foreign, ahead,
+             framing):
+    """`(m, buf, layer)` for the pose `q` under `framing` - everything
+    else the face depends on, so a change in any of it is a new drawing
+    and a pose the deadband holds is not. Ahead, with a crew and
+    `persist`, the pose painted is the one the crew has ready and `m` is
+    its rotation."""
+    key = framing + (tuple(round(v, 6) for v in q),
+                     id(solid) if foreign else None)
+    if ahead and persist is not None and crew is not None \
+            and crew.holds(solid):
+        _key, m, buf, layer = _face_ahead(solid, m, cam, crew, colour,
+                                          persist, foreign, key)
+        return m, buf, layer
+    buf, layer = _face_layer(solid, m, cam, crew, colour, persist,
+                             foreign, key)
+    return m, buf, layer
 
 
 def render(q, width, height, zoom=1.0, colour=True,
            horizon=True, face=True, tip=None, solid=None,
            distance=None, lift=0.44, crew=None, least=0, triad=False,
-           persist=None, scroll=None):
+           persist=None, scroll=None, ahead=False):
     """The board under rotation `q`, as a vector drawing.
 
     Cell-resolution: the strokes ARE the picture, so there is no half-block
@@ -2071,7 +2181,9 @@ def render(q, width, height, zoom=1.0, colour=True,
     face can be HELD while the pose holds (_face_layer) - at rest only
     the ground is drawn; without it every frame stands alone. `scroll`
     is seconds of travel over the ground: the grid's rungs slide toward
-    the camera at GROUND_SPEED; None holds still."""
+    the camera at GROUND_SPEED; None holds still. `ahead`, with a crew
+    and `persist`, paints one pose behind the one asked for while the
+    board moves, the crew rastering the next meanwhile (_face_ahead)."""
 
     # `solid` overrides the board with another mesh - facecheck proves
     # the LIGHT MODEL on the exporter's cube, whose flat faces turn a
@@ -2114,13 +2226,12 @@ def render(q, width, height, zoom=1.0, colour=True,
     scale, cx, cy = cam['scale'], cam['cx'], cam['cy']
 
     if face:
-        # Everything the face depends on: a change in any of it is a
-        # new drawing, and a pose the deadband holds is not.
-        key = (width, height, zoom, colour, foreign, lift, distance, tip,
-               least, crew is not None, tuple(round(v, 6) for v in q),
-               id(solid) if foreign else None)
-        buf, layer = _face_layer(solid, m, cam, crew, colour, persist,
-                                 foreign, key)
+        # `m` comes back as the PAINTED pose's - one behind, ahead - so
+        # the triad tilts with what is drawn.
+        m, buf, layer = _face_of(
+            solid, q, m, cam, crew, colour, persist, foreign, ahead,
+            (width, height, zoom, colour, foreign, lift, distance, tip,
+             least, crew is not None))
     else:
         buf, layer = _cells(solid, m, cam, crew, False, foreign)[0], ()
 

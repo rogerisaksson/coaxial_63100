@@ -628,21 +628,25 @@ def test_the_face_is_held_while_the_pose_holds(report):
     changed pose is a new drawing. THE FANS: a frame that costs more
     than its period never sleeps, and a board on a bench is at rest
     nearly always - measured, 50 ms a frame to 3 with the face held."""
-    calls = []
-    real = wireframe._cells
+    calls, rasters = [], []
+    real, real_cells = wireframe._paint, wireframe._cells
 
     def counted(*args, **kwargs):
         calls.append(1)
         return real(*args, **kwargs)
 
+    def counted_cells(*args, **kwargs):
+        rasters.append(1)
+        return real_cells(*args, **kwargs)
+
     q = (0.05, 0.02, 0.0, 0.998)
     state = {}
-    wireframe._cells = counted
+    wireframe._paint, wireframe._cells = counted, counted_cells
     try:
         shown = [wireframe.render(q, 60, 20, zoom=1.0, colour=True,
                                   persist=state, scroll=0.0)
                  for _ in range(wireframe.FACE_SETTLE + 1)]
-        drawn = len(calls)
+        drawn, rastered = len(calls), len(rasters)
         held = wireframe.render(q, 60, 20, zoom=1.0, colour=True,
                                 persist=state, scroll=0.0)
         moved = wireframe.render(q, 60, 20, zoom=1.0, colour=True,
@@ -652,12 +656,15 @@ def test_the_face_is_held_while_the_pose_holds(report):
                                   colour=True, persist=state, scroll=0.7)
         after_turn = len(calls)
     finally:
-        wireframe._cells = real
+        wireframe._paint, wireframe._cells = real, real_cells
 
     report.check('a new pose is drawn in full FACE_SETTLE + 1 times',
                  drawn == wireframe.FACE_SETTLE + 1, '%d drawings' % drawn)
+    report.check('from ONE raster: the cells are kept while the pose '
+                 'settles and only the exposure moves', rastered == 1,
+                 '%d rasters' % rastered)
     report.check('then held: two more frames at the same pose cost no '
-                 'raster', after_hold == drawn,
+                 'drawing', after_hold == drawn,
                  '%d drawings' % (after_hold - drawn))
     report.check('and the held frame is the drawn one, cell for cell',
                  held == shown[-1], 'differs')
@@ -671,6 +678,51 @@ def test_the_face_is_held_while_the_pose_holds(report):
                  state['face']['settles'] == 0
                  and state['face']['key'][:2] == (60, 20),
                  str(state['face']['key']))
+
+
+def test_the_crew_paints_one_pose_behind(report):
+    """With `ahead`, a crew and `persist`, a moving board is painted one
+    pose behind the one asked for - the crew rastering the newest while
+    the previous is painted - and every picture is the one the
+    synchronous path draws, a frame later. Measured on the threadripper
+    (2026-09-23): the crew's 33-39 ms wait hidden under the parent's
+    paint, the view's loop 76 -> 46 ms a frame.
+
+    A rest first, so both paths' steady votes hold the same two
+    frames; then four poses; then a rest on the last. Sync paints
+    request i at frame i; ahead paints request i-1 from the first turn
+    on, and the held picture stands for the frame the lag begins.
+    """
+    from coaxial import crew as crewmod
+
+    rest = (0.05, 0.02, 0.0, 0.998)
+    turn = [(0.05 + 0.04 * k, 0.02, 0.01 * k, 0.998) for k in range(1, 5)]
+    asked = [rest] * 3 + turn + [turn[-1]] * 3
+    pool = crewmod.Crew(wireframe._lods(), art=wireframe._face(), workers=4)
+    try:
+        sync, ahead = {}, {}
+        s = [wireframe.render(q, 60, 20, zoom=1.0, colour=True, crew=pool,
+                              persist=sync, scroll=0.0) for q in asked]
+        a = [wireframe.render(q, 60, 20, zoom=1.0, colour=True, crew=pool,
+                              persist=ahead, scroll=0.0, ahead=True)
+             for q in asked]
+        drained = ahead.get('flight') is None and pool.pending == 0
+    finally:
+        pool.close()
+    report.check('at rest the two paths draw the same frames',
+                 a[:3] == s[:3], 'differ')
+    report.check('the frame the lag begins on is the held picture',
+                 a[3] == s[2], 'differs')
+    report.check('from then on every picture is the sync path\'s, one '
+                 'frame later - through the turn and the rest after it',
+                 all(a[i] == s[i - 1] for i in range(4, len(asked))),
+                 str([i for i in range(4, len(asked)) if a[i] != s[i - 1]]))
+    report.check('and a rest drains the crew: nothing in flight',
+                 drained, str(ahead.get('flight')))
+    # The steady vote shows the previous frame's glyphs, so the turn's
+    # first picture still looks like the rest: count from the second.
+    report.check('the pictures moved: the turn was drawn, not held',
+                 len(set(s[3:8])) == 5, '%d distinct' % len(set(s[3:8])))
 
 
 def test_scroll(report):
@@ -817,6 +869,7 @@ def main():
     test_triad(report)
     test_steady(report)
     test_the_face_is_held_while_the_pose_holds(report)
+    test_the_crew_paints_one_pose_behind(report)
     test_scroll(report)
     test_ladder(report)
     test_the_alphabet(report)
