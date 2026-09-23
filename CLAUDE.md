@@ -33,7 +33,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 ## Target
 
 - Map first, files second: `python host/tools/target_map.py [--api] [dir..]`
-  (one line per file; `--api` adds every header's prototypes).
+  (one line per file; `--api` adds every header's prototypes). Structure:
+  `--layers` (include graph, 6 lines), `--deps` (per file), `--ops`
+  (command -> handler -> public calls).
 - Layers: `core/` (CubeMX) -> `board/` (hardware; API in
   `comms/inc/board/<x>.h`, one per `board_<x>.c`) -> `comms/` (cmd tables,
   handlers `h_<device>_<op>`, `rd_t` in, `wr_t` out, `wr_took` refusals)

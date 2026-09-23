@@ -1,8 +1,9 @@
 # host/
 
 - Map first, files second: `python tools/host_map.py [--api] [dir..]` (one
-  line per module; `--api` adds public signatures). A module opens on a
-  one-line brief of at most 100 characters; `test_structure` holds it.
+  line per module; `--api` adds public signatures; `--layers` the import
+  graph by package, `--deps` per module). A module opens on a one-line
+  brief of at most 100 characters; `test_structure` holds it.
 - Front door: `Coaxial63100` (`coaxial/rig.py`); `device.daq`, `.imu`,
   `.angle`, `.thermal`, `.gates`, `.drive`, `.motion`, `board.boot`.
   `simulated_device=True` needs no cable.
