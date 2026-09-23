@@ -911,7 +911,8 @@ _RD_TOKENS = re.compile(
     r'|(?P<leave>\b(?:return|continue)\b[^;]*;)'
     r'|(?P<guard>\brd_left\s*\(\s*in\s*\)|\?)'
     r'|for\s*\([^;]*;[^<]*<=?\s*(?:\([^)]*\)\s*)?(?P<bound>\w+)[^)]*\)'
-    r'|\brd_(?P<width>u8|i8|u16|i16|u32|i32|bytes)\s*\(\s*in\b')
+    r'|\brd_(?P<width>u8|i8|u16|i16|u32|i32|bytes)\s*\(\s*in\b'
+    r'|\b(?P<call>\w+)\s*\(\s*in\s*[,)]')
 _DISPATCH = re.compile(r'case\s+(\w+?)_OP_(\w+)\s*:\s*return\s+(\w+)\s*\(\s*(in|out)')
 
 
@@ -920,7 +921,7 @@ def _c_reads(text, name, defines):
     under an `rd_left` guard - a ternary, or a block the guard opens - is
     `('?', width)`, taken when it is there; a loop over a count is its
     body that many times or `('*', body)`; `rd_bytes` is `('rest',)`,
-    whatever is left.
+    whatever is left; a helper handed `in` reads in its caller's place.
     """
     m = re.search(r'^static\s+\w+\s+%s\s*\(\s*rd_t\s*\*\s*in' % re.escape(name), text, re.M)
     if m is None:
@@ -968,6 +969,9 @@ def _c_reads(text, name, defines):
             continue
         if t.group('bound'):
             bound = t.group('bound')
+            continue
+        if t.group('call'):
+            stack[-1][0].extend(_c_reads(text, t.group('call'), defines))
             continue
         width = t.group('width')
         if width == 'bytes':
