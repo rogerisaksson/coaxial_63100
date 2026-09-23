@@ -353,7 +353,7 @@ class GroundTruth:
                               ident.margin(), ident.room_sigma()))
 
 
-#: THE MIRROR'S NUMBERS ARE THE C'S. `coaxial/thermal_ident.py` says
+#: THE MIRROR'S NUMBERS ARE THE C'S. `coaxial/kalman/thermal_ident.py` says
 #: every number in it has the same name and value as in the C; this
 #: reads both and holds them to it, so the stand-in identifies the way
 #: the board will and a constant tuned on one cannot drift from the
@@ -422,7 +422,7 @@ def c_numbers():
 
 def test_the_mirror_carries_the_cs_numbers(report, lib):
     """Every constant the mirror names is the C's, by name and value."""
-    from coaxial import thermal_ident as mirror
+    from coaxial.kalman import thermal_ident as mirror
 
     scalars, tables = c_numbers()
     missing = [c for c, _p in C_TO_MIRROR if c not in scalars]
@@ -459,7 +459,7 @@ def test_the_mirror_walks_with_the_c(report, lib):
     """
     import copy
     from coaxial import thermal
-    from coaxial import thermal_ident as mirror
+    from coaxial.kalman import thermal_ident as mirror
 
     truth = GroundTruth(lib, air=2.0)
     observer = Model(lib)

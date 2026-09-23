@@ -10,7 +10,7 @@ from .sensors import SimulatedAngle, SimulatedImu
 from .boot import SimulatedBoot
 from .power import SimulatedGateDrivers, SimulatedPower, SimulatedThermal
 from .daq import SimulatedCapture, SimulatedClock, SimulatedDaq
-from ..observer import Observer
+from ..kalman.observer import Observer
 from .drive import SimulatedDrive
 from typing import Any
 

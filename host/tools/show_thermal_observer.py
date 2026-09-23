@@ -35,7 +35,7 @@ from coaxial import gauges, machine                        # noqa: E402
 from coaxial.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty  # noqa: E402
 from coaxial.thermalmap import (CELL_ASPECT, MARKS, SCALE_LINES,  # noqa: E402
                                 render)
-from coaxial import thermal_ident                          # noqa: E402
+from coaxial.kalman import thermal_ident                   # noqa: E402
 from screen import hud                                     # noqa: E402
 from screen import frame_of, run_view, stage               # noqa: E402
 

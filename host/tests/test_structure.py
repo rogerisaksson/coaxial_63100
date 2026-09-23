@@ -580,7 +580,7 @@ def test_mirrors_agree(r):
             len(ops) >= 10 and not wrong,
             '; '.join(wrong[:3]) or '%d op tables' % len(ops))
 
-    from coaxial import thermal_ident as mirror
+    from coaxial.kalman import thermal_ident as mirror
     named = dict(_defines('thermal/src/thermal_ident.c'),
                  **_defines('thermal/inc/thermal_ident.h'))
     pairs = [(k, v, k.split('IDENT_', 1)[1]) for k, v in named.items()

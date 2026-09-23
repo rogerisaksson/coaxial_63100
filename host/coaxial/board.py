@@ -10,7 +10,7 @@ from .capture import Capture
 from .clock import Clock
 from .daq import Daq
 from .drive import Drive
-from .observer import Observer
+from .kalman.observer import Observer
 from .calibration import Calibration
 from .errors import (ConnectError, CrcError, DeviceStateError, FrameError,
                      NoReplyError, RigError, UnsupportedProtocolError)

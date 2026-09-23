@@ -295,7 +295,7 @@ for name, iq, on in STATES:
            'same twenty-node graph in a situation - a room, a scale on the '
            'air path, one on the laminate\'s capacity - read through three '
            'noisy thermometers every thirty seconds and identified by the '
-           'identifier the firmware runs (`coaxial/thermal_ident.py` mirrors '
+           'identifier the firmware runs (`coaxial/kalman/thermal_ident.py` mirrors '
            '`thermal/src/thermal_ident.c`). The observer is told nothing; a '
            'board has no ground truth to put in a situation, and '
            '`situation()` refuses in words there. The tour is temperate 20 C, '

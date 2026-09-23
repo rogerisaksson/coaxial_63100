@@ -8,7 +8,7 @@ import time
 
 from .. import motor
 from .. import thermal
-from .. import thermal_ident
+from ..kalman import thermal_ident
 from ..thermal_device import THROTTLE_AT
 from ..errors import RigError
 from typing import Any, Callable, Optional

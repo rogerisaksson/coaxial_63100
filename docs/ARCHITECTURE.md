@@ -37,6 +37,7 @@ boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),
 ```text
 coaxial/            library; rig.py = Coaxial63100, the front door
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
+coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c), observer
 coaxial/simulated/  the stand-in: same reply shapes as the board
 coaxial_mcp/        MCP server (stdio), docs tool
 coaxial_ollama/     local-model runner
