@@ -398,8 +398,11 @@ Changed:
    second executable in CMake and CI, `--boot` in the flash tool, and
    `MB_NO_REPLY` in the slave core so a node the request was not for
    says nothing. Built and sized in both presets, 0 warnings; not run.
-5. `coaxial/boot.py`, the simulated blank node, `test_boot.py`,
-   `flash_nodes.py` with its store.
+5. `coaxial/boot.py` - `BootControl`, the interface, `Boot` the real
+   one, `flash()` the master's sequence on one node; the stand-in's
+   blank node (`coaxial/simulated/boot.py`, the state machine over a
+   bytearray flash, `board.boot` on both boards); `test_boot.py`. The
+   store and `flash_nodes.py` - the bus-wide master - are next.
 6. The bench: the first flash of the bootloader over SWD, the
    application through it, a re-flash over the wire - FINDINGS carries
    what happened.

@@ -6,6 +6,7 @@ from .link import DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink, _BroadcastRefuses
 from .system import SimulatedGpio, SimulatedSystem
 from .analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
 from .sensors import SimulatedAngle, SimulatedImu
+from .boot import SimulatedBoot
 from .power import SimulatedGateDrivers, SimulatedPower, SimulatedThermal
 from .daq import SimulatedCapture, SimulatedClock, SimulatedDaq
 from ..observer import Observer
@@ -83,6 +84,7 @@ class SimulatedBoard:
         # implementation would only be a second thing to drift.
         self.observer = Observer(self)
         self.power = SimulatedPower()
+        self.boot = SimulatedBoot()
         self.capture = SimulatedCapture()
         self.clock = SimulatedClock()
         self.daq = SimulatedDaq()

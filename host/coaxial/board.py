@@ -14,6 +14,7 @@ knowing a single function code.
 from .afe import Afe
 from .analog import Analog
 from .gate_drivers import GateDrivers
+from .boot import Boot
 from .power import Power
 from .thermal_device import Thermal
 from .capture import Capture
@@ -60,6 +61,7 @@ class Board:
     gate_drivers: GateDrivers
     thermal: Thermal
     power: Power
+    boot: Boot
     capture: Capture
     clock: Clock
     daq: Daq

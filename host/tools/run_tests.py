@@ -70,11 +70,14 @@ BROKER = 'test_broker.py'
 #: the record's shape, the buffers. No board and no compiler, so it is
 #: one of the cheapest suites here and joins first.
 DAQ_API = 'test_daq_api.py'
+#: The master's side of the bootloader against the stand-in's blank
+#: node - no board, no compiler, a second (docs/BOOT.md).
+BOOT = 'test_boot.py'
 VIEWS = 'test_views.py'
 RENDER = 'test_render.py'
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
                    SENSORLESS,
-                   BROKER, DAQ_API, VIEWS,
+                   BROKER, DAQ_API, BOOT, VIEWS,
                    RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -93,6 +96,7 @@ ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
 JOINS = (
     (10, 'test_simulated.py'),
     (12, DAQ_API),
+    (12, BOOT),
     (15, CORE),
     (20, SHTP),
     # The control law against a motor model, and the commissioning
@@ -449,6 +453,8 @@ TOUCHES = (
     # board_daq.c and the bench's, and the record's bytes cross the wire.
     # The bootloader's core is hardware-free; boot_main.c is the bench's.
     ('boot/',                         (BOOT_CORE, STRUCTURE)),
+    ('host/coaxial/boot.py',          (BOOT, STRUCTURE)),
+    ('host/coaxial/simulated/boot.py', (BOOT, STRUCTURE)),
     ('daq/',                          (DAQ_CORE, CONFORMANCE, 'test_parity.py',
                                        BENCH)),
     ('host/coaxial/thermal.py',       (THERMAL, 'test_sensorless.py',

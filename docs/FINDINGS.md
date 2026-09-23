@@ -2465,6 +2465,30 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   the session's limit after 0.8 M tokens, so the code stands on one
   engineer's reading: the first flash over SWD is the review. Pulled
   25 render commits first; structure 676 -> 683 upstream, tree 3210.
+* THE MASTER'S SIDE OF THE BOOTLOADER, ON THE STAND-IN (2026-09-23).
+  `coaxial/boot.py`: `BootControl` is the interface - the thirteen ops
+  as methods, `flash()` the master's sequence on one assigned node
+  (erase, every chunk, three rounds of the missing ones, verify, the
+  record a page at a time, seal) - `Boot` the real one over the Device
+  base, each op one 0x6E frame, the broadcasts through `_broadcast`,
+  `who`'s silence caught as `NoReplyError` and returned as None. The
+  stand-in's blank node (`coaxial/simulated/boot.py`) is the state
+  machine over a bytearray flash with boot_core.c's rules - the image
+  kept on a matching size and CRC, the first word held back until seal,
+  the record sector rewritten only where it differs - and `board.boot`
+  on both boards, so the structure suite's parts check holds them to
+  each other. Its first version shadowed the interface's `flash()` with
+  the flash bytes and failed inside the sequence with 'bytearray is not
+  callable': the attribute is `sectors` now. `test_boot.py`, 15 checks
+  in a second, no compiler: the sequence seals a valid image at its unit
+  and position and `dump` reads the record back, the same image offered
+  again is verified with nothing missing and still seals, a different
+  image of the same size is wanted whole, assign to 0 or 247 and seal
+  before verify and stay from the bootloader are refused in the node's
+  words, and a wrong chunk shows at verify. The bus-wide master - the
+  prefix search, the store, `flash_nodes.py` - is the next item; the
+  target commit before this one was green on CI (c048d9f). Twenty-nine
+  suites; rebased on the wireframe split: structure 723, tree 3265.
 
 ## The local model
 

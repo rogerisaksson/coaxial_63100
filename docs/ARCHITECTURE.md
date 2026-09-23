@@ -373,12 +373,12 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-eight suites, 3242 checks, counted in `host/tests/.counts.json`
+Twenty-nine suites, 3265 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 | --- | --- | --- |
-| test_structure.py | 715 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module and every notebook a paper in the builder's shape, executed; the wire's three answers held to each other - the enums, every fixed reply and request, PROTOCOL.md's op tables |
+| test_structure.py | 723 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module and every notebook a paper in the builder's shape, executed; the wire's three answers held to each other - the enums, every fixed reply and request, PROTOCOL.md's op tables |
 | test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 254 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
@@ -390,6 +390,7 @@ by `counts.py`:
 | test_modbus_core.py | 78 | the Modbus core through ctypes, clock injected, the oracle's prefix sweep |
 | test_daq_api.py | 75 | the acquisition front door against the stand-in |
 | test_drive_core.py | 81 | the control law against the motor model through the host gcc, the Monte Carlo included |
+| test_boot.py | 15 | the master's side of the bootloader against the stand-in's blank node: the sequence on one node, the image kept when it is the one held, the refusals in words, both implementations held to one interface |
 | test_boot_core.py | 45 | the bootloader's state machine through the host gcc on a RAM flash: the chunk stream, loss and re-send, the seal and the first word written last, the master dying, wrong crc and wrong type, the debugger's way in, the faults |
 | test_mcp.py | 50 | the MCP server |
 | test_render.py | 120 | the 3D engine stage by stage against an analytic oracle, the scanline halftone and the drawn rim |

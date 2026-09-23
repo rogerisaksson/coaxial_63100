@@ -467,12 +467,14 @@ def test_smart_selection(report):
                                   run_tests.DRIVE, run_tests.FILTER,
                                   run_tests.THERMAL, run_tests.BOOT_CORE,
                                   run_tests.SENSORLESS, run_tests.DAQ_API,
+                                  run_tests.BOOT,
                                   } | set(run_tests.OLLAMA)),
                             (75, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
                                   run_tests.DRIVE, run_tests.FILTER,
                                   run_tests.THERMAL, run_tests.BOOT_CORE,
                                   run_tests.SENSORLESS, run_tests.DAQ_API,
+                                  run_tests.BOOT,
                                   'test_parity.py', 'test_mcp.py',
                                   run_tests.CONFORMANCE, run_tests.BENCH}
                              | set(run_tests.OLLAMA))):
