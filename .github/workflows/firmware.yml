@@ -41,11 +41,15 @@ jobs:
             echo "the build must be warning-free"; exit 1
           fi
         shell: bash
-      - run: arm-none-eabi-size build/${{ matrix.preset }}/coaxial_63100.elf
+      # Both images: the application, and the bootloader it arrives through
+      # (docs/BOOT.md) - each sized, both kept.
+      - run: arm-none-eabi-size build/${{ matrix.preset }}/coaxial_63100.elf build/${{ matrix.preset }}/coaxial_63100_boot.elf
       - uses: actions/upload-artifact@v4
         with:
           name: coaxial_63100-${{ matrix.preset }}-elf
-          path: build/${{ matrix.preset }}/coaxial_63100.elf
+          path: |
+            build/${{ matrix.preset }}/coaxial_63100.elf
+            build/${{ matrix.preset }}/coaxial_63100_boot.elf
       # A red run must be readable without the Actions UI, like the host's.
       - if: failure()
         env:

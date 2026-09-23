@@ -171,33 +171,43 @@ def run(argv, cwd, path):
     return done.returncode, (done.stdout or '') + (done.stderr or ''), time.monotonic() - started
 
 
-#: What the linker script gives each region, so the print says how much of it
-#: is spent rather than a byte count nobody can size up - and where each
-#: region starts. The application's flash begins behind the bootloader's
-#: sector and ends before the record's (docs/BOOT.md).
-REGIONS = {'FLASH': 1792 * 1024, 'DTCMRAM': 128 * 1024}
-BASES = {'FLASH': 0x08020000, 'DTCMRAM': 0x20000000}
+#: The two images and what their linker scripts give each region, so the
+#: print says how much of it is spent rather than a byte count nobody can
+#: size up. The bootloader is sector 0; the application's flash begins
+#: behind it and ends before the record's sector (docs/BOOT.md). Code that
+#: runs from ITCM is stored in flash and counted there.
+IMAGES = {
+    'coaxial_63100.elf': {'FLASH': (0x08020000, 1792 * 1024),
+                          'DTCMRAM': (0x20000000, 128 * 1024),
+                          'ITCMRAM': (0x00000000, 64 * 1024)},
+    'coaxial_63100_boot.elf': {'FLASH': (0x08000000, 128 * 1024),
+                               'DTCMRAM': (0x20000000, 128 * 1024),
+                               'ITCMRAM': (0x00000000, 64 * 1024)},
+}
+APP, BOOT = tuple(IMAGES)
+LABELS = {APP: 'app', BOOT: 'boot'}
 
 
-def _region_of(addr):
+def _region_of(regions, addr):
     """The linker region an address falls in, or None."""
-    return next((name for name, base in BASES.items()
-                 if base <= addr < base + REGIONS[name]), None)
+    return next((name for name, (base, size) in regions.items()
+                 if base <= addr < base + size), None)
 
 
 def footprint(elf, path):
     """(flash, dtcmram) bytes from the ELF's own section table.
 
     Flash holds every loaded section including `.data`'s initialisers
-    and the sample path's code, which runs from ITCM but is stored in
-    flash; DTCMRAM holds `.data`, `.bss` and the heap/stack reservation. Written
-    here because a number in a document is one nobody re-measures - TODO
+    and the code that runs from ITCM but is stored in flash; DTCMRAM
+    holds `.data`, `.bss` and the heap/stack reservation. Written here
+    because a number in a document is one nobody re-measures - TODO
     carried 134 748 B for as long as it took to grow by ten kilobytes.
     """
     size = shutil.which('arm-none-eabi-size', path=path)
     if size is None or not Path(elf).exists():
         return None
 
+    regions = IMAGES[Path(elf).name]
     done = subprocess.run([size, '-A', str(elf)], capture_output=True,
                           text=True, errors='replace')
     flash = ram = 0
@@ -206,15 +216,27 @@ def footprint(elf, path):
         if len(part) != 3 or not part[1].isdigit():
             continue
         name, count, addr = part[0], int(part[1]), int(part[2])
-        region = _region_of(addr)
+        region = _region_of(regions, addr)
         if region == 'FLASH':
             flash += count
         elif region == 'DTCMRAM':
             ram += count
             flash += count if name == '.data' else 0   # its initialiser is in flash
-        elif name == '.itcm':
-            flash += count      # copied out of flash by the startup
+        elif region == 'ITCMRAM' and name in ('.itcm', '.text'):
+            flash += count      # code copied out of flash by the startup
     return flash, ram
+
+
+def room(elf, path):
+    """One image's footprint against its regions, or nothing to say."""
+    used = footprint(elf, path)
+    if used is None:
+        return ''
+    regions = IMAGES[Path(elf).name]
+    return ('  %s flash %d B (%.0f%%)  dtcmram %d B (%.0f%%)'
+            % (LABELS[Path(elf).name],
+               used[0], 100.0 * used[0] / regions['FLASH'][1],
+               used[1], 100.0 * used[1] / regions['DTCMRAM'][1]))
 
 
 def build(preset, path):
@@ -230,13 +252,9 @@ def build(preset, path):
         print('BUILD  FAIL  exit=%d  %.1fs' % (code, elapsed))
         print('\n'.join(output.splitlines()[-60:]))
         return False
-    used = footprint(ROOT / 'build' / preset / 'coaxial_63100.elf',
-                     path)
-    room = ('  flash %d B (%.0f%%)  dtcmram %d B (%.0f%%)'
-            % (used[0], 100.0 * used[0] / REGIONS['FLASH'],
-               used[1], 100.0 * used[1] / REGIONS['DTCMRAM'])) if used else ''
     print('BUILD  ok  %.1fs  %d warning%s%s'
-          % (elapsed, warnings, '' if warnings == 1 else 's', room))
+          % (elapsed, warnings, '' if warnings == 1 else 's',
+             ''.join(room(ROOT / 'build' / preset / name, path) for name in IMAGES)))
     for line in filter(WARNING_RE.search, output.splitlines()):
         print('  ' + line.strip())
     return True
@@ -261,10 +279,12 @@ def flash(elf, path):
         print('\n'.join(output.splitlines()[-40:]))
         return False
     print('FLASH  ok  %.1fs  %s' % (elapsed, elf.name))
-    # --start runs the image now; a reset goes through sector 0, the
-    # bootloader's, and finds the application only if one is there.
-    print('       the image sits at 0x%08X behind the bootloader sector - '
-          'a reset reaches it through the bootloader' % BASES['FLASH'])
+    if elf.name == APP:
+        # --start runs the image now; a reset goes through sector 0, the
+        # bootloader's, and finds the application only if one is there.
+        print('       the image sits at 0x%08X behind the bootloader sector - '
+              'a reset reaches it through the bootloader (--boot flashes it)'
+              % IMAGES[APP]['FLASH'][0])
     return True
 
 
@@ -276,14 +296,19 @@ def main(argv=None):
     parser.add_argument('--build-only', action='store_true')
     parser.add_argument('--flash-only', action='store_true',
                         help='skip the build, flash whatever is already there')
+    parser.add_argument('--boot', action='store_true',
+                        help='flash the bootloader first - sector 0, the image '
+                             'a reset goes through (docs/BOOT.md)')
     args = parser.parse_args(argv)
 
-    elf = Path(args.elf) if args.elf else ROOT / 'build' / args.preset / 'coaxial_63100.elf'
+    elf = Path(args.elf) if args.elf else ROOT / 'build' / args.preset / APP
     path = toolchain_path()
 
     ok = True
     if not args.flash_only:
         ok = build(args.preset, path)
+    if ok and not args.build_only and args.boot:
+        ok = flash(ROOT / 'build' / args.preset / BOOT, path)
     if ok and not args.build_only:
         ok = flash(elf, path)
     return 0 if ok else 1

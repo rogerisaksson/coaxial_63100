@@ -258,3 +258,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 # objects added to .itcm did not appear in it.
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
     LINK_DEPENDS ${CMAKE_SOURCE_DIR}/STM32H753xx_FLASH.ld)
+
+# The bootloader, the second image: sector 0, the shell the application
+# arrives through (docs/BOOT.md). Its own directory, for its own link flags.
+add_subdirectory(boot)

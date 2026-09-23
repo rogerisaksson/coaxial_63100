@@ -157,62 +157,33 @@ daq.close()                              # the acquisition released
 device.close()                           # the port, and the supply as found
 ```
 
-In simulated mode the thermal stand-in is a HYPOTHETICAL BOARD: a ground
-truth in a situation (bench, box, fan, heat sink, stuffy, and the rooms -
-outdoors -20 C, temperate 20, cold -25, toasty 45) heating on the same
-losses the observer estimates, read through three noisy thermometers
-every sample, and identified by the same identifier the board runs
-(`coaxial/thermal_ident.py` mirrors `thermal/src/thermal_ident.c`), so
-the state walks UNCERTAIN, CONVERGING, STABLE for the same reasons.
-Both pages tour the rooms - temperate 20 C, cold -25, toasty 45, round
-again - moving on when the identification has earned the room (STABLE
-held ten seconds of wall time, a hundred of model, or fifty minutes
-regardless); THERMAL OBSERVER lays a load cycle on it too, two model
-minutes at 30 A and four idle under the envelope, so the map's regions
-pulse and the bar under the board rises on the cooldowns, and ROTOR
-OBSERVER's own demo is the load.
-`rig.thermal.situation('box')` lays one on, `'tour'` the tour,
-`rig.thermal.load_cycle()` the cycle; a board refuses all in words.
-**Nothing is kept between
-runs** - not in the board's flash, not in a file for the stand-in: every
-start is at the record's margin floor and earns its span. **The margin is
-continuous and the states are words** (2026-09-06): `thermal_ident_margin`
-is the floor (80 % of every span, the record's, thermal op 12) while the
-model is doubted whole and one when not at all, the doubt the worse of
-the innovation and the covariance normalised; the innovation is judged
-against the floor plus five percent of the reading's own movement, so a
-live load can be STABLE and a still board's miss still counts whole; and
-when the innovation throws the state to UNCERTAIN the room's covariance
-goes back to its prior, uncorrelated, so a room step is charged to the
-room and not to the air path.
-**An idling board stays at
-the floor**: nothing burning, nothing moving, nothing to learn from - a
-sample whose thermometers moved less than three floors since the seat
-moves neither the quantities nor their covariance, and the covariance is
-what holds the margin down, since idle leaves the innovation at the
-thermometers' floor. **The room is the fifth identified quantity**
-(the board has no ambient sensor): two ways of inferring it ran off,
-FINDINGS has both; a cooldown tells a cold room from a good air path and
-nothing else does.
+In simulated mode the thermal stand-in is a HYPOTHETICAL BOARD in a
+situation (bench, box, fan, heat sink, stuffy; rooms outdoors -20 C,
+temperate 20, cold -25, toasty 45), heating on the losses the observer
+estimates, read through three noisy thermometers and identified by the
+same identifier the board runs (`coaxial/thermal_ident.py` mirrors
+`thermal/src/thermal_ident.c`). `rig.thermal.situation('box')`, `'tour'`
+(a room is earned by STABLE held ten wall seconds, a hundred model seconds,
+or fifty minutes), `rig.thermal.load_cycle()` (two model minutes at 30 A,
+four idle); a board refuses all in words. Nothing is kept between runs.
+The margin is continuous (2026-09-06): the floor is 80 % of every span
+(thermal op 12) while the model is doubted whole, one when not at all;
+the innovation is judged against the floor plus five percent of the
+reading's own movement; an idling board - thermometers moved less than
+three floors - stays at the floor; the room is the fifth identified
+quantity, and only a cooldown tells a cold room from a good air path.
+FINDINGS has the two inferences that ran off.
 
 Subsystems hang off it by name - `device.daq`, `.imu`, `.angle`, `.thermal`,
-`.gates`, `.drive` - and `device.motion` is the drive as three verbs: `stepper`
-(HOLD as a microstepper), `servo` (position over the A1335, corrected between
-moves - a per-pass loop at link rate samples the load-angle ring aliased and
-pumps it), `velocity` (sensorless under `coaxial.loop`). The notebooks are nine
-short papers, one per functional area, executed on the stand-in and
-checked in with their outputs (`notebook_examples/`, written from
-`host/tools/notebooks/`): `acquisition` is the flow; `motion` is the
-verbs - stepper and servo with ring and sag measured, the 5230SL and its
-propeller from rest to 6717 rpm and back, checked against Hobbywing's own
-thrust stand, and `coaxial.loop`'s chain identified back out of its own
-run; `applications` the four missions on them; `thermal` walks the
-stand-in's tour on model time and plots the margin, the room and the air
-path against the truth; `drive` Monte Carlos the firmware's own control law
-over the 23-63 V link sweep (`tools/montecarlo.py`, one process per core)
-and puts a number on the sensorless floor; `commissioning` is the bench-day
-procedure - commission, identify, search a robust tune for exactly that
-machine, write the record, and the drive verifies itself.
+`.gates`, `.drive` - and `device.motion` is the drive as three verbs:
+`stepper`, `servo` (position over the A1335, corrected between moves),
+`velocity` (sensorless under `coaxial.loop`). The notebooks are nine short
+papers, one per functional area, generated from `host/tools/notebooks/`
+and executed on the stand-in (`notebook_examples/`): acquisition, link,
+sensors, power_stage, thermal, drive (the control law Monte Carloed over
+the 23-63 V link, `tools/montecarlo.py`), motion (the 5230SL and its
+propeller from rest to 6717 rpm, checked against Hobbywing's thrust
+stand), applications, commissioning (the bench-day procedure).
 
 **`daq.catalogue()` is what the board can record**, each row saying its kind
 and whether `configure()` may ask for it - since MINOR 7 the sensor fields
@@ -241,7 +212,8 @@ python tools/run_tests.py --offline      # the suites needing no board
 python tools/pick_tests.py --explain     # which subjects, and why
 python tools/ansi2png.py frame.txt frame.png   # a braille frame as the
                                          # terminal draws it - judge it here
-python tools/build_and_flash.py          # build (+flash): --build-only, --flash-only
+python tools/build_and_flash.py          # build (+flash): --build-only, --flash-only,
+                                         # --boot flashes the bootloader first
 python tools/session.py --status         # who is sharing the board's port
 python tools/switch.py --sweep 5,95 -p 10 -s 120  # background; --stop disarms
 python tools/pulse.py -d 0.05 -H U -L V -n 1 --on 30   # one leg against another
@@ -255,14 +227,14 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-eight suites, 3209 checks, sized from `host/tests/.counts.json` and so
+Twenty-eight suites, 3210 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (683),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
 `test_ollama_link.py` (114), `test_drive_core.py` (81, the control law against a
 motor model through the host gcc, the Monte Carlo's job included),
-`test_modbus_core.py` (77), `test_sensorless.py` (138, the design arithmetic -
+`test_modbus_core.py` (78), `test_sensorless.py` (138, the design arithmetic -
 the power stage's too, and the datasheet against the thermal model - the
 commissioning and the motion verbs, dangerous paths included, against the
 stand-in), `test_mcp.py` (50), `test_shtp_core.py` (38), `test_filter_core.py`
@@ -312,7 +284,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  778 of this tree's 3209 checks are in those nine files.
+  778 of this tree's 3210 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -357,6 +329,16 @@ failures in `test_ollama_render`/`test_ollama_reply` were labelled
 pre-existing and carried through four more items; the change that broke them
 was no longer identifiable. **Fix:** the label is a note on the way to the
 fix, not a substitute.
+
+## Surgical, token-light
+
+One engineer, no workers: three tries at fanning the work out to agents
+(2026-09-22) burned 0.8 M tokens and returned nothing, twice on the
+session's limit. A change is a cut - the line that is wrong and the
+sentence beside it - never a rewrite around it, never a wall of text or
+code. A subsystem is one file, one seam, one suite; what cannot be
+tested through one seam is not built. Read the narrow thing, write the
+narrow thing, run the narrow thing.
 
 ## The routine, one item at a time
 

@@ -424,6 +424,10 @@ def test_dispatch(report, lib):
                  'silence, not an exception',
                  core.execute(b'\x03\x00\x00\x00') == b'' and
                  core.execute(b'\x03\x00\x00\x00\x01\x00') == b'')
+    report.check('a user function may answer with silence: MB_NO_REPLY puts '
+                 'nothing on the wire, not even the function code',
+                 core.execute(b'\x41\xFF\x01') == b'' and
+                 core.execute(b'\x41\x01\xFF') == b'\x41\x01\xFF')
 
     core.drop(6)
     _fc, code = core.exception(b'\x41\x01')

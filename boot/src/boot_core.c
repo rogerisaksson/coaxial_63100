@@ -528,6 +528,16 @@ uint8_t boot_unit(void)
   return s.unit;
 }
 
+uint8_t boot_position(void)
+{
+  return s.position;
+}
+
+uint8_t boot_flags(void)
+{
+  return s.flags;
+}
+
 bool boot_wants_go(void)
 {
   return s.go;

@@ -529,6 +529,10 @@ static size_t run_user_function(mb_slave_t *s, uint8_t fc, const uint8_t *req,
                                                     &req[1], req_len - 1U,
                                                     &rsp[1], rsp_cap - 1U, &n);
 
+  if (ex == MB_NO_REPLY)
+  {
+    return 0U;                 /* the function's silence is the transport's */
+  }
   if (ex != MB_EX_NONE)
   {
     return make_exception(rsp, fc, ex);

@@ -36,14 +36,19 @@ extern "C" {
 #define MB_FC_WRITE_MULTIPLE_REGS   0x10U
 #define MB_FC_REPORT_SERVER_ID      0x11U
 
-/** Exception codes. MB_EX_NONE is not a wire value; it means "no error". */
+/** Exception codes. MB_EX_NONE is not a wire value; it means "no error".
+    MB_NO_REPLY is not one either: a user function's answer that nothing
+    goes on the wire - the request reached this unit id and was not this
+    node's, which only the function can know. A bus of blank nodes shares
+    one unit id and the one the unique id names answers (docs/BOOT.md). */
 typedef enum
 {
   MB_EX_NONE                  = 0x00,
   MB_EX_ILLEGAL_FUNCTION      = 0x01,
   MB_EX_ILLEGAL_DATA_ADDRESS  = 0x02,
   MB_EX_ILLEGAL_DATA_VALUE    = 0x03,
-  MB_EX_SERVER_DEVICE_FAILURE = 0x04
+  MB_EX_SERVER_DEVICE_FAILURE = 0x04,
+  MB_NO_REPLY                 = 0xFF
 } mb_exception_t;
 
 /** Which of the four Modbus data tables an access refers to. */

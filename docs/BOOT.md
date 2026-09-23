@@ -278,13 +278,32 @@ wrote. The master's path verifies over the wire, before the seal.
 
 * `cmake --preset Debug` builds two executables: `coaxial_63100.elf`
   (the application, at 0x08020000) and `coaxial_63100_boot.elf` (the
-  bootloader, at 0x08000000). Both have size lines and both are CI
-  artifacts, both presets.
+  bootloader, at 0x08000000, from `boot/CMakeLists.txt` - its own
+  directory, since the toolchain file puts the application's linker
+  script and map into the tree's link flags and a directory scope is
+  where they are swapped). Both are sized on the build line and both
+  are CI artifacts, both presets. Built 2026-09-22: the bootloader is
+  14 236 bytes of flash in Debug, 7 572 in Release, 6 732 of DTCM.
 * `build_and_flash.py` flashes the application as today, at its own
-  address; `--boot` flashes the bootloader too. A board flashed with
+  address; `--boot` flashes the bootloader first. A board flashed with
   only the new application boots through whatever bootloader it has; a
-  board with the old layout at 0x08000000 still runs its old
-  application, since nothing is at 0x08020000 that a reset reaches.
+  board with the old layout at 0x08000000 has half an old image at its
+  reset vector once the new application lands at 0x08020000, so the
+  bench's first act is `--boot`.
+* `boot_main.c` is the whole hardware layer, at register level with
+  CMSIS for the names and no HAL: VOS1 and PLL1 for 160 MHz, HCLK and
+  APB1 at 80 so the RS485 pair divides to exactly 10 Mbit with 8x
+  oversampling (`BRR` 16), the pin table driven before anything is
+  clocked, the three USARTs polled with their FIFOs on and no
+  interrupt anywhere, the flash controller's erase and 256-bit
+  program with every error flag checked and cleared, the console as a
+  ring drained a byte a pass so a line never blocks the wire, and the
+  jump - the handover slot filled, the USARTs reset, the clock tree
+  handed back to HSI with PLL1 and HSE off and VOS3 restored, since the
+  application's HAL refuses to configure a PLL that is the system
+  clock, then `msr msp` and `bx` in one asm statement. Its own linker
+  script loads `.text` and `.rodata` to ITCM and `.data` to DTCM and
+  its startup copies them, so nothing runs from flash after reset.
 * With a debugger and no master, reset costs 0.3 s in the bootloader
   and the application starts. Breakpoints, the console, the record's
   ops all as before. `STM32_Programmer_CLI -d app.elf` writes sectors 1
@@ -376,8 +395,9 @@ Changed:
    builds, the wire checks hold both servers of the two ops to the
    table. MINOR 18.
 4. The bootloader target: `boot_main.c`, its script and startup, the
-   second executable in CMake and CI, `--boot` in the flash tool. Built
-   and sized; not run.
+   second executable in CMake and CI, `--boot` in the flash tool, and
+   `MB_NO_REPLY` in the slave core so a node the request was not for
+   says nothing. Built and sized in both presets, 0 warnings; not run.
 5. `coaxial/boot.py`, the simulated blank node, `test_boot.py`,
    `flash_nodes.py` with its store.
 6. The bench: the first flash of the bootloader over SWD, the
@@ -396,6 +416,7 @@ Changed:
 | the same image again | the round trips alone, no erase, no stream, no programmed word |
 | worst case | three `missing` rounds at a full re-stream each: 4 × 1.8 s, then the node is named |
 | the bench's reset | +0.3 s in the bootloader with no master |
+| the bootloader built | 14 236 B flash Debug, 7 572 B Release; 6 732 B DTCM, 2 K of it the record's buffer and 1 K the bitmap |
 
 ## Risks, and what only the bench can answer
 

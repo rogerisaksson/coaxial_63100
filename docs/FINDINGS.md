@@ -2427,6 +2427,44 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   state is RESET on all six, board_pwm.c), AFE_ON low, PA10 low, the
   termination open, both driver-enables low - which is commit 4's
   `boot_main.c` to write. Boot core 39 -> 45, tree 3142.
+* THE BOOTLOADER TARGET, BUILT AND SIZED, NOT RUN (2026-09-23). Commit 4
+  of docs/BOOT.md: `boot/src/boot_main.c` is the whole hardware layer at
+  register level with CMSIS for the names and no HAL - VOS1 then PLL1
+  (HSE 25 MHz / 5 x 64 / 2) for 160 MHz, HCLK and APB1 at 80 so the
+  RS485 pair divides to exactly 10 Mbit with 8x oversampling (BRR 16, no
+  fraction; APB at 80 MHz is why VOS1 - VOS3 tops APB at 50); the pin
+  table driven before anything else is clocked, six gate inputs, PA10,
+  PB2 and PE14 low as outputs; three USARTs polled with their FIFOs on
+  and no interrupt anywhere; the flash controller's erase and 256-bit
+  program with every error flag checked and cleared through CCR and a
+  word refused unless it reads erased, as the harness refuses it; the
+  console a 256-byte ring drained a byte a pass so a line never blocks
+  the wire; the jump filling the handover slot, resetting the USARTs,
+  handing the clock tree back to HSI with PLL1 and HSE off and the PLL
+  registers, ACR and VOS3 at their reset values - the application's
+  HAL refuses to configure a PLL that is the system clock - then `msr
+  msp` and `bx` in one asm statement so no frame is read after the
+  stack moved. Its own linker script loads .text and .rodata to ITCM
+  and .data to DTCM, the startup copies them, the vector table and the
+  copy loops alone run from flash; `.ARM.exidx` is discarded, and the
+  slot is the same 32 bytes at the top of DTCM the application's
+  script gives it. `boot/CMakeLists.txt` is its own directory because
+  the toolchain file puts the application's linker script, map and
+  `-u _printf_float` into the tree's link flags and a directory scope
+  is where they are swapped - the first link pulled newlib's syscalls
+  through printf's float support and failed on `_kill`. The slave
+  core gained `MB_NO_REPLY` so a user function can answer silence: a
+  bus of blank nodes shares unit 247 and only the one the unique id
+  names answers (modbus core 77 -> 78). Measured: 14 268 bytes of
+  flash in Debug, 7 572 in Release, 6 732 of DTCM; both presets 0
+  warnings, with -Wconversion on every file but boot_main.c, whose
+  CMSIS cache helpers trip -Wsign-conversion in Release. build_and_
+  flash.py sizes both images on their own regions and `--boot`
+  flashes the bootloader first; CI sizes and keeps both. An
+  adversarial review by six agents was attempted and every one died on
+  the session's limit after 0.8 M tokens, so the code stands on one
+  engineer's reading: the first flash over SWD is the review. Pulled
+  25 render commits first; structure 676 -> 683 upstream, tree 3210.
 
 ## The local model
 

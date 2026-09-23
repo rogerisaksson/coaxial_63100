@@ -158,6 +158,8 @@ bool boot_app_valid(void);
 /** What the hardware layer asks after each frame. */
 boot_state_t boot_state(void);
 uint8_t      boot_unit(void);             /**< BOOT_UNIT until assigned  */
+uint8_t      boot_position(void);         /**< 0 until assigned          */
+uint8_t      boot_flags(void);            /**< assign's flags            */
 bool         boot_wants_go(void);         /**< a go for a sealed node    */
 bool         boot_terminates(void);       /**< assign's flag bit 0       */
 uint32_t     boot_chunks_ignored(void);   /**< chunks with no erase      */

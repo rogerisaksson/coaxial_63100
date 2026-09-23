@@ -131,13 +131,18 @@ static const char *h_server_id(void *ctx, uint8_t *run)
 /* Echoes its payload back, so a test can tell a reached handler from a
    refused function code without reading any state. The engine writes the
    function code itself and hands this the byte after it, so the payload is
-   all there is to write. */
+   all there is to write. A payload beginning 0xFF is answered with
+   silence, the way a boot node not named by the request answers. */
 static mb_exception_t h_user_function(void *ctx, uint8_t fc,
                                       const uint8_t *req, size_t req_len,
                                       uint8_t *rsp, size_t rsp_cap, size_t *rsp_len)
 {
   (void)ctx;
   (void)fc;
+  if ((req_len > 0U) && (req[0] == 0xFFU))
+  {
+    return MB_NO_REPLY;
+  }
   if (req_len > rsp_cap)
   {
     return MB_EX_SERVER_DEVICE_FAILURE;
