@@ -1870,7 +1870,61 @@ def _stereotype_loops(pos, loops, top, bottom):
     prims = []
     for over, rings in groups:
         prims += _part_primitives(over, rings, top, bottom)
-    return prims + _pair_arches(arches, top, bottom) + _wall_holes(holes)
+    prims += _pair_arches(arches, top, bottom)
+    return _merged(prims, top) + _wall_holes(holes)
+
+
+def _footprint(kind, data):
+    """((x0, x1, y0, y1), (z0, z1)) of a primitive on the board."""
+    if kind == 'drum':
+        cx, cy, r, ztop, zbase = data
+        return ((cx - r, cx + r, cy - r, cy + r),
+                (min(ztop, zbase), max(ztop, zbase)))
+    segs = data if kind in ('block', 'ring', 'stroke') else data[0]
+    xs = [s[0] for s in segs] + [s[3] for s in segs]
+    ys = [s[1] for s in segs] + [s[4] for s in segs]
+    zs = [s[2] for s in segs] + [s[5] for s in segs]
+    return (min(xs), max(xs), min(ys), max(ys)), (min(zs), max(zs))
+
+
+def _merged(prims, top):
+    """The primitives with every block, arch and stroke whose footprint
+    nests in a block's of the same side (`_nested`, the rule the loops
+    are grouped by) absorbed into that block: the box round both, to
+    the taller's height. A screw terminal has two profiles per wall,
+    outer and inner; the inner pair made a block inside the outer's
+    frame, two rectangles a cell apart, and seen from above that was
+    "a square hole" (the bench, 2026-09-23). Drums, rings and the
+    holes in walls stay their own: a circle on a lid is a lid's hole."""
+    order = sorted((i for i, p in enumerate(prims)
+                    if p[0] in ('block', 'arch', 'stroke')),
+                   key=lambda i: -prims[i][1])
+    taken, grown = set(), {}
+    for n, i in enumerate(order):
+        kind, _extent, data = prims[i]
+        if i in taken or kind != 'block':
+            continue
+        box, (z0, z1) = _footprint(kind, data)
+        over = z1 > top
+        ztop, zbase = (z1, z0) if over else (z0, z1)
+        corners = [(s[0], s[1]) for s in data] + [(s[3], s[4]) for s in data]
+        for j in order[n + 1:]:
+            if j in taken:
+                continue
+            kj, _ej, dj = prims[j]
+            fp, (w0, w1) = _footprint(kj, dj)
+            if (w1 > top) != over or not _nested(fp, box):
+                continue
+            taken.add(j)
+            segs = dj if kj in ('block', 'stroke') else dj[0]
+            corners += [(s[0], s[1]) for s in segs] + [(s[3], s[4]) for s in segs]
+            ztop = max(ztop, w1) if over else min(ztop, w0)
+            box = (min(box[0], fp[0]), max(box[1], fp[1]),
+                   min(box[2], fp[2]), max(box[3], fp[3]))
+            base = _box_along(corners, _box_angle(corners[:4]))
+            grown[i] = ('block', _box_extent(base),
+                        _block(base, base, ztop, zbase))
+    return [grown.get(i, p) for i, p in enumerate(prims) if i not in taken]
 
 
 def _part_groups(pos, loops, top, bottom):
@@ -1999,11 +2053,18 @@ def _part_primitives(over, rings, top, bottom):
             prims.append(('ring', 2.0 * r, _circle_segments(cx, cy, r, z)))
     if prims and prims[0][0] == 'drum':
         return prims
+    if len(pts) < 3:
+        # One edge of the mesh - a wire's silhouette, a pin - is its
+        # own stroke, not a box round a diagonal.
+        return [('stroke', math.dist(pts[0][:2], pts[-1][:2]),
+                 [pts[0] + pts[-1]])]
     angle = _box_angle([(p[0], p[1]) for p in widest])
     base = _box_along([(p[0], p[1]) for p in pts], angle)
-    crest = [(p[0], p[1]) for p in pts if abs(p[2] - ztop) <= 3 * OUTLINE_LEVEL]
-    lid = _box_along(crest, angle) if len(crest) >= 2 else base
-    return [('block', _box_extent(base), _block(base, lid, ztop, zbase))] + prims
+    # A BLOCK, lid over base. The lid was the crest's own box for a day
+    # - a rounded shoulder's flat top, inside the base - and seen from
+    # above the two rectangles a cell apart read as a square hole in
+    # the phase terminals (the bench, 2026-09-23).
+    return [('block', _box_extent(base), _block(base, base, ztop, zbase))] + prims
 
 
 def _ring_circle(ring, over):
@@ -2084,12 +2145,13 @@ def _pair_arches(arches, top, bottom):
                 (t0[0], t0[1], ztop, t1[0], t1[1], ztop),
                 (t1[0], t1[1], ztop, a1[0], a1[1], zbase)], (-u[1], u[0]))))
             continue
-        across, j, b0, b1, s0, s1 = best
+        across, j, b0, b1, _s0, _s1 = best
         used.add(j)
         if math.dist(a0, b0) > math.dist(a0, b1):
-            b0, b1, s0, s1 = b1, b0, s1, s0
+            b0, b1 = b1, b0
+        base = (a0, a1, b1, b0)
         prims.append(('block', max(width, across),
-                      _block((a0, a1, b1, b0), (t0, t1, s1, s0), ztop, zbase)))
+                      _block(base, base, ztop, zbase)))
     return prims
 
 
@@ -2520,7 +2582,7 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
             continue
         if kind == 'drum':
             segs = _drum_segments(data, camx, camy)
-        elif kind in ('block', 'ring'):
+        elif kind in ('block', 'ring', 'stroke'):
             segs = data
         else:
             # A wall's feature - an arch, a hole - seen edge-on is a

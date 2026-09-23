@@ -5060,6 +5060,35 @@ looking at the estimate alone.
   the inquiries run PRELOAD, IDENTITY, FITMENT, PROVENANCE, IDENTITY,
   FITMENT, PROVENANCE, IDENTITY - the preload once. test_views 222,
   3207 in all.
+* **A block is a block, and what nests in it is it** (2026-09-23, the
+  bench: "one of the connectors still has a square hole"). Two
+  candidates measured. The PE terminal at 152x48: its clamp is a
+  rounded rectangle 0.026 by 0.039, 2.1 cells, its countersunk hole
+  0.034 across - 1.8 cells - with facets tilted 20 to 50 degrees, so
+  no fold reaches the crease rule's 60 and the hole has no loop; a
+  ring 1.8 cells across is a square either way, and no threshold was
+  touched for it. The phase terminals: every primitive inside one
+  listed - a block 0.182 wide (x 0.719 to 0.901) inside an arch 0.23
+  wide (0.695 to 0.925), because a screw terminal has TWO profiles per
+  wall, outer and inner; the inner pair made a block INSIDE the
+  outer's frame, two rectangles 0.024 apart, 1.3 cells at the bench's
+  size: the square hole. And the crest's lid inside the base's box did
+  the same to every rounded-shoulder part - the lid was my fix for a
+  halo that turned out to be the groove. Two things, no thresholds.
+  A block is the box round all its points, lid over base, legs
+  straight; a single-edge loop (a wire's silhouette, a pin - 125 of
+  them) is its own stroke rather than a box round a diagonal. And
+  what nests inside a block's footprint on the same side - a block,
+  an arch, a stroke, by the `_nested` rule the loops are already
+  grouped by - is absorbed into it: the box round both, to the
+  taller's height; drums, the rings on lids and the holes in walls
+  stay their own. 322 primitives become 268: 87 blocks, 125 strokes,
+  4 drums, 11 arches, 41 holes. Rendered face-on and at 30 degrees:
+  the phase terminal one frame, the pair one block, the choke one
+  rectangle. Held in test_render: a crest narrower than the base is
+  still one block over the base with straight legs; one edge is a
+  stroke; a 0.4 box inside a pair of 0.5 profiles is one block of
+  extent 0.5 to the profiles' height. test_render 120, 3209 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at
