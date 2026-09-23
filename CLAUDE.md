@@ -76,8 +76,9 @@ real + simulated implementations: add a method to both or neither.
 2. Braille output: judge a PNG (`tools/ansi2png.py`), then the bench.
 3. One dated FINDINGS line if something was measured or settled;
    PROTOCOL for wire changes (MINOR per appended field).
-4. Commit, push, check CI (`curl -s https://api.github.com/repos/rogerisaksson/coaxial_63100/actions/runs?per_page=3`,
-   5-6 min). Fix red first.
+4. Commit, push, move on: do not wait for CI (5-6 min, often queued). Read
+   it at the next push (`curl -s https://api.github.com/repos/rogerisaksson/coaxial_63100/actions/runs?per_page=3`);
+   a red run is fixed before anything else (bench 2026-09-23).
 5. End every item with exactly:
 
 > **Continue, or commit and push?**
