@@ -4702,7 +4702,14 @@ looking at the estimate alone.
   and the rungs a fraction of a row apart between dumps. A first crop
   put the bore seven rows above the hole - the crop had projected it
   for 108 columns while the view had drawn 66; the header the dump
-  carries is the width to crop by.
+  carries is the width to crop by. Then, asked for the back seen
+  obliquely: the solder side toward the camera at the screenshot's
+  own pose (73 degrees off face-on, normal +0.68, +0.67, -0.28) and
+  tilted about a diagonal by 60 and by 44 degrees (normals +0.64,
+  -0.58, -0.50 and +0.50, -0.48, -0.72), rendered at 108x44 and
+  cropped at the bore at 2x. At 73 the hole is a sliver and the edge
+  dots sit in it; at 60 and 44 the ring is on the hole's own boundary
+  cells with the ground through the hole, nothing beside it.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at
