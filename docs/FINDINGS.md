@@ -5009,6 +5009,25 @@ looking at the estimate alone.
   and takes MODEL through it. Five fresh interpreters running both
   threads together after: no exception, the warm-up ready and the
   preload "ready: 6.9 mb on disk" every time.
+* **The line lies on the face's dots, lifted 3.0** (2026-09-23, the
+  bench, on the blocks: "there is still a lot of halo in the edges").
+  Cell by cell at 30 degrees, the face alone against the face with the
+  outline: along every line the cells fell from three or four dots to
+  one or two - the outline REPLACED the cell's glyph with the line's
+  own dots - so a line ran as a dark groove with bright specks, and at
+  lift 4.5 the specks glowed: the halo. The lid cells themselves,
+  measured, were drawn (four dots, heat 3 to 4) and the walls too
+  (heat 1 to 3.7) - it was never the face missing, only the line's
+  cells. Four ways on one sheet, a phase terminal and a capacitor at
+  30 and 45 degrees: alone at 4.5 (as drawn, the groove and the glow),
+  merged onto the face's dots at 4.5 (no groove, a bright band),
+  alone at a small lift (the groove, unlit), merged at 1.5, 2.5 and
+  3.5 (a denser, brighter run of the same dither - 1.5 vanishing,
+  3.5 readable). Taken: the outline's and the edge's dots OR'd onto
+  the face's, and OUTLINE_LIFT 3.0 - the 4.5 was measured for a lone
+  line of one or two dots that needed tone to be seen at all, and a
+  merged cell carries five or six. The rim takes the same rule; at
+  4.5 merged it had read as thickness.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

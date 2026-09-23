@@ -1116,7 +1116,15 @@ OUTLINE_CHORD = 0.003
 #: brighter at all. At 4.5 the line sits +82 (205 against 124, the
 #: tenth at +38), and it may reach the ladder's top rung, which HOTTEST
 #: keeps from the face: in the lamp's pool an edge glints white-cyan.
-OUTLINE_LIFT = 4.5
+#:
+#: 3.0 SINCE THE LINE LIES ON THE FACE'S DOTS (2026-09-23): the 4.5
+#: was set while the line's one or two dots stood alone in their cell
+#: and needed tone to be seen at all; merged, the cell carries five or
+#: six dots, and at 4.5 it read as a glowing band round every part -
+#: "a lot of halo in the edges". Measured on the raster at 30 and 45
+#: degrees over 1.5, 2.5, 3.5 and 4.5: 1.5 vanishes into the dither,
+#: 4.5 glows; 3.0 is a denser, brighter run of the same dither.
+OUTLINE_LIFT = 3.0
 OUTLINE_BASE = 3.0
 
 
@@ -2527,6 +2535,16 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
         del masks[at]
     for at, mask in masks.items():
         r, c = divmod(at, width)
+        # ONTO the face's dots. The line's dots alone in the cell - one
+        # or two where the face had drawn three or four, measured cell
+        # by cell at 30 degrees - ran as a dark groove with bright
+        # specks round every part: "a lot of halo in the edges". Laid
+        # over the face's dots and lifted a little, the line is a
+        # denser, brighter run of the same dither - the faintly
+        # enhanced edge the bench asked for.
+        was = grid[r][c]
+        if BRAILLE <= ord(was) < BRAILLE + 256:
+            mask |= ord(was) - BRAILLE
         grid[r][c] = chr(BRAILLE + mask)
         if colour:
             tone[r][c] = _edge_tone(heat[at] if heat is not None
@@ -2777,13 +2795,14 @@ def _edge(grid, tone, cells, cam, colour, heat=None):
             masks[i] = mask
     for at, mask in masks.items():
         r, c = divmod(at, width)
-        # The boundary dots ALONE in their cell, one dot thick. They
-        # were OR'd onto the face's dots for a day: the edge dots alone
-        # had seemed to leave a dark moat between the line and the
-        # face - but the moat was the art's parallax (`engine._art_hit`),
-        # the face itself missing beside the line, and with the art on
-        # the geometry the merge only lit the whole boundary cell in
-        # the edge's tone, a bright band the bench read as thickness.
+        # ONTO the face's dots, like the outline's (see `_outline`): a
+        # boundary cell keeps its own dither under the boundary dots.
+        # Alone they made a groove along the rim; merged at the old
+        # lift of 4.5 they made a bright band the bench read as
+        # thickness; at OUTLINE_LIFT 3.0 the band is a denser edge.
+        was = grid[r][c]
+        if BRAILLE <= ord(was) < BRAILLE + 256:
+            mask |= ord(was) - BRAILLE
         grid[r][c] = chr(BRAILLE + mask)
         if colour:
             tone[r][c] = _edge_tone(heat[at] if heat is not None and heat[at]
