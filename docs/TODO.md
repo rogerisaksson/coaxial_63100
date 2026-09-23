@@ -1,222 +1,44 @@
 # TODO
 
-What is done and measured, what is written and dry-run only, and what
-is still arithmetic. Every item names the file or record it lives in.
+Open work. Measured results are in FINDINGS.
 
-## Done and measured
+## Needs the bench
 
-* Every duty 1 to 100 % with the drivers powered, no trip, no overruns
-  (2026-08-27).
-* Pulses into an 8 ohm load at 25 and 31 V, 2 to 50 %, 26 runs, both
-  directions (2026-08-30). `tools/pulse.py`.
-* The alternate op, both triples on the scope (2026-08-30).
-* The DC link spanned against a DMM, -32 418 ppm, saved (2026-08-30).
-* Dead time 30 ns trimmed against the supply's OCP; 29.5 ns tripped it
-  (2026-08-29).
-* The thermal network fitted from the camera in four states
-  (2026-08-28).
-* The IMU stream, the angle sensor's registers, the three ports'
-  counters, the request-length oracle, the reader thread's rates, the
-  gate short probe.
-* The drive ISR cost with the instruction cache and -O2: 2 922 cycles
-  a period on the model source (2026-08-31).
+- **Bootloader**: flash it (`build_and_flash.py --boot`), boot the app
+  through it, re-flash over the wire; see the prefix search's real collision
+  (CRC error, timeout or both). 10 Mbit on the bench adapter unproven.
+- **First flash since 2026-09-16**: ITCM sample path (a wrong copy
+  hard-faults on the first ADC interrupt), `test_bench.py` vs baseline,
+  LOOP cycle counters, `__sbrk_heap_end` stable over an hour.
+- **Drive**: no current has closed a loop through a winding.
+  `tools/commission.py` has run dry only. Record ids 15..44 (motor R, L,
+  lambda, gains, injection, dead-time table) are placeholders.
+- **SOA path** has never run on target: dry `budget()` over the wire, gate
+  proof with a lowered ceiling, a load run. `Board_SyncMeanSquare` ISR cost
+  unmeasured.
+- **STO chain**: circuit change, pilot tone sent on RS485, Cinj/Clevel with
+  and without it, interlock thresholds from those readings, one arm with
+  neither bypass (`tools/sto_probe.py`). All sessions so far armed with both
+  bypasses.
+- **Scope**: counted hold (MINOR 8), dead-time skew (record holds 0),
+  `Q_RING` in `inverter.py`.
+- **Thermal**: camera under load (`board_to_ambient` at high dT, per-leg
+  `to_board`), a power step and the NTC's slope (leg capacity: burst budget
+  is 0.22-0.67 s), a thermocouple on a winding. Ceilings for drivers,
+  regulators, AFE and laminate are estimates.
+- **Spans**: phase gain never spanned; DC link is the only spanned channel.
+- Nothing has run near 63 V or 100 A.
 
-## Written, dry-run only
+## Host
 
-* **The drive.** `drive/` behind `0x6E` device 10 is a dq current
-  loop, HF injection, a Kalman-form PLL, I/f and a polarity pulse,
-  host-tested against a motor model (`test_drive_core.py`) and stepped
-  on the board with the drivers unpowered. No current has closed a loop
-  through a winding. `tools/commission.py` is the procedure for when
-  one can; every step has run dry on this bench and none against a
-  motor.
-* **The counted hold** (gate op 2 with a period count, MINOR 8): built
-  2026-09-02, dry only. No counted hold has been scoped.
-* **The dead-time skew** (`deadtime_skew`, gate op 9): a DTG rewrite
-  each half-period. Not measured on a scope; the record holds 0.
-* **The thermal envelope** acts (drops MOE at a ceiling) and the
-  ceilings for the drivers, regulators and AFE are estimates - those
-  datasheets are not in this tree. The board's 105 C is an estimate
-  for the laminate. The FET's IS in the tree since 2026-09-04:
-  `datasheets/mosfet/` gives Tj 175 C and Rth JC 0.69 K/W, so a 125 C
-  ceiling on the copper is about 131 C at the junction - 44 K of margin,
-  and the ceiling is conservative rather than optimistic. **The winding
-  is an envelope of its own since 2026-09-05** (MINOR 12, CAL_VERSION
-  12): the stage throttles on the smaller of the board's factor and the
-  winding's, and its K/W, J/K and 120 C ceiling are the motor profile's
-  placeholder pair and an estimate - no thermocouple has been on a
-  winding, and no motor on the bench.
-* **The whole SOA path has never run on the target.** It builds clean -
-  the derate, the soak joules, the reaction window, `Board_DriveDerate`,
-  `Board_SyncMeanSquare`, the winding element and thermal op 6 - and
-  has never been flashed. Of the five-step
-  validation only the build and the host-side suite are done; the dry
-  `budget()` read over the wire, the gate proof with a lowered ceiling on
-  a cold board, and a real load run are not.
-* **`Board_SyncMeanSquare` costs an unmeasured amount of ISR.** Three
-  int64 multiply-accumulates in the injected callback, against an
-  interrupt the LOOP panel reports at 1620 cycles. `test_bench.py` at the
-  bench is what would confirm it.
-* **The motion verbs** (`stepper`, `servo`, `velocity`) and the four
-  `app_*` notebooks run against the stand-in.
-* **The commissioning's outputs** - `motor_r`, `ld`, `lq`, `lambda`,
-  the gains, the injection, the dead-time table, `sigma_i`,
-  `trigger_ticks` (record ids 15 .. 44) - are placeholders until a
-  motor is on the bench. The injection is off and the trip sits at the
-  rating.
-
-## Still arithmetic
-
-* **The Debug preset's optimisation level is a measurement, not a
-  choice** (2026-09-14): the bench flashes Debug at `-O0`, and the pass
-  that made every module's state one struct cost four kilobytes of flash
-  because a member access at `-O0` is a base plus an offset. `-Og` is
-  debuggable and optimised. The numbers that decide: the LOOP panel's
-  cycle counters for the drive step and the acquisition feed, and the
-  keepalive's worst gap with a tone running (FINDINGS has the
-  440-cycles-a-sample measurement the tone burst bound rests on).
-  Release builds clean in CI either way.
-* **The sample path's memory traffic is cut, unmeasured** (2026-09-16):
-  `daq.c` and `board_daq.c` joined `filter.c` at `-O2`, the ring is
-  written and read a record at a time by memcpy instead of a byte and a
-  division at a time, and the path's code runs from ITCM instead of
-  flash behind the instruction cache. Built and inspected, not run: the
-  first flash is the proof the startup's copy and the section are right
-  (a wrong one hard-faults on the first ADC interrupt), and
-  `test_bench.py` against its recorded baseline, the LOOP panel's cycle
-  counters and the acquisition's `worst` are the numbers. FINDINGS has
-  what was inspected.
-* **The firmware heap end, unread** (2026-09-16): by inspection the
-  target allocates nothing after boot - no malloc in the tree's C, and
-  newlib's is reachable only from the console's printf, once, for
-  stdout's buffer - but no board was on the bench the day it was asked.
-  The number: `__sbrk_heap_end` (0x200033c0 in this build's map, `nm`
-  has the current one) over SWD before and after an hour of the views;
-  `_end` 0x200090b8 or one buffer past it is the answer, anything
-  climbing is not. FINDINGS has the host side of that day.
-* **The thermal graph's new numbers are derived, none measured** (2026-09-05):
-  the seven patches' areas off the outline, the sheet conductance chosen to
-  reproduce the camera's lumped 15.2 K/W, the sources' edges into their
-  patches, the hot swap's 12 K/W and 0.5 J/K, the motor's three capacities and
-  four paths, the forced-convection gains, the switching overlap's 14 ns, the
-  body diode's 0.85 V, the buck's 85 %. Each has a name in `thermal_defaults`
-  and a place in the record; a camera under load, a switch node on a scope and
-  a thermocouple on a winding are the measurements that would settle them.
-  **The online identification moves two of them** (2026-09-05,
-  `thermal_ident.c`): the face's air path and the laminate's capacity, from the
-  cooldowns' prediction error against the three thermometers, and the room
-  beside them; nothing is saved - every boot starts at the record's margin
-  floor and earns its span (2026-09-06). The sources' spread and the
-  thermistor's share are carried but held - a cooldown puts no power through
-  the legs' edges, so nothing on the board sees them - and a static regressor
-  at idle (the MCU die against the thermistor at rest IS the MCU's edge) is
-  what would free the spread. Still to build of the bench's list: nothing. The
-  stand-in is a hypothetical board with a ground truth in a situation - box,
-  fan, heat sink, stuffy, bench - read through three noisy thermometers and
-  identified by the same identifier (`thermal_ident.py`), nothing kept between
-  runs; the pages switch the situation at random every three to six minutes in
-  simulated mode and show the state on both (THERMAL OBSERVER's SENSE with the
-  truth beside it, ROTOR OBSERVER's foot); the room is the fifth identified
-  quantity and the situations include the bench's rooms (outdoors -20 C,
-  temperate 20, cold -25, toasty 45). What remains is the board: nothing here
-  has run on it yet.
-* The phase gain (3.5 mΩ x 4.5455) is traced off the schematic and has
-  never been spanned; the DC link is the only spanned channel.
-* `Q_RING` = 1.0 in `inverter.py` is assumed; the scope is the answer.
-* `r_hotswap` 5 mΩ in the thermal losses is not measured.
-* `die_over_node` for the MCU, 27 K, is assumed.
-* The per-leg thermal spreading (45.6 K/W) is three times the lumped
-  15.2 the camera saw; no measurement separates the legs. **Three
-  lines of evidence now disagree about it** and FINDINGS has the
-  arithmetic: the camera's zone tripled says 45.6, the NTC's own rise
-  needs above 48 if the sensor is to sit below its source, and the
-  datasheet's whole junction-to-air on a lesser board is 25.9. The
-  likeliest odd input is the camera's board reference in the switching
-  state, read off mixed copper and soldermask through an uncorrected
-  emissivity.
-* **The leg nodes' heat capacity is not measured and it sets the whole
-  burst budget.** `thermal.c` always said so - "the parts' own are not
-  measured" - and added "they only affect the settling", which stopped
-  being true when the envelope started dividing by them. Silva 2022 puts
-  the effective transient capacity at up to a third of the physical, so
-  the 100 A burst on a driver node is a BAND: 0.22 s to 0.67 s, soak
-  4.08 J to 12.25 J. A power step and the NTC's slope would settle it -
-  the only one of these a transient can reach rather than an
-  equilibrium, and `tools/pulse.py` already makes the step.
-* The thermistor's element fraction (`ntc_sees_drivers` 0.30) comes off
-  the pick and place by two-dimensional radial spreading, not off a
-  measurement, and the campaign cannot measure it: its one switching state
-  implies 1.05, which no passive body between two others can have. The
-  same state now shows an 11.04 K residual, which is that inconsistency
-  made visible instead of absorbed into a coupling.
-* `NTC_TAU_S` is the geometric mean of the leg node's constant and the
-  board's, 46.6 s. The model has no node for the local laminate the part
-  is soldered into, so this is the pair it sits between standing in for
-  a lag nobody measured.
-* `board_to_ambient` is a correlation now - convection as the fourth
-  root of the rise, radiation as `(T^2+T0^2)(T+T0)` - but it is still
-  anchored at ONE measured point, 1.2 W over 10 K, and the 35 % radiation
-  share at that point comes from a paper rather than this board.
-* `RDS_ON` is the datasheet TYPICAL, 1.8 mOhm against a 2.1 max, so the
-  envelope under-books a worst-case part by 17 %. The LTspice model this
-  tree traces is the typical one, which is why the two are left agreeing.
-* The lumped R-C class this model belongs to is worth about +/-10 %
-  (`docs/papers`, against +/-5 % for a Fourier hybrid and +/-2 % for full
-  3D CFD). Every unmeasured constant above is outside that band, so the
-  method is not the limit here.
-* `test_sensorless`'s overpowered-servo check returns instead of raising
-  about one run in four, but only inside the full offline gate and never
-  in six runs of that suite alone. Raising the load to 1.2 N.m did not
-  fix it and twelve runs under CPU contention all raised correctly, so
-  the wall-clock hypothesis is not established. The check now reports the
-  angle that passed for a hold.
-* The 5230SL's `r`, `ld`, `lq`, `j` and `b` in `motor.py` are
-  estimates; the propeller curve is Hobbywing's stand, not this one.
-* `BENCH_MOTOR` in `motor.py` and the drive defaults in the record are
-  placeholders.
-* The A1335's CRC polynomial is not in the datasheet in this tree, so
-  the CRC is reported and not checked; the register map came from a
-  reference implementation and the polled register is settable for
-  that reason.
-* The SH-2 report lengths came from CEVA's reference, not this
-  tree's datasheet.
-* `testline/plans/coaxial_63100_fct.yaml` carries placeholder limits.
-* `CMD_LINK_SHARE_PCT` = 75 is for one host on the debug port; a
-  populated RS485 segment has not been measured.
-* The gate op 10 alternate has no period count; only op 2 does.
-* PE15 reading 0 with the front end powered: what drives it is not
-  established.
-* `electronic_simulations` is a submodule with an SSH key on the bench
-  machine and is not checked out here; `inverter.py` carries its
-  traced constants.
-* **The classifier has no thermal kind** (2026-09-07). `intent.py`
-  answers a question about how warm the board is as an analog read of
-  the thermistor,
-  one measurement where the board holds an estimate for every node and
-  a margin it acts on. A `thermal` kind - the `thermal` tool's `state`
-  and `ident` for one question, like `both` - is a twenty-line change
-  in KINDS, READ, the prompt's sentence about the angle kind and the
-  plan; MODELS.md says it is measured against the live model before it
-  lands, twelve questions and more; this laptop's Ollama had no runner
-  from its 2026-09-03 upgrade until the reinstall of 2026-09-12
-  (FINDINGS, *The daemon had no runner*), and answers again since.
-* **The STO chain, modified and tested with its pilot tone** (the
-  bench, 2026-09-08: the STO circuit that needs modifying and testing
-  with the pilot tone). The chain has never released the gate drivers'
-  supply on
-  its own on this bench: PA10 KEEPALIVE feeds the charge pump through
-  R72 / C71 at 200 kHz, but the pilot tone on RS485 that the chain also
-  wants has had no sender here, and the two channels that watch it read
-  Cinj 0.77 V and Clevel 0.06 V against the 3.0 V `GateStage.interlock()`
-  asks for (2026-08-27, HARDWARE) - which is why every session so far
-  armed with `ignore_interlock=True` and `bypass_sto=True`. What waits
-  for the board and a scope: the circuit change itself, then the tone
-  sent on the bus, Cinj and Clevel measured with it present and absent,
-  the interlock's two thresholds set from those readings and not from
-  3.0 V assumed, gate op 0's `pilot_uv` and `level_uv` read against the
-  scope, and one arm with neither bypass. `keepalive` and `worst_gap` in
-  the same reply say whether the pump ever starves while the link is
-  busy (board_limits.h has the measured gap). `tools/sto_probe.py` is
-  that reading, a row a second, written against the stand-in.
-* Nothing has run near 63 V or 100 A. No measured value at either is
-  recorded anywhere in this tree.
+- Debug is `-O0`; `-Og` is a measurement away (LOOP counters, keepalive gap).
+- `intent.py` has no thermal kind: warmth questions become an NTC read.
+  Measure against the live model before landing.
+- `test_sensorless` overpowered-servo check flakes ~1 in 4 inside the full
+  gate only.
+- A1335 CRC polynomial unknown (CRC reported, not checked).
+- `testline/plans/coaxial_63100_fct.yaml` limits are placeholders.
+- `CMD_LINK_SHARE_PCT` 75 unmeasured on a populated RS485 segment.
+- PE15 reading 0 with the AFE on: driver not established.
+- Gate op 10 (alternate) has no period count.
+- `coaxial_63020` has no pin table in `boot_main.c`.

@@ -1,174 +1,66 @@
 # Coaxial 63100
 
-A three-phase BLDC inverter whose PCB sits coaxially behind the stator.
-**63 V, 100 A** - the rating is the name. STM32H753VIT6 at 475 MHz.
+Three-phase BLDC inverter, PCB coaxially behind the stator. 63 V, 100 A.
+STM32H753VIT6 @ 475 MHz. Firmware + Python host library, MCP server and a
+local-model runner. Open work: [docs/TODO.md](docs/TODO.md).
 
-Instrumentation first: the bridge switches on request, and the control law
-(`drive/`, device 10) is host-tested against a motor model; what waits for a
-motor on the bench is in [docs/TODO.md](docs/TODO.md). `gates.arm()` is the
-only thing that sets MOE, and it re-reads the dead time first because the
-2EDL8034 has no interlock of its own.
-
-## Start here
+## Start
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 . .\env.ps1                                                   # PATH + aliases
-.\coaxial_tty.ps1                                             # the chooser
-.\coaxial_tty.ps1 adc -Simulated                              # no cable needed
+.\coaxial_tty.ps1                                             # terminal front page
+.\coaxial_tty.ps1 adc -Simulated                              # one view, no cable
 ```
 
-## The terminal
+Views (`host/terminal/pages/`, one module each): session, imu (attitude),
+angle, adc (meter bridge), gate_drivers (the one that switches), rotor
+observer, thermal observer, chat. `-Simulated` needs no cable; `-Frames N`
+ends a view after N frames. In a view: Q quits, ESC returns to the front
+page.
 
-`.\coaxial_tty.ps1` is the terminal: `python -m terminal`, one process
-for the front page and every live view, for looking at the board rather
-than remembering a filename. The wrappers in `terminal/` still start one
-view on its own.
-
-| | |
-| --- | --- |
-| the loader | `host/terminal/loader.py` reads the pages under `host/terminal/pages/` - one module each, saying its headline, key, order and name, and its items for a second question - lists them on the front page in that order, preloads the model into the process's memory and runs the picked page there. A new page is a file in the folder |
-| front page | `host/tools/menu.py` - the turning board and the list, drawn off the loader's listing. The pick comes back as `main()`'s return (101 + position), the exit code when run as a script |
-| a view | `host/tools/show_<name>.py`, run in the loader's process on what the preload holds, given `--port`, `--simulated`, `--frames`. SESSION is `show_session.py`; BOARD CHAT is `show_chat.py`, with `--claude` for ANTHROPIC |
-| leaving a view | 0 (Q) quits the terminal; 64 (ESC, `TO_MENU`) returns to the front page - on the second question the view came from, with it lit; a view that raises is shown where it stood, and Enter is the front page |
-| on the way out | `show_session.py --leave` opens the port once and stops whatever a view left running, so "nothing was left running" is measured rather than assumed |
-| `-Name` | skips the front page: `session`, `imu`, `angle`, `adc`, `gate_drivers`, `rotor_observer`, `thermal_observer`, `chat`, `claude` |
-| `-Simulated` | no cable; every value invented, and every view says SIMULATED across the top |
-| `-Frames N` | a view ends after N frames - how the view suite runs each one |
-
-| view | on the menu |
-| --- | --- |
-| `session` | SESSION - board dashpanel |
-| `imu` | BOARD ATTITUDE - board orientation visualizer |
-| `angle` | SHAFT ANGLE - motor axle rotation position |
-| `adc` | METER BRIDGE - metered channels |
-| `gate_drivers` | MOTOR CONTROLLER > GATE DRIVERS - half bridge control |
-| `rotor_observer` | MOTOR CONTROLLER > ROTOR OBSERVER - the drive on the model or the converters |
-| `thermal_observer` | THERMAL OBSERVER - thermals estimation |
-| `chat` | BOARD CHAT - CCC, the local llm, or claude over MCP |
-
-MOTOR CONTROLLER and BOARD CHAT ask a second question - which half, who
-answers.
-
-`gate_drivers` is the one that switches. `+ -` duty, `[ ]` step, `A` arm,
-`B` BKIN override, `I` interlock override, `1 2 3 4` run length, `R` run.
-
-## notebook_examples
-
-Nine executed notebooks, one per functional area, checked in with the
-stand-in's outputs so they read without running; `SIMULATED = False` and
-a port at the bench. Each is a short paper in one shape: an abstract,
-numbered sections that measure something and read the number back, the
-conclusions with the numbers in them, what to do with them at the bench,
-and the tree's own files as references.
-
-They are written from `host/tools/notebooks/`, one module per area, laid
-out by `notebooks/parts.py` so the shape is the builder's and not a
-discipline - edit there, not in the JSON, or a cell's code and its
-printed output part company:
-
-```powershell
-python tools/make_notebooks.py --execute            # all of them
-python tools/make_notebooks.py --execute acquisition thermal
-python tools/make_notebooks.py --kernel install   # once, on the python setup.ps1 fills
-```
-
-Every notebook names its kernel, `coaxial_63100`: `setup.ps1` registers it
-on the interpreter it installs the packages into, so an editor with more
-than one CPython of that version opens them on the right one.
-
-| file | the area, and what it measures |
-| --- | --- |
-| `acquisition.ipynb` | the converters into records: the catalogue, the clock, a task read in a loop, a run scaled into a frame by the calibration record, currents over the switches live |
-| `link.ipynb` | one port shared by sessions through the broker, and who else is attached |
-| `sensors.ipynb` | the BNO085 and the three things it refuses over; the A1335's registers, and whether there is a magnet |
-| `power_stage.ipynb` | dead time, arm, duty, the gate snapshot, a burst; and what switching costs, from the SPICE models, no board |
-| `thermal.ipynb` | the node network and how it was fitted, the SOA budget and a burst planned against it, the room, the air path and the capacity identified on the stand-in's tour, the margin, a trip |
-| `drive.ipynb` | five sensorless observers ranked by measurement, the firmware's law over the 23-63 V sweep, speed and torque against the tolerances, the rotor observer on the board's own PMSM model |
-| `motion.ipynb` | the PMSM as stepper and servo with ring and sag measured, observer against shaft sensor on one rotor, `coaxial.loop`'s chain identified back out of its own run, the 5230SL and its propeller against Hobbywing's stand |
-| `applications.ipynb` | four missions on the verbs: a quad ESC lane, fixed-wing cruise, a two-joint arm, a precision hold |
-| `commissioning.ipynb` | the bench day: measure the machine, identify it, tune against it, write the record, and the drive verifies itself |
-
-## The library
+## Library
 
 ```python
 from coaxial import Coaxial63100
-device = Coaxial63100(port='COM4')       # simulated_device=True: no cable
-daq = device.daq                         # the data acquisition subsystem
-daq.open()
-daq.enable()                             # powers the analog front end
-device.set_time_from_pc()                # the board counts cycles, not time
-daq.configure(['Phase U', 'NTC'], sample_rate=1000)  # 1000 records/s, the board averages
-daq.start()                              # buffering starts in the host and target
-values = daq.read(-1)                    # blocks for the first, then takes the lot
-for r in values:
-    print(r.start_time, r.dt, [(s.name, s.value) for s in r.samples])
-daq.stop()                               # buffering stops at target
-daq.close()                              # the acquisition released
-device.close()                           # the port, and the supply as found
+with Coaxial63100(port='COM4') as device:          # simulated_device=True: no cable
+    daq = device.daq
+    daq.open(); daq.enable(); device.set_time_from_pc()
+    daq.configure('phaseU', 'NTC')                  # names in any spelling
+    daq.start()                                     # reader thread drains the board
+    for r in daq.read(-1):
+        print(r.start_time, r.dt, [(s.name, s.value) for s in r.samples])
 ```
 
-`device.motion` is the drive as three verbs - `stepper`, `servo`,
-`velocity` - each a `with` block that needs the stage armed first and
-leaves the drive OFF; and `configure('phaseU', 'shaft angle')` rides the
-sensor fields in every record as snapshots beside the sums (MINOR 7).
+- `r['NTC']` is the board's SUM, `r.value('NTC')` the mean, `r.samples` the
+  per-channel structs. `daq.catalogue()` lists what can be recorded.
+- `device.motion`: `stepper`, `servo`, `velocity` (arm the stage first).
+- Everything raises rather than returning a status. Channels and parts come
+  from the board.
 
-A record is an object AND the mapping it came from: `r.start_time`, `r.dt` and
-`r.samples` are the shape a script reads, while `r['NTC']` is still the SUM the
-board sent and `r['samples']` still the count that made it. `r.samples[n]` is
-one channel - `.name`, `.unit`, `.raw`, `.count` and `.value`, the sum over the
-count. `r.value('NTC')` asks for one channel; `r.channel_name` is the same
-order as a header row. `daq.channel_names()` answers that before the first
-record arrives, and `daq.columns(values)` turns a run of records into one array
-per channel plus `time` and `dt`. `daq.catalogue()` is everything this board
-can put in a record, and `daq.configure()` takes those names in any spelling:
-`configure('phaseU', 'NTC')` or `configure(daq.channels()[:5])`.
+## Notebooks
 
-**Two buffers, the way a DAQ card has two.** The board's ring fills at the
-sample rate; `start()` also puts a reader thread on the link here, and it
-drains that ring into a host queue as fast as the link goes. `read_buffer()`
-takes from the queue, so the `print` in the loop never sits between two
-round trips - pyserial releases the GIL on read and write, so that is real
-overlap. Measured on the debug probe's VCP, ten channels and the pins, with
-4 ms of work a block: **84.4 records/s reading the board directly, 134.6
-through the queue**, and the board's backlog ends at 0 instead of climbing.
-
-Every read answers its own backlog - records still on the board the instant
-it took its own - so pacing costs no extra round trip. `daq.buffered` is
-both ends: `{'host', 'peak', 'dropped', 'backlog', 'reads'}`. `daq.blocks()`
-is the same records when no reader is running: one round trip per block, on
-the calling thread.
-
-Everything raises rather than returning a status. **What a device is, and
-which channels it has, come from the board** - add a row to
-`board/src/board_adc.c` and every demo above shows it with nothing else
-told.
-
-## Build, flash, test
+Nine executed papers in `notebook_examples/` (acquisition, link, sensors,
+power_stage, thermal, drive, motion, applications, commissioning), generated
+from `host/tools/notebooks/`:
 
 ```powershell
-cube-cmake --build --preset Debug      # must be zero warnings
-STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
-.\run_tests.ps1                        # ~25 % of the checks, the default
-.\run_tests.ps1 -All                   # 100 %, the gate - CLAUDE.md holds the count
-.\run_tests.ps1 -Structure             # does host/ still hold together - 4 s
+python tools/make_notebooks.py --execute [area ...]
 ```
 
-A missing cable is not a failing suite: every suite falls back to a
-stand-in that labels itself. CI runs the same `--offline` set on every
-push (`.github/workflows/host.yml`) and builds the firmware with zero
-warnings (`firmware.yml`) - what needs the bench stays the bench's.
+## Build and test
 
-## Where things are
+```powershell
+cube-cmake --build --preset Debug      # zero warnings; two images (app + bootloader)
+python host/tools/build_and_flash.py   # --boot flashes the bootloader first
+.\host\run_tests.ps1                   # ~25 %; -All the gate; -Structure 4 s
+```
 
-| | |
-| --- | --- |
-| `board/` | this hardware, behind `comms/inc/board.h` |
-| `comms/` | the command stack over Modbus RTU |
-| `modbus/` | the protocol. Portable C11, host-tested, no HAL |
-| `host/` | `coaxial/` library, MCP server, ollama runner, suites |
-| `electronics/` | schematic and BOM - the authority on what is fitted |
-| `docs/` | [ARCHITECTURE](docs/ARCHITECTURE.md), [PROTOCOL](docs/PROTOCOL.md), [HARDWARE](docs/HARDWARE.md), [FINDINGS](docs/FINDINGS.md), [TODO](docs/TODO.md) |
+CI builds both presets and runs the offline suites on every push.
 
-**Read [FINDINGS](docs/FINDINGS.md) before investigating anything.** It
-records what is already ruled out, and what it cost to find out.
+## Docs
+
+[ARCHITECTURE](docs/ARCHITECTURE.md), [PROTOCOL](docs/PROTOCOL.md),
+[HARDWARE](docs/HARDWARE.md), [BOOT](docs/BOOT.md),
+[MODELS](docs/MODELS.md), [FINDINGS](docs/FINDINGS.md) (read before
+investigating), [TODO](docs/TODO.md).

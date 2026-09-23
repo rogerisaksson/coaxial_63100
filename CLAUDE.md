@@ -1,646 +1,192 @@
 # coaxial_63100
 
-You are a senior embedded-firmware engineer, a senior Python developer and an
-expert at prompting local LLMs. Judge a firmware bug, a host-library design or
-a SYSTEM prompt with that authority — do not hedge as a generalist.
+Senior embedded-firmware / Python / local-LLM engineer. Judge with authority.
 
-Control firmware and a Python host library for a **coaxial BLDC inverter**:
-a three-phase drive whose PCB sits coaxially behind the stator of an
-outrunner, rated **63 V, 100 A** (instantaneous, within the FETs' SOA).
-STM32H753VIT6 at 475 MHz; an AFE feeding three differential phase-sense
-channels, a DC link sense and an NTC; one UART carrying a text console or
-Modbus RTU, over the debug probe's COM port or RS485. The phase sense sits
-inside a switching power stage — the context for every noise figure here.
+Firmware + Python host for a **coaxial BLDC inverter** (PCB coaxially behind
+an outrunner's stator; 63 V, 100 A). STM32H753VIT6 @ 475 MHz, AFE (3 diff
+phase channels, DC link, NTC), one UART: text console or Modbus RTU over the
+ST-Link VCP or RS485. *Coaxial* = placement: no coax cable or connector
+exists (a local model invented one twice). Fitted parts come from `0x6D`
+kind 4, never from a name.
 
-*Coaxial* is where the electronics sit, not what they are wired with: no
-coaxial cable, no coaxial connector. **Known failure mode:** a local model
-fills the gap and reports one anyway - seen twice. **Guard:** the fitted
-parts come from `0x6D` kind 4, never inferred from the name.
+## State
 
-## Scope
+- TIM1 centre-aligned 50 kHz (ARR 2375 @ 237.5 MHz), break PE15 active low.
+  Dead time from the calibration record. `Board_PwmInit()`: MOE clear, CCxE
+  set - both FETs of every leg held off. Only `rig.gates.arm()` sets MOE; it
+  refuses DTG 0 (2EDL8034 has no interlock). Host silent 10 s -> claims and
+  stage dropped; the broker answers for an attached client every 3 s.
+- Gate drivers' supply is released by the STO chain (pilot tone on RS485),
+  not the MCU. AFE_ON high unpowers the drivers, so no current is measured
+  while switching on this bench.
+- Measured: every duty 1-100 % dry (2026-08-27); into ~8 ohm U-V at 25/31 V,
+  26 runs, 3.1-3.75 A, 0 overruns (2026-08-30, `tools/pulse.py`). Nothing
+  near 63 V/100 A.
+- `drive/` (0x6E dev 10): dq current loop, HF injection, Kalman PLL, I/f,
+  polarity pulse; host-tested; 2 922 cycles/period on target, drivers off.
+  `tools/commission.py` is the bench procedure.
+- Bootloader (`boot/`, docs/BOOT.md): built, host-tested, not yet run.
+- Open work: docs/TODO.md.
 
-**TIM1 is armed on request, and the control law is written.** What
-waits for the bench - a motor, a load, a scope on a hold - is listed
-once, in [docs/TODO.md](docs/TODO.md). The `.ioc`
-enables sixteen IPs - ADC1/2/3, SPI2, SPI4, USART2, USART3, UART5, **TIM1**,
-CORTEX_M7, RCC, SYS, DEBUG, MEMORYMAP, NVIC, VREFBUF. TIM1 is centre-aligned
-at **50 kHz** (ARR 2375 off 237.5 MHz), break on PE15 active low, AOE off.
-Dead time comes from the calibration record, trimmed against the supply's OCP
-(docs/HARDWARE.md); the `.ioc`'s DTG only holds until the record loads.
-`Board_PwmInit()` starts with MOE clear and CCxE set: both FETs of every leg
-held off in hardware.
-
-`rig.gates.arm()` is the only thing that sets MOE; a duty write is refused
-before it. It re-reads BDTR DTG and refuses a stage with no dead time - the
-2EDL8034 has no interlock of its own. A host silent for 10 s loses its rail
-claims and its armed stage (the firmware deadman + `Board_PwmSessionDrop`);
-the broker answers for an attached client every 3 s, so a session thinking
-between turns keeps what it holds. FINDINGS has the bench proof.
-
-Measured 2026-08-27, drivers powered: every duty 1-100 %, no supply trip, no
-overruns - all legs equal, so no phase current. **Measured 2026-08-30 into a
-load:** ~8 ohm across U and V, DC link 25 then 31 V, one leg at 2-50 %
-against the other held low, 15 ms to 30 s, both directions - 26 runs, break
-clear under the bypass, 0 overruns, no gate shorts, clean disarms;
-3.1-3.75 A on-time, up to 39 W mean in the resistor. `tools/pulse.py` is that
-test; P in the gate drivers view is one pulse after A. The board cannot
-measure current while switching on this bench (AFE_ON high unpowers the
-drivers), so the amps are V/R. **The drive:** `drive/` behind `0x6E`
-device 10 is a dq current loop, HF injection, a Kalman-form PLL, I/f and a
-polarity pulse, host-tested against a motor model (`test_drive_core.py`)
-and stepped on the board at 2 922 cycles a period with the drivers
-unpowered; `tools/commission.py` is the procedure for a motor on the bench.
-
-**A hold's length was the link's; since MINOR 8 it can be the board's.** A
-compare write lands in 15 ms (~800 cycles minimum); a 100 ms hold is 93-108 ms
-at the FETs - FINDINGS has the numbers. Op 2 now takes an optional period count
-and the update ISR zeroes the compares at zero: 500 periods is 10.000 ms
-exactly, built 2026-09-02. Since proto 2.1 the board CAN alternate per period:
-op 10 takes two compare triples and the update ISR swaps them every overflow -
-current back and forth through the phase pair at 25 kHz; proven 2026-08-30 with
-twelve mid-run state reads showing both triples and nothing else, and both
-half-bridges on the scope.
-
-The gate drivers and FETs are fitted (2EDL8034 x3, IAUCN10S7N021 -
-`electronics/`); **their supply is not the MCU's to switch** - the STO chain
-releases it, unlocked by a pilot tone on RS485. Nothing has run near 63 V or
-100 A; no measured value is recorded here - invariant 10.
-
-VREFBUF is deliberately **disabled**, VREF+ high-impedance: the AFE drives
-the ADC reference (the mechanism behind invariant 9). Its source is U2, a
-REF2033, driving `+3V3_ref` **and** `+1V65_bias` - one part sets reference
-and mid-point, which is why they track. The 3.3 V lives in the calibration
-record: a rig with a calibrated meter beats a datasheet tolerance.
-
-**Devices, channels and parts all come from the bus, never from this file.**
-`0x41` carries each device's one-line `description`; `coaxial.scan()` sweeps
-unit ids; the `devices` tool lists and `op=use` picks. `origin.interface`
-(`debug probe`, `RS485`, `simulated`) is a different question from which
-unit. A bus is a serial segment - the simulated machine has five (`AX`,
-`LL`/`RL`, `LA`/`RA`), unit id = position down the limb, node 2 is the knee
-on both legs. `/node` lists, `/node RL 2` or `/node right knee` selects.
-**`/node 0` is Modbus broadcast**: every node acts, none answers, reads are
-refused, the prompt goes red.
-
-`0x6D channels` reports every analog channel and digital pin with direction;
-kind 4 is the parts list - name, role, place, **what powers it**, answered. A
-pin table in a document or prompt is a second answer to "what is PB10": add a
-pin to `board/src/board_io.c` and everything above it follows. **Problem:**
-AFE_ON powers the BNO08X too; off, the part answers reads, resets and
-advertises normally while acting on no write - every symptom pointed at SPI and
-a day was spent there before the supply was checked. **Fix:** `power` is a
-parts-list column, and `Board_ImuInit` refuses while PB2 is low. Adding
-hardware is one row in `s_parts` (+ pins in `s_digital`, + a probe case so
-`state` is measured); nothing else, or it goes stale. Check it landed:
-
-```powershell
-python -c "import coaxial; [print(p) for p in coaxial.connect([1])[0].system.channel_map()['parts']]"
-board_chat -Ask "what is fitted on the board?"    # the model, off the same wire
-```
+VREFBUF off; U2 REF2033 drives `+3V3_ref` and `+1V65_bias` via AFE_ON.
+Devices, channels and parts come from the bus (`0x41`, `0x6D`), never from
+docs. Add hardware = one row in `board/src/board_io.c` (`s_parts`,
+`s_digital`, a probe case).
 
 | Read | Before |
 | --- | --- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | touching the source layout |
-| [docs/PROTOCOL.md](docs/PROTOCOL.md) | changing anything on the wire |
-| [docs/BOOT.md](docs/BOOT.md) | touching the bootloader, the flash map or how a node gets its image and record |
-| [docs/HARDWARE.md](docs/HARDWARE.md) | interpreting any measurement |
-| [docs/MODELS.md](docs/MODELS.md) | changing the local model, its tag or its tools |
-| [docs/FINDINGS.md](docs/FINDINGS.md) | **investigating anything** — it records what is already ruled out |
-| [docs/TODO.md](docs/TODO.md) | picking up work — what is done and measured, and what is still arithmetic |
+| docs/ARCHITECTURE.md | touching the source layout or the tests |
+| docs/PROTOCOL.md | changing anything on the wire |
+| docs/BOOT.md | bootloader, flash map, node images |
+| docs/HARDWARE.md | interpreting a measurement |
+| docs/MODELS.md | the local model, its tag, its tools |
+| docs/FINDINGS.md | **investigating anything** - what is settled |
+| docs/TODO.md | picking up work |
 
 ## Commands
 
-**`run_tests.ps1` is the interface to the suites**, not
-`python tools/run_tests.py` (what it drives).
-
 ```powershell
-.\host\run_tests.ps1                      # ~25 % of every check, the default
-.\host\run_tests.ps1 -AutomaticMedium     # ~50 %, before handing work over
-.\host\run_tests.ps1 -AutomaticHigh       # ~75 %, adds conformance + live:tools
-.\host\run_tests.ps1 -All                 # 100 %, the gate
-.\host\run_tests.ps1 -Depth 40            # any 5 % step
-.\host\run_tests.ps1 -Scope test_mcp.py   # those files only, whatever the depth
-.\host\run_tests.ps1 -Only intent,picker  # named tests, nothing else
-.\host\run_tests.ps1 -Tags prompt,reply   # subjects, without asking the model
-.\host\run_tests.ps1 -Structure           # does host/ still hold together - 4 s
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check    # what is missing
-                            # -Yes installs the lot; -FirmwarePackage X.zip
-                            # adds FW_H7 to CubeMX.
-. .\env.ps1                 # PATH + board_chat, dbg, board, cbuild, cflash, cubemx
+.\host\run_tests.ps1                # ~25 % tier; -AutomaticMedium 50, -AutomaticHigh 75, -All
+.\host\run_tests.ps1 -Structure     # after any host/ edit, 4 s
+.\host\run_tests.ps1 -Scope X.py    # one suite
+. .\env.ps1                         # PATH + board_chat, dbg, cbuild, cflash
 ```
 
-**Refusals come from the board.** Anything taking parameters answers `u8
-took` and, on refusal, the board's own words for what is wrong and what to
-do. The host validates only what stops a request being formed. A new check
-is a sentence beside it - not a host-mapped code, not a docstring list.
+```bash
+cd host
+python -X utf8 tests/<suite>.py          # one suite
+python tools/run_tests.py --offline      # the offline gate, ~2.5 min
+python tools/build_and_flash.py          # --build-only | --flash-only | --boot
+python tools/flash_nodes.py --store DIR --simulated --bus LL
+python tools/pulse.py -d 0.05 -H U -L V -n 1 --on 30
+python tools/commission.py --simulated   # --arm --port COM4 at the bench
+python -m coaxial_mcp --port COM4        # MCP server
+python dbg.py -m auto -q "read the NTC"  # local model, one question
+python tools/ansi2png.py frame.txt frame.png   # judge braille in a raster
+```
 
-**`Coaxial63100` is the front door** (`host/coaxial/rig.py`): it owns the
-AFE preflight (invariant 9) and puts the supply back as found, Ctrl+C
-included. **The host is three interfaces** - `Acquisition`, `PolledSensor`,
-`GateControl` - each with a real and a simulated implementation, so a name
-drifting between them fails at construction. Add a method to both or
-neither. `GateStage` is concrete: the arming policy, one of it.
+Firmware must build with 0 warnings, Debug and Release. The ST toolchain is
+under `%LOCALAPPDATA%\stm32cube\bundles\`, not on PATH (`env.ps1` adds it).
+
+## Host
+
+`Coaxial63100` (`host/coaxial/rig.py`) is the front door: AFE preflight,
+supply restored on close (Ctrl+C too). Subsystems: `device.daq`, `.imu`,
+`.angle`, `.thermal`, `.gates`, `.drive`, `.motion` (`stepper`, `servo`,
+`velocity`), `board.boot`. Interfaces `Acquisition`, `PolledSensor`,
+`GateControl`, `BootControl` each have a real and a simulated
+implementation - add a method to both or neither. `simulated_device=True`
+needs no cable. Refusals are the board's words (`u8 took` + text); the host
+validates only what stops a request being formed.
 
 ```python
 from coaxial import Coaxial63100
-device = Coaxial63100(port='COM4')       # simulated_device=True: no cable
-daq = device.daq                         # the data acquisition subsystem
-daq.open()
-daq.enable()                             # powers the analog front end
-device.set_time_from_pc()                # the board counts cycles, not time
-daq.configure('phaseU', 'NTC')           # names in any spelling, or a list
-daq.start()                              # host and target both buffer
-for r in daq.read(-1):                   # blocks for the first, takes the lot
-    print(r.start_time, r.dt, [(s.name, s.value) for s in r.samples])
-daq.stop()                               # buffering stops at target
-daq.close()                              # the acquisition released
-device.close()                           # the port, and the supply as found
+with Coaxial63100(port='COM4') as device:
+    daq = device.daq
+    daq.open(); daq.enable(); device.set_time_from_pc()
+    daq.configure('phaseU', 'NTC'); daq.start()
+    for r in daq.read(-1):
+        print(r.start_time, r.dt, [(s.name, s.value) for s in r.samples])
 ```
 
-In simulated mode the thermal stand-in is a HYPOTHETICAL BOARD in a
-situation (bench, box, fan, heat sink, stuffy; rooms outdoors -20 C,
-temperate 20, cold -25, toasty 45), heating on the losses the observer
-estimates, read through three noisy thermometers and identified by the
-same identifier the board runs (`coaxial/thermal_ident.py` mirrors
-`thermal/src/thermal_ident.c`). `rig.thermal.situation('box')`, `'tour'`
-(a room is earned by STABLE held ten wall seconds, a hundred model seconds,
-or fifty minutes), `rig.thermal.load_cycle()` (two model minutes at 30 A,
-four idle); a board refuses all in words. Nothing is kept between runs.
-The margin is continuous (2026-09-06): the floor is 80 % of every span
-(thermal op 12) while the model is doubted whole, one when not at all;
-the innovation is judged against the floor plus five percent of the
-reading's own movement; an idling board - thermometers moved less than
-three floors - stays at the floor; the room is the fifth identified
-quantity, and only a cooldown tells a cold room from a good air path.
-FINDINGS has the two inferences that ran off.
+## Rules
 
-Subsystems hang off it by name - `device.daq`, `.imu`, `.angle`, `.thermal`,
-`.gates`, `.drive` - and `device.motion` is the drive as three verbs:
-`stepper`, `servo` (position over the A1335, corrected between moves),
-`velocity` (sensorless under `coaxial.loop`). The notebooks are nine short
-papers, one per functional area, generated from `host/tools/notebooks/`
-and executed on the stand-in (`notebook_examples/`): acquisition, link,
-sensors, power_stage, thermal, drive (the control law Monte Carloed over
-the 23-63 V link, `tools/montecarlo.py`), motion (the 5230SL and its
-propeller from rest to 6717 rpm, checked against Hobbywing's thrust
-stand), applications, commissioning (the bench-day procedure).
+- **Surgical, token-light.** No worker agents (3 tries, 0.8 M tokens,
+  nothing returned). A change is a cut, not a rewrite. One subsystem = one
+  file, one seam, one suite. Docs short: facts, numbers, dates - no
+  narrative. Git history holds the long form.
+- **CubeMX must keep regenerating.** Edit generated files (`core/`,
+  `startup_*.s`, `cmake/stm32cubemx/`) only inside `USER CODE` blocks.
+  Sources go in the root `CMakeLists.txt`. Leave `.ioc`/`.mxproject` case.
+- **Narrowest test first.** While a bug is live, run what can disprove the
+  hypothesis (a register read, one suite), never `-All`.
+- **Green before the next item**, pre-existing failures included.
+- **Suspect your own code before the hardware.** BNO085 bring-up: six
+  firmware defects, four hardware hypotheses, none survived. Read the
+  reference implementation, the init order (MSP callbacks reset pins),
+  widths and byte order, the worst-case buffer; verify the fix ran.
+- A measurement taken while something else drives the bench is not one.
 
-**`daq.catalogue()` is what the board can record**, each row saying its kind
-and whether `configure()` may ask for it - since MINOR 7 the sensor fields
-(orientation, acceleration, rotation rate, magnetic field, shaft angle) ride
-any software-clocked record as four-word SNAPSHOTS beside the sums:
-`configure('phaseU', 'shaft angle')`, and the frame scales them. On older
-firmware the rows are listed and refused with the reason. A `Record` is a
-`dict` underneath, so `r['NTC']` is still the SUM and `r['samples']` still the
-count; `r.value('NTC')` is one channel's mean and `r.sample('NTC')` the struct
-behind it; `r.samples` is the ARRAY and `r.count` the count.
-`daq.channel_names()` and `daq.columns(values)` are the two helpers around it.
+## Routine, per item
 
-**`start()` puts a reader thread on the link** and it is the only thing
-that touches the transport while it lives - a `print` in a loop never sits
-between two round trips. Measured: 84.4 to 134.6 records/s with 4 ms of
-work a block. Every read answers its own backlog, so pacing costs no round
-trip.
-
-```bash
-cube-cmake --build --preset Debug        # must be zero warnings
-STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
-
-cd host
-python -m coaxial all                    # CLI against the board
-python tools/run_tests.py --offline      # the suites needing no board
-python tools/pick_tests.py --explain     # which subjects, and why
-python tools/ansi2png.py frame.txt frame.png   # a braille frame as the
-                                         # terminal draws it - judge it here
-python tools/build_and_flash.py          # build (+flash): --build-only, --flash-only,
-                                         # --boot flashes the bootloader first
-python tools/session.py --status         # who is sharing the board's port
-python tools/switch.py --sweep 5,95 -p 10 -s 120  # background; --stop disarms
-python tools/pulse.py -d 0.05 -H U -L V -n 1 --on 30   # one leg against another
-python tools/sto_probe.py --simulated    # the STO chain's channels, a row a second
-python tools/flash_nodes.py --store DIR --simulated --bus LL   # the master:
-                                         # every blank node takes its image and record
-python tools/commission.py --simulated   # the eight steps on the stand-in;
-                                         # --arm --port COM4 at the bench
-python -m coaxial_mcp --port COM4        # MCP server, stdio
-python -m coaxial_ollama.capability      # which local model this machine runs
-python -m coaxial_ollama.pull gemma4:12b # a tag through the daemon, drawn as a bar
-python dbg.py --repl                     # prompt loop; /py and /sh cost no tokens
-python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
-```
-
-Twenty-nine suites, 3325 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (767),
-`test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
-`test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
-`test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
-`test_ollama_link.py` (114), `test_drive_core.py` (81, the control law against a
-motor model through the host gcc, the Monte Carlo's job included),
-`test_modbus_core.py` (78), `test_sensorless.py` (138, the design arithmetic -
-the power stage's too, and the datasheet against the thermal model - the
-commissioning and the motion verbs, dangerous paths included, against the
-stand-in), `test_mcp.py` (50), `test_shtp_core.py` (38), `test_filter_core.py`
-(42, the anti-alias chain against the transfer function it was designed from),
-`test_thermal_core.py` (144, the SOA envelope as the C that will run - the
-derate ramp, the lookahead, the soak joules and the conduction split - and the
-online identification against a ground truth whose situation changes, through
-the host gcc), `test_daq_core.py` (59, the acquisition engine as the C that
-will run - the ring, the summing window, the anti-alias ladder, the tone and
-the live accumulator, every record decoded as a host decodes it),
-`test_boot_core.py` (45, the bootloader's state machine as the C that will
-run, on a RAM flash - the chunk stream, loss and re-send, the seal, the
-master dying, the debugger's way in), `test_ollama_render.py` (32), `test_parity.py` (30),
-`test_ollama_board.py` (28), `test_ollama_bus.py` (28), `test_render.py` (120,
-the 3D engine stage by stage against an analytic oracle -
-`render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23),
-`test_broker.py` (33, the shared session and the reply shapes on a scripted
-port, no board), `test_views.py` (235, every view and the front page drawn
-twice, plus the rotor observer's own geometry - no board),
-`test_ollama_language.py` (12), `test_daq_api.py` (75, the acquisition front
-door against the stand-in - naming, reading, the record shape, the buffers),
-`test_bench.py` (4, the board's loop rates against a recorded baseline),
-`test_boot.py` (18, the master's side of the bootloader against the
-stand-in's blank node and a bus of four - the sequence, the image kept,
-the prefix search, the refusals).
-Wiring: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system). The rules
-that bind you:
-
-* **A missing cable is not a failing suite** - every suite opens through
-  `open_session()`, which probes and falls back to the stand-in.
-* **The model is loaded once per run and released once**, by `run_tests.py`.
-  Measured: most of the wall time went into loading 7.6 GB again.
-* **Run `-Structure` after editing anything under `host/`.** It catches a
-  module that stopped importing, a definition split into two files, a dead
-  re-export, a function past what a reader can hold. Measured: five
-  NameErrors in one afternoon of moving code, each found by an unrelated
-  test elsewhere.
-* **A tier is a budget of checks, and it cuts as well as fills.** Floor:
-  one test from every subject the pick left out, plus the pick's smallest
-  group. Sizes from `host/tests/counts.py` - groups run 2 to 77 checks.
-
-  ```text
-  ran 19 of 43 groups: prompt,runner, seed 3440, 51% of checks
-  Total: 984  Passed: 449, Skipped: 535, Failed: 0, (4 of 6 suites ran)
-  ```
-
-  Why the clamp exists, measured: on the 25 % tier the model's pick put
-  `live:all` back and the cheapest run took 398 s, 352 of them that suite.
-  It now says what it refused: `the 25% tier does not stretch to: live:all`.
-* **Any 5 % step is a tier.** Suites join by seconds per check - measured:
-  simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
-  conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  778 of this tree's 3325 checks are in those nine files.
-* **The model is not asked when the path map already knows.** Every changed
-  file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
-  simulated, views, render; no board, no ollama - settles without a model.
-  Asking costs a 7.6 GB load to be told what the map said. A demo wrapper
-  edit is three seconds, not seven minutes.
-* **Ctrl+C is `STOPPED`, exit 130, not `FAILED`** - the `finally` hands the
-  model back. Killing from outside does not: measured, 8.4 GB stayed on the
-  card until released by hand.
-* **A typed sentence is classified before it is answered** (`intent.py`), on
-  the turn's own client. Never a second `Ollama`: a client at a different
-  `num_ctx` reloads 7.6 GB per question. [docs/MODELS.md](docs/MODELS.md).
-
-At the prompt, `/board simulated | auto | rs485 | COM4` and `/model TAG |
-auto` swap either mid-session for no tokens - so does prose: a sentence
-asking to switch to the debug probe is an order the host carries out.
-`/model` hands VRAM back
-first.
-
-The ST toolchain is not on PATH - arm-gcc, cmake, ninja,
-`STM32_Programmer_CLI` live under `%LOCALAPPDATA%\stm32cube\bundles\`
-(`cube bundle install --yes NAME`, no ST account). `env.ps1` puts the newest
-on PATH for one shell. No port is hardcoded: `--port` is a first guess,
-`open_session()` probes.
-
-## Do not run the suites to look busy
-
-**While a bug is live, run the narrowest thing that could disprove the
-current hypothesis - never the full suite.** `-All` is eight minutes and
-answers a question nobody asked. **Problem, measured:** chasing two gate
-driver stages 15 C hotter than the third, the full suite was started three
-times; none of the 1970 checks could say anything - the difference was on
-the bench. **What worked:** a 600-sample pin count and a register dump. The
-narrow thing: read the register, count the samples, or run the one suite
-whose name matches the change.
-
-## Green before the next thing
-
-**Fix and get the suites passing before the next item on a list** - a
-failing check carried forward stops being information. Pre-existing failures
-too: say they are pre-existing, then fix them. **Problem, measured:** nine
-failures in `test_ollama_render`/`test_ollama_reply` were labelled
-pre-existing and carried through four more items; the change that broke them
-was no longer identifiable. **Fix:** the label is a note on the way to the
-fix, not a substitute.
-
-## Surgical, token-light
-
-One engineer, no workers: three tries at fanning the work out to agents
-(2026-09-22) burned 0.8 M tokens and returned nothing, twice on the
-session's limit. A change is a cut - the line that is wrong and the
-sentence beside it - never a rewrite around it, never a wall of text or
-code. A subsystem is one file, one seam, one suite; what cannot be
-tested through one seam is not built. Read the narrow thing, write the
-narrow thing, run the narrow thing.
-
-## The routine, one item at a time
-
-"Test, document, commit, push." A list is that routine run per
-item, in the order given, one commit each; *Continue* means the next
-item. Measured over a day of it (2026-09-05, seven items): what held
-was the order, and every step skipped was paid for later.
-
-1. **Test the narrow thing.** The suites whose names match the change,
-   from `host/`: `python -X utf8 tests/<suite>.py`; then `-Structure`
-   after anything under `host/`. The offline gate (`python
-   tools/run_tests.py --offline`, ~2.5 min, in the background) before a
-   push that changes `coaxial/` itself; CI runs it on every push either
-   way, and builds the firmware. A new check counts: sync the number in this file,
-   `run_tests.ps1`, ARCHITECTURE's table and `tests/.counts.json` -
-   test_structure holds them to each other and fails one run behind.
-2. **A picture is judged in a raster, not in glyph counts.** Anything
-   braille is written to a file and rasterised at the bench's framing
-   before it lands: `python tools/ansi2png.py frame.txt frame.png`, then
-   READ the PNG. Three attitude renders that passed every check were
-   "blocky as hell" on the bench; two choices in the thermal map were
-   reversed on the raster before the bench saw them. The bench's verdict
-   still decides - the raster is what stops it seeing the obvious.
-3. **Document.** A FINDINGS bullet, dated: the measurement, what was
-   tried and taken out, and what the bench asked for - in English, not
-   its words echoed. Everything in the tree is written in English.
-   PROTOCOL for anything on the wire - a MINOR per appended field, the
-   version table. ARCHITECTURE and TODO wherever they describe the
-   thing; a stale sentence there is a second answer.
-4. **Commit and push.** The title one sentence in the tree's voice, the
-   body what changed and what was measured; `git push origin main`; then
-   CI, read off the public API with no token:
-   `curl -s https://api.github.com/repos/rogerisaksson/coaxial_63100/actions/runs?per_page=3`.
-   A run takes five to six minutes - measured, after one was mistaken
-   for hung at three. A red run is fixed before the next item ("Green
-   before the next thing"); its log tail is posted as a commit comment.
-5. **Ask** - every time, as the last step:
+1. Test the narrow thing; `-Structure` after host/ edits; offline gate
+   before pushing changes to `coaxial/`.
+2. Braille output is judged in a raster PNG (`ansi2png.py`), then the bench.
+3. Document: one dated FINDINGS line if something was measured or settled;
+   PROTOCOL for wire changes (MINOR per appended field).
+4. Commit (one-sentence title, measured facts in the body), push, check CI:
+   `curl -s https://api.github.com/repos/rogerisaksson/coaxial_63100/actions/runs?per_page=3`
+   (5-6 min; a red run's log tail is a commit comment). Fix red first.
+5. End every item with exactly:
 
 > **Continue, or commit and push?**
 > *Continue* — keep working in this session
 > *Commit and push* — stage, commit, push to origin/main
 
-Two options, nothing else. **Known failure mode:** the question gets
-replaced by a summary and the session carries on - it happened on the first
-change after this rule was written.
+A mid-turn message from the bench is the next item.
 
-A mid-turn message from the bench is part of the routine, not an
-interruption: "now it works, but ..." is the next item, taken before
-the current one is declared done.
+## Local model
 
-## Spend the local model, not the expensive one
-
-A local model on this machine has the board's tools wired to it, free per
-token, at the bench. Anything routine, mechanical or covered by its tools
-goes there by default.
-
-```powershell
-board_chat -Ask "read the NTC and give me the temperature"
-python dbg.py -m auto -q "..."          # from host/, one layer down
-```
-
-Both pick the tag this machine runs and **pull it if absent** - "not
-installed" is never a reason to answer from memory. `board_chat` also tunes
-the ollama daemon (docs/MODELS.md). **Reuse a loaded model** - check
-`ollama ps` first: two models is two copies of weights on a 16 GB card.
-
-| Question | Who answers |
-| --- | --- |
-| What does the board read now? Is the AFE on? Temperature, DC link, frame counters? | **the local model** — offer the command, then stop |
-| Is this channel odd? What does `self_test` say? | **the local model**, then read FINDINGS before investigating |
-| Does it still build/flash/pass? | **the local model** — `dbg -q "run the test suites, then build and flash, tell me if anything failed"`; the tools report parsed tallies, not summaries |
-| Why is this C function written this way? `board/` or `comms/`? Is this a protocol MAJOR? | **you** — measured failure mode: on design questions it substitutes plausible hardware constants (FINDINGS) |
-| What is the wire format of command 0x41? | **you**, from docs/PROTOCOL.md |
-
-A failing build or a regressed test is still yours to judge - the rule is
-about who *runs* the loop. And when the answer is for you, not the user,
-skip the model: `run_tests.py` and `build_and_flash.py` print a parsed tally
-and a real exit code in four lines.
-
-| The answer is for | Do |
-| --- | --- |
-| the user, who asked | the local model — free, at the bench |
-| you, mid-change | run the script yourself |
-| nobody yet (exploring) | neither — read FINDINGS first |
-
-### Stop and ask first
-
-Before touching the board to answer a question, ask whether it is worth
-tokens. Two shapes: *measure something*, and *reach the local model at all*
-("how do I ask it" means they want to be at the prompt, not taught the
-command). Ask minimally:
+Routine board questions go to the local model (free): `board_chat -Ask
+"..."` or VS Code: *Terminal > v beside + > Board chat* (Ctrl+Shift+B for
+one question). Before touching the board to answer a question, ask:
 
 > **Local model, or here?**
 > *Local model* — board_chat
 > *Here* — I drive the library
 
-On *Local model*, hand over the shortest way and **stop** - a click, not a
-retyped command:
-
-```text
-Terminal panel > the v beside + > Board chat
-```
-
-(**Ctrl+Shift+B** runs "Ask the board" for one question; only outside VS
-Code is `board_chat -Ask "..."` the answer.) Do not run it, paraphrase it,
-or take the reading anyway. **Do not spawn a window** - `Start-Process`
-puts the answer where the user is not.
-
-### When the permission classifier says no
-
-Auto mode's classifier can refuse a Bash call that arms the stage - and then
-everything Bash for a while, `run_tests.ps1` included; reads still went
-through the same afternoon. The hand-off, three git-ignored files under
-`host/`:
-
-* `claude_watch.ps1` - the user starts it once; forks hidden (PID in
-  `claude_watch.pid`), hashes `claude_do_it.ps1` every 0.5 s, runs it after
-  a 1 s settle. `-Stop` kills, `-Status` asks.
-* `claude_do_it.ps1` - what you want run, as `Step 'what' 'look for' {...}`
-  blocks FROM `host/`; stops at the first non-zero exit. Rewrite, wait for
-  `WATCH finished`, read the log.
-* `claude_do_it.log` - UTF-8, timestamped: WATCH/RUN/STEP, output, exit.
-
-**The watcher runs whatever the file holds** - comment a physical step out
-the moment its run is read, or the next rewrite pulses the stage unasked.
-
-### Suspect your own code before the hardware
-
-**No oscilloscope, schematic question or pin assignment until the code has
-been read for the fault.** The BNO08X bring-up produced six firmware defects
-and four hardware hypotheses; none of the latter survived a measurement.
-
-| Symptom | Actual cause |
-| --- | --- |
-| chip select never moved | configured before `HAL_SPI_DeInit`, which runs the MSP and hands the pin back |
-| every read came back `FF FF FF FF` | CS released between header and cargo; the part restarted the message |
-| every read after a reset refused | the advertisement is 276 bytes, the buffer was 64 |
-| a sensor enabled at 60 ms never reported | the interval went out little-endian on a big-endian wire - 27 minutes |
-| a write worked twice, failed the third | gated on an INTN an already-awake part never asserts |
-
-Before "which pin is X" or "looks like hardware", all of:
-
-* **Read the reference implementation** - `github.com/ceva-dsp/sh2` settled
-  the report lengths; `bno080-nucleo-demo`'s `sh2_hal_spi.c` settled CS and
-  wake ordering, both after hours of guessing.
-* **Re-read the init order** - MSP callbacks reconfigure pins; anything set
-  before `HAL_*_Init` is gone.
-* **Check widths and byte order against the wire**, not today's traffic.
-* **Check the worst-case buffer**, not the typical one.
-* **Verify the fix took effect** - two of the four hypotheses were
-  "improvements" overwritten before they ran, credited with another cause's
-  improvement.
-
-A measurement taken while something else drives the same bench is not a
-measurement (FINDINGS) - code under test included. None of this applies when
-the board is instrumentation for work already agreed: then it is a test
-fixture. The test is who the answer is for. Where the user chose *here*,
-relay what was measured - no re-derivation, no verdict. It is a **dumb-slave
-interface to a dumb slave**; invariant 10 applies to it too.
-
-## How to write here
-
-`~/.claude/CLAUDE.md` says it; this file does not repeat it. Specific here:
-**keep every measurement, rejected alternative and recorded failure** when
-trimming - cut the paragraph, never the number. FINDINGS is a record, not
-documentation, and is not shortened.
+On *Local model*: give the click, stop. Never `Start-Process`. Design
+questions (why this C, protocol MAJOR?) are yours - the model invents
+hardware constants. Check `ollama ps` before loading (16 GB card).
+If the permission classifier blocks Bash: `host/claude_watch.ps1` runs
+`host/claude_do_it.ps1` on change, log in `claude_do_it.log`; comment out
+physical steps once run.
 
 ## Layout
 
 ```text
-core/        CubeMX-generated. main.c holds ONLY CubeMX functions, main(),
-             the two poll calls the sensors need, and the STO keepalive
-             toggle. Keep it that way.
-electronics/ schematic and BOM - the authority on what is fitted
-render/      the CAD export the attitude view draws from
-board/       this hardware, behind comms/inc/board.h
-comms/       the comms stack: cmd over proto over dev, plus the console
-modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
-drive/       the control law. Portable C11, host-tested against a motor model
-shtp/ thermal/ filter/ daq/  the other portable cores: the BNO08X transport,
-             the observer, the anti-alias chain, the acquisition engine -
-             each host-tested; board_daq.c is the hardware around the last
-boot/        the bootloader's state machine, C11, host-tested; the
-             application sits behind it at 0x08020000 (docs/BOOT.md)
-host/        Python: coaxial/ library (coaxial/graphics/ the renderer),
-             coaxial_mcp/ server, coaxial_ollama/
-             runner and dbg.py, testline/, tests, tools; terminal/ the
-             loader and its pages/, one thin module a view
-notebook_examples/  executed notebooks, checked in with the stand-in's
-             outputs - root README.md tables them
-electronic_simulations/  LTSpice, a git submodule (SSH key on the bench
-             machine); coaxial/inverter.py carries its traced constants
-coaxial_tty.ps1  `python -m terminal`: the front page, seven views (the gate
-                 drivers and the rotor observer under MOTOR CONTROLLER) and
-                 the board chat, one process, the preload resident across them
-terminal/        imu.ps1 attitude, angle.ps1 shaft angle, adc.ps1 meter bridge,
-                 gate_drivers.ps1, thermal_observer.ps1, rotor_observer.ps1
-setup.ps1        one-time environment setup; -Check changes nothing
-env.ps1          per-shell PATH and the board_chat/dbg/board/cbuild/cflash aliases
-host/board_chat.ps1  preflight + prompt loop; orchestration only — also the
-                 chooser's BOARD CHAT page, which asks who answers: this,
-                 or claude with the coaxial MCP server. board_chat/ beside
-                 it holds Say, Tuning, ComPort, Ollama, ModelChoice,
-                 Relaunch: one concern per file, dot-sourced, not meant to
-                 run alone
-docs/            this documentation
+core/      CubeMX-generated; main.c = CubeMX + USER CODE calls only
+board/     this hardware, behind comms/inc/board.h (+ comms/inc/board/*.h)
+comms/     cmd over link over dev_uart; console
+modbus/ drive/ thermal/ filter/ daq/ shtp/ boot/   portable C11 cores, host-tested
+electronics/  schematic, BOM, pick-place - authority on what is fitted
+host/      coaxial/ (graphics/ renderer), coaxial_mcp/, coaxial_ollama/,
+           terminal/ (loader + pages), tests/, tools/
+notebook_examples/  nine executed papers, from host/tools/notebooks/
+docs/      this documentation
 ```
-
-`cmake/stm32cubemx/CMakeLists.txt` is regenerated by CubeMX — **never add
-sources there**. New sources go in the root `CMakeLists.txt` user blocks.
-Regeneration also writes ST's `Core/`/`Drivers/` case back into it; Windows
-resolves that against the lowercase tree, so the bench still builds —
-re-lowercase the paths when the file is next touched. `.ioc` and
-`.mxproject` are CubeMX's own bookkeeping: leave their case alone.
 
 ## Invariants
 
-Break one and something works until it doesn't.
+1. `modbus_crc/slave/rtu.c` include only std headers; host-tested
+   (`test_modbus_core.py`). Only `comms/src/dev_uart.c` touches a USART.
+2. RTU timing in raw `DWT->CYCCNT` ticks, never microseconds.
+3. `0x41`'s payload is append-only: append = MINOR, anything else = MAJOR.
+4. A host picks its codec on protocol MAJOR only.
+5. No printf while the binary link is open (latched overrun kills RX).
+6. Every ADC read path calls `HAL_ADC_ConfigChannel` and clears `PCSEL`.
+7. Every scaling parameter lives once, in the calibration record (0x6E dev
+   3). Only the DC link is spanned against an instrument (2026-08-30,
+   -32 418 ppm ch 5); all else is schematic arithmetic.
+8. The Python library returns a result or raises `coaxial.errors`; never a
+   status code or None-for-failure.
+9. AFE_ON off: channels read exact mid-scale, NTC exactly 25.00 C - labelled,
+   not refused; cooked readings refuse.
+10. The board is a dumb slave: no limits or expected values in firmware or
+    tests. Exceptions: `self_test` (own registers/flash) and the thermal
+    envelope (drops MOE at the record's ceiling, holds 70 % for 30 min).
+11. DC link divider 49.9k/2.2k = 78.15 V FS on 63 V, headroom deliberate.
 
-1. **The protocol core stays hardware-free.** `modbus_crc.c`,
-   `modbus_slave.c`, `modbus_rtu.c` include only `<stdint.h>`, `<stddef.h>`,
-   `<stdbool.h>`, `<string.h>` - host-testable, and `test_modbus_core.py`
-   does it: built with host gcc, driven through ctypes, clock injected.
-   `-Wconversion` is on them in both builds. Only `comms/src/dev_uart.c`
-   touches a USART.
-2. **RTU timing is raw `DWT->CYCCNT` ticks, never microseconds** - dividing
-   moves the wrap off a power of two and the unsigned elapsed arithmetic
-   breaks silently across it.
-3. **Command 0x41's payload is append-only.** Appending a field is a MINOR;
-   moving, resizing or repurposing one is a MAJOR whether you meant it or
-   not.
-4. **A host selects its codec on the protocol MAJOR alone**, never the
-   firmware version.
-5. **No printf while the binary link is open** - a blocking transmit inside
-   a frame corrupts framing and latches a UART overrun, which on this
-   silicon kills reception permanently.
-6. **Every ADC read path calls `HAL_ADC_ConfigChannel` and clears `PCSEL`.**
-   Two separate bugs came from paths that did not - FINDINGS.
-7. **A conversion is named where it is defined, and defined once** - every
-   scaling parameter lives in the calibration record behind `0x6E` device 3,
-   never a literal at a call site, never a second copy in a host. The phase
-   gain was traced off the schematic 2026-08-26, so they report amperes.
-   **One number has been measured against an instrument**: the DC link,
-   spanned against a DMM 2026-08-30 (31.04 read, 30.05 true, -32 418 ppm on
-   channel 5, saved). Every other number is the schematic's arithmetic -
-   span before believing one.
-8. **Nothing in the Python library returns a status code or
-   None-for-failure** - a result, or a raise from `coaxial.errors`.
-9. **AFE_ON decides what a reading means** - it powers the ADC reference.
-   Off, channels read exact mid-scale and the NTC exactly 25.00 °C:
-   plausible, not a measurement. The gate is a **label, not a refusal**:
-   `analog_read` returns codes either way under an unmistakable line.
-   Refusing was tried and was worse - asked for raw codes with the AFE
-   deliberately off, a model wrote "Mid-scale … 25.00 C" out of the warning
-   text itself. Cooked readings (`read_all`, `ntc_temperature`,
-   `dcbus_voltage`) still refuse: they claim a physical quantity.
-10. **The board is a dumb slave: no limits, no expected values, in firmware
-    or this repository's tests.** Pass/fail belongs to a test executive
-    beside calibrated instruments. Two narrow exceptions: `self_test`
-    (judges only its own registers and flash), and **the thermal envelope**
-    (a board that cooks itself is not a measurement problem) - the board
-    never calls a reading good, it *acts*: at the record's ceiling it
-    drops MOE, the same path the break uses, and holds the envelope at
-    70 % of every span for the next half hour; a ceiling the policy pulls
-    in under a node closes the clamp instead, and the ceilings live in the
-    calibration record, a limit it was given, not invented. The margin is
-    reported; the verdict is not.
-11. **The DC link divider's headroom is deliberate.** 49.9k/2.2k gives
-    78.15 V full scale on a 63 V rating, 24 % margin - the over-rating
-    transient is what you want recorded, not clipped.
+## Traps
 
-## Two things that will waste your time
-
-**JTAG connect-under-reset does not work here.** Any connect asserting NRST
-fails with `Unable to get core ID` - probe firmware, not the board; cabling
-proven fine. Use `-c port=JTAG mode=Normal reset=SWrst`, or SWD. End with
-`--start`, not `-hardRst`, or the core is left halted.
-
-**The AFE switch (PB2) powers the ADC reference and the IMU.** Off: every
-channel exact mid-scale, NTC exactly 25.00 °C. The BNO08X is worse - answers
-reads, resets and advertises normally while acting on no write, so the fault
-presents as SPI; a day was spent there before the supply was checked. Enable
-it before believing anything analog or an IMU that looks present.
-
-## Tooling traps
-
-* C escape sequences through a Python string inside a bash heredoc get
-  mangled: `\r\n` arrives as a real CR+LF. Build the backslash with
-  `chr(92)`, or write the code to a file and splice it.
-* `core/src/main.c` is LF-terminated; Python `open(...)` without
-  `newline=''` converts it to CRLF on write.
-* Long `cat > file <<'EOF'` heredocs get truncated. Split them.
-* Most files here are CRLF. A multi-line `str.replace` pattern written in a
-  heredoc has LF newlines and silently matches nothing - five no-op edits in
-  one afternoon, each discovered a test later. Single-line replaces are
-  safe; multi-line edits go through the edit tool, and a replace script must
-  assert its patterns matched before writing.
-* PowerShell variable names are case-insensitive: `$Asked` and `$asked` are
-  one variable. A list named `$Asked` beside the `$asked` view overwrote it
-  and the chooser opened BOARD CHAT on every start (2026-08-31).
+- JTAG connect-under-reset fails (`Unable to get core ID`): use SWD or
+  `mode=Normal reset=SWrst`; end with `--start`.
+- AFE_ON (PB2) off: analog reads mid-scale, BNO085 answers reads but ignores
+  writes. Enable it before believing an analog or IMU reading.
+- Bash heredocs mangle backslashes: write scripts with the Write tool.
+- Most files are CRLF; `core/src/main.c` is LF. Replace scripts must assert
+  their patterns matched.
+- A quoted `#include "x.h"` resolves next to the including file first: a
+  header named like its target includes itself.
+- `UL` is 64-bit on Linux CI: use `U` in C shared with host tests.
+- PowerShell variables are case-insensitive (`$Asked` == `$asked`).

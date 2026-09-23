@@ -1,55 +1,20 @@
 # Protocol
 
-What goes over the wire between a host and the board. The stack is
-`comms/` (`cmd` over `proto` over `dev`) on top of `modbus/`; the host
-mirror is `host/coaxial/protocol.py`, `wire.py` and `transport.py`.
-CMD_PROTO is **2.9** (`comms/inc/cmd.h`); the firmware is 1.6.0
-(`comms/inc/version.h`). The two are independent: a host selects its
-codec on the protocol MAJOR alone, never the firmware version
-(invariant 4).
+Host mirror: `host/coaxial/protocol.py`, `wire.py`, `transport.py`. Version
+in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.18); firmware version in
+`version.h`. A host picks its codec on MAJOR only (invariant 4).
 
 ## Framing
 
-Modbus RTU per the MODBUS over Serial Line Specification V1.02. A frame
-is `unit u8, function u8, data, CRC-16/MODBUS` with the CRC low byte
-first. Nothing delimits a frame except silence: t3.5 of idle before and
-after, never more than t1.5 between two characters inside it. Above
-19 200 baud the fixed values apply, t1.5 = 750 us and t3.5 = 1.750 ms;
-at or below, both derive from the character time. Both branches are in
-`modbus_rtu.c`. A gap longer than t1.5 inside a frame makes it not a
-frame: it is drained and discarded, never truncated and parsed.
-
-Timing is raw `DWT->CYCCNT` ticks, never microseconds (invariant 2):
-dividing moves the wrap off a power of two and the unsigned elapsed
-arithmetic breaks silently across it. The counter wraps every 9.04 s
-at 475 MHz.
-
-Since MINOR 9 the receiver takes a length oracle (`cmd_length.c`,
-`mb_rtu_length_fn`). A frame whose shape is proven by its own bytes is
-delivered the moment its CRC checks instead of after t3.5 of silence -
-1.75 ms of every such transaction, and the host may drop its own pre-TX
-gap for those. The rule the table lives under: an answer other than 0
-must equal the full length of every real request it can match, so only
-shapes with a fixed tail are answered, and only once enough bytes have
-arrived to rule the shorter form out. A failure of proof waits out t3.5
-as before; a CRC miss on the oracle path is neither counted nor
-consumed, the silence gate judges the same bytes. Proven today: the
-standard reads and single writes (5 bytes), the multiple writes
-(`6 + byte count`), and behind 0x6E: cal ops 0 and 1; gate ops 0 and 2
-(op 2 only once a tenth byte rules the short form out); daq ops 0, 2,
-3, 4 (once `want` has arrived), 5, 6; time 0 and 1; thermal 0 and 4;
-power 0; drive 0, 1, 2, 3, 4, 9, 12, 13. The host mirror is
-`coaxial.protocol.request_length`; `test_modbus_core.py` sweeps every
-prefix and fails a row that fires early.
-
-`MB_MAX_PDU` is 253 bytes. The CRC is bit-serial, no table: a 256-byte
-frame is 2048 iterations of a four-instruction loop, a few microseconds
-at 475 MHz against the 1.75 ms t3.5 budget.
+- Modbus RTU (V1.02): `unit, function, data, CRC-16/MODBUS` (CRC low first).
+  Above 19 200 baud t1.5 = 750 us, t3.5 = 1.75 ms; a gap > t1.5 inside a
+  frame discards it. Timing in raw CYCCNT ticks (invariant 2).
+- Length oracle (`cmd_length.c`, MINOR 9): a request whose shape its own
+  bytes prove is dispatched on its CRC, not after t3.5. Host mirror
+  `protocol.request_length`; `test_modbus_core.py` sweeps every prefix.
+- `MB_MAX_PDU` 253 bytes. Unit 0 = broadcast: all act, none answer.
 
 ## Ports
-
-Three serial ports, one link at a time (`comms/src/dev_uart.c`,
-`link.c`):
 
 | dev | UART | Where | Baud |
 | --- | --- | --- | --- |
@@ -57,44 +22,22 @@ Three serial ports, one link at a time (`comms/src/dev_uart.c`,
 | 1 | USART2 | RS485 through a THVD1450 | `link_baud` from the calibration record |
 | 2 | UART5 | RS485 through a THVD1450, termination on PE14 | `link_baud` from the calibration record |
 
-`link_baud` is 9 600 to 921 600, default 115 200. The RS485
-transceivers have RE tied to GND, so each port hears its own
-transmissions. Every port receives on interrupt with a per-byte
-timestamp; the UART FIFO is disabled; the receive ring is `DEV_RING` =
-256 bytes.
-
-The debug port carries either the text console or Modbus RTU, never
-both. At boot it is the console: `m` switches to binary, `r` prints the
-link status, `?` the key list. The way back is command 0x48 CONSOLE or
-holding register 0x0001 = 1. No printf may run while the binary link is
-open (invariant 5): a blocking transmit inside a frame corrupts framing
-and latches a UART overrun, which on this silicon kills reception
-permanently.
-
-Command traffic is budgeted at `CMD_LINK_SHARE_PCT` = 75 % of the
-link's time; the board's own polling has the rest. A host silent for
-10 s loses its rail claims and its armed stage (the firmware deadman
-and `Board_PwmSessionDrop`); the broker answers for an attached client
-every 3 s.
+- `link_baud` 9 600-921 600, default 115 200. RS485 RE tied low: each port
+  hears itself.
+- Debug port: console at boot (`m` binary, `r` link status, `?` keys);
+  back via 0x48 or holding reg 0x0001 = 1. No printf in binary mode.
+- Commands may take 75 % of link time (`CMD_LINK_SHARE_PCT`). Host silent
+  10 s: claims and armed stage dropped.
 
 ## Wire types
 
-`comms/inc/wire.h` and `host/coaxial/wire.py`. Every multi-byte integer
-is big-endian. No floats: a physical quantity goes as an integer with a
-declared scale - mV, mA, uV, milli-codes, urad, mrad/s, ppm, Q16.16,
-Q28. `str` is `u8 length` followed by that many ASCII bytes. Readers
-and writers are total: a short read is `CMD_ERR_LENGTH`, a full writer
-is `CMD_ERR_DEVICE`, and neither produces a truncated frame.
+Big-endian integers, no floats (declared scales: mV, mA, uV, urad, mrad/s,
+ppm, Q16.16, Q28). `str` = `u8 len` + ASCII. Short read -> `CMD_ERR_LENGTH`,
+full writer -> `CMD_ERR_DEVICE`; never a truncated frame.
 
-Every op that takes parameters answers **`u8 took`** first: `1` when
-the request was acted on, otherwise `0` followed by a `str` carrying
-the board's own reason - what is wrong and what to do. The board is the
-only thing that knows which check failed, so it is the only thing that
-says (`cmd_took` in `cmd.c`). The host validates only what stops a
+Every op taking parameters answers **`u8 took`**: `1`, or `0` + `str` with
+the board's reason (`wr_took`). The host validates only what stops a
 request being formed.
-
-A malformed request is a Modbus exception, `function | 0x80` and one
-code byte:
 
 | Firmware status | Exception |
 | --- | --- |
@@ -103,14 +46,8 @@ code byte:
 | `CMD_ERR_VALUE`, a field out of range | 03 ILLEGAL DATA VALUE |
 | `CMD_ERR_DEVICE`, the board could not comply | 04 SERVER DEVICE FAILURE |
 
-The host reads a `took` reply to its last byte (`reply_shape` in
-`transport.py`) and an exception frame as exactly five bytes; every
-other reply is read until the line falls quiet. Stopping a general
-reply on a valid CRC was measured and rejected: a prefix passes about
-once in 4096.
-
-Unit id 0 is broadcast: every node acts, none answers, and reads are
-refused. Op 0 of device 7 (TIME) is meant for it.
+The host reads a `took` reply to its last byte, an exception as 5 bytes,
+anything else until the line is quiet.
 
 ## Standard Modbus map
 
@@ -149,26 +86,20 @@ Request: empty. Reply, append-only (invariant 3):
     str description,          the device's one line, under 170 chars
     str type                  "bldc_inverter"
 
-Appending a field is a MINOR. Moving, resizing or repurposing one is a
-MAJOR whether it was meant or not.
+Append = MINOR; move, resize or repurpose = MAJOR.
 
 ### 0x42 ADC_TABLE
 
 Request: empty, or `u8 first`. Reply: `u8 n`, then `n` rows of
 `u8 adc_index, u8 channel, str pin, u8 differential, str signal,
-i32 raw, i32 uV, u8 unit, i32 scaled`, then `u8 total` appended. A row
-is 18 bytes plus its two names against the 252 the PDU leaves: seven
-channels came to 197 bytes and nine to 254, which is why it pages.
-`scaled` is in the unit named, from the calibration record
-(invariant 7).
+i32 raw, i32 uV, u8 unit, i32 scaled`, then `u8 total` appended. Pages
+(nine rows exceed a PDU). `scaled` uses the record (invariant 7).
 
 ### 0x43 ADC_SCAN
 
 Request: empty. Reply: `i32 u, i32 v, i32 w` raw, `i32 dc_raw,
 i32 dc_mv, i32 ntc_raw, i32 ntc_centi_c, u8 afe_on, u8 pe15`, then
-`u8 afe_users` appended. The NTC field is 0 when the AFE is off: with
-the reference unpowered mid-scale puts the divider at R25 by
-definition, and the reply would say exactly 25.00 C every time.
+`u8 afe_users` appended. NTC field 0 when the AFE is off.
 
 ### 0x44 ADC_NOISE
 
@@ -179,17 +110,13 @@ u32 sd_uv`.
 ### 0x45 CLOCK
 
 Request: empty. Reply: `u32 sysclk_hz, u32 hclk_hz, u32 cycles,
-u32 ticks_per_us, u8 sysclk_source`, then `u32 adc_hz` appended - what
-the converters run at after the prescaler, so a sampling time in ADC
-cycles converts to seconds.
+u32 ticks_per_us, u8 sysclk_source`, then `u32 adc_hz` appended.
 
 ### 0x46 AFE
 
 Request: `u8 op` - 0 read, 1 off, 2 on, 3 toggle. Reply:
-`u8 afe_on, u8 pe15`, then `u8 users` appended. On and off go through
-the reference count in `board_power.c`, never the pin: `on` after an
-explicit off means somebody else still holds the rail, and `users`
-says who.
+`u8 afe_on, u8 pe15`, then `u8 users` appended. On/off go through the
+reference count (`board_power.c`); `users` says who holds the rail.
 
 ### 0x47 LINK_STATS
 
@@ -200,16 +127,13 @@ u32 char_overrun`.
 
 ### 0x48 CONSOLE
 
-Request: empty. Reply: empty; the board then hands the UART back to the
-console and starts printing ASCII. The host reads this reply to its
-known length rather than to a quiet gap, or it swallows the console's
-first text.
+Request/reply empty; the UART then returns to the console. Read the reply
+by length, not by silence.
 
 ### 0x64 TEST_GATE
 
 Request: `u32 key, u8 open`; the key is 0x54455354, "TEST". Reply:
-`u8 open` as it now stands. A wrong key leaves the gate as it was. The
-pin and port commands below need the gate open.
+`u8 open`. The pin/port commands need it open.
 
 ### 0x65 ECHO
 
@@ -227,11 +151,8 @@ Addressing is `u8 port` as the ASCII letter and `u8 pin`.
 | 0x69 PORT_READ | `port` | `u16 idr` |
 | 0x6A PORT_WRITE | `port, u16 mask, u16 value` | `u16 idr` read back |
 
-PIN_WRITE reads the pin back rather than echoing the request: on an
-open-drain output or a pin held by the fixture the two differ, and that
-difference is what a rig looks for. The reserved pins - the link's own
-UART, JTAG/SWD, the gate lines - are refused with 03; `0x6D` kind 2
-lists them with the reason.
+PIN_WRITE reads the pin back. Reserved pins (link UART, JTAG/SWD, gate
+lines) are refused with 03; `0x6D` kind 2 lists them.
 
 ### 0x6B ANALOG_BURST
 
@@ -239,17 +160,14 @@ Request: `u16 mask, u16 samples, u32 interval_us`; the mask non-zero,
 samples 1 to 10 000, and `samples x interval` at most 5 s. Reply:
 `u16 samples, u32 elapsed_us, u8 count`, then per channel
 `u8 index, i32 mean_milliraw, i32 min_raw, i32 max_raw,
-u32 sd_milliraw`. A conversion that times out mid-burst is 04, not 03:
-the arguments were fine.
+u32 sd_milliraw`. A timed-out conversion is 04.
 
 ### 0x6C SELF_TEST
 
 Request: empty. Reply: `u8 count`, then per check `str name,
-u8 status, i32 value`. Each pass/fail is judged from the board's own
-registers or flash and nothing else (invariant 10): `hse_rdy,
-pll1_lock, clk_crystal, clk_agrees, cyccnt_runs, vref_ext, adc_pcsel`;
-the rest are information - `cal_d1 .. cal_d3, image_len, image_crc,
-sysclk_hz, hclk_hz, afe_on`.
+u8 status, i32 value`. Pass/fail only from own registers/flash
+(invariant 10): `hse_rdy, pll1_lock, clk_crystal, clk_agrees, cyccnt_runs,
+vref_ext, adc_pcsel`; the rest are information.
 
 ### 0x6D CHANNELS
 
@@ -263,17 +181,12 @@ Request: `u8 kind [, u8 first]`. The board's own map of itself.
 | 3 subsystems | `u8 groups`, rows `str name, str what, u8 commands` - one per command table |
 | 4 parts | `u8 total, u8 first, u8 sent`, rows `str name, str what, str where, str power, u8 state` |
 
-Kinds 1, 2 and 4 page from `first`: 19 reserved rows came to 418 bytes
-against MB_MAX_PDU's 253. Part `state` is 0 unknown, 1 ready,
-2 unpowered, 3 silent, measured by a probe case per part. Adding
-hardware is one row in `s_parts` in `board/src/board_io.c`, its pins in
-`s_digital`, and a probe case.
+Kinds 1, 2, 4 page from `first`. Part `state`: 0 unknown, 1 ready,
+2 unpowered, 3 silent (probed).
 
 ### 0x6E DEVICE
 
-Request: `u8 device, u8 op, parameters`. Devices 0 .. 10; an unknown
-device is 03. Every op's exact layout is in the `cmd_*.c` file named
-below; this is what they carry.
+Request: `u8 device, u8 op, parameters`. Devices 0 .. 11; unknown is 03.
 
 ## Devices
 
@@ -301,11 +214,8 @@ u16 i, u16 j, u16 k, u16 real` (the quaternion in the part's Q14
 counts); appended: `u8 asked_id, u32 asked_us, u8 asked_pending`,
 `u8 last_fault, u8 last_fault_id`, and since MINOR 6 the three vectors,
 each `u8 have, u8 status, u16 x, u16 y, u16 z` - accelerometer Q8,
-gyroscope Q9, magnetometer Q4. `updates` is monotonic, so the same
-reading read twice is telling. The bus ops need the poll loop held (op
-9); op 10 goes back to RUN when the part is still up and through INIT
-when the hold spanned a reset. The part is powered by AFE_ON, and
-`Board_ImuInit` refuses while PB2 is low.
+gyroscope Q9, magnetometer Q4. `updates` is monotonic. Bus ops need
+the loop held (op 9). Powered by AFE_ON.
 
 ### 1 ANGLE, `cmd_angle.c`
 
@@ -321,11 +231,8 @@ A1335 on SPI4. Ops:
 | 5 pollreg | `[u8 reg]` | `u8 reg` the loop reads |
 | 6 clock | - | `u32 kernel_hz, u32 bitrate` |
 
-Six address bits, so a register above 0x3F is 03. Registers: ANG 0x20,
-STA 0x22, ERR 0x24, XERR 0x26, TSEN 0x28, FIELD 0x2A. A packet is 20
-bits; the CRC is reported, not checked - the datasheet in this tree
-gives the field's width and not its polynomial. Read and write are
-refused while the poll loop runs. Also behind AFE_ON.
+Registers: ANG 0x20, STA 0x22, ERR 0x24, XERR 0x26, TSEN 0x28, FIELD 0x2A.
+CRC reported, not checked. Read/write refused while polling.
 
 ### 2 LINK, `cmd_link.c`
 
@@ -336,17 +243,12 @@ The serial links, by index. Ops:
 | 0 echo | `u8 port` | `u8 port, u8 rs485, u8 matched, u8 seen, str name` |
 | 1 stats | `u8 port` | `u8 port, u8 unit_id, u8 rs485, u8 open, u32 baud, u32 t15_ticks, u32 t35_ticks, u32 bus_message, u32 bus_comm_error, u32 server_message, u32 server_exception, u32 server_no_response, u32 char_overrun, u32 dropped, str name` |
 
-Op 0's `matched` is one bit per pattern of 00 FF 5A A5, 0x0F is all
-four; refused for the port carrying the request, whose own patterns
-would land in front of the reply. Op 1's `bus_message` counts every
-frame on the segment and `server_message` only the ones addressed to
-this unit.
+Op 0 `matched`: one bit per pattern 00 FF 5A A5; refused on the port
+carrying the request.
 
 ### 3 CAL, `cmd_cal.c`
 
-The calibration record, CAL_VERSION 9, in flash bank 2 sector 7 at
-0x081E0000, magic 'CX63', CRC-16/MODBUS over everything ahead of the
-CRC field. Ops:
+The record at 0x081E0000, magic 'CX63', CAL_VERSION 15, CRC-16/MODBUS.
 
 | op | Request | Reply |
 | --- | --- | --- |
@@ -360,17 +262,8 @@ CRC field. Ops:
 | 7 defaults | - | `u8 1`; RAM only until saved |
 | 8 params | `[u8 first]` | `u8 46, u8 first, u8 count`, up to 60 u32 |
 
-`stored` separates a calibrated board from one running the schematic's
-numbers; the two are otherwise identical on the wire. A stored record
-of another version is refused and the defaults used - except the
-two versions immediately before the firmware's, whose layouts are a
-prefix of the current one: either is taken up with the fields after the
-prefix at their defaults and its CRC checked over what it covered
-(CAL_VERSION 15, 2026-09-06 - a 14 carried the identification's four
-scales after the prefix, a 13 ended at it; the DC link's span, the one
-measured number, lives in a 13 record on the bench board, which is why
-the take-up reaches two back). The 46 parameter ids and their defaults
-are in HARDWARE.md, "Calibration record".
+`stored` = calibrated vs schematic defaults. Another version is refused,
+except the two before (prefix layouts). Ids and defaults: `board_cal.c`.
 
 ### 4 GATE_DRIVERS, `cmd_gate_drivers.c`
 
@@ -398,10 +291,7 @@ six gate lines in one instant), `u32 deadtime_ns, i8 skew, u8 floor`,
 `u8 gate_shorts` (bit 0 U, 1 V, 2 W; 0 while armed), `u32 dcbus_raw,
 u32 ntc_raw` (MINOR 2), `u32 periods_left` (MINOR 8).
 
-A duty write before op 1 is refused. Op 2 with a count: the update ISR
-zeroes the compares when the count reaches zero - 500 periods at
-50 kHz is 10.000 ms exactly. Op 10 swaps the two triples every
-overflow.
+Duty before op 1 is refused. Op 2's count: 500 periods = 10.000 ms.
 
 ### 5 LOG, `cmd_log.c`
 
@@ -413,10 +303,7 @@ A ring of 1024 records in DTCM. Ops:
 | 1 arm | `u8 source_mask` | `u8 1`; empties the ring |
 | 2 take | `[u8 want]` | `u8 got`, per record `u32 at, u8 source, u8 seq, i16 x4` - 14 bytes, fifteen fit a reply |
 
-`dropped` is a sample the ring had no room for, `thinned` one it
-declined because the link could not carry it. Each armed source gets an
-equal share of what the link can drain. Sources: 0 phases, 1 angle, 2
-imu, 3 drive.
+Sources: 0 phases, 1 angle, 2 imu, 3 drive; equal link share each.
 
 ### 6 DAQ, `cmd_daq.c`
 
@@ -444,11 +331,8 @@ u32 rung_changes, u32 triggers`, `u16 sensors, u16 selectable`
 Configure: `u16 channels` (mask over the ADC table), `u8 clock`
 (0 software, 1 TIM1), `u8 sample_time, u16 decimate, u16 accumulate,
 u32 records`, then optional `u8 digital` (pin mask), `u32 interval_us`,
-`u8 adapt`, `u16 sensors` (MINOR 7). Accumulate 0 closes a record on
-the clock instead of on a count (MINOR 3). The TIM1 clock carries only
-the phases, the DC bus and the NTC; the sensor fields ride the software
-clock only - a TIM1 record closes in ADC3's ISR and would read the poll
-records torn.
+`u8 adapt`, `u16 sensors` (MINOR 7). Accumulate 0 closes on the clock
+(MINOR 3). Sensor fields: software clock only.
 
 Op 5: `u8 fields, u16 stride`, per field `u8 index, u8 unit,
 u8 differential, str signal` in the channel table's order, `u8 digital`
@@ -456,13 +340,8 @@ and when set `u8 pins` then per pin `u8 dir, str signal`; appended
 (MINOR 7) `u8 count` then per sensor `u8 bit, u8 4, str name` -
 orientation, acceleration, rotation rate, magnetic field, shaft angle.
 
-A record: `u32 stamp`, 4 bytes per analog field (the SUM over the
-accumulated samples), 1 byte of duty per sampled digital pin, four
-i16 SNAPSHOT words per sensor, and `u16 count` last. The stride is
-what op 5 says; a decoder that recomputes it mis-frames.
-`DAQ_REPLY_ROOM` is 240 bytes, so `got` is however many whole records
-fit; the worst case `1 + 240 + 4` is 245 against the 252 the PDU
-leaves. The ring behind it is 448 KB in AXI SRAM.
+A record: `u32 stamp`, 4 B SUM per analog field, 1 B duty per digital pin,
+4x i16 snapshot per sensor, `u16 count`. Use op 5's stride; never recompute.
 
 ### 7 TIME, `cmd_time.c`
 
@@ -473,12 +352,11 @@ The cycle counter, latched. Ops:
 | 0 latch | - | `u8 1`; every node captures its CYCCNT at the frame |
 | 1 read | - | `u32 seq, u32 latched, u32 now, u32 sysclk_hz` |
 
-Op 0 is meant for broadcast, so no turnaround sits inside the
-measurement. The host side is `coaxial.clock` and `set_time_from_pc()`.
+Op 0 is for broadcast. Host side: `coaxial.clock`.
 
 ### 8 THERMAL, `cmd_thermal.c`
 
-The thermal observer and its envelope. Ops:
+Ops:
 
 | op | Request | Reply |
 | --- | --- | --- |
@@ -503,9 +381,6 @@ u8 mcu_measured, i32 mcu_centi, u32 seen_ms_ago`, `u32 steps`; MINOR 13
 appends `i32 x3 junction_over_centi` - each leg's FET junction over its
 node - and `i32 speed_rpm`.
 
-Op 1's first value is the node's FIRST PATH OUT - its edge into the
-laminate under it for a source, its air path for a patch.
-
 Op 4: `u8 count`, per node `u8 used` (0 at ambient, 255 at the limit),
 `u8 worst, u8 worst_node, i32 millis_to_limit, u8 throttling,
 u8 tripped, u32 trips`; MINOR 11 appends `i32 derate_micro`, per node
@@ -521,42 +396,16 @@ i32 margin_micro, u32 updates, u32 saves, u32 since_save_s`; MINOR 15
 appends `i32 ambient_centi, i32 ambient_sigma_centi`, MINOR 16
 `i32 margin_floor_micro`, MINOR 17 `i32 trip_cap_micro`.
 
-The state is A WORD since MINOR 16, what a page says and not what the
-envelope acts on. Each scale is a multiplier on the record's network,
-1000 the derived default; the innovation is the filtered prediction
-error. The margin is what the envelope keeps in hand NOW: every
-ceiling's span over 25 C is multiplied by it on the board - continuous
-since MINOR 16 between the record's floor and 1 000 000 on how far the
-model is doubted, the innovation and the covariance normalised; it was
-800 000 / 900 000 / 1 000 000 on the state; and after a thermal trip
-the trip cap instead while that keeps more in hand, 700 000 recovering
-a percent a minute. The saves and the seconds since one are always 0
-and all ones, "never", since MINOR 16: the board keeps nothing it
-identified, and a wire field is never removed. The room (MINOR 15) is
-THE ROOM AS IDENTIFIED beside the scales, in the same Kalman step,
-since the board has no ambient sensor and the room is what the
-observer's `ambient` is set from. The floor (MINOR 16) is what the
-margin rises from - the record's `soa_margin_floor_ppm`, 800 000 unless
-a bench set it. The trip cap (MINOR 17) is the cap as it stands -
-700 000 at a trip, a percent a minute given back, 1 000 000 with no
-trip in hand - so a host can say which of the two holds the margin,
-which is the least of the identification's own and this. Only air,
-capacity and the room are online; spread and ntc ride at the record's
-values (FINDINGS, 2026-09-05: unobservable from a cooldown). Until
-MINOR 16 the board wrote the identified scales to the record itself and
-resumed from them at boot (CAL_VERSION 14, one day); the bench's rule
-took that out: a good observer earns its span within a few cooldown
-samples, and a resumed one runs on last week's box.
+Scales are multipliers on the record's network (1000 = default), in the
+order air, capacity, spread, ntc; only air, capacity and the room are
+online. The margin multiplies every ceiling's span over 25 C: from the
+floor (record `soa_margin_floor_ppm`, default 800 000) to 1 000 000 as the
+doubt falls; after a trip, the trip cap (700 000, +1 %/min) while lower.
+`saves` is 0 and `since_save_s` all ones: nothing identified is kept.
 
-TWENTY NODES SINCE MINOR 13, from ten. 0 .. 9 keep their indices and
-their meaning - driver U/V/W, phase U/V/W, mcu, regulators, afe, and
-`board`, the laminate's CENTRE patch, which is what the bulk node most
-nearly was; then 10 hotswap, 11 .. 16 the laminate under U, V, W, the
-regulators, the front end and the hot swap, 17 winding, 18 stator, 19
-rotor. The count byte lets a host follow the length (invariant 3): an
-older codec reads the first ten as it did and never sees the rest.
-MAJOR 2 (2026-08-29) gave each leg its own node and repurposed the
-indices.
+Nodes (MINOR 13): 0-9 driver U/V/W, phase U/V/W, mcu, regulators, afe,
+board (centre patch); 10 hotswap, 11-16 laminate patches, 17 winding,
+18 stator, 19 rotor.
 
 ### 9 POWER, `cmd_power.c`
 
@@ -567,10 +416,7 @@ The rails and who holds them. Ops:
 | 0 state | - | `u8 rails`, per rail `u8 on, u8 users, u8 count, u8 blocked, u8 leased` |
 | 1 release all | - | `u8 took`; every claim dropped |
 
-The user bits are host, thermal, imu, angle, daq. The host's claim is
-unleased; the others hold 3 s leases. Releasing switches the AFE rail
-off, which gives the drivers their supply rather than taking it away -
-the direction that is safe while armed.
+Users: host, thermal, imu, angle, daq (host unleased, others 3 s leases).
 
 ### 10 DRIVE, `cmd_drive.c`
 
@@ -606,20 +452,13 @@ vd, vq, eps, ih, vdc; the moments' four channels are U, V, W and the
 DC bus in milli-codes.
 
 Setpoint ids: 0 id_ref mA, 1 iq_ref mA, 2 theta mrad, 3 omega_target
-mrad/s, 4 accel mrad/s², 5 vd mV, 6 vq mV, 7 pol_volts, 8 pol_periods,
-9 pol_gap. The host names and scales are `coaxial.drive.SETPOINTS` and
-`PARAMS`.
+mrad/s, 4 accel, 5 vd mV, 6 vq mV, 7-9 polarity (`coaxial.drive.SETPOINTS`).
 
 ### 11 BOOT, `boot_core.c` and `cmd_boot.c`
 
-The bootloader's device, served by a node in its bootloader; a running
-application serves ops 10 and 12 (`cmd_boot.c`, MINOR 18) and refuses
-the rest in words, and `state` from an application is always sealed and
-valid with the position and flags the bootloader handed over. A
-blank node answers to unit 247 until `assign` gives it its own; `hold`,
-`erase`, `chunk` and `go` are broadcast and answered by nobody. The
-design - the flash map, the master's sequence, why the first flash word
-is written last - is [BOOT.md](BOOT.md). Ops:
+Served by the bootloader; the application serves ops 10 and 12 and refuses
+the rest (MINOR 18). Blank node = unit 247; `hold`, `erase`, `chunk`, `go`
+are broadcasts. Design: [BOOT.md](BOOT.md).
 
 | op | Request | Reply |
 | --- | --- | --- |
@@ -639,97 +478,24 @@ is written last - is [BOOT.md](BOOT.md). Ops:
 
 States: 0 blank, 1 held, 2 assigned, 3 erased, 4 verified, 5 sealed.
 
-### Drive op 14, the observer chain
+### Drive op 14
 
-A SECOND ANSWER TO THE ANGLE, not a second controller. `drive_observer.c`
-runs beside the loop on the same samples and drives nothing; op 14 is how
-a bench reads it. It exists because the board has no shaft sensor on the
-machine it commutates, so the only way to ask whether the estimate is
-right is to compute it a second time from different arithmetic and
-compare - which is what `error`, `theta` minus `theta_hat`, is.
+A second angle estimate beside the loop (`drive_observer.c`), steering
+nothing. `blend` 0 = dual flux model, 1e6 = leaking flux model, ramped
+between `blend_lo` and `blend_hi` (from `wc`). `valid` 0 below `wc`.
 
-Angles are microradians, speeds milliradians a second, `blend` and
-`lambda_hat` micro-units; every field is `i32` and they are read in that
-order. `blend` is 0 where the dual flux model carries the estimate and
-1e6 where the leaking flux model does, ramping between `blend_lo` and
-`blend_hi` - both derived from `wc`, the leak's corner, and all three
-reported so a host need not know the firmware's constants.
+### Thermal envelope (op 4, MINOR 11-12)
 
-`valid` is 0 below `wc`. Both observers live on `v - R i` and a rotor at
-rest makes no back-EMF, so under that speed the chain is reporting
-arithmetic and not an angle; the injection is what knows where the rotor
-is down there. The board says so and judges nothing further - invariant
-10.
-
-The pair, and the two it beat, are `notebook_examples/drive.ipynb`.
-
-### The thermal envelope: derate, soak, duty
-
-THE ENVELOPE WAS A CLIFF. `thermal_budget` had computed `throttling` -
-past the record's `soa_throttle_ppm` - since the nodes went per leg, and
-nothing consumed it: full current until the ceiling, then MOE off. MINOR
-11 is the band being used rather than only reported.
-
-`derate` is what the drive's current clamp is being multiplied by, one
-down to zero, micro on the wire. One at the throttle point and zero at
-the ceiling. THE CLAMP AND NOT THE DUTY: a duty ceiling applied behind
-the current loop's back is a disturbance it cannot explain, while a
-clamp that moves is a limit it already knows how to respect.
-
-It is taken on the WORSE OF NOW AND SOON. Every node is projected
-forward by `soa_lookahead_ms` at its present rate and the larger
-fraction wins, because a throttle that reads only the present cannot act
-on a ramp steeper than its own poll: measured, a phase node at 45 A
-crossed the whole 85-to-100 % band between two polls and the derate
-never left 1.0.
-
-And it falls immediately but recovers over twenty seconds. The factor is
-part of a loop - cut the clamp and the ramp goes away, so the next poll
-asks for full current again - which oscillated between 1.00 and 0.00
-every hundred milliseconds until the recovery was made slow against the
-node's own eighteen-second constant rather than against the poll.
-
-`soak_j` is what each node can still absorb before its ceiling, in
-millijoules: `capacity x (limit - t)`. `used` says where a node is and
-`millis_to_limit` how long at THIS power; neither answers how much work
-is left in it, which is what a control system planning a burst wants.
-Divide the joules by the power it means to spend and the answer is
-seconds at that power.
-
-`duty` is the EFFECTIVE duty per phase, micro: what the compares hold
-after the clamp and the derate, not what anything asked for.
-
-A host on an older codec stops reading at `trips` and is right about
-everything it read (invariant 3).
-
-### The winding, MINOR 12
-
-THE MOTOR HAD NO ENVELOPE. Ten nodes, every one of them on the board;
-the winding was a page's estimate that nothing acted on. The bench
-asked for the stage to throttle on how close BOTH the switches and the
-motor are to their SOA. The winding is one more element with a
-different sink - it sheds to the air it turns in, not to the laminate -
-stepped on the same slice and judged by the SAME envelope: the record's
-throttle point, its lookahead, the same ramp (`thermal.c`'s `derate_of`,
-one definition for both). Its copper loss is the phases' mean squares
-through the record's `motor_r_uohm`, the same measurement the
-conduction split rests on; its K/W, J/K and ceiling are CAL_VERSION 12's
-three fields, ids 46 to 48, the motor profile's placeholder pair and an
-estimated ceiling until a thermocouple writes real ones.
-
-ONE CLAMP, TWO ENVELOPES: the stage gets the smaller of the board's
-factor and the winding's, and either at its ceiling trips. Op 4 appends
-the winding's estimate, its spend and its OWN factor so a host can say
-which envelope is holding the stage back; `derate` stays what was
-applied. `throttling` and `tripped` cover both. `tripped` is judged on
-the record's ceiling, untrimmed, since 2026-09-08; `used`, `derate` and
-`throttling` on the ceiling in force - a node the margin's re-trim leaves
-above that reads 255 with the clamp closed, and is not a trip. No field
-changed.
+`derate` (micro) multiplies the drive's current clamp: 1 at the throttle
+point, 0 at the ceiling, taken on the worse of now and a lookahead; falls
+at once, recovers slowly. `soak_mj` = capacity x (limit - t) per node.
+`duty` is the effective duty per phase. The winding is its own envelope;
+the stage gets the smaller factor, and either at its ceiling trips.
+`tripped` is judged on the record's ceiling, untrimmed.
 
 ## Versioning
 
-MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
+MINOR appends; MAJOR breaks a codec.
 
 | MINOR | Change |
 | --- | --- |
@@ -752,12 +518,6 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 17 | thermal op 10 appends `i32 trip_cap_micro`, the trip cap as it stands, so a host can say whether the trip or the model holds the margin |
 | 18 | device 11 BOOT as the application serves it: op 10 `state`, op 12 `stay`; the rest refused in words. The image sits at 0x08020000 with its header, and a bootloader's assignment reaches it through the handover slot (BOOT.md) |
 
-MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node
-indices were repurposed - a host could follow the length and not the
-meaning.
-
-A host reads 0x41 first, picks its codec on `proto_major`, and treats
-any field past what it knows as opaque. The stand-in
-(`coaxial.simulated`) reports proto 2.8 and firmware "simulated";
-`test_parity.py` holds its replies to the live board's, and
-`test_conformance.py` holds the live board to this document.
+MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
+A host ignores fields past what it knows. `test_conformance.py` holds a
+live board to this document.

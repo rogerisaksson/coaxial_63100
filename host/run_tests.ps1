@@ -31,8 +31,8 @@
     order of seconds per check, so the first of a budget buys the cheapest
     checks there are. The ollama suites are in from the first tier and narrow
     THEMSELVES - the depth reaches their own subject budget, which is where
-    the fine resolution lives, because 778 of this tree's 3325 checks are in
-    that one file.
+    the fine resolution lives, since a quarter of the tree's checks are in
+    those files.
 
     Which subjects, and which suites the changes can have broken, is the
     local model's call: it reads the diff. The path map in run_tests.py is
