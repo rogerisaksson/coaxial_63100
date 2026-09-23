@@ -633,6 +633,57 @@ float thermal_coss_energy(const thermal_loss_t *loss, float volts)
   return (e > 0.0f) ? e : 0.0f;
 }
 
+/* The no-load switching figure's scale from its calibration link to this
+   one: the C_oss energy's law, or linear without a law. */
+static float switch_scale(const thermal_loss_t *loss, float link)
+{
+  const float e_cal = thermal_coss_energy(loss, loss->switch_volts);
+
+  if (e_cal > 0.0f)
+  {
+    return thermal_coss_energy(loss, link) / e_cal;
+  }
+  return (loss->switch_volts > 0.0f) ? (link / loss->switch_volts) : 1.0f;
+}
+
+/* A leg's Rds(on) at its node's temperature: first order, floored at half. */
+static float leg_rds(const thermal_loss_t *loss, const float *phase_c, int leg)
+{
+  float rds = loss->rds_on;
+
+  if ((phase_c != NULL) && !isnan(phase_c[leg]))
+  {
+    float factor = 1.0f + loss->rds_alpha * (phase_c[leg] - 25.0f);
+
+    if (factor < 0.5f)
+    {
+      factor = 0.5f;
+    }
+    rds *= factor;
+  }
+  return rds;
+}
+
+/* A switching leg's losses: the C_oss dump (FET and buck), the V I overlap,
+   the body diode over both dead times, the gate charge and its buck. */
+static void leg_switching(thermal_power_t *out, const thermal_loss_t *loss,
+                          const thermal_load_t *load, int leg, float link,
+                          float irms, float per_leg)
+{
+  out->watt[THERMAL_DRIVER(leg)] += per_leg * loss->driver_share;
+  out->watt[THERMAL_REGULATORS]  += per_leg * (1.0f - loss->driver_share);
+  const float overlap = link * irms * loss->t_switch_s * loss->f_sw;
+  const float diode = 2.0f * loss->v_sd * (0.9f * irms) * load->t_dead_s
+                      * loss->f_sw;
+  const float gate = 2.0f * loss->q_g * loss->v_drive * loss->f_sw;
+
+  out->watt[THERMAL_DRIVER(leg)] += overlap + diode + gate;
+  if (loss->buck_eff > 0.0f)
+  {
+    out->watt[THERMAL_REGULATORS] += gate * (1.0f / loss->buck_eff - 1.0f);
+  }
+}
+
 void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
                             const thermal_loss_t *loss,
                             const float *phase_c)
@@ -651,38 +702,13 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
      link now. */
   const float link = (load->link_volts > 0.0f) ? load->link_volts
                                                : loss->switch_volts;
-  float scale = 1.0f;
-  const float e_cal = thermal_coss_energy(loss, loss->switch_volts);
-
-  if (e_cal > 0.0f)
-  {
-    scale = thermal_coss_energy(loss, link) / e_cal;
-  }
-  else if (loss->switch_volts > 0.0f)
-  {
-    scale = link / loss->switch_volts;
-  }
-  const float per_leg = (loss->switching_watt / 3.0f) * scale;
+  const float per_leg = (loss->switching_watt / 3.0f) * switch_scale(loss, link);
 
   /* EACH LEG'S LOSS GOES TO THAT LEG. */
   for (int leg = 0; leg < 3; leg++)
   {
     const float a = load->phase_amps[leg];
-    float rds = loss->rds_on;
-
-    /* The FET's resistance follows the node it heats: first order off the
-       datasheet chord, floored so a garbage estimate cannot make the loss
-       vanish. */
-    if ((phase_c != NULL) && !isnan(phase_c[leg]))
-    {
-      float factor = 1.0f + loss->rds_alpha * (phase_c[leg] - 25.0f);
-
-      if (factor < 0.5f)
-      {
-        factor = 0.5f;
-      }
-      rds *= factor;
-    }
+    const float rds = leg_rds(loss, phase_c, leg);
     /* THE MEAN SQUARE WHERE THERE IS ONE. */
     const float sq = (load->phase_sq[leg] > 0.0f) ? load->phase_sq[leg]
                                                   : (a * a);
@@ -697,21 +723,7 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
 
     if (load->switching && (load->duty[leg] > 0.0f))
     {
-      /* The C_oss dump: the FET's, and the buck's share of what feeds it. */
-      out->watt[THERMAL_DRIVER(leg)] += per_leg * loss->driver_share;
-      out->watt[THERMAL_REGULATORS]  += per_leg * (1.0f - loss->driver_share);
-      /* Overlap: `V I t f`, current and voltage on the FET together through
-         its transitions. */
-      const float overlap = link * irms * loss->t_switch_s * loss->f_sw;
-      const float diode = 2.0f * loss->v_sd * (0.9f * irms) * load->t_dead_s
-                          * loss->f_sw;
-      const float gate = 2.0f * loss->q_g * loss->v_drive * loss->f_sw;
-
-      out->watt[THERMAL_DRIVER(leg)] += overlap + diode + gate;
-      if (loss->buck_eff > 0.0f)
-      {
-        out->watt[THERMAL_REGULATORS] += gate * (1.0f / loss->buck_eff - 1.0f);
-      }
+      leg_switching(out, loss, load, leg, link, irms, per_leg);
     }
   }
 
@@ -913,10 +925,78 @@ void thermal_integrate(thermal_t *th, const thermal_power_t *p,
 
 /** What the sensors say, folded in: each die corrects its node and the patch
     under it, the thermistor the V leg's patch; then ambient. */
+/* The thermistor with dies answering: its miss moves the patch it sits on,
+   through the share it sees and its lag, and the other legs with it. */
+static void anchor_ntc(thermal_t *th, const thermal_sense_t *seen, float k,
+                       float since_s, const bool *held)
+{
+  /* THE THERMISTOR IS COMPARED WITH THE ELEMENT AS MODELLED, not with
+     the average it is heading for. */
+  const float miss = seen->ntc_c - th->ntc;
+  const float leg = th->t[THERMAL_NTC_PATCH];
+  const float centre = th->t[THERMAL_BOARD];
+  /* HELD AT THE LEG, the element IS the leg's patch and the miss is that
+     patch's, one for one; between the patches, it is the share the V
+     patch shows through. */
+  /* Within a band of the leg counts as at it: the element set to a
+     reading a hair under the patch, then integrated below it, made the
+     free gain act on a miss that was the patch's one for one - a
+     twelvefold overshoot every third sample. */
+  const bool at_leg = (leg >= centre)
+                      && ((seen->ntc_c >= leg - THERMAL_NTC_AT_LEG_K)
+                          || (th->ntc >= leg - THERMAL_NTC_AT_LEG_K));
+  /* AND ONLY A MISS THAT GREW OVER ONE INTERVAL is the patch's. */
+  const bool fresh = since_s <= THERMAL_NTC_INVERT_MAX_S;
+  /* THROUGH THE LAG AS WELL AS THE SHARE. */
+  float lag_gain = 1.0f;
+
+  if ((th->cfg.ntc_tau_s > 0.0f) && (since_s > 0.0f))
+  {
+    lag_gain = 0.5f * th->cfg.ntc_tau_s / since_s;
+    lag_gain = (lag_gain < 1.0f) ? 1.0f : (lag_gain > 8.0f) ? 8.0f : lag_gain;
+  }
+  const float through = at_leg ? 1.0f
+                        : (fresh ? (lag_gain / th->cfg.ntc_sees) : 0.0f);
+  const float move = k * miss * through;
+
+  th->ntc += k * miss;
+  /* THE THREE LEGS ARE ONE LAYOUT, MIRRORED. */
+  th->t[THERMAL_NTC_PATCH] += move;
+  for (int leg_i = 0; leg_i < 3; leg_i++)
+  {
+    const thermal_node_t other = THERMAL_PATCH(leg_i);
+
+    if ((other != THERMAL_NTC_PATCH) && !held[other])
+    {
+      th->t[other] += move;
+    }
+  }
+}
+
+/* No die answered: the thermistor moves the whole laminate. */
+static void anchor_ntc_alone(thermal_t *th, const thermal_sense_t *seen, float k)
+{
+  /* Degraded: no die answered, so the V patch's rise cannot be separated
+     from the centre's. */
+  const float miss = seen->ntc_c - th->ntc;
+
+  th->ntc += k * miss;
+  for (int i = 0; i < (int)THERMAL_WINDING; i++)
+  {
+    if (th->cfg.node[i].capacity > 0.0f)
+    {
+      th->t[i] += k * miss;
+    }
+  }
+  th->settled = false;
+}
+
 static void anchor(thermal_t *th, const thermal_power_t *p,
                    const thermal_sense_t *seen, float speed_rpm,
                    float since_s)
 {
+  static const thermal_node_t DIES[2] = { THERMAL_AFE, THERMAL_MCU };
+  const float readings[2] = { seen->afe_c, seen->mcu_c };
   const float k = 1.0f - expf(-THERMAL_ANCHOR_HZ * since_s);
   int dies = 0;
   float common = 0.0f;
@@ -925,111 +1005,46 @@ static void anchor(thermal_t *th, const thermal_power_t *p,
 
   memset(held, 0, sizeof(held));
   net_flows(th, p, speed_rpm, net);      /* the dies' nodes' own rates */
-  if (!isnan(seen->afe_c))
+  for (int d = 0; d < 2; d++)
   {
-    const float implied = anchor_die(th, THERMAL_AFE, seen->afe_c, p, k,
-                                     net[THERMAL_AFE]
-                                     / th->cfg.node[THERMAL_AFE].capacity);
-    const thermal_node_t patch = patch_under(THERMAL_AFE);
+    const thermal_node_t die = DIES[d];
+
+    if (isnan(readings[d]))
+    {
+      continue;
+    }
+    const float implied = anchor_die(th, die, readings[d], p, k,
+                                     net[die] / th->cfg.node[die].capacity);
+    const thermal_node_t patch = patch_under(die);
 
     common += implied - th->t[patch];
     th->t[patch] += k * (implied - th->t[patch]);
-    held[THERMAL_AFE] = true;
+    held[die] = true;
     held[patch] = true;
     dies++;
   }
-  if (!isnan(seen->mcu_c))
+  if (dies == 0)
   {
-    const float implied = anchor_die(th, THERMAL_MCU, seen->mcu_c, p, k,
-                                     net[THERMAL_MCU]
-                                     / th->cfg.node[THERMAL_MCU].capacity);
-    const thermal_node_t patch = patch_under(THERMAL_MCU);
-
-    common += implied - th->t[patch];
-    th->t[patch] += k * (implied - th->t[patch]);
-    held[THERMAL_MCU] = true;
-    held[patch] = true;
-    dies++;
+    if (!isnan(seen->ntc_c))
+    {
+      anchor_ntc_alone(th, seen, k);
+    }
+    return;
   }
-
-  if (dies > 0)
+  /* THE REST OF THE LAMINATE MOVES WITH THE DIES. */
+  common /= (float)dies;
+  for (int i = 0; i < (int)THERMAL_WINDING; i++)
   {
-    /* THE REST OF THE LAMINATE MOVES WITH THE DIES. */
-    common /= (float)dies;
-    for (int i = 0; i < (int)THERMAL_WINDING; i++)
+    if (!held[i] && (th->cfg.node[i].capacity > 0.0f))
     {
-      if (!held[i] && (th->cfg.node[i].capacity > 0.0f))
-      {
-        th->t[i] += k * common;
-      }
+      th->t[i] += k * common;
     }
-
-    /* Settled is about the LAMINATE: a die anchors a patch without guessing
-       how much of the NTC is hot spot. */
-    th->settled = true;
-
-    if (!isnan(seen->ntc_c) && (th->cfg.ntc_sees > 0.01f))
-    {
-      /* THE THERMISTOR IS COMPARED WITH THE ELEMENT AS MODELLED, not with
-         the average it is heading for. */
-      const float miss = seen->ntc_c - th->ntc;
-      const float leg = th->t[THERMAL_NTC_PATCH];
-      const float centre = th->t[THERMAL_BOARD];
-      /* HELD AT THE LEG, the element IS the leg's patch and the miss is that
-         patch's, one for one; between the patches, it is the share the V
-         patch shows through. */
-      /* Within a band of the leg counts as at it: the element set to a
-         reading a hair under the patch, then integrated below it, made the
-         free gain act on a miss that was the patch's one for one - a
-         twelvefold overshoot every third sample. */
-      const bool at_leg = (leg >= centre)
-                          && ((seen->ntc_c >= leg - THERMAL_NTC_AT_LEG_K)
-                              || (th->ntc >= leg - THERMAL_NTC_AT_LEG_K));
-      /* AND ONLY A MISS THAT GREW OVER ONE INTERVAL is the patch's. */
-      const bool fresh = since_s <= THERMAL_NTC_INVERT_MAX_S;
-      /* THROUGH THE LAG AS WELL AS THE SHARE. */
-      float lag_gain = 1.0f;
-
-      if ((th->cfg.ntc_tau_s > 0.0f) && (since_s > 0.0f))
-      {
-        lag_gain = 0.5f * th->cfg.ntc_tau_s / since_s;
-        lag_gain = (lag_gain < 1.0f) ? 1.0f : (lag_gain > 8.0f) ? 8.0f : lag_gain;
-      }
-      const float through = at_leg ? 1.0f
-                            : (fresh ? (lag_gain / th->cfg.ntc_sees) : 0.0f);
-      const float move = k * miss * through;
-
-      th->ntc += k * miss;
-      /* THE THREE LEGS ARE ONE LAYOUT, MIRRORED. */
-      th->t[THERMAL_NTC_PATCH] += move;
-      for (int leg_i = 0; leg_i < 3; leg_i++)
-      {
-        const thermal_node_t other = THERMAL_PATCH(leg_i);
-
-        if ((other != THERMAL_NTC_PATCH) && !held[other])
-        {
-          th->t[other] += move;
-        }
-      }
-    }
-
-    /* THE ROOM IS NOT ESTIMATED HERE. */
   }
-  else if (!isnan(seen->ntc_c))
+  /* Settled is about the LAMINATE; the room is not estimated here. */
+  th->settled = true;
+  if (!isnan(seen->ntc_c) && (th->cfg.ntc_sees > 0.01f))
   {
-    /* Degraded: no die answered, so the V patch's rise cannot be separated
-       from the centre's. */
-    const float miss = seen->ntc_c - th->ntc;
-
-    th->ntc += k * miss;
-    for (int i = 0; i < (int)THERMAL_WINDING; i++)
-    {
-      if (th->cfg.node[i].capacity > 0.0f)
-      {
-        th->t[i] += k * miss;
-      }
-    }
-    th->settled = false;
+    anchor_ntc(th, seen, k, since_s, held);
   }
 }
 
