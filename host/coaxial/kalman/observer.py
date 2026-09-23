@@ -16,6 +16,9 @@ TURNS = 28.0
 #: the rotor follows the commanded angle rather than lagging it - HOLD is
 #: a stepper and a stepper that is asked for more than it has slips.
 WALK_RAD_S = 40.0
+#: The share of the walk the rotor gets to pull in to the command before
+#: the travels are counted.
+PULL_IN = 0.25
 
 
 class Identified(Parameters):
@@ -68,7 +71,7 @@ class Observer(Subsystem):
                        accel=omega * 4.0)
         try:
             drive.mode('hold')
-            walked = self._walk(angle, travel / omega)
+            walked, commanded = self._walk(angle, drive, travel / omega)
         finally:
             drive.setpoint(omega_target=0.0)
             drive.off()
@@ -78,7 +81,7 @@ class Observer(Subsystem):
                 'electrical turns - either the rotor is held, the stage is '
                 'not switching, or the current is below what it takes to '
                 'turn this machine' % turns)
-        exact = travel / walked
+        exact = commanded / walked
         pairs = int(round(exact))
         return {'pole_pairs': max(1, pairs), 'exact': exact,
                 'rounded_by': abs(exact - pairs),
@@ -86,18 +89,24 @@ class Observer(Subsystem):
                 'measured': abs(exact - pairs) < 0.25}
 
     @staticmethod
-    def _walk(angle, seconds):
-        """Shaft radians travelled while the command walks, unwrapped."""
+    def _walk(angle, drive, seconds):
+        """(shaft, command) radians travelled, sampled together and unwrapped:
+        their ratio is the pole count whatever the loop's timing."""
+        def step(was, now):
+            return (now - was + math.pi) % (2.0 * math.pi) - math.pi
 
-        was = math.radians(angle.state()['degrees'])
-        total = 0.0
-        until = time.monotonic() + seconds
-        while time.monotonic() < until:
-            now = math.radians(angle.state()['degrees'])
-            step = (now - was + math.pi) % (2.0 * math.pi) - math.pi
-            total += step
-            was = now
-        return abs(total)
+        shaft, cmd = math.radians(angle.state()['degrees']), drive.state()['theta_cmd']
+        moved = walked = 0.0
+        start = time.monotonic()
+        counting = start + PULL_IN * seconds     # the rotor pulls in first
+        while time.monotonic() < start + seconds:
+            now_s = math.radians(angle.state()['degrees'])
+            now_c = drive.state()['theta_cmd']
+            if time.monotonic() >= counting:
+                moved += step(shaft, now_s)
+                walked += step(cmd, now_c)
+            shaft, cmd = now_s, now_c
+        return abs(moved), abs(walked)
 
     def autodetect(self, arm=None, slots=None, name='autodetected',
                    log=None, electrical=True):

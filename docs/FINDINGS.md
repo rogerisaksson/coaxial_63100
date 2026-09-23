@@ -155,6 +155,12 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   unevenly spaced points read dev 0.047 (limit 0.03). Least-squares centre: a drum,
   like the other four; no other primitive moved (2026-09-23).
 
+- `pole_pairs` counted shaft travel over a wall-clock walk against the
+  nominal travel: 20.80 for 21 (the rotor pulling in from its rest angle),
+  and past the 0.25 limit on a busy CI runner (red 834519a). Now the
+  command's and the shaft's travels, sampled together, after the first
+  quarter: 21.00 with six cores busy (2026-09-23).
+
 ## Local model
 
 - Wrote "Mid-scale ... 25.00 C" from the warning text when refusing was tried.
