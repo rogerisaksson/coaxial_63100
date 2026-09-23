@@ -4693,7 +4693,16 @@ looking at the estimate alone.
   stays as full as the face left it and the line's tone is the only
   change. Rendered fresh at the six dumped poses: the ring on the
   hole's own dots in 0110 and 0130 with no dark ring between, the
-  steep ones the same rim as before.
+  steep ones the same rim as before. Run again after the push as the
+  chooser runs it, on the stand-in in this console (66x44, 150
+  frames, every fifth written out) and cropped at the bore with the
+  camera the view used: the ring on the hole's own boundary cells in
+  0110 and 0130 with the ground showing through the hole, the rim a
+  clean line hugging the face in the steep poses; the fan continuous
+  and the rungs a fraction of a row apart between dumps. A first crop
+  put the bore seven rows above the hole - the crop had projected it
+  for 108 columns while the view had drawn 66; the header the dump
+  carries is the width to crop by.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at
