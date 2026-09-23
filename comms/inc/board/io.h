@@ -19,10 +19,10 @@ const char *Board_Name(void);
 /** One digital channel: a pin this board actually uses for something. */
 typedef struct
 {
-  const char *pin;      /**< "PB2"                                  */
-  uint8_t     dir;      /**< BOARD_DIR_*                            */
-  const char *signal;   /**< what the pin carries on this board     */
-  bool        usable;   /**< false where raw pin access is refused  */
+  const char *pin;      /**< "PB2" */
+  uint8_t     dir;      /**< BOARD_DIR_* */
+  const char *signal;   /**< what the pin carries on this board */
+  bool        usable;   /**< false where raw pin access is refused */
 } board_dchan_t;
 
 uint8_t Board_DigitalCount(void);
@@ -44,17 +44,17 @@ bool Board_PinUsable(char port, uint8_t pin);
 /** What is fitted on the board, one entry per part. */
 typedef struct
 {
-  const char *name;    /**< the part, as it is marked              */
-  const char *what;    /**< what it does, one line                 */
-  const char *where;   /**< the bus or pins it sits on             */
+  const char *name;    /**< the part, as it is marked */
+  const char *what;    /**< what it does, one line */
+  const char *where;   /**< the bus or pins it sits on */
   const char *power;   /**< what must be on for it, or "" for none */
-  uint8_t     state;   /**< BOARD_PART_* below                     */
+  uint8_t     state;   /**< BOARD_PART_* below */
 } board_part_t;
 
 #define BOARD_PART_UNKNOWN   0U  /**< nothing here can prove it either way */
-#define BOARD_PART_READY     1U  /**< it answered                         */
-#define BOARD_PART_UNPOWERED 2U  /**< what powers it is off               */
-#define BOARD_PART_SILENT    3U  /**< powered, and did not answer         */
+#define BOARD_PART_READY     1U  /**< it answered */
+#define BOARD_PART_UNPOWERED 2U  /**< what powers it is off */
+#define BOARD_PART_SILENT    3U  /**< powered, and did not answer */
 
 uint8_t Board_PartCount(void);
 bool Board_Part(uint8_t index, board_part_t *info);

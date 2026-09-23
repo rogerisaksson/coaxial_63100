@@ -1,5 +1,4 @@
-/** board.h - Everything the comms stack needs from this board, one header per
-    board file, in dependency order. */
+/** board.h - The board API: one header per board file. */
 #ifndef BOARD_H
 #define BOARD_H
 

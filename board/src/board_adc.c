@@ -1,5 +1,4 @@
-/** board_adc.c - ADC access for this board: the channel table and the
-    readings. */
+/** board_adc.c - The ADC channel table and its reads. */
 #include "board.h"
 #include "board_units.h"
 #include "board_hw.h"
@@ -110,7 +109,7 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
   const uint32_t raw = HAL_ADC_GetValue(hadc);
 
   *outRaw = (singleDiff == ADC_SINGLE_ENDED)
-            ? (int32_t)raw                  /* 0..65535, 0 = 0 V           */
+            ? (int32_t)raw                  /* 0..65535, 0 = 0 V */
             : Board_AdcDifferential(raw);
   *outVolts = code_to_volts(*outRaw, singleDiff);
 
@@ -170,8 +169,8 @@ typedef enum
   ADC_UNIT_NTC,        /* degrees C, via the R25/B thermistor conversion */
   ADC_UNIT_PHASE,      /* amperes, via the shunt and the amplifier gain */
   /* Two more voltages, and two more dividers. */
-  ADC_UNIT_RAIL5,      /* the +5 rail, through R113's 10k/10k        */
-  ADC_UNIT_VGATE,      /* the gate driver supply, 47k+10k over 10k   */
+  ADC_UNIT_RAIL5,      /* the +5 rail, through R113's 10k/10k */
+  ADC_UNIT_VGATE,      /* the gate driver supply, 47k+10k over 10k */
   ADC_UNIT_DIE         /* degrees C, from the die's factory calibration */
 } AdcUnit;
 

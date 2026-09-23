@@ -22,11 +22,11 @@ typedef enum
 /** Who is holding a rail. One bit each, so a leak names itself. */
 typedef enum
 {
-  BOARD_USER_HOST    = 0, /**< the host asked, over 0x6D or 0x6E          */
-  BOARD_USER_THERMAL = 1, /**< the thermal observer, for a sample between steps   */
-  BOARD_USER_IMU     = 2, /**< the BNO08X poll                            */
-  BOARD_USER_ANGLE   = 3, /**< the A1335 poll                             */
-  BOARD_USER_DAQ     = 4, /**< a running acquisition                      */
+  BOARD_USER_HOST    = 0, /**< the host asked, over 0x6D or 0x6E */
+  BOARD_USER_THERMAL = 1, /**< the thermal observer, for a sample between steps */
+  BOARD_USER_IMU     = 2, /**< the BNO08X poll */
+  BOARD_USER_ANGLE   = 3, /**< the A1335 poll */
+  BOARD_USER_DAQ     = 4, /**< a running acquisition */
   BOARD_USER_COUNT
 } board_user_t;
 
@@ -34,10 +34,10 @@ typedef enum
 typedef struct
 {
   bool    on;        /**< the pin, read back rather than remembered */
-  uint8_t users;     /**< bitmask of board_user_t                   */
-  uint8_t count;     /**< how many bits are set                     */
-  bool    blocked;   /**< an acquire would be refused right now     */
-  uint8_t leased;    /**< bitmask of the holds that expire          */
+  uint8_t users;     /**< bitmask of board_user_t */
+  uint8_t count;     /**< how many bits are set */
+  bool    blocked;   /**< an acquire would be refused right now */
+  uint8_t leased;    /**< bitmask of the holds that expire */
 } board_rail_state_t;
 
 /** Take a hold on a rail, switching it on if nobody had it.

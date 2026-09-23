@@ -1,5 +1,4 @@
-/** board_log.c - One ring for every measurement, drained over the wire in
-    bursts. */
+/** board_log.c - One measurement ring, drained over the wire in bursts. */
 #include "board.h"
 #include "board_irq.h"
 #include "board_hw.h"
@@ -12,12 +11,12 @@ static struct
 {
   board_sample_t ring[BOARD_LOG_DEPTH];
   volatile uint16_t head;         /* next slot to write */
-  volatile uint16_t tail;         /* next slot to read  */
+  volatile uint16_t tail;         /* next slot to read */
   volatile uint32_t dropped;
   volatile uint8_t sources;       /* bitmask; 0 disables the lot */
   uint8_t seq[BOARD_LOG_SOURCES];
   volatile uint32_t thinned;      /* pushes refused by the rate limit */
-  uint32_t min_gap;               /* cycles a source must leave        */
+  uint32_t min_gap;               /* cycles a source must leave */
   uint32_t last_at[BOARD_LOG_SOURCES];
 } s;
 

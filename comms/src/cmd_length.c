@@ -1,5 +1,4 @@
-/** cmd_length.c - The request-length oracle: which PDUs end where their bytes
-    say. */
+/** cmd_length.c - Request-length oracle: where a PDU ends by its own bytes. */
 #include "cmd_length.h"
 
 #include "cmd.h"
@@ -41,7 +40,7 @@ static uint16_t device_length(const uint8_t *pdu, uint16_t have)
   switch (device)
   {
     case DEVICE_CAL:
-      if (op == CAL_OP_SET_PARAM)        /* u8 id, u32                    */
+      if (op == CAL_OP_SET_PARAM)        /* u8 id, u32 */
       {
         return DEVICE_HEAD + 5U;
       }
@@ -83,10 +82,10 @@ static uint16_t device_length(const uint8_t *pdu, uint16_t have)
       switch (op)
       {
         case DRIVE_OP_STATE:        return DEVICE_HEAD;
-        case DRIVE_OP_MODE:         return DEVICE_HEAD + 1U;   /* u8 mode      */
-        case DRIVE_OP_SETPOINT:     return DEVICE_HEAD + 5U;   /* u8 id, i32   */
+        case DRIVE_OP_MODE:         return DEVICE_HEAD + 1U;   /* u8 mode */
+        case DRIVE_OP_SETPOINT:     return DEVICE_HEAD + 5U;   /* u8 id, i32 */
         case DRIVE_OP_SETPOINTS:    return DEVICE_HEAD;
-        case DRIVE_OP_THETA:        return DEVICE_HEAD + 4U;   /* i32          */
+        case DRIVE_OP_THETA:        return DEVICE_HEAD + 4U;   /* i32 */
         case DRIVE_OP_CYCLES_RESET: return DEVICE_HEAD;
         case DRIVE_OP_MODEL:        return DEVICE_HEAD;
         case DRIVE_OP_MODEL_RESET:  return DEVICE_HEAD;

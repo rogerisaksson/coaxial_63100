@@ -18,12 +18,12 @@ extern "C" {
 
 typedef struct
 {
-  uint8_t     adc_index;      /**< 1, 2 or 3                          */
-  uint8_t     channel;        /**< ADC channel number, decimal        */
-  const char *pin;            /**< e.g. "PC3_C/PC2_C"                 */
+  uint8_t     adc_index;      /**< 1, 2 or 3 */
+  uint8_t     channel;        /**< ADC channel number, decimal */
+  const char *pin;            /**< e.g. "PC3_C/PC2_C" */
   bool        differential;
   const char *signal;         /**< "" where the pin has no assignment */
-  uint8_t     unit;           /**< BOARD_UNIT_*                       */
+  uint8_t     unit;           /**< BOARD_UNIT_* */
 } board_chan_t;
 
 /** A differential code as the converter gives it: offset binary, 32768 is 0

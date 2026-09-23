@@ -457,6 +457,106 @@ static void command_frame(drive_t *d)
   d->theta_cmd = drive_wrap(d->theta_cmd + d->omega_cmd * d->ts);
 }
 
+/* A current past the trip drops the stage, as the thermal ceiling does; a
+   stage dropped under a running mode is a fault too. True: stop here. */
+static bool tripped(drive_t *d, const float *i, bool stage_enabled)
+{
+  if (!stage_enabled)
+  {
+    if (d->mode != DRIVE_OFF)
+    {
+      d->fault = DRIVE_FAULT_STAGE;
+      d->mode = DRIVE_OFF;
+      loop_reset(d);
+    }
+    return false;
+  }
+  for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
+  {
+    if (fabsf(i[k]) > d->p.i_trip)
+    {
+      d->fault = DRIVE_FAULT_OVERCURRENT;
+      d->mode = DRIVE_OFF;
+      loop_reset(d);
+      return true;
+    }
+  }
+  return false;
+}
+
+/* No injection this period: its demodulator starts over. */
+static void injection_idle(drive_t *d)
+{
+  d->inj_valid = false;
+  d->inj_warm = 0U;
+  d->cyc_count = 0U;
+  d->have_prev = false;
+  d->acc_q = 0.0f;
+  d->acc_d = 0.0f;
+  d->ih = 0.0f;
+}
+
+/* The fundamental's dq voltage for the mode. */
+static void fundamental(drive_t *d, float id, float iq, float id_raw, float vmax,
+                        float *vd, float *vq)
+{
+  switch (d->mode)
+  {
+    case DRIVE_VOLT:
+      *vd = d->sp.vd;
+      *vq = d->sp.vq;
+      break;
+    case DRIVE_HOLD:
+      current_loop(d, id, iq, vmax, d->omega_cmd, vd, vq);
+      break;
+    case DRIVE_SENSORLESS:
+      current_loop(d, id, iq, vmax, d->omega_hat, vd, vq);
+      break;
+    case DRIVE_POLARITY:
+      *vd = polarity(d, id_raw);
+      break;
+    default:
+      break;
+  }
+}
+
+/* The injection's square wave onto the stationary voltage, and its sign kept. */
+static void inject(drive_t *d, bool injecting, float amp, uint16_t n, float th,
+                   float c, float s, float *va, float *vb)
+{
+  if (!injecting)
+  {
+    d->sign_hist[d->periods & 3U] = 0.0f;
+    return;
+  }
+  if (d->inj_count == 0U)
+  {
+    d->inj_sign = -d->inj_sign;
+    d->inj_count = n;
+  }
+  d->inj_count--;
+  d->sign_hist[d->periods & 3U] = d->inj_sign;
+  if (d->p.inj_phase != 0.0f)
+  {
+    drive_sincos(th + d->p.inj_phase, &s, &c);
+  }
+  *va += amp * d->inj_sign * c;
+  *vb += amp * d->inj_sign * s;
+}
+
+/* One period into the statistics window. */
+static void window_add(drive_t *d, float id, float iq, float vd, float vq,
+                       float vdc, float peak)
+{
+  acc_add(&d->win.acc[DRIVE_ACC_ID], id);
+  acc_add(&d->win.acc[DRIVE_ACC_IQ], iq);
+  acc_add(&d->win.acc[DRIVE_ACC_VD], vd);
+  acc_add(&d->win.acc[DRIVE_ACC_VQ], vq);
+  acc_add(&d->win.acc[DRIVE_ACC_VDC], vdc);
+  d->win.n++;
+  d->win.i_peak = (peak > d->win.i_peak) ? peak : d->win.i_peak;
+}
+
 bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
                 drive_out_t *out)
 {
@@ -471,26 +571,9 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
     out->duty[k] = 0.0f;
   }
 
-  /* The one judgement this makes on its own: a current past the trip it was
-     given drops the stage, the same way the thermal ceiling does. */
-  if (stage_enabled)
+  if (tripped(d, i, stage_enabled))
   {
-    for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
-    {
-      if (fabsf(i[k]) > d->p.i_trip)
-      {
-        d->fault = DRIVE_FAULT_OVERCURRENT;
-        d->mode = DRIVE_OFF;
-        loop_reset(d);
-        return true;
-      }
-    }
-  }
-  else if (d->mode != DRIVE_OFF)
-  {
-    d->fault = DRIVE_FAULT_STAGE;
-    d->mode = DRIVE_OFF;
-    loop_reset(d);
+    return true;
   }
 
   drive_clarke(i, &alpha, &beta);
@@ -521,13 +604,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   }
   else
   {
-    d->inj_valid = false;
-    d->inj_warm = 0U;
-    d->cyc_count = 0U;
-    d->have_prev = false;
-    d->acc_q = 0.0f;
-    d->acc_d = 0.0f;
-    d->ih = 0.0f;
+    injection_idle(d);
   }
   feedback(d, id_raw, iq_raw, injecting, n, &id, &iq);
   d->id = id;
@@ -543,24 +620,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   float vd = 0.0f;
   float vq = 0.0f;
 
-  switch (d->mode)
-  {
-    case DRIVE_VOLT:
-      vd = d->sp.vd;
-      vq = d->sp.vq;
-      break;
-    case DRIVE_HOLD:
-      current_loop(d, id, iq, vmax, d->omega_cmd, &vd, &vq);
-      break;
-    case DRIVE_SENSORLESS:
-      current_loop(d, id, iq, vmax, d->omega_hat, &vd, &vq);
-      break;
-    case DRIVE_POLARITY:
-      vd = polarity(d, id_raw);
-      break;
-    default:
-      break;
-  }
+  fundamental(d, id, iq, id_raw, vmax, &vd, &vq);
   d->vd = vd;
   d->vq = vq;
 
@@ -587,34 +647,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   va += ca;
   vb += cb;
 
-  /* the injection */
-  if (injecting)
-  {
-    if (d->inj_count == 0U)
-    {
-      d->inj_sign = -d->inj_sign;
-      d->inj_count = n;
-    }
-    d->inj_count--;
-    d->sign_hist[d->periods & 3U] = d->inj_sign;
-    if (d->p.inj_phase != 0.0f)
-    {
-      float si, ci;
-
-      drive_sincos(th + d->p.inj_phase, &si, &ci);
-      va += amp * d->inj_sign * ci;
-      vb += amp * d->inj_sign * si;
-    }
-    else
-    {
-      va += amp * d->inj_sign * c;
-      vb += amp * d->inj_sign * s;
-    }
-  }
-  else
-  {
-    d->sign_hist[d->periods & 3U] = 0.0f;
-  }
+  inject(d, injecting, amp, n, th, c, s, &va, &vb);
 
   if (stage_enabled && (d->mode != DRIVE_OFF))
   {
@@ -626,15 +659,6 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
     d->vb_out = 0.0f;
   }
 
-  acc_add(&d->win.acc[DRIVE_ACC_ID], id);
-  acc_add(&d->win.acc[DRIVE_ACC_IQ], iq);
-  acc_add(&d->win.acc[DRIVE_ACC_VD], vd);
-  acc_add(&d->win.acc[DRIVE_ACC_VQ], vq);
-  acc_add(&d->win.acc[DRIVE_ACC_VDC], in->vdc);
-  d->win.n++;
-
-  const float peak = sqrtf(id_raw * id_raw + iq_raw * iq_raw);
-
-  d->win.i_peak = (peak > d->win.i_peak) ? peak : d->win.i_peak;
+  window_add(d, id, iq, vd, vq, in->vdc, sqrtf(id_raw * id_raw + iq_raw * iq_raw));
   return false;
 }

@@ -1,5 +1,4 @@
-/** filter.h - The decimating anti-alias chain: read a fast converter over a
-    slow link without folding what it saw into the answer. */
+/** filter.h - Decimating anti-alias chain for a fast converter on a slow link. */
 #ifndef FILTER_H
 #define FILTER_H
 
@@ -22,9 +21,9 @@ typedef struct
 /** What the host designed. Shared by every channel; the state is not. */
 typedef struct
 {
-  uint16_t boxcar;    /**< stage 1: sum this many input samples, 1 is off  */
+  uint16_t boxcar;    /**< stage 1: sum this many input samples, 1 is off */
   uint16_t decimate;  /**< stage 2: emit every Nth filtered sample, 1 is off */
-  uint8_t  sections;  /**< biquads in use, 0 leaves the boxcar alone       */
+  uint8_t  sections;  /**< biquads in use, 0 leaves the boxcar alone */
   filter_biquad_t section[FILTER_MAX_SECTIONS];
 } filter_design_t;
 
@@ -36,7 +35,7 @@ typedef struct
   int32_t  box_sum;
   uint16_t box_n;
   uint16_t out_n;
-  uint32_t taken;     /**< input samples seen since the last reset         */
+  uint32_t taken;     /**< input samples seen since the last reset */
 } filter_channel_t;
 
 /** Forget everything a channel accumulated. Call on reconfigure: */

@@ -1,5 +1,4 @@
-/** thermal_ident.h - Online identification of the thermal graph's parameters
-    from the board's own thermometers, while it runs. */
+/** thermal_ident.h - Online identification of the thermal network's scales. */
 #ifndef THERMAL_IDENT_H
 #define THERMAL_IDENT_H
 
@@ -80,7 +79,7 @@ typedef struct
       kelvin: quantisation and a sample's spread. */
   float noise_k;
   thermal_ident_state_t state;
-  uint32_t updates;        /**< samples that moved the scales            */
+  uint32_t updates;        /**< samples that moved the scales */
   uint32_t stable_runs;    /**< updates in a row that stayed at the floor */
   /** True once a sample has been taken: before that the shadow has nothing
       to be compared against. */

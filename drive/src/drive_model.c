@@ -1,5 +1,4 @@
-/** drive_model.c - A PMSM and an inverter in front of it, for the drive to
-    run against when the converters cannot answer. */
+/** drive_model.c - PMSM + inverter model for the drive to run against. */
 #include "drive.h"
 
 #include <math.h>

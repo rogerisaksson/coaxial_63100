@@ -50,19 +50,19 @@ extern "C" {
 /** What the thermal observer knows: one measurement, the rest estimates. */
 typedef struct
 {
-  bool    ntc_measured;                        /**< the thermistor answered              */
-  int32_t ntc_centidegc;                       /**< MEASURED, valid only above           */
-  bool    afe_measured;                        /**< the A1335's die answered             */
-  int32_t afe_centidegc;                       /**< MEASURED, valid only above           */
-  bool    mcu_measured;                        /**< the MCU's die answered               */
-  int32_t mcu_centidegc;                       /**< MEASURED, valid only above           */
-  uint32_t seen_ms_ago;                        /**< age of the whole sample              */
-  uint32_t steps;                              /**< model integrations since boot        */
-  int32_t node_centidegc[BOARD_THERMAL_NODES]; /**< ESTIMATED                            */
-  int32_t ambient_centidegc;                   /**< ESTIMATED - there is no sensor       */
-  int32_t expected_ntc_centidegc;              /**< the model's own NTC, for the error   */
-  uint32_t seconds;                            /**< how long it has run                  */
-  bool    settled;                             /**< the anchoring has converged          */
+  bool    ntc_measured;                        /**< the thermistor answered */
+  int32_t ntc_centidegc;                       /**< MEASURED, valid only above */
+  bool    afe_measured;                        /**< the A1335's die answered */
+  int32_t afe_centidegc;                       /**< MEASURED, valid only above */
+  bool    mcu_measured;                        /**< the MCU's die answered */
+  int32_t mcu_centidegc;                       /**< MEASURED, valid only above */
+  uint32_t seen_ms_ago;                        /**< age of the whole sample */
+  uint32_t steps;                              /**< model integrations since boot */
+  int32_t node_centidegc[BOARD_THERMAL_NODES]; /**< ESTIMATED */
+  int32_t ambient_centidegc;                   /**< ESTIMATED - there is no sensor */
+  int32_t expected_ntc_centidegc;              /**< the model's own NTC, for the error */
+  uint32_t seconds;                            /**< how long it has run */
+  bool    settled;                             /**< the anchoring has converged */
   /** MINOR 13: each leg's FET junction over its node, centi-K - half the
       node's watts through R_th,JC - and the rotor speed the air paths were
       evaluated at. */
@@ -75,13 +75,13 @@ typedef struct
     keeps in hand for that. */
 typedef struct
 {
-  uint8_t  state;                   /**< thermal_ident_state_t - a word    */
+  uint8_t  state;                   /**< thermal_ident_state_t - a word */
   uint8_t  online_mask;             /**< bit k: scale k is moved by samples */
   float    scale[BOARD_THERMAL_IDENT_SCALES];
   float    sigma[BOARD_THERMAL_IDENT_SCALES];
-  float    innovation_k;            /**< filtered prediction error, kelvin  */
+  float    innovation_k;            /**< filtered prediction error, kelvin */
   float    margin;                  /**< the envelope's factor now, floor..1*/
-  uint32_t updates;                 /**< samples that moved the scales      */
+  uint32_t updates;                 /**< samples that moved the scales */
   /** MINOR 15: the room as identified beside the scales, degrees C, and how
       sure - the board has no ambient sensor; this is what the observer's
       `ambient` is set from. */

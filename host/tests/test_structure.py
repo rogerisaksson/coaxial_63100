@@ -13,6 +13,7 @@ Run it after editing anything under host/:
     python tests/test_structure.py
 """
 import ast
+import glob
 import builtins
 import importlib
 import io
@@ -332,6 +333,23 @@ def test_documented(r):
             not missing, '; '.join(missing[:4]))
     r.check('every module opens on a one-line brief (tools/host_map.py)',
             not long_, '; '.join(long_[:4]))
+
+
+def test_target_briefs(r):
+    """Every firmware file opens on `/** name - brief */`, one line, <= 100."""
+    from tools import target_map
+    bad = []
+    for d in target_map.DIRS:
+        for path in glob.glob(os.path.join(REPO, d, '**', '*.[chs]'), recursive=True):
+            if os.sep + 'test' + os.sep in path:
+                continue
+            text = io.open(path, encoding='utf-8').read()
+            first = text.split('\n', 1)[0].lstrip('\ufeff').rstrip()
+            if not (first.startswith('/**') and first.endswith('*/') and len(first) <= 100
+                    and target_map.brief(text)):
+                bad.append(os.path.relpath(path, REPO))
+    r.check('every target file opens on a one-line brief (tools/target_map.py)',
+            not bad, '; '.join(bad[:4]))
 
 
 def test_no_escaping_scars(r):
@@ -1282,7 +1300,8 @@ ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
           test_numpy_enters_behind_the_thread_cap,
-          test_shape, test_documented, test_no_escaping_scars,
+          test_shape, test_documented, test_target_briefs,
+          test_no_escaping_scars,
           test_counts_are_measured, test_subsystem_calls_resolve,
           test_limits_live_in_one_file, test_mirrors_agree,
           test_wire_shapes_agree, test_wire_requests_agree,

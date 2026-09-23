@@ -35,10 +35,10 @@ typedef enum
 /** Which of the four Modbus data tables an access refers to. */
 typedef enum
 {
-  MB_TABLE_COIL,            /**< read/write bit    */
-  MB_TABLE_DISCRETE_INPUT,  /**< read-only bit     */
+  MB_TABLE_COIL,            /**< read/write bit */
+  MB_TABLE_DISCRETE_INPUT,  /**< read-only bit */
   MB_TABLE_HOLDING_REG,     /**< read/write 16-bit */
-  MB_TABLE_INPUT_REG        /**< read-only 16-bit  */
+  MB_TABLE_INPUT_REG        /**< read-only 16-bit */
 } mb_table_t;
 
 /** Application data model. */

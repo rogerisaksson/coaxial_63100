@@ -1,5 +1,4 @@
-/** drive_math.c - The frame transforms, the modulator and the dead-time
-    table. */
+/** drive_math.c - Frame transforms, modulator, dead-time table. */
 #include "drive.h"
 
 #include <math.h>

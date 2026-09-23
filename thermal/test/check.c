@@ -16,7 +16,7 @@ struct sample
   const char *tag;
   float watt[THERMAL_NODES];
   float board_measured;                /* dead surface, from the camera */
-  float ntc_measured;                  /* -1 = not read in that state    */
+  float ntc_measured;                  /* -1 = not read in that state */
 };
 
 /* The powers are what the differences gave; see thermal.c for the working. */

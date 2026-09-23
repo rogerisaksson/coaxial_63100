@@ -1,5 +1,4 @@
-/** cmd_board.c - The command table for this board: the old ASCII reports, in
-    binary. */
+/** cmd_board.c - Board commands 0x41-0x48, 0x6B-0x6D. */
 #include <string.h>
 
 #include "cmd.h"

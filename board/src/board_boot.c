@@ -1,6 +1,4 @@
-/** board_boot.c - What the application knows about the bootloader it came
-    through: the header the bootloader validates, the handover slot in DTCM
-    both images share, and the way back. */
+/** board_boot.c - The image header, the DTCM handover slot, the way back to boot. */
 #include "board.h"
 #include "boot.h"
 #include "main.h"

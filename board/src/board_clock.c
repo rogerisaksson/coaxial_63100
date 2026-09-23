@@ -1,5 +1,4 @@
-/** board_clock.c - Identity, clock tree queries, and the cycle-counter
-    timebase. */
+/** board_clock.c - Identity, clock-tree queries, the cycle-counter timebase. */
 #include "board.h"
 #include "board_hw.h"
 

@@ -23,18 +23,18 @@ static struct
   uint8_t             unit;
   uint8_t             position;
   uint8_t             flags;
-  uint32_t            size;              /**< the image's, from erase       */
-  uint32_t            crc;               /**< the image's, from erase       */
-  uint16_t            chunks;            /**< the image's, from erase       */
-  uint32_t            held;              /**< chunks landed                 */
+  uint32_t            size;              /**< the image's, from erase */
+  uint32_t            crc;               /**< the image's, from erase */
+  uint16_t            chunks;            /**< the image's, from erase */
+  uint32_t            held;              /**< chunks landed */
   uint8_t             bitmap[BOOT_BITMAP_BYTES];
-  uint8_t             first[BOOT_WORD_BYTES];   /**< the word written last  */
+  uint8_t             first[BOOT_WORD_BYTES];   /**< the word written last */
   bool                first_held;
   uint8_t             record[BOOT_RECORD_MAX];
   uint16_t            record_bytes;
   bool                verified;
   bool                go;
-  uint32_t            ignored;           /**< chunks with no erase behind   */
+  uint32_t            ignored;           /**< chunks with no erase behind */
 } s;
 
 /* -- the wire's shorthand -------------------------------------------------- */

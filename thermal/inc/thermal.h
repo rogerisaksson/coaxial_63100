@@ -1,5 +1,4 @@
-/** thermal.h - Lumped-network thermal observer: what each region of the
-    board, and of the motor behind it, is at. */
+/** thermal.h - Thermal network observer: board and motor node temperatures. */
 #ifndef THERMAL_H
 #define THERMAL_H
 
@@ -13,26 +12,26 @@ extern "C" {
 /** The nodes. */
 typedef enum
 {
-  THERMAL_DRIVER_U = 0,  /**< one 2EDL8034 and its two FETs' silicon    */
-  THERMAL_DRIVER_V,      /**< V is the NTC's neighbour                   */
+  THERMAL_DRIVER_U = 0,  /**< one 2EDL8034 and its two FETs' silicon */
+  THERMAL_DRIVER_V,      /**< V is the NTC's neighbour */
   THERMAL_DRIVER_W,
-  THERMAL_PHASE_U,       /**< the leg's two WSHM2818 shunts              */
+  THERMAL_PHASE_U,       /**< the leg's two WSHM2818 shunts */
   THERMAL_PHASE_V,
   THERMAL_PHASE_W,
   THERMAL_MCU,           /**< STM32H753 at 475 MHz, through a linear LDO */
-  THERMAL_REGULATORS,    /**< MP4541 x2 and the LDOs after them          */
-  THERMAL_AFE,           /**< THS4551 x3 and the reference               */
-  THERMAL_BOARD,         /**< the laminate's centre patch                */
-  THERMAL_HOTSWAP,       /**< LM5069, its back-to-back FETs, the fuse    */
+  THERMAL_REGULATORS,    /**< MP4541 x2 and the LDOs after them */
+  THERMAL_AFE,           /**< THS4551 x3 and the reference */
+  THERMAL_BOARD,         /**< the laminate's centre patch */
+  THERMAL_HOTSWAP,       /**< LM5069, its back-to-back FETs, the fuse */
   THERMAL_PATCH_U,       /**< the laminate under U's switches and shunts */
   THERMAL_PATCH_V,
   THERMAL_PATCH_W,
-  THERMAL_PATCH_LEFT,    /**< under the regulators                       */
-  THERMAL_PATCH_BOTTOM,  /**< under the front end                        */
-  THERMAL_PATCH_RIGHT,   /**< under the hot swap                         */
-  THERMAL_WINDING,       /**< the stator's copper                        */
-  THERMAL_STATOR,        /**< its iron and the motor's body              */
-  THERMAL_ROTOR,         /**< the outrunner's bell and magnets           */
+  THERMAL_PATCH_LEFT,    /**< under the regulators */
+  THERMAL_PATCH_BOTTOM,  /**< under the front end */
+  THERMAL_PATCH_RIGHT,   /**< under the hot swap */
+  THERMAL_WINDING,       /**< the stator's copper */
+  THERMAL_STATOR,        /**< its iron and the motor's body */
+  THERMAL_ROTOR,         /**< the outrunner's bell and magnets */
   THERMAL_NODES
 } thermal_node_t;
 
@@ -116,8 +115,8 @@ typedef struct
 typedef struct
 {
   thermal_cfg_t cfg;
-  float t[THERMAL_NODES];   /**< degrees C per node          */
-  float ambient;            /**< estimated, not measured     */
+  float t[THERMAL_NODES];   /**< degrees C per node */
+  float ambient;            /**< estimated, not measured */
   /** The modelled thermistor reading, LAGGED - the element's own
       temperature, integrated toward the weighted average of the two patches
       it sits between and never past either of them. */
@@ -140,14 +139,14 @@ typedef struct
 /** What the board is doing now, as measured. */
 typedef struct
 {
-  float phase_amps[3];   /**< per leg, signed, as the shunts measure it   */
+  float phase_amps[3];   /**< per leg, signed, as the shunts measure it */
   /** Mean of the squared phase current since the last estimate, A^2 a leg. */
   float phase_sq[3];
-  float duty[3];         /**< 0..1 per leg, for the link estimate         */
-  float link_volts;      /**< DC link, for the switching terms            */
-  float link_amps;       /**< into the board. <0 = estimate from phases   */
-  bool  switching;       /**< TIM1 driving the gates                      */
-  bool  afe_on;          /**< AFE_ON high: the AFE draws, drivers do not  */
+  float duty[3];         /**< 0..1 per leg, for the link estimate */
+  float link_volts;      /**< DC link, for the switching terms */
+  float link_amps;       /**< into the board. <0 = estimate from phases */
+  bool  switching;       /**< TIM1 driving the gates */
+  bool  afe_on;          /**< AFE_ON high: the AFE draws, drivers do not */
   /** The rotor's mechanical speed, rpm, for the air it moves and the iron it
       magnetises. */
   float speed_rpm;
@@ -159,28 +158,28 @@ typedef struct
 /** Resistances, charges and times the estimator needs. */
 typedef struct
 {
-  float rds_on;          /**< one FET at 25 C, IAUCN10S7N021 = 1.8 mOhm   */
-  float rds_alpha;       /**< its tempco, per K - rds_on*(1+a*(Tj-25))    */
-  float r_shunt;         /**< phase shunt, RU1||RU2 = 3.5 mOhm            */
-  float r_hotswap;       /**< LM5069 pass FETs, in the link               */
+  float rds_on;          /**< one FET at 25 C, IAUCN10S7N021 = 1.8 mOhm */
+  float rds_alpha;       /**< its tempco, per K - rds_on*(1+a*(Tj-25)) */
+  float r_shunt;         /**< phase shunt, RU1||RU2 = 3.5 mOhm */
+  float r_hotswap;       /**< LM5069 pass FETs, in the link */
   float switching_watt;  /**< the no-load switching loss at `switch_volts` */
-  float switch_volts;    /**< the link it was measured at                 */
-  float driver_share;    /**< how much of it lands in the driver zone     */
-  float mcu_watt;        /**< static, 475 MHz through the linear LDO      */
+  float switch_volts;    /**< the link it was measured at */
+  float driver_share;    /**< how much of it lands in the driver zone */
+  float mcu_watt;        /**< static, 475 MHz through the linear LDO */
   float ldo_watt;        /**< the drop, plus what else the reg zone makes */
-  float afe_watt;        /**< the AFE chain when AFE_ON is high           */
+  float afe_watt;        /**< the AFE chain when AFE_ON is high */
   /* Since 2026-09-05: the switching loss as functions of what switches. */
-  float f_sw;            /**< the PWM, Hz - TIM1 at 50 kHz                 */
+  float f_sw;            /**< the PWM, Hz - TIM1 at 50 kHz */
   float coss_cjo;        /**< C_oss at 0 V, F, and its law: C = CJO/(1+V/VJ)^M */
   float coss_m;
   float coss_vj;
   float t_switch_s;      /**< current-voltage overlap per period, on + off */
-  float v_sd;            /**< the body diode's drop, V                     */
-  float q_g;             /**< total gate charge, C, one FET                */
-  float v_drive;         /**< what the gates are driven to, V              */
-  float buck_eff;        /**< the +15V7 buck's efficiency, for its loss    */
-  float r_phase;         /**< the winding, line to neutral: the record's   */
-  float k_iron;          /**< stator iron loss, W per (krpm)^2; 0 unknown  */
+  float v_sd;            /**< the body diode's drop, V */
+  float q_g;             /**< total gate charge, C, one FET */
+  float v_drive;         /**< what the gates are driven to, V */
+  float buck_eff;        /**< the +15V7 buck's efficiency, for its loss */
+  float r_phase;         /**< the winding, line to neutral: the record's */
+  float k_iron;          /**< stator iron loss, W per (krpm)^2; 0 unknown */
 } thermal_loss_t;
 
 /** The loss constants as measured/traced on this board. */
@@ -212,8 +211,8 @@ typedef struct
 /** What is spent of the thermal budget, and how long is left. */
 typedef struct
 {
-  uint8_t used[THERMAL_NODES];   /**< 0 at ambient, 255 at the limit      */
-  uint8_t worst;                 /**< among the nodes the clamp reaches   */
+  uint8_t used[THERMAL_NODES];   /**< 0 at ambient, 255 at the limit */
+  uint8_t worst;                 /**< among the nodes the clamp reaches */
   uint8_t worst_node;
   int32_t millis_to_limit;       /**< for `worst_node`; -1 = not heading there */
   bool    throttling;
@@ -268,8 +267,8 @@ void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius);
 typedef struct
 {
   float ntc_c;   /**< the thermistor, beside the middle gate driver */
-  float afe_c;   /**< the A1335's own die, out in the AFE corner    */
-  float mcu_c;   /**< the MCU's own die                             */
+  float afe_c;   /**< the A1335's own die, out in the AFE corner */
+  float mcu_c;   /**< the MCU's own die */
 } thermal_sense_t;
 
 /** Advance the network one step and pull it toward the sensors.

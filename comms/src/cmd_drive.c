@@ -143,13 +143,13 @@ static cmd_status_t h_drive_window(wr_t *out)
   Board_DriveWindowTake(&w);
 
   wr_u32(out, w.n);
-  wr_field(out, &w.acc[DRIVE_ACC_ID], MICRO_PER_UNIT);     /* uA   */
+  wr_field(out, &w.acc[DRIVE_ACC_ID], MICRO_PER_UNIT);     /* uA */
   wr_field(out, &w.acc[DRIVE_ACC_IQ], MICRO_PER_UNIT);
-  wr_field(out, &w.acc[DRIVE_ACC_VD], MICRO_PER_UNIT);     /* uV   */
+  wr_field(out, &w.acc[DRIVE_ACC_VD], MICRO_PER_UNIT);     /* uV */
   wr_field(out, &w.acc[DRIVE_ACC_VQ], MICRO_PER_UNIT);
   wr_field(out, &w.acc[DRIVE_ACC_EPS], MICRO_PER_UNIT);    /* urad */
-  wr_field(out, &w.acc[DRIVE_ACC_IH], MICRO_PER_UNIT);     /* uA   */
-  wr_field(out, &w.acc[DRIVE_ACC_VDC], 1e3f);    /* mV   */
+  wr_field(out, &w.acc[DRIVE_ACC_IH], MICRO_PER_UNIT);     /* uA */
+  wr_field(out, &w.acc[DRIVE_ACC_VDC], 1e3f);    /* mV */
 
   wr_u8(out, (uint8_t)DRIVE_LAGS);
   for (uint8_t j = 1U; j <= DRIVE_LAGS; j++)

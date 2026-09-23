@@ -1,7 +1,4 @@
-/** daq.h - The acquisition engine, hardware-free: a byte ring of records, the
-    summing window that makes them, the anti-alias chain and the ladder of
-    designs it climbs when the ring fills, the tone generator that stands in
-    for the converter, and the live accumulator a host reads at its leisure. */
+/** daq.h - Acquisition engine, hardware-free: ring, window, filters, tone, live sums. */
 #ifndef DAQ_H
 #define DAQ_H
 
@@ -13,9 +10,9 @@
 
 #define DAQ_MAX_CHANNELS 10U   /**< fields a record can carry - board.h's count */
 #define DAQ_MAX_PINS     16U   /**< digital pins a record can carry a duty for */
-#define DAQ_MAX_SENSORS  5U    /**< sensor snapshot fields a record can carry  */
-#define DAQ_LADDER       4U    /**< rungs of designs a task can climb          */
-#define DAQ_SENSOR_WORDS 4U    /**< a sensor field is four 16-bit words        */
+#define DAQ_MAX_SENSORS  5U    /**< sensor snapshot fields a record can carry */
+#define DAQ_LADDER       4U    /**< rungs of designs a task can climb */
+#define DAQ_SENSOR_WORDS 4U    /**< a sensor field is four 16-bit words */
 
 /** Most additions a summing path takes before it stops widening: INT32_MAX /
     65535, the largest a single-ended code can be, so one more can never
@@ -36,13 +33,13 @@
     the converter and turned the wire's microseconds into cycles. */
 typedef struct
 {
-  uint8_t  fields;                    /**< how many of `order` are in use    */
-  uint8_t  order[DAQ_MAX_CHANNELS];   /**< channel index per field           */
+  uint8_t  fields;                    /**< how many of `order` are in use */
+  uint8_t  order[DAQ_MAX_CHANNELS];   /**< channel index per field */
   uint16_t accumulate;                /**< sum N a record; 0 closes by clock */
-  uint16_t decimate;                  /**< keep one trigger in N             */
-  uint32_t interval_cycles;           /**< the count's gate, or the clock's  */
-  uint8_t  pins;                      /**< digital pins carried, 0 for none  */
-  uint16_t sensors;                   /**< sensor field mask                 */
+  uint16_t decimate;                  /**< keep one trigger in N */
+  uint32_t interval_cycles;           /**< the count's gate, or the clock's */
+  uint8_t  pins;                      /**< digital pins carried, 0 for none */
+  uint16_t sensors;                   /**< sensor field mask */
   uint32_t records;                   /**< stop after this many, 0 to run on */
   bool     adapt;                     /**< climb the ladder as the ring fills*/
 } daq_task_t;
@@ -97,17 +94,17 @@ typedef struct
 {
   bool     on;
   uint8_t  kind;
-  uint32_t step;        /**< the ramp's increment a sample                 */
-  int32_t  mod;         /**< and what it counts up to                      */
-  float    cos_step;    /**< per-sample rotation                           */
+  uint32_t step;        /**< the ramp's increment a sample */
+  int32_t  mod;         /**< and what it counts up to */
+  float    cos_step;    /**< per-sample rotation */
   float    sin_step;
-  float    x;           /**< the rotating unit vector                      */
+  float    x;           /**< the rotating unit vector */
   float    y;
   float    amp;
   float    offset;
-  uint32_t cycles;      /**< cycles per tone sample                        */
-  uint32_t at;          /**< when the last sample was made                 */
-  uint32_t owed;        /**< fractional cycles carried over                */
+  uint32_t cycles;      /**< cycles per tone sample */
+  uint32_t at;          /**< when the last sample was made */
+  uint32_t owed;        /**< fractional cycles carried over */
   uint32_t n;
 } daq_tone_t;
 
@@ -117,12 +114,12 @@ typedef struct
   /* the ring of records */
   uint8_t          *buf;
   uint32_t          bytes;
-  volatile uint32_t head;          /**< byte offset of the next write      */
-  volatile uint32_t tail;          /**< byte offset of the next read       */
+  volatile uint32_t head;          /**< byte offset of the next write */
+  volatile uint32_t tail;          /**< byte offset of the next read */
   volatile uint32_t dropped;
   volatile uint32_t produced;
   volatile uint32_t worst;         /**< the fullest it has been, in records*/
-  volatile uint32_t triggers;      /**< sweeps kept after decimation       */
+  volatile uint32_t triggers;      /**< sweeps kept after decimation */
   daq_guard_t       guard;
   daq_snapshot_fn   snapshot;
   void             *ctx;
@@ -233,7 +230,7 @@ void daq_live_insert(daq_t *d, uint8_t field, int32_t value, uint32_t at,
 
 /* ---- records out ------------------------------------------------------- */
 
-uint32_t daq_available(const daq_t *d);   /**< whole records waiting      */
+uint32_t daq_available(const daq_t *d);   /**< whole records waiting */
 uint32_t daq_capacity(const daq_t *d);    /**< whole records the ring holds*/
 uint16_t daq_take(daq_t *d, uint8_t *out, uint16_t max_records);
 /** The live accumulator copied out and emptied. */

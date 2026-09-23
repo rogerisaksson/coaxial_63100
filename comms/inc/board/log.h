@@ -10,9 +10,9 @@ extern "C" {
 #endif
 
 /** One measurement, whatever took it. */
-#define BOARD_LOG_SOURCE_PHASES 0U   /**< v = U, V, W, TIM1->CNT at latch  */
-#define BOARD_LOG_SOURCE_ANGLE  1U   /**< v = value, crc, register         */
-#define BOARD_LOG_SOURCE_IMU    2U   /**< v = quaternion i, j, k, real     */
+#define BOARD_LOG_SOURCE_PHASES 0U   /**< v = U, V, W, TIM1->CNT at latch */
+#define BOARD_LOG_SOURCE_ANGLE  1U   /**< v = value, crc, register */
+#define BOARD_LOG_SOURCE_IMU    2U   /**< v = quaternion i, j, k, real */
 #define BOARD_LOG_SOURCE_DRIVE  3U   /**< v = id, iq in 10 mA, theta_hat as a turn in 65536, innovation in 0.1
     mrad */
 #define BOARD_LOG_SOURCES       4U

@@ -13,8 +13,8 @@ extern "C" {
 /** One simultaneous triple, latched by the injected end-of-sequence. */
 typedef struct
 {
-  int16_t  phase[BOARD_PWM_PHASES];  /**< U, V, W, raw codes               */
-  uint16_t at;                       /**< TIM1->CNT when it was latched    */
+  int16_t  phase[BOARD_PWM_PHASES];  /**< U, V, W, raw codes */
+  uint16_t at;                       /**< TIM1->CNT when it was latched */
   uint32_t dcbus;                    /**< DC link, raw single-ended: rank 2 on ADC3 of the same sequence */
   uint32_t ntc;                      /**< the thermistor, rank 2 on ADC1: the thermal observer's thermometer
       while the drive holds the converters */
@@ -23,11 +23,11 @@ typedef struct
 /** What the synced path is doing, for the command layer to report. */
 typedef struct
 {
-  bool     ready;                    /**< timer and injected groups exist  */
-  bool     armed;                    /**< triggering and latching          */
-  uint32_t updates;                  /**< triples latched since arming     */
-  uint32_t overruns;                 /**< sequences that arrived too soon  */
-  uint16_t trigger;                  /**< CCR4 - the sample point, ticks   */
+  bool     ready;                    /**< timer and injected groups exist */
+  bool     armed;                    /**< triggering and latching */
+  uint32_t updates;                  /**< triples latched since arming */
+  uint32_t overruns;                 /**< sequences that arrived too soon */
+  uint16_t trigger;                  /**< CCR4 - the sample point, ticks */
   board_sync_sample_t latest;
 } board_sync_state_t;
 

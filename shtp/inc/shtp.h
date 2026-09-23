@@ -23,12 +23,12 @@ extern "C" {
 #define SHTP_LENGTH_RESERVED 0xFFFFU
 
 /** The six channels the BNO08X supports, section 1.3.1. */
-#define SHTP_CH_COMMAND    0U   /**< SHTP's own command channel        */
-#define SHTP_CH_EXECUTABLE 1U   /**< reset / on / sleep, Figure 1-27   */
-#define SHTP_CH_CONTROL    2U   /**< SH-2 control, Figure 1-30         */
-#define SHTP_CH_INPUT      3U   /**< input sensor reports, non-wake    */
-#define SHTP_CH_WAKE       4U   /**< wake-configured sensor reports    */
-#define SHTP_CH_GYRO_RV    5U   /**< gyro rotation vector              */
+#define SHTP_CH_COMMAND    0U   /**< SHTP's own command channel */
+#define SHTP_CH_EXECUTABLE 1U   /**< reset / on / sleep, Figure 1-27 */
+#define SHTP_CH_CONTROL    2U   /**< SH-2 control, Figure 1-30 */
+#define SHTP_CH_INPUT      3U   /**< input sensor reports, non-wake */
+#define SHTP_CH_WAKE       4U   /**< wake-configured sensor reports */
+#define SHTP_CH_GYRO_RV    5U   /**< gyro rotation vector */
 
 /** Executable channel writes and reads, Figure 1-27. */
 #define SHTP_EXEC_RESET 1U
@@ -59,8 +59,8 @@ extern "C" {
 
 typedef struct
 {
-  uint16_t length;        /**< bytes 14:0, header included               */
-  bool     continuation;  /**< bit 15 set                                */
+  uint16_t length;        /**< bytes 14:0, header included */
+  bool     continuation;  /**< bit 15 set */
   uint8_t  channel;
   uint8_t  seq;
 } shtp_header_t;
@@ -100,7 +100,7 @@ typedef struct
   int16_t y;
   int16_t z;
   int16_t w;
-  uint8_t count;       /**< 3 for a vector, 4 for a quaternion         */
+  uint8_t count;       /**< 3 for a vector, 4 for a quaternion */
 } shtp_report_t;
 
 /** Walk one input cargo and decode the reports in it.

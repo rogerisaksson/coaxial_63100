@@ -17,9 +17,9 @@ extern "C" {
     defaults where none did (docs/BOOT.md). */
 typedef struct
 {
-  uint8_t type;       /**< BOARD_BOOT_TYPE                              */
-  uint8_t unit;       /**< the unit id answered to                      */
-  uint8_t position;   /**< down the limb; 0 where nobody assigned one   */
+  uint8_t type;       /**< BOARD_BOOT_TYPE */
+  uint8_t unit;       /**< the unit id answered to */
+  uint8_t position;   /**< down the limb; 0 where nobody assigned one */
   uint8_t flags;      /**< assign's flags; 0 where nobody assigned them */
   bool    assigned;   /**< a bootloader left these, or they are defaults */
 } board_identity_t;

@@ -1,5 +1,4 @@
-/** board_selftest.c - What the board can prove about itself, with nothing
-    attached. */
+/** board_selftest.c - What the board can prove about itself. */
 #include "board.h"
 #include "board_hw.h"
 #include "modbus_crc.h"

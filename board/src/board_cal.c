@@ -1,5 +1,4 @@
-/** board_cal.c - The scaling parameters and per-channel corrections, on the
-    board. */
+/** board_cal.c - The calibration record: scaling, corrections, flash. */
 #include "board.h"
 #include "board_hw.h"
 
@@ -57,8 +56,8 @@ static const board_cal_t CAL_DEFAULTS =
                            rotor's magnets ESTIMATES at the winding's, since
                            a bonded magnet's flux is the first thing lost
                            above it. */
-                        12500,                         /* hotswap        */
-                        10500, 10500, 10500,           /* patch U, V, W  */
+                        12500,                         /* hotswap */
+                        10500, 10500, 10500,           /* patch U, V, W */
                         10500, 10500, 10500,           /* left, bottom, right */
                         12000, 12000, 12000 },         /* winding, stator, rotor */
   .soa_throttle_ppm = 900000UL,
@@ -72,31 +71,31 @@ static const board_cal_t CAL_DEFAULTS =
   .winding_k_per_w_milli = 2200UL,
   .winding_j_per_k_milli = 180000UL,
   .winding_limit_centi   = 12000,
-  .vref_uv          = 3300000UL,      /* U2 REF2033, 3.3 V +/-0.05 %       */
-  .shunt_uohm       = 3500UL,         /* RU1 || RU2, 7 mohm each           */
-  .amp_gain_ppm     = 4545455UL,      /* THS4551, Rf 1.5k / Rg 330         */
-  .bus_r_top_ohm    = 49900UL,        /* R12                               */
-  .bus_r_bottom_ohm = 2200UL,         /* R11                               */
-  .r5_r_top_ohm     = 10000UL,        /* R113 element 2, +5 to PA4         */
-  .r5_r_bottom_ohm  = 10000UL,        /* R113 element 1, PA4 to GND        */
-  .vg_r_top_ohm     = 57000UL,        /* R119 47k + R113 element 3 10k     */
-  .vg_r_bottom_ohm  = 10000UL,        /* R113 element 4, PA5 to GND        */
+  .vref_uv          = 3300000UL,      /* U2 REF2033, 3.3 V +/-0.05 % */
+  .shunt_uohm       = 3500UL,         /* RU1 || RU2, 7 mohm each */
+  .amp_gain_ppm     = 4545455UL,      /* THS4551, Rf 1.5k / Rg 330 */
+  .bus_r_top_ohm    = 49900UL,        /* R12 */
+  .bus_r_bottom_ohm = 2200UL,         /* R11 */
+  .r5_r_top_ohm     = 10000UL,        /* R113 element 2, +5 to PA4 */
+  .r5_r_bottom_ohm  = 10000UL,        /* R113 element 1, PA4 to GND */
+  .vg_r_top_ohm     = 57000UL,        /* R119 47k + R113 element 3 10k */
+  .vg_r_bottom_ohm  = 10000UL,        /* R113 element 4, PA5 to GND */
 
   /* 30 ns, asked for 2026-08-29. */
   .deadtime_ns      = 30UL,
 
   /* No trim until something is measured. */
   .deadtime_skew    = 0UL,
-  .ntc_r25_ohm      = 10000UL,        /* NCU18XH103D60RB                   */
-  .ntc_beta_mk      = 3380000UL,      /* B25/50 = 3380 K, in milli-kelvin  */
-  .ntc_rfixed_ohm   = 10000UL,        /* R100, ERA-3AEB103V 0.1 %          */
-  .ntc_t25_ck       = 29815UL,        /* 298.15 K                          */
+  .ntc_r25_ohm      = 10000UL,        /* NCU18XH103D60RB */
+  .ntc_beta_mk      = 3380000UL,      /* B25/50 = 3380 K, in milli-kelvin */
+  .ntc_rfixed_ohm   = 10000UL,        /* R100, ERA-3AEB103V 0.1 % */
+  .ntc_t25_ck       = 29815UL,        /* 298.15 K */
 
   /* The drive, CAL_VERSION 8. */
-  .motor_r_uohm             = 50000UL,      /* 50 mohm                      */
-  .motor_ld_nh              = 20000UL,      /* 20 uH                        */
+  .motor_r_uohm             = 50000UL,      /* 50 mohm */
+  .motor_ld_nh              = 20000UL,      /* 20 uH */
   .motor_lq_nh              = 25000UL,
-  .motor_lambda_uvs         = 5000UL,       /* 5 mV.s                       */
+  .motor_lambda_uvs         = 5000UL,       /* 5 mV.s */
   .motor_pole_pairs         = 7UL,
   .drv_kp_mv_per_a          = 100UL,
   .drv_ki_v_per_as          = 250UL,
@@ -107,7 +106,7 @@ static const board_cal_t CAL_DEFAULTS =
   .drv_inj_phase_mrad       = 0UL,
   .drv_eps_gain_ua_per_rad  = 0UL,
   .drv_i_max_ma             = 5000UL,
-  .drv_i_trip_ma            = 100000UL,     /* the rating                   */
+  .drv_i_trip_ma            = 100000UL,     /* the rating */
   .drv_v_frac_ppm           = 950000UL,
   .drv_sign                 = 1UL,
   .drv_w_lo_mrad_s          = 60000UL,
@@ -117,7 +116,7 @@ static const board_cal_t CAL_DEFAULTS =
   .drv_sigma_i_ua           = 0UL,
   .drv_trigger_ticks        = 0UL,
   .link_baud                = 115200UL,     /* the number the docs promised */
-  .chan             = { { 0, 0 } },   /* no offset, no gain trim           */
+  .chan             = { { 0, 0 } },   /* no offset, no gain trim */
   .soa_margin_floor_ppm     = BOARD_SOA_MARGIN_FLOOR_PPM,  /* the bench's 80 % */
 };
 

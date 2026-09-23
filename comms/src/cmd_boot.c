@@ -1,5 +1,4 @@
-/** cmd_boot.c - Device 11 as the running application serves it: `state`, and
-    `stay` - the way back into the bootloader. */
+/** cmd_boot.c - Device 11 in the application: state and stay. */
 #include "board.h"
 #include "boot.h"
 #include "cmd.h"

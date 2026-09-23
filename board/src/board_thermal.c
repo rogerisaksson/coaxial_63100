@@ -1,5 +1,4 @@
-/** board_thermal.c - Runs the lumped-network thermal observer on this
-    hardware. */
+/** board_thermal.c - The thermal observer and its envelope on this hardware. */
 #include "board_limits.h"
 #include "board.h"
 #include "board_units.h"
@@ -47,17 +46,17 @@ static struct
   uint32_t trips;
   bool ready;
   uint32_t last_ms;
-  bool holding;                   /**< the thermal observer holds the AFE rail  */
-  uint32_t held_ms;               /**< when it took it                  */
-  uint32_t sampled_ms;            /**< when the last sample finished    */
+  bool holding;                   /**< the thermal observer holds the AFE rail */
+  uint32_t held_ms;               /**< when it took it */
+  uint32_t sampled_ms;            /**< when the last sample finished */
   thermal_sense_t last_seen;
-  uint32_t seen_ms;               /**< when s.last_seen was taken       */
-  bool seen;                      /**< whether anything answered yet    */
+  uint32_t seen_ms;               /**< when s.last_seen was taken */
+  bool seen;                      /**< whether anything answered yet */
   uint32_t every_ms;
   uint32_t settle_ms;
   uint32_t millis;
-  uint32_t steps;                 /**< model integrations, for a rate  */
-  float speed_rpm;                /**< the rotor at the last step      */
+  uint32_t steps;                 /**< model integrations, for a rate */
+  float speed_rpm;                /**< the rotor at the last step */
 
   /* THE IDENTIFICATION BESIDE THE OBSERVER. */
   thermal_ident_t ident;

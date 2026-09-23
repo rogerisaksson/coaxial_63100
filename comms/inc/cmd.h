@@ -64,32 +64,32 @@ extern "C" {
 
 /** Device 10's ops: the control law. */
 #define DRIVE_OP_STATE        0U  /**< -> mode, fault, flags, frames, dq, costs */
-#define DRIVE_OP_MODE         1U  /**< u8 mode -> u8 took                        */
-#define DRIVE_OP_SETPOINT     2U  /**< u8 id, i32 value -> u8 took               */
-#define DRIVE_OP_SETPOINTS    3U  /**< -> u8 count, i32 x count                  */
-#define DRIVE_OP_THETA        4U  /**< i32 urad -> u8 took; both frames          */
-#define DRIVE_OP_WINDOW       5U  /**< -> the window since the last take, reset  */
-#define DRIVE_OP_MOMENTS_ARM  6U  /**< u32 periods -> u8 took                    */
-#define DRIVE_OP_MOMENTS      7U  /**< -> done, n, want, trigger, 4 x channel    */
-#define DRIVE_OP_RELOAD       8U  /**< parameters out of the record -> u8 took   */
-#define DRIVE_OP_CYCLES_RESET 9U  /**< forget the worst step cost -> u8          */
-#define DRIVE_OP_SOURCE      10U  /**< u8 0 converters, 1 the model -> u8 took   */
-#define DRIVE_OP_MODEL_PARAM 11U  /**< u8 id, i32 value -> u8 took               */
+#define DRIVE_OP_MODE         1U  /**< u8 mode -> u8 took */
+#define DRIVE_OP_SETPOINT     2U  /**< u8 id, i32 value -> u8 took */
+#define DRIVE_OP_SETPOINTS    3U  /**< -> u8 count, i32 x count */
+#define DRIVE_OP_THETA        4U  /**< i32 urad -> u8 took; both frames */
+#define DRIVE_OP_WINDOW       5U  /**< -> the window since the last take, reset */
+#define DRIVE_OP_MOMENTS_ARM  6U  /**< u32 periods -> u8 took */
+#define DRIVE_OP_MOMENTS      7U  /**< -> done, n, want, trigger, 4 x channel */
+#define DRIVE_OP_RELOAD       8U  /**< parameters out of the record -> u8 took */
+#define DRIVE_OP_CYCLES_RESET 9U  /**< forget the worst step cost -> u8 */
+#define DRIVE_OP_SOURCE      10U  /**< u8 0 converters, 1 the model -> u8 took */
+#define DRIVE_OP_MODEL_PARAM 11U  /**< u8 id, i32 value -> u8 took */
 #define DRIVE_OP_MODEL       12U  /**< -> u8 source, i32 theta, omega, id, iq, vdc */
-#define DRIVE_OP_MODEL_RESET 13U  /**< the rotor back to theta0, at rest -> u8   */
-#define DRIVE_OP_OBSERVERS   14U  /**< -> the back-EMF chain beside the loop     */
+#define DRIVE_OP_MODEL_RESET 13U  /**< the rotor back to theta0, at rest -> u8 */
+#define DRIVE_OP_OBSERVERS   14U  /**< -> the back-EMF chain beside the loop */
 
 /** Device 4's ops: the gate drivers, the synced triple and the STO chain. */
-#define GATEDRIVERS_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
-#define GATEDRIVERS_OP_PWM      1U   /**< u8 on  -> u8 took                     */
-#define GATEDRIVERS_OP_DUTY     2U   /**< u16 x3 [, u32 periods] -> u8 took     */
-#define GATEDRIVERS_OP_SYNC     3U   /**< u8 on  -> u8 took                     */
-#define GATEDRIVERS_OP_TRIGGER  4U   /**< u16 CCR4 -> u16 as it reads back      */
-#define GATEDRIVERS_OP_CLEAR    5U   /**< -> u8 took; does NOT re-arm           */
-#define GATEDRIVERS_OP_BYPASS   6U   /**< u8 on -> u8 took; drops BDTR.BKE      */
+#define GATEDRIVERS_OP_STATE    0U   /**< -> flags, registers, triple, STO */
+#define GATEDRIVERS_OP_PWM      1U   /**< u8 on  -> u8 took */
+#define GATEDRIVERS_OP_DUTY     2U   /**< u16 x3 [, u32 periods] -> u8 took */
+#define GATEDRIVERS_OP_SYNC     3U   /**< u8 on  -> u8 took */
+#define GATEDRIVERS_OP_TRIGGER  4U   /**< u16 CCR4 -> u16 as it reads back */
+#define GATEDRIVERS_OP_CLEAR    5U   /**< -> u8 took; does NOT re-arm */
+#define GATEDRIVERS_OP_BYPASS   6U   /**< u8 on -> u8 took; drops BDTR.BKE */
 #define GATEDRIVERS_OP_GAP_RESET 7U   /**< -> u8; forget the worst keepalive gap */
-#define GATEDRIVERS_OP_DUTY_FINE 8U   /**< u32 x3 ticks Q16.16 -> u8 took        */
-#define GATEDRIVERS_OP_DEADTIME 9U   /**< u32 ns, i8 skew -> u8 took            */
+#define GATEDRIVERS_OP_DUTY_FINE 8U   /**< u32 x3 ticks Q16.16 -> u8 took */
+#define GATEDRIVERS_OP_DEADTIME 9U   /**< u32 ns, i8 skew -> u8 took */
 #define GATEDRIVERS_OP_ALTERNATE 10U /**< u16 x3 ticks A, u16 x3 ticks B -> u8 took: A one period, B the next */
 
 /** Device 5's ops: the measurement ring. */
@@ -98,21 +98,21 @@ extern "C" {
 #define LOG_OP_TAKE     2U   /**< [u8 want] -> u8 got, then got x 14-byte records */
 
 /** Device 6's ops: one acquisition task, DAQmx's shape cut to this board. */
-#define DAQ_OP_STATE     0U  /**< -> flags, stride, fields, counts, config   */
-#define DAQ_OP_CONFIGURE 1U  /**< channels, clock, sample_time, dec, acc, n  */
+#define DAQ_OP_STATE     0U  /**< -> flags, stride, fields, counts, config */
+#define DAQ_OP_CONFIGURE 1U  /**< channels, clock, sample_time, dec, acc, n */
 #define DAQ_OP_START     2U
 #define DAQ_OP_STOP      3U
-#define DAQ_OP_READ      4U  /**< [u8 want] -> u8 got, then got x stride     */
-#define DAQ_OP_LAYOUT    5U  /**< -> what each field is, named by the board  */
-#define DAQ_OP_LIVE      6U  /**< -> u8 fresh, then the accumulator, reset   */
+#define DAQ_OP_READ      4U  /**< [u8 want] -> u8 got, then got x stride */
+#define DAQ_OP_LAYOUT    5U  /**< -> what each field is, named by the board */
+#define DAQ_OP_LIVE      6U  /**< -> u8 fresh, then the accumulator, reset */
 /* MINOR 4: the anti-alias chain, and a tone to prove the path carried it. */
-#define DAQ_OP_FILTER    7U  /**< u8 count, u16 decimate, i32 x 5 x count   */
+#define DAQ_OP_FILTER    7U  /**< u8 count, u16 decimate, i32 x 5 x count */
 #define DAQ_OP_TONE      8U  /**< u32 hz, u32 rate, i32 amp, i32 offset, u8 kind: 0 sine, 1 ramp */
 #define DAQ_OP_RUNG      9U  /**< u8 rung, u16 boxcar, u8 count, u16 decimate, i32 x 5 x count */
 
 /** Device 7's ops: the cycle counter, latched. */
-#define TIME_OP_LATCH    0U  /**< take CYCCNT now                            */
-#define TIME_OP_READ     1U  /**< -> u32 seq, latched, now, sysclk_hz        */
+#define TIME_OP_LATCH    0U  /**< take CYCCNT now */
+#define TIME_OP_READ     1U  /**< -> u32 seq, latched, now, sysclk_hz */
 
 /* The IMU's operations, device 0. */
 #define IMU_OP_ID      0U
@@ -163,10 +163,10 @@ extern "C" {
 typedef enum
 {
   CMD_OK = 0,
-  CMD_ERR_UNKNOWN,   /**< no such command code            */
+  CMD_ERR_UNKNOWN,   /**< no such command code */
   CMD_ERR_LENGTH,    /**< request payload length is wrong */
-  CMD_ERR_VALUE,     /**< a field is out of range         */
-  CMD_ERR_DEVICE     /**< the board could not comply      */
+  CMD_ERR_VALUE,     /**< a field is out of range */
+  CMD_ERR_DEVICE     /**< the board could not comply */
 } cmd_status_t;
 
 /** One command implementation. */

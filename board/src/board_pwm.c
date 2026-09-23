@@ -1,5 +1,4 @@
-/** board_pwm.c - The three-phase gate drivers: duty in, gates out, the
-    interlocks. */
+/** board_pwm.c - TIM1 gate drivers: duty in, gates out, interlocks. */
 #include "board_limits.h"
 #include "board.h"
 #include "board_irq.h"
@@ -31,9 +30,9 @@ static struct
   volatile uint8_t alt_next;
 
   uint8_t skew;                   /* DTG counts, one way then the other */
-  bool skew_up;                   /* true: the up-count edge gets more  */
-  uint8_t deadtime;               /* what was asked for, in DTG counts  */
-  volatile uint8_t half;          /* which half of the period this is   */
+  bool skew_up;                   /* true: the up-count edge gets more */
+  uint8_t deadtime;               /* what was asked for, in DTG counts */
+  volatile uint8_t half;          /* which half of the period this is */
 
   /* Periods left of a counted hold, 0 when free-running. */
   volatile uint32_t countdown;

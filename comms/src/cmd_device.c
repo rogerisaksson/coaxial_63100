@@ -1,5 +1,4 @@
-/** cmd_device.c - Command 0x6E: every peripheral device, chosen by a device
-    byte. */
+/** cmd_device.c - Command 0x6E: dispatch on the device byte. */
 #include "boot.h"
 #include "cmd.h"
 #include "dev_serial.h"

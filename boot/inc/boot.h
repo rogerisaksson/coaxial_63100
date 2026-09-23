@@ -1,5 +1,4 @@
-/** boot.h - The bootloader's state machine: a blank node taking its image and
-    its record from the master over broadcast, hardware-free. */
+/** boot.h - Bootloader state machine, hardware-free. */
 #ifndef BOOT_H
 #define BOOT_H
 
@@ -20,9 +19,9 @@ extern "C" {
 /** A chunk of image: 224 bytes is seven flash words, and with the frame
     around it 252 bytes on the wire, inside the 253 a PDU allows. */
 #define BOOT_CHUNK_BYTES     224U
-#define BOOT_WORD_BYTES      32U      /**< one flash word, 256 bits          */
+#define BOOT_WORD_BYTES      32U      /**< one flash word, 256 bits */
 #define BOOT_WORDS_PER_CHUNK (BOOT_CHUNK_BYTES / BOOT_WORD_BYTES)
-#define BOOT_UID_BYTES       12U      /**< the MCU's unique id, 96 bits      */
+#define BOOT_UID_BYTES       12U      /**< the MCU's unique id, 96 bits */
 #define BOOT_UID_BITS        (BOOT_UID_BYTES * 8U)
 /** The application's largest image, 1792 K, in chunks - and the bitmap that
     says which have landed. */
@@ -74,7 +73,7 @@ typedef struct
 typedef struct
 {
   uint32_t magic;      /**< BOOT_HAND_MAGIC once a bootloader assigned the rest */
-  uint32_t stay;       /**< BOOT_STAY_MAGIC when the application asks back      */
+  uint32_t stay;       /**< BOOT_STAY_MAGIC when the application asks back */
   uint8_t  unit;
   uint8_t  position;
   uint8_t  flags;
@@ -151,12 +150,12 @@ bool boot_app_valid(void);
 
 /** What the hardware layer asks after each frame. */
 boot_state_t boot_state(void);
-uint8_t      boot_unit(void);             /**< BOOT_UNIT until assigned  */
-uint8_t      boot_position(void);         /**< 0 until assigned          */
-uint8_t      boot_flags(void);            /**< assign's flags            */
-bool         boot_wants_go(void);         /**< a go for a sealed node    */
-bool         boot_terminates(void);       /**< assign's flag bit 0       */
-uint32_t     boot_chunks_ignored(void);   /**< chunks with no erase      */
+uint8_t      boot_unit(void);             /**< BOOT_UNIT until assigned */
+uint8_t      boot_position(void);         /**< 0 until assigned */
+uint8_t      boot_flags(void);            /**< assign's flags */
+bool         boot_wants_go(void);         /**< a go for a sealed node */
+bool         boot_terminates(void);       /**< assign's flag bit 0 */
+uint32_t     boot_chunks_ignored(void);   /**< chunks with no erase */
 
 /** CRC-32, IEEE, as every host library computes it. */
 uint32_t boot_crc32(uint32_t crc, const uint8_t *data, size_t len);

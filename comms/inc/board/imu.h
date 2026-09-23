@@ -12,16 +12,16 @@ extern "C" {
 /** The IMU poll loop's shared record: what it saw, and what went wrong. */
 typedef struct
 {
-  uint8_t  loop;        /**< BOARD_IMU_LOOP_*                            */
-  uint8_t  error;       /**< BOARD_IMU_ERR_*, the last one seen          */
-  uint8_t  last_fault;  /**< the last one that was not NONE, kept        */
+  uint8_t  loop;        /**< BOARD_IMU_LOOP_* */
+  uint8_t  error;       /**< BOARD_IMU_ERR_*, the last one seen */
+  uint8_t  last_fault;  /**< the last one that was not NONE, kept */
   uint8_t  last_fault_id; /**< for FRAME, the report id that stopped it */
-  uint32_t updates;     /**< rotation vectors written, monotonic         */
-  uint32_t cargoes;     /**< cargoes taken off SPI2                      */
-  uint32_t errors;      /**< reads that failed                           */
+  uint32_t updates;     /**< rotation vectors written, monotonic */
+  uint32_t cargoes;     /**< cargoes taken off SPI2 */
+  uint32_t errors;      /**< reads that failed */
   bool     have;        /**< whether the quaternion below means anything */
   uint8_t  report_id;
-  uint8_t  status;      /**< accuracy in bits 1:0                        */
+  uint8_t  status;      /**< accuracy in bits 1:0 */
   int16_t  i;
   int16_t  j;
   int16_t  k;
@@ -32,24 +32,24 @@ typedef struct
   bool     have_accel;
   bool     have_gyro;
   bool     have_mag;
-  int16_t  accel[3];    /**< SH2 0x01, Q8, m/s^2                          */
-  int16_t  gyro[3];     /**< SH2 0x02, Q9, rad/s                          */
-  int16_t  mag[3];      /**< SH2 0x03, Q4, uT                             */
+  int16_t  accel[3];    /**< SH2 0x01, Q8, m/s^2 */
+  int16_t  gyro[3];     /**< SH2 0x02, Q9, rad/s */
+  int16_t  mag[3];      /**< SH2 0x03, Q4, uT */
   uint8_t  accel_status;
   uint8_t  gyro_status;
   uint8_t  mag_status;
 } board_imu_state_t;
 
-#define BOARD_IMU_LOOP_OFF   0U  /**< AFE_ON is low; nothing to poll     */
-#define BOARD_IMU_LOOP_INIT  1U  /**< powered, not yet brought up        */
-#define BOARD_IMU_LOOP_RUN   2U  /**< polling                            */
+#define BOARD_IMU_LOOP_OFF   0U  /**< AFE_ON is low; nothing to poll */
+#define BOARD_IMU_LOOP_INIT  1U  /**< powered, not yet brought up */
+#define BOARD_IMU_LOOP_RUN   2U  /**< polling */
 #define BOARD_IMU_LOOP_HELD  3U  /**< stopped, so the host may configure */
 
 #define BOARD_IMU_ERR_NONE   0U
-#define BOARD_IMU_ERR_POWER  1U  /**< AFE_ON went away under it          */
-#define BOARD_IMU_ERR_INIT   2U  /**< the part did not come up           */
-#define BOARD_IMU_ERR_READ   3U  /**< a cargo read failed                */
-#define BOARD_IMU_ERR_FRAME  4U  /**< a report id with no length         */
+#define BOARD_IMU_ERR_POWER  1U  /**< AFE_ON went away under it */
+#define BOARD_IMU_ERR_INIT   2U  /**< the part did not come up */
+#define BOARD_IMU_ERR_READ   3U  /**< a cargo read failed */
+#define BOARD_IMU_ERR_FRAME  4U  /**< a report id with no length */
 #define BOARD_IMU_ERR_NOWAKE 5U  /**< wrote without an H_INTN acknowledge */
 
 /** Advance the IMU poll loop. */

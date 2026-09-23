@@ -344,7 +344,7 @@ static cmd_status_t h_thermal_ident(wr_t *out)
   wr_i32(out, (int32_t)(id.margin * PPM_PER_UNIT));
   wr_u32(out, id.updates);
   wr_u32(out, 0UL);                /* saves: none, the board keeps nothing */
-  wr_u32(out, 0xFFFFFFFFUL);       /* since a save: never                  */
+  wr_u32(out, 0xFFFFFFFFUL);       /* since a save: never */
   /* MINOR 15, appended (invariant 3): the room as identified, centi-C, and
      its sigma in centi-kelvin. */
   wr_i32(out, (int32_t)(id.ambient_c * CENTI_PER_UNIT));

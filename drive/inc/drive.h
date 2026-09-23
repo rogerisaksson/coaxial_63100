@@ -22,12 +22,12 @@ extern "C" {
 
 typedef enum
 {
-  DRIVE_OFF = 0,     /**< duties at zero, everything else still runs      */
-  DRIVE_VOLT,        /**< open loop: vd, vq in the command frame           */
+  DRIVE_OFF = 0,     /**< duties at zero, everything else still runs */
+  DRIVE_VOLT,        /**< open loop: vd, vq in the command frame */
   DRIVE_HOLD,        /**< current control in the command frame; I/f when omega_target is not
       zero */
-  DRIVE_SENSORLESS,  /**< current control in the rotor observer's frame          */
-  DRIVE_POLARITY,    /**< two voltage pulses along theta_hat, then OFF     */
+  DRIVE_SENSORLESS,  /**< current control in the rotor observer's frame */
+  DRIVE_POLARITY,    /**< two voltage pulses along theta_hat, then OFF */
   DRIVE_MODES
 } drive_mode_t;
 
@@ -35,61 +35,61 @@ typedef enum
 {
   DRIVE_FAULT_NONE = 0,
   DRIVE_FAULT_OVERCURRENT,   /**< a phase passed `i_trip`; the stage was dropped */
-  DRIVE_FAULT_STAGE,         /**< MOE went away under a running mode          */
-  DRIVE_FAULT_SUPPLY         /**< AFE_ON went away: readings mean nothing     */
+  DRIVE_FAULT_STAGE,         /**< MOE went away under a running mode */
+  DRIVE_FAULT_SUPPLY         /**< AFE_ON went away: readings mean nothing */
 } drive_fault_t;
 
 /** What the host tells the drive, in SI. The record keeps integers. */
 typedef struct
 {
-  float r;             /**< phase resistance, ohm                          */
-  float ld;            /**< d inductance, henry                            */
-  float lq;            /**< q inductance, henry                            */
-  float lambda;        /**< PM flux linkage, V.s                           */
+  float r;             /**< phase resistance, ohm */
+  float ld;            /**< d inductance, henry */
+  float lq;            /**< q inductance, henry */
+  float lambda;        /**< PM flux linkage, V.s */
   float pole_pairs;
-  float kp;            /**< current loop, V/A                              */
-  float ki;            /**< current loop, V/(A.s)                          */
-  float l1;            /**< rotor observer angle gain, 1                         */
-  float l2;            /**< rotor observer speed gain, 1/s                       */
-  float inj_volts;     /**< HF injection amplitude, V                      */
+  float kp;            /**< current loop, V/A */
+  float ki;            /**< current loop, V/(A.s) */
+  float l1;            /**< rotor observer angle gain, 1 */
+  float l2;            /**< rotor observer speed gain, 1/s */
+  float inj_volts;     /**< HF injection amplitude, V */
   uint16_t inj_periods;/**< PWM periods per injection half cycle; 1 = fs/2 */
-  float inj_phase;     /**< injection axis, rad from the frame's d axis    */
-  float eps_gain;      /**< demodulated amps per radian of angle error     */
-  float i_max;         /**< reference clamp, A                             */
-  float i_trip;        /**< drop the stage past this, A, per phase         */
-  float v_frac;        /**< of Vdc/sqrt3 the voltage vector may use        */
-  float sign;          /**< +1 or -1: shunt polarity against the drive     */
-  float w_lo;          /**< below this the injection error alone, rad/s   */
-  float w_hi;          /**< above this the back-EMF error alone, rad/s    */
-  float dt_step;       /**< dead-time table spacing, A                     */
-  float dt_volts[DRIVE_DT_POINTS]; /**< voltage error at k*dt_step, V     */
+  float inj_phase;     /**< injection axis, rad from the frame's d axis */
+  float eps_gain;      /**< demodulated amps per radian of angle error */
+  float i_max;         /**< reference clamp, A */
+  float i_trip;        /**< drop the stage past this, A, per phase */
+  float v_frac;        /**< of Vdc/sqrt3 the voltage vector may use */
+  float sign;          /**< +1 or -1: shunt polarity against the drive */
+  float w_lo;          /**< below this the injection error alone, rad/s */
+  float w_hi;          /**< above this the back-EMF error alone, rad/s */
+  float dt_step;       /**< dead-time table spacing, A */
+  float dt_volts[DRIVE_DT_POINTS]; /**< voltage error at k*dt_step, V */
 } drive_params_t;
 
 /** What a mode is asked to do. Runtime only; never in the record. */
 typedef struct
 {
-  float id_ref;        /**< A, in the mode's frame                         */
-  float iq_ref;        /**< A                                              */
-  float theta;         /**< rad: the command frame's angle (HOLD, VOLT)    */
-  float omega_target;  /**< rad/s the command frame ramps to (I/f)         */
-  float accel;         /**< rad/s^2 of that ramp                           */
-  float vd;            /**< VOLT mode, V                                   */
+  float id_ref;        /**< A, in the mode's frame */
+  float iq_ref;        /**< A */
+  float theta;         /**< rad: the command frame's angle (HOLD, VOLT) */
+  float omega_target;  /**< rad/s the command frame ramps to (I/f) */
+  float accel;         /**< rad/s^2 of that ramp */
+  float vd;            /**< VOLT mode, V */
   float vq;
-  float pol_volts;     /**< POLARITY: pulse amplitude, V                   */
-  uint16_t pol_periods;/**< POLARITY: periods per pulse                    */
-  uint16_t pol_gap;    /**< POLARITY: periods between them                 */
+  float pol_volts;     /**< POLARITY: pulse amplitude, V */
+  uint16_t pol_periods;/**< POLARITY: periods per pulse */
+  uint16_t pol_gap;    /**< POLARITY: periods between them */
 } drive_setpoints_t;
 
 /** One period's measurement, already in amperes and volts. */
 typedef struct
 {
   float i[DRIVE_PHASES];   /**< phase currents as the shunts report them */
-  float vdc;               /**< DC link, V                                */
+  float vdc;               /**< DC link, V */
 } drive_sample_t;
 
 typedef struct
 {
-  float duty[DRIVE_PHASES];   /**< 0..1 per leg                          */
+  float duty[DRIVE_PHASES];   /**< 0..1 per leg */
 } drive_out_t;
 
 /** Feedback ring: one injection cycle of dq samples. */
@@ -115,10 +115,10 @@ typedef struct
 {
   uint32_t n;
   drive_acc_t acc[DRIVE_ACC_FIELDS];
-  double  lag[DRIVE_LAGS + 1U];      /**< sum e[k] e[k-j], j = 0..LAGS    */
-  float   e_ring[DRIVE_LAGS + 1U];   /**< the last innovations            */
+  double  lag[DRIVE_LAGS + 1U];      /**< sum e[k] e[k-j], j = 0..LAGS */
+  float   e_ring[DRIVE_LAGS + 1U];   /**< the last innovations */
   uint8_t e_head;
-  float   i_peak;                    /**< largest |i_dq| seen             */
+  float   i_peak;                    /**< largest |i_dq| seen */
 } drive_window_t;
 
 /** Raw-code moments: what the converter did at one sample point. */
@@ -129,7 +129,7 @@ typedef struct
   int32_t  lo[DRIVE_MOMENT_CHANNELS];
   int32_t  hi[DRIVE_MOMENT_CHANNELS];
   uint32_t n;
-  uint32_t want;                     /**< periods asked for; 0 is idle    */
+  uint32_t want;                     /**< periods asked for; 0 is idle */
 } drive_moments_t;
 
 /** Where the samples come from: the converters, or the model below. */
@@ -146,52 +146,52 @@ typedef struct
   float r, ld, lq, lambda, pole_pairs;
   float sat;           /**< Ld bends by this fraction at i_sat of d current */
   float i_sat;
-  float j;             /**< kg m^2                                         */
-  float b;             /**< N m s                                          */
-  float load;          /**< N m                                            */
-  float v_dt;          /**< the inverter's dead-time volts per phase       */
-  float i_knee;        /**< where that error saturates, A                  */
-  float vdc;           /**< the link it runs from, V                       */
-  float noise;         /**< current noise sd on each shunt, A              */
-  float theta0;        /**< the rotor's angle at init, rad electrical      */
-  uint8_t sub;         /**< Euler sub-steps per period                     */
+  float j;             /**< kg m^2 */
+  float b;             /**< N m s */
+  float load;          /**< N m */
+  float v_dt;          /**< the inverter's dead-time volts per phase */
+  float i_knee;        /**< where that error saturates, A */
+  float vdc;           /**< the link it runs from, V */
+  float noise;         /**< current noise sd on each shunt, A */
+  float theta0;        /**< the rotor's angle at init, rad electrical */
+  uint8_t sub;         /**< Euler sub-steps per period */
 } drive_model_params_t;
 
 typedef struct
 {
   drive_model_params_t p;
   float theta;         /**< electrical, the truth the rotor observer is judged by */
-  float omega;         /**< electrical                                      */
-  float id, iq;        /**< in the rotor's own frame                        */
-  float duty_prev[DRIVE_PHASES]; /**< the pipeline: last step's duties     */
-  float c, s;                    /**< cos/sin of theta at the sample      */
-  float i_abc[DRIVE_PHASES];     /**< the sample's currents, noise-free   */
+  float omega;         /**< electrical */
+  float id, iq;        /**< in the rotor's own frame */
+  float duty_prev[DRIVE_PHASES]; /**< the pipeline: last step's duties */
+  float c, s;                    /**< cos/sin of theta at the sample */
+  float i_abc[DRIVE_PHASES];     /**< the sample's currents, noise-free */
   uint32_t rng;
 } drive_model_t;
 
 /** THE BACK-EMF OBSERVER CHAIN, drive_observer.c. */
-#define DRIVE_OBS_WC           20.0f   /**< the leak, rad/s electrical   */
-#define DRIVE_OBS_CROSS        20.0f   /**< current model pull, rad/s    */
+#define DRIVE_OBS_WC           20.0f   /**< the leak, rad/s electrical */
+#define DRIVE_OBS_CROSS        20.0f   /**< current model pull, rad/s */
 #define DRIVE_OBS_PLL_KP      200.0f
 #define DRIVE_OBS_PLL_KI     8000.0f
-#define DRIVE_OBS_BLEND_LO     40.0f   /**< x wc: all dual below         */
-#define DRIVE_OBS_BLEND_HI    150.0f   /**< x wc: all flux above         */
+#define DRIVE_OBS_BLEND_LO     40.0f   /**< x wc: all dual below */
+#define DRIVE_OBS_BLEND_HI    150.0f   /**< x wc: all flux above */
 #define DRIVE_OBS_SPEED_FILTER 300.0f  /**< on the flux model's own speed */
 
 /** What the chain holds. */
 typedef struct
 {
-  float psi_a, psi_b;        /**< dual: the voltage model, held down      */
-  float leak_a, leak_b;      /**< plain: the leaking integrator           */
-  float pll_theta, pll_omega;/**< dual: the PLL's state                   */
-  float flux_theta;          /**< plain: its angle                        */
-  float flux_omega;          /**< plain: its filtered speed               */
-  float dual_theta;          /**< what each reported this step            */
+  float psi_a, psi_b;        /**< dual: the voltage model, held down */
+  float leak_a, leak_b;      /**< plain: the leaking integrator */
+  float pll_theta, pll_omega;/**< dual: the PLL's state */
+  float flux_theta;          /**< plain: its angle */
+  float flux_omega;          /**< plain: its filtered speed */
+  float dual_theta;          /**< what each reported this step */
   float flux_only;
-  float theta;               /**< the blend, rad electrical               */
-  float omega;               /**< the blend's speed, rad/s electrical     */
-  float blend;               /**< 0 all dual, 1 all flux                  */
-  float lambda_hat;          /**< |psi_r| - the magnets, across the gap   */
+  float theta;               /**< the blend, rad electrical */
+  float omega;               /**< the blend's speed, rad/s electrical */
+  float blend;               /**< 0 all dual, 1 all flux */
+  float lambda_hat;          /**< |psi_r| - the magnets, across the gap */
   float wc, cross, pll_kp, pll_ki, blend_lo, blend_hi;
   float ts;
   bool  valid;               /**< above wc, so there is a back-EMF at all */
@@ -212,7 +212,7 @@ void drive_observer_step(drive_obs_t *o, const drive_params_t *p,
 /** The whole controller. Owned by the caller; drive_init fills it. */
 typedef struct
 {
-  float ts;                          /**< PWM period, s                   */
+  float ts;                          /**< PWM period, s */
   drive_params_t p;
   drive_setpoints_t sp;
   drive_mode_t mode;
@@ -229,10 +229,10 @@ typedef struct
   /* the rotor observer */
   float theta_hat;
   float omega_hat;
-  float eps;                         /**< last innovation, rad            */
-  float eps_amps;                    /**< last demodulated error, A       */
-  float ih;                          /**< last HF current amplitude, A    */
-  float e_bemf;                      /**< last back-EMF angle error, rad  */
+  float eps;                         /**< last innovation, rad */
+  float eps_amps;                    /**< last demodulated error, A */
+  float ih;                          /**< last HF current amplitude, A */
+  float e_bemf;                      /**< last back-EMF angle error, rad */
 
   /* the back-EMF observer chain, beside it */
   drive_obs_t obs;
@@ -242,37 +242,37 @@ typedef struct
   float omega_cmd;
 
   /* the current loop */
-  float xd, xq;                      /**< integrators, V                  */
-  float id, iq;                      /**< this period, in the loop frame  */
-  float vd, vq;                      /**< this period's demand, V         */
+  float xd, xq;                      /**< integrators, V */
+  float id, iq;                      /**< this period, in the loop frame */
+  float vd, vq;                      /**< this period's demand, V */
   float va_out, vb_out;              /**< the fundamental applied, alpha/beta */
   float vdc;
-  float   fb_d[DRIVE_FB_RING];       /**< feedback ring, see feedback()   */
+  float   fb_d[DRIVE_FB_RING];       /**< feedback ring, see feedback() */
   float   fb_q[DRIVE_FB_RING];
   uint8_t fb_head;
   uint8_t fb_fill;
 
   /* the injection */
-  float    inj_sign;                 /**< +1 or -1 this period            */
-  uint16_t inj_count;                /**< periods left at this sign       */
+  float    inj_sign;                 /**< +1 or -1 this period */
+  uint16_t inj_count;                /**< periods left at this sign */
   float    sign_hist[4];             /**< the sign each recent step wrote */
-  float    iq_prev;                  /**< in the injection frame          */
+  float    iq_prev;                  /**< in the injection frame */
   float    id_prev;
-  bool     have_prev;                /**< iq_prev holds a sample          */
-  float    acc_q;                    /**< this cycle's demodulated sums   */
+  bool     have_prev;                /**< iq_prev holds a sample */
+  float    acc_q;                    /**< this cycle's demodulated sums */
   float    acc_d;
-  uint16_t cyc_count;                /**< periods into this cycle         */
-  uint8_t  inj_warm;                 /**< cycles seen since it started    */
-  float    demod_q;                  /**< last full-cycle demodulated q   */
+  uint16_t cyc_count;                /**< periods into this cycle */
+  uint8_t  inj_warm;                 /**< cycles seen since it started */
+  float    demod_q;                  /**< last full-cycle demodulated q */
   float    demod_d;
   bool     inj_valid;                /**< two whole cycles have been seen */
 
   /* POLARITY */
   uint32_t pol_step;
-  float    pol_pos;                  /**< peak |id| on the +pulse, A      */
+  float    pol_pos;                  /**< peak |id| on the +pulse, A */
   float    pol_neg;
 
-  uint32_t periods;                  /**< steps since init                */
+  uint32_t periods;                  /**< steps since init */
   drive_window_t win;
   drive_moments_t mom;
 } drive_t;

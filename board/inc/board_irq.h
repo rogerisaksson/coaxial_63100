@@ -1,6 +1,4 @@
-/** board_irq.h - PRIMASK held across a register pair, and given back only if
-    it was not already held - a caller under its own critical section keeps
-    it. */
+/** board_irq.h - PRIMASK over a register pair, restored only if it was clear. */
 #ifndef BOARD_IRQ_H
 #define BOARD_IRQ_H
 

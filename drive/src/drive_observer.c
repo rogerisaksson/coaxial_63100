@@ -1,5 +1,4 @@
-/** drive_observer.c - The back-EMF observer chain: dual flux low, plain flux
-    high. */
+/** drive_observer.c - Back-EMF observers: dual flux low, plain flux high. */
 #include "drive.h"
 
 #include <math.h>

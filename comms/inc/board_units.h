@@ -1,6 +1,4 @@
-/** board_units.h - What the cooked readings and the record count in: milli-
-    and micro-units of a volt, an amp, an ohm, a radian, a second or a watt,
-    centi-units of a degree, ratios in parts per million. */
+/** board_units.h - Units of cooked readings and the record (milli, micro, centi, ppm). */
 #ifndef BOARD_UNITS_H
 #define BOARD_UNITS_H
 

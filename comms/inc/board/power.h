@@ -12,14 +12,14 @@ extern "C" {
 /** What the board can see of the Safe Torque Off chain. */
 typedef struct
 {
-  bool    afe_on;             /**< false makes both readings meaningless  */
-  bool    pilot_ok;           /**< the Cinj channel answered              */
-  int32_t pilot_raw;          /**< recovered pilot, raw code              */
+  bool    afe_on;             /**< false makes both readings meaningless */
+  bool    pilot_ok;           /**< the Cinj channel answered */
+  int32_t pilot_raw;          /**< recovered pilot, raw code */
   int32_t pilot_microvolts;
-  bool    level_ok;           /**< the Clevel channel answered            */
-  int32_t level_raw;          /**< integrator level - the margin left     */
+  bool    level_ok;           /**< the Clevel channel answered */
+  int32_t level_raw;          /**< integrator level - the margin left */
   int32_t level_microvolts;
-  bool    stopped;            /**< TIM1 break latched: nFAULT on PE15     */
+  bool    stopped;            /**< TIM1 break latched: nFAULT on PE15 */
   uint32_t keepalive;         /**< edges pumped since boot - the loop rate */
   uint32_t worst_gap;         /**< longest gap between edges, CYCCNT ticks */
 } board_sto_state_t;

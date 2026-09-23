@@ -1,5 +1,4 @@
-/** cmd_gate_drivers.c - The gate drivers' operations behind command 0x6E,
-    device 4. */
+/** cmd_gate_drivers.c - Device 4: the gate drivers. */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"

@@ -1,5 +1,4 @@
-/** cmd_imu.c - The BNO08X commands: raw cargo out, and the one request that
-    proves the link is real. */
+/** cmd_imu.c - Device 0: the BNO08X. */
 #include <string.h>
 #include "comms_limits.h"
 #include "cmd.h"

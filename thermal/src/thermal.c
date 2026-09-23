@@ -1,5 +1,4 @@
-/** thermal.c - The thermal observer: integrate the network, then correct it
-    with whichever thermometers answered. */
+/** thermal.c - Thermal observer: integrate the network, correct from thermometers. */
 #include "thermal.h"
 
 #include <math.h>

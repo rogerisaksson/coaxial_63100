@@ -1,6 +1,4 @@
-/** boot_main.c - The bootloader's hardware: reset, the pins, the clocks, the
-    two RS485 USARTs and the console, the flash controller, the RTU loop and
-    the jump. */
+/** boot_main.c - Bootloader hardware: pins, clocks, USARTs, flash, RTU loop, jump. */
 #include "boot.h"
 #include "cmd.h"
 #include "modbus_rtu.h"
@@ -78,9 +76,9 @@ typedef struct
 {
   const pin_t  *pins;
   uint32_t      count;
-  USART_TypeDef *rs485[2];        /**< the two segments                 */
+  USART_TypeDef *rs485[2];        /**< the two segments */
   USART_TypeDef *console;
-  GPIO_TypeDef *term_port;        /**< the 120 ohm termination          */
+  GPIO_TypeDef *term_port;        /**< the 120 ohm termination */
   uint8_t       term_pin;
 } board_t;
 

@@ -1,5 +1,4 @@
-/** cmd_log.c - The measurement ring's operations behind command 0x6E, device
-    5. */
+/** cmd_log.c - Device 5: the measurement ring. */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"

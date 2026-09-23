@@ -1,5 +1,4 @@
-/** board_imu.c - The BNO08X on SPI2: the bytes, and nothing about what they
-    mean. */
+/** board_imu.c - BNO08X on SPI2: bytes only, no meaning. */
 #include "board_limits.h"
 #include "board.h"
 #include "board_hw.h"
@@ -29,12 +28,12 @@
 #define IMU_WAKE_RETRIES     3U
 #define IMU_WAKE_RELEASE_MS  2U
 #define IMU_RESET_DRAIN      16U
-#define IMU_WRITE_DRAIN      8U      /**< reads before a write speaks    */
+#define IMU_WRITE_DRAIN      8U      /**< reads before a write speaks */
 #define IMU_SPI_TIMEOUT_MS   100U
-#define IMU_WAKE_TEST_DRAIN  16U      /**< reads before the wake test asks    */
-#define IMU_QUIET_EMPTIES    3U       /**< empties in a row that mean quiet   */
-#define IMU_WAKE_NOT_READY   0xFFFFU  /**< the wake test's two answers that   */
-#define IMU_WAKE_BUSY        0xFFFEU  /**< are not a time                     */
+#define IMU_WAKE_TEST_DRAIN  16U      /**< reads before the wake test asks */
+#define IMU_QUIET_EMPTIES    3U       /**< empties in a row that mean quiet */
+#define IMU_WAKE_NOT_READY   0xFFFFU  /**< the wake test's two answers that */
+#define IMU_WAKE_BUSY        0xFFFEU  /**< are not a time */
 /* PS0/WAKE, pin 6. */
 #define IMU_WAKE_PORT GPIOD
 #define IMU_WAKE_PIN  GPIO_PIN_9
@@ -83,7 +82,7 @@ static struct
   /** Which slot the re-apply has got to, since it does one a turn. */
   uint8_t feature_next;
   uint32_t cargoes_at_reset;      /**< to know the part has spoken */
-  uint32_t last_cargo_ms;         /**< when the last one arrived   */
+  uint32_t last_cargo_ms;         /**< when the last one arrived */
 } s;
 
 static const uint8_t s_zeros[IMU_BUF];

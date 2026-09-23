@@ -1,5 +1,4 @@
-/** comms_limits.h - The WIRE's fixed numbers - what a reply carries, and how
-    long the command layer waits for a part to answer. */
+/** comms_limits.h - The wire's fixed numbers: reply sizes, part timeouts. */
 #ifndef COMMS_LIMITS_H
 #define COMMS_LIMITS_H
 

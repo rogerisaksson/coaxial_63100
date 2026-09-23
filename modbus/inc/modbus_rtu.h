@@ -24,12 +24,12 @@ extern "C" {
 /** Diagnostic counters, named as in MODBUS over Serial Line V1.02. */
 typedef struct
 {
-  uint32_t bus_message;        /**< every frame seen on the bus            */
+  uint32_t bus_message;        /**< every frame seen on the bus */
   uint32_t bus_comm_error;     /**< CRC failures and framing/overrun drops */
-  uint32_t server_message;     /**< frames addressed to this unit          */
-  uint32_t server_exception;   /**< exception responses sent               */
-  uint32_t server_no_response; /**< frames handled with no reply           */
-  uint32_t char_overrun;       /**< frames lost to a UART overrun          */
+  uint32_t server_message;     /**< frames addressed to this unit */
+  uint32_t server_exception;   /**< exception responses sent */
+  uint32_t server_no_response; /**< frames handled with no reply */
+  uint32_t char_overrun;       /**< frames lost to a UART overrun */
 } mb_rtu_counters_t;
 
 /** The request-length oracle, for ending a frame without the silence. */

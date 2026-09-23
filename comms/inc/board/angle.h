@@ -12,25 +12,25 @@ extern "C" {
 /** The A1335's poll loop record, the same shape as the IMU's. */
 typedef struct
 {
-  uint8_t  loop;        /**< BOARD_ANGLE_LOOP_*                          */
-  uint8_t  error;       /**< BOARD_ANGLE_ERR_*, the last one seen        */
-  uint32_t updates;     /**< readings written, monotonic                 */
-  uint32_t errors;      /**< reads that failed                           */
-  bool     have;        /**< whether `value` means anything              */
-  uint8_t  reg;         /**< which register it came from                 */
-  uint16_t value;       /**< the sixteen data bits, unscaled             */
+  uint8_t  loop;        /**< BOARD_ANGLE_LOOP_* */
+  uint8_t  error;       /**< BOARD_ANGLE_ERR_*, the last one seen */
+  uint32_t updates;     /**< readings written, monotonic */
+  uint32_t errors;      /**< reads that failed */
+  bool     have;        /**< whether `value` means anything */
+  uint8_t  reg;         /**< which register it came from */
+  uint16_t value;       /**< the sixteen data bits, unscaled */
   uint8_t  crc;         /**< four CRC bits, unchecked (polynomial unknown) */
 } board_angle_state_t;
 
-#define BOARD_ANGLE_LOOP_OFF  0U  /**< no supply, or not yet brought up  */
-#define BOARD_ANGLE_LOOP_RUN  1U  /**< polling                           */
+#define BOARD_ANGLE_LOOP_OFF  0U  /**< no supply, or not yet brought up */
+#define BOARD_ANGLE_LOOP_RUN  1U  /**< polling */
 #define BOARD_ANGLE_LOOP_HELD 2U  /**< stopped, so the host may configure */
 
 #define BOARD_ANGLE_ERR_NONE   0U
-#define BOARD_ANGLE_ERR_POWER  1U  /**< AFE_ON went away under it        */
-#define BOARD_ANGLE_ERR_INIT   2U  /**< SPI4 would not configure         */
-#define BOARD_ANGLE_ERR_READ   3U  /**< the transfer failed              */
-#define BOARD_ANGLE_ERR_SILENT 4U  /**< all ones: absent or unpowered    */
+#define BOARD_ANGLE_ERR_POWER  1U  /**< AFE_ON went away under it */
+#define BOARD_ANGLE_ERR_INIT   2U  /**< SPI4 would not configure */
+#define BOARD_ANGLE_ERR_READ   3U  /**< the transfer failed */
+#define BOARD_ANGLE_ERR_SILENT 4U  /**< all ones: absent or unpowered */
 
 bool Board_AngleInit(void);
 bool Board_AngleReady(void);

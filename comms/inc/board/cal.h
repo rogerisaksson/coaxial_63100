@@ -16,10 +16,10 @@ extern "C" {
     record has nothing to say about it. */
 typedef struct
 {
-  uint32_t capacity_milli;     /**< J/K                                  */
-  uint32_t to_ambient_milli;   /**< K/W to the air; a patch's own share  */
-  uint32_t forced_milli;       /**< per sqrt(krpm)                       */
-  uint32_t rth_milli;          /**< junction over node per watt          */
+  uint32_t capacity_milli;     /**< J/K */
+  uint32_t to_ambient_milli;   /**< K/W to the air; a patch's own share */
+  uint32_t forced_milli;       /**< per sqrt(krpm) */
+  uint32_t rth_milli;          /**< junction over node per watt */
 } board_cal_node_t;
 
 /** An edge the record OPENS rather than defaults: the mount on a bench. */
@@ -29,59 +29,59 @@ typedef struct
 #define BOARD_CAL_CHANNELS 10U
 
 /** Which scalar Board_CalSetParam/GetParam addresses. */
-#define BOARD_CAL_VREF_UV      0U  /**< ADC reference, microvolts           */
-#define BOARD_CAL_SHUNT_UOHM   1U  /**< phase shunt, microhms               */
-#define BOARD_CAL_AMP_GAIN_PPM 2U  /**< phase amplifier gain, ppm of 1 V/V  */
-#define BOARD_CAL_BUS_R_TOP    3U  /**< DC link divider top, ohms           */
-#define BOARD_CAL_BUS_R_BOTTOM 4U  /**< DC link divider bottom, ohms        */
-#define BOARD_CAL_NTC_R25      5U  /**< thermistor at 25 C, ohms            */
-#define BOARD_CAL_NTC_BETA_MK  6U  /**< B constant, milli-kelvin            */
-#define BOARD_CAL_NTC_RFIXED   7U  /**< divider partner, ohms               */
-#define BOARD_CAL_NTC_T25_CK   8U  /**< reference temperature, centikelvin  */
+#define BOARD_CAL_VREF_UV      0U  /**< ADC reference, microvolts */
+#define BOARD_CAL_SHUNT_UOHM   1U  /**< phase shunt, microhms */
+#define BOARD_CAL_AMP_GAIN_PPM 2U  /**< phase amplifier gain, ppm of 1 V/V */
+#define BOARD_CAL_BUS_R_TOP    3U  /**< DC link divider top, ohms */
+#define BOARD_CAL_BUS_R_BOTTOM 4U  /**< DC link divider bottom, ohms */
+#define BOARD_CAL_NTC_R25      5U  /**< thermistor at 25 C, ohms */
+#define BOARD_CAL_NTC_BETA_MK  6U  /**< B constant, milli-kelvin */
+#define BOARD_CAL_NTC_RFIXED   7U  /**< divider partner, ohms */
+#define BOARD_CAL_NTC_T25_CK   8U  /**< reference temperature, centikelvin */
 /* The two supply senses. */
-#define BOARD_CAL_R5_R_TOP     9U  /**< +5 sense divider top, ohms          */
-#define BOARD_CAL_R5_R_BOTTOM 10U  /**< +5 sense divider bottom, ohms       */
-#define BOARD_CAL_VG_R_TOP    11U  /**< gate supply divider top, ohms       */
-#define BOARD_CAL_VG_R_BOTTOM 12U  /**< gate supply divider bottom, ohms    */
-#define BOARD_CAL_DEADTIME_NS 13U  /**< half-bridge dead time, nanoseconds  */
-#define BOARD_CAL_DEADTIME_SKEW 14U /**< lead-lag trim, DTG counts         */
+#define BOARD_CAL_R5_R_TOP     9U  /**< +5 sense divider top, ohms */
+#define BOARD_CAL_R5_R_BOTTOM 10U  /**< +5 sense divider bottom, ohms */
+#define BOARD_CAL_VG_R_TOP    11U  /**< gate supply divider top, ohms */
+#define BOARD_CAL_VG_R_BOTTOM 12U  /**< gate supply divider bottom, ohms */
+#define BOARD_CAL_DEADTIME_NS 13U  /**< half-bridge dead time, nanoseconds */
+#define BOARD_CAL_DEADTIME_SKEW 14U /**< lead-lag trim, DTG counts */
 /* CAL_VERSION 8: what the drive is told. */
-#define BOARD_CAL_MOTOR_R_UOHM        15U  /**< phase resistance, microhms     */
-#define BOARD_CAL_MOTOR_LD_NH         16U  /**< d inductance, nanohenry        */
-#define BOARD_CAL_MOTOR_LQ_NH         17U  /**< q inductance, nanohenry        */
-#define BOARD_CAL_MOTOR_LAMBDA_UVS    18U  /**< PM flux linkage, uV.s          */
+#define BOARD_CAL_MOTOR_R_UOHM        15U  /**< phase resistance, microhms */
+#define BOARD_CAL_MOTOR_LD_NH         16U  /**< d inductance, nanohenry */
+#define BOARD_CAL_MOTOR_LQ_NH         17U  /**< q inductance, nanohenry */
+#define BOARD_CAL_MOTOR_LAMBDA_UVS    18U  /**< PM flux linkage, uV.s */
 #define BOARD_CAL_MOTOR_POLE_PAIRS    19U
-#define BOARD_CAL_DRV_KP_MV_PER_A     20U  /**< current loop kp, mV/A          */
-#define BOARD_CAL_DRV_KI_V_PER_AS     21U  /**< current loop ki, V/(A.s)       */
-#define BOARD_CAL_DRV_L1_MILLI        22U  /**< rotor observer angle gain, 1e-3      */
-#define BOARD_CAL_DRV_L2_MILLI        23U  /**< rotor observer speed gain, 1e-3/s    */
+#define BOARD_CAL_DRV_KP_MV_PER_A     20U  /**< current loop kp, mV/A */
+#define BOARD_CAL_DRV_KI_V_PER_AS     21U  /**< current loop ki, V/(A.s) */
+#define BOARD_CAL_DRV_L1_MILLI        22U  /**< rotor observer angle gain, 1e-3 */
+#define BOARD_CAL_DRV_L2_MILLI        23U  /**< rotor observer speed gain, 1e-3/s */
 #define BOARD_CAL_DRV_INJ_MV          24U  /**< injection amplitude, mV; 0 off */
-#define BOARD_CAL_DRV_INJ_PERIODS     25U  /**< PWM periods per half cycle     */
-#define BOARD_CAL_DRV_INJ_PHASE_MRAD  26U  /**< injection axis off d, signed   */
+#define BOARD_CAL_DRV_INJ_PERIODS     25U  /**< PWM periods per half cycle */
+#define BOARD_CAL_DRV_INJ_PHASE_MRAD  26U  /**< injection axis off d, signed */
 #define BOARD_CAL_DRV_EPS_GAIN_UA_PER_RAD 27U /**< demodulated uA/rad, signed */
-#define BOARD_CAL_DRV_I_MAX_MA        28U  /**< reference clamp, mA            */
-#define BOARD_CAL_DRV_I_TRIP_MA       29U  /**< the stage drops past this, mA  */
+#define BOARD_CAL_DRV_I_MAX_MA        28U  /**< reference clamp, mA */
+#define BOARD_CAL_DRV_I_TRIP_MA       29U  /**< the stage drops past this, mA */
 #define BOARD_CAL_DRV_V_FRAC_PPM      30U  /**< of Vdc/sqrt3 the vector may use*/
-#define BOARD_CAL_DRV_SIGN            31U  /**< 1, or -1 as 0xFFFFFFFF         */
-#define BOARD_CAL_DRV_W_LO_MRAD_S     32U  /**< back-EMF blend starts, mrad/s  */
-#define BOARD_CAL_DRV_W_HI_MRAD_S     33U  /**< injection off above, mrad/s    */
-#define BOARD_CAL_DRV_DT_STEP_MA      34U  /**< dead-time table spacing, mA    */
-#define BOARD_CAL_DRV_DT_MV           35U  /**< 35..42: the table, mV          */
+#define BOARD_CAL_DRV_SIGN            31U  /**< 1, or -1 as 0xFFFFFFFF */
+#define BOARD_CAL_DRV_W_LO_MRAD_S     32U  /**< back-EMF blend starts, mrad/s */
+#define BOARD_CAL_DRV_W_HI_MRAD_S     33U  /**< injection off above, mrad/s */
+#define BOARD_CAL_DRV_DT_STEP_MA      34U  /**< dead-time table spacing, mA */
+#define BOARD_CAL_DRV_DT_MV           35U  /**< 35..42: the table, mV */
 #define BOARD_CAL_DRV_SIGMA_I_UA      43U  /**< measured current noise, uA rms */
 #define BOARD_CAL_DRV_TRIGGER_TICKS   44U  /**< the sample point chosen; 0 none*/
 /* CAL_VERSION 9. */
 #define BOARD_CAL_LINK_RATE           45U  /**< the RS485 pair's rate (the wire and the host say `link_baud`) */
 /* CAL_VERSION 12: the winding's envelope. */
-#define BOARD_CAL_WINDING_K_MILLI     46U  /**< K/W to the air, milli         */
-#define BOARD_CAL_WINDING_J_MILLI     47U  /**< J/K, milli                     */
-#define BOARD_CAL_WINDING_LIMIT_CENTI 48U  /**< ceiling, centi-degrees; 0 off  */
+#define BOARD_CAL_WINDING_K_MILLI     46U  /**< K/W to the air, milli */
+#define BOARD_CAL_WINDING_J_MILLI     47U  /**< J/K, milli */
+#define BOARD_CAL_WINDING_LIMIT_CENTI 48U  /**< ceiling, centi-degrees; 0 off */
 #define BOARD_CAL_PARAM_COUNT 49U  /* one past the last id */
 
 /** One channel's correction, applied to the raw code before any scaling. */
 typedef struct
 {
-  int32_t offset_raw;   /**< subtracted first; what a zero measures       */
-  int32_t gain_ppm;     /**< then scaled by 1 + gain_ppm/1e6              */
+  int32_t offset_raw;   /**< subtracted first; what a zero measures */
+  int32_t gain_ppm;     /**< then scaled by 1 + gain_ppm/1e6 */
 } board_cal_chan_t;
 
 /** The whole record, as it sits in flash. */
@@ -159,13 +159,13 @@ typedef struct
      learns. */
   board_cal_node_t thermal_node[BOARD_THERMAL_NODES];
   uint32_t thermal_edge_milli[BOARD_THERMAL_EDGES];
-  uint32_t thermal_to_ambient_milli;     /**< the whole face, K/W          */
-  uint32_t thermal_capacity_milli;       /**< the whole laminate, J/K      */
+  uint32_t thermal_to_ambient_milli;     /**< the whole face, K/W */
+  uint32_t thermal_capacity_milli;       /**< the whole laminate, J/K */
   uint32_t thermal_rad_share_ppm;
   uint32_t thermal_ntc_sees_ppm;
   uint32_t thermal_ntc_tau_ms;
-  uint32_t thermal_rad_board_stator_micro; /**< W/K at 300 K; 0 = bench    */
-  uint32_t thermal_k_iron_milli;         /**< W per (krpm)^2              */
+  uint32_t thermal_rad_board_stator_micro; /**< W/K at 300 K; 0 = bench */
+  uint32_t thermal_k_iron_milli;         /**< W per (krpm)^2 */
 
   /* CAL_VERSION 15: THE MARGIN FLOOR, parts per million of every ceiling's
      span over 25 C - what the envelope keeps while the identification has no

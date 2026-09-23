@@ -1,5 +1,4 @@
-/** startup_boot.s - The bootloader's reset: the stack, the FPU, .text and
-    .rodata to ITCM, .data to DTCM, .bss zeroed, main(). */
+/** startup_boot.s - Bootloader reset: stack, FPU, code to ITCM, data to DTCM, main(). */
 
   .syntax unified
   .cpu cortex-m7

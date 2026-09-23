@@ -1,6 +1,4 @@
-/** thermal_ident.c - Online identification of the graph's scales: a shadow
-    run open loop, its sensitivities by finite differences, recursive least
-    squares on the prediction error at every sample. */
+/** thermal_ident.c - Identification: shadow model, finite-difference sensitivities, RLS. */
 #include "thermal_ident.h"
 
 #include <math.h>
@@ -561,6 +559,119 @@ static void judge(thermal_ident_t *id)
   }
 }
 
+/* The shadow forward over dt_s, in the core's own slices. */
+static void advance(thermal_ident_t *id, const thermal_cfg_t *base,
+                    const thermal_power_t *p, float speed, float dt_s)
+{
+  for (float left = dt_s; left > 0.0f;)
+  {
+    const float slice = (left > IDENT_DT_SLICE) ? IDENT_DT_SLICE : left;
+
+    propagate(id, base, p, speed, slice);
+    left -= slice;
+  }
+}
+
+/* How far any seated thermometer has moved since its seat. */
+static float stirred(const thermal_ident_t *id, const float *readings)
+{
+  float most = 0.0f;
+
+  for (int j = 0; j < 3; j++)
+  {
+    if (!isnan(readings[j]) && id->seated[j])
+    {
+      most = fmaxf(most, fabsf(readings[j] - id->seat_reading[j]));
+    }
+  }
+  return most;
+}
+
+/* One judged sample: each seated thermometer against the shadow, the scales
+   updated unless the board is still, the innovation and the state judged.
+   True when the scales moved. */
+static bool learn(thermal_ident_t *id, const thermal_power_t *p,
+                  const thermal_sense_t *seen)
+{
+  const float readings[3] = { seen->ntc_c, seen->mcu_c, seen->afe_c };
+  bool moved = false;
+  bool judged = false;
+  float worst = 0.0f;
+
+  /* Each thermometer against the shadow's prediction of it - judged only
+     where the shadow was SEATED on that thermometer's reading, so the
+     innovation is the reading's change over the interval against the
+     model's, and the state's error at the seat is not in it. */
+  static const thermal_node_t DIES[2] = { THERMAL_MCU, THERMAL_AFE };
+  float predicted[3];
+  float h[3][THERMAL_IDENT_PARAMS];
+
+  /* A STILL BOARD TEACHES NOTHING. */
+  const bool still = stirred(id, readings) < IDENT_STILL_GAIN * id->noise_k;
+
+  predicted[0] = id->shadow.ntc;
+  memcpy(h[0], id->s_ntc, sizeof(h[0]));
+  for (int d = 0; d < 2; d++)
+  {
+    const thermal_node_t node = DIES[d];
+
+    predicted[1 + d] = id->shadow.t[node]
+                       + p->watt[node] * id->shadow.cfg.node[node].rth_die;
+    for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+    {
+      h[1 + d][k] = id->s[k][node];
+    }
+  }
+  for (int j = 0; j < 3; j++)
+  {
+    if (isnan(readings[j]) || !id->seated[j])
+    {
+      continue;
+    }
+    const float e = readings[j] - predicted[j];
+
+    if (!still)
+    {
+      moved |= update(id, h[j], e);
+    }
+#ifdef THERMAL_IDENT_TRACE
+    /* Host diagnostics only: never in the firmware build. */
+    printf("TRACE %d e=%+.3f h=%+.3f %+.3f %+.3f %+.3f  s=%.2f %.2f %.2f %.2f\n",
+           j, (double)e, (double)h[j][0], (double)h[j][1], (double)h[j][2],
+           (double)h[j][3], (double)id->scale[0], (double)id->scale[1],
+           (double)id->scale[2], (double)id->scale[3]);
+    fflush(stdout);           /* the C and Python streams interleave */
+#endif
+    /* The judged error, in the floor's own units: the raw error over one
+       plus the share of the movement, floors. */
+    const float moved_j = fabsf(readings[j] - id->seat_reading[j]);
+    const float allowed = id->noise_k + IDENT_MOVE_SHARE * moved_j;
+
+    worst = fmaxf(worst, fabsf(e) * id->noise_k / allowed);
+    judged = true;
+  }
+
+  if (judged)
+  {
+    id->innovation_k += IDENT_INNOVATION_FOLLOW
+                        * (worst - id->innovation_k);
+    /* The scales may drift between samples: the process noise. */
+    for (int k = 0; (k < THERMAL_IDENT_PARAMS) && !still; k++)
+    {
+      if (ONLINE[k])
+      {
+        id->p[k][k] += DRIFT_VAR[k];
+      }
+    }
+    judge(id);
+  }
+  if (moved)
+  {
+    id->updates++;
+  }
+  return moved;
+}
+
 bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
                         const thermal_cfg_t *base, const thermal_power_t *p,
                         const thermal_load_t *load,
@@ -580,16 +691,7 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
     return false;
   }
 
-  /* The shadow forward, in the core's own slices. */
-  float left = dt_s;
-
-  while (left > 0.0f)
-  {
-    const float slice = (left > IDENT_DT_SLICE) ? IDENT_DT_SLICE : left;
-
-    propagate(id, base, p, speed, slice);
-    left -= slice;
-  }
+  advance(id, base, p, speed, dt_s);
   id->horizon_s += dt_s;
   id->since_sample_s += dt_s;
 
@@ -627,91 +729,8 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
 
   if (any && (id->horizon_s >= THERMAL_IDENT_MIN_HORIZON_S))
   {
-    bool moved = false;
-    bool judged = false;
-    float worst = 0.0f;
+    const bool moved = learn(id, p, seen);
 
-    /* Each thermometer against the shadow's prediction of it - judged only
-       where the shadow was SEATED on that thermometer's reading, so the
-       innovation is the reading's change over the interval against the
-       model's, and the state's error at the seat is not in it. */
-    static const thermal_node_t DIES[2] = { THERMAL_MCU, THERMAL_AFE };
-    const float readings[3] = { seen->ntc_c, seen->mcu_c, seen->afe_c };
-    float predicted[3];
-    float h[3][THERMAL_IDENT_PARAMS];
-
-    /* A STILL BOARD TEACHES NOTHING. */
-    float stirred = 0.0f;
-
-    for (int j = 0; j < 3; j++)
-    {
-      if (!isnan(readings[j]) && id->seated[j])
-      {
-        stirred = fmaxf(stirred, fabsf(readings[j] - id->seat_reading[j]));
-      }
-    }
-    const bool still = stirred < IDENT_STILL_GAIN * id->noise_k;
-
-    predicted[0] = id->shadow.ntc;
-    memcpy(h[0], id->s_ntc, sizeof(h[0]));
-    for (int d = 0; d < 2; d++)
-    {
-      const thermal_node_t node = DIES[d];
-
-      predicted[1 + d] = id->shadow.t[node]
-                         + p->watt[node] * id->shadow.cfg.node[node].rth_die;
-      for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
-      {
-        h[1 + d][k] = id->s[k][node];
-      }
-    }
-    for (int j = 0; j < 3; j++)
-    {
-      if (isnan(readings[j]) || !id->seated[j])
-      {
-        continue;
-      }
-      const float e = readings[j] - predicted[j];
-
-      if (!still)
-      {
-        moved |= update(id, h[j], e);
-      }
-#ifdef THERMAL_IDENT_TRACE
-      /* Host diagnostics only: never in the firmware build. */
-      printf("TRACE %d e=%+.3f h=%+.3f %+.3f %+.3f %+.3f  s=%.2f %.2f %.2f %.2f\n",
-             j, (double)e, (double)h[j][0], (double)h[j][1], (double)h[j][2],
-             (double)h[j][3], (double)id->scale[0], (double)id->scale[1],
-             (double)id->scale[2], (double)id->scale[3]);
-      fflush(stdout);           /* the C and Python streams interleave */
-#endif
-      /* The judged error, in the floor's own units: the raw error over one
-         plus the share of the movement, floors. */
-      const float moved_j = fabsf(readings[j] - id->seat_reading[j]);
-      const float allowed = id->noise_k + IDENT_MOVE_SHARE * moved_j;
-
-      worst = fmaxf(worst, fabsf(e) * id->noise_k / allowed);
-      judged = true;
-    }
-
-    if (judged)
-    {
-      id->innovation_k += IDENT_INNOVATION_FOLLOW
-                          * (worst - id->innovation_k);
-      /* The scales may drift between samples: the process noise. */
-      for (int k = 0; (k < THERMAL_IDENT_PARAMS) && !still; k++)
-      {
-        if (ONLINE[k])
-        {
-          id->p[k][k] += DRIFT_VAR[k];
-        }
-      }
-      judge(id);
-    }
-    if (moved)
-    {
-      id->updates++;
-    }
     reseat(id, th, base, p, speed, seen);
     return moved;
   }

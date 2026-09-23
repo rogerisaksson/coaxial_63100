@@ -1,5 +1,4 @@
-/** dev_uart.c - The board's three serial ports as dev_serial_t, and the only
-    file that touches a USART or its interrupt. */
+/** dev_uart.c - The three serial ports; the only file touching a USART. */
 #include "comms_limits.h"
 #include "board.h"
 #include "dev_serial.h"
@@ -24,16 +23,16 @@ typedef struct
 typedef struct
 {
   UART_HandleTypeDef *uart;
-  bool                echoes;      /**< RS485 with RE tied low                */
-  bool                interrupt;   /**< receives through the ISR below        */
+  bool                echoes;      /**< RS485 with RE tied low */
+  bool                interrupt;   /**< receives through the ISR below */
   IRQn_Type           irq;
   const char         *name;
 
   volatile dev_stamped_t ring[DEV_RING];
-  volatile uint16_t      head;     /**< written by the ISR                    */
-  volatile uint16_t      tail;     /**< written by the main loop              */
+  volatile uint16_t      head;     /**< written by the ISR */
+  volatile uint16_t      tail;     /**< written by the main loop */
   volatile bool          faulted;
-  volatile uint32_t      dropped;  /**< bytes the ring had no room for        */
+  volatile uint32_t      dropped;  /**< bytes the ring had no room for */
 } dev_port_t;
 
 static dev_port_t s_ports[DEV_UART_COUNT] =

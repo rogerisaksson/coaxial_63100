@@ -1,5 +1,4 @@
-/** board_drive.c - Runs the control law on this hardware, one PWM period at a
-    time. */
+/** board_drive.c - The control law on this hardware, once a PWM period. */
 #include "board.h"
 #include "board_irq.h"
 #include "board_drive.h"
@@ -18,8 +17,8 @@ static struct
   float derate;
   /** The clamp the record asked for, before any derating. */
   float i_max_cal;
-  bool owned;                     /**< the drive holds the compares       */
-  uint32_t cycles_last;           /**< what one step cost, raw CYCCNT     */
+  bool owned;                     /**< the drive holds the compares */
+  uint32_t cycles_last;           /**< what one step cost, raw CYCCNT */
   uint32_t cycles_max;
   /** Where TIM1 stood when the step ended, in ticks past the trigger: the
       conversion, the HAL's interrupt entry and the step, all of it. */

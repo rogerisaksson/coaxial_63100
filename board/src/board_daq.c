@@ -33,7 +33,7 @@ static struct
 {
   daq_t daq;
   bool built;
-  board_daq_config_t cfg;         /**< the task as the wire gave it     */
+  board_daq_config_t cfg;         /**< the task as the wire gave it */
   bool rate_auto;                 /**< no rate asked for: one was chosen*/
   volatile bool lost_power;
 } s;

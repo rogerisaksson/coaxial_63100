@@ -11,7 +11,7 @@ extern "C" {
 
 typedef struct
 {
-  uint32_t at;                /**< Board_Cycles() at capture, raw ticks    */
+  uint32_t at;                /**< Board_Cycles() at capture, raw ticks */
   uint8_t  source;
   uint8_t  seq;               /**< per source, so a dropped run is visible */
   int16_t  v[4];

@@ -1,5 +1,4 @@
-/** board_sync.c - Phase current sampled where the stage is quiet: TIM1
-    triggers, three ADCs convert at once, this latches the result. */
+/** board_sync.c - Phase currents sampled mid-period: TIM1 triggers, three ADCs. */
 #include "board.h"
 #include "board_irq.h"
 #include "board_drive.h"
@@ -16,16 +15,16 @@ extern ADC_HandleTypeDef hadc3;
 
 /** ADC channels the phases sit on, from the table in board_adc.c. */
 #define SYNC_U_CHANNEL ADC_CHANNEL_1     /* ADC3 IN1,  PC3_C/PC2_C */
-#define SYNC_V_CHANNEL ADC_CHANNEL_3     /* ADC1 IN3,  PA6/PA7     */
-#define SYNC_W_CHANNEL ADC_CHANNEL_4     /* ADC2 IN4,  PC4/PC5     */
+#define SYNC_V_CHANNEL ADC_CHANNEL_3     /* ADC1 IN3,  PA6/PA7 */
+#define SYNC_W_CHANNEL ADC_CHANNEL_4     /* ADC2 IN4,  PC4/PC5 */
 
 /** The DC link, rank 2 on ADC3 behind Phase U. */
-#define SYNC_DCBUS_CHANNEL ADC_CHANNEL_10 /* ADC3 IN10, PC0         */
+#define SYNC_DCBUS_CHANNEL ADC_CHANNEL_10 /* ADC3 IN10, PC0 */
 
 /** The NTC, rank 2 on ADC1 behind Phase V, for the same reason: the thermal
     observer reads it through the meter, and the meter is locked out for as
     long as the drive runs. */
-#define SYNC_NTC_CHANNEL ADC_CHANNEL_9    /* ADC1 IN9,  PB0         */
+#define SYNC_NTC_CHANNEL ADC_CHANNEL_9    /* ADC1 IN9,  PB0 */
 
 /** How far below the top OC5REF falls. */
 #define SYNC_TRIGGER_LEAD 15U

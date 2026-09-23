@@ -453,8 +453,8 @@ static size_t fc_server_id(mb_slave_t *s, const uint8_t *req, size_t len,
 typedef struct
 {
   uint8_t  fc;
-  uint8_t  len_min;    /**< shortest acceptable request PDU            */
-  uint8_t  len_exact;  /**< exact length required, or 0 if variable    */
+  uint8_t  len_min;    /**< shortest acceptable request PDU */
+  uint8_t  len_exact;  /**< exact length required, or 0 if variable */
   mb_fc_fn fn;
 } mb_fc_desc_t;
 
