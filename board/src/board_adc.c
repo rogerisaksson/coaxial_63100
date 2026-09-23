@@ -625,6 +625,36 @@ bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
   return Board_CalSetChannel(index, offset, (int32_t)ppm);
 }
 
+/** Welford's running mean and spread with the extremes, in one pass: no
+    sample buffer however long the run. */
+typedef struct
+{
+  double   mean;
+  double   m2;
+  int32_t  lo;
+  int32_t  hi;
+  uint32_t n;
+} welford_t;
+
+#define WELFORD_EMPTY { 0.0, 0.0, INT32_MAX, INT32_MIN, 0U }
+
+static void welford_add(welford_t *w, int32_t raw)
+{
+  const double d = (double)raw - w->mean;
+
+  w->n++;
+  w->mean += d / (double)w->n;
+  w->m2 += d * ((double)raw - w->mean);
+  w->lo = (raw < w->lo) ? raw : w->lo;
+  w->hi = (raw > w->hi) ? raw : w->hi;
+}
+
+/** The sample standard deviation, in the samples' own unit. */
+static double welford_sd(const welford_t *w)
+{
+  return (w->n > 1U) ? sqrt(w->m2 / (double)(w->n - 1U)) : 0.0;
+}
+
 bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
                     int32_t *mean_uv, int32_t *min_raw, int32_t *max_raw,
                     uint32_t *span_raw, uint32_t *stddev_uv)
@@ -643,12 +673,7 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
     return false;
   }
 
-  /* Welford in one pass: no sample buffer, so this needs nothing declared
-     later in the file, and there is no second loop over stored samples. */
-  double  mean = 0.0;
-  double  m2 = 0.0;
-  int32_t lo = INT32_MAX;
-  int32_t hi = INT32_MIN;
+  welford_t w = WELFORD_EMPTY;
 
   for (uint16_t i = 0U; i < samples; i++)
   {
@@ -661,26 +686,18 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
     {
       return false;
     }
-
-    const double d = (double)raw - mean;
-    mean += d / (double)(i + 1U);
-    m2 += d * ((double)raw - mean);
-
-    if (raw < lo) { lo = raw; }
-    if (raw > hi) { hi = raw; }
+    welford_add(&w, raw);
   }
-
-  const double var = (samples > 1U) ? (m2 / (double)(samples - 1U)) : 0.0;
 
   /* One LSB of a differential reading is VREF/32768. */
   const double lsb_uv = ((double)cal_vref() / (double)ADC_HALF_CODES)
                          * (double)MICRO_PER_UNIT;
 
-  *mean_uv   = (int32_t)(mean * lsb_uv);
-  *min_raw   = lo;
-  *max_raw   = hi;
-  *span_raw  = (uint32_t)(hi - lo);
-  *stddev_uv = (uint32_t)(sqrt(var) * lsb_uv);
+  *mean_uv   = (int32_t)(w.mean * lsb_uv);
+  *min_raw   = w.lo;
+  *max_raw   = w.hi;
+  *span_raw  = (uint32_t)(w.hi - w.lo);
+  *stddev_uv = (uint32_t)(welford_sd(&w) * lsb_uv);
 
   return true;
 }
@@ -721,11 +738,7 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
       continue;
     }
 
-    out[n].index         = i;
-    out[n].min_raw       = INT32_MAX;
-    out[n].max_raw       = INT32_MIN;
-    out[n].mean_milliraw = 0;
-    out[n].sd_milliraw   = 0U;
+    out[n].index = i;
     n++;
   }
 
@@ -734,10 +747,12 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
     return false;
   }
 
-  /* Welford per channel, so no sample buffer is needed however long the burst. */
-  double mean[BOARD_BURST_MAX_CHAN] = { 0.0 };
-  double m2[BOARD_BURST_MAX_CHAN] = { 0.0 };
+  welford_t acc[BOARD_BURST_MAX_CHAN];
 
+  for (uint8_t c = 0U; c < n; c++)
+  {
+    acc[c] = (welford_t)WELFORD_EMPTY;
+  }
   const uint32_t t0 = Board_Cycles();
   const uint32_t step = interval_us * per_us;
 
@@ -752,13 +767,7 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
       {
         return false;
       }
-
-      const double delta = (double)raw - mean[c];
-      mean[c] += delta / (double)(s + 1U);
-      m2[c] += delta * ((double)raw - mean[c]);
-
-      if (raw < out[c].min_raw) { out[c].min_raw = raw; }
-      if (raw > out[c].max_raw) { out[c].max_raw = raw; }
+      welford_add(&acc[c], raw);
     }
 
     if (step != 0U)
@@ -771,10 +780,10 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
 
   for (uint8_t c = 0U; c < n; c++)
   {
-    const double var = (samples > 1U) ? (m2[c] / (double)(samples - 1U)) : 0.0;
-
-    out[c].mean_milliraw = (int32_t)(mean[c] * 1000.0);
-    out[c].sd_milliraw   = (uint32_t)(sqrt(var) * 1000.0);
+    out[c].min_raw       = acc[c].lo;
+    out[c].max_raw       = acc[c].hi;
+    out[c].mean_milliraw = (int32_t)(acc[c].mean * 1000.0);
+    out[c].sd_milliraw   = (uint32_t)(welford_sd(&acc[c]) * 1000.0);
   }
 
   *count      = n;
