@@ -44,7 +44,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     modbus/src/modbus_crc.c
     modbus/src/modbus_slave.c
     modbus/src/modbus_rtu.c
-    modbus/src/modbus_map.c
+    comms/src/modbus_map.c
 
     # SHTP: the BNO08X transport.
     shtp/src/shtp.c
@@ -112,7 +112,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 # Warnings on our own sources only.
 set(COAXIAL_SOURCES
     modbus/src/modbus_crc.c modbus/src/modbus_slave.c modbus/src/modbus_rtu.c
-    modbus/src/modbus_map.c
+    comms/src/modbus_map.c
     shtp/src/shtp.c
 
     # Thermal: the lumped-node observer.
@@ -147,7 +147,7 @@ set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES
 # -Wconversion, on exactly the files that include no HAL header.
 set_source_files_properties(
     modbus/src/modbus_crc.c modbus/src/modbus_slave.c modbus/src/modbus_rtu.c
-    modbus/src/modbus_map.c
+    comms/src/modbus_map.c
     shtp/src/shtp.c
 
     # Thermal: the lumped-node observer.

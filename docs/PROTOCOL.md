@@ -51,7 +51,7 @@ anything else until the line is quiet.
 
 ## Standard Modbus map
 
-`modbus/src/modbus_map.c`, function codes 01 to 06 and 16.
+`comms/src/modbus_map.c`, function codes 01 to 06 and 16.
 
 Input registers (04):
 

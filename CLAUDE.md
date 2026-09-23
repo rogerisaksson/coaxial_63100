@@ -93,8 +93,8 @@ one question) and stop. Design questions are yours.
 
 ## Invariants
 
-1. `modbus_crc/slave/rtu.c`: std headers only. Only `dev_uart.c` touches a
-   USART.
+1. `modbus/`: std headers only (the board's map is `comms/src/modbus_map.c`).
+   Only `dev_uart.c` touches a USART.
 2. RTU timing in raw `DWT->CYCCNT` ticks.
 3. `0x41` payload append-only (append = MINOR, else MAJOR).
 4. Codec chosen on protocol MAJOR only.
