@@ -9,7 +9,8 @@ tabled here. Nothing is measured against an instrument unless it says so.
 ## MCU, clocks, memory
 
 - STM32H753VIT6, 25 MHz crystal, PLL1 M2 N76 P2: SYSCLK 475, HCLK 237.5,
-  TIM1 237.5 MHz. ADC kernel 37.5 MHz (0x45 reports). SPI2 190, SPI4 100 MHz.
+  TIM1 237.5 MHz. ADC kernel 37.5 MHz (0x45 reports). SPI2 kernel 190 MHz (PLL1Q),
+  SPI4 118.75 MHz (APB2); both report their bitrate (IMU op 3, angle op 6).
   CYCCNT wraps every 9.04 s.
 - I-cache on; D-cache off (record read back through a pointer; sample path
   data in DTCM).
@@ -58,7 +59,7 @@ hold 3 s leases.
 
 ## STO chain
 
-PA10 KEEPALIVE at 200 kHz -> R72 330 / C71 100 nF -> charge pump; the chain
+PA10 KEEPALIVE toggles at 200 kHz (a 100 kHz square wave) -> R72 330 / C71 100 nF -> charge pump; the chain
 also wants the RS485 pilot tone. Cinj (PC1) = recovered pilot, Clevel (PB1)
 = integrator. `GateStage.interlock()` wants >= 3.0 V each; the unmodified
 board reads 0.77 / 0.06 V (2026-08-27), so sessions arm with
@@ -70,7 +71,7 @@ board reads 0.77 / 0.06 V (2026-08-27), so sessions arm with
   Advertisement 276 B (`IMU_BUF` 320). NRSTN/BOOTN active low. H_INTN read
   before every transfer; WAKE (PS0) required for writes. Reports: 0x01 accel
   Q8, 0x02 gyro Q9, 0x03 mag Q4, 0x05 rotation vector Q14.
-- A1335 (SPI4, 1.56 MHz, CS PE4). 20-bit packet, two frames per read. ANG
+- A1335 (SPI4, /64 = 1.86 MHz, CS PE4). 20-bit packet, two frames per read. ANG
   12 bits x 360/4096; TSEN 1/8 K; FIELD gauss. Register map from a reference
   implementation.
 

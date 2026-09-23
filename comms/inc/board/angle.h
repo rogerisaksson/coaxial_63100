@@ -19,7 +19,7 @@ typedef struct
   bool     have;        /**< whether `value` means anything              */
   uint8_t  reg;         /**< which register it came from                 */
   uint16_t value;       /**< the sixteen data bits, unscaled             */
-  uint8_t  crc;         /**< the four CRC bits, unchecked - see the .c   */
+  uint8_t  crc;         /**< four CRC bits, unchecked (polynomial unknown) */
 } board_angle_state_t;
 
 #define BOARD_ANGLE_LOOP_OFF  0U  /**< no supply, or not yet brought up  */

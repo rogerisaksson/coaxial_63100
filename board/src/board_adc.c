@@ -65,8 +65,7 @@ uint8_t Board_AdcSampleTime(void)
 
 int32_t Board_AdcDifferential(uint32_t raw)
 {
-  /* Offset binary, 32768 = 0 V - proven on ADC3 CH1 against a known 0.5 V
-     input; see the note below. */
+  /* Offset binary, 32768 = 0 V (proven on ADC3 CH1 against 0.5 V). */
   return (int32_t)raw - ADC_MID_CODE;
 }
 
@@ -79,14 +78,7 @@ static float code_to_volts(int32_t code, uint32_t singleDiff)
 }
 
 
-/* Blocking single-shot differential read, converted to volts. */
-/* Two independent single-shot reads instead of one two-rank scan sequence -
-   reconfigures the channel between reads and reuses the same proven
-   Start/PollForConversion/GetValue/Stop pattern already working for
-   ADC1/ADC2, rather than trusting an unverified assumption about how HAL
-   polls multiple ranks within one scan. */
-/* General single-channel read: reconfigures the given ADC's rank-1 channel
-   and does one Start/PollForConversion/GetValue/Stop cycle. */
+/* One blocking read: rank 1 reconfigured, Start/PollForConversion/GetValue/Stop. */
 static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32_t singleDiff,
                                 int32_t *outRaw, float *outVolts, uint32_t sampleTime)
 {

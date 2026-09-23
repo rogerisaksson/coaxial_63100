@@ -57,17 +57,19 @@ function returns `MB_NO_REPLY` for a request not addressed to this uid.
 hold      broadcast repeatedly from power-up
 who       prefix search on uid; a collision (CRC error) splits the prefix
 assign    uid -> unit, position, terminate; unknown uid is named, not assigned
-erase     one broadcast per type
+erase     one broadcast per type; wait 2 s a sector (the node hears nothing)
 chunk     224 B each (7 flash words), 2 ms apart (flash-bound)
 missing   per node; re-send, three rounds
 verify    per node
 record    per node, 224 B pages
-seal      per node
+seal      per node (3 s timeout: may erase the record sector)
 go        broadcast
 ```
 
-Estimates: 200 K image = 915 chunks, ~1.8 s stream + ~2 s erase; a bus of
-four ~5 s; the same image again costs round trips only.
+The bootloader erases and programs inside its receive path, so the master
+waits (`coaxial.boot`: ERASE_S, CHUNK_S, VERIFY_S, SEAL_S). Estimate: 200 K
+image = 915 chunks, ~2 s stream + 4 s erase; the same image again costs
+round trips only.
 
 ## Application side
 

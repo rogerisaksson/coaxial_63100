@@ -32,8 +32,7 @@
 
 #define IMU_CHUNK 8U
 
-/* How often to clock a header out when the H_INTN edge was missed - see the
-   file comment. */
+/* Header poll interval when an H_INTN edge was missed. */
 
 #define IMU_POLL_HZ 1000U
 

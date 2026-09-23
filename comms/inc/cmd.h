@@ -119,7 +119,7 @@ extern "C" {
 #define TIME_OP_LATCH    0U  /**< take CYCCNT now                            */
 #define TIME_OP_READ     1U  /**< -> u32 seq, latched, now, sysclk_hz        */
 
-/* Operations under CMD_IMU. */
+/* The IMU's operations, device 0. */
 #define IMU_OP_ID      0U
 #define IMU_OP_READ    1U
 #define IMU_OP_FEATURE 2U
@@ -217,13 +217,13 @@ typedef struct
   uint8_t     commands;
 } cmd_group_t;
 
-/** How many subsystems this firmware has. */
 /** Share of the raw line rate a stream of records may claim. */
 #define CMD_LINK_SHARE_PCT 75U
 
 /** Records per second the link can carry at this record size. */
 uint32_t cmd_link_records_per_second(uint16_t record_bytes);
 
+/** How many subsystems this firmware has. */
 uint8_t cmd_group_count(void);
 
 /** Subsystem `index`, or NULL past the end. */

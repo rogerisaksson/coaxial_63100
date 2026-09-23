@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from . import errors, protocol
 from .protocol import BootOp
 from .subsystem import Device
+from .transport import ACK
 from .wire import Reader
 
 #: The wire's shapes, boot.h's numbers.
@@ -25,6 +26,15 @@ BOOT_BAUD = 10000000
 STATES = ('blank', 'held', 'assigned', 'erased', 'verified', 'sealed')
 #: How many times the missing chunks are re-sent before the node is named.
 MISSING_ROUNDS = 3
+#: The bootloader erases and programs inside its receive path and hears
+#: nothing meanwhile, so the master waits: a sector's erase (estimate,
+#: seconds), a chunk's 7 flash words, the CRC over a full image, and seal's
+#: record-sector erase.
+SECTOR = 128 * 1024
+ERASE_S = 2.0
+CHUNK_S = 0.002
+VERIFY_S = 2.0
+SEAL_S = 3.0
 
 
 def chunks_of(image):
@@ -143,10 +153,12 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
 
     def erase(self, type_, image):
         self._broadcast(BootOp.ERASE, struct.pack(
-            '>BIIH', type_, len(image), zlib.crc32(image), len(chunks_of(image))))
+            '>BIIH', type_, len(image), zlib.crc32(image), len(chunks_of(image))),
+            settle=ERASE_S * (1 + (len(image) - 1) // SECTOR))
 
     def chunk(self, index, data):
-        self._broadcast(BootOp.CHUNK, struct.pack('>H', index) + bytes(data))
+        self._broadcast(BootOp.CHUNK, struct.pack('>H', index) + bytes(data),
+                        settle=CHUNK_S)
 
     def missing(self):
         r = Reader(self._op(BootOp.MISSING))
@@ -155,14 +167,14 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
         return [i for i in range(first, count) if not bitmap[i // 8] >> (i % 8) & 1]
 
     def verify(self):
-        r = Reader(self._op(BootOp.VERIFY))
+        r = Reader(self._op(BootOp.VERIFY, timeout=VERIFY_S))
         return bool(r.u8()), r.u32()
 
     def record(self, offset, data):
         return self._ack(BootOp.RECORD, struct.pack('>H', offset) + bytes(data))
 
     def seal(self):
-        return self._ack(BootOp.SEAL)
+        return self.took(self._op(BootOp.SEAL, reply_shape=ACK, timeout=SEAL_S))
 
     def go(self, session):
         self._broadcast(BootOp.GO, struct.pack('>I', session))

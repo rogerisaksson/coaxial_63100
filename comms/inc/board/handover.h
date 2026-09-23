@@ -24,10 +24,11 @@ typedef struct
   bool    assigned;   /**< a bootloader left these, or they are defaults */
 } board_identity_t;
 
-/** Apply what the bootloader left: the unit id and the termination. */
 /** First thing in main(): VTOR to this image, the sample path copied to
     ITCM. Here, not in the startup, so CubeMX can regenerate that. */
 void Board_Early(void);
+
+/** Apply what the bootloader left: the unit id and the termination. */
 void Board_BootInit(void);
 board_identity_t Board_Identity(void);
 

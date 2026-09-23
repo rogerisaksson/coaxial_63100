@@ -25,6 +25,7 @@ typedef struct
 /** An edge the record OPENS rather than defaults: the mount on a bench. */
 #define BOARD_CAL_EDGE_OPEN 0xFFFFFFFFUL
 
+/** Channels the record carries a correction for. */
 #define BOARD_CAL_CHANNELS 10U
 
 /** Which scalar Board_CalSetParam/GetParam addresses. */
@@ -44,7 +45,6 @@ typedef struct
 #define BOARD_CAL_VG_R_BOTTOM 12U  /**< gate supply divider bottom, ohms    */
 #define BOARD_CAL_DEADTIME_NS 13U  /**< half-bridge dead time, nanoseconds  */
 #define BOARD_CAL_DEADTIME_SKEW 14U /**< lead-lag trim, DTG counts         */
-/* One past the last id above. */
 /* CAL_VERSION 8: what the drive is told. */
 #define BOARD_CAL_MOTOR_R_UOHM        15U  /**< phase resistance, microhms     */
 #define BOARD_CAL_MOTOR_LD_NH         16U  /**< d inductance, nanohenry        */
@@ -75,7 +75,7 @@ typedef struct
 #define BOARD_CAL_WINDING_K_MILLI     46U  /**< K/W to the air, milli         */
 #define BOARD_CAL_WINDING_J_MILLI     47U  /**< J/K, milli                     */
 #define BOARD_CAL_WINDING_LIMIT_CENTI 48U  /**< ceiling, centi-degrees; 0 off  */
-#define BOARD_CAL_PARAM_COUNT 46U
+#define BOARD_CAL_PARAM_COUNT 49U  /* one past the last id */
 
 /** One channel's correction, applied to the raw code before any scaling. */
 typedef struct

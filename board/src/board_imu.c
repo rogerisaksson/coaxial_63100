@@ -13,7 +13,7 @@
 
 #include <string.h>
 
-/* PB12 is SPI2_NSS in the .ioc. Driven by hand here - see the file comment. */
+/* PB12 (SPI2_NSS in the .ioc) as a GPIO: CS stays low across header and cargo. */
 #define IMU_CS_PORT GPIOB
 #define IMU_CS_PIN  GPIO_PIN_12
 
@@ -27,7 +27,6 @@
 #define IMU_INTN_PORT GPIOD
 #define IMU_INTN_PIN  GPIO_PIN_8
 
-/* PS0/WAKE, pin 6. */
 /* How the part is woken again when it does not answer a wake: WAKE released
    for IMU_WAKE_RELEASE_MS and asserted again, IMU_WAKE_RETRIES times, then a
    reset with its advertisement drained. */
@@ -40,6 +39,7 @@
 #define IMU_QUIET_EMPTIES    3U       /**< empties in a row that mean quiet   */
 #define IMU_WAKE_NOT_READY   0xFFFFU  /**< the wake test's two answers that   */
 #define IMU_WAKE_BUSY        0xFFFEU  /**< are not a time                     */
+/* PS0/WAKE, pin 6. */
 #define IMU_WAKE_PORT GPIOD
 #define IMU_WAKE_PIN  GPIO_PIN_9
 
@@ -538,7 +538,6 @@ static void note(uint8_t err)
   }
 }
 
-/* One cargo into the shared record. */
 /** A rotation vector report into the shared record, and the ring. */
 static void take_rotation(uint8_t id, const uint8_t *r)
 {
@@ -693,7 +692,7 @@ static void poll_init(void)
       if (!Board_ImuBusInit())
       {
         note(BOARD_IMU_ERR_INIT);
-        s.stage_at = HAL_GetTick();     /* and back off - see below */
+        s.stage_at = HAL_GetTick();     /* the next attempt waits a stage */
         return;
       }
       HAL_GPIO_WritePin(IMU_BOOT_PORT, IMU_BOOT_PIN, GPIO_PIN_SET);

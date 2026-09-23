@@ -35,7 +35,7 @@ size_t modbus_crc_append(uint8_t *buf, size_t len)
 {
   const uint16_t crc = modbus_crc16(buf, len);
 
-  /* Low byte first - see the header. */
+  /* Low byte first (Modbus RTU). */
   buf[len]     = (uint8_t)(crc & 0xFFU);
   buf[len + 1] = (uint8_t)(crc >> 8);
 

@@ -112,9 +112,7 @@ uint8_t Board_ImuPinCheck(uint8_t pin);
 /** Assert PS0/WAKE on a drained part and time H_INTN's answer. */
 uint16_t Board_ImuWakeTest(uint16_t ms);
 
-/** Clock four bytes out and hand back exactly what came in.
-    @return False only if the transfer itself failed. */
-/** Clock `len` bytes and keep what comes back, with no framing. */
+/** Clock `len` bytes out, keep what comes back; false if the transfer failed. */
 bool Board_ImuProbe(uint8_t *out, uint8_t len, bool select);
 
 /** The SPI2 kernel clock and the bit rate Board_ImuInit settled on, so the

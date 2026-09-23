@@ -260,7 +260,7 @@ The record at 0x081E0000, magic 'CX63', CAL_VERSION 15, CRC-16/MODBUS.
 | 5 save | - | `u8 1` |
 | 6 load | - | `u8 1` |
 | 7 defaults | - | `u8 1`; RAM only until saved |
-| 8 params | `[u8 first]` | `u8 46, u8 first, u8 count`, up to 60 u32 |
+| 8 params | `[u8 first]` | `u8 total, u8 first, u8 count`, up to 60 u32 |
 
 `stored` = calibrated vs schematic defaults. Another version is refused,
 except the two before (prefix layouts). Ids and defaults: `board_cal.c`.

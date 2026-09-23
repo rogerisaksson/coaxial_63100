@@ -12,7 +12,7 @@
 #include "shtp.h"
 
 #define ANSWER_TRIES    8U     /* reads given a request before it is called unanswered */
-#define DRAIN_LIMIT     48U    /* op 4's drain: eight was not enough, see below */
+#define DRAIN_LIMIT     48U    /* op 4's drain limit */
 #define WAKE_DEFAULT_MS 200U
 
 /** op 0 - ask the part what it is. */

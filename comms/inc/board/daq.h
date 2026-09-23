@@ -110,11 +110,11 @@ const char *Board_DaqSetRung(uint8_t rung, uint16_t boxcar,
                              const void *sections, uint8_t count,
                              uint16_t decimate);
 
-/** A known tone in place of the converter, for proving the path. */
-/** What the generator makes. */
+/** What the tone generator makes. */
 #define BOARD_DAQ_TONE_SINE 0U
 #define BOARD_DAQ_TONE_RAMP 1U
 
+/** A known tone in place of the converter, for proving the path. */
 const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
                              int32_t amplitude, int32_t offset,
                              uint8_t kind);

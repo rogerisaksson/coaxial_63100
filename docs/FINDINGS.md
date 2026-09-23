@@ -45,6 +45,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## CPU and memory
 
+- SPI4's kernel is APB2, 118.75 MHz (docs said 100): A1335 at /64 = 1.86 MHz.
 - CubeMX enabled neither cache. I-cache off: a drive step 7 400 cycles; at
   -O0 the ISR was 10 040 cycles = 21 us > 20 us period. I-cache on + -O2:
   6 756; with the polynomial sin/cos: 2 922 on target.
@@ -115,6 +116,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - Phase gain from the schematic (2026-08-26), not spanned.
 - An id added without moving `BOARD_CAL_PARAM_COUNT` is held but never reported.
 - Replies past 253 B page (ADC table, pins, parts).
+- `BOARD_CAL_PARAM_COUNT` stayed 46 after the winding's ids 46-48
+  (CAL_VERSION 12): settable, never reported by cal op 8. Now 49 (2026-09-23).
 
 ## Bootloader
 
@@ -125,6 +128,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - A node keeps an image whose size and CRC match: no erase, no programmed word.
 - First bench act: `build_and_flash.py --boot`, or a reset finds half an
   old image.
+- The master sent chunks 50 ms after erase and sealed with a 0.5 s timeout;
+  the node erases (~s) and programs in its receive path. Waits added.
 
 ## Host and tooling
 

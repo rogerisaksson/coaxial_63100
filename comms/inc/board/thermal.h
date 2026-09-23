@@ -9,12 +9,7 @@
 extern "C" {
 #endif
 
-/** Channels the record carries a correction for. */
-/** Nodes in the thermal observer. */
-/** TWENTY SINCE 2026-09-05, from ten: the laminate as seven patches that
-    follow the copper, the hot swap as a node of its own, and the motor
-    behind the board as three - the winding, the stator's iron and the
-    rotor's bell. */
+/** Thermal nodes: 10 board, hot swap, 6 laminate patches, winding, stator, rotor. */
 #define BOARD_THERMAL_NODES 20
 
 /** The edges of the network, `thermal.c`'s table: each a K/W the record can

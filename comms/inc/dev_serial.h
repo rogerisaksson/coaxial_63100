@@ -39,7 +39,6 @@ typedef struct
   void *ctx;
 } dev_serial_t;
 
-/** The USART3 instance on this board: PB10/PB11, 115200 8N1, polled. */
 /** The board's three serial ports, in link.h's order: 0 USART3 on the debug
     probe's VCP, 1 USART2 and 2 UART5 on RS485. */
 #define DEV_UART_COUNT 3U
