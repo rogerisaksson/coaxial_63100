@@ -1,53 +1,4 @@
-"""The node network `thermal/src/thermal.c` runs in firmware, on the host.
-
-Same twenty nodes and same parameters, here so they can be fitted against
-measurements without a reflash. Firmware integrates continuously; this is
-for calibration and for views. `test_thermal_core` holds every number
-here to the core's own defaults through the harness.
-
-**Not FEM.** A mesh and a solver do not fit in a main loop and are not
-needed to answer how hot the gate driver is. Twenty nodes that follow the
-copper do, since 2026-09-05 - it was a star of ten into one board::
-
-    driver_u --+                              +-- winding
-    phase_u  --+-- patch_u --+--- stator ------+
-    driver_v --+             |      |          +-- rotor ---- air
-    phase_v  --+-- patch_v --+   (mount, radiation)
-    driver_w --+             |
-    phase_w  --+-- patch_w --+
-    regulators --- patch_left --+--- board (centre) --- patch_right --- hotswap
-    mcu ------------------------+        |
-    afe ----------------------- patch_bottom
-
-Seven laminate patches whose areas come off the outline and the pick and
-place (the thermal picture's own partition), joined by a sheet
-conductance times shared boundary over centre distance; the hot swap a
-node; the motor three, coupled to the rim through the mount and to the
-faces by radiation, cooled by the air the rotor moves. `thermal.h` has
-the argument for each against the papers in docs/papers.
-
-A node is a ZONE, not a part. `regulators` is the whole supply corner: the
-bucks, the LDOs **and the LED droppers** that sit there. Measured 2026-08-28
-that zone ran 8 K over dead board in the passive state, eight times anything
-else - but that figure is the zone's, not the LDO's.
-
-Constant sources inside a zone matter less than they sound: the LED droppers
-draw the same in all four states, so they cancel in every difference. The
-campaign measures differences, which is why it tolerates a zone holding more
-than its name.
-
-Measured 2026-08-28 against a thermal camera, dead soldermask as the
-reference surface, room 20 C:
-
-===========  ======  ======  ==========  ======  ====
-state          dead     mcu  regulators  bridge   afe
-===========  ======  ======  ==========  ======  ====
-1 passive      30.0   +15.0        +8.0    +1.0  +1.0
-2 afe on       31.1   +14.2        +8.1       -  +5.9
-3 traffic      31.4   +13.6        +7.6       -  +5.9
-4 switching    40.0   +17.3       +20.0   +10.1   0.0
-===========  ======  ======  ==========  ======  ====
-"""
+"""The node network `thermal/src/thermal.c` runs in firmware, on the host."""
 import math
 
 from . import inverter
@@ -338,25 +289,7 @@ ROOM_K = 293.15
 
 
 def board_to_ambient_at(rise_k, cfg=None):
-    """K/W off the board at `rise_k` over ambient.
-
-    A BOARD LOSES HEAT TO AIR TWO WAYS AND NEITHER IS LINEAR. Free
-    convection carries `h = Nu k / L` with `Nu` a power of the Rayleigh
-    number, and Ra is linear in the rise, so h goes as about the fourth
-    root of it (Ziegenfelder 2022, USU: `q = h A dT` with
-    `Gr = (g/nu^2) beta dT P^3`). Radiation carries
-    `h_rad = eps sigma (T^2 + T0^2)(T + T0)` (Silva 2022, Eq. 5), which
-    grows faster still. A single K/W is both of them frozen at one rise.
-
-    THAT RISE WAS 10 K, and the board was then asked about loads putting
-    sixty kelvin on it. Held flat the model over-predicted the copper by
-    ten to fifteen kelvin at the powers a burst makes.
-
-    Everything else - the area, the emissivity, the fluid properties, the
-    characteristic length - stays inside the calibration value, so this
-    reproduces the measurement exactly at its own point and only the
-    shape away from it comes from the correlations.
-    """
+    """K/W off the board at `rise_k` over ambient."""
     cfg = cfg or CFG
     flat = cfg['board_to_ambient']
     cal = cfg.get('board_cal_rise_k', BOARD_CAL_RISE_K)
@@ -382,10 +315,11 @@ AREA_SHARE = {'board': 0.199, 'patch_u': 0.109, 'patch_v': 0.134,
 
 
 def patch_of(x_mm, y_mm):
-    """Which laminate patch a point of the board is in, millimetres from
-    the centre, +y up: the band under the switches and shunts above
-    y = 12 cut into the three legs at x = +-14, the front end's band
-    below y = -25, and the middle in three at x = +-22."""
+    """Which laminate patch a point of the board is in, millimetres from the
+    centre, +y up: the band under the switches and shunts above y = 12 cut
+    into the three legs at x = +-14, the front end's band below y = -25, and
+    the middle in three at x = +-22.
+    """
     if y_mm >= 12.0:
         return 'patch_u' if x_mm < -14.0 else (
             'patch_w' if x_mm > 14.0 else 'patch_v')
@@ -432,8 +366,9 @@ EDGE_WINDING_STATOR, EDGE_STATOR_ROTOR, EDGE_MOUNT_FIRST = 22, 23, 24
 
 
 def sink_edge(node):
-    """The edge a node sheds through first, or None for a node whose first
-    path is the air - the same rule as `thermal_sink_edge`."""
+    """The edge a node sheds through first, or None for a node whose first path
+    is the air - the same rule as `thermal_sink_edge`.
+    """
     for index, (a, _b, _r) in enumerate(EDGES):
         if a == node and index < 10 or (node == 'winding' and index == 22) \
                 or (node == 'stator' and index == 23):
@@ -462,8 +397,8 @@ CFG = {
     'board_rad_share': BOARD_RAD_SHARE,
     'board_capacity': BOARD_CAPACITY,   # J/K, from tau ~6.8 min
     'ntc_sees_drivers': NTC_SEES_DRIVERS,
-    # THE STAR'S VIEW OF THE SOURCES, kept for the tools that fit the
-    # camera: each source's edge into the laminate under it.
+    # THE STAR'S VIEW OF THE SOURCES, kept for the tools that fit the camera:
+    # each source's edge into the laminate under it.
     'to_board': dict((a, r) for a, _b, r in EDGES[:10]),
     'capacity': dict([(n, LEG_CAPACITY_DRIVERS / 3) for n in DRIVERS]
                      + [(n, LEG_CAPACITY_PHASES / 3) for n in PHASES]
@@ -492,32 +427,23 @@ POWER_SWITCHING = dict([(n, DRIVER_SWITCH_WATT) for n in DRIVERS]
 
 
 def board_from_ntc(ntc_c, driver_rise_k=0.0):
-    """Board temperature from the NTC, the leg's share taken out.
-
-    `driver_rise_k` is how far the leg node sits above the board. NO
-    OFFSET SUBTRACTED: the 6.0 K the campaign found is a disagreement
-    between a thermistor and a CAMERA, and it is the camera that reads
-    mixed copper and soldermask through an uncorrected emissivity. The
-    board's own sensor is the thermistor.
-    """
+    """Board temperature from the NTC, the leg's share taken out."""
     return ntc_c - NTC_SEES_DRIVERS * driver_rise_k
 
 
 def expected_ntc(board_c, driver_rise_k=0.0):
-    """Where the thermistor's element is heading: the weighted average of
-    the two nodes it is tied to, and so always between them.
-
-    The inverse of `board_from_ntc`, and the steady state the lagged
-    reading relaxes toward at `NTC_TAU_S`.
+    """Where the thermistor's element is heading: the weighted average of the
+    two nodes it is tied to, and so always between them.
     """
     return board_c + min(1.0, max(0.0, NTC_SEES_DRIVERS)) * driver_rise_k
 
 
 def to_ambient_at(node, rise_k, speed_rpm=0.0, cfg=None):
-    """K/W off one node's air path at a rise and a rotor speed - the same
-    rule as `thermal_to_ambient_at`: a patch carries the bulk's nonlinear
-    law scaled to its share, and any node the rotor's air reaches improves
-    by its `forced` gain per sqrt(krpm). None for a node with no air path."""
+    """K/W off one node's air path at a rise and a rotor speed - the same rule
+    as `thermal_to_ambient_at`: a patch carries the bulk's nonlinear law
+    scaled to its share, and any node the rotor's air reaches improves by
+    its `forced` gain per sqrt(krpm). None for a node with no air path.
+    """
     cfg = cfg or CFG
     r = cfg['to_ambient'].get(node, 0.0)
     if r <= 0.0:
@@ -531,10 +457,11 @@ def to_ambient_at(node, rise_k, speed_rpm=0.0, cfg=None):
 
 
 def net_flows(temps, power, cfg=None, ambient=AMBIENT, speed_rpm=0.0):
-    """Net watts into every node at these temperatures: what it makes,
-    plus what flows in over the edges, less what it sheds to the air -
-    `thermal.c`'s `net_flows`, so the stand-in integrates the same graph
-    the board does."""
+    """Net watts into every node at these temperatures: what it makes, plus
+    what flows in over the edges, less what it sheds to the air -
+    `thermal.c`'s `net_flows`, so the stand-in integrates the same graph the
+    board does.
+    """
     cfg = cfg or CFG
     net = dict((n, power.get(n, 0.0)) for n in ALL_NODES)
     for (a, b, _r), r in zip(EDGES, cfg['edges']):
@@ -562,13 +489,7 @@ def net_flows(temps, power, cfg=None, ambient=AMBIENT, speed_rpm=0.0):
 
 
 def steady(power, cfg=CFG, ambient=AMBIENT, speed_rpm=0.0, rounds=4000):
-    """Equilibrium temperature per node for a power split, degrees C.
-
-    THE WHOLE GRAPH, relaxed: each node put where its neighbours, its air
-    and its power balance, over and over until nothing moves - the air
-    paths re-evaluated at each pass since they depend on the rise. A few
-    hundred passes settle it; the fixed point is a gentle one.
-    """
+    """Equilibrium temperature per node for a power split, degrees C."""
     temps = dict((n, ambient) for n in ALL_NODES)
     joins = dict((n, []) for n in ALL_NODES)
     for (a, b, _r), r in zip(EDGES, cfg['edges']):
@@ -613,22 +534,9 @@ SWITCH_SHARE = inverter.RDS_ON / (inverter.RDS_ON + inverter.SHUNT)
 
 
 def phase_power(amps_rms, r_phase, switching=True, cfg_power=None):
-    """Power per node at `amps_rms` a phase: the conduction split between
-    the FET and the shunt it sits in series with, the drivers' switching
-    share where the stage is switching, the housekeeping always.
-
-    `r_phase` is what the current sees - the FET's Rds(on) and the shunt
-    together, which `coaxial.inverter` holds. One definition, because a
-    burst plan and a continuous rating that disagree about it disagree
-    about everything downstream.
-
-    SPLIT, NOT ALL ON THE PHASE NODE. Every watt of it used to land on
-    `phase_*`, so the model said the shunt cooked while the FET beside it
-    in the same current path stayed cold: measured, fifteen cells of
-    seventeen on the phase thermometer against three on the driver's.
-    They are two parts and they heat separately. The nodes keep their
-    names - `driver_*` is now the FET's conduction as well as its
-    switching, and `phase_*` is the shunt.
+    """Power per node at `amps_rms` a phase: the conduction split between the
+    FET and the shunt it sits in series with, the drivers' switching share
+    where the stage is switching, the housekeeping always.
     """
     out = dict(cfg_power or POWER_SWITCHING)
     if not switching:
@@ -644,14 +552,7 @@ def phase_power(amps_rms, r_phase, switching=True, cfg_power=None):
 
 def continuous_amps(r_phase, ceiling_c, cfg=CFG, ambient=AMBIENT,
                     rounds=60):
-    """Amps rms a phase the board holds for ever, against `ceiling_c`.
-
-    Where the worst node's equilibrium reaches the ceiling: below it a
-    state can be held, above it every state is timed and the board's own
-    envelope is what ends it. Bisected rather than solved, because the
-    worst node is not always the same one - at low current it is the
-    regulators and only later a phase.
-    """
+    """Amps rms a phase the board holds for ever, against `ceiling_c`."""
     def worst(amps):
         at = steady(phase_power(amps, r_phase), cfg=cfg, ambient=ambient)
         return max(at[name] for name in NODES)
@@ -666,17 +567,7 @@ def continuous_amps(r_phase, ceiling_c, cfg=CFG, ambient=AMBIENT,
 
 
 def calibrate(camera, board_c, power=None):
-    """Node resistances from a thermal camera's degrees, K/W.
-
-    `camera` is {node: degrees} - **the board surface at each source**, not
-    the part. `board_c` is the reference patch at the same moment: soldermask
-    some way from anything that warms. Not the NTC, which sits in the drivers'
-    hot spot.
-
-    No fitting needed: `to_board = (T_zone - T_reference) / P_zone`. The
-    result is a spreading resistance, a few K/W - tens means either the power
-    or the reference surface is wrong.
-    """
+    """Node resistances from a thermal camera's degrees, K/W."""
     power = power or POWER_SWITCHING
     out = {}
     for name, celsius in camera.items():
@@ -718,7 +609,8 @@ CEILING_C = dict([(n, 105.0) for n in LAMINATE] + [(n, 120.0) for n in MOTOR])
 
 
 def ceiling_of(node, margin=1.0, ceilings=None):
-    """One node's ceiling in force: the record's, its span over the
-    reference trimmed by the identification's margin."""
+    """One node's ceiling in force: the record's, its span over the reference
+    trimmed by the identification's margin.
+    """
     top = (ceilings or CEILING_C).get(node, CEILING_DEFAULT_C)
     return CEILING_REF_C + margin * (top - CEILING_REF_C)

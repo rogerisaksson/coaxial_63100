@@ -1,14 +1,4 @@
-"""Device 11: the bootloader, as the master speaks it (docs/BOOT.md).
-
-`BootControl` is the interface - the ops a node in its bootloader
-serves, and the two a running application serves (`state`, `stay`) -
-with a real and a simulated implementation, so a name drifting between
-them fails at construction. `Boot` is the real one: each op is one 0x6E
-frame, the broadcasts answered by nobody. `flash()` is the master's
-sequence on one assigned node: erase, every chunk, the missing ones
-again, verify, the record, seal - the node keeps an image it already
-holds and programs nothing, which is the principle the design rests on.
-"""
+"""Device 11: the bootloader, as the master speaks it (docs/BOOT.md)."""
 import struct
 import zlib
 from abc import ABC, abstractmethod
@@ -35,8 +25,9 @@ def chunks_of(image):
 
 
 class BootControl(ABC):
-    """Device 11's ops, as a node in its bootloader and a running
-    application serve them - the seam both implementations meet."""
+    """Device 11's ops, as a node in its bootloader and a running application
+    serve them - the seam both implementations meet.
+    """
 
     @abstractmethod
     def state(self):
@@ -91,8 +82,9 @@ class BootControl(ABC):
         """(offset, bytes) - one page of the record sector."""
 
     def flash(self, type_, image, record=b''):
-        """The master's sequence on one node, after assign; returns the
-        state. Raises with the node's words where it refuses."""
+        """The master's sequence on one node, after assign; returns the state.
+        Raises with the node's words where it refuses.
+        """
         self.erase(type_, image)
         for index, piece in enumerate(chunks_of(image)):
             self.chunk(index, piece)
@@ -174,14 +166,16 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
 
 
 class Segment(ABC):
-    """One serial segment as the master sees it: the blank nodes at unit
-    247 as one voice, and any node by its unit. The real one is a
-    transport; the stand-in's is a list of nodes."""
+    """One serial segment as the master sees it: the blank nodes at unit 247 as
+    one voice, and any node by its unit. The real one is a transport; the
+    stand-in's is a list of nodes.
+    """
 
     @abstractmethod
     def blank(self):
-        """A BootControl addressed to unit 247 - every blank node hears
-        it, and only the node a prefix names answers."""
+        """A BootControl addressed to unit 247 - every blank node hears it, and
+        only the node a prefix names answers.
+        """
 
     @abstractmethod
     def at(self, unit):
@@ -209,11 +203,12 @@ class TransportSegment(Segment):
 
 
 def enumerate_blank(blank):
-    """Every blank node on a segment, by the prefix search on the unique
-    id: `who` with no prefix first; two nodes answering at once is a
-    CRC error or a frame error on the wire, and either splits the
-    prefix one bit deeper, 96 at most. Known uids are one round trip;
-    a bus of N unknown nodes is about 2N."""
+    """Every blank node on a segment, by the prefix search on the unique id:
+    `who` with no prefix first; two nodes answering at once is a CRC error
+    or a frame error on the wire, and either splits the prefix one bit
+    deeper, 96 at most. Known uids are one round trip; a bus of N unknown
+    nodes is about 2N.
+    """
     found, todo = [], [(0, 0)]
     while todo:
         bits, prefix = todo.pop()
@@ -230,11 +225,12 @@ def enumerate_blank(blank):
 
 
 class Master:
-    """The master on one segment (docs/BOOT.md): hold, enumerate, assign
-    off the table, one erase and one stream per type, then each node's
-    missing, verify, record and seal, then go. `table` maps a uid to
-    {'unit', 'position', 'type', 'terminate'}; `images` maps a type to
-    its bytes; `records` maps a unit to the record's bytes."""
+    """The master on one segment (docs/BOOT.md): hold, enumerate, assign off
+    the table, one erase and one stream per type, then each node's missing,
+    verify, record and seal, then go. `table` maps a uid to {'unit',
+    'position', 'type', 'terminate'}; `images` maps a type to its bytes;
+    `records` maps a unit to the record's bytes.
+    """
 
     def __init__(self, segment, table, images, records, session=1):
         self.segment = segment
@@ -245,8 +241,9 @@ class Master:
         self.unknown = []
 
     def run(self):
-        """Every node through to go; returns {unit: state}. A uid not in
-        the table is left blank and listed in `unknown`."""
+        """Every node through to go; returns {unit: state}. A uid not in the
+        table is left blank and listed in `unknown`.
+        """
         blank = self.segment.blank()
         blank.hold(self.session)
         nodes = enumerate_blank(blank)

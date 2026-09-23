@@ -1,5 +1,6 @@
-"""The analog front end, its seven channels and the calibration
-record - invariant 9 acted out without an ADC."""
+"""The analog front end, its seven channels and the calibration record -
+invariant 9 acted out without an ADC.
+"""
 import math
 import random
 import time
@@ -16,20 +17,20 @@ from typing import Any
 
 class SimulatedAfe:
     """The stand-in AFE, with PE15 following AFE_ON inversely - the same
-    relation the real board was measured to have."""
+    relation the real board was measured to have.
+    """
     def __init__(self):
         self.on = False
 
     def state(self):
-        # `users` mirrors the board's reference count. The stand-in has
-        # only ever one holder, so the mask follows `on` exactly - which
-        # is the one thing the real board does not promise.
+        # `users` mirrors the board's reference count.
         return {'on': self.on, 'pe15': not self.on,
                 'users': ['host'] if self.on else []}
 
     def is_on(self):
         """The real Afe has this and the stand-in did not, which is a gap
-        nothing caught until a view asked. See test_parity."""
+        nothing caught until a view asked. See test_parity.
+        """
         return self.on
 
     def require(self):
@@ -51,21 +52,16 @@ class SimulatedAfe:
 
 
 class SimulatedAnalog:
-    """Invented readings, in the shape the real ones come in. Every number
-    here is made up; only the columns and the channel names are real."""
+    """Invented readings, in the shape the real ones come in. Every number here
+    is made up; only the columns and the channel names are real.
+    """
     def __init__(self, afe):
         self._afe = afe
         #: The drive whose current the phases carry - the board wires it.
         self.drive: Any = None
 
     def scaling(self, refresh=False):
-        """The same shape the board's own record produces.
-
-        Built from an EMPTY record on purpose, so every value falls back to
-        the compiled-in constants. That is the honest stand-in answer: there
-        is no calibrated board here to have a record of its own, and a made-up
-        one would be a number pretending to be a measurement.
-        """
+        """The same shape the board's own record produces."""
         del refresh
         return scaling.from_calibration({})
 
@@ -75,7 +71,8 @@ class SimulatedAnalog:
     def names(self):
         """Signal names in the board's order. Off the map on a real board,
         because the table takes a reading on the way past and refuses while
-        the injected group owns the converters."""
+        the injected group owns the converters.
+        """
         return [c['signal'] for c in CHANNELS]
 
     def index_of(self, signal):
@@ -88,9 +85,8 @@ class SimulatedAnalog:
 
     def burst(self, mask, samples, rate=None):
         chosen = {}
-        # THE MACHINE'S CURRENT ON THE PHASES, the same one a record
-        # carries: what the drive holds, at the angle it holds it. A
-        # burst sees it move as far as the angle turns across the burst.
+        # THE MACHINE'S CURRENT ON THE PHASES, the same one a record carries:
+        # what the drive holds, at the angle it holds it.
         drive = self.drive
         amps, theta = drive._carrying() if drive is not None else (0.0, 0.0)
         omega = drive._omega() if drive is not None else 0.0
@@ -106,9 +102,9 @@ class SimulatedAnalog:
                         + random.uniform(-DRIFT[index], DRIFT[index]))
             else:
                 # Invariant 9, reproduced exactly: with the reference
-                # unpowered, a differential input sits at 0 and a
-                # single-ended one at mid-scale - measured on real hardware,
-                # not a rounder number picked to look plausible.
+                # unpowered, a differential input sits at 0 and a single-ended
+                # one at mid-scale - measured on real hardware, not a rounder
+                # number picked to look plausible.
                 mean = 0.0 if meta['differential'] else ADC_HALF_CODES
             chosen[index] = _spread(
                 meta, mean, self._afe.on,
@@ -119,13 +115,7 @@ class SimulatedAnalog:
 
     def ntc_temperature(self, adc_chan=None, ntc_params=None,
                         nr_of_samples=64, sample_rate=2000.0):
-        """The NTC in the shape `Analog.ntc_temperature` returns it.
-
-        Invented, like everything here, and it says so through `params`. Mid
-        scale on a real board with AFE_ON low is exactly 25.00 C, so the
-        stand-in stays away from that number: a value nobody can tell from
-        the unpowered case is worse than an obviously fake one.
-        """
+        """The NTC in the shape `Analog.ntc_temperature` returns it."""
         celsius = 31.4 + 0.6 * math.sin(time.time() / 30.0)
         return {
             'celsius': celsius,
@@ -152,10 +142,6 @@ class SimulatedAnalog:
 
     def scan(self):
         """The one-shot scan, refusing on the same condition as the real one.
-
-        The refusal is the point of having it here: invariant 9 says a scan
-        with AFE_ON low reads mid-scale, and a stand-in that answered anyway
-        would let a view ship with that path never taken.
         """
         if not self._afe.is_on():
             raise DeviceStateError(
@@ -184,12 +170,7 @@ class SimulatedAnalog:
         }
 
     def read_all(self, nr_of_samples=64, sample_rate=1000.0, vref=3.3):
-        """Every channel with its table row merged in, like the real one.
-
-        Here because the stand-in is duck-typed against `Analog` and the
-        meter bridge calls this: a view that works on a board and crashes on
-        the stand-in is a view nobody can develop without a cable.
-        """
+        """Every channel with its table row merged in, like the real one."""
         table = {row['index']: row for row in CHANNELS}
         result = self.burst((1 << len(CHANNELS)) - 1, nr_of_samples,
                             sample_rate)
@@ -211,11 +192,6 @@ class SimulatedAnalog:
 class SimulatedCalibration(CalibrationOps):
     """The record an uncalibrated board holds: `stored` false, and the
     firmware's compiled-in defaults behind it.
-
-    Invented numbers would be the one thing this stand-in must not do - a
-    calibration is a measurement against an instrument, and there is no
-    instrument here. Empty params is what an uncalibrated board answers,
-    and `from_calibration({})` already reads that as the fallback.
     """
     #: Channels the record trims, as many as the board's ADC table has.
     CHANNELS = 10
@@ -247,14 +223,7 @@ class SimulatedCalibration(CalibrationOps):
                                  'gain_ppm': int(gain_ppm)}
 
     def zero(self, index):
-        """Measure the channel now and keep the reading as its offset.
-
-        IT HAS TO MEASURE. Storing a flat zero made a tare on the
-        stand-in a no-op that still reported success - the currents
-        came back at the same offset they went in with, and nothing
-        said the call had done nothing. The board reads the channel;
-        so does this.
-        """
+        """Measure the channel now and keep the reading as its offset."""
         rows = (self.board.analog.read_all()['channels']
                 if self.board is not None else ())
         code = next((int(row['mean_raw']) for row in rows

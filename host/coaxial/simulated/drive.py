@@ -1,5 +1,6 @@
 """The control law's stand-in rotor: one rotor, one lock, and the
-spring/inertia physics every motion verb is tested against."""
+spring/inertia physics every motion verb is tested against.
+"""
 import functools
 import json
 import math
@@ -21,12 +22,7 @@ from ..drive import PARAMS
 
 
 def _rotor_locked(method):
-    """Run a rotor-touching method under `self._lock`.
-
-    The whole body, so 'advance to now, then apply the input' is atomic:
-    no other thread's advance lands between the two. Re-entrant, so a
-    guarded reader (`state`) calling a guarded advancer (`model`) is fine.
-    """
+    """Run a rotor-touching method under `self._lock`."""
     @functools.wraps(method)
     def wrapped(self, *args, **kwargs):
         with self._lock:
@@ -36,11 +32,11 @@ def _rotor_locked(method):
 
 class SimulatedDrive:
     """The control law's device without a motor: a locked rotor at zero
-    electrical angle, a phase resistance, two inductances that bend with
-    the d current, a flux linkage and a dead-time voltage error - enough
-    for every commissioning step to recover a number it can check against
-    the constants below. Time runs at the PWM rate off the wall clock, so
-    a window or a moments run fills at 50 kHz.
+    electrical angle, a phase resistance, two inductances that bend with the
+    d current, a flux linkage and a dead-time voltage error - enough for
+    every commissioning step to recover a number it can check against the
+    constants below. Time runs at the PWM rate off the wall clock, so a
+    window or a moments run fills at 50 kHz.
     """
 
     #: One definition, in `coaxial.motor`, so this machine cannot drift
@@ -107,9 +103,9 @@ class SimulatedDrive:
                 'dead time is a bigger share of the period than the duty'
                 % (hz, self.PWM_HZ_MIN, self.PWM_HZ_MAX))
         self._pwm_hz = hz
-        # The chain's constants are rates, not per-period gains, so they
-        # carry across a change; its integrators do not - they hold flux
-        # accumulated at the old period.
+        # The chain's constants are rates, not per-period gains, so they carry
+        # across a change; its integrators do not - they hold flux accumulated
+        # at the old period.
         self._obs = None
 
     @property
@@ -141,15 +137,7 @@ class SimulatedDrive:
     GAIN = (1.0, 1.01, 0.995)
 
     def __init__(self):
-        # ONE ROTOR, TWO THREADS. The DAQ reader thread reaches this rotor
-        # through the shaft sensor (`SimulatedAngle._turn` -> `model()`)
-        # while a motion loop on the main thread calls `state`/`setpoint`
-        # here - both funnel into `_advance_model`, a read-modify-write of
-        # `_motor_at` and the rotor. Two interleaved advances each compute
-        # the same `dt` and the second clobbers: the glitch the position
-        # notebook worked around by single-threading its trace. Re-entrant
-        # because the guarded readers call the guarded advancers - the
-        # same shape as `Transport.request`'s lock on the real wire.
+        # ONE ROTOR, TWO THREADS.
         self._lock = threading.RLock()
         self._mode = 'off'
         #: The stage's PWM when set by hand, else PWM_HZ; and the shaft,
@@ -203,18 +191,7 @@ class SimulatedDrive:
     def _p(self, name, default):
         return self._params.get(name, default)
 
-    # THE MACHINE THIS STAND-IN IS PRETENDING TO BE. The class constants
-    # above are its DEFAULTS - `_model` is seeded from them and the tests
-    # read `SimulatedDrive.R` for what an unloaded stand-in is - but every
-    # volt and every amp below comes through here instead, so a profile
-    # written with `drive.profile()` actually changes the machine.
-    #
-    # It did not, and the bug was invisible until something asked. The
-    # rotor's mechanics already followed `_model`; the electrical model
-    # did not, so `observer.autodetect` recovered 0.051 ohm and 19.5 uH
-    # from four different outrunners in turn - the same numbers each time,
-    # which is exactly what a working identifier looks like until you put
-    # two machines through it.
+    # THE MACHINE THIS STAND-IN IS PRETENDING TO BE.
     @property
     def _r(self):
         return self._model['r']
@@ -236,14 +213,7 @@ class SimulatedDrive:
         return m['ld'] * (1.0 - m['sat'] * math.tanh(id_bias / m['i_sat']))
 
     def _dt(self, amps):
-        """The inverter's dead-time voltage error at this current.
-
-        Off `_model` like the rest of the machine. It was the class
-        constant, and that was the whole of a lambda that came back 58 %
-        high: `flux()` takes the back-EMF as `hypot(ed, eq)`, `eq` was
-        exact, and `ed` was 0.67 V of dead time the profile had set to
-        zero and the stand-in was applying anyway.
-        """
+        """The inverter's dead-time voltage error at this current."""
         m = self._model
         return m['v_dt'] * math.tanh(amps / m['i_knee'])
 
@@ -255,10 +225,11 @@ class SimulatedDrive:
 
     def _carrying(self):
         """(amps, electrical angle) the stator carries right now: the dq
-        solution's magnitude, at the command's angle in HOLD and the
-        tracked rotor's otherwise. The analog stand-in reads the phases
-        off this - the same current a record carries, so a tare through
-        the one path zeroes the other."""
+        solution's magnitude, at the command's angle in HOLD and the tracked
+        rotor's otherwise. The analog stand-in reads the phases off this -
+        the same current a record carries, so a tare through the one path
+        zeroes the other.
+        """
         iid, iq, _vd, _vq = self._dq()
         amps = math.hypot(iid, iq)
         if self._mode == 'hold':
@@ -275,17 +246,14 @@ class SimulatedDrive:
             return iid, self._sp['vq'] / self._r, self._sp['vd'], self._sp['vq']
         if self._mode not in ('hold', 'sensorless'):
             return 0.0, 0.0, 0.0, 0.0
-        # THE CLAMP, AS THE ENVELOPE LEFT IT. `board_drive.c` multiplies
-        # the record's `drv_i_max_ma` by the thermal factor every time the
-        # observer polls, and the loop sees its own limit move rather than
-        # fighting a duty ceiling applied behind its back.
+        # THE CLAMP, AS THE ENVELOPE LEFT IT.
         i_max = self._p('drv_i_max_ma', 5.0) * self._derate
         iid = max(-i_max, min(i_max, self._sp['id_ref']))
         iq = max(-i_max, min(i_max, self._sp['iq_ref']))
         # The speed in the voltage solution: HOLD's is the command's,
-        # SENSORLESS on the model is the tracker's - it was 0.0 there,
-        # vq lost its back-EMF term, and a power measurement read
-        # 0.34 W where the shaft alone carried 34.
+        # SENSORLESS on the model is the tracker's - it was 0.0 there, vq lost
+        # its back-EMF term, and a power measurement read 0.34 W where the
+        # shaft alone carried 34.
         omega = self._omega()
         if self._mode == 'sensorless' and self._source == 'model':
             omega = self._omega_hat
@@ -295,31 +263,14 @@ class SimulatedDrive:
         return iid, iq, vd, vq
 
     def sample(self):
-        """What a sampler in the control interrupt would see, this period.
-
-        THE THREE PHASE CURRENTS AND WHETHER THE BRIDGE IS SWITCHING -
-        the two things the board actually has. It used to hand the
-        thermal observer a finished power budget, which made the
-        observer a formality: it was being told the answer by the thing
-        it was supposed to be watching. An observer that is given watts
-        is not observing anything.
-
-        The currents are the dq solution rotated out to the phases, the
-        same inverse Park and Clarke the firmware does on its way to the
-        compares, at the angle the loop is commutating on.
-        """
+        """What a sampler in the control interrupt would see, this period."""
         iid, iq, _, _ = self._dq()
         theta = self._sp['theta'] if self._mode == 'hold' else self._theta_hat
         cos, sin = math.cos(theta), math.sin(theta)
         alpha = iid * cos - iq * sin
         beta = iid * sin + iq * cos
         root3 = math.sqrt(3.0) / 2.0
-        # SWITCHING IS THE BRIDGE'S ANSWER, NOT THE LOOP'S. The drive can
-        # be running a mode with MOE already dropped - which is exactly
-        # what the thermal envelope does to it - and a sampler that read
-        # the mode would go on reporting current through a stage that has
-        # none. `board_thermal.c` takes `Board_PwmIsEnabled()` for this
-        # field, so this takes the same thing.
+        # SWITCHING IS THE BRIDGE'S ANSWER, NOT THE LOOP'S.
         on = self._switching() if self._switching else self._mode != 'off'
         return {'amps': (alpha, -0.5 * alpha + root3 * beta,
                          -0.5 * alpha - root3 * beta) if on
@@ -327,9 +278,10 @@ class SimulatedDrive:
                 'switching': bool(on)}
 
     def _ih(self):
-        """The demodulated HF current step: V.T over the inductance along
-        the injection axis, with the rotor at zero and the frame at
-        `theta` (HOLD) or the rotor observer's estimate (SENSORLESS)."""
+        """The demodulated HF current step: V.T over the inductance along the
+        injection axis, with the rotor at zero and the frame at `theta`
+        (HOLD) or the rotor observer's estimate (SENSORLESS).
+        """
         v_inj = self._p('drv_inj_mv', 0.0)
         if not v_inj or self._mode not in ('hold', 'sensorless'):
             return 0.0, 0.0
@@ -354,8 +306,9 @@ class SimulatedDrive:
         self._theta_hat = (target + err * math.exp(-dt * 60.0)) % (2 * math.pi)
 
     def _settle_polarity(self, periods):
-        """The polarity pulse ends itself once its two pulses and two gaps
-        have run, leaving the two readings the sign is told from."""
+        """The polarity pulse ends itself once its two pulses and two gaps have
+        run, leaving the two readings the sign is told from.
+        """
         need = (2 * self._sp['pol_periods'] + 2 * self._sp['pol_gap']
                 + self.POL_SETTLE)
         if periods < need:
@@ -378,22 +331,15 @@ class SimulatedDrive:
         gain = self._p('drv_eps_gain_ua_per_rad', 0.0)
         return {
             'mode': self._mode, 'fault': self._fault,
-            # THE BRIDGE, NOT THE MODE. `cmd_drive.c` packs this bit
-            # from `Board_PwmIsEnabled()` - MOE - and this answered
-            # whether the drive was in a mode, which is a different fact:
-            # a drive can be running a mode with the gates held off, and
-            # that is exactly what the thermal envelope does to it. The
-            # page said `stage ARMED` while nothing switched, and the
-            # thermal observer - which keys off the real one - saw no
-            # current and reported a board that never warmed.
+            # THE BRIDGE, NOT THE MODE.
             'stage_enabled': bool(self._switching()) if self._switching
                              else self._mode != 'off',
             'afe_on': True,
             'injecting': bool(self._p('drv_inj_mv', 0.0)) and self._mode in ('hold', 'sensorless'),
             'owns_compares': self._mode != 'off', 'sync_armed': True,
-            # On the model source the observer is the tracker that
-            # follows the virtual rotor - a speed loop over omega_hat
-            # read 0.0 for ever while the rotor did 8600 rad/s.
+            # On the model source the observer is the tracker that follows the
+            # virtual rotor - a speed loop over omega_hat read 0.0 for ever
+            # while the rotor did 8600 rad/s.
             'theta_hat': self._theta_hat,
             'omega_hat': (self._omega_hat if self._source == 'model'
                           else 0.0),
@@ -407,8 +353,6 @@ class SimulatedDrive:
             'trigger': self._trigger, 'ts': self.TS,
             # The MINOR 2 appendix the board's op 0 carries - absent here,
             # rotor_observer_session read a KeyError off the stand-in.
-            # The numbers are the bench's own measured shape (FINDINGS,
-            # *The caches were off*): invented, like everything above.
             'exit_ticks_max': 2921,
             'cycles': {'sample': 610, 'step': 1690, 'advance': 620},
         }
@@ -420,10 +364,7 @@ class SimulatedDrive:
         if name == 'polarity' and not self._sp['pol_periods']:
             raise RigError('polarity needs pol_periods above zero - one pulse '
                            'of no length measures nothing (simulated)')
-        # INTEGRATE, THEN CHANGE. The rotor advances lazily, so the time
-        # up to this input change belongs to the OLD mode and command - a
-        # stepper that wrote 180 setpoints and read once handed the rotor
-        # one 45-degree leap and a pole slip instead of a slew.
+        # INTEGRATE, THEN CHANGE.
         if self._source == 'model':
             self.model()
         self._mode = name
@@ -479,8 +420,9 @@ class SimulatedDrive:
                 'i_peak': math.hypot(iid, iq) + 3 * self.SIGMA_I}
 
     def _phase_amps(self):
-        """The held current vector as the three phase currents, with the
-        gain mismatch each shunt chain puts on its own."""
+        """The held current vector as the three phase currents, with the gain
+        mismatch each shunt chain puts on its own.
+        """
         iid, iq, _, _ = self._dq()
         if self._mode not in ('hold', 'volt'):
             return (0.0, 0.0, 0.0)
@@ -490,8 +432,9 @@ class SimulatedDrive:
         return (ia, -0.5 * ia + HALF_SQRT3 * ib, -0.5 * ia - HALF_SQRT3 * ib)
 
     def _pickup(self):
-        """Switching pickup at the sample point: a bump mid-period, where a
-        50 % edge sits, and least near the top of the triangle."""
+        """Switching pickup at the sample point: a bump mid-period, where a 50
+        % edge sits, and least near the top of the triangle.
+        """
         x = (self._trigger - self.PERIOD / 2.0) / (self.PERIOD / 4.0)
         return 90.0 * math.exp(-x * x)
 
@@ -566,54 +509,32 @@ class SimulatedDrive:
             self.model()                   # the old parameters' time, first
         self._model.update({k: float(v) for k, v in values.items()})
         # The RUNNING rotor too, as the firmware's own model applies them:
-        # writing `load` mid-hold reached only the dict, and the servo's
-        # sag demo measured nothing because nothing sagged. The map is
-        # explicit - `ld` is a METHOD on Motor (`ld0` holds the number)
-        # and a guessed setattr would shadow it.
+        # writing `load` mid-hold reached only the dict, and the servo's sag
+        # demo measured nothing because nothing sagged.
         motor = self._motor
         if motor is not None:
             for k in self.LIVE.keys() & values.keys():
                 setattr(motor, self.LIVE[k], float(values[k]))
-        # POLE PAIRS ARE NOT IN `live`: a Motor's `p` divides its own
-        # angle, so changing it under a turning rotor is a different
-        # machine rather than a different parameter. The rotor is rebuilt
-        # instead, from the record it now describes.
+        # POLE PAIRS ARE NOT IN `live`: a Motor's `p` divides its own angle,
+        # so changing it under a turning rotor is a different machine rather
+        # than a different parameter.
         if 'pole_pairs' in values:
             self._motor = None
-        # The chain took its R, L and lambda when it was built, so a
-        # machine written after that would be observed as the old one -
-        # the observers would still be reporting the stand-in's defaults
-        # while the model made back-EMF for something else.
+        # The chain took its R, L and lambda when it was built, so a machine
+        # written after that would be observed as the old one - the observers
+        # would still be reporting the stand-in's defaults while the model
+        # made back-EMF for something else.
         self._obs = None
         return dict(values)
 
     def _pll_hz(self):
-        """The natural frequency the loaded PLL gains imply.
-
-        `pll_gains` puts l2 = wn^2 * t_update at t_update = 2 Ts, so wn
-        comes back out of l2. A caller that tightens the observer sees a
-        tighter estimate here, which is the only reason this reads the
-        parameters at all rather than picking a number.
-        """
+        """The natural frequency the loaded PLL gains imply."""
         l2 = self._p('drv_l2_milli', 100.0)
         wn = math.sqrt(max(l2, 1e-9) / (2.0 * self.TS))
         return min(max(wn / (2.0 * math.pi), 1.0), 5000.0)
 
     def _advance_model(self):
-        """Turn the virtual rotor by the torque the dq solution makes.
-
-        MECHANICS ONLY, on purpose: `_dq()` is the electrical steady state
-        the loop settled at, so integrating the electrical equations again
-        would solve them twice. The rotor is what was missing - `model()`
-        used to answer theta 0.0 and omega_hat 0.0, so nothing reading this
-        stand-in could see an observer track anything.
-
-        `theta_hat` follows the rotor through a one-pole lag at the PLL's
-        own natural frequency. It is NOT the firmware's observer - that is
-        C, and `tools/observer_run.py` is what runs the real one. It is a
-        lag with the right bandwidth, so a chain built against this
-        stand-in exercises its own arithmetic and not a fabricated error.
-        """
+        """Turn the virtual rotor by the torque the dq solution makes."""
         motor = self._machine()
         now = time.time()
         dt = min(now - self._motor_at, 0.25)     # bounded catch-up
@@ -622,13 +543,7 @@ class SimulatedDrive:
             return motor
         if self._mode != 'off':
             self._spin(motor, dt, now)
-        # THE LAG IS CLOSED FORM, NOT INTEGRATED. A one-pole decay over dt
-        # was tried first and read exactly 0.0000 rad: a caller polling
-        # 50 ms apart is twelve PLL time constants apart, so the lag had
-        # always fully settled and the field was useless. A type-2 PLL
-        # tracking constant acceleration settles at alpha / wn^2 instead -
-        # zero error at constant speed, growing with acceleration, and
-        # independent of how often anyone asks.
+        # THE LAG IS CLOSED FORM, NOT INTEGRATED.
         wn = 2.0 * math.pi * self._pll_hz()
         alpha = (motor.omega - self._omega_hat) / dt if dt > 0.0 else 0.0
         self._omega_hat = motor.omega
@@ -636,17 +551,13 @@ class SimulatedDrive:
         return motor
 
     def _spin(self, motor, dt, now):
-        """The rotor turned by the torque the dq solution makes, over
-        `dt`, in fixed symplectic sub-steps. The mechanics of
-        `_advance_model`, which frames it."""
+        """The rotor turned by the torque the dq solution makes, over `dt`, in
+        fixed symplectic sub-steps. The mechanics of `_advance_model`, which
+        frames it.
+        """
         iid, iq, _, _ = self._dq()
         ld = self._ld(iid)
-        # TORQUE BY MODE. SENSORLESS commutates on the rotor, so iq is
-        # torque current. HOLD commutates on the COMMANDED angle - a
-        # stepper - and the rotor is dragged by the load-angle spring
-        # `kt i sin(cmd - theta)`: it follows a slewed command, rings
-        # after a step as a stepper does, and slips a pole if the
-        # spring is overpowered, which is what a stepper is.
+        # TORQUE BY MODE.
         hold = self._mode == 'hold'
         k_t = TORQUE_FACTOR * motor.p * motor.lam
         i_mag = math.hypot(iid, iq)
@@ -658,50 +569,17 @@ class SimulatedDrive:
                + self._omega() * (now - acc - self._mode_at))
         w_cmd = self._omega()
         wm = motor.omega / motor.p
-        # SUBSTEPPED, SYMPLECTIC. One Euler step over a poll gap
-        # diverges: (1 - dt b/j) at the placeholder profile is -4 at a
-        # 0.2 s poll and the rotor read +1896, -5770, +24964 rad/s on
-        # three of them. Each slice stays a tenth of the mechanical
-        # constant AND a hundred-and-twentieth of the spring's period;
-        # speed then angle keeps the spring bounded rather than
-        # spiralling. A twentieth was tried and kept for a week: the
-        # held rotor is a PENDULUM, sin(cmd - theta), and an elbow
-        # energised under 0.01 N.m swings +-49 electrical degrees,
-        # where that step pumped the ring until a pole slipped.
+        # SUBSTEPPED, SYMPLECTIC.
         step = min(0.002, 0.1 * motor.j / max(motor.b, 1e-12))
         if hold and i_mag > 0.0:
             spring = TORQUE_FACTOR * motor.p * motor.p * motor.lam * i_mag
             step = min(step, 0.05 * math.sqrt(motor.j / spring))
-        # THE SUB-STEP IS FIXED and the remainder carried to the next
-        # call. The symplectic step conserves a MODIFIED energy that
-        # depends on h, so a step re-sized every poll (dt / n, and dt
-        # is whatever the caller's cadence made it) moved the rotor
-        # between energies each call - a random walk that fed the
-        # ring. Measured 2026-09-07 on the arm's elbow, 0.01 N.m at
-        # 2 A, at the twentieth-of-a-period step: the ring after the
-        # energise decayed with a 16 s constant where 2j/b is 4 s;
-        # re-sized at a sixth of that step, 4.4 s; FIXED at the
-        # coarse step it grew 6 % a second and the servo's poses ran
-        # away by thousands of degrees. Fixed at this one, 4.6 s. The
-        # rotor's own time runs up to one step behind `now`; `cmd`
-        # starts from where it is.
+        # THE SUB-STEP IS FIXED and the remainder carried to the next call.
         h = step
         n = int(acc // h)
         self._motor_acc = acc - n * h
         theta = motor.theta
-        # THE LINK RUNS OUT, and until now it never did. The back-EMF
-        # is `sqrt(3) lambda omega_el` and the inverter cannot push
-        # current against more than it has: at that speed there is no
-        # torque left, which is what a no-load speed IS.
-        #
-        # INSIDE THE SUB-STEP, because the rotor crosses it inside
-        # one. Evaluated once per call it clamped a speed the rotor
-        # had already left: at 43 A into this inertia the acceleration
-        # is 113 000 rad/s^2, so a single 60 ms poll gap overshot the
-        # ceiling twenty-fold. The model reported 43 115 rpm on a
-        # machine whose no-load speed is 3 902, and 10.3 kW out of a
-        # stage rated 6.3 - which made every thermal and power reading
-        # downstream a fiction.
+        # THE LINK RUNS OUT, and until now it never did.
         ceiling = (self._model['vdc'] / (math.sqrt(3.0) * motor.lam)
                    if motor.lam > 0.0 else float('inf'))
         for _ in range(n):
@@ -711,9 +589,9 @@ class SimulatedDrive:
             fade = max(0.0, 1.0 - abs(wm * motor.p) / ceiling)
             wm += (torque * fade - motor.b * wm - motor.load)                     / motor.j * h
             theta += wm * motor.p * h
-        # The SHAFT, accumulated: electrical theta wraps at 2 pi and a
-        # shaft sensor reads the mechanical angle, which is 1/p of the
-        # whole unwrapped travel - `SimulatedAngle` reads this.
+        # The SHAFT, accumulated: electrical theta wraps at 2 pi and a shaft
+        # sensor reads the mechanical angle, which is 1/p of the whole
+        # unwrapped travel - `SimulatedAngle` reads this.
         self._mech += (theta - motor.theta) / motor.p
         motor.omega = wm * motor.p
         motor.theta = theta % (2.0 * math.pi)
@@ -733,14 +611,7 @@ class SimulatedDrive:
 
     @_rotor_locked
     def _observer_chain(self):
-        """The two observers themselves, built on the first ask.
-
-        `drive_observer.c` was ported from `coaxial.sensorless`, so this
-        runs the source rather than an imitation of it: the same dual
-        flux model with its PLL, the same leaking integrator with its lag
-        put back, the same constants. What the stand-in supplies is the
-        machine - its own rotor and its own dq solution - not the answer.
-        """
+        """The two observers themselves, built on the first ask."""
 
         if self._obs is None:
             self._obs = (
@@ -755,13 +626,7 @@ class SimulatedDrive:
         return self._obs
 
     def _observer_sync(self, theta, omega):
-        """The hand-over `drive_observer_sync` is, for the same reason.
-
-        Neither observer acquires a speed from nothing - the leak
-        correction `sqrt(1 + (wc/w)^2)` divides by the speed it has not
-        got. The firmware hands its estimate over on every mode change,
-        and so does this.
-        """
+        """The hand-over `drive_observer_sync` is, for the same reason."""
         dual, flux = self._observer_chain()
         dual.theta = flux.theta = theta
         dual.omega = flux.omega = omega
@@ -774,34 +639,12 @@ class SimulatedDrive:
 
     @_rotor_locked
     def observers(self):
-        """The chain the firmware runs, stepped on this stand-in's rotor.
-
-        BOUNDED CATCH-UP, THE SAME PATTERN AS THE ROTOR. A poll gap is
-        not a control period: a caller asking twice a second would ask
-        these observers to integrate half a second in one step, and an
-        explicit integrator at `kp` 200 comes apart long before that. The
-        gap is clamped to `OBS_WINDOW` and walked at the firmware's own
-        `TS`, the way `_advance_model` clamps its own catch-up - so what
-        they see is a short window of real control periods rather than
-        one impossible one.
-
-        The voltages are the dq solution rotated back out to the
-        stationary frame, which is what the board's chain gets too: there
-        is no phase-voltage sense on this hardware, so what is integrated
-        either side is the commanded voltage.
-        """
+        """The chain the firmware runs, stepped on this stand-in's rotor."""
         if self._source == 'model':
             self.model()
         dual, flux = self._observer_chain()
         # THE HAND-OVER, AND THE ONE THE STAND-IN NEEDS AND THE BOARD DOES
-        # NOT. The firmware syncs on a mode change and then acquires over
-        # real periods - `pll_ki` is 8000 rad/s^2, a quarter of a second to
-        # reach 2000. Here there are no real periods to acquire over: a
-        # caller polls at tens of hertz and each call steps a 20 ms window,
-        # which is a fiftieth of what the PLL needs. So the speed is handed
-        # over again whenever the chain is not locked. The angle, the
-        # blend, the lag correction and the flux magnitude are observed;
-        # only acquisition is given, and only while it has not happened.
+        # NOT.
         if (self._obs_synced != self._mode_at
                 or abs(dual.omega) < self.OBS_WC <= abs(self._omega_hat)):
             self._observer_sync(self._theta_hat, self._omega_hat)
@@ -834,15 +677,16 @@ class SimulatedDrive:
 
     def _observers_skip(self, dual, flux, skipped):
         """THE PERIODS THIS STAND-IN DID NOT STEP, IN CLOSED FORM. A caller
-        polls at tens of hertz and the loop runs at fifty thousand, so
-        most periods are never stepped here. Carrying the observers only
-        through the ones that were leaves their frame behind the rotor
-        by the difference, and it accumulates: measured, the chain read
-        a settled 106 degrees from an estimate that was itself within
-        0.01. What is skipped is therefore advanced at each observer's
-        own speed - state and angle together, so the flux vectors stay
-        coherent with the angle they belong to - and only the window at
-        the end is integrated period by period."""
+        polls at tens of hertz and the loop runs at fifty thousand, so most
+        periods are never stepped here. Carrying the observers only through
+        the ones that were leaves their frame behind the rotor by the
+        difference, and it accumulates: measured, the chain read a settled
+        106 degrees from an estimate that was itself within 0.01. What is
+        skipped is therefore advanced at each observer's own speed - state
+        and angle together, so the flux vectors stay coherent with the angle
+        they belong to - and only the window at the end is integrated period
+        by period.
+        """
         if skipped <= 0.0:
             return
         for obs, w in ((dual, dual.omega), (flux, self._obs_flux_omega)):
@@ -854,10 +698,10 @@ class SimulatedDrive:
                 - math.pi
 
     def _observers_window(self, dual, flux, n, theta, omega):
-        """The window at the end, integrated period by period at the
-        firmware's own step, ending at the rotor: the dq solution rotated
-        back out to the stationary frame, which is what the board's chain
-        gets too."""
+        """The window at the end, integrated period by period at the firmware's
+        own step, ending at the rotor: the dq solution rotated back out to
+        the stationary frame, which is what the board's chain gets too.
+        """
         iid, iq, vd, vq = self._dq()
         ts = self.TS
         frame = theta - n * ts * omega       # the window ENDS at the rotor
@@ -866,11 +710,9 @@ class SimulatedDrive:
             va, vb = vd * c - vq * s, vd * s + vq * c
             ia, ib = iid * c - iq * s, iid * s + iq * c
             dual.update(va, vb, ia, ib, ts)
-            # The lag correction rests on the PLL's speed, not on this
-            # model's own: at rest `atan(wc/w)` is a quarter turn, and an
-            # observer reading its own derivative starts there and cannot
-            # get back. The firmware does the same, for the same reason
-            # (drive_observer.c, step_flux).
+            # The lag correction rests on the PLL's speed, not on this model's
+            # own: at rest `atan(wc/w)` is a quarter turn, and an observer
+            # reading its own derivative starts there and cannot get back.
             flux.omega = dual.omega
             flux.update(va, vb, ia, ib, ts)
             self._obs_flux_omega = flux.omega
@@ -878,8 +720,9 @@ class SimulatedDrive:
         self._obs_frame = frame % (2.0 * math.pi)
 
     def _observers_blend(self, dual, flux):
-        """The two observers' angles blended by the PLL's speed between
-        the two marks: (speed, low mark, high mark, blend, angle)."""
+        """The two observers' angles blended by the PLL's speed between the two
+        marks: (speed, low mark, high mark, blend, angle).
+        """
         w = abs(dual.omega)
         lo = self.OBS_BLEND_LO * self.OBS_WC
         hi = self.OBS_BLEND_HI * self.OBS_WC
@@ -890,14 +733,7 @@ class SimulatedDrive:
 
     @_rotor_locked
     def model(self):
-        """The virtual source's rotor, or a still one on the ADC source.
-
-        WHY THE ADC SOURCE ANSWERS ZERO. Its rotor is what the stand-in's
-        dq means and its saliency are drawn around, and every commissioning
-        step is checked against that - a machine that started turning under
-        them would change what they recover. The rotor turns when the
-        source is the model, which is what the model source is for.
-        """
+        """The virtual source's rotor, or a still one on the ADC source."""
         iid, iq, _, _ = self._dq()
         if self._source != 'model':
             return {'source': self._source, 'theta': 0.0,

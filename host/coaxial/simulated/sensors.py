@@ -1,5 +1,6 @@
-"""The two SPI sensors: a BNO08X that tumbles and an A1335 that
-follows the simulated shaft."""
+"""The two SPI sensors: a BNO08X that tumbles and an A1335 that follows the
+simulated shaft.
+"""
 import math
 import random
 import time
@@ -13,17 +14,7 @@ from ..imu import CHANNELS, decode
 
 
 class SimulatedImu(PolledSensor):
-    """A BNO08X that was never soldered on.
-
-    Shaped like `coaxial.imu.Imu` so every caller works against it
-    unmodified, and labelled the way the version record is: the software
-    part number reads 0 and the version literally says "simulated", so a
-    product id from here cannot be read as one from a part.
-
-    The reports it invents are an accelerometer at rest - roughly one g on
-    Z and nothing on X and Y - because the alternative is a number that
-    looks like a measurement of something.
-    """
+    """A BNO08X that was never soldered on."""
 
     #: Q8 counts for 9.81 m/s^2, which is what SCALE[0x01] divides by.
     ONE_G = 2511
@@ -50,11 +41,6 @@ class SimulatedImu(PolledSensor):
     def read(self):
         """A timebase, then whatever has been enabled - framed the way a real
         cargo on channel 3 is, Figure 5-2.
-
-        Only what feature() turned on, because that is the one thing about a
-        sensor hub a caller can get wrong: reading a report nobody asked for.
-        With nothing enabled this reports the accelerometer, which is what a
-        bring-up looks at first.
         """
         self._seq = (self._seq + 1) & 0xFF
         cargo = bytes([0xFB, 0, 0, 0, 0])
@@ -98,8 +84,8 @@ class SimulatedImu(PolledSensor):
         for report in self.read()['reports']:
             if 'quaternion' not in report:
                 continue
-            # The same shape the real state() builds: the counts the part
-            # sent and the quaternion this host divided out of them.
+            # The same shape the real state() builds: the counts the part sent
+            # and the quaternion this host divided out of them.
             got.update({
                 'report_id': report['report_id'],
                 'name': report['name'],
@@ -121,13 +107,7 @@ class SimulatedImu(PolledSensor):
                ('magnetometer', 0x03, 4, 'uT', (22.0, -3.0, 41.0)))
 
     def _vectors(self, got):
-        """The three vectors, present only when enabled.
-
-        A FEATURE NOBODY ASKED FOR IS NOT A READING. The board sends
-        each vector with its own `have`, and answers None here for
-        the same reason: zeros from a report that was never enabled
-        must not look like a still part.
-        """
+        """The three vectors, present only when enabled."""
 
         for name, report, bits, unit, rest in self.VECTORS:
             if report not in self._enabled:
@@ -173,13 +153,7 @@ class SimulatedImu(PolledSensor):
 
 
 class SimulatedAngle(PolledSensor):
-    """The A1335 without an A1335.
-
-    Turns steadily, because a stand-in that reports one angle for ever is
-    indistinguishable from a link that has stopped. The field it reports is
-    what a magnet in place would give; the real board reads 2 gauss with
-    none, which is a measurement and not this object's business to imitate.
-    """
+    """The A1335 without an A1335."""
     def __init__(self):
         self._at = time.monotonic()
         self._updates = 0
@@ -190,11 +164,12 @@ class SimulatedAngle(PolledSensor):
         self.drive: Any = None
         self.thermal: Any = None
     def _turn(self):
-        """The shaft in counts: the virtual rotor's when one is turning,
-        else one invented turn every twelve seconds - a stand-in that
-        reports one angle for ever is indistinguishable from a dead link.
-        The wiring is `SimulatedBoard`'s, like the DAQ's: a servo closed
-        over this sensor moves the SAME rotor the drive torques."""
+        """The shaft in counts: the virtual rotor's when one is turning, else
+        one invented turn every twelve seconds - a stand-in that reports one
+        angle for ever is indistinguishable from a dead link. The wiring is
+        `SimulatedBoard`'s, like the DAQ's: a servo closed over this sensor
+        moves the SAME rotor the drive torques.
+        """
         drive = self.drive
         if drive is not None and drive._source == 'model':
             drive.model()                      # advance to now
@@ -207,8 +182,8 @@ class SimulatedAngle(PolledSensor):
             return 0x5000 | self._turn()
         if register == angle.TSEN:
             # The die sits on the board: its temperature is the thermal
-            # stand-in's board node when the board wired one, else a
-            # room's 296 K. Eighths of a kelvin, as the part counts.
+            # stand-in's board node when the board wired one, else a room's
+            # 296 K.
             thermal = self.thermal
             kelvin = (KELVIN_AT_ZERO_C + thermal.state()['nodes']['board']
                       if thermal is not None else 296.0)

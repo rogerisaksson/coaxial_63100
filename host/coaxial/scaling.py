@@ -1,10 +1,4 @@
-"""Conversion from raw ADC codes to physical quantities.
-
-The firmware deliberately reports raw codes and nothing else. Everything in this
-module is the FIXTURE's knowledge of what those codes mean, so a board with a
-different divider or a different thermistor needs new numbers here rather than
-new firmware.
-"""
+"""Conversion from raw ADC codes to physical quantities."""
 import math
 
 #: The converter's 16-bit result: the full scale of codes, and the half of
@@ -15,16 +9,7 @@ KELVIN_AT_ZERO_C = 273.15
 
 
 class NtcParams:
-    """A thermistor and the divider it sits in.
-
-    high_side means the NTC is between the reference rail and the ADC node, with
-    r_fixed from the node to ground, which is how this board is wired.
-
-    The conversion is RATIOMETRIC: the reference voltage cancels out of
-    r_fixed * (65536/raw - 1), so an inaccurate rail does not bias the
-    temperature. That is worth knowing, because the same is emphatically not
-    true of DividerParams below.
-    """
+    """A thermistor and the divider it sits in."""
 
     def __init__(self, r25=10000.0, beta=3380.0, r_fixed=10000.0,
                  t25_kelvin=KELVIN_AT_ZERO_C + 25.0, high_side=True, name=None):
@@ -56,12 +41,7 @@ class NtcParams:
 
 
 class DividerParams:
-    """A resistive divider ahead of a single-ended ADC input.
-
-    Unlike the thermistor this is an ABSOLUTE measurement: the answer scales
-    directly with vref, so an error in the reference is an error in the result.
-    Pass a measured rail if you need better than a percent.
-    """
+    """A resistive divider ahead of a single-ended ADC input."""
 
     def __init__(self, r_top=49900.0, r_bottom=2200.0, vref=3.3, offset_v=0.0,
                  name=None):
@@ -87,23 +67,7 @@ class DividerParams:
 
 
 class ShuntParams:
-    """A current shunt and the differential amplifier chain above it.
-
-    ABSOLUTE, like DividerParams and for the same reason: the answer scales
-    with vref, and with two more numbers that belong to the board rather than
-    to the ADC. Get either wrong and the current is wrong by that factor.
-
-    RU1 || RU2 sit in the phase conductor, two Vishay WSHM2818 of 7 mohm
-    each, tapped by RU3/RU4 into a THS4551 with Rg 330 and Rf 1.5k. Both
-    outputs swing in anti-phase about +1V65_bias, so the full +/-vref
-    differential span is reachable and 100 A lands at 48 % of it - the same
-    deliberate headroom the DC link divider keeps, for the same reason.
-
-    The gain is bounded as well as traced: 100 A across 3.5 mohm is 350 mV,
-    and vref/that is 9.43 V/V, so anything above it could not represent the
-    board's own rating. That is what rules out reading the ADA4891 quad on
-    the same sheet as further gain in this path - see docs/HARDWARE.md.
-    """
+    """A current shunt and the differential amplifier chain above it."""
 
     def __init__(self, r_shunt=0.0035, gain=1500.0 / 330.0,
                  vref=3.3, name=None):
@@ -141,13 +105,6 @@ def single_ended_volts(raw, vref=3.3):
 
 
 # This board as built - the FALLBACK, for a caller with no board to ask.
-#
-# INVARIANT 7 SAYS THE BOARD OWNS THESE. They live in its calibration record
-# and it reports them over 0x6E device 3, so `from_calibration` below is what
-# a live call should use. These literals stayed authoritative until
-# 2026-08-28, which meant calibrating a board left the host cooking with the
-# old reference, the old shunt and the old thermistor, and nothing anywhere
-# said the two had parted company.
 NTC_ONBOARD = NtcParams(r25=10000.0, beta=3380.0, r_fixed=10000.0,
                         name='Murata NCU18XH103, onboard')
 DCBUS_ONBOARD = DividerParams(r_top=49900.0, r_bottom=2200.0, vref=3.3,
@@ -170,13 +127,7 @@ THERMISTOR_SIGNAL = 'NTC'
 
 
 def symbol(unit, signal=None):
-    """What to print beside a converted value.
-
-    Not `UNIT_SYMBOL[unit]`: the die reports `centi-degC` like the NTC, and
-    `converter` hands back volts at the pin for it because there is no curve
-    here. Printing that under a C was a plausible temperature that was not
-    one - measured -5.8 C on a die the thermal observer had at 38.
-    """
+    """What to print beside a converted value."""
     if unit == 'centi-degC' and signal not in (None, THERMISTOR_SIGNAL):
         return 'V'
     return UNIT_SYMBOL.get(unit, '')
@@ -199,16 +150,7 @@ FROM_FALLBACK = "compiled-in fallback, the board sent no record"
 
 
 def from_calibration(cal):
-    """The board's own scaling, out of `calibration.read()`.
-
-    One dict keyed the way the constants above are named, so a caller swaps
-    the source without changing what it does with the result. Units follow
-    the record: micro-volts, micro-ohms, milli-kelvin, parts per million,
-    centi-kelvin.
-
-    A parameter the record does not carry falls back to the constant, which
-    is what an older firmware and an uncalibrated board both need.
-    """
+    """The board's own scaling, out of `calibration.read()`."""
     p = cal.get('params', {})
     vref = p.get('vref_uv', 3300000) / 1e6
     where = FROM_RECORD if p else FROM_FALLBACK
@@ -240,24 +182,7 @@ def from_calibration(cal):
 
 
 def converter(unit, differential=False, vref=3.3, signal=None, params=None):
-    """The board's conversion for a channel, chosen by the unit it reports.
-
-    Here rather than in a view because three of them need it now, and the
-    second copy is always the one that goes stale (invariant 7). A channel
-    with no unit of its own is read as volts at the pin, which is the only
-    thing a bare code can honestly be called.
-
-    `signal` picks the conversion where a unit cannot. Three channels report
-    millivolts through three different dividers, and TWO report centi-degC:
-    the NTC, which is a thermistor curve, and the MCU die, which is a linear
-    sensor calibrated at the factory. Cooking the die as a thermistor gave
-    -5.8 C for a die the thermal observer had at 38, so anything but the NTC falls
-    through to volts at the pin - `symbol` says so.
-
-    `params` is `Analog.scaling()` - the board's own record. Without it the
-    compiled-in fallbacks are used, which is the schematic's arithmetic and
-    not what the board was told it is.
-    """
+    """The board's conversion for a channel, chosen by the unit it reports."""
     p = params or {}
     if unit == 'mA':
         return p.get('phase', PHASE_ONBOARD).amps

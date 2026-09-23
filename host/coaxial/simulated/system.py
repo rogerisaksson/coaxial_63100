@@ -1,23 +1,20 @@
-"""Who the board says it is: the identity tables (units, subsystems,
-pins, parts) behind 0x6D, and the digital pins."""
+"""Who the board says it is: the identity tables (units, subsystems, pins,
+parts) behind 0x6D, and the digital pins.
+"""
 from ..errors import DeviceStateError
 from ..gpio import reserved_reason
 from .values import CHANNELS, SYSCLK_HZ, TICKS_PER_US
 
 
 # The same shape the firmware reports over command 0x6D, so a host driven
-# against the stand-in exercises the same decode. Values invented like
-# everything else here - see the module docstring.
+# against the stand-in exercises the same decode.
 UNITS = {'NTC': 'centi-degC', 'DC bus': 'mV',
          'Phase U': 'mA', 'Phase V': 'mA', 'Phase W': 'mA',
-         # Millivolts like the DC link, through their own dividers - which
-         # is why `scaling.converter` is given the signal and not just the
-         # unit. Three mV channels here and no two share a divider.
+         # Millivolts like the DC link, through their own dividers - which is
+         # why `scaling.converter` is given the signal and not just the unit.
          '+5V': 'mV', 'Vgate': 'mV', 'MCU die': 'centi-degC'}
 
 # What the firmware answers for channels kind 3: one entry per command table.
-# Shaped like the board's, invented like everything else here - the counts
-# are what this stand-in offers, not what a part reports.
 SUBSYSTEMS = [
     {'name': 'board', 'commands': 11,
      'what': 'ADC channels, digital I/O, clocks, self test'},
@@ -27,26 +24,18 @@ SUBSYSTEMS = [
 ]
 
 # No PE15: it carries TIM1_BKIN, and the pin path reconfigures what it
-# touches, which would take the break off the timer. The board dropped it
-# from the drivable rows for that reason, so this follows.
+# touches, which would take the break off the timer.
 DIGITAL = [
     {'pin': 'PB2',  'direction': 'out', 'signal': 'AFE_ON'},
     {'pin': 'PE14', 'direction': 'out', 'signal': 'UART5_TERM'},
     {'pin': 'PA10', 'direction': 'out', 'signal': 'KEEPALIVE'},
 ]
 
-# Not channels: the bus the command arrived on and the debug port. Reported
-# so "why was PB10 refused" has an answer, never to be driven.
+# Not channels: the bus the command arrived on and the debug port.
 RESERVED = [
-    # TIM1_BKIN, first because that is where it sits in the board's own
-    # table. Reserved for the same reason as the six gate signals below,
-    # and it was missed when they were fixed: configuring it disconnects
-    # the break from the timer, silently and until the next reset.
+    # TIM1_BKIN, first because that is where it sits in the board's own table.
     {'pin': 'PE15', 'direction': 'in',    'signal': 'nFAULT/TIM1_BKIN'},
-    # The six gate signals. Reserved because they are TIM1's alternate
-    # function: writing one through the test path takes the pin off the
-    # timer and leaves a half bridge with one FET latched on. They were in
-    # neither list and the board answered "usable" for all six.
+    # The six gate signals.
     {'pin': 'PE8',  'direction': 'out',   'signal': 'TIM1_CH1N/PWMUL'},
     {'pin': 'PE9',  'direction': 'out',   'signal': 'TIM1_CH1/PWMUH'},
     {'pin': 'PE10', 'direction': 'out',   'signal': 'TIM1_CH2N/PWMVL'},
@@ -74,9 +63,7 @@ RESERVED = [
     {'pin': 'PE6',  'direction': 'out',   'signal': 'SPI4_MOSI'},
 ]
 
-# What is fitted, mirroring s_parts in board/src/board_io.c. The stand-in's
-# states are what a powered board reports, because a stand-in with no supply
-# to switch has nothing else to say.
+# What is fitted, mirroring s_parts in board/src/board_io.c.
 PARTS = [
     {'name': 'STM32H753VIT6', 'what': 'the MCU, 475 MHz',
      'where': 'U3', 'power': '', 'state': 'not probed'},
@@ -103,15 +90,17 @@ PARTS = [
 
 
 class SimulatedSystem:
-    """The stand-in's version record and clocks. `firmware` and `build`
-    read literally `simulated`, so board_info alone tells them apart."""
+    """The stand-in's version record and clocks. `firmware` and `build` read
+    literally `simulated`, so board_info alone tells them apart.
+    """
     def __init__(self, version_info=None):
         self._version = dict(version_info or {})
 
     def version(self):
-        """What SimulatedBoard was built with. A copy: the real one decodes
-        a fresh reply each call, so a caller that mutates it must not be
-        able to change what the next call answers."""
+        """What SimulatedBoard was built with. A copy: the real one decodes a
+        fresh reply each call, so a caller that mutates it must not be able
+        to change what the next call answers.
+        """
         return dict(self._version)
 
     def self_test_failures(self):
@@ -154,20 +143,15 @@ class SimulatedSystem:
 
 
 class SimulatedGpio:
-    """In-memory pins, gated the same way the firmware documents the real
-    ones - reads always allowed, writes only with the gate open - but this
-    is a courtesy for a script that forgets the gate, not a protocol
-    simulation of the rejection a real board would send back."""
+    """In-memory pins, gated the same way the firmware documents the real ones
+    - reads always allowed, writes only with the gate open - but this is a
+    courtesy for a script that forgets the gate, not a protocol simulation
+    of the rejection a real board would send back.
+    """
 
-    # PB2 is the AFE switch, not just a pin. A GPIO write that clears it
-    # turns the front end off on real hardware, and a simulator that kept
-    # the two in separate dictionaries answered `afe_power read` with `on=1`
-    # one call after GPIOB went low - measured, and the one place invariant
-    # 9 could be broken by a stand-in without anyone noticing.
+    # PB2 is the AFE switch, not just a pin.
     AFE_PORT, AFE_PIN = 'B', 2
-    # PE15 follows AFE_ON inversely - HARDWARE.md, Discrete I/O. SimulatedAfe
-    # already reports it in state(); this is what makes reading the pin agree
-    # with reading the switch.
+    # PE15 follows AFE_ON inversely - HARDWARE.md, Discrete I/O.
     PE15_PORT, PE15_PIN = 'E', 15
 
     def __init__(self, afe=None):
@@ -197,8 +181,9 @@ class SimulatedGpio:
         self._require_gate()
 
     def _drive_afe(self, level):
-        """PB2 written by hand: move the front end with it, or the pin and
-        the switch it is disagree for the rest of the session."""
+        """PB2 written by hand: move the front end with it, or the pin and the
+        switch it is disagree for the rest of the session.
+        """
         if self.afe is None:
             return
         self.afe.enable() if level else self.afe.disable()
@@ -206,8 +191,9 @@ class SimulatedGpio:
     def _afe_on(self):
         return self.afe is not None and bool(self.afe.state()['on'])
     def _witnesses(self):
-        """The two pins the front end's switch decides: PB2 is the switch,
-        PE15 follows it inversely on the assembled board."""
+        """The two pins the front end's switch decides: PB2 is the switch, PE15
+        follows it inversely on the assembled board.
+        """
         return {(self.AFE_PORT, self.AFE_PIN): self._afe_on,
                 (self.PE15_PORT, self.PE15_PIN): lambda: not self._afe_on()}
 

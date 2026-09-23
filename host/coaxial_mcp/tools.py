@@ -1,18 +1,4 @@
-"""Tool schemas and handlers.
-
-Fifteen tools, not one per firmware command. Every one costs its name,
-description and schema on every turn, so the set is coarse: one per thing a
-fixture does, with a small enum where a family of operations would otherwise
-be a family of tools.
-
-`docs` touches no hardware. The documents in docs/ are what stop a
-reading being misinterpreted - the AFE gate, the unknown phase gain, what is
-already ruled out - and the model at the bench was the one reader who could not
-open them. Three optional strings, and it answers with an index.
-
-Descriptions are one line, property names short, no titles, prose defaults or
-examples: a model that needs the channel map calls board_info once.
-"""
+"""Tool schemas and handlers."""
 import os
 import re
 import subprocess
@@ -36,10 +22,7 @@ OLDER_FIRMWARE = LINK_FAULTS + (AttributeError, KeyError)
 _PIN = {'type': 'string', 'description': 'Pin as PORT+NUMBER, e.g. B2 or E15'}
 _PORT = {'type': 'string', 'description': 'Port letter A-K'}
 
-# Which section of the map board_info answers with. A question about the
-# analog channels should not cost the identity line, the clock line and the
-# digital pins as well - measured, "ge mig en lista over alla analoga
-# kanaler" traced eleven lines to answer with seven.
+# Which section of the map board_info answers with.
 BOARD_INFO_KINDS = ('all', 'analog', 'digital', 'reserved', 'identity',
                     'subsystems', 'parts')
 
@@ -241,18 +224,7 @@ TRUE = ('1', 'true', 'yes', 'on')
 
 
 def coerce(name, arguments):
-    """The arguments as the schema declares them, whatever the model sent.
-
-    A smaller model sends `samples="100"`, `ch="ntc"`, `refresh="true"`, and
-    the handler then fails deep with a TypeError the model cannot act on.
-    Measured with llama3.1:8b: the call errored, and it answered "25.00 C"
-    from memory - this board's AFE-off reading, for a board at 37.
-
-    For the ollama side only: the MCP server gets the same protection from the
-    protocol library, which validates against inputSchema before a handler is
-    reached. What cannot be converted raises by name and wanted type; unknown
-    keys pass through for the handlers' **_.
-    """
+    """The arguments as the schema declares them, whatever the model sent."""
     properties = SCHEMAS.get(name) or {}
     coerced = {}
     for key, value in (arguments or {}).items():
@@ -277,7 +249,8 @@ def _boolean(value):
 
 def _coercer(kind):
     """How a declared type takes a value; anything else passes as it came.
-    Looked up at the call, since `_names` is defined further down."""
+    Looked up at the call, since `_names` is defined further down.
+    """
     return {'array': _names, 'boolean': _boolean,
             'integer': lambda value: int(float(value)),
             'number': float}.get(kind, lambda same: same)
@@ -286,23 +259,14 @@ def _coercer(kind):
 def _as(kind, value):
     """One value as one declared type. Raises for anything that will not go."""
     if kind not in ('array', 'boolean') and isinstance(value, bool):
-        # A bool is an int in python, and a model that sent one where a
-        # number belongs has made a mistake worth reporting.
+        # A bool is an int in python, and a model that sent one where a number
+        # belongs has made a mistake worth reporting.
         raise ValueError('not a number')
     return _coercer(kind)(value)
 
 
 def _names(wanted):
-    """Whatever a model spelled a list as, as a list of names.
-
-    Weak models send `ntc` or the string `"['NTC']"`, and `for item in "ntc"`
-    iterates characters - so the tool said `unknown channel 'n'` and the model
-    answered 25.00 C from memory, for a board at 37.
-
-    A bare string is one name, a comma separated one several, and the brackets
-    and quotes of a list that arrived as text are stripped. Anything else
-    still raises, by name.
-    """
+    """Whatever a model spelled a list as, as a list of names."""
     if isinstance(wanted, str):
         wanted = wanted.strip().strip('[]').split(',')
     quotes = '"' + "'"
@@ -310,31 +274,19 @@ def _names(wanted):
 
 
 def _key(text):
-    """A channel name with an author's punctuation removed.
-
-    board_info prints `DC bus`, the short form is `DCbus`, and a model has to
-    guess between `dc_bus`, `dc-bus`, `DC bus` and `dcbus`. Measured:
-    `dc_bus` was refused with `dcbus` listed in the refusal, one underscore
-    away. All four collapse to the same key.
-    """
+    """A channel name with an author's punctuation removed."""
     return re.sub(r'[^a-z0-9]', '', str(text).strip().lower())
 
 
 # The same three phases under the other convention: U/V/W and A/B/C both
 # appear in the same datasheets, so `phase_a` is a spelling, not a mistake.
-# Measured: ch=['ntc','dc_bus','phase_a','phase_b','phase_c'] lost all five
-# readings to the one spelled the other way. The single letters are here
-# because the CSVs in tools/analyze_phase_log.py use them and no channel on
-# this board is one letter.
 PHASE_ALIASES = {
     'phasea': 'phaseu', 'phaseb': 'phasev', 'phasec': 'phasew',
     'a': 'phaseu', 'b': 'phasev', 'c': 'phasew',
     'u': 'phaseu', 'v': 'phasev', 'w': 'phasew',
 }
 
-# A channel by what it measures rather than what it is called. "Read the bus",
-# "what is the temperature" - neither is a spelling any punctuation-stripping
-# reaches. Measured: ch=['bus'] was refused with dcbus listed in the refusal.
+# A channel by what it measures rather than what it is called.
 SIGNAL_ALIASES = {
     'bus': 'dcbus', 'vbus': 'dcbus', 'dc': 'dcbus', 'dclink': 'dcbus',
     'link': 'dcbus', 'busvoltage': 'dcbus', 'voltage': 'dcbus',
@@ -344,18 +296,12 @@ SIGNAL_ALIASES = {
 
 
 def _alias(key, by_name):
-    """The name this board knows, for a name somebody else's board uses.
-
-    Only ever maps onto a channel that exists: a board without a Phase U has
-    no business turning `a` into one.
-    """
+    """The name this board knows, for a name somebody else's board uses."""
     target = PHASE_ALIASES.get(key) or SIGNAL_ALIASES.get(key)
     if target and target in by_name:
         return target
     # Not a name this board knows and not an alias either, but it may still
-    # single one out - `bus` is inside `dcbus` and inside nothing else. One
-    # match resolves; several is genuinely ambiguous and falls through to the
-    # refusal, which lists them.
+    # single one out - `bus` is inside `dcbus` and inside nothing else.
     found = _matches(key, by_name)
     if len(found) == 1:
         return found[0]
@@ -363,26 +309,14 @@ def _alias(key, by_name):
 
 
 def _words(text):
-    """A name split into the words it was built from.
-
-    `BUS_VOLT`, `bus_voltage`, `PhaseAVolt`: a model naming a channel from
-    what it measures writes several words, and none of them is the channel
-    name. Separators and camelCase both split; the pieces are lowercased and
-    the empty ones dropped.
-    """
+    """A name split into the words it was built from."""
     spaced = re.sub(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])',
                     ' ', str(text))
     return [w for w in re.split(r'[^A-Za-z0-9]+', spaced.lower()) if w]
 
 
 def _matches(key, by_name):
-    """Every channel this key could mean, by prefix or containment.
-
-    Containment because of what a model writes: `bus` for `dcbus` was refused
-    outright at the prompt. No edit distance - the failures worth catching are
-    `dcbusvoltage`, `phas` and `bus`, not `ntx`, and a wrong guess sends the
-    next call somewhere confident.
-    """
+    """Every channel this key could mean, by prefix or containment."""
     if not key:
         return []
     return [name for name in sorted(by_name)
@@ -393,11 +327,6 @@ def _index_of(text, by_name, notes):
     """One requested channel as an index: a number, a name, an alias, a
     spelling of one, or the words it was made of - with what it took to get
     there on `notes`.
-
-    Several matches is not a typo, it is a question that has not been
-    narrowed - `phas` on a three-phase board. Naming them beats "unknown",
-    which reads as "no such thing" and sends the next call somewhere else
-    entirely.
     """
     key = _alias(_key(text), by_name)
     if text.isdigit():
@@ -408,11 +337,7 @@ def _index_of(text, by_name, notes):
     found = _matches(key, by_name)
     if not found:
         # Not a name, a spelling of one or a substring of one - so try the
-        # words it is made of. `BUS_VOLT` is not any channel, but `bus` is
-        # exactly one. Measured from the prompt, twice: `A0` and `BUS_VOLT`,
-        # both invented, both refused. A single letter is a phase name (`a`,
-        # `u`) only next to the word that says so: without that rule
-        # `not_a_channel` resolved to PhaseU through its `a`.
+        # words it is made of.
         words = _words(text)
         phased = any(w.startswith('phase') for w in words)
         found = sorted({_alias(w, by_name) for w in words
@@ -434,31 +359,20 @@ def _note(notes, text, key):
 
 
 def _resolve(session, wanted, notes=None):
-    """Turn ['4', 'DC bus'] into channel indices.
-
-    Indices and names are both accepted because a model that has seen
-    board_info knows the names, and one that has not can still count.
-
-    `notes` collects what had to be corrected to get there - a misspelling,
-    an alias, a name assembled out of the words it was made of. The
-    correction happens either way; what the list adds is the operator being
-    told it happened, rather than a question about `temperatur` quietly
-    coming back as a reading of something they did not name.
-    """
+    """Turn ['4', 'DC bus'] into channel indices."""
     wanted = _names(wanted)
     _, _, channels = session.info()
 
     # The schema says "omit for all", so a model that wants everything writes
     # ch=['all'] instead - which is the same request in the words the schema
-    # used. Seen from the prompt, costing a turn.
+    # used.
     if len(wanted) == 1 and _key(wanted[0]) in ('all', 'every', 'everything'):
         return list(range(len(channels)))
     by_name = {_key(render.short(c['signal'], c['index'])): c['index']
                for c in channels}
-    # `ch3` is what an unnamed channel is called, and it stayed addressable
-    # by that after PB1 and PC1 were given real names - a caller counting
-    # channels should not stop working because somebody named one. The real
-    # name wins where the two would collide, which they cannot on this board.
+    # `ch3` is what an unnamed channel is called, and it stayed addressable by
+    # that after PB1 and PC1 were given real names - a caller counting
+    # channels should not stop working because somebody named one.
     for channel in channels:
         by_name.setdefault('ch%d' % channel['index'], channel['index'])
 
@@ -481,13 +395,7 @@ def _split_pin(text):
 
 
 def angle(session, op='read', **_):
-    """The A1335's reading, off the board's poll loop.
-
-    `read` is the angle the loop is keeping; `registers` reads the four the
-    reference library names, which is what a bring-up wants when the angle
-    looks wrong - a field of a few gauss says there is no magnet, and then
-    the angle is noise rather than a fault.
-    """
+    """The A1335's reading, off the board's poll loop."""
     part = session.board.angle
 
     if op == 'registers':
@@ -502,18 +410,7 @@ def angle(session, op='read', **_):
 
 
 def thermal(session, op='state', **_):
-    """The thermal observer behind device 8, as three questions.
-
-    `state` is the one measurement and twenty estimates - the NTC is
-    read, every node is the model's - and the room the model runs
-    against, which it identifies since the board has no ambient sensor.
-    `budget` is the envelope: the worst node against the ceiling in
-    force, what the clamp is doing, the joules left. `ident` is what the
-    identification believes and how sure, and the margin the envelope
-    keeps of every span - the number the board acts on. The bench's
-    rule sends "how hot is the board" to the local model, and until
-    2026-09-06 nothing here could reach device 8.
-    """
+    """The thermal observer behind device 8, as three questions."""
     part = session.board.thermal
     if op == 'budget':
         return render.thermal_budget(part.budget())
@@ -527,9 +424,7 @@ def board_info(session, refresh=False, kind='all', **_):
         return 'ERR unknown kind %r; try %s' % (kind,
                                                 ', '.join(BOARD_INFO_KINDS))
     version, clock, channels = session.info(refresh=refresh)
-    # The pins come from the board too (command 0x6D). An older firmware has
-    # no such command and the analog table alone is the answer, which is why
-    # this is a try and not a required call.
+    # The pins come from the board too (command 0x6D).
     if kind == 'parts':
         # What is fitted, which only the firmware knows: one entry per part,
         # reported by channels kind 4, with what powers each one.
@@ -537,8 +432,8 @@ def board_info(session, refresh=False, kind='all', **_):
         return render.parts(got.get('parts') or [])
 
     if kind == 'subsystems':
-        # What the board is made of, which only the firmware knows: one
-        # entry per command table, reported by channels kind 3.
+        # What the board is made of, which only the firmware knows: one entry
+        # per command table, reported by channels kind 3.
         got = session.board.system.channel_map(refresh=refresh)
         return render.subsystems(got.get('subsystems') or [])
 
@@ -554,19 +449,13 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
                 ntc_beta=None, ntc_r25=None, vref=3.3, **_):
     board = session.board
 
-    # Resolve the arguments BEFORE checking the board's state. A bad channel
-    # name is the caller's mistake and deserves a specific answer; reporting
-    # "the AFE is off" for it would send them after the wrong problem.
+    # Resolve the arguments BEFORE checking the board's state.
     _, _, channels = session.info()
     notes = []
     indices = (_resolve(session, ch, notes) if ch
                else [c['index'] for c in channels])
 
-    # Read either way, and say which it was. Refusing CAUSED a fabricated
-    # reading: with the AFE off the tool raised, and the model wrote
-    # "PhaseU: Mid-scale... NTC: 25.00 C" out of the warning text itself.
-    # Deciding a measurement is not worth taking is also a judgement, which
-    # this board does not make (invariant 10).
+    # Read either way, and say which it was.
     afe_on = bool(board.afe.state().get('on'))
 
     mask = 0
@@ -575,13 +464,7 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
 
     burst = board.analog.burst(mask, samples, rate_hz)
 
-    # Derive only the two quantities whose conversion is known. The phase
-    # channels sit behind unknown AFE gain, so they get pin volts and no more.
-    #
-    # The parameters come from the BOARD's record (invariant 7). An explicit
-    # ntc_r25 or ntc_beta still overrides, for a bench thermistor that is not
-    # the fitted one - but the default is what the board carries, not a
-    # literal that goes stale the moment anyone calibrates.
+    # Derive only the two quantities whose conversion is known.
     own = board.analog.scaling()
     ntc = NtcParams(r25=ntc_r25 or own['ntc'].r25,
                     beta=ntc_beta or own['ntc'].beta,
@@ -607,10 +490,8 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
                 derived[index] = '%.2fC' % ntc.celsius(stats['mean_raw'])
             except ValueError as exc:
                 # A rail reading (a genuinely open or shorted thermistor, not
-                # the AFE-off case - that lands at mid-scale, not a rail) makes
-                # the conversion undefined. One bad derived value must not cost
-                # every other channel's raw code in the same burst: invariant 9
-                # says analog_read returns the codes either way.
+                # the AFE-off case - that lands at mid-scale, not a rail)
+                # makes the conversion undefined.
                 derived[index] = 'no conversion: %s' % exc
         elif meta['signal'] == 'DC bus':
             derived[index] = '%.3fV bus' % divider.volts(stats['mean_raw'])
@@ -621,11 +502,7 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
               'near mid-scale, and the degC and volts below are arithmetic '
               'on that - not a temperature, not a bus voltage. Call '
               'afe_power on to measure.' + '\n')
-    # What had to be corrected to answer at all, above the answer. The
-    # reading was taken either way - refusing a misspelling is worse than
-    # taking it and saying so - but a question about `temperatur` coming
-    # back as a reading of something the operator did not name is exactly
-    # the quiet substitution this file exists to prevent.
+    # What had to be corrected to answer at all, above the answer.
     if notes:
         banner = ('read as asked, with corrections: %s%s'
                   % ('; '.join(notes), '\n')) + banner
@@ -643,13 +520,7 @@ def self_test(session, failures_only=False, **_):
 
 
 def imu(session, op='read', report_id=None, interval_us=None, **_):
-    """The IMU. Reads by default: it is the question that gets asked.
-
-    A read comes off the board's shared record and touches no bus. Anything
-    that does drive SPI2 is wrapped in a hold, because the board polls the
-    part from its own main loop and both at once is two masters on one bus -
-    unheld, every such call answered SERVER DEVICE FAILURE.
-    """
+    """The IMU. Reads by default: it is the question that gets asked."""
     part = session.board.imu
 
     if op == 'id':
@@ -668,9 +539,9 @@ def _imu_feature(part, report_id, interval_us):
         raise ValueError("op='feature' needs report_id - 1 accelerometer, "
                          "2 gyroscope, 3 magnetic field, 5 rotation vector")
     with part.configuring():
-        # The reset is not optional: measured, a Set Feature onto a part
-        # that was already running took no effect and the loop absorbed
-        # nothing afterwards.
+        # The reset is not optional: measured, a Set Feature onto a part that
+        # was already running took no effect and the loop absorbed nothing
+        # afterwards.
         part.reset()
         part.feature(int(report_id), int(interval_us or 0))
     return 'imu: report 0x%02X %s' % (
@@ -685,12 +556,8 @@ ORIENTATION_LOOKS = 20
 
 
 def _rotation_vector(part):
-    """The loop's newest record, with a rotation vector in it when the part
-    is reporting one.
-
-    Enabled only if the loop is not already reporting one: a Set Feature
-    costs a hold and a reset, and doing that on every call would restart
-    the stream this is trying to read.
+    """The loop's newest record, with a rotation vector in it when the part is
+    reporting one.
     """
     got = part.state()
     if got['quaternion'] is not None:
@@ -706,13 +573,7 @@ def _rotation_vector(part):
 
 
 def orientation(session, op='once', **_):
-    """One picture, or a window that keeps drawing them.
-
-    'show' launches tools/show_orientation.py in its own console. That is the
-    one place in this package that opens a window, and it is what "show me
-    the orientation" asks for: a still frame of a thing that moves is not an
-    answer.
-    """
+    """One picture, or a window that keeps drawing them."""
     if op == 'show':
         return _open_orientation_window(session)
 
@@ -728,11 +589,7 @@ def orientation(session, op='once', **_):
 
 
 def _open_orientation_window(session):
-    """Start the live view in a console of its own, and say so.
-
-    The port is handed over explicitly: the window is a separate process and
-    would otherwise probe for a board this session is already holding.
-    """
+    """Start the live view in a console of its own, and say so."""
     tools_dir = os.path.dirname(os.path.abspath(__file__))
     script = os.path.join(os.path.dirname(tools_dir), 'tools',
                           'show_orientation.py')
@@ -766,9 +623,10 @@ def afe_power(session, action='read', **_):
 
 
 def _afe_order(session, action):
-    """An order to every node, not a request. `read` and `toggle` both need
-    the reply a broadcast does not have - toggle because "the other one" is
-    only defined against a state somebody read."""
+    """An order to every node, not a request. `read` and `toggle` both need the
+    reply a broadcast does not have - toggle because "the other one" is only
+    defined against a state somebody read.
+    """
     if action not in ('on', 'off'):
         return ('ERR %s needs a reply and a broadcast has none; '
                 'select one node, or use on/off' % action)
@@ -779,13 +637,7 @@ def _afe_order(session, action):
 
 
 def _afe_switch(session, afe, action):
-    """Switch the rail, and wait out the reference when this turned it on.
-
-    `state()['on']` and not `is_on()`: three stand-ins answer for this
-    subsystem - the library's, the ollama suites' and the board itself -
-    and `state` is the one all three have. Reaching for the other crashed
-    three suites at once.
-    """
+    """Switch the rail, and wait out the reference when this turned it on."""
     was = afe.state()['on']
     {'on': afe.enable, 'off': afe.disable, 'toggle': afe.toggle}[action]()
     if afe.is_on() and not was:
@@ -793,17 +645,7 @@ def _afe_switch(session, afe, action):
 
 
 def _settle(session):
-    """Wait out the reference after AFE_ON went high.
-
-    `on` used to return the moment the pin moved, and a read straight after
-    it caught the reference mid-rise: the NTC came back at mid-scale, the
-    firmware suppressed the temperature, and the reply lost its C and V bus
-    columns. A tool that says the front end is on and hands back a reading
-    that is not one is worse than a slow tool.
-
-    The interval is the OBSERVER's, read off the board - it settles for the
-    same reason and the number belongs there, not here (invariant 7).
-    """
+    """Wait out the reference after AFE_ON went high."""
 
     try:
         wait = session.board.thermal.state()['sample_settle_s']
@@ -827,12 +669,7 @@ def gpio_pin(session, op='read', pin='B2', level=False, mode='input',
 
 
 def _interface(session):
-    """How the host reaches this bus, for the list's own header.
-
-    Asked of the session rather than passed in: `devices` is called from
-    the MCP server and from the ollama loop, and only one of those has an
-    Origin to hand.
-    """
+    """How the host reaches this bus, for the list's own header."""
     if session.simulated or session.port is None:
         return 'Simulated'
     port = session.port
@@ -862,13 +699,7 @@ def _sweep(session, first, last, bus=None):
 
 def devices(session, op='list', unit=None, name=None, bus=None,
             first=1, last=16, **_):
-    """The other units on this bus, and which one the tools talk to.
-
-    One board is a bus of one. Several - a machine built out of them - are
-    the same firmware at different unit ids, told apart by the identity
-    each one reports for itself. Selecting one is a session change, so
-    every other tool follows it without an argument of its own.
-    """
+    """The other units on this bus, and which one the tools talk to."""
     here = (session.bus, session.unit)
     if op == 'buses':
         counts = [(label, serves,
@@ -884,10 +715,11 @@ def devices(session, op='list', unit=None, name=None, bus=None,
 
 
 def _named(found, name):
-    """The nodes `name` picks out by what they call themselves, across
-    every segment: "the right knee" is one node on one bus, and the
-    operator should not have to know which. A name that is on two -
-    "knee" - names both rather than picking."""
+    """The nodes `name` picks out by what they call themselves, across every
+    segment: "the right knee" is one node on one bus, and the operator
+    should not have to know which. A name that is on two - "knee" - names
+    both rather than picking.
+    """
     key = _key(name)
     return [(b, u) for b, u, v in found
             if key in _key(v.get('where', ''))
@@ -895,12 +727,11 @@ def _named(found, name):
 
 
 def _use(session, here, unit, name, bus, first, last):
-    """Point the session at one node, by unit or by name - or at every
-    node at once, which Modbus spells 0."""
+    """Point the session at one node, by unit or by name - or at every node at
+    once, which Modbus spells 0.
+    """
     if unit is not None and int(unit) == protocol.BROADCAST:
         # Never in the scan, and never will be: nothing answers at 0.
-        # Selectable all the same, because an order to every node on
-        # the bus is a real thing to want and Modbus spells it 0.
         session.use(protocol.BROADCAST)
         return ('multicast: every node on the bus acts, none answers. '
                 'Reads are refused here; an order still goes out. '
@@ -918,9 +749,9 @@ def _use(session, here, unit, name, bus, first, last):
     if unit is None:
         bus, unit = hit[0]
     if (bus or here[0], int(unit)) not in [(b, u) for b, u, _ in found]:
-        # Not a refusal for its own sake: pointing the session at a
-        # unit nobody is at makes every later call time out, and the
-        # operator reads that as the board having died.
+        # Not a refusal for its own sake: pointing the session at a unit
+        # nobody is at makes every later call time out, and the operator reads
+        # that as the board having died.
         return ('ERR no node at %s %s; answering: %s'
                 % (bus or here[0], unit,
                    ', '.join('%s %d' % (b, u) for b, u, _ in found)
@@ -931,13 +762,7 @@ def _use(session, here, unit, name, bus, first, last):
 
 
 def digital_read(session, **_):
-    """The level of every digital I/O channel, from the board's own map.
-
-    One call for the question "what are the digital values", which
-    otherwise took a gpio_pin per pin, or a gpio_port and the model picking
-    bits out of a register - arithmetic this library exists not to hand it.
-    Reads only: no gate, nothing driven.
-    """
+    """The level of every digital I/O channel, from the board's own map."""
     pins = session.board.system.channel_map()['digital']
     gpio = session.board.gpio
     rows = []

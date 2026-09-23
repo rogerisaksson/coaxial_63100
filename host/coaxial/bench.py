@@ -1,21 +1,4 @@
-"""How much of the wire a transaction actually uses.
-
-A bitrate is a ceiling nobody reaches. 8N1 puts ten bits on the wire per
-byte, so 115200 baud carries 11 520 bytes a second and not one more; what a
-round trip costs on top of that is turnaround, driver latency and the gap
-that ends a frame, and none of it scales with the payload. This measures the
-gap between the two.
-
-    frame_seconds = bytes_on_the_wire * 10 / baud
-
-`efficiency` is that over the measured round trip. A ping is nearly all
-overhead by construction and a full block is where the link starts paying
-for itself, so the interesting number is not either one alone - it is how
-fast the curve climbs between them.
-
-Nothing here judges a link. It reports what it measured against what the
-bitrate allows (invariant 10).
-"""
+"""How much of the wire a transaction actually uses."""
 import time
 
 from . import protocol
@@ -87,11 +70,7 @@ def _time(call, rounds):
 
 
 def ping(board, rounds=40):
-    """The smallest transaction there is: an echo carrying nothing.
-
-    Four bytes out, four back, and every millisecond past 0.7 of them at
-    115200 is something other than the wire.
-    """
+    """The smallest transaction there is: an echo carrying nothing."""
     baud = board.baud
     return Result('ping', FRAME_OVERHEAD, FRAME_OVERHEAD,
                   _time(lambda: board.link.echo(b''), rounds), baud)
@@ -108,11 +87,7 @@ def echo_block(board, size, rounds=20):
 
 
 def receive_block(board, rounds=20):
-    """A small ask for the largest reply the board sends: the ring's burst.
-
-    The download direction on its own. Nothing symmetrical can separate the
-    two, and this is the shape a capture actually runs in.
-    """
+    """A small ask for the largest reply the board sends: the ring's burst."""
 
     board.capture.arm(['angle'])
     time.sleep(0.3)
@@ -155,9 +130,7 @@ def _verdict(results):
     """What the numbers say about the wire, in one line."""
     baud = results[0].baud
     if any(r.efficiency > 1.0 for r in results):
-        # A number from nowhere and one from hardware must not look
-        # alike. Nothing can beat its own bitrate, so this is the only
-        # thing it can mean.
+        # A number from nowhere and one from hardware must not look alike.
         return ('faster than %d baud allows, which is not a link being '
                 'quick - it is the stand-in, with no wire to be slow' % baud)
     return ('%d baud 8N1 carries %d B/s; the flat cost of a transaction '

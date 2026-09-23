@@ -1,5 +1,6 @@
-"""Invented readings: the channel table, nominals, drift, sweep and
-tumble textures every simulated device draws from."""
+"""Invented readings: the channel table, nominals, drift, sweep and tumble
+textures every simulated device draws from.
+"""
 import math
 import random
 import time
@@ -33,28 +34,19 @@ CHANNELS = [
      'differential': False, 'signal': 'DC bus'},
     {'index': 6, 'adc': 3, 'channel': 11, 'pin': 'PC1',
      'differential': False, 'signal': 'Cinj'},
-    # The two supply senses. No unit, because their dividers are not in the
-    # calibration record yet, so a host reads volts at the pin - x2.00 for
-    # the +5 rail and x6.70 for the gate supply, per R113 and R119.
+    # The two supply senses.
     {'index': 7, 'adc': 1, 'channel': 18, 'pin': 'PA4',
      'differential': False, 'signal': '+5V'},
     {'index': 8, 'adc': 1, 'channel': 19, 'pin': 'PA5',
      'differential': False, 'signal': 'Vgate'},
-    # The die's own thermometer: no pin, and ADC3 only. Channel 18 is what
-    # the board answered with - LL_ADC_CHANNEL_TEMPSENSOR has three variants
-    # behind preprocessor conditions, so it could not be read off the source.
+    # The die's own thermometer: no pin, and ADC3 only.
     {'index': 9, 'adc': 3, 'channel': 18, 'pin': 'internal',
      'differential': False, 'signal': 'MCU die'},
 ]
 
 # Roughly what a live board reads with the front end on, AFE gain and all -
 # not a calibrated value, just something to drift around so a repeated read
-# does not look frozen. Phase channels stay near their own nominal point;
-# NTC and DC bus get a slightly wider walk since those are what a question
-# is usually about.
-# 7 and 8 are the supply senses, near what the board reads: +5 through a
-# 10 k/10 k divider is 2.55 V of 3.3, and the gate supply sits near zero
-# because the STO chain has not released it.
+# does not look frozen.
 NOMINAL = {0: 1400.0, 1: -8030.0, 2: 360.0, 3: 1010.0, 4: 41000.0,
           5: 20775.0, 6: 16500.0, 7: 50700.0, 8: 1030.0,
           9: 33000.0}
@@ -102,14 +94,7 @@ GUST = 2.8
 
 
 def _sweep(index):
-    """Where a simulated channel sits right now.
-
-    Invented, and deliberately not still: the three phases run 120 degrees
-    apart like a machine turning, and the rest wander. Every number this
-    module produces is made up - see the module docstring - and a moving one
-    is no more a measurement than a still one. It is here so the views can be
-    demonstrated and developed without a cable.
-    """
+    """Where a simulated channel sits right now."""
     if index not in SWING:
         return 0.0
     turn = time.time() * SWEEP_HZ * 2.0 * math.pi
@@ -129,11 +114,12 @@ AMPS_PER_CODE = 3.3 / 32768.0 / (0.0035 * 1500.0 / 330.0)
 
 
 def phase_codes(signal, amps, theta):
-    """The machine's current on one phase, in codes a sample: `amps` of
-    stator current at electrical angle `theta`, put into the leg's own
-    phase. Zero on anything that is not a phase, and zero with the stage
-    down. ONE PLACE: the DAQ's records and the analog reads draw the
-    same current from it, so a tare through the one zeroes the other."""
+    """The machine's current on one phase, in codes a sample: `amps` of stator
+    current at electrical angle `theta`, put into the leg's own phase. Zero
+    on anything that is not a phase, and zero with the stage down. ONE
+    PLACE: the DAQ's records and the analog reads draw the same current from
+    it, so a tare through the one zeroes the other.
+    """
     leg = PHASE_LEG.get(signal)
     if leg is None or not amps:
         return 0.0
@@ -141,12 +127,7 @@ def phase_codes(signal, amps, theta):
 
 
 def _spread(meta, mean, powered, extra=0.0):
-    """One burst's mean and its two extremes, as the board reports them.
-
-    With the front end off there is nothing to ripple: invariant 9 says the
-    input sits exactly at its rail, and a stand-in that jitters there would
-    teach the opposite of what the invariant is for.
-    """
+    """One burst's mean and its two extremes, as the board reports them."""
     index = meta['index']
     if not powered:
         return {'mean_raw': mean, 'min_raw': int(mean), 'max_raw': int(mean)}
@@ -178,18 +159,13 @@ PITCH_TURNS = 2.0
 
 
 def _tumble(seq, unit):
-    """(i, j, k, real) counts for the stand-in's attitude, at this sequence.
-
-    Invented, like every value in this file - see the module docstring. A
-    moving one is no more a measurement than a still one; it is here so the
-    views can be developed without a cable.
-    """
+    """(i, j, k, real) counts for the stand-in's attitude, at this sequence."""
     roll = seq * ROLL_TURNS * 2.0 * math.pi / 256.0
     pitch = seq * PITCH_TURNS * 2.0 * math.pi / 256.0
     sin_r, cos_r = math.sin(roll / 2.0), math.cos(roll / 2.0)
     sin_p, cos_p = math.sin(pitch / 2.0), math.cos(pitch / 2.0)
 
-    # Nod about Y, then roll about X - the product of the two, in the
-    # (i, j, k, real) order a rotation vector is reported in.
+    # Nod about Y, then roll about X - the product of the two, in the (i, j,
+    # k, real) order a rotation vector is reported in.
     return (int(sin_r * cos_p * unit), int(cos_r * sin_p * unit),
             int(-sin_r * sin_p * unit), int(cos_r * cos_p * unit))

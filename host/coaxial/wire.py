@@ -1,20 +1,4 @@
-"""Binary payload codecs, mirroring comms/inc/wire.h on the firmware side.
-
-Big-endian throughout, matching every field in a Modbus PDU except the CRC.
-No floating point ever goes on the wire: physical quantities travel as scaled
-integers in units the command documents, and the scaling happens here or in
-scaling.py where it can be parameterised.
-
-The scales are named once. A field documented as centi-degrees is read with
-`r.centi()` and written with `centi(value)`, not divided by a literal at
-every call site that has to get it right - invariant 7 applied to the wire:
-the conversion is named where it is defined, and defined once.
-
-The firmware's writer is deliberately total - it sets a sticky flag rather than
-failing at the point of use - because that keeps the C handlers flat. The host
-has exceptions, so the reader raises instead. Same contract, idiomatic on each
-side.
-"""
+"""Binary payload codecs, mirroring comms/inc/wire.h on the firmware side."""
 import struct
 
 from .errors import PayloadError
@@ -61,22 +45,12 @@ def bits(word, names):
 
 
 def label(names, index, kind):
-    """`names[index]`, or `kind` and the number for one past the table.
-
-    A board can answer more rows than this host has names for - a node
-    added to the thermal graph, a scale the identification grew - and
-    'node11' beside the named ones is honest where an IndexError is not.
-    """
+    """`names[index]`, or `kind` and the number for one past the table."""
     return names[index] if index < len(names) else '%s%d' % (kind, index)
 
 
 def pack(*fields):
-    """Encode ('u16', 1234), ('u8', 7), ... into a request payload.
-
-    Naming the width at each field rather than passing a format string keeps a
-    call site readable next to the command's documented layout. A value that
-    does not fit its width is a ValueError here, before a request is formed.
-    """
+    """Encode ('u16', 1234), ('u8', 7), ... into a request payload."""
     out = []
     for kind, value in fields:
         try:
@@ -90,15 +64,7 @@ def pack(*fields):
 
 
 def pages(fetch, absent=(), first=0):
-    """Every page of a paged reply, until the board says that was the last.
-
-    `fetch(first)` asks for the rows from `first` on and returns the
-    payload; each page's header says how many rows there are in all, where
-    this one starts and how many it holds - `Page` reads it. `absent` names
-    the exceptions that mean an older firmware has no such op, which ends
-    the walk with what was read rather than raising: an empty list says so
-    without making the whole map fail.
-    """
+    """Every page of a paged reply, until the board says that was the last."""
     while True:
         try:
             page = Page(fetch(first))
@@ -111,14 +77,7 @@ def pages(fetch, absent=(), first=0):
 
 
 class Reader:
-    """Forward-only reader over a response payload.
-
-    Raises PayloadError on underrun rather than returning filler, so a truncated
-    reply surfaces as an error at the field that was missing instead of as a
-    plausible zero somewhere downstream. The scaled readers - `centi`,
-    `milli`, `micro`, `nano`, `q16`, `fraction` - read a field in the unit
-    the command documents it in.
-    """
+    """Forward-only reader over a response payload."""
 
     def __init__(self, payload):
         self.payload = payload
@@ -138,12 +97,7 @@ class Reader:
         return struct.unpack(_FORMATS[width], self.take(_SIZES[width]))[0]
 
     def maybe(self, width):
-        """The next field, or None when the reply stopped before it.
-
-        Payloads are append-only (invariant 3): a board older than the MINOR
-        that appended a field answers a reply that ends before it, and
-        absent is the honest answer - not a raise, and not a zero.
-        """
+        """The next field, or None when the reply stopped before it."""
         return self.field(width) if self.remaining >= _SIZES[width] else None
 
     def u8(self):
@@ -202,8 +156,9 @@ class Reader:
 
 
 class Page(Reader):
-    """One page of a paged reply: `total` rows in all, `first` where this
-    page starts, `count` how many it holds - and then the rows."""
+    """One page of a paged reply: `total` rows in all, `first` where this page
+    starts, `count` how many it holds - and then the rows.
+    """
 
     def __init__(self, payload):
         super().__init__(payload)

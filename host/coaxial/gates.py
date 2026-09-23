@@ -1,21 +1,4 @@
-"""The gate drive: the board's raw ops, and the policy for arming them.
-
-Two things here, and the split is the point.
-
-`GateControl` is what the board answers - the twelve ops behind `0x6E` device
-4. `GateDrivers` and the stand-in both implement it, which is what stops the
-stand-in drifting from the part it stands in for.
-
-`GateStage` is the policy on top: what has to hold before MOE is set, and what
-to put back afterwards. It lived on `Coaxial63100` as six methods that each
-named the subsystem they acted on - `arm_gate_drivers`, `gate_drivers_armed`,
-`gate_drivers_check`, `configure_pwm`, `stop_pwm` - which said it once in the
-receiver and again in the name. Said once here.
-
-The policy is deliberately not on `GateControl`. The board's ops are a dumb
-slave's (invariant 10) and a stand-in has to answer them identically; refusing
-to arm on an interlock is a host's judgement, and there is exactly one of it.
-"""
+"""The gate drive: the board's raw ops, and the policy for arming them."""
 from abc import ABC, abstractmethod
 
 from .errors import RigError
@@ -39,14 +22,7 @@ class GateControl(ABC):
 
     @abstractmethod
     def duty(self, ticks, periods=0):
-        """All three compares in timer ticks, or none of them.
-
-        A half update runs one cycle with two phases from this call and one
-        from the last. `periods` > 0 holds the triple for exactly that many
-        PWM periods - the board's update interrupt zeroes the compares when
-        the count runs out, so the hold's length stops being the link's
-        (MINOR 8; older firmware refuses the longer payload).
-        """
+        """All three compares in timer ticks, or none of them."""
 
     @abstractmethod
     def duty_fine(self, ticks):
@@ -54,8 +30,9 @@ class GateControl(ABC):
 
     @abstractmethod
     def alternate(self, ticks_a, ticks_b):
-        """Two triples, A one period and B the next, swapped by the board
-        every PWM period until the next duty write."""
+        """Two triples, A one period and B the next, swapped by the board every
+        PWM period until the next duty write.
+        """
 
     @abstractmethod
     def dead_time(self, nanoseconds=None, skew=None):
@@ -88,13 +65,7 @@ class GateControl(ABC):
 
 class GateStage:
 
-    """Arming a power stage, and the checks that come first.
-
-    One object because the checks are not optional decoration: `arm()` runs
-    `check()` and the interlock before it sets MOE, and both are reachable on
-    their own so a view can show the conditions coming up rather than only
-    learning of them when an arm is refused.
-    """
+    """Arming a power stage, and the checks that come first."""
 
     #: What the schematic wants true before the gate drive is armed, as volts
     #: at the pin. The charge pump has to have pumped and the level detector
@@ -130,11 +101,7 @@ class GateStage:
         return bool(self.control.state()['pwm_enabled'])
 
     def interlock(self):
-        """What the arming conditions read now, and which of them hold.
-
-        Measured every time. Returns a list of (name, volts, ok, want) - it
-        does not raise, so a view can show the conditions coming up.
-        """
+        """What the arming conditions read now, and which of them hold."""
         if not self._board.afe.is_on():
             # AFE_ON powers the reference, so with it off every one of these
             # reads exact mid-scale and would pass or fail by accident.
@@ -151,14 +118,7 @@ class GateStage:
         return [('AFE_ON', None, True, None)] + rows
 
     def check(self):
-        """Refuse a stage with no dead time, or with a leg's gates shorted.
-
-        Dead time is the one thing between the two FETs of a leg. Read every
-        time rather than trusted once: a `.ioc` regeneration, a CubeMX mode
-        name bound to the wrong channel - which has happened twice here - or a
-        stray BDTR write all land in the same place, and none of them announce
-        themselves.
-        """
+        """Refuse a stage with no dead time, or with a leg's gates shorted."""
         state = self.control.state()
         if not state['deadtime']:
             raise RigError(
@@ -176,37 +136,14 @@ class GateStage:
         return state
 
     def dead_time(self, nanoseconds=None, skew=None):
-        """Read the dead time, or set it and its skew.
-
-        Here because this is the front door to the stage and the dead time is
-        the stage's most consequential number - CLAUDE.md has said
-        `rig.gates.dead_time(...)` since before it existed here, and a tool
-        written against that got AttributeError.
-
-        The refusals are the board's: under its 20 ns floor, or a skew that
-        would take either half of the pair under it.
-        """
+        """Read the dead time, or set it and its skew."""
         if skew is None:
             return self._board.gate_drivers.dead_time(nanoseconds)
         return self._board.gate_drivers.dead_time(nanoseconds, skew=skew)
 
 
     def arm(self, bypass_sto=False, ignore_interlock=False):
-        """Set MOE. Nothing switches before this and everything can after.
-
-        **This arms a power stage**, at zero duty - all three low sides on, a
-        braked stage rather than a floating one.
-
-        TIM1's dead time is the only protection: the 2EDL8034's inputs are
-        independent and it has no interlock. Measured in the silicon, not the
-        `.ioc` - BDTR DTG 19, CR1 CKD 00, 237.5 MHz, so **80.0 ns** against
-        about 65 ns needed. `check()` re-reads it and refuses at zero.
-
-        `ignore_interlock` skips `INTERLOCK`, which this bench board needs:
-        Cinj reads 0.77 V and Clevel 0.06 V against 3 V each. `bypass_sto`
-        disconnects the break input, without which a latched break outranks
-        this. Both are decisions, which is why neither is silent.
-        """
+        """Set MOE. Nothing switches before this and everything can after."""
         self.check()
         if not ignore_interlock:
             self._require_interlock()
@@ -238,9 +175,7 @@ class GateStage:
 
     def disarm(self, keep_bypass=False):
         """Clear MOE, and put the break input back unless told otherwise."""
-        # The flag drops only once the board confirmed. Cleared first, a
-        # disable that raises leaves this session sure it owns nothing -
-        # and close() then walks past a stage it armed.
+        # The flag drops only once the board confirmed.
         self.control.disable()
         self._armed_here = False
         if not keep_bypass:

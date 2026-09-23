@@ -1,27 +1,4 @@
-"""Command codes and the versioning contract.
-
-The codes live in the two ranges the Modbus specification reserves for
-user-defined functions, 65..72 and 100..110. Nothing here is invented namespace.
-
-VERSIONING
-----------
-Command VERSION is the frozen one. Its payload begins with the protocol major
-and minor, so a host of any vintage can read two bytes, decide whether it
-understands the device, and stop. Fields may only ever be APPENDED after that:
-an old host decodes the prefix it knows and ignores the rest. Reordering or
-resizing an existing field creates a new MAJOR whether or not that was intended.
-
-A host selects its codec on the protocol MAJOR alone. The firmware version is
-for the test record - binding a host to firmware numbers means every rebuild of
-the firmware breaks the host.
-
-THE DEVICES
------------
-0x6E carries every peripheral, chosen by a device byte, and each device's ops
-are an `IntEnum` here - `ThermalOp.STATE`, `DriveOp.MODE` - so the op a
-subsystem sends and the op the length oracle proves are one name. The op
-tables mirror `comms/inc/cmd.h`; the subsystem behind each is named beside it.
-"""
+"""Command codes and the versioning contract."""
 from enum import IntEnum
 
 # Application commands, Modbus user range 65..72.
@@ -182,8 +159,9 @@ class PowerOp(IntEnum):
 
 
 class BootOp(IntEnum):
-    """Device 11, the bootloader - `coaxial.boot`; a running application
-    serves STATE and STAY and refuses the rest in words."""
+    """Device 11, the bootloader - `coaxial.boot`; a running application serves
+    STATE and STAY and refuses the rest in words.
+    """
     HOLD = 0
     WHO = 1
     ASSIGN = 2
@@ -219,8 +197,9 @@ class DriveOp(IntEnum):
 
 
 class MapKind(IntEnum):
-    """What command 0x6D is asked for: the sections of the channel map,
-    and the two lists that ride beside it."""
+    """What command 0x6D is asked for: the sections of the channel map, and the
+    two lists that ride beside it.
+    """
     ANALOG = 0
     DIGITAL = 1
     RESERVED = 2
@@ -231,25 +210,14 @@ class MapKind(IntEnum):
 CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               'bus_r_top_ohm', 'bus_r_bottom_ohm',
               'ntc_r25_ohm', 'ntc_beta_mk', 'ntc_rfixed_ohm', 'ntc_t25_ck',
-              # ids 9..12, the two supply-sense dividers. Missing here
-              # until 2026-08-28: the board sends 13 parameters and
-              # this list named 9, so the reader stopped four u32
-              # early and read the channel count out of the middle of
-              # parameter 10. It came out 0, so every caller had an
-              # empty channel list and nothing said so.
+              # ids 9..12, the two supply-sense dividers.
               'r5_r_top_ohm', 'r5_r_bottom_ohm',
               'vg_r_top_ohm', 'vg_r_bottom_ohm',
-              # id 13, the half-bridge dead time. In the record because it is
-              # the one number between the two FETs of a leg, and a compiled
-              # constant means the board carries whatever the last flash held.
+              # id 13, the half-bridge dead time.
               'deadtime_ns',
-              # id 14, the lead-lag trim in DTG counts. The gate drive is
-              # asymmetric by design, so the two transitions of a leg need
-              # not want the same dead time.
+              # id 14, the lead-lag trim in DTG counts.
               'deadtime_skew',
-              # ids 15..44, CAL_VERSION 8: what the drive is told. The
-              # names carry the unit; coaxial.drive.PARAMS carries the
-              # scale, so a commissioning writes SI.
+              # ids 15..44, CAL_VERSION 8: what the drive is told.
               'motor_r_uohm', 'motor_ld_nh', 'motor_lq_nh',
               'motor_lambda_uvs', 'motor_pole_pairs',
               'drv_kp_mv_per_a', 'drv_ki_v_per_as',
@@ -261,15 +229,12 @@ CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               'drv_dt_mv0', 'drv_dt_mv1', 'drv_dt_mv2', 'drv_dt_mv3',
               'drv_dt_mv4', 'drv_dt_mv5', 'drv_dt_mv6', 'drv_dt_mv7',
               'drv_sigma_i_ua', 'drv_trigger_ticks',
-              # id 45, CAL_VERSION 9: the RS485 pair's baud, applied to
-              # USART2 and UART5 at init. USART3 never follows it - the
-              # debug probe stays the recovery path at 115200.
+              # id 45, CAL_VERSION 9: the RS485 pair's baud, applied to USART2
+              # and UART5 at init.
               'link_baud',
-              # ids 46..48, CAL_VERSION 12: the winding's envelope - K/W
-              # to the air and J/K in milli, and a ceiling in
-              # centi-degrees that zero disables. The one node that is
-              # not on the board, so the stage throttles on the motor's
-              # SOA as well as the switches'.
+              # ids 46..48, CAL_VERSION 12: the winding's envelope - K/W to
+              # the air and J/K in milli, and a ceiling in centi-degrees that
+              # zero disables.
               'winding_k_per_w_milli', 'winding_j_per_k_milli',
               'winding_limit_centi')
 """The record's scalars, in the order 0x6E device 3 op 0 sends them, and the
@@ -341,16 +306,11 @@ STANDARD_COUNT_AT = 5
 
 
 def request_length(pdu, have=None):
-    """Full PDU length of the request these bytes begin, or 0 when the
-    bytes so far cannot prove it - the Python mirror of the firmware's
+    """Full PDU length of the request these bytes begin, or 0 when the bytes so
+    far cannot prove it - the Python mirror of the firmware's
     `cmd_length.c`, which is the authority. The suite binds the two: the
-    prefix sweep in test_modbus_core drives every hinted shape through
-    BOTH and fails on any disagreement, so this cannot drift quietly.
-
-    What it is for: since MINOR 9 the board dispatches a proven request
-    on its own CRC instead of after t3.5 of silence, and a host that
-    just sent a proven frame owes no inter-frame gap before its next -
-    the previous frame cannot still be open on the board's side.
+    prefix sweep in test_modbus_core drives every hinted shape through BOTH
+    and fails on any disagreement, so this cannot drift quietly.
     """
     have = len(pdu) if have is None else have
     if have == 0:

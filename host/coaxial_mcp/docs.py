@@ -1,35 +1,10 @@
-"""The repository's own documents, reachable from a prompt.
-
-`docs/` exists so nobody re-derives what took measurements to establish, and
-until this module the one reader who could not open it was the model at the
-bench: `run_python` could read a file, but nothing said which files or that they
-were worth reading.
-
-Index first, section second, because the tool list is re-read every turn and
-returning a whole document by default would cost more than it saves - by
-context.approx_tokens the seven run 526 to 4888 tokens, CLAUDE.md largest and
-FINDINGS.md 1585. So:
-
-    docs()                          every document, its headings, its size
-    docs(doc='FINDINGS')            one document's headings
-    docs(doc='MODELS', section='Threads')
-    docs(find='25.00')              where a phrase appears, with its heading
-
-Sections are clipped and say so rather than trailing off; a model needing the
-rest asks for the subsection by name.
-
-Read-only by construction: one fixed directory, a name allowlist built from
-what is on disk, no path from the arguments to the filesystem.
-"""
+"""The repository's own documents, reachable from a prompt."""
 import os
 import re
 
 from .detail import TERSE
 
-# The documents a bench question can reach. CLAUDE.md and README.md are in
-# here too: they are where the invariants and the commands live, and a model
-# asking "what is AFE_ON for" should find that answer in the same place as the
-# rest.
+# The documents a bench question can reach.
 NAMES = ('README', 'CLAUDE', 'ARCHITECTURE', 'PROTOCOL', 'HARDWARE',
          'FINDINGS', 'MODELS')
 
@@ -37,11 +12,7 @@ CLIP = 4000        # characters of one section, about a thousand tokens
 FIND_HITS = 12     # lines reported for a search, before it is a document dump
 
 # The same two numbers for a reader paying for them out of 8192 tokens shared
-# with the conversation and the readings. Under a third of the section and
-# half the hits: enough to answer the question that was asked, not enough to
-# spend the window on background. See detail.py - which level is in force is
-# decided from the model, not here, and a section clipped shorter still says
-# so and still names the way to ask for the rest.
+# with the conversation and the readings.
 CLIP_TERSE = 1200
 FIND_HITS_TERSE = 6
 
@@ -54,12 +25,7 @@ def _limits(level):
 
 
 def root():
-    """The repository root, from this file rather than the shell's cwd.
-
-    host/coaxial_mcp/docs.py -> host/coaxial_mcp -> host -> the repository.
-    Resolved on each call: cheap, and a stale module-level constant survives a
-    move of the tree in a way that is annoying to debug.
-    """
+    """The repository root, from this file rather than the shell's cwd."""
     here = os.path.dirname(os.path.abspath(__file__))
     return os.path.dirname(os.path.dirname(here))
 
@@ -99,15 +65,7 @@ INDEX_HEADS = 12
 
 
 def index(level=None):
-    """Every document, its headings, and what a full read would cost.
-
-    Terse drops two of those three and keeps the one that matters: the cost
-    estimate goes (choosing what to read by token count is not what a bench
-    question is doing), the subsection headings go, and the chapters stay -
-    because a chapter name is how the next call is spelled. The line saying
-    how to make that call stays at both levels: a cheaper index that teaches
-    nothing costs more over a session than it saves in a turn.
-    """
+    """Every document, its headings, and what a full read would cost."""
     terse = level == TERSE
     lines = []
     for name, path in sorted(paths().items()):
@@ -120,11 +78,7 @@ def index(level=None):
                          % (name, text.count('\n') + 1, len(text) // 4))
 
         shown = [h for h in heads if not (terse and h[0] > 2)]
-        # A LOG DOES NOT GET A LINE EACH. FINDINGS is a record and grows for
-        # ever, so listing every heading made the index grow with it - and
-        # the index is what a model reads on the way to deciding what to
-        # read at all. The newest are what a bench question is about; the
-        # rest are one `doc=FINDINGS` away, which the line below says.
+        # A LOG DOES NOT GET A LINE EACH.
         clipped = len(shown) - INDEX_HEADS
         if clipped > 0:
             shown = shown[-INDEX_HEADS:]
@@ -145,17 +99,14 @@ def index(level=None):
 def outline(name, level=None):
     """One document's headings. The same at either level: this is already
     nothing but titles, and a shorter list of titles is a document the model
-    cannot ask about by name."""
+    cannot ask about by name.
+    """
     found = paths()
     if name not in found:
         raise ValueError('no document %r; have %s'
                          % (name, ', '.join(sorted(found))))
     text = _read(found[name])
-    # The instruction goes first, not last. A small model handed an outline
-    # will otherwise answer out of a heading - measured here: asked why the NTC
-    # reads exactly 25.00, qwen2.5:14b took the heading "The NTC channel is not
-    # anomalous, it is quiet" and stopped, which is a different finding about a
-    # different thing.
+    # The instruction goes first, not last.
     lines = ["%s: headings only, %d lines. Titles, not answers - "
              "docs(doc='%s', section=TITLE) for the text, "
              "docs(find=TEXT) to search."
@@ -166,12 +117,7 @@ def outline(name, level=None):
 
 
 def section(name, wanted, level=None):
-    """One section, matched loosely on its heading, clipped.
-
-    Loose matching because a model quoting a heading back gets the case or a
-    trailing word wrong often enough to matter, and the alternative - an error
-    for 'Threads' against '### Threads' - teaches it to stop asking.
-    """
+    """One section, matched loosely on its heading, clipped."""
     found = paths()
     if name not in found:
         raise ValueError('no document %r; have %s'
@@ -183,8 +129,7 @@ def section(name, wanted, level=None):
 
     # `depth` throughout, not `level`: the heading's depth and the detail
     # level are two different numbers and the second one is a parameter of
-    # this function. They were both called level for one revision, and the
-    # clip below silently read a heading depth of 2 as its detail level.
+    # this function.
     hit = None
     for position, (depth, title, line_no) in enumerate(heads):
         low = title.lower()
@@ -228,12 +173,7 @@ def find(needle, level=None):
                 continue
 
             # BOTH ancestors, chapter and entry, because in FINDINGS the
-            # chapter is the meaning. Measured here: asked what had been ruled
-            # out about the phase V offset, qwen2.5:14b found the entry
-            # '"PCSEL accumulation explains the Phase V offset"' and reported
-            # it as the explanation - and that entry lives under
-            # "Ruled Out". A hit without its chapter can say the opposite of
-            # what the document says.
+            # chapter is the meaning.
             chapter = entry = ''
             for level, title, head_line in heads:
                 if head_line > number:
@@ -255,10 +195,6 @@ def find(needle, level=None):
 
 def docs(session=None, doc=None, section=None, find=None, detail=None, **_):
     """The tool entry point. `session` is unused - documents are not the board.
-
-    Named the same as the module's own functions on purpose: the tool argument
-    is the noun the model uses, and shadowing inside this one function is
-    cheaper to read than an argument called `section_name`.
     """
     if find:
         return globals()['find'](find, detail)

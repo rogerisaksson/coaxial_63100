@@ -1,19 +1,4 @@
-"""One process owns the serial port; everything else asks it.
-
-WHY. The link is one wire and one slave, so two masters split a frame - the
-same lesson SPI2 taught the IMU. Every tool here used to own the port
-outright, which made switching the gate drivers and watching the heat two
-processes and one port, and made looking at a running test impossible.
-
-WHAT CROSSES. Modbus requests, unchanged: unit, function code, payload. The
-broker does not interpret any of it and holds no state of its own, so it
-cannot become a second protocol to keep in step with the first. It serialises
-access and nothing else.
-
-ERRORS CROSS AS THEMSELVES. A refusal from the board arrives at the client as
-the same `coaxial.errors` class it would have raised in-process, carrying the
-board's own sentence. Invariant 8 does not stop at a socket.
-"""
+"""One process owns the serial port; everything else asks it."""
 import json
 import os
 import socket
@@ -56,21 +41,12 @@ def _line(payload):
 
 
 def _rebuild(answer):
-    """The exception the far side raised, as itself.
-
-    Not every class takes one string: ModbusException is built from the
-    unit, the function and the reason code, and calling it with the message
-    raised a TypeError that hid the board's actual refusal - measured, a
-    whole switching run lost to `missing 2 required positional arguments`.
-    The arguments cross with it, and the message is the fallback.
-    """
+    """The exception the far side raised, as itself."""
     kind = getattr(errors, answer['error'], errors.RigError)
 
-    # By FIELD, not by args: ModbusException formats its message in
-    # __init__, so `args` is that one string and rebuilding from it gets
-    # `missing 2 required positional arguments`. Its attributes are named
-    # exactly like its parameters - unit, function, code - which is the
-    # whole trick and holds for any error class written the same way.
+    # By FIELD, not by args: ModbusException formats its message in __init__,
+    # so `args` is that one string and rebuilding from it gets `missing 2
+    # required positional arguments`.
     fields = answer.get('fields') or {}
     if fields:
         with suppress(TypeError):
@@ -78,19 +54,14 @@ def _rebuild(answer):
     try:
         return kind(answer['message'])
     except TypeError:
-        # A class this host cannot rebuild is still a refusal, and losing
-        # the sentence is worse than losing the class.
+        # A class this host cannot rebuild is still a refusal, and losing the
+        # sentence is worse than losing the class.
         return errors.RigError('%s: %s' % (answer['error'], answer['message']))
 
 
 class BrokerTransport:
 
-    """A Transport that forwards instead of driving a UART.
-
-    Duck-typed against `Transport`: `Board` takes either and cannot tell.
-    Only what Board actually calls is here, for the reason the stand-ins give
-    - a surface copied wholesale is a surface nobody checks.
-    """
+    """A Transport that forwards instead of driving a UART."""
 
     #: Set by `Board.probe` like the UART's; nothing here reads it - the
     #: gap is the broker's, on the wire it holds.
@@ -124,9 +95,9 @@ class BrokerTransport:
 
     def request(self, unit, function, payload=b'', exact_payload=None,
                 timeout=None, reply_shape=None):
-        # `reply_shape` is a plain dict for this reason: the saving it buys
-        # is on the OTHER side of this socket, where the serial port is, so
-        # it has to survive the trip as JSON.
+        # `reply_shape` is a plain dict for this reason: the saving it buys is
+        # on the OTHER side of this socket, where the serial port is, so it
+        # has to survive the trip as JSON.
         got = self._ask({'op': 'request', 'unit': unit, 'function': function,
                          'payload': bytes(payload).hex(),
                          'exact_payload': exact_payload, 'timeout': timeout,
@@ -147,12 +118,7 @@ class BrokerTransport:
         return self._ask({'op': 'daq_state'})
 
     def take(self, cursor, most=0):
-        """Records from `cursor`. (blob, first, lost, next).
-
-        `lost` is what the writer overwrote before this cursor reached
-        them - reported, never hidden, because a gap nobody counted is the
-        one failure a shared ring must not have.
-        """
+        """Records from `cursor`. (blob, first, lost, next)."""
         got = self._ask({'op': 'daq_take', 'from': cursor, 'max': most})
         return (bytes.fromhex(got['blob']), got['first'], got['lost'],
                 got['next'])
@@ -163,19 +129,14 @@ class BrokerTransport:
         return None
 
     def answers(self, unit=1):
-        """Whether the BOARD behind the broker replies. A look, not a use:
-        it does not make this client one of the sessions holding the port."""
+        """Whether the BOARD behind the broker replies. A look, not a use: it
+        does not make this client one of the sessions holding the port.
+        """
         return bool(self._ask({'op': 'answers', 'unit': unit})['answers'])
 
     @property
     def is_open(self):
-        """Whether this CLIENT is still connected. Always False here.
-
-        A teardown checks this to decide whether to hand the line back to the
-        text console, and a client must never do that: the port is not its
-        to give, and the console would take it from everyone else still
-        attached. The broker hands it back when it stops.
-        """
+        """Whether this CLIENT is still connected. Always False here."""
         return False
 
     def close(self):
@@ -191,29 +152,17 @@ class _Handler(socketserver.StreamRequestHandler):
     server: '_Server'
     def setup(self):
         socketserver.StreamRequestHandler.setup(self)
-        # A LOOK IS NOT A USE. `--status` and the staleness check attach to
-        # prove the broker answers and close again; counting those would
-        # have the last one out be whoever asked whether anybody was in.
+        # A LOOK IS NOT A USE.
         self.uses = False
 
     def finish(self):
-        # THE COUNT COMES DOWN FIRST. The base finish() flushes and closes,
-        # which raises on a peer that was killed - and the decrement after it
-        # then never ran, so the count stuck at one and the broker could
-        # never take itself down. Measured: a session killed mid-run left it
-        # holding the port with nobody on it.
+        # THE COUNT COMES DOWN FIRST.
         try:
             last = self._release()
         finally:
             with suppress(OSError):
                 socketserver.StreamRequestHandler.finish(self)
-        # THE LAST SESSION TAKES IT DOWN - after a linger. Refcounted like
-        # the rails on the board: a broker nobody is using is a port nobody
-        # else can open. The linger is what makes the MENU fast: spawning a
-        # broker and handing the console over costs ~5 s, and going down
-        # the instant a view closed meant every hop between views paid it
-        # again - measured, open() 5.85 s against 0.05 through a live one.
-        # A new client landing inside the linger cancels it.
+        # THE LAST SESSION TAKES IT DOWN - after a linger.
         if last and self.server.until_idle:
             threading.Thread(target=self._stand_down_when_idle,
                              daemon=True).start()
@@ -266,8 +215,7 @@ class _Handler(socketserver.StreamRequestHandler):
             return self._do(served, op, message)
         except errors.RigError as exc:
             # The class name AND its arguments, so the client raises what it
-            # would have raised in-process. A code the client maps back is
-            # exactly the thing this tree refuses to have.
+            # would have raised in-process.
             return {'error': type(exc).__name__, 'message': str(exc),
                     'fields': {k: v for k, v in vars(exc).items()
                                if isinstance(v, (int, str))}}
@@ -278,8 +226,9 @@ class _Handler(socketserver.StreamRequestHandler):
 
     @staticmethod
     def _do(served, op, message):
-        """One op, by the table below - an op it does not list is refused
-        in words, as everything else here is."""
+        """One op, by the table below - an op it does not list is refused in
+        words, as everything else here is.
+        """
         handler = OPS.get(op)
         if handler is None:
             return {'error': 'RigError', 'message': 'unknown op %r' % (op,)}
@@ -302,7 +251,8 @@ def _answers(served, message):
     """A LOOK, NOT A USE - the staleness check asks this before it commits
     `auto` to a real port, and whoever asks whether the board is there must
     not become the last one out. The same read the keepalive makes, under
-    the same lock."""
+    the same lock.
+    """
     try:
         with served.lock:
             served.transport.request(
@@ -314,10 +264,11 @@ def _answers(served, message):
 
 
 def _stand_down(served, message):
-    """Only with nobody using it. A suite that needs the port raw -
-    conformance sends deliberately malformed frames, which is the one thing
-    a broker cannot forward - takes it when it is free and is told who has
-    it when it is not."""
+    """Only with nobody using it. A suite that needs the port raw - conformance
+    sends deliberately malformed frames, which is the one thing a broker
+    cannot forward - takes it when it is free and is told who has it when it
+    is not.
+    """
     with served.lock:
         busy = served.clients
     if busy:
@@ -435,11 +386,6 @@ class _Server(socketserver.ThreadingTCPServer):
 
     def stream(self, stride, records, unit=1):
         """Start draining unit `unit` into a ring of `records`, or resize it.
-
-        Resizing makes a NEW ring, so every cursor is stale - clients are
-        told where the new one starts by `daq_state` and take from there.
-        Sizing a live ring in place would move records under readers that
-        were counting on their sequence numbers meaning something.
         """
 
         with self.lock:
@@ -473,10 +419,11 @@ class _Server(socketserver.ThreadingTCPServer):
         self.heard = time.monotonic()
 
     def tick(self, stop):
-        """One version read per KEEPALIVE of quiet, only while somebody
-        is attached. The broker knows a thinking session from a dead one:
-        it counts clients. With none attached nothing ticks, and the
-        firmware's deadman does exactly its job."""
+        """One version read per KEEPALIVE of quiet, only while somebody is
+        attached. The broker knows a thinking session from a dead one: it
+        counts clients. With none attached nothing ticks, and the firmware's
+        deadman does exactly its job.
+        """
 
         while not stop.wait(0.5):
             if self.clients <= 0:
@@ -490,17 +437,7 @@ class _Server(socketserver.ThreadingTCPServer):
 
     def retrying(self, unit, function, payload, exact_payload,
                  timeout, reply_shape=None):
-        """One request, and one re-open if the board went quiet.
-
-        A RESET PUTS THE BOARD BACK IN ITS TEXT CONSOLE. The handover happens
-        once, when the broker takes the port - so a board that resets under
-        it answers nothing ever again, and takes every session with it.
-        Measured: a live session went silent on 0x41 and stayed there.
-
-        Silence only, and once: a refusal is an answer and must not be
-        retried, and a board that is simply gone should say so rather than
-        double every timeout.
-        """
+        """One request, and one re-open if the board went quiet."""
         with suppress(NoReplyError):
             return self.transport.request(unit, function, payload,
                                           exact_payload, timeout, reply_shape)
@@ -511,20 +448,11 @@ class _Server(socketserver.ThreadingTCPServer):
 
 
 def _stream_loop(served, stop):
-    """Drain the board into the ring until told to stop.
-
-    The broker's own reader, and the only one: a client that also read the
-    board would take records this never sees. It costs the link exactly
-    what one reader costs, however many clients are attached, which is the
-    reason to put it here rather than in each of them.
-    """
+    """Drain the board into the ring until told to stop."""
 
     payload = bytes([protocol.DEVICE_DAQ, 4, 0])
     stride = served.fanout.stride
-    # THE UNIT THE CLIENT ASKED FOR, not 1. A broker serves a SEGMENT -
-    # `/node RL 2` is the knee on the right leg - and a hardcoded 1 streamed
-    # from whichever node happens to be first while the client believed it
-    # was reading the one it configured.
+    # THE UNIT THE CLIENT ASKED FOR, not 1.
     unit = served.stream_unit
     idle = 0.002
     while not stop.is_set():
@@ -534,8 +462,8 @@ def _stream_loop(served, stop):
                                                  payload)
             served.spoke()
         except errors.LINK_FAULTS:
-            # A quiet board is not a reason to stop streaming: the task may
-            # be between configurations, and the next turn asks again.
+            # A quiet board is not a reason to stop streaming: the task may be
+            # between configurations, and the next turn asks again.
             stop.wait(0.05)
             continue
         got = reply[0] if reply else 0
@@ -546,12 +474,7 @@ def _stream_loop(served, stop):
 
 
 def serving():
-    """What a running broker says it is serving, or None. Does not connect.
-
-    The file alone is not the answer - it outlives a process that was killed,
-    and a stale address reads exactly like a live one until the connect
-    fails. This is the cheap check; `attach` is the real one.
-    """
+    """What a running broker says it is serving, or None. Does not connect."""
     try:
         with open(WHERE, encoding='utf-8') as handle:
             return json.load(handle)
@@ -560,11 +483,7 @@ def serving():
 
 
 def clients(address=(HOST, PORT)):
-    """How many sessions are using the broker. None if none is serving.
-
-    Asking is not using: this attaches and closes, and the count it reports
-    does not include itself.
-    """
+    """How many sessions are using the broker. None if none is serving."""
     reached = attach(address, timeout=2.0)
     if reached is None:
         return None
@@ -575,11 +494,7 @@ def clients(address=(HOST, PORT)):
 
 
 def stand_down(address=(HOST, PORT), wait=5.0):
-    """Ask a broker to give the port back. True once nothing answers.
-
-    Refuses while sessions are using it, and says how many - the port is
-    theirs until they let go.
-    """
+    """Ask a broker to give the port back. True once nothing answers."""
 
     reached = attach(address, timeout=2.0)
     if reached is None:
@@ -587,9 +502,7 @@ def stand_down(address=(HOST, PORT), wait=5.0):
     try:
         reached._ask({'op': 'stand_down'})                  # noqa: SLF001
     except errors.RigError:
-        # It says no by refusing, and this function answers `did it`. A
-        # caller asking whether the port came free should not have to catch
-        # the sentence explaining that it did not.
+        # It says no by refusing, and this function answers `did it`.
         return False
     finally:
         reached.close()
@@ -603,11 +516,7 @@ def stand_down(address=(HOST, PORT), wait=5.0):
 
 
 def attach(address=(HOST, PORT), timeout=10.0):
-    """A BrokerTransport, or None if nothing is serving.
-
-    None here is not a status code standing in for a failure - it answers
-    `is one running`, which invariant 8 has nothing to say about.
-    """
+    """A BrokerTransport, or None if nothing is serving."""
     try:
         return BrokerTransport(address, timeout)
     except OSError:
@@ -622,12 +531,7 @@ def _kind(port):
 
 
 def spawn(port, baud=115200, wait=8.0):
-    """Start a broker for `port` in its own process. True if it came up.
-
-    ITS OWN PROCESS, not a thread here: a broker inside the first session
-    would die with it and take the port from everyone else still attached.
-    This way the last session out is what stops it, whichever one that is.
-    """
+    """Start a broker for `port` in its own process. True if it came up."""
 
     here = os.path.dirname(os.path.abspath(__file__))
     script = os.path.join(here, os.pardir, 'tools', 'session.py')
@@ -650,24 +554,7 @@ def spawn(port, baud=115200, wait=8.0):
 
 def serve(port, baud=115200, address=(HOST, PORT), transport=None,
           until_idle=True, linger=45.0):
-    """Own the port and answer for it until interrupted.
-
-    The console handover happens HERE, once, because owning the port is what
-    it is for: the board boots into its text console, and a client reaching
-    the broker cannot do it - the escape would go into a link that is
-    already framed, which the board answers by handing the line back to the
-    console for everybody.
-
-    `transport` takes the place of the UART, which is how this is tested
-    without one. It is a seam and not a stand-in: there is no simulated
-    broker, because the stand-in has no port for two processes to contend
-    over and speaks methods rather than frames.
-
-    `until_idle` stops when the last client goes, which is what makes this
-    something nobody has to remember to start or stop. `session.py --hold`
-    is the other case: a bench where the port should stay taken between
-    runs.
-    """
+    """Own the port and answer for it until interrupted."""
     handed = transport is not None
     if not handed:
         transport = Transport(port, baud)
@@ -681,9 +568,7 @@ def serve(port, baud=115200, address=(HOST, PORT), transport=None,
     quiet = threading.Event()
     threading.Thread(target=server.tick, args=(quiet,), daemon=True).start()
 
-    # The KIND too - debug probe or RS485. A client reaching the broker
-    # cannot work it out: that answer comes from the Windows port listing,
-    # and without it every shared session called itself RS485.
+    # The KIND too - debug probe or RS485.
     with open(WHERE, 'w', encoding='utf-8') as handle:
         json.dump({'serial': port, 'pid': os.getpid(), 'kind': _kind(port),
                    'host': address[0], 'tcp': address[1]}, handle)

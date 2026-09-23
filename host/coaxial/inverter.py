@@ -1,18 +1,4 @@
-"""The power stage's numbers, in one importable place.
-
-What a simulation of this drive needs to know about the hardware it
-pretends to be: the switching rate, the dead time, the FET's charge
-curves, the loop the current rings in and the sense chain's floor. Every
-figure is traced - schematic, datasheet, LTSpice (`electronic_simulations`
-submodule, `half_bridge.asc`) or FINDINGS - and **none is a measurement on
-this board** unless its comment says which one. docs/HARDWARE.md is the
-prose behind the dead-time and sense figures.
-
-The derived functions are the arithmetic the Monte Carlo and its notebook
-share: dead-time voltage error, the knee current where the FET's output
-charge stops softening it, the ring after an edge and what it leaves of
-the sampling window.
-"""
+"""The power stage's numbers, in one importable place."""
 import math
 
 FSW = 50e3                    #: TIM1 centre-aligned, ARR 2375 (HARDWARE.md)
@@ -25,14 +11,6 @@ T_MIN_PULSE = 76e-9           #: 18 ticks: TPW 40 ns + DTG 8 -> 0.38 % duty
 V_FRAC = 0.95                 #: of the link the modulator may use
 
 # IAUCN10S7N021, from the vendor VDMOS model in half_bridge.asc.
-#
-# TYPICAL, NOT MAXIMUM, and the datasheet has both: 1.8 mOhm typ against
-# 2.1 max at Vgs 10 V and Id 88 A (Rev 1.2, p.4); at Vgs 7 V it is 2.0 typ
-# and 2.4 max. An SOA envelope built on the typical under-books the
-# conduction by 17 % against a part that is within spec, which is the
-# wrong direction for a limit - flagged rather than changed, because the
-# LTspice model this tree traces is the typical one and the two would
-# then disagree.
 RDS_ON = 1.8e-3
 
 #: Junction to case, K/W. `datasheets/mosfet/IAUCN10S7N021-Datasheet.pdf`
@@ -90,11 +68,7 @@ def qoss(v):
 
 
 def ring(vdc):
-    """The switch-node ring at this link: L_LOOP against both FETs' Coss.
-
-    Q_RING is an assumption, so `tau_s` and `settle_s` (to 1 %) are design
-    figures, not measurements.
-    """
+    """The switch-node ring at this link: L_LOOP against both FETs' Coss."""
     c = 2.0 * coss(vdc)
     f = 1.0 / (2.0 * math.pi * math.sqrt(L_LOOP * c))
     tau = Q_RING / (math.pi * f)
@@ -103,10 +77,11 @@ def ring(vdc):
 
 
 def blanking(vdc):
-    """Margin left for the current sample at the deepest duty the
-    modulator allows: a quarter of the (1 - V_FRAC) window, minus the ring
-    settling and the sense chain's delay. Positive means the sample lands
-    on settled current."""
+    """Margin left for the current sample at the deepest duty the modulator
+    allows: a quarter of the (1 - V_FRAC) window, minus the ring settling
+    and the sense chain's delay. Positive means the sample lands on settled
+    current.
+    """
     return (1.0 - V_FRAC) * TS / 4.0 - ring(vdc)['settle_s'] - AFE_DELAY
 
 
@@ -116,15 +91,17 @@ def dead_time_volts(vdc, t_dead=T_DEAD):
 
 
 def knee_amps(vdc, t_dead=T_DEAD):
-    """The current that just slews the node across the link inside the
-    dead time: 2 Qoss / t_dead. Below it the output charge soft-switches
-    the error away; the tanh knee the compensation and the model share."""
+    """The current that just slews the node across the link inside the dead
+    time: 2 Qoss / t_dead. Below it the output charge soft-switches the
+    error away; the tanh knee the compensation and the model share.
+    """
     return 2.0 * qoss(vdc) / t_dead
 
 
 def dt_table(vdc, t_dead=T_DEAD, points=8):
-    """(step_amps, volts[points]) for the firmware's compensation table:
-    v_dt tanh(i / knee) sampled every half knee, held past the last."""
+    """(step_amps, volts[points]) for the firmware's compensation table: v_dt
+    tanh(i / knee) sampled every half knee, held past the last.
+    """
     step = knee_amps(vdc, t_dead) / 2.0
     v = dead_time_volts(vdc, t_dead)
     return step, [v * math.tanh(0.5 * k) for k in range(points)]

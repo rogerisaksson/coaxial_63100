@@ -1,14 +1,4 @@
-"""The board's measurement ring, drained in bursts.
-
-One sample per round trip caps a host at a couple of hundred samples a
-second whatever the board managed - a 53-byte reply at 115200 is 4.6 ms.
-This takes fifteen at a time, so the board's own rate is the only limit
-left.
-
-Every record carries the raw codes and the cycle counter that stamped them.
-Nothing is converted here: `at` is raw CYCCNT because dividing cycles down
-moves the wrap off a power of two, and `v` is whatever the source put there.
-"""
+"""The board's measurement ring, drained in bursts."""
 from . import protocol
 from .errors import RigError
 from .protocol import LogOp
@@ -55,15 +45,7 @@ class Capture(Device, device=protocol.DEVICE_LOG):
     """Arm a set of sources, then drain what they produced."""
 
     def state(self):
-        """What is armed, how much is waiting, and how much did not make it.
-
-        `dropped` and `thinned` mean opposite things and a view that adds
-        them up says nothing. Dropped is a sample the ring had no room for.
-        Thinned is one the board declined to take, because that source had
-        already used its share of what the link can drain - which is what
-        stops the angle loop, at about 24 000 pushes a second, from locking
-        the IMU's fifty out of a ring that holds 1024.
-        """
+        """What is armed, how much is waiting, and how much did not make it."""
         r = Reader(self._op(LogOp.STATE))
         mask = r.u8()
         return {
@@ -76,12 +58,7 @@ class Capture(Device, device=protocol.DEVICE_LOG):
         }
 
     def arm(self, sources):
-        """Arm a list of source names (or a raw mask) and empty the ring.
-
-        Emptying is not optional on the board's side either: a burst whose
-        first records predate the run is worse than an empty one, and no
-        field in the record would say so.
-        """
+        """Arm a list of source names (or a raw mask) and empty the ring."""
         took = Reader(self._op(LogOp.ARM, pack(('u8', _mask(sources))))).u8()
         if not took:
             raise RigError('the board refused to arm the capture ring')
@@ -105,12 +82,7 @@ class Capture(Device, device=protocol.DEVICE_LOG):
                 'v': tuple(r.i16() for _ in range(WORDS))}
 
     def drain(self, limit=None):
-        """Everything waiting, in order, stopping at `limit` records.
-
-        Returns when the ring reports empty rather than when a burst comes
-        back short: a producer can fill a slot between the board counting
-        and the reply going out.
-        """
+        """Everything waiting, in order, stopping at `limit` records."""
         out = []
         while limit is None or len(out) < limit:
             batch = self.take()

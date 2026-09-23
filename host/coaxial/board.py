@@ -1,15 +1,4 @@
-"""The board, as one object with one subsystem per functional area.
-
-    board.system    identity, versions, clock tree, releasing the console
-    board.link      echo and the protocol's frame counters
-    board.afe       the analog front end switch, which also powers the reference
-    board.analog    channels, bursts, temperature, DC bus
-    board.gpio      raw pin access for a fixture, behind a gate
-
-The split follows the hardware rather than the protocol: someone reading a test
-script should be able to tell which part of the board a line touches without
-knowing a single function code.
-"""
+"""The board, as one object with one subsystem per functional area."""
 
 from .afe import Afe
 from .analog import Analog
@@ -40,15 +29,7 @@ from contextlib import suppress
 
 
 class Board:
-    """One unit on one transport. Every method raises rather than reporting.
-
-    THE COMPOSITION IS THE DECLARATION BELOW: one subsystem per functional
-    area, under the attribute it is annotated as, built in that order by
-    `__init__` and read back by `parts()`. The rig's early handles and the
-    structure suite ask `parts()`, so a part added here is reachable
-    everywhere with nothing else edited - a list of names anywhere else was
-    the second answer that went stale.
-    """
+    """One unit on one transport. Every method raises rather than reporting."""
 
     system: System
     link: Link
@@ -88,9 +69,10 @@ class Board:
 
     @property
     def baud(self):
-        """The bitrate this board is reached at. Asked of the board and not
-        of the transport, because the stand-in has no transport and a caller
-        measuring a link must not have to know which it is holding."""
+        """The bitrate this board is reached at. Asked of the board and not of
+        the transport, because the stand-in has no transport and a caller
+        measuring a link must not have to know which it is holding.
+        """
         return self.transport.baud
 
     def __repr__(self):
@@ -104,8 +86,7 @@ class Board:
                 timeout=None, reply_shape=None):
         if self.unit == BROADCAST:
             # One place, because every read and every read-back write comes
-            # through here. Silence from unit 0 is the protocol working, not
-            # the board being dead, and a timeout would read as the second.
+            # through here.
             raise DeviceStateError(BROADCAST_REFUSAL)
         return self.transport.request(self.unit, function, payload,
                                       exact_payload, timeout, reply_shape)
@@ -125,19 +106,7 @@ class Board:
         self.system.release_console()
 
     def probe(self, tries=3):
-        """Read and remember the version record. Returns it.
-
-        Retried, and only here. A missed reply is a fact of this link -
-        measured, about one transaction in fifty while the board is busy -
-        and everywhere else the right answer is to raise, because a caller
-        asked for a reading and did not get one. At the identity probe it
-        is not: the session has nothing yet, so one silent frame turns a
-        working board into "no board", and the demo that hit it had simply
-        opened while the previous one was still letting go of the port.
-
-        0x41 is the frozen version record and reading it changes nothing,
-        so asking twice is asking the same question again.
-        """
+        """Read and remember the version record. Returns it."""
         last = None
         for _ in range(max(1, tries)):
             try:
@@ -151,10 +120,11 @@ class Board:
         raise last
 
     def _dispatch_on_crc(self, info):
-        """MINOR 9: the board dispatches proven requests on their own CRC,
-        so the transport can stop paying the pre-TX gap after one. A broker
+        """MINOR 9: the board dispatches proven requests on their own CRC, so
+        the transport can stop paying the pre-TX gap after one. A broker
         proxy has no such attribute and keeps the spec gap - correct, just
-        unoptimised there."""
+        unoptimised there.
+        """
         major, minor = PROVEN_DISPATCH_SINCE
         proven = (info.get('proto_major') == major
                   and info.get('proto_minor', 0) >= minor)
@@ -162,10 +132,7 @@ class Board:
             self.transport.proven_dispatch = True
 
 
-# Protocol major -> the client class that speaks it. THIS is the lookup: a
-# firmware that bumps to major 2 gets a Board subclass on a new line here, and
-# every call site stays as it is. Nothing keys off the firmware version, because
-# binding a host to firmware numbers means every rebuild breaks the host.
+# Protocol major -> the client class that speaks it.
 #: Major 1 - the six-node thermal vocabulary - has no codec here any more:
 #: this Board speaks per-leg nodes, and labelling an old board's six with
 #: ten names would be worse than the refusal.
@@ -173,11 +140,7 @@ BOARD_CLASSES = {2: Board}
 
 
 def _build(probe):
-    """Probe with the frozen prefix, then instantiate the matching class.
-
-    The link is already open by the time this runs: handing the UART over is a
-    precondition for any traffic at all, not part of verification.
-    """
+    """Probe with the frozen prefix, then instantiate the matching class."""
     transport, unit = probe.transport, probe.unit
     info = probe.probe()
 
@@ -192,8 +155,8 @@ def _build(probe):
     if board_class is Board:
         return probe
 
-    # A class registered for another major brings its own codec, so let it read
-    # the record itself rather than handing it one decoded by this one.
+    # A class registered for another major brings its own codec, so let it
+    # read the record itself rather than handing it one decoded by this one.
     board = board_class(transport, unit)
     board.probe()
     return board
@@ -212,17 +175,7 @@ def _normalise(entry, default_port, default_baud):
 
 
 def scan(units=range(1, 17), port='COM4', baud=115200):
-    """Which unit ids answer on this bus, and what each one says it is.
-
-    `[(unit, version_dict)]`, in ascending unit order, skipping silence. One
-    transport for the whole sweep - the port cannot be opened twice, and
-    reopening it per unit would cost the console handover each time.
-
-    Bounded by default because it is not free: a unit that is not there
-    costs the transport's read timeout, so 1..16 is about eight seconds of
-    silence in the worst case and 1..247 is two minutes. Widen it when a
-    bus is known to be wider.
-    """
+    """Which unit ids answer on this bus, and what each one says it is."""
     wanted = list(units)
     if not wanted:
         return []
@@ -241,19 +194,7 @@ def scan(units=range(1, 17), port='COM4', baud=115200):
 
 
 def _reach(port, baud):
-    """The broker for this port, started if there is not one yet.
-
-    Preferred rather than configured: a second process taking the port is
-    the failure this exists to prevent, and a flag somebody has to remember
-    prevents nothing. `serving()` names the port a broker holds, so a rig
-    pointed at a different one still opens its own.
-
-    STARTED, not just used. A broker nobody has to launch is one that is
-    always there, and it takes itself down when its last user goes - the
-    same refcount the rails on the board keep, for the same reason. If it
-    cannot be started, this opens the port directly and the caller gets the
-    real error from the real port rather than one about a broker.
-    """
+    """The broker for this port, started if there is not one yet."""
     reached = _attach(port)
     if reached is None and broker.spawn(port, baud):
         reached = _attach(port)
@@ -270,15 +211,7 @@ def _attach(port):
 
 
 def _open_one(spec, transports, verify):
-    """One entry's Board, on a transport shared by port and bitrate.
-
-    The board boots into its text console, so the line has to be handed
-    over before any framing - once per port rather than once per unit,
-    and whether or not this call is going to probe. NOT THROUGH A BROKER:
-    it already did this when it took the port, and doing it again would
-    send the escape into a link that is already framed - which the board
-    answers by going back to the console for everyone.
-    """
+    """One entry's Board, on a transport shared by port and bitrate."""
     unit, unit_baud, unit_port = spec
     key = (unit_port, unit_baud)
     fresh = key not in transports
@@ -299,19 +232,7 @@ def _open_one(spec, transports, verify):
 
 
 def connect(units, port='COM4', baud=115200, verify=True):
-    """Open the links and return one Board per entry, in the order given.
-
-    units   a list of unit ids, or of (unit, baud), or of (unit, baud, port).
-            Entries sharing a port and bitrate share one Transport; a different
-            bitrate gets its own, because one UART cannot run two at once.
-
-    verify  probe each unit and raise if it does not answer, or speaks a
-            protocol major this host has no codec for. On by default: a rig that
-            silently proceeds with a dead board produces results that look real.
-
-    There is no partial success. A caller holding the returned list knows every
-    board in it answered.
-    """
+    """Open the links and return one Board per entry, in the order given."""
     specs = [_normalise(entry, port, baud) for entry in units]
     transports = {}
 
@@ -327,13 +248,7 @@ def connect(units, port='COM4', baud=115200, verify=True):
 
 
 def _hand_back(board):
-    """Return one board's UART to its console and close its port.
-
-    A port already closed has nothing to hand back, which is what makes a
-    second call to `disconnect` a no-op rather than an error from pyserial.
-    Shutting down: a board that will not answer, or a port that will not
-    close, must not strand the ports of every board after it.
-    """
+    """Return one board's UART to its console and close its port."""
     with suppress(RigError):
         try:
             if board.transport.is_open:

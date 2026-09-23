@@ -1,12 +1,4 @@
-"""The BNO08X on SPI2: what it says it is, and what it reports.
-
-The board clocks SHTP cargoes and does not interpret them. This is where a
-cargo becomes reports and a report's counts become a physical quantity, which
-is the same division the ADC channels keep: the firmware reports raw
-fixed-point integers, and the Q point belongs here.
-
-Datasheet references are to BNO080_085 v1.17, in datasheets/.
-"""
+"""The BNO08X on SPI2: what it says it is, and what it reports."""
 from . import protocol
 from .errors import LINK_FAULTS, DeviceStateError, RigError
 from .protocol import ImuOp
@@ -49,9 +41,7 @@ REPORTS = {
 }
 
 # Q point per report: the fixed-point counts are divided by 2**q to give the
-# unit named beside it. Only the reports whose length this repository's
-# datasheet actually tabulates are here - see shtp.c on why the quaternion
-# reports are absent rather than guessed.
+# unit named beside it.
 SCALE = {
     ACCELEROMETER: (8, 'm/s^2'),
     GYROSCOPE: (9, 'rad/s'),
@@ -130,12 +120,7 @@ def _report(r):
 
 
 def _vector(r, report_id):
-    """One three-axis report, or None when it never arrived.
-
-    EACH CARRIES ITS OWN `have`. A feature nobody enabled leaves
-    zeros, and zero is a legal reading - so the flag is what
-    tells a caller the difference, not the value.
-    """
+    """One three-axis report, or None when it never arrived."""
     if not r.remaining:
         return None
     have = bool(r.u8())
@@ -153,7 +138,8 @@ def _vector(r, report_id):
 
 class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
     """The BNO08X behind SPI2. Every call raises rather than returning a
-    status: a reading that did not happen is not a reading of zero."""
+    status: a reading that did not happen is not a reading of zero.
+    """
 
     LOOP_STATES = LOOP_STATES
 
@@ -169,18 +155,7 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
             raise self._explain(op, exc) from exc
 
     def _explain(self, op, exc):
-        """Turn a bare device failure into what to do about it.
-
-        THE BOARD REFUSES A BUS OP UNLESS THE POLL LOOP IS HELD - two masters
-        on one bus is a cargo split between them - and the refusal arrives as
-        a plain device error with nothing said. Measured 2026-08-29: that read
-        as a dead part for an hour, through a reflash of an older firmware to
-        rule out a regression that was never there. The part was reporting the
-        whole time; every call had simply been made with the loop running.
-
-        The loop's state needs no hold to read, so the reason is one round
-        trip away - and only on the path that has already failed.
-        """
+        """Turn a bare device failure into what to do about it."""
         if op in self.FREE_OPS:
             return exc
         try:
@@ -197,12 +172,7 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
             'The board said: %s' % (loop, exc))
 
     def product_id(self):
-        """What the part says it is - the answer that proves the link.
-
-        Raises DeviceStateError when the board reached SPI2 but the part
-        never sent a product id response, which is what an unpowered or
-        mis-strapped BNO08X looks like from here.
-        """
+        """What the part says it is - the answer that proves the link."""
         try:
             reply = self._op(ImuOp.ID)
         except Exception as exc:
@@ -226,13 +196,7 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
         }
 
     def read(self):
-        """One SHTP cargo, decoded as far as the datasheet allows.
-
-        `cargo` is always the raw bytes. `reports` holds the ones whose
-        layout is known; an unknown report id ends the walk rather than
-        mis-framing what follows it, so a short `reports` beside a long
-        `cargo` means exactly that.
-        """
+        """One SHTP cargo, decoded as far as the datasheet allows."""
         r = Reader(self._op(ImuOp.READ))
         channel = r.u8()
         cargo = bytes(r.take(r.u8()))
@@ -245,15 +209,7 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
         }
 
     def state(self):
-        """The poll loop's shared record: what it saw and what went wrong.
-
-        The board polls the part from its main loop and writes here; a host
-        only ever reads. One round trip, and no SPI in the command path -
-        reading a cargo per request cost 45 ms each and caught one in eight.
-
-        `updates` is monotonic, so the same reading read twice is telling
-        rather than a guess from the values.
-        """
+        """The poll loop's shared record: what it saw and what went wrong."""
         r = Reader(self._op(ImuOp.LATEST))
         got = {
             'loop': LOOP_STATES.get(r.u8(), 'unknown'),
@@ -264,25 +220,19 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
         }
         got.update(_report(r))
 
-        # AFTER the report block, because the board writes it after. This was
-        # read before it, so with a report present the interval came back as
-        # 16616704 instead of 20000 - four bytes taken out of the middle of a
-        # quaternion. One branch returning early is what let the two orders
-        # disagree without either looking wrong.
+        # AFTER the report block, because the board writes it after.
         got['feature'] = {'report_id': r.u8(),
                           'interval_us': r.u32(),
                           'pending': bool(r.u8())}
 
-        # The last error that was not 'none', kept by the board. `error`
-        # above is whatever the most recent poll saw, which at 400 reports
-        # a second is 'none' every time a host looks.
+        # The last error that was not 'none', kept by the board.
         got['last_fault'] = LOOP_ERRORS.get(r.u8(), 'unknown')
         got['last_fault_id'] = r.u8()
 
-        # The three vectors, appended by MINOR 6 and read only if
-        # they are there - a board older than that answers a reply
-        # that stops above, and a decoder that assumed the bytes
-        # would raise on one that is simply older.
+        # The three vectors, appended by MINOR 6 and read only if they are
+        # there - a board older than that answers a reply that stops above,
+        # and a decoder that assumed the bytes would raise on one that is
+        # simply older.
         for name, report in VECTORS:
             got[name] = _vector(r, report)
         return got
@@ -292,45 +242,26 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
         return self.state()['quaternion']
 
     def hold(self):
-        """Stop the poll loop so the part can be configured.
-
-        Every operation that drives SPI2 - feature, write, reset, product_id,
-        probe - is refused while the loop runs, because both would be masters
-        on one bus. Returns the loop state the board reports back.
-        """
+        """Stop the poll loop so the part can be configured."""
         return self._loop_state(self._op(ImuOp.HOLD))
 
     def resume(self):
         """Start the poll loop again, through init - the usual reason to have
-        held it was a reset, and the part needs bringing up after one."""
+        held it was a reset, and the part needs bringing up after one.
+        """
         return self._loop_state(self._op(ImuOp.RESUME))
 
     def reset(self):
-        """Pulse NRSTN and collect what the part says coming up.
-
-        The way back from a part that has stopped streaming. Returns how
-        many cargoes the reset produced - three is the advertisement and the
-        two announcements, and nothing at all means it did not come up.
-        """
+        """Pulse NRSTN and collect what the part says coming up."""
         return Reader(self._op(ImuOp.RESET)).u8()
 
     def wake_test(self, ms=200):
-        """Milliseconds for H_INTN to answer PS0/WAKE on a drained part.
-
-        None when it never answered inside `ms`, which is a part that will
-        not accept a write; 'busy' when it was still holding the line low and
-        the question could not be put.
-        """
+        """Milliseconds for H_INTN to answer PS0/WAKE on a drained part."""
         got = Reader(self._op(ImuOp.WAKE, pack(('u16', ms)))).u16()
         return WAKE_ANSWERS.get(got, got)
 
     def pins(self):
         """Drive and release each of SPI2's four pins, and say what read back.
-
-        `held` names a pin something else is holding: it did not follow the
-        MCU driving it, or it did not follow the MCU's own pull. Reads work
-        and chip select is proven, so this is what is left to check from
-        inside the firmware.
         """
         r = Reader(self._op(ImuOp.PINS))
         return [self._pin(r) for _ in SPI2_PINS]
@@ -342,13 +273,7 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
                 'bits': bits, 'held': bits != ALL_BITS}
 
     def probe(self, length=4, select=True):
-        """`length` raw bytes off SPI2, unframed and uninterpreted.
-
-        The bring-up question the parser refuses both answers to: FF FF FF FF
-        is a part that is absent or in reset, 00 00 00 00 one that is present
-        and idle. Also the only way to see the header's true length field,
-        which read() caps before the host sees it.
-        """
+        """`length` raw bytes off SPI2, unframed and uninterpreted."""
         r = Reader(self._op(ImuOp.PROBE,
                             pack(('u8', length), ('u8', int(bool(select))))))
         kernel, bitrate = r.u32(), r.u32()
@@ -356,27 +281,13 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
                 'raw': bytes(r.take(r.u8()))}
 
     def write(self, channel, payload):
-        """Put `payload` on `channel` as one SHTP cargo, unparsed.
-
-        The bring-up primitive: what feature() and product_id() are built on,
-        exposed because a question with an answer nothing else produces is
-        the only way to prove a write reached the part.
-        """
+        """Put `payload` on `channel` as one SHTP cargo, unparsed."""
         if channel not in CHANNELS:
             raise ValueError('channel %r is not one of the six' % (channel,))
         self._op(ImuOp.WRITE, pack(('u8', channel)) + bytes(payload))
 
     def feature(self, report_id, interval_us):
-        """Enable a sensor report, or disable it with an interval of 0.
-
-        The part may adopt a different period than the one asked for; it says
-        so in a Get Feature Response, which arrives through read().
-
-        Big-endian: every integer on this board's wire is, and wire.c's
-        rd_u32 reads it that way. Sent little-endian, 60000 us arrived as
-        0x60EA0000 - about 27 minutes between reports, which looks exactly
-        like a sensor that was never enabled.
-        """
+        """Enable a sensor report, or disable it with an interval of 0."""
         self._op(ImuOp.FEATURE,
                  pack(('u8', report_id), ('u32', interval_us)))
 
@@ -414,10 +325,11 @@ def _timebase(cargo, at):
 
 
 def _quaternion(scaled, cargo, at, report_id):
-    """i, j, k, real - the order the part sends them, which is not the
-    order most quaternion maths is written in. Named so a caller never
-    has to remember which end the scalar is on. The rotation vector
-    carries its accuracy estimate behind them, Q12 radians."""
+    """i, j, k, real - the order the part sends them, which is not the order
+    most quaternion maths is written in. Named so a caller never has to
+    remember which end the scalar is on. The rotation vector carries its
+    accuracy estimate behind them, Q12 radians.
+    """
     got: dict[str, Any] = {'quaternion': dict(zip(QUATERNION_AXES, scaled))}
     estimate = at + HEADER + WORD * len(QUATERNION_AXES)
     if report_id == ROTATION_VECTOR and estimate + WORD <= len(cargo):
@@ -430,7 +342,8 @@ def _quaternion(scaled, cargo, at, report_id):
 def _one(cargo, at, report_id):
     """One report, with its counts and - where the Q point is known - a
     physical quantity beside them. The counts are always present; the scaled
-    value is not, and its absence says the Q point is not established here."""
+    value is not, and its absence says the Q point is not established here.
+    """
     if report_id == TIMEBASE:
         return _timebase(cargo, at)
 

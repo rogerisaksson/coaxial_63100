@@ -1,47 +1,11 @@
-"""A PMSM and an inverter, in one place, for everything that needs one.
-
-The model was written inside `tests/test_drive_core.py`, where it closed
-the loop around the firmware's control law. It is here now because three
-other things want the same motor - the DAQ stand-in, the system
-identification, and a notebook - and four copies of a machine is four
-places for an inductance to drift.
-
-WHAT IT IS AND IS NOT. It integrates the dq equations with saliency,
-saturation, back-EMF, a dead-time voltage error and a mechanical load. It
-is a MODEL: every number it produces is arithmetic, and nothing here has
-been near a motor. The board's own rule applies to it (invariant 10) -
-a number from nowhere and one from hardware must never look alike, which
-is why the parameter sets below carry `measured=False` and say where they
-came from.
-"""
+"""A PMSM and an inverter, in one place, for everything that needs one."""
 import math
 
 from .sensorless import HALF_SQRT3, RAD_S_PER_RPM, TWO_PI
 
 
 def flux_from_kv(kv_rpm_per_volt, pole_pairs):
-    """Peak per-phase flux linkage, Wb, from a hobby motor's KV.
-
-    THE CONVENTION, WRITTEN DOWN, because getting it wrong poisons every
-    number downstream and looks right the whole way:
-
-      * KV is no-load mechanical rpm per volt applied LINE TO LINE, which
-        is what a hobby motor's label means.
-      * This model uses the AMPLITUDE-INVARIANT Park transform, so the q
-        axis back-EMF is `omega_e * lambda` and the line-to-line peak is
-        `sqrt(3)` times it.
-
-    At n rpm, `omega_e = n / 60 * 2*pi * P` and `V_ll_peak = n / KV`, so
-
-        sqrt(3) * (n / 60 * 2*pi * P) * lambda = n / KV
-        lambda = 60 / (sqrt(3) * 2*pi * P * KV)
-
-    A DERIVATION AND NOT A MEASUREMENT. A real KV is quoted at a
-    temperature nobody states, from a no-load test that includes iron
-    loss, and the pole count is often wrong on the box. What this returns
-    is a starting point for a model and a prior for an identification -
-    `coaxial.sysid` is what replaces it with a number off a real machine.
-    """
+    """Peak per-phase flux linkage, Wb, from a hobby motor's KV."""
     return 60.0 / (math.sqrt(3.0) * TWO_PI * pole_pairs * kv_rpm_per_volt)
 
 
@@ -57,12 +21,7 @@ WINDING_J_PER_K = 180.0
 
 class Parameters:
 
-    """One machine's constants, and where they came from.
-
-    `measured` is the whole point of the class: a parameter set recovered
-    from a real motor and one estimated from a label must not be
-    interchangeable without anybody noticing which is which.
-    """
+    """One machine's constants, and where they came from."""
 
     __slots__ = ('name', 'r', 'ld', 'lq', 'lam', 'poles', 'j', 'b',
                  'sat', 'i_sat', 'measured', 'source',
@@ -93,14 +52,16 @@ class Parameters:
     def kv(self):
         """The KV this flux linkage implies, by `flux_from_kv` inverted.
         Infinite at zero flux rather than a crash: a failed identification
-        hands back lam 0.0, and its repr still has to print."""
+        hands back lam 0.0, and its repr still has to print.
+        """
         got = math.sqrt(3.0) * TWO_PI * self.poles * self.lam
         return 60.0 / got if got else float('inf')
 
     @property
     def saliency(self):
-        """Lq / Ld. Below about 1.1 an injection observer has little to
-        find, which is what `coaxial.sensorless` judges."""
+        """Lq / Ld. Below about 1.1 an injection observer has little to find,
+        which is what `coaxial.sensorless` judges.
+        """
         return self.lq / self.ld if self.ld else float('inf')
 
     def __repr__(self):
@@ -161,8 +122,7 @@ PLATINUM_5230SL = Parameters(
     poles=14,                       # 24N28P: 28 poles, 14 pairs
     j=1.2e-4,
     b=1.71e-4,
-    # ESTIMATE. 30 % of Ld gone by 40 A of d current - the size class
-    # again, scaled off the 112.5 A this machine is rated for.
+    # ESTIMATE.
     sat=0.3, i_sat=40.0,
     measured=False,
     source='poles and friction from the manufacturer sheet (see RATINGS); '
@@ -186,13 +146,7 @@ BENCH_MOTOR = Parameters(
 
 class Propeller:
 
-    """A load that grows with the square of speed, off a measured curve.
-
-    `T = k * omega_m^2` is the propeller law. `k` here is a least squares
-    over the manufacturer's own thrust stand, so the load a simulation
-    pulls against is the one the motor was actually tested with rather
-    than a number chosen to make a plot look right.
-    """
+    """A load that grows with the square of speed, off a measured curve."""
 
     def __init__(self, k, name='', source=''):
         self.k, self.name, self.source = k, name, source
@@ -206,12 +160,9 @@ class Propeller:
 
     def on_model(self, drive, log=None):
         """A `watch` for `Velocity.rpm` that puts this propeller on the
-        STAND-IN'S rotor: each pass it reads the model's speed and feeds
-        the load this law gives at it to `model_param`. `log`, if given,
+        STAND-IN'S rotor: each pass it reads the model's speed and feeds the
+        load this law gives at it to `model_param`. `log`, if given,
         collects `(seconds, rpm asked, rpm now, iq asked)` a pass.
-
-        The loop's own `load_k` is what the loop KNOWS; this is what the
-        air does, and at the bench the air is the air.
         """
         def watch(verb):
             wm = drive.model()['omega'] / verb.poles
@@ -264,12 +215,7 @@ KT_NM_PER_AMP = 0.0435
 
 class Motor:
 
-    """A PMSM in its own dq frame, an inverter in front of it.
-
-    `sat` bends Ld with the d current - the saturation saliency an SPM
-    shows - and `v_dt` is the inverter's dead-time voltage error, odd in
-    the phase current and saturating over `i_knee`. Both default off.
-    """
+    """A PMSM in its own dq frame, an inverter in front of it."""
 
     def __init__(self, r=0.05, ld=20e-6, lq=30e-6, lam=0.005, p=7,
                  j=2e-5, b=1e-5, load=0.0, sat=0.0, i_sat=5.0,

@@ -1,13 +1,4 @@
-"""Exception hierarchy for the coaxial_63100 host library.
-
-Nothing in this library returns a status code, and nothing returns None to mean
-failure. Every call either produces its result or raises. That is what keeps
-call sites flat: a test script is a list of measurements, not a list of checks.
-
-The classes are specific because a production rig needs to tell the difference
-between "the cable is out" and "the board refused". Catch RigError to catch
-everything.
-"""
+"""Exception hierarchy for the coaxial_63100 host library."""
 
 
 class RigError(Exception):
@@ -35,21 +26,11 @@ class PayloadError(FrameError):
 
 
 class UnsupportedProtocolError(RigError):
-    """The slave speaks a protocol major this host has no codec for.
-
-    Raised rather than guessed at. A host that decodes a layout it does not
-    understand produces numbers that look plausible and are wrong, which in a
-    production rig is worse than not talking to the board at all.
-    """
+    """The slave speaks a protocol major this host has no codec for."""
 
 
 class DeviceStateError(RigError):
-    """The board is in a state where the request cannot mean anything.
-
-    Raised by, for instance, an analog read attempted with the front end
-    unpowered - where every channel would read mid-scale and the thermistor
-    would report exactly 25.00 C.
-    """
+    """The board is in a state where the request cannot mean anything."""
 
 
 EXCEPTION_NAMES = {

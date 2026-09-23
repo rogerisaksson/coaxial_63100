@@ -11,17 +11,6 @@ class System(Subsystem):
 
     def version(self):
         """Read the frozen version record. Safe against any firmware vintage.
-
-        Only the first five bytes are guaranteed; everything after them is
-        decoded opportunistically, because the payload is append-only and a
-        future firmware may carry fields this host has never heard of. Stopping
-        when the bytes run out is the whole point of that rule.
-
-        A tail that does not decode stops the loop for the same reason. A new
-        protocol major may reorder or resize anything after the prefix, and the
-        prefix is what says so - so demanding the optional tail would turn a
-        readable 'this host has no codec for that major' into a decode failure
-        on a board that answered perfectly.
         """
         reader = Reader(self.request(protocol.VERSION))
 
@@ -55,41 +44,13 @@ class System(Subsystem):
             'source': protocol.CLOCK_SOURCES.get(reader.u8(), 'unknown'),
         }
         # Appended, so a board older than this answers a shorter reply.
-        # What the CONVERTERS run at, after the prescaler - the number
-        # every sampling time on this board is quoted against.
         out['adc_hz'] = reader.maybe('u32')
         return out
 
     @remembered
     def channel_map(self):
-        """Every channel this board has, analog and digital, and which way
-        each one runs.
-
-        `{'analog': [...], 'digital': [...], 'reserved': [...]}`.
-
-        `analog` and `digital` are the channels: what can be read, and what a
-        fixture may read or set without breaking anything. `reserved` is the
-        bus and the debug port - USART3, JTAG - never driven, and here only so
-        "why was PB10 refused" has an answer. A third list rather than a flag,
-        so the two cannot be confused.
-
-        An analog row carries index, adc, channel, pin, direction,
-        differential, signal and unit; the other two carry pin, direction and
-        signal. Direction is 'in', 'out' or 'inout', from the MCU's side, and
-        every ADC channel is 'in'.
-
-        The map, not a reading: `analog.channels()` fetches the same metadata
-        with a live conversion attached, `read_all()` measures. Cached, none of
-        it changes at run time; `refresh=True` asks again.
-
-        The board describing itself - nothing above the firmware carries a
-        copy. Needs protocol 1.3; an older board raises and the caller falls
-        back to protocol.RESERVED_PINS.
-
-        Round trips per section rather than one: the analog and digital
-        sections together are 273 bytes against the 253-byte PDU, so the
-        wire carries them separately and this joins them. The split is the
-        frame's, not the map's.
+        """Every channel this board has, analog and digital, and which way each
+        one runs.
         """
         return {'analog': self._analog(),
                 'digital': self._pins(MapKind.DIGITAL),
@@ -124,7 +85,8 @@ class System(Subsystem):
     def _pins(self, kind):
         """One pin section, paged: the reserved section is 19 pins now that
         SPI2, SPI4 and the IMU's control lines are listed, which is 418
-        bytes against a 253-byte PDU."""
+        bytes against a 253-byte PDU.
+        """
         return [self._pin_row(page)
                 for page in self._section(kind) for _ in page.rows()]
 
@@ -138,12 +100,6 @@ class System(Subsystem):
 
     def _subsystems(self):
         """What the firmware says it is made of: one entry per command table.
-
-        Read from the board rather than listed here, for the same reason the
-        channel map is: a host that answers "what can this do" from a table
-        of its own is a second answer to a question only the firmware knows.
-        An older firmware has no kind 3, and an empty list says so without
-        making the whole map fail.
         """
         try:
             reader = Reader(self.request(protocol.CHANNELS,
@@ -154,19 +110,7 @@ class System(Subsystem):
                  'commands': reader.u8()} for _ in range(reader.u8())]
 
     def _parts(self):
-        """What is fitted on the board, one entry per part.
-
-        Read from the firmware for the same reason the channel map is: a
-        parts list in a host, a document or a prompt is a second answer to
-        "what is on this board". `power` names what must be on for the part
-        to work at all. It exists because AFE_ON powers the IMU as well as
-        the analog front end, and an unpowered part presents as an SPI fault
-        - a day was spent there before the supply was checked.
-
-        Paged, because the parts and their strings pass MB_MAX_PDU against
-        the 253-byte PDU. An older firmware has no kind 4, and an empty list
-        says so without making the whole map fail.
-        """
+        """What is fitted on the board, one entry per part."""
         return [self._part_row(page)
                 for page in self._section(MapKind.PARTS, absent=RigError)
                 for _ in page.rows()]
@@ -182,19 +126,7 @@ class System(Subsystem):
         }
 
     def self_test(self):
-        """What the board can prove about itself, with nothing attached.
-
-        Returns a list of {name, status, value}. status is 'pass' or 'fail' only
-        for checks the board can settle from its own registers - a locked PLL, a
-        calibration that ran, a firmware checksum. Everything that would need a
-        calibrated instrument to judge comes back as 'info' with its value.
-
-        Deliberately no limits here and none in the firmware. This board is a
-        dumb slave: it measures and reports. Pass/fail against real thresholds
-        belongs to the test executive on the line, beside the DMM and the load,
-        where a limit is visible, changeable, and recordable against a
-        calibration certificate.
-        """
+        """What the board can prove about itself, with nothing attached."""
         reader = Reader(self.request(protocol.SELF_TEST))
         return [{'name': reader.string(),
                  'status': protocol.CHECK_STATUS.get(reader.u8(), 'unknown'),
@@ -206,10 +138,5 @@ class System(Subsystem):
         return [c for c in self.self_test() if c['status'] == 'fail']
 
     def release_console(self):
-        """Hand the UART back to the text console.
-
-        The reply goes out before the switch happens, and the console starts
-        printing immediately after, so the frame is read to an exact length.
-        A quiet-time read would swallow the banner into the frame.
-        """
+        """Hand the UART back to the text console."""
         self.request(protocol.CONSOLE, exact_payload=0)

@@ -1,21 +1,4 @@
-"""The sensorless design arithmetic: what the measurements buy.
-
-No board. The functions are pure; the two observers at the end carry the
-state an observer is. The commissioning (commission.py) measures sigma_i,
-R, Ld, Lq, lambda and the dead-time curve; this turns them into the
-injection to run, the loop and rotor observer gains to run it with, the speed the
-back-EMF takes over at, and the decision between injection and an I/f start.
-
-The one definition that runs through all of it: the injection's signal is
-the demodulated amps per radian of angle error, K = 2 V T |L_delta| / (Ld Lq)
-(drive.c's demodulator, with a square wave of `periods` PWM periods per half
-cycle), and its noise after the estimator is sigma_i sqrt(4 BW / (N fs)).
-The differences the demodulator sums telescope, so one cycle's estimate
-rests on four samples however many periods it spans - the signal is the
-same per period, the noise falls as 1/N, and the update rate as 1/N with it.
-SNR here is 20 log10(1 rad / sigma_theta): 20 dB is 5.7 degrees of angle
-noise at the estimator's bandwidth, 0 dB is a radian, useless.
-"""
+"""The sensorless design arithmetic: what the measurements buy."""
 import math
 
 TWO_PI = 2.0 * math.pi
@@ -45,27 +28,24 @@ def enob(sd_codes, bits=16):
 
 
 def demod_gain(v_inj, ts, ld, lq):
-    """Amps per radian of angle error out of the demodulator. Signed: Ld
-    below Lq is the usual case and reads positive; the drive takes the sign
-    as given so a motor with Ld above Lq still converges."""
+    """Amps per radian of angle error out of the demodulator. Signed: Ld below
+    Lq is the usual case and reads positive; the drive takes the sign as
+    given so a motor with Ld above Lq still converges.
+    """
     if ld <= 0.0 or lq <= 0.0:
         return 0.0
     return 2.0 * v_inj * ts * (lq - ld) / 2.0 / (ld * lq)
 
 
 def hf_current(v_inj, ts, periods, l_axis):
-    """Peak of the injection's current triangle: N steps of V T / L, so
-    N V T / (2 L) either side of the fundamental."""
+    """Peak of the injection's current triangle: N steps of V T / L, so N V T /
+    (2 L) either side of the fundamental.
+    """
     return periods * v_inj * ts / (2.0 * l_axis)
 
 
 def error_noise(sigma_i, periods, bw_hz, fs):
-    """sd of the demodulated error, A, after an estimator of `bw_hz`.
-
-    One cycle's sum telescopes to four samples, so its noise is 2 sigma_i
-    over 2N periods - sigma_i / N per update - and the estimator at rate
-    fs/(2N) passes 2 BW / (fs / 2N) of that power: sigma_i sqrt(4 BW/(N fs)).
-    """
+    """sd of the demodulated error, A, after an estimator of `bw_hz`."""
     return sigma_i * math.sqrt(4.0 * bw_hz / (periods * fs))
 
 
@@ -82,23 +62,7 @@ def snr(v_inj, periods, ld, lq, sigma_i, bw_hz, fs, ts):
 def choose_injection(ld, lq, sigma_i, fs, bw_hz, vdc, i_h_max, f_min_hz=0.0,
                      bw_i_hz=0.0, v_headroom=0.2, max_periods=8,
                      target_db=20.0):
-    """The injection with the best SNR under the constraints.
-
-    fs/2 with a small amplitude when the AFE is quiet; fewer, larger cycles
-    when it is not - the same volts buy N times the current, the estimate
-    rests on the same four samples, and the noise falls as 1/N. Constraints:
-    `i_h_max` caps the HF current peak, `f_min_hz` keeps it out of the
-    audible band, the injection stays INJ_OVER_LOOP times above the current
-    loop's bandwidth, and the amplitude stays inside `v_headroom` of
-    Vdc/sqrt3. None when nothing fits.
-
-    Which way the trade goes depends on what binds. Under the current
-    ceiling the volts fall as 1/N and the SNR with them, so fs/2 wins; under
-    the voltage headroom the same volts buy N times the current and lower
-    frequencies win. A quiet AFE clears `target_db` at fs/2 and is given
-    the smallest amplitude that does - less loss, less noise from the
-    stator - rather than the largest the constraints allow.
-    """
+    """The injection with the best SNR under the constraints."""
     ts = 1.0 / fs
     best = None
     for periods in range(1, max_periods + 1):
@@ -131,13 +95,7 @@ def choose_injection(ld, lq, sigma_i, fs, bw_hz, vdc, i_h_max, f_min_hz=0.0,
 
 
 def current_loop(r, l, fs, sigma_i, vdc, noise_frac=0.02, max_frac=0.05):
-    """Bandwidth and PI gains for the current loop.
-
-    Pole-zero cancellation: kp = L w, ki = R w. The bandwidth is the lower
-    of a twentieth of the sampling rate - two periods of delay want the
-    phase margin - and the point where the noise the loop feeds back,
-    kp sigma_i, reaches `noise_frac` of the link.
-    """
+    """Bandwidth and PI gains for the current loop."""
     bw_sample = fs * max_frac
     kp_max = noise_frac * vdc / sigma_i if sigma_i > 0.0 else float('inf')
     bw_noise = kp_max / (TWO_PI * l) if l > 0.0 else float('inf')
@@ -148,14 +106,7 @@ def current_loop(r, l, fs, sigma_i, vdc, noise_frac=0.02, max_frac=0.05):
 
 
 def kalman_gains(sigma_theta_upd, t_upd, accel_sd, iterations=2000):
-    """Steady-state Kalman gains for a constant-velocity angle model.
-
-    States theta, omega; the measurement is the angle error with sd
-    `sigma_theta_upd` per update; the process noise is a white acceleration
-    of sd `accel_sd` rad/s^2. The Riccati recursion is iterated to its
-    fixed point, so the bandwidth that comes out is the noise's, not a
-    knob's: quieter shunts, faster rotor observer.
-    """
+    """Steady-state Kalman gains for a constant-velocity angle model."""
     t = t_upd
     q11, q12, q22 = (accel_sd ** 2 * t ** 3 / 3.0, accel_sd ** 2 * t ** 2 / 2.0,
                      accel_sd ** 2 * t)
@@ -181,13 +132,7 @@ def kalman_gains(sigma_theta_upd, t_upd, accel_sd, iterations=2000):
 
 def crossover(lam, r, i_max, v_dt_residual, r_uncertainty=0.1, margin=3.0,
               pole_pairs=1.0):
-    """The speed where omega lambda clearly exceeds the voltage error floor.
-
-    The floor is what the back-EMF has to be read against: the dead-time
-    residual the table leaves, plus the uncertainty in R i at the largest
-    current. `margin` times that, over lambda, is the electrical speed the
-    back-EMF error takes over at.
-    """
+    """The speed where omega lambda clearly exceeds the voltage error floor."""
     floor = v_dt_residual + r_uncertainty * r * i_max
     omega = margin * floor / lam if lam > 0.0 else float('inf')
     return {'floor_volts': floor, 'omega_e': omega,
@@ -200,12 +145,7 @@ def decide(snr_db, threshold_db=10.0):
 
 
 def ljung_box(rho, n):
-    """Whiteness of the innovation from its autocorrelation at lags 1..k.
-
-    Q = n (n+2) sum rho_j^2 / (n - j) against chi-squared at p = 0.05 with k
-    degrees of freedom. `white` is the executive's verdict; the numbers are
-    what it rests on.
-    """
+    """Whiteness of the innovation from its autocorrelation at lags 1..k."""
     rho = list(rho)[:len(CHI2_05)]
     q = sum(n * (n + 2.0) * (rj ** 2) / (n - j - 1)
             for j, rj in enumerate(rho) if n - j - 1 > 0)
@@ -236,13 +176,8 @@ def _wrap(angle):
 
 
 class _BackEmfObserver:
-    """What the two back-EMF observers share: a filtered speed off their
-    own angle, and the wrapping that goes with it.
-
-    Both estimate the rotor's angle from the stator equation rather than
-    from an injected signal, so both need the speed for their own lag
-    compensation, and neither has a speed to start from. The estimate is
-    the angle's own derivative, filtered at OMEGA_FILTER_RAD_S.
+    """What the two back-EMF observers share: a filtered speed off their own
+    angle, and the wrapping that goes with it.
     """
 
     def __init__(self):
@@ -261,21 +196,7 @@ class _BackEmfObserver:
 
 class FluxObserver(_BackEmfObserver):
 
-    """The rotor angle from the stator flux linkage, stationary frame.
-
-    `psi = integral of (v - R i)` is the stator's flux and `psi - L i` is
-    the rotor's, whose angle is the rotor's. A pure integrator walks away
-    on any offset in v, in the current, or in R, so the integrator is a
-    low-pass at `wc` instead - and that costs exactly what it saves: at
-    electrical speed w the estimate is short by `sqrt(1 + (wc/w)^2)` and
-    late by `atan(wc/w)`, which this puts back.
-
-    That correction is the observer's floor. At w = wc it is 45 degrees
-    and a factor of 1.41; below wc it is neither small nor knowable,
-    because the speed it rests on is the one being estimated. `wc` is
-    therefore the speed this observer stops holding at, and it cannot be
-    lowered without giving the integrator back its drift.
-    """
+    """The rotor angle from the stator flux linkage, stationary frame."""
 
     def __init__(self, r, l, wc=20.0):
         super().__init__()
@@ -308,27 +229,7 @@ class FluxObserver(_BackEmfObserver):
 
 class ExtendedStateObserver(_BackEmfObserver):
 
-    """The rotor angle from an extended state observer - ADRC's estimator.
-
-    The stator's current equation is `di/dt = v/L + f`, where `f` carries
-    everything that is not the applied voltage: the resistive drop, the
-    back-EMF, the parameter error, the switching pickup, whatever the
-    sense chain is doing. ADRC's move is to stop modelling those
-    separately and estimate `f` itself as a state - a total disturbance -
-    which is why this is the one observer here with **no low-pass on the
-    signal it wants**.
-
-    That matters because the low-pass is what the other two pay for. The
-    sliding-mode observer filters its switching term and gets `atan(w/wc)`
-    of lag; the flux observer leaks its integrator and gets
-    `atan(wc/w)`. Both then correct for the lag using the speed they are
-    estimating. This one has no filter to correct, so nothing in its
-    angle rests on its own speed estimate.
-
-    One knob, the observer bandwidth `wo`: `beta1 = 2 wo`, `beta2 = wo^2`
-    places both poles there. Above the current loop and below the
-    switching frequency, or it estimates the ripple as signal.
-    """
+    """The rotor angle from an extended state observer - ADRC's estimator."""
 
     def __init__(self, r, l, wo=3000.0):
         super().__init__()
@@ -354,21 +255,7 @@ class ExtendedStateObserver(_BackEmfObserver):
 
 class AdaptiveLuenberger(_BackEmfObserver):
 
-    """A current observer that adapts R while it runs.
-
-    The plain observers are told R once and believe it. A winding goes up
-    by a third of a percent per kelvin, so an hour into a mission the R
-    they were given is not the R they are looking at - and every one of
-    them integrates `v - R i`, so that error lands straight in the
-    estimate.
-
-    Here the same current error drives two integrators: `e_hat`, which is
-    the back-EMF and moves at the machine's electrical rate, and `r_hat`,
-    which moves at a thermal one. `gamma` is small for exactly that
-    reason - the two would otherwise explain each other's error, and the
-    one that is allowed to move fast wins. R drifts in minutes; nothing
-    is lost by adapting it in seconds.
-    """
+    """A current observer that adapts R while it runs."""
 
     #: Corner of the low-pass the R adaptation reads its residual
     #: through, rad/s. Far below the back-EMF integrator's own rate: the
@@ -392,18 +279,11 @@ class AdaptiveLuenberger(_BackEmfObserver):
                                - self.e_alpha) / self.l + self.gain * err_a)
         self.i_beta += dt * ((v_beta - self.r_hat * self.i_beta
                               - self.e_beta) / self.l + self.gain * err_b)
-        # MINUS, not plus. An `e_hat` that is too small lets the model
-        # current run away from the measured one, so a positive error
-        # means the back-EMF being subtracted is too small - the sign the
-        # other way round is positive feedback, and the observer leaves
-        # for infinity in a few hundred steps.
+        # MINUS, not plus.
         self.e_alpha -= dt * self.ki * err_a
         self.e_beta -= dt * self.ki * err_b
-        # The error projected on the current is what a resistance error
-        # looks like; the part across it belongs to the back-EMF. The
-        # projection is low-passed before it moves R, because R drifts on
-        # a thermal timescale and the residual it is read from is mostly
-        # the electrical one.
+        # The error projected on the current is what a resistance error looks
+        # like; the part across it belongs to the back-EMF.
         size = i_alpha * i_alpha + i_beta * i_beta
         if size > 0.0 and self.gamma:
             now = (err_a * i_alpha + err_b * i_beta) / size
@@ -415,22 +295,7 @@ class AdaptiveLuenberger(_BackEmfObserver):
 
 class DualFluxObserver(_BackEmfObserver):
 
-    """Two flux models correcting each other, with a PLL on the result.
-
-    The voltage model `integral of (v - R i)` is right at speed and drifts
-    at rest; the current model `L i + lambda` is right at rest and wrong
-    wherever L or lambda are. Running both and feeding the difference back
-    into the integrator is what removes the DC drift without the leak the
-    plain flux observer pays for - the current model, not a high-pass, is
-    what holds the integrator down.
-
-    The angle comes off a PLL rather than an `atan2` of the flux. An
-    `atan2` passes every bit of noise on the flux straight into the angle
-    and, through it, into the speed; the PLL is a second-order filter with
-    the angle as its state, so the estimate stays smooth across a noisy
-    sample and the speed comes out of the loop rather than out of a
-    difference.
-    """
+    """Two flux models correcting each other, with a PLL on the result."""
 
     def __init__(self, r, l, lam, cross=200.0, kp=200.0, ki=8000.0):
         super().__init__()
@@ -464,22 +329,7 @@ class DualFluxObserver(_BackEmfObserver):
 
 class SlidingModeObserver(_BackEmfObserver):
 
-    """The rotor angle from a sliding-mode current observer.
-
-    The observer runs the stator's own current equation and drives the
-    error to zero with a switching term. Once it is sliding, that term
-    IS the back-EMF - it is the only thing the model was missing - so a
-    low-pass on it is the estimate, and `e = lambda w (-sin, cos)` gives
-    the angle.
-
-    `k` has to exceed the back-EMF the machine can make or the error
-    cannot be driven to zero, which is why it is sized from `lambda w_max`
-    rather than tuned. `boundary` replaces `sign` with a saturation over
-    that many amps: pure switching at a finite step rate chatters, and the
-    chatter lands in the estimate. The low-pass costs `atan(w/wc)` of lag,
-    which this puts back, and the same trade as the flux observer's sits
-    underneath it - the compensation needs the speed it is estimating.
-    """
+    """The rotor angle from a sliding-mode current observer."""
 
     def __init__(self, r, l, k, wc=500.0, boundary=0.5):
         super().__init__()
@@ -504,7 +354,7 @@ class SlidingModeObserver(_BackEmfObserver):
         self.e_alpha += alpha * (z_alpha - self.e_alpha)
         self.e_beta += alpha * (z_beta - self.e_beta)
         theta = math.atan2(-self.e_alpha, self.e_beta)
-        # The low-pass is a lag of atan(w / wc) on the back-EMF, so it is
-        # a lag of the same on the angle taken out of it.
+        # The low-pass is a lag of atan(w / wc) on the back-EMF, so it is a
+        # lag of the same on the angle taken out of it.
         return self._advance(_wrap(theta + math.atan2(self.omega, self.wc)),
                              dt)

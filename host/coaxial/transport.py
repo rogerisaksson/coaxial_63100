@@ -1,14 +1,4 @@
-"""Modbus RTU over a serial port: framing, addressing, checksum.
-
-This is the only module that touches pyserial, and the only one that knows a
-frame has a CRC. Everything above it works in payloads.
-
-RTU has no length field and no delimiter. A frame ends when the line falls
-quiet, which is why a reply is read until a gap rather than to a byte count.
-The exception is a reply of known length, which matters after the CONSOLE
-command: the board starts printing ASCII the moment it hands the UART back, and
-a quiet-time reader would swallow that text into the frame.
-"""
+"""Modbus RTU over a serial port: framing, addressing, checksum."""
 import struct
 import threading
 import time
@@ -31,24 +21,14 @@ EXCEPTION = 0x80
 
 
 def hand_to_binary(transport, settle=0.5):
-    """Hand USART3 from the text console to the binary protocol.
-
-    The board boots into its console because that is how a human drives
-    it; 'm' is the console key that gives the line up. Not part of Modbus,
-    and a link-level act: the broker does it for a port it takes, `Board`
-    for a link it opens.
-    """
+    """Hand USART3 from the text console to the binary protocol."""
     transport.write_text('m')
     time.sleep(settle)
     transport.discard_input()
 
 
 class Transport:
-    """One serial port at one bitrate, shared by every unit on it.
-
-    Slaves that share a port and a bitrate share a Transport. A different
-    bitrate gets its own, because one UART cannot run two bitrates at once.
-    """
+    """One serial port at one bitrate, shared by every unit on it."""
 
     #: Only a broker's transport streams records from the ring it holds
     #: (`BrokerTransport.stream`), and only that one has an address to
@@ -60,10 +40,6 @@ class Transport:
     @property
     def interframe_gap(self):
         """Silence before transmitting, from the bitrate rather than a guess.
-
-        Modbus RTU: 3.5 character times, which the specification fixes at
-        1.75 ms above 19200 baud. It was a flat 5 ms - three times the
-        specification at 115200, and paid before every request.
         """
         return 0.00175 if self.baud > 19200 else 3.5 * 11.0 / self.baud
 
@@ -107,12 +83,7 @@ class Transport:
         except (serial.SerialException, ValueError, OSError) as exc:
             raise ConnectError('cannot open %s at %d baud: %s'
                                % (port, baud, exc)) from exc
-        # ONE TRANSACTION AT A TIME ON THE WIRE. A request is a transmit
-        # and then a receive, and two threads interleaving those halves
-        # put one thread's reply in the other's hands - or, on RTU,
-        # scatter a frame's characters past t1.5 and lose both. Held for
-        # the whole exchange and released between them, so a reader
-        # thread draining the ring still lets a state() through.
+        # ONE TRANSACTION AT A TIME ON THE WIRE.
         self._wire = threading.RLock()
         #: When the line last went quiet, so t3.5 is only slept for what is
         #: actually owed.
@@ -131,14 +102,7 @@ class Transport:
 
     @contextmanager
     def _link_errors(self, doing):
-        """Turn a pyserial failure into this library's own exception.
-
-        A port that vanishes mid-session - a pulled adapter, a suspended hub -
-        fails in these calls rather than at open time. Letting SerialException
-        out would force every caller above here to import pyserial to catch it,
-        against the one rule the whole library keeps: what leaves this package
-        is a coaxial.errors exception.
-        """
+        """Turn a pyserial failure into this library's own exception."""
         try:
             yield
         except (serial.SerialException, OSError) as exc:
@@ -162,11 +126,7 @@ class Transport:
     # -- the ASCII side of the same wire ----------------------------------
 
     def write_text(self, text):
-        """Send characters to the board's text console.
-
-        The console and the binary protocol share USART3, so this is how the
-        link is opened by hand. It is not part of Modbus and does not frame.
-        """
+        """Send characters to the board's text console."""
         with self._link_errors('writing to the console'):
             self.serial.reset_input_buffer()
             self.serial.write(text.encode())
@@ -195,30 +155,16 @@ class Transport:
         frame = bytes([unit, function]) + payload
         frame += struct.pack('<H', crc16(frame))    # low byte first, unlike every
                                                     # other field in the frame
-        # T3.5 IS SILENCE ON THE BUS, NOT A SLEEP TO PERFORM. Decoding the
-        # last reply, deciding what to ask next and crossing the broker all
-        # happen in that silence, and on a busy reader they already exceed
-        # 1.75 ms - sleeping it again is 1.75 ms of every transaction spent
-        # proving something that was already true.
-        #
-        # And since MINOR 9 a PROVEN previous frame owes none at all: the
-        # board dispatched it on its own CRC (cmd_length.c), so nothing on
-        # the far side is still counting silence toward it. Gated on both
-        # the firmware saying so (`proven_dispatch`, set by Board.probe)
-        # and the previous frame having been one the oracle proves - an
-        # unproven frame still ends by t3.5 over there, and the gap after
-        # it is what delimits it.
+                                                    # T3.5 IS SILENCE ON THE
+                                                    # BUS, NOT A SLEEP TO
+                                                    # PERFORM.
         if not (self.proven_dispatch and self._last_proven):
             self._pay_gap()
         pdu_len = len(frame) - 3
         self._last_proven = (request_length(frame[1:-2]) == pdu_len
                              and pdu_len > 0)
         with self._link_errors('transmitting'):
-            # ONLY WHEN THE LAST EXCHANGE DID NOT END CLEANLY. A validated
-            # reply leaves the buffer empty by construction; purging it
-            # anyway is a driver round trip on the critical path. After a
-            # timeout or a bad CRC there may well be a stale tail, and that
-            # is exactly when this still runs.
+            # ONLY WHEN THE LAST EXCHANGE DID NOT END CLEANLY.
             if not self._clean:
                 self.serial.reset_input_buffer()
             self._clean = False
@@ -233,14 +179,7 @@ class Transport:
             return self._read_until_quiet(budget, reply_shape)
 
     def _first_byte(self, budget):
-        """Wait up to `budget` for a reply to start, in QUIET_TIME slices.
-
-        The port's own timeout is never moved. Measured on this VCP,
-        assigning `serial.timeout` costs 3.25 ms whatever it is assigned -
-        pyserial reconfigures the port, which is a control transfer - and
-        the old code paid it three times a transaction. That was 9.75 ms of
-        a 46.6 ms round trip, and none of it was the link.
-        """
+        """Wait up to `budget` for a reply to start, in QUIET_TIME slices."""
         deadline = time.monotonic() + budget
         while True:
             byte = self.serial.read(1)
@@ -261,27 +200,16 @@ class Transport:
         return buffer
 
     def _read_until_quiet(self, budget, reply_shape=None):
-        """Wait the budget for the first byte, then read until a gap.
-
-        The two waits differ on purpose. A reply may legitimately be seconds
-        late, because a burst blocks the slave for as long as it samples; but
-        once the first byte has arrived the rest follow at line rate, so the
-        frame ends after QUIET_TIME of silence.
-
-        Whatever is already buffered is taken in one read. A byte at a time
-        was measured at 17.8 ms for a 20-byte reply that arrives whole in
-        3.3 ms: the cost was one driver round trip per byte, not the link.
-        """
+        """Wait the budget for the first byte, then read until a gap."""
         buffer = self._first_byte(budget)
         if not buffer:
             return buffer
 
         want = self.MAX_FRAME
         while len(buffer) < want:
-            # The length is knowable for some replies as soon as the
-            # counted field has arrived, and once it is known the read
-            # stops on the last byte instead of on QUIET_TIME of
-            # silence after it. That wait is 8 ms of every transaction.
+            # The length is knowable for some replies as soon as the counted
+            # field has arrived, and once it is known the read stops on the
+            # last byte instead of on QUIET_TIME of silence after it.
             sized = (frame_length(reply_shape, buffer)
                      if want == self.MAX_FRAME else 0)
             if sized:
@@ -309,13 +237,7 @@ class Transport:
         return payload
 
     def broadcast(self, function, payload=b'', settle=0.05):
-        """Acted on by every slave, answered by none. Nothing to return.
-
-        The settle is not politeness: there is no reply to synchronise on, so
-        without it the next request can arrive before the slaves have acted.
-        A caller timing the write itself passes 0 and sleeps afterwards -
-        50 ms inside the measurement is 50 ms of uncertainty.
-        """
+        """Acted on by every slave, answered by none. Nothing to return."""
         self.transmit(BROADCAST, function, payload)
         if settle:
             time.sleep(settle)
@@ -329,22 +251,7 @@ ACK = {'ack': True}
 
 
 def frame_length(shape, buffer):
-    """Whole frame length from `shape` and what has arrived, or 0.
-
-    `shape` is {'at': index of a count byte in the PAYLOAD, 'head': bytes
-    before the records, 'stride': one record, 'tail': bytes after them} -
-    a dict rather than a callable so it crosses the broker as JSON. 0
-    means not knowable yet, and the caller keeps reading until quiet.
-
-    {'ack': True} is the `u8 took` reply: `1` alone, or `0` and the
-    board's length-prefixed refusal - knowable either way, unlike the
-    general reply (stopping on a valid CRC was measured and rejected: a
-    prefix passes about once in 4096, the QUIET_TIME docstring above).
-
-    An exception frame (fc | 0x80) is sized for ANY shape: it is always
-    exactly one code byte, and a shaped read of a refused request
-    otherwise waited out the quiet time to learn it was refused.
-    """
+    """Whole frame length from `shape` and what has arrived, or 0."""
     if not shape or len(buffer) < HEAD_BYTES:
         return 0
     if buffer[1] & EXCEPTION:
@@ -361,7 +268,8 @@ def frame_length(shape, buffer):
 
 def _ack_length(buffer):
     """The `u8 took` reply's length: `1` alone, or `0` and the board's
-    length-prefixed refusal - 0 until the byte that settles it is in."""
+    length-prefixed refusal - 0 until the byte that settles it is in.
+    """
     if len(buffer) < HEAD_BYTES + 1:
         return 0
     if buffer[HEAD_BYTES]:
@@ -372,11 +280,7 @@ def _ack_length(buffer):
 
 
 def validate(reply, unit, function):
-    """Check a reply frame and return its payload.
-
-    Raises rather than returning a status, so a caller never has to ask whether
-    the bytes it is holding are real.
-    """
+    """Check a reply frame and return its payload."""
     if len(reply) < 4:
         raise NoReplyError('unit %d, fc 0x%02X: %s'
                            % (unit, function,

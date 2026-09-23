@@ -1,15 +1,5 @@
 """The control law behind `0x6E` device 10: modes, setpoints, and what the
 board measured while it ran.
-
-The board runs a dq current loop, HF injection, a rotor observer and an I/f ramp
-at the PWM rate; nothing here closes a loop. This sets what it is asked to
-do and reads back, in SI, what it did - the window's means and deviations,
-the innovation's autocorrelation, the raw-code moments at the sample point.
-The gains it runs on live in the calibration record (device 3), so the
-board runs the same drive after a reset; `board.calibration.set_param` is
-how they get there and `reload()` is how the drive picks them up.
-
-Every refusal is the board's own sentence.
 """
 import json
 import math
@@ -111,7 +101,8 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
 
     def state(self):
         """What the drive is doing now, in SI. Angles rad, speeds rad/s
-        electrical, currents A, volts V; `isr_cycles_*` in raw CYCCNT."""
+        electrical, currents A, volts V; `isr_cycles_*` in raw CYCCNT.
+        """
         r = Reader(self._op(DriveOp.STATE))
         out = {'mode': MODE_NAMES.get(r.u8(), 'unknown'),
                'fault': FAULTS.get(r.u8(), 'unknown')}
@@ -132,7 +123,7 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         out['trigger'] = r.u16()
         out['ts'] = r.nano()
         # The worst end of a step in TIM1 ticks past the trigger: the whole
-        # interrupt, against the period's 2 x ARR ticks. Appended.
+        # interrupt, against the period's 2 x ARR ticks.
         out['exit_ticks_max'] = r.maybe('u16')
         # The virtual step block by block, raw cycles; zero on the ADC.
         if r.remaining >= 12:
@@ -141,8 +132,9 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return out
 
     def mode(self, name):
-        """Enter a mode by name. The board refuses with the reason: a
-        switching mode needs MOE set (gates.arm()) and the AFE on."""
+        """Enter a mode by name. The board refuses with the reason: a switching
+        mode needs MOE set (gates.arm()) and the AFE on.
+        """
         return self._ack(DriveOp.MODE, pack(('u8', _known(MODES, name, 'mode'))))
 
     def off(self):
@@ -161,9 +153,10 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return done
 
     def setpoint(self, **values):
-        """Set setpoints by name, SI: id_ref/iq_ref A, theta rad,
-        omega_target rad/s, accel rad/s^2, vd/vq V, pol_volts V,
-        pol_periods/pol_gap PWM periods. Returns what was set."""
+        """Set setpoints by name, SI: id_ref/iq_ref A, theta rad, omega_target
+        rad/s, accel rad/s^2, vd/vq V, pol_volts V, pol_periods/pol_gap PWM
+        periods. Returns what was set.
+        """
         return self._by_name(DriveOp.SETPOINT, SETPOINTS, SETPOINT_IDS,
                              'setpoint', values)
 
@@ -179,12 +172,7 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return self._ack(DriveOp.THETA, pack(('i32', micro(radians))))
 
     def window(self):
-        """The window since the last take, then a new one starts.
-
-        `fields[name]` is `{'n', 'mean', 'sd'}` in SI; `rho[j]` is the
-        innovation's autocorrelation at lag j+1, for the whiteness test;
-        `i_peak` the largest |i_dq| seen. `n` counts periods.
-        """
+        """The window since the last take, then a new one starts."""
         r = Reader(self._op(DriveOp.WINDOW))
         out = {'n': r.u32(), 'fields': {}}
         for name, scale in WINDOW_FIELDS:
@@ -198,13 +186,15 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return out
 
     def moments_arm(self, periods):
-        """Count raw codes at the sample point for this many periods.
-        Needs the sync armed; the board says so otherwise."""
+        """Count raw codes at the sample point for this many periods. Needs the
+        sync armed; the board says so otherwise.
+        """
         return self._ack(DriveOp.MOMENTS_ARM, pack(('u32', int(periods))))
 
     def moments(self):
-        """The moments so far: per channel mean, sd (codes), lowest,
-        highest; `done` once `n` reached `want`; `trigger` is CCR5."""
+        """The moments so far: per channel mean, sd (codes), lowest, highest;
+        `done` once `n` reached `want`; `trigger` is CCR5.
+        """
         r = Reader(self._op(DriveOp.MOMENTS))
         out = {'done': bool(r.u8()), 'n': r.u32(), 'want': r.u32(),
                'trigger': r.u16(), 'channels': {}}
@@ -215,8 +205,9 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return out
 
     def moments_run(self, periods, timeout=5.0, poll=0.02):
-        """Arm, wait for the count, return the moments. Blocking on this
-        side only; the board never sits on a reply."""
+        """Arm, wait for the count, return the moments. Blocking on this side
+        only; the board never sits on a reply.
+        """
         self.moments_arm(periods)
         deadline = time.time() + timeout
         while True:
@@ -240,23 +231,26 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
     # -- the model as the source -----------------------------------------
 
     def source(self, name):
-        """Where the samples come from: 'adc' or 'model'. Refused while a
-        mode runs. With the model the law needs no reference and no stage,
-        and its duties reach the gates only if MOE happens to be set."""
+        """Where the samples come from: 'adc' or 'model'. Refused while a mode
+        runs. With the model the law needs no reference and no stage, and
+        its duties reach the gates only if MOE happens to be set.
+        """
         return self._ack(DriveOp.SOURCE,
                          pack(('u8', _known(SOURCES, name, 'source'))))
 
     def model_param(self, **values):
         """Set model parameters by name, SI: r ohm, ld/lq H, lambda V.s,
-        pole_pairs, sat (fraction Ld bends by at i_sat), i_sat A, j kg.m2,
-        b N.m.s, load N.m, v_dt V, i_knee A, vdc V, noise A rms, theta0
-        rad, sub steps. Returns what was set."""
+        pole_pairs, sat (fraction Ld bends by at i_sat), i_sat A, j kg.m2, b
+        N.m.s, load N.m, v_dt V, i_knee A, vdc V, noise A rms, theta0 rad,
+        sub steps. Returns what was set.
+        """
         return self._by_name(DriveOp.MODEL_PARAM, MODEL_PARAMS, MODEL_IDS,
                              'model parameter', values)
 
     def model(self):
-        """The model's truth: source, the rotor's angle and speed
-        (electrical), its dq currents, the link it runs from."""
+        """The model's truth: source, the rotor's angle and speed (electrical),
+        its dq currents, the link it runs from.
+        """
         r = Reader(self._op(DriveOp.MODEL))
         out = {'source': SOURCE_NAMES.get(r.u8(), 'unknown'),
                'theta': r.micro(), 'omega': r.milli(),
@@ -271,18 +265,7 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return out
 
     def observers(self):
-        """The back-EMF observer chain that runs beside the loop, in SI.
-
-        `drive_observer.c`: a dual flux model with a PLL below the band,
-        a leaking flux model above it, blended across. It steers nothing
-        - it is a second answer to the same question, on the same
-        samples, so a bench can see what a sensorless estimate is worth
-        without fitting a shaft sensor.
-
-        `error` is the chain against the loop's own estimate, which is
-        the number a bench watches: two observers disagreeing is the
-        first thing either of them being wrong looks like.
-        """
+        """The back-EMF observer chain that runs beside the loop, in SI."""
         r = Reader(self._op(DriveOp.OBSERVERS))
         out = {'valid': bool(r.u8()),
                'theta': r.micro(), 'omega': r.milli(),
@@ -303,7 +286,8 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
     def profile(self, path):
         """A motor profile - a JSON file of `drive` parameters (the record's
         names, SI) and `model` parameters - written to the board. Returns
-        what was written. The file says which motor; nothing here does."""
+        what was written. The file says which motor; nothing here does.
+        """
         with open(path, encoding='utf-8') as handle:
             data = json.load(handle)
         done = {'name': data.get('name', path)}
@@ -323,7 +307,8 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
 
     def set_params(self, **values):
         """Write drive parameters into the record (RAM) in SI, and reload.
-        `board.calibration.save()` is what keeps them across a reset."""
+        `board.calibration.save()` is what keeps them across a reset.
+        """
         for name, value in values.items():
             _known(PARAMS, name, 'drive parameter')
             self.board.calibration.set_param(name, to_wire(name, value))

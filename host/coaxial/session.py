@@ -1,13 +1,5 @@
-"""One lazily-opened board connection - the library's session, which the
-rig, the MCP server and the model runner all open through `open_session`.
-
-Connecting is not a tool. A model driving a production rig should not have to
-spend a turn on it, and a forgotten connect is a whole wasted round trip - so
-the first tool call that needs the board opens it, and it stays open.
-
-The board boots into its ASCII console, so opening means handing the UART over
-to the binary protocol first. On the way out the console is handed back, which
-matters: a board left in binary mode looks dead to anyone with a terminal.
+"""One lazily-opened board connection - the library's session, which the rig,
+the MCP server and the model runner all open through `open_session`.
 """
 import collections
 
@@ -17,10 +9,8 @@ from .errors import RigError
 from .simulated import SimulatedSession
 
 
-# `kind` is the *communication interface type*: how the host reaches the
-# bus, which is not the same question as which device is on it. A reading
-# taken over the bench cable and one taken over the field bus are different
-# measurements, and the unit id says which device either of them came from.
+# `kind` is the *communication interface type*: how the host reaches the bus,
+# which is not the same question as which device is on it.
 INTERFACE = {'probe': 'debug probe', 'serial': 'RS485', None: 'simulated'}
 
 Origin = collections.namedtuple(
@@ -29,13 +19,7 @@ Origin = collections.namedtuple(
 
 
 def _node(unit, where=None):
-    """The node half of the prompt tag: which one, or all of them.
-
-    Node 0 is the Modbus broadcast address, and it is a different mode
-    rather than a different node - every node acts on it, none answers,
-    and no read works there. It says so in words the operator cannot read
-    as "node zero".
-    """
+    """The node half of the prompt tag: which one, or all of them."""
     if unit == protocol.BROADCAST:
         return 'ALL NODES'
     if where:
@@ -44,20 +28,7 @@ def _node(unit, where=None):
 
 
 def _label(real, port, kind, fell_back=False):
-    """What the prompt and every suite header say the session is talking to.
-
-    Named by the path, not just the port, because the two paths are not
-    interchangeable: the debug probe is a bench cable that also flashes the
-    board, RS485 is the field bus an installed drive sits on. Which one a
-    reading came over is the kind of thing that has to be on screen, not
-    worked out from a COM number.
-
-    ASKING FOR THE STAND-IN AND FALLING BACK TO IT ARE DIFFERENT THINGS, and
-    the label says which. Measured 2026-08-28: a live view was started while
-    another process held the port, silently got the stand-in, and its frames
-    were read as the board's. `Simulated` alone cannot tell those apart, and
-    the port that failed to answer is the whole diagnosis.
-    """
+    """What the prompt and every suite header say the session is talking to."""
     if not real and fell_back:
         return 'Simulated - nothing answered on %s' % port
     if not real:
@@ -74,20 +45,9 @@ def tag(origin, unit=None, where=None):
 
 
 def _answers(served, unit=1):
-    """Whether the BOARD behind the broker answers - not just the broker.
-
-    A broker attaches, forwards, and reports silence when nothing is on
-    the other end, so proving the process is there proves nothing about
-    the board. It idles 45 s before freeing the port (`_Server.linger`),
-    and in that window a probe that found no board leaves one behind.
-
-    Measured 2026-08-31, the board deliberately unpowered: a lingering
-    broker made `auto` commit to a real port, and ROTOR OBSERVER died of
-    a ConnectError instead of falling back to the stand-in. The round
-    trip below is the one `ports.probe` makes, through the socket.
-    """
-    # Long enough for the broker's own answer: it gives the board a
-    # second and retries once across a console handover before saying no.
+    """Whether the BOARD behind the broker answers - not just the broker."""
+    # Long enough for the broker's own answer: it gives the board a second and
+    # retries once across a console handover before saying no.
     reached = broker.attach((served.get('host', broker.HOST),
                              served.get('tcp', broker.PORT)), timeout=6.0)
     if reached is None:
@@ -95,23 +55,16 @@ def _answers(served, unit=1):
     try:
         return reached.answers(unit)
     except (RigError, OSError):
-        # OSError too: the socket read times out before the broker gives up
-        # on a silent board - it retries the request across a console
-        # handover first - and a timeout is a no-answer like any other.
+        # OSError too: the socket read times out before the broker gives up on
+        # a silent board - it retries the request across a console handover
+        # first - and a timeout is a no-answer like any other.
         return False
     finally:
         reached.close()
 
 
 def board_answers(port=None, baud=115200, unit=1):
-    """Whether a board answers anywhere, without opening a session.
-
-    The two steps `open_session` takes when told to look, in its order -
-    a broker that forwards to a live board, then a probe of the ports -
-    so the front page's chip and a view's origin cannot disagree about
-    what is out there. Costly by construction: measured 8.4 s with the
-    board unpowered, which is why the caller asks it off its draw loop.
-    """
+    """Whether a board answers anywhere, without opening a session."""
     served = broker.serving()
     if served and _answers(served, unit):
         return True
@@ -121,34 +74,11 @@ def board_answers(port=None, baud=115200, unit=1):
 
 
 def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
-    """`(session, origin)` - the board, or a stand-in for it.
-
-    `simulated=None` looks for the board rather than assuming a port:
-    `ports.discover` tries `port` first if Windows lists it, then every
-    debug probe, then everything else, and each try is the same Modbus round
-    trip a tool call makes - so "a board answers here" cannot mean one thing
-    to this factory and another to the caller a moment later. `True` skips
-    the search and takes the stand-in; `False` takes the real Session on
-    `port` and lets it fail on first use.
-
-    `origin.real` is not decoration. A suite that ran against
-    `SimulatedSession` proved the host and nothing about the firmware, and a
-    tally that does not say which it was is the plausible-sentence-for-a-fact
-    failure this codebase documents everywhere else. Every caller prints
-    `origin.label`.
-    """
+    """`(session, origin)` - the board, or a stand-in for it."""
     kind = None
     fell_back = False
 
-    # A BROKER IS THE BOARD. `discover` probes by opening the port, which
-    # fails while another process holds it - so with a session server up,
-    # looking for the board found nothing and every tool quietly fell back
-    # to the stand-in. Asked before probing, and only when nothing narrower
-    # was demanded: `only` names a path, and a broker is not one.
-    # ANSWERS, not just named: the address file outlives a process that was
-    # killed, and a stale one reads exactly like a live broker until the
-    # connect fails - at which point `auto` had already committed to a real
-    # port and raised instead of falling back to the stand-in.
+    # A BROKER IS THE BOARD.
     served = broker.serving() if only is None else None
     if served and simulated is not True and not _answers(served, unit):
         served = None
@@ -173,15 +103,7 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
                 Origin(False, port, baud, None,
                        _label(False, port, None, fell_back),
                        INTERFACE[None], unit))
-    # A BROKER FOR IT, now that the probe has let the port go. Started here
-    # rather than deeper down because `discover` is what fights for the
-    # port: it opens one to ask, so a second process arriving while the
-    # first was probing found it busy and quietly used the stand-in - both
-    # of them did, measured, racing each other.
-    #
-    # A failure to start one is not a failure to open the board. The session
-    # below opens the port itself when there is no broker, which is what
-    # every run did before there was one.
+    # A BROKER FOR IT, now that the probe has let the port go.
     broker.spawn(port, baud)
 
     if port is None:
@@ -192,16 +114,9 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
 
 
 class Session:
-    """One transport and the board on it. Lazy: nothing is opened until a
-    call actually needs the port, so a dead cable fails at the call
-    rather than at start-up.
-
-    ONE SURFACE FOR EVERY SESSION - this, `coaxial.simulated's stand-in
-    and dbg.py's NoBoard: `port`, `baud`, `unit`, `bus`, `simulated`,
-    `attached`, `board`, `info()`, `buses()`, `scan()`, `use()`,
-    `close()`, `reset()`. A tool reads them as attributes; a name
-    drifting between the three fails where it is read, not in a
-    getattr default that hid it.
+    """One transport and the board on it. Lazy: nothing is opened until a call
+    actually needs the port, so a dead cable fails at the call rather than
+    at start-up.
     """
 
     #: Read by anything that must not mistake a stand-in for a board.
@@ -223,20 +138,23 @@ class Session:
 
     @property
     def attached(self):
-        """The board when the link is already open, else None - never
-        opens anything, unlike `board`."""
+        """The board when the link is already open, else None - never opens
+        anything, unlike `board`.
+        """
         return self._board
 
     @property
     def bus(self):
-        """The segment this session is on: a real bus is a serial
-        segment, and its label is its port."""
+        """The segment this session is on: a real bus is a serial segment, and
+        its label is its port.
+        """
         return self.port
 
     def info(self, refresh=False):
         """Version, clock and channel table, cached: none of it changes at run
-        time, and re-reading it on every call is exactly the waste this server
-        exists to avoid."""
+        time, and re-reading it on every call is exactly the waste this
+        server exists to avoid.
+        """
         if self._info is None or refresh:
             board = self.board
             self._info = (board.version_info or board.probe(),
@@ -245,32 +163,16 @@ class Session:
         return self._info
 
     def buses(self):
-        """[(label, what it serves)] - the segments this host can reach.
-
-        One, on a bench with one cable in: a bus is a serial segment, and
-        the host reaches one port at a time. A machine wired the way
-        `coaxial.simulated` is has five, and which limb a segment serves is
-        the operator's knowledge rather than the board's - a board cannot
-        know where it was bolted.
-        """
+        """[(label, what it serves)] - the segments this host can reach."""
         return [(self.port, 'the attached bus')]
 
     def scan(self, units=range(1, 17), bus=None):
-        """[(unit, version)] for every device answering on this bus.
-
-        The link is dropped first: one port cannot be open twice, and the
-        sweep opens its own. Whatever was selected stays selected - the
-        next tool call reopens it.
-        """
+        """[(unit, version)] for every device answering on this bus."""
         self.close()
         return scan(units, bus or self.port, self.baud)
 
     def use(self, unit, bus=None):
-        """Point this session at another node, and another bus with it.
-
-        A bus is a port here, so moving bus means moving port - and the
-        link goes with it rather than being carried across.
-        """
+        """Point this session at another node, and another bus with it."""
         self.close()
         if bus is not None:
             self.port = bus
@@ -290,5 +192,6 @@ class Session:
 
     def reset(self):
         """Drop the connection so the next call reopens it. For recovering from
-        a cable pull without restarting the server."""
+        a cable pull without restarting the server.
+        """
         self.close()

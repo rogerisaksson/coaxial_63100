@@ -1,32 +1,4 @@
-"""The anti-alias chain the board runs, designed here.
-
-The converter is three orders of magnitude faster than the link. Closing
-that gap by throwing samples away folds everything above half the output
-rate back into the answer as something that was never there, and no field in
-a record says so. This designs what stops it, and - the part that matters -
-REPORTS WHAT IT ACTUALLY ATTENUATES rather than asserting it is enough.
-
-    chain = design(fs=3.75e6, out_rate=1000.0, order=4)
-    chain['boxcar'], chain['decimate']      # what the board runs
-    chain['sections']                        # biquads, b0 b1 b2 a1 a2
-    chain['worst_alias_db']                  # the honest number
-
-**Bessel, and the trade is deliberate.** Its group delay is maximally flat,
-so a current waveform arrives its own shape rather than smeared - which is
-what a drive wants from a measurement. It pays with a gentle rolloff: at the
-same order it attenuates a stopband far less than a Butterworth. Both
-numbers come out of `design`, and nothing here picks for the operator.
-
-Two stages, because one cannot be both cheap and sharp. A boxcar costs one
-add per sample and is the only thing that can run at the converter's rate;
-biquads cost ~10 cycles each and run on what the boxcar left. The host is
-the only place that knows the output rate, so it is the only place that can
-choose a cutoff against the sampling theorem.
-
-No numpy: this tree's host runs on pyserial and the standard library, so the
-roots come from Durand-Kerner and the -3 dB point from a bisection. Degree 8
-is the ceiling and both converge in a few dozen iterations.
-"""
+"""The anti-alias chain the board runs, designed here."""
 import cmath
 import math
 
@@ -41,11 +13,7 @@ MAX_BOXCAR = 32767
 
 
 def reverse_bessel(n):
-    """Coefficients of the reverse Bessel polynomial, a[k] for s**k.
-
-    a[k] = (2n-k)! / (2**(n-k) * k! * (n-k)!). Exact in integers, so the
-    poles below start from something with no rounding in it yet.
-    """
+    """Coefficients of the reverse Bessel polynomial, a[k] for s**k."""
     return [math.factorial(2 * n - k)
             // (2 ** (n - k) * math.factorial(k) * math.factorial(n - k))
             for k in range(n + 1)]
@@ -60,12 +28,7 @@ def _value(coeffs, z):
 
 
 def roots(coeffs, rounds=500, tol=1e-14):
-    """Every root of a real polynomial, by Durand-Kerner.
-
-    Started off a spiral rather than the unit circle: equally spaced points
-    on a circle are a fixed point of the iteration for some polynomials and
-    it never moves off them.
-    """
+    """Every root of a real polynomial, by Durand-Kerner."""
     n = len(coeffs) - 1
     if n < 1:
         return []
@@ -100,14 +63,7 @@ def _magnitude(poles, omega):
 
 
 def prototype(order):
-    """The analog Bessel poles, scaled so -3 dB lands at omega = 1.
-
-    Bessel's own normalisation is unit group delay, not unit cutoff; an
-    anti-alias filter is specified by where it stops passing, so the poles
-    are divided by the -3 dB frequency found here. Bisection rather than a
-    table: a table is a second answer that goes stale at the order nobody
-    tabulated.
-    """
+    """The analog Bessel poles, scaled so -3 dB lands at omega = 1."""
     if order < 1:
         raise ValueError('order is at least 1, not %r' % (order,))
     poles = roots(reverse_bessel(order))
@@ -143,12 +99,7 @@ def _pair(poles):
 
 
 def sections(fs, fc, order):
-    """Biquads for a Bessel low-pass at `fc`, sampled at `fs`.
-
-    Bilinear with the cutoff pre-warped, so the digital -3 dB lands where it
-    was asked for rather than where the transform's compression put it -
-    which at fc/fs of a tenth is already 3 % out.
-    """
+    """Biquads for a Bessel low-pass at `fc`, sampled at `fs`."""
     if not 0.0 < fc < fs / 2.0:
         raise ValueError('a cutoff of %g Hz is not below the Nyquist of a '
                          '%g Hz stream' % (fc, fs))
@@ -183,12 +134,7 @@ def response(design_sections, f, fs):
 
 
 def boxcar_gain(f, length, fs):
-    """|H| of an accumulate-and-dump of `length`, at rate `fs`.
-
-    The Dirichlet kernel, not a guess: nulls at multiples of fs/length and a
-    first sidelobe 13 dB down, which is exactly why it is a first stage and
-    never the whole filter.
-    """
+    """|H| of an accumulate-and-dump of `length`, at rate `fs`."""
     if length <= 1:
         return 1.0
     x = math.pi * f / fs
@@ -204,25 +150,14 @@ def _fold(f, rate):
 
 
 def chain_gain(chain, f):
-    """|H| from the converter's input to the record, at input frequency `f`.
-
-    Every stage in the order the board runs them: the boxcar at the full
-    rate, then the biquads at what its dump left, then the decimation - and
-    the folds each one brings, which is the whole question being asked.
-    """
+    """|H| from the converter's input to the record, at input frequency `f`."""
     fs, mid = chain['fs'], chain['mid_rate']
     gain = boxcar_gain(f, chain['boxcar'], fs)
     return gain * abs(response(chain['sections'], _fold(f, mid), mid))
 
 
 def worst_alias_db(chain, harmonics=64, steps=41):
-    """The loudest thing that can fold into the passband, in dB.
-
-    For every output frequency the passband keeps, the input frequencies
-    that land on it are `k * out_rate +/- u`. This walks them and reports the
-    worst gain any of them still has - so a design is judged by what it
-    fails to stop, not by the shape of its passband.
-    """
+    """The loudest thing that can fold into the passband, in dB."""
     out_rate, fc = chain['out_rate'], chain['cutoff']
     worst = 0.0
     for step in range(steps):
@@ -236,12 +171,7 @@ def worst_alias_db(chain, harmonics=64, steps=41):
 
 
 def group_delay_ripple(chain, points=32):
-    """Peak-to-peak group delay across the passband, in output samples.
-
-    The reason a Bessel is here at all. Measured off the phase rather than
-    asserted, so a design that was asked for an order it does not have still
-    reports what it really does.
-    """
+    """Peak-to-peak group delay across the passband, in output samples."""
     fc, mid = chain['cutoff'], chain['mid_rate']
     delays = []
     step = fc / (points * 8.0)
@@ -260,11 +190,6 @@ def group_delay_ripple(chain, points=32):
 
 def _split(ratio, want_mid):
     """(boxcar, decimate) whose product is `ratio`, decimate near `want_mid`.
-
-    The boxcar takes as much of the thinning as it can: it is the stage that
-    runs at the converter's rate, and every factor left to it is a factor the
-    biquads do not pay for. What `decimate` keeps is the headroom the shaped
-    filter needs above the output rate.
     """
     best = None
     for decimate in range(1, ratio + 1):
@@ -283,34 +208,7 @@ def _split(ratio, want_mid):
 
 
 def design(fs, out_rate, order=4, cutoff=None, headroom=8):
-    """The whole chain, and what it is worth.
-
-    fs        what the converter is running at
-    out_rate  records a second the link is to carry
-    order     Bessel order, 1..8 - two per biquad, four biquads
-    cutoff    passband edge in Hz. Default a FIFTH of `out_rate`, not the
-              half the sampling theorem allows nor the 0.4 a sharper filter
-              would take: what folds onto the passband edge is
-              `out_rate - cutoff`, and a Bessel has barely started there.
-              Measured on this design at a 10 kHz mid rate, cutoff 400 Hz:
-
-                  order   at 1.5*fc   at 4*fc
-                      2     -6.4 dB   -21.8 dB
-                      4     -7.5 dB   -37.2 dB
-                      6     -7.4 dB   -48.9 dB
-                      8     -7.2 dB   -57.4 dB
-
-              Order steepens the far stopband and leaves the knee where it
-              was - that is Bessel, and it is why the fold has to be put
-              four octaves out rather than one. At 0.4 * out_rate the whole
-              chain stopped -7.6 dB of what folds; at 0.2 it stops -35 dB.
-    headroom  how far above `out_rate` the biquads run. The boxcar takes the
-              rest, being the cheap stage.
-
-    Returns the design the board loads and the analysis a caller should read
-    before believing it: `worst_alias_db` is what still folds in, and
-    `group_delay_samples` is what the Bessel bought.
-    """
+    """The whole chain, and what it is worth."""
     if order < 1 or order > 2 * MAX_SECTIONS:
         raise ValueError('order is 1..%d - the board runs %d biquads'
                          % (2 * MAX_SECTIONS, MAX_SECTIONS))
@@ -321,13 +219,7 @@ def design(fs, out_rate, order=4, cutoff=None, headroom=8):
     ratio = int(round(fs / float(out_rate)))
     boxcar, decimate = _split(max(1, ratio), headroom)
     mid_rate = fs / float(boxcar)
-    # THE ACHIEVED RATE, NOT THE ASKED ONE. `ratio` is an integer, so what
-    # comes out can be well under what was requested - and a passband set
-    # from the request then sits above the real Nyquist. MEASURED
-    # 2026-09-01: asked 400 records/s off a 288 Hz loop, the chain made 144
-    # and put its -3 dB at 80 Hz against a Nyquist of 72. That is not a
-    # filter, it is the aliasing it was written to stop, and it was bought
-    # by asking for a rate the loop could not reach.
+    # THE ACHIEVED RATE, NOT THE ASKED ONE.
     achieved = fs / float(boxcar * decimate)
     edge = float(cutoff) if cutoff else 0.2 * achieved
 
@@ -348,18 +240,7 @@ def design(fs, out_rate, order=4, cutoff=None, headroom=8):
 
 
 def for_link(fs, max_rate_hz, order=4, margin=0.8, **kw):
-    """The chain for a link that carries `max_rate_hz` records a second.
-
-    MORE CHANNELS IS A LONGER RECORD IS FEWER RECORDS A SECOND IS A LOWER
-    CUTOFF. The sampling theorem does not care how many channels were
-    wanted: whatever the link carries is the output rate, and the
-    passband is a fifth of it. The board reports what it can carry for
-    the stride it actually has - `state()['max_rate_hz']` - so this is
-    where that number becomes a filter.
-
-    `margin` keeps the task under the ceiling rather than on it: a ring
-    produced at exactly the drain rate overflows on the first slow read.
-    """
+    """The chain for a link that carries `max_rate_hz` records a second."""
     if max_rate_hz <= 0:
         raise ValueError('a link that carries no records carries no '
                          'measurement either')
@@ -367,17 +248,7 @@ def for_link(fs, max_rate_hz, order=4, margin=0.8, **kw):
 
 
 def ladder(fs, max_rate_hz, rungs=4, order=4, margin=0.8, step=2.0):
-    """A ladder of whole chains, each `step` times slower than the last.
-
-    The board climbs it when its ring fills and comes back down when the
-    link has caught up. Every rung is a COMPLETE design - boxcar,
-    coefficients, decimation - because decimating harder without
-    redesigning is exactly how a fold gets in, and the board cannot
-    design anything: it chooses between designs sent to it.
-
-    Rung 0 is what the link carries today. Four rungs at a factor of two
-    cover 8x, which is a fibre against a bottle.
-    """
+    """A ladder of whole chains, each `step` times slower than the last."""
     out = []
     for n in range(rungs):
         rate = float(max_rate_hz) * margin / (step ** n)
@@ -395,5 +266,6 @@ def ladder(fs, max_rate_hz, rungs=4, order=4, margin=0.8, step=2.0):
 
 def flat(sections_list):
     """The sections as one list of floats, b0 b1 b2 a1 a2 - the order the
-    harness and the wire both take them in."""
+    harness and the wire both take them in.
+    """
     return [value for section in sections_list for value in section]

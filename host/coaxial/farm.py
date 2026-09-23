@@ -1,18 +1,4 @@
-"""The renderer, cut into horizontal bands and drawn by several processes.
-
-Pure Python holds the GIL, so threads buy nothing here - measured on this
-machine, `sys._is_gil_enabled()` is True and the build is not free-threaded.
-Processes it is.
-
-Bands rather than triangle ranges, because a band owns its slice of the
-z-buffer outright: nothing has to be merged afterwards, and each worker
-returns the finished characters for its own rows. Splitting by triangle
-would mean shipping four framebuffers back and comparing them depth by
-depth in the parent, which is most of what was saved.
-
-What is duplicated is the vertex pass, since every band needs every vertex.
-Measured at 150x44: 8.0 ms of a 139 ms frame, so 94% of the work divides.
-"""
+"""The renderer, cut into horizontal bands and drawn by several processes."""
 import multiprocessing
 import os
 
@@ -20,8 +6,9 @@ from . import ascii3d
 from .errors import RigError
 
 class _Worker:
-    """The model, set once per worker by `_load`: 200,000 floats down a
-    pipe every frame would cost more than the drawing."""
+    """The model, set once per worker by `_load`: 200,000 floats down a pipe
+    every frame would cost more than the drawing.
+    """
     model = None
 
 #: More than this many workers stops helping: the bands get thinner than the
@@ -47,13 +34,7 @@ def _band(job):
 
 class Farm:
 
-    """A pool of workers holding the model, ready to draw bands of it.
-
-    Built once and reused: on Windows a process starts by spawning a fresh
-    interpreter and importing everything again, which costs about a second.
-    Per frame after that, all that crosses the pipe is a rotation matrix and
-    a few lines of text back.
-    """
+    """A pool of workers holding the model, ready to draw bands of it."""
 
     def __init__(self, model, workers=None):
         if workers is None:
@@ -100,18 +81,14 @@ class Farm:
 
 
 def _split(height, cell_rows, workers):
-    """(top, bottom) framebuffer rows per worker, on character boundaries.
-
-    A band has to end where a character row ends, or the cell it cuts in half
-    is averaged from two workers that never see each other's pixels.
-    """
+    """(top, bottom) framebuffer rows per worker, on character boundaries."""
     bands = []
     at = 0
 
     for index in range(workers):
-        # Spread the remainder rather than giving it all to the last band:
-        # one band a dozen rows taller than the rest is a dozen rows every
-        # other worker waits for.
+        # Spread the remainder rather than giving it all to the last band: one
+        # band a dozen rows taller than the rest is a dozen rows every other
+        # worker waits for.
         take = height // workers + (1 if index < height % workers else 0)
         if not take:
             break

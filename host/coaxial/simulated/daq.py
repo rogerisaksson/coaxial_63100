@@ -1,5 +1,6 @@
-"""Recording without a board: deep capture, the acquisition engine
-and the cycle-counting clock."""
+"""Recording without a board: deep capture, the acquisition engine and the
+cycle-counting clock.
+"""
 import math
 import random
 import time
@@ -37,13 +38,7 @@ def _source_mask(sources):
 
 
 class SimulatedCapture:
-    """The measurement ring, without measurements.
-
-    Invents records at the rates the real sources run at - the injected
-    triple at 50 kHz, the angle loop as fast as its SPI allows, the IMU at
-    whatever it was asked for - so a caller draining it sees the same shape
-    and the same ordering it would off a board.
-    """
+    """The measurement ring, without measurements."""
 
     DEPTH = 1024
 
@@ -76,10 +71,10 @@ class SimulatedCapture:
         return {'sources': [names[i] for i in range(3) if self._mask >> i & 1],
                 'mask': self._mask, 'count': len(self._pending),
                 'depth': self.DEPTH, 'dropped': self._dropped,
-                # Nothing here is throttled - there is no link to be short
-                # of - but the field has to exist or a view written against
-                # the board would fail on the stand-in, which is the one
-                # thing test_parity is for.
+                # Nothing here is throttled - there is no link to be short of
+                # - but the field has to exist or a view written against the
+                # board would fail on the stand-in, which is the one thing
+                # test_parity is for.
                 'thinned': 0}
 
     def arm(self, sources):
@@ -112,14 +107,7 @@ class SimulatedCapture:
 
 
 class SimulatedDaq(Acquisition):
-    """One acquisition task, without a converter.
-
-    Answers `Acquisition` like the real one, and refuses the same things for
-    the same reasons: a TIM1 clock carries only the phases, and a task cannot
-    be reconfigured while it runs. Inheriting the surface is what makes a name
-    dropped from one of them fail here at construction rather than at the
-    first call that reached for it.
-    """
+    """One acquisition task, without a converter."""
 
     #: Records still owed after the last `acquire()` - the stand-in's
     #: answer to the board's backlog field. A free-running task owes
@@ -155,9 +143,7 @@ class SimulatedDaq(Acquisition):
                           c['differential'])
              for c in CHANNELS}
     PHASES = tuple(c['index'] for c in CHANNELS if c['differential'])
-    # One per channel the board reports. A channel added to `s_analog` and
-    # not here is a KeyError on the first frame, which is what happened when
-    # the die thermometer took index 9.
+    # One per channel the board reports.
     #: ONE TABLE FOR ONE BOARD. This was a second set of quiet points,
     #: different from the one `SimulatedAnalog` reads through - Phase U
     #: sat at 1400 in a record and 900 in a read of the same channel.
@@ -234,18 +220,7 @@ class SimulatedDaq(Acquisition):
     _theta_at = None
 
     def _spin(self, seconds):
-        """(theta, amps, modulation index, voltage angle) for this record.
-
-        THE MOTOR IS THE ONE IN `SimulatedDrive`: R 0.05 ohm, Ld 20 uH,
-        Lq 30 uH, lambda 0.005 Wb, 7 pole pairs, 50 kHz. Nothing here
-        invents a constant - the currents are the dq references the drive
-        was given, put back into the stator frame, and the duties are the
-        voltage vector that drive computed for them over the DC link this
-        stand-in reports.
-
-        Zero amps and a half duty when nothing is commanded, which is what
-        a bench with the stage down looks like.
-        """
+        """(theta, amps, modulation index, voltage angle) for this record."""
         drive = self.drive
         if drive is None:
             return 0.0, 0.0, 0.0, 0.0
@@ -253,14 +228,14 @@ class SimulatedDaq(Acquisition):
         omega = drive._omega()                 # electrical rad/s
         self._theta = (self._theta + omega * seconds) % (2.0 * math.pi)
 
-        # The drive's own solution: what current it settled at and
-        # what voltage it needed, not the references it was handed.
+        # The drive's own solution: what current it settled at and what
+        # voltage it needed, not the references it was handed.
         iid, iq, vd, vq = drive._dq()
         amps = math.hypot(iid, iq)
         volts = math.hypot(vd, vq)
         # The link this stand-in reports, through its own scaling: the
-        # modulation index is what fraction of half the link the vector
-        # asks for, and it cannot exceed one.
+        # modulation index is what fraction of half the link the vector asks
+        # for, and it cannot exceed one.
         vdc = DCBUS_V
         index = min(1.0, (2.0 * volts / vdc) if vdc else 0.0)
         return self._theta, amps, index, math.atan2(vq, vd)
@@ -295,10 +270,11 @@ class SimulatedDaq(Acquisition):
     NO_WORDS = (0, 0, 0, 0)
 
     def _sensor_words(self, bit):
-        """Four raw words, the board's own encodings - the shaft off the
-        SAME rotor the drive torques, the IMU off the poll record. Wired
-        by `SimulatedBoard` like `drive` is; unwired, zeros with have 0,
-        which is what an absent part answers."""
+        """Four raw words, the board's own encodings - the shaft off the SAME
+        rotor the drive torques, the IMU off the poll record. Wired by
+        `SimulatedBoard` like `drive` is; unwired, zeros with have 0, which
+        is what an absent part answers.
+        """
         if bit == self.SHAFT_BIT:
             return self._shaft_words()
         return self._imu_words(bit)
@@ -336,12 +312,7 @@ class SimulatedDaq(Acquisition):
         return min(1.0, max(0.0, level + self._noise() * 0.02))
 
     def _gate_duty(self, leg, high):
-        """One gate's duty at the angle the record's currents were taken.
-
-        Sine modulation about half: the voltage vector's angle, one third
-        of a turn per leg. The low side is the complement, which is what a
-        half bridge is.
-        """
+        """One gate's duty at the angle the record's currents were taken."""
         theta, _amps, index, delta = self._last_spin
         if index <= 0.0:
             return 0.0                # the stage is down; both gates idle
@@ -366,18 +337,16 @@ class SimulatedDaq(Acquisition):
         time.sleep(self._owed)
         # Whatever the sleep overshot comes off the next bill, so a coarse
         # clock does not compound into a slow line - and no more than one
-        # floor's worth is carried, or a long stall would be paid back
-        # with a burst.
+        # floor's worth is carried, or a long stall would be paid back with a
+        # burst.
         self._owed = max(self._owed - (time.time() - began), -self.SLEEP_FLOOR)
 
     def _period_us(self):
         base = 20.0 if (self._cfg or {}).get('clock') == 'tim1' else 47.0
         cfg = self._cfg or {}
-        # A CLOCK-CLOSED RECORD HAS NO ACCUMULATE, and multiplying by
-        # it gave a period of zero: every record carried the same
-        # timestamp, so `dt` came out 0.0 and a host could not tell
-        # how long a window covered. The clock's own interval is what
-        # closes those, exactly as it does on the board.
+        # A CLOCK-CLOSED RECORD HAS NO ACCUMULATE, and multiplying by it gave
+        # a period of zero: every record carried the same timestamp, so `dt`
+        # came out 0.0 and a host could not tell how long a window covered.
         if not cfg.get('accumulate'):
             return float(cfg.get('interval_us') or base)
         return base * cfg['decimate'] * cfg['accumulate']
@@ -387,8 +356,8 @@ class SimulatedDaq(Acquisition):
                             'decimate': 0, 'accumulate': 0, 'records': 0}
         held = self._buffered()
         # DAQ_BYTES, and the board's number: 16384 was the ring before it
-        # moved into the AXI SRAM, and a stand-in quoting the old one
-        # reports a capacity no host would ever see.
+        # moved into the AXI SRAM, and a stand-in quoting the old one reports
+        # a capacity no host would ever see.
         capacity = RING_BYTES // max(1, self._stride())
         return {'running': self._running, 'done': self._done,
                 'lost_power': False,
@@ -399,9 +368,7 @@ class SimulatedDaq(Acquisition):
                 'rung': 0, 'rungs': self._ladder,
                 'rung_changes': 0,
                 # `cmd_link_records_per_second`, the board's own formula,
-                # against this stand-in's line. Missing here until now,
-                # so a view asking what the link carries got nothing and
-                # fell back to the frame rate.
+                # against this stand-in's line.
                 'max_rate_hz': int(((self.baud // 10) * LINE_SHARE_PERCENT // 100)
                                    // max(1, self._stride())),
                 'sensors_available': (1 << len(self.SENSORS)) - 1,
@@ -436,17 +403,12 @@ class SimulatedDaq(Acquisition):
                 'sensors': rows}
 
     def _stride(self):
-        """The record's width, by the board's own arithmetic: the
-        timestamp, one sum per field, the digital word when the task has
-        one, and the sample count that closes every record.
-
-        One formula, not two: the stand-in quoted a stride two bytes
-        short of the board's the day the count was appended, and a
-        stride is exactly what a host decodes by."""
-        # ONE BYTE A PIN, not one word: the pins go through the same
-        # window as everything else and come out as a duty. The stand-in
-        # quoted the board's old shape once already and a stride is what
-        # a host decodes by.
+        """The record's width, by the board's own arithmetic: the timestamp,
+        one sum per field, the digital word when the task has one, and the
+        sample count that closes every record.
+        """
+        # ONE BYTE A PIN, not one word: the pins go through the same window as
+        # everything else and come out as a duty.
         digital = len(self.PINS) if (self._cfg or {}).get('digital') else 0
         mask = (self._cfg or {}).get('sensors') or 0
         return (4 + 4 * len(self._order) + digital
@@ -514,20 +476,23 @@ class SimulatedDaq(Acquisition):
         return self.layout()
 
     def ladder(self, chains):
-        """Remembered, not climbed: what a ladder answers is what a real
-        ring does under a real link, and the stand-in has neither."""
+        """Remembered, not climbed: what a ladder answers is what a real ring
+        does under a real link, and the stand-in has neither.
+        """
         self._ladder = len(chains)
         return True
 
     def shape(self, sections=(), decimate=1):
-        """Accepted and remembered; the stand-in invents values rather
-        than filtering them, and says so by changing nothing."""
+        """Accepted and remembered; the stand-in invents values rather than
+        filtering them, and says so by changing nothing.
+        """
         self._shape = (len(sections), int(decimate))
         return True
 
     def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):
-        """Remembered, not generated: proving a transfer needs the real
-        ring and the real link, which is what the tone is for."""
+        """Remembered, not generated: proving a transfer needs the real ring
+        and the real link, which is what the tone is for.
+        """
         self._tone = (int(hz), int(rate_hz))
         return True
 
@@ -543,8 +508,8 @@ class SimulatedDaq(Acquisition):
         if self.clock is not None:
             self._at = self.clock.read_latch()['now']
         self._produced = 0
-        # The clock's own cadence: what a read may answer is what the
-        # interval has produced since the last, `acquire`.
+        # The clock's own cadence: what a read may answer is what the interval
+        # has produced since the last, `acquire`.
         self._wall = time.time()
         self._owed_records = 0.0
         return True
@@ -552,8 +517,9 @@ class SimulatedDaq(Acquisition):
     def _buffered(self):
         """What a stopped run still owes: the real board's buffer stays
         readable after stop, so a bounded run's remainder is served -
-        measured jank: the timed-burst notebook drained 0 records here
-        while the board gave 512."""
+        measured jank: the timed-burst notebook drained 0 records here while
+        the board gave 512.
+        """
         if self._cfg is None or not self._cfg['records']:
             return 0
         return max(0, self._cfg['records'] - self._produced)
@@ -574,8 +540,9 @@ class SimulatedDaq(Acquisition):
         return self._cfg
 
     def _samples_per_record(self, fields):
-        """How many sweeps a record holds: `accumulate`, or what the loop
-        would fit in the window when the clock closes it."""
+        """How many sweeps a record holds: `accumulate`, or what the loop would
+        fit in the window when the clock closes it.
+        """
         cfg = self._configured()
         if cfg['accumulate']:
             return cfg['accumulate']
@@ -586,17 +553,6 @@ class SimulatedDaq(Acquisition):
     def _pace(self, n, step_us):
         """How many of the `n` records a read may answer, and how far apart
         their stamps fall, against the wall since the last read.
-
-        A free-running task spreads the batch over the wall time since the
-        last one, floored at the sweep cost. THE CLOCK MAKES THE RECORDS,
-        NOT THE READ, for a clock-closed task: it closes one record an
-        interval, and a read answers what the interval produced since the
-        last one - the fraction carried, so a 50 Hz task makes fifty a
-        second however often it is read. Fifteen a read regardless was 245
-        records a second from that task, their stamps 3.4 s ahead of the
-        wall per second, and the live plot's window ran into the future
-        (2026-09-07). A stopped run's remainder is served at once, as the
-        board's buffer is.
         """
         cfg = self._cfg or {}
         now = time.time()
@@ -626,38 +582,16 @@ class SimulatedDaq(Acquisition):
         cfg = self._configured()
         left = cfg['records'] - self._produced if cfg['records'] else n
         n = max(0, min(n, left))
-        # THE STAMPS TRACK THE WALL. A free-running software clock (no
-        # accumulate, no interval) stamped every record `base` apart while
-        # the line paced how many were actually made: 192 records "in"
-        # 9 ms of stamp against 0.6 s of wall, and an omega read off a
-        # recorded frame came out in megaradians. The records a batch
-        # invents span the wall time since the last batch, floored at the
-        # sweep cost; a clock-closed config keeps its own interval, as the
-        # board does.
+        # THE STAMPS TRACK THE WALL.
         n, step_us = self._pace(n, self._period_us())
         out = []
         for _ in range(n):
             self._at = (self._at + int(step_us * TICKS_PER_US)) & MASK32
             took = self._samples_per_record(len(fields))
             rec = {'at': self._at, 'samples': took}
-            # THE SUM, NOT THE SAMPLES. Drawing `took` uniform noise
-            # terms per field and adding them was the single most
-            # expensive thing in the stand-in: profiled at an
-            # emulated 10 Mbit/s it made 384 275 randint calls in
-            # four seconds and was most of what the run measured,
-            # so a benchmark against it was benchmarking the
-            # simulator. A sum of `took` draws from [-60, 60] has
-            # mean 0 and variance took * 1210, and one gauss call
-            # gives the same distribution to a reader that only
-            # ever sees the sum.
+            # THE SUM, NOT THE SAMPLES.
             spread = math.sqrt(took * 1210.0)
-            # ONE ROTATION, SEEN TWICE. The currents below and the gate
-            # duties further down come from the same electrical angle, so
-            # a trace and the modulation that produced it line up because
-            # they ARE the same thing rather than because two generators
-            # were started together. The rotor advances by the SAME step
-            # the stamp does - theta against `at` is what an
-            # identification differentiates.
+            # ONE ROTATION, SEEN TWICE.
             self._last_spin = self._spin(step_us * 1e-6)
             theta, amps, _index, _delta = self._last_spin
             for f in fields:
@@ -666,15 +600,11 @@ class SimulatedDaq(Acquisition):
                 leg = self.PHASE_LEG.get(f['signal'])
                 if leg is not None and amps:
                     # Balanced three-phase, in codes: the dq solution the
-                    # drive settled at, put back into the stator frame
-                    # through the stand-in's own amps-per-code.
+                    # drive settled at, put back into the stator frame through
+                    # the stand-in's own amps-per-code.
                     offset = took * phase_codes(f['signal'], amps, theta)
                 else:
-                    # ONE SOURCE FOR A QUIET CHANNEL. `_sweep` is what a
-                    # read of this channel returns, and a record that made
-                    # up its own quiet point could never be zeroed by a
-                    # tare measured through the other path - the offset was
-                    # stored, applied, and wrong.
+                    # ONE SOURCE FOR A QUIET CHANNEL.
                     offset = took * _sweep(index)
                 rec[f['signal']] = (centre * took + int(offset)
                                     + int(spread * self._noise()))
@@ -694,20 +624,12 @@ class SimulatedDaq(Acquisition):
             self._running = False
             self._done = True
         self.backlog = self._buffered()
-        # THE LINE, CHARGED IN TIME. A stand-in that answers instantly
-        # measures the host and calls it the link.
+        # THE LINE, CHARGED IN TIME.
         self._charge_line(len(out))
         return out
 
     def decode(self, blob, layout=None):
-        """Records out of raw record bytes, as the board's decoder does.
-
-        THE STAND-IN HAS NO WIRE, so there is no blob to decode: records
-        are invented whole. It answers the name because the front door
-        calls it when a broker's ring hands over bytes, and a name that
-        exists on one side of the parity and not the other fails at the
-        first call that reaches for it - which is what this suite is for.
-        """
+        """Records out of raw record bytes, as the board's decoder does."""
         layout = layout or self.layout()
         stride = layout['stride'] or 1
         return self.acquire(want=len(blob) // stride, layout=layout)
@@ -742,13 +664,7 @@ class SimulatedDaq(Acquisition):
         return out
 
 class SimulatedClock:
-    """The cycle counter tied to nothing, but tied consistently.
-
-    Runs 12 ppm slow of its nominal, which is about what a real crystal
-    does, so a caller that checks the measured rate against the asked-for
-    one sees a number of the right size rather than an exact match that
-    could only come from a stand-in.
-    """
+    """The cycle counter tied to nothing, but tied consistently."""
 
     NOMINAL_HZ = SYSCLK_HZ
     SKEW = 1 - 12e-6
@@ -775,22 +691,15 @@ class SimulatedClock:
     def probe(self, rounds=16):
         return Clock.probe(cast(Clock, self), rounds=rounds)
     def sync(self, seconds=2.0, rounds=8, reference='utc', ntp_server=None):
-        # Its cycles come off this machine's clock, so against UTC it is
-        # this machine's error plus its own 12 ppm - which is the honest
-        # answer, not a bug.
+        # Its cycles come off this machine's clock, so against UTC it is this
+        # machine's error plus its own 12 ppm - which is the honest answer,
+        # not a bug.
         return Clock.sync(cast(Clock, self), seconds=seconds, rounds=rounds,
                           reference=reference,
                           ntp_server=ntp_server or NTP_SERVER)
 
     def _bracket(self):
-        """One latch, bracketed - on `perf_counter`, as the real one is.
-
-        THE SAME CLOCK BASE, because `Clock.sync` converts what this
-        returns from perf to wall with `time.time() - perf_counter()`.
-        Returning a wall time here made it add the offset to a value
-        that already had it: `at_host` came out at exactly twice the
-        epoch, and a DataFrame indexed by it landed in the year 2083.
-        """
+        """One latch, bracketed - on `perf_counter`, as the real one is."""
         before = time.perf_counter()
         self.latch()
         after = time.perf_counter()

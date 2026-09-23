@@ -1,24 +1,4 @@
-"""How much documentation a reader gets, decided from who is reading.
-
-Every tool description is re-sent every turn. Claude over MCP reads it out of
-hundreds of thousands of tokens; gemma4:12b pays for the same text out of 8192
-shared with the conversation and the readings. Writing for the smaller reader
-shortchanges the larger one, so one spec carries both forms.
-
-    detail.resolve('auto', model='gemma4:12b')         -> 'terse'
-    detail.resolve('auto', model='minimax-m3:cloud')   -> 'full'
-    detail.resolve('full', model='gemma4:12b')         -> 'full'   (operator said)
-
-`auto` reads the model tag, the one thing every entry point already has: a
-parameter count decides on the count, a cloud tag is not short of room, and an
-unrecognised tag is assumed small - unnamed tags live on the local daemon, and
-being wrong that way costs a sentence, not a session. `COAXIAL_DETAIL` overrides
-per machine.
-
-NOT gated on this: debug.py's behavioural hints. Each exists because a small
-model needed telling, so trimming them for small models deletes them exactly
-where they earn their place. This shortens documentation, not instructions.
-"""
+"""How much documentation a reader gets, decided from who is reading."""
 import os
 import re
 
@@ -30,20 +10,18 @@ LEVELS = (AUTO, TERSE, FULL)
 # The environment's way to say it once for every entry point.
 ENV = 'COAXIAL_DETAIL'
 
-# Parameters in billions at or above which a reader gets the full text. Set
-# between the largest tag run locally here (14B) and the frontier models
-# reached over MCP. A judgement about who has room to read, not a benchmark.
+# Parameters in billions at or above which a reader gets the full text.
 FULL_MODEL_B = 30.0
 
 # A parameter count in an ollama tag: gemma4:12b, qwen2.5:14b, llama3.1:8b,
-# and the odd 1.5b or 70b. Anchored to the end of a component so a tag like
-# `qwen3.6:latest` does not match the 3.6 in its name.
+# and the odd 1.5b or 70b.
 _SIZE = re.compile(r'(?:^|[:\-_])(\d+(?:\.\d+)?)b(?:$|[:\-_])', re.I)
 
 
 def parse_billions(tag):
     """Parameter count from a tag, or None when it does not say. The last
-    match, not the first: `llama3.1:8b` names a version before a size."""
+    match, not the first: `llama3.1:8b` names a version before a size.
+    """
     if not tag:
         return None
     found = _SIZE.findall(str(tag))
@@ -57,7 +35,8 @@ def parse_billions(tag):
 
 def is_cloud(tag):
     """Ollama's marker for a tag that runs on their hardware. Duplicated from
-    client.py so coaxial_mcp needs nothing from coaxial_ollama."""
+    client.py so coaxial_mcp needs nothing from coaxial_ollama.
+    """
     return bool(tag) and str(tag).split(':')[-1] == 'cloud'
 
 
@@ -72,14 +51,7 @@ def for_model(tag):
 
 
 def resolve(level=AUTO, model=None, default=FULL):
-    """One level, from the caller, the environment, then the model.
-
-    An explicit terse/full wins, then COAXIAL_DETAIL, then the tag, then
-    `default` - FULL, since a caller with no model is the MCP server and its
-    reader is not the one short of room. An unrecognised value is ignored:
-    this decides how long a sentence is, and a typo in an environment
-    variable should not refuse a bench question.
-    """
+    """One level, from the caller, the environment, then the model."""
     if level in (TERSE, FULL):
         return level
     from_env = (os.environ.get(ENV) or '').strip().lower()
@@ -103,7 +75,8 @@ def _properties(schema, level):
     """Property descriptions are documentation too, and there are more of them
     than tools. Terse drops them, except where the description is the only
     place an allowed spelling appears - dropping that is deleting, not
-    shortening."""
+    shortening.
+    """
     if level != TERSE:
         return schema
     properties = schema.get('properties')
@@ -123,22 +96,16 @@ def _properties(schema, level):
 
 
 def _is_schema(description):
-    """Whether a description carries schema rather than prose about it.
-
-    Three shapes, and each is the only place its fact is written:
-    enumerated values (`README|CLAUDE|...`), a spelling (`e.g. B2`), and how
-    to leave the field out (`omit for all`). Measured: terse dropped
-    analog_read's "omit for all" and the model started naming channels
-    itself - inventing `BUS_VOLT`, and reading five of seven.
-    """
+    """Whether a description carries schema rather than prose about it."""
     return ('|' in description or 'e.g.' in description
             or 'omit' in description.lower())
 
 
 def apply(specs, level):
-    """A tool list at one level. Copied, never edited: TOOLS is shared by
-    every session in the process, and one terse request must not shorten the
-    server for everybody after it."""
+    """A tool list at one level. Copied, never edited: TOOLS is shared by every
+    session in the process, and one terse request must not shorten the
+    server for everybody after it.
+    """
     level = level if level in (TERSE, FULL) else FULL
     out = []
     for spec in specs:

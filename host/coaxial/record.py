@@ -1,36 +1,9 @@
-"""One acquisition record, as an object with fields.
-
-    values = daq.read(-1)
-    start = values[0].start_time
-    dt    = values[0].dt
-    for sample in values[0].samples:
-        print(sample.name, sample.value, sample.unit)
-
-A `dict` underneath, so everything written against the mapping keeps
-working: `record['NTC']` is still the SUM the board sent and
-`record['samples']` is still the count that made it. Both spellings for
-one wire is deliberate, because the wire's vocabulary is not the one a
-script wants to read.
-
-THE ONE COLLISION, said out loud: `record['samples']` is a COUNT and
-`record.samples` is the ARRAY of per-channel values. The count is on the
-object as `.count`. They are not the same thing and never were - the
-board sends a sum and the number of readings in it (invariant 7), and a
-caller wanting the mean divides one by the other, which is what `.value`
-below has already done.
-"""
+"""One acquisition record, as an object with fields."""
 
 
 class Sample:
 
-    """One channel's value in one record.
-
-    `raw` is what the board sent - a SUM of `count` readings - and `value`
-    is that sum over that count, which is the mean of the window. Nothing
-    here scales into volts or amperes: that is `board.analog`'s, and a
-    record that guessed at units would be a second answer to a question
-    the calibration record already answers.
-    """
+    """One channel's value in one record."""
 
     __slots__ = ('name', 'unit', 'raw', 'count', 'value')
 
@@ -42,10 +15,8 @@ class Sample:
         self.value = raw / float(count) if count else float(raw)
 
     def __repr__(self):
-        # RAW, and it says so: the window's mean in converter codes, with
-        # the unit the calibration record scales it into. Printing bare
-        # '-825 mA' sent a debugging session chasing an 825 milliampere
-        # phantom that was 825 CODES of standing offset.
+        # RAW, and it says so: the window's mean in converter codes, with the
+        # unit the calibration record scales it into.
         return '<%s %.6g raw%s>' % (self.name, self.value,
                                     ' -> ' + self.unit if self.unit else '')
 
@@ -75,14 +46,7 @@ class Record(dict):
         return self.get('samples', 1)
 
     def sample(self, name):
-        """One channel's `Sample`, by name.
-
-        The way to reach a single channel. Without it the example
-        for it was `dict(zip(r.channel_name, (s.value for s in
-        r.samples)))['NTC']`, which is a gap in this class dressed up
-        as a comprehension: the ordered tuple is right for walking a
-        record and wrong for asking it one question.
-        """
+        """One channel's `Sample`, by name."""
         for s in self.samples:
             if s.name == name:
                 return s
@@ -90,31 +54,17 @@ class Record(dict):
                        % (name, ', '.join(self.channel_name)))
 
     def value(self, name):
-        """One channel's mean - its sum over the count that made it.
-
-        `record.value('NTC')` against `record['NTC'] / record.count`,
-        which is the same arithmetic done by hand every time and one
-        of the two places a caller can get it wrong.
-        """
+        """One channel's mean - its sum over the count that made it."""
         return self.sample(name).value
 
     @property
     def channel_name(self):
-        """The channels in this record, in `samples` order.
-
-        Parallel to `.samples`, so `channel_name[n]` names
-        `samples[n]` - the two are one table read two ways, and a
-        caller plotting columns wants the header without walking the
-        samples for it. The board's own spelling, which is what
-        `catalogue()` and `configure()` both use.
-        """
+        """The channels in this record, in `samples` order."""
         return tuple(s.name for s in self.samples)
 
     def __getattr__(self, name):
-        # Channels by attribute where the name allows it, so `r.NTC` reads
-        # as well as `r['NTC']`. Only after the slots above, and only for
-        # keys that are actually there - anything else is an
-        # AttributeError like any other typo.
+        # Channels by attribute where the name allows it, so `r.NTC` reads as
+        # well as `r['NTC']`.
         try:
             return self[name]
         except KeyError:
@@ -127,19 +77,7 @@ class Record(dict):
 
 
 def build(records, fields, times=None, before=None):
-    """Wrap decoded records as `Record`s, giving each its own `dt`.
-
-    `dt` IS MEASURED, NOT CONFIGURED. It comes from the gap to the next
-    record's timestamp, because what a task was asked for and what the
-    loop managed are different numbers - the whole reason the board sends
-    a count with every sum. The last record in a block has no next one and
-    inherits the gap before it; a block of one takes the gap from
-    `before`, the stamp of the last record of the block before it, which
-    the acquisition carries across blocks - and with no such stamp says
-    so with None. A task read faster than it samples arrives one record
-    a block (the stand-in at the clock's cadence, 2026-09-07), and every
-    one of those had a dt of None.
-    """
+    """Wrap decoded records as `Record`s, giving each its own `dt`."""
     if not records:
         return []
     stamps = list(times) if times is not None else [None] * len(records)

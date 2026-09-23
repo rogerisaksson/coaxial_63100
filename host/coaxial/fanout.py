@@ -1,22 +1,4 @@
-"""One ring, many readers, each with its own place in it.
-
-The broker owns the link, so it owns the records that come off it. Every
-client - another process, another thread, a view and a chat session at
-once - reads the SAME ring from its OWN cursor, and none of them takes
-records away from the others.
-
-WHAT IS LOST IS COUNTED. A reader that falls behind far enough for the
-writer to lap it does lose records, because a ring is finite and the
-alternative is to stall the board for the slowest reader in the building.
-It is told exactly how many, in the same answer that carries the records
-it did get. A silent gap is the one outcome this must not have: 208
-dropped records were charged to the board once because a reader replaced
-its last result and said nothing.
-
-Sequence numbers are monotonic and never reused, which is what makes
-"lapped" answerable at all - an index into the ring cannot tell a reader
-that has not moved from one that has been round exactly once.
-"""
+"""One ring, many readers, each with its own place in it."""
 import threading
 
 
@@ -62,14 +44,7 @@ class Fanout:
         return max(0, self.head - self.capacity)
 
     def take(self, cursor, most=0):
-        """Records from `cursor` on. (blob, first, lost, next).
-
-        `lost` is what the writer overwrote between `cursor` and what is
-        still here - the reader was too slow and the ring is finite. It is
-        returned rather than hidden, and `first` says where the blob
-        actually starts, so a caller can put a hole in its own record
-        rather than a silent join.
-        """
+        """Records from `cursor` on. (blob, first, lost, next)."""
         with self._lock:
             head, oldest = self.head, max(0, self.head - self.capacity)
             start = max(int(cursor), oldest)

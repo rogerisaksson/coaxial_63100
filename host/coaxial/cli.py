@@ -1,9 +1,4 @@
-"""Command line front end: python -m coaxial <command>.
-
-One function per command, dispatched from a table. Each takes the board and the
-parsed arguments and prints; none of them decides anything, so the library stays
-the only place behaviour lives.
-"""
+"""Command line front end: python -m coaxial <command>."""
 import argparse
 import sys
 
@@ -73,8 +68,8 @@ def cmd_analog(board, args):
 
 
 def cmd_scan(board, args):
-    # Like the other reading commands: the scan refuses with the front end off,
-    # because mid-scale would come back as exactly 25.00 C.
+    # Like the other reading commands: the scan refuses with the front end
+    # off, because mid-scale would come back as exactly 25.00 C.
     board.afe.enable()
     for key, value in board.analog.scan().items():
         print('  %-16s %s' % (key, value))

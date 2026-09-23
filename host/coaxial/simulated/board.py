@@ -1,5 +1,6 @@
 """The assembly: SimulatedBoard wires every device together and
-SimulatedSession answers like coaxial.session.Session."""
+SimulatedSession answers like coaxial.session.Session.
+"""
 from ..errors import DeviceStateError
 from ..protocol import BROADCAST
 from .link import DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink, _BroadcastRefuses, bus_nodes
@@ -15,9 +16,10 @@ from typing import Any
 
 
 class SimulatedBoard:
-    """A whole board without a board. Duck-typed against the real one, so
-    the tools above cannot tell which they are holding - except that
-    every touchpoint labels itself."""
+    """A whole board without a board. Duck-typed against the real one, so the
+    tools above cannot tell which they are holding - except that every
+    touchpoint labels itself.
+    """
 
     #: The rig that opened this board - `Board.rig`'s twin. And no wire:
     #: nothing streams from a stand-in but its own reader thread.
@@ -36,17 +38,15 @@ class SimulatedBoard:
             ('coaxial_63100', 'bldc_inverter',
              'unassigned unit %d on %s' % (self.unit, bus)))
         self.version_info = {
-            # The MINOR is the one this stand-in actually implements -
-            # sensor fields in records (7) and the counted duty (8) - so a
-            # host gating a feature on the version exercises the same gate
-            # here that it will at the bench. It sat at 0 while the
-            # firmware moved to 2.8, and pulse.py's counted path would
-            # have silently link-timed every simulated rehearsal.
+            # The MINOR is the one this stand-in actually implements - sensor
+            # fields in records (7) and the counted duty (8) - so a host
+            # gating a feature on the version exercises the same gate here
+            # that it will at the bench.
             'proto_major': 2, 'proto_minor': 8, 'firmware': 'simulated',
             'device': name, 'mcu': 'STM32H753 (simulated)',
             'build': 'simulated', 'commands': 21, 'type': kind,
-            # Says what it is AND that it is invented, in the same line, so
-            # a list of five devices cannot be read as five real ones.
+            # Says what it is AND that it is invented, in the same line, so a
+            # list of five devices cannot be read as five real ones.
             'description': 'SIMULATED three-phase BLDC inverter at the %s'
                            % where,
             'where': where,
@@ -57,16 +57,18 @@ class SimulatedBoard:
             self._wire()
 
     def __getattr__(self, name):
-        """On the broadcast unit every subsystem refuses, whatever it is
-        called - a list of names here was the copy that went stale, and
-        left `thermal` and `power` answering with AttributeError instead."""
+        """On the broadcast unit every subsystem refuses, whatever it is called
+        - a list of names here was the copy that went stale, and left
+        `thermal` and `power` answering with AttributeError instead.
+        """
         if name.startswith('_') or vars(self).get('unit') != BROADCAST:
             raise AttributeError(name)
         return _BroadcastRefuses()
 
     def _wire(self):
-        """One of every subsystem, and the cross-links that make them one
-        board rather than a bag of stand-ins."""
+        """One of every subsystem, and the cross-links that make them one board
+        rather than a bag of stand-ins.
+        """
         self.system = SimulatedSystem(self.version_info)
         self.link = SimulatedLink()
         self.afe = SimulatedAfe()
@@ -78,69 +80,42 @@ class SimulatedBoard:
         self.gate_drivers = SimulatedGateDrivers()
         self.thermal = SimulatedThermal()
         # THE SAME CLASS AS THE BOARD'S, not a stand-in for it.
-        # `Observer` is composed out of ops that already exist -
-        # the drive's, the shaft sensor's - so there is nothing
-        # here for it to talk to that differs, and a second
-        # implementation would only be a second thing to drift.
         self.observer = Observer(self)
         self.power = SimulatedPower()
         self.boot = SimulatedBoot()
         self.capture = SimulatedCapture()
         self.clock = SimulatedClock()
         self.daq = SimulatedDaq()
-        # ONE TIMEBASE, as the board has one. A record's `at` and
-        # the clock's cycles both come off DWT->CYCCNT there; here
-        # they were two counters that started at zero at different
-        # moments, so `sync.to_host()` mapped a DAQ stamp through a
-        # calibration made for the other - measured, a DataFrame
-        # indexed in the year 2083.
+        # ONE TIMEBASE, as the board has one.
         self.daq.clock = self.clock
         self.drive = SimulatedDrive()
-        # WHERE IT LOOKS. The observer is given a SAMPLER - the
-        # phase currents and whether the bridge is switching - and
-        # works the dissipation out itself. It was handed a finished
-        # power budget, which made it a formality: it was being told
-        # the answer by the thing it was watching. On the board it is
-        # this shape too - the firmware samples currents in the
-        # control interrupt and the observer integrates what it saw,
-        # and neither of them knows where the current came from.
+        # WHERE IT LOOKS.
         self.thermal._sample = self.drive.sample
-        # AND WHAT IT DROPS. `board_thermal.c` calls
-        # `Board_PwmDisable()` after every step where the budget says
-        # tripped, guarded by `Board_PwmIsEnabled()` so a stage that
-        # is already down is not dropped again - that guard is what
-        # makes the trip counter count TRIPS and not steps. The same
-        # guard is here.
+        # AND WHAT IT DROPS.
         self.thermal._gate = self._drop_stage
-        # And what the drive reports as switching: the bridge, so a
-        # dropped stage stops making current in the model too.
+        # And what the drive reports as switching: the bridge, so a dropped
+        # stage stops making current in the model too.
         self.drive._switching = lambda: self.gate_drivers._enabled
-        # AND THE HAND ON THE THROTTLE. `Board_DriveDerate()` there;
-        # a scaling on the drive's own clamp here.
+        # AND THE HAND ON THE THROTTLE.
         self.thermal._derate_to = self._derate_drive
         self.thermal._duty = self._effective_duty
-        # The drive is what the phases and the gates FOLLOW: a
-        # record and the modulation that produced it come from
-        # one electrical angle, or they are two inventions that
-        # happen to be printed together.
-        # The sample point is one register: moving it through the
-        # gate drivers moves the drive's moments too.
+        # The drive is what the phases and the gates FOLLOW: a record and the
+        # modulation that produced it come from one electrical angle, or they
+        # are two inventions that happen to be printed together.
         self.gate_drivers._drive = self.drive
         self.daq.drive = self.drive
-        # And the analog reads see the same current on the phases,
-        # so a tare through them zeroes the records (values.py).
+        # And the analog reads see the same current on the phases, so a tare
+        # through them zeroes the records (values.py).
         self.analog.drive = self.drive
-        # The shaft sensor reads the SAME rotor: a servo closed over
-        # the A1335 moves what the drive torques, or the loop it
-        # closes is between two inventions. The DAQ's sensor fields
-        # read the same parts the subsystems answer for.
+        # The shaft sensor reads the SAME rotor: a servo closed over the A1335
+        # moves what the drive torques, or the loop it closes is between two
+        # inventions.
         self.angle.drive = self.drive
         # And the A1335's die is as warm as the board it sits on.
         self.angle.thermal = self.thermal
         self.daq.angle = self.angle
         self.daq.imu = self.imu
-        # `zero()` reads a channel, so it needs the board that
-        # has them.
+        # `zero()` reads a channel, so it needs the board that has them.
         self.calibration.board = self
 
     def __repr__(self):
@@ -153,12 +128,7 @@ class SimulatedBoard:
             drive._derate = max(0.0, min(1.0, factor))
 
     def _effective_duty(self):
-        """What the compares hold, as a fraction of the period.
-
-        The EFFECTIVE duty: what the clamp and the derate left, not what
-        anything asked for. Zero with the stage down, because that is
-        what the compares are worth then.
-        """
+        """What the compares hold, as a fraction of the period."""
         gates = self.gate_drivers
         if not isinstance(gates, SimulatedGateDrivers) or not gates._enabled:
             return (0.0, 0.0, 0.0)
@@ -166,12 +136,7 @@ class SimulatedBoard:
         return tuple(t / period for t in gates._duty)
 
     def _drop_stage(self):
-        """Drop the gates for the thermal envelope. True if it did.
-
-        The board's own `Board_PwmDisable()` behind the same
-        `Board_PwmIsEnabled()` guard: a stage already down is not dropped
-        again, so what the counter counts is trips.
-        """
+        """Drop the gates for the thermal envelope. True if it did."""
         if not self.gate_drivers._enabled:
             return False
         self.gate_drivers.disable()
@@ -194,43 +159,27 @@ class SimulatedBoard:
                                'subsystems, not raw requests')
 
 
-# Several of this board on one bus, which is what a machine built out of
-# them looks like: same firmware, same commands, different unit id and a
-# different thing bolted to the shaft. Non-contiguous on purpose - a scan
-# that assumes 1..n is one that stops at the first gap.
-#
-# The joints are invented, like every other value in this file, and each
-# one says so in its own description. What is not invented is the shape:
-# one unit id per device, and identity is how a host tells them apart.
+# Several of this board on one bus, which is what a machine built out of them
+# looks like: same firmware, same commands, different unit id and a different
+# thing bolted to the shaft.
 class SimulatedSession:
-    """Drop-in for `coaxial.session.Session` that never opens a port.
-
-    Same public shape - `.board`, `.info()`, `.close()`, `.reset()` - so
-    `Toolbox` and every handler in `coaxial_mcp/tools.py` work against it
-    without knowing the difference. `--simulated` on dbg.py is the only
-    thing that decides which one gets built.
-    """
+    """Drop-in for `coaxial.session.Session` that never opens a port."""
 
     # Read by anything that must not mistake this for a board - see
-    # `coaxial_mcp.tools._interface`, which used to decide from the port
-    # and started calling a bus label an RS485 segment.
+    # `coaxial_mcp.tools._interface`, which used to decide from the port and
+    # started calling a bus label an RS485 segment.
     simulated = True
 
     def __init__(self, port=None, baud=115200, unit=1, bus=DEFAULT_BUS,
                  **_kwargs):
-        # Takes what a real Session takes, so a caller that always builds
-        # "the session" the same way is one fewer branch to keep in step.
-        # A real bus is a serial segment and its label is its port, so a
-        # `port` that names a bus is taken as one.
+        # Takes what a real Session takes, so a caller that always builds "the
+        # session" the same way is one fewer branch to keep in step.
         self.baud = baud
         self.bus = port if port in SIMULATED_BUSES else bus
         self.port = self.bus
         self.unit = int(unit)
         self._board = SimulatedBoard(self.unit, self.bus)
-        # THE SESSION'S LINE REACHES THE BOARD. Without it a stand-in
-        # asked to emulate a 10 Mbit/s segment still charged 115200
-        # for every reply, and every throughput number off it was the
-        # debug probe's whatever the caller asked for.
+        # THE SESSION'S LINE REACHES THE BOARD.
         self._board.baud = self.baud
         if isinstance(self._board.daq, SimulatedDaq):
             self._board.daq.baud = self.baud

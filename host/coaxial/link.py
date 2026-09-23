@@ -20,12 +20,7 @@ class Link(Device, device=protocol.DEVICE_LINK):
     """Diagnostics for the wire, as opposed to the board on the end of it."""
 
     def echo(self, data):
-        """Round-trip arbitrary bytes and verify they came back unchanged.
-
-        The first thing a fixture should do. It exercises framing, checksum and
-        both codecs while touching no board state at all, so a failure here is
-        unambiguously the link.
-        """
+        """Round-trip arbitrary bytes and verify they came back unchanged."""
         payload = data.encode() if isinstance(data, str) else bytes(data)
 
         if len(payload) > protocol.MAX_PAYLOAD:
@@ -42,15 +37,6 @@ class Link(Device, device=protocol.DEVICE_LINK):
 
     def loopback(self, port):
         """Have the board send four patterns on `port` and say what returned.
-
-        Not `echo()`, which round-trips a payload through this link: this is
-        the board talking to its own receiver, and it is how an RS485 port is
-        checked with nothing else on the segment. The transceivers have RE
-        tied to GND, so all four patterns must come back on ports 1 and 2;
-        on the console port nothing does, and that is correct rather than a
-        fault.
-
-        Four bytes go on the bus. Nothing calls it on a timer.
         """
         r = Reader(self._op(LinkOp.ECHO, pack(('u8', _port(port)))))
         index, rs485, matched, seen = r.u8(), bool(r.u8()), r.u8(), r.u8()
@@ -67,14 +53,7 @@ class Link(Device, device=protocol.DEVICE_LINK):
         }
 
     def port_stats(self, port):
-        """One port's framing state and counters.
-
-        `bus_message` counts every frame seen on the segment and
-        `server_message` only the ones addressed to this unit. On a multidrop
-        bus the difference is the traffic meant for another node, which is
-        what says the address filter is working rather than that the wire is
-        quiet.
-        """
+        """One port's framing state and counters."""
         r = Reader(self._op(LinkOp.STATS, pack(('u8', _port(port)))))
         got = {
             'port': r.u8(),

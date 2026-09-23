@@ -1,17 +1,4 @@
 """The analog front end: channels, bursts and the conversions that are known.
-
-The firmware reports raw ADC codes. This module turns them into numbers with
-units, but only where the conversion is actually known:
-
-  * the DC bus, through a divider whose resistors are on the schematic;
-  * the thermistor, through constants from its datasheet;
-  * the three phase inputs, through a shunt and an amplifier chain traced off
-    the schematic on 2026-08-26. They are current, not voltage - the sense
-    element sits in the phase conductor.
-
-Every one of those three is a number this module could get wrong, so each is a
-named constant in scaling.py rather than a literal at a call site, and each
-says in its docstring where it came from.
 """
 from . import protocol, scaling
 from .afe import powered
@@ -22,46 +9,21 @@ from .wire import Reader, pack
 
 class Analog(Subsystem):
 
-    """The ADC channels: what exists, and what they read now. Raw codes
-    and pin volts; the host owns every conversion beyond that."""
+    """The ADC channels: what exists, and what they read now. Raw codes and pin
+    volts; the host owns every conversion beyond that.
+    """
 
     @remembered
     def scaling(self):
-        '''The board's own conversion parameters, fetched once and cached.
-
-        INVARIANT 7: these live in the calibration record. They used to be
-        literals here too, so calibrating a board left every cooked value on
-        this side using the old reference, the old shunt and the old
-        thermistor - and nothing said the two had parted company.
-
-        `refresh=True` after writing the record, which is the one time the
-        cache can be wrong.
-        '''
+        '''The board's own conversion parameters, fetched once and cached.'''
         return scaling.from_calibration(self._board.calibration.read())
 
     # -- the channel table -------------------------------------------------
 
     @remembered
     def channels(self):
-        """Channel metadata, fetched once and cached.
-
-        The table is the board's own description of its ADC wiring: which ADC,
-        which channel, which pins, differential or not, and what the signal is
-        called. Indices into it are what mask and adc_chan arguments mean. None
-        of it changes at run time, which is what makes caching it honest.
-
-        The reply also carries a live conversion per channel - raw, microvolts
-        and the board's own scaled value. Those are measurements, not metadata:
-        they were taken at the instant of the fetch, under whatever front-end
-        state held then, so they are read off the wire to keep the decode
-        aligned and then dropped. A cached mid-scale code served later as a
-        reading is exactly the invented number this library refuses to produce;
-        use read_all(), ntc_temperature() or scan() for live values.
-        """
-        # Asked for in pages. A row costs 18 bytes plus its two names and
-        # one reply holds 252: seven channels fitted, nine did not
-        # - the board sends what fits, says how many there are, and this
-        # asks again from where it stopped.
+        """Channel metadata, fetched once and cached."""
+        # Asked for in pages.
         table = []
         while True:
             reader = Reader(self.request(protocol.ADC_TABLE,
@@ -91,15 +53,7 @@ class Analog(Subsystem):
         return row
 
     def index_of(self, signal):
-        """Index of the channel carrying a named signal, e.g. 'NTC'.
-
-        Off the channel MAP, not the table: `channels()` is 0x42, which
-        takes a reading of every channel on the way past, so it refuses
-        outright while the injected group owns the converters - and then a
-        caller cannot even look up a name. The map is 0x6D kind 0, which
-        answers what exists without measuring anything, so it works armed
-        or not.
-        """
+        """Index of the channel carrying a named signal, e.g. 'NTC'."""
         rows = self.board.system.channel_map()['analog']
         index = next((c['index'] for c in rows if c['signal'] == signal), None)
         if index is None:
@@ -109,10 +63,7 @@ class Analog(Subsystem):
         return index
 
     def names(self):
-        """Every channel's signal name, in the board's own order.
-
-        The map rather than the table, for the reason `index_of` gives.
-        """
+        """Every channel's signal name, in the board's own order."""
         return [c['signal']
                 for c in self.board.system.channel_map()['analog']]
 
@@ -122,13 +73,7 @@ class Analog(Subsystem):
     # -- sampling ----------------------------------------------------------
 
     def burst(self, mask, nr_of_samples, sample_rate=None):
-        """Sample the masked channels and return raw statistics per channel.
-
-        sample_rate is in hertz; None or 0 means as fast as the conversions
-        allow. The reply carries the elapsed time the SLAVE measured, so the
-        caller can see the rate it actually got rather than trust the one it
-        asked for.
-        """
+        """Sample the masked channels and return raw statistics per channel."""
         interval_us = 0 if not sample_rate else int(round(1e6 / sample_rate))
         duration_us = nr_of_samples * interval_us
 
@@ -140,12 +85,7 @@ class Analog(Subsystem):
                 % (nr_of_samples, sample_rate, duration_us / 1e6,
                    protocol.BURST_MAX_MICROSECONDS / 1e6))
 
-        # A burst legitimately blocks the slave for as long as it samples. The
-        # default timeout is sized for register reads, so widen it here. An
-        # unpaced burst asked for no duration, so there is nothing to derive one
-        # from: wait the only bound either side guarantees, the firmware's
-        # ceiling. Deriving it from zero would time out a legal request and
-        # leave its reply to arrive during the next transaction.
+        # A burst legitimately blocks the slave for as long as it samples.
         budget_us = duration_us if interval_us else protocol.BURST_MAX_MICROSECONDS
         timeout = budget_us / 1e6 + 1.0
 
@@ -190,10 +130,6 @@ class Analog(Subsystem):
     @powered
     def read_all(self, nr_of_samples=64, sample_rate=1000.0, vref=3.3):
         """Every configured channel at once, with its table metadata merged in.
-
-        Reports volts at the ADC pin and nothing beyond it. Use
-        ntc_temperature(), dcbus_voltage() or phase_current() for the three
-        channels whose conversion is known.
         """
         table = self.channels()
         result = self.burst(self.mask_all(), nr_of_samples, sample_rate)
@@ -214,12 +150,7 @@ class Analog(Subsystem):
 
     def ntc_temperature(self, adc_chan=None, ntc_params=None,
                         nr_of_samples=64, sample_rate=2000.0):
-        """Temperature in degrees Celsius.
-
-        adc_chan defaults to whichever channel the board calls 'NTC'. Averaging
-        is worth it: a single sample carries a couple of milli-kelvin of ADC
-        noise, and the burst costs the same round trip as one read.
-        """
+        """Temperature in degrees Celsius."""
         ntc_params = ntc_params or self.scaling()['ntc']
         index = self.index_of('NTC') if adc_chan is None else adc_chan
         stats = self._one(index, nr_of_samples, sample_rate)
@@ -237,12 +168,7 @@ class Analog(Subsystem):
 
     def dcbus_voltage(self, adc_chan=None, divider=None,
                       nr_of_samples=64, sample_rate=2000.0):
-        """DC bus volts.
-
-        Absolute, not ratiometric: the answer scales with divider.vref, so pass
-        a DividerParams carrying a measured reference if you need better than a
-        percent.
-        """
+        """DC bus volts."""
         divider = divider or self.scaling()['dcbus']
         index = self.index_of('DC bus') if adc_chan is None else adc_chan
         stats = self._one(index, nr_of_samples, sample_rate)
@@ -262,16 +188,7 @@ class Analog(Subsystem):
 
     def phase_current(self, signal='Phase U', shunt=None,
                       nr_of_samples=64, sample_rate=2000.0):
-        """Phase current in amperes.
-
-        Absolute, like the DC bus, and with two more ways to be wrong: the
-        shunt value and the amplifier gain. Both are ShuntParams fields, so a
-        board that populates a different shunt needs new numbers there and no
-        new firmware.
-
-        `signal` is what the board calls the channel - 'Phase U', 'Phase V',
-        'Phase W' - not an index, because the index is the board's to choose.
-        """
+        """Phase current in amperes."""
         shunt = shunt or self.scaling()['phase']
         stats = self._one(self.index_of(signal), nr_of_samples, sample_rate)
 
@@ -291,12 +208,6 @@ class Analog(Subsystem):
 
     def scan(self):
         """The board's own one-shot scan, with the board's own scaling applied.
-
-        Redundant with read_all() by design: two independent paths to the same
-        numbers is how a scaling mistake gets caught.
-
-        Refuses when the reply's own afe_on flag is false, rather than handing
-        back the mid-scale artefacts as a report.
         """
         reader = Reader(self.request(protocol.ADC_SCAN))
         result = {
@@ -312,9 +223,6 @@ class Analog(Subsystem):
         }
 
         # The reply is its own witness, so the gate costs no extra round trip.
-        # It has to be a gate rather than a note beside the numbers: the
-        # firmware only suppresses the temperature at a rail, and mid-scale is
-        # not a rail - it is exactly 25.00 C and a plausible bus voltage.
         if not result['afe_on']:
             raise DeviceStateError(
                 'the scan reports the analog front end off, so every channel '
@@ -326,12 +234,7 @@ class Analog(Subsystem):
 
     @powered
     def noise(self, adc, nr_of_samples=200):
-        """The firmware's own noise measurement on one ADC's phase channel.
-
-        Gated on the front end like any other read: with it off the input sits
-        at exact mid-scale and the spread collapses to nearly nothing, which as
-        a noise floor reads as a very good board rather than an unpowered one.
-        """
+        """The firmware's own noise measurement on one ADC's phase channel."""
         reader = Reader(self.request(protocol.ADC_NOISE,
                                      pack(('u8', adc), ('u16', nr_of_samples))))
         return {

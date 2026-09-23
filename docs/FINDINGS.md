@@ -2539,6 +2539,41 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   - thermal\src\thermal.c: 37.47 C - "MCU: the camera read the package at 45.0 C in the passive state and the internal sensor 72.0 C - 27 K at 0.666 W is 40.5 K/W, and ASSUMED ra"
   - thermal\test\check.c: 8.75 K - "A leg holds a third of what the lumped node did, so 35 W moves it 8.75 K per step; at the 0.5 s this used to be, the whole ceiling fell insi"
   - thermal\test\check.c: 45.0 C - "The camera saw the package at 45.0 C in the passive state and the internal sensor read 72.0 - the 27 K between them is junction-to-case, and"
+* NUMBERS THAT LIVED ONLY IN THE HOST'S DOCSTRINGS AND COMMENTS (2026-09-23). The target-facing Python was cut the same way as the target - a docstring to its first paragraph, a run of comment lines to its first sentence - and these numbers were in no document:
+  - host\coaxial\clock.py: 35 883 us - "The other half of the measurement, and the half that can be checked.
+        A broadcast latch has no reply, so nothing in it says how long "
+  - host\coaxial\clock.py: 17 941 us - "The other half of the measurement, and the half that can be checked.
+        A broadcast latch has no reply, so nothing in it says how long "
+  - host\coaxial\clock.py: 5 243 us - "The other half of the measurement, and the half that can be checked.
+        A broadcast latch has no reply, so nothing in it says how long "
+  - host\coaxial\gate_drivers.py: 4.06 us - "`at` is TIM1->CNT as the interrupt read it, not the instant the
+        sample was taken: measured, the handler runs about 965 ticks
+       "
+  - host\coaxial\motor.py: 112.5 A - "30 % of Ld gone by 40 A of d current - the size class again, scaled off the 112.5 A this machine is rated for."
+  - host\coaxial\record.py: 825 mA - "Printing bare '-825 mA' sent a debugging session chasing an 825 milliampere phantom that was 825 CODES of standing offset."
+  - host\coaxial\scaling.py: 9.43 V - "ABSOLUTE, like DividerParams and for the same reason: the answer scales
+    with vref, and with two more numbers that belong to the board ra"
+  - host\coaxial\simulated\drive.py: 0.051 ohm - "The class constants above are its DEFAULTS - `_model` is seeded from them and the tests read `SimulatedDrive.R` for what an unloaded stand-i"
+  - host\coaxial\simulated\drive.py: 43 115 rpm - "The back-EMF is `sqrt(3) lambda omega_el` and the inverter cannot push current against more than it has: at that speed there is no torque le"
+  - host\coaxial\simulated\values.py: 2.55 V - "Phase channels stay near their own nominal point; NTC and DC bus get a slightly wider walk since those are what a question is usually about."
+* THE SOURCES CUT TO WHAT A READER NEEDS (2026-09-23). The bench asked
+  for the code LLM-ified: the fewest tokens to fix or extend it. Measured
+  first: the target was 28 % comment lines (8 362 of 29 896) - board.h
+  58 %, cmd.h 67 % - and the target-facing Python 37 % (9 845 of
+  26 168), most of it rationale and history that this record already
+  holds. The cut is one scripted rule everywhere: a C doc block to its
+  first sentence (a `@brief` where there is one), a trailing field note
+  to its first clause, a file banner to its first paragraph; a Python
+  docstring to its first paragraph, a run of comment lines to its first
+  sentence; the renderer and the views left alone, the bench's this
+  week. Every number in the removed text was checked against the eight
+  documents and the orphans written here with their sentences (28 in C,
+  10 in Python). Target 28 853 -> 24 699 lines; Python 21 136 -> 16 953;
+  both firmware presets 0 warnings, every core suite, the structure
+  suite and the offline gate as before. First try of the C script put a
+  block's prose before its `@brief` and turned `/*` into `/**` inside
+  function bodies - caught on the diff, the rule fixed, rerun from the
+  checkout.
 
 ## The local model
 

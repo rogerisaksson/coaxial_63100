@@ -1,21 +1,4 @@
-"""A part the board polls into shared memory, and how a host gets at it.
-
-Both SPI parts work the same way: the firmware's main loop reads the part and
-writes a shared record, and a host reads that record rather than driving the
-bus. Reading a cargo per request cost 45 ms each and caught one frame in eight,
-which is why the loop exists.
-
-That arrangement is what these five names are for. `state` takes the record the
-loop wrote. Driving the bus directly needs the loop out of the way first, and a
-host that forgets leaves two masters on one segment - so `hold`, `resume` and
-the `configuring` block that pairs them are part of the surface, not an extra.
-
-`Imu`, `Angle` and both stand-ins answer it. The stand-ins are the reason it is
-declared rather than left as a convention: their methods used to be attached to
-the class by a helper after the fact, so what a stand-in did and did not answer
-was invisible until a view running -Simulated hit the gap. A name missing here
-fails at construction.
-"""
+"""A part the board polls into shared memory, and how a host gets at it."""
 import contextlib
 import time
 from abc import ABC, abstractmethod
@@ -37,12 +20,6 @@ class PolledSensor(ABC):
 
     def settled(self, seconds=12.0, poll=0.3):
         """Wait for the poll loop to reach 'running', and say whether it did.
-
-        The board brings a part up on its own - a reset, an advertisement,
-        a quiet window - and anything written before the loop says
-        'running' is refused, not queued. Measured 2026-08-29: a view that
-        wrote its Set Feature straight after raising the rail failed twice
-        in a row while the example beside it, which waits, streamed fine.
         """
         deadline = time.monotonic() + seconds
         while True:
@@ -58,11 +35,7 @@ class PolledSensor(ABC):
 
     @abstractmethod
     def state(self) -> dict:
-        """The poll loop's shared record: the reading, and what went wrong.
-
-        `updates` is monotonic, so a new reading is told from the same one
-        read twice without guessing from the values.
-        """
+        """The poll loop's shared record: the reading, and what went wrong."""
 
     @abstractmethod
     def read(self, *args, **kwargs):
@@ -82,13 +55,7 @@ class PolledSensor(ABC):
 
     @contextlib.contextmanager
     def configuring(self):
-        """Hold the loop for the block, and resume however the block ends.
-
-        The pairing that matters, written once for every part: an exception
-        between `hold` and `resume` otherwise leaves the loop stopped and
-        the part silent afterwards - a sensor that has silently stopped
-        reporting.
-        """
+        """Hold the loop for the block, and resume however the block ends."""
         self.hold()
         try:
             yield self

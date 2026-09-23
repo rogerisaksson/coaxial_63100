@@ -1,12 +1,14 @@
-"""The wire that is not there: the link stand-in, the five buses of
-the simulated machine, and the broadcast refusal."""
+"""The wire that is not there: the link stand-in, the five buses of the
+simulated machine, and the broadcast refusal.
+"""
 from .. import protocol
 from ..errors import DeviceStateError
 
 
 class SimulatedLink:
-    """A stand-in link. It builds no frames: the point is that a missing
-    cable is not a failing suite, not that the protocol is exercised."""
+    """A stand-in link. It builds no frames: the point is that a missing cable
+    is not a failing suite, not that the protocol is exercised.
+    """
     def echo(self, data):
         return data
 
@@ -16,7 +18,8 @@ class SimulatedLink:
     def loopback(self, port):
         """What a healthy board answers: all four patterns back on the two
         RS485 ports, none on the console port, and the port carrying the
-        conversation refused."""
+        conversation refused.
+        """
         if port not in protocol.PORTS:
             raise ValueError('port %r is not one of the three' % (port,))
         if port == 0:
@@ -51,14 +54,7 @@ BROADCAST_REFUSAL = ('unit 0 is the broadcast address: every node acts on a '
 
 
 class _BroadcastRefuses:
-    """Every read on unit 0, refused the way the real board refuses it.
-
-    The real Board has one guard, in request(), which every subsystem call
-    goes through. The stand-in has no such choke point - its subsystems
-    answer directly - so this stands in for all of them at once. Without
-    it a broadcast read succeeded here and raised on the board, which is
-    the difference test_parity.py exists to catch.
-    """
+    """Every read on unit 0, refused the way the real board refuses it."""
 
     def __getattr__(self, _name):
         def refuse(*_a, **_k):
@@ -68,10 +64,6 @@ class _BroadcastRefuses:
 
 # Five buses, one per limb plus the axis - shorter runs, a limb's fault
 # confined to it, and four segments carrying traffic at once.
-#
-# The bus says the side, so the unit id says the position down the limb:
-# node 2 is the knee on LL and on RL, which is worth more than a unique
-# number. Two-letter labels, not emoji - this is a column-aligned table.
 SIMULATED_BUSES = {
     # label: (what it serves, {unit: (name, type, where)})
     'LL': ('left leg', {

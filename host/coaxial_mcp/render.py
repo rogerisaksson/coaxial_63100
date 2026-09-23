@@ -1,17 +1,4 @@
 """Compact renderers. This module is where the token budget is actually spent.
-
-A tool result is text a model has to read on every turn, so the format is chosen
-for density rather than for looking like an API response:
-
-  * fixed-width columns, one line per item, no JSON punctuation;
-  * short keys and short channel names;
-  * numbers rounded to what the hardware can actually resolve;
-  * only what was asked for - the channel table is returned by board_info once,
-    not repeated inside every reading.
-
-For scale: a seven-channel reading is about 40 tokens here against roughly 400
-for the same data as pretty-printed JSON with full key names. That difference is
-the reason a small model can drive this board through a long test sequence.
 """
 from coaxial import angle as a1335     # angle() below is the renderer; this is the sensor's arithmetic
 from coaxial.thermal import pretty
@@ -35,7 +22,8 @@ def analog_map(channels):
     """The analog channels, headed and counted. Its own block, because the
     digital ones used to sit under this header with no index and the columns
     out of line - measured, asked for "en lista over alla analoga kanaler",
-    the screen carried both sets as one table."""
+    the screen carried both sets as one table.
+    """
     lines = ['analog: %d channel%s' % (len(channels),
                                        '' if len(channels) == 1 else 's'),
              'ch adc pin          dir   mode name']
@@ -48,12 +36,9 @@ def analog_map(channels):
 
 
 def digital_map(pins, what='digital'):
-    """The digital I/O, or the reserved pins, in their own block with their
-    own header. No index and no mode column: they have neither.
-
-    The I/O are counted as channels and the reserved list as pins, because
-    that is what they are: one is something to read or set, the other is
-    the bus and the debug port."""
+    """The digital I/O, or the reserved pins, in their own block with their own
+    header. No index and no mode column: they have neither.
+    """
     unit = 'pin' if what == 'reserved' else 'channel'
     lines = ['%s: %d %s%s' % (what, len(pins), unit,
                               '' if len(pins) == 1 else 's'),
@@ -64,22 +49,10 @@ def digital_map(pins, what='digital'):
 
 
 def devices(found, here, interface='unknown'):
-    # `found` is [(bus, unit, version)] and `here` is the (bus, unit) pair
-    # the tools are on: with five segments, a node number alone does not
-    # identify anything - node 2 is a knee on two of them.
-    """Every node on the interface, and which one is selected.
-
-    Name and type are the node's own (command 0x41), not invented here:
-    "node 3" is a number, and a name and a kind are a device. The header
-    names the interface rather than the port, because how the host reaches
-    the bus and which node answers on it are two different facts and the
-    list is about the second.
-
-    `where` is the last column because sixteen rows of the same name and
-    the same type is not a list of nodes, it is a list of numbers. A board
-    does not know where it is bolted; a bus that has been commissioned
-    does, and it says so in the description each node reports.
-    """
+    # `found` is [(bus, unit, version)] and `here` is the (bus, unit) pair the
+    # tools are on: with five segments, a node number alone does not identify
+    # anything - node 2 is a knee on two of them.
+    """Every node on the interface, and which one is selected."""
     lines = ['Nodes on the communication interface (%s):' % interface,
              'bus  node name           type           where']
     for bus, unit, version in found:
@@ -95,12 +68,7 @@ def devices(found, here, interface='unknown'):
 
 
 def buses(found, here):
-    """The segments, and how many nodes answer on each.
-
-    A bus is a serial segment - one limb of a machine, or its axis. Which
-    limb a segment serves is the operator's knowledge: a board cannot know
-    where it was bolted, and nothing here pretends it can.
-    """
+    """The segments, and how many nodes answer on each."""
     lines = ['Buses on this machine:', 'bus  sel serves           nodes']
     for label, serves, count in found:
         lines.append('%-4s %-3s %-16s %d'
@@ -109,12 +77,7 @@ def buses(found, here):
 
 
 def digital_levels(rows):
-    """What each digital channel reads right now.
-
-    A `level` column beside the map's own, because "list the channels" and
-    "give me their values" are two questions and answering the first with
-    the second is what board_info alone could do.
-    """
+    """What each digital channel reads right now."""
     lines = ['digital: %d channel%s'
              % (len(rows), '' if len(rows) == 1 else 's'),
              'ch   dir   level name']
@@ -126,10 +89,11 @@ def digital_levels(rows):
 
 
 def _identity(version, clock):
-    """Who the board says it is, and what it runs at - and what it IS, from
-    the device, when the device says. A name picks a codec; a description
-    says what is on the other end of the bus, which is the difference
-    between five units and five devices."""
+    """Who the board says it is, and what it runs at - and what it IS, from the
+    device, when the device says. A name picks a codec; a description says
+    what is on the other end of the bus, which is the difference between
+    five units and five devices.
+    """
     lines = [
         '%s %s fw%s proto%d.%d build "%s"' % (
             version.get('device', '?'), version.get('mcu', '?'),
@@ -145,11 +109,7 @@ def _identity(version, clock):
 
 
 def board_info(version, clock, channels, digital=None, kind='all'):
-    """Identity, clock and the map - or one section of it.
-
-    `kind` narrows it: a question about the analog channels should not cost
-    the identity line, the clock line and the digital pins as well.
-    """
+    """Identity, clock and the map - or one section of it."""
     lines = []
     if kind in ('all', 'identity'):
         lines += _identity(version, clock)
@@ -162,29 +122,14 @@ def board_info(version, clock, channels, digital=None, kind='all'):
     return '\n'.join(lines)
 
 
-# The row, and the header built from the same widths. Written out by hand
-# they drifted: `code` and `voltage` are right-aligned, so a seven-digit
-# number starts one column later than an eight-digit one and a header
-# placed over the first is wrong for the second.
+# The row, and the header built from the same widths.
 ANALOG_ROW = '%-2d %-7s %-4s %8.1f %+8.4fV %s'
 ANALOG_HEAD = ('%-2s %-7s %-4s %8s %9s %s'
                % ('ch', 'name', 'mode', 'code', 'voltage', 'measure')).rstrip()
 
 
 def analog(result, derived):
-    """A reading, headed the same way the map is.
-
-    The count and the column names are there because the two blocks sit
-    on one screen when a question asks for both, and the reading used to
-    arrive as a bare `64 smp @2000Hz` over unlabelled columns while the
-    map above it was headed and counted.
-
-    The last column is empty for a channel with no defined unit, which is
-    most of them - `measure` is the board's own scaling where there is one,
-    not something computed here. `code` is the raw converter output and
-    `voltage` is at the ADC pin, which for a phase channel is not the sensed
-    quantity - invariant 7.
-    """
+    """A reading, headed the same way the map is."""
     lines = ['analog: %d channel%s'
              % (len(result['channels']),
                 '' if len(result['channels']) == 1 else 's'),
@@ -194,8 +139,8 @@ def analog(result, derived):
     for row in result['channels']:
         name = short(row['signal'], row['index'])
         extra = derived.get(row['index'], '')
-        # The parentheses matter: without them.rstrip() binds to the
-        # argument tuple rather than to the formatted string.
+        # The parentheses matter: without them.rstrip() binds to the argument
+        # tuple rather than to the formatted string.
         lines.append((ANALOG_ROW % (
             row['index'], name, 'diff' if row['differential'] else 'SE',
             row['mean_raw'], row['volts_at_pin'], extra)).rstrip())
@@ -243,12 +188,7 @@ HINTS = {
 
 
 def hint(exc):
-    """The suffix error() appends for this exception, or ''.
-
-    Exposed separately so a caller building its own message around the same
-    exception - dbg.py's own startup banner, not just a tool result - gets the
-    same troubleshooting line rather than a second, differently-worded one.
-    """
+    """The suffix error() appends for this exception, or ''."""
     return HINTS.get(type(exc).__name__, '')
 
 
@@ -268,12 +208,7 @@ def subsystems(rows):
 
 
 def parts(rows):
-    """What is fitted, one per line, as the board reported it.
-
-    `power` earns its column: AFE_ON powers the IMU as well as the analog
-    front end, and a part reading `unpowered` is the answer to most of the
-    questions that get asked about it.
-    """
+    """What is fitted, one per line, as the board reported it."""
     if not rows:
         return 'parts: this firmware does not report them'
     return '\n'.join(
@@ -320,8 +255,9 @@ THERMAL_GROUPS = (
 
 
 def thermal_state(state):
-    """The observer's picture: the one measurement, then every estimate
-    by group, then the room it runs against - device 8 op 0."""
+    """The observer's picture: the one measurement, then every estimate by
+    group, then the room it runs against - device 8 op 0.
+    """
 
     ntc = state.get('ntc')
     head = ('thermal: NTC %.1f C measured' % ntc if ntc is not None
@@ -344,8 +280,9 @@ def thermal_state(state):
 
 
 def thermal_budget(budget):
-    """The envelope's spend - device 8 op 4: the worst node against the
-    ceiling in force, what the clamp is doing, the joules left."""
+    """The envelope's spend - device 8 op 4: the worst node against the ceiling
+    in force, what the clamp is doing, the joules left.
+    """
 
     worst_node = budget.get('worst_node') or '?'
     verdict = ('TRIPPED' if budget.get('tripped')
@@ -374,8 +311,9 @@ def thermal_budget(budget):
 
 
 def thermal_ident(ident):
-    """The online identification - device 8 op 10: the state as a word,
-    the margin the envelope acts on, the scales, the room."""
+    """The online identification - device 8 op 10: the state as a word, the
+    margin the envelope acts on, the scales, the room.
+    """
     floor = ident.get('margin_floor')
     cap = ident.get('trip_cap')
     held = (cap is not None and cap < 1.0
@@ -423,8 +361,9 @@ def angle_registers(rows):
 
 
 def _imu_state(payload):
-    """The poll loop's record: its counters, then the newest rotation
-    vector - counts and scaled on one line - or why there is none."""
+    """The poll loop's record: its counters, then the newest rotation vector -
+    counts and scaled on one line - or why there is none.
+    """
     head = ('imu: loop %s, %d vectors, %d cargoes, %d errors'
             % (payload['loop'], payload['updates'], payload['cargoes'],
                payload['errors']))
@@ -442,12 +381,7 @@ def _imu_state(payload):
 
 
 def imu(what, payload):
-    """The IMU, as a headed block like every other reading.
-
-    Raw counts and the scaled value both, on one line, because the counts
-    are what the part said and the scaling is this host's arithmetic over a
-    Q point - the same distinction the analog table keeps.
-    """
+    """The IMU, as a headed block like every other reading."""
     if what == 'id':
         return 'imu: %s' % ('  '.join('%s=%s' % (k, payload[k]) for k in
                                       ('sw_version', 'sw_part', 'sw_build',
@@ -483,13 +417,14 @@ def imu(what, payload):
 
 def checks(results):
     """Self-test results, one per line. A leading marker so the pass/fail split
-    is visible without the model parsing a word: 'ok', 'FAIL', or blank for the
-    informational values whose judgement belongs to the test executive."""
+    is visible without the model parsing a word: 'ok', 'FAIL', or blank for
+    the informational values whose judgement belongs to the test executive.
+    """
     marks = {'pass': 'ok  ', 'fail': 'FAIL', 'info': '    '}
     lines = []
     for check in results:
-        # An INFO value of zero is a reading, not an absence, so it is printed.
-        # For pass/fail rows the value field is unused, so a zero is noise.
+        # An INFO value of zero is a reading, not an absence, so it is
+        # printed.
         show = check['status'] == 'info' or check['value']
         lines.append(('%s %-20s %s' % (marks.get(check['status'], '?   '),
                                        check['name'],

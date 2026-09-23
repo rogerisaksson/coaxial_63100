@@ -1,13 +1,4 @@
-"""CRC-16/MODBUS.
-
-Bit-serial from the definition rather than a lookup table: this is a test host,
-not a hot path, and a table is one more thing that can be transcribed wrong.
-The catalogue check value is asserted at import so a broken edit fails loudly
-instead of quietly corrupting every frame.
-
-On the wire the CRC goes out LOW BYTE FIRST, the opposite of every other 16-bit
-field in a Modbus frame. That asymmetry lives in transport.py, in one place.
-"""
+"""CRC-16/MODBUS."""
 
 POLYNOMIAL = 0xA001      # reflected 0x8005
 INITIAL = 0xFFFF

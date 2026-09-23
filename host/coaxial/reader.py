@@ -1,19 +1,4 @@
-"""A host-side reader that keeps the link busy while the caller is not.
-
-THE LINK IS ONE THREAD'S. Between `start()` and `stop()` this thread is
-the only one that touches the transport - the consumer reads a deque that
-this fills, and its `print()`, its terminal, its plotting never sit
-between two round trips.
-
-The measurement that made it exist: a `for block in daq.blocks(20)` loop
-that prints costs one round trip (~25 ms of fixed latency on the debug
-probe's VCP) PLUS whatever the terminal takes, serially, so the link idles
-for the terminal's share. The board meanwhile fills its ring at the rate
-it was configured for, and the overflow is charged to a slowness that was
-never the board's. Threaded, the round trips happen while the consumer
-works: pyserial's read and write release the GIL, so this is real overlap
-and not a scheduler trick.
-"""
+"""A host-side reader that keeps the link busy while the caller is not."""
 import collections
 import threading
 import time
@@ -47,12 +32,7 @@ RATE_MEMORY = 0.7
 
 class BufferedReader:
 
-    """Drains the board into a host-side deque on its own thread.
-
-    `acquire` is the only link call it makes - the read answers its own
-    backlog, so pacing costs no extra round trip. Nothing else may
-    touch the transport while it runs.
-    """
+    """Drains the board into a host-side deque on its own thread."""
 
     def __init__(self, acquire, backlog=None, idle=0.005, batch=1,
                  max_wait=0.06):
@@ -110,12 +90,7 @@ class BufferedReader:
         return self
 
     def stop(self, timeout=5.0):
-        """Give the link back, and do not return until it is given back.
-
-        The join is the point: the caller's next act is usually another
-        round trip, and two threads on one serial transport is the one
-        thing this arrangement must not do.
-        """
+        """Give the link back, and do not return until it is given back."""
         if self._thread is None:
             return self
         self._stop.set()
@@ -166,13 +141,7 @@ class BufferedReader:
     # -- the thread ------------------------------------------------------
 
     def _hold(self):
-        """Sleep until a reply's worth should have accumulated.
-
-        The wait is the shortfall over this reader's own record rate, so
-        it tracks whatever the board is managing rather than a constant
-        that is wrong the moment the task changes. Capped, and skipped
-        entirely until a rate has been observed.
-        """
+        """Sleep until a reply's worth should have accumulated."""
         short = self._batch - (self._backlog or 0)
         if short <= 0 or self._rate <= 0.0:
             return
@@ -186,8 +155,9 @@ class BufferedReader:
         self.peak = max(self.peak, len(self._blocks))
 
     def _count(self, block):
-        """The rate this reader is actually seeing, smoothed a window at
-        a time. It is what `_hold` divides the shortfall by."""
+        """The rate this reader is actually seeing, smoothed a window at a
+        time. It is what `_hold` divides the shortfall by.
+        """
         self.records += len(block)
         span = time.time() - self._since
         if span <= RATE_WINDOW:
@@ -203,13 +173,8 @@ class BufferedReader:
         self._since = time.time()
         while not self._stop.is_set():
             # A TRANSACTION COSTS THE SAME WHATEVER IT CARRIES, and on this
-            # board it costs the acquisition loop as well - the sampling
-            # and the Modbus handler share main(). Reading the instant one
-            # record lands is therefore a feedback loop: eager reads slow
-            # production, which leaves one record per read, which needs
-            # more reads. Measured at the bottom of it: 95 reads/s, 1.00
-            # records each, 95 records/s. Waiting for a reply's worth
-            # breaks it - 31 reads/s at 4.00 records is 124.8 records/s.
+            # board it costs the acquisition loop as well - the sampling and
+            # the Modbus handler share main().
             self._hold()
             try:
                 block = self._acquire()
@@ -232,9 +197,6 @@ class BufferedReader:
             if block:
                 self._count(block)
                 self._keep(block)
-            # PACED BY THE BOARD, NOT BY A CLOCK. While records are still
-            # queued on the target the next read goes out with no wait, so
-            # the link runs at its practical maximum exactly when there is
-            # something to carry. Empty, it idles instead of spinning.
+            # PACED BY THE BOARD, NOT BY A CLOCK.
             if not self.backlog and not block:
                 time.sleep(self._idle)

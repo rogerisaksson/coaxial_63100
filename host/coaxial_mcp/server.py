@@ -1,10 +1,4 @@
-"""MCP wiring: the low-level Server over stdio.
-
-The low-level API rather than FastMCP on purpose. FastMCP derives schemas from
-type hints and docstrings, which is convenient and produces a bigger tool list
-than necessary; here the schemas are hand-written because their size is the
-thing being optimised.
-"""
+"""MCP wiring: the low-level Server over stdio."""
 import argparse
 import sys
 
@@ -28,15 +22,7 @@ SERVER_NAME = 'coaxial-63100'
 
 
 def build(session, level=detailmod.FULL):
-    """The server, at one level of documentation.
-
-    Full by default, and that is the right default here rather than in the
-    ollama package: the reader on the other end of an MCP pipe has a context
-    window measured in hundreds of thousands of tokens, and shortening the
-    tool list for it buys nothing it needed. `--detail terse` is for the case
-    this server was not built for and now supports anyway - a small local
-    model driving it through an MCP client of its own.
-    """
+    """The server, at one level of documentation."""
     server = Server(SERVER_NAME)
 
     @server.list_tools()
@@ -53,13 +39,11 @@ def build(session, level=detailmod.FULL):
             return [types.TextContent(type='text',
                                       text='ERR unknown tool %r' % name)]
 
-        # The board is a serial port: every handler blocks. Run it off the event
-        # loop so a long burst cannot stall the protocol side of the server.
+        # The board is a serial port: every handler blocks.
         def run():
             try:
                 # `detail` is this server's, not the caller's: it decides how
-                # much of a document `docs` hands back. Every handler takes
-                # **_, so the ones that do not read it are unaffected.
+                # much of a document `docs` hands back.
                 return handler(session, detail=level, **(arguments or {}))
             except (RigError, ValueError, KeyError) as exc:
                 # Expected and actionable, so answer compactly instead of
@@ -75,9 +59,7 @@ def build(session, level=detailmod.FULL):
 async def serve(port='COM4', baud=115200, unit=1, level=detailmod.FULL,
                 simulated=False):
     session, found = open_session(port, baud, unit, simulated=simulated)
-    # stderr, not stdout: stdout is the JSON-RPC pipe. board_info says
-    # "simulated" in the version record either way - this is for whoever
-    # started the process and would otherwise not know which they got.
+    # stderr, not stdout: stdout is the JSON-RPC pipe.
     print('serving: %s' % found.label, file=sys.stderr, flush=True)
     server = build(session, level)
     try:

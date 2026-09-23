@@ -1,23 +1,4 @@
-"""Motion on top of the drive: stepper, servo, velocity - and the price.
-
-Host-side loops over the link. A write lands in ~7 ms, so nothing here
-runs faster than a few tens of hertz - an arm's outer loop, a gimbal, a
-thrust command. A quad's rate loop belongs where 50 kHz lives (`drive/`);
-what runs here is what a flight controller or a motion planner would do
-with this board on the other end of a wire.
-
-    stage = device.gates.arm(...)            # arming stays ONE call,
-    with device.motion.stepper(amps=2) as m: # nothing here ever arms
-        m.to(90)                             # mech degrees, slewed
-    with device.motion.servo(amps=2) as m:
-        m.to(45)                             # the shaft sensor closes it
-    with device.motion.velocity(amps=4) as m:
-        m.rpm(1500)                          # sensorless, coaxial.loop
-
-Every block enters its drive mode on `with` and leaves the drive OFF
-however it ends. Angles are MECHANICAL degrees throughout; the electrical
-turn is `pole_pairs` times faster and stays this module's business.
-"""
+"""Motion on top of the drive: stepper, servo, velocity - and the price."""
 import math
 import time
 
@@ -33,8 +14,9 @@ HALF_TURN = TURN / 2
 
 
 def _turned(delta):
-    """The whole turn a reading stepped across, if it did: a jump past
-    half a turn is the sensor wrapping, not the shaft."""
+    """The whole turn a reading stepped across, if it did: a jump past half a
+    turn is the sensor wrapping, not the shaft.
+    """
     if delta > HALF_TURN:
         return -TURN
     if delta < -HALF_TURN:
@@ -64,24 +46,18 @@ class _Mode:
         self.drive.off()
 
     def _check(self):
-        """Raise with the board's own word if the stage tripped.
-
-        Every verb polls this each pass. Without it a trip mid-move -
-        overcurrent, the supply, the stage taken away - was commanded
-        against for the rest of the block, since nothing here read the
-        fault the state reply carries. The drive holds its own hardware
-        against a trip; this is so the LOOP stops asking, and the caller
-        hears why rather than watching a dead shaft not move."""
+        """Raise with the board's own word if the stage tripped."""
         fault = self.drive.state()['fault']
         if fault:
             raise RigError('the drive tripped mid-move - %s. The stage is '
                            'down; the block is over.' % fault)
 
     def _slew_to(self, theta_e, deg_s, pitch=0.25):
-        """Walk the command to `theta_e`, `pitch` mech degrees a write:
-        the spring is never asked to span more than a few degrees at
-        once. THE slew - the stepper's move and the servo's correction
-        are this one loop, not two copies of it."""
+        """Walk the command to `theta_e`, `pitch` mech degrees a write: the
+        spring is never asked to span more than a few degrees at once. THE
+        slew - the stepper's move and the servo's correction are this one
+        loop, not two copies of it.
+        """
         step = math.radians(pitch) * self.poles
         pause = pitch / deg_s
         while abs(theta_e - self._theta_e) > step:
@@ -93,12 +69,12 @@ class _Mode:
         self.drive.setpoint(theta=self._theta_e)
 
     def _energize(self, amps, steps=6, settle=0.05):
-        """HOLD, with the current RAMPED - a stepper driver's soft
-        energize. Snapping full current onto an unknown rotor is a yank
-        of up to half a pole that an underdamped rotor rides straight
-        through, pole after pole; grown over a few link writes it
-        detents into the nearest pole and stays. Where the rotor ends
-        up is where angles count from."""
+        """HOLD, with the current RAMPED - a stepper driver's soft energize.
+        Snapping full current onto an unknown rotor is a yank of up to half
+        a pole that an underdamped rotor rides straight through, pole after
+        pole; grown over a few link writes it detents into the nearest pole
+        and stays. Where the rotor ends up is where angles count from.
+        """
         self._theta_e = self.drive.state()['theta_hat']
         self.drive.setpoint(id_ref=amps / steps, iq_ref=0.0,
                             theta=self._theta_e, omega_target=0.0)
@@ -112,17 +88,7 @@ class _Mode:
 
 class Stepper(_Mode):
 
-    """The PMSM as its own microstepper.
-
-    HOLD holds a current vector at a commanded angle and the rotor is
-    dragged along by the load-angle spring, `amps kt sin(delta)`. Open
-    loop: overload it and it slips poles silently, exactly as a stepper
-    does - the servo below is the same move with the slip measured out.
-
-    `to()` slews rather than steps: the command walks at `deg_s` in
-    increments the link can carry, so the spring is never asked to span
-    more than a few degrees at once.
-    """
+    """The PMSM as its own microstepper."""
 
     def __init__(self, device, amps, deg_s=90.0):
         super().__init__(device)
@@ -130,16 +96,17 @@ class Stepper(_Mode):
         self._theta_e = self._zero = 0.0
 
     def _start(self):
-        # Soft energize, then count from wherever the rotor detented:
-        # an incremental frame - absolute needs an encoder offset
-        # nothing has commissioned yet.
+        # Soft energize, then count from wherever the rotor detented: an
+        # incremental frame - absolute needs an encoder offset nothing has
+        # commissioned yet.
         self._energize(self.amps)
         self._zero = self._theta_e
 
     @property
     def position(self):
-        """Where the COMMAND is, mech degrees from where the block
-        began - the rotor is trusted to follow, the stepper bargain."""
+        """Where the COMMAND is, mech degrees from where the block began - the
+        rotor is trusted to follow, the stepper bargain.
+        """
         return math.degrees((self._theta_e - self._zero) / self.poles)
 
     def to(self, degrees, pitch=0.25):
@@ -155,17 +122,7 @@ class Stepper(_Mode):
 
 class Servo(_Mode):
 
-    """Position over the shaft sensor, closed once per MOVE.
-
-    Not a rate servo: this link corrects at tens of hertz and the
-    load-angle spring rings at tens of hertz, so a per-pass loop samples
-    its own resonance aliased and pumps it - measured, six clean passes
-    wound the rotor through a pole slip into a freewheel. The honest
-    shape is a stepper with the slip measured out: slew smoothly, let
-    the ring die, read the sensor, correct what the load stole. The
-    A1335 must see a magnet; on the stand-in it reads the same virtual
-    rotor the drive torques.
-    """
+    """Position over the shaft sensor, closed once per MOVE."""
 
     #: A measurement reads the shaft for SPAN seconds, READ_GAP apart -
     #: on the wire a read is its own round trip and sets the pace; the
@@ -190,10 +147,8 @@ class Servo(_Mode):
         self._swing = float('nan')
 
     def _start(self):
-        # Soft energize like the stepper, then the shaft AFTER the
-        # detent is zero: every angle is relative to it. The zero is a
-        # MEAN - the detent rings and one read froze up to the ring's
-        # amplitude into the frame for the life of the block.
+        # Soft energize like the stepper, then the shaft AFTER the detent is
+        # zero: every angle is relative to it.
         self._energize(self.amps)
         self._shaft0 = 0.0
         self._shaft0 = self._measure()
@@ -213,9 +168,10 @@ class Servo(_Mode):
 
     @property
     def swing(self):
-        """How far the shaft moved, peak to peak in mech degrees, while
-        the last measurement watched it: the ring a held rotor carries.
-        Under RING it sat still."""
+        """How far the shaft moved, peak to peak in mech degrees, while the
+        last measurement watched it: the ring a held rotor carries. Under
+        RING it sat still.
+        """
         return self._swing
 
     def _slew(self, by_degrees):
@@ -223,22 +179,7 @@ class Servo(_Mode):
                       self.deg_s)
 
     def _measure(self):
-        """The shaft as a MEAN over its ring, never a read of it.
-
-        A held shaft rings about the equilibrium the load set - a
-        stepper's resonance, and seconds long on a rotor with nothing but
-        its bearings to damp it. The ring is symmetric, so its average is
-        the position while a single read is wherever the oscillation
-        happened to be. NINE READS OVER 0.2 s WERE NOT THAT MEAN: 22 ms
-        apart against a 28 Hz ring they aliased to 17 Hz and left up to a
-        degree of the ring in the answer; `to()` corrected it, the
-        correction re-kicked the spring, and the corrections pumped
-        (+0.6, -1.0, +0.7 ...) until `tries` ran out - the elbow of
-        `app_robot_arm` under 0.01 N.m, two runs in three, 2026-09-07.
-        A shaft seen moving more than RING across the first SPAN is read
-        for RING_SPAN, some thirty periods of that ring, and what is left
-        of it in the mean is under a tenth of a degree.
-        """
+        """The shaft as a MEAN over its ring, never a read of it."""
         began = time.monotonic()
         deadline = began + self.SPAN
         total, count = 0.0, 0
@@ -258,21 +199,7 @@ class Servo(_Mode):
         return total / count
 
     def _arrived(self, degrees, tol):
-        """Within `tol` of `degrees` AND STILL THERE a settle later.
-
-        ONE READING CANNOT TELL A HOLD FROM A PASS. A shaft the load is
-        dragging sweeps through every angle on its way, and a measurement
-        that lands while it crosses the target reads exactly like an arm
-        holding on it - so `to()` returned success for a shaft it could
-        not hold. Caught by CI 2026-09-04, which is the only place it
-        ever showed: 29.84 deg against a 30.0 target under 1.2 N.m of
-        load with 3 A of holding torque, which is 0.18 N.m. The reading
-        was true and the conclusion was not.
-
-        Two readings a settle apart cost one settle on the way out and
-        settle the question: a held shaft is in tolerance twice, a
-        slipping one has moved on.
-        """
+        """Within `tol` of `degrees` AND STILL THERE a settle later."""
         got = self._measure()
         self._error = degrees - got
         if abs(self._error) > tol:
@@ -283,16 +210,7 @@ class Servo(_Mode):
         return abs(self._error) <= tol
 
     def to(self, degrees, tol=0.5, tries=4):
-        """Drive the shaft to `degrees`: move, settle, measure, correct.
-
-        Each correction is what the LOAD stole - a spring wound by
-        holding torque, or poles slipped outright. Raises after `tries`
-        corrections still outside `tol`: a stalled arm is a fact, not a
-        return code.
-
-        ARRIVING IS TWO READINGS, not one - `_arrived` has why. A shaft
-        being dragged past the target reads like one holding on it.
-        """
+        """Drive the shaft to `degrees`: move, settle, measure, correct."""
         for _ in range(int(tries)):
             self._check()
             if self._arrived(degrees, tol):
@@ -312,17 +230,7 @@ class Servo(_Mode):
 
 class Velocity(_Mode):
 
-    """Sensorless speed under `coaxial.loop`'s own law - the ESC's job.
-
-    The drive commutates itself at 50 kHz from the record's tune
-    (`commissioning.ipynb` is what writes it); this loop reads `omega_hat`
-    and writes `iq_ref` at link rate. `j`/`b` default to the SMALLEST
-    plausible machine - the stand-in's own - because an overstated j
-    scales kp by the same factor and the discrete loop flips sign and
-    doubles: measured, j five times the plant took +900 rpm asked to
-    -1552 delivered. Understating only makes a big machine sluggish;
-    identify the real pair (`motion.ipynb`) at the bench.
-    """
+    """Sensorless speed under `coaxial.loop`'s own law - the ESC's job."""
 
     #: `load_k` is the LOOP's knowledge - the propeller law its
     #: feedforward leans on. It moves no air: on the stand-in the plant's
@@ -353,13 +261,7 @@ class Velocity(_Mode):
                 / RAD_S_PER_RPM)
 
     def rpm(self, target, seconds=1.5, accel_rpm_s=None, watch=None):
-        """Ramp to `target` rpm and serve the loop for `seconds` after.
-
-        The reference slews at `accel_rpm_s` (default: reach the target
-        in a third of `seconds`), so the current stays a control action
-        rather than a step. `watch(self)` runs once a pass - a notebook's
-        logger, a mission's guard. Returns the rpm it settled at.
-        """
+        """Ramp to `target` rpm and serve the loop for `seconds` after."""
         w_ref = self.bus.w_ref
         w_target = float(target) * RAD_S_PER_RPM
         if accel_rpm_s is None:
@@ -376,10 +278,9 @@ class Velocity(_Mode):
             w_ref += move
             self.bus.w_ref = w_ref
             self.bus.a_ref = move / dt if dt else 0.0
-            # One state read a pass, and the fault rides it: a trip here
-            # is a runaway or an overcurrent, the one place stopping the
-            # loop matters most. No extra round trip - omega_hat and the
-            # fault come off the same reply.
+            # One state read a pass, and the fault rides it: a trip here is a
+            # runaway or an overcurrent, the one place stopping the loop
+            # matters most.
             st = self.drive.state()
             if st['fault']:
                 raise RigError('the drive tripped mid-spin - %s. The stage '
@@ -399,9 +300,10 @@ class Velocity(_Mode):
 
 class Motion:
 
-    """The factory `device.motion` answers with. Three verbs, one rule:
-    the stage is armed FIRST, by you, through `device.gates.arm()` -
-    these helpers refuse to be the second place arming lives."""
+    """The factory `device.motion` answers with. Three verbs, one rule: the
+    stage is armed FIRST, by you, through `device.gates.arm()` - these
+    helpers refuse to be the second place arming lives.
+    """
 
     def __init__(self, device):
         self._device = device

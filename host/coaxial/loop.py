@@ -1,30 +1,10 @@
-"""The control loops as blocks on one bus, closing around `coaxial.motor`.
-
-A `Signals` is the bus - one set of named slots every block reads and
-writes. A `Block` is a callable step; `>>` chains them left to right and
-`Chain.run` drives the lot at a fixed rate, recording every slot. The
-result feeds `identify`, which hands the run to `coaxial.sysid` and gets
-the machine's constants back with their uncertainty.
-
-Everything here is arithmetic on a model - `measured=False` all the way
-down. The firmware's own loop lives in `drive/`; this module exists so a
-notebook and a Monte Carlo can close a speed loop without a board.
-"""
+"""The control loops as blocks on one bus, closing around `coaxial.motor`."""
 import math
 import os
 
-# NUMPY'S OPENBLAS COMMITS 32 MB A CORE THE MOMENT IT IS IMPORTED - a
-# scratch buffer per worker thread, never touched, but charged against
-# the machine's commit limit. Measured 2026-09-16 on the sixteen-core
-# laptop: `import numpy` 499 MB of commit at 27 MB resident; with one
-# thread, 17 MB. This is the package's one numpy import - `rig` ->
-# `motion` -> here - so every process importing `coaxial` paid it: the
-# attitude page's fifteen (six decimating, eight drawing, the page) were
-# 7.5 GB of commit before a frame was drawn, on a machine with no page
-# file, and it was the editor Windows failed to grow, not the page
-# (System log 2004; docs/FINDINGS.md). Nothing here multiplies a matrix
-# worth a thread pool. Set BEFORE numpy loads in this process, and only
-# if the shell has not said otherwise.
+# NUMPY'S OPENBLAS COMMITS 32 MB A CORE THE MOMENT IT IS IMPORTED - a scratch
+# buffer per worker thread, never touched, but charged against the machine's
+# commit limit.
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy                                                     # noqa: E402
@@ -75,7 +55,8 @@ class Chain(Block):
 
     def run(self, seconds, dt, every=1):
         """The chain for `seconds` at `dt`, every `every`th bus recorded.
-        Returns {slot: array}, time included."""
+        Returns {slot: array}, time included.
+        """
         s = Signals()
         rows = {name: [] for name in Signals.__slots__}
         for k in range(int(round(seconds / dt))):
@@ -89,8 +70,9 @@ class Chain(Block):
 
 class Ramp(Block):
 
-    """w_ref: a raised cosine to `top` over `rise`, and back down over the
-    next `rise`. a_ref is its derivative - the feedforward's input."""
+    """w_ref: a raised cosine to `top` over `rise`, and back down over the next
+    `rise`. a_ref is its derivative - the feedforward's input.
+    """
 
     def __init__(self, top, rise):
         self.top, self.rise = top, rise
@@ -108,9 +90,10 @@ class Ramp(Block):
 
 class Probe(Block):
 
-    """d-axis excitation, `amps` at `hz`: torque-free, so the speed loop
-    never sees it, and the one thing that lets Ld out of a fit - without
-    did/dt the inductance column is R's (`coaxial.sysid`)."""
+    """d-axis excitation, `amps` at `hz`: torque-free, so the speed loop never
+    sees it, and the one thing that lets Ld out of a fit - without did/dt
+    the inductance column is R's (`coaxial.sysid`).
+    """
 
     def __init__(self, amps, hz):
         self.amps, self.hz = amps, hz
@@ -121,14 +104,7 @@ class Probe(Block):
 
 class SpeedLoop(Block):
 
-    """iq_ref from w_ref: a PI whose zero cancels the mechanical pole.
-
-    The plant about the reference is `J s + b + 2 k |w_ref|` - a propeller
-    linearises to twice its slope - so kp is `w0 J / kt` and ki rides the
-    reference. Feedforward carries the acceleration and the standing drag,
-    and the integrator holds on the current clamp and on the inner loop's
-    `v_sat`: past either, error is not information.
-    """
+    """iq_ref from w_ref: a PI whose zero cancels the mechanical pole."""
 
     def __init__(self, hz, limit, motor, load=None):
         self.w0, self.limit = TWO_PI * hz, limit
@@ -150,10 +126,11 @@ class SpeedLoop(Block):
 
 class CurrentLoop(Block):
 
-    """vd, vq from the current error: kp = L w0 and ki = R w0 per axis,
-    the speed cross-terms fed forward, the pair clamped to link/sqrt(3) as
-    a VECTOR - and the integrators held while it is, drive.c's conditional
-    integration. Raises `v_sat` for the loop above."""
+    """vd, vq from the current error: kp = L w0 and ki = R w0 per axis, the
+    speed cross-terms fed forward, the pair clamped to link/sqrt(3) as a
+    VECTOR - and the integrators held while it is, drive.c's conditional
+    integration. Raises `v_sat` for the loop above.
+    """
 
     def __init__(self, hz, motor, vdc):
         w0 = TWO_PI * hz
@@ -178,17 +155,11 @@ class CurrentLoop(Block):
 
 class Machine(Block):
 
-    """`coaxial.motor.Motor` behind the bus: vd/vq become duties at the
-    rotor's own angle, one PWM period advances, and what comes back out
-    carries `noise` amps of gaussian on each current - the AFE's floor,
-    on what the loop sees, never on the machine itself.
-
-    The state goes on the bus BEFORE the period advances, so a recorded
-    row holds a voltage beside the state it starts acting on - and the
-    loops run one period behind the machine, which is what the firmware's
-    own pipeline does. Publishing after the advance instead misaligned the
-    record by a period and the identification read r at +17 % and Lq at
-    -4 % from that alone."""
+    """`coaxial.motor.Motor` behind the bus: vd/vq become duties at the rotor's
+    own angle, one PWM period advances, and what comes back out carries
+    `noise` amps of gaussian on each current - the AFE's floor, on what the
+    loop sees, never on the machine itself.
+    """
 
     def __init__(self, params, vdc, load=None, noise=0.0, seed=2, **kw):
         kw.setdefault('k_load', load.k if load else 0.0)
@@ -203,9 +174,8 @@ class Machine(Block):
         s.w_e, s.theta = m.omega, m.theta
         s.w = m.omega / m.p
         # Half a period of angle advance: the vector is held in the STATOR
-        # frame while the rotor turns w*dt through it, so aiming at the
-        # middle makes the mean dq voltage the commanded one. Without it
-        # the identification read r at -218 % of itself at 9000 rad/s.
+        # frame while the rotor turns w*dt through it, so aiming at the middle
+        # makes the mean dq voltage the commanded one.
         ahead = m.theta + 0.5 * m.omega * dt
         c, sn = math.cos(ahead), math.sin(ahead)
         va, vb = s.vd * c - s.vq * sn, s.vd * sn + s.vq * c
@@ -215,11 +185,7 @@ class Machine(Block):
 
 
 def identify(run, poles, **kw):
-    """`coaxial.sysid` over a run: (Parameters, the fit record).
-
-    `measured` stays False - the run was arithmetic. Trust per parameter
-    is in the record: Ld's is only as good as the probe that excited it.
-    """
+    """`coaxial.sysid` over a run: (Parameters, the fit record)."""
     got = sysid.identify(run['vd'], run['vq'], run['id'], run['iq'],
                          run['w'] * poles, run['t'], **kw)
     fit = Parameters(

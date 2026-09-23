@@ -1,24 +1,4 @@
-"""Commissioning a motor on this board: the eight steps, against a rig.
-
-    1. AFE   - noise floor per channel, gates off and on the zero vector;
-               the sample point with the least variance; offsets; gain
-               mismatch from ia + ib + ic = 0; sigma_i, ENOB, latency.
-    2. Inverter - the dead-time voltage error against current, and R.
-    3. Motor - the L map (dL/L against bias current and injection angle,
-               with its harmonics) and lambda from an I/f spin.
-    4. Budget - f_inj and amplitude for the best SNR under the constraints.
-    5. Gains - current loop from R, L, sigma_i; Kalman gains from sigma_i;
-               the crossover speed.
-    6. Decision - injection, or an I/f start with a saturation pulse.
-    7. Verification - a sensorless run, the innovation's whiteness, a
-               sigma_theta proxy, and the one-line report.
-
-Every number is the board's measurement; every verdict is this executive's
-(invariant 10 keeps them out of the firmware). Nothing here arms the stage
-unless `arm` says how; a step that switches refuses without it. On the
-unmodified bench board AFE_ON high unpowers the gate drivers, so the
-switching steps run dry there - `gate_supply()` says so, measured.
-"""
+"""Commissioning a motor on this board: the eight steps, against a rig."""
 import math
 import time
 
@@ -41,13 +21,7 @@ GATE_UVLO_V = 7.3
 
 
 def _fit_deadtime(points):
-    """(r, v_dt, i_knee, residual) from (amps, volts) pairs.
-
-    Model: vd = R I + (2/3)(f(I) + f(I/2)), f = v_dt tanh(I / i_knee) - a
-    vector on phase a puts I on a and -I/2 on b and c, so the three
-    per-phase errors land on d as two thirds of their sum. R is linear
-    least squares at each (v_dt, i_knee) of a grid, refined once.
-    """
+    """(r, v_dt, i_knee, residual) from (amps, volts) pairs."""
     def cost(v_dt, i_knee):
         def f(i):
             return v_dt * math.tanh(i / i_knee)
@@ -76,8 +50,9 @@ def _fit_deadtime(points):
 
 
 def _harmonics(values, angles):
-    """Mean, and the amplitude and phase of cos(2 phi) and cos(4 phi) over
-    an evenly spread set of injection angles."""
+    """Mean, and the amplitude and phase of cos(2 phi) and cos(4 phi) over an
+    evenly spread set of injection angles.
+    """
     n = len(values)
     mean = sum(values) / n
     out = {'mean': mean}
@@ -91,12 +66,7 @@ def _harmonics(values, angles):
 
 class Commissioning:
 
-    """The steps, on one rig, and what each of them learnt.
-
-    `arm` is the dict `gates.arm()` is called with when a step needs the
-    stage - `dict(bypass_sto=True, ignore_interlock=True)` on this bench -
-    or None, in which case those steps refuse and say so.
-    """
+    """The steps, on one rig, and what each of them learnt."""
 
     def __init__(self, rig, arm=None, log=None, i_h_max=1.0, f_min_hz=0.0,
                  bw_est_hz=50.0, accel_sd=2000.0, rated_rpm=3000.0):
@@ -173,8 +143,9 @@ class Commissioning:
         return rows
 
     def afe_noise(self, periods=2000, zero_vector=True):
-        """Noise floor per channel with the gates off, and on the zero
-        vector with the stage armed - the difference is switch pickup."""
+        """Noise floor per channel with the gates off, and on the zero vector
+        with the stage armed - the difference is switch pickup.
+        """
         self.rig.board.afe.enable()
         time.sleep(0.3)
         gd = self.rig.board.gate_drivers
@@ -202,9 +173,10 @@ class Commissioning:
         return out
 
     def latency(self):
-        """From the sample to the duty that answers it, measured where it
-        can be: the interrupt's own entry offset and its cost in cycles,
-        and the two periods the pipeline adds by construction."""
+        """From the sample to the duty that answers it, measured where it can
+        be: the interrupt's own entry offset and its cost in cycles, and the
+        two periods the pipeline adds by construction.
+        """
         gd = self.rig.board.gate_drivers.state()
         ds = self.drive.state()
         sysclk = self.rig.board.system.clock()['sysclk_hz']
@@ -216,11 +188,12 @@ class Commissioning:
                 'to_effect_periods': 2, 'to_effect_us': 2.0 * ds['ts'] * 1e6}
 
     def sample_point_scan(self, ticks=None, periods=500):
-        """Move CCR5 across the period, on the zero vector, and keep the
-        point with the least phase variance - after the ringing, before
-        the next edge. Needs the stage: with nothing switching the scan
-        is a walk through noise, and on this bench it picked 990 of 2376
-        off exactly that."""
+        """Move CCR5 across the period, on the zero vector, and keep the point
+        with the least phase variance - after the ringing, before the next
+        edge. Needs the stage: with nothing switching the scan is a walk
+        through noise, and on this bench it picked 990 of 2376 off exactly
+        that.
+        """
         gd = self.rig.board.gate_drivers
         period = gd.state()['period']
         if ticks is None:
@@ -250,7 +223,8 @@ class Commissioning:
         """Each phase's code at zero current becomes its offset. One past
         `limit_codes` looks like a fault and is reported, not applied - the
         reference board's Phase V op-amp reads -52 A with nothing connected,
-        and zeroing it would hide that."""
+        and zeroing it would hide that.
+        """
         m = self.drive.moments_run(periods)
         cal = self.rig.board.calibration.read()['channels']
         out = {}
@@ -267,9 +241,10 @@ class Commissioning:
         return out
 
     def gain_mismatch(self, amps=1.0, periods=1000, apply=True):
-        """Relative gains from ia + ib + ic = 0 with current in all three:
-        a current vector held on each phase axis in turn, and the three
-        sums solved for the two gain ratios in least squares."""
+        """Relative gains from ia + ib + ic = 0 with current in all three: a
+        current vector held on each phase axis in turn, and the three sums
+        solved for the two gain ratios in least squares.
+        """
         self._stage()
         cal = self.rig.board.calibration.read()['channels']
         # The offsets as MEASURED at zero current, not as the record holds
@@ -325,7 +300,8 @@ class Commissioning:
 
     def sign_check(self, volts=0.3, seconds=0.05):
         """A small positive d voltage on phase a: the current it makes says
-        which way the shunts read. Sets drv_sign."""
+        which way the shunts read. Sets drv_sign.
+        """
         self._stage()
         self.drive.setpoint(vd=volts, vq=0.0, theta=0.0)
         self.drive.mode('volt')
@@ -349,7 +325,8 @@ class Commissioning:
         """vd against a held d current on phase a: R from the slope and the
         dead-time curve from what is left, unfolded per phase into the
         board's table. Mandatory at weak saliency - the voltage error is an
-        angle error in every estimate built on the applied voltage."""
+        angle error in every estimate built on the applied voltage.
+        """
         self._stage()
         points = []
         for amps in currents:
@@ -386,12 +363,7 @@ class Commissioning:
 
     def l_map(self, biases=(0.0, 1.0, 2.0, 3.0), points=8, v_inj=1.0,
               periods=1, settle=0.05, seconds=0.1):
-        """L against bias current and injection angle, from V T / i_h.
-
-        dL/L per bias is the second harmonic over the mean - the saturation
-        saliency an SPM has and a salient rotor adds to - and the fourth is
-        the secondary harmonic the demodulator has to live with.
-        """
+        """L against bias current and injection angle, from V T / i_h."""
         self._stage()
         ts = 1.0 / self.fs
         angles = [math.pi * k / points for k in range(points)]
@@ -428,8 +400,9 @@ class Commissioning:
         return out
 
     def flux(self, amps=2.0, omega=300.0, accel=1500.0, seconds=0.2):
-        """lambda from an I/f spin: the back-EMF in the command frame is
-        v - R i - j omega L i, and its magnitude over omega is the flux."""
+        """lambda from an I/f spin: the back-EMF in the command frame is v - R
+        i - j omega L i, and its magnitude over omega is the flux.
+        """
         self._stage()
         p = self.drive.params()
         self.drive.setpoint(id_ref=amps, iq_ref=0.0, theta=0.0,
@@ -481,7 +454,8 @@ class Commissioning:
 
     def gains(self):
         """Loop gains, Kalman gains from the measured noise, the crossover.
-        Written to the record, then the drive reloads them."""
+        Written to the record, then the drive reloads them.
+        """
         b = self.results.get('budget') or self.budget()
         k, loop, c = b['known'], b['loop'], b['choice']
         dt = self.results.get('deadtime') or {}
@@ -510,7 +484,8 @@ class Commissioning:
     def decide(self, threshold_db=10.0):
         """Injection when the budget clears the threshold at the largest
         amplitude the constraints allow; otherwise an I/f start and a
-        saturation pulse for the polarity."""
+        saturation pulse for the polarity.
+        """
         b = self.results.get('budget') or self.budget()
         snr_db = b['choice']['snr_db'] if b['choice'] else -100.0
         out = {'snr_db': snr_db, 'threshold_db': threshold_db,
@@ -522,7 +497,8 @@ class Commissioning:
 
     def polarity(self, volts=3.0, periods=8, gap=40):
         """Two pulses along theta_hat; the one that saturates peaks higher.
-        Flips theta_hat by pi when the negative one did."""
+        Flips theta_hat by pi when the negative one did.
+        """
         self._stage()
         self.drive.setpoint(pol_volts=volts, pol_periods=periods, pol_gap=gap)
         before = self.drive.state()['theta_hat']
@@ -538,8 +514,9 @@ class Commissioning:
         return out
 
     def verify(self, iq=0.5, seconds=1.0, lock=0.3):
-        """Run sensorless, then judge the innovation: white by Ljung-Box,
-        and its deviation as the sigma_theta proxy."""
+        """Run sensorless, then judge the innovation: white by Ljung-Box, and
+        its deviation as the sigma_theta proxy.
+        """
         self._stage()
         d = self.results.get('decision') or self.decide()
         if d['method'] == 'injection':

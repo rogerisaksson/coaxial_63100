@@ -1,31 +1,8 @@
-"""Recover a machine's constants from what the board recorded.
-
-The dq equations are linear in the four things worth knowing, which is the
-whole reason this is a least squares and not a search:
-
-    vd = R*id + Ld*(did/dt) - omega*Lq*iq
-    vq = R*iq + Lq*(diq/dt) + omega*Ld*id + omega*lambda
-
-Given records of the phase currents, the duties that produced them and the
-rotor angle, everything above is measurable and the four unknowns fall out
-of one solve. `identify()` is that solve; `to_dq()` is the Park transform
-that gets there.
-
-WHAT MAKES A RESULT TRUSTWORTHY, and it is not the residual. A fit against
-a run that never moved recovers R and nothing else - `omega` has to vary
-for `lambda` to separate from it, and `did/dt` has to be large somewhere
-for the inductances to separate from R. `identify()` reports the
-conditioning of the regression and refuses a fit whose columns are
-collinear, because a confident number from a run that could not contain it
-is worse than no number.
-
-Nothing here judges a motor. It returns what the arithmetic says, with the
-spread it came with.
-"""
+"""Recover a machine's constants from what the board recorded."""
 import math
 
-# One definition each, where they already lived: the transform's turn is
-# the observer's, and the channel names are the commissioning's.
+# One definition each, where they already lived: the transform's turn is the
+# observer's, and the channel names are the commissioning's.
 from .commission import PHASES                              # noqa: F401
 from .errors import RigError
 from .motor import Parameters
@@ -44,12 +21,7 @@ def _numpy():
 
 
 def to_dq(values, theta, amplitude_invariant=True):
-    """Three phase quantities to (d, q) at electrical angle `theta`.
-
-    Amplitude-invariant by default, which is what `coaxial.motor` and the
-    firmware's own transform use. The other convention differs by a factor
-    of sqrt(3/2) and would put that factor straight into the inductances.
-    """
+    """Three phase quantities to (d, q) at electrical angle `theta`."""
     np = _numpy()
     a, b, c = (np.asarray(v, dtype=float) for v in values)
     theta = np.asarray(theta, dtype=float)
@@ -63,12 +35,7 @@ def to_dq(values, theta, amplitude_invariant=True):
 
 
 def phase_voltages(duties, vdc):
-    """Phase voltages from the six gate duties and the link.
-
-    The high side's duty IS the leg's, and the common mode comes out: a
-    three-wire machine sees only the difference, so subtracting the mean of
-    the three is what turns duties into the voltages the windings saw.
-    """
+    """Phase voltages from the six gate duties and the link."""
     np = _numpy()
     legs = np.asarray([np.asarray(d, dtype=float) for d in duties])
     vdc = np.asarray(vdc, dtype=float)
@@ -82,19 +49,7 @@ def _derivative(x, t):
 
 
 def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
-    """(R, Ld, Lq, lambda) by least squares, with what it is worth.
-
-    Every argument is a sequence over the same samples: the dq voltages and
-    currents, the ELECTRICAL angular velocity, and the time each sample was
-    taken - `record.start_time`, not an assumed period, because what the
-    loop managed and what it was asked for are different numbers.
-
-    Returns a dict with the four constants, the residual, and `condition` -
-    the smallest singular value of the regression over the largest. A run
-    that never moved makes the lambda column collinear with nothing and the
-    solve returns a confident wrong answer; below `min_condition` this
-    refuses instead.
-    """
+    """(R, Ld, Lq, lambda) by least squares, with what it is worth."""
     np = _numpy()
     vd, vq = np.asarray(vd, float), np.asarray(vq, float)
     id_, iq = np.asarray(id_, float), np.asarray(iq, float)
@@ -129,12 +84,8 @@ def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
     predicted = matrix @ fit
     rms = float(np.sqrt(np.mean((target - predicted) ** 2)))
 
-    # PER PARAMETER, because one number for the whole fit hides the case
-    # that matters. MEASURED: a V/f ramp identified R to 0.4 %, Ld to
-    # 1.4 % and lambda to 0.1 %, and Lq to MINUS 73 - iq barely moved, so
-    # `Lq*diq/dt` had no excitation and `omega*Lq*iq` went collinear with
-    # the lambda column. The global condition was 6.5e-2 and said nothing.
-    # A standard error off the covariance does say it, and says WHICH one.
+    # PER PARAMETER, because one number for the whole fit hides the case that
+    # matters.
     freedom = max(1, matrix.shape[0] - matrix.shape[1])
     variance = float(np.sum((target - predicted) ** 2)) / freedom
     try:
@@ -146,8 +97,8 @@ def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
     got = {'r': r, 'ld': ld, 'lq': lq, 'lam': lam,
            'condition': condition, 'residual_v': rms,
            'samples': int(len(id_))}
-    # Relative, since that is what a reader compares: 5 % on an inductance
-    # is a number, 300 % is a column the run did not excite.
+    # Relative, since that is what a reader compares: 5 % on an inductance is
+    # a number, 300 % is a column the run did not excite.
     got['uncertainty'] = {
         name: (float(err / abs(value)) if value else float('inf'))
         for name, value, err in zip(names, fit, errors)}
@@ -156,17 +107,7 @@ def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
 
 
 def from_frame(frame, theta, poles, vdc='DC bus (V)', name='identified'):
-    """Identify straight off a `daq.frame()`.
-
-    `theta` is the ELECTRICAL angle at each record - from a shaft sensor,
-    or from the observer's estimate, or known because the run was driven
-    open loop and the angle was commanded. The identification cannot
-    invent it: everything here is in the rotor frame and something has to
-    say where the rotor was.
-
-    Returns a `coaxial.motor.Parameters` with `measured` set, because it
-    came off records rather than a label.
-    """
+    """Identify straight off a `daq.frame()`."""
     np = _numpy()
 
     currents = [frame[c].to_numpy() for c in

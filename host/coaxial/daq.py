@@ -1,14 +1,4 @@
-"""One acquisition task: configure, start, read.
-
-DAQmx's shape, cut down to what this board has. There is one task, not many
-- one MCU, three converters, one timer - so `configure` replaces whatever
-was there rather than adding to it.
-
-Nothing here knows the record's shape. `layout()` asks the board what each
-field is and `read()` decodes from that, so a channel added to
-`board/src/board_adc.c` shows up in a capture without this file being told.
-A decoder written against a fixed field order is the copy that goes stale.
-"""
+"""One acquisition task: configure, start, read."""
 import itertools
 import struct
 import time
@@ -61,12 +51,7 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
     backlog = None
 
     def state(self):
-        """What the task is, what it has produced, and how full it is.
-
-        `available` against `capacity` is the buffer level; `worst` is the
-        fullest it has been, which is the number that says whether the
-        next record drops. Both are None on a board older than MINOR 4.
-        """
+        """What the task is, what it has produced, and how full it is."""
         r = Reader(self._op(DaqOp.STATE))
         state: dict[str, Any] = r.flags(FLAGS)
         state.update({
@@ -85,39 +70,32 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
             'interval_us': r.u32(),
             'max_rate_hz': r.u32(),
         })
-        # Appended by MINOR 4, and read only if it is there: a board
-        # older than that answers a shorter reply, and a decoder that
-        # assumed the field would raise on a board that is simply older.
+        # Appended by MINOR 4, and read only if it is there: a board older
+        # than that answers a shorter reply, and a decoder that assumed the
+        # field would raise on a board that is simply older.
         state['capacity'] = r.maybe('u32')
         state['worst'] = r.maybe('u32')
         state['rung'] = r.maybe('u8') or 0
         state['rungs'] = r.maybe('u8') or 0
         state['rung_changes'] = r.maybe('u32') or 0
         # SWEEPS, not records: what the loop manages underneath the
-        # decimation. Differentiate it and you have the rate the
-        # chain was designed against, live.
+        # decimation.
         state['triggers'] = r.maybe('u32')
         # Appended, MINOR 7: which sensor fields this build can put in a
-        # record, and which the task carries now. None on older boards -
-        # `catalogue()` marks the rows unselectable off exactly this.
+        # record, and which the task carries now.
         state['sensors'] = r.maybe('u16')
         state['sensors_available'] = r.maybe('u16')
         state['sensors_supported'] = state['sensors_available'] is not None
         return state
 
     def layout(self):
-        """What each field of a record carries, named by the board.
-
-        This is the whole reason `read()` needs no field order of its own.
-        """
+        """What each field of a record carries, named by the board."""
         r = Reader(self._op(DaqOp.LAYOUT))
         fields = r.u8()
         stride = r.u16()
         out = [self._field(r) for _ in range(fields)]
 
-        # The digital word's bits, named by the board. Counting rows of a
-        # table this file does not hold is the copy the layout exists to
-        # avoid, so the names come off the wire with everything else.
+        # The digital word's bits, named by the board.
         pins = []
         if r.remaining and r.u8():
             pins = [self._pin(r) for _ in range(r.u8())]
@@ -151,47 +129,23 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
                   decimate=1, accumulate=None, records=0, digital=False,
                   sample_rate=None, interval_us=None, adapt=False,
                   sensors=0):
-        """Replace the task. Refused while one is running.
-
-        `sample_rate` is what the HOST gets, in records a second. The
-        converter is not slowed to it: it runs at whatever the loop
-        manages - megasamples a second is the reason to sum on the target
-        at all - and the board closes a record on the clock, carrying the
-        sum of everything that arrived and the count that made it. Ask for
-        a rate the link can drain and the averaging is free.
-
-        `accumulate` is the other way to close a record: N samples make
-        one, and `sample_rate` then gates the triggers instead. Left unset
-        it follows `sample_rate` - a rate means the clock closes it, no
-        rate means one sample per record.
-
-        Summing rather than averaging keeps the bits an average would
-        throw away; `record['samples']` is the divisor and comes off the
-        wire with the sums. `decimate` keeps one trigger in N. `records`
-        of 0 runs until stopped.
-        """
+        """Replace the task. Refused while one is running."""
         if accumulate is None:
             accumulate = 0 if sample_rate is not None else 1
         # Only what stops the request being FORMED is checked here - a name
-        # that is not a clock cannot be packed into a byte. Everything the
-        # board can judge, the board judges, and says why.
+        # that is not a clock cannot be packed into a byte.
         if clock not in CLOCKS and clock not in CLOCK_NAMES:
             raise ValueError('clock is %s, not one of %s'
                              % (clock, ', '.join(CLOCKS)))
 
-        # A software clock has to be a clock. Left unlimited it samples
-        # whatever the main loop has spare, which took the link down: seven
-        # channels is about 190 us of converter work a turn and RTU discards
-        # a frame whose characters arrive more than t1.5 - 143 us at 115200 -
-        # apart. Unlimited is still reachable, and is only safe for a short
-        # finite run.
+        # A software clock has to be a clock.
         if interval_us is None:
             interval_us = (0 if sample_rate is None
                            else int(1e6 / float(sample_rate)))
 
-        # The mask is 16 bits: the ninth channel did not fit in eight, and
-        # a mask that silently dropped one would configure a task the
-        # caller did not ask for.
+        # The mask is 16 bits: the ninth channel did not fit in eight, and a
+        # mask that silently dropped one would configure a task the caller did
+        # not ask for.
         payload = pack(('u16', self._resolve(channels)),
                        ('u8', CLOCKS.get(clock, clock)),
                        ('u8', sample_time), ('u16', decimate),
@@ -200,23 +154,12 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
                        ('u8', int(bool(adapt))))
         if sensors:
             # Appended, MINOR 7 - SNAPSHOT fields, software clock only.
-            # Sent only when asked for: an older board ignores unread
-            # tail bytes, and a silently dropped request is exactly what
-            # the front door's `selectable` gate exists to refuse first.
             payload += pack(('u16', int(sensors)))
         self._ack(DaqOp.CONFIGURE, payload)
         return self.layout()
 
     def shape(self, sections=(), decimate=1):
-        """Load the anti-alias chain `coaxial.bessel` designed.
-
-        THE CHAIN'S BOXCAR IS THE TASK'S `accumulate`, not a second
-        stage: configure with `accumulate=chain['boxcar']` and pass the
-        sections and `chain['decimate']` here. Two boxcars would be two
-        answers to what the first stage is.
-
-        No arguments clears it and the task sums as it did.
-        """
+        """Load the anti-alias chain `coaxial.bessel` designed."""
         self._ack(DaqOp.FILTER,
                   pack(('u8', len(sections)), ('u16', int(decimate)))
                   + _sections(sections))
@@ -230,18 +173,7 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
     SINE, RAMP = 0, 1
 
     def ladder(self, chains):
-        """Load the whole ladder, bottom rung first.
-
-        The board climbs it when its ring fills and comes back down when
-        the link has caught up, so what a slow link costs is bandwidth
-        rather than records. Rung 0 forgets every rung above it, which is
-        what stops a rebuilt ladder leaving a stale one behind - so this
-        sends 0 first, always.
-
-        Each rung is a whole design: `configure(adapt=True)` and the
-        board does the rest. `state()['rung']` says which one is running
-        and `record['samples']` says it again, per record.
-        """
+        """Load the whole ladder, bottom rung first."""
         for n, chain in enumerate(chains):
             self._ack(DaqOp.RUNG,
                       pack(('u8', n), ('u16', int(chain['boxcar'])),
@@ -251,13 +183,8 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         return True
 
     def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):
-        """A known sine in the converter's place, or `hz=0` for the
-        converter again.
-
-        For proving the path rather than measuring anything: a host that
-        knows the frequency, the rate and the decimation knows what every
-        output sample should be, so a record that fell out of the ring
-        shows up as a phase that jumped rather than as nothing at all.
+        """A known sine in the converter's place, or `hz=0` for the converter
+        again.
         """
         self._ack(DaqOp.TONE,
                   pack(('u32', int(hz)), ('u32', int(rate_hz)),
@@ -273,14 +200,7 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         return True
 
     def decode(self, blob, layout=None):
-        """Whole records out of raw record bytes.
-
-        ONE DECODER FOR THE WIRE. The bytes arrive two ways now - straight
-        off a read, or out of the broker's shared ring, which holds them
-        exactly as they came - and two decoders for one format is how a
-        stride drifts. `blob` is whole records and nothing else: no count
-        byte in front, no backlog behind.
-        """
+        """Whole records out of raw record bytes."""
         layout = layout or self.layout()
         fields, pins = layout['fields'], layout.get('pins') or []
         sensors = layout.get('sensors') or []
@@ -298,17 +218,14 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
         first = 1 + len(fields)
         if pins:
-            # A DUTY, not a level: the pin went through the same
-            # window as everything else, and 255 is all of it. A
-            # level sampled once and decimated by two thousand is
-            # aliased by construction - KEEPALIVE toggles at
-            # ~100 kHz and read as a coin toss.
+            # A DUTY, not a level: the pin went through the same window as
+            # everything else, and 255 is all of it.
             rec['digital'] = {p['signal']: values[first + n] / BYTE_FRACTION
                               for n, p in enumerate(pins)}
         first += len(pins)
         if sensors:
-            # SNAPSHOTS, not sums: raw and source-defined, the way
-            # device 5 carries them - the scale stays this host's.
+            # SNAPSHOTS, not sums: raw and source-defined, the way device 5
+            # carries them - the scale stays this host's.
             ends = list(itertools.accumulate((x['words'] for x in sensors),
                                              initial=first))
             rec['sensors'] = {x['signal']: tuple(values[a:b])
@@ -316,21 +233,14 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         return rec
 
     def acquire(self, want=0, layout=None):
-        """Whole records, oldest first, decoded from the board's layout.
-
-        Pass `layout` to save a round trip when draining in a loop.
-        """
+        """Whole records, oldest first, decoded from the board's layout."""
         layout = layout or self.layout()
-        # THE BOARD'S STRIDE, not one worked out here. It says so in the
-        # layout for exactly this reason, and a decoder that recomputes it
-        # mis-frames every record after the first the day the record grows
-        # a field - which is how the sample count arrived.
+        # THE BOARD'S STRIDE, not one worked out here.
         stride = layout['stride']
-        # AND ITS REPLY'S LENGTH IS KNOWABLE, so say so: the first
-        # payload byte is the record count and the stride is already in
-        # hand, which turns the 8 ms of silence that ends every other
-        # transaction into nothing. `tail` is the backlog MINOR 5
-        # appends.
+        # AND ITS REPLY'S LENGTH IS KNOWABLE, so say so: the first payload
+        # byte is the record count and the stride is already in hand, which
+        # turns the 8 ms of silence that ends every other transaction into
+        # nothing.
         raw = self._op(DaqOp.READ, pack(('u8', min(int(want), 255))),
                        reply_shape={'at': 0, 'head': 1, 'stride': stride,
                                     'tail': 4})
@@ -338,31 +248,14 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         end = 1 + (got * stride)
         out = self.decode(raw[1:end], layout)
 
-        # THE BACKLOG THE READ ITSELF ANSWERED, the way a DAQ card does
-        # it: records still in the board's ring the instant this read
-        # took its own. A separate state() costs a round trip and
-        # answers about a different moment, which is the wrong number
-        # to pace a reader with.
-        #
-        # Read only if it is there - appended by MINOR 5, and a board
-        # older than that answers a reply that stops after the records.
+        # THE BACKLOG THE READ ITSELF ANSWERED, the way a DAQ card does it:
+        # records still in the board's ring the instant this read took its
+        # own.
         self.backlog = Reader(raw[end:]).maybe('u32')
         return out
 
     def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
-        """The live accumulator, taken and reset. Cannot overflow.
-
-        Every trigger adds to it and this takes it away, so a late reader
-        gets a wider averaging window rather than a backlog - the opposite
-        of `read()`, which drains a ring that drops when it is full. Message
-        in a bottle or fibre, the same call.
-
-        Returns each channel's sum and the number of additions that went
-        into it - `arr[channel][additions]` - because the channels do not
-        sample at the same rate. `mean` is done for you. `block` waits for a sample that has not been taken yet, on
-        this side: a slave that sat on a reply waiting for one would break
-        RTU framing for everyone else on the segment.
-        """
+        """The live accumulator, taken and reset. Cannot overflow."""
         layout = layout or self.layout()
         fields, pins = layout['fields'], layout.get('pins') or []
         deadline = time.time() + timeout
@@ -381,15 +274,14 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         out = {'first': r.u32(), 'last': r.u32(), 'sum': {}, 'count': {}}
         # One count per channel, not one for the lot: the board reads one
         # channel per turn of its loop, so over any window they have had
-        # different numbers of samples and a single count would divide most
-        # of them by the wrong number.
+        # different numbers of samples and a single count would divide most of
+        # them by the wrong number.
         out['lowest'], out['highest'] = {}, {}
         for f in fields:
             name = f['signal']
             out['sum'][name] = r.i32()
             out['count'][name] = r.u32()
-            # What the channel did in the window, measured. A mean and a
-            # count cannot tell you a spike happened.
+            # What the channel did in the window, measured.
             out['lowest'][name] = r.i32()
             out['highest'][name] = r.i32()
         out['mean'] = {k: (v / out['count'][k] if out['count'][k] else None)
