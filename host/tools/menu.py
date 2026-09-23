@@ -460,8 +460,14 @@ def _preload():
     printed as they land - or refused in the machine's own words when
     the room is short (`coaxial.preload`). Off the frame loop."""
     import subprocess
-    from coaxial import orientation, preload
-    path = orientation.MODEL
+    # WIREFRAME FIRST, never orientation: the two import each other,
+    # and this thread importing `orientation` while `_warm` imports
+    # `wireframe` left the warm-up's render an `orientation` still
+    # being run - "partially initialized module ... has no attribute
+    # MODEL" on the bench's first start (2026-09-23). Importing the
+    # module the other thread imports waits on its lock instead.
+    from coaxial import wireframe, preload
+    path = wireframe.orientation.MODEL
     ram, disk = preload.room()
     state = {'model': '%s  %.1f mb' % (os.path.basename(path),
                                         os.path.getsize(path) / 2**20),

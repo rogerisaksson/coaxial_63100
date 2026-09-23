@@ -4997,7 +4997,18 @@ looking at the estimate alone.
   model's stamp and not on another, the room answers; in
   test_render: adopted, the LODs, the outline source and the
   stereotypes are the bundle's own objects. test_views 221,
-  test_render 118, 3206 in all.
+  test_render 118, 3206 in all. **The bench's first start threw**:
+  "partially initialized module 'coaxial.orientation' has no
+  attribute 'MODEL'" out of the warm-up's render. `orientation` and
+  `wireframe` import each other, harmless in one thread; the new
+  preload thread imported `orientation` FIRST while the warm-up
+  thread imported `wireframe`, so wireframe finished on a partial
+  orientation and the render read MODEL before orientation's body had
+  reached it. The preload thread now imports `wireframe` - the same
+  module the other thread does, so it waits on that import's lock -
+  and takes MODEL through it. Five fresh interpreters running both
+  threads together after: no exception, the warm-up ready and the
+  preload "ready: 6.9 mb on disk" every time.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at
