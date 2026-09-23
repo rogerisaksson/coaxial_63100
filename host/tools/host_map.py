@@ -53,6 +53,7 @@ def main(argv=None):
     parser.add_argument('dirs', nargs='*', default=DIRS)
     parser.add_argument('--api', action='store_true', help='public signatures too')
     args = parser.parse_args(argv)
+    sys.stdout.reconfigure(encoding='utf-8')   # a cp1252 pipe cannot carry every brief
     for d in args.dirs:
         for path in sorted(glob.glob(os.path.join(TREE, d, '**', '*.py'), recursive=True)):
             if '__pycache__' in path:
