@@ -1,12 +1,12 @@
 """The control law's stand-in rotor: one lock and the spring/inertia physics the verbs are tested on.
 """
 import functools
-import json
 import math
 import random
 import threading
 import time
 
+from ..drive import load_profile
 from ..errors import RigError
 from ..motor import BENCH_MOTOR, Motor
 from ..sensorless import HALF_SQRT3, TORQUE_FACTOR
@@ -744,14 +744,7 @@ class SimulatedDrive:
         return True
 
     def profile(self, path):
-        with open(path, encoding='utf-8') as handle:
-            data = json.load(handle)
-        done = {'name': data.get('name', path)}
-        if data.get('drive'):
-            done['drive'] = self.set_params(**data['drive'])
-        if data.get('model'):
-            done['model'] = self.model_param(**data['model'])
-        return done
+        return load_profile(self, path)
 
     #: What an uncommissioned board answers: the firmware's compiled-in
     #: placeholders (board_cal.c), in SI, the same as the real record reads.

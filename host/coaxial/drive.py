@@ -95,6 +95,20 @@ def _wrapped(radians):
     return (radians + math.pi) % math.tau - math.pi
 
 
+def load_profile(drive, path):
+    """A motor profile - a JSON file of `drive` parameters (the record's
+    names, SI) and `model` parameters - written through `drive`, the
+    board's or the stand-in's."""
+    with open(path, encoding='utf-8') as handle:
+        data = json.load(handle)
+    done = {'name': data.get('name', path)}
+    if data.get('drive'):
+        done['drive'] = drive.set_params(**data['drive'])
+    if data.get('model'):
+        done['model'] = drive.model_param(**data['model'])
+    return done
+
+
 class Drive(Device, device=protocol.DEVICE_DRIVE):
 
     """Device 10 behind 0x6E: the current loop, injection and rotor observer."""
@@ -273,17 +287,8 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return self._ack(DriveOp.MODEL_RESET)
 
     def profile(self, path):
-        """A motor profile - a JSON file of `drive` parameters (the record's
-        names, SI) and `model` parameters - written to the board.
-        """
-        with open(path, encoding='utf-8') as handle:
-            data = json.load(handle)
-        done = {'name': data.get('name', path)}
-        if data.get('drive'):
-            done['drive'] = self.set_params(**data['drive'])
-        if data.get('model'):
-            done['model'] = self.model_param(**data['model'])
-        return done
+        """A motor profile written to the board (`load_profile`)."""
+        return load_profile(self, path)
 
     # -- the record ------------------------------------------------------
 
