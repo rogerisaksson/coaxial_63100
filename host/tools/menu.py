@@ -235,25 +235,17 @@ def idle(view, now, dt):
 
 
 def grab(view, keys, moved, now):
-    """The hand on the turntable: wheel zoom, and a left-drag turn that
-    pauses the idle motion while it lasts - the same degrees per cell
-    and carry easing show_render.py uses against batched drag reports."""
-    from show_render import DRAG_DEG, turn
+    """The hand on the turntable: wheel zoom, and a left-drag turn
+    (show_render's `carry`) that pauses the idle motion while it lasts."""
+    from show_render import carry
 
     if moved:
         view['zoom'] = max(0.25, min(4.0, view['zoom'] * (1.0 + moved)))
         view['touched'], view['phase'] = now, None
     dx, dy = keys.dragged()
-    cx, cy = view['carry']
-    cx, cy = cx + dx, cy + dy
     if dx or dy:
         view['touched'], view['phase'] = now, None
-    if abs(cx) > 0.01 or abs(cy) > 0.01:
-        ax, ay = cx * 0.5, cy * 0.5
-        turn(view, (0, 1, 0), ax * DRAG_DEG)
-        turn(view, (1, 0, 0), ay * DRAG_DEG * 2.0)
-        cx, cy = cx - ax, cy - ay
-    view['carry'] = (cx, cy)
+    carry(view, dx, dy)
 
 
 def turntable(view, width=52, height=18):

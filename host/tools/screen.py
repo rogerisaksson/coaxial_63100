@@ -5,6 +5,7 @@ them is the thing that drifts - the structure suite fails a definition that
 lives in two files.
 """
 import ctypes
+import os
 import re
 import select
 import time
@@ -283,6 +284,14 @@ def stamp_crosses(lines, width, inset=2):
 from stage import (THEME, band, band_of, boot, chip, curtain, footer,  # noqa: E402,F401
                    frame_of, header, live, hud, panels_of, rate_of, scroll_by,
                    scroll_click, scroll_drag, stage, viewport)
+
+
+def panel_width():
+    """The window less two, at least 60 - or 100 when this is not a terminal."""
+    try:
+        return max(60, os.get_terminal_size().columns - 2)
+    except OSError:
+        return 100
 
 
 def paced(keys, period, step=0.02):

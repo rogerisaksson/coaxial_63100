@@ -29,7 +29,7 @@ from coaxial import scaling                                # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from screen import TO_MENU, Keys, closing, say  # noqa: E402
 from screen import hud, panels_of               # noqa: E402
-from screen import open_rig                     # noqa: E402
+from screen import open_rig, panel_width        # noqa: E402
 from screen import curtain, stage               # noqa: E402
 
 ROTATION_VECTOR = 0x05
@@ -295,7 +295,7 @@ def main(argv=None):
     try:
         with curtain(board_view) as show, Keys(terminal) as keys:
             while True:
-                width = shutil_width()
+                width = panel_width()
                 drain(rig, layout, view)
                 layout = adapt(rig, layout, args, view)
                 show.update(compose(origin, board_view, layout, view, width),
@@ -317,14 +317,6 @@ def main(argv=None):
         closing(done, terminal, 0)
 
     return TO_MENU if leaving == 'menu' else 0
-
-
-def shutil_width():
-    """The window, or a usable default when this is not a terminal."""
-    try:
-        return max(60, os.get_terminal_size().columns - 2)
-    except OSError:
-        return 100
 
 
 if __name__ == '__main__':

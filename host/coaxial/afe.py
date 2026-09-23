@@ -43,6 +43,10 @@ class Afe(Subsystem):
     def toggle(self):
         return self._act('toggle')['on']
 
+    def set(self, on):
+        """On or off as `on` says; whether it is on after."""
+        return self.enable() if on else self.disable()
+
     def require(self):
         """Raise unless the front end is powered."""
         if not self.is_on():

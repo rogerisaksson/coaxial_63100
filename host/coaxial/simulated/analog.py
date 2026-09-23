@@ -49,6 +49,10 @@ class SimulatedAfe:
         self.on = not self.on
         return self.on
 
+    def set(self, on):
+        """On or off as `on` says; whether it is on after."""
+        return self.enable() if on else self.disable()
+
 
 class SimulatedAnalog:
     """Invented readings, in the shape the real ones come in."""

@@ -39,7 +39,7 @@ from screen import (ASH, LABEL, SODIUM, TO_MENU,  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
 from screen import hud, panels_of                          # noqa: E402
-from screen import open_rig                                # noqa: E402
+from screen import open_rig, panel_width                   # noqa: E402
 from screen import run_view, stage                         # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -350,7 +350,7 @@ def main(argv=None):
     origin, board = rig.origin, rig.board
     was_on = board.afe.is_on()
     if args.afe != was_on:
-        board.afe.enable() if args.afe else board.afe.disable()
+        board.afe.set(args.afe)
         time.sleep(0.3)
     say('ok', 'AFE_ON', '%s - %s'
         % ('on' if args.afe else 'off',
@@ -397,7 +397,7 @@ def main(argv=None):
             view['gate_drivers'] = board.gate_drivers.state()
             if not refused:
                 view['live'] = rig.latest(block=False)
-        return compose(rig, origin, board_view, view, layout, shutil_width())
+        return compose(rig, origin, board_view, view, layout, panel_width())
 
     def on_input(typed, _moved):
         for key in typed:
@@ -416,7 +416,7 @@ def main(argv=None):
             done.append(('gate stage', 'disarmed, MOE clear'))
             done.append(('BKIN', 'back in circuit'))
             if board.afe.is_on() != was_on:
-                board.afe.enable() if was_on else board.afe.disable()
+                board.afe.set(was_on)
             done.append(('AFE_ON', 'back the way it was found'))
         except RigError as exc:
             done.append(('putting it back', 'FAILED: %s' % exc))
@@ -425,13 +425,6 @@ def main(argv=None):
         closing(done, terminal, 0)
 
     return TO_MENU if leaving == 'menu' else 0
-
-
-def shutil_width():
-    try:
-        return max(60, os.get_terminal_size().columns - 2)
-    except OSError:
-        return 100
 
 
 if __name__ == '__main__':

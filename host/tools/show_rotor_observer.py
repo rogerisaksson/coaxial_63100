@@ -1862,7 +1862,7 @@ def _link(args):
     was_on = board.afe.is_on()
     want_afe = args.afe or args.source == 'adc'
     if want_afe != was_on:
-        board.afe.enable() if want_afe else board.afe.disable()
+        board.afe.set(want_afe)
         time.sleep(0.3)
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
@@ -1997,7 +1997,7 @@ def main(argv=None):
                 done.append(('gate stage', 'disarmed, MOE clear'))
             board.gate_drivers.disarm()
             if board.afe.is_on() != was_on:
-                board.afe.enable() if was_on else board.afe.disable()
+                board.afe.set(was_on)
             done.append(('AFE_ON', 'back the way it was found'))
         except RigError as exc:
             done.append(('putting it back', 'FAILED: %s' % exc))

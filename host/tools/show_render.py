@@ -218,19 +218,23 @@ def loop(args, page, view, frame, last):
                                             view['zoom'] * (1.0 + moved)))
             view['reports'] = keys.reports
             dx, dy = keys.dragged()
-            cx, cy = view['carry']
-            cx, cy = cx + dx, cy + dy
             if dx or dy:
                 view['spin'] = False
-            if abs(cx) > 0.01 or abs(cy) > 0.01:
-                # Half the carry each frame; rows are half-height cells, so the
-                # vertical gesture doubles.
-                ax, ay = cx * 0.5, cy * 0.5
-                turn(view, (0, 1, 0), ax * DRAG_DEG)
-                turn(view, (1, 0, 0), ay * DRAG_DEG * 2.0)
-                cx, cy = cx - ax, cy - ay
-            view['carry'] = (cx, cy)
+            carry(view, dx, dy)
             act_on(typed, view)
+
+
+def carry(view, dx, dy):
+    """A drag into the pose, eased: half the carry each frame, and rows are
+    half-height cells, so the vertical gesture doubles."""
+    cx, cy = view['carry']
+    cx, cy = cx + dx, cy + dy
+    if abs(cx) > 0.01 or abs(cy) > 0.01:
+        ax, ay = cx * 0.5, cy * 0.5
+        turn(view, (0, 1, 0), ax * DRAG_DEG)
+        turn(view, (1, 0, 0), ay * DRAG_DEG * 2.0)
+        cx, cy = cx - ax, cy - ay
+    view['carry'] = (cx, cy)
 
 
 if __name__ == '__main__':

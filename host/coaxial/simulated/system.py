@@ -182,7 +182,7 @@ class SimulatedGpio:
         """
         if self.afe is None:
             return
-        self.afe.enable() if level else self.afe.disable()
+        self.afe.set(level)
 
     def _afe_on(self):
         return self.afe is not None and bool(self.afe.state()['on'])

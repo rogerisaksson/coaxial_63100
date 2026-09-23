@@ -176,16 +176,22 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
                        and 0 <= at // width + dr < height)]
     for at in lone:
         del masks[at]
+    return _ink(grid, tone, masks, width, colour, heat)
+
+
+def _ink(grid, tone, masks, width, colour, heat):
+    """`masks` ONTO the face's dots - a cell keeps its own dither under the
+    line's - in the edge tone, lit by `heat` where the glow left any. The
+    count of cells inked."""
     for at, mask in masks.items():
         r, c = divmod(at, width)
-        # ONTO the face's dots.
         was = grid[r][c]
         if BRAILLE <= ord(was) < BRAILLE + 256:
             mask |= ord(was) - BRAILLE
         grid[r][c] = chr(BRAILLE + mask)
         if colour:
-            tone[r][c] = _edge_tone(heat[at] if heat is not None
-                                    and heat[at] else OUTLINE_BASE)
+            tone[r][c] = _edge_tone(heat[at] if heat is not None and heat[at]
+                                    else OUTLINE_BASE)
     return len(masks)
 
 
@@ -311,15 +317,4 @@ def _edge(grid, tone, cells, cam, colour, heat=None):
                        | from_up[beside[2]] | from_down[beside[3]])
         if mask:
             masks[i] = mask
-    for at, mask in masks.items():
-        r, c = divmod(at, width)
-        # ONTO the face's dots, like the outline's (see `_outline`): a boundary
-        # cell keeps its own dither under the boundary dots.
-        was = grid[r][c]
-        if BRAILLE <= ord(was) < BRAILLE + 256:
-            mask |= ord(was) - BRAILLE
-        grid[r][c] = chr(BRAILLE + mask)
-        if colour:
-            tone[r][c] = _edge_tone(heat[at] if heat is not None and heat[at]
-                                    else OUTLINE_BASE)
-    return len(masks)
+    return _ink(grid, tone, masks, width, colour, heat)

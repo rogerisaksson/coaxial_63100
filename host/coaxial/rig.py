@@ -824,7 +824,7 @@ class Coaxial63100(Acquisition):
                            'before the reply came back' % name)
 
         if name == 'AFE_ON':
-            self.board.afe.enable() if level else self.board.afe.disable()
+            self.board.afe.set(level)
             return level
 
         pins = {d['signal']: d for d in
