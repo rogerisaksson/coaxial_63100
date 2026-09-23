@@ -2013,6 +2013,92 @@ def test_a_frame_rasterises_as_the_terminal_draws_it(report):
                  red and green and not lit, (red, green, not lit))
 
 
+def test_the_marquee_decodes_the_art_itself(report):
+    """The viewport's art reaches rich as ready Segments, and the bytes
+    on the console are the ones Text.from_ansi produced.
+
+    Measured on the threadripper 2026-09-22: decoding the attitude
+    page's forty lines with Text.from_ansi and letting rich re-sort
+    their ~700 spans in every pass was 16 of the ~30 ms a moving frame
+    spent after the renderer; the Marquee splits the SGR codes itself
+    now. What this holds: every colour form the tree's art carries -
+    24-bit, palette, the sixteen, a background, a default - renders to
+    the same bytes as the Text path, a line with an escape the Marquee
+    does not read still takes that path, and a crop lands on the same
+    cells.
+    """
+    import io
+    import stage
+    from rich.console import Console
+    from rich.text import Text
+    sys.path.insert(0, HOST)
+    from coaxial import ansi
+
+    class ByText:
+        """The Marquee as it was: Text.from_ansi per line."""
+
+        def __init__(self, art):
+            self.lines = [Text.from_ansi(line) for line in art.split('\n')]
+            for line in self.lines:
+                line.no_wrap, line.overflow = True, 'crop'
+            self.wide = max((l.cell_len for l in self.lines), default=0)
+
+        def __rich_measure__(self, console, options):
+            return stage.Measurement(min(self.wide, options.max_width),
+                                     self.wide)
+
+        def __rich_console__(self, console, options):
+            width = options.max_width
+            extra = self.wide - width
+            at = stage._slide(extra) if extra > 0 else 0
+            for line in self.lines:
+                if at or line.cell_len > width:
+                    line = line[at:at + width]
+                    line.no_wrap, line.overflow = True, 'crop'
+                yield line
+
+    def drawn(marquee, width):
+        sink = io.StringIO()
+        court = Console(file=sink, force_terminal=True, legacy_windows=False,
+                        color_system='truecolor', width=width, height=12,
+                        theme=stage.THEME)
+        court.print(stage.Panel(stage.Align(marquee, align='center',
+                                            vertical='middle'),
+                                box=stage.box.HEAVY, padding=(0, 1)))
+        return sink.getvalue()
+
+    art = '\n'.join((
+        ansi.code((10, 20, 30)) + '⣿⣿' + ansi.code((10, 20, 31))
+        + '⣿' + ansi.RESET + ' ab',
+        ansi.code(214) + 'x' + ansi.back(17) + 'y' + '\x1b[39mz\x1b[49mw'
+        + ansi.RESET,
+        '\x1b[31mred\x1b[92mbright\x1b[44m on blue\x1b[0m plain',
+        'no colour at all',
+        '\x1b[1mbold\x1b[0m falls back to Text'))
+    mine, theirs = stage.Marquee(art), ByText(art)
+    report.check('every colour form renders to the bytes the Text path '
+                 'produced', drawn(mine, 40) == drawn(theirs, 40),
+                 repr(drawn(mine, 40))[:200])
+    report.check('the lines are Segments, and the bold line alone took '
+                 'the Text road',
+                 all(isinstance(l, list) for l in mine.lines[:4])
+                 and isinstance(mine.lines[4], Text),
+                 [type(l).__name__ for l in mine.lines])
+    report.check('a run is one Segment per colour change - a reset before '
+                 'text is a change, one at the end is not',
+                 [len(l) for l in mine.lines[:4]] == [3, 4, 4, 1],
+                 [len(l) for l in mine.lines[:4]])
+    wide = ansi.code((1, 2, 3)) + 'x' * 20 + ansi.code(40) + 'y' * 20 + ansi.RESET
+    slide = stage._slide
+    stage._slide = lambda extra: 7
+    try:
+        report.check('cropped and slid, the same cells in the same bytes',
+                     drawn(stage.Marquee(wide), 24) == drawn(ByText(wide), 24),
+                     repr(drawn(stage.Marquee(wide), 24))[:200])
+    finally:
+        stage._slide = slide
+
+
 def main():
     report = Report()
     print('\n-- every view, two frames, no board --')
@@ -2050,6 +2136,7 @@ def main():
     test_the_thermal_map_is_a_halftone_with_its_parts_marked(report)
     print('\n-- the attitude\'s frame rate --')
     test_the_attitude_caps_its_frame_rate(report)
+    test_the_marquee_decodes_the_art_itself(report)
     print('\n-- the thermal observer\'s headroom --')
     test_the_headroom_box_carries_a_solid_bar_with_a_tip(report)
     test_the_thermal_page_shows_its_evidence(report)

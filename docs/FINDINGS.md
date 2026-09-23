@@ -4379,6 +4379,65 @@ looking at the estimate alone.
   glyphs also drawn off a blank field for both lane combinations.
   views 206, 2981 in all.
 
+* **BOARD ATTITUDE's frame rate on the threadripper, and the Marquee
+  decoding the art itself** (2026-09-22/23, the bench: why is the
+  attitude page's frame rate so low on this machine, and what would raise
+  it). MEASURED FIRST, `--simulated` at 108x40 with the stand-in turning
+  so every frame is a moving frame: compose 74 ms with the crew of 8, 129
+  without, 76 with sixteen workers (the parent's serial work is the limit,
+  not the cores), 106 at 150x44; 29 ms outside compose; in a real conhost
+  window (152x48, VT on, truecolor) 73 + 32, so the console adds ~3 ms and
+  the terminal is not it - Windows Terminal is not installed and conhost
+  runs the chooser. A resting board under the deadband is 3-4 ms. So a
+  moving frame was ~105 ms, ~10 Hz, against the laptop's 50 (2026-09-05):
+  Zen 1's single thread. cProfile of the parent over 60 frames: rich's
+  Live.update 94 of 164 profiled ms - Text.from_ansi over the forty art
+  lines 48, Layout and render 35 - the renderer 49 (the crew wait 34,
+  _paint 21.5 of which _outline 15). A workflow of three lenses then
+  measured the levers, one at a time, each prototype compared byte for
+  byte with the tree's output: (1) rich: Text.from_ansi decoding ~700
+  24-bit runs a frame and Text.render re-sorting the spans in the Panel,
+  Align, Layout and LiveRender passes, 16 of the 30 ms after the renderer;
+  a Marquee splitting the SGR codes itself into Segments cut
+  frame_of+Live.update 29.9 -> 13.6 ms, identical; (2) the renderer's
+  parent passes: 9 of 19.4 ms removable identically - the outline's
+  vertices projected once and its trace overlapped with the crew through
+  map_async and a GIL yield, the shadow map built in the workers, the
+  reach cached per solid, the encode cached, _glow's helpers inlined;
+  (3) the crew: the slowest of eight equal bands is 34-37 ms and its
+  floor is the setup over all 5570 triangles repeated in every band (12.8
+  of an empty band's 15.3 ms; the vertex pass is 2.0, so crew.py's "what
+  every band repeats is the vertex pass" was wrong), not the IPC (0.9 ms
+  round trip, 15.6 kB results); the lever is ONE POSE AHEAD - the newest
+  pose's bands submitted before the previous pose is painted, with the
+  sends off the Pool's GIL-starved handler thread (per-worker pipes, or
+  the switch interval at 0.5 ms) - the view's loop 76 -> 46 ms a frame
+  (13 -> 22 Hz), the picture identical one frame later; the y-reject moved
+  to the top of the triangle loop 36 -> 32 ms wall, identical; bands
+  balanced on the previous frame's coverage 36 -> 22, NOT identical
+  because engine.shade seeds a bare cell's grain on the strip row - so
+  today's 8-band crew already draws 528 bare cells a frame with a
+  different grain than the no-crew path or a four-worker laptop, a latent
+  difference to settle before the bands move. Two refuters and the
+  synthesis died on the session's midnight limit; the first refuter held
+  the Marquee and caught the first landing of it. LANDED FIRST, this
+  bullet: `stage.Marquee` decodes the art's SGR itself - one re.split a
+  line, the effect of each parameter string decoded once (KEEP, the
+  default or a Color per channel; 275 distinct strings in a frame), a
+  Style per (fg, bg) - and yields ready Segments; a line carrying any
+  other escape takes Text.from_ansi as before. The refuter's catch:
+  parsing ints and a Color per run cost 7.66 ms over the forty lines
+  against the prototype's 1.71; cached by the parameter string it is
+  1.05. Measured in the view's own loop, 120 frames at --hz 30: 108x40
+  92.3 -> 69.8 ms a frame (10.8 -> 14.3 Hz); 150x44, the chooser's own
+  framing in a 152x48 window, 134.0 -> 93.6 (7.5 -> 10.7 Hz). Console
+  output byte-identical on 47 captured frames, and the suite holds every
+  colour form the tree's art carries to the Text path's bytes, the
+  fallback and a crop (test_views 211, 3151 in all). NEXT, in order: the
+  one-pose-ahead crew with the settle memo (a held pose is re-rastered
+  FACE_SETTLE times today, ~347 ms every time the board rests) and the
+  y-reject; then the parent's passes.
+
 ## Ruled Out
 
 Hypotheses investigated and settled, so they are not investigated
