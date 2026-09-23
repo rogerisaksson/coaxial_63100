@@ -4746,6 +4746,37 @@ looking at the estimate alone.
   column and draws nothing in the band, a dark pinhole no edge.
   The bench, on the three sheets after the change: "looks better like
   that". test_render 100, 3181 in all.
+* **Ink never leans below the floor** (2026-09-23, the bench, on the
+  next sheets: "the board edge is torn, with a gap to the edge", and
+  of the 73-degree back pose, "looks nice, but the board gets a bit
+  artificially thick"). Taken apart in `engine.shade` at that pose
+  (lean 0.28), every covered cell by class, flatness and art ink: of
+  653 blank cells, 599 were FLAT cells with ink 2 - the art's ':' -
+  taken to class 0 by the lean dimming, which scales one full class at
+  45 degrees (LEAN 3.4) and at 73 takes 2.4; 20 more were ink 1, and
+  34 ink 0, the art's own blanks at the bore. What still drew, 475
+  cells, had no art hit at all - the parts' walls and lids, on the
+  bare-geometry path, at class 2 - so the picture was the parts'
+  bodies standing on a plate that had vanished: the "thick block", and
+  a rim line (the lit coverage) wandering wherever the blanked face
+  happened to end - "torn". At 60 degrees the same rule took the 37
+  ink-1 cells beside the bore, and the 50 ink-0 cells there are the
+  decimate's flat triangles over the art's hole, not a far wall: the
+  raster's `top` flag is the triangle's flatness, and it was set on
+  every one of them. The sun could not sort walls from face either -
+  the light is view-fixed and the whole solder side has sun 0. Fix:
+  an inked art cell's level never falls below the bare floor (0.55,
+  class 1), whatever the lean; the art's blanks - its holes, its
+  outside - stay blank, so the lit-coverage edge still rings the
+  art's hole, which is the mesh's circle and the true one. Rendered
+  at 73 and 65: the face drawn whole as '.', the rim one clean line
+  on it, two small rings for the parts; the bore's ring on the art's
+  hole at 60 and 44. Ambient floors on the key light (0.1, 0.2) were
+  tried first and changed nothing - the blank cells never reach the
+  glow pass, which skips class 0. The bench: "now the first picture
+  looks crisp". Held in test_render at the screenshot pose: under a
+  tenth of the covered cells blank, where half were. test_render 101,
+  3182 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

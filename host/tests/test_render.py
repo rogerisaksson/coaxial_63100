@@ -445,6 +445,48 @@ def test_the_edge_is_the_rasters_silhouette(report):
                                            sorted(lit - cells)))
 
 
+def test_ink_never_leans_below_the_floor(report):
+    """At a steep tilt the lean dimming took every cell of the art to
+    class 0 - 599 of 653 blank cells at 73 degrees, the face gone and
+    the parts' walls left standing as a thick block - so an inked art
+    cell now floors at the bare geometry's floor. Rendered at the
+    bench's screenshot pose (73 degrees off face-on) at 108x44: fewer
+    than a tenth of the covered cells draw blank, where half did.
+    """
+    import re
+    q = (-0.600, 0.264, -0.257, 0.710)
+    keep = {}
+    real = wireframe._cells
+
+    def hook(*a, **k):
+        got = real(*a, **k)
+        keep['reached'] = got[2]
+        return got
+    wireframe._cells = hook
+    try:
+        art = wireframe.render(q, 108, 44, zoom=1.2672, colour=True,
+                               horizon=False, triad=False,
+                               lift=orientation.LIFT,
+                               least=wireframe.CREW_LEAST, persist={})
+    finally:
+        wireframe._cells = real
+    rows = [re.sub(r'\x1b\[[0-9;]*m', '', r) for r in art.split('\n')]
+    reached = keep['reached']
+    covered = blank = 0
+    for r in range(44):
+        for c in range(108):
+            if not reached[r * 108 + c]:
+                continue
+            covered += 1
+            g = rows[r][c] if c < len(rows[r]) else ' '
+            if g == ' ' or g == chr(raster.BRAILLE):
+                blank += 1
+    share = blank / covered if covered else 1.0
+    report.check('ink floor: at 73 degrees under a tenth of the covered '
+                 'cells draw blank', 0 < covered and share < 0.10,
+                 '%d of %d blank, %.0f%%' % (blank, covered, 100 * share))
+
+
 def test_key_light(report):
     """The key light on a synthetic plane: leaning into the beam is
     brighter than flat, leaning away is darker - the sign, held exactly.
@@ -1038,6 +1080,7 @@ def main():
     test_chain(report)
     test_outline(report)
     test_the_edge_is_the_rasters_silhouette(report)
+    test_ink_never_leans_below_the_floor(report)
     test_key_light(report)
     test_the_face_is_a_halftone(report)
     test_triad(report)

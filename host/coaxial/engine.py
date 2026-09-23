@@ -368,6 +368,16 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
                 lean = m[8] if m[8] >= 0.0 else -m[8]
                 level = (pivot + ink - 2 - LEAN * (1.0 - lean)
                          + slope * rise / reach - shaded)
+                # INK NEVER LEANS BELOW THE FLOOR. At 73 degrees the
+                # lean took every ':' of the art to class 0 (599 of
+                # 653 blank cells, measured 2026-09-23) and the face
+                # vanished, leaving the parts' walls and lids - drawn
+                # bare, at class 2 - as a thick block with no plate
+                # under them, the edge line wandering inside the
+                # blanked face. The art's blanks (its holes, its
+                # outside) stay blank: only ink has a floor.
+                if ink > 0 and level < floor:
+                    level = floor
             else:
                 level = max(level - shaded, floor)
             if seed is not None:
