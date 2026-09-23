@@ -218,117 +218,111 @@ static void rates(const thermal_t *th, const thermal_power_t *p,
   }
 }
 
+/** dS_k/dt: J S_k, the probe scaled to IDENT_EPS_T at S_k's largest
+    component so the flows stay linear, plus df/ds_k - the room nudged
+    half a kelvin, a scale by a fraction. `f0` is the shadow's rates. */
+static void sensitivity_rate(const thermal_ident_t *id,
+                             const thermal_cfg_t *base,
+                             const thermal_power_t *p, float speed_rpm,
+                             const float *f0, int k, float *ds)
+{
+  float f1[THERMAL_NODES];
+  float largest = 0.0f;
+
+  for (int i = 0; i < THERMAL_NODES; i++)
+  {
+    largest = fmaxf(largest, fabsf(id->s[k][i]));
+  }
+  const float eps = (largest > 1.0e-6f) ? (IDENT_EPS_T / largest) : 1.0f;
+
+  s_probe = id->shadow;
+  for (int i = 0; i < THERMAL_NODES; i++)
+  {
+    s_probe.t[i] += eps * id->s[k][i];
+  }
+  rates(&s_probe, p, speed_rpm, f1);
+  for (int i = 0; i < THERMAL_NODES; i++)
+  {
+    ds[i] = (f1[i] - f0[i]) / eps;
+  }
+
+  float step;
+
+  s_probe = id->shadow;
+  if (k == THERMAL_IDENT_AMBIENT)
+  {
+    s_probe.ambient += IDENT_EPS_AMB;
+    step = IDENT_EPS_AMB;
+  }
+  else
+  {
+    float nudged[THERMAL_IDENT_PARAMS];
+
+    memcpy(nudged, id->scale, sizeof(nudged));
+    nudged[k] *= (1.0f + IDENT_EPS_S);
+    apply(nudged, base, &s_probe.cfg);
+    step = IDENT_EPS_S * id->scale[k];
+  }
+  rates(&s_probe, p, speed_rpm, f1);
+  for (int i = 0; i < THERMAL_NODES; i++)
+  {
+    ds[i] += (f1[i] - f0[i]) / step;
+  }
+}
+
+/** The shadow's thermistor and its sensitivities: the element follows the
+    weighted average at the laminate's lag, and for the NTC scale the
+    target itself moves. Held at a patch (the observer's own rule, bound
+    included), the element reads that patch and so does its sensitivity. */
+static void follow_ntc(thermal_ident_t *id, float dt_s)
+{
+  thermal_t *sh = &id->shadow;
+  const float tau = sh->cfg.ntc_tau_s;
+  const float share = (tau > 0.0f) ? fminf(dt_s / tau, 1.0f) : 1.0f;
+  const float f = fminf(fmaxf(sh->cfg.ntc_sees, 0.0f), 1.0f);
+  const int held = thermal_ntc_follow(sh, dt_s);
+
+  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  {
+    if (held >= 0)
+    {
+      id->s_ntc[k] = id->s[k][held];
+      continue;
+    }
+    float target = (1.0f - f) * id->s[k][THERMAL_BOARD]
+                   + f * id->s[k][THERMAL_NTC_PATCH];
+
+    if ((k == THERMAL_IDENT_NTC) && (id->scale[k] > 0.0f))
+    {
+      target += (f / id->scale[k])
+                * (sh->t[THERMAL_NTC_PATCH] - sh->t[THERMAL_BOARD]);
+    }
+    id->s_ntc[k] += (target - id->s_ntc[k]) * share;
+  }
+}
+
 /** One slice of the shadow and its sensitivities. */
 static void propagate(thermal_ident_t *id, const thermal_cfg_t *base,
                       const thermal_power_t *p, float speed_rpm, float dt_s)
 {
   float f0[THERMAL_NODES];
-  float f1[THERMAL_NODES];
 
   rates(&id->shadow, p, speed_rpm, f0);
-
   for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
   {
     float ds[THERMAL_NODES];
 
-    /* J S_k, the perturbation scaled to IDENT_EPS_T at the largest component
-       so the probe stays where the flows are linear. */
-    float largest = 0.0f;
-
-    for (int i = 0; i < THERMAL_NODES; i++)
-    {
-      largest = fmaxf(largest, fabsf(id->s[k][i]));
-    }
-    const float eps = (largest > 1.0e-6f) ? (IDENT_EPS_T / largest) : 1.0f;
-
-    s_probe = id->shadow;
-    for (int i = 0; i < THERMAL_NODES; i++)
-    {
-      s_probe.t[i] += eps * id->s[k][i];
-    }
-    rates(&s_probe, p, speed_rpm, f1);
-    for (int i = 0; i < THERMAL_NODES; i++)
-    {
-      ds[i] = (f1[i] - f0[i]) / eps;
-    }
-    /* df/ds_k: the room nudged half a kelvin, a scale by a fraction. */
-    if (k == THERMAL_IDENT_AMBIENT)
-    {
-      s_probe = id->shadow;
-      s_probe.ambient += IDENT_EPS_AMB;
-      rates(&s_probe, p, speed_rpm, f1);
-      for (int i = 0; i < THERMAL_NODES; i++)
-      {
-        ds[i] += (f1[i] - f0[i]) / IDENT_EPS_AMB;
-      }
-    }
-    else
-    {
-      float nudged[THERMAL_IDENT_PARAMS];
-
-      memcpy(nudged, id->scale, sizeof(nudged));
-      nudged[k] *= (1.0f + IDENT_EPS_S);
-      s_probe = id->shadow;
-      apply(nudged, base, &s_probe.cfg);
-      rates(&s_probe, p, speed_rpm, f1);
-      for (int i = 0; i < THERMAL_NODES; i++)
-      {
-        ds[i] += (f1[i] - f0[i]) / (IDENT_EPS_S * id->scale[k]);
-      }
-    }
+    sensitivity_rate(id, base, p, speed_rpm, f0, k, ds);
     for (int i = 0; i < THERMAL_NODES; i++)
     {
       id->s[k][i] += ds[i] * dt_s;
     }
   }
-
-  /* The shadow itself, then its thermistor and the thermistor's
-     sensitivities: the element follows the weighted average at the
-     laminate's lag, and for the NTC scale the target itself moves. */
   for (int i = 0; i < THERMAL_NODES; i++)
   {
     id->shadow.t[i] += f0[i] * dt_s;
   }
-  {
-    thermal_t *sh = &id->shadow;
-    const float tau = sh->cfg.ntc_tau_s;
-    float share = (tau > 0.0f) ? (dt_s / tau) : 1.0f;
-    float f = sh->cfg.ntc_sees;
-
-    if (share > 1.0f)
-    {
-      share = 1.0f;
-    }
-    if (f < 0.0f)
-    {
-      f = 0.0f;
-    }
-    if (f > 1.0f)
-    {
-      f = 1.0f;
-    }
-    /* The observer's own rule for the element, bound included: held at a
-       patch, the element reads that patch and so does its sensitivity. */
-    const int held = thermal_ntc_follow(sh, dt_s);
-
-    for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
-    {
-      if (held >= 0)
-      {
-        id->s_ntc[k] = id->s[k][held];
-        continue;
-      }
-      float target = (1.0f - f) * id->s[k][THERMAL_BOARD]
-                     + f * id->s[k][THERMAL_NTC_PATCH];
-
-      if ((k == THERMAL_IDENT_NTC) && (id->scale[k] > 0.0f))
-      {
-        target += (f / id->scale[k])
-                  * (sh->t[THERMAL_NTC_PATCH] - sh->t[THERMAL_BOARD]);
-      }
-      id->s_ntc[k] += (target - id->s_ntc[k]) * share;
-    }
-  }
+  follow_ntc(id, dt_s);
 }
 
 /** Seat the shadow on the observer and forget the sensitivities: the next

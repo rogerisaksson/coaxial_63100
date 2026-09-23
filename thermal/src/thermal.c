@@ -399,31 +399,37 @@ static float derate_of(float spent, const thermal_soa_t *soa)
   return (over >= 1.0f) ? 0.0f : (1.0f - over);
 }
 
-/** A node's spend: where it is between ambient and its ceiling, and how far
-    into the reaction window its hold has come - the bigger. */
-static float spend_of(const thermal_t *th, const float *net,
-                      const thermal_soa_t *soa, thermal_node_t node)
+/** A node's place between ambient and its ceiling as the wire carries it,
+    0-255 - or -1 with no ceiling above ambient. */
+static int used_of(const thermal_t *th, const thermal_soa_t *soa, int node)
 {
   const float span = soa->limit_c[node] - th->ambient;
 
   if (!(span > 0.0f))
   {
-    return -1.0f;
+    return -1;
   }
-  float part = (th->t[node] - th->ambient) / span;
+  const float part = (th->t[node] - th->ambient) / span;
 
-  if (part < 0.0f)
+  return (int)(uint8_t)(fminf(fmaxf(part, 0.0f), 1.0f) * 255.0f);
+}
+
+/** A node's spend: where it is between ambient and its ceiling, and how far
+    into the reaction window its hold has come - the bigger. */
+static float spend_of(const thermal_t *th, const float *net,
+                      const thermal_soa_t *soa, thermal_node_t node)
+{
+  const int used = used_of(th, soa, node);
+
+  if (used < 0)
   {
-    part = 0.0f;
-  }
-  if (part > 1.0f)
-  {
-    part = 1.0f;
+    return -1.0f;
   }
   /* AS THE WIRE SAYS IT: `used` is a byte, and the ramp acts on the same
      number a host reads, so the clamp a board applied and the spend it
      reported cannot disagree by a byte's worth of ramp. */
-  part = (float)((uint8_t)(part * 255.0f)) / 255.0f;
+  float part = (float)used / 255.0f;
+
   if (soa->lookahead_s > 0.0f)
   {
     const float hold = hold_seconds(th, net, soa, node);
@@ -455,35 +461,25 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
 
   net_flows(th, p, th->speed_rpm, net);
 
+  /* THE CLAMP'S FACTOR, on the worse of where a node is and how long it has
+     - over every node the clamp reaches (a spend is never under its used). */
+  float spent = 0.0f;
+
   for (int i = 0; i < THERMAL_NODES; i++)
   {
-    const float limit = soa->limit_c[i];
-    const float span = limit - th->ambient;
+    const int used = used_of(th, soa, i);
 
-    if (!(span > 0.0f))
+    if (used < 0)
     {
       continue;              /* no limit set, or one below ambient */
     }
-
-    float part = (th->t[i] - th->ambient) / span;
-
-    if (part < 0.0f)
-    {
-      part = 0.0f;
-    }
-    if (part > 1.0f)
-    {
-      part = 1.0f;
-    }
-    out->used[i] = (uint8_t)(part * 255.0f);
+    out->used[i] = (uint8_t)used;
 
     /* THE TRIP, on the record's own ceiling - any node at it, driven or not. */
+    const float limit = soa->limit_c[i];
     const float top = (soa->trip_c[i] > 0.0f) ? soa->trip_c[i] : limit;
 
-    if (th->t[i] >= top)
-    {
-      out->tripped = true;
-    }
+    out->tripped = out->tripped || (th->t[i] >= top);
 
     /* What is left in it, in joules. */
     const float left = limit - th->t[i];
@@ -494,32 +490,14 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     {
       continue;              /* nothing the clamp does moves this one */
     }
+    spent = fmaxf(spent, spend_of(th, net, soa, (thermal_node_t)i));
     if (out->used[i] >= out->worst)
     {
       out->worst = out->used[i];
       out->worst_node = (uint8_t)i;
     }
   }
-
   out->throttling = ((float)out->worst / 255.0f) >= soa->throttle_at;
-
-  /* THE CLAMP'S FACTOR, on the worse of where a node is and how long it has
-     - over every node the clamp reaches. */
-  float spent = (float)out->worst / 255.0f;
-
-  for (int i = 0; i < THERMAL_NODES; i++)
-  {
-    if (soa->undriven[i])
-    {
-      continue;
-    }
-    const float here = spend_of(th, net, soa, (thermal_node_t)i);
-
-    if (here > spent)
-    {
-      spent = here;
-    }
-  }
   out->derate = derate_of(spent, soa);
 
   /* Time left, for the node that has least of it - the same hold the
