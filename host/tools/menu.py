@@ -312,11 +312,11 @@ def compose(port, picked, view, size=None, who=None):
     state = view.setdefault('readout', readout.fresh(time.monotonic()))
     column = Layout()
     column.split_column(
-        Layout(Panel(Align(Marquee(turntable(view, wide - 4, above - 2)),
+        Layout(Panel(Align(Marquee(turntable(view, wide - 2, above)),
                            align='center', vertical='middle'),
                      title=Text(' COAXIAL 63100 ', style='name'),
                      title_align='left', box=box.HEAVY, border_style='frame',
-                     padding=(0, 1), expand=True), name='model'),
+                     padding=(0, 0), expand=True), name='model'),
         Layout(Panel(readout.draw(state, _BROKER.get('identity'), wide - 4,
                                   below - 2, note=_BROKER.get('said'),
                                   preload=_BROKER.get('preload')),

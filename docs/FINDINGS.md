@@ -141,6 +141,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   page file. Capped in `coaxial.loop`.
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
 - Ollama answered 500 from 2026-09-03 to 09-12: the runner failed to start.
+- Front page model drawn at inner height - 2 and inside a 1-column padding:
+  a blank row top and bottom, a column each wall. Now the box's full
+  inside (2026-09-23, checked at 90x28, 120x36, 200x60).
 - Rotor observer at a 200x60 terminal (can 95 dots, tuned at 21): ring stroke
   grew to 3.0 dots half-width, pulled teeth floated loose. Stroke capped
   at 1.0 (0.8 broke into dots), undriven tooth length drawn as track,
