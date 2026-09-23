@@ -4,9 +4,10 @@
   line per module; `--api` adds public signatures; `--layers` the import
   graph by package, `--deps` per module). A module opens on a one-line
   brief of at most 100 characters; `test_structure` holds it.
-- Front door: `Coaxial63100` (`coaxial/rig.py`); `device.daq`, `.imu`,
-  `.angle`, `.thermal`, `.gates`, `.drive`, `.motion`, `board.boot`.
-  `simulated_device=True` needs no cable.
+- Front door: `Coaxial63100` (`coaxial/rig.py`); on a real board `open()`
+  first makes it run this host's build (`coaxial.boot.load`, docs/BOOT.md);
+  `device.daq`, `.imu`, `.angle`, `.thermal`, `.gates`, `.drive`, `.motion`,
+  `board.boot`. `simulated_device=True` needs no cable.
 - Interfaces `Acquisition`, `PolledSensor`, `GateControl`, `BootControl`:
   real + simulated implementations; add a method to both or neither.
 - Refusals are the board's words (`u8 took` + text); the host validates only

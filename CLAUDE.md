@@ -18,7 +18,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   the drivers: no current is measured while switching here.
 - Measured: duty 1-100 % dry; 26 pulse runs into 8 ohm at 25/31 V,
   3.1-3.75 A. Nothing near 63 V/100 A. Drive: 2 922 cycles/period, drivers
-  off. Bootloader built, not run. Open work: docs/TODO.md.
+  off. Bootloader built, not run: the app runs from D2 SRAM, and
+  `Coaxial63100.open()` loads the host's own build into a board running
+  another (docs/BOOT.md). Open work: docs/TODO.md.
 
 | Read | Before |
 | --- | --- |

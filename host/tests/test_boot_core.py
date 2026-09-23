@@ -460,6 +460,123 @@ def test_the_hosts_client(report, node):
     report.check('stay is refused in the node\'s own words', said == 'this node is in its bootloader already', said)
 
 
+class Bench:
+    """A transport with one node on it: its application answering `unit`
+    (device 11 state and stay) until stay, then the C bootloader, and after
+    go the application again, running what the bootloader verified."""
+
+    port, baud = 'bench', 115200
+
+    def __init__(self, lib, unit, running):
+        self.lib, self.unit, self.running = lib, unit, running
+        self.in_app, self.frames = True, 0
+
+    def _app(self, unit, payload):
+        from coaxial import errors
+        if unit != self.unit or payload[:1] != b'\x0b':
+            raise errors.NoReplyError('silence')
+        if payload[1] == STATE:
+            return (bytes([SEALED, TYPE, self.unit, 3]) + struct.pack('>II', 0, 0) + b'\x01'
+                    + UID + struct.pack('>II', *self.running) + b'\x01')
+        self.in_app = False                     # stay: the reset, RAM kept
+        self.lib.boot_h_reboot()
+        return b'\x01'
+
+    def _core(self, payload):
+        out = ctypes.create_string_buffer(253)
+        return self.lib.boot_h_pdu(bytes(payload), len(payload), out, 253), out
+
+    def request(self, unit, function, payload=b'', exact_payload=None, timeout=None,
+                reply_shape=None):
+        from coaxial import errors
+        self.frames += 1
+        if self.in_app:
+            return self._app(unit, payload)
+        n, out = self._core(payload) if unit == self.lib.boot_h_unit() else (-1, None)
+        if n == -1:
+            raise errors.NoReplyError('silence')
+        if n < 0:
+            raise errors.ModbusException(unit, function, 4)
+        return out.raw[:n]
+
+    def broadcast(self, function, payload=b'', settle=0.05):
+        self.frames += 1
+        if not self.in_app:
+            self._core(payload)
+            if self.lib.boot_h_go():
+                got = (ctypes.c_uint32 * 2)()
+                self.lib.boot_h_image(got)
+                self.running, self.in_app = tuple(got), True
+
+
+def test_the_host_loads_its_image(report, node):
+    """The old-firmware, new-host case: a node running another image takes
+    the host's through its bootloader - its unit, position and termination
+    given back, the store keeping it - and one running it already, or one
+    a debugger started, is left alone."""
+    from coaxial import boot
+    from coaxial.board import Board
+    boot.STAY_S, boot.GO_S = 0.0, 1.0
+    img, old = image(20 * CHUNK + 3), image(20 * CHUNK + 3, version=6)
+    bench = Bench(node.lib, 3, (len(old), zlib.crc32(old)))
+    board = Board(bench, unit=3)
+    report.check('another image running: loaded, and the application names the host\'s',
+                 boot.ensure(board, img) is True
+                 and bench.running == (len(img), zlib.crc32(img)) and bench.in_app)
+    report.check('its unit, position and termination given back through assign',
+                 node.unit == 3 and node.lib.boot_h_terminates() == 1
+                 and node.op(STATE)[3] == 3)
+    report.check('and the store keeps it, sealed',
+                 struct.unpack('<III', node.read(STORE_BASE, 12))
+                 == (SEAL_MAGIC, len(img), zlib.crc32(img)))
+    frames = bench.frames
+    report.check('running the host\'s image already: one state read, nothing loaded',
+                 boot.ensure(board, img) is False and bench.frames == frames + 1)
+    bench.running = (0, 0)
+    report.check('started by a debugger (no image named): left alone',
+                 boot.ensure(board, img) is False and bench.in_app)
+
+
+def test_the_front_door_owns_the_image(report, node):
+    """Coaxial63100.open()'s step on a real board: another image is loaded
+    and said on stderr; a shared board is refused in words, not reset."""
+    import contextlib
+    import io as _io
+    from coaxial import Coaxial63100, boot
+    from coaxial.board import Board
+    from coaxial.errors import RigError
+    from coaxial.session import Origin
+    boot.STAY_S, boot.GO_S = 0.0, 1.0
+    img, old = image(12 * CHUNK), image(12 * CHUNK, version=5)
+    real_host_image = boot.host_image
+    boot.host_image = lambda: ('build/Debug/coaxial_63100.elf', img)
+    try:
+        for label, shared in (('COM9 - shared', True), ('COM9', False)):
+            rig = Coaxial63100(port='COM9', unit=3)
+            bench = Bench(node.lib, 3, (len(old), zlib.crc32(old)))
+            rig._board = Board(bench, unit=3)
+            rig._origin = Origin(True, 'COM9', 115200, None, label, 'debug probe', 3)
+            said = _io.StringIO()
+            try:
+                with contextlib.redirect_stderr(said):
+                    rig._board.probe = lambda: None
+                    rig._own_image()
+                refused = None
+            except RigError as exc:
+                refused = str(exc)
+            if shared:
+                report.check('a shared board running another image: refused in words, not reset',
+                             refused is not None and 'other sessions share' in refused
+                             and bench.in_app and bench.running[1] == zlib.crc32(old), refused)
+            else:
+                report.check('an unshared one: loaded, said on stderr, recorded',
+                             refused is None and rig.image_loaded == ('build/Debug/coaxial_63100.elf', True)
+                             and bench.running == (len(img), zlib.crc32(img))
+                             and 'loading this host\'s build' in said.getvalue(), said.getvalue())
+    finally:
+        boot.host_image = real_host_image
+
+
 def test_crc32_is_the_ieee_one(report, node):
     data = bytes(range(256)) * 9
     report.check('the core\'s CRC-32 is zlib\'s',
@@ -471,6 +588,7 @@ ROSTER = (test_a_blank_node, test_an_image_streamed, test_the_same_image_offered
           test_seal_before_verify_is_refused, test_the_master_dies,
           test_a_wrong_crc_and_a_wrong_type, test_the_debuggers_way_in, test_faults,
           test_the_store, test_a_warm_reset, test_persist_fails, test_the_hosts_client,
+          test_the_host_loads_its_image, test_the_front_door_owns_the_image,
           test_crc32_is_the_ieee_one)
 
 

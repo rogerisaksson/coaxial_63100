@@ -86,6 +86,20 @@ The bootloader works inside its receive path, so the master waits
 200 K = 915 chunks, ~2 s at 10 Mbit, ~22 s at 115 200 on the ST-Link's port.
 Persist adds 2 sectors' erase. The same image again costs round trips only.
 
+## The host's own build
+
+`Coaxial63100.open()` on a real board compares `state`'s image with this
+host's build (`$COAXIAL_IMAGE`, else the newest `build/*/coaxial_63100.elf`).
+If they differ, `coaxial.boot.load` sends `stay`, runs the master's sequence
+on that one node at unit 247 with its unit, position and flags given back,
+persists, sends `go`, and waits until the application names the new image.
+That happens once per build; the ST-Link's port costs ~22 s. Exceptions:
+
+- No build at hand: nothing is compared.
+- Image (0, 0), meaning a debugger started the app: left alone.
+- The board shared with other sessions: refused in words, not reset.
+- `own_image=False` turns the step off.
+
 ## Application side
 
 - `stay` (dev 11 op 12): reply, wait 50 ms, write STAY, reset.
@@ -113,7 +127,8 @@ store/records/<bus>/<position>.record
 
 - `test_boot_core.py`: the C core on byte-array flash and RAM via gcc and
   ctypes. It covers the store, a warm reset, a power cycle, a torn store,
-  and the host's own `Boot` client byte for byte through `boot_pdu`.
+  the host's own `Boot` client byte for byte through `boot_pdu`, and a
+  running node reloaded through `load` and the front door's step.
 - `test_boot.py`: the master against `SimulatedBoot` / `SimulatedSegment`,
   persist, and the image cut from an ELF.
 - `test_structure` holds PROTOCOL.md's device 11 table to both servers.
@@ -122,4 +137,4 @@ store/records/<bus>/<position>.record
 
 10 Mbit on the bench adapter; D2 SRAM execution speed against flash; erase
 time per sector; what a real collision looks like; a `coaxial_63020` pin
-table; the host loading its image when a node's crc differs.
+table; the first `open()` loading a build over the ST-Link's port.

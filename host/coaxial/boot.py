@@ -1,5 +1,7 @@
 """Device 11: the bootloader, as the master speaks it (docs/BOOT.md)."""
+import os
 import struct
+import time
 import zlib
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -44,6 +46,16 @@ CHUNK_S = 0.002
 VERIFY_S = 2.0
 SEAL_S = 3.0
 PERSIST_S = 12.0
+#: A running node sent `stay`: its reply out, 50 ms, the reset, and the
+#: bootloader's gate over RAM (~0.1 s at 160 MHz). After `go`: the jump and
+#: the application's init, polled for this long until it answers.
+STAY_S = 0.5
+GO_S = 5.0
+#: The image this host was built with: $COAXIAL_IMAGE (an ELF or a raw
+#: image), else the newest build/<preset>/coaxial_63100.elf beside host/.
+IMAGE_ENV = 'COAXIAL_IMAGE'
+BUILD = Path(__file__).resolve().parents[2] / 'build'
+APP_ELF = 'coaxial_63100.elf'
 
 
 def chunks_of(image):
@@ -345,3 +357,65 @@ class Master:
         for unit in assigned:
             states[unit] = self.segment.at(unit).state()
         return states
+
+
+def host_image():
+    """(path, image) - what this host was built with, or None where no
+    build is at hand (a fresh clone, CI's host job)."""
+    named = os.environ.get(IMAGE_ENV)
+    if named:
+        path = Path(named)
+        return path, image_of(path) if path.suffix == '.elf' else path.read_bytes()
+    built = sorted(BUILD.glob('*/' + APP_ELF), key=lambda p: p.stat().st_mtime)
+    return (built[-1], image_of(built[-1])) if built else None
+
+
+def load(board, image, persist=True, session=0x10AD):
+    """The node behind `board` onto `image` through its bootloader: `stay`,
+    then the master's sequence on this one node at the blank unit - its
+    unit, position and flags given back - then `go`, and the application
+    polled until it names the image. With `persist` the store keeps it for a
+    power-up with no host. Returns the application's state."""
+    from .board import Board
+    was = board.boot.state()
+    board.boot.stay()
+    time.sleep(STAY_S)
+    blank = Board(board.transport, unit=BLANK_UNIT).boot
+    blank.hold(session)
+    node = blank.who()
+    if node is None:
+        raise errors.NoReplyError('unit %d sent stay, and no bootloader answered at unit %d'
+                                  % (board.unit, BLANK_UNIT))
+    blank.assign(node['uid'], was['unit'], was['position'],
+                 terminate=bool((was.get('flags') or 0) & 1))
+    Board(board.transport, unit=was['unit']).boot.flash(was['type'], image, persist=persist)
+    blank.go(session)
+    want = (len(image), zlib.crc32(image))
+    until = time.monotonic() + GO_S
+    while True:
+        try:
+            state = board.boot.state()
+            if state['image'] == want:
+                return state
+        except errors.RigError:
+            pass                          # still booting
+        if time.monotonic() > until:
+            raise errors.DeviceStateError(
+                'unit %d took the image (%d B, crc %08x) and did not come back running it '
+                'within %.0f s' % (board.unit, want[0], want[1], GO_S))
+        time.sleep(0.1)
+
+
+def stale(board, image):
+    """The image `board` runs when it is not `image` - None when it is, or
+    when a debugger started it (no bootloader named one: (0, 0))."""
+    running = board.boot.state()['image']
+    return None if running in ((len(image), zlib.crc32(image)), (0, 0)) else running
+
+
+def ensure(board, image, persist=True):
+    """Whether `board` had to be loaded with `image` (`stale`, then `load`)."""
+    if stale(board, image) is None:
+        return False
+    load(board, image, persist)
+    return True

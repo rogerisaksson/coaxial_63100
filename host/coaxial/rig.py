@@ -1,6 +1,8 @@
 """One board behind one class: connect, configure, trigger, read."""
 import re
+import sys
 import time
+import zlib
 
 from . import angle as angle_scaling
 from .acquisition import Acquisition
@@ -11,6 +13,7 @@ from .gates import GateStage
 from .reader import BufferedReader
 from .record import Record, build
 from .motion import Motion
+from . import boot as bootmod
 from . import broker
 from . import session as sessionmod
 from contextlib import suppress
@@ -146,14 +149,18 @@ class Coaxial63100(Acquisition):
     """One board, one acquisition task, one clock."""
 
     def __init__(self, port='COM4', baud=115200, unit=1, link='auto',
-                 simulated_device=False, power_afe=False):
-        """Say where the board is. Nothing is opened until `open()`."""
+                 simulated_device=False, power_afe=False, own_image=True):
+        """Say where the board is. Nothing is opened until `open()`, which
+        makes a real board run this host's own build (`own_image`)."""
         self.port = port
         self.baud = baud
         self.unit = unit
         self.link = link
         self.simulated_device = simulated_device
         self.power_afe = power_afe
+        self.own_image = own_image
+        #: (path of this host's build, whether open() loaded it), or None.
+        self.image_loaded = None
 
         self.session = None
         self._board = None
@@ -203,10 +210,39 @@ class Coaxial63100(Acquisition):
         # THE WAY BACK.
         self.board.rig = self
         self.simulated = not self.origin.real
+        if self.own_image and not self.simulated:
+            self._own_image()
 
         if self.power_afe:
             self._take_afe()
         return self
+
+    def _own_image(self):
+        """THE HOST'S OWN BUILD ON THE BOARD (docs/BOOT.md): a board running
+        another image takes this host's through its bootloader, into RAM and
+        its store - once per build - so nothing is asked of a firmware this
+        host was not built with. A board others share is not reset under
+        them: that is refused in words."""
+        found = bootmod.host_image()
+        if found is None:
+            return                        # no build at hand: nothing to compare
+        path, image = found
+        want = (len(image), zlib.crc32(image))
+        running = bootmod.stale(self.board, image)
+        if running is None:
+            self.image_loaded = (path, False)
+            return
+        if self.origin.label.endswith('- shared'):
+            raise RigError('unit %d runs another image (%s) than this host\'s build %s '
+                           '(%d B, crc %08x), and other sessions share the board - close '
+                           'them, and the next open loads it'
+                           % (self.unit, running, path, want[0], want[1]))
+        print('coaxial: unit %d runs image %s; loading this host\'s build %s (%d B, crc '
+              '%08x) through its bootloader' % ((self.unit, running, path) + want),
+              file=sys.stderr)
+        bootmod.load(self.board, image)
+        self.board.probe()
+        self.image_loaded = (path, True)
 
     #: What the parts need after their rail comes up before anything talks
     #: to them. Enabling and configuring in the same breath answered SERVER
