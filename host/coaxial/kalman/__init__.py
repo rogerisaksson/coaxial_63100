@@ -1,3 +1,5 @@
-"""The estimators: the thermal identification's Kalman step as the board
-runs it, and the rotor observer chain around the drive's Kalman-form PLL.
+"""The estimators: the thermal identification's Kalman step and the rotor observer chain.
+
+The first as the board runs it (`thermal_ident.c`), the second around the
+drive's Kalman-form PLL.
 """

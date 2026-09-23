@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""The master at the bench: every blank node on a segment takes its image
-and its record from the store (docs/BOOT.md).
+"""The master at the bench: every blank node on a segment takes its image and record from the store.
+
+docs/BOOT.md has the sequence.
 
     python tools/flash_nodes.py --store DIR --simulated --bus LL
     python tools/flash_nodes.py --store DIR --port COM4 --bus LL

@@ -1,5 +1,4 @@
-"""Rasterise an ANSI-coloured text frame to a PNG, the way a terminal
-would draw it - so a braille picture can be JUDGED before it lands.
+"""Rasterise an ANSI-coloured text frame to a PNG, as a terminal draws it.
 
     python tools/ansi2png.py frame.txt frame.png [cell_w cell_h]
 

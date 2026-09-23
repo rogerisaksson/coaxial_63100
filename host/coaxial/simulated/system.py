@@ -1,5 +1,6 @@
-"""Who the board says it is: the identity tables (units, subsystems, pins,
-parts) behind 0x6D, and the digital pins.
+"""Who the board says it is: the identity tables behind 0x6D, and the digital pins.
+
+The tables: units, subsystems, pins, parts.
 """
 from ..errors import DeviceStateError
 from ..gpio import reserved_reason

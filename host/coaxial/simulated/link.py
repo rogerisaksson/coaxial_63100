@@ -1,5 +1,4 @@
-"""The wire that is not there: the link stand-in, the five buses of the
-simulated machine, and the broadcast refusal.
+"""The wire that is not there: the link stand-in, the machine's five buses, the broadcast refusal.
 """
 from .. import protocol
 from ..errors import DeviceStateError

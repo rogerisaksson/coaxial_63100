@@ -1,6 +1,7 @@
-"""The online identification, as the board runs it - `thermal_ident.c`
-mirrored in Python so the stand-in identifies the same way and a page in
-simulated mode shows the same states for the same reasons.
+"""The online thermal identification as the board runs it: `thermal_ident.c` mirrored.
+
+So the stand-in identifies the same way and a page in simulated mode shows
+the same states for the same reasons.
 """
 import math
 

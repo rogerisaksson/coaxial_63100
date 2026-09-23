@@ -1,5 +1,6 @@
-"""Acquisition: the converters into records, a frame, and a live plot -
-the DAQ session, the pandas run and the live plot, as one paper."""
+"""Acquisition: the converters into records, a frame, and a live plot.
+
+The DAQ session, the pandas run and the live plot, as one paper."""
 from .parts import code, md, section
 
 TITLE = 'Acquisition'

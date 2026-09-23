@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Build the firmware and flash it over SWD - the one path the local model
-is allowed to take from source to silicon.
+"""Build the firmware and flash it over SWD: the local model's one path from source to silicon.
 
 This exists so `run_command` never needs `cube-cmake` or
 `STM32_Programmer_CLI` on its own allowlist. Either of those, called

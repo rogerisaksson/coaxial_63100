@@ -1,7 +1,8 @@
-"""The master's side of the bootloader against the stand-in (docs/BOOT.md):
-the sequence on one node, the image kept when it is the one held, the
-refusals in the node's words, and the interface holding both
-implementations to one set of names.
+"""The master's side of the bootloader against the stand-in (docs/BOOT.md).
+
+The sequence on one node, the image kept when it is the one held, the
+refusals in the node's words, and the interface holding both implementations
+to one set of names.
 """
 import os
 import struct

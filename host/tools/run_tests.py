@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Run this project's own test suites and print one deterministic
-tally - the same numbers each suite already counts itself, never a summary
-an LLM was asked to write.
+"""Run this project's suites and print one deterministic tally.
+
+The numbers each suite already counts itself, never a summary an LLM was
+asked to write.
 
 That distinction is the point. A model relaying its own paraphrase of "did
 the tests pass" is the failure mode documented across this codebase's own

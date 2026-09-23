@@ -1,5 +1,4 @@
-"""`python -m terminal`: the loader, guarded so a crew's spawned worker
-importing this module runs nothing."""
+"""`python -m terminal`: the loader, guarded so a crew's spawned worker importing it runs nothing."""
 import sys
 
 from .loader import main

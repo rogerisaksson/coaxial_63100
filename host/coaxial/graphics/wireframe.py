@@ -1,5 +1,4 @@
-"""The board's ASCII renderer: a depth-shaded raster with the parts drawn as
-lines over it, and a wire fallback.
+"""The board's ASCII renderer: a depth-shaded raster with the parts as lines over it; a wire fallback.
 """
 import functools
 import math

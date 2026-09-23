@@ -1,6 +1,6 @@
-"""Trace the thermal identification sample by sample against the ground
-truth `test_thermal_core.py` uses: every innovation with its regressor,
-and the scales after each update.
+"""Trace the thermal identification sample by sample against `test_thermal_core.py`'s ground truth.
+
+Every innovation with its regressor, and the scales after each update.
 
     python tools/thermal_ident_trace.py            # three box cycles, air 2.0
     python tools/thermal_ident_trace.py 3 0.5      # three fan cycles

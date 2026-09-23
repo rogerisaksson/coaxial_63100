@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Read an ollama model's weight blob(s) into the OS file cache, then measure
-whether ollama's own reported `load_duration` actually gets shorter for it.
+"""Read an ollama model's weights into the OS file cache, then measure whether it loads faster.
+
+Faster by ollama's own reported `load_duration`.
 
 Windows holds recently-read files in its standby list while nothing else needs
 the RAM, so a normal `dbg`/`board_chat` session warms whatever it loads as a

@@ -1,5 +1,4 @@
-"""The control law's stand-in rotor: one rotor, one lock, and the
-spring/inertia physics every motion verb is tested against.
+"""The control law's stand-in rotor: one lock and the spring/inertia physics the verbs are tested on.
 """
 import functools
 import json

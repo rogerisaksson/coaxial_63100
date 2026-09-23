@@ -1,5 +1,4 @@
-"""A blank node in its bootloader, as the stand-in: boot_core.c's rules over
-a bytearray flash (docs/BOOT.md).
+"""A blank node in its bootloader: boot_core.c's rules over a bytearray flash (docs/BOOT.md).
 """
 import struct
 import zlib

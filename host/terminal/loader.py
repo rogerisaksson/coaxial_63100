@@ -1,4 +1,4 @@
-"""THE LOADER."""
+"""The loader: reads pages/, lists them on the front page, preloads, and runs the pick in-process."""
 import argparse
 import ctypes
 import importlib

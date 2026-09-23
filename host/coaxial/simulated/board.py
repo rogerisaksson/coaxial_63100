@@ -1,5 +1,4 @@
-"""The assembly: SimulatedBoard wires every device together and
-SimulatedSession answers like coaxial.session.Session.
+"""The assembly: SimulatedBoard wires the devices; SimulatedSession answers like session.Session.
 """
 from ..errors import DeviceStateError
 from ..protocol import BROADCAST

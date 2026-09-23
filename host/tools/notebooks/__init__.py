@@ -1,7 +1,8 @@
-"""The example notebooks, one module per functional area, each a short
-paper: an abstract, numbered sections that measure something and read the
-number back, conclusions with the numbers in them, and what to do with
-them at the bench.
+"""The example notebooks: one module per functional area, each a short paper.
+
+An abstract, numbered sections that measure something and read the number
+back, conclusions with the numbers in them, and what to do with them at the
+bench.
 """
 from . import (acquisition, applications, commissioning, drive, link, motion,
                power_stage, sensors, thermal)

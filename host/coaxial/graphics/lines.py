@@ -1,8 +1,9 @@
-"""Lines on the braille grid: `_trace` puts a segment's dots on the matrix's
-own sub-columns and sub-rows; `_outline` draws the stereotype primitives
-with the hidden-line test against the depth buffer; `_edge` draws the
-slab's rim and holes as the raster's own silhouette, off the fold's
-reached bits.
+"""Lines on the braille grid: segments, the stereotype outline and the slab's rim.
+
+`_trace` puts a segment's dots on the matrix's own sub-columns and sub-rows;
+`_outline` draws the stereotype primitives with the hidden-line test against
+the depth buffer; `_edge` draws the slab's rim and holes as the raster's own
+silhouette, off the fold's reached bits.
 """
 import math
 

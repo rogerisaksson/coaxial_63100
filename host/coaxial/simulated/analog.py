@@ -1,5 +1,4 @@
-"""The analog front end, its seven channels and the calibration record -
-invariant 9 acted out without an ADC.
+"""The analog front end, its seven channels and the calibration record: invariant 9 without an ADC.
 """
 import math
 import random

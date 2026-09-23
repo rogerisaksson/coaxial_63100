@@ -1,5 +1,4 @@
-"""The board's calibration record: the scaling parameters and the per-channel
-corrections, read and written where they live.
+"""The calibration record: scaling parameters and per-channel corrections, read and written in place.
 """
 import re
 

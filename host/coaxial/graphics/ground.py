@@ -1,7 +1,7 @@
-"""The landscape behind the board: a horizon, a fan of lines to it and rungs
-sliding toward the camera - the camera's world, not the board's, so it is
-cast once per window size and per scroll step and replayed against each
-frame's depth buffer.
+"""The landscape behind the board: a horizon, a fan of lines to it and rungs sliding toward the camera.
+
+The camera's world, not the board's: cast once per window size and scroll
+step, replayed against each frame's depth buffer.
 """
 import math
 

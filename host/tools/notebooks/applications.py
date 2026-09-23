@@ -1,6 +1,7 @@
-"""Applications: four missions on the motion verbs - a quad ESC lane, a
-fixed-wing cruise through a gust, a two-joint arm on two boards, and a
-precision hold against a load step - as one paper."""
+"""Applications: four missions on the motion verbs.
+
+A quad ESC lane, a fixed-wing cruise through a gust, a two-joint arm on two
+boards, and a precision hold against a load step, as one paper."""
 from .parts import code, md, section
 
 TITLE = 'Applications'

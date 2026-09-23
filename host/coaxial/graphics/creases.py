@@ -1,6 +1,7 @@
-"""The parts' crease loops off the exact mesh: an edge where two faces fold
-past OUTLINE_DEG, above the slab's measured top or under its bottom,
-joined into loops and simplified along their chains.
+"""The parts' crease loops off the exact mesh.
+
+An edge where two faces fold past OUTLINE_DEG, above the slab's measured top
+or under its bottom, joined into loops and simplified along their chains.
 """
 import math
 

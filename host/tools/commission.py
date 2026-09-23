@@ -1,5 +1,6 @@
-"""Commission a motor: characterise the AFE, the inverter and the motor,
-budget the injection, set the gains, decide, verify - and print the line.
+"""Commission a motor: characterise, budget the injection, set gains, decide, verify, print the line.
+
+Characterised: the AFE, the inverter and the motor.
 
     python tools/commission.py --simulated                 # the stand-in
     python tools/commission.py --step afe                  # no switching

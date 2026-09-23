@@ -1,5 +1,6 @@
-"""Sensors: the BNO085 over SPI2 and the A1335 over SPI4 - the IMU session
-and the angle session, as one paper."""
+"""Sensors: the BNO085 over SPI2 and the A1335 over SPI4.
+
+The IMU session and the angle session, as one paper."""
 from .parts import code, md, section
 
 TITLE = 'Sensors'

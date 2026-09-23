@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Silhouette check: the vector renderer against the CAD exporter's own
-ASCII renders at known rotations.
+"""Silhouette check: the vector renderer against the CAD exporter's ASCII renders at known rotations.
 
 Every fixture in tests/renders/ is named ascii-x{X}y{Y}z{Z}.txt after
 the rotation its exporter applied. The same rotation renders here with

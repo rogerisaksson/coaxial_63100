@@ -1,5 +1,6 @@
-"""The board as a thermal picture: a braille halftone in the thermal ramp,
-with the rim and the parts that make the heat drawn on it.
+"""The board as a thermal picture: a braille halftone in the thermal ramp.
+
+With the rim and the parts that make the heat drawn on it.
 """
 import math
 import shutil

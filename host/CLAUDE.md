@@ -1,5 +1,8 @@
 # host/
 
+- Map first, files second: `python tools/host_map.py [--api] [dir..]` (one
+  line per module; `--api` adds public signatures). A module opens on a
+  one-line brief of at most 100 characters; `test_structure` holds it.
 - Front door: `Coaxial63100` (`coaxial/rig.py`); `device.daq`, `.imu`,
   `.angle`, `.thermal`, `.gates`, `.drive`, `.motion`, `board.boot`.
   `simulated_device=True` needs no cable.
@@ -18,3 +21,18 @@
 - Bash blocked by the classifier: write `claude_do_it.ps1`, the user's
   `claude_watch.ps1` runs it, read `claude_do_it.log`; comment out physical
   steps once run.
+
+## Terminal and UX
+
+- `python -m terminal` (`coaxial_tty.ps1`): `terminal/loader.py` lists
+  `terminal/pages/`. A page is one module - `HEADLINE KEY WHAT ORDER NAME`,
+  optional `ITEMS`, `run(args, name)`; a new view is a new page, nothing
+  else lists it.
+- Views are `tools/show_*.py` on `stage.frame_of`, `stage.hud` and
+  `screen.run_view`; their drawings are `coaxial/` (`machine dial gauges
+  desk thermalmap`) and `coaxial/graphics/` (the board renderer).
+- Braille is judged in a raster, then by the bench: `COLUMNS=200 LINES=60
+  python tools/show_X.py --simulated --frames 1 > f.txt` (the rotor
+  observer and BOARD ATTITUDE take `--width --height`), then
+  `python tools/ansi2png.py f.txt f.png`. Check the nominal size and a
+  large terminal.

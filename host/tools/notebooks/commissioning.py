@@ -1,5 +1,6 @@
-"""Commissioning: the bench-day procedure end to end on the stand-in - the
-machine measured, identified, a tune searched against exactly that
+"""Commissioning: the bench-day procedure end to end on the stand-in.
+
+The machine measured, identified, a tune searched against exactly that
 machine, the record written, and the drive verifying itself, as one paper
 (the auto-tune notebook, rewritten).
 """

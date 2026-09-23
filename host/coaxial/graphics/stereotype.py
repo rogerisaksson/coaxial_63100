@@ -1,6 +1,6 @@
-"""THE PRE-SCAN: the parts as blocks, drums, arches, strokes and the holes
-in walls - each part's crease loops fitted once, off the exact mesh, to
-the simple geometry it is, so the overlay draws fixed edges and corners
+"""The pre-scan: each part's crease loops fitted once to a block, drum, arch, stroke or wall hole.
+
+Fitted off the exact mesh, so the overlay draws fixed edges and corners
 instead of the tessellation's own folds.
 """
 import math

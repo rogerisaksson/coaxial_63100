@@ -1,7 +1,7 @@
-"""The drive: the sensorless observers ranked by measurement, the firmware's
-law over the link sweep, the envelope, and the rotor observer on the
-board's own PMSM model - the FOC Monte Carlo and the rotor observer
-session, as one paper.
+"""The drive: observers ranked by measurement, the law over the link sweep, and the envelope.
+
+The rotor observer on the board's own PMSM model: the FOC Monte Carlo and
+the rotor observer session, as one paper.
 """
 from .parts import code, md, section
 

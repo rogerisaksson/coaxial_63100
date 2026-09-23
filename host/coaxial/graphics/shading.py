@@ -1,6 +1,4 @@
-"""The face's light: the depth ramp and its constants, the tone ladder, the
-desk lamp, the key light, the halftone's dots, the rim's line glyph, the
-board's face art, the cast-shadow map.
+"""The face's light: depth ramp, tone ladder, lamps, halftone, rim glyph, face art and cast shadow.
 """
 import functools
 import math

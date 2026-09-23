@@ -1,6 +1,7 @@
-"""Motion: the drive as three verbs, and the loop behind the third - the
-position servo, the observer against the shaft, the speed loop identified
-out of its own run, and the propeller sweep, as one paper."""
+"""Motion: the drive as three verbs, and the loop behind the third.
+
+The position servo, the observer against the shaft, the speed loop
+identified out of its own run, and the propeller sweep, as one paper."""
 from .parts import code, md, section
 
 TITLE = 'Motion'

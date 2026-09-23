@@ -1,8 +1,8 @@
-"""THE PRELOAD: the model's decimates, the outline's exact index with its
-loops, and the stereotypes - built once by a process behind the front
-page and kept as one pickle under the user's local application data, so a
-view opens on it in a tenth of a second instead of parsing the STL and
-decimating it six times.
+"""The preload: decimates, the outline's exact index and loops, and the stereotypes, in one pickle.
+
+Built once by a process behind the front page and kept under the user's
+local application data, so a view opens in a tenth of a second instead of
+parsing the STL and decimating it six times.
 """
 import ctypes
 import hashlib

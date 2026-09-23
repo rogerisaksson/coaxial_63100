@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Which COM port this board is on, from the command line - and the
-target voltage over SWD, which only the ST-Link can say.
+"""Which COM port this board is on, from the command line, and the target voltage over SWD.
+
+The voltage is the ST-Link's to say.
 
 The probe itself is `coaxial.ports`: one implementation, so "does this
 port answer" cannot drift between the session opener, the broker, the

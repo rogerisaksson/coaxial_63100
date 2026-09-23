@@ -1,5 +1,6 @@
-"""Which COM port this board is on - one implementation, called from every
-side, so "does this port answer" cannot drift between them:
+"""Which COM port this board is on: one implementation, called from every side.
+
+So "does this port answer" cannot drift between them:
 """
 from contextlib import suppress
 

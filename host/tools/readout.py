@@ -1,8 +1,9 @@
-"""The front page's lower box: what the board is, printed as a console
-of the late seventies printed it - terse, upper case, a prompt and its
-answer, dotted leaders - in the tree's palette, under the turning model.
-The register is the point, not the quotes: the bench struck the
-ship's-computer talk and the film's own lines as silly (2026-09-23).
+"""The front page's lower box: what the board is, printed as a late-seventies console printed it.
+
+Terse, upper case, a prompt and its answer, dotted leaders, in the tree's
+palette, under the turning model. The register is the point, not the quotes:
+the bench struck the ship's-computer talk and the film's own lines as silly
+(2026-09-23).
 
 EVERY HARDWARE FACT IS THE BUS'S. The identity page is command 0x41 -
 the unit's name, type, firmware, protocol, MCU and its own description

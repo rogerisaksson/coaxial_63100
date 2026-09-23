@@ -1,6 +1,7 @@
-"""The link: one port shared by sessions through the broker, and who else
-is attached - the shared session, with the broker itself measured on a
-scripted wire, as one paper."""
+"""The link: one port shared by sessions through the broker, and who else is attached.
+
+The shared session, with the broker itself measured on a scripted wire, as
+one paper."""
 from .parts import code, md, section
 
 TITLE = 'The link'

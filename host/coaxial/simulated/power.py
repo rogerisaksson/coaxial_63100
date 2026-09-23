@@ -1,5 +1,4 @@
-"""The power stage stood down: thermal observer, power rails and the gate
-drivers with the real arming policy.
+"""The power stage stood down: thermal observer, rails, and gate drivers under the real arming policy.
 """
 import copy
 import math

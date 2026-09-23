@@ -1,5 +1,4 @@
-"""Three things every live view on this board needs: a preflight line, a
-redraw that does not flicker, and a way out that runs the cleanup.
+"""What every live view needs: a preflight line, a flicker-free redraw, a way out that cleans up.
 
 Shared because every view wants them identically, and a second copy of any of
 them is the thing that drifts - the structure suite fails a definition that

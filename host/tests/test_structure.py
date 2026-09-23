@@ -313,10 +313,13 @@ def test_shape(r):
 def test_documented(r):
     """Every module, class and public function says what it is for."""
     # Modules and classes only.
-    missing = []
+    from tools.host_map import brief
+    missing, long_ = [], []
     for path, _, tree in sources(beside=False):
         if not ast.get_docstring(tree):
             missing.append(path + ' (module)')
+        elif brief(ast.get_docstring(tree)).endswith('...'):
+            long_.append(path)
         # Top level only: a ctypes Structure declared inside a function is a
         # field list, and a docstring on it would say less than its name.
         for node in tree.body:
@@ -327,6 +330,8 @@ def test_documented(r):
             missing.append('%s:%s' % (path, node.name))
     r.check('every module and class says what it is for',
             not missing, '; '.join(missing[:4]))
+    r.check('every module opens on a one-line brief (tools/host_map.py)',
+            not long_, '; '.join(long_[:4]))
 
 
 def test_no_escaping_scars(r):

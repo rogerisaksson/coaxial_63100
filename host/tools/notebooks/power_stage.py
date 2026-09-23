@@ -1,5 +1,6 @@
-"""The power stage: the gate drivers armed and driven, and what switching
-costs - the gate drivers session and the loss calculation, as one paper."""
+"""The power stage: the gate drivers armed and driven, and what switching costs.
+
+The gate drivers session and the loss calculation, as one paper."""
 from .parts import code, md, section
 
 TITLE = 'The power stage'

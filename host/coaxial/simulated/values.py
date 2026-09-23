@@ -1,5 +1,4 @@
-"""Invented readings: the channel table, nominals, drift, sweep and tumble
-textures every simulated device draws from.
+"""Invented readings: the channel table, nominals, drift, sweep and tumble every device draws from.
 """
 import math
 import random

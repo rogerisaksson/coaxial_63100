@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""The firmware as a map: each file's one-line brief, and each header's
-public functions, one line apiece - the cheapest way into the target.
+"""The firmware as a map: each file's one-line brief and each header's public functions.
+
+One line apiece: the cheapest way into the target.
 
     python tools/target_map.py            # files and their briefs
     python tools/target_map.py --api      # plus every header's prototypes

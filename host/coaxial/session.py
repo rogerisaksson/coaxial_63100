@@ -1,5 +1,6 @@
-"""One lazily-opened board connection - the library's session, which the rig,
-the MCP server and the model runner all open through `open_session`.
+"""The library's session: one lazily-opened board connection, opened through `open_session`.
+
+The rig, the MCP server and the model runner all open it.
 """
 import collections
 
