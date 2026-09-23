@@ -2370,13 +2370,13 @@ def _edge(grid, tone, cells, cam, colour, heat=None):
             masks[i] = mask
     for at, mask in masks.items():
         r, c = divmod(at, width)
-        # ONTO the cell's own dots, not in their place: the edge dots
-        # alone left a dark moat between the line and the face's
-        # halftone, and the bench read the line as standing off the
-        # face. Lit whole in the edge's tone, the last cell is a rim.
-        was = grid[r][c]
-        if BRAILLE <= ord(was) < BRAILLE + 256:
-            mask |= ord(was) - BRAILLE
+        # The boundary dots ALONE in their cell, one dot thick. They
+        # were OR'd onto the face's dots for a day: the edge dots alone
+        # had seemed to leave a dark moat between the line and the
+        # face - but the moat was the art's parallax (`engine._art_hit`),
+        # the face itself missing beside the line, and with the art on
+        # the geometry the merge only lit the whole boundary cell in
+        # the edge's tone, a bright band the bench read as thickness.
         grid[r][c] = chr(BRAILLE + mask)
         if colour:
             tone[r][c] = _edge_tone(heat[at] if heat is not None and heat[at]

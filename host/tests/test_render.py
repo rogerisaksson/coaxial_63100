@@ -487,6 +487,29 @@ def test_ink_never_leans_below_the_floor(report):
                  '%d of %d blank, %.0f%%' % (blank, covered, 100 * share))
 
 
+def test_the_art_stops_at_its_disc(report):
+    """A surface point past ART_DISC of the span takes no ink: the art's
+    own ink reaches 0.94 to 1.00 by direction, and a rim cell landing
+    on its blank outside drew nothing, pulling the edge a cell in. Face
+    on (the identity pose, the plane at z = 0) a point at 0.90 hits the
+    art and one at 0.98 does not; the hit is the top view's own cell.
+    """
+    identity = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+    distance, w, h = 3.2, 106, 54
+    inside = engine._art_hit(identity, 0.90 / distance, 0.0, distance, 0.0,
+                             False, w, h)
+    outside = engine._art_hit(identity, 0.98 / distance, 0.0, distance, 0.0,
+                              False, w, h)
+    report.check('art: a point at 0.90 of the span hits the art, at 0.98 '
+                 'it does not', inside is not None and outside is None,
+                 '%s / %s' % (inside, outside))
+    centre = engine._art_hit(identity, 0.0, 0.0, distance, 0.0, False, w, h)
+    report.check('art: the origin lands on the middle cell, %d of %d and '
+                 '%d of %d' % (w // 2, w, h // 2, h),
+                 centre is not None and centre[:2] == (w // 2, h // 2),
+                 str(centre))
+
+
 def test_the_decimate_keeps_the_bore(report):
     """The bore's wall is thinner than a grid-48 cell, so clustering
     merged its rings and the see-through came out smaller and shifted
@@ -1110,6 +1133,7 @@ def main():
     test_the_edge_is_the_rasters_silhouette(report)
     test_ink_never_leans_below_the_floor(report)
     test_the_decimate_keeps_the_bore(report)
+    test_the_art_stops_at_its_disc(report)
     test_key_light(report)
     test_the_face_is_a_halftone(report)
     test_triad(report)

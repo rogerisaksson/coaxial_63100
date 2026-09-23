@@ -4828,6 +4828,33 @@ looking at the estimate alone.
   loop at 108x40 measured 41.0 ms median against HEAD's 40.2, within
   the run-to-run spread. test_render 103 (+2: the ring kept, no
   corner inside it), 3184 in all.
+* **The art stops at its disc, and the edge is one dot thick again**
+  (2026-09-23, the bench, on that build: "the band inside the edges
+  gets really torn at i -0.1350 j -0.7956 k -0.5388 real -0.2413").
+  The edge drawn alone at that pose (the solder side 46 degrees off
+  face-on): a clean line round the lower left, and along the upper
+  right two staircases a cell apart, taken by turns. The rim cells as
+  numbers: 27 of them flat, covered, class 0 - art cells with ink 0.
+  The art's ink reaches 0.94 to 1.00 of the span by direction (24
+  directions measured; the plate has flats), so a covered cell at the
+  mesh's rim can land on the art's blank OUTSIDE its disc, draw
+  nothing, and the lit edge steps a cell inward there and back out
+  where a wall cell (steep, bare, class 2) takes over. Four ways on
+  one sheet: as drawn, torn; the art's blank past radius 0.96 counted
+  as no hit (`engine.ART_DISC`), so the rim is bare geometry and
+  draws by depth like a wall - one clean line; the edge's dots alone
+  in their cell instead of OR'd onto the face's - still torn, so not
+  the cause; both - clean and thinner. Both taken. The merge goes
+  because the moat it was built for (the edge bullet above) was the
+  art's parallax, the face itself missing beside the line; with the
+  art on the geometry it only lit the whole boundary cell in the
+  edge's tone, the bright band the bench had read as thickness.
+  Rendered after: the rim one thin line at the torn pose, the ring
+  thin on the bore face-on from below (0110, 0130) with the dither
+  right up to it, no moat; the back's three poses the same. Held in
+  test_render: face on, a point at 0.90 of the span hits the art and
+  one at 0.98 does not, and the origin lands on cell 53 of 106, row
+  27 of 54. test_render 105, 3186 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

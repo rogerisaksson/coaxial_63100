@@ -266,6 +266,17 @@ def fold(depth, top, sun, width, height):
     return out_depth, out_top, out_sun, coverage, reached
 
 
+#: Beyond this radius a surface point takes no ink from the art: the
+#: art's own ink reaches 0.94 to 1.00 of the span by direction
+#: (measured 2026-09-23, 24 directions), so a covered cell at the
+#: mesh's rim can land on the art's blank OUTSIDE - and drew nothing,
+#: which pulled the lit edge a cell inward wherever it happened, a
+#: second staircase inside the first: "the band inside the edges is
+#: really torn" at i -0.1350 j -0.7956 k -0.5388 real -0.2413. Past
+#: the disc the rim is bare geometry and draws by depth, like a wall.
+ART_DISC = 0.96
+
+
 def _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane=0.0):
     """The art cell under a cell's OWN SURFACE POINT, and that point's
     rise above the art's plane - or None outside the unit disc. The
@@ -290,7 +301,7 @@ def _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane=0.0):
     hx = m[0] * tx + m[3] * ty + m[6] * tz
     hy = m[1] * tx + m[4] * ty + m[7] * tz
     hz = m[2] * tx + m[5] * ty + m[8] * tz
-    if hx * hx + hy * hy > 1.0:
+    if hx * hx + hy * hy > ART_DISC * ART_DISC:
         return None
     lean = m[8] if m[8] >= 0.05 else (m[8] if m[8] <= -0.05
                                       else (0.05 if not back else -0.05))
