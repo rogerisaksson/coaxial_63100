@@ -20,17 +20,19 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 
 ## The terminal
 
-`.\coaxial_tty.ps1` is the chooser: one script in front of the live views
-in `terminal/`, for looking at the board rather than remembering a
-filename.
+`.\coaxial_tty.ps1` is the terminal: `python -m terminal`, one process
+for the front page and every live view, for looking at the board rather
+than remembering a filename. The wrappers in `terminal/` still start one
+view on its own.
 
 | | |
 | --- | --- |
-| front page | `host/tools/menu.py` - the turning board and the list. The pick comes back in the exit code (101 + position), because capturing stdout would turn the page's console into a pipe |
-| a view | its own process: `terminal/<name>.ps1` wrapping `host/tools/show_<name>.py`, given `-Port`, `-Simulated`, `-Frames`. SESSION is `host/tools/show_session.py` itself; BOARD CHAT is `show_chat.py`, with `--claude` for ANTHROPIC |
-| leaving a view | 0 (Q) quits the chooser; 64 (ESC, `TO_MENU`) returns to the front page - on the second question the view came from, with it lit; anything else is a failed view, its last lines kept on screen and any key back to the menu |
+| the loader | `host/terminal/loader.py` reads the pages under `host/terminal/pages/` - one module each, saying its headline, key, order and name, and its items for a second question - lists them on the front page in that order, preloads the model into the process's memory and runs the picked page there. A new page is a file in the folder |
+| front page | `host/tools/menu.py` - the turning board and the list, drawn off the loader's listing. The pick comes back as `main()`'s return (101 + position), the exit code when run as a script |
+| a view | `host/tools/show_<name>.py`, run in the loader's process on what the preload holds, given `--port`, `--simulated`, `--frames`. SESSION is `show_session.py`; BOARD CHAT is `show_chat.py`, with `--claude` for ANTHROPIC |
+| leaving a view | 0 (Q) quits the terminal; 64 (ESC, `TO_MENU`) returns to the front page - on the second question the view came from, with it lit; a view that raises is shown where it stood, and Enter is the front page |
 | on the way out | `show_session.py --leave` opens the port once and stops whatever a view left running, so "nothing was left running" is measured rather than assumed |
-| `-Name` | skips the front page: `session`, `imu`, `angle`, `adc`, `gate_drivers`, `rotor_observer`, `thermal_observer` |
+| `-Name` | skips the front page: `session`, `imu`, `angle`, `adc`, `gate_drivers`, `rotor_observer`, `thermal_observer`, `chat`, `claude` |
 | `-Simulated` | no cable; every value invented, and every view says SIMULATED across the top |
 | `-Frames N` | a view ends after N frames - how the view suite runs each one |
 

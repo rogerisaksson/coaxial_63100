@@ -5294,6 +5294,42 @@ looking at the estimate alone.
   views 222, simulated 254, structure 717 - a docstring and an import
   check for the package's `__init__`), the front page's and the
   attitude view's smokes exit 0. 3244 in all.
+* **The terminal is a loader over a folder of pages** (2026-09-23, the
+  bench: "a loader so everything specific to the terminal is a
+  subfolder of code ... it simply reads what lies in that folder
+  structure, lists them under their headlines and sub-functions, and
+  then starts preloading everything into the computer's memory -
+  token-light, so neither you nor a person has to thresh through a
+  wall of code"). `host/terminal/`: `loader.py` and `pages/`, one
+  module a view - seven, each ten to twenty lines, saying HEADLINE,
+  KEY, WHAT, ORDER, NAME, the ITEMS of a second question (MOTOR
+  CONTROLLER's two halves, BOARD CHAT's two answerers) and a `run(args,
+  name)` that calls the `show_*` main with the view's own rate. The
+  loader imports the folder, sorts by ORDER, hands the front page its
+  list (`menu.ENTRIES`, `SUB`, `OPEN` are now `loader.listing()` -
+  the hardcoded tables, the `MOTOR_AT`/`CHAT_AT` indices and the
+  child-process preload left `menu.py`), runs the pick IN THE SAME
+  PROCESS and comes back to the front page on 64, so what the preload
+  built stays where it is: `coaxial_tty.ps1` is twenty lines around
+  `python -m terminal`, the exit code passed through; `-Name` now
+  takes an item's name too (`chat`, `claude`). Measured: the
+  in-process preload off the pickle 1.6 s, 6 decimates, 917 outline
+  loops, 268 primitives, the shadow casters, the process at 247 MB
+  after from 17 before; the front page's smoke 5.0 s for three frames,
+  a page by name 2.6 s, both exit 0. One defect in the loader's own
+  code before it landed: the resident-set probe answered "unmeasured"
+  on Windows - `GetCurrentProcess` returns the pseudo-handle -1 in a
+  HANDLE's width, ctypes' default int truncated it and
+  `GetProcessMemoryInfo` answered ERROR_INVALID_HANDLE, 6; typed
+  `c_void_p` it answers. Held in test_views: seven pages with unique
+  keys in ORDER, the front page's list is the loader's, every name
+  answers, every page runs in-process for two frames and answers 0,
+  and `python -m terminal --frames 2` exits 0 - thirteen checks, 235;
+  the structure suite takes the package under its rules, 767. 3325 in
+  all. Next by the same rule: `thermal_ident` and `observer` into a
+  Kalman folder, the views' instrument drawings beside their pages,
+  when a page is next touched; the crew is per view still, shared
+  across pages is the follow-up.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

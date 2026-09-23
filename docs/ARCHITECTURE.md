@@ -133,6 +133,11 @@ host/coaxial_ollama/    the local-model runner: capability, pull, client,
                         intent, context, plan, language, replies, tools,
                         runner, sandbox, debug, cli, iolog, spinner
 host/testline/          instruments and a plan for a test executive
+host/terminal/          the terminal: loader.py reads pages/, one thin
+                        module a view - headline, key, order, name, the
+                        items of a second question, run() - lists them,
+                        preloads the model into the process and runs the
+                        pick there; `python -m terminal`
 host/tools/             run_tests, pick_tests, build_and_flash, session,
                         switch, pulse, commission, montecarlo, link_bench,
                         the show_* views, screen, menu, the bench tools
@@ -246,10 +251,19 @@ local model; MODELS.md has it.
 
 ### The terminal
 
-`coaxial_tty.ps1` is the chooser: session, the views, the board chat.
-`terminal/` holds `imu.ps1`, `angle.ps1`, `adc.ps1`,
-`gate_drivers.ps1`, `thermal_observer.ps1`, `rotor_observer.ps1`,
-each a wrapper around a `host/tools/show_*.py` on `screen.py`. A view
+`coaxial_tty.ps1` is `python -m terminal`: one process for the front
+page and every view. `host/terminal/loader.py` reads what lies under
+`host/terminal/pages/` - one module a view, saying its HEADLINE, KEY,
+ORDER, NAME, the ITEMS of a second question and a `run(args, name)`
+that calls the `show_*` main - lists them on the front page in that
+order, starts the preload (`coaxial/graphics/preload.py`, the decimates,
+the outline loops, the primitives and the shadow map) into the
+process's own memory and runs the picked page there, so a second view
+opens on what the first already holds; the front page reads the loader's
+listing, and a new view is a file in the folder. `terminal/` at the
+root still holds `imu.ps1`, `angle.ps1`, `adc.ps1`, `gate_drivers.ps1`,
+`thermal_observer.ps1`, `rotor_observer.ps1`, each a wrapper around one
+`host/tools/show_*.py` on `screen.py`, for a view on its own. A view
 reads at its own pace, not the link's: measured on the meter bridge, a
 frame spending three round trips took 190 ms of a 125 ms budget. The
 front page's live data are fetched by background threads - probed
@@ -375,12 +389,12 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-nine suites, 3273 checks, counted in `host/tests/.counts.json`
+Twenty-nine suites, 3325 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 | --- | --- | --- |
-| test_structure.py | 728 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module and every notebook a paper in the builder's shape, executed; the wire's three answers held to each other - the enums, every fixed reply and request, PROTOCOL.md's op tables |
+| test_structure.py | 767 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module and every notebook a paper in the builder's shape, executed; the wire's three answers held to each other - the enums, every fixed reply and request, PROTOCOL.md's op tables |
 | test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 254 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
@@ -405,7 +419,7 @@ by `counts.py`:
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 222 | every view and the front page drawn twice, the front page's readout, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
+| test_views.py | 235 | every view and the front page drawn twice, the front page's readout, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |
