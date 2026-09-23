@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    filter.h
-  * @brief   The decimating anti-alias chain: read a fast converter over a slow
-  *          link without folding what it saw into the answer.
-  ******************************************************************************
-  */
+/** filter.h - The decimating anti-alias chain: read a fast converter over a
+    slow link without folding what it saw into the answer. */
 #ifndef FILTER_H
 #define FILTER_H
 

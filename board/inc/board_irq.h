@@ -1,12 +1,6 @@
-/**
-  ******************************************************************************
-  * @file    board_irq.h
-  * @brief   PRIMASK held across a register pair, and given back only if it
-  *          was not already held - a caller under its own critical section
-  *          keeps it. One definition; it was the same four lines in five
-  *          modules.
-  ******************************************************************************
-  */
+/** board_irq.h - PRIMASK held across a register pair, and given back only if
+    it was not already held - a caller under its own critical section keeps
+    it. */
 #ifndef BOARD_IRQ_H
 #define BOARD_IRQ_H
 

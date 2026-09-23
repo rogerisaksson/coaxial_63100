@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    boot_core.c
-  * @brief   Device 11: the bootloader's ops, over a port of four calls.
-  ******************************************************************************
-  */
+/** boot_core.c - Device 11: the bootloader's ops, over a port of four calls. */
 #include "boot.h"
 
 #include <stddef.h>

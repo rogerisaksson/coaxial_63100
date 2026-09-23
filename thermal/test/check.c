@@ -76,7 +76,6 @@ static int die_anchor(void)
   return bad;
 }
 
-
 /* A deep burst: does the budget warn while there is still time to act? The
    question a burst asks is not "how hot is it" but "how long may I stay
    here". */
@@ -201,7 +200,6 @@ static int rds_tempco(void)
   }
   return bad;
 }
-
 
 int main(void)
 {

@@ -1,10 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    board_daq.c
-  * @brief   One acquisition task: configure, start, read. DAQmx's shape, cut
-  *          down to what this board has.
-  ******************************************************************************
-  */
+/** board_daq.c - One acquisition task: configure, start, read. */
 #include "board_limits.h"
 #include "board.h"
 #include "board_irq.h"

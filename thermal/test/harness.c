@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    harness.c
-  * @brief   A flat C API over thermal/, so test_thermal_core.py can run the
-  *          observer and its envelope on the host through ctypes.
-  ******************************************************************************
-  */
+/** harness.c - A flat C API over thermal/, so test_thermal_core.py can run
+    the observer and its envelope on the host through ctypes. */
 #include "thermal.h"
 #include "thermal_ident.h"
 
@@ -35,36 +30,30 @@
 /* CFG_ORDER, per node: capacity, to_ambient, area_share, rth_die, forced. */
 #define CFG_PER_NODE 5
 
-
 API int thm_nodes(void)
 {
   return (int)THERMAL_NODES;
 }
-
 
 API int thm_edges(void)
 {
   return THERMAL_EDGES;
 }
 
-
 API int thm_budget_slots(void)
 {
   return BUDGET_SLOTS;
 }
-
 
 API int thm_load_slots(void)
 {
   return LOAD_SLOTS;
 }
 
-
 API int thm_loss_slots(void)
 {
   return LOSS_SLOTS;
 }
-
 
 /** Which two nodes an edge joins; -1 for no such edge. */
 API int thm_edge_end(int edge, int which)
@@ -76,12 +65,10 @@ API int thm_edge_end(int edge, int which)
   return which ? (int)thermal_edge(edge).b : (int)thermal_edge(edge).a;
 }
 
-
 API int thm_sink_edge(int node)
 {
   return thermal_sink_edge((thermal_node_t)node);
 }
-
 
 API thermal_t *thm_new(float celsius)
 {
@@ -97,12 +84,10 @@ API thermal_t *thm_new(float celsius)
   return th;
 }
 
-
 API void thm_free(thermal_t *th)
 {
   free(th);
 }
-
 
 API void thm_ambient(thermal_t *th, float celsius)
 {
@@ -111,7 +96,6 @@ API void thm_ambient(thermal_t *th, float celsius)
     th->ambient = celsius;
   }
 }
-
 
 /** Put a node at a temperature outright: a test needs to stand the model
     somewhere, not drive it there. */
@@ -123,7 +107,6 @@ API void thm_place(thermal_t *th, int node, float celsius)
   }
 }
 
-
 API float thm_at(const thermal_t *th, int node)
 {
   if ((th == NULL) || (node < 0) || (node >= (int)THERMAL_NODES))
@@ -132,7 +115,6 @@ API float thm_at(const thermal_t *th, int node)
   }
   return th->t[node];
 }
-
 
 API int thm_set_node(thermal_t *th, int node, float k_per_w, float capacity)
 {
@@ -144,18 +126,15 @@ API int thm_set_node(thermal_t *th, int node, float k_per_w, float capacity)
          ? 1 : 0;
 }
 
-
 API int thm_set_edge(thermal_t *th, int edge, float k_per_w)
 {
   return ((th != NULL) && thermal_set_edge(th, edge, k_per_w)) ? 1 : 0;
 }
 
-
 API int thm_set_board(thermal_t *th, float to_ambient, float capacity)
 {
   return ((th != NULL) && thermal_set_board(th, to_ambient, capacity)) ? 1 : 0;
 }
-
 
 API float thm_edge_r(const thermal_t *th, int edge)
 {
@@ -165,7 +144,6 @@ API float thm_edge_r(const thermal_t *th, int edge)
   }
   return th->cfg.r_edge[edge];
 }
-
 
 /** The whole node table, CFG_ORDER per node, `out` CFG_PER_NODE * N long. */
 API void thm_cfg(const thermal_t *th, float *out)
@@ -186,7 +164,6 @@ API void thm_cfg(const thermal_t *th, float *out)
   }
 }
 
-
 /** The bulk's five scalars: board_to_ambient, board_cal_rise_k,
     board_rad_share, ntc_sees, ntc_tau_s. */
 API void thm_bulk(const thermal_t *th, float *out)
@@ -202,7 +179,6 @@ API void thm_bulk(const thermal_t *th, float *out)
   out[4] = th->cfg.ntc_tau_s;
 }
 
-
 API void thm_set_rad_board_stator(thermal_t *th, float w_per_k)
 {
   if (th != NULL)
@@ -211,13 +187,11 @@ API void thm_set_rad_board_stator(thermal_t *th, float w_per_k)
   }
 }
 
-
 /** The modelled thermistor reading - the lagged state, not the algebra. */
 API float thm_ntc(const thermal_t *th)
 {
   return (th == NULL) ? NAN : thermal_expected_ntc(th);
 }
-
 
 API float thm_capacity(const thermal_t *th, int node)
 {
@@ -227,7 +201,6 @@ API float thm_capacity(const thermal_t *th, int node)
   }
   return th->cfg.node[node].capacity;
 }
-
 
 API float thm_to_ambient_at(const thermal_t *th, int node, float rise_k,
                             float speed_rpm)
@@ -239,7 +212,6 @@ API float thm_to_ambient_at(const thermal_t *th, int node, float rise_k,
   return thermal_to_ambient_at(&th->cfg, (thermal_node_t)node, rise_k,
                                speed_rpm);
 }
-
 
 /** LOAD_ORDER into the struct - one place. */
 static void load_from(thermal_load_t *in, const float *load)
@@ -261,7 +233,6 @@ static void load_from(thermal_load_t *in, const float *load)
   in->speed_rpm = load[13];
   in->t_dead_s = load[14];
 }
-
 
 /** One integration step at a speed. */
 API void thm_step_at(thermal_t *th, const float *watt,
@@ -291,13 +262,11 @@ API void thm_step_at(thermal_t *th, const float *watt,
   th->ambient = ambient;               /* the room does not drift here */
 }
 
-
 API void thm_step(thermal_t *th, const float *watt,
                   float ntc_c, float afe_c, float mcu_c, float dt_s)
 {
   thm_step_at(th, watt, ntc_c, afe_c, mcu_c, 0.0f, dt_s);
 }
-
 
 static void soa_from(thermal_soa_t *soa, const float *limit_c,
                      const float *trip_c, float throttle_at,
@@ -317,7 +286,6 @@ static void soa_from(thermal_soa_t *soa, const float *limit_c,
   soa->throttle_at = throttle_at;
   soa->lookahead_s = lookahead_s;
 }
-
 
 /** The envelope, flattened. */
 API void thm_budget_capped(const thermal_t *th, const float *watt,
@@ -354,7 +322,6 @@ API void thm_budget_capped(const thermal_t *th, const float *watt,
   }
 }
 
-
 /** The envelope with the trip on `limit_c` itself: every caller before
     2026-09-08, and the shape the suites' Model calls by default. */
 API void thm_budget(const thermal_t *th, const float *watt,
@@ -364,7 +331,6 @@ API void thm_budget(const thermal_t *th, const float *watt,
   thm_budget_capped(th, watt, limit_c, NULL, throttle_at, lookahead_s,
                     undriven, out);
 }
-
 
 /** One node's own clamp factor under the same envelope. */
 API float thm_node_derate(const thermal_t *th, const float *watt,
@@ -387,7 +353,6 @@ API float thm_node_derate(const thermal_t *th, const float *watt,
   return thermal_node_derate(th, &p, &soa, (thermal_node_t)node);
 }
 
-
 /** The junction on a node at a power split. */
 API float thm_junction(const thermal_t *th, const float *watt, int node)
 {
@@ -404,7 +369,6 @@ API float thm_junction(const thermal_t *th, const float *watt, int node)
   }
   return thermal_junction(th, &p, (thermal_node_t)node);
 }
-
 
 /** The power estimator. */
 API void thm_power_r(const float *load, const float *phase_c, float r_phase,
@@ -432,12 +396,10 @@ API void thm_power_r(const float *load, const float *phase_c, float r_phase,
   }
 }
 
-
 API void thm_power(const float *load, const float *phase_c, float *out)
 {
   thm_power_r(load, phase_c, 0.0f, out);
 }
-
 
 API float thm_coss_energy(float volts)
 {
@@ -447,14 +409,12 @@ API float thm_coss_energy(float volts)
   return thermal_coss_energy(&loss, volts);
 }
 
-
 /* THE IDENTIFICATION beside an observer. */
 typedef struct
 {
   thermal_ident_t id;
   thermal_cfg_t base;
 } ident_box_t;
-
 
 API void *thm_ident_new(const thermal_t *th, float noise_k)
 {
@@ -468,13 +428,10 @@ API void *thm_ident_new(const thermal_t *th, float noise_k)
   return box;
 }
 
-
 API void thm_ident_free(void *box)
 {
   free(box);
 }
-
-
 
 /** One step of observer AND identifier: the scales applied to the observer,
     the observer stepped on the sensors, the identifier stepped beside it,
@@ -519,7 +476,6 @@ API int thm_ident_run(void *box, thermal_t *th, const float *watt,
   return moved ? 1 : 0;
 }
 
-
 API float thm_ident_scale(const void *box, int which)
 {
   if ((box == NULL) || (which < 0) || (which >= THERMAL_IDENT_PARAMS))
@@ -528,7 +484,6 @@ API float thm_ident_scale(const void *box, int which)
   }
   return ((const ident_box_t *)box)->id.scale[which];
 }
-
 
 API float thm_ident_sigma(const void *box, int which)
 {
@@ -540,24 +495,20 @@ API float thm_ident_sigma(const void *box, int which)
                              (thermal_ident_param_t)which);
 }
 
-
 API int thm_ident_state(const void *box)
 {
   return (box == NULL) ? -1 : (int)((const ident_box_t *)box)->id.state;
 }
-
 
 API float thm_ident_innovation(const void *box)
 {
   return (box == NULL) ? NAN : ((const ident_box_t *)box)->id.innovation_k;
 }
 
-
 API int thm_ident_updates(const void *box)
 {
   return (box == NULL) ? -1 : (int)((const ident_box_t *)box)->id.updates;
 }
-
 
 API float thm_ident_margin(const void *box, float floor)
 {
@@ -566,13 +517,11 @@ API float thm_ident_margin(const void *box, float floor)
                        : NAN;
 }
 
-
 API float thm_ident_doubt(const void *box)
 {
   return (box != NULL) ? thermal_ident_doubt(&((const ident_box_t *)box)->id)
                        : NAN;
 }
-
 
 API float thm_ident_ambient(const void *box)
 {
@@ -580,13 +529,10 @@ API float thm_ident_ambient(const void *box)
                        : NAN;
 }
 
-
-
 API int thm_ident_online(int which)
 {
   return thermal_ident_online((thermal_ident_param_t)which) ? 1 : 0;
 }
-
 
 /** The loss constants, LOSS_ORDER, so a test can check the split against the
     parts rather than against a number typed twice. */

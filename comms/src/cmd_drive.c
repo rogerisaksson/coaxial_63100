@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    cmd_drive.c
-  * @brief   The control law's operations behind command 0x6E, device 10.
-  ******************************************************************************
-  */
+/** cmd_drive.c - The control law's operations behind command 0x6E, device 10. */
 #include "cmd.h"
 #include "board.h"
 #include "board_drive.h"
@@ -12,18 +7,15 @@
 
 #include <math.h>
 
-
 static int32_t micro_of(float x)
 {
   return (int32_t)lrintf(x * MICRO_PER_UNIT);
 }
 
-
 static int32_t milli_of(float x)
 {
   return (int32_t)lrintf(x * MILLI_PER_UNIT);
 }
-
 
 /** op 0 - what the drive is doing, from one interrupt's worth of state. */
 static cmd_status_t h_drive_state(wr_t *out)
@@ -69,7 +61,6 @@ static cmd_status_t h_drive_state(wr_t *out)
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
-
 /** op 1 - enter a mode. The refusals are the drive's own words. */
 static cmd_status_t h_drive_mode(rd_t *in, wr_t *out)
 {
@@ -82,7 +73,6 @@ static cmd_status_t h_drive_mode(rd_t *in, wr_t *out)
   wr_took(out, Board_DriveSetMode(mode));
   return CMD_OK;
 }
-
 
 /** op 2 - one setpoint, by id, in its integer unit. */
 static cmd_status_t h_drive_setpoint(rd_t *in, wr_t *out)
@@ -98,7 +88,6 @@ static cmd_status_t h_drive_setpoint(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 3 - every setpoint as the drive holds it. */
 static cmd_status_t h_drive_setpoints(wr_t *out)
 {
@@ -113,7 +102,6 @@ static cmd_status_t h_drive_setpoints(wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 4 - put both frames at an angle: the polarity flip, or a start. */
 static cmd_status_t h_drive_theta(rd_t *in, wr_t *out)
 {
@@ -127,7 +115,6 @@ static cmd_status_t h_drive_theta(rd_t *in, wr_t *out)
   wr_took(out, NULL);
   return CMD_OK;
 }
-
 
 static void wr_field(wr_t *out, const drive_acc_t *a, float scale)
 {
@@ -146,7 +133,6 @@ static void wr_field(wr_t *out, const drive_acc_t *a, float scale)
   wr_i32(out, (int32_t)lrint(mean * (double)scale));
   wr_u32(out, (uint32_t)lrint(sqrt(var) * (double)scale));
 }
-
 
 /** op 5 - the window since the last take: means, deviations, and the
     innovation's autocorrelation for the whiteness test. */
@@ -176,7 +162,6 @@ static cmd_status_t h_drive_window(wr_t *out)
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
-
 /** op 6 - count raw codes at the sample point for this many periods. */
 static cmd_status_t h_drive_moments_arm(rd_t *in, wr_t *out)
 {
@@ -196,7 +181,6 @@ static cmd_status_t h_drive_moments_arm(rd_t *in, wr_t *out)
   wr_took(out, NULL);
   return CMD_OK;
 }
-
 
 /** op 7 - the moments so far: mean, deviation, lowest, highest per channel,
     in codes. */
@@ -232,7 +216,6 @@ static cmd_status_t h_drive_moments(wr_t *out)
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
-
 /** op 8 - take the parameters out of the record again. */
 static cmd_status_t h_drive_reload(wr_t *out)
 {
@@ -240,7 +223,6 @@ static cmd_status_t h_drive_reload(wr_t *out)
   wr_took(out, NULL);
   return CMD_OK;
 }
-
 
 /** op 10 - where the samples come from. */
 static cmd_status_t h_drive_source(rd_t *in, wr_t *out)
@@ -255,7 +237,6 @@ static cmd_status_t h_drive_source(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 11 - one model parameter, by id, in its integer unit. */
 static cmd_status_t h_drive_model_param(rd_t *in, wr_t *out)
 {
@@ -269,7 +250,6 @@ static cmd_status_t h_drive_model_param(rd_t *in, wr_t *out)
   wr_took(out, Board_DriveModelParam(id, value));
   return CMD_OK;
 }
-
 
 /** op 12 - the model's truth: the rotor the rotor observer is judged by. */
 static cmd_status_t h_drive_model(wr_t *out)
@@ -288,7 +268,6 @@ static cmd_status_t h_drive_model(wr_t *out)
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
-
 /** op 13 - the rotor back to theta0, at rest. */
 static cmd_status_t h_drive_model_reset(wr_t *out)
 {
@@ -297,7 +276,6 @@ static cmd_status_t h_drive_model_reset(wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 9 - forget the worst step cost, so a run is measured on its own. */
 static cmd_status_t h_drive_cycles_reset(wr_t *out)
 {
@@ -305,7 +283,6 @@ static cmd_status_t h_drive_cycles_reset(wr_t *out)
   wr_u8(out, 1U);
   return CMD_OK;
 }
-
 
 /** op 14 - the back-EMF observer chain, drive_observer.c. */
 static cmd_status_t h_drive_observers(wr_t *out)
@@ -333,7 +310,6 @@ static cmd_status_t h_drive_observers(wr_t *out)
   wr_i32(out, milli_of(o->wc));
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
-
 
 cmd_status_t cmd_drive_op(uint8_t op, rd_t *in, wr_t *out)
 {

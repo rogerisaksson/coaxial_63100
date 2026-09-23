@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    drive_model.c
-  * @brief   A PMSM and an inverter in front of it, for the drive to run
-  *          against when the converters cannot answer.
-  ******************************************************************************
-  */
+/** drive_model.c - A PMSM and an inverter in front of it, for the drive to
+    run against when the converters cannot answer. */
 #include "drive.h"
 
 #include <math.h>
@@ -22,7 +17,6 @@
 #define TWO_PI_F    6.2831853f
 #define HALF_SQRT3  0.8660254f
 #define INV_SQRT3   0.57735027f
-
 
 void drive_model_defaults(drive_model_params_t *p)
 {
@@ -47,7 +41,6 @@ void drive_model_defaults(drive_model_params_t *p)
   p->sub = 4U;
 }
 
-
 void drive_model_init(drive_model_t *m)
 {
   m->theta = drive_wrap(m->p.theta0);
@@ -60,7 +53,6 @@ void drive_model_init(drive_model_t *m)
   m->s = 0.0f;
   memset(m->i_abc, 0, sizeof(m->i_abc));
 }
-
 
 /** Roughly Gaussian, cheap: three uniforms from an LCG, centred. */
 static float model_noise(drive_model_t *m, float sd)
@@ -80,12 +72,10 @@ static float model_noise(drive_model_t *m, float sd)
   return sum * 2.0f * sd;                 /* three uniforms: sd is 0.5 */
 }
 
-
 static float model_ld(const drive_model_t *m)
 {
   return m->p.ld * (1.0f - m->p.sat * tanhf(m->id / m->p.i_sat));
 }
-
 
 void drive_model_sample(drive_model_t *m, drive_sample_t *out)
 {
@@ -105,7 +95,6 @@ void drive_model_sample(drive_model_t *m, drive_sample_t *out)
   }
   out->vdc = m->p.vdc;
 }
-
 
 void drive_model_advance(drive_model_t *m, const float *duty, float ts)
 {
@@ -156,7 +145,6 @@ void drive_model_advance(drive_model_t *m, const float *duty, float ts)
   }
   m->theta = drive_wrap(m->theta);
 }
-
 
 bool drive_step_virtual(drive_t *d, drive_out_t *out)
 {

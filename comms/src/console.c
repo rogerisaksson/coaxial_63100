@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    console.c
-  * @brief   printf retarget and the three-key ASCII console. See console.h.
-  ******************************************************************************
-  */
+/** console.c - printf retarget and the three-key ASCII console. */
 #include "console.h"
 #include "dev_serial.h"
 #include "board.h"
@@ -14,7 +9,6 @@
 #include "version.h"
 
 #include <stdio.h>
-
 
 /* The boot banner. */
 void Console_Banner(void)

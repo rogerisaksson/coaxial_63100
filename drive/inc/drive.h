@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    drive.h
-  * @brief   The control law: one PWM period in, three duties out.
-  ******************************************************************************
-  */
+/** drive.h - The control law: one PWM period in, three duties out. */
 #ifndef DRIVE_H
 #define DRIVE_H
 

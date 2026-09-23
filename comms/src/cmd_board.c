@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    cmd_board.c
-  * @brief   The command table for this board: the old ASCII reports, in binary.
-  ******************************************************************************
-  */
+/** cmd_board.c - The command table for this board: the old ASCII reports, in
+    binary. */
 #include <string.h>
 
 #include "cmd.h"
@@ -521,7 +517,6 @@ static cmd_status_t h_channels(rd_t *in, wr_t *out)
     default:                  return CMD_ERR_VALUE;
   }
 }
-
 
 /* The whole command set, in one place. */
 static const cmd_desc_t CMD_TABLE[] =

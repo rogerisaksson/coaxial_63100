@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    modbus_crc.c
-  * @brief   CRC-16/MODBUS, bit-serial.
-  ******************************************************************************
-  */
+/** modbus_crc.c - CRC-16/MODBUS, bit-serial. */
 #include "modbus_crc.h"
 
 /* Bit-serial rather than a 512-byte table. */

@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    harness.c
-  * @brief   A data model and a flat C API, so the portable core can be driven
-  *          from host/tests/test_modbus_core.py through ctypes.
-  ******************************************************************************
-  */
+/** harness.c - A data model and a flat C API, so the portable core can be
+    driven from host/tests/test_modbus_core.py through ctypes. */
 #include "modbus_crc.h"
 #include "modbus_rtu.h"
 #include "modbus_slave.h"

@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    drive_math.c
-  * @brief   The frame transforms, the modulator and the dead-time table.
-  ******************************************************************************
-  */
+/** drive_math.c - The frame transforms, the modulator and the dead-time
+    table. */
 #include "drive.h"
 
 #include <math.h>
@@ -14,13 +10,11 @@
 #define INV_SQRT3   0.57735027f
 #define HALF_SQRT3  0.8660254f
 
-
 void drive_clarke(const float *iabc, float *alpha, float *beta)
 {
   *alpha = (2.0f * iabc[0] - iabc[1] - iabc[2]) / 3.0f;
   *beta  = (iabc[1] - iabc[2]) * INV_SQRT3;
 }
-
 
 void drive_park_cs(float alpha, float beta, float c, float s, float *d,
                    float *q)
@@ -29,14 +23,12 @@ void drive_park_cs(float alpha, float beta, float c, float s, float *d,
   *q = beta * c - alpha * s;
 }
 
-
 void drive_inv_park_cs(float d, float q, float c, float s, float *alpha,
                        float *beta)
 {
   *alpha = d * c - q * s;
   *beta  = d * s + q * c;
 }
-
 
 void drive_sincos(float theta, float *s, float *c)
 {
@@ -72,7 +64,6 @@ void drive_sincos(float theta, float *s, float *c)
              + c2 * (-1.9841270e-4f + c2 * 2.7557319e-6f))));
 }
 
-
 void drive_park(float alpha, float beta, float theta, float *d, float *q)
 {
   float s, c;
@@ -81,7 +72,6 @@ void drive_park(float alpha, float beta, float theta, float *d, float *q)
   drive_park_cs(alpha, beta, c, s, d, q);
 }
 
-
 void drive_inv_park(float d, float q, float theta, float *alpha, float *beta)
 {
   float s, c;
@@ -89,7 +79,6 @@ void drive_inv_park(float d, float q, float theta, float *alpha, float *beta)
   drive_sincos(theta, &s, &c);
   drive_inv_park_cs(d, q, c, s, alpha, beta);
 }
-
 
 float drive_svm(float valpha, float vbeta, float vdc, float *duty)
 {
@@ -145,7 +134,6 @@ float drive_svm(float valpha, float vbeta, float vdc, float *duty)
   return scale;
 }
 
-
 float drive_wrap(float theta)
 {
   /* The two compares first: a step moves an angle by a fraction of a turn,
@@ -165,7 +153,6 @@ float drive_wrap(float theta)
   theta -= TWO_PI * floorf(theta / TWO_PI);
   return (theta >= TWO_PI) ? 0.0f : theta;
 }
-
 
 float drive_dt_volts(const drive_params_t *p, float amps)
 {

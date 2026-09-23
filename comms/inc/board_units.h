@@ -1,14 +1,6 @@
-/**
-  ******************************************************************************
-  * @file    board_units.h
-  * @brief   What the cooked readings and the record count in: milli- and
-  *          micro-units of a volt, an amp, an ohm, a radian, a second or a
-  *          watt, centi-units of a degree, ratios in parts per million.
-  *          Each factor once, not 1000.0f at every conversion. Shared by
-  *          the board layer and the command handlers, so it sits beside
-  *          board.h.
-  ******************************************************************************
-  */
+/** board_units.h - What the cooked readings and the record count in: milli-
+    and micro-units of a volt, an amp, an ohm, a radian, a second or a watt,
+    centi-units of a degree, ratios in parts per million. */
 #ifndef BOARD_UNITS_H
 #define BOARD_UNITS_H
 

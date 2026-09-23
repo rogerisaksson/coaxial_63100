@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    console.h
-  * @brief   The ASCII console on USART3.
-  ******************************************************************************
-  */
+/** console.h - The ASCII console on USART3. */
 #ifndef CONSOLE_H
 #define CONSOLE_H
 

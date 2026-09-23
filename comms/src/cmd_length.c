@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    cmd_length.c
-  * @brief   The request-length oracle: which PDUs end where their bytes say.
-  ******************************************************************************
-  */
+/** cmd_length.c - The request-length oracle: which PDUs end where their bytes
+    say. */
 #include "cmd_length.h"
 
 #include "cmd.h"

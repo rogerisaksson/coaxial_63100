@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    cmd_imu.c
-  * @brief   The BNO08X commands: raw cargo out, and the one request that
-  *          proves the link is real.
-  ******************************************************************************
-  */
+/** cmd_imu.c - The BNO08X commands: raw cargo out, and the one request that
+    proves the link is real. */
 #include <string.h>
 #include "comms_limits.h"
 #include "cmd.h"
@@ -255,7 +250,6 @@ static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
     wr_u16(out, (uint16_t)st.real);
   }
 
-
   /* What the part was asked to report, and whether that request still has to
      be re-made. */
   uint8_t asked_id = 0U;
@@ -328,7 +322,6 @@ static bool imu_held(void)
   Board_ImuState(&st);
   return st.loop == BOARD_IMU_LOOP_HELD;
 }
-
 
 cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out)
 {

@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    modbus_rtu.h
-  * @brief   Modbus RTU transport: framing, addressing, CRC. Portable.
-  ******************************************************************************
-  */
+/** modbus_rtu.h - Modbus RTU transport: framing, addressing, CRC. */
 #ifndef MODBUS_RTU_H
 #define MODBUS_RTU_H
 

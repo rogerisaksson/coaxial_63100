@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    cmd_link.c
-  * @brief   The serial ports' operations behind command 0x6E, device 2.
-  ******************************************************************************
-  */
+/** cmd_link.c - The serial ports' operations behind command 0x6E, device 2. */
 #include "cmd.h"
 #include "link.h"
 #include "dev_serial.h"

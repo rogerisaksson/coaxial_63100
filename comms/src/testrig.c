@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    testrig.c
-  * @brief   Raw pin access. See testrig.h for what is refused and why.
-  ******************************************************************************
-  */
+/** testrig.c - Raw pin access. */
 #include "testrig.h"
 
 #include "board.h"

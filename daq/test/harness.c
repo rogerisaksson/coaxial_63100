@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    harness.c
-  * @brief   A flat C API over daq/, so test_daq_core.py can run the
-  *          acquisition engine on the host through ctypes.
-  ******************************************************************************
-  */
+/** harness.c - A flat C API over daq/, so test_daq_core.py can run the
+    acquisition engine on the host through ctypes. */
 #include "daq.h"
 
 #include <string.h>

@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    drive_observer.c
-  * @brief   The back-EMF observer chain: dual flux low, plain flux high.
-  ******************************************************************************
-  */
+/** drive_observer.c - The back-EMF observer chain: dual flux low, plain flux
+    high. */
 #include "drive.h"
 
 #include <math.h>
@@ -24,7 +20,6 @@ static float wrap(float a)
   }
   return a;
 }
-
 
 void drive_observer_init(drive_obs_t *o, const drive_params_t *p, float ts)
 {
@@ -63,7 +58,6 @@ void drive_observer_init(drive_obs_t *o, const drive_params_t *p, float ts)
   o->ts = (ts > 0.0f) ? ts : 20e-6f;
 }
 
-
 void drive_observer_sync(drive_obs_t *o, const drive_params_t *p,
                          float theta, float omega)
 {
@@ -87,7 +81,6 @@ void drive_observer_sync(drive_obs_t *o, const drive_params_t *p,
     o->lambda_hat = lam;
   }
 }
-
 
 /** The dual model: the voltage integrator, pulled toward the current model
     at `cross`, and a PLL on the rotor flux that comes out. */
@@ -117,7 +110,6 @@ static void step_dual(drive_obs_t *o, const drive_params_t *p,
   o->pll_theta = wrap(o->pll_theta + (o->pll_omega + o->pll_kp * eps) * ts);
   o->dual_theta = o->pll_theta;
 }
-
 
 /** The plain model: a leaking integrator, and the leak's cost put back. */
 static void step_flux(drive_obs_t *o, const drive_params_t *p,
@@ -163,7 +155,6 @@ static void step_flux(drive_obs_t *o, const drive_params_t *p,
     o->flux_omega += ((a < 1.0f) ? a : 1.0f) * (raw - o->flux_omega);
   }
 }
-
 
 void drive_observer_step(drive_obs_t *o, const drive_params_t *p,
                          float va, float vb, float ia, float ib, float ts)

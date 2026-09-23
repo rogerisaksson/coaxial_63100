@@ -1,14 +1,7 @@
-/**
-  ******************************************************************************
-  * @file    board_clock.c
-  * @brief   Identity, clock tree queries, and the cycle-counter timebase.
-  ******************************************************************************
-  */
+/** board_clock.c - Identity, clock tree queries, and the cycle-counter
+    timebase. */
 #include "board.h"
 #include "board_hw.h"
-
-
-
 
 /* ---- board seam for the comms stack ------------------------------------ */
 /* Declared in comms/inc/board.h. */
@@ -36,7 +29,6 @@ uint32_t Board_AdcClockHz(void)
 
   return kernel / divider[presc & 0xFU];
 }
-
 
 uint32_t Board_HclkHz(void)
 {

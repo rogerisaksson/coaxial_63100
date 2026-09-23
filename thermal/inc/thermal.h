@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    thermal.h
-  * @brief   Lumped-network thermal observer: what each region of the board,
-  *          and of the motor behind it, is at.
-  ******************************************************************************
-  */
+/** thermal.h - Lumped-network thermal observer: what each region of the
+    board, and of the motor behind it, is at. */
 #ifndef THERMAL_H
 #define THERMAL_H
 

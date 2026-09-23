@@ -1,11 +1,6 @@
-/**
-  ******************************************************************************
-  * @file    boot_main.c
-  * @brief   The bootloader's hardware: reset, the pins, the clocks, the two
-  *          RS485 USARTs and the console, the flash controller, the RTU loop
-  *          and the jump. The only file in boot/ that touches a register.
-  ******************************************************************************
-  */
+/** boot_main.c - The bootloader's hardware: reset, the pins, the clocks, the
+    two RS485 USARTs and the console, the flash controller, the RTU loop and
+    the jump. */
 #include "boot.h"
 #include "cmd.h"
 #include "modbus_rtu.h"

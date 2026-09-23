@@ -1,20 +1,12 @@
-/**
-  ******************************************************************************
-  * @file    board_limits.h
-  * @brief   The DRIVERS' fixed numbers, and why each is that number.
-  ******************************************************************************
-  */
+/** board_limits.h - The DRIVERS' fixed numbers, and why each is that number. */
 #ifndef BOARD_LIMITS_H
 #define BOARD_LIMITS_H
-
 
 /* ---- THE GATE STAGE ---------------------------------------------------- */
 
 /* Dead time, at runtime. */
 
 #define BOARD_PWM_DEADTIME_MIN_NS 20U
-
-
 
 #define BOARD_PWM_DTG_MAX 127U
 
@@ -56,9 +48,6 @@
 
 #define IMU_RESET_WAIT_MS 120U
 
-
-
-
 /* How long the part must have been quiet before a Set Feature goes out. */
 
 #define IMU_QUIET_MS 60U
@@ -68,8 +57,6 @@
 /* Well under the datasheet's 10 MHz ceiling. */
 
 #define ANGLE_MAX_HZ 3000000U
-
-
 
 /* tCS is 50 ns to the first clock edge and tCS_IDLE is 200 ns between
    frames. */
@@ -82,8 +69,6 @@
 
 /* THE ACQUISITION RING, in the AXI SRAM rather than DTCM. */
 #define DAQ_BYTES (448U * 1024U)
-
-
 
 /** Most samples the running accumulator may take before it stops widening. */
 
@@ -121,12 +106,8 @@
 /** The most catch-up one poll will integrate, milliseconds. */
 #define THERMAL_CATCHUP_MS 2000U
 
-
-
 /** How often the rail is borrowed for a sample, by default. */
 #define THERMAL_SAMPLE_EVERY_MS 30000U
-
-
 
 /** Settle before the sample is believed. */
 

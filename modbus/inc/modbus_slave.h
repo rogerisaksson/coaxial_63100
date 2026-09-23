@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    modbus_slave.h
-  * @brief   Portable Modbus server (slave) PDU engine.
-  ******************************************************************************
-  */
+/** modbus_slave.h - Portable Modbus server (slave) PDU engine. */
 #ifndef MODBUS_SLAVE_H
 #define MODBUS_SLAVE_H
 

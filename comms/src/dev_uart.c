@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    dev_uart.c
-  * @brief   The board's three serial ports as dev_serial_t, and the only file
-  *          that touches a USART or its interrupt.
-  ******************************************************************************
-  */
+/** dev_uart.c - The board's three serial ports as dev_serial_t, and the only
+    file that touches a USART or its interrupt. */
 #include "comms_limits.h"
 #include "board.h"
 #include "dev_serial.h"

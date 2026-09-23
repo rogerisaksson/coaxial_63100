@@ -1,11 +1,6 @@
-/**
-  ******************************************************************************
-  * @file    thermal_ident.c
-  * @brief   Online identification of the graph's scales: a shadow run open
-  *          loop, its sensitivities by finite differences, recursive least
-  *          squares on the prediction error at every sample.
-  ******************************************************************************
-  */
+/** thermal_ident.c - Online identification of the graph's scales: a shadow
+    run open loop, its sensitivities by finite differences, recursive least
+    squares on the prediction error at every sample. */
 #include "thermal_ident.h"
 
 #include <math.h>
@@ -110,7 +105,6 @@ static const float VAR_MAX[THERMAL_IDENT_PARAMS] = { 1.0f, 1.0f, 1.0f, 1.0f,
     thermal_t is too big to put on the main loop's stack nine times a slice. */
 static thermal_t s_probe;
 
-
 static void clamp_scales(thermal_ident_t *id)
 {
   for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
@@ -137,7 +131,6 @@ static void clamp_scales(thermal_ident_t *id)
   }
 }
 
-
 static void set_covariance(thermal_ident_t *id, float sigma)
 {
   memset(id->p, 0, sizeof(id->p));
@@ -151,7 +144,6 @@ static void set_covariance(thermal_ident_t *id, float sigma)
     id->p[k][k] = s * s;
   }
 }
-
 
 void thermal_ident_init(thermal_ident_t *id, float ambient_c, float noise_k)
 {
@@ -172,12 +164,10 @@ void thermal_ident_init(thermal_ident_t *id, float ambient_c, float noise_k)
   id->state = THERMAL_IDENT_UNCERTAIN;
 }
 
-
 float thermal_ident_ambient(const thermal_ident_t *id)
 {
   return (id != NULL) ? id->scale[THERMAL_IDENT_AMBIENT] : NAN;
 }
-
 
 /** `out` = `base` with `scale` applied - the same rule for the observer's
     configuration and for the probes the sensitivities are taken with. */
@@ -204,7 +194,6 @@ static void apply(const float *scale, const thermal_cfg_t *base,
   out->ntc_sees = base->ntc_sees * scale[THERMAL_IDENT_NTC];
 }
 
-
 void thermal_ident_apply(const thermal_ident_t *id, const thermal_cfg_t *base,
                          thermal_cfg_t *out)
 {
@@ -214,7 +203,6 @@ void thermal_ident_apply(const thermal_ident_t *id, const thermal_cfg_t *base,
   }
   apply(id->scale, base, out);
 }
-
 
 /** The rate of every node, K/s, at a state and configuration: the net flows
     over the capacities. */
@@ -231,7 +219,6 @@ static void rates(const thermal_t *th, const thermal_power_t *p,
     out[i] = (c > 0.0f) ? (net[i] / c) : 0.0f;
   }
 }
-
 
 /** One slice of the shadow and its sensitivities. */
 static void propagate(thermal_ident_t *id, const thermal_cfg_t *base,
@@ -346,7 +333,6 @@ static void propagate(thermal_ident_t *id, const thermal_cfg_t *base,
   }
 }
 
-
 /** Seat the shadow on the observer and forget the sensitivities: the next
     innovation is a prediction error from here. */
 static void reseat(thermal_ident_t *id, const thermal_t *th,
@@ -409,7 +395,6 @@ static void reseat(thermal_ident_t *id, const thermal_t *th,
     id->seat_reading[1 + d] = readings[d];
   }
 }
-
 
 /** One recursive least-squares update on one thermometer's innovation. */
 static bool update(thermal_ident_t *id, const float *h_all, float innovation)
@@ -475,7 +460,6 @@ static bool update(thermal_ident_t *id, const float *h_all, float innovation)
   return true;
 }
 
-
 /** Whether every online quantity is known to within its own threshold - a
     scale to a fraction, the room to kelvin. */
 static bool known(const thermal_ident_t *id, const float *threshold)
@@ -491,7 +475,6 @@ static bool known(const thermal_ident_t *id, const float *threshold)
   return true;
 }
 
-
 /** THE ROOM IS RESET WHEN THE MODEL STOPS PREDICTING. */
 static void room_reset(thermal_ident_t *id)
 {
@@ -504,7 +487,6 @@ static void room_reset(thermal_ident_t *id)
   }
   id->p[a][a] = PRIOR_SIGMA[a] * PRIOR_SIGMA[a];
 }
-
 
 /** The state after a sample: what the covariance and the innovation say the
     model is worth, and the inflation that lets a model that has just stopped
@@ -578,7 +560,6 @@ static void judge(thermal_ident_t *id)
       break;
   }
 }
-
 
 bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
                         const thermal_cfg_t *base, const thermal_power_t *p,
@@ -742,7 +723,6 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
   return false;
 }
 
-
 float thermal_ident_sigma(const thermal_ident_t *id,
                           thermal_ident_param_t which)
 {
@@ -755,12 +735,10 @@ float thermal_ident_sigma(const thermal_ident_t *id,
   return (var > 0.0f) ? sqrtf(var) : 0.0f;
 }
 
-
 static float unit(float x)
 {
   return (x < 0.0f) ? 0.0f : ((x > 1.0f) ? 1.0f : x);
 }
-
 
 float thermal_ident_doubt(const thermal_ident_t *id)
 {
@@ -790,7 +768,6 @@ float thermal_ident_doubt(const thermal_ident_t *id)
   }
   return doubt;
 }
-
 
 float thermal_ident_margin(const thermal_ident_t *id, float floor)
 {

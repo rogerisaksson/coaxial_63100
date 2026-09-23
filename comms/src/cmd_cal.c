@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    cmd_cal.c
-  * @brief   The calibration record's operations behind command 0x6E, device 3.
-  ******************************************************************************
-  */
+/** cmd_cal.c - The calibration record's operations behind command 0x6E,
+    device 3. */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"

@@ -1,18 +1,11 @@
-/**
-  ******************************************************************************
-  * @file    cmd_thermal.c
-  * @brief   The thermal observer behind 0x6E, device 8.
-  ******************************************************************************
-  */
+/** cmd_thermal.c - The thermal observer behind 0x6E, device 8. */
 #include "board.h"
 #include "cmd.h"
 #include "wire.h"
 #include "board_units.h"
 
-
 /** Nodes a page of op 7 carries: five i32 each, so ten fit a frame. */
 #define NODES_A_PAGE 10U
-
 
 static cmd_status_t h_thermal_state(wr_t *out)
 {
@@ -63,7 +56,6 @@ static cmd_status_t h_thermal_state(wr_t *out)
   return CMD_OK;
 }
 
-
 static cmd_status_t h_thermal_set_node(rd_t *in, wr_t *out)
 {
   const uint8_t node = rd_u8(in);
@@ -95,7 +87,6 @@ static cmd_status_t h_thermal_set_node(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 static cmd_status_t h_thermal_set_board(rd_t *in, wr_t *out)
 {
   const int32_t to_ambient = rd_i32(in);
@@ -121,7 +112,6 @@ static cmd_status_t h_thermal_set_board(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 static cmd_status_t h_thermal_set_sample(rd_t *in, wr_t *out)
 {
   const uint32_t every_ms = rd_u32(in);
@@ -145,7 +135,6 @@ static cmd_status_t h_thermal_set_sample(rd_t *in, wr_t *out)
   wr_took(out, NULL);
   return CMD_OK;
 }
-
 
 /** op 4 - what is left of the thermal budget. */
 static cmd_status_t h_thermal_budget(wr_t *out)
@@ -186,7 +175,6 @@ static cmd_status_t h_thermal_budget(wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 6 - the winding's envelope: ceiling, K/W and J/K, milli-units. */
 static cmd_status_t h_thermal_set_winding(rd_t *in, wr_t *out)
 {
@@ -216,7 +204,6 @@ static cmd_status_t h_thermal_set_winding(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 static cmd_status_t h_thermal_set_limit(rd_t *in, wr_t *out)
 {
   const uint8_t node = rd_u8(in);
@@ -241,7 +228,6 @@ static cmd_status_t h_thermal_set_limit(rd_t *in, wr_t *out)
   wr_took(out, NULL);
   return CMD_OK;
 }
-
 
 /** op 7 - the node table from `first`, NODES_A_PAGE at most: capacity in
     milli J/K, the air path in milli K/W (0: none), the area share in ppm,
@@ -286,7 +272,6 @@ static cmd_status_t h_thermal_nodes(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 8 - every edge: the two nodes it joins and the K/W across it in milli,
     zero for an open one. */
 static cmd_status_t h_thermal_edges(wr_t *out)
@@ -307,7 +292,6 @@ static cmd_status_t h_thermal_edges(wr_t *out)
   }
   return CMD_OK;
 }
-
 
 /** op 9 - one edge's K/W, milli; negative opens it. */
 static cmd_status_t h_thermal_set_edge(rd_t *in, wr_t *out)
@@ -338,7 +322,6 @@ static cmd_status_t h_thermal_set_edge(rd_t *in, wr_t *out)
   wr_took(out, NULL);
   return CMD_OK;
 }
-
 
 /** op 10 - the identification beside the observer. */
 static cmd_status_t h_thermal_ident(wr_t *out)
@@ -373,7 +356,6 @@ static cmd_status_t h_thermal_ident(wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 11 - forget what was identified: the margin back at the floor. */
 static cmd_status_t h_thermal_ident_reset(wr_t *out)
 {
@@ -385,7 +367,6 @@ static cmd_status_t h_thermal_ident_reset(wr_t *out)
   wr_took(out, NULL);
   return CMD_OK;
 }
-
 
 /** op 12 - the margin floor, ppm of every ceiling's span, into the record;
     cal op 2 is what persists it. */
@@ -411,7 +392,6 @@ static cmd_status_t h_thermal_set_margin(rd_t *in, wr_t *out)
   wr_took(out, NULL);
   return CMD_OK;
 }
-
 
 cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
 {

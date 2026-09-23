@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    cmd_log.c
-  * @brief   The measurement ring's operations behind command 0x6E, device 5.
-  ******************************************************************************
-  */
+/** cmd_log.c - The measurement ring's operations behind command 0x6E, device
+    5. */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"
@@ -11,7 +7,6 @@
 /** Wire size of one record. */
 #define LOG_RECORD_BYTES 14U
 #define LOG_MAX_BURST    15U
-
 
 static cmd_status_t h_log_state(wr_t *out)
 {
@@ -23,7 +18,6 @@ static cmd_status_t h_log_state(wr_t *out)
   wr_u32(out, Board_LogThinned());
   return CMD_OK;
 }
-
 
 /** op 1 - arm a bitmask of sources and empty the ring. */
 static cmd_status_t h_log_arm(rd_t *in, wr_t *out)
@@ -50,7 +44,6 @@ static cmd_status_t h_log_arm(rd_t *in, wr_t *out)
   wr_u8(out, 1U);
   return CMD_OK;
 }
-
 
 /** op 2 - take up to `want` records, oldest first, and free their slots. */
 static cmd_status_t h_log_take(rd_t *in, wr_t *out)
@@ -83,7 +76,6 @@ static cmd_status_t h_log_take(rd_t *in, wr_t *out)
   }
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
-
 
 cmd_status_t cmd_log_op(uint8_t op, rd_t *in, wr_t *out)
 {

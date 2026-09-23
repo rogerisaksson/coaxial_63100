@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    cmd.h
-  * @brief   Request/response command layer. Protocol-agnostic, table-driven.
-  ******************************************************************************
-  */
+/** cmd.h - Request/response command layer. */
 #ifndef CMD_H
 #define CMD_H
 
@@ -207,7 +202,6 @@ cmd_status_t cmd_power_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_drive_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_boot_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);
-
 
 /** One subsystem: a command table, named, with what it is for. */
 typedef struct

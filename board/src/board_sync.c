@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board_sync.c
-  * @brief   Phase current sampled where the stage is quiet: TIM1 triggers,
-  *          three ADCs convert at once, this latches the result.
-  ******************************************************************************
-  */
+/** board_sync.c - Phase current sampled where the stage is quiet: TIM1
+    triggers, three ADCs convert at once, this latches the result. */
 #include "board.h"
 #include "board_irq.h"
 #include "board_drive.h"
@@ -35,7 +30,6 @@ extern ADC_HandleTypeDef hadc3;
 /** How far below the top OC5REF falls. */
 #define SYNC_TRIGGER_LEAD 15U
 
-
 /** The injected group's state: whether it is armed and ready, the trigger,
     the latest triple and the counts of updates and overruns. */
 static struct
@@ -54,7 +48,6 @@ static struct
   bool armed;
 } s;
 
-
 static void SYNC_ConfigTrigger(void)
 {
   if (s.trigger == 0U)
@@ -66,7 +59,6 @@ static void SYNC_ConfigTrigger(void)
   TIM1->CCR5 = s.trigger;
   MODIFY_REG(TIM1->CR2, TIM_CR2_MMS2, TIM_TRGO2_OC5REF);
 }
-
 
 bool Board_SyncSetTrigger(uint16_t ticks)
 {
@@ -80,7 +72,6 @@ bool Board_SyncSetTrigger(uint16_t ticks)
   TIM1->CCR5 = ticks;
   return true;
 }
-
 
 uint16_t Board_SyncTrigger(void)
 {
@@ -109,19 +100,16 @@ static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel,
   return (HAL_ADCEx_InjectedConfigChannel(hadc, &in) == HAL_OK);
 }
 
-
 bool Board_SyncArmed(void)
 {
   return s.armed;
 }
-
 
 bool Board_SyncReady(void)
 {
   /* A timer to trigger from, and that is all. */
   return Board_PwmReady();
 }
-
 
 bool Board_SyncMeanSquare(float *out)
 {
@@ -170,7 +158,6 @@ bool Board_SyncMeanSquare(float *out)
   return true;
 }
 
-
 void Board_SyncLatest(board_sync_sample_t *out)
 {
   if (out == NULL)
@@ -186,7 +173,6 @@ void Board_SyncLatest(board_sync_sample_t *out)
   *out = s.latest;
   Board_IrqRelease(masked);
 }
-
 
 void Board_SyncOnInjected(const void *hadc)
 {
@@ -226,12 +212,10 @@ void Board_SyncOnInjected(const void *hadc)
   }
 }
 
-
 void Board_SyncOverrun(void)
 {
   s.overruns++;
 }
-
 
 /* Scan mode on, once, on an ADC CubeMX generated without it - the two-rank
    injected sequence needs it. */
@@ -244,7 +228,6 @@ static const char *scan_mode_on(ADC_HandleTypeDef *adc, const char *refusal)
   adc->Init.ScanConvMode = ADC_SCAN_ENABLE;
   return (HAL_ADC_Init(adc) == HAL_OK) ? NULL : refusal;
 }
-
 
 const char *Board_SyncArm(void)
 {
@@ -313,7 +296,6 @@ const char *Board_SyncArm(void)
   return NULL;
 }
 
-
 void Board_SyncDisarm(void)
 {
   s.armed = false;
@@ -325,7 +307,6 @@ void Board_SyncDisarm(void)
     (void)HAL_ADCEx_InjectedStop(&hadc2);
   }
 }
-
 
 void Board_SyncState(board_sync_state_t *out)
 {
@@ -342,14 +323,12 @@ void Board_SyncState(board_sync_state_t *out)
   Board_SyncLatest(&out->latest);
 }
 
-
 /* HAL's weak callbacks, overridden here rather than in core/: main.c holds
    CubeMX functions and the two poll calls, and this is neither. */
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
   Board_SyncOnInjected(hadc);
 }
-
 
 void HAL_ADCEx_InjectedQueueOverflowCallback(ADC_HandleTypeDef *hadc)
 {

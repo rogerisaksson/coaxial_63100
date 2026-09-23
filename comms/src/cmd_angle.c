@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    cmd_angle.c
-  * @brief   The A1335's operations behind command 0x6E, device 1.
-  ******************************************************************************
-  */
+/** cmd_angle.c - The A1335's operations behind command 0x6E, device 1. */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"
@@ -147,7 +142,6 @@ static bool angle_held(void)
   Board_AngleState(&st);
   return st.loop == BOARD_ANGLE_LOOP_HELD;
 }
-
 
 cmd_status_t cmd_angle_op(uint8_t op, rd_t *in, wr_t *out)
 {

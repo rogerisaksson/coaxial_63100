@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    board_sto.c
-  * @brief   What the board can see of the Safe Torque Off chain.
-  ******************************************************************************
-  */
+/** board_sto.c - What the board can see of the Safe Torque Off chain. */
 #include "board.h"
 #include "board_hw.h"
 
@@ -13,7 +8,6 @@
     which ADC and which pin each one is on. */
 #define STO_PILOT  "Cinj"
 #define STO_LEVEL  "Clevel"
-
 
 static bool STO_Find(const char *signal, uint8_t *index)
 {
@@ -32,7 +26,6 @@ static bool STO_Find(const char *signal, uint8_t *index)
   return false;
 }
 
-
 static bool STO_ReadOne(const char *signal, int32_t *raw, int32_t *microvolts)
 {
   uint8_t index;
@@ -46,7 +39,6 @@ static bool STO_ReadOne(const char *signal, int32_t *raw, int32_t *microvolts)
   return Board_AdcRead(index, raw, microvolts, &scaled);
 }
 
-
 /** The STO chain's state: the keepalive's edges, the worst gap, and the last
     pilot and level readings. */
 static struct
@@ -55,7 +47,6 @@ static struct
   uint32_t last_edge;
   uint32_t worst_gap;
 } s;
-
 
 /** Cycles between edges: 200 kHz of edges is the 100 kHz square wave the
     model in electronic_simulations/sto drives MCU_PWM with. */
@@ -69,7 +60,6 @@ static uint32_t sto_edge_cycles(void)
   }
   return cached;
 }
-
 
 void Board_StoKeepalive(void)
 {
@@ -98,12 +88,10 @@ void Board_StoKeepalive(void)
   s.keepalive++;
 }
 
-
 void Board_StoKeepaliveReset(void)
 {
   s.worst_gap = 0U;
 }
-
 
 void Board_StoState(board_sto_state_t *out)
 {

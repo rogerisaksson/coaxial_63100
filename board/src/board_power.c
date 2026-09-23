@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    board_power.c
-  * @brief   Reference-counted rails. The header carries the reasoning.
-  ******************************************************************************
-  */
+/** board_power.c - Reference-counted rails. */
 #include "board.h"
 #include "board_hw.h"
 #include "board_power.h"
@@ -189,7 +184,6 @@ void Board_PowerPoll(void)
   drop_host_claims(now);
   expire_leases(now);
 }
-
 
 void Board_PowerReleaseAll(void)
 {

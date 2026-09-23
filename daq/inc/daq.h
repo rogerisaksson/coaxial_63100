@@ -1,13 +1,7 @@
-/**
-  ******************************************************************************
-  * @file    daq.h
-  * @brief   The acquisition engine, hardware-free: a byte ring of records,
-  *          the summing window that makes them, the anti-alias chain and
-  *          the ladder of designs it climbs when the ring fills, the tone
-  *          generator that stands in for the converter, and the live
-  *          accumulator a host reads at its leisure.
-  ******************************************************************************
-  */
+/** daq.h - The acquisition engine, hardware-free: a byte ring of records, the
+    summing window that makes them, the anti-alias chain and the ladder of
+    designs it climbs when the ring fills, the tone generator that stands in
+    for the converter, and the live accumulator a host reads at its leisure. */
 #ifndef DAQ_H
 #define DAQ_H
 

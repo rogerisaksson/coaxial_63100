@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    cmd_test.c
-  * @brief   Test fixture commands: link echo and raw pin access.
-  ******************************************************************************
-  */
+/** cmd_test.c - Test fixture commands: link echo and raw pin access. */
 #include "cmd.h"
 #include "testrig.h"
 

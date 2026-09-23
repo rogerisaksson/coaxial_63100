@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board_imu.c
-  * @brief   The BNO08X on SPI2: the bytes, and nothing about what they mean.
-  ******************************************************************************
-  */
+/** board_imu.c - The BNO08X on SPI2: the bytes, and nothing about what they
+    mean. */
 #include "board_limits.h"
 #include "board.h"
 #include "board_hw.h"
@@ -92,44 +88,13 @@ static struct
 
 static const uint8_t s_zeros[IMU_BUF];
 
-
 /* The slowest divider that still clears the part's ceiling, chosen from the
    kernel clock the peripheral actually has rather than from a field in the
    .ioc. */
 static uint32_t prescaler_under(uint32_t limit_hz)
 {
-  static const uint32_t DIVIDERS[] =
-  {
-    SPI_BAUDRATEPRESCALER_2,   SPI_BAUDRATEPRESCALER_4,
-    SPI_BAUDRATEPRESCALER_8,   SPI_BAUDRATEPRESCALER_16,
-    SPI_BAUDRATEPRESCALER_32,  SPI_BAUDRATEPRESCALER_64,
-    SPI_BAUDRATEPRESCALER_128, SPI_BAUDRATEPRESCALER_256,
-  };
-
-  const uint32_t kernel = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI2);
-
-  s.kernel_hz = kernel;
-
-  /* A kernel clock of zero means the peripheral clock is not configured, and
-     the loop below would read 0 <= limit on the first divider and pick the
-     fastest one there is. */
-  if (kernel == 0U)
-  {
-    s.bitrate_hz = 0U;
-    return SPI_BAUDRATEPRESCALER_256;
-  }
-
-  for (uint32_t i = 0U; i < (sizeof(DIVIDERS) / sizeof(DIVIDERS[0])); i++)
-  {
-    if ((kernel >> (i + 1U)) <= limit_hz)
-    {
-      s.bitrate_hz = kernel >> (i + 1U);
-      return DIVIDERS[i];
-    }
-  }
-
-  s.bitrate_hz = kernel >> 8;
-  return SPI_BAUDRATEPRESCALER_256;
+  s.kernel_hz = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI2);
+  return board_spi_prescaler(s.kernel_hz, limit_hz, &s.bitrate_hz);
 }
 
 static bool intn_asserted(void)
@@ -150,7 +115,6 @@ static bool poll_due(void)
   last = now;
   return true;
 }
-
 
 /** True if the part asserted H_INTN within `ms`. */
 static bool wait_intn(uint32_t ms)
@@ -182,15 +146,7 @@ static void cs(bool low)
 
 static void settle(void)
 {
-  const uint32_t per_us = SystemCoreClock / US_PER_S;
-  const uint32_t start = Board_Cycles();
-
-  while ((uint32_t)(Board_Cycles() - start) < (IMU_SETTLE_US * per_us))
-  {
-    /* Busy wait - a chip select edge is not worth an interrupt - so it may
-       as well feed the STO charge pump while it spins. */
-    Board_StoKeepalive();
-  }
+  board_spin_us(IMU_SETTLE_US);
 }
 
 void Board_ImuReset(void)
@@ -322,7 +278,6 @@ static bool imu_xfer(const uint8_t *tx, uint8_t *rx, uint16_t len)
   }
   return true;
 }
-
 
 /* One chip select assertion, however many bytes. */
 static bool transfer(const uint8_t *tx, uint8_t *rx, uint16_t len)
@@ -525,7 +480,6 @@ uint8_t Board_ImuPinCheck(uint8_t pin)
   return bits;
 }
 
-
 static void note(uint8_t err)
 {
   s.state.error = err;
@@ -566,7 +520,6 @@ static void take_vector(const uint8_t *r, int16_t *out, uint8_t *status)
   out[2] = (int16_t)((uint16_t)r[8] | ((uint16_t)r[9] << 8));
   note(BOARD_IMU_ERR_NONE);
 }
-
 
 static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
 {
@@ -629,9 +582,7 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
 #define IMU_STAGE_HOLD  1U
 #define IMU_STAGE_WAIT  2U
 
-
 /** The last Set Feature asked for, so it can be asked for again. */
-
 
 /** Remember one, replacing an entry for the same report. */
 static bool feature_keep(uint8_t report_id, uint32_t interval_us)
@@ -653,7 +604,6 @@ static bool feature_keep(uint8_t report_id, uint32_t interval_us)
   s.features++;
   return true;
 }
-
 
 bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us)
 {
@@ -682,7 +632,6 @@ void Board_ImuFeatureAsked(uint8_t *report_id, uint32_t *interval_us,
   *interval_us = s.feature_us;
   *pending = s.feature_pending;
 }
-
 
 static void poll_init(void)
 {
@@ -742,7 +691,6 @@ static void power_lost(void)
   s.stage = IMU_STAGE_BUS;
   note(BOARD_IMU_ERR_POWER);
 }
-
 
 /** Nothing queued and a feature still missing: the quiet moment the re-apply
     was waiting for. */
@@ -891,7 +839,6 @@ bool Board_ImuWaitReady(uint32_t ms)
   return wait_intn(ms);
 }
 
-
 /* Measured on this board: the part answers a wake in under a millisecond,
    and then now and again does not answer one at all - twice in ten over
    eight seconds, and permanently after it had been left alone for a few
@@ -914,7 +861,6 @@ static bool woken_by_retry(void)
   wake(true);
   return wait_intn(IMU_WAKE_WAIT_MS);
 }
-
 
 /** Empty the part before speaking, then WAKE and wait to be let in. */
 static void wake_for_write(void)

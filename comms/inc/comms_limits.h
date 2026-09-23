@@ -1,15 +1,9 @@
-/**
-  ******************************************************************************
-  * @file    comms_limits.h
-  * @brief   The WIRE's fixed numbers - what a reply carries, and how long the
-  *          command layer waits for a part to answer.
-  ******************************************************************************
-  */
+/** comms_limits.h - The WIRE's fixed numbers - what a reply carries, and how
+    long the command layer waits for a part to answer. */
 #ifndef COMMS_LIMITS_H
 #define COMMS_LIMITS_H
 
 #include "board_limits.h"
-
 
 /* ---- THE SERIAL LINK --------------------------------------------------- */
 
@@ -17,13 +11,9 @@
 
 #define DEV_UART_BAUD 115200U
 
-
-
 /* One Modbus RTU frame is 256 bytes at most. */
 
 #define DEV_RING 256U
-
-
 
 #define LINK_BITS_PER_CHAR 11U
 

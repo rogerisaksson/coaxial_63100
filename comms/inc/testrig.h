@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    testrig.h
-  * @brief   Raw pin access for a production test fixture.
-  ******************************************************************************
-  */
+/** testrig.h - Raw pin access for a production test fixture. */
 #ifndef TESTRIG_H
 #define TESTRIG_H
 

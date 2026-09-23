@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board_cal.c
-  * @brief   The scaling parameters and per-channel corrections, on the board.
-  ******************************************************************************
-  */
+/** board_cal.c - The scaling parameters and per-channel corrections, on the
+    board. */
 #include "board.h"
 #include "board_hw.h"
 
@@ -18,32 +14,12 @@
 #define CAL_FLASH_SECTOR FLASH_SECTOR_7
 #define CAL_FLASH_BANK   FLASH_BANK_2
 
-/* 'CX63' - a sector that has never been written reads 0xFF everywhere, and a
-   magic is how that is told from a record whose fields happen to be large. */
-#define CAL_MAGIC   0x43583633UL
-/* 2 since the +5 and gate-supply senses were added: the record carries one
-   trim per channel, so its length moved. */
-/* 4: the thermal envelope joined the record. */
-/* 5: the half-bridge dead time joined the record. */
-/* 6: and its lead-lag trim. */
-/* 7: per-leg thermal nodes, six ceilings to ten. */
-/* 8: the drive - motor, gains, injection, dead time. */
-/* 9: the RS485 pair's baud. */
-/* 10: soa_lookahead_ms, so the throttle can act on a ramp rather than on a
-   reading. */
-/* 11: soa_undriven_mask - the housekeeping nodes are judged but not
-   throttled on, because a clamp on the phase current cannot cool them. */
-/* 12: the winding's envelope - K/W, J/K and a ceiling for the one node that
-   is not on the board, so the stage throttles on the motor's SOA as well as
-   the switches'. */
-/* 13: twenty nodes from ten - the laminate as seven patches, the hot swap,
-   the motor as three - and THE NETWORK ITSELF in the record: a capacity, an
-   air path and an edge each, zero for the core's derived default, so an
-   identification on the board has somewhere to keep what it learns. */
-/* 14: what the identification learned - its four scales, appended, and
-   written by the board itself. */
-#define CAL_VERSION 15U  /* 15: the SOA margin floor where 14 kept the scales - nothing learned is
-   kept any more (bench, 2026-09-06). */
+#define CAL_MAGIC   0x43583633UL   /* 'CX63'; erased flash reads 0xFF */
+/* Layout history: 2 supply senses, 4 thermal envelope, 5 dead time, 6 skew,
+   7 per-leg nodes, 8 drive, 9 RS485 baud, 10 lookahead, 11 undriven mask,
+   12 winding, 13 twenty-node network, 14 identified scales, 15 margin floor
+   (nothing identified is kept). */
+#define CAL_VERSION 15U
 
 /** The two versions before this one. */
 #define CAL_PREVIOUS_VERSION    14U
@@ -405,7 +381,6 @@ bool Board_CalSetLimit(uint8_t node, int32_t limit_centi)
   return true;
 }
 
-
 bool Board_CalSetThrottle(uint32_t ppm)
 {
   if ((ppm == 0U) || (ppm >= PPM_WHOLE))
@@ -416,7 +391,6 @@ bool Board_CalSetThrottle(uint32_t ppm)
   s_cal.crc = cal_crc(&s_cal);
   return true;
 }
-
 
 bool Board_CalSetWinding(int32_t limit_centi, uint32_t k_per_w_milli,
                          uint32_t j_per_k_milli)
@@ -434,7 +408,6 @@ bool Board_CalSetWinding(int32_t limit_centi, uint32_t k_per_w_milli,
   return true;
 }
 
-
 bool Board_CalSetThermalNode(uint8_t node, uint32_t capacity_milli,
                              uint32_t to_ambient_milli)
 {
@@ -448,7 +421,6 @@ bool Board_CalSetThermalNode(uint8_t node, uint32_t capacity_milli,
   return true;
 }
 
-
 bool Board_CalSetThermalEdge(uint8_t edge, uint32_t k_per_w_milli)
 {
   if (edge >= (uint8_t)BOARD_THERMAL_EDGES)
@@ -460,7 +432,6 @@ bool Board_CalSetThermalEdge(uint8_t edge, uint32_t k_per_w_milli)
   return true;
 }
 
-
 bool Board_CalSetThermalBulk(uint32_t to_ambient_milli,
                              uint32_t capacity_milli)
 {
@@ -469,7 +440,6 @@ bool Board_CalSetThermalBulk(uint32_t to_ambient_milli,
   s_cal.crc = cal_crc(&s_cal);
   return true;
 }
-
 
 bool Board_CalSetMarginFloor(uint32_t ppm)
 {
@@ -484,7 +454,6 @@ bool Board_CalSetMarginFloor(uint32_t ppm)
   s_cal.crc = cal_crc(&s_cal);
   return true;
 }
-
 
 bool Board_CalSetChannel(uint8_t index, int32_t offset_raw, int32_t gain_ppm)
 {

@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board_log.c
-  * @brief   One ring for every measurement, drained over the wire in bursts.
-  ******************************************************************************
-  */
+/** board_log.c - One ring for every measurement, drained over the wire in
+    bursts. */
 #include "board.h"
 #include "board_irq.h"
 #include "board_hw.h"
@@ -25,12 +21,10 @@ static struct
   uint32_t last_at[BOARD_LOG_SOURCES];
 } s;
 
-
 static uint16_t next_of(uint16_t i)
 {
   return (uint16_t)((i + 1U) % BOARD_LOG_DEPTH);
 }
-
 
 void Board_LogEnable(uint8_t sources, uint32_t min_gap_cycles)
 {
@@ -54,12 +48,10 @@ void Board_LogEnable(uint8_t sources, uint32_t min_gap_cycles)
   Board_IrqRelease(masked);
 }
 
-
 uint8_t Board_LogSources(void)
 {
   return s.sources;
 }
-
 
 void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n)
 {
@@ -108,7 +100,6 @@ void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n)
   Board_IrqRelease(masked);
 }
 
-
 uint16_t Board_LogCount(void)
 {
   const uint16_t head = s.head;
@@ -118,18 +109,15 @@ uint16_t Board_LogCount(void)
                         : (uint16_t)(BOARD_LOG_DEPTH - tail + head);
 }
 
-
 uint32_t Board_LogThinned(void)
 {
   return s.thinned;
 }
 
-
 uint32_t Board_LogDropped(void)
 {
   return s.dropped;
 }
-
 
 uint16_t Board_LogTake(board_sample_t *out, uint16_t max)
 {

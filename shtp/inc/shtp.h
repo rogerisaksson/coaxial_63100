@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    shtp.h
-  * @brief   CEVA SHTP framing and SH-2 report decoding. No hardware.
-  ******************************************************************************
-  */
+/** shtp.h - CEVA SHTP framing and SH-2 report decoding. */
 #ifndef SHTP_H
 #define SHTP_H
 

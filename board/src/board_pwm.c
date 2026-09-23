@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board_pwm.c
-  * @brief   The three-phase gate drivers: duty in, gates out, the interlocks.
-  ******************************************************************************
-  */
+/** board_pwm.c - The three-phase gate drivers: duty in, gates out, the
+    interlocks. */
 #include "board_limits.h"
 #include "board.h"
 #include "board_irq.h"
@@ -52,7 +48,6 @@ static struct
   volatile bool drive_owns;
 } s;
 
-
 /* The update interrupt, which the dither and the dead-time skew both need. */
 static void update_irq(bool wanted)
 {
@@ -68,7 +63,6 @@ static void update_irq(bool wanted)
   }
 }
 
-
 bool Board_PwmReady(void)
 {
   /* Clocked, and counting over a period somebody chose. */
@@ -79,19 +73,16 @@ bool Board_PwmReady(void)
   return (TIM1->ARR != 0U);
 }
 
-
 uint32_t Board_PwmPeriod(void)
 {
   return Board_PwmReady() ? (TIM1->ARR + 1U) : 0U;
 }
-
 
 bool Board_PwmFault(void)
 {
   /* The break flag latches. */
   return Board_PwmReady() && ((TIM1->SR & TIM_SR_BIF) != 0U);
 }
-
 
 void Board_PwmSessionDrop(void)
 {
@@ -124,7 +115,6 @@ void Board_PwmDisable(void)
   }
 }
 
-
 bool Board_PwmSetBreakBypass(bool on)
 {
   /* Clearing the LATCH is not enough and never was: with BKE set and PE15
@@ -147,12 +137,10 @@ bool Board_PwmSetBreakBypass(bool on)
   return true;
 }
 
-
 bool Board_PwmBreakBypassed(void)
 {
   return Board_PwmReady() && ((TIM1->BDTR & TIM_BDTR_BKE) == 0U);
 }
-
 
 bool Board_PwmClearFault(void)
 {
@@ -166,7 +154,6 @@ bool Board_PwmClearFault(void)
   TIM1->SR &= ~TIM_SR_BIF;
   return true;
 }
-
 
 /** Drive one leg's low-side input low, then high, and read the neighbour:
     only a path well below its pull-down lifts it. */
@@ -221,7 +208,6 @@ uint8_t Board_PwmGateShorts(void)
   return shorts;
 }
 
-
 bool Board_PwmEnable(void)
 {
   if (!Board_PwmReady())
@@ -248,12 +234,10 @@ bool Board_PwmEnable(void)
   return true;
 }
 
-
 bool Board_PwmIsEnabled(void)
 {
   return s.armed && Board_PwmReady() && ((TIM1->BDTR & TIM_BDTR_MOE) != 0U);
 }
-
 
 void Board_PwmDitherStep(void)
 {
@@ -284,7 +268,6 @@ void Board_PwmDitherStep(void)
   TIM1->CCR2 = s.duty[1];
   TIM1->CCR3 = s.duty[2];
 }
-
 
 const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
 {
@@ -336,7 +319,6 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
   return NULL;
 }
 
-
 void Board_PwmDutyRequested(uint32_t *ticks_q16)
 {
   if (ticks_q16 == NULL)
@@ -348,7 +330,6 @@ void Board_PwmDutyRequested(uint32_t *ticks_q16)
     ticks_q16[phase] = s.want_q16[phase];
   }
 }
-
 
 const char *Board_PwmSetAll(const uint16_t *ticks)
 {
@@ -403,7 +384,6 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
   return NULL;
 }
 
-
 const char *Board_PwmSetAllCounted(const uint16_t *ticks, uint32_t periods)
 {
   /* The same triple, held for exactly `periods` PWM periods and then zeroed
@@ -422,12 +402,10 @@ const char *Board_PwmSetAllCounted(const uint16_t *ticks, uint32_t periods)
   return NULL;
 }
 
-
 uint32_t Board_PwmPeriodsLeft(void)
 {
   return s.countdown;
 }
-
 
 const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
 {
@@ -479,7 +457,6 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
   return NULL;
 }
 
-
 void Board_PwmDriveOwn(bool on)
 {
   if (on)
@@ -498,7 +475,6 @@ void Board_PwmDriveOwn(bool on)
   update_irq((s.skew != 0U) || s.dither);
 }
 
-
 void Board_PwmSetNext(const uint16_t *ticks)
 {
   /* From ADC3's interrupt, above TIM1_UP's, so these stores are never split
@@ -511,7 +487,6 @@ void Board_PwmSetNext(const uint16_t *ticks)
   }
   s.next_pending = true;
 }
-
 
 uint16_t Board_PwmGetDuty(uint8_t phase)
 {
@@ -529,7 +504,6 @@ uint16_t Board_PwmGetDuty(uint8_t phase)
   }
   return s.duty[phase];
 }
-
 
 void Board_PwmState(board_pwm_state_t *out)
 {
@@ -557,7 +531,6 @@ void Board_PwmState(board_pwm_state_t *out)
     out->duty[phase] = s.duty[phase];
   }
 }
-
 
 static uint32_t dts_ps(void)
 {
@@ -642,7 +615,6 @@ bool Board_PwmInit(void)
   return true;
 }
 
-
 const char *Board_PwmSetDeadTime(uint32_t ns)
 {
   if (!Board_PwmReady())
@@ -685,7 +657,6 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
   return NULL;
 }
 
-
 /* The skew, and why the update runs twice a period. */
 const char *Board_PwmSetDeadTimeSkew(int8_t counts)
 {
@@ -722,7 +693,6 @@ int8_t Board_PwmDeadTimeSkew(void)
 {
   return s.skew_up ? (int8_t)s.skew : (int8_t)-(int8_t)s.skew;
 }
-
 
 /* The counted hold, one period a tick: whether this update is the one that
    runs it out. */

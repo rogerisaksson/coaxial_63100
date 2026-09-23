@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board_thermal.c
-  * @brief   Runs the lumped-network thermal observer on this hardware.
-  ******************************************************************************
-  */
+/** board_thermal.c - Runs the lumped-network thermal observer on this
+    hardware. */
 #include "board_limits.h"
 #include "board.h"
 #include "board_units.h"
@@ -82,12 +78,10 @@ static struct
   .trip_cap = 1.0f
 };
 
-
 /* THERMAL_IDENT_NOISE_K, THERMAL_MARGIN_REF_C and THERMAL_MARGIN_STEP - the
    identification's noise floor, the margin's reference and how far it must
    move to re-trim - are in board_limits.h with the rest of the fixed
    numbers. */
-
 
 /** The floor the margin rises from: the record's, ppm of the span. */
 static float margin_floor(void)
@@ -96,7 +90,6 @@ static float margin_floor(void)
 
   return (float)((ppm != 0U) ? ppm : BOARD_SOA_MARGIN_FLOOR_PPM) / PPM_PER_UNIT;
 }
-
 
 /** The trip cap as it stands now: what it was set to plus what the minutes
     since have given back, never above one. */
@@ -113,7 +106,6 @@ static float trip_cap_now(void)
   return (cap < 1.0f) ? cap : 1.0f;
 }
 
-
 /** The margin now: the identification's for its doubt, or the trip cap,
     whichever keeps more in hand. */
 static float margin_now(void)
@@ -123,7 +115,6 @@ static float margin_now(void)
 
   return (cap < earned) ? cap : earned;
 }
-
 
 /** Copy the envelope out of the calibration record into the thermal observer. */
 static void soa_from_cal(void)
@@ -159,7 +150,6 @@ static void soa_from_cal(void)
   }
   s.margin = margin;
 }
-
 
 /** The bulk: the laminate's air path, its radiated share, and what the
     thermistor sees of it. */
@@ -282,7 +272,6 @@ static void network_from_cal(thermal_cfg_t *cfg)
   lay_winding(cfg, cal);
 }
 
-
 /** The losses: the core's table with the record's phase resistance, the one
     loss constant the record carries. */
 static void losses_from_cal(void)
@@ -292,7 +281,6 @@ static void losses_from_cal(void)
   s.loss.k_iron = (float)Board_Cal()->thermal_k_iron_milli / MILLI_PER_UNIT;
 }
 
-
 /** The network the observer runs: the record's base with the identified
     scales on it. */
 static void network_refresh(void)
@@ -300,7 +288,6 @@ static void network_refresh(void)
   network_from_cal(&s.base);
   thermal_ident_apply(&s.ident, &s.base, &s.th.cfg);
 }
-
 
 void Board_ThermalInit(void)
 {
@@ -333,7 +320,6 @@ void Board_ThermalInit(void)
   s.ready = true;
 }
 
-
 /** How fast the derate may RECOVER, per second. */
 #define THERMAL_DERATE_RECOVER_PER_S 0.05f
 
@@ -364,7 +350,6 @@ static float derate_applied(float want, uint32_t since_ms)
   return held;
 }
 
-
 /** Read every thermometer. */
 static void sense_read(thermal_sense_t *out)
 {
@@ -377,7 +362,6 @@ static void sense_read(thermal_sense_t *out)
      board. */
   out->afe_c = Board_AngleDie(&centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
 }
-
 
 static void sense_sample(uint32_t now, thermal_sense_t *out)
 {
@@ -426,7 +410,6 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
   s.sampled_ms = now;
 }
 
-
 /** The rotor's mechanical speed, rpm, off the drive's observer: its
     electrical rad/s over the record's pole pairs. */
 static float speed_now(void)
@@ -442,7 +425,6 @@ static float speed_now(void)
 
   return mech * 60.0f / (2.0f * 3.14159265f);
 }
-
 
 /** What heats the board this step: the duties, the phase currents while the
     synced triple is armed, the link voltage when the AFE lets it be read,
@@ -487,7 +469,6 @@ static void load_now(thermal_load_t *load)
   load->speed_rpm = speed_now();
 }
 
-
 /** After every poll: the ceilings follow the margin, re-trimmed when it has
     moved a step - every sample while the evidence comes in, never on a slice
     that changed nothing. */
@@ -500,7 +481,6 @@ static void margin_follow(void)
     soa_from_cal();
   }
 }
-
 
 /** One slice of the observer: the losses on its own last estimate, the step,
     the identification beside it, the room, the budget. */
@@ -606,7 +586,6 @@ void Board_ThermalPoll(void)
   margin_follow();
 }
 
-
 bool Board_ThermalState(board_thermal_t *out)
 {
   if ((out == NULL) || !s.ready)
@@ -647,7 +626,6 @@ bool Board_ThermalState(board_thermal_t *out)
   out->speed_rpm = (int32_t)s.speed_rpm;
   return true;
 }
-
 
 bool Board_ThermalBudget(board_budget_t *out)
 {
@@ -693,7 +671,6 @@ bool Board_ThermalBudget(board_budget_t *out)
   return true;
 }
 
-
 bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k)
 {
   if (!s.ready)
@@ -712,7 +689,6 @@ bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k)
   soa_from_cal();
   return true;
 }
-
 
 bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at)
 {
@@ -740,7 +716,6 @@ bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at)
   soa_from_cal();
   return true;
 }
-
 
 bool Board_ThermalSetNode(uint8_t node, float k_per_w, float capacity)
 {
@@ -770,7 +745,6 @@ bool Board_ThermalSetNode(uint8_t node, float k_per_w, float capacity)
   return true;
 }
 
-
 bool Board_ThermalSetEdge(uint8_t edge, float k_per_w)
 {
   if (!s.ready || (edge >= (uint8_t)THERMAL_EDGES))
@@ -791,7 +765,6 @@ bool Board_ThermalSetEdge(uint8_t edge, float k_per_w)
   return ok;
 }
 
-
 bool Board_ThermalEdge(uint8_t edge, uint8_t *a, uint8_t *b, float *k_per_w)
 {
   if (!s.ready || (edge >= (uint8_t)THERMAL_EDGES) || (a == NULL)
@@ -804,7 +777,6 @@ bool Board_ThermalEdge(uint8_t edge, uint8_t *a, uint8_t *b, float *k_per_w)
   *k_per_w = s.th.cfg.r_edge[edge];
   return true;
 }
-
 
 bool Board_ThermalNodeCfg(uint8_t node, float *capacity, float *to_ambient,
                           float *area_share, float *rth_die, float *forced)
@@ -823,7 +795,6 @@ bool Board_ThermalNodeCfg(uint8_t node, float *capacity, float *to_ambient,
   return true;
 }
 
-
 bool Board_ThermalSetSample(uint32_t every_ms, uint32_t settle_ms)
 {
   if (!s.ready)
@@ -835,13 +806,11 @@ bool Board_ThermalSetSample(uint32_t every_ms, uint32_t settle_ms)
   return true;
 }
 
-
 void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms)
 {
   *every_ms = s.every_ms;
   *settle_ms = s.settle_ms;
 }
-
 
 bool Board_ThermalSetBoard(float to_ambient, float capacity)
 {
@@ -855,7 +824,6 @@ bool Board_ThermalSetBoard(float to_ambient, float capacity)
   network_refresh();
   return ok;
 }
-
 
 bool Board_ThermalIdent(board_thermal_ident_t *out)
 {
@@ -884,7 +852,6 @@ bool Board_ThermalIdent(board_thermal_ident_t *out)
   return true;
 }
 
-
 bool Board_ThermalIdentReset(void)
 {
   if (!s.ready)
@@ -896,7 +863,6 @@ bool Board_ThermalIdentReset(void)
   soa_from_cal();
   return true;
 }
-
 
 bool Board_ThermalSetMarginFloor(float floor)
 {

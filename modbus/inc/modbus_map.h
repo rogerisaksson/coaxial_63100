@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    modbus_map.h
-  * @brief   This board as a Modbus data model.
-  ******************************************************************************
-  */
+/** modbus_map.h - This board as a Modbus data model. */
 #ifndef MODBUS_MAP_H
 #define MODBUS_MAP_H
 

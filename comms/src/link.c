@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    link.c
-  * @brief   Assembles the comms stack and pumps it from the main loop.
-  ******************************************************************************
-  */
+/** link.c - Assembles the comms stack and pumps it from the main loop. */
 #include "comms_limits.h"
 #include "link.h"
 #include "cmd_length.h"
@@ -41,7 +36,6 @@ static struct
 } s = {
   .current = LINK_CONSOLE
 };
-
 
 /* GateDrivers from the protocol's user-defined function space into the
    command table. */
@@ -174,7 +168,6 @@ uint32_t link_rx_count(void)
 {
   return s.rx_count;
 }
-
 
 static void pump(link_port_t *l)
 {

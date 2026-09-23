@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    board_power.h
-  * @brief   Who is using a rail, and switching it off when nobody is.
-  ******************************************************************************
-  */
+/** board_power.h - Who is using a rail, and switching it off when nobody is. */
 #ifndef BOARD_POWER_H
 #define BOARD_POWER_H
 

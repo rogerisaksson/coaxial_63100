@@ -1,16 +1,10 @@
-/**
-  ******************************************************************************
-  * @file    cmd_time.c
-  * @brief   The cycle counter, latched, behind command 0x6E, device 7.
-  ******************************************************************************
-  */
+/** cmd_time.c - The cycle counter, latched, behind command 0x6E, device 7. */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"
 
 static uint32_t s_latched;
 static uint32_t s_seq;
-
 
 /** op 0 - take the counter now. */
 static cmd_status_t h_time_latch(wr_t *out)
@@ -21,7 +15,6 @@ static cmd_status_t h_time_latch(wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 1 - what was latched, and what the counter says now. */
 static cmd_status_t h_time_read(wr_t *out)
 {
@@ -31,7 +24,6 @@ static cmd_status_t h_time_read(wr_t *out)
   wr_u32(out, Board_SysClkHz());
   return CMD_OK;
 }
-
 
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out)
 {

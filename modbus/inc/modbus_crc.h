@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    modbus_crc.h
-  * @brief   CRC-16/MODBUS for RTU framing.
-  ******************************************************************************
-  */
+/** modbus_crc.h - CRC-16/MODBUS for RTU framing. */
 #ifndef MODBUS_CRC_H
 #define MODBUS_CRC_H
 

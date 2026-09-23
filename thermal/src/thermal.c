@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    thermal.c
-  * @brief   The thermal observer: integrate the network, then correct it with
-  *          whichever thermometers answered.
-  ******************************************************************************
-  */
+/** thermal.c - The thermal observer: integrate the network, then correct it
+    with whichever thermometers answered. */
 #include "thermal.h"
 
 #include <math.h>
@@ -79,7 +74,6 @@ static const thermal_edge_t THERMAL_EDGE_ENDS[THERMAL_EDGES] =
   { THERMAL_STATOR,      THERMAL_PATCH_RIGHT },
 };
 
-
 thermal_edge_t thermal_edge(int e)
 {
   if ((e < 0) || (e >= THERMAL_EDGES))
@@ -91,7 +85,6 @@ thermal_edge_t thermal_edge(int e)
   }
   return THERMAL_EDGE_ENDS[e];
 }
-
 
 int thermal_sink_edge(thermal_node_t node)
 {
@@ -112,7 +105,6 @@ int thermal_sink_edge(thermal_node_t node)
     default:                 return -1;     /* the laminate and the rotor: air */
   }
 }
-
 
 void thermal_defaults(thermal_cfg_t *cfg)
 {
@@ -219,7 +211,6 @@ void thermal_defaults(thermal_cfg_t *cfg)
   cfg->ntc_offset = 6.00f;
 }
 
-
 float thermal_board_to_ambient_at(const thermal_cfg_t *cfg, float rise_k)
 {
   if (cfg == NULL)
@@ -261,7 +252,6 @@ float thermal_board_to_ambient_at(const thermal_cfg_t *cfg, float rise_k)
                          : cfg->board_to_ambient;
 }
 
-
 float thermal_to_ambient_at(const thermal_cfg_t *cfg, thermal_node_t node,
                             float rise_k, float speed_rpm)
 {
@@ -294,7 +284,6 @@ float thermal_to_ambient_at(const thermal_cfg_t *cfg, thermal_node_t node,
   return r;
 }
 
-
 /** The bracket radiation carries with, `(T^2 + T0^2)(T + T0)`, kelvin. */
 static float rad_bracket(float a_c, float b_c)
 {
@@ -303,7 +292,6 @@ static float rad_bracket(float a_c, float b_c)
 
   return (a * a + b * b) * (a + b);
 }
-
 
 /** Net watts into every node at the present temperatures: what it makes,
     plus what flows in over the edges, less what it sheds to the air. */
@@ -318,7 +306,6 @@ void thermal_net_flows(const thermal_t *th, const thermal_power_t *p,
     net_flows(th, p, speed_rpm, net);
   }
 }
-
 
 static void net_flows(const thermal_t *th, const thermal_power_t *p,
                       float speed_rpm, float *net)
@@ -378,7 +365,6 @@ static void net_flows(const thermal_t *th, const thermal_power_t *p,
   }
 }
 
-
 /** How long this node can stay at this power before its ceiling, seconds:
     the soak divided by what is going into it. */
 static float hold_seconds(const thermal_t *th, const float *net,
@@ -399,7 +385,6 @@ static float hold_seconds(const thermal_t *th, const float *net,
   return togo * capacity / gain;
 }
 
-
 /** The clamp's factor for a spend: one below the throttle point, falling to
     zero at the ceiling, linear between. */
 static float derate_of(float spent, const thermal_soa_t *soa)
@@ -414,7 +399,6 @@ static float derate_of(float spent, const thermal_soa_t *soa)
 
   return (over >= 1.0f) ? 0.0f : (1.0f - over);
 }
-
 
 /** A node's spend: where it is between ambient and its ceiling, and how far
     into the reaction window its hold has come - the bigger. */
@@ -457,7 +441,6 @@ static float spend_of(const thermal_t *th, const float *net,
   }
   return part;
 }
-
 
 void thermal_budget(const thermal_t *th, const thermal_power_t *p,
                     const thermal_soa_t *soa, thermal_budget_t *out)
@@ -553,7 +536,6 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
   }
 }
 
-
 float thermal_node_derate(const thermal_t *th, const thermal_power_t *p,
                           const thermal_soa_t *soa, thermal_node_t node)
 {
@@ -568,7 +550,6 @@ float thermal_node_derate(const thermal_t *th, const thermal_power_t *p,
 
   return (spent < 0.0f) ? 1.0f : derate_of(spent, soa);
 }
-
 
 float thermal_junction(const thermal_t *th, const thermal_power_t *p,
                        thermal_node_t node)
@@ -586,7 +567,6 @@ float thermal_junction(const thermal_t *th, const thermal_power_t *p,
   }
   return th->t[node] + watt * th->cfg.node[node].rth_die;
 }
-
 
 void thermal_losses(thermal_loss_t *loss)
 {
@@ -637,7 +617,6 @@ void thermal_losses(thermal_loss_t *loss)
   loss->k_iron  = 0.0f;
 }
 
-
 float thermal_coss_energy(const thermal_loss_t *loss, float volts)
 {
   if ((loss == NULL) || !(volts > 0.0f) || !(loss->coss_cjo > 0.0f)
@@ -654,7 +633,6 @@ float thermal_coss_energy(const thermal_loss_t *loss, float volts)
 
   return (e > 0.0f) ? e : 0.0f;
 }
-
 
 void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
                             const thermal_loss_t *loss,
@@ -760,7 +738,6 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
   out->watt[THERMAL_AFE]        += load->afe_on ? loss->afe_watt : 0.0f;
 }
 
-
 bool thermal_set_node(thermal_t *th, thermal_node_t node,
                       float k_per_w, float capacity)
 {
@@ -783,7 +760,6 @@ bool thermal_set_node(thermal_t *th, thermal_node_t node,
   return true;
 }
 
-
 bool thermal_set_edge(thermal_t *th, int edge, float k_per_w)
 {
   if ((th == NULL) || (edge < 0) || (edge >= THERMAL_EDGES)
@@ -794,7 +770,6 @@ bool thermal_set_edge(thermal_t *th, int edge, float k_per_w)
   th->cfg.r_edge[edge] = k_per_w;
   return true;
 }
-
 
 bool thermal_set_board(thermal_t *th, float to_ambient, float capacity)
 {
@@ -816,7 +791,6 @@ bool thermal_set_board(thermal_t *th, float to_ambient, float capacity)
   }
   return true;
 }
-
 
 void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius)
 {
@@ -841,7 +815,6 @@ void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius)
   th->ntc = celsius;
 }
 
-
 /** Where the thermistor's element is HEADING: the weighted average of the
     two patches it is tied to, `f` clamped to [0, 1] here rather than
     trusted, because a record is a thing a bench writes and an element
@@ -863,7 +836,6 @@ static float ntc_target(const thermal_t *th)
   return centre + f * (leg - centre);
 }
 
-
 float thermal_expected_ntc(const thermal_t *th)
 {
   if (th == NULL)
@@ -872,7 +844,6 @@ float thermal_expected_ntc(const thermal_t *th)
   }
   return (th->cfg.ntc_tau_s > 0.0f) ? th->ntc : ntc_target(th);
 }
-
 
 float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
                              float patch_rise_k)
@@ -883,7 +854,6 @@ float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
   }
   return ntc_c - cfg->ntc_sees * patch_rise_k;
 }
-
 
 /** Pull one node to its die, and return the patch under it that implies: the
     node is patch + P * R into it, so subtracting reaches the patch without
@@ -907,7 +877,6 @@ static float anchor_die(thermal_t *th, thermal_node_t node, float seen,
   return at - p->watt[node] * r + n->capacity * r * rate;
 }
 
-
 /** The patch a source sheds into, or the node itself. */
 static thermal_node_t patch_under(thermal_node_t node)
 {
@@ -915,7 +884,6 @@ static thermal_node_t patch_under(thermal_node_t node)
 
   return (edge >= 0) ? (thermal_node_t)THERMAL_EDGE_ENDS[edge].b : node;
 }
-
 
 /** One Euler slice over the whole graph. */
 static void integrate(thermal_t *th, const thermal_power_t *p,
@@ -935,7 +903,6 @@ static void integrate(thermal_t *th, const thermal_power_t *p,
   }
 }
 
-
 void thermal_integrate(thermal_t *th, const thermal_power_t *p,
                        float speed_rpm, float dt_s)
 {
@@ -944,7 +911,6 @@ void thermal_integrate(thermal_t *th, const thermal_power_t *p,
     integrate(th, p, speed_rpm, dt_s);
   }
 }
-
 
 /** What the sensors say, folded in: each die corrects its node and the patch
     under it, the thermistor the V leg's patch; then ambient. */
@@ -1068,7 +1034,6 @@ static void anchor(thermal_t *th, const thermal_power_t *p,
   }
 }
 
-
 void thermal_step(thermal_t *th, const thermal_power_t *p,
                   const thermal_sense_t *seen, const thermal_load_t *load,
                   float dt_s)
@@ -1107,7 +1072,6 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
 
   th->steps++;
 }
-
 
 int thermal_ntc_follow(thermal_t *th, float dt_s)
 {

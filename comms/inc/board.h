@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board.h
-  * @brief   Everything the comms stack needs from this board, one header per
-  *          board file, in dependency order.
-  ******************************************************************************
-  */
+/** board.h - Everything the comms stack needs from this board, one header per
+    board file, in dependency order. */
 #ifndef BOARD_H
 #define BOARD_H
 

@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    modbus_rtu.c
-  * @brief   Modbus RTU framing state machine. No hardware dependencies.
-  ******************************************************************************
-  */
+/** modbus_rtu.c - Modbus RTU framing state machine. */
 #include "modbus_rtu.h"
 #include "modbus_crc.h"
 

@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    dev_serial.h
-  * @brief   Byte-oriented serial device, bottom layer of the comms stack.
-  ******************************************************************************
-  */
+/** dev_serial.h - Byte-oriented serial device, bottom layer of the comms
+    stack. */
 #ifndef DEV_SERIAL_H
 #define DEV_SERIAL_H
 

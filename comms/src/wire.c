@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    wire.c
-  * @brief   Total accessors for binary payloads. See wire.h for the rationale.
-  ******************************************************************************
-  */
+/** wire.c - Total accessors for binary payloads. */
 #include "wire.h"
 
 #include <string.h>

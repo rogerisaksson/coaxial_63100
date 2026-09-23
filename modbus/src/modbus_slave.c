@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    modbus_slave.c
-  * @brief   Portable Modbus server PDU engine. No hardware dependencies.
-  ******************************************************************************
-  */
+/** modbus_slave.c - Portable Modbus server PDU engine. */
 #include "modbus_slave.h"
 
 #include <string.h>

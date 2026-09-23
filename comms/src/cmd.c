@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    cmd.c
-  * @brief   Command dispatch. Generic: the table lives in cmd_board.c.
-  ******************************************************************************
-  */
+/** cmd.c - Command dispatch. */
 #include "cmd.h"
 
 /* Every table, in one list. */

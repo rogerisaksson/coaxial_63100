@@ -1,10 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    daq.c
-  * @brief   The acquisition engine - see daq.h. Every number it needs comes
-  *          in as a cycle count or a sample; nothing here is the board's.
-  ******************************************************************************
-  */
+/** daq.c - The acquisition engine - see daq.h. */
 #include "daq.h"
 
 #include <math.h>

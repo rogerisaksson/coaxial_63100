@@ -1,14 +1,7 @@
-/**
-  ******************************************************************************
-  * @file    filter.c
-  * @brief   The decimating anti-alias chain. See filter.h for why it is two
-  *          stages and why the host designs the second one.
-  ******************************************************************************
-  */
+/** filter.c - The decimating anti-alias chain. */
 #include "filter.h"
 
 #include <string.h>
-
 
 void filter_reset(filter_channel_t *ch)
 {
@@ -18,7 +11,6 @@ void filter_reset(filter_channel_t *ch)
   }
   memset(ch, 0, sizeof(*ch));
 }
-
 
 void filter_prime(const filter_design_t *design, filter_channel_t *ch,
                   float value)
@@ -50,7 +42,6 @@ void filter_prime(const filter_design_t *design, filter_channel_t *ch,
   }
 }
 
-
 void filter_pass_through(filter_design_t *design)
 {
   if (design == NULL)
@@ -63,13 +54,11 @@ void filter_pass_through(filter_design_t *design)
   design->sections = 0U;
 }
 
-
 bool filter_valid(const filter_design_t *design)
 {
   return (design != NULL) && (design->boxcar > 0U) &&
          (design->decimate > 0U) && (design->sections <= FILTER_MAX_SECTIONS);
 }
-
 
 uint32_t filter_ratio(const filter_design_t *design)
 {
@@ -79,7 +68,6 @@ uint32_t filter_ratio(const filter_design_t *design)
   }
   return (uint32_t)design->boxcar * (uint32_t)design->decimate;
 }
-
 
 /** One section, transposed direct form II. */
 static float section_run(const filter_biquad_t *s, float *s1, float *s2,
@@ -91,7 +79,6 @@ static float section_run(const filter_biquad_t *s, float *s1, float *s2,
   *s2 = (s->b2 * x) - (s->a2 * y);
   return y;
 }
-
 
 bool filter_push_value(const filter_design_t *design, filter_channel_t *ch,
                        float value, float *out)
@@ -118,7 +105,6 @@ bool filter_push_value(const filter_design_t *design, filter_channel_t *ch,
   *out = x;
   return true;
 }
-
 
 bool filter_push(const filter_design_t *design, filter_channel_t *ch,
                  int32_t sample, float *out)

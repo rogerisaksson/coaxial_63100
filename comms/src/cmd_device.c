@@ -1,14 +1,9 @@
-/**
-  ******************************************************************************
-  * @file    cmd_device.c
-  * @brief   Command 0x6E: every peripheral device, chosen by a device byte.
-  ******************************************************************************
-  */
+/** cmd_device.c - Command 0x6E: every peripheral device, chosen by a device
+    byte. */
 #include "boot.h"
 #include "cmd.h"
 #include "dev_serial.h"
 #include "wire.h"
-
 
 /** What the link can carry in records per second at this record size. */
 uint32_t cmd_link_records_per_second(uint16_t record_bytes)
@@ -21,8 +16,6 @@ uint32_t cmd_link_records_per_second(uint16_t record_bytes)
   }
   return ((baud / 10U) * CMD_LINK_SHARE_PCT / 100U) / record_bytes;
 }
-
-
 
 static cmd_status_t h_device(rd_t *in, wr_t *out)
 {

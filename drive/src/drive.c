@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    drive.c
-  * @brief   One PWM period of the control law, and the modes it runs in.
-  ******************************************************************************
-  */
+/** drive.c - One PWM period of the control law, and the modes it runs in. */
 #include "drive.h"
 
 #include <math.h>
@@ -15,7 +10,6 @@
 #define PI_F      3.1415927f
 #define TWO_PI_F  6.2831853f
 #define INV_SQRT3 0.57735027f
-
 
 void drive_defaults(drive_params_t *p)
 {
@@ -43,7 +37,6 @@ void drive_defaults(drive_params_t *p)
   p->dt_step = 1.0f;
 }
 
-
 static void loop_reset(drive_t *d)
 {
   d->xd = 0.0f;
@@ -64,7 +57,6 @@ static void loop_reset(drive_t *d)
   memset(d->sign_hist, 0, sizeof(d->sign_hist));
 }
 
-
 void drive_init(drive_t *d, float ts)
 {
   memset(d, 0, sizeof(*d));
@@ -78,13 +70,11 @@ void drive_init(drive_t *d, float ts)
   loop_reset(d);
 }
 
-
 void drive_set_theta(drive_t *d, float theta)
 {
   d->theta_hat = drive_wrap(theta);
   d->theta_cmd = d->theta_hat;
 }
-
 
 const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
                            bool powered)
@@ -143,7 +133,6 @@ const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
   return NULL;
 }
 
-
 /* ---- the window ------------------------------------------------------- */
 
 static void acc_add(drive_acc_t *a, float x)
@@ -152,7 +141,6 @@ static void acc_add(drive_acc_t *a, float x)
   a->sum += (double)x;
   a->sumsq += (double)x * (double)x;
 }
-
 
 static void window_innovation(drive_window_t *w, float e)
 {
@@ -171,13 +159,11 @@ static void window_innovation(drive_window_t *w, float e)
   acc_add(&w->acc[DRIVE_ACC_EPS], e);
 }
 
-
 void drive_window_take(drive_t *d, drive_window_t *out)
 {
   *out = d->win;
   memset(&d->win, 0, sizeof(d->win));
 }
-
 
 /* ---- the moments ------------------------------------------------------ */
 
@@ -186,7 +172,6 @@ void drive_moments_arm(drive_t *d, uint32_t periods)
   memset(&d->mom, 0, sizeof(d->mom));
   d->mom.want = periods;
 }
-
 
 void drive_moments_feed(drive_t *d, const int32_t *codes)
 {
@@ -213,14 +198,12 @@ void drive_moments_feed(drive_t *d, const int32_t *codes)
   m->n++;
 }
 
-
 /* ---- one period ------------------------------------------------------- */
 
 static float clampf(float x, float lo, float hi)
 {
   return (x < lo) ? lo : ((x > hi) ? hi : x);
 }
-
 
 /** How much of the angle error comes from the back-EMF, 0..1 by speed. */
 static float bemf_weight(const drive_t *d, float speed)
@@ -233,7 +216,6 @@ static float bemf_weight(const drive_t *d, float speed)
   }
   return clampf((w - d->p.w_lo) / (d->p.w_hi - d->p.w_lo), 0.0f, 1.0f);
 }
-
 
 /** The feedback the loop acts on: the raw dq, or their mean over one
     injection cycle so the HF ripple does not reach the PI and come back out
@@ -272,7 +254,6 @@ static void feedback(drive_t *d, float id_raw, float iq_raw, bool injecting,
   *id = sd / (float)use;
   *iq = sq / (float)use;
 }
-
 
 /** The demodulator. */
 static bool demodulate(drive_t *d, float alpha, float beta, float th,
@@ -327,7 +308,6 @@ static bool demodulate(drive_t *d, float alpha, float beta, float th,
   return d->inj_valid;
 }
 
-
 /** The back-EMF's angle error in the rotor observer's frame, or 0 below
     w_lo. */
 static float bemf_error(drive_t *d, float alpha, float beta, float w,
@@ -356,7 +336,6 @@ static float bemf_error(drive_t *d, float alpha, float beta, float w,
   }
   return atan2f(-ed * sg, eq * sg);
 }
-
 
 static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
                            bool cycle_done, float w, float c, float s)
@@ -390,7 +369,6 @@ static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
   }
   d->theta_hat = drive_wrap(d->theta_hat + d->omega_hat * d->ts);
 }
-
 
 /** The PI with decoupling, and the vector limit with the integrators held
     when it bites. */
@@ -429,7 +407,6 @@ static void current_loop(drive_t *d, float id, float iq, float vmax,
   d->xq += d->p.ki * d->ts * eq;
 }
 
-
 /** Two pulses along theta_hat, +V then -V, a gap after each; then OFF. */
 static float polarity(drive_t *d, float id)
 {
@@ -460,7 +437,6 @@ static float polarity(drive_t *d, float id)
   return v;
 }
 
-
 static void command_frame(drive_t *d)
 {
   if ((d->mode != DRIVE_HOLD) && (d->mode != DRIVE_VOLT))
@@ -480,7 +456,6 @@ static void command_frame(drive_t *d)
   }
   d->theta_cmd = drive_wrap(d->theta_cmd + d->omega_cmd * d->ts);
 }
-
 
 bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
                 drive_out_t *out)

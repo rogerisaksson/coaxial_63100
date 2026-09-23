@@ -1,14 +1,8 @@
-/**
-  ******************************************************************************
-  * @file    cmd_power.c
-  * @brief   The rail reference counts behind 0x6E, device 9.
-  ******************************************************************************
-  */
+/** cmd_power.c - The rail reference counts behind 0x6E, device 9. */
 #include "board.h"
 #include "board_power.h"
 #include "cmd.h"
 #include "wire.h"
-
 
 static cmd_status_t h_power_state(wr_t *out)
 {
@@ -31,7 +25,6 @@ static cmd_status_t h_power_state(wr_t *out)
   return CMD_OK;
 }
 
-
 /* No guard on the gate stage here. */
 static cmd_status_t h_power_release_all(wr_t *out)
 {
@@ -39,7 +32,6 @@ static cmd_status_t h_power_release_all(wr_t *out)
   wr_took(out, NULL);
   return CMD_OK;
 }
-
 
 cmd_status_t cmd_power_op(uint8_t op, rd_t *in, wr_t *out)
 {

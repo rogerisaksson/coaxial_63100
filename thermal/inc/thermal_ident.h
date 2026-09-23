@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    thermal_ident.h
-  * @brief   Online identification of the thermal graph's parameters from
-  *          the board's own thermometers, while it runs.
-  ******************************************************************************
-  */
+/** thermal_ident.h - Online identification of the thermal graph's parameters
+    from the board's own thermometers, while it runs. */
 #ifndef THERMAL_IDENT_H
 #define THERMAL_IDENT_H
 

@@ -1,11 +1,6 @@
-/**
-  ******************************************************************************
-  * @file    harness.c
-  * @brief   A flat C API over drive/, so test_drive_core.py can run the
-  *          control law on the host through ctypes, against a motor model
-  *          written in Python.
-  ******************************************************************************
-  */
+/** harness.c - A flat C API over drive/, so test_drive_core.py can run the
+    control law on the host through ctypes, against a motor model written in
+    Python. */
 #include "drive.h"
 
 #include <stdlib.h>
@@ -31,7 +26,6 @@
    demod_q, vdc, e_bemf, xd, xq */
 #define STATES 22
 
-
 API drive_t *drv_new(float ts)
 {
   drive_t *d = calloc(1U, sizeof(*d));
@@ -43,18 +37,15 @@ API drive_t *drv_new(float ts)
   return d;
 }
 
-
 API void drv_free(drive_t *d)
 {
   free(d);
 }
 
-
 API int drv_param_count(void)
 {
   return PARAMS;
 }
-
 
 API void drv_params_set(drive_t *d, const float *v, int n)
 {
@@ -78,7 +69,6 @@ API void drv_params_set(drive_t *d, const float *v, int n)
   }
 }
 
-
 API void drv_params_get(const drive_t *d, float *v, int n)
 {
   const drive_params_t *p = &d->p;
@@ -100,7 +90,6 @@ API void drv_params_get(const drive_t *d, float *v, int n)
   }
 }
 
-
 API void drv_setpoints_set(drive_t *d, const float *v, int n)
 {
   drive_setpoints_t *s = &d->sp;
@@ -115,7 +104,6 @@ API void drv_setpoints_set(drive_t *d, const float *v, int n)
   s->pol_periods = (uint16_t)v[8];  s->pol_gap = (uint16_t)v[9];
 }
 
-
 API const char *drv_set_mode(drive_t *d, int mode, int enabled, int powered)
 {
   const char *why = drive_set_mode(d, (drive_mode_t)mode, enabled != 0,
@@ -124,12 +112,10 @@ API const char *drv_set_mode(drive_t *d, int mode, int enabled, int powered)
   return (why == NULL) ? "" : why;
 }
 
-
 API void drv_set_theta(drive_t *d, float theta)
 {
   drive_set_theta(d, theta);
 }
-
 
 API int drv_step(drive_t *d, const float *i3, float vdc, int enabled,
                  float *duty3)
@@ -150,12 +136,10 @@ API int drv_step(drive_t *d, const float *i3, float vdc, int enabled,
   return trip ? 1 : 0;
 }
 
-
 API int drv_state_count(void)
 {
   return STATES;
 }
-
 
 API void drv_state(const drive_t *d, float *v, int n)
 {
@@ -174,17 +158,14 @@ API void drv_state(const drive_t *d, float *v, int n)
   v[19] = d->e_bemf;  v[20] = d->xd;  v[21] = d->xq;
 }
 
-
 /* WINDOW_ORDER: n, then per field (n, sum, sumsq) for id, iq, vd, vq, eps,
    ih, vdc, then lag[0..7], then i_peak. */
 #define WINDOW_DOUBLES (1 + 3 * DRIVE_ACC_FIELDS + (DRIVE_LAGS + 1) + 1)
-
 
 API int drv_window_count(void)
 {
   return WINDOW_DOUBLES;
 }
-
 
 API void drv_window(drive_t *d, double *v, int n)
 {
@@ -210,12 +191,10 @@ API void drv_window(drive_t *d, double *v, int n)
   v[at++] = (double)w.i_peak;
 }
 
-
 API void drv_moments_arm(drive_t *d, unsigned periods)
 {
   drive_moments_arm(d, periods);
 }
-
 
 API void drv_moments_feed(drive_t *d, const int *codes4)
 {
@@ -228,16 +207,13 @@ API void drv_moments_feed(drive_t *d, const int *codes4)
   drive_moments_feed(d, c);
 }
 
-
 /* MOMENTS_ORDER: n, want, then per channel sum, sumsq, lo, hi. */
 #define MOMENT_DOUBLES (2 + 4 * DRIVE_MOMENT_CHANNELS)
-
 
 API int drv_moments_count(void)
 {
   return MOMENT_DOUBLES;
 }
-
 
 API void drv_moments(const drive_t *d, double *v, int n)
 {
@@ -258,19 +234,16 @@ API void drv_moments(const drive_t *d, double *v, int n)
   }
 }
 
-
 /* ---- the model as the source ------------------------------------------ */
 
 /* MODEL_ORDER: r, ld, lq, lambda, pole_pairs, sat, i_sat, j, b, load, v_dt,
    i_knee, vdc, noise, theta0, sub */
 #define MODEL_PARAMS 16
 
-
 API int drv_model_param_count(void)
 {
   return MODEL_PARAMS;
 }
-
 
 API void drv_model_params_set(drive_t *d, const float *v, int n)
 {
@@ -287,7 +260,6 @@ API void drv_model_params_set(drive_t *d, const float *v, int n)
   p->sub = (uint8_t)v[15];
 }
 
-
 API void drv_source(drive_t *d, int model)
 {
   d->source = model ? DRIVE_SOURCE_MODEL : DRIVE_SOURCE_ADC;
@@ -297,7 +269,6 @@ API void drv_source(drive_t *d, int model)
   }
 }
 
-
 /* MODEL_STATE_ORDER: theta, omega, id, iq */
 API void drv_model_state(const drive_t *d, float *v)
 {
@@ -306,7 +277,6 @@ API void drv_model_state(const drive_t *d, float *v)
   v[2] = d->model.id;
   v[3] = d->model.iq;
 }
-
 
 /** The observer chain's state, drive_observer.c, in the order
     test_drive_core.py and coaxial.drive read it: the blend, then each
@@ -318,24 +288,20 @@ API void drv_obs_step(drive_t *d, float va, float vb, float ia, float ib)
   drive_observer_step(&d->obs, &d->p, va, vb, ia, ib, d->ts);
 }
 
-
 API void drv_obs_sync(drive_t *d, float theta, float omega)
 {
   drive_observer_sync(&d->obs, &d->p, theta, omega);
 }
-
 
 API void drv_obs_reset(drive_t *d)
 {
   drive_observer_init(&d->obs, &d->p, d->ts);
 }
 
-
 API int drv_obs_count(void)
 {
   return 8;
 }
-
 
 API void drv_obs(const drive_t *d, float *v, int n)
 {
@@ -352,7 +318,6 @@ API void drv_obs(const drive_t *d, float *v, int n)
   }
 }
 
-
 API int drv_step_virtual(drive_t *d, float *duty3)
 {
   drive_out_t out;
@@ -364,7 +329,6 @@ API int drv_step_virtual(drive_t *d, float *duty3)
   return trip ? 1 : 0;
 }
 
-
 /* ---- the arithmetic on its own ---------------------------------------- */
 
 API float drv_svm(float va, float vb, float vdc, float *duty3)
@@ -372,30 +336,25 @@ API float drv_svm(float va, float vb, float vdc, float *duty3)
   return drive_svm(va, vb, vdc, duty3);
 }
 
-
 API void drv_clarke(const float *iabc, float *ab)
 {
   drive_clarke(iabc, &ab[0], &ab[1]);
 }
-
 
 API void drv_park(float alpha, float beta, float theta, float *dq)
 {
   drive_park(alpha, beta, theta, &dq[0], &dq[1]);
 }
 
-
 API void drv_inv_park(float dd, float q, float theta, float *ab)
 {
   drive_inv_park(dd, q, theta, &ab[0], &ab[1]);
 }
 
-
 API float drv_wrap(float theta)
 {
   return drive_wrap(theta);
 }
-
 
 API float drv_dt_volts(const drive_t *d, float amps)
 {

@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    version.h
-  * @brief   Firmware and protocol versions. One place, nothing computed.
-  ******************************************************************************
-  */
+/** version.h - Firmware and protocol versions. */
 #ifndef VERSION_H
 #define VERSION_H
 

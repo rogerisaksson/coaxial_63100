@@ -1,14 +1,8 @@
-/**
-  ******************************************************************************
-  * @file    board_io.c
-  * @brief   Discrete I/O: AFE_ON and PE15, plus the console-mode request.
-  ******************************************************************************
-  */
+/** board_io.c - Discrete I/O: AFE_ON and PE15, plus the console-mode request. */
 #include "board.h"
 #include "board_hw.h"
 
 #include "link.h"
-
 
 /* Every pin this board uses for something, reserved ones included. */
 typedef struct
@@ -18,18 +12,14 @@ typedef struct
   const char *pin;
   uint8_t     dir;
   const char *signal;
-  /** A host may drive it through the test path. */
-  bool        usable;
-  /** It goes in a DAQ record. */
-  bool        sampled;
+  bool        usable;    /**< a host may drive it through the test path */
+  bool        sampled;   /**< it goes in a DAQ record */
 } DigitalDesc;
 
 static const DigitalDesc s_digital[] =
 {
   { 'B',  2U, "PB2",  BOARD_DIR_OUT,   "AFE_ON",              true,  true   },
-  /* Still an input carrying nFAULT, and still readable here - IDR reflects
-     the pin whatever mode it is in. */
-  /* TIM1_BKIN. */
+  /* nFAULT: an input as TIM1_BKIN too, and IDR still reads it. */
   { 'E', 15U, "PE15", BOARD_DIR_IN,    "nFAULT/TIM1_BKIN",    false, true   },
   { 'E', 14U, "PE14", BOARD_DIR_OUT,   "UART5_TERM",          true,  false  },
   /* The STO chain's proof that main() is still turning. */
@@ -86,7 +76,6 @@ static const PartDesc s_parts[] =
   { "AFE", "phase chains + ADC ref", "PB2 switches it", "", PART_PROBE_AFE },
   { "UART5 termination", "120 ohm across the pair", "PE14 switches it", "",
     PART_PROBE_NONE },
-  /* The gate_drivers. */
   { "2EDL8034 x3", "half bridge gate drivers", "PE8..PE13, TIM1",
     "STO chain", PART_PROBE_NONE },
   { "IAUCN10S7N021", "bridge FETs, 63 V 100 A", "HalfBridge x3",
@@ -102,6 +91,13 @@ uint8_t Board_PartCount(void)
   return (uint8_t)(sizeof(s_parts) / sizeof(s_parts[0]));
 }
 
+/* Powered and answering, powered and silent, or unpowered. */
+static uint8_t probed(bool ready)
+{
+  return !Board_AfeOn() ? BOARD_PART_UNPOWERED
+                        : (ready ? BOARD_PART_READY : BOARD_PART_SILENT);
+}
+
 bool Board_Part(uint8_t index, board_part_t *info)
 {
   if ((index >= Board_PartCount()) || (info == NULL))
@@ -115,43 +111,13 @@ bool Board_Part(uint8_t index, board_part_t *info)
   info->what  = p->what;
   info->where = p->where;
   info->power = p->power;
-
   switch (p->probe)
   {
-    case PART_PROBE_AFE:
-      info->state = Board_AfeOn() ? BOARD_PART_READY : BOARD_PART_UNPOWERED;
-      break;
-
-    case PART_PROBE_IMU:
-      if (!Board_AfeOn())
-      {
-        info->state = BOARD_PART_UNPOWERED;
-      }
-      else
-      {
-        info->state = Board_ImuReady() ? BOARD_PART_READY : BOARD_PART_SILENT;
-      }
-      break;
-
-    case PART_PROBE_ANGLE:
-      if (!Board_AfeOn())
-      {
-        info->state = BOARD_PART_UNPOWERED;
-      }
-      else
-      {
-        info->state = Board_AngleReady() ? BOARD_PART_READY
-                                         : BOARD_PART_SILENT;
-      }
-      break;
-
-    default:
-      /* Nothing here can prove it either way, and inventing an answer is
-         what invariant 10 forbids. */
-      info->state = BOARD_PART_UNKNOWN;
-      break;
+    case PART_PROBE_AFE:   info->state = probed(true);               break;
+    case PART_PROBE_IMU:   info->state = probed(Board_ImuReady());   break;
+    case PART_PROBE_ANGLE: info->state = probed(Board_AngleReady()); break;
+    default:               info->state = BOARD_PART_UNKNOWN;         break;  /* invariant 10 */
   }
-
   return true;
 }
 
@@ -189,66 +155,56 @@ static GPIO_TypeDef *port_base(char port)
   }
 }
 
+/* Rows a filter keeps: the drivable ones, or the sampled ones. */
+static bool kept(const DigitalDesc *d, bool sampled)
+{
+  return sampled ? d->sampled : d->usable;
+}
+
+static uint8_t count_of(bool sampled)
+{
+  uint8_t n = 0U;
+
+  for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
+  {
+    n = (uint8_t)(n + (kept(&s_digital[i], sampled) ? 1U : 0U));
+  }
+  return n;
+}
+
+static bool nth(bool sampled, uint8_t slot, board_dchan_t *info)
+{
+  uint8_t n = 0U;
+
+  for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
+  {
+    if (kept(&s_digital[i], sampled) && (n++ == slot))
+    {
+      return Board_DigitalChan(i, info);
+    }
+  }
+  return false;
+}
 
 uint8_t Board_DigitalIoCount(void)
 {
-  uint8_t n = 0U;
-
-  for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
-  {
-    if (s_digital[i].usable)
-    {
-      n++;
-    }
-  }
-  return n;
+  return count_of(false);
 }
-
 
 bool Board_DigitalIoChan(uint8_t slot, board_dchan_t *info)
 {
-  uint8_t n = 0U;
-
-  for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
-  {
-    if (s_digital[i].usable && (n++ == slot))
-    {
-      return Board_DigitalChan(i, info);
-    }
-  }
-  return false;
+  return nth(false, slot, info);
 }
-
 
 uint8_t Board_DigitalSampledCount(void)
 {
-  uint8_t n = 0U;
-
-  for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
-  {
-    if (s_digital[i].sampled)
-    {
-      n++;
-    }
-  }
-  return n;
+  return count_of(true);
 }
-
 
 bool Board_DigitalSampledChan(uint8_t slot, board_dchan_t *info)
 {
-  uint8_t n = 0U;
-
-  for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
-  {
-    if (s_digital[i].sampled && (n++ == slot))
-    {
-      return Board_DigitalChan(i, info);
-    }
-  }
-  return false;
+  return nth(true, slot, info);
 }
-
 
 uint32_t Board_DigitalMask(void)
 {
@@ -272,7 +228,6 @@ uint32_t Board_DigitalMask(void)
   }
   return bits;
 }
-
 
 bool Board_PinUsable(char port, uint8_t pin)
 {

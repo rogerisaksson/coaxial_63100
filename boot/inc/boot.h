@@ -1,10 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    boot.h
-  * @brief   The bootloader's state machine: a blank node taking its image and
-  *          its record from the master over broadcast, hardware-free.
-  ******************************************************************************
-  */
+/** boot.h - The bootloader's state machine: a blank node taking its image and
+    its record from the master over broadcast, hardware-free. */
 #ifndef BOOT_H
 #define BOOT_H
 

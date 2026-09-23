@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    cmd_length.h
-  * @brief   The request-length oracle mb_rtu's early path asks.
-  ******************************************************************************
-  */
+/** cmd_length.h - The request-length oracle mb_rtu's early path asks. */
 #ifndef CMD_LENGTH_H
 #define CMD_LENGTH_H
 

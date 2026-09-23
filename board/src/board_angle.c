@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    board_angle.c
-  * @brief   Allegro A1335 magnetic angle sensor on SPI4.
-  ******************************************************************************
-  */
+/** board_angle.c - Allegro A1335 magnetic angle sensor on SPI4. */
 #include "board_limits.h"
 #include "board.h"
 #include "board_hw.h"
@@ -55,41 +50,10 @@ static struct
   .poll_reg = ANGLE_REG_ANG
 };
 
-
 static uint32_t prescaler_under(uint32_t limit_hz)
 {
-  static const uint32_t DIVIDERS[] =
-  {
-    SPI_BAUDRATEPRESCALER_2,   SPI_BAUDRATEPRESCALER_4,
-    SPI_BAUDRATEPRESCALER_8,   SPI_BAUDRATEPRESCALER_16,
-    SPI_BAUDRATEPRESCALER_32,  SPI_BAUDRATEPRESCALER_64,
-    SPI_BAUDRATEPRESCALER_128, SPI_BAUDRATEPRESCALER_256,
-  };
-
-  const uint32_t kernel = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI4);
-
-  s.kernel_hz = kernel;
-
-  /* A kernel clock of zero means the peripheral clock is not configured, and
-     the loop below would read 0 <= limit on the first divider and pick the
-     fastest there is. */
-  if (kernel == 0U)
-  {
-    s.bitrate_hz = 0U;
-    return SPI_BAUDRATEPRESCALER_256;
-  }
-
-  for (uint32_t i = 0U; i < (sizeof(DIVIDERS) / sizeof(DIVIDERS[0])); i++)
-  {
-    if ((kernel >> (i + 1U)) <= limit_hz)
-    {
-      s.bitrate_hz = kernel >> (i + 1U);
-      return DIVIDERS[i];
-    }
-  }
-
-  s.bitrate_hz = kernel >> 8;
-  return SPI_BAUDRATEPRESCALER_256;
+  s.kernel_hz = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI4);
+  return board_spi_prescaler(s.kernel_hz, limit_hz, &s.bitrate_hz);
 }
 
 static void cs(bool low)
@@ -100,15 +64,7 @@ static void cs(bool low)
 
 static void settle(void)
 {
-  const uint32_t per_us = SystemCoreClock / US_PER_S;
-  const uint32_t start = Board_Cycles();
-
-  while ((uint32_t)(Board_Cycles() - start) < (ANGLE_SETTLE_US * per_us))
-  {
-    /* Busy wait - a chip select edge is not worth an interrupt - so it may
-       as well feed the STO charge pump while it spins. */
-    Board_StoKeepalive();
-  }
+  board_spin_us(ANGLE_SETTLE_US);
 }
 
 bool Board_AngleInit(void)
@@ -264,7 +220,6 @@ bool Board_AngleDie(int32_t *centidegc)
   return true;
 }
 
-
 bool Board_AngleWrite(uint8_t reg, uint8_t value)
 {
   const uint32_t frame = ((uint32_t)ANGLE_RW_WRITE << ANGLE_RW_SHIFT)
@@ -297,7 +252,6 @@ static void power_lost(void)
   note(BOARD_ANGLE_ERR_POWER);
 }
 
-
 void Board_AnglePoll(void)
 {
   uint16_t value = 0U;
@@ -320,7 +274,6 @@ void Board_AnglePoll(void)
   {
     return;
   }
-
 
   if ((s.state.loop == BOARD_ANGLE_LOOP_OFF) && !Board_AngleInit())
   {

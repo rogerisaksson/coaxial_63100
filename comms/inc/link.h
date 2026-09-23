@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    link.h
-  * @brief   The comms stack, assembled: device + protocol + commands.
-  ******************************************************************************
-  */
+/** link.h - The comms stack, assembled: device + protocol + commands. */
 #ifndef LINK_H
 #define LINK_H
 

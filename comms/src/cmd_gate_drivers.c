@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    cmd_gate_drivers.c
-  * @brief   The gate drivers' operations behind command 0x6E, device 4.
-  ******************************************************************************
-  */
+/** cmd_gate_drivers.c - The gate drivers' operations behind command 0x6E,
+    device 4. */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"
@@ -82,7 +78,6 @@ static cmd_status_t h_gate_drivers_state(wr_t *out)
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
-
 /** op 1 - master output enable. Enabling always arms at zero duty. */
 static cmd_status_t h_gate_drivers_pwm(rd_t *in, wr_t *out)
 {
@@ -112,7 +107,6 @@ static cmd_status_t h_gate_drivers_pwm(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 2 - all three compares, or none. */
 static cmd_status_t h_gate_drivers_duty(rd_t *in, wr_t *out)
 {
@@ -135,7 +129,6 @@ static cmd_status_t h_gate_drivers_duty(rd_t *in, wr_t *out)
   wr_took(out, Board_PwmSetAllCounted(ticks, periods));
   return CMD_OK;
 }
-
 
 /** op 10 - two triples, A one period and B the next, swapped by TIM1's
     update interrupt for as long as they stand. */
@@ -161,7 +154,6 @@ static cmd_status_t h_gate_drivers_alternate(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 8 - all three compares in ticks Q16.16, dithered. */
 static cmd_status_t h_gate_drivers_duty_fine(rd_t *in, wr_t *out)
 {
@@ -179,7 +171,6 @@ static cmd_status_t h_gate_drivers_duty_fine(rd_t *in, wr_t *out)
   wr_took(out, Board_PwmSetAllFine(ticks));
   return CMD_OK;
 }
-
 
 /** op 3 - start or stop latching the injected triple. */
 static cmd_status_t h_gate_drivers_sync(rd_t *in, wr_t *out)
@@ -206,7 +197,6 @@ static cmd_status_t h_gate_drivers_sync(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 4 - move the sample point. */
 static cmd_status_t h_gate_drivers_trigger(rd_t *in, wr_t *out)
 {
@@ -222,7 +212,6 @@ static cmd_status_t h_gate_drivers_trigger(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 7 - forget the worst keepalive gap, so a run is measured on its own. */
 static cmd_status_t h_gate_drivers_gap_reset(wr_t *out)
 {
@@ -230,7 +219,6 @@ static cmd_status_t h_gate_drivers_gap_reset(wr_t *out)
   wr_u8(out, 1U);
   return CMD_OK;
 }
-
 
 /** op 6 - disconnect the break input, for bench work. */
 static cmd_status_t h_gate_drivers_bypass(rd_t *in, wr_t *out)
@@ -246,14 +234,12 @@ static cmd_status_t h_gate_drivers_bypass(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 5 - clear the break latch. Does not re-arm; the caller asks again. */
 static cmd_status_t h_gate_drivers_clear(wr_t *out)
 {
   wr_u8(out, Board_PwmClearFault() ? 1U : 0U);
   return CMD_OK;
 }
-
 
 /** op 9 - the dead time, in nanoseconds, and its skew in DTG counts. */
 static cmd_status_t h_gate_drivers_deadtime(rd_t *in, wr_t *out)
@@ -283,7 +269,6 @@ static cmd_status_t h_gate_drivers_deadtime(rd_t *in, wr_t *out)
   wr_u8(out, Board_PwmDeadTimeFloor());
   return CMD_OK;
 }
-
 
 cmd_status_t cmd_gate_drivers_op(uint8_t op, rd_t *in, wr_t *out)
 {

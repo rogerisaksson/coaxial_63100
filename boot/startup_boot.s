@@ -1,16 +1,5 @@
-/**
-  ******************************************************************************
-  * @file      startup_boot.s
-  * @brief     The bootloader's reset: the stack, the FPU, .text and
-  *            .rodata to ITCM, .data to DTCM, .bss zeroed, main().
-  *
-  * Runs from flash, since it is what copies everything else out of it.
-  * No SystemInit: the clocks are main()'s, at register level. The vector
-  * table holds the sixteen core exceptions and nothing more - the
-  * bootloader enables no interrupt - and every fault parks in
-  * Default_Handler for a debugger to find.
-  ******************************************************************************
-  */
+/** startup_boot.s - The bootloader's reset: the stack, the FPU, .text and
+    .rodata to ITCM, .data to DTCM, .bss zeroed, main(). */
 
   .syntax unified
   .cpu cortex-m7

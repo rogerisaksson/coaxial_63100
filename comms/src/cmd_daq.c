@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    cmd_daq.c
-  * @brief   The acquisition task behind command 0x6E, device 6.
-  ******************************************************************************
-  */
+/** cmd_daq.c - The acquisition task behind command 0x6E, device 6. */
 #include "cmd.h"
 #include "board.h"
 #include "filter.h"
@@ -14,14 +9,12 @@
 /** What is left of MB_MAX_PDU once the count byte is spent. */
 #define DAQ_REPLY_ROOM 240U
 
-
 /** Coefficients cross as Q28: the wire has no floating point (PROTOCOL, the
     header), and a biquad's a1 reaches -2, so a scale of 2^28 leaves a range
     of +/-8 and a resolution of 4e-9 - three orders inside what a float
     carries anyway. */
 #define DAQ_COEFF_SHIFT 28
 #define DAQ_COEFF_SCALE 268435456.0f
-
 
 /** The link's own answer where a task asked for no rate. */
 static void daq_substitute_interval(void)
@@ -47,7 +40,6 @@ static void daq_substitute_interval(void)
     Board_DaqSetInterval(0U);      /* faster than the loop can go anyway */
   }
 }
-
 
 /** op 7 - the anti-alias chain the host designed. */
 static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
@@ -88,7 +80,6 @@ static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
   wr_took(out, refusal);
   return CMD_OK;
 }
-
 
 /** op 9 - one rung of the ladder. */
 static cmd_status_t h_daq_rung(rd_t *in, wr_t *out)
@@ -131,7 +122,6 @@ static cmd_status_t h_daq_rung(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 8 - a known tone in the converter's place. */
 static cmd_status_t h_daq_tone(rd_t *in, wr_t *out)
 {
@@ -152,7 +142,6 @@ static cmd_status_t h_daq_tone(rd_t *in, wr_t *out)
   wr_took(out, Board_DaqSetTone(hz, rate, amplitude, offset, kind));
   return CMD_OK;
 }
-
 
 static cmd_status_t h_daq_state(wr_t *out)
 {
@@ -195,7 +184,6 @@ static cmd_status_t h_daq_state(wr_t *out)
   return CMD_OK;
 }
 
-
 /** op 1 - configure. */
 static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
 {
@@ -234,13 +222,11 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-
 static cmd_status_t h_daq_start(wr_t *out)
 {
   wr_took(out, Board_DaqStart());
   return CMD_OK;
 }
-
 
 static cmd_status_t h_daq_stop(wr_t *out)
 {
@@ -248,7 +234,6 @@ static cmd_status_t h_daq_stop(wr_t *out)
   wr_u8(out, 1U);
   return CMD_OK;
 }
-
 
 /** op 4 - take whole records, oldest first. */
 static cmd_status_t h_daq_read(rd_t *in, wr_t *out)
@@ -286,7 +271,6 @@ static cmd_status_t h_daq_read(rd_t *in, wr_t *out)
   wr_u32(out, Board_DaqAvailable());
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
-
 
 /** op 5 - what each field of a record is, named by the board. */
 /** The digital word, named bit by bit. */
@@ -365,7 +349,6 @@ static cmd_status_t h_daq_layout(wr_t *out)
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
-
 /** op 6 - the live accumulator, taken and reset. */
 static cmd_status_t h_daq_live(wr_t *out)
 {
@@ -400,7 +383,6 @@ static cmd_status_t h_daq_live(wr_t *out)
   }
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
-
 
 cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out)
 {

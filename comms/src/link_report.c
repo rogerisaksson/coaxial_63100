@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    link_report.c
-  * @brief   Human-readable link status, for the ASCII console only.
-  ******************************************************************************
-  */
+/** link_report.c - Human-readable link status, for the ASCII console only. */
 #include "link.h"
 #include "cmd.h"
 

@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board_adc.c
-  * @brief   ADC access for this board: the channel table and the readings.
-  ******************************************************************************
-  */
+/** board_adc.c - ADC access for this board: the channel table and the
+    readings. */
 #include "board.h"
 #include "board_units.h"
 #include "board_hw.h"
@@ -17,13 +13,11 @@
 #define ADC_HALF_CODES 32768.0f
 #define ADC_MID_CODE   32768
 
-
 /* ADC+/- reference. */
 static float cal_vref(void)
 {
   return (float)Board_Cal()->vref_uv / MICRO_PER_UNIT;
 }
-
 
 /* One formula for what a code is worth, so the corrected read below cannot
    drift from the raw one above it. */
@@ -43,7 +37,6 @@ static const uint32_t SAMPLE_TIMES[] =
 static uint32_t s_sample_time = ADC_SAMPLETIME_1CYCLE_5;
 static uint8_t  s_sample_index;
 
-
 bool Board_AdcSetSampleTime(uint8_t index)
 {
   if (index >= SAMPLE_TIME_COUNT)
@@ -55,13 +48,10 @@ bool Board_AdcSetSampleTime(uint8_t index)
   return true;
 }
 
-
 uint8_t Board_AdcSampleTime(void)
 {
   return s_sample_index;
 }
-
-
 
 int32_t Board_AdcDifferential(uint32_t raw)
 {
@@ -69,14 +59,12 @@ int32_t Board_AdcDifferential(uint32_t raw)
   return (int32_t)raw - ADC_MID_CODE;
 }
 
-
 static float code_to_volts(int32_t code, uint32_t singleDiff)
 {
   return (singleDiff == ADC_SINGLE_ENDED)
          ? ((float)code / ADC_CODES) * cal_vref()
          : ((float)code / ADC_HALF_CODES) * cal_vref();
 }
-
 
 /* One blocking read: rank 1 reconfigured, Start/PollForConversion/GetValue/Stop. */
 static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32_t singleDiff,
@@ -187,7 +175,6 @@ typedef enum
   ADC_UNIT_DIE         /* degrees C, from the die's factory calibration */
 } AdcUnit;
 
-
 typedef struct
 {
   ADC_HandleTypeDef *hadc;
@@ -249,13 +236,11 @@ float Board_PhaseAmps(uint8_t leg, int32_t centred)
                                            ADC_DIFFERENTIAL_ENDED));
 }
 
-
 bool Board_AdcIsPhase(uint8_t index)
 {
   return (index == CH_PHASE_U) || (index == CH_PHASE_V) ||
          (index == CH_PHASE_W);
 }
-
 
 int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase)
 {
@@ -270,7 +255,6 @@ int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase)
   return phase[2];
 }
 
-
 bool Board_AdcInjected(uint8_t index)
 {
   /* WHAT THE SEQUENCE ACTUALLY CONVERTS, which is more than the triple: rank
@@ -279,7 +263,6 @@ bool Board_AdcInjected(uint8_t index)
   return Board_AdcIsPhase(index) || (index == CH_DCBUS) ||
          (index == CH_NTC);
 }
-
 
 int32_t Board_AdcInjectedSlot(uint8_t index,
                               const board_sync_sample_t *sample)
@@ -488,7 +471,6 @@ void Board_PhaseScale(uint8_t leg, int32_t *offset_raw, float *amps_per_code)
                    * PHASE_AmpsFromShunt(code_to_volts(1, ADC_DIFFERENTIAL_ENDED));
 }
 
-
 void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code)
 {
   int32_t offset = 0;
@@ -499,7 +481,6 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code)
   *volts_per_code = (1.0f + (float)ppm / PPM_PER_UNIT)
                     * DC_BUS_VoltsFromDivider(code_to_volts(1, ADC_SINGLE_ENDED));
 }
-
 
 bool Board_DcBus(int32_t *raw, int32_t *millivolts)
 {
@@ -531,7 +512,6 @@ bool Board_McuDie(int32_t *raw, int32_t *centidegc)
   }
   return Board_AdcRead(CH_MCU_DIE, raw, &microvolts, centidegc);
 }
-
 
 bool Board_Ntc(int32_t *raw, int32_t *centidegc)
 {

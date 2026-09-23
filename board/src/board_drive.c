@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board_drive.c
-  * @brief   Runs the control law on this hardware, one PWM period at a time.
-  ******************************************************************************
-  */
+/** board_drive.c - Runs the control law on this hardware, one PWM period at a
+    time. */
 #include "board.h"
 #include "board_irq.h"
 #include "board_drive.h"
@@ -58,35 +54,29 @@ void Board_DriveDerate(float factor)
   }
 }
 
-
 float Board_DriveDerating(void)
 {
   return s.derate;
 }
 
-
 #define TWO_PI_F 6.2831853f
 #define CODES_PER_TURN 65536.0f   /* the wire's angle: a turn in 65536 */
 #define LOG_EPS_SCALE  10000.0f   /* the log's eps: tenths of a milliradian */
-
 
 static float milli(uint32_t v)
 {
   return (float)v / MILLI_PER_UNIT;
 }
 
-
 static float micro(uint32_t v)
 {
   return (float)v / MICRO_PER_UNIT;
 }
 
-
 static float milli_signed(uint32_t v)
 {
   return (float)(int32_t)v / MILLI_PER_UNIT;
 }
-
 
 void Board_DriveParamsFromCal(void)
 {
@@ -132,7 +122,6 @@ void Board_DriveParamsFromCal(void)
   }
 }
 
-
 void Board_DriveInit(void)
 {
   /* Centre-aligned, so a period is twice ARR ticks of the timer clock, which
@@ -150,18 +139,15 @@ void Board_DriveInit(void)
   s.ready = true;
 }
 
-
 const drive_t *Board_Drive(void)
 {
   return &s.drive;
 }
 
-
 float Board_DriveTs(void)
 {
   return s.drive.ts;
 }
-
 
 const char *Board_DriveSetMode(uint8_t mode)
 {
@@ -189,7 +175,6 @@ const char *Board_DriveSetMode(uint8_t mode)
   Board_IrqRelease(masked);
   return why;
 }
-
 
 const char *Board_DriveSetpoint(uint8_t id, int32_t value)
 {
@@ -228,7 +213,6 @@ const char *Board_DriveSetpoint(uint8_t id, int32_t value)
   return NULL;
 }
 
-
 void Board_DriveSetpointsGet(int32_t *out)
 {
   const drive_setpoints_t *sp = &s.drive.sp;
@@ -244,7 +228,6 @@ void Board_DriveSetpointsGet(int32_t *out)
   out[8] = (int32_t)sp->pol_periods;
   out[9] = (int32_t)sp->pol_gap;
 }
-
 
 const char *Board_DriveSetSource(uint8_t source)
 {
@@ -264,7 +247,6 @@ const char *Board_DriveSetSource(uint8_t source)
   Board_IrqRelease(masked);
   return NULL;
 }
-
 
 const char *Board_DriveModelParam(uint8_t id, int32_t value)
 {
@@ -306,14 +288,12 @@ const char *Board_DriveModelParam(uint8_t id, int32_t value)
   return NULL;
 }
 
-
 void Board_DriveModelReset(void)
 {
   const uint32_t masked = Board_IrqHold();
   drive_model_init(&s.drive.model);
   Board_IrqRelease(masked);
 }
-
 
 void Board_DriveSetTheta(int32_t microradians)
 {
@@ -322,14 +302,12 @@ void Board_DriveSetTheta(int32_t microradians)
   Board_IrqRelease(masked);
 }
 
-
 void Board_DriveWindowTake(drive_window_t *out)
 {
   const uint32_t masked = Board_IrqHold();
   drive_window_take(&s.drive, out);
   Board_IrqRelease(masked);
 }
-
 
 void Board_DriveMomentsArm(uint32_t periods)
 {
@@ -338,7 +316,6 @@ void Board_DriveMomentsArm(uint32_t periods)
   Board_IrqRelease(masked);
 }
 
-
 void Board_DriveMoments(drive_moments_t *out)
 {
   const uint32_t masked = Board_IrqHold();
@@ -346,13 +323,11 @@ void Board_DriveMoments(drive_moments_t *out)
   Board_IrqRelease(masked);
 }
 
-
 void Board_DriveCycles(uint32_t *last, uint32_t *max)
 {
   *last = s.cycles_last;
   *max = s.cycles_max;
 }
-
 
 void Board_DriveCyclesReset(void)
 {
@@ -360,12 +335,10 @@ void Board_DriveCyclesReset(void)
   s.exit_ticks_max = 0U;
 }
 
-
 uint16_t Board_DriveExitTicks(void)
 {
   return s.exit_ticks_max;
 }
-
 
 bool Board_DriveOwnsCompares(void)
 {

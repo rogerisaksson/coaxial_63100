@@ -1,9 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    board_drive.h
-  * @brief   The control law on this board: what cmd_drive.c may ask of it.
-  ******************************************************************************
-  */
+/** board_drive.h - The control law on this board: what cmd_drive.c may ask of
+    it. */
 #ifndef BOARD_DRIVE_H
 #define BOARD_DRIVE_H
 

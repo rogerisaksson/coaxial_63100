@@ -1,12 +1,5 @@
-/**
-  ******************************************************************************
-  * @file    cmd_boot.c
-  * @brief   Device 11 as the running application serves it: `state`, and
-  *          `stay` - the way back into the bootloader. The rest of the
-  *          table is the bootloader's alone (boot/src/boot_core.c), and is
-  *          refused here in words.
-  ******************************************************************************
-  */
+/** cmd_boot.c - Device 11 as the running application serves it: `state`, and
+    `stay` - the way back into the bootloader. */
 #include "board.h"
 #include "boot.h"
 #include "cmd.h"

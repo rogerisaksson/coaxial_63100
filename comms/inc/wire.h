@@ -1,9 +1,4 @@
-/**
-  ******************************************************************************
-  * @file    wire.h
-  * @brief   Append-only writer and forward-only reader for binary payloads.
-  ******************************************************************************
-  */
+/** wire.h - Append-only writer and forward-only reader for binary payloads. */
 #ifndef WIRE_H
 #define WIRE_H
 
