@@ -30,7 +30,7 @@ sys.path.insert(0, HOST)
 # including testline/ and examples/ - they were left out for no reason and
 # had never been checked at all, which is how three undocumented classes
 # and 750 unchecked lines sat there.
-PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'testline')
+PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'testline', 'terminal')
 SCRIPTS = ('tools', 'examples')
 
 #: Outside host/, and judged the same: a reader copies from these.

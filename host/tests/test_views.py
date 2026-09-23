@@ -83,6 +83,48 @@ def test_each_view_draws_two_frames(report):
                      'Traceback' not in done.stdout + done.stderr, last)
 
 
+def test_the_loader_reads_the_pages(report):
+    """The terminal is what lies under terminal/pages/: the loader lists
+    the pages in ORDER with unique keys, the front page draws that very
+    list, every name a page or an item answers to is found, every page
+    runs IN THIS PROCESS for two frames on the stand-in and answers 0,
+    and `python -m terminal --frames 2` - the front page with the preload
+    underneath - exits 0.
+    """
+    import argparse
+    sys.path.insert(0, HOST)
+    sys.path.insert(0, os.path.join(HOST, 'tools'))
+    from terminal import loader
+    import menu
+    entries, sub, opens, picks = loader.listing()
+    keys = [key for key, _h, _w in entries]
+    report.check('loader: seven pages, keys unique, SESSION first',
+                 len(entries) == 7 and len(set(keys)) == 7
+                 and entries[0][1] == 'SESSION', str(entries))
+    report.check('loader: the front page draws the loader\'s list',
+                 menu.ENTRIES == entries and menu.SUB == sub and menu.OPEN == opens,
+                 str(menu.ENTRIES[:2]))
+    names = sorted(loader.names())
+    report.check('loader: every name answers - the pages and the items',
+                 names == sorted(['session', 'imu', 'angle', 'adc', 'gate_drivers',
+                                  'rotor_observer', 'thermal_observer', 'chat',
+                                  'claude'])
+                 and all(loader.by_name(n)[1] == n for n in names), str(names))
+    args = argparse.Namespace(port='COM4', simulated=True, frames=2)
+    for code, (page, name) in sorted(picks.items()):
+        got = loader.run_page(page, name, args)
+        report.check('loader: %s runs here for two frames and answers 0' % name,
+                     got == 0, 'answered %r' % (got,))
+    from run_tests import run_captured
+    done = run_captured([sys.executable, '-X', 'utf8', '-m', 'terminal',
+                         '--simulated', '--frames', '2'], VIEW_TIMEOUT, cwd=HOST)
+    tail = ((done.stdout + done.stderr).strip().splitlines() or ['no output'])[-1][:70] \
+        if done is not None else 'timed out'
+    report.check('loader: python -m terminal --frames 2 exits 0',
+                 done is not None and done.returncode == 0
+                 and 'Traceback' not in done.stdout + done.stderr, tail)
+
+
 def rows_of(owner, width, height, kind):
     """Which rows of a rendered drawing carry `kind`."""
     return [row for row in range(height)
@@ -2245,6 +2287,7 @@ def main():
     report = Report()
     print('\n-- every view, two frames, no board --')
     test_each_view_draws_two_frames(report)
+    test_the_loader_reads_the_pages(report)
     print('\n-- the rotor observer\'s geometry --')
     test_the_instruments_stand_clear_of_the_machine(report)
     test_each_gutter_says_its_hottest_node(report)

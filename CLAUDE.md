@@ -229,8 +229,8 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-nine suites, 3273 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (728),
+Twenty-nine suites, 3325 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (767),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
@@ -254,7 +254,7 @@ master dying, the debugger's way in), `test_ollama_render.py` (32), `test_parity
 the 3D engine stage by stage against an analytic oracle -
 `render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23),
 `test_broker.py` (33, the shared session and the reply shapes on a scripted
-port, no board), `test_views.py` (222, every view and the front page drawn
+port, no board), `test_views.py` (235, every view and the front page drawn
 twice, plus the rotor observer's own geometry - no board),
 `test_ollama_language.py` (12), `test_daq_api.py` (75, the acquisition front
 door against the stand-in - naming, reading, the record shape, the buffers),
@@ -289,7 +289,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  778 of this tree's 3273 checks are in those nine files.
+  778 of this tree's 3325 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -530,13 +530,15 @@ boot/        the bootloader's state machine, C11, host-tested; the
              application sits behind it at 0x08020000 (docs/BOOT.md)
 host/        Python: coaxial/ library (coaxial/graphics/ the renderer),
              coaxial_mcp/ server, coaxial_ollama/
-             runner and dbg.py, testline/, tests, tools
+             runner and dbg.py, testline/, tests, tools; terminal/ the
+             loader and its pages/, one thin module a view
 notebook_examples/  executed notebooks, checked in with the stand-in's
              outputs - root README.md tables them
 electronic_simulations/  LTSpice, a git submodule (SSH key on the bench
              machine); coaxial/inverter.py carries its traced constants
-coaxial_tty.ps1  the chooser: session, seven views (the gate drivers and the
-                 rotor observer under MOTOR CONTROLLER), the board chat
+coaxial_tty.ps1  `python -m terminal`: the front page, seven views (the gate
+                 drivers and the rotor observer under MOTOR CONTROLLER) and
+                 the board chat, one process, the preload resident across them
 terminal/        imu.ps1 attitude, angle.ps1 shaft angle, adc.ps1 meter bridge,
                  gate_drivers.ps1, thermal_observer.ps1, rotor_observer.ps1
 setup.ps1        one-time environment setup; -Check changes nothing

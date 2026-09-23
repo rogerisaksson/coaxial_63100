@@ -9,7 +9,9 @@ serving - and even that is fetched by a background thread, because probing
 it inline cost 2 029 ms A FRAME (measured, tools/uibench.py) and the page
 drew at half a frame per second.
 
-The choice leaves through the EXIT CODE - stdout is the drawing's:
+The choice leaves as `main()`'s return - the loader (`terminal.loader`)
+runs this page in its own process and reads it - or as the EXIT CODE
+when run as a script; stdout is the drawing's either way:
     0            quit
     101 + index  the picked entry, in ENTRIES order
 """
@@ -38,42 +40,13 @@ import readout                                             # noqa: E402
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
-#: (hotkey, name, what) in coaxial_tty.ps1's order - the exit code indexes this.
-#: The hotkeys are first letters - C for the chat, B being taken -
-#: all seven unique; digits work too.
-ENTRIES = (
-    ('S', 'SESSION', 'board dashpanel'),
-    ('B', 'BOARD ATTITUDE', 'board orientation visualizer'),
-    ('A', 'SHAFT ANGLE', 'motor axle rotation position'),
-    ('M', 'METER BRIDGE', 'metered channels'),
-    ('G', 'MOTOR CONTROLLER', 'the gate drivers, or the rotor observer'),
-    ('T', 'THERMAL OBSERVER', 'thermals estimation'),
-    ('C', 'BOARD CHAT', 'prompt the local llm, or claude'),
-)
-
-#: An entry with a second question, drawn in the same list. Each
-#: alternative carries the exit code it answers with: the entry's own
-#: for the first, codes past the list for the rest, and coaxial_tty maps
-#: every one by position - its $Views runs the entries, then claude, then
-#: the rotor observer. The caption is the question.
-MOTOR_AT, CHAT_AT = 4, 6
-CHAT_LOCAL = 101 + CHAT_AT
-CHAT_CLAUDE = 101 + len(ENTRIES)
-OBSERVER = 101 + len(ENTRIES) + 1
-#: What `--open` takes: the view a second question answered with, as the
-#: chooser names it, and the (entry, pick) to open on. ESC from that view
-#: comes back here, not to the top of the list.
-OPEN = {'gate_drivers': (4, 0), 'rotor_observer': (4, 1),
-        'chat': (6, 0), 'claude': (6, 1)}
-SUB = {
-    MOTOR_AT: ('which half', (
-        ('G', 'GATE DRIVERS', 'half bridge control', 101 + MOTOR_AT),
-        ('R', 'ROTOR OBSERVER', 'the drive, on the model or the converters',
-         OBSERVER))),
-    CHAT_AT: ('who answers', (
-        ('C', 'CCC', 'coaxial 63100 chat client - the local llm', CHAT_LOCAL),
-        ('A', 'ANTHROPIC', 'claude, the board tools over MCP', CHAT_CLAUDE))),
-}
+#: The list, its second questions and the views the page reopens on
+#: come off the pages under terminal/pages/ (`terminal.loader.listing`):
+#: a new page is a file there and nothing here. The answer indexes
+#: ENTRIES from 101; a second question's later options take codes past
+#: the list, and the loader reads every one back.
+from terminal import loader                                # noqa: E402
+ENTRIES, SUB, OPEN, _PICKS = loader.listing()
 
 #: Degrees of yaw per second for the idle tumble, with slower sways
 #: about the other two axes riding on top - all three turn, none of them
@@ -453,62 +426,11 @@ def _second_question(chosen):
     return (chosen - 101, 0)
 
 
-def _preload():
-    """The preload behind the page, for the readout's first inquiry:
-    the model's pickle taken as it stands when its stamp matches, else
-    built by a child process at low priority - one line per step,
-    printed as they land - or refused in the machine's own words when
-    the room is short (`coaxial.preload`). Off the frame loop."""
-    import subprocess
-    # WIREFRAME FIRST, never orientation: the two import each other,
-    # and this thread importing `orientation` while `_warm` imports
-    # `wireframe` left the warm-up's render an `orientation` still
-    # being run - "partially initialized module ... has no attribute
-    # MODEL" on the bench's first start (2026-09-23). Importing the
-    # module the other thread imports waits on its lock instead.
-    from coaxial.graphics import wireframe, preload
-    path = wireframe.orientation.MODEL
-    ram, disk = preload.room()
-    state = {'model': '%s  %.1f mb' % (os.path.basename(path),
-                                        os.path.getsize(path) / 2**20),
-             'memory': 'unknown' if ram is None else '%.1f gb free' % (ram / 2**30),
-             'disk': 'unknown' if disk is None else '%.1f gb free' % (disk / 2**30),
-             'steps': [], 'status': 'checking'}
-    _BROKER['preload'] = state
-    bundle = preload.load(path)
-    if bundle is not None:
-        state['steps'] = ['decimates %d, loops %d, primitives %d' % (
-            len(bundle['lods']), len(bundle['exact'][1]), len(bundle['prims']))]
-        state['status'] = 'ready: %.1f mb on disk' % (
-            os.path.getsize(os.path.join(preload.cache_dir(), preload.FILE)) / 2**20)
-        return
-    why = preload.refusal()
-    if why is not None:
-        state['status'] = why
-        return
-    state['status'] = 'building in the background'
-    flags = getattr(subprocess, 'BELOW_NORMAL_PRIORITY_CLASS', 0)
-    try:
-        child = subprocess.Popen(
-            [sys.executable, '-X', 'utf8', '-m', 'coaxial.graphics.preload'],
-            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
-            encoding='utf-8', creationflags=flags)
-    except OSError as exc:
-        state['status'] = 'not built: %s' % exc
-        return
-    for line in child.stdout:
-        line = line.strip()
-        if line.startswith('written') or line.startswith('skipped'):
-            state['status'] = line
-        elif line:
-            state['steps'] = state['steps'][-3:] + [line]
-    child.wait()
-    if child.returncode:
-        state['status'] = 'not built: the builder exited %d' % child.returncode
-
-
-def main(argv=None):
+def main(argv=None, preload=None):
+    """The page until a choice: its code - 0 to quit, 101 + the entry -
+    returned to the loader that runs this page in its own process, or
+    the exit code as a script. `preload` is the loader's state for the
+    readout's first inquiry; without one the page starts its own."""
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--frames', type=int, default=0,
@@ -556,9 +478,13 @@ def main(argv=None):
                          daemon=True).start()
     warm = threading.Thread(target=_warm, daemon=True)
     warm.start()
-    if not args.frames:
-        # The smoke test draws the page, not the pickle: no child.
-        threading.Thread(target=_preload, daemon=True).start()
+    state = preload if preload is not None else loader.fresh()
+    _BROKER['preload'] = state
+    if preload is None and not args.frames:
+        # Run alone, the page preloads for itself; the smoke draws the
+        # page, not the model.
+        threading.Thread(target=loader.preload, args=(state,),
+                         daemon=True).start()
     if args.frames:
         warm.join()      # the smoke test draws the board, not the wait
         if learn is not None:
