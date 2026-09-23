@@ -32,6 +32,8 @@ from rich.align import Align                               # noqa: E402
 
 from screen import (ENTER_KEYS, band_of, Keys, curtain, footer,  # noqa: E402
                     live, paced, stage)
+from stage import Marquee                                  # noqa: E402
+import readout                                             # noqa: E402
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -79,8 +81,25 @@ SUB = {
 TURN_DPS = 30.0
 
 #: What the masthead knows. `held` is how many sessions have the port,
-#: `board` whether one answers anywhere at all - None until asked.
-_BROKER: dict = {'held': None, 'board': None}
+#: `board` whether one answers anywhere at all - None until asked;
+#: `identity` what the readout prints, off the bus once it is known.
+_BROKER: dict = {'held': None, 'board': None, 'identity': None,
+                 'said': None}
+
+
+def _learn(port, simulated):
+    """The readout's identity off the bus - the board's when one answers,
+    the stand-in's when none does - read once through a short session
+    and closed again, off the frame loop. A link that refuses leaves the
+    readout AWAITING LINK with the refusal's words under it."""
+    from coaxial.errors import LINK_FAULTS, RigError
+
+    try:
+        _BROKER['identity'] = readout.identity_of(port, simulated)
+        _BROKER['said'] = None
+    except LINK_FAULTS + (RigError, ValueError) as exc:
+        _BROKER['identity'] = None
+        _BROKER['said'] = str(exc)
 
 #: How often the front page re-asks whether a board answers. The broker
 #: question is a socket connect; this one probes every port and was
@@ -125,6 +144,11 @@ def _watch_link(port):
             _BROKER['board'] = board_answers(port)
         except LINK_FAULTS:
             _BROKER['board'] = False
+        # The readout follows the link: the board's own identity once
+        # one answers, the stand-in's until then, and again if it moves.
+        known = _BROKER.get('identity')
+        if known is None or known['real'] != bool(_BROKER['board']):
+            _learn(port, not _BROKER['board'])
         time.sleep(PROBE_EVERY)
 
 
@@ -314,6 +338,13 @@ def _warm():
 BOX = 58
 
 
+def readout_rows(tall):
+    """Rows of the right column the readout takes, frame included: a
+    third of the body, never under a status row and five lines, never
+    over twelve lines - the model keeps the rest."""
+    return max(8, min(14, tall // 3 + 2))
+
+
 def compose(port, picked, view, size=None, who=None):
 
     tall = max(8, (size.height if size else 24) - 4)
@@ -321,6 +352,25 @@ def compose(port, picked, view, size=None, who=None):
     # half the terminal - on a small tty the board shrinks, the list
     # does not.
     wide = min(BOX, max(26, (size.width if size else 100) // 2))
+    # The right column is two boxes since 2026-09-23: the model turning
+    # above, and under it the readout - what the board says it is,
+    # printed as a console of the era printed it (tools/readout.py).
+    below = readout_rows(tall)
+    above = max(6, tall - below)
+    state = view.setdefault('readout', readout.fresh(time.monotonic()))
+    column = Layout()
+    column.split_column(
+        Layout(Panel(Align(Marquee(turntable(view, wide - 4, above - 2)),
+                           align='center', vertical='middle'),
+                     title=Text(' COAXIAL 63100 ', style='name'),
+                     title_align='left', box=box.HEAVY, border_style='frame',
+                     padding=(0, 1), expand=True), name='model'),
+        Layout(Panel(readout.draw(state, _BROKER.get('identity'), wide - 4,
+                                  below - 2, note=_BROKER.get('said')),
+                     title=Text(' READOUT ', style='name'),
+                     title_align='left', box=box.HEAVY, border_style='frame',
+                     padding=(0, 1), expand=True), name='readout',
+               size=below))
     body = Layout()
     body.split_row(
         Layout(Panel(asking(who) if who is not None else roster(picked),
@@ -329,12 +379,7 @@ def compose(port, picked, view, size=None, who=None):
                      title_align='left', border_style='frame.hud',
                      padding=(1, 1), expand=True),
                name='list'),
-        Layout(Panel(Align(Text.from_ansi(turntable(view, wide - 4, tall)),
-                           align='center', vertical='middle'),
-                     title=Text(' COAXIAL 63100 ', style='name'),
-                     title_align='left', box=box.HEAVY, border_style='frame',
-                     padding=(0, 1), expand=True), name='board',
-               size=wide))
+        Layout(column, name='board', size=wide))
 
     whole = Layout()
     whole.split_column(
@@ -441,10 +486,15 @@ def main(argv=None):
         return _typed_choice(sys.stdin.readline().strip().lower())
 
     threading.Thread(target=_watch_broker, daemon=True).start()
+    learn = None
     if args.simulated:
         # Asked for by name: no probe, and the chip says so from the
-        # first frame rather than eight seconds into the page.
+        # first frame rather than eight seconds into the page. The
+        # readout gets the stand-in's identity, off the loop.
         _BROKER['board'] = False
+        learn = threading.Thread(target=_learn, args=(args.port, True),
+                                 daemon=True)
+        learn.start()
     else:
         threading.Thread(target=_watch_link, args=(args.port,),
                          daemon=True).start()
@@ -452,6 +502,8 @@ def main(argv=None):
     warm.start()
     if args.frames:
         warm.join()      # the smoke test draws the board, not the wait
+        if learn is not None:
+            learn.join()     # and the readout with something to print
     hotkeys = {key.lower(): i for i, (key, _n, _w) in enumerate(ENTRIES)}
 
     with curtain(page) as live, Keys(console, mouse=True) as keys:

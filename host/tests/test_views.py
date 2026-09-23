@@ -2099,6 +2099,89 @@ def test_the_marquee_decodes_the_art_itself(report):
         stage._slide = slide
 
 
+def test_the_readout_prints_what_the_bus_said(report):
+    """The front page's lower box: the board's identity and fitment off
+    the bus, the host's provenance as host text, typed in, held,
+    decayed and cycled - a late-seventies console's register in the
+    tree's palette, without its lines: the bench struck those as silly.
+
+    What this holds: every line fits the box; the identity page carries
+    0x41's fields and the fitment page every part the bus listed, and
+    an identity with NO parts prints no part - nothing here names one;
+    the provenance page names the dialogue with Claude and the local
+    LLM over MCP; the motion types, holds, decays and moves to the next
+    inquiry on a scripted clock, and a mid-typing frame ends on the
+    cursor.
+    """
+    import readout
+
+    identity = {
+        'info': {'device': 'coaxial_63100', 'type': 'bldc_inverter',
+                 'firmware': '1.6.0', 'proto_major': 2, 'proto_minor': 8,
+                 'mcu': 'STM32H753VIT6', 'commands': 21,
+                 'description': 'Three-phase BLDC inverter, 63 V / 100 A, '
+                                'PCB mounted coaxially behind an outrunner'},
+        'parts': [{'name': 'IAUCN10S7N021', 'what': 'bridge FETs, 63 V 100 A'},
+                  {'name': '2EDL8034 x3', 'what': 'half bridge gate drivers'},
+                  {'name': 'DC link divider', 'what': '49.9k/2.2k, 78.15 V FS'}],
+        'origin': 'COM4 (debug probe)', 'real': True}
+    pages = readout.pages(identity, 54)
+    plain = {title: [''.join(t for _s, t in row) for row in rows]
+             for title, rows in pages}
+    report.check('three pages, every line within the box',
+                 [t for t, _r in pages] == ['IDENTITY', 'FITMENT', 'PROVENANCE']
+                 and all(len(l) <= 54 for ls in plain.values() for l in ls),
+                 str({t: max(len(l) for l in ls) for t, ls in plain.items()}))
+    first = '\n'.join(plain['IDENTITY'])
+    report.check('the identity page is 0x41: unit, type, firmware and '
+                 'protocol, the MCU, the link, the board\'s own words',
+                 'COAXIAL_63100' in first and 'BLDC INVERTER' in first
+                 and '1.6.0' in first and 'PROTOCOL 2.8' in first
+                 and 'STM32H753VIT6' in first and 'COM4 (DEBUG PROBE) LIVE' in first
+                 and 'BEHIND AN OUTRUNNER' in first, first)
+    fit = '\n'.join(plain['FITMENT'])
+    bare = '\n'.join(''.join(t for _s, t in row) for _t, rows
+                     in readout.pages(dict(identity, parts=[]), 54)
+                     for row in rows)
+    report.check('the fitment page is the parts list, and with no parts '
+                 'on the bus no part is named anywhere',
+                 all(p['name'].upper() in fit and p['what'].upper() in fit
+                     for p in identity['parts'])
+                 and 'IAUCN10S7N021' not in bare and '2EDL8034' not in bare
+                 and 'NO FITMENT REPORTED' in bare, fit)
+    third = '\n'.join(plain['PROVENANCE'])
+    report.check('the provenance page is the host\'s: the dialogue with '
+                 'Claude, the local LLM over MCP, the record',
+                 'CLAUDE / ANTHROPIC' in third and 'MCP' in third
+                 and 'FINDINGS' in third, third)
+    narrow = readout.pages(identity, 22)
+    report.check('at the 26-column floor every line still fits',
+                 all(len(''.join(t for _s, t in row)) <= 22
+                     for _t, rows in narrow for row in rows))
+
+    state = readout.fresh(0.0)
+    seen, frames = [], {}
+    for tick in range(0, 400):
+        now = tick * 0.08
+        text = readout.draw(state, identity, 54, 12, now=now)
+        seen.append((state['phase'], state['page']))
+        frames.setdefault((state['phase'], state['page']), text.plain)
+    phases = [p for p, _pg in seen]
+    # 400 frames of 80 ms: three inquiries of ~9 s each - typing at CPS,
+    # HOLD_S, the rows' decay - and the cycle back to the first.
+    report.check('the motion types, holds, decays and moves to the next '
+                 'inquiry, then round again',
+                 phases[0] == 'type' and 'hold' in phases
+                 and 'decay' in phases and ('type', 1) in seen
+                 and ('type', 2) in seen and ('type', 0) in seen[150:],
+                 str(sorted(set(seen))))
+    typing = frames[('type', 0)]
+    report.check('a frame mid-typing carries the status row and ends on '
+                 'the cursor',
+                 typing.startswith('INQUIRY 1/') and typing.endswith(readout.CURSOR),
+                 repr(typing[-40:]))
+
+
 def main():
     report = Report()
     print('\n-- every view, two frames, no board --')
@@ -2137,6 +2220,8 @@ def main():
     print('\n-- the attitude\'s frame rate --')
     test_the_attitude_caps_its_frame_rate(report)
     test_the_marquee_decodes_the_art_itself(report)
+    print('\n-- the front page\'s readout --')
+    test_the_readout_prints_what_the_bus_said(report)
     print('\n-- the thermal observer\'s headroom --')
     test_the_headroom_box_carries_a_solid_bar_with_a_tip(report)
     test_the_thermal_page_shows_its_evidence(report)

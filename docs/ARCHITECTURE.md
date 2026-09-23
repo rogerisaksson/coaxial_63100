@@ -241,8 +241,15 @@ local model; MODELS.md has it.
 each a wrapper around a `host/tools/show_*.py` on `screen.py`. A view
 reads at its own pace, not the link's: measured on the meter bridge, a
 frame spending three round trips took 190 ms of a 125 ms budget. The
-front page's only live datum is whether a broker is serving, fetched
-by a background thread - probed inline it cost 2 029 ms a frame.
+front page's live data are fetched by background threads - probed
+inline the broker cost 2 029 ms a frame: whether a broker is serving,
+whether a board answers, and once the link is known the board's
+identity, read through one short session and closed again. That
+identity - 0x41 and the parts list, the stand-in's when nothing answers
+- is what the front page's lower box prints (`tools/readout.py`): a
+readout in a late-seventies console's register under the turning
+model, typed in page by page, held, decayed row by row and cycled - the
+unit, its fitment, and the host's own provenance as host text.
 
 The shaft angle view draws a protractor - `coaxial/dial.py`: the
 graduations every 6 degrees with the thirties heavier, the numbers
@@ -349,12 +356,12 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-eight suites, 3157 checks, counted in `host/tests/.counts.json`
+Twenty-eight suites, 3167 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 | --- | --- | --- |
-| test_structure.py | 676 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module and every notebook a paper in the builder's shape, executed; the wire's three answers held to each other - the enums, every fixed reply and request, PROTOCOL.md's op tables |
+| test_structure.py | 679 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module and every notebook a paper in the builder's shape, executed; the wire's three answers held to each other - the enums, every fixed reply and request, PROTOCOL.md's op tables |
 | test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 254 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
@@ -378,7 +385,7 @@ by `counts.py`:
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 211 | every view and the front page drawn twice, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
+| test_views.py | 218 | every view and the front page drawn twice, the front page's readout, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

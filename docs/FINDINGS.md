@@ -4478,6 +4478,61 @@ looking at the estimate alone.
   triangle loop (36 -> 32 ms wall, identical, measured by the lens), the
   parent's passes (9 of 19 ms identically), and the grain seed on the
   frame row before any band balancing. test_render 86, 3157 in all.
+* **The front page's readout: what the board says it is, printed in a
+  late-seventies console's register** (2026-09-23, the bench, in
+  Swedish: split the COAXIAL 63100 box in two, the model turning above
+  and, in the lower box, "a prompt that prints data about the board in
+  a cool retro-futurist way, like the USS Nostromo or Blade Runner",
+  going on with more about the board and not forgetting the development
+  with an LLM / Claude, the register retro-futurist throughout; old
+  text erased or overwritten, "you decide, just make it maximally
+  cool" - and then, seeing it: strike the SHIP references and the like,
+  so it does not get silly. So the register stays - terse, upper case,
+  a prompt and its answer, dotted leaders - and the film's own lines
+  went: the box is `READOUT`, it opens READOUT ONLINE. READY FOR
+  INQUIRY and ends END OF INQUIRY. STANDING BY, and the bench's local
+  model is AT THE BENCH). The right column is two boxes now: the
+  turntable above, the readout below - `tools/readout.py`. THE FACTS
+  ARE THE BUS'S: the identity
+  page is 0x41 (unit, type, firmware and protocol, MCU, commands, the
+  link, and the board's own description line under `> DESCRIBE UNIT`)
+  and the fitment page is the parts list, 0x6D kind 4, name and role
+  per row; the stand-in answers both when no board does, and its
+  description says SIMULATED in the line itself. Read once through a
+  short session in the page's link thread when the link is known (the
+  stand-in's at once under --simulated, off the frame loop) and closed
+  again so a view can have the port; a refusal leaves AWAITING LINK
+  with the refusal's words under it. Nothing in the file names a part
+  (held: an identity with an empty parts list prints NO FITMENT
+  REPORTED and no name). The third page is the host's own account, in
+  the same register: ENGINEERED in dialogue with Claude / Anthropic,
+  AT THE BENCH a local LLM with the board tools over MCP, the CONSOLE
+  pages, the CORES, VERIFICATION as "N of 28 suites run here, M
+  checks" read off tests/.counts.json - measured on this terminal, not
+  quoted - or "unmeasured on this terminal", RECORD findings: every
+  measurement kept. THE MOTION: page by page - a page types in at 90
+  characters a second, holds four seconds, decays from the top a row
+  every 70 ms with the going row dimmed to the frame's teal, and the
+  next inquiry ticks in; identity, fitment, provenance, round again; a
+  block cursor blinking at 2 Hz through typing and hold; a status row
+  `INQUIRY 2/3  FITMENT` on top; a page longer than the box is as many
+  inquiries as it takes, so nothing scrolls mid-line. The box takes a
+  third of the body's rows, a status row and five lines at least,
+  twelve lines at most, and the model keeps the rest; the leader column
+  is eighteen cells at the box's full width and a third of a narrow
+  one, a label that fills it gets no dot (a forced dot put UART5
+  TERMINATION's value a column past the others - the bench saw the
+  space), and a label past it keeps its row with the value under it,
+  so the 26-column floor still fits every line. The turntable rides
+  the Segment Marquee too. Judged in the raster at 100x30 and 152x48
+  (tools/ansi2png.py): the model above, the readout below in teal
+  voice, dotted leaders and sodium values, the cursor on the typed
+  end. Held in test_views: three pages within the box, the identity
+  page's 0x41 fields, the fitment page's parts and the empty case, the
+  provenance page's words, the 22-column fit, the motion on a scripted
+  clock (type, hold, decay, the next inquiry, round again), a
+  mid-typing frame ending on the cursor; the two-frame smoke draws it
+  with the stand-in's identity. test_views 218, 3164 in all.
 
 ## Ruled Out
 
