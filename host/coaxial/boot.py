@@ -2,6 +2,7 @@
 import struct
 import zlib
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from . import errors, protocol
 from .protocol import BootOp
@@ -15,8 +16,14 @@ UID_BYTES = 12
 WORD = 32
 HEADER = 0x400
 MAGIC = 0x50415843
-APP_BASE = 0x08020000
-APP_BYTES = 0x1C0000
+#: Where the image runs (D2 SRAM) and where its sealed copy is kept (flash):
+#: the seal word first, the image behind it.
+RUN_BASE = 0x30000000
+RUN_BYTES = 0x48000
+STORE_BASE = 0x08020000
+STORE_BYTES = 0x1C0000
+SEAL_MAGIC = 0x4C414553
+PERSIST = 0x01
 RECORD_BASE = 0x081E0000
 RECORD_MAX = 2048
 #: A blank node's unit, before assign gives it its own; the bootloader's
@@ -26,19 +33,51 @@ BOOT_BAUD = 10000000
 STATES = ('blank', 'held', 'assigned', 'erased', 'verified', 'sealed')
 #: How many times the missing chunks are re-sent before the node is named.
 MISSING_ROUNDS = 3
-#: The bootloader erases and programs inside its receive path and hears
-#: nothing meanwhile, so the master waits: a sector's erase (estimate,
-#: seconds), a chunk's 7 flash words, the CRC over a full image, and seal's
-#: record-sector erase.
+#: The bootloader works inside its receive path and hears nothing meanwhile,
+#: so the master waits (estimates, seconds): erase's two CRCs over RAM and
+#: the store and a copy between them, a chunk's frame gap (t3.5 is 1.75 ms
+#: above 19 200 baud), the CRC over a full image, seal's record-sector erase,
+#: and persist's store - three sectors at the datasheet's worst 4 s each.
 SECTOR = 128 * 1024
-ERASE_S = 2.0
+ERASE_S = 0.3
 CHUNK_S = 0.002
 VERIFY_S = 2.0
 SEAL_S = 3.0
+PERSIST_S = 12.0
 
 
 def chunks_of(image):
     return [image[i:i + CHUNK] for i in range(0, len(image), CHUNK)]
+
+
+def image_of(elf):
+    """The image the bootloader takes, cut from a linked ELF: every loaded
+    segment inside RUN at its load address, gaps 0xFF, as long as its
+    header says - exact where objcopy's binary would span an empty
+    section's DTCM address."""
+    data = Path(elf).read_bytes()
+    if data[:4] != b'\x7fELF' or data[4] != 1 or data[5] != 1:
+        raise errors.RigError('%s is not a 32-bit little-endian ELF' % elf)
+    phoff = struct.unpack_from('<I', data, 0x1C)[0]
+    size, count = struct.unpack_from('<HH', data, 0x2A)
+    body = bytearray(b'\xff' * RUN_BYTES)
+    for i in range(count):
+        kind, offset, _vaddr, paddr, filesz = struct.unpack_from('<5I', data, phoff + i * size)
+        if kind == 1 and filesz and RUN_BASE <= paddr < RUN_BASE + RUN_BYTES:
+            body[paddr - RUN_BASE:paddr - RUN_BASE + filesz] = data[offset:offset + filesz]
+    magic, length = struct.unpack_from('<II', body, HEADER)
+    if magic != MAGIC or not HEADER < length <= RUN_BYTES:
+        raise errors.RigError('%s holds no image linked at 0x%08x - an application built '
+                              'before it ran from RAM?' % (elf, RUN_BASE))
+    return bytes(body[:length])
+
+
+def store_of(image):
+    """What flash keeps at STORE_BASE: the seal word (magic, size, crc, the
+    header's type), then the image - what a debugger programs."""
+    type_ = struct.unpack_from('<I', image, HEADER + 12)[0]
+    seal = struct.pack('<IIII', SEAL_MAGIC, len(image), zlib.crc32(image), type_)
+    return seal.ljust(WORD, b'\xff') + bytes(image)
 
 
 class BootControl(ABC):
@@ -48,7 +87,9 @@ class BootControl(ABC):
 
     @abstractmethod
     def state(self):
-        """{'state', 'type', 'unit', 'position', 'held', 'of', 'valid', 'uid'}."""
+        """{'state', 'type', 'unit', 'position', 'held', 'of', 'valid', 'uid',
+        'image', 'flags'} - image is (bytes, crc) of what RAM holds verified,
+        (0, 0) for none; image and flags None from a node older than MINOR 19."""
 
     @abstractmethod
     def stay(self):
@@ -87,8 +128,9 @@ class BootControl(ABC):
         """One page of the record into the node's RAM."""
 
     @abstractmethod
-    def seal(self):
-        """The record and the first word programmed; the image valid."""
+    def seal(self, persist=False):
+        """The record and the first word programmed; the image valid - and
+        with `persist`, kept in the store unless it holds this image."""
 
     @abstractmethod
     def go(self, session):
@@ -98,7 +140,7 @@ class BootControl(ABC):
     def dump(self, offset):
         """(offset, bytes) - one page of the record sector."""
 
-    def flash(self, type_, image, record=b''):
+    def flash(self, type_, image, record=b'', persist=False):
         """The master's sequence on one node, after assign; returns the
         state.
         """
@@ -118,7 +160,7 @@ class BootControl(ABC):
                 % (crc, zlib.crc32(image)))
         for at in range(0, len(record), CHUNK):
             self.record(at, record[at:at + CHUNK])
-        self.seal()
+        self.seal(persist)
         return self.state()
 
 
@@ -129,9 +171,13 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
         r = Reader(self._op(BootOp.STATE))
         state, type_, unit, position = r.u8(), r.u8(), r.u8(), r.u8()
         held, of, valid = r.u32(), r.u32(), bool(r.u8())
+        uid = r.take(UID_BYTES).hex()
+        # MINOR 19: the image RAM holds verified, and assign's flags; an
+        # older node says nothing.
+        image = (r.maybe('u32'), r.maybe('u32'))
         return {'state': STATES[state], 'type': type_, 'unit': unit,
                 'position': position, 'held': held, 'of': of, 'valid': valid,
-                'uid': r.take(UID_BYTES).hex()}
+                'uid': uid, 'image': image, 'flags': r.maybe('u8')}
 
     def stay(self):
         return self._ack(BootOp.STAY)
@@ -154,7 +200,7 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
     def erase(self, type_, image):
         self._broadcast(BootOp.ERASE, struct.pack(
             '>BIIH', type_, len(image), zlib.crc32(image), len(chunks_of(image))),
-            settle=ERASE_S * (1 + (len(image) - 1) // SECTOR))
+            settle=ERASE_S)
 
     def chunk(self, index, data):
         self._broadcast(BootOp.CHUNK, struct.pack('>H', index) + bytes(data),
@@ -163,7 +209,7 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
     def missing(self):
         r = Reader(self._op(BootOp.MISSING))
         first, count = r.u16(), r.u16()
-        bitmap = r.remaining()
+        bitmap = r.take(r.remaining)
         return [i for i in range(first, count) if not bitmap[i // 8] >> (i % 8) & 1]
 
     def verify(self):
@@ -173,15 +219,17 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
     def record(self, offset, data):
         return self._ack(BootOp.RECORD, struct.pack('>H', offset) + bytes(data))
 
-    def seal(self):
-        return self.took(self._op(BootOp.SEAL, reply_shape=ACK, timeout=SEAL_S))
+    def seal(self, persist=False):
+        return self.took(self._op(BootOp.SEAL, bytes([PERSIST]) if persist else b'',
+                                  reply_shape=ACK,
+                                  timeout=SEAL_S + (PERSIST_S if persist else 0.0)))
 
     def go(self, session):
         self._broadcast(BootOp.GO, struct.pack('>I', session))
 
     def dump(self, offset):
         r = Reader(self._op(BootOp.DUMP, struct.pack('>H', offset)))
-        return r.u16(), r.remaining()
+        return r.u16(), r.take(r.remaining)
 
 
 class Segment(ABC):
@@ -247,12 +295,13 @@ class Master:
     missing, verify, record and seal, then go.
     """
 
-    def __init__(self, segment, table, images, records, session=1):
+    def __init__(self, segment, table, images, records, session=1, persist=False):
         self.segment = segment
         self.table = table
         self.images = images
         self.records = records
         self.session = session
+        self.persist = persist
         self.unknown = []
 
     def run(self):
@@ -291,7 +340,7 @@ class Master:
             record = self.records.get(unit, b'')
             for at in range(0, len(record), CHUNK):
                 node.record(at, record[at:at + CHUNK])
-            node.seal()
+            node.seal(self.persist)
         blank.go(self.session)
         for unit in assigned:
             states[unit] = self.segment.at(unit).state()

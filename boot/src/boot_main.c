@@ -26,11 +26,11 @@
 #define TICKS_PER_MS          (CORE_HZ / 1000U)
 
 #define BOOT_BAUD             10000000U
-#define CONSOLE_BAUD          115200U
+#define CONSOLE_BAUD          115200U     /**< the ST-Link's port: Modbus, as the application's */
+#define PORTS                 3U          /**< two RS485 segments and the ST-Link's port */
 
 /** The bootloader's own windows. */
 #define HOLD_MS               300U    /**< a valid application waits this long for a hold */
-#define SAY_EVERY_MS          1000U   /**< a node with no application says so this often */
 #define GO_SETTLE_MS          20U     /**< after go: the last reply out, then the jump */
 
 /** The flash controller: the bank keys, the sector size, the bank split. */
@@ -43,16 +43,8 @@
                                | FLASH_SR_RDSERR | FLASH_SR_SNECCERR | FLASH_SR_DBECCERR)
 #define FLASH_WORD_U32        (BOOT_WORD_BYTES / 4U)
 
-#define APP_BASE              BOOT_APP_BASE
-#define APP_BYTES             BOOT_APP_BYTES
-#define RECORD_BASE           BOOT_RECORD_BASE
-#define RECORD_BYTES          BOOT_RECORD_BYTES
-
 /** The MCU's unique id, three words. */
 #define UID_WORDS             3U
-
-/** The console's outgoing ring: lines are rare and short. */
-#define CONSOLE_RING          256U
 
 /* -- the pins -------------------------------------------------------------- */
 
@@ -138,11 +130,9 @@ static struct
   const board_t   *board;
   mb_slave_t       slave;
   mb_data_model_t  model;
-  mb_rtu_t         rtu[2];
+  mb_rtu_t         rtu[PORTS];
+  USART_TypeDef   *usart[PORTS];
   boot_layout_t    layout;
-  uint8_t          ring[CONSOLE_RING];
-  uint16_t         ring_in;
-  uint16_t         ring_out;
   uint32_t         go_at;
   bool             going;
 } s;
@@ -201,6 +191,9 @@ static void clocks_up(void)
 
   RCC->AHB4ENR |= RCC_AHB4ENR_GPIOAEN | RCC_AHB4ENR_GPIOBEN | RCC_AHB4ENR_GPIOCEN
                   | RCC_AHB4ENR_GPIODEN | RCC_AHB4ENR_GPIOEEN;
+  /* D2 SRAM, where the application runs - left on through the jump. */
+  RCC->AHB2ENR |= RCC_AHB2ENR_SRAM1EN | RCC_AHB2ENR_SRAM2EN | RCC_AHB2ENR_SRAM3EN;
+  (void)RCC->AHB2ENR;
   RCC->APB1LENR |= RCC_APB1LENR_USART2EN | RCC_APB1LENR_USART3EN | RCC_APB1LENR_UART5EN;
   (void)RCC->APB1LENR;
 }
@@ -298,40 +291,12 @@ static void usart_send(USART_TypeDef *u, const uint8_t *data, size_t n)
 
 /* -- the console ----------------------------------------------------------- */
 
-/** `say` queues; the loop drains a byte a pass. */
+/** The ST-Link's port carries Modbus, so a line of text would land inside a
+    host's frame: the core's words go nowhere here; `state` says it all. */
 static void say(void *ctx, const char *line)
 {
   (void)ctx;
-  for (const char *c = line; *c != '\0'; c++)
-  {
-    const uint16_t next = (uint16_t)((s.ring_in + 1U) % CONSOLE_RING);
-
-    if (next == s.ring_out)
-    {
-      return;                              /* full: the rest of the line is dropped */
-    }
-    s.ring[s.ring_in] = (uint8_t)*c;
-    s.ring_in = next;
-  }
-  for (const char *c = "\r\n"; *c != '\0'; c++)
-  {
-    const uint16_t next = (uint16_t)((s.ring_in + 1U) % CONSOLE_RING);
-
-    if (next != s.ring_out)
-    {
-      s.ring[s.ring_in] = (uint8_t)*c;
-      s.ring_in = next;
-    }
-  }
-}
-
-static void console_poll(void)
-{
-  if ((s.ring_out != s.ring_in) && ((s.board->console->ISR & USART_ISR_TXE_TXFNF) != 0U))
-  {
-    s.board->console->TDR = s.ring[s.ring_out];
-    s.ring_out = (uint16_t)((s.ring_out + 1U) % CONSOLE_RING);
-  }
+  (void)line;
 }
 
 /* -- the flash controller -------------------------------------------------- */
@@ -466,7 +431,35 @@ static const uint8_t *flash_read(void *ctx, uint32_t address)
   return (const uint8_t *)address;
 }
 
-static const boot_port_t PORT = { flash_erase, flash_program, flash_read, say };
+/* -- RAM, where the image runs --------------------------------------------- */
+
+static bool in_run(uint32_t address)
+{
+  return (address >= BOOT_RUN_BASE) && (address < BOOT_RUN_BASE + BOOT_RUN_BYTES);
+}
+
+/** boot_port_t.erase: RAM to 0xFF, whole words; flash by the sector. */
+static bool mem_erase(void *ctx, uint32_t address, uint32_t bytes)
+{
+  if (in_run(address))
+  {
+    memset((void *)address, 0xFF, (bytes + BOOT_WORD_BYTES - 1U) & ~(BOOT_WORD_BYTES - 1U));
+    return true;
+  }
+  return flash_erase(ctx, address, bytes);
+}
+
+static bool mem_program(void *ctx, uint32_t address, const uint8_t *word)
+{
+  if (in_run(address))
+  {
+    memcpy((void *)address, word, BOOT_WORD_BYTES);
+    return true;
+  }
+  return flash_program(ctx, address, word);
+}
+
+static const boot_port_t PORT = { mem_erase, mem_program, flash_read, say };
 
 /* -- the RTU seam ---------------------------------------------------------- */
 
@@ -475,27 +468,22 @@ static mb_exception_t user_function(void *ctx, uint8_t fc, const uint8_t *req,
                                     size_t req_len, uint8_t *rsp, size_t rsp_cap,
                                     size_t *rsp_len)
 {
-  rd_t in;
-  wr_t out;
-
   (void)ctx;
-  if ((fc != CMD_DEVICE) || (req_len < 2U) || (req[0] != DEVICE_BOOT))
-  {
-    return MB_EX_ILLEGAL_FUNCTION;
-  }
-  rd_init(&in, &req[2], (uint16_t)(req_len - 2U));
-  wr_init(&out, &rsp[2], (uint16_t)(rsp_cap - 2U));
-  if (boot_op(req[1], &in, &out) == BOOT_SILENT)
+  const int n = (fc == CMD_DEVICE) ? boot_pdu(req, req_len, rsp, rsp_cap) : BOOT_PDU_FOREIGN;
+
+  if (n == BOOT_PDU_SILENT)
   {
     return MB_NO_REPLY;
   }
-  if (!wr_ok(&out))
+  if (n == BOOT_PDU_FOREIGN)
+  {
+    return MB_EX_ILLEGAL_FUNCTION;
+  }
+  if (n < 0)
   {
     return MB_EX_SERVER_DEVICE_FAILURE;
   }
-  rsp[0] = req[0];
-  rsp[1] = req[1];
-  *rsp_len = 2U + wr_len(&out);
+  *rsp_len = (size_t)n;
   return MB_EX_NONE;
 }
 
@@ -504,16 +492,20 @@ static void rtu_up(void)
   memset(&s.model, 0, sizeof(s.model));
   s.model.user_function = user_function;
   mb_slave_init(&s.slave, &s.model);
-  for (uint32_t i = 0U; i < 2U; i++)
+  s.usart[0] = s.board->rs485[0];
+  s.usart[1] = s.board->rs485[1];
+  s.usart[2] = s.board->console;
+  for (uint32_t i = 0U; i < PORTS; i++)
   {
-    mb_rtu_init(&s.rtu[i], &s.slave, BOOT_UNIT, BOOT_BAUD, 10U, TICKS_PER_US);
+    mb_rtu_init(&s.rtu[i], &s.slave, BOOT_UNIT, (i < 2U) ? BOOT_BAUD : CONSOLE_BAUD, 10U,
+                TICKS_PER_US);
   }
 }
 
-/** One pass over one segment: the bytes in, the errors, the reply out. */
+/** One pass over one port: the bytes in, the errors, the reply out. */
 static void rtu_poll(uint32_t i)
 {
-  USART_TypeDef *u = s.board->rs485[i];
+  USART_TypeDef *u = s.usart[i];
   mb_rtu_t *rtu = &s.rtu[i];
   const uint8_t *reply;
 
@@ -552,7 +544,7 @@ static void follow_core(void)
 {
   const uint8_t unit = boot_unit();
 
-  for (uint32_t i = 0U; i < 2U; i++)
+  for (uint32_t i = 0U; i < PORTS; i++)
   {
     s.rtu[i].unit_id = unit;
   }
@@ -571,14 +563,17 @@ static void follow_core(void)
     in the microseconds before the application's init takes them. */
 static void jump(void)
 {
-  const uint32_t *vectors = (const uint32_t *)APP_BASE;
+  const uint32_t *vectors = (const uint32_t *)BOOT_RUN_BASE;
 
   boot_hand.magic = BOOT_HAND_MAGIC;
   boot_hand.stay = 0U;
   boot_hand.unit = boot_unit();
   boot_hand.position = boot_position();
   boot_hand.flags = boot_flags();
+  boot_image(&boot_hand.bytes, &boot_hand.crc);
   clocks_down();
+  __DSB();
+  __ISB();
   __asm volatile ("msr msp, %0\n\tbx %1" : : "r" (vectors[0]), "r" (vectors[1]) : "memory");
   for (;;) {}
 }
@@ -589,10 +584,12 @@ static void layout_up(void)
 {
   const uint32_t *uid = (const uint32_t *)UID_BASE;
 
-  s.layout.app_base = APP_BASE;
-  s.layout.app_bytes = APP_BYTES;
-  s.layout.record_base = RECORD_BASE;
-  s.layout.record_bytes = RECORD_BYTES;
+  s.layout.app_base = BOOT_RUN_BASE;
+  s.layout.app_bytes = BOOT_RUN_BYTES;
+  s.layout.store_base = BOOT_STORE_BASE;
+  s.layout.store_bytes = BOOT_STORE_BYTES;
+  s.layout.record_base = BOOT_RECORD_BASE;
+  s.layout.record_bytes = BOOT_RECORD_BYTES;
   s.layout.type = BOOT_BOARD;
   for (uint32_t i = 0U; i < UID_WORDS; i++)
   {
@@ -616,37 +613,31 @@ int main(void)
   boot_init(&PORT, NULL, &s.layout);
   rtu_up();
 
-  /* The decision (docs/BOOT.md): asked to stay, or a valid application and a
-     window for a hold, or nothing to run and a line a second. */
+  /* THE GATE (docs/BOOT.md): RAM still whole with the image the slot names,
+     or the store's sealed copy verified into RAM - then a window for a hold;
+     asked to stay, or nothing to run, and the node waits for the master. */
   const bool asked_to_stay = (boot_hand.stay == BOOT_STAY_MAGIC);
-  const bool valid = boot_app_valid();
+  const bool warm = (boot_hand.magic == BOOT_HAND_MAGIC);
+  const bool ready = boot_ready(warm ? boot_hand.bytes : 0U, warm ? boot_hand.crc : 0U);
   const uint32_t started = ticks();
-  uint32_t said_at = started;
 
   boot_hand.stay = 0U;
-  say(NULL, asked_to_stay ? "boot: the application asked to stay"
-                          : (valid ? "boot: application valid - a hold may keep this node"
-                                   : "boot: no application - waiting for the master"));
   for (;;)
   {
-    rtu_poll(0U);
-    rtu_poll(1U);
-    console_poll();
+    for (uint32_t i = 0U; i < PORTS; i++)
+    {
+      rtu_poll(i);
+    }
     follow_core();
 
     if (s.going && elapsed_ms(s.go_at, GO_SETTLE_MS))
     {
       jump();
     }
-    if (valid && !asked_to_stay && (boot_state() == BOOT_BLANK)
+    if (ready && !asked_to_stay && (boot_state() == BOOT_BLANK)
         && elapsed_ms(started, HOLD_MS))
     {
       jump();
-    }
-    if (!valid && (boot_state() == BOOT_BLANK) && elapsed_ms(said_at, SAY_EVERY_MS))
-    {
-      said_at = ticks();
-      say(NULL, "boot: no application - waiting for the master");
     }
   }
 }

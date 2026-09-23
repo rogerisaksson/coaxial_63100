@@ -22,7 +22,7 @@ TYPE = 1
 
 def image(size, version=7):
     body = bytearray((i * 7 + 3) & 0xFF for i in range(size))
-    struct.pack_into('<II', body, 0, 0x20010000, 0x08020000 + 0x1001)
+    struct.pack_into('<II', body, 0, 0x20010000, 0x30000000 + 0x1001)   # runs from D2 SRAM
     struct.pack_into('<IIII', body, 0x400, 0x50415843, size, version, TYPE)
     return bytes(body)
 
@@ -117,6 +117,72 @@ def test_a_bus_of_four(report, _boot):
                  and segment.at(1).dump(0)[1][:4] == bytes([0xFF] * 4))
 
 
+def test_the_store(report, _boot):
+    """Master(persist=True): the store written once a new image, never for
+    the same one, and a node whose RAM is gone takes the stored copy with
+    nothing streamed."""
+    img = image(9 * 224 + 3)
+    node = SimulatedBoot()
+    segment = SimulatedSegment([node])
+    table = {node.uid.hex(): {'unit': 4, 'position': 1, 'type': TYPE}}
+    states = Master(segment, table, {TYPE: img}, {}, persist=True).run()
+    report.check('sealed with persist: the store written once, the image named in state',
+                 node.stores == 1 and states[4]['image'] == (len(img), zlib.crc32(img)))
+    node.reboot()
+    node.unit = 247
+    Master(segment, table, {TYPE: img}, {}, persist=True).run()
+    report.check('the same image again writes no store', node.stores == 1)
+    node.ram[:] = bytes(len(node.ram))                  # a power cycle
+    node.reboot()
+    node.unit = 247
+    node.hold(1)
+    node.assign(node.uid.hex(), 4, 1)
+    node.erase(TYPE, img)
+    report.check('RAM lost: erase copies the stored image, verified, nothing missing',
+                 node.state()['state'] == 'verified' and node.missing() == []
+                 and bytes(node.ram[:len(img)]) == img)
+
+
+def elf_of(segments):
+    """A minimal ELF32 LE: one PT_LOAD per (paddr, bytes), vaddr elsewhere."""
+    head, phsize = 0x34, 0x20
+    table, blobs, at = b'', b'', head + phsize * len(segments)
+    for paddr, blob in segments:
+        table += struct.pack('<8I', 1, at + len(blobs), 0x20000000, paddr, len(blob), len(blob), 5, 4)
+        blobs += blob
+    ident = b'\x7fELF\x01\x01\x01' + bytes(9)
+    header = ident + struct.pack('<HHIIIIIHHHHHH', 2, 40, 1, 0, head, 0, 0, head, phsize,
+                                 len(segments), 40, 0, 0)
+    return header + table + blobs
+
+
+def test_the_image_from_an_elf(report, _boot):
+    """image_of cuts what the bootloader takes from the ELF's load segments;
+    store_of puts the seal word in front of it."""
+    import tempfile
+    from pathlib import Path
+    from coaxial.boot import SEAL_MAGIC, image_of, store_of
+    img = image(7 * 224 + 5)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / 'app.elf'
+        path.write_bytes(elf_of([(0x30000000, img[:600]), (0x30000000 + 600, img[600:]),
+                                 (0x24000000, b'\x00' * 64)]))
+        cut = image_of(path)
+    report.check('two segments in RAM joined at their load addresses, one elsewhere left out',
+                 cut == img, '%d bytes' % len(cut))
+    store = store_of(img)
+    report.check('the store: seal word (magic, size, crc, type) padded to 32, then the image',
+                 struct.unpack_from('<IIII', store) == (SEAL_MAGIC, len(img), zlib.crc32(img), TYPE)
+                 and store[16:32] == b'\xff' * 16 and store[32:] == img)
+    built = Path(__file__).resolve().parents[2] / 'build' / 'Debug' / 'coaxial_63100.elf'
+    if built.exists():
+        real = image_of(built)
+        sp, reset = struct.unpack_from('<II', real)
+        report.check('the build\'s own ELF: stack in DTCM, reset into RAM, the header\'s size',
+                     0x20000000 < sp <= 0x20020000 and 0x30000000 < reset < 0x30048000
+                     and struct.unpack_from('<I', real, 0x404)[0] == len(real))
+
+
 def test_the_two_implementations_share_their_names(report, _boot):
     names = {n for n in dir(BootControl) if not n.startswith('_')}
     report.check('Boot and SimulatedBoot both implement BootControl, every name',
@@ -130,6 +196,7 @@ def test_the_two_implementations_share_their_names(report, _boot):
 def main():
     report = Report()
     for test in (test_one_node_flashed, test_the_same_image_kept, test_refusals, test_a_bus_of_four,
+                 test_the_store, test_the_image_from_an_elf,
                  test_the_two_implementations_share_their_names):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, SimulatedBoot())

@@ -23,10 +23,24 @@ extern "C" {
 #define BOOT_WORDS_PER_CHUNK (BOOT_CHUNK_BYTES / BOOT_WORD_BYTES)
 #define BOOT_UID_BYTES       12U      /**< the MCU's unique id, 96 bits */
 #define BOOT_UID_BITS        (BOOT_UID_BYTES * 8U)
-/** The application's largest image, 1792 K, in chunks - and the bitmap that
-    says which have landed. */
-#define BOOT_MAX_CHUNKS      8192U
-#define BOOT_BITMAP_BYTES    (BOOT_MAX_CHUNKS / 8U)
+
+/** WHERE THE APPLICATION RUNS AND WHERE IT IS KEPT (docs/BOOT.md). It is
+    linked into D2 SRAM, which nothing else uses, and streamed there; flash
+    keeps a sealed copy for a power-up with no master - the seal word first,
+    the image behind it. */
+#define BOOT_RUN_BASE        0x30000000U
+#define BOOT_RUN_BYTES       0x48000U      /**< SRAM1..3, 288 K */
+#define BOOT_FLASH_BASE      0x08000000U
+#define BOOT_SECTOR_BYTES    0x20000U
+#define BOOT_STORE_BASE      0x08020000U   /**< sectors 1..14 */
+#define BOOT_STORE_BYTES     0x1C0000U
+#define BOOT_RECORD_BASE     0x081E0000U   /**< bank 2 sector 7 */
+#define BOOT_RECORD_BYTES    0x20000U
+
+/** The largest image in chunks, and the bitmap of those landed: 165 bytes,
+    one `missing` reply. */
+#define BOOT_MAX_CHUNKS      ((BOOT_RUN_BYTES + BOOT_CHUNK_BYTES - 1U) / BOOT_CHUNK_BYTES)
+#define BOOT_BITMAP_BYTES    ((BOOT_MAX_CHUNKS + 7U) / 8U)
 /** The record is one flash-word-padded struct; this is room for it. */
 #define BOOT_RECORD_MAX      2048U
 /** The header behind the application's vector table, and its magic: 'CXAP'
@@ -37,16 +51,7 @@ extern "C" {
 #define BOOT_STACK_BASE      0x20000000U
 #define BOOT_STACK_BYTES     0x20000U
 
-/** The flash map (docs/BOOT.md): bootloader sector 0, application
-    sectors 1..14, record bank 2 sector 7. */
-#define BOOT_FLASH_BASE      0x08000000U
-#define BOOT_SECTOR_BYTES    0x20000U
-#define BOOT_APP_BASE        0x08020000U
-#define BOOT_APP_BYTES       0x1C0000U
-#define BOOT_RECORD_BASE     0x081E0000U
-#define BOOT_RECORD_BYTES    0x20000U
-
-/** The image header at BOOT_APP_BASE + BOOT_HEADER_OFFSET. */
+/** The image header at BOOT_RUN_BASE + BOOT_HEADER_OFFSET. */
 typedef struct
 {
   uint32_t magic;
@@ -60,8 +65,22 @@ typedef struct
 #define BOOT_TYPE_COAXIAL_63100  1U
 #define BOOT_TYPE_COAXIAL_63020  2U
 
+/** THE STORE'S SEAL: its first flash word, programmed after the image
+    behind it, so a store interrupted anywhere holds nothing. */
+#define BOOT_SEAL_MAGIC      0x4C414553U   /**< 'SEAL' */
+
+typedef struct
+{
+  uint32_t magic;
+  uint32_t bytes;
+  uint32_t crc;
+  uint32_t type;
+} boot_seal_t;
+
 /** assign's flags. */
 #define BOOT_FLAG_TERMINATE  0x01U    /**< the last node on the segment closes the 120 ohm */
+/** seal's flags. */
+#define BOOT_SEAL_PERSIST    0x01U    /**< keep a copy in the store, if it holds another */
 
 /** THE HANDOVER SLOT: the top 32 bytes of DTCM, which both linker scripts
     place at the same address and neither startup zeroes or copies, so it is
@@ -78,6 +97,8 @@ typedef struct
   uint8_t  position;
   uint8_t  flags;
   uint8_t  reserved;
+  uint32_t bytes;      /**< the image the bootloader verified and ran: its size */
+  uint32_t crc;        /**< and its CRC-32 - what a warm reset checks RAM against */
 } boot_hand_t;
 
 _Static_assert(sizeof(boot_hand_t) <= BOOT_HAND_BYTES, "the handover slot is 32 bytes");
@@ -91,9 +112,9 @@ _Static_assert(sizeof(boot_hand_t) <= BOOT_HAND_BYTES, "the handover slot is 32 
 #define BOOT_OP_MISSING   5U   /**< -> u16 first, u16 count, bytes bitmap */
 #define BOOT_OP_VERIFY    6U   /**< -> u8 ok, u32 crc */
 #define BOOT_OP_RECORD    7U   /**< u16 offset, bytes -> u8 took */
-#define BOOT_OP_SEAL      8U   /**< -> u8 took */
+#define BOOT_OP_SEAL      8U   /**< [u8 flags] -> u8 took */
 #define BOOT_OP_GO        9U   /**< u32 session -> none; broadcast */
-#define BOOT_OP_STATE     10U  /**< -> u8 state, u8 type, u8 unit, u8 position, u32 chunks_held, u32 chunks_of, u8 app_valid, u8 x12 uid */
+#define BOOT_OP_STATE     10U  /**< -> u8 state, u8 type, u8 unit, u8 position, u32 chunks_held, u32 chunks_of, u8 app_valid, u8 x12 uid, u32 image_bytes, u32 image_crc, u8 flags */
 #define BOOT_OP_DUMP      11U  /**< u16 offset -> u16 offset, bytes */
 #define BOOT_OP_STAY      12U  /**< -> u8 took; the application: back to the bootloader */
 
@@ -103,9 +124,9 @@ typedef enum
   BOOT_BLANK    = 0,   /**< nothing heard */
   BOOT_HELD     = 1,   /**< a hold heard; staying */
   BOOT_ASSIGNED = 2,   /**< a unit and a position given */
-  BOOT_ERASED   = 3,   /**< the sectors erased; chunks landing */
+  BOOT_ERASED   = 3,   /**< RAM cleared; chunks landing */
   BOOT_VERIFIED = 4,   /**< the crc matched */
-  BOOT_SEALED   = 5,   /**< the record and the first word programmed */
+  BOOT_SEALED   = 5,   /**< the record and the first word written; the image valid */
 } boot_state_t;
 
 /** What a handler answers with: a reply, silence (not this node's question,
@@ -125,11 +146,13 @@ typedef struct
   void (*say)(void *ctx, const char *line);
 } boot_port_t;
 
-/** What this node is and where its flash is. */
+/** What this node is and where its memories are. */
 typedef struct
 {
-  uint32_t app_base;
+  uint32_t app_base;       /**< where the image runs: RAM */
   uint32_t app_bytes;
+  uint32_t store_base;     /**< where its sealed copy is kept: flash */
+  uint32_t store_bytes;
   uint32_t record_base;
   uint32_t record_bytes;
   uint8_t  type;
@@ -143,10 +166,27 @@ void boot_init(const boot_port_t *port, void *ctx, const boot_layout_t *layout);
     into `out`. */
 boot_answer_t boot_op(uint8_t op, rd_t *in, wr_t *out);
 
+/** One 0x6E request (device byte, op, fields) answered into `rsp` as the
+    application's link answers: the fields alone, no echo. The reply's
+    length, or one of these. */
+#define BOOT_PDU_SILENT      (-1)   /**< not this node's question, or a broadcast */
+#define BOOT_PDU_FOREIGN     (-2)   /**< another device's */
+#define BOOT_PDU_OVERFLOW    (-3)   /**< the reply did not fit */
+int boot_pdu(const uint8_t *req, size_t req_len, uint8_t *rsp, size_t rsp_cap);
+
 /** The four tests of an image: a stack pointer in DTCM, a thumb reset vector
     in the application, the header's magic and type, the size inside the
     range. */
 bool boot_app_valid(void);
+
+/** THE GATE AT RESET: RAM still holding, whole, the image the slot names (a
+    warm reset), or the store's sealed copy verified and copied into RAM.
+    False: nothing may run. */
+bool boot_ready(uint32_t hand_bytes, uint32_t hand_crc);
+
+/** The image RAM holds verified - size and CRC, both 0 for none: what the
+    slot hands the application. */
+void boot_image(uint32_t *bytes, uint32_t *crc);
 
 /** What the hardware layer asks after each frame. */
 boot_state_t boot_state(void);

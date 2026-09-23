@@ -1,10 +1,10 @@
-"""A blank node in its bootloader: boot_core.c's rules over a bytearray flash (docs/BOOT.md).
+"""A blank node in its bootloader: boot_core.c's rules over bytearray RAM and store (docs/BOOT.md).
 """
 import struct
 import zlib
 
-from ..boot import (APP_BASE, APP_BYTES, BLANK_UNIT, CHUNK, HEADER, MAGIC, RECORD_MAX,
-                    STATES, WORD, BootControl, Segment, chunks_of)
+from ..boot import (BLANK_UNIT, CHUNK, HEADER, MAGIC, RECORD_MAX, RUN_BASE, RUN_BYTES,
+                    SEAL_MAGIC, STATES, WORD, BootControl, Segment, chunks_of)
 from ..errors import CrcError, DeviceStateError
 
 UID = bytes(range(0x10, 0x1C))
@@ -16,17 +16,20 @@ def _refused(words):
 
 
 class SimulatedBoot(BootControl):
-    """One blank node: the state machine over a bytearray flash."""
+    """One blank node: the state machine over bytearray RAM, where the image
+    runs, and a store - the seal word first, the image behind it."""
 
     def __init__(self, type_=TYPE, uid=UID):
         self.type = type_
         self.uid = uid
-        self.sectors = bytearray(b'\xff' * APP_BYTES)
+        self.ram = bytearray(b'\xff' * RUN_BYTES)
+        self.store = bytearray(b'\xff' * (WORD + RUN_BYTES))
         self.record_sector = bytearray(b'\xff' * RECORD_MAX)
+        self.stores = 0                   # how often the store was written
         self.reboot()
 
     def reboot(self):
-        """A power cycle: the state gone, the flash kept."""
+        """A reset: the state gone, RAM and flash kept."""
         self._state = 0
         self.unit = BLANK_UNIT
         self.position = 0
@@ -39,27 +42,39 @@ class SimulatedBoot(BootControl):
         self.verified = False
         self.record_bytes = bytearray()
         self.jumped = False
+        self.image = (0, 0)               # what RAM holds verified
 
     # -- what the node holds ---------------------------------------------
 
-    def valid(self):
-        sp, reset = struct.unpack_from('<II', self.sectors, 0)
-        magic, size, _v, type_ = struct.unpack_from('<IIII', self.sectors, HEADER)
+    def valid(self, memory=None):
+        memory = self.ram if memory is None else memory
+        sp, reset = struct.unpack_from('<II', memory, 0)
+        magic, size, _v, type_ = struct.unpack_from('<IIII', memory, HEADER)
         return (0x20000000 < sp <= 0x20020000 and reset & 1
-                and APP_BASE < reset < APP_BASE + APP_BYTES
+                and RUN_BASE < reset < RUN_BASE + RUN_BYTES
                 and magic == MAGIC and type_ == self.type
-                and HEADER < size <= APP_BYTES)
+                and HEADER < size <= RUN_BYTES)
 
     def _image_crc(self):
-        head = self.first if self.first is not None else self.sectors[:WORD]
-        return zlib.crc32(bytes(head) + bytes(self.sectors[WORD:self.size]))
+        head = self.first if self.first is not None else self.ram[:WORD]
+        return zlib.crc32(bytes(head) + bytes(self.ram[WORD:self.size]))
+
+    def stored(self):
+        """(size, crc) the store's seal names over a whole copy, or None."""
+        magic, size, crc, type_ = struct.unpack_from('<IIII', self.store, 0)
+        copy = memoryview(self.store)[WORD:WORD + size]
+        if (magic != SEAL_MAGIC or type_ != self.type or not HEADER < size <= RUN_BYTES
+                or not self.valid(copy) or zlib.crc32(copy) != crc):
+            return None
+        return size, crc
 
     # -- the ops -----------------------------------------------------------
 
     def state(self):
         return {'state': STATES[self._state], 'type': self.type, 'unit': self.unit,
                 'position': self.position, 'held': len(self.held), 'of': self.chunks,
-                'valid': bool(self.valid()), 'uid': self.uid.hex()}
+                'valid': bool(self.valid()), 'uid': self.uid.hex(),
+                'image': self.image, 'flags': self.flags}
 
     def stay(self):
         _refused('this node is in its bootloader already')
@@ -91,12 +106,16 @@ class SimulatedBoot(BootControl):
             return
         self.size, self.crc, self.chunks = len(image), zlib.crc32(image), len(chunks_of(image))
         self.first, self.record_bytes = None, bytearray()
-        held_size = struct.unpack_from('<I', self.sectors, HEADER + 4)[0]
-        if self.valid() and held_size == self.size and self._image_crc() == self.crc:
-            self.held = set(range(self.chunks))         # kept: nothing programs
+        held_size = struct.unpack_from('<I', self.ram, HEADER + 4)[0]
+        kept = self.valid() and held_size == self.size and self._image_crc() == self.crc
+        if not kept and self.stored() == (self.size, self.crc):
+            self.ram[:self.size] = self.store[WORD:WORD + self.size]
+            kept = True                                 # copied: nothing streams
+        if kept:
+            self.held = set(range(self.chunks))
             self.verified, self._state = True, 4
             return
-        self.sectors[:self.size] = b'\xff' * self.size
+        self.ram[:self.size] = b'\xff' * self.size
         self.held, self.verified, self._state = set(), False, 3
 
     def chunk(self, index, data):
@@ -105,9 +124,9 @@ class SimulatedBoot(BootControl):
         at = index * CHUNK
         if at == 0:
             self.first = bytes(data[:WORD]).ljust(WORD, b'\xff')
-            self.sectors[WORD:at + len(data)] = data[WORD:]
+            self.ram[WORD:at + len(data)] = data[WORD:]
         else:
-            self.sectors[at:at + len(data)] = data
+            self.ram[at:at + len(data)] = data
         self.held.add(index)
 
     def missing(self):
@@ -129,7 +148,7 @@ class SimulatedBoot(BootControl):
             _refused('the record is at most 2048 bytes')
         self.record_bytes[offset:offset + len(data)] = data
 
-    def seal(self):
+    def seal(self, persist=False):
         if not self.verified:
             _refused('the image is not verified - verify first, and it must say ok')
         if self.record_bytes:
@@ -138,8 +157,14 @@ class SimulatedBoot(BootControl):
                 self.record_sector[:] = b'\xff' * RECORD_MAX
                 self.record_sector[:len(padded)] = padded
         if self.first is not None:
-            self.sectors[:WORD] = self.first
+            self.ram[:WORD] = self.first
             self.first = None
+        if persist and self.stored() != (self.size, self.crc):
+            self.store[:] = b'\xff' * len(self.store)
+            self.store[WORD:WORD + self.size] = self.ram[:self.size]
+            self.store[:16] = struct.pack('<IIII', SEAL_MAGIC, self.size, self.crc, self.type)
+            self.stores += 1
+        self.image = (self.size, self.crc)
         self._state = 5
 
     def go(self, session):
@@ -218,8 +243,8 @@ class _Blank(BootControl):
     def record(self, offset, data):
         return self._blank().record(offset, data)
 
-    def seal(self):
-        return self._blank().seal()
+    def seal(self, persist=False):
+        return self._blank().seal(persist)
 
     def go(self, session):
         for node in self.nodes:

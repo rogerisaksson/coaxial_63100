@@ -5,15 +5,15 @@
 /* Entry Point */
 ENTRY(Reset_Handler)
 
-/* THE APPLICATION LIVES BEHIND THE BOOTLOADER. */
+/* THE APPLICATION RUNS FROM D2 SRAM (docs/BOOT.md): the bootloader streams
+   it there, or copies the sealed copy flash keeps at 0x08020000. */
 MEMORY
 {
 DTCMRAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
 RAM (xrw)      : ORIGIN = 0x24000000, LENGTH = 512K
-RAM_D2 (xrw)      : ORIGIN = 0x30000000, LENGTH = 288K
 RAM_D3 (xrw)      : ORIGIN = 0x38000000, LENGTH = 64K
 ITCMRAM (xrw)      : ORIGIN = 0x00000000, LENGTH = 64K
-FLASH (rx)      : ORIGIN = 0x08020000, LENGTH = 1792K
+IMAGE (rx)      : ORIGIN = 0x30000000, LENGTH = 288K
 }
 
 /* THE HANDOVER SLOT: the top 32 bytes of DTCM, above the stack, which the
@@ -30,21 +30,21 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Define output sections */
 SECTIONS
 {
-  /* The startup code goes first into FLASH */
+  /* The startup code goes first into the image */
   .isr_vector :
   {
     . = ALIGN(4);
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
-  } >FLASH
+  } >IMAGE
 
   /* THE HEADER the bootloader validates before it jumps: magic, size,
      version, type, 0x400 into the image behind the vector table
      (board/src/board_boot.c fills it; boot.h names the offset). */
-  .app_header ORIGIN(FLASH) + 0x400 :
+  .app_header ORIGIN(IMAGE) + 0x400 :
   {
     KEEP(*(.app_header))
-  } >FLASH
+  } >IMAGE
 
   /* THE SAMPLE PATH RUNS FROM ITCM. */
   _siitcm = LOADADDR(.itcm);
@@ -68,9 +68,9 @@ SECTIONS
     *stm32h7xx_hal_adc_ex.c.obj(.text .text.*)
     . = ALIGN(4);
     _eitcm = .;
-  } >ITCMRAM AT> FLASH
+  } >ITCMRAM AT> IMAGE
 
-  /* The program code and other data goes into FLASH */
+  /* The program code and other data goes into the image */
   .text :
   {
     . = ALIGN(4);
@@ -85,23 +85,23 @@ SECTIONS
 
     . = ALIGN(4);
     _etext = .;        /* define a global symbols at end of code */
-  } >FLASH
+  } >IMAGE
 
-  /* Constant data goes into FLASH */
+  /* Constant data goes into the image */
   .rodata :
   {
     . = ALIGN(4);
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
     . = ALIGN(4);
-  } >FLASH
+  } >IMAGE
 
   .ARM.extab (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
     . = ALIGN(4);
     *(.ARM.extab* .gnu.linkonce.armextab.*)
     . = ALIGN(4);
-  } >FLASH
+  } >IMAGE
 
   .ARM (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
@@ -110,7 +110,7 @@ SECTIONS
     *(.ARM.exidx*)
     __exidx_end = .;
     . = ALIGN(4);
-  } >FLASH
+  } >IMAGE
 
   .preinit_array (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
@@ -119,7 +119,7 @@ SECTIONS
     KEEP (*(.preinit_array*))
     PROVIDE_HIDDEN (__preinit_array_end = .);
     . = ALIGN(4);
-  } >FLASH
+  } >IMAGE
 
   .init_array (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
@@ -129,7 +129,7 @@ SECTIONS
     KEEP (*(.init_array*))
     PROVIDE_HIDDEN (__init_array_end = .);
     . = ALIGN(4);
-  } >FLASH
+  } >IMAGE
 
   .fini_array (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
@@ -139,7 +139,7 @@ SECTIONS
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
     . = ALIGN(4);
-  } >FLASH
+  } >IMAGE
 
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
@@ -155,7 +155,7 @@ SECTIONS
     *(.RamFunc*)       /* .RamFunc* sections */
 
     . = ALIGN(4);
-  } >DTCMRAM AT> FLASH
+  } >DTCMRAM AT> IMAGE
 
  /* Initialized TLS data section */
   .tdata : ALIGN(4)
@@ -165,7 +165,7 @@ SECTIONS
     _edata = .;        /* define a global symbol at data end */
     PROVIDE(__data_end = .);
     PROVIDE(__tdata_end = .);
-  } >DTCMRAM AT> FLASH
+  } >DTCMRAM AT> IMAGE
 
   PROVIDE( __tdata_start = ADDR(.tdata) );
   PROVIDE( __tdata_size = __tdata_end - __tdata_start );
@@ -181,9 +181,9 @@ SECTIONS
   PROVIDE( __data_source_end = __tdata_source_end );
   PROVIDE( __data_source_size = __data_source_end - __data_source );
 
-  /* The image's bytes in flash, for the header: from the vector table to the
+  /* The image's bytes, for the header: from the vector table to the
      end of the last section loaded, which is .tdata's copy. */
-  _app_size = __tdata_source_end - ORIGIN(FLASH);
+  _app_size = __tdata_source_end - ORIGIN(IMAGE);
   /* Uninitialized data section */
   .tbss (NOLOAD) : ALIGN(4)
   {

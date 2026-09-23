@@ -155,7 +155,7 @@ extern "C" {
 /* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 18U        /* history: PROTOCOL.md, Versioning */
+#define CMD_PROTO_MINOR 19U        /* history: PROTOCOL.md, Versioning */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

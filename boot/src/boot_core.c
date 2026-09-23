@@ -35,6 +35,8 @@ static struct
   bool                verified;
   bool                go;
   uint32_t            ignored;           /**< chunks with no erase behind */
+  uint32_t            run_bytes;         /**< the image RAM holds verified, 0 for none */
+  uint32_t            run_crc;
 } s;
 
 /* -- the wire's shorthand -------------------------------------------------- */
@@ -86,8 +88,8 @@ static bool prefix_fits(uint8_t bits, const uint8_t *prefix)
   return ((prefix[whole] ^ s.layout.uid[whole]) & mask) == 0U;
 }
 
-/* CRC over `size` bytes of the image as it will stand: the first word from
-   RAM until it is programmed, the rest from flash. */
+/* CRC over `size` bytes of the image as it will stand in RAM: the first
+   word as held back until seal, the rest where it landed. */
 static uint32_t image_crc(uint32_t size)
 {
   uint32_t crc = CRC32_INIT;
@@ -99,13 +101,125 @@ static uint32_t image_crc(uint32_t size)
   return crc ^ CRC32_INIT;
 }
 
-/* Whether the image in flash is valid and is, byte for byte, the one an
+/* The four tests on an image read at `at` - RAM, or the store's copy - whose
+   vectors point into RAM either way, since that is where it runs. */
+static bool shape_ok(uint32_t at)
+{
+  const uint32_t stack = read_u32(at);
+  const uint32_t reset = read_u32(at + 4U);
+  const uint32_t magic = read_u32(at + BOOT_HEADER_OFFSET);
+  const uint32_t size = read_u32(at + BOOT_HEADER_OFFSET + offsetof(boot_header_t, bytes));
+  const uint32_t type = read_u32(at + BOOT_HEADER_OFFSET + offsetof(boot_header_t, type));
+  const uint32_t end = s.layout.app_base + s.layout.app_bytes;
+
+  return (stack > BOOT_STACK_BASE) && (stack <= BOOT_STACK_BASE + BOOT_STACK_BYTES)
+         && ((reset & THUMB_BIT) != 0U)
+         && (reset > s.layout.app_base) && (reset < end)
+         && (magic == BOOT_HEADER_MAGIC) && (type == s.layout.type)
+         && (size > BOOT_HEADER_OFFSET) && (size <= s.layout.app_bytes);
+}
+
+/* Whether the image in RAM is valid and is, byte for byte, the one an
    erase offers - the header's size and the crc over it. */
 static bool image_held(uint32_t size, uint32_t crc)
 {
   return boot_app_valid()
          && (read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + offsetof(boot_header_t, bytes)) == size)
          && (image_crc(size) == crc);
+}
+
+/* -- the store: flash, the seal word first and the image behind it ---------- */
+
+static uint32_t store_image(void)
+{
+  return s.layout.store_base + BOOT_WORD_BYTES;
+}
+
+/* The image the store's seal names, its size and crc - checked against the
+   bytes behind it, so a seal over a torn or foreign copy names nothing. */
+static bool store_sealed(uint32_t *bytes, uint32_t *crc)
+{
+  const uint32_t at = s.layout.store_base;
+  const uint32_t size = read_u32(at + offsetof(boot_seal_t, bytes));
+  const uint32_t sum = read_u32(at + offsetof(boot_seal_t, crc));
+
+  if ((read_u32(at + offsetof(boot_seal_t, magic)) != BOOT_SEAL_MAGIC)
+      || (read_u32(at + offsetof(boot_seal_t, type)) != s.layout.type)
+      || (size <= BOOT_HEADER_OFFSET) || (size > s.layout.app_bytes)
+      || !shape_ok(store_image())
+      || ((boot_crc32(CRC32_INIT, s.port->read(s.ctx, store_image()), size)
+           ^ CRC32_INIT) != sum))
+  {
+    return false;
+  }
+  *bytes = size;
+  *crc = sum;
+  return true;
+}
+
+static bool store_holds(uint32_t size, uint32_t crc)
+{
+  uint32_t bytes = 0U;
+  uint32_t sum = 0U;
+
+  return store_sealed(&bytes, &sum) && (bytes == size) && (sum == crc);
+}
+
+/* One flash word from `from`, clipped to the image's size and padded 0xFF. */
+static void word_of(uint32_t from, uint32_t offset, uint32_t size, uint8_t *word)
+{
+  const uint32_t have = ((size - offset) < BOOT_WORD_BYTES) ? (size - offset) : BOOT_WORD_BYTES;
+
+  memset(word, 0xFF, BOOT_WORD_BYTES);
+  memcpy(word, s.port->read(s.ctx, from + offset), have);
+}
+
+/* The store's copy into RAM, word for word. */
+static bool to_run(uint32_t size)
+{
+  uint8_t word[BOOT_WORD_BYTES];
+
+  if (!s.port->erase(s.ctx, s.layout.app_base, size))
+  {
+    return false;
+  }
+  for (uint32_t offset = 0U; offset < size; offset += BOOT_WORD_BYTES)
+  {
+    word_of(store_image(), offset, size, word);
+    if (!s.port->program(s.ctx, s.layout.app_base + offset, word))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+/* RAM's image into the store, the seal programmed last - unless the store
+   already holds it, which writes nothing: the checksum is the gate. */
+static bool persist(void)
+{
+  const boot_seal_t seal = { BOOT_SEAL_MAGIC, s.size, s.crc, s.layout.type };
+  uint8_t word[BOOT_WORD_BYTES];
+
+  if (store_holds(s.size, s.crc))
+  {
+    return true;
+  }
+  if (!s.port->erase(s.ctx, s.layout.store_base, BOOT_WORD_BYTES + s.size))
+  {
+    return false;
+  }
+  for (uint32_t offset = 0U; offset < s.size; offset += BOOT_WORD_BYTES)
+  {
+    word_of(s.layout.app_base, offset, s.size, word);
+    if (!s.port->program(s.ctx, store_image() + offset, word))
+    {
+      return false;
+    }
+  }
+  memset(word, 0xFF, sizeof(word));
+  memcpy(word, &seal, sizeof(seal));
+  return s.port->program(s.ctx, s.layout.store_base, word);
 }
 
 /* One flash word of the record as `seal` would program it: the bytes, then
@@ -228,15 +342,21 @@ static boot_answer_t h_boot_erase(rd_t *in, wr_t *out)
   }
   if (image_held(size, crc))
   {
-    /* The image offered is the one in flash: kept whole, every chunk of the
+    /* The image offered is the one in RAM: kept whole, every chunk of the
        stream a repeat, and verify will say so. */
     offered(size, crc, chunks, true);
     s.port->say(s.ctx, "boot: the image offered is the one held - kept");
     return BOOT_SILENT;
   }
+  if (store_holds(size, crc) && to_run(size))
+  {
+    offered(size, crc, chunks, true);
+    s.port->say(s.ctx, "boot: the image offered is the one stored - copied");
+    return BOOT_SILENT;
+  }
   if (!s.port->erase(s.ctx, s.layout.app_base, size))
   {
-    s.port->say(s.ctx, "boot: the sectors did not erase");
+    s.port->say(s.ctx, "boot: RAM did not erase");
     return BOOT_SILENT;
   }
   offered(size, crc, chunks, false);
@@ -377,7 +497,8 @@ static bool program_record(void)
 
 static boot_answer_t h_boot_seal(rd_t *in, wr_t *out)
 {
-  (void)in;
+  const uint8_t flags = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
+
   if (!s.verified)
   {
     took(out, "the image is not verified - verify first, and it must say ok");
@@ -394,6 +515,14 @@ static boot_answer_t h_boot_seal(rd_t *in, wr_t *out)
     return BOOT_REPLY;
   }
   s.first_held = false;
+  if (((flags & BOOT_SEAL_PERSIST) != 0U) && !persist())
+  {
+    took(out, "the store did not program - seal again, or without persist to run "
+              "from RAM alone");
+    return BOOT_REPLY;
+  }
+  s.run_bytes = s.size;
+  s.run_crc = s.crc;
   s.state = BOOT_SEALED;
   took(out, NULL);
   return BOOT_REPLY;
@@ -424,6 +553,9 @@ static boot_answer_t h_boot_state(rd_t *in, wr_t *out)
   wr_u32(out, s.chunks);
   wr_u8(out, boot_app_valid() ? 1U : 0U);
   wr_bytes(out, s.layout.uid, BOOT_UID_BYTES);
+  wr_u32(out, s.run_bytes);
+  wr_u32(out, s.run_crc);
+  wr_u8(out, s.flags);
   return BOOT_REPLY;
 }
 
@@ -480,20 +612,50 @@ boot_answer_t boot_op(uint8_t op, rd_t *in, wr_t *out)
   }
 }
 
+int boot_pdu(const uint8_t *req, size_t req_len, uint8_t *rsp, size_t rsp_cap)
+{
+  rd_t in;
+  wr_t out;
+
+  if ((req_len < 2U) || (req[0] != DEVICE_BOOT))
+  {
+    return BOOT_PDU_FOREIGN;
+  }
+  rd_init(&in, &req[2], (uint16_t)(req_len - 2U));
+  wr_init(&out, rsp, (uint16_t)rsp_cap);
+  if (boot_op(req[1], &in, &out) == BOOT_SILENT)
+  {
+    return BOOT_PDU_SILENT;
+  }
+  return wr_ok(&out) ? (int)wr_len(&out) : BOOT_PDU_OVERFLOW;
+}
+
 bool boot_app_valid(void)
 {
-  const uint32_t stack = read_u32(s.layout.app_base);
-  const uint32_t reset = read_u32(s.layout.app_base + 4U);
-  const uint32_t magic = read_u32(s.layout.app_base + BOOT_HEADER_OFFSET);
-  const uint32_t size = read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + offsetof(boot_header_t, bytes));
-  const uint32_t type = read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + offsetof(boot_header_t, type));
-  const uint32_t end = s.layout.app_base + s.layout.app_bytes;
+  return shape_ok(s.layout.app_base);
+}
 
-  return (stack > BOOT_STACK_BASE) && (stack <= BOOT_STACK_BASE + BOOT_STACK_BYTES)
-         && ((reset & THUMB_BIT) != 0U)
-         && (reset > s.layout.app_base) && (reset < end)
-         && (magic == BOOT_HEADER_MAGIC) && (type == s.layout.type)
-         && (size > BOOT_HEADER_OFFSET) && (size <= s.layout.app_bytes);
+bool boot_ready(uint32_t hand_bytes, uint32_t hand_crc)
+{
+  uint32_t bytes = hand_bytes;
+  uint32_t crc = hand_crc;
+
+  if ((bytes == 0U) || !image_held(bytes, crc))
+  {
+    if (!store_sealed(&bytes, &crc) || !to_run(bytes) || !image_held(bytes, crc))
+    {
+      return false;
+    }
+  }
+  s.run_bytes = bytes;
+  s.run_crc = crc;
+  return true;
+}
+
+void boot_image(uint32_t *bytes, uint32_t *crc)
+{
+  *bytes = s.run_bytes;
+  *crc = s.run_crc;
 }
 
 boot_state_t boot_state(void)

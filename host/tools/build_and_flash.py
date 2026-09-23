@@ -27,6 +27,7 @@ import shutil
 import subprocess
 import sys
 import time
+import zlib
 from pathlib import Path
 
 from find_board import _text          # noqa: E402 - tools/ is the script dir
@@ -163,11 +164,12 @@ def run(argv, cwd, path):
 
 #: The two images and what their linker scripts give each region, so the
 #: print says how much of it is spent rather than a byte count nobody can
-#: size up. The bootloader is sector 0; the application's flash begins
-#: behind it and ends before the record's sector (docs/BOOT.md). Code that
-#: runs from ITCM is stored in flash and counted there.
+#: size up. The bootloader is sector 0; the application runs from D2 SRAM
+#: and flash keeps its sealed copy behind the bootloader (docs/BOOT.md). The
+#: first region is where an image's bytes are counted - code that runs from
+#: ITCM and .data's initialiser included.
 IMAGES = {
-    'coaxial_63100.elf': {'FLASH': (0x08020000, 1792 * 1024),
+    'coaxial_63100.elf': {'IMAGE': (0x30000000, 288 * 1024),
                           'DTCMRAM': (0x20000000, 128 * 1024),
                           'ITCMRAM': (0x00000000, 64 * 1024)},
     'coaxial_63100_boot.elf': {'FLASH': (0x08000000, 128 * 1024),
@@ -185,12 +187,13 @@ def _region_of(regions, addr):
 
 
 def footprint(elf, path):
-    """(flash, dtcmram) bytes from the ELF's own section table."""
+    """(image, dtcmram) bytes from the ELF's own section table."""
     size = shutil.which('arm-none-eabi-size', path=path)
     if size is None or not Path(elf).exists():
         return None
 
     regions = IMAGES[Path(elf).name]
+    code = next(iter(regions))
     done = subprocess.run([size, '-A', str(elf)], capture_output=True,
                           text=True, errors='replace')
     flash = ram = 0
@@ -200,7 +203,7 @@ def footprint(elf, path):
             continue
         name, count, addr = part[0], int(part[1]), int(part[2])
         region = _region_of(regions, addr)
-        if region == 'FLASH':
+        if region == code:
             flash += count
         elif region == 'DTCMRAM':
             ram += count
@@ -216,9 +219,10 @@ def room(elf, path):
     if used is None:
         return ''
     regions = IMAGES[Path(elf).name]
-    return ('  %s flash %d B (%.0f%%)  dtcmram %d B (%.0f%%)'
-            % (LABELS[Path(elf).name],
-               used[0], 100.0 * used[0] / regions['FLASH'][1],
+    code = next(iter(regions))
+    return ('  %s %s %d B (%.0f%%)  dtcmram %d B (%.0f%%)'
+            % (LABELS[Path(elf).name], code.lower(),
+               used[0], 100.0 * used[0] / regions[code][1],
                used[1], 100.0 * used[1] / regions['DTCMRAM'][1]))
 
 
@@ -252,21 +256,28 @@ def flash(elf, path):
     if programmer is None:
         print('FLASH  FAIL  STM32_Programmer_CLI not found (see setup.ps1)')
         return False
+    # The application is linked for RAM: what flash takes is its sealed
+    # copy at the store, which the bootloader verifies and copies at reset.
+    target, sealed = [str(elf)], None
+    if elf.name == APP:
+        from coaxial.boot import STORE_BASE, image_of, store_of
+        image = image_of(elf)
+        sealed = (len(image), zlib.crc32(image))
+        store = elf.with_suffix('.store.bin')
+        store.write_bytes(store_of(image))
+        target = [str(store), '0x%08X' % STORE_BASE]
     # SWD, not JTAG: any connect on this probe that asserts NRST fails with
-    # "Unable to get core ID".
-    argv = [programmer, '-c', 'port=SWD', 'mode=UR', '-d', str(elf), '-v', '--start']
+    # "Unable to get core ID". --start runs from flash start: the bootloader.
+    argv = [programmer, '-c', 'port=SWD', 'mode=UR', '-d'] + target + ['-v', '--start']
     code, output, elapsed = run(argv, cwd=str(ROOT), path=path)
     if code != 0:
         print('FLASH  FAIL  exit=%d  %.1fs' % (code, elapsed))
         print('\n'.join(output.splitlines()[-40:]))
         return False
     print('FLASH  ok  %.1fs  %s' % (elapsed, elf.name))
-    if elf.name == APP:
-        # --start runs the image now; a reset goes through sector 0, the
-        # bootloader's, and finds the application only if one is there.
-        print('       the image sits at 0x%08X behind the bootloader sector - '
-              'a reset reaches it through the bootloader (--boot flashes it)'
-              % IMAGES[APP]['FLASH'][0])
+    if sealed is not None:
+        print('       stored sealed at 0x%08X: %d B, crc %08x - the bootloader '
+              '(--boot flashes it) copies it into RAM at reset' % ((STORE_BASE,) + sealed))
     return True
 
 

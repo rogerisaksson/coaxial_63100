@@ -4,8 +4,9 @@ Open work. Measured results are in FINDINGS.
 
 ## Needs the bench
 
-- **Bootloader**: flash it (`build_and_flash.py --boot`), boot the app
-  through it, re-flash over the wire; see the prefix search's real collision
+- **Bootloader**: flash it (`build_and_flash.py --boot`), then the app's
+  sealed store; boot it into D2 SRAM (the first run from RAM), load an image
+  over the ST-Link's port, persist it; see the prefix search's real collision
   (CRC error, timeout or both). 10 Mbit on the bench adapter unproven.
 - **First flash since 2026-09-16**: ITCM sample path (a wrong copy
   hard-faults on the first ADC interrupt), `test_bench.py` vs baseline,

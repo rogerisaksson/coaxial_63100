@@ -22,6 +22,8 @@ typedef struct
   uint8_t position;   /**< down the limb; 0 where nobody assigned one */
   uint8_t flags;      /**< assign's flags; 0 where nobody assigned them */
   bool    assigned;   /**< a bootloader left these, or they are defaults */
+  uint32_t image_bytes;   /**< the image the bootloader verified and ran; 0 unknown */
+  uint32_t image_crc;
 } board_identity_t;
 
 /** First thing in main(): VTOR to this image, the sample path copied to

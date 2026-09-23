@@ -121,15 +121,23 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## Bootloader
 
-- Not run on a board. 14 268 B Debug / 7 596 B Release; host-tested core
-  (45 checks) and master on a stand-in bus of four (18).
+- Not run on a board. 15 488 B Debug / 8 312 B Release (2026-09-23);
+  host-tested core (64 checks) and master on a stand-in bus of four (24).
 - Identity via a 32-byte DTCM slot, not the record (keeps the bench's
   CAL_VERSION 13 record valid).
 - A node keeps an image whose size and CRC match: no erase, no programmed word.
-- First bench act: `build_and_flash.py --boot`, or a reset finds half an
-  old image.
+- First bench act: `build_and_flash.py --boot`: without the bootloader in
+  sector 0 nothing copies the store into RAM.
 - The master sent chunks 50 ms after erase and sealed with a 0.5 s timeout;
   the node erases (~s) and programs in its receive path. Waits added.
+- The application runs from D2 SRAM (0x30000000, 288 K, unused before): 201 K
+  Debug, 135 K Release. Flash keeps a sealed copy, written only where its
+  CRC differs; nothing runs unverified. The master's `missing` bitmap was
+  1 K for the 1792 K flash image, past one reply; 165 B now (2026-09-23).
+- Found by driving the host's `Boot` client through the C core: the
+  bootloader echoed device and op in front of every 0x6E reply, where the
+  application sends the fields alone; `missing`, `dump` called the
+  `remaining` property. Never run, so never seen (2026-09-23).
 
 ## Host and tooling
 

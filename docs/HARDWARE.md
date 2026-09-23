@@ -20,8 +20,9 @@ tabled here. Nothing is measured against an instrument unless it says so.
 | ITCM 64 K | sample-path code (`.itcm`, copied by `Board_Early`), ~30 K |
 | DTCM 128 K | .data, .bss, 1 K stack, log ring; top 32 B = handover slot |
 | AXI SRAM 512 K | 448 K DAQ ring (`.buffers`, NOLOAD) |
+| D2 SRAM 0x30000000, 288 K | the application, linked and run here; header at +0x400 |
 | Flash 0x08000000, 128 K | bootloader |
-| Flash 0x08020000, 1792 K | application; header at +0x400 |
+| Flash 0x08020000, 1792 K | store: the application's sealed copy (BOOT.md) |
 | Flash 0x081E0000, 128 K | calibration record, magic 'CX63', CAL_VERSION 15 |
 
 ## Conversions

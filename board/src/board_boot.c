@@ -14,7 +14,7 @@
 
 extern uint32_t g_pfnVectors[];
 extern uint32_t _siitcm[], _sitcm[], _eitcm[];   /* the linker's .itcm */
-extern uint32_t _app_size;   /* the linker: the image's bytes in flash */
+extern uint32_t _app_size;   /* the linker: the image's bytes */
 
 __attribute__((section(".app_header"), used))
 const boot_header_t app_header =
@@ -66,6 +66,8 @@ board_identity_t Board_Identity(void)
   id.unit = modbus_map_unit_id();
   id.position = id.assigned ? boot_hand.position : 0U;
   id.flags = id.assigned ? boot_hand.flags : 0U;
+  id.image_bytes = id.assigned ? boot_hand.bytes : 0U;
+  id.image_crc = id.assigned ? boot_hand.crc : 0U;
   return id;
 }
 

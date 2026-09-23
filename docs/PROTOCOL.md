@@ -465,14 +465,14 @@ are broadcasts. Design: [BOOT.md](BOOT.md).
 | 0 hold | `u32 session` | none; every node in its window stays |
 | 1 who | `u8 bits, bytes` | `u8 x12 uid, u8 type, u8 state, u8 unit`, from every node whose uid begins with those bits of the prefix; silence from the rest |
 | 2 assign | `u8 x12 uid, u8 unit, u8 position, u8 flags` | `u8 took`, from that node only; bit 0 of flags closes the termination |
-| 3 erase | `u8 type, u32 size, u32 crc, u16 chunks` | none; a node of that type erases and takes the image's shape, another ignores it - and a node whose flash already holds a valid image of that size and crc keeps it, verified at once, nothing programmed |
-| 4 chunk | `u16 index, bytes` | none; 224 bytes at `index * 224`, programmed as it lands, the first word kept in RAM |
+| 3 erase | `u8 type, u32 size, u32 crc, u16 chunks` | none; a node of that type clears RAM and takes the image's shape, another ignores it - a node whose RAM already holds a valid image of that size and crc keeps it, and one whose store holds it sealed copies it into RAM: verified at once, nothing streamed |
+| 4 chunk | `u16 index, bytes` | none; 224 bytes into RAM at `index * 224`, the image's first word held back |
 | 5 missing | - | `u16 first, u16 count, bytes` - the bitmap of chunks held |
 | 6 verify | - | `u8 ok, u32 crc` over the image as it will stand |
 | 7 record | `u16 offset, bytes` | `u8 took`; the record's bytes into RAM |
-| 8 seal | - | `u8 took`; the record programmed where its words differ from the sector's, the first word programmed where it was held back, the image valid |
+| 8 seal | `[u8 flags]` | `u8 took`; the record programmed where its words differ from the sector's, the first word written, the image valid; flags bit 0 persists it: the store erased and written, its seal last, unless it holds this image already |
 | 9 go | `u32 session` | none; a sealed node of the session jumps |
-| 10 state | - | `u8 state, u8 type, u8 unit, u8 position, u32 chunks_held, u32 chunks_of, u8 app_valid, u8 x12 uid` |
+| 10 state | - | `u8 state, u8 type, u8 unit, u8 position, u32 chunks_held, u32 chunks_of, u8 app_valid, u8 x12 uid, u32 image_bytes, u32 image_crc, u8 flags` - the image RAM holds verified, 0 for none, and assign's flags (MINOR 19) |
 | 11 dump | `u16 offset` | `u16 offset, bytes` - the record sector, 224 bytes a page |
 | 12 stay | - | `u8 took`; the application writes STAY and resets; the bootloader refuses |
 
@@ -517,6 +517,7 @@ MINOR appends; MAJOR breaks a codec.
 | 16 | thermal op 10 appends `i32 margin_floor_micro` and writes `saves` 0, `since_save_s` never - the margin is continuous on the doubt, the state a word, nothing kept; op 12 sets the floor; op 11 no longer refuses while armed |
 | 17 | thermal op 10 appends `i32 trip_cap_micro`, the trip cap as it stands, so a host can say whether the trip or the model holds the margin |
 | 18 | device 11 BOOT as the application serves it: op 10 `state`, op 12 `stay`; the rest refused in words. The image sits at 0x08020000 with its header, and a bootloader's assignment reaches it through the handover slot (BOOT.md) |
+| 19 | device 11 `state` appends `u32 image_bytes, u32 image_crc, u8 flags` - the image the bootloader verified and ran, and assign's flags; `seal` takes `[u8 flags]`. The application runs from D2 SRAM at 0x30000000; flash at 0x08020000 keeps a sealed copy (BOOT.md) |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

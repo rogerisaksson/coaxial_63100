@@ -5,7 +5,8 @@
 #include "wire.h"
 
 /** The state a running application reports: sealed, since it is the image
-    that came through the seal, and valid, since it is running. */
+    that came through the seal, valid, since it is running, and the image as
+    the bootloader verified it - what a host compares its own against. */
 static cmd_status_t h_boot_state(rd_t *in, wr_t *out)
 {
   const board_identity_t id = Board_Identity();
@@ -21,6 +22,9 @@ static cmd_status_t h_boot_state(rd_t *in, wr_t *out)
   wr_u32(out, 0U);
   wr_u8(out, 1U);
   wr_bytes(out, uid, BOOT_UID_BYTES);
+  wr_u32(out, id.image_bytes);
+  wr_u32(out, id.image_crc);
+  wr_u8(out, id.flags);
   return CMD_OK;
 }
 
