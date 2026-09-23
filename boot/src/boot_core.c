@@ -6,6 +6,7 @@
   */
 #include "boot.h"
 
+#include <stddef.h>
 #include <string.h>
 
 /** A chunk's index masks to a byte and a bit of the bitmap. */
@@ -108,7 +109,7 @@ static uint32_t image_crc(uint32_t size)
 static bool image_held(uint32_t size, uint32_t crc)
 {
   return boot_app_valid()
-         && (read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + 4U) == size)
+         && (read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + offsetof(boot_header_t, bytes)) == size)
          && (image_crc(size) == crc);
 }
 
@@ -489,8 +490,8 @@ bool boot_app_valid(void)
   const uint32_t stack = read_u32(s.layout.app_base);
   const uint32_t reset = read_u32(s.layout.app_base + 4U);
   const uint32_t magic = read_u32(s.layout.app_base + BOOT_HEADER_OFFSET);
-  const uint32_t size = read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + 4U);
-  const uint32_t type = read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + 12U);
+  const uint32_t size = read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + offsetof(boot_header_t, bytes));
+  const uint32_t type = read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + offsetof(boot_header_t, type));
   const uint32_t end = s.layout.app_base + s.layout.app_bytes;
 
   return (stack > BOOT_STACK_BASE) && (stack <= BOOT_STACK_BASE + BOOT_STACK_BYTES)

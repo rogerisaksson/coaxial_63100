@@ -19,18 +19,12 @@
 /** The MCU's unique id: three words at UID_BASE. */
 #define UID_WORDS            3U
 
-typedef struct
-{
-  uint32_t magic;
-  uint32_t bytes;
-  uint32_t version;
-  uint32_t type;
-} app_header_t;
-
+extern uint32_t g_pfnVectors[];
+extern uint32_t _siitcm[], _sitcm[], _eitcm[];   /* the linker's .itcm */
 extern uint32_t _app_size;   /* the linker: the image's bytes in flash */
 
 __attribute__((section(".app_header"), used))
-const app_header_t app_header =
+const boot_header_t app_header =
 {
   BOOT_HEADER_MAGIC,
   (uint32_t)&_app_size,
@@ -48,6 +42,17 @@ static struct
   bool     stay;
   uint32_t stay_at;
 } s;
+
+void Board_Early(void)
+{
+  SCB->VTOR = (uint32_t)g_pfnVectors;
+  for (uint32_t i = 0U; &_sitcm[i] < _eitcm; i++)
+  {
+    _sitcm[i] = _siitcm[i];
+  }
+  __DSB();
+  __ISB();
+}
 
 void Board_BootInit(void)
 {

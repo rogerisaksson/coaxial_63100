@@ -222,7 +222,7 @@ typedef struct
   uint8_t worst_node;
   int32_t millis_to_limit;       /**< for `worst_node`; -1 = not heading there */
   bool    throttling;
-  bool    tripped;               /** < ANY node at the record's ceiling (`trip_c`): stop */
+  bool    tripped;               /**< ANY node at the record's ceiling (`trip_c`): stop */
   /** What a current clamp should be multiplied by, 1.0 down to 0.0: one at
       the throttle point and zero at the ceiling, linear between, on the
       worse of where a node is and how long it has. */

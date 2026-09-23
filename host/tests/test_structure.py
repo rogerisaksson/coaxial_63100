@@ -599,13 +599,23 @@ MIRRORS = (
     ('coaxial.thermal', 'WINDING_INTO_IRON',
      'board/src/board_thermal.c', 'WINDING_INTO_IRON', 1.0),
     ('coaxial.thermal', 'IDENT_MARGIN_FLOOR',
-     'comms/inc/board.h', 'BOARD_SOA_MARGIN_FLOOR_PPM', 1e-6),
+     'comms/inc/board/thermal.h', 'BOARD_SOA_MARGIN_FLOOR_PPM', 1e-6),
     ('coaxial.simulated.values', 'ACCUMULATE_MAX',
      'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
     ('coaxial.bessel', 'MAX_BOXCAR',
      'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
     ('coaxial.simulated.values', 'RING_BYTES',
      'board/inc/board_limits.h', 'DAQ_BYTES', 1.0),
+    ('coaxial.boot', 'CHUNK', 'boot/inc/boot.h', 'BOOT_CHUNK_BYTES', 1.0),
+    ('coaxial.boot', 'UID_BYTES', 'boot/inc/boot.h', 'BOOT_UID_BYTES', 1.0),
+    ('coaxial.boot', 'WORD', 'boot/inc/boot.h', 'BOOT_WORD_BYTES', 1.0),
+    ('coaxial.boot', 'HEADER', 'boot/inc/boot.h', 'BOOT_HEADER_OFFSET', 1.0),
+    ('coaxial.boot', 'MAGIC', 'boot/inc/boot.h', 'BOOT_HEADER_MAGIC', 1.0),
+    ('coaxial.boot', 'BLANK_UNIT', 'boot/inc/boot.h', 'BOOT_UNIT', 1.0),
+    ('coaxial.boot', 'APP_BASE', 'boot/inc/boot.h', 'BOOT_APP_BASE', 1.0),
+    ('coaxial.boot', 'APP_BYTES', 'boot/inc/boot.h', 'BOOT_APP_BYTES', 1.0),
+    ('coaxial.boot', 'RECORD_BASE', 'boot/inc/boot.h', 'BOOT_RECORD_BASE', 1.0),
+    ('coaxial.boot', 'RECORD_MAX', 'boot/inc/boot.h', 'BOOT_RECORD_MAX', 1.0),
     ('coaxial.sensorless', 'HALF_SQRT3',
      'drive/src/drive_math.c', 'HALF_SQRT3', 1.0),
     ('coaxial.sensorless', 'TWO_PI',
@@ -619,7 +629,7 @@ OP_CLASSES = {'IMU': 'ImuOp', 'ANGLE': 'AngleOp', 'LINK': 'LinkOp',
               'DAQ': 'DaqOp', 'TIME': 'TimeOp', 'THERMAL': 'ThermalOp',
               'DRIVE': 'DriveOp', 'POWER': 'PowerOp', 'BOOT': 'BootOp'}
 
-_NUMBER = re.compile(r'\b(\d+(?:\.\d*)?(?:[eE][-+]?\d+)?)[uUlL]*[fF]?\b')
+_NUMBER = re.compile(r'\b(0[xX][0-9a-fA-F]+|\d+(?:\.\d*)?(?:[eE][-+]?\d+)?)[uUlL]*[fF]?\b')
 
 
 def _defines(rel):
@@ -631,7 +641,7 @@ def _defines(rel):
         if not m:
             continue
         expr = _NUMBER.sub(r'\1', m.group(2).split('/*')[0].split('//')[0])
-        if re.fullmatch(r'[\d.eE+\-*/() ]+', expr.strip()):
+        if re.fullmatch(r'(0[xX][0-9a-fA-F]+|[\d.eE+\-*/() ])+', expr.strip()):
             found[m.group(1)] = eval(expr)          # noqa: S307 - numbers only
     return found
 

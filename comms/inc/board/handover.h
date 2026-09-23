@@ -1,6 +1,6 @@
-/** board/boot.h - what the comms stack needs from board_boot.c; included by board.h. */
-#ifndef COMMS_BOARD_BOOT_H
-#define COMMS_BOARD_BOOT_H
+/** board/handover.h - what the comms stack needs from board_boot.c; included by board.h. */
+#ifndef COMMS_BOARD_HANDOVER_H
+#define COMMS_BOARD_HANDOVER_H
 
 #include "boot.h"
 #include <stdbool.h>
@@ -25,6 +25,9 @@ typedef struct
 } board_identity_t;
 
 /** Apply what the bootloader left: the unit id and the termination. */
+/** First thing in main(): VTOR to this image, the sample path copied to
+    ITCM. Here, not in the startup, so CubeMX can regenerate that. */
+void Board_Early(void);
 void Board_BootInit(void);
 board_identity_t Board_Identity(void);
 
@@ -40,4 +43,4 @@ void Board_BootPoll(void);
 }
 #endif
 
-#endif /* COMMS_BOARD_BOOT_H */
+#endif /* COMMS_BOARD_HANDOVER_H */

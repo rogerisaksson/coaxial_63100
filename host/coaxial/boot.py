@@ -11,6 +11,13 @@ from .wire import Reader
 #: The wire's shapes, boot.h's numbers.
 CHUNK = 224
 UID_BYTES = 12
+WORD = 32
+HEADER = 0x400
+MAGIC = 0x50415843
+APP_BASE = 0x08020000
+APP_BYTES = 0x1C0000
+RECORD_BASE = 0x081E0000
+RECORD_MAX = 2048
 #: A blank node's unit, before assign gives it its own; the bootloader's
 #: line rate, the one the master's transport opens at.
 BLANK_UNIT = 247

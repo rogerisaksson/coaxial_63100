@@ -7,6 +7,7 @@
   ******************************************************************************
   */
 #include "boot.h"
+#include "cmd.h"
 #include "modbus_rtu.h"
 #include "modbus_slave.h"
 #include "stm32h7xx.h"
@@ -18,10 +19,6 @@
 #ifndef BOOT_BOARD
 #define BOOT_BOARD  BOOT_TYPE_COAXIAL_63100
 #endif
-
-/** 0x6E, the device command every 0x6E device rides; the bootloader serves
-    one device of it. */
-#define CMD_DEVICE            0x6EU
 
 /** The clock tree: HSE 25 MHz / 5 = 5 MHz into PLL1, x64 = 320 MHz VCO, / 2
     = 160 MHz for the core; HCLK 80, APB1 80 - so a USART with 8x
@@ -47,17 +44,16 @@
 #define FLASH_KEY1            0x45670123U
 #define FLASH_KEY2            0xCDEF89ABU
 #define FLASH_BANK_BYTES      0x100000U
-#define FLASH_SECTOR_BYTES    0x20000U
+#define FLASH_SECTOR_BYTES    BOOT_SECTOR_BYTES
 #define FLASH_SR_ERRORS       (FLASH_SR_WRPERR | FLASH_SR_PGSERR | FLASH_SR_STRBERR \
                                | FLASH_SR_INCERR | FLASH_SR_OPERR | FLASH_SR_RDPERR \
                                | FLASH_SR_RDSERR | FLASH_SR_SNECCERR | FLASH_SR_DBECCERR)
 #define FLASH_WORD_U32        (BOOT_WORD_BYTES / 4U)
 
-/** The flash map this type boots from (docs/BOOT.md). */
-#define APP_BASE              0x08020000U
-#define APP_BYTES             (14U * FLASH_SECTOR_BYTES)
-#define RECORD_BASE           0x081E0000U
-#define RECORD_BYTES          FLASH_SECTOR_BYTES
+#define APP_BASE              BOOT_APP_BASE
+#define APP_BYTES             BOOT_APP_BYTES
+#define RECORD_BASE           BOOT_RECORD_BASE
+#define RECORD_BYTES          BOOT_RECORD_BYTES
 
 /** The MCU's unique id, three words. */
 #define UID_WORDS             3U

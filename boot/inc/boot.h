@@ -43,6 +43,24 @@ extern "C" {
 #define BOOT_STACK_BASE      0x20000000U
 #define BOOT_STACK_BYTES     0x20000U
 
+/** The flash map (docs/BOOT.md): bootloader sector 0, application
+    sectors 1..14, record bank 2 sector 7. */
+#define BOOT_FLASH_BASE      0x08000000U
+#define BOOT_SECTOR_BYTES    0x20000U
+#define BOOT_APP_BASE        0x08020000U
+#define BOOT_APP_BYTES       0x1C0000U
+#define BOOT_RECORD_BASE     0x081E0000U
+#define BOOT_RECORD_BYTES    0x20000U
+
+/** The image header at BOOT_APP_BASE + BOOT_HEADER_OFFSET. */
+typedef struct
+{
+  uint32_t magic;
+  uint32_t bytes;
+  uint32_t version;
+  uint32_t type;
+} boot_header_t;
+
 /** The board types as `erase`, `who` and the header name them: the two
     inverter types the machine already names. */
 #define BOOT_TYPE_COAXIAL_63100  1U

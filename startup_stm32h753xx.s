@@ -60,13 +60,6 @@ defined in linker script */
 Reset_Handler:
   ldr   sp, =_estack      /* set stack pointer */
 
-/* The vector table is this image's, wherever the core arrived from: a
-   bootloader jumps here with VTOR still at its own table, and the first
-   SysTick would land there (docs/BOOT.md). SCB->VTOR is 0xE000ED08. */
-  ldr   r0, =g_pfnVectors
-  ldr   r1, =0xE000ED08
-  str   r0, [r1]
-
 /* Call the ExitRun0Mode function to configure the power supply */
   bl  ExitRun0Mode
 /* Call the clock system initialization function.*/
@@ -88,23 +81,6 @@ LoopCopyDataInit:
   adds r4, r0, r3
   cmp r4, r1
   bcc CopyDataInit
-/* Copy the sample path's code from flash into ITCM - the linker script's
-   .itcm, loaded the way the data segment is. */
-  ldr r0, =_sitcm
-  ldr r1, =_eitcm
-  ldr r2, =_siitcm
-  movs r3, #0
-  b LoopCopyItcmInit
-
-CopyItcmInit:
-  ldr r4, [r2, r3]
-  str r4, [r0, r3]
-  adds r3, r3, #4
-
-LoopCopyItcmInit:
-  adds r4, r0, r3
-  cmp r4, r1
-  bcc CopyItcmInit
 /* Zero fill the bss segment. */
   ldr r2, =_sbss
   ldr r4, =_ebss

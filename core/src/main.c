@@ -93,7 +93,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  Board_Early();
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/

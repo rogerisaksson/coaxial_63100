@@ -14,7 +14,7 @@
 #include <string.h>
 
 /* Bank 2, sector 7: 0x081E0000..0x081FFFFF. */
-#define CAL_FLASH_ADDR   0x081E0000UL
+#define CAL_FLASH_ADDR   BOOT_RECORD_BASE
 #define CAL_FLASH_SECTOR FLASH_SECTOR_7
 #define CAL_FLASH_BANK   FLASH_BANK_2
 

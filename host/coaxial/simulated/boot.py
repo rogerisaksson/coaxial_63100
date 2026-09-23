@@ -4,14 +4,10 @@ bytearray flash (docs/BOOT.md). Nothing kept between runs.
 import struct
 import zlib
 
-from ..boot import BLANK_UNIT, CHUNK, STATES, BootControl, Segment, chunks_of
+from ..boot import (APP_BASE, APP_BYTES, BLANK_UNIT, CHUNK, HEADER, MAGIC, RECORD_MAX,
+                    STATES, WORD, BootControl, Segment, chunks_of)
 from ..errors import CrcError, DeviceStateError
 
-WORD = 32
-HEADER = 0x400
-MAGIC = 0x50415843
-APP_BYTES = 14 * 128 * 1024
-RECORD_MAX = 2048
 UID = bytes(range(0x10, 0x1C))
 TYPE = 1
 
@@ -51,7 +47,7 @@ class SimulatedBoot(BootControl):
         sp, reset = struct.unpack_from('<II', self.sectors, 0)
         magic, size, _v, type_ = struct.unpack_from('<IIII', self.sectors, HEADER)
         return (0x20000000 < sp <= 0x20020000 and reset & 1
-                and 0x08020000 < reset < 0x08020000 + APP_BYTES
+                and APP_BASE < reset < APP_BASE + APP_BYTES
                 and magic == MAGIC and type_ == self.type
                 and HEADER < size <= APP_BYTES)
 

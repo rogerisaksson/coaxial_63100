@@ -70,7 +70,7 @@ typedef struct
 #define BOARD_CAL_DRV_SIGMA_I_UA      43U  /**< measured current noise, uA rms */
 #define BOARD_CAL_DRV_TRIGGER_TICKS   44U  /**< the sample point chosen; 0 none*/
 /* CAL_VERSION 9. */
-#define BOARD_CAL_LINK_RATE           45U  /** < the RS485 pair's rate (the wire and the host say `link_baud`) */
+#define BOARD_CAL_LINK_RATE           45U  /**< the RS485 pair's rate (the wire and the host say `link_baud`) */
 /* CAL_VERSION 12: the winding's envelope. */
 #define BOARD_CAL_WINDING_K_MILLI     46U  /**< K/W to the air, milli         */
 #define BOARD_CAL_WINDING_J_MILLI     47U  /**< J/K, milli                     */

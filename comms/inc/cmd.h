@@ -112,8 +112,8 @@ extern "C" {
 #define DAQ_OP_LIVE      6U  /**< -> u8 fresh, then the accumulator, reset   */
 /* MINOR 4: the anti-alias chain, and a tone to prove the path carried it. */
 #define DAQ_OP_FILTER    7U  /**< u8 count, u16 decimate, i32 x 5 x count   */
-#define DAQ_OP_TONE      8U  /** < u32 hz, u32 rate, i32 amp, i32 offset, u8 kind: 0 sine, 1 ramp */
-#define DAQ_OP_RUNG      9U  /** < u8 rung, u16 boxcar, u8 count, u16 decimate, i32 x 5 x count */
+#define DAQ_OP_TONE      8U  /**< u32 hz, u32 rate, i32 amp, i32 offset, u8 kind: 0 sine, 1 ramp */
+#define DAQ_OP_RUNG      9U  /**< u8 rung, u16 boxcar, u8 count, u16 decimate, i32 x 5 x count */
 
 /** Device 7's ops: the cycle counter, latched. */
 #define TIME_OP_LATCH    0U  /**< take CYCCNT now                            */
@@ -160,9 +160,7 @@ extern "C" {
 /* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 18U        /* 1: gate drivers op 10, alternate 2: device 10, the drive; the DC link
-   appended to gate drivers op 0 3: a daq record ends with u16 count, and
-   accumulate 0 closes it on the clock. */
+#define CMD_PROTO_MINOR 18U        /* history: PROTOCOL.md, Versioning */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

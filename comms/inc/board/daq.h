@@ -27,17 +27,17 @@ extern "C" {
 /** What a task is. Every field is the caller's; nothing is inferred. */
 typedef struct
 {
-  uint16_t channels;     /** < bitmask over the ADC table's rows. */
+  uint16_t channels;     /**< bitmask over the ADC table's rows. */
   uint8_t  clock;        /**< BOARD_DAQ_CLOCK_*                          */
   uint8_t  sample_time;  /**< 0..7, the converter's own sampling window  */
   uint16_t decimate;     /**< keep one trigger in N; 1 keeps every one   */
-  uint16_t accumulate;   /** < sum N samples per record; 1 sums nothing, 0 closes the record on
+  uint16_t accumulate;   /**< sum N samples per record; 1 sums nothing, 0 closes the record on
       interval_us instead */
   uint32_t records;      /**< stop after this many, or 0 to run on       */
   uint8_t  digital;      /**< append the digital pins to every record    */
   uint32_t interval_us;  /**< software clock: minimum gap between samples*/
   uint8_t  adapt;        /**< climb the ladder when the ring fills      */
-  uint16_t sensors;      /** < BOARD_DAQ_SENSOR_* mask; software clock only - the poll records are
+  uint16_t sensors;      /**< BOARD_DAQ_SENSOR_* mask; software clock only - the poll records are
       the main loop's, and a TIM1-clocked record closes in ADC3's interrupt,
       which would read them torn */
 } board_daq_config_t;
@@ -46,9 +46,9 @@ typedef struct
 {
   bool     running;
   bool     done;         /**< a finite task reached its record count     */
-  bool     lost_power;   /** < stopped because AFE_ON went off, and the buffers were emptied with it
+  bool     lost_power;   /**< stopped because AFE_ON went off, and the buffers were emptied with it
       - invariant 9 */
-  uint16_t stride;       /** < bytes per record: 4 (stamp) + 4 per channel + 1 per sampled pin + 8
+  uint16_t stride;       /**< bytes per record: 4 (stamp) + 4 per channel + 1 per sampled pin + 8
       per sensor field + 2 (count). */
   uint8_t  fields;
   uint32_t available;    /**< whole records waiting to be taken          */

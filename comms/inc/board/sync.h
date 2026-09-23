@@ -15,8 +15,8 @@ typedef struct
 {
   int16_t  phase[BOARD_PWM_PHASES];  /**< U, V, W, raw codes               */
   uint16_t at;                       /**< TIM1->CNT when it was latched    */
-  uint32_t dcbus;                    /** < DC link, raw single-ended: rank 2 on ADC3 of the same sequence */
-  uint32_t ntc;                      /** < the thermistor, rank 2 on ADC1: the thermal observer's thermometer
+  uint32_t dcbus;                    /**< DC link, raw single-ended: rank 2 on ADC3 of the same sequence */
+  uint32_t ntc;                      /**< the thermistor, rank 2 on ADC1: the thermal observer's thermometer
       while the drive holds the converters */
 } board_sync_sample_t;
 

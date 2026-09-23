@@ -29,7 +29,7 @@ typedef enum
 {
   DRIVE_OFF = 0,     /**< duties at zero, everything else still runs      */
   DRIVE_VOLT,        /**< open loop: vd, vq in the command frame           */
-  DRIVE_HOLD,        /** < current control in the command frame; I/f when omega_target is not
+  DRIVE_HOLD,        /**< current control in the command frame; I/f when omega_target is not
       zero */
   DRIVE_SENSORLESS,  /**< current control in the rotor observer's frame          */
   DRIVE_POLARITY,    /**< two voltage pulses along theta_hat, then OFF     */

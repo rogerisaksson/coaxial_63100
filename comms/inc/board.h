@@ -22,6 +22,6 @@
 #include "board/power.h"
 #include "board/drive.h"
 #include "board/selftest.h"
-#include "board/boot.h"
+#include "board/handover.h"
 
 #endif /* BOARD_H */
