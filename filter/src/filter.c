@@ -80,6 +80,26 @@ static float section_run(const filter_biquad_t *s, float *s1, float *s2,
   return y;
 }
 
+/* The biquads, then the decimation: only now is a sample thrown away -
+   after something shaped what would otherwise have folded on top of the
+   answer. */
+static bool shaped(const filter_design_t *design, filter_channel_t *ch,
+                   float x, float *out)
+{
+  for (uint8_t i = 0U; i < design->sections; i++)
+  {
+    x = section_run(&design->section[i], &ch->s1[i], &ch->s2[i], x);
+  }
+  ch->out_n++;
+  if (ch->out_n < design->decimate)
+  {
+    return false;
+  }
+  ch->out_n = 0U;
+  *out = x;
+  return true;
+}
+
 bool filter_push_value(const filter_design_t *design, filter_channel_t *ch,
                        float value, float *out)
 {
@@ -88,22 +108,7 @@ bool filter_push_value(const filter_design_t *design, filter_channel_t *ch,
     return false;
   }
 
-  float x = value;
-
-  for (uint8_t i = 0U; i < design->sections; i++)
-  {
-    x = section_run(&design->section[i], &ch->s1[i], &ch->s2[i], x);
-  }
-
-  ch->out_n++;
-  if (ch->out_n < design->decimate)
-  {
-    return false;
-  }
-  ch->out_n = 0U;
-
-  *out = x;
-  return true;
+  return shaped(design, ch, value, out);
 }
 
 bool filter_push(const filter_design_t *design, filter_channel_t *ch,
@@ -130,20 +135,5 @@ bool filter_push(const filter_design_t *design, filter_channel_t *ch,
   ch->box_n = 0U;
 
   /* STAGE 2, on the thinned stream where there is time for it. */
-  for (uint8_t i = 0U; i < design->sections; i++)
-  {
-    x = section_run(&design->section[i], &ch->s1[i], &ch->s2[i], x);
-  }
-
-  /* And only now is a sample thrown away - after something shaped what would
-     otherwise have folded on top of the answer. */
-  ch->out_n++;
-  if (ch->out_n < design->decimate)
-  {
-    return false;
-  }
-  ch->out_n = 0U;
-
-  *out = x;
-  return true;
+  return shaped(design, ch, x, out);
 }
