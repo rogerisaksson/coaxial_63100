@@ -643,6 +643,35 @@ def test_stereotypes(report):
                  'one part, one block',
                  [(k, len(d)) for k, _e, d in prims] == [('block', 8)]
                  and abs(prims[0][1] - 0.44) < 1e-6, str([(k, round(e, 3)) for k, e, d in prims]))
+    # a lid with a small circle on it - a PE terminal's screw hole -
+    # is a block AND a ring; a lid with a stray diagonal ridge keeps
+    # its own orientation, the box round every point turned the USB
+    # shell 60 degrees; a crest narrower than the base leans the legs
+    # in, so a rounded shoulder stands inside the lid's edge
+    screw = ring([(0.05 * math.cos(2 * math.pi * k / 8), 0.05 * math.sin(2 * math.pi * k / 8))
+                  for k in range(8)], 0.1)
+    prims = wireframe._stereotype_loops(pos, [loop_of(lid), loop_of(screw)], top, bottom)
+    report.check('stereotype: a lid with a small circle on it is a block '
+                 'and a ring', [(k, len(d)) for k, _e, d in prims] == [('block', 8), ('ring', 24)],
+                 str([(k, round(e, 3)) for k, e, d in prims]))
+    stray = ring([(.12, .12), (.22, .12), (.22, .22), (.12, .22)], 0.05)
+    prims = wireframe._stereotype_loops(pos, [loop_of(lid), loop_of(stray)], top, bottom)
+    edge = prims[0][2][0]
+    report.check("stereotype: the block takes its widest loop's "
+                 "orientation - a nested loop poking out a corner does "
+                 "not turn it",
+                 [k for k, _e, _d in prims] == ['block']
+                 and abs(edge[1] - edge[4]) < 1e-9, str([(k, round(e, 3)) for k, e, d in prims]) + str(prims[0][2][:1]))
+    lo3 = [vertex((x, y, 0.0)) for x, y in square]
+    hi3 = [vertex((x * 0.5, y * 0.5, 0.1)) for x, y in square]
+    tapered = [(hi3[i], hi3[(i + 1) % 4]) for i in range(4)] + [(lo3[i], hi3[i]) for i in range(4)]
+    prims = wireframe._stereotype_loops(pos, [loop_of(tapered)], top, bottom)
+    legs = [s for s in prims[0][2] if abs(s[2] - s[5]) > 1e-9]
+    report.check('stereotype: a crest narrower than the base leans the '
+                 'legs in - lid 0.2 wide on a base 0.4',
+                 [k for k, _e, _d in prims] == ['block'] and len(legs) == 4
+                 and all(abs(abs(s[0]) - 0.1) < 1e-6 and abs(abs(s[3]) - 0.2) < 1e-6 for s in legs),
+                 str(legs))
     # neighbours whose footprints overlap by a tenth stay two parts
     other = ring([(.15, -.2), (.55, -.2), (.55, .2), (.15, .2)], 0.1)
     prims = wireframe._stereotype_loops(pos, [loop_of(lid), loop_of(other)], top, bottom)

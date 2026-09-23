@@ -1797,9 +1797,11 @@ def _outline_loops(solid):
 #: whose footprints overlap are one part; two arches of one width and
 #: height, facing across, are one block.
 STEREO_CIRCLE = 0.03   # a lid's radii vary under this share: a drum
-STEREO_SQUARE = 0.02   # ...unless it sits on a box's sides this closely:
-#                        a chamfered square's corners share a radius too
+STEREO_EVEN = 2.5      # ...with its corners' angular gaps within this
+#                        ratio: a chamfered square's corners share a
+#                        radius too, but crowd in pairs at the chamfers
 STEREO_PAIR = 0.05     # arches pair when width and height agree this close
+STEREO_TURN = 0.02     # a block turns off the board's axes only to save this
 STEREO_SEGMENTS = 24   # a drum's circle
 #: Two loops are one part when their footprints' overlap is this share
 #: of the smaller one: a base ring under a lid, a rounding's facets on
@@ -1835,8 +1837,9 @@ def _stereotype_loops(pos, loops, top, bottom):
     (`_part_groups`), the arches paired or sharp, the holes in walls
     as ovals."""
     groups, arches, holes = _part_groups(pos, loops, top, bottom)
-    prims = [_part_primitive(over, rings, top, bottom)
-             for over, rings in groups]
+    prims = []
+    for over, rings in groups:
+        prims += _part_primitives(over, rings, top, bottom)
     return prims + _pair_arches(arches, top, bottom) + _wall_holes(holes)
 
 
@@ -1855,7 +1858,10 @@ def _part_groups(pos, loops, top, bottom):
         zs = [p[2] for p in p3]
         over = max(zs) > top + OUTLINE_RISE
         line = _collinear([(p[0], p[1]) for p in p3])
-        if line is not None and len(p3) >= 3:
+        # A loop in a vertical plane with no height is a ridge along a
+        # part's top - the choke's - and belongs to the part's block.
+        if (line is not None and len(p3) >= 3
+                and max(zs) - min(zs) > 3 * OUTLINE_LEVEL):
             base = top if over else bottom
             clear = ((min(zs) - base) if over else (base - max(zs))
                      if base is not None else 0.0)
@@ -1929,12 +1935,19 @@ def _wall_holes(holes):
     return prims
 
 
-def _part_primitive(over, rings, top, bottom):
-    """A part's primitive off its loops' points: a drum when the widest
+def _part_primitives(over, rings, top, bottom):
+    """A part's primitives off its loops' points. A drum when the widest
     loop's own top corners sit on one radius and not on a box's sides -
     a capacitor's rim ring, with the eighty small facets of its domed
-    top above it and its base ring under it - else its block, to the
-    part's full height."""
+    top above it and its base ring under it. Else its block: the box
+    round all its points in the ORIENTATION OF ITS WIDEST LOOP (fitted
+    over every point, the USB shell's box came out at 60 degrees and
+    the choke's at 14, turned by their side features), its lid the box
+    round the crest's points in that frame - a rounded shoulder stands
+    inside it, where the full box's lid stood a cell off the body, a
+    halo on the phase terminals - and its legs from the base corners to
+    the lid's. Plus a ring for every other loop that is a circle: the
+    PE terminal's screw hole, which the block alone drew square."""
     pts = [p for ring in rings for p in ring]
     zs = [p[2] for p in pts]
     ztop = max(zs) if over else min(zs)
@@ -1944,17 +1957,54 @@ def _part_primitive(over, rings, top, bottom):
     widest = max(rings, key=lambda ring: math.hypot(
         max(p[0] for p in ring) - min(p[0] for p in ring),
         max(p[1] for p in ring) - min(p[1] for p in ring)))
-    crest = max(p[2] for p in widest) if over else min(p[2] for p in widest)
-    lid = [(p[0], p[1]) for p in widest
-           if abs(p[2] - crest) <= 3 * OUTLINE_LEVEL]
-    if len(lid) >= 6:
-        _corners, square = _box_fit(lid)
-        if square >= STEREO_SQUARE:
-            (cx, cy, r), dev = _circle_fit(lid)
-            if dev < STEREO_CIRCLE:
-                return ('drum', 2.0 * r, (cx, cy, r, ztop, zbase))
-    corners, _square = _box_fit([(p[0], p[1]) for p in pts])
-    return ('block', _box_extent(corners), _block(corners, ztop, zbase))
+    prims = []
+    for ring in rings:
+        circle = _ring_circle(ring, over)
+        if circle is None:
+            continue
+        (cx, cy, r), z = circle
+        if ring is widest:
+            prims.append(('drum', 2.0 * r, (cx, cy, r, ztop, zbase)))
+        else:
+            prims.append(('ring', 2.0 * r, _circle_segments(cx, cy, r, z)))
+    if prims and prims[0][0] == 'drum':
+        return prims
+    angle = _box_angle([(p[0], p[1]) for p in widest])
+    base = _box_along([(p[0], p[1]) for p in pts], angle)
+    crest = [(p[0], p[1]) for p in pts if abs(p[2] - ztop) <= 3 * OUTLINE_LEVEL]
+    lid = _box_along(crest, angle) if len(crest) >= 2 else base
+    return [('block', _box_extent(base), _block(base, lid, ztop, zbase))] + prims
+
+
+def _ring_circle(ring, over):
+    """((cx, cy, r), z) when a loop's top corners - six or more - sit on
+    one radius at even spacing round it, else None. A chamfered
+    square's corners share a radius too (the CPU came out round), but
+    they crowd in pairs: 4 degrees apart at a chamfer, 86 along a side.
+    A box test was tried and took every octagon for a chamfered square
+    - eight corners sit two to a side of some box."""
+    crest = max(p[2] for p in ring) if over else min(p[2] for p in ring)
+    lid = [(p[0], p[1]) for p in ring if abs(p[2] - crest) <= 3 * OUTLINE_LEVEL]
+    if len(lid) < 6:
+        return None
+    fit, dev = _circle_fit(lid)
+    if dev >= STEREO_CIRCLE:
+        return None
+    cx, cy, _r = fit
+    angles = sorted(math.atan2(p[1] - cy, p[0] - cx) for p in lid)
+    gaps = [b - a for a, b in zip(angles, angles[1:])]
+    gaps.append(angles[0] + 2.0 * math.pi - angles[-1])
+    if max(gaps) > STEREO_EVEN * min(gaps):
+        return None
+    return fit, crest
+
+
+def _circle_segments(cx, cy, r, z):
+    ring = [(cx + r * math.cos(2.0 * math.pi * k / STEREO_SEGMENTS),
+             cy + r * math.sin(2.0 * math.pi * k / STEREO_SEGMENTS))
+            for k in range(STEREO_SEGMENTS)]
+    return [ring[k] + (z,) + ring[(k + 1) % STEREO_SEGMENTS] + (z,)
+            for k in range(STEREO_SEGMENTS)]
 
 
 def _pair_arches(arches, top, bottom):
@@ -1963,23 +2013,27 @@ def _pair_arches(arches, top, bottom):
     their planes joined into one block."""
     fitted = []
     for over, p3, ((ux, uy), (mx, my)) in arches:
-        us = [(p[0] - mx) * ux + (p[1] - my) * uy for p in p3]
-        u0, u1 = min(us), max(us)
         zs = [p[2] for p in p3]
         ztop = max(zs) if over else min(zs)
         zbase = top if over else bottom
         if zbase is None:
             zbase = ztop
-        fitted.append(((ux, uy), (mx, my), (mx + u0 * ux, my + u0 * uy),
-                       (mx + u1 * ux, my + u1 * uy), ztop, zbase, over))
+        us = [(p[0] - mx) * ux + (p[1] - my) * uy for p in p3]
+        # the top's own flat, narrower than the base on a rounded
+        # profile: the lid runs between its ends, the legs lean in
+        tops = [u for u, p in zip(us, p3)
+                if abs(p[2] - ztop) <= 3 * OUTLINE_LEVEL] or us
+        at = (lambda u: (mx + u * ux, my + u * uy))
+        fitted.append(((ux, uy), (mx, my), at(min(us)), at(max(us)),
+                       at(min(tops)), at(max(tops)), ztop, zbase, over))
     used, prims = set(), []
-    for i, (u, mid, a0, a1, ztop, zbase, over) in enumerate(fitted):
+    for i, (u, mid, a0, a1, t0, t1, ztop, zbase, over) in enumerate(fitted):
         if i in used:
             continue
         used.add(i)
         width, height = math.dist(a0, a1), abs(ztop - zbase)
         best = None
-        for j, (u2, mid2, b0, b1, zt2, zb2, over2) in enumerate(fitted):
+        for j, (u2, mid2, b0, b1, s0, s1, zt2, zb2, over2) in enumerate(fitted):
             if j in used or over2 != over:
                 continue
             if abs(abs(u[0] * u2[0] + u[1] * u2[1]) - 1.0) > 0.01:
@@ -1993,36 +2047,68 @@ def _pair_arches(arches, top, bottom):
             if along > 0.1 * width or across < 0.2 * height:
                 continue
             if best is None or across < best[0]:
-                best = (across, j, b0, b1)
+                best = (across, j, b0, b1, s0, s1)
         if best is None:
             prims.append(('arch', width, ([
-                (a0[0], a0[1], zbase, a0[0], a0[1], ztop),
-                (a0[0], a0[1], ztop, a1[0], a1[1], ztop),
-                (a1[0], a1[1], ztop, a1[0], a1[1], zbase)], (-u[1], u[0]))))
+                (a0[0], a0[1], zbase, t0[0], t0[1], ztop),
+                (t0[0], t0[1], ztop, t1[0], t1[1], ztop),
+                (t1[0], t1[1], ztop, a1[0], a1[1], zbase)], (-u[1], u[0]))))
             continue
-        across, j, b0, b1 = best
+        across, j, b0, b1, s0, s1 = best
         used.add(j)
         if math.dist(a0, b0) > math.dist(a0, b1):
-            b0, b1 = b1, b0
+            b0, b1, s0, s1 = b1, b0, s1, s0
         prims.append(('block', max(width, across),
-                      _block((a0, a1, b1, b0), ztop, zbase)))
+                      _block((a0, a1, b1, b0), (t0, t1, s1, s0), ztop, zbase)))
     return prims
 
 
-def _block(corners, ztop, zbase):
-    """The eight segments of a block: its lid's four edges and a leg
-    down from each corner."""
+def _block(base, lid, ztop, zbase):
+    """The eight segments of a block: its lid's four edges at `lid`,
+    and a leg from each base corner up to the lid's - straight where
+    lid and base agree, leaning in where the crest is narrower."""
     segs = []
     for i in range(4):
-        (x0, y0), (x1, y1) = corners[i], corners[(i + 1) % 4]
+        (x0, y0), (x1, y1) = lid[i], lid[(i + 1) % 4]
         segs.append((x0, y0, ztop, x1, y1, ztop))
-        segs.append((x0, y0, ztop, x0, y0, zbase))
+        segs.append((x0, y0, ztop, base[i][0], base[i][1], zbase))
     return segs
 
 
 def _box_extent(corners):
     return max(math.dist(corners[0], corners[1]),
                math.dist(corners[1], corners[2]))
+
+
+def _box_angle(pts):
+    """The angle, in 2-degree steps, of the least-area box round `pts`
+    - the board's own axes unless turning saves more than STEREO_TURN
+    of the area. A rounded square's least box lies at any angle at
+    all, and the search happened on 60 degrees for the USB shell: a
+    diamond on the bench."""
+    areas = []
+    for deg in range(0, 90, 2):
+        a = math.radians(deg)
+        ca, sa = math.cos(a), math.sin(a)
+        us = [p[0] * ca + p[1] * sa for p in pts]
+        vs = [-p[0] * sa + p[1] * ca for p in pts]
+        areas.append(((max(us) - min(us)) * (max(vs) - min(vs)), a))
+    least = min(areas)[0]
+    if areas[0][0] <= least * (1.0 + STEREO_TURN):
+        return 0.0
+    return min(areas)[1]
+
+
+def _box_along(pts, a):
+    """The corners of the box round `pts` in the frame turned by `a`,
+    in one fixed order, so two boxes in one frame pair corner by
+    corner."""
+    ca, sa = math.cos(a), math.sin(a)
+    us = [p[0] * ca + p[1] * sa for p in pts]
+    vs = [-p[0] * sa + p[1] * ca for p in pts]
+    u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
+    return [(u * ca - v * sa, u * sa + v * ca)
+            for u, v in ((u0, v0), (u1, v0), (u1, v1), (u0, v1))]
 
 
 def _drum_segments(data, camx, camy):
@@ -2095,7 +2181,9 @@ def _collinear(pts):
     trace, det = sxx + syy, sxx * syy - sxy * sxy
     disc = math.sqrt(max(0.0, trace * trace / 4.0 - det))
     big, small = trace / 2.0 + disc, trace / 2.0 - disc
-    if big <= 0.0 or small > 1e-6 * big:
+    # The mesh's coordinates carry a tenth of a millimetre of noise: a
+    # three-corner ridge 0.14 long spread 1e-4 across it, past 1e-6.
+    if big <= 0.0 or small > 1e-4 * big:
         return None
     ang = 0.5 * math.atan2(2.0 * sxy, sxx - syy)
     return (math.cos(ang), math.sin(ang)), (mx, my)
@@ -2388,7 +2476,7 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
             continue
         if kind == 'drum':
             segs = _drum_segments(data, camx, camy)
-        elif kind == 'block':
+        elif kind in ('block', 'ring'):
             segs = data
         else:
             # A wall's feature - an arch, a hole - seen edge-on is a

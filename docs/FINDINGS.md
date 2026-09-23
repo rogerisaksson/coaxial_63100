@@ -4919,6 +4919,49 @@ looking at the estimate alone.
   degrees the outline's largest connected piece is over a hundred
   cells (333 of 675). The bench, midway: "looks crisp now".
   test_render 114, 3195 in all.
+* **The block takes its widest loop's orientation, its lid the
+  crest's own box, and a circle inside a part is a ring** (2026-09-23,
+  the bench, on that build: "the smallest PE terminal with its little
+  screw hole still gets a square screw hole; the CM choke gets no
+  crisp edge; the phase terminals get a strange edge halo; the USB
+  connector gets a parallelogram distortion"). Each measured off the
+  pre-scan. The USB shell's widest loop is a rounded square of 14
+  corners, whose least-area box lies at any angle at all - the
+  2-degree search happened on 60 - and the choke's group of 25 loops
+  had its box turned 14 degrees by a side feature 0.036 wide: a box
+  fitted over every point of a part is turned by whatever pokes out.
+  Now the block takes the angle of the part's WIDEST loop, and the
+  board's own axes unless turning saves over 2 % of the area
+  (STEREO_TURN); the box round all the points is drawn in that frame.
+  The phase terminals are pairs of rounded profiles 0.23 wide whose
+  flat top runs 0.16: the full box's lid stood a cell outside the
+  rounded shoulder, the halo, so the lid is now the box round the
+  CREST's points in the block's frame and the legs lean from the base
+  corners to the lid's - the frustum of the profile; a plain box's
+  crest is its base and the legs stand straight. Every other loop of
+  a part whose top corners sit on one radius at even spacing draws
+  as a ring at its own height; even spacing (STEREO_EVEN, gaps within
+  2.5 to 1) replaced the box test for a circle, which took every
+  octagon for a chamfered square - eight corners sit two to a side of
+  some box - while the CPU's chamfered corners crowd in pairs, 4
+  degrees at a chamfer against 86 along a side. The PE terminal's
+  "square hole" is its clamp: an 8-corner rounded square 0.039 wide
+  (corners a degree apart in pairs), 1.2 cells at the bench's
+  framing, drawn as a block; the hole itself has no crease loop in
+  the mesh - a smooth rim, a five-corner arc 0.004 across - and its
+  1.5-cell diameter is under the outline's 2-cell minimum, so nothing
+  round can be drawn there at that zoom; zoomed in, the clamp grows
+  and the hole would need a loop the mesh does not have. Also: a loop
+  in a vertical plane with no height is a ridge along a part's top
+  (the choke's, three corners 0.14 long) and joins its block, not a
+  hole; and `_collinear` allows 1e-4 of spread against the line, the
+  mesh's tenth of a millimetre. 322 primitives: 262 blocks, 4 drums,
+  15 arches, 41 holes, no block over 0.06 turned off the axes. The
+  view's loop at 108x40: 40.9 ms median, p90 51.5. Held in
+  test_render: a lid with an eight-corner circle on it is a block and
+  a ring; a nested loop poking out a corner does not turn the block;
+  a crest 0.2 wide on a base 0.4 leans all four legs in. test_render
+  117, 3198 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at
