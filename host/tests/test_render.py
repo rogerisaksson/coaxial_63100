@@ -303,6 +303,26 @@ def test_outline(report):
     report.check("outline: the box's lid and corners, its footprint on the "
                  "slab, and the slab's own rim",
                  shape == [(0.4, 4), (0.4, 8), (2.0, 4)], str(shape))
+    report.check('outline: a slab with one face has no bottom to draw',
+                 wireframe._slab_bottom(pos, wireframe._slab_top(pos)) is None)
+    # The same slab given its bottom face, a millimetre and a half down:
+    # the bottom's rim is a loop too, for the board seen from behind.
+    both = list(pos)
+    under = [vertex(p) for p in ((-1, -1, -.05), (1, -1, -.05),
+                                 (1, 1, -.05), (-1, 1, -.05))]
+    quad(under[0], under[3], under[2], under[1])          # facing down
+    two = (pos, idx, nrm)
+    shape = sorted((round(e, 3), len(m)) for e, m in wireframe._outline_loops(two))
+    report.check("outline: with a bottom face the slab's other rim draws "
+                 "too, and the top is still the top",
+                 shape == [(0.4, 4), (0.4, 8), (2.0, 4), (2.0, 4)]
+                 and abs(wireframe._slab_top(pos)) < 1e-9
+                 and abs(wireframe._slab_bottom(pos, 0.0) + 0.05) < 1e-9,
+                 str(shape))
+    del pos[len(both):]
+    del idx[-6:]
+    del nrm[-6:]
+    loops = wireframe._outline_loops(solid)
     loops = [(e, m) for e, m in loops if len(m) == 8]   # the box alone below
     # The size filter: at a camera where 0.4 units is under OUTLINE_CELLS
     # the loop is skipped; where it spans the frame it draws. Same box,

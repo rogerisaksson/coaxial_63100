@@ -1598,13 +1598,43 @@ def _outline_source():
     return got
 
 
+#: A z level this share of the slab's most populated one, at least
+#: 0.02 units (a millimetre) under the top, is the slab's bottom face.
+SLAB_BOTTOM_SHARE = 0.3
+
+
+def _slab_bottom(pos, top):
+    """The z of the slab's bottom face, from the mesh: the most populated
+    level a millimetre or more under `top` that still carries
+    SLAB_BOTTOM_SHARE of the top's population - or None for a slab with
+    one face, like the suite's synthetic one."""
+    counts = {}
+    for i in range(2, len(pos), 3):
+        key = round(pos[i], 4)
+        counts[key] = counts.get(key, 0) + 1
+    if not counts:
+        return None
+    floor = SLAB_BOTTOM_SHARE * max(counts.values())
+    under = [z for z, n in counts.items() if n >= floor and top - z >= 0.02]
+    return max(under, key=lambda z: counts[z]) if under else None
+
+
 def _outline_loops(solid):
     """The loops the outline draws: every part standing OUTLINE_RISE
-    over the measured slab, and the slab's own edge - the slab-level
-    crease loops wider than OUTLINE_RIM."""
+    over the measured slab, the slab's own edge - the slab-level crease
+    loops wider than OUTLINE_RIM - and, since 2026-09-23, the same on
+    the slab's OTHER face: its rim and bore at the bottom level, and
+    the parts hanging under it. The depth test in `_outline` picks the
+    face the camera sees (OUTLINE_GRACE is under the slab's thickness).
+    With the top's loops alone the bore's ring vanished as the board
+    turned its back and, just before, sat the thickness away from the
+    hole it framed - the bench saw the ring and the hole out of step
+    through the turn, "as if one lagged the other a frame"."""
     pos = solid[0]
     top = _slab_top(pos)
+    bottom = _slab_bottom(pos, top)
     gate = top + OUTLINE_RISE
+    sink = None if bottom is None else bottom - OUTLINE_RISE
 
     # Split by height BEFORE grouping. Grouping first and judging the
     # loop whole was tried: a part's footprint shares corners with the
@@ -1613,15 +1643,21 @@ def _outline_loops(solid):
     # corners are one loop and its footprint on the slab another, drawn
     # when it is OUTLINE_RIM wide like the rim and the bore; the copper,
     # pads and holes under that width are nothing to draw.
-    parts, level = [], []
+    parts, level, below, under = [], [], [], []
     for a, b in _features(solid):
         za, zb = pos[3 * a + 2], pos[3 * b + 2]
         if max(za, zb) > gate:
             parts.append((a, b))
         elif abs(za - top) <= OUTLINE_LEVEL and abs(zb - top) <= OUTLINE_LEVEL:
             level.append((a, b))
-    loops = _loops(parts, pos)
-    loops += [(extent, members) for extent, members in _loops(level, pos)
+        elif bottom is not None and abs(za - bottom) <= OUTLINE_LEVEL \
+                and abs(zb - bottom) <= OUTLINE_LEVEL:
+            under.append((a, b))
+        elif sink is not None and min(za, zb) < sink:
+            below.append((a, b))
+    loops = _loops(parts, pos) + _loops(below, pos)
+    loops += [(extent, members)
+              for extent, members in _loops(level, pos) + _loops(under, pos)
               if extent >= OUTLINE_RIM]
 
     # And a loop that is more crease than outline - its edges adding up

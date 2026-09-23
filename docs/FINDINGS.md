@@ -4555,6 +4555,33 @@ looking at the estimate alone.
   them - and the tilted poses fill it either way; the change shows on
   a taller frame and on a tilted board. test_render's shipped-board
   check reads LIFT off the constant, so nothing there moved.
+* **The outline draws the slab's other face too** (2026-09-23, the
+  bench: something odd with the edge enhancer, clearest at the hole in
+  the middle - mainly as the board turns from its back to the component
+  side, the enhancer and the hole not in step in position or in time,
+  as if one lagged the other a frame). Not a lag: `_outline_loops` took
+  the slab's TOP loops only - the rim and the bore at the measured top
+  level, the parts standing over it - and the depth test hid them
+  whenever the board showed its back. Measured on the mesh: the top at
+  z -0.0686, the bottom at -0.1006 with 2 500 vertices, the bore's ring
+  a 16-edge loop at the top only. So from behind the hole had no ring
+  at all (rendered and looked at: back flat, back oblique 150/10, both
+  bare), and just before edge-on the ring drawn was the far face's,
+  the slab's 0.032 units - two cells at the view's zoom - away from
+  the hole it framed, the offset changing sign through the turn: the
+  "lag". `_slab_bottom` measures the bottom face (the most populated
+  level a millimetre or more under the top with SLAB_BOTTOM_SHARE of
+  its population; None for a one-faced slab, which the suite's
+  synthetic one is), and the bottom's rim and bore and the parts
+  hanging under it join the loops; `_outline`'s depth test, whose
+  OUTLINE_GRACE 0.012 is under the thickness, shows whichever face the
+  camera sees, both at edge-on. 875 -> 925 loops; `_outline` 5.34 ->
+  6.90 ms a moving frame at 66x40 on the threadripper. Rendered after:
+  the ring hugs the hole from behind and obliquely from behind, stands
+  on edge at 100 degrees, and the front is as it was. Held in
+  test_render: the one-faced slab has no bottom, and the same slab
+  given a bottom face draws both rims with the top still the top.
+  test_render 88, 3169 in all.
 
 ## Ruled Out
 
