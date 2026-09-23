@@ -1,34 +1,10 @@
 /** testrig.c - Raw pin access. */
 #include "testrig.h"
 
-#include "board.h"
+#include "board_hw.h"
 #include "board_power.h"
-#include "main.h"
 
 static bool s_open;
-
-/* Which pins are refused is the board's answer, not this file's: the list
-   used to live here as well as in the pin table the channels command
-   reports, and two lists of what PB10 is are one edit away from disagreeing. */
-
-static GPIO_TypeDef *port_base(char port)
-{
-  switch (port)
-  {
-    case 'A': return GPIOA;
-    case 'B': return GPIOB;
-    case 'C': return GPIOC;
-    case 'D': return GPIOD;
-    case 'E': return GPIOE;
-    case 'F': return GPIOF;
-    case 'G': return GPIOG;
-    case 'H': return GPIOH;
-    case 'I': return GPIOI;
-    case 'J': return GPIOJ;
-    case 'K': return GPIOK;
-    default:  return NULL;
-  }
-}
 
 bool testrig_open(void)
 {
@@ -46,9 +22,12 @@ bool testrig_gate(uint32_t key, bool open)
   return true;
 }
 
+/* Which pins are refused is the board's answer, not this file's: the list
+   used to live here as well as in the pin table the channels command
+   reports, and two lists of what PB10 is are one edit away from disagreeing. */
 bool testrig_pin_allowed(char port, uint8_t pin)
 {
-  if ((port_base(port) == NULL) || (pin > 15U))
+  if ((board_port(port) == NULL) || (pin > 15U))
   {
     return false;
   }
@@ -81,7 +60,7 @@ bool testrig_pin_mode(char port, uint8_t pin, uint8_t mode, uint8_t pull)
   init.Pull  = PULL[pull];
   init.Speed = GPIO_SPEED_FREQ_LOW;
 
-  HAL_GPIO_Init(port_base(port), &init);
+  HAL_GPIO_Init(board_port(port), &init);
   return true;
 }
 
@@ -94,7 +73,7 @@ bool testrig_pin_read(char port, uint8_t pin, bool *level)
     return false;
   }
 
-  *level = (HAL_GPIO_ReadPin(port_base(port), (uint16_t)(1U << pin)) == GPIO_PIN_SET);
+  *level = (HAL_GPIO_ReadPin(board_port(port), (uint16_t)(1U << pin)) == GPIO_PIN_SET);
   return true;
 }
 
@@ -112,14 +91,14 @@ bool testrig_pin_write(char port, uint8_t pin, bool level)
                  : Board_PowerRelease(BOARD_RAIL_AFE, BOARD_USER_HOST);
   }
 
-  HAL_GPIO_WritePin(port_base(port), (uint16_t)(1U << pin),
+  HAL_GPIO_WritePin(board_port(port), (uint16_t)(1U << pin),
                     level ? GPIO_PIN_SET : GPIO_PIN_RESET);
   return true;
 }
 
 bool testrig_port_read(char port, uint16_t *value)
 {
-  GPIO_TypeDef *g = port_base(port);
+  GPIO_TypeDef *g = board_port(port);
 
   if (g == NULL)
   {
@@ -132,7 +111,7 @@ bool testrig_port_read(char port, uint16_t *value)
 
 bool testrig_port_write(char port, uint16_t mask, uint16_t value)
 {
-  GPIO_TypeDef *g = port_base(port);
+  GPIO_TypeDef *g = board_port(port);
 
   if (!s_open || (g == NULL))
   {

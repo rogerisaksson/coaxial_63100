@@ -143,18 +143,6 @@ bool Board_DigitalChan(uint8_t index, board_dchan_t *info)
   return true;
 }
 
-static GPIO_TypeDef *port_base(char port)
-{
-  switch (port)
-  {
-    case 'A': return GPIOA;
-    case 'B': return GPIOB;
-    case 'C': return GPIOC;
-    case 'D': return GPIOD;
-    default:  return GPIOE;
-  }
-}
-
 /* Rows a filter keeps: the drivable ones, or the sampled ones. */
 static bool kept(const DigitalDesc *d, bool sampled)
 {
@@ -220,7 +208,7 @@ uint32_t Board_DigitalMask(void)
     {
       continue;
     }
-    if ((port_base(d->port)->IDR & (1UL << d->number)) != 0U)
+    if ((board_port(d->port)->IDR & (1UL << d->number)) != 0U)
     {
       bits |= (1UL << slot);
     }

@@ -41,6 +41,20 @@ static void daq_substitute_interval(void)
   }
 }
 
+/* `count` biquads off the wire, each coefficient an i32 over
+   DAQ_COEFF_SCALE. */
+static void rd_sections(rd_t *in, filter_biquad_t *sections, uint8_t count)
+{
+  for (uint8_t i = 0U; i < count; i++)
+  {
+    sections[i].b0 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].b1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].b2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].a1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].a2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+  }
+}
+
 /** op 7 - the anti-alias chain the host designed. */
 static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
 {
@@ -55,14 +69,7 @@ static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
     return CMD_OK;
   }
 
-  for (uint8_t i = 0U; i < count; i++)
-  {
-    sections[i].b0 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-    sections[i].b1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-    sections[i].b2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-    sections[i].a1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-    sections[i].a2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-  }
+  rd_sections(in, sections, count);
 
   if (!rd_ok(in))
   {
@@ -97,14 +104,7 @@ static cmd_status_t h_daq_rung(rd_t *in, wr_t *out)
     return CMD_OK;
   }
 
-  for (uint8_t i = 0U; i < count; i++)
-  {
-    sections[i].b0 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-    sections[i].b1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-    sections[i].b2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-    sections[i].a1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-    sections[i].a2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
-  }
+  rd_sections(in, sections, count);
 
   if (!rd_ok(in))
   {

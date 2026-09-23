@@ -299,6 +299,13 @@ _Static_assert(CH_NTC < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
 _Static_assert(CH_PHASE_W < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "CH_PHASE_W is past the end of the ADC table");
 
+/* One uncorrected read of a table row: the code as the converter gave it. */
+static bool read_row(const AdcChannelDesc *d, int32_t *raw, float *volts)
+{
+  return ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, raw, volts,
+                            d->sampleTime);
+}
+
 /* One read by table index, corrected. */
 static bool read_index(uint8_t index, int32_t *raw, float *volts)
 {
@@ -319,8 +326,7 @@ static bool read_index(uint8_t index, int32_t *raw, float *volts)
     return true;
   }
 
-  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, raw, volts,
-                          d->sampleTime))
+  if (!read_row(d, raw, volts))
   {
     return false;
   }
@@ -541,26 +547,31 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc)
 /* Zero and span live here rather than in board_cal.c because both have to
    take a reading, and the ADC is this file's. */
 
+/* The row a zero or a span acts on, with the record's offset and gain for
+   it; NULL past the table, with nowhere to report, or with no record. */
+static const AdcChannelDesc *cal_row(uint8_t index, const int32_t *measured,
+                                     int32_t *offset, int32_t *gain)
+{
+  if ((index >= Board_AdcCount()) || (measured == NULL) ||
+      !Board_CalChannel(index, offset, gain))
+  {
+    return NULL;
+  }
+  return &s_adcTable[index];
+}
+
 bool Board_CalZero(uint8_t index, int32_t *measured)
 {
   int32_t offset = 0;
   int32_t gain = 0;
   int32_t raw = 0;
   float   v;
-
-  if ((index >= Board_AdcCount()) || (measured == NULL) ||
-      !Board_CalChannel(index, &offset, &gain))
-  {
-    return false;
-  }
-
-  const AdcChannelDesc *d = &s_adcTable[index];
+  const AdcChannelDesc *d = cal_row(index, measured, &offset, &gain);
 
   /* The uncorrected read on purpose: the offset is what the ADC said with
      nothing applied, and measuring it through the old offset would fold the
      previous zero into the new one. */
-  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v,
-                          d->sampleTime))
+  if ((d == NULL) || !read_row(d, &raw, &v))
   {
     return false;
   }
@@ -575,24 +586,12 @@ bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
   int32_t gain = 0;
   int32_t raw = 0;
   float   v;
-
-  if ((index >= Board_AdcCount()) || (measured == NULL) ||
-      !Board_CalChannel(index, &offset, &gain))
-  {
-    return false;
-  }
-
-  const AdcChannelDesc *d = &s_adcTable[index];
+  const AdcChannelDesc *d = cal_row(index, measured, &offset, &gain);
 
   /* A gain trim is a scale factor, so it only means something where the
      reported quantity is linear in the code. */
-  if ((d->unit != ADC_UNIT_PHASE) && (d->unit != ADC_UNIT_DCBUS))
-  {
-    return false;
-  }
-
-  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v,
-                          d->sampleTime))
+  if ((d == NULL) || ((d->unit != ADC_UNIT_PHASE) && (d->unit != ADC_UNIT_DCBUS))
+      || !read_row(d, &raw, &v))
   {
     return false;
   }

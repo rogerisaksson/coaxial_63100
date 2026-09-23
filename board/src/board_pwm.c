@@ -268,14 +268,10 @@ void Board_PwmDitherStep(void)
   TIM1->CCR3 = s.duty[2];
 }
 
-const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
+/* Why no duty may be written now, or NULL: the stage off (a latched break
+   included), or the drive holding the compares. */
+static const char *compares_refused(void)
 {
-  /* Ticks in Q16.16 rather than a percentage: the board does no division and
-     the caller keeps whatever precision it had. */
-  if (ticks_q16 == NULL)
-  {
-    return "no duties given - pass three";
-  }
   if (!Board_PwmIsEnabled())
   {
     return "the gate drivers are not enabled - enable it first, and clear or "
@@ -285,6 +281,23 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
   {
     return "the drive holds the compares - set drive mode 0 (off) first, "
            "and it lets go";
+  }
+  return NULL;
+}
+
+const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
+{
+  /* Ticks in Q16.16 rather than a percentage: the board does no division and
+     the caller keeps whatever precision it had. */
+  if (ticks_q16 == NULL)
+  {
+    return "no duties given - pass three";
+  }
+  const char *refused = compares_refused();
+
+  if (refused != NULL)
+  {
+    return refused;
   }
 
   const uint32_t limit = (uint32_t)TIM1->ARR << 16;
@@ -336,15 +349,11 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
   {
     return "no duties given - pass three";
   }
-  if (!Board_PwmIsEnabled())
+  const char *refused = compares_refused();
+
+  if (refused != NULL)
   {
-    return "the gate drivers are not enabled - enable it first, and clear or "
-           "bypass the break if one is latched";
-  }
-  if (s.drive_owns)
-  {
-    return "the drive holds the compares - set drive mode 0 (off) first, "
-           "and it lets go";
+    return refused;
   }
 
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
@@ -412,15 +421,11 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
   {
     return "no duties given - pass two triples";
   }
-  if (!Board_PwmIsEnabled())
+  const char *refused = compares_refused();
+
+  if (refused != NULL)
   {
-    return "the gate drivers are not enabled - enable it first, and clear or "
-           "bypass the break if one is latched";
-  }
-  if (s.drive_owns)
-  {
-    return "the drive holds the compares - set drive mode 0 (off) first, "
-           "and it lets go";
+    return refused;
   }
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {

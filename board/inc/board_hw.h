@@ -13,6 +13,26 @@ extern UART_HandleTypeDef huart3;
 extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi4;
 
+/** A port letter's registers, A-K; NULL for any other letter. */
+static inline GPIO_TypeDef *board_port(char port)
+{
+  switch (port)
+  {
+    case 'A': return GPIOA;
+    case 'B': return GPIOB;
+    case 'C': return GPIOC;
+    case 'D': return GPIOD;
+    case 'E': return GPIOE;
+    case 'F': return GPIOF;
+    case 'G': return GPIOG;
+    case 'H': return GPIOH;
+    case 'I': return GPIOI;
+    case 'J': return GPIOJ;
+    case 'K': return GPIOK;
+    default:  return NULL;
+  }
+}
+
 /** The fastest SPI prescaler whose bitrate is <= limit_hz, and that bitrate.
     An unclocked kernel (0) gets the slowest. */
 static inline uint32_t board_spi_prescaler(uint32_t kernel_hz, uint32_t limit_hz,
