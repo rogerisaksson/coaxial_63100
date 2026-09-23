@@ -279,9 +279,9 @@ def stamp_crosses(lines, width, inset=2):
 # -- the console renderer -------------------------------------------------
 # Re-exported from stage.py for the views:
 # THEME band band_of boot chip curtain footer frame_of header hud live
-# panels_of stage viewport
+# panels_of rate_of stage viewport
 from stage import (THEME, band, band_of, boot, chip, curtain, footer,  # noqa: E402,F401
-                   frame_of, header, live, hud, panels_of, scroll_by,
+                   frame_of, header, live, hud, panels_of, rate_of, scroll_by,
                    scroll_click, scroll_drag, stage, viewport)
 
 
@@ -399,6 +399,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 started = time.monotonic()
                 # AND IT KEEPS DRAWING.
                 page.update(draw(), refresh=True)
+                rate_of(board_view).tick(started)
                 if tick is not None and tick():
                     return None
                 if frames and count >= frames:

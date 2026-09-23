@@ -31,7 +31,7 @@ from coaxial.graphics import shading, wireframe                     # noqa: E402
 from coaxial.orientation import _qmul, matrix, normalise   # noqa: E402
 import facecheck                                           # noqa: E402
 from screen import (Keys, WHEEL_STEP, curtain, footer,  # noqa: E402
-                    paced, stage,
+                    paced, rate_of, stage,
                     TO_MENU)
 
 import screen as _screen                                   # noqa: E402
@@ -92,7 +92,7 @@ def hud(view, tris, cost_ms):
                  box=box.ROUNDED, border_style='frame.hud')
 
 
-def compose(view, size):
+def compose(view, size, rate=''):
     wide = max(24, size.width - 26)
     tall = max(10, size.height - 4)
     q = view['pose']
@@ -125,7 +125,7 @@ def compose(view, size):
                        ('UP DN', 'LIGHT'), ('LT RT', 'SPOT'),
                        ('x/X y/Y z/Z', 'DEG'), ('SPACE', 'SPIN'),
                        ('R', 'RESET'), ('M', 'MODEL'),
-                       ('Q', 'EXIT'))), size=1))
+                       ('Q', 'EXIT')), rate), size=1))
     return whole
 
 
@@ -204,7 +204,9 @@ def loop(args, page, view, frame, last):
             last = now
 
             frame += 1
-            live.update(compose(view, page.size), refresh=True)
+            live.update(compose(view, page.size, rate_of(page).label()),
+                        refresh=True)
+            rate_of(page).tick(now)
             if args.frames and frame >= args.frames:
                 return 0
 

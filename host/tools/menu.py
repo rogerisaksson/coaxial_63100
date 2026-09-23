@@ -33,7 +33,7 @@ from rich import box                                       # noqa: E402
 from rich.align import Align                               # noqa: E402
 
 from screen import (ENTER_KEYS, band_of, Keys, curtain, footer,  # noqa: E402
-                    live, paced, stage)
+                    live, paced, rate_of, stage)
 from stage import Marquee                                  # noqa: E402
 import readout                                             # noqa: E402
 
@@ -298,7 +298,7 @@ def readout_rows(tall):
     return max(8, min(14, tall // 3 + 2))
 
 
-def compose(port, picked, view, size=None, who=None):
+def compose(port, picked, view, size=None, who=None, rate=''):
 
     tall = max(8, (size.height if size else 24) - 4)
     # The stand never outgrows the menu: at most BOX columns, at most half the
@@ -344,7 +344,7 @@ def compose(port, picked, view, size=None, who=None):
                       if who is not None else
                       (('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
                        ('S B A M G T C', 'DIRECT'), ('F', 'MOUSE'),
-                       ('Q', 'EXIT'))),
+                       ('Q', 'EXIT')), rate),
                size=1))
     return whole
 
@@ -475,8 +475,9 @@ def main(argv=None, preload=None):
             now = time.monotonic()
             idle(view, now, now - last)
             last = now
-            live.update(compose(args.port, picked, view, page.size, who),
-                        refresh=True)
+            live.update(compose(args.port, picked, view, page.size, who,
+                                rate_of(page).label()), refresh=True)
+            rate_of(page).tick(now)
             if args.frames and frame >= args.frames:
                 return 0
 

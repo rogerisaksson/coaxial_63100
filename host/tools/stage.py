@@ -210,8 +210,46 @@ def band(*cells):
     return bar
 
 
-def footer(pairs):
-    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style."""
+#: The newest frame's weight in the key bar's rate: about five frames
+#: smoothed, so the figure reads rather than flickers.
+RATE_WEIGHT = 0.2
+_RATES = weakref.WeakKeyDictionary()
+
+
+def _eased(was, now):
+    return now if was is None else was + RATE_WEIGHT * (now - was)
+
+
+class Rate:
+    """Frames a second, start to start, and one frame's cost from the
+    draw's start to the terminal's write: the key bar's right end."""
+
+    def __init__(self):
+        self.began = self.fps = self.ms = None
+
+    def tick(self, started):
+        self.ms = _eased(self.ms, 1000.0 * (time.monotonic() - started))
+        if self.began is not None and started > self.began:
+            self.fps = _eased(self.fps, 1.0 / (started - self.began))
+        self.began = started
+
+    def label(self):
+        if self.ms is None:
+            return ''
+        fps = '%5.1f fps  ' % self.fps if self.fps is not None else ''
+        return '%s%4.0f ms' % (fps, self.ms)
+
+
+def rate_of(console):
+    """The frame rate drawn on this console, made on first ask."""
+    if console not in _RATES:
+        _RATES[console] = Rate()
+    return _RATES[console]
+
+
+def footer(pairs, rate=''):
+    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style;
+    `rate` (a `Rate.label()`) right."""
     line = Text('  ', style='keys')
     for i, (key, what) in enumerate(pairs):
         if i:
@@ -224,8 +262,12 @@ def footer(pairs):
         else:
             line.append(what, style='keys')
     bar = Table.grid(expand=True)
-    bar.add_column(justify='left')
-    bar.add_row(line)
+    bar.add_column(justify='left', ratio=1)
+    cells = [line]
+    if rate:
+        bar.add_column(width=len(rate) + 2, no_wrap=True)   # sized, see band()
+        cells.append(Text(rate + '  ', style='keys'))
+    bar.add_row(*cells)
     bar.style = 'keys'
     return bar
 
@@ -627,7 +669,7 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
     whole = Layout()
     whole.split_column(Layout(header(title, origin), size=1),
                        Layout(body, name='body'),
-                       Layout(footer(keys), size=1))
+                       Layout(footer(keys, rate_of(console).label()), size=1))
     return whole
 
 
@@ -661,5 +703,5 @@ def panels_of(console, origin, title, groups, keys):
     whole = Layout()
     whole.split_column(Layout(header(title, origin), size=1),
                        Layout(framed, name='grid'),
-                       Layout(footer(keys), size=1))
+                       Layout(footer(keys, rate_of(console).label()), size=1))
     return whole
