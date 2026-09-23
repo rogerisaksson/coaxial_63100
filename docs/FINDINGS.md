@@ -4710,6 +4710,42 @@ looking at the estimate alone.
   cropped at the bore at 2x. At 73 the hole is a sliver and the edge
   dots sit in it; at 60 and 44 the ring is on the hole's own boundary
   cells with the ground through the hole, nothing beside it.
+* **The edge is the LIT coverage's silhouette** (2026-09-23, the
+  bench, on those three: "the middle picture shows it most clearly",
+  and a hypothesis - "some timing or frame bug: if the edge lags the
+  render by a frame it would show most at small angles, where it moves
+  fastest"). Tested first: those pictures are one fresh frame each,
+  persist empty, no crew, no frame before them to lag behind, and the
+  offset is in them; the steady vote holds a whole cell's glyph, edge
+  and face together, so it cannot part them; and the crew's pose ahead
+  paints face and edge in one pass. Not timing. The bore at that pose
+  taken apart in layers at 4x - drawn, face without the edge, every
+  reached dot, the edge alone - with the cells round it as numbers
+  (reached dots / drawn dots): the coverage's hole is a narrow slit,
+  and beside it down-right lie cells reached 8 of 8 that draw NOTHING,
+  a band three cells wide. They are the bore's far wall seen through
+  the hole: steep to the light, `lit` clamps to zero, blank. Every
+  covered-but-blank cell in the frame had heat exactly zero - 79 at
+  60 degrees, 52 at 44, and 645 of 1 312 at the screenshot's 73,
+  where half the slab is its own rim wall. So the visible dark opening
+  was wall plus slit, the ring stood round the slit, a wall's width
+  inside the dark: "offset". The same at the slab's rim: the line a
+  wall's width outside the lit face, the dark band between them the
+  "moat" the bench kept seeing at steep poses. Fix: with the light
+  given, `_edge` takes a cell the light left at zero as empty, and the
+  line goes round what is drawn - the whole opening, the lit face's
+  own edge; mounting holes and slots on the solder side, whose
+  see-through was under three cells, now get their rings by the same
+  rule. Without the light (the mono path draws walls by class) the
+  coverage stands as before. Rendered at the three poses: the ring
+  round the whole dark oval at 60 and 44 with the ground through it,
+  the rim hugging the lit face at 73, the six dumped poses' bores the
+  same. Cost at 108x44 on the 60-degree frame: `_edge` 7.53 to
+  7.89 ms, 211 to 301 edge cells. Held in test_render: with heat
+  given, a dark band three cells wide moves the edge to the last lit
+  column and draws nothing in the band, a dark pinhole no edge.
+  The bench, on the three sheets after the change: "looks better like
+  that". test_render 100, 3181 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

@@ -417,6 +417,32 @@ def test_the_edge_is_the_rasters_silhouette(report):
     report.check('edge: the dots are the coverage\'s own - a cell with '
                  'its lower row alone draws that row',
                  (2, 0) in cells and n == left[0], str(n))
+    # THE LIT COVERAGE: with the light given, a covered cell the light
+    # left at zero - a wall seen edge-on, drawn blank - counts as empty,
+    # so the line goes round what is drawn. A dark band three cells
+    # wide on the right moves the edge to the last lit column and draws
+    # nothing in the band; a dark pinhole inside is no edge either.
+    reached = bytearray(width * height)
+    for r in range(2, 8):
+        for c in range(3, 17):
+            reached[r * width + c] = 0xFF
+    heat = [1.0] * (width * height)
+    for r in range(2, 8):
+        for c in range(14, 17):
+            heat[r * width + c] = 0.0
+    heat[5 * width + 6] = 0.0
+    grid = [[' '] * width for _ in range(height)]
+    tone = [[None] * width for _ in range(height)]
+    wireframe._edge(grid, tone, (None, None, reached), cam, False, heat=heat)
+    cells = {(r, c) for r in range(height) for c in range(width)
+             if grid[r][c] != ' '}
+    lit = {(r, c) for r in range(2, 8) for c in range(3, 14)
+           if r in (2, 7) or c in (3, 13)}
+    report.check('edge: with the light given the line goes round the lit '
+                 'coverage - a dark wall band lies outside it',
+                 cells == lit,
+                 'extra %s, missing %s' % (sorted(cells - lit),
+                                           sorted(lit - cells)))
 
 
 def test_key_light(report):

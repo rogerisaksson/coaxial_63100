@@ -2285,9 +2285,20 @@ def _edge(grid, tone, cells, cam, colour, heat=None):
     cannot disagree with the coverage. The frame's edge is not an edge:
     a board cut by the frame has no line there. Pinholes inside the
     face - a dot the fold missed, a triangle the decimate dropped - get
-    none either. Cells drawn."""
+    none either. Cells drawn.
+
+    THE LIT COVERAGE, when the light is given. A cell the fold reached
+    but the light left at zero is a wall seen edge-on - the bore's far
+    wall through the hole, the slab's rim band at a steep pose - and it
+    draws blank, so a line round the whole coverage stood inside the
+    dark opening, a wall's width off the face: the bench, 2026-09-23,
+    on the back tilted 60 degrees, where 79 covered cells drew nothing
+    (645 of 1 312 at 73 degrees, half the slab). Every such cell had
+    heat exactly zero. The line goes round what is drawn."""
     width, height = cam['width'], cam['height']
     reached = cells[2]
+    if heat is not None:
+        reached = [bits if heat[at] else 0 for at, bits in enumerate(reached)]
     region = _regions(reached, width, height)
     kept = [x == 2 for x in region]
     left, right, up, down, from_left, from_right, from_up, from_down = _EDGE
