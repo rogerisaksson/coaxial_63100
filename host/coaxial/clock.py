@@ -178,9 +178,9 @@ def _marks(clock, seconds, rounds, step):
         marks.append(_best_bracket(clock, rounds if left <= step else 1))
 
 def _ntp_or_pc(ntp_server, reference, when):
-    """NTP's offset when the reference is UTC and the server answers; otherwise
-    no offset, the reference fallen back to the PC's clock, and a note
-    saying `when` it failed - or nothing to say.
+    """NTP's offset when the reference is UTC and the server answers;
+    otherwise no offset, the reference fallen back to the PC's clock, and
+    a note saying `when` it failed - or nothing to say.
     """
     if reference != 'utc':
         return None, reference, ''

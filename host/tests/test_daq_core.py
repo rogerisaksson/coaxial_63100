@@ -1,20 +1,4 @@
-"""The acquisition engine, run as the C that will run on the board.
-
-`daq/` is the ring of records, the summing window that makes them, the
-anti-alias chain and the ladder of designs it climbs when the ring fills,
-the tone generator that stands in for the converter, and the live
-accumulator a host reads at leisure - hardware-free like the thermal core,
-and until now tested only by the bench after a flash. Built here with the
-host gcc and driven through ctypes, the same way the Modbus, SHTP, drive,
-filter and thermal cores are; board/src/board_daq.c is the hardware around
-it and stays the bench's.
-
-Every record is decoded here exactly as a host decodes it - the start time,
-the sums, the pin duties, the sensor words, the count - so a change to the
-record's shape fails a suite before it reaches a decoder.
-
-    cd host && python tests/test_daq_core.py
-"""
+"""The acquisition engine, run as the C that will run on the board."""
 import ctypes
 import math
 import os
@@ -328,9 +312,9 @@ def test_the_live_accumulator(report, e):
 def test_the_sweep_and_the_gate(report, e):
     """One field a turn, closed through the count's gate."""
     e.fresh(fields=3, accumulate=1, interval=100)
-    # The gate counts from the counter's zero, so the first trigger is due
-    # once an interval has passed since it - immediately, on a board whose
-    # counter has been running.
+    # The gate counts from the counter's zero, so the first trigger is due once
+    # an interval has passed since it - immediately, on a board whose counter
+    # has been running.
     report.check('the interval gates: due, not 50 cycles on, due again at 100',
                  e.lib.daq_h_trigger_due(1000) == 1 and e.lib.daq_h_trigger_due(1050) == 0
                  and e.lib.daq_h_trigger_due(1100) == 1)

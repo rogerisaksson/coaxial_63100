@@ -44,9 +44,9 @@ CHANNELS = [
      'differential': False, 'signal': 'MCU die'},
 ]
 
-# Roughly what a live board reads with the front end on, AFE gain and all -
-# not a calibrated value, just something to drift around so a repeated read
-# does not look frozen.
+# Roughly what a live board reads with the front end on, AFE gain and all - not
+# a calibrated value, just something to drift around so a repeated read does
+# not look frozen.
 NOMINAL = {0: 1400.0, 1: -8030.0, 2: 360.0, 3: 1010.0, 4: 41000.0,
           5: 20775.0, 6: 16500.0, 7: 50700.0, 8: 1030.0,
           9: 33000.0}
@@ -114,11 +114,9 @@ AMPS_PER_CODE = 3.3 / 32768.0 / (0.0035 * 1500.0 / 330.0)
 
 
 def phase_codes(signal, amps, theta):
-    """The machine's current on one phase, in codes a sample: `amps` of stator
-    current at electrical angle `theta`, put into the leg's own phase. Zero
-    on anything that is not a phase, and zero with the stage down. ONE
-    PLACE: the DAQ's records and the analog reads draw the same current from
-    it, so a tare through the one zeroes the other.
+    """The machine's current on one phase, in codes a sample: `amps` of
+    stator current at electrical angle `theta`, put into the leg's own
+    phase.
     """
     leg = PHASE_LEG.get(signal)
     if leg is None or not amps:
@@ -165,7 +163,7 @@ def _tumble(seq, unit):
     sin_r, cos_r = math.sin(roll / 2.0), math.cos(roll / 2.0)
     sin_p, cos_p = math.sin(pitch / 2.0), math.cos(pitch / 2.0)
 
-    # Nod about Y, then roll about X - the product of the two, in the (i, j,
-    # k, real) order a rotation vector is reported in.
+    # Nod about Y, then roll about X - the product of the two, in the (i, j, k,
+    # real) order a rotation vector is reported in.
     return (int(sin_r * cos_p * unit), int(cos_r * sin_p * unit),
             int(-sin_r * sin_p * unit), int(cos_r * cos_p * unit))

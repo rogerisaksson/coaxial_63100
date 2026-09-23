@@ -1,29 +1,11 @@
-"""The test plan: what to measure, and what counts as passing.
-
-The plan is DATA, loaded from YAML, and it lives outside every library in this
-repository. That separation is the whole architecture:
-
-  * the board reports raw codes and holds no limits;
-  * the `coaxial` library scales but does not judge;
-  * this module judges, against limits that arrived from outside.
-
-Where the limits come from is not a detail. A number in a plan file should be
-traceable to a GRR/MSA study run on THIS bench with THESE instruments: the study
-establishes how much of the tolerance the measurement system itself consumes, and
-a limit set without one is a guess wearing a decimal point. Swap a DMM and the
-study no longer applies, which is why the bench provenance ends up in the report
-next to the verdicts.
-
-A plan therefore has to name the study it came from, and the loader refuses one
-that does not.
-"""
+"""The test plan: what to measure, and what counts as passing."""
 import yaml
 
 
 class PlanError(Exception):
     """A plan that cannot be audited: a missing product, revision or study
-    reference, or a step whose limit does not parse. Raised at load time, so
-    a run never starts against a plan nobody could sign."""
+    reference, or a step whose limit does not parse.
+    """
 
 
 class Limit:
@@ -57,12 +39,7 @@ class Limit:
 
 
 class Step:
-    """One measurement and the limit it is judged against.
-
-    `source` names how the value is obtained; measure.py owns the mapping from
-    that name to code. Keeping it a string means a plan can be reviewed by
-    somebody who does not read Python.
-    """
+    """One measurement and the limit it is judged against."""
 
     def __init__(self, ident, name, source, limit=None, args=None,
                  record_only=False):
@@ -78,9 +55,9 @@ class Step:
 
 
 class TestPlan:
-    """One YAML plan, loaded and checked: what to measure, in what order, and
-    what counts as passing. The limits live here and nowhere in the firmware -
-    see this module's own docstring for why that separation is the point."""
+    """One YAML plan, loaded and checked: what to measure, in what order,
+    and what counts as passing.
+    """
 
     def __init__(self, data, path=None):
         self.path = path

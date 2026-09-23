@@ -1,7 +1,8 @@
 """Thermal: the node network and how it was fitted, the SOA budget and a
 burst planned against it, the room and the air path identified on the
 stand-in's tour, the margin, and a trip - the thermal model, the thermal
-budget and the thermal identification, as one paper."""
+budget and the thermal identification, as one paper.
+"""
 from .parts import code, md, section
 
 TITLE = 'Thermal'

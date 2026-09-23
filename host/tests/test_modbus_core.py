@@ -1,23 +1,5 @@
 #!/usr/bin/env python3
-"""The portable Modbus core, on this machine, with no board and no cable.
-
-Invariant 1 keeps `modbus_crc.c`, `modbus_slave.c` and `modbus_rtu.c` free of
-HAL, CMSIS and every hardware header, and says that is what makes them
-host-testable. Nothing tested them: their only verification was
-test_conformance.py, which needs a board on the other end of a serial link.
-The framing state machine, the span checks and the half-written-register guard
-- the code where a defect does the most damage - were the least covered in the
-repository.
-
-This builds them with the host gcc, together with `modbus/test/harness.c`, and
-drives the result through ctypes. The clock is injected, so t1.5, t3.5 and the
-2^32 wrap are tested by arithmetic rather than by waiting.
-
-A missing compiler is not a failing suite, the same way a missing cable is not:
-it says what it skipped and passes nothing. `setup.ps1` installs one.
-
-Run from the host directory:  python tests/test_modbus_core.py
-"""
+"""The portable Modbus core, on this machine, with no board and no cable."""
 import ctypes
 import os
 import subprocess
@@ -29,28 +11,23 @@ REPO = os.path.dirname(HOST)
 CORE = os.path.join(REPO, 'modbus')
 OUT = os.path.join(REPO, 'build', 'hosttest')
 
-# The oracle's Python mirror lives in coaxial.protocol. On a bench with the
-# editable install this resolves anyway; a fresh clone (the CI runner) has
-# only what the suite puts on the path - and this suite, unlike its
-# siblings, never had to before it grew a mirror to hold the C to.
+# The oracle's Python mirror lives in coaxial.protocol.
 sys.path.insert(0, HOST)
 
 SOURCES = [os.path.join(CORE, 'test', 'harness.c'),
            os.path.join(CORE, 'src', 'modbus_crc.c'),
            os.path.join(CORE, 'src', 'modbus_slave.c'),
            os.path.join(CORE, 'src', 'modbus_rtu.c'),
-           # The request-length oracle rides along: the harness installs
-           # it on the RTU under test, and the suite drives it directly
-           # for the prefix sweep. The stub stands in for the dispatch
-           # tables, which live beside HAL handlers.
+           # The request-length oracle rides along: the harness installs it on
+           # the RTU under test, and the suite drives it directly for the
+           # prefix sweep.
            os.path.join(REPO, 'comms', 'src', 'cmd_length.c'),
            os.path.join(REPO, 'comms', 'test', 'cmd_find_stub.c')]
 
 INCLUDES = [os.path.join(CORE, 'inc'), os.path.join(REPO, 'comms', 'inc'),
             os.path.join(REPO, 'board', 'inc')]
 
-# The same warnings the firmware build puts on these three files. A host
-# compiler is a second opinion on them, not just a way to run them.
+# The same warnings the firmware build puts on these three files.
 FLAGS = ['-std=c11', '-O1', '-Wall', '-Wextra', '-Wconversion', '-Wshadow']
 
 EX = {0: 'NONE', 1: 'ILLEGAL FUNCTION', 2: 'ILLEGAL DATA ADDRESS',
@@ -80,12 +57,7 @@ def find_cc():
 
 
 def build(cc, sources=None, includes=None, name='mbcore'):
-    """(path, warnings) for a shared library, built fresh every run.
-
-    Takes its sources so the SHTP suite can reuse it rather than copy the
-    compiler discovery and the flag list - there is one answer to "how is
-    portable C built for a test on this machine".
-    """
+    """(path, warnings) for a shared library, built fresh every run."""
     os.makedirs(OUT, exist_ok=True)
     lib = os.path.join(OUT, name + ('.dll' if os.name == 'nt' else '.so'))
     flags = []
@@ -201,13 +173,7 @@ class Core:
                          'char_overrun'), list(six)))
 
     def feed(self, frame, start=1000000, step=100):
-        """A whole frame at line rate; returns the last character's tick.
-
-        The last character, not one step past it: the silence that ends a
-        frame is measured from the last byte, and returning the step after
-        it put every "just before t3.5" check a hundred ticks the wrong side
-        of the boundary it was testing.
-        """
+        """A whole frame at line rate; returns the last character's tick."""
         for i, b in enumerate(frame):
             self.byte(b, (start + i * step) & 0xFFFFFFFF)
         return (start + (len(frame) - 1) * step) & 0xFFFFFFFF
@@ -241,11 +207,7 @@ def test_crc(report, lib):
 
 
 def test_quantities(report, lib):
-    """Illegal quantities are a value error, never an address error.
-
-    The distinction is modbus_slave.c's own: the request is badly formed and
-    the addresses were never consulted.
-    """
+    """Illegal quantities are a value error, never an address error."""
     core = Core(lib)
     for name, pdu in (('read holding, qty 0', b'\x03\x00\x00\x00\x00'),
                       ('read holding, qty 126', b'\x03\x00\x00\x00\x7E'),
@@ -260,16 +222,9 @@ def test_quantities(report, lib):
 
 
 def test_span(report, lib):
-    """A span straddling 0xFFFF must not wrap past the range check.
-
-    Computed in 32 bits on purpose - in 16 it would wrap to a small number
-    and the request would sail through.
-    """
-    # With the model saying yes to every address, span_overflows is the
-    # only thing left that can refuse this - which is the point. Measured:
-    # with the harness applying its own 32-bit check first, the engine
-    # rewritten to check in 16 bits still passed this test, and only the
-    # compiler warning caught it.
+    """A span straddling 0xFFFF must not wrap past the range check."""
+    # With the model saying yes to every address, span_overflows is the only
+    # thing left that can refuse this - which is the point.
     wide = Core(lib)
     wide.accept_all()
     _fc, code = wide.exception(b'\x03\xFF\xFF\x00\x02')
@@ -318,11 +273,8 @@ def test_reads(report, lib):
 
 
 def test_capacity(report, lib):
-    """A response that will not fit the buffer given is the server's failure.
-
-    Unreachable over RTU, which always passes 253 bytes - but the signature
-    promises a capacity, and until it was checked eight of the nine handlers
-    discarded it.
+    """A response that will not fit the buffer given is the server's
+    failure.
     """
     core = Core(lib)
     rsp = core.execute(b'\x03\x00\x00\x00\x03', cap=253)
@@ -368,13 +320,7 @@ def test_writes(report, lib):
 
 
 def test_half_write(report, lib):
-    """The guard that stops a multi-register write applying a prefix.
-
-    Both halves, because the second proves the first is doing the work: with
-    validate_reg_value wired a bad value leaves every register untouched;
-    with it dropped the registers before the failure are written and the
-    client still sees one exception for the whole request.
-    """
+    """The guard that stops a multi-register write applying a prefix."""
     req = b'\x10\x00\x00\x00\x03\x06\xAA\xAA\xBB\xBB\xDE\xAD'
 
     guarded = Core(lib)
@@ -491,11 +437,7 @@ def test_rtu_frame(report, lib):
 
 
 def test_rtu_gap(report, lib):
-    """A gap longer than t1.5 inside a frame means it was never a frame.
-
-    It must be drained and discarded, not truncated and parsed - a truncated
-    frame that happened to pass CRC would be acted on.
-    """
+    """A gap longer than t1.5 inside a frame means it was never a frame."""
     core = Core(lib)
     core.rtu_init()
     frame = core.adu(1, b'\x03\x00\x00\x00\x02')
@@ -516,13 +458,7 @@ def test_rtu_gap(report, lib):
 
 
 def test_rtu_wrap(report, lib):
-    """The tick counter wraps at exactly 2^32, and the arithmetic must hold.
-
-    This is invariant 2: the elapsed-time subtraction is done in raw uint32
-    for this reason, and dividing cycles down to microseconds would move the
-    wrap off a power of two and break it silently. Here the frame starts
-    before the wrap and finishes after it.
-    """
+    """The tick counter wraps at exactly 2^32, and the arithmetic must hold."""
     core = Core(lib)
     core.rtu_init()
     frame = core.adu(1, b'\x03\x00\x00\x00\x01')
@@ -620,19 +556,12 @@ ROSTER = (test_crc, test_quantities, test_span, test_reads, test_capacity,
 
 
 def test_rtu_early_dispatch(report, lib):
-    """A proven request is delivered on its own CRC, not after t3.5.
-
-    The oracle names the length, the CRC checks, the address is ours -
-    the silence had nothing left to say. Everything the oracle cannot
-    prove, and every damaged frame, waits it out exactly as before:
-    the early path is an escape from the delimiter, never from a rule.
-    """
+    """A proven request is delivered on its own CRC, not after t3.5."""
     h = Core(lib)
     h.rtu_init()
     h.hint(True)
 
-    # FC 0x03, a fixed five-byte PDU the host-built oracle proves. The
-    # very tick the last byte lands, service hands the frame over.
+    # FC 0x03, a fixed five-byte PDU the host-built oracle proves.
     frame = h.adu(1, [0x03, 0x00, 0x00, 0x00, 0x01])
     last = h.feed(frame)
     reply = h.service(last)
@@ -641,8 +570,8 @@ def test_rtu_early_dispatch(report, lib):
     report.check('and the transport is idle again, mid-silence',
                  not h.busy(), h.busy())
 
-    # The same frame with its CRC broken: the early path must NOT consume
-    # it - the t3.5 judge sees the same bytes and counts the error.
+    # The same frame with its CRC broken: the early path must NOT consume it -
+    # the t3.5 judge sees the same bytes and counts the error.
     bad = frame[:-2] + bytes([frame[-2] ^ 0xFF, frame[-1]])
     last = h.feed(bad)
     early = h.service(last)
@@ -654,8 +583,8 @@ def test_rtu_early_dispatch(report, lib):
     report.check('and the silence-path judges it, once',
                  after == before + 1, '%d -> %d' % (before, after))
 
-    # An unproven shape - FC 0x42's optional tail - waits the silence out
-    # even though its CRC is fine.
+    # An unproven shape - FC 0x42's optional tail - waits the silence out even
+    # though its CRC is fine.
     frame = h.adu(1, [0x42])
     last = h.feed(frame)
     report.check('an unproven shape still waits out t3.5',
@@ -679,13 +608,8 @@ def test_rtu_early_dispatch(report, lib):
 
 
 def test_oracle_prefixes(report, lib):
-    """The C oracle and the Python mirror, over every prefix of every
-    hinted shape - and over the shapes that must never prove.
-
-    THE INVARIANT (cmd_length.c): a non-zero answer must equal the full
-    length of every real request it can match. A row that fires at or
-    under the bytes in hand is the corruption class this sweep exists
-    to fail.
+    """The C oracle and the Python mirror, over every prefix of every hinted
+    shape - and over the shapes that must never prove.
     """
     from coaxial.protocol import request_length as mirror
 
@@ -726,11 +650,10 @@ def test_oracle_prefixes(report, lib):
             if c != m:
                 bad.append('%s@%d: C %d mirror %d'
                            % (pdu.hex(), have, c, m))
-            # A shape may name its full length before the tail arrives -
-            # the early path only fires once the bytes are all IN HAND -
-            # so the one forbidden answer is a length at or under `have`
-            # that is not the true end, and at the end, anything but the
-            # truth.
+            # A shape may name its full length before the tail arrives - the
+            # early path only fires once the bytes are all IN HAND - so the one
+            # forbidden answer is a length at or under `have` that is not the
+            # true end, and at the end, anything but the truth.
             if c != 0:
                 if c < have or (have == full and c != expect_full
                                 and expect_full != 0):
@@ -746,8 +669,7 @@ def test_oracle_prefixes(report, lib):
 def test_fixed_dict_matches_tables(report, lib):
     """The mirror's non-0x6E lengths against the dispatch tables' own
     req_len rows, read out of the C source - the same binding
-    test_simulated uses on s_adcTable. The firmware's oracle asks
-    cmd_find at runtime and cannot drift; this holds the MIRROR to it.
+    test_simulated uses on s_adcTable.
     """
     import io
     import re

@@ -1,16 +1,4 @@
-"""Every live view runs two frames against the stand-in, as a subprocess.
-
-The suite that was missing while the views were restyled: four separate
-breaks in one afternoon - a NameError in a compose, a view inheriting
-power_afe=False and refusing at open, the toon path silently falling back
-to the photographic renderer, dead --watch plumbing - and every one was
-found by running the view by hand, because nothing else runs them at all.
-
-Subprocesses, not imports: a view's crash on a real console involves its
-own argument parsing, its preflight and its teardown, and importing main()
-skips the first of those. --simulated so no board and no ollama; --frames 2
-so the loop, the painter and the teardown all execute once.
-"""
+"""Every live view runs two frames against the stand-in, as a subprocess."""
 import os
 import subprocess
 import math
@@ -84,11 +72,11 @@ def test_each_view_draws_two_frames(report):
 
 
 def test_the_loader_reads_the_pages(report):
-    """The terminal is what lies under terminal/pages/: the loader lists
-    the pages in ORDER with unique keys, the front page draws that very
-    list, every name a page or an item answers to is found, every page
-    runs IN THIS PROCESS for two frames on the stand-in and answers 0,
-    and `python -m terminal --frames 2` - the front page with the preload
+    """The terminal is what lies under terminal/pages/: the loader lists the
+    pages in ORDER with unique keys, the front page draws that very list,
+    every name a page or an item answers to is found, every page runs IN
+    THIS PROCESS for two frames on the stand-in and answers 0, and
+    `python -m terminal --frames 2` - the front page with the preload
     underneath - exits 0.
     """
     import argparse
@@ -132,18 +120,7 @@ def rows_of(owner, width, height, kind):
 
 
 def test_the_instruments_stand_clear_of_the_machine(report):
-    """The gutters equidistant, and the foot gauges off the can.
-
-    BOTH FOUND BY EYE, which is the whole reason for the test. The left
-    group is six thermometers and the right four, and a machine centred
-    in the box sat one column off the left group and two off the right -
-    it reads as a drawing that is not quite straight. Then the winding
-    gauge was drawn along row 16 of nineteen with the can's own bottom
-    edge on the same row, and the level ran through the machine.
-
-    Rendered at the view's own size, because both faults are the size's:
-    at another width the machine misses the gutters by luck.
-    """
+    """The gutters equidistant, and the foot gauges off the can."""
     sys.path.insert(0, HOST)
     from coaxial import machine
     from tools import show_rotor_observer as view
@@ -177,28 +154,15 @@ def test_the_instruments_stand_clear_of_the_machine(report):
 
 
 def test_each_gutter_says_its_hottest_node(report):
-    """The caption's third row, in degrees, and WHICH node each one is.
-
-    A share of a ceiling is what the board acts on and it is not a
-    temperature: the tubes cannot say 118 C and a bench asks for exactly
-    that. The left figure is the hottest of the six power nodes, which is
-    what SWITCH TEMPS means.
-
-    THE RIGHT ONE IS THE COPPER, not the hottest of its four. It was the
-    hottest, and the bench read SWITCH TEMPS below BOARD TEMPS and took it
-    for a broken model - the right gutter's hottest is almost always the
-    MCU, 15 K over the copper on an idle board, so the caption said BOARD
-    and reported something else. The other three are still tubes, and the
-    SOA HEADROOM gauge is what says which node of all ten is worst.
-    """
+    """The caption's third row, in degrees, and WHICH node each one is."""
     sys.path.insert(0, HOST)
     from tools import show_rotor_observer as view
 
     nodes = dict.fromkeys(view.SOA_NODES + view.BOARD_NODES, 30.0)
     nodes['phase_v'], nodes['regulators'], nodes['board'] = 118.4, 71.2, 44.5
     # `used` for every node, because `soa_bars` draws only what the board
-    # reported a spend for - a node with no ceiling in the record is a node
-    # it says nothing about.
+    # reported a spend for - a node with no ceiling in the record is a node it
+    # says nothing about.
     said = {'thermal': {'nodes': nodes, 'ambient': 20.0},
             'budget': {'used': {name: (nodes[name] - 20.0) / 105.0
                                 for name in nodes},
@@ -214,11 +178,7 @@ def test_each_gutter_says_its_hottest_node(report):
     report.check('the board caption takes the hottest of its four, which '
                  'is the tube standing tallest beside it',
                  peak == 71.2, 'said %s' % (peak,))
-    # REPORTING THE COPPER INSTEAD WAS TRIED AND WITHDRAWN. It bought the
-    # ordering a reader expects and broke something worse: the figure then
-    # disagreed with its own gutter, 20.9 C under a stack whose tallest
-    # tube was the regulators at 33.7. What fixed the confusion was the
-    # shared scale below, not the choice of node.
+    # REPORTING THE COPPER INSTEAD WAS TRIED AND WITHDRAWN.
     bars = view.soa_bars(said, view.BOARD_NODES)
     tallest = max(zip(view.BOARD_NODES, bars), key=lambda p: p[1][0])[0]
     report.check('and it names the tallest tube, not some other node',
@@ -229,15 +189,7 @@ def test_each_gutter_says_its_hottest_node(report):
 
 
 def test_both_gutters_run_on_one_scale(report):
-    """Height is degrees, colour is margin, and they are two questions.
-
-    THE TUBES HAD TWO RULERS. Each was its node's share of its OWN
-    ceiling, and the ceilings differ - the copper's is 105 where the
-    silicon's is 125 - so two tubes at the same height were two different
-    temperatures, standing under captions in degrees that disagreed with
-    them. The check is a copper and a FET at the SAME temperature: the
-    heights have to match and the colours must not.
-    """
+    """Height is degrees, colour is margin, and they are two questions."""
     sys.path.insert(0, HOST)
     from coaxial import machine
     from tools import show_rotor_observer as view
@@ -270,17 +222,7 @@ def test_both_gutters_run_on_one_scale(report):
 
 
 def test_a_power_node_never_reads_below_the_copper(report):
-    """It sheds INTO the board, so it cannot be colder than the board.
-
-    The relation the bench expected and the page was hiding. It holds in
-    the model by construction - `thermal_step` sheds `(t - board) /
-    to_board`, so a node below the copper takes a negative shed and is
-    pulled back up - and this is the check that the two captions can
-    actually be compared now that the right one is the copper.
-
-    Against the stand-in rather than by inspection: it is the model, the
-    limits and the labels together that have to come out right.
-    """
+    """It sheds INTO the board, so it cannot be colder than the board."""
     sys.path.insert(0, HOST)
     from coaxial import Coaxial63100
     from tools import show_rotor_observer as view
@@ -310,14 +252,7 @@ def test_a_power_node_never_reads_below_the_copper(report):
 
 
 def test_the_ntc_is_shown_as_the_one_measurement(report):
-    """The reference above the headroom scale, and what it says unread.
-
-    Every other figure on the page is an estimate - ten nodes of a lumped
-    network, a winding relaxed into a placeholder pair - and the NTC is
-    the only one with a sensor behind it. It stands over the scale the
-    model's own verdict is drawn on, in TRUTH's ink, which is what this
-    page gives what is known rather than modelled.
-    """
+    """The reference above the headroom scale, and what it says unread."""
     sys.path.insert(0, HOST)
     from coaxial import machine
     from tools import show_rotor_observer as view
@@ -326,17 +261,15 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
                  view.reference({'thermal': {'ntc': 38.04}})
                  == 'NTC 38.0 %sC' % view.DEGREE,
                  view.reference({'thermal': {'ntc': 38.04}}))
-    # AFE_ON LOW IS NOT A COLD BOARD. The board answers None because the
-    # AFE powers the ADC reference and there is no reading at all then
-    # (invariant 9), and a dash cannot be mistaken for a temperature.
+    # AFE_ON LOW IS NOT A COLD BOARD.
     for empty in ({'thermal': {'ntc': None}}, {}):
         report.check('and no reading says so rather than drawing a number',
                      'unread' in view.reference(empty),
                      view.reference(empty))
 
-    # `simulated` and `spin` are view keys the real page always carries;
-    # the caption reaches the winding estimate through the margin rows
-    # now, and that asks how fast the stand-in's clock is running.
+    # `simulated` and `spin` are view keys the real page always carries; the
+    # caption reaches the winding estimate through the margin rows now, and
+    # that asks how fast the stand-in's clock is running.
     rows = view.gutter_caption({
         'simulated': True, 'spin': 0.0,
         'thermal': {'nodes': dict.fromkeys(view.SOA_NODES + view.BOARD_NODES,
@@ -345,18 +278,15 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
         'budget': {'used': {}, 'tripped': False},
         'state': {'id': 0.0, 'iq': 0.0, 'vd': 0.0, 'vq': 0.0},
         'params': {}, 'winding_at': None})
-    # THE FIRST CAPTION ROW, and it has a tube of its own now. Everything
-    # under it is an estimate, and a page that opens with a model teaches
-    # a bench to trust one.
+    # THE FIRST CAPTION ROW, and it has a tube of its own now.
     said = rows[0]
     report.check('it opens the stack, above every estimate',
                  'NTC' in said and not any('NTC' in row
                                            for row in rows[1:]),
                  said.replace(chr(27), '^'))
-    # ITS OWN TUBE'S COLOUR, which is the thermometer ramp - blue at the
-    # cold end and red at the hot - because the thermistor has no ceiling
-    # to be a margin against. Every legend here shares an ink with the
-    # level it names.
+    # ITS OWN TUBE'S COLOUR, which is the thermometer ramp - blue at the cold
+    # end and red at the hot - because the thermistor has no ceiling to be a
+    # margin against.
     report.check('and takes its own tube colour, off the thermometer ramp',
                  any('38;5;%d' % machine.INK[step] in said
                      for step in machine.NTC_RAMP),
@@ -366,13 +296,6 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
 def test_the_foot_carries_the_policy(report):
     """TH OBS and the policy between WINDING and POWER, in the margin's
     colours, and nothing moves when the power goes negative.
-
-    The bench's placement and words, 2026-09-05: "put THERMAL OBSERVER
-    and then the policy between WINDING and kW, and call it POWER xy.z
-    kW"; "make POWER so it does not shift when the power goes
-    negative"; then "THERMAL OBSERVER can be TH OBS, not in bright red
-    - UNCR in red, CONV in yellow, STABLE in green". At fifty-two
-    columns the full title and a policy word had not fitted the row.
     """
     sys.path.insert(0, HOST)
     sys.path.insert(0, os.path.join(HOST, 'tools'))
@@ -381,8 +304,8 @@ def test_the_foot_carries_the_policy(report):
     from tools import show_rotor_observer as view
 
     def a_view(watts, ident):
-        # `watts(view)` is 1.5 (vd id + vq iq) off the loop's means; a
-        # volt of vq makes the current the power, and its sign.
+        # `watts(view)` is 1.5 (vd id + vq iq) off the loop's means; a volt of
+        # vq makes the current the power, and its sign.
         return {'simulated': True, 'spin': 0.0,
                 'thermal': {'nodes': dict.fromkeys(
                     view.SOA_NODES + view.BOARD_NODES, 40.0),
@@ -411,9 +334,9 @@ def test_the_foot_carries_the_policy(report):
         inks[state] = ('38;5;%dm%s' % (machine.INK[view.POLICY_INK[state]],
                                        view.POLICY_WORD[state])) in row
         trims[state] = visible(row)
-    # THE TRIM IS SAID WHILE THERE IS ONE - the bench: "make it visible
-    # that it throttles at 80 % of the SOA already, then 90, then 100 as
-    # the model's uncertainty goes to zero" - and the row stays its width.
+    # THE TRIM IS SAID WHILE THERE IS ONE - the bench: "make it visible that it
+    # throttles at 80 % of the SOA already, then 90, then 100 as the model's
+    # uncertainty goes to zero" - and the row stays its width.
     report.check('the ceiling it leaves is on the row: UNCR 80%, CONV 90%, '
                  'and STABLE alone at the whole span',
                  'TH OBS UNCR 80%' in trims['UNCERTAIN']
@@ -426,10 +349,10 @@ def test_the_foot_carries_the_policy(report):
                  all(inks.values())
                  and ('38;5;%dmTH OBS' % machine.LEADER_GREY) in foot,
                  '%s %s' % (inks, foot.replace(chr(27), '^')))
-    # CONTINUOUS: the percent is the margin rounded, whatever the word -
-    # a CONVERGING board at 0.93 says so, a STABLE one at 0.97 as STBL,
-    # since `STABLE 97%` is a cell wider than the row has between the
-    # gauges' names - and the row keeps its width and its columns.
+    # CONTINUOUS: the percent is the margin rounded, whatever the word - a
+    # CONVERGING board at 0.93 says so, a STABLE one at 0.97 as STBL, since
+    # `STABLE 97%` is a cell wider than the row has between the gauges' names -
+    # and the row keeps its width and its columns.
     between = {}
     for state, margin in (('CONVERGING', 0.93), ('STABLE', 0.97),
                           ('UNCERTAIN', 0.812)):
@@ -455,11 +378,7 @@ def test_the_foot_carries_the_policy(report):
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in absent and absent.find('POWER')
                  == plain.find('POWER'), absent)
-    # THREE DIGITS ON THE WINDING. The bench's check: "see that WINDING
-    # xy.z C pushes on TH OBS when the temperature goes to three
-    # digits". Measured before the width was fixed: the head grew a cell
-    # and took it from its own gap, TH OBS stayed put - by the parity of
-    # the centring. Fixed at five cells it does not depend on that.
+    # THREE DIGITS ON THE WINDING.
     hot = a_view(20.0, stable)
     hot['budget']['winding_c'] = 123.4
     three = visible(view.gutter_caption(hot)[-1])
@@ -473,14 +392,6 @@ def test_the_foot_carries_the_policy(report):
 def test_the_soa_legend_reads_the_whole_soa(report):
     """SWITCH SOA and MOTOR SOA say how much of the RECORD's SOA is spent,
     and flash red where the ceiling in force is.
-
-    The bench: "start flashing SWITCH SOA red at 80 % already, and
-    throttle down; then 90; and do not throttle until 100 %" - and not
-    as red tops on the tubes, which was tried first. The board's `used`
-    is against the ceiling its policy leaves it, so read raw the legend
-    said 100 % at three different temperatures; times the margin it is
-    the whole SOA again, and a board at its UNCERTAIN ceiling reads 80 %
-    in a pulsing red. The colour stays the board's verdict.
     """
     sys.path.insert(0, HOST)
     sys.path.insert(0, os.path.join(HOST, 'tools'))
@@ -533,8 +444,8 @@ def test_the_soa_legend_reads_the_whole_soa(report):
                  abs(thermal.ceiling_of('board', 0.8) - 89.0) < 1e-9
                  and abs(thermal.ceiling_of('board', 1.0) - 105.0) < 1e-9,
                  '%.1f' % thermal.ceiling_of('board', 0.8))
-    # CONTINUOUS: a board at the ceiling a margin of 0.86 leaves reads
-    # 86 % of the SOA - the legend follows the number, not the word.
+    # CONTINUOUS: a board at the ceiling a margin of 0.86 leaves reads 86 % of
+    # the SOA - the legend follows the number, not the word.
     view = a_view('CONVERGING', 1.0, tripped=True)
     view['ident']['margin'] = 0.86
     spent, _cls = rotor.headrooms(view)[0]
@@ -544,17 +455,7 @@ def test_the_soa_legend_reads_the_whole_soa(report):
 
 
 def test_two_headrooms_named_apart(report):
-    """The board's margin and the motor's are different facts.
-
-    TWO WAYS TO COOK A BENCH. The board's headroom is the worst of ten
-    nodes against ceilings the calibration record gave it, and the board
-    acts on that itself - it throttles, and at a ceiling it drops MOE.
-    The winding has no sensor and no ceiling the board was given: it is
-    `3 i^2 R` relaxed into a placeholder pair, drawn against this page's
-    own scale. One is a margin the board acts on and the other only the
-    operator can, which is why they are named apart rather than averaged
-    into one bar.
-    """
+    """The board's margin and the motor's are different facts."""
     sys.path.insert(0, HOST)
     from tools import show_rotor_observer as view
 
@@ -563,10 +464,9 @@ def test_two_headrooms_named_apart(report):
                  and len(set(view.HEADROOM_TITLES)) == 2,
                  str(view.HEADROOM_TITLES))
 
-    # A MOTOR AT THE SCALE'S FLOOR HAS ALL OF ITS MARGIN, a cooking one
-    # has none, and neither ever leaves the scale - a headroom below zero
-    # would draw a bar longer than its own track. The floor is -35 and
-    # the top 130 on the bench's word: one scale for every thermometer.
+    # A MOTOR AT THE SCALE'S FLOOR HAS ALL OF ITS MARGIN, a cooking one has
+    # none, and neither ever leaves the scale - a headroom below zero would
+    # draw a bar longer than its own track.
     for celsius, want in ((view.TEMP_FLOOR_C, 1.0), (view.TEMP_SCALE_C, 0.0),
                           (view.TEMP_SCALE_C + 80.0, 0.0)):
         got = view.motor_headroom_of(celsius)
@@ -581,11 +481,12 @@ def test_two_headrooms_named_apart(report):
 
 
 def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
-    """The thermal observer's spend is HEADROOM, its level one row of
-    `⣿` ending in an orange `⡇` or `⢸`, labelled `soak` - the bench's
-    word, twice: the box was BUDGET and the level `[⣿⣿⠒⠒] 42 %`; the
-    brackets went and three rows of braille came, and the answer was
-    "no, one row of ⣿, terminated with an orange ⢸ or ⡇"."""
+    """The thermal observer's spend is HEADROOM, its level one row of `⣿`
+    ending in an orange `⡇` or `⢸`, labelled `soak` - the bench's word,
+    twice: the box was BUDGET and the level `[⣿⣿⠒⠒] 42 %`; the brackets
+    went and three rows of braille came, and the answer was "no, one row
+    of ⣿, terminated with an orange ⢸ or ⡇".
+    """
     import re
     from rich.console import Console
 
@@ -641,14 +542,8 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
 
 def test_the_thermal_page_shows_its_evidence(report):
     """Under the board a bar of the span the model has earned - red to
-    yellow to green as it fills - with the innovation and the margin;
-    and SENSE one fact a row.
-
-    The bench, 2026-09-06: "a scale under the object, like the rotor
-    observer's, where one sees the innovation vary over the run cycle;
-    red to yellow to green", and "the boxes on the right are messy,
-    lots of text run together" - the SENSE rows had carried three facts
-    each at up to fifty-two cells into a forty-two-cell panel.
+    yellow to green as it fills - with the innovation and the margin; and
+    SENSE one fact a row.
     """
     import re
     from rich.console import Console
@@ -676,8 +571,8 @@ def test_the_thermal_page_shows_its_evidence(report):
 
     rows = page.evidence_rows(ident(0.8))
     said = visible(rows[1])
-    # THE BAR ALONE - the bench: "remove the text to the right of the
-    # scale, move it to HEADROOM"; its figures are `envelope_rows`.
+    # THE BAR ALONE - the bench: "remove the text to the right of the scale,
+    # move it to HEADROOM"; its figures are `envelope_rows`.
     report.check('two rows under the board: a blank, then TH OBS and the '
                  'bar alone - its figures are HEADROOM\'s',
                  len(rows) == 2 and rows[0] == ''
@@ -715,8 +610,8 @@ def test_the_thermal_page_shows_its_evidence(report):
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in visible(page.evidence_rows(None)[1]),
                  visible(page.evidence_rows(None)[1]))
-    # THE ROOM'S HINT, on the estimated room: the bench's emoji pairs,
-    # and the thermometer thinking while the innovation is large.
+    # THE ROOM'S HINT, on the estimated room: the bench's emoji pairs, and the
+    # thermometer thinking while the innovation is large.
     import unicodedata
 
     def at(room, innovation=0.1):
@@ -732,17 +627,17 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and page.room_hint(None) == '' and page.room_hint({}) == ''
                  and page.ROOM_HINTS['unsure'] == '🤒 🤔'
                  and all(' ' in pair for pair in page.ROOM_HINTS.values())
-                 # EVERY GLYPH WIDE ON ITS OWN, no variation selector: a
-                 # narrow character made emoji by one ran the row a cell
-                 # long and broke the frame beside it.
+                 # EVERY GLYPH WIDE ON ITS OWN, no variation selector: a narrow
+                 # character made emoji by one ran the row a cell long and
+                 # broke the frame beside it.
                  and all(len(pair) == 3 and all(
                      unicodedata.east_asian_width(ch) == 'W'
                      for ch in pair.replace(' ', ''))
                      for pair in page.ROOM_HINTS.values()),
                  ' '.join(page.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
-    # HYSTERESIS - the bench: "so the emoji do not flutter near the
-    # limits": a held word stands two kelvin past its threshold, and
-    # the thermometer stands until the innovation is under 0.2 K.
+    # HYSTERESIS - the bench: "so the emoji do not flutter near the limits": a
+    # held word stands two kelvin past its threshold, and the thermometer
+    # stands until the innovation is under 0.2 K.
     def held(room, word, innovation=0.1):
         return page.room_hint({'ambient': room, 'innovation_k': innovation},
                               held=word)
@@ -759,9 +654,9 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and held(20.0, 'unsure', 0.15) == 'mild'
                  and held(20.0, 'mild', 0.25) == 'mild',
                  ' '.join(held(c, 'cold') for c in (6.5, 7.5)))
-    # IN SENSE, beside the room - the bench: "maybe move the emojis to
-    # the SENSE block on the right, a bit more uniform" - after a row
-    # above the board, centred, in braille, and back again.
+    # IN SENSE, beside the room - the bench: "maybe move the emojis to the
+    # SENSE block on the right, a bit more uniform" - after a row above the
+    # board, centred, in braille, and back again.
     rows = page.ident_rows(ident(0.91))
     room = [value for label, value in rows if label == 'room'][0]
     report.check('and the hint sits in SENSE beside the room, the pair '
@@ -774,8 +669,8 @@ def test_the_thermal_page_shows_its_evidence(report):
     rows = page.ident_rows(ident(0.91))
     texts = [(str(label), value if isinstance(value, str) else value.plain)
              for label, value in rows]
-    # `sim`, not `truth` - the bench: only in simulated mode is the
-    # thermal situation known.
+    # `sim`, not `truth` - the bench: only in simulated mode is the thermal
+    # situation known.
     report.check('SENSE carries the identification one fact a row - model, '
                  'air, cap, room, the simulation in two and the load - none '
                  'wider than the panel',
@@ -793,8 +688,8 @@ def test_the_thermal_page_shows_its_evidence(report):
     console = Console(record=True, width=page.PANEL_W + 2,
                       force_terminal=True, color_system='truecolor',
                       theme=stage.THEME)
-    # THE MAP'S LETTERS EXPLAINED, a box of its own under SENSE, each row
-    # the mark's references off the pick and place and what they are.
+    # THE MAP'S LETTERS EXPLAINED, a box of its own under SENSE, each row the
+    # mark's references off the pick and place and what they are.
     from coaxial.thermalmap import MARKS
     rows = dict(page.map_rows())
     report.check('MAP says what every mark is - U, V, W, REG, MCU, HS, AFE '
@@ -806,8 +701,8 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and rows['U'].startswith('Q1U Q2U RU1 RU2 - FETs')
                  and 'hot swap' in rows['HS'] and 'STM32' in rows['MCU']
                  and rows['AFE'].startswith('OP1U..OP2W (6)')
-                 # three cells of label, a space, the value, inside the
-                 # panel's frame and padding
+                 # three cells of label, a space, the value, inside the panel's
+                 # frame and padding
                  and all(len(value) <= page.PANEL_W - 8
                          for value in rows.values()),
                  rows)
@@ -853,13 +748,9 @@ def test_the_attitude_caps_its_frame_rate(report):
 
 def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     """The thermal observer's board is braille: a blue-noise stipple denser
-    where it is hotter, in the ramp blended to 24 bits, the rim a dot wide,
-    and the parts that make the heat drawn on it as blocks with edges and a
-    label - placed from the pick and place. On the bench's word, in turn:
-    "the thermal observer's style to braille too, more anti-aliased",
-    "clearer blocks, or with edges", "the temperature scale in braille
-    too", "not black at -20, a shade of blue", REG and NTC. It was half
-    blocks, a nearest palette stop a cell, and a solid bar.
+    where it is hotter, in the ramp blended to 24 bits, the rim a dot
+    wide, and the parts that make the heat drawn on it as blocks with
+    edges and a label - placed from the pick and place.
     """
     import re
     from coaxial import ansi, thermalmap
@@ -922,32 +813,27 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     report.check('the frames and the labels wear the mark ink',
                  '38;5;%dm' % ansi.WHITE in said)
 
-    # FRAMES, NOT AREAS: a marked cell draws the line's dots alone, so
-    # no marked cell is solid and the marks are a thin share of the
-    # board - the bench's word against the blocks that came before.
+    # FRAMES, NOT AREAS: a marked cell draws the line's dots alone, so no
+    # marked cell is solid and the marks are a thin share of the board - the
+    # bench's word against the blocks that came before.
     white = ansi.rgb(ansi.WHITE)
     lit = [(ch, fg) for row in ansi.parse(said) for ch, fg, _bg in row
            if 0x2800 <= ord(ch) < 0x2900]
     marked = [ch for ch, fg in lit if fg == white]
-    # A solid marked cell is two frames' sides sharing a cell column -
-    # REG's right and the MCU's left are a millimetre apart - and
-    # nothing else: a handful, never an area.
+    # A solid marked cell is two frames' sides sharing a cell column - REG's
+    # right and the MCU's left are a millimetre apart - and nothing else: a
+    # handful, never an area.
     solid = sum(dots(ch) == 8 for ch in marked)
     report.check('a marked cell is a line, never a solid block',
                  marked and solid <= 0.02 * len(marked),
                  '%d solid of %d' % (solid, len(marked)))
-    # A quarter: the rim alone is two fifths of the marks, and eight
-    # frames' perimeters the rest - lines, however many of them.
+    # A quarter: the rim alone is two fifths of the marks, and eight frames'
+    # perimeters the rest - lines, however many of them.
     report.check('and the frames are a thin share of the board',
                  0 < len(marked) < 0.25 * len(lit),
                  '%d marked of %d lit' % (len(marked), len(lit)))
-    # RIGHT ANGLES: the frames are box-drawing in braille, the bench's
-    # own glyphs - corners, and straight runs between them. A corner is
-    # one of two glyphs since 2026-09-12: the side runs in the lane its
-    # millimetres fell in, and the lines meet it there - `⡖` or `⢰` at
-    # the top left, and so round - where before the lines ran one dot
-    # past an inner-lane side (`test_every_frame_corner_on_the_map_is_a_
-    # right_angle` judges each one).
+    # RIGHT ANGLES: the frames are box-drawing in braille, the bench's own
+    # glyphs - corners, and straight runs between them.
     corners = {pair: sum(marked.count(ch) for ch in pair)
                for pair in ('⡖⢰', '⢲⡆', '⠧⠸', '⠼⠇')}
     runs = {ch: marked.count(ch) for ch in '⠒⠤⡇⢸'}
@@ -981,27 +867,13 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
 def test_the_demo_actually_loads_the_machine(report):
     """Two hundred frames of the stand-in warm the winding and spend the
     switches' margin - the demo puts a load on, and it stays on.
-
-    THE ONE THAT WOULD HAVE CAUGHT IT. `main` was split and the demo's
-    defaults - `args.b`, the friction the model turns against - landed
-    after the preflight that hands the model its parameters. The model
-    ran unloaded, drew no current and warmed nothing: every thermometer
-    sat at its floor and the bench reported them dead, twice, while the
-    thermal model was measured identical at three revisions. Measured
-    broken at 600 frames: winding 22.9 C, SWITCH SOA 20 %; working at
-    200: 64.2 C and 32.5 %; at 600: 99.2 C and 50.8 %.
-
-    Two hundred frames rather than six hundred, because this is the
-    slowest check in the suite and the broken case is flat from the
-    first frame.
     """
     import re
 
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
-    # No `-P`: it arrived in Python 3.11, and on the 3.10 runner CI
-    # declares as its floor it is "unknown option", exit 2 - four red
-    # runs before anyone read the tail. The view puts its own directory
-    # on sys.path itself; nothing in tools/ shadows a module it needs.
+    # No `-P`: it arrived in Python 3.11, and on the 3.10 runner CI declares as
+    # its floor it is "unknown option", exit 2 - four red runs before anyone
+    # read the tail.
     done = subprocess.run(
         [sys.executable, '-X', 'utf8',
          os.path.join('tools', 'show_rotor_observer.py'),
@@ -1024,16 +896,7 @@ def test_the_demo_actually_loads_the_machine(report):
 
 
 def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
-    """The kW bar is a power law pinned at 500 W, full at 2 kW, red past.
-
-    LOGARITHMIC WAS TOO MUCH THE OTHER WAY: decades from one watt put
-    97 W at 60 % of the face and 500 W at 82 %, so the stage's whole
-    working range lived in the top fifth and the run up to 2 kW was a
-    sliver. The bench asked to see small draws at the bottom, half the
-    bar at about 500 W, room up to 2 kW, and deep red beyond. 500 of
-    2000 makes the exponent one half: 20 W is a tenth, 100 W is 22 %,
-    500 W half, 2 kW full.
-    """
+    """The kW bar is a power law pinned at 500 W, full at 2 kW, red past."""
     sys.path.insert(0, HOST)
     from coaxial import machine
     from tools import show_rotor_observer as view
@@ -1055,16 +918,7 @@ def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
 
 
 def test_the_level_is_drawn_at_the_dot(report):
-    """The top of a bar's mercury is `⣀`, `⣤`, `⣶`, `⣿` - one dot a step.
-
-    IT WAS A WHOLE CELL WHATEVER THE LEVEL. The cell the mercury ended
-    in took track dots above the level, and a cell is one colour with
-    the mercury's class winning it, so those dots were coloured mercury
-    and the top of every bar read `⣿`. A tube that fills in cell steps
-    barely moves - which is what a bench watching a board warm up saw.
-    The end cell holds mercury and nothing else now, so a level that
-    moves one dot is seen to move.
-    """
+    """The top of a bar's mercury is `⣀`, `⣤`, `⣶`, `⣿` - one dot a step."""
     from coaxial import machine
 
     track = chr(0x28D2)
@@ -1086,9 +940,7 @@ def test_the_level_is_drawn_at_the_dot(report):
     report.check('two dots a step - both lanes - and never a whole cell',
                  all(b - a == 2 for a, b in zip(dots, dots[1:])), str(dots))
 
-    # AND ALONG THE FOOT, one lane at a time. By OWNER, not by glyph: the
-    # track is the gauge's own height now, `⠇` a cell, which is also
-    # what a level ending on one lane looks like.
+    # AND ALONG THE FOOT, one lane at a time.
     ends = []
     for k in range(1, 5):
         share = (k + 0.5) / 60.0
@@ -1107,21 +959,8 @@ def test_the_level_is_drawn_at_the_dot(report):
 
 def test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most(
         report):
-    """The air gap is less than a cell tall, and that is a trade the
-    drawing makes on purpose.
-
-    A CELL IS EIGHT DOTS AND ONE COLOUR. The gap between magnet band and
-    tooth tip is 0.08 of the radius - 2.6 dots against a cell four tall -
-    so at twelve and six o'clock one cell holds a magnet's inner edge and
-    a tooth's tip. Three answers were built and each was seen on the
-    bench: the gap held open to a cell's diagonal (no shared cell, and
-    the teeth 1.9 dots short - "the slots are too small"); the tooth
-    given the cell (green on the band); the magnet given the cell (amber
-    on a tooth tip). The teeth keep their full fraction and the cell goes
-    to whichever has more of it, which is the magnet in every one of the
-    240 such cells over 48 poses. A colour a dot wide on a tooth's tip at
-    two angles is the fault the bench can live with; short slots were
-    not.
+    """The air gap is less than a cell tall, and that is a trade the drawing
+    makes on purpose.
     """
     from coaxial import machine
 
@@ -1153,24 +992,7 @@ def test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most(
 
 
 def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
-    """A ring through a cell full of tooth or magnet keeps its colour.
-
-    A CELL IS EIGHT DOTS AND ONE COLOUR, and two rules were tried before
-    this one, each wrong in one place. The highest RANK that had lit any
-    dot: a tooth outranks the yoke, so the yoke came out chopped into
-    phase-coloured segments that changed with the drive. The MOST DOTS:
-    mended the yoke and broke the can - the magnet band's outer edge and
-    the can's inner ring are 0.10 of the radius apart, 3.3 dots against a
-    cell four tall, so at twelve o'clock the cell they share is mostly
-    magnet and the ring went amber in three places, ringed in red on the
-    bench.
-
-    A line that loses its cell is a broken line; an area that loses one
-    is a dot short at its edge. So a line takes the cell. Measured: the
-    yoke ring wholly its own colour at every angle and drive (0.80 of it
-    under the vote), and no can-ring cell shared with a magnet lost to
-    it (three under the vote).
-    """
+    """A ring through a cell full of tooth or magnet keeps its colour."""
     import math
 
     from coaxial import machine
@@ -1204,8 +1026,8 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
     report.check('and no can-ring cell shared with a magnet is lost to it',
                  lost == 0, '%d cells' % lost)
 
-    # THE RULE ITSELF, on one cell: a line with one dot beats an area
-    # with seven; two lines settle by dots; two areas settle by dots.
+    # THE RULE ITSELF, on one cell: a line with one dot beats an area with
+    # seven; two lines settle by dots; two areas settle by dots.
     frame = machine.Frame(1, 1)
     for k in range(7):
         frame.put(k % 2, k // 2, machine.NORTH)
@@ -1219,26 +1041,11 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
     report.check('and between two areas the most dots win, not the rank',
                  frame.owner[0][0] == machine.TOOTH_U)
     # NOT THE TRUTH STROKE, which wins outright - `Frame.put` has why.
-    # NOT THE SOUTH ARC: drawn thin, but a magnet. Counted as a line its
-    # fringe took 46 of 240 cells it shared with tooth tips - the rotor's
-    # colour on the stator by another door.
     report.check('the lines are the rings - not the arc, not the stroke',
                  machine.LINES == frozenset((machine.BORE, machine.YOKE,
                                              machine.CAN)))
 
-    # THE SHAFT SENSOR'S STROKE IS DRAWN THROUGH THE MAGNET BAND. It was
-    # a tick in the air gap, and the air gap is the stator's side of the
-    # picture: a white mark at the slot mouths where the teeth show their
-    # current, reported as a second indicator drawn across the
-    # magnetisation - twice trimmed, twice still there. Outside the rim
-    # it reached the gutter at three and nine o'clock and found no empty
-    # cell at some angles. The band has room, is the rotor, and is what
-    # the sensor's angle is compared with; the air gap keeps every tooth
-    # a cell's diagonal away, and the stroke owns every cell it is in or
-    # it is magnet-coloured and gone. Measured over 48 poses: no cell
-    # shared with a tooth, none in a gutter, at least one cell its own
-    # in every pose, and at most one cell of the can's ring taken - the
-    # angle at which it reads as reaching the rim.
+    # THE SHAFT SENSOR'S STROKE IS DRAWN THROUGH THE MAGNET BAND.
     teeth = {machine.TOOTH_U, machine.TOOTH_V, machine.TOOTH_W}
     gutter = set(range(0, 8)) | set(range(38, 46))
     took = in_gutter = 0
@@ -1264,10 +1071,10 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
                                   or machine.YOKE in tally)
             own_min = min(own_min, own)
             ring_max = max(ring_max, rings)
-    # A cell's diagonal still bridges the band's inner end and a tooth's
-    # tip at some angles, so the stroke may SHARE a cell with a tooth; in
-    # that cell it is not a candidate, because a white cell on a tooth is
-    # a mark on the stator.
+    # A cell's diagonal still bridges the band's inner end and a tooth's tip at
+    # some angles, so the stroke may SHARE a cell with a tooth; in that cell it
+    # is not a candidate, because a white cell on a tooth is a mark on the
+    # stator.
     report.check('the truth stroke takes no cell a tooth is in',
                  took == 0, '%d cells' % took)
     report.check('and never lands in a gutter', in_gutter == 0,
@@ -1317,8 +1124,8 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
                      not bad,
                      ' '.join('%s U+%04X' % (c, ord(c)) for c in bad))
 
-    # AND THE SUBSTITUTES ARE THE SAME MARKS, not near misses: a small
-    # triangle points the same way as its big twin.
+    # AND THE SUBSTITUTES ARE THE SAME MARKS, not near misses: a small triangle
+    # points the same way as its big twin.
     report.check('the arrowheads are the small triangles',
                  (view.AIM_LEFT, view.AIM_RIGHT) == (chr(0x25C2), chr(0x25B8)),
                  view.AIM_LEFT + view.AIM_RIGHT)
@@ -1330,21 +1137,7 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
 
 
 def test_the_flat_drawings_spend_the_block(report):
-    """The 2D drawings place their edges by coverage, not by "any corner".
-
-    A DOT IS ONE BIT AND `SUBDOT` SAMPLES FOUR CORNERS. Read as "any", a
-    shape covering a quarter of a dot lit it whole - so every arc came
-    out a dot fatter than it is and the can's rim stepped against the
-    magnets inside it. Read as COVERAGE the arc lands where it is, and
-    the grading a braille cell can show falls out of it for free: an arc
-    crossing the bottom of a cell draws the bottom row, the lower half
-    two rows, and so on up.
-
-    AN ORDERED DITHER ON THE FRINGE WAS BUILT AND TAKEN OUT - it is fixed
-    in screen space, so a shape moving across it has its fringe pop on
-    and off in a standing pattern, and on a still picture it only made
-    the lines a dot fatter here and there.
-    """
+    """The 2D drawings place their edges by coverage, not by "any corner"."""
     from coaxial import dial, machine
     from coaxial.graphics import raster
 
@@ -1359,9 +1152,9 @@ def test_the_flat_drawings_spend_the_block(report):
                  not any(raster.covered(1, of, x, y)
                          for x in range(4) for y in range(4)))
 
-    # AND THE DRAWINGS ARE RICHER FOR IT: the rotor and the protractor
-    # both raster through the same rule, so both wear patterns a fringe
-    # rounded up to solid could never produce.
+    # AND THE DRAWINGS ARE RICHER FOR IT: the rotor and the protractor both
+    # raster through the same rule, so both wear patterns a fringe rounded up
+    # to solid could never produce.
     art = machine.render(0.0, 24, 28, 46, 18)
     face = dial.render(137.0, 60, 20)
     for name, drawn in (('the rotor', art), ('the protractor', face)):
@@ -1374,16 +1167,7 @@ def test_the_flat_drawings_spend_the_block(report):
 
 
 def test_every_gauge_shows_its_own_scale(report):
-    """The dimmed track runs the whole of every bar, at its own width.
-
-    A BAR WITH NOTHING OVER IT SAYS HOW HOT A NODE IS; a bar in a tube
-    says how hot it is OF WHAT IT MAY BE, which is the only version of
-    the question a ceiling makes sense of. Two ways it was not saying it:
-    the tubes drew their track in ONE lane, so the empty half of a
-    thermometer was narrower than the mercury under it, and the flat
-    gauges put a dot every FOURTH one, which is a dash in every other
-    cell. Both read as some bars having a scale and some not.
-    """
+    """The dimmed track runs the whole of every bar, at its own width."""
     from coaxial import machine
 
     n = 4
@@ -1394,8 +1178,7 @@ def test_every_gauge_shows_its_own_scale(report):
     rows = art.split(chr(10))
     left, right = machine.gutters(46, 18, n, n)
 
-    # EVERY TUBE, EVERY ROW OF IT. Empty bars, so what is drawn is track
-    # and nothing else.
+    # EVERY TUBE, EVERY ROW OF IT.
     seen = set()
     for row in rows[1:-2]:
         for col in list(left) + list(right):
@@ -1410,8 +1193,8 @@ def test_every_gauge_shows_its_own_scale(report):
                      or ord(c) - 0x2800 & 0x20 or ord(c) - 0x2800 & 0x80
                      for c in seen), ''.join(sorted(seen)))
 
-    # AND THE FLAT GAUGES ALONG THE FOOT, one dot a cell rather than one
-    # every other cell.
+    # AND THE FLAT GAUGES ALONG THE FOOT, one dot a cell rather than one every
+    # other cell.
     first, last = machine.span(46, 18, n, n)
     floor = rows[-1]
     drawn = [floor[col] for col in range(first, last + 1)]
@@ -1423,14 +1206,7 @@ def test_every_gauge_shows_its_own_scale(report):
 
 
 def test_the_bead_is_round_at_every_angle(report):
-    """The pointer is `POINTER_GLYPH`, and it rides the rim.
-
-    THE MARK IS SETTLED - `machine._bead` has why, what a glyph costs,
-    and the four dot answers that were built and not kept. What this
-    holds is the two things that were actually broken: it must be ONE
-    mark drawn at every angle, and it must be PLACED in the same space
-    the machine is drawn in.
-    """
+    """The pointer is `POINTER_GLYPH`, and it rides the rim."""
     from coaxial import machine
 
     for aspect in (2.0, 2.4):
@@ -1453,11 +1229,7 @@ def test_the_bead_is_round_at_every_angle(report):
         report.check('and it travels rather than sitting in a few seats',
                      len(seats) > 60, '%d distinct cells' % len(seats))
 
-    # IT RIDES THE RIM IN THE DRAWING'S OWN SPACE. The radii are in
-    # x-dots and `_body` scales y by `stretch`, so a bead placed with
-    # plain trigonometry rode the rim only where a dot happened to be
-    # square - on a terminal whose cell is not two-by-one it sat outside
-    # the periphery, which is where the bench found it.
+    # IT RIDES THE RIM IN THE DRAWING'S OWN SPACE.
     for aspect in (2.0, 2.4):
         stretch = aspect / 4.0 * 2.0
         cx, r, _, _ = machine.layout(46, 18, 0, 0, rows=18)
@@ -1474,9 +1246,7 @@ def test_the_bead_is_round_at_every_angle(report):
                      '%.3f to %.3f against a rim at %.3f'
                      % (min(out), max(out), r.can))
 
-    # THE NEAREST CELL CENTRE, not the one the point fell inside. A cell
-    # is two dots across by four down, so truncating quantises the path
-    # twice as coarsely down as across - an egg, not a circle.
+    # THE NEAREST CELL CENTRE, not the one the point fell inside.
     cx, r, _, _ = machine.layout(46, 18, 0, 0, rows=18)
     cy = 18 * 4 / 2.0 - 0.5
     seat = r.can + machine.POINTER_SEAT
@@ -1498,16 +1268,7 @@ def test_the_bead_is_round_at_every_angle(report):
 
 
 def test_the_terminal_is_asked_how_tall_a_cell_is(report):
-    """The cell's shape is measured, not assumed.
-
-    THE ONE NUMBER A ROUND DRAWING NEEDS AND NOBODY CAN LOOK UP. The
-    renderers work in square pixels and fold the cell in at the end, so
-    getting it wrong does not blur the picture - it stretches it, and a
-    can drawn wide of round reads as a rotor that is turned when it is
-    not. Measured here: at 2.0 the can comes out 47.0 cell-widths across
-    and 46.5 down, so the GEOMETRY is right and an oval on screen is the
-    font, which is why it is worth asking.
-    """
+    """The cell's shape is measured, not assumed."""
     import screen
 
     report.check('a terminal 1200 by 800 pixels over 100 by 40 cells has a '
@@ -1526,15 +1287,7 @@ def test_the_terminal_is_asked_how_tall_a_cell_is(report):
 
 
 def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
-    """The alarm is the envelope acting, not a level this page picked.
-
-    A red bar cannot get redder, so a stage being HELD BACK by its own
-    envelope looked exactly like one sitting near a limit. The pulse is
-    the difference. What it keys on is `throttling` and `tripped`, which
-    the board reports out of the ceilings its record gave it - the page
-    inventing a threshold to flash at would be the page judging a
-    reading (invariant 10).
-    """
+    """The alarm is the envelope acting, not a level this page picked."""
     sys.path.insert(0, HOST)
     from tools import show_rotor_observer as view
 
@@ -1556,15 +1309,9 @@ def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
 
 
 def test_every_page_scrolls_its_boxes(report):
-    """The instrument column pages on every view: the arrows move it a
-    box, a click on its markers and a drag over it too, and the key bar
-    says SCROLL only while there is somewhere to go.
-
-    IT WAS THE ROTOR OBSERVER'S ALONE - seven boxes did not fit and it
-    grew a window, a click and a drag of its own - and the bench asked
-    for the arrows on every page. The paging lives in the template now,
-    on the console every view draws through, so a view gets it by
-    drawing.
+    """The instrument column pages on every view: the arrows move it a box,
+    a click on its markers and a drag over it too, and the key bar says
+    SCROLL only while there is somewhere to go.
     """
     sys.path.insert(0, HOST)
     import stage
@@ -1624,15 +1371,8 @@ def test_every_page_scrolls_its_boxes(report):
 
 
 def test_the_dial_is_round_on_this_terminal(report):
-    """The shaft angle's face takes the measured cell aspect, and is a
-    notch smaller than it was.
-
-    THE SECOND OVAL. The rotor observer's can was drawn at an assumed
-    2.0 cell and came out an ellipse on a terminal whose cell is taller;
-    it asks the terminal now, and the shaft angle's face - the same
-    geometry, the same fault - drew on at 2.0 until the bench saw it
-    flattened too. One probe (`screen.aspect_of`) serves both, and the
-    box says whether it measured.
+    """The shaft angle's face takes the measured cell aspect, and is a notch
+    smaller than it was.
     """
     sys.path.insert(0, HOST)
     import screen
@@ -1660,11 +1400,9 @@ def test_the_dial_is_round_on_this_terminal(report):
 
 
 def test_the_face_wears_its_two_scales(report):
-    """SHAFT ANGLE's die temperature and field stand either side of the
-    face as tubes on their own ranges - the scales beside it the bench
-    asked for, die temperature and field strength in gauss, 2026-09-07.
-    Pure `dial.scale`,
-    so a number in and lines out; the page composes them with `beside`.
+    """SHAFT ANGLE's die temperature and field stand either side of the face
+    as tubes on their own ranges - the scales beside it the bench asked
+    for, die temperature and field strength in gauss, 2026-09-07.
     """
     sys.path.insert(0, HOST)
     from coaxial import ansi, dial
@@ -1762,16 +1500,8 @@ def ansi_plain(text):
 
 def test_the_bead_trails_its_speed(report):
     """The wake behind the bead: its length is the speed, its side the
-    direction, and it fades from the bead's orange into the south
-    pole's brown.
-
-    A bead alone says where the can is, and a bench watching a
-    sensorless start could not tell from it which way or how fast the
-    can turned - a mark that moves a cell a frame looks the same
-    clockwise or counter. The wake is TRAIL_S of travel on the rim, on
-    the side the bead came from, capped so a fast can does not wear a
-    ring; and the bead wears the palette's orange like everything else
-    on these pages that is there to be found.
+    direction, and it fades from the bead's orange into the south pole's
+    brown.
     """
     import re
 
@@ -1814,11 +1544,8 @@ def test_the_bead_trails_its_speed(report):
 
 
 def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
-    """The two gutter tubes read two different things: the worst of the
-    six switch nodes, and the winding. SWITCH SOA read the board's worst
-    node - the copper patch under a leg, or the winding once that is the
-    hottest against its ceiling - and the bench saw the two tubes at one
-    number: the same value on MOTOR SOA and SWITCH SOA (2026-09-08).
+    """The two gutter tubes read two different things: the worst of the six
+    switch nodes, and the winding.
     """
     sys.path.insert(0, HOST)
     from tools import show_rotor_observer as view
@@ -1847,16 +1574,7 @@ def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
 
 
 def test_every_frame_corner_on_the_map_is_a_right_angle(report):
-    """A frame's top and bottom lines start AT the side's lane. A side
-    that fell in the cell's inner lane had the lines run one dot past
-    it, and the corner read as a foot sticking out - `⠼` where `⠸` was
-    meant: 63 of 142 corners over five sizes before the fix (bench,
-    2026-09-12: the regions' corners on the thermal observer).
-    Judged against a literal table of the eight right-angle glyphs, one
-    per corner and lane, on every mark at every size the page draws;
-    corners the rim runs through or that lie off the board are not
-    judged, since the frame stops at the rim by design.
-    """
+    """A frame's top and bottom lines start AT the side's lane."""
     from coaxial import thermalmap as tm
 
     # side, edge, the lane the side runs down -> the corner cell's glyph.
@@ -1912,13 +1630,12 @@ def test_every_frame_corner_on_the_map_is_a_right_angle(report):
 def test_the_foot_says_trip_while_the_cap_holds(report):
     """`TRIP 72%` in the trip's red while the trip cap holds the margin
     UNDER THE FLOOR, whatever the model's state - the bench seeing STBL
-    at 70 % of SOA (2026-09-08), a number no state can
-    give; the state's own word with the percent in force once the cap is
-    over the floor - the bench's point that it must let go of TRIP once
-    over 80 %, its line being `WINDING 97.7 C TH OBS TRIP 89%` (the same
-    day);
-    and the state's word and the model's number once the cap has
-    recovered past the model.
+    at 70 % of SOA (2026-09-08), a number no state can give; the state's
+    own word with the percent in force once the cap is over the floor -
+    the bench's point that it must let go of TRIP once over 80 %, its
+    line being `WINDING 97.7 C TH OBS TRIP 89%` (the same day); and the
+    state's word and the model's number once the cap has recovered past
+    the model.
     """
     sys.path.insert(0, HOST)
     from coaxial import machine
@@ -1961,14 +1678,8 @@ def test_the_foot_says_trip_while_the_cap_holds(report):
 
 
 def test_the_mode_says_whether_the_board_holds_it_back(report):
-    """`HOLD (NORM)`, `SENSORLESS (THR)`: the envelope's state beside the mode.
-
-    IT SAID `RUNNING SENSORLESS`, and whether the board was clamping the
-    current sat three boxes down as a percentage of the clamp. The bench
-    asked for both in one glance: the mode, then NORM while the board
-    drives what it is asked and THR - in a red darker than the trip's -
-    while the envelope holds it back. On the board's own verdict, the
-    same one the gauge pulses on.
+    """`HOLD (NORM)`, `SENSORLESS (THR)`: the envelope's state beside the
+    mode.
     """
     sys.path.insert(0, HOST)
     from rich.text import Text
@@ -1999,8 +1710,8 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
                  said('hold', {'throttling': False, 'derate': 1.0})[0]
                  == 'HOLD (NORM)')
 
-    # THE RED IS A DARKER ONE: in the 6x6x6 cube, less red and no green
-    # or blue - not the trip's 196, not the pulse's 210.
+    # THE RED IS A DARKER ONE: in the 6x6x6 cube, less red and no green or blue
+    # - not the trip's 196, not the pulse's 210.
     def cube(index):
         i = index - 16
         return i // 36, i // 6 % 6, i % 6
@@ -2018,10 +1729,6 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
 def test_a_frame_rasterises_as_the_terminal_draws_it(report):
     """`ansi.image` draws a coloured frame cell by cell, the way the bench's
     terminal shows it: the notebooks' pictures, and `tools/ansi2png.py`.
-
-    The parse and the drawing are one code. The tool carried its own copy
-    of both, so a picture a notebook showed and one the tool rasterised
-    could have been two drawings of the same frame.
     """
     sys.path.insert(0, HOST)
     from coaxial import ansi
@@ -2057,18 +1764,8 @@ def test_a_frame_rasterises_as_the_terminal_draws_it(report):
 
 
 def test_the_marquee_decodes_the_art_itself(report):
-    """The viewport's art reaches rich as ready Segments, and the bytes
-    on the console are the ones Text.from_ansi produced.
-
-    Measured on the threadripper 2026-09-22: decoding the attitude
-    page's forty lines with Text.from_ansi and letting rich re-sort
-    their ~700 spans in every pass was 16 of the ~30 ms a moving frame
-    spent after the renderer; the Marquee splits the SGR codes itself
-    now. What this holds: every colour form the tree's art carries -
-    24-bit, palette, the sixteen, a background, a default - renders to
-    the same bytes as the Text path, a line with an escape the Marquee
-    does not read still takes that path, and a crop lands on the same
-    cells.
+    """The viewport's art reaches rich as ready Segments, and the bytes on
+    the console are the ones Text.from_ansi produced.
     """
     import io
     import stage
@@ -2143,14 +1840,9 @@ def test_the_marquee_decodes_the_art_itself(report):
 
 
 def test_the_preload_is_the_first_inquiry(report):
-    """The front page fetches the model's decimates behind itself into
-    one pickle under the user's local application data, and the
-    readout's first inquiry says what is being loaded and the room it
-    has. Held here without building anything: a preload state given
-    to the pages comes first and carries its status; a bundle saved to
-    a temporary directory loads back when its stamp is the model's and
-    not when the stamp differs; and the machine's room answers in
-    words or with nothing to refuse.
+    """The front page fetches the model's decimates behind itself into one
+    pickle under the user's local application data, and the readout's
+    first inquiry says what is being loaded and the room it has.
     """
     import tempfile
     import readout
@@ -2201,18 +1893,10 @@ def test_the_preload_is_the_first_inquiry(report):
 
 
 def test_the_readout_prints_what_the_bus_said(report):
-    """The front page's lower box: the board's identity and fitment off
-    the bus, the host's provenance as host text, typed in, held,
-    decayed and cycled - a late-seventies console's register in the
-    tree's palette, without its lines: the bench struck those as silly.
-
-    What this holds: every line fits the box; the identity page carries
-    0x41's fields and the fitment page every part the bus listed, and
-    an identity with NO parts prints no part - nothing here names one;
-    the provenance page names the dialogue with Claude and the local
-    LLM over MCP; the motion types, holds, decays and moves to the next
-    inquiry on a scripted clock, and a mid-typing frame ends on the
-    cursor.
+    """The front page's lower box: the board's identity and fitment off the
+    bus, the host's provenance as host text, typed in, held, decayed and
+    cycled - a late-seventies console's register in the tree's palette,
+    without its lines: the bench struck those as silly.
     """
     import readout
 

@@ -1,160 +1,44 @@
 ﻿<#
 .SYNOPSIS
     Sets up a machine to build, flash and drive the coaxial_63100 board.
-
-        powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check
-        powershell -ExecutionPolicy Bypass -File .\setup.ps1
-
 .DESCRIPTION
-    Run -Check first. It changes nothing and prints what is present, what is
-    missing and what each missing thing will cost to fix, which is the question
-    you actually have on a fresh machine.
-
-    What this project needs, and where each part comes from:
-
-      Python                             python.org, per-user installer
-      git and VS Code                    winget
-      six python packages               host/requirements.txt, via pip
-      the notebooks' kernel             registered on that python by
-                                        host/tools/make_notebooks.py
-      ARM gcc, cmake, ninja             STM32 "bundles", fetched by cube.exe
-      STM32_Programmer_CLI             same
-      STM32CubeMX                       same - the stm32cubemx-application bundle
-      ST-Link gdbserver, server, driver same
-      cube-cmake                        the STM32 VS Code extension
-      ollama and one model              winget or ollama.com/install.ps1,
-                                        then `ollama pull`
-      the VS Code extensions            code --install-extension, over the ids
-                                        in .vscode/extensions.json - that file
-                                        is the list, read rather than repeated
-      STM32Cube FW_H7                   st.com, and only for CubeMX. The build
-                                        has drivers/ in the repository.
-      STM32CubeIDE                      st.com - optional, not part of this
-                                        project's own workflow (that is VS
-                                        Code); offered for whoever wants it.
-
-    The ST half used to be the awkward half. ST publishes nothing to winget and
-    the installers on st.com sit behind a login and a click-through licence, so
-    for a while the honest answer was "open VS Code once and let its bundle
-    manager download the toolchain". It is not any more. The STM32 VS Code
-    extension ships `cube.exe`, and
-
-        cube bundle install --yes gnu-tools-for-stm32 programmer ...
-
-    pulls exactly the same bundles from developer.st.com with no account, no
-    browser and no click. That is what this script drives now, and it is why a
-    fresh machine no longer needs a human in the middle of the toolchain
-    install. The one thing that still has to arrive first is the extension
-    itself, which `code --install-extension` handles.
-
-    The whole of it, on a machine with nothing but Windows and winget:
-
-        powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes -AllowScripts
-
-    Python arrives from its own python.org installer and VS Code through winget.
-    Both PATH edits only reach shells opened after they run - so on a bare
-    machine the first run installs those and asks to be run once more. The
-    second run is the one that finishes; every run after that reports 'nothing
-    outstanding' and changes nothing.
-
-    If you would rather not have VS Code in the loop, -WingetToolchain installs
-    cmake, ninja and Arm's own gcc from winget instead. The build works; the
-    programmer still has to come from ST by hand, and the note at the end says so
-    rather than leaving you to find out at flashing time.
-
-    Nothing here needs administrator rights except the winget installs, and
-    nothing is written to the system PATH. Per-shell PATH is env.ps1's job.
-
+    Run -Check first.
 .PARAMETER Check
-    Report only. No installs, no downloads, no writes.
-
+    Report only.
 .PARAMETER Yes
-    Do not ask before each install. Without it the script opens by asking once
-    whether to run unattended, so this switch is the way to answer that question
-    from a command line - in a scheduled run, or from another script.
-
+    Do not ask before each install.
 .PARAMETER Model
-    The ollama tag to pull. Left alone, the machine decides: cores, RAM and the
-    size of the graphics card are measured and the largest tools-capable model
-    that fits the card whole is chosen - see host/coaxial_ollama/capability.py,
-    or ask it yourself with
-
-        python -m coaxial_ollama.capability
-
-    Pass a tag to overrule that. It has to be a tools-capable one, because
-    everything in host/coaxial_ollama reaches the board through tool calls and
-    a model without them will describe a measurement instead of taking one.
-
+    The ollama tag to pull.
 .PARAMETER Prefer
-    What the automatic choice optimises for. 'speed' takes the largest model
-    that fits the graphics card whole. 'capability' allows a larger one to hang
-    half out of the card and run the rest on the CPU, which measured about five
-    times slower per token - worth it when the answer matters more than the
-    wait.
-
+    What the automatic choice optimises for.
 .PARAMETER SkipOllama
     Leave the model side alone - for a machine that only builds and flashes.
-    Skips the binary, the model pull and the VS Code extension alike.
-
 .PARAMETER SkipCubeMX
-    Do not install STM32CubeMX at all. The bundle is 308 MB down and 835 MB on
-    disk and nothing in the build needs it - only regenerating core/ from the
-    .ioc does. On a bench that never opens the .ioc, this is the switch that
-    saves the disk.
-
+    Do not install STM32CubeMX at all.
 .PARAMETER CubeMXInstaller
-    Run an STM32CubeMX installer that is already on disk, instead of taking the
-    bundle. This is the other end of the download page: the script opens
-    st.com's CubeMX page when CubeMX is absent and the bundle was not taken,
-    you download the installer, and this switch runs it on the next pass.
-
+    Run an STM32CubeMX installer that is already on disk, instead of taking
+    the bundle.
 .PARAMETER SkipCubeIDE
-    Do not look for or offer STM32CubeIDE at all. Nothing in this project uses
-    it - the documented workflow is VS Code plus cube-cmake - so this is purely
-    for whoever wants the Eclipse-based IDE on the machine as well.
-
+    Do not look for or offer STM32CubeIDE at all.
 .PARAMETER CubeIDEInstaller
-    Run an STM32CubeIDE installer that is already on disk. Like CubeMX, ST puts
-    this behind a login and a click-through licence on st.com, so there is no
-    unattended download route: the script opens the download page when
-    STM32CubeIDE is absent, you download the installer by hand, and this switch
-    runs it on the next pass.
-
+    Run an STM32CubeIDE installer that is already on disk.
 .PARAMETER SkipDriver
-    Do not touch the ST-Link USB driver. Installing it is the one step in this
-    script that needs administrator rights, so it is asked for on its own and
-    skipped outright here.
-
+    Do not touch the ST-Link USB driver.
 .PARAMETER SkipFirmware
-    Do not look for the STM32Cube FW_H7 package. Nothing in the build needs it -
-    drivers/ is in this repository - so a machine that only builds and flashes
-    can ignore it entirely.
-
+    Do not look for the STM32Cube FW_H7 package.
 .PARAMETER FirmwarePackage
-    A STM32Cube_FW_H7_Vx.y.z.zip, or an already unpacked copy of one, to install
-    into the CubeMX repository. This is the way in if you have the package from
-    somewhere other than st.com - a share, a memory stick, another bench - and
-    it is the only path here that needs no browser and no account.
-
+    A STM32Cube_FW_H7_Vx.y.z.zip, or an already unpacked copy of one, to
+    install into the CubeMX repository.
 .PARAMETER Repository
-    Where CubeMX keeps its firmware packages. Defaults to
-    %USERPROFILE%\STM32Cube\Repository, which is CubeMX's own default; pass this
-    if yours was moved.
-
+    Where CubeMX keeps its firmware packages.
 .PARAMETER WingetToolchain
-    Install cmake, ninja and arm-none-eabi-gcc from winget instead of relying on
-    the VS Code extension's bundles.
-
+    Install cmake, ninja and arm-none-eabi-gcc from winget instead of
+    relying on the VS Code extension's bundles.
 .PARAMETER PythonVersion
-    The CPython release to install from python.org when python is absent, e.g.
-    '3.13.1'. Left alone, the script asks python.org's own ftp index for the
-    newest 3.x release that ships a windows amd64 installer, so this only needs
-    setting to pin a specific version instead of the latest one.
-
+    The CPython release to install from python.org when python is absent,
+    e.g. '3.13.1'.
 .PARAMETER AllowScripts
-    Set the CurrentUser execution policy to RemoteSigned, so that `. .\env.ps1`
-    works in an ordinary shell afterwards. Off by default: it is a change to how
-    this account runs every script, not just this one, and it is your call.
+    Set the CurrentUser execution policy to RemoteSigned, so that `.
 #>
 [CmdletBinding()]
 param(
@@ -188,8 +72,6 @@ $script:Todo = @()
 $script:Optional = @()
 
 # The daemon settings, shared with board_chat.ps1 rather than written twice.
-# That file prints nothing and needs nothing in scope, which is what lets both
-# a launcher and an installer use it.
 . (Join-Path $PSScriptRoot 'host\board_chat\Tuning.ps1')
 
 # ---- reporting -------------------------------------------------------------
@@ -215,11 +97,13 @@ function Write-Item {
 }
 
 function Add-Todo {
-    <#  Something the operator still has to do. -Optional keeps it out of the
+    <#
+  Something the operator still has to do.
         numbered list and out of the exit code: STM32CubeIDE needs an st.com
         login and is not part of this project's workflow, and printing it as
         step 1 of "next" made a finished setup read as an unfinished one -
-        to a person, and to anything automating this.  #>
+        to a person, and to anything automating this.
+#>
     param([string]$Text, [switch]$Optional)
     if ($Optional) {
         $script:Optional += $Text
@@ -236,13 +120,17 @@ function Confirm-Step {
 }
 
 function Read-YesNo {
-    <#  y or n, and no on anything else - including no console at all.
-
-        Read-Host throws when stdin is at end of file, which is what a piped or
-        scheduled run looks like. Left unhandled that kills the script halfway
-        through, with some things installed and some not; caught, it is simply
-        the answer 'no', and the run finishes with the rest on the todo list.
-        A run that wants everything says so with -Yes.  #>
+    <#
+  y or n, and no on anything else - including no console at all.
+        Read-Host throws when stdin is at end of file, which is what a piped
+        or
+        scheduled run looks like.
+        through, with some things installed and some not; caught, it is
+        simply
+        the answer 'no', and the run finishes with the rest on the todo
+        list.
+        A run that wants everything says so with -Yes.
+#>
     param([string]$Prompt)
 
     try {
@@ -262,11 +150,13 @@ function Get-Tool {
 }
 
 function Invoke-Python {
-    <#  Run a snippet through a temp file rather than `python -c`.
-
-        Windows PowerShell 5.1 rewrites the quoting of arguments on their way to
+    <#
+  Run a snippet through a temp file rather than `python -c`.
+        Windows PowerShell 5.1 rewrites the quoting of arguments on their
+        way to
         a native executable, so a -c snippet containing quotes or a % format
-        arrives at the interpreter mangled. A file has no quoting to lose.  #>
+        arrives at the interpreter mangled.
+#>
     param([string]$Python, [string]$Code)
 
     $tmp = Join-Path $env:TEMP ('coaxial-probe-' + [guid]::NewGuid().ToString('N') + '.py')
@@ -279,14 +169,17 @@ function Invoke-Python {
 }
 
 function Install-WingetPackage {
-    <#  One winget install, with the three flags that make it non-interactive
+    <#
+  One winget install, with the three flags that make it non-interactive
         and the one exit code that is not a failure.
-
-        winget answers -1978335189 (0x8A15002B) for "already installed", which
+        winget answers -1978335189 (0x8A15002B) for "already installed",
+        which
         happens whenever a package is on the machine but its shim has not
-        reached this shell's PATH - the exact situation this script is in half
-        the time. Treating that as failure would send a working machine away
-        with a todo it does not need.  #>
+        reached this shell's PATH - the exact situation this script is in
+        half
+        the time.
+        with a todo it does not need.
+#>
     param([string]$Id, [string]$Why = '')
 
     if ($null -eq (Get-Tool 'winget')) {
@@ -305,31 +198,33 @@ function Install-WingetPackage {
 }
 
 function Update-WingetPackage {
-    <#  One winget upgrade, and the exit codes that mean "already newest".
-
+    <#
+  One winget upgrade, and the exit codes that mean "already newest".
         Installed is not the same as current, and for the editor the
         difference is real: the STM32 extension pack is version-matched to
         VS Code, and a bench two years behind on the editor gets extensions
         that decline to load rather than an error that says why.
-
         Two codes are a no-op rather than a failure, and they are the same
-        code twice. -1978335189 is UPDATE_NOT_APPLICABLE, which is what
-        $LASTEXITCODE holds inside this script; 43 is that number as anything
+        code twice.
+        $LASTEXITCODE holds inside this script; 43 is that number as
+        anything
         outside sees it, because a process exit code is truncated to its low
-        byte and 0x8A15002B ends in 0x2B. Both are checked so this reads the
+        byte and 0x8A15002B ends in 0x2B.
         same whether it is called here or from a wrapper.
-
-        Two situations answer with it, measured 2026-09-03: a package that is
-        already newest, and one winget did not install - VS Code on this bench
+        Two situations answer with it, measured 2026-09-03: a package that
+        is
+        already newest, and one winget did not install - VS Code on this
+        bench
         came from somewhere else, and `winget list --id
         Microsoft.VisualStudioCode --exact` prints "No installed package
-        found" and still exits 0, so the list is no use as a test. Neither is
-        a failure and neither belongs on the todo list: an editor winget does
+        found" and still exits 0, so the list is no use as a test.
+        a failure and neither belongs on the todo list: an editor winget
+        does
         not manage is one that updates itself.
-
         Anything else is reported and left on the todo list: an upgrade that
         half-ran is worth knowing about, and this script never has the
-        package's own updater's context for why it declined.  #>
+        package's own updater's context for why it declined.
+#>
     param([string]$Id, [string]$What, [string]$Why = '')
 
     if ($null -eq (Get-Tool 'winget')) { return $false }
@@ -354,10 +249,13 @@ function Update-WingetPackage {
 }
 
 function Find-Code {
-    <#  `code` is a .cmd shim, and the installer adds its directory to the user
-        PATH - which reaches shells opened afterwards, never this one. Look
-        where both the user and the machine installer put it before concluding
-        VS Code is absent.  #>
+    <#
+  `code` is a .cmd shim, and the installer adds its directory to the user
+        PATH - which reaches shells opened afterwards, never this one.
+        where both the user and the machine installer put it before
+        concluding
+        VS Code is absent.
+#>
     $found = Get-Tool 'code'
     if ($null -ne $found) { return $found }
 
@@ -376,41 +274,43 @@ function Find-Code {
 }
 
 function Test-PythonRuns {
-    <#  Does this python.exe start, and is it new enough to run host/ ?
-
+    <#
+  Does this python.exe start, and is it new enough to run host/ ?
         Answering to the name is not the same as being one, and this machine
         had both ways of failing at once (measured 2026-09-03):
-
-          the Store alias   %LOCALAPPDATA%\Microsoft\WindowsApps\python.exe is
-                            a zero-byte reparse point that prints "Python was
-                            not found" and exits 49. Get-Command returns it, so
+          the Store alias %LOCALAPPDATA%\Microsoft\WindowsApps\python.exe is
+                            a zero-byte reparse point that prints "Python
+                            was
+                            not found" and exits 49.
                             `Get-Tool 'python'` was satisfied, this script
-                            reported `ok python` with a blank version, and then
+                            reported `ok python` with a blank version, and
+                            then
                             everything downstream failed for its own
-                            apparent reason: pip, the suites, the model probe,
+                            apparent reason: pip, the suites, the model
+                            probe,
                             host gcc - which is asked of test_modbus_core.py
-                            --which-cc and so goes through python too - and the
-                            MCP server in .mcp.json. Five symptoms, one cause,
+                            --which-cc and so goes through python too - and
+                            the
+                            MCP server in .mcp.json.
                             and the report pointed at none of them.
-          an old one        Anaconda's 3.8 and Visual Studio's 3.6 were both on
-                            that machine. host/pyproject.toml is
+          an old one Anaconda's 3.8 and Visual Studio's 3.6 were both on
+                            that machine.
                             requires-python >= 3.10.
-
-        So run it and read the version back. A probe that spawns the thing is
-        worth its 40 ms here: everything after this point assumes it works.  #>
+        So run it and read the version back.
+        worth its 40 ms here: everything after this point assumes it works.
+#>
     param([string]$Exe)
 
     if ([string]::IsNullOrWhiteSpace($Exe)) { return $false }
     if (-not (Test-Path $Exe)) { return $false }
 
-    # The stub is zero bytes. Checking that first is not just faster - spawning
-    # it writes its own error into the middle of this script's report.
+    # The stub is zero bytes.
     $item = Get-Item $Exe -ErrorAction SilentlyContinue
     if (($null -ne $item) -and ($item.Length -eq 0)) { return $false }
 
     # --version rather than -c: PowerShell 5.1 rewrites the quoting of a -c
     # snippet on its way to a native executable, which is why Invoke-Python
-    # exists. There is nothing to quote here.
+    # exists.
     $line = ''
     try { $line = (& $Exe --version 2>$null | Select-Object -First 1) } catch { return $false }
     if ($line -notmatch '^Python\s+(\d+)\.(\d+)') { return $false }
@@ -422,12 +322,14 @@ function Test-PythonRuns {
 }
 
 function Get-CodeVersion {
-    <#  The editor's version and where it is, as one line for the report.
-
+    <#
+  The editor's version and where it is, as one line for the report.
         `code --version` prints three: the version, the commit and the
-        architecture. The first is the one worth reading, and a path with no
-        version beside it does not answer "is this bench current?" - which is
-        the question the upgrade step below exists for.  #>
+        architecture.
+        version beside it does not answer "is this bench current?" - which
+        is
+        the question the upgrade step below exists for.
+#>
     param([string]$Code)
 
     $version = ''
@@ -437,17 +339,20 @@ function Get-CodeVersion {
 }
 
 function Find-Python {
-    <#  python.exe, from a python.org per-user install.
-
-        The installer writes under %LOCALAPPDATA%\Programs\Python\PythonXXX and
+    <#
+  python.exe, from a python.org per-user install.
+        The installer writes under %LOCALAPPDATA%\Programs\Python\PythonXXX
+        and
         only adds itself to the *user* PATH - which, like every PATH edit in
-        this script, reaches shells opened after it and not this one. Look in
-        the well-known install directory before concluding python is absent, so
+        this script, reaches shells opened after it and not this one.
+        the well-known install directory before concluding python is absent,
+        so
         an install this same run just performed does not get reported as
         missing a moment later.
-
-        Every candidate is run before it is believed - see Test-PythonRuns for
-        what was on the bench machine that made that necessary.  #>
+        Every candidate is run before it is believed - see Test-PythonRuns
+        for
+        what was on the bench machine that made that necessary.
+#>
     $found = Get-Tool 'python'
     if (Test-PythonRuns $found) { return $found }
 
@@ -470,9 +375,7 @@ function Find-Python {
     }
 
     # Last, the launcher: it knows about installs this script did not make - an
-    # all-users one, or a path nobody would guess. Its list is ordered by its
-    # own preference rather than by version, so every line is tried and
-    # Test-PythonRuns decides. Paths with a space come back quoted.
+    # all-users one, or a path nobody would guess.
     $launcher = Get-Tool 'py'
     if ($null -ne $launcher) {
         $listed = @()
@@ -492,14 +395,18 @@ function Find-Python {
 }
 
 function Resolve-PythonVersion {
-    <#  The newest CPython release that ships a windows amd64 installer, asked
-        of python.org's own ftp index rather than pinned as a constant here -
-        the same reasoning as Resolve-Model: one source of truth, asked live,
+    <#
+  The newest CPython release that ships a windows amd64 installer, asked
+        of python.org's own ftp index rather than pinned as a constant here
+        -
+        the same reasoning as Resolve-Model: one source of truth, asked
+        live,
         rather than a version number that goes stale the day it is written.
-
         -PythonVersion overrides this outright, which is also the fallback
-        when the index cannot be reached at all - a bench with no internet to
-        python.org has nowhere else this number could come from.  #>
+        when the index cannot be reached at all - a bench with no internet
+        to
+        python.org has nowhere else this number could come from.
+#>
 
     if ($PythonVersion) { return $PythonVersion }
 
@@ -526,13 +433,15 @@ function Resolve-PythonVersion {
 }
 
 function Install-PythonFromOrg {
-    <#  Python, from python.org rather than winget.
-
+    <#
+  Python, from python.org rather than winget.
         A per-user install (InstallAllUsers=0) needs no administrator, which
         matters here because nothing else in this script does either.
         PrependPath=1 is what makes `python` resolve in shells opened after
-        this one; Include_test=0 skips the standard library test suite, which
-        this project never imports.  #>
+        this one; Include_test=0 skips the standard library test suite,
+        which
+        this project never imports.
+#>
 
     $version = Resolve-PythonVersion
     $url = "https://www.python.org/ftp/python/$version/python-$version-amd64.exe"
@@ -581,10 +490,14 @@ function Install-PythonFromOrg {
 }
 
 function Find-Cube {
-    <#  cube.exe is the bundle manager, and it is the whole reason this script
-        can install the ST toolchain without a browser. It is not a bundle
-        itself: it ships inside the stm32cube-ide-core VS Code extension, which
-        is why the extension has to be installed before the toolchain can be.  #>
+    <#
+  cube.exe is the bundle manager, and it is the whole reason this script
+        can install the ST toolchain without a browser.
+        itself: it ships inside the stm32cube-ide-core VS Code extension,
+        which
+        is why the extension has to be installed before the toolchain can
+        be.
+#>
     $roots = @(
         (Join-Path $env:USERPROFILE '.vscode\extensions'),
         (Join-Path $env:USERPROFILE '.vscode-insiders\extensions'),
@@ -658,10 +571,7 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
         Write-Item 'git' 'ok' $git
     }
 
-    # gh reads what CI could not say in public. A red run posts its log tail
-    # as a commit comment (readable with nothing but a browser), but watching
-    # a run live or re-running one is `gh run` - and that wants a one-time
-    # `gh auth login`. Optional: nothing in the build or the bench needs it.
+    # gh reads what CI could not say in public.
     $gh = Get-Tool 'gh'
     if ($null -eq $gh) {
         $ghExe = Join-Path $env:ProgramFiles 'GitHub CLI\gh.exe'
@@ -683,8 +593,7 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
     # The LTSpice models are a submodule with its deploy key on the bench
     # machine's GitLab account - a clone elsewhere fails at fetch, not at
     # checkout, and everything that needs its numbers reads them from
-    # coaxial/inverter.py, which carries the traced constants in-tree. So:
-    # reported, never demanded.
+    # coaxial/inverter.py, which carries the traced constants in-tree.
     if ($null -ne $git) {
         $sub = (& $git -C $Root submodule status electronic_simulations 2>$null)
         if ($null -ne $sub -and $sub -match '^-') {
@@ -695,16 +604,7 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
         }
     }
 
-    # A host C compiler, for test_modbus_core.py. The portable Modbus core is
-    # hardware-free so it can be built and run here; until this it never was,
-    # and its only verification needed a board on the far end of a cable.
-    # WinLibs rather than LLVM: clang on Windows wants the MSVC headers for
-    # <string.h>, and this ships its own. Optional - the suite says what it
-    # skipped rather than failing.
-    # Asked of test_modbus_core.find_cc, not of PATH: winget installs this
-    # somewhere only new shells see, and two answers to "where is the
-    # compiler" is how -Check ends up offering to install one that is
-    # already here.
+    # A host C compiler, for test_modbus_core.py.
     $cc = ''
     $suite = Join-Path $PSScriptRoot 'host/tests/test_modbus_core.py'
     if ($null -ne $python -and (Test-Path $suite)) {
@@ -752,10 +652,7 @@ function Install-PythonDeps {
 
     # The list to probe comes from requirements.txt itself, never a copy here:
     # a copy drifted once - numpy and rich joined the file and this probe kept
-    # saying 'all present' on a machine that had neither. Import names differ
-    # from distribution names for two of them; everything else imports as its
-    # lowercased distribution, and a new dependency is probed the day it is
-    # written. Asking the interpreter is far quicker than asking pip.
+    # saying 'all present' on a machine that had neither.
     $absent = Invoke-Python -Python $Python -Code @'
 import importlib.util as util
 import re
@@ -792,9 +689,7 @@ print(','.join(missing))
 
     # The stack as an installed package, not a sys.path accident: pyproject
     # hands out `coaxial`, `coaxial-dbg` and `coaxial-mcp` as commands and
-    # makes the imports work from any directory. Editable, so the checkout
-    # stays the one source; its dependency list is requirements.txt read
-    # dynamically, so this cannot pull anything the step above did not.
+    # makes the imports work from any directory.
     $installed = Invoke-Python -Python $Python -Code @'
 try:
     from importlib.metadata import version
@@ -820,12 +715,8 @@ except Exception:
     }
 
     # THE NOTEBOOKS NAME THEIR KERNEL - `coaxial_63100`, registered on this
-    # interpreter by make_notebooks.py - so an editor holding two CPythons
-    # of the same version opens them on the one the packages are in.
-    # Measured 2026-09-13: a uv-managed 3.14.7 with nothing in it was
-    # auto-selected and every notebook flagged matplotlib.pyplot as
-    # unresolved. A kernel registered on some other python is reported as
-    # missing, and install points it here.
+    # interpreter by make_notebooks.py - so an editor holding two CPythons of
+    # the same version opens them on the one the packages are in.
     $maker = Join-Path $Host_ 'tools\make_notebooks.py'
     $kernel = (& $Python $maker --kernel status) -join ' '
     if ($LASTEXITCODE -eq 0) {
@@ -848,14 +739,7 @@ except Exception:
 
 # ---- 3. the ST toolchain ---------------------------------------------------
 
-# Bundle name -> the executable that proves it arrived whole. An empty string
-# means the bundle has no bin/ worth checking; its presence is the whole test.
-#
-# The names are cube's own, as `cube bundle list-online` prints them, which is
-# also how they appear as directories under %LOCALAPPDATA%\stm32cube\bundles.
-# That double duty is deliberate: one name serves both the install and the
-# check, so a bundle cannot be installed under one spelling and looked for
-# under another.
+# Bundle name -> the executable that proves it arrived whole.
 $BundleNeeds = [ordered]@{
     'gnu-tools-for-stm32' = 'arm-none-eabi-gcc.exe'
     'cmake'               = 'cmake.exe'
@@ -869,24 +753,9 @@ $BundleNeeds = [ordered]@{
 
 # Not in the table above because it is 835 MB on disk and nothing in the build
 # reaches for it: CubeMX regenerates core/ from the .ioc and is otherwise idle.
-# -SkipCubeMX is how a bench that never opens the .ioc says so.
 if (-not $SkipCubeMX) { $BundleNeeds['stm32cubemx-application'] = '' }
 
 # ONE EXTENSION LIST, the same way pyproject.toml has one dependency list.
-# .vscode/extensions.json is the authority: it is what VS Code offers when the
-# folder is opened on a machine nobody has set up, and this script installs
-# what it says from a shell, so the editor's idea of the project and this
-# script's cannot drift.
-#
-# Measured 2026-09-03: they had. extensions.json recommended six and the list
-# here held three, so jupyter and claude-code arrived on a bench only if
-# somebody noticed the notification and clicked it.
-#
-# Each id still earns its place - an extension installed "just in case" is a
-# thing to keep updated on every bench for no reason - but the reasoning that
-# used to live in this comment lives beside the ids, in the file VS Code reads.
-# What is here is the one line the report prints for each. An id with no entry
-# is installed all the same, with a blank.
 $ExtensionWhy = @{
     'stmicroelectronics.stm32-vscode-extension' = 'the toolchain, the debuggers and cube.exe'
     'ms-vscode.cpptools'                        = 'IntelliSense over the HAL'
@@ -897,20 +766,21 @@ $ExtensionWhy = @{
 }
 
 function Get-RecommendedExtensions {
-    <#  The ids out of .vscode/extensions.json.
-
+    <#
+  The ids out of .vscode/extensions.json.
         ConvertFrom-Json will not read that file as it stands - it is JSONC,
         VS Code allows // comments and this repository uses them to say why
-        each id is there. Whole-line comments come out first; nothing in the
-        file puts one after code, and a // inside a string would have to be a
+        each id is there.
+        file puts one after code, and a // inside a string would have to be
+        a
         URL, which an extension id cannot contain.
-
-        Ollama.ollama is dropped here on purpose. Install-Ollama owns it - the
+        Ollama.ollama is dropped here on purpose.
         editor half of the same daemon - so -SkipOllama still leaves the two
         out together, which is what that switch promises.
-
-        A tree without the file still gets the three without which nothing in
-        this repository resolves, rather than a setup that installs nothing.  #>
+        A tree without the file still gets the three without which nothing
+        in
+        this repository resolves, rather than a setup that installs nothing.
+#>
 
     $fallback = @(
         'stmicroelectronics.stm32-vscode-extension',
@@ -943,9 +813,7 @@ function Test-Bundles {
         $bundle = Get-NewestBundle $name
 
         # CubeMX is the one entry here that has a second, equally valid home:
-        # st.com's installer puts it under Program Files. Asking for a 308 MB
-        # bundle of something the machine already has is the kind of thing that
-        # makes a setup script get skipped.
+        # st.com's installer puts it under Program Files.
         if (($null -eq $bundle) -and ($name -eq 'stm32cubemx-application')) {
             $standalone = Find-CubeMX
             if ($null -ne $standalone) {
@@ -991,17 +859,13 @@ function Install-VsCodeExtensions {
 
         # Installed is not current, and here that is not cosmetic: the STM32
         # pack is version-matched to the editor, and an editor left behind gets
-        # extensions that decline to load rather than an error saying why. VS
-        # Code updates itself when it is opened - this is for the bench where
-        # it is opened rarely and set up from a shell.
+        # extensions that decline to load rather than an error saying why.
         Update-WingetPackage -Id 'Microsoft.VisualStudioCode' -What 'vs code' `
                              -Why 'the STM32 pack is version-matched to the editor' | Out-Null
     }
 
     # --list-extensions is one call and it is not a fast one, so it is asked
-    # once here rather than per extension. Its stderr is dropped: VS Code's
-    # crash handler logs a harmless CreateFile complaint there on every
-    # start, and a setup report full of someone else's noise reads broken.
+    # once here rather than per extension.
     $installed = (& $code --list-extensions 2>$null)
     foreach ($id in $Extensions) {
         $why = $ExtensionWhy[$id]
@@ -1029,8 +893,7 @@ function Install-VsCodeExtensions {
     # The editor's configuration is checked in, so on a full clone it is
     # already right and there is nothing to install: the Board chat terminal
     # profile, Ctrl+Shift+B, IntelliSense over the HAL and the MCP server all
-    # arrive with the repository. Said here because a report that mentions
-    # none of it leaves the reader wondering what is still theirs to wire up.
+    # arrive with the repository.
     $config = @(
         '.vscode\settings.json',
         '.vscode\tasks.json',
@@ -1051,18 +914,19 @@ function Install-VsCodeExtensions {
 }
 
 function Install-Bundles {
-    <#  The ST toolchain, without a browser.
-
+    <#
+  The ST toolchain, without a browser.
         `cube bundle install --yes NAME` downloads from developer.st.com and
-        unpacks under %LOCALAPPDATA%, no account and no click-through, and the
+        unpacks under %LOCALAPPDATA%, no account and no click-through, and
+        the
         --yes answers the licence question the same way opening the bundles
-        manager in VS Code would. This used to be the one step the script could
+        manager in VS Code would.
         set up and not finish; it finishes it now.
-
-        One bundle at a time on purpose. A single invocation with eight names
+        One bundle at a time on purpose.
         fails whole, and the failure that matters here is a 300 MB download
         dropping at 90% on bench wifi - the other seven should still be in
-        place afterwards.  #>
+        place afterwards.
+#>
     param([string[]]$Absent)
 
     if ($Absent.Count -eq 0) { return }
@@ -1095,7 +959,7 @@ function Install-Bundles {
         }
         & $cube bundle install --yes $name
         # cube's exit code is not the whole answer: it is 0 for "nothing to do"
-        # as well as for a completed install. The directory is.
+        # as well as for a completed install.
         if ($null -ne (Get-NewestBundle $name)) {
             Write-Item $name 'done' (Get-NewestBundle $name).Name
         } else {
@@ -1106,14 +970,16 @@ function Install-Bundles {
 }
 
 function Install-StLinkDriver {
-    <#  The USB driver, which is the one thing here that needs administrator
+    <#
+  The USB driver, which is the one thing here that needs administrator
         rights - so it is asked for on its own rather than folded into the
         bundle loop above, and -SkipDriver turns it off outright.
-
-        Without it Windows enumerates the ST-Link as an unknown device: the VCP
+        Without it Windows enumerates the ST-Link as an unknown device: the
+        VCP
         appears, so `board all` finds a COM port, while SWD does not, so
-        flashing fails with a probe error that reads like a cable fault. Worth
-        the elevation prompt.  #>
+        flashing fails with a probe error that reads like a cable fault.
+        the elevation prompt.
+#>
 
     if ($SkipDriver) { return }
 
@@ -1147,12 +1013,15 @@ function Install-StLinkDriver {
 }
 
 function Find-CubeMX {
-    <#  STM32CubeMX.exe, from either kind of install.
-
-        The bundle is the tidy one and what this script installs. But somebody
-        who took the installer from st.com has it under Program Files instead,
-        and telling that machine CubeMX is missing would be this script being
-        wrong in a way the user can see.  #>
+    <#
+  STM32CubeMX.exe, from either kind of install.
+        The bundle is the tidy one and what this script installs.
+        who took the installer from st.com has it under Program Files
+        instead,
+        and telling that machine CubeMX is missing would be this script
+        being
+        wrong in a way the user can see.
+#>
 
     $bundle = Get-NewestBundle 'stm32cubemx-application'
     if ($null -ne $bundle) {
@@ -1172,17 +1041,18 @@ function Find-CubeMX {
 }
 
 function Install-CubeMXFromInstaller {
-    <#  The other way to get CubeMX: st.com's own installer.
-
+    <#
+  The other way to get CubeMX: st.com's own installer.
         The bundle above is 308 MB and needs nothing but cube.exe, so it is
-        what this script reaches for first. This is the path for a machine
+        what this script reaches for first.
         where that failed, or where the bundle is not wanted - and for the
         person who would rather see the licence they are agreeing to.
-
-        -CubeMXInstaller runs an installer already on disk. Without it, the
-        download page is opened and the run carries on: a missing CubeMX stops
-        nothing here. It is not needed to build, flash, measure or drive the
-        model - only to regenerate core/ from the .ioc.  #>
+        -CubeMXInstaller runs an installer already on disk.
+        download page is opened and the run carries on: a missing CubeMX
+        stops
+        nothing here.
+        model - only to regenerate core/ from the .ioc.
+#>
 
     if ($SkipCubeMX) { return }
     if ($null -ne (Find-CubeMX)) { return }
@@ -1197,8 +1067,7 @@ function Install-CubeMXFromInstaller {
             Write-Item 'STM32CubeMX' 'missing' ('would run ' + $CubeMXInstaller)
             return
         }
-        # ST's installer is a GUI with a licence page in it. Waited on rather
-        # than fired and forgotten, so the check below means something.
+        # ST's installer is a GUI with a licence page in it.
         Write-Item 'STM32CubeMX' 'missing' ('running ' + $CubeMXInstaller)
         try {
             Start-Process -FilePath $CubeMXInstaller -Wait
@@ -1227,10 +1096,13 @@ function Install-CubeMXFromInstaller {
 }
 
 function Find-CubeIDE {
-    <#  stm32cubeide.exe, the Eclipse-based IDE - not the STM32 VS Code
-        extension, and not a cube.exe bundle. ST ships its own installer for
-        it, which defaults to C:\ST\STM32CubeIDE_x.y.z but lets the user pick
-        anywhere, so this searches rather than assumes a single path.  #>
+    <#
+  stm32cubeide.exe, the Eclipse-based IDE - not the STM32 VS Code
+        extension, and not a cube.exe bundle.
+        it, which defaults to C:\ST\STM32CubeIDE_x.y.z but lets the user
+        pick
+        anywhere, so this searches rather than assumes a single path.
+#>
 
     $roots = @(
         'C:\ST',
@@ -1247,16 +1119,20 @@ function Find-CubeIDE {
 }
 
 function Install-CubeIDE {
-    <#  STM32CubeIDE, which nothing in this project's own workflow needs - the
-        documented route is VS Code plus cube-cmake. This exists purely because
+    <#
+  STM32CubeIDE, which nothing in this project's own workflow needs - the
+        documented route is VS Code plus cube-cmake.
         it was asked for: whoever wants the Eclipse-based IDE alongside that
-        workflow can have this step fetch it, the same way Install-CubeMXFromInstaller
+        workflow can have this step fetch it, the same way
+        Install-CubeMXFromInstaller
         does for CubeMX.
-
-        ST puts this behind a login and a click-through licence on st.com, the
+        ST puts this behind a login and a click-through licence on st.com,
+        the
         same as CubeMX, so there is no unattended download here either: the
-        page opens, a human takes it from there, and -CubeIDEInstaller is the
-        way back in once the installer is on disk.  #>
+        page opens, a human takes it from there, and -CubeIDEInstaller is
+        the
+        way back in once the installer is on disk.
+#>
 
     if ($SkipCubeIDE) { return }
 
@@ -1278,8 +1154,7 @@ function Install-CubeIDE {
             Write-Item 'STM32CubeIDE' 'missing' ('would run ' + $CubeIDEInstaller)
             return
         }
-        # ST's installer is a GUI with a licence page in it. Waited on rather
-        # than fired and forgotten, so the check below means something.
+        # ST's installer is a GUI with a licence page in it.
         Write-Item 'STM32CubeIDE' 'missing' ('running ' + $CubeIDEInstaller)
         try {
             Start-Process -FilePath $CubeIDEInstaller -Wait
@@ -1311,12 +1186,13 @@ function Install-CubeIDE {
 }
 
 function Get-FirmwareVersion {
-    <#  Which FW_H7 the .ioc was generated against.
-
-        Read from the project rather than pinned here, because CubeMX writes it
-        and CubeMX is the thing that will complain about it. The line looks like
-
-            ProjectManager.FirmwarePackage=STM32Cube FW_H7 V1.13.0  #>
+    <#
+  Which FW_H7 the .ioc was generated against.
+        Read from the project rather than pinned here, because CubeMX writes
+        it
+        and CubeMX is the thing that will complain about it.
+            ProjectManager.FirmwarePackage=STM32Cube FW_H7 V1.13.0
+#>
 
     $ioc = Join-Path $Root 'coaxial_63100.ioc'
     if (-not (Test-Path $ioc)) { return $null }
@@ -1328,33 +1204,36 @@ function Get-FirmwareVersion {
 }
 
 function Install-FirmwarePackage {
-    <#  The STM32Cube FW_H7 package, which is the one thing here that ST still
+    <#
+  The STM32Cube FW_H7 package, which is the one thing here that ST still
         puts behind a login.
-
-        First, what it is and is not for. The build does not need it: drivers/
-        is in this repository, so gcc has its HAL and CMSIS whether or not this
-        step ever runs. What needs it is CubeMX - opening the .ioc against a
+        First, what it is and is not for.
+        is in this repository, so gcc has its HAL and CMSIS whether or not
+        this
+        step ever runs.
         repository that has no FW_H7 V1.13.0 in it means CubeMX offers to
         download one, and regenerating against a different version is a
         different core/ than the one in git.
-
         Three ways in, in the order they are worth trying:
-
-          1. -FirmwarePackage <zip or folder>. If the package is already on a
+          1.
              share, a stick or another bench, this needs no browser and no
-             account. It is the only fully automatic path.
-          2. CubeMX itself. Its package manager downloads FW packages, and it
-             is already installed by the bundle step above. It may ask for an
-             st.com account; if it does, so be it - that is ST's decision, not
+             account.
+          2.
+             is already installed by the bundle step above.
+             st.com account; if it does, so be it - that is ST's decision,
+             not
              this script's.
-          3. The web page, opened in the default browser. A human agrees to the
+          3.
              licence, downloads the zip, and hands it back through 1.
-
-        What this function will not do is scrape a download out of st.com with
-        a fabricated user agent. The URLs that used to serve these unauthenticated
-        (sw-center.st.com) answer 404 now, and the GitHub mirror is submodules -
-        `drivers/STM32H7xx_HAL_Driver` is a gitlink there, so a zipball of the
-        tag contains none of the sources that matter.  #>
+        What this function will not do is scrape a download out of st.com
+        with
+        a fabricated user agent.
+        (sw-center.st.com) answer 404 now, and the GitHub mirror is
+        submodules -
+        `drivers/STM32H7xx_HAL_Driver` is a gitlink there, so a zipball of
+        the
+        tag contains none of the sources that matter.
+#>
 
     if ($SkipFirmware) { return }
 
@@ -1393,7 +1272,8 @@ function Install-FirmwarePackage {
                 Copy-Item $FirmwarePackage -Destination $target -Recurse -Force
             } else {
                 # The zip carries its own STM32Cube_FW_H7_Vx.y.z top directory,
-                # so it expands into the repository rather than into the target.
+                # so it expands into the repository rather than into the
+                # target.
                 Expand-Archive -Path $FirmwarePackage -DestinationPath $Repository -Force
             }
         } catch {
@@ -1410,11 +1290,7 @@ function Install-FirmwarePackage {
         return
     }
 
-    # 2. CubeMX, if it is here. Optional-class either way: the build has
-    # drivers/ in the repository, so a bench without this package builds,
-    # flashes, tests and prompts - only regenerating core/ from the .ioc
-    # wants it, and pinning that to the .ioc's own version is what these
-    # two routes are for.
+    # 2.
     $mx = Get-NewestBundle 'stm32cubemx-application'
     if ($null -ne $mx) {
         Write-Item 'STM32CubeMX' 'ok' 'its package manager can fetch this one'
@@ -1452,10 +1328,7 @@ function Install-WingetToolchain {
             Add-Todo "winget install --id $id --exact"
         }
     }
-    # No winget package publishes STM32CubeProgrammer. But -WingetToolchain
-    # means "do not make me use VS Code", not "pretend cube.exe is not there":
-    # if the extension is on this machine anyway, the programmer is a bundle
-    # like any other and there is no reason to send anyone to st.com for it.
+    # No winget package publishes STM32CubeProgrammer.
     $programmer = Get-NewestBundle 'programmer'
     if ($null -ne $programmer) {
         Write-Item 'STM32_Programmer_CLI' 'ok' $programmer.Name
@@ -1473,10 +1346,13 @@ function Install-WingetToolchain {
 # ---- 4. ollama, the model, and the editor extension ------------------------
 
 function Find-Ollama {
-    <#  Both installers put ollama.exe under LOCALAPPDATA, and neither reaches
-        the PATH of a shell that was already open. Look in the two known places
-        before concluding it is absent, and splice whatever we find into this
-        process's PATH so the model pull below works without a new shell.  #>
+    <#
+  Both installers put ollama.exe under LOCALAPPDATA, and neither reaches
+        the PATH of a shell that was already open.
+        before concluding it is absent, and splice whatever we find into
+        this
+        process's PATH so the model pull below works without a new shell.
+#>
     $found = Get-Tool 'ollama'
     if ($null -ne $found) { return $found }
 
@@ -1494,17 +1370,20 @@ function Find-Ollama {
 }
 
 function Install-OllamaBinary {
-    <#  Two ways in, and the order is deliberate.
-
-        winget is the tidy one: a known package, an uninstall entry, no code off
-        the internet through iex. But Ollama.Ollama is not on every machine's
+    <#
+  Two ways in, and the order is deliberate.
+        winget is the tidy one: a known package, an uninstall entry, no code
+        off
+        the internet through iex.
         source index, and the winget install wants elevation.
-
-        Ollama's own installer script is the fallback. It is a per-user install
-        under %LOCALAPPDATA%\Programs\Ollama and needs no administrator - which
-        is also why it is worth having when winget declines. It is a piped
-        remote script, so it is behind its own confirmation rather than folded
-        into the first one.  #>
+        Ollama's own installer script is the fallback.
+        under %LOCALAPPDATA%\Programs\Ollama and needs no administrator -
+        which
+        is also why it is worth having when winget declines.
+        remote script, so it is behind its own confirmation rather than
+        folded
+        into the first one.
+#>
 
     if ($null -ne (Get-Tool 'winget')) {
         if (Confirm-Step 'winget install Ollama.Ollama ?') {
@@ -1531,12 +1410,14 @@ function Install-OllamaBinary {
 }
 
 function Get-OllamaTags {
-    <#  The API answering matters more than the binary existing: everything in
+    <#
+  The API answering matters more than the binary existing: everything in
         host/coaxial_ollama talks to the HTTP endpoint, not to the CLI.
-
-        Retried, because a daemon started a second ago has not bound 11434 yet
+        Retried, because a daemon started a second ago has not bound 11434
+        yet
         and a single failed probe would send a working machine away with a
-        manual step it does not need.  #>
+        manual step it does not need.
+#>
     param([int]$Tries = 1)
 
     for ($i = 0; $i -lt $Tries; $i++) {
@@ -1550,15 +1431,18 @@ function Get-OllamaTags {
 }
 
 function Install-OllamaExtension {
-    <#  The editor half of the same daemon. Ollama.ollama is Ollama's own
-        extension: it registers the locally pulled models with VS Code's chat
-        model picker, so the model answering in the editor is the one on 11434
+    <#
+  The editor half of the same daemon.
+        extension: it registers the locally pulled models with VS Code's
+        chat
+        model picker, so the model answering in the editor is the one on
+        11434
         that dbg.py and the runner already talk to - no second copy of the
         weights, no second configuration to keep in step.
-
-        Nothing in this repository needs it. dbg.py, the runner and the MCP
+        Nothing in this repository needs it.
         server all speak HTTP, so a machine with no VS Code gets a note here
-        and not a failure.  #>
+        and not a failure.
+#>
 
     # Find-Code, not Get-Tool: an editor installed a minute ago by the step
     # above is on disk but not on this shell's PATH, and reporting it missing
@@ -1590,13 +1474,16 @@ function Install-OllamaExtension {
 }
 
 function Resolve-Model {
-    <#  Which tag this machine should run, if nobody said.
-
-        The answer comes from capability.py rather than from a constant here,
+    <#
+  Which tag this machine should run, if nobody said.
+        The answer comes from capability.py rather than from a constant
+        here,
         because it is the same question the runner and dbg.py ask and there
-        should be one answer to it. A machine with no python yet, or a probe
-        that fails, falls back to the tag this bench was built on rather than
-        stopping the install.  #>
+        should be one answer to it.
+        that fails, falls back to the tag this bench was built on rather
+        than
+        stopping the install.
+#>
     param([string]$Python)
 
     if ($Model) { return $Model }
@@ -1628,8 +1515,8 @@ function Resolve-Model {
         Write-Item '' 'note' $warning
     }
     if ($null -ne $picked.options.num_gpu) {
-        # A split model needs the layer count on every call, and only dbg.py and
-        # the runner can pass it. Said here so it is not a surprise later.
+        # A split model needs the layer count on every call, and only dbg.py
+        # and the runner can pass it.
         Add-Todo ('this machine runs ' + $picked.model + ' split across GPU and CPU: ' +
                   'use `dbg -m auto`, which passes num_gpu=' + $picked.options.num_gpu +
                   ', rather than a bare `ollama run`')
@@ -1658,10 +1545,7 @@ function Install-Ollama {
 
     # Before the daemon is started or asked anything: the settings that keep
     # llama-server from dying of std::bad_alloc partway through a bench
-    # session. board_chat.ps1 applies the same four (one file, dot-sourced
-    # by both) and restarts a daemon that predates them; here they go in
-    # first, so a machine set up by this script never needs that restart.
-    # See board_chat/Tuning.ps1 and docs/FINDINGS.md.
+    # session.
     $tuned = @()
     if (-not $Check) { $tuned = @(Set-DaemonEnvironment) }
     if ($tuned.Count -gt 0) {
@@ -1675,8 +1559,7 @@ function Install-Ollama {
     $tags = Get-OllamaTags
     if (($null -eq $tags) -and (-not $Check)) {
         # A fresh install has not started its daemon, and the install that just
-        # ran did not put one in this session. Start it rather than making the
-        # pull below a manual step; -Check never gets here, by design.
+        # ran did not put one in this session.
         Write-Item 'ollama serve' 'missing' 'nothing on 11434 - starting the daemon'
         Start-Process -FilePath $ollama -ArgumentList 'serve' -WindowStyle Hidden `
                       -ErrorAction SilentlyContinue
@@ -1728,8 +1611,7 @@ function Test-Setup {
 
     Push-Location $Host_
     try {
-        # Offline by design: no board, no ollama. If this fails, the fault is in
-        # the install, not on the bench.
+        # Offline by design: no board, no ollama.
         $output = (& $Python 'tests/test_ollama_tools.py')
         $tail = ($output | Select-Object -Last 1)
         if ($LASTEXITCODE -eq 0) {
@@ -1755,9 +1637,7 @@ function Test-Setup {
     }
 
     # Not Get-Tool: cube-cmake is only on PATH after env.ps1 has run, and this
-    # script deliberately does not touch PATH. Look where it lives instead, the
-    # same way env.ps1 does, or a fresh machine is told it is missing when it is
-    # sitting right there.
+    # script deliberately does not touch PATH.
     $cmake = $null
     $ext = Get-ChildItem (Join-Path $env:USERPROFILE '.vscode\extensions') -Directory `
                          -Filter 'stmicroelectronics.stm32cube-ide-build-cmake-*' `
@@ -1775,9 +1655,8 @@ function Test-Setup {
     }
 
     if (-not $SkipCubeMX) {
-        # Find-CubeMX, so a standalone install from st.com counts as much as the
-        # bundle. The bundle's internal layout is ST's business and has moved
-        # before, which is why it is searched rather than assumed.
+        # Find-CubeMX, so a standalone install from st.com counts as much as
+        # the bundle.
         $mxExe = Find-CubeMX
         if ($null -eq $mxExe) {
             Write-Item 'STM32CubeMX' 'missing' 'cube bundle install --yes stm32cubemx-application'
@@ -1797,12 +1676,6 @@ if ($Check) {
 }
 
 # Asked once, at the top, rather than left to be discovered a dozen prompts in.
-# A setup of this length is either something you are watching or something you
-# started and walked away from, and the difference should be a decision rather
-# than a habit of hitting y.
-#
-# -Check never asks: there is nothing to consent to when nothing installs. -Yes
-# has already answered.
 if ((-not $Check) -and (-not $Yes)) {
     Write-Host ''
     Write-Host '  Unattended, or one question per step?' -ForegroundColor White
@@ -1885,6 +1758,5 @@ if ($Check) {
 
 # The exit code is the whole answer for anything driving this without reading
 # it: 0 means the environment is ready, non-zero means the numbered list above
-# is not empty. Optional items never count - a machine without STM32CubeIDE can
-# build, flash, test and prompt.
+# is not empty.
 exit $(if ($script:Todo.Count -gt 0) { 1 } else { 0 })

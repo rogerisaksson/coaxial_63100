@@ -1,20 +1,4 @@
-"""Levels in braille: the one instrument every page draws a level with.
-
-MOTOR CONTROLLER drew its thermometers in dots - a tube the height of the
-box with the mercury rising inside it at dot resolution, the empty part
-a grey track, the colour a margin against a ceiling - and every other
-page drew its levels as `====----` in ASCII. The bench asked for the
-same instrument on the meter bridge, on the thermal observer and in
-every box that shows a level. This is that instrument on its own: a
-horizontal gauge one row tall, a solid bar with an orange tip for a
-spend, and a row of vertical tubes, drawn by THE SAME CODE as the machine's
-gutters and floor - `machine._level` and `machine._tube` on a
-`machine.Frame` - so a level means the same thing and looks the same
-wherever it is.
-
-Pure: fractions in, text out. What a fraction is OF, and which class
-colours it, is the caller's - this draws levels (invariant 10).
-"""
+"""Levels in braille: the one instrument every page draws a level with."""
 from . import machine
 from .machine import Frame, INK, SOA_OK, TRACK
 from .graphics.raster import DOTS_X, DOTS_Y
@@ -27,18 +11,8 @@ MARK = machine.MARK
 
 
 def gauge(share, cells, cls=SOA_OK, centre=None, marks=(), colour=True):
-    """One row, `cells` wide: a level `share` of the way along the scale
-    in `cls`, the rest of the scale in the track's grey.
-
-    `centre`, a share, makes it BIPOLAR: the level runs from the centre
-    to `share` either way, the way a meter bridge's phase channel swings
-    about zero, and the centre itself is marked.
-
-    `marks` are `(share, cls)` ticks a level's height, drawn over
-    whatever is there - a burst's extreme; `(share, cls, PEAK)` is the
-    top dot alone, a held peak, so the two read apart on one row. `MARK`
-    is the white for them; a caller with a reason may pass another
-    class.
+    """One row, `cells` wide: a level `share` of the way along the scale in
+    `cls`, the rest of the scale in the track's grey.
     """
     frame = Frame(cells, 1)
     wide = cells * DOTS_X
@@ -53,8 +27,8 @@ def gauge(share, cells, cls=SOA_OK, centre=None, marks=(), colour=True):
         start, end = (zero, here + 1) if here >= zero else (here, zero + 1)
     machine._level(frame.dots, frame.owner, 0, 0, wide, start, end, cls)
     if centre is not None and not start <= dot(centre) < end:
-        # THE CENTRE IS MARKED when the level does not cover it: a
-        # bipolar gauge at rest still says where zero is.
+        # THE CENTRE IS MARKED when the level does not cover it: a bipolar
+        # gauge at rest still says where zero is.
         machine._mark(frame.dots, frame.owner, 0, dot(centre), TRACK)
     for mark in marks:
         at, mark_cls = mark[0], mark[1]
@@ -68,23 +42,10 @@ def gauge(share, cells, cls=SOA_OK, centre=None, marks=(), colour=True):
 PEAK = (0,)
 
 def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
-    """One row, `cells` wide: a SOLID level - every dot of every cell to
-    the level, `⣿⣿⣿` in `cls` - ending in a column of `tip`'s ink, `⡇`
-    or `⢸` whichever lane the level ends in, and the rest of the scale
-    a track of grey columns the cell's full height, `⡇` a cell. The
-    tip's cell holds the tip alone, so it reads as a line and not as a
-    cell of the level in another colour. The track is four dots tall,
-    not the gauge's three, on the bench's word - "the grey rows four
-    tall too" - so the scale is as tall as the level that fills it.
-
-    THE BENCH ASKED FOR IT, twice: the thermal observer's spend was a
-    one-row gauge in square brackets, `[⣿⣿⣿⠒⠒⠒] 42 %`, and the word
-    was "something nicer, three braille rows tall" - built, rastered,
-    and answered with "no, one row of ⣿, terminated with an orange ⢸
-    or ⡇". A solid row with a tip is the one level on the page that is
-    not a thermometer, which is right for the one that is a spend
-    rather than a temperature. The margin's colour says where the
-    throttle point is, as the shared gauge does; no second mark.
+    """One row, `cells` wide: a SOLID level - every dot of every cell to the
+    level, `⣿⣿⣿` in `cls` - ending in a column of `tip`'s ink, `⡇` or `⢸`
+    whichever lane the level ends in, and the rest of the scale a track
+    of grey columns the cell's full height, `⡇` a cell.
     """
     frame = Frame(cells, 1)
     wide = cells * DOTS_X
@@ -127,42 +88,21 @@ def temp_share(celsius):
 
 
 def margin_class(share, tripped=False):
-    """Which band a node's margin is in - `machine.SOA_CLASS`'s order.
-
-    THE BANDS ARE THE BOARD'S. `share` is the fraction of a node's
-    ceiling and the ceiling came from the calibration record; amber is
-    `THROTTLE_AT`, the same number `set_limit` writes and the board
-    backs off at; red is the ceiling. The margin is reported - the
-    action is the board's, and it takes it by dropping MOE (invariant
-    10).
-    """
+    """Which band a node's margin is in - `machine.SOA_CLASS`'s order."""
     if tripped or share >= 1.0:
         return machine.SOA_TRIP
     return machine.SOA_WARN if share >= THROTTLE_AT else machine.SOA_OK
 
 
 def thermometer_class(celsius):
-    """Which band of the thermometer ramp a reading is in.
-
-    COLD TO HOT, blue at the scale's floor and red at its top, because
-    the thermistor has no ceiling to be a margin against. Every other
-    level is coloured by how close it is to a limit it was given; this
-    one is coloured by what it says.
-    """
+    """Which band of the thermometer ramp a reading is in."""
     ramp = machine.NTC_RAMP
     step = int(temp_share(celsius) * (len(ramp) - 1) + 0.5)
     return ramp[max(0, min(len(ramp) - 1, step))]
 
 
 def tubes(entries, rows, labels=(), pitch=None, colour=True):
-    """A row of thermometers `rows` tall, one per entry, as text lines.
-
-    Each entry is `(share, cls)` or None for a spacer column. `labels`
-    are written under the tubes, one each, centred; `pitch` is the
-    columns per tube and defaults to what the widest label needs. The
-    lines come back coloured when `colour` is set, the label row in the
-    track's grey so the tubes read first.
-    """
+    """A row of thermometers `rows` tall, one per entry, as text lines."""
     labels = [str(label) for label in labels]
     if pitch is None:
         pitch = max([2] + [len(label) + 1 for label in labels])

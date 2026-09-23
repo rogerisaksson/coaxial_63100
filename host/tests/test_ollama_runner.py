@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""The plan runner, the sandbox, and the test tooling itself.
-
-Split out of test_ollama.py, which had grown to 5,496 lines and 733 checks in
-one file - a third of every check this tree has, and the reason a coverage
-tier could not be asked for at any useful resolution. One subject per file
-now, so a tier buys them separately and a reader opens the one they meant.
-
-Run from the host directory:  python tests/test_ollama_runner.py
-"""
+"""The plan runner, the sandbox, and the test tooling itself."""
 import os
 import sys
 
@@ -60,8 +52,8 @@ def test_verdicts(report):
     limited = [{'id': 'T1', 'name': 'inside', 'ask': 'a',
                 'limit': {'low': 0.0, 'high': 10.0, 'unit': 'V'}}]
 
-    # Every scenario below touches the board (link stats) before reporting -
-    # a report with nothing behind it is refused, see test_misbehaviour.
+    # Every scenario below touches the board (link stats) before reporting - a
+    # report with nothing behind it is refused, see test_misbehaviour.
     touch = call('link', op='stats')
 
     runner, _, _ = build(limited, [touch, call('report', value=5.0, unit='V',
@@ -152,10 +144,7 @@ def test_misbehaviour(report):
 
     # A report with no board tool called this step is refused, not accepted -
     # the same class of fabrication debug.py hardened against, here gated
-    # before it becomes a signed verdict. Three identical attempts (task's own
-    # max_turns is 3) so the refusal itself is what ends the step, rather than
-    # the model running out of scripted turns and falling into the separate
-    # prose-stop path.
+    # before it becomes a signed verdict.
     runner, _, _ = build(task, [call('report', value=9.0, unit='V',
                                      note='never measured')] * 3)
     record = runner.run_task(runner.plan.tasks[0])
@@ -215,8 +204,7 @@ def test_scope_repairs(report):
     scope = Scope(board=SimulatedBoard())
 
     # Seen from the prompt: a whole program on one line with a literal
-    # backslash-n where the newlines belonged. Python reads that as a line
-    # continuation and refuses; the model had written valid code.
+    # backslash-n where the newlines belonged.
     escaped = 'x = 1' + BSLASH + 'ny = 2' + BSLASH + 'nx + y'
     report.check('escaped newlines are repaired, once compilation has failed',
                  scope.run(escaped).strip() == '3', repr(scope.run(escaped)))
@@ -229,17 +217,15 @@ def test_scope_repairs(report):
     report.check('a real syntax error is still a syntax error',
                  'SyntaxError' in scope.run('x = ('))
 
-    # A package that is genuinely not here, so the failure has to name
-    # the alternative rather than only the refusal. NOT pandas: it is
-    # installed now, for `daq.frame()`, and a test that asserted its
-    # absence was testing the bench rather than the runner.
+    # A package that is genuinely not here, so the failure has to name the
+    # alternative rather than only the refusal.
     missing = scope.run('import scipy')
     report.check('a missing package says what is here instead',
                  'statistics' in missing and 'namespace holds' in missing,
                  missing.splitlines()[-1][:52])
 
-    # The tool names and the method names are different words, and a model
-    # that has called analog_read all session reaches for it here too.
+    # The tool names and the method names are different words, and a model that
+    # has called analog_read all session reaches for it here too.
     confused = scope.run('board.analog_read(ch=["ntc"])')
     report.check('a tool name used as a method is corrected',
                  'board.analog' in confused and 'read_all' in confused,
@@ -297,15 +283,7 @@ def test_shell(report):
                  toolmod.bounded(kept) is kept)
 
 def test_smart_selection(report):
-    """Which suites a change can have broken.
-
-    The live suite is a model load plus a turn per question - minutes - so
-    running it for a change to a channel renderer is most of a coffee break
-    spent proving nothing. `run_tests.py --smart` maps the changed files to
-    the suites that cover them, and runs the lot every tenth commit because
-    a map from files to suites is a guess about coupling and a guess that
-    is never checked is one that drifts.
-    """
+    """Which suites a change can have broken."""
     import os
     import sys as _sys
     _sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
@@ -346,20 +324,15 @@ def test_smart_selection(report):
                      % (', '.join(sorted(expect_live)) or 'not at all', why),
                      live == expect_live, ', '.join(sorted(live)) or 'none')
 
-    # A path the map does not know is the case to fail safe on: run
-    # everything rather than quietly cover nothing.
-    #
-    # An invented path, not a real one. This check used to name setup.ps1,
-    # which meant it failed the day the map grew an entry for setup.ps1 -
-    # the test was asserting a hole in the map rather than the behaviour at
-    # one, and the map is supposed to grow.
+    # A path the map does not know is the case to fail safe on: run everything
+    # rather than quietly cover nothing.
     suites, live, why = run_tests.pick(['nothing/the/map/knows.xyz'])
     report.check('an unmapped path runs everything, and says why',
                  run_tests.CONFORMANCE in suites and live == {'all'}
                  and 'unmapped' in why[-1], why[-1][:52])
 
-    # And the other half of that: an entry deliberately mapped to nothing is
-    # a rule, not a hole, and must not fall through to the whole gate.
+    # And the other half of that: an entry deliberately mapped to nothing is a
+    # rule, not a hole, and must not fall through to the whole gate.
     suites, live, why = run_tests.pick(['datasheets/imu/UserGuide.pdf'])
     report.check('a path nothing reads runs nothing, and says that instead',
                  not suites and not live and 'nothing reads it' in why[-1],
@@ -368,10 +341,7 @@ def test_smart_selection(report):
     report.check('and the whole lot goes every tenth commit',
                  run_tests.FULL_EVERY == 10)
 
-    # The map settles the cheap cases on its own. Asking the model there
-    # costs a 7.6 GB load to be told what the map already said, and the
-    # model's answer can only widen it - which is how editing a demo
-    # wrapper used to cost seven minutes.
+    # The map settles the cheap cases on its own.
     for paths, what in (
         (['terminal/adc.ps1'], 'a demo wrapper'),
         (['coaxial_tty.ps1'], 'the demo picker'),
@@ -400,9 +370,7 @@ def test_smart_selection(report):
                  and not (set(run_tests.OLLAMA) & run_tests.CHEAP),
                  ', '.join(sorted(run_tests.CHEAP)))
 
-    # A tier is a budget and the model spends inside it. Measured: on the
-    # 25 % tier the model put back the live suite the tier had dropped, and
-    # the cheapest run there is took 398 s of which 352 were that suite.
+    # A tier is a budget and the model spends inside it.
     class _Args:
         def __init__(self, coverage, files):
             self.coverage, self.file, self.live = coverage, list(files), True
@@ -430,9 +398,7 @@ def test_smart_selection(report):
                  and args.file == [run_tests.CONFORMANCE])
 
     # A tier is arithmetic now, not a table of three, so any 5 % step can be
-    # named. What must hold at every one of them: it never shrinks as the
-    # percentage rises, structure is always in, and the four named switches
-    # still mean exactly what they meant before.
+    # named.
     grew = []
     for percent in run_tests.TIERS:
         suites, sections = run_tests.plan_for(percent)
@@ -454,14 +420,7 @@ def test_smart_selection(report):
                      if p < run_tests.LIVE_FROM),
                  'joins at %d %%' % run_tests.LIVE_FROM)
 
-    # The four named switches are what everybody types. They have to keep
-    # meaning what they did when they were a table.
-    # DAQ_API joined at 12 % - the acquisition front door against the
-    # stand-in, no board and no compiler - so both tiers below buy it.
-    # THERMAL joined at 20 % with the other portable cores: a compiler and
-    # a second, and what it guards is whether a stage backs off. BOOT_CORE
-    # joined there too, 2026-09-22: the bootloader's state machine, the
-    # one thing that decides whether a blank node ever runs anything.
+    # The four named switches are what everybody types.
     for percent, expect in ((25, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
                                   run_tests.DRIVE, run_tests.FILTER,
@@ -580,8 +539,7 @@ def test_local_only(report):
     remote = Ollama('minimax-m3:cloud', host='https://ollama.com', remote_ok=True)
     report.check('--allow-remote still means yes', remote.host == 'https://ollama.com')
 
-    # require_model resolves a bare stem against `ollama list`. The cloud tag is
-    # in that list like any other, so the loose match has to skip it.
+    # require_model resolves a bare stem against `ollama list`.
     local = Ollama('minimax-m3')
     local.models = lambda: ['gemma4:12b', 'minimax-m3:cloud']
     try:
@@ -607,8 +565,8 @@ def test_local_only(report):
 
 def test_runner_crash_retry(report):
     """Measured repeatedly on this bench: llama-server dies with
-    std::bad_alloc mid-session and ollama answers 500. The daemon respawns
-    it, so asking again works - which used to be the operator's job."""
+    std::bad_alloc mid-session and ollama answers 500.
+    """
     from coaxial_ollama import client as clientmod
     from coaxial_ollama.client import Ollama, OllamaError
 
@@ -682,9 +640,7 @@ def test_runner_crash_retry(report):
 # ---- a full card is not answered by asking again ---------------------------
 
 def test_out_of_memory(report):
-    """The other half of the crash above. A runner that died comes back on
-    its own; a card that is full stays full, so the retry has to give
-    something back before it asks again."""
+    """The other half of the crash above."""
     from coaxial_ollama import client as clientmod
     from coaxial_ollama.client import Ollama, OllamaError
 
@@ -706,9 +662,7 @@ def test_out_of_memory(report):
     slept, real_sleep = [], clientmod.time.sleep
     clientmod.time.sleep = slept.append
     try:
-        # One other model resident, and the card full. The first rung frees
-        # it; the question is then answered without the operator seeing
-        # anything but a note.
+        # One other model resident, and the card full.
         talker = Ollama('gemma4:12b', num_ctx=8192)
         posts, gets = [], []
 
@@ -767,8 +721,7 @@ def test_out_of_memory(report):
                      stubborn.notes)
 
         # A machine that cannot hold the model at the floor has a problem no
-        # retry solves. It must say so, with the three levers that are the
-        # operator's, rather than looping.
+        # retry solves.
         hopeless = Ollama('gemma4:12b', num_ctx=clientmod.MIN_NUM_CTX)
         attempts = []
 
@@ -791,7 +744,6 @@ def test_out_of_memory(report):
                          and 'capability' in str(exc))
 
         # The probe is for recovering from an error that already happened.
-        # If it fails too, the original error is what has to survive.
         blind = Ollama('gemma4:12b')
         blind._get = lambda path: (_ for _ in ()).throw(
             OllamaError('cannot reach ollama'))
@@ -827,7 +779,7 @@ def test_keep_alive(report):
 
     # An explicit 0 is how a shared machine gives the VRAM straight back, and
     # None is how a caller says 'do not mention it at all' - the daemon then
-    # applies its own default. The two must not collapse into each other.
+    # applies its own default.
     zero = Ollama('gemma4:12b', keep_alive=0)
     capture(zero)
     zero.chat([{'role': 'user', 'content': 'hello'}])
@@ -840,10 +792,7 @@ def test_keep_alive(report):
     report.check('keep_alive=None leaves the field out',
                  'keep_alive' not in sent[-1][1])
 
-    # The card is not free to sit on. A prompt loop earns a long hold - the KV
-    # cache is what makes turn nine quick - and a single question does not:
-    # measured here, a one-shot left 9.69 GB resident for another 27 minutes at
-    # 1 % utilisation, on a card whose desktop then had 3.8 GB to work in.
+    # The card is not free to sit on.
     from coaxial_ollama import debug as dbgmod
     report.check('a prompt loop keeps the model, a one-shot does not',
                  dbgmod.keep_alive_for(dbgmod.parse(['--repl'])) == dbgmod.KEEP_ALIVE_REPL
@@ -879,16 +828,13 @@ def test_keep_alive(report):
                  and payload['keep_alive'] == '30m')
     # Measured, not guessed: a preload without num_ctx asks for the model's own
     # default context - 128k on llama3.1 - and the daemon answers 500 trying to
-    # allocate 7 GB for the KV cache. When it does fit, it is worse: the model
-    # is resident at one context size and the first question arrives at
-    # another, so it reloads and the preload has cost a wait rather than saved
-    # one.
+    # allocate 7 GB for the KV cache.
     report.check('preload loads at the size the questions will use',
                  payload.get('options') is client.options)
     report.check('preload is not counted as a turn', client.calls == 1)
 
-    # Both front ends have to offer it, or the flag exists and nobody can
-    # reach it from the bench.
+    # Both front ends have to offer it, or the flag exists and nobody can reach
+    # it from the bench.
     from coaxial_ollama import debug
     import coaxial_ollama.__main__ as runner
     # Not a constant any more: the parsed value is None and the mode decides,
@@ -908,13 +854,7 @@ def test_keep_alive(report):
 # ---- the tag follows the machine ------------------------------------------
 
 def test_chat_hands_the_card_back(report):
-    """Chat.close() unloads - the teardown every page reaches for.
-
-    The chooser's chat page ends with `getattr(chat, 'close', None)`;
-    only the claude page had one, so leaving BOARD CHAT parked the local
-    model for its whole keep_alive. A getattr default of None fails
-    SILENTLY, which is why this is a check and not a code review note.
-    """
+    """Chat.close() unloads - the teardown every page reaches for."""
     from coaxial_ollama.client import Ollama
     from coaxial_ollama.debug import Chat
 
@@ -942,8 +882,7 @@ def test_capability(report):
     # This bench itself runs with COAXIAL_VRAM_RESERVE_GB set - see MODELS.md's
     # own `-Reserve 8` example - so a test that leaves the real environment in
     # place fails every unoverridden assertion below on the exact machine these
-    # docs were measured on. Cleared for the whole function, not just around the
-    # override scenario further down, and restored after.
+    # docs were measured on.
     had_override = cap.RESERVE_ENV in os.environ
     saved_override = os.environ.pop(cap.RESERVE_ENV, None)
     try:
@@ -953,25 +892,20 @@ def test_capability(report):
             os.environ[cap.RESERVE_ENV] = saved_override
 
 def test_picker(r):
-    """tools/pick_tests.py - the model picks subjects, this checks the frame.
-
-    Not what the model answers: that is its job and it changes per model.
-    What is checked is every way its answer can be useless, because each one
-    has to land on "run everything" and a picker that silently narrows on a
-    reply it did not understand is worse than no picker.
+    """tools/pick_tests.py - the model picks subjects, this checks the
+    frame.
     """
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), 'tools'))
     import pick_tests
 
-    # Not `is`: run as __main__ this file is imported a second time under
-    # its real name, so the picker holds an equal dict, not the same one.
+    # Not `is`: run as __main__ this file is imported a second time under its
+    # real name, so the picker holds an equal dict, not the same one.
     r.check('the catalogue the model is shown is the one the tests carry',
             pick_tests.TAGS == TAGS, repr(sorted(pick_tests.TAGS)))
 
     j = json.dumps
-    # A suite name the picker will recognise. Any of the nine does;
-    # what these checks are about is the tags, not the file.
+    # A suite name the picker will recognise.
     one = ['test_ollama_render.py']
 
     def reply(**kw):
@@ -1024,12 +958,7 @@ def test_picker(r):
     r.check('a diff that fits is passed through untouched',
             pick_tests.clip('short', 200) == 'short')
 
-    # No ollama, no answer, no narrowing. The client class on the module
-    # pick() reads it from at the call is what this substitutes, so the
-    # failure lands exactly where a missing daemon would put it. The diff
-    # is stubbed nonempty too: on a clean worktree (a CI runner) pick()
-    # answers 'nothing has changed' before it ever reaches for the client,
-    # and this check is about the reach.
+    # No ollama, no answer, no narrowing.
     def explode(*a, **k):
         raise OSError('connection refused')
     real_client = pick_tests.clientmod.Ollama
@@ -1046,14 +975,7 @@ def test_picker(r):
             plan is None and 'connection refused' in why, repr(why))
 
 def _every_roster():
-    """(test, tags) from all nine subject files, as one list.
-
-    The roster invariants are about the SET of suites, not about any one of
-    them: every catalogue tag has to be on some test somewhere, and the draw
-    that covers a picker's blind spot has to be able to reach every subject.
-    Neither is checkable inside a file that only owns one subject, which is
-    what splitting test_ollama.py cost and what this buys back.
-    """
+    """(test, tags) from all nine subject files, as one list."""
     import importlib
 
     whole = []
@@ -1088,9 +1010,8 @@ def test_tag_roster(r):
     r.check('and this roster names none that is gone',
             not (mine - here), repr(sorted(f.__name__ for f in mine - here)))
 
-    # The draw exists because the picker can be wrong the expensive way -
-    # by not thinking of a subject at all. One test per uncovered subject,
-    # and that floor holds whatever the coverage budget says.
+    # The draw exists because the picker can be wrong the expensive way - by
+    # not thinking of a subject at all.
     marks_of = dict(whole)
     chosen = select(whole, {'reply'}, seed=1)
     covered = {t for t, marks in whole if 'reply' in marks}
@@ -1123,20 +1044,7 @@ def test_tag_roster(r):
 
 
 def test_the_terminal_keeps_the_mouse(r):
-    """A view does not report the mouse until it is asked to.
-
-    A VIEW THAT REPORTS THE MOUSE CANNOT BE SELECTED FROM. Asking for SGR
-    reports and clearing QUICK_EDIT is exactly what a terminal uses to
-    let a reader left-drag across a line and copy it, so while the view
-    held the mouse no number and no braille cell on any of these pages
-    could be marked.
-
-    IT WAS THE OTHER WAY ROUND: the view took the mouse on entry and a
-    key handed it back, which put the common case - read the page, copy a
-    figure off it - behind a keystroke nobody had reason to know about.
-    Reported three times from the bench before the default moved. The
-    wheel and the trackball are the special case now.
-    """
+    """A view does not report the mouse until it is asked to."""
     from screen import Keys, SELECT_KEYS
 
     keys = Keys(console=False, mouse=True)
@@ -1149,17 +1057,13 @@ def test_the_terminal_keeps_the_mouse(r):
     r.check('and asked again, gives it straight back',
             not keys.grab(False) and not keys.holding())
 
-    # THE KEY IS SWALLOWED, never handed to a view: no view binds it, and
-    # one that did would fight the terminal for the same gesture. F and
-    # not C - the attitude view binds C to its frame and the menu to a
-    # direct entry, and a key taken universally has to be free
-    # everywhere.
+    # THE KEY IS SWALLOWED, never handed to a view: no view binds it, and one
+    # that did would fight the terminal for the same gesture.
     r.check('F is the key, and C is left to the views that bind it',
             'f' in SELECT_KEYS and 'F' in SELECT_KEYS
             and 'c' not in SELECT_KEYS)
 
-    # AND THE WHEEL IS NOT THE ONLY WAY IN. A view whose zoom lived on
-    # the wheel alone would be a view you had to give the text up to use.
+    # AND THE WHEEL IS NOT THE ONLY WAY IN.
     import show_render
     view = {'zoom': 1.0, 'q': None, 'spin': False}
     show_render.act_on(['+'], view)
@@ -1170,19 +1074,12 @@ def test_the_terminal_keeps_the_mouse(r):
 
 
 def test_mouse(r):
-    """The wheel and the right-drag, out of a terminal's own reports.
-
-    SGR mouse encoding, because the older one packs each coordinate into a
-    single byte and simply stops reporting past column 223 - which on a
-    full-screen window is most of it.
-    """
+    """The wheel and the right-drag, out of a terminal's own reports."""
     import screen
 
     keys = screen.Keys(console=True, mouse=True)
     # What the caller DOES with the number, not the sign of the number: it
-    # scales zoom by 1 + this, and a bigger zoom stands closer. Checking the
-    # sign alone is what let the wheel run backwards under a test named for
-    # the behaviour it was not testing.
+    # scales zoom by 1 + this, and a bigger zoom stands closer.
     def after(report, zoom=1.0):
         keys._buffer = report
         return zoom * (1.0 + keys.poll()[1])
@@ -1212,8 +1109,8 @@ def test_mouse(r):
     r.check('a keystroke mixed in with mouse reports is not eaten',
             keys.poll()[0] == 'quit')
 
-    # Held ONE poll on purpose: the same tail twice is a real lone ESC,
-    # once is maybe the front of a split arrow or mouse report.
+    # Held ONE poll on purpose: the same tail twice is a real lone ESC, once is
+    # maybe the front of a split arrow or mouse report.
     keys._buffer = chr(27)
     held = keys.poll()[0]
     r.check('and a bare ESC is still the menu, one poll late, not a '
@@ -1222,11 +1119,8 @@ def test_mouse(r):
     r.check('a view with no terminal reads no mouse at all',
             screen.Keys(console=False, mouse=True).poll() == (None, 0.0))
 
-    # A Windows console hands mouse movement over as MOUSE_EVENT records,
-    # which msvcrt never shows the program. Without VT input the wheel does
-    # nothing at all there, whatever the view prints to ask for reporting -
-    # and the checks above could not see it, because they feed the parser
-    # bytes directly and never touch the console.
+    # A Windows console hands mouse movement over as MOUSE_EVENT records, which
+    # msvcrt never shows the program.
     was = screen.LINE_INPUT | screen.ECHO_INPUT | screen.QUICK_EDIT
     now = screen.console_mode(was)
     r.check('a mouse view asks the console for VT input and takes the mouse',

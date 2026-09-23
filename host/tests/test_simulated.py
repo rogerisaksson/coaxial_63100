@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""coaxial.simulated: a board that was never plugged in.
-
-No serial port, no ollama - just the invented session run through the real
-MCP tool handlers, the same way a live board would be. If a handler works
-here and breaks against real hardware, the handler changed what it expects
-from `session`/`board`; if it breaks here too, the fixture drifted from that
-shape. Either way this is the fast way to find out which.
-
-Run from the host directory:  python tests/test_simulated.py
-"""
+"""coaxial.simulated: a board that was never plugged in."""
 import io
 import math
 import os
@@ -32,26 +23,14 @@ REPO = os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
 ADC_C = os.path.join(REPO, 'board', 'src', 'board_adc.c')
 
-# One row of s_adcTable. Only the fields the stand-in also claims: the ADC,
-# the channel number, the pin string, whether it is differential, the signal
-# name. The unit column is the firmware's enum and the host's string, which
-# are two spellings of one fact and are compared by test_parity against a
-# real board.
+# One row of s_adcTable.
 ADC_ROW = re.compile(
     r'\{\s*&hadc(\d)\s*,[^,]*,\s*ADC_CHANNEL_(\w+)\s*,[^,]*,\s*'
     r'"([^"]+)"\s*,\s*(ADC_\w+)\s*,\s*"([^"]*)"')
 
 
 def firmware_channels():
-    """s_adcTable, read out of the firmware that defines it.
-
-    `channel` is None for an internal channel. ADC_CHANNEL_TEMPSENSOR is not
-    a number in the source and cannot be made into one here: the HAL defines
-    it three ways behind preprocessor conditions - channel 17 on some parts,
-    18 on others, and on a different ADC in a third family. This board
-    answered 18, and test_parity is what checks the stand-in against that
-    answer. Asserting a number here would be a second, guessed opinion.
-    """
+    """s_adcTable, read out of the firmware that defines it."""
     text = io.open(ADC_C, encoding='utf-8').read()
     table = text.split('s_adcTable[] =')[1].split('};')[0]
     return [{'adc': int(a), 'channel': int(c) if c.isdigit() else None,
@@ -83,10 +62,8 @@ def test_session(report):
     report.check('version says what it is, not a plausible-looking number',
                  version['firmware'] == 'simulated' and version['build']
                  == 'simulated', version)
-    # Counted and named off the stand-in's own table, which is checked
-    # against the board's by test_parity. Written out here it said seven,
-    # and two supply senses were added to `s_adc` - a count in a test is
-    # the same second answer a pin table in a document is.
+    # Counted and named off the stand-in's own table, which is checked against
+    # the board's by test_parity.
     report.check('every channel the table carries is named, none blank',
                  len(channels) == len(simulated.CHANNELS)
                  and {c['signal'] for c in channels}
@@ -113,10 +90,7 @@ def test_analog_read(report):
                  'invariant 9 - not refused, not invented past that',
                  '32768' in off_text and '0.0' in off_text, off_text[:200])
 
-    # Flat, not merely centred. The stand-in gives every channel a burst
-    # spread so the meter's marks have something to show; with the reference
-    # unpowered there is nothing to spread, and a stand-in that jittered at
-    # the rail would teach the opposite of what invariant 9 is for.
+    # Flat, not merely centred.
     still = afe_off.board.analog.burst(0x7F, 64)['channels']
     report.check('with the front end off a burst has no spread at all',
                  all(c['min_raw'] == c['max_raw'] == int(c['mean_raw'])
@@ -127,9 +101,9 @@ def test_analog_read(report):
     toolmod.afe_power(afe_on, action='on')
     on_text = toolmod.analog_read(afe_on)
     # Frozen is EVERY channel at the unpowered value - 32768.0 single-ended,
-    # 0.0 differential - not the string 32768 anywhere: MCUdie's nominal
-    # sits near mid-scale and a live reading walked through it, measured
-    # once on CI (2026-09-13). The codes column is the fourth word.
+    # 0.0 differential - not the string 32768 anywhere: MCUdie's nominal sits
+    # near mid-scale and a live reading walked through it, measured once on CI
+    # (2026-09-13).
     rows = [line.split() for line in on_text.splitlines()
             if line[:1].isdigit() and len(line.split()) > 3]
     frozen = [row for row in rows if row[3] in ('32768.0', '0.0')]
@@ -145,9 +119,7 @@ def test_analog_read(report):
                  'NTC' in ntc_only and 'Phase' not in ntc_only,
                  ntc_only[:120])
 
-    # What a question calls a channel, not what the table calls it. Measured
-    # at the prompt: ch=['bus'] came back "unknown channel 'bus'; names are
-    # cinj,clevel,dcbus,ntc,..." - a refusal listing the channel it meant.
+    # What a question calls a channel, not what the table calls it.
     named = SimulatedSession()
     toolmod.afe_power(named, action='on')
     for asked, expect in (('bus', 'DCbus'), ('temp', 'NTC'),
@@ -158,9 +130,7 @@ def test_analog_read(report):
         report.check('%r reads the channel it means (%s)' % (asked, expect),
                      expect in text and 'unknown' not in text, text[-60:])
 
-    # A word that could mean several is a question nobody narrowed, not a
-    # typo. Naming the candidates beats "unknown", which reads as "no such
-    # thing" and sends the next call somewhere else.
+    # A word that could mean several is a question nobody narrowed, not a typo.
     try:
         toolmod.analog_read(named, ch=['phas'])
         report.check('an ambiguous name names its candidates', False)
@@ -174,9 +144,7 @@ def test_analog_read(report):
         report.check('a name that means nothing is still refused',
                      'unknown channel' in str(exc), str(exc)[:60])
 
-    # A name built out of words. Measured at the prompt: BUS_VOLT and A0,
-    # both invented by the model, both refused where one of them meant
-    # something.
+    # A name built out of words.
     for asked, expect in (('BUS_VOLT', 'DCbus'), ('bus_voltage', 'DCbus'),
                           ('NTC_TEMP', 'NTC'), ('ADC_CH3', 'Clevel'),
                           ('PhaseAVolt', 'PhaseU')):
@@ -186,8 +154,8 @@ def test_analog_read(report):
                      expect in text and 'unknown' not in text, text[-56:])
 
     # And the words must not resolve a name that is not one: `not_a_channel`
-    # went to PhaseU through its bare `a` before the rule that a single
-    # letter only counts beside the word `phase`.
+    # went to PhaseU through its bare `a` before the rule that a single letter
+    # only counts beside the word `phase`.
     for asked in ('not_a_channel', 'the analog channel', 'A0'):
         try:
             toolmod.analog_read(named, ch=[asked])
@@ -239,15 +207,7 @@ def test_gpio_gate(report):
 
 
 def test_channel_table(report):
-    """The stand-in's channel table still matches the one the board has.
-
-    `coaxial.simulated.CHANNELS` is a second copy of `s_adcTable`, and a
-    second answer to "what is PB0" is the thing this repository forbids
-    everywhere else. test_parity compares them against real hardware and is
-    right to - but it skips itself with no board, which is exactly when the
-    stand-in is being used. This reads the firmware source instead, so the
-    drift is caught at the desk on the run that costs three seconds.
-    """
+    """The stand-in's channel table still matches the one the board has."""
     if not os.path.exists(ADC_C):
         report.check('board_adc.c is where this suite expects it',
                      False, ADC_C)
@@ -262,7 +222,7 @@ def test_channel_table(report):
 
     for i, (fw, sim) in enumerate(zip(board, CHANNELS)):
         # An internal channel's number is not in the source - see
-        # firmware_channels. Everything else about the row still has to agree.
+        # firmware_channels.
         fields = ('adc', 'pin', 'differential', 'signal')
         if fw['channel'] is not None:
             fields += ('channel',)
@@ -273,13 +233,7 @@ def test_channel_table(report):
 
 
 def test_imu(report):
-    """The stand-in IMU: the real shape, and never mistakable for a part.
-
-    The tools call `session.board.imu` without knowing which board they
-    hold, so the stand-in has to answer the same three calls. What it must
-    not do is answer them plausibly: a product id from here says
-    "simulated" where a part says a version.
-    """
+    """The stand-in IMU: the real shape, and never mistakable for a part."""
     session = SimulatedSession()
     part = session.board.imu
 
@@ -350,12 +304,8 @@ def test_imu(report):
 
 
 def test_subsystems(report):
-    """The board says what it is made of, and the stand-in says it the same way.
-
-    The list comes from the firmware's command tables - one subsystem per
-    table - so a host that kept its own copy would go stale the moment one
-    was added. What is checked here is the shape and that the renderer reads
-    it; test_parity checks it against a real board.
+    """The board says what it is made of, and the stand-in says it the same
+    way.
     """
     session = SimulatedSession()
     rows = session.board.system.channel_map()['subsystems']
@@ -380,12 +330,7 @@ def test_subsystems(report):
 
 
 def test_orientation(report):
-    """The quaternion maths and the picture it draws. No board, no IMU.
-
-    Every case here is one a reader can check by hand: the identity is level,
-    a quarter turn about an axis is 90 degrees of that axis and nothing else,
-    and a rotation does not change a length.
-    """
+    """The quaternion maths and the picture it draws."""
     from coaxial import orientation as o
 
     roll, pitch, yaw = o.euler_degrees((0, 0, 0, 1))
@@ -395,8 +340,7 @@ def test_orientation(report):
 
     # Thirty degrees, not ninety: at pitch +-90 the Euler decomposition is
     # singular and roll and yaw trade places, so a quarter turn about Y
-    # legitimately reads 180/90/180. Testing there would assert against
-    # gimbal lock rather than against the maths.
+    # legitimately reads 180/90/180.
     third = math.radians(30)
     for axis, name, want in ((0, 'roll', 0), (1, 'pitch', 1), (2, 'yaw', 2)):
         q = [0.0, 0.0, 0.0, math.cos(third / 2)]
@@ -422,8 +366,8 @@ def test_orientation(report):
                  o.angle_between(tilt, tuple(-v for v in tilt)) < 1e-9,
                  '%.6f' % o.angle_between(tilt, tuple(-v for v in tilt)))
 
-    # The clamp in euler_degrees: asin of anything past 1.0 is a domain
-    # error, and floating point gets there on a legitimate quarter turn.
+    # The clamp in euler_degrees: asin of anything past 1.0 is a domain error,
+    # and floating point gets there on a legitimate quarter turn.
     straight_up = o.euler_degrees((0.0, math.sin(math.radians(45)), 0.0,
                                    math.cos(math.radians(45))))
     report.check('pitch is clamped at ninety rather than raising on a '
@@ -459,7 +403,7 @@ def test_orientation(report):
                  ''.join(sorted(set(drawn) & set(o.SHADES))))
 
     # Turned edge on the board flattens: it occupies fewer rows than it does
-    # face on. That is the whole reason a picture beats four decimals.
+    # face on.
     quarter = math.sin(math.radians(45))
     edge = o.render((quarter, 0.0, 0.0, math.cos(math.radians(45))))
     drawn_rows = sum(1 for l in lines if l.strip())
@@ -470,8 +414,7 @@ def test_orientation(report):
 
     # facing() answers against where the camera stands, which is 13 degrees
     # above the board's plane, so a board at rest shows the component side by
-    # sin(13.15) and not by 1.0. What the caption needs is the sign, and what
-    # says the camera is being consulted at all is the magnitude.
+    # sin(13.15) and not by 1.0.
     up = o.facing((0, 0, 0, 1))
     over = o.facing((0.0, 1.0, 0.0, 0.0))
     report.check('the component side faces the reader, and the solder side '
@@ -482,9 +425,7 @@ def test_orientation(report):
                  '%.3f at %.2f degrees' % (up, o.VIEW_ELEVATION))
 
     # render() turns points through matrix() rather than rotate(), because
-    # 45,000 sandwich products a frame do not fit in a frame. The two must
-    # not drift: this is what says the fast path still turns things the way
-    # the reference does.
+    # 45,000 sandwich products a frame do not fit in a frame.
     q = o.normalise((0.3, -0.5, 0.2, 0.78))
     m = o.matrix(q)
     v = (0.4, -0.9, 0.25)
@@ -498,8 +439,8 @@ def test_orientation(report):
                  '%s against %s' % (by_matrix, by_quaternion))
 
     # Whatever the mesh came from - the CAD export or the parametric board
-    # behind it - the renderer is handed one shape: nine floats of triangle
-    # and three of unit normal, scaled to the board's radius.
+    # behind it - the renderer is handed one shape: nine floats of triangle and
+    # three of unit normal, scaled to the board's radius.
     verts, faces, normals = o.MODEL_MESH
     report.check('the mesh is indexed: three corners and one normal a face',
                  len(verts) % 3 == 0 and len(faces) % 3 == 0
@@ -518,29 +459,22 @@ def test_orientation(report):
                  'millimetres draws the same size as one in inches',
                  0.9 <= reach <= 1.01, '%.4f' % reach)
 
-    # The dial: the same rules, on a different picture. It is a diagram and
-    # not a lit surface, so what it must get right is where things are.
+    # The dial: the same rules, on a different picture.
     from coaxial import dial
 
     turned = dial.render(90.0, field=380).split(chr(10))
     report.check('the dial is the height it was asked for',
                  len(turned) == 23, '%d rows' % len(turned))
 
-    # A PROTRACTOR since 2026-08-29: degree labels every 30 all the way
-    # round, like the reference face. They are the one thing on the face
-    # that is still text - a braille cell cannot carry a letter - and they
-    # are written only onto cells no dot reached, so a missing one means
-    # the face has outgrown its box.
+    # A PROTRACTOR since 2026-08-29: degree labels every 30 all the way round,
+    # like the reference face.
     face = chr(10).join(turned)
     marks = [str(deg) for deg in range(0, 360, 30)]
     missing = [m for m in marks if m not in face]
     report.check('every 30-degree graduation is labelled',
                  not missing, 'missing %s' % ', '.join(marks and missing))
 
-    # WHERE THINGS ARE COMES OFF THE OWNER GRID, not off the glyphs. A
-    # braille cell carries dots from up to eight places and its character
-    # does not say which, so a test that looks for a needle by its glyph -
-    # which the character face allowed - cannot be written here at all.
+    # WHERE THINGS ARE COMES OFF THE OWNER GRID, not off the glyphs.
     def owners(deg, kind, field=380):
         weak = field < dial.WEAK_GAUSS
         _, owner, _, geom = dial._raster(deg, 64, 23, weak, 2.0)
@@ -548,16 +482,13 @@ def test_orientation(report):
                  if any(owner[row][col] == kind for col in range(64))], geom)
 
     hub, geom = owners(0.0, dial.HUB)
-    # THREE ROWS, NOT ONE: the hub is a disc of 2.6 dots and a row is four,
-    # so a disc centred on a row boundary reaches into the rows either
-    # side. The axis is the row the centre is in.
+    # THREE ROWS, NOT ONE: the hub is a disc of 2.6 dots and a row is four, so
+    # a disc centred on a row boundary reaches into the rows either side.
     axis = [int(geom.cy) // dial.DOTS_Y]
     report.check('the hub straddles the row the axis is in',
                  axis[0] in hub and len(hub) <= 3, '%s, axis %d' % (hub, axis[0]))
 
-    # The needle at 90 degrees goes up from the axis and at 270 down. If
-    # those come out the same way round the picture is upside down, which
-    # is the one thing a shaft-angle drawing cannot be.
+    # The needle at 90 degrees goes up from the axis and at 270 down.
     up = owners(90.0, dial.NEEDLE)[0]
     down = owners(270.0, dial.NEEDLE)[0]
     report.check('the needle goes up at 90 degrees and down at 270',
@@ -568,8 +499,8 @@ def test_orientation(report):
     report.check('and at zero it lies flat along that row and no other',
                  flat == axis, '%s against %s' % (flat, axis))
 
-    # The bead is the reading's own end, and it stands against the scale:
-    # short of the rim, and past everything the needle crosses.
+    # The bead is the reading's own end, and it stands against the scale: short
+    # of the rim, and past everything the needle crosses.
     bead, geom = owners(0.0, dial.BEAD)
     report.check('the bead sits at the needle tip, inside the graduations',
                  bool(bead) and geom.needle < geom.rim - dial.MAJOR_TICK + 1e-9,
@@ -584,9 +515,7 @@ def test_orientation(report):
                  'reading on it, which is what there is',
                  bool(owners(90.0, dial.FACE, field=3)[0]))
 
-    # THE SWEEP IS THE READING FROM ZERO, so more angle is more band. A
-    # sliver at 10 degrees and most of the face at 350 is the whole
-    # difference between a protractor and a decoration.
+    # THE SWEEP IS THE READING FROM ZERO, so more angle is more band.
     def swept(deg):
         _, owner, _, _ = dial._raster(deg, 64, 23, False, 2.0)
         return sum(cls in dial.SWEEP for row in owner for cls in row)
@@ -596,19 +525,13 @@ def test_orientation(report):
                  little < most / 4.0, '%d cells at 20 deg, %d at 340'
                  % (little, most))
 
-    # AND FADES BEHIND THE NEEDLE, fast. The far end of a long tail is a
-    # trace and the end the needle stands on is nearly its own colour: at
-    # one weight the whole way, the band was the loudest thing on the face
-    # at large angles and the needle read against its own trail.
+    # AND FADES BEHIND THE NEEDLE, fast.
     _, owner, _, _ = dial._raster(340.0, 64, 23, False, 2.0)
     steps = [sum(row.count(step) for row in owner) for step in dial.SWEEP]
     report.check('and fades behind the needle - most of a long one is trace',
                  steps[0] > 4 * max(steps[1:]), '%s cells a step' % steps)
-    # NOT AN ORDERING CHECK ON THE CODES: 236 is darker than 172 and
-    # larger, so a numeric comparison of ansi-256 indices says nothing
-    # about brightness. What can be checked is that there is one colour
-    # per step and that none of them is the needle's own - a tail that
-    # reached the needle's amber would read as part of it.
+    # NOT AN ORDERING CHECK ON THE CODES: 236 is darker than 172 and larger, so
+    # a numeric comparison of ansi-256 indices says nothing about brightness.
     report.check('one colour per step of the fade, and none the needle own',
                  (len(dial.SWEEP_RAMP) == dial.SWEEP_STEPS
                   and ansi.AMBER not in dial.SWEEP_RAMP
@@ -621,9 +544,8 @@ def test_orientation(report):
                                               'errors': 0, 'field': 3}))
 
     # The sensor box moved off the face and into the view's HUD panel on
-    # 2026-08-29 - the face kept four voices (rim, sweep, sensor, pointer)
-    # and read as a party. The face's contract now: the instrument and the
-    # reading, nothing else.
+    # 2026-08-29 - the face kept four voices (rim, sweep, sensor, pointer) and
+    # read as a party.
     report.check('the face carries no sensor box - the HUD names the part',
                  not any('A1335' in row for row in turned))
 
@@ -651,12 +573,7 @@ def test_orientation(report):
 
 
 def test_scaling(report):
-    """The three conversions this host claims to know, as arithmetic.
-
-    Nothing here needs a board, and that is the point: a wrong constant does
-    not fail loudly on hardware, it returns a plausible number. Each figure
-    below is checked against the schematic value it was traced from.
-    """
+    """The three conversions this host claims to know, as arithmetic."""
     bus = scaling.DCBUS_ONBOARD
     report.check('the DC link divider is the schematic pair R12/R11',
                  (bus.r_top, bus.r_bottom) == (49900.0, 2200.0),
@@ -728,9 +645,8 @@ def _desk_rows(**over):
                      'min_raw': mean - 20, 'max_raw': mean + 20,
                      'unit': None,
                      # read_all() carries this for every channel, and it is
-                     # what a channel with no defined signal prints instead
-                     # of a raw code. Zero here would let that check pass on
-                     # a number that is not one.
+                     # what a channel with no defined signal prints instead of
+                     # a raw code.
                      'volts_at_pin': mean / divisor * 3.3})
     return rows
 
@@ -758,11 +674,8 @@ def test_desk(report):
                  and all('3.3' in line for line in face[3:]),
                  face[0].strip()[:34])
 
-    # THE BAR IS BRAILLE NOW - the motor page's gauge, one instrument on
-    # every page. A level cell carries the three gauge rows in both
-    # lanes (`⠿`); a track cell the left lane alone (`⠇`). Column 18 is
-    # where the bar starts: three for the name, a space, and SCALE for
-    # the channel's own ends.
+    # THE BAR IS BRAILLE NOW - the motor page's gauge, one instrument on every
+    # page.
     from coaxial import gauges
     level = chr(raster.BRAILLE | 0x3F)
     track = chr(raster.BRAILLE | 0x07)
@@ -778,9 +691,9 @@ def test_desk(report):
                  and gauges.gauge(0.5, 10, colour=False)[0] == level
                  and gauges.gauge(0.5, 10, colour=False)[-1] == track)
 
-    # The span is the caller's to compute: deriving it from the reading and
-    # its fraction of full scale is right for a linear channel and wrong for
-    # the thermistor, which is logarithmic in the code.
+    # The span is the caller's to compute: deriving it from the reading and its
+    # fraction of full scale is right for a linear channel and wrong for the
+    # thermistor, which is logarithmic in the code.
     bare = dict(rows[0])
     bare.pop('span')
     report.check('a channel with no scale supplied says so rather than '
@@ -805,10 +718,10 @@ def test_desk(report):
     for row in quiet:
         row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
     gate_drivers.update(quiet)
-    # THE RELEASE (bench, 2026-09-06): a quarter of the distance to the
-    # bar's level an update, the fixed decay at the least - not the
-    # fixed decay alone, which took eight seconds for the whole bar and
-    # was always seconds behind a swinging phase.
+    # THE RELEASE (bench, 2026-09-06): a quarter of the distance to the bar's
+    # level an update, the fixed decay at the least - not the fixed decay
+    # alone, which took eight seconds for the whole bar and was always seconds
+    # behind a swinging phase.
     level = desk.fraction([r for r in quiet if r['index'] == 0][0])
     expect = held - max(0.04, desk.RELEASE * (held - level))
     report.check('a peak falls toward the level by the release and no '
@@ -850,8 +763,7 @@ def test_tumble(report):
                  all(span > 90.0 for span in travel),
                  'roll %.0f, pitch %.0f, yaw %.0f' % tuple(travel))
 
-    # The sequence byte wraps at 256. A rate that had not finished a whole
-    # turn by then would snap the board back to level once a cycle.
+    # The sequence byte wraps at 256.
     ends = [abs(a - b) for a, b in zip(angles(255), angles(0))]
     report.check('and it comes back where it started, so the wrap is smooth',
                  all(gap < 5.0 or gap > 355.0 for gap in ends),
@@ -859,11 +771,7 @@ def test_tumble(report):
 
 
 def test_peak_hold(report):
-    """What the mark is for: standing where the signal went, after it left.
-
-    The ballistics themselves are checked in test_desk. What is here is the
-    lag, and the bug that a single mirrored magnitude had.
-    """
+    """What the mark is for: standing where the signal went, after it left."""
     def spike_then_quiet(meter, rounds):
         row = dict(index=0, signal='Phase U', differential=True, unit='mA',
                    span=(-207.4, 207.4), reading=0.0)
@@ -883,12 +791,8 @@ def test_peak_hold(report):
                  high > 700 / 32768.0,
                  '%+.3f held against %+.3f now' % (high, 700 / 32768.0))
 
-    # One magnitude, mirrored, put the mark where the current had never been:
-    # a phase sitting at +62 A drew its caret at -62.
-    # 0.2, from 0.5: the release (2026-09-06) brings a spike's caret down
-    # to a quarter of full scale in four updates where the fixed decay
-    # left it at three quarters - still ten times the reading, and the
-    # low end still near zero rather than mirrored.
+    # One magnitude, mirrored, put the mark where the current had never been: a
+    # phase sitting at +62 A drew its caret at -62.
     report.check('and the two ends are held apart, not mirrored',
                  low > -0.05 and high > 0.2, '%+.3f..%+.3f' % (low, high))
 
@@ -898,9 +802,7 @@ def test_ascii3d(report):
     report.check("the ramp is AsciiEffect's own, darkest first",
                  ascii3d.CHARACTERS == ' .:-+*=%@#', ascii3d.CHARACTERS)
 
-    # floor((1 - brightness) * (len - 1)), then inverted for dark mode. Both
-    # halves matter: without the inversion the background is '#' and the lit
-    # face is a space, which on a terminal is a photographic negative.
+    # floor((1 - brightness) * (len - 1)), then inverted for dark mode.
     ramp = ascii3d.CHARACTERS
     for brightness in (0.0, 0.25, 0.5, 0.75, 1.0):
         want = ramp[len(ramp) - 1 - int((1.0 - brightness) * (len(ramp) - 1))]
@@ -916,12 +818,8 @@ def test_ascii3d(report):
                  ascii3d.brightness_char(1.0, invert=False) == ' '
                  and ascii3d.brightness_char(0.0, invert=False) == '#')
 
-    # A closer light was tried, to force some modelling onto a flat board
-    # seen face-on. It was the wrong answer: what that case wanted was
-    # RESOLUTION, and the reference's own ratio is what the port keeps.
-    # The reference's light is where updateLightPosition() puts it, not the
-    # (100, 100, 400) the PointLight is constructed with - resetPositions()
-    # overwrites that on every load, and this asserted the dead value.
+    # A closer light was tried, to force some modelling onto a flat board seen
+    # face-on.
     report.check('the light sits where the reference actually puts it',
                  ascii3d.LIGHT_DISTANCE == 4.12
                  and ascii3d.LIGHT_DIRECTION == (35.9, -35.9, 200.0),
@@ -929,7 +827,7 @@ def test_ascii3d(report):
                                           ascii3d.LIGHT_DIRECTION))
 
     # A canvas that changes height as the board turns leaves the last row of
-    # the previous frame on screen. It is a drawing of a fixed size.
+    # the previous frame on screen.
     heights = set()
     for degrees in (0, 5, 15, 30, 60, 90):
         radians = math.radians(degrees) / 2.0
@@ -958,11 +856,7 @@ def test_ascii3d(report):
     report.check('and the fit is what fills the shorter axis',
                  max(len(line) for line in fit.split('\n')) <= 60)
 
-    # The light belongs to the world, not to the camera. Moving the viewer
-    # must not change how the board is lit - measured before this was fixed,
-    # dropping the camera from 90 degrees to 60 darkened the whole board by
-    # two ramp steps with nothing about the board or the light having moved.
-    # One triangle in the XY plane, big enough to cover cells.
+    # The light belongs to the world, not to the camera.
     face = ([-0.6, -0.6, 0.0, 0.6, -0.6, 0.0, 0.0, 0.6, 0.0],
             [0, 1, 2], [0.0, 0.0, 1.0])
     square = (1, 0, 0, 0, 1, 0, 0, 0, 1)
@@ -971,11 +865,8 @@ def test_ascii3d(report):
     def inked(picture):
         return sum(1 for c in picture if c.strip())
 
-    # Projected area, which is the whole difference between rasterising a
-    # mesh and splatting points sampled off it. Four earlier versions here
-    # sampled the surface by TRUE area, so a wall got its full area however
-    # it was turned, and 43% of this board's area is wall - which drew as
-    # salt and pepper over the whole picture.
+    # Projected area, which is the whole difference between rasterising a mesh
+    # and splatting points sampled off it.
     report.check('a face-on triangle covers cells',
                  inked(ascii3d.render(face, square, 30, 10, distance=3.0)) > 0,
                  '%d cells' % inked(ascii3d.render(face, square, 30, 10,
@@ -984,10 +875,7 @@ def test_ascii3d(report):
                  inked(ascii3d.render(face, edgewise, 30, 10,
                                       distance=3.0)) == 0)
 
-    # The light belongs to the world, not to the camera. Moving the viewer
-    # must not change how a face is lit - measured before this was fixed,
-    # dropping the camera from 90 degrees to 60 darkened the whole board by
-    # two ramp steps with nothing about the board or the light having moved.
+    # The light belongs to the world, not to the camera.
     lamp = (0.7, -0.7, 4.0)
 
     def glyphs(elevation):
@@ -1002,8 +890,6 @@ def test_ascii3d(report):
                  '%s against %s' % (sorted(glyphs(90.0)), sorted(glyphs(60.0))))
 
     # The font's shape is the only thing the projection does not work in.
-    # Get it wrong and the picture is not blurred, it is stretched: a round
-    # board drawn at the wrong cell aspect reads as a board turned edge-on.
     for aspect in (1.0, 2.0):
         cols, rows, cell_rows = ascii3d.grid(60, 20, 2, aspect)
         report.check('a cell %.1f times as tall as wide is %d rows deep'
@@ -1011,8 +897,8 @@ def test_ascii3d(report):
                      cell_rows == int(round(aspect * 2)) and cols == 120,
                      '%dx%d framebuffer' % (cols, rows))
 
-    # Straight down at a board that is round, the drawing has to come out
-    # round too - in the font's units, not the framebuffer's.
+    # Straight down at a board that is round, the drawing has to come out round
+    # too - in the font's units, not the framebuffer's.
     flat_on = orientation.viewpoint(0.0, 90.0)
     cols, rows, cell_rows = ascii3d.grid(80, 24)
     distance, off_x, off_y = ascii3d.fit(orientation.MODEL_MESH[0], flat_on,
@@ -1022,8 +908,7 @@ def test_ascii3d(report):
     rows = [line for line in picture.split(chr(10)) if line.strip()]
 
     # The true span, not the right edge: the renderer strips trailing spaces
-    # and not leading ones, so len(line) counts the left margin too. That
-    # read 33% wide of round on a board that was rows correctly.
+    # and not leading ones, so len(line) counts the left margin too.
     left = min(len(line) - len(line.lstrip()) for line in rows)
     wide = max(len(line) for line in rows) - left
     tall = len(rows) * (cell_rows / float(ascii3d.SUPERSAMPLE))
@@ -1039,18 +924,7 @@ def test_ascii3d(report):
 
 
 def test_clock_reference(report):
-    """UTC when NTP answers, this PC when it does not, and never quietly.
-
-    The board has no clock of its own, so a sync that raised would leave a
-    capture with no time on it at all - falling back is right. Falling back
-    silently is not: this PC was 947 ms off UTC and 25 ppm slow the day
-    this was written, with Windows reporting a good sync, so a capture that
-    believes it is on UTC when it is on this machine is wrong by a second
-    and says nothing.
-
-    NTP is stubbed rather than reached. A test that needs the network to
-    pass is a test that fails on a train.
-    """
+    """UTC when NTP answers, this PC when it does not, and never quietly."""
     import coaxial.clock as clockmod
     from coaxial.errors import RigError
 
@@ -1074,9 +948,8 @@ def test_clock_reference(report):
     report.check('it still produces a rate - the capture keeps its timestamps',
                  fell_back.hz > 0, fell_back.hz)
 
-    # A host 40 ppm slow makes the board look 40 ppm fast, because the rate
-    # was counted in that host's short seconds. Signed the other way first,
-    # and it put the board at +35 ppm where an independent method had -13.
+    # A host 40 ppm slow makes the board look 40 ppm fast, because the rate was
+    # counted in that host's short seconds.
     clockmod.ntp_offset = lambda *a, **k: (0.0, 0.001)
     try:
         flat = session.board.clock.sync(seconds=0.2, rounds=1)
@@ -1090,11 +963,7 @@ def test_clock_reference(report):
                  'it can be called bounded rather than measured',
                  (flat.floor_ppm or 0.0) > 0, flat.floor_ppm)
 
-    # THE SECOND QUERY CAN FAIL WHERE THE FIRST DID NOT. Measured on CI
-    # 2026-09-05: a runner reached time.google.com once and timed out on
-    # the return, and the whole DAQ suite crashed on a clock nobody had
-    # asked about. A rate against UTC needs both ends; with one it is
-    # the PC's clock, said - never a raise.
+    # THE SECOND QUERY CAN FAIL WHERE THE FIRST DID NOT.
     answers = iter([(0.0, 0.001)])
 
     def once(*_, **__):
@@ -1116,17 +985,11 @@ def test_clock_reference(report):
 
 
 def test_link_bench(report):
-    """What a transaction costs against what its bitrate allows.
-
-    The arithmetic is checked here and the measurement is not: a threshold
-    on how fast this bench's USB happens to be would be an expected value
-    about hardware, which this repository does not keep (invariant 10). So
-    every number below is one a reader can do by hand.
-    """
+    """What a transaction costs against what its bitrate allows."""
     from coaxial import bench
 
     # 8N1 is ten bits a byte, so 115200 baud is 11520 B/s and 250 bytes is
-    # 250/11520 of a second. Nothing about the board is in that.
+    # 250/11520 of a second.
     report.check('the floor is bytes x 10 / baud, and nothing else',
                  abs(bench.frame_seconds(250, 115200) - 0.0217013888) < 1e-9,
                  '%.6f ms' % (bench.frame_seconds(250, 115200) * 1e3))
@@ -1134,8 +997,7 @@ def test_link_bench(report):
                  bench.frame_seconds(64, 57600)
                  == 2 * bench.frame_seconds(64, 115200), None)
 
-    # 100 bytes each way at 115200 is 2000 bits, 17.361 ms. A round trip
-    # measured at twice that used half the wire it was given.
+    # 100 bytes each way at 115200 is 2000 bits, 17.361 ms.
     made_up = bench.Result('made up', 100, 100,
                            [0.03, 0.0347222222, 0.06], 115200)
     report.check('wire bytes are both directions',
@@ -1174,19 +1036,13 @@ def test_link_bench(report):
 
 
 def test_gate_driver_arming(report):
-    """Arming a power stage is asked for by name, or it does not happen.
-
-    The 2EDL8034's inputs are independent and it has no interlock, so TIM1's
-    dead time is the only thing between the two FETs of a leg. Everything
-    here is about making that impossible to skip by accident; the dead time
-    itself is checked against the silicon, not against a stand-in.
-    """
+    """Arming a power stage is asked for by name, or it does not happen."""
     from coaxial import Coaxial63100
     from coaxial.errors import RigError
 
-    # power_afe SAID, not inherited: the interlock refusal under
-    # test reports the volts it read, and with the rail down it
-    # refuses for the rail instead and never reads them.
+    # power_afe SAID, not inherited: the interlock refusal under test reports
+    # the volts it read, and with the rail down it refuses for the rail instead
+    # and never reads them.
     rig = Coaxial63100(simulated_device=True, power_afe=True).open()
     try:
         report.check('nothing is armed on the way in',
@@ -1204,10 +1060,8 @@ def test_gate_driver_arming(report):
                      'rather than leaving the caller to guess',
                      refused and 'gates.arm()' in refused, refused)
 
-        # The schematic wants the charge pump up and the level detector
-        # tripped first. The stand-in reports neither, the same way the
-        # unmodified bench board does not - Cinj 0.77 V and Clevel 0.06 V
-        # against 3 V each, measured 2026-08-27.
+        # The schematic wants the charge pump up and the level detector tripped
+        # first.
         try:
             rig.gates.arm(bypass_sto=True)
             held = None
@@ -1225,9 +1079,9 @@ def test_gate_driver_arming(report):
                      rig.write(analog={'Phase U': 0.25})['Phase U'] > 0,
                      rig.board.gate_drivers.state()['duty'])
 
-        # The counted hold, MINOR 8: the virtual interrupt zeroes the
-        # compares when the count runs out, and state() is where that is
-        # seen - 250 periods is 5 ms at the stand-in's 50 kHz.
+        # The counted hold, MINOR 8: the virtual interrupt zeroes the compares
+        # when the count runs out, and state() is where that is seen - 250
+        # periods is 5 ms at the stand-in's 50 kHz.
         gd = rig.board.gate_drivers
         gd.duty((100, 0, 0), periods=250)
         live = gd.state()
@@ -1245,9 +1099,9 @@ def test_gate_driver_arming(report):
         report.check('gates.disarm() clears it again',
                      rig.gates.armed() is False, rig.gates.armed())
 
-        # The check reads BDTR every time rather than trusting one reading:
-        # a .ioc regeneration and a CubeMX mode name bound to the wrong
-        # channel have both moved TIM1 in this repository without saying so.
+        # The check reads BDTR every time rather than trusting one reading: a
+        # .ioc regeneration and a CubeMX mode name bound to the wrong channel
+        # have both moved TIM1 in this repository without saying so.
         state = dict(rig.board.gate_drivers.state(), deadtime=0)
         setattr(rig.board.gate_drivers, 'state', lambda: state)
         try:
@@ -1272,13 +1126,7 @@ PAIRS = (('UH', 'UL'), ('VH', 'VL'), ('WH', 'WL'))
 
 
 def test_gate_snapshot(report):
-    """The six gate signals, and the one state they must never show.
-
-    Read as one IDR load on the board so the six are the same instant: six
-    asks at 50 kHz can straddle an edge and show a leg with both FETs on,
-    which is the state the dead time exists to prevent. A stand-in that
-    could show it would teach a reader the wrong thing, so it cannot.
-    """
+    """The six gate signals, and the one state they must never show."""
     sys.path.insert(0, os.path.join(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__))), 'tools'))
     import show_gate_drivers
@@ -1330,19 +1178,13 @@ def test_gate_snapshot(report):
 
 
 def test_dead_time(report):
-    """Settable, floored at 20 ns, and skewable - all refused in words.
-
-    The 2EDL8034 has no interlock, so the dead time is the only thing
-    between the two FETs of a leg. Everything here is about the floor being
-    a floor. What the skew does at the gates is not checked and cannot be
-    from here: it needs two probes and a scope.
-    """
+    """Settable, floored at 20 ns, and skewable - all refused in words."""
     from coaxial import Coaxial63100
     from coaxial.errors import RigError
 
-    # power_afe SAID, not inherited: the interlock refusal under
-    # test reports the volts it read, and with the rail down it
-    # refuses for the rail instead and never reads them.
+    # power_afe SAID, not inherited: the interlock refusal under test reports
+    # the volts it read, and with the rail down it refuses for the rail instead
+    # and never reads them.
     rig = Coaxial63100(simulated_device=True, power_afe=True).open()
     try:
         gates = rig.board.gate_drivers
@@ -1392,14 +1234,7 @@ VIEWS = ('show_angle', 'show_capture', 'show_desk', 'show_gate_drivers',
 
 
 def test_views(report):
-    """Each view draws three frames against the stand-in without raising.
-
-    The suites check the classes a view is built from, not the view. Both of
-    these got through: `rig.acquire()` called `daq.read`, renamed months
-    earlier and gone from both implementations, and the stand-in's CENTRE
-    map stopped at channel 8 after the die thermometer took 9. Neither is
-    visible to a test that never runs the program.
-    """
+    """Each view draws three frames against the stand-in without raising."""
     import subprocess
 
     tools = os.path.join(REPO, 'host', 'tools')
@@ -1415,14 +1250,7 @@ def test_views(report):
 
 
 def test_virtual_rotor(report):
-    """The model source turns a rotor; the ADC source deliberately does not.
-
-    `model()` answered theta 0.0 and omega_hat 0.0 whichever source was
-    picked, so nothing built against the stand-in could watch an observer
-    track anything. The ADC source still answers a still rotor - the
-    commissioning steps are checked against a machine at zero - and the
-    model source integrates one.
-    """
+    """The model source turns a rotor; the ADC source deliberately does not."""
     import time
     from coaxial.simulated import SimulatedDrive
 
@@ -1431,19 +1259,7 @@ def test_virtual_rotor(report):
                  still['theta'] == 0.0 and 'theta_hat' not in still, still)
 
     def spin(iq, l2, seconds=0.02):
-        # SENSORLESS is the torque path: iq commutated on the rotor. HOLD
-        # is a load-angle spring since the stepper physics landed, and a
-        # torque check through it would measure the spring instead.
-        #
-        # AND SHORT ENOUGH TO STAY IN THE CONSTANT-TORQUE REGION. The lag
-        # this measures is `alpha / wn^2`, so it only compares two
-        # accelerations while both rotors are still accelerating. At 0.05
-        # s a side, 2 A reached the model's no-load speed inside the
-        # window - the link takes the back-EMF at 78 ms there - its
-        # acceleration went to zero and the lag with it, and the ratio
-        # collapsed from over five to 4.2. That is the machine, not the
-        # PLL: the model grew a link ceiling it did not have when this
-        # was written.
+        # SENSORLESS is the torque path: iq commutated on the rotor.
         drive = SimulatedDrive()
         drive.source('model')
         drive.model_reset()
@@ -1466,8 +1282,8 @@ def test_virtual_rotor(report):
                  abs(fast['error']) > 5.0 * abs(slow['error']),
                  (fast['error'], slow['error']))
 
-    # alpha / wn^2, so a fifth of the natural frequency is twenty-five
-    # times the lag. Measured 25.1 against the 25.4 the gains imply.
+    # alpha / wn^2, so a fifth of the natural frequency is twenty-five times
+    # the lag.
     loose = spin(2.0, 4.0)
     ratio = abs(loose['error']) / abs(fast['error'])
     report.check('the lag goes as 1 / wn^2', 15.0 < ratio < 40.0, ratio)
@@ -1535,12 +1351,8 @@ def main():
 
 
 def test_a_ceiling_pulled_in_under_a_node_closes_the_clamp(report):
-    """The stand-in's trip is the record's ceiling, as the C's `trip_c`;
-    the trimmed ceiling is the throttle's. A fresh stand-in is UNCERTAIN
-    at the floor, every ceiling at 80 % of its span, and a driver placed
-    at 92 % of the record's span is over that: it reads 100 %, the clamp
-    is closed, and nothing trips until the record's own ceiling - the
-    rotor page's demo had tripped on a re-trim (2026-09-08).
+    """The stand-in's trip is the record's ceiling, as the C's `trip_c`; the
+    trimmed ceiling is the throttle's.
     """
     from coaxial.simulated.power import SimulatedThermal
 
@@ -1565,20 +1377,7 @@ def test_a_ceiling_pulled_in_under_a_node_closes_the_clamp(report):
 
 
 def test_thermal_identification(report):
-    """The stand-in identifies its own ground truth, and says so.
-
-    A HYPOTHETICAL BOARD heats on the same losses the observer estimates
-    and is read through three noisy thermometers - the bench's words:
-    "a ground truth the observer has to identify, and when it does it
-    goes UNCR, CONV, STABLE; how else would you even simulate that it
-    works?" The truth is put in a box (air path doubled): six minutes
-    at 30 A, then a cooldown, and the same identifier the board runs
-    (`thermal_ident.py`) walks the states and lands near two. Then the
-    box comes off and a fan goes on: UNCERTAIN within minutes, and a
-    half found by the end of the next cooldown. The wire's shape first,
-    `Thermal.identification()`'s; the record as a file between runs
-    last.
-    """
+    """The stand-in identifies its own ground truth, and says so."""
     import os
 
     from coaxial import Coaxial63100, thermal
@@ -1605,9 +1404,7 @@ def test_thermal_identification(report):
                      'cooldown shows the thermometers',
                      tuple(got['online']) == thermal.IDENT_ONLINE, got['online'])
         # THE MARGIN IS A NUMBER, continuous from the floor to one on the
-        # evidence (2026-09-06); the state is a word beside it. Fresh,
-        # there is no evidence and the margin is the floor - the
-        # record's 0.8.
+        # evidence (2026-09-06); the state is a word beside it.
         report.check('the margin is at the floor on a fresh stand-in - the '
                      'record\'s 0.80, what the envelope multiplies its '
                      'spans by until the evidence comes in',
@@ -1641,10 +1438,10 @@ def test_thermal_identification(report):
             if not states or states[-1] != state:
                 states.append(state)
 
-    # TWO CYCLES: with the room identified beside the scales, one
-    # cooldown leaves the air scale known to 0.12 and CONVERGING - the
-    # room and the air path share a cooldown's evidence - and the second
-    # takes it under a tenth, STABLE (measured 2026-09-06).
+    # TWO CYCLES: with the room identified beside the scales, one cooldown
+    # leaves the air scale known to 0.12 and CONVERGING - the room and the air
+    # path share a cooldown's evidence - and the second takes it under a tenth,
+    # STABLE (measured 2026-09-06).
     run(6, load)
     run(14, idle)
     run(6, load)
@@ -1663,18 +1460,18 @@ def test_thermal_identification(report):
                  'mode shows both',
                  got['truth']['situation'] == 'box'
                  and abs(got['truth']['air'] - 2.0) < 1e-9, got['truth'])
-    # THE MARGIN ROSE WITH THE EVIDENCE, off the floor from the first
-    # judged samples (0.88 three minutes in, UNCERTAIN still) to the
-    # whole span by the first cooldown's fourth minute, ahead of the
-    # word STABLE by two - measured 2026-09-06.
+    # THE MARGIN ROSE WITH THE EVIDENCE, off the floor from the first judged
+    # samples (0.88 three minutes in, UNCERTAIN still) to the whole span by the
+    # first cooldown's fourth minute, ahead of the word STABLE by two -
+    # measured 2026-09-06.
     report.check('and the margin rose off its 0.80 floor to the whole span, '
                  'and nothing was saved',
                  got['margin'] > 0.95 and got['saves'] == 0
                  and got['since_save_s'] is None,
                  'margin %.3f' % got['margin'])
 
-    # THE BOX COMES OFF AND A FAN GOES ON: the model that was trusted
-    # stops predicting, and the walk starts again.
+    # THE BOX COMES OFF AND A FAN GOES ON: the model that was trusted stops
+    # predicting, and the walk starts again.
     model.situation('fan')
     states, margins[:] = [], []
     run(6, load)
@@ -1694,17 +1491,17 @@ def test_thermal_identification(report):
                     got['scales']['capacity'], got['state']))
 
     # THE MARGIN FELL WITH THE FAN - to the floor in the first minute
-    # (innovation 0.97 K against a 0.1 floor), held there thirteen
-    # minutes, and rose again through the cooldown's eighth to
-    # fourteenth minute, 0.87 to 0.99 - measured 2026-09-06.
+    # (innovation 0.97 K against a 0.1 floor), held there thirteen minutes, and
+    # rose again through the cooldown's eighth to fourteenth minute, 0.87 to
+    # 0.99 - measured 2026-09-06.
     report.check('the margin fell back to the floor within the fan\'s first '
                  'minutes and is whole again two cycles later',
                  abs(fell - 0.8) < 0.01 and got['margin'] > 0.95,
                  'least %.3f, now %.3f' % (fell, got['margin']))
 
-    # NOTHING BETWEEN RUNS, and the floor is the record's (2026-09-06):
-    # a new stand-in starts at the floor whatever the last one found,
-    # and the floor is a bench's to set - refused outside (0, 1].
+    # NOTHING BETWEEN RUNS, and the floor is the record's (2026-09-06): a new
+    # stand-in starts at the floor whatever the last one found, and the floor
+    # is a bench's to set - refused outside (0, 1].
     fresh = SimulatedThermal(situation='fan')
     got = fresh.identification()
     report.check('a new stand-in starts UNCERTAIN at one and at the floor - '
@@ -1734,12 +1531,7 @@ def test_thermal_identification(report):
                  model.situation('random')['situation'] in model.SITUATIONS
                  and _refused(lambda: model.situation('attic')))
 
-    # OUT INTO THE COLD AND BACK IN. The bench: the whole assembly, motor
-    # and electronics, from a 25 C room to -20 C outdoors and back. No
-    # sensor reads the room; it is the fifth identified quantity, and a
-    # cooldown tells a cold room from a good air path - the first two
-    # estimators could not (FINDINGS). The truth's outdoors has a light
-    # wind, air 0.8.
+    # OUT INTO THE COLD AND BACK IN.
     cold = SimulatedThermal(situation='bench')
     run_on = lambda m, seen, model=cold: model.fast_forward(60.0 * m, seen=seen)
     run_on(6, load)
@@ -1752,10 +1544,10 @@ def test_thermal_identification(report):
         if not states or states[-1] != state:
             states.append(state)
     got = cold.identification()
-    # IDLING IN THE COLD IS WEAK EVIDENCE: the board only cools toward a
-    # room it is not told, on housekeeping alone, and the room comes out
-    # within eight kelvin (measured -23 to -27 for -20 across the
-    # configurations tried). A run in the cold is what settles it.
+    # IDLING IN THE COLD IS WEAK EVIDENCE: the board only cools toward a room
+    # it is not told, on housekeeping alone, and the room comes out within
+    # eight kelvin (measured -23 to -27 for -20 across the configurations
+    # tried).
     report.check('carried to -20 C outdoors: UNCERTAIN, then the room found '
                  'within eight kelvin on twenty idle minutes alone, the '
                  'air path not blamed',
@@ -1764,11 +1556,10 @@ def test_thermal_identification(report):
                  'room %.1f±%.1f C, air %.2f, %s' % (
                      got['ambient'], got['ambient_sigma'], got['scales']['air'],
                      ' > '.join(states)))
-    # AND THE MARGIN SAYS SO: the innovation is back at the floor after
-    # ten idle minutes, which alone would have given the whole span to a
-    # model whose air path is 1.27 for a truth of 0.8; the covariance
-    # term holds it at 0.945 until a cooldown tightens the air path
-    # (measured 2026-09-06).
+    # AND THE MARGIN SAYS SO: the innovation is back at the floor after ten
+    # idle minutes, which alone would have given the whole span to a model
+    # whose air path is 1.27 for a truth of 0.8; the covariance term holds it
+    # at 0.945 until a cooldown tightens the air path (measured 2026-09-06).
     report.check('and the margin stays short of the whole span on idle '
                  'evidence alone',
                  0.8 <= got['margin'] < 0.99, 'margin %.3f' % got['margin'])
@@ -1801,9 +1592,8 @@ def test_thermal_identification(report):
                  got['truth'])
 
     # AN IDLING BOARD STAYS UNCERTAIN - the bench's rule: nothing burning,
-    # nothing moving, nothing to learn from, so the margin stays in hand
-    # until something switches. Settled at its idle equilibrium in a box,
-    # ten minutes of samples move no scale.
+    # nothing moving, nothing to learn from, so the margin stays in hand until
+    # something switches.
     still = SimulatedThermal(situation='box')
     still.settle(idle)
     still.fast_forward(600.0, seen=idle)
@@ -1817,14 +1607,12 @@ def test_thermal_identification(report):
                  % (got['updates'], got['state'], got['scales']['air'],
                     got['margin']))
 
-    # THE LOAD CYCLE a page in simulated mode lays on (bench, 2026-09-06:
-    # "show the board's temperatures from a simulated load cycle, so one
-    # sees the regions warm and cool"): six model minutes at 30 A and
-    # fourteen idle, from the model's own clock, UNDER THE ENVELOPE -
-    # measured live in a box: the legs reach the throttle point inside
-    # two minutes and the clamp holds driver U near 95-105 C on 12 to
-    # 19 A of the 30 asked for. The first cut ignored the clamp and the
-    # trip, and the legs passed 200 C with the stage nominally tripped.
+    # THE LOAD CYCLE a page in simulated mode lays on (bench, 2026-09-06: "show
+    # the board's temperatures from a simulated load cycle, so one sees the
+    # regions warm and cool"): six model minutes at 30 A and fourteen idle,
+    # from the model's own clock, UNDER THE ENVELOPE - measured live in a box:
+    # the legs reach the throttle point inside two minutes and the clamp holds
+    # driver U near 95-105 C on 12 to 19 A of the 30 asked for.
     from coaxial.thermal_device import Thermal
     cyc = SimulatedThermal(situation='box')
     laid = cyc.load_cycle()
@@ -1859,16 +1647,10 @@ def test_thermal_identification(report):
                  and cyc.truth()['load_a'] is None
                  and _refused(lambda: cast(Any, Thermal).load_cycle(None)))
 
-    # THE TOUR (bench, 2026-09-06): temperate, cold, toasty and
-    # round again, moved on when the identification has EARNED the room
-    # - STABLE held a hundred model seconds, ten of wall time, five
-    # minutes after the move at the least - or after fifty minutes
-    # regardless. Under the page's cycle, measured: STABLE at the tenth
-    # minute from a fresh temperate room, twenty-three to twenty-five
-    # into a cold leg and thirty-eight to forty-eight into a toasty one.
-    # A leg that ran to the cap is allowed a move without STABLE, and
-    # the cap is read off the constant less two minutes of rounding: on
-    # CI's slower 3.12 the toasty leg came in a minute under a literal.
+    # THE TOUR (bench, 2026-09-06): temperate, cold, toasty and round again,
+    # moved on when the identification has EARNED the room - STABLE held a
+    # hundred model seconds, ten of wall time, five minutes after the move at
+    # the least - or after fifty minutes regardless.
     tour = SimulatedThermal(situation='tour')
     tour.load_cycle(on_s=120.0, off_s=240.0)
     report.check('a tour starts in the temperate room and says it is one',
@@ -1901,10 +1683,10 @@ def test_thermal_identification(report):
     report.check('a named situation ends the tour',
                  tour.situation('box')['tour'] is False
                  and tour.truth()['situation'] == 'box')
-    # A BOARD STARTS IN ITS ROOM: switched on in the toasty room it reads
-    # 45 C, the observer starts there and the identification's room too,
-    # as `Board_ThermalInit` starts on the NTC; a situation laid on later
-    # is a carry-in and moves nothing.
+    # A BOARD STARTS IN ITS ROOM: switched on in the toasty room it reads 45 C,
+    # the observer starts there and the identification's room too, as
+    # `Board_ThermalInit` starts on the NTC; a situation laid on later is a
+    # carry-in and moves nothing.
     warm = SimulatedThermal(situation='toasty')
     born = warm.state()
     report.check('switched on in the toasty room the stand-in reads 45 C '
@@ -1920,19 +1702,18 @@ def test_thermal_identification(report):
                  'ntc %.1f, room %.1f' % (born['ntc'],
                                           warm.identification()['ambient']))
 
-    # THE TRIP CAP (bench, 2026-09-06: "it should trip the limits and
-    # push the SOA limit down to maybe 70 %, or some other graceful
-    # degradation"): after the envelope has dropped the stage the margin
-    # is held at 0.70, recovering a percent a minute of model time, and
-    # the spend is measured from the room the observer believes in and
-    # clamped to one - in the cold room it had gone negative and a
-    # tripped node had read 103 %.
+    # THE TRIP CAP (bench, 2026-09-06: "it should trip the limits and push the
+    # SOA limit down to maybe 70 %, or some other graceful degradation"): after
+    # the envelope has dropped the stage the margin is held at 0.70, recovering
+    # a percent a minute of model time, and the spend is measured from the room
+    # the observer believes in and clamped to one - in the cold room it had
+    # gone negative and a tripped node had read 103 %.
     hot = SimulatedThermal(situation='cold')
     dropped, armed = [], [True]
 
     def drop_stage():
-        # The board's own guard: a stage already down is not dropped
-        # again, so the count is trips and not slices at the ceiling.
+        # The board's own guard: a stage already down is not dropped again, so
+        # the count is trips and not slices at the ceiling.
         if not armed[0]:
             return False
         armed[0] = False
@@ -1982,15 +1763,8 @@ def _refused(call):
 
 
 def test_closing_leaves_another_session_armed(report):
-    """A session that did not arm the stage must not disarm it on the way out.
-
-    Measured 2026-08-29: three switching runs ended the moment a second
-    session asked the board an unrelated question. `close()` disarmed
-    unconditionally, so a read-only peer looked exactly like a stage
-    tripping - MOE clear, no fault, duty zeroed.
-
-    The safety net stays: undo what THIS session armed, and otherwise only
-    when nobody else is left to own it.
+    """A session that did not arm the stage must not disarm it on the way
+    out.
     """
     from coaxial import Coaxial63100
 

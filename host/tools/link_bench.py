@@ -34,8 +34,8 @@ def main():
     parser.add_argument('--simulated', action='store_true')
     args = parser.parse_args()
 
-    # No analog supply is needed to measure a wire, and a ten-second run
-    # with AFE_ON raised is current drawn for nothing.
+    # No analog supply is needed to measure a wire, and a ten-second run with
+    # AFE_ON raised is current drawn for nothing.
     with Coaxial63100(port=args.port, power_afe=False,
                       simulated_device=args.simulated) as daq:
         print(daq)

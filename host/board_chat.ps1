@@ -1,154 +1,52 @@
 ﻿<#
 .SYNOPSIS
     One window with the model and the board in it.
-
-        . .\env.ps1 ; .\host\board_chat.ps1
-        .\host\board_chat.ps1 -NewWindow          the same, in its own window
-        .\host\board_chat.ps1 -Plain              plain ollama chat, no board, no tools
-        .\host\board_chat.ps1 -Simulated          board tools work, against invented data
-        .\host\board_chat.ps1 -AutodetectComport  tries -Port, then every other COM port
-
 .DESCRIPTION
-    You asked for a terminal that talks to gemma. `ollama run gemma4:12b` is
-    that terminal and it is the wrong one: it is a model with no board, so every
-    answer about this hardware is a guess dressed as a fact. The prompt worth
-    opening is host/dbg.py --repl - the same local model, with the eleven board
-    tools, /py against a live Session and /sh for a build, and a token meter on
-    every turn. This script is the preflight that stands in front of it.
-
-    Four things it does that typing `python dbg.py --repl` does not:
-
-      * env.ps1, quietly, so cube-cmake, the programmer and ollama itself are on
-        PATH in this shell. The ollama installer only reaches shells opened
-        after it ran, which is never the one you are standing in.
-      * Starts the daemon if nothing answers on 11434, instead of letting the
-        first question fail thirty seconds in.
-      * Loads the model before the prompt opens. gemma4:12b is 8 GB into VRAM
-        and that wait belongs here, visibly, not inside your first question. It
-        is pinned there for -KeepAlive afterwards, so question two is not
-        another cold start.
-      * Says which COM port answered. A prompt that silently has no board is the
-        one way this tool wastes a real afternoon: you cannot tell a model that
-        cannot reach the hardware from a model that is confidently wrong.
-
-    Nothing here judges a measurement, and nothing here is a limit. It is a
-    launcher: the board stays the dumb slave it is, and every number you see
-    still comes from the board itself.
-
+    You asked for a terminal that talks to gemma.
 .PARAMETER Model
-    Ollama tag. Left alone, this machine decides: cores, RAM and the size of the
-    graphics card are measured and the largest tools-capable model that fits the
-    card whole is chosen, then pulled if it is not here yet. See
-    host/coaxial_ollama/capability.py, or ask it directly with
-
-        python -m coaxial_ollama.capability
-
-    Local only either way - the Python refuses a :cloud tag and a daemon on
-    another machine unless you pass --allow-remote to it yourself.
-
+    Ollama tag.
 .PARAMETER Prefer
     What the automatic choice optimises for: 'speed' takes the largest model
-    that fits the card whole, 'capability' allows a bigger one to spill onto the
-    CPU, which measured about five times slower per token.
-
+    that fits the card whole, 'capability' allows a bigger one to spill onto
+    the CPU, which measured about five times slower per token.
 .PARAMETER Port
-    The board's VCP. COM4 on this bench. Ignored if -AutodetectComport finds
-    one, and if -Simulated is given, never even looked at.
-
+    The board's VCP.
 .PARAMETER AutodetectComport
     Try -Port first, then every other COM port Windows reports, oldest-
-    enumerated first, opening each just long enough to see whether this board
-    answers on it - a few seconds per port it does not. For "which port did I
-    just plug the programmer into" instead of checking Device Manager. Silent
-    when it finds nothing: the ordinary -Port warning below still fires, and
-    -Port is whatever it was, unchanged.
-
+    enumerated first, opening each just long enough to see whether this
+    board answers on it - a few seconds per port it does not.
 .PARAMETER Simulated
     Run against coaxial.simulated instead of a real port - no cable, no COM
     port, every board tool still answers, with invented values instead of
-    measured ones. -Port and -AutodetectComport are pointless with this and
-    are skipped rather than acted on. For a machine with nothing plugged in
-    that still wants to see the tools actually work, not just be told they
-    would fail - which is what -NoBoard gives you instead.
-
+    measured ones.
 .PARAMETER Tools
-    Which tool subset the model gets: read, code, pins, build, all or none. The
-    list is re-sent every turn, so it is the cost that scales with the
-    conversation. `build` is board_info, docs and run_command - the model's
-    only path to host/tools/build_and_flash.py, which is in turn the only path
-    to cube-cmake and STM32_Programmer_CLI. Pair it with -Confirm.
-
+    Which tool subset the model gets: read, code, pins, build, all or none.
 .PARAMETER Ask
-    One question, printed, then exit. No prompt loop. Takes several, and runs
-    them in one invocation: the model is loaded once by the preflight and
-    released once on the way out, whatever the count. One invocation per
-    question instead loads and unloads 8.4 GB every time - the toggling
-    run_tests.py exists to avoid.
-
+    One question, printed, then exit.
 .PARAMETER Confirm
-    Ask before every state change - a pin write, run_python, run_command. Off
-    by default. Matters most with -Tools build: without it, the model builds
-    and flashes the real board the moment it decides to, no human in the loop.
-
+    Ask before every state change - a pin write, run_python, run_command.
 .PARAMETER NoBoard
     Open the prompt with the board tools stubbed out - for a machine with
     nothing plugged in.
-
 .PARAMETER Plain
     `ollama run` instead: a bare chat with the model, no tools and no board.
-    Warmed and checked the same way.
-
 .PARAMETER NewWindow
-    Relaunch in a new PowerShell window and return. Off by default, because
-    output you can scroll back through beside your build log is usually what you
-    actually wanted.
-
+    Relaunch in a new PowerShell window and return.
 .PARAMETER KeepAlive
     How long ollama holds the model in memory after the last turn.
-
 .PARAMETER KeepOthers
-    Leave models that are already resident where they are. By default this
-    script unloads them before loading its own: a session that was killed, one
-    that exited with -Hold, or a plain `ollama run` in another window all leave
-    weights on the card, and the second model is what turns a 16 GB card into a
-    500 reading `cudaMalloc failed`. The model this run wants is never unloaded
-    when it is already there - that is warm, not stale.
-
+    Leave models that are already resident where they are.
 .PARAMETER Hold
-    Leave the model resident when this script exits. By default the weights are
-    handed back the moment the prompt closes: measured here, a finished session
-    left 9.69 GB on a 16 GB card for another 27 minutes at 1 % utilisation,
-    which is a cache nobody is going to hit and a desktop with 3.8 GB to work
-    in. Use -Hold when the next question really is imminent.
-
+    Leave the model resident when this script exits.
 .PARAMETER Reserve
-    VRAM in GB to hold back for the desktop, overriding what capability.py works
-    out on its own. Raise it if the screens stutter while the model answers: on
-    a 16 GB card, 8 steps the choice down from a 14B to a 12B and leaves about
-    5.5 GB free with the desktop's own 2.6 GB already counted. It is also
-    settable once per machine, for every entry point, with the environment
-    variable COAXIAL_VRAM_RESERVE_GB.
-
+    VRAM in GB to hold back for the desktop, overriding what capability.py
+    works out on its own.
 .PARAMETER Normal
-    Leave ollama at normal process priority. By default this script drops the
-    daemon to BelowNormal while it is being driven from here, because a bench PC
-    is also the machine you are reading the schematic on.
-
+    Leave ollama at normal process priority.
 .PARAMETER NoTune
-    Leave the daemon's own settings alone. By default this script makes sure
-    ollama is running with llama-server's prompt cache off and its context
-    checkpoints capped, restarting the daemon once if it has to - see
-    $DaemonTuning in board_chat/Tuning.ps1 for the measurements. Without
-    that, a bench session of eight or ten questions reliably kills the model
-    runner with std::bad_alloc partway through and reloads eight gigabytes
-    mid-answer. Use this to reproduce that, or when something else on the
-    machine owns the daemon.
-
+    Leave the daemon's own settings alone.
 .PARAMETER NumCtx
-    Context window. It is passed to the preload as well as to the prompt, and
-    that is not a detail: load the model at one context size and question it at
-    another and the daemon reloads it, so the wait this script exists to make
-    visible happens again inside your first question.
+    Context window.
 #>
 [CmdletBinding()]
 param(
@@ -179,24 +77,16 @@ $Root = $PSScriptRoot
 $Api = 'http://localhost:11434'
 
 # board_chat/*.ps1 - Say first by convention, though load order does not
-# actually matter: nothing in any of these files runs until well after all
-# five are dot-sourced, and PowerShell resolves a function call by name at
-# call time, not at definition time.
+# actually matter: nothing in any of these files runs until well after all five
+# are dot-sourced, and PowerShell resolves a function call by name at call
+# time, not at definition time.
 foreach ($part in 'Say', 'Tuning', 'ComPort', 'Ollama', 'ModelChoice', 'Relaunch') {
     . (Join-Path (Join-Path $Root 'board_chat') "$part.ps1")
 }
 
 # UTF-8, console and all: dbg.py's prompt has a robot and a pager either side
 # of its spinner, and Python auto-detects its own stdout encoding from this
-# console's codepage at startup, not from anything Python-side. Left as the
-# legacy default (cp1252 on this bench), forcing Python's side to UTF-8
-# without also changing this would turn every multi-byte character it writes
-# into mojibake instead of the plain UnicodeEncodeError it started as - which
-# is why dbg.py's own _printable() deliberately never forces this. Doing it
-# here instead is safe precisely because it is scoped to this one console:
-# the task that launches this script passes -NoProfile, so nothing here
-# reaches a shell the user already had open, and a bare `python dbg.py` run
-# from an unrelated console is untouched and keeps falling back to ASCII.
+# console's codepage at startup, not from anything Python-side.
 try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 } catch {
@@ -266,13 +156,10 @@ if ($null -eq $tags) {
 }
 
 # A daemon that was already up is the ordinary case, and it kept whatever
-# environment it was started with at login - which is the untuned one. This is
-# the only thing that can fix that, and it costs one restart, once.
+# environment it was started with at login - which is the untuned one.
 Initialize-Daemon -Exe $ollama.Source -JustStarted:$startedHere
 
-# Stem matching, as everywhere else here: `gemma4` should find gemma4:12b. Cloud
-# tags are excluded on purpose - the Python refuses them, so a launcher that
-# accepted one would only move the error later.
+# Stem matching, as everywhere else here: `gemma4` should find gemma4:12b.
 $names = @()
 if ($null -ne $tags.models) {
     $names = $tags.models | ForEach-Object { $_.name } |
@@ -298,17 +185,7 @@ if ($null -eq $resolved) {
     $resolved = $names | Where-Object { ($_ -split ':')[0] -eq $stem } | Select-Object -First 1
 }
 if ($null -eq $resolved) {
-    # Pull it rather than printing the command and quitting. This script exists
-    # so a question can be asked without a detour, and "run this and come back"
-    # is a detour. Several GB the first time on a given machine, once.
-    #
-    # Through coaxial_ollama.pull, the same pull dbg.py's start makes, and
-    # not `ollama pull`: the daemon's /api/pull stream drawn as a bar in
-    # these same columns, so the page shows the download the way it shows
-    # everything else - and a run whose output is captured (-Ask into a
-    # file) gets a row every five percent instead of a repaint that needs
-    # a TTY. The bench, 2026-09-12: pull a missing model automatically
-    # and show a progress bar.
+    # Pull it rather than printing the command and quitting.
     Say 'wait' 'model' ("$Model is not here yet - pulling it")
     Push-Location $Root
     try {
@@ -339,18 +216,14 @@ $Model = $resolved
 # `ollama run` goes now - before this run adds its own.
 Clear-Resident -Except $Model
 
-# Before the load, not after: warming the file cache only helps if it
-# happens ahead of the read that actually needs it.
+# Before the load, not after: warming the file cache only helps if it happens
+# ahead of the read that actually needs it.
 Invoke-Warm -Tag $Model
 
-# An empty prompt loads the weights and generates nothing. Doing it here means
-# the 8 GB wait is visible and timed, instead of hiding inside question one.
+# An empty prompt loads the weights and generates nothing.
 $clock = [Diagnostics.Stopwatch]::StartNew()
 try {
-    # options, and not just the tag. Without num_ctx the daemon loads the
-    # model's own default context - 32k on qwen2.5, 128k on llama3.1 - and
-    # answers 500 trying to allocate the KV cache for it. Measured here, twice:
-    # once in Python (see Ollama.preload) and once from this script.
+    # options, and not just the tag.
     $options = @{ num_ctx = $NumCtx; temperature = 0.0 }
     if ($null -ne $layers) { $options['num_gpu'] = $layers }
     $body = @{ model = $Model; prompt = ''; stream = $false;
@@ -367,20 +240,10 @@ try {
         # No nvidia-smi is not a problem worth a line of its own.
     }
 } catch {
-    # THE DAEMON'S WORDS, not PowerShell's. $_.Exception.Message is the
-    # status line in the console's language - "(500) Internt serverfel" -
-    # and the body that says WHY was never read: on this laptop the page
-    # said "could not preload: (500)" for months of an install with no
-    # runner in it (2026-09-12, the bench seeing an error loading the
-    # models).
+    # THE DAEMON'S WORDS, not PowerShell's.
     $words = Get-DaemonWords $_
     if ($words -match 'llama-server binary not found') {
-        # THE RUNNER, NOT THE MODEL. The tags are on the disk and the daemon
-        # answers /api/tags; what is missing is llama-server.exe under
-        # lib\ollama, which an upgrade's uninstaller deleted and the
-        # install that should have followed never wrote (upgrade.log,
-        # 2026-09-03 20:30). No pull fixes that and no question will work,
-        # so this is a stop with the fix, not a warning and a prompt.
+        # THE RUNNER, NOT THE MODEL.
         Say 'fail' 'ollama' ('its runner is missing from the install: ' +
                              ($words -split '\(checked')[0].Trim())
         Say 'fail' 'ollama' ('reinstall it - .\setup.ps1, or  irm https://ollama.com/install.ps1 | iex' +
@@ -402,9 +265,7 @@ if ($NoBoard) {
     $ports = @()
     try { $ports = [System.IO.Ports.SerialPort]::GetPortNames() } catch { $ports = @() }
     # A port name in the list is not a board answering on it - measured, COM4
-    # enumerated while the board stayed silent. The session probes for real and
-    # falls back to a simulated board; its prompt tag is what actually says
-    # which one you got, so neither line here claims more than it knows.
+    # enumerated while the board stayed silent.
     if ($ports -contains $Port) {
         Say 'ok' 'board' ("$Port listed (ports: " + ($ports -join ', ') +
                           '). The prompt tag says which board answered.')
@@ -418,19 +279,14 @@ if ($NoBoard) {
 
 if (-not $Normal) {
     # BelowNormal on the daemon, and be honest about what that buys: it governs
-    # CPU scheduling, not the GPU's. With the model wholly on the card the work
-    # that this deprioritises is tokenisation, sampling and the serial I/O, not
-    # the matrix multiplies - so it helps the desktop stay responsive while a
-    # question is being prepared and answered, and does nothing about the card
-    # being busy. The other half of that problem is VRAM headroom: -Reserve.
+    # CPU scheduling, not the GPU's.
     $lowered = @()
     foreach ($proc in (Get-Process -Name 'ollama*' -ErrorAction SilentlyContinue)) {
         try {
             $proc.PriorityClass = [Diagnostics.ProcessPriorityClass]::BelowNormal
             $lowered += $proc.Name
         } catch {
-            # A process started by another user, or already gone. Not worth a
-            # failure: the prompt below works either way.
+            # A process started by another user, or already gone.
         }
     }
     if ($lowered.Count -gt 0) {
@@ -444,9 +300,7 @@ Push-Location $Root
 try {
     if ($Plain) {
         if ($Ask) {
-            # `ollama run TAG "question"` answers once and exits. Without this
-            # -Ask fell on the floor and the operator got the interactive
-            # session they had explicitly not asked for.
+            # `ollama run TAG "question"` answers once and exits.
             foreach ($question in $Ask) {
                 if ($Ask.Count -gt 1) { Say 'ok' 'ask' $question }
                 & $ollama.Source run $Model $question
@@ -471,9 +325,7 @@ try {
     if ($null -ne $layers) { $call += @('--num-gpu', [string]$layers) }
 
     if ($Ask) {
-        # One load for the lot. The model is already resident from the
-        # preflight above and the finally below hands it back once, so a
-        # batch of questions costs one 8.4 GB load rather than one each.
+        # One load for the lot.
         foreach ($question in $Ask) {
             if ($Ask.Count -gt 1) { Say 'ok' 'ask' $question }
             & python @call $question
@@ -489,19 +341,7 @@ try {
 } finally {
     Pop-Location
 
-    # Leaving the prompt hands the card back, at once. The keep_alive that made
-    # turn nine quick has no further job once the window is closed, and until
-    # this existed it parked the whole model on the GPU for the rest of its half
-    # hour - measured at 9.69 GB of 16, at 1 % utilisation, with the desktop
-    # left 3.8 GB to work in. A reload costs about seven seconds next time, and
-    # only if there is a next time.
-    #
-    # -Ask releases too. It used to be exempt, on the grounds that "dbg.py
-    # already holds it for two minutes rather than thirty" - which line 424
-    # of this same script disproves: it passes --keep-alive $KeepAlive, so a
-    # one-shot pinned 8.4 GB for the full thirty minutes with nobody at the
-    # prompt. Measured after a run of four smoke tests. -Hold is the opt-out
-    # for when the next question really is imminent.
+    # Leaving the prompt hands the card back, at once.
     if (-not $Hold) {
         try {
             $body = @{ model = $Model; prompt = ''; keep_alive = 0 } | ConvertTo-Json

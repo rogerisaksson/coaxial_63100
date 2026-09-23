@@ -21,10 +21,6 @@ set(CMAKE_EXECUTABLE_SUFFIX_CXX     ".elf")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
 # STARM_TOOLCHAIN_CONFIG allows you to choose the toolchain configuration.
-# Possible values are:
-#  "STARM_HYBRID"   : Hybrid configuration using starm-clang Assemler and Compiler and GNU Linker
-#  "STARM_NEWLIB"   : starm-clang toolchain with NEWLIB C library
-#  "STARM_PICOLIBC" : starm-clang toolchain with PICOLIBC C library
 set(STARM_TOOLCHAIN_CONFIG "STARM_PICOLIBC")
 
 if(STARM_TOOLCHAIN_CONFIG STREQUAL "STARM_HYBRID")

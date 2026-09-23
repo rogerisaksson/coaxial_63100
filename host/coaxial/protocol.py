@@ -232,9 +232,9 @@ CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               # id 45, CAL_VERSION 9: the RS485 pair's baud, applied to USART2
               # and UART5 at init.
               'link_baud',
-              # ids 46..48, CAL_VERSION 12: the winding's envelope - K/W to
-              # the air and J/K in milli, and a ceiling in centi-degrees that
-              # zero disables.
+              # ids 46..48, CAL_VERSION 12: the winding's envelope - K/W to the
+              # air and J/K in milli, and a ceiling in centi-degrees that zero
+              # disables.
               'winding_k_per_w_milli', 'winding_j_per_k_milli',
               'winding_limit_centi')
 """The record's scalars, in the order 0x6E device 3 op 0 sends them, and the
@@ -306,11 +306,9 @@ STANDARD_COUNT_AT = 5
 
 
 def request_length(pdu, have=None):
-    """Full PDU length of the request these bytes begin, or 0 when the bytes so
-    far cannot prove it - the Python mirror of the firmware's
-    `cmd_length.c`, which is the authority. The suite binds the two: the
-    prefix sweep in test_modbus_core drives every hinted shape through BOTH
-    and fails on any disagreement, so this cannot drift quietly.
+    """Full PDU length of the request these bytes begin, or 0 when the bytes
+    so far cannot prove it - the Python mirror of the firmware's
+    `cmd_length.c`, which is the authority.
     """
     have = len(pdu) if have is None else have
     if have == 0:

@@ -69,10 +69,7 @@ class Board:
 
     @property
     def baud(self):
-        """The bitrate this board is reached at. Asked of the board and not of
-        the transport, because the stand-in has no transport and a caller
-        measuring a link must not have to know which it is holding.
-        """
+        """The bitrate this board is reached at."""
         return self.transport.baud
 
     def __repr__(self):
@@ -120,10 +117,8 @@ class Board:
         raise last
 
     def _dispatch_on_crc(self, info):
-        """MINOR 9: the board dispatches proven requests on their own CRC, so
-        the transport can stop paying the pre-TX gap after one. A broker
-        proxy has no such attribute and keeps the spec gap - correct, just
-        unoptimised there.
+        """MINOR 9: the board dispatches proven requests on their own CRC,
+        so the transport can stop paying the pre-TX gap after one.
         """
         major, minor = PROVEN_DISPATCH_SINCE
         proven = (info.get('proto_major') == major
@@ -155,8 +150,8 @@ def _build(probe):
     if board_class is Board:
         return probe
 
-    # A class registered for another major brings its own codec, so let it
-    # read the record itself rather than handing it one decoded by this one.
+    # A class registered for another major brings its own codec, so let it read
+    # the record itself rather than handing it one decoded by this one.
     board = board_class(transport, unit)
     board.probe()
     return board

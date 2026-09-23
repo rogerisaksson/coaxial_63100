@@ -1,38 +1,14 @@
-"""How much of the model window a prompt may take, and what goes when it takes
-more.
-
-Both loops here grow a message list for the same daemon - `debug.Chat` for a
-question, `runner.Runner` for a plan step - and both used to bound it by message
-count. That is not a bound: six messages is small right up until one is a build
-log.
-
-`num_ctx` is, because it is what the daemon allocates a KV cache for. Past it
-there is no polite refusal - a 500, or llama-server dying while saving its
-prompt cache. The client's ladder is for a machine short of memory; this is for
-a conversation that got long.
-
-What is given up, in order, least missed first:
-
-  1. tool results, squeezed to their first line, oldest first. The model can
-     read one again for the price of a call.
-  2. whole messages from the front, system prompt and live question aside.
-  3. the newest message itself, clipped - only when one message is larger than
-     the window: a pasted log, an attached file.
-
-Nothing is silent: every cut leaves the notice `clip` writes, and `/ctx` shows
-the budget beside the cost.
+"""How much of the model window a prompt may take, and what goes when it
+takes more.
 """
 import json
 
 from .sandbox import clip
 
 # The prompt's share of the window, before the reply cap comes off the top.
-# Seven tenths, not all: the estimate below is an estimate, and llama-server
-# wants working room beside the context it was asked for.
 CTX_SHARE = 0.7
 
-# The floor under that share. Clipping to nothing turns "the answer is short"
-# into "there was no question", which is the worse failure.
+# The floor under that share.
 MIN_PROMPT_TOKENS = 512
 
 # What a stubbed tool result keeps, in characters, before the marker that says
@@ -46,12 +22,7 @@ def approx_tokens(text):
 
 
 def budget_for(options):
-    """Tokens a prompt may take, from a client's own options.
-
-    0 means "no window to speak of, enforce nothing" - a scripted stand-in, a
-    bare client. Guessing low would silently delete a conversation nobody
-    asked to shorten.
-    """
+    """Tokens a prompt may take, from a client's own options."""
     options = options or {}
     try:
         ctx = int(options.get('num_ctx') or 0)
@@ -71,8 +42,7 @@ def cost(messages, extra_tokens=0):
 
 
 def _stub(message):
-    """A tool result reduced to the fact that it happened. None when there is
-    nothing to gain - a short result would only grow by being marked."""
+    """A tool result reduced to the fact that it happened."""
     content = (message.get('content') or '').strip()
     first = content.splitlines()[0] if content else ''
     stubbed = clip(first, STUB_CHARS) + ' [...]'
@@ -82,12 +52,7 @@ def _stub(message):
 
 
 def _droppable(messages):
-    """The oldest message that may go, or None when nothing may.
-
-    Three are protected: the system prompt, whatever was said last, and the
-    most recent user message - which a mid-turn prompt would otherwise lose
-    while keeping the tool results taken to answer it.
-    """
+    """The oldest message that may go, or None when nothing may."""
     last_user = None
     for index, message in enumerate(messages):
         if message.get('role') == 'user':
@@ -99,11 +64,7 @@ def _droppable(messages):
 
 
 def fit(messages, budget, extra_tokens=0):
-    """Make a message list fit the window. Returns the list, shortened.
-
-    Mutates rather than copies: a copy would leave the original growing
-    behind it, which is the bug this exists to prevent.
-    """
+    """Make a message list fit the window."""
     if not budget or cost(messages, extra_tokens) <= budget:
         return messages
 

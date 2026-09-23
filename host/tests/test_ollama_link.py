@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""The serial link: ports, probing, diagnosis, recovery.
-
-Split out of test_ollama.py, which had grown to 5,496 lines and 733 checks in
-one file - a third of every check this tree has, and the reason a coverage
-tier could not be asked for at any useful resolution. One subject per file
-now, so a tier buys them separately and a reader opens the one they meant.
-
-Run from the host directory:  python tests/test_ollama_link.py
-"""
+"""The serial link: ports, probing, diagnosis, recovery."""
 import os
 import sys
 
@@ -18,19 +10,7 @@ from tests.ollama_support import (ConnectError, Scope, ScriptedModel,   # noqa: 
 from coaxial import ports                                              # noqa: E402
 
 def test_power_check_cannot_halt(report):
-    """Diagnosing the link must not be able to break it.
-
-    Measured on this bench, and it cost most of a session: `find_board.py
-    --power` timed out at 15s, and every serial call after it was silent -
-    the console said nothing, a raw Modbus frame said nothing - until
-    `-c port=SWD mode=UR --start` brought the board back. The programmer
-    had been killed mid-connect-under-reset with NRST asserted, and a
-    halted core answers nothing on USART3.
-
-    link_diagnose calls check_power as step 1 and then asks in step 4
-    whether the board answers, so the checklist was able to cause the
-    silence it went on to report.
-    """
+    """Diagnosing the link must not be able to break it."""
     import build_and_flash
     import find_board
     import subprocess
@@ -45,9 +25,9 @@ def test_power_check_cannot_halt(report):
         seen['timeout'] = kw.get('timeout')
         return Done()
 
-    # The question here is the shape of the call, not whether this machine
-    # has the programmer installed - a runner does not, and without the
-    # stub check_power returns early and the spy never sees the argv.
+    # The question here is the shape of the call, not whether this machine has
+    # the programmer installed - a runner does not, and without the stub
+    # check_power returns early and the spy never sees the argv.
     real_run = subprocess.run
     real_find = build_and_flash.find_programmer
     try:
@@ -70,14 +50,7 @@ def test_power_check_cannot_halt(report):
                  str(seen.get('timeout')))
 
 def test_port_state(report):
-    """Why a port is not answering, not just that it is not.
-
-    Measured, and it cost most of a session twice over: two `dbg.py`
-    sessions had COM4 open, every `probe` read "silent", and the board was
-    diagnosed as halted, started over SWD and reflashed - none of which was
-    the matter with it. pyserial says exactly what happened; nothing was
-    asking.
-    """
+    """Why a port is not answering, not just that it is not."""
     import find_board
     import serial
 
@@ -111,8 +84,7 @@ def test_port_state(report):
                  'PermissionError' in open(ports.__file__,
                                            encoding='utf-8').read())
 
-    # The checklist stops guessing at it. Step 4 used to end on "check
-    # nothing else has COM4 open" whether or not something did.
+    # The checklist stops guessing at it.
     box = toolmod.Toolbox(SimulatedSession())
     real_state = find_board.port_state
     real_power = find_board.check_power
@@ -132,37 +104,20 @@ def test_port_state(report):
                  checklist.splitlines()[-1][:56])
 
 def test_link_recovery(report):
-    """One screen, one verdict about the link.
-
-    Measured at the prompt, all of this on a single question: the model
-    called link_diagnose, whose step 4 said the board did not answer; the
-    turn then ended with no answer, `_probe_link` failed, dropped the dead
-    handle, and reported the link down - and `_link_down_message` ran
-    link_diagnose a *second* time, which opened the port cleanly and said
-    "4. Kortet svarar pa COM4 just nu: ja - lanken ar uppe."
-
-    Two checklists, contradicting each other, seconds apart, with no way
-    for the operator to tell which was true. Both halves were host bugs:
-    the retry the reset exists for was never taken, and the one call site
-    that could not afford to reprint the checklist was the one that never
-    passed `shown`.
-    """
+    """One screen, one verdict about the link."""
     from coaxial_ollama import debug
 
     # Deliberately not the real step-4 wording: that one is in
-    # language.PHRASES, so the trace comes back in the session's language
-    # while the fake's return value stays English, and the count then
-    # measures localisation rather than duplication. What is under test
-    # here is only that the diagnosis is not printed twice.
+    # language.PHRASES, so the trace comes back in the session's language while
+    # the fake's return value stays English, and the count then measures
+    # localisation rather than duplication.
     STEP4_UP = 'DIAGNOSIS MARKER - the link is up'
     DEAD = 'ERR NoReplyError: unit 1, fc 0x47: silence'
 
     class Flapping:
         """A link that answers only once the stale handle is dropped - the
-        shape of a VCP that re-enumerated under a replugged cable. Stands
-        in for both the toolbox and its session, which is all `_probe_link`
-        and `_link_down_message` touch - plus the session surface a Chat
-        reads on construction, with no port behind it."""
+        shape of a VCP that re-enumerated under a replugged cable.
+        """
         port = bus = unit = attached = None
         baud = 115200
         simulated = False
@@ -222,9 +177,8 @@ def test_link_recovery(report):
     report.check('with nothing on screen above, the checklist comes with '
                  'the answer', STEP4_UP in said, said.splitlines()[-1][:46])
 
-    # End to end, the shape of the transcript: the model calls
-    # link_diagnose and then writes nothing, so the turn falls to the
-    # stale path. Trace and answer together are the operator's screen.
+    # End to end, the shape of the transcript: the model calls link_diagnose
+    # and then writes nothing, so the turn falls to the stale path.
     screen = io.StringIO()
     box = Flapping(99)
     talk = debug.Chat(ScriptedModel([
@@ -232,8 +186,8 @@ def test_link_recovery(report):
         {'role': 'assistant', 'content': ''},
     ]), box, out=screen)
     talk.toolbox = box                      # the fake stands in for both
-    # Not a board order any more: board_switch intercepts that before the
-    # model is reached, and this needs a question that actually runs a turn.
+    # Not a board order any more: board_switch intercepts that before the model
+    # is reached, and this needs a question that actually runs a turn.
     answer = talk.ask('vad läser NTC:n?')
     whole = screen.getvalue() + chr(10) + answer
     report.check('one screen carries the checklist once, not twice',
@@ -244,11 +198,8 @@ def test_link_recovery(report):
 
 def test_link_diagnose(report):
     """OS-level, not another board round trip - see tools.py's own docstring
-    for why. Ports come from a fake serial.tools.list_ports.comports() here,
-    never from real hardware; coaxial.board.connect and find_board.check_power are
-    faked too, for the same reason - both would otherwise probe whatever is
-    really plugged into this bench and pass (or fail) for the wrong reason
-    on a machine where it happens to answer."""
+    for why.
+    """
     import coaxial
     import find_board
     import serial.tools.list_ports as list_ports
@@ -262,12 +213,7 @@ def test_link_diagnose(report):
     real_check_power = find_board.check_power
     real_port_state = find_board.port_state
     try:
-        # Stubbed for the same reason as the other three: it opens a real
-        # port. Measured with the debug probe pulled - COM4 still enumerated,
-        # opening it raised ACCESS_DENIED, port_state said BUSY, and a check
-        # about step 4's closing advice failed because the checklist stopped
-        # one step earlier. A suite that passes with a cable in and fails with
-        # it out is testing the bench.
+        # Stubbed for the same reason as the other three: it opens a real port.
         find_board.port_state = lambda *a, **kw: ports.SILENT
         list_ports.comports = lambda: [FakePort('COM4'), FakePort('COM7')]
         coaxial.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
@@ -310,11 +256,7 @@ def test_link_diagnose(report):
                      and 'COM ports Windows sees' not in result4, result4)
         find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
 
-        # It names the stand-in it is actually on and the way off it. The
-        # line it replaced said "--no-board or --simulated this run" for a
-        # session that had been given neither - it fell back on its own -
-        # and that was the whole answer on screen to an order to switch to
-        # the debug probe.
+        # It names the stand-in it is actually on and the way off it.
         stood_in = str(toolmod.Toolbox(SimulatedSession()).call('link_diagnose', {}))
         report.check('a session with no port names the stand-in it is on, '
                      'and the way off it',
@@ -328,20 +270,14 @@ def test_link_diagnose(report):
                      refused.startswith('--no-board this run')
                      and '/board auto' in refused, refused[:52])
 
-        # Ungated: no --allow-writes, no --confirm, no --read-only. It never
-        # touches the board's state or its flash, same reasoning as `docs`.
+        # Ungated: no --allow-writes, no --confirm, no --read-only.
         ro = toolmod.Toolbox(SimulatedSession(), allow_code=False)
         report.check('link_diagnose works even with --read-only',
                      not str(ro.call('link_diagnose', {})).startswith('ERR'))
 
-        # The stand-in `open_session` actually returns, not the double at
-        # the top of this file - that one has no `port` at all, so it
-        # reached the branch above however the branch was written. The real
-        # one's `port` is a bus label ('AX'), never None, and asking
-        # `configured is None` alone sent a fallen-back session through a
-        # 15s SWD probe and then "Configured port AX: not among the ports
-        # above - the cable may be unplugged", about a session that never
-        # had a cable. Measured with the board's JTAG connector pulled.
+        # The stand-in `open_session` actually returns, not the double at the
+        # top of this file - that one has no `port` at all, so it reached the
+        # branch above however the branch was written.
         from coaxial.simulated import SimulatedSession as FellBack
         probed = []
         find_board.check_power = lambda timeout=15: (probed.append(1),
@@ -353,9 +289,9 @@ def test_link_diagnose(report):
         report.check('and no SWD probe is spent on a session with no SWD',
                      not probed, '%d call(s)' % len(probed))
 
-        # Step 4's closing advice used to open with "Powered" whatever step
-        # 1 concluded - on a pulled cable, asserting the one thing that was
-        # false and pointing at a busy port and a halted core instead.
+        # Step 4's closing advice used to open with "Powered" whatever step 1
+        # concluded - on a pulled cable, asserting the one thing that was false
+        # and pointing at a busy port and a halted core instead.
         list_ports.comports = lambda: [FakePort('COM4')]
         coaxial.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
@@ -377,11 +313,7 @@ def test_link_diagnose(report):
                      result6.splitlines()[-1][:58])
         find_board.port_state = lambda *a, **kw: ports.SILENT
 
-        # check_power's own timeout path. The programmer prints the voltage
-        # in its first second, then spends the rest on a second connect at
-        # 8MHz - measured with no target, 30.3s against a 15s budget. The
-        # reading is in what it wrote before it was killed; returning None
-        # reported "unknown" for the one case this check exists to answer.
+        # check_power's own timeout path.
         import build_and_flash
         import subprocess
         was = (subprocess.run, build_and_flash.find_programmer,
@@ -416,13 +348,7 @@ def test_link_diagnose(report):
 # ---- what reaches the screen, and how it reads -----------------------------
 
 def test_fallback(report):
-    """No cable is not a failing test suite - it is a different board.
-
-    `open_session` probes the port with the same Modbus round trip a tool
-    call makes, and hands back the stand-in when nothing answers. What it
-    must never do is leave the caller unable to tell which it got: every
-    suite and the prompt itself print it, and that is what these check.
-    """
+    """No cable is not a failing test suite - it is a different board."""
     from coaxial.session import open_session
     from coaxial_ollama import debug
     from coaxial_ollama import spinner as spin
@@ -435,11 +361,8 @@ def test_fallback(report):
                  found.label == 'Simulated', found.label)
 
     # The label names the path, not just the port: a reading over the bench
-    # cable and one over the field bus are not the same measurement, and
-    # which it was has to be on screen rather than inferred from a COM
-    # number. The probe is told apart by its USB VID - measured here, an
-    # STLINK-V3SET enumerates 0483:374F - so nothing has to be opened to
-    # know which port is the debugger.
+    # cable and one over the field bus are not the same measurement, and which
+    # it was has to be on screen rather than inferred from a COM number.
     for real, port, kind, want in ((True, 'COM3', 'probe', 'JTAG and COM3'),
                                    (True, 'COM5', 'serial', 'RS485 at COM5'),
                                    (False, None, None, 'Simulated')):
@@ -450,10 +373,7 @@ def test_fallback(report):
                  (session.board.version_info or {})['firmware'] == 'simulated',
                  (session.board.version_info or {})['firmware'])
 
-    # PB2 is the AFE switch, not a spare pin. Measured: writing 0 across
-    # GPIOB left the stand-in answering `on=1` to afe_power one call later,
-    # because the pin map and the switch were two dictionaries - the one
-    # place invariant 9 could be broken by a stand-in with nobody noticing.
+    # PB2 is the AFE switch, not a spare pin.
     session.board.gpio.test_mode(True)
     session.board.afe.enable()
     session.board.gpio.port_write('B', 0xFFFF, 0)
@@ -466,13 +386,8 @@ def test_fallback(report):
                  session.board.afe.state()['on']
                  and session.board.gpio.port_read('B') & (1 << 2))
 
-    # link_diagnose's step 4 opened the port a second time to ask whether
-    # the board answers - while the session held it open. Measured live,
-    # with the link up: "3. Configured port COM4: present." followed by
-    # "4. Board answers on COM4 right now: no", a false statement about
-    # live hardware produced by the diagnostic itself. The session's own
-    # handle is asked first now, and only a session with none falls through
-    # to the second open.
+    # link_diagnose's step 4 opened the port a second time to ask whether the
+    # board answers - while the session held it open.
     class Held(sessionmod.Session):
         """A session holding an open link - the real class, the link
         handed in."""
@@ -498,10 +413,10 @@ def test_fallback(report):
     report.check('a held link that has since died is not counted as up',
                  toolmod._open_link_answers(Held(DeadBoard())) is False)
 
-    # Steps 1 and 2 stubbed: the first shells out to STM32_Programmer_CLI
-    # with a 15s timeout, and the second asks Windows what it has plugged
-    # in - neither is what step 4 is being checked for, and both make the
-    # answer depend on the desk the suite runs on.
+    # Steps 1 and 2 stubbed: the first shells out to STM32_Programmer_CLI with
+    # a 15s timeout, and the second asks Windows what it has plugged in -
+    # neither is what step 4 is being checked for, and both make the answer
+    # depend on the desk the suite runs on.
     live.session = Held(SimulatedSession().board)
     power, ports = toolmod.find_board.check_power, toolmod.find_board.list_ports
     toolmod.find_board.check_power = lambda *a, **k: (3.27, 'stubbed')
@@ -515,10 +430,7 @@ def test_fallback(report):
                  'right now: yes' in checklist,
                  checklist.splitlines()[-1][:52])
 
-    # /board: what the tools talk to, swapped without a restart. Measured at
-    # the prompt: asked to switch to simulated hardware, gemma4:12b answered
-    # that it could not and was configured for the physical board - true
-    # about itself, a dead end for the operator. The swap is the host's.
+    # /board: what the tools talk to, swapped without a restart.
     swap = debug.Chat.__new__(debug.Chat)
     swap.toolbox = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     swap.origin, swap.link_ok, swap.last_channels = ('Simulated', False), False, {'ntc'}
@@ -535,12 +447,7 @@ def test_fallback(report):
                  (swap.command('/board') or '').startswith('board: Simulated'),
                  swap.command('/board'))
 
-    # An order to swap the board is the host's to carry out. Measured three
-    # times on the same session, and it never once changed board: it refused
-    # (it could not switch to simulated hardware), then diagnosed the link,
-    # then read seven channels and wrote nothing. The operator was giving an
-    # order, not asking a question, and the state is the host's either way -
-    # the same argument as language.bare_switch.
+    # An order to swap the board is the host's to carry out.
     for question, want in (
             ('byt till debugproben', 'auto'),
             ('byter du till debugproben', 'auto'),
@@ -550,10 +457,9 @@ def test_fallback(report):
             ('switch to the real board', 'auto'),
             ('byt till RS485', 'rs485'),
             ('byt till fältbussen', 'rs485'),
-            # Every one of these lost the order to a single unlisted noun
-            # while this required all the words to be known: 'enhet', then
-            # 'hardvara', then 'lage'. The rule names what disqualifies an
-            # order instead, so a noun nobody thought of costs nothing.
+            # Every one of these lost the order to a single unlisted noun while
+            # this required all the words to be known: 'enhet', then
+            # 'hardvara', then 'lage'.
             ('byter du till simulerat läge', 'simulated'),
             ('byt till simulerat läge', 'simulated'),
             ('använd det simulerade kortet', 'simulated'),
@@ -574,11 +480,7 @@ def test_fallback(report):
         got = debug.board_switch(question)
         report.check('board order: %s' % question[:34], got == want, str(got))
 
-    # A pipe is not a console. Measured: `printf "byter du till simulerat
-    # lage" | dbg --repl` arrived as `lÃ¤ge` under cp1252, which splits into
-    # `lã` and `ge` - and `ge` disqualifies a board order as a second
-    # request. The order went to the model, which refused it. stdin gets the
-    # same treatment as the two outputs now: UTF-8 when it is not a tty.
+    # A pipe is not a console.
     mangled = 'byter du till simulerat läge'.encode('utf-8').decode('cp1252')
     report.check('the mangling really does hide the order',
                  debug.board_switch(mangled) is None, mangled[-12:])
@@ -602,10 +504,7 @@ def test_fallback(report):
                  % len(ordered.client.prompts))
     report.check('and answers with the board it landed on',
                  said == 'board: Simulated', said)
-    # Ordered a real board and found none. Patched, not left to whatever is
-    # plugged into this bench: the first version of this check passed only
-    # while the board happened to be silent, and started failing the moment
-    # it answered again.
+    # Ordered a real board and found none.
     ordered.language = None
     was = sessionmod.open_session
     try:
@@ -620,11 +519,7 @@ def test_fallback(report):
                  'ended up', 'nothing answered' in said, said)
 
     # An order that cannot be carried out must not cost the board that was
-    # working. Measured: the order to switch to the debug probe twice in a
-    # row on a bench whose board had gone silent, both times "nothing
-    # answered" - and had the
-    # session been on a live probe, the first of those would have dropped it
-    # for a stand-in.
+    # working.
     class Live(sessionmod.Session):
         """A session that is already on a real board."""
         closed = False
@@ -689,11 +584,7 @@ def test_fallback(report):
     finally:
         sessionmod.open_session = original
 
-    # /model: same idea one layer up. No weights are loaded here - every path
-    # below either refuses or is a no-op, which is the whole logic. The tag
-    # list is stubbed on the class: the refusal is what is under test, and
-    # asking a live daemon for it made the check fail on any machine
-    # without one - which a CI runner is by design.
+    # /model: same idea one layer up.
     from coaxial_ollama.client import Ollama
     swap.client = Ollama('gemma4:12b', keep_alive=0)
     swap.detail, swap.tool_names = detail.TERSE, ()
@@ -717,10 +608,8 @@ def test_fallback(report):
         def isatty(self):
             return True
 
-    # 'all' is the broadcast address, and it is the one mode where a
-    # command reaches every inverter on the bus and nothing answers to
-    # say it landed. Red is the colour already spent on 'something is
-    # wrong here', which is the right register for it.
+    # 'all' is the broadcast address, and it is the one mode where a command
+    # reaches every inverter on the bus and nothing answers to say it landed.
     for tag, ok, colour in (('Simulated', False, '\x1b[33m'),
                             ('JTAG and COM3', True, '\x1b[32m'),
                             ('RS485 at COM5', True, '\x1b[32m'),
@@ -746,12 +635,7 @@ def test_fallback(report):
 def test_pull_draws_the_daemons_numbers(report):
     """A tag that is not here is pulled, and the download is the daemon's
     own numbers drawn as a bar in Say's columns - one row rewritten in
-    place on a TTY, a row every five percent off one. The page shelled out
-    to `ollama pull` and dbg.py refused with the command to type; the
-    bench, 2026-09-12, asking that the LLM page pull a missing model
-    itself and show a progress bar. And the
-    page reads a failed preload in the daemon's words - "(500)" was all it
-    said for a runner missing from the install.
+    place on a TTY, a row every five percent off one.
     """
     from coaxial_ollama import cli, pull
     from coaxial_ollama.client import Ollama, OllamaError
@@ -775,9 +659,9 @@ def test_pull_draws_the_daemons_numbers(report):
                {'status': 'writing manifest'}, {'status': 'success'}]
 
     def scripted():
-        # A second an EVENT, read as often as the code likes: the clock is
-        # how many events have been handed over, so a rate is bytes an
-        # event and the estimate follows from it.
+        # A second an EVENT, read as often as the code likes: the clock is how
+        # many events have been handed over, so a rate is bytes an event and
+        # the estimate follows from it.
         tick = [0.0]
 
         def stream():
@@ -899,13 +783,7 @@ def test_pull_draws_the_daemons_numbers(report):
                  and 'llama-server binary not found' in page
                  and 'install.ps1' in page)
 
-    # THE CHOOSER'S CHAT PAGE PULLS ON ITS BOOT STRIP. Its picker named
-    # llama3.1:8b on a card where the pulled gemma4:12b did not fit, and
-    # the page died in a traceback with `ollama pull llama3.1:8b` as its
-    # last line (2026-09-22) while both prompts pulled. It goes through
-    # ensure_pulled now, and the pull's rows go to the page's boot strip
-    # - its bar the layer's share, its text the figures - not to stderr
-    # under a strip repainting the same row.
+    # THE CHOOSER'S CHAT PAGE PULLS ON ITS BOOT STRIP.
     sys.path.insert(0, os.path.join(host, 'tools'))
     import show_chat
     text = io.open(os.path.join(host, 'tools', 'show_chat.py'),

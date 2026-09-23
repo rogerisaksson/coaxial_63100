@@ -1,17 +1,5 @@
-/*
-******************************************************************************
-**  The bootloader's linker script: sector 0 of bank 1, and everything
-**  copied out of it at reset (docs/BOOT.md).
-**
-**  The vector table and the reset handler stay in flash - they run before
-**  anything is copied. .text and .rodata load from flash and run from
-**  ITCM; .data loads from flash and lives in DTCM; so once main() runs
-**  the core never fetches from flash, and erasing or programming a bank
-**  stalls nothing it does. The handover slot is the top 32 bytes of
-**  DTCM, the same address the application's script gives it, NOLOAD and
-**  outside .bss so neither startup touches it.
-******************************************************************************
-*/
+/* The bootloader's linker script: sector 0 of bank 1, and everything copied
+   out of it at reset (docs/BOOT.md). */
 
 ENTRY(Reset_Handler)
 

@@ -1,21 +1,4 @@
-"""THE LOADER. The terminal is what lies under terminal/pages/: one
-module per page, saying what it is - HEADLINE, KEY, WHAT, ORDER, the
-NAME it answers to on the command line, and ITEMS for a page with a
-second question - and how it runs. The loader reads that folder, lists
-the pages on the front page in ORDER, starts the preload of the model
-into this process's memory, runs the picked page IN THIS PROCESS and
-comes back to the front page on ESC. One process for the whole
-terminal, so what the preload put in RAM stays there from page to
-page; a new page is a file in the folder and nothing else.
-
-    python -m terminal                          the front page
-    python -m terminal imu --simulated          straight to a page, by name
-    python -m terminal --simulated --frames 3   the smoke: the page, thrice
-
-Before this the chooser was PowerShell over a table kept in step with
-the front page by position, and every view was its own python process
-that parsed the model again (2026-09-23).
-"""
+"""THE LOADER."""
 import argparse
 import ctypes
 import importlib
@@ -50,11 +33,12 @@ def pages():
 
 
 def listing():
-    """What the front page draws and answers with, off the pages:
-    ENTRIES as (key, headline, what); SUB as {entry: (caption, ((key,
-    name, what, code), ...))} for a page with items; OPEN as {name:
-    (entry, pick)}, the views the front page reopens on; and PICKS,
-    {code: (page, name)} - what each answer means."""
+    """What the front page draws and answers with, off the pages: ENTRIES as
+    (key, headline, what); SUB as {entry: (caption, ((key, name, what,
+    code), ...))} for a page with items; OPEN as {name: (entry, pick)},
+    the views the front page reopens on; and PICKS, {code: (page, name)}
+    - what each answer means.
+    """
     entries, sub, opens, picks = [], {}, {}, {}
     listed = pages()
     extra = FIRST + len(listed)
@@ -133,9 +117,9 @@ def resident():
                             ('PeakPagefileUsage', ctypes.c_size_t)]
             counters = Counters()
             counters.cb = ctypes.sizeof(Counters)
-            # The pseudo-handle is -1 in a HANDLE's width; typed as
-            # ctypes' default int it goes out truncated and the call
-            # answers ERROR_INVALID_HANDLE - measured, 6.
+            # The pseudo-handle is -1 in a HANDLE's width; typed as ctypes'
+            # default int it goes out truncated and the call answers
+            # ERROR_INVALID_HANDLE - measured, 6.
             kernel32 = ctypes.windll.kernel32
             kernel32.GetCurrentProcess.restype = ctypes.c_void_p
             info = ctypes.windll.psapi.GetProcessMemoryInfo
@@ -158,13 +142,12 @@ def fresh():
 
 
 def preload(state, model=None):
-    """Everything a page will ask for, into this process's memory, once
-    and off the frame loop: the model's decimates - the preload's pickle
-    taken as it stands when its stamp matches, else built and written
-    for next time when the machine has the room - the outline's loops,
-    the pre-scan's primitives, the shadow casters. Each step lands as a
-    line in `state['steps']`, the last four kept; `state['status']` says
-    what it came to, resident megabytes included."""
+    """Everything a page will ask for, into this process's memory, once and
+    off the frame loop: the model's decimates - the preload's pickle
+    taken as it stands when its stamp matches, else built and written for
+    next time when the machine has the room - the outline's loops, the
+    pre-scan's primitives, the shadow casters.
+    """
     from coaxial import orientation
     from coaxial.graphics import creases, shading, stereotype, wireframe
     from coaxial.graphics import preload as pickled
@@ -210,8 +193,7 @@ def front_page(args, opened, state):
 
 
 def run_page(page, name, args):
-    """One page in this process: its answer. A page that raises is shown
-    where it stood, and the front page comes back on Enter."""
+    """One page in this process: its answer."""
     try:
         return page.run(args, name)
     except KeyboardInterrupt:

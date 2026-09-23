@@ -65,18 +65,14 @@ PULSE = 0.02
 
 
 def gate_rows(state, width):
-    """The six signals as one instant, and where the counter was beside it.
-
-    A leg showing both on would be a shoot-through, and it is drawn as such
-    rather than left for the reader to spot in a row of ones and zeros.
-    """
+    """The six signals as one instant, and where the counter was beside it."""
     pins = state['pins']
     out = ['  gates - one IDR read, one instant          TIM1->CNT %d of %d'
            % (state['pins_at'], state['period'] - 1)]
     for name, high, low in LEGS:
         both = pins[high] and pins[low]
-        # A lamp each: lit is sodium, dark is ash - the row reads at a
-        # glance which half conducts, without decoding ones and zeros.
+        # A lamp each: lit is sodium, dark is ash - the row reads at a glance
+        # which half conducts, without decoding ones and zeros.
         def lamp(on):
             return tint('[#]', SODIUM) if on else tint('[ ]', ASH)
         out.append('    phase %s     H %s  L %s     %s'
@@ -88,12 +84,7 @@ def gate_rows(state, width):
 
 
 def analog_rows(live, layout, powered, refused, width, params=None):
-    """Mean and ripple per channel, converted, from the live accumulator.
-
-    Ripple is `highest - lowest` over the accumulator's own window, which is
-    every sample the board took rather than the ones that fitted in a
-    record. It is a span, not an RMS, and it is named `p-p` for that reason.
-    """
+    """Mean and ripple per channel, converted, from the live accumulator."""
     if refused:
         return [line[:width] for line in [
             '  no currents and no DC link: the board refused the task -',
@@ -134,21 +125,13 @@ def analog_rows(live, layout, powered, refused, width, params=None):
 
 
 def capture(rig, seconds, view):
-    """Arm nothing, change nothing: run the task for `seconds` and drain it.
-
-    The gate drivers is left exactly as the operator set it. A run that armed the
-    stage itself would be a second way to arm one, and there is deliberately
-    only one.
-    """
+    """Arm nothing, change nothing: run the task for `seconds` and drain it."""
     board = rig.board
     board.daq.stop()
 
-    # Unlimited for the burst, which the board allows only because the run
-    # is finite: `interval_us` 0 with `records` 0 is the combination that
-    # took the link down, and it is the only one refused. A 16 KB buffer
-    # holds 512 records at seven channels, so the ask is capped there -
-    # asking for more would fill it and start dropping, and a run that
-    # drops has a hole nothing in it says the size of.
+    # Unlimited for the burst, which the board allows only because the run is
+    # finite: `interval_us` 0 with `records` 0 is the combination that took the
+    # link down, and it is the only one refused.
     holds = max(1, 16384 // max(1, view['layout']['stride']))
     fresh = board.daq.configure(
         [f['signal'] for f in view['layout']['fields']],
@@ -250,14 +233,14 @@ def _interlock(view):
 
 
 def _pulse(rig, view):
-    """U at PULSE against V low, W low, for two writes, then every leg
-    back to the common duty. Needs the operator's own A first: a pulse
-    that armed the stage would be a second way to arm one."""
+    """U at PULSE against V low, W low, for two writes, then every leg back
+    to the common duty.
+    """
     state = rig.board.gate_drivers.state()
     if not state['pwm_enabled']:
         return 'arm first - A - then P pulses'
-    # Raw compare writes off ONE state read: rig.write()'s own arm check
-    # is a 31 ms read the pulse would be spent waiting for.
+    # Raw compare writes off ONE state read: rig.write()'s own arm check is a
+    # 31 ms read the pulse would be spent waiting for.
     period = state['period'] - 1
     back = int(view['duty'] * period)
     rig.board.gate_drivers.duty((int(PULSE * period), 0, 0))
@@ -272,11 +255,7 @@ def _pulse(rig, view):
 
 
 def act(rig, key, view):
-    """One keypress. Returns a line to show, or None.
-
-    Every refusal here is the board's own sentence: the host validates only
-    what stops a request being formed.
-    """
+    """One keypress."""
     try:
         if key in ('+', '='):
             return _duty(rig, view, view['step'])
@@ -360,10 +339,10 @@ def parse_args(argv):
 def main(argv=None):
     args = parse_args(argv)
 
-    # power_afe=False so the rig changes nothing on the way in; this view
-    # sets it itself, because which way round it goes is the whole question
-    # here and leaving it as found makes the run mean different things on
-    # different days.
+    # power_afe=False so the rig changes nothing on the way in; this view sets
+    # it itself, because which way round it goes is the whole question here and
+    # leaving it as found makes the run mean different things on different
+    # days.
     rig = open_rig('LINKING GATE DRIVERS', port=args.port, power_afe=False,
                    simulated_device=bool(args.simulated))
     if rig is None:
@@ -389,11 +368,8 @@ def main(argv=None):
     say('ok', 'dead time', 'BDTR DTG %d, and the 2EDL8034 has no interlock '
         'of its own' % state['deadtime'])
 
-    # The board refuses to convert with AFE_ON off, because that pin powers
-    # the reference (invariant 9). On this bench board the same pin, gated
-    # the other way round, is what gives the drivers supply - so switching
-    # and measuring are mutually exclusive here until the patch. The view
-    # runs either way and says which half it has.
+    # The board refuses to convert with AFE_ON off, because that pin powers the
+    # reference (invariant 9).
     layout, refused = rig.configure(accumulate=args.accumulate,
                                     digital=False), None
     try:

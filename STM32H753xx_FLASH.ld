@@ -1,63 +1,11 @@
-/*
-******************************************************************************
-**
-
-**  File        : LinkerScript.ld
-**
-**  Author		: STM32CubeMX
-**
-**  Abstract    : Linker script for STM32H753VITx series
-**                2048Kbytes FLASH and 1056Kbytes RAM
-**
-**                Set heap size, stack size and stack location according
-**                to application requirements.
-**
-**                Set memory bank area and size if external memory is used.
-**
-**  Target      : STMicroelectronics STM32
-**
-**  Distribution: The file is distributed “as is,” without any warranty
-**                of any kind.
-**
-*****************************************************************************
-** @attention
-**
-** <h2><center>&copy; COPYRIGHT(c) 2025 STMicroelectronics</center></h2>
-**
-** Redistribution and use in source and binary forms, with or without modification,
-** are permitted provided that the following conditions are met:
-**   1. Redistributions of source code must retain the above copyright notice,
-**      this list of conditions and the following disclaimer.
-**   2. Redistributions in binary form must reproduce the above copyright notice,
-**      this list of conditions and the following disclaimer in the documentation
-**      and/or other materials provided with the distribution.
-**   3. Neither the name of STMicroelectronics nor the names of its contributors
-**      may be used to endorse or promote products derived from this software
-**      without specific prior written permission.
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-** AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-** DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-** FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-** SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-** CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-** OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**
-*****************************************************************************
-*/
+/* File : LinkerScript.ld Author : STM32CubeMX Abstract : Linker script for
+   STM32H753VITx series 2048Kbytes FLASH and 1056Kbytes RAM Set heap size,
+   stack size and stack location according to application requirements. */
 
 /* Entry Point */
 ENTRY(Reset_Handler)
 
-/* THE APPLICATION LIVES BEHIND THE BOOTLOADER. Sector 0 of bank 1, the
-   128 K at 0x08000000, is the bootloader's; this image starts at sector
-   1 and ends where the calibration record's sector begins, 0x081E0000
-   (docs/BOOT.md, the flash map). A bench board is flashed with the
-   bootloader once, over SWD; after that this image alone, as before,
-   and a reset costs 0.3 s in the bootloader before it starts. */
+/* THE APPLICATION LIVES BEHIND THE BOOTLOADER. */
 MEMORY
 {
 DTCMRAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
@@ -68,10 +16,8 @@ ITCMRAM (xrw)      : ORIGIN = 0x00000000, LENGTH = 64K
 FLASH (rx)      : ORIGIN = 0x08020000, LENGTH = 1792K
 }
 
-/* THE HANDOVER SLOT: the top 32 bytes of DTCM, above the stack, which
-   the bootloader's script places at the same address. NOLOAD and outside
-   .bss, so neither startup touches it and each image finds what the
-   other left - the assignment on the way in, STAY on the way back. */
+/* THE HANDOVER SLOT: the top 32 bytes of DTCM, above the stack, which the
+   bootloader's script places at the same address. */
 _Boot_Hand_Size = 32;
 
 /* Highest address of the user mode stack */
@@ -100,21 +46,7 @@ SECTIONS
     KEEP(*(.app_header))
   } >FLASH
 
-  /* THE SAMPLE PATH RUNS FROM ITCM. The M7 fetches from flash through a
-     16 K instruction cache that the main loop - Modbus, the thermal
-     observer, the IMU poll, the console - shares with the interrupt
-     that runs fifty thousand times a second, so an ADC interrupt could
-     begin by refilling the lines the loop had evicted. ITCM is 64 K of
-     zero-wait memory on the instruction bus that no cache touches, and
-     nothing used it. Placed by object, so no source carries an
-     attribute: the control law and its observers, the anti-alias
-     chain, the acquisition engine and its glue, the sync and PWM
-     interrupts, the cycle counter, one ADC read, the log ring's push
-     and the pin mask, and the HAL's ADC interrupt handler in front of
-     them all - 29 K in the Debug image, 26 K in Release. Loaded from flash by the startup the way .data is; the
-     vector table stays in flash and reaches these through the veneers
-     the linker adds. Before .text, since the first pattern that
-     matches an input section wins. */
+  /* THE SAMPLE PATH RUNS FROM ITCM. */
   _siitcm = LOADADDR(.itcm);
   .itcm :
   {
@@ -249,9 +181,8 @@ SECTIONS
   PROVIDE( __data_source_end = __tdata_source_end );
   PROVIDE( __data_source_size = __data_source_end - __data_source );
 
-  /* The image's bytes in flash, for the header: from the vector table to
-     the end of the last section loaded, which is .tdata's copy. What
-     objcopy -O binary writes is exactly this. */
+  /* The image's bytes in flash, for the header: from the vector table to the
+     end of the last section loaded, which is .tdata's copy. */
   _app_size = __tdata_source_end - ORIGIN(FLASH);
   /* Uninitialized data section */
   .tbss (NOLOAD) : ALIGN(4)
@@ -308,18 +239,8 @@ SECTIONS
     KEEP(*(.boot_hand))
   } >DTCMRAM
 
-  /* THE BIG BUFFERS, in the 512 K of AXI SRAM that was standing empty
-     while the acquisition ring made do with 16 K of DTCM.
-
-     Here rather than DTCM because DTCM is 128 K and holds .data,
-     .bss, the heap and the stack. The ring is filled by the ADC
-     interrupt since the TIM1 clock (by the main loop's poll on the
-     software clock) and emptied by a command handler, a record at a
-     time by memcpy on both sides, so the AXI bus sees a few whole-word
-     writes a record. There is no DMA and the data cache is off, so no
-     coherency question either - the two things that usually make this
-     region awkward - and the cache would not help here: a streaming
-     write into cached memory reads each line before writing it. */
+  /* THE BIG BUFFERS, in the 512 K of AXI SRAM that was standing empty while
+     the acquisition ring made do with 16 K of DTCM. */
   .buffers (NOLOAD) : ALIGN(8)
   {
     *(.buffers)

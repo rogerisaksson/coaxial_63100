@@ -12,9 +12,7 @@ from .wire import Reader
 
 
 class Subsystem:
-    """One group of board commands, sharing a transport. Subclasses add the
-    calls; this holds the unit id and the request plumbing.
-    """
+    """One group of board commands, sharing a transport."""
 
     def __init__(self, board):
         self._board = board
@@ -30,9 +28,7 @@ class Subsystem:
         raise NotImplementedError
 
     def __repr__(self):
-        """Names itself and its unit. NO I/O - a repr that talks to the board
-        raises from inside a debugger, which is where it is read.
-        """
+        """Names itself and its unit."""
         return '<%s of unit %s>' % (type(self).__name__,
                                     getattr(self._board, 'unit', '?'))
 

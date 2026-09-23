@@ -32,11 +32,10 @@ def _rotor_locked(method):
 
 class SimulatedDrive:
     """The control law's device without a motor: a locked rotor at zero
-    electrical angle, a phase resistance, two inductances that bend with the
-    d current, a flux linkage and a dead-time voltage error - enough for
-    every commissioning step to recover a number it can check against the
-    constants below. Time runs at the PWM rate off the wall clock, so a
-    window or a moments run fills at 50 kHz.
+    electrical angle, a phase resistance, two inductances that bend with
+    the d current, a flux linkage and a dead-time voltage error - enough
+    for every commissioning step to recover a number it can check against
+    the constants below.
     """
 
     #: One definition, in `coaxial.motor`, so this machine cannot drift
@@ -225,10 +224,8 @@ class SimulatedDrive:
 
     def _carrying(self):
         """(amps, electrical angle) the stator carries right now: the dq
-        solution's magnitude, at the command's angle in HOLD and the tracked
-        rotor's otherwise. The analog stand-in reads the phases off this -
-        the same current a record carries, so a tare through the one path
-        zeroes the other.
+        solution's magnitude, at the command's angle in HOLD and the
+        tracked rotor's otherwise.
         """
         iid, iq, _vd, _vq = self._dq()
         amps = math.hypot(iid, iq)
@@ -278,9 +275,9 @@ class SimulatedDrive:
                 'switching': bool(on)}
 
     def _ih(self):
-        """The demodulated HF current step: V.T over the inductance along the
-        injection axis, with the rotor at zero and the frame at `theta`
-        (HOLD) or the rotor observer's estimate (SENSORLESS).
+        """The demodulated HF current step: V.T over the inductance along
+        the injection axis, with the rotor at zero and the frame at
+        `theta` (HOLD) or the rotor observer's estimate (SENSORLESS).
         """
         v_inj = self._p('drv_inj_mv', 0.0)
         if not v_inj or self._mode not in ('hold', 'sensorless'):
@@ -515,15 +512,15 @@ class SimulatedDrive:
         if motor is not None:
             for k in self.LIVE.keys() & values.keys():
                 setattr(motor, self.LIVE[k], float(values[k]))
-        # POLE PAIRS ARE NOT IN `live`: a Motor's `p` divides its own angle,
-        # so changing it under a turning rotor is a different machine rather
-        # than a different parameter.
+        # POLE PAIRS ARE NOT IN `live`: a Motor's `p` divides its own angle, so
+        # changing it under a turning rotor is a different machine rather than
+        # a different parameter.
         if 'pole_pairs' in values:
             self._motor = None
         # The chain took its R, L and lambda when it was built, so a machine
         # written after that would be observed as the old one - the observers
-        # would still be reporting the stand-in's defaults while the model
-        # made back-EMF for something else.
+        # would still be reporting the stand-in's defaults while the model made
+        # back-EMF for something else.
         self._obs = None
         return dict(values)
 
@@ -551,9 +548,8 @@ class SimulatedDrive:
         return motor
 
     def _spin(self, motor, dt, now):
-        """The rotor turned by the torque the dq solution makes, over `dt`, in
-        fixed symplectic sub-steps. The mechanics of `_advance_model`, which
-        frames it.
+        """The rotor turned by the torque the dq solution makes, over `dt`,
+        in fixed symplectic sub-steps.
         """
         iid, iq, _, _ = self._dq()
         ld = self._ld(iid)
@@ -643,8 +639,7 @@ class SimulatedDrive:
         if self._source == 'model':
             self.model()
         dual, flux = self._observer_chain()
-        # THE HAND-OVER, AND THE ONE THE STAND-IN NEEDS AND THE BOARD DOES
-        # NOT.
+        # THE HAND-OVER, AND THE ONE THE STAND-IN NEEDS AND THE BOARD DOES NOT.
         if (self._obs_synced != self._mode_at
                 or abs(dual.omega) < self.OBS_WC <= abs(self._omega_hat)):
             self._observer_sync(self._theta_hat, self._omega_hat)
@@ -676,17 +671,7 @@ class SimulatedDrive:
                           % (2.0 * math.pi) - math.pi)}
 
     def _observers_skip(self, dual, flux, skipped):
-        """THE PERIODS THIS STAND-IN DID NOT STEP, IN CLOSED FORM. A caller
-        polls at tens of hertz and the loop runs at fifty thousand, so most
-        periods are never stepped here. Carrying the observers only through
-        the ones that were leaves their frame behind the rotor by the
-        difference, and it accumulates: measured, the chain read a settled
-        106 degrees from an estimate that was itself within 0.01. What is
-        skipped is therefore advanced at each observer's own speed - state
-        and angle together, so the flux vectors stay coherent with the angle
-        they belong to - and only the window at the end is integrated period
-        by period.
-        """
+        """THE PERIODS THIS STAND-IN DID NOT STEP, IN CLOSED FORM."""
         if skipped <= 0.0:
             return
         for obs, w in ((dual, dual.omega), (flux, self._obs_flux_omega)):
@@ -698,9 +683,10 @@ class SimulatedDrive:
                 - math.pi
 
     def _observers_window(self, dual, flux, n, theta, omega):
-        """The window at the end, integrated period by period at the firmware's
-        own step, ending at the rotor: the dq solution rotated back out to
-        the stationary frame, which is what the board's chain gets too.
+        """The window at the end, integrated period by period at the
+        firmware's own step, ending at the rotor: the dq solution rotated
+        back out to the stationary frame, which is what the board's chain
+        gets too.
         """
         iid, iq, vd, vq = self._dq()
         ts = self.TS

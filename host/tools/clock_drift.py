@@ -39,8 +39,8 @@ def main():
     except Exception as why:
         print('no UTC reference: %s' % why)
 
-    # The clock needs no analog supply, and leaving AFE_ON alone is one
-    # less thing drawing current across a ten-minute window.
+    # The clock needs no analog supply, and leaving AFE_ON alone is one less
+    # thing drawing current across a ten-minute window.
     with Coaxial63100(port=args.port, power_afe=False) as daq:
         print('%s, measuring for %.0f s ...' % (daq, args.seconds))
         sync = daq.set_time_from_pc(seconds=args.seconds,

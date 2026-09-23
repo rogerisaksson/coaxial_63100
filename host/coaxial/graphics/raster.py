@@ -1,10 +1,5 @@
-"""What every character renderer here needs: the dot matrix, and which
-cell a coordinate lands in.
-
-Its own file because these have callers and no owner - `orientation`
-draws an attitude, `dial` a shaft, `wireframe` the board and `machine`
-the rotor, and neither rounding nor the braille alphabet belongs to any
-one of them.
+"""What every character renderer here needs: the dot matrix, and which cell
+a coordinate lands in.
 """
 import math
 import os
@@ -53,7 +48,8 @@ DOT_RANK = ((0, 6, 1, 7), (4, 2, 5, 3))
 
 def _spread(bits):
     """How scattered one pattern's dots are: adjacent lit pairs, then the
-    dispersed order as a tie-break. Lower is more even."""
+    dispersed order as a tie-break.
+    """
     lit = [(x, y) for x in range(DOTS_X) for y in range(DOTS_Y)
            if bits & BRAILLE_BITS[x][y]]
     touching = sum(1 for i, a in enumerate(lit) for b in lit[i + 1:]
@@ -87,9 +83,8 @@ RUNGS = len(SHADE) - 1
 
 def _bluenoise():
     """The threshold mask beside this module - `tools/bluenoise.py`'s
-    output, 64 x 64 ranks 0..4095 by void-and-cluster - as rows. Read,
-    not computed: the generator wants numpy and a second, and a renderer
-    wants neither."""
+    output, 64 x 64 ranks 0..4095 by void-and-cluster - as rows.
+    """
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         'bluenoise64.bin')
     with open(path, 'rb') as f:
@@ -110,38 +105,12 @@ NOISE_N, NOISE = _bluenoise()
 
 
 def covered(hits, of, x=0, y=0):
-    """Whether a dot the shape covers `hits` of `of` samples deep lights.
-
-    HALF A DOT OR MORE. A dot is one bit and `SUBDOT` samples four
-    corners; read as "any", a shape covering a quarter of a dot lit it
-    whole, so every arc came out a dot fatter than it is and every edge
-    stepped. Read as COVERAGE the arc lands where it is, and the grading
-    a braille cell can show comes out of it for free - an arc crossing
-    the bottom of a cell draws `⣀`, the lower half `⣤`, three
-    quarters `⣶`.
-
-    AN ORDERED DITHER ON THE FRINGE WAS TRIED AND TAKEN OUT. It lit a
-    quarter-covered dot at a quarter of the positions, which sounds like
-    more resolution and is not: the threshold is fixed in SCREEN space,
-    so a shape moving across it has its fringe pop on and off in a
-    standing pattern - a crawl on anything that turns - and on a still
-    picture it only made the lines a dot fatter here and there. Measured
-    side by side on a ring: `⣄⣄⣀` against `⣄⣀⣀`, and `⡟` against `⡞`.
-
-    `x` and `y` are still taken so a caller can pass where the dot is;
-    nothing uses them now, and a rule that needs them again has this
-    signature waiting.
-    """
+    """Whether a dot the shape covers `hits` of `of` samples deep lights."""
     return hits * 2 >= of
 
 
 def shade(level, phase=0):
-    """One cell of tone: `level` 0 to 1 up the ladder, blank at zero.
-
-    `phase` picks among the patterns of that density - any stable
-    per-cell number will do, and the renderers hand it the grain hash
-    they already keep.
-    """
+    """One cell of tone: `level` 0 to 1 up the ladder, blank at zero."""
     rung = int(level * RUNGS + 0.5)
     rung = 0 if rung < 0 else (RUNGS if rung > RUNGS else rung)
     row = SHADE[rung]
@@ -149,12 +118,7 @@ def shade(level, phase=0):
 
 
 def cell(value):
-    """`value` to the nearest cell, halves always upward.
-
-    Not round(): Python rounds halves to even, so 15.5 and 16.5 both land on
-    16 and two adjacent positions collide. Measured, that wrote a label as
-    "o x a  3 0 0".
-    """
+    """`value` to the nearest cell, halves always upward."""
     return int(math.floor(value + 0.5))
 
 
@@ -164,12 +128,7 @@ TABLES_KEPT = 8
 
 
 def table(kept, key, build):
-    """The table for `key` in `kept`, built by `build()` on first ask.
-
-    The round rasterisers - the dial's face, the machine's seat - work
-    their geometry out once per size and keep it this way; only a
-    runaway set of sizes, a terminal resized by hand, clears the lot.
-    """
+    """The table for `key` in `kept`, built by `build()` on first ask."""
     got = kept.get(key)
     if got is None:
         if len(kept) > TABLES_KEPT:

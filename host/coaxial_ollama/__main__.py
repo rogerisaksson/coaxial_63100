@@ -1,30 +1,12 @@
-"""Command line entry point.
-
-    python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml
-    python -m coaxial_ollama --ask "read the NTC and report degrees C"
-    python -m coaxial_ollama --list-tools
-
-Defaults: the model may read the board, run Python against it, and run programs
-from an allowlist. It may not drive a pin or open the test gate until
---allow-writes, and --confirm puts a human in front of every side effect.
---read-only takes code and commands away entirely. On a board rated 63 V and
-100 A that asymmetry is the point - an unattended run should not be able to
-drive a pin - and it is honest about its limit: code that can reach `board` can
-reach the pins, so --allow-writes is about the declarative tools, and trusting
-code at all is the --read-only decision.
-
-The exit code is the operator's: 0 when nothing failed, 1 when a step failed or
-never finished, 2 when the run could not start at all.
-"""
+"""Command line entry point."""
 import argparse
 import json
 import os
 import sys
 from contextlib import suppress
 
-# host/ on the path: this file's own directory's parent, so it does
-# not matter what the working directory is or what any directory
-# along the way is called.
+# host/ on the path: this file's own directory's parent, so it does not matter
+# what the working directory is or what any directory along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import RigError                  # noqa: E402
@@ -140,10 +122,7 @@ def main(argv=None):
     session = Session(args.port, args.baud, args.unit)
     try:
         # Opened here rather than left to the first board tool call inside a
-        # step. Session.board is lazy, so without this the model would burn a
-        # turn on a step it cannot complete, read the connect error as a tool
-        # result, and - with nothing telling it to stop - may still try to
-        # finish the step instead of the run failing where it actually failed.
+        # step.
         session.board
     except RigError as exc:
         print('board: %s' % exc, file=sys.stderr)

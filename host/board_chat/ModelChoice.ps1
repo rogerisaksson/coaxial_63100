@@ -1,21 +1,23 @@
 <#
     Which model this run should use, and getting its weights into the OS
-    file cache before ollama asks for them. Needs Say (Say.ps1) already in
+    file cache before ollama asks for them.
     scope; both functions here also read board_chat.ps1's own $Root,
     $Prefer and $Reserve straight from the caller's scope.
 #>
 
 function Invoke-Warm {
-    <#  host/tools/warm_model.py --auto owns the decision, not this script:
-        a real timed read of the model's own blob against a measured free-RAM
-        figure, not a guess from the disk's reported type. This bench's own
+    <#
+  host/tools/warm_model.py --auto owns the decision, not this script:
+        a real timed read of the model's own blob against a measured
+        free-RAM
+        figure, not a guess from the disk's reported type.
         NVMe/SSDs clear the "worth it" threshold several times over, so here
-        it always says skip - see the script's docstring for the numbers. A
+        it always says skip - see the script's docstring for the numbers.
         machine with a slower disk and RAM to spare gets a different answer
         from the same measurement, with nothing to configure for it.
-
         Never fatal: a machine where this fails is a reason to load cold,
-        not a reason to stop.  #>
+        not a reason to stop.
+#>
     param([string]$Tag)
 
     Push-Location $Root
@@ -30,13 +32,14 @@ function Invoke-Warm {
 }
 
 function Get-Choice {
-    <#  Which model this machine should run, and how much of it fits the card.
-
+    <#
+  Which model this machine should run, and how much of it fits the card.
         capability.py owns the answer - the same answer setup.ps1 and
         `dbg -m auto` get - so a bench does not end up with three opinions
-        about which tag is right. A machine where the probe fails is not a
+        about which tag is right.
         reason to stop: fall back to the tag this bench was built on and say
-        so.  #>
+        so.
+#>
 
     Push-Location $Root
     try {

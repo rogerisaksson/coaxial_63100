@@ -71,8 +71,8 @@ class SimulatedCapture:
         return {'sources': [names[i] for i in range(3) if self._mask >> i & 1],
                 'mask': self._mask, 'count': len(self._pending),
                 'depth': self.DEPTH, 'dropped': self._dropped,
-                # Nothing here is throttled - there is no link to be short of
-                # - but the field has to exist or a view written against the
+                # Nothing here is throttled - there is no link to be short of -
+                # but the field has to exist or a view written against the
                 # board would fail on the stand-in, which is the one thing
                 # test_parity is for.
                 'thinned': 0}
@@ -228,8 +228,8 @@ class SimulatedDaq(Acquisition):
         omega = drive._omega()                 # electrical rad/s
         self._theta = (self._theta + omega * seconds) % (2.0 * math.pi)
 
-        # The drive's own solution: what current it settled at and what
-        # voltage it needed, not the references it was handed.
+        # The drive's own solution: what current it settled at and what voltage
+        # it needed, not the references it was handed.
         iid, iq, vd, vq = drive._dq()
         amps = math.hypot(iid, iq)
         volts = math.hypot(vd, vq)
@@ -270,10 +270,8 @@ class SimulatedDaq(Acquisition):
     NO_WORDS = (0, 0, 0, 0)
 
     def _sensor_words(self, bit):
-        """Four raw words, the board's own encodings - the shaft off the SAME
-        rotor the drive torques, the IMU off the poll record. Wired by
-        `SimulatedBoard` like `drive` is; unwired, zeros with have 0, which
-        is what an absent part answers.
+        """Four raw words, the board's own encodings - the shaft off the
+        SAME rotor the drive torques, the IMU off the poll record.
         """
         if bit == self.SHAFT_BIT:
             return self._shaft_words()
@@ -344,9 +342,9 @@ class SimulatedDaq(Acquisition):
     def _period_us(self):
         base = 20.0 if (self._cfg or {}).get('clock') == 'tim1' else 47.0
         cfg = self._cfg or {}
-        # A CLOCK-CLOSED RECORD HAS NO ACCUMULATE, and multiplying by it gave
-        # a period of zero: every record carried the same timestamp, so `dt`
-        # came out 0.0 and a host could not tell how long a window covered.
+        # A CLOCK-CLOSED RECORD HAS NO ACCUMULATE, and multiplying by it gave a
+        # period of zero: every record carried the same timestamp, so `dt` came
+        # out 0.0 and a host could not tell how long a window covered.
         if not cfg.get('accumulate'):
             return float(cfg.get('interval_us') or base)
         return base * cfg['decimate'] * cfg['accumulate']
@@ -355,9 +353,9 @@ class SimulatedDaq(Acquisition):
         cfg = self._cfg or {'channels': 0, 'clock': 'software', 'sample_time': 0,
                             'decimate': 0, 'accumulate': 0, 'records': 0}
         held = self._buffered()
-        # DAQ_BYTES, and the board's number: 16384 was the ring before it
-        # moved into the AXI SRAM, and a stand-in quoting the old one reports
-        # a capacity no host would ever see.
+        # DAQ_BYTES, and the board's number: 16384 was the ring before it moved
+        # into the AXI SRAM, and a stand-in quoting the old one reports a
+        # capacity no host would ever see.
         capacity = RING_BYTES // max(1, self._stride())
         return {'running': self._running, 'done': self._done,
                 'lost_power': False,
@@ -404,8 +402,8 @@ class SimulatedDaq(Acquisition):
 
     def _stride(self):
         """The record's width, by the board's own arithmetic: the timestamp,
-        one sum per field, the digital word when the task has one, and the
-        sample count that closes every record.
+        one sum per field, the digital word when the task has one, and
+        the sample count that closes every record.
         """
         # ONE BYTE A PIN, not one word: the pins go through the same window as
         # everything else and come out as a duty.
@@ -517,8 +515,8 @@ class SimulatedDaq(Acquisition):
     def _buffered(self):
         """What a stopped run still owes: the real board's buffer stays
         readable after stop, so a bounded run's remainder is served -
-        measured jank: the timed-burst notebook drained 0 records here while
-        the board gave 512.
+        measured jank: the timed-burst notebook drained 0 records here
+        while the board gave 512.
         """
         if self._cfg is None or not self._cfg['records']:
             return 0
@@ -599,9 +597,9 @@ class SimulatedDaq(Acquisition):
                 centre = self.CENTRE[index]
                 leg = self.PHASE_LEG.get(f['signal'])
                 if leg is not None and amps:
-                    # Balanced three-phase, in codes: the dq solution the
-                    # drive settled at, put back into the stator frame through
-                    # the stand-in's own amps-per-code.
+                    # Balanced three-phase, in codes: the dq solution the drive
+                    # settled at, put back into the stator frame through the
+                    # stand-in's own amps-per-code.
                     offset = took * phase_codes(f['signal'], amps, theta)
                 else:
                     # ONE SOURCE FOR A QUIET CHANNEL.
@@ -692,8 +690,8 @@ class SimulatedClock:
         return Clock.probe(cast(Clock, self), rounds=rounds)
     def sync(self, seconds=2.0, rounds=8, reference='utc', ntp_server=None):
         # Its cycles come off this machine's clock, so against UTC it is this
-        # machine's error plus its own 12 ppm - which is the honest answer,
-        # not a bug.
+        # machine's error plus its own 12 ppm - which is the honest answer, not
+        # a bug.
         return Clock.sync(cast(Clock, self), seconds=seconds, rounds=rounds,
                           reference=reference,
                           ntp_server=ntp_server or NTP_SERVER)

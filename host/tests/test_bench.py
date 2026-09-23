@@ -1,31 +1,4 @@
-"""Does the board still go as fast as it did? Against a recorded baseline.
-
-WHY A BASELINE AND NOT A THRESHOLD. A number written into a test is a limit
-somebody invented, and this tree does not carry those (invariant 10). A
-baseline is different: it is what this board actually did on a day someone
-wrote down, and the check is that today is not materially worse. It catches
-the regression without pretending to know what fast is.
-
-WHAT IT WATCHES, and why each one is here rather than a loop counter:
-
-    round trips     the link, end to end. Everything else rides on it.
-    angle updates   the main loop's own rate - the angle poll runs as fast as
-                    SPI4 allows, so it falls the moment anything in the loop
-                    starts blocking. Needs AFE_ON: it powers the A1335, and
-                    with the rail off this reads 0 and means nothing.
-    observer steps  the thermal model, which must keep its 10 Hz whatever the
-                    sensors are doing. `steps`, not `seconds`: the latter is
-                    wall clock, so its rate is 1.0 however slow the thermal observer
-                    gets, and this check watched it for a day.
-
-Measured 2026-08-28: the thermal observer's free-read path read two ADC channels -
-one at 810.5 cycles - and did two SPI4 transactions on EVERY poll whenever
-anything held AFE_ON, for an anchor whose gain is 0.05 Hz. That is the shape
-of regression this exists to catch.
-
-    python tests/test_bench.py             # check against the baseline
-    python tests/test_bench.py --record    # write today down as the baseline
-"""
+"""Does the board still go as fast as it did? Against a recorded baseline."""
 import json
 import os
 import sys
@@ -70,15 +43,7 @@ def per_second(rig, read, seconds=WINDOW):
 
 
 def measure(rig):
-    """Each figure in its own quiet window, and the ORDER is part of it.
-
-    The loop rates go first, over a link that is otherwise idle. Measured:
-    taking them after the round-trip hammer gave 1404 angle updates a second
-    against 16 728 - the polls sit behind `link_busy()`, so timing them while
-    hammering the link times the traffic instead of the loop. Two true
-    numbers about different things, and only one of them is the one asked
-    for.
-    """
+    """Each figure in its own quiet window, and the ORDER is part of it."""
     got = {
         'angle_updates_per_s': per_second(
             rig, lambda: rig.board.angle.state()['updates']),
@@ -125,10 +90,6 @@ def main():
 
     from coaxial import Coaxial63100                # noqa: E402
     # AFE_ON HELD, and that is what the baseline was recorded under.
-    # It powers the A1335, so the angle rate without it is 0 - and it
-    # is also the condition the thermal observer's free-read path is measured
-    # in, which is the regression this suite exists to catch. The rig
-    # puts the rail back the way it found it.
     with Coaxial63100(port=origin.port, power_afe=True) as rig:
         print('  %s\n' % rig.origin.label)
         now = measure(rig)

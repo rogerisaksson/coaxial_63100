@@ -1,36 +1,11 @@
-"""Which language a question is in, decided here rather than by the model.
-
-"Answer in the language of the question" asks for two jobs at once, and the
-first is where it drifts: measured with `qwen2.5:14b`, answers came back in
-Chinese, Japanese and Thai to questions in none of them. A larger model gets it
-right more often, which is not the same as getting it right.
-
-So the host decides and the prompt states it: *The user writes in Swedish.
-Answer in Swedish.* An instruction instead of an introspection.
-
-Detection is deliberately small - the languages spoken at a bench, not every
-language there is - and a wrong guess degrades to the old behaviour rather than
-to a confident instruction in the wrong language. Two stages:
-
-  * Script. Chinese, Japanese, Korean, Thai, Greek, Cyrillic, Hebrew and Arabic
-    are decided by the characters alone and cannot be confused with each other.
-  * Stop words, for the Latin ones. Counting `och`, `är`, `för` against `the`,
-    `and`, `is` separates Swedish from English in one short sentence, which is
-    the length a bench question actually has.
-
-Below a margin it says nothing and the prompt falls back to "answer in the
-language the question was asked in". A detector that guesses is worse than one
-that abstains: mirroring the question is right most of the time, a wrong
-instruction none of it.
-"""
+"""Which language a question is in, decided here rather than by the model."""
 import ctypes
 import locale
 import re
 import unicodedata
 from contextlib import suppress
 
-# Ranges that settle it without counting anything. Order matters only in that
-# Japanese kana are checked before Han: a Japanese sentence contains both.
+# Ranges that settle it without counting anything.
 SCRIPTS = (
     ('Japanese', ((0x3040, 0x309F), (0x30A0, 0x30FF))),      # hiragana, katakana
     ('Korean',   ((0xAC00, 0xD7AF), (0x1100, 0x11FF))),
@@ -43,29 +18,14 @@ SCRIPTS = (
 )
 
 # Words common enough to appear in one sentence and rare enough elsewhere.
-# Kept short on purpose: a longer list is not more accurate on bench-length
-# questions, and every entry is a chance to collide with another language.
-#
-# 'en' and 'de' are in Swedish's own list even though Dutch also claims them,
-# and that repetition is the point, not an oversight. Measured:
-# "ger du mig en tabell over de analoga matvardena?" has only one word from
-# the rest of the Swedish list ('over') against two from Dutch's ('en', 'de'),
-# so Dutch outscored Swedish outright and the model answered in a Dutch/
-# Norwegian mix. A word missing from Swedish's list does not make a sentence
-# less Swedish - it just leaves Swedish's score lower than it should be
-# whenever that word is the one doing the work. Adding the same word to both
-# lists cancels it as a discriminator rather than leaving it to favour
-# whichever list happened to claim it first.
 STOPWORDS = {
     'Swedish':    ('och', 'är', 'för', 'inte', 'att', 'det', 'som', 'på',
                    'med', 'vad', 'hur', 'kortet', 'läs', 'jag', 'kan', 'ska',
                    'över', 'från', 'en', 'de'),
     # 'a' is in English's list for the same reason 'en' and 'de' are in
-    # Swedish's: Portuguese claims it too, and a word both languages own
-    # has to sit in both or it decides the score for whichever list happens
-    # to have it. Measured: an English answer about this board scored
-    # Portuguese on two 'a's and was reported as answering in the wrong
-    # language.
+    # Swedish's: Portuguese claims it too, and a word both languages own has to
+    # sit in both or it decides the score for whichever list happens to have
+    # it.
     'English':    ('the', 'and', 'is', 'what', 'how', 'does', 'are', 'of',
                    'to', 'read', 'why', 'can', 'this', 'board', 'a'),
     'German':     ('und', 'ist', 'nicht', 'das', 'der', 'die', 'was', 'wie',
@@ -90,14 +50,7 @@ STOPWORDS = {
                    'com', 'uma', 'qual'),
 }
 
-# How far ahead the winner has to be: strictly ahead, no more. A bench question
-# is one short sentence, so the winning margin is often a single word - "Vad ar
-# en NTC-termistor?" scores Swedish 2 against Dutch 1, because `en` is a Dutch
-# word too. Demanding two would abstain on most real questions.
-#
-# What this still catches is the tie, which is the case the margin exists for:
-# Danish and Norwegian share almost all of this list and score identically, and
-# telling a Dane to answer in Norwegian is worse than saying nothing.
+# How far ahead the winner has to be: strictly ahead, no more.
 MARGIN = 1
 
 WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
@@ -114,8 +67,7 @@ def _script(text):
     if not counts:
         return None
     best = max(counts, key=lambda k: counts[k])
-    # A stray CJK quotation mark in an English sentence is not Chinese. Ask for
-    # a real share of the letters before believing it.
+    # A stray CJK quotation mark in an English sentence is not Chinese.
     letters = sum(1 for c in text if unicodedata.category(c).startswith('L'))
     if letters and counts[best] * 4 >= letters:
         return best
@@ -153,21 +105,8 @@ def detect(text):
 def instruction_for(name):
     """The line to append to the system prompt, for an already-known
     language name (or None to fall back to mirroring the question) - the
-    part `instruction()` and a session's locked language both need, kept in
-    one place so the wording never drifts between the two callers.
-
-    Names the language when it is known, and says what must *not* follow it:
-    the board's own words. A model told to answer in Swedish will otherwise
-    translate `DCbus` and `NTC` too, and a translated channel name is one
-    nobody can grep for in the CSVs.
-
-    The one exception is the operator asking for another language, and it is
-    named here because leaving it out was measured: locked to Korean and
-    asked to switch back, the model obeyed this line and refused, in Korean.
-    The host catching the request is the fix; this is what the session
-    degrades to when it catches the next phrasing nobody thought of. It asks
-    the model to obey a request, not to work out a language, which is the
-    part it is bad at and the reason this module exists.
+    part `instruction()` and a session's locked language both need, kept
+    in one place so the wording never drifts between the two callers.
     """
     if not name:
         return ('Answer in the language the question was asked in. Channel '
@@ -189,11 +128,8 @@ def instruction(text):
 
 
 # Language names as they would actually appear when someone asks for one by
-# name - the English word and, for the two this loop is mostly spoken in,
-# the Swedish word too. Deliberately not exhaustive: this is a trigger for
-# "answer in French" / "svara pa franska", not a translation table, and a
-# name missing from this dict just means that request falls back to being
-# detected from the language it was written in instead, same as always.
+# name - the English word and, for the two this loop is mostly spoken in, the
+# Swedish word too.
 LANGUAGE_NAMES = {
     'Swedish':    ('swedish', 'svenska'),
     'English':    ('english', 'engelska'),
@@ -219,9 +155,7 @@ LANGUAGE_NAMES = {
 _NAME_TO_LANGUAGE = {alias: name for name, aliases in LANGUAGE_NAMES.items()
                      for alias in aliases}
 
-# ISO code -> the name above, for every language this module can name. A
-# machine set to one of them gets it; anything else falls back to English,
-# which is what the documents are in.
+# ISO code -> the name above, for every language this module can name.
 _LOCALE_CODES = {
     'sv': 'Swedish', 'en': 'English', 'de': 'German', 'da': 'Danish',
     'nb': 'Norwegian', 'nn': 'Norwegian', 'no': 'Norwegian', 'nl': 'Dutch',
@@ -233,12 +167,7 @@ _LOCALE_CODES = {
 
 
 def system_language(default='English'):
-    """The language this machine is set up in.
-
-    Windows answers `Swedish_Sweden` through the locale module and `sv-SE`
-    through the API; both are handled, first match wins. Never raises - a
-    greeting is not worth an exception.
-    """
+    """The language this machine is set up in."""
     candidates = []
     with suppress(ValueError, TypeError):
         candidates.append(locale.getlocale()[0] or '')
@@ -258,9 +187,7 @@ def system_language(default='English'):
 
 
 # One line, in the operator's own language: who is answering, and where the
-# rest is. Everything else a session used to print on the way in - the tool
-# list, the detail level, the per-turn cost - is a /help away and was three
-# lines nobody read twice.
+# rest is.
 GREETINGS = {
     'Swedish': 'Jag är %s och är experten i det här projektet. Skriv /help.',
     'English': "I'm %s, the expert on this project. Type /help.",
@@ -286,14 +213,7 @@ GREETINGS = {
 
 
 # Host-authored text that reaches the screen, keyed by the English it is
-# written as at the call site. Everything the board says stays as the board
-# says it - channel names, units, register values - but a Swedish question
-# answered with an English warning above it is one screen in two languages,
-# which is what this fixes.
-#
-# Swedish only, deliberately: English is the fallback and the language of the
-# documents, and a translation nobody here can check is worse than
-# no translation. Adding a language is adding a dict.
+# written as at the call site.
 PHRASES = {
     'Swedish': {
         'AFE OFF - the ADC reference is unpowered. These are the codes '
@@ -410,9 +330,7 @@ PHRASES = {
     },
 }
 
-# A %-spec in one of those templates. Matched rather than formatted: the text
-# reaching localise() has already been through %, so what is left is to find
-# the values and put them back in the translated order.
+# A %-spec in one of those templates.
 _SPEC = re.compile(r'%(?:\.\d+)?[a-z]')
 
 
@@ -425,12 +343,7 @@ _MATCHERS = {}
 
 
 def localise(text, name=None):
-    """Host-authored English in `text`, replaced with `name`'s version.
-
-    Whole templates only, so a value, a channel name or anything the board
-    said passes through untouched. Longest first: a short template that is a
-    prefix of a longer one must not claim it.
-    """
+    """Host-authored English in `text`, replaced with `name`'s version."""
     table = PHRASES.get(name or '')
     if not table or not text:
         return text
@@ -456,12 +369,6 @@ def _fill(translated, values):
 def greeting(model, name=None, encoding=None):
     """The one line a session opens with, in `name` or this machine's own
     language.
-
-    English where there is no translation, and English where the console
-    cannot encode the one there is: a bare `python dbg.py` on a cp1252
-    console renders Japanese as a row of question marks, and a greeting
-    nobody can read is worse than one in the wrong language. board_chat.ps1
-    sets the console to UTF-8, so there the alphabet arrives.
     """
     name = name or system_language()
     text = (GREETINGS.get(name) or GREETINGS['English']) % model
@@ -472,12 +379,7 @@ def greeting(model, name=None, encoding=None):
             return GREETINGS['English'] % model
     return text
 
-# One word, in the language just asked for. A bare switch is answered by the
-# host and never reaches the model: the lock is host state, and a model turn
-# to say so costs a round trip and gets a paragraph. Measured: asked to
-# switch, gemma4:12b answered "Jag har andrat spraket till svenska. Hur kan
-# jag hjalpa dig med din BLDC-inverter?" - two sentences where one word does,
-# above a host line saying the same thing a third time.
+# One word, in the language just asked for.
 OKAY = {
     'Swedish': 'Okej', 'English': 'Okay', 'German': 'In Ordnung',
     'Danish': 'Okay', 'Norwegian': 'Greit', 'Dutch': 'Oké',
@@ -490,12 +392,7 @@ OKAY = {
 
 
 def okay(name, encoding=None):
-    """The acknowledgement for a bare language switch.
-
-    English where there is no translation, and English where the console
-    cannot encode the one there is - the same cp1252 case `greeting()`
-    documents, where Japanese renders as a row of question marks.
-    """
+    """The acknowledgement for a bare language switch."""
     text = OKAY.get(name or '') or OKAY['English']
     if encoding:
         try:
@@ -505,22 +402,9 @@ def okay(name, encoding=None):
     return text
 
 
-# A language's own name has to sit next to one of these to count as a
-# request rather than a mention - "the German firmware bug" is not a
-# request for German, and this is what keeps it from reading as one.
-#
-# Every verb that asks for text, not just the ones that mean "answer".
-# Measured: "forklara pa japanska vad detta projektet handlar om" matched
-# nothing here, so the session stayed locked to Swedish and the turn went
-# out under *Answer in Swedish and in no other language* - the host
-# contradicting the operator in the same prompt. The Swedish and English
-# sets are complete because this loop is spoken in those two; the rest
-# keep the one verb they already had.
-#
-# The last group asks for no text at all: "byt sprak till svenska" is about
-# every answer after it, not this one. Without them the lock had no way out
-# except /lang - measured, a session locked to Korean answered the request
-# to leave it with a refusal, in Korean.
+# A language's own name has to sit next to one of these to count as a request
+# rather than a mention - "the German firmware bug" is not a request for
+# German, and this is what keeps it from reading as one.
 _REQUEST_VERBS = (
     'svara', 'svarar', 'förklara', 'skriv', 'skriva', 'beskriv',
     'berätta', 'översätt', 'sammanfatta', 'säg',
@@ -536,28 +420,9 @@ _REQUEST_VERBS = (
 
 
 def requested_language(text):
-    """A language named outright in `text` - "svara pa engelska", "byt
-    sprak till svenska" - independent of what language `text` itself is
-    written in. This is what lets a session written in Swedish ask for an
-    English answer without that one message being mistaken for a language
-    switch by `detect()` alone, which only ever looks at the words actually
-    used.
-
-    Two ways to be a request, and the second is what keeps the lock from
-    being a trap:
-
-      * A verb from `_REQUEST_VERBS` next to the name. This is what stops
-        "the German firmware has a bug" from reading as a request just
-        because it names a language in passing.
-      * The name, in a message `detect()` cannot place in any language at
-        all. "byt sprak till svenska" scores no stop word in any list, so
-        there is nothing in it *but* the language name - which is the shape
-        of every short way of asking, down to "svenska tack". A message
-        that does place - "varfor ar dokumentationen pa engelska?" is
-        Swedish on `ar` and `pa` - is left to the verb rule.
-
-    None means no language was requested, not that none could be detected -
-    callers fall back to `detect()` for that.
+    """A language named outright in `text` - "svara pa engelska", "byt sprak
+    till svenska" - independent of what language `text` itself is written
+    in.
     """
     words = [w.lower() for w in WORD.findall(text or '')]
     named = None
@@ -572,10 +437,8 @@ def requested_language(text):
     return named if detect(text) is None else None
 
 
-# What can sit around a language name without the message being about
-# anything else: the switch itself, the word "language", and the politeness.
-# A word outside this set means there is a real question in there too - and
-# that one is answered by the model, in the new language, not with "Okej".
+# What can sit around a language name without the message being about anything
+# else: the switch itself, the word "language", and the politeness.
 _SWITCH_FILLER = (
     'språk', 'språket', 'language', 'sprache', 'langue', 'idioma', 'lingua',
     'till', 'to', 'på', 'in', 'auf', 'en', 'a', 'nu', 'now', 'igen',
@@ -585,16 +448,7 @@ _SWITCH_FILLER = (
 
 
 def bare_switch(text):
-    """The language `text` asks for, when it asks for nothing else.
-
-    "byt språk till svenska" is a request the host can answer on its own;
-    "förklara på japanska vad detta projektet handlar om" names the same
-    kind of request with a question attached, and only the model can answer
-    that one. The difference is whether anything is left over once the
-    language name, the request verb and the filler are taken out - an
-    unknown word means there is, so this abstains and the turn goes to the
-    model as before.
-    """
+    """The language `text` asks for, when it asks for nothing else."""
     named = requested_language(text)
     if not named:
         return None

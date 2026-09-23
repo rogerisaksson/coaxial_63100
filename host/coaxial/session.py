@@ -114,10 +114,7 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
 
 
 class Session:
-    """One transport and the board on it. Lazy: nothing is opened until a call
-    actually needs the port, so a dead cable fails at the call rather than
-    at start-up.
-    """
+    """One transport and the board on it."""
 
     #: Read by anything that must not mistake a stand-in for a board.
     simulated = False
@@ -151,9 +148,9 @@ class Session:
         return self.port
 
     def info(self, refresh=False):
-        """Version, clock and channel table, cached: none of it changes at run
-        time, and re-reading it on every call is exactly the waste this
-        server exists to avoid.
+        """Version, clock and channel table, cached: none of it changes at
+        run time, and re-reading it on every call is exactly the waste
+        this server exists to avoid.
         """
         if self._info is None or refresh:
             board = self.board
@@ -191,7 +188,5 @@ class Session:
             self._info = None
 
     def reset(self):
-        """Drop the connection so the next call reopens it. For recovering from
-        a cable pull without restarting the server.
-        """
+        """Drop the connection so the next call reopens it."""
         self.close()

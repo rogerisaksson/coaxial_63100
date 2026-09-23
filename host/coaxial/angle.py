@@ -90,9 +90,7 @@ DECODED = {ANG: _angle, TSEN: _temperature}
 
 
 class Angle(Device, PolledSensor, device=protocol.DEVICE_ANGLE):
-    """The A1335 behind SPI4. Every call raises rather than returning a status:
-    a reading that did not happen is not a reading of zero.
-    """
+    """The A1335 behind SPI4."""
 
     LOOP_STATES = LOOP_STATES
 

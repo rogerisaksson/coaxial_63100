@@ -156,7 +156,7 @@ class BufferedReader:
 
     def _count(self, block):
         """The rate this reader is actually seeing, smoothed a window at a
-        time. It is what `_hold` divides the shortfall by.
+        time.
         """
         self.records += len(block)
         span = time.time() - self._since

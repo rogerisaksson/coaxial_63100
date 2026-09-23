@@ -164,11 +164,9 @@ class SimulatedAngle(PolledSensor):
         self.drive: Any = None
         self.thermal: Any = None
     def _turn(self):
-        """The shaft in counts: the virtual rotor's when one is turning, else
-        one invented turn every twelve seconds - a stand-in that reports one
-        angle for ever is indistinguishable from a dead link. The wiring is
-        `SimulatedBoard`'s, like the DAQ's: a servo closed over this sensor
-        moves the SAME rotor the drive torques.
+        """The shaft in counts: the virtual rotor's when one is turning,
+        else one invented turn every twelve seconds - a stand-in that
+        reports one angle for ever is indistinguishable from a dead link.
         """
         drive = self.drive
         if drive is not None and drive._source == 'model':
@@ -182,8 +180,8 @@ class SimulatedAngle(PolledSensor):
             return 0x5000 | self._turn()
         if register == angle.TSEN:
             # The die sits on the board: its temperature is the thermal
-            # stand-in's board node when the board wired one, else a room's
-            # 296 K.
+            # stand-in's board node when the board wired one, else a room's 296
+            # K.
             thermal = self.thermal
             kelvin = (KELVIN_AT_ZERO_C + thermal.state()['nodes']['board']
                       if thermal is not None else 296.0)

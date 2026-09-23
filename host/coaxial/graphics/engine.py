@@ -1,22 +1,4 @@
-"""The staged 3D engine: pure functions, one per pipeline step.
-
-    pose      degrees -> rotation matrix (body->view, row-major)
-    camera    frame + model reach -> projection constants
-    raster    triangles + matrix + camera -> depth field + face flags
-    shade     depth field (+ art, + shadow map) -> class field 0..2
-    compose   class field -> text rows
-
-Every stage takes plain data and returns plain data, so
-tests/test_render.py holds each stage against exact expectations and
-the whole chain against an analytic ray-cast oracle - render/render_demo.ps1
-is that bench. wireframe.py dresses the output (backdrop,
-colour, the wire fallback) and owns the fitted shading constants.
-
-Depth IS the shading. A surface-normal lambert was built, fitted and
-removed: the CAD exporter's cube reference shows its '.'-to-':'
-boundary cutting ACROSS a flat face, which no normal-based light can
-produce and a depth ramp does exactly.
-"""
+"""The staged 3D engine: pure functions, one per pipeline step."""
 import math
 
 from .raster import BRAILLE_BITS, DOTS_X, DOTS_Y
@@ -55,12 +37,7 @@ def multiply(a, b):
 
 def camera(width, height, reach, distance=3.2, zoom=1.0, tip=0.0,
            lift=0.5):
-    """Projection constants for a frame: everything project() needs.
-
-    The scale is the tangent-ray bound of the model's bounding sphere -
-    attitude-independent, so the picture never breathes with rotation -
-    and `lift` places the vertical centre (0.5 dead centre; the live
-    view sits at 0.44). `tip` pitches the camera itself, in degrees."""
+    """Projection constants for a frame: everything project() needs."""
     t = math.radians(tip)
     ct, st = math.cos(t), math.sin(t)
     bound = 2.0 * reach / math.sqrt(distance * distance - reach * reach)
@@ -72,32 +49,24 @@ def camera(width, height, reach, distance=3.2, zoom=1.0, tip=0.0,
 
 
 def project(cam, m, point):
-    """One body point through attitude and camera to (sx, sy, depth).
-
-    Depth is 1/(distance - view_z): larger is nearer, the raster's own
-    convention."""
+    """One body point through attitude and camera to (sx, sy, depth)."""
     x, y, z = point
     tx = m[0] * x + m[1] * y + m[2] * z
     ty = m[3] * x + m[4] * y + m[5] * z
     tz = m[6] * x + m[7] * y + m[8] * z
     w = 1.0 / (cam['distance'] - tz)
-    # `aspect` is the row's share of the column's scale: 0.5 for a
-    # character cell, about twice as tall as wide; 1.0 for the braille
-    # dot raster `fine` makes, whose samples are square.
+    # `aspect` is the row's share of the column's scale: 0.5 for a character
+    # cell, about twice as tall as wide; 1.0 for the braille dot raster `fine`
+    # makes, whose samples are square.
     return (cam['cx'] + cam['scale'] * w * tx,
             cam['cy'] - cam['scale'] * cam.get('aspect', 0.5) * w * ty, w)
 
 
 def fine(cam):
-    """The camera at braille dot resolution: DOTS_X columns and DOTS_Y
-    rows of samples per cell, square on screen, for the raster `fold`
-    brings back down to cells. Doubling both axes was the first form -
-    2x2, a quadrant one dot wide and two tall - and along a shallow
-    silhouette the rim could only sit on two of a cell's four dot rows,
-    so the edge stepped by whole cells; the bench saw it jagged. The
-    fine y is DOTS_Y times the cell y, so the fine scale is DOTS_X
-    times the cell scale with the aspect that makes the row DOTS_Y
-    times taller."""
+    """The camera at braille dot resolution: DOTS_X columns and DOTS_Y rows
+    of samples per cell, square on screen, for the raster `fold` brings
+    back down to cells.
+    """
     return dict(cam, width=DOTS_X * cam['width'],
                 height=DOTS_Y * cam['height'],
                 scale=DOTS_X * cam['scale'],
@@ -106,20 +75,7 @@ def fine(cam):
 
 
 def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
-    """Depth, horizontal-face and shadow-eligibility flags per cell.
-
-    The z-test decides who owns a cell. Normals only classify: which
-    faces are horizontal in the BODY frame (they wear the art), and
-    which face the shadow `beam` enough to be worth testing. Rewinding
-    a flipped triangle swaps two verts, so their depths swap WITH them
-    - the old engine tested the area after negating it and the swap
-    never ran.
-
-    `band` = (first row, last row + 1) rasters that strip alone and
-    returns arrays of the strip's own height: what one process of a
-    crew draws. A band owns its rows of the z-buffer outright, so the
-    strips concatenate with nothing to merge; only the vertex pass is
-    repeated per band."""
+    """Depth, horizontal-face and shadow-eligibility flags per cell."""
     pos, idx, nrm = solid
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     width, height = cam['width'], cam['height']
@@ -144,11 +100,8 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
         nz = m6 * bx + m7 * by + m8 * bz
         if nz < 0.0:
             nx, ny, nz = -nx, -ny, -nz
-        # Shadow-eligible: facing the beam, AND on the component side of
-        # the board (body +z). The solder side has nothing standing on it
-        # to cast a shadow, and testing it anyway against the coarse
-        # caster map chattered at grazing angles - cells flipping in and
-        # out of shade frame to frame, seen on the bench from below.
+        # Shadow-eligible: facing the beam, AND on the component side of the
+        # board (body +z).
         lit = bz > 0.0 and nx * lx + ny * ly + nz * lz > sun_min
         flat = bz > 0.9 or bz < -0.9
 
@@ -169,23 +122,16 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
             continue
         inv = 1.0 / area
         # The two edge functions, each a row term less a column term.
-        # The row term and the edge's slopes are the same for every
-        # pixel of a row, so they are worked out once per row: the same
-        # products in the same order as the plain form, so every weight
-        # is the same float, and a third of the work per pixel.
         e0x, e0y = x2 - x1, y2 - y1
         e1x, e1y = x0 - x2, y0 - y2
         for py in range(lo_y, hi_y + 1):
             row = (py - first) * width
             r0 = e0x * (py - y1)
             r1 = e1x * (py - y2)
-            # A triangle's pixels on a row are one span, so the first
-            # miss after a hit ends the row: the same three tests on
-            # the same floats, and the half of the bounding box past
-            # the far edge is not visited. Measured at 108x40 on the
-            # grid-32 solid: the dot raster 79 ms to 69, the old 2x2
-            # 49 to 45 - the setup per triangle is most of what is
-            # left, since the triangles are small.
+            # A triangle's pixels on a row are one span, so the first miss
+            # after a hit ends the row: the same three tests on the same
+            # floats, and the half of the bounding box past the far edge is not
+            # visited.
             inside = False
             for px in range(lo_x, hi_x + 1):
                 w0 = (r0 - e0y * (px - x1)) * inv
@@ -223,19 +169,8 @@ DOT_SAMPLES = tuple((lane, y, BRAILLE_BITS[lane][y])
 
 def fold(depth, top, sun, width, height):
     """A dot-resolution raster (`fine`) down to cells: (depth, top, sun,
-    coverage, reached). A cell takes its NEAREST subsample's depth and
-    flags, and the share of its eight subsamples that hit - the
-    anti-aliasing a glyph grid can carry: a rim cell an eighth covered
-    draws faint, one seven-eighths covered nearly full. Neighbour-
-    counting stood in for this and could not tell a straight edge from
-    a stair.
-
-    `reached` is WHICH of the eight hit, as the braille bit of each dot
-    (`DOT_SAMPLES`), so a dot grid can be clipped to the model's own
-    silhouette by masking: a dot the model missed is a dot outside the
-    board, and the bench saw those spill past the rim. It was four
-    quadrants first, one dot wide and two tall, and a shallow rim then
-    sat on two of a cell's four rows and stepped by whole cells."""
+    coverage, reached).
+    """
     wide = DOTS_X * width
     out_depth = [0.0] * (width * height)
     out_top = bytearray(width * height)
@@ -278,24 +213,9 @@ ART_DISC = 0.96
 
 
 def _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane=0.0):
-    """The art cell under a cell's OWN SURFACE POINT, and that point's
-    rise above the art's plane - or None outside the unit disc. The
-    view-space point (u/w, v/w, tz) goes back into model space through
-    the rotation's transpose; the art is a top view, so its x and y
-    are the lookup, mirrored for the back; the rise is its height over
-    `plane` - the face the art is drawn on - in view depth, the height
-    over the plane's own tilt, as the ray's hit measured it before.
-
-    IT WAS THE VIEW RAY'S HIT ON z = 0. The slab's faces sit at z
-    -0.069 and -0.101 - the model is centred on its whole height, the
-    parts included - so at a tilt the ray met z = 0 a parallax away
-    from the surface it was shading, 0.07 to 0.1 units' worth, and the
-    art slid over the geometry as the board turned: the bore's blank
-    up and right of the see-through at 66 degrees (two holes), the
-    parts' ink beside their bodies, nothing at face-on, worst at the
-    steep poses - what the bench had described from the first
-    screenshot, and what no edge drawn from the coverage could follow
-    (2026-09-23). A synthetic plane at z = 0 reads the same either way."""
+    """The art cell under a cell's OWN SURFACE POINT, and that point's rise
+    above the art's plane - or None outside the unit disc.
+    """
     d = distance - tz
     tx, ty = u * d, v * d
     hx = m[0] * tx + m[3] * ty + m[6] * tz
@@ -307,10 +227,10 @@ def _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane=0.0):
                                       else (0.05 if not back else -0.05))
     rise = (hz - plane) / lean
     hx = -hx if back else hx
-    # An art cell covers [i/w, (i+1)/w) of the span, so the origin is
-    # cell w/2, not (w-1)/2: scaled by (w - 1) the lookup sat half a
-    # cell low and left - 0.02 units in x and 0.04 in y, a braille row
-    # on screen - and the bore's blank sat beside the see-through.
+    # An art cell covers [i/w, (i+1)/w) of the span, so the origin is cell w/2,
+    # not (w-1)/2: scaled by (w - 1) the lookup sat half a cell low and left -
+    # 0.02 units in x and 0.04 in y, a braille row on screen - and the bore's
+    # blank sat beside the see-through.
     iy = int((1.0 - (hy + 1.0) * 0.5) * art_h)
     ix = int((hx + 1.0) * 0.5 * art_w)
     iy = 0 if iy < 0 else (art_h - 1 if iy >= art_h else iy)
@@ -321,32 +241,16 @@ def _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane=0.0):
 def shade(depth, top, sun, cam, m, pivot, slope, floor,
           art=None, shadow=None, shadow_step=0.0, bias=0.0, levels=None,
           bare=None, seed=None, planes=None):
-    """Depth to classes 0..2: 0 blank, 1 the exporter's '.', 2 its ':'.
-
-    Pass a preallocated float list as `levels` to also receive the
-    UNROUNDED level per cell - the continuous shading a colour ramp can
-    carry where three glyphs cannot. `bare` receives the level with no
-    art, no shadow and no floor: pure geometry, what a relief pass must
-    difference - art ink is integer steps and saturates any edge gain.
-
-    class = pivot + slope * view_z / reach: fixed per MODEL, never per
-    frame - per-frame normalisation amplified a flat view's numeric
-    noise across the whole ramp, twice, measured - and reach-scaled so
-    one ramp serves the unit board and the sqrt(3) cube alike. `art` is (rows, w, h,
-    dense) laid on horizontal faces as pure class STEPS, so a face-on
-    board passes the art through verbatim by construction. `shadow` is
-    a light-space depth map; a shadowed art cell steps down by
-    `shadow_step`. Bare geometry never fades below `floor` - the
-    exporter's deepest visible cube face still draws '.'."""
+    """Depth to classes 0..2: 0 blank, 1 the exporter's '.', 2 its ':'."""
     width, height = cam['width'], cam['height']
     distance, scale = cam['distance'], cam['scale']
     cx, cy = cam['cx'], cam['cy']
     reach = cam.get('reach', 1.0)
     rows, art_w, art_h, dense = art if art else ([], 0, 0, [])
     back = m[8] < 0.0
-    # The face the art is read on: the slab's bottom from behind, its
-    # top from the front - `planes` is (top, bottom) - and z = 0 for a
-    # model that names none, like the suite's synthetic planes.
+    # The face the art is read on: the slab's bottom from behind, its top from
+    # the front - `planes` is (top, bottom) - and z = 0 for a model that names
+    # none, like the suite's synthetic planes.
     plane = 0.0
     if planes is not None:
         plane = planes[1] if back and planes[1] is not None else planes[0]
@@ -364,8 +268,8 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
             if w == 0.0:
                 continue
             u = (px + 0.5 - cx) / scale
-            # The cell's own view-space point, back out of the
-            # projection: one depth value is a full position.
+            # The cell's own view-space point, back out of the projection: one
+            # depth value is a full position.
             tz = distance - 1.0 / w
             tx, ty = u / w, v / w
             shaded = 0.0
@@ -390,50 +294,26 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
             if bare is not None:
                 bare[row + px] = level
             if ink >= 0:
-                # An art cell's class is its ink dimmed by how far the
-                # face leans from the viewer - no depth term. Measured
-                # against the exporter's y45 board: with the depth
-                # wedge the render drew 98% ':' against his 26%, and
-                # his face dims UNIFORMLY with tilt (face-on 73% ':',
-                # y45 74% '.') while tall parts break through - a
-                # facing ratio, which LEAN scales to one full class at
-                # 45 degrees. Bare geometry keeps the depth ramp: the
-                # cube reference's class boundary crosses a flat face,
-                # which facing alone cannot draw.
-                # Height ABOVE the art plane rides the depth ramp, so
-                # a tall lid climbs back through the lean: the
-                # exporter's connector stays ':' at y45 while the face
-                # around it drops to '.'.
+                # An art cell's class is its ink dimmed by how far the face
+                # leans from the viewer - no depth term.
                 lean = m[8] if m[8] >= 0.0 else -m[8]
                 level = (pivot + ink - 2 - LEAN * (1.0 - lean)
                          + slope * rise / reach - shaded)
-                # INK NEVER LEANS BELOW THE FLOOR. At 73 degrees the
-                # lean took every ':' of the art to class 0 (599 of
-                # 653 blank cells, measured 2026-09-23) and the face
-                # vanished, leaving the parts' walls and lids - drawn
-                # bare, at class 2 - as a thick block with no plate
-                # under them, the edge line wandering inside the
-                # blanked face. The art's blanks (its holes, its
-                # outside) stay blank: only ink has a floor.
+                # INK NEVER LEANS BELOW THE FLOOR.
                 if ink > 0 and level < floor:
                     level = floor
             else:
                 level = max(level - shaded, floor)
             if seed is not None:
-                # A fixed 0..1 per cell for the glow's surface texture:
-                # hashed on the ART cell an art pixel shows, so the grain
-                # turns with the board; on the screen cell elsewhere.
+                # A fixed 0..1 per cell for the glow's surface texture: hashed
+                # on the ART cell an art pixel shows, so the grain turns with
+                # the board; on the screen cell elsewhere.
                 seed[row + px] = (((ix * 73856093) ^ (iy * 19349663))
                                   & 255) / 255.0
             if levels is not None:
-                # The tone is the CLASS the glyph shows plus TONE_DEPTH
-                # of the residual - depth grades within a class, never
-                # across the picture. Measured with the whole ramp in
-                # the tone: the far connector's ':' at tone 1 against
-                # the near side's at 6, depth fog the exporter's images
-                # do not have, and a 0.6 share of it still left the top
-                # connectors of a Y-turned board two tones under the
-                # rest. Light comes from the lamp, in the glow pass.
+                # The tone is the CLASS the glyph shows plus TONE_DEPTH of the
+                # residual - depth grades within a class, never across the
+                # picture.
                 cls = int(level + 0.5)
                 cls = 0 if cls < 0 else (2 if cls > 2 else cls)
                 levels[row + px] = cls + TONE_DEPTH * (level - cls)

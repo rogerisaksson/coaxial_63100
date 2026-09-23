@@ -173,9 +173,9 @@ class Commissioning:
         return out
 
     def latency(self):
-        """From the sample to the duty that answers it, measured where it can
-        be: the interrupt's own entry offset and its cost in cycles, and the
-        two periods the pipeline adds by construction.
+        """From the sample to the duty that answers it, measured where it
+        can be: the interrupt's own entry offset and its cost in cycles,
+        and the two periods the pipeline adds by construction.
         """
         gd = self.rig.board.gate_drivers.state()
         ds = self.drive.state()
@@ -188,11 +188,9 @@ class Commissioning:
                 'to_effect_periods': 2, 'to_effect_us': 2.0 * ds['ts'] * 1e6}
 
     def sample_point_scan(self, ticks=None, periods=500):
-        """Move CCR5 across the period, on the zero vector, and keep the point
-        with the least phase variance - after the ringing, before the next
-        edge. Needs the stage: with nothing switching the scan is a walk
-        through noise, and on this bench it picked 990 of 2376 off exactly
-        that.
+        """Move CCR5 across the period, on the zero vector, and keep the
+        point with the least phase variance - after the ringing, before
+        the next edge.
         """
         gd = self.rig.board.gate_drivers
         period = gd.state()['period']
@@ -220,11 +218,7 @@ class Commissioning:
         return out
 
     def offsets(self, periods=2000, apply=True, limit_codes=3000):
-        """Each phase's code at zero current becomes its offset. One past
-        `limit_codes` looks like a fault and is reported, not applied - the
-        reference board's Phase V op-amp reads -52 A with nothing connected,
-        and zeroing it would hide that.
-        """
+        """Each phase's code at zero current becomes its offset."""
         m = self.drive.moments_run(periods)
         cal = self.rig.board.calibration.read()['channels']
         out = {}
@@ -242,8 +236,8 @@ class Commissioning:
 
     def gain_mismatch(self, amps=1.0, periods=1000, apply=True):
         """Relative gains from ia + ib + ic = 0 with current in all three: a
-        current vector held on each phase axis in turn, and the three sums
-        solved for the two gain ratios in least squares.
+        current vector held on each phase axis in turn, and the three
+        sums solved for the two gain ratios in least squares.
         """
         self._stage()
         cal = self.rig.board.calibration.read()['channels']
@@ -300,7 +294,7 @@ class Commissioning:
 
     def sign_check(self, volts=0.3, seconds=0.05):
         """A small positive d voltage on phase a: the current it makes says
-        which way the shunts read. Sets drv_sign.
+        which way the shunts read.
         """
         self._stage()
         self.drive.setpoint(vd=volts, vq=0.0, theta=0.0)
@@ -324,8 +318,7 @@ class Commissioning:
                  settle=0.05, seconds=0.1):
         """vd against a held d current on phase a: R from the slope and the
         dead-time curve from what is left, unfolded per phase into the
-        board's table. Mandatory at weak saliency - the voltage error is an
-        angle error in every estimate built on the applied voltage.
+        board's table.
         """
         self._stage()
         points = []
@@ -453,9 +446,7 @@ class Commissioning:
         return out
 
     def gains(self):
-        """Loop gains, Kalman gains from the measured noise, the crossover.
-        Written to the record, then the drive reloads them.
-        """
+        """Loop gains, Kalman gains from the measured noise, the crossover."""
         b = self.results.get('budget') or self.budget()
         k, loop, c = b['known'], b['loop'], b['choice']
         dt = self.results.get('deadtime') or {}
@@ -496,9 +487,7 @@ class Commissioning:
     # -- step 7: verification ---------------------------------------------
 
     def polarity(self, volts=3.0, periods=8, gap=40):
-        """Two pulses along theta_hat; the one that saturates peaks higher.
-        Flips theta_hat by pi when the negative one did.
-        """
+        """Two pulses along theta_hat; the one that saturates peaks higher."""
         self._stage()
         self.drive.setpoint(pol_volts=volts, pol_periods=periods, pol_gap=gap)
         before = self.drive.state()['theta_hat']

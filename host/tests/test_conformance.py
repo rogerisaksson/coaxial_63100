@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
-"""Independent Modbus RTU master, used to conformance-test the firmware slave.
-
-Deliberately does NOT use pymodbus: the CRC, the framing and the PDU packing are
-implemented here from the specification so that a shared wrong assumption between
-master and slave cannot hide a defect. If both sides agree, they agree for real.
+"""Independent Modbus RTU master, used to conformance-test the firmware
+slave.
 """
 import struct, sys, time
 import serial
@@ -29,16 +26,7 @@ def selftest_crc():
 
 class Bus:
 
-    """The port, raw. Deliberately not through the session broker.
-
-    This suite sends malformed frames - short ones, bad CRCs, half a frame
-    and then silence - which is the whole point of it and the one thing a
-    broker cannot forward: it speaks unit, function and payload, and builds
-    a valid frame from them. So the port has to be this suite's alone, and
-    the broker is asked to stand down first. It refuses while sessions are
-    using it, which is the right answer: the bench is theirs until they let
-    go.
-    """
+    """The port, raw."""
 
     def __init__(self, port=PORT, baud=BAUD):
         from coaxial import broker
@@ -50,11 +38,7 @@ class Bus:
                 'a session broker still holds %s - conformance needs the '
                 'port raw, so close the sessions using it first' % port)
 
-        # RETRIED. A broker standing down does not hand the port back the
-        # instant it says so - the socket closes, then the thread unwinds,
-        # then pyserial lets go - and opening into that window is `could not
-        # open port` with nothing wrong. Measured: it crashed the suite
-        # whenever an earlier one had opened a session.
+        # RETRIED.
         self.s = None
         for attempt in range(20):
             try:
@@ -138,24 +122,14 @@ def coils_from(data: bytes, qty: int):
 
 # ---- test runner --------------------------------------------------------
 def thermal_nodes(bus):
-    """How many nodes the thermal observer has, asked of the board.
-
-    Device 8 op 4 leads with `u8 nodes`, which is what makes this one
-    request rather than a count written down here. It WAS written down - as
-    6 - and the drivers and phases went per leg.
-    """
+    """How many nodes the thermal observer has, asked of the board."""
     reply = bus.request(bytes([0x6E, 8, 4]))
     parsed = parse(reply)
     return parsed[2][0] if parsed and parsed[2] else 0
 
 
 def adc_channels(bus):
-    """How many analog channels the board has, asked of the board.
-
-    0x42 appends the total after the rows it managed to fit, which is what
-    makes this one request rather than a count written down here. It was
-    written down - as 7 - and two supply senses were added.
-    """
+    """How many analog channels the board has, asked of the board."""
     reply = bus.request(bytes([0x42]))
     parsed = parse(reply)
     return parsed[2][-1] if parsed and parsed[2] else 0
@@ -214,10 +188,9 @@ def protocol_tests(run):
     run.expect_exception('FC03 quantity 126 -> exc 03', pdu_read(0x03, 0, 126), 0x03, 0x03)
     run.expect_exception('FC04 quantity 126 -> exc 03', pdu_read(0x04, 0, 126), 0x04, 0x03)
     run.expect_exception('FC01 quantity 2001 -> exc 03', pdu_read(0x01, 0, 2001), 0x01, 0x03)
-    # A full-length FC10 for 124 registers needs 248 data bytes, i.e. a 257-byte
-    # ADU, which cannot exist on an RTU line at all - the spec limit of 123 IS
-    # the framing limit. So the quantity check is exercised with frames that do
-    # fit: zero items, and an over-large count with a truncated payload.
+    # A full-length FC10 for 124 registers needs 248 data bytes, i.e. a
+    # 257-byte ADU, which cannot exist on an RTU line at all - the spec limit
+    # of 123 IS the framing limit.
     run.expect_exception('FC10 quantity 0 -> exc 03',
                          struct.pack('>BHHB', 0x10, 0, 0, 0), 0x10, 0x03)
     run.expect_exception('FC0F quantity 0 -> exc 03',
@@ -268,12 +241,7 @@ def leave_modbus(bus):
 
 
 def channels_tests(run):
-    """0x6D, decoded here from the specification, not with the host library.
-
-    The point of this suite: if the map came back through coaxial/system.py
-    both sides could share the same wrong idea of the layout. This walks the
-    bytes.
-    """
+    """0x6D, decoded here from the specification, not with the host library."""
     b = run.bus
     for kind, what in ((0, 'analog'), (1, 'digital'), (2, 'reserved')):
         parsed = parse(b.request(bytes([0x6D, kind])))
@@ -284,9 +252,8 @@ def channels_tests(run):
         if parsed is None or parsed[1] != 0x6D:
             continue
         body = parsed[2]
-        # Kind 0 answers a bare count; the paged sections answer total,
-        # first, count. They are paged because 19 reserved pins are 418
-        # bytes against a 253-byte PDU - see PROTOCOL.md.
+        # Kind 0 answers a bare count; the paged sections answer total, first,
+        # count.
         if kind == 0:
             count, at = body[0], 1
         else:
@@ -316,8 +283,7 @@ def channels_tests(run):
         run.check('%s payload ends exactly where the rows do' % what,
                   at == len(body), '%d of %d bytes' % (at, len(body)))
 
-    # 5, not 4: kind 4 is the parts list now. The boundary this check is
-    # about is "past the last section", and it moves when one is added.
+    # 5, not 4: kind 4 is the parts list now.
     refused = parse(b.request(bytes([0x6D, 5])))
     run.check('an unknown section is refused, not answered',
               refused is not None and (refused[1] & 0x80) != 0,
@@ -325,10 +291,9 @@ def channels_tests(run):
 
 
 def rs485_tests(run):
-    """The two RS485 ports, checked from a stack that shares no code with the
-    host library. Each transceiver has RE tied to GND, so it hears itself:
-    four patterns out, four patterns back, and a bit that does not set is the
-    driver, the receiver or the wiring between them."""
+    """The two RS485 ports, checked from a stack that shares no code with
+    the host library.
+    """
     b = run.bus
 
     print(chr(10) + '-- RS485 loopback and multidrop filtering --')
@@ -351,7 +316,7 @@ def rs485_tests(run):
                   'matched 0x%02X, %d bytes back' % (body[2], body[3]))
 
     # The port carrying the request cannot test itself: its own patterns land
-    # in front of the reply. Measured - the master saw a checksum failure.
+    # in front of the reply.
     refused = parse(b.request(bytes([0x6E, 2, 0, 0])))
     run.check('the port carrying the conversation refuses its own loopback',
               refused is not None and (refused[1] & 0x80) != 0,
@@ -378,9 +343,7 @@ def rs485_tests(run):
         run.check('%s never dropped a byte for want of ring space' % name,
                   fields['ring_dropped'] == 0, fields['ring_dropped'])
         # Every frame on the segment is counted; only the ones addressed here
-        # are served. With one node the two match, and that is the check: a
-        # server_message ahead of bus_message would mean the filter is being
-        # skipped rather than passed.
+        # are served.
         run.check('%s never served more frames than it saw' % name,
                   fields['server_message'] <= fields['bus_message'],
                   '%d served of %d seen' % (fields['server_message'],
@@ -392,8 +355,8 @@ def rs485_tests(run):
 
 def cal_tests(run):
     """Device 3, byte for byte, from a master that shares no code with the
-    library. Edits only - saving erases a flash sector, and a suite that runs
-    on every commit has no business doing that to a board."""
+    library.
+    """
     b = run.bus
 
     print(chr(10) + '-- 0x6E device 3, the calibration record --')
@@ -408,11 +371,7 @@ def cal_tests(run):
 
     version = (data[1] << 8) | data[2]
     count = data[3]
-    # Not compared against a number written here. It was 1/9, then 2/9, then
-    # 3/13, and each edit only taught the check its own last value. What is
-    # worth checking is that the header describes the bytes behind it - the
-    # count and the channel count together have to add up to the reply's
-    # length, which the check below does.
+    # Not compared against a number written here.
     run.check('the record names a layout at all', version >= 1,
               'version %d, %d params' % (version, count))
 
@@ -423,7 +382,7 @@ def cal_tests(run):
         at += 4
 
     # The schematic's numbers, and the only place outside the firmware that
-    # says what they are. A default that drifts from board_cal.c fails here.
+    # says what they are.
     run.check('shunt is 3.5 milliohm (RU1 || RU2, 7 mohm each)',
               params[1] == 3500, 'got %d' % params[1])
     run.check('amplifier gain is 4.545455 V/V (THS4551 1.5k/330)',
@@ -439,17 +398,14 @@ def cal_tests(run):
 
     channels = data[at]
     at += 1
-    # Off the board's own table. It said 7 and two supply senses were
-    # added, which is the second answer this suite exists to avoid.
+    # Off the board's own table.
     run.check('one correction per ADC channel',
               channels == adc_channels(b),
               'got %d' % channels)
     at += channels * 8
 
-    # Then the thermal envelope, which is what makes "the ceilings are
-    # stored" checkable from the wire rather than asserted. Counted off the
-    # board's own node count, not written out here - a number in this file
-    # is the second answer the suite exists to avoid.
+    # Then the thermal envelope, which is what makes "the ceilings are stored"
+    # checkable from the wire rather than asserted.
     nodes = data[at]
     at += 1
     want = thermal_nodes(b)
@@ -518,22 +474,11 @@ def map_tests(run):
     print('\n-- coil drives real hardware --')
     # AFE_ON powers the voltage reference, and that is the witness: with the
     # rail off every raw code is EXACT mid-scale and bit-frozen across reads
-    # (the reference is unpowered - invariant 9's mechanism, a physical fact
-    # of the rail the coil drives); on, the NTC channel reads a live code
-    # thousands of counts away, wiggling. The witness used to be PE15
-    # following AFE_ON inversely - a pin the MCU does not drive, whose
-    # meaning changes the moment the STO chain releases (TODO item 4); this
-    # one means the same thing on the powered day.
+    # (the reference is unpowered - invariant 9's mechanism, a physical fact of
+    # the rail the coil drives); on, the NTC channel reads a live code
+    # thousands of counts away, wiggling.
     def sampling(every_ms, settle_ms):
-        """Set the thermal observer's NTC sampling. 0 stops it.
-
-        THE RAIL IS SHARED. AFE_ON is reference counted, so the thermal observer
-        borrowing it for a sample makes a coil written off read back on -
-        truthfully, and at random. This check needs the rail to itself, so it
-        says so instead of hoping. Measured: the borrow is 500 ms every 5 s,
-        which is exactly often enough to be flaky and rare enough to look
-        like a link fault.
-        """
+        """Set the thermal observer's NTC sampling."""
         b.request(bytes([0x6E, 8, 3]) + every_ms.to_bytes(4, 'big')
                   + settle_ms.to_bytes(4, 'big'))
 
@@ -541,13 +486,7 @@ def map_tests(run):
     time.sleep(0.6)                      # let any borrow in flight finish
 
     def read_bit(table):
-        """One bit, retried. A lost reply is not a wrong answer.
-
-        The link goes quiet now and then - FINDINGS has it open, and 600
-        requests ruled out four causes. Everything else in this tree tolerates
-        it; this did not, and read back None at random. The WRITE is not
-        retried: a write that did not land is a real failure.
-        """
+        """One bit, retried."""
         for _ in range(6):
             got = parse(b.request(pdu_read(table, 0x0000, 1)))
             if got and got[3]:
@@ -593,18 +532,10 @@ def map_tests(run):
         # Recorded, not judged: the check is that FC04 answered with the two
         # registers asked for and that they decode - the values go in the
         # detail column so a reader sees them, with no threshold anywhere.
-        # Until now only the failure path called run.check, so a working
-        # FC04 passed in silence and counted for nothing.
         run.check('FC04 dcbus + ntc', len(v) == 2,
                   '%d mV, %.2f C' % (v[0], s16(v[1]) / 100.0))
-        # No limits here on purpose: this tests the PROTOCOL, and whether
-        # 24 V is right belongs to a test executive with a meter.
-        #
-        # What IS testable without a reference is that a scaled field agrees
-        # with the raw code it came FROM - so both must come from one
-        # conversion, which is why this uses FC 0x43. Reading the two input
-        # registers separately compares two samples of a noisy channel; that
-        # is how the first version failed, by 13 LSB.
+        # No limits here on purpose: this tests the PROTOCOL, and whether 24 V
+        # is right belongs to a test executive with a meter.
         scan = parse(b.request(bytes([0x43])))
         if scan is None or not scan[3]:
             run.check('FC43 scan for the scaling cross-check', False, 'no reply')
@@ -632,12 +563,8 @@ def map_tests(run):
               p is not None and p[3] and p[1] == 0x0F, 'got %s' % r.hex(' '))
 
     print('\n-- a bad value later in a multi-write span refuses the whole write --')
-    # addr 0 (unit id, 99 - a legal value) then addr 1 (command, 999 - not
-    # one of the ones this map accepts) in a single FC10. Before this was
-    # fixed, write_reg() applied the unit id before discovering the command
-    # value was bad, so the device answered exc 03 for the whole request
-    # while unit id had already changed underneath it - a real violation of
-    # modbus_slave.h's own "must not leave the device half written" promise.
+    # addr 0 (unit id, 99 - a legal value) then addr 1 (command, 999 - not one
+    # of the ones this map accepts) in a single FC10.
     run.expect_exception('FC10 bad value later in the span answers exc 03',
                          pdu_w_multi_reg(0x0000, [99, 999]), 0x10, 0x03)
     r = b.request(pdu_read(0x03, 0x0000, 1))
@@ -647,14 +574,12 @@ def map_tests(run):
               unit_unchanged,
               'got %s' % (r.hex(' ') if r else '<silence - unit id may have changed>'))
     if not unit_unchanged:
-        # The board would now be answering on 99, not 1: put it back before
-        # the rest of this run, or the next one, loses the server entirely.
+        # The board would now be answering on 99, not 1: put it back before the
+        # rest of this run, or the next one, loses the server entirely.
         b.request(pdu_w_single_reg(0x0000, 1), slave=99)
 
     print('\n-- map-specific exceptions --')
     # The first address past the channels, whatever there are of them.
-    # It was 0x0007 with seven; adding two moved the hole rather than
-    # removing it, and a fixed address here tested the count, not the map.
     hole = adc_channels(b)
     run.expect_exception('FC04 one past the last channel is a hole -> exc 02',
                          pdu_read(0x04, hole, 1), 0x04, 0x02)
@@ -700,8 +625,7 @@ def map_tests(run):
         print('\n-- counters survive leaving and re-entering binary mode --')
         # link_open() used to memset the whole mb_rtu_t on every 'm', counters
         # included - so a console round trip ('0x0001=1' out, 'm' back in)
-        # silently zeroed this run's diagnostic history. link_close() already
-        # left them alone; link_open() now does too.
+        # silently zeroed this run's diagnostic history.
         before = c[0]
         leave_modbus(bus)
         enter_modbus(bus)
@@ -717,15 +641,7 @@ def map_tests(run):
 
 
 def board_answers(port=PORT, baud=BAUD, unit=SLAVE):
-    """Whether there is firmware on the other end to conform to.
-
-    This suite cannot be simulated and is the one that must not be. It is a
-    byte-level master built from the specification precisely so a shared
-    wrong assumption between master and slave cannot hide a defect - and a
-    stand-in for the slave would be exactly that shared assumption, written
-    by the same hand. With no board it runs the CRC self-test, which needs
-    none, and says what it skipped.
-    """
+    """Whether there is firmware on the other end to conform to."""
     import os
     sys.path.insert(0, os.path.join(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__))), 'tools'))

@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
-"""The bootloader's state machine as the C that will run, on a RAM flash.
-
-`boot/src/boot_core.c` is hardware-free: the flash, the console and the
-identity arrive through four calls, which `boot/test/harness.c` wires to
-a two-megabyte byte array with 128 K sectors and a fault a test can
-script. Built here with the host gcc like the modbus core and driven
-through ctypes, so the whole exchange - hold, who, assign, erase, the
-chunk stream, missing, verify, record, seal, go - is proven before any
-register is touched, and so the things that must never happen are
-proven not to: a word programmed twice, an image valid before its seal,
-a node answering a question that was not its own.
-
-docs/BOOT.md is the design; PROTOCOL.md's device 11 is the table.
-"""
+"""The bootloader's state machine as the C that will run, on a RAM flash."""
 import ctypes
 import os
 import struct

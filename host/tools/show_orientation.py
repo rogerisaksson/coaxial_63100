@@ -41,12 +41,7 @@ DEADBAND_DEG = 0.35
 
 
 def latest(board):
-    """The board's shared record, or None if it could not be read.
-
-    One round trip, and no SPI in it: the board polls the part from its own
-    main loop and this reads what that wrote. Draining cargo by cargo from
-    here cost 45 ms each and caught one frame in eight.
-    """
+    """The board's shared record, or None if it could not be read."""
     try:
         return board.imu.state()
     except RigError:
@@ -54,12 +49,7 @@ def latest(board):
 
 
 def capability(board):
-    """The board's own entry for its IMU, or None if it reports none.
-
-    Read from the board, not decided here: `channels` kind 4 is the parts
-    list the firmware carries, so a board without the part says so itself
-    and a board that grows one needs nothing changed on this side.
-    """
+    """The board's own entry for its IMU, or None if it reports none."""
     try:
         parts = board.system.channel_map()['parts']
     except (RigError, KeyError):
@@ -72,36 +62,20 @@ def capability(board):
 
 
 def preflight(board, part):
-    """Say what is about to happen, and return whether AFE_ON was already on.
-
-    The caller puts the AFE back the way it found it. Leaving a board powered
-    because a view was closed with Ctrl+C is a change nobody asked for, and
-    switching one off that was on before is worse.
+    """Say what is about to happen, and return whether AFE_ON was already
+    on.
     """
     say('ok', 'capability', '%s - %s, on %s'
         % (part['name'], part['what'], part['where']))
 
-    # The supply is Coaxial63100's: it brings AFE_ON up on the way in and
-    # puts it back on the way out. The part is therefore already settled by
-    # the time this runs, which matters - a reset issued before its supply
-    # had come up answered SERVER DEVICE FAILURE.
+    # The supply is Coaxial63100's: it brings AFE_ON up on the way in and puts
+    # it back on the way out.
     say('ok', part['power'] or 'supply',
         'on for this run, and put back the way it was found')
 
 
 def canvas(args):
-    """How big to draw, filling the window unless told otherwise.
-
-    Big matters here more than anywhere else in this tree: a board is mostly
-    flat, so what shows its components is each one covering several cells.
-    At 34x15 none of them does and the board is a disc; at 150x60 they
-    resolve and it looks like the reference this renderer is a port of.
-    The stage takes four rows - title band, key bar, the viewport's two
-    edges - and the -10 it reserved from the banner era left the drawing
-    short OR, worse, taller than its panel: the viewport centres
-    vertically, so the overflow CLIPPED both the top and the bottom of
-    the model at once.
-    """
+    """How big to draw, filling the window unless told otherwise."""
     if args.width and args.height:
         return args.width, args.height
 
@@ -115,20 +89,16 @@ def canvas(args):
 
 
 def workshop(args):
-    """A pool of drawing processes, or None if this run is too short for one.
-
-    Pure Python holds the GIL, so the frame is cut into bands and drawn by
-    several processes - measured at 150x44, 137 ms becomes 45. Windows spawns
-    a fresh interpreter per worker, which costs about two seconds for
-    sixteen, so a run of a few frames is better off drawing them itself.
+    """A pool of drawing processes, or None if this run is too short for
+    one.
     """
     if args.frames and args.frames <= 4:
         return None
     if not args.photo:
-        # The toon mesh draws in 12 ms single-process - measured, against
-        # 108 for the photographic one - so a pool would cost more in spawn
-        # time than it saves, and render() only draws the toon package when
-        # no shop is passed.
+        # The toon mesh draws in 12 ms single-process - measured, against 108
+        # for the photographic one - so a pool would cost more in spawn time
+        # than it saves, and render() only draws the toon package when no shop
+        # is passed.
         return None
 
     try:
@@ -145,17 +115,9 @@ def _announced(pool):
 
 
 def bands(args, step):
-    """The staged engine's crew for the vector drawing, or None for a
-    run too short to pay for spawning it. Measured 2026-08-30: the
-    raster at 150x44 goes 9.9 ms to 5.0 with eight workers; at 220x60,
-    14.8 to 5.8. The crew holds EVERY level of detail: built on the
-    zoom-1 board alone it was never used - the view opens at zoom
-    1.49, one level finer - and the finest level costs 29 ms alone.
-
-    Six decimations - 1.2 s in parallel, 5.0 one after another - the
-    shadow casters' decimation (0.86 s, which used to land on the
-    FIRST FRAME after the strip) and the spawn, all reported to the
-    boot strip's `step`."""
+    """The staged engine's crew for the vector drawing, or None for a run
+    too short to pay for spawning it.
+    """
     from coaxial.graphics import creases, crew, shading, solids, stereotype, wireframe
     levels = len(solids.LODS)
 
@@ -165,8 +127,8 @@ def bands(args, step):
     lods = wireframe._lods(landed)
     step(0.62, 'SHADOW CASTERS')
     shading._shadowmap((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
-    # The outline's exact index and its loops: 0.6 s once, here behind
-    # the strip rather than as a hitch on the first frame.
+    # The outline's exact index and its loops: 0.6 s once, here behind the
+    # strip rather than as a hitch on the first frame.
     step(0.66, 'OUTLINE EDGES')
     creases._outline_source()
     stereotype._stereotypes()
@@ -181,11 +143,7 @@ def bands(args, step):
 
 
 def silent_part(record):
-    """What to draw when the IMU has produced nothing at all.
-
-    Not the model at identity: identity is a board lying exactly level, and
-    a viewer cannot tell that from a part that has never spoken.
-    """
+    """What to draw when the IMU has produced nothing at all."""
     return [
         '  The IMU has reported %d rotation vectors.' % record['updates'],
         '',
@@ -203,19 +161,10 @@ def silent_part(record):
 
 
 def start_reporting(board, interval_us):
-    """Ask the part for a rotation vector, and say whether it took.
-
-    Stop the board's poll loop, configure, start it again: both would
-    otherwise be masters on one SPI bus. The reset is not optional - measured,
-    a Set Feature onto a part that was already running took no effect at all
-    and the loop absorbed nothing afterwards.
-    """
+    """Ask the part for a rotation vector, and say whether it took."""
     board.imu.settled()          # anything before 'running' is startup
 
-    # The product id is DECORATION - the feature is the point. They were
-    # one configuring() block, and an id refused during the part's boot
-    # window took the whole view down with it: 'sometimes does not load'
-    # was this line. An id that does not answer is a dash in the HUD.
+    # The product id is DECORATION - the feature is the point.
     pid = {}
     try:
         with board.imu.configuring():
@@ -224,13 +173,7 @@ def start_reporting(board, interval_us):
         say('warn', 'product id', 'not answered - the HUD shows a dash')
 
     try:
-        # No reset first. The poll loop brings the part up on its own, and
-        # a reset immediately before a Set Feature is what stops the feature
-        # taking: the write's wake handshake runs its own reset when the
-        # acknowledge does not arrive, and right after a host reset it does
-        # not, so the write lands on a part that has just restarted.
-        # Measured 2026-08-27: reset then feature, 0 rotation vectors;
-        # feature alone, 49.0 a second. See FINDINGS.
+        # No reset first.
         with board.imu.configuring():
             board.imu.feature(ROTATION_VECTOR, interval_us)
     except RigError as exc:
@@ -273,19 +216,12 @@ def boxes(part, pid, record, q, rate):
 
 
 def put_back(board, part):
-    """Everything this run started, undone.
-
-    The report it enabled, and the supply - but the supply only if this run
-    was what switched it on. Leaving a board powered because a view was
-    closed is a change nobody asked for, and switching one off that was on
-    before is worse.
-    """
+    """Everything this run started, undone."""
     done = []
     try:
         if board.imu.state().get('loop') != 'running':
-            # The loop is down - the rail dropped, and the part forgot
-            # the report with it. Nothing to disable, and saying FAILED
-            # on the way out over that taught nothing.
+            # The loop is down - the rail dropped, and the part forgot the
+            # report with it.
             return [('rotation vector', 'already gone with the rail')]
         with board.imu.configuring():
             board.imu.feature(ROTATION_VECTOR, 0)
@@ -304,8 +240,7 @@ def _lit(word):
 
 
 def _mirror_keys(flip):
-    """One footer pair per axis. An INVERTED axis burns sodium on the bar,
-    so a wild ride on the empirical dial always shows where it is."""
+    """One footer pair per axis."""
 
     for name, flipped in zip('XYZ', flip):
         yield (name, Text('INV', style='bold color(214) on grey15')
@@ -313,15 +248,7 @@ def _mirror_keys(flip):
 
 
 def bindings(typed, view, quaternion):
-    """Apply one frame of keys to the view state, in place.
-
-    X, Y and Z toggle MIRRORING of that axis - the empirical knob for
-    finding how the part actually sits; the footer shows the state and
-    the finding goes into MOUNT as code once it is reported. C toggles
-    the coordinate system and the horizon. T tares: the attitude from
-    HERE is what draws - one press cancels the mounting offset and the
-    arbitrary yaw reference at once, and pressing again re-zeros.
-    """
+    """Apply one frame of keys to the view state, in place."""
     for t in typed:
         if t in 'xX':
             view['flip'][0] = not view['flip'][0]
@@ -339,8 +266,8 @@ def compose(origin, args, view, colour, console):
     """One frame on the stage: viewport left, instruments right, keys."""
 
     # Mirrors on the raw quaternion (the empirical knob), then the whole
-    # derivation in one call: orientation.attitude carries the tare and
-    # the mounting sandwich, proven by its own three checks.
+    # derivation in one call: orientation.attitude carries the tare and the
+    # mounting sandwich, proven by its own three checks.
     def flipped(raw):
         sx, sy, sz = view['flip']
         return (-raw[0] if sx else raw[0],
@@ -375,8 +302,8 @@ def compose(origin, args, view, colour, console):
         (tuple(_mirror_keys(view['flip']))
          + (('C', 'FRAME'), ('T', 'TARE'), ('WHEEL', 'ZOOM'),
             ('+ -', 'ZOOM'),
-            # LIT WHILE THE VIEW HAS THE MOUSE, dark while the terminal
-            # does - which is the default, so a left-drag marks text.
+            # LIT WHILE THE VIEW HAS THE MOUSE, dark while the terminal does -
+            # which is the default, so a left-drag marks text.
             ('F', _lit('MOUSE') if _screen.holding() else 'MOUSE'),
             ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))))
 
@@ -426,14 +353,14 @@ def parse_args(argv):
 
 
 def launch(args):
-    """Everything before the first frame, behind ONE boot strip that
-    rides the real milestones - link, six decimations, shadow casters,
-    the part, its power, the rotation vector, the pool - so the strip
-    ends where the view begins. None when a step refused, after
-    saying which."""
-    # power_afe SAID: the default went quiet-False when every connect
-    # stopped flipping the rail, and this view inherited it - the part it
-    # exists to show is AFE-powered, so it asks by name and puts it back.
+    """Everything before the first frame, behind ONE boot strip that rides
+    the real milestones - link, six decimations, shadow casters, the
+    part, its power, the rotation vector, the pool - so the strip ends
+    where the view begins.
+    """
+    # power_afe SAID: the default went quiet-False when every connect stopped
+    # flipping the rail, and this view inherited it - the part it exists to
+    # show is AFE-powered, so it asks by name and puts it back.
     from screen import boot, open_rig
     rig = open_rig('LINKING BNO085', port=args.port, power_afe=True,
                    simulated_device=bool(args.simulated))
@@ -460,10 +387,9 @@ def launch(args):
         step(0.86, 'ROTATION VECTOR')
         pid = start_reporting(board, args.interval_us)
         if pid is None:
-            # ONE retry, after the loop has settled: the first launch
-            # after the rail rises can catch the part mid-advertisement,
-            # and a view that needs a second start by hand reads as
-            # broken.
+            # ONE retry, after the loop has settled: the first launch after the
+            # rail rises can catch the part mid-advertisement, and a view that
+            # needs a second start by hand reads as broken.
             board.imu.settled()
             pid = start_reporting(board, args.interval_us)
         if pid is None:
@@ -479,21 +405,7 @@ def launch(args):
 
 
 def _taken(view, state, first, new):
-    """A fresh rotation vector into the view.
-
-    THE DEADBAND. The part's rotation vector wanders a few tenths of a
-    degree at rest, and every wander redrew the board: measured, 1.7 %
-    of the cells changed glyph and 80 % of the rows changed tone
-    between two frames that differed by noise alone - the shimmer.
-    Held under DEADBAND_DEG the picture is bit-identical frame to
-    frame, and a real turn passes the band inside one frame. Nothing
-    is lost: at this view's size one cell on the board's rim is about
-    a degree, so a change under the band could not have moved a glyph
-    anyway.
-
-    TARE ONCE, on the `first` real sample: the resting picture is the
-    board as it lies, not its yaw history. T re-tares whenever wanted.
-    """
+    """A fresh rotation vector into the view."""
     moved = orientation.angle_between(new, view['quaternion']) >= DEADBAND_DEG
     if first or moved:
         view['quaternion'] = new
@@ -517,14 +429,11 @@ def main(argv=None):
 
     # zoom: 1.0 is the guaranteed fit at ANY attitude; 1.5 rests larger and
     # lets an axis tip clip in the extremes, which the eye forgives and the
-    # wheel undoes. The wheel and a right-drag move it, clamped so the
-    # model cannot be pushed through the camera or shrunk to nothing.
+    # wheel undoes.
     view = {'zoom': 1.44,                # 77% of the 1.875 it rested at
             'quaternion': (0.0, 0.0, 0.0, 1.0), 'frame': 0}
-    # `persist` holds the two frames before this one, so three can vote
-    # per cell - steady._steady, one frame of latency for no blinks.
-    # `t0` is when the ground started moving under the camera
-    # (ground.GROUND_SPEED): the view's clock, not the board's.
+    # `persist` holds the two frames before this one, so three can vote per
+    # cell - steady._steady, one frame of latency for no blinks.
     state = {'tare': None, 'flip': [False, False, False],
              'frame_on': True, 'persist': {}, 't0': time.monotonic()}
     tally = Freshness()
@@ -550,9 +459,7 @@ def main(argv=None):
                        console=board_view)
 
     def on_input(typed, moved):
-        # THE KEYS ZOOM TOO. The wheel needs the view to hold the mouse,
-        # and it does not unless asked - the terminal has it so a
-        # left-drag can mark text, braille included.
+        # THE KEYS ZOOM TOO.
         for key in typed:
             if key in '+=-_':
                 moved += WHEEL_STEP if key in '+=' else -WHEEL_STEP

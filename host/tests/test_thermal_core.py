@@ -1,25 +1,4 @@
-"""The thermal envelope, run as the C that will run on the board.
-
-`thermal/` is hardware-free like the Modbus core, and the part of it that
-matters most is the part nothing was checking: the SOA envelope. `check.c`
-beside the source is the calibration campaign's own report - does the
-network reproduce the four camera-measured states - and it predates the
-envelope entirely. The derate ramp, the lookahead and the soak joules had
-a tested Python mirror in `coaxial.thermal` and `coaxial.simulated.power`,
-and no test at all on the C that decides whether a real stage backs off.
-
-That is the wrong way round. The Python is a stand-in; this is the thing
-that gates the gates. So it is built here with the host gcc and driven
-through ctypes, the same way the Modbus, SHTP, drive and filter cores are.
-
-WHAT IT DOES NOT DO IS JUDGE A BOARD. Every ceiling below is stated by the
-test, because the ceilings live in the calibration record and there is no
-compiled-in copy to ask for - invariant 10, and the reason `thermal.h`
-carries no `thermal_soa_defaults`. What is checked is the arithmetic on
-whatever limits it was given.
-
-    cd host && python tests/test_thermal_core.py
-"""
+"""The thermal envelope, run as the C that will run on the board."""
 import ctypes
 import math
 import os
@@ -188,10 +167,7 @@ class Model:
 
     def budget(self, watt=None, throttle_at=THROTTLE_AT, lookahead_s=0.0,
                limits=None, undriven=UNDRIVEN, trip=None):
-        """The envelope's verdict. `limits` is what the throttle acts on;
-        `trip`, when given, the record's untrimmed ceilings the trip is
-        judged on (`thermal_soa_t.trip_c`) - without it the trip is on
-        `limits`, as every caller before 2026-09-08."""
+        """The envelope's verdict."""
         out = (ctypes.c_float * self.slots)()
         mask = [1.0 if name in (undriven or ()) else 0.0 for name in NODES]
         if trip is None:
@@ -219,13 +195,7 @@ def power(lib, phase_amps=(0.0, 0.0, 0.0), duty=(0.0, 0.0, 0.0),
           link_volts=24.0, link_amps=-1.0, switching=True, afe_on=False,
           phase_c=None, phase_sq=(0.0, 0.0, 0.0), speed_rpm=0.0,
           t_dead_s=0.0, r_phase=0.0):
-    """The estimator's answer, per node, watts.
-
-    `phase_sq` is the mean of the squared current a leg has carried since
-    the last estimate. Zero means none was measured and the estimator
-    squares the instantaneous sample instead. `r_phase` positive stands in
-    for the record's, the way the board's glue hands it in.
-    """
+    """The estimator's answer, per node, watts."""
     load = (list(phase_amps) + list(duty)
             + [link_volts, link_amps, 1.0 if switching else 0.0,
                1.0 if afe_on else 0.0] + list(phase_sq)
@@ -344,10 +314,6 @@ class GroundTruth:
     """A board the identification does not know: the same graph with a
     situation laid over it, read through the three thermometers with
     their own noise, at the board's own sampling.
-
-    THE SITUATION is what a box, a fan or a heat sink does: a scale on
-    the air path. `situation(air)` changes it between cycles, which is
-    how the state machine is watched moving.
     """
 
     def __init__(self, lib, air=1.0, capacity=49.0, seed=7):
@@ -423,8 +389,8 @@ C_TABLES = ('PRIOR_SIGMA', 'SIGMA_CONVERGING', 'SIGMA_STABLE', 'DRIFT_VAR',
 
 def c_numbers():
     """Every `#define NAME number` and every `static const float|bool
-    NAME[...] = { ... }` in the identifier's and the observer's sources,
-    as Python numbers."""
+    NAME[...] = { ...
+    """
     import re
 
     text = ''
@@ -455,13 +421,7 @@ def c_numbers():
 
 
 def test_the_mirror_carries_the_cs_numbers(report, lib):
-    """Every constant the mirror names is the C's, by name and value.
-
-    The stand-in runs `thermal_ident.py`; the board runs `thermal_ident.c`.
-    A number tuned on the page and not carried to the C - or the other
-    way - would make the two identify differently for the same readings,
-    and the page's states would say nothing about the board's.
-    """
+    """Every constant the mirror names is the C's, by name and value."""
     from coaxial import thermal_ident as mirror
 
     scalars, tables = c_numbers()
@@ -496,18 +456,6 @@ def test_the_mirror_walks_with_the_c(report, lib):
     """The C chain and the mirror chain on the same watts and the same
     readings, sample by sample: one-to-one measured on a walk, not only
     on the constants.
-
-    The C is `thermal.c` stepped and anchored plus `thermal_ident.c`; the
-    mirror is `thermal.net_flows`, `thermal_ident.anchor` and
-    `thermal_ident.Identifier`, as the stand-in runs them. A box, two
-    cycles of a ten-minute run and a twenty-minute cooldown, the truth's
-    three thermometers read every thirty seconds of the cooldowns with
-    the C truth's own noise, recorded on a tape and played to both. What
-    cannot agree to the bit: the C integrates float32 in its own slices,
-    the mirror float64 in one-second steps. Measured 2026-09-06: the air
-    scale within 0.003, the capacity 0.002, the room 0.05 K, the judged
-    innovation 0.003 K, the margin exact, the observers' nodes within
-    0.05 K, and the state the same at all eighty samples.
     """
     import copy
     from coaxial import thermal
@@ -521,8 +469,8 @@ def test_the_mirror_walks_with_the_c(report, lib):
     quiet = power(lib)
     blind = (math.nan, math.nan, math.nan)
 
-    # THE TAPE, off the C chain: every second's watts and readings, and
-    # the C's answer at every reading.
+    # THE TAPE, off the C chain: every second's watts and readings, and the C's
+    # answer at every reading.
     tape, c_trace = [], []
     for _cycle in range(2):
         for phase, watts, seconds in (('run', watt, 600), ('cool', quiet, 1200)):
@@ -593,17 +541,7 @@ def test_the_mirror_walks_with_the_c(report, lib):
 
 
 def test_the_room_is_identified(report, lib):
-    """The board has no ambient sensor: the room is the fifth quantity.
-
-    THE BENCH'S SCENARIO: the whole assembly carried from a 25 C room to
-    -20 C outdoors, and back in; a robot from a 20 C warehouse into a
-    -25 C freezer and out into 45 C. A cold room and a good air path both
-    make the board colder, and an integral of the anchor's common-mode
-    correction could not tell them apart (FINDINGS). In the Kalman step
-    they separate: the room's sensitivity is the same at every rise, the
-    air path's grows with it, so a cooldown tells them apart. The truth
-    here keeps its air path and only its room moves.
-    """
+    """The board has no ambient sensor: the room is the fifth quantity."""
     truth = GroundTruth(lib, air=1.0)
     observer = Model(lib)
     ident = Ident(lib, observer)
@@ -612,25 +550,24 @@ def test_the_room_is_identified(report, lib):
                  link_volts=48.0, switching=True)
     quiet = power(lib)
     truth.cycle(ident, watt, 600.0, 1200.0)
-    # Within six kelvin after ONE cycle: the room's wide prior lets it
-    # take some of the cooldown's early state error, which the anchored
-    # nodes do not feel and the next cycles correct.
+    # Within six kelvin after ONE cycle: the room's wide prior lets it take
+    # some of the cooldown's early state error, which the anchored nodes do not
+    # feel and the next cycles correct.
     report.check('a run and a cooldown in the room it woke in: the room is '
                  'identified within six kelvin, the air scale near one',
                  abs(ident.ambient() - 25.0) < 6.0
                  and abs(ident.scale('air') - 1.0) < 0.4,
                  'room %.1f C, air %.2f, %s'
                  % (ident.ambient(), ident.scale('air'), ident.state()))
-    # OUT INTO THE COLD, idling: the board cools toward a room the model
-    # has not been told about.
+    # OUT INTO THE COLD, idling: the board cools toward a room the model has
+    # not been told about.
     lib.thm_ambient(truth.model.h, -20.0)
     trace = []
     truth.cycle(ident, quiet, 0.0, 2400.0, trace=trace)
     states = [t[0] for t in trace]
-    # THE ROOM IS RESET when the model stops predicting (2026-09-06): its
-    # sigma back to the ten-kelvin prior at the first UNCERTAIN sample,
-    # the air scale's untouched, so the step is charged to the room. The
-    # trace carries the room's sigma from that sample on.
+    # THE ROOM IS RESET when the model stops predicting (2026-09-06): its sigma
+    # back to the ten-kelvin prior at the first UNCERTAIN sample, the air
+    # scale's untouched, so the step is charged to the room.
     at_reset = [t[5] for t in trace if t[0] == 'UNCERTAIN']
     report.check('carried to -20 C: UNCERTAIN, with the room\'s sigma back '
                  'at its prior on the first such sample, then the room found '
@@ -654,35 +591,20 @@ def test_the_room_is_identified(report, lib):
 
 
 def test_an_idle_board_stays_uncertain(report, lib):
-    """A board that is not switching gives the identification nothing.
-
-    The bench's rule, 2026-09-05: "an idling board that is not switching
-    stays UNCERTAIN - there are no hot switches burning energy and moving
-    the board's temperature - and that is why one keeps to 80 % of the
-    SOA when switching starts, with the thermal situation unknown." At
-    idle the readings agree with the shadow whatever the air scale, the
-    observer's ambient estimate absorbing the difference, so a covariance
-    narrowed there would be confidence from silence. A sample whose
-    thermometers moved less than three floors since the seat is a still
-    board and is neither judged nor learned from.
-
-    The truth in a box, the board settled at its idle equilibrium, then
-    forty minutes of samples every thirty seconds with nothing switching:
-    no sample moves the scales, and the state is UNCERTAIN.
-    """
+    """A board that is not switching gives the identification nothing."""
     truth = GroundTruth(lib, air=2.0)
     observer = Model(lib)
     ident = Ident(lib, observer)
     quiet = power(lib)                 # the housekeeping alone
-    # Settle both at their idle equilibria first, blind: the warm-up
-    # from a cold start is a transient of its own and not what is asked.
+    # Settle both at their idle equilibria first, blind: the warm-up from a
+    # cold start is a transient of its own and not what is asked.
     blind = (math.nan, math.nan, math.nan)
     for _ in range(3600):
         truth.model.step(quiet, 1.0)
         ident.run(quiet, 1.0, blind)
-    # Then forty minutes idling ON the housekeeping - `cycle` cools on no
-    # power at all, which is a cooldown and not an idle - read every
-    # thirty seconds as the board reads.
+    # Then forty minutes idling ON the housekeeping - `cycle` cools on no power
+    # at all, which is a cooldown and not an idle - read every thirty seconds
+    # as the board reads.
     for step in range(2400):
         truth.model.step(quiet, 1.0)
         seen = blind
@@ -699,9 +621,8 @@ def test_an_idle_board_stays_uncertain(report, lib):
                  'something switches',
                  ident.state() == 'UNCERTAIN', ident.state())
     # THE MARGIN IS THE FLOOR, whatever the floor is set to: idle is no
-    # evidence, and the innovation alone would have said full span here
-    # - it sits at the thermometers' floor at rest. The covariance term
-    # is what holds the bench's cold-start rule.
+    # evidence, and the innovation alone would have said full span here - it
+    # sits at the thermometers' floor at rest.
     report.check('and the margin is the floor it was given - 0.80, 0.70 - '
                  'the model doubted whole, since idle taught it nothing',
                  abs(ident.margin(0.8) - 0.8) < 1e-6
@@ -715,17 +636,6 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
     """The identification finds a board's air path from its own
     thermometers, says how sure it is, and notices when the situation
     changes.
-
-    A GROUND TRUTH THE IDENTIFIER DOES NOT KNOW: the same graph with the
-    air path doubled - a board in a box - read through the NTC and the
-    two dies with +-0.05 K of noise, every thirty seconds of every
-    cooldown and never during a run. Three cycles of a ten-minute run at
-    the legs and twenty minutes of cooling; then the box comes off and a
-    fan goes on - the air path halved - and the same again. What is
-    checked: the air scale lands near two, the state climbs UNCERTAIN to
-    CONVERGING to STABLE, the change is caught within a few samples as
-    UNCERTAIN, and the scale re-lands near a half. The bench's word for
-    all of it: see the logic in action before it is serious on the board.
     """
     truth = GroundTruth(lib, air=2.0)
     observer = Model(lib)
@@ -760,9 +670,9 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
                  all(abs(ident.scale(s) - 1.0) < 0.5
                      for s in ('capacity', 'spread', 'ntc')),
                  ['%.2f' % ident.scale(s) for s in SCALES])
-    # THE MARGIN IS CONTINUOUS (2026-09-06): the floor with the model
-    # doubted whole, one when not at all, the evidence between - and the
-    # floor is the caller's. It was three steps on the state.
+    # THE MARGIN IS CONTINUOUS (2026-09-06): the floor with the model doubted
+    # whole, one when not at all, the evidence between - and the floor is the
+    # caller's.
     boxed = ident.margin(0.8)
     report.check('the margin has risen off its 0.80 floor to the whole span '
                  'on the evidence of the cooldowns - the doubt gone, the '
@@ -772,17 +682,15 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
                  'margin %.3f at 0.8, %.3f at 0.7, doubt %.2f'
                  % (boxed, ident.margin(0.7), ident.doubt()))
 
-    # THE BOX COMES OFF AND A FAN GOES ON. Within the next cooldown's
-    # samples the model that was trusted stops predicting; the identifier
-    # says UNCERTAIN, inflates, and re-lands.
+    # THE BOX COMES OFF AND A FAN GOES ON.
     settled = ident.state()
     truth.situation(0.5)
     trace = []
     truth.cycle(ident, watt, 600.0, 1200.0, trace=trace)
     states = [t[0] for t in trace]
     # THE MARGIN FELL WITH THE STATE: within the fan's first cooldown the
-    # innovation says the model is wrong and the envelope is back near
-    # its floor - continuous, so it fell as far as the evidence said.
+    # innovation says the model is wrong and the envelope is back near its
+    # floor - continuous, so it fell as far as the evidence said.
     least = min(t[4] for t in trace)
     report.check('and within the fan\'s first cooldown the margin fell back '
                  'toward the floor',
@@ -802,10 +710,10 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
     report.check('with the state back to CONVERGING or STABLE',
                  ident.state() in ('CONVERGING', 'STABLE'), ident.state())
 
-    # NOTHING IS RESUMED (2026-09-06): a fresh identifier is at the floor
-    # and doubted whole, whatever any earlier run found - the bench's
-    # rule, since a good observer earns its span within a few samples
-    # and a resumed one runs on last week's box.
+    # NOTHING IS RESUMED (2026-09-06): a fresh identifier is at the floor and
+    # doubted whole, whatever any earlier run found - the bench's rule, since a
+    # good observer earns its span within a few samples and a resumed one runs
+    # on last week's box.
     fresh = Ident(lib, Model(lib))
     report.check('a fresh identifier is UNCERTAIN at one, its margin at the '
                  'floor - 0.8, or 0.7 if that is the floor - and its doubt '
@@ -828,14 +736,7 @@ def wanted(spent, throttle_at=THROTTLE_AT):
 
 
 def test_the_derate_is_a_ramp(report, lib):
-    """One below the throttle point, zero at the ceiling, linear between.
-
-    THE WHOLE POINT OF IT, and the reason `tripped` alone was not enough:
-    a stage that runs at full current until the ceiling and then stops is
-    a cliff. Walked across the band a degree at a time rather than checked
-    at three places, because a ramp that is right at its ends and wrong in
-    the middle is the shape that would go unnoticed.
-    """
+    """One below the throttle point, zero at the ceiling, linear between."""
     model = Model(lib)
     span = LIMIT_C - AMBIENT
     worst = 0.0
@@ -868,12 +769,7 @@ def test_the_derate_is_a_ramp(report, lib):
 
 
 def test_derating_is_not_tripping(report, lib):
-    """Inside the band the stage is still driving.
-
-    The distinction the bench asked for in as many words: do not kill the
-    drive, throttle it down in time. A budget that reported `tripped` the
-    moment it reported `throttling` would have thrown that away.
-    """
+    """Inside the band the stage is still driving."""
     model = Model(lib)
     span = LIMIT_C - AMBIENT
     model.place('phase_u', AMBIENT + 0.92 * span)
@@ -888,21 +784,7 @@ def test_derating_is_not_tripping(report, lib):
 
 
 def test_the_lookahead_catches_a_ramp(report, lib):
-    """The throttle acts on time left, not on a projected temperature.
-
-    THE DEFECT IT EXISTS FOR, measured on the stand-in: a phase node at
-    45 A crossed from a fifth of its budget to over the ceiling inside
-    three polls, so the whole 85-to-100 band went past between two looks
-    and the derate never left 1.0.
-
-    AND THE DEFECT ITS FIRST SHAPE HAD. It projected each node forward
-    `lookahead_s` at its present rate and derated on where that landed,
-    which fails on the case this board is for. 100 A puts 18.4 W into a
-    driver node of 0.12 J/K - 0.67 s from ambient to its ceiling - and a
-    two second projection lands past it from a COLD board: the clamp went
-    to 0.00 before the burst began. Measured here 2026-09-03, and the
-    reason the rule is now `hold / lookahead_s`.
-    """
+    """The throttle acts on time left, not on a projected temperature."""
     watt = {'phase_u': 35.0}
     first = {}
     for name, ahead in (('now', 0.0), ('soon', LOOKAHEAD_S)):
@@ -930,11 +812,7 @@ def test_the_lookahead_catches_a_ramp(report, lib):
                      first['now'][2] >= THROTTLE_AT - 0.01,
                      '%.3f spent' % first['now'][2])
 
-    # THE BURST RUNS. This is the whole difference from the projection,
-    # and the reason it was changed: a node at ambient has its entire soak
-    # in front of it however much power is on it, so full current is
-    # allowed to start. What closes the clamp is the hold falling into the
-    # window, not the size of the power.
+    # THE BURST RUNS.
     cold = Model(lib)
     for watts in (8.0, 35.0):
         got = cold.budget({'phase_u': watts}, lookahead_s=LOOKAHEAD_S)
@@ -944,24 +822,14 @@ def test_the_lookahead_catches_a_ramp(report, lib):
                      'clamp %.2f, %.0f %% spent' % (got['derate'],
                                                     100.0 * got['worst']))
 
-    # UP TO WHAT THE NODE CAN HOLD FOR THE REACTION WINDOW, and no
-    # further. 35 W is the 100 A rating and the node holds it 1.2 s; 300 W
-    # would be some 290 A, which it cannot hold for the 0.2 s the ramp
-    # needs, so the clamp is not open even from ambient. That is the rule
-    # doing its job rather than an exception to it - a power a part cannot
-    # survive the reaction to is not a burst, it is a fault. (200 W was
-    # the figure at a throttle of 85: at 90 its 0.21 s hold just clears
-    # the shorter ramp, measured, and the clamp stays open.)
+    # UP TO WHAT THE NODE CAN HOLD FOR THE REACTION WINDOW, and no further.
     fault = cold.budget({'phase_u': 300.0}, lookahead_s=LOOKAHEAD_S)
     report.check('a power past what the node can hold for the window is '
                  'throttled from cold, and that is the rule, not a hole in it',
                  0.0 < fault['derate'] < 1.0 and not fault['tripped'],
                  'clamp %.2f at ambient' % fault['derate'])
 
-    # AND THE KNOB IS MONOTONE. It used to be fatal past the burst budget
-    # - 2000 ms against a 670 ms node stopped the drive dead - so raising
-    # it made the envelope qualitatively different rather than earlier. A
-    # longer window now only means a longer, gentler ramp.
+    # AND THE KNOB IS MONOTONE.
     at = {}
     for window in (0.5, 1.0, 2.0, 4.0):
         model = Model(lib)
@@ -978,8 +846,7 @@ def test_the_lookahead_catches_a_ramp(report, lib):
                            for w in sorted(at)))
 
     # ONE DEFINITION: the throttle acts on the hold, and `millis_to_limit`
-    # reports the hold. A board backing off on one number while a host
-    # plans a burst on another would be two envelopes.
+    # reports the hold.
     model = Model(lib)
     model.place('phase_u', 100.0)
     got = model.budget(watt, lookahead_s=LOOKAHEAD_S)
@@ -988,16 +855,13 @@ def test_the_lookahead_catches_a_ramp(report, lib):
                  abs(got['derate'] - wanted(1.0 - hold / LOOKAHEAD_S)) < 0.01,
                  'clamp %.3f at %.3f s of hold' % (got['derate'], hold))
 
-    # ZERO DISABLES IT, bit for bit: the pre-lookahead behaviour has to
-    # remain reachable, because a record that never had the field reads
-    # back as zero and must still get the old envelope.
+    # ZERO DISABLES IT, bit for bit: the pre-lookahead behaviour has to remain
+    # reachable, because a record that never had the field reads back as zero
+    # and must still get the old envelope.
     model = Model(lib)
-    # AT 114 C: lower, the node still holds 35 W for longer than the ramp's
-    # 0.2 s, which is outside the window, so both rules answered 1.0 and the
-    # check compared two untouched clamps. Measured on the core: the window
-    # binds from about 113 C at this power with the shunts' own 8 K/W into
-    # their patch (it was 110 with 28 K/W to a bulk board, and 100 at a
-    # throttle of 85).
+    # AT 114 C: lower, the node still holds 35 W for longer than the ramp's 0.2
+    # s, which is outside the window, so both rules answered 1.0 and the check
+    # compared two untouched clamps.
     model.place('phase_u', 114.0)
     report.check('a cooling node has no hold to run out of',
                  model.budget(lookahead_s=LOOKAHEAD_S)['derate'] == 1.0)
@@ -1009,25 +873,8 @@ def test_the_lookahead_catches_a_ramp(report, lib):
 
 
 def test_the_step_must_land_inside_the_ramp(report, lib):
-    """A throttle band is only there if something looks inside it.
-
-    THE DEFECT THIS GUARDS, found 2026-09-03 by the bench in the rotor
-    observer: the envelope peaked and then collapsed, because the
-    integration ran a whole poll gap and evaluated the budget once at the
-    end. The ramp is the last `lookahead_s * (1 - throttle_at)` of a
-    node's hold - 300 ms at the record's numbers - so a step longer than
-    that lands on the far side of it and the only thing left to do is
-    trip. `Board_ThermalPoll` consumes a late gap in THERMAL_STEP_MS
-    slices for exactly this reason, and the stand-in does the same.
-
-    The same two seconds of model time at every step size, and what the
-    throttle saw the first time it looked.
-    """
-    # THE REAL LOAD, every node live. Fed only the phase node the case is
-    # too gentle to show it: 35 W into 0.40 J/K is slow enough that even a
-    # one second step lands at 108 C with the clamp at 0.71. It is the
-    # DRIVER node that makes it - 18.4 W into 0.12 J/K - and that is the
-    # node a bench actually has.
+    """A throttle band is only there if something looks inside it."""
+    # THE REAL LOAD, every node live.
     watt = power(lib, phase_amps=(100.0, 0.0, 0.0), duty=(0.5, 0.0, 0.0),
                  link_volts=48.0, switching=True)
     first = {}
@@ -1051,9 +898,9 @@ def test_the_step_must_land_inside_the_ramp(report, lib):
                  'ramp, not a cliff',
                  first[0.1][1] > 0.5, '%.2f' % first[0.1][1])
 
-    # THE COUNTER-EXAMPLE, kept because it is what the defect looked like:
-    # at a step longer than the ramp the first evaluation is already past
-    # the ceiling with the clamp shut, and the only thing left is the trip.
+    # THE COUNTER-EXAMPLE, kept because it is what the defect looked like: at a
+    # step longer than the ramp the first evaluation is already past the
+    # ceiling with the clamp shut, and the only thing left is the trip.
     report.check('a step ten times longer steps over the band entirely',
                  first[1.0] is not None and first[1.0][0] >= 1.0
                  and first[1.0][1] == 0.0,
@@ -1066,13 +913,7 @@ def test_the_step_must_land_inside_the_ramp(report, lib):
 
 
 def test_the_soak_is_joules(report, lib):
-    """Capacity times the rise still available, per node.
-
-    `used` is where a node is and `millis_to_limit` is how long AT THIS
-    POWER; neither answers "how much work is left in it", which is what a
-    control system asking for a burst wants. Joules do, and they divide by
-    any planned power rather than only the present one.
-    """
+    """Capacity times the rise still available, per node."""
     model = Model(lib)
     model.place('phase_u', 45.0)
     model.place('board', 30.0)
@@ -1085,9 +926,9 @@ def test_the_soak_is_joules(report, lib):
                      abs(got['soak_j'][name] - want) < 0.01,
                      '%.2f J against %.2f' % (got['soak_j'][name], want))
 
-    # A NODE PAST ITS CEILING HAS NO BUDGET, not a debt: the trip is what
-    # says it is over, and a negative joule count would divide into a
-    # negative burst length.
+    # A NODE PAST ITS CEILING HAS NO BUDGET, not a debt: the trip is what says
+    # it is over, and a negative joule count would divide into a negative burst
+    # length.
     model.place('phase_u', LIMIT_C + 20.0)
     report.check('past the ceiling the soak is zero, never negative',
                  model.budget()['soak_j']['phase_u'] == 0.0)
@@ -1102,13 +943,7 @@ def test_the_soak_is_joules(report, lib):
 
 
 def test_the_worst_node_is_the_one_acted_on(report, lib):
-    """A stage is as close to its ceiling as its closest part.
-
-    An average would hide the one leg that is cooking behind five that are
-    not, and the ceilings differ - the board's copper is 105 and the
-    silicon 125 - so the hottest node and the worst node need not be the
-    same one. That is not a defect; it is why both are reported.
-    """
+    """A stage is as close to its ceiling as its closest part."""
     model = Model(lib)
     model.place('phase_u', 100.0)
     model.place('board', 95.0)
@@ -1124,22 +959,9 @@ def test_the_worst_node_is_the_one_acted_on(report, lib):
 
 
 def test_a_throttle_weighs_only_what_a_clamp_can_cool(report, lib):
-    """The housekeeping nodes are judged and not throttled on.
-
-    A THROTTLE IS A CONTROL LOOP AND IT NEEDS AN ACTUATOR. The clamp
-    scales the phase current, so it moves the legs and nothing at all on
-    the MCU, the regulators or the front end - those draw the same watts
-    at zero duty as at full. Weighed into the worst node they set a floor
-    under the margin that no derating can lift: measured on the stand-in
-    2026-09-04, an idle board settles with the regulators at 51.1 C,
-    which against a 125 C ceiling from a 20 C ambient is 0.30 of the
-    budget spent before the stage has done any work.
-
-    What is NOT given up: every node still reports its own spend, and any
-    of them at its ceiling still trips.
-    """
-    # 116 C is inside the 90 % band (114.5 C on this record); 110 was
-    # inside the 85 % one and sits under the point now.
+    """The housekeeping nodes are judged and not throttled on."""
+    # 116 C is inside the 90 % band (114.5 C on this record); 110 was inside
+    # the 85 % one and sits under the point now.
     model = Model(lib)
     model.place('regulators', 116.0)
     model.place('phase_u', 60.0)
@@ -1156,9 +978,8 @@ def test_a_throttle_weighs_only_what_a_clamp_can_cool(report, lib):
     report.check('so the clamp stays open on a board doing no work',
                  got['derate'] == 1.0, '%.2f' % got['derate'])
 
-    # AND THE MASK IS THE RECORD'S, not the core's: hand it the other
-    # answer and the same board derates. A core that had the three names
-    # compiled in would pass the checks above and still be wrong.
+    # AND THE MASK IS THE RECORD'S, not the core's: hand it the other answer
+    # and the same board derates.
     same = model.budget(undriven=())
     report.check('told every node is driven, the same board picks the '
                  'regulator back up', same['worst_node'] == 'regulators',
@@ -1166,8 +987,7 @@ def test_a_throttle_weighs_only_what_a_clamp_can_cool(report, lib):
     report.check('and derates on it', same['derate'] < 1.0,
                  '%.2f' % same['derate'])
 
-    # THE TRIP IS NOT MASKED. A regulator at its ceiling is a stop
-    # whatever a derate could have done about it.
+    # THE TRIP IS NOT MASKED.
     model.place('regulators', LIMIT_C + 5.0)
     hot = model.budget()
     report.check('a masked node at its ceiling still trips', hot['tripped'],
@@ -1178,14 +998,7 @@ def test_a_throttle_weighs_only_what_a_clamp_can_cool(report, lib):
 
 
 def test_the_conduction_is_split_where_it_is_made(report, lib):
-    """The FET's watts on the driver node, the shunt's on the phase node.
-
-    Booked entirely on the phase node the model said the shunt cooked
-    while the FET beside it in the same current path stayed cold. They are
-    two parts. Checked against `thermal_losses` rather than against a
-    number typed twice: the split is a ratio of resistances the parts
-    list gives.
-    """
+    """The FET's watts on the driver node, the shunt's on the phase node."""
     loss = losses(lib)
     amps = 50.0
     got = power(lib, phase_amps=(amps, 0.0, 0.0), switching=False)
@@ -1220,27 +1033,12 @@ def test_the_conduction_is_split_where_it_is_made(report, lib):
 
 
 def test_conduction_is_a_mean_square_not_a_sample(report, lib):
-    """One instant squared is the loss only if that instant was the rms.
-
-    THE DEFECT, and it is the board's rather than the model's: `load_now`
-    handed the estimator ONE sample per 100 ms and it squared it. A single
-    instant of a rotating three-phase current says where the vector is
-    pointing, not how big it has been - squared, it runs from zero to
-    twice the true loss depending only on where in the electrical period
-    the sample landed.
-
-    Worse here than a coin toss would be, because the sampler is
-    SYNCHRONOUS: the trigger is a tick inside the PWM period, so at a
-    speed whose electrical period divides the poll interval the alias
-    LOCKS and a leg at its peak reads as a leg at zero for as long as the
-    speed holds. `Board_SyncMeanSquare` accumulates in the injected
-    callback instead, and `phase_sq` is what it hands over.
-    """
+    """One instant squared is the loss only if that instant was the rms."""
     peak = 100.0
     rms_sq = peak * peak / 2.0
 
-    # The two instants a sampler can land on, and what each says the loss
-    # is when it is squared on its own.
+    # The two instants a sampler can land on, and what each says the loss is
+    # when it is squared on its own.
     at_peak = power(lib, phase_amps=(peak, 0.0, 0.0), switching=False)
     at_zero = power(lib, phase_amps=(0.0, 0.0, 0.0), switching=False)
     report.check('a sample at the peak claims twice the conduction',
@@ -1261,10 +1059,7 @@ def test_conduction_is_a_mean_square_not_a_sample(report, lib):
                      abs(got['phase_u'] - true_w) < 0.01,
                      '%.3f W against %.3f' % (got['phase_u'], true_w))
 
-    # AND IT IS PER LEG. A three-phase sum would be constant and could be
-    # shared out, but this board also drives one leg against another -
-    # `tools/pulse.py` does exactly that - and spreading U's heat over an
-    # idle W would be a model that could not represent its own bench test.
+    # AND IT IS PER LEG.
     one_leg = power(lib, phase_amps=(0.0, 0.0, 0.0), switching=False,
                     phase_sq=(rms_sq, rms_sq, 0.0))
     report.check('an idle leg stays cold while two carry current',
@@ -1273,8 +1068,8 @@ def test_conduction_is_a_mean_square_not_a_sample(report, lib):
                                          one_leg['phase_w']))
 
     # THE FALLBACK IS THE OLD BEHAVIOUR, bit for bit: a caller with only a
-    # sample - the harness, a host, a board whose sampler is not armed -
-    # gets what it always got rather than zero.
+    # sample - the harness, a host, a board whose sampler is not armed - gets
+    # what it always got rather than zero.
     report.check('no mean square means the sample is squared, as before',
                  power(lib, phase_amps=(peak, 0.0, 0.0), switching=False,
                        phase_sq=(0.0, 0.0, 0.0))['phase_u']
@@ -1300,22 +1095,8 @@ def test_conduction_is_a_mean_square_not_a_sample(report, lib):
 
 
 def test_the_thermistor_has_mass(report, lib):
-    """A sensor a centimetre from the silicon cannot slew like silicon.
-
-    THE SANITY RULE THE ALGEBRA HAD NONE OF. `thermal_expected_ntc` was a
-    function of the driver node alone, so the modelled reading followed a
-    small fast lump instantly - 18 W into 0.12 J/K is 150 K a second, and
-    the page showed an NTC doing exactly that. Heat has to cross copper
-    that has its own mass, and what arrives is low passed.
-
-    The lag is the leg node's own RC, on the argument that a sensor in a
-    lump is not quicker than the lump - a floor, not a fit. Steady state
-    is untouched, which is the point: this bounds the RATE and nothing
-    else.
-    """
-    # ALL THREE LEGS. The thermistor watches leg V, so a load on U alone
-    # leaves the target where it started and the check measures nothing -
-    # which is what the first version of it did.
+    """A sensor a centimetre from the silicon cannot slew like silicon."""
+    # ALL THREE LEGS.
     peak = 100.0
     watt = power(lib, phase_amps=(peak, -peak / 2, -peak / 2),
                  duty=(0.5, 0.5, 0.5), link_volts=48.0, switching=True)
@@ -1334,35 +1115,23 @@ def test_the_thermistor_has_mass(report, lib):
                  fastest < 60.0, '%.1f K/s at its steepest' % fastest)
 
     # SUBSTANTIALLY SLOWER THAN THE SOA ACTS, which is the whole point.
-    # The envelope moves on the leg node in a fifth of a second to two
-    # thirds at 100 A; a sensor soldered into laminate that kept up with
-    # that would not be a sensor in laminate, it would be a second copy of
-    # the FET. Its lag was exactly the leg's own until 2026-09-04.
     leg_rose = model.at('driver_v') - AMBIENT
     report.check('the reading trails the silicon it sits beside by a wide '
                  'margin over the same second',
                  leg_rose > 20.0 * rose,
                  'leg +%.1f K, reading +%.1f K' % (leg_rose, rose))
 
-    # THE NODE IT WATCHES IS FREE TO SLEW - only the reading is not. A lag
-    # that slowed the model itself would be a slower envelope, and the
-    # envelope is the one thing that must not be.
+    # THE NODE IT WATCHES IS FREE TO SLEW - only the reading is not.
     report.check('the driver node itself is not slowed by it',
                  model.at('driver_u') - AMBIENT > rose,
                  'driver +%.1f K against the reading +%.1f K'
                  % (model.at('driver_u') - AMBIENT, rose))
 
-    # AND IT ARRIVES. A lag is not a cap: given time the reading reaches
-    # the algebra, so the campaign's steady state is untouched.
-    # Long enough for the BOARD to settle too - its own constant is
-    # 49 J/K across 8.33 K/W, near seven minutes, and a reading chasing a
-    # target that is itself still climbing lands behind it.
+    # AND IT ARRIVES.
     for _ in range(20000):
         model.step(watt, 1.0)
-    # THE ELEMENT'S OWN STEADY STATE: a weighted average of the two nodes
-    # it is tied to, with no additive offset. `NTC_SEES_DRIVERS` is the
-    # weight, and the point of the form is that it lands BETWEEN them for
-    # any weight at all.
+    # THE ELEMENT'S OWN STEADY STATE: a weighted average of the two nodes it is
+    # tied to, with no additive offset.
     board = model.at('board')
     leg = model.at('patch_v')
     target = board + NTC_SEES_LEG * (leg - board)
@@ -1384,27 +1153,17 @@ GAMMA = 1.0 / 3.0
 
 
 def test_the_reading_lags_between_the_two_nodes(report, lib):
-    """Its constant is the geometric mean of the pair it sits between.
-
-    AN ELEMENT BETWEEN TWO NODES LAGS BETWEEN THEIR CONSTANTS, and the
-    geometric mean is what "between" means for a time constant - the
-    log-midpoint, because a lag is a ratio and not a difference. Checked
-    against the two the model already carries rather than against a
-    number typed here, so moving either moves this and nothing drifts.
-    """
+    """Its constant is the geometric mean of the pair it sits between."""
     model = Model(lib)
-    # OFF THE MODEL, not off a number typed here: the pair is the V leg's
-    # patch and the centre, and their constants are their capacities
-    # across the paths `thermal_defaults` quotes for them - 15 K/W from
-    # the leg's patch to the rest of the board, 48 from the centre.
+    # OFF THE MODEL, not off a number typed here: the pair is the V leg's patch
+    # and the centre, and their constants are their capacities across the paths
+    # `thermal_defaults` quotes for them - 15 K/W from the leg's patch to the
+    # rest of the board, 48 from the centre.
     leg = model.capacity('patch_v') * 15.0
     board = model.capacity('board') * 48.0
 
-    # THE TWO NODES HELD, so the target does not move while the reading
-    # walks toward it. Measured any other way this reads the leg's own
-    # constant as well as the thermistor's, and the first version of this
-    # check did exactly that - it stepped once with the nodes still at
-    # ambient and divided by a target that had not appeared yet.
+    # THE TWO NODES HELD, so the target does not move while the reading walks
+    # toward it.
     hot, cold = 120.0, 40.0
     target = cold + NTC_SEES_LEG * (hot - cold)
     zero = {}
@@ -1423,11 +1182,7 @@ def test_the_reading_lags_between_the_two_nodes(report, lib):
     share = (model.ntc() - start) / max(1e-9, target - start)
     tau = -1.0 / math.log(max(1e-9, 1.0 - min(0.999999, share)))
 
-    # BETWEEN THE TWO PATCHES it sits between. They were a leg's silicon
-    # at five seconds and a bulk board at four hundred, and the reading
-    # sat well clear of both; the pair is the V leg's patch and the
-    # centre now, a factor of five apart, so "between" is the check and
-    # the mean below is the number.
+    # BETWEEN THE TWO PATCHES it sits between.
     report.check('the reading lags past the patch it watches',
                  tau > leg, '%.1f s against the leg patch %.1f s'
                  % (tau, leg))
@@ -1441,20 +1196,8 @@ def test_the_reading_lags_between_the_two_nodes(report, lib):
 
 
 def test_the_thermistor_never_reads_above_its_source(report, lib):
-    """The reading stays between the leg and the board - on the way down too.
-
-    IT READ ABOVE THE SWITCHES THAT HEAT IT. The element lags at 47 s
-    between a leg that falls in 5.3 s and a board that takes minutes,
-    and it hung off the side of both: measured before this check, 25 A
-    on the V leg for two minutes then off, the thermistor read 5.96 K
-    above the leg 13.8 s after the stop; at 60 A, 28.8 K. Under load it
-    never did (0.65 K under, 2.9 K at 60 A) - the defect was the lagged
-    state alone. The leg sheds ONLY through the copper the thermistor
-    sits on (`thermal_step`: `shed = (t - board) / to_board`, nothing
-    else), so the leg cannot fall below that copper, and a link in a
-    source-free chain fed from one end cannot read above that end - the
-    series network of docs/papers (2.3, fig. 2.3). The lag is the
-    patch's; the bound is the chain's.
+    """The reading stays between the leg and the board - on the way down
+    too.
     """
     dt = 0.05
     for amps, read_over in ((25.0, 5.96), (60.0, 28.8)):
@@ -1483,20 +1226,7 @@ def test_the_thermistor_never_reads_above_its_source(report, lib):
 
 
 def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
-    """What the leg capacity is worth, since nobody measured it.
-
-    `thermal.c` has said so since the campaign: "the parts' own are not
-    measured - they respond in seconds, below what this rig can resolve,
-    and only affect the settling". THE LAST CLAUSE IS NO LONGER TRUE. The
-    envelope divides by exactly these numbers - `soak_j` is
-    `capacity x (limit - t)`, `hold_seconds` is that over the net watts,
-    and the throttle's reaction window is a multiple of it.
-
-    So this does not assert a value. It measures the BAND: what the burst
-    budget becomes at the capacity on record and at Silva's gamma, which
-    is the other end of what the number could honestly be. A test that
-    pinned one of them would be claiming a measurement nobody took.
-    """
+    """What the leg capacity is worth, since nobody measured it."""
     watt = power(lib, phase_amps=(100.0, 0.0, 0.0), duty=(0.5, 0.0, 0.0),
                  link_volts=48.0, switching=True)
     seen = {}
@@ -1507,8 +1237,8 @@ def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
                      model.set_node('driver_u', DRIVER_TO_PATCH, base * scale),
                      '%.4f J/K' % (base * scale))
         got = model.budget(watt, lookahead_s=LOOKAHEAD_S)
-        # Seconds from ambient to the ceiling at this power, which is what
-        # a burst is spending.
+        # Seconds from ambient to the ceiling at this power, which is what a
+        # burst is spending.
         seen[name] = (got['soak_j']['driver_u'],
                       got['soak_j']['driver_u'] / watt['driver_u'])
 
@@ -1524,16 +1254,13 @@ def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
                  '%.2f s against %.2f s at 100 A'
                  % (seen['at gamma'][1], seen['on record'][1]))
 
-    # THE BAND, stated as a number a bench can act on. Nothing here says
-    # which end is right; that is what the power step would answer.
+    # THE BAND, stated as a number a bench can act on.
     report.check('so the 100 A burst budget is a band, not a figure',
                  seen['at gamma'][1] < seen['on record'][1],
                  'between %.2f s and %.2f s on the driver node'
                  % (seen['at gamma'][1], seen['on record'][1]))
 
-    # AND THE THROTTLE MOVES WITH IT. The lookahead window is a fixed time,
-    # so a lighter node crosses it sooner - the reaction the envelope gets
-    # is shorter by the same factor, which is the part that costs silicon.
+    # AND THE THROTTLE MOVES WITH IT.
     first = {}
     for name, scale in (('on record', 1.0), ('at gamma', GAMMA)):
         model = Model(lib)
@@ -1552,12 +1279,7 @@ def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
 
 
 def test_it_refuses_nothing_and_returns_no_codes(report, lib):
-    """No limit set is not an error, it is a node nobody constrained.
-
-    A ceiling of zero means the record did not carry one for that node.
-    The budget skips it rather than reporting it at its ceiling, which is
-    what a span of zero would arithmetically give.
-    """
+    """No limit set is not an error, it is a node nobody constrained."""
     model = Model(lib)
     model.place('phase_u', 90.0)
     none = model.budget(limits=[0.0] * len(NODES))
@@ -1575,8 +1297,7 @@ def test_it_refuses_nothing_and_returns_no_codes(report, lib):
                  below['worst'] == 0.0 and below['derate'] == 1.0,
                  '%.3f spent, clamp %.3f' % (below['worst'], below['derate']))
 
-    # A throttle point of 1.0 leaves no band. The ramp has to survive it
-    # rather than divide by the width it does not have.
+    # A throttle point of 1.0 leaves no band.
     model.place('phase_u', 120.0)
     edge = model.budget(throttle_at=1.0)
     report.check('a throttle point at the ceiling leaves no band to ramp in, '
@@ -1585,12 +1306,7 @@ def test_it_refuses_nothing_and_returns_no_codes(report, lib):
 
 
 def test_the_time_left_is_reported_or_not_claimed(report, lib):
-    """Milliseconds while it is heading somewhere, -1 while it is not.
-
-    A large number where there is no answer reads like a promise. The
-    board says -1 instead, and a host that plans a burst on it knows the
-    difference.
-    """
+    """Milliseconds while it is heading somewhere, -1 while it is not."""
     model = Model(lib)
     model.place('phase_u', 60.0)
     idle = model.budget()
@@ -1609,13 +1325,7 @@ def test_the_time_left_is_reported_or_not_claimed(report, lib):
 
 def test_a_ceiling_pulled_in_under_a_node_does_not_trip(report, lib):
     """The trip is judged on the record's ceiling; the throttle on the
-    trimmed one. The margin pulls every ceiling in while the model is
-    doubted, and a re-trim can put one UNDER a node that was inside the
-    old span: measured on the stand-in 2026-09-08, a room step cut the
-    margin from 1.00 to 0.82 on one sample and driver U at 92 % of the
-    old span stood at 112 % of the new - `tripped`, MOE dropped, a trip
-    cap and a half hour at 70 % for a policy step, not for heat. The
-    clamp closing is the whole of what a pulled-in ceiling should do.
+    trimmed one.
     """
     model = Model(lib)
     model.place('driver_u', AMBIENT + 0.92 * (LIMIT_C - AMBIENT))
@@ -1649,13 +1359,6 @@ def test_the_winding_is_an_envelope_of_its_own(report, lib):
     """The motor's copper, a node of the graph: judged like a node, by the
     same ramp, shedding through the iron and the bell to the air and not
     into the laminate.
-
-    THE MOTOR HAD NO ENVELOPE, and then it was a separate element beside
-    the star; since the graph it is three nodes of it. Held here: the
-    copper loss off the phases' mean squares, the step's steady state
-    through the motor's own paths, the spend and the ramp against a board
-    node's, the winding's OWN factor, the hold-based lookahead, and that
-    a zero ceiling disables it.
     """
     # `3 i_rms^2 R` off the mean squares when they are there ...
     got = power(lib, phase_sq=(100.0, 100.0, 100.0), r_phase=0.05,
@@ -1668,9 +1371,9 @@ def test_the_winding_is_an_envelope_of_its_own(report, lib):
     report.check('and with no mean squares the sample is squared instead',
                  abs(got['winding'] - 5.0) < 1e-3, '%.3f W' % got['winding'])
 
-    # THE STEADY STATE IS THE GRAPH'S: the copper into the iron, the iron
-    # to the air directly and through the bell, in parallel - read off the
-    # model's own edges, not typed here.
+    # THE STEADY STATE IS THE GRAPH'S: the copper into the iron, the iron to
+    # the air directly and through the bell, in parallel - read off the model's
+    # own edges, not typed here.
     model = Model(lib)
     r_ws = model.edge_r(EDGE_WINDING_STATOR)
     r_sr = model.edge_r(EDGE_STATOR_ROTOR)
@@ -1693,8 +1396,8 @@ def test_the_winding_is_an_envelope_of_its_own(report, lib):
                  all(abs(model.at(n) - AMBIENT) < 1e-3 for n in LAMINATE),
                  str([round(model.at(n) - AMBIENT, 3) for n in LAMINATE]))
 
-    # THE SAME RAMP AS A BOARD NODE'S: a node and the winding the same
-    # fraction up their own scales get the same factor - one definition.
+    # THE SAME RAMP AS A BOARD NODE'S: a node and the winding the same fraction
+    # up their own scales get the same factor - one definition.
     node = Model(lib)
     node.place('phase_u', AMBIENT + 0.947 * (LIMIT_C - AMBIENT))
     b = node.budget()
@@ -1722,8 +1425,8 @@ def test_the_winding_is_an_envelope_of_its_own(report, lib):
                  got['tripped'] and got['derate'] == 0.0,
                  'clamp %.3f' % got['derate'])
 
-    # THE HOLD, NOT THE TEMPERATURE: a cold winding of one joule per
-    # kelvin with a hundred watts on it has under a second to its ceiling.
+    # THE HOLD, NOT THE TEMPERATURE: a cold winding of one joule per kelvin
+    # with a hundred watts on it has under a second to its ceiling.
     thin = Model(lib)
     thin.set_node('winding', r_ws, 1.0)
     soon = thin.budget({'winding': 100.0}, lookahead_s=20.0)
@@ -1748,18 +1451,9 @@ def test_the_winding_is_an_envelope_of_its_own(report, lib):
 
 
 def test_the_laminate_is_a_graph_that_reproduces_the_bulk(report, lib):
-    """Seven patches whose capacities and air paths sum to the one board
-    the camera measured, joined by the copper's own conductances - and a
-    leg that warms its neighbour.
-
-    THE STAR COULD NOT: one board node for a disc with a seventeen kelvin
-    gradient across it, six leg nodes that could not warm each other
-    except through that average. The patches follow the picture's frames
-    and their areas the outline; the conductances between them are a
-    sheet conductance times shared boundary over centre distance, with
-    the one sheet figure chosen so the V leg's patch sees the 15.2 K/W
-    the camera measured lumped - so the campaign is reproduced and the
-    geometry is the rest.
+    """Seven patches whose capacities and air paths sum to the one board the
+    camera measured, joined by the copper's own conductances - and a leg
+    that warms its neighbour.
     """
     model = Model(lib)
     cap = sum(model.capacity(n) for n in LAMINATE)
@@ -1784,9 +1478,7 @@ def test_the_laminate_is_a_graph_that_reproduces_the_bulk(report, lib):
                  abs(model.edge_r(0) + 1.0 / g - 28.0) < 1.5,
                  '%.1f K/W' % (model.edge_r(0) + 1.0 / g))
 
-    # A LEG WARMS ITS NEIGHBOUR. 20 W on U's switches, settled: U's patch
-    # hottest, then V's beside it, then W's across the board; and the
-    # regulators' corner beside U warmer than the hot swap's beside W.
+    # A LEG WARMS ITS NEIGHBOUR.
     for _ in range(20000):
         model.step({'driver_u': 20.0}, 1.0)
     report.check('20 W on U warms U\'s patch most, V\'s next, W\'s least',
@@ -1810,10 +1502,6 @@ def test_the_switching_loss_follows_the_coss_law(report, lib):
     """The no-load switching scales as the stored C_oss energy, not
     linearly; with current, the overlap, the body diode and the gate
     charge join it, each with a datasheet behind it.
-
-    IT WAS A POINT MEASUREMENT SCALED WITH VOLTAGE ALONE - 1.2 W at
-    24.6 V, times V/24.6 - so at 63 V the model booked 2.6x where the
-    C_oss law gives 4.3x, and no current dependence at all.
     """
     loss = losses(lib)
     e_cal = lib.thm_coss_energy(loss['switch_volts'])
@@ -1886,13 +1574,7 @@ def test_the_switching_loss_follows_the_coss_law(report, lib):
 
 
 def test_the_junction_rides_the_node(report, lib):
-    """A die is its node plus its own power through R_th - not a constant.
-
-    The MCU sat a fixed 27 K over its package; that was 0.666 W through
-    40.5 K/W, and a die that does more sits higher. A FET's is the
-    datasheet's 0.69 K/W R_th,JC on half a leg's watts - what the 175 C
-    limit is against, and why a 125 C copper ceiling keeps 44 K.
-    """
+    """A die is its node plus its own power through R_th - not a constant."""
     model = Model(lib)
     model.place('driver_u', 100.0)
     model.place('mcu', 45.0)
@@ -1924,12 +1606,6 @@ def test_the_junction_rides_the_node(report, lib):
 def test_the_motor_is_the_boards_boundary(report, lib):
     """The rotor's air, the mount and the faces: what a bench does not have
     and a motor does.
-
-    Forced convection with speed - `Nu ~ Re^1/2`, so an air path improves
-    with the square root of the rpm; the standoffs as edges from the
-    stator into the rim patches, open on the bench; the faces radiating
-    at each other by the bracket. Each a named parameter at zero or its
-    still-air value until a record says the board is on a motor.
     """
     model = Model(lib)
     report.check('the bell in still air is its still-air figure',
@@ -1944,8 +1620,7 @@ def test_the_motor_is_the_boards_boundary(report, lib):
                      / model.to_ambient_at('board', 5.0, 0.0) - 1.0 / 1.6)
                  < 1e-3)
 
-    # A SPINNING MOTOR SHEDS FASTER. The same 15 W in the copper settles
-    # lower at speed than at rest.
+    # A SPINNING MOTOR SHEDS FASTER.
     rest, spun = Model(lib), Model(lib)
     for _ in range(6000):
         rest.step({'winding': 15.0}, 1.0)
@@ -1956,8 +1631,6 @@ def test_the_motor_is_the_boards_boundary(report, lib):
                                           rest.at('winding')))
 
     # MOUNTED: six standoffs at 30 K/W each and the faces at 0.034 W/K.
-    # A stator held at 100 C then warms the rim patches, where on the
-    # bench it warmed nothing (the winding test has that side).
     mounted = Model(lib)
     for m in range(6):
         mounted.set_edge(EDGE_MOUNT_FIRST + m, 30.0)

@@ -59,12 +59,7 @@ def fold(f, rate):
 
 
 def project(values, hz, rate):
-    """The amplitude of `hz` in `values`, by projection.
-
-    Peak to peak would do for a fat tone and lies about a thin one: a sine
-    sampled eight times a cycle never lands on its own peak, and one that
-    decimated onto DC is an offset rather than a ripple.
-    """
+    """The amplitude of `hz` in `values`, by projection."""
     n = len(values)
     if n < 8:
         return 0.0
@@ -77,12 +72,7 @@ def project(values, hz, rate):
 
 
 def phase_steps(values, hz, rate, window):
-    """How far the tone's phase moved between windows.
-
-    A clean transfer holds one phase for the whole run, because every sample
-    is where the arithmetic says it is. A record lost or repeated moves
-    everything after it, which is a step here and invisible in the values.
-    """
+    """How far the tone's phase moved between windows."""
     mean = sum(values) / len(values)
     phases = []
     for start in range(0, len(values) - window + 1, window):
@@ -103,14 +93,7 @@ def phase_steps(values, hz, rate, window):
 
 
 def settle_records(chain):
-    """Records to throw away before judging: the filter's own settling.
-
-    A Bessel started from rest meets a step - the tone's DC offset - and its
-    answer to that is not the tone. Three time constants of the cutoff, in
-    records. MEASURED: judging from the first record put a 0.30 rad step in
-    the phase track where every other window sat at 0.016, and read 40 dB of
-    a stopped alias that was really the transient.
-    """
+    """Records to throw away before judging: the filter's own settling."""
     return max(16, int(3.0 * chain['out_rate'] / chain['cutoff']))
 
 
@@ -142,7 +125,8 @@ def capture(device, chain, hz, args):
 
 def ramp_record(first_sample, n, step, modulus, offset):
     """The exact integer a record holds, for `n` ramp samples from
-    `first_sample`. Closed form, so nothing here is a tolerance."""
+    `first_sample`.
+    """
     return sum(offset + ((first_sample + i) * step) % modulus
                for i in range(n))
 
@@ -170,11 +154,7 @@ def ramp_capture(device, args, sections, report):
     layout = daq.configure(args.channels.split(','),
                            accumulate=args.accumulate, digital=False)
     daq.shape(sections, args.decimate)
-    # A RATE THE LINK CAN DRAIN. The generator does not care, the ring
-    # does: at the sine passes' 1 MHz this chain makes 3906 records a
-    # second against the couple of hundred the link carries, and the ring
-    # reported exactly that - 1192 dropped, peak 1170 of 1170. An exactness
-    # test on a stream with holes in it is a test of nothing.
+    # A RATE THE LINK CAN DRAIN.
     rate = int(args.exact_out * args.accumulate * args.decimate)
     daq.tone(hz=args.step, rate_hz=rate, amplitude=args.modulus,
              offset=0, kind=1)
@@ -203,14 +183,7 @@ def ramp_capture(device, args, sections, report):
 
 
 def pass_exact_transport(device, args, report):
-    """EVERY RECORD, EXACTLY. A ramp the host computes in closed form.
-
-    No biquads: what is under test is the buffer, the subsampler and the
-    bus. The board sums `accumulate` consecutive ramp samples into a record
-    and keeps every `decimate`-th boxcar, so each record is one integer
-    with no tolerance anywhere in it - a byte that changed, a record
-    repeated, one dropped or two swapped all fail on the record they touch.
-    """
+    """EVERY RECORD, EXACTLY."""
     print('\n-- exact: a ramp, %d summed, every %dth kept --'
           % (args.accumulate, args.decimate))
     layout, got = ramp_capture(device, args, (), report)
@@ -220,13 +193,7 @@ def pass_exact_transport(device, args, report):
     n, dec = args.accumulate, args.decimate
 
     # WHICH BOXCAR THE FIRST RECORD CAME FROM IS NOT ON THE WIRE - the
-    # generator starts with the task and the host reads when it can. One
-    # record does not pin it down either: a ramp's sum over a window is
-    # piecewise linear in where the window starts, so several starts give
-    # the same total - three, measured, over 8192 searched. So the question
-    # asked is the one that matters: IS THERE A PLACE THESE RECORDS COULD
-    # HAVE COME FROM where every one of them is exactly right? A stream
-    # with a record missing, repeated or altered has no such place.
+    # generator starts with the task and the host reads when it can.
     first = got[0][name]
     starts = [b for b in range(args.search)
               if ramp_record(b * n, n, args.step, args.modulus, 0) == first]
@@ -255,8 +222,8 @@ def pass_exact_transport(device, args, report):
     report.check('and carries the sample count that made it', counts == [n],
                  'counts seen: %s' % counts)
 
-    # One record, two fields, both fed the same sample: a stride that
-    # slipped would show here and nowhere else.
+    # One record, two fields, both fed the same sample: a stride that slipped
+    # would show here and nowhere else.
     if len(layout['fields']) > 1:
         other = layout['fields'][1]['signal']
         report.check('both fields of a record hold the same sample',
@@ -266,12 +233,7 @@ def pass_exact_transport(device, args, report):
 
 
 def pass_exact_filter(device, chain, args, report):
-    """The filter, per sample, against the same arithmetic in float64.
-
-    The input is the ramp again - known exactly - so the host runs the very
-    difference equation the board runs and compares record by record. Not a
-    tolerance on a statistic: a tolerance on ONE sample, every one checked.
-    """
+    """The filter, per sample, against the same arithmetic in float64."""
     print('\n-- exact: the same ramp through %d biquads --'
           % len(chain['sections']))
     layout, got = ramp_capture(device, args, chain['sections'], report)
@@ -280,18 +242,13 @@ def pass_exact_filter(device, chain, args, report):
     name = layout['fields'][0]['signal']
     n, dec = args.accumulate, args.decimate
 
-    # The board starts the filter from rest with the task, so the host runs
-    # the whole sequence from the same rest. Every boxcar mean the board
-    # made, in order, is the filter's input.
+    # The board starts the filter from rest with the task, so the host runs the
+    # whole sequence from the same rest.
     means = [ramp_record(b * n, n, args.step, args.modulus, 0) / float(n)
              for b in range((len(got) + 2) * dec)]
     kept = biquad_run(chain['sections'], means)
 
-    # IN CODES, not relative to the sample. The filter starts from rest and
-    # its first outputs are near zero, where a relative error is enormous
-    # and meaningless - 1.3e-3 at record 0, measured, against nothing wrong.
-    # A record is a sum of `n` codes, so dividing by `n` puts the comparison
-    # in the units the data is actually in.
+    # IN CODES, not relative to the sample.
     worst, at = 0.0, -1
     for k, record in enumerate(got):
         want = kept[(k + 1) * dec - 1]
@@ -342,8 +299,8 @@ def pass_in_band(device, chain, args, report):
         return
     steps, windows = phase_steps(values, lands, chain['out_rate'], window)
     worst = max((abs(s) for s in steps), default=0.0)
-    # One lost record moves every sample after it by a whole sample's worth
-    # of phase. Anything smaller than a third of that is jitter, not a gap.
+    # One lost record moves every sample after it by a whole sample's worth of
+    # phase.
     per_record = 2.0 * math.pi * lands / chain['out_rate']
     ranked = sorted((abs(s) for s in steps), reverse=True)
     report.check('the phase never jumped - nothing fell out of the stream',
@@ -443,8 +400,8 @@ def main(argv=None):
     chain = bessel.design(fs=float(args.rate), out_rate=float(args.out),
                           order=args.order)
     if not args.alias:
-        # Folded onto the in-band tone's own frequency: the strongest form
-        # of the question, because the two are then indistinguishable in the
+        # Folded onto the in-band tone's own frequency: the strongest form of
+        # the question, because the two are then indistinguishable in the
         # record and only the filter can have stopped one.
         harmonic = int(chain['fs'] / 4.0 / chain['out_rate'])
         args.alias = int(harmonic * chain['out_rate']) + args.tone

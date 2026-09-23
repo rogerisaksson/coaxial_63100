@@ -68,8 +68,8 @@ def cmd_analog(board, args):
 
 
 def cmd_scan(board, args):
-    # Like the other reading commands: the scan refuses with the front end
-    # off, because mid-scale would come back as exactly 25.00 C.
+    # Like the other reading commands: the scan refuses with the front end off,
+    # because mid-scale would come back as exactly 25.00 C.
     board.afe.enable()
     for key, value in board.analog.scan().items():
         print('  %-16s %s' % (key, value))

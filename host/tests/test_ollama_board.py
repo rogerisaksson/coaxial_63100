@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""The board, its channels, its pins, the AFE.
-
-Split out of test_ollama.py, which had grown to 5,496 lines and 733 checks in
-one file - a third of every check this tree has, and the reason a coverage
-tier could not be asked for at any useful resolution. One subject per file
-now, so a tier buys them separately and a reader opens the one they meant.
-
-Run from the host directory:  python tests/test_ollama_board.py
-"""
+"""The board, its channels, its pins, the AFE."""
 import os
 import sys
 
@@ -17,13 +9,7 @@ from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession,
     call, io, toolmod)   # noqa: E402
 
 def test_afe_trace(report):
-    """A switch that did what it was told needs no line of its own.
-
-    Measured: "sla pa afen" traced `on=1 pe15=0` above an answer that said
-    the same thing in words. `on=1` is also the only evidence the write
-    landed, so the line goes only when the read-back matches what was
-    asked - a request that did not take still prints, loudly.
-    """
+    """A switch that did what it was told needs no line of its own."""
     from coaxial_ollama import debug
 
     for action, raw, silent, why in (
@@ -58,13 +44,7 @@ def test_afe_trace(report):
                  said == 'AFE är nu påslagen.', said)
 
 def test_digital_read(report):
-    """Listing the channels and reading them are two questions.
-
-    Measured: "ge mig en lista over alla digitala varden" - values - was
-    answered with the channel list, because that is all there was. gpio_pin
-    reads one pin and gpio_port hands back a register for the model to pick
-    bits out of, which is arithmetic this library exists not to hand it.
-    """
+    """Listing the channels and reading them are two questions."""
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_mcp import tools as mcp
 
@@ -87,11 +67,7 @@ def test_digital_read(report):
                  'PB2  out   1' in hot and 'PB2  out   0' in cold)
     # nFAULT is not read here any more: PE15 became TIM1_BKIN, so it is
     # reserved rather than digital I/O and driving it would disconnect the
-    # break (board_io.c). Its level still inverts with the front end, and
-    # afe_power is where the board reports it - see FINDINGS: 0 with the front
-    # end powered reads as a fault asserted, and what drives it is not
-    # established. Asserted because it is what the board does, not because it
-    # is understood.
+    # break (board_io.c).
     report.check('nFAULT is not a channel a fixture may drive',
                  'PE15' not in hot and 'PE15' not in cold)
     report.check('and it still reads back inversely, through afe_power',
@@ -106,9 +82,7 @@ def test_digital_read(report):
     report.check('a bus pin is not among them - it is not a channel',
                  'PB10' not in hot and 'PA13' not in hot)
 
-    # A tool the model cannot call is a tool that does not exist. Measured:
-    # digital_read worked and the question still came back with the list,
-    # because it was in no named set and the default one is `code`.
+    # A tool the model cannot call is a tool that does not exist.
     from coaxial_ollama import debug as debugmod
     missing = [name for name in ('read', 'code', 'pins')
                if 'digital_read' not in debugmod.SETS[name]]
@@ -116,13 +90,7 @@ def test_digital_read(report):
                  not missing, ', '.join(missing) or 'read, code, pins')
 
 def test_channel_map(report):
-    """The board describes itself; nothing above it keeps a copy.
-
-    Command 0x6D reports every channel - analog and digital - with the
-    direction each one runs. The host used to hold three separate answers to
-    "what is PB10": the firmware's testrig table, the firmware's pin table,
-    and protocol.RESERVED_PINS. There is one now, and the other two read it.
-    """
+    """The board describes itself; nothing above it keeps a copy."""
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial import protocol
 
@@ -134,15 +102,12 @@ def test_channel_map(report):
                  '%d analog, %d digital, %d reserved'
                  % (len(chart['analog']), len(chart['digital']),
                     len(chart['reserved'])))
-    # The separation is the point, not a flag on a row: what a fixture may
-    # set without breaking anything is a different question from what the
-    # bus and the debug port sit on, and mixing them invites a pin write
-    # that gets refused.
+    # The separation is the point, not a flag on a row: what a fixture may set
+    # without breaking anything is a different question from what the bus and
+    # the debug port sit on, and mixing them invites a pin write that gets
+    # refused.
     io_pins = {r['pin'] for r in chart['digital']}
-    # A superset, not an equality. Adding a pin to the board is meant to be
-    # one row in s_digital and nothing else; a check that froze the whole set
-    # made it two, and the property this is named for - that nothing here is
-    # a pin the bus or the probe sits on - is the check below.
+    # A superset, not an equality.
     report.check('digital I/O carries the board controls it has always had',
                  io_pins >= {'PB2', 'PE14', 'PA10'}, ', '.join(sorted(io_pins)))
     report.check('and no bus or debug pin is among the channels',
@@ -163,9 +128,8 @@ def test_channel_map(report):
                  all(any(r['pin'] == pin for r in chart['reserved'])
                      for pin in ('PB10', 'PB11')))
 
-    # The static copy is the fallback, and it must not drift from the map
-    # while it exists. A pin the board calls reserved and this dict does not
-    # is the disagreement the whole change exists to prevent.
+    # The static copy is the fallback, and it must not drift from the map while
+    # it exists.
     refused = {r['pin'] for r in chart['reserved']}
     stale = {'P%s%d' % key for key in protocol.RESERVED_PINS} - refused
     report.check('the static fallback names no pin the board does not',

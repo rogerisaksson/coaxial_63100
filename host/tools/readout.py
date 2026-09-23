@@ -70,10 +70,11 @@ def identity_of(port, simulated):
 
 
 def suites_measured():
-    """(suites measured here, suites in the tree, checks measured) or
-    None: the counts file is per machine, a fresh clone has measured
-    nothing, and a tier runs a subset - so the readout says how many of
-    the tree's suites this terminal has run."""
+    """(suites measured here, suites in the tree, checks measured) or None:
+    the counts file is per machine, a fresh clone has measured nothing,
+    and a tier runs a subset - so the readout says how many of the tree's
+    suites this terminal has run.
+    """
     tests = os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), 'tests')
     try:
@@ -90,10 +91,7 @@ def suites_measured():
 
 
 def _leader(label, value, width, cols):
-    """`LABEL ...... VALUE`, the dots to the leader column `cols`; a
-    value past the width is wrapped under the column, and a label past
-    the column keeps its row to itself with the value under it - so a
-    narrow box still fits every line."""
+    """`LABEL ......"""
     label = label.upper()
     dots = '.' * max(1, cols - len(label) - 1)
     head = label + ' ' + dots + ' '
@@ -120,11 +118,8 @@ def _said(text, width, style='name'):
 
 def pages(identity, width, note=None, preload=None):
     """`[(title, rows)]` - each row a tuple of (style, text) runs, no row
-    wider than `width`. With no identity yet, the one page the machine
-    has to say - and `note`, a link's refusal in its own words, under
-    it. `preload`, when the front page is fetching the model's
-    decimates behind itself, is the first page: what is being loaded
-    and the room it has (`coaxial.preload`)."""
+    wider than `width`.
+    """
     def table(pairs):
         cols = _column([label for label, _v in pairs], width)
         rows = []
@@ -271,10 +266,7 @@ def frame(state, inquiry, count, now, width):
 
 def draw(state, identity, width, rows, now=None, note=None, preload=None):
     """One frame of the readout for a box `width` cells wide with `rows`
-    rows inside it, stepping `state` on the way. The preload's inquiry
-    shows ONCE: after it has typed, held and decayed the pages go on
-    without it and it never comes round again - what was fetched is
-    news the first time and a loop the second (the bench, 2026-09-23).
+    rows inside it, stepping `state` on the way.
     """
     now = time.monotonic() if now is None else now
     if state.get('preloaded'):

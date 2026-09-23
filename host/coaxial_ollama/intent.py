@@ -1,34 +1,8 @@
-"""Compile the operator's sentence into a plan, before the model sees it.
-
-One turn used to do two jobs - work out what was asked, then answer with the
-right tool - and every failure was the first showing up in the second: "ge mig
-en lista over de analoga vardena" carries the word for a map and the word for a
-read in one sentence, and a single pass took the verb.
-
-So the sentence is classified first against seven named intents, and one with an
-unambiguous answer compiles to `plan()`: calls the host makes itself. The model
-is handed the output and asked for a sentence with **no tools offered**, so
-there is no tool choice left to get wrong.
-
-That replaced three backstops policing a choice that need not have been the
-model's: a SYSTEM rule about nouns, a per-turn hint naming the tool, and a
-redirect that leaked its own text onto the operator's screen.
-
-Every way the compile can fail leaves the turn as it was before this module
-existed - the model picks its own tools, one pass:
-
-  * ollama unreachable, or the extra call raising for any reason
-  * a reply that is not the JSON it was asked for
-  * an intent this file has no name for
-  * an intent that plans nothing - `words`, `control`, `power`, `devices`
-"""
+"""Compile the operator's sentence into a plan, before the model sees it."""
 import json
 from .client import FAULTS
 
-# What an operator can be asking for at this bench. Seven, because the axis
-# that kept being confused is one line of it - map against read - and a model
-# choosing between seven named things is doing something easier than a model
-# choosing between fifteen tool schemas.
+# What an operator can be asking for at this bench.
 INTENTS = {
     'map':     'what exists on the board - channels, pins, or which subsystems'
                ' it is made of. No values',
@@ -41,31 +15,13 @@ INTENTS = {
     'orient':  'how the board is turned or oriented - a picture, not numbers',
 }
 
-# Measured against gemma4:12b, 12 questions, ~2.75 s each. "talk to the
-# right knee" and "switch to the debug probe" both came back 'link' at
-# first,
-# because the catalogue called link "the serial link itself: is it up" and
-# both questions are about a connection in some sense. Narrowing link to a
-# failure, and saying "start talking to one by name" under devices, moved the
-# first: 11 of 12.
-#
-# The twelfth is still wrong and still does not matter: board_switch() in
-# debug.py carries "switch to the debug probe" out itself, for no model
-# tokens,
-# before anything reaches here. A control sentence the host recognises is
-# never compiled.
+# Measured against gemma4:12b, 12 questions, ~2.75 s each.
 
-# Which kind of channel, where the intent has one. 'both' is a real answer:
-# "read everything" is one question and two calls.
-# 'imu' is a third kind of channel, not a fourth intent: asking the IMU for
-# its values is still a read, and routing it as one keeps the classifier
-# choosing between the same seven things.
+# Which kind of channel, where the intent has one.
 KINDS = ('analog', 'digital', 'imu', 'angle', 'subsystems', 'parts',
          'both', 'none')
 
-# Intent to tool, for the pairs where it is unambiguous. 'words' and 'control'
-# map to nothing on purpose: naming a tool for them is how a request for a
-# description turned into a channel table.
+# Intent to tool, for the pairs where it is unambiguous.
 TOOL = {
     'map': 'board_info',
     'power': 'afe_power',
@@ -81,9 +37,7 @@ READ = {
     'none': 'analog_read',
 }
 
-# What the hint calls each intent. Separate from INTENTS, which is written to
-# be chosen between and reads badly in a sentence: "asking for explain,
-# describe, define, compare" was the first version of this line.
+# What the hint calls each intent.
 SAYS = {
     'map':     'what exists on the board',
     'read':    'the present value of channels or pins',
@@ -136,18 +90,7 @@ SCHEMA = {
 
 
 def plan(intent, kind):
-    """The calls the host makes itself, as ((name, args), ...).
-
-    Empty when the question is not one the loop can answer without the model
-    deciding something - `words`, `control`, or a compile that failed.
-
-    This is the whole point of compiling. A planned turn has no tool choice
-    left in it: the calls are made, the results are on screen, and the model
-    is asked for a sentence with no tools offered at all. Three backstops
-    existed to police a choice that did not have to be the model's - a
-    SYSTEM rule, a per-turn hint, and a redirect that leaked its own text
-    onto the operator's screen. All three are gone.
-    """
+    """The calls the host makes itself, as ((name, args), ...)."""
     if intent == 'map':
         section = (kind if kind in ('analog', 'digital', 'subsystems',
                                     'parts')
@@ -201,19 +144,14 @@ def hint(intent, kind):
     if tool:
         return ('\nThe operator is asking for %s - answered by %s.'
                 % (what, tool))
-    # Saying which call is wrong is worth more here than saying nothing:
-    # the measured failure was a description answered with a table.
+    # Saying which call is wrong is worth more here than saying nothing: the
+    # measured failure was a description answered with a table.
     return ('\nThe operator is asking for %s. This needs no board '
             'call.' % what)
 
 
 def compile_intent(client, text):
-    """(intent, kind, why). (None, None, reason) when it could not be read.
-
-    Asked through `client` itself, with the schema and a small budget
-    overridden for that one call, so the model stays exactly as loaded as it
-    was: a short prompt and about forty tokens out, and no reload.
-    """
+    """(intent, kind, why)."""
     text = (text or '').strip()
     if not text:
         return None, None, 'nothing was asked'
@@ -222,16 +160,7 @@ def compile_intent(client, text):
             return None, None, 'no model tag to ask'
         catalogue = '\n'.join('  %-8s %s' % (name, INTENTS[name])
                               for name in sorted(INTENTS))
-        # The turn's own client, overridden for one call. A second Ollama
-        # was tried first and was the wrong shape: ollama keys a loaded
-        # runner on num_ctx, so asking for the same tag at a different
-        # window unloaded and reloaded the weights once per question.
-        # Same client, same window, same resident model - only the schema
-        # and the token budget move.
-        #
-        # think=False: this is a classification against an enum, and
-        # measured on tools/pick_tests.py, thinking spent the whole
-        # num_predict budget reasoning and returned an empty content.
+        # The turn's own client, overridden for one call.
         message = client.chat([{'role': 'user',
                                 'content': ASK % (catalogue, text)}],
                               fmt=SCHEMA, think=False, num_predict=80)

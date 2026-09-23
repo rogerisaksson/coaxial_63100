@@ -22,9 +22,8 @@ import re
 import subprocess
 import sys
 
-# host/ on the path: this file's own directory's parent, so it does
-# not matter what the working directory is or what any directory
-# along the way is called.
+# host/ on the path: this file's own directory's parent, so it does not matter
+# what the working directory is or what any directory along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.ports import (ANSWERED, discover, find, kinds,  # noqa: E402
@@ -39,31 +38,7 @@ def _text(out):
 
 
 def check_power(timeout=15):
-    """(voltage_or_None, detail). Whether the ST-Link senses power on the
-    target at all - the most fundamental check there is, and one the serial
-    side cannot make on its own: a board with no target voltage is never
-    going to answer over USART3, whatever the COM port list says. Measured
-    live : an unplugged ST-Link cable read `Voltage: 0.00V`
-    from STM32_Programmer_CLI, with the serial side reporting nothing more
-    specific than silence.
-
-    Runs a bare SWD connect, no flash - `build_and_flash.py`'s own
-    toolchain-path resolution finds the programmer, since it is not on PATH
-    unless env.ps1 has already run in this shell.
-
-    `mode=HOTPLUG`, never `mode=UR`. Connect-under-reset asserts NRST, and
-    this call has a timeout that kills the programmer where it stands: a
-    connect killed mid-reset can leave the target held there, and a halted
-    core answers nothing on USART3. Measured - a `--power`
-    run timed out at 15s, and every serial call afterwards was silent, on
-    both the console and raw Modbus, until `-c port=SWD mode=UR --start`
-    brought it back. HOTPLUG cannot do that: it never touches reset.
-    Diagnosing the link must not be able to break it.
-
-    voltage is None only when the programmer could not be found, or wrote
-    no reading before its timeout killed it - not the same as 0.00V, which
-    is a real reading that says the target has none.
-    """
+    """(voltage_or_None, detail)."""
 
     import build_and_flash   # lazy: build_and_flash imports _text from here
 
@@ -81,12 +56,8 @@ def check_power(timeout=15):
                               timeout=timeout)
         output = (done.stdout or '') + (done.stderr or '')
     except subprocess.TimeoutExpired as exc:
-        # The voltage is printed in the first second; the run then spends
-        # the rest on a second connect attempt at 8MHz. Measured with no
-        # target: 30.3s total against this 15s budget, and `exc.stdout`
-        # already holding `Voltage: 0.00V`. Parsing it is the difference
-        # between answering the question this check exists for and
-        # reporting "unknown" for the one case it was written to catch.
+        # The voltage is printed in the first second; the run then spends the
+        # rest on a second connect attempt at 8MHz.
         timed_out = True
         output = _text(exc.stdout) + _text(exc.stderr)
     match = re.search(r'Voltage\s*:\s*([\d.]+)\s*V', output)

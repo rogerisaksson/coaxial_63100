@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""The session language, its lock, and the phrase table.
-
-Split out of test_ollama.py, which had grown to 5,496 lines and 733 checks in
-one file - a third of every check this tree has, and the reason a coverage
-tier could not be asked for at any useful resolution. One subject per file
-now, so a tier buys them separately and a reader opens the one they meant.
-
-Run from the host directory:  python tests/test_ollama_language.py
-"""
+"""The session language, its lock, and the phrase table."""
 import os
 import sys
 
@@ -55,11 +47,7 @@ def test_screen_language(report):
     report.check('a reading is not touched - no channel name is translated',
                  language.localise(table, 'Swedish') == table)
 
-    # Two signals, and they are not the same one. The greeting has no question
-    # to read, so it takes the machine's locale; everything after it follows
-    # the question. `screen` is the fallback for the case detect() abstains,
-    # and it is None here on purpose - a suite that read the Windows locale
-    # would pass on one machine and fail on the next.
+    # Two signals, and they are not the same one.
     box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     talk = debug.Chat(ScriptedModel([], model='gemma4:12b'), box,
                       out=io.StringIO())
@@ -83,8 +71,8 @@ def test_screen_language(report):
     report.check('and asking for one outright moves it too',
                  local.language == 'Swedish', local.language)
 
-    # Every locale this module can name must have a greeting, or a machine
-    # set to it opens in English for no reason anyone can see.
+    # Every locale this module can name must have a greeting, or a machine set
+    # to it opens in English for no reason anyone can see.
     missing = [name for name in set(language._LOCALE_CODES.values())
                if name not in language.GREETINGS]
     report.check('every locale it recognises has a greeting',
@@ -103,8 +91,8 @@ def test_screen_language(report):
         with io.open(os.path.join(os.path.dirname(os.path.dirname(
                 os.path.abspath(__file__))), name), encoding='utf-8') as handle:
             sources.append(handle.read())
-    # Quotes stripped before comparing: the source splits these strings
-    # across lines, so the literal run is broken by a `' '` at every wrap.
+    # Quotes stripped before comparing: the source splits these strings across
+    # lines, so the literal run is broken by a `' '` at every wrap.
     joined = ' '.join(_flat(text) for text in sources)
     orphans = [key for key in language.PHRASES['Swedish']
                if _flat(_unformat(key)) not in joined]

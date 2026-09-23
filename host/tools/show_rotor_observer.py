@@ -139,10 +139,10 @@ CAPTION_ROWS, FOOT_ROWS = 5, 1
 #: spending the row of air that was under the bottom gauge. Can 2..16,
 #: winding 17, watts 18, labels on the row below the box.
 class Box:
-    """The machine's drawing this frame: its columns, the braille rows
-    the art gets, and the rows the page spends on it with the captions
-    and the foot. `fit` sets it from the terminal every frame; the
-    nominal until then, and piped."""
+    """The machine's drawing this frame: its columns, the braille rows the
+    art gets, and the rows the page spends on it with the captions and
+    the foot.
+    """
     def __init__(self, width, height):
         self.width, self.height = width, height
         self.rows = height - CAPTION_ROWS - FOOT_ROWS
@@ -188,29 +188,10 @@ def _width_for(can):
 
 def fit(aspect, size=None):
     """Size the box to the can on THIS terminal - and, given the console's
-    `size`, to the terminal as it is NOW: the width the page leaves beside
-    the instrument column, the band it leaves under the captions, and the
-    can the smaller of the two allows, the gutters drawn in against it.
-    Without a size - a piped run, the start - the nominal width.
-
-    THE BAND WAS A CONSTANT AND THE CAN IS NOT. The can is sized by the
-    WIDTH the gutters leave it, and how many rows that is depends on how
-    tall a cell is: at two-by-one it is 13.5 rows, at 2.3 it is 11.7.
-    The band was fifteen either way, and the spare rows were split above
-    and below the machine - so on the bench's terminal the legend floated
-    a row and a half over the motor and the foot gauges a row and a half
-    under it. Measured, before this: 1.5 rows of air above at 2.3, 0.6 at
-    two.
-
-    Fitted, the box is as tall as the can plus the hop and the floor.
-    `+ 2` in the diameter because `_Radii` keeps a dot off each edge, and
-    a band that forgot that shrank the can by half a dot to fit.
-
-    `BOX`, set from a measured aspect - the same standing as
-    `CELL_ASPECT` itself - and every place that needs the size reads it
-    when it draws; on a terminal `draw` sets it every frame, so a resize
-    is the next frame's size (bench 2026-09-13: it scales with the
-    terminal's size).
+    `size`, to the terminal as it is NOW: the width the page leaves
+    beside the instrument column, the band it leaves under the captions,
+    and the can the smaller of the two allows, the gutters drawn in
+    against it.
     """
     stretch = aspect / machine.DOTS_Y * machine.DOTS_X
     width = (NOMINAL_WIDTH if size is None else
@@ -573,19 +554,7 @@ def observer_rows(view):
 
 
 def travel(view):
-    """How far the rotor has actually turned, in mechanical degrees.
-
-    INTEGRATED, not read off an angle. A shaft sensor would be better and
-    this board has one, but it reads a machine that may not be on the
-    shaft yet; the observers report a speed whatever is mounted. At two
-    hundred rpm the rotor is turning three times a second and this page
-    redraws eight, so no sampled angle could be unwrapped anyway - the
-    integral is what stays right across that.
-
-    It drifts exactly as the speed estimate does, which is the honest
-    property: a pointer that has wandered off the mark it was tared to
-    is an observer that has been wrong, and that is worth seeing.
-    """
+    """How far the rotor has actually turned, in mechanical degrees."""
 
     now = time.monotonic()
     was = view.get('travel_at')
@@ -605,27 +574,13 @@ def pointer_rate(view):
 
 
 def _place(row, name, columns, right_edge=False, until=None):
-    """Write `name` over `columns`, centred, clamped to the frame.
-
-    Answers the column it started at, or None if it wrote nothing: a
-    row with two readings on it in two different inks has to be cut where
-    they actually landed, and the clamps above mean that is not where the
-    caller asked for them.
-
-    `until` is the last column it may occupy, for a name that has a
-    neighbour outboard of it: `BOARD` is five characters over four
-    columns of thermometers and `kW` sits two columns further out, so
-    without one they came out as `BOARDkW` with nothing between them.
-    """
+    """Write `name` over `columns`, centred, clamped to the frame."""
     if not columns or not name:
         return None
     middle = (min(columns) + max(columns)) / 2.0
     at = (BOX.width - len(name) if right_edge
           else int(round(middle - (len(name) - 1) / 2.0)))
-    # A NAME WIDER THAN ITS GROUP LEANS INWARD. `BOARD` is five over four
-    # columns of thermometers, and centred it ran one past them and took
-    # the `D` off itself when `kW` landed on the same cell. Toward the
-    # machine there is always air; outward there is the frame.
+    # A NAME WIDER THAN ITS GROUP LEANS INWARD.
     if not right_edge:
         at = min(at, max(columns) + 1 - len(name))
     if until is not None:
@@ -636,29 +591,7 @@ def _place(row, name, columns, right_edge=False, until=None):
 
 
 def reference(view):
-    """The NTC, as text: the one MEASURED temperature on this page.
-
-    EVERY OTHER FIGURE HERE IS AN ESTIMATE. The ten node temperatures are
-    a lumped network's opinion, the winding is `3 i^2 R` relaxed into a
-    placeholder pair, and none of them has a sensor in it. The NTC has
-    one - a thermistor beside the middle gate driver - and it is the only
-    thing on the drawing a thermocouple could argue with. It sits above
-    the headroom scale as the reference the rest is judged against, in
-    the ink this page gives what is known rather than modelled.
-
-    `None` is what the board answers with AFE_ON low, because the AFE
-    powers the ADC reference and there is no reading at all then
-    (invariant 9). It says so rather than drawing a number: a dash cannot
-    be mistaken for a cold board.
-
-    AGAINST THE STAND-IN IT IS NOT A MEASUREMENT. `SimulatedThermal`
-    computes it with `thermal.expected_ntc` off its own nodes, so
-    simulated this line is the model agreeing with itself and proves
-    nothing about the model. The page's own SIMULATED banner is what says
-    which one you are looking at; there is no second caveat here because
-    a field that cried wolf on every simulated run would be ignored on
-    the one that mattered.
-    """
+    """The NTC, as text: the one MEASURED temperature on this page."""
     seen = (view.get('thermal') or {}).get('ntc')
     if seen is None:
         return 'NTC  unread'
@@ -666,19 +599,7 @@ def reference(view):
 
 
 def hottest(view, names):
-    """The hottest node of a group: `(celsius, class)`.
-
-    THE HOTTEST, not the mean. A group is as hot as its worst part, and
-    an average over six legs hides the one that is cooking behind five
-    that are not - the same reason `headroom` takes the worst node.
-
-    Degrees off `state`, colour off `budget`: the tubes below are
-    fractions of each node's own ceiling and this is a temperature, so
-    the tallest tube and the hottest node can be different nodes. They
-    are two questions - how close, and how hot - and the board answers
-    both because neither can be worked out from the other without the
-    limit, which lives in the calibration record.
-    """
+    """The hottest node of a group: `(celsius, class)`."""
     nodes = (view.get('thermal') or {}).get('nodes') or {}
     budget = view.get('budget') or {}
     seen = [name for name in names if nodes.get(name) is not None]
@@ -690,12 +611,7 @@ def hottest(view, names):
 
 
 def _tinted(row, marks):
-    """`row`, a list of characters, as a string with `marks` coloured.
-
-    `marks` are `(at, length, ink)`. Two readings on one row in two inks
-    cannot be tinted as a line - one colour would have to lie about one
-    of them - so the row is cut where each actually landed.
-    """
+    """`row`, a list of characters, as a string with `marks` coloured."""
     out, cut = [], 0
     for at, length, ink in sorted(marks):
         out.append(''.join(row[cut:at]))
@@ -706,103 +622,55 @@ def _tinted(row, marks):
 
 
 def _lane(column, first):
-    """Which half of its cell a leader falls down: 0 left, 1 right.
-
-    THE FAR SIDE FROM WHERE THE RUN CAME. A line arriving from the left
-    and turning down on the left lane crosses the corner and comes back
-    a dot, which reads as an overshoot; on the right lane it turns where
-    it arrives. `first` is the machine's left edge, so a tube inboard of
-    it was reached from the right and one outboard from the left.
-    """
+    """Which half of its cell a leader falls down: 0 left, 1 right."""
     return 0 if column < first else 1
 
 
 def _legend(row, text, ink, column, centred):
-    """One legend: a name with its value, an arrowhead over its own
-    column, and the row it was written on.
-
-    `centred` puts the words over the machine rather than against the
-    head. A head out in the middle of a gutter has room for them there,
-    and two labels leaning toward their own sides sat at different depths
-    and read as ragged.
+    """One legend: a name with its value, an arrowhead over its own column,
+    and the row it was written on.
     """
     return (row, text, ink, column, centred)
 
 
 def _legend_targets(view, left, right):
-    """Every legend as `(row, text, ink, column, centred)`.
-
-    SPLIT OUT BECAUSE TWO THINGS DRAW THEM. The caption needs the
-    whole row and the drawing needs only the COLUMNS each one
-    lands on, and building the list twice is two answers to where
-    a legend points.
-    """
+    """Every legend as `(row, text, ink, column, centred)`."""
     bars = headrooms(view)
     said = []
     first, last = machine.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
-    # THE MEASUREMENT FIRST, at the top, because everything under it is
-    # an estimate and a page that opens with a model teaches a bench to
-    # trust one. It had a row of its own and no tube to point at; it
-    # names the tube that carries it now, like everything else here.
+    # THE MEASUREMENT FIRST, at the top, because everything under it is an
+    # estimate and a page that opens with a model teaches a bench to trust one.
     seen = (view.get('thermal') or {}).get('ntc')
     if len(left) > NTC_AT and seen is not None:
-        # ITS OWN TUBE'S COLOUR, like every other legend here: the name
-        # and the level it belongs to share an ink, and for this one that
-        # is the thermometer ramp rather than a margin's green to red.
+        # ITS OWN TUBE'S COLOUR, like every other legend here: the name and the
+        # level it belongs to share an ink, and for this one that is the
+        # thermometer ramp rather than a margin's green to red.
         said.append(_legend(0, reference(view),
                             machine.INK[ntc_class(seen)], left[NTC_AT], True))
     # SWITCH SECOND AND BOARD LAST, with the motor's margin between them.
-    # NOTHING CROSSES that way: each leader reaches further out than the
-    # one above it on its own side, so no line has to pass under another
-    # name to get where it is going.
     for group, columns, name, centred in (
             (SOA_NODES, left, 'SWITCH TEMPS', True),):
         peak, cls = hottest(view, group)
         if peak is None or not columns:
             continue
         # THE MIDDLE OF ITS OWN GROUP, not the edge nearest the machine.
-        # A line falling on the inner tube said "this one" about a stack
-        # of six; falling on the middle of them it says "these".
-        #
-        # TWO TUBES INBOARD OF THE HALFWAY MARK. The group is eight
-        # columns wide with a spacer and the NTC in it, so the middle of
-        # the LIST is two columns outboard of the middle of the six this
-        # legend actually names - and against BOARD TEMPS, which sits
-        # inboard on its own four, the two stacks read as leaning apart.
         seat = columns[len(columns) // 2 - 2]
         said.append(_legend(len(said), '%s %.1f %sC' % (name, peak, DEGREE),
                             machine.INK[cls], seat, centred))
 
     # THE MARGINS LAST, under the NTC and nearest the tubes they name.
-    # They were first, at the top of the page, on the argument that a
-    # bench looks at them first - and their lines then had to fall the
-    # whole depth of the stack past three other legends. Read top down
-    # the page now says what the parts are, what the one sensor reads,
-    # and then how much room is left, and every leader is short.
     for index in reversed(range(len(HEADROOM_TITLES))):
         if len(right) > HEADROOM_AT:
             share, cls = bars[index]
             said.append(_legend(
                 len(said),
-                # A DECIMAL, BECAUSE THE TUBE CANNOT SHOW THIS. A cold
-                # board spends a tenth of its budget, so both margins
-                # live in the bottom row or two of a fifteen-row tube and
-                # a bench watching one warm up sees nothing move. The
-                # SCALE is right - a board at a tenth of its ceiling
-                # should read a tenth, and stretching it would be the
-                # drawing having an opinion about a margin (invariant
-                # 10). What can carry the movement without lying is the
-                # figure beside the name, and whole percent was too
-                # coarse: 8 % stood while the node climbed four degrees.
+                # A DECIMAL, BECAUSE THE TUBE CANNOT SHOW THIS.
                 '%s %.1f %%' % (HEADROOM_NAMES[index], 100.0 * share),
                 machine.INK[cls], right[HEADROOM_AT + index], True))
     peak, cls = hottest(view, BOARD_NODES)
     if peak is not None and right:
-        # ONE TUBE FURTHER IN than the middle of its four. Its run passes
-        # under two lines already falling to the margins outboard of it,
-        # and reaching the middle it ended a hair from them; a notch
-        # shorter and the row has air where the others have ink.
+        # ONE TUBE FURTHER IN than the middle of its four.
         said.append(_legend(
             len(said), 'BOARD TEMPS %.1f %sC' % (peak, DEGREE),
             machine.INK[cls], right[len(BOARD_NODES) // 2 - 1], True))
@@ -811,30 +679,12 @@ def _legend_targets(view, left, right):
 
 
 def foot_furniture():
-    """The two upside-down L's under the drawing, `(leaders, rules)`.
-
-    THE STROKE LEAVES THE ARROWHEAD, CLIMBS, AND TURNS IN. It used to
-    lie in the foot row itself, four braille cells rising through the
-    height of a single line - which is as much climb as one row has, and
-    at that size a stroke that rises reads as a stroke that is dotty.
-    The levels it names are IN the drawing, so the line goes there: a
-    column up from the head and a run inboard along the top of it, which
-    puts the corner over the bar and the whole shape between the label
-    and its level.
-
-    The winding is the upper of the two floor gauges and the power the
-    lower, so the left L climbs two rows and the right one, and neither
-    passes through the other.
-    """
+    """The two upside-down L's under the drawing, `(leaders, rules)`."""
     first, last = machine.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
     grey = machine.LEADER_GREY
-    # BOTH RUN PAST THE LAST ART ROW, because both carry on into the
-    # foot line where the arrowhead is. `machine` clips what falls off
-    # the drawing; what the extra row buys is the CORNER - one the line
-    # ends at is a hook and one it falls through reaches the cell's
-    # floor, and the kW corner came out `⠲` when the stroke below it
-    # is an arrow one row down.
+    # BOTH RUN PAST THE LAST ART ROW, because both carry on into the foot line
+    # where the arrowhead is.
     return ([(BOX.rows - 2, 0, BOX.rows + 1, grey, 0),
              (BOX.rows - 1, BOX.width - 1, BOX.rows + 1, grey, 1)],
             [(BOX.rows - 2, 0, max(0, first - 1), grey),
@@ -843,19 +693,10 @@ def foot_furniture():
 
 
 def legend_drops(view, left, right):
-    """One dotted hop into the drawing, under every legend.
-
-    THE LAST ROW HAD NONE. A leader falls through the caption rows
-    below its own, so the legend written on the bottom row ran
-    sideways and met its tube with nothing in between - a run that
-    stops, where the four above it are lines that arrive. One art
-    row is reserved for the hop, so all five land the same way.
-    """
-    # NONE, SINCE `HOP_ROWS` WENT TO ZERO - the corner glyph turns each
-    # run down in its last cell and the tube it lands on is a column, so
-    # the hop row bought nothing but a line break the bench counted. The
-    # function stays so the render call reads the same and a hop can
-    # come back by one constant if a tube ever stops being a column.
+    """One dotted hop into the drawing, under every legend."""
+    # NONE, SINCE `HOP_ROWS` WENT TO ZERO - the corner glyph turns each run
+    # down in its last cell and the tube it lands on is a column, so the hop
+    # row bought nothing but a line break the bench counted.
     return [(0, column, HOP_ROWS, machine.LEADER_GREY,
              _lane(column, machine.span(BOX.width, BOX.rows,
                                         LEFT_COLUMNS, RIGHT_COLUMNS)[0]))
@@ -864,18 +705,7 @@ def legend_drops(view, left, right):
 
 
 def _legend_rows(view, left, right):
-    """The caption rows: four legends and the NTC, in dots and text.
-
-    EVERY GROUP IS NAMED THE SAME WAY NOW. It was two rows of bare names
-    over the gutters with the readings on a third, which put `SWITCH` and
-    `BOARD` hard against the frame and made a reader carry the name down
-    to the tubes themselves. A name, its value, an arrowhead and a line
-    falling to what it names says the whole thing in one row and leans
-    the words inboard where there is room for them.
-
-    The lines run unbroken: a glyph in every row below their own, down to
-    the tubes they land on.
-    """
+    """The caption rows: four legends and the NTC, in dots and text."""
     said = _legend_targets(view, left, right)
     first, last = machine.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
@@ -883,10 +713,10 @@ def _legend_rows(view, left, right):
     for index in range(CAPTION_ROWS):
         line = [' '] * BOX.width
         marks = []
-        # THE LINES ALREADY FALLING pass through before anything is
-        # written, and the words are placed clear of them: without that a
-        # leader broke at the captions and picked up again inside the
-        # drawing, which read as two marks and not one line.
+        # THE LINES ALREADY FALLING pass through before anything is written,
+        # and the words are placed clear of them: without that a leader broke
+        # at the captions and picked up again inside the drawing, which read as
+        # two marks and not one line.
         for row, _text, _ink, column, _in in said:
             if row < index:
                 line[column] = DROP[_lane(column, first)]
@@ -895,15 +725,7 @@ def _legend_rows(view, left, right):
             if row != index:
                 continue
             # CENTRED OVER THE MACHINE when the head is out in a gutter's
-            # middle, hard against the head when it is the outermost
-            # tube. The two gutter groups read as one stack that way -
-            # leaning each toward its own side put them at different
-            # depths and the rows looked ragged.
-            # JUSTIFIED TO ITS OWN SIDE, not centred. Every arrowhead
-            # on the left sits in one column and every one on the right
-            # in another, so the two stacks read as two columns of
-            # pointers rather than five names at five depths. Centred,
-            # each head landed wherever its own name happened to end.
+            # middle, hard against the head when it is the outermost tube.
             if column < first:
                 at = first + 2
             else:
@@ -911,15 +733,7 @@ def _legend_rows(view, left, right):
             at = max(0, min(BOX.width - len(text), at))
             line[at:at + len(text)] = text
             marks.append((at, len(text), ink))
-            # THE HEAD AGAINST THE WORDS, the run in dots. An arrowhead
-            # parked out over its own column left the name floating in
-            # the middle with no thread between them; beside the text it
-            # says which way to look, and the braille carries the eye the
-            # rest of the way to the tube.
-            # A COLUMN OF AIR EITHER SIDE OF THE HEAD. Hard against
-            # the run, the arrowhead and the first dots read as one
-            # glyph - the head stopped being a head and became the end
-            # of the line. A space and it points AT something.
+            # THE HEAD AGAINST THE WORDS, the run in dots.
             if column < at:
                 head, span = at - 2, list(range(column, at - 3))
                 line[head] = AIM_LEFT
@@ -927,29 +741,18 @@ def _legend_rows(view, left, right):
                 head = at + len(text) + 1
                 span = list(range(head + 2, column + 1))
                 line[head] = AIM_RIGHT
-            # A COLUMN OF AIR BEFORE ANYTHING ALREADY FALLING. Two runs
-            # ending on adjacent tubes met their neighbour's drop and the
-            # pair read as one bracket; each stops short of the other's
-            # line now, which is what makes them separate pointers.
+            # A COLUMN OF AIR BEFORE ANYTHING ALREADY FALLING.
             span = [step for step in span
                     if line[step] not in DROP
                     and not (step + 1 < BOX.width
                              and line[step + 1] in DROP)]
             for step in span:
                 line[step] = LEADER
-            # AND THE FAR END TURNS, whatever the air rule did to the
-            # run. The corner is where the leader LANDS - trimmed with
-            # the rest for standing next to a neighbour's drop, the
-            # SWITCH SOA row ran six cells and then pointed at nothing.
-            # The air belongs to the horizontal; the endpoint is the
-            # whole errand.
+            # AND THE FAR END TURNS, whatever the air rule did to the run.
             turned = 0 <= column < BOX.width and line[column] not in DROP
             if turned:
                 line[column] = TURN[_lane(column, first)]
-            # ONE MARK A CELL. `_tinted` cuts the row at each mark and
-            # cannot overlap two - a second entry for a cell the run
-            # already marked emitted the character twice and every legend
-            # row came out a cell longer.
+            # ONE MARK A CELL.
             if turned and column not in span:
                 marks.append((column, 1, machine.LEADER_GREY))
             marks.append((head, 1, machine.LEADER_GREY))
@@ -961,55 +764,19 @@ def _legend_rows(view, left, right):
 
 
 def _foot_line(view):
-    """The row under the box: the winding and the link power.
-
-    OUT OF `gutter_caption` BECAUSE THAT ONE GREW PAST WHAT A
-    READER CAN HOLD. Three caption rows and a foot are four
-    different pieces of furniture; they were one function.
-    """
-    # THE TWO ALONG THE FOOT, named under them and CARRYING THEIR OWN
-    # NUMBERS. The top gauge is titled by the row above it; these have
-    # nothing above them but the drawing, so the arrows say which is
-    # which - the winding is the upper of the two and the power the
-    # lower. The value goes in the label because a level on a scale says
-    # how far along it is and never what it is worth, and the box that
-    # held the figures is four boxes down the column.
-    #
-    # EACH LABEL IN ITS OWN BAR'S INK. One grey line named two gauges
-    # drawn in two colours, so which word went with which bar was left to
-    # the arrows alone. The colour is the faster half of that answer.
-    # BOTH POINT UP, because both bars are above this row. It was an up
-    # and a down arrow meaning "the upper one" and "the lower one",
-    # which is an ordering a reader has to be told; the COLOUR already
-    # pairs each name with its own level, and the same head on both says
-    # the same thing the four legends above say.
-    # THE HEAD OUTBOARD, AT THE EDGE, and its line drawn in the picture
-    # above rather than along this row - `foot_furniture` has the shape
-    # and why. Inboard, the two strokes climbed toward each other across
-    # the middle of the row and the pair read as one broken rule between
-    # the labels.
+    """The row under the box: the winding and the link power."""
+    # THE TWO ALONG THE FOOT, named under them and CARRYING THEIR OWN NUMBERS.
     head = '%s WINDING %5.1f %sC' % (UP, winding(view), DEGREE)
     tail = 'POWER %5.2f kW %s' % (watts(view) / 1000.0, UP)
-    # A STROKE EACH, LEAVING THE HEAD AND RISING toward the level above
-    # it. The dots climb the cell - low pair, middle pair, top pair - so
-    # the line reads as one that goes out from the arrow, up, and then
-    # levels off along the bar it names. Flat, it pointed along the row
-    # and the bar it meant was the one nobody was looking at.
-    #
-    # THE THERMAL OBSERVER'S POLICY BETWEEN THEM: `TH OBS` in the
-    # leaders' grey, then the state's word in the margin's own colour -
-    # UNCR red, CONV yellow, STABLE green - since the state decides what
-    # the envelope keeps in hand. The bench's placement and words,
-    # 2026-09-05: between WINDING and the power, which is named POWER
-    # since; THERMAL OBSERVER with a policy word did not fit the row.
+    # A STROKE EACH, LEAVING THE HEAD AND RISING toward the level above it.
     label, word, ink = _policy(view)
     middle = len(label) + 1 + len(word)
     room = BOX.width - len(head) - len(tail)
     left = max(0, (room - middle) // 2)
     right = max(0, room - middle - left)
-    # THE FIGURE WEARS THE BAR'S INK: past 2 kW the bar goes the deep
-    # red of a limit, and a blue number under a red bar would be two
-    # answers to the same watt.
+    # THE FIGURE WEARS THE BAR'S INK: past 2 kW the bar goes the deep red of a
+    # limit, and a blue number under a red bar would be two answers to the same
+    # watt.
     foot = (tint(head, machine.INK[machine.SOA_WARN])
             + ' ' * left
             + tint(label, machine.LEADER_GREY) + ' ' + tint(word, ink)
@@ -1035,10 +802,8 @@ def _policy(view):
     the spans are whole - the bench's "make it visible that it throttles
     at 80 % of the SOA already, then 90, then 100 as the model's
     uncertainty goes to zero", continuous since 2026-09-06 - or a dash in
-    the leaders' grey before the board has answered op 10. STBL because
-    `STABLE 97%` is a cell wider than the row has between the gauges'
-    names: the bench's own abbreviation style, four letters and the
-    percent, and the whole word only where there is no percent to say."""
+    the leaders' grey before the board has answered op 10.
+    """
     ident = view.get('ident')
     state = ident['state'] if ident else None
     if state in POLICY_INK:
@@ -1048,20 +813,7 @@ def _policy(view):
 
 
 def _policy_word(ident, state):
-    """The state's word with the margin's percent, or the trip's.
-
-    THE TRIP HOLDS IT, not the model's doubt. `margin` is the least of
-    the identification's own and the trip cap (MINOR 17), and while the
-    cap is the one in hand AND UNDER THE FLOOR the word says so in the
-    trip's red: `STBL 72%` had the model sure of a number no state can
-    give - the bench seeing STBL at 70 % of SOA (2026-09-08).
-    Above the floor the number is one the model could own, and the word
-    goes back to the state's, the cap's percent still the one in force:
-    `TRIP 89%` sat on the foot with the model STABLE underneath - the
-    bench: it must let go of TRIP once over 80 % (the same day). The
-    floor is the wire's (MINOR 16), the record's 80 % unless a bench set
-    it.
-    """
+    """The state's word with the margin's percent, or the trip's."""
     margin = ident.get('margin', 1.0)
     percent = int(round(100.0 * margin))
     cap = ident.get('trip_cap', 1.0)
@@ -1075,27 +827,14 @@ def _policy_word(ident, state):
 
 
 def gutter_caption(view):
-    """The caption rows above the drawing, and the one under its foot.
-
-    Every gutter group is a legend now - `_legend_rows` has the shape -
-    and the foot keeps its own two, which name levels that lie along the
-    bottom of the drawing rather than stand in a gutter.
-    """
+    """The caption rows above the drawing, and the one under its foot."""
     left, right = machine.gutters(BOX.width, BOX.rows,
                                   LEFT_COLUMNS, RIGHT_COLUMNS)
     return _legend_rows(view, left, right) + [_foot_line(view)]
 
 
 def phase_amps(view):
-    """The three phase currents, and what to call full scale.
-
-    ONE DEFINITION, because the drawing and the legend beside it have to
-    agree: a tooth at full length and a bar at full width are the same
-    current or the picture is lying about itself. The board reports the
-    loop's dq means and the angle it holds them at; the phases are that
-    rotated back out, which is the same inverse Park and Clarke the
-    firmware does on its way to the compares.
-    """
+    """The three phase currents, and what to call full scale."""
     s = view['state']
     theta = s['theta_hat']
     cos, sin = math.cos(theta), math.sin(theta)
@@ -1103,24 +842,12 @@ def phase_amps(view):
     beta = s['id'] * sin + s['iq'] * cos
     root3 = math.sqrt(3.0) / 2.0
     amps = (alpha, -0.5 * alpha + root3 * beta, -0.5 * alpha - root3 * beta)
-    # FULL SCALE IS THE VECTOR, NOT THE TRIP. Scaled against `drv_i_max_ma`
-    # the bars were one cell of twelve and the teeth all stubs: the clamp
-    # is 5 A and this machine turns on a tenth of one, so the picture said
-    # 'nothing is happening' about a rotor that was running. The phases
-    # are projections of the commanded space vector, so that vector is
-    # what a full tooth means - and the three then pulse a third of a turn
-    # apart, which is the thing worth seeing.
+    # FULL SCALE IS THE VECTOR, NOT THE TRIP.
     return amps, math.hypot(s['id'], s['iq'])
 
 
 def phase_rows(view):
-    """The legend: which colour is which phase, and how hard it is driven.
-
-    The bar is the same ramp the teeth take, so this reads as a key to
-    the picture rather than a second instrument - and it pulses with it,
-    a third of a turn apart, which is what makes a still frame of a
-    three-phase machine make sense.
-    """
+    """The legend: which colour is which phase, and how hard it is driven."""
 
     amps, full = phase_amps(view)
     scale = full or max((abs(a) for a in amps), default=0.0) or 1.0
@@ -1139,20 +866,7 @@ def phase_rows(view):
 
 
 def identity(view):
-    """What machine the record says is on the shaft, or that it cannot say.
-
-    THE RECORD IS THE ONLY SOURCE. `motor_pole_pairs` and
-    `motor_lambda_uvs` are what `observer.autodetect` and
-    `tools/commission.py` write there, and a record without them is a
-    board that has not been told what it is driving - a state worth
-    naming rather than a row of zeros. Until it has been, every rpm on
-    this page is an electrical speed divided by a pole count nobody
-    measured, so the chip is amber and says IDENTIFYING.
-
-    The slot count is not in the record and cannot be: it is `--slots`,
-    a parameter of the drawing, and the name reads `24N28P` only because
-    a bench said the 24.
-    """
+    """What machine the record says is on the shaft, or that it cannot say."""
     params = view['params']
     pairs = int(params.get('motor_pole_pairs') or 0)
     lam = params.get('motor_lambda_uvs') or 0.0
@@ -1166,17 +880,7 @@ def identity(view):
 
 
 def torque(view):
-    """Shaft torque from the loop's own dq, newton-metres.
-
-    `1.5 p (lambda iq + (Ld - Lq) id iq)` - the magnet term and the
-    reluctance one - out of the calibration record's own constants, so it
-    is the same expression the firmware's model and every notebook use
-    rather than a fourth copy of it.
-
-    It is what the CURRENT implies, not what a shaft is measuring: this
-    board has no torque sensor, and an angle error the observers have not
-    noticed shows up here as torque that is not there.
-    """
+    """Shaft torque from the loop's own dq, newton-metres."""
     s, params = view['state'], view['params']
     pairs = params.get('motor_pole_pairs') or 0.0
     lam = params.get('motor_lambda_uvs') or 0.0
@@ -1186,18 +890,7 @@ def torque(view):
 
 
 def status_rows(view):
-    """Two rows, and neither of them is anywhere else on the page.
-
-    It said RUNNING SENSORLESS and the rpm, and DRIVE says the mode
-    (`SENSORLESS (NORM)` now) two
-    boxes down while CHAIN says the speed two boxes up - a status box
-    that repeats its neighbours is three places to check for one fact.
-    What is left is what nothing else carries: whether the back-EMF
-    chain can see the rotor at all, and how far the rotor has gone since
-    it was tared. The direction rides the travel row rather than taking
-    one of its own - a sign is easy to have backwards and hard to see in
-    a number, and `cw` is neither.
-    """
+    """Two rows, and neither of them is anywhere else on the page."""
     o = view.get('chain') or {}
     gone = view['travel'] - view['tare']
     loops = ' + '.join([n for n, on in (('speed', view['spin']),
@@ -1216,29 +909,13 @@ def status_rows(view):
             ('travel', '%9.1f deg %7.2f turns %s'
              % (gone, gone / 360.0,
                 'cw' if (o.get('omega') or 0.0) >= 0.0 else 'ccw')),
-            # THE CELL'S SHAPE, AND WHERE THE NUMBER CAME FROM. Every
-            # round thing on this page is drawn to it; a terminal that
-            # did not answer the query is drawn at an assumed 2.0, and
-            # that is worth a word on the page rather than a row of air
-            # over the motor nobody can explain.
+            # THE CELL'S SHAPE, AND WHERE THE NUMBER CAME FROM.
             ('cell', '%.2f tall %s' % (view.get('aspect', machine.CELL_ASPECT),
                                        view.get('aspect_how', 'assumed')))]
 
 
 def regime(view):
-    """The status chip: which commutation is running, and whether it can.
-
-    NOT THE MODE: DRIVE already prints `SENSORLESS (NORM)`, and this
-    carried the same words and the rpm besides. What is left is the one
-    thing neither box says - whether the back-EMF chain has a rotor to
-    work with, or whether the microstepper is carrying it because
-    nothing can see one.
-
-    Three states, on the chain's own `wc` and the loop's own speed - no
-    limit of this view's invention, and none of the board's either
-    (invariant 10): it says where the estimate is, and what a drive would
-    have to do about it is written beside it rather than judged.
-    """
+    """The status chip: which commutation is running, and whether it can."""
     o = view.get('chain') or {}
     speed = abs(o.get('omega') or 0.0)
     corner = o.get('wc') or 0.0
@@ -1250,13 +927,7 @@ def regime(view):
 
 
 def no_load_rpm(view):
-    """What the link will spin this machine to with nothing on the shaft.
-
-    `vdc / (sqrt(3) lambda)` is the electrical speed at which the
-    back-EMF has taken the whole link, and the mechanical one is that
-    over the pole pairs. Out of the record and the measured link, so a
-    page that says HALF MAX SPEED means half of THIS machine's.
-    """
+    """What the link will spin this machine to with nothing on the shaft."""
     params = view['params']
     lam = params.get('motor_lambda_uvs') or 0.0
     pairs = max(1.0, params.get('motor_pole_pairs') or 1.0)
@@ -1267,46 +938,20 @@ def no_load_rpm(view):
 
 
 def heavy_start(rig, view):
-    """A start, a burn, and then back to the dutter. Three stages.
-
-    WHAT A START ACTUALLY IS. Every other cycle on this page is gentle
-    enough to watch; a machine breaking away from rest is not.
-
-    FIRST, `BURST_S` of everything the clamp allows: the torque current
-    goes to `BURST_A` and the rotor is accelerated with all of it. The
-    phase nodes climb to about nine tenths of their budget in that
-    second - measured - which is the point of it: a burst is bounded by
-    HEAT and not by the current limit, and the only thing that says how
-    long one may last is the thermal observer.
-
-    THEN `BURST_HOLD_S` at half the machine's no-load speed against a
-    load, which is where the WATTS are. A start is amps and barely any
-    power; power is amps times volts and the volts are the back-EMF, so
-    nothing on this page burns a real number until the rotor is turning.
-    Half of `no_load_rpm` because the whole of it is no-load by
-    definition - there is no headroom left at the top to push against.
-
-    THEN it lets go, and the loops take the drive back and everything
-    cools. What a node does on the way down is half of what the observer
-    is for.
-
-    It is deliberately close to the ceiling and deliberately not over it.
-    If it does go over, the envelope drops the stage and the page shows
-    that instead - the board's decision, not this function's.
-    """
+    """A start, a burn, and then back to the dutter."""
     drive = rig.board.drive
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     left = view['burst_until'] - time.time()
     if left > BURST_HOLD_S:
-        # Breaking away: everything the clamp allows, at the top of the
-        # speed range, and no load in the way of it.
+        # Breaking away: everything the clamp allows, at the top of the speed
+        # range, and no load in the way of it.
         drive.model_param(load=0.0)
         drive.setpoint(id_ref=0.0, iq_ref=BURST_A, accel=BURST_ACCEL,
                        omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
         view['iq'] = BURST_A
         return
-    # Burning: half the no-load speed, and a load to make the volts and
-    # the amps happen at the same time.
+    # Burning: half the no-load speed, and a load to make the volts and the
+    # amps happen at the same time.
     drive.model_param(load=BURST_LOAD_NM)
     drive.setpoint(id_ref=0.0, iq_ref=BURST_HOLD_A, accel=BURST_ACCEL,
                    omega_target=no_load_rpm(view) / 120.0 * math.tau * pairs)
@@ -1314,26 +959,11 @@ def heavy_start(rig, view):
 
 
 def turn_the_handle(rig, view):
-    """Whichever of the three is driving this frame, and only one of them.
-
-    The burst outranks the loops while it runs and hands the drive back
-    the way it found it - two things writing `iq_ref` a frame apart is
-    one of them winning at random, and the load it leaned on would
-    otherwise stay on the shaft after it let go.
-    """
+    """Whichever of the three is driving this frame, and only one of them."""
     if view['state']['mode'] == 'off':
         return
     now = time.time()
-    # THE BURST IS PART OF THE SEQUENCE, not only a key. The speed loop
-    # dutters between 8 and 90 rpm because that is the range where the
-    # sensorless hand-over happens and where a rotor mark reads as
-    # motion - and nothing in it ever approaches the machine's no-load
-    # speed or puts a real number on the kW bar. Left alone, the page
-    # showed the slow half of the machine and none of the fast one.
-    #
-    # Simulated only, and only while the speed loop is running: it is a
-    # demonstration, and on a board a burst is something somebody asks
-    # for.
+    # THE BURST IS PART OF THE SEQUENCE, not only a key.
     if (view['simulated'] and view['spin']
             and now - view['burst_at'] > BURST_EVERY_S):
         view['burst_at'] = now
@@ -1354,37 +984,16 @@ def turn_the_handle(rig, view):
 
 
 def load_loop(rig, view):
-    """D current up and back down, continuously, the shape the speed loop has.
-
-    A TRIANGLE AND NOT A STAIRCASE. Treads with ramps between them were
-    still a set of edges, and every edge put a corner in the power and a
-    kink in each thermometer - a page of steps reads as something
-    switching rather than as a machine being worked. Rising and falling
-    without a corner anywhere, the watts ramp and the temperatures lag
-    them, and the lag is the whole thing a thermal observer has to show.
-
-    Down as well as up, for the same reason the speed loop goes both
-    ways: what a node does while it COOLS is half of what the model is
-    for, and a cycle that only climbs never shows it.
-
-    D CURRENT, not torque: on a machine this round it makes none, so the
-    rotor keeps whatever the speed loop is doing and the only thing that
-    changes is what the legs carry. It is also what a bench uses to heat
-    a stage on purpose, for the same reason.
-
-    The stage judges nothing about it - `drv_i_max_ma` clamps it like any
-    other current, and the peak here is inside the clamp the view wrote
-    at preflight.
+    """D current up and back down, continuously, the shape the speed loop
+    has.
     """
     now = time.time()
     phase = ((now - view['load_at']) % LOAD_PERIOD_S) / LOAD_PERIOD_S
     ramp = 2.0 * phase if phase < 0.5 else 2.0 * (1.0 - phase)
     view['load_amps'] = LOAD_PEAK_A * ramp
     view['load_rising'] = phase < 0.5
-    # Only when it has moved enough to matter: a setpoint is a round trip,
-    # and one a frame against a board is the link's whole budget. The
-    # grain is well under what a thermometer can show, so nothing of the
-    # ramp is lost to it.
+    # Only when it has moved enough to matter: a setpoint is a round trip, and
+    # one a frame against a board is the link's whole budget.
     if abs(view['load_amps'] - view['load_written']) >= LOAD_GRAIN:
         view['load_written'] = view['load_amps']
         rig.board.drive.setpoint(id_ref=view['load_amps'])
@@ -1418,13 +1027,7 @@ BRAKE_FULL_RAD_S = 700.0
 
 
 def rearm_after_trip(rig, origin, view):
-    """THE STAND-IN'S OPERATOR. On a board a thermal trip drops MOE and
-    the host re-arms, or does not; the demo has no host but this page,
-    so on the stand-in it re-arms once no node is at its ceiling any
-    more - into the envelope the trip cap has shrunk, 70 % of every span
-    recovering a percent a minute, so the next burst runs on less. Said
-    on the page each time. Never on a board: there the operator is a
-    person, and the trip is theirs to think about."""
+    """THE STAND-IN'S OPERATOR."""
     if origin.real or not view.get('spin'):
         return
     budget = view.get('budget') or {}
@@ -1453,30 +1056,7 @@ def cycle_phase(view):
 
 
 def sweep(rig, view):
-    """The demo cycle: hold, rock, send, brake, and round again.
-
-    FOUR THINGS A DRIVE DOES, in the order it does them, rather than one
-    triangle in speed. Each of them exercises something different on the
-    page and none of them is the same picture:
-
-    HOLD commutates on the commanded angle with the rotor stationary -
-    a microstepper holding position against a current. The back-EMF
-    chain has nothing to see and says so, which is the honest state at
-    zero speed and the one the whole sensorless floor is about.
-
-    ROCK runs the speed loop either way to `ROCK_RPM` and back. Both
-    directions, because a sign is the easiest thing in a drive to have
-    backwards, and through the floor each way so the hand-over between
-    the stepper and the back-EMF observers happens four times a cycle.
-
-    SEND gives it the clamp and lets it run at the envelope. This is the
-    only part that makes real heat and real watts, and therefore the
-    only part that moves the thermal gauges - which is why it is here
-    rather than on a key.
-
-    BRAKE takes it back to rest against the current, so the cycle starts
-    from the same place every time and the cooling is visible.
-    """
+    """The demo cycle: hold, rock, send, brake, and round again."""
     drive = rig.board.drive
     stage, into = cycle_phase(view)
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
@@ -1493,9 +1073,9 @@ def sweep(rig, view):
         return
     if stage == 'rock':
         # ONE swing each way, not two: the speed integrator needs about a
-        # second to reach 200 rpm and two swings in five gave it 2.8 s a
-        # side, so it spent the whole phase chasing a target that had
-        # already reversed and never left 25 rpm.
+        # second to reach 200 rpm and two swings in five gave it 2.8 s a side,
+        # so it spent the whole phase chasing a target that had already
+        # reversed and never left 25 rpm.
         target = ROCK_RPM * math.sin(math.tau * into)
         view['iq'] = _toward(view, target, clamp)
         drive.setpoint(id_ref=0.0, iq_ref=view['iq'],
@@ -1506,22 +1086,8 @@ def sweep(rig, view):
                        omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
         view['iq'] = clamp
         return
-    # BRAKE: the same current the other way until it is stopped, then let
-    # it be. Coasting would take the rotor's own damping constant, which
-    # on this machine is longer than the whole cycle.
-    # BRAKE IS CURRENT THE OTHER WAY, eased off as it slows.
-    #
-    # IT ONLY WORKS BECAUSE THE INERTIA IS REAL. Against the stand-in's
-    # placeholder 2e-5 kg m^2 this drove the rotor from +3621 rpm through
-    # zero to -3395 in one phase - 2.6 N.m stops that in milliseconds and
-    # the page redraws every seventy, so any current that had to reverse
-    # inside a frame overshot by whatever it was still applying, and a
-    # position lock was the only thing that could stop it. With a rotor
-    # that weighs something the deceleration is 328 rad/s^2 and the stop
-    # takes about a second: slower than a frame, so a proportional brake
-    # lands on zero instead of passing through it. A position lock cannot
-    # do this job at all now - the spring is 0.63 N.m against an inertia
-    # that needs four seconds of it.
+    # BRAKE: the same current the other way until it is stopped, then let it
+    # be.
     turning = (view.get('chain') or {}).get('omega') or 0.0
     share = min(1.0, abs(turning) / BRAKE_FULL_RAD_S)
     view['iq'] = -math.copysign(clamp * share, turning) if share > 0.03 else 0.0
@@ -1529,12 +1095,7 @@ def sweep(rig, view):
 
 
 def _toward(view, rpm, clamp):
-    """The speed loop's integrator, one frame. Amps toward `rpm`.
-
-    Closed on the speed rather than open on a current: what holds a given
-    speed depends on the damping, and this page is meant to work whatever
-    machine the record describes.
-    """
+    """The speed loop's integrator, one frame."""
     now = time.time()
     dt = min(0.5, max(0.0, now - view['sweep_at']))
     view['sweep_at'] = now
@@ -1546,13 +1107,7 @@ def _toward(view, rpm, clamp):
 
 
 def chain_rows(view):
-    """The back-EMF chain that runs beside the loop, and what it costs.
-
-    Seven rows, the same shape as OBSERVER: the chain's own answer, how
-    far it is from the loop's, which of its two models is carrying it,
-    and the flux magnitude - the one quantity on this board that sees
-    the magnets, an air gap away from every thermometer.
-    """
+    """The back-EMF chain that runs beside the loop, and what it costs."""
     o = view.get('chain')
     if not o:
         return [('chain', '%7s' % '--')] * 7
@@ -1595,28 +1150,7 @@ def loop_rows(view):
 
 
 def winding(view):
-    """The winding's temperature, estimated, degrees C.
-
-    AN ESTIMATE AND SAID TO BE ONE. The board has no sensor in the
-    machine - the NTC is on the PCB and the rotor is across an air gap -
-    so this is the only temperature on the page that is not observed. It
-    is `3 i_rms^2 R` out of the record's own phase resistance, relaxed
-    into the winding's thermal pair, and that pair is a PLACEHOLDER the
-    motor profile carries (`coaxial.motor`): the shape is right, the
-    number is not measured, and a bench with a thermocouple writes over
-    it.
-
-    First order like the board's own observer, and integrated here
-    only when nothing on the wire carries it.
-
-    THE BOARD'S, SINCE MINOR 12. The winding is one more element the
-    board steps on the same slice as its ten nodes and judges by the
-    same envelope - the bench asked for the stage to throttle on how
-    close BOTH the switches and the motor are to their SOA - and the
-    budget carries its estimate. The page draws what the board acts on;
-    the local integration below is for older firmware, and the legend
-    says which it is.
-    """
+    """The winding's temperature, estimated, degrees C."""
 
     budget = view.get('budget') or {}
     if 'winding_c' in budget:
@@ -1635,9 +1169,9 @@ def winding(view):
     if was is None:
         view['winding'] = _thermal.AMBIENT
         return view['winding']
-    # THE SAME HASTE THE STAND-IN'S BOARD MODEL TAKES, and only there:
-    # this winding's constant is nearly seven minutes, which is right and
-    # unwatchable. Against a board the clock is the clock.
+    # THE SAME HASTE THE STAND-IN'S BOARD MODEL TAKES, and only there: this
+    # winding's constant is nearly seven minutes, which is right and
+    # unwatchable.
     tau = max(1e-3, k * heat) / (SimulatedThermal.HASTE
                                 if view['simulated'] else 1.0)
     view['winding'] += (target - view['winding']) * min(1.0, (now - was) / tau)
@@ -1645,36 +1179,19 @@ def winding(view):
 
 
 def watts(view):
-    """What the stage is putting into the machine, electrical, watts.
-
-    `1.5 (vd id + vq iq)` out of the loop's own dq means - the same
-    quantity the board reports and no reconstruction of it. It is the
-    INPUT: the shaft gets it less the copper, and this board cannot
-    separate the two without a torque sensor it does not have.
-    """
+    """What the stage is putting into the machine, electrical, watts."""
     s = view['state']
     return 1.5 * (s['vd'] * s['id'] + s['vq'] * s['iq'])
 
 
 def watts_bar(view):
-    """The power as a fifth bar past the board's four, `(share, class)`.
-
-    Full scale is `WATTS_SCALE`, the stage's own arithmetic - 63 V and
-    100 A is 6.3 kW of link, and two is what a machine this size takes
-    before anything else on this page runs out first. A SCALE, and the
-    board judges nothing by it.
-    """
+    """The power as a fifth bar past the board's four, `(share, class)`."""
     return watts_share(watts(view))
 
 
 def watts_share(w):
-    """Watts to `(share, class)` on the power face - `WATTS_SCALE` has
-    the shape and why.
-
-    Its own function so the face can be checked at a watt, not only
-    through a running view: half at `WATTS_MID`, full at `WATTS_SCALE`,
-    and past full the bar goes the deep red of a limit while the figure
-    beside it keeps counting.
+    """Watts to `(share, class)` on the power face - `WATTS_SCALE` has the
+    shape and why.
     """
     power = math.log(0.5) / math.log(WATTS_MID / WATTS_SCALE)
     share = (abs(w) / WATTS_SCALE) ** power
@@ -1684,12 +1201,7 @@ def watts_share(w):
 
 
 def headroom(view):
-    """What is left of the whole board's thermal budget, 0 to 1.
-
-    THE WORST NODE'S, because a stage is as close to its ceiling as its
-    closest part - an average would hide the one leg that is cooking
-    behind five that are not.
-    """
+    """What is left of the whole board's thermal budget, 0 to 1."""
     worst = (view.get('budget') or {}).get('worst')
     return 1.0 - min(1.0, max(0.0, worst)) if worst is not None else 1.0
 
@@ -1704,25 +1216,14 @@ THROTTLE_RED = 124
 
 
 def envelope_acting(view):
-    """Whether the board is holding the stage back - throttling, or tripped.
-
-    ON THE BOARD'S OWN VERDICT, never a threshold this page invented:
-    both are facts the board reports out of limits it was given
-    (invariant 10). Being near a limit is not an event; being held back
-    because of one is.
-    """
+    """Whether the board is holding the stage back - throttling, or tripped."""
     budget = view.get('budget') or {}
     return bool(budget.get('throttling') or budget.get('tripped'))
 
 
 def mode_text(view):
-    """`HOLD (NORM)`, `SENSORLESS (THR)`: the mode, and whether the
-    envelope is holding it back. STOPPED while the drive is off.
-
-    It said `RUNNING SENSORLESS`, and whether the board was clamping the
-    current it ran under sat three boxes down as a percentage. The mode
-    and its state are one glance now: NORM while the board drives what
-    it is asked, THR in `THROTTLE_RED` while it is held back.
+    """`HOLD (NORM)`, `SENSORLESS (THR)`: the mode, and whether the envelope
+    is holding it back.
     """
     s = view['state']
     if s['mode'] == 'off':
@@ -1745,14 +1246,7 @@ FLASH_HZ = 1.5
 
 
 def flashing(view):
-    """Whether this frame takes the bright half of the alarm pulse.
-
-    It pulses while the envelope is ACTING - `envelope_acting`, the
-    board's verdict - because being held back is the thing worth a flash.
-
-    On wall time rather than a frame count, so it pulses at the same rate
-    whatever the view's frame rate is doing.
-    """
+    """Whether this frame takes the bright half of the alarm pulse."""
     if not envelope_acting(view):
         return False
     return (time.monotonic() * FLASH_HZ * 2.0) % 2.0 < 1.0
@@ -1815,16 +1309,7 @@ LEADER_RISE = (chr(0x2824), chr(0x2812), chr(0x2809), chr(0x2809))
 
 
 def ntc_bar(view):
-    """The thermistor as a tube, on the same scale as every other.
-
-    THE ONE MEASURED LEVEL, in TRUTH's ink - the colour this page gives
-    what is known rather than modelled, the same the rotor's real angle
-    takes. It has no ceiling and so no margin colour: a thermistor reads
-    a temperature and nothing on this board was given a limit for it.
-
-    Empty when the AFE is off and there is no reading at all, which
-    draws an empty tube rather than a cold one.
-    """
+    """The thermistor as a tube, on the same scale as every other."""
     seen = (view.get('thermal') or {}).get('ntc')
     if seen is None:
         return []
@@ -1834,15 +1319,6 @@ def ntc_bar(view):
 def switch_headroom(view):
     """What is left of the SWITCHES' budget, 0 to 1: the worst of the six
     nodes a duty cycle drives (SOA_NODES), each against its own ceiling.
-
-    NOT THE BOARD'S WORST. This tube read `headroom` - the worst of all
-    ten nodes - under the name SWITCH SOA, so it showed the copper patch
-    under leg U at 78 % while the switches sat at 37, and on a long run,
-    once the winding is the worst node, it showed the winding: the bench
-    saw MOTOR SOA and SWITCH SOA at exactly one number (2026-09-08). The
-    board's worst stays the SOA HEADROOM gauge's question; this is the
-    switches'. A board that reports no per-node `used` (older firmware)
-    falls back to the board's worst, the only figure it has.
     """
     used = (view.get('budget') or {}).get('used') or {}
     shares = [used[n] for n in SOA_NODES if n in used]
@@ -1852,37 +1328,11 @@ def switch_headroom(view):
 
 
 def headrooms(view):
-    """The two margins as gutter tubes: the switches', then the motor's.
-
-    THEY STAND UP LIKE EVERYTHING ELSE. A margin is a level against a
-    ceiling and every other level on this page is a tube in a gutter;
-    these were the only ones lying across the drawing, which read as a
-    scale over the machine rather than as two more things with room left.
-
-    The board's still pulses while the envelope is acting - that is the
-    board doing something, and the only alarm on the page. The motor's
-    does not: nothing acts on it, and a flashing bar nobody can obey is
-    noise.
-    """
+    """The two margins as gutter tubes: the switches', then the motor's."""
     switch = switch_headroom(view)
     motor = motor_headroom(view)
     budget = view.get('budget') or {}
-    # THE LEVEL IS WHAT IS SPENT, not what is left. Drawn as the margin
-    # the tube emptied as things got hot, which is backwards for a
-    # thermometer standing beside five that fill: everything else on this
-    # page rises toward its limit and these fell away from theirs. The
-    # COLOUR still comes from the margin, so a full tube is a red one.
-    #
-    # SPENT OF THE WHOLE SOA, not of the ceiling in force. The board's
-    # `used` is against the ceiling the identification's policy leaves it
-    # - 80 % of the span UNCERTAIN, 90 CONVERGING, 100 STABLE - so read
-    # raw it said 100 % at three different temperatures. Times the
-    # margin it is the record's SOA again, and the legend reads 80 % and
-    # flashes red where the board acts while the model is UNCERTAIN, 90
-    # while it converges, 100 once the uncertainty has gone: the bench's
-    # "start flashing SWITCH SOA red at 80 % already, and throttle down;
-    # then 90; and do not throttle until 100 %". The colour stays the
-    # board's own verdict on the ceiling in force.
+    # THE LEVEL IS WHAT IS SPENT, not what is left.
     margin = policy_margin(view)
     motor_spent = 1.0 - motor
     if 'winding_used' in budget:
@@ -1900,11 +1350,10 @@ def policy_margin(view):
 
 
 def motor_flashing(view):
-    """The motor's pulse: the board holding the stage back FOR THE
-    WINDING - its own factor under one, or its ceiling reached - since
-    MINOR 12 made it a node the envelope acts on. Before that nothing
-    acted on the motor's margin and a flashing bar nobody could obey was
-    noise; now the board obeys it."""
+    """The motor's pulse: the board holding the stage back FOR THE WINDING -
+    its own factor under one, or its ceiling reached - since MINOR 12
+    made it a node the envelope acts on.
+    """
     budget = view.get('budget') or {}
     acting = (budget.get('winding_derate', 1.0) < 1.0
               or budget.get('winding_used', 0.0) >= 1.0)
@@ -1914,25 +1363,7 @@ def motor_flashing(view):
 
 
 def motor_headroom(view):
-    """What is left of the winding's scale, 0 to 1.
-
-    THE OTHER WAY TO COOK A BENCH. The board's headroom is the worst of
-    ten nodes against ceilings its calibration record gave it, and the
-    board acts on that itself. The winding has no sensor and no ceiling
-    the board was given: it is `3 i^2 R` relaxed into a placeholder pair
-    (`coaxial.motor`), drawn against `TEMP_SCALE_C`, which is this
-    PAGE's scale and not a rating off a motor datasheet - there is no
-    motor datasheet in this tree.
-
-    So it is a margin only the operator can act on, and it is named apart
-    from the board's for that reason. The board still judges nothing
-    here; the page is doing the arithmetic and saying whose it is.
-
-    UNLESS THE BOARD HAS THE WINDING - MINOR 12 - in which case the
-    margin is what is left against the ceiling its record was given,
-    the same fraction the board throttles the stage on, and this page
-    draws that instead of its own scale.
-    """
+    """What is left of the winding's scale, 0 to 1."""
     budget = view.get('budget') or {}
     if 'winding_used' in budget:
         return max(0.0, 1.0 - budget['winding_used'])
@@ -1940,55 +1371,19 @@ def motor_headroom(view):
 
 
 def motor_headroom_of(celsius):
-    """The same margin from a temperature alone.
-
-    SPLIT OUT SO IT CAN BE CHECKED. `winding` integrates against the
-    wall clock off the drive's own state, and a test that had to build
-    that just to ask what 85 C is worth would be testing the integrator.
-    """
+    """The same margin from a temperature alone."""
     return 1.0 - temp_share(celsius)
 
 
 def headroom_class(left):
-    """The headroom gauge's colour: green, then amber, then red.
-
-    A LONG GREEN BAR THAT SHORTENS AND SOURS. Coloured by `soa_class` it
-    was green until the board was already throttling and then red - true,
-    and useless to watch, because the two thresholds the board acts on
-    are the throttle point and the ceiling and there is nothing between
-    them.
-
-    So the red boundary is the board's - what is left when the worst node
-    reaches `THROTTLE_AT` - and the amber one is THIS SCALE'S, the way a
-    fuel gauge has a yellow band the tank knows nothing about. Half the
-    budget is not a limit and nothing acts on it; it is where a bar
-    starts being worth looking at.
-    """
+    """The headroom gauge's colour: green, then amber, then red."""
     if left <= 1.0 - THROTTLE_AT:
         return machine.SOA_TRIP
     return machine.SOA_WARN if left <= HEADROOM_AMBER else machine.SOA_OK
 
 
 def soa_bars(view, names):
-    """`(fraction, class)` per node: HEIGHT IS HEAT, COLOUR IS MARGIN.
-
-    THE TWO GUTTERS HAD DIFFERENT SCALES and it read as one drawing with
-    two rulers. Every tube used to be its node's share of its OWN
-    ceiling, and the ceilings differ - the copper's is 105 where the
-    silicon's is 125 - so two tubes at the same height were two different
-    temperatures, under captions in degrees that disagreed with them.
-
-    Split, both questions get answered and neither is asked twice. The
-    height is degrees on one scale, so the ten tubes are comparable with
-    each other and with the figures above them. The colour is still
-    `soa_class` on the node's own margin, so a copper at 100 C goes red
-    where a FET at 100 C has not - which is exactly the fact the shared
-    scale would otherwise have flattened.
-
-    How close anything is to acting stays the SOA HEADROOM gauge's
-    question; it takes the worst of all ten and pulses when the board
-    does something about it.
-    """
+    """`(fraction, class)` per node: HEIGHT IS HEAT, COLOUR IS MARGIN."""
     budget = view.get('budget') or {}
     used = budget.get('used') or {}
     seen = view.get('thermal') or {}
@@ -2011,29 +1406,14 @@ def soa_bar(share, tripped=False):
     bar = Text()
     bar.append(BAR_GLYPH * max(1, int(share * BAR_CELLS + 0.5)),
                style='color(%d)' % ink)
-    # The rest of the tube. A THINNER GLYPH, not the same one dimmed:
-    # dimmed, a captured page shows every bar full, and the colour was
-    # doing all the work of saying which part was level and which was
-    # room left.
+    # The rest of the tube.
     bar.append(TRACK_GLYPH * (BAR_CELLS - len(bar.plain)),
                style='color(%d)' % machine.INK[machine.TRACK])
     return bar
 
 
 def thermal_rows(view):
-    """The six nodes that carry the current, as bars against their ceilings.
-
-    THE SHUNTS AND THE BRIDGES, because they are what a drive can cook:
-    `phase_*` is the sense resistor a hundred amps goes through and
-    `driver_*` is the half-bridge above it. A number per node said how hot
-    each was and nothing about how close - a temperature cannot say that
-    without its limit beside it, which is why the board sends the fraction
-    and keeps the degrees on `state()`.
-
-    The rest of the network (mcu, regulators, afe, board) is not drawn
-    per node: it cannot be driven into the SOA by a duty cycle, and
-    whichever of it is worst arrives on the summary row anyway.
-    """
+    """The six nodes that carry the current, as bars against their ceilings."""
 
     th, budget = view.get('thermal'), view.get('budget')
     if not th:
@@ -2058,11 +1438,7 @@ def thermal_rows(view):
     rows.append(('headroom', '%9.0f %% left, worst %s'
                  % (100.0 * headroom(view),
                     (budget or {}).get('worst_node', '?'))))
-    # THE THROTTLE AND THE BUDGET. `derate` is what the envelope is doing
-    # to the current clamp right now - under one and the stage is still
-    # driving, which is the whole difference between this and a trip.
-    # `soak_j` is what the worst node can still absorb: divide by a power
-    # and the answer is seconds at THAT power, not only at this one.
+    # THE THROTTLE AND THE BUDGET.
     factor = (budget or {}).get('derate')
     if factor is not None:
         rows.append(('throttle', Text(' %3.0f %% of the clamp ' % (100 * factor),
@@ -2087,9 +1463,9 @@ def thermal_rows(view):
                         'rising' if view['load_rising'] else 'falling')))
     rows.append(('NTC', '%7.1f C' % th['ntc'] if th.get('ntc') is not None
                  else '%7s' % 'unread'))
-    # THE ROOM, as identified - the board has no sensor for it - and on
-    # the stand-in the one the truth stands in, so the tour can be read
-    # off this page too.
+    # THE ROOM, as identified - the board has no sensor for it - and on the
+    # stand-in the one the truth stands in, so the tour can be read off this
+    # page too.
     ident = view.get('ident') or {}
     if ident.get('ambient') is not None:
         truth = ident.get('truth') or {}
@@ -2109,52 +1485,22 @@ def thermal_rows(view):
 def compose(rig, origin, console, view):
 
     s = view['state']
-    # THE MACHINE, NOT A PROTRACTOR. A dial with a needle on it answers
-    # 'what is the angle', which is the number in OBSERVER already. What
-    # it cannot answer is which tooth is under which magnet, and that is
-    # the question an observer gets wrong: a slipped pole is a perfectly
-    # respectable angle. Here the can carries its magnets and the teeth
-    # carry their phase letters, so a slip steps the band round and leaves
-    # the letters where they were.
+    # THE MACHINE, NOT A PROTRACTOR.
     pole_pairs = max(1, int(view['params'].get('motor_pole_pairs') or 1))
-    # The true rotor is a notch on the can: the gap between it and the
-    # magnet band under it IS the observer's error, in the units a magnet
-    # works in rather than in electrical degrees.
+    # The true rotor is a notch on the can: the gap between it and the magnet
+    # band under it IS the observer's error, in the units a magnet works in
+    # rather than in electrical degrees.
     amps, full = phase_amps(view)
-    # THE THERMOMETERS ARE NAMED, on a row of their own above them. A
-    # column of braille cannot carry a letter, and a stack of unlabelled
-    # tubes beside a motor is a reader guessing which is which. The row
-    # costs the machine one of its own, which is cheaper than the guess.
+    # THE THERMOMETERS ARE NAMED, on a row of their own above them.
     heads = gutter_caption(view)
     # The names in ash, the readings in their own inks already.
-    # ONLY THE FIRST ROW IS ONE COLOUR. The other two carry figures in
-    # their own inks - the NTC as the measurement it is, the readings as
-    # their nodes' margins - so they arrive already tinted in pieces.
-    # EVERY CAPTION ROW ARRIVES INKED, in pieces: a name in its group's
-    # colour, a leader in the track's grey, the one measurement in
-    # TRUTH's. Nothing here is one colour any more.
     caption = list(heads[:CAPTION_ROWS])
     foot = list(heads[CAPTION_ROWS:])          # FOOT_ROWS of them
     turned = math.degrees(s['theta_hat']) / pole_pairs
-    # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES. The can is drawn
-    # from the electrical angle over the pole pairs, which is right
-    # because the magnet band repeats every pole pair - whichever one it
-    # lands in looks the same. The POINTER does not repeat: it is a mark
-    # on a real rotor, and drawn the same way it swept 51 degrees of a
-    # 14-pole machine and jumped back, over and over. So it rides the
-    # travel this view has accumulated instead - the observed speed
-    # integrated, which is mechanical revolutions and what a tare is for.
+    # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES.
     art = machine.render(turned, view['slots'], 2 * pole_pairs,
                          BOX.width, BOX.rows,
-                         # THE SENSOR'S OWN STROKE IS NOT DRAWN. It was
-                         # the model's true angle as a radial mark, and
-                         # in four sittings the bench read it as a
-                         # second indicator, a stray line, a smear of
-                         # grey in a north magnet - never as a mark. The
-                         # bead carries the bench's zero and a slipped
-                         # pole shows against the teeth; a third thing
-                         # on the rotor was noise. `machine` still draws
-                         # it when asked.
+                         # THE SENSOR'S OWN STROKE IS NOT DRAWN.
                          truth_deg=None,
                          amps=amps, full=full, aspect=view['aspect'],
                          pointer_deg=view['travel'] - view['tare'],
@@ -2181,34 +1527,25 @@ def compose(rig, origin, console, view):
               ('CHAIN', chain_rows(view)),
               ('LOOP', loop_rows(view)),
               ('THERMAL', thermal_rows(view))]
-    # Paged by `frame_of`, which is every view's; this only says what
-    # the boxes are.
+    # Paged by `frame_of`, which is every view's; this only says what the boxes
+    # are.
     boxes = [hud(*panel) for panel in panels]
-    # FIXED-WIDTH LABELS. The bar wraps to whatever fits, so a label
-    # that changed length reflowed the whole of it and the bottom of the
-    # page jumped a line every time the mode changed - SENSORLESS is ten
-    # characters and HOLD is four. Padded, the bar is the same length
-    # whatever the drive is doing and only the words inside it change.
+    # FIXED-WIDTH LABELS.
     keys = [('S', '%-5s' % ('STOP' if s['mode'] != 'off' else 'START')),
             ('M', '%-10s' % (s['mode'].upper() if s['mode'] != 'off'
                              else view['mode'].upper())),
             ('V', view['source'].upper()), ('I', 'INJ'),
             ('+ -', 'IQ'), ('[ ]', 'STEP'), ('O L', 'I/F'), ('R', 'RESET'),
             ('T', 'TARE'),
-            # The word stays and the colour changes: a chip that
-            # appeared and vanished moved every key after it.
+            # The word stays and the colour changes: a chip that appeared and
+            # vanished moved every key after it.
             ('B', Text('START', style='alarm')
              if time.time() < view['burst_until'] else 'START'),
             ('E', Text('SPEED', style='chip.live') if view['spin']
              else 'SPEED'),
             ('W', Text('LOAD', style='chip.live') if view['load']
              else 'LOAD'),
-            # WHO HAS THE MOUSE. Lit while the terminal does, because
-            # that is the state a reader cannot see any other way - the
-            # page looks identical and the wheel has stopped working.
-            # LIT WHILE THE VIEW HAS THE MOUSE, dark while the
-            # terminal does - which is the default, so a left-drag marks
-            # text anywhere on the page, braille included.
+            # WHO HAS THE MOUSE.
             ('F', Text('MOUSE', style='chip.live') if _screen.holding()
              else 'MOUSE')]
     if view['switch']:
@@ -2221,9 +1558,7 @@ def compose(rig, origin, console, view):
 
 
 def start(rig, view):
-    """Enter the chosen mode with the setpoints the view holds. Sensorless
-    on the model starts with the estimate 0.3 rad off the rotor, so a lock
-    is something to watch rather than assume."""
+    """Enter the chosen mode with the setpoints the view holds."""
     d = rig.board.drive
     if view['mode'] == 'sensorless' and view['source'] == 'model':
         d.set_theta(d.model()['theta'] + 0.3)
@@ -2307,12 +1642,7 @@ def _key_load(rig, d, key, view):
 
 
 def _key_tare(rig, d, key, view):
-    """TARE: the pointer's zero, not the board's. Nothing is written to
-    the machine and no estimate moves - this is a mark on the can, and
-    where a mark on a can goes is a bench's decision. Pressed again
-    anywhere else it moves there, which is what makes it useful for
-    reading travel: zero it at a stop and the pointer counts from the
-    stop."""
+    """TARE: the pointer's zero, not the board's."""
     view['tare'] = view['travel']
     return 'tared - the pointer reads travel from here'
 
@@ -2358,23 +1688,7 @@ def act(rig, key, view):
 
 
 def aspect_of(args):
-    """What makes the can round on THIS terminal.
-
-    ASKED, NOT ASSUMED. The renderers work in square pixels and fold the
-    cell's shape in at the end, so getting this wrong does not blur the
-    picture - it stretches it, and a can drawn wide of round reads as a
-    rotor that is turned when it is not. 2.0 was the default because most
-    monospace fonts are near it; a terminal with its line height turned
-    up is not, and the bench saw every circle come out an oval.
-
-    `--cell-aspect` still wins, because a bench that has measured its own
-    font beats a query, and the query answers None on every terminal that
-    does not do XTWINOPS. SAID ON THE PAGE, whichever it was: at 2.3 an
-    assumed 2.0 left the can a row short of its band - air over the motor
-    the bench could see and nobody could explain, because nothing said
-    the measurement had not happened. STATUS carries it. The probe itself
-    is `screen.aspect_of`, shared with the shaft angle's face.
-    """
+    """What makes the can round on THIS terminal."""
     return _screen.aspect_of(args.cell_aspect)
 
 
@@ -2384,9 +1698,9 @@ def parse_args(argv):
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--frames', type=int, default=0)
     p.add_argument('--hz', type=float, default=DEFAULT_HZ)
-    # The terminal's size to fit the machine to, instead of the real
-    # one: both given, a piped run draws the page as that terminal
-    # would - `tools/ansi2png.py` on the output is the raster.
+    # The terminal's size to fit the machine to, instead of the real one: both
+    # given, a piped run draws the page as that terminal would -
+    # `tools/ansi2png.py` on the output is the raster.
     p.add_argument('--width', type=int, default=None)
     p.add_argument('--height', type=int, default=None)
     p.add_argument('--source', choices=('model', 'adc'), default='model')
@@ -2441,7 +1755,7 @@ def preflight(rig, args):
     ts = d.state()['ts'] or 20e-6
     # Injection ON from the start: sensorless at standstill has no other
     # innovation, and a page that started without it drew the estimate
-    # free-running 71 degrees from the model's rotor. I turns it off.
+    # free-running 71 degrees from the model's rotor.
     d.set_params(drv_inj_mv=args.v_inj,
                  drv_eps_gain_ua_per_rad=eps_gain(params, args.v_inj, ts))
     d.source(args.source)
@@ -2453,17 +1767,7 @@ def preflight(rig, args):
 
 
 def demo_stage(rig, origin):
-    """Give the stand-in a bridge to switch. Simulated only.
-
-    Everything on this page worth watching is downstream of current in
-    the legs, and there is no current without MOE: the thermal observer
-    saw a stage that never switched, so nothing warmed, SOA HEADROOM sat
-    at its ceiling and the switch thermometers at ambient.
-
-    On a board this is `--switch` and a key press, because arming one is
-    arming a power stage. A stand-in has no stage, and a page that cannot
-    show the envelope working is not worth opening.
-    """
+    """Give the stand-in a bridge to switch."""
     if origin.real:
         return
     rig.board.gate_drivers.bypass_break(True)
@@ -2527,20 +1831,7 @@ def _model_defaults(args):
 
 
 def demo_defaults(args, origin):
-    """What the stand-in comes up doing, and the iq step to walk it.
-
-    Only the stand-in: on a board the view opens onto whatever the
-    drive is already doing, and starting one is the operator's call.
-
-    A STAND-IN THAT SITS STILL SHOWS NOTHING. On a real board the view
-    opens onto whatever the drive is doing and starting it is the
-    operator's call - it is a power stage. The stand-in has no stage and
-    no rotor until something asks for torque, so every panel reads zero
-    and the dial does not move: the observers have no back-EMF to work
-    with, the chain is `no back-EMF`, and the page looks broken rather
-    than idle. Simulated, it therefore comes up turning, on the model,
-    with a torque current the caller can still override.
-    """
+    """What the stand-in comes up doing, and the iq step to walk it."""
     if origin.real:
         return BOARD_STEP
     args.start = True
@@ -2553,17 +1844,7 @@ def demo_defaults(args, origin):
 
 
 def _link(args):
-    """Open the board and put the front end where the source needs it.
-
-    OUT OF `main` BECAUSE THAT ONE GREW PAST WHAT A READER CAN HOLD.
-    Linking, arming the front end and reading the calibration record are
-    one errand; the view's state and its loop are another.
-
-    Answers `(rig, params, was_on)` - the last being how AFE_ON was
-    FOUND, which is what the teardown puts back. It has to travel with
-    the link because it is read before the front end is touched, and a
-    caller that worked it out afterwards would be reading its own change.
-    """
+    """Open the board and put the front end where the source needs it."""
     rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
                    power_afe=False,
                    simulated_device=bool(args.simulated))
@@ -2571,15 +1852,12 @@ def _link(args):
         return None, None, None, None
     origin, board = rig.origin, rig.board
     if not origin.real:
-        # THE GROUND TRUTH ON THE TOUR - temperate, cold, toasty, round
-        # and round, moved on when the identification has earned the
-        # room - so TH OBS walks UNCR, CONV, STABLE and back on the foot:
-        # the bench's way of seeing the policy before a board, and its
-        # word (2026-09-06: "now ROTOR OBSERVER never switches to cold,
-        # hot, back to temperate") after a random situation every few
-        # minutes had stood here. On the stand-in however it was
-        # reached: `--simulated`, or a bench with no cable that fell
-        # back to it.
+        # THE GROUND TRUTH ON THE TOUR - temperate, cold, toasty, round and
+        # round, moved on when the identification has earned the room - so TH
+        # OBS walks UNCR, CONV, STABLE and back on the foot: the bench's way of
+        # seeing the policy before a board, and its word (2026-09-06: "now
+        # ROTOR OBSERVER never switches to cold, hot, back to temperate") after
+        # a random situation every few minutes had stood here.
         rig.thermal.situation('tour')
     was_on = board.afe.is_on()
     want_afe = args.afe or args.source == 'adc'
@@ -2588,14 +1866,10 @@ def _link(args):
         time.sleep(0.3)
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
-    # THE DEMO'S DEFAULTS BEFORE THE PREFLIGHT, because the preflight
-    # reads them: `demo_defaults` puts the stand-in's load - `args.b`,
-    # the friction the model turns against - onto `args`, and
-    # `preflight` is what hands the model its parameters. Called after,
-    # the model ran with no load, drew no current and warmed nothing:
-    # measured at 600 frames, the winding at 22.9 C where HEAD had it at
-    # 98.8, every thermometer near its floor. The order is the one
-    # `main` had before this function was cut out of it.
+    # THE DEMO'S DEFAULTS BEFORE THE PREFLIGHT, because the preflight reads
+    # them: `demo_defaults` puts the stand-in's load - `args.b`, the friction
+    # the model turns against - onto `args`, and `preflight` is what hands the
+    # model its parameters.
     view_step = demo_defaults(args, origin)
     demo_stage(rig, origin)
     try:
@@ -2615,10 +1889,10 @@ def _sized(args, board_view):
 
 
 def _console_for(args):
-    """The console the page draws on - and, piped at a size, laid out
-    for that terminal rather than for the eighty columns a pipe is
-    assumed to be: the frame cropped the foot's WINDING to DING
-    otherwise, measured."""
+    """The console the page draws on - and, piped at a size, laid out for
+    that terminal rather than for the eighty columns a pipe is assumed to
+    be: the frame cropped the foot's WINDING to DING otherwise, measured.
+    """
     board_view = stage()
     if args.width and args.height and not board_view.is_terminal:
         board_view.width, board_view.height = args.width, args.height
@@ -2638,9 +1912,8 @@ def main(argv=None):
         return 1
     origin, board = rig.origin, rig.board
 
-    # MEASURED ONCE, at start-up: the cell's shape is the terminal's and
-    # cannot change under a running view. The box is sized to it here,
-    # and to the terminal's size again on every frame.
+    # MEASURED ONCE, at start-up: the cell's shape is the terminal's and cannot
+    # change under a running view.
     aspect, aspect_how = aspect_of(args)
     fit(aspect)
     view = {'source': args.source, 'mode': args.mode, 'iq': args.iq,
@@ -2669,17 +1942,12 @@ def main(argv=None):
 
     board_view = _console_for(args)
     console = board_view.is_terminal
-    # `console` here is the flag the key reader and the closing want;
-    # `compose` gets THE CONSOLE ITSELF - the paging asks the terminal
-    # how big it is and keeps the scroll on it. The stage refuses the
-    # flag now; FINDINGS has the two pages that handed it over.
+    # `console` here is the flag the key reader and the closing want; `compose`
+    # gets THE CONSOLE ITSELF - the paging asks the terminal how big it is and
+    # keeps the scroll on it.
     leaving = None
     thermal_at = [0.0]
-    # HOW OFTEN THE THERMAL OBSERVER IS READ. Two seconds against a board
-    # because it is two round trips on a link that is also carrying the
-    # drive; there is no link to a stand-in, and at two seconds its
-    # temperatures arrived in visible stairs however smoothly they were
-    # integrated - a reading is only as continuous as its refresh.
+    # HOW OFTEN THE THERMAL OBSERVER IS READ.
     thermal_every = 2.0 if origin.real else 0.25
 
     def draw():
@@ -2688,17 +1956,13 @@ def main(argv=None):
             view['gate'] = board.gate_drivers.state()
             view['model'] = (board.drive.model()
                              if view['source'] == 'model' else None)
-            # ONE REPLY FOR THE DIAL AND THE MARK. `model()` carries the
-            # rotor's true angle AND the estimate; `state()` carries the
-            # estimate a round trip later. Drawing one from each put 40
-            # degrees between the needle and the mark at 2867 rad/s and
-            # none of it was the observer's - 15 ms is 43 radians there.
+            # ONE REPLY FOR THE DIAL AND THE MARK.
             if view['model']:
                 view['state']['theta_hat'] = view['model']['theta_hat']
                 view['state']['omega_hat'] = view['model']['omega_hat']
-            # The chain is one more round trip, and it is the point of
-            # the view: a second answer to the angle, on the same
-            # samples, with no shaft sensor behind it.
+            # The chain is one more round trip, and it is the point of the
+            # view: a second answer to the angle, on the same samples, with no
+            # shaft sensor behind it.
             view['chain'] = board.drive.observers()
             travel(view)
             turn_the_handle(rig, view)
@@ -2708,15 +1972,10 @@ def main(argv=None):
                 view['ident'] = board.thermal.identification()
                 thermal_at[0] = time.time()
                 rearm_after_trip(rig, origin, view)
-        # THE CONSOLE, not `console`: `frame_of` pages the instrument
-        # column on the console's own scroll state and asks it how tall
-        # it is, and this page handed it the boolean every view calls
-        # `console` - the comment above `board_view` was written and the
-        # call was not changed. Bench 2026-09-05: "ROTOR OBSERVER has no
-        # arrow up/down for more in the right column."
-        # AND ITS SIZE, this frame: the machine fills what the page
-        # leaves it, and a resized terminal is the next frame's drawing
-        # - or the size asked for, whatever this runs in.
+        # THE CONSOLE, not `console`: `frame_of` pages the instrument column on
+        # the console's own scroll state and asks it how tall it is, and this
+        # page handed it the boolean every view calls `console` - the comment
+        # above `board_view` was written and the call was not changed.
         fit(view['aspect'], _sized(args, board_view))
         return compose(rig, origin, board_view, view)
 

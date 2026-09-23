@@ -67,12 +67,7 @@ PEEK_SETTLE_S = 0.3
 
 
 def insist(what, tries=8, pause=0.4):
-    """Run `what()` until the link answers. Returns (ok, result).
-
-    The link goes quiet now and then - FINDINGS has it open, and 600 requests
-    ruled out four causes. A sample every 60 s hits it more often than one
-    every 300 s, so every call here has to tolerate silence.
-    """
+    """Run `what()` until the link answers."""
     for _ in range(tries):
         try:
             return True, what()
@@ -91,15 +86,7 @@ def sensors(rig):
 
 
 def peek(rig):
-    """A sample inside an AFE-off state: on, read, off again.
-
-    Leaves the AFE off, so the state is as it was.
-
-    FAILING TO SWITCH IT BACK OFF IS WORSE THAN FAILING TO READ. A failed read
-    costs one data point; a failed switch-off leaves the rig feeding a
-    different state from the one it reports, silently. So the switch-off is
-    more stubborn than the read, and raises if it still fails.
-    """
+    """A sample inside an AFE-off state: on, read, off again."""
     ok, was_on = insist(rig.board.afe.is_on)
     if not ok:
         return None, None
@@ -141,10 +128,8 @@ def announce(state, minutes, ntc, spread):
 def hold(port, state, dwell_s, poll_s=30.0):
     """Set the state, hold it, read at the end."""
     if state == 'switch':
-        # Switch in chunks and sample between: switch.py owns the port while
-        # it runs, so a sample means stopping it. A chunk is 5 min and a
-        # sample ~1 s, so 0.3 % of the time not switching - against tau
-        # 6.8 min that does not move the equilibrium.
+        # Switch in chunks and sample between: switch.py owns the port while it
+        # runs, so a sample means stopping it.
         chunk = min(300.0, dwell_s)
         done = 0.0
         while done < dwell_s:
@@ -153,10 +138,7 @@ def hold(port, state, dwell_s, poll_s=30.0):
                             '-P', 'U,V,W', '-d', '0.50', '-s', str(int(this))],
                            cwd=os.path.dirname(HERE), check=True)
             done += this
-            # power_afe=False: the rig must not switch the AFE on at open. If
-            # it does, the AFE is ON when the next chunk starts and the gate
-            # drivers then have no supply - the gate is inverted. peek()
-            # drives it itself and leaves it off.
+            # power_afe=False: the rig must not switch the AFE on at open.
             with Coaxial63100(port=port, power_afe=False) as rig:
                 ntc, _spread = peek(rig)
             print('  switch %5.1f min   NTC %s  (sample)'

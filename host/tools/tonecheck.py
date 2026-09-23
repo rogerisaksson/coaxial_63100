@@ -13,9 +13,8 @@ exporter does not have.
 
     python tools/tonecheck.py            # measure both, side by side
     python tools/tonecheck.py --fit      # tune the glow constants
-                                         # toward the targets until
-                                         # the error stops falling;
-                                         # prints what to bake
+                                         # toward the targets until the error
+                                         # stops falling; prints what to bake
 
 The fit's objective: class mean and within-class spread at the two
 photographed poses, a cap on the thirds spread (a soft lamp), and
@@ -106,8 +105,9 @@ def rotation(pose):
 
 
 def png(path):
-    """(width, height, rows) of an 8-bit RGB/RGBA PNG, each row a list
-    of (r, g, b). Non-interlaced only - what a screenshot tool writes."""
+    """(width, height, rows) of an 8-bit RGB/RGBA PNG, each row a list of
+    (r, g, b).
+    """
     with open(path, 'rb') as f:
         data = f.read()
     if data[:8] != b'\x89PNG\r\n\x1a\n':
@@ -354,9 +354,9 @@ def show():
 
 
 def staged_cells(pose, color_system, width=94, height=36):
-    """Our render as the TERMINAL receives it: through a rich Console
-    of the given colour depth into a buffer, then parsed back. What
-    show() measures is what we send; this is what arrives."""
+    """Our render as the TERMINAL receives it: through a rich Console of the
+    given colour depth into a buffer, then parsed back.
+    """
     shading._SHADOWS.clear()
     art = wireframe.render(facecheck.euler(*rotation(pose), order='xyz'),
                            width, height, colour=True, 
@@ -380,8 +380,8 @@ def staged_cells(pose, color_system, width=94, height=36):
 
 def lines(cells):
     """The longest iso-line: hard steps (>25 luma) between same-class
-    horizontal neighbours, chained where one sits above another. A
-    smooth gradient has none; a requantised one draws a contour."""
+    horizontal neighbours, chained where one sits above another.
+    """
     grid = {(c[4], c[5]): (c[0], c[3]) for c in cells}
     edges = set()
     for (r, col), (ch, lum) in grid.items():
@@ -407,9 +407,7 @@ def lines(cells):
 
 
 def stage_report():
-    """Every pose through both colour depths: the LOD line, measured.
-    With the surface texture off - its random steps chain by chance -
-    so what remains is structure: a rim, a terminator, a band."""
+    """Every pose through both colour depths: the LOD line, measured."""
     print('%-10s %-11s %-12s %s' % ('pose', 'colour depth', 'hard steps',
                                    'longest line'))
     grain = shading.GRAIN_DOT, shading.GRAIN_COLON

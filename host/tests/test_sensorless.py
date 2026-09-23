@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 """The sensorless design arithmetic, and the commissioning against the
-stand-in. No board, no compiler, no model.
-
-Two halves. `sensorless.py` is pure functions with closed-form answers to
-check: the Kalman recursion against its own fixed point, the SNR budget
-against the telescoping argument, the crossover against its definition.
-`commission.py` is procedures over a rig; run against the stand-in, whose
-motor has known constants, every step has a number it must recover.
-
-Run from the host directory:  python tests/test_sensorless.py
+stand-in.
 """
 import io
 import math
@@ -327,22 +319,7 @@ def test_commissioning_recovers_the_stand_in(r):
 
 
 def test_autodetect_recovers_each_machine(r):
-    """`observer.autodetect` against five different simulated outrunners.
-
-    A ROUND TRIP, and the only kind of check that can catch what it
-    caught. The profiles under `host/motors/` are shapes, not
-    measurements - what makes them useful is that they are DIFFERENT, so
-    a step that silently answers the stand-in's own defaults is visible.
-    Two did: the stand-in's electrical model and its dead-time voltage
-    both read class constants rather than the machine that had been
-    written to them, and the identifier recovered 0.051 ohm and 19.5 uH
-    from every one of five machines in turn - which reads as a working
-    identifier until a second machine goes through it.
-
-    The pole count is the one the board measures itself, against the
-    shaft sensor; the rest come off the commissioning steps and land in
-    the record. Both are held here.
-    """
+    """`observer.autodetect` against five different simulated outrunners."""
     import glob
     import json
     import os
@@ -423,23 +400,11 @@ def test_motion(r):
             got = s.to(0.0, tol=0.8)
             r.check('a load pulse sags the hold and the servo takes it back',
                     sagged < -1.0 and abs(got) <= 0.8, (sagged, got))
-            # PAST 3 A OF HOLDING TORQUE BY A MARGIN THAT NO TIMING CAN
-            # CLOSE. It was 0.4 N.m against the 0.18 that 3 A makes on this
-            # machine - twice over, and still it returned about one run in
-            # four, but only inside the full offline gate and never in six
-            # runs of this suite alone. The stand-in integrates against the
-            # WALL CLOCK, so a loaded machine hands each try a different
-            # amount of model time and a wound-up servo can swing through
-            # the target. A load this far past the torque cannot be held
-            # for any amount of model time, which is what the check is
-            # about; the margin is the fix, not a longer timeout.
+            # PAST 3 A OF HOLDING TORQUE BY A MARGIN THAT NO TIMING CAN CLOSE.
             rig.drive.model_param(load=1.2)
             try:
                 got = s.to(30.0, tol=0.5, tries=2)
-                # WITH WHAT IT SAW. This returned about one run in four
-                # inside the full gate and never on its own, and a bare
-                # False said nothing about why - the next occurrence will
-                # carry the angle that passed for a hold.
+                # WITH WHAT IT SAW.
                 r.check('an overpowered servo raises, not returns', False,
                         'returned %.2f deg under 1.2 N.m at %.1f A'
                         % (got, s.amps))
@@ -461,15 +426,12 @@ def test_motion(r):
         r.check('and the drive is OFF after the aborted block',
                 rig.drive.state()['mode'] == 'off')
 
-        # The aborted block leaves a coasting flywheel (tau = j/b is
-        # seconds); the next check wants a known rotor, as a bench block
-        # would brake first.
+        # The aborted block leaves a coasting flywheel (tau = j/b is seconds);
+        # the next check wants a known rotor, as a bench block would brake
+        # first.
         rig.drive.model_reset()
 
-        # ONE ROTOR, TWO THREADS. A reader hammering the shaft sensor -
-        # the DAQ path's own route into the rotor - while a motion loop
-        # runs it: before the lock, two interleaved advances double-
-        # integrated and the shaft read in megaradians.
+        # ONE ROTOR, TWO THREADS.
         import threading
         stop, seen = [False], []
 
@@ -498,8 +460,8 @@ def test_motion(r):
 def pick_and_place():
     """Every placement in `electronics/`, by designator, as the exporter's
     (x, y) in millimetres - `(None, path)` when the file is not in the
-    tree. THE PICK AND PLACE IS THE AUTHORITY ON WHERE THINGS ARE, and two
-    tests below hold the host's copies to it."""
+    tree.
+    """
     import csv
     import os
 
@@ -522,16 +484,7 @@ def pick_and_place():
 
 
 def test_the_map_places_its_parts_from_the_file(r):
-    """The thermal picture's parts sit where the pick and place puts them.
-
-    `thermalmap.PLACED` is a copy of the file's coordinates for the parts
-    the model heats and the picture marks, and `PNP_CENTRE` the board's
-    centre in the exporter's frame. A copy drifts; this holds it to the
-    file to a hundredth of a millimetre, the centre to the placements'
-    extents, and the switch pairs symmetric about it - which is the check
-    that the centre is the board's and not merely the parts' box's. And
-    every label lands on the board, clear of the rim and the bore.
-    """
+    """The thermal picture's parts sit where the pick and place puts them."""
     from coaxial import thermalmap
 
     at, path = pick_and_place()
@@ -558,9 +511,9 @@ def test_the_map_places_its_parts_from_the_file(r):
             'a millimetre', abs(u + w) < 1.0 and u < -20.0 < 20.0 < w,
             'U at %.2f, W at %.2f' % (u, w))
 
-    # EACH PHASE'S FRAME TAKES ITS SHUNTS - the bench's word - and they
-    # are the phase's own: the U shunts left of the V shunts left of the
-    # W shunts, each pair within its leg's frame.
+    # EACH PHASE'S FRAME TAKES ITS SHUNTS - the bench's word - and they are the
+    # phase's own: the U shunts left of the V shunts left of the W shunts, each
+    # pair within its leg's frame.
     frames = {label: thermalmap.frame(refs, margin)
               for label, refs, _where, margin in thermalmap.MARKS}
     shunts = {leg: [thermalmap.placed('R%s%d' % (leg, i)) for i in (1, 2)]
@@ -587,18 +540,7 @@ def test_the_map_places_its_parts_from_the_file(r):
 
 
 def test_the_placements_behind_the_thermal_model(r):
-    """What `electronics/` places, and what the model claims about it.
-
-    THE PICK AND PLACE IS THE AUTHORITY ON WHERE THINGS ARE, the way the
-    parts list is the authority on what is fitted. Two of the thermal
-    model's numbers rest on it now - which leg the thermistor anchors,
-    and how much of that leg's rise it sees - so both are checked against
-    the file rather than against a comment.
-
-    ONLY DIFFERENCES ARE USED. The exporter's origin is offset, and every
-    quantity here is either a distance between two parts or the extent of
-    the whole set, so a constant shift falls out of both.
-    """
+    """What `electronics/` places, and what the model claims about it."""
     from coaxial import thermal
 
     at, path = pick_and_place()
@@ -622,10 +564,8 @@ def test_the_placements_behind_the_thermal_model(r):
             near == 'U1V' and second > 3.0 * away(near),
             '%s at %.1f mm, next at %.1f' % (near, away(near), second))
 
-    # THE FRACTION, from two-dimensional radial spreading in a plate:
-    # `f = ln(R/r) / ln(R/a)`. R is half the short side of the placement
-    # extent - the parts' box, not the board outline, so it is a floor -
-    # and `a` is a package's own radius.
+    # THE FRACTION, from two-dimensional radial spreading in a plate: `f =
+    # ln(R/r) / ln(R/a)`.
     xs = [p[0] for p in at.values()]
     ys = [p[1] for p in at.values()]
     reach = min(max(xs) - min(xs), max(ys) - min(ys)) / 2.0
@@ -634,9 +574,9 @@ def test_the_placements_behind_the_thermal_model(r):
     def share(ref):
         return math.log(reach / away(ref)) / math.log(reach / source)
 
-    # At 100 A the two FETs make 18.4 W of the leg node's 18.6, so the
-    # fraction is theirs and not the driver IC's - which is the whole
-    # correction the placements bought.
+    # At 100 A the two FETs make 18.4 W of the leg node's 18.6, so the fraction
+    # is theirs and not the driver IC's - which is the whole correction the
+    # placements bought.
     weighted = (0.2 * share('U1V') + 9.2 * share('Q2V')
                 + 9.2 * share('Q1V')) / 18.6
     r.check('the model fraction is what the placements imply under load',
@@ -650,15 +590,7 @@ def test_the_placements_behind_the_thermal_model(r):
 
 
 def test_the_board_stays_in_the_laminar_regime(r):
-    """The convection exponent is the regime, not a choice.
-
-    `board_to_ambient_at` scales convection as the fourth root of the
-    rise, which is `Nu = C Ra^n` with n = 1/4 - true while the flow is
-    laminar and 1/3 once it is not. Whether this board is ever anywhere
-    near that boundary is a computable question and this computes it,
-    from the placements' own extent, so a bigger board or a hotter rise
-    fails here rather than quietly using the wrong power.
-    """
+    """The convection exponent is the regime, not a choice."""
     import math
 
     from coaxial import thermal
@@ -673,8 +605,8 @@ def test_the_board_stays_in_the_laminar_regime(r):
         def ra(length):
             return (9.81 * (1.0 / film) * rise * length ** 3
                     / (nu * nu) * 0.71)
-        # Horizontal turns turbulent at 1e7, vertical at 1e9: the margin
-        # is how far the worse of the two is from its own boundary.
+        # Horizontal turns turbulent at 1e7, vertical at 1e9: the margin is how
+        # far the worse of the two is from its own boundary.
         worst = max(worst, ra(plate) / 1e7, ra(side) / 1e9)
 
     r.check('the board is laminar at every rise the ceilings allow, so '
@@ -687,17 +619,10 @@ def test_the_board_stays_in_the_laminar_regime(r):
 
 
 def test_the_datasheet_against_the_thermal_model(r):
-    """What `datasheets/mosfet/` settles, and where it disagrees.
-
-    THREE NUMBERS THAT WERE SAID TO NEED A BENCH DAY and were in the tree
-    all along - the sheet is `IAUCN10S7N021-Datasheet.pdf` Rev 1.2, and
-    the arithmetic here is what it does to the model.
-    """
+    """What `datasheets/mosfet/` settles, and where it disagrees."""
     from coaxial import inverter, thermal
 
-    # THE DIE, which the network has no node for. At 100 A each FET
-    # carries its half of the period, so about 9 W, and Rth JC puts the
-    # junction that far above its own case.
+    # THE DIE, which the network has no node for.
     watt = 100.0 ** 2 * inverter.RDS_ON * 0.5
     over = watt * inverter.RTH_JC
     r.check('one FET at 100 A puts its junction a few K over its case, '
@@ -710,12 +635,6 @@ def test_the_datasheet_against_the_thermal_model(r):
                                                 inverter.T_J_MAX))
 
     # THE SPREADING RESISTANCE, and here the sheet and the model fight.
-    # One FET's whole path to air on a JEDEC 2s2p board is 25.9 K/W. The
-    # star's spreading term alone was 45.6, then 28, on a board with
-    # heavier copper than 2s2p; the graph's leg is its edge into its
-    # patch, the patch's neighbours in parallel and the bulk to the air -
-    # about 35, still longer than the sheet's whole path, by a third
-    # where the star was double. FINDINGS has what that means.
     patch = 0.0
     for (a, b, _r), r_edge in zip(thermal.EDGES, thermal.CFG['edges']):
         if r_edge > 0.0 and 'patch_v' in (a, b) \
@@ -729,9 +648,7 @@ def test_the_datasheet_against_the_thermal_model(r):
             inverter.RTH_JA_JEDEC < leg < 2.0 * inverter.RTH_JA_JEDEC,
             '%.1f K/W against %.1f' % (leg, inverter.RTH_JA_JEDEC))
 
-    # AND THE CONDUCTION IS BOOKED ON THE TYPICAL. The sheet's maximum is
-    # within spec for a part that ships, and an envelope built on typ
-    # under-books it.
+    # AND THE CONDUCTION IS BOOKED ON THE TYPICAL.
     r.check('Rds(on) is the typical, so the envelope under-books a '
             'worst-case part by about a sixth',
             abs(2.1e-3 / inverter.RDS_ON - 1.167) < 0.01,
@@ -739,16 +656,8 @@ def test_the_datasheet_against_the_thermal_model(r):
 
 
 def test_the_stand_in_thermistor_stays_between_its_nodes(r):
-    """The stand-in's own copy of the thermistor lag carries the chain's bound.
-
-    `SimulatedThermal` integrates `coaxial.thermal`'s network itself and
-    lags its NTC at `NTC_TAU_S` toward the algebra - the same shape as
-    `thermal.c`, and it had the same defect: measured on the core, 25 A
-    for two minutes then off read the thermistor 6 K over the leg it
-    sits beside, 29 K at 60 A. The leg sheds only into the board, through
-    the copper the thermistor is on, so the reading cannot leave the pair
-    (FINDINGS, the thermistor). Held here on the stand-in, in model time,
-    so the page's demo cannot show an NTC warmer than its switches.
+    """The stand-in's own copy of the thermistor lag carries the chain's
+    bound.
     """
     from coaxial import thermal
     from coaxial.simulated.power import SimulatedThermal
@@ -775,28 +684,20 @@ def test_the_stand_in_thermistor_stays_between_its_nodes(r):
 def test_the_stand_in_throttles_on_the_winding_too(r):
     """The stand-in's stage backs off on the motor's SOA as well as the
     switches', the way `board_thermal.c` does since MINOR 12.
-
-    The board's ten nodes are lifted out of the way - ceilings the
-    copper cannot reach - so what is left is the winding: 60 A rms into
-    the record's 50 mOhm is 540 W into 180 J/K, three kelvin a second,
-    and the ceiling is 95 K up. The budget must carry the winding, its
-    OWN factor must be the one the stage gets once the board's is still
-    open, and the ceiling must trip the stage - through the same gate
-    the nodes use.
     """
     from coaxial.simulated.power import SimulatedThermal
     from coaxial.thermal_device import THROTTLE_AT
 
     model = SimulatedThermal()
-    # The board's ceilings lifted out of the way; the winding keeps its
-    # own - it is a node of the same graph since the graph, and its
-    # ceiling is the record's 120.
+    # The board's ceilings lifted out of the way; the winding keeps its own -
+    # it is a node of the same graph since the graph, and its ceiling is the
+    # record's 120.
     model.LIMIT, model.DEFAULT_LIMIT = {'winding': 120.0}, 1e4
     got, gate = [], []
     model._derate_to = got.append
     model._gate = lambda: gate.append(True) or True
-    # One instant of a balanced 60 A rms three-phase current: the peak
-    # on one leg and half of it back on the other two.
+    # One instant of a balanced 60 A rms three-phase current: the peak on one
+    # leg and half of it back on the other two.
     peak = 60.0 * math.sqrt(2.0)
     seen = {'amps': (peak, -peak / 2.0, -peak / 2.0), 'switching': True}
     cold = model.budget()
@@ -810,8 +711,8 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
         model._envelope()
         b = model.budget()
         if throttled_at is None and b['winding_derate'] < 1.0:
-            # The factor the stage held AT THAT MOMENT: by the end of the
-            # loop the winding is at its ceiling and the clamp is shut.
+            # The factor the stage held AT THAT MOMENT: by the end of the loop
+            # the winding is at its ceiling and the clamp is shut.
             throttled_at, stage_got = b, got[-1]
         if tripped_at is None and gate:
             tripped_at = b

@@ -1,29 +1,5 @@
 #!/usr/bin/env python3
-"""The real model, the real board, one session that changes language.
-
-Every other suite here scripts the model, which proves the host and nothing
-about the model. This proves the three things a script cannot:
-
-  * it goes to the board when the question is a reading;
-  * it does not when the question is a description;
-  * the answer comes back in the language the session is locked to, across a
-    switch, in both directions.
-
-What is asserted is *that* `analog_read` was called, never what it returned -
-invariant 10. There are no expected values here and there is nothing for one
-to be compared against.
-
-Needs ollama. The board is probed and a silent port falls back to the
-stand-in, so this runs with or without a cable - the model is the real one
-either way, and the model is what is under test. Minutes, not seconds: a
-model load plus a turn per question.
-
-Run from the host directory:
-
-    python tests/test_live_model.py
-    python tests/test_live_model.py --simulated   # skip the probe
-    python tools/run_tests.py --live
-"""
+"""The real model, the real board, one session that changes language."""
 import argparse
 import io
 import os
@@ -37,26 +13,15 @@ from coaxial_ollama import tools as toolmod                 # noqa: E402
 from coaxial_ollama.client import Ollama                    # noqa: E402
 from coaxial_ollama.sandbox import Scope                    # noqa: E402
 
-# The one tool that reaches the board for a reading. `board_info` and `link`
-# reach it too, but a question about what a thing *is* may legitimately want
-# the channel map - only a reading is the thing being ruled in and out here.
+# The one tool that reaches the board for a reading.
 READING = 'analog_read'
 
 # Whatever this machine is set to would otherwise decide the first turn's
 # language, and a suite that passes on a Swedish desktop and fails on an
-# English one is testing the desktop. Locked here.
+# English one is testing the desktop.
 START = 'Swedish'
 
-# question -> the tool it must call, and the ones it must not. Four
-# questions crossed two ways: list or read, analog or digital. Every wrong
-# cell below is one the operator saw before this suite existed:
-#
-#   "lista alla digitala kanaler"  -> analog_read, and a full analog table
-#   "lista alla analoga kanaler"   -> the map, then the model typing it out
-#   "ge mig alla digitala varden"  -> the digital list, no values
-#
-# `must_not` is the half that matters: right by luck after the wrong call is
-# not this suite passing.
+# question -> the tool it must call, and the ones it must not.
 TOOL_CHOICE = (
     # question, must call, must not call
     ('ge mig en lista över alla analoga kanaler', 'board_info',
@@ -72,12 +37,8 @@ TOOL_CHOICE = (
     ('read every analog channel', 'analog_read', ('digital_read',)),
     ('vad läser NTC:n?', 'analog_read', ('digital_read',)),
 
-    # Every one of these is a phrasing off the bench, kept verbatim rather
-    # than paraphrased into one. The matrix had the concept - "ge mig alla
-    # digitala varden" - and the model still fetched the analog table for
-    # "ge mig vardena fran de digitala kanalerna", on top of the
-    # digital_read it had already made correctly. A concept is not a
-    # phrasing, and the model answers phrasings.
+    # Every one of these is a phrasing off the bench, kept verbatim rather than
+    # paraphrased into one.
     ('ge mig alla digitala värden', 'digital_read', ('analog_read',)),
     ('ge mig värdena från de digitala kanalerna', 'digital_read',
      ('analog_read',)),
@@ -87,16 +48,11 @@ TOOL_CHOICE = (
     ('read the digital values', 'digital_read', ('analog_read',)),
     ('give me the values from the digital channels', 'digital_read',
      ('analog_read',)),
-    # One named pin. digital_read answers it; so would gpio_pin, and the
-    # matrix accepts either - board_info answers neither, and that is what
-    # it reached for before the values line said "a named pin included".
+    # One named pin.
     ('vilket värde har PB2 nu?', ('digital_read', 'gpio_pin'),
      ('analog_read',)),
 
     # The mirror, so a fix for one kind cannot quietly break the other.
-    # The crossing cell: "lista" and "värden" in one question. Measured
-    # live - this went to board_info and put the channel map on screen for
-    # the second question running, identical to the first.
     ('ge mig en lista över de analoga värdena', 'analog_read',
      ('board_info',)),
     ('ge mig en lista över de digitala värdena', 'digital_read',
@@ -108,10 +64,7 @@ TOOL_CHOICE = (
     ('vad har de analoga kanalerna för värden?', 'analog_read',
      ('digital_read',)),
 
-    # What the board is made of. board_info answers it, because the list
-    # comes from the firmware's own command tables - a host that answered it
-    # from a table of its own would be a second answer to a question only
-    # the board settles.
+    # What the board is made of.
     ('vilka subsystem har kortet?', 'board_info',
      ('analog_read', 'digital_read')),
     ('what subsystems does this board have', 'board_info',
@@ -119,18 +72,15 @@ TOOL_CHOICE = (
     ('vad består kortet av?', 'board_info',
      ('analog_read', 'digital_read')),
 
-    # The IMU is a third kind of reading, and the noun that reaches it is
-    # its own name. What must not happen is analog_read: "matvarden" is the
-    # word the analog table answers to, and the sensor named in the same
-    # sentence is what decides.
+    # The IMU is a third kind of reading, and the noun that reaches it is its
+    # own name.
     ('lista alla mätvärden från IMU:n', 'imu',
      ('analog_read', 'digital_read')),
     ('list every measurement from the IMU', 'imu',
      ('analog_read', 'digital_read')),
     ('vad säger IMU:n?', 'imu', ('analog_read', 'digital_read')),
 
-    # Orientation is a picture, not a list of numbers, and it has its own
-    # tool. imu would answer with a quaternion, which is not what was asked.
+    # Orientation is a picture, not a list of numbers, and it has its own tool.
     ('visa mig orienteringen på elektroniken', 'orientation',
      ('analog_read', 'digital_read')),
     ('show me how the board is oriented', 'orientation',
@@ -138,8 +88,7 @@ TOOL_CHOICE = (
     ('hur är kortet vänt?', 'orientation',
      ('analog_read', 'digital_read')),
 
-    # The bus. One board is a bus of one; a machine is several of it, and
-    # "which device" is a question board_info cannot answer.
+    # The bus.
     ('ge mig en lista på alla enheter du kan kommunicera med', 'devices',
      ('analog_read', 'digital_read')),
     ('list every device you can talk to', 'devices',
@@ -147,11 +96,7 @@ TOOL_CHOICE = (
     ('kommunicera med höger knä', 'devices',
      ('analog_read', 'digital_read')),
 
-    # The board is silent. link_diagnose is the tool for it - the offline
-    # suite asserts what the checklist then says, this asserts the model
-    # reaches for it at all. Worth a live row because the fix that made the
-    # checklist correct was invisible to every scripted suite: they drive
-    # a double with no `port`, and the stand-in that ships has one.
+    # The board is silent.
     ('kortet svarar inte, varför?', 'link_diagnose',
      ('analog_read', 'digital_read')),
     ('varför får jag inget svar från kortet?', 'link_diagnose',
@@ -159,15 +104,7 @@ TOOL_CHOICE = (
     ('the board is not answering - why?', 'link_diagnose',
      ('analog_read', 'digital_read')),
 
-    # What a thing IS. board_info is allowed: describing this board from
-    # its own map beats describing it from training, and the earlier
-    # "no board call" here was the wrong bar - measured, gemma4:12b and
-    # qwen2.5:14b both reached for it, which is two families agreeing the
-    # expectation was wrong rather than two models being wrong.
-    #
-    # What must not happen is a measurement, or the front end being
-    # switched, or the link being diagnosed. None of those describes
-    # anything.
+    # What a thing IS.
     ('beskriv hårdvaran i detta projektet för en novis', None,
      ('analog_read', 'digital_read', 'afe_power', 'link_diagnose')),
     ('what is this project about', None,
@@ -175,22 +112,15 @@ TOOL_CHOICE = (
 )
 
 
-# question, must it reach the board, what language the answer is in
-# Two questions in one session, history kept - the shape an operator types.
-# The matrix above clears history between rows, which is right for isolating a
-# question and wrong for this: the failure reported four separate times was the
-# *second* question repeating the first's channel map, and the first answer
-# sitting in history is what makes that possible.
-#
-# Both orders, because map-then-read can pass by luck: a model that always
-# calls board_info scores the first row of one and the second row of nothing.
+# question, must it reach the board, what language the answer is in Two
+# questions in one session, history kept - the shape an operator types.
 SEQUENCES = (
     (('ge mig en lista på alla analoga kanalerna', 'board_info', 'analog_read'),
      ('ge mig en lista på alla analoga mätvärdena', 'analog_read',
       'board_info')),
-    # Verbatim from a transcript, article and all: "den analoga mätvärdena"
-    # is not "de", and the wording that was tested is not the wording that
-    # was typed.
+    # Verbatim from a transcript, article and all: "den analoga mätvärdena" is
+    # not "de", and the wording that was tested is not the wording that was
+    # typed.
     (('ge mig en lista över de analoga kanalerna', 'board_info',
       'analog_read'),
      ('ge mig en lista över den analoga mätvärdena', 'analog_read',
@@ -235,37 +165,20 @@ class Report:
 
 
 def safe(text, limit=60):
-    """One line of a model's answer that any console can print.
-
-    The suite reports in the operator's console encoding, which is cp1252
-    here; an answer that is fine on the wire is a UnicodeEncodeError in the
-    detail column, and losing the tally to a glyph is the failure this whole
-    package keeps running into.
-    """
+    """One line of a model's answer that any console can print."""
     flat = ' '.join((text or '').split())[:limit]
     encoding = getattr(sys.stdout, 'encoding', None) or 'ascii'
     return flat.encode(encoding, 'replace').decode(encoding, 'replace')
 
 
 def _twice(answer, results):
-    """The names a tool printed this turn, named again by the answer.
-
-    Returns them when the answer is a restatement and '' when it says
-    something of its own. The host silences a retype, so a non-empty
-    return here means one reached the operator - which is every
-    duplication ever reported from this bench.
-
-    Read off the tool results rather than the screen, so it holds with the
-    trace off as well.
-    """
+    """The names a tool printed this turn, named again by the answer."""
     from coaxial_ollama import replies
 
     if not (answer or '').strip():
         return ''
-    # Alternatives, not a union: the answer names a row one way, and the
-    # union would want every column's name present at once. Measured, the
-    # union missing it - "AFE_ON ar 1 och nFAULT ar 0" under a trace whose
-    # pins are PB2 and PE15.
+    # Alternatives, not a union: the answer names a row one way, and the union
+    # would want every column's name present at once.
     sets = []
     for text in results:
         for pattern in (replies.READING_ROW, replies.MAP_ROW,
@@ -284,12 +197,7 @@ TOOLS = 'code'     # and its --tools default, which is what board_chat runs
 
 
 def matching(rows, needle, text):
-    """The rows whose question contains `needle`, or all of them for None.
-
-    Case-folded and accent-blind on the vowels this bench types, so
-    `--match matvard` finds "mätvärdena" from a terminal that cannot produce
-    the umlaut.
-    """
+    """The rows whose question contains `needle`, or all of them for None."""
     if not needle:
         return rows
     def flat(s):
@@ -306,33 +214,15 @@ def build(model, port, simulated, compile_intent=True):
     from coaxial.session import open_session
     session, found = open_session(port, 115200, 1,
                                   simulated=True if simulated else None)
-    # Held for the whole run, not unloaded after every request. keep_alive=0
-    # is ollama's "hand the VRAM back now", so this suite was reloading 7.6
-    # GB for each of its twenty-six questions and spending most of its wall
-    # time on that. Released once, in main()'s finally - the same bargain
-    # the prompt loop makes, for the same reason.
-    # Built the way debug.main() builds it, not the way a test finds
-    # convenient. Measured: with `think` left unset the payload omits it, and
-    # `ge mig en lista over den analoga matvardena` called analog_read; with
-    # `think=False`, which is what the prompt actually sends, the same
-    # question called board_info. num_predict=300 is the --words default and
-    # moves it again. A suite that configures its own client tests a
-    # configuration nobody runs - this one did, for every row, until here.
+    # Held for the whole run, not unloaded after every request.
     client = Ollama(model, keep_alive='30m', num_predict=WORDS, think=False)
     toolbox = toolmod.Toolbox(session, scope=Scope())
     # `read` rather than the default set: the fewer tools in the schema, the
-    # less this measures the model's taste in tools it was never going to
-    # need. out is a sink - the trace is noise between PASS lines.
-    # quiet=False with the trace pointed at a sink: `out` is what keeps the
-    # rows off this suite's own screen, and --quiet is a different mode -
-    # it makes the host substitute a silenced block for the answer, which
-    # is right at a prompt with no trace and wrong here. Configured the way
-    # the operator runs it, or the duplication check measures the mode.
+    # less this measures the model's taste in tools it was never going to need.
     chat = debug.Chat(client, toolbox, tools=TOOLS, quiet=False,
                       out=io.StringIO(), session_language=START)
-    # The intent pass is what the prompt loop runs with, so this measures it
-    # by default. --no-compile runs the same matrix without it, which is the
-    # only way to say what the second call is buying.
+    # The intent pass is what the prompt loop runs with, so this measures it by
+    # default.
     chat.compile_intent = compile_intent
     return session, chat, found
 
@@ -369,17 +259,13 @@ def main(argv=None):
     session, chat, found = build(args.model, args.port, args.simulated,
                                  not args.no_compile)
     report = Report()
-    # Which board, said before the first PASS. The tool-choice checks below
-    # hold either way - reaching analog_read is the model's decision, not the
-    # board's - but "answered 38.53C" from a stand-in is an invented number,
-    # and this suite never asserts on one. See invariant 10.
+    # Which board, said before the first PASS.
     print('-- %s, %s --'
           % (args.model, found.label if found.real else 'SIMULATED board'))
     try:
         # Tool choice first, and each question from a clean history: what is
-        # under test is which tool this question reaches for, not which one
-        # the last question left in view.
-        # Every tool result this turn produced, for the duplication check.
+        # under test is which tool this question reaches for, not which one the
+        # last question left in view.
         results = []
         real_call = chat.toolbox.call
 
@@ -401,31 +287,25 @@ def main(argv=None):
                 before = len(chat.toolbox.log)
                 del results[:]
                 answer = chat.ask(question)
-                # `link` is dropped: _probe_link makes that call itself
-                # when an answer comes back blank, so counting it would
-                # measure the host's recovery rather than the model's
-                # choice of tool. Measured as "no board call -> link, link,
-                # link" on a question the model simply did not answer.
+                # `link` is dropped: _probe_link makes that call itself when an
+                # answer comes back blank, so counting it would measure the
+                # host's recovery rather than the model's choice of tool.
                 called = [name for name, _ in chat.toolbox.log[before:]
                           if name != 'link']
-                # prompt_history as well as history: trim() puts the last
-                # five questions in the system message as "already tried in
-                # this conversation", and by the third row this suite had
-                # asked for the same list twice in two languages - measured,
-                # the model then answered "list every analog channel" from
-                # nothing at all, with no call, because it read the question
-                # as one it had already done. A row here is one question,
-                # not a conversation.
+                # prompt_history as well as history: trim() puts the last five
+                # questions in the system message as "already tried in this
+                # conversation", and by the third row this suite had asked for
+                # the same list twice in two languages - measured, the model
+                # then answered "list every analog channel" from nothing at
+                # all, with no call, because it read the question as one it had
+                # already done.
                 chat.history = []
                 chat.prompt_history = []
                 chat.last_channels = None
 
                 # "Answered" is not "wrote a sentence": the host silences a
                 # retyped list on purpose, because the trace above it is the
-                # answer. Measured, asserting the sentence: twelve of these
-                # failed for doing exactly what they should. What must never
-                # happen is the operator getting nothing at all - no words
-                # and no tool output.
+                # answer.
                 report.check('%s -> the operator got something'
                              % safe(question, 40),
                              bool(answer.strip()) or bool(results),
@@ -443,12 +323,7 @@ def main(argv=None):
                                                '/'.join(must_not)),
                              not wrong, ', '.join(wrong) or 'none')
 
-                # And the answer is not the trace typed out again. Free: the
-                # turn already ran. Every duplication reported from this bench
-                # was one question putting the same list on screen twice, and
-                # the host's backstop is what has to catch it whatever the
-                # model writes - so it is checked on every question, not on
-                # the ones a transcript happened to be pasted from.
+                # And the answer is not the trace typed out again.
                 said_twice = _twice(answer, results)
                 report.check('%s -> said once, not twice' % safe(question, 40),
                              not said_twice, said_twice or 'once')
@@ -478,9 +353,9 @@ def main(argv=None):
                     report.check('%s -> the operator got something' % label,
                                  bool(answer.strip()) or bool(results),
                                  safe(answer, 40) or '(the trace)')
-                    # The visible symptom, and the reason this section
-                    # exists: the second question put the first question's
-                    # block on screen again, character for character.
+                    # The visible symptom, and the reason this section exists:
+                    # the second question put the first question's block on
+                    # screen again, character for character.
                     if seen:
                         report.check('%s -> and not the block above it again'
                                      % label,
@@ -520,14 +395,9 @@ def main(argv=None):
                                 else 'did not reach'),
                              (READING in called) == needs_board,
                              ', '.join(called) or 'no calls')
-                # detect() is the same judge the session prompt is built from, so
-                # a disagreement here is the operator's screen disagreeing too.
-                # None passes: measured against the stand-in, "las NTC:n och
-                # DC-lanken" was answered "NTC: 25.00C DC-lanken: 39.075V" - terse
-                # and no preamble, exactly what SYSTEM asks for, and not one word
-                # for a stop-word list to score. An answer with no words in it
-                # cannot be in the wrong language. Anything that does detect must
-                # be right.
+                # detect() is the same judge the session prompt is built from,
+                # so a disagreement here is the operator's screen disagreeing
+                # too.
                 spoke = language.detect(answer)
                 report.check('answered in %s' % expect, spoke in (expect, None),
                              'no words to judge' if spoke is None
@@ -539,12 +409,7 @@ def main(argv=None):
             session.close()
         except Exception:                                     # noqa: BLE001
             pass
-        # The model stays loaded. Unloading here was tidy and wrong: this
-        # suite is run several times in a row while something is being
-        # fixed, and every run then paid a full 7.6 GB load - measured, most
-        # of the wall time. keep_alive lets it expire on its own if nobody
-        # comes back. `--release` hands it over at once, for the run that
-        # really is the last one.
+        # The model stays loaded.
         if release:
             try:
                 chat.client.unload()

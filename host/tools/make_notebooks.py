@@ -57,12 +57,7 @@ NOTEBOOKS = notebooks.AREAS
 
 
 def cell(kind, text, ident):
-    """One notebook cell, in nbformat 4's shape.
-
-    `ident` is the cell id nbformat wants; it is derived from the
-    notebook's name and the cell's position so a rewrite of one cell
-    does not renumber the rest of the file.
-    """
+    """One notebook cell, in nbformat 4's shape."""
     lines = text.split('\n')
     source = [line + '\n' for line in lines[:-1]] + [lines[-1]]
     if kind == 'markdown':
@@ -97,12 +92,7 @@ def write(name, out_dir):
 
 
 def execute(path, out_dir, timeout=1800):
-    """Run a notebook in place. Returns the first error, or None.
-
-    `allow_errors` so a failing cell does not stop the rest: the whole
-    run is more use than the first traceback, and the outputs of the
-    cells that did work are what say where it went wrong.
-    """
+    """Run a notebook in place."""
     import nbformat
     from jupyter_client.kernelspec import NoSuchKernel
     from nbclient import NotebookClient
@@ -146,8 +136,7 @@ def kernel_interpreter():
 
 
 def install_kernel():
-    """Register the kernel on this interpreter, for this user. Returns the
-    kernelspec's directory; its argv is this interpreter's absolute path."""
+    """Register the kernel on this interpreter, for this user."""
     installer, _ = _kernelspec_api()
     return installer.install(user=True, kernel_name=KERNEL,
                              display_name=KERNEL_DISPLAY)
@@ -167,7 +156,8 @@ def kernel_status():
 def kernel_command(action):
     """`--kernel status` prints which interpreter the notebooks' kernel
     starts and exits 1 unless it is this one; `--kernel install`
-    registers it here. A missing ipykernel is the line that installs it."""
+    registers it here.
+    """
     try:
         detail, fine = (('%s -> %s' % (install_kernel(), sys.executable), True)
                         if action == 'install' else kernel_status())

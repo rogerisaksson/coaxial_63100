@@ -1,6 +1,6 @@
-"""The online identification, as the board runs it - `thermal_ident.c` mirrored
-in Python so the stand-in identifies the same way and a page in simulated
-mode shows the same states for the same reasons.
+"""The online identification, as the board runs it - `thermal_ident.c`
+mirrored in Python so the stand-in identifies the same way and a page in
+simulated mode shows the same states for the same reasons.
 """
 import math
 
@@ -93,9 +93,7 @@ LEG_PATCHES = ('patch_u', 'patch_v', 'patch_w')
 
 def apply(scale, base):
     """`base` with the scales on it: the air path and the capacity of every
-    laminate node, the sources' ten edges, the thermistor's share. The room
-    is not the network's and is not here. A shallow copy that replaces only
-    what it changes.
+    laminate node, the sources' ten edges, the thermistor's share.
     """
     cfg = dict(base)
     air, cap, spread, ntc = scale[:RECORD]
@@ -126,9 +124,9 @@ def rates(temps, cfg, power, speed_rpm, ambient=thermal.AMBIENT):
 
 
 def ntc_follow(temps, ntc, cfg, dt):
-    """One step of the thermistor's element - `thermal_ntc_follow`: first order
-    toward the weighted average of its two patches, and never past either.
-    Returns `(ntc, held)`, `held` the node it is pinned at or None.
+    """One step of the thermistor's element - `thermal_ntc_follow`: first
+    order toward the weighted average of its two patches, and never past
+    either.
     """
     f = min(1.0, max(0.0, cfg.get('ntc_sees', thermal.NTC_SEES_DRIVERS)))
     tau = cfg.get('ntc_tau_s', thermal.NTC_TAU_S)
@@ -201,8 +199,7 @@ def _lag_gain(cfg, since_s):
 
 def _anchor_ntc(temps, ntc, cfg, reading, f, held, k, since_s):
     """THE THERMISTOR AGAINST THE ELEMENT AS MODELLED; the miss through the
-    share and the lag, one for one at the leg. Returns the corrected ntc;
-    the legs' patches move in place.
+    share and the lag, one for one at the leg.
     """
     miss = reading - ntc
     leg, centre = temps[thermal.NTC_PATCH], temps['board']
@@ -234,11 +231,11 @@ def _unit(x):
 
 
 def doubt_terms(innovation_k, sigma, noise_k=0.1):
-    """Each normalised term of the doubt by name - `thermal_ident_doubt` taken
-    apart, so a page can say which one holds the margin down: 'innovation'
-    from the floor to the UNCERTAIN ratio, and each online quantity's sigma
-    from its STABLE threshold to its prior, 'air', 'capacity' and 'room'.
-    `sigma` is the five sigmas in wire order.
+    """Each normalised term of the doubt by name - `thermal_ident_doubt`
+    taken apart, so a page can say which one holds the margin down:
+    'innovation' from the floor to the UNCERTAIN ratio, and each online
+    quantity's sigma from its STABLE threshold to its prior, 'air',
+    'capacity' and 'room'.
     """
     terms = {'innovation': _unit((innovation_k / noise_k - 1.0)
                                  / (RATIO_UNCERTAIN - 1.0))}
@@ -303,18 +300,17 @@ class Identifier:
 
     def doubt(self):
         """How far the model is doubted, 0..1 - `thermal_ident_doubt`: the
-        worse of the innovation normalised from the thermometers' floor to
-        the ratio that says UNCERTAIN, and each online quantity's sigma from
-        where STABLE calls it known to its prior. A fresh board is doubted
-        whole and an idle one stays so; a cooldown is what lowers it.
+        worse of the innovation normalised from the thermometers' floor
+        to the ratio that says UNCERTAIN, and each online quantity's
+        sigma from where STABLE calls it known to its prior.
         """
         return max(doubt_terms(self.innovation_k,
                                [self.sigma(k) for k in range(PARAMS)],
                                self.noise_k).values())
 
     def margin(self, floor=MARGIN_FLOOR):
-        """`thermal_ident_margin`: the floor while the model is doubted whole,
-        one when not at all, the doubt between - continuous since
+        """`thermal_ident_margin`: the floor while the model is doubted
+        whole, one when not at all, the doubt between - continuous since
         2026-09-06; it was three steps on the state.
         """
         f = _unit(floor)
@@ -436,9 +432,9 @@ class Identifier:
         return True
 
     def _room_reset(self):
-        """`room_reset`: on the way to UNCERTAIN the room's variance goes back
-        to its whole prior and its correlation with every scale is cut, so a
-        room step is charged to the room first.
+        """`room_reset`: on the way to UNCERTAIN the room's variance goes
+        back to its whole prior and its correlation with every scale is
+        cut, so a room step is charged to the room first.
         """
         for k in range(PARAMS):
             self.p[AMBIENT][k] = 0.0
@@ -503,9 +499,9 @@ class Identifier:
         return channels
 
     def _take(self, seen, power, still):
-        """Every seated thermometer against its prediction: the update it makes
-        unless the board is still, and the worst miss against what was
-        allowed. Returns (moved, judged, worst).
+        """Every seated thermometer against its prediction: the update it
+        makes unless the board is still, and the worst miss against what
+        was allowed.
         """
         moved, judged, worst = False, False, 0.0
         for name, predicted, h in self._channels(power):
@@ -521,9 +517,9 @@ class Identifier:
         return moved, judged, worst
 
     def _drift(self, still):
-        """The online quantities' variance grows a little per judged sample, so
-        a machine that changes is followed - unless the board is still,
-        which teaches nothing.
+        """The online quantities' variance grows a little per judged sample,
+        so a machine that changes is followed - unless the board is
+        still, which teaches nothing.
         """
         if still:
             return
@@ -553,10 +549,8 @@ class Identifier:
 
     def step(self, temps, ntc, base, power, speed_rpm, seen, dt):
         """The observer's state after its own step, the record's base, this
-        slice's power and speed, the thermometers (`{'ntc', 'afe', 'mcu'}`
-        or None) and the slice. True when a sample moved the quantities: the
-        caller re-applies the scales to the observer's network, and the room
-        to its `ambient` after every step.
+        slice's power and speed, the thermometers (`{'ntc', 'afe',
+        'mcu'}` or None) and the slice.
         """
         seen = seen or {}
         if not self.primed:

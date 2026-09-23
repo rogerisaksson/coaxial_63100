@@ -1,36 +1,4 @@
-"""The machine in cross-section: stator teeth inside, magnets outside.
-
-An outrunner is drawn the way it is built - the rotor is the *outside*,
-a steel can carrying the magnets, turning around a stator whose teeth
-face outwards. That is why the PCB sits coaxially behind the stator: the
-middle of this picture is where the electronics are.
-
-What the picture is for is the thing a number cannot say: WHICH TOOTH IS
-UNDER WHICH MAGNET. An angle of 296.8 degrees electrical is one
-fourteenth of a turn on a 28-pole machine, and a reader watching an
-estimate cross zero has no way to tell a real commutation from an
-observer that has slipped a pole. Here a slip is visible: the magnet band
-steps round and the teeth stay where they are.
-
-SLOTS AND POLES ARE DIFFERENT KINDS OF FACT. The pole count comes off
-the wire - `motor_pole_pairs` in the calibration record, doubled - so
-this draws whatever machine the record describes. The SLOT count is not
-in the record, is not on the wire, and cannot be inferred from the pole
-count: 24N28P is a common combination and so is 21N28P. It is therefore
-a parameter of the drawing with a stated default, not a measurement, and
-`--slots` is how a bench says what is actually on the shaft.
-
-DOTS, the same braille matrix `wireframe` rasters the board into, for the
-reason recorded beside it in `raster`: an ASCII stroke set was built
-alongside that one and taken out on the bench's word. A picture that is
-dots in one view and hashes and slashes in the next is two drawing
-conventions in one terminal.
-
-Pure: numbers in, a block of text out. No serial port, no terminal, no
-clock. Angles run the way the rest of the tree reports them - zero to the
-right, increasing counter-clockwise - which is a drawing convention and
-not a claim about which way the shaft turns (invariant 10).
-"""
+"""The machine in cross-section: stator teeth inside, magnets outside."""
 import math
 
 from . import ansi
@@ -127,14 +95,7 @@ FLOOR_INSET = 0
 
 
 def _drive(amps, full=None):
-    """The three phase currents as shares of full scale, or None.
-
-    Normalised HERE and not by the caller so every drawing means the same
-    thing: a share of one is a tooth at full length. `full` defaults to
-    the largest of the three, which shows the SHAPE of the excitation when
-    nobody has said what full scale is - the three-phase sequence is
-    visible either way, and only the absolute size is not.
-    """
+    """The three phase currents as shares of full scale, or None."""
     if not amps:
         return None
     scale = full or max(abs(a) for a in amps) or 1.0
@@ -336,26 +297,12 @@ class _Radii:
     """The radii for one drawing, in dots, from the box it fits in."""
 
     def __init__(self, width, height, stretch=1.0):
-        # THE HEIGHT IS MEASURED IN THE SAME UNITS AS THE WIDTH. Radii
-        # are x-dots and the drawing scales y by `stretch`, so a box
-        # `height` rows tall holds `height * DOTS_Y * stretch` x-dots of
-        # can - not `height * DOTS_Y`. Without it a cell taller than two
-        # by one left the can sized as if its rows were shorter than
-        # they are, and a band fitted to the can then shrank it.
+        # THE HEIGHT IS MEASURED IN THE SAME UNITS AS THE WIDTH.
         self.can = (min(width * DOTS_X, height * DOTS_Y * stretch) / 2.0
                     - 1.0) * F_FIT
         self.magnet_out = self.can * F_MAGNET_OUT
         self.magnet_in = self.can * F_MAGNET_IN
-        # THE TEETH REACH THEIR FULL FRACTION. They were clamped two dots
-        # short so that no cell could hold both a magnet and a tooth tip
-        # - the gap is 0.08 of the radius, 2.6 dots against a cell four
-        # tall, and at twelve and six o'clock the shared cell took the
-        # magnet's amber. Clean, and the bench read it as the slots
-        # drawn too small, which they were. At this resolution it is one
-        # or the other; the picture is of the stator's current, so the
-        # teeth keep their length and the shared cell goes to the tooth
-        # (`Frame.put`). A magnet a dot short at its inner edge at two
-        # angles is the cheaper fault.
+        # THE TEETH REACH THEIR FULL FRACTION.
         self.tooth_out = self.can * F_TOOTH_OUT
         self.tooth_in = self.can * F_TOOTH_IN
         self.bore = self.can * F_BORE
@@ -363,32 +310,13 @@ class _Radii:
         self.line = max(0.8, self.can * F_LINE)
 
     def ring(self, radius, at, weight=1.0):
-        """How much of a dot at `radius` the ring at `at` covers, 0 to 1.
-
-        A COVERAGE AND NOT A YES. The band was a hard test - inside the
-        half-width or out - and four corner samples then quantised a
-        stroke to fifths, which on a thin ring is solid or nothing per
-        dot. That is the staircase: an arc crossing a cell had no way to
-        say it was only a third of the way into it.
-
-        A dot is one unit across, so the stroke covers all of one whose
-        centre is at least half a dot inside the edge, none of one half a
-        dot outside, and a straight ramp between. That ramp is what draws
-        `⣀` where an arc grazes the bottom of a cell, `⣤` where it is
-        halfway in and `⣶` where it nearly fills it - the grading a
-        braille cell can show, which a boolean cannot reach.
-        """
+        """How much of a dot at `radius` the ring at `at` covers, 0 to 1."""
         edge = self.line * weight + 0.5 - abs(radius - at)
         return 0.0 if edge <= 0.0 else (1.0 if edge >= 1.0 else edge)
 
 
 def _magnet_class(radius, phi, rotor, poles, r):
-    """North solid, south a thin arc, or None between them.
-
-    POLARITY IS THICKNESS. A north magnet is the full depth of the band
-    and a south is a line down the middle of it, which counts out as 28
-    magnets and reads as 14 pole pairs at once.
-    """
+    """North solid, south a thin arc, or None between them."""
     place = ((phi - rotor) % math.tau) / (math.tau / poles)
     index, into = int(place), place - int(place)
     if into < 0.1 or into > 0.9:            # the break between magnets
@@ -411,23 +339,7 @@ def _stubbed(radius, r, share):
 
 
 def _tooth_class(radius, phi, slots, r, drive):
-    """The phase of the tooth at `phi`, or None for the slot beside it.
-
-    Teeth are numbered from zero to the right and take their phase in
-    turn, which is what a three-phase machine with a slot count divisible
-    by three is. A count that is not divisible by three still draws - the
-    phases simply do not close on themselves, and that is the winding
-    such a machine has.
-
-    THE TOOTH IS AS LONG AS ITS PHASE IS DRIVEN, and grows from the end
-    the current's sign says: outward from the yoke where the phase pushes,
-    inward from the tip where it pulls. That is the magnetisation, and it
-    is the reason to draw teeth rather than an angle - over one electrical
-    turn the three lengths breathe in sequence a third of a turn apart,
-    which is what a three-phase machine does and what no dial shows. With
-    no currents given they are drawn full length, which is a machine
-    nobody is asking anything of.
-    """
+    """The phase of the tooth at `phi`, or None for the slot beside it."""
     if not r.tooth_in <= radius <= r.tooth_out:
         return None, 0.0
     place = (phi % math.tau) / (math.tau / slots)
@@ -436,9 +348,9 @@ def _tooth_class(radius, phi, slots, r, drive):
     phase = int(place) % 3
     if drive is not None and _stubbed(radius, r, drive[phase]):
         return None, 0.0
-    # A TOOTH IS A FILLED AREA, so what bounds it is its angle and its
-    # length, not a stroke - a sample is inside it or it is not, and the
-    # supersampling in `_body` is what softens those edges.
+    # A TOOTH IS A FILLED AREA, so what bounds it is its angle and its length,
+    # not a stroke - a sample is inside it or it is not, and the supersampling
+    # in `_body` is what softens those edges.
     return PHASE_CLASS[phase], 1.0
 
 
@@ -456,19 +368,6 @@ def _samples(frame, seat):
     """Every dot the machine reaches, with its four samples in `SUBDOT`
     order, each `(kind, a, b)`: a fixed vote `(class, coverage)`, or the
     `(radius, angle)` of a sample in the tooth band or the magnet band.
-
-    THE GEOMETRY IS THE SEAT'S AND THE FRAME ONLY TURNS THE ROTOR. A
-    sample's radius and angle, and whether it lies on the bore, the yoke
-    or the can - rings that never move - or in the tooth band, the magnet
-    band or the air, depend on the box and the cell aspect alone; worked
-    out for every sample of every frame it was two thirds of the rotor
-    observer's frame time, measured. Once per seat, then - and a dot in
-    the air is not in the table at all.
-
-    THE COVERAGE TRAVELS WITH THE CLASS because only the shape knows it.
-    A ring answers a ramp across its own edge; a tooth or a magnet is a
-    filled area and answers one, its edges being angles that `_body`
-    supersamples.
     """
     r = seat.radii
     key = (frame.width, frame.height, seat.cx, seat.cy, seat.stretch,
@@ -513,30 +412,11 @@ def _sampled(frame, seat):
 
 
 def layout(width, height, n_left=0, n_right=0, rows=None, stretch=1.0):
-    """Where everything goes: `(centre_x, radii, left_cols, right_cols)`.
-
-    ONE SOURCE FOR ALL OF IT. The span, the gutters, the raster and the
-    caption each worked the geometry out again, and any two of them
-    disagreeing put a scale through a thermometer or a title over a
-    gutter. They all come here now.
-
-    THE MACHINE IS CENTRED BETWEEN THE GUTTERS, not in the box. Six
-    thermometers stand to its left and four to its right, so centred in
-    the frame it sat nearer the left group than the right - measured, one
-    column of air against two - and could not grow either, because the
-    wider gutter reached the frame first. Centred on what is actually
-    left over, it is symmetric AND bigger: one rule gives both.
-    """
+    """Where everything goes: `(centre_x, radii, left_cols, right_cols)`."""
     lead = (n_left + BAR_GAP) if n_left else 0
     trail = (n_right + BAR_GAP) if n_right else 0
     room = max(1, width - lead - trail)
-    # THE CAN IS SIZED AGAINST ITS OWN BAND, not the whole box. Given the
-    # box it grew to fill it, so every row added for the foot gauges made
-    # the can a row taller and it ran into them again - a loop that
-    # cannot be escaped by changing the height, because the height was
-    # the thing feeding it. `rows` is what is left after the gauges and
-    # anything written above them, so the can's size follows the WIDTH
-    # and the rows only change how much air is around it.
+    # THE CAN IS SIZED AGAINST ITS OWN BAND, not the whole box.
     r = _Radii(room, rows if rows else height, stretch)
     cx = (lead + room / 2.0) * DOTS_X - 0.5
     left = [c for c in (lead - BAR_GAP - 1 - i for i in range(n_left))
@@ -547,21 +427,12 @@ def layout(width, height, n_left=0, n_right=0, rows=None, stretch=1.0):
 
 
 def gutters(width, height, n_left, n_right):
-    """Which columns the margin bars land in, `(left, right)`.
-
-    Exported because a caption has to sit over its own group and the only
-    thing that knows where a group went is what put it there.
-    """
+    """Which columns the margin bars land in, `(left, right)`."""
     return layout(width, height, n_left, n_right)[2:]
 
 
 def span(width, height, n_left=0, n_right=0, rows=None):
-    """The columns the machine itself occupies, first and last.
-
-    FLOORED AT BOTH ENDS. Ceiling the right one put its edge a column
-    further out than the circle actually reached, so the gutter measured
-    off it stood two columns clear where the left stood one.
-    """
+    """The columns the machine itself occupies, first and last."""
     cx, r, _, _ = layout(width, height, n_left, n_right, rows)
     return (int(math.floor((cx - r.can) / DOTS_X)),
             int(math.floor((cx + r.can) / DOTS_X)))
@@ -569,26 +440,12 @@ def span(width, height, n_left=0, n_right=0, rows=None):
 
 def _gauge(dots, owner, width, height, row, share, cls,
            n_left=0, n_right=0, part=None):
-    """One horizontal level across the MACHINE'S width, from the left.
-
-    Not the whole row: run edge to edge it passed above and below the
-    gutter thermometers and the four corners of the box read as one
-    instrument crossing another. Between the gutters it is over the
-    thing it describes and the corners are empty.
-
-    The same instrument as the gutters turned on its side, and drawn the
-    same way: the level solid, the rest of the scale every other dot, so
-    a reader sees how far along the scale the level is and not only that
-    there is one.
-    """
+    """One horizontal level across the MACHINE'S width, from the left."""
     if row < 0 or row >= height:
         return
     first, last = span(width, height, n_left, n_right)
     if part is not None:
-        # ONE OF SEVERAL ACROSS THE SAME WIDTH. `part` is `(index, count)`
-        # and the gauges share the machine's span end to end, so each
-        # sits under its own name instead of a stack of bars that have to
-        # be told apart by their order.
+        # ONE OF SEVERAL ACROSS THE SAME WIDTH.
         index, count = part
         step = (last - first + 1) / float(max(1, count))
         first, last = (int(first + index * step),
@@ -599,25 +456,9 @@ def _gauge(dots, owner, width, height, row, share, cls,
 
 
 def _level(dots, owner, row, lo, hi, start, end, cls):
-    """A horizontal level on `row`, in DOT columns: the scale runs `lo`
-    to `hi` (exclusive) and the level fills `start` to `end` in `cls`;
-    the rest of the scale is track. The same instrument wherever a page
-    draws a level - `gauges` calls it for every other view.
-
-    THE CELLS THE LEVEL ENDS IN HOLD LEVEL AND NOTHING ELSE, for the
-    reason `_tube` gives: a track dot inside one took the level's colour
-    and the bar read a whole cell long whatever the level was. Kept
-    clear, the end of the bar is drawn at the dot - one lane or two -
-    and a level that moves one dot is seen to move. Both ends, because a
-    bipolar gauge's level starts at its centre and not at the scale's.
-
-    ONE COLUMN A CELL, AT THE GAUGE'S OWN HEIGHT. Every fourth dot put
-    one in every other cell, so the empty half of a gauge came out as a
-    dashed line with gaps a cell wide; one dot a cell on the middle row
-    was a scale, but a scale a single dot tall beside a level three tall
-    - the tubes' track runs the tube's whole width, and the bench asked
-    for the same here: the empty half of the gauge is the gauge's own
-    height, in the track's grey.
+    """A horizontal level on `row`, in DOT columns: the scale runs `lo` to
+    `hi` (exclusive) and the level fills `start` to `end` in `cls`; the
+    rest of the scale is track.
     """
     ends = ({start // DOTS_X, (end - 1) // DOTS_X} if end > start
             else set())
@@ -634,10 +475,9 @@ def _level(dots, owner, row, lo, hi, start, end, cls):
 
 
 def _mark(dots, owner, row, x, cls, ys=GAUGE_Y):
-    """A tick at dot column `x`, on dot rows `ys` - a level's height for
-    a burst's extreme, the top dot alone for a held peak. Drawn over
-    whatever is there and claiming the cell, because a mark that yields
-    to the level it marks is not seen."""
+    """A tick at dot column `x`, on dot rows `ys` - a level's height for a
+    burst's extreme, the top dot alone for a held peak.
+    """
     col = x // DOTS_X
     if 0 <= row < len(dots) and 0 <= col < len(dots[row]):
         for y in ys:
@@ -647,56 +487,22 @@ def _mark(dots, owner, row, x, cls, ys=GAUGE_Y):
 
 def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
           has_top=True):
-    """Vertical margin bars, filled from the bottom, one cell wide.
-
-    LEFT AND RIGHT ARE THE CALLER'S SUBJECTS, not this module's: it draws
-    fractions in gutters and knows nothing about what is hot. Each entry
-    is `(fraction, class)`, and the class is one of `SOA_CLASS`.
-
-    THERMOMETERS, not bars: each column is a tube the full height of the
-    box with the level rising inside it. The tube is what makes the level
-    mean anything - a column half the height of nothing is a number, a
-    column half the height of its own ceiling is a margin.
-
-    In the gutters and never over the machine: one drawn through the
-    drawing would be a thermometer through a motor. Placed `BAR_GAP`
-    columns from the CAN'S EDGE on each side, so both groups stand the
-    same distance off whatever size the machine came out. Filled from the
-    bottom because that is which way a level goes. The first entry of
-    each side is the one nearest the machine, so both groups read
-    outwards from it.
-    """
-    # THE FIRST ROW AND THE LAST FEW BELONG TO THE GAUGES. Run full
-    # height, the tubes shared row 0 with the headroom scale drawn across
-    # it and the scale appeared to run through the thermometers. `floors`
-    # is how many rows are taken at the bottom - one gauge or several.
-    # `reserve` is how many rows the caller wrote text into. THE TUBES
-    # KEEP OUT OF IT: a label inside the drawing can only take cells no
-    # dot reached, so a tube running through those rows ate the words -
-    # measured, `MOTOR SOA 41 %` came out as `MOTOR SOA` with the value
-    # chewed off by the board's own thermometers.
-    # THE ROW AFTER THE TOP GAUGE, or the first row when there is none.
-    # The `+1` was unconditional and left an empty row under the captions
-    # once the headroom scales moved out of the drawing - which broke
-    # every leader falling into a tube exactly where it should have
-    # landed.
+    """Vertical margin bars, filled from the bottom, one cell wide."""
+    # THE FIRST ROW AND THE LAST FEW BELONG TO THE GAUGES.
     top_row = GAUGE_INSET + (1 if has_top else 0) + reserve
     tall = max(1, height - GAUGE_INSET - FLOOR_INSET - reserve
                - (1 if has_top else 0) - max(1, floors)) * DOTS_Y
     # Floor one side and ceil the other inside `gutters`: the centre sits
-    # between two columns, so flooring both put the machine's right edge
-    # half a column further out than its left and the gaps came out 1
-    # and 0. Adjacent, not spaced: six bars and four have to fit what the
-    # machine leaves, and a bar chart's bars touch - what separates them
-    # is their heights and their colours.
+    # between two columns, so flooring both put the machine's right edge half a
+    # column further out than its left and the gaps came out 1 and 0.
     _, _, at_left, at_right = layout(width, height,
                                      len(left or ()), len(right or ()))
     for bars, columns in ((left, at_left), (right, at_right)):
         for index, entry in enumerate(bars or []):
             if index >= len(columns) or entry is None:
-                # A None is a SPACER: it takes a column and draws
-                # nothing, which is how a caller puts air between two
-                # groups of bars that measure different things.
+                # A None is a SPACER: it takes a column and draws nothing,
+                # which is how a caller puts air between two groups of bars
+                # that measure different things.
                 continue
             share, cls = entry
             _tube(dots, owner, columns[index], top_row * DOTS_Y, tall,
@@ -706,28 +512,7 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
 def _tube(dots, owner, col, top, tall, share, cls):
     """One thermometer in cell column `col`: a tube `tall` dots high from
     dot row `top`, the mercury `share` of it from the bottom in `cls`,
-    the rest track. The same instrument wherever a page draws a
-    thermometer - `gauges` calls it for every other view.
-
-    THE CELL THE MERCURY ENDS IN HOLDS MERCURY AND NOTHING ELSE. A cell
-    is one colour, and the mercury's class wins it - so a track dot
-    drawn above the level inside that cell took the mercury's colour
-    and the level read a row higher than it was. Worse, it read a WHOLE
-    row: the top of every bar came out `⣿` whatever the level, and a
-    tube that fills in cell steps barely moves. Kept clear, the top of
-    the mercury is drawn at the dot - `⣀`, `⣤`, `⣶`, `⣿` - and a level
-    that moves one dot is seen to move.
-
-    THE TUBE ABOVE IT, on the cell's own second and fourth rows so every
-    track cell is the same `⣒`. A bar with nothing over it says how hot
-    a node is; a bar in a tube says how hot it is OF WHAT IT MAY BE,
-    which is the only version of the question a ceiling makes sense of.
-    THE TUBE'S OWN WIDTH, both lanes: one lane made the empty half of a
-    thermometer narrower than the mercury under it, so a tall tube read
-    as a scale and a short one as a stray dot beside a bar - which is
-    why the bench saw the dimmed pixels on some thermometers and not
-    others. Every other dot ROW still, so it stays a scale and not more
-    level.
+    the rest track.
     """
     filled = int(max(0.0, min(1.0, share)) * tall + 0.5)
     edge = (top + tall - filled) // DOTS_Y if filled else -1
@@ -747,32 +532,8 @@ def _tube(dots, owner, col, top, tall, share, cls):
 
 
 def _overlay(dots, text, width, height, labels, leaders, rules):
-    """Leaders in dots and names in text, over cells no drawing
-    reached.
-
-    OUT OF `_raster` BECAUSE IT IS A DIFFERENT JOB. That one turns
-    a machine into dots; this writes a legend on the air beside it,
-    and the two together ran past what a reader can hold.
-
-    Answers the cells the leaders lit, `(row, col, ink)`, so the
-    caller can colour them without giving them an owner class - a
-    leader belongs to its label, not to the machine.
-    """
-    # THE LEADERS, IN DOTS, AND THEY FALL. `(from_row, col, to_row, ink)`
-    # is a dotted column dropping from under a name in the caption rows
-    # to the top of the bar it points at - the shape a bench drew on the
-    # back of the page: a label, an arrowhead, and a line falling to the
-    # thing it names.
-    #
-    # It was a horizontal run with a corner. That works and it reads as a
-    # bracket rather than a pointer, and two of them at different lengths
-    # read as two brackets rather than a staircase.
-    # WHERE A RULE RUNS INSIDE ITS CELL. The gauges draw their level on
-    # the middle two dot rows, so a rule on the top row floated a dot
-    # clear of the bar it was pointing at and read as a separate line
-    # over it. On the bar's own upper row it arrives ON the level.
-    # WHERE A RULE RUNS, so a column meeting one can turn instead of
-    # crossing it.
+    """Leaders in dots and names in text, over cells no drawing reached."""
+    # THE LEADERS, IN DOTS, AND THEY FALL.
     lit = []
     met = {}
     for row, from_col, to_col, _shade in list(rules or []):
@@ -780,30 +541,16 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
         met.setdefault(row, []).append((lo, hi))
     for entry in list(leaders or []):
         from_row, col, to_row, shade = entry[:4]
-        # WHICH HALF OF THE CELL IT FALLS DOWN. Left by default, which is
-        # where a line falling from a caption belongs; a fifth element
-        # puts it in the right half instead, so a run arriving from the
-        # left turns UP at the cell's right edge and the corner mirrors.
-        # Drawn in the left lane both sides, the right-hand corner came
-        # out as the left one and the L read as pointing back the way it
-        # came.
+        # WHICH HALF OF THE CELL IT FALLS DOWN.
         lane = entry[4] if len(entry) > 4 else 0
         for row in range(from_row, to_row):
             if not (0 <= row < height and 0 <= col < width):
                 continue
-            # A HOOK WHERE IT MEETS A RULE, not a bar through it. The
-            # column ran the full cell height in the corner, so the
-            # junction came out as `\u28ba` - four dots of solid stroke
-            # standing off a two-dot rule, which reads as a post the
-            # line happens to end at. Turning at the rule and going
-            # two dots down makes `\u2832`: a line that arrives, turns,
-            # and carries on at the weight it came in at.
+            # A HOOK WHERE IT MEETS A RULE, not a bar through it.
             turn = any(lo <= col <= hi for lo, hi in met.get(row, ()))
-            # A CORNER WHERE IT MEETS A RULE, a stroke where it
-            # does not - and how far down the corner reaches
-            # depends on whether the line carries on.
-            # `braille.corner` has both, and why getting it
-            # wrong is visible.
+            # A CORNER WHERE IT MEETS A RULE, a stroke where it does not - and
+            # how far down the corner reaches depends on whether the line
+            # carries on.
             if turn:
                 dots[row][col] |= braille.mask(braille.lit(
                     braille.corner(RULE_Y, lane,
@@ -813,13 +560,7 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
                     (lane, y) for y in range(DOTS_Y))
                 lit.append((row, col, shade))
 
-    # AND THE HORIZONTAL HALF OF THE SAME FURNITURE. `(row, from_col,
-    # to_col, ink)` runs along the TOP of its cells, so a run meeting the
-    # top of a falling column makes the corner of an upside-down L: a
-    # line that leaves an arrowhead, climbs, and turns in toward the
-    # thing it names. A leader alone can only point at something above
-    # it, and the two levels along the foot lie inboard of the arrows
-    # that name them, not over them.
+    # AND THE HORIZONTAL HALF OF THE SAME FURNITURE.
     for row, from_col, to_col, shade in list(rules or []):
         for col in range(min(from_col, to_col), max(from_col, to_col) + 1):
             if 0 <= row < height and 0 <= col < width:
@@ -827,11 +568,7 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
                     dots[row][col] |= BRAILLE_BITS[x][RULE_Y]
                 lit.append((row, col, shade))
 
-    # THE OVERLAY LAST, and only where no dot went. A braille cell cannot
-    # carry a letter, so a name inside the drawing has to replace a cell
-    # outright - which is fine over air and never over the machine. Each
-    # entry is `(row, col, text, ink)` and the CALLER owns the placement:
-    # this module draws a rotor, not a legend.
+    # THE OVERLAY LAST, and only where no dot went.
     for row, col, said, _ink in list(labels or []):
         for step, ch in enumerate(said):
             here = col + step
@@ -844,12 +581,6 @@ class Frame:
 
     """The grid a drawing is built in: dots, who owns each cell, and the
     text laid over them.
-
-    ONE OBJECT BECAUSE THREE PASSES WRITE THE SAME THREE ARRAYS. They
-    were three locals in `_raster` with a closure over them, so every
-    pass took six arguments or none depending on when it was written and
-    the function grew past what a reader can hold. A pass now takes the
-    frame and says what it draws.
     """
 
     def __init__(self, width, height):
@@ -862,28 +593,7 @@ class Frame:
         self.tally: list = [[None] * width for _ in range(height)]
 
     def put(self, x, y, cls):
-        """Light one dot, in DOT coordinates. `cls` None lights it and
-        claims nothing.
-
-        A LINE BEATS A FILL IN A SHARED CELL, then the most dots win. A
-        cell is eight dots and one colour, and two rules were tried
-        before this one, each wrong in one place:
-
-        * the highest RANK that had lit any dot - so at the yoke a tooth
-          outranked the ring and the yoke came out chopped into
-          phase-coloured segments that changed with the drive;
-        * the MOST DOTS - which mended the yoke and broke the can: the
-          magnet band's outer edge and the can's inner ring are 0.10 of
-          the radius apart, 3.3 dots against a cell four tall, and at
-          twelve o'clock the cell they share is mostly magnet. The ring
-          went amber in three places, ringed in red on the bench.
-
-        A ring is a LINE the drawing means and a band is an area; a line
-        that loses its cell is a broken line, an area that loses one is
-        a dot short at its edge, which nobody sees. So a line class
-        present in the cell takes it - the one with most dots if several
-        - and only cells with no line in them go to the fill with most.
-        """
+        """Light one dot, in DOT coordinates."""
         col, row = int(x) // DOTS_X, int(y) // DOTS_Y
         if not (0 <= row < self.height and 0 <= col < self.width):
             return
@@ -894,28 +604,9 @@ class Frame:
         if tally is None:
             tally = self.tally[row][col] = {}
         tally[cls] = tally.get(cls, 0) + 1
-        # THE TRUTH STROKE FIRST, the one thing drawn to be
-        # FOUND: yielding to the rings it owned no cell at all in
-        # some poses, so at its own angle a ring cell goes white
-        # and it reads as reaching the rim. It never meets a
-        # tooth - `_truth` keeps it a dot and a half inside the
-        # band. THEN A RING over anything: a broken ring is seen.
-        # THEN THE MOST DOTS, with no favour between a magnet and
-        # a tooth. The air gap is less than a cell tall, so at
-        # twelve and six o'clock a cell holds both; given to the
-        # magnet it put amber on the teeth, given to the tooth it
-        # put green on the band, and the bench saw each in turn.
-        # Whichever has more of the cell is the colour least
-        # wrong, and rank only breaks a tie. Teeth over rings was
-        # tried too and put the yoke back in pieces.
-        #
-        # EXCEPT THAT THE STROKE YIELDS TO A TOOTH. The band is a
-        # dot and a half from its inner end and a cell's diagonal
-        # still bridges that at some angles - two cells in 48
-        # poses held a tooth's tip and the stroke both. A white
-        # cell on a tooth is a mark on the stator, which is where
-        # this mark has been chased out of three times; in that
-        # cell the stroke is simply not a candidate.
+        # THE TRUTH STROKE FIRST, the one thing drawn to be FOUND: yielding to
+        # the rings it owned no cell at all in some poses, so at its own angle
+        # a ring cell goes white and it reads as reaching the rim.
         running = ([c for c in tally if c != TRUTH]
                    if set(tally) & TEETH else tally)
         self.owner[row][col] = max(
@@ -932,15 +623,7 @@ class Frame:
             self.text[row][col] = said
 
     def lines(self, ink, colour=False, tint=None):
-        """THE ONE PLACE THIS BECOMES TERMINAL OUTPUT.
-
-        Everything above writes into the buffer and nothing above knows
-        what an escape sequence is; here the cells become characters and,
-        if asked, colour. `ink` maps an owner class to its colour and
-        `tint` overrides particular cells - a legend's words and the
-        leader that belongs to them keep their own ink without owning the
-        cells they cross.
-        """
+        """THE ONE PLACE THIS BECOMES TERMINAL OUTPUT."""
         at = dict(tint or {})
         out = []
         for row in range(self.height):
@@ -956,73 +639,37 @@ class Frame:
 
 class Seat:
 
-    """Where the machine sits in its box, and what is left around it.
-
-    OUT OF `_raster` BECAUSE IT IS THE ANSWER EVERY PASS NEEDS AND NONE
-    OF THEM SHOULD WORK OUT. The centre, the radii, how many rows the
-    gauges and the legend took, and the dot aspect - six numbers that
-    were computed inline and then passed around one at a time.
-    """
+    """Where the machine sits in its box, and what is left around it."""
 
     def __init__(self, width, height, left, right, top, bottom,
                  labels, leaders, aspect):
         self.floors = max(1, len(list(bottom or ())))
-        # A LABEL'S ROW IS WRITTEN ON, A LEADER'S `to_row` IS PAST ITS
-        # LAST: the two are one column of arithmetic with different ends,
-        # and the can has to start under both. A LEADER THAT STARTS AT
-        # THE TOP pushes the can down; one starting lower is drawn in
-        # rows the floor gauges already own, and counting it here would
-        # reserve the whole box.
+        # A LABEL'S ROW IS WRITTEN ON, A LEADER'S `to_row` IS PAST ITS LAST:
+        # the two are one column of arithmetic with different ends, and the can
+        # has to start under both.
         written = [row + 1 for row, _col, _said, _ink in list(labels or [])]
         written += [entry[2] for entry in list(leaders or [])
                     if entry[0] == 0]
         self.reserve = max(written) if written else 0
         self.band = max(1, height - self.floors - self.reserve)
-        # A DOT IS SQUARE ONLY WHEN A CELL IS TWO BY ONE. Everything here
-        # measures in x-dots and scales y by this, so a drawing stays
-        # round on a terminal whose font says otherwise - and the band is
-        # measured in the same units, or a band fitted to the can would
-        # shrink it.
+        # A DOT IS SQUARE ONLY WHEN A CELL IS TWO BY ONE.
         self.stretch = aspect / DOTS_Y * DOTS_X
         self.cx, self.radii, _, _ = layout(
             width, height, len(left or ()), len(right or ()), rows=self.band,
             stretch=self.stretch)
-        # AND SEATED AT THE TOP OF THAT BAND, its first dot in the first
-        # row under the reserve. It was centred, so whatever the band had
-        # over the can's height was split above and below it - and on a
-        # terminal whose cell the view could not measure, drawn at an
-        # assumed 2.0, that was a row of air between the legend and the
-        # motor that nothing explained. Seated, there is exactly the
-        # leaders' hop between them whatever the terminal says, and the
-        # spare - if any - lies over the foot gauges, which name levels
-        # and not the machine.
+        # AND SEATED AT THE TOP OF THAT BAND, its first dot in the first row
+        # under the reserve.
         self.cy = (self.reserve * DOTS_Y + 0.5
                    + self.radii.can / self.stretch)
 
 
 def _body(frame, seat, rotor_deg, slots, poles, drive):
-    """The machine itself, dot by dot.
-
-    THE CORNERS ARE COVERAGE, not a vote on whether anything is there.
-    One corner of four lit the dot whole, so every arc came out a dot
-    fatter than it is and the can's rim stepped against the magnets
-    inside it. Half a dot or more still lights outright - a one-dot rim
-    is a line the drawing means - and the fringe beyond that is
-    dithered, which is what puts the patterns between solid and blank on
-    the page.
-    """
+    """The machine itself, dot by dot."""
     rotor = math.radians(rotor_deg)
     r = seat.radii
     for x, y, samples in _samples(frame, seat):
-        # EACH SAMPLE VOTES WITH ITS COVERAGE, and the dot goes to the
-        # class that covers most of it. It went to the highest RANK
-        # among the samples, which is a rule about which shape is
-        # more important and not about what is there: at the yoke a
-        # tooth outranks the ring, so every cell the ring passed
-        # through where a tooth roots took the tooth's colour and
-        # the yoke came out chopped into phase-coloured segments that
-        # changed with the drive. That is the colour fault a bench
-        # sees in the stator. Rank only breaks a tie now.
+        # EACH SAMPLE VOTES WITH ITS COVERAGE, and the dot goes to the class
+        # that covers most of it.
         votes = {}
         for kind, a, b in samples:
             if kind == _FIXED:
@@ -1038,52 +685,14 @@ def _body(frame, seat, rotor_deg, slots, poles, drive):
 
 
 def _bead(frame, seat, pointer_deg, glyph=None, rate=None):
-    """The bench's own zero, riding the can's rim.
-
-    `POINTER_GLYPH` IS THE BEAD AND THAT IS SETTLED. It is the bench's
-    choice, made twice, and this docstring exists so it is not made a
-    third time. What is left to get right is WHERE it goes.
-
-    WHAT A GLYPH BUYS: it is the same mark at every angle by
-    construction - no shape for a dot grid to approximate, nothing to
-    straddle, no weight that changes on the way round. A braille cell
-    cannot carry a letter, so it replaces the cell it lands in: the rim
-    opens for the bead and closes behind it.
-
-    WHAT IT COSTS, honestly: a character cell is about one wide by two
-    tall, so the glyph's own proportions are the FONT'S and not this
-    drawing's - against a picture made of square dots it reads a little
-    narrow. Nothing here can change that; only dots are square.
-
-    THE FOUR DOT ANSWERS, all built, none kept: a radial spur, which at
-    the top of the can lay across four rows of one cell and read as a
-    tick and at its sides across two columns and read as a dash; a
-    square of dots centred ON the rim and clipped to the rotor's
-    silhouette, which left a crescent cut differently at every angle; a
-    sampled disc seated inside the rim, round and spread over three
-    cells, which is a smear on the band; and a 2x2 block, or that disc
-    at a dot's radius thresholded at half coverage so the weight graded
-    with the sub-position - `⣀`, `⣤`, `⣶` climbing a cell. The best of
-    them, and still a mark whose size changes as it travels.
-    """
+    """The bench's own zero, riding the can's rim."""
     phi = math.radians(pointer_deg)
-    # IN THE WALL, between the can's two edges, so the rings stay whole
-    # and the bead runs in the race between them.
-    #
-    # `stretch` IS NOT OPTIONAL, and leaving it out was a real bug. The
-    # radii are in x-dots and `_body` scales y by it, so a bead placed
-    # with plain trigonometry rode the rim only where a dot happened to
-    # be square. On a terminal whose cell is not two-by-one it sat
-    # outside the periphery, which is where the bench found it.
+    # IN THE WALL, between the can's two edges, so the rings stay whole and the
+    # bead runs in the race between them.
     seat_r = seat.radii.can * POINTER_SEAT
     at_x = seat.cx + seat_r * math.cos(phi)
     at_y = seat.cy - seat_r * math.sin(phi) / seat.stretch
-    # THE NEAREST CELL, MEASURED FROM ITS CENTRE. Truncating puts the
-    # mark in whichever cell the exact point falls inside, and a cell is
-    # two dots across by four down - so the path comes out quantised
-    # twice as coarsely down as across, an egg rather than a circle.
-    # Measured over 360 degrees, the worst departure from the true
-    # circle falls from 2.76 dots to 2.15.
+    # THE NEAREST CELL, MEASURED FROM ITS CENTRE.
     col = int(math.floor((at_x - (DOTS_X - 1) / 2.0) / DOTS_X + 0.5))
     row = int(math.floor((at_y - (DOTS_Y - 1) / 2.0) / DOTS_Y + 0.5))
     frame.claim(row, col, POINTER, glyph or POINTER_GLYPH)
@@ -1104,12 +713,10 @@ TRAIL_PITCH = 1.0
 
 
 def _wake(frame, seat, phi, seat_r, rate, bead_cell):
-    """The trail behind the bead: an arc on the rim, TRAIL_S of travel
-    long at `rate` degrees a second, on the side the bead came from,
-    fading in thirds through `TRAIL`. Its length is the speed and its
-    side is the direction, which is what a smear behind a moving thing
-    says. It stays out of the bead's own cell, or it would take the
-    bead's colour with it."""
+    """The trail behind the bead: an arc on the rim, TRAIL_S of travel long
+    at `rate` degrees a second, on the side the bead came from, fading in
+    thirds through `TRAIL`.
+    """
     length = min(TRAIL_MAX_DEG, abs(rate) * TRAIL_S)
     if length <= 0.0:
         return
@@ -1126,38 +733,10 @@ def _wake(frame, seat, phi, seat_r, rate, bead_cell):
 
 
 def _truth(frame, seat, truth_deg):
-    """The angle a shaft sensor says, as a tick in the AIR GAP.
-
-    It was a notch cut outward through the can: the can is one dot thick
-    and the mark four, so it took whole cells of the outer ring with it
-    and read as a white gash in the stator - a drawing artefact rather
-    than a rotor angle. In the gap it touches nothing, and the magnet
-    band it should line up with is immediately outside it.
-    """
+    """The angle a shaft sensor says, as a tick in the AIR GAP."""
     phi = math.radians(truth_deg)
     r = seat.radii
-    # THROUGH THE MAGNET BAND, which is the thing it is read against. It
-    # was a tick in the air gap between the tooth tips and the band - and
-    # the air gap is the stator's side of the picture: whatever it did
-    # not touch it stood over, a white mark at the slot mouths where the
-    # teeth show their current, and it read as a second indicator drawn
-    # across the magnetisation. Twice trimmed, twice still there. Then
-    # outside the rim, where the bench's own mark rides: one column of
-    # air at three and nine o'clock, so it reached into the gutter, and
-    # the rim's own fringe left it no empty cell at some angles.
-    #
-    # The band has room, is the rotor, and is what the sensor's angle is
-    # compared with: the estimate turns the band, the sensor draws the
-    # stroke, and a slipped pole is the stroke standing off a magnet's
-    # edge. A dot clear of the band's own edges, so it never shares a
-    # cell with the can's rings - and the air gap keeps every tooth a
-    # cell's diagonal away.
-    # A DOT AND A HALF INSIDE THE BAND'S INNER EDGE, not half: at half it
-    # shared five cells in 48 poses with a tooth's tip across the air
-    # gap, and a stroke that wins those is a white mark on the stator.
-    # The ordering in `Frame.put` cannot settle that - rings must beat
-    # teeth, teeth must beat magnets, the stroke must beat rings to be
-    # seen - so the stroke simply never meets a tooth.
+    # THROUGH THE MAGNET BAND, which is the thing it is read against.
     inner, outer = r.magnet_in + 1.5, r.magnet_out - 0.5
     for step in range(int((outer - inner) * 4) + 1):
         radius = inner + step * 0.25
@@ -1167,11 +746,8 @@ def _truth(frame, seat, truth_deg):
 
 def _machine(frame, seat, rotor_deg, slots, poles, drive,
              truth_deg=None, pointer_deg=None, bead=None, pointer_rate=None):
-    """THE MACHINE AND NOTHING ELSE: the cross-section, the bench's mark
-    on the rim, and the tick a shaft sensor claims.
-
-    One pass, so a caller that wants the motor without the instruments
-    hanging off it - `motor()` - asks for exactly this.
+    """THE MACHINE AND NOTHING ELSE: the cross-section, the bench's mark on
+    the rim, and the tick a shaft sensor claims.
     """
     _body(frame, seat, rotor_deg, slots, poles, drive)
     if truth_deg is not None:
@@ -1181,13 +757,8 @@ def _machine(frame, seat, rotor_deg, slots, poles, drive,
 
 
 def _instruments(frame, seat, left, right, top, bottom):
-    """The gutters and the gauges: everything measured AGAINST the
-    machine rather than part of it.
-
-    The gauges run in a ROW across the machine's width. It was one; a
-    page that has to say how much is left of the board and of the
-    windings at once cannot say it in one bar, and stacking them would
-    need two rows and leave a reader matching bars to names by order.
+    """The gutters and the gauges: everything measured AGAINST the machine
+    rather than part of it.
     """
     floor = list(bottom or ())
     _bars(frame.dots, frame.owner, frame.width, frame.height, left, right,
@@ -1205,12 +776,7 @@ def _instruments(frame, seat, left, right, top, bottom):
 def motor(rotor_deg, slots=24, poles=28, width=40, height=22, drive=None,
           truth_deg=None, pointer_deg=None, aspect=CELL_ASPECT,
           colour=False, bead=None, pointer_rate=None):
-    """The machine alone, as text rows - no gutters, no gauges, no
-    legend.
-
-    What `render` draws before it hangs instruments off it, and the only
-    thing a caller who wants a picture of a motor actually wants.
-    """
+    """The machine alone, as text rows - no gutters, no gauges, no legend."""
     frame = Frame(width, height)
     seat = Seat(width, height, None, None, None, None, None, None, aspect)
     _machine(frame, seat, rotor_deg, slots, poles, drive,
@@ -1223,8 +789,8 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             pointer_deg, left, right, top, bottom, aspect, labels=None,
             leaders=None, rules=None, bead=None, pointer_rate=None):
     """The whole page: the machine, its instruments, and the legend over
-    both. Three passes and the seat they share - each has its own
-    function, and this one only says the order."""
+    both.
+    """
     frame = Frame(width, height)
     seat = Seat(width, height, left, right, top, bottom, labels, leaders,
                 aspect)
@@ -1243,46 +809,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            left=None, right=None, top=None, bottom=None,
            aspect=CELL_ASPECT, colour=False, labels=None, leaders=None,
            rules=None, bead=None, pointer_rate=None):
-    """The cross-section, `rotor_deg` being how far the can has turned.
-
-    `rotor_deg` is mechanical: the electrical angle over the pole pairs.
-    Which pole pair it lands in is not recoverable from an electrical
-    angle and does not need to be - the picture repeats every pole pair,
-    so the one drawn is right whichever it is.
-
-    `amps` is the three phase currents and `full` what to call full
-    scale - the trip or the clamp, whatever the record says the stage may
-    do. The teeth are drawn to that scale, so the picture is of THIS
-    machine being driven THIS hard and not a diagram of a motor.
-
-    `pointer_deg` puts a spur outside the can, which is where a mark on
-    a real rotor goes: a bench's own zero, wherever it decided that is.
-
-    `truth_deg` cuts a notch through the can at the rotor's real angle,
-    when something knows it. The gap between the notch and the magnet
-    band under it IS the observer's error, in the units a magnet works in.
-
-    `left` and `right` are margin bars - `(fraction, class)` each - drawn
-    in the gutters either side. `top` is a SEQUENCE of such pairs sharing
-    the first row end to end, and `bottom` a sequence on the last rows,
-    one each. What they measure is the
-    caller's; this draws levels.
-
-    `labels` are `(row, col, text, ink)` written over cells no dot
-    reached - a name inside the drawing, which a braille cell cannot
-    carry any other way. Where they go is the caller's: this draws a
-    rotor, not a legend.
-
-    `aspect` is how tall the terminal's cell is against its width. The
-    geometry is exactly round at 2.0 - measured, 25.16 cell-widths each
-    way - so a can that reads as an ellipse is the FONT saying it is not
-    2.0, and this is where a bench tells the drawing what its font does.
-    Ten per cent tall is a 2.2 cell, which several fonts are.
-
-    Colour is asked for here rather than applied afterwards: a braille
-    cell carries dots from up to eight places and its glyph does not say
-    which, so there is nothing for a `colourise(text)` to key on.
-    """
+    """The cross-section, `rotor_deg` being how far the can has turned."""
     poles = max(2, int(poles) - int(poles) % 2)
     slots = max(3, int(slots))
     drive = _drive(amps, full)
@@ -1290,10 +817,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
                          truth_deg, drive, pointer_deg, left, right,
                          top, bottom, aspect, labels, leaders, rules,
                          bead, pointer_rate)
-    # THE ONLY THING LEFT HERE IS WHO GETS WHICH COLOUR. The buffer holds
-    # the picture; a legend's words and the leader that belongs to them
-    # keep their own ink without owning the cells they cross, which is
-    # why this is a map and not another owner class.
+    # THE ONLY THING LEFT HERE IS WHO GETS WHICH COLOUR.
     at = {}
     for row, col, said, said_ink in list(labels or []):
         for step in range(len(said)):
@@ -1304,12 +828,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
 
 
 def caption(slots, poles, rotor_deg, slipped=None):
-    """One line naming the machine drawn and where the can is.
-
-    `slipped` is how many whole magnets the can has stepped since the
-    caller last asked - a slipped pole reads here as a step nobody
-    commanded, which is what the picture exists to make visible.
-    """
+    """One line naming the machine drawn and where the can is."""
     text = '%dN%dP  can %5.1f deg' % (slots, poles, rotor_deg % 360.0)
     if slipped:
         text += '  %+d magnets' % slipped

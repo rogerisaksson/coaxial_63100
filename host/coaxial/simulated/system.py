@@ -23,8 +23,8 @@ SUBSYSTEMS = [
     {'name': 'imu', 'commands': 1, 'what': 'BNO08X on SPI2 over SHTP'},
 ]
 
-# No PE15: it carries TIM1_BKIN, and the pin path reconfigures what it
-# touches, which would take the break off the timer.
+# No PE15: it carries TIM1_BKIN, and the pin path reconfigures what it touches,
+# which would take the break off the timer.
 DIGITAL = [
     {'pin': 'PB2',  'direction': 'out', 'signal': 'AFE_ON'},
     {'pin': 'PE14', 'direction': 'out', 'signal': 'UART5_TERM'},
@@ -90,17 +90,12 @@ PARTS = [
 
 
 class SimulatedSystem:
-    """The stand-in's version record and clocks. `firmware` and `build` read
-    literally `simulated`, so board_info alone tells them apart.
-    """
+    """The stand-in's version record and clocks."""
     def __init__(self, version_info=None):
         self._version = dict(version_info or {})
 
     def version(self):
-        """What SimulatedBoard was built with. A copy: the real one decodes a
-        fresh reply each call, so a caller that mutates it must not be able
-        to change what the next call answers.
-        """
+        """What SimulatedBoard was built with."""
         return dict(self._version)
 
     def self_test_failures(self):
@@ -143,10 +138,10 @@ class SimulatedSystem:
 
 
 class SimulatedGpio:
-    """In-memory pins, gated the same way the firmware documents the real ones
-    - reads always allowed, writes only with the gate open - but this is a
-    courtesy for a script that forgets the gate, not a protocol simulation
-    of the rejection a real board would send back.
+    """In-memory pins, gated the same way the firmware documents the real
+    ones - reads always allowed, writes only with the gate open - but
+    this is a courtesy for a script that forgets the gate, not a protocol
+    simulation of the rejection a real board would send back.
     """
 
     # PB2 is the AFE switch, not just a pin.

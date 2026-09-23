@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""How a result reaches the screen: columns, blocks, clipping.
-
-Split out of test_ollama.py, which had grown to 5,496 lines and 733 checks in
-one file - a third of every check this tree has, and the reason a coverage
-tier could not be asked for at any useful resolution. One subject per file
-now, so a tier buys them separately and a reader opens the one they meant.
-
-Run from the host directory:  python tests/test_ollama_render.py
-"""
+"""How a result reaches the screen: columns, blocks, clipping."""
 import os
 import sys
 
@@ -17,13 +9,7 @@ from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession,
     call, io, simulated, toolmod)   # noqa: E402
 
 def test_reading_block(report):
-    """A reading is a headed block, like the map is.
-
-    Asked for both the digital and the analog values, the two arrived as one
-    wall: a bare `64 smp @2000Hz` over unlabelled columns, then the digital
-    table straight underneath with no gap. The reading is counted and headed
-    now, and the trace puts a blank line between blocks.
-    """
+    """A reading is a headed block, like the map is."""
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_mcp import tools as mcp
     from coaxial_ollama import debug, language
@@ -41,15 +27,13 @@ def test_reading_block(report):
                  head[2])
 
     # The header is built from the row's own widths, not written out beside
-    # them. By hand they drifted: `code` and `voltage` are right-aligned, so
-    # a seven-digit number starts a column later than an eight-digit one and
-    # a heading placed over the first is wrong for the second.
+    # them.
     from coaxial_mcp import render
     report.check('the header comes from the row format, not from a literal',
                  head[2] == render.ANALOG_HEAD, head[2])
 
-    # Left-aligned columns start where their heading does; right-aligned
-    # ones end where theirs does.
+    # Left-aligned columns start where their heading does; right-aligned ones
+    # end where theirs does.
     row = next(l for l in head if l.startswith('4 '))
     for word, field in (('name', 'NTC'), ('mode', 'SE')):
         report.check('the %s column starts under its heading' % word,
@@ -65,8 +49,7 @@ def test_reading_block(report):
     levels = mcp.HANDLERS['digital_read'](Sim())
     # Counted off the board, for the reason the reserved check below already
     # gives: a count written here is the second answer to a question the pin
-    # table settles. It was 2, `s_digital` grew to 4, and this went red on a
-    # renderer that was right.
+    # table settles.
     usable = len(Sim().board.system.channel_map()['digital'])
     report.check('the digital block counts channels, not pins',
                  levels.splitlines()[0] == 'digital: %d channels' % usable,
@@ -75,8 +58,8 @@ def test_reading_block(report):
                  levels.splitlines()[1].split()[0] == 'ch'
                  and head[2].split()[0] == 'ch')
     # Counted off the stand-in's own list, not written here: the number grew
-    # from 7 to 15 when SPI2 and the IMU's control pins were added, and a
-    # count in a test is the same second answer a pin table in a document is.
+    # from 7 to 15 when SPI2 and the IMU's control pins were added, and a count
+    # in a test is the same second answer a pin table in a document is.
     reserved = mcp.HANDLERS['board_info'](Sim(), kind='reserved')
     expected = 'reserved: %d pins' % len(simulated.RESERVED)
     report.check('while the reserved list stays pins - it is not channels',
@@ -108,13 +91,8 @@ def test_reading_block(report):
                  printed[0].strip() != '', repr(printed[0])[:40])
 
 def test_map_sections(report):
-    """Analog and digital are two lists on the wire and two blocks on screen.
-
-    Measured: asked "ge mig en lista over alla analoga kanaler", the trace
-    carried the identity line, the clock line, seven analog rows and two
-    digital ones - all under a single `ch adc pin dir mode name` header, with
-    the digital rows carrying no index and their columns out of line. Eleven
-    lines to answer with seven, and the two kinds mixed into one table.
+    """Analog and digital are two lists on the wire and two blocks on
+    screen.
     """
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_mcp import tools as mcp
@@ -122,10 +100,7 @@ def test_map_sections(report):
     session = Sim()
 
     whole = mcp.HANDLERS['board_info'](session)
-    # Both counts off the board. Written here they are a second answer to
-    # what `board_adc.c` and `s_digital` already settle, and the digital one
-    # was: it said 2, the board grew to 4, and this failed on a renderer
-    # that was doing its job.
+    # Both counts off the board.
     shape = session.board.system.channel_map()
     report.check('the two kinds get their own headed blocks',
                  'analog: %d channels' % len(shape['analog']) in whole
@@ -204,9 +179,9 @@ def test_screen(report):
     report.check('with the checklist traced, the answer does not repeat it',
                  'link is down' in answer and len(answer.splitlines()) == 1,
                  answer[:70])
-    # The simulated session has no port, so link_diagnose's own answer is
-    # that rather than the four-step checklist - the property under test is
-    # the same either way: what the trace printed, the answer does not.
+    # The simulated session has no port, so link_diagnose's own answer is that
+    # rather than the four-step checklist - the property under test is the same
+    # either way: what the trace printed, the answer does not.
     diagnosis = 'this session is on a simulated board'
     report.check('and the diagnosis was on screen exactly once',
                  seen.getvalue().count(diagnosis) == 1

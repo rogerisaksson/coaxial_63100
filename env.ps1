@@ -1,38 +1,9 @@
 <#
 .SYNOPSIS
-    Puts this project's tools on PATH for the current shell. Dot-source it:
-
-        . .\env.ps1
-
+    Puts this project's tools on PATH for the current shell.
 .DESCRIPTION
     Nothing on this machine installs the ARM toolchain, cmake, ninja or the
-    programmer onto the system PATH. The STM32 VS Code extension downloads them
-    as "bundles" under %LOCALAPPDATA%\stm32cube\bundles and drives them itself,
-    which is why `cube-cmake --build` works while plain `cmake` and
-    `STM32_Programmer_CLI` are nowhere to be found.
-
-    That is fine for building from the editor and awkward for everything else:
-    flashing from a prompt, reading a map file with objdump, or checking which
-    gcc actually produced the image. This script finds the newest of each bundle
-    and prepends its bin directory, for this shell only. Nothing is written to
-    the registry and no system PATH is touched, so a stale entry cannot outlive
-    the window it was made in.
-
-    Versions are resolved at run time rather than baked in: the bundles manager
-    updates them without asking, and a path pinned in a file goes stale the
-    first time it does. Both naming schemes are handled - 2.23.0 as well as
-    2.22.0+st.1.
-
-    It also defines the commands this project is actually driven with:
-
-        board_chat  the model, the board and a prompt     (board_chat.ps1)
-        dbg         ask the local model about the board       (host/dbg.py)
-        board       the plain CLI, no model              (python -m coaxial)
-        cbuild      build the firmware, zero warnings expected
-        cflash      flash over SWD and start the core
-        cubemx      open the .ioc in STM32CubeMX
-        cube-release  stop the build helpers a bare cube-cmake left running
-
+    programmer onto the system PATH.
 .PARAMETER Quiet
     Print nothing on success.
 #>
@@ -42,14 +13,16 @@ param([switch]$Quiet)
 $script:CoaxialRoot = $PSScriptRoot
 $BundleRoot = Join-Path $env:LOCALAPPDATA 'stm32cube\bundles'
 
-# When this shell was dot-sourced. cube-release stops helpers newer than
-# this and leaves the IDE's, which were running before it.
+# When this shell was dot-sourced.
 $script:CoaxialShellStart = Get-Date
 
 function Get-NewestBundleBin {
-    <#  Newest version of one bundle, as its bin directory.
-        The sort key strips the vendor suffix: '2.22.0+st.1' and '2.23.0' have
-        to compare as versions, and [version] chokes on the '+'.  #>
+    <#
+  Newest version of one bundle, as its bin directory.
+        The sort key strips the vendor suffix: '2.22.0+st.1' and '2.23.0'
+        have
+        to compare as versions, and [version] chokes on the '+'.
+#>
     param([string]$Name)
 
     $dir = Join-Path $BundleRoot $Name
@@ -85,8 +58,7 @@ foreach ($name in $Wanted.Keys) {
 }
 
 # cube.exe is the bundle manager - `cube bundle install`, `cube stlink-detect`
-# and the rest. It ships inside the extension too, and setup.ps1 drives it to
-# fetch the toolchain in the first place.
+# and the rest.
 $core = Get-ChildItem (Join-Path $env:USERPROFILE '.vscode\extensions') -Directory `
         -Filter 'stmicroelectronics.stm32cube-ide-core-*' -ErrorAction SilentlyContinue |
         Sort-Object Name -Descending | Select-Object -First 1
@@ -112,8 +84,7 @@ if ($null -ne $ext) {
 }
 
 # ollama installs per-user under LOCALAPPDATA and reaches the PATH of shells
-# opened after the install, which is never the one you are standing in. Same
-# treatment as the bundles, and for the same reason: this shell only.
+# opened after the install, which is never the one you are standing in.
 if ($null -eq (Get-Command 'ollama' -ErrorAction SilentlyContinue)) {
     $ollamaBin = @(
         (Join-Path $env:LOCALAPPDATA 'Programs\Ollama'),
@@ -131,10 +102,8 @@ if ($null -eq (Get-Command 'ollama' -ErrorAction SilentlyContinue)) {
 }
 
 # claude arrives three ways and two of them never touch an open shell's PATH:
-# the native installer's ~/.local/bin, and the VS Code extension, which
-# bundles the same binary. The chooser's ANTHROPIC page and `claude -p` at
-# the prompt both want it callable; measured, the page said 'not on PATH'
-# while the extension's own copy was answering one window over.
+# the native installer's ~/.local/bin, and the VS Code extension, which bundles
+# the same binary.
 if ($null -eq (Get-Command 'claude' -ErrorAction SilentlyContinue)) {
     $claudeBin = @((Join-Path $env:USERPROFILE '.local\bin')) +
         @(Get-ChildItem (Join-Path $env:USERPROFILE '.vscode\extensions') -Directory `
@@ -152,15 +121,15 @@ if ($null -eq (Get-Command 'claude' -ErrorAction SilentlyContinue)) {
 }
 
 function cube-release {
-    <# Stop the build helpers, leaving anything older than this shell alone.
-
+    <#
+ Stop the build helpers, leaving anything older than this shell alone.
        Every `cube-cmake --build` starts a `cube` and a `cube-cmsis-scanner`
-       and neither exits. cbuild and tools/build_and_flash.py already reap
+       and neither exits.
        their own; this is for the ones a bare `cube-cmake` left behind, and
        for headless CubeMX, which parks a java on the .ioc.
-
        -All takes the lot, including the VS Code extension's - which is
-       harmless, it respawns within a second. #>
+       harmless, it respawns within a second.
+#>
     param([switch]$All)
 
     $names = @('cube', 'cube-cmsis-scanner')
@@ -176,11 +145,15 @@ function cube-release {
 }
 
 function cubemx {
-    <# Open the .ioc in STM32CubeMX.
-
-       The bundle's own layout is ST's business, so the executable is searched
-       for rather than assumed - and the search is here, not at dot-source time,
-       because it walks 800 MB of bundle and nobody wants that in every shell. #>
+    <#
+ Open the .ioc in STM32CubeMX.
+       The bundle's own layout is ST's business, so the executable is
+       searched
+       for rather than assumed - and the search is here, not at dot-source
+       time,
+       because it walks 800 MB of bundle and nobody wants that in every
+       shell.
+#>
     param([string]$Ioc = 'coaxial_63100.ioc')
 
     $found = $null
@@ -208,10 +181,11 @@ function cubemx {
 }
 
 function cubemx-script {
-    <# CubeMX headless on a script file, and the java it parks afterwards.
-
+    <#
+ CubeMX headless on a script file, and the java it parks afterwards.
        Headless runs do not exit cleanly - four sessions were still up after
-       an afternoon of them, which is what this exists to stop. #>
+       an afternoon of them, which is what this exists to stop.
+#>
     param([Parameter(Mandatory)][string]$Script)
 
     $before = @(Get-Process -Name 'java' -ErrorAction SilentlyContinue |
@@ -226,35 +200,42 @@ function cubemx-script {
 }
 
 function board_chat {
-    <# The prompt loop, with the daemon started and the model already loaded.
-       board_chat.ps1 does the preflight; this is the short way to say it. #>
+    <#
+ The prompt loop, with the daemon started and the model already loaded.
+       board_chat.ps1 does the preflight; this is the short way to say it.
+#>
     & (Join-Path $script:CoaxialRoot 'host\board_chat.ps1') @args
 }
 
 function dbg {
-    <# Ask the local model about the board. See host/coaxial_ollama/debug.py. #>
+    <#
+ Ask the local model about the board.
+#>
     Push-Location (Join-Path $script:CoaxialRoot 'host')
     try { python dbg.py @args } finally { Pop-Location }
 }
 
 function board {
-    <# The plain CLI: measure, no model in the loop. #>
+    <#
+ The plain CLI: measure, no model in the loop.
+#>
     Push-Location (Join-Path $script:CoaxialRoot 'host')
     try { python -m coaxial @args } finally { Pop-Location }
 }
 
 function cube-cmake {
-    <# cube-cmake, and then the helpers it leaves running.
-
-       This SHADOWS the executable rather than wrapping it in cbuild, because
+    <#
+ cube-cmake, and then the helpers it leaves running.
+       This SHADOWS the executable rather than wrapping it in cbuild,
+       because
        wrapping cbuild only cleans up the calls that went through cbuild -
-       and most of them do not. Every `cube-cmake --build` starts a `cube`
+       and most of them do not.
        and a `cube-cmsis-scanner` and neither exits: four of them, 121 MB,
        from builds hours apart.
-
-       Only what this call started is stopped. The VS Code extension keeps
+       Only what this call started is stopped.
        its own `cube` alive and respawns it within a second; that one is not
-       this shell's to end. #>
+       this shell's to end.
+#>
     $exe = Get-Command 'cube-cmake.exe' -CommandType Application `
                        -ErrorAction SilentlyContinue |
            Select-Object -First 1
@@ -281,18 +262,21 @@ function cube-cmake {
 }
 
 function cbuild {
-    <# Build. Zero warnings is the standard, not an aspiration. #>
+    <#
+ Build.
+#>
     Push-Location $script:CoaxialRoot
     try { cube-cmake --build --preset Debug @args }
     finally { Pop-Location }
 }
 
 function cflash {
-    <# Flash over SWD and start the core.
-
+    <#
+ Flash over SWD and start the core.
        SWD, not JTAG: any connect that asserts NRST on this probe fails with
-       'Unable to get core ID'. And --start rather than -hardRst, or the core is
-       left halted with no clue as to why. #>
+       'Unable to get core ID'.
+       left halted with no clue as to why.
+#>
     param([string]$Elf = 'build/Debug/coaxial_63100.elf')
     Push-Location $script:CoaxialRoot
     try {

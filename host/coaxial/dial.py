@@ -1,34 +1,4 @@
-"""The shaft angle, drawn as a protractor in the dot matrix.
-
-The A1335 reads the field of a round magnet on the end of the rotating
-shaft. It does not sit on the axis: it sits a little below it on the PCB,
-looking up at the magnet's face. This draws the face of that instrument -
-graduations all the way round, the reading swept from zero and a needle
-standing at it - because a number between 0 and 360 tells nobody which
-way the shaft is pointing.
-
-DOTS, like every other picture in this tree. It was a character face
-first - a rim of full stops, a needle of hashes - and the bench's word on
-that ASCII stroke set was the same word it gave `raster`: a picture that
-is dots in one view and hashes in the next is two drawing conventions in
-one terminal. The braille cell buys four times the rows and twice the
-columns, which on a round face is the difference between a circle and a
-staircase, and it buys a needle that can taper.
-
-WHAT STAYS TEXT IS THE GRADUATION NUMBERS. A braille cell cannot carry a
-letter, and a protractor without its numbers is a circle. They sit
-outside the rim where no dot goes, in the ash the rest of the tree gives
-a caption, and the face itself is dots throughout.
-
-Pure: a reading in, a block of text out. No serial port, no terminal, no
-clock, so it is testable without a board and `tools/show_angle.py` is the
-only thing that needs one.
-
-Angles run the way the sensor reports them: zero to the right, increasing
-counter-clockwise. That is a drawing convention, not a claim about which
-way the shaft turns - invariant 10 applies to a picture as much as to a
-voltage.
-"""
+"""The shaft angle, drawn as a protractor in the dot matrix."""
 import math
 
 from . import angle
@@ -129,19 +99,13 @@ LABEL_INK = ansi.ASH
 
 class _Geometry:
 
-    """Where everything on one face goes, in dots.
-
-    ONE PLACE FOR IT because the raster, the labels and the tests all
-    have to agree about where the rim is: a scale drawn to one radius
-    with numbers placed against another is a protractor that lies.
-    """
+    """Where everything on one face goes, in dots."""
 
     def __init__(self, width, height):
         self.cx = width * DOTS_X / 2.0 - 0.5
         self.cy = height * DOTS_Y / 2.0 - 0.5
-        # Bounded by whichever way round the box is tighter, less the room
-        # the numbers need outside the rim. A dot is square, so this is the
-        # same radius in both directions and the face is a circle.
+        # Bounded by whichever way round the box is tighter, less the room the
+        # numbers need outside the rim.
         self.rim = (min(width * DOTS_X, height * DOTS_Y) / 2.0
                     - LABEL_GAP - DOTS_Y - 1.0)
         self.line = max(0.8, self.rim * 0.020)
@@ -150,12 +114,7 @@ class _Geometry:
 
 
 def _sweep_span(degrees):
-    """The reading as a span from zero, counter-clockwise, in radians.
-
-    A reading of 350 is very nearly a whole turn of sweep and a reading
-    of 10 is a sliver: the band says how far round from zero the shaft
-    is, which is the question a protractor answers.
-    """
+    """The reading as a span from zero, counter-clockwise, in radians."""
     return math.radians(degrees % 360.0)
 
 
@@ -168,10 +127,10 @@ _FACES = {}
 
 
 def _fixed(radius, phi, geom):
-    """What the face alone puts at a sample, in the order the drawing
-    layers them: the hub, a graduation, the rim, the band the sweep may
-    light, or nothing. A tick is a radial band: its ends in radius, its
-    width in dots across at the radius it is drawn."""
+    """What the face alone puts at a sample, in the order the drawing layers
+    them: the hub, a graduation, the rim, the band the sweep may light,
+    or nothing.
+    """
     if radius <= HUB_R:
         return HUB
     for step, depth, wide in ((30, MAJOR_TICK, MAJOR_WIDE),
@@ -189,15 +148,8 @@ def _fixed(radius, phi, geom):
 
 
 def _samples(width, height, aspect):
-    """Every dot within the face, with its samples in `SUBDOT` order -
-    `(dx, dy, radius, angle, what the face alone puts there)`.
-
-    THE FACE IS A PROPERTY OF THE BOX AND THE READING ONLY MOVES THE
-    NEEDLE. Where each sample lies, and whether it is hub, tick or rim,
-    depend on the box and the cell aspect alone, and working that out
-    for every sample of every frame was most of the shaft angle page's
-    frame time, measured - so it is worked out once per size, and a dot
-    in the air outside the rim is not in the table at all.
+    """Every dot within the face, with its samples in `SUBDOT` order - `(dx,
+    dy, radius, angle, what the face alone puts there)`.
     """
     return table(_FACES, (width, height, aspect),
                  lambda: _sampled(width, height, aspect))
@@ -233,12 +185,7 @@ def _needle(geom, at):
 
 
 def _classify(sample, geom, span, needle):
-    """What is at a sample this reading, or None for air.
-
-    The bead first: it is the reading, and it sits on top of whatever
-    graduation it happens to be standing against. Then the hub, the
-    needle, the face's own marks, and last the sweep.
-    """
+    """What is at a sample this reading, or None for air."""
     dx, dy, _radius, phi, fixed = sample
     if needle is not None and _on_bead(dx, dy, needle):
         return BEAD
@@ -249,15 +196,7 @@ def _classify(sample, geom, span, needle):
     if fixed is not _SWEEP_BAND:
         return fixed
 
-    # ZERO TO THE READING, the way the angles run. A span of exactly zero
-    # draws nothing: an instrument reading zero has swept none of its
-    # scale, and a single stripe at the top of the band would read as a
-    # mark rather than as an empty sweep.
-    #
-    # AND FADED BY HOW FAR BEHIND THE NEEDLE IT IS, not by where it is on
-    # the face: `behind` is measured back from the reading, so the bright
-    # end travels with the needle and the far end keeps the trace back to
-    # zero.
+    # ZERO TO THE READING, the way the angles run.
     if span is not None and 0.0 < phi <= span:
         behind = min(1.0, (span - phi) / SWEEP_FADE)
         return SWEEP[int((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5)]
@@ -296,12 +235,7 @@ def _raster(degrees, width, height, weak, aspect):
     for x, y, samples in _samples(width, height, aspect):
         seen = [at for at in (_classify(sample, geom, span, needle)
                               for sample in samples) if at is not None]
-        # THE CORNERS ARE COVERAGE. One of four lit the dot whole, so
-        # the rim and the sweep both came out a dot fat and stepped
-        # against each other; half a dot or more still lights outright
-        # - a one-dot tick is a mark the face means - and the fringe
-        # beyond it is dithered. `machine._raster` reads them the
-        # same way, and they are the same drawing problem.
+        # THE CORNERS ARE COVERAGE.
         if not seen or not covered(len(seen), len(SUBDOT)):
             continue
         col, row = x // DOTS_X, y // DOTS_Y
@@ -310,10 +244,7 @@ def _raster(degrees, width, height, weak, aspect):
         dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
         owner[row][col] = max(owner[row][col], max(seen))
 
-    # THE NUMBERS LAST, and only onto cells no dot reached. They stand
-    # outside the rim, so a collision means the face has outgrown its box
-    # rather than that a number is in the way - and a number written over
-    # the scale would be worse than a missing one.
+    # THE NUMBERS LAST, and only onto cells no dot reached.
     for mark in range(0, 360, 30):
         phi = math.radians(mark)
         label = str(mark)
@@ -329,23 +260,7 @@ def _raster(degrees, width, height, weak, aspect):
 
 def render(degrees, width=64, height=23, field=None, aspect=CELL_ASPECT,
            colour=False):
-    """The face at `degrees`, with the reading swept from zero.
-
-    `field` is the gauss the part reports. Below a few tens of gauss there
-    is no magnet in front of the sensor and the angle is noise; the
-    picture says so by drawing the instrument and no reading, rather than
-    a confident needle at a number that means nothing.
-
-    `aspect` is how tall the terminal's cell is against its width, the
-    same knob `machine.render` takes and for the same reason: the geometry
-    is round at 2.0, and a face that reads as an ellipse is the FONT
-    saying its cell is not.
-
-    Colour is asked for here rather than applied afterwards: a braille
-    cell carries dots from up to eight places and its glyph does not say
-    which, so there is nothing for a `colourise(text)` to key on. That is
-    what took the old one out.
-    """
+    """The face at `degrees`, with the reading swept from zero."""
     weak = field is not None and field < WEAK_GAUSS
     dots, owner, text, _ = _raster(degrees, width, height, weak, aspect)
     lines = []
@@ -359,17 +274,7 @@ def render(degrees, width=64, height=23, field=None, aspect=CELL_ASPECT,
 
 
 def caption(degrees, field=None, gauss=True):
-    """One line naming the reading, for the row under the face.
-    `gauss` False leaves the field's figure to the scale that shows it.
-
-    `machine.caption` is the same idea for the other round picture: the
-    drawing says where, and one line says what - a needle standing at a
-    graduation is read to about a degree and the part reports hundredths.
-
-    A weak field prints no angle at all. The face has already left its
-    needle off; a caption underneath saying 351.65 would be the picture
-    disagreeing with itself, which is what it did once.
-    """
+    """One line naming the reading, for the row under the face."""
     if field is not None and field < WEAK_GAUSS:
         return '--.-- deg   no magnet, %d gauss' % field
     text = '%.2f deg' % (degrees % 360.0)
@@ -429,19 +334,7 @@ def die_ink(celsius):
 
 def scale(value, span, height, ticks, title, reading, ink_of, side='left',
           colour=False):
-    """A vertical scale beside the face, `height + 1` lines of SCALE_W.
-
-    `span` is (low, high) at the tube's bottom and top; `ticks` the
-    graduations, each with its number beside the tube; `title` sits on
-    the first row and `reading` - the caption's text for this value - on
-    the line after the last, level with the face's own caption.
-    `ink_of(value)` is the tube's colour. `side` is which side of the
-    face this stands on: the numbers go outboard, the tube inboard.
-
-    A number in, lines out - no board, like the face. A reading past the
-    span fills the tube, a reading under it empties it: the scale says
-    where along its range, never what it is worth.
-    """
+    """A vertical scale beside the face, `height + 1` lines of SCALE_W."""
     low, high = span
     rows = height - 2                        # the tube, rows 1..height-2
     dots_tall = rows * DOTS_Y
@@ -475,8 +368,7 @@ def scale(value, span, height, ticks, title, reading, ink_of, side='left',
                 label = marks[from_bottom]
                 mark_bits |= BRAILLE_BITS[0][dy] | BRAILLE_BITS[1][dy]
         # Four dots wide the whole way: the fill in the reading's ink, the
-        # glass above it in ash. A cell holding the fill's top takes the
-        # ink - one colour a cell.
+        # glass above it in ash.
         full, glass = 0, 0
         for dy in range(DOTS_Y):
             from_bottom = dots_tall - 1 - (r * DOTS_Y + dy)
@@ -515,10 +407,8 @@ def instrument(degrees, field, kelvin, width=58, height=21,
                aspect=CELL_ASPECT, colour=False):
     """The face with its caption, between the die's temperature and the
     field: what SHAFT ANGLE draws with its scales, and what a notebook
-    shows. `kelvin` is TSEN's reading, `field` FIELD's in gauss; the
-    caption leaves the gauss to the scale that carries it. The caption
-    is in the needle's ink, so the line and the thing it names read as
-    one - the rule the rotor observer's foot follows too."""
+    shows.
+    """
     text = caption(degrees, field, gauss=False)
     foot = (' ' * max(0, (width - len(text)) // 2) + text).ljust(width)
     face = '\n'.join([render(degrees, width, height, field, aspect=aspect,
@@ -533,11 +423,7 @@ def instrument(degrees, field, kelvin, width=58, height=21,
 
 
 def picture(state, width=64, height=23):
-    """The drawing with the numbers it is a reading of, above it.
-
-    `state` is what `coaxial.angle.Angle.state()` returns. A reading the
-    board never took prints as one, not as zero degrees.
-    """
+    """The drawing with the numbers it is a reading of, above it."""
     if state.get('value') is None:
         return ('angle: no reading - loop %s, %s'
                 % (state.get('loop', '?'), state.get('error', '?')))
@@ -547,13 +433,8 @@ def picture(state, width=64, height=23):
     field = state.get('field')
     weak = field is not None and field < WEAK_GAUSS
 
-    # With no magnet the counts are still what the part said - real data,
-    # and worth showing. The degrees are a claim about a shaft, and there is
-    # no shaft angle in a number that wanders 27 degrees while the board sits
-    # still. Suppressing the needle and then printing the angle above it
-    # anyway was the picture disagreeing with its own caption: measured on
-    # this board at 2 gauss, the heading read 351.65 one frame and 12.74 the
-    # next, and looked for all the world like a shaft spinning.
+    # With no magnet the counts are still what the part said - real data, and
+    # worth showing.
     if weak:
         heading = 'angle      -- deg   %4d of 4096 counts   flags %X' % (
             counts, state['value'] >> 12)

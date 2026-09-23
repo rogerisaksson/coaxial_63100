@@ -54,17 +54,7 @@ ASSUMED_PASSIVE_W = 24.0 * 0.050
 
 
 def ntc(rig, tries=8):
-    """The NTC now, taking the rail if it has to. None if it stayed quiet.
-
-    NOT the thermal observer's stored sample. Measured 2026-08-28: reading
-    `thermal.state()['ntc']` gave 36.36 C on every one of eleven samples in
-    the switching state - the thermal observer refuses to sample while the stage is
-    armed, so the field was the same stale value each time and the run looked
-    like a board that had stopped responding to heat.
-
-    The tool measures; the thermal observer estimates. It has to take its own
-    reading, and it can: the caller has already brought the stage down.
-    """
+    """The NTC now, taking the rail if it has to."""
     for _ in range(tries):
         try:
             was_on = rig.board.afe.is_on()
@@ -82,14 +72,7 @@ def ntc(rig, tries=8):
 
 
 def insist(what, tries=10, pause=0.4):
-    """Run it until the link answers. Raises if it never does.
-
-    THE LINK GOES QUIET NOW AND THEN - FINDINGS has it open, and 600 requests
-    ruled out four causes. Measured 2026-08-28: a 60-minute run died at
-    minute 47 because the disarm/arm around a sample had no tolerance while
-    the NTC read beside it had. Everything that touches the gate stage goes
-    through here.
-    """
+    """Run it until the link answers."""
     last = None
     for _ in range(tries):
         try:
@@ -102,17 +85,7 @@ def insist(what, tries=10, pause=0.4):
 
 
 def sample_while_switching(rig, load):
-    """Disarm, read, arm again. The firmware refuses a sample while armed.
-
-    That refusal is right - AFE_ON high takes the drivers' supply away, and
-    six inputs switching into unpowered drivers is not a measurement worth
-    having. So the stage comes down first, in hardware, through MOE.
-
-    The disarm is the step that must not be skipped and the arm is the one
-    that must not be half-done, so both are stubborn. Losing the reading is
-    one lost point; losing the arm leaves the run reporting a state it is no
-    longer in.
-    """
+    """Disarm, read, arm again."""
     insist(rig.gates.disarm)
     got = ntc(rig)
     insist(lambda: rig.gates.arm(bypass_sto=True, ignore_interlock=True))
@@ -197,12 +170,7 @@ def hold(rig, state, seconds, every):
 
 
 def fit(series):
-    """(tau_seconds, asymptote) from the whole curve, or None.
-
-    dT/dt = (T_inf - T)/tau is linear in T. Regressing the rate against the
-    temperature gives -1/tau as the slope, so neither a plateau nor a solver
-    is needed.
-    """
+    """(tau_seconds, asymptote) from the whole curve, or None."""
     rates = []
     for (t0, a), (t1, b) in zip(series, series[1:]):
         dt = t1 - t0
@@ -285,9 +253,7 @@ def apply_fit(rig, fits):
         print('\nnothing fitted, so nothing applied')
         return
 
-    # tau = capacity * to_ambient. Only their product was measured, so the
-    # resistance is left as it was and the capacity carries the change -
-    # the resistance is the one with a measurement of its own behind it.
+    # tau = capacity * to_ambient.
     capacity = got[0] / CFG['board_to_ambient']
     print('\napplying: board capacity %.1f J/K (tau %.1f min at %.2f K/W)'
           % (capacity, got[0] / 60.0, CFG['board_to_ambient']))
@@ -307,8 +273,8 @@ STATE_TO_CAMERA = {'passive': 'passive', 'afe': 'afe on',
 
 CAMERA_AS_NODES = {
     'dead': 'board', 'mcu': 'mcu', 'regulators': 'regulators',
-    # The camera's one bridge zone is the NTC's neighbour - the only leg
-    # it can be pinned to without a per-leg picture to fit against.
+    # The camera's one bridge zone is the NTC's neighbour - the only leg it can
+    # be pinned to without a per-leg picture to fit against.
     'afe': 'afe', 'bridge': thermal.NTC_NEIGHBOUR,
 }
 
@@ -320,14 +286,8 @@ def asymptote(series):
 
 
 def against_camera(node_runs):
-    """The thermal observer's predicted equilibrium against what the camera saw.
-
-    The ASYMPTOTE, not the last sample: a run of a few minutes against a
-    6.8-minute constant is nowhere near equilibrium, and the camera numbers
-    are equilibrium ones. The fit is what makes the two comparable.
-
-    `hotswap` is not here because the model has no such node - it ran
-    unloaded through the whole campaign and has no measurement behind it.
+    """The thermal observer's predicted equilibrium against what the camera
+    saw.
     """
     print('\n%s\n%s' % ('the thermal observer against the camera, 2026-08-28',
                          '-' * 66))

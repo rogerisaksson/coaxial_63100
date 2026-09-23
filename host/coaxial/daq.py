@@ -70,16 +70,15 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
             'interval_us': r.u32(),
             'max_rate_hz': r.u32(),
         })
-        # Appended by MINOR 4, and read only if it is there: a board older
-        # than that answers a shorter reply, and a decoder that assumed the
-        # field would raise on a board that is simply older.
+        # Appended by MINOR 4, and read only if it is there: a board older than
+        # that answers a shorter reply, and a decoder that assumed the field
+        # would raise on a board that is simply older.
         state['capacity'] = r.maybe('u32')
         state['worst'] = r.maybe('u32')
         state['rung'] = r.maybe('u8') or 0
         state['rungs'] = r.maybe('u8') or 0
         state['rung_changes'] = r.maybe('u32') or 0
-        # SWEEPS, not records: what the loop manages underneath the
-        # decimation.
+        # SWEEPS, not records: what the loop manages underneath the decimation.
         state['triggers'] = r.maybe('u32')
         # Appended, MINOR 7: which sensor fields this build can put in a
         # record, and which the task carries now.
@@ -237,10 +236,9 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         layout = layout or self.layout()
         # THE BOARD'S STRIDE, not one worked out here.
         stride = layout['stride']
-        # AND ITS REPLY'S LENGTH IS KNOWABLE, so say so: the first payload
-        # byte is the record count and the stride is already in hand, which
-        # turns the 8 ms of silence that ends every other transaction into
-        # nothing.
+        # AND ITS REPLY'S LENGTH IS KNOWABLE, so say so: the first payload byte
+        # is the record count and the stride is already in hand, which turns
+        # the 8 ms of silence that ends every other transaction into nothing.
         raw = self._op(DaqOp.READ, pack(('u8', min(int(want), 255))),
                        reply_shape={'at': 0, 'head': 1, 'stride': stride,
                                     'tail': 4})
@@ -249,8 +247,7 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         out = self.decode(raw[1:end], layout)
 
         # THE BACKLOG THE READ ITSELF ANSWERED, the way a DAQ card does it:
-        # records still in the board's ring the instant this read took its
-        # own.
+        # records still in the board's ring the instant this read took its own.
         self.backlog = Reader(raw[end:]).maybe('u32')
         return out
 

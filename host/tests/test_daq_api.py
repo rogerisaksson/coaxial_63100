@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""The acquisition front door: picking channels, reading them, shaping them.
-
-No board and no port - every test here runs against the stand-in, which is
-what makes them cheap enough to be run on every change. That is also their
-limit, and it is worth saying out loud: they hold the HOST's arithmetic and
-its lifecycles to account, not the wire.
-
-WHY THIS FILE EXISTS. The surface it covers was written without it, and a
-review found `read()` spinning forever when asked for more records than a
-bounded run makes - three loops where one belongs, in the most-used call in
-the library, sitting through several commits because nothing exercised it.
-Every check below is either that defect or a neighbour of it.
-
-Run from the host directory:  python tests/test_daq_api.py
-"""
+"""The acquisition front door: picking channels, reading them, shaping them."""
 import contextlib
 import os
 import sys
@@ -39,13 +25,7 @@ class Report:
 
 @contextlib.contextmanager
 def opened(**kw):
-    """A stand-in session with the front end up, closed on the way out.
-
-    A context manager and not a function returning an open device: `with
-    device` calls `open()` again, which takes a second run at the preflight
-    and drops the rail reference `enable()` had taken - the first version of
-    this helper did exactly that and every tare below was refused.
-    """
+    """A stand-in session with the front end up, closed on the way out."""
     device = Coaxial63100(simulated_device=True, **kw).open()
     try:
         device.set_time_from_pc()
@@ -69,9 +49,8 @@ def test_catalogue(report):
                  all('selectable' in r for r in rows))
     report.check('the analog channels are the board\'s own',
                  'Phase U' in names and 'NTC' in names)
-    # Selectable since MINOR 7 put snapshots in the record; on an older
-    # board the same rows are listed and refused, which the pick's gate
-    # still guards.
+    # Selectable since MINOR 7 put snapshots in the record; on an older board
+    # the same rows are listed and refused, which the pick's gate still guards.
     sensors = [r for r in rows if r['kind'] == 'sensor']
     report.check('the sensor fields are listed', len(sensors) == 5,
                  [r['name'] for r in sensors])
@@ -115,8 +94,8 @@ def test_configure_takes_names_or_a_list(report):
         report.check('a list, sliced, works the same',
                      len(daq.channel_names()) == 3, daq.channel_names())
 
-        # A pin is a GROUP: naming one turns them all on and none of them
-        # goes in the channel mask.
+        # A pin is a GROUP: naming one turns them all on and none of them goes
+        # in the channel mask.
         daq.configure('phaseU', 'AFE_ON')
         report.check('a pin does not become an analog field',
                      daq.channel_names() == ['Phase U'], daq.channel_names())
@@ -145,8 +124,7 @@ def _read_within(daq, count, budget=10.0):
 
 
 def test_read_of_a_finite_run(report):
-    """THE REGRESSION. `read(50)` of a 5-record run spun forever, and the
-    first two fixes for it threw all five away instead."""
+    """THE REGRESSION."""
     for ask, expect in ((50, 5), (5, 5), (3, 3), (-1, 5)):
         with opened() as device:
             daq = device.daq
@@ -154,10 +132,7 @@ def test_read_of_a_finite_run(report):
             daq.start()
             got, spent = _read_within(daq, ask)
             if ask < 0:
-                # WHAT THERE IS. The stand-in closes a record every 2 ms
-                # on its own clock now, as the board does, so a run still
-                # being made comes in more than one read of -1 - and none
-                # of it is lost.
+                # WHAT THERE IS.
                 while got is not None and len(got) < expect and spent < 3.0:
                     more, took = _read_within(daq, ask)
                     got, spent = got + (more or []), spent + took
@@ -183,16 +158,7 @@ def test_read_of_a_running_task(report):
 
 
 def test_capture_is_a_single_shot(report):
-    """A burst at the loop's rate, ended by the record count.
-
-    WHAT THE STAND-IN CANNOT SHOW, and it is the point of the feature: it
-    invents a record when one is asked for, so its buffer never fills
-    faster than the link empties it. The property that a capture samples
-    ahead of the link for as long as the ring lasts needs the board. What
-    is checked here is everything else - that the count is exact, that
-    nothing is dropped, that no chain is left shaping it, and that the
-    records come back whole.
-    """
+    """A burst at the loop's rate, ended by the record count."""
     with opened() as device:
         daq = device.daq
         for ask in (400, 1500):
@@ -211,8 +177,8 @@ def test_capture_is_a_single_shot(report):
         report.check('and the task is stopped afterwards',
                      not daq.state()['running'])
 
-        # A capture with no count fills the ring, which is what the board
-        # says it holds at this stride rather than a number chosen here.
+        # A capture with no count fills the ring, which is what the board says
+        # it holds at this stride rather than a number chosen here.
         daq.configure('phaseU', accumulate=1, interval_us=0)
         capacity = daq.state()['capacity']
         report.check('the ring size comes from the board',
@@ -258,8 +224,8 @@ def test_record_shape(report):
                      - first['NTC'] / first.count) < 1e-9)
     report.check('sample() reaches one channel',
                  first.sample('NTC').unit == 'centi-degC')
-    # The mapping underneath is untouched, which is what stops every
-    # caller written against it from moving.
+    # The mapping underneath is untouched, which is what stops every caller
+    # written against it from moving.
     report.check("record['samples'] is still the COUNT",
                  first['samples'] == first.count, first['samples'])
     try:
@@ -431,10 +397,7 @@ def test_frames_rolls_a_window(report):
 
 
 def test_open_is_idempotent(report):
-    """open() twice is one session. `daq.open()` opens the device it
-    belongs to, so a script that already opened the device built a SECOND
-    stand-in board - every command went to a rotor the records never saw,
-    and on a port it would be a collision."""
+    """open() twice is one session."""
     device = Coaxial63100(simulated_device=True).open()
     try:
         board = device.board
@@ -446,10 +409,7 @@ def test_open_is_idempotent(report):
 
 
 def test_records_track_the_wall(report):
-    """A free-running task's stamps span the wall time it covered. They
-    advanced 47 us a record while the line paced ~300 a second: half a
-    second of run stamped as 9 ms, and an omega differentiated off the
-    frame came out in megaradians."""
+    """A free-running task's stamps span the wall time it covered."""
     with opened() as device:
         daq = device.daq
         daq.configure('NTC')

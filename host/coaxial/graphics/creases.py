@@ -1,8 +1,7 @@
-"""The parts' crease loops off the exact mesh: an edge where two faces
-fold past OUTLINE_DEG, above the slab's measured top or under its
-bottom, joined into loops and simplified along their chains. What the
-stereotype pre-scan fits its primitives to. The rules and their
-measurements are on the constants; `_outline_source` is the one entry."""
+"""The parts' crease loops off the exact mesh: an edge where two faces fold
+past OUTLINE_DEG, above the slab's measured top or under its bottom,
+joined into loops and simplified along their chains.
+"""
 import math
 
 from .. import orientation
@@ -89,15 +88,8 @@ OUTLINE_CHORD = 0.003
 
 
 def _features(solid, min_deg=OUTLINE_DEG, min_rise=None):
-    """[(a, b)] vertex pairs: the creases of `solid`, above `min_rise`
-    when one is given.
-
-    An edge shared by two faces whose normals differ by more than
-    `min_deg`, or belonging to one face only (a shell boundary), with at
-    least one end above `min_rise` in z. Pure, and exact on a synthetic
-    box - test_render holds it there. The normals are the mesh's own
-    per-triangle ones, which for a decimate are the ORIGINAL faces' (so
-    a flat top stays one plane and makes no creases of its own).
+    """[(a, b)] vertex pairs: the creases of `solid`, above `min_rise` when
+    one is given.
     """
     pos, idx, nrm = solid
     cos_lim = math.cos(math.radians(min_deg))
@@ -124,9 +116,9 @@ def _features(solid, min_deg=OUTLINE_DEG, min_rise=None):
 
 
 def _loops(edges, pos):
-    """[(extent, [(a, b), ...])]: the connected pieces of an edge set,
-    each with its XY extent in model units - what the size filter
-    judges. Union-find, no recursion."""
+    """[(extent, [(a, b), ...])]: the connected pieces of an edge set, each
+    with its XY extent in model units - what the size filter judges.
+    """
     parent = {}
 
     def find(v):
@@ -225,9 +217,9 @@ _OUTLINES = {}
 
 
 def _outline_source():
-    """(solid, loops) the outline draws from: the export indexed exact
-    (see OUTLINE_EXACT), or the parametric board where there is none.
-    Built once a process; a view warms it behind its boot strip."""
+    """(solid, loops) the outline draws from: the export indexed exact (see
+    OUTLINE_EXACT), or the parametric board where there is none.
+    """
     try:
         solid = _decimated(orientation.MODEL, OUTLINE_EXACT)
     except (OSError, ValueError):
@@ -242,28 +234,17 @@ def _outline_source():
 
 
 def _outline_loops(solid):
-    """The loops the outline draws: every part standing OUTLINE_RISE
-    over the measured slab, and every part hanging OUTLINE_RISE under
-    its bottom face. THE SLAB'S OWN EDGES ARE NOT LOOPS ANY MORE: its
-    rim, its bore and the parts' footprints at slab level were, and the
-    bench saw them beside the hole the raster drew - the decimate loses
-    the thin ring of triangles round a bore, so the face's hole is
-    wider and elsewhere than the mesh's circle, and no projection of
-    the mesh can sit on it. Since 2026-09-23 the slab's edge and holes
-    are the raster's own silhouette (`_edge`), which cannot disagree
-    with the face."""
+    """The loops the outline draws: every part standing OUTLINE_RISE over
+    the measured slab, and every part hanging OUTLINE_RISE under its
+    bottom face.
+    """
     pos = solid[0]
     top = _slab_top(pos)
     bottom = _slab_bottom(pos, top)
     gate = top + OUTLINE_RISE
     sink = None if bottom is None else bottom - OUTLINE_RISE
 
-    # Split by height BEFORE grouping. Grouping first and judging the
-    # loop whole was tried: a part's footprint shares corners with the
-    # copper around it, so the pads joined the part and drew - 11,982
-    # edges against 3,123, and the blobs back. Split, a part's lid and
-    # corners are one loop; its footprint on the slab is slab level and
-    # not drawn, like the copper, pads and holes there.
+    # Split by height BEFORE grouping.
     parts, below = [], []
     for a, b in _features(solid):
         za, zb = pos[3 * a + 2], pos[3 * b + 2]
@@ -275,11 +256,9 @@ def _outline_loops(solid):
             below.append((a, b))
     loops = _loops(parts, pos) + _loops(below, pos)
 
-    # And a loop that is more crease than outline - its edges adding up
-    # to over OUTLINE_DENSITY times its width - is a pin field or a
-    # fin stack, not a part's shape. Measured over the 90 loops wider
-    # than 0.06 units: outlines at 1.1-5 (the rim's circle exactly 3.1),
-    # the blobs at 9-31.
+    # And a loop that is more crease than outline - its edges adding up to over
+    # OUTLINE_DENSITY times its width - is a pin field or a fin stack, not a
+    # part's shape.
     def sparse(extent, members):
         length = 0.0
         for a, b in members:
@@ -288,8 +267,8 @@ def _outline_loops(solid):
                                 + (pos[3 * a + 2] - pos[3 * b + 2]) ** 2)
         return length <= OUTLINE_DENSITY * extent
 
-    # What remains is merged along its chains (OUTLINE_CHORD) - after
-    # the density gate, which judges the creases as the mesh has them.
+    # What remains is merged along its chains (OUTLINE_CHORD) - after the
+    # density gate, which judges the creases as the mesh has them.
     drawn = []
     for extent, members in loops:
         if not sparse(extent, members):

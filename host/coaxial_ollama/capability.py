@@ -1,18 +1,4 @@
-"""What this machine can run, and which local model to run on it.
-
-A bench PC is whatever was on the shelf, so the machine is measured and the
-tag follows. Three numbers: VRAM minus a reserve (the PC drives the screens
-too, and a card filled to the brim stutters and evicts), free RAM, and cores.
-
-The rule is **the largest tools-capable tag that fits the card entirely**,
-because a hybrid split costs about five times the speed to hand back half the
-VRAM. That figure and the `num_thread` measurements behind it are in
-docs/MODELS.md; they are one bench's numbers and this file does not restate
-them.
-
-Only tools-capable tags are candidates: a tag without them describes a
-measurement instead of taking one.
-"""
+"""What this machine can run, and which local model to run on it."""
 import argparse
 import ctypes
 import json
@@ -27,12 +13,7 @@ try:
 except ImportError:            # not Windows
     winreg = None
 
-# Approximate resident size at Q4_K_M, in GB, and the layer count. Sizes are
-# what the daemon actually reported where a tag was pulled here, and ollama's
-# published figures elsewhere; they are used to compare candidates, not to
-# promise an exact allocation.
-#
-# Every entry is tools-capable. That is the entry requirement, not a feature.
+# Approximate resident size at Q4_K_M, in GB, and the layer count.
 CATALOGUE = [
     {'tag': 'llama3.1:8b',  'gb': 4.9,  'layers': 32, 'ram_gb': 8,
      'note': 'small and quick; Measured inventing tool arguments - see FINDINGS'},
@@ -49,8 +30,7 @@ CATALOGUE = [
 ]
 
 
-# The largest model worth putting on a CPU, in GB. See choose() for the
-# measurement this comes from.
+# The largest model worth putting on a CPU, in GB.
 CPU_CEILING_GB = 8.0
 
 
@@ -78,9 +58,7 @@ class Machine(object):
 
     @property
     def vram_gb(self):
-        """The largest single card. Ollama does not split one model across two
-        by default, so the total across cards would be a number that flatters
-        the machine without helping it."""
+        """The largest single card."""
         if not self.gpus:
             return 0.0
         return max(g['vram_gb'] for g in self.gpus)
@@ -143,12 +121,7 @@ def _windows_cores():
 
 
 def _cpu():
-    """Physical cores if the OS will say, logical either way.
-
-    Physical matters because the two numbers differ by 2x on anything with SMT,
-    and a "64 core" machine that is really 32 is the sort of thing that makes a
-    threading recommendation nonsense.
-    """
+    """Physical cores if the OS will say, logical either way."""
     threads = os.cpu_count() or 1
     physical = _windows_cores() if platform.system() == 'Windows' else None
     if physical is None:
@@ -206,14 +179,7 @@ def _posix_busy():
 
 
 def _cpu_busy():
-    """How much of the machine is already spoken for, as a percentage.
-
-    Only ever a warning. A snapshot of CPU load is the wrong thing to choose a
-    model tag with - the build that is running now finishes in a minute and the
-    tag stays for the session - but it is the right thing to say out loud when
-    the choice is about to be a CPU-bound one, because every tok/s figure in
-    this file was measured on an idle machine.
-    """
+    """How much of the machine is already spoken for, as a percentage."""
     if platform.system() != 'Windows':
         return _posix_busy()
     try:
@@ -228,14 +194,7 @@ def _cpu_busy():
 
 
 def _ollama_vram_gb(host='http://localhost:11434'):
-    """What ollama is holding on the card right now.
-
-    This has to come off the 'already used' figure or the reserve ratchets:
-    the probe runs while a model from the last question is still resident,
-    counts our own weights as somebody else's desktop, reserves that much more
-    and picks something smaller - which becomes the new baseline next time.
-    Measured exactly that way before this function existed.
-    """
+    """What ollama is holding on the card right now."""
     try:
         with urllib.request.urlopen(host.rstrip('/') + '/api/ps',
                                     timeout=5) as reply:
@@ -247,15 +206,7 @@ def _ollama_vram_gb(host='http://localhost:11434'):
 
 
 def _gpus_nvidia_smi():
-    """Cards, and what is already on them.
-
-    `memory.used` matters as much as the total. A card is not empty before the
-    model loads: measured, a two-screen desktop with a browser and an editor
-    open was holding 2.6 GB at 0 % utilisation before anything of ours ran. A
-    reserve computed as a flat fraction of the total assumes that space is
-    free, and the machine pays for the assumption in compositor stutter rather
-    than in an error.
-    """
+    """Cards, and what is already on them."""
     try:
         out = subprocess.check_output(
             ['nvidia-smi', '--query-gpu=name,memory.total,memory.used',
@@ -279,13 +230,7 @@ def _gpus_nvidia_smi():
 
 
 def _gpus_registry():
-    """Windows, any vendor, when nvidia-smi is not the answer.
-
-    qwMemorySize and not AdapterRAM: Win32_VideoController.AdapterRAM is a
-    32 bit field and reports 4 GB for every card larger than that, which is
-    exactly the range where this decision matters. Measured on a 16 GB card:
-    qwMemorySize 16.0 GB, AdapterRAM 4.0 GB.
-    """
+    """Windows, any vendor, when nvidia-smi is not the answer."""
     if winreg is None:
         return []
 
@@ -340,11 +285,7 @@ def _gpu_at(parent, name):
 
 
 def probe(host='http://localhost:11434'):
-    """Measure this machine: what it has, and what is left of it.
-
-    The daemon is asked one question - what is it holding on the card - and a
-    machine with no daemon simply reports zero. Nothing here touches the board.
-    """
+    """Measure this machine: what it has, and what is left of it."""
     cores, threads, cpu_note = _cpu()
     ram, ram_free, ram_note = _ram_gb()
     gpus = _gpus_nvidia_smi()
@@ -370,58 +311,34 @@ def probe(host='http://localhost:11434'):
 
 # What the desktop is allowed to grow by, over what it is using right now: a
 # second 4K surface, a video that starts playing, a browser tab with a canvas
-# in it. Transient allocations are what the stutter is - the driver has to
-# evict something to satisfy them, and the something is the model.
+# in it.
 HEADROOM_GB = 2.0
 
-# One machine's desktop is not another's. A workstation driving two 4K screens
-# with a browser, an editor and a video call has a different transient appetite
-# than a headless bench PC, and no formula gets both right. COAXIAL_VRAM_RESERVE_GB
-# is how a machine says "hold back this much", once, for every entry point.
+# One machine's desktop is not another's.
 RESERVE_ENV = 'COAXIAL_VRAM_RESERVE_GB'
 
 
 def reserve_for(vram_gb, used_gb=0.0):
-    """VRAM this picks deliberately not to use.
-
-    Three numbers, whichever is largest: a quarter of the card, 2 GB, or what
-    the card is *already* holding plus room to grow. That third one is the one
-    that matters on a workstation - Measured: the desktop alone was using
-    2.6 GB on the reference bench, so a flat quarter of that card left it
-    1.4 GB of slack for everything it might do next - not enough, and it shows
-    up as momentary hangs rather than as an error anyone can read.
-    """
+    """VRAM this picks deliberately not to use."""
     if vram_gb <= 0:
         return 0.0
     override = os.environ.get(RESERVE_ENV)
     if override:
         with suppress(ValueError):
             return max(0.0, min(float(override), vram_gb))
-    # Clamped to the card. A reading where the card is already fuller than it
-    # is large is not a reason to print a reserve larger than the hardware; it
-    # is a reason for the budget to be zero, which sends the choice to the CPU
-    # on its own.
+    # Clamped to the card.
     return min(vram_gb, max(2.0, vram_gb * 0.25, used_gb + HEADROOM_GB))
 
 
 def choose(machine, prefer='speed', reserve_gb=None, catalogue=None):
-    """Which tag to run, and with which options.
-
-    prefer='speed'      the largest model that fits entirely in the VRAM budget.
-    prefer='capability' allow a bigger model to hang half out of the card, which
-                        measured five times slower per token here. Worth it when
-                        the answer matters more than the wait; not by default.
-    """
+    """Which tag to run, and with which options."""
     catalogue = catalogue or CATALOGUE
     vram = machine.vram_gb
     if reserve_gb is None:
         reserve_gb = reserve_for(vram, machine.vram_used_gb)
     budget = max(0.0, vram - reserve_gb)
 
-    # Free RAM, not installed RAM. A workstation with 64 GB and 20 free cannot
-    # hold a 42 GB model however impressive the sticker is, and the failure
-    # mode is the machine swapping rather than an error worth reading. Total is
-    # the fallback for a probe that could not measure the free figure.
+    # Free RAM, not installed RAM.
     ram = machine.ram_free_gb or machine.ram_gb
     fits = [e for e in catalogue if e['gb'] <= budget and e['ram_gb'] <= ram]
     if fits:
@@ -440,10 +357,7 @@ def choose(machine, prefer='speed', reserve_gb=None, catalogue=None):
                                 'model - consider --ollama-host on a bench '
                                 'server, or a smaller quantisation'],
                       entry=smallest)
-    # What can run off the card is bounded by patience rather than by RAM. A
-    # 12B model with nothing on the GPU managed 6.4 tok/s on 32 cores here, and
-    # every size up is proportionally worse - a 32B on the CPU is a model you
-    # ask one question a day. So the ceiling is a size, not a share of RAM.
+    # What can run off the card is bounded by patience rather than by RAM.
     ceiling = max(budget + CPU_CEILING_GB, CPU_CEILING_GB)
     within = [e for e in affordable if e['gb'] <= ceiling]
     step = (max(within, key=lambda e: e['gb']) if within
@@ -501,7 +415,7 @@ def _hybrid(entry, budget, machine, vram, reserve_gb, warnings):
                         'token than one wholly on the GPU')
     # Every tok/s figure in this file was measured on an idle machine, and the
     # part of this choice that runs on the CPU is the part a busy machine slows
-    # down. Say so rather than letting the numbers read as a promise.
+    # down.
     if machine.cpu_busy is not None and machine.cpu_busy >= 40:
         warnings.append('this machine is %.0f%% busy right now, and the CPU '
                         'half of this choice will be slower than the figures '
@@ -530,11 +444,7 @@ def report(machine=None, prefer='speed', reserve_gb=None):
 
 
 def pulled(host='http://localhost:11434'):
-    """Tags already on this machine, so a recommendation can prefer one.
-
-    Best effort: no daemon is not an error here, it just means nothing is
-    pulled yet as far as this function knows.
-    """
+    """Tags already on this machine, so a recommendation can prefer one."""
     try:
         with urllib.request.urlopen(host.rstrip('/') + '/api/tags',
                                     timeout=5) as reply:

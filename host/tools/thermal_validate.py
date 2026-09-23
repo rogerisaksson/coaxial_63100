@@ -70,9 +70,8 @@ def main():
         bad += not check('%s K/W' % node, CFG['to_board'][node], delta / watt,
                          1.5, source)
 
-    # THE CAMERA SAW ONE BRIDGE ZONE, so it constrains the three legs
-    # together and not one of them. Three in parallel is what it measured;
-    # per leg is three times that, and no measurement says otherwise yet.
+    # THE CAMERA SAW ONE BRIDGE ZONE, so it constrains the three legs together
+    # and not one of them.
     for group, delta, watt, source in (
             (thermal.DRIVERS, 9.1, 0.60, 'SOURCE: 4-1, half the switching'),
             (thermal.PHASES, 9.1, 0.60, 'ASSUMED: same zone as the drivers')):

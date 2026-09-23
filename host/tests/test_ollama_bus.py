@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""Nodes, segments, unit ids, broadcast.
-
-Split out of test_ollama.py, which had grown to 5,496 lines and 733 checks in
-one file - a third of every check this tree has, and the reason a coverage
-tier could not be asked for at any useful resolution. One subject per file
-now, so a tier buys them separately and a reader opens the one they meant.
-
-Run from the host directory:  python tests/test_ollama_bus.py
-"""
+"""Nodes, segments, unit ids, broadcast."""
 import os
 import sys
 
@@ -16,15 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tests.ollama_support import (DeviceStateError, Scope, toolmod)   # noqa: E402
 
 def test_bus(report):
-    """Five segments, one per limb plus the axis.
-
-    A bus is a serial segment, which is how a machine like this is wired:
-    shorter runs, one limb's fault confined to one limb, four segments
-    carrying traffic at once instead of twenty nodes taking turns. That
-    makes an odd/even side rule redundant - the bus says the side - so the
-    unit id says the position down the limb, and node 2 is the knee on both
-    legs. A number worth more to a controller than a unique one.
-    """
+    """Five segments, one per limb plus the axis."""
     from coaxial.simulated import (SIMULATED_BUSES, bus_nodes,
                                    SimulatedSession as Sim)
     from coaxial_mcp import tools as mcp
@@ -79,8 +63,8 @@ def test_bus(report):
                  (session.bus, session.unit) == ('LA', 4),
                  '%s %d' % (session.bus, session.unit))
 
-    # 'knee' is one node on each leg, which is exactly what a symmetric
-    # machine makes ambiguous - so it names both rather than picking.
+    # 'knee' is one node on each leg, which is exactly what a symmetric machine
+    # makes ambiguous - so it names both rather than picking.
     both = mcp.HANDLERS['devices'](session, op='use', name='knee')
     report.check('a name on two segments names both, and moves nothing',
                  'LL 2' in both and 'RL 2' in both
@@ -101,12 +85,7 @@ def test_bus(report):
                  all('devices' in debug.SETS[name]
                      for name in ('read', 'code', 'pins')))
 
-    # Node 0 is the Modbus broadcast address, not a node. Every node acts on
-    # it and none answers, so a read there cannot work - and a timeout would
-    # read as the bus having died rather than as the protocol working.
-    # Refused in one place, Board.request, which every read and every
-    # read-back write comes through. It is one segment's broadcast, not the
-    # machine's: five buses are five broadcast domains.
+    # Node 0 is the Modbus broadcast address, not a node.
     mcp.HANDLERS['devices'](session, op='use', unit=0)
     report.check('unit 0 is selectable even though it never answers',
                  session.unit == 0, str(session.unit))
@@ -125,16 +104,13 @@ def test_bus(report):
                  mcp.HANDLERS['afe_power'](session, action='read')
                  .startswith('ERR'))
 
-    # The prompt is the one place an operator sees where the tools are
-    # pointed, and with five segments the bus has to be in it.
+    # The prompt is the one place an operator sees where the tools are pointed,
+    # and with five segments the bus has to be in it.
     talk = debug.Chat.__new__(debug.Chat)
     talk.toolbox = toolmod.Toolbox(session, scope=Scope())
     talk.origin = ('Simulated', False)
-    # Short on purpose: the bus already carries the side, so the joint goes
-    # in without it. "RL 2 knee", not "RL node 2 right knee" - and `Ra` for
-    # ankle, which was the abbreviation asked for, would have collided with
-    # `RA` for the right arm on a line whose whole job is to be read at a
-    # glance.
+    # Short on purpose: the bus already carries the side, so the joint goes in
+    # without it.
     for bus, unit, expect, ok in (('RL', 2, 'RL 2 knee', False),
                                   ('LA', 1, 'LA 1 shoulder', False),
                                   ('AX', 0, 'AX ALL NODES', 'all')):

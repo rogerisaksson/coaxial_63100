@@ -46,10 +46,8 @@ from screen import frame_of, run_view, stage               # noqa: E402
 #: so without it the banner lands on the terminal's top row - underneath the
 #: shell's own decoration, where the LIVE/SIMULATED tag cannot be read. That
 #: tag is the one thing in the frame that must never be hidden.
-# The stage's frame around the map: the title band (1), the viewport's
-# top and bottom edge (2), and the gutter row the crosses sit in. It was 6
-# from the banner era, and the map drew two rows smaller than the screen
-# allowed.
+# The stage's frame around the map: the title band (1), the viewport's top and
+# bottom edge (2), and the gutter row the crosses sit in.
 HEAD_LINES = 4
 
 #: Below the scale: the keys and the blank under them - TRAILING already
@@ -121,8 +119,8 @@ ROOM_HINTS = {'cold': '🧊 🥶', 'mild': '🍃 😌', 'hot': '🔥 🥵',
 def room_hint(ident, held=None):
     """Which hint the estimate gets - 'unsure' while the innovation is
     large, else 'cold', 'mild', 'hot' on the room - or nothing before the
-    board has answered op 10 with a room (MINOR 15). `held` is the word
-    shown last, which stands inside the hysteresis band."""
+    board has answered op 10 with a room (MINOR 15).
+    """
     room = (ident or {}).get('ambient')
     if room is None:
         return ''
@@ -156,9 +154,8 @@ SOAK_CELLS = 16
 
 def soak(budget):
     """The HEADROOM box's row: the spend as a solid bar in the margin's
-    colour with an orange tip, the figure beside it. It was `[⣿⣿⠒⠒]
-    42 %`; the bench asked for the brackets gone, then for one row of
-    `⣿` terminated with an orange `⢸` or `⡇`."""
+    colour with an orange tip, the figure beside it.
+    """
 
     used = budget['worst']
     line = gauges.bar(used, SOAK_CELLS,
@@ -177,13 +174,11 @@ IDENT_EVERY_S = 5.0
 
 
 def ident_rows(ident, hint=None):
-    """The identification in SENSE, ONE FACT A ROW: the state as a chip,
-    the margin the envelope acts on and the floor it rose from, each
-    online scale with its sigma, the room, and on the stand-in the truth
-    and the load on it. The bench's field, "the observer's status/policy
-    in SENSE" - and then, 2026-09-06, "the boxes on the right are messy,
-    lots of text run together": the rows had carried three facts each at
-    fifty cells into a forty-two-cell panel, and were cropped."""
+    """The identification in SENSE, ONE FACT A ROW: the state as a chip, the
+    margin the envelope acts on and the floor it rose from, each online
+    scale with its sigma, the room, and on the stand-in the truth and the
+    load on it.
+    """
 
     state = ident['state']
     rows: list = [('model', Text(' %s ' % state, IDENT_STYLE.get(state, 'value')))]
@@ -195,19 +190,18 @@ def ident_rows(ident, hint=None):
             rows.append(('cap' if name == 'capacity' else name,
                          '%.2f ±%.2f' % (scales[name], sigma[name])))
     # THE ROOM, identified beside the scales (MINOR 15): the board has no
-    # ambient sensor, so this is what its rise is measured against - and
-    # its hint beside it, the bench's emoji pair, here rather than over
-    # the board since "a bit more uniform" (2026-09-06).
+    # ambient sensor, so this is what its rise is measured against - and its
+    # hint beside it, the bench's emoji pair, here rather than over the board
+    # since "a bit more uniform" (2026-09-06).
     if ident.get('ambient') is not None:
         kind = hint if hint is not None else room_hint(ident)
         rows.append(('room', Text('%.1f ±%.1f C   %s' % (
             ident['ambient'], ident.get('ambient_sigma', 0.0),
             ROOM_HINTS.get(kind, '')))))
     # THE SIMULATION'S OWN ROWS, on the stand-in only: the situation its
-    # hypothetical board is in and the scales that make it, beside what
-    # the observer has found - a board has no truth to tell, and the rows
-    # are absent. Labelled `sim`, not `truth` (the bench, 2026-09-06):
-    # it is only in simulated mode that the thermal situation is known.
+    # hypothetical board is in and the scales that make it, beside what the
+    # observer has found - a board has no truth to tell, and the rows are
+    # absent.
     truth = ident.get('truth')
     if not truth:
         return rows
@@ -232,15 +226,10 @@ def evidence_class(level):
 
 
 def evidence_rows(ident, colour=True):
-    """The two rows under the board: a blank, then TH OBS and a bar of
-    the span the model has EARNED - empty at the floor, full at the
-    whole span, one minus the doubt - red to yellow to green as it
-    fills. The bench's "a scale under the object, like the rotor
-    observer's, where one sees the innovation vary over the run cycle;
-    red to yellow to green" (2026-09-06), and then "remove the text to
-    the right of the scale, move it to HEADROOM": the bar alone, its
-    figures in `envelope_rows`. A dash before the board has answered
-    op 10."""
+    """The two rows under the board: a blank, then TH OBS and a bar of the
+    span the model has EARNED - empty at the floor, full at the whole
+    span, one minus the doubt - red to yellow to green as it fills.
+    """
     if not ident:
         return ['', '   TH OBS -']
     floor = ident.get('margin_floor')
@@ -250,11 +239,8 @@ def evidence_rows(ident, colour=True):
     level = max(0.0, min(1.0, level))
     cls = evidence_class(level)
     bar = gauges.bar(level, GAUGE_CELLS, cls=cls, colour=colour)
-    # THE LABEL IN THE LEADERS' GREY, constant - the bench: "make the
-    # colour of TH OBS constant, only the thermometer changes colour"
-    # (2026-09-06). It wore the bar's ink for a frame so the floor read
-    # red with nothing filled; at the floor the bar is now its tip and
-    # the track alone, and the state's chip in SENSE says the rest.
+    # THE LABEL IN THE LEADERS' GREY, constant - the bench: "make the colour of
+    # TH OBS constant, only the thermometer changes colour" (2026-09-06).
     label = ('\x1b[38;5;%dmTH OBS\x1b[0m' % machine.LEADER_GREY) if colour \
         else 'TH OBS'
     return ['', '   %s %s' % (label, bar)]
@@ -267,12 +253,12 @@ IDENT_NOISE_K = 0.1
 
 
 def envelope_rows(ident):
-    """HEADROOM's rows for the identification: the margin the envelope
-    keeps of every span now, the floor it rose from, the innovation that
-    moves it, and WHICH TERM HOLDS THE MARGIN DOWN - the innovation, or
-    the air path's, the capacity's or the room's sigma - `none` when the
-    span is earned. At rest the bar sits at the floor on the covariance
-    while the innovation is quiet, and nothing said which (2026-09-06)."""
+    """HEADROOM's rows for the identification: the margin the envelope keeps
+    of every span now, the floor it rose from, the innovation that moves
+    it, and WHICH TERM HOLDS THE MARGIN DOWN - the innovation, or the air
+    path's, the capacity's or the room's sigma - `none` when the span is
+    earned.
+    """
 
     if not ident:
         return []
@@ -321,7 +307,7 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None):
     """The thermal observer's numbers as instrument boxes, every one the
     board's - and, given `(aspect, how)`, the one number that is the
     terminal's: how tall its cell was measured, or assumed, to be.
-    `ident` is `Thermal.identification()`, shown in SENSE when given."""
+    """
 
 
     age = state.get('seen_s_ago')
@@ -337,8 +323,8 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None):
     else:
         sense = [('NTC', '%.1f C' % state['ntc']),
                  ('err', '%+.2f K' % state['error'])]
-    # ONE FACT A ROW (bench, 2026-09-06): `sample every 30 s - last 0 s
-    # ago` was one row, cropped at the panel's edge.
+    # ONE FACT A ROW (bench, 2026-09-06): `sample every 30 s - last 0 s ago`
+    # was one row, cropped at the panel's edge.
     sense += [('open', '%d s  %s' % (state['seconds'],
                                      'settled' if state['settled']
                                      else 'settling')),
@@ -361,8 +347,7 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None):
             ('to limit', ('%.0f s' % left) if left is not None
              else 'not heating')] + envelope_rows(ident)))
     # Every node the thermal observer estimates, by name, plus what is MEASURED
-    # (the dies, the ambient it infers). The map shows where; this shows
-    # how much, to the decimal.
+    # (the dies, the ambient it infers).
     nodes = state.get('nodes') or {}
     rows = [(pretty(name), '%.1f C' % nodes[name])
             for name in ALL_NODES if name in nodes]
@@ -401,16 +386,8 @@ TUBE_ROWS_OF = (('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v',
 
 
 def tubes(state, budget):
-    """The ten nodes and the thermistor as thermometers - the motor
-    page's own, on this page too.
-
-    HEIGHT IS DEGREES ON THE ONE SCALE every page shares, colour is the
-    node's margin against its own ceiling (the board's bands, from the
-    record, trimmed by the identification's policy), and the NTC wears
-    the thermometer ramp because it has no ceiling to be a margin
-    against. The map beside them says WHERE the heat sits; these say how
-    much, against the same rulers the motor page uses, so a reader
-    moving between the two pages reads one instrument.
+    """The ten nodes and the thermistor as thermometers - the motor page's
+    own, on this page too.
     """
     nodes = state.get('nodes') or {}
     used = (budget or {}).get('used') or {}
@@ -434,13 +411,7 @@ def tubes(state, budget):
 
 
 def picture(state, console, reserve, aspect=CELL_ASPECT):
-    """The board and its scale. Nothing else.
-
-    `aspect` is the FIELD row's height against a cell's width - half the
-    character aspect `screen.aspect_of` measures, since the halftone puts
-    two field rows in a character row - so the board is round on the
-    terminal it is drawn on rather than on an assumed one.
-    """
+    """The board and its scale."""
     nodes = state['nodes']
     board_c = nodes.get('board')
     if board_c is None:
@@ -455,10 +426,7 @@ def picture(state, console, reserve, aspect=CELL_ASPECT):
 
 
 def put_back(rig, load):
-    """Undo what the run armed, step by step, and say what each did.
-
-    One failed step must not skip the next, and the way out is the only
-    place that says whether it took."""
+    """Undo what the run armed, step by step, and say what each did."""
     if load is None:
         return [('AFE_ON', 'untouched - this run only watched'),
                 ('gate stage', 'untouched, nothing was armed')]
@@ -492,28 +460,25 @@ def main():
                         'measured off the terminal when not given')
     a = p.parse_args()
 
-    # power_afe=False, and it is not a preference. AFE_ON high unpowers the
-    # gate drivers, so opening the rig the usual way would stop the switching
-    # this view exists to watch.
+    # power_afe=False, and it is not a preference.
     from screen import boot
     with boot('LINKING OBSERVER') as ready,          Coaxial63100(port=a.port, simulated_device=a.simulated,
                       power_afe=False) as rig:
         ready()
         origin = rig.origin
-        # ON THE STAND-IN, however it was reached: `--simulated` or a
-        # bench with no cable, where the rig falls back to it - keyed on
-        # the flag the page ran without its load for the bench
-        # (2026-09-06: "the page does not seem to run a load sequence").
+        # ON THE STAND-IN, however it was reached: `--simulated` or a bench
+        # with no cable, where the rig falls back to it - keyed on the flag the
+        # page ran without its load for the bench (2026-09-06: "the page does
+        # not seem to run a load sequence").
         if not origin.real:
-            # THE GROUND TRUTH ON THE TOUR - temperate, cold, toasty,
-            # round and round - moved on when the identification
-            # has earned the room: the bench's way of seeing the
-            # innovation swing and settle before it is serious on a
-            # board. It was a random situation every few minutes.
+            # THE GROUND TRUTH ON THE TOUR - temperate, cold, toasty, round and
+            # round - moved on when the identification has earned the room: the
+            # bench's way of seeing the innovation swing and settle before it
+            # is serious on a board.
             rig.thermal.situation('tour')
-            # AND A LOAD ON IT, two model minutes at 30 A and four
-            # cooling, so the regions pulse on the map and the bar under
-            # the board has cooldowns to rise on.
+            # AND A LOAD ON IT, two model minutes at 30 A and four cooling, so
+            # the regions pulse on the map and the bar under the board has
+            # cooldowns to rise on.
             rig.thermal.load_cycle(on_s=PAGE_CYCLE_ON_S,
                                    off_s=PAGE_CYCLE_OFF_S)
         say('ok' if origin.real else 'warn', 'link',
@@ -524,8 +489,7 @@ def main():
         load = None
         if a.switch is not None:
             legs = [x.strip().upper() for x in a.phases.split(',')]
-            # AFE off FIRST, then arm. The gate is inverted: arming with the
-            # AFE on gives six switching inputs and no supply behind them.
+            # AFE off FIRST, then arm.
             rig.board.afe.disable()
             rig.gates.arm(bypass_sto=True, ignore_interlock=True)
             load = {'Phase ' + leg: a.switch for leg in legs}
@@ -541,9 +505,8 @@ def main():
         aspect = _screen.aspect_of(a.cell_aspect)
 
         period = 1.0 / max(a.hz, 0.2)
-        # Everything in the frame that is not picture, so `render` can size
-        # the board to what is left. Counted, not guessed - a guess is what
-        # clipped the bottom edge off.
+        # Everything in the frame that is not picture, so `render` can size the
+        # board to what is left.
         reserve = (HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
                    + GAUGE_LINES)
         last = {'body': ['  waiting for device 8'], 'boxes': [],
@@ -553,30 +516,29 @@ def main():
         def draw():
             with suppress(NoReplyError, RigError):
                 got = rig.board.thermal.state()
-                # The identification moves once a sample, every thirty
-                # seconds on the board: one round trip every few seconds
-                # is plenty, and one a frame was a fifth of the frame.
+                # The identification moves once a sample, every thirty seconds
+                # on the board: one round trip every few seconds is plenty, and
+                # one a frame was a fifth of the frame.
                 if time.time() - last['ident_at'] > IDENT_EVERY_S:
                     last['ident'] = rig.board.thermal.identification()
                     last['ident_at'] = time.time()
-                    # The hint with its hysteresis: what was shown stands
-                    # until the room is well past a threshold.
+                    # The hint with its hysteresis: what was shown stands until
+                    # the room is well past a threshold.
                     last['hint'] = room_hint(last['ident'], last['hint'])
                 last['boxes'] = status_boxes(got, rig.board.thermal.budget(),
                                              aspect, ident=last['ident'],
                                              hint=last['hint'])
                 last['body'] = picture(got, console, reserve,
                                        aspect[0] / 2.0)
-                        # now and then (FINDINGS); a blank board each time
-                        # made the view unreadable
-            # Three cells of pad and eight of field: six and twelve read as
-            # dead air around the board. The whole body is picture, all of
-            # it stamped - the scale rides beside the board.
+                        # now and then (FINDINGS); a blank board each time made
+                        # the view unreadable Three cells of pad and eight of
+                        # field: six and twelve read as dead air around the
+                        # board.
             body = last['body']
             field = max((visible(l) for l in body), default=0) + 8
             art = stamp_crosses(['   ' + l for l in body], field)
-            # THE EVIDENCE BAR under the board, after the crosses are
-            # stamped so nothing lands on it.
+            # THE EVIDENCE BAR under the board, after the crosses are stamped
+            # so nothing lands on it.
             art += evidence_rows(last['ident'], colour=console)
             return frame_of(board_view, origin, 'THERMAL OBSERVER',
                             '\n'.join(art), last['boxes'],

@@ -28,10 +28,7 @@ def reserved_reason(port, pin):
 
 class Gpio(Subsystem):
 
-    """The digital pins a fixture may read or drive. USART3 and the debug port
-    are refused in every mode - driving them severs the link the command
-    arrived on.
-    """
+    """The digital pins a fixture may read or drive."""
 
     def test_mode(self, enable):
         """Open or close the gate. Returns the state the firmware reports."""

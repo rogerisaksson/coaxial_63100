@@ -54,8 +54,7 @@ TRIAD_AXES = (((1.0, 0.0, 0.0), 'X', 214), ((0.0, 1.0, 0.0), 'Y', 44),
 
 
 def _triad(grid, tone, cam, m, colour):
-    """The board's axes as a gizmo in the upper right - see TRIAD_REACH.
-    (origin column, origin row, reach), for the test that reads it."""
+    """The board's axes as a gizmo in the upper right - see TRIAD_REACH."""
     width, height = cam['width'], cam['height']
     reach = max(TRIAD_REACH[0], min(TRIAD_REACH[1], height // 6))
     half = reach // 2 + 1
@@ -96,15 +95,9 @@ def _triad(grid, tone, cam, m, colour):
                 inks[at] = (cue, code)
 
         _trace(x0, y0, 1.0, x0 + dx, y0 + dy, 1.0, dot)
-        # The letter: the cell one letter past the tip along the axis,
-        # a letter being a column wide and a row tall - the point moves
-        # as smoothly as the tip does, so the letter follows a cell at
-        # a time. (Snapping the letter a second cell out whenever it
-        # shared the tip's cell was tried first, and in a 2-degree-a-
-        # frame tumble the X reversed direction 12 times in 119 frames
-        # and vanished under another letter for 4 - "the labels do not
-        # glide smoothly", the bench.) A letter that would land on
-        # another's cell, or the origin's, steps once more out.
+        # The letter: the cell one letter past the tip along the axis, a letter
+        # being a column wide and a row tall - the point moves as smoothly as
+        # the tip does, so the letter follows a cell at a time.
         run = math.sqrt(dx * dx + 4.0 * dy * dy)
         if run < 0.5:
             ex, ey = 1.0, 0.0
@@ -119,9 +112,9 @@ def _triad(grid, tone, cam, m, colour):
 
     for at, mask in masks.items():
         r, c = divmod(at, width)
-        # OR, not replace: the floor's dots in this cell are part of the
-        # same matrix, and an axis crossing them should read as crossing
-        # them rather than as a bite taken out of the fan.
+        # OR, not replace: the floor's dots in this cell are part of the same
+        # matrix, and an axis crossing them should read as crossing them rather
+        # than as a bite taken out of the fan.
         under = ord(grid[r][c]) - BRAILLE
         if 0 <= under <= 0xFF:
             mask |= under

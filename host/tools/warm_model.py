@@ -89,9 +89,7 @@ def blob_paths(tag):
 
 
 def warm(paths, chunk=64 * 1024 * 1024):
-    """Read every byte, sequentially, discarded. The read is the point -
-    Windows caches what it just read as long as nothing else claims the RAM
-    back before the next load asks for it."""
+    """Read every byte, sequentially, discarded."""
     total = 0
     started = time.monotonic()
     for path, _ in paths:
@@ -101,27 +99,20 @@ def warm(paths, chunk=64 * 1024 * 1024):
     return total, time.monotonic() - started
 
 
-# Below this measured throughput, OS-cache warming is plausibly worth its
-# own read: a modern NVMe/SSD clears it several times over (2.8-2.9 GB/s
-# Measured - see the module docstring), a spinning disk does
-# not (80-160 MB/s is typical). Deliberately not a media-type check: a
-# `MediaType` lookup can be wrong or unavailable, and it answers a different
-# question anyway - this machine's disks are all reported SSD, and still get
-# measured rather than trusted, because "SSD" spans a wide enough speed
-# range on its own to be the wrong signal here.
+# Below this measured throughput, OS-cache warming is plausibly worth its own
+# read: a modern NVMe/SSD clears it several times over (2.8-2.9 GB/s Measured -
+# see the module docstring), a spinning disk does not (80-160 MB/s is typical).
 SLOW_DISK_MB_S = 1000.0
-# Free RAM must be this many times the model's own size before warming is
-# worth it - the same shape of margin capability.py leaves the desktop on
-# the GPU side, applied to system RAM instead.
+# Free RAM must be this many times the model's own size before warming is worth
+# it - the same shape of margin capability.py leaves the desktop on the GPU
+# side, applied to system RAM instead.
 RAM_MARGIN = 1.3
 
 
 def probe_read_speed(path, sample=128 * 1024 * 1024):
     """MB/s for one real, timed read of the front of `path` - never a guess
-    from the disk's reported type. If the front of the file happens to
-    already be cached from something else, this reads fast and says so
-    honestly; that is still the right answer to "is warming worth it right
-    now", just not to "what can this disk do cold"."""
+    from the disk's reported type.
+    """
     started = time.monotonic()
     read = 0
     with open(path, 'rb', buffering=0) as handle:
@@ -135,8 +126,7 @@ def probe_read_speed(path, sample=128 * 1024 * 1024):
 
 
 def should_warm(tag):
-    """(decide, reason, paths, total_gb). Touches disk only for one probe
-    read of the largest blob - cheap regardless of which way it decides."""
+    """(decide, reason, paths, total_gb)."""
     try:
         paths = blob_paths(tag)
     except FileNotFoundError:
@@ -167,7 +157,8 @@ def should_warm(tag):
 
 def warm_if_worthwhile(tag, out=sys.stdout):
     """The --auto path: decide, act if it says to, one or two lines either
-    way. Returns True if it actually warmed something."""
+    way.
+    """
     decide, reason, paths, total_gb = should_warm(tag)
     if not decide:
         print('warm %s: skipped - %s' % (tag, reason), file=out)
@@ -189,11 +180,8 @@ def _post(payload, timeout):
 
 def measure_load(tag, timeout=180):
     """load_duration in seconds - ollama's own figure, in the response to a
-    real generation. An empty message list (`client.py`'s own preload()
-    trick) loads the model too, but takes a `done_reason: "load"` path that
-    never reports load_duration at all - measured directly against this
-    daemon, not assumed. `num_predict: 1` keeps the generation itself to a
-    single token, so this is still overwhelmingly a load, not an answer."""
+    real generation.
+    """
     reply = _post({'model': tag, 'messages': [{'role': 'user', 'content': 'hi'}],
                   'options': {'num_predict': 1}, 'keep_alive': '5s',
                   'stream': False}, timeout)

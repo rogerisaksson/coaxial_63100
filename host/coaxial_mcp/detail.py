@@ -13,15 +13,13 @@ ENV = 'COAXIAL_DETAIL'
 # Parameters in billions at or above which a reader gets the full text.
 FULL_MODEL_B = 30.0
 
-# A parameter count in an ollama tag: gemma4:12b, qwen2.5:14b, llama3.1:8b,
-# and the odd 1.5b or 70b.
+# A parameter count in an ollama tag: gemma4:12b, qwen2.5:14b, llama3.1:8b, and
+# the odd 1.5b or 70b.
 _SIZE = re.compile(r'(?:^|[:\-_])(\d+(?:\.\d+)?)b(?:$|[:\-_])', re.I)
 
 
 def parse_billions(tag):
-    """Parameter count from a tag, or None when it does not say. The last
-    match, not the first: `llama3.1:8b` names a version before a size.
-    """
+    """Parameter count from a tag, or None when it does not say."""
     if not tag:
         return None
     found = _SIZE.findall(str(tag))
@@ -34,9 +32,7 @@ def parse_billions(tag):
 
 
 def is_cloud(tag):
-    """Ollama's marker for a tag that runs on their hardware. Duplicated from
-    client.py so coaxial_mcp needs nothing from coaxial_ollama.
-    """
+    """Ollama's marker for a tag that runs on their hardware."""
     return bool(tag) and str(tag).split(':')[-1] == 'cloud'
 
 
@@ -63,19 +59,14 @@ def resolve(level=AUTO, model=None, default=FULL):
 
 
 def text(spec, level, key='description'):
-    """The description this level asks for, falling back to the full one. A
-    spec with no terse form is not a mistake - most descriptions here are
-    already one line, and a second copy would be two things to keep in step.
-    """
+    """The description this level asks for, falling back to the full one."""
     short = spec.get(key + '_terse') if level == TERSE else None
     return short or spec.get(key, '')
 
 
 def _properties(schema, level):
-    """Property descriptions are documentation too, and there are more of them
-    than tools. Terse drops them, except where the description is the only
-    place an allowed spelling appears - dropping that is deleting, not
-    shortening.
+    """Property descriptions are documentation too, and there are more of
+    them than tools.
     """
     if level != TERSE:
         return schema
@@ -102,10 +93,7 @@ def _is_schema(description):
 
 
 def apply(specs, level):
-    """A tool list at one level. Copied, never edited: TOOLS is shared by every
-    session in the process, and one terse request must not shorten the
-    server for everybody after it.
-    """
+    """A tool list at one level."""
     level = level if level in (TERSE, FULL) else FULL
     out = []
     for spec in specs:

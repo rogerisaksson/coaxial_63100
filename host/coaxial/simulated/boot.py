@@ -1,5 +1,5 @@
-"""A blank node in its bootloader, as the stand-in: boot_core.c's rules over a
-bytearray flash (docs/BOOT.md). Nothing kept between runs.
+"""A blank node in its bootloader, as the stand-in: boot_core.c's rules over
+a bytearray flash (docs/BOOT.md).
 """
 import struct
 import zlib
@@ -152,10 +152,7 @@ class SimulatedBoot(BootControl):
 
 
 class SimulatedSegment(Segment):
-    """A bus of blank nodes. Unit 247 is every blank node at once: a request
-    they all answer collides on the wire, which is a CRC error at the
-    master, and that is what splits the prefix search.
-    """
+    """A bus of blank nodes."""
 
     def __init__(self, nodes):
         self.nodes = list(nodes)
@@ -172,8 +169,8 @@ class SimulatedSegment(Segment):
 
 class _Blank(BootControl):
     """Unit 247's voice: the broadcasts reach every node, `who` and `assign`
-    the nodes the prefix or the uid names, and the rest whichever nodes are
-    still blank - one answers, two collide.
+    the nodes the prefix or the uid names, and the rest whichever nodes
+    are still blank - one answers, two collide.
     """
 
     def __init__(self, nodes):

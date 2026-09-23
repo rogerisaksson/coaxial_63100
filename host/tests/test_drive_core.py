@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""The control law, on this machine, against a motor that exists only here.
-
-`drive/` is hardware-free like the Modbus core, and for the same reason: so
-the current loop, the injection demodulator, the rotor observer and the I/f ramp
-can be run and judged without a motor, a power stage or a cable. This builds
-it with the host gcc, drives it through ctypes, and closes the loop through a
-PMSM model integrated in Python - saliency, saturation, back-EMF, a dead-time
-voltage error, and the two-period pipeline the firmware has between a duty
-asked for and the sample that shows it (`PIPELINE` in drive.c).
-
-Every tolerance below is against the model's own truth, never against a
-bench number: the model knows its Ld, and the demodulator has to find it.
-
-Run from the host directory:  python tests/test_drive_core.py
-"""
+"""The control law, on this machine, against a motor that exists only here."""
 import ctypes
 import math
 import os
@@ -229,15 +215,13 @@ class Drive:
 
 
 # The motor lives in `coaxial.motor` now: the DAQ stand-in, the system
-# identification and a notebook all close a loop around the same one,
-# and four copies of a machine is four places for an inductance to
-# drift. Imported at the top.
+# identification and a notebook all close a loop around the same one, and four
+# copies of a machine is four places for an inductance to drift.
 
 
 def run(drive, motor, seconds, vdc=24.0, noise=0.0, enabled=True, seed=1,
         watch=None):
-    """Close the loop for `seconds`. The pipeline is the firmware's: the
-    duty a step asks for shapes the period after the next one."""
+    """Close the loop for `seconds`."""
     rng = random.Random(seed)
     prev = (0.0, 0.0, 0.0)
     steps = int(round(seconds / TS))
@@ -291,8 +275,8 @@ def test_math(r, lib):
         r.check('svm: the zero vector is 50 % on every leg',
                 all(abs(x - 0.5) < 1e-6 for x in duty) and scale == 1.0, duty)
         # The linear range is a line-to-line span of Vdc: at 30 degrees a
-        # vector of Vdc/sqrt3 spans exactly that, one leg at 100 % and one
-        # at 0. On a phase axis the same vector spans only 1.5 of itself.
+        # vector of Vdc/sqrt3 spans exactly that, one leg at 100 % and one at
+        # 0.
         v = 24.0 / math.sqrt(3.0)
         scale, duty = d.svm(v * math.cos(math.pi / 6), v * math.sin(math.pi / 6),
                             24.0)
@@ -587,10 +571,9 @@ def test_deadtime(r, lib):
         run(d, m, 0.01)
         vd_raw = d.window()['fields']['vd']['mean']
         # A vector on phase a puts I on a and -I/2 on b and c, so the three
-        # per-phase errors (-f(I), +f(I/2), +f(I/2)) land on d as
-        # (2/3)(f(I) + f(I/2)) - the 4/3 V_dt the textbooks quote, once the
-        # smaller current is out of the knee. What the identification has
-        # to unfold, and why it sweeps I rather than reading one point.
+        # per-phase errors (-f(I), +f(I/2), +f(I/2)) land on d as (2/3)(f(I) +
+        # f(I/2)) - the 4/3 V_dt the textbooks quote, once the smaller current
+        # is out of the knee.
         f = lambda i: 0.5 * math.tanh(i / 0.3)
         want = m.r * 2.0 + (2.0 / 3.0) * (f(2.0) + f(1.0))
         r.check('uncompensated, vd carries R.i plus (2/3)(f(I) + f(I/2))',
@@ -611,9 +594,9 @@ def test_sensorless_run(r, lib):
     """Torque from standstill under injection, through the crossover, onto
     the back-EMF - the rotor observer keeps the rotor the whole way."""
     d = Drive(lib)
-    # Friction sets the speed 0.6 A of torque reaches: 0.063 N.m over
-    # 5e-4 is 126 rad/s mechanical, 882 electrical - past the crossover
-    # and under the voltage limit, so the loop can hold its reference.
+    # Friction sets the speed 0.6 A of torque reaches: 0.063 N.m over 5e-4 is
+    # 126 rad/s mechanical, 882 electrical - past the crossover and under the
+    # voltage limit, so the loop can hold its reference.
     m = Motor(j=2e-5, b=5e-4, theta=2.0)
     v_inj = 2.0
     worst = [0.0]
@@ -701,8 +684,8 @@ def test_model_agrees(r, lib):
         # The loop's own frame is the command frame; the model reports the
         # rotor's, which the free rotor has turned away from it.
         s = d.state()
-        # A tenth of an ampere: the rotor is free and turning under the
-        # torque, so the command frame's back-EMF term keeps moving.
+        # A tenth of an ampere: the rotor is free and turning under the torque,
+        # so the command frame's back-EMF term keeps moving.
         r.check('the loop holds its reference against the C model',
                 abs(s['id'] - 2.0) < 0.1 and abs(s['iq'] - 0.5) < 0.1,
                 (s['id'], s['iq']))
@@ -752,16 +735,7 @@ def test_virtual_sensorless(r, lib):
 
 
 def test_observer_chain(r, lib):
-    """The firmware's observer chain against the Python it was ported from.
-
-    drive.ipynb ranked five observers and picked this pair;
-    drive_observer.c is that pair in C. Both are driven with the same
-    voltages and currents from the same machine, so agreement here is
-    what says the notebook's numbers describe what the board will do.
-
-    Measured, degrees rms, at 63 V: 0.5 at 20 rad/s electrical, 1.1 at
-    500, 2.8 at 2000, 6.9 at 15 000 - the same in both to a tenth.
-    """
+    """The firmware's observer chain against the Python it was ported from."""
     from coaxial import sensorless
     from coaxial.loop import CurrentLoop, Machine, Signals
     from coaxial.motor import BENCH_MOTOR
@@ -803,12 +777,12 @@ def test_observer_chain(r, lib):
         r.check('observer chain at %.0f rad/s: the C matches the Python'
                 % w_e, abs(got - want) < 0.5,
                 '%.2f deg against %.2f' % (got, want))
-        # And it is worth having: an angle error under the line the
-        # notebook draws at 20 degrees, where the torque is still there.
+        # And it is worth having: an angle error under the line the notebook
+        # draws at 20 degrees, where the torque is still there.
         r.check('observer chain at %.0f rad/s holds the rotor' % w_e,
                 got < 20.0, '%.2f deg' % got)
-        # The magnitude the flux model carries IS lambda, which is the
-        # one thing on this board that can see the magnets.
+        # The magnitude the flux model carries IS lambda, which is the one
+        # thing on this board that can see the magnets.
         seen = d.obs()['lambda_hat'] / motor.lam
         r.check('observer chain at %.0f rad/s recovers lambda' % w_e,
                 0.8 < seen < 1.25, '%.3f of the truth' % seen)
@@ -816,15 +790,7 @@ def test_observer_chain(r, lib):
 
 
 def test_observer_needs_a_handover(r, lib):
-    """It cannot acquire a speed from nothing, and that is by construction.
-
-    The PLL acquires at `pll_ki`, 8000 rad/s^2 - a quarter of a second to
-    reach 2000 rad/s. Started at rest against a rotor already turning it
-    reads a quarter turn out for the whole of a short run, because the
-    leak correction `sqrt(1 + (wc/w)^2)` divides by the speed it has not
-    got. drive_observer_sync is the hand-over, and drive.c calls it on
-    every mode change.
-    """
+    """It cannot acquire a speed from nothing, and that is by construction."""
     from coaxial import sensorless
     from coaxial.loop import CurrentLoop, Machine, Signals
     from coaxial.motor import BENCH_MOTOR

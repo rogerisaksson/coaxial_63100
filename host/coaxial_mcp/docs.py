@@ -97,10 +97,7 @@ def index(level=None):
 
 
 def outline(name, level=None):
-    """One document's headings. The same at either level: this is already
-    nothing but titles, and a shorter list of titles is a document the model
-    cannot ask about by name.
-    """
+    """One document's headings."""
     found = paths()
     if name not in found:
         raise ValueError('no document %r; have %s'
@@ -127,9 +124,9 @@ def section(name, wanted, level=None):
     heads = _headings(text)
     needle = wanted.strip().lower()
 
-    # `depth` throughout, not `level`: the heading's depth and the detail
-    # level are two different numbers and the second one is a parameter of
-    # this function.
+    # `depth` throughout, not `level`: the heading's depth and the detail level
+    # are two different numbers and the second one is a parameter of this
+    # function.
     hit = None
     for position, (depth, title, line_no) in enumerate(heads):
         low = title.lower()
@@ -194,8 +191,7 @@ def find(needle, level=None):
 
 
 def docs(session=None, doc=None, section=None, find=None, detail=None, **_):
-    """The tool entry point. `session` is unused - documents are not the board.
-    """
+    """The tool entry point."""
     if find:
         return globals()['find'](find, detail)
     if doc and section:

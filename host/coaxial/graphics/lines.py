@@ -1,8 +1,9 @@
-"""Lines on the braille grid: `_trace` puts a segment's dots on the
-matrix's own sub-columns and sub-rows; `_outline` draws the stereotype
-primitives with the hidden-line test against the depth buffer;
-`_edge` draws the slab's rim and holes as the raster's own silhouette,
-off the fold's reached bits. Both lie their dots onto the face's."""
+"""Lines on the braille grid: `_trace` puts a segment's dots on the matrix's
+own sub-columns and sub-rows; `_outline` draws the stereotype primitives
+with the hidden-line test against the depth buffer; `_edge` draws the
+slab's rim and holes as the raster's own silhouette, off the fold's
+reached bits.
+"""
 import math
 
 from .raster import BRAILLE, BRAILLE_BITS
@@ -56,12 +57,9 @@ STEREO_FACING = 0.25
 def _trace(x0, y0, w0, x1, y1, w1, dot):
     """`dot(fx, fy, w)` wherever the segment crosses one of the braille
     matrix's own lines: the sub-columns at half-cell pitch when it runs
-    flatter than the matrix's aspect, the sub-rows at quarter pitch
-    when steeper. So a dot's place is the geometry's alone. Sampled
-    along the segment's own parameter first, the samples slid with its
-    projected length, and every cell where a shallow line sat on a row
-    boundary blinked as the view turned - measured, 108 of 227 blink
-    events in a tumble. `w` rides along for the depth test."""
+    flatter than the matrix's aspect, the sub-rows at quarter pitch when
+    steeper.
+    """
     dx, dy, dw = x1 - x0, y1 - y0, w1 - w0
     if abs(dx) >= 2.0 * abs(dy) and dx == 0.0:
         return                                # a point, not a line
@@ -86,9 +84,8 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
     primitive its loops fit (`_stereotypes` - a block, a drum, an arch),
     in dotted lines on the cells' 2x4 braille matrix, hidden where the
     solid stands in front - the grace keeps an edge from losing to the
-    face it borders. `heat` is the glow pass's per-cell heat, which the
-    line lifts by OUTLINE_LIFT. Cells drawn, for the caller that
-    counts."""
+    face it borders.
+    """
     prims = _stereotypes()
     width, height = cam['width'], cam['height']
     scale, cx, cy, distance = cam['scale'], cam['cx'], cam['cy'], cam['distance']
@@ -112,16 +109,7 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
         at = py * width + px
         near = buf[at]
         if near and we > 0.0:
-            # THE GRACE FOLLOWS THE CELL'S OWN DEPTH SPAN. The buffer
-            # holds a cell's NEAREST sample, and on a face tilted 45
-            # degrees a cell spans 0.02 to 0.04 units of depth at the
-            # bench's framing - past a fixed grace of 0.012 - so a
-            # part's lid edge lost to its own lid's near corner in the
-            # same cell, and the parts' outlines came out as fragments
-            # floating between the parts (the bench, 2026-09-23: "the
-            # edge enhancer makes edges between the objects"). The span
-            # is read off the four neighbours' depths; a back edge
-            # behind a body thicker than a cell's span is still hidden.
+            # THE GRACE FOLLOWS THE CELL'S OWN DEPTH SPAN.
             here = 1.0 / near
             span = 0.0
             for j in (at - 1, at + 1, at - width, at + width):
@@ -144,8 +132,8 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
             return                          # sub-pixel detail, see above
         _trace(sx0, sy0, wa, sx1, sy1, wb, dot)
 
-    # The camera in model space, for the drums' silhouettes: the view's
-    # z axis is m's third row, and the camera sits `distance` along it.
+    # The camera in model space, for the drums' silhouettes: the view's z axis
+    # is m's third row, and the camera sits `distance` along it.
     camx, camy = distance * m6, distance * m7
     for kind, extent, data in prims:
         if extent < min_extent:
@@ -155,22 +143,17 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
         elif kind in ('block', 'ring', 'stroke'):
             segs = data
         else:
-            # A wall's feature - an arch, a hole - seen edge-on is a
-            # dash: face-on, the screw terminals' openings lay as short
-            # bright strokes along the rim, "junk" on the bench's
-            # screenshot. Skipped where the wall faces the camera by
-            # under STEREO_FACING.
+            # A wall's feature - an arch, a hole - seen edge-on is a dash:
+            # face-on, the screw terminals' openings lay as short bright
+            # strokes along the rim, "junk" on the bench's screenshot.
             segs, (nx, ny) = data
             if abs(nx * m6 + ny * m7) < STEREO_FACING:
                 continue
         for s in segs:
             segment(*s)
-    # Strays: a line is a chain of neighbouring cells, so a cell with no
-    # drawn neighbour in its eight is a sample that cleared the depth
-    # test alone - a grazing edge, a corner half behind a wall - and
-    # not a line. Dropped, on the bench's word ("stray pixels here and
-    # there"); a median filter would have eaten the lines themselves,
-    # which are one dot thick by design.
+    # Strays: a line is a chain of neighbouring cells, so a cell with no drawn
+    # neighbour in its eight is a sample that cleared the depth test alone - a
+    # grazing edge, a corner half behind a wall - and not a line.
     lone = [at for at in masks
             if not any((at + dr * width + dc) in masks
                        for dr in (-1, 0, 1) for dc in (-1, 0, 1)
@@ -181,13 +164,7 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
         del masks[at]
     for at, mask in masks.items():
         r, c = divmod(at, width)
-        # ONTO the face's dots. The line's dots alone in the cell - one
-        # or two where the face had drawn three or four, measured cell
-        # by cell at 30 degrees - ran as a dark groove with bright
-        # specks round every part: "a lot of halo in the edges". Laid
-        # over the face's dots and lifted a little, the line is a
-        # denser, brighter run of the same dither - the faintly
-        # enhanced edge the bench asked for.
+        # ONTO the face's dots.
         was = grid[r][c]
         if BRAILLE <= ord(was) < BRAILLE + 256:
             mask |= ord(was) - BRAILLE
@@ -204,10 +181,9 @@ EDGE_HOLE_CELLS = 3
 
 
 def _edge_tables():
-    """Per braille mask, one table a direction: the set dots whose
-    in-cell neighbour that way is unset. And per NEIGHBOUR mask, the
-    dots on our border facing one of its unset dots: our lane 0 faces
-    the left cell's lane 1, our row 0 the cell above's row 3."""
+    """Per braille mask, one table a direction: the set dots whose in-cell
+    neighbour that way is unset.
+    """
     bits = BRAILLE_BITS
     left, right, up, down = [0] * 256, [0] * 256, [0] * 256, [0] * 256
     from_left, from_right = [0] * 256, [0] * 256
@@ -279,28 +255,10 @@ def _regions(reached, width, height):
 
 def _edge(grid, tone, cells, cam, colour, heat=None):
     """The slab's edge and its holes as the RASTER'S OWN SILHOUETTE: the
-    covered dots that border what the fold left empty - the exterior,
-    and any hole of EDGE_HOLE_CELLS empty cells or more - at braille dot
+    covered dots that border what the fold left empty - the exterior, and
+    any hole of EDGE_HOLE_CELLS empty cells or more - at braille dot
     resolution, off the fold's `reached` bits and the tables above.
-
-    WHY NOT THE MESH'S LOOPS: the decimate loses the thin ring of
-    triangles round a bore, so the face's hole is wider and elsewhere
-    than the mesh's circle, and the ring projected from the mesh stood
-    beside the hole the raster drew - the bench, 2026-09-23, through
-    three attempts to move the line. A line taken from the coverage
-    cannot disagree with the coverage. The frame's edge is not an edge:
-    a board cut by the frame has no line there. Pinholes inside the
-    face - a dot the fold missed, a triangle the decimate dropped - get
-    none either. Cells drawn.
-
-    THE LIT COVERAGE, when the light is given. A cell the fold reached
-    but the light left at zero is a wall seen edge-on - the bore's far
-    wall through the hole, the slab's rim band at a steep pose - and it
-    draws blank, so a line round the whole coverage stood inside the
-    dark opening, a wall's width off the face: the bench, 2026-09-23,
-    on the back tilted 60 degrees, where 79 covered cells drew nothing
-    (645 of 1 312 at 73 degrees, half the slab). Every such cell had
-    heat exactly zero. The line goes round what is drawn."""
+    """
     width, height = cam['width'], cam['height']
     reached = cells[2]
     if heat is not None:
@@ -341,11 +299,8 @@ def _edge(grid, tone, cells, cam, colour, heat=None):
             masks[i] = mask
     for at, mask in masks.items():
         r, c = divmod(at, width)
-        # ONTO the face's dots, like the outline's (see `_outline`): a
-        # boundary cell keeps its own dither under the boundary dots.
-        # Alone they made a groove along the rim; merged at the old
-        # lift of 4.5 they made a bright band the bench read as
-        # thickness; at OUTLINE_LIFT 3.0 the band is a denser edge.
+        # ONTO the face's dots, like the outline's (see `_outline`): a boundary
+        # cell keeps its own dither under the boundary dots.
         was = grid[r][c]
         if BRAILLE <= ord(was) < BRAILLE + 256:
             mask |= ord(was) - BRAILLE

@@ -96,8 +96,8 @@ def compose(view, size):
     wide = max(24, size.width - 26)
     tall = max(10, size.height - 4)
     q = view['pose']
-    # The cube is drawn from its own solid; the board is render's own,
-    # art and all.
+    # The cube is drawn from its own solid; the board is render's own, art and
+    # all.
     cube = view['model'] == 'cube'
     override = solid_of('cube') if cube else None
     if cube and override is None:
@@ -120,10 +120,7 @@ def compose(view, size):
     whole = Layout()
     whole.split_column(
         Layout(body, name='body'),
-        # SELECT NEAR THE FRONT. The footer is one line and these keys
-        # overrun it - measured, the row ended at `SPACE:` and the chip
-        # that says how to copy anything off the page was past the cut.
-        # A key nobody can see is a key nobody has.
+        # SELECT NEAR THE FRONT.
         Layout(footer((('F', 'MOUSE'), ('+ -', 'ZOOM'),
                        ('UP DN', 'LIGHT'), ('LT RT', 'SPOT'),
                        ('x/X y/Y z/Z', 'DEG'), ('SPACE', 'SPIN'),
@@ -137,10 +134,7 @@ AXES3 = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
 def act_on(typed, view):
     for key in typed:
-        # ZOOM ON KEYS AS WELL AS THE WHEEL. The wheel needs the view to
-        # hold the mouse, and it does not unless asked - the terminal has
-        # it so a left-drag can mark text. A view whose only way in was
-        # the wheel would be a view you had to give the text up to use.
+        # ZOOM ON KEYS AS WELL AS THE WHEEL.
         if key in '+=-_':
             step = 1.0 + (WHEEL_STEP if key in '+=' else -WHEEL_STEP)
             view['zoom'] = max(0.3, min(4.0, view['zoom'] * step))
@@ -183,8 +177,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     page = stage()
-    # Spin is OFF at start: the view opens under the hand, not on a
-    # carousel - SPACE starts the idle tumble.
+    # Spin is OFF at start: the view opens under the hand, not on a carousel -
+    # SPACE starts the idle tumble.
     view = {'model': args.model, 'pose': (0.0, 0.0, 0.0, 1.0),
             'spin': False, 'zoom': 1.0,
             'carry': (0.0, 0.0)}
@@ -227,8 +221,8 @@ def loop(args, page, view, frame, last):
             if dx or dy:
                 view['spin'] = False
             if abs(cx) > 0.01 or abs(cy) > 0.01:
-                # Half the carry each frame; rows are half-height
-                # cells, so the vertical gesture doubles.
+                # Half the carry each frame; rows are half-height cells, so the
+                # vertical gesture doubles.
                 ax, ay = cx * 0.5, cy * 0.5
                 turn(view, (0, 1, 0), ax * DRAG_DEG)
                 turn(view, (1, 0, 0), ay * DRAG_DEG * 2.0)

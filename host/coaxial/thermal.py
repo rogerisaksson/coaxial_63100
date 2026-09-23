@@ -316,9 +316,9 @@ AREA_SHARE = {'board': 0.199, 'patch_u': 0.109, 'patch_v': 0.134,
 
 def patch_of(x_mm, y_mm):
     """Which laminate patch a point of the board is in, millimetres from the
-    centre, +y up: the band under the switches and shunts above y = 12 cut
-    into the three legs at x = +-14, the front end's band below y = -25, and
-    the middle in three at x = +-22.
+    centre, +y up: the band under the switches and shunts above y = 12
+    cut into the three legs at x = +-14, the front end's band below y =
+    -25, and the middle in three at x = +-22.
     """
     if y_mm >= 12.0:
         return 'patch_u' if x_mm < -14.0 else (
@@ -406,9 +406,9 @@ CFG = {
                         ('hotswap', 0.50)]
                      + [(n, BOARD_CAPACITY * AREA_SHARE[n]) for n in LAMINATE]
                      + list(MOTOR_CAPACITY.items())),
-    # THE GRAPH: the edges' K/W in table order, each node's air path (a
-    # patch's the bulk's over its share), its share of the face, its
-    # junction-per-watt and its forced-convection gain.
+    # THE GRAPH: the edges' K/W in table order, each node's air path (a patch's
+    # the bulk's over its share), its share of the face, its junction-per-watt
+    # and its forced-convection gain.
     'edges': [r for _a, _b, r in EDGES],
     'to_ambient': dict([(n, BOARD_TO_AMBIENT / AREA_SHARE[n])
                         for n in LAMINATE] + list(MOTOR_TO_AMBIENT.items())),
@@ -439,10 +439,10 @@ def expected_ntc(board_c, driver_rise_k=0.0):
 
 
 def to_ambient_at(node, rise_k, speed_rpm=0.0, cfg=None):
-    """K/W off one node's air path at a rise and a rotor speed - the same rule
-    as `thermal_to_ambient_at`: a patch carries the bulk's nonlinear law
-    scaled to its share, and any node the rotor's air reaches improves by
-    its `forced` gain per sqrt(krpm). None for a node with no air path.
+    """K/W off one node's air path at a rise and a rotor speed - the same
+    rule as `thermal_to_ambient_at`: a patch carries the bulk's nonlinear
+    law scaled to its share, and any node the rotor's air reaches
+    improves by its `forced` gain per sqrt(krpm).
     """
     cfg = cfg or CFG
     r = cfg['to_ambient'].get(node, 0.0)
@@ -459,8 +459,8 @@ def to_ambient_at(node, rise_k, speed_rpm=0.0, cfg=None):
 def net_flows(temps, power, cfg=None, ambient=AMBIENT, speed_rpm=0.0):
     """Net watts into every node at these temperatures: what it makes, plus
     what flows in over the edges, less what it sheds to the air -
-    `thermal.c`'s `net_flows`, so the stand-in integrates the same graph the
-    board does.
+    `thermal.c`'s `net_flows`, so the stand-in integrates the same graph
+    the board does.
     """
     cfg = cfg or CFG
     net = dict((n, power.get(n, 0.0)) for n in ALL_NODES)
@@ -534,9 +534,9 @@ SWITCH_SHARE = inverter.RDS_ON / (inverter.RDS_ON + inverter.SHUNT)
 
 
 def phase_power(amps_rms, r_phase, switching=True, cfg_power=None):
-    """Power per node at `amps_rms` a phase: the conduction split between the
-    FET and the shunt it sits in series with, the drivers' switching share
-    where the stage is switching, the housekeeping always.
+    """Power per node at `amps_rms` a phase: the conduction split between
+    the FET and the shunt it sits in series with, the drivers' switching
+    share where the stage is switching, the housekeeping always.
     """
     out = dict(cfg_power or POWER_SWITCHING)
     if not switching:

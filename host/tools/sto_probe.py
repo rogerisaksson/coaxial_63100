@@ -41,9 +41,6 @@ FIELDS = (('keepalive', 'keepalive'), ('worst_gap_cycles', 'worst gap'),
 def probe(rig, last=None):
     """One reading of the chain: the interlock's rows, the gate state's
     chain fields, and the keepalive pulses a second since `last`.
-
-    `last` is the previous reading, for the rate; None the first time.
-    Pure over the rig: reads, no writes, no verdict.
     """
     now = time.monotonic()
     rows = rig.gates.interlock()

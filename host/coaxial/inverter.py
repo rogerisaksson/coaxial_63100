@@ -79,8 +79,7 @@ def ring(vdc):
 def blanking(vdc):
     """Margin left for the current sample at the deepest duty the modulator
     allows: a quarter of the (1 - V_FRAC) window, minus the ring settling
-    and the sense chain's delay. Positive means the sample lands on settled
-    current.
+    and the sense chain's delay.
     """
     return (1.0 - V_FRAC) * TS / 4.0 - ring(vdc)['settle_s'] - AFE_DELAY
 
@@ -92,8 +91,7 @@ def dead_time_volts(vdc, t_dead=T_DEAD):
 
 def knee_amps(vdc, t_dead=T_DEAD):
     """The current that just slews the node across the link inside the dead
-    time: 2 Qoss / t_dead. Below it the output charge soft-switches the
-    error away; the tanh knee the compensation and the model share.
+    time: 2 Qoss / t_dead.
     """
     return 2.0 * qoss(vdc) / t_dead
 

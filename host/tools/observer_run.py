@@ -55,13 +55,7 @@ V_INJ = 2.0
 
 def spin(params, iq, seconds=0.35, vdc=VDC, pll_hz=PLL_HZ, noise=0.02,
          prop=True, lib=None):
-    """Hold `iq` from standstill and report what the observer did.
-
-    The first 50 ms are injection finding a rotor that is not turning; the
-    q current is applied after that, and the error is only counted once the
-    lock has had time to happen - an observer judged on its first ten
-    microseconds is judged on its initial condition.
-    """
+    """Hold `iq` from standstill and report what the observer did."""
     m = Motor.of(params, theta=2.0,
                  k_load=APC20x10E.k if prop else 0.0)
     x = sensorless.crossover(lam=params.lam, r=params.r, i_max=60.0,
@@ -98,12 +92,7 @@ def spin(params, iq, seconds=0.35, vdc=VDC, pll_hz=PLL_HZ, noise=0.02,
         d.mode(H.SENSORLESS)
         H.run(d, m, 0.05, vdc=vdc, noise=noise)      # injection finds the axis
 
-        # THE PI INJECTION CANNOT RESOLVE. Saliency locates the d AXIS;
-        # only saturation says which end of it the magnet is on. Measured
-        # here: the first version of this tool went straight from the
-        # injection lock to a q current, and every run above 35 A drove the
-        # rotor BACKWARDS at 180 degrees of error - 755, then -345, then
-        # -807 rpm. The firmware has the step. The tool was not calling it.
+        # THE PI INJECTION CANNOT RESOLVE.
         theta_hat = d.state()['theta_hat']
         d.setpoints(pol_volts=6.0, pol_periods=8, pol_gap=40)
         d.mode(H.POLARITY)
@@ -126,14 +115,12 @@ def spin(params, iq, seconds=0.35, vdc=VDC, pll_hz=PLL_HZ, noise=0.02,
             'worst_rad': worst[0],
             'worst_deg': math.degrees(worst[0]),
             'steady_deg': math.degrees(steady[0]),
-            # Lock is judged on the STEADY error and on the rotor turning
-            # the way it was asked to. A transient excursion the observer
-            # recovers from is not a lost rotor - measured: 40 A peaked at
-            # 34.9 degrees and still reached 5413 rpm.
+            # Lock is judged on the STEADY error and on the rotor turning the
+            # way it was asked to.
             'reached': reached[0],
-            # A rotor that never passed w_hi has no steady error to be
-            # judged on: 50 A reported 0.00 degrees because it stalled at
-            # 27 rpm and the metric was never sampled once.
+            # A rotor that never passed w_hi has no steady error to be judged
+            # on: 50 A reported 0.00 degrees because it stalled at 27 rpm and
+            # the metric was never sampled once.
             'locked': (reached[0] and steady[0] < 0.5 and not tripped
                        and m.omega > 0.0),
             'crossover_rpm': x['rpm'], 'flipped': flipped,

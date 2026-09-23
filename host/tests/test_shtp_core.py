@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""SHTP framing and SH-2 decoding, on this machine, with no IMU.
-
-`shtp/src/shtp.c` is hardware-free for the same reason the Modbus core is: it
-turns a byte buffer into a header and a cargo and nothing else, so it can be
-built here and driven through ctypes. Every buffer in this file is a frame the
-BNO08X datasheet writes out byte by byte, so what is asserted is the document
-rather than the implementation's opinion of it.
-
-Datasheet references are to BNO080_085-Datasheet v1.17 in datasheets/.
-
-A missing compiler is not a failing suite: it says so and passes nothing.
-`setup.ps1` installs one.
-
-Run from the host directory:  python tests/test_shtp_core.py
-"""
+"""SHTP framing and SH-2 decoding, on this machine, with no IMU."""
 import ctypes
 import os
 import sys
@@ -80,8 +66,7 @@ def test_header(report, lib):
                  'len=%d cont=%s' % (h.length, h.continuation))
 
     # "A length of 65535 (0xFFFF) is reserved because a failed peripheral can
-    # too easily produce 0xFFFF" - Figure 1-26. An unpowered BNO08X holds MISO
-    # high and every read comes back like this.
+    # too easily produce 0xFFFF" - Figure 1-26.
     ok, _h = header(lib, b'\xFF\xFF\xFF\xFF')
     report.check('0xFFFF is refused rather than read as a 32 kB cargo', not ok)
 
@@ -117,12 +102,7 @@ def test_build(report, lib):
 
 
 def test_set_feature(report, lib):
-    """Figure 1-33, checked against the worked example in Figure 5-1.
-
-    60 ms is the datasheet's own example and it says the interval reads
-    0x0000EA60, so the byte order of that field is asserted rather than
-    assumed.
-    """
+    """Figure 1-33, checked against the worked example in Figure 5-1."""
     buf = (ctypes.c_ubyte * 32)()
     n = lib.shtp_set_feature(buf, ctypes.c_size_t(32), ctypes.c_ubyte(0x01),
                              ctypes.c_uint32(60000))
@@ -206,15 +186,9 @@ def test_reports(report, lib):
 
 
 def test_walk_stops(report, lib):
-    """An unknown report id ends the walk instead of guessing its length.
-
-    The reports are not self-delimiting: a wrong length does not lose one
-    report, it mis-frames every byte after it, so a length is only entered
-    here once something states it.
-    """
+    """An unknown report id ends the walk instead of guessing its length."""
     # The datasheet does not tabulate these two - it refers to the SH-2
-    # Reference Manual. They come from CEVA's own decoder instead,
-    # github.com/ceva-dsp/sh2, sh2_SensorValue.c.
+    # Reference Manual.
     report.check('the rotation vector is fourteen: the four components and '
                  'an accuracy estimate behind the common header',
                  lib.shtp_report_len(ctypes.c_ubyte(0x05)) == 14,

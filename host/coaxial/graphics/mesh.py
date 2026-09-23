@@ -1,21 +1,4 @@
-"""An STL read once and reduced to a triangle mesh the renderer can draw.
-
-The board's own geometry, instead of a parametric stand-in: `render/models`
-holds the CAD export, and what a picture of the board should look like is a
-question the model already answers.
-
-Reduced, not resampled. An earlier version turned the surface into points and
-the renderer splatted those; the docstring here claimed carrying triangles
-would "cost a hundredfold", which was never measured and is not true. It was
-measured afterwards: the full 419,338 triangles rasterise in 1.6 s a frame at
-100x30, and 74% of the ones that get drawn are sub-pixel. So the mesh is
-decimated to 12% of its faces and stays a MESH - which is what lets the
-renderer weigh a face by its projected area, the thing point splatting cannot
-do and the reason the board kept drawing as a disc of noise.
-
-No numpy. requirements.txt says why it is not here, and the cost it would pay
-for is a one-off: the reduction runs once per process and stays in memory.
-"""
+"""An STL read once and reduced to a triangle mesh the renderer can draw."""
 import math
 import os
 import struct
@@ -39,9 +22,9 @@ def _faces_binary(raw):
     if len(raw) < 84 + count * 50:
         raise ValueError('binary STL claims %d triangles and is %d bytes short'
                          % (count, 84 + count * 50 - len(raw)))
-    # One iter_unpack over the body, the attribute word skipped by the
-    # format: 0.60 s -> 0.46 s with the centring, 116,880 faces, against
-    # an unpack_from per face.
+    # One iter_unpack over the body, the attribute word skipped by the format:
+    # 0.60 s -> 0.46 s with the centring, 116,880 faces, against an unpack_from
+    # per face.
     body = memoryview(raw)[84:84 + count * 50]
     for f in struct.iter_unpack('<12f2x', body):
         yield ((f[3:6], f[6:9], f[9:12]), f[0:3])
@@ -71,31 +54,8 @@ def cell_key(point, step):
 
 
 def _clustered(faces, divisions, keep=None):
-    """(positions, indices, normals) for `faces`, vertices snapped to a grid.
-
-    Vertex clustering: every vertex in a grid cell becomes that cell's one
-    vertex - the mean of the corners that landed in it - and a triangle
-    whose corners land in fewer than three cells has collapsed and is
-    dropped. Crude next to a proper edge-collapse decimator, and it needs
-    no topology, no error quadrics and no half-edges - which is what makes
-    it forty lines instead of four hundred.
-
-    `keep(corner)` names the corners that stay EXACT: each is its own
-    cluster, wherever the grid falls. For a feature thinner than a cell
-    - a bore's wall, 0.032 thick against a 0.042 cell at grid 48 - the
-    clustering merges the wall's top and bottom rings and the hole
-    comes out smaller and elsewhere than the mesh's circle; the caller
-    that knows where such a feature is keeps its corners.
-
-    Indexed, because clustering is what makes sharing worth having: this
-    board's 48,899 triangles have only 23,810 distinct corners between them,
-    so a renderer that transforms vertices rather than triangle corners does
-    a sixth of the work for exactly the same picture.
-
-    Measured on this board, 419,338 triangles in: grid 200 keeps 12% of them,
-    320 keeps 22%, 480 keeps 29%. 74% of what the full mesh draws is
-    sub-pixel at any size a terminal can show, so 12% loses nothing a reader
-    could see.
+    """(positions, indices, normals) for `faces`, vertices snapped to a
+    grid.
     """
     step = 2.0 / divisions
     cells = {}
@@ -137,10 +97,6 @@ def _clustered(faces, divisions, keep=None):
             continue
 
         # Shade with the ORIGINAL face's normal, not the snapped triangle's.
-        # Snapping moves each corner up to half a cell, which tilts every
-        # triangle of a flat surface a different way - so a plane comes out
-        # crumpled and draws as static. The geometry may be coarse; the
-        # normal it is lit by should not be.
         first = face_normal(corners[0], corners[1], corners[2], stated)
         if first is not None:
             normal = first
@@ -152,13 +108,7 @@ def _clustered(faces, divisions, keep=None):
         normals.append(normal[1])
         normals.append(normal[2])
 
-    # THE VERTEX IS THE MEAN OF WHAT LANDED IN THE CELL, not the cell's
-    # middle. Snapped to the middle, a rim vertex moved up to half a
-    # cell in or out by where the grid happened to fall, and the
-    # board's silhouette came out lumpy by that much - measured at grid
-    # 32, the attitude page's own, +-0.031 of the radius, +-2.8 braille
-    # dots at the page's framing - beside the exact outline drawn over
-    # it. The mean of a cell's rim corners lies on the rim's chord.
+    # THE VERTEX IS THE MEAN OF WHAT LANDED IN THE CELL, not the cell's middle.
     positions = []
     for sx, sy, sz, n in sums:
         positions.append(sx / n)
@@ -168,12 +118,7 @@ def _clustered(faces, divisions, keep=None):
 
 
 def face_normal(a, b, c, stated):
-    """The unit normal from the winding, or None if the face has no area.
-
-    From the winding rather than the STL's own field: exports write zeros
-    there, and a zero normal shades as unlit, which drops the face out of
-    the picture entirely.
-    """
+    """The unit normal from the winding, or None if the face has no area."""
     ux, uy, uz = b[0] - a[0], b[1] - a[1], b[2] - a[2]
     vx, vy, vz = c[0] - a[0], c[1] - a[1], c[2] - a[2]
 
@@ -192,11 +137,7 @@ def face_normal(a, b, c, stated):
 
 
 def _centred(faces):
-    """Every face centred on the model and scaled to two units across.
-
-    The renderer works in units of the board's outer radius, so a model in
-    millimetres and one in inches draw the same size.
-    """
+    """Every face centred on the model and scaled to two units across."""
     xs = [v[0] for corners, _n in faces for v in corners]
     ys = [v[1] for corners, _n in faces for v in corners]
     zs = [v[2] for corners, _n in faces for v in corners]
@@ -233,13 +174,7 @@ _FACETS = {}
 
 
 def facets(path, divisions=GRID):
-    """(positions, indices, normals) for the model at `path`.
-
-    Three floats per distinct vertex, three indices per triangle and three
-    floats of unit normal per triangle, centred and scaled so the widest of
-    X and Y is two units. Held in memory for the process - a cache file
-    beside the STL was tried and is not wanted in the tree.
-    """
+    """(positions, indices, normals) for the model at `path`."""
     stamp = (path, divisions, os.path.getmtime(path))
     got = _FACETS.get(stamp)
     if got is None:

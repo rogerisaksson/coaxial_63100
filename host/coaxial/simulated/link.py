@@ -6,9 +6,7 @@ from ..errors import DeviceStateError
 
 
 class SimulatedLink:
-    """A stand-in link. It builds no frames: the point is that a missing cable
-    is not a failing suite, not that the protocol is exercised.
-    """
+    """A stand-in link."""
     def echo(self, data):
         return data
 

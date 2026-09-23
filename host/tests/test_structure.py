@@ -25,11 +25,7 @@ HOST = os.path.dirname(HERE)
 REPO = os.path.dirname(HOST)
 sys.path.insert(0, HOST)
 
-# Packages this suite walks. `tests` is deliberately out: a suite that
-# imported every suite would run them. Everything else under host/ is in,
-# including testline/ and examples/ - they were left out for no reason and
-# had never been checked at all, which is how three undocumented classes
-# and 750 unchecked lines sat there.
+# Packages this suite walks.
 PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'testline', 'terminal')
 SCRIPTS = ('tools', 'examples')
 
@@ -40,13 +36,11 @@ SCRIPTS = ('tools', 'examples')
 BESIDE = ('../notebook_examples',)
 
 # The ceiling is the worst that survives a deliberate reading, not an ideal.
-# It exists to stop the next 250-line function, not to condemn the scanners
-# that are genuinely one state machine - see the exemptions.
 MAX_LINES = 130
 MAX_DEPTH = 7
 
-# Character-by-character state machines, where the nesting *is* the machine
-# and flattening it would cost clarity rather than buy any.
+# Character-by-character state machines, where the nesting *is* the machine and
+# flattening it would cost clarity rather than buy any.
 DEEP_BY_NATURE = {'json_objects', '_gpus_registry'}
 
 NESTS = (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.ExceptHandler)
@@ -64,11 +58,7 @@ class Report:
 
 
 def modules():
-    """Every importable module under the packages, as dotted names.
-
-    Subpackages recurse - coaxial.simulated is nine files behind one
-    __init__, and each is judged exactly like a top-level module.
-    """
+    """Every importable module under the packages, as dotted names."""
     found = []
     for package in PACKAGES:
         root = os.path.join(HOST, package)
@@ -82,18 +72,7 @@ def modules():
 
 
 def sources(beside=True):
-    """(path, tree) for everything this suite judges, scripts included.
-
-    `notebook_examples/` sits beside host/ rather than under it and was out
-    of reach for that reason alone - which is how a third caller of the
-    renamed `daq.read` sat in gate_drivers_session, in the file a reader is
-    most likely to copy from.
-
-    `beside=False` leaves those out. They are notebooks: the first cell is a
-    markdown heading rather than a docstring, and the `SIMULATED` knob at the
-    top of each is the one line a reader flips - neither is the defect the
-    docstring and duplicate checks are looking for.
-    """
+    """(path, tree) for everything this suite judges, scripts included."""
     out = []
     for where in PACKAGES + SCRIPTS + (BESIDE if beside else ()):
         root = (os.path.join(REPO, where[3:]) if where.startswith('../')
@@ -116,13 +95,7 @@ def sources(beside=True):
 
 
 def notebook_source(path):
-    """A notebook's code cells as one module, for the same AST checks.
-
-    Cell outputs are not read and markdown is not code; what remains is
-    exactly what executes, in order, sharing one namespace - which is what
-    a module is. The join keeps line COUNTS honest; per-cell line numbers
-    are close enough for a failure to be findable.
-    """
+    """A notebook's code cells as one module, for the same AST checks."""
     import json
     with io.open(path, encoding='utf-8') as handle:
         cells = json.load(handle)['cells']
@@ -138,14 +111,7 @@ def depth(node, at=0):
 
 
 def test_imports(r):
-    """Every module imports on its own, from a cold interpreter.
-
-    The one that keeps breaking: code moves to a new file, the name it used
-    goes with it, and nothing notices until a suite that happens to touch
-    that path runs. Measured five times in one afternoon - IOLog, clip,
-    PROMPT, render, re - each found by a behavioural test failing somewhere
-    unrelated.
-    """
+    """Every module imports on its own, from a cold interpreter."""
     for name in modules():
         try:
             importlib.import_module(name)
@@ -156,12 +122,7 @@ def test_imports(r):
 
 
 def test_no_cycles(r):
-    """No package module imports another that imports it back.
-
-    `cli` imports `Chat` from `debug`, and `debug` re-exports `cli`'s names -
-    which is a cycle unless the re-export is lazy. It is, through a
-    module-level __getattr__; this is what says so.
-    """
+    """No package module imports another that imports it back."""
     edges = {}
     for path, _, tree in sources():
         if not path.startswith(PACKAGES):
@@ -199,12 +160,7 @@ def test_reexports(r):
 
 
 def test_no_duplicate_definitions(r):
-    """A name defined at the top level of two modules in one package.
-
-    What splitting a file gets wrong: the block is copied out and left in.
-    Measured - ERR_CLASS, LINK_TOOLS and CONTACT_LOST all lived in two files
-    at once for as long as it took to notice.
-    """
+    """A name defined at the top level of two modules in one package."""
     seen = {}
     for path, text, tree in sources(beside=False):
         lines = text.split(chr(10))
@@ -215,9 +171,7 @@ def test_no_duplicate_definitions(r):
             elif isinstance(node, ast.Assign):
                 names = [t.id for t in node.targets
                          if isinstance(t, ast.Name) and t.id.isupper()]
-            # The *body*, not just the name. Two modules may both define
-            # SYSTEM and mean two different prompts; what is a defect is the
-            # same block living in two files, which is what a split leaves.
+            # The *body*, not just the name.
             body = chr(10).join(lines[node.lineno - 1:node.end_lineno])
             for name in names:
                 seen.setdefault((name, body.strip()), []).append(path)
@@ -272,18 +226,8 @@ def _caps_openblas(node):
 
 
 def test_numpy_enters_behind_the_thread_cap(r):
-    """numpy is imported at module level in one package module, loop.py,
-    and that module caps OpenBLAS's thread pool before importing it.
-
-    OpenBLAS commits 32 MB of scratch per core the moment numpy loads -
-    499 MB on a sixteen-core laptop, 17 with one thread, measured
-    2026-09-16 - and every process that imports `coaxial` reaches numpy
-    through `rig` -> `motion` -> `loop`. The attitude page's fifteen
-    processes were 7.5 GB of commit on a machine with no page file, and
-    the editor was what Windows failed to grow. A second module-level
-    import elsewhere, or the cap slipping below the import, puts it back
-    silently: nothing fails, the commit charge just climbs by half a
-    gigabyte a process.
+    """numpy is imported at module level in one package module, loop.py, and
+    that module caps OpenBLAS's thread pool before importing it.
     """
     importers, capped = [], False
     for path, _text, tree in sources(beside=False):
@@ -334,14 +278,7 @@ def _bound(tree):
 
 
 def test_no_undefined_names(r):
-    """A name used that nothing in the module defines or imports.
-
-    The check the behavioural suites cannot make and importing cannot either:
-    a module imports perfectly well with a name that only fails when the line
-    using it runs. Measured - `_printable` moved to another file and `Chat`
-    kept calling it; every fixture passed `out=`, so no suite ever reached
-    the line, and it failed at the first real prompt.
-    """
+    """A name used that nothing in the module defines or imports."""
     for path, _, tree in sources():
         known = _bound(tree)
         used = {n.id for n in ast.walk(tree)
@@ -352,18 +289,13 @@ def test_no_undefined_names(r):
 
 
 def test_shape(r):
-    """No function past the length or nesting a reader can hold.
-
-    Both ceilings are the worst that survives a deliberate reading, so this
-    can only ratchet down. It exists to stop the next 250-line, five-deep
-    turn loop, which is what this file was written alongside splitting.
-    """
+    """No function past the length or nesting a reader can hold."""
     long_ones, deep_ones = [], []
     for path, _, tree in sources():
         for node in ast.walk(tree):
-            # AsyncFunctionDef too: it is not a subclass of FunctionDef, so
-            # the three async handlers in coaxial_mcp/server.py were exempt
-            # from both ceilings without anyone deciding they should be.
+            # AsyncFunctionDef too: it is not a subclass of FunctionDef, so the
+            # three async handlers in coaxial_mcp/server.py were exempt from
+            # both ceilings without anyone deciding they should be.
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             lines = (node.end_lineno or node.lineno) - node.lineno + 1
@@ -380,15 +312,13 @@ def test_shape(r):
 
 def test_documented(r):
     """Every module, class and public function says what it is for."""
-    # Modules and classes only. A function's name plus its signature
-    # often says everything, and the MCP handlers are documented by their
-    # schema - one fact in one place, which is the rule this suite keeps.
+    # Modules and classes only.
     missing = []
     for path, _, tree in sources(beside=False):
         if not ast.get_docstring(tree):
             missing.append(path + ' (module)')
-        # Top level only: a ctypes Structure declared inside a function is
-        # a field list, and a docstring on it would say less than its name.
+        # Top level only: a ctypes Structure declared inside a function is a
+        # field list, and a docstring on it would say less than its name.
         for node in tree.body:
             if not isinstance(node, ast.ClassDef):
                 continue
@@ -400,11 +330,7 @@ def test_documented(r):
 
 
 def test_no_escaping_scars(r):
-    """chr(10) and chr(92) where a literal belongs.
-
-    A workaround for writing files through a shell heredoc, which has no
-    business in the source it produced. Left in ten places once already.
-    """
+    """chr(10) and chr(92) where a literal belongs."""
     for path, text, tree in sources():
         if path.endswith(('replies.py', 'sandbox.py')):
             continue        # these are *about* escaping: the first two by
@@ -422,13 +348,7 @@ COUNTED = ('CLAUDE.md', 'host/run_tests.ps1', 'docs/ARCHITECTURE.md',
 
 
 def test_counts_are_measured(r):
-    """Every suite size written in prose matches `.counts.json`.
-
-    One run behind when a check is added: the file is written after the run
-    that reads it, so the first run after a new check fails and names the
-    number to write. That is the intended cost - four files quoting three
-    different totals is what it replaces.
-    """
+    """Every suite size written in prose matches `.counts.json`."""
     import glob
     import json
 
@@ -439,29 +359,15 @@ def test_counts_are_measured(r):
     except (OSError, ValueError, KeyError):
         suites = {}
     if not suites:
-        # A fresh clone has measured nothing - .counts.json is per-machine
-        # by design. Zero measurements is zero runs behind, not a
-        # disagreement: the documents' totals stand as the last measured
-        # bench's until this machine runs the suites. Without this, every
-        # first run everywhere - CI included - failed on an empty file.
+        # A fresh clone has measured nothing - .counts.json is per-machine by
+        # design.
         r.check('no suite sizes measured on this machine yet - the '
                 'documents keep the last measured totals', True)
         return
     total = sum(suites.values())
 
     # A total needs every suite, and a tier runs a subset by design - the
-    # default one runs two. So .counts.json is normally partial, and summing
-    # it is not the tree's total: 671 on a bench that had run structure and
-    # drive_core, beside the 2486 the documents carry. Measured 2026-09-03 on
-    # a machine whose first run ever was the 25 % tier - three files reported
-    # wrong and every number in them right.
-    #
-    # Partial is one run behind on the suites it did measure, which the
-    # per-suite check below still catches, and says nothing at all about the
-    # total. Same reasoning as the empty file above, one step along: the
-    # documents keep the last measured bench's total until every suite has
-    # run here at least once. The check is asked either way so that the size
-    # of this suite does not depend on how much of the tree has been run.
+    # default one runs two.
     everything = set(os.path.basename(p)
                      for p in glob.glob(os.path.join(HERE, 'test_*.py')))
     complete = not (everything - set(suites))
@@ -500,18 +406,10 @@ def _subsystems():
 
 
 def test_subsystem_calls_resolve(r):
-    """Every `board.X.y()` in this tree names a method X actually has.
-
-    Read off the calls rather than listed: test_parity keeps a hand-written
-    table of what the views call, and it said `daq.acquire` for a year while
-    rig.py and show_gate_drivers.py called `daq.read`, renamed and gone from
-    both implementations. Nothing failed until a view was run.
-    """
+    """Every `board.X.y()` in this tree names a method X actually has."""
     known = _subsystems()
 
-    # The stand-in too, and by the same names. A method the simulated board
-    # lacks passes every suite that never opens a view and then crashes the
-    # first one that does - which is how SimulatedAfe went without is_on().
+    # The stand-in too, and by the same names.
     from coaxial.simulated import SimulatedSession
     stand_in = SimulatedSession().board
 
@@ -555,12 +453,7 @@ LIMITS = ('board_limits.h', 'comms_limits.h')
 
 
 def test_limits_live_in_one_file(r):
-    """No fixed number is defined outside the two limits headers.
-
-    Not style: the dead time was in three places at once - the .ioc, a
-    #define, and a stale binary - and the one that mattered was the flash
-    nobody had refreshed. A number with two homes has no home.
-    """
+    """No fixed number is defined outside the two limits headers."""
     import glob
 
     stray = []
@@ -579,9 +472,7 @@ def test_limits_live_in_one_file(r):
     r.check('every fixed number is defined in a limits header only',
             not stray, '; '.join(stray[:4]))
 
-    # The layering, which is the reason there are two. A driver reaching up
-    # into the comms stack is the include that goes round in a circle the
-    # moment somebody adds a wire number a driver wants.
+    # The layering, which is the reason there are two.
     up = [os.path.basename(path)
           for where in ('board/src/*.c', 'board/inc/*.h')
           for path in glob.glob(os.path.join(REPO, *where.split('/')))
@@ -651,14 +542,7 @@ def _agree(host, target):
 
 
 def test_mirrors_agree(r):
-    """The host's copies of firmware constants are the firmware's.
-
-    The stand-in accumulates to the board's bound, the thermal mirror
-    splits the winding as board_thermal.c does, the identifier runs
-    thermal_ident.c's constants, and protocol.py is cmd.h's device and op
-    numbers - each a copy by hand, and a copy that drifts is a wire that
-    lies quietly. Read off the C, compared, every run.
-    """
+    """The host's copies of firmware constants are the firmware's."""
     off = []
     for module, name, rel, macro, scale in MIRRORS:
         host = getattr(importlib.import_module(module), name)
@@ -782,14 +666,7 @@ def _c_function(text, name):
 
 
 def _c_writes_in(text, body, defines, depth_limit=4):
-    """The widths a body writes, in order. A loop over a known count is
-    its body that many times; over a count the wire carries, `('*', body)`;
-    a helper taking `out` first is followed; a block that leaves - an
-    early return, a continue - is an alternative path with the same shape
-    as the one that falls through, and is skipped - unless it wrote and
-    then returns without an error, which is the reply itself (an answer
-    found inside a retry loop, a helper's shorter form), and the writes
-    on the way to it are the whole of it."""
+    """The widths a body writes, in order."""
     stack = [[[], None, False]]      # [writes, repeat-or-'*'-or-None, ends-in-leave]
     depth, bound = 0, None
     for m in _C_TOKENS.finditer(body):
@@ -859,8 +736,9 @@ def _c_writes(rel, name):
 def _py_reads(module, cls, method):
     """The widths a decoder reads, in order, the same way: a loop over a
     module's tuple or a constant is its body that many times, a loop over
-    a count read off the wire is `('*', body)`, a helper handed the reader
-    is followed."""
+    a count read off the wire is `('*', body)`, a helper handed the
+    reader is followed.
+    """
     mod = importlib.import_module(module)
     owner = getattr(mod, cls)
 
@@ -940,11 +818,7 @@ def _py_reads(module, cls, method):
 
 
 def _shapes_agree(wrote, read, i=0, j=0):
-    """Whether the reader's sequence is the writer's. A body repeated an
-    unknown number of times on either side matches the other side's run
-    of that body, once or more - and not greedily, since the field after
-    the run may look like the body; two such repeats must share a body.
-    Returns (agree, the furthest index reached on the writer's side)."""
+    """Whether the reader's sequence is the writer's."""
     if i == len(wrote) and j == len(read):
         return True, i
     if i >= len(wrote) or j >= len(read):
@@ -988,15 +862,6 @@ def _shapes_agree(wrote, read, i=0, j=0):
 def test_wire_shapes_agree(r):
     """A reply's shape is one sequence of widths, written in C and read in
     Python, and the two are held to each other field by field.
-
-    The C handlers carry the warning already - an offset moved breaks
-    every decoder for one bit - and until now the only thing holding the
-    two sides together was the bench's parity suite over a flashed board.
-    A loop over a header's count is its body that many times on both
-    sides; a loop over a count the reply carries is its body, matched
-    once or more; a helper handed the writer or the reader is followed;
-    an appended field the reader takes with `maybe` is counted like any
-    other, since this build writes them all.
     """
     import inspect
     import textwrap
@@ -1030,9 +895,10 @@ _DISPATCH = re.compile(r'case\s+(\w+?)_OP_(\w+)\s*:\s*return\s+(\w+)\s*\(\s*(in|
 def _c_reads(text, name, defines):
     """The widths a handler reads off its request, in order: a field read
     under an `rd_left` guard - a ternary, or a block the guard opens - is
-    `('?', width)`, taken when it is there; a loop over a count is its body
-    that many times or `('*', body)`; `rd_bytes` is `('rest',)`, whatever
-    is left. A block that leaves is an alternative path and is skipped."""
+    `('?', width)`, taken when it is there; a loop over a count is its
+    body that many times or `('*', body)`; `rd_bytes` is `('rest',)`,
+    whatever is left.
+    """
     m = re.search(r'^static\s+\w+\s+%s\s*\(\s*rd_t\s*\*\s*in' % re.escape(name), text, re.M)
     if m is None:
         return []
@@ -1171,15 +1037,7 @@ def _request_agrees(reads, widths):
 
 
 def test_wire_requests_agree(r):
-    """What the library packs into a request is what the handler reads.
-
-    The replies are held field for field; this is the other half of the
-    wire. Paired by the op's name through the dispatch table and the enum
-    the mirror check already holds to cmd.h, so a request's shape cannot
-    drift on either side without a suite saying so. A payload built some
-    other way than a literal `pack` - a constant, a concatenation - is
-    skipped and named.
-    """
+    """What the library packs into a request is what the handler reads."""
     enum_of = {prefix: cls for prefix, cls in OP_CLASSES.items()}
     reads = _c_requests()
     packs = _py_requests()
@@ -1286,11 +1144,8 @@ def _doc_ops():
 
 
 def _c_ops():
-    """{(PREFIX, op number): [(reads, writes), ...]} off the dispatch tables.
-
-    A list, since an op can have two servers: device 11's `state` and
-    `stay` are the bootloader's in boot_core.c and the application's in
-    cmd_boot.c, and the table holds both.
+    """{(PREFIX, op number): [(reads, writes), ...]} off the dispatch
+    tables.
     """
     found = {}
     for rel in _command_files():
@@ -1306,8 +1161,8 @@ def _c_ops():
             body = _c_function(text, handler)
             writes = _c_writes_in(text, body, defines) if body is not None else []
             if body is None:
-                # a handler reading and writing: the writes parser wants
-                # `out` first, so read its writes off the `in, out` form
+                # a handler reading and writing: the writes parser wants `out`
+                # first, so read its writes off the `in, out` form
                 m = re.search(r'^static\s+\w+\s+%s\s*\(\s*rd_t\s*\*\s*in\s*,\s*wr_t\s*\*\s*out'
                               % re.escape(handler), text, re.M)
                 if m is not None:
@@ -1322,16 +1177,7 @@ def _same_shape(code, doc):
 
 
 def test_protocol_agrees(r):
-    """PROTOCOL.md's op tables say what the handlers read and write.
-
-    The document is the third answer to a shape, and the one no compiler
-    or interpreter ever checked - the C's own comments warn that a moved
-    offset breaks every decoder, and a table that says `u8 skew` where
-    the wire carries `i8` is the same drift in prose. Each device's rows
-    are read for their backticked widths and held to the dispatch
-    table's handlers, both the request and the reply; what the prose
-    states outside backticks is skipped and named.
-    """
+    """PROTOCOL.md's op tables say what the handlers read and write."""
     doc = _doc_ops()
     code = _c_ops()
     for prefix in sorted({p for p, _ in doc if any(q == p for q, _ in code)}):
@@ -1413,16 +1259,7 @@ def _paper(path):
 
 
 def test_notebooks_are_papers(r):
-    """Every example notebook is one paper in the builder's shape, executed.
-
-    Twenty-two notebooks in as many shapes became nine, one per functional
-    area, laid out by `tools/notebooks/parts.paper`; this holds the
-    generated files to that shape - title, subtitle, abstract, a numbered
-    Setup with the knob and the open cell, numbered sections, the close,
-    Conclusions, At the bench, References - with outputs in every cell
-    that prints and no cell that raised, figures through
-    `coaxial.figures`, and no exclamation mark in the prose.
-    """
+    """Every example notebook is one paper in the builder's shape, executed."""
     folder = os.path.join(REPO, 'notebook_examples')
     names = sorted(n for n in os.listdir(folder) if n.endswith('.ipynb'))
     for name in names:

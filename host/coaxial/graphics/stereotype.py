@@ -1,9 +1,8 @@
-"""THE PRE-SCAN: the parts as blocks, drums, arches, strokes and the
-holes in walls - each part's crease loops fitted once, off the exact
-mesh, to the simple geometry it is, so the overlay draws fixed edges
-and corners instead of the tessellation's own folds. `_stereotypes()`
-is the list, cached per outline source and pickled by the preload;
-`lines._outline` draws it."""
+"""THE PRE-SCAN: the parts as blocks, drums, arches, strokes and the holes
+in walls - each part's crease loops fitted once, off the exact mesh, to
+the simple geometry it is, so the overlay draws fixed edges and corners
+instead of the tessellation's own folds.
+"""
 import math
 
 from .creases import OUTLINE_LEVEL, OUTLINE_RISE, OUTLINES_KEPT, _outline_source
@@ -27,8 +26,8 @@ from .solids import _slab_bottom, _slab_top
 #: height, facing across, are one block.
 STEREO_CIRCLE = 0.03   # a lid's radii vary under this share: a drum
 STEREO_EVEN = 2.5      # ...with its corners' angular gaps within this
-#                        ratio: a chamfered square's corners share a
-#                        radius too, but crowd in pairs at the chamfers
+# ratio: a chamfered square's corners share a radius too, but crowd in pairs at
+# the chamfers
 STEREO_PAIR = 0.05     # arches pair when width and height agree this close
 STEREO_TURN = 0.02     # a block turns off the board's axes only to save this
 STEREO_SEGMENTS = 24   # a drum's circle
@@ -87,12 +86,9 @@ def _footprint(kind, data):
 def _merged(prims, top):
     """The primitives with every block, arch and stroke whose footprint
     nests in a block's of the same side (`_nested`, the rule the loops
-    are grouped by) absorbed into that block: the box round both, to
-    the taller's height. A screw terminal has two profiles per wall,
-    outer and inner; the inner pair made a block inside the outer's
-    frame, two rectangles a cell apart, and seen from above that was
-    "a square hole" (the bench, 2026-09-23). Drums, rings and the
-    holes in walls stay their own: a circle on a lid is a lid's hole."""
+    are grouped by) absorbed into that block: the box round both, to the
+    taller's height.
+    """
     order = sorted((i for i, p in enumerate(prims)
                     if p[0] in ('block', 'arch', 'stroke')),
                    key=lambda i: -prims[i][1])
@@ -125,13 +121,14 @@ def _merged(prims, top):
 
 
 def _part_groups(pos, loops, top, bottom):
-    """([(over, points, loops)], arches, holes): the loops of one side
-    whose footprints nest (STEREO_NEST), gathered into parts - a part's
+    """([(over, points, loops)], arches, holes): the loops of one side whose
+    footprints nest (STEREO_NEST), gathered into parts - a part's
     rounding, base and lid fold into separate loops on one footprint -
     and, apart, the loops lying in one vertical plane: a rounded part's
-    end profiles, which reach the base, and the holes in its walls,
-    which float above it (the screw terminals' openings, 40 of them
-    0.016 over the slab - drawn as arches they were rectangles)."""
+    end profiles, which reach the base, and the holes in its walls, which
+    float above it (the screw terminals' openings, 40 of them 0.016 over
+    the slab - drawn as arches they were rectangles).
+    """
     parts, arches, holes = [], [], []
     for _extent, members in loops:
         verts = sorted({v for a, b in members for v in (a, b)})
@@ -139,15 +136,15 @@ def _part_groups(pos, loops, top, bottom):
         zs = [p[2] for p in p3]
         over = max(zs) > top + OUTLINE_RISE
         line = _collinear([(p[0], p[1]) for p in p3])
-        # A loop in a vertical plane with no height is a ridge along a
-        # part's top - the choke's - and belongs to the part's block.
+        # A loop in a vertical plane with no height is a ridge along a part's
+        # top - the choke's - and belongs to the part's block.
         if (line is not None and len(p3) >= 3
                 and max(zs) - min(zs) > 3 * OUTLINE_LEVEL):
             base = top if over else bottom
             clear = ((min(zs) - base) if over else (base - max(zs))
                      if base is not None else 0.0)
-            # A profile's legs reach the base within a millimetre; the
-            # screw terminals' openings float 0.016 over it.
+            # A profile's legs reach the base within a millimetre; the screw
+            # terminals' openings float 0.016 over it.
             (holes if clear > 3 * OUTLINE_LEVEL else arches).append(
                 (over, p3, line))
             continue
@@ -161,9 +158,8 @@ def _part_groups(pos, loops, top, bottom):
             parent[i] = parent[parent[i]]
             i = parent[i]
         return i
-    # A sweep along x: sorted by their left edge, a footprint is only
-    # tried against the ones starting before its right edge. Every
-    # pair was tried first - 350 000 of them, most of a 2.6 s scan.
+    # A sweep along x: sorted by their left edge, a footprint is only tried
+    # against the ones starting before its right edge.
     order = sorted(range(len(parts)), key=lambda i: parts[i][2][0])
     for n, i in enumerate(order):
         oi, _pi, a = parts[i]
@@ -217,18 +213,7 @@ def _wall_holes(holes):
 
 
 def _part_primitives(over, rings, top, bottom):
-    """A part's primitives off its loops' points. A drum when the widest
-    loop's own top corners sit on one radius and not on a box's sides -
-    a capacitor's rim ring, with the eighty small facets of its domed
-    top above it and its base ring under it. Else its block: the box
-    round all its points in the ORIENTATION OF ITS WIDEST LOOP (fitted
-    over every point, the USB shell's box came out at 60 degrees and
-    the choke's at 14, turned by their side features), its lid the box
-    round the crest's points in that frame - a rounded shoulder stands
-    inside it, where the full box's lid stood a cell off the body, a
-    halo on the phase terminals - and its legs from the base corners to
-    the lid's. Plus a ring for every other loop that is a circle: the
-    PE terminal's screw hole, which the block alone drew square."""
+    """A part's primitives off its loops' points."""
     pts = [p for ring in rings for p in ring]
     zs = [p[2] for p in pts]
     ztop = max(zs) if over else min(zs)
@@ -251,26 +236,20 @@ def _part_primitives(over, rings, top, bottom):
     if prims and prims[0][0] == 'drum':
         return prims
     if len(pts) < 3:
-        # One edge of the mesh - a wire's silhouette, a pin - is its
-        # own stroke, not a box round a diagonal.
+        # One edge of the mesh - a wire's silhouette, a pin - is its own
+        # stroke, not a box round a diagonal.
         return [('stroke', math.dist(pts[0][:2], pts[-1][:2]),
                  [pts[0] + pts[-1]])]
     angle = _box_angle([(p[0], p[1]) for p in widest])
     base = _box_along([(p[0], p[1]) for p in pts], angle)
-    # A BLOCK, lid over base. The lid was the crest's own box for a day
-    # - a rounded shoulder's flat top, inside the base - and seen from
-    # above the two rectangles a cell apart read as a square hole in
-    # the phase terminals (the bench, 2026-09-23).
+    # A BLOCK, lid over base.
     return [('block', _box_extent(base), _block(base, base, ztop, zbase))] + prims
 
 
 def _ring_circle(ring, over):
-    """((cx, cy, r), z) when a loop's top corners - six or more - sit on
-    one radius at even spacing round it, else None. A chamfered
-    square's corners share a radius too (the CPU came out round), but
-    they crowd in pairs: 4 degrees apart at a chamfer, 86 along a side.
-    A box test was tried and took every octagon for a chamfered square
-    - eight corners sit two to a side of some box."""
+    """((cx, cy, r), z) when a loop's top corners - six or more - sit on one
+    radius at even spacing round it, else None.
+    """
     crest = max(p[2] for p in ring) if over else min(p[2] for p in ring)
     lid = [(p[0], p[1]) for p in ring if abs(p[2] - crest) <= 3 * OUTLINE_LEVEL]
     if len(lid) < 6:
@@ -307,8 +286,8 @@ def _pair_arches(arches, top, bottom):
         if zbase is None:
             zbase = ztop
         us = [(p[0] - mx) * ux + (p[1] - my) * uy for p in p3]
-        # the top's own flat, narrower than the base on a rounded
-        # profile: the lid runs between its ends, the legs lean in
+        # the top's own flat, narrower than the base on a rounded profile: the
+        # lid runs between its ends, the legs lean in
         tops = [u for u, p in zip(us, p3)
                 if abs(p[2] - ztop) <= 3 * OUTLINE_LEVEL] or us
         at = (lambda u: (mx + u * ux, my + u * uy))
@@ -353,22 +332,11 @@ def _pair_arches(arches, top, bottom):
 
 
 def _block(base, lid, ztop, zbase):
-    """The twelve segments of a block: its lid's four edges at `lid`,
-    its base's four at `base`, and a leg from each base corner up to
-    the lid's - straight where lid and base agree, leaning in where
-    the crest is narrower.
-
-    THE BASE'S EDGES TOO. Lid and legs alone were the crease loops'
-    habit - a part's footprint on the slab shared corners with the
-    copper and was left out with it - but a primitive's base is its
-    own rectangle. On a rounded part the base is wider than the crest,
-    and seen from above it IS the silhouette: the CM choke's block
-    drew whole (all 90 dots landed, measured at the bench's pose) and
-    still showed no edge round the choke, because the lid ran through
-    the body's middle and the legs stopped at the base's corners with
-    nothing between them. On a straight box the far base edges lie
-    behind the body and the depth test hides them; the near ones mark
-    where the part meets the board."""
+    """The twelve segments of a block: its lid's four edges at `lid`, its
+    base's four at `base`, and a leg from each base corner up to the
+    lid's - straight where lid and base agree, leaning in where the crest
+    is narrower.
+    """
     segs = []
     for i in range(4):
         j = (i + 1) % 4
@@ -384,11 +352,10 @@ def _box_extent(corners):
 
 
 def _box_angle(pts):
-    """The angle, in 2-degree steps, of the least-area box round `pts`
-    - the board's own axes unless turning saves more than STEREO_TURN
-    of the area. A rounded square's least box lies at any angle at
-    all, and the search happened on 60 degrees for the USB shell: a
-    diamond on the bench."""
+    """The angle, in 2-degree steps, of the least-area box round `pts` - the
+    board's own axes unless turning saves more than STEREO_TURN of the
+    area.
+    """
     areas = []
     for deg in range(0, 90, 2):
         a = math.radians(deg)

@@ -1,31 +1,4 @@
-"""three.js AsciiEffect, ported to run without a browser.
-
-From `AndrewSink/STL-to-ASCII-Generator` (script.js) and the AsciiEffect it
-drives. It rasterises the model's own TRIANGLES - what three.js does, and what
-four earlier attempts here did not: they splatted sampled points, and a point
-cloud cannot be made to look like a rasteriser by adding points. Measured at
-100x30 over this board's 419,338 triangles, full rasterisation costs 1.6 s a
-frame and 74% of the triangles drawn are sub-pixel - so the mesh is decimated
-once to 12% of its faces (`coaxial.mesh`) and each of those is drawn properly.
-
-Taken verbatim, because it is what makes the look:
-
-  * the ramp ``' .:-+*=%@#'`` - ten characters, space darkest;
-  * ``floor((1 - brightness) * (len - 1))``, then inverted for white ink on a
-    black terminal, which is AsciiEffect's own mapping;
-  * flat shading - one normal per triangle, from the winding
-    (``material.flatShading = true``);
-  * ``DoubleSide``: a triangle facing away is drawn with its normal flipped
-    toward the viewer, not dropped;
-  * one white point light with no falloff and no ambient, so an unlit face is
-    black - ``PointLight(0xffffff, 1, 0, 0)`` and nothing else in the scene;
-  * a 45 degree perspective camera.
-
-The light's POSITION is not the ``(100, 100, 400)`` the reference constructs.
-That is overwritten before anything is drawn: `applyGeometryToMesh` calls
-`resetPositions`, which sets `lightAngle = 45`, `lightHeightMultiplier = 2`
-and calls `updateLightPosition`. See LIGHT_DIRECTION.
-"""
+"""three.js AsciiEffect, ported to run without a browser."""
 import math
 
 from . import ansi
@@ -107,17 +80,7 @@ def light_position():
 
 
 def brightness_char(brightness, ramp=CHARACTERS, invert=True):
-    """AsciiEffect's mapping, including its inversion for dark mode.
-
-    `invert` is the reference's `isDarkMode`: with it set, bright is heavy
-    ink and the background is a space, which is what a terminal wants.
-
-    The brightness handed in is LINEAR. Encoding it to sRGB first was tried,
-    on the grounds that AsciiEffect reads a canvas and three.js writes sRGB -
-    but the reference's index.html loads r128, where `outputEncoding` still
-    defaults to `LinearEncoding`; sRGB only became the default at r152. It
-    moved 250 of 800 drawn characters, all the wrong way.
-    """
+    """AsciiEffect's mapping, including its inversion for dark mode."""
     index = int((1.0 - max(0.0, min(1.0, brightness))) * (len(ramp) - 1))
 
     if invert:
@@ -126,25 +89,15 @@ def brightness_char(brightness, ramp=CHARACTERS, invert=True):
 
 
 def grid(width, height, supersample=SUPERSAMPLE, aspect=CELL_ASPECT):
-    """(framebuffer columns, rows, rows per character cell) for a character grid.
-
-    The framebuffer is square-pixel; the character cell is not. Everything
-    the projection does is therefore in square pixels, and the only place the
-    font's shape enters is here.
+    """(framebuffer columns, rows, rows per character cell) for a character
+    grid.
     """
     cell_rows = max(1, int(round(aspect * supersample)))
     return width * supersample, height * cell_rows, cell_rows
 
 
 def shade_of(normal, point, light, eye):
-    """Lambert from a point light with no falloff, clamped at zero.
-
-    DoubleSide flips the normal toward the VIEWER, not toward the light, and
-    the term is then clamped: a face turned away from the light is black, not
-    lit from behind. Taking abs() instead was measured and flattens the whole
-    picture - every surface comes out lit, and on this board that put the
-    entire model between 0.93 and 0.94, two of the ramp's ten characters.
-    """
+    """Lambert from a point light with no falloff, clamped at zero."""
     nx, ny, nz = normal
     ex, ey, ez = _unit((eye[0] - point[0], eye[1] - point[1],
                         eye[2] - point[2]))
@@ -158,23 +111,8 @@ def shade_of(normal, point, light, eye):
 
 
 def fit(verts, matrix, cols, rows, step=FIT_STEP, zoom=1.0):
-    """(distance, x offset, y offset) that put the model in frame, filling it.
-
-    Fitted to the projected SPAN, and offset by where that span sits, rather
-    than to the largest |x| and |y| about the origin: under perspective a
-    tilted model does not project centred on its own middle - the near half
-    spreads and the far half closes up - so bounding it symmetrically wastes
-    the side it is not on.
-
-    `zoom` is how much of the frame the model is asked to fill: 2.0 spreads
-    it over twice the frame, so half of it shows, magnified. Below 1.0 it
-    stands off and the model shrinks. Done here rather than by moving
-    the camera afterwards, because the offsets that centre the picture belong
-    to the distance they were measured at - shifting the camera and keeping
-    the old offsets slid the model out of the middle as it came closer. It
-    also gives zoom a range: the arithmetic it replaced pivoted on a
-    hardcoded `distance - 1.0` and could never move the camera more than one
-    unit however far it was told to.
+    """(distance, x offset, y offset) that put the model in frame, filling
+    it.
     """
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = matrix
     scale = (rows / 2.0) / math.tan(math.radians(FOV_DEGREES) / 2.0)
@@ -239,12 +177,7 @@ def _setup(model, matrix, width, height, distance, zoom, supersample,
 
 
 def _project(positions, matrix, distance, scale, cx, cy):
-    """Every distinct vertex, turned and projected, once.
-
-    The whole reason the mesh is indexed. This board's triangles share their
-    corners six ways, so transforming per triangle did 146,697 vertex
-    transforms where 23,810 will do - for the identical picture.
-    """
+    """Every distinct vertex, turned and projected, once."""
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = matrix
     count = len(positions) // 3
     sx = [0.0] * count
@@ -270,25 +203,14 @@ def _project(positions, matrix, distance, scale, cx, cy):
         sy[v] = cy - scale * near * y
 
     # The view-space positions come back too: the light is a point light, so
-    # its direction changes across the model, and a face has to be shaded
-    # where it actually is. Shading at a point on the view axis instead was
-    # a shortcut that flattens the gradient the light is there to make.
+    # its direction changes across the model, and a face has to be shaded where
+    # it actually is.
     return sx, sy, ooz, vx, vy, vz
 
 
 def rasterise(model, matrix, distance, scale, cx, cy, cols, top, bottom,
               lamp, cull=CULLING, tints=None, who=None):
-    """(depth, value) for framebuffer rows `top` up to `bottom`.
-
-    A band, so the frame can be cut into strips and drawn by several
-    processes at once - see `coaxial.farm`. The buffers returned are the
-    band's own size, indexed from `top`. See BAND_FIRST.
-
-    `tints` is a colour per TRIANGLE and `who` a caller-provided buffer the
-    winning triangle's colour lands in, offset by one so zero stays empty.
-    Orthogonal to the shading: the light says how bright a cell is, the
-    tint says what part it belongs to.
-    """
+    """(depth, value) for framebuffer rows `top` up to `bottom`."""
     positions, indices, normals = model
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = matrix
     eye = (0.0, 0.0, distance)
@@ -341,12 +263,8 @@ def rasterise(model, matrix, distance, scale, cx, cy, cols, top, bottom,
             right = int(x2)
         right += 1
 
-        # Whether the triangle is sub-pixel is a fact about the TRIANGLE, so
-        # it is decided before the band and the frame clip it. Deciding it
-        # afterwards made a tall triangle look sub-pixel to whichever band
-        # kept one row of it, and that band then wrote the triangle's nearest
-        # depth over its own - which is why the parallel picture differed
-        # from the serial one.
+        # Whether the triangle is sub-pixel is a fact about the TRIANGLE, so it
+        # is decided before the band and the frame clip it.
         tiny = right - left == 1 and last - first == 1
 
         if first < top:
@@ -393,11 +311,7 @@ def rasterise(model, matrix, distance, scale, cx, cy, cols, top, bottom,
 
 def _fill(depth, value, who, wear, lit, tri, area,
           first, last, left, right, top, cols):
-    """One non-tiny triangle into the band's buffers.
-
-    Split from rasterise for length, at the cheap seam: 74% of what the
-    photographic mesh draws is sub-pixel and never reaches this call.
-    """
+    """One non-tiny triangle into the band's buffers."""
     x0, y0, x1, y1, x2, y2, oa, ob, og = tri
     inv = 1.0 / area
     e0x, e0y = x2 - x1, y2 - y1
@@ -417,8 +331,8 @@ def _fill(depth, value, who, wear, lit, tri, area,
             w2 = (e2x * dy0 - e2y * (px - x0)) * inv
             if w2 < 0.0:
                 continue
-            # 1/z is linear in screen space, so this interpolation is
-            # exact rather than the usual affine approximation.
+            # 1/z is linear in screen space, so this interpolation is exact
+            # rather than the usual affine approximation.
             here = w0 * oa + w1 * ob + w2 * og
             if here <= depth[row + px]:
                 continue
@@ -432,19 +346,7 @@ def render(model, matrix, width, height, distance=None, ramp=CHARACTERS,
            invert=True, supersample=SUPERSAMPLE, zoom=1.0, centre=None,
            light=None, aspect=CELL_ASPECT, cull=CULLING, ink=None,
            tints=None, ink_colour=None, shades=None, wire=False):
-    """`model` under `matrix`, as `height` lines of `width` characters.
-
-    `model` is (positions, indices, normals): three floats per distinct
-    vertex, three indices per triangle, and three floats of unit normal per
-    triangle, in model units, centred and unit-scaled.
-
-    `light` is where the key light stands, in the SAME frame `matrix` puts
-    the model into. A caller that bakes a viewpoint into `matrix` must turn
-    the light with it, or the light is welded to the camera and the model
-    goes dark because the viewer moved.
-
-    `cull` drops back faces on the sign of the projected area. See CULLING.
-    """
+    """`model` under `matrix`, as `height` lines of `width` characters."""
     cols, rows, cell_rows, distance, scale, cx, cy = _setup(
         model, matrix, width, height, distance, zoom, supersample, aspect,
         centre)
@@ -474,18 +376,7 @@ WIRE_STEP = 0.018
 def resolve(depth, value, width, height, cols, cell_rows, supersample,
              ramp, invert, ink=None, who=None, ink_colour=None,
              shades=None, wire=False):
-    """The framebuffer down to characters, averaging each cell.
-
-    Averaging rather than AsciiEffect's single sample per cell: it reads one
-    pixel of a canvas the GPU already filled and anti-aliased. A cell part
-    covered averages only what covered it, which keeps an edge an edge
-    instead of fading it into the background.
-
-    `ink` is a character: a covered cell on a depth edge - against the
-    background, or a 1/z step past INK_STEP against a neighbour - draws it
-    instead of its shade. That one overlay is what turns shading into a
-    DRAWING: every raised part gets an outline, for four comparisons a cell.
-    """
+    """The framebuffer down to characters, averaging each cell."""
     background = ramp[0] if invert else ramp[-1]
 
     # Per cell first: mean shade and nearest depth, so the ink test is cell
@@ -519,9 +410,9 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
             if seen and paintbox is not None:
                 paintbox[row + c] = wore
 
-    # The posterised band per cell, for the crease test: a component's side
-    # is 2+ bands from its lit top whatever the depth noise says, which is
-    # what lets the ink find parts the z-buffer cannot separate.
+    # The posterised band per cell, for the crease test: a component's side is
+    # 2+ bands from its lit top whatever the depth noise says, which is what
+    # lets the ink find parts the z-buffer cannot separate.
     steps = len(ramp) - 1
     band = [0] * cells
     if ink is not None:
@@ -562,10 +453,8 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
 def _wire_cell(near, paintbox, shades, ink_colour, at, c, r, width, height,
                z_lo, z_hi):
     """THE VECTOR LOOK: interiors dark, edges only, each with the stroke of
-    its own direction. Edges come from the SILHOUETTE and depth steps
-    alone - crease triggers on the clustered mesh drew a mat of marks with
-    no depth in it. The 3D cue is DISTANCE: a near edge burns bright, a far
-    one dims, the way every vector display did it."""
+    its own direction.
+    """
     sides = _edge_sides(near, None, at, c, r, width, height, step=WIRE_STEP)
     if sides is None:
         return (' ', None)
@@ -591,12 +480,7 @@ def _deepened(wear, shades, band_at, steps):
 
 
 def _edge_sides(near, band, at, c, r, width, height, step=INK_STEP):
-    """(horizontal, vertical) edge triggers for the wire mode, or None.
-
-    `horizontal` means a NEIGHBOUR TO THE SIDE differs - the edge runs
-    vertically and draws as a pipe; `vertical` the converse. The tests are
-    _inked's, split by direction.
-    """
+    """(horizontal, vertical) edge triggers for the wire mode, or None."""
     here = near[at]
     mine = band[at] if band is not None else None
     horiz = vert = False
@@ -621,15 +505,7 @@ def _edge_sides(near, band, at, c, r, width, height, step=INK_STEP):
 
 
 def _inked(near, band, at, c, r, width, height):
-    """Whether the covered cell at `at` sits on an edge worth inking.
-
-    Three edges, in the order they are decisive: silhouette against the
-    background, a depth step past INK_STEP, a crease - the posterised shade
-    jumping two or more bands, which is a component's side against its lit
-    top. The crease is what the z-buffer cannot see on the toon mesh: a
-    part stands millimetres off a board seen from four units away, the same
-    magnitude as the clustering noise.
-    """
+    """Whether the covered cell at `at` sits on an edge worth inking."""
     here = near[at]
     mine = band[at]
     for other in ((at - 1) if c > 0 else -1,

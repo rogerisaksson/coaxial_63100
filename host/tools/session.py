@@ -49,16 +49,7 @@ def status():
 
 
 def force():
-    """Stop a serving broker outright, sessions or not.
-
-    The polite way refuses while sessions hold the port, which is right: it
-    is theirs until they let go. It stops being right when the LINK is dead
-    - a board that reset under the broker answers nothing, and the sessions
-    being protected cannot talk either. Then the refusal is the only thing
-    standing between the bench and a working port.
-
-    Asks first, so the ordinary case still goes through the front door.
-    """
+    """Stop a serving broker outright, sessions or not."""
     said = broker.serving()
     if not said:
         say('ok', 'session', 'nothing is serving')

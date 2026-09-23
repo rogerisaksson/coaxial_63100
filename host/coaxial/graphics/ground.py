@@ -1,7 +1,8 @@
-"""The landscape behind the board: a horizon, a fan of lines to it and
-rungs sliding toward the camera - the camera's world, not the board's,
-so it is cast once per window size and per scroll step and replayed
-against each frame's depth buffer. `_ground` is the one entry."""
+"""The landscape behind the board: a horizon, a fan of lines to it and rungs
+sliding toward the camera - the camera's world, not the board's, so it is
+cast once per window size and per scroll step and replayed against each
+frame's depth buffer.
+"""
 import math
 
 from .raster import BRAILLE, BRAILLE_BITS
@@ -92,11 +93,10 @@ def _ground_dot(cells, width, height, fx, fy, depth, line, fade=1.0):
 
 
 def _rungs(static, phase):
-    """The rungs at `phase` (0..1 of a spacing, toward the camera):
-    [(row at the frame's centre, w, x0, y0, w0, x1, y1, w1)] from the
-    nearest out, each spanning the fan's width. Rungs beyond the
-    frame's foot are listed too - the fade of the last visible one
-    is measured against the next."""
+    """The rungs at `phase` (0..1 of a spacing, toward the camera): [(row at
+    the frame's centre, w, x0, y0, w0, x1, y1, w1)] from the nearest out,
+    each spanning the fan's width.
+    """
     cast, south, far = static['cast'], static['south'], static['far']
     out = []
     for k in range(int((far - south) / RUNG_SPACING)):
@@ -109,15 +109,10 @@ def _rungs(static, phase):
 
 
 def _backdrop(width, height, distance, view, phase=0.0):
-    """{cell: (braille mask, grey (r, g, b))} for the ground grid at a
-    phase of its scroll: the static horizon and fan, the rungs at the
-    phase's step, greys settled per cell. Cached per size and step.
-
-    A step is the static's settled cells with the rungs' cells laid
-    over: only the cells a rung touches are copied and greyed again.
-    Copying every static cell and greying the lot cost 6.7 ms a cold
-    step at 108x44 (9.2 at 150x44), and at 96 steps a spacing a cold
-    step falls every 52 ms for the first five seconds of a size."""
+    """{cell: (braille mask, grey (r, g, b))} for the ground grid at a phase
+    of its scroll: the static horizon and fan, the rungs at the phase's
+    step, greys settled per cell.
+    """
     step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
     key = (width, height, step)
     got = _BACKDROP.get(key)
@@ -138,11 +133,11 @@ def _backdrop(width, height, distance, view, phase=0.0):
 
 
 def _rung_cells(static, width, height, phase):
-    """The cells the rungs at `phase` touch, in _ground_dot's shape,
-    each seeded from the static cell under it - a rung under half its
-    grey stays out of a cell another line already holds, the static's
-    included. The dots are placed here rather than through _ground_dot:
-    3 240 calls a step were most of its cost."""
+    """The cells the rungs at `phase` touch, in _ground_dot's shape, each
+    seeded from the static cell under it - a rung under half its grey
+    stays out of a cell another line already holds, the static's
+    included.
+    """
     cells = {}
     under = static['cells']
     hrow = static['hrow']
@@ -205,19 +200,9 @@ def _greys(cells, static):
 
 
 def _ground_static(width, height, distance, view):
-    """The horizon and the fan for a window size: own scale, own
-    centre, cast once. {'cells', 'cast', 'hrow', 'south', 'far',
-    'near_depth', 'far_depth'} - what _backdrop adds the rungs to.
-
-    NOT the board's projection. The fitted scale magnifies a dinner
-    plate to fill the frame, and at that magnification the horizon
-    projects some forty rows above the window - what stayed on screen
-    was the strip of rungs around the board, which read as two horizons
-    with the far half exiting through the top. The backdrop shares the
-    camera's tip but picks its scale from two anchors: the horizon near
-    the top of the frame, the ground under the camera just off the
-    bottom, so lines always rise from the lower edge and terminate ON
-    the horizon."""
+    """The horizon and the fan for a window size: own scale, own centre,
+    cast once.
+    """
     v0, v1, v2, v3, v4, v5, v6, v7, v8 = view
     south, far = -5.0, 30.0
 
@@ -237,20 +222,10 @@ def _ground_static(width, height, distance, view):
 
     def cast(wx, wy):
         # ray() already carries the perspective weight in its x and y.
-        # FLOAT cells: the dots below land on the sub-row and sub-column
-        # the geometry says, not the cell it rounds to.
         sx, sy, w = ray(wx, wy)
         return cx + scale * sx, cy - scale * 0.5 * sy, w
 
-    # The backdrop is BRAILLE, like the outline: a 2x4 dot matrix per
-    # cell. The horizon is one row of dots at its exact sub-row across
-    # the width; the fan's lines are sampled and JOINED at the matrix's
-    # pitch, so a line is a fine continuous run of dots rather than the
-    # one dot per row it was - which alternated `.` cells with blanks on
-    # every shallow slope and read as a stair. Every line runs to the
-    # horizon's own sub-row and meets it: a gap of three sub-rows was
-    # left under the horizon first, and the bench saw the lines "stop
-    # before they reach the horizon".
+    # The backdrop is BRAILLE, like the outline: a 2x4 dot matrix per cell.
     cells = {}
 
     def dot(fx, fy, depth, line):
@@ -261,12 +236,9 @@ def _ground_static(width, height, distance, view):
     for half in range(2 * width):
         dot(half / 2.0 + 0.25, hrow, far_depth, 'horizon')
 
-    # Seventeen lines, wide enough that the outer ones meet the horizon
-    # past the frame edges - the fan covers the WHOLE line, not a band
-    # in the middle. Dotted rather than stroked: directional glyphs
-    # alternated `/-` `|-` on every shallow slope and came out ragged,
-    # and a dotted floor under a block-shaded subject is the separation
-    # itself.
+    # Seventeen lines, wide enough that the outer ones meet the horizon past
+    # the frame edges - the fan covers the WHOLE line, not a band in the
+    # middle.
     samples = height * 6
     near_depth = far_depth
     for k in range(-8, 9):
@@ -291,14 +263,10 @@ def _ground_static(width, height, distance, view):
 
 def _ground(grid, tone, buf, distance, width, height, colour, view,
             phase=0.0):
-    """The landscape behind the board: the cached backdrop at this
-    phase of its scroll, replayed against this frame's depth buffer so
-    the board occludes it.
-
-    Plain occlusion, no halo: the depth solid's footprint already
-    reaches a cell or two past the visible dither, and the one-cell
-    keepout tried on top of that clipped the backdrop visibly far from
-    the subject. Solid blocks against dim dots need no gap to separate."""
+    """The landscape behind the board: the cached backdrop at this phase of
+    its scroll, replayed against this frame's depth buffer so the board
+    occludes it.
+    """
     for at, (mask, grey) in _backdrop(width, height, distance, view,
                                       phase).items():
         r, c = divmod(at, width)
@@ -308,17 +276,9 @@ def _ground(grid, tone, buf, distance, width, height, colour, view,
 
 
 def _segment(dot, prev, fx, fy, depth, k):
-    """The ground line from `prev` to here: EVERY dot it passes through,
-    its depth interpolated for the buffer.
-
-    Sampled one a dot along its steeper axis it came out dashed: each
-    piece's count was truncated, so a piece 1.9 rows tall lit two dots
-    and skipped one, and a diagonal stepping a dot column left a gap at
-    the step - the bench saw the fan as jagged (2026-09-23). The pieces
-    between the dot-column and dot-row crossings each lie inside one
-    dot, so their midpoints are the line's supercover: a chain of
-    touching dots. Twelve percent more ink at 108x44 (4010 dots to
-    4512), cast once per window size."""
+    """The ground line from `prev` to here: EVERY dot it passes through, its
+    depth interpolated for the buffer.
+    """
     dx, dy, dd = fx - prev[0], fy - prev[1], depth - prev[2]
     ts = {0.0, 1.0}
     if dx:

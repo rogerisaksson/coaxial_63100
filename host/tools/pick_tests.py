@@ -33,15 +33,12 @@ Plan = collections.namedtuple('Plan', 'suites tags live why')
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # host/
 sys.path.insert(0, ROOT)
 
-# The subject catalogue lives with the tests it names, so a tag cannot be
-# added in one place and mean nothing in the other.
+# The subject catalogue lives with the tests it names, so a tag cannot be added
+# in one place and mean nothing in the other.
 from tests.ollama_support import TAGS                          # noqa: E402
 from coaxial_ollama import client as clientmod                 # noqa: E402
 
-# How much of the diff the model sees. A whole refactor does not fit an 8k
-# window beside the catalogue and the answer, and the first lines of each
-# hunk are what say what a change is about - a truncated diff still names
-# every file, which is the coarse signal the path map already has.
+# How much of the diff the model sees.
 DIFF_CHARS = 6000
 
 SUITES = {
@@ -111,12 +108,7 @@ SCHEMA = {
 
 
 def diff_text(against='HEAD'):
-    """The working tree and the last commit, as one patch.
-
-    Both, because a picker run before committing wants the first and one run
-    in a hook wants the second, and asking which is meant is a flag nobody
-    would remember to pass.
-    """
+    """The working tree and the last commit, as one patch."""
     parts = []
     for args in (['diff', against], ['diff', '--cached'],
                  ['diff', '%s~1' % against, against]):
@@ -128,8 +120,7 @@ def diff_text(against='HEAD'):
         except (OSError, subprocess.SubprocessError):
             continue
         # `or ''`: measured None here, from a git invocation that returned 0
-        # with nothing captured. A picker that raises is worse than one that
-        # says "nothing changed" and runs everything.
+        # with nothing captured.
         if done.returncode == 0 and (done.stdout or '').strip():
             parts.append(done.stdout)
     return '\n'.join(parts)
@@ -155,11 +146,7 @@ def changed(against='HEAD'):
 
 
 def clip(text, limit=DIFF_CHARS):
-    """The head of the diff, plus a line saying what was left out.
-
-    The head rather than the tail: `diff --git` lines come first in each
-    file's section, so a clipped patch still names files it could not show.
-    """
+    """The head of the diff, plus a line saying what was left out."""
     if len(text) <= limit:
         return text
     return (text[:limit] + '\n[... %d more characters of diff]'
@@ -167,13 +154,7 @@ def clip(text, limit=DIFF_CHARS):
 
 
 def parse(reply, catalogue=None):
-    """A Plan, or (None, reason) when the reply told us nothing usable.
-
-    None means the caller runs everything. Returned for a reply that will not
-    parse, one naming no suite this repository has, and one naming every
-    subject - which is the same answer as no answer and should not be dressed
-    up as a decision.
-    """
+    """A Plan, or (None, reason) when the reply told us nothing usable."""
     catalogue = set(TAGS if catalogue is None else catalogue)
     try:
         got = json.loads(reply)
@@ -212,23 +193,13 @@ def pick(model='gemma4:12b', against='HEAD', keep_alive='30m'):
     if not patch.strip():
         return None, 'nothing has changed'
 
-    # The file list in full, beside a clipped diff. Measured: the diff was
-    # cut at DIFF_CHARS before it reached host/, so the model saw a README
-    # edit and nothing else, and picked the conformance suite for a change to
-    # the prompt loop. Names cost a line each; hunks cost the whole budget.
+    # The file list in full, beside a clipped diff.
     catalogue = (_catalogue(SUITES), _catalogue(TAGS, 9),
                  _catalogue(LIVE_SECTIONS, 9),
                  '\n'.join('  ' + name for name in changed(against)),
                  clip(patch))
     try:
-        # think=False, and not just for the tokens. Measured: with thinking
-        # on, gemma4:12b spent the whole num_predict budget reasoning about
-        # the diff and returned `content: ''` - an empty answer that reads
-        # as "the model said nothing" when what happened is that it never
-        # got to the part it was asked for. This is a classification with a
-        # schema; there is nothing here to reason aloud about.
-        # Read off the module at the call, so a suite can stand a broken
-        # client in for a missing daemon.
+        # think=False, and not just for the tokens.
         client = clientmod.Ollama(model, keep_alive=keep_alive, fmt=SCHEMA,
                                   think=False, num_predict=400)
         client.model = client.require_model()
@@ -240,13 +211,7 @@ def pick(model='gemma4:12b', against='HEAD', keep_alive='30m'):
 
 
 def release(tag):
-    """Hand the card back, unless the caller said it is about to be used.
-
-    run_tests.py owns the model's life when it drives the picker, and covers
-    it from one `finally`. Run straight from a shell there is nobody above to
-    do that, and `pick()` asks for 30 minutes of keep_alive - so this script
-    parked 8.4 GB on the card and exited, every single time it was called.
-    """
+    """Hand the card back, unless the caller said it is about to be used."""
     with suppress(Exception):
         clientmod.Ollama(tag).unload()
 

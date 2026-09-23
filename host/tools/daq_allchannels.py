@@ -28,18 +28,7 @@ from coaxial.errors import RigError                          # noqa: E402
 
 
 def sweep_rate(daq, names, records=300, timeout=6.0):
-    """What the poll loop actually manages, in sweeps a second.
-
-    A FINITE RUN, and that is the whole trick. Asked for no rate with
-    `records=0` the board substitutes what the LINK carries and gates the
-    triggers to it - so a free-running measurement at accumulate 1 reads
-    the link, not the loop: 279 sweeps a second measured, where a finite
-    burst gives thousands. A run that ends is left alone, because it ends.
-
-    Measured, not assumed: the converter could do megasamples and the main
-    loop reads one channel a turn, so what a task really gets is this - and
-    it falls with every channel added, a sweep being longer.
-    """
+    """What the poll loop actually manages, in sweeps a second."""
     daq.shape()
     daq.configure(names, accumulate=1, digital=True, records=records,
                   interval_us=0)
@@ -57,13 +46,7 @@ def sweep_rate(daq, names, records=300, timeout=6.0):
 
 
 def plan_for(daq, names, order):
-    """Configure for `names`, measure what the board really gives, design.
-
-    Two configures, and the first is not waste: the stride and the sweep
-    rate are both facts of the channel list, and the board is the only
-    thing that knows either, so the chain cannot be designed until the task
-    exists to be measured.
-    """
+    """Configure for `names`, measure what the board really gives, design."""
     fs = sweep_rate(daq, names)
     daq.shape()
     layout = daq.configure(names, accumulate=1, digital=True)

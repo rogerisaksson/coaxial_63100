@@ -16,10 +16,7 @@ from typing import Any
 
 
 class SimulatedBoard:
-    """A whole board without a board. Duck-typed against the real one, so the
-    tools above cannot tell which they are holding - except that every
-    touchpoint labels itself.
-    """
+    """A whole board without a board."""
 
     #: The rig that opened this board - `Board.rig`'s twin. And no wire:
     #: nothing streams from a stand-in but its own reader thread.
@@ -39,9 +36,9 @@ class SimulatedBoard:
              'unassigned unit %d on %s' % (self.unit, bus)))
         self.version_info = {
             # The MINOR is the one this stand-in actually implements - sensor
-            # fields in records (7) and the counted duty (8) - so a host
-            # gating a feature on the version exercises the same gate here
-            # that it will at the bench.
+            # fields in records (7) and the counted duty (8) - so a host gating
+            # a feature on the version exercises the same gate here that it
+            # will at the bench.
             'proto_major': 2, 'proto_minor': 8, 'firmware': 'simulated',
             'device': name, 'mcu': 'STM32H753 (simulated)',
             'build': 'simulated', 'commands': 21, 'type': kind,
@@ -57,9 +54,9 @@ class SimulatedBoard:
             self._wire()
 
     def __getattr__(self, name):
-        """On the broadcast unit every subsystem refuses, whatever it is called
-        - a list of names here was the copy that went stale, and left
-        `thermal` and `power` answering with AttributeError instead.
+        """On the broadcast unit every subsystem refuses, whatever it is
+        called - a list of names here was the copy that went stale, and
+        left `thermal` and `power` answering with AttributeError instead.
         """
         if name.startswith('_') or vars(self).get('unit') != BROADCAST:
             raise AttributeError(name)

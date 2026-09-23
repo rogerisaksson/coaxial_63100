@@ -84,8 +84,7 @@ def library():
 def _load(path):
     # A job must hold only builtin floats: one numpy scalar smuggled into a
     # knob makes every worker import numpy at once, and 16 OpenBLAS buffer
-    # pools spiking together took a 24 GB machine down. The env var tames
-    # the pool if one gets through anyway.
+    # pools spiking together took a 24 GB machine down.
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
     hold(ctypes.CDLL(path))
 
@@ -95,11 +94,7 @@ def wrap(x):
 
 
 def draw(seed, vdc, motor=PLATINUM_5230SL, k_prop=APC20x10E.k):
-    """A plant the controller was not told about. Copper to 125 C on R,
-    the size-class estimates' quarter on L, a saliency from barely there to
-    1.5, the dead time either side of the commissioned one, the AFE at its
-    measured floor, the rotor within the injection's pull-in of theta_hat
-    (the polarity pulse's job is done)."""
+    """A plant the controller was not told about."""
     u = random.Random(seed).uniform
     ld = motor.ld * u(0.75, 1.25)
     t_dead = inverter.T_DEAD * u(0.8, 1.2)
@@ -156,9 +151,10 @@ def profile(t, w_top, t_lock=LOCK_S, rise=RISE_S, hold=HOLD_S, fall=FALL_S):
 
 
 class Run:
-    """One job's simulation: the firmware's drive stepping the model at
-    TS, the host speed loop ticking every TICK steps, the statistics
-    taken after the lock. `run_job` opens one, runs it and closes it."""
+    """One job's simulation: the firmware's drive stepping the model at TS,
+    the host speed loop ticking every TICK steps, the statistics taken
+    after the lock.
+    """
 
     def __init__(self, job):
         self.vdc, self.knobs, self.seed = job['vdc'], job['knobs'], job['seed']
@@ -264,15 +260,7 @@ class Run:
 
 
 def run_job(job):
-    """One run. `job`: vdc, knobs, seed; `bemf_only` descends with the
-    injection off from the hold on, and reports where the rotor was lost.
-
-    `motor` (a dict of `Parameters` fields), `k_prop`, `i_max`, `i_trip`
-    and `i_h_max` retune the whole run for another machine - the auto-tune
-    notebook hands in what the commissioning just identified and the
-    search sizes itself to it. Absent, the 5230SL and the board's limits.
-    The row carries everything that shaped it, `bemf_only` included.
-    """
+    """One run."""
     run = Run(job)
     try:
         run.go()
@@ -285,7 +273,8 @@ def pool(workers=None, lib=None):
     """One process per core, each holding the library; open it once for a
     session - a pool per round respawned 61 interpreters three times and
     the third spawn died of commit charge on a machine with no page-file
-    headroom. Windows caps a pool at 61."""
+    headroom.
+    """
     return concurrent.futures.ProcessPoolExecutor(
         max_workers=workers or min(os.cpu_count() or 1, 61), initializer=_load,
         initargs=(lib or library(),))
@@ -349,7 +338,8 @@ def score(frame):
 
 def search(pool, vdcs=VDC_SWEEP, candidates_n=48, draws=16, refine=24, seed=1):
     """Two rounds per link voltage: a hypercube over KNOBS, then a half-box
-    about each round's best three. Returns (best per vdc, every run)."""
+    about each round's best three.
+    """
     import pandas as pd
     first = candidates(candidates_n, seed)
     jobs = [{'vdc': v, 'knobs': c, 'seed': 1000 * i + s}

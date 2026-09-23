@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""The tool surface: schemas, arguments, which tool answers what.
-
-Split out of test_ollama.py, which had grown to 5,496 lines and 733 checks in
-one file - a third of every check this tree has, and the reason a coverage
-tier could not be asked for at any useful resolution. One subject per file
-now, so a tier buys them separately and a reader opens the one they meant.
-
-Run from the host directory:  python tests/test_ollama_tools.py
-"""
+"""The tool surface: schemas, arguments, which tool answers what."""
 import os
 import sys
 
@@ -37,9 +29,7 @@ def test_board_tools(report):
     report.check('the MCP board tools are reachable unchanged',
                  record.verdict == 'record' and len(results) == 4,
                  ','.join(record.calls))
-    # Labelled rather than refused. A refusal did not stop a fabricated
-    # reading, it caused one: with no numbers to report, a model wrote
-    # "Mid-scale... 25.00 C" straight out of the warning text.
+    # Labelled rather than refused.
     report.check('an analog read with the front end off is labelled, not refused',
                  results[0]['result'].startswith('AFE OFF')
                  and 'afe_power on' in results[0]['result'],
@@ -56,8 +46,8 @@ def test_board_tools(report):
     report.check('self test reaches the renderer',
                  'PLL lock' in results[3]['result'],
                  results[3]['result'].splitlines()[0])
-    # Counted against the MCP set rather than a number written here, so
-    # adding a tool on that side does not fail this for the wrong reason.
+    # Counted against the MCP set rather than a number written here, so adding
+    # a tool on that side does not fail this for the wrong reason.
     from coaxial_mcp.tools import TOOLS as MCP_TOOLS
     report.check('the tool surface is the MCP set plus six',
                  len(toolmod.TOOLS) == len(MCP_TOOLS) + 6,
@@ -78,13 +68,7 @@ def test_board_tools(report):
                  and 'thermal' not in debug.SETS['pins'])
 
 def test_corrections_are_reported(report):
-    """A mistake in the question is answered, and said out loud.
-
-    Refusing a misspelt channel is worse than reading the one it meant -
-    but reading it silently is worse still: a question about `BUS_VOLT`
-    coming back as a DC bus reading, with nothing saying so, is the quiet
-    substitution this library exists to prevent.
-    """
+    """A mistake in the question is answered, and said out loud."""
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_mcp import tools as mcp
     from coaxial_ollama import debug
@@ -144,12 +128,7 @@ def test_debug(report):
         kw.setdefault('out', io.StringIO())
         return debug.Chat(ScriptedModel(turns), box, **kw)
 
-    # Was /3, and SYSTEM sat one token under it. The two hardware facts that
-    # stop the model inventing a coaxial cable cost 16 - see the comment on
-    # debug.SYSTEM - and none of the rules they sit beside is fat that could
-    # pay for them. Still a fraction, which is what this guards: 200 against
-    # 556 is 36 %, and a prompt that reached half the runner's would be a
-    # bench prompt turning into a test executive.
+    # Was /3, and SYSTEM sat one token under it.
     report.check('the debug prompt is a fraction of the runner prompt',
                  debug.approx_tokens(debug.SYSTEM)
                  < debug.approx_tokens(runmod.SYSTEM) / 2.5,
@@ -189,10 +168,10 @@ def test_debug(report):
                  sent[2]['content'][:44])
     report.check('the recent turns are sent whole',
                  sent[-1]['content'] == 'new question')
-    # Measured against the system message this turn actually built, not
-    # against SYSTEM plus a slack number: the hints, the language line and the
-    # model's own tag are all in there, and a magic +40 tips over every time
-    # one of them gains a sentence.
+    # Measured against the system message this turn actually built, not against
+    # SYSTEM plus a slack number: the hints, the language line and the model's
+    # own tag are all in there, and a magic +40 tips over every time one of
+    # them gains a sentence.
     whole = (debug.approx_tokens(json.dumps(session.history))
              + session.tool_cost()
              + debug.approx_tokens(session.trim()[0]['content']))
@@ -203,8 +182,7 @@ def test_debug(report):
 
     # `keep` counts messages, and the recent ones are sent whole - so six
     # recent messages is a small prompt right up until one of them is a build
-    # log. What bounds it is num_ctx, because that is the number the daemon
-    # allocates a KV cache for.
+    # log.
     stuffed = chat([], keep=6, tools='all')
     stuffed.history = [{'role': 'tool', 'tool_name': 'run_command',
                         'content': 'run_command: exit=1\n' + 'e' * 20000}
@@ -221,8 +199,7 @@ def test_debug(report):
                  stuffed.command('/ctx'))
 
     # The client evicts models and shrinks windows in silence, because a
-    # library that prints is one nobody can embed. The session it belongs to
-    # is what says so.
+    # library that prints is one nobody can embed.
     noisy = chat([{'role': 'assistant', 'content': 'ok'}])
     noisy.client.notes.append('out of memory: freed qwen2.5:14b (9.0 GB)')
     noisy.ask('read the ntc')
@@ -318,10 +295,9 @@ def test_debug(report):
 
     # ---- asked again, a stale "it doesn't work" gets a fresh check ----
     # Measured on this bench: told the link was down, gemma4:12b answered
-    # "again" with the same sentence from memory and no new tool call at all
-    # - an honest answer, not a fabrication, but stale, and the operator had
-    # to say "I plugged it back in" before it tried again. A zero-call answer
-    # while link_ok is already False now gets a real link check first.
+    # "again" with the same sentence from memory and no new tool call at all -
+    # an honest answer, not a fabrication, but stale, and the operator had to
+    # say "I plugged it back in" before it tried again.
     recover_session = SimulatedSession()
     recover_box = toolmod.Toolbox(recover_session, shell=Shell(['python']),
                                   scope=Scope())
@@ -366,12 +342,12 @@ def test_debug(report):
                  and 'fortfarande' not in answer, answer)
 
     # ---- a blank answer with no call at all is not taken at face value ----
-    # Measured on this bench: the SECOND question asked (the first had
-    # already succeeded) after the programmer was unplugged got a blank line
-    # and nothing else - link_ok was still True right up to that turn
-    # (nothing had failed yet to set it False), so the "stale refusal" check
-    # above never triggered, and the model's own empty content, no call,
-    # printed as silence with no error in sight.
+    # Measured on this bench: the SECOND question asked (the first had already
+    # succeeded) after the programmer was unplugged got a blank line and
+    # nothing else - link_ok was still True right up to that turn (nothing had
+    # failed yet to set it False), so the "stale refusal" check above never
+    # triggered, and the model's own empty content, no call, printed as silence
+    # with no error in sight.
     blank_session = SimulatedSession()
     blank_box = toolmod.Toolbox(blank_session, shell=Shell(['python']),
                                 scope=Scope())
@@ -409,8 +385,8 @@ def test_debug(report):
 
     # ----...but an unrelated question with no call is never touched ----
     # Measured on this bench: link_ok can start False from the startup probe
-    # alone, before any question at all - and without this gate, a plain
-    # "what is 2+2" with no call and a perfectly good answer got discarded and
+    # alone, before any question at all - and without this gate, a plain "what
+    # is 2+2" with no call and a perfectly good answer got discarded and
     # replaced with "link is down", because nothing had ever been read
     # successfully to make that check meaningful.
     untouched_session = SimulatedSession()
@@ -426,9 +402,9 @@ def test_debug(report):
 
     # ---- a blank FIRST answer is checked even with nothing to compare it to
     # Measured on this bench: "ge mig en lista over matvardena" as the very
-    # first question of a session got a blank line and nothing else - the
-    # gate above correctly stayed out of the way (self.last_channels was
-    # None, nothing stale to protect against), but a blank answer is never a
+    # first question of a session got a blank line and nothing else - the gate
+    # above correctly stayed out of the way (self.last_channels was None,
+    # nothing stale to protect against), but a blank answer is never a
     # legitimate answer to anything, so it needs the same check regardless.
     first_blank_session = SimulatedSession()
     first_blank_box = toolmod.Toolbox(first_blank_session,
@@ -449,16 +425,13 @@ def test_debug(report):
     # The probe itself is plumbing, not a reading - measured here, its raw
     # counters ("unit_id=1 t15_ticks=...") printed on screen for a question
     # that only asked for a list of ADC values, nothing to do with the link.
-    # The control is the reading, not the afe_power line: a switch that did
-    # what it was told is silenced now (see test_afe_trace), so `on=1` no
-    # longer proves the other calls reached the screen.
     report.check('the probe itself is not traced - nobody asked for link stats',
                  'unit_id=' not in first_blank_out.getvalue()
                  and 'samples @' in first_blank_out.getvalue(),
                  first_blank_out.getvalue())
 
-    # ----...and if the board really is down from the start, that is what
-    # gets reported - not silence.
+    # ----...and if the board really is down from the start, that is what gets
+    # reported - not silence.
     first_blank_down_session = SimulatedSession()
     first_blank_down_box = toolmod.Toolbox(first_blank_down_session,
                                            shell=Shell(['python']),
@@ -473,9 +446,8 @@ def test_debug(report):
 
     # ---- naming a tool instead of calling it gets nudged into calling it ----
     # Measured on this bench: asked for a table, gemma4:12b answered "jeg ma
-    # utfore en `analog_read`" and stopped - it named the exact call needed
-    # and never made it. There is no fact yet to substitute for a call that
-    # never happened, so this nudges rather than overriding.
+    # utfore en `analog_read`" and stopped - it named the exact call needed and
+    # never made it.
     narrate_session = SimulatedSession()
     narrate_box = toolmod.Toolbox(narrate_session, shell=Shell(['python']),
                                   scope=Scope())
@@ -516,7 +488,8 @@ def test_debug(report):
     stale.client.turns = [
         call('analog_read', ch=['NTC']),
         # A model is free to write this; the runner does not have to believe
-        # it, because the failed read in its own history already says otherwise.
+        # it, because the failed read in its own history already says
+        # otherwise.
         {'role': 'assistant', 'content': 'NTC is still 24.9 C.'}]
     answer = stale.ask('what is the temperature now?')
     report.check('a link failure this turn overrides a stale-looking answer',
@@ -595,10 +568,10 @@ def test_debug(report):
     report.check('a full retype of the table just shown is silenced, not '
                  'echoed back', answer == '', answer)
 
-    # Measured on this bench: cut off by --words before naming every channel,
-    # a markdown-table retype used to slip past the all-channels-present check
+    # Measured on this bench: cut off by --words before naming every channel, a
+    # markdown-table retype used to slip past the all-channels-present check
     # entirely - the very shape SYSTEM already forbids, printed anyway because
-    # it never finished. The shape alone is now enough to catch it.
+    # it never finished.
     truncated_session = SimulatedSession()
     truncated_box = toolmod.Toolbox(truncated_session, shell=Shell(['python']),
                                     scope=Scope())
@@ -655,8 +628,8 @@ def test_debug(report):
         {'role': 'assistant', 'content':
             # A rewrite, not a copy - a model confabulating a fresh reading
             # does not retype the old numbers verbatim, which is exactly why
-            # the verbatim-restate check above cannot be the thing that
-            # catches this.
+            # the verbatim-restate check above cannot be the thing that catches
+            # this.
             'PhaseU: +0.1415V, PhaseV: -0.8232V, '
             'NTC: 2.0726V (39.45C), DCbus: 1.1195V (26.511V)'},
         call('analog_read')]     # the nudge, taken - a real reading follows
@@ -665,9 +638,9 @@ def test_debug(report):
                  'nudged into a real one',
                  skip_hits == ['link', 'analog_read'], skip_hits)
 
-    #...and when the board really is unreachable, that refusal says so -
-    # measured here: the generic "ask again" line was itself the complaint,
-    # on a bench where the honest answer was "not connected or not powered".
+    # ...and when the board really is unreachable, that refusal says so -
+    # measured here: the generic "ask again" line was itself the complaint, on
+    # a bench where the honest answer was "not connected or not powered".
     unplugged_session = SimulatedSession()
     unplugged_box = toolmod.Toolbox(unplugged_session, shell=Shell(['python']),
                                     scope=Scope())
@@ -687,11 +660,7 @@ def test_debug(report):
                  answer.startswith('link is down, not answered:'), answer)
 
     # ---- the whole reported sequence: works, unplugged, replugged, works
-    # again - not stuck repeating "ask again" forever. Measured on this
-    # bench: works, unplug, "link is down" (correct) - replug, and it kept
-    # answering "no reading taken this turn - ask again" no matter how many
-    # times the same question was repeated, because nothing ever prompted the
-    # model to actually read again once the link was confirmed back up.
+    # again - not stuck repeating "ask again" forever.
     saga_session = SimulatedSession()
     saga_box = toolmod.Toolbox(saga_session, shell=Shell(['python']),
                                scope=Scope())
@@ -720,15 +689,8 @@ def test_debug(report):
     report.check('replugged: measures again instead of looping "ask again"',
                  saga_hits[-2:] == ['link', 'analog_read'], saga_hits)
 
-    # ---- a pulled cable can leave the cached handle dead - session.reset()
-    # is what actually recovers it, not just retrying. Measured directly
-    # against real hardware: unplugging left Session.board's cached serial
-    # handle permanently invalid ("Attempting to use a port that is not
-    # open"), because a USB VCP re-enumerates on replug rather than reviving
-    # the same handle - retrying on the same cached board failed forever,
-    # no matter how many times, until something called session.reset(). The
-    # saga test above never exercises this: it flips `broken` back to False
-    # by hand, which a real replug does not do to a dead handle by itself.
+    # ---- a pulled cable can leave the cached handle dead - session.reset() is
+    # what actually recovers it, not just retrying.
     dead_session = SimulatedSession()
     dead_box = toolmod.Toolbox(dead_session, shell=Shell(['python']),
                                scope=Scope())
@@ -755,8 +717,8 @@ def test_debug(report):
                  'not the cable coming back on its own',
                  dead_session.board.dead_handle is False)
 
-    # 3) no further "replug" step needed - the automatic reset already
-    # fixed it, so the very next question measures again on its own.
+    # 3) no further "replug" step needed - the automatic reset already fixed
+    # it, so the very next question measures again on its own.
     dead.client.turns = [call('link', op='stats'), call('analog_read')]
     dead.ask('ger du mig en tabell over de analoga matvardena')
     report.check('so the next question actually reaches analog_read, not '
@@ -837,10 +799,8 @@ def test_debug(report):
     # ---- a crashed model backend loses one turn, not the session ----------
     # Reported live: llama-server hit std::bad_alloc mid-conversation, ollama
     # answered 500, and the whole --repl process died with it - a single
-    # OllamaError wasn't in repl()'s per-turn catch, so it rode all the way
-    # out to main()'s handler. The board gets a reconnect story; the model
-    # backend deserves the same one, since ollama respawns llama-server on
-    # the next request same as the board answers again once plugged back in.
+    # OllamaError wasn't in repl()'s per-turn catch, so it rode all the way out
+    # to main()'s handler.
     from coaxial_ollama.client import OllamaError
 
     class Flaky(clientmod.Model):
@@ -897,9 +857,10 @@ def test_debug(report):
 # ---- documentation sized for whoever is reading it -------------------------
 
 def test_detail(report):
-    """A frontier model over MCP can afford the whole description; gemma4:12b
-    pays for it out of the same 8192 tokens the readings come out of. The
-    text is picked by code, not written twice."""
+    """A frontier model over MCP can afford the whole description;
+    gemma4:12b pays for it out of the same 8192 tokens the readings come
+    out of.
+    """
     from coaxial_ollama import debug
 
     report.check('a tag that names its size decides on the size',
@@ -960,7 +921,7 @@ def test_detail(report):
                                    if s['name'] == 'docs'], detail.TERSE)))
     # Measured: terse dropped analog_read's "omit for all" and the model
     # started naming channels itself, inventing BUS_VOLT and reading five of
-    # seven. How to leave a field out is schema, not prose.
+    # seven.
     report.check('and so does one that says how to leave the field out',
                  'omit for all' in json.dumps(
                      detail.apply([s for s in toolmod.TOOLS
@@ -995,11 +956,7 @@ def test_detail(report):
                  'auto' in (small.command('/detail sideways') or '')
                  and small.detail == detail.FULL)
 
-    # The clipper, against text written for the purpose. Measured against a
-    # real document instead, this asserted that some chapter of FINDINGS was
-    # over 1200 characters - which is a fact about how much prose happens to
-    # be in the repository that day, not about the tool. It failed the moment
-    # the documents were cut, having found no defect.
+    # The clipper, against text written for the purpose.
     from coaxial_mcp import docs as docsmod
     nl = chr(10)
     made_up = '## Long' + nl + nl + 'x' * (docsmod.CLIP + 500) + nl
@@ -1042,10 +999,7 @@ def test_coerce(report):
                          'vref': 3.3})
     report.check('a list that arrived as text is a list',
                  coerce('analog_read', {'ch': "['NTC']"})['ch'] == ['NTC'])
-    # The separator a model puts in a name is not information. board_info
-    # prints "DC bus", the short form is "DCbus", and gemma4:12b sent "dc_bus"
-    # and was told `unknown channel 'dc_bus'; names are ch3,ch6,dcbus,...` - a
-    # refusal listing a name one underscore away from the one it used.
+    # The separator a model puts in a name is not information.
     from coaxial_mcp.tools import _key
     report.check('the separator in a channel name is not information',
                  len({_key(n) for n in ('dc_bus', 'DC bus', 'dc-bus', 'DCbus',
@@ -1063,9 +1017,7 @@ def test_coerce(report):
     report.check('every spelling of the DC link resolves to one channel',
                  len({tuple(w) for w in wanted}) == 1, str(wanted[0]))
     # A/B/C and U/V/W are two conventions for the same three phases, and both
-    # appear in the same datasheets. Measured: a model asked for
-    # ['ntc','dc_bus','phase_a','phase_b','phase_c'] and lost all five readings
-    # to the two it spelled the other way.
+    # appear in the same datasheets.
     class ThreePhase:
         def info(self, refresh=False):
             names = ['Phase U', 'Phase V', 'Phase W', None, 'NTC', 'DC bus', None]
@@ -1094,8 +1046,7 @@ def test_coerce(report):
                      'unknown channel' in str(exc), str(exc)[:46])
 
     # A near miss that can only mean one channel now reads it instead of
-    # refusing with the name it meant printed in the refusal. Measured at the
-    # prompt with `bus`, which is inside `dcbus` and inside nothing else.
+    # refusing with the name it meant printed in the refusal.
     report.check('a name that can only mean one channel reads that one',
                  _resolve(board, ['dcbusvoltage']) == _resolve(board, ['bus'])
                  == _resolve(board, ['dcbus']))
@@ -1164,18 +1115,16 @@ def test_docs(report):
     report.check('the index says how to go deeper',
                  'section=' in index and 'find=' in index)
 
-    # Headings are read out of the document rather than spelled here. Twice
-    # now, editing MODELS.md failed this test for renaming a section - which
-    # says nothing about the tool, and is exactly what it is not for.
+    # Headings are read out of the document rather than spelled here.
     import re as _re
     text = str(io.open(os.path.join(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__)))), 'docs', 'MODELS.md'),
         encoding='utf-8').read())
     heads = [(len(m.group(1)), m.group(2).strip())
              for m in _re.finditer(r'^(#{2,3}) (.+)$', text, _re.M)]
-    # The first chapter that actually has a subsection - the first chapter
-    # in the file need not, and asserting a parent carries children against
-    # one with none proves nothing.
+    # The first chapter that actually has a subsection - the first chapter in
+    # the file need not, and asserting a parent carries children against one
+    # with none proves nothing.
     at = next((i for i, (lvl, _) in enumerate(heads)
                if lvl == 2 and i + 1 < len(heads) and heads[i + 1][0] == 3),
               None)
@@ -1221,7 +1170,7 @@ def test_docs(report):
                  len(hits.splitlines()) >= 2)
     # A hit without its chapter can say the opposite of what the document says:
     # the phase V entry that matches lives under "Ruled Out", and a model that
-    # cannot see that reports a dead end as the explanation. Measured.
+    # cannot see that reports a dead end as the explanation.
     refuted = next(head for _, head, _ in docmod._headings(
         docmod._read(docmod.paths()['FINDINGS'])) if 'Ruled Out' in head)
     body = docmod.docs(doc='FINDINGS', section=refuted).splitlines()[2:]
@@ -1260,7 +1209,7 @@ def test_docs(report):
     from coaxial_ollama import debug, runner
     # Not in SYSTEM any more: the language is worked out here and named in the
     # turn's system message, because a model asked to work it out itself
-    # answered a European question in Chinese. See language.py.
+    # answered a European question in Chinese.
     from coaxial_ollama import language
     talk = debug.Chat.__new__(debug.Chat)
     talk.keep = 6
@@ -1273,23 +1222,15 @@ def test_docs(report):
                      ('in %s' % expect) in head, head.splitlines()[-1][:56])
 
     # Measured on this bench: this exact question has only one word from the
-    # rest of Swedish's list ('over') against two from Dutch's ('en', 'de'),
-    # so Dutch outscored Swedish outright and the model answered in a Dutch/
-    # Norwegian mix instead. 'en' and 'de' are now in both lists on purpose -
-    # see the comment on STOPWORDS - which cancels them as a discriminator
-    # rather than leaving them to favour whichever list happened to claim
-    # them first.
+    # rest of Swedish's list ('over') against two from Dutch's ('en', 'de'), so
+    # Dutch outscored Swedish outright and the model answered in a Dutch/
+    # Norwegian mix instead.
     report.check('a Swedish question is not lost to Dutch on "en"/"de" alone',
                  language.detect(
                      'ger du mig en tabell över de analoga mätvärdena?')
                  == 'Swedish')
 
-    # Locked at 'German' by the loop above. A message that detects as
-    # nothing on its own - "status?" is too short to score any language -
-    # must not fall back to mirroring once something has actually been
-    # settled: that fallback is a different system-prompt line, a real
-    # prefix change, and paying for a KV reload on every one-word follow-up
-    # was the whole thing this lock exists to stop.
+    # Locked at 'German' by the loop above.
     talk.history = [{'role': 'user', 'content': 'status?'}]
     report.check('an ambiguous follow-up keeps the session lock, not a '
                  'fallback to mirroring',
@@ -1311,11 +1252,10 @@ def test_docs(report):
                  'the question itself is written in the locked language',
                  talk.language == 'English', talk.language)
 
-    # Measured at the prompt: "forklara pa japanska..." named a language
-    # next to a verb that was not in the list, so the request was missed and
-    # the turn went out under *Answer in Swedish and in no other language* -
-    # the host contradicting the operator in the same system prompt. The
-    # answer that came back was a channel table.
+    # Measured at the prompt: "forklara pa japanska..." named a language next
+    # to a verb that was not in the list, so the request was missed and the
+    # turn went out under *Answer in Swedish and in no other language* - the
+    # host contradicting the operator in the same system prompt.
     talk.history = [{'role': 'user',
                      'content': 'förklara på japanska vad detta '
                                 'projektet handlar om'}]
@@ -1323,7 +1263,7 @@ def test_docs(report):
     report.check('a language asked for with a verb other than "answer" is '
                  'still a request', 'in Japanese' in head, talk.language)
 
-    #...and it is that turn's request, not a new session language: the next
+    # ...and it is that turn's request, not a new session language: the next
     # Swedish question takes the lock straight back.
     talk.history = [{'role': 'user', 'content': 'och vad läser NTC:n nu?'}]
     talk.trim()
@@ -1337,12 +1277,7 @@ def test_docs(report):
         report.check('a language named in passing is not a request: %s'
                      % question[:34], got is None, str(got))
 
-    # A lock with no way out is a trap. Measured: locked to Korean by the
-    # question before it, the bare request for Swedish matched no verb and
-    # detected as no language either - every word in it is outside every
-    # stop-word list - so the lock held and the model obeyed it, refusing
-    # to switch, in Korean. A name in a message that places in no language
-    # is the request: there is nothing else in the message.
+    # A lock with no way out is a trap.
     talk.language = 'Korean'
     talk.history = [{'role': 'user', 'content': 'byt språk till svenska'}]
     talk.trim()
@@ -1357,18 +1292,13 @@ def test_docs(report):
         report.check('asking for a language plainly: %s' % question[:30],
                      got == expect, str(got))
 
-    #...and the model is told the same thing, for the phrasing the host
-    # misses next. The refusal above was the host and the operator
-    # contradicting each other with the model in the middle.
+    # ...and the model is told the same thing, for the phrasing the host misses
+    # next.
     report.check('an explicit request overrides the lock in the prompt too',
                  'unless the operator asks for another'
                  in language.instruction_for('Korean'))
 
     # A message that is nothing but a language request is host business.
-    # It used to cost a model turn that answered, in two sentences, that
-    # the language was now Swedish and how could it help - and a host
-    # note above it saying the same thing again, in a mix of two
-    # languages. One word, no round trip, history untouched.
     switch_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     switcher = debug.Chat(ScriptedModel([]), switch_box, out=io.StringIO())
     switcher.language = 'Swedish'
@@ -1382,16 +1312,16 @@ def test_docs(report):
     report.check('which is what the lock moved to',
                  switcher.language == 'Japanese', switcher.language)
 
-    # The same cp1252 case greeting() documents: Japanese renders as a row
-    # of question marks on a console that cannot hold it, and "Okay" beats
-    # five of those.
+    # The same cp1252 case greeting() documents: Japanese renders as a row of
+    # question marks on a console that cannot hold it, and "Okay" beats five of
+    # those.
     narrow = io.TextIOWrapper(io.BytesIO(), encoding='cp1252')
     plain = debug.Chat(ScriptedModel([]), switch_box, out=narrow)
     report.check('an alphabet the console lacks falls back to English',
                  plain.ask('byt språk till japanska') == 'Okay')
 
-    #...but a request with a question attached is still the model's turn,
-    # in the new language. This is the line between the two.
+    # ...but a request with a question attached is still the model's turn, in
+    # the new language.
     asked_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     with_question = debug.Chat(ScriptedModel([
         {'role': 'assistant', 'content': 'このプロジェクトはBLDCインバータです。'}]),
@@ -1413,13 +1343,8 @@ def test_docs(report):
                      got == bare, str(got))
 
     # Measured live: the "call the tool now" nudge goes into history with
-    # role=='user', and its English words then flipped the language on the
-    # next trim(). `prompt_history` is appended once at the top of ask() so
-    # nothing added later in the turn can reach it.
-    #
-    # And from prompt_io.tmp: a call, its table, then `A:` with nothing after
-    # it - a blank line under the table, past the stale gate because that same
-    # call had just set last_channels. A turn never ends on silence.
+    # role=='user', and its English words then flipped the language on the next
+    # trim().
     blank_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     blank = debug.Chat(ScriptedModel([
         call('analog_read'),
@@ -1442,8 +1367,8 @@ def test_docs(report):
     ]), mute_box, out=io.StringIO())
     said = mute.ask('beskriv hårdvaran för en novis')
     # Swedish, because the question was: the fallback is host-authored text
-    # reaching the screen, so it goes through PHRASES like every other line
-    # the operator reads. A blank line was the one thing it must not be.
+    # reaching the screen, so it goes through PHRASES like every other line the
+    # operator reads.
     report.check('a model that stays silent still ends the turn with words',
                  'fråga igen' in said, repr(said))
 
@@ -1456,10 +1381,7 @@ def test_docs(report):
                  "what the operator actually typed",
                  nudged.language == 'Swedish', nudged.language)
 
-    # A console that cannot encode the answer must not lose it. cp1252 holds
-    # Swedish and German; it does not hold a Polish l-stroke or an ohm sign,
-    # and the default handler turns that into a UnicodeEncodeError after the
-    # measurement has already been taken.
+    # A console that cannot encode the answer must not lose it.
     import io as _io
     raw = _io.BytesIO()
     narrow = _io.TextIOWrapper(raw, encoding='cp1252', newline='')
@@ -1475,12 +1397,9 @@ def test_docs(report):
     report.check('and a stream that cannot be reconfigured is left alone',
                  debug._printable(object()) is not None)
 
-    # The reverse of what this checked before, deliberately: asked to
-    # measure, the model called docs and answered with HARDWARE.md's own
-    # channel table instead of a reading. SYSTEM says nothing about
-    # documents any more, and no default tool set offers them - a session
-    # that genuinely wants them asks by name (-t docs), and only then does
-    # DOCS_HINT cost a line.
+    # The reverse of what this checked before, deliberately: asked to measure,
+    # the model called docs and answered with HARDWARE.md's own channel table
+    # instead of a reading.
     report.check('the bench prompt does not send the model to the documents',
                  'docs' not in debug.SYSTEM and 'FINDINGS' not in debug.SYSTEM)
     report.check('the docs warning is there for a session that does ask',
@@ -1490,19 +1409,12 @@ def test_docs(report):
     report.check('afe_power is never framed as refusable',
                  'afe_power' in debug.SYSTEM and 'order to do it' in debug.SYSTEM)
 
-    # The line that taught the error. "A table or list means analog_read
-    # once" was written about tabulating readings and read as "a list means
-    # analog_read", so a question asking for a list of channels fetched a
-    # full analog table - measured 6 times out of 24 in test_live_model.py,
-    # in both languages. That suite needs ollama and minutes; this catches
-    # the wording coming back in seconds.
+    # The line that taught the error.
     report.check('SYSTEM does not tell the model a list is a reading',
                  'table or list' not in debug.SYSTEM,
                  [l for l in debug.SYSTEM.splitlines() if 'analog_read' in l][:1])
-    # The rule, not the sentence: board_info owns the map, and "list" is
-    # named as the word that decides nothing. Pinning the old wording
-    # instead failed the rewrite that fixed "ge mig en lista over de
-    # analoga vardena", which is the opposite of what this is for.
+    # The rule, not the sentence: board_info owns the map, and "list" is named
+    # as the word that decides nothing.
     report.check('it names board_info as the map, and disowns "list"',
                  'board_info' in debug.SYSTEM
                  and 'never "list"' in debug.SYSTEM,

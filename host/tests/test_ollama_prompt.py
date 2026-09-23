@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""SYSTEM, the per-turn hints, and what the model is told.
-
-Split out of test_ollama.py, which had grown to 5,496 lines and 733 checks in
-one file - a third of every check this tree has, and the reason a coverage
-tier could not be asked for at any useful resolution. One subject per file
-now, so a tier buys them separately and a reader opens the one they meant.
-
-Run from the host directory:  python tests/test_ollama_prompt.py
-"""
+"""SYSTEM, the per-turn hints, and what the model is told."""
 import os
 import sys
 
@@ -26,12 +18,7 @@ def test_prompt(report):
     # A real robot ("\U0001F916") is outside cp1252 entirely - not a wide or
     # combining character, just absent - so the fixture used for the "normal"
     # behaviour tests below has to be genuinely Unicode-capable, same as this
-    # bench's actual console would need to be to show it for real. cp1252 gets
-    # its own fixture further down, where the fallback itself is under test.
-    # ascii(), not repr(), in every detail string below: this bench's own
-    # console is cp1252 (confirmed further down), and a detail string prints
-    # on PASS too - a raw robot in it would crash the report that is supposed
-    # to say the check passed.
+    # bench's actual console would need to be to show it for real.
     class Tty(io.StringIO):
         encoding = 'utf-8'
 
@@ -53,9 +40,7 @@ def test_prompt(report):
     report.check('and any name at all comes through unsplit',
                  text in written and 'Coaxial_63100' in written)
 
-    # The old design span the '1' in the name. It wrote "Coaxial 63-00" and
-    # "Coaxial 63\00" into the operator's transcript, twice, and both times
-    # read as a corrupted board name. Nothing may touch the name now.
+    # The old design span the '1' in the name.
     plain = spin.prompt('no-ones-here', Tty(), tick=10)
     report.check('a name with no digit is not a special case any more',
                  plain.out.real.getvalue().endswith(
@@ -114,11 +99,9 @@ def test_prompt(report):
                  and spin.GREEN in face._prefix())
 
     # Measured live: a real session left the bar frozen on '/' or '-' in
-    # scrollback, because stop() reset the icon and colour but never the
-    # frame the ticker had drifted to while the operator was still typing
-    # the question. tick=10 keeps the background thread from firing here
-    # too, so the frame is set by hand to stand in for "several ticks
-    # already happened" without a real, timing-dependent sleep.
+    # scrollback, because stop() reset the icon and colour but never the frame
+    # the ticker had drifted to while the operator was still typing the
+    # question.
     drifted = Tty()
     mid_spin = spin.prompt(text, drifted, tick=10, ok=True)
     mid_spin.frame = 2       # as if the bar had ticked to '-' before stop()
@@ -141,9 +124,9 @@ def test_prompt(report):
                  + spin.RESTORE,
                  ascii(added2))
 
-    # ---- reported live: a tick landed inside a channel table mid-print,   -
+    # ---- reported live: a tick landed inside a channel table mid-print, -
     # ---- because "one row up" was fixed at busy() time, not recomputed ---
-    # ---- as _trace() kept printing more of it. -----------------------------
+    # ---- as _trace() kept printing more of it.
     busy_screen = Tty()
     drifting = spin.prompt(text, busy_screen, tick=10, ok=True)
     drifting.busy()
@@ -204,12 +187,8 @@ def test_prompt(report):
     # ---- _Tracked's own lock protects a caller who never wraps their write
     # Reported live: the answer text came back with the prompt group spliced
     # into the middle of a sentence - print(answer, file=face.out) never
-    # wrapped itself in the lock, so nothing stopped a tick writing at the
-    # same time. _Tracked now holds the lock around every write it is given,
-    # whether the caller asked for that or not. Proved with a deliberately
-    # slow underlying stream, so a second write demonstrably waits for the
-    # first one's write() call to finish rather than hoping a fast race
-    # never happens to land badly in the time a test happens to run.
+    # wrapped itself in the lock, so nothing stopped a tick writing at the same
+    # time.
     class SlowReal:
         def __init__(self):
             self.log = []
@@ -262,9 +241,8 @@ def test_prompt(report):
                  and spin.ICON_ERROR == '❌'
                  and len(spin.ICON_WAIT) == len(spin.ICON_ERROR) == 1)
     # No selector anywhere: a forced-colour glyph can sit at a different
-    # advance width than a native one, which reads as uneven spacing
-    # beside the others. The gear that used to mark "busy" needed one;
-    # the moon frames that replaced it do not, and they turn.
+    # advance width than a native one, which reads as uneven spacing beside the
+    # others.
     report.check('no glyph here is forced into colour with a selector',
                  not any(chr(0xFE0F) in g for g in
                          (spin.ROBOT, spin.ICON_WAIT, spin.ICON_ERROR)
@@ -316,9 +294,7 @@ def test_prompt(report):
     cp1252_face.stop(True)
 
     # A pipe has no cursor to save: one static prompt, no escapes, no thread -
-    # busy()/stop() change state but paint nothing further. It has no
-    #.encoding either, so it gets the ASCII fallback same as Ascii() does,
-    # brackets included.
+    # busy()/stop() change state but paint nothing further.
     piped = io.StringIO()
     quiet = spin.prompt(text, piped, tick=10)
     before_pipe = piped.getvalue()
@@ -393,12 +369,9 @@ def test_policy(report):
                  summary['counts'] == {'skipped': 1}
                  and summary['records'][0]['warnings'], summary['counts'])
 
-    # Measured live: told to turn the AFE off, then asked in a later,
-    # unrelated turn for a reading, gemma4:12b turned it back on to "serve"
-    # the reading - exactly what the system prompt already says never to do.
-    # afe_mentioned defaults True (every existing fixture above never sets
-    # it, on purpose - see Toolbox.__init__) so only debug.py's repl() and
-    # one-shot path, which set it from the real question text, are covered.
+    # Measured live: told to turn the AFE off, then asked in a later, unrelated
+    # turn for a reading, gemma4:12b turned it back on to "serve" the reading -
+    # exactly what the system prompt already says never to do.
     runner, _, _ = build(task, [])
     toolbox = runner.toolbox
     toolbox.afe_mentioned = False
@@ -445,9 +418,7 @@ def test_identity(report):
     report.check('a set without build_firmware claims nothing about building',
                  'gemma4:12b' in read_system and 'build system' not in read_system)
 
-    # One line in, in the operator's own language. Everything else - the tool
-    # list, the detail level, the cost - is /help, and printing it on the way
-    # in was three lines nobody read twice.
+    # One line in, in the operator's own language.
     from coaxial_ollama import language
     hello = language.greeting('gemma4:12b', 'Swedish')
     report.check('the prompt opens with one line, in the machine language',
@@ -471,8 +442,8 @@ def test_identity(report):
 
 def test_context_budget(report):
     """What keeps a conversation inside num_ctx, which is the number the
-    daemon actually allocates for. Six messages is a small prompt right up
-    until one of them is a build log."""
+    daemon actually allocates for.
+    """
     from coaxial_ollama import context
 
     report.check('a client with no window to read enforces nothing',
@@ -526,8 +497,7 @@ def test_context_budget(report):
     report.check('the conversation is actually shortened, not just stubbed',
                  len(mid_turn) < 10, '%d messages' % len(mid_turn))
 
-    # One message larger than the whole window: a pasted log, an attached
-    # file. There is no conversation to shorten, so the message itself gives.
+    # One message larger than the whole window: a pasted log, an attached file.
     huge = context.fit([dict(system),
                         {'role': 'user', 'content': 'z' * 40000}],
                        budget=600)
@@ -541,13 +511,7 @@ def test_context_budget(report):
                  - context.cost([dict(system)]) == 500)
 
 def test_intent(r):
-    """The intent pass: classify first, answer second.
-
-    What is checked is the compiler's frame, not the model's judgement -
-    every way the extra call can fail has to leave the turn exactly as it
-    was before the pass existed, because a hint that is wrong and insistent
-    is worse than no hint.
-    """
+    """The intent pass: classify first, answer second."""
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_mcp import render
     from coaxial_ollama import debug
@@ -576,11 +540,10 @@ def test_intent(r):
                 or name in ('words', 'control') for name in intent.INTENTS))
     r.check('every intent has a phrase the hint can say',
             set(intent.SAYS) == set(intent.INTENTS))
-    # A console that cannot carry the diacritics is this bench's normal
-    # case, not an edge one: measured through board_chat, "matvardena"
-    # classified as `map` - "the inputs" - and put the channel map on screen
-    # for a question about values. The classifier is told to read Swedish
-    # both ways; this is what says the line is still there.
+    # A console that cannot carry the diacritics is this bench's normal case,
+    # not an edge one: measured through board_chat, "matvardena" classified as
+    # `map` - "the inputs" - and put the channel map on screen for a question
+    # about values.
     r.check('the classifier is told Swedish may arrive folded to ASCII',
             'diacritics' in intent.ASK
             and 'matvardena' in intent.ASK and 'vardena' in intent.ASK)
@@ -604,9 +567,7 @@ def test_intent(r):
     r.check('words names no tool at all',
             intent.tool_for('words', 'none') is None)
 
-    # The hint is now for the intents the loop does *not* plan. A planned
-    # question makes its calls before the model is asked anything, so there
-    # is no tool to name and nothing to hint at.
+    # The hint is now for the intents the loop does *not* plan.
     r.check('an intent that plans its calls needs no hint at all',
             all(intent.hint(name, kind) == ''
                 or 'no board call' in intent.hint(name, kind)
@@ -641,11 +602,7 @@ def test_intent(r):
     r.check('no intent means no hint at all',
             intent.hint(None, 'none') == '')
 
-    # The persistence rule, pinned. ollama keys a loaded runner on num_ctx,
-    # so a second client asking for the same tag at a different window
-    # unloads and reloads the weights - measured at once per question when
-    # this module built its own Ollama. The compile must go through the
-    # turn's own client, with only per-request fields overridden.
+    # The persistence rule, pinned.
     class Recorder(clientmod.Model):
         model = 'gemma4:12b'
         options = {'num_ctx': 8192, 'temperature': 0.0}
@@ -709,9 +666,7 @@ def test_intent(r):
     r.check('an empty question is not sent anywhere',
             intent.compile_intent(Dead(), '   ')[0] is None)
 
-    # The executor. What must hold is that the model is asked *after* the
-    # calls have run and is offered no tools at all - the turn has no choice
-    # left in it to get wrong.
+    # The executor.
     class Narrator(clientmod.Model):
         model = 'gemma4:12b'
         options = {'num_ctx': 8192}
@@ -754,9 +709,6 @@ def test_intent(r):
     # The retype is the failure this replaced, and it still has to be caught:
     # measured on screen, the whole table written out again as prose under
     # itself, comma decimals and all.
-    # Built from the stand-in's table, not typed out: it was typed out and
-    # two supply senses were added, so a sentence naming seven of nine
-    # stopped being a restatement and the check failed on a working filter.
     _, _, retyped = planned(
         'De analoga värdena är: %s.'
         % ', '.join(c['signal'].replace(' ', '')
@@ -790,8 +742,8 @@ def test_intent(r):
     r.check('and the model was never asked about it',
             not down.client.seen, repr(down.client.seen))
 
-    # And the turn itself: off by default, hint reaches the system message
-    # when it is on, and a failed compile changes nothing.
+    # And the turn itself: off by default, hint reaches the system message when
+    # it is on, and a failed compile changes nothing.
     chat = debug.Chat(ScriptedModel([]),
                       toolmod.Toolbox(Sim(), scope=Scope()),
                       out=io.StringIO())
@@ -804,8 +756,8 @@ def test_intent(r):
     chat.client = Dead()
     sys.modules['coaxial_ollama.client'] = broken
     try:
-        # Through the swap, not just past it: without this the check reaches
-        # a running daemon and loads 7.6 GB inside an offline suite.
+        # Through the swap, not just past it: without this the check reaches a
+        # running daemon and loads 7.6 GB inside an offline suite.
         blank = chat._compile('ge mig de analoga värdena')
     finally:
         if real is None:
@@ -815,11 +767,7 @@ def test_intent(r):
     r.check('on, but unreachable, is still no hint', blank == '',
             repr(chat._intent_why))
 
-    # The backstop, offline. A hint saying "this question does not need a
-    # reading" did not hold on the real model - measured, board_info followed
-    # by analog_read on a map question, one turn after a reading. The loop
-    # answers the second call itself, from the fact that the tool the intent
-    # named has already succeeded this turn.
+    # The backstop, offline.
     screen = io.StringIO()
     both = debug.Chat(ScriptedModel([
         call('board_info'), call('analog_read'),

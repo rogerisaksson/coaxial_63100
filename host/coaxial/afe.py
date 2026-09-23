@@ -18,10 +18,7 @@ def powered(reading):
 
 
 class Afe(Subsystem):
-    """The analog front end switch. It powers the ADC reference, not just the
-    signal path - with it off every channel reads exact mid-scale, which is
-    a plausible number and not a measurement.
-    """
+    """The analog front end switch."""
 
     def _act(self, action):
         reader = Reader(self.request(protocol.AFE,

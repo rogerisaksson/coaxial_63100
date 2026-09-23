@@ -1,30 +1,4 @@
-"""Pull a tag through the daemon, and draw the download as it comes.
-
-    python -m coaxial_ollama.pull gemma4:12b
-    python -m coaxial_ollama.pull llama3.1:8b --ascii
-
-ONE PULL FOR BOTH ENTRY POINTS. board_chat.ps1's preflight and dbg.py's
-start both land here when the tag they were handed is not in `ollama
-list`. Until 2026-09-12 the page shelled out to `ollama pull` and dbg.py
-refused with the command to type, while docs/MODELS.md said both pulled;
-the bench that day asked that the LLM page pull a missing model itself
-and show a progress bar. `/model TAG`
-inside a session still refuses an absent tag: a typo there costs a
-command, not a download.
-
-THE DAEMON'S OWN NUMBERS. /api/pull streams one JSON object a line -
-`status` always, and while a layer is coming down its `digest`, `total`
-and `completed` - so the bar is drawn from those, in the page's own row
-shape (Say's columns), rather than from `ollama pull`'s repaint, which is
-a TTY's and goes nowhere when the output is a pipe. On a TTY the row is
-rewritten in place; off one it is printed whole at every status and
-every five percent, so a log of it still reads. A model is one big layer
-and a few small ones, and the bar is the layer's, as `ollama pull`'s is.
-
-Nothing here judges (invariant 10): an `error` line is the daemon's
-words, raised as OllamaError with them. The exit code is the caller's:
-0 pulled, 2 the daemon refused or was not there, 130 Ctrl+C.
-"""
+"""Pull a tag through the daemon, and draw the download as it comes."""
 import argparse
 import json
 import sys
@@ -92,13 +66,7 @@ def clock(seconds):
 
 
 class Progress:
-    """The download as it stands, fed the daemon's events one at a time.
-
-    The rate is the layer's - what has come down since the layer began
-    over the seconds since - and the estimate is the rest of that layer
-    at it. `now` is the clock, injectable so a suite can feed a scripted
-    stream at a second an event.
-    """
+    """The download as it stands, fed the daemon's events one at a time."""
 
     def __init__(self, tag, now=time.monotonic):
         self.tag = tag
@@ -150,9 +118,8 @@ class Progress:
 
     def figures(self):
         """What follows the bar: the percent, the bytes of the bytes, and
-        the rate and what is left at it once it can be said. On its own
-        for a caller whose bar is somebody else's - the chooser's boot
-        strip draws the layer's share and puts these beside it."""
+        the rate and what is left at it once it can be said.
+        """
         text = '%3.0f %%  %s of %s' % (
             self.percent(), gigabytes(self.completed), gigabytes(self.total))
         rate = self.rate()
@@ -181,9 +148,7 @@ class Rows:
         self.widest = 0
 
     def show(self, state, column, text, final=False, progress=None):
-        """One row. `progress` is the pull as it stands, for a drawer
-        with a bar of its own to take the share from; these columns
-        carry it in the text already and leave it be."""
+        """One row."""
         row = '  %-6s %-22s %s' % (state, column, text)
         pad = ' ' * max(0, self.widest - len(row))
         self.widest = max(self.widest, len(row))
@@ -233,17 +198,7 @@ def events(tag, host=DEFAULT_HOST, timeout=TIMEOUT_S):
 
 def pull(tag, host=DEFAULT_HOST, out=None, source=None, glyphs=None,
          now=time.monotonic, rows=None):
-    """Pull `tag` and draw it; the daemon's last status word ('success').
-
-    `out` is drawn on - stderr unless given, so the bar never lands in an
-    answer somebody is capturing; `source` is the event stream, the
-    daemon's unless a suite feeds one; `glyphs` BRAILLE unless the stream
-    cannot carry it; `rows` where each row goes - Say's columns on `out`
-    unless a page hands in a drawer of its own with the same `show` and
-    `tty`, as the chooser's chat page does with its boot strip. Refuses
-    before any request what no pull can do: a cloud tag, which ollama
-    runs on their hardware, and a daemon that is not this machine's.
-    """
+    """Pull `tag` and draw it; the daemon's last status word ('success')."""
     if is_cloud(tag):
         raise OllamaError('%s is a cloud tag: ollama runs those on their '
                           'hardware, and there is nothing to pull' % tag)

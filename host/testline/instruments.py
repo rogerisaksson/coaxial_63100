@@ -1,19 +1,4 @@
-"""Instruments, and why they are the only source of truth on the line.
-
-The board under test reports raw ADC codes. It cannot say whether they are
-right, because its reference is a rail it cannot measure and its own converter is
-part of what is being tested. Truth therefore comes from instruments that carry a
-calibration certificate, and every reading below arrives with the asset id and
-calibration due date of whatever produced it.
-
-That metadata is not decoration. It is what makes a test record defensible: a
-measurement whose instrument was out of calibration on the day is not a
-measurement, and a line that cannot demonstrate otherwise cannot ship.
-
-The implementations here are SIMULATED. Replacing one means implementing the same
-three or four methods against VISA, a serial protocol, or a vendor SDK - nothing
-above this module knows the difference, which is the point.
-"""
+"""Instruments, and why they are the only source of truth on the line."""
 import datetime
 import random
 
@@ -23,8 +8,7 @@ class InstrumentError(Exception):
 
 
 class CalibrationExpired(InstrumentError):
-    """Refuses to measure. A reading from an out-of-calibration instrument is
-    worse than no reading, because it looks like data in the report."""
+    """Refuses to measure."""
 
 
 class Instrument:
@@ -70,8 +54,7 @@ class Dmm(Instrument):
         self._nodes = {}
 
     def set_simulated_node(self, node, volts, noise_v=0.0008):
-        """Only meaningful for the simulation. A real DMM has no such method,
-        which is exactly why the sequence never calls it."""
+        """Only meaningful for the simulation."""
         self._nodes[node] = (volts, noise_v)
 
     def read_dc_volts(self, node):
@@ -84,8 +67,7 @@ class Dmm(Instrument):
 
 
 class SignalGenerator(Instrument):
-    """Drives a stimulus into a test point. Here it sets a DC level, which is
-    what a fixture needs to exercise an analog input at a known value."""
+    """Drives a stimulus into a test point."""
 
     kind = 'signal generator'
 
@@ -105,8 +87,7 @@ class SignalGenerator(Instrument):
 
 
 class Oscilloscope(Instrument):
-    """Captures a waveform at a test point. Used here to characterise ripple,
-    which a DMM averages away and the board cannot see at all."""
+    """Captures a waveform at a test point."""
 
     kind = 'oscilloscope'
 
@@ -129,13 +110,7 @@ class Oscilloscope(Instrument):
 
 
 class BarcodeScanner(Instrument):
-    """Reads the serial number off the PCBA.
-
-    Not a measuring instrument, so it carries no calibration date that matters -
-    but it is the single most important device on the bench, because a report
-    without a serial number cannot be traced back to a board and is therefore
-    worthless as a record.
-    """
+    """Reads the serial number off the PCBA."""
 
     kind = 'barcode scanner'
 
@@ -148,20 +123,14 @@ class BarcodeScanner(Instrument):
         return None                 # a scanner reads or it does not
 
     def scan(self):
-        """Return the next barcode. Blocks on a real scanner; here it pops a
-        queue so a sequence can be run unattended in CI."""
+        """Return the next barcode."""
         if not self.queue:
             raise InstrumentError('no barcode presented to the scanner')
         return self.queue.pop(0)
 
 
 class Bench:
-    """Everything on the bench, so a sequence takes one argument.
-
-    The set of instruments IS the measurement system. Swap a DMM and the GRR
-    study that established the limits no longer applies to this bench, which is
-    why the provenance of every one of them lands in the report.
-    """
+    """Everything on the bench, so a sequence takes one argument."""
 
     def __init__(self, dmm=None, siggen=None, scope=None, scanner=None):
         self.dmm = dmm or Dmm()

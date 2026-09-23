@@ -19,9 +19,9 @@ from ..power import named
 
 class SimulatedThermal:
     """The thermal observer without a board: the same twenty-node graph
-    `thermal.c` integrates, on `coaxial.thermal`'s tables, so a view running
-    -Simulated draws the network the board runs and the envelope rehearses
-    the same play.
+    `thermal.c` integrates, on `coaxial.thermal`'s tables, so a view
+    running -Simulated draws the network the board runs and the envelope
+    rehearses the same play.
     """
 
     NODES = thermal.ALL_NODES
@@ -216,8 +216,8 @@ class SimulatedThermal:
         self._speed_rpm = 0.0
         self._speed_of = lambda: 0.0
         self._lay_base()
-        # THE GROUND TRUTH: a second board, the base with a situation laid
-        # over it, integrated on the same power and read through three noisy
+        # THE GROUND TRUTH: a second board, the base with a situation laid over
+        # it, integrated on the same power and read through three noisy
         # thermometers every sample.
         self._random = random.Random(seed)
         self._truth = {n: thermal.AMBIENT for n in self.NODES}
@@ -263,8 +263,8 @@ class SimulatedThermal:
         self._start_in_room()
 
     def _lay_base(self):
-        """THE GRAPH'S PARAMETERS, a copy this stand-in can move: the mirror's
-        tables with the winding's record fields laid over, as
+        """THE GRAPH'S PARAMETERS, a copy this stand-in can move: the
+        mirror's tables with the winding's record fields laid over, as
         `board_thermal.c` lays them.
         """
         self._base = copy.deepcopy(thermal.CFG)
@@ -277,14 +277,10 @@ class SimulatedThermal:
         self._base['ntc_tau_s'] = thermal.NTC_TAU_S
 
     def _start_in_room(self):
-        """THE BOARD STARTS IN ITS ROOM, as a board does: the truth at the room
-        it was switched on in, the observer at its thermistor's reading and
-        the identification's room at the same - `Board_ThermalInit` starts
-        on the NTC. Both started at 25 C whatever the room, so a fresh start
-        in the toasty room was a cold board carried in, and the warm-up
-        under load read the room ten kelvin warm for three minutes
-        (2026-09-06). A situation laid on LATER is a carry-in and moves
-        nothing: the board is where it is.
+        """THE BOARD STARTS IN ITS ROOM, as a board does: the truth at the
+        room it was switched on in, the observer at its thermistor's
+        reading and the identification's room at the same -
+        `Board_ThermalInit` starts on the NTC.
         """
         start = self._truth_ambient
         for temps in (self._truth, self._node):
@@ -314,11 +310,9 @@ class SimulatedThermal:
         self._run(elapsed * self.HASTE, None, True)
 
     def fast_forward(self, model_seconds, seen=None, live=False):
-        """Run the truth, the observer and the identification `model_seconds`
-        on - a test's or a notebook's way of taking the stand-in through a
-        cooldown without waiting for one. THE CALLER OWNS THE CLOCK from the
-        first call: the readers stop advancing on the wall clock, so the
-        walk is model time only, the same on any machine.
+        """Run the truth, the observer and the identification
+        `model_seconds` on - a test's or a notebook's way of taking the
+        stand-in through a cooldown without waiting for one.
         """
         self._driven = True
         self._run(model_seconds, seen, live)
@@ -350,15 +344,15 @@ class SimulatedThermal:
             return
         if self._gate():
             self._trips += 1
-            # AND THE ENVELOPE SHRINKS, as on the board: the trip cap from
-            # now, recovering a percent a minute of model time.
+            # AND THE ENVELOPE SHRINKS, as on the board: the trip cap from now,
+            # recovering a percent a minute of model time.
             self._trip_cap = self.TRIP_MARGIN
             self._trip_at = self._model_s
 
     def _integrate(self, dt, seen):
-        """One explicit step over the whole graph: `thermal.net_flows` is the
-        same arithmetic `thermal.c` steps, so the stand-in's temperatures
-        are that model integrated rather than a second one.
+        """One explicit step over the whole graph: `thermal.net_flows` is
+        the same arithmetic `thermal.c` steps, so the stand-in's
+        temperatures are that model integrated rather than a second one.
         """
         power = self._power(dt, seen)
         self._last_power = power
@@ -442,10 +436,9 @@ class SimulatedThermal:
     def situation(self, name=None, switching=None):
         """Lay a situation over the ground truth - `SITUATIONS` by name,
         'random' for one that is not the present one, or 'tour' for the
-        rooms in turn (`TOUR`), moved on by the identification's own earned
-        margin - and, with `switching`, turn the random switches on or off.
-        A named situation ends a tour. Returns what the truth is now. The
-        observer is not told: finding out is its job.
+        rooms in turn (`TOUR`), moved on by the identification's own
+        earned margin - and, with `switching`, turn the random switches
+        on or off.
         """
         if switching is not None:
             self._switching = bool(switching)
@@ -508,8 +501,9 @@ class SimulatedThermal:
 
     def settle(self, seen=None):
         """Both boards at their equilibria for `seen`'s power - the truth on
-        its network, the observer on its own - as a board is after an hour
-        of idling: where a test starts that asks what idling teaches.
+        its network, the observer on its own - as a board is after an
+        hour of idling: where a test starts that asks what idling
+        teaches.
         """
         power = self._power(1.0, seen or self._sample())
         # An hour of idling has told the identification the room as well.
@@ -529,9 +523,9 @@ class SimulatedThermal:
 
     def truth(self):
         """The ground truth as a page may show it beside the estimate: its
-        situation, the scales that make it, how long it has stood, and the
-        load the cycle has on it now - absent on a board, which has no truth
-        to tell.
+        situation, the scales that make it, how long it has stood, and
+        the load the cycle has on it now - absent on a board, which has
+        no truth to tell.
         """
         name = self._situation or 'bench'
         laid = self.SITUATIONS[name]
@@ -546,12 +540,11 @@ class SimulatedThermal:
     # -- the load cycle ----------------------------------------------
 
     def load_cycle(self, amps=CYCLE_AMPS, on_s=CYCLE_ON_S, off_s=CYCLE_OFF_S):
-        """Drive a load on and off from the model's own clock: `on_s` at `amps`
-        on all three phases, switching, then `off_s` idle, over and over -
-        what a page in simulated mode lays on so the map's regions warm and
-        cool and the identification has cooldowns to learn from. `amps` zero
-        or None stops it and the drive's own sample is read again. Returns
-        what runs.
+        """Drive a load on and off from the model's own clock: `on_s` at
+        `amps` on all three phases, switching, then `off_s` idle, over
+        and over - what a page in simulated mode lays on so the map's
+        regions warm and cool and the identification has cooldowns to
+        learn from.
         """
         if not amps or float(amps) <= 0.0:
             self._cycle = None
@@ -565,12 +558,8 @@ class SimulatedThermal:
                 'off_s': float(off_s)}
 
     def _cycle_sample(self):
-        """What the sampler sees this slice: the cycle's phase while one runs,
-        the drive's sample otherwise. UNDER THE ENVELOPE: the amps are the
-        cycle's times the clamp the envelope applies, so past the throttle
-        point the run carries less, and a trip ends the run - the stage is
-        down until the next on-phase, which stands for the re-arm a bench
-        would do.
+        """What the sampler sees this slice: the cycle's phase while one
+        runs, the drive's sample otherwise.
         """
         if self._cycle is None:
             return self._sample()
@@ -609,8 +598,8 @@ class SimulatedThermal:
         power = self._last_power or {}
         seen = self._seen
         # MEASURED where a sample has been taken - the truth's thermometers -
-        # and the observer's own element where none has; the board reports
-        # both what the thermistor says and what the model expects.
+        # and the observer's own element where none has; the board reports both
+        # what the thermistor says and what the model expects.
         ntc = seen.get('ntc', self._ntc)
         return {
             'ntc': ntc,
@@ -626,8 +615,8 @@ class SimulatedThermal:
             'seen_s_ago': (self._model_s - self._sampled_s) if seen else 0.4,
             'steps': 1200,
             'error': self._ntc - ntc,
-            # MINOR 13: each leg's FET junction over its node - half the
-            # node's watts through R_th,JC - and the speed the air saw.
+            # MINOR 13: each leg's FET junction over its node - half the node's
+            # watts through R_th,JC - and the speed the air saw.
             'junction_over': [0.5 * power.get(n, 0.0)
                               * self._cfg['rth_die'].get(n, 0.0)
                               for n in thermal.DRIVERS],
@@ -640,8 +629,7 @@ class SimulatedThermal:
 
     def _trip_cap_now(self):
         """The trip cap as it stands: set at a trip, given back at
-        TRIP_RECOVER_PER_S, one with no trip in hand. The board's
-        `trip_cap_now`, and op 10's field since MINOR 17.
+        TRIP_RECOVER_PER_S, one with no trip in hand.
         """
         if self._trip_cap >= 1.0:
             return 1.0
@@ -650,30 +638,26 @@ class SimulatedThermal:
 
     def _margin(self):
         """The margin the envelope acts on now: the identification's for its
-        doubt, or the trip cap as it stands - whichever keeps more in hand.
-        The board's `margin_now`.
+        doubt, or the trip cap as it stands - whichever keeps more in
+        hand.
         """
         return min(self._ident.margin(self._margin_floor), self._trip_cap_now())
 
     def _limit(self, name):
         """One node's ceiling as the envelope acts on it: the record's, its
-        span over the reference trimmed by the margin - the floor while the
-        model is doubted whole, one when not at all, the trip cap after a
-        trip - as `board_thermal.c` trims it, so the silicon and the
-        laminate are not run to ceilings computed on a network just proved
-        wrong.
+        span over the reference trimmed by the margin - the floor while
+        the model is doubted whole, one when not at all, the trip cap
+        after a trip - as `board_thermal.c` trims it, so the silicon and
+        the laminate are not run to ceilings computed on a network just
+        proved wrong.
         """
         top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
         return thermal.AMBIENT + self._margin() * (top - thermal.AMBIENT)
 
     def _used(self):
         """Each node as a fraction of its own ceiling, FROM THE ROOM the
-        observer believes it stands in, clamped to 0..1 - `thermal_budget`
-        in the C, line for line. One definition: `budget()` answers it and
-        `_envelope()` acts on it. It was measured from a fixed 25 C and not
-        clamped above one: in the cold room every node spent a negative
-        fraction, and a tripped node read 103 % - "headroom -3 % left" on
-        the rotor page, the bench's "values going negative" (2026-09-06).
+        observer believes it stands in, clamped to 0..1 -
+        `thermal_budget` in the C, line for line.
         """
         used = {}
         for name in self.NODES:
@@ -694,15 +678,7 @@ class SimulatedThermal:
 
     def _tripped(self):
         """Whether ANY node is at the RECORD'S ceiling, driven or not -
-        `thermal_budget`'s `trip_c`, untrimmed. Not the ceiling the throttle
-        acts on: the margin pulls that in while the model is doubted, and a
-        node the re-trim leaves above it reads 100 % with the clamp closed,
-        and cools. Measured on the rotor page's demo, 2026-09-08: the tour
-        stepped the room 45 K, the margin fell from 1.00 to 0.82 on that one
-        sample, a driver at 92 % of the old span stood at 112 % of the new
-        and the stage was dropped for the re-trim - then the cap at 0.70 put
-        three more trips under the re-arm in six seconds, and the foot read
-        TRIP for good.
+        `thermal_budget`'s `trip_c`, untrimmed.
         """
         for name in self.NODES:
             top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
@@ -711,10 +687,10 @@ class SimulatedThermal:
         return False
 
     def derate(self, worst=None):
-        """What the current clamp should be multiplied by, 1 down to 0: one at
-        the throttle point and zero at the ceiling, linear between, on the
-        worse of where the worst node is and how far into the window any
-        driven node's hold has come - `thermal.c`'s own arithmetic.
+        """What the current clamp should be multiplied by, 1 down to 0: one
+        at the throttle point and zero at the ceiling, linear between, on
+        the worse of where the worst node is and how far into the window
+        any driven node's hold has come - `thermal.c`'s own arithmetic.
         """
         spent = self._worst()[0] if worst is None else worst
         spent = max(spent, self._soon())
@@ -722,9 +698,7 @@ class SimulatedThermal:
 
     @staticmethod
     def _ramp(spent):
-        """One at the throttle point, zero at the ceiling, linear between. ONE
-        DEFINITION for every node, as `thermal.c`'s `derate_of`.
-        """
+        """One at the throttle point, zero at the ceiling, linear between."""
         band = 1.0 - THROTTLE_AT
         if spent <= THROTTLE_AT or band <= 0.0:
             return 1.0
@@ -747,9 +721,9 @@ class SimulatedThermal:
         return self._derate_held
 
     def _hold(self, name):
-        """Seconds this node can stay at its net power before its ceiling - the
-        soak over what is going into it - or None when it is not heading
-        there. The same net flows the step integrated.
+        """Seconds this node can stay at its net power before its ceiling -
+        the soak over what is going into it - or None when it is not
+        heading there.
         """
         net = (self._last_net or {}).get(name, 0.0)
         capacity = self._cfg['capacity'].get(name, 0.0)
@@ -760,10 +734,10 @@ class SimulatedThermal:
         return (togo * capacity / net) if togo > 0.0 else 0.0
 
     def _soon(self):
-        """How far into the last `LOOKAHEAD_S` of hold the worst driven node is
-        - THE SAME ARITHMETIC `thermal.c` DOES: time left, not a projected
-        temperature, so a node at ambient has its whole soak in front of it
-        and a burst runs.
+        """How far into the last `LOOKAHEAD_S` of hold the worst driven node
+        is - THE SAME ARITHMETIC `thermal.c` DOES: time left, not a
+        projected temperature, so a node at ambient has its whole soak in
+        front of it and a burst runs.
         """
         worst = 0.0
         for name in self.NODES:
@@ -875,10 +849,10 @@ class SimulatedThermal:
 
     def identification(self):
         """The identification as the stand-in runs it - the wire's shape
-        (`Thermal.identification`) off the same identifier the board runs,
-        plus `truth`: the situation the ground truth is in, which no board
-        can report and a page in simulated mode shows beside the estimate so
-        the logic can be seen working.
+        (`Thermal.identification`) off the same identifier the board
+        runs, plus `truth`: the situation the ground truth is in, which
+        no board can report and a page in simulated mode shows beside the
+        estimate so the logic can be seen working.
         """
         self._advance()
         ident = self._ident
@@ -904,7 +878,7 @@ class SimulatedThermal:
 
     def reset_identification(self):
         """Forget what was identified: scales to one, UNCERTAIN, the margin
-        back at the floor. Nothing is written anywhere.
+        back at the floor.
         """
         self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K,
                                                self._ambient)

@@ -1,15 +1,4 @@
-"""Colour, kept in one place so the renderers stay drawings.
-
-Every renderer here takes a `colour` flag and defaults it to off. That is not
-timidity: a picture with escape sequences in it cannot be compared to an
-expected string, and the suites compare these pictures. Colour is added at
-the edge, by the tool that knows whether it is writing to a terminal, and the
-tests see the same characters either way.
-
-256-colour rather than the 16 basic ones. The greys are what make a shaded
-surface read as shaded - eight levels of grey against a ramp of ten
-characters is most of the picture's information, and the basic set has one.
-"""
+"""Colour, kept in one place so the renderers stay drawings."""
 import re
 import sys
 import warnings
@@ -17,19 +6,7 @@ from contextlib import suppress
 
 
 def utf8_stdout():
-    """Make stdout carry the glyphs in this module. Call it at the edge.
-
-    A pipe takes its encoding from the locale, cp1252 here, and every
-    ramp below is outside ASCII. Measured: `show_desk.py | anything`
-    died with UnicodeEncodeError before the first frame, and
-    thermal_model.py died the same way when redirected. `replace`, not
-    `strict` - a log is worth reading with glyphs substituted and
-    worthless as a traceback.
-
-    Not done on import: a library that reconfigures the caller's
-    stdout is a side effect nobody asked for, and this module already
-    says colour is added at the edge.
-    """
+    """Make stdout carry the glyphs in this module."""
     reconfigure = getattr(sys.stdout, 'reconfigure', None)
     if reconfigure is None:                # not a reconfigurable stream
         return
@@ -55,9 +32,8 @@ BLUE = 33
 DIM = 236
 WHITE = 231
 
-# The views' motif - tools/screen.py names the roles (NEON names things,
-# SODIUM is what matters now, ASH is the street). The numbers live here so
-# renderers under coaxial/ can wear them without importing a tool.
+# The views' motif - tools/screen.py names the roles (NEON names things, SODIUM
+# is what matters now, ASH is the street).
 TEAL = 44
 ASH = 242
 
@@ -142,8 +118,8 @@ BOARD_RAMP = (22, 22, 28, 34, 40, 46, 47, 83, 119, 155, 191, 227, 231)
 #: 90, where a laminate is in trouble rather than merely working.
 THERMAL_STOPS = (
     (-20.0, 19),    # blue - 19, not 17: at four dots in ten the
-                    # halftone's cold end was black on the bench, and a
-                    # scale's floor should be a colour, "bottom-frozen"
+                    # halftone's cold end was black on the bench, and a scale's
+                    # floor should be a colour, "bottom-frozen"
     (0.0, 20),
     (15.0, 25),
     (25.0, 31),     # ambient, and where the resolution has to be fine:
@@ -186,8 +162,7 @@ def thermal(celsius):
 def thermal_rgb(celsius):
     """The ramp's colour BETWEEN its stops, as (r, g, b): linear from one
     stop's colour to the next, so a field that varies by a kelvin a cell
-    is a gradient and not a staircase of bands. `thermal` above stays
-    the banded one for anything that wants a band to read as a band.
+    is a gradient and not a staircase of bands.
     """
     if celsius <= THERMAL_STOPS[0][0]:
         return rgb(THERMAL_STOPS[0][1])
@@ -210,11 +185,6 @@ def board(fraction):
 def run(cells):
     """Cells of (text, colour) as one line, changing colour only where it
     changes.
-
-    One escape per run rather than per character: a 44-column picture is 44
-    escapes a frame either way, but a board drawn in flat regions is three or
-    four, and the difference is what a terminal repainting at 20 Hz notices.
-    `colour` None means leave whatever is current alone.
     """
     out = []
     current = None
@@ -230,19 +200,9 @@ def run(cells):
     return ''.join(out)
 
 
-# ------------------------------------------------------------- pictures
-#
-# A frame drawn for the terminal, as the terminal would show it: the
-# colour braille the pages draw, in a notebook or a file. `image` is a
-# Pillow image, which Jupyter displays inline on its own; `png` writes
-# one. `tools/ansi2png.py` is the command line over the same drawing.
-#
-# A PICTURE IS JUDGED IN A RASTER, NOT IN GLYPH COUNTS (CLAUDE.md): the
-# faces are the bench's terminal's, Consolas for text and Segoe UI
-# Symbol for braille - Consolas has none - and the seam between them,
-# which makes dense braille read as bricks, is reproduced on purpose.
-# Where those faces are not installed Pillow's own stands in and the
-# image says so once, since the seam it shows is not the bench's.
+# ------------------------------------------------------------- pictures A
+# frame drawn for the terminal, as the terminal would show it: the colour
+# braille the pages draw, in a notebook or a file.
 
 #: The sixteen system colours as most terminals draw them; the cube and
 #: the grey ramp are `rgb`.
@@ -301,8 +261,8 @@ def _step(codes, j, fg, bg):
 
 def parse(text):
     """Rows of (char, fg, bg) from ANSI text: what each cell shows and in
-    which colours. Cursor movement, OSC titles and charset selections
-    are dropped; only colour survives."""
+    which colours.
+    """
     text = _OTHER.sub(lambda m: m.group(0) if _SGR.fullmatch(m.group(0))
                       else '', text)
     rows, row = [], []
@@ -346,15 +306,9 @@ def _font(path, size):
 
 
 def image(text, cell=CELL, fonts=(TEXT_FONT, BRAILLE_FONT)):
-    """`text` drawn cell by cell in its colours on black, as a Pillow
-    image - a notebook shows it inline as the value of a cell, or under
+    """`text` drawn cell by cell in its colours on black, as a Pillow image
+    - a notebook shows it inline as the value of a cell, or under
     `IPython.display.display`.
-
-        from coaxial import ansi, thermalmap
-        ansi.image(thermalmap.render(nodes, board_c, cells=60, colour=True))
-
-    Pillow arrives with matplotlib (requirements.txt); nothing else in
-    the library needs it, so it is imported here and not above.
     """
     try:
         from PIL import Image, ImageDraw

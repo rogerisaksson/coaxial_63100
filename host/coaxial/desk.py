@@ -1,31 +1,4 @@
-"""Every analog channel at once, drawn as a meter bridge.
-
-A table of seven numbers says what each channel reads, not which one moved, how
-far it swung while you read the row above, or that two are pinned. A bridge says
-all three at a glance.
-
-**Every channel carries its own scale, in its own unit.** A vertical bridge
-cannot - one gutter cannot label amperes, volts and degrees at once - so the
-first version shared a dBFS axis and left the reader working out what -14 dBFS
-meant on the DC link. On its side there is room for each scale's ends beside its
-own bar.
-
-The span is the CONVERTER'S, not an opinion about the board: differential runs
-+/-full scale, single-ended zero to full scale, both through the arithmetic
-`coaxial.scaling` uses. Invariant 10 holds - no expected value, no limit, no
-mark meaning bad.
-
-Three marks per bar, three different measurements:
-
-  * the block is the burst's mean;
-  * the tick is the burst's own extreme - what the channel reached during the
-    sample window, straight off the wire, not inferred here;
-  * the caret is peak hold, decaying, and it is this module's memory of the
-    windows before.
-
-Pure but not stateless: a decay is memory by definition. It runs per update
-rather than per second, so a test drives it without a clock.
-"""
+"""Every analog channel at once, drawn as a meter bridge."""
 from . import ansi
 from . import machine
 from . import gauges
@@ -100,24 +73,14 @@ def unit_of(row):
 
 
 def span(row):
-    """(low, high) of this channel's scale, in its own unit, or None.
-
-    Supplied by the caller, because converting a code is the analog layer's
-    job and not a drawing's. Deriving it here from the reading and its
-    fraction of full scale was tried: right for the phases and the DC link,
-    which are linear in the code, and wrong for the thermistor, which is not.
-    """
+    """(low, high) of this channel's scale, in its own unit, or None."""
     got = row.get('span')
     return tuple(got) if got else None
 
 
 class Desk:
 
-    """A meter bridge over the analog channels, with decaying peak hold.
-
-    Built from the board's own channel rows, so a board that grows a channel
-    grows a bar and nothing here needs telling.
-    """
+    """A meter bridge over the analog channels, with decaying peak hold."""
 
     def __init__(self, decay=DECAY, bar=BAR):
         self.decay = decay
@@ -125,19 +88,7 @@ class Desk:
         self._held = {}
 
     def _hold(self, key, low, high, here):
-        """Advance one channel's held extremes and return them.
-
-        The two ends are held separately and signed. Holding one magnitude
-        and mirroring it was what put the peak mark on the wrong side of the
-        bar: a phase sitting at +62 A showed its caret at -62, where the
-        current had never been.
-
-        Each end is PUSHED out at once by a window's extreme beyond it and
-        RELEASED toward the bar's level `here` by RELEASE of the distance
-        an update, `decay` at the least - a peak hold's ballistics: it
-        stands where the signal went for a moment, then falls back onto
-        where it is. It never falls below this window's own extreme.
-        """
+        """Advance one channel's held extremes and return them."""
         was = self._held.get(key)
 
         if was is None:
@@ -189,10 +140,7 @@ class Desk:
         suffix, decimals, _divisor = unit_of(row)
         ends = span(row)
 
-        # Both ends, always. A plus-or-minus was tried and is wrong twice
-        # over: the thermistor's scale is cold at one rail and hot at the
-        # other, and even a phase channel is not symmetric - the converter
-        # runs -32768 to +32767, which is one code short at the top.
+        # Both ends, always.
         label = '?' if ends is None else '%.3g..%.3g' % ends
         label = label.rjust(SCALE)
 
@@ -203,12 +151,7 @@ class Desk:
         return label, '%+.*f %s' % (decimals, now, suffix)
 
     def update(self, rows, colour=False):
-        """The desk, as text, from one read_all()'s channel rows.
-
-        `colour` off by default so a suite can compare the picture to an
-        expected string. The tool that knows it is writing to a terminal
-        turns it on.
-        """
+        """The desk, as text, from one read_all()'s channel rows."""
         lines = []
         for row in sorted(rows, key=lambda r: r['index']):
             name = SHORT.get(row['signal'], (row['signal'] or '?')[:2])

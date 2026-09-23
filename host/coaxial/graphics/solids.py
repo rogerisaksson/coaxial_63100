@@ -1,10 +1,4 @@
-"""The STL as solids. A solid is (positions, indices, normals) - the
-export decimated on a grid (`mesh._clustered`), with the bore's corners
-kept exact - held in memory for the process, keyed on the file's mtime;
-the slab's top and bottom faces measured off a solid's own vertices;
-the shadow casters' coarse solid; and the parametric board for a tree
-with no STL. `wireframe._lods` builds the levels of detail from here
-and takes the preload's pickle in."""
+"""The STL as solids."""
 import functools
 import os
 
@@ -24,9 +18,8 @@ def _decimated(path, divisions):
     got = _MESHES.get(stamp)
     if got is not None:
         return got
-    # Six LODs and the shadow casters of one file coexist; only a
-    # runaway set - a re-exported STL changing every stamp - clears
-    # the lot.
+    # Six LODs and the shadow casters of one file coexist; only a runaway set -
+    # a re-exported STL changing every stamp - clears the lot.
     if len(_MESHES) > MESHES_KEPT:
         _forget()
     got = _MESHES[stamp] = mesh._clustered(mesh.loaded(path), divisions,
@@ -52,8 +45,8 @@ def _bore_keep(corner):
 
 def _forget():
     """Every solid this process holds, and the slab planes measured off
-    them. `wireframe._forget` clears the outline's and the pre-scan's
-    caches with it: a solid's id can come round again."""
+    them.
+    """
     _MESHES.clear()
     _PLANES.clear()
 
@@ -96,9 +89,7 @@ def _parametric_casters():
 
 
 def _casters() -> tuple:
-    """The shadow pass's own solid: the same STL, coarser still. The
-    mesh cache keys on the file's mtime, so a fresh export replaces
-    both solids by itself."""
+    """The shadow pass's own solid: the same STL, coarser still."""
     try:
         return _decimated(orientation.MODEL, 10)
     except (OSError, ValueError):
@@ -106,12 +97,11 @@ def _casters() -> tuple:
 
 
 def _slab_top(pos):
-    """The z of the slab's top face, from the mesh: the most populated
-    z level - unless a level at least 60 % as populated lies a
-    millimetre or more ABOVE it, which is the slab's other face when
-    the bottom happened to win the count. A part's lid never comes
-    near the slab's population. Measured, never assumed - see
-    OUTLINE_RISE."""
+    """The z of the slab's top face, from the mesh: the most populated z
+    level - unless a level at least 60 % as populated lies a millimetre
+    or more ABOVE it, which is the slab's other face when the bottom
+    happened to win the count.
+    """
     counts = {}
     for i in range(2, len(pos), 3):
         key = round(pos[i], 4)
@@ -134,7 +124,8 @@ def _slab_bottom(pos, top):
     """The z of the slab's bottom face, from the mesh: the most populated
     level a millimetre or more under `top` that still carries
     SLAB_BOTTOM_SHARE of the top's population - or None for a slab with
-    one face, like the suite's synthetic one."""
+    one face, like the suite's synthetic one.
+    """
     counts = {}
     for i in range(2, len(pos), 3):
         key = round(pos[i], 4)

@@ -1,5 +1,4 @@
-"""Compact renderers. This module is where the token budget is actually spent.
-"""
+"""Compact renderers."""
 from coaxial import angle as a1335     # angle() below is the renderer; this is the sensor's arithmetic
 from coaxial.thermal import pretty
 
@@ -19,11 +18,7 @@ def si(hz):
 
 
 def analog_map(channels):
-    """The analog channels, headed and counted. Its own block, because the
-    digital ones used to sit under this header with no index and the columns
-    out of line - measured, asked for "en lista over alla analoga kanaler",
-    the screen carried both sets as one table.
-    """
+    """The analog channels, headed and counted."""
     lines = ['analog: %d channel%s' % (len(channels),
                                        '' if len(channels) == 1 else 's'),
              'ch adc pin          dir   mode name']
@@ -36,8 +31,8 @@ def analog_map(channels):
 
 
 def digital_map(pins, what='digital'):
-    """The digital I/O, or the reserved pins, in their own block with their own
-    header. No index and no mode column: they have neither.
+    """The digital I/O, or the reserved pins, in their own block with their
+    own header.
     """
     unit = 'pin' if what == 'reserved' else 'channel'
     lines = ['%s: %d %s%s' % (what, len(pins), unit,
@@ -89,10 +84,8 @@ def digital_levels(rows):
 
 
 def _identity(version, clock):
-    """Who the board says it is, and what it runs at - and what it IS, from the
-    device, when the device says. A name picks a codec; a description says
-    what is on the other end of the bus, which is the difference between
-    five units and five devices.
+    """Who the board says it is, and what it runs at - and what it IS, from
+    the device, when the device says.
     """
     lines = [
         '%s %s fw%s proto%d.%d build "%s"' % (
@@ -416,15 +409,11 @@ def imu(what, payload):
 
 
 def checks(results):
-    """Self-test results, one per line. A leading marker so the pass/fail split
-    is visible without the model parsing a word: 'ok', 'FAIL', or blank for
-    the informational values whose judgement belongs to the test executive.
-    """
+    """Self-test results, one per line."""
     marks = {'pass': 'ok  ', 'fail': 'FAIL', 'info': '    '}
     lines = []
     for check in results:
-        # An INFO value of zero is a reading, not an absence, so it is
-        # printed.
+        # An INFO value of zero is a reading, not an absence, so it is printed.
         show = check['status'] == 'info' or check['value']
         lines.append(('%s %-20s %s' % (marks.get(check['status'], '?   '),
                                        check['name'],

@@ -100,11 +100,10 @@ class Thermal(Device, device=protocol.DEVICE_THERMAL):
         return got
 
     def network(self):
-        """The graph the board runs: every node's capacity, air path, share of
-        the face, junction-per-watt and forced-convection gain, and every
-        edge's two nodes and K/W - what the record overlays on the core's
-        defaults, as the observer holds it now. MINOR 13; a board without it
-        refuses the op, and the raise says so.
+        """The graph the board runs: every node's capacity, air path, share
+        of the face, junction-per-watt and forced-convection gain, and
+        every edge's two nodes and K/W - what the record overlays on the
+        core's defaults, as the observer holds it now.
         """
         nodes = {_node(i): _node_row(page)
                  for page in pages(self._nodes_from) for i in page.indices()}
@@ -116,8 +115,8 @@ class Thermal(Device, device=protocol.DEVICE_THERMAL):
         return self._op(ThermalOp.NODES, pack(('u8', first)))
 
     def set_edge(self, edge, k_per_w):
-        """One edge's K/W, by index in the table `network()` lists; None opens
-        it. Written to the observer and to the record's RAM copy.
+        """One edge's K/W, by index in the table `network()` lists; None
+        opens it.
         """
         on_wire = OPEN_EDGE if k_per_w is None else milli(k_per_w)
         return self._ack(ThermalOp.SET_EDGE,
@@ -184,23 +183,22 @@ class Thermal(Device, device=protocol.DEVICE_THERMAL):
 
     def reset_identification(self):
         """Forget what was identified: scales to one, UNCERTAIN, the margin
-        back at the floor. Nothing is written anywhere.
+        back at the floor.
         """
         return self._ack(ThermalOp.IDENT_RESET)
 
     def set_margin_floor(self, floor):
         """The least of every ceiling's span the envelope keeps while the
-        identification has no evidence for its model, a fraction (0, 1]; the
-        margin rises from here to one as the evidence comes in.
+        identification has no evidence for its model, a fraction (0, 1];
+        the margin rises from here to one as the evidence comes in.
         """
         return self._ack(ThermalOp.SET_MARGIN, pack(('i32', micro(floor))))
 
     def situation(self, name=None, switching=None):
         """A board has no ground truth to put in a situation: that is the
-        stand-in's (`SimulatedThermal.situation`), where a box, a fan or a
-        heat sink is laid over a hypothetical board for the identification
-        to find. Here it is refused in words, so a page that asks on the
-        wrong rig hears why rather than AttributeError.
+        stand-in's (`SimulatedThermal.situation`), where a box, a fan or
+        a heat sink is laid over a hypothetical board for the
+        identification to find.
         """
         raise RigError('a board has no ground truth to put in a situation - '
                        'the stand-in has (simulated_device=True): box, fan, '
@@ -208,11 +206,10 @@ class Thermal(Device, device=protocol.DEVICE_THERMAL):
 
     def load_cycle(self, amps=None, on_s=None, off_s=None):
         """A board's load is the drive's and the bench's to put through it -
-        `tools/switch.py`, `tools/pulse.py`, the drive - not the observer's
-        to lay on from here: that is the stand-in's
+        `tools/switch.py`, `tools/pulse.py`, the drive - not the
+        observer's to lay on from here: that is the stand-in's
         (`SimulatedThermal.load_cycle`), where a page in simulated mode
-        cycles 30 A on and off so the map's regions warm and cool. Refused
-        in words on a board, so the page hears why.
+        cycles 30 A on and off so the map's regions warm and cool.
         """
         raise RigError('a board has no load to lay on from the observer - '
                        'the drive and tools/switch.py put current through '

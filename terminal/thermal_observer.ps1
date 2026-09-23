@@ -1,39 +1,16 @@
 <#
 .SYNOPSIS
     Thermal picture of the board: where the heat is, not just how hot.
-
 .DESCRIPTION
-    The board is an annulus, 100 mm across with a 10 mm bore. Zones are drawn
-    where they sit - switches in a line across the top, the supply out to the
-    left, the AFE along the bottom, the DC link upper right.
-
-    The field is diffuse on purpose: heat in a laminate spreads, and sharp
-    zones would be a lie about the physics. Each source is a Gaussian blob.
-
-    The zone temperatures are the thermal observer running in the firmware at 10 Hz,
-    read over 0x6E device 8 - not recomputed here.
-
-    AFE_ON is left as found. The gate is inverted, so switching it on would
-    take the gate drivers' supply away, and with it the load worth watching.
-    While it is off there is no NTC either and the model runs open on power
-    and time.
-
+    The board is an annulus, 100 mm across with a 10 mm bore.
 .PARAMETER Simulated
-    No cable. Every value is invented.
-
+    No cable.
 .PARAMETER Switch
-    Duty 0-1. Arms the gate drivers and holds it while drawing, so the zones
-    have a load to follow. Without it the view only watches.
-
+    Duty 0-1.
 .PARAMETER Frames
-    Stop after this many frames. Without it the view runs until Q, ESC or
-    Ctrl+C.
-
+    Stop after this many frames.
 .EXAMPLE
     .\terminal\thermal_observer.ps1
-    .\terminal\thermal_observer.ps1 -Simulated
-    .\terminal\thermal_observer.ps1 -Hz 4
-    .\terminal\thermal_observer.ps1 -Switch 0.5
 #>
 [CmdletBinding()]
 param(
@@ -62,7 +39,5 @@ try {
     Pop-Location
 }
 
-# 64 is show_thermal_observer.py's TO_MENU. Swallowing it here is what stopped ESC
-# from going back to coaxial_tty.ps1's menu - the view returned it and the wrapper
-# dropped it on the floor.
+# 64 is show_thermal_observer.py's TO_MENU.
 exit $code

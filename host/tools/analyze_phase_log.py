@@ -14,8 +14,7 @@ N_DIFF = 32768.0          # differential: offset binary, code already centred
 DIV_DCBUS = (49900.0 + 2200.0) / 2200.0
 
 # name -> (full-scale denominator, gain from ADC pin to the physical quantity,
-#          unit, note). gain None = unknown analog gain ahead of the pin, so
-#          the pin voltage is all we can honestly report.
+# unit, note).
 CHANNELS = {
     'U':     (N_DIFF, None,      'V', 'AFE gain unknown - value is at the ADC pin'),
     'V':     (N_DIFF, None,      'V', 'AFE gain unknown - value is at the ADC pin'),

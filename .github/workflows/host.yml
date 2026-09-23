@@ -1,12 +1,5 @@
-# The offline gate, on every push: the suites that need no board, no
-# ollama daemon and no bench - the same set `run_tests.py --offline` has
-# always named. The C cores (Modbus, SHTP, Filter, Drive) build with the
-# runner's own gcc exactly as they do with the bench's; the model-driven
-# test pick degrades to the path map on a machine with no daemon, which a
-# runner is. What CI cannot judge stays what it always was: parity,
-# bench, conformance and the live model wait for hardware, and the
-# .counts.json totals check states that a fresh clone has measured
-# nothing rather than failing on it.
+# The offline gate, on every push: the suites that need no board, no ollama
+# daemon and no bench - the same set `run_tests.py --offline` has always named.
 name: host
 
 on:

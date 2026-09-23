@@ -71,11 +71,7 @@ SIDE_EVERY = 5.0
 
 
 def capability(board):
-    """The board's own entry for its angle sensor, or None if it has none.
-
-    Read from the board, not decided here: `channels` kind 4 is the parts
-    list the firmware carries, so a board without the part says so itself.
-    """
+    """The board's own entry for its angle sensor, or None if it has none."""
     try:
         parts = board.system.channel_map()['parts']
     except (RigError, KeyError):
@@ -90,11 +86,6 @@ def capability(board):
 def preflight(board, part):
     """Power what the part needs, read what does not change, and start the
     loop on the angle register.
-
-    Returns (field, kelvin), read once: the loop reads one register at a
-    time, so polling them would cost the angle its sample rate, and neither
-    moves at the rate the angle does. The supply is Coaxial63100's - it
-    brings AFE_ON up on the way in and puts it back on the way out.
     """
     say('ok', 'capability', '%s - %s, on %s'
         % (part['name'], part['what'], part['where']))
@@ -141,13 +132,7 @@ def reread(board, field, kelvin):
 
 
 def _foot(colour, degrees, field, width=ART_WIDTH):
-    """The reading under the face, in the needle's own colour.
-
-    THE SAME RULE THE ROTOR OBSERVER'S FOOT FOLLOWS: a scale says how far
-    along it is and never what it is worth, and the box that carries the
-    figures is the next one down the page. In the needle's ink so the
-    line and the thing it names read as one.
-    """
+    """The reading under the face, in the needle's own colour."""
 
     text = dial.caption(degrees, field)
     line = ' ' * max(0, (width - len(text)) // 2) + text
@@ -168,12 +153,7 @@ def _face(degrees, field, kelvin, width, aspect, colour, scales):
 def compose(origin, console, part, state, field, kelvin, rate, note,
             aspect=(dial.CELL_ASPECT, 'assumed'), scales=False,
             width=ART_WIDTH):
-    """One frame on the stage: the dial left, the target's numbers right.
-    `console` is the Console the page draws on, coloured on a terminal.
-    `aspect` is `(cell aspect, how it was known)` - the face is drawn
-    round for THIS terminal, and the box says whether that was measured.
-    With `scales` the face stands between the die's temperature and the
-    field, each a tube on its own range, `width` wide - `fit` says."""
+    """One frame on the stage: the dial left, the target's numbers right."""
 
     if state is None:
         art, side = 'no reading', []
@@ -182,15 +162,9 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
         degrees = state.get('degrees', counts * 360.0 / 4096.0)
         weak = field is not None and field < dial.WEAK_GAUSS
 
-        # COLOURED AT THE RENDER, not after it: a braille cell carries
-        # dots from up to eight places and its glyph does not say which,
-        # so there is nothing for a `colourise(text)` to key on. That is
-        # what took the old one out.
-        #
-        # And no registration crosses. They are written only into cells
-        # holding a plain space, and every cell of a dot drawing holds
-        # U+2800 instead - the mark could never land, and a call that
-        # cannot do anything is worse than no call.
+        # COLOURED AT THE RENDER, not after it: a braille cell carries dots
+        # from up to eight places and its glyph does not say which, so there is
+        # nothing for a `colourise(text)` to key on.
         art = _face(degrees, field, kelvin, width, aspect[0],
                     console.is_terminal, scales)
 
@@ -236,9 +210,9 @@ def main(argv=None):
     parser.add_argument('--no-scales', dest='scales', action='store_false')
     args = parser.parse_args(argv)
 
-    # power_afe SAID: the default went quiet-False when every connect
-    # stopped flipping the rail, and this view inherited it - the part it
-    # exists to show is AFE-powered, so it asks by name and puts it back.
+    # power_afe SAID: the default went quiet-False when every connect stopped
+    # flipping the rail, and this view inherited it - the part it exists to
+    # show is AFE-powered, so it asks by name and puts it back.
     rig = open_rig('LINKING A1335', port=args.port, power_afe=True,
                    simulated_device=bool(args.simulated))
     if rig is None:
@@ -272,9 +246,9 @@ def main(argv=None):
     board_view = stage()
     terminal = board_view.is_terminal
     leaving = None
-    # THE CELL'S SHAPE, ASKED ONCE: the face is drawn round for this
-    # terminal the way the rotor observer's can is, and the box says
-    # whether the measurement happened.
+    # THE CELL'S SHAPE, ASKED ONCE: the face is drawn round for this terminal
+    # the way the rotor observer's can is, and the box says whether the
+    # measurement happened.
     aspect = _screen.aspect_of(args.cell_aspect)
     say('ok', 'cell', '%.2f tall, %s' % aspect)
     try:

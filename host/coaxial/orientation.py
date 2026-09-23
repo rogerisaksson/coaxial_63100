@@ -1,21 +1,4 @@
-"""The board's attitude, drawn in characters.
-
-The IMU reports a unit quaternion; read aloud it tells nobody which way up
-anything is. This draws the PCB instead.
-
-The board is a flat annulus, 100 mm across with a 10 mm bore, PCB-thin,
-mounted coaxially behind an outrunner's stator with the shaft through it.
-
-Drawn the way a1k0n draws a donut (a1k0n.net/2011/07/20/donut-math.html):
-sample the surface, project with perspective, z-buffer the nearest, shade by
-how the surface faces the light. Not a torus - one radius would set both the
-bore and the thickness, so a small hole forces a fat ring; the two faces and
-two rims are sampled separately. The rotation is the reported quaternion, not
-an animation angle, so the picture turns because the board did.
-
-Pure: a quaternion in, text out. No serial port, terminal or clock, so it is
-testable without a board; `tools/show_orientation.py` is what needs one.
-"""
+"""The board's attitude, drawn in characters."""
 import functools
 import math
 import os
@@ -54,12 +37,7 @@ SPINNER = ('|', '/', '-', '\\')
 
 
 def rotate(q, v):
-    """`v` turned by the unit quaternion `q`, given as (i, j, k, real).
-
-    The sandwich product q*v*conj(q), written out rather than composed from a
-    quaternion class: there is one rotation in this repository and a class for
-    it would be an abstraction with one implementation.
-    """
+    """`v` turned by the unit quaternion `q`, given as (i, j, k, real)."""
     i, j, k, w = q
     x, y, z = v
 
@@ -73,16 +51,7 @@ def rotate(q, v):
 
 
 def relative(q, reference):
-    """`q` with `reference` taken out: the attitude SINCE the tare.
-
-    q_rel = q * conj(reference): the rotation SINCE the tare, in WORLD
-    axes - the frame the camera lives in. The body-side form
-    (conj(ref) * q) was tried first and it conjugated the Rz180 mounting
-    through everything, which mirrored X and Y exactly as measured on the
-    bench; on the world side the mount cancels out of the relative
-    attitude entirely. The zero button still kills the mounting offset
-    and the arbitrary yaw in one press.
-    """
+    """`q` with `reference` taken out: the attitude SINCE the tare."""
     ri, rj, rk, rw = reference
     return _qmul(q, (-ri, -rj, -rk, rw))
 
@@ -132,13 +101,7 @@ MIRROR = (False, False, False)
 
 
 def mounted(q, mount=None):
-    """The BOARD's attitude, from the sensor's own quaternion.
-
-    The measured MIRROR first, then q_board = q_sensor * conj(mount):
-    sensor axes are R(mount) times board axes, so board coordinates are
-    R(mount) applied to sensor coordinates, which is the RIGHT-side
-    conjugate. At the old Rz180 the two sides were the same rotation and
-    the distinction was invisible; at 90 degrees it is the whole bug."""
+    """The BOARD's attitude, from the sensor's own quaternion."""
     i, j, k, w = q
     i, j, k = (-i if MIRROR[0] else i,
                -j if MIRROR[1] else j,
@@ -151,28 +114,7 @@ def _conj(q):
 
 
 def attitude(q, tare=None):
-    """What the display draws: the board's rotation since the tare.
-
-    q_disp = MOUNT * (conj(tare) * q) * conj(MOUNT) - the body-relative
-    change, conjugated into board axes through the mounting. Derivation:
-    q_board = q_sensor * conj(MOUNT), so conj(q_board0) * q_board wraps
-    the sensor-frame change in MOUNT on the LEFT. Every simpler form was
-    tried and measured wrong on the bench:
-
-      * q * MOUNT alone carries the resting mount and the arbitrary yaw;
-      * body-side tare conj(ref) * q conjugated the mount through the
-        result and mirrored X and Y - the first dial finding;
-      * world-side tare q * conj(ref) cancelled the mount but expressed
-        the turn in world axes, mirroring X once the tare yaw was 180;
-      * conj(MOUNT) * body * MOUNT - this sandwich REVERSED - passed
-        every numeric check at the old Rz180 mount, because a 180 equals
-        its own conjugate and the two orders coincide. The 90-degree
-        mount is where they part, and the bench said so: X drew as Y and
-        Y as X while Z stayed true (2026-08-29).
-
-    With MOUNT = Rz90: +theta about board X draws +theta about screen X,
-    board Y about screen Y, CCW yaw draws CCW, and rest is identity.
-    """
+    """What the display draws: the board's rotation since the tare."""
     if tare is None:
         return mounted(q)
     body = _qmul(_conj(tare), q)
@@ -180,13 +122,7 @@ def attitude(q, tare=None):
 
 
 def matrix(q):
-    """`q` as a 3x3 rotation, row-major and flattened.
-
-    render() turns 45,000 points and 45,000 normals per frame. Through
-    rotate() that is 90,000 sandwich products; as a matrix it is one
-    construction and nine multiplies apiece. Measured: 54 ms a frame down to
-    28, which is the difference between 18 frames a second and 20.
-    """
+    """`q` as a 3x3 rotation, row-major and flattened."""
     i, j, k, w = normalise(q)
 
     ii, jj, kk = i * i, j * j, k * k
@@ -199,12 +135,7 @@ def matrix(q):
 
 
 def normalise(q):
-    """`q` as a unit quaternion, or the identity if it has no length.
-
-    A rotation vector from a part that is still settling can read all zeros,
-    and dividing by that would put a NaN on the screen where an orientation
-    belongs.
-    """
+    """`q` as a unit quaternion, or the identity if it has no length."""
     i, j, k, w = q
     n = math.sqrt(i * i + j * j + k * k + w * w)
     if n < 1e-9:
@@ -213,13 +144,7 @@ def normalise(q):
 
 
 def angle_between(a, b):
-    """Degrees of rotation from attitude `a` to attitude `b`.
-
-    The rotation taking one to the other has a real part equal to the
-    cosine of half the angle - |<a, b>| for unit quaternions, the
-    absolute value because q and -q are the same rotation. Pure, for a
-    view to ask "did the board actually move" before it redraws.
-    """
+    """Degrees of rotation from attitude `a` to attitude `b`."""
     ai, aj, ak, aw = normalise(a)
     bi, bj, bk, bw = normalise(b)
     dot = abs(ai * bi + aj * bj + ak * bk + aw * bw)
@@ -227,11 +152,7 @@ def angle_between(a, b):
 
 
 def euler_degrees(q):
-    """(roll, pitch, yaw) in degrees, for the caption above the picture.
-
-    Aerospace order - yaw about Z, then pitch about Y, then roll about X -
-    because that is what anybody reading "the board is tilted" expects.
-    """
+    """(roll, pitch, yaw) in degrees, for the caption above the picture."""
     i, j, k, w = normalise(q)
 
     roll = math.atan2(2.0 * (w * i + j * k), 1.0 - 2.0 * (i * i + j * j))
@@ -244,13 +165,7 @@ def euler_degrees(q):
 
 
 def facing(q):
-    """How much of the component side is turned towards the reader, -1..1.
-
-    The board's +Z normal after rotation, against the direction the camera
-    actually stands in - not against +Z. The camera has been oblique since
-    the viewpoint was taken from the reference, and reading the normal's z
-    alone would have gone on answering for a camera that is not there.
-    """
+    """How much of the component side is turned towards the reader, -1..1."""
     normal = rotate(normalise(q), (0.0, 0.0, 1.0))
     return sum(normal[a] * CAMERA[a] for a in range(3))
 
@@ -276,8 +191,8 @@ COMPONENTS = [
     ('fet', 108.0, 0.58, 0.09, 4.5, 0.05),
     ('fet', 120.0, 0.58, 0.09, 4.5, 0.05),
 
-    # The micro, in the third quadrant and in close to the bore - the
-    # quietest place on a board whose outside is a switching gate_drivers.
+    # The micro, in the third quadrant and in close to the bore - the quietest
+    # place on a board whose outside is a switching gate_drivers.
     ('micro', 215.0, 0.30, 0.13, 22.0, 0.035),
 
     # DC link, in the fourth quadrant against the first: the supply comes in
@@ -288,11 +203,7 @@ COMPONENTS = [
 
 
 def _passives(count=26, seed=63100):
-    """Small parts, scattered clear of the placed ones.
-
-    Seeded, not random per frame: a picture whose passives move is a picture
-    of a board that is coming apart.
-    """
+    """Small parts, scattered clear of the placed ones."""
 
     rng = random.Random(seed)
     taken = [(phi, r, dr, dphi) for _, phi, r, dr, dphi, _ in COMPONENTS]
@@ -341,15 +252,7 @@ ZONE_SHADES = {
 
 
 def _quad(out, a, b, c, d):
-    """One four-sided face, as the two triangles it is made of.
-
-    Indexed through `out['seen']`, which is what made the old form a latent
-    fault: it appended corner positions and per-face normals into the first
-    two slots of a tuple and returned an empty third, so on a machine
-    without the STL the fallback board had no indices and drew NOTHING.
-    Never seen here because this tree carries the export - the shape only
-    had to be wrong somewhere the tests never run.
-    """
+    """One four-sided face, as the two triangles it is made of."""
     for corners in ((a, b, c), (a, c, d)):
         normal = mesh.face_normal(corners[0], corners[1], corners[2],
                                    (0.0, 0.0, 1.0))
@@ -369,11 +272,7 @@ def _quad(out, a, b, c, d):
 
 
 def _box(out, phi_deg, radius, half_r, half_phi_deg, height):
-    """One part, as a box in polar coordinates.
-
-    Polar because it follows the board's curvature, which is what a part on a
-    round PCB does and what keeps the outer ones from hanging off the rim.
-    """
+    """One part, as a box in polar coordinates."""
     half_phi = math.radians(half_phi_deg)
     phi0 = math.radians(phi_deg)
     height = height * out.get('relief', 1.0)
@@ -392,20 +291,7 @@ def _box(out, phi_deg, radius, half_r, half_phi_deg, height):
 
 
 def facets(steps=PHI_STEPS, tinted=False, relief=1.0) -> tuple:
-    """The parametric board, with no STL: the DRAWING of this hardware.
-
-    Four surfaces, because a board has four - the component face, the solder
-    face, the outer rim and the bore - and then what is mounted on the
-    component side. Built once and reused: the geometry does not change,
-    only the rotation does.
-
-    `steps` is the annulus resolution; the toon view runs it coarse on
-    purpose. `tinted` appends the per-triangle palette colour, for the
-    renderer's zone tints. `relief` scales the parts' heights - a DRAWING
-    exaggerates: at 1.0 a FET is 0.05 units proud of a board seen from 55
-    degrees, under one cell at any terminal size, and the picture read as
-    an empty disc.
-    """
+    """The parametric board, with no STL: the DRAWING of this hardware."""
     out = {'pos': [], 'idx': [], 'nrm': [], 'seen': {}, 'tint': [],
            'zone': 'board', 'relief': relief}
 
@@ -542,12 +428,7 @@ def _multiply(a, b):
 
 
 def viewpoint(azimuth=VIEW_AZIMUTH, elevation=VIEW_ELEVATION):
-    """The rotation that carries a camera at (azimuth, elevation) onto +Z.
-
-    Applied before the board's own rotation, so it is where the viewer
-    stands and not something the board is doing: the board still turns
-    exactly as the IMU says, seen from a fixed corner of the room.
-    """
+    """The rotation that carries a camera at (azimuth, elevation) onto +Z."""
     a = math.radians(-azimuth)
     e = math.radians(elevation - 90.0)
     ca, sa = math.cos(a), math.sin(a)
@@ -585,16 +466,7 @@ FITS_KEPT = 64
 
 
 def _fit(cols, rows, zoom=1.0, model=None):
-    """How far to stand back for a window this size, with the board at rest.
-
-    Measured from the viewpoint alone and not per frame: a fit that tracked
-    the board's own rotation would grow and shrink the drawing as it tilted,
-    which reads as the board moving toward you rather than turning. Fixed, a
-    violent tilt can push a corner past the edge - a fair trade for a picture
-    that fills the window at rest, and the numbers above it are the reading.
-
-    Cached because a window is resized far less often than it is redrawn.
-    """
+    """How far to stand back for a window this size, with the board at rest."""
     model = _model() if model is None else model
     key = (id(model[0]), cols, rows, round(zoom, 3))
     got = _FITS.get(key)
@@ -622,21 +494,12 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
            ramp=ascii3d.CHARACTERS, toon=False, colour=False, wire=False,
            frame_on=True, crew=None, persist=None, scroll=None,
            ahead=False):
-    """The board under rotation `q`, as `height` lines of `width` characters.
-
-    The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
-    the browser - its ramp, its light, its brightness mapping and its two
-    framebuffer rows per character row. What is this module's is the model,
-    the rotation and the caption.
-
-    `ramp` is threaded rather than left to ascii3d's default because the
-    camera distance and centring are worked out HERE, from the fit: a caller
-    that wanted a shorter ramp had to re-derive both, and reaching past this
-    function for one of them is how a drawing ends up off-centre.
+    """The board under rotation `q`, as `height` lines of `width`
+    characters.
     """
     if wire and shop is None:
-        # The vector drawing: chosen edges, hidden lines removed, depth-
-        # cued strokes - coaxial.wireframe, not a wireframed mesh.
+        # The vector drawing: chosen edges, hidden lines removed, depth- cued
+        # strokes - coaxial.wireframe, not a wireframed mesh.
         from .graphics import wireframe   # here, not at the top: it imports this
         return wireframe.render(q, width, height, zoom=zoom, colour=colour,
                                 horizon=frame_on, triad=frame_on, lift=LIFT,
@@ -647,7 +510,7 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
     if (toon or wire) and shop is None:
         # The whole cartoon package: the parametric board, posterised ramp,
         # culled back faces, depth-edge ink - and each part in its zone's
-        # colour when `colour` is on. 956 triangles, so no process pool.
+        # colour when `colour` is on.
         chosen, tints = toon_mesh()
         distance, off_x, off_y = _fit(cols, rows, zoom, chosen)
         return ascii3d.render(chosen, _multiply(VIEWPOINT, matrix(q)),
@@ -668,13 +531,7 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
                           light=LAMP, ramp=ramp)
 def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0,
             shop=None, toon=False, colour=False):
-    """The drawing with the numbers it is a reading of, above it.
-
-    The quaternion leads: it is what the part reports and what moves when the
-    board does. `frame` and `age` are for a live view - a counter that moves
-    says the picture is being redrawn, and the age says whether the part is
-    still sending.
-    """
+    """The drawing with the numbers it is a reading of, above it."""
     roll, pitch, yaw = euler_degrees(q)
     i, j, k, w = normalise(q)
     side = 'component side' if facing(q) > 0.0 else 'solder side'

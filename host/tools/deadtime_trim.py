@@ -59,12 +59,7 @@ def _rails(table, params):
 
 
 def sample(rig, params):
-    """Stand down, measure, and hand back what the board said.
-
-    The stage goes down FIRST and comes back up LAST: AFE_ON high removes the
-    gate drivers' supply, so the only safe moment to have both is with MOE
-    clear.
-    """
+    """Stand down, measure, and hand back what the board said."""
     steady(rig.gates.disarm)
     if steady(rig.board.afe.enable) is None:
         return {}
@@ -76,8 +71,7 @@ def sample(rig, params):
         got['ntc'] = state['ntc']
         got['uptime'] = state['seconds']
     if spend is not None:
-        # THE HOTTEST LEG. A sweep drives one leg or three, and a mean
-        # over three hides the one that is closest to shoot-through.
+        # THE HOTTEST LEG.
         used = spend['used']
         got['drivers'] = max(used[n] for n in thermal.DRIVERS)
         got['phases'] = max(used[n] for n in thermal.PHASES)
@@ -93,10 +87,7 @@ def step(rig, params, nanoseconds, skew, seconds, every, legs):
         return None
 
     held = steady(rig.gates.dead_time, nanoseconds, skew=skew)
-    # ONE LEG IS THE SENSITIVE TEST. Dry switching draws almost nothing, so
-    # with the supply's OCP wound down, a single leg's shoot-through is the
-    # whole of the current there is - three legs would share the trip between
-    # them and hide which one did it.
+    # ONE LEG IS THE SENSITIVE TEST.
     load = dict(('Phase %s' % leg, 0.5 if leg in legs else 0.0)
                 for leg in ('U', 'V', 'W'))
     if steady(rig.write, analog=load) is None:

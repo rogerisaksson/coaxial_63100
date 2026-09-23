@@ -1,5 +1,5 @@
 <#
-    One line of preflight output, coloured by state. Every other file in this
+    One line of preflight output, coloured by state.
     folder calls this - dot-source it before any of the others, though in
     practice board_chat.ps1 dot-sources the whole folder up front and none
     of these functions run until well after that, so the order among them

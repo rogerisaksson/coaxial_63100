@@ -1,7 +1,8 @@
 """The drive: the sensorless observers ranked by measurement, the firmware's
-law over the link sweep, the envelope, and the rotor observer on the board's
-own PMSM model - the FOC Monte Carlo and the rotor observer session, as one
-paper."""
+law over the link sweep, the envelope, and the rotor observer on the
+board's own PMSM model - the FOC Monte Carlo and the rotor observer
+session, as one paper.
+"""
 from .parts import code, md, section
 
 TITLE = 'The drive'
@@ -146,9 +147,8 @@ def observe(plant, w_e, seconds=0.4):
         psi = math.hypot(flux.psi_alpha - fitted.ld * ia,
                          flux.psi_beta - fitted.ld * ib)
         res['flux'].append(abs(psi - fitted.lam) / fitted.lam)
-        # The blend, ramped over BLEND_BAND on the observer's own speed
-        # and applied to the unit vectors - an angle is not a quantity
-        # you average. All sliding mode below the band, all flux above.
+        # The blend, ramped over BLEND_BAND on the observer's own speed and
+        # applied to the unit vectors - an angle is not a quantity you average.
         f = min(1.0, max(0.0, (abs(smo.omega) - lo) / (hi - lo)))
         x = (1.0 - f) * math.cos(th_s) + f * math.cos(th_f)
         y = (1.0 - f) * math.sin(th_s) + f * math.sin(th_f)

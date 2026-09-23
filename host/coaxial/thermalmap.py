@@ -1,62 +1,5 @@
 """The board as a thermal picture: a braille halftone in the thermal ramp,
 with the rim and the parts that make the heat drawn on it.
-
-A reading in, text out. No serial port, no terminal, no clock - so it tests
-without a board, the same way `orientation.py` and `dial.py` do.
-
-**Stylised, not a CAD render.** The board's own ASCII from `ascii3d.py` shows
-every component and is unreadable as a temperature field; this shows where
-the heat is and what makes it. THE FIELD IS A HALFTONE: each of a braille
-cell's eight dots is lit where the temperature under it clears its
-threshold in the blue-noise mask the attitude page's face uses
-(`raster.NOISE`), so a hot zone is dense and a cool one sparse, and the
-cell wears the thermal ramp's colour blended to 24 bits between its stops.
-The rim, the bore's edge and the marked parts are drawn over it in solid
-dots.
-
-IT WAS HALF BLOCKS: one palette stop a cell, the nearest, and a circle
-stepped at the cell. The bench's word was "pixelly", and "the thermal
-observer's style to braille too, more anti-aliased" - the face BOARD
-ATTITUDE had already settled on. Dots are twice the columns and four
-times the rows, the rim is one dot wide, and the colour no longer bands.
-
-**The field is diffuse on purpose.** Heat in a laminate spreads; sharp zone
-edges would be a lie about the physics, and would invite reading a cell as
-if it were a measurement. Every source is a Gaussian blob and they sum.
-
-GEOMETRY
-An annulus, 100 mm across with a 10 mm bore, mounted coaxially behind an
-outrunner's stator. Millimetres from centre, +y up, quadrants as in
-mathematics - Q1 upper right.
-
-    switches      across the top, two a leg, each pair over its driver
-    regulators    left
-    mcu           left of centre, below it
-    afe           along the bottom
-    hot swap      right
-    DC link       Q1 and just into Q2, out at the rim
-
-**Placed from the pick and place, 2026-09-05.** `electronics/Coaxial 63100
-Pick-Place.csv` is the authority on where a part sits, the way the parts
-list is on what is fitted: `PLACED` carries its coordinates for the parts
-the model heats and the picture marks, and `PNP_CENTRE` is the board's
-centre in the exporter's frame - the midpoint of the parts' extents, which
-the three phase pairs' symmetry agrees with to half a millimetre.
-`test_sensorless` holds both to the file. It was a tape measure: the
-switches were drawn 12 mm too high, the hot swap 15 mm too far out, and
-the drivers a leg's width from their legs.
-
-MARKED, on the bench's word: the MCU, the regulators, each phase's
-switches WITH ITS SHUNTS, the front-end amplifiers, the hot-swap
-controller and the thermistor - each group as a FRAME one dot wide
-round the parts, the field's own halftone untouched inside it, and a
-label. It was every package as a block with a white edge, and on the
-bench those were "grey areas": a cell is one colour, so an edge cell
-went white whole, and the small packages were all edge. A frame's cells
-light only the frame's dots, so the line is a dot wide with a dot of
-dark beside it - the same treatment the rim gets, "ideally one pixel".
-The labels are the one place a glyph sits on the field, and they wear
-the frame's ink so they read as marks and not as cold spots.
 """
 import math
 import shutil
@@ -358,14 +301,6 @@ def laminate_at(x_mm, y_mm, nodes, board_c):
 def field(x_mm, y_mm, board_c, nodes, layout=None):
     """Temperature at one point: the laminate under it plus every source's
     contribution.
-
-    THE LAMINATE IS THE PATCHES', when the observer has patches: since
-    the graph the board reports seven laminate temperatures, and the
-    picture blends them under the point (`laminate_at`) rather than one
-    bulk figure - so the front end's edge can sit cool while the bridge's
-    band is hot, which is what the camera saw and what one board node
-    could not draw. An older firmware reports no patches and the bulk
-    `board_c` stands for all of them.
     """
     layout = LAYOUT if layout is None else layout
     got = laminate_at(x_mm, y_mm, nodes, board_c)
@@ -373,16 +308,12 @@ def field(x_mm, y_mm, board_c, nodes, layout=None):
         value = nodes.get(name)
         if value is None:
             continue
-        # A source's rise is over the laminate it sits on - its patch
-        # where there is one - not over the bulk.
+        # A source's rise is over the laminate it sits on - its patch where
+        # there is one - not over the bulk.
         over = value - got
         if abs(over) < 1e-6:
             continue
-        # STRONGEST point in the zone, not the sum of them. Dividing the rise
-        # across a row made a row of four FETs peak at a quarter of its own
-        # temperature, so the zone never reached the number the model gave it
-        # and the picture said something different from the figures.
-        # Zones still add to each other - that part is real.
+        # STRONGEST point in the zone, not the sum of them.
         near = 0.0
         for sx, sy, sigma in spots:
             d2 = (x_mm - sx) ** 2 + (y_mm - sy) ** 2
@@ -396,14 +327,7 @@ def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     per_cell = 2.0 * OUTER_MM / cells
     bore = max(BORE_MM, BORE_MIN_CELLS * per_cell)
 
-    # THE GRID IS NOT SQUARE, and that is the point. A cell is taller than it
-    # is wide on the glass, so a round board needs fewer rows than columns -
-    # and the rows have to SPAN the board rather than be a square grid with
-    # blank margins trimmed off, because the trim lands on whole rows and
-    # leaves one more at the top than the bottom. Measured: the outline read
-    # 16, 24, 30 down the top and 26, 20, 10 up from the bottom.
-    #
-    # Even, because the halftone pairs field rows two to a character row.
+    # THE GRID IS NOT SQUARE, and that is the point.
     down = max(4, int(round(cells / aspect)) // 2 * 2)
     per_row = 2.0 * OUTER_MM / down
 
@@ -426,13 +350,7 @@ def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
 
 
 def _fit(colour, reserve, margin=0):
-    """Cells across the board, from the terminal.
-
-    `reserve` is every line in the finished frame that is NOT picture: the
-    banner, the readings, the blank lines, the scale and its labels. The
-    caller counts its own, because guessing here is what clipped the bottom
-    of the board off - a guess of 16 against a frame that spent 18.
-    """
+    """Cells across the board, from the terminal."""
     size = shutil.get_terminal_size((80, 30))
     rows = max(size.lines - reserve, 8)
     columns = max(size.columns - 2 - margin, 20)
@@ -441,9 +359,7 @@ def _fit(colour, reserve, margin=0):
     else:
         wide, high = columns // 2, rows
 
-    # EVEN. The halftone draws two field rows per character row, so an odd
-    # count leaves the last one unpaired. Rounded DOWN, so it still fits
-    # what was measured to be free.
+    # EVEN.
     return max(10, min(CELLS_MAX, min(wide, high))) // 2 * 2
 
 
@@ -466,28 +382,14 @@ FRAME_TOP, FRAME_BOTTOM = 1, 2
 
 
 def _cell_rect(box, cells, down, dx, dy):
-    """`[c0, c1, r0, r1]`: the cells a frame's edges land in. Never less
-    than two cells each way, so a small part still gets a box.
-
-    THE SIDES ON THE NEAREST DOT, mirrored about the board's centre: an
-    edge's dot column rounded half away from the centre, the cell that
-    dot is in and the lane it is in, so a box at +x is drawn exactly as
-    its twin at -x and neither is a dot wider than its millimetres.
-    Floored to cells on both sides, a right edge whose dot fell in a
-    cell's right lane lost a cell where the mirrored left edge kept it:
-    the bench, 2026-09-06, "the W area is a bit larger than the U area,
-    looks a bit odd" - in millimetres U's frame is the wider by a
-    millimetre, the drawing said otherwise at some widths. Top and
-    bottom take the cell row their dot falls in, mirrored about the
-    centre row the same way. Returns `(rect, lanes)`.
-    """
+    """`[c0, c1, r0, r1]`: the cells a frame's edges land in."""
     cx, cy, hw, hh = box
     wide, high = 2 * cells, 2 * down
     half = (wide - 1) / 2.0
 
     def dot(offset_dots):
-        # Half away from the centre, so a mirrored offset lands on the
-        # mirrored dot: the edge's column, 0 .. wide - 1.
+        # Half away from the centre, so a mirrored offset lands on the mirrored
+        # dot: the edge's column, 0 ..
         rounded = math.floor(abs(offset_dots) + 0.5)
         at = half + (rounded if offset_dots >= 0.0 else -rounded)
         return int(max(0, min(wide - 1, at)))
@@ -507,12 +409,10 @@ def _cell_rect(box, cells, down, dx, dy):
 def _share_edges(rects, lanes):
     """Two frames side by side SHARE THE LINE between them: where one's
     right edge and the other's left land within a cell column of each
-    other, the second is drawn on the first's column, in the first's
-    lane - one line, not two a dot apart into a solid column, nor two a
-    cell apart. REG and the MCU are a millimetre apart, and the bench
-    asked for one edge; the MCU's frame stands three millimetres off
-    its package, so its edge can land a cell inside REG's as well as
-    beside it, and either way it is the one line."""
+    other, the second is drawn on the first's column, in the first's lane
+    - one line, not two a dot apart into a solid column, nor two a cell
+    apart.
+    """
     for a, (ac0, ac1, ar0, ar1) in enumerate(rects):
         for b, (bc0, bc1, br0, br1) in enumerate(rects):
             if a == b or not (ar0 <= br1 and br0 <= ar1):
@@ -523,11 +423,10 @@ def _share_edges(rects, lanes):
 
 
 def _draw_frame(rows, rect, lane, cells, down):
-    """A frame SNAPPED TO THE CELL GRID: drawn as lines through its
-    cells' dots - FRAME_TOP and FRAME_BOTTOM across, a lane down each
-    side - so every corner is a right angle and every side a straight
-    run. A dot past the rim is left as it is, so a frame that reaches
-    the rim stops there."""
+    """A frame SNAPPED TO THE CELL GRID: drawn as lines through its cells'
+    dots - FRAME_TOP and FRAME_BOTTOM across, a lane down each side - so
+    every corner is a right angle and every side a straight run.
+    """
     c0, c1, r0, r1 = rect
     wide, high = 2 * cells, 2 * down
 
@@ -539,11 +438,7 @@ def _draw_frame(rows, rect, lane, cells, down):
     for c in range(c0, c1 + 1):
         for which in (0, 1):
             # THE LINE STARTS AT THE SIDE'S LANE, not at the corner cell's
-            # edge. A side that fell in the cell's inner lane had the top
-            # and bottom lines run one dot past it, and the corner read as
-            # a foot sticking out - `⠼` where `⠸` was meant - at 73 of 152
-            # corners over the five sizes measured (bench, 2026-09-12:
-            # the regions' corners).
+            # edge.
             if (c == c0 and which < lane[0]) or (c == c1 and which > lane[1]):
                 continue
             mark(r0, c, which, FRAME_TOP)
@@ -560,14 +455,7 @@ def _draw_frame(rows, rect, lane, cells, down):
 def _mask(cells, down, marks):
     """What every dot is by geometry alone - off the board, field, or a
     mark: the rim, the bore's edge, a frame's line - and which cells a
-    label covers. Cached by size, because none of it moves between frames
-    and the line test is eight frames a dot.
-
-    The rim is ONE DOT wide - `edge` is half a dot pitch either side of
-    the circle - which is what draws it as a line the dots follow rather
-    than a band the cells step. A frame is drawn by `_draw_frame` on the
-    cell grid, and one that reaches past the rim - the shunts sit at the
-    terminals - stops at the rim.
+    label covers.
     """
     key = (cells, down, marks)
     got = _MASKS.get(key)
@@ -616,21 +504,6 @@ def _mask(cells, down, marks):
 def _braille_rows(grid, marks=MARKS):
     """Colour rows: one character a cell, its four dot rows over the two
     field rows of the grid, in the ramp's colour blended per cell.
-
-    A DOT IS LIT BY THE MASK, not by its neighbours: the temperature under
-    it sets a share and the blue-noise rank at its own screen position
-    decides, so a flat region is an even stipple and a gradient a smooth
-    one, with no structure at any density (`wireframe` has the history).
-    The field is sampled per cell - a blob is eight millimetres wide and a
-    cell one, so the dots within a cell share a temperature and only the
-    mask varies between them.
-
-    A CELL WITH A MARK IN IT DRAWS THE MARK ALONE, in MARK_INK: one
-    colour a cell is what a terminal gives, and lighting the field's dots
-    in that cell too made every line a cell wide and white - the "grey
-    areas" and the thick rim the bench saw. Only the line's dots, and the
-    line is a dot wide with a dot of dark beside it. A cell whose field
-    centre is off the board can still hold rim dots, and draws them.
     """
     down, cells = len(grid), len(grid[0])
     mask, labels = _mask(cells, down, tuple(marks or ()))
@@ -703,26 +576,7 @@ def _ramp_rows(grid):
 def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
            reserve=None, trailing=2, aspect=CELL_ASPECT, margin=0,
            marks=MARKS):
-    """The board as a thermal picture.
-
-    `nodes` is {zone: degrees} and `board_c` the bulk the field falls back to
-    where no source reaches.
-
-    The scale is FIXED, from `ansi.THERMAL_STOPS` - a colour is a temperature
-    and means the same in every picture. Auto-ranging made a cool board look
-    exactly like a hot one, so two pictures said nothing side by side.
-
-    `cells` None fits the terminal, and `reserve` is how many lines the
-    caller spends on everything that is not the picture - it cannot be known
-    from here, and guessing it clipped the board's bottom edge.
-
-    `trailing` blank lines follow the scale, so the last row of the picture
-    is not the last row of the terminal.
-
-    `colour` None asks the terminal: escapes into a pipe or a log are noise,
-    and the character ramp reads fine there. `marks` is what the halftone
-    outlines and labels; None draws the field alone.
-    """
+    """The board as a thermal picture."""
     if colour is None:
         colour = bool(getattr(sys.stdout, 'isatty', lambda: False)())
     if cells is None:
@@ -768,14 +622,8 @@ def _swatch(celsius, row, col):
 
 def _rail(rows, colour):
     """The temperature scale as a column beside the board, hottest at the
-    top. It spends width, which a round board has spare, instead of the
-    rows it does not - the horizontal bar below cost the picture two
-    lines at every terminal height. Blended like the field, so the rail
-    is the ramp and not a stack of its stops, and IN BRAILLE like the
-    field - two cells of the same halftone the board wears at that
-    temperature, on the bench's word ("the temperature scale in braille
-    too"). It was two background-painted spaces, a solid bar beside a
-    dotted board."""
+    top.
+    """
     lo, hi = ansi.THERMAL_MIN, ansi.THERMAL_MAX
     marks = {}
     for t in (100, 80, 60, 40, 20, 0, -20):

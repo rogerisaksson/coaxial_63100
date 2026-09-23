@@ -35,8 +35,8 @@ import find_board                                    # noqa: E402
 import pick_tests                                    # noqa: E402
 from coaxial_ollama import client as clientmod       # noqa: E402
 from coaxial_ollama.capability import choose, probe  # noqa: E402
-# Structure first: it answers "does host/ still hold together" in a fifth of
-# a second, and every behavioural suite below it assumes the answer is yes.
+# Structure first: it answers "does host/ still hold together" in a fifth of a
+# second, and every behavioural suite below it assumes the answer is yes.
 STRUCTURE = 'test_structure.py'
 CORE = 'test_modbus_core.py'
 SHTP = 'test_shtp_core.py'
@@ -99,19 +99,16 @@ JOINS = (
     (12, BOOT),
     (15, CORE),
     (20, SHTP),
-    # The control law against a motor model, and the commissioning
-    # against the stand-in: a compiler and a few seconds, no cable.
+    # The control law against a motor model, and the commissioning against the
+    # stand-in: a compiler and a few seconds, no cable.
     (20, DRIVE),
-    # The anti-alias chain against the transfer function it was designed
-    # from, and a tone fed through it: a compiler and a second.
+    # The anti-alias chain against the transfer function it was designed from,
+    # and a tone fed through it: a compiler and a second.
     (20, FILTER),
     # The SOA envelope, same shape and same cost: a compiler and a second.
-    # It joins with the other portable cores because what it guards is the
-    # thing that decides whether a stage backs off, and a tier that cannot
-    # afford that check is a tier that should not be run before a bench day.
     (20, THERMAL),
-    # The bootloader's core: a compiler and a second, and the one thing
-    # that decides whether a blank node ever runs anything.
+    # The bootloader's core: a compiler and a second, and the one thing that
+    # decides whether a blank node ever runs anything.
     (20, BOOT_CORE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
@@ -119,10 +116,6 @@ JOINS = (
     (65, CONFORMANCE),
 
     # The bench guards the board's loop rates against a recorded baseline.
-    # It joins late because its cost is FIXED - four checks and twenty
-    # seconds, five seconds a check, dearer than anything but the live model
-    # - and it says nothing at all without a board, so a cheap tier would pay
-    # for it and get a skip.
     (70, BENCH),
 )
 
@@ -138,13 +131,7 @@ TIERS = tuple(range(STEP, 101, STEP))
 
 
 def plan_for(percent):
-    """(suites, live sections) a percentage buys.
-
-    STRUCTURE is not in the budget and is never dropped: three seconds, and
-    it is the precondition for reading any other result - the behavioural
-    suites import what they need and pass while the rest of the package is
-    broken.
-    """
+    """(suites, live sections) a percentage buys."""
     suites = [STRUCTURE] + list(OLLAMA)
     suites += [name for at, name in JOINS if percent >= at]
 
@@ -154,13 +141,8 @@ def plan_for(percent):
         return tuple(suites), 'tools'
     return tuple(suites), None
 
-# A cable is not a regression: every suite opens through open_session(),
-# which probes and falls back to the stand-in, and says which it got.
-#
-# CONFORMANCE is listed because a stand-in cannot stand in for it - it is an
-# independent byte-level master, and a simulated slave would be the shared
-# wrong assumption it exists to rule out. test_parity is not: with no board
-# both sides are the stand-in and it skips itself rather than passing.
+# A cable is not a regression: every suite opens through open_session(), which
+# probes and falls back to the stand-in, and says which it got.
 NEEDS_BOARD = (CONFORMANCE,)
 
 #: Suites that may reach the board's port, or hold the model on the card.
@@ -180,22 +162,16 @@ ALONE = ('test_mcp.py', 'test_parity.py', BENCH, CONFORMANCE, LIVE)
 JOBS = max(1, min(4, (os.cpu_count() or 2) // 2))
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
-# The whole line after FAIL, detail included: a check's detail is the
-# compiler warning, the wrong value, the reason - and on a runner the
-# summary (relayed as a commit comment) is the only place it surfaces.
-# The old form stopped at the first two-space gap and a name at exactly
-# the pad width lost its line entirely.
+# The whole line after FAIL, detail included: a check's detail is the compiler
+# warning, the wrong value, the reason - and on a runner the summary (relayed
+# as a commit comment) is the only place it surfaces.
 FAIL_RE = re.compile(r'^\s{1,8}FAIL\s+(\S.*?)\s*$')
-# The ollama suites under --tags say what they left out. Surfaced here: the
-# count that matters is the one against the whole file.
+# The ollama suites under --tags say what they left out.
 GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
 
 
 def kill_tree(pid):
-    """The process and every descendant, gone. `Popen.kill` reaches the
-    child alone: a suite killed at its timeout left the views it had
-    spawned - and their crew's workers - holding the captured pipe, and
-    `communicate` waited on it for 106 minutes (2026-09-13)."""
+    """The process and every descendant, gone."""
     if os.name == 'nt':
         subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)],
                        capture_output=True)
@@ -207,11 +183,6 @@ def kill_tree(pid):
 def run_captured(argv, timeout, cwd=None):
     """`argv` run with its output captured, or None once `timeout` has
     passed - the whole tree killed, not the child alone.
-
-    utf-8/replace, not the locale codepage: text=True alone decodes
-    cp1252 here, and a suite printing one character outside it killed the
-    reader thread with UnicodeDecodeError - the run lost, not the
-    character. PYTHONIOENCODING makes the child write what we read.
     """
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
     group = {'start_new_session': True} if os.name != 'nt' else {}
@@ -251,30 +222,18 @@ def run_one(path, timeout=300, extra=()):
 
     if tally is None:
         # The suite crashed before printing its own tally - a traceback, an
-        # import error. The last of stderr (or stdout, if it wrote nothing
-        # to stderr) is what says why; clipped so one runaway crash cannot
-        # push this past what a model's context can hold.
+        # import error.
         detail = (done.stderr or done.stdout or '').strip()
         return None, done.returncode, failing, elapsed, detail[-1500:], groups
     return tally, done.returncode, failing, elapsed, None, groups
 
 
 # Every tag this run put on the card, so one `finally` can hand them back.
-# Measured: the picker loads the model on every --smart run and released
-# nothing, so a three-second scoped run left 8.4 GB resident for half an hour.
-# Holding it across the suites is the bargain; holding it after the run is not.
 _LOADED = []
 
 
 def hold_model(tag):
-    """Load the model before the first suite that needs it.
-
-    Up front rather than by the first question, so the 7.6 GB wait lands
-    where somebody is watching for it instead of inside a turn that then
-    looks slow for no reason. Returns None if ollama is not reachable - the
-    suite saying it cannot run is a better message than a preload raising
-    here.
-    """
+    """Load the model before the first suite that needs it."""
     try:
         client = clientmod.Ollama(tag, keep_alive='30m')
         client.model = client.require_model()
@@ -296,13 +255,7 @@ def _client_for(tag):
 
 
 def release_model(client=None):
-    """Hand the card back, once, when the run is over.
-
-    Called from one `finally` for the whole run, over every client this run
-    loaded - a suite's, the picker's, or both. Releasing per suite put most
-    of the wall time back into loading 7.6 GB again; releasing nothing left
-    it resident long after the run was over. Once, at the end, is the bargain.
-    """
+    """Hand the card back, once, when the run is over."""
     held = [client] if client is not None else list(_LOADED)
     del _LOADED[:]
     done = set()
@@ -321,10 +274,6 @@ def release_model(client=None):
 def board_note():
     """One line saying whether the board answered, printed only when a suite
     that needs it failed.
-
-    Asked, not assumed: 'the board is probably unplugged' is a guess, and this
-    script's whole reason for existing is that a guess in place of a fact is
-    what goes wrong here. find_board does the same probe link_diagnose does.
     """
     try:
         sys.path.insert(0, str(ROOT / 'tools'))
@@ -340,13 +289,7 @@ def board_note():
             % (', '.join(NEEDS_BOARD), ', '.join(ports)))
 
 
-# What a change to each part of the tree can plausibly have broken. Read
-# top-down, first match wins, and anything unmatched falls back to the whole
-# default set - the safe direction when the map has a hole in it.
-#
-# `live` is the expensive one: a model load plus a turn per question. It is
-# listed only against the files that decide what the model is told and what
-# it can call, because that is what a wrong answer there comes from.
+# What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
     ('host/coaxial_ollama/debug.py',  OLLAMA + ('live:all',)),
     ('host/coaxial_ollama/replies.py', OLLAMA + ('live:tools',)),
@@ -359,9 +302,9 @@ TOUCHES = (
     ('host/coaxial_mcp/',             ('test_mcp.py', 'test_parity.py')),
     ('host/coaxial/simulated',        ('test_simulated.py',
                                        'test_parity.py') + OLLAMA),
-    # The broker is the port itself: every session goes through it when one
-    # is up, so its own suite runs whenever it or the two files that reach
-    # for it change.
+    # The broker is the port itself: every session goes through it when one is
+    # up, so its own suite runs whenever it or the two files that reach for it
+    # change.
     ('host/coaxial/broker.py',        (BROKER, DAQ_API,
                                       'test_parity.py')),
     ('host/coaxial/ports.py',         (BROKER, 'test_mcp.py',
@@ -377,10 +320,7 @@ TOUCHES = (
     ('host/coaxial/session.py',       (BROKER, 'test_mcp.py',
                                        'test_parity.py')),
     ('host/tools/session.py',         (BROKER,)),
-    # The pure character renderers: a reading in, text out. Nothing reaches a
-    # wire, a tool schema or a board when one changes, so the suite that
-    # draws them is the whole of it. `orientation` is the exception because
-    # coaxial_mcp/tools.py imports it for the tool of the same name.
+    # The pure character renderers: a reading in, text out.
     ('host/coaxial/orientation.py',   ('test_simulated.py', 'test_mcp.py',
                                        RENDER)),
     ('host/coaxial/engine.py',        (RENDER, VIEWS)),
@@ -393,65 +333,58 @@ TOUCHES = (
     ('host/coaxial/',                 ('test_simulated.py', 'test_parity.py',
                                        'test_mcp.py')),
     # A live view is a loop, a screen and a cable around a renderer that is
-    # tested on its own. What it can break is importing at all, which is the
-    # structure suite, plus the drawing it calls.
-    # The views run whole - argument parsing, preflight, two frames and
-    # the teardown - because four separate restyle breaks were found only
-    # by running them by hand.
+    # tested on its own.
     ('host/tools/show_',              (STRUCTURE, VIEWS,
                                        'test_simulated.py')),
     ('host/tools/show_session.py',    (VIEWS,) + OLLAMA),
     ('host/tools/screen.py',          (STRUCTURE, VIEWS,
                                        'test_simulated.py')),
-    # A CACHE THE TOOLS WRITE, not code they read for behaviour. It is
-    # tracked, so it turned up in every diff and pulled all nine ollama
-    # suites in behind it.
+    # A CACHE THE TOOLS WRITE, not code they read for behaviour.
     ('host/tools/.session.json',      ()),
     ('host/tools/',                   OLLAMA),
     ('host/tests/',                   ()),          # decided by name below
-    # Firmware and protocol: the byte-level master is the point of it - but
-    # the portable core is also compiled and run on this machine, which is
-    # the only check on it that does not need a cable.
+    # Firmware and protocol: the byte-level master is the point of it - but the
+    # portable core is also compiled and run on this machine, which is the only
+    # check on it that does not need a cable.
     ('modbus/',                       (CORE, CONFORMANCE, 'test_mcp.py')),
     # The SHTP layer is hardware-free like the Modbus core, so the host build
-    # is what covers it. Nothing on the Modbus wire changes when it does.
+    # is what covers it.
     ('shtp/',                         (SHTP,)),
-    # The decimating filter is hardware-free the same way, and its
-    # design lives on the host beside it.
+    # The decimating filter is hardware-free the same way, and its design lives
+    # on the host beside it.
     ('filter/',                       (FILTER,)),
     ('host/coaxial/bessel.py',        (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer, and its suite
-    # closes the loop through a motor model - the only check on it that
-    # needs no motor. The board glue in board/ and comms/ is the bench's.
+    # closes the loop through a motor model - the only check on it that needs
+    # no motor.
     ('drive/',                        (DRIVE,)),
     ('host/coaxial/drive.py',         (SENSORLESS, 'test_simulated.py',
                                        'test_parity.py')),
     ('host/coaxial/sensorless.py',    (SENSORLESS,)),
     ('host/coaxial/commission.py',    (SENSORLESS,)),
     ('host/tools/commission.py',      (STRUCTURE, SENSORLESS)),
-    # The stage constants and the host control loops are design arithmetic
-    # with closed-form checks; the Monte Carlo drives the compiled law.
+    # The stage constants and the host control loops are design arithmetic with
+    # closed-form checks; the Monte Carlo drives the compiled law.
     ('host/coaxial/inverter.py',      (SENSORLESS,)),
     ('host/coaxial/loop.py',          (SENSORLESS, DRIVE)),
     ('host/coaxial/motion.py',        (SENSORLESS, 'test_simulated.py')),
     ('host/tools/montecarlo.py',      (STRUCTURE, DRIVE)),
-    # BENCH is here and not with the host suites: what slows the board down
-    # is firmware in the main loop, and the regression it guards against was
+    # BENCH is here and not with the host suites: what slows the board down is
+    # firmware in the main loop, and the regression it guards against was
     # exactly that - the thermal observer reading two ADC channels and two SPI
     # transactions on every poll, and before that a poll blocking long enough
-    # to lose a Modbus character. A host-side edit cannot cause either.
+    # to lose a Modbus character.
     ('comms/',                        (CONFORMANCE, 'test_mcp.py', BENCH)),
     ('board/',                        (CONFORMANCE, 'test_mcp.py',
                                        'test_parity.py', BENCH)),
     ('core/',                         (CONFORMANCE, BENCH)),
-    # The observer and its envelope are hardware-free like the filter,
-    # so the host build is what covers them; the board glue that acts
-    # on the budget lives in board/ and is the bench's.
+    # The observer and its envelope are hardware-free like the filter, so the
+    # host build is what covers them; the board glue that acts on the budget
+    # lives in board/ and is the bench's.
     ('thermal/',                      (THERMAL, CONFORMANCE, BENCH)),
-    # The acquisition engine is hardware-free like the observer, so the
-    # host build covers it; the glue that reads the converter is
-    # board_daq.c and the bench's, and the record's bytes cross the wire.
-    # The bootloader's core is hardware-free; boot_main.c is the bench's.
+    # The acquisition engine is hardware-free like the observer, so the host
+    # build covers it; the glue that reads the converter is board_daq.c and the
+    # bench's, and the record's bytes cross the wire.
     ('boot/',                         (BOOT_CORE, STRUCTURE)),
     ('host/coaxial/boot.py',          (BOOT, STRUCTURE)),
     ('host/coaxial/simulated/boot.py', (BOOT, STRUCTURE)),
@@ -461,30 +394,20 @@ TOUCHES = (
     ('host/coaxial/thermal.py',       (THERMAL, 'test_sensorless.py',
                                        STRUCTURE)),
     # A NOTEBOOK EXAMPLE reaches the library and nothing else reaches it.
-    # What it can break is naming a method that does not exist, which is
-    # the structure suite's AST pass - measured: it caught a rename that
-    # left `print(daq)` behind in two of them.
     ('notebook_examples/',            (STRUCTURE,)),
-    # And the file the notebooks are written FROM. Its own code is a few
-    # short functions; what it holds is their cells, so what it can break
-    # is the same AST pass one step earlier.
+    # And the file the notebooks are written FROM.
     ('host/tools/make_notebooks.py',  (STRUCTURE,)),
     # A document can only break the docs index and the phrase table.
     ('docs/',                         ('test_ollama_runner.py',)),
     ('CLAUDE.md',                     ('test_ollama_runner.py',)),
     ('README.md',                     ('test_ollama_runner.py',)),
-    # PowerShell around the Python. None of it is imported by anything under
-    # test, so the most it can break is a path - which is what the structure
-    # suite's three seconds are for. Listed rather than left unmapped
-    # because unmapped means the whole gate, and editing a demo wrapper used
-    # to cost seven minutes and a model load.
+    # PowerShell around the Python.
     ('terminal/',                     (STRUCTURE,)),
     ('coaxial_tty.ps1',                      (STRUCTURE,)),
     ('env.ps1',                       (STRUCTURE,)),
     ('host/run_tests.ps1',            (STRUCTURE,)),
     ('setup.ps1',                     (STRUCTURE,)),
-    # Neither the CAD export nor the schematic is read by a suite. The parts
-    # list and the pin map come off the board, not out of these.
+    # Neither the CAD export nor the schematic is read by a suite.
     ('render/',                       ()),
     ('electronics/',                  ()),
     ('datasheets/',                   ()),
@@ -492,9 +415,7 @@ TOUCHES = (
     ('.vscode/',                      ()),
 )
 
-# Every this many commits, run the lot regardless of what changed. A map
-# from files to suites is a guess about coupling, and a guess that is never
-# checked is one that drifts.
+# Every this many commits, run the lot regardless of what changed.
 FULL_EVERY = 10
 
 #: Suites the map may settle alone: no board, no ollama - about 40 s all
@@ -506,20 +427,7 @@ CHEAP = frozenset({STRUCTURE, CORE, SHTP, DRIVE, SENSORLESS,
 
 
 def _within_tier(args, live_sections):
-    """Hold the model's pick inside the tier's budget.
-
-    A tier is a budget of checks and the model spends inside it. It used to
-    be able to spend past it: the tier filtered `args.file` and then the
-    model branch assigned straight over the top, live sections included.
-
-    Measured on the 25 % tier with a demo edit in the diff - the tier had
-    already dropped the live suite, the model put `live:all` back, and the
-    cheapest run there is took 398 s of which 352 were the suite the tier
-    exists to leave out.
-
-    The ollama suites are exempt for the same reason the tier exempts them:
-    narrowed by tags rather than dropped whole.
-    """
+    """Hold the model's pick inside the tier's budget."""
     if not args.coverage:
         return live_sections
 
@@ -541,23 +449,13 @@ def _within_tier(args, live_sections):
 
 
 def _ask_model(args, live_sections):
-    """The model's own pick, held inside whatever tier is in force.
-
-    Returns (tags, live_sections). Everything the model can get wrong lands
-    on the same answer - run what the path map already chose - because
-    running too much costs seconds and running too little hides a regression
-    until the next sweep.
-    """
+    """The model's own pick, held inside whatever tier is in force."""
     sys.path.insert(0, str(ROOT / 'tools'))
 
-    # The picker loads the model too. Registered here so the release at the
-    # end of the run covers it, whether or not a suite needs it.
+    # The picker loads the model too.
     if args.model == 'auto':
-        # The machine's own pick, resolved once - a hardcoded default tag
-        # asked a 16 GB bench to test against a model an 8 GB one runs.
-        # A machine with no daemon and no GPU (a CI runner) falls back to
-        # the roster's first tag; the pick degrades to the path map there
-        # anyway, so the name only has to be a name.
+        # The machine's own pick, resolved once - a hardcoded default tag asked
+        # a 16 GB bench to test against a model an 8 GB one runs.
         try:
             args.model = choose(probe()).tag
         except (OSError, ValueError, KeyError, AttributeError,
@@ -571,9 +469,7 @@ def _ask_model(args, live_sections):
         print('   falling back to the path map above')
         return None, live_sections
 
-    # Structure is not the model's to drop. It is three seconds and it is
-    # the precondition for every suite below it: they import what they need
-    # and pass while the rest of the package is broken.
+    # Structure is not the model's to drop.
     args.file = [STRUCTURE] + [f for f in plan.suites
                                if f not in (LIVE, STRUCTURE)]
     tags = ','.join(plan.tags) or None
@@ -589,29 +485,16 @@ def _ask_model(args, live_sections):
 
 
 def settled(chosen, why):
-    """True when the map knew every path and the answer costs seconds.
-
-    Both halves matter. An unmapped path means the map has a hole and the
-    fallback is already running everything, which is not something to
-    shortcut. A cheap answer means asking cannot pay for itself.
-    """
+    """True when the map knew every path and the answer costs seconds."""
     if any('unmapped' in line for line in why):
         return False
 
-    # An empty pick counts. A change to something no suite reads - the CAD
-    # export, a datasheet - is the case where asking the model is most
-    # obviously waste: it costs a 7.6 GB load to be told what the map has
-    # already said, which is that there is nothing to run.
+    # An empty pick counts.
     return set(chosen) <= CHEAP
 
 
 def changed_files(against='HEAD'):
-    """Paths touched in the working tree and in the last commit.
-
-    Both, because a suite picked for a change already committed is what a
-    pre-push check wants, and one picked for a change not yet staged is
-    what an edit-test loop wants.
-    """
+    """Paths touched in the working tree and in the last commit."""
     paths = set()
     for args in (['diff', '--name-only', against],
                  ['diff', '--name-only', '--cached'],
@@ -643,11 +526,7 @@ def pick(paths):
 
 
 def _touched(path, wanted, suites, live, why):
-    """One changed path against its rule. A test file names itself; an
-    empty entry is a deliberate "nothing under test reads this", not a
-    hole in the map - saying so is the difference between a rule and an
-    oversight for whoever reads the plan; a rule's items are suites, or
-    the live suite's sections as `live:NAME`."""
+    """One changed path against its rule."""
     name = path.rsplit('/', 1)[-1]
     own = not wanted and path.startswith('host/tests/')
     if own and name.startswith('test_'):
@@ -719,32 +598,20 @@ def _options(argv):
 
 
 def _plan(args):
-    """Which suites, which subjects, which live sections.
-
-    Returns (tags, live_sections) and edits args.file in place -
-    the flags below narrow each other, and threading five return
-    values through would say less than the names they already have.
-    Returns None instead when --dry-run means print and stop.
-    """
+    """Which suites, which subjects, which live sections."""
 
     live_sections = 'all'
     tags = args.tags
     if args.structure:
         args.file, args.smart, args.live = [STRUCTURE], False, False
     if args.match:
-        # One live row and nothing else. A rule that changed is one question,
-        # and the whole suite is a model load plus a turn per row.
+        # One live row and nothing else.
         args.file, args.smart, args.live = [LIVE], False, True
         live_sections = args.sections or 'all'
     if args.coverage:
         args.smart = True
     if args.only:
-        # One file, the named tests, nothing else. The shortest path back
-        # after changing one thing, and why this script is the only interface
-        # anybody needs to the suites.
-        # Every subject file is offered the names; the one that owns them
-        # runs them and the rest report nothing. Cheaper than asking which
-        # file a test lives in, and it cannot go stale.
+        # One file, the named tests, nothing else.
         args.file, args.smart, args.live = list(OLLAMA), False, False
     planned = (_smart(args, tags, live_sections)
                if args.smart and not args.file else (tags, live_sections))
@@ -752,11 +619,8 @@ def _plan(args):
         return None                # the plan was the whole point of the run
     tags, live_sections = planned
 
-    # Typed explicitly, so it wins over the 'all' default and over a tier's
-    # own pick. It used to be read only inside the --match branch, which
-    # meant `--live --sections tools` silently ran all three sections -
-    # measured, tools and all coming back with the same 176 checks in the
-    # same 255s.
+    # Typed explicitly, so it wins over the 'all' default and over a tier's own
+    # pick.
     if args.sections and args.live:
         live_sections = args.sections
 
@@ -791,9 +655,8 @@ def _tiered(args, live_sections):
     """The tier's cut of the smart pick: which subjects inside the big
     suites is the judgement call, and it goes to the model - which can
     only ever cost seconds by over-picking, because every way it fails
-    returns None and this runs the file whole. Not on the full sweep:
-    narrowing the one run that exists to catch what the narrowing missed
-    is the whole guarantee, spent."""
+    returns None and this runs the file whole.
+    """
     allowed, sections = plan_for(args.coverage)
     args.file = [f for f in args.file if f in OLLAMA or f in allowed]
     live_sections = sections or ''
@@ -809,14 +672,7 @@ def _tiered(args, live_sections):
 def _smart(args, tags, live_sections):
     """The smart plan: the changed files against the path map, the full
     sweep every FULL_EVERY commits, the tier's cut, and the model's pick
-    of subjects where the map does not settle it. Returns (tags,
-    live_sections), or None when --dry-run means print and stop.
-
-    --minimal skips the sweep on purpose: it is the fix-test cycle's run,
-    and the sweep is the gate's. Anything --minimal misses is what the
-    next unqualified --smart is for. Not on a coverage tier: the sweep
-    exists to catch what narrowing missed, and a tier is narrowing by
-    definition.
+    of subjects where the map does not settle it.
     """
     count = _commits()
     paths = changed_files()
@@ -828,7 +684,7 @@ def _smart(args, tags, live_sections):
         print('   ' + line)
     order = list(DEFAULT_SUITES) + [CONFORMANCE]
     # The live suite is not run by name from --file: it is the one with
-    # sections, and it is added below. Editing it is a reason to run it.
+    # sections, and it is added below.
     if LIVE in chosen:
         picked_live = picked_live or {'all'}
     args.file = [name for name in order if name in chosen]
@@ -842,10 +698,7 @@ def _smart(args, tags, live_sections):
                                if live_sections else ''))
     if args.coverage:
         live_sections = _tiered(args, live_sections)
-    # The model decides the list, not the path map. The map above is
-    # the fallback: coarse by construction - a line moved in
-    # coaxial_mcp/tools.py pulls in four suites whatever the line
-    # was - and it only stands when there is no model to ask.
+    # The model decides the list, not the path map.
     if not tags and not full and settled(chosen, why):
         print('   the map knew every path and the answer is seconds - '
               'not asking the model')
@@ -857,12 +710,10 @@ def _smart(args, tags, live_sections):
 
 
 def _extra_for(name, args, tags, live_sections):
-    """The flags one suite takes from the plan: the model, its sections
-    and match for the live suite; the picked tests or the tags and coverage
-    for the ollama ones. No --release: this script owns the model's life,
-    holds it across every suite that needs it, and hands it back in _run's
-    `finally`. The suite releasing it per run was what put most of the wall
-    time into loading 7.6 GB again."""
+    """The flags one suite takes from the plan: the model, its sections and
+    match for the live suite; the picked tests or the tags and coverage
+    for the ollama ones.
+    """
     extra = ['-m', args.model] if name == LIVE else []
     if name == LIVE and live_sections:
         extra += ['--sections', live_sections]
@@ -892,13 +743,6 @@ def _results(suites, args, tags, live_sections):
     """(suite, its result) in the order the report lists them: the suites
     that share the machine, in the plan's order, then the ones that want
     it alone.
-
-    The sharers START longest first, by what each took last time
-    (`.counts.json`; one never timed goes first of all), so the run ends
-    with its longest suite and not some while after it. They REPORT in
-    the plan's order whatever order they finish in, so the tally reads as
-    it always has. A stopped run cancels what has not started; what is
-    running got the Ctrl+C itself.
     """
     took = counts.load().get('seconds') or {}
     sharing = [name for name in suites if name not in ALONE]
@@ -929,12 +773,7 @@ def _run(args, tags, live_sections):
     if STRUCTURE not in suites and not args.match and not args.only:
         suites.insert(0, STRUCTURE)
 
-    # The model's whole life, in one place. It is loaded once before the
-    # first suite that needs it, held across every row of every such suite,
-    # and handed back when the run is over - not after each suite, and not
-    # after each question. Measured: unloading between runs put most of the
-    # wall time into loading 7.6 GB again, and holding it after the run put
-    # 9.69 GB on the card for 27 minutes at 1 % use. Neither is the bargain.
+    # The model's whole life, in one place.
     holding = LIVE in suites
     if holding:
         held = hold_model(args.model)
@@ -974,9 +813,8 @@ def _run(args, tags, live_sections):
             print('%-20s %s, %d failed  %.1fs'
                   % (name, '%d passed' % passed, failed, elapsed))
 
-            # Suites that did not run at all, in checks, from what they came
-        # to last time. A suite never yet measured makes the total
-        # approximate rather than silently short - hence the tilde.
+            # Suites that did not run at all, in checks, from what they came to
+            # last time.
         sizes = {n: p + f + s for n, (p, f, s) in suite_sizes.items()}
         counts.record('suites', sizes)
         counts.record('seconds', seconds)
@@ -1007,14 +845,7 @@ STOPPED = 130
 
 
 def main(argv=None):
-    # THE RUNNER MUST SURVIVE WHAT IT REPORTS. A failing check's detail
-    # is whatever the suite put there - braille from the renderers, a
-    # degree sign, a glyph a bench typed into a test - and on a Windows
-    # console left at its codepage, printing it raised UnicodeEncodeError
-    # INSIDE the summary and took the whole run down with it. Measured
-    # 2026-09-05: two failed checks in test_views.py, and the tally never
-    # printed. The suites already run under PYTHONIOENCODING=utf-8; this
-    # is the runner's own stdout, replaced rather than refused.
+    # THE RUNNER MUST SURVIVE WHAT IT REPORTS.
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, 'reconfigure', None)
         if reconfigure is not None:
@@ -1026,15 +857,13 @@ def main(argv=None):
             return 0
         return _run(args, *chosen)
     except KeyboardInterrupt:
-        # Ctrl+C reaches the child suite too - it is in this process group -
-        # so what is left to do here is say so and let the finally release
-        # the model. A run abandoned with 7.6 GB still resident is the
-        # expensive kind of mistake, and it used to be the default one.
+        # Ctrl+C reaches the child suite too - it is in this process group - so
+        # what is left to do here is say so and let the finally release the
+        # model.
         print('\nstopped - the suites after this point did not run')
         return STOPPED
     finally:
-        # One place, every path. The picker loads the model before a single
-        # suite runs, and _run's own finally never saw it.
+        # One place, every path.
         release_model()
 
 

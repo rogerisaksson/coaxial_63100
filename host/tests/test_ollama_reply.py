@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""What an answer means: retypes, blank answers, nudges.
-
-Split out of test_ollama.py, which had grown to 5,496 lines and 733 checks in
-one file - a third of every check this tree has, and the reason a coverage
-tier could not be asked for at any useful resolution. One subject per file
-now, so a tier buys them separately and a reader opens the one they meant.
-
-Run from the host directory:  python tests/test_ollama_reply.py
-"""
+"""What an answer means: retypes, blank answers, nudges."""
 import os
 import sys
 
@@ -17,18 +9,10 @@ from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession,
     call, io, simulated, toolmod)   # noqa: E402
 
 def test_retype_with_the_trace_off(report):
-    """A silenced retype must not leave an empty screen.
-
-    SYSTEM says never to restate a tool's own rows, and `is_retype` replaces
-    an answer that does it with silence - right, because the trace put the
-    table directly above. With `--quiet` there is no trace, and "read every
-    analog channel" then answered with nothing at all. The board's own rows
-    go out instead: the same table, not the model's typing of it.
-    """
+    """A silenced retype must not leave an empty screen."""
     from coaxial_ollama import debug
 
-    # Every channel the stand-in carries, named. Written out it was seven,
-    # and `s_adc` grew to nine.
+    # Every channel the stand-in carries, named.
     retyped = ('%s were all read just now.'
                % ', '.join(c['signal'].replace(' ', '')
                            for c in simulated.CHANNELS))
@@ -53,21 +37,13 @@ def test_retype_with_the_trace_off(report):
                  hushed.splitlines()[0][:52] if hushed else '<empty>')
 
 def test_map_retype(report):
-    """One list, not two.
-
-    Measured: "ge mig en lista pa alla analoga kanaler" traced the map -
-    seven named rows - and the model then typed the same seven names out
-    underneath it. `is_retype` already replaces a retyped *reading* with
-    silence because the trace put it on screen; a retyped *map* is the same
-    thing, and a map row simply does not look like a reading row, so the
-    backstop never saw it.
-    """
+    """One list, not two."""
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_ollama import debug
 
     # The package's stand-in, not this file's four-channel double: the names
-    # below are the seven the board actually reports, and the check is that
-    # all of them being typed out again is what the backstop sees.
+    # below are the seven the board actually reports, and the check is that all
+    # of them being typed out again is what the backstop sees.
     listed = ('Här är de analoga kanalerna: %s.'
               % ', '.join(c['signal'].replace(' ', '')
                           for c in simulated.CHANNELS))
@@ -97,12 +73,7 @@ def test_map_retype(report):
     report.check('an answer that is not just the list survives',
                  turn(finding) == finding, repr(turn(finding))[:52])
 
-    # Length is what tells a list from an explanation. Measured: a 43-word
-    # answer to the request to describe the hardware for a novice, naming
-    # all seven channels because describing them IS the question, was
-    # deleted to an empty screen - and reported as the model failing to
-    # answer at all. A description is not a restatement however many names
-    # it happens to contain.
+    # Length is what tells a list from an explanation.
     described = ('Kortet är en trefas BLDC-drivare. Framänden matar sju '
                  'ADC-kanaler: PhaseU, PhaseV och PhaseW mäter de tre '
                  'faserna differentiellt bakom okänd förstärkning, NTC är '
@@ -114,12 +85,9 @@ def test_map_retype(report):
                  '%d words -> %s' % (len(described.split()),
                                      'kept' if turn(described) else 'DELETED'))
 
-    # Length alone could not tell the two apart, and a bar set on it let a
-    # real one through: "here are the analog channels: - PhaseU (channel 0)"
-    # seven times over is 26 words and every one of them is a name, a
-    # number or glue. What is counted is the words the table did NOT
-    # already contain - 3, 6, 8 and 12 for the restatements measured here,
-    # 38 for the description.
+    # Length alone could not tell the two apart, and a bar set on it let a real
+    # one through: "here are the analog channels: - PhaseU (channel 0)" seven
+    # times over is 26 words and every one of them is a name, a number or glue.
     per_channel = ('Här är de analoga kanalerna:' + chr(10)
                    + chr(10).join(
                        '- %s (kanal %d)' % (c['signal'].replace(' ', ''), i)
@@ -144,11 +112,6 @@ def test_map_retype(report):
 
     # A digital row names its pin first and never starts with a digit, so
     # MAP_ROW - anchored on the analog shape - never saw one.
-    #
-    # Every reply below is built from the board's own map. Typed out, it had
-    # the two rows the map held then, and adding UART5_TERM and KEEPALIVE
-    # left seven checks failing on a working mechanism: naming two of four
-    # is not a retype.
     def digital_turn(tool, reply, quiet=False, **args):
         chat = debug.Chat(ScriptedModel([
             call(tool, **args),
@@ -177,9 +140,7 @@ def test_map_retype(report):
     report.check('and so is a retyped digital reading',
                  digital_turn('digital_read', by_pin) == '', repr(by_pin)[:44])
 
-    # A row can be named back two ways, and the model picks one. Pins and
-    # signals are alternatives, not a union: a union would want every name
-    # from every column present.
+    # A row can be named back two ways, and the model picks one.
     by_signal = ' och '.join('%s är 1' % s for s in signals) + '.'
     named_both = ', '.join('%s 1' % b for b in both) + '.'
     for reply, silent, why in (
@@ -209,9 +170,7 @@ def test_map_retype(report):
                  'digital:' in hushed and by_pin not in hushed,
                  hushed.splitlines()[0] if hushed else '<empty>')
 
-    # The two bars are different on purpose. Two channels of a *reading*
-    # named together is plausibly synthesis - "NTC and DCbus both read low"
-    # is a finding, not a restatement - so a reading still needs three.
+    # The two bars are different on purpose.
     two = {'ntc', 'dcbus'}
     report.check('two channels of a reading are not a restatement',
                  not repliesmod.is_retype('NTC och DCbus ligger båda lågt.',

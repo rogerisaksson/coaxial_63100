@@ -96,8 +96,8 @@ class BrokerTransport:
     def request(self, unit, function, payload=b'', exact_payload=None,
                 timeout=None, reply_shape=None):
         # `reply_shape` is a plain dict for this reason: the saving it buys is
-        # on the OTHER side of this socket, where the serial port is, so it
-        # has to survive the trip as JSON.
+        # on the OTHER side of this socket, where the serial port is, so it has
+        # to survive the trip as JSON.
         got = self._ask({'op': 'request', 'unit': unit, 'function': function,
                          'payload': bytes(payload).hex(),
                          'exact_payload': exact_payload, 'timeout': timeout,
@@ -129,9 +129,7 @@ class BrokerTransport:
         return None
 
     def answers(self, unit=1):
-        """Whether the BOARD behind the broker replies. A look, not a use: it
-        does not make this client one of the sessions holding the port.
-        """
+        """Whether the BOARD behind the broker replies."""
         return bool(self._ask({'op': 'answers', 'unit': unit})['answers'])
 
     @property
@@ -249,9 +247,8 @@ def _clients(served, message):
 
 def _answers(served, message):
     """A LOOK, NOT A USE - the staleness check asks this before it commits
-    `auto` to a real port, and whoever asks whether the board is there must
-    not become the last one out. The same read the keepalive makes, under
-    the same lock.
+    `auto` to a real port, and whoever asks whether the board is there
+    must not become the last one out.
     """
     try:
         with served.lock:
@@ -264,11 +261,7 @@ def _answers(served, message):
 
 
 def _stand_down(served, message):
-    """Only with nobody using it. A suite that needs the port raw - conformance
-    sends deliberately malformed frames, which is the one thing a broker
-    cannot forward - takes it when it is free and is told who has it when it
-    is not.
-    """
+    """Only with nobody using it."""
     with served.lock:
         busy = served.clients
     if busy:
@@ -420,9 +413,7 @@ class _Server(socketserver.ThreadingTCPServer):
 
     def tick(self, stop):
         """One version read per KEEPALIVE of quiet, only while somebody is
-        attached. The broker knows a thinking session from a dead one: it
-        counts clients. With none attached nothing ticks, and the firmware's
-        deadman does exactly its job.
+        attached.
         """
 
         while not stop.wait(0.5):

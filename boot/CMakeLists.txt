@@ -1,10 +1,5 @@
-# The bootloader: a second executable beside the application, built by the
-# same presets and sized on the same line (docs/BOOT.md).
-#
-# Its own directory because the toolchain file puts the application's
-# linker script and map into CMAKE_EXE_LINKER_FLAGS for the whole tree, and
-# a directory scope is where those can be swapped for this image's without
-# touching what the application links with.
+# The bootloader: a second executable beside the application, built by the same
+# presets and sized on the same line (docs/BOOT.md).
 
 string(REPLACE "-T \"${CMAKE_SOURCE_DIR}/STM32H753xx_FLASH.ld\""
                "-T \"${CMAKE_CURRENT_SOURCE_DIR}/STM32H753xx_BOOT.ld\""
@@ -12,9 +7,8 @@ string(REPLACE "-T \"${CMAKE_SOURCE_DIR}/STM32H753xx_FLASH.ld\""
 string(REPLACE "-Wl,-Map=${CMAKE_PROJECT_NAME}.map"
                "-Wl,-Map=${CMAKE_PROJECT_NAME}_boot.map"
                CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-# No printf here, so nothing pulls newlib's float formatting - and with it
-# the syscalls the application's syscalls.c provides and this image has no
-# use for.
+# No printf here, so nothing pulls newlib's float formatting - and with it the
+# syscalls the application's syscalls.c provides and this image has no use for.
 string(REPLACE "-Wl,-u,_printf_float" ""
                CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
 
@@ -30,9 +24,9 @@ add_executable(${BOOT_TARGET}
     ${CMAKE_SOURCE_DIR}/modbus/src/modbus_rtu.c
 )
 
-# The cores' warnings: -Wconversion on the files that include no CMSIS
-# header, as the application does with the HAL - boot_main.c includes
-# core_cm7.h, whose cache helpers trip -Wsign-conversion in Release.
+# The cores' warnings: -Wconversion on the files that include no CMSIS header,
+# as the application does with the HAL - boot_main.c includes core_cm7.h, whose
+# cache helpers trip -Wsign-conversion in Release.
 set_source_files_properties(
     src/boot_core.c
     ${CMAKE_SOURCE_DIR}/comms/src/wire.c
@@ -51,8 +45,8 @@ target_include_directories(${BOOT_TARGET} PRIVATE
     ${CMAKE_SOURCE_DIR}/drivers/CMSIS/Device/ST/STM32H7xx/Include
 )
 
-# The device, for CMSIS; the type, for the pin table and the header
-# (boot.h's BOOT_TYPE_*): this bootloader is coaxial_63100's.
+# The device, for CMSIS; the type, for the pin table and the header (boot.h's
+# BOOT_TYPE_*): this bootloader is coaxial_63100's.
 target_compile_definitions(${BOOT_TARGET} PRIVATE
     STM32H753xx
     BOOT_BOARD=1

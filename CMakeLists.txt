@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
-#
-# This file is generated only once,
-# and is not re-generated if converter is called multiple times.
-#
-# User is free to modify the file as much as necessary
-#
+# This file is generated only once, and is not re-generated if converter is
+# called multiple times.
 
 # Setup compiler settings
 set(CMAKE_C_STANDARD 11)
@@ -44,38 +40,29 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    # Modbus over Serial Line (RTU) server. modbus_crc/slave/rtu are portable
-    # C11 with no HAL dependency; only modbus_port touches the hardware.
+    # Modbus over Serial Line (RTU) server.
     modbus/src/modbus_crc.c
     modbus/src/modbus_slave.c
     modbus/src/modbus_rtu.c
     modbus/src/modbus_map.c
 
-    # SHTP: the BNO08X transport. Portable C11, no HAL - the same bargain
-    # modbus/ makes, and for the same reason: test_shtp_core.py builds it here.
+    # SHTP: the BNO08X transport.
     shtp/src/shtp.c
 
-    # Thermal: the lumped-node observer. Portable C11 like modbus/ and shtp/,
-    # host-testable the same way - thermal/test/check.c runs it against the
-    # four camera-calibrated states with the host gcc.
+    # Thermal: the lumped-node observer.
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
 
     # DAQ: the acquisition engine - the ring, the summing window, the
-    # anti-alias ladder, the tone and the live accumulator. Portable C11
-    # like thermal/, host-tested by test_daq_core.py through daq/test/
-    # harness.c; board_daq.c is the hardware around it.
+    # anti-alias ladder, the tone and the live accumulator.
     daq/src/daq.c
 
-    # Drive: the control law. Portable C11 like thermal/, host-tested by
-    # test_drive_core.py against a motor model through drive/test/harness.c.
+    # Drive: the control law.
     drive/src/drive.c
     drive/src/drive_math.c
     drive/src/drive_model.c
     drive/src/drive_observer.c
-    # Filter: the decimating anti-alias chain. Portable C11 like drive/,
-    # host-tested by test_filter_core.py against the Bessel design in
-    # host/coaxial/bessel.py.
+    # Filter: the decimating anti-alias chain.
     filter/src/filter.c
 
     # Board layer: this hardware, behind comms/inc/board.h.
@@ -122,18 +109,13 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     comms/src/link_report.c
 )
 
-# Warnings on our own sources only. The toolchain file gives the whole build
-# -Wall; these two are free on top of it - measured, zero hits across all
-# seventeen files - and CubeMX's own sources are left alone because they are
-# not ours to keep clean.
+# Warnings on our own sources only.
 set(COAXIAL_SOURCES
     modbus/src/modbus_crc.c modbus/src/modbus_slave.c modbus/src/modbus_rtu.c
     modbus/src/modbus_map.c
     shtp/src/shtp.c
 
-    # Thermal: the lumped-node observer. Portable C11 like modbus/ and shtp/,
-    # host-testable the same way - thermal/test/check.c runs it against the
-    # four camera-calibrated states with the host gcc.
+    # Thermal: the lumped-node observer.
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
     daq/src/daq.c
@@ -162,23 +144,13 @@ set(COAXIAL_SOURCES
 set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES
                             COMPILE_OPTIONS "-Wextra;-Wshadow")
 
-# -Wconversion, on exactly the files that include no HAL header. Measured with
-# it on everything: 113 warnings, 112 of them inside HAL/CMSIS headers our
-# sources merely include, one of ours (board_selftest.c, now cast). Suppressing
-# the HAL's share needs its include paths marked SYSTEM, which lives in the
-# CubeMX-generated CMakeLists and would not survive a regeneration.
-#
-# The subset is not arbitrary: it is invariant 1's list plus the layers that
-# kept themselves hardware-free. The flag guards that too - add a HAL include
-# to one of these and the build lights up with someone else's conversions.
+# -Wconversion, on exactly the files that include no HAL header.
 set_source_files_properties(
     modbus/src/modbus_crc.c modbus/src/modbus_slave.c modbus/src/modbus_rtu.c
     modbus/src/modbus_map.c
     shtp/src/shtp.c
 
-    # Thermal: the lumped-node observer. Portable C11 like modbus/ and shtp/,
-    # host-testable the same way - thermal/test/check.c runs it against the
-    # four camera-calibrated states with the host gcc.
+    # Thermal: the lumped-node observer.
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
     daq/src/daq.c
@@ -194,30 +166,21 @@ set_source_files_properties(
     comms/src/link.c comms/src/link_report.c
     PROPERTIES COMPILE_OPTIONS "-Wextra;-Wshadow;-Wconversion")
 
-# The interrupt path the drive runs on, optimised whatever the preset. A
-# control law at -O0 is not a thing: measured 2026-08-31 on the Debug
-# build, one step of drive_step() cost 10 040 cycles, 21 us against the
-# 20 us PWM period, and the main loop's worst keepalive gap went to 16 ms.
-# None of these carries debugger-facing state worth -O0.
-# COMPILE_OPTIONS replaces rather than appends, so each set carries the
-# warnings the lists above gave it.
+# The interrupt path the drive runs on, optimised whatever the preset.
 set_source_files_properties(
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
-    # filter.c runs ONCE PER CONVERTER SAMPLE, which is the fastest thing
-    # on this board - the boxcar's single add is the whole point of the
-    # first stage, and at -O0 it is not a single add. daq.c feeds it and
-    # writes the record, on the same interrupt.
+    # filter.c runs ONCE PER CONVERTER SAMPLE, which is the fastest thing on
+    # this board - the boxcar's single add is the whole point of the first
+    # stage, and at -O0 it is not a single add.
     filter/src/filter.c
     daq/src/daq.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 set_source_files_properties(
     board/src/board_drive.c board/src/board_sync.c board/src/board_daq.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow")
-# And the HAL in front of it: HAL_ADC_IRQHandler is every flag check in
-# the peripheral before the callback runs, fifty thousand times a second.
-# These two are CubeMX's files in the generated target, so the property
-# is set into that directory rather than by editing what CubeMX rewrites.
+# And the HAL in front of it: HAL_ADC_IRQHandler is every flag check in the
+# peripheral before the callback runs, fifty thousand times a second.
 set_source_files_properties(
     drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_adc.c
     drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_adc_ex.c
@@ -252,13 +215,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     # Add user defined libraries
 )
 
-# THE LINKER SCRIPT IS A DEPENDENCY OF THE LINK. The toolchain file passes
-# it as a flag, which CMake does not track: an edited script left the old
-# image in place and the build said ok in a second - measured when two
-# objects added to .itcm did not appear in it.
+# THE LINKER SCRIPT IS A DEPENDENCY OF THE LINK.
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
     LINK_DEPENDS ${CMAKE_SOURCE_DIR}/STM32H753xx_FLASH.ld)
 
-# The bootloader, the second image: sector 0, the shell the application
-# arrives through (docs/BOOT.md). Its own directory, for its own link flags.
+# The bootloader, the second image: sector 0, the shell the application arrives
+# through (docs/BOOT.md).
 add_subdirectory(boot)

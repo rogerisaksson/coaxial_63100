@@ -121,16 +121,15 @@ def main():
             print('primed %.0f ms at zero duty: phase nodes at ground, '
                   'bootstraps charged; the train takes them low'
                   % (1000 * a.prime))
-        # The raw compare write, twice, with nothing between: the stage
-        # is armed by the line above, and rig.write()'s own arm check is
-        # a 31 ms state read the pulse would be spent waiting for.
+        # The raw compare write, twice, with nothing between: the stage is
+        # armed by the line above, and rig.write()'s own arm check is a 31 ms
+        # state read the pulse would be spent waiting for.
         ticks = [0, 0, 0]
         ticks[PHASES.index(high)] = int(a.duty * (state['period'] - 1))
         back = [0, 0, 0]
         back[PHASES.index(low)] = ticks[PHASES.index(high)]
 
-        # The counted pulse, where the firmware speaks it. The alternate
-        # train stays link-timed - op 10 carries no count yet.
+        # The counted pulse, where the firmware speaks it.
         counted = _counted(rig, a)
         if counted:
             print('counted: %d periods on the board, %.3f ms exactly'
@@ -149,8 +148,8 @@ def main():
                 rig.board.gate_drivers.duty(ticks)
             t1 = time.perf_counter()
             if counted:
-                # The board owns the off-edge; the sleep only keeps the
-                # next pulse's write from landing inside this one.
+                # The board owns the off-edge; the sleep only keeps the next
+                # pulse's write from landing inside this one.
                 time.sleep(a.on + SLACK_S)
                 held.append(counted / PWM_HZ)
             else:
@@ -184,8 +183,8 @@ def main():
         final = rig.gates.state()
         print('disarmed:', {k: final[k] for k in SHOWN})
         if afe_was_on:
-            # The way it was found: a thermal view sharing the port
-            # went blind for good when the pulse left the AFE off.
+            # The way it was found: a thermal view sharing the port went blind
+            # for good when the pulse left the AFE off.
             rig.board.afe.enable()
             print('AFE back on')
         rig.close()

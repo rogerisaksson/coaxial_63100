@@ -1,19 +1,9 @@
-"""THE PRELOAD: the model's decimates, the outline's exact index with
-its loops, and the stereotypes - built once by a process behind the
-front page and kept as one pickle under the user's local application
-data, so a view opens on it in a tenth of a second instead of parsing
-the STL and decimating it six times.
-
-Measured cold, one process (2026-09-23): the parse 0.66 s, the six
-decimates 2.87 s (each parsing the file again), the outline's exact
-index and loops 1.47 s, the stereotypes 0.14 s; the lot pickled is
-7.3 MB and loads in 0.09 s. NOT BESIDE THE MODEL: a cache file beside
-the STL was tried and is not wanted in the tree. The pickle carries
-its stamp - the model's path, size and mtime, and a hash of the
-solids, creases and stereotype sources - and is ignored unless it
-matches. Gated on the machine's room: RAM_FLOOR free memory to build
-in the background and DISK_FLOOR free disk to keep the file; the front
-page's readout says what was fetched, or why not."""
+"""THE PRELOAD: the model's decimates, the outline's exact index with its
+loops, and the stereotypes - built once by a process behind the front
+page and kept as one pickle under the user's local application data, so a
+view opens on it in a tenth of a second instead of parsing the STL and
+decimating it six times.
+"""
 import ctypes
 import hashlib
 import os
@@ -38,10 +28,11 @@ def cache_dir():
 
 
 def stamp(path):
-    """What a pickle must match to be trusted: the model's absolute
-    path, size and mtime, and the first twelve hex digits of a hash of
-    the mesh, solids, creases and stereotype sources - a decimate or a
-    fit that changed in the code makes the file stale."""
+    """What a pickle must match to be trusted: the model's absolute path,
+    size and mtime, and the first twelve hex digits of a hash of the
+    mesh, solids, creases and stereotype sources - a decimate or a fit
+    that changed in the code makes the file stale.
+    """
     from . import creases, mesh, solids, stereotype
     digest = hashlib.sha1()
     for module in (mesh, solids, creases, stereotype):
@@ -110,8 +101,8 @@ def refusal(where=None):
 
 def build(path, progress=None, where=None):
     """Decimate, index and fit `path`, write the pickle atomically, and
-    return its size in bytes. `progress(label)` names each step as it
-    lands."""
+    return its size in bytes.
+    """
     from . import creases, solids, stereotype
     say = progress or (lambda label: None)
     lods = {}
@@ -128,8 +119,9 @@ def build(path, progress=None, where=None):
 
 
 def save(bundle, where=None):
-    """Write `bundle` as the pickle, through a temporary name so a
-    reader never sees half a file. The size written."""
+    """Write `bundle` as the pickle, through a temporary name so a reader
+    never sees half a file.
+    """
     where = where or cache_dir()
     os.makedirs(where, exist_ok=True)
     final = os.path.join(where, FILE)

@@ -1,6 +1,6 @@
-"""A board that was never plugged in, for exercising the rest of this codebase
-- the REPL, the spinner, a tool call - without touching a serial port at
-all.
+"""A board that was never plugged in, for exercising the rest of this
+codebase - the REPL, the spinner, a tool call - without touching a serial
+port at all.
 """
 
 from .values import (CHANNELS, DCBUS_V, DRIFT, GUST, GUST_CHANCE, NOMINAL,

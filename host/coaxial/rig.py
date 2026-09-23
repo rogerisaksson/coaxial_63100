@@ -111,7 +111,7 @@ class DaqView:
 
     def close(self):
         """End the acquisition: the task stopped, what it buffered still
-        readable. The port is the device's to close.
+        readable.
         """
         self._device.stop()
         return self
@@ -280,8 +280,7 @@ class Coaxial63100(Acquisition):
 
     def _release_afe(self):
         """Release OUR reference; the refcount keeps the rail up for whoever
-        else holds it. Tracked rather than taken from `power_afe`, so a
-        session that called enable() itself is released the same way.
+        else holds it.
         """
         if not self._afe_held:
             return
@@ -296,9 +295,8 @@ class Coaxial63100(Acquisition):
 
     @property
     def board(self):
-        """The board behind the session: what every subsystem holds and every
-        page reads. An opened rig's; before that it raises rather than
-        answering None (invariant 8).
+        """The board behind the session: what every subsystem holds and
+        every page reads.
         """
         if self._board is None:
             raise RigError('the rig is not open - open() first, or use it '
@@ -308,10 +306,7 @@ class Coaxial63100(Acquisition):
     @property
     def origin(self):
         """Where the board was reached: `open_session`'s Origin, with its
-        `interface`, `label` and `real`. Only an opened rig has one, and a
-        rig that has not been opened raises rather than answering None
-        (invariant 8) - which is also what let every `.origin.x` in a
-        notebook read as a possible None to Pylance.
+        `interface`, `label` and `real`.
         """
         if self._origin is None:
             raise RigError('the rig is not open - open() first, or use it '
@@ -340,12 +335,7 @@ class Coaxial63100(Acquisition):
         return self.board.analog.names()
 
     def _lifted(self, records):
-        """The records as `Record`s. What the front door hands out is one
-        already; a plain mapping - from `board.daq` rather than the front
-        door, or one a caller built - is lifted on the layout here, once, so
-        everything below reads a record's attributes and nothing asks a
-        mapping whether it has them.
-        """
+        """The records as `Record`s."""
         fields = (self.layout or {}).get('fields') or []
         return [r if isinstance(r, Record)
                 else Record(r, fields, r.get('start_time'), r.get('dt'))
@@ -411,8 +401,8 @@ class Coaxial63100(Acquisition):
             return frame.set_index('elapsed')
         if index == 'time' and cols['time'] and cols['time'][0] is not None:
             # A real timestamp rather than a float, so resample() and the rest
-            # of the time machinery work without a conversion the caller has
-            # to remember.
+            # of the time machinery work without a conversion the caller has to
+            # remember.
             frame['time'] = pandas.to_datetime(frame['time'], unit='s')
             return frame.set_index('time')
         return frame
@@ -493,8 +483,8 @@ class Coaxial63100(Acquisition):
         names = self.channel_names(records[0] if records else None)
         # THE PINS ARE COLUMNS TOO.
         pins = list((records[0].digital or {}) if records else {})
-        # And the sensor snapshots (MINOR 7), one column per word: 'shaft
-        # angle value' beside the currents it was latched with.
+        # And the sensor snapshots (MINOR 7), one column per word: 'shaft angle
+        # value' beside the currents it was latched with.
         first = (records[0].sensors or {}) if records else {}
         subs = {field: ['%s %s' % (field, w) for w in
                         SENSOR_WORDS.get(field,
@@ -611,8 +601,8 @@ class Coaxial63100(Acquisition):
 
         # Stopped first, because the board refuses to reconfigure under a
         # running task - a stride changing beneath a half-drained buffer hands
-        # out records of two shapes - and a caller reaching for configure
-        # wants the new shape either way.
+        # out records of two shapes - and a caller reaching for configure wants
+        # the new shape either way.
         self.board.daq.stop()
 
         # AND THE CHAIN CLEARED, for the same reason and the same failure.
@@ -727,9 +717,9 @@ class Coaxial63100(Acquisition):
         self.board.daq.start()
         self._last_raw = None
         self._last_stamp = None
-        # A reply carries as many records as fit in the board's own reply
-        # room, and that is what the reader waits for rather than reading the
-        # instant one record lands.
+        # A reply carries as many records as fit in the board's own reply room,
+        # and that is what the reader waits for rather than reading the instant
+        # one record lands.
         stride = (self.layout or {}).get('stride') or 0
         take = self._from_broker(stride)
         self._reader = BufferedReader(
@@ -773,9 +763,9 @@ class Coaxial63100(Acquisition):
             return {'host': 0, 'peak': 0, 'dropped': 0, 'backlog': None,
                     'reads': 0, 'records': 0, 'rate': 0.0,
                     'lost': self._lost, 'cursor': self._cursor}
-        # `taken`, not `records`: the reader resets that one to measure its
-        # own rate, and a byte rate differentiated off a counter that resets
-        # reads as negative throughput.
+        # `taken`, not `records`: the reader resets that one to measure its own
+        # rate, and a byte rate differentiated off a counter that resets reads
+        # as negative throughput.
         return {'host': len(r), 'peak': r.peak, 'dropped': r.dropped,
                 'backlog': r.backlog, 'reads': r.reads,
                 'records': r.taken, 'rate': r.rate,

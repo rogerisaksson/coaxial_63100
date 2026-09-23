@@ -7,31 +7,30 @@
 #>
 
 function Restart-Daemon {
-    <#  Stop ollama and start it again, so it picks the environment up.
-
-        An already-running daemon keeps the environment it was started with -
+    <#
+  Stop ollama and start it again, so it picks the environment up.
+        An already-running daemon keeps the environment it was started with
+        -
         there is no API to change it, and no amount of setting variables in
-        this shell reaches a process that started at login. So the tuning
+        this shell reaches a process that started at login.
         costs one restart, once, and the tray app is put back if it was the
         thing running: on a workstation that icon is how the user expects to
         find ollama, and replacing it with a bare `serve` would be this
-        script quietly redecorating somebody's desktop.  #>
+        script quietly redecorating somebody's desktop.
+#>
     param([string]$Exe)
 
-    # The path as a string, read now: a Process object whose process has
-    # exited no longer answers .Path, so reading it after the Stop-Process
-    # below returns $null and the restart puts nothing back. Measured exactly
-    # that way, once, with the daemon left down afterwards.
+    # The path as a string, read now: a Process object whose process has exited
+    # no longer answers .Path, so reading it after the Stop-Process below
+    # returns $null and the restart puts nothing back.
     $trayPath = ''
     $tray = @(Get-Process -Name 'ollama app' -ErrorAction SilentlyContinue)
     if ($tray.Count -gt 0) {
         try { $trayPath = [string]$tray[0].Path } catch { $trayPath = '' }
     }
 
-    # llama-server too: it is ollama's own child, and stopping only the
-    # parent leaves the runner orphaned, holding memory and handles. Measured
-    # here - two orphans left behind by a stopped daemon, after which every
-    # model load failed with `clip_init: ... std::bad_alloc`.
+    # llama-server too: it is ollama's own child, and stopping only the parent
+    # leaves the runner orphaned, holding memory and handles.
     foreach ($name in 'ollama app', 'ollama', 'llama-server') {
         foreach ($proc in @(Get-Process -Name $name -ErrorAction SilentlyContinue)) {
             try {
@@ -53,13 +52,15 @@ function Restart-Daemon {
 }
 
 function Initialize-Daemon {
-    <#  Leave the daemon configured to run as stably as this bench can make
+    <#
+  Leave the daemon configured to run as stably as this bench can make
         it, restarting it once if that is what it takes.
-
-        Skipped by -NoTune, and skipped when -KeepOthers says another session
+        Skipped by -NoTune, and skipped when -KeepOthers says another
+        session
         is using this daemon: a restart there would take somebody else's
         loaded model with it, which is a worse outcome than the crash this
-        prevents.  #>
+        prevents.
+#>
     param([string]$Exe, [switch]$JustStarted)
 
     if ($NoTune) {
@@ -70,11 +71,7 @@ function Initialize-Daemon {
     $persisted = Set-DaemonEnvironment
     if ($JustStarted) {
         # This shell started it, three lines ago, with the environment above
-        # already in it. Nothing to read and nothing to restart - and reading
-        # the log here would get the wrong answer: a daemon started by this
-        # script writes to its own hidden console, not to server.log, so the
-        # newest line in that file still belongs to whichever daemon ran
-        # before it.
+        # already in it.
         Say 'ok' 'daemon' 'started with the prompt cache off and checkpoints capped'
         return
     }
@@ -102,22 +99,23 @@ function Initialize-Daemon {
 }
 
 function Get-DaemonWords {
-    <#  What the daemon said, out of an Invoke-RestMethod failure: the
+    <#
+  What the daemon said, out of an Invoke-RestMethod failure: the
         `error` field of its JSON body, which is where ollama puts the
         sentence that matters - "llama-server binary not found (checked:
-        ...)", "model requires more system memory". PowerShell's own
+        ...)", "model requires more system memory".
         message is the status line, in the console's language ("(500)
         Internt serverfel", measured here 2026-09-12), so the page read
-        that back for a runner that was not installed. Falls back to the
-        message when there is no body or no `error` in it.  #>
+        that back for a runner that was not installed.
+        message when there is no body or no `error` in it.
+#>
     param($Failure)
 
     $words = ''
-    # PowerShell 5.1 hands the body over twice: as ErrorDetails.Message,
-    # and in the response stream - which Invoke-RestMethod has already
-    # read to its end (Position 625 of 625, measured), so that one is
-    # seeked back before it is read. Without the seek the body came back
-    # empty and this fell through to the status line.
+    # PowerShell 5.1 hands the body over twice: as ErrorDetails.Message, and in
+    # the response stream - which Invoke-RestMethod has already read to its end
+    # (Position 625 of 625, measured), so that one is seeked back before it is
+    # read.
     try {
         if ($Failure.ErrorDetails -and $Failure.ErrorDetails.Message) {
             $body = [string]$Failure.ErrorDetails.Message
@@ -150,7 +148,9 @@ function Get-Tags {
 }
 
 function Get-Resident {
-    <#  What ollama is holding on the card, as returned by /api/ps. #>
+    <#
+  What ollama is holding on the card, as returned by /api/ps.
+#>
     try {
         $ps = Invoke-RestMethod -Uri ($Api + '/api/ps') -TimeoutSec 10
     } catch {
@@ -161,18 +161,21 @@ function Get-Resident {
 }
 
 function Clear-Resident {
-    <#  Unload anything still on the card, except the model about to be used.
-
-        A prompt that exits cleanly hands its weights back, but not every exit
-        is clean: a killed window, a -Hold from last time, an `ollama run` in
-        another terminal. Those sit there until their keep_alive runs out, and
+    <#
+  Unload anything still on the card, except the model about to be used.
+        A prompt that exits cleanly hands its weights back, but not every
+        exit
+        is clean: a killed window, a -Hold from last time, an `ollama run`
+        in
+        another terminal.
         the next load then asks a card that is already full - which on this
         bench was a 500 from the daemon reading 'cudaMalloc failed', with
         nothing obviously wrong at either end.
-
         Keeping a matching model is not an exception to the rule, it is the
-        rule: what is being cleared is VRAM nobody is going to use, and weights
-        this run is about to load are not that.  #>
+        rule: what is being cleared is VRAM nobody is going to use, and
+        weights
+        this run is about to load are not that.
+#>
     param([string]$Except)
 
     if ($KeepOthers) { return }

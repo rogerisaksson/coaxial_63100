@@ -10,8 +10,7 @@ class System(Subsystem):
     """What the board is, and what it is running at."""
 
     def version(self):
-        """Read the frozen version record. Safe against any firmware vintage.
-        """
+        """Read the frozen version record."""
         reader = Reader(self.request(protocol.VERSION))
 
         info = {

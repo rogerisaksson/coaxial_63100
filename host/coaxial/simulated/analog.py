@@ -29,7 +29,7 @@ class SimulatedAfe:
 
     def is_on(self):
         """The real Afe has this and the stand-in did not, which is a gap
-        nothing caught until a view asked. See test_parity.
+        nothing caught until a view asked.
         """
         return self.on
 
@@ -52,9 +52,7 @@ class SimulatedAfe:
 
 
 class SimulatedAnalog:
-    """Invented readings, in the shape the real ones come in. Every number here
-    is made up; only the columns and the channel names are real.
-    """
+    """Invented readings, in the shape the real ones come in."""
     def __init__(self, afe):
         self._afe = afe
         #: The drive whose current the phases carry - the board wires it.
@@ -69,10 +67,7 @@ class SimulatedAnalog:
         return CHANNELS
 
     def names(self):
-        """Signal names in the board's order. Off the map on a real board,
-        because the table takes a reading on the way past and refuses while
-        the injected group owns the converters.
-        """
+        """Signal names in the board's order."""
         return [c['signal'] for c in CHANNELS]
 
     def index_of(self, signal):

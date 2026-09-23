@@ -1,28 +1,4 @@
-"""The loop: one plan step at a time, the model driving, Python judging.
-
-Shape of a step:
-
-    plan step -> fresh conversation -> tool calls against the board -> report
-                                                                         |
-                                     Limit.judge in Python <-------------+
-
-Each step starts a new conversation. It costs the system prompt again and buys
-more: a model confused in step 3 arrives clean at step 4, and a verdict's
-reasoning is one contiguous block an auditor can read. The Python namespace does
-persist - state the model built deliberately survives, state it drifted into
-does not.
-
-What this loop refuses:
-
-  * a verdict from the model. It reports a number; `plan.Limit` decides.
-  * an endless step. `max_turns` ends it, recorded unfinished, not dropped.
-  * hiding anything. Every message, call and result reaches the JSONL
-    transcript before the next turn, so a run that dies mid-plan leaves its
-    evidence on disk.
-
-The system prompt is the other half of this file: mostly the board's invariants
-restated as things the model may not conclude.
-"""
+"""The loop: one plan step at a time, the model driving, Python judging."""
 import json
 import os
 import time
@@ -71,12 +47,7 @@ What you must not do:
 
 
 class Transcript:
-    """Append-only JSONL, flushed every line.
-
-    Flushing per line rather than per step is the whole reason this is JSONL: a
-    run that dies with the fixture half configured should still say what the last
-    thing it did was.
-    """
+    """Append-only JSONL, flushed every line."""
 
     def __init__(self, path=None):
         self.path = path
@@ -150,10 +121,8 @@ class Runner:
 
     def prompt_budget(self):
         """What a step's conversation may grow to, from the client's own
-        num_ctx. Read fresh every turn rather than cached at construction:
-        the client halves its window when the machine runs out of memory
-        (see client._make_room), and a runner still trimming to the old
-        number would hand the daemon exactly the prompt that just failed."""
+        num_ctx.
+        """
         return context.budget_for(self.client.options)
 
     def system_prompt(self):
@@ -163,13 +132,8 @@ class Runner:
         return text
 
     def _refuse_unmeasured(self, task, record, messages, name, args, st):
-        """A report with no board tool behind it, refused like a prose
-        stop: nudged twice, then unfinished. True when the step is over.
-
-        The same failure debug.py hardened against, here with higher
-        stakes: this report becomes a signed pass/fail, and SYSTEM already
-        says not to invent a number - which did not stop the model in
-        debug.py either.
+        """A report with no board tool behind it, refused like a prose stop:
+        nudged twice, then unfinished.
         """
         st['nudges'] += 1
         text = ('refused: no board tool was called this step, '
@@ -241,25 +205,23 @@ class Runner:
         messages = [{'role': 'system', 'content': self.system_prompt()},
                     {'role': 'user', 'content': task.brief()}]
         schemas = self.toolbox.schemas()
-        # nudges: prose answers and unmeasured reports, two of either and
-        # the step is unfinished; board_touched: a real board tool was
-        # called this step.
+        # nudges: prose answers and unmeasured reports, two of either and the
+        # step is unfinished; board_touched: a real board tool was called this
+        # step.
         st = {'nudges': 0, 'board_touched': False}
         reported = None
         giving_up = False
 
-        # The tool schemas ride with every turn and come out of the same
-        # window the conversation does, so they are counted as part of it.
+        # The tool schemas ride with every turn and come out of the same window
+        # the conversation does, so they are counted as part of it.
         schema_tokens = context.approx_tokens(json.dumps(schemas))
 
         while record.turns < task.max_turns and reported is None:
             record.turns += 1
             # A step is a fresh conversation but not a short one: max_turns
-            # tool calls with a build log or a hundred sample rows in each is
-            # a prompt past num_ctx by turn four, and past num_ctx is where
-            # the daemon starts answering 500 instead of answering. The
-            # transcript above already has every result whole - this only
-            # bounds what is re-sent.
+            # tool calls with a build log or a hundred sample rows in each is a
+            # prompt past num_ctx by turn four, and past num_ctx is where the
+            # daemon starts answering 500 instead of answering.
             messages = context.fit(messages, self.prompt_budget(),
                                    schema_tokens)
             message = self.client.chat(messages, schemas)
@@ -337,8 +299,7 @@ class Runner:
             if only and task.id not in only:
                 continue
             if task.needs_writes and not self.toolbox.allow_writes:
-                # Skipped loudly. A step that silently did not run is the one
-                # failure mode a test report must never have.
+                # Skipped loudly.
                 record = Record(task)
                 record.verdict = 'skipped'
                 record.warnings.append('step needs --allow-writes')

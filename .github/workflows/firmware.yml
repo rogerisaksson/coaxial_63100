@@ -1,14 +1,6 @@
 # The firmware, built on every push with the same presets the bench uses -
 # `cmake --preset <name>`, then the build preset - on Arm's own GCC 14, the
-# major the ST bundle ships. What it proves without a board: the tree
-# configures from a bare clone, compiles with zero warnings under the flags
-# the HAL-free cores carry (-Wextra -Wshadow -Wconversion), links, and how
-# big it is - the size line is in the log and the ELF is an artifact, so a
-# commit that says "197 060 B" can be checked against what the runner made.
-# Both presets: the bench flashes Debug, and Release is what the optimiser
-# sees - -Wall at -O0 cannot warn of a use before a store that -Os can.
-# What it cannot judge stays the bench's: parity, conformance and the live
-# views over a flashed board.
+# major the ST bundle ships.
 name: firmware
 
 on:

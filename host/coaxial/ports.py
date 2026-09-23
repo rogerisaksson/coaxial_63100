@@ -54,10 +54,7 @@ def discover(preferred=None, baud=115200, unit=1, only=None):
 
 
 def probe(candidate, baud=115200, unit=1):
-    """True if this board answers on `candidate`. Opens and closes the link
-    each time - the transport's own 0.5s read timeout (coaxial/transport.py)
-    is what keeps a silent port from hanging this, not anything here.
-    """
+    """True if this board answers on `candidate`."""
     try:
         boards = board.connect([(unit, baud, candidate)])
     except LINK_FAULTS:

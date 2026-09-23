@@ -62,9 +62,9 @@ _BROKER: dict = {'held': None, 'board': None, 'identity': None,
 
 def _learn(port, simulated):
     """The readout's identity off the bus - the board's when one answers,
-    the stand-in's when none does - read once through a short session
-    and closed again, off the frame loop. A link that refuses leaves the
-    readout AWAITING LINK with the refusal's words under it."""
+    the stand-in's when none does - read once through a short session and
+    closed again, off the frame loop.
+    """
     from coaxial.errors import LINK_FAULTS, RigError
 
     try:
@@ -93,22 +93,13 @@ def _watch_broker():
             count = broker.clients() if broker.serving() else None
         except LINK_FAULTS + (ValueError,):   # the socket, the address file
             count = None
-        # The broker holding the port IS a session; its clients ride on
-        # it. Counting clients alone read 0 SESSIONS on a page opened by
-        # the very demo that had the port.
+        # The broker holding the port IS a session; its clients ride on it.
         _BROKER['held'] = count + 1 if count is not None else 0
         time.sleep(3.0)
 
 
 def _watch_link(port):
-    """Whether a board answers anywhere, on its own slow clock.
-
-    Its own thread and not the broker watcher's: one probe costs seconds
-    and the session count would stop moving for the length of it. Asked
-    through `session.board_answers`, which is the decision `open_session`
-    itself makes - the page must not say LIVE where the view gets the
-    stand-in.
-    """
+    """Whether a board answers anywhere, on its own slow clock."""
     from coaxial.session import board_answers
     from coaxial.errors import LINK_FAULTS
 
@@ -117,8 +108,8 @@ def _watch_link(port):
             _BROKER['board'] = board_answers(port)
         except LINK_FAULTS:
             _BROKER['board'] = False
-        # The readout follows the link: the board's own identity once
-        # one answers, the stand-in's until then, and again if it moves.
+        # The readout follows the link: the board's own identity once one
+        # answers, the stand-in's until then, and again if it moves.
         known = _BROKER.get('identity')
         if known is None or known['real'] != bool(_BROKER['board']):
             _learn(port, not _BROKER['board'])
@@ -126,13 +117,7 @@ def _watch_link(port):
 
 
 def masthead(port):
-    """The top strip: the views' band, and the chip a view would wear.
-
-    SIMULATED here rather than one page later: with no board reachable
-    every view opens on the stand-in, and the front page is where that is
-    worth knowing - before a view is picked, not after its numbers have
-    been read as the board's.
-    """
+    """The top strip: the views' band, and the chip a view would wear."""
     held, board = _BROKER['held'], _BROKER['board']
     if board is False:
         tag = Text(' SIMULATED ', style='chip.sim')
@@ -144,12 +129,10 @@ def masthead(port):
 
 
 def roster(picked):
-    """The access list. ONLY the picked entry carries light - the rest sit
-    in the same quiet label grey, so the eye finds the choice and nothing
-    else competes with it."""
+    """The access list."""
     # EVERY row is the same one line whether picked or not - the framed
-    # highlight changed the list's height and the whole page jumped with
-    # each keypress. Only the COLOUR moves now.
+    # highlight changed the list's height and the whole page jumped with each
+    # keypress.
     lines = [Text('')]
     for i, (key, name, what) in enumerate(ENTRIES):
         if i == picked:
@@ -160,8 +143,8 @@ def roster(picked):
             row = Text.assemble('   ', (key, 'label'), ('  ', ''),
                                 (name, 'label'),
                                 ('   ' + what, 'label'))
-        # Cropped, never wrapped: on a narrow tty a wrapped row doubled
-        # the list's height and the page scrolled.
+        # Cropped, never wrapped: on a narrow tty a wrapped row doubled the
+        # list's height and the page scrolled.
         row.no_wrap, row.overflow = True, 'ellipsis'
         lines.append(row)
         lines.append(Text(''))
@@ -169,8 +152,7 @@ def roster(picked):
 
 
 def asking(sub):
-    """An entry's second question: the same quiet rows, only the pick
-    lit. `sub` is (entry, pick)."""
+    """An entry's second question: the same quiet rows, only the pick lit."""
     entry, who = sub
     caption, options = SUB[entry]
     lines = [Text(''),
@@ -231,8 +213,8 @@ def _breathe(view, dt):
     mid = (SWELL_LO + SWELL_HI) / 2.0
     half = (SWELL_HI - SWELL_LO) / 2.0
     want = mid + half * math.sin(view['phase'])
-    # Toward the envelope rather than onto it: a zoom the wheel left
-    # outside the band glides back instead of snapping.
+    # Toward the envelope rather than onto it: a zoom the wheel left outside
+    # the band glides back instead of snapping.
     view['zoom'] += (want - view['zoom']) * min(1.0, 4.0 * dt)
 
 
@@ -275,11 +257,9 @@ def grab(view, keys, moved, now):
 
 
 def turntable(view, width=52, height=18):
-    """The board on the stand, at the pose and zoom the view holds - lit
-    as the render demo lights it: camera straight down the axis, no
-    horizon. The attitude view's 34-degree tip folds into the lean and
-    dimmed the same board half a class. Blank until `_warm` has built
-    the solids."""
+    """The board on the stand, at the pose and zoom the view holds - lit as
+    the render demo lights it: camera straight down the axis, no horizon.
+    """
     if not _STAGE['ready']:
         return ''
     return _draw(view, width, height)
@@ -321,13 +301,12 @@ def readout_rows(tall):
 def compose(port, picked, view, size=None, who=None):
 
     tall = max(8, (size.height if size else 24) - 4)
-    # The stand never outgrows the menu: at most BOX columns, at most
-    # half the terminal - on a small tty the board shrinks, the list
-    # does not.
+    # The stand never outgrows the menu: at most BOX columns, at most half the
+    # terminal - on a small tty the board shrinks, the list does not.
     wide = min(BOX, max(26, (size.width if size else 100) // 2))
-    # The right column is two boxes since 2026-09-23: the model turning
-    # above, and under it the readout - what the board says it is,
-    # printed as a console of the era printed it (tools/readout.py).
+    # The right column is two boxes since 2026-09-23: the model turning above,
+    # and under it the readout - what the board says it is, printed as a
+    # console of the era printed it (tools/readout.py).
     below = readout_rows(tall)
     above = max(6, tall - below)
     state = view.setdefault('readout', readout.fresh(time.monotonic()))
@@ -407,9 +386,10 @@ def _sub_act(typed, sub):
 
 
 def _typed_choice(line):
-    """The chooser's answer to a line typed with no terminal to page on:
-    an entry's number or key, or a second question's option by name -
-    for a line that cannot be asked twice. 0 for anything else."""
+    """The chooser's answer to a line typed with no terminal to page on: an
+    entry's number or key, or a second question's option by name - for a
+    line that cannot be asked twice.
+    """
     numbered = {str(i + 1): 101 + i for i in range(len(ENTRIES))}
     keyed = {key.lower(): 101 + i
              for i, (key, _name, _what) in enumerate(ENTRIES)}
@@ -428,9 +408,9 @@ def _second_question(chosen):
 
 def main(argv=None, preload=None):
     """The page until a choice: its code - 0 to quit, 101 + the entry -
-    returned to the loader that runs this page in its own process, or
-    the exit code as a script. `preload` is the loader's state for the
-    readout's first inquiry; without one the page starts its own."""
+    returned to the loader that runs this page in its own process, or the
+    exit code as a script.
+    """
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--frames', type=int, default=0,
@@ -450,25 +430,23 @@ def main(argv=None, preload=None):
     who = OPEN.get(args.open)
     if who is not None:
         picked = who[0]
-    # The turntable's state: pose and zoom persist across a grab, so the
-    # idle motion carries on from wherever the hand left it.
+    # The turntable's state: pose and zoom persist across a grab, so the idle
+    # motion carries on from wherever the hand left it.
     view = {'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM,
             'phase': None, 'opened': began, 'touched': -1e9, 'spun': 0.0,
             'carry': (0.0, 0.0)}
     last = began
 
     if not console and not args.frames:
-        # No terminal to page on: read the choice as a line, the way the
-        # old chooser fell back. `echo 3 | coaxial_tty.ps1` still picks a view,
-        # and a closed stdin is a quit rather than a spin.
+        # No terminal to page on: read the choice as a line, the way the old
+        # chooser fell back.
         return _typed_choice(sys.stdin.readline().strip().lower())
 
     threading.Thread(target=_watch_broker, daemon=True).start()
     learn = None
     if args.simulated:
-        # Asked for by name: no probe, and the chip says so from the
-        # first frame rather than eight seconds into the page. The
-        # readout gets the stand-in's identity, off the loop.
+        # Asked for by name: no probe, and the chip says so from the first
+        # frame rather than eight seconds into the page.
         _BROKER['board'] = False
         learn = threading.Thread(target=_learn, args=(args.port, True),
                                  daemon=True)
@@ -481,8 +459,8 @@ def main(argv=None, preload=None):
     state = preload if preload is not None else loader.fresh()
     _BROKER['preload'] = state
     if preload is None and not args.frames:
-        # Run alone, the page preloads for itself; the smoke draws the
-        # page, not the model.
+        # Run alone, the page preloads for itself; the smoke draws the page,
+        # not the model.
         threading.Thread(target=loader.preload, args=(state,),
                          daemon=True).start()
     if args.frames:

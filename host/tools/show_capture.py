@@ -55,21 +55,9 @@ class Rate:
 
 
 def start(rig, args):
-    """Arm both buffers, and say what the board accepted.
-
-    Through `Coaxial63100`, which is the DAQ API's front door: it takes
-    every channel the board reports rather than a list written here, and
-    `read()` off the same object is what puts `samples` on a record.
-    """
+    """Arm both buffers, and say what the board accepted."""
     board = rig.board
-    # TAKING THE BOARD OVER STARTS BY TAKING IT OVER. A session that
-    # died between start() and stop() leaves a task running, and the
-    # board then refuses every shape() and configure() - correctly, since
-    # coefficients must not change under a half-drained buffer. This view
-    # is replacing the task wholesale, so that buffer is not its concern.
-    # MEASURED 2026-09-01: a crashed script left one running and the view
-    # printed the board's refusal instead of drawing, every run, until
-    # someone stopped it by hand. stop() is idempotent - checked idle.
+    # TAKING THE BOARD OVER STARTS BY TAKING IT OVER.
     rig.stop()
     layout = rig.configure(clock=args.clock, digital=True,
                            sample_time=args.sample_time,
@@ -81,17 +69,11 @@ def start(rig, args):
         % (len(layout['fields']), len(layout['pins']), layout['stride'],
            args.clock))
 
-    # The IMU only produces when a report is enabled, so a capture that did
-    # not ask for one would show a source that looks broken rather than idle.
+    # The IMU only produces when a report is enabled, so a capture that did not
+    # ask for one would show a source that looks broken rather than idle.
     try:
         board.imu.settled()      # a feature before 'running' is refused
-        # No reset first. The poll loop brings the part up on its own, and
-        # a reset immediately before a Set Feature is what stops the feature
-        # taking: the write's wake handshake runs its own reset when the
-        # acknowledge does not arrive, and right after a host reset it does
-        # not, so the write lands on a part that has just restarted.
-        # Measured 2026-08-27: reset then feature, 0 rotation vectors;
-        # feature alone, 49.0 a second. See FINDINGS.
+        # No reset first.
         with board.imu.configuring():
             board.imu.feature(ROTATION_VECTOR, args.interval_us)
         say('ok', 'rotation vector', 'every %d us' % args.interval_us)
@@ -105,20 +87,7 @@ def start(rig, args):
 
 
 def analog_rows(layout, record, width, params=None):
-    """One line per analog field, named and united by the board.
-
-    Divided by `samples`, because a record's value is the SUM of that many
-    readings and not one. Shown raw it doubled the instant `adapt` raised
-    accumulation, and a number that moves when the buffering changes is not
-    a measurement.
-
-    The code and what it converts to, because the task buffers codes and
-    does not scale them - the unit in a layout says what the channel means,
-    not what the number is in. Printing the two together said 405
-    centi-degC for an NTC that `ntc_temperature()` read as 38.1 C off the
-    same code, and 20811 mV for a 24.81 V bus. `scaling.converter` is the
-    same one the meter bridge uses.
-    """
+    """One line per analog field, named and united by the board."""
     out = []
     samples = max(1, (record or {}).get('samples', 1))
     for field in layout['fields']:
@@ -127,9 +96,9 @@ def analog_rows(layout, record, width, params=None):
             out.append(('  %-9s %12s' % (field['signal'], '-'))[:width])
             continue
         code = value // samples
-        # signal= is what picks the right divider: without it every
-        # millivolt channel fell back to the DC link's 23.68 and +5V read
-        # 60.4 V - measured, off this very view.
+        # signal= is what picks the right divider: without it every millivolt
+        # channel fell back to the DC link's 23.68 and +5V read 60.4 V -
+        # measured, off this very view.
         convert = scaling.converter(field['unit'], field['differential'],
                                     signal=field['signal'], params=params)
         out.append('  %-9s %+7d  %+9.2f %s'
@@ -198,13 +167,7 @@ def compose(origin, console, layout, view, width):
 
 
 def drain(rig, layout, view):
-    """Take what both buffers hold, and keep the newest of each kind.
-
-    A missed reply is counted, not raised. Measured on this VCP, about one
-    transaction in fifty goes unanswered when the board is busy, and a live
-    view that dies on one is a view that cannot be left running - which is
-    exactly how this one used to end, with a traceback over the frame.
-    """
+    """Take what both buffers hold, and keep the newest of each kind."""
     board = rig.board
     try:
         return _drain(rig, board, layout, view)
@@ -230,23 +193,7 @@ def _drain(rig, board, layout, view):
 
 
 def adapt(rig, layout, args, view):
-    """Accumulate harder when the link cannot carry what the board produces.
-
-    `dropped` is the board's own counter, so this closes the loop on the
-    thing that actually overflows rather than on a guess about the wire.
-    Accumulation and not decimation: summing keeps every sample's
-    contribution where subsampling throws it away, and it is what measured
-    clean - seven channels and the digital word drop 3851 records at
-    accumulate 1 and none at all at 16.
-
-    It happens on the target, before a byte is sent, which is the only place
-    it saves anything: the payload ceiling here is about 3.8 kB/s whatever
-    the record size, so the way through is fewer records, not bigger reads.
-
-    Reconfiguring empties the ring, so this backs off in doublings rather
-    than nudging: re-arming every frame would show a buffer that never
-    filled and a rate that never settled.
-    """
+    """Accumulate harder when the link cannot carry what the board produces."""
     dropped = view['daq']['dropped']
     gained = dropped > view['dropped_was']
     view['dropped_was'] = dropped
@@ -314,9 +261,9 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=0)
     args = parser.parse_args(argv)
 
-    # power_afe SAID: both parts in the ring and the converter's reference
-    # live behind AFE_ON, and the quiet-False default left all three dead -
-    # the daq refused, the view returned 1 and the menu read that as quit.
+    # power_afe SAID: both parts in the ring and the converter's reference live
+    # behind AFE_ON, and the quiet-False default left all three dead - the daq
+    # refused, the view returned 1 and the menu read that as quit.
     rig = open_rig('LINKING THE RING', port=args.port, power_afe=True,
                    simulated_device=bool(args.simulated))
     if rig is None:

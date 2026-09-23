@@ -1,27 +1,5 @@
-"""The tool surface handed to the model: the MCP set, plus code, shell, report.
-
-The fifteen board tools are imported from `coaxial_mcp.tools`, never re-declared:
-one description, one set of renderers, one place a capability is added. A second
-copy for Ollama would stay plausible while going out of date.
-
-Six more make this a runner rather than a chat window:
-
-  run_command    an allowlisted process: a build, a flash, `python -m coaxial`.
-  run_python     code against the live `board`, in a namespace that persists.
-  build_firmware tools/build_and_flash.py, fixed arguments - the narrow answer
-                 to "build and flash", so a session needs no wider surface.
-  run_tests      tools/run_tests.py - each suite's own tally, parsed by that
-                 script. Ungated: it touches neither state nor flash.
-  link_diagnose  why the board is silent, OS-level rather than another Modbus
-                 call the dead link would fail too. Ungated for the same reason.
-  report         how a step ends: a value and a unit, never a verdict.
-
-Twenty-one against coaxial_mcp's fifteen, and the extra buys one thing: a plan
-step can say "work out which channel this is" instead of naming a function
-code.
-
-`report` has no pass/fail field - that is where a model would put an opinion the
-runner then has to weigh. plan.Limit decides, in Python.
+"""The tool surface handed to the model: the MCP set, plus code, shell,
+report.
 """
 import json
 import os
@@ -31,9 +9,9 @@ import sys
 import time
 from typing import Any
 
-# host/ and host/tools on the path: this file's own directory's parent, so
-# it does not matter what the working directory is - dbg.py and the runner
-# start from different ones - or what any directory along the way is called.
+# host/ and host/tools on the path: this file's own directory's parent, so it
+# does not matter what the working directory is - dbg.py and the runner start
+# from different ones - or what any directory along the way is called.
 _HOST = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _TOOLS = os.path.join(_HOST, 'tools')
 sys.path.insert(0, _HOST)
@@ -50,21 +28,13 @@ from coaxial import ports                                  # noqa: E402
 
 from .sandbox import clip_ends                             # noqa: E402
 
-# The ceiling on anything a tool may put in front of the model, in characters
-# - about a thousand tokens. A result is re-sent on every later turn of the
-# same question, so one unbounded build log is a prompt that keeps growing.
-# At the dispatch point rather than per handler, so it holds for the ones not
-# written yet: Shell and Scope always clipped, build_firmware, run_tests and
-# link_diagnose ran subprocesses directly and did not.
+# The ceiling on anything a tool may put in front of the model, in characters -
+# about a thousand tokens.
 TOOL_LIMIT = 4000
 
 
 def bounded(result, limit=TOOL_LIMIT):
-    """One ceiling, at the one place every tool result passes through.
-
-    `Reported` is not text and is never clipped: it carries a value and a
-    note the runner judges in Python, not something the model reads back.
-    """
+    """One ceiling, at the one place every tool result passes through."""
     if isinstance(result, str):
         return clip_ends(result, limit)
     return result
@@ -146,41 +116,27 @@ EXTRA_TOOLS = [
 
 TOOLS = BOARD_TOOLS + EXTRA_TOOLS
 
-# Calls that change the board's state. The AFE switch is deliberately not here:
-# it powers the ADC reference, so a run that could not touch it could not measure
-# anything, and every analog step would open with a refusal.
+# Calls that change the board's state.
 WRITE_CALLS = {
     'gpio_pin': lambda a: a.get('op') in ('write', 'mode'),
     'gpio_port': lambda a: a.get('op') == 'write',
     'test_gate': lambda a: bool(a.get('enable')),
 }
 
-# On by default, and what --read-only takes away. `allow_writes` cannot police
-# them: run_python holds the same board object the gpio tools do, so code is
-# either trusted for this run or unavailable. build_firmware counts as a write
-# for --confirm whatever `action` says - the risk is the flash step, and
-# `action` is a model argument this loop does not trust before --confirm.
+# On by default, and what --read-only takes away.
 CODE_CALLS = ('run_python', 'run_command', 'build_firmware')
 
 # Tools that are neither a board handler nor a CODE_CALLS entry, and need no
-# gate at all - see _permit(). Both read local/OS state and never touch the
-# board or its flash.
+# gate at all - see _permit().
 UNGATED_EXTRAS = ('run_tests', 'link_diagnose')
 
 # Calls that actually reach the board - not `docs`, which reads local files and
-# proves nothing about a measurement having happened. Shared by debug.py (to
-# tell a live link failure from one three turns stale) and runner.py (to tell
-# a real report from one nobody measured).
+# proves nothing about a measurement having happened.
 LINK_TOOLS = set(BOARD_HANDLERS) - {'docs'}
 
 
 def arguments(call):
-    """One tool call's arguments, whatever shape Ollama sent them in.
-
-    Usually an object; some builds send a JSON string. One that will not parse
-    is kept under `_unparsed` rather than dropped - returning {} instead
-    turned a malformed `analog_read` into a silent read of every channel.
-    """
+    """One tool call's arguments, whatever shape Ollama sent them in."""
     args = (call.get('function') or {}).get('arguments')
     if isinstance(args, str):
         try:
@@ -193,8 +149,8 @@ def arguments(call):
 def schemas(tools=TOOLS, level=detail.FULL):
     """MCP tool specs in the shape Ollama's /api/chat wants, at one level of
     detail - `terse` for a model paying for this list out of 8192 tokens,
-    `full` for one that is not. See coaxial_mcp/detail.py; nothing here
-    decides which, it is passed in from whoever knows the model."""
+    `full` for one that is not.
+    """
     return [{'type': 'function',
              'function': {'name': spec['name'],
                           'description': spec['description'],
@@ -219,13 +175,7 @@ class Reported:
 
 
 def _stand_in(session):
-    """Which stand-in a session with no port is: 'simulated' or
-    'no board'.
-
-    Asked of the thing that matters rather than the class name: a
-    NoBoard refuses to produce a board at all, a SimulatedSession hands
-    one over.
-    """
+    """Which stand-in a session with no port is: 'simulated' or 'no board'."""
     try:
         session.board
     except LINK_FAULTS:
@@ -234,12 +184,7 @@ def _stand_in(session):
 
 
 def _open_link_answers(session):
-    """Whether a link this session already holds open answers now.
-
-    Never opens anything and never raises: a session with no board
-    cached returns False, and the caller falls through to the ordinary
-    probe that opens the port itself.
-    """
+    """Whether a link this session already holds open answers now."""
     board = session.attached
     if board is None:
         return False
@@ -262,45 +207,22 @@ class Toolbox:
         self.allow_code = allow_code
         self.confirm = confirm            # callable(name, args) -> bool, or None
         # How much of each tool's documentation this run's model gets - see
-        # coaxial_mcp/detail.py. An attribute rather than a constructor
-        # argument threaded through every caller: /detail flips it mid
-        # session, and every existing caller keeps the full text it has
-        # always had.
+        # coaxial_mcp/detail.py.
         self.detail = detail.FULL
         self.log = []
-        # Set by the caller before a turn's calls run - True unless the
-        # caller actually checked and the current question never said "afe".
-        # Defaults permissive so anything that never wires this (every
-        # existing test, a plan step, a bare Toolbox in a script) keeps its
-        # old behaviour; only debug.py's own repl() and one-shot path set it
-        # from the real question text. See _permit() for why it exists.
+        # Set by the caller before a turn's calls run - True unless the caller
+        # actually checked and the current question never said "afe".
         self.afe_mentioned = True
-        # The operator's own words this turn, for the one check that needs
-        # them - see _wrong_side(). Empty means "not wired", which every
-        # existing caller is, and the check then stays out of the way.
+        # The operator's own words this turn, for the one check that needs them
+        # - see _wrong_side().
         self.asked = ''
 
-    # Which side a word names, in the two languages this loop is spoken
-    # in. Not a translation table - the only distinction that matters here
-    # is left from right, and it is the one a machine cannot afford to get
-    # wrong.
+    # Which side a word names, in the two languages this loop is spoken in.
     SIDES = {'left': 'left', 'vänster': 'left', 'vanster': 'left',
              'right': 'right', 'höger': 'right', 'hoger': 'right'}
 
     def _wrong_side(self, args):
-        """A node on the other side of the machine from the one asked for.
-
-        Measured: a request, in Swedish, to talk to the left knee was sent
-        as
-        `name='right knee'` - the model mistranslated it in the call and
-        got it right in the prose that followed. On a humanoid the wrong
-        limb moving is the failure that costs something, so the operator's
-        own word wins over the model's rendering of it.
-
-        Only fires when both sides are named and they disagree. A question
-        that names no side, or a target that names none, is nobody's
-        business here.
-        """
+        """A node on the other side of the machine from the one asked for."""
         words = set(re.findall(r'[^\W\d_]+', (self.asked or '').lower()))
         wanted = {self.SIDES[w] for w in words if w in self.SIDES}
         if len(wanted) != 1:
@@ -321,11 +243,7 @@ class Toolbox:
         return None
 
     def schemas(self):
-        """This run's tool list, at this run's detail level. `detail` is set
-        by whoever built the Toolbox and knows which model is reading -
-        debug.py from --detail, the runner from the same flag - and defaults
-        to the full text for a caller that never said, since that caller is
-        not the one short of context."""
+        """This run's tool list, at this run's detail level."""
         return schemas(TOOLS, self.detail)
 
     def is_write(self, name, args):
@@ -335,11 +253,7 @@ class Toolbox:
         return name in CODE_CALLS or bool(test and test(args or {}))
 
     def call(self, name, args):
-        """Never raises for anything the model did. Returns text, or Reported.
-
-        A bad channel name, an unknown tool, a refused pin: answers, not
-        exceptions. The model has to read them to correct itself.
-        """
+        """Never raises for anything the model did."""
         args = dict(args or {})
         self.log.append((name, args))
 
@@ -361,10 +275,7 @@ class Toolbox:
             return render.error(exc)
 
     def _dispatch(self, name, args):
-        """Which handler, once the policy above has allowed the call. Split
-        out so every result leaves through exactly one `bounded()` - a new
-        tool added to this chain cannot forget the ceiling by being written
-        with its own `return`."""
+        """Which handler, once the policy above has allowed the call."""
         if name == 'run_python':
             return self._python(args)
         if name == 'run_command':
@@ -397,14 +308,12 @@ class Toolbox:
             raise Refused('%s changes state and this run may only read. The '
                           'operator would have to pass --allow-writes.' % name)
 
-        # afe_power is deliberately not in WRITE_CALLS (see the comment
-        # there - a read-only run still has to be able to power the front
-        # end it is reading through), which is exactly why it needs a gate
-        # of its own: nothing else stops it firing as a precondition for a
-        # reading, the one thing the system prompt already says never to do
-        # and, measured live, a model did anyway. analog_read works with the
-        # AFE either way and reports which - there is never a reading that
-        # actually needs this call.
+        # afe_power is deliberately not in WRITE_CALLS (see the comment there -
+        # a read-only run still has to be able to power the front end it is
+        # reading through), which is exactly why it needs a gate of its own:
+        # nothing else stops it firing as a precondition for a reading, the one
+        # thing the system prompt already says never to do and, measured live,
+        # a model did anyway.
         if (name == 'afe_power' and args.get('action', 'read') != 'read'
                 and not self.afe_mentioned):
             raise Refused('not asked for - call analog_read instead, it '
@@ -437,8 +346,7 @@ class Toolbox:
 
     def _build_firmware(self, args):
         """tools/build_and_flash.py directly, not through `self.shell`, so
-        this works whatever --allow was set to. Nothing here for a model to
-        choose but `action`: no preset, no elf path, no flash arguments.
+        this works whatever --allow was set to.
         """
         action = args.get('action') or 'both'
         if action not in ('build', 'flash', 'both'):
@@ -476,16 +384,7 @@ class Toolbox:
         return text if done.returncode == 0 else 'ERR %s' % text
 
     def _relink(self):
-        """Reopen the serial link after a flash - not just wait for it.
-
-        `--start` resets the MCU, which reboots into its ASCII console, not
-        the binary Modbus mode a cached `Session.board` assumes. Measured
-        live: FLASH ok, then `NoReplyError: ... silence` on hardware that had
-        just come back up.
-
-        reset() drops the stale handle; the three retries are for the reboot,
-        not the handshake, and cost nothing against a flash that took a second.
-        """
+        """Reopen the serial link after a flash - not just wait for it."""
         if self.session is None or self.session.port is None:
             # NoBoard (or no session at all) - nothing was ever connected in
             # this run, so there is nothing a flash could have disconnected.
@@ -506,8 +405,7 @@ class Toolbox:
 
     def _run_tests(self, args):
         """tools/run_tests.py - every suite's own tally, parsed by that
-        script, never re-summarised here or by the model. A paraphrase of
-        test output is the plausible-but-unverified line FINDINGS warns about.
+        script, never re-summarised here or by the model.
         """
         argv = [sys.executable, _RUN_TESTS]
         if args.get('conformance'):
@@ -527,21 +425,7 @@ class Toolbox:
         return text if done.returncode == 0 else 'ERR %s' % text
 
     def _no_board(self):
-        """What a diagnosis says on a session that never had a board.
-
-        Not step 1 - this isn't a rung on the checklist, it's whether there
-        is a real board to run one against at all. A stand-in has no SWD to
-        check power over either, and checking it anyway would spend several
-        real seconds proving nothing about a session that was never going
-        to have a board.
-
-        It does not say "--no-board or --simulated this run" any more: a
-        session that found nothing at startup falls back on its own, and
-        naming two flags the operator never typed is a false statement
-        about how the session was started. Measured - asked to switch to the
-        debug probe on an auto-fallen-back session, this line was the whole
-        answer on screen, and it named the wrong reason and no way out.
-        """
+        """What a diagnosis says on a session that never had a board."""
         if _stand_in(self.session) == 'no board':
             return ('--no-board this run: every board tool refuses. '
                     '/board auto looks for a real one.')
@@ -567,23 +451,9 @@ class Toolbox:
     def _link_diagnose(self, args):
         """A checklist, most fundamental first, stopping at the step that
         explains the silence rather than running the rest regardless.
-
-        `tools/find_board.py` does the work - the same module
-        board_chat/ComPort.ps1 shells out to, imported here since this call
-        is already in-process, so "does this port answer" cannot drift
-        between a live session and the preflight.
-
-        Step 1, target power over SWD, is the one the serial side cannot
-        check at all: measured, an unplugged ST-Link read `Voltage: 0.00V`
-        where serial alone only ever said "silence".
         """
-        # `simulated` first, then the port - the same order `_interface`
-        # asks in, and for the same reason. A stand-in's `port` is a bus
-        # label ('AX'), never None, so the port on its own let a
-        # fallen-back session through to a 15s SWD probe and then
-        # "Configured port AX: not among the ports above - the cable may
-        # be unplugged", about a session that never had a cable. Measured,
-        # with the board's JTAG connector pulled.
+        # `simulated` first, then the port - the same order `_interface` asks
+        # in, and for the same reason.
         if self.session.simulated or self.session.port is None:
             return self._no_board()
         configured, baud, unit = (self.session.port, self.session.baud,
@@ -600,11 +470,7 @@ class Toolbox:
 
     @staticmethod
     def _power_step(steps):
-        """Step 1, target power over SWD. What step 4's closing advice
-        rests on, so the phrase it returns says what was found - it used
-        to say "Powered" whatever step 1 concluded, which on a pulled cable
-        asserted the one thing that was false. None stops the checklist:
-        nothing past no power can work."""
+        """Step 1, target power over SWD."""
         voltage, detail = find_board.check_power()
         if voltage is None:
             steps.append('1. Target power (ST-Link/SWD): could not check - %s'
@@ -624,7 +490,8 @@ class Toolbox:
     @staticmethod
     def _ports_step(steps, configured):
         """Steps 2 and 3, the ports Windows sees and whether the configured
-        one is among them. The list when the checklist goes on, else None."""
+        one is among them.
+        """
         listed = find_board.list_ports()
         steps.append('2. COM ports Windows sees: %s' % (', '.join(listed)
                                                          or 'none'))
@@ -642,20 +509,7 @@ class Toolbox:
 
     def _answers_step(self, steps, configured, baud, unit, power_says):
         """Step 4, whether the board answers right now, and why not when
-        not. True when the other ports are worth trying.
-
-        The session's own handle first, and a second open only if it has
-        none. Measured: with the link up and the session holding COM4,
-        find_board.probe opened it a second time, Windows refused, and the
-        checklist printed "4. Board answers on COM4 right now: no" one
-        line under "3. Configured port COM4: present." - a false statement
-        about live hardware, produced by the diagnostic itself. And why it
-        is not answering, not just that it is not: a port another process
-        holds open reads exactly like a board that stopped talking, and
-        this used to guess at the difference in prose - measured, two
-        dbg.py sessions had COM4 open, every probe read silent, and the
-        board was diagnosed as halted, started over SWD and reflashed.
-        None of that was the matter with it.
+        not.
         """
         if (_open_link_answers(self.session)
                 or find_board.probe(configured, baud, unit)):
@@ -678,8 +532,5 @@ class Toolbox:
     def _board(self, name, args):
         # Coerced against the tool's own schema first: see
         # coaxial_mcp.tools.coerce for what a small model sends instead.
-        #
-        # `detail` is this run's, not the model's - coerce() would drop it as
-        # unknown. Only `docs` reads it; every other handler takes **_.
         return BOARD_HANDLERS[name](self.session, detail=self.detail,
                                     **board_coerce(name, args))

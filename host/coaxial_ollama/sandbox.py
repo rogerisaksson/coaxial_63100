@@ -1,24 +1,4 @@
-"""Where model-authored commands and code actually run.
-
-Two executors, and the difference between them matters:
-
-  * `Shell` runs one allowlisted program as an argv list, never through a
-    shell. That is what makes the allowlist mean anything: checking the first
-    token is theatre if the rest of the string can start a second process.
-
-  * `Scope` runs Python in one namespace that persists for the run, with the
-    live `board` in it. Persistence is the point - read the channel map in one
-    call, compute against it in the next.
-
-Neither sandboxes in the security sense. Anything that can drive a motor
-controller over a serial port can do damage with it; what bounds this is that
-the plan says what the run is for, the transcript says what ran, and
-`--confirm` puts a human in front of every side effect. On a board rated 63 V
-and 100 A that is the honest arrangement: bounded by review, not by a sandbox.
-
-A failure in either is a *result*, not an exception: the model has to see its
-own traceback to correct itself.
-"""
+"""Where model-authored commands and code actually run."""
 import ast
 import coaxial
 import importlib.util
@@ -34,12 +14,7 @@ import time
 import traceback
 from coaxial import scaling
 
-# Shell punctuation, checked as whole tokens. Nothing here is dangerous once the
-# command runs as an argv list - `|` would simply arrive as a literal argument -
-# so the refusal is not a security boundary; it is telling the model that its
-# command will not do what it thinks. The token-level check is what lets
-# `python -c "a; b"` through: the semicolon is inside an argument, not between
-# two of them.
+# Shell punctuation, checked as whole tokens.
 _SHELLISM = {'|', '||', '&', '&&', ';', ';;', '>', '>>', '<', '2>', '`'}
 
 # Enough to see what happened, little enough that one runaway command cannot
@@ -54,25 +29,12 @@ def clip(text, limit=LIMIT):
     return text[:limit] + '\n... [%d more characters cut]' % (len(text) - limit)
 
 
-# How much of a clipped process output is kept from the front. The rest comes
-# from the end, because the end is where a process says what happened: the
-# compiler's error, the linker's summary, the suite's own tally. A head-only
-# cut of a long build keeps the banner and drops the answer.
+# How much of a clipped process output is kept from the front.
 HEAD_SHARE = 0.35
 
 
 def clip_ends(text, limit=LIMIT, head_share=HEAD_SHARE):
-    """Head and tail of a long output, with the middle cut out.
-
-    `clip` keeps the first N characters, which is right for a document and
-    wrong for a process. A build that fails prints its command line first and
-    its diagnosis last; only one of those two earns a place in a context
-    window, and it is not the first one. So both ends are kept and the
-    repetitive middle is what goes.
-
-    The notice in the seam says how much was dropped, in the same words `clip`
-    uses, so a cut output cannot be read as a short one.
-    """
+    """Head and tail of a long output, with the middle cut out."""
     text = text if isinstance(text, str) else str(text)
     if len(text) <= limit:
         return text
@@ -84,13 +46,7 @@ def clip_ends(text, limit=LIMIT, head_share=HEAD_SHARE):
 
 
 class Shell:
-    """Allowlisted process launcher.
-
-    The allowlist holds program names, not command lines: `python` allows any
-    python invocation, because a runner that has to enumerate arguments in
-    advance is a runner nobody can write a plan for. The trust boundary is the
-    program, and it is chosen by whoever starts the run.
-    """
+    """Allowlisted process launcher."""
 
     def __init__(self, allow=(), cwd=None, timeout=120.0):
         self.allow = {self._stem(name) for name in allow}
@@ -152,13 +108,7 @@ class Shell:
 
 
 class Scope:
-    """A persistent Python namespace with the bench already imported.
-
-    There is no timeout. A call into the board blocks for as long as the serial
-    transport allows and no longer, and interrupting arbitrary model code
-    mid-transaction would leave the link in a state the next step inherits -
-    worse than waiting.
-    """
+    """A persistent Python namespace with the bench already imported."""
 
     def __init__(self, board=None, extra=None):
 
@@ -178,10 +128,7 @@ class Scope:
     def available(self):
         """What this namespace holds, for a snippet that reached past it."""
         names = sorted(n for n in self.namespace if not n.startswith('__'))
-        # WHAT IS ACTUALLY IMPORTABLE, not what was decided once. The
-        # message named pandas and numpy as absent by decision; pandas
-        # arrived for `daq.frame()` and the sentence became a claim
-        # the interpreter contradicts on the next line.
+        # WHAT IS ACTUALLY IMPORTABLE, not what was decided once.
         extra = []
         for name in ('pandas', 'numpy'):
             if importlib.util.find_spec(name) is not None:
@@ -194,13 +141,7 @@ class Scope:
                 % (have, ', '.join(names)))
 
     def _board_hint(self):
-        """What `board` has, for a model that reached for a tool's name.
-
-        The tool names and the library names are not the same words:
-        `analog_read` is a tool, `board.analog.read_all` is the method
-        behind it, and a model that has been calling the first all session
-        reaches for it here too. Seen from the prompt.
-        """
+        """What `board` has, for a model that reached for a tool's name."""
         board = self.namespace.get('board')
         parts = sorted(n for n in dir(board or ())
                        if not n.startswith('_')
@@ -212,12 +153,7 @@ class Scope:
                 % ', '.join('board.' + p for p in parts))
 
     def run(self, code):
-        """Execute `code`, return its output.
-
-        The last statement is evaluated as an expression when it is one, so a
-        snippet ending in `board.analog.ntc_temperature()` produces a value
-        without the model having to remember to print it.
-        """
+        """Execute `code`, return its output."""
 
         self.runs += 1
         buffer = io.StringIO()
@@ -225,16 +161,7 @@ class Scope:
         try:
             tree = ast.parse(source)
         except SyntaxError as first:
-            # A snippet that arrived with its newlines still escaped. Seen from
-            # the prompt: a whole program on one line, with a literal backslash
-            # and n where the line breaks belonged, which python reads as a
-            # line continuation followed by something that is not a newline.
-            # The model wrote a correct multi-line program; a layer between
-            # here and there failed to unescape it.
-            #
-            # Repaired only after the code has already failed to compile, and
-            # only when it holds no real newline - so a working one-liner with
-            # an escape inside a string literal is never touched.
+            # A snippet that arrived with its newlines still escaped.
             repaired = source.replace('\\n', chr(10))
             if chr(10) in source or repaired == source:
                 return 'SyntaxError: %s (line %s)' % (first.msg, first.lineno)
@@ -261,11 +188,6 @@ class Scope:
         except BaseException:                       # noqa: BLE001 - see docstring
             # Including KeyboardInterrupt and SystemExit: model code calling
             # sys.exit() must not take the runner down mid-plan.
-            #
-            # tb_next drops this frame. What is left is the model's own code and
-            # the library under it, which is what it has to read to fix the
-            # call; a frame pointing into sandbox.py would only suggest the
-            # runner was at fault.
             etype, value, tb = sys.exc_info()
             buffer.write('\n' + ''.join(traceback.format_exception(
                 etype, value, tb.tb_next if tb and tb.tb_next else tb,
@@ -273,10 +195,7 @@ class Scope:
             if isinstance(value, AttributeError) and 'board' in self.namespace:
                 buffer.write(self._board_hint())
             if isinstance(value, ImportError):
-                # Say what is here, not only what is not. pandas and numpy
-                # are absent by decision - see host/requirements.txt - and a
-                # model that reached for one needs the alternative rather
-                # than a refusal.
+                # Say what is here, not only what is not.
                 buffer.write('\n' + self.available())
 
         out = buffer.getvalue().strip()

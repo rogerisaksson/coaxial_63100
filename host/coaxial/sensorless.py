@@ -28,10 +28,7 @@ def enob(sd_codes, bits=16):
 
 
 def demod_gain(v_inj, ts, ld, lq):
-    """Amps per radian of angle error out of the demodulator. Signed: Ld below
-    Lq is the usual case and reads positive; the drive takes the sign as
-    given so a motor with Ld above Lq still converges.
-    """
+    """Amps per radian of angle error out of the demodulator."""
     if ld <= 0.0 or lq <= 0.0:
         return 0.0
     return 2.0 * v_inj * ts * (lq - ld) / 2.0 / (ld * lq)
@@ -318,8 +315,8 @@ class DualFluxObserver(_BackEmfObserver):
         size = math.hypot(rotor_a, rotor_b)
         if size <= 0.0:
             return self.theta
-        # The PLL's error: the rotor flux's component across the angle the
-        # loop holds, which is sin(difference) and needs no atan2.
+        # The PLL's error: the rotor flux's component across the angle the loop
+        # holds, which is sin(difference) and needs no atan2.
         eps = (rotor_b * math.cos(self.theta)
                - rotor_a * math.sin(self.theta)) / size
         self.omega += self.ki * eps * dt
@@ -354,7 +351,7 @@ class SlidingModeObserver(_BackEmfObserver):
         self.e_alpha += alpha * (z_alpha - self.e_alpha)
         self.e_beta += alpha * (z_beta - self.e_beta)
         theta = math.atan2(-self.e_alpha, self.e_beta)
-        # The low-pass is a lag of atan(w / wc) on the back-EMF, so it is a
-        # lag of the same on the angle taken out of it.
+        # The low-pass is a lag of atan(w / wc) on the back-EMF, so it is a lag
+        # of the same on the angle taken out of it.
         return self._advance(_wrap(theta + math.atan2(self.omega, self.wc)),
                              dt)

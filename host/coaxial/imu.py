@@ -137,9 +137,7 @@ def _vector(r, report_id):
 
 
 class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
-    """The BNO08X behind SPI2. Every call raises rather than returning a
-    status: a reading that did not happen is not a reading of zero.
-    """
+    """The BNO08X behind SPI2."""
 
     LOOP_STATES = LOOP_STATES
 
@@ -230,9 +228,9 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
         got['last_fault_id'] = r.u8()
 
         # The three vectors, appended by MINOR 6 and read only if they are
-        # there - a board older than that answers a reply that stops above,
-        # and a decoder that assumed the bytes would raise on one that is
-        # simply older.
+        # there - a board older than that answers a reply that stops above, and
+        # a decoder that assumed the bytes would raise on one that is simply
+        # older.
         for name, report in VECTORS:
             got[name] = _vector(r, report)
         return got
@@ -326,9 +324,7 @@ def _timebase(cargo, at):
 
 def _quaternion(scaled, cargo, at, report_id):
     """i, j, k, real - the order the part sends them, which is not the order
-    most quaternion maths is written in. Named so a caller never has to
-    remember which end the scalar is on. The rotation vector carries its
-    accuracy estimate behind them, Q12 radians.
+    most quaternion maths is written in.
     """
     got: dict[str, Any] = {'quaternion': dict(zip(QUATERNION_AXES, scaled))}
     estimate = at + HEADER + WORD * len(QUATERNION_AXES)
@@ -341,8 +337,7 @@ def _quaternion(scaled, cargo, at, report_id):
 
 def _one(cargo, at, report_id):
     """One report, with its counts and - where the Q point is known - a
-    physical quantity beside them. The counts are always present; the scaled
-    value is not, and its absence says the Q point is not established here.
+    physical quantity beside them.
     """
     if report_id == TIMEBASE:
         return _timebase(cargo, at)

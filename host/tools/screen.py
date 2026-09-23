@@ -121,10 +121,7 @@ ASPECT_RANGE = (1.2, 3.2)
 
 def cell_aspect_of(pixels, cells):
     """Height over width for one cell, from `(h, w)` pixels and `(rows,
-    cols)` cells. None where the numbers cannot be a cell.
-
-    Pure, so it can be checked without a terminal - the thing it is for
-    cannot be run by a test at all.
+    cols)` cells.
     """
     try:
         ph, pw = float(pixels[0]), float(pixels[1])
@@ -139,21 +136,9 @@ def cell_aspect_of(pixels, cells):
 
 
 def probe_aspect(console=True, wait=ASPECT_WAIT):
-    """Ask the terminal how tall its cell is against its width.
-
-    THE ONE NUMBER A ROUND DRAWING NEEDS AND NOBODY CAN LOOK UP. The
-    renderers work in square pixels and fold the cell's shape in at the
-    end, so getting it wrong does not blur the picture - it stretches it,
-    and a can drawn 25 % wide of round reads as a rotor that is turned
-    when it is not. 2.0 was assumed because most monospace fonts are near
-    it; a terminal with its line height turned up is not, and the bench
-    saw circles come out as ovals.
-
-    Answers None when nothing replies, which is every terminal that does
-    not do XTWINOPS and every pipe - the caller keeps its default.
-    """
-    # BOTH ENDS, or the query itself is the damage: written to a pipe
-    # the escape lands in whatever is reading the render.
+    """Ask the terminal how tall its cell is against its width."""
+    # BOTH ENDS, or the query itself is the damage: written to a pipe the
+    # escape lands in whatever is reading the render.
     if not console or not sys.stdin.isatty() or not sys.stdout.isatty():
         return None
     saved = posix = None
@@ -200,11 +185,7 @@ def _read_now():
 
 
 def console_mode(was):
-    """The input mode to run a mouse-driven view in, from the current one.
-
-    Pure, so it can be checked without a console: the view that needs it
-    cannot be run by a test at all.
-    """
+    """The input mode to run a mouse-driven view in, from the current one."""
     return ((was | VT_INPUT | MOUSE_INPUT | EXTENDED_FLAGS)
             & ~QUICK_EDIT & ~LINE_INPUT & ~ECHO_INPUT)
 
@@ -235,20 +216,8 @@ CHATTER = True
 
 
 # -- the motif -----------------------------------------------------------
-#
-# Blade Runner, not a christmas tree: a dark street with two light sources
-# and wet asphalt between them. Three roles, and nothing else gets a colour:
-#
-#   NEON    teal 44     the chrome that NAMES things - titles, rules
-#   SODIUM  amber 214   the value that matters right now - armed, hot, held
-#   ASH     grey 242    frame lines, key hints, the street itself
-#
-# Meaning colours stay what they always were - green LIVE, yellow SIMULATED,
-# red fault. The motif dresses the frame; it never carries the verdict.
-#
-# Colour is applied at assembly and STRIPPED AT THE DOOR: paint() and say()
-# drop the escapes when stdout is not a console, so the blocks can tint
-# freely without threading a console flag through every builder.
+# Blade Runner, not a christmas tree: a dark street with two light sources and
+# wet asphalt between them.
 
 NEON = 44
 SODIUM = 214
@@ -283,13 +252,7 @@ CROSS = ('  │  ', ' ─┼─ ', '  │  ')
 
 
 def stamp_crosses(lines, width, inset=2):
-    """Registration crosses in the four corners of a field of `lines`.
-
-    `width` is the field's visible width - lines are padded to it, so the
-    right-hand crosses land in margin that exists whether or not the line
-    was rstripped. A cell is only written where it holds a plain space,
-    which keeps the mark off the drawing and off its colours.
-    """
+    """Registration crosses in the four corners of a field of `lines`."""
     if len(lines) < 8 or width < 24:
         return lines
 
@@ -299,9 +262,9 @@ def stamp_crosses(lines, width, inset=2):
     for top in (inset - 1, len(out) - inset - tall + 1):
         for left in (inset, width - inset - len(CROSS[0])):
             rows = range(max(0, top), min(len(out), top + tall))
-            # ALL OR NOTHING: a cross that loses a row to the drawing is
-            # not a mark, it is debris - so the whole corner yields if any
-            # of its cells are taken.
+            # ALL OR NOTHING: a cross that loses a row to the drawing is not a
+            # mark, it is debris - so the whole corner yields if any of its
+            # cells are taken.
             clear = all(
                 out[r][left:left + len(CROSS[0])] == ' ' * len(CROSS[0])
                 for r in rows) and len(rows) == tall
@@ -315,9 +278,7 @@ def stamp_crosses(lines, width, inset=2):
 
 
 # -- the console renderer -------------------------------------------------
-# Defined in tools/stage.py: the THEME with every named style, and the
-# renderer built around it. Re-exported here because every view imports
-# its screen machinery from this module:
+# Re-exported from stage.py for the views:
 # THEME band band_of boot chip curtain footer frame_of header hud live
 # panels_of stage viewport
 from stage import (THEME, band, band_of, boot, chip, curtain, footer,  # noqa: E402,F401
@@ -326,14 +287,7 @@ from stage import (THEME, band, band_of, boot, chip, curtain, footer,  # noqa: E
 
 
 def paced(keys, period, step=0.02):
-    """Sleep `period` while polling the keys every `step`.
-
-    (leave, zoom, typed), returning the moment a leave key arrives. The
-    draw rate and the INPUT rate used to be the same number: at the
-    thermal view's 2 Hz a Q took half a second to bite, and the attitude
-    view's zoom moved in board-round-trip-sized steps. Input is 50 Hz now
-    whatever the view draws at.
-    """
+    """Sleep `period` while polling the keys every `step`."""
 
     zoom, typed = 0.0, []
     deadline = time.monotonic() + period
@@ -350,23 +304,7 @@ def paced(keys, period, step=0.02):
 
 
 def aspect_of(cell_aspect=None):
-    """`(aspect, how)`: what makes a circle round on THIS terminal.
-
-    ASKED, NOT ASSUMED. The renderers work in square dots and fold the
-    cell's shape in at the end, so getting this wrong does not blur a
-    picture - it stretches it, and a can drawn wide of round reads as a
-    rotor that is turned when it is not. 2.0 was the default because
-    most monospace fonts are near it; a terminal with its line height
-    turned up is not, and the bench saw every circle come out an oval -
-    the rotor observer's can first, then the shaft angle's face, which
-    is why this is here and not in either view.
-
-    A given `cell_aspect` wins, because a bench that has measured its
-    own font beats a query; the query answers None on every terminal
-    that does not do XTWINOPS, and then the assumed 2.0 stands - said,
-    whichever it was, so a page can show that the measurement did not
-    happen.
-    """
+    """`(aspect, how)`: what makes a circle round on THIS terminal."""
     if cell_aspect is not None:
         return cell_aspect, 'given'
     seen = probe_aspect()
@@ -376,18 +314,8 @@ def aspect_of(cell_aspect=None):
 
 
 def gauge(fraction, width, hot=THROTTLE_AT):
-    """A meter in the motif: the level in dots, the rest of the scale in
-    the track's grey, the margin's amber past `hot`.
-
-    `hot` defaults to the board's own throttle point, so a meter turns
-    colour where the board acts rather than at a number of this file's.
-    It was a literal 0.85 here, and stayed at 0.85 when the record moved.
-
-    IT WAS `====----` IN ASCII, "on purpose - the session may run on a
-    console that was never put in UTF-8". Every view on that console has
-    drawn in braille since, so the caution protected nothing and left
-    the session's levels a different instrument from the motor page's.
-    The bench asked for one; `coaxial.gauges` is it.
+    """A meter in the motif: the level in dots, the rest of the scale in the
+    track's grey, the margin's amber past `hot`.
     """
     fraction = max(0.0, min(1.0, fraction))
     return gauges.gauge(fraction, width,
@@ -399,23 +327,6 @@ class Feed:
 
     """The board read on its own thread, so a frame draws at the screen's
     pace rather than the link's.
-
-    A view that reads in its draw loop runs at the link's pace: measured on
-    METER BRIDGE, a frame spending three round trips took 190 ms of a
-    125 ms budget, and every one of them was the terminal sitting still.
-    This runs `read()` over and over in the background and hands the drawer
-    whatever the last one produced.
-
-    NO LOCK, deliberately. The reader builds a whole new object and assigns
-    it to ONE attribute; the drawer reads that attribute once. An
-    assignment is atomic under the GIL, so a frame draws one consistent
-    snapshot and never half of two. A lock would put the link's latency
-    back in the draw loop, which is the thing being taken out.
-
-    ONE THREAD TOUCHES THE LINK. That is the other half of the contract: a
-    serial transport is not re-entrant, so the drawer must read `latest`
-    and nothing else. What comes back is the caller's own object - this
-    knows nothing about what is in it.
     """
 
     def __init__(self, read, period=0.0):
@@ -440,8 +351,6 @@ class Feed:
             except Exception as exc:    # noqa: BLE001 - the view shows it and
                 # keeps drawing: a bench page that dies hides its own reason
                 # The board's own sentence, kept for the drawer to show.
-                # Raising here would kill the thread and freeze the view on
-                # its last frame with nothing saying why.
                 self.error = exc
             else:
                 self.error = None
@@ -460,14 +369,7 @@ class Feed:
 
 
 def open_rig(banner, **kwargs):
-    """The rig behind a boot strip, or None with the board's own words said.
-
-    `kwargs` are `Coaxial63100`'s. A view that cannot reach the board must
-    not die of a traceback: the chooser keeps the last lines on screen and
-    reads the exit code, so a stack trace there says `the menu crashed`
-    where the board said `nothing answered on COM4`. Measured 2026-08-31 -
-    the board unpowered on purpose, ROTOR OBSERVER traced back.
-    """
+    """The rig behind a boot strip, or None with the board's own words said."""
 
     try:
         with boot(banner):
@@ -485,22 +387,6 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
              scroll_keys=True):
     """The loop every view runs: draw, pace, take keys - until Q, ESC,
     Ctrl+C or `frames` frames.
-
-    `draw()` returns one frame's renderable. `tick()` runs after it and
-    returns True to end the run; `on_input(typed, moved)` takes the
-    frame's keys and wheel, `on_click(column, row)` each left press,
-    one-based, for a view that draws something to click on, and
-    `on_drag(dx, dy)` the cells a left-drag has moved since the last
-    frame - drained only when a view asks, so one that reads
-    `keys.dragged()` itself still gets it. Returns
-    'quit', 'menu', or None for frames and Ctrl+C - the caller's
-    `finally` puts the board back either way.
-
-    THE INSTRUMENT COLUMN SCROLLS ON EVERY PAGE: the up and down arrows
-    move it a box (`scroll_keys`, off for a view that spends the arrows
-    on something else), and with the mouse held a click on its arrows
-    or a drag over it does the same. The state lives on `board_view`,
-    where `frame_of` pages the boxes from it.
     """
 
     click, drag = on_click or _ignore, on_drag or _ignore
@@ -509,19 +395,10 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
         with curtain(board_view) as page, Keys(console, mouse=mouse) as keys:
             while True:
                 count += 1
-                # The period is FRAME TO FRAME, measured from this draw's
-                # start - not a sleep after it. Slept after, a 50 ms
-                # attitude frame at --hz 20 paced itself at 50 + 50 ms:
-                # the view asked for twenty a second and drew ten,
-                # measured. A frame slower than the period pays no
-                # sleep at all and the keys are still polled once.
+                # The period is FRAME TO FRAME, measured from this draw's start
+                # - not a sleep after it.
                 started = time.monotonic()
-                # AND IT KEEPS DRAWING. Stepping out of the alternate
-                # screen to be copied from was a fix for the wrong
-                # thing: what stopped a drag was the view REPORTING the
-                # mouse, and it does not any more unless asked. A
-                # terminal's selection is anchored to the buffer, so it
-                # survives the cells under it being rewritten.
+                # AND IT KEEPS DRAWING.
                 page.update(draw(), refresh=True)
                 if tick is not None and tick():
                     return None
@@ -551,12 +428,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
 
 
 class Freshness:
-    """Whether the board's counter moved since the last frame, and how fast.
-
-    A reading that has not moved and a link that has stopped look the
-    same in the values; `updates` tells them apart. The rate is off the
-    counter over wall-clock seconds, not assumed from the interval.
-    """
+    """Whether the board's counter moved since the last frame, and how fast."""
 
     def __init__(self):
         self.seen, self.stale = -1, 0
@@ -583,18 +455,12 @@ class Freshness:
 
 
 def say(state, text, detail=''):
-    """One preflight line, the shape board_chat.ps1 prints.
-
-    Written here rather than shelling out to Say.ps1 because the preflight
-    and the view share one session: splitting them would open the port
-    twice, and the second open is the one that finds it busy.
-    """
+    """One preflight line, the shape board_chat.ps1 prints."""
     if not CHATTER and state in ('ok', 'wait'):
         return
     if not sys.stdout.isatty():
-        # Same rule the views follow: colour at the edge, and a pipe is
-        # not one. Without this a redirected preflight carried raw
-        # escapes into the log while the drawing beside it came out clean.
+        # Same rule the views follow: colour at the edge, and a pipe is not
+        # one.
         sys.stdout.write('  %-6s%-22s %s\n' % (state, text, detail))
         sys.stdout.flush()
         return
@@ -614,17 +480,7 @@ QUIET = (NoReplyError, RigError, DeviceStateError)
 
 
 def steady(fn, *args, **kwargs):
-    """Call it, retrying the link's occasional silence. None if it stayed.
-
-    NOT the library's contract - `coaxial` raises and never returns None for
-    failure (invariant 8). This is the edge: a view that stopped drawing
-    every time a frame was lost would be a view nobody could leave running,
-    and one missing reading is a gap in a picture rather than an error.
-
-    Four tries, because a lost frame is lost once. A board that is actually
-    gone costs four timeouts to find out, which is the price of not redrawing
-    a dashboard as empty every time the link hiccups.
-    """
+    """Call it, retrying the link's occasional silence."""
 
     for _ in range(4):
         try:
@@ -635,34 +491,14 @@ def steady(fn, *args, **kwargs):
 
 
 def park(rows, console):
-    """Put the cursor on the first line BELOW a painted frame.
-
-    `paint` addresses every row absolutely and never scrolls, so when a view
-    stops, the cursor is wherever the last changed row left it - somewhere in
-    the middle of the drawing. Anything printed then lands on top of the
-    picture and is read as part of it, and the shell prompt lands there too.
-
-    Measured the hard way: a teardown list was reported missing five times
-    and was being written into the middle of the dashboard every time. It was
-    invisible to every check because a redirected stdout is not a console,
-    where `paint` writes plain lines and the cursor is already at the end.
-    """
+    """Put the cursor on the first line BELOW a painted frame."""
     if console:
         sys.stdout.write('%s[%d;1H%s[J' % (chr(27), rows + 1, chr(27)))
         sys.stdout.flush()
 
 
 def closing(done, console, drawn):
-    """List what a view is putting back, under the frame it drew.
-
-    One line per thing, the shape the preflight uses on the way in. A single
-    'put back the way it was' was what every view used to print, and it says
-    nothing about WHICH things - a stage that had been switching and a report
-    that had been streaming both came out as one line, or as none at all.
-
-    A step that failed is listed too, marked, rather than dropped: the way
-    out is the only place that says whether it took.
-    """
+    """List what a view is putting back, under the frame it drew."""
     park(drawn, console)
     say('wait', 'closing', 'putting back what this view changed')
     for name, what in done:
@@ -671,23 +507,14 @@ def closing(done, console, drawn):
 
 
 def clear(console):
-    """Wipe the screen and put the cursor home.
-
-    On the way out too: a view leaves a drawing that is no longer a reading
-    of anything, and what was put back belongs on a clean screen.
-    """
+    """Wipe the screen and put the cursor home."""
     if console:
         sys.stdout.write(chr(27) + '[2J' + chr(27) + '[H')
         sys.stdout.flush()
 
 
 def _set_console_mode(restore=None):
-    """Put the console into mouse-reporting mode, or back as it was.
-
-    Returns what the mode was, or None where there is no Windows console to
-    set - every other platform's terminal reports the mouse once asked in
-    band, and needs nothing here.
-    """
+    """Put the console into mouse-reporting mode, or back as it was."""
     try:
         import ctypes
     except ImportError:
@@ -740,13 +567,7 @@ except ImportError:                      # pragma: no cover - no ctypes
 
 class Keys:
 
-    """Non-blocking key reads, for a view redrawing at 8 to 20 Hz.
-
-    Only ever asks whether a key is already waiting. Windows needs no
-    terminal mode; elsewhere it comes out of line mode and goes back
-    afterwards, which is what the context manager is for. Off with no
-    terminal - reading stdin from a pipe would eat it.
-    """
+    """Non-blocking key reads, for a view redrawing at 8 to 20 Hz."""
 
     #: The Keys holding the mouse right now, if any: set on entry and
     #: cleared on exit, so a view outside a run reads False rather than
@@ -770,8 +591,7 @@ class Keys:
     PARTIAL_RE = re.compile(r'\033(\[(<[\d;]*)?)?$')
 
     def __init__(self, console, mouse=False, quits=QUIT_KEYS):
-        # `quits` is which letters leave. A chat view passes
-        # frozenset(): there, q is a letter someone is typing.
+        # `quits` is which letters leave.
         self._quits = frozenset(quits)
         self.console = console
         self.mouse = mouse and console
@@ -804,8 +624,7 @@ class Keys:
         except Exception:       # noqa: BLE001 - Windows, or no tty; and
             # termios has its own error class, absent where it is absent
             self._saved = None
-        # THE TERMINAL KEEPS THE MOUSE until a view is asked to take
-        # it. `SELECT_KEYS` has why.
+        # THE TERMINAL KEEPS THE MOUSE until a view is asked to take it.
         if self.mouse:
             Keys.holder = self
         return self
@@ -820,13 +639,7 @@ class Keys:
         return False
 
     def poll(self):
-        """(leave, zoom) for everything that arrived since the last frame.
-
-        `leave` is 'quit', 'menu' or None. `zoom` is a signed fraction: a
-        wheel notch each way, plus whatever a right-drag moved, added up so
-        one frame's worth of reports becomes one change. Twenty drag reports
-        applied one at a time would move twenty frames behind the hand.
-        """
+        """(leave, zoom) for everything that arrived since the last frame."""
         if not self.console:
             return None, 0.0
 
@@ -843,8 +656,7 @@ class Keys:
                             + self._buffer[found.end():])
 
         # Arrows before the lone-ESC test, or every one of them leaves the
-        # view. They join the typed buffer under their names, so a binding
-        # reads `'up'` rather than three bytes.
+        # view.
         while True:
             found = self.ARROW_RE.search(self._buffer)
             if not found:
@@ -853,9 +665,9 @@ class Keys:
             self._buffer = (self._buffer[:found.start()]
                             + self._buffer[found.end():])
 
-        # A trailing partial sequence waits ONE poll for its other half;
-        # the same partial twice in a row is a real lone keypress (ESC)
-        # and goes through 20 ms late instead of never.
+        # A trailing partial sequence waits ONE poll for its other half; the
+        # same partial twice in a row is a real lone keypress (ESC) and goes
+        # through 20 ms late instead of never.
         held = ''
         head, esc, rest = self._buffer.rpartition('\033')
         tail = esc + rest
@@ -872,34 +684,20 @@ class Keys:
             elif leave is None and key in MENU_KEYS:
                 leave = 'menu'
             elif self.mouse and key in SELECT_KEYS:
-                # SWALLOWED, not passed on: no view binds it, and one that
-                # did would fight the terminal for the same gesture.
+                # SWALLOWED, not passed on: no view binds it, and one that did
+                # would fight the terminal for the same gesture.
                 self.grab(not self._grabbed)
             else:
-                # Kept for a view that binds keys of its own. Every other
-                # view ignores this and is unaffected; poll() still answers
-                # the same two things it always did.
+                # Kept for a view that binds keys of its own.
                 self._typed.append(key)
         return leave, zoom
 
     def holding(self):
-        """Whether the VIEW has the mouse at the moment.
-
-        A view asks so it can say so - the key does nothing visible on the
-        page otherwise, and a reader needs to know whether the drag they
-        are about to make will select or spin. False is the default and
-        the quiet state: the terminal has it, and a left-drag marks text.
-        """
+        """Whether the VIEW has the mouse at the moment."""
         return self.mouse and self._grabbed
 
     def grab(self, on):
-        """Take the mouse for the view, or hand it to the terminal.
-
-        The console mode goes back to what it was ALONG WITH the reporting
-        sequences: on Windows the selection lives in QUICK_EDIT and the
-        wheel in the SGR reports, and releasing one without the other
-        gives a page that neither spins nor selects.
-        """
+        """Take the mouse for the view, or hand it to the terminal."""
         if not self.mouse or on == self._grabbed:
             return self._grabbed
         out = sys.__stdout__ or sys.stdout
@@ -915,29 +713,12 @@ class Keys:
         return self._grabbed
 
     def taken(self):
-        """Characters typed since the last call, for a view with bindings.
-
-        Drained rather than read: a key held down repeats, and a view that
-        acted on the whole buffer every frame would keep acting on presses
-        it had already handled.
-        """
+        """Characters typed since the last call, for a view with bindings."""
         out, self._typed = self._typed, []
         return out
 
     def _mouse(self, button, col, row, kind):
-        """What one mouse report is worth, as a zoom fraction.
-
-        POSITIVE IS NEARER, the way the caller uses it: it scales zoom by
-        1 + this, and a bigger zoom stands closer. Wheel up returned a
-        negative and the view backed away from the reader - the sign was
-        wrong the whole way from here, and the test that should have caught
-        it asserted the sign of this number instead of what the picture did.
-
-        Right-drag is the same gesture with a hand instead of a finger: pull
-        down to come back, push up to go in. LEFT-drag is the other channel:
-        its cell deltas pile up for dragged(), the trackball a view can
-        bind to rotation.
-        """
+        """What one mouse report is worth, as a zoom fraction."""
         # Shift, meta and ctrl ride as +4/+8/+16 on the button code; the
         # gesture is the same gesture.
         self.reports += 1
@@ -947,8 +728,8 @@ class Keys:
         if button == 65:
             return -WHEEL_STEP
 
-        # 2 is the right button; 32 is the drag bit the terminal sets while
-        # it is held.
+        # 2 is the right button; 32 is the drag bit the terminal sets while it
+        # is held.
         if button == 2 and kind == 'M':
             self._dragging, self._last_row = True, row
             return 0.0
@@ -964,9 +745,9 @@ class Keys:
         # 0 is the left button, 32 its drag bit.
         if button == 0 and kind == 'M':
             self._holding, self._grip = True, (col, row)
-            # The press is kept as well as the grip: a drag starts the
-            # same way a click does, and a view that draws something to
-            # click on needs the cell, not the delta.
+            # The press is kept as well as the grip: a drag starts the same way
+            # a click does, and a view that draws something to click on needs
+            # the cell, not the delta.
             self._clicked.append((col, row))
             return 0.0
         if button == 0 and kind == 'm':
@@ -985,27 +766,12 @@ class Keys:
         return out
 
     def clicked(self):
-        """Left-button presses as (column, row) since the last call.
-
-        Drained, so a click is acted on once however many frames it
-        takes to notice it. One-based, the way the terminal reports
-        them.
-        """
+        """Left-button presses as (column, row) since the last call."""
         out, self._clicked = self._clicked, []
         return out
 
     def _drain(self):
-        """Every key waiting right now, and none of the ones that are not.
-
-        On Windows the CONSOLE RECORDS are read directly. The msvcrt
-        path only ever saw what conhost chose to translate to VT: the
-        wheel came through, LEFT-BUTTON MOTION never did, and the mouse
-        counter froze the moment a drag began - measured on the bench.
-        Mouse records synthesize into the same SGR strings the in-band
-        protocol sends, so everything downstream stays one parser; the
-        wheel record is deliberately skipped because its VT translation
-        already arrives, and two sources would double every notch.
-        """
+        """Every key waiting right now, and none of the ones that are not."""
         try:
             import msvcrt                                    # noqa: F401
         except ImportError:
@@ -1025,7 +791,8 @@ class Keys:
 
     def _mouse_of(self, mouse):
         """A mouse record as SGR reports: presses, releases, and drags with
-        a button held. Motion with nothing held is nothing."""
+        a button held.
+        """
         x, y = mouse.pos.X + 1, mouse.pos.Y + 1
         if mouse.flags & MOUSE_MOVED:
             return ['\x1b[<%d;%d;%dM' % (code, x, y)
@@ -1077,9 +844,6 @@ class Keys:
         while msvcrt.kbhit():
             got = msvcrt.getwch()
             # A function or arrow key arrives as a prefix and then a code.
-            # The code was read and DISCARDED once - so the menu's UP/DOWN
-            # did nothing on the one platform this bench runs on. Translated
-            # to the VT sequences instead, so the arrow path is ONE path.
             if got in ('\x00', '\xe0'):
                 code = msvcrt.getwch()
                 keys.append({'H': '\x1b[A', 'P': '\x1b[B',

@@ -54,9 +54,7 @@ class Chain(Block):
             block(s, dt)
 
     def run(self, seconds, dt, every=1):
-        """The chain for `seconds` at `dt`, every `every`th bus recorded.
-        Returns {slot: array}, time included.
-        """
+        """The chain for `seconds` at `dt`, every `every`th bus recorded."""
         s = Signals()
         rows = {name: [] for name in Signals.__slots__}
         for k in range(int(round(seconds / dt))):
@@ -70,8 +68,8 @@ class Chain(Block):
 
 class Ramp(Block):
 
-    """w_ref: a raised cosine to `top` over `rise`, and back down over the next
-    `rise`. a_ref is its derivative - the feedforward's input.
+    """w_ref: a raised cosine to `top` over `rise`, and back down over the
+    next `rise`.
     """
 
     def __init__(self, top, rise):
@@ -90,9 +88,9 @@ class Ramp(Block):
 
 class Probe(Block):
 
-    """d-axis excitation, `amps` at `hz`: torque-free, so the speed loop never
-    sees it, and the one thing that lets Ld out of a fit - without did/dt
-    the inductance column is R's (`coaxial.sysid`).
+    """d-axis excitation, `amps` at `hz`: torque-free, so the speed loop
+    never sees it, and the one thing that lets Ld out of a fit - without
+    did/dt the inductance column is R's (`coaxial.sysid`).
     """
 
     def __init__(self, amps, hz):
@@ -129,7 +127,7 @@ class CurrentLoop(Block):
     """vd, vq from the current error: kp = L w0 and ki = R w0 per axis, the
     speed cross-terms fed forward, the pair clamped to link/sqrt(3) as a
     VECTOR - and the integrators held while it is, drive.c's conditional
-    integration. Raises `v_sat` for the loop above.
+    integration.
     """
 
     def __init__(self, hz, motor, vdc):
@@ -155,10 +153,10 @@ class CurrentLoop(Block):
 
 class Machine(Block):
 
-    """`coaxial.motor.Motor` behind the bus: vd/vq become duties at the rotor's
-    own angle, one PWM period advances, and what comes back out carries
-    `noise` amps of gaussian on each current - the AFE's floor, on what the
-    loop sees, never on the machine itself.
+    """`coaxial.motor.Motor` behind the bus: vd/vq become duties at the
+    rotor's own angle, one PWM period advances, and what comes back out
+    carries `noise` amps of gaussian on each current - the AFE's floor,
+    on what the loop sees, never on the machine itself.
     """
 
     def __init__(self, params, vdc, load=None, noise=0.0, seed=2, **kw):

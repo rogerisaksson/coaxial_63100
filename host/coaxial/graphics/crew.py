@@ -1,23 +1,4 @@
-"""The staged engine's frame, cut into row bands drawn by processes.
-
-Pure Python holds the GIL, so threads buy nothing here - processes it
-is, the same shape farm.py gives the three.js-style renderer. Each
-worker holds the solids from its start - every level of detail the
-view can ask for, since the zoom picks among them and a pool holding
-one was skipped the moment the zoom moved, measured - and the face
-art. Per frame only the rotation matrix, the camera constants, the
-shadow map, a row range and which solid cross the pipe; a strip of
-finished cells comes back: classes, tone levels, bare geometry, seeds
-and coverage. A band owns its rows outright, so the strips
-concatenate with nothing to merge. What every band repeats is the
-vertex pass AND the setup of every triangle before its row reject -
-measured on the threadripper 2026-09-23, 2.0 and 12.8 ms of an empty
-band's 15.3, so the setup is the floor and more workers past eight buy
-nothing (sixteen measured no faster).
-
-    with Crew([solid16, solid24, solid32]) as crew:
-        art = wireframe.render(q, width, height, crew=crew)
-"""
+"""The staged engine's frame, cut into row bands drawn by processes."""
 import multiprocessing
 import os
 
@@ -57,9 +38,9 @@ def _band(job) -> tuple:
     if shading is None:
         return depth, top, sun, coverage, reached
     pivot, slope, floor, shadow, shadow_step, bias, art, planes = shading
-    # shade() back-projects each cell from its row: hand it a camera
-    # whose cy is shifted by the band's first row so row 0 of the strip
-    # is row `first` of the frame.
+    # shade() back-projects each cell from its row: hand it a camera whose cy
+    # is shifted by the band's first row so row 0 of the strip is row `first`
+    # of the frame.
     strip = dict(cam, height=rows, cy=cam['cy'] - first)
     n = width * rows
     levels, bare, seed = [0.0] * n, [0.0] * n, [0.0] * n
@@ -80,10 +61,9 @@ def _decimate(job):
 
 
 def decimate(path, grids, progress=None):
-    """{divisions: solid} for every grid in `grids`, each decimated in
-    its own process. Six levels took 5.0 s one after another, measured;
-    in parallel they take the slowest one plus the spawn. `progress
-    (done, total, divisions)` is called as each lands."""
+    """{divisions: solid} for every grid in `grids`, each decimated in its
+    own process.
+    """
     out = {}
     with multiprocessing.Pool(min(len(grids), os.cpu_count() or 1)) as pool:
         for i, (divisions, solid) in enumerate(pool.imap_unordered(
@@ -125,18 +105,6 @@ CLOSE_S = 1.0
 class Crew:
     """Workers holding some solids, each on its own pipe, ready to draw
     bands.
-
-    Built once and reused: on Windows a process starts by importing
-    everything again, about a second each; per frame after that a crew
-    costs the pipe and nothing else. ITS OWN PIPES, NOT A POOL
-    (2026-09-23): multiprocessing.Pool sends every job from a handler
-    thread that needs the GIL, and a parent busy painting hands it over
-    every 5 ms - measured on the threadripper, the eight jobs left the
-    parent over ~40 ms and nothing could overlap the wait. Sent from the
-    calling thread they are in the workers in 1.5 ms. `submit` and
-    `collect` are the two halves of a frame, so a caller can hand the
-    crew one pose and paint another while it works
-    (wireframe._face_ahead); `frame` and `raster` are the two together.
     """
 
     def __init__(self, solids, art=None, workers=None):
@@ -194,10 +162,7 @@ class Crew:
         return next(i for i, held in enumerate(self.solids) if held is solid)
 
     def submit(self, solid, m, cam, beam, sun_min, shading):
-        """This frame's bands to the workers, one each. One frame in
-        flight at a time: a second submit before `collect` is refused,
-        because the pipes would then hold two frames' results in order
-        and a caller could not tell which it painted."""
+        """This frame's bands to the workers, one each."""
         if self.pending:
             raise RigError('a frame is in flight; collect it first')
         conns = self._live()
@@ -211,7 +176,8 @@ class Crew:
         """The frame `submit` sent, waited for and concatenated in band
         order: (depth, top, sun, coverage, reached) for a raster, (depth,
         coverage, reached, classes, levels, bare, seed) for a shaded
-        frame."""
+        frame.
+        """
         if not self.pending:
             raise RigError('nothing is in flight')
         conns = self._live()
@@ -234,8 +200,6 @@ class Crew:
     def frame(self, solid, m, cam, beam, sun_min, shading):
         """(depth, coverage, reached, classes, levels, bare, seed) for the
         whole frame, each band rastered, folded AND shaded by its worker.
-        `shading` = (pivot, slope, floor, shadow, shadow_step, bias,
-        art, planes) - `art` a flag: the worker holds the face itself;
-        `planes` the slab's (top, bottom) z the art is read on."""
+        """
         self.submit(solid, m, cam, beam, sun_min, shading)
         return self.collect()

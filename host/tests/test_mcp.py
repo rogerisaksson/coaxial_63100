@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
-"""End-to-end test of the MCP server, plus a token accounting.
-
-Drives the server as a real subprocess over stdio JSON-RPC rather than calling
-the handlers directly, so the transport, the schema validation and the framing
-are all exercised. The board must be attached: these are live measurements.
-
-Run from the host directory:  python tests/test_mcp.py
-"""
+"""End-to-end test of the MCP server, plus a token accounting."""
 import json
 import os
 import subprocess
 import sys
 import time
 
-# host/ on the path: this file's own directory's parent, so it does not
-# matter what the working directory is.
+# host/ on the path: this file's own directory's parent, so it does not matter
+# what the working directory is.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 PROTOCOL_VERSION = '2024-11-05'
@@ -128,8 +121,8 @@ def tool_list(server, report):
     tools = reply['result']['tools']
     blob = json.dumps(tools, separators=(',', ':'))
 
-    # Compare against what the module declares rather than a number written here,
-    # so adding a tool does not fail this test for the wrong reason.
+    # Compare against what the module declares rather than a number written
+    # here, so adding a tool does not fail this test for the wrong reason.
     from coaxial_mcp.tools import HANDLERS
     served = {tool['name'] for tool in tools}
     report.check('tools/list matches the handler table', served == set(HANDLERS),
@@ -167,8 +160,7 @@ def exercise(server, report):
     report.result('test_gate open', server.tool('test_gate', {'enable': True}),
                   ['gate=1'])
     # Not E15: that is TIM1_BKIN, and the pin path reconfigures what it
-    # touches, which would take the break off the timer for good. E14 is
-    # UART5_TERM - a bench convenience, restorable with a rig write.
+    # touches, which would take the break off the timer for good.
     report.result('gpio_pin read',
                   server.tool('gpio_pin', {'op': 'read', 'pin': 'E14'}),
                   ['E14='])
@@ -184,8 +176,6 @@ def exercise(server, report):
                   server.tool('gpio_port', {'op': 'read', 'port': 'E'}),
                   ['GPIOE=0x'])
     # Writing 0 across all of GPIOB would clear PB10/PB11 and sever the link.
-    # The firmware masks those out - and legitimately DOES clear PB2, which is
-    # the AFE switch, so the reading afterwards proves both halves at once.
     report.result('gpio_port write masks reserved',
                   server.tool('gpio_port', {'op': 'write', 'port': 'B',
                                             'mask': 0xFFFF, 'value': 0}),
@@ -202,9 +192,9 @@ def exercise(server, report):
                   ['echo ok'])
     report.result('link stats', server.tool('link', {'op': 'stats'}),
                   ['bus_message='])
-    # THE THERMAL OBSERVER, three questions, every one headed and the
-    # one measurement named - the bench's rule sends "how hot is the
-    # board" to the local model, which had no way to device 8.
+    # THE THERMAL OBSERVER, three questions, every one headed and the one
+    # measurement named - the bench's rule sends "how hot is the board" to the
+    # local model, which had no way to device 8.
     report.result('thermal state', server.tool('thermal', {'op': 'state'}),
                   ['thermal:', 'legs', 'room', 'ESTIMATE'])
     report.result('thermal budget', server.tool('thermal', {'op': 'budget'}),
@@ -233,18 +223,7 @@ def error_paths(server, report):
     report.check('reserved pin refused with a reason',
                  text.startswith('ERR') and 'USART3' in text, text[:70])
 
-    # Not refused: labelled. Refusing produced a fabricated reading rather
-    # than preventing one - asked for the codes with the AFE deliberately off,
-    # a model with no numbers wrote "Mid-scale... 25.00 C" out of the warning
-    # text. The codes come back, under a line that cannot be read as one.
-    #
-    # `afe_power off` releases the HOST's reference and nothing more: the rail
-    # is on while any user holds it, and the thermal observer borrows it for 500 ms
-    # every 5 s. That borrow landed between these two calls - two failures in
-    # one run, none when the suite ran alone, the worst shape a check has.
-    #
-    # Waited out rather than switched off: no tool here can stop the thermal observer,
-    # and it always gives the rail back, so one cycle is the bound.
+    # Not refused: labelled.
     server.tool('afe_power', {'action': 'off'})
     deadline = time.time() + 8.0
     while True:
@@ -270,16 +249,7 @@ def error_paths(server, report):
 
 
 def weak_model_arguments(server, report):
-    """An argument of the wrong type never reaches a handler here.
-
-    A smaller model sends ch as a bare string and the numbers as strings -
-    measured with llama3.1:8b on this board. On the ollama side that is
-    coaxial_mcp.tools.coerce's problem, because nothing sits between the model
-    and the handler there. On this side something does: the protocol validates
-    against inputSchema first. What matters is that the answer is a refusal
-    naming the field, not a TypeError from three frames down - the latter is
-    what sends a model off to answer from memory.
-    """
+    """An argument of the wrong type never reaches a handler here."""
     print('\n-- arguments of the wrong type --')
     for name, args in [
         ('a channel as a bare string', {'ch': 'ntc'}),
@@ -294,11 +264,9 @@ def weak_model_arguments(server, report):
 
 def main():
     # --auto, not --port alone: with no board on COM4 the server serves a
-    # stand-in rather than failing every call, and this suite is then
-    # testing the MCP layer - the schemas, the JSON-RPC, the argument
-    # coercion, the render - which is all of it that does not need
-    # firmware. What it is NOT testing then is the firmware, so the tally
-    # says which it ran against and never leaves that to be assumed.
+    # stand-in rather than failing every call, and this suite is then testing
+    # the MCP layer - the schemas, the JSON-RPC, the argument coercion, the
+    # render - which is all of it that does not need firmware.
     from coaxial.session import open_session
     session, found = open_session('COM4', simulated=None)
     session.close()

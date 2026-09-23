@@ -112,8 +112,7 @@ class Calibration(CalibrationOps, Device, device=protocol.DEVICE_CAL):
     """Device 3 behind 0x6E. Edits are volatile until save()."""
 
     # A 128 KB sector erase is specified at up to 4 s on this silicon, and the
-    # board answers save() only once it has erased, reprogrammed and read
-    # back.
+    # board answers save() only once it has erased, reprogrammed and read back.
     SAVE_TIMEOUT = 6.0
 
     @remembered

@@ -89,8 +89,8 @@ class BootControl(ABC):
         """(offset, bytes) - one page of the record sector."""
 
     def flash(self, type_, image, record=b''):
-        """The master's sequence on one node, after assign; returns the state.
-        Raises with the node's words where it refuses.
+        """The master's sequence on one node, after assign; returns the
+        state.
         """
         self.erase(type_, image)
         for index, piece in enumerate(chunks_of(image)):
@@ -173,9 +173,8 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
 
 
 class Segment(ABC):
-    """One serial segment as the master sees it: the blank nodes at unit 247 as
-    one voice, and any node by its unit. The real one is a transport; the
-    stand-in's is a list of nodes.
+    """One serial segment as the master sees it: the blank nodes at unit 247
+    as one voice, and any node by its unit.
     """
 
     @abstractmethod
@@ -211,10 +210,9 @@ class TransportSegment(Segment):
 
 def enumerate_blank(blank):
     """Every blank node on a segment, by the prefix search on the unique id:
-    `who` with no prefix first; two nodes answering at once is a CRC error
-    or a frame error on the wire, and either splits the prefix one bit
-    deeper, 96 at most. Known uids are one round trip; a bus of N unknown
-    nodes is about 2N.
+    `who` with no prefix first; two nodes answering at once is a CRC
+    error or a frame error on the wire, and either splits the prefix one
+    bit deeper, 96 at most.
     """
     found, todo = [], [(0, 0)]
     while todo:
@@ -233,10 +231,8 @@ def enumerate_blank(blank):
 
 class Master:
     """The master on one segment (docs/BOOT.md): hold, enumerate, assign off
-    the table, one erase and one stream per type, then each node's missing,
-    verify, record and seal, then go. `table` maps a uid to {'unit',
-    'position', 'type', 'terminate'}; `images` maps a type to its bytes;
-    `records` maps a unit to the record's bytes.
+    the table, one erase and one stream per type, then each node's
+    missing, verify, record and seal, then go.
     """
 
     def __init__(self, segment, table, images, records, session=1):
@@ -248,9 +244,7 @@ class Master:
         self.unknown = []
 
     def run(self):
-        """Every node through to go; returns {unit: state}. A uid not in the
-        table is left blank and listed in `unknown`.
-        """
+        """Every node through to go; returns {unit: state}."""
         blank = self.segment.blank()
         blank.hold(self.session)
         nodes = enumerate_blank(blank)

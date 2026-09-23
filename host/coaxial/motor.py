@@ -50,18 +50,13 @@ class Parameters:
 
     @property
     def kv(self):
-        """The KV this flux linkage implies, by `flux_from_kv` inverted.
-        Infinite at zero flux rather than a crash: a failed identification
-        hands back lam 0.0, and its repr still has to print.
-        """
+        """The KV this flux linkage implies, by `flux_from_kv` inverted."""
         got = math.sqrt(3.0) * TWO_PI * self.poles * self.lam
         return 60.0 / got if got else float('inf')
 
     @property
     def saliency(self):
-        """Lq / Ld. Below about 1.1 an injection observer has little to find,
-        which is what `coaxial.sensorless` judges.
-        """
+        """Lq / Ld."""
         return self.lq / self.ld if self.ld else float('inf')
 
     def __repr__(self):
@@ -160,9 +155,8 @@ class Propeller:
 
     def on_model(self, drive, log=None):
         """A `watch` for `Velocity.rpm` that puts this propeller on the
-        STAND-IN'S rotor: each pass it reads the model's speed and feeds the
-        load this law gives at it to `model_param`. `log`, if given,
-        collects `(seconds, rpm asked, rpm now, iq asked)` a pass.
+        STAND-IN'S rotor: each pass it reads the model's speed and feeds
+        the load this law gives at it to `model_param`.
         """
         def watch(verb):
             wm = drive.model()['omega'] / verb.poles

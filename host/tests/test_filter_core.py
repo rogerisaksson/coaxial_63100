@@ -1,16 +1,4 @@
-"""The anti-alias chain, run for real and judged against the arithmetic.
-
-`filter/` is hardware-free like the Modbus core, and for the same reason: a
-decimating filter is either right or it quietly folds a tone onto the answer,
-and that can be settled on a desk. This builds it with the host gcc, drives
-it through ctypes, and checks it against `coaxial.bessel` - which is the
-design that WROTE the coefficients, so agreement is not circular in the part
-that matters: the C is checked against the transfer function evaluated
-independently, and the aliasing is checked by feeding a real tone through
-and measuring what came out.
-
-    cd host && python tests/test_filter_core.py
-"""
+"""The anti-alias chain, run for real and judged against the arithmetic."""
 import cmath
 import ctypes
 import math
@@ -74,16 +62,7 @@ def tone(hz, fs, n, amplitude=10000.0, offset=0.0):
 
 
 def amplitude_at(values, hz, fs, drop=0.5):
-    """The amplitude of `hz` in the settled tail, by projection.
-
-    NOT peak-to-peak, which was the first instrument here and was wrong
-    twice over: a sine sampled five times a cycle never lands on its own
-    peak, so it read 7 % low at 2 kHz of a 10 kHz stream - and a tone that
-    decimates onto DC is a constant offset, which a peak-to-peak sees as
-    nothing at all. Projecting onto the frequency being asked about has
-    neither problem. Hann-windowed against leakage, and its coherent gain
-    divided back out.
-    """
+    """The amplitude of `hz` in the settled tail, by projection."""
     tail = values[int(len(values) * drop):]
     n = len(tail)
     if n < 8:
@@ -143,9 +122,9 @@ def test_bessel_buys_group_delay(report, _lib):
                  % chain['group_delay_samples'])
 
     # And what it costs, stated rather than hidden: order steepens the far
-    # stopband and leaves the knee alone, which is the whole reason the
-    # default cutoff is a fifth of the output rate and not the half the
-    # sampling theorem would allow.
+    # stopband and leaves the knee alone, which is the whole reason the default
+    # cutoff is a fifth of the output rate and not the half the sampling
+    # theorem would allow.
     mid, fc = 10000.0, 400.0
     knee = [20.0 * math.log10(abs(bessel.response(
         bessel.sections(mid, fc, n), 1.5 * fc, mid))) for n in (2, 8)]
@@ -214,12 +193,7 @@ def test_decimation_counts(report, lib):
 
 
 def test_the_c_matches_the_transfer_function(report, lib):
-    """The cascade in C against the transfer function it was designed from.
-
-    A tone in, the settled amplitude out, against |H| evaluated in Python.
-    Not the same arithmetic twice: one is a difference equation run sample
-    by sample, the other is the response of the filter it came from.
-    """
+    """The cascade in C against the transfer function it was designed from."""
     mid = 10000.0
     sects = bessel.sections(mid, 500.0, 4)
     c = Chain(lib)
@@ -250,12 +224,7 @@ def test_dc_survives_the_chain(report, lib):
 
 
 def test_a_tone_that_would_alias_is_stopped(report, lib):
-    """THE POINT OF ALL OF IT.
-
-    A tone above half the output rate has nowhere to go but on top of the
-    answer. This feeds one through the real chain and measures what came out
-    against what the design said would.
-    """
+    """THE POINT OF ALL OF IT."""
     chain = bessel.design(fs=100000.0, out_rate=1000.0, order=4)
     c = Chain(lib)
     c.load(chain)
@@ -264,8 +233,8 @@ def test_a_tone_that_would_alias_is_stopped(report, lib):
         c.reset()
         out = c.run(tone(hz, chain['fs'], 200000))
         # WHERE IT LANDS is the whole point: decimation does not move the
-        # amplitude, it moves the frequency, and 2 kHz off a 1 kHz output
-        # rate arrives as a DC offset rather than a tone.
+        # amplitude, it moves the frequency, and 2 kHz off a 1 kHz output rate
+        # arrives as a DC offset rather than a tone.
         lands = bessel._fold(hz, chain['out_rate'])
         got = amplitude_at(out, lands, chain['out_rate']) / 10000.0
         want = bessel.chain_gain(chain, hz)

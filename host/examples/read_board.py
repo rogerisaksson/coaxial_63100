@@ -1,24 +1,9 @@
 #!/usr/bin/env python3
-"""Read everything the board will tell you, and judge none of it.
-
-    cd host && python examples/read_board.py
-
-This is what a dumb slave looks like from the outside: it reports, and every
-number here is a reading, not a verdict. There are no limits in this file, none
-in the library and none in the firmware.
-
-The one thing that does carry pass/fail is the board's self test, and only for
-checks the board can settle from its own registers - a locked PLL, a calibration
-that ran, a firmware checksum. Those need no external reference, so the board is
-entitled to an opinion. Everything else it reports as a value.
-"""
+"""Read everything the board will tell you, and judge none of it."""
 import os
 import sys
 
-# host/ on the path: this file's own directory's parent. Was '..'
-# and '.', which only worked when run from host/ or host/examples -
-# `python host/examples/read_board.py` from the repository root
-# failed outright.
+# host/ on the path: this file's own directory's parent.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import connect, disconnect

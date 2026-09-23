@@ -106,14 +106,7 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
-  /* The M7's instruction cache. CubeMX generated neither cache, so at
-     475 MHz every fetch waited on flash's four wait states: measured
-     2026-08-31, one virtual drive step cost 7 400 cycles with it off and
-     the interrupt outgrew the PWM period. Instructions only: the data
-     cache would need an invalidate after the calibration record is
-     programmed, since Board_CalSave reads the sector back through a
-     pointer, and nothing here is slow for want of it - .data and .bss
-     live in DTCM, which no cache touches. */
+  /* The M7's instruction cache. */
   SCB_EnableICache();
 
   /* USER CODE END Init */
@@ -142,9 +135,7 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
 
-  /* Gates down first. MX_TIM1_Init leaves MOE and CCxE clear, which is
-     Hi-Z on six gate driver inputs; this drives them to their idle
-     level. */
+  /* Gates down first. */
   Board_PwmInit();
 
   /* Before anything reads a channel: the scaling parameters and the
@@ -156,23 +147,16 @@ int main(void)
      termination - or nothing, on a bench board it never saw. */
   Board_BootInit();
 
-  /* The dead time comes from the record, and so has to wait for it. Board_
-     PwmInit runs first because it drives the gates down, and it cannot wait
-     on flash to do that - so the .ioc's value stands for those few
-     microseconds and this replaces it. Nothing is armed in between. */
+  /* The dead time comes from the record, and so has to wait for it. */
   (void)Board_PwmSetDeadTime(Board_Cal()->deadtime_ns);
   (void)Board_PwmSetDeadTimeSkew((int8_t)Board_Cal()->deadtime_skew);
 
   /* The RS485 pair's baud is the record's too, and must land before
-     link_init() derives the RTU silences from it. USART3 stays at 115200
-     whatever the record says - the recovery path. Before CAL_VERSION 9
-     nothing wrote these ports and they ran at CubeMX's 9 216 000. */
+     link_init() derives the RTU silences from it. */
   (void)dev_uart_set_rs485_baud(Board_Cal()->link_baud);
 
   /* Differential-mode offset calibration, recommended before first use for
-     absolute accuracy rather than mere repeatability. Note that it runs with
-     AFE_ON still low, so it calibrates against an unpowered input - which is
-     why the offsets vary by about 100 mV from boot to boot. */
+     absolute accuracy rather than mere repeatability. */
   if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK ||
       HAL_ADCEx_Calibration_Start(&hadc2, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK ||
       HAL_ADCEx_Calibration_Start(&hadc3, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK)
@@ -184,12 +168,10 @@ int main(void)
   link_init();
   Console_Banner();
 
-  /* The thermal observer. Starts on the NTC if the AFE happens to be up,
-     otherwise on a guess the anchoring removes within a few minutes. */
+  /* The thermal observer. */
   Board_ThermalInit();
 
-  /* The control law: parameters out of the record, the period off TIM1.
-     Nothing switches until a host asks for a mode. */
+  /* The control law: parameters out of the record, the period off TIM1. */
   Board_DriveInit();
 
   /* USER CODE END 2 */
@@ -198,25 +180,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* First, and outside every branch below: the STO chain's only
-       evidence that main() is still turning. link_active() does a
-       `continue`, so anything further down stops the moment Modbus
-       gets busy - and a keepalive that stops when the board is busy
-       is a keepalive that lies. */
+    /* First, and outside every branch below: the STO chain's only evidence
+       that main() is still turning. */
     Board_StoKeepalive();
 
-    /* Beside it, and for the same reason: this is what gives a rail
-       back when its owner stopped running, so it cannot sit behind
-       the branch that starved the owner. */
+    /* Beside it, and for the same reason: this is what gives a rail back
+       when its owner stopped running, so it cannot sit behind the branch
+       that starved the owner. */
     Board_PowerPoll();
 
-    /* A `stay` resets into the bootloader once its reply has left the
-       wire - the reset waits here, not in the handler. */
+    /* A `stay` resets into the bootloader once its reply has left the wire
+       - the reset waits here, not in the handler. */
     Board_BootPoll();
 
-    /* The IMU polls itself into shared memory; the host only ever reads that.
-       Held off mid-frame because a 276-byte cargo at 1.48 MHz is 1.5 ms, and
-       RTU delimits frames by silence. */
+    /* The IMU polls itself into shared memory; the host only ever reads
+       that. */
     if (!link_busy())
     {
       Board_ImuPoll();
@@ -224,17 +202,13 @@ int main(void)
       Board_DaqPoll();
 
       /* Arithmetic over cached state plus one NTC read, gated to 10 Hz
-         inside. Here rather than above the branch because it reads a
-         channel, and a converter read mid-frame is what the branch is
-         for. */
+         inside. */
       Board_ThermalPoll();
     }
 
     if (link_active())
     {
-      /* Modbus owns USART3. No console polling and, above all, no printf:
-         a blocking transmit in the middle of a frame would corrupt RTU
-         framing and stall reception long enough to latch an overrun. */
+      /* Modbus owns USART3. */
       link_poll();
       continue;
     }

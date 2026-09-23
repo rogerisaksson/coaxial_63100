@@ -1,14 +1,4 @@
-"""How many checks each suite and each test group last reported.
-
-Written by every run, read only to say what a narrowed run did *not* run. A
-count is never used to decide which tests execute, so a stale one costs a
-display digit and nothing else - and a group with no count yet marks the
-number approximate rather than quietly under-reporting it.
-
-And how many seconds each suite last took, read only to start the longest
-first when suites run side by side: a stale one costs a few seconds of
-wall time, and never decides what runs either.
-"""
+"""How many checks each suite and each test group last reported."""
 import io
 import json
 import os
@@ -26,16 +16,8 @@ def load():
 
 
 def record(section, sizes):
-    """Merge sizes into one section and return the whole file.
-
-    Merge rather than replace: a narrowed run measures thirteen groups and
-    must not forget the twenty-seven it did not touch, which are exactly the
-    ones its own skipped count is about.
-    """
-    # A SUITE THAT RAN NOTHING MEASURED NOTHING. A board-less run leaves
-    # parity and bench at zero checks, and recording that forgets what
-    # they last came to: measured 2026-08-31 with the board unpowered,
-    # the quoted total fell 2114 -> 2080 and four documents went wrong.
+    """Merge sizes into one section and return the whole file."""
+    # A SUITE THAT RAN NOTHING MEASURED NOTHING.
     sizes = {name: n for name, n in sizes.items() if n}
     got = load()
     have = got.get(section)

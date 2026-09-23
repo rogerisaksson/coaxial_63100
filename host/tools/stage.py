@@ -61,11 +61,9 @@ THEME = Theme({
 
 
 def _vt_on():
-    """Enable VT processing on the Windows stdout console BEFORE rich
-    looks at it. Without the flag rich sees a legacy console, routes
-    every frame through the 16-colour Win32 API and no escape we write
-    reaches the screen - measured: a bare conhost detects `windows`,
-    legacy True. Nothing to do on a pipe or another platform."""
+    """Enable VT processing on the Windows stdout console BEFORE rich looks
+    at it.
+    """
     try:
         kernel = ctypes.windll.kernel32
     except (ImportError, AttributeError):
@@ -81,11 +79,10 @@ def stage():
     _vt_on()
     console = Console(highlight=False, theme=THEME)
     if console.is_terminal and console.color_system != 'truecolor':
-        # rich guesses the colour depth from the environment, and on a
-        # Windows console with no COLORTERM it guesses 256 or 16 - the
-        # glow ramp's 24-bit gradient was requantised to the palette's
-        # five cyans, a hard iso-line across the board where 99 luma
-        # met 106. Every console this runs in renders 24-bit.
+        # rich guesses the colour depth from the environment, and on a Windows
+        # console with no COLORTERM it guesses 256 or 16 - the glow ramp's
+        # 24-bit gradient was requantised to the palette's five cyans, a hard
+        # iso-line across the board where 99 luma met 106.
         console = Console(highlight=False, theme=THEME,
                           color_system='truecolor')
     return console
@@ -94,12 +91,8 @@ def stage():
 @contextmanager
 def curtain(console):
     """The Live a view runs inside: the alternate screen on a terminal, so
-    the shell underneath is untouched and comes back on exit. Piped, each
-    update prints once, plainly, in order.
-
-    The buffer is CLEARED on entry: some terminals keep the alternate
-    screen's previous content, and the last session's page flashed for a
-    frame before the first update painted over it."""
+    the shell underneath is untouched and comes back on exit.
+    """
     live = Live(console=console, screen=console.is_terminal,
                 auto_refresh=False, transient=console.is_terminal)
     with live:
@@ -110,19 +103,7 @@ def curtain(console):
 
 @contextmanager
 def boot(label, console=None):
-    """A brisk amber progress strip over whatever the block actually does.
-
-    Deliberately a little gratuitous - the reference terminals never just
-    open a page, they SPIN SOMETHING UP. The bar rides the real work: the
-    block reports its milestones through the yielded `step(share,
-    label)`, the bar creeps a little past each on its own clock while
-    the next one runs, and it snaps full when the block returns. With
-    no milestones reported it creeps to 90 % as before.
-
-    `step()` doubles as `ready()`: called with no arguments it snaps
-    full and takes the bar down NOW, for a view whose body keeps
-    running long after the link is up.
-    """
+    """A brisk amber progress strip over whatever the block actually does."""
 
 
     court = console or stage()
@@ -133,8 +114,7 @@ def boot(label, console=None):
     bar = Progress(
         BarColumn(bar_width=28, complete_style='value',
                   finished_style='value', style='frame.hud'),
-        # The text AFTER the bar, bracketed. Text first, each milestone
-        # shifted the bar by the difference in length and it flickered.
+        # The text AFTER the bar, bracketed.
         TextColumn('[{task.description}]', style='label', markup=False),
         console=court, transient=True)
     task = bar.add_task(label, total=100)
@@ -194,10 +174,6 @@ def chip(origin):
 def band_of(name, extra='', tag=None):
     """The band every page wears: `name` hard left, `extra` dim after it,
     `tag` right with one cell of air before the band's end.
-
-    The tag sits in a column styled as the band, so its padding is the
-    band's: right-justified in a column of its own style it once painted
-    a green field across half a wide row.
     """
     left = Text.assemble((name, 'bar'),
                          ('   ' + extra if extra else '', 'bar.dim'))
@@ -206,9 +182,7 @@ def band_of(name, extra='', tag=None):
 
 
 def header(title, origin):
-    """A view's band: its name, the port, the meaning chip right. A
-    stand-in that was fallen back to says so here - the port that failed
-    to answer is the diagnosis."""
+    """A view's band: its name, the port, the meaning chip right."""
     where = ("PORT: %s" % origin.port if origin.real
              else "" if origin.label == "Simulated" else origin.label)
     return band_of(title, where, chip(origin))
@@ -221,9 +195,9 @@ BAND_INSET = 1
 
 
 def band(*cells):
-    """The title band: `cells` on the band's colour, an inset unpainted
-    at both ends. One cell paints the row; two - a left and a right -
-    split it, the right one as wide as its text."""
+    """The title band: `cells` on the band's colour, an inset unpainted at
+    both ends.
+    """
     bar = Table.grid(expand=True, padding=0)
     bar.add_column(width=BAND_INSET)
     bar.add_column(style='bar.dim', justify='left', ratio=1)
@@ -237,11 +211,7 @@ def band(*cells):
 
 
 def footer(pairs):
-    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style.
-
-    `what` may be a ready Text - a state that should POP (an inverted
-    axis, an armed stage) rides the bar in its own style.
-    """
+    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style."""
     line = Text('  ', style='keys')
     for i, (key, what) in enumerate(pairs):
         if i:
@@ -261,10 +231,7 @@ def footer(pairs):
 
 
 def hud(title, rows):
-    """One instrument: labels recede, values glow, rounded frame.
-
-    `rows` are (label, value) pairs, ready Text objects, or ANSI strings.
-    """
+    """One instrument: labels recede, values glow, rounded frame."""
     grid = Table.grid(padding=(0, 1))
     grid.add_column(style='label', justify='right', no_wrap=True)
     grid.add_column(style='value', no_wrap=True)
@@ -289,9 +256,9 @@ SLIDE_HOLD = 1.2
 
 
 def _slide(extra):
-    """Where the window sits over art `extra` cells too wide: a ping-pong
-    on the wall clock, held at each end. Wall time rather than a frame
-    count, so every view slides at one pace whatever it redraws at."""
+    """Where the window sits over art `extra` cells too wide: a ping-pong on
+    the wall clock, held at each end.
+    """
 
     travel = extra / SLIDE_CPS
     cycle = 2.0 * (travel + SLIDE_HOLD)
@@ -430,22 +397,10 @@ def _cropped(segments, at, width):
 
 class Marquee:
 
-    """Art cropped to its frame instead of wrapped, slid back and forth
-    when it is wider: the bars shorten, and the hidden end comes past on
-    the slide. Content is single-cell glyphs, so character index and
-    display cell agree.
-
-    DECODED HERE, TO SEGMENTS. Text.from_ansi over the attitude page's
-    forty lines, then Text.render re-sorting ~700 spans inside the
-    Panel, Align, Layout and LiveRender passes, was 16 of the ~30 ms a
-    moving frame spent after the renderer on the threadripper
-    (2026-09-22). The art's two SGR forms - a reset and a 24-bit or
-    palette colour - are split off by one regex per line into runs with
-    a Style cached per colour, and the runs are yielded as ready
-    Segments, so rich measures and crops but never re-parses. The
-    console output is byte for byte what the Text path produced,
-    checked on 47 frames. A line carrying any other escape goes through
-    Text.from_ansi as before."""
+    """Art cropped to its frame instead of wrapped, slid back and forth when
+    it is wider: the bars shorten, and the hidden end comes past on the
+    slide.
+    """
 
     def __init__(self, art):
         self.lines, self.widths = [], []
@@ -483,12 +438,7 @@ class Marquee:
 
 
 def viewport(title, art):
-    """The drawing, centred in a heavy frame that owns its region. Too
-    wide for the frame, it crops and slides rather than wraps.
-
-    `title` is the REGION's name, which is not always the page's: a page
-    showing two kinds of thing names the region for what is in it.
-    """
+    """The drawing, centred in a heavy frame that owns its region."""
     return Panel(Align(Marquee(art), align='center',
                        vertical='middle'),
                  title=Text(' %s ' % title, style='name'),
@@ -497,22 +447,13 @@ def viewport(title, art):
 
 
 def _rows_of(panel):
-    """Content lines in a hud, for sizing its Layout. The renderable is a
-    grid, so its row count is what the frame has to make room for."""
+    """Content lines in a hud, for sizing its Layout."""
     inner = panel.renderable
     return len(inner.rows) if isinstance(inner, Table) and inner.rows else 1
 
 
 def _fills(console):
-    """Whether to build the full-screen layout: only on a live terminal.
-    Piped - the tests, a log - gets the same parts stacked plainly.
-
-    THE CONSOLE ITSELF, never a view's `is_terminal` flag for it: the
-    paging asks the terminal how big it is and keeps the scroll per
-    console, and a flag has neither. Five pages handed the flag over -
-    the two with a column silently never paged it, and the weak table
-    turned that into a crash - so the flag is refused here, on the
-    piped path too, where every page's test runs."""
+    """Whether to build the full-screen layout: only on a live terminal."""
     if isinstance(console, bool):
         raise TypeError('the stage draws on the console, not on its '
                         'is_terminal flag')
@@ -565,20 +506,7 @@ def _height_of(box):
 
 
 def paged(console, boxes):
-    """The instrument column, windowed, with an arrow where it continues.
-
-    SEVEN BOXES DO NOT FIT. The column is the page's right-hand forty
-    cells and the boxes fill it from the top; past the bottom of the
-    terminal they are simply not drawn, and a reader has no way to know
-    a THERMAL box exists at all. This shows as many as the terminal has
-    room for and says which way the rest are, on a row that can be
-    clicked to get there - and it was the rotor observer's alone until
-    the bench asked for the arrows on every page, which is why it lives
-    in the template now.
-
-    Piped, nothing is windowed: a captured page is read in order and has
-    no bottom to fall off.
-    """
+    """The instrument column, windowed, with an arrow where it continues."""
     state = scroll_state(console)
     boxes = list(boxes or ())
     try:
@@ -590,8 +518,8 @@ def paged(console, boxes):
         return boxes
 
     heights = [_height_of(box) for box in boxes]
-    # The last page is packed from the END, so scrolling to the bottom
-    # shows a full column rather than one box and a lot of air.
+    # The last page is packed from the END, so scrolling to the bottom shows a
+    # full column rather than one box and a lot of air.
     last, used = len(boxes), 0
     while last > 0 and used + heights[last - 1] + 1 <= room:
         used += heights[last - 1]
@@ -618,10 +546,9 @@ def scroll_by(console, step):
     """One box up (negative) or down, within what the last frame said
     there was."""
     state = scroll_state(console)
-    # FROM WHERE IT IS, not from where the last frame drew: two arrows
-    # between frames used to land one box down, the second reading the
-    # first frame's position again. The bounds are the last frame's -
-    # `paged` clamps whatever this asks for.
+    # FROM WHERE IT IS, not from where the last frame drew: two arrows between
+    # frames used to land one box down, the second reading the first frame's
+    # position again.
     at, seen, total = state['at'], state['pages'][1], state['pages'][2]
     if step > 0 and seen < total:
         state['at'] = at + 1
@@ -630,16 +557,7 @@ def scroll_by(console, step):
 
 
 def scroll_click(console, column, row):
-    """One click: the arrows at the top and bottom of the box column.
-
-    The hit test is the template's own geometry rather than anything
-    measured off the frame - the header is row one, the key bar the last
-    row, and the boxes are the right-hand HUD_WIDTH cells of everything
-    between. The arrows are the first and last rows of that, which is
-    where `paged` draws them. The press is also where a drag begins:
-    `grip` is remembered so `scroll_drag` can tell a page-drag from a
-    drag across the drawing.
-    """
+    """One click: the arrows at the top and bottom of the box column."""
     state = scroll_state(console)
     try:
         width, height = console.size.width, console.size.height
@@ -658,14 +576,7 @@ def scroll_click(console, column, row):
 
 
 def scroll_drag(console, dy):
-    """A left-drag on the instrument column, dragged like a page.
-
-    ONLY A DRAG THAT STARTED THERE - the same rule a scrollbar has. A
-    whole box per DRAG_ROWS of travel, and the remainder is kept:
-    rounding each frame's few cells to zero made a slow drag do nothing
-    at all. Dragging DOWN brings the boxes above into view, which is
-    which way paper moves under a hand.
-    """
+    """A left-drag on the instrument column, dragged like a page."""
     state = scroll_state(console)
     if not state['grip']:
         return
@@ -685,20 +596,15 @@ def scroll_drag(console, dy):
 
 def frame_of(console, origin, title, art, boxes, keys, art_title=None,
              under=None):
-    """THE template: title band, viewport left, instruments right, key bar.
-
-    One function, so the views cannot drift apart. On a terminal it fills
-    the screen the way the reference panels do; piped it degrades to the
-    same content in reading order.
-    """
+    """THE template: title band, viewport left, instruments right, key bar."""
     if not _fills(console):
         return Group(header(title, origin),
                      viewport(art_title or title, art),
                      *([under] if under is not None else []),
                      *boxes, footer(keys))
 
-    # THE COLUMN IS PAGED HERE, for every view at once, and the key bar
-    # says so only while there is something to scroll to.
+    # THE COLUMN IS PAGED HERE, for every view at once, and the key bar says so
+    # only while there is something to scroll to.
     boxes = paged(console, boxes)
     at, seen, total = scroll_state(console)['pages']
     if at or seen < total:
@@ -708,9 +614,9 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
     if under is None:
         art_region.update(viewport(art_title or title, art))
     else:
-        # `under` is a fixed height because the viewport takes the rest:
-        # a box that grew with its content would push the bars off the
-        # bottom of a short terminal instead of the other way round.
+        # `under` is a fixed height because the viewport takes the rest: a box
+        # that grew with its content would push the bars off the bottom of a
+        # short terminal instead of the other way round.
         art_region.split_column(
             Layout(viewport(art_title or title, art), name='top'),
             Layout(under, name='under', size=_rows_of(under) + 2))
@@ -726,14 +632,7 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
 
 
 def panels_of(console, origin, title, groups, keys):
-    """The template for table views: a FIXED grid of instruments, no art.
-
-    `groups` is a list of rows, each row a list of huds. On a terminal
-    every row is a Layout split into equal columns, so a box keeps its
-    place and its width whatever its text does this frame - flowing
-    Columns resized with the values, and the screen read as a salad that
-    flickered. Piped, the same content stacks in reading order.
-    """
+    """The template for table views: a FIXED grid of instruments, no art."""
     if not _fills(console):
         flat = [Columns(row, padding=(0, 1), expand=False)
                 for row in groups]
@@ -753,8 +652,8 @@ def panels_of(console, origin, title, groups, keys):
         row_layouts.append(strip)
     body.split_column(*row_layouts)
     # The grid sits in the same heavy frame the drawing views give their
-    # viewport, so a table page owns its region the way they do - the
-    # session read as loose boxes on the bare screen.
+    # viewport, so a table page owns its region the way they do - the session
+    # read as loose boxes on the bare screen.
     framed = Panel(body, title=Text(' %s ' % title, style='name'),
                    title_align='left', box=box.HEAVY, border_style='frame',
                    padding=0, expand=True)

@@ -92,13 +92,8 @@ def _extension_bins():
 
 
 def toolchain_path():
-    """PATH entries env.ps1 adds before calling cube-cmake or the programmer.
-
-    cube-cmake is not a standalone build tool: it shells out to `cube` (the
-    bundle manager) and to the gcc/cmake/ninja bundles themselves, none of
-    which are on PATH by default - that is the whole reason env.ps1 exists.
-    Skip this and cube-cmake fails with 'cube' command is not available in
-    current context, which says nothing about the firmware.
+    """PATH entries env.ps1 adds before calling cube-cmake or the
+    programmer.
     """
     dirs = []
     for bundle in ('gnu-tools-for-stm32', 'cmake', 'ninja', 'programmer', 'gnu-gdb-for-stm32'):
@@ -145,11 +140,7 @@ def cube_helpers():
 
 
 def reap(before):
-    """Stop the helpers this run started, and only those.
-
-    The extension's own `cube` respawns within a second of being killed and
-    is not this script's to end - so what was already running is left alone.
-    """
+    """Stop the helpers this run started, and only those."""
     for pid in cube_helpers() - before:
         with suppress(OSError, subprocess.SubprocessError):
             subprocess.run(['taskkill', '/F', '/PID', str(pid)],
@@ -195,14 +186,7 @@ def _region_of(regions, addr):
 
 
 def footprint(elf, path):
-    """(flash, dtcmram) bytes from the ELF's own section table.
-
-    Flash holds every loaded section including `.data`'s initialisers
-    and the code that runs from ITCM but is stored in flash; DTCMRAM
-    holds `.data`, `.bss` and the heap/stack reservation. Written here
-    because a number in a document is one nobody re-measures - TODO
-    carried 134 748 B for as long as it took to grow by ten kilobytes.
-    """
+    """(flash, dtcmram) bytes from the ELF's own section table."""
     size = shutil.which('arm-none-eabi-size', path=path)
     if size is None or not Path(elf).exists():
         return None
@@ -270,8 +254,7 @@ def flash(elf, path):
         print('FLASH  FAIL  STM32_Programmer_CLI not found (see setup.ps1)')
         return False
     # SWD, not JTAG: any connect on this probe that asserts NRST fails with
-    # "Unable to get core ID". --start, not -hardRst, or the core is left
-    # halted. Both measured on this bench - see the top-level CLAUDE.md.
+    # "Unable to get core ID".
     argv = [programmer, '-c', 'port=SWD', 'mode=UR', '-d', str(elf), '-v', '--start']
     code, output, elapsed = run(argv, cwd=str(ROOT), path=path)
     if code != 0:

@@ -36,9 +36,9 @@ def _cube():
 
 
 def solid_for(name):
-    """The mesh a fixture renders with: the exporter's cube for cube-*,
-    the board (None, render's default) otherwise. The cube is the light
-    model's proof - flat faces make a shading bug a wrong character."""
+    """The mesh a fixture renders with: the exporter's cube for cube-*, the
+    board (None, render's default) otherwise.
+    """
     return _cube() if name.startswith('cube-') else None
 
 
@@ -106,13 +106,7 @@ def agreement(mine, theirs, n=48):
 
 
 def resample(cells, n=48):
-    """The silhouette on a common n*n grid, scale and position free.
-    Art rows are half-height cells; doubling y first squares them.
-
-    Each source cell fills its whole SPAN on the target grid, not just
-    its origin point: a 9-column sliver stretched to 48 as points is a
-    comb of every fifth column, and two combs of different pitch
-    measured IoU 0.01 on identical shapes."""
+    """The silhouette on a common n*n grid, scale and position free."""
     if not cells:
         return set()
     cells = set((x, 2 * y) for x, y in cells) | \

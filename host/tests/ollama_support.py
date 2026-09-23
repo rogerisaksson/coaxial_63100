@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Everything the split-out ollama suites share.
-
-The fixtures, the scripted model, the report, and the helpers that
-were top-level in test_ollama.py before it was one file per subject.
-Nothing here is a check: every `test_` function moved to the file
-named by its first subject.
-"""
+"""Everything the split-out ollama suites share."""
 #!/usr/bin/env python3
 """Offline test of the Ollama runner: no board, no ollama, no network.
 
@@ -26,9 +20,9 @@ testable on a desk with nothing plugged in.
 
 Imported by the test_ollama_* suites; not a suite itself.
 """
-# Every import here is also the suites' import: test_ollama_* take io,
-# json, simulated, detail and the rest FROM this module, so pyflakes'
-# 'unused' on any of them is wrong - removing eight crashed three suites.
+# Every import here is also the suites' import: test_ollama_* take io, json,
+# simulated, detail and the rest FROM this module, so pyflakes' 'unused' on any
+# of them is wrong - removing eight crashed three suites.
 import io                                                  # noqa: F401
 import json                                                # noqa: F401
 import os
@@ -67,13 +61,10 @@ class SimulatedLink:
         if self.board.broken:
             raise ConnectError('cable pulled')
         if self.board.dead_handle:
-            # Distinct from `broken`: a real cable pull can leave the OS
-            # handle Session.board cached permanently invalid, since a USB
-            # VCP re-enumerates on replug rather than reviving the same
-            # handle - measured directly against real hardware. Unlike
-            # `broken`, nothing but session.reset() clears this one; the
-            # tests using it are the ones proving debug.py actually calls
-            # reset() rather than just retrying on the same dead handle.
+            # Distinct from `broken`: a real cable pull can leave the OS handle
+            # Session.board cached permanently invalid, since a USB VCP
+            # re-enumerates on replug rather than reviving the same handle -
+            # measured directly against real hardware.
             raise ConnectError('Attempting to use a port that is not open')
         return {'unit_id': 1, 'bus_message': 42, 'char_overrun': 0}
 class SimulatedSystem:
@@ -92,11 +83,7 @@ class SimulatedAfe:
         return {'on': self.on, 'pe15': not self.on}
 
     def is_on(self):
-        """The third stand-in for this subsystem, and it was missing this.
-
-        The structure suite checks the library's against the real class; it
-        cannot see one that lives in a test.
-        """
+        """The third stand-in for this subsystem, and it was missing this."""
         return self.on
 
     def enable(self):
@@ -121,24 +108,13 @@ CHANNELS = [
     {'index': 3, 'adc': 3, 'pin': 'PC1', 'differential': False, 'signal': 'DC bus'},
 ]
 class SimulatedAnalog:
-    """A four-channel board, smaller than the package's stand-in on purpose.
-
-    It shares a NAME with `coaxial.simulated.SimulatedAnalog` and not a
-    class, which is worth knowing: a method added there does not arrive here,
-    and the AttributeError says `SimulatedAnalog` either way. Adding one to
-    the real subsystem means adding it to both stand-ins or to neither.
-    """
+    """A four-channel board, smaller than the package's stand-in on purpose."""
 
     def __init__(self, board):
         self.board = board
 
     def scaling(self, refresh=False):
-        """The conversion parameters, as the real subsystem reports them.
-
-        The fallback set, because there is no calibration record behind a
-        four-channel double - and saying so is the point: a value cooked here
-        is the schematic's arithmetic, not a board's.
-        """
+        """The conversion parameters, as the real subsystem reports them."""
         del refresh
         from coaxial import scaling as _scaling
         return _scaling.from_calibration({})
@@ -162,8 +138,7 @@ class SimulatedBoard:
         # A cable pull is a transport-level failure: it takes down every
         # subsystem's calls at once, not just the one a test happens to be
         # driving - so this lives here, not on SimulatedAnalog alone, and
-        # SimulatedLink fails the same way analog does. One flag, shared, the
-        # way a real dead Transport actually behaves.
+        # SimulatedLink fails the same way analog does.
         self.broken = False
         self.dead_handle = False
         self.link = SimulatedLink(self)
@@ -174,10 +149,7 @@ class SimulatedBoard:
     def close_binary(self):
         pass
 class SimulatedSession:
-    """A session over the scripted board above. THE SURFACE EVERY
-    SESSION HAS - coaxial.session.Session lists it - with no port
-    behind it: the tools read this as a stand-in with a board, and
-    nothing attached for a link check to reuse."""
+    """A session over the scripted board above."""
     port = bus = unit = attached = None
     baud = 115200
     simulated = True
@@ -207,8 +179,7 @@ class ScriptedModel(clientmod.Model):
         self.prompts = []          # every messages list it was handed
         # A real window, so every test that drives a Chat or a Runner through
         # this stand-in also proves the prompt those loops build actually fits
-        # one - see context.py. A client with no options at all is a separate
-        # case and is tested directly.
+        # one - see context.py.
         self.options = {'num_ctx': num_ctx, 'num_predict': 300}
         self.notes = []
 
@@ -281,7 +252,6 @@ def _capability_tags(report, cap, machine):
     """Which tag a machine chooses, and why it never splits one."""
 
     # A workstation card: the biggest tag that fits WHOLE, never a split one.
-    # Measured on the bench: wholly resident is ~5x faster per token than half.
     big = cap.choose(machine(32, 64, 16))
     report.check('16 GB card takes the largest model that fits whole',
                  big.tag == 'qwen2.5:14b' and 'num_gpu' not in big.options,
@@ -315,16 +285,13 @@ def _capability_tags(report, cap, machine):
     report.check('and says what it costs',
                  any('slower' in w for w in step.warnings))
 
-    # The reserve is the whole point of the budget: a card must never be
-    # filled to the brim, because the desktop lives there too.
+    # The reserve is the whole point of the budget: a card must never be filled
+    # to the brim, because the desktop lives there too.
     report.check('a quarter of the card is held back, floor 2 GB',
                  cap.reserve_for(16) == 4.0 and cap.reserve_for(4) == 2.0
                  and cap.reserve_for(0) == 0.0)
 
-    # And what the card already holds counts. Measured on this bench: a
-    # two-screen desktop was using 2.6 GB before anything of ours ran, so a
-    # flat quarter of a 16 GB card left it 1.4 GB to grow into - which is not
-    # an error, it is a stutter, which is worse because nobody can read it.
+    # And what the card already holds counts.
     report.check('what the desktop already uses raises the reserve',
                  cap.reserve_for(16, 2.6) == 2.6 + cap.HEADROOM_GB,
                  '%.1f GB' % cap.reserve_for(16, 2.6))
@@ -366,8 +333,7 @@ def _capability_budget(report, cap, machine):
                          0 <= layers <= picked.entry['layers'],
                          '%s %s/%s' % (picked.tag, layers, picked.entry['layers']))
 
-    # Free RAM, not the sticker. A 64 GB workstation with 8 GB left cannot hold
-    # a 42 GB model, and the failure mode is swapping rather than an error.
+    # Free RAM, not the sticker.
     squeezed = cap.choose(machine(32, 64, 0, free=8))
     report.check('the choice is made on free RAM, not installed RAM',
                  squeezed.entry['ram_gb'] <= 8, squeezed.tag)
@@ -389,7 +355,7 @@ def _capability_budget(report, cap, machine):
     real_smi, real_ours = cap._gpus_nvidia_smi, cap._ollama_vram_gb
     try:
         # A 16 GB card reading 10.8 used, of which 7.8 is the model we loaded
-        # ourselves. The desktop is 3.0, and that is what the reserve is for.
+        # ourselves.
         cap._gpus_nvidia_smi = lambda: [{'name': 'test', 'vram_gb': 16.0,
                                          'used_gb': 10.8, 'via': 'test'}]
         cap._ollama_vram_gb = lambda host='': 7.8
@@ -425,12 +391,7 @@ def _capability_budget(report, cap, machine):
 
 
 def _test_capability(report, cap):
-    """The capability picker, in two halves.
-
-    Split at 146 lines because the structure suite covers this file - it
-    did not cover the one file these used to live in, where a 756-line
-    check sat unnoticed.
-    """
+    """The capability picker, in two halves."""
     def machine(cores, ram, vram, name='card', used=0.0, free=None, busy=None):
         gpus = ([{'name': name, 'vram_gb': vram, 'used_gb': used, 'via': 'test'}]
                 if vram else [])
@@ -461,26 +422,7 @@ TAGS = {
 
 
 def select(roster, chosen, seed, coverage=None):
-    """Which of `roster` to run, as a set. Empty means the file whole.
-
-    Three claims on the budget, in order, because they are not equally
-    valuable:
-
-    1. **One test from every subject the pick left out, and the smallest
-       group from the pick itself.** The picker is a model and can be wrong
-       the expensive way, by not thinking of a subject at all. This is the
-       floor - if it alone overshoots the target it still runs, and the
-       printed percentage says so.
-    2. **The picked subjects**, largest group first, until the budget is spent.
-    3. **Whatever else fits**, drawn at random from the remainder.
-
-    Sizes come from counts.py, so a percentage is of checks, not of groups:
-    the groups run from 2 checks to 77, and half the groups is not half the
-    coverage. With nothing measured yet, the pick runs whole.
-
-    `roster` is a parameter now rather than a module global: one file per
-    subject means there is no single roster left to close over.
-    """
+    """Which of `roster` to run, as a set."""
     if not chosen:
         return set()
 
@@ -528,11 +470,7 @@ def select(roster, chosen, seed, coverage=None):
 
 
 def run_file(roster, argv=None):
-    """Run one subject file and print the tally it counted itself.
-
-    The same shape every suite in this tree prints, because tools/run_tests.py
-    parses it and never asks anybody to summarise anything.
-    """
+    """Run one subject file and print the tally it counted itself."""
     picked = seed = coverage = only = None
     argv = list(sys.argv[1:] if argv is None else argv)
     while len(argv) > 1:
@@ -558,11 +496,7 @@ def run_file(roster, argv=None):
         seed = random.randrange(10000)
 
     # `only` names test functions outright - the shortest way back after
-    # changing one thing. It overrides tags, the draw and any coverage
-    # target: asked for three tests, run three tests. A name this file does
-    # not have is not an error here: with one file per subject the run_tests
-    # caller offers the same names to every file, and the one that owns them
-    # runs them.
+    # changing one thing.
     if only:
         want = {n.strip().lower().lstrip('-') for n in only.split(',')
                 if n.strip()}
@@ -585,9 +519,9 @@ def run_file(roster, argv=None):
         sizes[test.__name__] = report.passed + report.failed - was
         ran += 1
 
-    # What did not run, in checks rather than groups - measured, not
-    # guessed: every group records its own size as it goes, so a narrowed
-    # run reads back what the skipped ones came to the last time they ran.
+    # What did not run, in checks rather than groups - measured, not guessed:
+    # every group records its own size as it goes, so a narrowed run reads back
+    # what the skipped ones came to the last time they ran.
     left = [t.__name__ for t, _ in roster if drawn and t not in drawn]
     counts.record('groups', sizes)
     skipped, unmeasured = counts.missing('groups', left)

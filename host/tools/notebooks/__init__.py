@@ -1,22 +1,7 @@
 """The example notebooks, one module per functional area, each a short
-paper: an abstract, numbered sections that measure something and read
-the number back, conclusions with the numbers in them, and what to do
-with them at the bench. Every module declares the same parts - TITLE,
-SUBTITLE, ABSTRACT, SECTIONS, CONCLUSIONS, BENCH, REFERENCES - and
-`parts.paper` lays every one out here, in one place;
-`make_notebooks.py` writes and executes them.
-
-The areas, in the order the README tables them:
-
-    acquisition   the converters into records, frames and a live plot
-    link          one port shared by sessions, and who else is attached
-    sensors       the BNO085 and the A1335, and what each refuses over
-    power_stage   the gate drivers armed and driven, and what switching costs
-    thermal       the node network, its budget, and the room identified
-    drive         the sensorless observers and the firmware's law, measured
-    motion        the drive as verbs: stepper, servo, velocity
-    applications  four missions on the verbs
-    commissioning the bench-day procedure, end to end on the stand-in
+paper: an abstract, numbered sections that measure something and read the
+number back, conclusions with the numbers in them, and what to do with
+them at the bench.
 """
 from . import (acquisition, applications, commissioning, drive, link, motion,
                power_stage, sensors, thermal)

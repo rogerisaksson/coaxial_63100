@@ -40,10 +40,9 @@ def fixtures():
 
 
 def objective(refs):
-    """Mean light + a quarter silhouette, MINUS a hard penalty when any
-    cube fixture's light drops under 0.85. The cube is the response
-    curve's ground truth: outvoted by the board's seven fixtures, every
-    earlier fit saturated the ramp and painted the cube one flat ':'."""
+    """Mean light + a quarter silhouette, MINUS a hard penalty when any cube
+    fixture's light drops under 0.85.
+    """
     shading._SHADOWS.clear()
     sil = lgt = 0.0
     worst_cube = 1.0

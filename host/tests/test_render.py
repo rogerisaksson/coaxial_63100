@@ -1,15 +1,4 @@
-"""The 3D engine, stage by stage, against exact expectations.
-
-Five stages - pose, camera, raster, shade, compose - each checked in
-isolation, then the whole chain against an analytic ray-cast oracle on
-the exporter's cube: no triangles, no raster, just slab intersection
-and the same depth ramp. Interior cells (not bordering a class change,
-where a raster's half-cell aliasing lives) must match 100 %.
-
-The pose stage cross-validates against the QUATERNION path in
-coaxial.orientation - two independent implementations that must agree.
-render/render_demo.ps1 is the bench that runs this file.
-"""
+"""The 3D engine, stage by stage, against exact expectations."""
 import math
 import os
 import sys
@@ -194,9 +183,9 @@ def test_shade_units(report):
     report.check('shade: art blank opens the cell',
                  one(0.0, top=1, art=art) == 0)
 
-    # One cell of the dot raster, 2 wide by 4 tall: five subsamples hit,
-    # the nearest (0.9) sits at lane 1 row 3 with top set and sun clear,
-    # and the reached mask is those five dots' braille bits.
+    # One cell of the dot raster, 2 wide by 4 tall: five subsamples hit, the
+    # nearest (0.9) sits at lane 1 row 3 with top set and sun clear, and the
+    # reached mask is those five dots' braille bits.
     depth2 = [0.5, 0.0,
               0.7, 0.0,
               0.0, 0.6,
@@ -252,15 +241,7 @@ def test_chain(report):
 
 
 def test_outline(report):
-    """The wireframe overlay's edge choice on a synthetic solid, exactly.
-
-    A box 0.1 tall on a slab at z 0, both as indexed triangles with the
-    real face normals. The creases: the box's four top edges and four
-    vertical corners - eight, one loop, extent the box's width. Not
-    creases: the slab's own diagonals (coplanar), the box top's diagonal
-    (coplanar), and the box's four base edges - at z 0 the height gate
-    drops them, as it drops every pad and hole on the real board.
-    """
+    """The wireframe overlay's edge choice on a synthetic solid, exactly."""
     pos, idx, nrm = [], [], []
 
     def vertex(p):
@@ -307,17 +288,17 @@ def test_outline(report):
                  shape == [(0.4, 8)], str(shape))
     report.check('outline: a slab with one face has no bottom',
                  solids._slab_bottom(pos, solids._slab_top(pos)) is None)
-    # The same slab given its bottom face, a millimetre and a half down,
-    # and a box hanging under it: the bottom is found and the hanging
-    # box drawn, its lid and corners like the one on top.
+    # The same slab given its bottom face, a millimetre and a half down, and a
+    # box hanging under it: the bottom is found and the hanging box drawn, its
+    # lid and corners like the one on top.
     both, both_idx, both_nrm = list(pos), list(idx), list(nrm)
     under = [vertex(p) for p in ((-1, -1, -.05), (1, -1, -.05),
                                  (1, 1, -.05), (-1, 1, -.05))]
     quad(under[0], under[3], under[2], under[1])          # facing down
     lo2 = [vertex(p) for p in ((.5, .5, -.05), (.7, .5, -.05),
                                (.7, .7, -.05), (.5, .7, -.05))]
-    # A tenth tall, not more: the density gate (OUTLINE_DENSITY) takes a
-    # 0.2 box's lid and corners up to 1.2 units of edge, exactly.
+    # A tenth tall, not more: the density gate (OUTLINE_DENSITY) takes a 0.2
+    # box's lid and corners up to 1.2 units of edge, exactly.
     hi2 = [vertex(p) for p in ((.5, .5, -.1), (.7, .5, -.1),
                                (.7, .7, -.1), (.5, .7, -.1))]
     quad(hi2[0], hi2[3], hi2[2], hi2[1])
@@ -337,9 +318,8 @@ def test_outline(report):
     del nrm[len(both_nrm):]
     loops = creases._outline_loops(solid)
     loops = [l for l in loops if len(l[1]) == 8]         # the box alone below
-    # The size filter: at a camera where 0.4 units is under OUTLINE_CELLS
-    # the loop is skipped; where it spans the frame it draws. Same box,
-    # two zooms, drawn onto a buffer the box's lid occupies at depth 1.
+    # The size filter: at a camera where 0.4 units is under OUTLINE_CELLS the
+    # loop is skipped; where it spans the frame it draws.
     def drawn_at(zoom):
         cam = engine.camera(40, 12, 1.5, distance=3.2, zoom=zoom)
         m = (1, 0, 0, 0, 1, 0, 0, 0, 1)
@@ -355,8 +335,8 @@ def test_outline(report):
             stereotype._outline_source = real
         return n, grid
 
-    # At zoom 0.6 this camera puts 3.9 cells on a unit, so the 0.4 box is
-    # 1.6 cells - under OUTLINE_CELLS, filtered; at zoom 3 it is 7.8.
+    # At zoom 0.6 this camera puts 3.9 cells on a unit, so the 0.4 box is 1.6
+    # cells - under OUTLINE_CELLS, filtered; at zoom 3 it is 7.8.
     report.check('outline: a loop under OUTLINE_CELLS is not drawn',
                  drawn_at(0.6)[0] == 0, str(drawn_at(0.6)[0]))
     n, grid = drawn_at(3.0)
@@ -368,12 +348,8 @@ def test_outline(report):
 
 def test_the_edge_is_the_rasters_silhouette(report):
     """The slab's edge and its holes are drawn from the coverage the fold
-    reported, dot by dot, so they cannot sit beside what the face
-    drew - the bench saw the mesh's ring beside the raster's hole. On a
-    synthetic coverage: a full rectangle with a 2x2 hole and a one-cell
-    pinhole. The rectangle's perimeter and the hole's four-neighbours
-    get edge dots; the interior, the pinhole's neighbours and the frame's
-    own edge do not.
+    reported, dot by dot, so they cannot sit beside what the face drew -
+    the bench saw the mesh's ring beside the raster's hole.
     """
     width, height = 20, 10
     reached = bytearray(width * height)
@@ -419,11 +395,9 @@ def test_the_edge_is_the_rasters_silhouette(report):
     report.check('edge: the dots are the coverage\'s own - a cell with '
                  'its lower row alone draws that row',
                  (2, 0) in cells and n == left[0], str(n))
-    # THE LIT COVERAGE: with the light given, a covered cell the light
-    # left at zero - a wall seen edge-on, drawn blank - counts as empty,
-    # so the line goes round what is drawn. A dark band three cells
-    # wide on the right moves the edge to the last lit column and draws
-    # nothing in the band; a dark pinhole inside is no edge either.
+    # THE LIT COVERAGE: with the light given, a covered cell the light left at
+    # zero - a wall seen edge-on, drawn blank - counts as empty, so the line
+    # goes round what is drawn.
     reached = bytearray(width * height)
     for r in range(2, 8):
         for c in range(3, 17):
@@ -448,12 +422,10 @@ def test_the_edge_is_the_rasters_silhouette(report):
 
 
 def test_ink_never_leans_below_the_floor(report):
-    """At a steep tilt the lean dimming took every cell of the art to
-    class 0 - 599 of 653 blank cells at 73 degrees, the face gone and
-    the parts' walls left standing as a thick block - so an inked art
-    cell now floors at the bare geometry's floor. Rendered at the
-    bench's screenshot pose (73 degrees off face-on) at 108x44: fewer
-    than a tenth of the covered cells draw blank, where half did.
+    """At a steep tilt the lean dimming took every cell of the art to class
+    0 - 599 of 653 blank cells at 73 degrees, the face gone and the
+    parts' walls left standing as a thick block - so an inked art cell
+    now floors at the bare geometry's floor.
     """
     import re
     q = (-0.600, 0.264, -0.257, 0.710)
@@ -490,11 +462,9 @@ def test_ink_never_leans_below_the_floor(report):
 
 
 def test_the_art_stops_at_its_disc(report):
-    """A surface point past ART_DISC of the span takes no ink: the art's
-    own ink reaches 0.94 to 1.00 by direction, and a rim cell landing
-    on its blank outside drew nothing, pulling the edge a cell in. Face
-    on (the identity pose, the plane at z = 0) a point at 0.90 hits the
-    art and one at 0.98 does not; the hit is the top view's own cell.
+    """A surface point past ART_DISC of the span takes no ink: the art's own
+    ink reaches 0.94 to 1.00 by direction, and a rim cell landing on its
+    blank outside drew nothing, pulling the edge a cell in.
     """
     identity = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     distance, w, h = 3.2, 106, 54
@@ -513,11 +483,11 @@ def test_the_art_stops_at_its_disc(report):
 
 
 def test_the_outline_holds_together(report):
-    """The outline's hidden-line grace follows the cell's own depth
-    span, so a lid's edge no longer loses to the lid's near corner in
-    the same cell: at the component side 65 degrees off face-on, the
-    parts' loops drawn alone at 108x44 fall into pieces whose largest
-    is over a hundred cells (163 measured; 45 with the fixed grace).
+    """The outline's hidden-line grace follows the cell's own depth span, so
+    a lid's edge no longer loses to the lid's near corner in the same
+    cell: at the component side 65 degrees off face-on, the parts' loops
+    drawn alone at 108x44 fall into pieces whose largest is over a
+    hundred cells (163 measured; 45 with the fixed grace).
     """
     import re
     q = _diagonal_pose(65.0)
@@ -584,13 +554,13 @@ def _diagonal_pose(off_deg):
 
 
 def test_stereotypes(report):
-    """The pre-scan fits each part's loops to the simple geometry it
-    is, once: a box's lid and corners are a block of eight segments; a
-    lone lid of twelve corners on one radius is a drum; a chamfered
-    square's eight corners share a radius too but sit on a box's sides,
-    so it is a block (the CPU came out round once); two end profiles of
-    one width and height facing across are one block; and two loops on
-    one footprint - a rounded part's base ring and lid - are one part.
+    """The pre-scan fits each part's loops to the simple geometry it is,
+    once: a box's lid and corners are a block of eight segments; a lone
+    lid of twelve corners on one radius is a drum; a chamfered square's
+    eight corners share a radius too but sit on a box's sides, so it is a
+    block (the CPU came out round once); two end profiles of one width
+    and height facing across are one block; and two loops on one
+    footprint - a rounded part's base ring and lid - are one part.
     """
     pos = []
 
@@ -627,8 +597,8 @@ def test_stereotypes(report):
     prims = stereotype._stereotype_loops(pos, [loop_of(ring(chamfered, 0.1))], top, bottom)
     report.check('stereotype: a chamfered square is a block, not a drum',
                  [k for k, _e, _d in prims] == ['block'], str(prims))
-    # two end profiles of a rounded extrusion: up, across, down, in the
-    # planes y = -0.1 and y = +0.1
+    # two end profiles of a rounded extrusion: up, across, down, in the planes
+    # y = -0.1 and y = +0.1
     arches = []
     for y in (-0.1, 0.1):
         ids = [vertex(p) for p in ((-.1, y, 0.0), (-.1, y, .08), (-.05, y, .1),
@@ -645,11 +615,11 @@ def test_stereotypes(report):
                  'one part, one block',
                  [(k, len(d)) for k, _e, d in prims] == [('block', 12)]
                  and abs(prims[0][1] - 0.44) < 1e-6, str([(k, round(e, 3)) for k, e, d in prims]))
-    # a lid with a small circle on it - a PE terminal's screw hole -
-    # is a block AND a ring; a lid with a stray diagonal ridge keeps
-    # its own orientation, the box round every point turned the USB
-    # shell 60 degrees; a crest narrower than the base leans the legs
-    # in, so a rounded shoulder stands inside the lid's edge
+    # a lid with a small circle on it - a PE terminal's screw hole - is a block
+    # AND a ring; a lid with a stray diagonal ridge keeps its own orientation,
+    # the box round every point turned the USB shell 60 degrees; a crest
+    # narrower than the base leans the legs in, so a rounded shoulder stands
+    # inside the lid's edge
     screw = ring([(0.05 * math.cos(2 * math.pi * k / 8), 0.05 * math.sin(2 * math.pi * k / 8))
                   for k in range(8)], 0.1)
     prims = stereotype._stereotype_loops(pos, [loop_of(lid), loop_of(screw)], top, bottom)
@@ -680,9 +650,9 @@ def test_stereotypes(report):
     report.check('stereotype: a loop of one edge is its own stroke, not a '
                  'box round a diagonal',
                  [(k, len(d)) for k, _e, d in prims] == [('stroke', 1)], str(prims))
-    # a screw terminal's two profiles per wall: the outer pair 0.5 wide
-    # and 0.15 tall at y -0.2 and +0.2, the inner a box 0.4 wide and 0.1
-    # tall - one block, the box round both, to the taller's height
+    # a screw terminal's two profiles per wall: the outer pair 0.5 wide and
+    # 0.15 tall at y -0.2 and +0.2, the inner a box 0.4 wide and 0.1 tall - one
+    # block, the box round both, to the taller's height
     outer = []
     for y in (-0.2, 0.2):
         ids = [vertex(p) for p in ((-.25, y, 0.0), (-.25, y, .15), (.25, y, .15), (.25, y, 0.0))]
@@ -699,8 +669,8 @@ def test_stereotypes(report):
     prims = stereotype._stereotype_loops(pos, [loop_of(lid), loop_of(other)], top, bottom)
     report.check('stereotype: two lids overlapping by a tenth are two blocks',
                  [k for k, _e, _d in prims] == ['block', 'block'], str([(k, round(e, 3)) for k, e, d in prims]))
-    # a hole in a wall: a closed loop in the plane y = -0.2 floating
-    # 0.03 over the base, 0.06 wide and 0.03 tall - an oval, not an arch
+    # a hole in a wall: a closed loop in the plane y = -0.2 floating 0.03 over
+    # the base, 0.06 wide and 0.03 tall - an oval, not an arch
     ids = [vertex((x, -0.2, z)) for x, z in ((-.03, .045), (0.0, .03), (.03, .045),
                                              (.03, .06), (0.0, .06), (-.03, .06))]
     hole = (0.06, [(ids[i], ids[(i + 1) % 6]) for i in range(6)])
@@ -710,9 +680,9 @@ def test_stereotypes(report):
                  [(k, len(d[0])) for k, _e, d in prims] == [('hole', 12)]
                  and all(abs(s[1] + 0.2) < 1e-9 and abs(s[4] + 0.2) < 1e-9 for s in prims[0][2][0]),
                  str([(k, round(e, 3)) for k, e, d in prims]))
-    # ...and drawn only where its wall faces the camera: face-on the
-    # wall is edge-on and the oval a dash, so nothing; tilted 60
-    # degrees about x the wall faces the camera and the oval draws.
+    # ...and drawn only where its wall faces the camera: face-on the wall is
+    # edge-on and the oval a dash, so nothing; tilted 60 degrees about x the
+    # wall faces the camera and the oval draws.
     real = stereotype._outline_source
     stereotype._outline_source = lambda: ((pos, [], []), [hole])
     stereotype._STEREO.clear()
@@ -759,12 +729,9 @@ def test_the_preload_is_adopted(report):
 
 
 def test_the_decimate_keeps_the_bore(report):
-    """The bore's wall is thinner than a grid-48 cell, so clustering
-    merged its rings and the see-through came out smaller and shifted
-    from the mesh's circle the art is drawn to - two holes on the
-    bench. Corners within BORE_KEEP of the axis stay exact: the 48
-    decimate holds the ring of 86 corners at radius 0.100, and nothing
-    of the plate's face inside it.
+    """The bore's wall is thinner than a grid-48 cell, so clustering merged
+    its rings and the see-through came out smaller and shifted from the
+    mesh's circle the art is drawn to - two holes on the bench.
     """
     _edges, solid = wireframe._model(1.2672, wireframe.CREW_LEAST)
     pts = solid[0]
@@ -787,13 +754,8 @@ def test_the_decimate_keeps_the_bore(report):
 
 
 def test_key_light(report):
-    """The key light on a synthetic plane: leaning into the beam is
-    brighter than flat, leaning away is darker - the sign, held exactly.
-
-    Nine cells of class 2 at one level, no grain, full coverage. `bare`
-    is view z per cell: flat, rising to the LEFT (the surface's normal
-    leans right, into LIGHT's +x), and rising to the right (away). The
-    centre cell's tone luma orders the three.
+    """The key light on a synthetic plane: leaning into the beam is brighter
+    than flat, leaning away is darker - the sign, held exactly.
     """
     w = h = 3
     cam = {'width': w, 'height': h, 'distance': 3.2, 'scale': 60.0,
@@ -816,11 +778,7 @@ def test_key_light(report):
         return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
     # A gentle slope: this camera scales a bare step of 0.04 a cell to a
-    # gradient of 0.3 - a plane a third tilted. Steeper than the beam's
-    # own angle a plane tilts PAST the light and darkens on both sides,
-    # which the first draft of this test measured and misread as a sign
-    # error: a 77-degree plane facing a beam that is 77 % frontal gets
-    # less of it than face-on.
+    # gradient of 0.3 - a plane a third tilted.
     flat, toward, away = (luma_at_centre(0.0), luma_at_centre(-0.04),
                           luma_at_centre(0.04))
     report.check('key light: a plane leaning into the beam is brighter',
@@ -830,18 +788,9 @@ def test_key_light(report):
 
 
 def test_the_face_is_a_halftone(report):
-    """The glyph is a dither at dot resolution: a 64 x 64 blue-noise
-    mask laid over the dots, against the light sampled at each dot,
-    between a density floor and a ceiling.
-
-    ONE RUNG PER CELL WAS THE BLOCK; sampling the light per dot on the
-    ladder's own order was the speckle after it; and an 8 x 8 Bayer
-    matrix was the blocks after that - its two-by-two clusters read as
-    small squares across a real window. Each was seen in a raster of
-    the frame, which the glyph counts never showed. Blue noise has no
-    structure at any density; the floor keeps the dark side a surface
-    and the ceiling keeps the bright parts a texture. Held here on
-    synthetic fields, and on the shipped board at the page's own size.
+    """The glyph is a dither at dot resolution: a 64 x 64 blue-noise mask
+    laid over the dots, against the light sampled at each dot, between a
+    density floor and a ceiling.
     """
     import collections
     import math
@@ -875,19 +824,19 @@ def test_the_face_is_a_halftone(report):
         got = dots_in(field(n // 2, n // 4, lambda x, y, s=s: s),
                       0, 0, n // 2, n // 4)
         said.append('%.2f: %d of %d' % (s, got, want))
-        # A cell the mask leaves blank keeps one dot - a drawn cell is
-        # never blank - so at the floor, one dot a cell on average, the
-        # count runs over by up to a dot for every cell left blank; and
-        # on two rows of four the mask's ranks are a sample of the whole,
-        # so the count sits within a couple of per cent of its share.
+        # A cell the mask leaves blank keeps one dot - a drawn cell is never
+        # blank - so at the floor, one dot a cell on average, the count runs
+        # over by up to a dot for every cell left blank; and on two rows of
+        # four the mask's ranks are a sample of the whole, so the count sits
+        # within a couple of per cent of its share.
         ok = ok and want - 0.02 * n * n <= got <= want + (n // 2) * (n // 4)
     report.check('a flat field lights the mask\'s share of a tile: the '
                  'floor, then the light, up to the ceiling',
                  ok, ', '.join(said))
 
-    # BLUE: at the window's middle every 8 x 8 window of dots holds near
-    # the middle's share - no clusters, no voids - which a Bayer tile
-    # holds exactly and a random field does not hold at all.
+    # BLUE: at the window's middle every 8 x 8 window of dots holds near the
+    # middle's share - no clusters, no voids - which a Bayer tile holds exactly
+    # and a random field does not hold at all.
     grid = field(n // 2, n // 4, lambda x, y: 0.5)
     middle = 0.5 * (floor + ceil) * 64.0
     windows = [dots_in(grid, x, y, 4, 2)
@@ -901,9 +850,9 @@ def test_the_face_is_a_halftone(report):
                  all(ord(g) > raster.BRAILLE
                      for row in field(8, 4, lambda x, y: -5.0) for g in row))
 
-    # On two rows of four the mask is a sample of itself, so a band can
-    # come out a dot or two under the one before it; the ramp still
-    # climbs, and end to end it climbs by more than any dip.
+    # On two rows of four the mask is a sample of itself, so a band can come
+    # out a dot or two under the one before it; the ramp still climbs, and end
+    # to end it climbs by more than any dip.
     ramp = field(n, 4, lambda x, y: x / float(n - 1))
     columns = [dots_in(ramp, x, 0, 8, 4) for x in range(0, n, 8)]
     report.check('a ramp gains dots from one band to the next, within the '
@@ -931,11 +880,8 @@ def test_the_face_is_a_halftone(report):
                  '%.2f -> %.2f toward %.2f' % (lo_a, lo_b, raw_lo))
 
     # THE SHIPPED BOARD at the attitude page's size, at the attitude the
-    # stand-in reports - `(i, j, k, real)`, rpy -5.6, +2.8, -0.6: a board
-    # lying on a bench. The colour path's own stages, so the count is of
-    # the FACE's cells and not the ground grid's. Measured before, at
-    # this pose: 299 of 561 lit cells at one dot, eight glyphs, the face
-    # a fifth lit.
+    # stand-in reports - `(i, j, k, real)`, rpy -5.6, +2.8, -0.6: a board lying
+    # on a bench.
     from coaxial.graphics import engine
     q = (-0.0489, 0.0245, -0.0036, 0.9984)
     width, height, zoom = 78, 30, 0.88
@@ -961,10 +907,7 @@ def test_the_face_is_a_halftone(report):
     w._rim(grid, tone, classes, reached, heat, width, height, True)
     face = [grid[i // width][i % width] for i in range(width * height)
             if classes[i]]
-    # NO SURFACE UNDER THE DOTS. A background per cell - the face's tone
-    # dimmed, then blurred and coverage-weighted - was built and taken
-    # out on the bench's word: blocks in colour, then a haze. The tone
-    # stays a foreground alone, and a cell's ink is one RGB tuple.
+    # NO SURFACE UNDER THE DOTS.
     report.check('no lit cell carries a background: the ink is the '
                  'foreground alone',
                  all(isinstance(tone[i // width][i % width], tuple)
@@ -974,9 +917,8 @@ def test_the_face_is_a_halftone(report):
     hist = collections.Counter(counts)
     mean = sum(counts) / float(8 * len(face))
     # THE DENSITY WINDOW IS THE POINT, on the bench's screenshot: in the
-    # terminal the glyph box is narrower than the cell, and past about
-    # three dots in ten every cell reads as a brick. The face sits
-    # between the floor and the ceiling, the rim cells solid above it.
+    # terminal the glyph box is narrower than the cell, and past about three
+    # dots in ten every cell reads as a brick.
     report.check('the shipped board at the page\'s size is scanlines, not '
                  'a wall: the face sits inside the density window, no '
                  'cell is blank, and whole and broken lines both occur',
@@ -984,14 +926,12 @@ def test_the_face_is_a_halftone(report):
                  and hist[4] and (hist[2] or hist[3]),
                  '%.2f lit, %s' % (mean, ' '.join(
                      '%d:%d' % (r, hist[r]) for r in range(0, 9))))
-    # Near-whole scanlines on two rows of four: the face's own alphabet
-    # is the handful of patterns those rows make, plus the rim's lines.
+    # Near-whole scanlines on two rows of four: the face's own alphabet is the
+    # handful of patterns those rows make, plus the rim's lines.
     report.check('and it wears more glyphs than a carpet of one',
                  len(set(face)) >= 8, '%d distinct' % len(set(face)))
 
-    # THE RIM, CLIPPED AND LIT. A part-covered cell's dots are all dots
-    # the fine raster reached - nothing spills past the board - and the
-    # rim cells wear the edge tone, brighter than the face.
+    # THE RIM, CLIPPED AND LIT.
     def luma(rgb):
         return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
 
@@ -1037,8 +977,8 @@ def test_triad(report):
     report.check('triad: X, Y and Z each lettered once at rest',
                  sorted(rest) == ['X', 'Y', 'Z']
                  and all(len(v) == 1 for v in rest.values()), str(rest))
-    # Reach 4 at 20 rows (the floor), so in a 60-column frame the origin
-    # sits at column 54, row 3 - flush into the upper right, see _triad.
+    # Reach 4 at 20 rows (the floor), so in a 60-column frame the origin sits
+    # at column 54, row 3 - flush into the upper right, see _triad.
     ox, oy = 54, 3
     x_at = rest.get('X', [(0, 0)])[0]
     y_at = rest.get('Y', [(0, 99)])[0]
@@ -1076,12 +1016,9 @@ def test_steady(report):
 
 
 def test_the_face_is_held_while_the_pose_holds(report):
-    """At rest the face is replayed from `persist` and only the ground
-    is drawn: no raster, no shading, no outline. A new pose is drawn in
-    full FACE_SETTLE times first so the exposure has glided, and a
-    changed pose is a new drawing. THE FANS: a frame that costs more
-    than its period never sleeps, and a board on a bench is at rest
-    nearly always - measured, 50 ms a frame to 3 with the face held."""
+    """At rest the face is replayed from `persist` and only the ground is
+    drawn: no raster, no shading, no outline.
+    """
     calls, rasters = [], []
     real, real_cells = wireframe._paint, wireframe._cells
 
@@ -1138,14 +1075,7 @@ def test_the_crew_paints_one_pose_behind(report):
     """With `ahead`, a crew and `persist`, a moving board is painted one
     pose behind the one asked for - the crew rastering the newest while
     the previous is painted - and every picture is the one the
-    synchronous path draws, a frame later. Measured on the threadripper
-    (2026-09-23): the crew's 33-39 ms wait hidden under the parent's
-    paint, the view's loop 76 -> 46 ms a frame.
-
-    A rest first, so both paths' steady votes hold the same two
-    frames; then four poses; then a rest on the last. Sync paints
-    request i at frame i; ahead paints request i-1 from the first turn
-    on, and the held picture stands for the frame the lag begins.
+    synchronous path draws, a frame later.
     """
     from coaxial.graphics import crew as crewmod
 
@@ -1173,8 +1103,8 @@ def test_the_crew_paints_one_pose_behind(report):
                  str([i for i in range(4, len(asked)) if a[i] != s[i - 1]]))
     report.check('and a rest drains the crew: nothing in flight',
                  drained, str(ahead.get('flight')))
-    # The steady vote shows the previous frame's glyphs, so the turn's
-    # first picture still looks like the rest: count from the second.
+    # The steady vote shows the previous frame's glyphs, so the turn's first
+    # picture still looks like the rest: count from the second.
     report.check('the pictures moved: the turn was drawn, not held',
                  len(set(s[3:8])) == 5, '%d distinct' % len(set(s[3:8])))
 
@@ -1195,9 +1125,9 @@ def test_scroll(report):
                  ground._backdrop(60, 20, 3.2, cam['view'], 0.0)
                  != ground._backdrop(60, 20, 3.2, cam['view'], 0.25),
                  'the same')
-    # A step is under half a dot row for every rung on screen: measured
-    # 0.105 rows at 108x44 and 150x44, 0.048 at 60x20 (2026-09-23) -
-    # a rung slides rather than jumps.
+    # A step is under half a dot row for every rung on screen: measured 0.105
+    # rows at 108x44 and 150x44, 0.048 at 60x20 (2026-09-23) - a rung slides
+    # rather than jumps.
     a = ground._rungs(static, 0.0)
     b = ground._rungs(static, 1.0 / ground.RUNG_STEPS)
     moved = max(y1 - y0 for (y0, *_), (y1, *_) in zip(a, b)
@@ -1208,14 +1138,14 @@ def test_scroll(report):
 
 def test_fan_lines(report):
     """A ground line is its supercover - every dot it passes through, a
-    chain of touching dots. Sampled one a dot along the steeper axis it
-    skipped a row in every truncated piece and read as dashes."""
+    chain of touching dots.
+    """
     lit = set()
 
     def dot(fx, fy, _depth, _k):
         lit.add((int(fx * 2.0), int(fy * 4.0)))
-    # from dot (0, 0) to dot (6, 7), crossing six columns and seven
-    # rows, none at a corner: 1 + 6 + 7 dots
+    # from dot (0, 0) to dot (6, 7), crossing six columns and seven rows, none
+    # at a corner: 1 + 6 + 7 dots
     ground._segment(dot, (0.3, 0.1, 1.0), 3.2, 1.9, 2.0, 0)
     report.check('fan: a segment lights every dot it crosses',
                  len(lit) == 14, '%d dots' % len(lit))
@@ -1259,14 +1189,7 @@ def test_backdrop_cache(report):
 
 
 def test_ladder(report):
-    """The tone ladder: every pattern in U+2800, bucketed by dot count.
-
-    A GLYPH RAMP OF THREE CHARACTERS HAS TWO STEPS ABOVE BLANK, and an
-    ASCII render carries its 3D in the characters - so a leaning face had
-    one step to fall through and a board came out as a flat carpet with a
-    rim. Eight dots in a cell is a nine-step ladder in the same space,
-    and the phases spend the rest of the block.
-    """
+    """The tone ladder: every pattern in U+2800, bucketed by dot count."""
     from coaxial.graphics import raster, wireframe
 
     rows = raster.SHADE
@@ -1281,10 +1204,7 @@ def test_ladder(report):
     report.check('a rung holds the patterns with that many dots',
                  all(all(bin(ord(c) - raster.BRAILLE).count('1') == rung
                          for c in row) for rung, row in enumerate(rows)))
-    # THE EVEN ONE FIRST. Phase 0 is what a flat surface wears, so it has
-    # to be the arrangement that reads as a tone rather than a clump: the
-    # ordering is by adjacent lit pairs, and rung 4's first pattern has
-    # none where its last has four.
+    # THE EVEN ONE FIRST.
     report.check('each rung is ordered smoothest first',
                  raster._spread(ord(rows[4][0]) - raster.BRAILLE)
                  < raster._spread(ord(rows[4][-1]) - raster.BRAILLE),
@@ -1295,21 +1215,15 @@ def test_ladder(report):
     report.check('and never past the top',
                  shading._pattern(99, 0.0) == rows[8][0])
 
-    # NO GRAIN. A per-cell phase picked among the 28 patterns that carry
-    # six dots, uniformly and then cubed toward the even end, and either
-    # way a flat face wore a different pattern in every cell - 107
-    # distinct glyphs on the board's top at one pose against 79 with it
-    # off, and the 79 are real edges. "Blocky", on the bench. A flat
-    # surface is a flat pattern; the block is spent where the level
-    # changes.
+    # NO GRAIN.
     phases = {shading._pattern(6, i / 32.0) for i in range(32)}
     report.check('a rung is one pattern whatever the phase',
                  phases == {rows[6][0]}, ''.join(sorted(phases)))
 
-    # THE MONO LADDER IS THE CLASS SCALE, spread and in the exporter's
-    # own order: his ' ', '.' and ':' rank the same way, only further
-    # apart, because one rung between the two glyphs a picture is made of
-    # is the carpet this replaces.
+    # THE MONO LADDER IS THE CLASS SCALE, spread and in the exporter's own
+    # order: his ' ', '.' and ':' rank the same way, only further apart,
+    # because one rung between the two glyphs a picture is made of is the
+    # carpet this replaces.
     dots = [bin(ord(shading._mono(float(c))) - raster.BRAILLE).count('1')
             for c in (0, 1, 2)]
     # Two and four, near the exporter's own luma; six read as a slab.
@@ -1318,15 +1232,7 @@ def test_ladder(report):
 
 
 def test_the_alphabet(report):
-    """`coaxial.braille`: the whole block, and the words to ask for one.
-
-    HAND-PICKED GLYPHS STAY A HANDFUL AND THE CORNERS COME OUT WRONG. A
-    run of dots ending against a column under it is two marks that happen
-    to touch, and nobody notices until the drawing is read closely -
-    `chr(0x28A4)` at a call site is a guess that has to be decoded before
-    it can be reviewed. The alphabet is the fix: a cell is eight dots in
-    two lanes, and the line-drawing names sit on top of that.
-    """
+    """`coaxial.braille`: the whole block, and the words to ask for one."""
     from coaxial import braille as b
 
     report.check('all 256 patterns, in order',
@@ -1337,8 +1243,8 @@ def test_the_alphabet(report):
                      for n, at in b.AT.items()))
     report.check('what is read back is what was drawn',
                  all(b.glyph(b.lit(c)) == c for c in b.ALL))
-    # THE BENCH ASKS IN DOT NUMBERS: `⠲` is 2, 5 and 6, and that is how
-    # the corner arrived in the first place.
+    # THE BENCH ASKS IN DOT NUMBERS: `⠲` is 2, 5 and 6, and that is how the
+    # corner arrived in the first place.
     report.check('the chart\'s own numbering answers the chart\'s glyph',
                  b.numbered(2, 5, 6) == chr(0x2832), b.numbered(2, 5, 6))
 
@@ -1348,8 +1254,8 @@ def test_the_alphabet(report):
     report.check('a fall is a column in its own lane',
                  b.FALL == ('\u2847', '\u28b8'), ''.join(b.FALL))
 
-    # A CORNER THE LINE ENDS AT IS A HOOK; one it falls THROUGH has to
-    # reach the cell's floor or it breaks against the row below.
+    # A CORNER THE LINE ENDS AT IS A HOOK; one it falls THROUGH has to reach
+    # the cell's floor or it breaks against the row below.
     report.check('a hook stops two dots along',
                  (b.corner(1, 0), b.corner(1, 1)) == ('\u2816', '\u2832'),
                  b.corner(1, 0) + b.corner(1, 1))
@@ -1361,9 +1267,9 @@ def test_the_alphabet(report):
     report.check('a tee is met, not turned',
                  (b.tee(0, 0), b.tee(0, 1)) == ('\u284f', '\u28b9'),
                  b.tee(0, 0) + b.tee(0, 1))
-    # THE SAME TURN THE OTHER WAY: a run on dot row 2 climbing to
-    # the cell's top in the far lane, for a leader that rises to
-    # what it names instead of falling to it.
+    # THE SAME TURN THE OTHER WAY: a run on dot row 2 climbing to the cell's
+    # top in the far lane, for a leader that rises to what it names instead of
+    # falling to it.
     report.check('a corner turning up mirrors one turning down',
                  b.corner(2, 1, up=True, through=True) == '\u283c',
                  b.corner(2, 1, up=True, through=True))

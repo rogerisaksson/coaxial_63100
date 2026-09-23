@@ -97,8 +97,8 @@ def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
     got = {'r': r, 'ld': ld, 'lq': lq, 'lam': lam,
            'condition': condition, 'residual_v': rms,
            'samples': int(len(id_))}
-    # Relative, since that is what a reader compares: 5 % on an inductance is
-    # a number, 300 % is a column the run did not excite.
+    # Relative, since that is what a reader compares: 5 % on an inductance is a
+    # number, 300 % is a column the run did not excite.
     got['uncertainty'] = {
         name: (float(err / abs(value)) if value else float('inf'))
         for name, value, err in zip(names, fit, errors)}

@@ -1,101 +1,53 @@
-"""Reading a model's reply: what it meant, as opposed to what it typed.
-
-Everything here is a pure function over text the model produced, with no
-board, no client and no conversation state - which is why it is its own
-module rather than more of debug.py. Three jobs, each documented at the
-function that does it:
-
-  * `is_retype` - is this answer just the tool's own table typed out again?
-  * `salvage_calls` - is this "answer" actually a tool call the model wrote
-    into content instead of into tool_calls?
-  * `is_marker_noise` - the veto that keeps the salvage from turning a
-    sentence that merely quotes JSON into a board command.
-
-Every rule in here came from a transcript, and each one says
-which. See docs/MODELS.md for the same failures written up at length.
-"""
+"""Reading a model's reply: what it meant, as opposed to what it typed."""
 import json
 import re
 
 BACKSLASH = chr(92)
 TOOL_TAG = re.compile(r'</?tool_call>', re.I)
 
-# The channel names off the front of an analog_read row: "0  PhaseU  diff..."
-# -> 'phaseu'. Anchored on the mode column (diff/SE) rather than just a
-# leading digit, or this matches render.analog's own header line too - "64
-# samples @2000Hz" starts with a number and a word exactly like a row does,
-# without the anchor 'smp' was recognised as a seventh channel of its own.
+# The channel names off the front of an analog_read row: "0 PhaseU diff..." ->
+# 'phaseu'.
 READING_ROW = re.compile(r'^\d+\s+(\S+)\s+(?:diff|SE)\b', re.M)
 
-# The same name off a row of board_info's channel map, where it is the
-# last field rather than the second:
-# "0  3   PC3_C/PC2_C  in    diff PhaseU". Measured: asked for a list of
-# the analog channels, the trace printed the map and the model typed the
-# seven names out underneath it - two lists where the first was already
-# the answer. Same rule as a retyped reading, same reason; a map row just
-# does not look like a reading row.
+# The same name off a row of board_info's channel map, where it is the last
+# field rather than the second: "0 3 PC3_C/PC2_C in diff PhaseU".
 MAP_ROW = re.compile(r'^\d+\s+\d+\s+\S+\s+\S+\s+(?:diff|SE)\s+(\S+)\s*$',
                      re.M)
 
-# A digital row, from the map ("PB2  out   AFE_ON") or from a reading of
-# them ("PB2  out   1     AFE_ON"). The pin is what a retyped list names,
-# and it is the one field that cannot contain a space.
+# A digital row, from the map ("PB2 out AFE_ON") or from a reading of them
+# ("PB2 out 1 AFE_ON").
 DIGITAL_ROW = re.compile(r'^(P[A-K]\d+)\s+(?:in|out|inout)\b', re.M)
 
-#...and the signal off the same row, because a retyped list quotes
-# whichever half it read. Measured: the trace said "PB2 out 1 AFE_ON /
-# PE15 in 0 nFAULT" and the answer said "AFE_ON is 1 and nFAULT is 0" -
-# every channel named, and not one of them by the pin the pattern above
-# captures. The optional digits eat the level column, which the map has
-# and a reading does not.
+# ...and the signal off the same row, because a retyped list quotes whichever
+# half it read.
 DIGITAL_SIGNAL = re.compile(r'^P[A-K]\d+\s+(?:in|out|inout)\s+(?:\d+\s+)?(\S.*?)\s*$',
                             re.M)
 
 # Fewer than this many channels and a short answer naming all of them is
 # plausibly synthesis ("NTC and DCbus both read low") rather than a mechanical
 # restatement - the case this exists to catch always names a full table's
-# worth. Below this the override stays out of the way.
+# worth.
 RESTATE_MIN_CHANNELS = 3
 
-#...and this many words beyond the table before it is saying something
-# of its own. Length alone could not tell the two apart: a per-channel
-# list with indices - "PhaseU (kanal 0)" seven times over - is 26 words
-# and every one of them is a name, a number or glue, while a 45-word
-# description of the same seven channels carries 38 words the table
-# never had. Measured: words outside the table: 3, 6, 8,
-# 12 for the restatements, 38 for the description.
-#
-# Counting what is NOT there rather than how long it is, because the
-# thing being caught is an answer that adds nothing - not a short one.
+# ...and this many words beyond the table before it is saying something of its
+# own.
 RESTATE_MAX_EXTRA = 15
 
 # Per channel, because a restatement of N rows carries N rows' worth of
 # connective words - "PB2 (utgang) for AFE_ON" spends three on every row it
-# copies. A flat allowance is one that stops catching the thing as the table
-# grows, and it did: two pins added to `s_digital` took the map from two rows
-# to four, the retype from 10 extra words to 18, and seven checks went red on
-# a mechanism that had not changed. The count comes off the channels, so the
-# board decides it.
+# copies.
 RESTATE_EXTRA_PER_CHANNEL = 4
 
 WORDS = re.compile(r'[^\W_]+')
 
-# Two or more pipe-delimited lines, the shape of a markdown table row or its
-# `| :--- |` header separator. Measured: asked to "tabellera",
-# gemma4:12b wrote the real reading as a markdown table and then hit the
-# --words cap partway through the last row - which meant it had not yet named
-# every channel, so the all-channels-present check below never matched and
-# the cut-off table printed anyway. This checks the SHAPE of a table instead
-# of waiting for it to finish naming channels, so a truncated one is caught
-# exactly as surely as a complete one.
+# Two or more pipe-delimited lines, the shape of a markdown table row or its `|
+# :--- |` header separator.
 MARKDOWN_TABLE_ROW = re.compile(r'^\s*\|.*\|\s*$', re.M)
 
 # A tool name distinctive enough that seeing one in prose is real evidence the
 # model described the call it should have made instead of making it - not
 # 'link' or 'docs', ordinary words that turn up in unrelated sentences too
-# often to mean anything. Measured: asked for a table, gemma4:12b
-# answered "jeg ma utfore en `analog_read`" and stopped there - it knew
-# exactly what to do and did not do it.
+# often to mean anything.
 NAMED_TOOL = re.compile(r'\b(analog_read|afe_power|board_info|self_test|'
                         r'gpio_pin|gpio_port|test_gate|run_python|'
                         r'run_command|build_firmware|run_tests|'
@@ -103,38 +55,17 @@ NAMED_TOOL = re.compile(r'\b(analog_read|afe_power|board_info|self_test|'
 
 
 def is_retype(answer, channels, minimum=RESTATE_MIN_CHANNELS):
-    """Whether `answer` is a mechanical restatement of a reading's `channels`.
-
-    Two shapes count, either being enough on its own: every channel named
-    (the original catch, for a restatement written out as prose), or the
-    answer has the shape of a markdown table at all (which catches one that
-    got cut off before naming the last channel - see MARKDOWN_TABLE_ROW).
-    A real table is never a legitimate answer here regardless of length,
-    since SYSTEM already says not to write one.
-
-    `minimum` is why the default is not simply 2. On a *reading*, naming
-    two channels is plausibly synthesis - "NTC and DCbus both read low" -
-    and silencing that would cost a real finding. A *map* has no values
-    to synthesise about: listing the channels IS the map, so the caller
-    passes 2 there. Measured, under the map's own two digital rows: "De
-    digitala kanalerna ar: PB2 (utgang) for AFE_ON, PE15 (ingang) for
-    nFAULT".
+    """Whether `answer` is a mechanical restatement of a reading's
+    `channels`.
     """
     if not (answer and channels):
         return False
     if MARKDOWN_TABLE_ROW.search(answer):
         return True
-    # A markdown table is caught above whatever it says: SYSTEM says never
-    # to write one, and a long one is worse than a short one. Past that,
-    # what tells a list from an explanation is how much of the answer the
-    # table did not already contain.
+    # A markdown table is caught above whatever it says: SYSTEM says never to
+    # write one, and a long one is worse than a short one.
     words = [w.lower() for w in WORDS.findall(answer)]
-    # A channel's own name, and the pieces WORDS splits it into. AFE_ON
-    # arrives as 'afe' and 'on', UART5_TERM as 'uart5' and 'term', and
-    # matching only the whole name counted a channel's own words as words
-    # the table did not have - so the more signals carried an underscore,
-    # the less this caught. Measured: the four-row digital map scored 20
-    # extra words, of which six were the channel names themselves.
+    # A channel's own name, and the pieces WORDS splits it into.
     named = set()
     for channel in channels:
         text = str(channel).lower()
@@ -146,21 +77,15 @@ def is_retype(answer, channels, minimum=RESTATE_MIN_CHANNELS):
     if len(extra) > allowed:
         return False
     # Lookarounds rather than \b: a channel called "+5V" starts with a
-    # character that is not a word character, so \b before it can only
-    # match after another word character - never after the space it
-    # actually follows. The name was unmatchable and every restatement
-    # containing it went straight through.
+    # character that is not a word character, so \b before it can only match
+    # after another word character - never after the space it actually follows.
     return (len(channels) >= minimum
            and all(re.search(r'(?<!\w)%s(?!\w)' % re.escape(ch), answer, re.I)
                   for ch in channels))
 
 
 # Words a chat template leaks around a call the model wrote as text instead of
-# in the tool_calls field. Measured: asked "what is the temperature",
-# the model answered 'CallCheckFunction' and a JSON object, twice over, and the
-# prompt printed all four lines as the answer - which reads as the board having
-# stopped giving values. A residue of nothing but these words is still a tool
-# call; one word of real prose is not, and vetoes the salvage.
+# in the tool_calls field.
 MARKERS = frozenset(('tool', 'tool_call', 'toolcall', 'call', 'calls',
                      'function', 'functions', 'check', 'json', 'assistant',
                      'commentary', 'to', 'and', 'then'))
@@ -172,12 +97,7 @@ CAMEL = re.compile(r'[^\W\d_][a-z]*')
 
 
 def is_marker_noise(text):
-    """True when nothing in `text` is a word of prose.
-
-    This is the whole safety of the salvage: a message that is a tool call
-    wearing a template's clothes has only marker words around the JSON, and a
-    message that is an answer has real ones.
-    """
+    """True when nothing in `text` is a word of prose."""
     for word in WORD.findall(text):
         parts = CAMEL.findall(word) or [word]
         if any(part.lower() not in MARKERS for part in parts):
@@ -186,14 +106,7 @@ def is_marker_noise(text):
 
 
 def json_objects(text):
-    """Every balanced top-level {...} in `text`, as (start, end, parsed).
-
-    Brace counting rather than a regex, because `{.*?}` stops at the first
-    closing brace - which in a tool call is the one that ends `arguments`, so
-    anything with a nested object in it either fails to parse or parses as half
-    of itself. Strings are tracked so a brace inside a value cannot unbalance
-    the count. An object that is not JSON is skipped, not fatal.
-    """
+    """Every balanced top-level {...} in `text`, as (start, end, parsed)."""
     found = []
     depth = start = 0
     in_string = escaped = False
@@ -224,18 +137,7 @@ def json_objects(text):
 
 
 def salvage_calls(text):
-    """The tool calls a model wrote as text, and what is left of the text.
-
-    Deliberately narrow. A legitimate answer may quote JSON, and turning that
-    into a board command would be far worse than printing it - so the test is
-    that once the tool tags and the call objects are taken out, no word of
-    prose is left, only the marker words above. Returns (calls, remaining
-    text): an empty list means the text was an answer after all.
-
-    More than one call in one message is the case that made this a list. The
-    single-call version printed a two-call message verbatim, which at the
-    prompt looks exactly like the model having stopped taking readings.
-    """
+    """The tool calls a model wrote as text, and what is left of the text."""
     stripped = TOOL_TAG.sub(' ', text)
     if '"name"' not in stripped:
         # No call in it, but a bare `</tool_call>` is not an answer either:

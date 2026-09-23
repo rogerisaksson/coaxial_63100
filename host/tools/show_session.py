@@ -71,9 +71,9 @@ ANGLE_REG_FIELD = 0x2A
 #: terminal can look without a second serial port. One file, replaced
 #: atomically: a socket would need a port, a protocol and a cleanup path,
 #: and none of that is needed to LOOK at a dashboard.
-# The published-snapshot watcher lived here until the broker made it
-# redundant: a second session now attaches through the broker and sees the
-# board live, instead of reading a file of what another process last saw.
+# The published-snapshot watcher lived here until the broker made it redundant:
+# a second session now attaches through the broker and sees the board live,
+# instead of reading a file of what another process last saw.
 #: Older than this and the shared snapshot is not a reading of anything.
 #: Two frames at the session's default rate, plus the slack a burst costs.
 STALE_S = 3.0
@@ -139,10 +139,7 @@ class Session:
         self.phases = DEFAULT_PHASES
         self.legs = DEFAULT_PHASES     # which of them are switching now
         self.plan: Any = None
-        # Both fetched once. The record does not change while a session
-        # is open, and reading FIELD costs a hold - which stops the angle
-        # loop, so doing it every frame would halve its rate to answer a
-        # question whose answer is a magnet somebody has to fit.
+        # Both fetched once.
         self.scaling = steady(rig.board.analog.scaling)
         self.field = self._field()
         #: The rail as the session found it - main() sets it after probing,
@@ -163,24 +160,14 @@ class Session:
         return None if got is None else angle.gauss(got['value'])
 
     def set_duty(self, duty):
-        """Move the duty, and push it if the stage is already switching.
-
-        Held here rather than in the activity because it outlives it: set it
-        down, stop switching, start again, and it is still what you chose.
-        """
+        """Move the duty, and push it if the stage is already switching."""
         self.duty = min(1.0, max(0.0, duty))
         if 'switching' in self.running and self.push() is None:
             return
         self.note = 'duty %.0f %%' % (100.0 * self.duty)
 
     def push(self):
-        """Write the duty to the legs that are live, and zero to the rest.
-
-        All three stay ARMED whatever the plan says. Arming is the thing that
-        should be asked for by name, and re-arming per step would put a
-        MOE edge into the middle of a thermal run for no reason - a leg at
-        zero duty is not switching, which is what the plan means by off.
-        """
+        """Write the duty to the legs that are live, and zero to the rest."""
         load = dict(('Phase %s' % leg,
                      self.duty if leg in self.legs else 0.0)
                     for leg in DEFAULT_PHASES)
@@ -190,12 +177,8 @@ class Session:
         return load
 
     def sample(self):
-        """Stand down, let the thermal observer measure, and go back to switching.
-
-        Ordered so the gates are never live without their supply: MOE clear
-        first, then the rail up, then the reading, then the rail down, then
-        armed again. Every step through `steady`, and a failure leaves the
-        stage DISARMED rather than half-way - the safe end of the sequence.
+        """Stand down, let the thermal observer measure, and go back to
+        switching.
         """
         rig = self.rig
         if steady(rig.gates.disarm) is None:
@@ -245,13 +228,7 @@ class Session:
         self.note = '%s stopped' % name
 
     def stop_all(self):
-        """Stop everything, and say what each one was. For the way out.
-
-        Named rather than counted: 'everything is stopped' was one line for
-        a stage that might have been switching 100 A, and the way out has to
-        read like the way in - one line per thing, so what was put back is
-        seen rather than trusted.
-        """
+        """Stop everything, and say what each one was."""
         said = []
         for name in list(self.running):
             self.stop(name)
@@ -318,12 +295,7 @@ UNDONE = dict((a.name, a.undone) for a in ACTIVITIES)
 # ---- the dash: six blocks, one snapshot ---------------------------------
 
 def snapshot(session):
-    """One round of reads, each guarded. ~270 ms of round trips at 2 Hz.
-
-    Taken together rather than per block so every column shows the same
-    instant: two blocks reading the gate stage a frame apart disagreed about
-    whether it was switching, which is the one thing a dashboard must not do.
-    """
+    """One round of reads, each guarded."""
     rig = session.rig
     board = rig.board
     got = {
@@ -334,11 +306,7 @@ def snapshot(session):
         'imu': steady(board.imu.state),
         'angle': steady(board.angle.state),
     }
-    # Only while the rail is up. With it down read_all REFUSES (invariant
-    # 9), and refusing through steady()'s four retries cost 0.6 s a frame
-    # and drew the block as 'did not answer' - which flickered to values
-    # whenever the thermal observer borrowed the rail for its 30 s sample. The
-    # block says the actual state instead.
+    # Only while the rail is up.
     afe_on = bool(got['afe'] and got['afe']['on'])
     got['analog'] = (steady(board.analog.read_all,
                             nr_of_samples=ADC_SAMPLES) if afe_on else None)
@@ -350,11 +318,7 @@ def snapshot(session):
 
 
 def block(title, rows):
-    """One dashboard instrument - the stage's hud, ANSI rows carried as-is.
-
-    The name stays `block` so the six builders below read unchanged; what
-    a block IS comes from the stage now, like every other view.
-    """
+    """One dashboard instrument - the stage's hud, ANSI rows carried as-is."""
     return hud(title, [row.strip() if isinstance(row, str) else row
                        for row in rows])
 
@@ -364,8 +328,8 @@ def adc_block(got):
     table = got.get('analog')
     afe = got.get('afe')
     if table is None and afe is not None and not afe['on']:
-        # Not a fault: the session leaves the rail down to save power
-        # and heat, and the thermal observer borrows it on its own schedule.
+        # Not a fault: the session leaves the rail down to save power and heat,
+        # and the thermal observer borrows it on its own schedule.
         return block('ANALOG', [
             tint('  AFE_ON down - no reference', LABEL),
             tint('  thermal observer borrows it for samples', LABEL)])
@@ -378,10 +342,10 @@ def adc_block(got):
     for r in table['channels']:
         to = scaling.converter(r.get('unit'), r['differential'],
                                signal=r.get('signal'), params=params)
-        # THE METER BRIDGE'S GAUGE BESIDE THE NUMBER: where the reading
-        # sits in the converter's own range, a bipolar channel about its
-        # centre - the same instrument that page draws, at the width the
-        # thermal box below draws its levels.
+        # THE METER BRIDGE'S GAUGE BESIDE THE NUMBER: where the reading sits in
+        # the converter's own range, a bipolar channel about its centre - the
+        # same instrument that page draws, at the width the thermal box below
+        # draws its levels.
         share = desk.fraction(r)
         rows.append('  %-8s %9.3f %-2s %s'
                     % (r['signal'][:8], to(r['mean_raw']),
@@ -394,23 +358,14 @@ def adc_block(got):
 
 
 def thermal_block(got):
-    """Each node as a fraction of its own ceiling. A byte, drawn.
-
-    The three THERMOMETERS are on the dash line instead: they are the widest
-    thing there is and a column sized by them squeezed the two beside it.
-    They come from the thermal observer either way - the die sensors are linear parts
-    calibrated at the factory, and that curve is in the MCU's system memory,
-    so the board is the only side that can convert their codes at all.
-    """
+    """Each node as a fraction of its own ceiling."""
     spend = got.get('budget')
     if spend is None:
         return block('THERMAL', ['  the thermal observer did not answer'])
 
-    # ALL TEN, in the firmware's own order, so a leg keeps its row whether
-    # it is heating or not - sorted-and-cut dropped driver W the moment two
-    # other nodes warmed, on the dashboard that exists to show one leg
-    # heating alone. The gauge turns sodium at the throttle point, where
-    # the board acts - `gauge`'s default is `THROTTLE_AT`, not a number here.
+    # ALL TEN, in the firmware's own order, so a leg keeps its row whether it
+    # is heating or not - sorted-and-cut dropped driver W the moment two other
+    # nodes warmed, on the dashboard that exists to show one leg heating alone.
     used = spend['used']
     rows = []
     for name in (n for n in thermal.ALL_NODES if n in used):
@@ -428,8 +383,6 @@ def bridges_block(got):
 
     pins = state.get('pins') or {}
     # `requested_ticks` is a CCR count, so the duty is it over the period.
-    # ARR is `period - 1`; dividing by `period` is off by one tick and by
-    # nothing anybody could see, but the arithmetic should say what it means.
     span = float(max(1, state.get('period', 1) - 1))
     rows = []
     for leg, ticks in zip(('U', 'V', 'W'),
@@ -496,8 +449,8 @@ def angle_block(got):
         rows.append('  %d gauss - no magnet, so' % field)
         rows.append('  the angle is noise')
     elif state.get('degrees') is None:
-        # The loop reads a register the host asked it to, and only ANG
-        # decodes to an angle. Whatever else it is watching, it is not this.
+        # The loop reads a register the host asked it to, and only ANG decodes
+        # to an angle.
         rows.append('  reading %s, not ANG' % state.get('register_name', '?'))
     else:
         rows.append('  %7.2f deg' % state['degrees'])
@@ -524,11 +477,7 @@ def _degc(value):
 
 
 def acquisition_block(got):
-    """The DAQ task and the capture ring - the capture view, as one box.
-
-    It was a whole menu entry beside the session showing the same board;
-    what was unique there - the task's rate and drops, the ring and its
-    sources - is this box."""
+    """The DAQ task and the capture ring - the capture view, as one box."""
     daq, ring = got.get('daq'), got.get('ring')
     if daq is None and ring is None:
         return block('ACQUISITION', ['  did not answer'])
@@ -568,8 +517,8 @@ def dash(session, got):
                        100.0 * spend['worst']))
     if therm is not None:
         # All three thermometers here rather than in the thermal column: they
-        # are the widest line there is, and a column sized by them squeezed
-        # the two beside it. This line has the width.
+        # are the widest line there is, and a column sized by them squeezed the
+        # two beside it.
         bits.append('NTC %s  A1335 die %s  MCU die %s C'
                     % (_degc(therm['ntc']), _degc(therm['afe']),
                        _degc(therm['mcu'])))
@@ -581,9 +530,7 @@ def dash(session, got):
 
 
 def toggle_rail(session):
-    """The rail, by name. Not while switching: the gate is inverted, so
-    raising it mid-run would drop the drivers with six inputs moving - the
-    switching activity owns the rail for as long as it runs."""
+    """The rail, by name."""
     if 'switching' in session.running:
         session.note = 'switching owns the rail - stop it first'
         return
@@ -629,20 +576,7 @@ def frame(session, console, note):
 
 class Plan:
 
-    """A sequence of leg sets and duties, each for so many seconds.
-
-    `U:45,V:45,UVW@0.75:90` - which legs switch, at what duty, for how long.
-    The duty is optional and carries over from the session's own.
-
-    It exists to give the OBSERVER a known excitation that changes. Two axes,
-    and they say different things: LEGS should scale the loss by how many are
-    switching, and DUTY should barely move it at all - a transition happens
-    twice a period whatever the duty is, so a model whose loss tracks duty is
-    modelling conduction that is not there.
-
-    Wall clock, not frames: the draw rate is what the link allows on the day,
-    and a plan measured in frames would be a different plan each run.
-    """
+    """A sequence of leg sets and duties, each for so many seconds."""
 
     def __init__(self, text, duty=None):
         self.steps = []
@@ -691,26 +625,16 @@ class Plan:
 
 
 def teardown(session, console, drawn, hold=True):
-    """List what is being put back, under the last frame, and hold it there.
-
-    NOT after `clear`. Clearing first put the list alone on a blank screen,
-    where anything drawn afterwards - a shell prompt, a terminal profile
-    closing the pane - took it with it, and it was reported missing four
-    times. Left under the dashboard it cannot be lost: nothing writes after.
-
-    The hold is for the same reason. Two seconds is long enough to read six
-    lines and short enough not to be in the way - and nothing on the way to
-    the menu, which repaints over the list.
-    """
+    """List what is being put back, under the last frame, and hold it there."""
     park(drawn, console)
     say('wait', 'stopping', 'putting back what the session started')
 
     try:
         undone = session.stop_all()
     except Exception as exc:          # noqa: BLE001 - the stop must finish
-        # The lines matter more than the exception: this is the only place
-        # that says what was put back, and a stop that raised is exactly
-        # when somebody needs to read it.
+        # The lines matter more than the exception: this is the only place that
+        # says what was put back, and a stop that raised is exactly when
+        # somebody needs to read it.
         say('fail', 'stopping', str(exc)[:60])
         undone = []
 
@@ -726,9 +650,8 @@ def teardown(session, console, drawn, hold=True):
             say('ok', 'rotation vector', 'disabled - the session asked '
                                          'for it')
 
-    # PUT BACK, not just claimed: the session may have raised the rail on
-    # the way in, or the user toggled it with A. Held by somebody else is
-    # theirs to keep - the thermal observer mid-sample, another session measuring.
+    # PUT BACK, not just claimed: the session may have raised the rail on the
+    # way in, or the user toggled it with A.
     rail = steady(session.rig.board.afe.state)
     others = [u for u in (rail or {}).get('users', ()) if u != 'host']
     if (session.afe_found is not None and rail is not None
@@ -742,16 +665,7 @@ def teardown(session, console, drawn, hold=True):
 
 
 def sweep(rig):
-    """What the board still has running, stopped, as (name, what) pairs.
-
-    For LEAVING THE MENU, which holds no rig of its own: a view that was
-    killed, or a session that ended badly, can leave a stage armed or a task
-    filling a ring, and the way out of the terminal has to say so rather than
-    let the shell prompt be the last word.
-
-    Reads before it acts, so it can name what it found. Empty means nothing
-    was running, and that is worth one line too.
-    """
+    """What the board still has running, stopped, as (name, what) pairs."""
     done = []
 
     gates = steady(rig.gates.state)
@@ -776,22 +690,7 @@ def sweep(rig):
 
 
 def leave(port, simulated):
-    """Stop whatever the terminal left running, and say so - or say nothing.
-
-    SILENT WHEN THERE IS NOTHING. A clean exit should be an exit, not four
-    lines confirming that four things nobody started are not running. The
-    lines are for the case that needs them: a view that was killed, or a
-    session that ended badly, leaving a stage armed with nothing on screen
-    to say it.
-
-    Costs one port open either way. That is the price of the difference
-    between knowing and assuming.
-
-    IT CANNOT RAISE. This is the way out, and a board that will not answer
-    on the way out is something to report rather than a traceback over the
-    prompt - measured, a reset board turned quitting the menu into one.
-    Exit 0 either way: leaving is not a thing that fails.
-    """
+    """Stop whatever the terminal left running, and say so - or say nothing."""
     try:
         with Coaxial63100(port=port, simulated_device=simulated,
                           power_afe=False) as rig:
@@ -851,10 +750,7 @@ def main():
         return leave(a.port, a.simulated)
 
     # power_afe stays False here - the session raises the rail ITSELF,
-    # conditionally, a few lines down. The constructor cannot know whether
-    # another session is mid-run: forcing the rail up on open would drop an
-    # armed stage's drivers before the first frame, which is the one load
-    # this dashboard exists to watch.
+    # conditionally, a few lines down.
     from screen import boot
     with (boot('LINKING SESSION') as ready,
           Coaxial63100(port=a.port, simulated_device=a.simulated,
@@ -868,10 +764,8 @@ def main():
             session_afe_found = rail['on']
         if (rail is not None and not rail['on']
                 and gates is not None and not gates['pwm_enabled']):
-            # The resting state is the rail UP - values on the dash from
-            # the first frame - and A toggles it. Never over a run: a
-            # stage armed by another session keeps the rail where the run
-            # needs it.
+            # The resting state is the rail UP - values on the dash from the
+            # first frame - and A toggles it.
             steady(rig.board.afe.enable)
             say('ok', 'AFE_ON', 'up for the session - A toggles it, and '
                                 'it goes back on the way out')
@@ -879,10 +773,9 @@ def main():
             say('ok', 'AFE_ON', 'left as found - the session owns it from '
                                 'here')
 
-        # With the rail up the IMU box can carry live values - the part
-        # only produces once a report is asked for, so the session asks
-        # (and puts it back on the way out). Best effort: a part mid-boot
-        # leaves the box at 'none asked for', not the session dead.
+        # With the rail up the IMU box can carry live values - the part only
+        # produces once a report is asked for, so the session asks (and puts it
+        # back on the way out).
         imu_started = rail is not None and _start_imu(rig)
 
 
@@ -903,10 +796,8 @@ def main():
             return frame(session, dashboard, session.note)
 
         def tick():
-            # The thermal observer is blind while the stage is armed, so a
-            # run that never stands down is a run it estimates from end to
-            # end. Not on the frame count: the draw rate is whatever the
-            # link allows on the day.
+            # The thermal observer is blind while the stage is armed, so a run
+            # that never stands down is a run it estimates from end to end.
             if (a.sample_every > 0 and 'switching' in session.running
                     and time.time() - sampled[0] >= a.sample_every):
                 session.sample()
@@ -924,8 +815,8 @@ def main():
 
         leaving = None
         try:
-            # The arrows are the duty's here, and the dashboard is a grid
-            # of instruments with no column to scroll.
+            # The arrows are the duty's here, and the dashboard is a grid of
+            # instruments with no column to scroll.
             leaving = run_view(dashboard, console, 1.0 / max(a.hz, 0.2),
                                a.frames, draw, on_input, tick,
                                scroll_keys=False)

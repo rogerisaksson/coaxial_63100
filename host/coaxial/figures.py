@@ -1,15 +1,4 @@
-"""The notebooks' figures, in one shape.
-
-Every plot the examples draw goes through `figure`, so a reader sees
-the same page whatever the subject: nine inches wide, three a panel,
-a light grid, laid out tight. Nine sizes and no shared style was the
-count before this, measured 2026-09-21 over twenty-two notebooks.
-
-matplotlib is NOT a dependency of this library and is imported inside
-`figure` rather than at the top, the way the acquisition front door
-imports pandas: a bench that only reads a thermistor should not have
-to install it, and the refusal says what to do.
-"""
+"""The notebooks' figures, in one shape."""
 from .errors import RigError
 
 #: The page: inches wide, and inches a panel row.
@@ -22,7 +11,8 @@ GRID_ALPHA = 0.3
 def figure(rows=1, cols=1, title=None, sharex=False):
     """`(fig, panels)` in the house shape: `rows` by `cols` panels, the
     panels a flat list top-left first whatever the shape asked for, each
-    with the grid on. `title` sits over the page."""
+    with the grid on.
+    """
     try:
         import matplotlib.pyplot as plt
     except ImportError:

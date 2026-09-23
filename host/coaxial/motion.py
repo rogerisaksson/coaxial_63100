@@ -54,9 +54,7 @@ class _Mode:
 
     def _slew_to(self, theta_e, deg_s, pitch=0.25):
         """Walk the command to `theta_e`, `pitch` mech degrees a write: the
-        spring is never asked to span more than a few degrees at once. THE
-        slew - the stepper's move and the servo's correction are this one
-        loop, not two copies of it.
+        spring is never asked to span more than a few degrees at once.
         """
         step = math.radians(pitch) * self.poles
         pause = pitch / deg_s
@@ -69,12 +67,7 @@ class _Mode:
         self.drive.setpoint(theta=self._theta_e)
 
     def _energize(self, amps, steps=6, settle=0.05):
-        """HOLD, with the current RAMPED - a stepper driver's soft energize.
-        Snapping full current onto an unknown rotor is a yank of up to half
-        a pole that an underdamped rotor rides straight through, pole after
-        pole; grown over a few link writes it detents into the nearest pole
-        and stays. Where the rotor ends up is where angles count from.
-        """
+        """HOLD, with the current RAMPED - a stepper driver's soft energize."""
         self._theta_e = self.drive.state()['theta_hat']
         self.drive.setpoint(id_ref=amps / steps, iq_ref=0.0,
                             theta=self._theta_e, omega_target=0.0)
@@ -169,8 +162,7 @@ class Servo(_Mode):
     @property
     def swing(self):
         """How far the shaft moved, peak to peak in mech degrees, while the
-        last measurement watched it: the ring a held rotor carries. Under
-        RING it sat still.
+        last measurement watched it: the ring a held rotor carries.
         """
         return self._swing
 
@@ -300,10 +292,7 @@ class Velocity(_Mode):
 
 class Motion:
 
-    """The factory `device.motion` answers with. Three verbs, one rule: the
-    stage is armed FIRST, by you, through `device.gates.arm()` - these
-    helpers refuse to be the second place arming lives.
-    """
+    """The factory `device.motion` answers with."""
 
     def __init__(self, device):
         self._device = device

@@ -248,9 +248,7 @@ def _boolean(value):
 
 
 def _coercer(kind):
-    """How a declared type takes a value; anything else passes as it came.
-    Looked up at the call, since `_names` is defined further down.
-    """
+    """How a declared type takes a value; anything else passes as it came."""
     return {'array': _names, 'boolean': _boolean,
             'integer': lambda value: int(float(value)),
             'number': float}.get(kind, lambda same: same)
@@ -278,8 +276,8 @@ def _key(text):
     return re.sub(r'[^a-z0-9]', '', str(text).strip().lower())
 
 
-# The same three phases under the other convention: U/V/W and A/B/C both
-# appear in the same datasheets, so `phase_a` is a spelling, not a mistake.
+# The same three phases under the other convention: U/V/W and A/B/C both appear
+# in the same datasheets, so `phase_a` is a spelling, not a mistake.
 PHASE_ALIASES = {
     'phasea': 'phaseu', 'phaseb': 'phasev', 'phasec': 'phasew',
     'a': 'phaseu', 'b': 'phasev', 'c': 'phasew',
@@ -325,8 +323,8 @@ def _matches(key, by_name):
 
 def _index_of(text, by_name, notes):
     """One requested channel as an index: a number, a name, an alias, a
-    spelling of one, or the words it was made of - with what it took to get
-    there on `notes`.
+    spelling of one, or the words it was made of - with what it took to
+    get there on `notes`.
     """
     key = _alias(_key(text), by_name)
     if text.isdigit():
@@ -371,8 +369,8 @@ def _resolve(session, wanted, notes=None):
     by_name = {_key(render.short(c['signal'], c['index'])): c['index']
                for c in channels}
     # `ch3` is what an unnamed channel is called, and it stayed addressable by
-    # that after PB1 and PC1 were given real names - a caller counting
-    # channels should not stop working because somebody named one.
+    # that after PB1 and PC1 were given real names - a caller counting channels
+    # should not stop working because somebody named one.
     for channel in channels:
         by_name.setdefault('ch%d' % channel['index'], channel['index'])
 
@@ -490,8 +488,8 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
                 derived[index] = '%.2fC' % ntc.celsius(stats['mean_raw'])
             except ValueError as exc:
                 # A rail reading (a genuinely open or shorted thermistor, not
-                # the AFE-off case - that lands at mid-scale, not a rail)
-                # makes the conversion undefined.
+                # the AFE-off case - that lands at mid-scale, not a rail) makes
+                # the conversion undefined.
                 derived[index] = 'no conversion: %s' % exc
         elif meta['signal'] == 'DC bus':
             derived[index] = '%.3fV bus' % divider.volts(stats['mean_raw'])
@@ -623,10 +621,7 @@ def afe_power(session, action='read', **_):
 
 
 def _afe_order(session, action):
-    """An order to every node, not a request. `read` and `toggle` both need the
-    reply a broadcast does not have - toggle because "the other one" is only
-    defined against a state somebody read.
-    """
+    """An order to every node, not a request."""
     if action not in ('on', 'off'):
         return ('ERR %s needs a reply and a broadcast has none; '
                 'select one node, or use on/off' % action)
@@ -717,8 +712,7 @@ def devices(session, op='list', unit=None, name=None, bus=None,
 def _named(found, name):
     """The nodes `name` picks out by what they call themselves, across every
     segment: "the right knee" is one node on one bus, and the operator
-    should not have to know which. A name that is on two - "knee" - names
-    both rather than picking.
+    should not have to know which.
     """
     key = _key(name)
     return [(b, u) for b, u, v in found
@@ -749,9 +743,9 @@ def _use(session, here, unit, name, bus, first, last):
     if unit is None:
         bus, unit = hit[0]
     if (bus or here[0], int(unit)) not in [(b, u) for b, u, _ in found]:
-        # Not a refusal for its own sake: pointing the session at a unit
-        # nobody is at makes every later call time out, and the operator reads
-        # that as the board having died.
+        # Not a refusal for its own sake: pointing the session at a unit nobody
+        # is at makes every later call time out, and the operator reads that as
+        # the board having died.
         return ('ERR no node at %s %s; answering: %s'
                 % (bus or here[0], unit,
                    ', '.join('%s %d' % (b, u) for b, u, _ in found)

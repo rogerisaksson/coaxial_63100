@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-"""coaxial.broker: one process owns the port, everything else asks it.
-
-No board and no serial port. `serve` takes a transport, which is the seam
-that makes this testable - a stand-in here answers the same three calls
-`Board` makes of a real one, and the broker cannot tell.
-
-There is deliberately no simulated broker. The stand-in board has no port
-for two processes to contend over, and it speaks methods rather than frames,
-so a broker in front of it would be forwarding nothing.
-
-Run from the host directory:  python tests/test_broker.py
-"""
+"""coaxial.broker: one process owns the port, everything else asks it."""
 import os
 import sys
 import threading
@@ -42,12 +31,7 @@ class Report:
 
 class Fake:
 
-    """A transport that answers without a UART.
-
-    Counts calls and records the order they arrived in, which is what proves
-    the lock: the board is one slave on one wire, so two clients must
-    interleave whole transactions and never half of one.
-    """
+    """A transport that answers without a UART."""
 
     baud = 115200
 
@@ -88,16 +72,14 @@ def served(fake, address=ADDRESS):
     def run():
         # serve() blocks; the server object is reachable through the module
         # only while it lives, so the thread keeps it and the stopper waits.
-        # linger=0: a broker that outlives its test answers the NEXT
-        # test's clients through the previous test's transport.
         broker.serve('FAKE', 115200, address, transport=fake, linger=0.0)
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
 
     # Wait on the ADDRESS FILE, not on a probe connection: serve() writes it
-    # before it answers, and a probe that attached and closed would be the
-    # last one out and take the broker down before the test began.
+    # before it answers, and a probe that attached and closed would be the last
+    # one out and take the broker down before the test began.
     for _ in range(200):                       # up in milliseconds
         if broker.serving():
             break
@@ -107,13 +89,7 @@ def served(fake, address=ADDRESS):
 
 
 def stop(address=ADDRESS):
-    """Wait until nothing answers, then clear the address file.
-
-    Waited on rather than assumed: a broker takes itself down when its last
-    user goes, and the next test starting one while the old socket was still
-    bound is a connection refused with no bug behind it. `attach` is safe to
-    poll with - a look is not a use, so it cannot keep one alive.
-    """
+    """Wait until nothing answers, then clear the address file."""
     for _ in range(200):
         probe = broker.attach(address, timeout=0.4)
         if probe is None:
@@ -244,11 +220,7 @@ def test_errors_cross_as_themselves(report):
 
 
 def test_a_client_never_hands_the_line_back(report):
-    """`is_open` is False, so a teardown skips the console handover.
-
-    The port is not a client's to give: handing it to the text console
-    would take it from every other client still attached.
-    """
+    """`is_open` is False, so a teardown skips the console handover."""
     stop()
     fake = Fake()
     served(fake)
@@ -282,18 +254,16 @@ def test_a_stale_address_is_not_a_broker(report):
         report.check('but attaching to it answers None',
                      broker.attach(('127.0.0.1', 8792), timeout=0.5) is None)
 
-        # The hole this closes: `auto` saw the file, committed to a real
-        # port, and raised instead of falling back. Checked at the seam
-        # rather than through open_session - that one discovers whatever
-        # board is actually plugged in, and would start a broker for it.
+        # The hole this closes: `auto` saw the file, committed to a real port,
+        # and raised instead of falling back.
         from coaxial.session import _answers
         report.check('and the session layer says it does not answer',
                      _answers({'host': '127.0.0.1', 'tcp': 8792}) is False)
     finally:
         stop()
 
-    # The other half: a broker that IS there answers, and asking does not
-    # count as a use - the question must not be what takes it down.
+    # The other half: a broker that IS there answers, and asking does not count
+    # as a use - the question must not be what takes it down.
     fake = Fake()
     served(fake)
     try:
@@ -307,13 +277,7 @@ def test_a_stale_address_is_not_a_broker(report):
 
 
 def test_frame_length(report):
-    """The reply shapes that stop a read on its last byte.
-
-    They cross the broker as JSON, which is why they are dicts and why
-    this suite owns them. The `ack` shape is every `u8 took` reply; the
-    counted shape is the DAQ's; an exception frame is sized whatever the
-    shape said, because it is always one code byte.
-    """
+    """The reply shapes that stop a read on its last byte."""
     from coaxial.crc import crc16
     from coaxial.transport import ACK, frame_length
 
@@ -343,14 +307,7 @@ def test_frame_length(report):
 
 
 def test_ack_skips_the_quiet_time(report):
-    """The ACK shape through the REAL read loop, on a scripted port.
-
-    `frame_length` is checked above; this drives `_read_until_quiet`
-    itself. The stub port scripts the reply and counts the reads that
-    found nothing - each of those is a QUIET_TIME the caller waited out.
-    A shaped ack must finish with zero; the same frame without a shape
-    must pay at least one, or the 8 ms this machinery removed is back.
-    """
+    """The ACK shape through the REAL read loop, on a scripted port."""
     import types
 
     from coaxial import transport as tmod

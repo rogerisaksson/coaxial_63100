@@ -1,30 +1,9 @@
-"""The plan an Ollama-driven run executes, and the only place limits exist.
-
-testline/plan.py's idea, one field changed and one rule added.
-
-The field: a `testline` step names a `source`, a Python callable producing the
-number. Here a step carries an `ask` instead - prose, aimed at a model with the
-board's tool surface in front of it. That is why this runner exists: "find out
-which channel actually moves when the DC link changes" has no callable behind
-it, and writing one per question is how bring-up scripts become a second
-firmware.
-
-The rule: **the model never sees the limit.** It measures and reports a number
-in a stated unit; `Limit.judge` decides in Python, from a file under revision
-control. A model told "pass is under 0.25 V" will eventually report a number
-that passes. Keeping the limit out of context is what makes a verdict traceable
-to the plan rather than to a sampling temperature.
-
-testline/plan.py's rules on where limits come from apply unchanged, so
-`measurement_system_study` is required here too. A plan without one is not
-loaded.
-"""
+"""The plan an Ollama-driven run executes, and the only place limits exist."""
 import os
 import sys
 
-# host/ on the path: this file's own directory's parent, so it does
-# not matter what the working directory is or what any directory
-# along the way is called.
+# host/ on the path: this file's own directory's parent, so it does not matter
+# what the working directory is or what any directory along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import yaml                                       # noqa: E402
@@ -33,17 +12,13 @@ from testline.plan import Limit, PlanError        # noqa: E402  re-exported
 
 __all__ = ['Limit', 'PlanError', 'Task', 'Plan']
 
-# Enough turns for read-orient-measure-report, and few enough that a model stuck
-# in a loop costs a step rather than an afternoon.
+# Enough turns for read-orient-measure-report, and few enough that a model
+# stuck in a loop costs a step rather than an afternoon.
 DEFAULT_TURNS = 12
 
 
 class Task:
-    """One thing the model is asked to establish about the board.
-
-    `ask` is the prompt. `unit` is told to the model so its number arrives in
-    the unit the limit is written in; the limit itself is not.
-    """
+    """One thing the model is asked to establish about the board."""
 
     def __init__(self, ident, name, ask, limit=None, record_only=False,
                  max_turns=DEFAULT_TURNS, unit='', needs_writes=False):
@@ -74,8 +49,7 @@ class Task:
 
 
 class Plan:
-    """A YAML test plan: the steps, and the limits the model is never
-    shown. `Limit` judges in Python, from a file under version control."""
+    """A YAML test plan: the steps, and the limits the model is never shown."""
     def __init__(self, data, path=None):
         self.path = path
         try:
@@ -122,12 +96,7 @@ class Plan:
 
     @classmethod
     def single(cls, ask, unit='', name='ad-hoc', max_turns=DEFAULT_TURNS):
-        """One question from the command line.
-
-        Still a plan, and still unjudged: an ad-hoc question has no study behind
-        it, so it can only ever be record_only. That is why the study field
-        below says so instead of being left blank.
-        """
+        """One question from the command line."""
         return cls({
             'product': 'coaxial_63100 BLDC inverter',
             'revision': 'unspecified',

@@ -1,35 +1,14 @@
 <#
 .SYNOPSIS
-    The 3D engine's demo and bench: watch it render live, or hold it
-    against its oracle and the CAD exporter's references.
-
+    The 3D engine's demo and bench: watch it render live, or hold it against
+    its oracle and the CAD exporter's references.
 .DESCRIPTION
-    With no switches this opens the live console: the exporter's cube
-    (or the board, -Model board) rendered by the staged engine, steered
-    by hand - x/y/z step the pose, SPACE spins, M swaps model, the
-    wheel zooms, Q leaves.
-
-    The bench behind it:
-
-      -Test         host/tests/test_render.py - every engine stage
-                    against exact expectations and the full chain
-                    against an analytic ray-cast oracle; the exit code.
-      -Calibration  host/tools/facecheck.py - silhouette and light
-                    agreement against the exporter's reference renders.
-                    Informational: their pose conventions are only
-                    partly known.
-      -Show         a still: engine, oracle and exporter side by side.
-      -Fit          tools/lightfit.py - refits the shading constants
-                    against the references and prints what to bake into
-                    coaxial/wireframe.py. Changes nothing on disk.
-
-    -Pose x30y0z0 and -Model cube|board steer -Show and the console.
-
+    With no switches this opens the live console: the exporter's cube (or
+    the board, -Model board) rendered by the staged engine, steered by hand
+    - x/y/z step the pose, SPACE spins, M swaps model, the wheel zooms, Q
+    leaves.
 .EXAMPLE
     .\render_demo.ps1                # the live console, cube
-    .\render_demo.ps1 -Model board   # the live console, board
-    .\render_demo.ps1 -Test          # the gate, then the table
-    .\render_demo.ps1 -Show -Pose x30y0z0
 #>
 param(
     [switch]$Test,

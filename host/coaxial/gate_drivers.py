@@ -86,8 +86,8 @@ class GateDrivers(Device, GateControl, device=protocol.DEVICE_GATE_DRIVERS):
         # period.
         out['requested_ticks'] = tuple(r.q16() for _ in range(PHASES))
         # Six gate signals in one IDR load with TIM1->CNT beside it: six
-        # separate asks at 50 kHz can straddle an edge and show a leg with
-        # both FETs on, the one state dead time prevents.
+        # separate asks at 50 kHz can straddle an edge and show a leg with both
+        # FETs on, the one state dead time prevents.
         out['pins'] = r.flags(GATES)
         out['pins_at'] = r.u16()
         out['deadtime_ns'] = r.u32()

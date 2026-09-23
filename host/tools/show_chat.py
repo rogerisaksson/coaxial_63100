@@ -103,11 +103,9 @@ def fit(said, room):
 
 
 class Strip:
-    """pull()'s rows on the boot strip: the bar is the layer's share and
-    the bracketed text the pull's own figures, in place of pull's row.
-    Not both - the strip's Progress repaints its row on its own clock
-    and the pull's carriage-return rewrite on stderr would land in the
-    middle of it: one bar on the line, and it is the strip's."""
+    """pull()'s rows on the boot strip: the bar is the layer's share and the
+    bracketed text the pull's own figures, in place of pull's row.
+    """
 
     #: Every event, not one per five percent: the strip is a TTY's.
     tty = True
@@ -137,20 +135,19 @@ def open_chat(a, script, strip=None):
     """The same Chat the bench prompt builds, its prints tapped; the
     picker's tag pulled first when `ollama list` lacks it, on `strip`."""
 
-    # NOT --quiet: quiet suppresses _trace, and _trace is where a tool
-    # result's value grid prints - without it the model's one-line summary
-    # is all that reaches the transcript, values nowhere. Measured: "the
-    # values are shown on screen", and they were not.
+    # NOT --quiet: quiet suppresses _trace, and _trace is where a tool result's
+    # value grid prints - without it the model's one-line summary is all that
+    # reaches the transcript, values nowhere.
     argv = ['-m', 'auto', '--port', a.port]
     if a.simulated:
         argv.append('--simulated')
     args = cli.parse(argv)
     client, _session, chat = cli.build(args)
     # Through ensure_pulled, as dbg.py's start and the bench prompt's
-    # preflight: the picker names the tag that fits this card, and the
-    # day it named one `ollama list` lacked (2026-09-22, llama3.1:8b
-    # beside a pulled gemma4:12b that did not fit) this page died in a
-    # traceback with the command to type as its last line.
+    # preflight: the picker names the tag that fits this card, and the day it
+    # named one `ollama list` lacked (2026-09-22, llama3.1:8b beside a pulled
+    # gemma4:12b that did not fit) this page died in a traceback with the
+    # command to type as its last line.
     client.model = cli.ensure_pulled(client, sys.stderr,
                                      pull_with=pulled_on(strip))
     chat.io_log = cli.IOLog()
@@ -172,17 +169,7 @@ PAGE = ('You are the ANTHROPIC page of coaxial_tty. The operator chose '
 
 
 def find_claude():
-    """claude, wherever this machine keeps it - a path, or None.
-
-    `shutil.which` only sees PATH, and two of the three ways claude
-    arrives on Windows never touch the PATH of an already-open shell:
-    the native installer's ~/.local/bin, and the VS Code extension,
-    which bundles the same binary under resources/native-binary.
-    Measured on this bench: the chooser's ANTHROPIC page refused with
-    'not on PATH' while that very binary was answering in the editor
-    one window over. Same policy as setup.ps1's Find-Ollama - look in
-    the known homes before concluding absent.
-    """
+    """claude, wherever this machine keeps it - a path, or None."""
 
     found = shutil.which('claude')
     if found:
@@ -202,10 +189,8 @@ def find_claude():
 
 class _Claude:
     """The ANTHROPIC backend: one `claude -p` per turn, continued in the
-    repo root. The MCP config is generated with absolute paths and passed
-    explicitly: the project .mcp.json sits `pending approval` until an
-    interactive run approves it, and -p cannot ask - measured as a page
-    that answered nothing at all."""
+    repo root.
+    """
 
     #: No toolbox of its own: the tools are the MCP server's, in claude's
     #: process.
@@ -234,9 +219,9 @@ class _Claude:
         return None
 
     def close(self):
-        """A turn left running when the page closes keeps talking into
-        the terminal the menu takes back - measured as spam after an
-        exit. Kill claude; its MCP server follows when stdin closes."""
+        """A turn left running when the page closes keeps talking into the
+        terminal the menu takes back - measured as spam after an exit.
+        """
         proc = self.proc
         if proc and proc.poll() is None:
             proc.kill()
@@ -281,8 +266,8 @@ class _Claude:
 def mcp_ready(chat, port, script, step):
     """Prove the coaxial MCP server starts before the first turn needs it:
     run it once against a closed stdin - a stdio server answers its
-    startup line and exits on the EOF. The line lands in the transcript,
-    so a dead port or a broken PYTHONPATH shows before anybody types."""
+    startup line and exits on the EOF.
+    """
 
     host = os.path.join(chat.root, 'host')
     step(0.5, 'MCP SERVER')
@@ -319,9 +304,9 @@ def _turn(chat, line, script, state):
 
 
 def _sent(line, script, state, chat):
-    """ENTER: the line goes to the model on its own thread - unless it
-    is empty, a turn is still running, or there is no model. Says
-    whether it went."""
+    """ENTER: the line goes to the model on its own thread - unless it is
+    empty, a turn is still running, or there is no model.
+    """
     if not line or state['busy'] or chat is None:
         return False
     script.say('value', '> ' + line)
@@ -386,12 +371,7 @@ def compose(script, entry, state, origin, size, lead, blink):
 
 
 def echo(page, entry, lead, blink):
-    """The input row alone, straight to the terminal.
-
-    A keystroke costs ~100 bytes this way instead of a 5-25 kB page:
-    even rate-capped, full repaints per key queued a slow terminal
-    renderer five seconds behind the fingers. Live repaints the same
-    row with the same content whenever the page itself changes."""
+    """The input row alone, straight to the terminal."""
     size = page.size
     ask = Text('  %s ' % lead, style='value')
     ask.append(entry)
@@ -467,16 +447,16 @@ def main():
     else:
         try:
             with boot('LINKING MODEL') as step:
-                # The strip's bar is 28 cells, its text bracketed a cell
-                # on; what is left of the row is the pull's.
+                # The strip's bar is 28 cells, its text bracketed a cell on;
+                # what is left of the row is the pull's.
                 width = page.size.width if page.size else 80
                 strip = Strip(step, max(24, width - 34)) if console else None
                 chat = open_chat(a, script, strip)
         except OllamaError as exc:
-            # The daemon's words on one line and exit 2, as dbg.py's
-            # start ends: the chooser prints the code, says the last
-            # lines above say why, and waits for a key - so those lines
-            # are the words, not forty of traceback over them.
+            # The daemon's words on one line and exit 2, as dbg.py's start
+            # ends: the chooser prints the code, says the last lines above say
+            # why, and waits for a key - so those lines are the words, not
+            # forty of traceback over them.
             print('ollama: %s' % exc, file=sys.stderr)
             return 2
         label, real = chat.origin or ('unknown', False)
@@ -491,28 +471,22 @@ def main():
 
 
 def _run(a, page, console, script, state, chat, origin):
-    """The frame loop. main() wraps it so a live claude turn dies
-    with the page instead of talking into the returned terminal."""
+    """The frame loop."""
     entry, frame, drawn, painted, face = '', 0, None, 0.0, None
-    # NO mouse mode: with reporting on the terminal hands selections to
-    # the view and copy stops working - in a chat, the transcript is
-    # exactly what gets copied. Arrows scroll instead.
+    # NO mouse mode: with reporting on the terminal hands selections to the
+    # view and copy stops working - in a chat, the transcript is exactly what
+    # gets copied.
     with curtain(page) as show, Keys(console,
                                      quits=frozenset()) as keys:
         while True:
             frame += 1
-            # Painted ONLY when something changed. A flat 20 Hz repaint
-            # of the whole page queued the terminal's renderer up and
-            # every keypress arrived seconds late - the lag was output
-            # pressure, not input.
+            # Painted ONLY when something changed.
             blink = frame % 16 < 8
             lead = (SPIN[frame // 2 % len(SPIN)] if state['busy']
                     else '>')
             size = page.size
-            # The page's mark carries NO entry: typing never repaints the
-            # page, only its own row through echo(). A paint is 14-26 ms
-            # and 5-25 kB of ANSI, measured 100x28 to 280x70; ten a
-            # second at most even so.
+            # The page's mark carries NO entry: typing never repaints the page,
+            # only its own row through echo().
             mark = (len(script.rows), script.pin,
                     size.width if size else 0,
                     size.height if size else 0)
