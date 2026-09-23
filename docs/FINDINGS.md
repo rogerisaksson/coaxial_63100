@@ -4855,6 +4855,70 @@ looking at the estimate alone.
   test_render: face on, a point at 0.90 of the span hits the art and
   one at 0.98 does not, and the origin lands on cell 53 of 106, row
   27 of 54. test_render 105, 3186 in all.
+* **The parts as blocks and drums, and a grace that follows the cell's
+  depth** (2026-09-23, the bench: "the edge enhancer seems to make
+  edges between the objects instead of enhancing the objects' edges,
+  visible at the fuse and the CM choke"; then "some larger components
+  with rounded corners, like the choke, get an edge OF the corner - I
+  meant simplifying the object to simple geometry, a block, and
+  enhancing its edges and corners; otherwise edges flicker in and
+  out"). The layers at the choke (the board's tallest part, 0.186
+  high at (0.00, -0.43)): the face draws its lid with the plate's own
+  dither and nothing marks it, the edge pass draws nothing there, and
+  the outline pass draws FRAGMENTS of its crease loops - so what shows
+  is strokes floating between the parts. Two causes. (1) The hidden
+  line's grace was fixed at 0.012, while a face tilted 45 degrees
+  spans 0.02 to 0.04 units of depth inside one cell at the bench's
+  framing, so a lid's edge lost to its own lid's near corner in the
+  same cell. The grace now adds the cell's own depth span, read off
+  its four neighbours (OUTLINE_SLOPE): the outline drawn alone at 45
+  degrees went from 250 cells in 30 pieces, the largest 20, to 484 in
+  31, the largest 72; at 65 from 198 in 22 (largest 45) to 459 in 17
+  (largest 163) - the loops close into boxes and rings. Cost: the
+  pass 8.4 to 9.4 ms at 108x44. (2) A part's crease loops are
+  wherever its tessellation folds past 60 degrees: on a rounded part
+  the rounding's own facets, an edge of the corner, coming and going
+  with the view; a rounded extrusion folds only at its two end
+  profiles. Measured over the 917 loops: 759 are two-corner ridges,
+  and the loops of one part - the choke's rounding, base and lid -
+  fall in four. So the pre-scan (`_stereotypes`, once per outline
+  source, 151 ms): loops of one side whose footprints nest by 0.6 of
+  the smaller (STEREO_NEST - any overlap chained neighbours: five
+  capacitors each swallowed 85 to 91 loops of the pin fields round
+  them) are one part; a part is a DRUM when its widest loop's own top
+  corners sit on one radius and not on a box's sides (a chamfered
+  square's corners share a radius too - the CPU came out round in the
+  prototype; and the capacitor's rim ring sits 0.04 under the eighty
+  facets of its domed top, so the lid is the widest loop's, not the
+  highest points') - else its BLOCK, the least oriented box round all
+  its points, lid and four legs to the slab. A loop in one vertical
+  plane is an end profile when it reaches the base within a
+  millimetre - two of one width and height facing across are one
+  block, an odd one a sharp ARCH - and a HOLE in a wall when it floats
+  over the base: the screw terminals' 40 openings, 0.016 up, which as
+  arches were rectangles ("the holes in the screw terminals have
+  become rectangles"), drawn as the oval inscribed in their bounds.
+  A wall's arch or hole draws only where the wall faces the camera by
+  0.25 (STEREO_FACING): face-on they are seen edge-on, and lay as
+  short bright dashes along the rim and in pairs on a terminal's two
+  walls - the four rings on the bench's screenshot at i -0.0489 j
+  0.0245 k -0.0036 real 0.9984. The board's 917 loops come out as 262
+  blocks, 4 drums, 15 arches and 40 holes; the pairwise footprint test
+  cost 2.6 s until swept along x. The snap of the outline to the
+  decimate's vertices (`_snapped`) goes: the primitives are the
+  mesh's own geometry, and the disagreement it was built for was the
+  art's parallax. Rendered at the component side 45 and 65 degrees:
+  the parts as boxes with legs, the capacitors as circles, the
+  terminals' openings as ovals; the view's loop at 108x40 measured
+  43.6 ms median (41.0 before), p90 56.1. Held in test_render: a box's
+  loop is a block of eight segments; a lone twelve-corner lid on one
+  radius a drum; a chamfered square a block; two facing profiles one
+  block; a base ring under a lid one part; neighbours overlapping by a
+  tenth two blocks; a loop floating in a wall a twelve-segment oval
+  that draws nothing edge-on and draws at 60 degrees; and at 65
+  degrees the outline's largest connected piece is over a hundred
+  cells (333 of 675). The bench, midway: "looks crisp now".
+  test_render 114, 3195 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

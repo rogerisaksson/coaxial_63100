@@ -137,7 +137,6 @@ def _decimated(path, divisions):
         _forget()
     got = _MESHES[stamp] = mesh._clustered(mesh.loaded(path), divisions,
                                            keep=_bore_keep)
-    _DIVISIONS[id(got)] = (stamp, divisions)
     return got
 
 
@@ -157,67 +156,9 @@ def _bore_keep(corner):
     return corner[0] * corner[0] + corner[1] * corner[1] < BORE_KEEP * BORE_KEEP
 
 
-#: Which decimate a solid is, by identity; per decimate, its vertices'
-#: grid cells (cell -> vertex index), built when first asked; and the
-#: outline source's positions snapped to a decimate - what `_snapped`
-#: needs to put the exact mesh's points where that decimate's vertices
-#: went. Cleared with the meshes.
-_DIVISIONS = {}
-_KEYS = {}
-_SNAPPED = {}
-
-
 def _forget():
     _MESHES.clear()
-    _DIVISIONS.clear()
-    _KEYS.clear()
-    _SNAPPED.clear()
-
-
-def _snapped(solid):
-    """The outline source's positions moved to where `solid`'s decimate
-    put them: each exact vertex to the mean of its grid cell, the very
-    vertex the face's triangles run between.
-
-    THE LINE AND THE FACE FROM ONE GEOMETRY. The outline traced the
-    exact mesh's creases while the face rastered the decimate, whose
-    vertices are cell means - so a bore's circle in the outline framed
-    a polygon in the face, inside it by the chord's sagitta: measured
-    2026-09-23 at zoom 3 (grid 48) the ring sat 0 to 2 braille dots
-    outside the hole depending on direction, and every part's edge
-    likewise by where its corners' cells fell - the bench saw the edge
-    enhancer offset from the rest of the renderer, clearest at the
-    centre hole. Snapped, the line passes through the face's own
-    polygon corners. The exact solid itself, when `solid` is not a
-    decimate of the same file."""
-    source = _outline_source()[0]
-    which = _DIVISIONS.get(id(solid))
-    if which is None:
-        return source[0]
-    stamp, divisions = which
-    key = (stamp, id(source))
-    got = _SNAPPED.get(key)
-    if got is not None:
-        return got
-    if len(_SNAPPED) > MESHES_KEPT:
-        _SNAPPED.clear()
-    target = solid[0]
-    step = 2.0 / divisions
-    cells = _KEYS.get(stamp)
-    if cells is None:
-        # A cell's mean lies in its cell, so a decimate's vertex names
-        # its own cell: no need to carry the keys out of the clustering.
-        cells = _KEYS[stamp] = {
-            mesh.cell_key(target[i:i + 3], step): i // 3
-            for i in range(0, len(target), 3)}
-    pts = source[0]
-    out = list(pts)
-    for i in range(0, len(pts), 3):
-        at = cells.get(mesh.cell_key(pts[i:i + 3], step))
-        if at is not None:
-            out[i:i + 3] = target[3 * at:3 * at + 3]
-    got = _SNAPPED[key] = out
-    return got
+    _STEREO.clear()
 
 
 #: Decimates kept before the cache is emptied - six LODs and the shadow
@@ -256,7 +197,6 @@ def _decimate_missing(path, stamp, missing, progress):
         _forget()
     for divisions, solid in crew.decimate(path, missing, progress).items():
         _MESHES[(path, divisions, stamp)] = solid
-        _DIVISIONS[id(solid)] = ((path, divisions, stamp), divisions)
 
 
 #: The coarsest grid a view with a crew draws. Grid 16 is a polygon with
@@ -1100,6 +1040,11 @@ OUTLINE_DENSITY = 6.0
 #: keeps an edge on its face and hides a top-side part seen from below.
 #: A relative 2 % grace, the wire mode's, let 1.0 % of slab through.
 OUTLINE_GRACE = 0.012
+#: The share of a cell's own depth span - the largest difference to
+#: its four neighbours' nearest samples - added to the grace: one, the
+#: span itself, since a lid's edge and the lid's near corner are that
+#: far apart in one cell. Zero is the fixed grace alone.
+OUTLINE_SLOPE = 1.0
 #: How far a vertex may sit from the slab's measured top and still count
 #: as on it: the copper and mask layers are 0.0007 units (35 um) proud.
 OUTLINE_LEVEL = 0.003
@@ -1836,6 +1781,326 @@ def _outline_loops(solid):
     return drawn
 
 
+#: THE PARTS AS BLOCKS AND DRUMS - the pre-scan. A part's crease loops
+#: are wherever its tessellation folds past OUTLINE_DEG: a box's lid and
+#: corners, but on a rounded part - the CM choke, the fuse - the
+#: rounding's own facets, which make an edge OF THE CORNER and come
+#: and go as the view turns; and a rounded extrusion folds only at its
+#: two end profiles, two arches and nothing along it. So each part is
+#: fitted ONCE, off the exact mesh, to the simple geometry it is - a
+#: BLOCK (its footprint's least oriented box, lid and four legs), a DRUM
+#: (a lone lid on one radius: the circle, and per frame the two
+#: silhouette lines), or the sharp ARCH of an unpaired profile - and the
+#: overlay draws that, edges and corners fixed, over the render (the
+#: bench, 2026-09-23: "simplify the object to simple geometries, like
+#: a block, and enhance its edges and corners"). Loops of one side
+#: whose footprints overlap are one part; two arches of one width and
+#: height, facing across, are one block.
+STEREO_CIRCLE = 0.03   # a lid's radii vary under this share: a drum
+STEREO_SQUARE = 0.02   # ...unless it sits on a box's sides this closely:
+#                        a chamfered square's corners share a radius too
+STEREO_PAIR = 0.05     # arches pair when width and height agree this close
+STEREO_SEGMENTS = 24   # a drum's circle
+#: Two loops are one part when their footprints' overlap is this share
+#: of the smaller one: a base ring under a lid, a rounding's facets on
+#: the lid's footprint. Any overlap at all chained neighbours - five
+#: capacitors each swallowed 85 to 91 loops of the pin fields round
+#: them and none came out a drum.
+STEREO_NEST = 0.6
+#: A wall's arch or hole draws only where the wall faces the camera by
+#: this much (the wall's normal against the view's z axis, in the
+#: plane): under it the feature is seen edge-on and would be a dash.
+STEREO_FACING = 0.25
+_STEREO = {}
+
+
+def _stereotypes():
+    """[(kind, extent, data)] for the outline source, built once per
+    source: 'block' and 'arch' carry 3D segments, 'drum' (cx, cy, r,
+    ztop, zbase)."""
+    solid, loops = _outline_source()
+    got = _STEREO.get(id(loops))
+    if got is None:
+        if len(_STEREO) > OUTLINES_KEPT:
+            _STEREO.clear()
+        pos = solid[0]
+        top = _slab_top(pos)
+        got = _STEREO[id(loops)] = _stereotype_loops(
+            pos, loops, top, _slab_bottom(pos, top))
+    return got
+
+
+def _stereotype_loops(pos, loops, top, bottom):
+    """The primitives for `loops` over `pos`: one per part
+    (`_part_groups`), the arches paired or sharp, the holes in walls
+    as ovals."""
+    groups, arches, holes = _part_groups(pos, loops, top, bottom)
+    prims = [_part_primitive(over, rings, top, bottom)
+             for over, rings in groups]
+    return prims + _pair_arches(arches, top, bottom) + _wall_holes(holes)
+
+
+def _part_groups(pos, loops, top, bottom):
+    """([(over, points, loops)], arches, holes): the loops of one side
+    whose footprints nest (STEREO_NEST), gathered into parts - a part's
+    rounding, base and lid fold into separate loops on one footprint -
+    and, apart, the loops lying in one vertical plane: a rounded part's
+    end profiles, which reach the base, and the holes in its walls,
+    which float above it (the screw terminals' openings, 40 of them
+    0.016 over the slab - drawn as arches they were rectangles)."""
+    parts, arches, holes = [], [], []
+    for _extent, members in loops:
+        verts = sorted({v for a, b in members for v in (a, b)})
+        p3 = [(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2]) for v in verts]
+        zs = [p[2] for p in p3]
+        over = max(zs) > top + OUTLINE_RISE
+        line = _collinear([(p[0], p[1]) for p in p3])
+        if line is not None and len(p3) >= 3:
+            base = top if over else bottom
+            clear = ((min(zs) - base) if over else (base - max(zs))
+                     if base is not None else 0.0)
+            # A profile's legs reach the base within a millimetre; the
+            # screw terminals' openings float 0.016 over it.
+            (holes if clear > 3 * OUTLINE_LEVEL else arches).append(
+                (over, p3, line))
+            continue
+        xs = [p[0] for p in p3]
+        ys = [p[1] for p in p3]
+        parts.append((over, p3, (min(xs), max(xs), min(ys), max(ys))))
+    parent = list(range(len(parts)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    # A sweep along x: sorted by their left edge, a footprint is only
+    # tried against the ones starting before its right edge. Every
+    # pair was tried first - 350 000 of them, most of a 2.6 s scan.
+    order = sorted(range(len(parts)), key=lambda i: parts[i][2][0])
+    for n, i in enumerate(order):
+        oi, _pi, a = parts[i]
+        for j in order[n + 1:]:
+            oj, _pj, b = parts[j]
+            if b[0] > a[1]:
+                break
+            if oi == oj and _nested(a, b):
+                parent[find(i)] = find(j)
+    groups = {}
+    for i, (over, p3, _box) in enumerate(parts):
+        groups.setdefault(find(i), [over, []])[1].append(p3)
+    return [(over, rings) for over, rings in groups.values()], arches, holes
+
+
+def _nested(a, b):
+    """Whether footprints `a` and `b` (x0, x1, y0, y1) overlap by
+    STEREO_NEST of the smaller; a footprint with no area - a ridge, a
+    point - nests when it lies inside the other."""
+    ax0, ax1, ay0, ay1 = a
+    bx0, bx1, by0, by1 = b
+    dx = min(ax1, bx1) - max(ax0, bx0)
+    dy = min(ay1, by1) - max(ay0, by0)
+    if dx < 0.0 or dy < 0.0:
+        return False
+    small = min((ax1 - ax0) * (ay1 - ay0), (bx1 - bx0) * (by1 - by0))
+    if small <= 1e-12:
+        return (dx >= 0.999 * min(ax1 - ax0, bx1 - bx0)
+                and dy >= 0.999 * min(ay1 - ay0, by1 - by0))
+    return dx * dy >= STEREO_NEST * small
+
+
+def _wall_holes(holes):
+    """Each hole in a wall (over, points, (direction, middle)) as the
+    oval inscribed in its bounds within its plane, twelve segments."""
+    prims = []
+    for _over, p3, ((ux, uy), (mx, my)) in holes:
+        us = [(p[0] - mx) * ux + (p[1] - my) * uy for p in p3]
+        zs = [p[2] for p in p3]
+        u0, u1, z0, z1 = min(us), max(us), min(zs), max(zs)
+        cu, cz = 0.5 * (u0 + u1), 0.5 * (z0 + z1)
+        ru, rz = 0.5 * (u1 - u0), 0.5 * (z1 - z0)
+        ring = []
+        for k in range(12):
+            a = 2.0 * math.pi * k / 12
+            u, z = cu + ru * math.cos(a), cz + rz * math.sin(a)
+            ring.append((mx + u * ux, my + u * uy, z))
+        segs = [ring[k] + ring[(k + 1) % 12] for k in range(12)]
+        prims.append(('hole', u1 - u0, (segs, (-uy, ux))))
+    return prims
+
+
+def _part_primitive(over, rings, top, bottom):
+    """A part's primitive off its loops' points: a drum when the widest
+    loop's own top corners sit on one radius and not on a box's sides -
+    a capacitor's rim ring, with the eighty small facets of its domed
+    top above it and its base ring under it - else its block, to the
+    part's full height."""
+    pts = [p for ring in rings for p in ring]
+    zs = [p[2] for p in pts]
+    ztop = max(zs) if over else min(zs)
+    zbase = top if over else bottom
+    if zbase is None:
+        zbase = ztop
+    widest = max(rings, key=lambda ring: math.hypot(
+        max(p[0] for p in ring) - min(p[0] for p in ring),
+        max(p[1] for p in ring) - min(p[1] for p in ring)))
+    crest = max(p[2] for p in widest) if over else min(p[2] for p in widest)
+    lid = [(p[0], p[1]) for p in widest
+           if abs(p[2] - crest) <= 3 * OUTLINE_LEVEL]
+    if len(lid) >= 6:
+        _corners, square = _box_fit(lid)
+        if square >= STEREO_SQUARE:
+            (cx, cy, r), dev = _circle_fit(lid)
+            if dev < STEREO_CIRCLE:
+                return ('drum', 2.0 * r, (cx, cy, r, ztop, zbase))
+    corners, _square = _box_fit([(p[0], p[1]) for p in pts])
+    return ('block', _box_extent(corners), _block(corners, ztop, zbase))
+
+
+def _pair_arches(arches, top, bottom):
+    """Each arch (over, points, (direction, middle)) sharp - up, across,
+    down - and two of one width and height that face each other across
+    their planes joined into one block."""
+    fitted = []
+    for over, p3, ((ux, uy), (mx, my)) in arches:
+        us = [(p[0] - mx) * ux + (p[1] - my) * uy for p in p3]
+        u0, u1 = min(us), max(us)
+        zs = [p[2] for p in p3]
+        ztop = max(zs) if over else min(zs)
+        zbase = top if over else bottom
+        if zbase is None:
+            zbase = ztop
+        fitted.append(((ux, uy), (mx, my), (mx + u0 * ux, my + u0 * uy),
+                       (mx + u1 * ux, my + u1 * uy), ztop, zbase, over))
+    used, prims = set(), []
+    for i, (u, mid, a0, a1, ztop, zbase, over) in enumerate(fitted):
+        if i in used:
+            continue
+        used.add(i)
+        width, height = math.dist(a0, a1), abs(ztop - zbase)
+        best = None
+        for j, (u2, mid2, b0, b1, zt2, zb2, over2) in enumerate(fitted):
+            if j in used or over2 != over:
+                continue
+            if abs(abs(u[0] * u2[0] + u[1] * u2[1]) - 1.0) > 0.01:
+                continue
+            if (abs(math.dist(b0, b1) - width) > STEREO_PAIR * width
+                    or abs(abs(zt2 - zb2) - height) > STEREO_PAIR * height):
+                continue
+            dx, dy = mid2[0] - mid[0], mid2[1] - mid[1]
+            along = abs(dx * u[0] + dy * u[1])
+            across = abs(dy * u[0] - dx * u[1])
+            if along > 0.1 * width or across < 0.2 * height:
+                continue
+            if best is None or across < best[0]:
+                best = (across, j, b0, b1)
+        if best is None:
+            prims.append(('arch', width, ([
+                (a0[0], a0[1], zbase, a0[0], a0[1], ztop),
+                (a0[0], a0[1], ztop, a1[0], a1[1], ztop),
+                (a1[0], a1[1], ztop, a1[0], a1[1], zbase)], (-u[1], u[0]))))
+            continue
+        across, j, b0, b1 = best
+        used.add(j)
+        if math.dist(a0, b0) > math.dist(a0, b1):
+            b0, b1 = b1, b0
+        prims.append(('block', max(width, across),
+                      _block((a0, a1, b1, b0), ztop, zbase)))
+    return prims
+
+
+def _block(corners, ztop, zbase):
+    """The eight segments of a block: its lid's four edges and a leg
+    down from each corner."""
+    segs = []
+    for i in range(4):
+        (x0, y0), (x1, y1) = corners[i], corners[(i + 1) % 4]
+        segs.append((x0, y0, ztop, x1, y1, ztop))
+        segs.append((x0, y0, ztop, x0, y0, zbase))
+    return segs
+
+
+def _box_extent(corners):
+    return max(math.dist(corners[0], corners[1]),
+               math.dist(corners[1], corners[2]))
+
+
+def _drum_segments(data, camx, camy):
+    """A drum's circle at its lid, and the two silhouette lines the
+    camera at (camx, camy) sees: the tangents from it to the circle."""
+    cx, cy, r, ztop, zbase = data
+    ring = [(cx + r * math.cos(2.0 * math.pi * k / STEREO_SEGMENTS),
+             cy + r * math.sin(2.0 * math.pi * k / STEREO_SEGMENTS))
+            for k in range(STEREO_SEGMENTS)]
+    segs = []
+    for k in range(STEREO_SEGMENTS):
+        (x0, y0), (x1, y1) = ring[k], ring[(k + 1) % STEREO_SEGMENTS]
+        segs.append((x0, y0, ztop, x1, y1, ztop))
+    dx, dy = cx - camx, cy - camy
+    reach = math.hypot(dx, dy)
+    if reach > r:
+        spread = math.acos(r / reach)
+        base = math.atan2(dy, dx)
+        for t in (base + spread, base - spread):
+            gx, gy = cx + r * math.cos(t), cy + r * math.sin(t)
+            segs.append((gx, gy, ztop, gx, gy, zbase))
+    return segs
+
+
+def _box_fit(pts):
+    """(corners, dev): the least-area box round `pts` over angles in
+    2-degree steps, and the points' mean distance to its boundary over
+    its shorter side - zero when every point sits on a side."""
+    best = None
+    for deg in range(0, 90, 2):
+        a = math.radians(deg)
+        ca, sa = math.cos(a), math.sin(a)
+        us = [p[0] * ca + p[1] * sa for p in pts]
+        vs = [-p[0] * sa + p[1] * ca for p in pts]
+        u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
+        area = (u1 - u0) * (v1 - v0)
+        if best is None or area < best[0]:
+            best = (area, a, u0, u1, v0, v1, us, vs)
+    _area, a, u0, u1, v0, v1, us, vs = best
+    short = max(1e-9, min(u1 - u0, v1 - v0))
+    dev = sum(min(u - u0, u1 - u, v - v0, v1 - v)
+              for u, v in zip(us, vs)) / len(us) / short
+    ca, sa = math.cos(a), math.sin(a)
+    corners = [(u * ca - v * sa, u * sa + v * ca)
+               for u, v in ((u0, v0), (u1, v0), (u1, v1), (u0, v1))]
+    return corners, dev
+
+
+def _circle_fit(pts):
+    """((cx, cy, r), dev): the points' centroid and mean radius, and
+    the radii's spread over the mean."""
+    n = len(pts)
+    cx = sum(p[0] for p in pts) / n
+    cy = sum(p[1] for p in pts) / n
+    rs = [math.hypot(p[0] - cx, p[1] - cy) for p in pts]
+    r = sum(rs) / n
+    dev = math.sqrt(sum((x - r) ** 2 for x in rs) / n) / r if r else 1.0
+    return (cx, cy, r), dev
+
+
+def _collinear(pts):
+    """((ux, uy), (mx, my)) for points on one line - the line's
+    direction and their middle - or None."""
+    n = len(pts)
+    mx = sum(p[0] for p in pts) / n
+    my = sum(p[1] for p in pts) / n
+    sxx = sum((p[0] - mx) ** 2 for p in pts)
+    syy = sum((p[1] - my) ** 2 for p in pts)
+    sxy = sum((p[0] - mx) * (p[1] - my) for p in pts)
+    trace, det = sxx + syy, sxx * syy - sxy * sxy
+    disc = math.sqrt(max(0.0, trace * trace / 4.0 - det))
+    big, small = trace / 2.0 + disc, trace / 2.0 - disc
+    if big <= 0.0 or small > 1e-6 * big:
+        return None
+    ang = 0.5 * math.atan2(2.0 * sxy, sxx - syy)
+    return (math.cos(ang), math.sin(ang)), (mx, my)
+
+
 def _trace(x0, y0, w0, x1, y1, w1, dot):
     """`dot(fx, fy, w)` wherever the segment crosses one of the braille
     matrix's own lines: the sub-columns at half-cell pitch when it runs
@@ -2052,34 +2317,27 @@ def _steady(grid, tone, width, height, persist):
     persist['steady'] = frames
 
 
-def _outline(grid, tone, buf, cam, m, colour, heat=None, snap=None):
-    """The wireframe overlay: every loop wide enough to read, as dotted
-    lines in the cells' 2x4 braille matrix, hidden where the solid
-    stands in front - OUTLINE_GRACE keeps an edge from losing to the
+def _outline(grid, tone, buf, cam, m, colour, heat=None):
+    """The wireframe overlay: every part wide enough to read, as the
+    primitive its loops fit (`_stereotypes` - a block, a drum, an arch),
+    in dotted lines on the cells' 2x4 braille matrix, hidden where the
+    solid stands in front - the grace keeps an edge from losing to the
     face it borders. `heat` is the glow pass's per-cell heat, which the
-    line lifts by OUTLINE_LIFT. `snap` is the solid the face was
-    rastered from: the lines are drawn through ITS vertices
-    (`_snapped`), so line and face agree. Cells drawn, for the caller
-    that counts."""
-    solid, loops = _outline_source()
-    pts = solid[0] if snap is None else _snapped(snap)
+    line lifts by OUTLINE_LIFT. Cells drawn, for the caller that
+    counts."""
+    prims = _stereotypes()
     width, height = cam['width'], cam['height']
     scale, cx, cy, distance = cam['scale'], cam['cx'], cam['cy'], cam['distance']
     min_extent = OUTLINE_CELLS / (scale / distance)
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
-    seen = {}
+    n_cells = width * height
     masks = {}
 
-    def project(v):
-        got = seen.get(v)
-        if got is None:
-            x, y, z = pts[3 * v], pts[3 * v + 1], pts[3 * v + 2]
-            tz = m6 * x + m7 * y + m8 * z
-            w = 1.0 / (distance - tz)
-            got = seen[v] = (cx + scale * w * (m0 * x + m1 * y + m2 * z),
-                             cy - scale * 0.5 * w * (m3 * x + m4 * y
-                                                     + m5 * z), w)
-        return got
+    def project(x, y, z):
+        tz = m6 * x + m7 * y + m8 * z
+        w = 1.0 / (distance - tz)
+        return (cx + scale * w * (m0 * x + m1 * y + m2 * z),
+                cy - scale * 0.5 * w * (m3 * x + m4 * y + m5 * z), w)
 
     def dot(fx, fy, we):
         if fx < 0.0 or fy < 0.0:
@@ -2089,21 +2347,60 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None, snap=None):
             return
         at = py * width + px
         near = buf[at]
-        if near and we > 0.0 and 1.0 / we - 1.0 / near > OUTLINE_GRACE:
-            return                                    # behind the surface
+        if near and we > 0.0:
+            # THE GRACE FOLLOWS THE CELL'S OWN DEPTH SPAN. The buffer
+            # holds a cell's NEAREST sample, and on a face tilted 45
+            # degrees a cell spans 0.02 to 0.04 units of depth at the
+            # bench's framing - past a fixed grace of 0.012 - so a
+            # part's lid edge lost to its own lid's near corner in the
+            # same cell, and the parts' outlines came out as fragments
+            # floating between the parts (the bench, 2026-09-23: "the
+            # edge enhancer makes edges between the objects"). The span
+            # is read off the four neighbours' depths; a back edge
+            # behind a body thicker than a cell's span is still hidden.
+            here = 1.0 / near
+            span = 0.0
+            for j in (at - 1, at + 1, at - width, at + width):
+                if 0 <= j < n_cells and buf[j]:
+                    d = 1.0 / buf[j] - here
+                    if d < 0.0:
+                        d = -d
+                    if d > span:
+                        span = d
+            if 1.0 / we - here > OUTLINE_GRACE + span * OUTLINE_SLOPE:
+                return                                # behind the surface
         col = 1 if fx - px >= 0.5 else 0
         row = min(3, int((fy - py) * 4.0))
         masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
 
-    for extent, members in loops:
+    def segment(x0, y0, z0, x1, y1, z1):
+        sx0, sy0, wa = project(x0, y0, z0)
+        sx1, sy1, wb = project(x1, y1, z1)
+        if max(abs(sx1 - sx0), 2.0 * abs(sy1 - sy0)) < OUTLINE_MIN_EDGE:
+            return                          # sub-pixel detail, see above
+        _trace(sx0, sy0, wa, sx1, sy1, wb, dot)
+
+    # The camera in model space, for the drums' silhouettes: the view's
+    # z axis is m's third row, and the camera sits `distance` along it.
+    camx, camy = distance * m6, distance * m7
+    for kind, extent, data in prims:
         if extent < min_extent:
             continue
-        for a, b in members:
-            x0, y0, wa = project(a)
-            x1, y1, wb = project(b)
-            if max(abs(x1 - x0), 2.0 * abs(y1 - y0)) < OUTLINE_MIN_EDGE:
-                continue                    # sub-pixel detail, see above
-            _trace(x0, y0, wa, x1, y1, wb, dot)
+        if kind == 'drum':
+            segs = _drum_segments(data, camx, camy)
+        elif kind == 'block':
+            segs = data
+        else:
+            # A wall's feature - an arch, a hole - seen edge-on is a
+            # dash: face-on, the screw terminals' openings lay as short
+            # bright strokes along the rim, "junk" on the bench's
+            # screenshot. Skipped where the wall faces the camera by
+            # under STEREO_FACING.
+            segs, (nx, ny) = data
+            if abs(nx * m6 + ny * m7) < STEREO_FACING:
+                continue
+        for s in segs:
+            segment(*s)
     # Strays: a line is a chain of neighbouring cells, so a cell with no
     # drawn neighbour in its eight is a sample that cleared the depth
     # test alone - a grazing edge, a corner half behind a wall - and
@@ -2200,7 +2497,7 @@ def _slab_planes(solid):
     return got
 
 
-def _paint(grid, tone, cells, cam, m, colour, persist, foreign, solid=None):
+def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
     """The face: glow, halftone, rim, outline - in that order, each over
     the last. Out of `render` so that reads as the order of the passes
     rather than as their arguments. NO SURFACE UNDER THE DOTS: a
@@ -2223,7 +2520,7 @@ def _paint(grid, tone, cells, cam, m, colour, persist, foreign, solid=None):
     # OUTLINE_DEG. Measured before any of this: the parts were tone
     # relief alone, a rung's worth, and the board read as one sheet.
     if not foreign:
-        _outline(grid, tone, buf, cam, m, colour, heat=heat, snap=solid)
+        _outline(grid, tone, buf, cam, m, colour, heat=heat)
         _edge(grid, tone, cells, cam, colour, heat=heat)
 
 
@@ -2390,7 +2687,7 @@ def _painted(solid, m, cam, cells, colour, persist, foreign):
     width, height = cam['width'], cam['height']
     grid = [[' '] * width for _ in range(height)]
     tone = [[None] * width for _ in range(height)]
-    _paint(grid, tone, cells, cam, m, colour, persist, foreign, solid=solid)
+    _paint(grid, tone, cells, cam, m, colour, persist, foreign)
     layer = [(r, c, grid[r][c], tone[r][c])
              for r in range(height) for c in range(width)
              if grid[r][c] != ' ']

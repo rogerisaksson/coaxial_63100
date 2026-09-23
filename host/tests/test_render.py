@@ -510,6 +510,180 @@ def test_the_art_stops_at_its_disc(report):
                  str(centre))
 
 
+def test_the_outline_holds_together(report):
+    """The outline's hidden-line grace follows the cell's own depth
+    span, so a lid's edge no longer loses to the lid's near corner in
+    the same cell: at the component side 65 degrees off face-on, the
+    parts' loops drawn alone at 108x44 fall into pieces whose largest
+    is over a hundred cells (163 measured; 45 with the fixed grace).
+    """
+    import re
+    q = _diagonal_pose(65.0)
+    keep = {}
+    real = wireframe._outline
+
+    def hook(grid, tone, buf, cam, m, colour, heat=None):
+        keep['args'] = (buf, cam, m, heat)
+        return 0
+    wireframe._outline = hook
+    try:
+        wireframe.render(q, 108, 44, zoom=1.2672, colour=True, horizon=False,
+                         triad=False, lift=orientation.LIFT,
+                         least=wireframe.CREW_LEAST, persist={})
+    finally:
+        wireframe._outline = real
+    buf, cam, m, heat = keep['args']
+    grid = [[' '] * 108 for _ in range(44)]
+    tone = [[None] * 108 for _ in range(44)]
+    wireframe._outline(grid, tone, buf, cam, m, True, heat=heat)
+    cells = {(r, c) for r in range(44) for c in range(108)
+             if grid[r][c] != ' '}
+    seen, largest = set(), 0
+    for start in cells:
+        if start in seen:
+            continue
+        stack, size = [start], 0
+        seen.add(start)
+        while stack:
+            r, c = stack.pop()
+            size += 1
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    nb = (r + dr, c + dc)
+                    if nb in cells and nb not in seen:
+                        seen.add(nb)
+                        stack.append(nb)
+        largest = max(largest, size)
+    report.check('outline: at 65 degrees the largest connected piece is '
+                 'over a hundred cells', largest >= 100,
+                 '%d cells in the largest piece of %d' % (largest, len(cells)))
+
+
+def _diagonal_pose(off_deg):
+    """The component side `off_deg` off face-on with the normal leaning
+    equally in x and y, searched over two tilts in 5-degree steps."""
+    want = math.cos(math.radians(off_deg))
+    cam = engine.camera(108, 44, 1.5, distance=3.2, zoom=1.2672,
+                        tip=wireframe.CAMERA_TIP, lift=orientation.LIFT)
+    best = None
+    for a in range(0, 360, 5):
+        for b in range(0, 360, 5):
+            q = _qmul((math.sin(math.radians(a) / 2), 0.0, 0.0,
+                       math.cos(math.radians(a) / 2)),
+                      (0.0, math.sin(math.radians(b) / 2), 0.0,
+                       math.cos(math.radians(b) / 2)))
+            m = engine.multiply(cam['view'], orientation.matrix(q))
+            nx, ny, nz = m[2], m[5], m[8]
+            score = (abs(nz - want) + abs(abs(nx) - abs(ny))
+                     + 0.2 * (nx < 0) + 0.2 * (ny > 0))
+            if best is None or score < best[0]:
+                best = (score, q)
+    return best[1]
+
+
+def test_stereotypes(report):
+    """The pre-scan fits each part's loops to the simple geometry it
+    is, once: a box's lid and corners are a block of eight segments; a
+    lone lid of twelve corners on one radius is a drum; a chamfered
+    square's eight corners share a radius too but sit on a box's sides,
+    so it is a block (the CPU came out round once); two end profiles of
+    one width and height facing across are one block; and two loops on
+    one footprint - a rounded part's base ring and lid - are one part.
+    """
+    pos = []
+
+    def vertex(p):
+        pos.extend(p)
+        return len(pos) // 3 - 1
+
+    def ring(points, z):
+        ids = [vertex((x, y, z)) for x, y in points]
+        return [(ids[i], ids[(i + 1) % len(ids)]) for i in range(len(ids))]
+
+    def loop_of(members):
+        return (0.4, members)
+    top, bottom = 0.0, None
+    square = [(-.2, -.2), (.2, -.2), (.2, .2), (-.2, .2)]
+    lo = [vertex((x, y, 0.0)) for x, y in square]
+    hi = [vertex((x, y, 0.1)) for x, y in square]
+    box = [(hi[i], hi[(i + 1) % 4]) for i in range(4)] + [(lo[i], hi[i]) for i in range(4)]
+    prims = wireframe._stereotype_loops(pos, [loop_of(box)], top, bottom)
+    report.check("stereotype: a box's lid and corners are one block of "
+                 "eight segments", [(k, len(d)) for k, _e, d in prims] == [('block', 8)]
+                 and abs(prims[0][1] - 0.4) < 1e-6, str([(k, round(e, 3)) for k, e, d in prims]))
+    circle = [(0.2 * math.cos(2 * math.pi * k / 12), 0.2 * math.sin(2 * math.pi * k / 12))
+              for k in range(12)]
+    prims = wireframe._stereotype_loops(pos, [loop_of(ring(circle, 0.1))], top, bottom)
+    report.check('stereotype: a lone lid of twelve corners on one radius is '
+                 'a drum of that radius',
+                 [k for k, _e, _d in prims] == ['drum']
+                 and abs(prims[0][2][2] - 0.2) < 1e-6
+                 and abs(prims[0][2][3] - 0.1) < 1e-9, str(prims))
+    c = 0.02
+    chamfered = [(-.2 + c, -.2), (.2 - c, -.2), (.2, -.2 + c), (.2, .2 - c),
+                 (.2 - c, .2), (-.2 + c, .2), (-.2, .2 - c), (-.2, -.2 + c)]
+    prims = wireframe._stereotype_loops(pos, [loop_of(ring(chamfered, 0.1))], top, bottom)
+    report.check('stereotype: a chamfered square is a block, not a drum',
+                 [k for k, _e, _d in prims] == ['block'], str(prims))
+    # two end profiles of a rounded extrusion: up, across, down, in the
+    # planes y = -0.1 and y = +0.1
+    arches = []
+    for y in (-0.1, 0.1):
+        ids = [vertex(p) for p in ((-.1, y, 0.0), (-.1, y, .08), (-.05, y, .1),
+                                   (.05, y, .1), (.1, y, .08), (.1, y, 0.0))]
+        arches.append((0.2, [(ids[i], ids[i + 1]) for i in range(5)]))
+    prims = wireframe._stereotype_loops(pos, arches, top, bottom)
+    report.check('stereotype: two end profiles of one width and height, '
+                 'facing across, are one block',
+                 [(k, len(d)) for k, _e, d in prims] == [('block', 8)], str(prims))
+    base = ring([(-.22, -.22), (.22, -.22), (.22, .22), (-.22, .22)], 0.03)
+    lid = ring(square, 0.1)
+    prims = wireframe._stereotype_loops(pos, [loop_of(base), loop_of(lid)], top, bottom)
+    report.check('stereotype: a base ring and a lid on one footprint are '
+                 'one part, one block',
+                 [(k, len(d)) for k, _e, d in prims] == [('block', 8)]
+                 and abs(prims[0][1] - 0.44) < 1e-6, str([(k, round(e, 3)) for k, e, d in prims]))
+    # neighbours whose footprints overlap by a tenth stay two parts
+    other = ring([(.15, -.2), (.55, -.2), (.55, .2), (.15, .2)], 0.1)
+    prims = wireframe._stereotype_loops(pos, [loop_of(lid), loop_of(other)], top, bottom)
+    report.check('stereotype: two lids overlapping by a tenth are two blocks',
+                 [k for k, _e, _d in prims] == ['block', 'block'], str([(k, round(e, 3)) for k, e, d in prims]))
+    # a hole in a wall: a closed loop in the plane y = -0.2 floating
+    # 0.03 over the base, 0.06 wide and 0.03 tall - an oval, not an arch
+    ids = [vertex((x, -0.2, z)) for x, z in ((-.03, .045), (0.0, .03), (.03, .045),
+                                             (.03, .06), (0.0, .06), (-.03, .06))]
+    hole = (0.06, [(ids[i], ids[(i + 1) % 6]) for i in range(6)])
+    prims = wireframe._stereotype_loops(pos, [hole], top, bottom)
+    report.check('stereotype: a closed loop floating in a wall is a hole, '
+                 'an oval of twelve segments in its plane',
+                 [(k, len(d[0])) for k, _e, d in prims] == [('hole', 12)]
+                 and all(abs(s[1] + 0.2) < 1e-9 and abs(s[4] + 0.2) < 1e-9 for s in prims[0][2][0]),
+                 str([(k, round(e, 3)) for k, e, d in prims]))
+    # ...and drawn only where its wall faces the camera: face-on the
+    # wall is edge-on and the oval a dash, so nothing; tilted 60
+    # degrees about x the wall faces the camera and the oval draws.
+    real = wireframe._outline_source
+    wireframe._outline_source = lambda: ((pos, [], []), [hole])
+    wireframe._STEREO.clear()
+    try:
+        cam = engine.camera(40, 12, 1.5, distance=3.2, zoom=6.0)
+        buf = [0.0] * (40 * 12)
+
+        def drawn(m):
+            grid = [[' '] * 40 for _ in range(12)]
+            tone = [[None] * 40 for _ in range(12)]
+            return wireframe._outline(grid, tone, buf, cam, m, False)
+        flat = drawn((1, 0, 0, 0, 1, 0, 0, 0, 1))
+        c, s = math.cos(math.radians(60)), math.sin(math.radians(60))
+        tilted = drawn((1, 0, 0, 0, c, -s, 0, s, c))
+    finally:
+        wireframe._outline_source = real
+        wireframe._STEREO.clear()
+    report.check('stereotype: a hole in a wall draws nothing edge-on and '
+                 'its oval when the wall faces the camera',
+                 flat == 0 and tilted > 0, '%d cells flat, %d tilted' % (flat, tilted))
+
+
 def test_the_decimate_keeps_the_bore(report):
     """The bore's wall is thinner than a grid-48 cell, so clustering
     merged its rings and the see-through came out smaller and shifted
@@ -1134,6 +1308,8 @@ def main():
     test_ink_never_leans_below_the_floor(report)
     test_the_decimate_keeps_the_bore(report)
     test_the_art_stops_at_its_disc(report)
+    test_the_outline_holds_together(report)
+    test_stereotypes(report)
     test_key_light(report)
     test_the_face_is_a_halftone(report)
     test_triad(report)

@@ -169,6 +169,7 @@ def bands(args, step):
     # the strip rather than as a hitch on the first frame.
     step(0.66, 'OUTLINE EDGES')
     wireframe._outline_source()
+    wireframe._stereotypes()
     if args.photo or (args.frames and args.frames <= 4):
         return None
     step(0.70, 'SPAWNING %d PROCESSES' % crew.MAX_WORKERS)
