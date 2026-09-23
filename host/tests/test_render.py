@@ -827,6 +827,67 @@ def test_scroll(report):
                  wireframe._backdrop(60, 20, 3.2, cam['view'], 0.0)
                  != wireframe._backdrop(60, 20, 3.2, cam['view'], 0.25),
                  'the same')
+    # A step is under half a dot row for every rung on screen: measured
+    # 0.105 rows at 108x44 and 150x44, 0.048 at 60x20 (2026-09-23) -
+    # a rung slides rather than jumps.
+    a = wireframe._rungs(static, 0.0)
+    b = wireframe._rungs(static, 1.0 / wireframe.RUNG_STEPS)
+    moved = max(y1 - y0 for (y0, *_), (y1, *_) in zip(a, b)
+                if static['hrow'] <= y0 < 20)
+    report.check('scroll: one step moves a rung on screen under half a '
+                 'dot row', 0.0 < moved < 0.125, '%.3f rows' % moved)
+
+
+def test_fan_lines(report):
+    """A ground line is its supercover - every dot it passes through, a
+    chain of touching dots. Sampled one a dot along the steeper axis it
+    skipped a row in every truncated piece and read as dashes."""
+    lit = set()
+
+    def dot(fx, fy, _depth, _k):
+        lit.add((int(fx * 2.0), int(fy * 4.0)))
+    # from dot (0, 0) to dot (6, 7), crossing six columns and seven
+    # rows, none at a corner: 1 + 6 + 7 dots
+    wireframe._segment(dot, (0.3, 0.1, 1.0), 3.2, 1.9, 2.0, 0)
+    report.check('fan: a segment lights every dot it crosses',
+                 len(lit) == 14, '%d dots' % len(lit))
+    report.check('fan: no dot off the line',
+                 all(0 <= a <= 6 and 0 <= b <= 7 for a, b in lit),
+                 str(sorted(lit)))
+    chained = all(any((a + da, b + db) in lit
+                      for da, db in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+                  for a, b in lit)
+    report.check('fan: every dot touches another along or across',
+                 chained, str(sorted(lit)))
+    lit.clear()
+    wireframe._segment(dot, (0.3, 0.1, 1.0), 0.3, 0.1, 1.0, 0)
+    report.check('fan: a segment of no length is one dot',
+                 lit == {(0, 0)}, str(sorted(lit)))
+
+
+def test_backdrop_cache(report):
+    """The backdrop cache holds BACKDROPS_KEPT steps and then starts
+    over - two window sizes' worth at 96 steps a spacing - so a session
+    that resizes does not keep every size it ever had."""
+    cam = engine.camera(60, 20, 1.5, distance=3.2, zoom=1.0,
+                        tip=wireframe.CAMERA_TIP)
+    kept = wireframe.BACKDROPS_KEPT
+    wireframe.BACKDROPS_KEPT = 4
+    wireframe._BACKDROP.clear()
+    try:
+        for s in range(4):
+            wireframe._backdrop(60, 20, 3.2, cam['view'],
+                                s / wireframe.RUNG_STEPS)
+        full = len(wireframe._BACKDROP)
+        wireframe._backdrop(60, 20, 3.2, cam['view'],
+                            4.0 / wireframe.RUNG_STEPS)
+        after = len(wireframe._BACKDROP)
+    finally:
+        wireframe.BACKDROPS_KEPT = kept
+    report.check('backdrop: the cache fills to the cap', full == 4,
+                 str(full))
+    report.check('backdrop: the step past the cap starts it over',
+                 after == 1, str(after))
 
 
 def test_ladder(report):
@@ -958,6 +1019,8 @@ def main():
     test_the_face_is_held_while_the_pose_holds(report)
     test_the_crew_paints_one_pose_behind(report)
     test_scroll(report)
+    test_fan_lines(report)
+    test_backdrop_cache(report)
     test_ladder(report)
     test_the_alphabet(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

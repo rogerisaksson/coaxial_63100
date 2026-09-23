@@ -4683,6 +4683,47 @@ looking at the estimate alone.
   cell with its lower dot row alone draws that row; the outline's
   loops are the box on top and a box hanging under, neither slab.
   test_render 92, 3173 in all.
+* **The edge keeps the cell's own dots** (2026-09-23, the bench, on
+  the silhouette's sheet: "still looks a little shifted in the pictures
+  you made"). The edge cell was REPLACED by the boundary's dots: a cell
+  holding four of the face's dots and one boundary dot showed the one,
+  so a dark moat a cell wide ran between the bright line and the face,
+  and the line read as standing off the face - shifted. Now the edge's
+  mask is OR'd onto the glyph the cell already wears: the boundary cell
+  stays as full as the face left it and the line's tone is the only
+  change. Rendered fresh at the six dumped poses: the ring on the
+  hole's own dots in 0110 and 0130 with no dark ring between, the
+  steep ones the same rim as before.
+* **The floor's lines are their supercover and the rungs slide**
+  (2026-09-23, the bench: "the perspective lines toward the horizon
+  look jagged and 'static'"). Two faults, both on the raster at
+  108x44. The fan's lines were DASHED: `_segment` sampled each piece
+  one dot along its steeper axis with the count truncated, so a piece
+  1.9 dot rows tall lit two dots and skipped one, and a diagonal
+  stepping a dot column left a gap at the step - 264 pieces a line,
+  a gap in most. Now every piece between the dot-column and dot-row
+  crossings lights the dot its midpoint falls in: the line's
+  supercover, a chain of touching dots - 4 010 dots to 4 512 (twelve
+  percent) in 1 728 to 1 786 cells, the static and its first step cast
+  in 29 to 46 ms once per window size. And the rungs JUMPED: at
+  RUNG_STEPS 24 a rung stood 0.21 s and moved, the near one 0.42 rows
+  (1.7 dot rows) at a time. At 96 the largest move on screen is 0.105
+  rows at 108x44 and at 150x44 (0.048 at 60x20), under half a dot row,
+  every 52 ms. A cold step cost 6.7 ms at 108x44 (9.2 at 150x44), and
+  at 96 steps one falls every 52 ms for a size's first five seconds;
+  `_backdrop` now lays the rungs' cells over the static's settled
+  greys, copying and greying only the cells a rung touches, the rung
+  dots placed inline (3 240 `_ground_dot` calls a step were most of
+  it): 5.0 and 6.9 ms, the output bit-identical to the old over 288
+  steps with the old sampling. The cache holds two sizes' worth of
+  steps (BACKDROPS_KEPT 192) and starts over. In the view's own loop
+  at 108x40 with the crew, 200 frames with the cold steps inside them:
+  compose 34.9 ms mean, 32.1 median, 45.8 at the ninetieth percentile,
+  23.0 ms frame to frame. Held in test_render: a segment from dot
+  (0, 0) to (6, 7) lights 14 touching dots and none off the line, a
+  step moves an on-screen rung by under half a dot row, the cache
+  fills to the cap and the step past it starts over. test_render 99,
+  3180 in all.
 
 ## Ruled Out
 

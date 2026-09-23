@@ -351,8 +351,15 @@ HORIZON_GREY = 128
 #: the fan's.
 RUNG_SPACING = 2.2
 GROUND_SPEED = 0.2
-RUNG_STEPS = 24
+#: Ninety-six steps a spacing: at 24 a rung stood for 0.21 s and
+#: jumped, the near one 1.7 dot rows at a time - "static", the bench
+#: said of the floor (2026-09-23); at 96 it moves every 52 ms by under
+#: half a dot row (0.105 rows measured at 108x44), on the sub-row the
+#: geometry says. A step is built once and kept; two window sizes'
+#: worth, then the cache starts over.
+RUNG_STEPS = 96
 RUNG_FADE = 1.5
+BACKDROPS_KEPT = 2 * RUNG_STEPS
 _BACKDROP_STATIC = {}
 
 
@@ -401,20 +408,42 @@ def _rungs(static, phase):
 def _backdrop(width, height, distance, view, phase=0.0):
     """{cell: (braille mask, grey (r, g, b))} for the ground grid at a
     phase of its scroll: the static horizon and fan, the rungs at the
-    phase's step, greys settled per cell. Cached per size and step."""
+    phase's step, greys settled per cell. Cached per size and step.
+
+    A step is the static's settled cells with the rungs' cells laid
+    over: only the cells a rung touches are copied and greyed again.
+    Copying every static cell and greying the lot cost 6.7 ms a cold
+    step at 108x44 (9.2 at 150x44), and at 96 steps a spacing a cold
+    step falls every 52 ms for the first five seconds of a size."""
     step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
     key = (width, height, step)
     got = _BACKDROP.get(key)
     if got is not None:
         return got
+    if len(_BACKDROP) >= BACKDROPS_KEPT:
+        _BACKDROP.clear()
     static = _BACKDROP_STATIC.get((width, height))
     if static is None:
         static = _ground_static(width, height, distance, view)
+        static['masks'] = _greys(static['cells'], static)
         _BACKDROP_STATIC[(width, height)] = static
-    cells = {at: [m, h, d, n, set(lines), fade]
-             for at, (m, h, d, n, lines, fade) in static['cells'].items()}
+    masks = dict(static['masks'])
+    masks.update(_greys(_rung_cells(static, width, height,
+                                    step / RUNG_STEPS), static))
+    _BACKDROP[key] = masks
+    return masks
+
+
+def _rung_cells(static, width, height, phase):
+    """The cells the rungs at `phase` touch, in _ground_dot's shape,
+    each seeded from the static cell under it - a rung under half its
+    grey stays out of a cell another line already holds, the static's
+    included. The dots are placed here rather than through _ground_dot:
+    3 240 calls a step were most of its cost."""
+    cells = {}
+    under = static['cells']
     hrow = static['hrow']
-    rungs = _rungs(static, step / RUNG_STEPS)
+    rungs = _rungs(static, phase)
     for k, (yc, wc, x0, y0, w0, x1, y1, w1) in enumerate(rungs):
         if wc <= 0.0 or wc > 2.0 or yc < hrow:
             continue
@@ -423,19 +452,42 @@ def _backdrop(width, height, distance, view, phase=0.0):
         if fade < 0.1:
             continue
         depth = 1.0 / wc
+        faint = fade < 0.5
+        line = ('rung', k)
         for half in range(2 * width):
             fx = half / 2.0 + 0.25
             t = (fx - x0) / (x1 - x0)
             if not 0.0 <= t <= 1.0:
                 continue
             fy = y0 + (y1 - y0) * t
-            if fy >= hrow:
-                _ground_dot(cells, width, height, fx, fy, depth,
-                            ('rung', k), fade)
+            if fy < hrow or fy >= height:
+                continue
+            py = int(fy)
+            at = py * width + (half >> 1)
+            cell = cells.get(at)
+            if cell is None:
+                base = under.get(at)
+                if base is None:
+                    cell = cells[at] = [0, False, 0.0, 0, set(), fade]
+                elif faint:
+                    continue
+                else:
+                    cell = cells[at] = [base[0], base[1], base[2], base[3],
+                                        set(base[4]), base[5]]
+            elif faint and cell[4]:
+                continue
+            cell[0] |= BRAILLE_BITS[half & 1][min(3, int((fy - py) * 4.0))]
+            cell[2] += depth
+            cell[3] += 1
+            cell[4].add(line)
+            cell[5] = max(cell[5], fade)
+    return cells
 
-    # The grey per cell: the horizon's own, or the fan's hazed by the
-    # cell's mean depth; either divided by the lines through the cell,
-    # and dimmed by the brightest line's fade.
+
+def _greys(cells, static):
+    """{cell: (mask, grey (r, g, b))}: the horizon's own grey, or the
+    fan's hazed by the cell's mean depth; either divided by the lines
+    through the cell, and dimmed by the brightest line's fade."""
     near_depth = static['near_depth']
     reach = max(1e-9, static['far_depth'] - near_depth)
     masks = {}
@@ -446,7 +498,6 @@ def _backdrop(width, height, distance, view, phase=0.0):
             grey = FAN_GREY * FAN_HAZE ** ((depth / dots - near_depth) / reach)
         grey = int(grey * fade / math.sqrt(len(lines)) + 0.5)
         masks[at] = (mask, (grey, grey, grey))
-    _BACKDROP[key] = masks
     return masks
 
 
@@ -1180,12 +1231,30 @@ def _key_lit(px, py, at, width, height, classes, bare, key, lamp, colf,
 
 
 def _segment(dot, prev, fx, fy, depth, k):
-    """The ground line from `prev` to here, dotted two a column and four
-    a row, its depth interpolated for the buffer."""
+    """The ground line from `prev` to here: EVERY dot it passes through,
+    its depth interpolated for the buffer.
+
+    Sampled one a dot along its steeper axis it came out dashed: each
+    piece's count was truncated, so a piece 1.9 rows tall lit two dots
+    and skipped one, and a diagonal stepping a dot column left a gap at
+    the step - the bench saw the fan as jagged (2026-09-23). The pieces
+    between the dot-column and dot-row crossings each lie inside one
+    dot, so their midpoints are the line's supercover: a chain of
+    touching dots. Twelve percent more ink at 108x44 (4010 dots to
+    4512), cast once per window size."""
     dx, dy, dd = fx - prev[0], fy - prev[1], depth - prev[2]
-    steps = max(1, int(max(2.0 * abs(dx), 4.0 * abs(dy))))
-    for s in range(steps + 1):
-        t = s / steps
+    ts = {0.0, 1.0}
+    if dx:
+        a, b = sorted((prev[0] * 2.0, fx * 2.0))
+        for i in range(math.floor(a) + 1, math.ceil(b)):
+            ts.add((i / 2.0 - prev[0]) / dx)
+    if dy:
+        a, b = sorted((prev[1] * 4.0, fy * 4.0))
+        for i in range(math.floor(a) + 1, math.ceil(b)):
+            ts.add((i / 4.0 - prev[1]) / dy)
+    ts = sorted(ts)
+    for t0, t1 in zip(ts, ts[1:]):
+        t = 0.5 * (t0 + t1)
         dot(prev[0] + dx * t, prev[1] + dy * t, prev[2] + dd * t, k)
 
 
@@ -2255,6 +2324,13 @@ def _edge(grid, tone, cells, cam, colour, heat=None):
             masks[i] = mask
     for at, mask in masks.items():
         r, c = divmod(at, width)
+        # ONTO the cell's own dots, not in their place: the edge dots
+        # alone left a dark moat between the line and the face's
+        # halftone, and the bench read the line as standing off the
+        # face. Lit whole in the edge's tone, the last cell is a rim.
+        was = grid[r][c]
+        if BRAILLE <= ord(was) < BRAILLE + 256:
+            mask |= ord(was) - BRAILLE
         grid[r][c] = chr(BRAILLE + mask)
         if colour:
             tone[r][c] = _edge_tone(heat[at] if heat is not None and heat[at]
