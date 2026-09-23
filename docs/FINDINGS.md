@@ -4582,6 +4582,41 @@ looking at the estimate alone.
   test_render: the one-faced slab has no bottom, and the same slab
   given a bottom face draws both rims with the top still the top.
   test_render 88, 3169 in all.
+* **The outline through the face's own vertices, from the face toward
+  the camera** (2026-09-23, the bench: still an offset between the edge
+  enhancer and the rest of the renderer - in general, not only the
+  centre hole, but clearest there). TWO CAUSES, both measured. (1) Two
+  geometries: the outline traced the exact mesh (OUTLINE_EXACT) while
+  the face rastered the decimate, whose vertices are the means of their
+  grid cells - so a bore's circle framed a polygon inside it by the
+  chord's sagitta, and every part's edge sat where its corners' cells
+  happened to fall. Measured at zoom 3 on grid 64, the ring's nearest
+  dot against the hole's raster edge: +3.1 fine px outside, flat. Now
+  `_snapped` moves the exact mesh's points to the decimate's vertices
+  (a cell's mean lies in its cell, so the decimate's own vertices name
+  their cells and nothing has to come out of the clustering;
+  `mesh.cell_key` is the one rule for both) and the line runs through
+  the face's polygon corners: +0.15 fine px at that zoom. At the
+  view's own zoom the misfit was already under a dot either way (|mean|
+  1.0 -> 1.1 fine px flat, 0.63 -> 0.66 tilted), so the hole was not
+  where the bench saw it. (2) Both faces drawn: with the bottom's loops
+  added the day before, the FAR face's rim showed THROUGH the hole -
+  the bottom's from the front, the top's from behind - the slab's
+  thickness away from the near one, a ghost arc inside the ring
+  (rendered front 25/15 and seen). Physically visible, read as the
+  outline out of place. So each slab loop carries its face, and
+  `_outline` draws the slab's edge and bore from the face toward the
+  camera (the body's z in view depth, m8), both within SLAB_EDGE_ON 0.1
+  of edge-on; parts draw from either side under the depth test as
+  before. Rendered after at the view's framing: front flat, front
+  25/15 and 50/20, back oblique 150/10 - one ring each, on the hole;
+  edge-on the rims on edge. `_outline` 5.9 ms a moving frame at 66x40
+  steady (6.9 with both faces drawn), the first frame 1.4 s for the
+  exact index and the snap, which the attitude page pays behind its
+  boot strip. Held in test_render: the slab's loops know their face and
+  a part's knows none; from above the bottom's rim adds no cell, from
+  below the top's adds none, edge-on the second adds some.
+  test_render 90, 3171 in all.
 
 ## Ruled Out
 

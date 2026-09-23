@@ -299,10 +299,14 @@ def test_outline(report):
                  'extra %s, missing %s' % (sorted(edges - want),
                                            sorted(want - edges)))
     loops = wireframe._outline_loops(solid)
-    shape = sorted((round(e, 3), len(m)) for e, m in loops)
+    shape = sorted((round(e, 3), len(m)) for e, m, _s in loops)
     report.check("outline: the box's lid and corners, its footprint on the "
                  "slab, and the slab's own rim",
                  shape == [(0.4, 4), (0.4, 8), (2.0, 4)], str(shape))
+    report.check("outline: the slab's loops know their face and a part's "
+                 "knows none",
+                 sorted(str(s) for _e, _m, s in loops) == ['None', 'top', 'top'],
+                 str([s for _e, _m, s in loops]))
     report.check('outline: a slab with one face has no bottom to draw',
                  wireframe._slab_bottom(pos, wireframe._slab_top(pos)) is None)
     # The same slab given its bottom face, a millimetre and a half down:
@@ -312,18 +316,48 @@ def test_outline(report):
                                  (1, 1, -.05), (-1, 1, -.05))]
     quad(under[0], under[3], under[2], under[1])          # facing down
     two = (pos, idx, nrm)
-    shape = sorted((round(e, 3), len(m)) for e, m in wireframe._outline_loops(two))
+    twice = wireframe._outline_loops(two)
+    shape = sorted((round(e, 3), len(m)) for e, m, _s in twice)
     report.check("outline: with a bottom face the slab's other rim draws "
                  "too, and the top is still the top",
                  shape == [(0.4, 4), (0.4, 8), (2.0, 4), (2.0, 4)]
                  and abs(wireframe._slab_top(pos)) < 1e-9
-                 and abs(wireframe._slab_bottom(pos, 0.0) + 0.05) < 1e-9,
+                 and abs(wireframe._slab_bottom(pos, 0.0) + 0.05) < 1e-9
+                 and sorted(str(s) for _e, _m, s in twice)
+                 == ['None', 'bottom', 'top', 'top'],
                  str(shape))
+    # Which rim draws follows the camera: the top's from above, the
+    # bottom's from below, both within SLAB_EDGE_ON of edge-on. Counted
+    # against the loops offered: from above the bottom's rim adds no
+    # cell, from below the top's adds none, edge-on the second adds some.
+    def rim_cells(m, sides):
+        cam = engine.camera(60, 20, 1.5, distance=3.2, zoom=1.0)
+        grid = [[' '] * 60 for _ in range(20)]
+        tone = [[None] * 60 for _ in range(20)]
+        real = wireframe._outline_source
+        wireframe._outline_source = lambda: (
+            two, [l for l in twice if l[2] in sides])
+        try:
+            return wireframe._outline(grid, tone, [0.0] * 1200, cam, m, False)
+        finally:
+            wireframe._outline_source = real
+    up, down, edge = ((1, 0, 0, 0, 1, 0, 0, 0, 1), (1, 0, 0, 0, -1, 0, 0, 0, -1),
+                      (1, 0, 0, 0, 0, -1, 0, 1, 0))
+    report.check("outline: from above the top's rim, from below the "
+                 "bottom's, edge-on both",
+                 rim_cells(up, ('top',)) == rim_cells(up, ('top', 'bottom')) > 0
+                 and rim_cells(down, ('bottom',))
+                 == rim_cells(down, ('top', 'bottom')) > 0
+                 and rim_cells(edge, ('top', 'bottom')) > rim_cells(edge, ('top',)),
+                 '%d/%d above, %d/%d below, %d/%d edge-on' % (
+                     rim_cells(up, ('top',)), rim_cells(up, ('top', 'bottom')),
+                     rim_cells(down, ('bottom',)), rim_cells(down, ('top', 'bottom')),
+                     rim_cells(edge, ('top',)), rim_cells(edge, ('top', 'bottom'))))
     del pos[len(both):]
     del idx[-6:]
     del nrm[-6:]
     loops = wireframe._outline_loops(solid)
-    loops = [(e, m) for e, m in loops if len(m) == 8]   # the box alone below
+    loops = [l for l in loops if len(l[1]) == 8]         # the box alone below
     # The size filter: at a camera where 0.4 units is under OUTLINE_CELLS
     # the loop is skipped; where it spans the frame it draws. Same box,
     # two zooms, drawn onto a buffer the box's lid occupies at depth 1.

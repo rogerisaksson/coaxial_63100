@@ -62,6 +62,14 @@ def _faces_ascii(text):
             yield (tuple(vertices), normal)
 
 
+def cell_key(point, step):
+    """The grid cell a point clusters into at `step` units a cell: the
+    one rule for the decimate and for anything that must land where the
+    decimate's vertices did."""
+    return (int(math.floor(point[0] / step)), int(math.floor(point[1] / step)),
+            int(math.floor(point[2] / step)))
+
+
 def _clustered(faces, divisions):
     """(positions, indices, normals) for `faces`, vertices snapped to a grid.
 
@@ -92,9 +100,7 @@ def _clustered(faces, divisions):
     for corners, stated in faces:
         found = []
         for corner in corners:
-            key = (int(math.floor(corner[0] / step)),
-                   int(math.floor(corner[1] / step)),
-                   int(math.floor(corner[2] / step)))
+            key = cell_key(corner, step)
             got = cells.get(key)
             if got is None:
                 got = len(sums)

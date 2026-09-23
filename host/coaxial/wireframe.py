@@ -134,8 +134,72 @@ def _decimated(path, divisions):
     # runaway set - a re-exported STL changing every stamp - clears
     # the lot.
     if len(_MESHES) > MESHES_KEPT:
-        _MESHES.clear()
+        _forget()
     got = _MESHES[stamp] = mesh._clustered(mesh.loaded(path), divisions)
+    _DIVISIONS[id(got)] = (stamp, divisions)
+    return got
+
+
+#: Which decimate a solid is, by identity; per decimate, its vertices'
+#: grid cells (cell -> vertex index), built when first asked; and the
+#: outline source's positions snapped to a decimate - what `_snapped`
+#: needs to put the exact mesh's points where that decimate's vertices
+#: went. Cleared with the meshes.
+_DIVISIONS = {}
+_KEYS = {}
+_SNAPPED = {}
+
+
+def _forget():
+    _MESHES.clear()
+    _DIVISIONS.clear()
+    _KEYS.clear()
+    _SNAPPED.clear()
+
+
+def _snapped(solid):
+    """The outline source's positions moved to where `solid`'s decimate
+    put them: each exact vertex to the mean of its grid cell, the very
+    vertex the face's triangles run between.
+
+    THE LINE AND THE FACE FROM ONE GEOMETRY. The outline traced the
+    exact mesh's creases while the face rastered the decimate, whose
+    vertices are cell means - so a bore's circle in the outline framed
+    a polygon in the face, inside it by the chord's sagitta: measured
+    2026-09-23 at zoom 3 (grid 48) the ring sat 0 to 2 braille dots
+    outside the hole depending on direction, and every part's edge
+    likewise by where its corners' cells fell - the bench saw the edge
+    enhancer offset from the rest of the renderer, clearest at the
+    centre hole. Snapped, the line passes through the face's own
+    polygon corners. The exact solid itself, when `solid` is not a
+    decimate of the same file."""
+    source = _outline_source()[0]
+    which = _DIVISIONS.get(id(solid))
+    if which is None:
+        return source[0]
+    stamp, divisions = which
+    key = (stamp, id(source))
+    got = _SNAPPED.get(key)
+    if got is not None:
+        return got
+    if len(_SNAPPED) > MESHES_KEPT:
+        _SNAPPED.clear()
+    target = solid[0]
+    step = 2.0 / divisions
+    cells = _KEYS.get(stamp)
+    if cells is None:
+        # A cell's mean lies in its cell, so a decimate's vertex names
+        # its own cell: no need to carry the keys out of the clustering.
+        cells = _KEYS[stamp] = {
+            mesh.cell_key(target[i:i + 3], step): i // 3
+            for i in range(0, len(target), 3)}
+    pts = source[0]
+    out = list(pts)
+    for i in range(0, len(pts), 3):
+        at = cells.get(mesh.cell_key(pts[i:i + 3], step))
+        if at is not None:
+            out[i:i + 3] = target[3 * at:3 * at + 3]
+    got = _SNAPPED[key] = out
     return got
 
 
@@ -172,9 +236,10 @@ def _lods(progress=None):
 def _decimate_missing(path, stamp, missing, progress):
     """The absent decimates, built by the crew at once."""
     if len(_MESHES) + len(missing) > MESHES_KEPT:
-        _MESHES.clear()
+        _forget()
     for divisions, solid in crew.decimate(path, missing, progress).items():
         _MESHES[(path, divisions, stamp)] = solid
+        _DIVISIONS[id(solid)] = ((path, divisions, stamp), divisions)
 
 
 #: The coarsest grid a view with a crew draws. Grid 16 is a polygon with
@@ -1655,10 +1720,18 @@ def _outline_loops(solid):
             under.append((a, b))
         elif sink is not None and min(za, zb) < sink:
             below.append((a, b))
-    loops = _loops(parts, pos) + _loops(below, pos)
-    loops += [(extent, members)
-              for extent, members in _loops(level, pos) + _loops(under, pos)
+    # Each loop carries which face of the slab it belongs to - 'top',
+    # 'bottom', or None for a part - so `_outline` can draw the slab's
+    # edge and bore from the face toward the camera only: with both
+    # drawn, the far face's edge showed THROUGH the hole, the thickness
+    # away from the near one, a ghost the bench read as the outline out
+    # of place (2026-09-23).
+    loops = [(extent, members, None)
+             for extent, members in _loops(parts, pos) + _loops(below, pos)]
+    loops += [(extent, members, 'top') for extent, members in _loops(level, pos)
               if extent >= OUTLINE_RIM]
+    loops += [(extent, members, 'bottom')
+              for extent, members in _loops(under, pos) if extent >= OUTLINE_RIM]
 
     # And a loop that is more crease than outline - its edges adding up
     # to over OUTLINE_DENSITY times its width - is a pin field or a
@@ -1676,15 +1749,20 @@ def _outline_loops(solid):
     # What remains is merged along its chains (OUTLINE_CHORD) - after
     # the density gate, which judges the creases as the mesh has them.
     drawn = []
-    for extent, members in loops:
+    for extent, members, side in loops:
         if not sparse(extent, members):
             continue
         merged = []
         for chain in _chains(members):
             kept = _simplify(chain, pos, OUTLINE_CHORD)
             merged.extend(zip(kept, kept[1:]))
-        drawn.append((extent, merged))
+        drawn.append((extent, merged, side))
     return drawn
+
+
+#: How far from edge-on, as the body's z axis' share of the view depth,
+#: both faces' slab loops draw: past it only the face toward the camera.
+SLAB_EDGE_ON = 0.1
 
 
 def _trace(x0, y0, w0, x1, y1, w1, dot):
@@ -1903,15 +1981,17 @@ def _steady(grid, tone, width, height, persist):
     persist['steady'] = frames
 
 
-def _outline(grid, tone, buf, cam, m, colour, heat=None):
+def _outline(grid, tone, buf, cam, m, colour, heat=None, snap=None):
     """The wireframe overlay: every loop wide enough to read, as dotted
     lines in the cells' 2x4 braille matrix, hidden where the solid
     stands in front - OUTLINE_GRACE keeps an edge from losing to the
     face it borders. `heat` is the glow pass's per-cell heat, which the
-    line lifts by OUTLINE_LIFT. Cells drawn, for the caller that
-    counts."""
+    line lifts by OUTLINE_LIFT. `snap` is the solid the face was
+    rastered from: the lines are drawn through ITS vertices
+    (`_snapped`), so line and face agree. Cells drawn, for the caller
+    that counts."""
     solid, loops = _outline_source()
-    pts = solid[0]
+    pts = solid[0] if snap is None else _snapped(snap)
     width, height = cam['width'], cam['height']
     scale, cx, cy, distance = cam['scale'], cam['cx'], cam['cy'], cam['distance']
     min_extent = OUTLINE_CELLS / (scale / distance)
@@ -1944,8 +2024,15 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
         row = min(3, int((fy - py) * 4.0))
         masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
 
-    for extent, members in loops:
+    # The slab's own edges from the face toward the camera: the body's
+    # +z in view depth is m8, positive with the top nearer.
+    facing = m8
+    for extent, members, side in loops:
         if extent < min_extent:
+            continue
+        if side == 'top' and facing < -SLAB_EDGE_ON:
+            continue
+        if side == 'bottom' and facing > SLAB_EDGE_ON:
             continue
         for a, b in members:
             x0, y0, wa = project(a)
@@ -2031,7 +2118,7 @@ def _cells(solid, m, cam, crew, face, foreign):
     return buf, coverage, reached, classes, levels, bare, seed
 
 
-def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
+def _paint(grid, tone, cells, cam, m, colour, persist, foreign, solid=None):
     """The face: glow, halftone, rim, outline - in that order, each over
     the last. Out of `render` so that reads as the order of the passes
     rather than as their arguments. NO SURFACE UNDER THE DOTS: a
@@ -2054,7 +2141,7 @@ def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
     # OUTLINE_DEG. Measured before any of this: the parts were tone
     # relief alone, a rung's worth, and the board read as one sheet.
     if not foreign:
-        _outline(grid, tone, buf, cam, m, colour, heat=heat)
+        _outline(grid, tone, buf, cam, m, colour, heat=heat, snap=solid)
 
 
 def _painted(solid, m, cam, cells, colour, persist, foreign):
@@ -2063,7 +2150,7 @@ def _painted(solid, m, cam, cells, colour, persist, foreign):
     width, height = cam['width'], cam['height']
     grid = [[' '] * width for _ in range(height)]
     tone = [[None] * width for _ in range(height)]
-    _paint(grid, tone, cells, cam, m, colour, persist, foreign)
+    _paint(grid, tone, cells, cam, m, colour, persist, foreign, solid=solid)
     layer = [(r, c, grid[r][c], tone[r][c])
              for r in range(height) for c in range(width)
              if grid[r][c] != ' ']
