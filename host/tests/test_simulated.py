@@ -18,7 +18,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import ansi, ascii3d, desk, raster          # noqa: E402
+from coaxial import ansi, ascii3d, desk          # noqa: E402
+from coaxial.graphics import raster
 from coaxial import orientation, scaling               # noqa: E402
 from coaxial.errors import DeviceStateError            # noqa: E402
 from coaxial import simulated

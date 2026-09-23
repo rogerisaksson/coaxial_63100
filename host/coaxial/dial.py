@@ -35,7 +35,7 @@ from . import angle
 from . import ansi
 from .ascii3d import CELL_ASPECT
 from .scaling import KELVIN_AT_ZERO_C
-from .raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y, table,
+from .graphics.raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y, table,
                      SUBDOT, covered)
 
 #: Dots between the rim and the ring the numbers stand on, and the room

@@ -8,7 +8,7 @@ import functools
 import math
 import os
 
-from .ansi import rgb as _rgb
+from ..ansi import rgb as _rgb
 from .raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N, RUNGS, SHADE
 from .solids import _casters
 

@@ -36,7 +36,7 @@ import math
 from . import ansi
 from .ascii3d import CELL_ASPECT
 from . import braille
-from .raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT, table,
+from .graphics.raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT, table,
                      covered)
 
 #: HOW TALL A CELL ACTUALLY IS, in units of its width - `ascii3d`'s, not

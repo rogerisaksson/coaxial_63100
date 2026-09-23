@@ -313,7 +313,7 @@ def turntable(view, width=52, height=18):
 
 
 def _draw(view, width, height):
-    from coaxial import wireframe
+    from coaxial.graphics import wireframe
 
     return wireframe.render(view['pose'], width, height, zoom=view['zoom'],
                             horizon=False, tip=0.0, lift=0.5,
@@ -466,7 +466,7 @@ def _preload():
     # being run - "partially initialized module ... has no attribute
     # MODEL" on the bench's first start (2026-09-23). Importing the
     # module the other thread imports waits on its lock instead.
-    from coaxial import wireframe, preload
+    from coaxial.graphics import wireframe, preload
     path = wireframe.orientation.MODEL
     ram, disk = preload.room()
     state = {'model': '%s  %.1f mb' % (os.path.basename(path),
@@ -490,7 +490,7 @@ def _preload():
     flags = getattr(subprocess, 'BELOW_NORMAL_PRIORITY_CLASS', 0)
     try:
         child = subprocess.Popen(
-            [sys.executable, '-X', 'utf8', '-m', 'coaxial.preload'],
+            [sys.executable, '-X', 'utf8', '-m', 'coaxial.graphics.preload'],
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
             encoding='utf-8', creationflags=flags)

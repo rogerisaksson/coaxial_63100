@@ -17,7 +17,7 @@ colours it, is the caller's - this draws levels (invariant 10).
 """
 from . import machine
 from .machine import Frame, INK, SOA_OK, TRACK
-from .raster import DOTS_X, DOTS_Y
+from .graphics.raster import DOTS_X, DOTS_Y
 from .thermal_device import THROTTLE_AT
 from . import ansi
 

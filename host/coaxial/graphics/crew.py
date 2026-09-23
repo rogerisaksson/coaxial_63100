@@ -22,7 +22,7 @@ import multiprocessing
 import os
 
 from . import engine
-from .errors import RigError
+from ..errors import RigError
 from . import mesh
 
 class _Worker:

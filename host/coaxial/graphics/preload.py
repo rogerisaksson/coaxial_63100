@@ -42,7 +42,7 @@ def stamp(path):
     path, size and mtime, and the first twelve hex digits of a hash of
     the mesh, solids, creases and stereotype sources - a decimate or a
     fit that changed in the code makes the file stale."""
-    from coaxial import creases, mesh, solids, stereotype
+    from . import creases, mesh, solids, stereotype
     digest = hashlib.sha1()
     for module in (mesh, solids, creases, stereotype):
         with open(module.__file__, 'rb') as source:
@@ -112,7 +112,7 @@ def build(path, progress=None, where=None):
     """Decimate, index and fit `path`, write the pickle atomically, and
     return its size in bytes. `progress(label)` names each step as it
     lands."""
-    from coaxial import creases, solids, stereotype
+    from . import creases, solids, stereotype
     say = progress or (lambda label: None)
     lods = {}
     for _zoom, divisions in solids.LODS:
@@ -159,7 +159,7 @@ def load(path, where=None):
 def main(argv=None):
     """Build the preload for the board's model, a line per step on
     stdout for the front page to print; exit 0 either way."""
-    from coaxial import orientation
+    from .. import orientation
     path = orientation.MODEL
     why = refusal()
     if why is not None:

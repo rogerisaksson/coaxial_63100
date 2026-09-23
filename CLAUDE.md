@@ -229,8 +229,8 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-nine suites, 3271 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (726),
+Twenty-nine suites, 3273 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (728),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
@@ -289,7 +289,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  778 of this tree's 3271 checks are in those nine files.
+  778 of this tree's 3273 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -528,7 +528,8 @@ shtp/ thermal/ filter/ daq/  the other portable cores: the BNO08X transport,
              each host-tested; board_daq.c is the hardware around the last
 boot/        the bootloader's state machine, C11, host-tested; the
              application sits behind it at 0x08020000 (docs/BOOT.md)
-host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
+host/        Python: coaxial/ library (coaxial/graphics/ the renderer),
+             coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
 notebook_examples/  executed notebooks, checked in with the stand-in's
              outputs - root README.md tables them

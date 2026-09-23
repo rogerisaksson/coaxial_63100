@@ -5,7 +5,7 @@ stereotype pre-scan fits its primitives to. The rules and their
 measurements are on the constants; `_outline_source` is the one entry."""
 import math
 
-from . import orientation
+from .. import orientation
 from .solids import _decimated, _parametric, _slab_bottom, _slab_top
 
 

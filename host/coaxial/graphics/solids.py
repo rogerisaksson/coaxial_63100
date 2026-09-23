@@ -8,7 +8,8 @@ and takes the preload's pickle in."""
 import functools
 import os
 
-from . import crew, mesh, orientation
+from . import crew, mesh
+from .. import orientation
 
 
 #: In-memory decimates of the STL, keyed on (path, divisions, mtime):

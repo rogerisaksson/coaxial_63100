@@ -5207,6 +5207,29 @@ looking at the estimate alone.
   render suite 120, the views 222; the structure suite grew to 715 -
   one import, one docstring and one names check per new module.
   3241 in all.
+* **The renderer is a subpackage: `coaxial/graphics/`** (2026-09-23,
+  the bench, on to the loader: "a common with subfolders for graphics,
+  the Kalman filter, and everything else that is needed"). The first
+  subfolder is the one with no history to lose: the nine modules of
+  the split plus `engine`, `mesh`, `crew`, `raster` and `preload` -
+  fourteen - with the face art and the blue-noise mask beside them,
+  moved by `git mv` and repointed by script: inside the package a
+  sibling stays `.` and the library becomes `..`; a library module
+  reaches a moved one through `.graphics`; a tool, a test or the
+  front page through `coaxial.graphics.X`; the front page's child is
+  `python -m coaxial.graphics.preload`. Twenty-five files repointed,
+  one aliased import the regex missed (`from coaxial import crew as
+  crewmod`) caught by the render suite. The preload's stamp hashes
+  the modules by their `__file__`, so the pickle rebuilt once (6.9 MB).
+  What stays in `coaxial/` proper: the views' own instrument drawings
+  - `dial`, `gauges`, `thermalmap`, `braille`, `figures`, `desk`,
+  `ascii3d`, `farm`, `ansi`, `orientation` - each read by a page, and
+  a second move when a page is next touched; `thermal_ident` and
+  `observer` are the Kalman folder's candidates by the same rule.
+  Measured after: the four suites the move touches green (render 120,
+  views 222, simulated 254, structure 717 - a docstring and an import
+  check for the package's `__init__`), the front page's and the
+  attitude view's smokes exit 0. 3244 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

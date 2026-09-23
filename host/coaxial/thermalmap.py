@@ -63,7 +63,7 @@ import shutil
 import sys
 
 from . import ansi
-from .raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N
+from .graphics.raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N
 
 #: Board dimensions, RADII in millimetres: 100 mm across with a 10 mm bore,
 #: confirmed 2026-08-29. `electronics/` is the authority on the rest.

@@ -1,7 +1,7 @@
 """The board's X, Y and Z as a gizmo in the frame's upper right."""
 import math
 
-from .ansi import rgb as _rgb
+from ..ansi import rgb as _rgb
 from .lines import _trace
 from .raster import BRAILLE, BRAILLE_BITS
 

@@ -1,7 +1,7 @@
-"""Generate `coaxial/bluenoise64.bin`, the threshold mask the board's
+"""Generate `coaxial/graphics/bluenoise64.bin`, the threshold mask the board's
 halftone dithers with.
 
-    python tools/bluenoise.py            # writes host/coaxial/bluenoise64.bin
+    python tools/bluenoise.py            # writes host/coaxial/graphics/bluenoise64.bin
 
 Void-and-cluster, Ulichney's method, on a 64 x 64 torus: start from a
 sparse random pattern, relax it by moving the tightest cluster to the
@@ -34,7 +34,7 @@ SIGMA = 1.9
 SEED = 7
 START = SIZE * SIZE // 10
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                   'coaxial', 'bluenoise64.bin')
+                   'coaxial', 'graphics', 'bluenoise64.bin')
 
 
 def ranks(n=SIZE, sigma=SIGMA, seed=SEED):

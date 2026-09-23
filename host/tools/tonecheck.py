@@ -38,7 +38,7 @@ from rich.console import Console
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coaxial import engine, shading, wireframe             # noqa: E402
+from coaxial.graphics import engine, shading, wireframe             # noqa: E402
 import facecheck                                           # noqa: E402
 
 PHOTOS = ('x0y45z0', 'x45y45z45')

@@ -24,7 +24,7 @@ import menu                                                # noqa: E402
 from coaxial import orientation                            # noqa: E402
 from coaxial import dial                                   # noqa: E402
 from coaxial import thermalmap                             # noqa: E402
-from coaxial import wireframe                              # noqa: E402
+from coaxial.graphics import wireframe                              # noqa: E402
 
 
 def timed(fn, seconds=1.0):

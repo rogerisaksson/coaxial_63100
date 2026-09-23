@@ -24,7 +24,7 @@ from rich.panel import Panel                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
 
-from coaxial import engine, shading, wireframe             # noqa: E402
+from coaxial.graphics import engine, shading, wireframe             # noqa: E402
 import facecheck                                           # noqa: E402
 from screen import stage                                   # noqa: E402
 import test_render                                         # noqa: E402

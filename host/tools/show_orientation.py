@@ -156,7 +156,7 @@ def bands(args, step):
     shadow casters' decimation (0.86 s, which used to land on the
     FIRST FRAME after the strip) and the spawn, all reported to the
     boot strip's `step`."""
-    from coaxial import creases, crew, shading, solids, stereotype, wireframe
+    from coaxial.graphics import creases, crew, shading, solids, stereotype, wireframe
     levels = len(solids.LODS)
 
     def landed(done, _total, divisions):

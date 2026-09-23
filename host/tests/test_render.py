@@ -17,10 +17,11 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from coaxial import engine, mesh, orientation, raster        # noqa: E402
+from coaxial import orientation        # noqa: E402
+from coaxial.graphics import engine, mesh, raster
 from coaxial.orientation import _qmul                        # noqa: E402
-from coaxial import wireframe                                # noqa: E402
-from coaxial import creases, ground, lines, shading, solids, stereotype   # noqa: E402
+from coaxial.graphics import wireframe                                # noqa: E402
+from coaxial.graphics import creases, ground, lines, shading, solids, stereotype   # noqa: E402
 
 CUBE_STL = os.path.join(os.path.dirname(os.path.dirname(HERE)),
                         'render', 'models', 'cube.stl')
@@ -845,7 +846,8 @@ def test_the_face_is_a_halftone(report):
     import collections
     import math
 
-    from coaxial import orientation, raster
+    from coaxial import orientation
+    from coaxial.graphics import raster
     w = wireframe
 
     n = shading.NOISE_N
@@ -934,7 +936,7 @@ def test_the_face_is_a_halftone(report):
     # the FACE's cells and not the ground grid's. Measured before, at
     # this pose: 299 of 561 lit cells at one dot, eight glyphs, the face
     # a fifth lit.
-    from coaxial import engine
+    from coaxial.graphics import engine
     q = (-0.0489, 0.0245, -0.0036, 0.9984)
     width, height, zoom = 78, 30, 0.88
     _edges, solid = w._model(zoom, 0)
@@ -1145,7 +1147,7 @@ def test_the_crew_paints_one_pose_behind(report):
     request i at frame i; ahead paints request i-1 from the first turn
     on, and the held picture stands for the frame the lag begins.
     """
-    from coaxial import crew as crewmod
+    from coaxial.graphics import crew as crewmod
 
     rest = (0.05, 0.02, 0.0, 0.998)
     turn = [(0.05 + 0.04 * k, 0.02, 0.01 * k, 0.998) for k in range(1, 5)]
@@ -1265,7 +1267,7 @@ def test_ladder(report):
     rim. Eight dots in a cell is a nine-step ladder in the same space,
     and the phases spend the rest of the block.
     """
-    from coaxial import raster, wireframe
+    from coaxial.graphics import raster, wireframe
 
     rows = raster.SHADE
     report.check('nine rungs, blank to all eight dots', len(rows) == 9,

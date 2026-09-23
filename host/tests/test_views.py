@@ -1303,7 +1303,8 @@ def test_the_flat_drawings_spend_the_block(report):
     and off in a standing pattern, and on a still picture it only made
     the lines a dot fatter here and there.
     """
-    from coaxial import dial, machine, raster
+    from coaxial import dial, machine
+    from coaxial.graphics import raster
 
     of = len(raster.SUBDOT)
     report.check('a dot the shape covers lights',
@@ -2111,7 +2112,8 @@ def test_the_preload_is_the_first_inquiry(report):
     """
     import tempfile
     import readout
-    from coaxial import orientation, preload
+    from coaxial import orientation
+    from coaxial.graphics import preload
     identity = {'origin': 'simulated', 'real': False,
                 'info': {'device': 'stand-in'}, 'parts': []}
     state = {'model': 'board.stl  5.8 mb', 'memory': '41.7 gb free',

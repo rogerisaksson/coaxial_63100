@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coaxial import shading, wireframe                     # noqa: E402
+from coaxial.graphics import shading, wireframe                     # noqa: E402
 import facecheck                                           # noqa: E402
 
 

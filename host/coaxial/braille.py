@@ -23,7 +23,7 @@ the same table indexed `[lane][y]`::
       3       6           2
       7       8           3
 """
-from .raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y
+from .graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y
 
 #: Every cell, indexed by its bit mask. All 256 of them, so a caller that
 #: has computed a mask never has to know the offset.

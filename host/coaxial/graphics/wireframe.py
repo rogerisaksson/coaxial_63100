@@ -35,7 +35,8 @@ import functools
 import math
 import os
 
-from . import ansi, creases, engine, orientation, preload, solids, stereotype
+from . import creases, engine, preload, solids, stereotype
+from .. import ansi, orientation
 from .creases import OUTLINE_EXACT
 from .ground import GROUND_SPEED, _ground
 from .lines import _edge, _outline
