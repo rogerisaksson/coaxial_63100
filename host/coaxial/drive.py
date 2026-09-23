@@ -95,6 +95,22 @@ def _wrapped(radians):
     return (radians + math.pi) % math.tau - math.pi
 
 
+def run_moments(drive, periods, timeout=5.0, poll=0.02):
+    """Arm `drive`'s moments, wait for the count, return them - the board's
+    drive or the stand-in's."""
+    drive.moments_arm(periods)
+    deadline = time.time() + timeout
+    while True:
+        got = drive.moments()
+        if got['done']:
+            return got
+        if time.time() > deadline:
+            raise RigError('%d of %d periods counted in %.1f s - is the '
+                           'sync armed and the timer running? %s'
+                           % (got['n'], periods, timeout, drive.state()))
+        time.sleep(poll)
+
+
 def load_profile(drive, path):
     """A motor profile - a JSON file of `drive` parameters (the record's
     names, SI) and `model` parameters - written through `drive`, the
@@ -213,18 +229,8 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return out
 
     def moments_run(self, periods, timeout=5.0, poll=0.02):
-        """Arm, wait for the count, return the moments."""
-        self.moments_arm(periods)
-        deadline = time.time() + timeout
-        while True:
-            got = self.moments()
-            if got['done']:
-                return got
-            if time.time() > deadline:
-                raise RigError('%d of %d periods counted in %.1f s - is the '
-                               'sync armed and the timer running? %s'
-                               % (got['n'], periods, timeout, self.state()))
-            time.sleep(poll)
+        """Arm, wait for the count, return the moments (`run_moments`)."""
+        return run_moments(self, periods, timeout, poll)
 
     def reload(self):
         """Take the parameters out of the calibration record again."""

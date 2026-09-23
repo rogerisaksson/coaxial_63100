@@ -6,7 +6,7 @@ import random
 import threading
 import time
 
-from ..drive import load_profile
+from ..drive import load_profile, run_moments
 from ..errors import RigError
 from ..motor import BENCH_MOTOR, Motor
 from ..sensorless import HALF_SQRT3, TORQUE_FACTOR
@@ -458,15 +458,7 @@ class SimulatedDrive:
                 'trigger': self._trigger, 'channels': channels}
 
     def moments_run(self, periods, timeout=5.0, poll=0.02):
-        self.moments_arm(periods)
-        deadline = time.time() + timeout
-        while True:
-            got = self.moments()
-            if got['done']:
-                return got
-            if time.time() > deadline:
-                raise RigError('%d of %d periods counted (simulated)' % (got['n'], periods))
-            time.sleep(poll)
+        return run_moments(self, periods, timeout, poll)
 
     def reload(self):
         return True
