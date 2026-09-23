@@ -299,63 +299,40 @@ def test_outline(report):
                  'extra %s, missing %s' % (sorted(edges - want),
                                            sorted(want - edges)))
     loops = wireframe._outline_loops(solid)
-    shape = sorted((round(e, 3), len(m)) for e, m, _s in loops)
-    report.check("outline: the box's lid and corners, its footprint on the "
-                 "slab, and the slab's own rim",
-                 shape == [(0.4, 4), (0.4, 8), (2.0, 4)], str(shape))
-    report.check("outline: the slab's loops know their face and a part's "
-                 "knows none",
-                 sorted(str(s) for _e, _m, s in loops) == ['None', 'top', 'top'],
-                 str([s for _e, _m, s in loops]))
-    report.check('outline: a slab with one face has no bottom to draw',
+    shape = sorted((round(e, 3), len(m)) for e, m in loops)
+    report.check("outline: the box's lid and corners alone - its footprint "
+                 "and the slab's rim are the raster's silhouette, not loops",
+                 shape == [(0.4, 8)], str(shape))
+    report.check('outline: a slab with one face has no bottom',
                  wireframe._slab_bottom(pos, wireframe._slab_top(pos)) is None)
-    # The same slab given its bottom face, a millimetre and a half down:
-    # the bottom's rim is a loop too, for the board seen from behind.
-    both = list(pos)
+    # The same slab given its bottom face, a millimetre and a half down,
+    # and a box hanging under it: the bottom is found and the hanging
+    # box drawn, its lid and corners like the one on top.
+    both, both_idx, both_nrm = list(pos), list(idx), list(nrm)
     under = [vertex(p) for p in ((-1, -1, -.05), (1, -1, -.05),
                                  (1, 1, -.05), (-1, 1, -.05))]
     quad(under[0], under[3], under[2], under[1])          # facing down
+    lo2 = [vertex(p) for p in ((.5, .5, -.05), (.7, .5, -.05),
+                               (.7, .7, -.05), (.5, .7, -.05))]
+    # A tenth tall, not more: the density gate (OUTLINE_DENSITY) takes a
+    # 0.2 box's lid and corners up to 1.2 units of edge, exactly.
+    hi2 = [vertex(p) for p in ((.5, .5, -.1), (.7, .5, -.1),
+                               (.7, .7, -.1), (.5, .7, -.1))]
+    quad(hi2[0], hi2[3], hi2[2], hi2[1])
+    for i in range(4):
+        j = (i + 1) % 4
+        quad(lo2[i], hi2[i], hi2[j], lo2[j])
     two = (pos, idx, nrm)
-    twice = wireframe._outline_loops(two)
-    shape = sorted((round(e, 3), len(m)) for e, m, _s in twice)
-    report.check("outline: with a bottom face the slab's other rim draws "
-                 "too, and the top is still the top",
-                 shape == [(0.4, 4), (0.4, 8), (2.0, 4), (2.0, 4)]
+    shape = sorted((round(e, 3), len(m)) for e, m in wireframe._outline_loops(two))
+    report.check('outline: with a bottom face the top is still the top, the '
+                 'bottom is found, and a box under the slab is a loop too',
+                 shape == [(0.2, 8), (0.4, 8)]
                  and abs(wireframe._slab_top(pos)) < 1e-9
-                 and abs(wireframe._slab_bottom(pos, 0.0) + 0.05) < 1e-9
-                 and sorted(str(s) for _e, _m, s in twice)
-                 == ['None', 'bottom', 'top', 'top'],
+                 and abs(wireframe._slab_bottom(pos, 0.0) + 0.05) < 1e-9,
                  str(shape))
-    # Which rim draws follows the camera: the top's from above, the
-    # bottom's from below, both within SLAB_EDGE_ON of edge-on. Counted
-    # against the loops offered: from above the bottom's rim adds no
-    # cell, from below the top's adds none, edge-on the second adds some.
-    def rim_cells(m, sides):
-        cam = engine.camera(60, 20, 1.5, distance=3.2, zoom=1.0)
-        grid = [[' '] * 60 for _ in range(20)]
-        tone = [[None] * 60 for _ in range(20)]
-        real = wireframe._outline_source
-        wireframe._outline_source = lambda: (
-            two, [l for l in twice if l[2] in sides])
-        try:
-            return wireframe._outline(grid, tone, [0.0] * 1200, cam, m, False)
-        finally:
-            wireframe._outline_source = real
-    up, down, edge = ((1, 0, 0, 0, 1, 0, 0, 0, 1), (1, 0, 0, 0, -1, 0, 0, 0, -1),
-                      (1, 0, 0, 0, 0, -1, 0, 1, 0))
-    report.check("outline: from above the top's rim, from below the "
-                 "bottom's, edge-on both",
-                 rim_cells(up, ('top',)) == rim_cells(up, ('top', 'bottom')) > 0
-                 and rim_cells(down, ('bottom',))
-                 == rim_cells(down, ('top', 'bottom')) > 0
-                 and rim_cells(edge, ('top', 'bottom')) > rim_cells(edge, ('top',)),
-                 '%d/%d above, %d/%d below, %d/%d edge-on' % (
-                     rim_cells(up, ('top',)), rim_cells(up, ('top', 'bottom')),
-                     rim_cells(down, ('bottom',)), rim_cells(down, ('top', 'bottom')),
-                     rim_cells(edge, ('top',)), rim_cells(edge, ('top', 'bottom'))))
     del pos[len(both):]
-    del idx[-6:]
-    del nrm[-6:]
+    del idx[len(both_idx):]
+    del nrm[len(both_nrm):]
     loops = wireframe._outline_loops(solid)
     loops = [l for l in loops if len(l[1]) == 8]         # the box alone below
     # The size filter: at a camera where 0.4 units is under OUTLINE_CELLS
@@ -385,6 +362,61 @@ def test_outline(report):
     report.check('outline: past the cells it draws, in braille dots',
                  n > 0 and len(braille) == n,
                  '%d cells, %d braille' % (n, len(braille)))
+
+
+def test_the_edge_is_the_rasters_silhouette(report):
+    """The slab's edge and its holes are drawn from the coverage the fold
+    reported, dot by dot, so they cannot sit beside what the face
+    drew - the bench saw the mesh's ring beside the raster's hole. On a
+    synthetic coverage: a full rectangle with a 2x2 hole and a one-cell
+    pinhole. The rectangle's perimeter and the hole's four-neighbours
+    get edge dots; the interior, the pinhole's neighbours and the frame's
+    own edge do not.
+    """
+    width, height = 20, 10
+    reached = bytearray(width * height)
+    for r in range(2, 8):
+        for c in range(3, 17):
+            reached[r * width + c] = 0xFF
+    for r, c in ((4, 8), (4, 9), (5, 8), (5, 9)):     # the hole
+        reached[r * width + c] = 0
+    reached[6 * width + 13] = 0                        # the pinhole
+    cam = {'width': width, 'height': height}
+
+    def drawn():
+        grid = [[' '] * width for _ in range(height)]
+        tone = [[None] * width for _ in range(height)]
+        n = wireframe._edge(grid, tone, (None, None, reached), cam, False)
+        return n, {(r, c) for r in range(height) for c in range(width)
+                   if grid[r][c] != ' '}
+    n, cells = drawn()
+    perimeter = {(r, c) for r in range(2, 8) for c in range(3, 17)
+                 if r in (2, 7) or c in (3, 16)}
+    ring = {(3, 8), (3, 9), (6, 8), (6, 9), (4, 7), (5, 7), (4, 10), (5, 10)}
+    report.check("edge: the rectangle's perimeter and the hole's "
+                 "four-neighbours, %d cells" % n,
+                 cells == perimeter | ring and n == len(cells),
+                 'extra %s, missing %s' % (sorted(cells - perimeter - ring),
+                                           sorted((perimeter | ring) - cells)))
+    report.check("edge: the pinhole's neighbours are not edges",
+                 not ({(6, 12), (6, 14), (5, 13), (7, 13)} & cells
+                      - perimeter))
+    # The same rectangle against the frame's left edge: no line there.
+    reached = bytearray(width * height)
+    for r in range(2, 8):
+        for c in range(0, 14):
+            reached[r * width + c] = 0xFF
+    n, cells = drawn()
+    report.check("edge: the frame's own edge is not an edge - a board cut "
+                 "by the frame has no line there",
+                 (3, 0) not in cells and (4, 0) not in cells
+                 and (2, 0) in cells and (7, 0) in cells, sorted(cells)[:6])
+    left = drawn()
+    reached[2 * width + 0] = 0x40 | 0x80                 # only the bottom row of dots
+    n, cells = drawn()
+    report.check('edge: the dots are the coverage\'s own - a cell with '
+                 'its lower row alone draws that row',
+                 (2, 0) in cells and n == left[0], str(n))
 
 
 def test_key_light(report):
@@ -918,6 +950,7 @@ def main():
     test_shade_units(report)
     test_chain(report)
     test_outline(report)
+    test_the_edge_is_the_rasters_silhouette(report)
     test_key_light(report)
     test_the_face_is_a_halftone(report)
     test_triad(report)

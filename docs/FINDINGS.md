@@ -4645,6 +4645,44 @@ looking at the estimate alone.
   Hz cap) - a millisecond for the gaps closed. The chooser's turntable
   rides the same floor. Not changed: the LOD table, so past zoom 3.6
   the 64 decimate takes over as before.
+* **The slab's edge and holes are the raster's own silhouette** (2026-
+  09-23, the bench, after the floor at 48: "still the same error - don't
+  know what you're going on about"). What settled it was the view's
+  own frames: the attitude page run exactly as the chooser runs it, in
+  a 152x48 console on the stand-in, with every fifth frame's art
+  written out and cropped at the bore. Seen from below nearly face-on
+  (frame 0110, m8 -0.85) the ring sat on the left edge of a black hole
+  that went on to the right past it; the ring was where the mesh's
+  bore is, the black was the hole as the decimate draws it - the thin
+  ring of triangles round the bore collapses at 32 AND at 48, the
+  face's hole is wider and elsewhere than the mesh's circle, and no
+  projection of the mesh can sit on it. Three moves of the line had
+  missed that: the other face's loops, the snap to the decimate's
+  vertices (right in principle, but the decimate has no vertices where
+  its hole's edge falls), the face toward the camera. So the slab's
+  rim and holes are not loops any more: `_edge` draws the coverage's
+  own boundary, dot by dot, off the fold's `reached` bits - eight
+  256-entry tables (a mask's dots whose in-cell neighbour a way is
+  unset; a neighbour mask's unset dots facing our border) and one
+  flood fill of the empty cells from the frame's border, so the
+  exterior and any hole of EDGE_HOLE_CELLS or more count and a pinhole
+  inside the face does not; the frame's own edge is not an edge.
+  Parts keep their crease loops from the exact mesh, snapped
+  (`_outline_loops` is parts standing over the top and hanging under
+  the bottom, nothing at either level; `_slab_bottom` stays for the
+  latter). A line taken from the coverage cannot disagree with it.
+  Rendered at the view's six dumped poses with the tree's pass: the
+  ring on the hole from below at 0110 and 0130, the ground showing
+  through it; the rim a clean line in the steep ones. Cost at 66x40,
+  twelve moving frames: `_edge` 4.2 ms a frame (the flood 1.85),
+  `_outline` 4.7 with the slab's loops gone (5.9 with them) - three
+  milliseconds net; the prototype over dots cost 14.7 before the
+  tables. Held in test_render on a synthetic coverage: a rectangle's
+  perimeter and a 2x2 hole's four-neighbours draw, the interior and a
+  pinhole's neighbours do not, the frame's edge draws nothing, and a
+  cell with its lower dot row alone draws that row; the outline's
+  loops are the box on top and a box hanging under, neither slab.
+  test_render 92, 3173 in all.
 
 ## Ruled Out
 

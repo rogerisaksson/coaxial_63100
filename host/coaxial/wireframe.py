@@ -1691,15 +1691,15 @@ def _slab_bottom(pos, top):
 
 def _outline_loops(solid):
     """The loops the outline draws: every part standing OUTLINE_RISE
-    over the measured slab, the slab's own edge - the slab-level crease
-    loops wider than OUTLINE_RIM - and, since 2026-09-23, the same on
-    the slab's OTHER face: its rim and bore at the bottom level, and
-    the parts hanging under it. The depth test in `_outline` picks the
-    face the camera sees (OUTLINE_GRACE is under the slab's thickness).
-    With the top's loops alone the bore's ring vanished as the board
-    turned its back and, just before, sat the thickness away from the
-    hole it framed - the bench saw the ring and the hole out of step
-    through the turn, "as if one lagged the other a frame"."""
+    over the measured slab, and every part hanging OUTLINE_RISE under
+    its bottom face. THE SLAB'S OWN EDGES ARE NOT LOOPS ANY MORE: its
+    rim, its bore and the parts' footprints at slab level were, and the
+    bench saw them beside the hole the raster drew - the decimate loses
+    the thin ring of triangles round a bore, so the face's hole is
+    wider and elsewhere than the mesh's circle, and no projection of
+    the mesh can sit on it. Since 2026-09-23 the slab's edge and holes
+    are the raster's own silhouette (`_edge`), which cannot disagree
+    with the face."""
     pos = solid[0]
     top = _slab_top(pos)
     bottom = _slab_bottom(pos, top)
@@ -1710,33 +1710,18 @@ def _outline_loops(solid):
     # loop whole was tried: a part's footprint shares corners with the
     # copper around it, so the pads joined the part and drew - 11,982
     # edges against 3,123, and the blobs back. Split, a part's lid and
-    # corners are one loop and its footprint on the slab another, drawn
-    # when it is OUTLINE_RIM wide like the rim and the bore; the copper,
-    # pads and holes under that width are nothing to draw.
-    parts, level, below, under = [], [], [], []
+    # corners are one loop; its footprint on the slab is slab level and
+    # not drawn, like the copper, pads and holes there.
+    parts, below = [], []
     for a, b in _features(solid):
         za, zb = pos[3 * a + 2], pos[3 * b + 2]
         if max(za, zb) > gate:
             parts.append((a, b))
-        elif abs(za - top) <= OUTLINE_LEVEL and abs(zb - top) <= OUTLINE_LEVEL:
-            level.append((a, b))
-        elif bottom is not None and abs(za - bottom) <= OUTLINE_LEVEL \
-                and abs(zb - bottom) <= OUTLINE_LEVEL:
-            under.append((a, b))
-        elif sink is not None and min(za, zb) < sink:
+        elif sink is not None and min(za, zb) < sink \
+                and not (abs(za - bottom) <= OUTLINE_LEVEL
+                         and abs(zb - bottom) <= OUTLINE_LEVEL):
             below.append((a, b))
-    # Each loop carries which face of the slab it belongs to - 'top',
-    # 'bottom', or None for a part - so `_outline` can draw the slab's
-    # edge and bore from the face toward the camera only: with both
-    # drawn, the far face's edge showed THROUGH the hole, the thickness
-    # away from the near one, a ghost the bench read as the outline out
-    # of place (2026-09-23).
-    loops = [(extent, members, None)
-             for extent, members in _loops(parts, pos) + _loops(below, pos)]
-    loops += [(extent, members, 'top') for extent, members in _loops(level, pos)
-              if extent >= OUTLINE_RIM]
-    loops += [(extent, members, 'bottom')
-              for extent, members in _loops(under, pos) if extent >= OUTLINE_RIM]
+    loops = _loops(parts, pos) + _loops(below, pos)
 
     # And a loop that is more crease than outline - its edges adding up
     # to over OUTLINE_DENSITY times its width - is a pin field or a
@@ -1754,20 +1739,15 @@ def _outline_loops(solid):
     # What remains is merged along its chains (OUTLINE_CHORD) - after
     # the density gate, which judges the creases as the mesh has them.
     drawn = []
-    for extent, members, side in loops:
+    for extent, members in loops:
         if not sparse(extent, members):
             continue
         merged = []
         for chain in _chains(members):
             kept = _simplify(chain, pos, OUTLINE_CHORD)
             merged.extend(zip(kept, kept[1:]))
-        drawn.append((extent, merged, side))
+        drawn.append((extent, merged))
     return drawn
-
-
-#: How far from edge-on, as the body's z axis' share of the view depth,
-#: both faces' slab loops draw: past it only the face toward the camera.
-SLAB_EDGE_ON = 0.1
 
 
 def _trace(x0, y0, w0, x1, y1, w1, dot):
@@ -2029,15 +2009,8 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None, snap=None):
         row = min(3, int((fy - py) * 4.0))
         masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
 
-    # The slab's own edges from the face toward the camera: the body's
-    # +z in view depth is m8, positive with the top nearer.
-    facing = m8
-    for extent, members, side in loops:
+    for extent, members in loops:
         if extent < min_extent:
-            continue
-        if side == 'top' and facing < -SLAB_EDGE_ON:
-            continue
-        if side == 'bottom' and facing > SLAB_EDGE_ON:
             continue
         for a, b in members:
             x0, y0, wa = project(a)
@@ -2147,6 +2120,146 @@ def _paint(grid, tone, cells, cam, m, colour, persist, foreign, solid=None):
     # relief alone, a rung's worth, and the board read as one sheet.
     if not foreign:
         _outline(grid, tone, buf, cam, m, colour, heat=heat, snap=solid)
+        _edge(grid, tone, cells, cam, colour, heat=heat)
+
+
+#: Fewer empty cells than this inside the face are a pinhole - the
+#: decimate's, or a dot the fold missed - not a hole with an edge.
+EDGE_HOLE_CELLS = 3
+
+
+def _edge_tables():
+    """Per braille mask, one table a direction: the set dots whose
+    in-cell neighbour that way is unset. And per NEIGHBOUR mask, the
+    dots on our border facing one of its unset dots: our lane 0 faces
+    the left cell's lane 1, our row 0 the cell above's row 3."""
+    bits = BRAILLE_BITS
+    left, right, up, down = [0] * 256, [0] * 256, [0] * 256, [0] * 256
+    from_left, from_right = [0] * 256, [0] * 256
+    from_up, from_down = [0] * 256, [0] * 256
+    for mask in range(256):
+        for lane in range(2):
+            for row in range(4):
+                bit = bits[lane][row]
+                if not mask & bit:
+                    continue
+                if lane == 1 and not mask & bits[0][row]:
+                    left[mask] |= bit
+                if lane == 0 and not mask & bits[1][row]:
+                    right[mask] |= bit
+                if row > 0 and not mask & bits[lane][row - 1]:
+                    up[mask] |= bit
+                if row < 3 and not mask & bits[lane][row + 1]:
+                    down[mask] |= bit
+        for row in range(4):
+            if not mask & bits[1][row]:
+                from_left[mask] |= bits[0][row]
+            if not mask & bits[0][row]:
+                from_right[mask] |= bits[1][row]
+        for lane in range(2):
+            if not mask & bits[lane][3]:
+                from_up[mask] |= bits[lane][0]
+            if not mask & bits[lane][0]:
+                from_down[mask] |= bits[lane][3]
+    return left, right, up, down, from_left, from_right, from_up, from_down
+
+
+_EDGE = _edge_tables()
+
+
+def _regions(reached, width, height):
+    """Per cell: 0 covered, 2 empty and joined to the frame's edge or to
+    a hole of EDGE_HOLE_CELLS or more, 3 a pinhole."""
+    n = width * height
+    region = [0 if reached[i] else 1 for i in range(n)]
+
+    def flood(start):
+        comp = [start]
+        region[start] = 2
+        k = 0
+        while k < len(comp):
+            i = comp[k]
+            k += 1
+            r, c = divmod(i, width)
+            for j in ((i - 1) if c else -1, (i + 1) if c < width - 1 else -1,
+                      (i - width) if r else -1, (i + width) if r < height - 1 else -1):
+                if j >= 0 and region[j] == 1:
+                    region[j] = 2
+                    comp.append(j)
+        return comp
+
+    border = (list(range(width)) + list(range(n - width, n))
+              + list(range(0, n, width)) + list(range(width - 1, n, width)))
+    for i in border:
+        if region[i] == 1:
+            flood(i)
+    for i in range(n):
+        if region[i] == 1:
+            comp = flood(i)
+            if len(comp) < EDGE_HOLE_CELLS:
+                for j in comp:
+                    region[j] = 3
+    return region
+
+
+def _edge(grid, tone, cells, cam, colour, heat=None):
+    """The slab's edge and its holes as the RASTER'S OWN SILHOUETTE: the
+    covered dots that border what the fold left empty - the exterior,
+    and any hole of EDGE_HOLE_CELLS empty cells or more - at braille dot
+    resolution, off the fold's `reached` bits and the tables above.
+
+    WHY NOT THE MESH'S LOOPS: the decimate loses the thin ring of
+    triangles round a bore, so the face's hole is wider and elsewhere
+    than the mesh's circle, and the ring projected from the mesh stood
+    beside the hole the raster drew - the bench, 2026-09-23, through
+    three attempts to move the line. A line taken from the coverage
+    cannot disagree with the coverage. The frame's edge is not an edge:
+    a board cut by the frame has no line there. Pinholes inside the
+    face - a dot the fold missed, a triangle the decimate dropped - get
+    none either. Cells drawn."""
+    width, height = cam['width'], cam['height']
+    reached = cells[2]
+    region = _regions(reached, width, height)
+    kept = [x == 2 for x in region]
+    left, right, up, down, from_left, from_right, from_up, from_down = _EDGE
+    full = 0xFF
+    n = width * height
+    masks = {}
+    for i in range(n):
+        bits = reached[i]
+        if not bits:
+            continue
+        r, c = divmod(i, width)
+        near = False
+        for rr in (r - 1, r, r + 1):
+            if 0 <= rr < height:
+                base = rr * width
+                for cc in (c - 1, c, c + 1):
+                    if 0 <= cc < width and kept[base + cc]:
+                        near = True
+                        break
+            if near:
+                break
+        if not near:
+            continue
+        # A pinhole beside us is no edge: seen as full.
+        beside = [full, full, full, full]
+        for k, (ok, j) in enumerate(((c > 0, i - 1), (c < width - 1, i + 1),
+                                     (r > 0, i - width), (r < height - 1, i + width))):
+            if ok and region[j] != 3:
+                beside[k] = reached[j]
+        mask = bits & (left[bits] | right[bits] | up[bits] | down[bits]
+                       | from_left[beside[0]] | from_right[beside[1]]
+                       | from_up[beside[2]] | from_down[beside[3]])
+        if mask:
+            masks[i] = mask
+    for at, mask in masks.items():
+        r, c = divmod(at, width)
+        grid[r][c] = chr(BRAILLE + mask)
+        if colour:
+            tone[r][c] = _edge_tone(heat[at] if heat is not None and heat[at]
+                                    else OUTLINE_BASE)
+    return len(masks)
 
 
 def _painted(solid, m, cam, cells, colour, persist, foreign):
