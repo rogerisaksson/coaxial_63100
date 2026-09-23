@@ -124,18 +124,26 @@ def test_imports(r):
 
 def test_no_cycles(r):
     """No package module imports another that imports it back."""
+    def is_module(dotted):
+        base = os.path.join(HOST, *dotted.split('.'))
+        return os.path.isfile(base + '.py') or os.path.isfile(os.path.join(base, '__init__.py'))
+
     edges = {}
     for path, _, tree in sources():
         if not path.startswith(PACKAGES):
             continue
-        package, _, name = path.replace('\\', '/').partition('/')
-        me = '%s.%s' % (package, name[:-3])
+        me = path.replace('\\', '/')[:-3].replace('/', '.').removesuffix('.__init__')
+        here = me if path.endswith('__init__.py') else me.rpartition('.')[0]
         edges[me] = set()
         for node in tree.body:                # top-level imports only
-            if isinstance(node, ast.ImportFrom) and node.level == 1:
-                edges[me].add('%s.%s' % (package, node.module))
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                edges[me].add(node.module)
+            if isinstance(node, ast.Import):
+                edges[me].update(a.name for a in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                base = here.rsplit('.', node.level - 1)[0] if node.level else ''
+                module = '.'.join(filter(None, (base, node.module)))
+                for alias in node.names:
+                    sub = '%s.%s' % (module, alias.name)
+                    edges[me].add(sub if is_module(sub) else module)
     back = [(a, b) for a, seen in edges.items() for b in seen
             if a in edges.get(b, ())]
     r.check('no module imports one that imports it back at the top',
