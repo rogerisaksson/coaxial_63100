@@ -581,27 +581,12 @@ static float stirred(const thermal_ident_t *id, const float *readings)
   return most;
 }
 
-/* One judged sample: each seated thermometer against the shadow, the scales
-   updated unless the board is still, the innovation and the state judged.
-   True when the scales moved. */
-static bool learn(thermal_ident_t *id, const thermal_power_t *p,
-                  const thermal_sense_t *seen)
+/* The shadow's reading of each thermometer - the NTC, the MCU's and the
+   AFE's dies over their nodes - and its sensitivities to the scales. */
+static void predict(const thermal_ident_t *id, const thermal_power_t *p,
+                    float *predicted, float h[3][THERMAL_IDENT_PARAMS])
 {
-  const float readings[3] = { seen->ntc_c, seen->mcu_c, seen->afe_c };
-  bool moved = false;
-  bool judged = false;
-  float worst = 0.0f;
-
-  /* Each thermometer against the shadow's prediction of it - judged only
-     where the shadow was SEATED on that thermometer's reading, so the
-     innovation is the reading's change over the interval against the
-     model's, and the state's error at the seat is not in it. */
   static const thermal_node_t DIES[2] = { THERMAL_MCU, THERMAL_AFE };
-  float predicted[3];
-  float h[3][THERMAL_IDENT_PARAMS];
-
-  /* A STILL BOARD TEACHES NOTHING. */
-  const bool still = stirred(id, readings) < IDENT_STILL_GAIN * id->noise_k;
 
   predicted[0] = id->shadow.ntc;
   memcpy(h[0], id->s_ntc, sizeof(h[0]));
@@ -616,6 +601,27 @@ static bool learn(thermal_ident_t *id, const thermal_power_t *p,
       h[1 + d][k] = id->s[k][node];
     }
   }
+}
+
+/* One judged sample: each seated thermometer against the shadow, the scales
+   updated unless the board is still, the innovation and the state judged.
+   True when the scales moved. Judged only where the shadow was SEATED on
+   that thermometer's reading, so the innovation is the reading's change
+   over the interval against the model's, not the state's error at the seat. */
+static bool learn(thermal_ident_t *id, const thermal_power_t *p,
+                  const thermal_sense_t *seen)
+{
+  const float readings[3] = { seen->ntc_c, seen->mcu_c, seen->afe_c };
+  bool moved = false;
+  bool judged = false;
+  float worst = 0.0f;
+  float predicted[3];
+  float h[3][THERMAL_IDENT_PARAMS];
+
+  /* A STILL BOARD TEACHES NOTHING. */
+  const bool still = stirred(id, readings) < IDENT_STILL_GAIN * id->noise_k;
+
+  predict(id, p, predicted, h);
   for (int j = 0; j < 3; j++)
   {
     if (isnan(readings[j]) || !id->seated[j])
