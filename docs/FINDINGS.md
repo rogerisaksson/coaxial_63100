@@ -147,6 +147,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   kept out of any cell an area holds (2026-09-23).
 - `env.ps1` dot-sourced into `coaxial_tty.ps1`: its `foreach ($name ...)` was the
   caller's `[ValidateSet] $Name` and failed it; the loop is `$bundle` (2026-09-23).
+- One DC bus connector's screw hole drew as a box, then vanished into the connector
+  (724f950 absorbs nested blocks): the circle test centred on the centroid and 14
+  unevenly spaced points read dev 0.047 (limit 0.03). Least-squares centre: a drum,
+  like the other four; no other primitive moved (2026-09-23).
 
 ## Local model
 

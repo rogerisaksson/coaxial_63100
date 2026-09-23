@@ -428,11 +428,25 @@ def _box_fit(pts):
 
 
 def _circle_fit(pts):
-    """((cx, cy, r), dev): the points' centroid and mean radius, and
-    the radii's spread over the mean."""
+    """((cx, cy, r), dev): the least-squares circle's centre, the mean
+    radius about it, and the radii's spread over the mean. Not the
+    centroid: unevenly spaced points pull it off-centre - a DC bus
+    screw hole read dev 0.047 and was drawn as a box (2026-09-23)."""
     n = len(pts)
-    cx = sum(p[0] for p in pts) / n
-    cy = sum(p[1] for p in pts) / n
+    mx = sum(p[0] for p in pts) / n
+    my = sum(p[1] for p in pts) / n
+    us = [p[0] - mx for p in pts]
+    vs = [p[1] - my for p in pts]
+    suu = sum(u * u for u in us)
+    svv = sum(v * v for v in vs)
+    suv = sum(u * v for u, v in zip(us, vs))
+    ru = 0.5 * sum(u * (u * u + v * v) for u, v in zip(us, vs))
+    rv = 0.5 * sum(v * (u * u + v * v) for u, v in zip(us, vs))
+    det = suu * svv - suv * suv
+    cx, cy = mx, my
+    if det > 1e-18:
+        cx += (ru * svv - rv * suv) / det
+        cy += (rv * suu - ru * suv) / det
     rs = [math.hypot(p[0] - cx, p[1] - cy) for p in pts]
     r = sum(rs) / n
     dev = math.sqrt(sum((x - r) ** 2 for x in rs) / n) / r if r else 1.0
