@@ -366,7 +366,8 @@ def compose(port, picked, view, size=None, who=None):
                      title_align='left', box=box.HEAVY, border_style='frame',
                      padding=(0, 1), expand=True), name='model'),
         Layout(Panel(readout.draw(state, _BROKER.get('identity'), wide - 4,
-                                  below - 2, note=_BROKER.get('said')),
+                                  below - 2, note=_BROKER.get('said'),
+                                  preload=_BROKER.get('preload')),
                      title=Text(' READOUT ', style='name'),
                      title_align='left', box=box.HEAVY, border_style='frame',
                      padding=(0, 1), expand=True), name='readout',
@@ -452,6 +453,55 @@ def _second_question(chosen):
     return (chosen - 101, 0)
 
 
+def _preload():
+    """The preload behind the page, for the readout's first inquiry:
+    the model's pickle taken as it stands when its stamp matches, else
+    built by a child process at low priority - one line per step,
+    printed as they land - or refused in the machine's own words when
+    the room is short (`coaxial.preload`). Off the frame loop."""
+    import subprocess
+    from coaxial import orientation, preload
+    path = orientation.MODEL
+    ram, disk = preload.room()
+    state = {'model': '%s  %.1f mb' % (os.path.basename(path),
+                                        os.path.getsize(path) / 2**20),
+             'memory': 'unknown' if ram is None else '%.1f gb free' % (ram / 2**30),
+             'disk': 'unknown' if disk is None else '%.1f gb free' % (disk / 2**30),
+             'steps': [], 'status': 'checking'}
+    _BROKER['preload'] = state
+    bundle = preload.load(path)
+    if bundle is not None:
+        state['steps'] = ['decimates %d, loops %d, primitives %d' % (
+            len(bundle['lods']), len(bundle['exact'][1]), len(bundle['prims']))]
+        state['status'] = 'ready: %.1f mb on disk' % (
+            os.path.getsize(os.path.join(preload.cache_dir(), preload.FILE)) / 2**20)
+        return
+    why = preload.refusal()
+    if why is not None:
+        state['status'] = why
+        return
+    state['status'] = 'building in the background'
+    flags = getattr(subprocess, 'BELOW_NORMAL_PRIORITY_CLASS', 0)
+    try:
+        child = subprocess.Popen(
+            [sys.executable, '-X', 'utf8', '-m', 'coaxial.preload'],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            encoding='utf-8', creationflags=flags)
+    except OSError as exc:
+        state['status'] = 'not built: %s' % exc
+        return
+    for line in child.stdout:
+        line = line.strip()
+        if line.startswith('written') or line.startswith('skipped'):
+            state['status'] = line
+        elif line:
+            state['steps'] = state['steps'][-3:] + [line]
+    child.wait()
+    if child.returncode:
+        state['status'] = 'not built: the builder exited %d' % child.returncode
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='COM4')
@@ -500,6 +550,9 @@ def main(argv=None):
                          daemon=True).start()
     warm = threading.Thread(target=_warm, daemon=True)
     warm.start()
+    if not args.frames:
+        # The smoke test draws the page, not the pickle: no child.
+        threading.Thread(target=_preload, daemon=True).start()
     if args.frames:
         warm.join()      # the smoke test draws the board, not the wait
         if learn is not None:

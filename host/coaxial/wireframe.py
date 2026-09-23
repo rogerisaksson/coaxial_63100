@@ -28,7 +28,7 @@ import os
 #: and deliberately twice the real slab: a vector drawing honest about a
 #: 1.6 mm laminate reads as a single line, and the two rim rings are what
 #: sells the turn.
-from . import ansi, crew, engine, mesh, orientation        # noqa: E402
+from . import ansi, crew, engine, mesh, orientation, preload   # noqa: E402
 from .ansi import rgb as _rgb                              # noqa: E402
 from .raster import (BRAILLE, BRAILLE_BITS, NOISE, NOISE_N,  # noqa: E402
                      RUNGS, SHADE)
@@ -180,15 +180,37 @@ LODS = ((1.0, 12), (1.5, 16), (2.0, 24), (2.7, 32), (3.6, 48), (None, 64))
 
 def _lods(progress=None):
     """Every level of detail's solid, coarse to fine - what a crew holds,
-    since the zoom picks among them by identity. The ones not yet in
-    memory decimate IN PARALLEL, one process each; `progress(done,
-    total, divisions)` is called as each lands."""
+    since the zoom picks among them by identity. The preload's pickle
+    fills them all when its stamp matches (`coaxial.preload`); the ones
+    not yet in memory decimate IN PARALLEL, one process each;
+    `progress(done, total, divisions)` is called as each lands."""
     path = orientation.MODEL
     stamp = os.path.getmtime(path)
     missing = [d for _z, d in LODS if (path, d, stamp) not in _MESHES]
+    if missing:
+        bundle = preload.load(path)
+        if bundle is not None:
+            _adopt(path, bundle)
+            missing = [d for _z, d in LODS if (path, d, stamp) not in _MESHES]
     if len(missing) > 1:
         _decimate_missing(path, stamp, missing, progress)
     return [_decimated(path, divisions) for _z, divisions in LODS]
+
+
+def _adopt(path, bundle):
+    """The preload's decimates, exact index, loops and stereotypes into
+    this process's caches, under the keys the builders would have used,
+    so every later ask finds them built. Returns what it took."""
+    stamp = os.path.getmtime(path)
+    if len(_MESHES) + len(bundle['lods']) + 1 > MESHES_KEPT:
+        _forget()
+    for divisions, solid in bundle['lods'].items():
+        _MESHES[(path, divisions, stamp)] = solid
+    exact, loops = bundle['exact']
+    _MESHES[(path, OUTLINE_EXACT, stamp)] = exact
+    _OUTLINES[id(exact)] = (exact, loops)
+    _STEREO[id(loops)] = bundle['prims']
+    return len(bundle['lods']), len(loops), len(bundle['prims'])
 
 
 def _decimate_missing(path, stamp, missing, progress):

@@ -713,6 +713,29 @@ def test_stereotypes(report):
                  flat == 0 and tilted > 0, '%d cells flat, %d tilted' % (flat, tilted))
 
 
+def test_the_preload_is_adopted(report):
+    """A preload bundle adopted into the caches is what every later ask
+    finds: the LODs are its solids, the outline source its exact index
+    and loops, the stereotypes its primitives - by identity, nothing
+    rebuilt.
+    """
+    solids = wireframe._lods()
+    exact, loops = wireframe._outline_source()
+    prims = wireframe._stereotypes()
+    bundle = {'lods': {d: s for (_z, d), s in zip(wireframe.LODS, solids)},
+              'exact': (exact, loops), 'prims': prims}
+    wireframe._forget()
+    wireframe._OUTLINES.clear()
+    took = wireframe._adopt(orientation.MODEL, bundle)
+    again = wireframe._lods()
+    report.check('preload: adopted, the LODs, the outline source and the '
+                 'stereotypes are the bundle\'s own objects',
+                 took == (len(wireframe.LODS), len(loops), len(prims))
+                 and all(a is b for a, b in zip(again, solids))
+                 and wireframe._outline_source()[1] is loops
+                 and wireframe._stereotypes() is prims, str(took))
+
+
 def test_the_decimate_keeps_the_bore(report):
     """The bore's wall is thinner than a grid-48 cell, so clustering
     merged its rings and the see-through came out smaller and shifted
@@ -1336,6 +1359,7 @@ def main():
     test_the_edge_is_the_rasters_silhouette(report)
     test_ink_never_leans_below_the_floor(report)
     test_the_decimate_keeps_the_bore(report)
+    test_the_preload_is_adopted(report)
     test_the_art_stops_at_its_disc(report)
     test_the_outline_holds_together(report)
     test_stereotypes(report)

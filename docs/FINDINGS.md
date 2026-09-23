@@ -4962,6 +4962,42 @@ looking at the estimate alone.
   a ring; a nested loop poking out a corner does not turn the block;
   a crest 0.2 wide on a base 0.4 leans all four legs in. test_render
   117, 3198 in all.
+* **The preload: the front page fetches the model behind itself, and
+  the readout's first inquiry says so** (2026-09-23, the bench: "as
+  the first page in READOUT, present what is being loaded in the
+  background - prefetch or preload for rendering and modelling -
+  depending on whether the machine has enough free space"). The
+  chooser starts every view as its own python process, so nothing the
+  front page holds in memory reaches a view; what can is a file.
+  Measured cold, one process: the import 0.27 s, the STL's parse
+  0.66 s (116 880 faces, 5.8 MB), the six decimates 2.87 s - each
+  parsing the file again - the outline's exact index and its loops
+  1.47 s, the stereotypes 0.14 s, the shadow casters 0.46 s; the
+  decimates, the index with its loops and the primitives pickled are
+  6.9 MB and load in 0.09 s. So `coaxial/preload.py`: one pickle
+  under the user's local application data (LOCALAPPDATA, or ~/.cache)
+  - a cache file BESIDE the model was tried before and is not wanted
+  in the tree, and this is not beside it - stamped with the model's
+  path, size and mtime and twelve hex digits of a hash of the mesh and
+  wireframe sources, so a changed decimate or fit makes it stale, and
+  read only when the stamp matches; a torn or foreign file is no
+  preload. Gated on the room: a gigabyte of free memory to build, a
+  hundred megabytes of free disk to keep - measured here 38.7 GB and
+  383 GB - else a refusal in words. The front page starts a child at
+  BELOW_NORMAL priority (`python -m coaxial.preload`) and reads its
+  steps line by line into the readout's first inquiry, PRELOAD: the
+  model and its size, memory and disk free, the last four steps, the
+  status - "ready: 6.9 mb on disk" in 0.11 s when the pickle stands,
+  "written: 6.9 mb" after 5.8 s when the child built it, or the
+  refusal. A view's `_lods` adopts the pickle into its caches under
+  the builders' own keys before decimating anything: the attitude
+  view's three-frame smoke run, crew spawn included, 6.4 s without
+  the pickle and 2.9 s on it. Held in test_views: the first inquiry
+  is PRELOAD carrying the status, a saved bundle loads back on the
+  model's stamp and not on another, the room answers; in
+  test_render: adopted, the LODs, the outline source and the
+  stereotypes are the bundle's own objects. test_views 221,
+  test_render 118, 3206 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

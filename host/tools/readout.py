@@ -118,11 +118,13 @@ def _said(text, width, style='name'):
             or ['']]
 
 
-def pages(identity, width, note=None):
+def pages(identity, width, note=None, preload=None):
     """`[(title, rows)]` - each row a tuple of (style, text) runs, no row
     wider than `width`. With no identity yet, the one page the machine
     has to say - and `note`, a link's refusal in its own words, under
-    it."""
+    it. `preload`, when the front page is fetching the model's
+    decimates behind itself, is the first page: what is being loaded
+    and the room it has (`coaxial.preload`)."""
     def table(pairs):
         cols = _column([label for label, _v in pairs], width)
         rows = []
@@ -130,12 +132,22 @@ def pages(identity, width, note=None):
             rows += _leader(label, value, width, cols)
         return rows
 
+    ahead = []
+    if preload:
+        fetched = [('fetched', line) for line in preload.get('steps', [])]
+        ahead = [('PRELOAD',
+                  _said('> query preload', width)
+                  + table([('model', preload.get('model', '?')),
+                           ('memory', preload.get('memory', 'unknown')),
+                           ('disk', preload.get('disk', 'unknown'))]
+                          + fetched
+                          + [('status', preload.get('status', 'idle'))]))]
     if identity is None:
-        return [('AWAITING LINK',
-                 _said('readout online. ready for inquiry', width)
-                 + _said('> identify unit', width)
-                 + table([('status', 'awaiting link')]
-                         + ([('link said', note)] if note else [])))]
+        return ahead + [('AWAITING LINK',
+                         _said('readout online. ready for inquiry', width)
+                         + _said('> identify unit', width)
+                         + table([('status', 'awaiting link')]
+                                 + ([('link said', note)] if note else [])))]
     info, parts = identity['info'], identity['parts']
     # The origin's label says SIMULATED itself; a real one earns LIVE.
     link = identity['origin'] + (' live' if identity['real'] else '')
@@ -170,7 +182,8 @@ def pages(identity, width, note=None):
                  ('verification', proof),
                  ('record', 'findings: every measurement kept')])
              + _said('end of inquiry. standing by', width))
-    return [('IDENTITY', first), ('FITMENT', fitment), ('PROVENANCE', third)]
+    return ahead + [('IDENTITY', first), ('FITMENT', fitment),
+                    ('PROVENANCE', third)]
 
 
 def inquiries(pages_, rows):
@@ -256,10 +269,10 @@ def frame(state, inquiry, count, now, width):
     return page
 
 
-def draw(state, identity, width, rows, now=None, note=None):
+def draw(state, identity, width, rows, now=None, note=None, preload=None):
     """One frame of the readout for a box `width` cells wide with `rows`
     rows inside it, stepping `state` on the way."""
     now = time.monotonic() if now is None else now
-    cut = inquiries(pages(identity, width, note), max(1, rows - 1))
+    cut = inquiries(pages(identity, width, note, preload), max(1, rows - 1))
     step(state, now, len(cut), cut[state['page'] % len(cut)][1])
     return frame(state, cut[state['page'] % len(cut)], len(cut), now, width)

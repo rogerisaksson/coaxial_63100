@@ -2099,6 +2099,47 @@ def test_the_marquee_decodes_the_art_itself(report):
         stage._slide = slide
 
 
+def test_the_preload_is_the_first_inquiry(report):
+    """The front page fetches the model's decimates behind itself into
+    one pickle under the user's local application data, and the
+    readout's first inquiry says what is being loaded and the room it
+    has. Held here without building anything: a preload state given
+    to the pages comes first and carries its status; a bundle saved to
+    a temporary directory loads back when its stamp is the model's and
+    not when the stamp differs; and the machine's room answers in
+    words or with nothing to refuse.
+    """
+    import tempfile
+    import readout
+    from coaxial import orientation, preload
+    identity = {'origin': 'simulated', 'real': False,
+                'info': {'device': 'stand-in'}, 'parts': []}
+    state = {'model': 'board.stl  5.8 mb', 'memory': '41.7 gb free',
+             'disk': '120.0 gb free', 'steps': ['decimate grid 12: 765 triangles'],
+             'status': 'building in the background'}
+    pages = readout.pages(identity, 54, preload=state)
+    flat = ' '.join(t for _title, rows in pages[:1] for row in rows for _s, t in row)
+    report.check('preload: with a preload afoot the first inquiry is '
+                 'PRELOAD, carrying the status',
+                 pages[0][0] == 'PRELOAD' and 'BUILDING IN THE BACKGROUND' in flat.upper()
+                 and pages[1][0] == 'IDENTITY', str([p[0] for p in pages]))
+    with tempfile.TemporaryDirectory() as where:
+        bundle = {'stamp': preload.stamp(orientation.MODEL), 'lods': {},
+                  'exact': (None, []), 'prims': []}
+        size = preload.save(bundle, where=where)
+        back = preload.load(orientation.MODEL, where=where)
+        bundle['stamp'] = ('elsewhere',) + bundle['stamp'][1:]
+        preload.save(bundle, where=where)
+        stale = preload.load(orientation.MODEL, where=where)
+        why = preload.refusal(where)
+    report.check('preload: a saved bundle loads back on the model\'s stamp '
+                 'and not on another', size > 0 and back is not None
+                 and back['stamp'] == preload.stamp(orientation.MODEL)
+                 and stale is None, '%d bytes, %s, %s' % (size, back is not None, stale))
+    report.check('preload: the room is measured - no refusal, or one in '
+                 'words', why is None or why.startswith('skipped'), str(why))
+
+
 def test_the_readout_prints_what_the_bus_said(report):
     """The front page's lower box: the board's identity and fitment off
     the bus, the host's provenance as host text, typed in, held,
@@ -2222,6 +2263,7 @@ def main():
     test_the_marquee_decodes_the_art_itself(report)
     print('\n-- the front page\'s readout --')
     test_the_readout_prints_what_the_bus_said(report)
+    test_the_preload_is_the_first_inquiry(report)
     print('\n-- the thermal observer\'s headroom --')
     test_the_headroom_box_carries_a_solid_bar_with_a_tip(report)
     test_the_thermal_page_shows_its_evidence(report)
