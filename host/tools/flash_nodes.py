@@ -78,6 +78,9 @@ def main(argv=None):
     parser.add_argument('--port')
     parser.add_argument('--simulated', action='store_true')
     parser.add_argument('--session', type=int, default=1)
+    parser.add_argument('--persist', action='store_true',
+                        help='the store of every node keeps the image, for a power-up with no '
+                             'master; written only where it holds another')
     parser.add_argument('--place', nargs=4, metavar=('UID', 'BUS', 'POSITION', 'TYPE'))
     args = parser.parse_args(argv)
     store = Store(args.store)
@@ -87,7 +90,8 @@ def main(argv=None):
         return 0
     table = store.table(args.bus)
     master = Master(segment_of(args), table, store.images(table),
-                    store.records(args.bus, table), session=args.session)
+                    store.records(args.bus, table), session=args.session,
+                    persist=args.persist)
     states = master.run()
     for unit, state in sorted(states.items()):
         print('unit %d position %d: %s, %s, uid %s' % (

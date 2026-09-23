@@ -117,7 +117,8 @@ store/images/<type>.bin
 store/records/<bus>/<position>.record
 ```
 
-- `tools/flash_nodes.py --store DIR --port COMx --bus LL` runs the master.
+- `tools/flash_nodes.py --store DIR --port COMx --bus LL [--persist]` runs
+  the master; `--persist` has each store keep the image.
   `--place UID BUS POS TYPE` writes a row; `--simulated` uses four stand-in
   nodes.
 - `build_and_flash.py` programs the app's sealed store over SWD (`.store.bin`
