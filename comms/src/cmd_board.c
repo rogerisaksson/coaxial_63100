@@ -28,8 +28,6 @@ static cmd_status_t h_version(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/* A row costs 17 bytes plus its pin and signal names against MB_MAX_PDU's
-   253. */
 static cmd_status_t h_adc_table(rd_t *in, wr_t *out)
 {
   /* Optional start index, so the table is not bounded by one reply: a row is
@@ -106,6 +104,17 @@ static cmd_status_t h_adc_table(rd_t *in, wr_t *out)
   return wr_ok(out) ? CMD_OK : CMD_ERR_LENGTH;
 }
 
+/* The AFE's switch, the break input and how many hold the rail: the tail
+   the scan and the switch both answer with. */
+static void wr_afe(wr_t *out)
+{
+  board_rail_state_t rail;
+
+  wr_u8(out, Board_AfeOn() ? 1U : 0U);
+  wr_u8(out, Board_Pe15() ? 1U : 0U);
+  wr_u8(out, Board_PowerState(BOARD_RAIL_AFE, &rail) ? rail.users : 0U);
+}
+
 static cmd_status_t h_adc_scan(rd_t *in, wr_t *out)
 {
   (void)in;
@@ -138,13 +147,7 @@ static cmd_status_t h_adc_scan(rd_t *in, wr_t *out)
   wr_i32(out, dc_mv);
   wr_i32(out, ntc_raw);
   wr_i32(out, ntc_ok ? ntc_cc : 0);
-  wr_u8(out, Board_AfeOn() ? 1U : 0U);
-  wr_u8(out, Board_Pe15() ? 1U : 0U);
-
-  /* WHO HOLDS IT. */
-  board_rail_state_t rail;
-
-  wr_u8(out, Board_PowerState(BOARD_RAIL_AFE, &rail) ? rail.users : 0U);
+  wr_afe(out);
 
   return CMD_OK;
 }
@@ -226,13 +229,7 @@ static cmd_status_t h_afe(rd_t *in, wr_t *out)
     (void)Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_HOST);
   }
 
-  wr_u8(out, Board_AfeOn() ? 1U : 0U);
-  wr_u8(out, Board_Pe15() ? 1U : 0U);
-
-  /* WHO HOLDS IT. */
-  board_rail_state_t rail;
-
-  wr_u8(out, Board_PowerState(BOARD_RAIL_AFE, &rail) ? rail.users : 0U);
+  wr_afe(out);
 
   return CMD_OK;
 }
