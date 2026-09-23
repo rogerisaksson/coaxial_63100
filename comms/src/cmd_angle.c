@@ -2,23 +2,13 @@
   ******************************************************************************
   * @file    cmd_angle.c
   * @brief   The A1335's operations behind command 0x6E, device 1.
-  *
-  * Counts, never degrees: the low twelve bits of ANG are 360/4096 apiece and
-  * TSEN is eighths of a kelvin, and both scalings belong to the host - the
-  * same rule the ADC channels and the IMU's Q points keep.
   ******************************************************************************
   */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"
 
-/**
-  * @brief op 0 - one register, as sixteen data bits and four CRC bits.
-  *
-  * The CRC is reported, not checked: the datasheet in this tree gives the
-  * field's width and not its polynomial, and a check against a guessed one
-  * would reject good readings.
-  */
+/** op 0 - one register, as sixteen data bits and four CRC bits. */
 static cmd_status_t h_angle_read(rd_t *in, wr_t *out)
 {
   const uint8_t reg = rd_u8(in);
@@ -76,13 +66,7 @@ static cmd_status_t h_angle_write(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 2 - the poll loop's shared record.
-  *
-  * The only way a host sees the stream, and it touches no SPI. `updates` is
-  * monotonic, so a host tells a new reading from the same one read twice
-  * without guessing from the value.
-  */
+/** op 2 - the poll loop's shared record. */
 static cmd_status_t h_angle_latest(rd_t *in, wr_t *out)
 {
   board_angle_state_t st;
@@ -103,8 +87,7 @@ static cmd_status_t h_angle_latest(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/** @brief ops 3 and 4 - stop the poll loop so the part can be configured,
-  * and start it again. Both driving SPI4 is two masters on one bus. */
+/** ops 3 and 4 - stop the poll loop so the part can be configured, */
 static cmd_status_t h_angle_hold(rd_t *in, wr_t *out)
 {
   board_angle_state_t st;
@@ -129,13 +112,7 @@ static cmd_status_t h_angle_resume(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 5 - which register the loop reads, set or asked.
-  *
-  * Settable because the register map came from a reference implementation
-  * rather than from the datasheet in this tree: a better address must not
-  * need a rebuild to try.
-  */
+/** op 5 - which register the loop reads, set or asked. */
 static cmd_status_t h_angle_pollreg(rd_t *in, wr_t *out)
 {
   if ((rd_left(in) > 0U) && !Board_AnglePollReg(rd_u8(in)))
@@ -161,8 +138,8 @@ static cmd_status_t h_angle_clock(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/* Whether the host holds the part's loop - what a register read or
-   write needs. */
+/* Whether the host holds the part's loop - what a register read or write
+   needs. */
 static bool angle_held(void)
 {
   board_angle_state_t st;
@@ -175,8 +152,7 @@ static bool angle_held(void)
 cmd_status_t cmd_angle_op(uint8_t op, rd_t *in, wr_t *out)
 {
   /* Ops that drive SPI4 are refused while the poll loop runs, the same way
-     the IMU's are: hold, configure, resume. Reading the shared record needs
-     no hold, which is the whole point of there being one. */
+     the IMU's are: hold, configure, resume. */
   if (((op == ANGLE_OP_READ) || (op == ANGLE_OP_WRITE)) && !angle_held())
   {
     return CMD_ERR_DEVICE;

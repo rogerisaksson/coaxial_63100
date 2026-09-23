@@ -3,18 +3,6 @@
   * @file    boot.h
   * @brief   The bootloader's state machine: a blank node taking its image and
   *          its record from the master over broadcast, hardware-free.
-  *
-  * Device 11 under 0x6E, served by a node in its bootloader; the running
-  * application serves two of its ops (`state`, `stay`) and refuses the rest
-  * in words. docs/BOOT.md is the design: the flash map, the master's
-  * sequence, why the first flash word is written last.
-  *
-  * Portable C11 like modbus/, daq/ and drive/: the flash, the console and
-  * the identity arrive through `boot_port_t` and `boot_layout_t`, so
-  * `boot/test/harness.c` runs the whole exchange on a RAM image and
-  * host/tests/test_boot_core.py drives it through gcc and ctypes before
-  * any register is touched. One node per process - the bootloader is one
-  * node - so the state is the module's, the way board/ keeps it.
   ******************************************************************************
   */
 #ifndef BOOT_H
@@ -29,9 +17,8 @@
 extern "C" {
 #endif
 
-/** The device under 0x6E, and the unit id a blank node answers to: the
-    last legal one, since 248..255 are reserved and 0 is broadcast. A
-    master reaches every blank node on a segment at once through it. */
+/** The device under 0x6E, and the unit id a blank node answers to: the last
+    legal one, since 248..255 are reserved and 0 is broadcast. */
 #define DEVICE_BOOT          11U
 #define BOOT_UNIT            247U
 
@@ -42,14 +29,14 @@ extern "C" {
 #define BOOT_WORDS_PER_CHUNK (BOOT_CHUNK_BYTES / BOOT_WORD_BYTES)
 #define BOOT_UID_BYTES       12U      /**< the MCU's unique id, 96 bits      */
 #define BOOT_UID_BITS        (BOOT_UID_BYTES * 8U)
-/** The application's largest image, 1792 K, in chunks - and the bitmap
-    that says which have landed. */
+/** The application's largest image, 1792 K, in chunks - and the bitmap that
+    says which have landed. */
 #define BOOT_MAX_CHUNKS      8192U
 #define BOOT_BITMAP_BYTES    (BOOT_MAX_CHUNKS / 8U)
 /** The record is one flash-word-padded struct; this is room for it. */
 #define BOOT_RECORD_MAX      2048U
-/** The header behind the application's vector table, and its magic:
-    'CXAP' as the bytes read in flash. */
+/** The header behind the application's vector table, and its magic: 'CXAP'
+    as the bytes read in flash. */
 #define BOOT_HEADER_OFFSET   0x400U
 #define BOOT_HEADER_MAGIC    0x50415843U
 /** Where a stack pointer must point to be one: DTCM. */
@@ -57,20 +44,16 @@ extern "C" {
 #define BOOT_STACK_BYTES     0x20000U
 
 /** The board types as `erase`, `who` and the header name them: the two
-    inverter types the machine already names. A bootloader is built for
-    one; an image carries its own; they must agree. */
+    inverter types the machine already names. */
 #define BOOT_TYPE_COAXIAL_63100  1U
 #define BOOT_TYPE_COAXIAL_63020  2U
 
 /** assign's flags. */
 #define BOOT_FLAG_TERMINATE  0x01U    /**< the last node on the segment closes the 120 ohm */
 
-/** THE HANDOVER SLOT: the top 32 bytes of DTCM, which both linker
-    scripts place at the same address and neither startup zeroes or
-    copies, so it is exactly what the last image left. The bootloader
-    fills the identity before it jumps; the application writes STAY
-    before it resets itself; a board with no bootloader finds neither
-    magic and is unit 1 as it always was. */
+/** THE HANDOVER SLOT: the top 32 bytes of DTCM, which both linker scripts
+    place at the same address and neither startup zeroes or copies, so it is
+    exactly what the last image left. */
 #define BOOT_HAND_BYTES      32U
 #define BOOT_HAND_MAGIC      0x444E4148U   /**< 'HAND' */
 #define BOOT_STAY_MAGIC      0x59415453U   /**< 'STAY' */
@@ -89,8 +72,8 @@ _Static_assert(sizeof(boot_hand_t) <= BOOT_HAND_BYTES, "the handover slot is 32 
 
 /** The ops, PROTOCOL.md's device 11. */
 #define BOOT_OP_HOLD      0U   /**< u32 session -> none; broadcast: stay in the bootloader */
-#define BOOT_OP_WHO       1U   /**< u8 bits, bytes prefix -> u8 x12 uid, u8 type, u8 state, u8 unit; from every node the prefix fits */
-#define BOOT_OP_ASSIGN    2U   /**< u8 x12 uid, u8 unit, u8 position, u8 flags -> u8 took; from that node only */
+#define BOOT_OP_WHO       1U   /**< u8 bits, bytes prefix -> u8 x12 uid, u8 type, u8 state, u8 unit */
+#define BOOT_OP_ASSIGN    2U   /**< u8 x12 uid, u8 unit, u8 position, u8 flags -> u8 took */
 #define BOOT_OP_ERASE     3U   /**< u8 type, u32 size, u32 crc, u16 chunks -> none; broadcast */
 #define BOOT_OP_CHUNK     4U   /**< u16 index, bytes -> none; broadcast */
 #define BOOT_OP_MISSING   5U   /**< -> u16 first, u16 count, bytes bitmap */
@@ -113,17 +96,15 @@ typedef enum
   BOOT_SEALED   = 5,   /**< the record and the first word programmed */
 } boot_state_t;
 
-/** What a handler answers with: a reply, silence (not this node's
-    question, or a broadcast), or the words are already in `out`. */
+/** What a handler answers with: a reply, silence (not this node's question,
+    or a broadcast), or the words are already in `out`. */
 typedef enum
 {
   BOOT_SILENT = 0,
   BOOT_REPLY  = 1,
 } boot_answer_t;
 
-/** The hardware, as four calls. `erase` clears the sectors covering the
-    range; `program` writes one flash word; `read` gives a pointer to
-    flash; `say` puts one line on the console. */
+/** The hardware, as four calls. */
 typedef struct
 {
   bool (*erase)(void *ctx, uint32_t address, uint32_t bytes);
@@ -146,13 +127,13 @@ typedef struct
 /** The node, from nothing. */
 void boot_init(const boot_port_t *port, void *ctx, const boot_layout_t *layout);
 
-/** One 0x6E PDU for device 11 - `op` and what follows it in `in` -
-    answered into `out`. BOOT_SILENT means nothing goes on the wire. */
+/** One 0x6E PDU for device 11 - `op` and what follows it in `in` - answered
+    into `out`. */
 boot_answer_t boot_op(uint8_t op, rd_t *in, wr_t *out);
 
-/** The four tests of an image: a stack pointer in DTCM, a thumb reset
-    vector in the application, the header's magic and type, the size
-    inside the range. A never-written sector fails the first. */
+/** The four tests of an image: a stack pointer in DTCM, a thumb reset vector
+    in the application, the header's magic and type, the size inside the
+    range. */
 bool boot_app_valid(void);
 
 /** What the hardware layer asks after each frame. */

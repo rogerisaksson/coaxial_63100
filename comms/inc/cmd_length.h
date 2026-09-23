@@ -9,9 +9,8 @@
 
 #include <stdint.h>
 
-/** Full PDU length of the request these bytes begin, or 0 when the bytes
-  * so far cannot prove it. See cmd_length.c for the invariant the answer
-  * lives under - a wrong non-zero here executes a truncated frame. */
+/** Full PDU length of the request these bytes begin, or 0 when the bytes so
+    far cannot prove it. */
 uint16_t cmd_request_length(const uint8_t *pdu, uint16_t have);
 
 #endif

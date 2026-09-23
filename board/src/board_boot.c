@@ -4,20 +4,6 @@
   * @brief   What the application knows about the bootloader it came through:
   *          the header the bootloader validates, the handover slot in DTCM
   *          both images share, and the way back.
-  *
-  * The header sits 0x400 into the image, placed by the linker script and
-  * filled here: the magic, the image's bytes off the linker, this build's
-  * version, this board's type. The size is a linker symbol taken by
-  * address, so the header is right by construction and the build needs
-  * no stamping step (docs/BOOT.md).
-  *
-  * The handover slot is the top 32 bytes of DTCM, which neither image's
-  * startup zeroes or copies: the bootloader leaves the unit, the position
-  * and the flags the master assigned before it jumps, and the application
-  * leaves STAY there before it resets itself, so the master can re-flash a
-  * running node. Without a bootloader - a bench board flashed over SWD and
-  * reset - the slot holds whatever DTCM holds, the magic is not there, and
-  * the node is unit 1 as it always was.
   ******************************************************************************
   */
 #include "board.h"
@@ -26,8 +12,8 @@
 #include "modbus_map.h"
 #include "version.h"
 
-/** How long the reply to `stay` has to leave the wire before the reset:
-    a frame at 115 200 is two milliseconds; this covers any link. */
+/** How long the reply to `stay` has to leave the wire before the reset: a
+    frame at 115 200 is two milliseconds; this covers any link. */
 #define BOOT_STAY_DELAY_MS   50U
 
 /** The MCU's unique id: three words at UID_BASE. */
@@ -52,8 +38,8 @@ const app_header_t app_header =
   BOARD_BOOT_TYPE,
 };
 
-/** The slot both images share, at the top of DTCM: NOLOAD, so it is
-    exactly what the last image left. */
+/** The slot both images share, at the top of DTCM: NOLOAD, so it is exactly
+    what the last image left. */
 __attribute__((section(".boot_hand")))
 boot_hand_t boot_hand;
 

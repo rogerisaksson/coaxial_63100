@@ -3,11 +3,6 @@
   * @file    cmd_imu.c
   * @brief   The BNO08X commands: raw cargo out, and the one request that
   *          proves the link is real.
-  *
-  * Nothing here decides whether a reading is good, and nothing scales one.
-  * The IMU reports fixed-point counts whose Q point belongs to the report id,
-  * and turning them into m/s^2 or radians is the host's job - invariant 10,
-  * the same rule the ADC channels keep.
   ******************************************************************************
   */
 #include <string.h>
@@ -20,15 +15,7 @@
 #define DRAIN_LIMIT     48U    /* op 4's drain: eight was not enough, see below */
 #define WAKE_DEFAULT_MS 200U
 
-/**
-  * @brief op 0 - ask the part what it is.
-  *
-  * Sends a Product ID Request (0xF9) on the SH-2 control channel and reads
-  * until the matching 0xF8 comes back. The part answers other things first -
-  * after reset it advertises on channel 0 and the executable announces itself
-  * on channel 1 (section 5.2.1) - so the read loop skips what it did not ask
-  * for rather than failing on it.
-  */
+/** op 0 - ask the part what it is. */
 static cmd_status_t h_imu_id(rd_t *in, wr_t *out)
 {
   (void)in;      /* the operation byte was the whole request */
@@ -50,17 +37,7 @@ static cmd_status_t h_imu_id(rd_t *in, wr_t *out)
   uint16_t len = 0U;
   shtp_product_id_t id;
 
-  /* Bounded: a part that never answers must not hold the link. Eight reads is
-     the advertisement, the executable's reset message, SH-2's unsolicited
-     initialisation and room to spare.
-
-     WAIT BEFORE EACH ONE. Eight immediate reads take microseconds and the
-     part needs milliseconds to produce the answer, so with the queue already
-     drained - which is the normal state, the poll loop drains it - all eight
-     came back empty and this returned SERVER DEVICE FAILURE on a part that
-     was answering perfectly. Measured from the host: the same request sent
-     by hand and read 15 ms later got f8 04 03 02, the product id response,
-     every time. */
+  /* Bounded: a part that never answers must not hold the link. */
   for (uint8_t tries = 0U; tries < ANSWER_TRIES; tries++)
   {
     (void)Board_ImuWaitReady(IMU_ANSWER_WAIT_MS);
@@ -87,18 +64,11 @@ static cmd_status_t h_imu_id(rd_t *in, wr_t *out)
     }
   }
 
-  /* Reached the part but never got the answer. A device failure, not a bad
-     request: the host asked a well-formed question. */
+  /* Reached the part but never got the answer. */
   return CMD_ERR_DEVICE;
 }
 
-/**
-  * @brief op 1 - one SHTP cargo, exactly as it arrived.
-  *
-  * The channel, then the cargo bytes with no header and no interpretation.
-  * A length of zero means the part had nothing waiting, which is the normal
-  * answer from an IMU nobody has configured yet and is not an error.
-  */
+/** op 1 - one SHTP cargo, exactly as it arrived. */
 static cmd_status_t h_imu_read(rd_t *in, wr_t *out)
 {
   (void)in;      /* the operation byte was the whole request */
@@ -124,14 +94,7 @@ static cmd_status_t h_imu_read(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 2 - enable or disable one sensor report.
-  *
-  * report_id, then the interval in microseconds. Zero disables it, which is
-  * what the Set Feature command means by a period of nothing (Figure 1-33).
-  * The rate the part actually adopts may differ from the one asked for; it
-  * says so in a Get Feature Response, which comes back through imu_read.
-  */
+/** op 2 - enable or disable one sensor report. */
 static cmd_status_t h_imu_feature(rd_t *in, wr_t *out)
 {
   const uint8_t  report_id = rd_u8(in);
@@ -145,8 +108,7 @@ static cmd_status_t h_imu_feature(rd_t *in, wr_t *out)
   }
 
   /* Through the board layer, which remembers it: the part forgets on every
-     reset and the poll re-applies it. Building the payload here as well
-     would be a second answer to what this part is configured to do. */
+     reset and the poll re-applies it. */
   if (!Board_ImuSetFeature(report_id, interval))
   {
     return CMD_ERR_DEVICE;
@@ -155,12 +117,7 @@ static cmd_status_t h_imu_feature(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 3 - the four header bytes, unparsed.
-  *
-  * The bring-up question the parser refuses to answer: FF FF FF FF is a part
-  * absent, unpowered or in reset, and 00 00 00 00 one present and idle.
-  */
+/** op 3 - the four header bytes, unparsed. */
 static cmd_status_t h_imu_probe(rd_t *in, wr_t *out)
 {
   static uint8_t raw[IMU_CARGO];
@@ -194,14 +151,7 @@ static cmd_status_t h_imu_probe(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 4 - pulse NRSTN and take what the part says on the way up.
-  *
-  * The one thing a bring-up cannot do without: a part that has stopped
-  * streaming has no other way back, and re-flashing to get a reset is not a
-  * diagnostic. Answers with how many cargoes the reset produced, which is
-  * the advertisement and the two announcements when it worked.
-  */
+/** op 4 - pulse NRSTN and take what the part says on the way up. */
 static cmd_status_t h_imu_reset(rd_t *in, wr_t *out)
 {
   (void)in;
@@ -215,26 +165,13 @@ static cmd_status_t h_imu_reset(rd_t *in, wr_t *out)
 
   /* Enough to clear the advertisement, which is 276 bytes and arrives as
      several cargoes, plus the reset-complete and unsolicited product id
-     behind it. Eight was not: measured 2026-08-27, a Set Feature sent
-     straight after a reset that had drained eight never took - cargoes
-     climbed and no rotation vector ever arrived - and the same write after
-     the queue had actually emptied took first time. The part is still
-     talking about itself while the write goes out, and a write nobody is
-     listening to changes nothing. */
+     behind it. */
   wr_u8(out, Board_ImuDrain(DRAIN_LIMIT));
 
   return CMD_OK;
 }
 
-/**
-  * @brief op 5 - one cargo, exactly as given, on the channel named.
-  *
-  * The bring-up primitive the parsed operations cannot stand in for. Product
-  * Id cannot tell a write that reached the part from one that did not: the
-  * part sends an unsolicited Product Id Response after every reset, so the
-  * answer is in the queue either way. A Get Feature Request is not - nothing
-  * else makes the part emit a 0xFC - and this is what puts one on the wire.
-  */
+/** op 5 - one cargo, exactly as given, on the channel named. */
 static cmd_status_t h_imu_write(rd_t *in, wr_t *out)
 {
   static uint8_t payload[IMU_CARGO];
@@ -267,14 +204,7 @@ static cmd_status_t h_imu_write(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 6 - drive one of SPI2's pins and read it back.
-  *
-  * What a write that the part never acts on needs next: reads work, chip
-  * select is proven from the inside, so the question is whether anything is
-  * holding SPI2's own pins. Answers per pin, not per bus, because the fault
-  * this looks for is one net.
-  */
+/** op 6 - drive one of SPI2's pins and read it back. */
 static cmd_status_t h_imu_pins(rd_t *in, wr_t *out)
 {
   (void)in;
@@ -290,13 +220,7 @@ static cmd_status_t h_imu_pins(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 7 - does the part answer a wake, and how fast.
-  *
-  * The measurement that separates a write nobody acts on from a write that
-  * never went out. Also reports PS0/WAKE's own readback, so a line the MCU
-  * cannot drive is not mistaken for a part that will not answer.
-  */
+/** op 7 - does the part answer a wake, and how fast. */
 static cmd_status_t h_imu_wake(rd_t *in, wr_t *out)
 {
   const uint16_t ms = (rd_left(in) >= 2U) ? rd_u16(in) : WAKE_DEFAULT_MS;
@@ -305,11 +229,7 @@ static cmd_status_t h_imu_wake(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 8 - the poll loop's shared record. Touches no SPI: a cargo per
-  * request cost 45 ms and caught one frame in eight. `updates` is monotonic,
-  * so the same reading read twice is telling. Counts, not radians.
-  */
+/** op 8 - the poll loop's shared record. Touches no SPI: a cargo per */
 static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
 {
   board_imu_state_t st;
@@ -336,10 +256,8 @@ static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
   }
 
 
-  /* What the part was asked to report, and whether that request still has
-     to be re-made. Appended: a reset throws the feature away and the poll
-     re-applies it, and there was no way to see which side of that it was
-     on - the loop said `running` with `updates` frozen either way. */
+  /* What the part was asked to report, and whether that request still has to
+     be re-made. */
   uint8_t asked_id = 0U;
   uint32_t asked_us = 0U;
   bool asked_pending = false;
@@ -349,18 +267,11 @@ static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
   wr_u32(out, asked_us);
   wr_u8(out, asked_pending ? 1U : 0U);
 
-  /* Appended, like everything here. `error` above is cleared by the next
-     good read, so at 400 reports a second a host polling at 5 Hz sees the
-     counter climb and never learns of what. */
+  /* Appended, like everything here. */
   wr_u8(out, st.last_fault);
   wr_u8(out, st.last_fault_id);
 
-  /* THE THREE VECTORS, appended like everything else here. Each is
-     its own SH-2 report and arrives only if the host asked for it,
-     so each carries its own `have` - zero is a legal reading and a
-     feature that was never enabled must not look like one. The Q
-     points are the part's (accel Q8, gyro Q9, mag Q4) and the
-     scaling is the host's, exactly as the quaternion's is. */
+  /* THE THREE VECTORS, appended like everything else here. */
   wr_u8(out, st.have_accel ? 1U : 0U);
   wr_u8(out, st.accel_status);
   wr_u16(out, (uint16_t)st.accel[0]);
@@ -381,13 +292,7 @@ static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief ops 9 and 10 - stop the poll loop, and start it again.
-  *
-  * Configuring the part while the loop runs is two masters on one SPI bus.
-  * Hold, configure, resume; a resume goes back through init, because the
-  * usual reason to have held it was a reset.
-  */
+/** ops 9 and 10 - stop the poll loop, and start it again. */
 static cmd_status_t h_imu_hold(rd_t *in, wr_t *out)
 {
   board_imu_state_t st;
@@ -414,8 +319,8 @@ static cmd_status_t h_imu_resume(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/* Whether the host holds the part's loop - what everything but a
-   read of the shared record, a hold and a resume needs. */
+/* Whether the host holds the part's loop - what everything but a read of the
+   shared record, a hold and a resume needs. */
 static bool imu_held(void)
 {
   board_imu_state_t st;
@@ -429,9 +334,7 @@ cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out)
 {
   /* Everything below drives SPI2 itself, and the poll loop drives it from
      the main loop: running both is two masters on one bus, and what that
-     looks like is a cargo split between them and a stream that stops. Hold
-     the loop, configure, resume. Reading the shared record needs no hold,
-     which is the whole point of there being one. */
+     looks like is a cargo split between them and a stream that stops. */
   if ((op != IMU_OP_LATEST) && (op != IMU_OP_HOLD) && (op != IMU_OP_RESUME)
       && !imu_held())
   {

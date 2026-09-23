@@ -2,16 +2,6 @@
   ******************************************************************************
   * @file    cmd_drive.c
   * @brief   The control law's operations behind command 0x6E, device 10.
-  *
-  * Integers in the unit that makes them integers: microradians for angles,
-  * milliradians a second for speeds, milliamperes, millivolts, microamperes
-  * and microvolts for the window's means and deviations. The drive holds
-  * floats and the wire never sees one.
-  *
-  * Reports and refusals only. Which mode to enter, which gains to run,
-  * where the sample point sits - all of it arrives from the host; the one
-  * thing the board decides is to drop the stage past a current it was
-  * given (invariant 10, the same exception the thermal ceiling holds).
   ******************************************************************************
   */
 #include "cmd.h"
@@ -71,8 +61,8 @@ static cmd_status_t h_drive_state(wr_t *out)
   wr_u16(out, Board_SyncTrigger());
   wr_u32(out, (uint32_t)lrintf(Board_DriveTs() * 1e9f));
   wr_u16(out, Board_DriveExitTicks());
-  /* The virtual step block by block, raw cycles: the model's sample,
-     the law, the model's advance. Zero on the converters. */
+  /* The virtual step block by block, raw cycles: the model's sample, the
+     law, the model's advance. */
   wr_u32(out, d->cyc_sample);
   wr_u32(out, d->cyc_step);
   wr_u32(out, d->cyc_advance);
@@ -141,9 +131,7 @@ static cmd_status_t h_drive_theta(rd_t *in, wr_t *out)
 
 static void wr_field(wr_t *out, const drive_acc_t *a, float scale)
 {
-  /* Mean and standard deviation in the field's integer unit. The deviation
-     rather than the variance because a variance in microamperes squared
-     overflows anything the wire carries; the host squares it back. */
+  /* Mean and standard deviation in the field's integer unit. */
   wr_u32(out, a->n);
   if (a->n == 0U)
   {
@@ -161,7 +149,7 @@ static void wr_field(wr_t *out, const drive_acc_t *a, float scale)
 
 
 /** op 5 - the window since the last take: means, deviations, and the
-  * innovation's autocorrelation for the whiteness test. Resets. */
+    innovation's autocorrelation for the whiteness test. */
 static cmd_status_t h_drive_window(wr_t *out)
 {
   drive_window_t w;
@@ -210,8 +198,8 @@ static cmd_status_t h_drive_moments_arm(rd_t *in, wr_t *out)
 }
 
 
-/** op 7 - the moments so far: mean, deviation, lowest, highest per
-  * channel, in codes. Done when n reached what was asked. */
+/** op 7 - the moments so far: mean, deviation, lowest, highest per channel,
+    in codes. */
 static cmd_status_t h_drive_moments(wr_t *out)
 {
   drive_moments_t m;
@@ -294,8 +282,7 @@ static cmd_status_t h_drive_model(wr_t *out)
   wr_i32(out, milli_of(d->model.id));
   wr_i32(out, milli_of(d->model.iq));
   wr_i32(out, milli_of(d->model.p.vdc));
-  /* The estimate in the same reply as the truth. Two requests are
-     15 ms apart, and at 440 rad/s that is six radians of rotor. */
+  /* The estimate in the same reply as the truth. */
   wr_i32(out, micro_of(d->theta_hat));
   wr_i32(out, milli_of(d->omega_hat));
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
@@ -320,14 +307,7 @@ static cmd_status_t h_drive_cycles_reset(wr_t *out)
 }
 
 
-/** op 14 - the back-EMF observer chain, drive_observer.c.
-  *
-  * Read-only: it runs beside the loop on the same samples and steers
-  * nothing, so a bench can watch a second answer to the same question
-  * without a shaft sensor. Angles in microradians, speeds in
-  * milliradians a second, the blend and the flux magnitude in
-  * micro-units, like everything else here.
-  */
+/** op 14 - the back-EMF observer chain, drive_observer.c. */
 static cmd_status_t h_drive_observers(wr_t *out)
 {
   const drive_t *d = Board_Drive();
@@ -342,12 +322,12 @@ static cmd_status_t h_drive_observers(wr_t *out)
   wr_i32(out, micro_of(o->flux_only));
   wr_i32(out, milli_of(o->flux_omega));
   wr_i32(out, micro_of(o->lambda_hat));
-  /* What it is against: the loop's own estimate, so the difference is
-     one subtraction on the host and needs no second request. */
+  /* What it is against: the loop's own estimate, so the difference is one
+     subtraction on the host and needs no second request. */
   wr_i32(out, micro_of(d->theta_hat));
   wr_i32(out, milli_of(d->omega_hat));
-  /* And the band it hands over across, so a host reading this needs no
-     copy of the constants. */
+  /* And the band it hands over across, so a host reading this needs no copy
+     of the constants. */
   wr_i32(out, milli_of(o->blend_lo));
   wr_i32(out, milli_of(o->blend_hi));
   wr_i32(out, milli_of(o->wc));

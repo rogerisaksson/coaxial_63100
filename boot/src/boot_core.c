@@ -2,24 +2,6 @@
   ******************************************************************************
   * @file    boot_core.c
   * @brief   Device 11: the bootloader's ops, over a port of four calls.
-  *
-  * The shape of a comms/ command file, so test_structure holds the table
-  * in PROTOCOL.md to these handlers as it holds every device's: one
-  * handler an op, `rd_t` in and `wr_t` out, the refusals in words. What
-  * differs is the answer type - a node that is not the one addressed by
-  * unique id says nothing at all, and a broadcast is never answered.
-  *
-  * THE FIRST FLASH WORD IS WRITTEN LAST. The word that holds the first
-  * eight vectors is kept here in RAM from `erase` until `seal`, so an image
-  * interrupted anywhere leaves it erased and the image invalid: a node is
-  * blank then, not bricked, and the master starts over.
-  *
-  * NOTHING ON THE NODE IS VERSIONED. The master offers an image by its
-  * checksum and a record by its bytes; a node holding exactly that keeps
-  * it and programs nothing, a node holding anything else is overwritten.
-  * An `erase` whose crc is the held image's leaves the image where it is
-  * and the node whole; a `seal` whose record is the one in flash leaves
-  * the sector alone. A boot where nothing changed writes nothing.
   ******************************************************************************
   */
 #include "boot.h"
@@ -28,8 +10,8 @@
 
 /** A chunk's index masks to a byte and a bit of the bitmap. */
 #define BITS_PER_BYTE   8U
-/** The IEEE polynomial, reflected, bit by bit: a table is 1 K the
-    bootloader has no reason to carry for a sum it takes once. */
+/** The IEEE polynomial, reflected, bit by bit: a table is 1 K the bootloader
+    has no reason to carry for a sum it takes once. */
 #define CRC32_POLY      0xEDB88320U
 #define CRC32_INIT      0xFFFFFFFFU
 /** A thumb address is odd. */
@@ -108,8 +90,8 @@ static bool prefix_fits(uint8_t bits, const uint8_t *prefix)
   return ((prefix[whole] ^ s.layout.uid[whole]) & mask) == 0U;
 }
 
-/* CRC over `size` bytes of the image as it will stand: the first word
-   from RAM until it is programmed, the rest from flash. */
+/* CRC over `size` bytes of the image as it will stand: the first word from
+   RAM until it is programmed, the rest from flash. */
 static uint32_t image_crc(uint32_t size)
 {
   uint32_t crc = CRC32_INIT;
@@ -130,8 +112,8 @@ static bool image_held(uint32_t size, uint32_t crc)
          && (image_crc(size) == crc);
 }
 
-/* One flash word of the record as `seal` would program it: the bytes,
-   then 0xFF to the word's end. */
+/* One flash word of the record as `seal` would program it: the bytes, then
+   0xFF to the word's end. */
 static void record_word(uint32_t offset, uint8_t *word)
 {
   const uint32_t have = ((s.record_bytes - offset) < BOOT_WORD_BYTES)
@@ -141,8 +123,8 @@ static void record_word(uint32_t offset, uint8_t *word)
   memcpy(word, &s.record[offset], have);
 }
 
-/* Whether the record's sector already holds every word `seal` would
-   program - then it is not erased and not programmed. */
+/* Whether the record's sector already holds every word `seal` would program
+   - then it is not erased and not programmed. */
 static bool record_held(void)
 {
   uint8_t word[BOOT_WORD_BYTES];
@@ -213,8 +195,8 @@ static boot_answer_t h_boot_assign(rd_t *in, wr_t *out)
   return BOOT_REPLY;
 }
 
-/* The image an erase offers, taken as the node's: held whole already,
-   or erased and waiting for every chunk. The record starts over. */
+/* The image an erase offers, taken as the node's: held whole already, or
+   erased and waiting for every chunk. */
 static void offered(uint32_t size, uint32_t crc, uint16_t chunks, bool held)
 {
   s.size = size;
@@ -250,8 +232,8 @@ static boot_answer_t h_boot_erase(rd_t *in, wr_t *out)
   }
   if (image_held(size, crc))
   {
-    /* The image offered is the one in flash: kept whole, every chunk
-       of the stream a repeat, and verify will say so. */
+    /* The image offered is the one in flash: kept whole, every chunk of the
+       stream a repeat, and verify will say so. */
     offered(size, crc, chunks, true);
     s.port->say(s.ctx, "boot: the image offered is the one held - kept");
     return BOOT_SILENT;
@@ -265,8 +247,8 @@ static boot_answer_t h_boot_erase(rd_t *in, wr_t *out)
   return BOOT_SILENT;
 }
 
-/* One chunk's words programmed in place - the image's first word kept
-   in RAM instead, and the tail of the last chunk clipped to the size. */
+/* One chunk's words programmed in place - the image's first word kept in RAM
+   instead, and the tail of the last chunk clipped to the size. */
 static bool program_chunk(uint16_t index, const uint8_t *data, uint16_t len)
 {
   const uint32_t at = (uint32_t)index * BOOT_CHUNK_BYTES;

@@ -4,9 +4,6 @@
   * @brief   A flat C API over filter/, so test_filter_core.py can run the
   *          real chain on the host through ctypes and compare it against a
   *          reference written in Python.
-  *
-  * Built by the Python suite with the host gcc, never by the firmware build.
-  * Test scaffolding; it must not appear in the root CMakeLists.
   ******************************************************************************
   */
 #include "filter.h"
@@ -47,7 +44,7 @@ API void flt_free(rig_t *r)
 
 
 /** The design as the host holds it: boxcar, decimate, then five floats per
-  * section in b0 b1 b2 a1 a2 order - the order coaxial/bessel.py emits. */
+    section in b0 b1 b2 a1 a2 order - the order coaxial/bessel.py emits. */
 API int flt_design(rig_t *r, uint16_t boxcar, uint16_t decimate,
                    uint8_t sections, const float *coeffs)
 {
@@ -95,10 +92,8 @@ API uint32_t flt_ratio(const rig_t *r)
 }
 
 
-/**
-  * @brief  Push `n` samples and collect whatever came out.
-  * @return how many output samples were written to `out`.
-  */
+/** Push `n` samples and collect whatever came out.
+    @return how many output samples were written to `out`. */
 API uint32_t flt_run(rig_t *r, const int32_t *in, uint32_t n, float *out)
 {
   uint32_t made = 0U;

@@ -10,10 +10,7 @@
 #include "link.h"
 
 
-/* Every pin this board uses for something, reserved ones included. The
-   direction is the MCU's: PB2 drives the AFE switch, PE15 senses it back
-   inverted (HARDWARE.md, Discrete I/O). Kept here rather than in testrig.c
-   so "what is PB10" has one answer. */
+/* Every pin this board uses for something, reserved ones included. */
 typedef struct
 {
   char        port;
@@ -21,18 +18,9 @@ typedef struct
   const char *pin;
   uint8_t     dir;
   const char *signal;
-  /** A host may drive it through the test path. FALSE for anything an
-      alternate function owns: HAL_GPIO_Init would take the pin off that
-      function, and for a gate signal that is one FET latched on against
-      one still switching. */
+  /** A host may drive it through the test path. */
   bool        usable;
-  /** It goes in a DAQ record. A DIFFERENT QUESTION - reading a pin costs
-      it nothing, so the six gates and the break belong in a measurement
-      even though none of them may be written. What stays out is the
-      buses and the debug port: sampling SPI or JTAG at the converters'
-      rate names a channel nobody asked for, and all twenty-three
-      overflowed the layout reply at 312 bytes against MB_MAX_PDU's
-      253. */
+  /** It goes in a DAQ record. */
   bool        sampled;
 } DigitalDesc;
 
@@ -40,36 +28,13 @@ static const DigitalDesc s_digital[] =
 {
   { 'B',  2U, "PB2",  BOARD_DIR_OUT,   "AFE_ON",              true,  true   },
   /* Still an input carrying nFAULT, and still readable here - IDR reflects
-     the pin whatever mode it is in. It now has a second consumer: the .ioc
-     routes it to TIM1_BKIN, so the gate drivers stop in hardware rather than
-     waiting for anyone to poll this. The signal is FAULTIN from the STO
-     chain, not from the drivers - a 2EDL8034 has no fault pin. */
-  /* TIM1_BKIN. Not usable for the same reason as the six gate signals, and
-     it was missed when they were fixed: the test path calls HAL_GPIO_Init,
-     which takes the pin off the alternate function and disconnects the
-     break from the timer - silently, and for good until the next reset.
-     Measured after a conformance run: MODER read 00 for PE15 with OTYPER
-     and PUPDR still carrying the AF_OD setup, so the power stage had no
-     hardware break and nothing said so. The fault level is still reported,
-     through Board_IoFault() and the gate driver state, which read the pin
-     without reconfiguring it. */
+     the pin whatever mode it is in. */
+  /* TIM1_BKIN. */
   { 'E', 15U, "PE15", BOARD_DIR_IN,    "nFAULT/TIM1_BKIN",    false, true   },
   { 'E', 14U, "PE14", BOARD_DIR_OUT,   "UART5_TERM",          true,  false  },
-  /* The STO chain's proof that main() is still turning. Toggled from the
-     poll loop, never by a timer - see Board_StoKeepalive(). */
+  /* The STO chain's proof that main() is still turning. */
   { 'A', 10U, "PA10", BOARD_DIR_OUT,   "KEEPALIVE",           true,  true   },
-  /* The six gate signals. Not usable, and the reason is the whole point of
-     the flag: they are TIM1's alternate function, and a host writing one
-     through the test path calls HAL_GPIO_Init on it, which takes the pin
-     off the timer and leaves it driven by ODR. With the drivers powered
-     that is one FET of a half bridge latched on, with the other still
-     switching against it - the dead time cannot help, because the pin is
-     no longer the timer's to sequence.
-
-     They were absent from this table entirely, so Board_PinUsable fell
-     through to its "nothing claims it, a fixture may have it" default and
-     answered true for all six. Measured: the reserved list reported 19
-     pins and none of them was a gate. */
+  /* The six gate signals. */
   { 'E',  8U, "PE8",  BOARD_DIR_OUT,   "TIM1_CH1N/PWMUL",     false, true   },
   { 'E',  9U, "PE9",  BOARD_DIR_OUT,   "TIM1_CH1/PWMUH",      false, true   },
   { 'E', 10U, "PE10", BOARD_DIR_OUT,   "TIM1_CH2N/PWMVL",     false, true   },
@@ -97,12 +62,7 @@ static const DigitalDesc s_digital[] =
   { 'E',  6U, "PE6",  BOARD_DIR_OUT,   "SPI4_MOSI",           false, false  },
 };
 
-/* What is fitted, as against what it is wired to. One row per part, and the
-   whole stack above reads it off the wire: add a part here and board_info,
-   the MCP tools and the local model all report it without being told twice.
-   `power` names what must be on for the part to work at all - the BNO08X
-   answers reads with AFE_ON low and acts on no write, which is the reason
-   this column exists. */
+/* What is fitted, as against what it is wired to. */
 typedef struct
 {
   const char *name;
@@ -126,11 +86,7 @@ static const PartDesc s_parts[] =
   { "AFE", "phase chains + ADC ref", "PB2 switches it", "", PART_PROBE_AFE },
   { "UART5 termination", "120 ohm across the pair", "PE14 switches it", "",
     PART_PROBE_NONE },
-  /* The gate_drivers. `power` names the STO chain and not a pin because there is
-     no pin: the supply is released by the safety chain on STO.SchDoc when
-     the master's RS485 pilot tone keeps arriving. HalfBridge.SchDoc is
-     instantiated three times, one per phase, so the BOM carries Altium's
-     $ChannelName rather than a designator per half bridge. */
+  /* The gate_drivers. */
   { "2EDL8034 x3", "half bridge gate drivers", "PE8..PE13, TIM1",
     "STO chain", PART_PROBE_NONE },
   { "IAUCN10S7N021", "bridge FETs, 63 V 100 A", "HalfBridge x3",
@@ -299,16 +255,7 @@ uint32_t Board_DigitalMask(void)
   uint32_t bits = 0U;
   uint8_t slot = 0U;
 
-  /* The SAMPLED rows, not the writable ones. Reading a pin costs it
-     nothing, so the six gate signals and the break belong in a
-     measurement even though a host may not drive any of them - during
-     switching they flicker, and that IS the reading. What stays out is
-     the buses and the debug port: sampling JTAG at the converters' rate
-     names a channel nobody asked for, and all twenty-three overflowed
-     the layout reply at 312 bytes against MB_MAX_PDU's 253.
-
-     Straight off IDR rather than HAL_GPIO_ReadPin per pin: this runs at the
-     acquisition task's rate and the function calls buy nothing. */
+  /* The SAMPLED rows, not the writable ones. */
   for (uint8_t i = 0U; (i < Board_DigitalCount()) && (slot < 32U); i++)
   {
     const DigitalDesc *d = &s_digital[i];

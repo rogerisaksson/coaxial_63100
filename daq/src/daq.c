@@ -82,12 +82,7 @@ uint32_t daq_capacity(const daq_t *d)
 
 /* Wraps at the end of the buffer, not at a record boundary: the stride
    divides nothing in particular and rounding the buffer down to whole
-   records for every possible stride wastes more than it saves. So a
-   record is at most two runs, and each run is one memcpy. The ring is in
-   AXI SRAM, outside the core's zero-wait memory, and since the TIM1 clock
-   this runs inside the ADC interrupt up to fifty thousand times a second;
-   a byte at a time with a division each, as it was, is forty bus writes
-   and forty divisions a record. */
+   records for every possible stride wastes more than it saves. */
 static void put(daq_t *d, const uint8_t *src, uint16_t len)
 {
   const uint32_t whole = len;
@@ -110,9 +105,7 @@ static void get(const daq_t *d, uint32_t from, uint8_t *dst, uint16_t len)
   memcpy(dst + first, d->buf, whole - first);
 }
 
-/* Big endian, like every other u32 this board puts on the wire. Writing it
-   LSB first here was a real bug: the values came back as huge negatives and
-   the timestamps ran backwards. */
+/* Big endian, like every other u32 this board puts on the wire. */
 static uint16_t put_be32(uint8_t *dst, uint16_t at, uint32_t v)
 {
   dst[at++] = (uint8_t)((v >> 24) & 0xFFU);
@@ -169,10 +162,7 @@ static uint8_t sensor_count(uint16_t mask)
 
 /* ---- the ladder --------------------------------------------------------- */
 
-/** Take rung `n`: its whole design, and the accumulate that goes with
-  * it. The filter state goes with them - coefficients changing under a
-  * running biquad is a transient nothing in the record would explain,
-  * and the settling is the price of the step. */
+/** Take rung `n`: its whole design, and the accumulate that goes with it. */
 static void take_rung(daq_t *d, uint8_t n)
 {
   if ((n >= d->rungs_held) || (n == d->rung))
@@ -186,12 +176,7 @@ static void take_rung(daq_t *d, uint8_t n)
   d->rung_changes++;
   d->low_for = 0U;
 
-  /* PRIMED, NOT ZEROED. A rung is taken while the task is running and the
-     host is watching; zeroing every channel's state made the new chain
-     climb from nothing, so a step the board took to keep up showed in the
-     data as every channel falling to zero and recovering. The new
-     coefficients now start where the old ones left the signal, and only
-     the shaping changes. */
+  /* PRIMED, NOT ZEROED. */
   for (uint8_t f = 0U; f < d->task.fields; f++)
   {
     filter_prime(&d->chain, &d->filter[f], (float)d->pending[f]);
@@ -199,14 +184,7 @@ static void take_rung(daq_t *d, uint8_t n)
   clear_window(d);
 }
 
-/** One record's worth of pressure on the ring, and what it costs.
-  *
-  * Climbing means filtering and decimating harder, which is the only
-  * answer a board has to a link that cannot keep up: dropping records
-  * loses what happened, and a slower converter loses it too. Coming back
-  * down needs the ring to have been empty a WHILE - it empties the
-  * instant a host reads it, so one look says only that it just drained.
-  */
+/** One record's worth of pressure on the ring, and what it costs. */
 static void ladder_step(daq_t *d)
 {
   if ((d->rungs_held < 2U) || !d->task.adapt || (d->ladder.eighths == 0U))
@@ -222,9 +200,8 @@ static void ladder_step(daq_t *d)
   }
 
   const uint32_t held_records = daq_available(d);
-  /* The lower of the two: a fraction of a small ring, a fixed backlog of
-     a large one. A rung answers how far BEHIND the link is, and that is
-     a count of records rather than a share of whatever was allocated. */
+  /* The lower of the two: a fraction of a small ring, a fixed backlog of a
+     large one. */
   uint32_t climb = (capacity * d->ladder.climb_at) / d->ladder.eighths;
   uint32_t fall = (capacity * d->ladder.fall_at) / d->ladder.eighths;
 
@@ -260,8 +237,8 @@ static void ladder_step(daq_t *d)
 
 /* ---- records ------------------------------------------------------------ */
 
-/* The record into the ring, or counted as dropped when it does not
-   fit - and the high-water mark of what the host has yet to take. */
+/* The record into the ring, or counted as dropped when it does not fit - and
+   the high-water mark of what the host has yet to take. */
 static void put_record(daq_t *d, const uint8_t *rec)
 {
   if (room(d) <= d->stride)
@@ -290,9 +267,8 @@ static void push_record(daq_t *d)
     at = put_be32(rec, at, (uint32_t)d->acc[f]);
   }
 
-  /* 0..255 of the window, so a host divides by 255 and gets the fraction
-     of it the pin was high for. A byte is 0.4 % of a window, which is
-     finer than anything a decimated pin means. */
+  /* 0..255 of the window, so a host divides by 255 and gets the fraction of
+     it the pin was high for. */
   const uint32_t n = (d->acc_n > 0U) ? d->acc_n : 1U;
 
   for (uint8_t p = 0U; (p < d->task.pins) && (p < DAQ_MAX_PINS); p++)
@@ -300,9 +276,9 @@ static void push_record(daq_t *d)
     rec[at++] = (uint8_t)(((uint32_t)d->dacc[p] * DUTY_FULL + (n / 2U)) / n);
   }
 
-  /* The sensor snapshots, after the pins and before the count: an
-     appended field, seen only by a host that asked for it, read once so
-     the fields are one instant. */
+  /* The sensor snapshots, after the pins and before the count: an appended
+     field, seen only by a host that asked for it, read once so the fields
+     are one instant. */
   int16_t words[DAQ_MAX_SENSORS][DAQ_SENSOR_WORDS] = {{0}};
 
   if ((d->task.sensors != 0U) && (d->snapshot != NULL))
@@ -321,10 +297,7 @@ static void push_record(daq_t *d)
     }
   }
 
-  /* THE DIVISOR TRAVELS WITH THE SUM. Closed by the clock the count is
-     whatever the window held, and a host that took it from the config
-     would divide by a number the board never used. Last in the record
-     so the fields keep the offsets a reader already knows. */
+  /* THE DIVISOR TRAVELS WITH THE SUM. */
   at = put_be16(rec, at, d->acc_n);
 
   const uint32_t masked = held(d);
@@ -344,25 +317,15 @@ static void push_record(daq_t *d)
 
 /* ---- the chain ---------------------------------------------------------- */
 
-/** The filter's answer for one field, or the sum unchanged.
-  *
-  * The record's field is a SUM and `samples` its divisor, and that does
-  * not change here: the chain's output is a mean, so it goes back on the
-  * wire multiplied by the divisor the record carries. A host divides as
-  * it always did and never learns there was a filter - which is the
-  * point, because the alternative was a second record shape.
-  */
+/** The filter's answer for one field, or the sum unchanged. */
 static bool filtered(daq_t *d, uint8_t field, int32_t sum, uint16_t count,
                      int32_t *out)
 {
   float y = 0.0f;
 
-  /* THE MEAN, not the sum: the task's accumulate is the chain's first
-     stage and has already run, so what goes into the biquads is what
-     came out of it. Pushing the sum instead multiplied every reading by
-     the count - measured on the board, a 32768-code tone arrived as
-     8.2 million. Divided here rather than in an int, so the precision
-     the accumulate bought is not rounded away first. */
+  /* THE MEAN, not the sum: the task's accumulate is the chain's first stage
+     and has already run, so what goes into the biquads is what came out of
+     it. */
   if (!filter_push_value(&d->chain, &d->filter[field],
                          (float)sum / (float)count, &y))
   {
@@ -388,10 +351,7 @@ static void accumulate(daq_t *d, const int32_t *values, uint32_t digital)
 }
 
 /** The boxcar has dumped; the shaping and the decimation happen here, and
-  * only what comes out of them becomes a record. Every field is pushed so
-  * their states stay in step - they share a decimation counter's worth of
-  * history, and one field skipped would put the record's channels a
-  * sample apart. True when the chain let this window through. */
+    only what comes out of them becomes a record. */
 static bool shaped_ready(daq_t *d)
 {
   bool ready = false;
@@ -428,28 +388,17 @@ void daq_feed(daq_t *d, const int32_t *values, uint32_t at, uint32_t digital)
     d->first_at = at;
 
     /* The pins as they stood at `at`, not summed and not OR-ed across the
-       window. Summing a bitmask means nothing, and an OR would report a
-       pin as high that was high for one sample in fifty with no field
-       saying which. With accumulate at 1 this is every sample. */
+       window. */
     d->first_digital = digital;
   }
 
-  /* SATURATE, do not wrap. A window closed by the clock has no bound on
-     how many samples it holds, and `acc` is int32 against a single-ended
-     code of 65535 - so past DAQ_MAX_ADDITIONS the sum would go negative
-     and the host would divide the wreck by the count and report it as a
-     mean. Stopping instead keeps the mean over what did go in true, and
-     the count says how many that was. */
+  /* SATURATE, do not wrap. */
   if (d->acc_n < DAQ_MAX_ADDITIONS)
   {
     accumulate(d, values, digital);
   }
 
-  /* Closed by the clock. Unsigned elapsed arithmetic, so the counter's
-     wrap costs nothing. A clock-closed window and a filter are
-     alternatives: a fixed-rate filter needs a fixed decimation, and this
-     window's length is whatever the loop managed. The glue refuses the
-     pair. */
+  /* Closed by the clock. */
   if ((d->task.accumulate == 0U)
       && ((uint32_t)(at - d->first_at) >= d->task.interval_cycles))
   {
@@ -507,11 +456,7 @@ bool daq_sweep_put(daq_t *d, int32_t raw)
 
 void daq_sweep_close(daq_t *d, uint32_t now)
 {
-  /* CLOSED BY THE CLOCK: nothing gates the triggers. Every sweep the
-     loop manages goes into the sum, and the interval decides when the
-     record is finished rather than when the next sample may be taken -
-     which is the whole point of summing on the target. Closed by a
-     count, the gate is the trigger's. */
+  /* CLOSED BY THE CLOCK: nothing gates the triggers. */
   if ((d->task.accumulate != 0U) && !daq_trigger_due(d, now))
   {
     return;
@@ -661,8 +606,8 @@ const char *daq_set_rung(daq_t *d, uint8_t rung, uint16_t boxcar,
   }
   d->rung_boxcar[rung] = boxcar;
 
-  /* Rung 0 forgets what was above it, so a host that rebuilds the
-     ladder cannot leave a stale rung for the board to climb into. */
+  /* Rung 0 forgets what was above it, so a host that rebuilds the ladder
+     cannot leave a stale rung for the board to climb into. */
   d->rungs_held = (rung == 0U) ? 1U : (uint8_t)(rung + 1U);
   if (rung == 0U)
   {
@@ -751,10 +696,10 @@ static void tone_renormalise(daq_tone_t *t, float x, float y)
   }
 }
 
-/** One tone sample: the unit vector turned by one step, renormalised
-  * every 1024 so the rotation's magnitude cannot creep; or the ramp,
-  * integer all the way so a host computes the same value rather than
-  * something within a tolerance of it. */
+/** One tone sample: the unit vector turned by one step, renormalised every
+    1024 so the rotation's magnitude cannot creep; or the ramp, integer all
+    the way so a host computes the same value rather than something within a
+    tolerance of it. */
 static int32_t tone_next(daq_tone_t *t)
 {
   if (t->kind == DAQ_TONE_RAMP)
@@ -785,19 +730,19 @@ void daq_tone_poll(daq_t *d, uint32_t now, uint32_t burst)
     return;
   }
 
-  /* EXACTLY the samples the elapsed time owed, and the remainder is
-     carried rather than dropped: a generator that rounded down every
-     turn would run slow by a fraction of a sample per poll, and a host
-     checking phase would see the drift and call it a lost record. */
+  /* EXACTLY the samples the elapsed time owed, and the remainder is carried
+     rather than dropped: a generator that rounded down every turn would run
+     slow by a fraction of a sample per poll, and a host checking phase would
+     see the drift and call it a lost record. */
   const uint32_t elapsed = (uint32_t)(now - t->at) + t->owed;
   uint32_t owed = elapsed / t->cycles;
 
   t->owed = elapsed - (owed * t->cycles);
   t->at = now;
 
-  /* A burst is bounded so one long gap cannot hold the caller's loop
-     past what it can afford; what the clamp drops is dropped rather
-     than owed, or the debt would burst again next turn. */
+  /* A burst is bounded so one long gap cannot hold the caller's loop past
+     what it can afford; what the clamp drops is dropped rather than owed, or
+     the debt would burst again next turn. */
   if (owed > burst)
   {
     owed = burst;
@@ -816,13 +761,7 @@ void daq_tone_poll(daq_t *d, uint32_t now, uint32_t burst)
 
 /* ---- the live accumulator ----------------------------------------------- */
 
-/** One sample into the live accumulator, for one field.
-  *
-  * Per sample and not per record: the loop runs at whatever the converter
-  * and the SPI buses manage, and holding a channel back until its
-  * neighbours caught up would throw away the samples that make the average
-  * worth having.
-  */
+/** One sample into the live accumulator, for one field. */
 void daq_live_insert(daq_t *d, uint8_t field, int32_t value, uint32_t at,
                      uint32_t digital)
 {
@@ -847,11 +786,7 @@ void daq_live_insert(daq_t *d, uint8_t field, int32_t value, uint32_t at,
     slot->highest = value;
   }
 
-  /* SATURATE. `sum` is int32 and a single-ended channel reads up to 65535,
-     so at 50 kHz the sum passes INT32_MAX in 0.66 s - signed overflow, and
-     the host divides the wrapped negative by `additions` and reports it as
-     a mean. Stop widening the window instead: the mean over what did go
-     in stays true, which a wrapped sum does not. */
+  /* SATURATE. */
   if (slot->additions < DAQ_MAX_ADDITIONS)
   {
     slot->sum += value;
@@ -866,9 +801,9 @@ void daq_live_insert(daq_t *d, uint8_t field, int32_t value, uint32_t at,
 
 void daq_take_live(daq_t *d, daq_live_t *out)
 {
-  /* Under the guard because a feed on the timer's interrupt writes these:
-     a reader that caught the count from one trigger and a sum from the
-     next would report a mean that was never taken. */
+  /* Under the guard because a feed on the timer's interrupt writes these: a
+     reader that caught the count from one trigger and a sum from the next
+     would report a mean that was never taken. */
   const uint32_t masked = held(d);
 
   out->fresh = (d->live_any != 0U);

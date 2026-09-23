@@ -14,8 +14,7 @@ static bool s_open;
 
 /* Which pins are refused is the board's answer, not this file's: the list
    used to live here as well as in the pin table the channels command
-   reports, and two lists of what PB10 is are one edit away from
-   disagreeing. See Board_PinUsable. */
+   reports, and two lists of what PB10 is are one edit away from disagreeing. */
 
 static GPIO_TypeDef *port_base(char port)
 {
@@ -111,14 +110,7 @@ bool testrig_pin_write(char port, uint8_t pin, bool level)
     return false;
   }
 
-  /* PB2 IS NOT A SIGNAL, IT IS A RAIL. AFE_ON is reference counted, and a
-     write straight to the pad here is undone the moment anything acquires or
-     releases the rail - the thermal observer borrowing it for an NTC sample was
-     enough, and it made this path fail about one run in three with the pin
-     reading back the opposite of what was written.
-     So the write goes where every other request for this rail goes. The pin
-     still ends up where the caller asked, unless somebody else is holding
-     it - and `0x6D` afe reports who. */
+  /* PB2 IS NOT A SIGNAL, IT IS A RAIL. */
   if ((port == 'B') && (pin == 2U))
   {
     return level ? Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_HOST)
@@ -152,9 +144,9 @@ bool testrig_port_write(char port, uint16_t mask, uint16_t value)
     return false;
   }
 
-  /* Mask off the reserved pins rather than refusing the whole write: a fixture
-     driving a bank of outputs should not have to know which bits this board
-     keeps for itself. */
+  /* Mask off the reserved pins rather than refusing the whole write: a
+     fixture driving a bank of outputs should not have to know which bits
+     this board keeps for itself. */
   uint16_t safe = mask;
 
   for (uint8_t pin = 0U; pin < 16U; pin++)

@@ -2,45 +2,6 @@
   ******************************************************************************
   * @file    modbus_map.h
   * @brief   This board as a Modbus data model.
-  *
-  * Addresses are zero-based PDU addresses - what goes on the wire. A master
-  * using one-based "4x/3x" notation subtracts one.
-  *
-  * INPUT REGISTERS - FC 0x04, read only
-  *   0x0000..0x0006  raw ADC code, one per configured channel, in table order:
-  *                     0x0000  ADC3 IN1  PC3_C/PC2_C  diff  Phase U
-  *                     0x0001  ADC1 IN3  PA6/PA7      diff  Phase V
-  *                     0x0002  ADC2 IN4  PC4/PC5      diff  Phase W
-  *                     0x0003  ADC2 IN5  PB1          SE
-  *                     0x0004  ADC1 IN9  PB0          SE    NTC
-  *                     0x0005  ADC3 IN10 PC0          SE    DC bus
-  *                     0x0006  ADC3 IN11 PC1          SE
-  *                   Differential codes are signed, two's complement.
-  *                   Single-ended codes are unsigned.
-  *   0x0010          DC bus millivolts, unsigned
-  *   0x0011          NTC temperature in hundredths of a degree C, signed
-  *   0x0020,0x0021   SYSCLK in Hz, high word then low word
-  *   0x0022,0x0023   HCLK in Hz, high word then low word
-  *   0x0030..0x003B  six 32-bit RTU diagnostic counters, high word first:
-  *                     0x0030 bus message        0x0034 server message
-  *                     0x0032 bus comm error     0x0036 server exception
-  *                                               0x0038 server no response
-  *                                               0x003A character overrun
-  *
-  * HOLDING REGISTERS - FC 0x03 / 0x06 / 0x10, read write
-  *   0x0000          unit address, 1..247. Takes effect on the next frame, so
-  *                   the response to the write still uses the old address.
-  *   0x0001          command register. Reads back 0. Accepted values:
-  *                     0x0001  leave Modbus mode, resume the ASCII console
-  *                     0x0002  zero the diagnostic counters
-  *                   Any other non-zero value is ILLEGAL DATA VALUE.
-  *
-  * COILS - FC 0x01 / 0x05 / 0x0F, read write
-  *   0x0000          AFE_ON (PB2). Powers the front end AND the reference, so
-  *                   with it off every channel reads exact mid-scale.
-  *
-  * DISCRETE INPUTS - FC 0x02, read only
-  *   0x0000          PE15
   ******************************************************************************
   */
 #ifndef MODBUS_MAP_H
@@ -77,12 +38,7 @@ extern "C" {
 #define MB_DIN_PE15            0x0000U
 #define MB_DIN_COUNT           1U
 
-/**
-  * @brief  The data model for this board.
-  *
-  * ctx is the mb_rtu_t whose counters sit at 0x0030 and are cleared by the
-  * command register, so the caller must pass one.
-  */
+/** The data model for this board. */
 const mb_data_model_t *modbus_map_model(
     void *rtu_ctx,
     mb_exception_t (*user_function)(void *ctx, uint8_t fc,

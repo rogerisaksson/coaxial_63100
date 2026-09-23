@@ -3,17 +3,6 @@
   * @file    board_sync.c
   * @brief   Phase current sampled where the stage is quiet: TIM1 triggers,
   *          three ADCs convert at once, this latches the result.
-  *
-  * One phase per converter - U on ADC3, V on ADC1, W on ADC2 - so one timer
-  * event samples the same instant by construction. No dual or triple mode.
-  *
-  * A SECOND path, not a change to the meter: board_adc.c reads the regular
-  * group one channel at a time, and a current loop needs three together at a
-  * point the timer picks, so the phases get the INJECTED group.
-  *
-  * What this file owns on top of TIM1 is the sample point: CCR5 and TRGO2,
-  * set here because CubeMX stores MasterOutputTrigger2 as "null" and emits
-  * TIM_TRGO2_RESET.
   ******************************************************************************
   */
 #include "board.h"
@@ -30,50 +19,31 @@ extern ADC_HandleTypeDef hadc3;
 #define SYNC_V 1U
 #define SYNC_W 2U
 
-/** ADC channels the phases sit on, from the table in board_adc.c. That table
-    is the only place that says which phase is where; this mirrors the three
-    it needs and nothing else. */
+/** ADC channels the phases sit on, from the table in board_adc.c. */
 #define SYNC_U_CHANNEL ADC_CHANNEL_1     /* ADC3 IN1,  PC3_C/PC2_C */
 #define SYNC_V_CHANNEL ADC_CHANNEL_3     /* ADC1 IN3,  PA6/PA7     */
 #define SYNC_W_CHANNEL ADC_CHANNEL_4     /* ADC2 IN4,  PC4/PC5     */
 
-/** The DC link, rank 2 on ADC3 behind Phase U. The drive needs it every
-    period and the meter is locked out while this is armed; one more
-    conversion on the sequence costs a third of a microsecond. */
+/** The DC link, rank 2 on ADC3 behind Phase U. */
 #define SYNC_DCBUS_CHANNEL ADC_CHANNEL_10 /* ADC3 IN10, PC0         */
 
-/** The NTC, rank 2 on ADC1 behind Phase V, for the same reason: the
-    thermal observer reads it through the meter, and the meter is locked
-    out for as long as the drive runs. */
+/** The NTC, rank 2 on ADC1 behind Phase V, for the same reason: the thermal
+    observer reads it through the meter, and the meter is locked out for as
+    long as the drive runs. */
 #define SYNC_NTC_CHANNEL ADC_CHANNEL_9    /* ADC1 IN9,  PB0         */
 
-/** How far below the top OC5REF falls. The trigger is its rising edge, so
-    the ADC starts that far after the counter turns - inside the zero vector,
-    no gate edge within the sampling window. 15 ticks is 63 ns. */
+/** How far below the top OC5REF falls. */
 #define SYNC_TRIGGER_LEAD 15U
 
 
 /** The injected group's state: whether it is armed and ready, the trigger,
-  * the latest triple and the counts of updates and overruns. One object:
-  * what a debugger shows whole and a reset clears at once. */
+    the latest triple and the counts of updates and overruns. */
 static struct
 {
-  /** CCR5 as last set. Zero means nobody has chosen, so arming picks the
-      default lead. Kept across disarm so a tuning run is not undone by it. */
+  /** CCR5 as last set. */
   uint16_t trigger;
 
-  /* THE MEAN SQUARE, ACCUMULATED WHERE THE SAMPLES ARE. The thermal model
-     needs a cycle average of i^2 and a poll at 10 Hz cannot give it one: the
-     trigger is a tick inside the PWM period, so the sampler is synchronous
-     and the alias can LOCK - a leg at its peak reading as a leg at zero for
-     as long as the speed holds. Summed here it is exact whatever the speed,
-     and whatever the balance, because each leg keeps its own sum.
-
-     IN COUNTS, not amperes. The conversion is the calibration record's
-     (invariant 7) and belongs in `Board_PhaseAmps`; squaring counts is three
-     integer multiply-accumulates in an interrupt whose budget is measured in
-     the LOOP panel, and the affine conversion is undone once per read
-     instead - see `Board_SyncMeanSquare`. */
+  /* THE MEAN SQUARE, ACCUMULATED WHERE THE SAMPLES ARE. */
   int64_t sq[3];
   int64_t sum[3];
   uint32_t squares;
@@ -92,9 +62,7 @@ static void SYNC_ConfigTrigger(void)
     s.trigger = (uint16_t)(TIM1->ARR - SYNC_TRIGGER_LEAD);
   }
   /* Channel 5, not 4: CubeMX reported channel 4 in conflict with another
-     peripheral and it moved to 5. Both are internal - neither has an output
-     pin - and OC5REF drives TRGO2 exactly as OC4REF did. Anything reading
-     `trigger` sees the same number it always did. */
+     peripheral and it moved to 5. */
   TIM1->CCR5 = s.trigger;
   MODIFY_REG(TIM1->CR2, TIM_CR2_MMS2, TIM_TRGO2_OC5REF);
 }
@@ -122,13 +90,7 @@ uint16_t Board_SyncTrigger(void)
 static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel,
                              uint32_t rank, uint32_t nbr, uint32_t single_diff)
 {
-  /* Through HAL, not by writing PCSEL directly. Two reasons, one of which
-     cost a build: ADC_CHANNEL_n is an encoded register value and not a
-     channel index, so `1 << ADC_CHANNEL_1` shifts past the width of the
-     type - the compiler caught that. The other is that a differential
-     channel needs its negative input selected too, and HAL knows which pin
-     that is. Measured on target and recorded in board_adc.c: a differential
-     read leaves ADC3 PCSEL at 0xC03, four bits for two channels. */
+  /* Through HAL, not by writing PCSEL directly. */
   ADC_InjectionConfTypeDef in = {0};
 
   in.InjectedChannel = channel;
@@ -156,10 +118,7 @@ bool Board_SyncArmed(void)
 
 bool Board_SyncReady(void)
 {
-  /* A timer to trigger from, and that is all. The injected sequences are
-     this file's own - SYNC_ConfigPhase writes them at arm time - so a JSQR
-     of zero here is the disarmed state, not a missing prerequisite. Reading
-     it as one deadlocked Arm against Ready. */
+  /* A timer to trigger from, and that is all. */
   return Board_PwmReady();
 }
 
@@ -175,8 +134,8 @@ bool Board_SyncMeanSquare(float *out)
   }
 
   /* Taken and reset under one disabled interrupt, as `Board_SyncLatest`
-     copies the triple: a reader that caught the sum from one period and
-     the count from the next would divide by the wrong number. */
+     copies the triple: a reader that caught the sum from one period and the
+     count from the next would divide by the wrong number. */
   const uint32_t masked = Board_IrqHold();
   for (uint8_t leg = 0U; leg < 3U; leg++)
   {
@@ -194,16 +153,7 @@ bool Board_SyncMeanSquare(float *out)
     return false;
   }
 
-  /* THE AFFINE CONVERSION UNDONE ONCE, not per sample. `Board_PhaseAmps`
-     is linear in the count - offset and gain out of the record - so two
-     evaluations give both terms and the mean of the squares in amperes
-     follows from the mean of the squares in counts:
-
-       f(c) = g c + k,  g = f(1) - f(0),  k = f(0)
-       mean(f^2) = g^2 mean(c^2) + 2 g k mean(c) + k^2
-
-     One definition of what a count is worth (invariant 7), and the
-     interrupt does integer arithmetic only. */
+  /* THE AFFINE CONVERSION UNDONE ONCE, not per sample. */
   for (uint8_t leg = 0U; leg < 3U; leg++)
   {
     const float k = Board_PhaseAmps(leg, 0);
@@ -240,10 +190,7 @@ void Board_SyncLatest(board_sync_sample_t *out)
 
 void Board_SyncOnInjected(const void *hadc)
 {
-  /* Called from the injected end-of-sequence callback. Short on purpose: it
-     latches and returns. Anything that talks - a printf, a frame - inside
-     here corrupts RTU framing and latches a UART overrun, which on this
-     silicon kills reception for good (invariant 5). */
+  /* Called from the injected end-of-sequence callback. */
   if (!s.armed)
   {
     return;
@@ -254,9 +201,7 @@ void Board_SyncOnInjected(const void *hadc)
     /* Through Board_AdcDifferential, not a cast: JDR is offset binary and
        casting it to int16_t put every quiet phase at the negative rail -
        measured, U read -31344 where the meter read +1423. */
-    /* The data registers themselves. HAL_ADCEx_InjectedGetValue is a
-       switch on the rank behind two asserts, compiled at -O0 five times
-       a period; JDRx is the number it returns. */
+    /* The data registers themselves. */
     s.latest.phase[SYNC_U] = (int16_t)Board_AdcDifferential(hadc3.Instance->JDR1);
     s.latest.phase[SYNC_V] = (int16_t)Board_AdcDifferential(hadc1.Instance->JDR1);
     s.latest.phase[SYNC_W] = (int16_t)Board_AdcDifferential(hadc2.Instance->JDR1);
@@ -288,9 +233,8 @@ void Board_SyncOverrun(void)
 }
 
 
-/* Scan mode on, once, on an ADC CubeMX generated without it - the
-   two-rank injected sequence needs it. NULL, or `refusal` when the
-   re-initialisation failed. */
+/* Scan mode on, once, on an ADC CubeMX generated without it - the two-rank
+   injected sequence needs it. */
 static const char *scan_mode_on(ADC_HandleTypeDef *adc, const char *refusal)
 {
   if (adc->Init.ScanConvMode == ADC_SCAN_ENABLE)
@@ -315,22 +259,8 @@ const char *Board_SyncArm(void)
   }
 
   /* PCSEL is the trap this board has already been caught by twice, and the
-     injected path meets it from the other side. The meter clears PCSEL and
-     selects one channel per read; an injected sequence needs all three
-     phases selected at once and left that way. So the two paths cannot both
-     own the converters, and this is where that is decided - see
-     Board_AdcMeterAllowed().
-
-     Invariant 6 says every read path configures its channel and clears
-     PCSEL. This path does it once, here, rather than per conversion,
-     because a hardware trigger leaves nowhere to do it per conversion. */
-  /* Two ranks need scan mode. With it off the HAL discards
-     InjectedNbrOfConversion and writes JSQR from rank 1 alone - measured
-     2026-08-31 over SWD, JSQR 0x2A0: JL 0, no JSQ2, the DC link reading
-     zero while PCSEL already carried its channel. CubeMX generates ADC3
-     with scan off because the meter converts one channel at a time, and
-     it still does: the regular sequence keeps its length of one. Once,
-     here, because this is the one path that needs it. */
+     injected path meets it from the other side. */
+  /* Two ranks need scan mode. */
   const char *refused = scan_mode_on(
       &hadc3, "ADC3 would not re-initialise with scan mode on, which the "
               "two-rank injected sequence needs - reset the board");
@@ -414,9 +344,7 @@ void Board_SyncState(board_sync_state_t *out)
 
 
 /* HAL's weak callbacks, overridden here rather than in core/: main.c holds
-   CubeMX functions and the two poll calls, and this is neither. ADC3_IRQHandler
-   is generated, so the chain runs as soon as Board_SyncArm has made an
-   injected group for it to complete. */
+   CubeMX functions and the two poll calls, and this is neither. */
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
   Board_SyncOnInjected(hadc);
@@ -425,9 +353,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 void HAL_ADCEx_InjectedQueueOverflowCallback(ADC_HandleTypeDef *hadc)
 {
-  /* The trigger arrived before the last sequence finished. Counted rather
-     than acted on: what it means depends on the sample point, which is a
-     TIM1 setting nobody has chosen yet. */
+  /* The trigger arrived before the last sequence finished. */
   (void)hadc;
   Board_SyncOverrun();
 }

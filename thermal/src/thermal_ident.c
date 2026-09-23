@@ -14,89 +14,52 @@
 #include <stdio.h>
 #endif
 
-/** The slice the shadow and its sensitivities are stepped with - the
-  * core's own, so the two integrate alike. */
+/** The slice the shadow and its sensitivities are stepped with - the core's
+    own, so the two integrate alike. */
 #define IDENT_DT_SLICE 0.25f
 
-/** Finite-difference steps: on a temperature, the largest perturbation
-  * any node takes in kelvin - the sensitivity vector is scaled to it, so
-  * a vector grown to tens of kelvin per unit is not probed tens of kelvin
-  * out where the air path bends; on a scale, a fraction of it. */
+/** Finite-difference steps: on a temperature, the largest perturbation any
+    node takes in kelvin - the sensitivity vector is scaled to it, so a
+    vector grown to tens of kelvin per unit is not probed tens of kelvin out
+    where the air path bends; on a scale, a fraction of it. */
 #define IDENT_EPS_T 0.5f
 #define IDENT_EPS_S 0.02f
 #define IDENT_EPS_AMB 0.5f
 
-/** What the scales start out believed to, one sigma each: the air path
-  * and the spread are the ones a situation or a layout can double, the
-  * laminate's capacity was measured (49 J/K off a settling) and the
-  * thermistor's seat comes off the pick and place. */
+/** What the scales start out believed to, one sigma each: the air path and
+    the spread are the ones a situation or a layout can double, the
+    laminate's capacity was measured (49 J/K off a settling) and the
+    thermistor's seat comes off the pick and place. */
 static const float PRIOR_SIGMA[THERMAL_IDENT_PARAMS] = { 0.5f, 0.2f, 0.5f,
                                                         0.3f, 10.0f };
-/* THE ROOM'S PRIOR IS TEN KELVIN, AND IT IS A WEIGHT. In the Kalman step
-   the prior decides who takes an innovation neither quantity predicted,
-   and a room that steps 45 K must be able to take it: at three kelvin a
-   board carried to -20 C moved its room 0.6 K a gated sample and the
-   air scale took the rest, 2.9 for a truth of 0.8 (host ground truth
-   and stand-in alike, 2026-09-05). At ten the room is found within 5 K
-   in both directions and the air scale stays near the truth; the price
-   is that the room also takes some of a cooldown's early state error -
-   19.6 C for a bench at 25 after the first cycle - which the anchored
-   nodes do not feel and later cycles correct. */
+/* THE ROOM'S PRIOR IS TEN KELVIN, AND IT IS A WEIGHT. */
 
-/** Below what sigma each is CONVERGING, and STABLE: three tenths of a
-  * scale, and a tenth - but 0.15 for the air path, since with the room
-  * identified beside it one transient leaves the air path known to about
-  * 0.12 (the two share a cooldown's evidence) and a machine that holds a
-  * steady current after a change has exactly one transient to learn
-  * from; at a tenth the rotor page never showed STABLE (bench,
-  * 2026-09-06). The ceiling's 100 % is on nodes anchored to readings,
-  * which a 15 % air path does not move. Three and six kelvin of room -
-  * one cycle from the ten-kelvin prior leaves it at 2.3, and three is
-  * as much room as the envelope can use for the same reason. */
+/** Below what sigma each is CONVERGING, and STABLE: three tenths of a scale,
+    and a tenth - but 0.15 for the air path, since with the room identified
+    beside it one transient leaves the air path known to about 0.12 (the two
+    share a cooldown's evidence) and a machine that holds a steady current
+    after a change has exactly one transient to learn from; at a tenth the
+    rotor page never showed STABLE (bench, 2026-09-06). */
 static const float SIGMA_CONVERGING[THERMAL_IDENT_PARAMS] = { 0.30f, 0.30f,
                                                              0.30f, 0.30f,
                                                              6.0f };
 static const float SIGMA_STABLE[THERMAL_IDENT_PARAMS] = { 0.15f, 0.10f, 0.10f,
                                                          0.10f, 3.0f };
 
-/** The process noise a sample: a random walk of half a percent on a
-  * scale - a hundred samples without excitation grow a sigma by five
-  * percent, no more - and 22 mK on the room, a couple of kelvin an hour
-  * at thirty-second samples, which is what a room does. At 0.14 K a
-  * sample it was a hundred kelvin an hour, the room's variance never
-  * closed, and through the room-air correlation the air scale's sigma
-  * floored at 0.14 and a box was never STABLE (stand-in, 2026-09-06).
-  * A room that STEPS is the UNCERTAIN floor's business, not the drift's.
-  * The alternative, dividing the covariance by a forgetting factor,
-  * inflated every direction whenever any was updated and no scale could
-  * ever be known to a tenth. */
+/** The process noise a sample: a random walk of half a percent on a scale -
+    a hundred samples without excitation grow a sigma by five percent, no
+    more - and 22 mK on the room, a couple of kelvin an hour at thirty-second
+    samples, which is what a room does. */
 static const float DRIFT_VAR[THERMAL_IDENT_PARAMS] = { 2.5e-5f, 2.5e-5f,
                                                       2.5e-5f, 2.5e-5f,
                                                       5.0e-4f };
 
-/** How much of its prior each scale's sigma is floored at while the
-  * model is UNCERTAIN - kept free to move, since it is not predicting.
-  * HALF for the air path, which is what a box or a fan changes, a
-  * QUARTER for the rest: at a quarter of 0.2 the capacity's floor sat
-  * exactly on SIGMA_STABLE and a board could never be STABLE
-  * again after a switch; and with the two floored alike the capacity
-  * took a third of a fan's correction and was left 35 % low - measured
-  * on the stand-in's ground truth, 2026-09-05. */
+/** How much of its prior each scale's sigma is floored at while the model is
+    UNCERTAIN - kept free to move, since it is not predicting. */
 static const float FLOOR_SHARE[THERMAL_IDENT_PARAMS] = { 0.5f, 0.25f, 0.25f,
                                                         0.25f, 0.5f };
 
-/** Which scales the samples are allowed to move. AIR and CAPACITY: a
-  * cooldown's level and time constant, which the three thermometers see
-  * directly. SPREAD and NTC are HELD at the record's values: measured
-  * 2026-09-05 on the host ground truth, with nothing but the air path
-  * changed, the spread ran to a clamp (0.25 or 4.0) in every arrangement
-  * tried - a cooldown puts no power through the legs' edges, and the
-  * dies' own edges are seen only through the seat's relation to
-  * neighbours no thermometer reads - and the NTC's share followed it.
-  * A scale the data cannot see absorbs whatever the others leave over.
-  * They stay on the wire and in the record for a bench to set, and for
-  * a static regressor at idle (the MCU die against the thermistor, at
-  * rest, IS the MCU's edge) to free when it is written. */
+/** Which scales the samples are allowed to move. */
 static const bool ONLINE[THERMAL_IDENT_PARAMS] = { true, true, false, false,
                                                   true };
 
@@ -105,18 +68,16 @@ bool thermal_ident_online(thermal_ident_param_t which)
   return (which < THERMAL_IDENT_PARAMS) ? ONLINE[which] : false;
 }
 
-/** What an innovation is worth against the scales: the measurement noise
-  * the Kalman step divides by, as a multiple of the thermometers' floor.
-  * Three, because the seat residual's carry across an interval is not
-  * exact and a sample is not to be believed to its last hundredth. */
+/** What an innovation is worth against the scales: the measurement noise the
+    Kalman step divides by, as a multiple of the thermometers' floor. */
 #define IDENT_NOISE_GAIN 3.0f
 
-/** Below this much sensitivity squared a sample carries nothing about
-  * the scales and is not fed to the filter. */
+/** Below this much sensitivity squared a sample carries nothing about the
+    scales and is not fed to the filter. */
 #define IDENT_EXCITATION_MIN 1.0e-4f
 
 /** The covariance's ceiling on any diagonal: a scale is never less known
-  * than plus or minus its own size, the room than its prior. */
+    than plus or minus its own size, the room than its prior. */
 static const float VAR_MAX[THERMAL_IDENT_PARAMS] = { 1.0f, 1.0f, 1.0f, 1.0f,
                                                     100.0f };
 
@@ -126,47 +87,27 @@ static const float VAR_MAX[THERMAL_IDENT_PARAMS] = { 1.0f, 1.0f, 1.0f, 1.0f,
 /** Samples passed unjudged after the one that ends a blind gap. */
 #define IDENT_SETTLE_SAMPLES 2U
 
-/** An innovation beyond this many sigmas of what the scales' own
-  * uncertainty and the noise predict is not believed to that size: the
-  * measurement noise is inflated until it is exactly this far out. A
-  * state error the anchors have not yet worked off, a fan switched on
-  * mid-cooldown, a thermometer glitch - each moves the scales a bounded
-  * step instead of to a clamp. */
+/** An innovation beyond this many sigmas of what the scales' own uncertainty
+    and the noise predict is not believed to that size: the measurement noise
+    is inflated until it is exactly this far out. */
 #define IDENT_GATE_SIGMAS 3.0f
 
-/** How far a thermometer must have moved since the seat, as a multiple
-  * of the noise floor, for the sample to say anything about the scales.
-  * Under it the board is STILL - not switching, nothing burning - and
-  * the readings agree with the shadow whatever the air scale, since the
-  * observer's ambient estimate absorbs the error; a covariance narrowed
-  * on that would be confidence from silence. */
+/** How far a thermometer must have moved since the seat, as a multiple of
+    the noise floor, for the sample to say anything about the scales. */
 #define IDENT_STILL_GAIN 3.0f
 
-/** THE ERROR IS JUDGED AGAINST WHAT THE THERMOMETER DID. A model's error
-  * over an interval scales with how far the reading moved in it - a
-  * two-percent error on a four-kelvin swing is 80 mK, eight floors of
-  * nothing - so the prediction error fed to the state's judgement is
-  * shrunk by the floor over the floor plus this share of the movement
-  * since the seat. At rest nothing changes: a 0.3 K miss on a still
-  * board is still three floors. Under a live load the model that
-  * predicts the swing to a few percent is PREDICTING, and can be
-  * STABLE. Measured 2026-09-06 on the rotor page's demo, which never
-  * stops loading: judged against the bare floor the error sat at 1.5 to
-  * 2 floors for ever and the state at CONVERGING - "it never converges
-  * during the run cycle", the bench. The Kalman step still takes the raw
-  * error: only the judgement and the margin's innovation term see this. */
+/** THE ERROR IS JUDGED AGAINST WHAT THE THERMOMETER DID. */
 #define IDENT_MOVE_SHARE 0.05f
 
-/** What the states are: the innovation against the noise floor that says
-  * the model predicts (the sigmas are SIGMA_CONVERGING and SIGMA_STABLE
-  * above, one each). */
+/** What the states are: the innovation against the noise floor that says the
+    model predicts (the sigmas are SIGMA_CONVERGING and SIGMA_STABLE above,
+    one each). */
 #define IDENT_RATIO_STABLE     2.0f
 #define IDENT_RATIO_UNCERTAIN  3.0f
 #define IDENT_STABLE_RUNS      5U
 
-/** Scratch for the finite differences: the observer is single-threaded
-  * and a thermal_t is too big to put on the main loop's stack nine times
-  * a slice. */
+/** Scratch for the finite differences: the observer is single-threaded and a
+    thermal_t is too big to put on the main loop's stack nine times a slice. */
 static thermal_t s_probe;
 
 
@@ -202,8 +143,8 @@ static void set_covariance(thermal_ident_t *id, float sigma)
   memset(id->p, 0, sizeof(id->p));
   for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
   {
-    /* The prior's own where a blanket sigma is wider than it; the room
-       is as wide as its prior however the scales start. */
+    /* The prior's own where a blanket sigma is wider than it; the room is as
+       wide as its prior however the scales start. */
     const float s = ((sigma < PRIOR_SIGMA[k]) && (k != THERMAL_IDENT_AMBIENT))
                     ? sigma : PRIOR_SIGMA[k];
 
@@ -239,7 +180,7 @@ float thermal_ident_ambient(const thermal_ident_t *id)
 
 
 /** `out` = `base` with `scale` applied - the same rule for the observer's
-  * configuration and for the probes the sensitivities are taken with. */
+    configuration and for the probes the sensitivities are taken with. */
 static void apply(const float *scale, const thermal_cfg_t *base,
                   thermal_cfg_t *out)
 {
@@ -275,8 +216,8 @@ void thermal_ident_apply(const thermal_ident_t *id, const thermal_cfg_t *base,
 }
 
 
-/** The rate of every node, K/s, at a state and configuration: the net
-  * flows over the capacities. Nodes without capacity do not move. */
+/** The rate of every node, K/s, at a state and configuration: the net flows
+    over the capacities. */
 static void rates(const thermal_t *th, const thermal_power_t *p,
                   float speed_rpm, float *out)
 {
@@ -292,11 +233,7 @@ static void rates(const thermal_t *th, const thermal_power_t *p,
 }
 
 
-/** One slice of the shadow and its sensitivities.
-  *
-  * dS_k/dt = J S_k + df/ds_k, both by finite difference: J S_k as the
-  * rates at (T + eps S_k) less the rates at T, over eps; df/ds_k as the
-  * rates with scale k nudged less the rates at T, over the nudge. */
+/** One slice of the shadow and its sensitivities. */
 static void propagate(thermal_ident_t *id, const thermal_cfg_t *base,
                       const thermal_power_t *p, float speed_rpm, float dt_s)
 {
@@ -309,8 +246,8 @@ static void propagate(thermal_ident_t *id, const thermal_cfg_t *base,
   {
     float ds[THERMAL_NODES];
 
-    /* J S_k, the perturbation scaled to IDENT_EPS_T at the largest
-       component so the probe stays where the flows are linear. */
+    /* J S_k, the perturbation scaled to IDENT_EPS_T at the largest component
+       so the probe stays where the flows are linear. */
     float largest = 0.0f;
 
     for (int i = 0; i < THERMAL_NODES; i++)
@@ -385,9 +322,8 @@ static void propagate(thermal_ident_t *id, const thermal_cfg_t *base,
     {
       f = 1.0f;
     }
-    /* The observer's own rule for the element, bound included: held at
-       a patch, the element reads that patch and so does its
-       sensitivity. */
+    /* The observer's own rule for the element, bound included: held at a
+       patch, the element reads that patch and so does its sensitivity. */
     const int held = thermal_ntc_follow(sh, dt_s);
 
     for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
@@ -411,12 +347,8 @@ static void propagate(thermal_ident_t *id, const thermal_cfg_t *base,
 }
 
 
-/** Seat the shadow on the observer and forget the sensitivities: the
-  * next innovation is a prediction error from here. MEASUREMENT-
-  * CONSISTENT where a thermometer answered: its own state set to the
-  * reading, the die's node to what the reading implies and the patch
-  * under it to what the node implies, the same arithmetic the observer's
-  * anchor does at a fraction of the strength. */
+/** Seat the shadow on the observer and forget the sensitivities: the next
+    innovation is a prediction error from here. */
 static void reseat(thermal_ident_t *id, const thermal_t *th,
                    const thermal_cfg_t *base, const thermal_power_t *p,
                    float speed_rpm, const thermal_sense_t *seen)
@@ -468,11 +400,9 @@ static void reseat(thermal_ident_t *id, const thermal_t *th,
       const float per_r = -p->watt[node] + sh->cfg.node[node].capacity * f0[node];
 
       sh->t[patch] = at + per_r * sh->cfg.r_edge[edge];
-      /* The seat itself depends on the spread: the patch is placed the
-         die's watts through a SCALED edge below the node, so a sample
-         judged from here already owes that much to the scale. Without
-         it the spread ran to its clamp - each seat moved the patch and
-         nothing charged the move to what moved it. */
+      /* The seat itself depends on the spread: the patch is placed the die's
+         watts through a SCALED edge below the node, so a sample judged from
+         here already owes that much to the scale. */
       id->s[THERMAL_IDENT_SPREAD][patch] = per_r * base->r_edge[edge];
     }
     id->seated[1 + d] = true;
@@ -481,8 +411,7 @@ static void reseat(thermal_ident_t *id, const thermal_t *th,
 }
 
 
-/** One recursive least-squares update on one thermometer's innovation.
-  * `h` is the regressor: the prediction's sensitivity to each scale. */
+/** One recursive least-squares update on one thermometer's innovation. */
 static bool update(thermal_ident_t *id, const float *h_all, float innovation)
 {
   float excitation = 0.0f;
@@ -490,8 +419,8 @@ static bool update(thermal_ident_t *id, const float *h_all, float innovation)
 
   for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
   {
-    /* A held scale has no regressor: the filter neither moves it nor
-       learns a correlation through it. */
+    /* A held scale has no regressor: the filter neither moves it nor learns
+       a correlation through it. */
     h[k] = ONLINE[k] ? h_all[k] : 0.0f;
     excitation += h[k] * h[k];
   }
@@ -513,9 +442,9 @@ static bool update(thermal_ident_t *id, const float *h_all, float innovation)
     }
     hph += h[k] * ph[k];
   }
-  /* The gate: an innovation further out than IDENT_GATE_SIGMAS of what
-     the covariance and the noise predict has the noise inflated until
-     it sits exactly there. */
+  /* The gate: an innovation further out than IDENT_GATE_SIGMAS of what the
+     covariance and the noise predict has the noise inflated until it sits
+     exactly there. */
   float denom = hph + r * r;
   const float far = IDENT_GATE_SIGMAS * IDENT_GATE_SIGMAS * denom;
 
@@ -523,8 +452,8 @@ static bool update(thermal_ident_t *id, const float *h_all, float innovation)
   {
     denom = innovation * innovation / (IDENT_GATE_SIGMAS * IDENT_GATE_SIGMAS);
   }
-  /* The gain, the move, then the covariance: one Kalman measurement
-     update on the scales. */
+  /* The gain, the move, then the covariance: one Kalman measurement update
+     on the scales. */
   for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
   {
     const float gain = ph[k] / denom;
@@ -547,10 +476,8 @@ static bool update(thermal_ident_t *id, const float *h_all, float innovation)
 }
 
 
-/** Whether every online quantity is known to within its own threshold -
-  * a scale to a fraction, the room to kelvin. A held scale's sigma is
-  * its prior, honestly, and not what the state is judged on: it is not
-  * being identified. */
+/** Whether every online quantity is known to within its own threshold - a
+    scale to a fraction, the room to kelvin. */
 static bool known(const thermal_ident_t *id, const float *threshold)
 {
   for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
@@ -565,19 +492,7 @@ static bool known(const thermal_ident_t *id, const float *threshold)
 }
 
 
-/** THE ROOM IS RESET WHEN THE MODEL STOPS PREDICTING. A room step is
-  * the one change that arrives whole - a machine carried from the
-  * warehouse into the cold - and the Kalman step shares an innovation
-  * out by covariance: with the room narrowed by the last leg and
-  * correlated with the air path, the step was charged to both, the air
-  * scale ran to 1.8 for a truth of 1.2 and took half an hour to come
-  * back while the room crept (stand-in tour, 2026-09-06: 41 to 56
-  * minutes to STABLE in the 45 C room). On the transition to UNCERTAIN
-  * the room's variance goes back to its whole prior and its correlation
-  * with every scale is cut, so the next samples are charged to the room
-  * first and the scales keep what a cooldown taught them. The bench:
-  * "see if you can speed up or reset when the innovation runs away from
-  * hot to cold or the other way". */
+/** THE ROOM IS RESET WHEN THE MODEL STOPS PREDICTING. */
 static void room_reset(thermal_ident_t *id)
 {
   const int a = THERMAL_IDENT_AMBIENT;
@@ -591,9 +506,9 @@ static void room_reset(thermal_ident_t *id)
 }
 
 
-/** The state after a sample: what the covariance and the innovation
-  * say the model is worth, and the inflation that lets a model that has
-  * just stopped predicting move fast again. */
+/** The state after a sample: what the covariance and the innovation say the
+    model is worth, and the inflation that lets a model that has just stopped
+    predicting move fast again. */
 static void judge(thermal_ident_t *id)
 {
   const float ratio = id->innovation_k / id->noise_k;
@@ -603,8 +518,8 @@ static void judge(thermal_ident_t *id)
     case THERMAL_IDENT_STABLE:
       if (ratio > IDENT_RATIO_UNCERTAIN)
       {
-        /* The situation changed under a model that was trusted: a box,
-           a fan, a heat sink, a room. Say so, and let the scales run. */
+        /* The situation changed under a model that was trusted: a box, a
+           fan, a heat sink, a room. */
         id->state = THERMAL_IDENT_UNCERTAIN;
         id->stable_runs = 0U;
         for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
@@ -646,13 +561,9 @@ static void judge(thermal_ident_t *id)
       }
       else if (ratio >= IDENT_RATIO_UNCERTAIN)
       {
-        /* NOT PREDICTING, SO NOT SURE: while the innovation says the
-           model is wrong the scales are kept free to move, each online
-           variance floored at half its prior. Without this a handful of
-           samples that were mostly the state's error collapsed the
-           covariance around a wrong answer, and the fan's 0.5 was left
-           at 0.32 with the filter certain of it (host ground truth,
-           2026-09-05). */
+        /* NOT PREDICTING, SO NOT SURE: while the innovation says the model
+           is wrong the scales are kept free to move, each online variance
+           floored at half its prior. */
         for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
         {
           const float floor_sigma = FLOOR_SHARE[k] * PRIOR_SIGMA[k];
@@ -703,9 +614,9 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
 
   const bool any = !isnan(seen->ntc_c) || !isnan(seen->mcu_c)
                    || !isnan(seen->afe_c);
-  /* Blind is measured from the last READING, not the last seat: the
-     shadow is re-seated at THERMAL_IDENT_MAX_HORIZON_S whether or not
-     anything was read, and a ten-minute run ends exactly there. */
+  /* Blind is measured from the last READING, not the last seat: the shadow
+     is re-seated at THERMAL_IDENT_MAX_HORIZON_S whether or not anything was
+     read, and a ten-minute run ends exactly there. */
   const bool blind = any && (id->since_sample_s > THERMAL_IDENT_BLIND_S);
 
   if (any)
@@ -717,17 +628,9 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
   {
     /* THE SAMPLE THAT ENDS A BLIND RUN SEATS THE SHADOW AND NOTHING IS
        JUDGED FROM IT: the observer has just been pulled onto the
-       thermometers from a state ten minutes of the wrong scales made,
-       and what it still carries in the nodes they do not reach is the
-       state's error. Seated with no reading marked, the next sample is
-       not judged either - it seats again, on readings - and the third
-       is the first prediction error fed to the scales - and two more
-       pass unjudged after that, IDENT_SETTLE_SAMPLES, while the
-       observer's anchors take the leg patches the rest of the way: they
-       were 20 K cold at the third sample with the thermistor's anchor
-       taking 39 % of their error a sample. One interval of the state's
-       error charged to the scales had sent the spread to its clamp at
-       the third sample (host ground truth, 2026-09-05). */
+       thermometers from a state ten minutes of the wrong scales made, and
+       what it still carries in the nodes they do not reach is the state's
+       error. */
     reseat(id, th, base, p, speed, NULL);
     id->settle_left = IDENT_SETTLE_SAMPLES;
     return false;
@@ -747,25 +650,16 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
     bool judged = false;
     float worst = 0.0f;
 
-    /* Each thermometer against the shadow's prediction of it - judged
-       only where the shadow was SEATED on that thermometer's reading, so
-       the innovation is the reading's change over the interval against
-       the model's, and the state's error at the seat is not in it. A die
-       reads its junction: the node plus its watts through R_th, which
-       the scales do not touch, so its sensitivity is the node's. */
+    /* Each thermometer against the shadow's prediction of it - judged only
+       where the shadow was SEATED on that thermometer's reading, so the
+       innovation is the reading's change over the interval against the
+       model's, and the state's error at the seat is not in it. */
     static const thermal_node_t DIES[2] = { THERMAL_MCU, THERMAL_AFE };
     const float readings[3] = { seen->ntc_c, seen->mcu_c, seen->afe_c };
     float predicted[3];
     float h[3][THERMAL_IDENT_PARAMS];
 
-    /* A STILL BOARD TEACHES NOTHING. Every seated thermometer within
-       IDENT_STILL_GAIN floors of what it read at the seat: nothing is
-       burning, nothing is moving, and the sample moves neither the
-       scales nor their covariance - the bench's rule, so an idling board
-       stays UNCERTAIN and the envelope keeps its margin until something
-       switches. Its prediction error still counts toward whether the
-       model PREDICTS: a model that has learned a cooldown and then sits
-       quietly on the readings is not held UNCERTAIN by the quiet. */
+    /* A STILL BOARD TEACHES NOTHING. */
     float stirred = 0.0f;
 
     for (int j = 0; j < 3; j++)
@@ -810,8 +704,8 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
              (double)id->scale[2], (double)id->scale[3]);
       fflush(stdout);           /* the C and Python streams interleave */
 #endif
-      /* The judged error, in the floor's own units: the raw error over
-         one plus the share of the movement, floors. */
+      /* The judged error, in the floor's own units: the raw error over one
+         plus the share of the movement, floors. */
       const float moved_j = fabsf(readings[j] - id->seat_reading[j]);
       const float allowed = id->noise_k + IDENT_MOVE_SHARE * moved_j;
 
@@ -823,8 +717,7 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
     {
       id->innovation_k += IDENT_INNOVATION_FOLLOW
                           * (worst - id->innovation_k);
-      /* The scales may drift between samples: the process noise. Not
-         on a still sample - nothing has happened to drift under. */
+      /* The scales may drift between samples: the process noise. */
       for (int k = 0; (k < THERMAL_IDENT_PARAMS) && !still; k++)
       {
         if (ONLINE[k])
@@ -875,23 +768,14 @@ float thermal_ident_doubt(const thermal_ident_t *id)
   {
     return 1.0f;
   }
-  /* THE INNOVATION, NORMALISED: none at the thermometers' floor, all of
-     it at the ratio that says UNCERTAIN - the same three floors the
-     state is judged on, so the two agree about what "not predicting"
-     means. */
+  /* THE INNOVATION, NORMALISED: none at the thermometers' floor, all of it
+     at the ratio that says UNCERTAIN - the same three floors the state is
+     judged on, so the two agree about what "not predicting" means. */
   const float ratio = id->innovation_k / id->noise_k;
   float doubt = unit((ratio - 1.0f) / (IDENT_RATIO_UNCERTAIN - 1.0f));
 
   /* AND THE COVARIANCE, the same way: each online quantity's sigma from
-     where STABLE calls it known (none) up to its prior (all). Without
-     this term a fresh board is at full span from its first sample: its
-     innovation starts at the floor and idle - which the still rule
-     rightly leaves alone - never raises it, so nothing would ever have
-     held the bench's cold-start rule ("keep to 80 % of the SOA when
-     switching starts, with the thermal situation unknown"). The worse
-     of the two is the doubt: a model that is not predicting is doubted
-     however sure its covariance is, and one that has never been shown a
-     cooldown is doubted however small its error at rest. */
+     where STABLE calls it known (none) up to its prior (all). */
   for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
   {
     if (!ONLINE[k])
@@ -910,15 +794,9 @@ float thermal_ident_doubt(const thermal_ident_t *id)
 
 float thermal_ident_margin(const thermal_ident_t *id, float floor)
 {
-  /* THE POLICY, CONTINUOUS: the spans to the ceilings multiplied by a
-     number that is the floor while the model is doubted whole and one
-     when it is doubted not at all, and the evidence between. The bench's
-     word, 2026-09-06: scaled with the innovation normalised between 0.8
-     and 1, the floor adjustable; the states stay as words. Before it the
-     margin was three steps on the state - 0.80, 0.90, 1.0 - and a model
-     one sample short of a threshold was worth exactly what one that had
-     never predicted was. The floor is the caller's: a limit the board
-     was given, in its record beside the ceilings, never invented here. */
+  /* THE POLICY, CONTINUOUS: the spans to the ceilings multiplied by a number
+     that is the floor while the model is doubted whole and one when it is
+     doubted not at all, and the evidence between. */
   const float f = unit(floor);
 
   return f + (1.0f - f) * (1.0f - thermal_ident_doubt(id));

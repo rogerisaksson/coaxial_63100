@@ -2,23 +2,13 @@
   ******************************************************************************
   * @file    cmd_log.c
   * @brief   The measurement ring's operations behind command 0x6E, device 5.
-  *
-  * Buffered reads, and that is the whole point. One sample per round trip
-  * caps a host at a couple of hundred samples a second whatever the board
-  * managed; fifteen per reply and the board's own rate is the only limit
-  * left.
-  *
-  * A record goes out as 14 bytes - `u32 at, u8 source, u8 seq, i16 v[4]` -
-  * rather than the 16 it occupies in RAM, because the padding is the
-  * compiler's business and not the wire's.
   ******************************************************************************
   */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"
 
-/** Wire size of one record. 15 of them plus the count is 211 bytes, inside
-    MB_MAX_PDU's 253 with room for the function code and the unit. */
+/** Wire size of one record. */
 #define LOG_RECORD_BYTES 14U
 #define LOG_MAX_BURST    15U
 
@@ -29,20 +19,13 @@ static cmd_status_t h_log_state(wr_t *out)
   wr_u16(out, Board_LogCount());
   wr_u16(out, (uint16_t)BOARD_LOG_DEPTH);
   wr_u32(out, Board_LogDropped());
-  /* Appended, so an older host reads everything before it unchanged.
-     Separate from `dropped` because they mean opposite things: dropped is
-     a sample the ring had no room for, thinned is one it declined to take
-     because the link could not have carried it anyway. */
+  /* Appended, so an older host reads everything before it unchanged. */
   wr_u32(out, Board_LogThinned());
   return CMD_OK;
 }
 
 
-/** op 1 - arm a bitmask of sources and empty the ring.
-  *
-  * Emptying is not optional: a burst whose first records predate the run is
-  * worse than an empty one, and no field in the record would say so.
-  */
+/** op 1 - arm a bitmask of sources and empty the ring. */
 static cmd_status_t h_log_arm(rd_t *in, wr_t *out)
 {
   const uint8_t sources = rd_u8(in);
@@ -52,10 +35,7 @@ static cmd_status_t h_log_arm(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  /* Each armed source gets an equal share of what the link can drain. The
-     IMU reports at 50 Hz and never reaches its share; the angle loop polls
-     at about 24 kHz and is held to it, which is the whole fix - measured,
-     the IMU went from 1 record a second to its full rate. */
+  /* Each armed source gets an equal share of what the link can drain. */
   uint8_t armed = 0U;
   for (uint8_t i = 0U; i < BOARD_LOG_SOURCES; i++)
   {

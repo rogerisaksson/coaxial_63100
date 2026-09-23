@@ -2,138 +2,6 @@
   ******************************************************************************
   * @file    cmd.h
   * @brief   Request/response command layer. Protocol-agnostic, table-driven.
-  *
-  * A command is a code, an expected request length, and one handler reading a
-  * request payload and writing a response payload. Framing, addressing and
-  * CRCs belong to the protocol below. The codes ride in MODBUS's user-definable
-  * ranges, 65..72 and 100..110.
-  *
-  * A broadcast command runs and its response is dropped by the protocol layer,
-  * so handlers need not care.
-  *
-  * Wire: big-endian integers, no floating point, strings as one length byte
-  * then that many unterminated ASCII characters. docs/PROTOCOL.md is the
-  * authority on 0x6E and on everything a host has to decide from.
-  *
-  * 0x41 VERSION       req: -
-  *                    rsp: u8 proto_major, u8 proto_minor,
-  *                         u8 fw_major, u8 fw_minor, u8 fw_patch,
-  *                         str device, str mcu, str build,
-  *                         u16 command_count, str description, str type
-  *                    Append-only, and a host selects its codec on
-  *                    proto_major alone - invariants 3 and 4.
-  *
-  * 0x42 ADC_TABLE     req: u8 first (optional, default 0)
-  *                    rsp: u8 count, then per channel:
-  *                         u8 adc_index (1..3), u8 channel, str pin,
-  *                         u8 differential, str signal,
-  *                         i32 raw, i32 microvolts_at_pin,
-  *                         u8 unit  (0 none, 1 millivolt, 2 centidegC),
-  *                         i32 scaled  (meaningful only when unit != 0)
-  *                         u8 total
-  *                    unit 0 is a channel whose physical quantity is not
-  *                    defined, reported as that rather than as a number.
-  *
-  * 0x43 ADC_SCAN      req: -
-  *                    rsp: i32 phase_u_raw, i32 phase_v_raw, i32 phase_w_raw,
-  *                         i32 dcbus_raw, i32 dcbus_millivolt,
-  *                         i32 ntc_raw, i32 ntc_centidegc,
-  *                         u8 afe_on, u8 pe15
-  *
-  * 0x44 ADC_NOISE     req: u8 adc_index (1..3), u16 samples (1..1000)
-  *                    rsp: u16 samples, i32 mean_microvolt, i32 min_raw,
-  *                         i32 max_raw, u32 span_raw, u32 stddev_microvolt
-  *
-  * 0x45 CLOCK         req: -
-  *                    rsp: u32 sysclk_hz, u32 hclk_hz, u32 cyccnt,
-  *                         u32 ticks_per_us, u8 sysclk_source
-  *                         (0 HSI, 1 CSI, 2 HSE, 3 PLL1)
-  *
-  * 0x46 AFE           req: u8 action (0 read, 1 off, 2 on, 3 toggle)
-  *                    rsp: u8 afe_on, u8 pe15
-  *
-  * 0x47 LINK_STATS    req: -
-  *                    rsp: u8 unit_id, u32 t15_ticks, u32 t35_ticks,
-  *                         u32 bus_message, u32 bus_comm_error,
-  *                         u32 server_message, u32 server_exception,
-  *                         u32 server_no_response, u32 char_overrun
-  *
-  * 0x48 CONSOLE       req: -    rsp: -   (the ASCII console resumes)
-  *
-  * TEST FIXTURE COMMANDS (100..110). Raw pin access for a production rig.
-  * Driving or reconfiguring a pin needs the gate open; reads never do.
-  *
-  * 0x64 TEST_GATE     req: u32 key (0x54455354, ASCII "TEST"), u8 open
-  *                    rsp: u8 open
-  *                    A wrong key is ILLEGAL DATA VALUE and leaves the gate
-  *                    as it was, so the mode cannot be entered by accident.
-  *
-  * 0x65 ECHO          req: 0..250 bytes    rsp: the same bytes
-  *                    Proves framing, CRC and both codecs round trip without
-  *                    depending on board state.
-  *
-  * 0x66 PIN_MODE      req: u8 port ('A'..'K'), u8 pin (0..15),
-  *                         u8 mode (0 input, 1 out PP, 2 out OD, 3 analog),
-  *                         u8 pull (0 none, 1 up, 2 down)
-  *                    rsp: -
-  * 0x67 PIN_READ      req: u8 port, u8 pin        rsp: u8 level
-  * 0x68 PIN_WRITE     req: u8 port, u8 pin, u8 level
-  *                    rsp: u8 level read back from the pin
-  * 0x69 PORT_READ     req: u8 port                rsp: u16 IDR
-  * 0x6A PORT_WRITE    req: u8 port, u16 mask, u16 value
-  *                    rsp: u16 IDR read back
-  *                    Through BSRR, so atomic. Reserved pins are masked out
-  *                    of the write rather than rejecting it.
-  *
-  * 0x6B ANALOG_BURST  req: u16 channel_mask (bit i = channel i of the table),
-  *                         u16 samples (1..10000),
-  *                         u32 interval_us (0 = as fast as conversions allow)
-  *                    rsp: u16 samples_taken, u32 elapsed_us, u8 count,
-  *                         then per channel, ascending index:
-  *                           u8 index, i32 mean_milliraw, i32 min_raw,
-  *                           i32 max_raw, u32 sd_milliraw
-  *                    Raw codes; the host owns the scaling, so a fixture with
-  *                    different parts needs no firmware change. Milli-codes
-  *                    (raw x 1000) carry the fraction without a float.
-  *                    elapsed_us is measured, and a burst past 5 s is refused
-  *                    rather than left to outlive the master.
-  *
-  * 0x6C SELF_TEST     req: -
-  *                    rsp: u8 count, then per check:
-  *                           str name, u8 status (0 pass, 1 fail, 2 info),
-  *                           i32 value
-  *                    PASS/FAIL only where the board can prove it from its own
-  *                    registers or flash. Anything a calibrated instrument
-  *                    would judge is INFO with its value - invariant 10.
-  *
-  * 0x6D CHANNELS      req: u8 kind (0 analog, 1 digital IO, 2 reserved,
-  *                         3 subsystems, 4 parts), u8 first (kind 4)
-  *                    rsp, kind 0: u8 count, then per analog channel:
-  *                         u8 index, u8 adc_index, u8 channel, str pin,
-  *                         u8 direction, u8 differential, str signal, u8 unit
-  *                    rsp, kind 1 and 2: u8 total, u8 first, u8 count,
-  *                         then per pin: str pin, u8 direction, str signal
-  *                    rsp, kind 3: u8 count, then per group:
-  *                         str name, str what, u8 commands
-  *                    rsp, kind 4: u8 total, u8 first, u8 count, then per
-  *                         part: str name, str what, str where, str power,
-  *                         u8 state
-  *                    direction is 0 in, 1 out, 2 both, from the MCU's side.
-  *
-  *                    Kind 1 is what a fixture may drive; kind 2 is USART3 and
-  *                    JTAG, reported only so "why was PB10 refused" has an
-  *                    answer. Sectioned because one reply does not fit:
-  *                    measured, together they came to 273 bytes against
-  *                    MB_MAX_PDU's 253 and the overflow flag turned the first
-  *                    live call into an 0x04. Kinds 1, 2 and 4 are paged on
-  *                    top of that: 19 reserved pins are 418 bytes.
-  *
-  *                    This is the map. Nothing above the firmware carries a
-  *                    copy of it.
-  *
-  * Reserved pins - USART3 on PB10/PB11, the debug port on PA13..PA15, PB3 and
-  * PB4 - are refused in every mode: they carry the link the command arrived on
-  * and the ability to reflash.
   ******************************************************************************
   */
 #ifndef CMD_H
@@ -164,15 +32,10 @@ extern "C" {
 #define CMD_ANALOG_BURST 0x6BU
 #define CMD_SELF_TEST    0x6CU
 #define CMD_CHANNELS     0x6DU
-/* The last user-defined function code there is. MODBUS reserves 65..72 and
-   100..110 for them (modbus_slave.c, fc_is_user_defined); this repository has
-   spent 0x41..0x48 and 0x64..0x6D, so everything the IMU needs goes behind
-   one code with an operation byte in front. 0x6F answered ILLEGAL FUNCTION
-   from the protocol layer before dispatch ever saw it - measured. */
+/* The last user-defined function code there is. */
 #define CMD_DEVICE       0x6EU
 
-/* Which peripheral 0x6E's payload is addressed to. See cmd_device.c on why
-   there is a device byte rather than a function code each. */
+/* Which peripheral 0x6E's payload is addressed to. */
 #define DEVICE_IMU       0U
 #define DEVICE_ANGLE     1U
 #define DEVICE_LINK      2U
@@ -204,9 +67,7 @@ extern "C" {
 #define POWER_OP_STATE        0U  /**< -> u8 rails, per rail on, users, count, blocked, leased */
 #define POWER_OP_RELEASE_ALL  1U  /**< every hold dropped -> u8 took; blunt, for a leak */
 
-/** Device 10's ops: the control law. Angles in microradians, speeds in
-    milliradians a second, currents mA, volts mV; the window's means and
-    deviations in micro-units. cmd_drive.c has the layouts. */
+/** Device 10's ops: the control law. */
 #define DRIVE_OP_STATE        0U  /**< -> mode, fault, flags, frames, dq, costs */
 #define DRIVE_OP_MODE         1U  /**< u8 mode -> u8 took                        */
 #define DRIVE_OP_SETPOINT     2U  /**< u8 id, i32 value -> u8 took               */
@@ -249,16 +110,12 @@ extern "C" {
 #define DAQ_OP_READ      4U  /**< [u8 want] -> u8 got, then got x stride     */
 #define DAQ_OP_LAYOUT    5U  /**< -> what each field is, named by the board  */
 #define DAQ_OP_LIVE      6U  /**< -> u8 fresh, then the accumulator, reset   */
-/* MINOR 4: the anti-alias chain, and a tone to prove the path carried it.
-   Coefficients cross as Q28 - the wire has no floating point. */
+/* MINOR 4: the anti-alias chain, and a tone to prove the path carried it. */
 #define DAQ_OP_FILTER    7U  /**< u8 count, u16 decimate, i32 x 5 x count   */
-#define DAQ_OP_TONE      8U  /**< u32 hz, u32 rate, i32 amp, i32 offset,
-                                  u8 kind: 0 sine, 1 ramp                   */
-#define DAQ_OP_RUNG      9U  /**< u8 rung, u16 boxcar, u8 count,
-                                  u16 decimate, i32 x 5 x count             */
+#define DAQ_OP_TONE      8U  /** < u32 hz, u32 rate, i32 amp, i32 offset, u8 kind: 0 sine, 1 ramp */
+#define DAQ_OP_RUNG      9U  /** < u8 rung, u16 boxcar, u8 count, u16 decimate, i32 x 5 x count */
 
-/** Device 7's ops: the cycle counter, latched. Op 0 is meant to be
-    BROADCAST - no reply means no turnaround inside the measurement. */
+/** Device 7's ops: the cycle counter, latched. */
 #define TIME_OP_LATCH    0U  /**< take CYCCNT now                            */
 #define TIME_OP_READ     1U  /**< -> u32 seq, latched, now, sysclk_hz        */
 
@@ -297,80 +154,15 @@ extern "C" {
 #define CAL_OP_SAVE        5U
 #define CAL_OP_LOAD        6U
 #define CAL_OP_DEFAULTS    7U
-/* MINOR 2: u8 first -> u8 total, u8 first, u8 count, u32 x count. Op 0
-   still carries the first fifteen only - with forty-five its reply was
-   310 bytes against MB_MAX_PDU, and every read answered 0x04. */
+/* MINOR 2: u8 first -> u8 total, u8 first, u8 count, u32 x count. */
 #define CAL_OP_PARAMS      8U
 
 /* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
-   indices - device 8 node order and the cal record's ceilings both. The
-   count byte lets a host follow the length, not the meaning: an old host's
-   set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
-   whether meant or not. */
+   indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 18U        /* 1: gate drivers op 10, alternate
-                                     2: device 10, the drive; the DC link
-                                        appended to gate drivers op 0
-                                     3: a daq record ends with u16 count,
-                                        and accumulate 0 closes it on the
-                                        clock. RESIZES the record, like
-                                        the u16 channel mask did - op 5
-                                        says the stride and a decoder
-                                        that recomputed it mis-frames
-                                     4: daq op 0 appends the buffer
-                                        level - capacity and the high
-                                        water mark
-                                     5: daq op 4 appends the backlog -
-                                        records still buffered after
-                                        the read that just took some
-                                     6: imu op 8 appends the three
-                                        vectors - accelerometer,
-                                        gyroscope, magnetometer,
-                                        each with its own `have`
-                                     7: daq op 1 appends a u16 sensor
-                                        mask; records append four i16
-                                        SNAPSHOT words per sensor after
-                                        the pins; op 5 appends the rows.
-                                        Software clock only - a TIM1
-                                        record closes in ADC3's ISR and
-                                        would read the poll records torn
-                                     8: gate drivers op 2 takes an
-                                        optional u32 period count - the
-                                        update ISR zeroes the compares
-                                        after exactly that many periods;
-                                        op 0 appends u32 periods_left
-                                     9: requests whose shape is fixed
-                                        dispatch on their own CRC, not
-                                        t3.5 (cmd_length.c) - a host may
-                                        drop its pre-TX gap for those
-                                    10: drive op 14 - the back-EMF
-                                        observer chain that runs beside
-                                        the loop (drive_observer.c),
-                                        read-only and steering nothing
-                                    11: thermal op 4 appends the derate,
-                                        the soak joules and the duty
-                                    12: thermal op 4 appends the winding
-                                        - estimate, spend, own factor;
-                                        op 6 sets its envelope
-                                    13: twenty thermal nodes from ten,
-                                        the count says so; op 0 appends
-                                        the FET junction rises and the
-                                        speed; ops 7, 8, 9 - the node
-                                        table, the edge table, set edge
-                                    14: thermal op 10 - the online
-                                        identification's scales,
-                                        sigmas, state and margin;
-                                        op 11 resets it
-                                    15: thermal op 10 appends the room
-                                        as identified and its sigma
-                                    16: thermal op 10 appends the
-                                        margin's floor; op 12 sets it
-                                    17: thermal op 10 appends the trip
-                                        cap as it stands
-                                    18: device 11, the bootloader, as
-                                        the application serves it - op
-                                        10 state, op 12 stay; the rest
-                                        refused in words (cmd_boot.c) */
+#define CMD_PROTO_MINOR 18U        /* 1: gate drivers op 10, alternate 2: device 10, the drive; the DC link
+   appended to gate drivers op 0 3: a daq record ends with u16 count, and
+   accumulate 0 closes it on the clock. */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -384,13 +176,7 @@ typedef enum
   CMD_ERR_DEVICE     /**< the board could not comply      */
 } cmd_status_t;
 
-/**
-  * @brief One command implementation.
-  *
-  * Reads from @p in and writes to @p out. Both are total: overflow and underrun
-  * set a sticky flag rather than failing at the point of use, so a handler is a
-  * flat run of statements and the dispatcher checks once.
-  */
+/** One command implementation. */
 typedef cmd_status_t (*cmd_handler_t)(rd_t *in, wr_t *out);
 
 typedef struct
@@ -410,8 +196,7 @@ const cmd_desc_t *cmd_test_table(uint8_t *count);
 /** Command 0x6E, the device dispatch. See cmd_device.c. */
 const cmd_desc_t *cmd_device_table(uint8_t *count);
 
-/** One device's operations. Called by cmd_device.c after it has taken the
-  * device byte off the request; `in` is positioned at the op's payload. */
+/** One device's operations. */
 cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_angle_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_link_op(uint8_t op, rd_t *in, wr_t *out);
@@ -426,14 +211,7 @@ cmd_status_t cmd_boot_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);
 
 
-/**
-  * @brief One subsystem: a command table, named, with what it is for.
-  *
-  * The board says what it is made of for the same reason it says what its
-  * channels are - a host that answers that from a table of its own is a
-  * second answer to a question only the firmware can settle. Adding a
-  * command table adds a subsystem, because they are the same thing.
-  */
+/** One subsystem: a command table, named, with what it is for. */
 typedef struct
 {
   const char *name;
@@ -442,27 +220,7 @@ typedef struct
 } cmd_group_t;
 
 /** How many subsystems this firmware has. */
-/** Share of the raw line rate a stream of records may claim. Measured at
-  * 115200 over the debug probe's VCP: a 250-byte payload round-tripped at
-  * 10.1 kB/s of the 11.52 kB/s the bitrate allows, and a 4-byte one at
-  * 0.5 kB/s - the cost of a transaction is flat, so the share a stream gets
-  * is the share left after the other traffic on the segment. `link_bench.py`
-  * is what measures it.
-  *
-  * WAS 33, AND THAT WAS MEASURED BEFORE THE HOST STOPPED WAITING. Every
-  * reply used to end on 8 ms of silence, because nothing in a Modbus frame
-  * says where it ends; a DAQ read now says its own length, and the reader
-  * waits for a reply's worth of records instead of spending a whole
-  * transaction on one. Re-measured 2026-09-01, ten channels and nine pins
-  * at stride 55: 124.8 records/s at 4.00 records a read, which is 72.7
-  * kbit/s or 63% of the line. A task asks for 0.8 of this share, so 75
-  * puts the ask at 125 records/s - what the link actually carries, rather
-  * than a third of it.
-  *
-  * IT IS STILL A SHARE. One board on one cable can have the line; a
-  * populated RS485 segment cannot, and this is the constant to bring back
-  * down when one exists.
-  */
+/** Share of the raw line rate a stream of records may claim. */
 #define CMD_LINK_SHARE_PCT 75U
 
 /** Records per second the link can carry at this record size. */
@@ -480,11 +238,9 @@ const cmd_desc_t *cmd_at(uint16_t index);
 /** Find a command by code, or NULL. */
 const cmd_desc_t *cmd_find(uint8_t code);
 
-/**
-  * @brief  Run one command.
-  * @param  rsp_len  Response payload length on success, 0 otherwise.
-  * @return CMD_OK, or the reason it could not run.
-  */
+/** Run one command.
+    @param  rsp_len  Response payload length on success, 0 otherwise.
+    @return CMD_OK, or the reason it could not run. */
 cmd_status_t cmd_dispatch(uint8_t code, const uint8_t *req, uint16_t req_len,
                           uint8_t *rsp, uint16_t rsp_cap, uint16_t *rsp_len);
 

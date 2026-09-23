@@ -2,18 +2,6 @@
   ******************************************************************************
   * @file    board_drive.c
   * @brief   Runs the control law on this hardware, one PWM period at a time.
-  *
-  * `drive/` is the arithmetic and knows no hardware. This converts the
-  * injected triple and the link to amperes and volts through the
-  * calibration record (invariant 7: one conversion, defined once), steps
-  * the law, and hands the duties to board_pwm.c to commit at the next
-  * underflow. Its parameters come out of the record too, so a board runs
-  * the same drive after a reset that it ran before one.
-  *
-  * Called from ADC3's injected interrupt, so short: no HAL, no talking.
-  * The only judgement here is the drive's own - a current past the trip it
-  * was given drops the stage - and that is the thermal ceiling's exception
-  * again (invariant 10).
   ******************************************************************************
   */
 #include "board.h"
@@ -25,15 +13,12 @@
 #include <math.h>
 
 /** The drive glue's state: the law, the record's derate and clamp, the
-  * ownership of the compares, the step's cost, and the converters' scaling.
-  * One object: what a debugger shows whole and a reset clears at once. */
+    ownership of the compares, the step's cost, and the converters' scaling. */
 static struct
 {
   drive_t drive;
   bool ready;
-  /** What the thermal envelope is scaling the current clamp by, 1 to 0.
-      Held here rather than read from the observer in the interrupt: the
-      poll runs at 10 Hz on the main loop and this is read at 50 kHz. */
+  /** What the thermal envelope is scaling the current clamp by, 1 to 0. */
   float derate;
   /** The clamp the record asked for, before any derating. */
   float i_max_cal;
@@ -41,12 +26,10 @@ static struct
   uint32_t cycles_last;           /**< what one step cost, raw CYCCNT     */
   uint32_t cycles_max;
   /** Where TIM1 stood when the step ended, in ticks past the trigger: the
-      conversion, the HAL's interrupt entry and the step, all of it. The
-      cycle count above starts inside the step and misses the first two. */
+      conversion, the HAL's interrupt entry and the step, all of it. */
   uint16_t exit_ticks_max;
 
-  /** The conversions, affine and cached: refreshed with the parameters.
-      A call into board_adc.c per sample was most of the interrupt. */
+  /** The conversions, affine and cached: refreshed with the parameters. */
   int32_t i_off[BOARD_PWM_PHASES];
   float i_k[BOARD_PWM_PHASES];
   int32_t v_off;
@@ -58,8 +41,8 @@ static struct
 void Board_DriveDerate(float factor)
 {
   /* Clamped here rather than trusted: this is a multiplier on a current
-     limit, and a value outside 0..1 would be a limit RAISED by the
-     thermal envelope, which is the one thing it must never do. */
+     limit, and a value outside 0..1 would be a limit RAISED by the thermal
+     envelope, which is the one thing it must never do. */
   if (!(factor >= 0.0f))
   {
     factor = 0.0f;
@@ -142,8 +125,7 @@ void Board_DriveParamsFromCal(void)
   }
   Board_DcBusScale(&s.v_off, &s.v_k);
 
-  /* The sample point the commissioning chose, if it chose one. Zero is
-     "never measured" and leaves the sync's own default alone. */
+  /* The sample point the commissioning chose, if it chose one. */
   if (cal->drv_trigger_ticks != 0U)
   {
     (void)Board_SyncSetTrigger((uint16_t)cal->drv_trigger_ticks);
@@ -153,8 +135,8 @@ void Board_DriveParamsFromCal(void)
 
 void Board_DriveInit(void)
 {
-  /* Centre-aligned, so a period is twice ARR ticks of the timer clock,
-     which is half SYSCLK. 20.000 us at ARR 2375 and 475 MHz. */
+  /* Centre-aligned, so a period is twice ARR ticks of the timer clock, which
+     is half SYSCLK. */
   const uint32_t ticks = 2U * (Board_PwmPeriod() - 1U);
   const uint32_t hz = Board_SysClkHz() / 2U;
   const float ts = ((ticks != 0U) && (hz != 0U))
@@ -390,8 +372,8 @@ bool Board_DriveOwnsCompares(void)
   return s.owned;
 }
 
-/* The stage is the drive's from the first triple until it lets go -
-   taken once, not asked for every period. */
+/* The stage is the drive's from the first triple until it lets go - taken
+   once, not asked for every period. */
 static void own_pwm(void)
 {
   if (s.owned)
@@ -402,10 +384,10 @@ static void own_pwm(void)
   s.owned = true;
 }
 
-/** What the law's duties do to the compares this period: nothing while
-  * the stage is down, the next triple while a mode runs on an armed stage,
-  * and one zero triple when a mode has just ended - polarity finishing, a
-  * stage drop, the host asking for OFF - before the compares are let go. */
+/** What the law's duties do to the compares this period: nothing while the
+    stage is down, the next triple while a mode runs on an armed stage, and
+    one zero triple when a mode has just ended - polarity finishing, a stage
+    drop, the host asking for OFF - before the compares are let go. */
 static void commit_duties(const drive_out_t *out, bool enabled, bool running)
 {
   if (enabled && (s.drive.mode != DRIVE_OFF))
@@ -435,8 +417,7 @@ static void commit_duties(const drive_out_t *out, bool enabled, bool running)
 
 void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
 {
-  /* In ADC3's interrupt, straight after the triple was latched. Nothing
-     here talks (invariant 5). */
+  /* In ADC3's interrupt, straight after the triple was latched. */
   if (!s.ready)
   {
     return;
@@ -458,10 +439,10 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
 
   const bool enabled = Board_PwmIsEnabled();
   const bool running = (s.drive.mode != DRIVE_OFF);
-  /* The model as the source: the law runs on its currents whether or
-     not a stage is armed, and the duties below reach the gates only if
-     one is - which is how the rotor observer is watched on this bench, where
-     the converters and the drivers are never powered together. */
+  /* The model as the source: the law runs on its currents whether or not a
+     stage is armed, and the duties below reach the gates only if one is -
+     which is how the rotor observer is watched on this bench, where the
+     converters and the drivers are never powered together. */
   const bool trip = (s.drive.source == DRIVE_SOURCE_MODEL)
                     ? drive_step_virtual(&s.drive, &out)
                     : drive_step(&s.drive, &in, enabled, &out);
@@ -478,9 +459,7 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   }
 
   /* The ring, when armed for this source: dq current, the rotor observer's
-     angle as a turn in 65536, the innovation in 0.1 mrad. Converted only
-     then - four lrintf calls a period for a ring nobody armed were in the
-     8 us this interrupt cost. */
+     angle as a turn in 65536, the innovation in 0.1 mrad. */
   if ((Board_LogSources() & (1U << BOARD_LOG_SOURCE_DRIVE)) != 0U)
   {
     const int16_t logged[4] = {
@@ -497,7 +476,7 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   s.cycles_max = (s.cycles_last > s.cycles_max) ? s.cycles_last : s.cycles_max;
 
   /* The trigger fires on the down-slope at CCR5; the counter has fallen
-     since, or turned at zero and climbed. Either way the ticks since. */
+     since, or turned at zero and climbed. */
   const uint32_t cnt = TIM1->CNT;
   const uint32_t trigger = TIM1->CCR5;
   const uint32_t since = ((TIM1->CR1 & TIM_CR1_DIR) != 0U)

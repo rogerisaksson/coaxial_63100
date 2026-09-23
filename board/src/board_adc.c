@@ -11,20 +11,14 @@
 #include <math.h>
 
 /* The converter's 16-bit result: the full scale of codes, the half of it
-   that is a differential reading's span, and the mid code that reads 0 V
-   in offset binary. */
+   that is a differential reading's span, and the mid code that reads 0 V in
+   offset binary. */
 #define ADC_CODES      65536.0f
 #define ADC_HALF_CODES 32768.0f
 #define ADC_MID_CODE   32768
 
 
-/* ADC+/- reference. VREFBUF is deliberately disabled and VREF+ left
-   high-impedance, so the reference comes from the AFE - which is why every
-   channel reads exact mid-scale with AFE_ON low. The AFE's own source is U2,
-   a REF2033 (schematic Regulators.SchDoc), so 3.3 V is a specified part and
-   not a rail nobody measured. It lives in the calibration record all the
-   same, because a rig with a calibrated meter can do better than a datasheet
-   tolerance and this board should keep what it learns. */
+/* ADC+/- reference. */
 static float cal_vref(void)
 {
   return (float)Board_Cal()->vref_uv / MICRO_PER_UNIT;
@@ -33,9 +27,7 @@ static float cal_vref(void)
 
 /* One formula for what a code is worth, so the corrected read below cannot
    drift from the raw one above it. */
-/** The eight sampling times the H7 offers, shortest first. Indexed rather
-    than passed as the HAL's encoded value so the wire carries 0..7 and the
-    host needs no copy of the table. */
+/** The eight sampling times the H7 offers, shortest first. */
 static const uint32_t SAMPLE_TIMES[] =
 {
   ADC_SAMPLETIME_1CYCLE_5,   ADC_SAMPLETIME_2CYCLES_5,
@@ -47,8 +39,7 @@ static const uint32_t SAMPLE_TIMES[] =
 
 /* 1.5 cycles is what every read used before this was settable, and it stays
    the default: FINDINGS records it as ruled out for the quiet channels
-   because the 15 nF node cap supplies the S&H charge. It is NOT ruled out
-   for Cinj and Clevel, whose apparent duty tracks the sample rate. */
+   because the 15 nF node cap supplies the S&H charge. */
 static uint32_t s_sample_time = ADC_SAMPLETIME_1CYCLE_5;
 static uint8_t  s_sample_index;
 
@@ -75,9 +66,7 @@ uint8_t Board_AdcSampleTime(void)
 int32_t Board_AdcDifferential(uint32_t raw)
 {
   /* Offset binary, 32768 = 0 V - proven on ADC3 CH1 against a known 0.5 V
-     input; see the note below. Named because two paths need it and the
-     second one got it wrong: board_sync.c cast the injected JDR straight to
-     int16_t and every quiet phase came back near the negative rail. */
+     input; see the note below. */
   return (int32_t)raw - ADC_MID_CODE;
 }
 
@@ -90,27 +79,14 @@ static float code_to_volts(int32_t code, uint32_t singleDiff)
 }
 
 
-/* Blocking single-shot differential read, converted to volts.
-   Empirically verified against a known ~0.5 V input on ADC3 CH1 (PC2/PC3):
-   the raw result is OFFSET BINARY, not two's complement - code 32768 (mid
-   of the 16-bit range) means 0 V differential, not code 0. The original
-   two's-complement assumption made a genuine near-zero signal (code near
-   32768) read as close to full-scale negative, which is exactly the
-   "-3.3000 V on all three channels" saturation we saw before anything was
-   even connected. */
+/* Blocking single-shot differential read, converted to volts. */
 /* Two independent single-shot reads instead of one two-rank scan sequence -
    reconfigures the channel between reads and reuses the same proven
    Start/PollForConversion/GetValue/Stop pattern already working for
    ADC1/ADC2, rather than trusting an unverified assumption about how HAL
-   polls multiple ranks within one scan. Confirmed by hardware measurement
-   (~1 V applied directly on PC0) that the earlier scan-based version read
-   0 V on CH10 even though the pin genuinely had signal on it - i.e. the
-   two-rank scan approach was the bug, not the wiring. */
+   polls multiple ranks within one scan. */
 /* General single-channel read: reconfigures the given ADC's rank-1 channel
-   and does one Start/PollForConversion/GetValue/Stop cycle.
-   Deliberately not hardware scan mode (multiple ranks in one Start), for the
-   reason recorded above: it silently returned 0 on a live signal and was
-   never explained. Sequential single-shot reads are slower and proven. */
+   and does one Start/PollForConversion/GetValue/Stop cycle. */
 static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32_t singleDiff,
                                 int32_t *outRaw, float *outVolts, uint32_t sampleTime)
 {
@@ -121,10 +97,7 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
 
   sConfig.Channel = channel;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  /* Per channel, falling back to the shared setting. The internal
-     temperature sensor needs orders of magnitude longer than a pin: the
-     shared default is 1.5 cycles, and reading the die at that is wrong in a
-     way nothing about the number would show. */
+  /* Per channel, falling back to the shared setting. */
   sConfig.SamplingTime = (sampleTime != 0U) ? sampleTime : s_sample_time;
   sConfig.SingleDiff = singleDiff;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
@@ -133,17 +106,8 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
 
   /* HAL only ORs into PCSEL and never clears it, so every channel ever
      configured on this ADC stays preselected and connected to the sampling
-     network (measured on target: ADC3 PCSEL = 0xC03, i.e. ch 0/1/10/11 all
-     live at once). Clear it and let HAL_ADC_ConfigChannel select just this
-     channel - for differential mode it also sets the negative input's bit
-     via ADC_CHANNEL_DIFF_NEG_INPUT, so that mapping is not repeated here.
-     Safe because HAL_ADC_Stop disables the ADC and PCSEL is writable with
-     ADEN = 0. */
-  /* Not while the current loop owns the converters. The injected sequence
-     leaves all three phase channels selected in PCSEL and is triggered by
-     the timer; this path clears PCSEL and selects one. Whichever ran second
-     would read the other's channels - the same PCSEL trap that has caught
-     this board twice, arriving from a third direction. */
+     network (measured on target: ADC3 PCSEL = 0xC03, i.e. */
+  /* Not while the current loop owns the converters. */
   if (Board_SyncArmed())
   {
     return false;
@@ -156,10 +120,7 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
     return false;
   }
 
-  /* A timed-out conversion used to leave *outRaw at 0 and say nothing. On a
-     differential channel code 0 is itself a valid reading - 0 V - so a failed
-     conversion was indistinguishable from a measurement, which is the one
-     thing this board must never produce. */
+  /* A timed-out conversion used to leave *outRaw at 0 and say nothing. */
   if (HAL_ADC_PollForConversion(hadc, 10) != HAL_OK)
   {
     HAL_ADC_Stop(hadc);
@@ -178,13 +139,7 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
 }
 
 /* NTC on PB0 (ADC1 IN9): 3.3V -> NTC (high side) -> PB0 -> 10k fixed (low
-   side) -> GND. Thermistor is Murata NCU18XH103D60RB: R25=10k +/-0.5%,
-   B25/50=3380K +/-0.7% - confirmed against Murata's published spec via web
-   search on 2026-08-19, not assumed.
-
-   The four numbers now come from the calibration record rather than from
-   #defines here, so a board with a different thermistor is a record edit
-   and not a rebuild. The defaults in board_cal.c are these same values. */
+   side) -> GND. */
 static float NTC_VoltsToCelsius(float v_node)
 {
   const board_cal_t *cal = Board_Cal();
@@ -204,7 +159,7 @@ static float NTC_VoltsToCelsius(float v_node)
 
 /* PC0/IN10 is fed through an external 49.9k/2.2k resistor divider (R12/R11,
    top/bottom to GND), so the pin voltage is only 2.2/(49.9+2.2) of the real
-   DC bus voltage. Scale back up to get the actual source voltage. */
+   DC bus voltage. */
 static float DC_BUS_VoltsFromDivider(float v_node)
 {
   const board_cal_t *cal = Board_Cal();
@@ -214,10 +169,7 @@ static float DC_BUS_VoltsFromDivider(float v_node)
 }
 
 /* A phase code is the drop across RU1||RU2 - two 7 mohm WSHM2818, so 3.5
-   mohm - seen through the THS4551's Rf 1.5k over Rg 330. Traced off the
-   schematic and never measured, which is why both live in the record where a
-   rig can span them against a clamp meter rather than as constants only a
-   rebuild can change. */
+   mohm - seen through the THS4551's Rf 1.5k over Rg 330. */
 static float PHASE_AmpsFromShunt(float v_pin)
 {
   const board_cal_t *cal = Board_Cal();
@@ -230,25 +182,14 @@ static float PHASE_AmpsFromShunt(float v_pin)
 /* Pass 1: every single-ended channel (these ride on the same ADC silicon as
    a phase, but aren't phase current/voltage themselves - labelled by pin/
    purpose rather than U/V/W). */
-/* One row per configured ADC channel, read and printed in a single table.
-
-   The "scaled" and "unit" columns are left blank where no physical quantity
-   is defined for that input, rather than filled with the pin voltage dressed
-   up as something it is not. PB1/IN5 and PC1/IN11 have no assigned signal at
-   all - only a pin - so they stay blank.
-
-   The three phase inputs used to be blank for the same reason. They are not
-   any more: the shunt and the amplifier chain were traced off the schematic
-   on 2026-08-26 and both now sit in the calibration record. */
+/* One row per configured ADC channel, read and printed in a single table. */
 typedef enum
 {
   ADC_UNIT_NONE = 0,   /* leave the scaled/unit columns empty */
   ADC_UNIT_DCBUS,      /* volts at the DC bus, via the external divider */
   ADC_UNIT_NTC,        /* degrees C, via the R25/B thermistor conversion */
   ADC_UNIT_PHASE,      /* amperes, via the shunt and the amplifier gain */
-  /* Two more voltages, and two more dividers. They report millivolts
-     like the DC link does, and they are separate units because the
-     divider belongs to the channel and not to the unit. */
+  /* Two more voltages, and two more dividers. */
   ADC_UNIT_RAIL5,      /* the +5 rail, through R113's 10k/10k        */
   ADC_UNIT_VGATE,      /* the gate driver supply, 47k+10k over 10k   */
   ADC_UNIT_DIE         /* degrees C, from the die's factory calibration */
@@ -269,10 +210,8 @@ typedef struct
   uint32_t           sampleTime; /* 0 = use the shared setting */
 } AdcChannelDesc;
 
-/* Which ADC carries which phase is fixed by the pinout, not by preference:
-   U on ADC3, V on ADC1, W on ADC2. This table is the only place that says so
-   - the aliases and per-phase channel macros that used to repeat it here are
-   gone, because every reader now goes through read_index below. */
+/* Which ADC carries which phase is fixed by the pinout, not by preference: U
+   on ADC3, V on ADC1, W on ADC2. */
 static const AdcChannelDesc s_adcTable[] =
 {
   { &hadc3, "ADC3", ADC_CHANNEL_1,  "IN1",  "PC3_C/PC2_C", ADC_DIFFERENTIAL_ENDED, "Phase U", ADC_UNIT_PHASE  , 0U },
@@ -282,27 +221,11 @@ static const AdcChannelDesc s_adcTable[] =
   { &hadc1, "ADC1", ADC_CHANNEL_9,  "IN9",  "PB0",         ADC_SINGLE_ENDED,       "NTC",     ADC_UNIT_NTC   , 0U },
   { &hadc3, "ADC3", ADC_CHANNEL_10, "IN10", "PC0",         ADC_SINGLE_ENDED,       "DC bus",  ADC_UNIT_DCBUS , 0U },
   { &hadc3, "ADC3", ADC_CHANNEL_11, "IN11", "PC1",         ADC_SINGLE_ENDED,       "Cinj",    ADC_UNIT_NONE  , 0U },
-  /* The two supply senses, both single-ended off ADC1. Traced on the MCU
-     sheet 2026-08-27: R113 is a 10 k array whose four elements are GND,
-     +5, +15V7 through R119 47 k, and GND. So PA4 sits on a 10 k/10 k
-     divider off +5 - ratio 2.0, 2.50 V at the pin - and PA5 on 47 k + 10 k
-     over 10 k off +15V7 - ratio 6.70, 2.34 V at the pin.
-
-     ADC_UNIT_NONE, not millivolts, because a unit here is a promise that
-     the scaling behind it is in the calibration record, and these two
-     dividers are not in it yet (invariant 7). A host reads them as volts
-     at the pin, which is what they are. */
+  /* The two supply senses, both single-ended off ADC1. */
   { &hadc1, "ADC1", ADC_CHANNEL_18, "IN18", "PA4",         ADC_SINGLE_ENDED,       "+5V",   ADC_UNIT_RAIL5   , 0U },
   { &hadc1, "ADC1", ADC_CHANNEL_19, "IN19", "PA5",         ADC_SINGLE_ENDED,       "Vgate", ADC_UNIT_VGATE   , 0U },
 
-  /* The die's own thermometer. No pin: it is inside the part, wired to ADC3
-     only - the HAL header says so, so the channel number is not guessed
-     here. HAL_ADC_ConfigChannel enables the internal path and waits out its
-     stabilisation, and skips PCSEL because there is no pad to preselect.
-
-     810.5 cycles because the sensor's source impedance is enormous next to a
-     divider's. It shares the ADC reference with everything else, so it is
-     blind whenever AFE_ON is low - the same borrow the NTC needs. */
+  /* The die's own thermometer. */
   { &hadc3, "ADC3", ADC_CHANNEL_TEMPSENSOR, "VSENSE", "internal", ADC_SINGLE_ENDED, "MCU die", ADC_UNIT_DIE, ADC_SAMPLETIME_810CYCLES_5 },
 };
 
@@ -321,16 +244,7 @@ uint8_t Board_AdcCount(void)
 #define CH_DCBUS   5U
 #define CH_MCU_DIE 9U   /* last row: the internal sensor */
 
-/** Amperes from a centred phase code, channel trim included.
-  *
-  * The synced triple latches its own codes inside the injected callback and
-  * never goes through read_index, so the thermal observer had no way to the
-  * conversion and fed itself zero. The alternative was a second copy of the
-  * shunt arithmetic next to the thermal observer, which invariant 7 exists to stop.
-  *
-  * `centred` is what Board_AdcDifferential returns - offset binary already
-  * taken out. Out of range, or a leg that is not one of three, is 0 A.
-  */
+/** Amperes from a centred phase code, channel trim included. */
 float Board_PhaseAmps(uint8_t leg, int32_t centred)
 {
   static const uint8_t index[3] = { CH_PHASE_U, CH_PHASE_V, CH_PHASE_W };
@@ -354,9 +268,7 @@ bool Board_AdcIsPhase(uint8_t index)
 int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase)
 {
   /* The injected triple is U, V, W in that order - board_sync.c's SYNC_U,
-     SYNC_V, SYNC_W - and so is the channel table's first three rows. One
-     mapping, stated once, because the two orders agreeing is a fact and not
-     a coincidence worth relying on silently. */
+     SYNC_V, SYNC_W - and so is the channel table's first three rows. */
   if (phase == NULL)
   {
     return 0;
@@ -369,10 +281,9 @@ int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase)
 
 bool Board_AdcInjected(uint8_t index)
 {
-  /* WHAT THE SEQUENCE ACTUALLY CONVERTS, which is more than the triple:
-     rank 2 carries the DC link on ADC3 and the NTC on ADC1, and both
-     are latched at the same instant as the phases. A task on the TIM1
-     clock may have any of the five and nothing else. */
+  /* WHAT THE SEQUENCE ACTUALLY CONVERTS, which is more than the triple: rank
+     2 carries the DC link on ADC3 and the NTC on ADC1, and both are latched
+     at the same instant as the phases. */
   return Board_AdcIsPhase(index) || (index == CH_DCBUS) ||
          (index == CH_NTC);
 }
@@ -398,16 +309,12 @@ _Static_assert(BOARD_CAL_CHANNELS ==
 /* The CH_* constants are POSITIONS in the table above, and read_index takes
    them without a bounds check - it is called from paths that pass a
    constant, so the check would only ever fire on a table that had already
-   been edited wrong. This is that check, at build time. Reordering the table
-   still needs eyes; shrinking it no longer needs luck. */
+   been edited wrong. */
 _Static_assert(CH_MCU_DIE < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "CH_MCU_DIE is past the end of the ADC table");
 
 /* The acquisition task's arrays are sized by their own constant, and it was
-   left at nine when the die sensor made the table ten. Nothing overran - the
-   configure loop is bounded by BOTH - but the tenth channel could never be
-   selected, so it vanished from the task in silence. Nothing on the wire is
-   sized by this: the layout and the live reply both carry their own count. */
+   left at nine when the die sensor made the table ten. */
 _Static_assert(BOARD_DAQ_MAX_CHANNELS ==
                (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "the acquisition task cannot reach every ADC channel");
@@ -418,19 +325,15 @@ _Static_assert(CH_NTC < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
 _Static_assert(CH_PHASE_W < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "CH_PHASE_W is past the end of the ADC table");
 
-/* One read by table index, corrected. Every reading this file hands out goes
-   through here: a calibration applied at some call sites and not others is
-   harder to reason about than none at all. The raw read above stays
-   uncorrected, because zeroing has to measure what the ADC actually said. */
+/* One read by table index, corrected. */
 static bool read_index(uint8_t index, int32_t *raw, float *volts)
 {
   const AdcChannelDesc *d = &s_adcTable[index];
 
-  /* The meter is locked out while the injected group owns PCSEL, but
-     two single-ended channels ride that group as rank 2 - the DC link
-     on ADC3, the NTC on ADC1 - so the thermal observer keeps its
-     thermometer and the link keeps reading under the drive. Their
-     meaning is still AFE_ON's (invariant 9); the thermal observer already asks. */
+  /* The meter is locked out while the injected group owns PCSEL, but two
+     single-ended channels ride that group as rank 2 - the DC link on ADC3,
+     the NTC on ADC1 - so the thermal observer keeps its thermometer and the
+     link keeps reading under the drive. */
   if (Board_SyncArmed() && ((index == CH_NTC) || (index == CH_DCBUS)))
   {
     board_sync_sample_t latched;
@@ -528,22 +431,14 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
 
   if (d->unit == ADC_UNIT_DIE)
   {
-    /* The die's own factory calibration, read from system memory. Nothing
-       here is a literal: the two raw points, the two temperatures they were
-       taken at and the reference they were taken with all come from the LL
-       header, and TEMPSENSOR_CAL2_TEMP reads DBGMCU->IDCODE to pick 110 or
-       130 C by silicon revision - a hardcoded 110 would be wrong on half
-       the parts.
-       The Vref+ passed in is this board's, from the calibration record
-       (invariant 7): the calibration was taken at 3.3 V and the REF2033 is
-       the part that decides what 3.3 V means here. */
+    /* The die's own factory calibration, read from system memory. */
     *scaled = (int32_t)(__LL_ADC_CALC_TEMPERATURE(
                             Board_Cal()->vref_uv / MICRO_PER_MILLI,
                             (uint32_t)*raw, LL_ADC_RESOLUTION_16B) * 100);
   }
 
-  /* The two rails behind a divider: the record's resistors, and no
-     reading through a divider whose bottom leg is unknown. */
+  /* The two rails behind a divider: the record's resistors, and no reading
+     through a divider whose bottom leg is unknown. */
   const bool divided = (d->unit == ADC_UNIT_RAIL5) || (d->unit == ADC_UNIT_VGATE);
   const board_cal_t *cal = Board_Cal();
   const uint32_t top = (d->unit == ADC_UNIT_RAIL5)
@@ -583,10 +478,8 @@ bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w)
 
 void Board_PhaseScale(uint8_t leg, int32_t *offset_raw, float *amps_per_code)
 {
-  /* Board_PhaseAmps, linearised: the record is affine in the code and
-     the shunt arithmetic is linear in the volts, so one factor carries
-     the lot. The definition stays here (invariant 7); the drive only
-     holds the number this hands it. */
+  /* Board_PhaseAmps, linearised: the record is affine in the code and the
+     shunt arithmetic is linear in the volts, so one factor carries the lot. */
   static const uint8_t index[3] = { CH_PHASE_U, CH_PHASE_V, CH_PHASE_W };
   int32_t offset = 0;
   int32_t ppm = 0;
@@ -635,12 +528,7 @@ bool Board_DcBus(int32_t *raw, int32_t *millivolts)
   return true;
 }
 
-/** The MCU's own die, centi-degrees C. False when it did not convert.
-  *
-  * Shares the ADC reference with every other channel, so it is blind exactly
-  * when the NTC is - AFE_ON low means no reference and no reading. Read it
-  * inside the same borrow as the NTC rather than taking a second one.
-  */
+/** The MCU's own die, centi-degrees C. */
 bool Board_McuDie(int32_t *raw, int32_t *centidegc)
 {
   int32_t microvolts = 0;
@@ -669,8 +557,7 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc)
 
   const float c = NTC_VoltsToCelsius(v);
 
-  /* NAN at the divider rails, where the resistance is not recoverable.
-     Reporting that as a temperature would be a lie; fail instead. */
+  /* NAN at the divider rails, where the resistance is not recoverable. */
   if (isnan(c))
   {
     return false;
@@ -681,8 +568,7 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc)
 }
 
 /* Zero and span live here rather than in board_cal.c because both have to
-   take a reading, and the ADC is this file's. Everything that only edits the
-   record is over there. */
+   take a reading, and the ADC is this file's. */
 
 bool Board_CalZero(uint8_t index, int32_t *measured)
 {
@@ -728,9 +614,7 @@ bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
   const AdcChannelDesc *d = &s_adcTable[index];
 
   /* A gain trim is a scale factor, so it only means something where the
-     reported quantity is linear in the code. The thermistor is logarithmic -
-     "make it read 40 C" is not a factor - and a channel with no unit has
-     nothing to be told. Both are refused rather than approximated. */
+     reported quantity is linear in the code. */
   if ((d->unit != ADC_UNIT_PHASE) && (d->unit != ADC_UNIT_DCBUS))
   {
     return false;
@@ -751,10 +635,7 @@ bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
                     ? (PHASE_AmpsFromShunt(volts) * MILLI_PER_UNIT)
                     : (DC_BUS_VoltsFromDivider(volts) * MILLI_PER_UNIT);
 
-  /* No finite factor turns nothing into something. One milli-unit is the
-     resolution the reference is given in, so below it there is no ratio to
-     take - zero first, then span against a reference that actually moves the
-     channel. */
+  /* No finite factor turns nothing into something. */
   if ((now > -1.0f) && (now < 1.0f))
   {
     return false;
@@ -804,7 +685,7 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
     float   v;
 
     /* Statistics over a set with a failed conversion in it are not
-       statistics. Abort rather than fold a zero into the mean. */
+       statistics. */
     if (!read_index(index, &raw, &v))
     {
       return false;
@@ -820,8 +701,7 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
 
   const double var = (samples > 1U) ? (m2 / (double)(samples - 1U)) : 0.0;
 
-  /* One LSB of a differential reading is VREF/32768. Reported in microvolts so
-     no float ever goes on the wire. */
+  /* One LSB of a differential reading is VREF/32768. */
   const double lsb_uv = ((double)cal_vref() / (double)ADC_HALF_CODES)
                          * (double)MICRO_PER_UNIT;
 
@@ -834,8 +714,7 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
   return true;
 }
 
-/* Wall-clock pacing from the cycle counter. Unsigned subtraction, so a wrap
-   mid-wait is harmless - the same reason the comms stack uses CYCCNT raw. */
+/* Wall-clock pacing from the cycle counter. */
 static void wait_until(uint32_t start_cycles, uint32_t target_cycles)
 {
   while ((uint32_t)(Board_Cycles() - start_cycles) < target_cycles)

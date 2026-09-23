@@ -2,29 +2,6 @@
   ******************************************************************************
   * @file    drive.h
   * @brief   The control law: one PWM period in, three duties out.
-  *
-  * Portable C11, float, no HAL - the bargain modbus/, shtp/ and thermal/
-  * make, so `drive/test/harness.c` runs it on the host against a motor model
-  * and `test_drive_core.py` drives that through ctypes. Nothing here reads a
-  * register; board_drive.c hands it amperes and volts and takes duties back.
-  *
-  * What it is: a dq current loop with decoupling, dead-time compensation, a
-  * min-max SVM, square-wave HF injection with its demodulator, a two-state
-  * PLL in Kalman form, a back-EMF error above a crossover speed, an I/f ramp,
-  * a saturation-pulse polarity test, and the statistics a host needs to
-  * judge all of it. What it is NOT: proven on a motor. Every number in
-  * `drive_defaults` is a placeholder the commissioning writes over.
-  *
-  * The board stays a dumb slave (invariant 10). Every gain and every limit
-  * arrives from the host or the calibration record; the one thing this
-  * decides on its own is to drop the stage when a current passes the trip
-  * it was GIVEN, which is the thermal ceiling's exception again.
-  *
-  * Frames: electrical radians, amplitude-invariant Clarke, the d axis on
-  * the magnet. `theta_cmd` is the frame HOLD and VOLT work in; `theta_hat`
-  * is the rotor observer's. Positive current is what the shunts call positive,
-  * times `sign` - a parameter, because the shunt direction is traced off a
-  * schematic and nothing has run current through a leg to check it.
   ******************************************************************************
   */
 #ifndef DRIVE_H
@@ -52,8 +29,8 @@ typedef enum
 {
   DRIVE_OFF = 0,     /**< duties at zero, everything else still runs      */
   DRIVE_VOLT,        /**< open loop: vd, vq in the command frame           */
-  DRIVE_HOLD,        /**< current control in the command frame; I/f when
-                          omega_target is not zero                        */
+  DRIVE_HOLD,        /** < current control in the command frame; I/f when omega_target is not
+      zero */
   DRIVE_SENSORLESS,  /**< current control in the rotor observer's frame          */
   DRIVE_POLARITY,    /**< two voltage pulses along theta_hat, then OFF     */
   DRIVE_MODES
@@ -120,13 +97,10 @@ typedef struct
   float duty[DRIVE_PHASES];   /**< 0..1 per leg                          */
 } drive_out_t;
 
-/** Feedback ring: one injection cycle of dq samples. Caps `inj_periods`
-  * at half of it. */
+/** Feedback ring: one injection cycle of dq samples. */
 #define DRIVE_FB_RING 16U
 
-/** Running sums over a window, double so 10^5 periods do not lose bits.
-  * One count per field: the innovation and the HF amplitude arrive once
-  * per injection cycle, the rest every period. */
+/** Running sums over a window, double so 10^5 periods do not lose bits. */
 typedef struct
 {
   uint32_t n;
@@ -170,9 +144,8 @@ typedef enum
   DRIVE_SOURCE_MODEL
 } drive_source_t;
 
-/** A PMSM and its inverter, for running the law with no motor and no
-  * front end - drive_model.c. The same model test_drive_core.py holds in
-  * Python; the two are compared there. */
+/** A PMSM and its inverter, for running the law with no motor and no front
+    end - drive_model.c. */
 typedef struct
 {
   float r, ld, lq, lambda, pole_pairs;
@@ -201,12 +174,7 @@ typedef struct
   uint32_t rng;
 } drive_model_t;
 
-/** THE BACK-EMF OBSERVER CHAIN, drive_observer.c. Runs beside the
-  * injection and the PLL on the same samples; commutation is unchanged.
-  *
-  * The constants are the ones the Monte Carlo measured over drawn plants
-  * - foc_montecarlo.ipynb - and every one of them scales off `wc`, the
-  * leak that decides where the plain flux model starts working. */
+/** THE BACK-EMF OBSERVER CHAIN, drive_observer.c. */
 #define DRIVE_OBS_WC           20.0f   /**< the leak, rad/s electrical   */
 #define DRIVE_OBS_CROSS        20.0f   /**< current model pull, rad/s    */
 #define DRIVE_OBS_PLL_KP      200.0f
@@ -215,8 +183,7 @@ typedef struct
 #define DRIVE_OBS_BLEND_HI    150.0f   /**< x wc: all flux above         */
 #define DRIVE_OBS_SPEED_FILTER 300.0f  /**< on the flux model's own speed */
 
-/** What the chain holds. Fed by drive_observer_step, read by 0x6E device
-  * 10 op 14 - nothing here steers the machine. */
+/** What the chain holds. */
 typedef struct
 {
   float psi_a, psi_b;        /**< dual: the voltage model, held down      */
@@ -238,15 +205,12 @@ typedef struct
 /** Start the chain from the parameters the drive is running. */
 void drive_observer_init(drive_obs_t *o, const drive_params_t *p, float ts);
 
-/** Hand the chain the estimate the drive already holds. The PLL cannot
-  * acquire a speed from nothing in any useful time, so this is how it
-  * starts and how it recovers. */
+/** Hand the chain the estimate the drive already holds. */
 void drive_observer_sync(drive_obs_t *o, const drive_params_t *p,
                          float theta, float omega);
 
-/** One step, on the applied voltage and the measured current, both in
-  * the stationary frame. Alpha and beta, not dq: the whole point is that
-  * it never uses the angle it is estimating. */
+/** One step, on the applied voltage and the measured current, both in the
+    stationary frame. */
 void drive_observer_step(drive_obs_t *o, const drive_params_t *p,
                          float va, float vb, float ia, float ib, float ts);
 
@@ -262,8 +226,8 @@ typedef struct
   drive_model_t model;
 
   /** A cycle counter the board lends, or NULL: with it the virtual step
-    * records what its three blocks cost, so an interrupt that outgrew the
-    * period is read block by block rather than guessed at. */
+      records what its three blocks cost, so an interrupt that outgrew the
+      period is read block by block rather than guessed at. */
   uint32_t (*cycles)(void);
   uint32_t cyc_sample, cyc_step, cyc_advance;
 
@@ -326,16 +290,11 @@ void drive_init(drive_t *d, float ts);
 /** Put both frames at `theta`: the polarity flip, or a known start. */
 void drive_set_theta(drive_t *d, float theta);
 
-/** Change mode. NULL when taken; otherwise why not, in the board's words.
-  * `stage_enabled` and `powered` are the caller's facts about MOE and
-  * AFE_ON: a mode that switches needs the first, one that measures the
-  * second. */
+/** Change mode. */
 const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
                            bool powered);
 
-/** One PWM period. `stage_enabled` false runs the estimators on what the
-  * converter sees and returns zero duties. Returns true when the stage
-  * must be DROPPED now - a current past `i_trip` - and the mode is OFF. */
+/** One PWM period. */
 bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
                 drive_out_t *out);
 
@@ -349,17 +308,15 @@ void drive_model_defaults(drive_model_params_t *p);
 /** The rotor at `p.theta0`, at rest, no current, the pipeline empty. */
 void drive_model_init(drive_model_t *m);
 
-/** The three phase currents and the link as the shunts would report
-  * them now, with the noise asked for. */
+/** The three phase currents and the link as the shunts would report them
+    now, with the noise asked for. */
 void drive_model_sample(drive_model_t *m, drive_sample_t *out);
 
 /** One period at these duties. */
 void drive_model_advance(drive_model_t *m, const float *duty, float ts);
 
-/** One period with the model as the source: sample, step, advance with
-  * the step BEFORE's duties - the pipeline the stage has. The stage is
-  * treated as enabled so the law runs; the caller applies `out` to real
-  * gates only if MOE is set. Returns the trip like drive_step. */
+/** One period with the model as the source: sample, step, advance with the
+    step BEFORE's duties - the pipeline the stage has. */
 bool drive_step_virtual(drive_t *d, drive_out_t *out);
 
 /** Arm the raw-code moments for `periods`; zero forgets them. */
@@ -374,15 +331,13 @@ void drive_clarke(const float *iabc, float *alpha, float *beta);
 void drive_park(float alpha, float beta, float theta, float *d, float *q);
 void drive_inv_park(float d, float q, float theta, float *alpha, float *beta);
 
-/** The same with cos and sin already taken: one pair serves a whole step.
-  * Measured 2026-08-31, four trig calls of the step's 6 756 cycles. */
+/** The same with cos and sin already taken: one pair serves a whole step. */
 void drive_park_cs(float alpha, float beta, float c, float s, float *d,
                    float *q);
 void drive_inv_park_cs(float d, float q, float c, float s, float *alpha,
                        float *beta);
 
-/** Min-max SVM: alpha/beta volts and the link to three duties, 0..1.
-  * Returns the fraction the vector was scaled by to fit - 1.0 fitted. */
+/** Min-max SVM: alpha/beta volts and the link to three duties, 0..1. */
 float drive_svm(float valpha, float vbeta, float vdc, float *duty);
 
 /** Wrap to [0, 2 pi). */

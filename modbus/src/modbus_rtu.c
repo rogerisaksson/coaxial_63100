@@ -9,10 +9,7 @@
 
 #include <string.h>
 
-/* Wrap-safe elapsed ticks. Performed in uint32_t so a counter that has wrapped
-   once since the reference still yields the correct difference - which holds
-   only because the tick counter wraps at exactly 2^32. This is the sole place
-   time is compared, deliberately. */
+/* Wrap-safe elapsed ticks. */
 static uint32_t elapsed(uint32_t now, uint32_t then)
 {
   return (uint32_t)(now - then);
@@ -42,10 +39,9 @@ void mb_rtu_init(mb_rtu_t *rtu, mb_slave_t *slave, uint8_t unit_id,
     /* Character time in microseconds, rounded up so the silence is never
        computed shorter than the specification requires. */
     const uint32_t bits = (bits_per_char == 0U) ? 11U : (uint32_t)bits_per_char;
-    /* 1000000U, not UL: on ARM and Windows unsigned long is 32 bits and
-       this always computed in uint32_t; an LP64 host test widened it to
-       64 and -Wconversion rightly flagged the narrowing back.  255 bits
-       * 1e6 is 2.55e8 against 4.29e9, so 32 bits is the arithmetic. */
+    /* 1000000U, not UL: on ARM and Windows unsigned long is 32 bits and this
+       always computed in uint32_t; an LP64 host test widened it to 64 and
+       -Wconversion rightly flagged the narrowing back. */
     const uint32_t char_us = ((bits * 1000000U) + (baud - 1U)) / baud;
 
     t15_us = ((char_us * 3U) + 1U) / 2U;   /* 1.5 characters */
@@ -60,12 +56,7 @@ void mb_rtu_init(mb_rtu_t *rtu, mb_slave_t *slave, uint8_t unit_id,
   rtu->t15_ticks = t15_us * ticks_per_us;
   rtu->t35_ticks = t35_us * ticks_per_us;
 
-  /* Idle, not draining. The earlier comment here had this starting as if a
-     frame were in progress so the first t3.5 timeout would establish a known
-     state - but link_open() purges the receiver before it calls this, so the
-     known state is already established by the drain and there is nothing to
-     time out of. link_init()'s call is at boot, before link_poll() consumes
-     anything at all. */
+  /* Idle, not draining. */
   rtu->receiving = false;
   rtu->frame_bad = false;
   rtu->rx_len    = 0U;
@@ -79,12 +70,8 @@ void mb_rtu_set_length_hint(mb_rtu_t *rtu, mb_rtu_length_fn hint)
 
 /** True when the oracle can already prove this frame whole: the length it
     names has arrived exactly, the CRC over it checks, and the address is
-    ours - a frame for another node is another node's shape, and its
-    length is not this oracle's to know. Every failure of proof simply
-    waits out t3.5, which is the behaviour this path is an escape from,
-    never a replacement for: a CRC miss here is NOT counted or consumed,
-    because the silence gate will judge the same bytes with the same
-    rules a moment later. */
+    ours - a frame for another node is another node's shape, and its length
+    is not this oracle's to know. */
 static bool frame_proven(const mb_rtu_t *rtu)
 {
   if ((rtu->length_hint == NULL) || rtu->frame_bad || rtu->saw_overrun
@@ -107,8 +94,7 @@ static bool frame_proven(const mb_rtu_t *rtu)
 
 void mb_rtu_on_byte(mb_rtu_t *rtu, uint8_t byte, uint32_t now_ticks)
 {
-  /* A gap longer than t1.5 inside a frame means the frame is not a frame.
-     It must still be drained and discarded, not truncated and parsed. */
+  /* A gap longer than t1.5 inside a frame means the frame is not a frame. */
   if (rtu->receiving
       && (elapsed(now_ticks, rtu->last_event_ticks) > rtu->t15_ticks))
   {
@@ -128,8 +114,7 @@ void mb_rtu_on_byte(mb_rtu_t *rtu, uint8_t byte, uint32_t now_ticks)
   }
   else
   {
-    /* Longer than any legal ADU. Keep consuming so the line can drain, but
-       the frame is already lost. */
+    /* Longer than any legal ADU. */
     rtu->frame_bad = true;
   }
 
@@ -149,8 +134,8 @@ bool mb_rtu_busy(const mb_rtu_t *rtu)
   return rtu->receiving;
 }
 
-/* The closed frame taken out of the receiver, which goes back to idle:
-   its length, and whether a framing error or an overrun marked it. */
+/* The closed frame taken out of the receiver, which goes back to idle: its
+   length, and whether a framing error or an overrun marked it. */
 static uint16_t take_frame(mb_rtu_t *rtu, bool *bad, bool *overrun)
 {
   const uint16_t len = rtu->rx_len;
@@ -166,11 +151,7 @@ static uint16_t take_frame(mb_rtu_t *rtu, bool *bad, bool *overrun)
 }
 
 /* Counted, checked and addressed: true for a whole frame meant for this
-   server. A bad CRC is answered with silence, never with an exception -
-   replying would put a frame on the bus that the master cannot
-   correlate, and on a multidrop line it may not even have been addressed
-   to us. A frame for another server is not an error, not ours, not
-   counted. */
+   server. */
 static bool frame_ours(mb_rtu_t *rtu, uint16_t len, bool bad, bool overrun)
 {
   if (len == 0U)
@@ -199,9 +180,8 @@ static bool frame_ours(mb_rtu_t *rtu, uint16_t len, bool bad, bool overrun)
   return true;
 }
 
-/* The PDU - the frame less the unit id and the two CRC bytes - executed,
-   and the reply built behind the unit id with the CRC appended. A
-   broadcast is executed and never answered. */
+/* The PDU - the frame less the unit id and the two CRC bytes - executed, and
+   the reply built behind the unit id with the CRC appended. */
 static size_t answer(mb_rtu_t *rtu, uint16_t len, const uint8_t **out)
 {
   const uint8_t  addr    = rtu->rx[0];
@@ -242,10 +222,10 @@ size_t mb_rtu_service(mb_rtu_t *rtu, uint32_t now_ticks, const uint8_t **out)
     return 0U;
   }
 
-  /* A frame ends when the line has been quiet for t3.5 - or the moment
-     the oracle proves it whole, which is where the spec's fixed silence
-     stops being paid on a frame whose own bytes already say everything
-     the silence would. */
+  /* A frame ends when the line has been quiet for t3.5 - or the moment the
+     oracle proves it whole, which is where the spec's fixed silence stops
+     being paid on a frame whose own bytes already say everything the silence
+     would. */
   if ((elapsed(now_ticks, rtu->last_event_ticks) < rtu->t35_ticks)
       && !frame_proven(rtu))
   {

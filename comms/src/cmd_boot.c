@@ -12,8 +12,8 @@
 #include "cmd.h"
 #include "wire.h"
 
-/** The state a running application reports: sealed, since it is the
-    image that came through the seal, and valid, since it is running. */
+/** The state a running application reports: sealed, since it is the image
+    that came through the seal, and valid, since it is running. */
 static cmd_status_t h_boot_state(rd_t *in, wr_t *out)
 {
   const board_identity_t id = Board_Identity();

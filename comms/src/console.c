@@ -16,10 +16,7 @@
 #include <stdio.h>
 
 
-/* The boot banner. Reads the actual RCC switch-status bits rather than
-   trusting that SystemClock_Config() got what it asked for - that is what
-   caught the clock mux still pointing at HSI while the HSE oscillator was
-   already running. */
+/* The boot banner. */
 void Console_Banner(void)
 {
   static const char *const SRC[] = { "HSI", "CSI", "HSE", "PLL1", "unknown" };
@@ -31,8 +28,7 @@ void Console_Banner(void)
   printf("SYSCLK source = %s -> SYSCLK = %lu Hz, HCLK = %lu Hz\r\n",
          SRC[src], (unsigned long)Board_SysClkHz(), (unsigned long)Board_HclkHz());
 
-  /* PLL1 counts as crystal-derived: it is fed from HSE. The test this replaced
-     accepted only SYSCLK taken straight off HSE, and so warned on every boot. */
+  /* PLL1 counts as crystal-derived: it is fed from HSE. */
   if (!Board_SysClkOnCrystal())
   {
     printf("WARNING: SYSCLK is not derived from the 25 MHz HSE crystal!\r\n");
@@ -50,20 +46,13 @@ int __io_putchar(int ch)
 }
 
 /* The ASCII console exists for one reason: to get into the binary link and
-   back out again by hand. Everything that used to be printed here - the ADC
-   scans, the channel table, the noise test, the clock report - is a binary
-   command now, decoded on the host by board_api.py. Adding a report back to
-   this switch would mean two implementations of the same reading, which is
-   how the two ADC read paths drifted apart before.
-
-   Non-blocking: HAL_UART_Receive with Timeout=0 checks once and returns. */
+   back out again by hand. */
 void Console_Poll(void)
 {
   uint8_t rx;
 
   /* Through the same ring the binary link reads, because USART3 receives on
-     interrupt now. HAL_UART_Receive would compete with the ISR for the byte
-     and lose every time, which would leave no way back to Modbus at all. */
+     interrupt now. */
   const dev_serial_t *dev = dev_uart(0);
   uint32_t tick = 0U;
 

@@ -2,38 +2,19 @@
   ******************************************************************************
   * @file    cmd_cal.c
   * @brief   The calibration record's operations behind command 0x6E, device 3.
-  *
-  * Integers only, like every other payload here: microhms, ppm, microvolts,
-  * centikelvin. A scale factor that arrived as a float would be the first
-  * floating-point number on this wire and the last one anybody could decode
-  * from a hex dump.
-  *
-  * Reads and edits are cheap and volatile; only op 5 writes flash. That split
-  * is deliberate - a rig sets nine parameters and saves once, rather than
-  * erasing a sector nine times.
   ******************************************************************************
   */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"
 
-/** How many parameters op 0 carries: the fifteen it had at MINOR 1. The
-    record grew to forty-five with the drive and the whole reply came to
-    310 bytes against MB_MAX_PDU's 253 - measured 2026-08-31, every read
-    answering SERVER DEVICE FAILURE. Op 0 keeps its shape for a host that
-    never heard of the rest; op 8 pages all of them. */
+/** How many parameters op 0 carries: the fifteen it had at MINOR 1. */
 #define CAL_LEGACY_PARAMS 15U
 
 /** Parameters one op 8 reply carries: 60 x 4 = 240 bytes, plus three. */
 #define CAL_PAGE 60U
 
-/**
-  * @brief op 0 - the whole record, plus whether flash holds one.
-  *
-  * `stored` is what separates "this board was calibrated" from "this board is
-  * running the schematic's numbers", and the two are otherwise identical on
-  * the wire.
-  */
+/** op 0 - the whole record, plus whether flash holds one. */
 static cmd_status_t h_cal_get(rd_t *in, wr_t *out)
 {
   const board_cal_t *cal = Board_Cal();
@@ -65,8 +46,7 @@ static cmd_status_t h_cal_get(rd_t *in, wr_t *out)
   }
 
   /* The thermal envelope, appended so an older host stops reading above it
-     and still parses everything else. Without it "the ceilings are stored"
-     is an assertion nobody on the wire can check. */
+     and still parses everything else. */
   wr_u8(out, (uint8_t)BOARD_THERMAL_NODES);
 
   for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
@@ -149,12 +129,7 @@ static cmd_status_t h_cal_set_channel(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 3 - measure the channel now and keep the reading as its offset.
-  *
-  * Answers what it measured, because an operator who zeroed the wrong channel
-  * needs to see a number that says so.
-  */
+/** op 3 - measure the channel now and keep the reading as its offset. */
 static cmd_status_t h_cal_zero(rd_t *in, wr_t *out)
 {
   const uint8_t index = rd_u8(in);
@@ -177,13 +152,7 @@ static cmd_status_t h_cal_zero(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 4 - trim the gain so the channel reports `reference`.
-  *
-  * The reference is in the channel's own unit: milliamperes for a phase,
-  * millivolts for the DC link. Any other channel is refused - see
-  * Board_CalSpan on why a logarithmic conversion has no scale factor.
-  */
+/** op 4 - trim the gain so the channel reports `reference`. */
 static cmd_status_t h_cal_span(rd_t *in, wr_t *out)
 {
   const uint8_t index = rd_u8(in);
@@ -207,12 +176,7 @@ static cmd_status_t h_cal_span(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 5 - commit to flash.
-  *
-  * Erases and reprograms the last sector of bank 2, then reads it back. The
-  * reply is the read-back, not the programmer's opinion.
-  */
+/** op 5 - commit to flash. */
 static cmd_status_t h_cal_save(rd_t *in, wr_t *out)
 {
   (void)in;
@@ -240,12 +204,7 @@ static cmd_status_t h_cal_load(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/**
-  * @brief op 7 - back to the schematic's numbers.
-  *
-  * RAM only. A rig that meant it follows with op 5; one that did not can
-  * still get its stored record back with op 6.
-  */
+/** op 7 - back to the schematic's numbers. */
 static cmd_status_t h_cal_defaults(rd_t *in, wr_t *out)
 {
   (void)in;

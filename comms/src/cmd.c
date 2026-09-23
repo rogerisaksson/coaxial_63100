@@ -6,8 +6,7 @@
   */
 #include "cmd.h"
 
-/* Every table, in one list. Adding a table is one line here and nothing else:
-   lookup, counting and listing all walk this. */
+/* Every table, in one list. */
 typedef const cmd_desc_t *(*cmd_table_fn)(uint8_t *count);
 
 typedef struct
@@ -18,8 +17,7 @@ typedef struct
 } cmd_table_desc_t;
 
 /* Each table is a subsystem, named here so the board can say what it is made
-   of. Keep `what` short: the whole list has to fit one PDU beside the rest of
-   the channel map. */
+   of. */
 static const cmd_table_desc_t TABLES[] =
 {
   { cmd_board_table, "board", "ADC channels, digital I/O, clocks, self test" },
@@ -136,9 +134,9 @@ cmd_status_t cmd_dispatch(uint8_t code, const uint8_t *req, uint16_t req_len,
     return st;
   }
 
-  /* A handler that read past its request was given a malformed one; a handler
-     whose response did not fit is a firmware bug, and both are better reported
-     than half answered. */
+  /* A handler that read past its request was given a malformed one; a
+     handler whose response did not fit is a firmware bug, and both are
+     better reported than half answered. */
   if (!rd_ok(&in))
   {
     return CMD_ERR_LENGTH;

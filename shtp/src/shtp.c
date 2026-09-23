@@ -8,9 +8,7 @@
 
 #include <string.h>
 
-/* Little-endian on this wire, unlike Modbus. The BNO08X is byte oriented and
-   every multi-byte field in SHTP and SH-2 is LSB first - Figure 1-26 for the
-   header, Figure 5-1 for the report interval, Figure 1-34 for the axes. */
+/* Little-endian on this wire, unlike Modbus. */
 static uint16_t rd_u16(const uint8_t *p)
 {
   return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
@@ -39,8 +37,7 @@ bool shtp_parse_header(const uint8_t *raw, shtp_header_t *out)
 
   const uint16_t field = rd_u16(raw);
 
-  /* Not a length. The datasheet reserves it precisely because an unpowered or
-     wedged peripheral holds MISO high and every read comes back 0xFF. */
+  /* Not a length. */
   if (field == SHTP_LENGTH_RESERVED)
   {
     return false;
@@ -51,9 +48,7 @@ bool shtp_parse_header(const uint8_t *raw, shtp_header_t *out)
   out->channel      = raw[2];
   out->seq          = raw[3];
 
-  /* The length counts its own header. Anything below that is not a short
-     cargo, it is a header that disagrees with itself. A length of exactly
-     zero is what an idle BNO08X clocks out and is left to the caller. */
+  /* The length counts its own header. */
   return (out->length == 0U) || (out->length >= SHTP_HEADER_LEN);
 }
 
@@ -87,8 +82,7 @@ size_t shtp_build(uint8_t *buf, size_t cap, uint8_t channel, uint8_t seq,
 bool shtp_parse_product_id(const uint8_t *cargo, size_t len,
                            shtp_product_id_t *out)
 {
-  /* Figure 1-29: sixteen bytes, and every field after the id is fixed. A
-     short one is a truncated read, not a device with less to say. */
+  /* Figure 1-29: sixteen bytes, and every field after the id is fixed. */
   if ((cargo == NULL) || (out == NULL) || (len < 16U) ||
       (cargo[0] != SH2_PRODUCT_ID_RESPONSE))
   {
@@ -113,39 +107,27 @@ size_t shtp_report_len(uint8_t report_id)
     case SH2_REPORT_TIMEBASE:
       return 5U;
 
-    /* Ten bytes: id, sequence, status, delay, then three little-endian axes.
-       Measured against the datasheet twice over - Figure 1-34 gives the
-       calibrated gyroscope report byte by byte, and Figure 5-2 gives the
-       accelerometer inside a cargo whose length field (19) only adds up if
-       the report is ten bytes. */
+    /* Ten bytes: id, sequence, status, delay, then three little-endian axes. */
     case SH2_REPORT_ACCELEROMETER:
     case SH2_REPORT_GYROSCOPE:
       return 10U;
 
     /* The same shape: "All input reports have a similar format", section
-       1.3.5.2, and these three are three-axis calibrated sensors like the two
-       above. Inferred from that sentence rather than tabulated, which is why
-       they are listed apart from the two that are. */
+       1.3.5.2, and these three are three-axis calibrated sensors like the
+       two above. */
     case SH2_REPORT_MAGNETIC_FIELD:
     case SH2_REPORT_LINEAR_ACCEL:
     case SH2_REPORT_GRAVITY:
       return 10U;
 
-    /* The quaternion reports. This datasheet does not tabulate them - it
-       refers to the SH-2 Reference Manual - so these come from CEVA's own
-       decoder, github.com/ceva-dsp/sh2, sh2_SensorValue.c: the rotation
-       vector carries i, j, k, real and an accuracy estimate behind the same
-       four-byte header, and the game rotation vector carries the four
-       components without it. */
+    /* The quaternion reports. */
     case SH2_REPORT_ROTATION_VECTOR:
       return 14U;
 
     case SH2_REPORT_GAME_ROTATION:
       return 12U;
 
-    /* Everything else. Reports are packed back to back and are not
-       self-delimiting, so a length nobody checked mis-frames every byte
-       after it: the walk stops rather than guessing. */
+    /* Everything else. */
     default:
       return 0U;
   }
@@ -174,9 +156,7 @@ size_t shtp_parse_reports(const uint8_t *cargo, size_t len,
 
     if (id == SH2_REPORT_TIMEBASE)
     {
-      /* Carried once at the head of a cargo and not a sensor reading. The
-         caller gets it as a report with no axes so the base delta is not
-         silently dropped; see the host for what it is subtracted from. */
+      /* Carried once at the head of a cargo and not a sensor reading. */
       out[n].report_id = id;
       out[n].seq = 0U;
       out[n].status = 0U;
@@ -212,9 +192,7 @@ size_t shtp_set_feature(uint8_t *buf, size_t cap, uint8_t report_id,
                         uint32_t interval_us)
 {
   /* Figure 1-33: seventeen bytes, and the worked example in Figure 5-1 shows
-     them under a header whose length field reads 0x15 - four plus seventeen.
-     Everything this firmware does not set is zero: no change sensitivity, no
-     batching, no sensor-specific word. */
+     them under a header whose length field reads 0x15 - four plus seventeen. */
   if ((buf == NULL) || (cap < 17U))
   {
     return 0U;

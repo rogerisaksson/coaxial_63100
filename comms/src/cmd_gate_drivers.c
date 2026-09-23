@@ -2,31 +2,13 @@
   ******************************************************************************
   * @file    cmd_gate_drivers.c
   * @brief   The gate drivers' operations behind command 0x6E, device 4.
-  *
-  * TIM1, the synced phase triple and the Safe Torque Off chain answer as one
-  * device because a caller tuning the sample point needs all three in the
-  * same breath: where the trigger sits, what came back, and whether the
-  * chain still holds. Three round trips would sample three different
-  * moments.
-  *
-  * Nothing here judges. Op 0 reports registers and raw codes; the ops that
-  * write refuse only what the hardware cannot do - a duty past ARR, a
-  * trigger past ARR, an arm with no timer - and never because a number
-  * looked wrong. Invariant 10.
   ******************************************************************************
   */
 #include "cmd.h"
 #include "board.h"
 #include "wire.h"
 
-/**
-  * @brief op 0 - the gate drivers, the triple and the STO chain, one sample.
-  *
-  * Flags first so a reader that only wants "is it running" stops after one
-  * byte. `at` is TIM1->CNT when the triple was latched, which is what makes
-  * the sample point measurable rather than assumed: move `trigger` and `at`
-  * moves with it.
-  */
+/** op 0 - the gate drivers, the triple and the STO chain, one sample. */
 static cmd_status_t h_gate_drivers_state(wr_t *out)
 {
   board_pwm_state_t pwm;
@@ -65,14 +47,10 @@ static cmd_status_t h_gate_drivers_state(wr_t *out)
   wr_i32(out, sto.pilot_microvolts);
   wr_i32(out, sto.level_raw);
   wr_i32(out, sto.level_microvolts);
-  /* Appended, not squeezed into the first byte: that one is full, and
-     moving any offset would break every decoder for one bit. */
+  /* Appended, not squeezed into the first byte: that one is full, and moving
+     any offset would break every decoder for one bit. */
   wr_u8(out, pwm.bypassed ? 0x01U : 0x00U);
-  /* What was asked for, beside what the register holds this period. With
-     the dither running the two differ by a tick most of the time, and a
-     caller comparing them would otherwise think it had been rounded.
-     Appended, like flags2 and for the same reason: moving an offset breaks
-     every decoder for a field most of them do not read. */
+  /* What was asked for, beside what the register holds this period. */
   uint32_t wanted[BOARD_PWM_PHASES];
   Board_PwmDutyRequested(wanted);
   for (uint8_t i = 0U; i < BOARD_PWM_PHASES; i++)
@@ -80,37 +58,25 @@ static cmd_status_t h_gate_drivers_state(wr_t *out)
     wr_u32(out, wanted[i]);
   }
 
-  /* The six gate signals as one instant, and the counter beside them. A
-     host asking six times would get six instants and could see a leg with
-     both FETs on, which is the one state the dead time exists to prevent.
-     At the end, because putting it before `requested` shifted every offset
-     after it - which is the same mistake this file already carries a
-     warning about, made again. */
+  /* The six gate signals as one instant, and the counter beside them. */
   wr_u8(out, pwm.pins);
   wr_u16(out, pwm.at);
 
-  /* The dead time in nanoseconds beside the raw DTG above, its skew, and
-     the smallest DTG this timer clock allows. Appended. */
+  /* The dead time in nanoseconds beside the raw DTG above, its skew, and the
+     smallest DTG this timer clock allows. */
   wr_u32(out, Board_PwmDeadTimeNs());
   wr_i8(out, Board_PwmDeadTimeSkew());
   wr_u8(out, Board_PwmDeadTimeFloor());
 
-  /* Which legs have their two gate pins on one node - bit 0 U, 1 V, 2 W.
-     A joined pair cannot be driven complementary, so the leg never
-     switches and its driver sees a level, not PWM. Measured rather than
-     assumed, and appended like everything above it. Reads 0 while armed,
-     because the probe needs the pins. */
+  /* Which legs have their two gate pins on one node - bit 0 U, 1 V, 2 W. */
   wr_u8(out, Board_PwmGateShorts());
 
-  /* The DC link as the injected sequence read it beside the triple - rank
-     2 on ADC3, raw single-ended - appended at MINOR 2. Zero until the
-     sync has run once. */
+  /* The DC link as the injected sequence read it beside the triple - rank 2
+     on ADC3, raw single-ended - appended at MINOR 2. */
   wr_u32(out, sync.latest.dcbus);
   wr_u32(out, sync.latest.ntc);
 
-  /* Periods left of a counted hold - appended at MINOR 8. Zero when the
-     duty is free-running, so an old decoder that stops early loses only
-     the countdown it never asked for. */
+  /* Periods left of a counted hold - appended at MINOR 8. */
   wr_u32(out, Board_PwmPeriodsLeft());
 
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
@@ -147,13 +113,7 @@ static cmd_status_t h_gate_drivers_pwm(rd_t *in, wr_t *out)
 }
 
 
-/** op 2 - all three compares, or none. A half update is a step nobody asked
-    for, so the board takes the triple together or refuses it.
-
-    An optional u32 period count follows (MINOR 8): the interrupt zeroes
-    the compares after exactly that many PWM periods, so a hold's length
-    stops being the link's. Absent or zero runs until the next command,
-    byte for byte the old behaviour. */
+/** op 2 - all three compares, or none. */
 static cmd_status_t h_gate_drivers_duty(rd_t *in, wr_t *out)
 {
   uint16_t ticks[BOARD_PWM_PHASES];
@@ -178,8 +138,7 @@ static cmd_status_t h_gate_drivers_duty(rd_t *in, wr_t *out)
 
 
 /** op 10 - two triples, A one period and B the next, swapped by TIM1's
-    update interrupt for as long as they stand. What a host cannot do at
-    one write per 15 ms: a phase pair driven back and forth every 20 us. */
+    update interrupt for as long as they stand. */
 static cmd_status_t h_gate_drivers_alternate(rd_t *in, wr_t *out)
 {
   uint16_t a[BOARD_PWM_PHASES];
@@ -203,15 +162,7 @@ static cmd_status_t h_gate_drivers_alternate(rd_t *in, wr_t *out)
 }
 
 
-/** op 8 - all three compares in ticks Q16.16, dithered.
-  *
-  * One tick of ARR 2375 is 0.0421 % of duty, so an asked-for 34.54 % is
-  * 820.32 ticks and neither 820 nor 821 is it. This keeps the fraction and
-  * a first-order sigma-delta in TIM1's update interrupt pays it back, so
-  * the MEAN duty is what was asked for rather than the nearest tick.
-  *
-  * All three or none, for the same reason op 2 is.
-  */
+/** op 8 - all three compares in ticks Q16.16, dithered. */
 static cmd_status_t h_gate_drivers_duty_fine(rd_t *in, wr_t *out)
 {
   uint32_t ticks[BOARD_PWM_PHASES];
@@ -230,8 +181,7 @@ static cmd_status_t h_gate_drivers_duty_fine(rd_t *in, wr_t *out)
 }
 
 
-/** op 3 - start or stop latching the injected triple. Arming takes the
-    converters away from the meter; disarming gives them back. */
+/** op 3 - start or stop latching the injected triple. */
 static cmd_status_t h_gate_drivers_sync(rd_t *in, wr_t *out)
 {
   const uint8_t on = rd_u8(in);
@@ -257,9 +207,7 @@ static cmd_status_t h_gate_drivers_sync(rd_t *in, wr_t *out)
 }
 
 
-/** op 4 - move the sample point. Replies with CCR4 as it reads back, which
-    is the only answer worth having: asking for a tick past ARR changes
-    nothing and the reply says so. */
+/** op 4 - move the sample point. */
 static cmd_status_t h_gate_drivers_trigger(rd_t *in, wr_t *out)
 {
   const uint16_t ticks = rd_u16(in);
@@ -284,8 +232,7 @@ static cmd_status_t h_gate_drivers_gap_reset(wr_t *out)
 }
 
 
-/** op 6 - disconnect the break input, for bench work. Loud on purpose: it
-    shows in the state reply, and a reset puts it back. */
+/** op 6 - disconnect the break input, for bench work. */
 static cmd_status_t h_gate_drivers_bypass(rd_t *in, wr_t *out)
 {
   const uint8_t on = rd_u8(in);
@@ -308,14 +255,7 @@ static cmd_status_t h_gate_drivers_clear(wr_t *out)
 }
 
 
-/** op 9 - the dead time, in nanoseconds, and its skew in DTG counts.
-  *
-  * Both in one op because they constrain each other: a skew is only legal
-  * against a dead time big enough to carry it, so setting them apart means
-  * an order that works and an order that does not. The board floors the
-  * dead time at 20 ns and refuses a skew that would take either half under
-  * it, in its own words.
-  */
+/** op 9 - the dead time, in nanoseconds, and its skew in DTG counts. */
 static cmd_status_t h_gate_drivers_deadtime(rd_t *in, wr_t *out)
 {
   const uint32_t ns = rd_u32(in);

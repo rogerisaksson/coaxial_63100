@@ -2,19 +2,6 @@
   ******************************************************************************
   * @file    cmd_time.c
   * @brief   The cycle counter, latched, behind command 0x6E, device 7.
-  *
-  * Every timestamp here is raw CYCCNT (invariant 2), which leaves a host
-  * holding ticks with no idea what o'clock they are. This is how it finds out.
-  *
-  * Op 0 latches the counter and its reply is worthless on purpose: it can be
-  * BROADCAST, and a broadcast has no reply, so the board acts at an instant
-  * the host can bracket with no turnaround in the middle. The unicast read
-  * afterwards can be as late as it likes - the value stopped moving when it
-  * was taken.
-  *
-  * No wall clock, and none to be given: no RTC and no LSE, so a time held here
-  * would drift against nothing, and a plausible wrong time is worse than
-  * ticks. The host owns the clock; this owns the ticks.
   ******************************************************************************
   */
 #include "cmd.h"
@@ -25,8 +12,7 @@ static uint32_t s_latched;
 static uint32_t s_seq;
 
 
-/** op 0 - take the counter now. Broadcast this; the reply is the point of
-  * op 1, not of this one. */
+/** op 0 - take the counter now. */
 static cmd_status_t h_time_latch(wr_t *out)
 {
   s_latched = Board_Cycles();
@@ -36,12 +22,7 @@ static cmd_status_t h_time_latch(wr_t *out)
 }
 
 
-/** op 1 - what was latched, and what the counter says now.
-  *
-  * Both, because they answer different questions: the latch is the instant
-  * the host bracketed, and `now` lets it see how long its own read took
-  * without a second exchange.
-  */
+/** op 1 - what was latched, and what the counter says now. */
 static cmd_status_t h_time_read(wr_t *out)
 {
   wr_u32(out, s_seq);

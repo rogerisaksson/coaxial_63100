@@ -8,10 +8,7 @@
 
 #include <string.h>
 
-/* Quantity limits from MODBUS Application Protocol V1.1b3. They are not
-   arbitrary: each is the largest count whose response still fits in a 253-byte
-   PDU. Exceeding them is ILLEGAL DATA VALUE (0x03), never ILLEGAL DATA ADDRESS
-   (0x02) - the request is badly formed, the addresses were never consulted. */
+/* Quantity limits from MODBUS Application Protocol V1.1b3. */
 #define MB_MAX_READ_BITS   2000U
 #define MB_MAX_READ_REGS    125U
 #define MB_MAX_WRITE_BITS  1968U
@@ -31,8 +28,7 @@
 
 static uint16_t rd_u16(const uint8_t *p)
 {
-  /* Every 16-bit field in a PDU is big-endian. Only the CRC is not, and the
-     CRC never reaches this file. */
+  /* Every 16-bit field in a PDU is big-endian. */
   return (uint16_t)(((uint16_t)p[0] << 8) | (uint16_t)p[1]);
 }
 
@@ -49,9 +45,7 @@ static size_t make_exception(uint8_t *rsp, uint8_t fc, mb_exception_t ex)
   return 2U;
 }
 
-/* True if [addr, addr+qty) would run past the end of the address space.
-   Computed in 32 bits on purpose: doing it in 16 would wrap and let a request
-   straddling the top of the space slip past the range check entirely. */
+/* True if [addr, addr+qty) would run past the end of the address space. */
 static bool span_overflows(uint16_t addr, uint16_t qty)
 {
   return ((uint32_t)addr + (uint32_t)qty) > 0x10000UL;
@@ -101,9 +95,7 @@ static size_t do_read_bits(mb_slave_t *s, mb_table_t table, uint8_t fc,
 
   /* The quantity limits above already guarantee this fits a 253-byte PDU, so
      a buffer too small to hold the answer is this server's problem and not
-     the request's: SERVER DEVICE FAILURE, not ILLEGAL DATA VALUE. Checked
-     rather than trusted because the signature promises a capacity and every
-     read handler used to discard it. */
+     the request's: SERVER DEVICE FAILURE, not ILLEGAL DATA VALUE. */
   if ((size_t)(2U + nbytes) > rsp_cap)
   {
     return make_exception(rsp, fc, MB_EX_SERVER_DEVICE_FAILURE);
@@ -126,8 +118,7 @@ static size_t do_read_bits(mb_slave_t *s, mb_table_t table, uint8_t fc,
     if (bit)
     {
       /* Bits pack LSB-first within each byte: the item at the starting
-         address is bit 0 of the first data byte. Unused high bits of the
-         last byte stay zero, which the memset above guaranteed. */
+         address is bit 0 of the first data byte. */
       rsp[2U + (i / 8U)] |= (uint8_t)(1U << (i % 8U));
     }
   }
@@ -190,8 +181,7 @@ static size_t do_write_single_coil(mb_slave_t *s, const uint8_t *req, uint8_t *r
   const uint16_t addr = rd_u16(&req[1]);
   const uint16_t val  = rd_u16(&req[3]);
 
-  /* The spec allows exactly two values here. Anything else is a malformed
-     value, not an address problem. */
+  /* The spec allows exactly two values here. */
   if ((val != MB_COIL_ON) && (val != MB_COIL_OFF))
   {
     return make_exception(rsp, MB_FC_WRITE_SINGLE_COIL, MB_EX_ILLEGAL_DATA_VALUE);
@@ -328,10 +318,7 @@ static size_t do_write_multi_regs(mb_slave_t *s, const uint8_t *req, size_t req_
   }
 
   /* check_span only proves every address in the span is writable, not that
-     every VALUE in the request is. Without this pass, a span covering a
-     register this model rejects by value - not by address - would already
-     have applied write_reg() to the registers before it, leaving the device
-     half written under a response that reports the whole request failed. */
+     every VALUE in the request is. */
   if (s->model->validate_reg_value != NULL)
   {
     for (uint16_t i = 0U; i < qty; i++)
@@ -379,9 +366,7 @@ static size_t do_report_server_id(mb_slave_t *s, uint8_t *rsp, size_t rsp_cap)
 
   size_t idlen = strlen(id);
 
-  /* Layout is fc, byte count, run indicator, then the id. Clamp so a long id
-     string can never overrun the response buffer, and so the byte count field
-     cannot exceed what one octet can express. */
+  /* Layout is fc, byte count, run indicator, then the id. */
   const size_t room = (rsp_cap > MB_SERVER_ID_HEAD) ? (rsp_cap - MB_SERVER_ID_HEAD) : 0U;
   if (idlen > room)
   {
@@ -402,9 +387,8 @@ static size_t do_report_server_id(mb_slave_t *s, uint8_t *rsp, size_t rsp_cap)
 
 /* ---- dispatch ---------------------------------------------------------- */
 
-/* One uniform signature so the function codes can live in a table instead of a
-   switch. The wrappers are one line each; the tested handlers above keep their
-   own natural arguments. */
+/* One uniform signature so the function codes can live in a table instead of
+   a switch. */
 typedef size_t (*mb_fc_fn)(mb_slave_t *s, const uint8_t *req, size_t len,
                            uint8_t *rsp, size_t cap);
 
@@ -481,10 +465,7 @@ typedef struct
 
 /* len_min 6 for the two block writes is deliberate: a request for zero items
    carries a zero byte count and no data, which is a well-formed 6-byte PDU
-   declaring an illegal quantity. It must be answered with ILLEGAL DATA VALUE,
-   not with silence, so it has to reach its handler. Six bytes is exactly
-   enough to index the byte count, and the handler rechecks the length against
-   it before touching any data. */
+   declaring an illegal quantity. */
 static const mb_fc_desc_t FC_TABLE[] =
 {
   { MB_FC_READ_COILS,           5U, 5U, fc_read_coils    },
@@ -511,9 +492,7 @@ static const mb_fc_desc_t *fc_find(uint8_t fc)
   return NULL;
 }
 
-/* The ranges the specification reserves for user-defined functions. Anything
-   here is handed to the application rather than refused, which is where this
-   board's own binary commands live. */
+/* The ranges the specification reserves for user-defined functions. */
 static bool fc_is_user_defined(uint8_t fc)
 {
   return ((fc >= MB_FC_USER_A_FIRST) && (fc <= MB_FC_USER_A_LAST))
@@ -547,11 +526,7 @@ void mb_slave_init(mb_slave_t *slave, const mb_data_model_t *model)
   slave->model = model;
 }
 
-/* Guard clauses, one lookup, no switch. A length that does not match the
-   function code yields no response at all rather than an exception: a frame
-   whose length contradicts its own function code cannot be trusted to have
-   been parsed correctly, and the remedy for an unintelligible frame is
-   silence. */
+/* Guard clauses, one lookup, no switch. */
 size_t mb_slave_execute(mb_slave_t *slave, const uint8_t *req, size_t req_len,
                         uint8_t *rsp, size_t rsp_cap)
 {

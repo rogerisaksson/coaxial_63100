@@ -11,8 +11,7 @@
 
 
 /* ---- board seam for the comms stack ------------------------------------ */
-/* Declared in comms/inc/board.h. Thin wrappers so the ADC helpers above stay
-   static; the comms stack asks, this answers, and the dependency runs one way. */
+/* Declared in comms/inc/board.h. */
 
 const char *Board_Name(void)
 {
@@ -26,10 +25,8 @@ uint32_t Board_SysClkHz(void)
 
 uint32_t Board_AdcClockHz(void)
 {
-  /* The kernel first - whichever source the RCC was told to use - then
-     the common prescaler in ADC12's CCR, which ADC3 shares the encoding
-     of. HAL gives the first; the second is four bits that mean 1, 2, 4,
-     6, 8, 10, 12, 16, 32, 64, 128, 256. */
+  /* The kernel first - whichever source the RCC was told to use - then the
+     common prescaler in ADC12's CCR, which ADC3 shares the encoding of. */
   static const uint16_t divider[16] = { 1U, 2U, 4U, 6U, 8U, 10U, 12U,
                                         16U, 32U, 64U, 128U, 256U,
                                         256U, 256U, 256U, 256U };
@@ -62,8 +59,7 @@ uint32_t Board_Cycles(void)
   return DWT->CYCCNT;
 }
 
-/* PLL1 fed from HSE is still the crystal. Kept here rather than in the console
-   so the same judgement is available to any caller, including a test rig. */
+/* PLL1 fed from HSE is still the crystal. */
 bool Board_SysClkOnCrystal(void)
 {
   const uint32_t src = __HAL_RCC_GET_SYSCLK_SOURCE();
@@ -81,9 +77,7 @@ bool Board_SysClkOnCrystal(void)
   return (RCC->PLLCKSELR & RCC_PLLCKSELR_PLLSRC) == RCC_PLLCKSELR_PLLSRC_HSE;
 }
 
-/* Enables the Cortex-M7 cycle counter. Not a measurement: the comms stack uses
-   CYCCNT raw as its timebase, because it wraps at exactly 2^32 and unsigned
-   elapsed-time arithmetic stays correct across the wrap. */
+/* Enables the Cortex-M7 cycle counter. */
 void Board_TimebaseInit(void)
 {
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;

@@ -1,11 +1,7 @@
-/**
-  * The bootloader's core on a RAM flash: the four port calls over a byte
-  * array with 128 K sectors, a fault that can be scripted, the console's
-  * last line kept - so host/tests/test_boot_core.py can stream an image,
-  * drop chunks, kill the master and read what the node believes. Built
-  * with the host gcc like modbus/test/harness.c; nothing here runs on
-  * the board.
-  */
+/** The bootloader's core on a RAM flash: the four port calls over a byte
+    array with 128 K sectors, a fault that can be scripted, the console's
+    last line kept - so host/tests/test_boot_core.py can stream an image,
+    drop chunks, kill the master and read what the node believes. */
 #include "boot.h"
 #include <stdlib.h>
 #include <string.h>

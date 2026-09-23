@@ -3,23 +3,6 @@
   * @file    dev_uart.c
   * @brief   The board's three serial ports as dev_serial_t, and the only file
   *          that touches a USART or its interrupt.
-  *
-  * Register-level, not HAL_UART_Receive: a single-byte take with no state
-  * machine in the way and explicit control of the sticky error flags.
-  *
-  * USART3 is the debug probe's VCP, console or Modbus. USART2 and UART5 are
-  * RS485 and carry Modbus only.
-  *
-  * ALL THREE RECEIVE ON INTERRUPT, each byte carrying its arrival tick. RTU
-  * delimits by silence, and polling timestamped a byte when the loop got to
-  * it. THE FIFO IS DISABLED on every port, so the receiver holds ONE
-  * character - 87 us at 115200 - and a 1.5 ms IMU cargo loses every byte
-  * after the first. USART3 was polled until 2026-08-29 and cost 0.45 % of
-  * frames: 1393 requests, 7 silent, char_overrun +7 to match.
-  *
-  * THEY HEAR THEMSELVES. RE is tied to GND on both THVD1450s, so every
-  * transmitted byte comes back and put() purges afterwards - without it the
-  * reply lands in the receiver as a request.
   ******************************************************************************
   */
 #include "comms_limits.h"
@@ -76,8 +59,8 @@ static UART_HandleTypeDef *uart_of(void *ctx)
   return ((dev_port_t *)ctx)->uart;
 }
 
-/* A byte and its tick into the ring, or counted as dropped when the
-   main loop is not draining - said so rather than overwritten. */
+/* A byte and its tick into the ring, or counted as dropped when the main
+   loop is not draining - said so rather than overwritten. */
 static void ring_push(dev_port_t *p, uint8_t byte, uint32_t tick)
 {
   const uint16_t next = (uint16_t)((p->head + 1U) % DEV_RING);
@@ -92,8 +75,7 @@ static void ring_push(dev_port_t *p, uint8_t byte, uint32_t tick)
   p->head = next;
 }
 
-/* The oldest byte and its tick out of the ring; false on an empty
-   one. */
+/* The oldest byte and its tick out of the ring; false on an empty one. */
 static bool ring_pop(dev_port_t *p, uint8_t *byte, uint32_t *tick)
 {
   if (p->tail == p->head)
@@ -106,8 +88,7 @@ static bool ring_pop(dev_port_t *p, uint8_t *byte, uint32_t *tick)
   return true;
 }
 
-/* The whole interrupt. One byte, one timestamp, no HAL: HAL_UART_IRQHandler
-   runs a transfer state machine this layer does not use and would fight. */
+/* The whole interrupt. */
 static void on_irq(dev_port_t *p)
 {
   USART_TypeDef *u = p->uart->Instance;
@@ -128,10 +109,8 @@ static void on_irq(dev_port_t *p)
   }
 }
 
-/* Port 0 is USART3, the debug probe's VCP - the wire the host and the console
-   both use. It had no handler while it was polled, so enabling its interrupt
-   without this would have landed every byte in the default handler's endless
-   loop. */
+/* Port 0 is USART3, the debug probe's VCP - the wire the host and the
+   console both use. */
 void USART3_IRQHandler(void)
 {
   on_irq(&s_ports[0]);
@@ -163,17 +142,7 @@ static bool u_get(void *ctx, uint8_t *byte, uint32_t *tick)
     return false;
   }
 
-  /* The polled fallback. Every port receives on interrupt now, so nothing
-     reaches here on this board - it is kept because a port that loses its
-     ISR should degrade rather than go deaf.
-
-     USART3 was polled until 2026-08-28 on the reasoning that "the master on
-     it is a person or a script, not a bus". Measured, that was wrong: a
-     script lost 0.45 % of its frames, and the board counted one char_overrun
-     for each, exactly. The cause was the IMU poll - a 276-byte cargo at
-     1.48 MHz is 1.5 ms, longer than the RX FIFO covers at 115200, and the
-     `!link_busy()` gate only looks BEFORE the poll. Held the IMU loop and
-     the overruns went to zero over 1283 requests. */
+  /* The polled fallback. */
   *tick = DWT->CYCCNT;
   *byte = (uint8_t)(u->RDR & 0xFFU);
   return true;
@@ -200,9 +169,7 @@ static bool u_fault(void *ctx)
     return false;
   }
 
-  /* Clear the flags first, then drop the byte that came with them. Reading RDR
-     alone does NOT clear ORE - it needs ORECF - and a latched ORE ends
-     reception for good. */
+  /* Clear the flags first, then drop the byte that came with them. */
   u->ICR = DEV_ERR_CLEAR;
 
   if ((u->ISR & USART_ISR_RXNE_RXFNE) != 0U)
@@ -234,24 +201,7 @@ static void u_put(void *ctx, const uint8_t *data, uint16_t len)
   USART_TypeDef *u = uart_of(ctx)->Instance;
 
   /* Register level like the receive side, and for a second reason on top of
-     that one: HAL_UART_Transmit blocks for the whole frame. Measured, a
-     53-byte reply at 115200 stalled the main loop 4.6 ms - ten times what
-     the STO latch holds, and by far the worst gap on the board. The wait is
-     a spin either way; this one feeds the charge pump while it waits.
-
-     AND SAMPLES WHILE IT WAITS. A 229-byte DAQ reply is 19.9 ms of line
-     time, and spinning through it cost the acquisition loop 72 % of its
-     rate: measured 2026-09-01, the board made 477 records/s with the link
-     idle and 133 while serving it, so a link that could carry 194 was fed
-     by a board that could no longer make them.
-
-     Safe because of WHERE the spin is. TXFNF means the TX FIFO has room,
-     so this loop only waits when the FIFO is FULL - sixteen bytes, 1.39 ms
-     of transmission still queued. One channel of the sweep costs about
-     78 us against that, so the FIFO never runs dry and no gap opens inside
-     the frame. A gap past t1.5 (143 us) would split the reply into two
-     frames at the master, which is the failure this arrangement must not
-     have. */
+     that one: HAL_UART_Transmit blocks for the whole frame. */
   for (uint16_t i = 0U; i < len; i++)
   {
     while ((u->ISR & USART_ISR_TXE_TXFNF) == 0U)
@@ -269,8 +219,7 @@ static void u_put(void *ctx, const uint8_t *data, uint16_t len)
   }
 
   /* Everything just sent came back in on the RS485 ports, through the
-     interrupt and into the ring. Dropped here and not upstream: the protocol
-     layer never saw these bytes, so there is no framing state to unwind. */
+     interrupt and into the ring. */
   if (((dev_port_t *)ctx)->echoes)
   {
     u_purge(ctx);
@@ -280,8 +229,7 @@ static void u_put(void *ctx, const uint8_t *data, uint16_t len)
 static uint32_t u_ticks(void *ctx)
 {
   (void)ctx;
-  /* Raw cycle counter, enabled at boot by ClockStability_Init(). Wraps at
-     exactly 2^32, which is what the protocol layer's timing requires. */
+  /* Raw cycle counter, enabled at boot by ClockStability_Init(). */
   return DWT->CYCCNT;
 }
 
@@ -292,10 +240,7 @@ static uint32_t u_ticks_per_us(void *ctx)
   return (per == 0U) ? 1U : per;
 }
 
-/** Receive on interrupt. Priority 5: below anything that must not be
-  * delayed and above the systick the delays here use, so a byte is never
-  * late for a frame boundary. RXNE and the error sources both, because an
-  * overrun that nobody is told about is an overrun nobody clears. */
+/** Receive on interrupt. */
 static void arm_rx_irq(const dev_port_t *p)
 {
   HAL_NVIC_SetPriority(p->irq, 5U, 0U);
@@ -305,7 +250,7 @@ static void arm_rx_irq(const dev_port_t *p)
 }
 
 /** Built on first use rather than as a static initialiser: huart2, huart3
-  * and huart5 are not constant expressions. */
+    and huart5 are not constant expressions. */
 static void build_ports(void)
 {
   s_ports[0].uart = &huart3;
@@ -344,16 +289,11 @@ const dev_serial_t *dev_uart(uint8_t index)
   return &s_devs[index];
 }
 
-/* Four patterns, one byte at a time. Not one four-byte burst: the FIFO is
-   disabled on all three ports, so a blocking multi-byte transmit overruns its
-   own receiver. 0x00 and 0xFF catch a line stuck at either rail, 0x5A and
-   0xA5 one bit-shifted or inverted. */
+/* Four patterns, one byte at a time. */
 static const uint8_t DEV_ECHO_PATTERN[4] = { 0x00U, 0xFFU, 0x5AU, 0xA5U };
 
 /** Send one byte and wait for one back: 0 nothing came, 1 something else
-  * did, 2 the byte itself. One character at 115200 is 95 us; two
-  * milliseconds is twenty times that and still short enough that four of
-  * them cannot outlive a master's patience. */
+    did, 2 the byte itself. */
 static uint8_t echo_one(const dev_serial_t *dev, uint8_t byte)
 {
   dev_port_t *p = (dev_port_t *)dev->ctx;
@@ -424,10 +364,7 @@ bool dev_uart_rs485(uint8_t index)
   return (index < DEV_UART_COUNT) && s_ports[index].echoes;
 }
 
-/* The RS485 pair's runtime rate. DEV_UART_BAUD until the record says
-   otherwise: for the whole life of CAL_VERSION 8 nothing wrote it, so the
-   pair ran at CubeMX's 9 216 000 while every report said 115200 - the
-   same-port echo check cannot see an absolute rate, so it never told. */
+/* The RS485 pair's runtime rate. */
 static uint32_t s_rs485_baud = DEV_UART_BAUD;
 
 uint32_t dev_uart_baud(void)
@@ -444,11 +381,7 @@ uint32_t dev_uart_port_baud(uint8_t index)
 
 bool dev_uart_set_rs485_baud(uint32_t baud)
 {
-  /* Re-init both RS485 ports at the asked rate. HAL_UART_Init resets the
-     peripheral, so everything the boot path set is set again here - DE
-     polarity, FIFO thresholds, FIFO off - and the receive interrupt is
-     re-armed where a port had one. Called from main() after the record
-     loads, before link_init() computes the RTU silences from this rate. */
+  /* Re-init both RS485 ports at the asked rate. */
   UART_HandleTypeDef *pair[2] = { &huart2, &huart5 };
 
   if ((baud < 9600U) || (baud > 921600U))

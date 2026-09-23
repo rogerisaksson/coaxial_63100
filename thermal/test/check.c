@@ -1,13 +1,4 @@
-/* Run the thermal observer against the campaign's four measured states.
- *
- * Build and run with the host gcc, no hardware:
- *   gcc -std=c11 -Wall -Wextra -Wconversion -I../inc ../src/thermal.c check.c
- *       -lm -o check && ./check
- *
- * This is not the arithmetic in thermal.c - it tests that the model with
- * those parameters actually lands on the temperatures it was calibrated from.
- * A network can have the right resistances and still not converge.
- */
+/* Run the thermal observer against the campaign's four measured states. */
 #include "thermal.h"
 
 #include <math.h>
@@ -16,11 +7,7 @@
 
 #define AMBIENT   20.0f
 #define SETTLE_S  (60.0f * 60.0f)      /* one hour, ~9 tau */
-/* THE RATE THE BOARD RUNS AT, derived so the two cannot disagree. A leg
-   holds a third of what the lumped node did, so 35 W moves it 8.75 K per
-   step; at the 0.5 s this used to be, the whole ceiling fell inside one
-   step and the budget was asked to warn about something already over -
-   the test measured its own resolution, not the budget. */
+/* THE RATE THE BOARD RUNS AT, derived so the two cannot disagree. */
 #include "../../board/inc/board_limits.h"
 #define STEP_S    ((float)THERMAL_STEP_MS / 1000.0f)
 
@@ -32,8 +19,7 @@ struct sample
   float ntc_measured;                  /* -1 = not read in that state    */
 };
 
-/* The powers are what the differences gave; see thermal.c for the working.
-   Passive: 0.666 mcu + 0.484 LDO drop + 0.05 other = 1.20 W (supply 50 mA). */
+/* The powers are what the differences gave; see thermal.c for the working. */
 static const struct sample CASES[] =
 {
   { "1 passive", { 0.0f, 0.0f, 0.666f, 0.534f, 0.0f,  0.0f }, 30.0f, 36.0f },
@@ -43,17 +29,10 @@ static const struct sample CASES[] =
 };
 
 /* Does a die sensor buy anything? Start 30 K wrong with ONLY the MCU die and
- * no NTC. The board should converge anyway: the node's rise is its power
- * times its spreading resistance, both of which the model has. The NTC could
- * not do this - it sits in the drivers' hot spot.
- */
+   no NTC. */
 static int die_anchor(void)
 {
-  /* A DIE reading, not the package. The camera saw the package at 45.0 C in
-     the passive state and the internal sensor read 72.0 - the 27 K between
-     them is junction-to-case, and feeding the package number here was what
-     made this check pass while the live board estimated itself 6.4 K above
-     an NTC that cannot be below it. */
+  /* A DIE reading, not the package. */
   const float truth = 72.0f;
   const float board = 30.0f;
   thermal_cfg_t cfg;
@@ -98,12 +77,9 @@ static int die_anchor(void)
 }
 
 
-/* A deep burst: does the budget warn while there is still time to act?
- *
- * The question a burst asks is not "how hot is it" but "how long may I stay
- * here". So this drives a hard load from a cold board and checks that the
- * warning arrives with seconds still on the clock, not after the limit.
- */
+/* A deep burst: does the budget warn while there is still time to act? The
+   question a burst asks is not "how hot is it" but "how long may I stay
+   here". */
 static int burst_budget(void)
 {
   thermal_cfg_t cfg;
@@ -114,8 +90,8 @@ static int burst_budget(void)
   int bad = 0;
 
   thermal_defaults(&cfg);
-  /* The envelope is the board's, out of its calibration record - there is
-     no compiled-in copy to ask for. A test states what it is testing. */
+  /* The envelope is the board's, out of its calibration record - there is no
+     compiled-in copy to ask for. */
   memset(&soa, 0, sizeof(soa));
   for (int i = 0; i < THERMAL_NODES; i++)
   {
@@ -177,11 +153,7 @@ static int burst_budget(void)
 
 static int rds_tempco(void)
 {
-  /* The FET's on-resistance follows the node it heats. 100 A through one
-     leg: at 25 C the FET makes 18 W beside the shunt's 35; at a 100 C
-     phase node the datasheet chord says 1.585x that, and a NULL or NaN
-     estimate keeps the flat figure - the pre-tempco behaviour, bit for
-     bit. */
+  /* The FET's on-resistance follows the node it heats. */
   thermal_loss_t loss;
   thermal_load_t load;
   thermal_power_t flat, hot, cold;
@@ -235,13 +207,7 @@ int main(void)
 {
   int bad = 0;
 
-  /* THE NTC COLUMNS NOW CARRY A RESIDUAL, and it is not a regression.
-     The thermistor is an element between the leg node and the board
-     since 2026-09-04, so it can no longer be hotter than what heats it,
-     and the campaign's one switching state implies a fraction of 1.05 -
-     which no passive body can have. The disagreement had been living in
-     the coupling; it shows here instead. FINDINGS has which of the three
-     inputs is the suspect. */
+  /* THE NTC COLUMNS NOW CARRY A RESIDUAL, and it is not a regression. */
   printf("%-11s %9s %10s %8s   %9s %9s\n",
          "state", "board mod", "board meas", "err", "ntc mod", "ntc meas");
 
@@ -261,8 +227,7 @@ int main(void)
       p.watt[n] = s->watt[n];
     }
 
-    /* No anchoring: this tests the open network, not the sensor correction.
-       NAN on both makes thermal_step integrate only. */
+    /* No anchoring: this tests the open network, not the sensor correction. */
     for (float t = 0.0f; t < SETTLE_S; t += STEP_S)
     {
       const thermal_sense_t blind = { NAN, NAN, NAN };

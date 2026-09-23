@@ -3,25 +3,6 @@
   * @file    board_daq.c
   * @brief   One acquisition task: configure, start, read. DAQmx's shape, cut
   *          down to what this board has.
-  *
-  * One task, not many: three converters and one timer, and pretending
-  * otherwise puts the arbitration where it cannot be honoured.
-  *
-  *   channels     which ADC rows, as a bitmask
-  *   clock        SOFTWARE (the main loop) or TIM1 (the injected group)
-  *   sample_time  0..7, the converter's own window
-  *   decimate     keep one trigger in N
-  *   accumulate   sum N samples per record; 0 closes the record on
-  *                `interval_us` instead, with the converter free
-  *   records      stop after this many, 0 to run until stopped
-  *
-  * THE ENGINE IS daq/ - the ring, the summing window, the anti-alias chain
-  * and its ladder, the tone generator and the live accumulator - portable
-  * and host-tested (test_daq_core.py). This file is the hardware around it:
-  * the converter reads on either clock, the cycle counter, the reference's
-  * power gate, the sensor snapshot a record carries, the checks a task
-  * has to pass against the converter, and the interrupt hold the engine
-  * borrows. Nothing about a record's shape is decided here.
   ******************************************************************************
   */
 #include "board_limits.h"
@@ -48,14 +29,12 @@ _Static_assert((DAQ_TONE_SINE == BOARD_DAQ_TONE_SINE)
                && (DAQ_TONE_RAMP == BOARD_DAQ_TONE_RAMP),
                "daq.h's tone kinds and board.h's disagree");
 
-/* `.buffers` is the AXI SRAM section in STM32H753xx_FLASH.ld. NOLOAD,
-   so a quarter of a megabyte of zeroes is not carried in the image. */
+/* `.buffers` is the AXI SRAM section in STM32H753xx_FLASH.ld. */
 static uint8_t s_buf[DAQ_BYTES] __attribute__((section(".buffers")));
 
 /** The acquisition glue's state: the engine, whether it is built yet, the
-  * task as the wire gave it, and whether the rate was chosen or the
-  * reference lost. One object: what a debugger shows whole and a reset
-  * clears at once. */
+    task as the wire gave it, and whether the rate was chosen or the
+    reference lost. */
 static struct
 {
   daq_t daq;
@@ -68,13 +47,8 @@ static struct
 #define IMU_SENSORS  0x0FU             /* the four sensor bits the IMU serves */
 #define SHAFT_SENSOR 4U
 
-/** One sensor field's four words, SNAPSHOT at the record's close - raw
-  * and source-defined, the scale stays the host's as everywhere else.
-  * Software clock only (Board_DaqConfigure refuses the other), so these
-  * reads and the poll loops that write them share the main loop. The
-  * IMU state is read ONCE per record: four enabled fields were four
-  * copies of the same struct, and a record is one instant, not four
-  * close ones. */
+/** One sensor field's four words, SNAPSHOT at the record's close - raw and
+    source-defined, the scale stays the host's as everywhere else. */
 static void snapshot(void *ctx, uint16_t sensors,
                      int16_t words[DAQ_MAX_SENSORS][DAQ_SENSOR_WORDS])
 {
@@ -104,8 +78,8 @@ static void snapshot(void *ctx, uint16_t sensors,
   words[3][2] = imu.mag[2];   words[3][3] = (int16_t)imu.mag_status;
 }
 
-/** The engine, built on first use - the lazy shape the rest of board/
-  * uses, since any of this file's entry points may be the first. */
+/** The engine, built on first use - the lazy shape the rest of board/ uses,
+    since any of this file's entry points may be the first. */
 static daq_t *engine(void)
 {
   if (!s.built)
@@ -122,16 +96,7 @@ static daq_t *engine(void)
   return &s.daq;
 }
 
-/**
-  * @brief  Cycles for a microsecond interval, saturated.
-  *
-  * DWT->CYCCNT is 32 bits at 475 MHz, so it comes round every 9.04 s and an
-  * interval longer than that cannot be expressed at all. The multiply used
-  * to be done in uint32: asking for one record every 30 s produced
-  * 30e6 * 475 mod 2^32, about 1.5 s, so a run left alone overnight filled
-  * the ring and dropped instead of ticking over slowly. `Board_DaqConfigure`
-  * refuses it outright; this is the belt for the paths that cannot.
-  */
+/** Cycles for a microsecond interval, saturated. */
 static uint32_t interval_cycles(uint32_t interval_us)
 {
   const uint64_t cycles = (uint64_t)interval_us
@@ -150,8 +115,8 @@ uint32_t Board_DaqAvailable(void)
   return daq_available(engine());
 }
 
-/** True when the injected sequence converts every selected field: the
-  * three phases, and the DC link and NTC that ride rank 2. */
+/** True when the injected sequence converts every selected field: the three
+    phases, and the DC link and NTC that ride rank 2. */
 static bool only_injected(const daq_t *d)
 {
   for (uint8_t f = 0U; f < d->task.fields; f++)
@@ -164,12 +129,7 @@ static bool only_injected(const daq_t *d)
   return true;
 }
 
-/** The checks that need no field list. Every refusal says which check
-  * failed, in the board's own words: the board is the only thing that
-  * knows which one it was, and a host listing possible causes is the
-  * second answer this codebase keeps deleting. Each one says what is
-  * wrong AND what to do about it - a refusal that leaves the caller
-  * guessing has done half a job. NULL when they all pass. */
+/** The checks that need no field list. */
 static const char *refused_before_fields(const board_daq_config_t *cfg)
 {
   if (cfg == NULL)
@@ -201,8 +161,8 @@ static const char *refused_before_fields(const board_daq_config_t *cfg)
   if (cfg->accumulate > DAQ_MAX_ADDITIONS)
   {
     /* The record's sum is int32 and a single-ended code reaches 65535, so
-       beyond this the sum wraps and the host divides a negative by the
-       count and calls it a mean. */
+       beyond this the sum wraps and the host divides a negative by the count
+       and calls it a mean. */
     return "accumulate is at most 32767 - beyond that the record's sum "
            "overflows a signed 32-bit total and stops being a measurement";
   }
@@ -214,8 +174,7 @@ static const char *refused_before_fields(const board_daq_config_t *cfg)
 }
 
 /** Field order is the channel table's order, so a host reading the layout
-  * and a host reading `0x6D` get the same answer in the same sequence.
-  * Returns how many rows the mask selected. */
+    and a host reading `0x6D` get the same answer in the same sequence. */
 static uint8_t select_fields(uint16_t mask, uint8_t *order)
 {
   const uint8_t rows = Board_AdcCount();
@@ -241,9 +200,7 @@ static const char *refused_with_fields(const board_daq_config_t *cfg,
   }
 
   /* TIM1 clock means the injected group, and that group converts the three
-     phases and nothing else. Asking for a channel it does not carry is a
-     configuration that cannot be honoured, so it is refused here rather
-     than answered with zeros. */
+     phases and nothing else. */
   if ((cfg->clock == BOARD_DAQ_CLOCK_TIM1) && !only_injected(d))
   {
     return "the TIM1 clock carries what the injected sequence converts - "
@@ -341,9 +298,9 @@ void Board_DaqTonePoll(void)
   {
     return;
   }
-  /* The burst is bounded because this runs beside the link: RTU discards
-     a frame whose characters arrive more than t1.5 apart, and the bound
-     was measured against exactly that (board_limits.h). */
+  /* The burst is bounded because this runs beside the link: RTU discards a
+     frame whose characters arrive more than t1.5 apart, and the bound was
+     measured against exactly that (board_limits.h). */
   daq_tone_poll(engine(), Board_Cycles(), BOARD_DAQ_TONE_BURST);
 }
 
@@ -434,9 +391,9 @@ void Board_DaqState(board_daq_state_t *out)
   out->available = daq_available(d);
   out->produced = d->produced;
   out->dropped = d->dropped;
-  /* What the ring holds at this stride, not what it holds in bytes: a
-     level is a fraction of something, and DAQ_BYTES is not what a host
-     counts records against. */
+  /* What the ring holds at this stride, not what it holds in bytes: a level
+     is a fraction of something, and DAQ_BYTES is not what a host counts
+     records against. */
   out->capacity = daq_capacity(d);
   out->worst = d->worst;
   out->rung = d->rung;
@@ -462,10 +419,7 @@ bool Board_DaqField(uint8_t field, uint8_t *channel)
 }
 
 /** AFE_ON off means every channel reads exact mid-scale - it powers the ADC
-  * reference, not just the signal path (invariant 9). The task stops and the
-  * buffers empty: an accumulator holding half real samples and half
-  * mid-scale divides out to something plausible with no field to say so.
-  */
+    reference, not just the signal path (invariant 9). */
 static bool powered(daq_t *d)
 {
   if (Board_AfeOn())
@@ -492,9 +446,9 @@ void Board_DaqPoll(void)
     return;
   }
 
-  /* The generator is a SOURCE, in the converter's place: with a tone on,
-     the meter is not read at all, so what the ring holds is arithmetic
-     with a known answer and nothing of the board's analog front end. */
+  /* The generator is a SOURCE, in the converter's place: with a tone on, the
+     meter is not read at all, so what the ring holds is arithmetic with a
+     known answer and nothing of the board's analog front end. */
   if (d->tone.on)
   {
     Board_DaqTonePoll();
@@ -506,14 +460,7 @@ void Board_DaqPoll(void)
     daq_sweep_begin(d, Board_Cycles(), digital_now());
   }
 
-  /* Not throttled. The loop runs at whatever the converter and the main
-     loop manage, because that is what makes the accumulator's window worth
-     having - and it is safe now for a reason that has nothing to do with
-     rate: ONE poll used to read seven channels and take about 190 us, and
-     RTU discards a frame whose characters arrive more than t1.5 apart,
-     143 us at 115200. One channel per turn fixed that. Rate limiting never
-     did - 200 Hz survived and 1000 Hz did not, because a single poll still
-     overran t1.5 whenever it landed inside a frame. */
+  /* Not throttled. */
   if (!Board_AdcRead(d->task.order[d->next_field], &raw, &uv, &scaled))
   {
     return;                        /* the meter is busy; try again next turn */

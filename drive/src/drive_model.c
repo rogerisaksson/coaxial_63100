@@ -3,21 +3,6 @@
   * @file    drive_model.c
   * @brief   A PMSM and an inverter in front of it, for the drive to run
   *          against when the converters cannot answer.
-  *
-  * The second sample source. On the bench board AFE_ON high unpowers the
-  * gate drivers, so the real currents and a switching stage are never
-  * available together; this is how the rotor observer is watched working -
-  * predictably, against a rotor whose angle is known - while the half
-  * bridges switch dry or not at all.
-  *
-  * The same model test_drive_core.py integrates in Python, in the same
-  * form: dq in the rotor frame, Ld bent by the d current (the saturation
-  * saliency an SPM shows), friction and a load on the shaft, the inverter's
-  * dead-time volts odd in each phase current, and the two-period pipeline
-  * the firmware has between a duty asked for and the sample that shows it.
-  * Sub-stepped Euler with one trig pair per period: the electrical time
-  * constant is hundreds of microseconds against a 5 us sub-step, and a
-  * period turns the rotor milliradians.
   ******************************************************************************
   */
 #include "drive.h"
@@ -41,10 +26,8 @@
 
 void drive_model_defaults(drive_model_params_t *p)
 {
-  /* The order of magnitude of a small outrunner, the same set
-     drive_defaults carries so a virtual run is consistent out of the box.
-     Placeholders like those: a real motor's numbers come from the
-     commissioning, and a model worth comparing against carries them. */
+  /* The order of magnitude of a small outrunner, the same set drive_defaults
+     carries so a virtual run is consistent out of the box. */
   memset(p, 0, sizeof(*p));
   p->r = 0.05f;
   p->ld = 20e-6f;
@@ -90,10 +73,8 @@ static float model_noise(drive_model_t *m, float sd)
 
   for (uint8_t k = 0U; k < 3U; k++)
   {
-    m->rng = m->rng * LCG_A + LCG_C;   /* U: the LCG wraps in
-                                       uint32_t on every target; UL made an
-                                       LP64 host widen the product to 64
-                                       bits before the same wrap */
+    m->rng = m->rng * LCG_A + LCG_C;   /* U: the LCG wraps in uint32_t on every target; UL made an LP64 host
+       widen the product to 64 bits before the same wrap */
     sum += (float)(m->rng >> LCG_TOP_BITS) / LCG_TOP_ONE - 0.5f;
   }
   return sum * 2.0f * sd;                 /* three uniforms: sd is 0.5 */
@@ -108,10 +89,9 @@ static float model_ld(const drive_model_t *m)
 
 void drive_model_sample(drive_model_t *m, drive_sample_t *out)
 {
-  /* The three phase currents as the shunts would report them, at the top
-     of the period - amplitude-invariant, with the noise the caller asked
-     for on each. The trig pair is kept for the advance that follows:
-     a period turns the rotor milliradians. */
+  /* The three phase currents as the shunts would report them, at the top of
+     the period - amplitude-invariant, with the noise the caller asked for on
+     each. */
   drive_sincos(m->theta, &m->s, &m->c);
   const float ia = m->id * m->c - m->iq * m->s;
   const float ib = m->id * m->s + m->iq * m->c;
@@ -181,8 +161,8 @@ void drive_model_advance(drive_model_t *m, const float *duty, float ts)
 bool drive_step_virtual(drive_t *d, drive_out_t *out)
 {
   /* Sample, step, advance with the duty from the step BEFORE - the
-     firmware's pipeline: what this step asks for shapes the period after
-     the next one, so the model sees it a period late, like the stage. */
+     firmware's pipeline: what this step asks for shapes the period after the
+     next one, so the model sees it a period late, like the stage. */
   drive_sample_t in;
   const uint32_t t0 = d->cycles ? d->cycles() : 0U;
 

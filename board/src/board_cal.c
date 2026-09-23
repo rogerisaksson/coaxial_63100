@@ -2,19 +2,6 @@
   ******************************************************************************
   * @file    board_cal.c
   * @brief   The scaling parameters and per-channel corrections, on the board.
-  *
-  * Here and not in a host because a calibration belongs to ONE physical
-  * board: a host carrying it answers for the wrong board the moment it is
-  * pointed at a second.
-  *
-  * It judges nothing. A scale factor says what a code is worth, never
-  * whether it is acceptable (invariant 10).
-  *
-  * Integers throughout, in the unit that makes them integers: microhms, ppm,
-  * microvolts, centikelvin. The wire bans floating point.
-  *
-  * Last sector of bank 2 - the image is 92 KB in bank 1, so an erase here
-  * does not stall the core fetching its own instructions.
   ******************************************************************************
   */
 #include "board.h"
@@ -26,9 +13,7 @@
 #include <stddef.h>
 #include <string.h>
 
-/* Bank 2, sector 7: 0x081E0000..0x081FFFFF. Nothing else is linked here -
-   STM32H753xx_FLASH.ld places .text and .rodata from 0x08000000 and the image
-   is under 128 KB. */
+/* Bank 2, sector 7: 0x081E0000..0x081FFFFF. */
 #define CAL_FLASH_ADDR   0x081E0000UL
 #define CAL_FLASH_SECTOR FLASH_SECTOR_7
 #define CAL_FLASH_BANK   FLASH_BANK_2
@@ -37,49 +22,30 @@
    magic is how that is told from a record whose fields happen to be large. */
 #define CAL_MAGIC   0x43583633UL
 /* 2 since the +5 and gate-supply senses were added: the record carries one
-   trim per channel, so its length moved. A stored version 1 is rejected by
-   the check below and the defaults are used, which is the right answer -
-   trims measured against seven channels do not index nine. */
-/* 4: the thermal envelope joined the record. A stored 3 is refused
-   rather than read with the new fields as whatever flash held. */
-/* 5: the half-bridge dead time joined the record. A stored 4 is refused
-   rather than read with the new field as whatever flash held. */
+   trim per channel, so its length moved. */
+/* 4: the thermal envelope joined the record. */
+/* 5: the half-bridge dead time joined the record. */
 /* 6: and its lead-lag trim. */
 /* 7: per-leg thermal nodes, six ceilings to ten. */
 /* 8: the drive - motor, gains, injection, dead time. */
-/* 9: the RS485 pair's baud. Found the day the THVD1450's rating went into
-      HARDWARE.md: CubeMX left USART2/UART5 at 9 216 000 and nothing wrote
-      the 115200 everything reported - the wire ran at 80x the number in
-      the link report. */
-/* 10: soa_lookahead_ms, so the throttle can act on a ramp rather than on
-      a reading. */
+/* 9: the RS485 pair's baud. */
+/* 10: soa_lookahead_ms, so the throttle can act on a ramp rather than on a
+   reading. */
 /* 11: soa_undriven_mask - the housekeeping nodes are judged but not
-      throttled on, because a clamp on the phase current cannot cool them. */
-/* 12: the winding's envelope - K/W, J/K and a ceiling for the one node
-      that is not on the board, so the stage throttles on the motor's SOA
-      as well as the switches'. */
+   throttled on, because a clamp on the phase current cannot cool them. */
+/* 12: the winding's envelope - K/W, J/K and a ceiling for the one node that
+   is not on the board, so the stage throttles on the motor's SOA as well as
+   the switches'. */
 /* 13: twenty nodes from ten - the laminate as seven patches, the hot swap,
-      the motor as three - and THE NETWORK ITSELF in the record: a
-      capacity, an air path and an edge each, zero for the core's derived
-      default, so an identification on the board has somewhere to keep
-      what it learns. */
+   the motor as three - and THE NETWORK ITSELF in the record: a capacity, an
+   air path and an edge each, zero for the core's derived default, so an
+   identification on the board has somewhere to keep what it learns. */
 /* 14: what the identification learned - its four scales, appended, and
-      written by the board itself. Gone in 15. */
-#define CAL_VERSION 15U  /* 15: the SOA margin floor where 14 kept the
-                            scales - nothing learned is kept any more
-                            (bench, 2026-09-06). A STORED 14 IS TAKEN UP,
-                            not refused: its prefix is this layout's up to
-                            the floor, and it holds the one span ever
-                            measured. */
+   written by the board itself. */
+#define CAL_VERSION 15U  /* 15: the SOA margin floor where 14 kept the scales - nothing learned is
+   kept any more (bench, 2026-09-06). */
 
-/** The two versions before this one. Both layouts are this one's prefix
-  * up to `soa_margin_floor_ppm`: 14 carried the four scales (16 bytes)
-  * after it and then its CRC, 13 ended there with its CRC. A stored
-  * record of either is read as the prefix with the floor at its default,
-  * and the CRC checked over what its own layout covered. Two steps back
-  * and not one, this once: the 13 record on the bench board holds the
-  * DC link's span, the one number ever measured against an instrument,
-  * and 14 lived a day. Anything older is refused as before. */
+/** The two versions before this one. */
 #define CAL_PREVIOUS_VERSION    14U
 #define CAL_OLDER_VERSION       13U
 #define CAL_PREVIOUS_PREFIX     offsetof(board_cal_t, soa_margin_floor_ppm)
@@ -87,8 +53,8 @@
 #define CAL_OLDER_CRC_OFFSET    CAL_PREVIOUS_PREFIX
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
-   to a multiple of 32 bytes; the record is a few hundred bytes against a
-   128 KB sector. */
+   to a multiple of 32 bytes; the record is a few hundred bytes against a 128
+   KB sector. */
 #define CAL_WORD_BYTES 32U
 #define CAL_IMAGE_BYTES (((sizeof(board_cal_t) + CAL_WORD_BYTES - 1U) / \
                           CAL_WORD_BYTES) * CAL_WORD_BYTES)
@@ -96,10 +62,7 @@
 static board_cal_t s_cal;
 
 /* Compiled-in defaults: what the schematic says, traced 2026-08-26 from
-   electronics/Coaxial 63100 Schematics.pdf. Every one of them is arithmetic
-   from a resistor value, and not one has been measured - which is exactly
-   why they are defaults a rig can overwrite rather than constants it cannot.
-   The derivations are in docs/HARDWARE.md. */
+   electronics/Coaxial 63100 Schematics.pdf. */
 static const board_cal_t CAL_DEFAULTS =
 {
   .magic            = CAL_MAGIC,
@@ -107,66 +70,29 @@ static const board_cal_t CAL_DEFAULTS =
   .channels         = BOARD_CAL_CHANNELS,
 
   /* The thermal envelope, centi-degrees C per node in thermal_node_t order:
-     driver U/V/W, phase U/V/W, mcu, regulators, afe, board.
-
-       phases  12500  IAUCN10S7N021 Tj max - docs/HARDWARE.md
-       mcu     12500  STM32H753 Tj max
-       board   10500  ESTIMATE - laminate, well under any part on it
-       others  12500  ESTIMATE - those datasheets are not in this tree
-
-     Per leg since version 7, and the ceiling is the same for all three:
-     it is the part's junction limit, and the three carry the same part.
-     What the split buys is that one leg reaches it on its own.
-
-     Derate at 90 %: the board's constant is 6.8 minutes but a deep burst
-     moves a node in seconds, so a throttle that waits for the ceiling
-     arrives after it. Ninety from eighty-five on the bench's word - at
-     eighty-five the ramp took the last sixth of every node's budget away
-     from a burst the board is there to survive. */
+     driver U/V/W, phase U/V/W, mcu, regulators, afe, board. */
   .soa_limit_centi  = { 12500, 12500, 12500,      /* driver U, V, W */
                         12500, 12500, 12500,      /* phase  U, V, W */
                         12500, 12500, 12500, 10500,  /* mcu, regs, afe, centre */
                         /* CAL_VERSION 13: the hot swap's FETs are the
                            bridge's part, so its junction limit; the six
-                           patches are laminate like the centre; the
-                           winding its own 120 (see below), the stator's
-                           iron and the rotor's magnets ESTIMATES at the
-                           winding's, since a bonded magnet's flux is the
-                           first thing lost above it. */
+                           patches are laminate like the centre; the winding
+                           its own 120 (see below), the stator's iron and the
+                           rotor's magnets ESTIMATES at the winding's, since
+                           a bonded magnet's flux is the first thing lost
+                           above it. */
                         12500,                         /* hotswap        */
                         10500, 10500, 10500,           /* patch U, V, W  */
                         10500, 10500, 10500,           /* left, bottom, right */
                         12000, 12000, 12000 },         /* winding, stator, rotor */
   .soa_throttle_ppm = 900000UL,
-  /* Two seconds of reaction window. The phase node's own constant is
-     about eighteen seconds and a deep burst crosses its whole throttle
-     band in under one, so a throttle looking only at the present never
-     sees the band at all: measured on the stand-in at 45 A, the derate
-     stayed at 1.0 through a crossing from a fifth of the budget to over
-     the ceiling.
-
-     THE WINDOW IS TIME LEFT, not a distance to project a temperature -
-     `thermal.h` has why, and `THERMAL_STEP_MS` is 100, so two seconds is
-     twenty steps of ramp. Under the old projection this number was
-     dangerous in the raising direction: two seconds against a driver
-     node that holds 100 A for 0.67 s stopped the drive from a cold
-     board. It is a shape now, not a cliff, and a bench that wants more
-     warning may raise it. */
+  /* Two seconds of reaction window. */
   .soa_lookahead_ms = 2000UL,
-  /* The MCU, the regulators and the front end. Their power does not
-     depend on the duty, so a derate asked for on their account is a loop
-     with no actuator - `board.h` has the measurement. The laminate is
-     NOT among them: the legs are most of what heats it, so the clamp
-     moves it and it belongs in the throttle. */
+  /* The MCU, the regulators and the front end. */
   .soa_undriven_mask = (1UL << BOARD_THERMAL_MCU)
                      | (1UL << BOARD_THERMAL_REGULATORS)
                      | (1UL << BOARD_THERMAL_AFE),
-  /* The winding, CAL_VERSION 12. 2.2 K/W and 180 J/K are the motor
-     profile's PLACEHOLDERS (host/coaxial/motor.py: the order of magnitude
-     an outrunner of this size has, measured against nothing), and 120 C
-     is an ESTIMATE of a ceiling - under class F magnet wire's 155 and
-     nearer where a bonded magnet starts to lose flux than any datasheet
-     in this tree says. A bench with a thermocouple writes real ones. */
+  /* The winding, CAL_VERSION 12. */
   .winding_k_per_w_milli = 2200UL,
   .winding_j_per_k_milli = 180000UL,
   .winding_limit_centi   = 12000,
@@ -180,28 +106,17 @@ static const board_cal_t CAL_DEFAULTS =
   .vg_r_top_ohm     = 57000UL,        /* R119 47k + R113 element 3 10k     */
   .vg_r_bottom_ohm  = 10000UL,        /* R113 element 4, PA5 to GND        */
 
-  /* 30 ns, asked for 2026-08-29. The arithmetic it replaces: 59.4 ns of
-     worst-corner gate overlap plus the 2EDL8034's 6 ns TDMOFF is about
-     65 ns needed, and 80 ns was fitted against that. Kept here because
-     it is the number a bench can change without a rebuild, and the
-     firmware still refuses anything under its own 20 ns floor. */
+  /* 30 ns, asked for 2026-08-29. */
   .deadtime_ns      = 30UL,
 
-  /* No trim until something is measured. The gate drive is asymmetric by
-     design, so the two transitions of a leg need not want the same dead
-     time - but a number invented from a datasheet would be one pretending
-     to be a measurement, and nothing here has been on a scope. */
+  /* No trim until something is measured. */
   .deadtime_skew    = 0UL,
   .ntc_r25_ohm      = 10000UL,        /* NCU18XH103D60RB                   */
   .ntc_beta_mk      = 3380000UL,      /* B25/50 = 3380 K, in milli-kelvin  */
   .ntc_rfixed_ohm   = 10000UL,        /* R100, ERA-3AEB103V 0.1 %          */
   .ntc_t25_ck       = 29815UL,        /* 298.15 K                          */
 
-  /* The drive, CAL_VERSION 8. Placeholders in the same sense as the rest
-     of this table: the commissioning measures each and writes it. The
-     injection is OFF and the trip sits at the stage's rating, so a board
-     that was never commissioned cannot inject and holds the one limit it
-     was given by its name (invariant 10). */
+  /* The drive, CAL_VERSION 8. */
   .motor_r_uohm             = 50000UL,      /* 50 mohm                      */
   .motor_ld_nh              = 20000UL,      /* 20 uH                        */
   .motor_lq_nh              = 25000UL,
@@ -230,9 +145,7 @@ static const board_cal_t CAL_DEFAULTS =
   .soa_margin_floor_ppm     = BOARD_SOA_MARGIN_FLOOR_PPM,  /* the bench's 80 % */
 };
 
-/* CRC-16 over everything ahead of the crc field itself. Reused from the
-   Modbus core rather than adding a second checksum: it is already built, it
-   is already host-tested, and it is hardware-free. */
+/* CRC-16 over everything ahead of the crc field itself. */
 static uint16_t cal_crc(const board_cal_t *cal)
 {
   return modbus_crc16((const uint8_t *)cal,
@@ -247,8 +160,8 @@ static bool cal_valid(const board_cal_t *cal)
          (cal->crc == cal_crc(cal));
 }
 
-/** A record of one of the two previous versions: the same prefix, its
-  * CRC where its own layout ended. */
+/** A record of one of the two previous versions: the same prefix, its CRC
+    where its own layout ended. */
 static bool cal_previous_valid(const board_cal_t *stored)
 {
   const uint8_t *bytes = (const uint8_t *)stored;
@@ -273,9 +186,8 @@ static bool cal_previous_valid(const board_cal_t *stored)
          (crc == modbus_crc16(bytes, at));
 }
 
-/** Take a stored record into RAM: this version whole, either previous
-  * one as a prefix with the floor at its default. False when flash holds
-  * none of the three. */
+/** Take a stored record into RAM: this version whole, either previous one as
+    a prefix with the floor at its default. */
 static bool cal_take(const board_cal_t *stored)
 {
   if (cal_valid(stored))
@@ -302,9 +214,7 @@ void Board_CalInit(void)
     return;
   }
 
-  /* Never written, or written by an older layout, or corrupted. Defaults are
-     the honest answer in all three cases; the difference is only visible in
-     Board_CalStored(), which a host can ask. */
+  /* Never written, or written by an older layout, or corrupted. */
   s_cal = CAL_DEFAULTS;
   s_cal.crc = cal_crc(&s_cal);
 }
@@ -365,7 +275,7 @@ bool Board_CalSave(void)
   for (uint32_t at = 0U; ok && (at < CAL_IMAGE_BYTES); at += CAL_WORD_BYTES)
   {
     /* On H7 the third argument is the ADDRESS of the 32-byte source, not the
-       data. Passing the data is the mistake this comment exists to prevent. */
+       data. */
     if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, CAL_FLASH_ADDR + at,
                           (uint32_t)(uintptr_t)&image[at]) != HAL_OK)
     {
@@ -381,8 +291,7 @@ bool Board_CalSave(void)
   return ok && cal_valid((const board_cal_t *)CAL_FLASH_ADDR);
 }
 
-/* Which scalar an id names. One table for the setter and the getter, so the
-   two cannot drift into disagreeing about what id 6 is. */
+/* Which scalar an id names. */
 static uint32_t *cal_field(uint8_t id)
 {
   if ((id >= BOARD_CAL_DRV_DT_MV) && (id < (BOARD_CAL_DRV_DT_MV + 8U)))
@@ -453,21 +362,15 @@ bool Board_CalSetParam(uint8_t id, uint32_t value)
      multiplicand somewhere, so zero is refused for those alike - and only
      those: the dead time's skew and the drive's numbers are legitimately
      zero (no skew, injection off), and were refused at zero until
-     2026-08-31. Checked BEFORE the assignment: the
-     version that assigned first and rolled back after did so by reloading
-     flash, which does nothing at all on a board whose record has never been
-     saved - measured by test_conformance.py, and it left vref at zero. */
+     2026-08-31. */
   if ((value == 0U) && (id <= BOARD_CAL_VG_R_BOTTOM))
   {
     return false;
   }
 
-  /* The RS485 baud is bounded, not judged: below 9600 the RTU silences
-     stop fitting the deadman's numbers, above 921600 nothing on this bench
-     has been measured (the THVD1450 itself is rated 50 Mbps). USART3 never
-     follows this parameter, so a wrong value cannot cost the recovery
-     path - but a rate no UART can make should be refused where it is
-     written, not discovered at the next boot. */
+  /* The RS485 baud is bounded, not judged: below 9600 the RTU silences stop
+     fitting the deadman's numbers, above 921600 nothing on this bench has
+     been measured (the THVD1450 itself is rated 50 Mbps). */
   if ((id == BOARD_CAL_LINK_RATE)
       && ((value < 9600U) || (value > 921600U)))
   {
@@ -518,8 +421,8 @@ bool Board_CalSetThrottle(uint32_t ppm)
 bool Board_CalSetWinding(int32_t limit_centi, uint32_t k_per_w_milli,
                          uint32_t j_per_k_milli)
 {
-  /* A zero ceiling disables the winding and is allowed; the two
-     constants divide the step and are not. */
+  /* A zero ceiling disables the winding and is allowed; the two constants
+     divide the step and are not. */
   if ((limit_centi < 0) || (k_per_w_milli == 0U) || (j_per_k_milli == 0U))
   {
     return false;
@@ -591,8 +494,7 @@ bool Board_CalSetChannel(uint8_t index, int32_t offset_raw, int32_t gain_ppm)
   }
 
   /* A gain trim of -1e6 ppm is a scale factor of zero, and everything below
-     it changes the sign of the reading. Both are corrections nobody makes on
-     purpose, and both are indistinguishable from a broken channel later. */
+     it changes the sign of the reading. */
   if (gain_ppm <= -1000000)
   {
     return false;

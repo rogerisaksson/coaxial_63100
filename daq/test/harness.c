@@ -3,17 +3,6 @@
   * @file    harness.c
   * @brief   A flat C API over daq/, so test_daq_core.py can run the
   *          acquisition engine on the host through ctypes.
-  *
-  * Built by the Python suite with the host gcc, never by the firmware build.
-  * Test scaffolding; it must not appear in the root CMakeLists.
-  *
-  * One engine over a static ring, a snapshot that answers with whatever
-  * words the test last set, and a guard that counts how often it was
-  * taken - so a test can say the record path and the live path hold the
-  * interrupt, without there being one. NOTHING CROSSES AS A STRUCT: the
-  * live accumulator comes back as four flat arrays and the span, a record
-  * as the bytes the wire would carry, which the test decodes exactly as a
-  * host does.
   ******************************************************************************
   */
 #include "daq.h"
@@ -122,7 +111,7 @@ API void daq_h_live_insert(uint8_t field, int32_t value, uint32_t at,
 }
 
 /* LIVE_ORDER: sum, additions, lowest, highest per field; span is first,
-   last, digital. Returns `fresh`. */
+   last, digital. */
 API int daq_h_take_live(int32_t *sum, uint32_t *additions, int32_t *lowest,
                         int32_t *highest, uint32_t *span)
 {

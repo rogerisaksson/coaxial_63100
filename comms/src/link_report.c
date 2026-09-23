@@ -2,9 +2,6 @@
   ******************************************************************************
   * @file    link_report.c
   * @brief   Human-readable link status, for the ASCII console only.
-  *
-  * Kept apart from link.c so the stack itself never depends on printf. This is
-  * the console's view of the link, not part of the link.
   ******************************************************************************
   */
 #include "link.h"

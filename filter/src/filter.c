@@ -39,8 +39,8 @@ void filter_prime(const filter_design_t *design, filter_channel_t *ch,
   {
     const filter_biquad_t *s = &design->section[i];
     const float den = 1.0f + s->a1 + s->a2;
-    /* A section whose poles sum to -1 has no DC gain to solve for; it
-       cannot be primed, and zero is what it would settle to anyway. */
+    /* A section whose poles sum to -1 has no DC gain to solve for; it cannot
+       be primed, and zero is what it would settle to anyway. */
     const float y = (den != 0.0f)
                     ? (x * ((s->b0 + s->b1 + s->b2) / den)) : 0.0f;
 
@@ -81,17 +81,7 @@ uint32_t filter_ratio(const filter_design_t *design)
 }
 
 
-/** One section, transposed direct form II.
-  *
-  *   y  = b0*x + s1
-  *   s1 = b1*x - a1*y + s2
-  *   s2 = b2*x - a2*y
-  *
-  * Two multiply-adds more than direct form I costs, and worth it: the state
-  * variables carry the signal's own magnitude rather than its square, so a
-  * 16-bit code through an 8th-order cascade does not walk into the float's
-  * tail.
-  */
+/** One section, transposed direct form II. */
 static float section_run(const filter_biquad_t *s, float *s1, float *s2,
                          float x)
 {
@@ -140,9 +130,7 @@ bool filter_push(const filter_design_t *design, filter_channel_t *ch,
 
   ch->taken++;
 
-  /* STAGE 1, the only thing that can run at the converter's rate: one add.
-     Summing rather than averaging keeps the bits an average throws away,
-     and the divide happens once per dump instead of once per sample. */
+  /* STAGE 1, the only thing that can run at the converter's rate: one add. */
   ch->box_sum += sample;
   ch->box_n++;
   if (ch->box_n < design->boxcar)
@@ -161,8 +149,8 @@ bool filter_push(const filter_design_t *design, filter_channel_t *ch,
     x = section_run(&design->section[i], &ch->s1[i], &ch->s2[i], x);
   }
 
-  /* And only now is a sample thrown away - after something shaped what
-     would otherwise have folded on top of the answer. */
+  /* And only now is a sample thrown away - after something shaped what would
+     otherwise have folded on top of the answer. */
   ch->out_n++;
   if (ch->out_n < design->decimate)
   {

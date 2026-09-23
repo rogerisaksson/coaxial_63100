@@ -2,22 +2,6 @@
   ******************************************************************************
   * @file    drive.c
   * @brief   One PWM period of the control law, and the modes it runs in.
-  *
-  * Timing, which every delay constant here comes from: the sample lands at
-  * the top of the triangle, this runs a few microseconds later, the duties
-  * it returns are committed at the next underflow and land at the following
-  * overflow, so the pulse they shape is the one centred two periods on.
-  * The current that shows that pulse is sampled PIPELINE periods after the
-  * step that asked for it. The host model in test_drive_core.py carries the
-  * same constant, so a demodulator right here is right there.
-  *
-  * Square-wave injection: the same voltage for `inj_periods` periods, then
-  * its negative. inj_periods 1 is fs/2, the highest there is and the least
-  * audible; more periods lower the frequency and raise the current the same
-  * volts buy (i_h ~ V.T/L), which is the trade the SNR budget makes.
-  * Demodulated as sign x (i[k] - i[k-1]) over one whole cycle, so the
-  * fundamental's slope cancels: it does not correlate with a sign that
-  * sums to zero.
   ******************************************************************************
   */
 #include "drive.h"
@@ -35,9 +19,7 @@
 
 void drive_defaults(drive_params_t *p)
 {
-  /* PLACEHOLDERS. A small outrunner's order of magnitude so the loop is
-     stable on the host model, and nothing else: the commissioning writes
-     every one of these over, and the injection is OFF until it does. */
+  /* PLACEHOLDERS. */
   memset(p, 0, sizeof(*p));
   p->r = 0.05f;
   p->ld = 20e-6f;
@@ -117,8 +99,8 @@ const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
     loop_reset(d);
     return NULL;
   }
-  /* The model needs neither a reference nor a stage: it is the currents,
-     and the duties go to real gates only if MOE happens to be set. */
+  /* The model needs neither a reference nor a stage: it is the currents, and
+     the duties go to real gates only if MOE happens to be set. */
   if (d->source == DRIVE_SOURCE_MODEL)
   {
     powered = true;
@@ -155,8 +137,8 @@ const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
     d->pol_neg = 0.0f;
   }
   d->mode = mode;
-  /* The chain cannot acquire a speed from nothing, so it takes the
-     estimate the drive already holds whenever a mode starts. */
+  /* The chain cannot acquire a speed from nothing, so it takes the estimate
+     the drive already holds whenever a mode starts. */
   drive_observer_sync(&d->obs, &d->p, d->theta_hat, d->omega_hat);
   return NULL;
 }
@@ -174,9 +156,9 @@ static void acc_add(drive_acc_t *a, float x)
 
 static void window_innovation(drive_window_t *w, float e)
 {
-  /* The lagged products of the innovation, for the whiteness test the
-     host runs: a residual that still correlates with itself carries a
-     model error, and rho_j = lag[j] / lag[0] is what says so. */
+  /* The lagged products of the innovation, for the whiteness test the host
+     runs: a residual that still correlates with itself carries a model
+     error, and rho_j = lag[j] / lag[0] is what says so. */
   w->e_ring[w->e_head] = e;
   for (uint8_t j = 0U; j <= DRIVE_LAGS; j++)
   {
@@ -240,9 +222,7 @@ static float clampf(float x, float lo, float hi)
 }
 
 
-/** How much of the angle error comes from the back-EMF, 0..1 by speed.
-  * `speed` is the command frame's under I/f - the rotor observer has not found
-  * the rotor yet, and a weight on its own estimate never let it start. */
+/** How much of the angle error comes from the back-EMF, 0..1 by speed. */
 static float bemf_weight(const drive_t *d, float speed)
 {
   const float w = fabsf(speed);
@@ -256,8 +236,8 @@ static float bemf_weight(const drive_t *d, float speed)
 
 
 /** The feedback the loop acts on: the raw dq, or their mean over one
-  * injection cycle so the HF ripple does not reach the PI and come back
-  * out as an fs/2 voltage the demodulator would read as inductance. */
+    injection cycle so the HF ripple does not reach the PI and come back out
+    as an fs/2 voltage the demodulator would read as inductance. */
 static void feedback(drive_t *d, float id_raw, float iq_raw, bool injecting,
                      uint16_t n, float *id, float *iq)
 {
@@ -294,9 +274,7 @@ static void feedback(drive_t *d, float id_raw, float iq_raw, bool injecting,
 }
 
 
-/** The demodulator. True at the end of a whole injection cycle. `id_raw`
-  * and `iq_raw` are the frame's own dq, reused when the injection axis is
-  * the d axis - the usual case, and one trig pair fewer. */
+/** The demodulator. */
 static bool demodulate(drive_t *d, float alpha, float beta, float th,
                        float id_raw, float iq_raw, uint16_t n)
 {
@@ -310,11 +288,9 @@ static bool demodulate(drive_t *d, float alpha, float beta, float th,
 
   const float s = d->sign_hist[(d->periods - PIPELINE) & 3U];
 
-  /* Every difference counts and the cycles abut: 2n consecutive
-     differences see n of each sign whatever the alignment, which is what
-     cancels the fundamental. Re-seeding per cycle made the window 2n+1
-     against a pattern of 2n, and the two walked - at fs/4 a window could
-     hold two of one sign and the slope leaked in as inductance. */
+  /* Every difference counts and the cycles abut: 2n consecutive differences
+     see n of each sign whatever the alignment, which is what cancels the
+     fundamental. */
   if (d->have_prev)
   {
     d->acc_q += s * (iqi - d->iq_prev);
@@ -352,9 +328,8 @@ static bool demodulate(drive_t *d, float alpha, float beta, float th,
 }
 
 
-/** The back-EMF's angle error in the rotor observer's frame, or 0 below w_lo.
-  * `c`/`s` are cos/sin of theta_hat when the caller has them (the loop
-  * frame is the rotor observer's), else NAN and taken here. */
+/** The back-EMF's angle error in the rotor observer's frame, or 0 below
+    w_lo. */
 static float bemf_error(drive_t *d, float alpha, float beta, float w,
                         float c, float s)
 {
@@ -417,8 +392,8 @@ static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
 }
 
 
-/** The PI with decoupling, and the vector limit with the integrators
-  * held when it bites. Returns the demand in the loop frame. */
+/** The PI with decoupling, and the vector limit with the integrators held
+    when it bites. */
 static void current_loop(drive_t *d, float id, float iq, float vmax,
                          float w_e, float *vd, float *vq)
 {
@@ -455,8 +430,7 @@ static void current_loop(drive_t *d, float id, float iq, float vmax,
 }
 
 
-/** Two pulses along theta_hat, +V then -V, a gap after each; then OFF.
-  * Returns the d voltage for this period. */
+/** Two pulses along theta_hat, +V then -V, a gap after each; then OFF. */
 static float polarity(drive_t *d, float id)
 {
   const uint32_t p = d->sp.pol_periods;
@@ -522,8 +496,8 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
     out->duty[k] = 0.0f;
   }
 
-  /* The one judgement this makes on its own: a current past the trip it
-     was given drops the stage, the same way the thermal ceiling does. */
+  /* The one judgement this makes on its own: a current past the trip it was
+     given drops the stage, the same way the thermal ceiling does. */
   if (stage_enabled)
   {
     for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
@@ -557,8 +531,8 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   const bool injecting = (amp > 0.0f) && (d->mode != DRIVE_OFF)
                          && (d->mode != DRIVE_POLARITY);
 
-  /* One trig pair for the frame; the rotor observer reuses it when the frame is
-     its own, and every other transform below is built on it. */
+  /* One trig pair for the frame; the rotor observer reuses it when the frame
+     is its own, and every other transform below is built on it. */
   float c, s;
 
   drive_sincos(th, &s, &c);
@@ -622,8 +596,8 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   d->vb_out = vb;
 
   /* The observer chain, on the same samples and steering nothing: the
-     voltage the modulator is about to apply and the current just
-     measured, both in the stationary frame. drive_observer.c. */
+     voltage the modulator is about to apply and the current just measured,
+     both in the stationary frame. */
   drive_observer_step(&d->obs, &d->p, va, vb, alpha, beta, d->ts);
 
   /* the inverter's error, cancelled before it happens */

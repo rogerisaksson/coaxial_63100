@@ -15,13 +15,7 @@
 
 #include <stddef.h>
 
-/* One port, whole. The console link is index 0 and can be handed back to the
-   ASCII console; the two RS485 links have no console to hand it back to, so
-   they are open from boot and never close.
-
-   Each carries its own model copy: modbus_map_model() returns a pointer to
-   one static whose ctx it overwrites per call, so three links sharing it
-   would all reach the last one's counters. */
+/* One port, whole. */
 typedef struct
 {
   const dev_serial_t *dev;
@@ -33,32 +27,24 @@ typedef struct
 } link_port_t;
 
 /** The link's state: the port in use, the console's handover, and the per-
-  * port counters. One object: what a debugger shows whole and a reset
-  * clears at once. */
+    port counters. */
 static struct
 {
   link_port_t links[LINK_COUNT];
 
-  /* Which port is inside mb_rtu_service, and so which one a command handler is
-     answering on. A handler that puts bytes on the wire needs to know: the
-     loopback check transmitted its four patterns on the port carrying the
-     request, and the reply came back with 00 ff 5a a5 in front of it and a
-     failed checksum. */
+  /* Which port is inside mb_rtu_service, and so which one a command handler
+     is answering on. */
   uint8_t current;
 
-  /* Bytes in, from any port. A COUNT and not a timestamp: this file gets its
-     clock injected through the device and has none of its own, so whoever
-     wants to know how long ago keeps the time themselves. */
+  /* Bytes in, from any port. */
   uint32_t rx_count;
 } s = {
   .current = LINK_CONSOLE
 };
 
 
-/* GateDrivers from the protocol's user-defined function space into the command
-   table. The mapping of failures onto Modbus exceptions is the only judgement
-   here: a bad length or a bad field are both "the request was wrong", which is
-   ILLEGAL DATA VALUE, while an unknown code is ILLEGAL FUNCTION. */
+/* GateDrivers from the protocol's user-defined function space into the
+   command table. */
 static mb_exception_t user_function(void *ctx, uint8_t fc,
                                    const uint8_t *req, size_t req_len,
                                    uint8_t *rsp, size_t rsp_cap, size_t *rsp_len)
@@ -92,15 +78,11 @@ static mb_exception_t user_function(void *ctx, uint8_t fc,
 
 static void build(link_port_t *l)
 {
-  /* mb_rtu_init memsets the whole mb_rtu_t, counters included - right for the
-     very first call from link_init(), where the port is still its static
+  /* mb_rtu_init memsets the whole mb_rtu_t, counters included - right for
+     the very first call from link_init(), where the port is still its static
      zero-initialised self, but not for a later call from link_open(): the
      counters are this run's diagnostic history, not framing state, and
-     link_close() already leaves them alone on the way OUT of binary mode. A
-     console round trip - 'm' to enter, 0x0001 to leave, 'm' again - silently
-     zeroed them on the way back in, with nothing in link_open()'s own comment
-     saying so. Saved and restored here rather than in mb_rtu_init itself,
-     since that file has no notion of "this is a reopen, not a cold start". */
+     link_close() already leaves them alone on the way OUT of binary mode. */
   const mb_rtu_counters_t saved = l->rtu.counters;
 
   l->model = *modbus_map_model(&l->rtu, user_function);
@@ -110,10 +92,9 @@ static void build(link_port_t *l)
               LINK_BITS_PER_CHAR,
               l->dev->ticks_per_us(l->dev->ctx));
 
-  /* The early path: a request whose shape the oracle can prove is
-     dispatched on its own CRC instead of after t3.5 of silence - 1.75 ms
-     off every proven transaction (MINOR 9). Anything unproven waits the
-     silence exactly as before. */
+  /* The early path: a request whose shape the oracle can prove is dispatched
+     on its own CRC instead of after t3.5 of silence - 1.75 ms off every
+     proven transaction (MINOR 9). */
   mb_rtu_set_length_hint(&l->rtu, cmd_request_length);
 
   l->rtu.counters = saved;
@@ -126,9 +107,7 @@ void link_init(void)
     s.links[i].dev = dev_uart(i);
     build(&s.links[i]);
 
-    /* The RS485 pair answers from boot. There is no console on a bus with
-       other devices on it, and a port that has to be opened by a console
-       command cannot be opened at all from the far end of one. */
+    /* The RS485 pair answers from boot. */
     s.links[i].open          = dev_uart_rs485(i);
     s.links[i].close_pending = false;
   }
@@ -214,8 +193,7 @@ static void pump(link_port_t *l)
   else if (l->dev->get(l->dev->ctx, &byte, &at))
   {
     /* `at` is when the character arrived, which on the interrupt-driven
-       ports is not when this loop reached it. Framing is silence, so the
-       difference is the whole measurement. */
+       ports is not when this loop reached it. */
     mb_rtu_on_byte(&l->rtu, byte, at);
     s.rx_count++;
   }
@@ -230,10 +208,7 @@ static void pump(link_port_t *l)
   if (n > 0U)
   {
     l->dev->put(l->dev->ctx, frame, (uint16_t)n);
-    /* A request may have just rewritten the unit address. The reply above
-       correctly used the old one; adopt the new one now - on every port,
-       because the address belongs to the board and not to the wire it was
-       changed over. */
+    /* A request may have just rewritten the unit address. */
     for (uint8_t i = 0U; i < LINK_COUNT; i++)
     {
       s.links[i].rtu.unit_id = modbus_map_unit_id();

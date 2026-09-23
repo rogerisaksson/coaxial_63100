@@ -2,10 +2,6 @@
   ******************************************************************************
   * @file    board.h
   * @brief   Everything the comms stack needs from this board, and nothing more.
-  *
-  * The ADC helpers in main.c are static and stay static: they are the reporting
-  * code's own business. This is the whole surface the command handlers may use.
-  * The dependency runs one way - the comms stack asks, main.c answers.
   ******************************************************************************
   */
 #ifndef BOARD_H
@@ -44,14 +40,7 @@ const char *Board_Name(void);
 #define BOARD_DIR_OUT   1U
 #define BOARD_DIR_INOUT 2U
 
-/**
-  * @brief One digital channel: a pin this board actually uses for something.
-  *
-  * `usable` is false for the pins raw access is refused on - the link and the
-  * debug port. They are listed rather than hidden, because "PB10 is USART3_TX
-  * and you may not drive it" is the answer a fixture needs; leaving them out
-  * only means someone asks again with a pin write.
-  */
+/** One digital channel: a pin this board actually uses for something. */
 typedef struct
 {
   const char *pin;      /**< "PB2"                                  */
@@ -62,26 +51,18 @@ typedef struct
 
 uint8_t Board_DigitalCount(void);
 
-/** The drivable pins - what `0x6D` kind 1 reports - as one word, bit i
-    being slot i. Sampled by the acquisition task alongside the converters;
-    the layout names the bits, so nothing above has to count them. */
+/** The drivable pins - what `0x6D` kind 1 reports - as one word, bit i being
+    slot i. */
 uint32_t Board_DigitalMask(void);
 uint8_t  Board_DigitalIoCount(void);
 bool     Board_DigitalIoChan(uint8_t slot, board_dchan_t *info);
 
-/** How many pins a DAQ record carries, and which. NOT the writable
-  * set: a gate signal is read freely and driven never. */
+/** How many pins a DAQ record carries, and which. */
 uint8_t  Board_DigitalSampledCount(void);
 bool     Board_DigitalSampledChan(uint8_t slot, board_dchan_t *info);
 bool    Board_DigitalChan(uint8_t index, board_dchan_t *info);
 
-/**
-  * @brief  Whether a fixture may drive this pin at all.
-  *
-  * The reserved list is the pin table, not a second list beside it: testrig.c
-  * used to keep its own, and two lists of what PB10 is are one edit away from
-  * disagreeing.
-  */
+/** Whether a fixture may drive this pin at all. */
 bool Board_PinUsable(char port, uint8_t pin);
 
 /** What is fitted on the board, one entry per part. */
@@ -99,13 +80,7 @@ typedef struct
 #define BOARD_PART_UNPOWERED 2U  /**< what powers it is off               */
 #define BOARD_PART_SILENT    3U  /**< powered, and did not answer         */
 
-/** The IMU poll loop's shared record: what it saw, and what went wrong.
-  *
-  * Written only by Board_ImuPoll and read only by the command layer. There is
-  * one writer and one reader and both run from the same main loop, so no
-  * lock: what would need one is a second writer, and adding one is what this
-  * comment exists to argue against.
-  */
+/** The IMU poll loop's shared record: what it saw, and what went wrong. */
 typedef struct
 {
   uint8_t  loop;        /**< BOARD_IMU_LOOP_*                            */
@@ -124,9 +99,7 @@ typedef struct
   int16_t  real;        /**< all four Q14 counts - the scale is the host's */
 
   /* THE THREE VECTORS, each on its own report and its own Q point - the
-     scale stays the host's, as the quaternion's does. `have_*` says
-     whether the part has ever sent one: a feature that was never enabled
-     leaves zeros, and zero is a legal reading. */
+     scale stays the host's, as the quaternion's does. */
   bool     have_accel;
   bool     have_gyro;
   bool     have_mag;
@@ -150,17 +123,13 @@ typedef struct
 #define BOARD_IMU_ERR_FRAME  4U  /**< a report id with no length         */
 #define BOARD_IMU_ERR_NOWAKE 5U  /**< wrote without an H_INTN acknowledge */
 
-/** Advance the IMU poll loop. Cheap when there is nothing waiting: one GPIO
-  * read. Call it from the main loop, and not while the RTU receiver is
-  * mid-frame - a 276-byte cargo at 1.48 MHz is 1.5 ms, which reads as a t3.5
-  * gap and splits the frame in two. */
+/** Advance the IMU poll loop. */
 void Board_ImuPoll(void);
 
 /** Read the shared record. The only way a host sees the stream. */
 void Board_ImuState(board_imu_state_t *out);
 
-/** Stop the loop so the part can be configured, or start it again.
-  * Configuring under a running loop is two masters on one SPI bus. */
+/** Stop the loop so the part can be configured, or start it again. */
 void Board_ImuHold(void);
 void Board_ImuResume(void);
 
@@ -192,24 +161,20 @@ bool Board_AngleReady(void);
 void Board_AngleClock(uint32_t *kernel_hz, uint32_t *bitrate_hz);
 
 /** One 20-bit packet: the register's sixteen data bits and its four CRC
-  * bits, neither interpreted here. */
+    bits, neither interpreted here. */
 bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc);
 
-/** The A1335's own die, centi-degrees C. Needs AFE_ON like the part
-  * itself does. Measures the die, not the board - which is the point. */
+/** The A1335's own die, centi-degrees C. */
 bool Board_AngleDie(int32_t *centidegc);
 bool Board_AngleWrite(uint8_t reg, uint8_t value);
 
-/** Advance the angle sensor's poll loop. One packet when it runs, which is
-  * 13 us at the bitrate this picks - short enough not to need staging the
-  * way the IMU's 276-byte cargo did. */
+/** Advance the angle sensor's poll loop. */
 void Board_AnglePoll(void);
 void Board_AngleState(board_angle_state_t *out);
 void Board_AngleHold(void);
 void Board_AngleResume(void);
 
-/** Which register the loop reads. Settable because the register map came
-  * from a reference implementation, not from the datasheet in this tree. */
+/** Which register the loop reads. */
 bool Board_AnglePollReg(uint8_t reg);
 uint8_t Board_AnglePollRegGet(void);
 
@@ -226,33 +191,24 @@ typedef struct
   uint8_t  deadtime;                 /**< BDTR DTG, raw - not nanoseconds  */
   uint16_t duty[BOARD_PWM_PHASES];   /**< compare ticks, as last accepted  */
   bool     bypassed;                 /**< BDTR.BKE cleared - break ignored */
-  uint8_t  pins;                     /**< PE8..PE13 as one IDR read: bit 0
-                                          UL, 1 UH, 2 VL, 3 VH, 4 WL, 5 WH */
-  uint16_t at;                       /**< TIM1->CNT beside that read, so a
-                                          host knows where in the period    */
+  uint8_t  pins;                     /** < PE8..PE13 as one IDR read: bit 0 UL, 1 UH, 2 VL, 3 VH, 4 WL, 5 WH */
+  uint16_t at;                       /** < TIM1->CNT beside that read, so a host knows where in the period */
 } board_pwm_state_t;
 
 bool Board_PwmInit(void);
 
-/** Dead time at runtime, in nanoseconds. Floored at 20 ns, which is a floor
-  * and not a default: the 2EDL8034 has no interlock, so this is the only
-  * thing between the two FETs of a leg. Refuses with its reason. */
+/** Dead time at runtime, in nanoseconds. */
 const char *Board_PwmSetDeadTime(uint32_t ns);
 uint32_t Board_PwmDeadTimeNs(void);
 
 /** DTG counts the smallest dead time can be, at this timer clock. */
 uint8_t Board_PwmDeadTimeFloor(void);
 
-/** Trim for a bridge whose two transitions are not symmetric. Positive
-  * lengthens the dead time on the transition the counter reaches counting
-  * up and shortens the other by the same, so the pair still averages what
-  * was asked for. Neither half may go under the floor. NOT MEASURED. */
+/** Trim for a bridge whose two transitions are not symmetric. */
 const char *Board_PwmSetDeadTimeSkew(int8_t counts);
 int8_t Board_PwmDeadTimeSkew(void);
 
-/** What the board can see of the Safe Torque Off chain. Reports; judges
-    nothing - deciding "released" from a Clevel threshold is a test
-    executive's job, not this board's. See board_sto.c. */
+/** What the board can see of the Safe Torque Off chain. */
 typedef struct
 {
   bool    afe_on;             /**< false makes both readings meaningless  */
@@ -281,11 +237,9 @@ typedef struct
 {
   int16_t  phase[BOARD_PWM_PHASES];  /**< U, V, W, raw codes               */
   uint16_t at;                       /**< TIM1->CNT when it was latched    */
-  uint32_t dcbus;                    /**< DC link, raw single-ended: rank 2
-                                          on ADC3 of the same sequence      */
-  uint32_t ntc;                      /**< the thermistor, rank 2 on ADC1:
-                                          the thermal observer's thermometer while
-                                          the drive holds the converters   */
+  uint32_t dcbus;                    /** < DC link, raw single-ended: rank 2 on ADC3 of the same sequence */
+  uint32_t ntc;                      /** < the thermistor, rank 2 on ADC1: the thermal observer's thermometer
+      while the drive holds the converters */
 } board_sync_sample_t;
 
 /** What the synced path is doing, for the command layer to report. */
@@ -307,12 +261,8 @@ typedef struct
 #define BOARD_DAQ_CLOCK_SOFTWARE 0U  /**< the main loop, as fast as it gets round */
 #define BOARD_DAQ_CLOCK_TIM1     1U  /**< the injected group, one per PWM period  */
 
-/** The sensor fields a record may append - SNAPSHOTS, never sums: a
-  * summed quaternion means nothing. Four i16 words each, raw and
-  * source-defined like device 5's, taken from the shared poll records at
-  * the moment the record closes. The second mask TODO 0 called for: the
-  * channel mask's sixteen bits hold ten analog rows and could not grow
-  * without a MAJOR. */
+/** The sensor fields a record may append - SNAPSHOTS, never sums: a summed
+    quaternion means nothing. */
 #define BOARD_DAQ_SENSOR_ORIENTATION (1U << 0)  /**< i, j, k, real - Q14  */
 #define BOARD_DAQ_SENSOR_ACCEL       (1U << 1)  /**< x, y, z, status - Q8 */
 #define BOARD_DAQ_SENSOR_GYRO        (1U << 2)  /**< x, y, z, status - Q9 */
@@ -323,64 +273,49 @@ typedef struct
 /** What a task is. Every field is the caller's; nothing is inferred. */
 typedef struct
 {
-  uint16_t channels;     /**< bitmask over the ADC table's rows. 16 bits
-                              because the ninth channel did not fit in 8 */
+  uint16_t channels;     /** < bitmask over the ADC table's rows. */
   uint8_t  clock;        /**< BOARD_DAQ_CLOCK_*                          */
   uint8_t  sample_time;  /**< 0..7, the converter's own sampling window  */
   uint16_t decimate;     /**< keep one trigger in N; 1 keeps every one   */
-  uint16_t accumulate;   /**< sum N samples per record; 1 sums nothing,
-                              0 closes the record on interval_us instead */
+  uint16_t accumulate;   /** < sum N samples per record; 1 sums nothing, 0 closes the record on
+      interval_us instead */
   uint32_t records;      /**< stop after this many, or 0 to run on       */
   uint8_t  digital;      /**< append the digital pins to every record    */
   uint32_t interval_us;  /**< software clock: minimum gap between samples*/
   uint8_t  adapt;        /**< climb the ladder when the ring fills      */
-  uint16_t sensors;      /**< BOARD_DAQ_SENSOR_* mask; software clock only
-                              - the poll records are the main loop's, and
-                              a TIM1-clocked record closes in ADC3's
-                              interrupt, which would read them torn */
+  uint16_t sensors;      /** < BOARD_DAQ_SENSOR_* mask; software clock only - the poll records are
+      the main loop's, and a TIM1-clocked record closes in ADC3's interrupt,
+      which would read them torn */
 } board_daq_config_t;
 
 typedef struct
 {
   bool     running;
   bool     done;         /**< a finite task reached its record count     */
-  bool     lost_power;   /**< stopped because AFE_ON went off, and the
-                              buffers were emptied with it - invariant 9  */
-  uint16_t stride;       /**< bytes per record: 4 (stamp) + 4 per channel
-                              + 1 per sampled pin + 8 per sensor field
-                              + 2 (count). Board_DaqConfigure owns it     */
+  bool     lost_power;   /** < stopped because AFE_ON went off, and the buffers were emptied with it
+      - invariant 9 */
+  uint16_t stride;       /** < bytes per record: 4 (stamp) + 4 per channel + 1 per sampled pin + 8
+      per sensor field + 2 (count). */
   uint8_t  fields;
   uint32_t available;    /**< whole records waiting to be taken          */
   uint32_t produced;
   uint32_t dropped;      /**< records the buffer had no room for         */
-  /* THE BUFFER LEVEL, and it takes both numbers to be one: `available`
-     alone is a count nobody can read as full or empty without knowing
-     what the ring holds at THIS stride, which changes with the channel
-     count. `worst` is the high-water mark - a level sampled at a
-     host's leisure misses the peak that dropped a record, and the peak
-     is the thing worth knowing. */
+  /* THE BUFFER LEVEL, and it takes both numbers to be one: `available` alone
+     is a count nobody can read as full or empty without knowing what the
+     ring holds at THIS stride, which changes with the channel count. */
   uint32_t capacity;     /**< whole records the ring holds at `stride`   */
   uint32_t worst;        /**< the fullest it has been since the start    */
   uint8_t  rung;         /**< which rung of the ladder is running        */
   uint8_t  rungs;        /**< how many the host sent                     */
   uint32_t rung_changes; /**< how often it has climbed or fallen         */
   /* SWEEPS, not records: what the acquisition loop is actually managing
-     underneath the decimation. A host differentiates it and gets the
-     rate the converter is really running at, which is the number the
-     whole chain is designed against and the only one nothing else
-     reports. */
+     underneath the decimation. */
   uint32_t triggers;
   board_daq_config_t config;
 } board_daq_state_t;
 
 /** The always-available accumulator: every trigger adds to it and a read
-    takes it away. Unlike the ring it CANNOT overflow - a slow link makes
-    the averaging window longer, not the data older, and there is nothing to
-    drop. Message in a bottle or fibre, the same code and the same answer.
-
-    `sum` holds one total per configured field, `count` how many went into
-    it, and `first`/`last` the span they came from. Divide if you want the
-    mean; the count is right there. */
+    takes it away. */
 typedef struct
 {
   int32_t  sum;
@@ -398,71 +333,31 @@ typedef struct
   board_daq_slot_t slot[BOARD_DAQ_MAX_CHANNELS];
 } board_daq_live_t;
 
-/** Copy the accumulator out and reset it. `fresh` is false when nothing has
-    arrived since the previous take, which is what a caller blocks on. */
+/** Copy the accumulator out and reset it. */
 void Board_DaqTakeLive(board_daq_live_t *out);
 
 /** NULL when it took, and the reason in the board's own words when it did
-    not. The board owns the words: it is the only thing that knows which
-    check failed, and a host guessing at a list of possible causes is the
-    second answer this codebase keeps deleting. */
+    not. */
 const char *Board_DaqConfigure(const board_daq_config_t *cfg);
-/** Override the software clock's interval after configuring. The command
-    layer uses it to fit a free-running task to the link it answers on;
-    only that layer knows the baud. */
+/** Override the software clock's interval after configuring. */
 void Board_DaqSetInterval(uint32_t interval_us);
 
 const char *Board_DaqStart(void);
 void Board_DaqStop(void);
 void Board_DaqState(board_daq_state_t *out);
 
-/**
-  * @brief  Load the anti-alias chain the host designed, or clear it.
-  *
-  * `sections` of 0 leaves the task summing and nothing else. The
-  * boxcar is the task's own `accumulate`, so there is ONE first stage
-  * rather than two that would fight; what this adds is the shaping and
-  * the decimation after it. Refused while a task runs - coefficients
-  * changing under a half-drained buffer hand out records of two
-  * filters with nothing to say which was which.
-  *
-  * @return NULL, or the board's own words for what is wrong.
-  */
+/** Load the anti-alias chain the host designed, or clear it.
+    @return NULL, or the board's own words for what is wrong. */
 const char *Board_DaqSetFilter(const void *sections, uint8_t count,
                                uint16_t decimate);
 
-/**
-  * @brief  One rung of the ladder: a whole design and its boxcar.
-  *
-  * Rung 0 is what a task starts on. Sending rung 0 forgets every rung
-  * above it, so a host builds the ladder bottom up and cannot leave a
-  * stale rung behind. Refused while a task runs.
-  */
+/** One rung of the ladder: a whole design and its boxcar. */
 const char *Board_DaqSetRung(uint8_t rung, uint16_t boxcar,
                              const void *sections, uint8_t count,
                              uint16_t decimate);
 
-/**
-  * @brief  A known tone in place of the converter, for proving the path.
-  *
-  * Every field is fed the same numerically generated sine instead of an
-  * ADC reading, at `rate_hz` whatever the loop is managing: the
-  * generator counts the cycles that elapsed and produces exactly the
-  * samples that belong to them, so the SEQUENCE is exact even though
-  * the timing is bursty. That is what a transfer test needs - a host
-  * that knows the frequency, the rate and the decimation knows what
-  * every output sample should be, and a record that fell out of the
-  * ring shows up as a phase that jumped.
-  *
-  * `hz` of 0 turns it off and the converter is the source again.
-  */
-/** What the generator makes. SINE is for the filter - it has a
-  * frequency, so the chain's answer to it is a gain and a phase. RAMP is
-  * for the transport: `offset + (n * hz) mod amplitude`, an integer
-  * sequence a host can compute in closed form, so every record can be
-  * checked EXACTLY rather than statistically. A float rotation cannot be
-  * - reproducing single-precision arithmetic on the host to the last bit
-  * is not a test of the link, it is a test of two compilers. */
+/** A known tone in place of the converter, for proving the path. */
+/** What the generator makes. */
 #define BOARD_DAQ_TONE_SINE 0U
 #define BOARD_DAQ_TONE_RAMP 1U
 
@@ -470,30 +365,20 @@ const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
                              int32_t amplitude, int32_t offset,
                              uint8_t kind);
 
-/** Advance the tone generator. Called from the main loop; does nothing
-  * unless a tone is on and a task is running. */
+/** Advance the tone generator. */
 void Board_DaqTonePoll(void);
 
 /** Whether a tone is standing in for the converter. */
 bool Board_DaqToneOn(void);
 
 /** Triggers one record costs: the decimation, the accumulate AND the
-  * filter's own decimation. The last is why this is a function rather
-  * than a multiplication a caller can do from the config - the chain is
-  * not in the config, and a rate substituted without it under-runs by
-  * exactly the decimation. */
+    filter's own decimation. */
 uint32_t Board_DaqTriggersPerRecord(void);
 
-/** Whether the task asked for no rate and had one chosen for it.
-  *
-  * Asked, not effective: once a rate has been substituted the config no
-  * longer reads as zero, and a caller that re-derived the question from
-  * the answer would substitute exactly once - which is how a filter
-  * loaded after configure kept the rate that was chosen without it. */
+/** Whether the task asked for no rate and had one chosen for it. */
 bool Board_DaqRateIsAuto(void);
 
-/** Which channel field `n` of a record carries. This is what lets a host
-    decode the bytes without a copy of the record shape. */
+/** Which channel field `n` of a record carries. */
 bool Board_DaqField(uint8_t field, uint8_t *channel);
 
 /** Advanced by the main loop for a software-clocked task. */
@@ -506,15 +391,12 @@ uint32_t Board_DaqAvailable(void);
 uint16_t Board_DaqTake(uint8_t *out, uint16_t max_records);
 
 
-/** One measurement, whatever took it. 16 bytes so the ring is a round
-    number and fifteen fit in one Modbus reply. `v` is source-defined and
-    raw - every conversion stays where it was defined (invariant 7). */
+/** One measurement, whatever took it. */
 #define BOARD_LOG_SOURCE_PHASES 0U   /**< v = U, V, W, TIM1->CNT at latch  */
 #define BOARD_LOG_SOURCE_ANGLE  1U   /**< v = value, crc, register         */
 #define BOARD_LOG_SOURCE_IMU    2U   /**< v = quaternion i, j, k, real     */
-#define BOARD_LOG_SOURCE_DRIVE  3U   /**< v = id, iq in 10 mA, theta_hat as
-                                          a turn in 65536, innovation in
-                                          0.1 mrad                          */
+#define BOARD_LOG_SOURCE_DRIVE  3U   /** < v = id, iq in 10 mA, theta_hat as a turn in 65536, innovation in 0.1
+    mrad */
 #define BOARD_LOG_SOURCES       4U
 
 /** 1024 x 16 B = 16 KB of DTCM, which is 20 ms of history at the injected
@@ -530,12 +412,7 @@ typedef struct
   int16_t  v[4];
 } board_sample_t;
 
-/** Arm the ring for a bitmask of sources, and empty it. Zero disables.
-  *
-  * `min_gap_cycles` is the least a source must leave between its own
-  * pushes, so a fast producer cannot fill the ring and lock a slow one out.
-  * Zero lets every source run free, which is what the angle loop did.
-  */
+/** Arm the ring for a bitmask of sources, and empty it. */
 void Board_LogEnable(uint8_t sources, uint32_t min_gap_cycles);
 uint8_t Board_LogSources(void);
 
@@ -552,8 +429,8 @@ uint32_t Board_LogThinned(void);
 uint16_t Board_LogTake(board_sample_t *out, uint16_t max);
 
 
-/** A differential code as the converter gives it: offset binary, 32768 is
-    0 V. Every differential read goes through this, regular or injected. */
+/** A differential code as the converter gives it: offset binary, 32768 is 0
+    V. */
 int32_t Board_AdcDifferential(uint32_t raw);
 
 /** Is there a timer to trigger from and an injected group to trigger? */
@@ -567,29 +444,15 @@ bool Board_SyncArmed(void);
 /** The last triple, copied whole so no reader mixes two conversions. */
 void Board_SyncLatest(board_sync_sample_t *out);
 
-/** Mean of the squared phase current since the last call, A^2 a leg.
-  *
-  * Accumulated in the injected callback and RESET BY THIS CALL, so it is
-  * the average over exactly the window between two readers. False when no
-  * sample arrived in that window - the caller then has nothing, which is
-  * not the same as zero current.
-  *
-  * The thermal model's conduction wants this and not `Board_SyncLatest`:
-  * the sampler is synchronous, so one sample squared can alias to a fixed
-  * electrical angle and stay there.
-  */
+/** Mean of the squared phase current since the last call, A^2 a leg. */
 bool Board_SyncMeanSquare(float *out);
 
-/** Where in the PWM period the triple is taken, as CCR4 in timer ticks.
-    Takes effect immediately, armed or not. False if out of range. */
+/** Where in the PWM period the triple is taken, as CCR4 in timer ticks. */
 bool Board_SyncSetTrigger(uint16_t ticks);
 uint16_t Board_SyncTrigger(void);
 void Board_SyncState(board_sync_state_t *out);
 
-/** From the injected end-of-sequence callback, and from the overrun one.
-    The handle is opaque here on purpose: this header carries stdint and
-    stdbool and nothing else, and one HAL type in it drags the whole tree
-    into everything that reads a board fact. */
+/** From the injected end-of-sequence callback, and from the overrun one. */
 void Board_SyncOnInjected(const void *hadc);
 void Board_SyncOverrun(void);
 
@@ -611,56 +474,43 @@ bool Board_PwmIsEnabled(void);
 /** Is the break latched? It is nFAULT arriving through TIM1_BKIN. */
 bool Board_PwmFault(void);
 
-/** Disconnect TIM1's break input, for bench work with the gate drivers unpowered.
-    Clearing the latch alone cannot work: with PE15 low the break is a level
-    and the hardware holds MOE clear. Does not survive a reset. */
+/** Disconnect TIM1's break input, for bench work with the gate drivers
+    unpowered. */
 bool Board_PwmSetBreakBypass(bool on);
 bool Board_PwmBreakBypassed(void);
 
 /** The silent host's stage cleanup: MOE down, the break bypass back in
-    force. board_power.c calls it once per quiet transition, so a killed
-    script's armed stage does not outlive its rail claims. A live
-    session's broker keeps the link speaking; the thermal observer and the drive never
-    stopped and are untouched. */
+    force. */
 void Board_PwmSessionDrop(void);
 
 /** Clear the break latch. Does NOT re-arm - the caller must ask again. */
 bool Board_PwmClearFault(void);
 
-/** Which legs have their two gate pins joined, bit 0 = U, 1 = V, 2 = W.
-    Borrows the pins as GPIO, so it answers 0 while the stage is armed. */
+/** Which legs have their two gate pins joined, bit 0 = U, 1 = V, 2 = W. */
 uint8_t Board_PwmGateShorts(void);
 
 /** All three, or none: never a cycle built from two calls. */
 const char *Board_PwmSetAll(const uint16_t *ticks);
 
 /** The same triple held for exactly `periods` PWM periods, then zeroed by
-  * TIM1's update interrupt - 10 ms asked for is 500 periods, not the
-  * link's 93-108 ms. 0 periods is the plain set. */
+    TIM1's update interrupt - 10 ms asked for is 500 periods, not the link's
+    93-108 ms. */
 const char *Board_PwmSetAllCounted(const uint16_t *ticks, uint32_t periods);
 
 /** Periods left of a counted hold, 0 when free-running or expired. */
 uint32_t Board_PwmPeriodsLeft(void);
 
-/** Duty in ticks Q16.16, dithered so the MEAN is what was asked for.
-    One tick of ARR 2375 is 0.0421 % of duty, so 34.54 % lands between two
-    of them; a first-order sigma-delta in TIM1's update interrupt spends
-    the whole ticks and carries the fraction. Idle tones come with it. */
+/** Duty in ticks Q16.16, dithered so the MEAN is what was asked for. */
 const char *Board_PwmSetAllFine(const uint32_t *ticks_q16);
 
 /** Two compare triples, A one PWM period and B the next, swapped by the
     update interrupt at every overflow so each lands - preloaded - at the
-    underflow and owns a whole period. NULL when taken, else the refusal. */
+    underflow and owns a whole period. */
 const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b);
 void Board_PwmDutyRequested(uint32_t *ticks_q16);
 void Board_PwmDitherStep(void);
 
-/** The drive's hold on the compares. While on: the dither and the
-    alternate are off, a host duty write is refused, and the triple
-    Board_PwmSetNext leaves is committed by the update interrupt at the
-    UNDERFLOW - so it lands, preloaded, at the next overflow and the pulse
-    it shapes is symmetric. Written at the overflow it would land mid-pulse,
-    and an fs/2 injection would average to nothing at the sample point. */
+/** The drive's hold on the compares. */
 void Board_PwmDriveOwn(bool on);
 void Board_PwmSetNext(const uint16_t *ticks);
 
@@ -672,19 +522,16 @@ void Board_PwmState(board_pwm_state_t *out);
 uint8_t Board_PartCount(void);
 bool Board_Part(uint8_t index, board_part_t *info);
 
-/** ADC sampling time, as an index 0..7 into the H7's eight, shortest first.
-    Applies to every channel the meter reads; 0 (1.5 cycles) is the default
-    and what every measurement before this used. */
+/** ADC sampling time, as an index 0..7 into the H7's eight, shortest first. */
 bool    Board_AdcSetSampleTime(uint8_t index);
 uint8_t Board_AdcSampleTime(void);
 
-/** Is this channel one the injected group converts? Only those three can
-    be clocked from TIM1; everything else has to come through the meter. */
+/** Is this channel one the injected group converts? Only those three can be
+    clocked from TIM1; everything else has to come through the meter. */
 bool    Board_AdcIsPhase(uint8_t index);
 
-/** Whether the injected sequence converts this channel at all - the
-  * three phases and, on rank 2, the DC link and the NTC. What a task
-  * on the TIM1 clock may ask for. */
+/** Whether the injected sequence converts this channel at all - the three
+    phases and, on rank 2, the DC link and the NTC. */
 bool    Board_AdcInjected(uint8_t index);
 
 /** One channel's value out of a latched injected sample. */
@@ -695,77 +542,55 @@ int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase);
 uint8_t Board_AdcCount(void);
 bool    Board_AdcChan(uint8_t index, board_chan_t *info);
 
-/**
-  * @brief  Read one channel.
-  * @param  microvolts  Voltage at the ADC pin. Not the sensed quantity for the
-  *                     phase inputs, which sit behind unknown AFE gain.
-  * @param  scaled      Physical quantity in the channel's unit, 0 when the
-  *                     channel has no defined unit.
-  */
+/** Read one channel.
+    @param  microvolts  Voltage at the ADC pin. Not the sensed quantity for the
+    @param  scaled      Physical quantity in the channel's unit, 0 when the */
 bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *scaled);
 
-/* False from any of these four means no reading was taken - a bad index, or a
-   conversion that did not complete. It is never a measurement of zero: on a
-   differential channel code 0 is 0 V, so a failure reported as data would be
-   indistinguishable from a signal. */
+/* False from any of these four means no reading was taken - a bad index, or
+   a conversion that did not complete. */
 
 bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w);
 bool Board_DcBus(int32_t *raw, int32_t *millivolts);
 bool Board_Ntc(int32_t *raw, int32_t *centidegc);
 
-/** The MCU die, centi-degrees C. Needs the ADC reference like
-  * everything else, so it is blind whenever AFE_ON is low. */
+/** The MCU die, centi-degrees C. */
 bool Board_McuDie(int32_t *raw, int32_t *centidegc);
 
-/** Amperes from a centred phase code - what Board_AdcDifferential returns.
-    The shunt and the amplifier gain come from the calibration record. */
+/** Amperes from a centred phase code - what Board_AdcDifferential returns. */
 float Board_PhaseAmps(uint8_t leg, int32_t centred);
 
 /** The affine form of the two conversions the drive needs at 50 kHz:
-    quantity = (code - offset) * per_code, with the record's trim folded
-    into the factor. Cached by board_drive.c at every mode change, so an
-    edit to the record reaches the loop then - and the loop never calls
-    into the meter's -O0 arithmetic. Measured 2026-08-31: three
-    Board_PhaseAmps calls were most of a 6 756-cycle interrupt. */
+    quantity = (code - offset) * per_code, with the record's trim folded into
+    the factor. */
 void Board_PhaseScale(uint8_t leg, int32_t *offset_raw,
                       float *amps_per_code);
 void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
 
 /* ---- calibration -------------------------------------------------------- */
 
-/** Channels the record carries a correction for. The ADC table's length, and
-    checked against it at init - a table that grew past this is a record that
-    would silently stop correcting the new channels. */
-/** Nodes in the thermal observer. Mirrors thermal_node_t, and the
-  * calibration record carries one ceiling per node. Ten, not six: the
-  * drivers and the phases are three nodes each, one per leg. The count on
-  * the wire lets a host follow the LENGTH - the meaning of the indices
-  * changed, which is why this was CMD_PROTO MAJOR 2 (cmd.h). */
+/** Channels the record carries a correction for. */
+/** Nodes in the thermal observer. */
 /** TWENTY SINCE 2026-09-05, from ten: the laminate as seven patches that
-  * follow the copper, the hot swap as a node of its own, and the motor
-  * behind the board as three - the winding, the stator's iron and the
-  * rotor's bell. The first ten keep their indices and their meaning, so a
-  * host on an older codec reads them as it did (invariant 3); the count on
-  * the wire lets it follow the length. */
+    follow the copper, the hot swap as a node of its own, and the motor
+    behind the board as three - the winding, the stator's iron and the
+    rotor's bell. */
 #define BOARD_THERMAL_NODES 20
 
-/** The edges of the network, `thermal.c`'s table: each a K/W the record
-  * can overlay and the wire can name. */
+/** The edges of the network, `thermal.c`'s table: each a K/W the record can
+    overlay and the wire can name. */
 #define BOARD_THERMAL_EDGES 30
 
 /** The identification's scales on the wire - `thermal_ident.h`'s
-  * THERMAL_IDENT_RECORD, held to it by a static assert in board_thermal.c. */
+    THERMAL_IDENT_RECORD, held to it by a static assert in board_thermal.c. */
 #define BOARD_THERMAL_IDENT_SCALES 4
 
 /** The margin floor's default, parts per million of every ceiling's span:
-  * the bench's 80 % - "keep to 80 % of the SOA when switching starts,
-  * with the thermal situation unknown". */
+    the bench's 80 % - "keep to 80 % of the SOA when switching starts, with
+    the thermal situation unknown". */
 #define BOARD_SOA_MARGIN_FLOOR_PPM 800000UL
 
-/** The indices, for a record or a host that has to name one. `thermal.h`
-  * has the enum and this mirrors it, because the calibration record is on
-  * the wire and the portable core is not - a file that includes one does
-  * not include the other. */
+/** The indices, for a record or a host that has to name one. */
 #define BOARD_THERMAL_DRIVER_U     0
 #define BOARD_THERMAL_DRIVER_V     1
 #define BOARD_THERMAL_DRIVER_W     2
@@ -788,9 +613,9 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
 #define BOARD_THERMAL_ROTOR        19
 
 /** One node's network entry in the record, milli-units; ZERO MEANS THE
-  * CORE'S DEFAULT for that field, so a record that never carried the
-  * network gets the derived one, and a default that improves reaches a
-  * board whose record has nothing to say about it. */
+    CORE'S DEFAULT for that field, so a record that never carried the network
+    gets the derived one, and a default that improves reaches a board whose
+    record has nothing to say about it. */
 typedef struct
 {
   uint32_t capacity_milli;     /**< J/K                                  */
@@ -804,8 +629,7 @@ typedef struct
 
 #define BOARD_CAL_CHANNELS 10U
 
-/** Which scalar Board_CalSetParam/GetParam addresses. Integers in the unit
-    that makes them integers, because the wire bans floating point. */
+/** Which scalar Board_CalSetParam/GetParam addresses. */
 #define BOARD_CAL_VREF_UV      0U  /**< ADC reference, microvolts           */
 #define BOARD_CAL_SHUNT_UOHM   1U  /**< phase shunt, microhms               */
 #define BOARD_CAL_AMP_GAIN_PPM 2U  /**< phase amplifier gain, ppm of 1 V/V  */
@@ -815,24 +639,15 @@ typedef struct
 #define BOARD_CAL_NTC_BETA_MK  6U  /**< B constant, milli-kelvin            */
 #define BOARD_CAL_NTC_RFIXED   7U  /**< divider partner, ohms               */
 #define BOARD_CAL_NTC_T25_CK   8U  /**< reference temperature, centikelvin  */
-/* The two supply senses. Their own dividers, because a divider is the
-   channel's and not a unit's - R113 gives the +5 rail 10k/10k and the
-   gate supply 47k+10k over 10k. */
+/* The two supply senses. */
 #define BOARD_CAL_R5_R_TOP     9U  /**< +5 sense divider top, ohms          */
 #define BOARD_CAL_R5_R_BOTTOM 10U  /**< +5 sense divider bottom, ohms       */
 #define BOARD_CAL_VG_R_TOP    11U  /**< gate supply divider top, ohms       */
 #define BOARD_CAL_VG_R_BOTTOM 12U  /**< gate supply divider bottom, ohms    */
 #define BOARD_CAL_DEADTIME_NS 13U  /**< half-bridge dead time, nanoseconds  */
 #define BOARD_CAL_DEADTIME_SKEW 14U /**< lead-lag trim, DTG counts         */
-/* One past the last id above. It is a COUNT, not a coincidence: op 0
-   walks 0..COUNT-1, so an id added without moving this is a field the
-   board holds and never reports - measured, deadtime_ns read back as
-   absent from a record that had it. */
-/* CAL_VERSION 8: what the drive is told. In the record for the reason the
-   dead time is - a board runs the same drive after a reset that it ran
-   before - and in the units that make them integers. A signed one travels
-   as its two's complement in the u32. The commissioning
-   (host/coaxial/commission.py) measures and writes them. */
+/* One past the last id above. */
+/* CAL_VERSION 8: what the drive is told. */
 #define BOARD_CAL_MOTOR_R_UOHM        15U  /**< phase resistance, microhms     */
 #define BOARD_CAL_MOTOR_LD_NH         16U  /**< d inductance, nanohenry        */
 #define BOARD_CAL_MOTOR_LQ_NH         17U  /**< q inductance, nanohenry        */
@@ -857,10 +672,8 @@ typedef struct
 #define BOARD_CAL_DRV_SIGMA_I_UA      43U  /**< measured current noise, uA rms */
 #define BOARD_CAL_DRV_TRIGGER_TICKS   44U  /**< the sample point chosen; 0 none*/
 /* CAL_VERSION 9. */
-#define BOARD_CAL_LINK_RATE           45U  /**< the RS485 pair's rate (the wire
-                                                and the host say `link_baud`)   */
-/* CAL_VERSION 12: the winding's envelope. The ceiling travels as its
-   centi-degrees in the u32, two's complement like every signed one. */
+#define BOARD_CAL_LINK_RATE           45U  /** < the RS485 pair's rate (the wire and the host say `link_baud`) */
+/* CAL_VERSION 12: the winding's envelope. */
 #define BOARD_CAL_WINDING_K_MILLI     46U  /**< K/W to the air, milli         */
 #define BOARD_CAL_WINDING_J_MILLI     47U  /**< J/K, milli                     */
 #define BOARD_CAL_WINDING_LIMIT_CENTI 48U  /**< ceiling, centi-degrees; 0 off  */
@@ -873,11 +686,7 @@ typedef struct
   int32_t gain_ppm;     /**< then scaled by 1 + gain_ppm/1e6              */
 } board_cal_chan_t;
 
-/** The whole record, as it sits in flash. Append-only for the same reason
-    command 0x41 is: a stored record from an older firmware is read back by a
-    newer one, and a moved field is a silently wrong calibration. Growing it
-    means bumping CAL_VERSION in board_cal.c, which invalidates what is
-    stored rather than misreading it. */
+/** The whole record, as it sits in flash. */
 typedef struct
 {
   uint32_t magic;
@@ -893,23 +702,10 @@ typedef struct
   uint32_t vg_r_top_ohm;
   uint32_t vg_r_bottom_ohm;
 
-  /* The half-bridge dead time. Here and not a #define because it is the
-     one number between the two FETs of a leg, and a compile-time constant
-     means the board carries whatever the last flash happened to hold -
-     measured 2026-08-29, a stale binary reported 79 ns for an hour after
-     the source said 30. In the record it is asked for, stored, and read
-     back. */
+  /* The half-bridge dead time. */
   uint32_t deadtime_ns;
 
-  /* Lead against lag, in DTG counts. The gate drive is not symmetric -
-     one edge goes through a different resistor than the other - so the
-     two transitions of a leg need not want the same dead time. Positive
-     lengthens the one the counter reaches counting up and shortens the
-     other by the same, so the pair still averages `deadtime_ns`.
-
-     Zero until something is measured. Nothing here has been on a scope,
-     and a trim invented from a datasheet would be a number pretending to
-     be a measurement. */
+  /* Lead against lag, in DTG counts. */
   uint32_t deadtime_skew;
   uint32_t ntc_r25_ohm;
   uint32_t ntc_beta_mk;
@@ -917,39 +713,16 @@ typedef struct
   uint32_t ntc_t25_ck;
   board_cal_chan_t chan[BOARD_CAL_CHANNELS];
 
-  /* The thermal envelope. In the record and not in the source because a
-     ceiling the firmware invented would be exactly the judgement invariant
-     10 forbids - this way the board holds a limit it was GIVEN, and one
-     board can carry a different envelope from the next without a rebuild.
-     Zero disables a node's ceiling, which is what a node with no measurement
-     behind it deserves. */
+  /* The thermal envelope. */
   int32_t  soa_limit_centi[BOARD_THERMAL_NODES];
   uint32_t soa_throttle_ppm;   /**< where derating starts, parts per million */
-  /* CAL_VERSION 10: how far ahead the throttle looks, milliseconds. A
-     limit the board is given, like the ceilings beside it - the firmware
-     does not choose how much warning it wants. */
+  /* CAL_VERSION 10: how far ahead the throttle looks, milliseconds. */
   uint32_t soa_lookahead_ms;
-  /* CAL_VERSION 11: which nodes the current clamp cannot cool, one bit
-     per BOARD_THERMAL_NODES index, bit 0 the first.
-
-     A THROTTLE NEEDS AN ACTUATOR. The clamp scales the phase current, so
-     it moves what the legs dissipate and nothing at all on the MCU, the
-     regulators or the front end - those draw the same watts at zero duty
-     as at full. Weighed into the worst node they put a floor under the
-     margin that no derating can lift: an idle board settles with the
-     regulators near 51 C, which against their 125 C ceiling is 0.30 of
-     the budget spent before the stage has done any work.
-
-     They are still judged - every node has a ceiling and any node
-     reaching one still trips. What the mask says is only which of them
-     it is worth asking the clamp about.
-
-     Zero is every node driven, which is what the record did before this
-     field existed and what a board with no opinion should do. */
+  /* CAL_VERSION 11: which nodes the current clamp cannot cool, one bit per
+     BOARD_THERMAL_NODES index, bit 0 the first. */
   uint32_t soa_undriven_mask;
 
-  /* CAL_VERSION 8: the drive. Ids BOARD_CAL_MOTOR_* and BOARD_CAL_DRV_*,
-     in that order; board_drive.c turns them into the floats it runs on. */
+  /* CAL_VERSION 8: the drive. */
   uint32_t motor_r_uohm;
   uint32_t motor_ld_nh;
   uint32_t motor_lq_nh;
@@ -975,32 +748,17 @@ typedef struct
   uint32_t drv_trigger_ticks;
 
   /* CAL_VERSION 9: the RS485 pair's baud, applied to USART2 and UART5 at
-     init. USART3 stays at 115200 whatever this says - the debug probe is
-     the recovery path, and a mistyped rate here must not take it too. */
+     init. */
   uint32_t link_baud;
 
-  /* CAL_VERSION 12: the winding's envelope. The motor is not on the board
-     and had no ceiling the board acted on; the bench asked for the stage
-     to throttle on how close BOTH the switches and the motor are to
-     their SOA. `motor_r_uohm` above is the resistance the copper loss
-     goes through; these are the winding's K/W to the air it turns in,
-     its J/K, and its ceiling in centi-degrees - the motor profile's
-     placeholder pair (host/coaxial/motor.py) and an ESTIMATE of a
-     ceiling, none of the three measured, and zero on the ceiling
-     disables the lot. */
+  /* CAL_VERSION 12: the winding's envelope. */
   uint32_t winding_k_per_w_milli;
   uint32_t winding_j_per_k_milli;
   int32_t  winding_limit_centi;
 
-  /* CAL_VERSION 13: THE NETWORK, so the board carries the model it runs
-     and an identification running on the board has somewhere to put what
-     it learns. Every entry zero means the core's derived default; the
-     overlay is per field, so a record can hold one measured capacity
-     beside nineteen defaults. The edges in `thermal.c`'s table order,
-     milli K/W, BOARD_CAL_EDGE_OPEN to open one. The bulk's five and the
-     motor's iron loss beside them. The winding's own three above stay
-     its own: its capacity and its edge into the iron come from them, not
-     from these. */
+  /* CAL_VERSION 13: THE NETWORK, so the board carries the model it runs and
+     an identification running on the board has somewhere to put what it
+     learns. */
   board_cal_node_t thermal_node[BOARD_THERMAL_NODES];
   uint32_t thermal_edge_milli[BOARD_THERMAL_EDGES];
   uint32_t thermal_to_ambient_milli;     /**< the whole face, K/W          */
@@ -1011,37 +769,28 @@ typedef struct
   uint32_t thermal_rad_board_stator_micro; /**< W/K at 300 K; 0 = bench    */
   uint32_t thermal_k_iron_milli;         /**< W per (krpm)^2              */
 
-  /* CAL_VERSION 15: THE MARGIN FLOOR, parts per million of every
-     ceiling's span over 25 C - what the envelope keeps while the
-     identification has no evidence for its model, rising to the whole
-     span as the evidence comes in (`thermal_ident_margin`). A limit the
-     board is given, like the ceilings beside it; BOARD_SOA_MARGIN_FLOOR_PPM
-     by default. It stands where CAL_VERSION 14 kept the
-     identification's four scales, which the board wrote to flash itself
-     and resumed at boot until 2026-09-06 - the bench's rule: nothing
-     learned is kept, every boot starts at the floor and earns its span.
-     A stored 14 is taken up as a prefix with this at its default, its
-     CRC checked over its own layout. */
+  /* CAL_VERSION 15: THE MARGIN FLOOR, parts per million of every ceiling's
+     span over 25 C - what the envelope keeps while the identification has no
+     evidence for its model, rising to the whole span as the evidence comes
+     in (`thermal_ident_margin`). */
   uint32_t soa_margin_floor_ppm;
 
   uint16_t crc;
 } board_cal_t;
 
 /** The margin floor into the record's RAM copy, ppm of the span;
-  * `Board_CalSave` is what commits it. Refused outside 1 .. 1 000 000. */
+    `Board_CalSave` is what commits it. */
 bool Board_CalSetMarginFloor(uint32_t ppm);
 
 /** Overlay one node's, one edge's or the bulk's network entry in the
-  * record's RAM copy; `Board_CalSave` is what commits it. Milli-units,
-  * zero to fall back to the default; false for an index past the table. */
+    record's RAM copy; `Board_CalSave` is what commits it. */
 bool Board_CalSetThermalNode(uint8_t node, uint32_t capacity_milli,
                              uint32_t to_ambient_milli);
 bool Board_CalSetThermalEdge(uint8_t edge, uint32_t k_per_w_milli);
 bool Board_CalSetThermalBulk(uint32_t to_ambient_milli,
                              uint32_t capacity_milli);
 
-/** Load the stored record, or fall back to the compiled-in defaults. Called
-    once from main() before anything reads a channel. */
+/** Load the stored record, or fall back to the compiled-in defaults. */
 void Board_CalInit(void);
 
 /** The record in force now, stored or default. */
@@ -1050,182 +799,100 @@ const board_cal_t *Board_Cal(void);
 /** Whether flash holds a valid record, as against these being the defaults. */
 bool Board_CalStored(void);
 
-/** Replace the working record with the compiled-in defaults. RAM only until
-    Board_CalSave(). */
+/** Replace the working record with the compiled-in defaults. */
 void Board_CalDefaults(void);
 
-/** Re-read flash, discarding uncommitted edits. False if nothing valid is
-    stored, in which case the working record is untouched. */
+/** Re-read flash, discarding uncommitted edits. */
 bool Board_CalLoad(void);
 
 /** Commit the working record to flash and read it back to prove it landed. */
 bool Board_CalSave(void);
 
-/* False from either of these means the id or the index does not exist, or the
-   value would make a conversion divide by zero. */
+/* False from either of these means the id or the index does not exist, or
+   the value would make a conversion divide by zero. */
 bool Board_CalSetParam(uint8_t id, uint32_t value);
 bool Board_CalGetParam(uint8_t id, uint32_t *value);
 
 bool Board_CalSetChannel(uint8_t index, int32_t offset_raw, int32_t gain_ppm);
 
-/** One node's ceiling, centi-degrees C. Zero disables it. Changes the record
-    in RAM; `Board_CalSave` is what makes it survive a power cycle. */
+/** One node's ceiling, centi-degrees C. */
 bool Board_CalSetLimit(uint8_t node, int32_t limit_centi);
 
 /** Where derating starts, parts per million of the budget. */
 bool Board_CalSetThrottle(uint32_t ppm);
 
-/** The winding's envelope: ceiling in centi-degrees (zero disables), K/W
-  * and J/K in milli. Refused where a value is not positive. */
+/** The winding's envelope: ceiling in centi-degrees (zero disables), K/W and
+    J/K in milli. */
 bool Board_CalSetWinding(int32_t limit_centi, uint32_t k_per_w_milli,
                          uint32_t j_per_k_milli);
 bool Board_CalChannel(uint8_t index, int32_t *offset_raw, int32_t *gain_ppm);
 
-/**
-  * @brief  Correct one raw code: offset first, then gain.
-  * @return The code unchanged for an index the record does not cover, because
-  *         refusing to report is worse than reporting uncorrected.
-  */
+/** Correct one raw code: offset first, then gain.
+    @return The code unchanged for an index the record does not cover, because */
 int32_t Board_CalApply(uint8_t index, int32_t raw);
 
-/**
-  * @brief  Measure a channel now and store the reading as its offset.
-  *
-  * The zero of "zero and span": whatever is applied to the input at this
-  * moment becomes the new origin. The board does not know or check what that
-  * is - pointing it at a live input is the operator's mistake to make.
-  *
-  * @param  measured  The code that was stored, before correction.
-  */
+/** Measure a channel now and store the reading as its offset.
+    @param  measured  The code that was stored, before correction. */
 bool Board_CalZero(uint8_t index, int32_t *measured);
 
-/**
-  * @brief  Measure a channel now and trim its gain so the reading equals
-  *         `reference`, in the channel's own raw units after offset.
-  *
-  * The span of "zero and span": apply a known reference, say what it should
-  * read, and the correction follows. Refused when the channel reads zero
-  * after offset - there is no finite gain that turns nothing into something.
-  */
+/** Measure a channel now and trim its gain so the reading equals */
 bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured);
 
 /* ---- IMU ---------------------------------------------------------------- */
 
-/**
-  * @brief  Bring SPI2 to what the BNO08X needs and take PB12 as a GPIO chip
-  *         select. See board_imu.c for what CubeMX generated and why it does
-  *         not match the part.
-  * @return False if the peripheral would not re-initialise.
-  */
+/** Bring SPI2 to what the BNO08X needs and take PB12 as a GPIO chip
+    @return False if the peripheral would not re-initialise. */
 bool Board_ImuInit(void);
 
-/** SPI2 and the IMU's control pins, without resetting the part.
-  * What Board_ImuPoll uses, so the reset's 130 ms can be staged across main
-  * loop passes rather than spent in one. */
+/** SPI2 and the IMU's control pins, without resetting the part. */
 bool Board_ImuBusInit(void);
 
-/**
-  * @brief  Pulse NRSTN with BOOTN held high, then wait out the part's own
-  *         initialisation. Board_ImuInit() ends with this.
-  *
-  * CubeMX drives both PD10 (NRSTN) and PD11 (BOOTN) low at boot, which holds
-  * the part in reset and strapped for the bootloader. Neither is a state the
-  * firmware wants and neither can be fixed in the .ioc's initial level alone,
-  * because BOOTN must be high BEFORE NRSTN is released - it is sampled there.
-  */
+/** Pulse NRSTN with BOOTN held high, then wait out the part's own */
 void Board_ImuReset(void);
 
 /** Whether Board_ImuInit() succeeded. Every call below fails until it has. */
 bool Board_ImuReady(void);
 
-/**
-  * @brief  Read one SHTP cargo, if the part has one waiting.
-  * @param  channel  The SHTP channel it arrived on.
-  * @param  cargo    The cargo WITHOUT its four-byte header.
-  * @param  len      Cargo bytes, 0 when the part had nothing to say.
-  * @return False on a transfer error or a header that contradicts itself.
-  *         True with *len == 0 is an idle part, which is not an error.
-  */
+/** Read one SHTP cargo, if the part has one waiting.
+    @param  channel  The SHTP channel it arrived on.
+    @param  cargo    The cargo WITHOUT its four-byte header.
+    @param  len      Cargo bytes, 0 when the part had nothing to say.
+    @return False on a transfer error or a header that contradicts itself. */
 bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
                    uint16_t *len);
 
-/**
-  * @brief  Frame a payload onto an SHTP channel and clock it out.
-  * @return False on a bad channel, a payload that will not fit, or a
-  *         transfer error. The channel's sequence number advances only on
-  *         a transfer that went out.
-  */
+/** Frame a payload onto an SHTP channel and clock it out.
+    @return False on a bad channel, a payload that will not fit, or a */
 bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len);
 
-/** Wait up to @p ms for the part to say it has something. False on timeout.
-  *
-  * For a caller that asked a question and must not read before the answer
-  * exists. Pumps the STO charge pump while it spins.
-  */
+/** Wait up to @p ms for the part to say it has something. */
 bool Board_ImuWaitReady(uint32_t ms);
 
-/** Ask the part to report `report_id` every `interval_us`, and REMEMBER it.
-  *
-  * The BNO08X forgets on reset and AFE_ON resets it, so the poll re-applies
-  * this after every init. Without that, one blink of the rail stopped the
-  * reports and the loop still called itself running. */
+/** Ask the part to report `report_id` every `interval_us`, and REMEMBER it. */
 bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us);
 
 /** What was last asked for. Interval zero means nothing has been. */
 void Board_ImuFeatureAsked(uint8_t *report_id, uint32_t *interval_us,
                            bool *pending);
 
-/**
-  * @brief  Collect and discard whatever the part has queued.
-  * @return How many cargoes were drained.
-  *
-  * A reset leaves three messages waiting - the SHTP advertisement, the
-  * executable's reset announcement and SH-2's unsolicited initialisation
-  * (5.2.1) - and H_INTN stays asserted until they are taken. Writing on top
-  * of them clocks a request into a part that is mid-sentence.
-  */
+/** Collect and discard whatever the part has queued.
+    @return How many cargoes were drained. */
 uint8_t Board_ImuDrain(uint8_t limit);
 
-/** SPI2's four pins on port B, chip select first: PB12 H_CSN, PB13 SCK,
-  * PB14 MISO, PB15 MOSI - the rows board_io.c lists, by number for the
-  * pin check. */
+/** SPI2's four pins on port B, chip select first: PB12 H_CSN, PB13 SCK, PB14
+    MISO, PB15 MOSI - the rows board_io.c lists, by number for the pin check. */
 #define BOARD_IMU_SPI_PIN_FIRST 12U
 #define BOARD_IMU_SPI_PIN_COUNT 4U
 
-/** Drive and release GPIOB pin `pin`, reporting what the pin then read.
-  *
-  * Bit 0 drove high and read high, bit 1 drove low and read low, bit 2 read
-  * high with the pull-up, bit 3 read low with the pull-down. 0x0F is a pin
-  * nothing else is holding. Leaves the pin an input and forces the next IMU
-  * command to re-initialise SPI2.
-  */
+/** Drive and release GPIOB pin `pin`, reporting what the pin then read. */
 uint8_t Board_ImuPinCheck(uint8_t pin);
 
-/** Assert PS0/WAKE on a drained part and time H_INTN's answer.
-  *
-  * Milliseconds, or 0xFFFF if the line never asserted inside `ms`, or 0xFFFE
-  * if the part was still holding it low and the question could not be put.
-  * A write clocks into a part that has not answered this, which is a write
-  * nothing acts on.
-  */
+/** Assert PS0/WAKE on a drained part and time H_INTN's answer. */
 uint16_t Board_ImuWakeTest(uint16_t ms);
 
-/**
-  * @brief  Clock four bytes out and hand back exactly what came in.
-  * @return False only if the transfer itself failed.
-  *
-  * No parsing. 0xFF four times is a part that is absent, unpowered or held in
-  * reset, because MISO floats or idles high; four zeros is a part that is
-  * there and has nothing to say. Telling those apart is the first question at
-  * a bench and the header parser cannot answer it - it refuses both.
-  */
-/** Clock `len` bytes and keep what comes back, with no framing.
-  *
-  * `select` is the bring-up question: with it false the transfer runs with
-  * chip select left high, which the part must ignore. Data coming back
-  * anyway says chip select is not reaching it - the one hardware fault this
-  * firmware can prove from the inside.
-  */
+/** Clock four bytes out and hand back exactly what came in.
+    @return False only if the transfer itself failed. */
+/** Clock `len` bytes and keep what comes back, with no framing. */
 bool Board_ImuProbe(uint8_t *out, uint8_t len, bool select);
 
 /** The SPI2 kernel clock and the bit rate Board_ImuInit settled on, so the
@@ -1243,14 +910,7 @@ void Board_SetTermination(bool closed);
 uint32_t Board_SysClkHz(void);
 uint32_t Board_HclkHz(void);
 
-/** What the converters are actually clocked at, after the prescaler.
-  *
-  * Read out of RCC and the ADC's own CCR rather than computed from the
-  * .ioc: the kernel comes off PLL2 and each ADC divides it again, and a
-  * host that wanted the number had to read main.c for it - which is a
-  * second answer, and the sort that goes stale. Every sampling time on
-  * this board is quoted in ADC cycles, so this is what turns one into
-  * seconds. */
+/** What the converters are actually clocked at, after the prescaler. */
 uint32_t Board_AdcClockHz(void);
 uint8_t  Board_SysClkSource(void);   /**< 0 HSI, 1 CSI, 2 HSE, 3 PLL1, 4 other */
 uint32_t Board_Cycles(void);
@@ -1261,10 +921,7 @@ bool Board_SysClkOnCrystal(void);
 /** Enable the cycle counter the comms stack uses as its timebase. */
 void Board_TimebaseInit(void);
 
-/** Per-channel result of a burst. Raw codes only: scaling is the host's job,
-    so a different divider or thermistor needs no firmware change. Means and
-    deviations are in milli-codes (raw x 1000) to keep fractions without
-    putting a float on the wire. */
+/** Per-channel result of a burst. */
 typedef struct
 {
   uint8_t  index;
@@ -1278,60 +935,39 @@ typedef struct
     master's patience or wedge the link. */
 #define BOARD_BURST_MAX_US 5000000UL
 
-/** Most passes one burst may make. Named because the command handler checks
-    it too: see h_adc_burst for why the limits live in both places. */
+/** Most passes one burst may make. */
 #define BOARD_BURST_MAX_SAMPLES 10000U
 
-/** Channels one burst can cover, and the size every caller's `out` array must
-    have. The bound is the selector's, not the table's: `mask` is 16 bits, so
-    no request can ever name a seventeenth channel however the table grows. */
+/** Channels one burst can cover, and the size every caller's `out` array
+    must have. */
 #define BOARD_BURST_MAX_CHAN 16U
 
-/** The most samples one burst takes: the reply is a summary, so this
-  * bounds the time the link waits, not a buffer. */
+/** The most samples one burst takes: the reply is a summary, so this bounds
+    the time the link waits, not a buffer. */
 #define BOARD_ADC_BURST_MAX 1000U
 
-/**
-  * @brief  Sample a set of channels repeatedly and return per-channel statistics.
-  * @param  mask         Bit i selects channel i of the channel table.
-  * @param  samples      1..10000 passes over the selected set.
-  * @param  interval_us  Requested spacing between passes; 0 means as fast as
-  *                      the conversions allow.
-  * @param  out          At least Board_AdcCount() entries.
-  * @param  count        Channels actually measured, in ascending index order.
-  * @param  elapsed_us   Wall time the burst took, so the host can see the rate
-  *                      it really got rather than the one it asked for.
-  * @return False if the mask is empty, the count is out of range, the burst
-  *         would exceed BOARD_BURST_MAX_US, or a conversion failed.
-  */
+/** Sample a set of channels repeatedly and return per-channel statistics.
+    @param  mask         Bit i selects channel i of the channel table.
+    @param  samples      1..10000 passes over the selected set.
+    @param  interval_us  Requested spacing between passes; 0 means as fast as
+    @param  out          At least Board_AdcCount() entries.
+    @param  count        Channels actually measured, in ascending index order.
+    @param  elapsed_us   Wall time the burst took, so the host can see the rate
+    @return False if the mask is empty, the count is out of range, the burst */
 bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
                     board_burst_t *out, uint8_t *count, uint32_t *elapsed_us);
 
-/**
-  * @brief  Sample one ADC back to back and return basic noise statistics.
-  * @param  adc_index  1..3; the differential phase channel on that ADC.
-  * @param  samples    1..1000.
-  * @return False if either argument is out of range, or a conversion failed.
-  */
+/** Sample one ADC back to back and return basic noise statistics.
+    @param  adc_index  1..3; the differential phase channel on that ADC.
+    @param  samples    1..1000.
+    @return False if either argument is out of range, or a conversion failed. */
 bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
                     int32_t *mean_uv, int32_t *min_raw, int32_t *max_raw,
                     uint32_t *span_raw, uint32_t *stddev_uv);
 
 /* ---- self test ---------------------------------------------------------- */
 
-/**
-  * @brief One result from the board's self test.
-  *
-  * status is PASS or FAIL only where the board can genuinely PROVE the answer
-  * from its own registers - a clock that is not locked, a calibration that never
-  * ran, a checksum that does not match. Anything that would need a calibrated
-  * instrument to judge is reported as INFO with its value, and the decision
-  * belongs to whatever test executive is driving the line.
-  *
-  * That split is deliberate. This board is a dumb slave: it measures and
-  * reports. It does not know what "good" is, and a limit compiled into firmware
-  * is a limit nobody on the line can see or change.
-  */
+/** One result from the board's self test. */
 #define BOARD_CHECK_PASS 0U
 #define BOARD_CHECK_FAIL 1U
 #define BOARD_CHECK_INFO 2U
@@ -1345,22 +981,15 @@ typedef struct
   int32_t     value;   /**< meaning is per check; 0 where there is none */
 } board_check_t;
 
-/**
-  * @brief  Run every self check and fill @p out.
-  * @return Number of checks written, never more than @p capacity.
-  */
+/** Run every self check and fill @p out.
+    @return Number of checks written, never more than @p capacity. */
 uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity);
 
 /** Leave the binary link and resume the ASCII console, once the reply is out. */
 void Board_RequestConsoleMode(void);
 
 
-/** What the thermal observer knows: one measurement, the rest estimates.
-  *
-  * `ntc_measured` is what tells them apart and must not be ignored - with
-  * AFE_ON low there is no NTC measurement at all, and the nodes then run
-  * open on power and time.
-  */
+/** What the thermal observer knows: one measurement, the rest estimates. */
 typedef struct
 {
   bool    ntc_measured;                        /**< the thermistor answered              */
@@ -1377,15 +1006,15 @@ typedef struct
   uint32_t seconds;                            /**< how long it has run                  */
   bool    settled;                             /**< the anchoring has converged          */
   /** MINOR 13: each leg's FET junction over its node, centi-K - half the
-    * node's watts through R_th,JC - and the rotor speed the air paths
-    * were evaluated at. */
+      node's watts through R_th,JC - and the rotor speed the air paths were
+      evaluated at. */
   int32_t junction_over_centi[3];
   int32_t speed_rpm;
 } board_thermal_t;
 
-/** The online identification beside the observer (`thermal_ident.h`):
-  * what it believes the network's scales are, how sure, and what the
-  * envelope keeps in hand for that. MINOR 14, thermal op 10. */
+/** The online identification beside the observer (`thermal_ident.h`): what
+    it believes the network's scales are, how sure, and what the envelope
+    keeps in hand for that. */
 typedef struct
 {
   uint8_t  state;                   /**< thermal_ident_state_t - a word    */
@@ -1395,52 +1024,40 @@ typedef struct
   float    innovation_k;            /**< filtered prediction error, kelvin  */
   float    margin;                  /**< the envelope's factor now, floor..1*/
   uint32_t updates;                 /**< samples that moved the scales      */
-  /** MINOR 15: the room as identified beside the scales, degrees C, and
-    * how sure - the board has no ambient sensor; this is what the
-    * observer's `ambient` is set from. */
+  /** MINOR 15: the room as identified beside the scales, degrees C, and how
+      sure - the board has no ambient sensor; this is what the observer's
+      `ambient` is set from. */
   float    ambient_c;
   float    ambient_sigma_k;
-  /** MINOR 16: the floor the margin rises from, the record's. The wire's
-    * `saves` and `since_save_s` between the counts and the room are
-    * written as zero and never since the same MINOR: the board keeps
-    * nothing (`thermal_ident.h`). */
+  /** MINOR 16: the floor the margin rises from, the record's. */
   float    margin_floor;
   /** MINOR 17: the trip cap as it stands - THERMAL_TRIP_MARGIN at a trip,
-      recovering at THERMAL_TRIP_RECOVER_PER_S - or one with no trip in
-      hand. `margin` is the least of this and the identification's own,
-      so a page can say which holds it: `STBL 72%` said the model was
-      sure of a number the trip was holding down (bench, 2026-09-08). */
+      recovering at THERMAL_TRIP_RECOVER_PER_S - or one with no trip in hand. */
   float    trip_cap;
 } board_thermal_ident_t;
 
 bool Board_ThermalIdent(board_thermal_ident_t *out);
 
-/** Forget what was identified: scales to one, the room where the
-  * observer has it, UNCERTAIN, the margin at the floor. Nothing to
-  * write, so nothing to refuse for. */
+/** Forget what was identified: scales to one, the room where the observer
+    has it, UNCERTAIN, the margin at the floor. */
 bool Board_ThermalIdentReset(void);
 
-/** The margin floor, a fraction of every ceiling's span, through the
-  * record - `Board_CalSave` persists it. Refused outside (0, 1]. */
+/** The margin floor, a fraction of every ceiling's span, through the record
+    - `Board_CalSave` persists it. */
 bool Board_ThermalSetMarginFloor(float floor);
 
 /** One edge of the network: which two nodes, and the K/W across it now. */
 bool Board_ThermalEdge(uint8_t edge, uint8_t *a, uint8_t *b, float *k_per_w);
 
 /** Change one edge's K/W, in the observer and in the record's RAM copy;
-  * negative opens it. */
+    negative opens it. */
 bool Board_ThermalSetEdge(uint8_t edge, float k_per_w);
 
 /** One node's network entry as the observer runs it. */
 bool Board_ThermalNodeCfg(uint8_t node, float *capacity, float *to_ambient,
                           float *area_share, float *rth_die, float *forced);
 
-/** The thermal budget: how much is spent and how long is left.
-  *
-  * `used` is one byte per node - 0 at ambient, 255 at the limit - because
-  * "how close am I" is the question, and a temperature cannot answer it
-  * without the limit beside it.
-  */
+/** The thermal budget: how much is spent and how long is left. */
 typedef struct
 {
   uint8_t  used[BOARD_THERMAL_NODES];
@@ -1450,22 +1067,13 @@ typedef struct
   bool     throttling;
   bool     tripped;
   uint32_t trips;            /**< how many times it has stopped the stage */
-  /** What the current clamp is being multiplied by right now, 1 to 0.
-    * The stage is still driving while this is under one - that is the
-    * difference between derating and tripping. */
+  /** What the current clamp is being multiplied by right now, 1 to 0. */
   float    derate;
-  /** Joules each node can still absorb before its ceiling. A host
-    * planning a burst divides by the power it means to spend. */
+  /** Joules each node can still absorb before its ceiling. */
   float    soak_j[BOARD_THERMAL_NODES];
-  /** What the compares actually hold, as a fraction of the period.
-    * The EFFECTIVE duty: what the derate and the clamp left, not what
-    * anything asked for. */
+  /** What the compares actually hold, as a fraction of the period. */
   float    duty[BOARD_PWM_PHASES];
-  /** MINOR 12: THE WINDING, the one node that is not on the board.
-    * Its estimate in degrees C, its spend against the record's
-    * `winding_limit_centi` (0 at ambient, 255 at the ceiling), and its
-    * OWN clamp factor - `derate` above is what the stage got, the
-    * smaller of this and the board's. Zero ceiling: 0, 1.0. */
+  /** MINOR 12: THE WINDING, the one node that is not on the board. */
   float    winding_c;
   uint8_t  winding_used;
   float    winding_derate;
@@ -1477,16 +1085,10 @@ bool Board_ThermalBudget(board_budget_t *out);
 bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at);
 
 /** The winding's ceiling, degrees C (zero disables), and its K/W and J/K:
-  * written to the record and taken up by the observer at once. */
+    written to the record and taken up by the observer at once. */
 bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k);
 
-/**
-  * @brief  Scale the drive's current clamp, 1.0 down to 0.0.
-  *
-  * The thermal envelope's hand on the throttle. Clamped to 0..1 inside:
-  * a factor above one would be an envelope RAISING a limit, which is the
-  * one thing it must never do.
-  */
+/** Scale the drive's current clamp, 1.0 down to 0.0. */
 void Board_DriveDerate(float factor);
 
 /** What that factor is now. */
@@ -1498,14 +1100,9 @@ bool Board_ThermalState(board_thermal_t *out);
 bool Board_ThermalSetNode(uint8_t node, float to_board, float capacity);
 bool Board_ThermalSetBoard(float to_ambient, float capacity);
 
-/**
-  * @brief  How often the thermal observer borrows the AFE rail for an NTC sample.
-  * @param  every_ms   period between samples; 0 stops sampling entirely
-  * @param  settle_ms  how long the reference is given before the read
-  *
-  * Sampling costs the state it measures - the rail is shared with the gate
-  * drivers through an inverted gate - so the trade is the caller's to make.
-  */
+/** How often the thermal observer borrows the AFE rail for an NTC sample.
+    @param  every_ms   period between samples; 0 stops sampling entirely
+    @param  settle_ms  how long the reference is given before the read */
 bool Board_ThermalSetSample(uint32_t every_ms, uint32_t settle_ms);
 
 /** What the sampling is set to now. */
@@ -1513,8 +1110,7 @@ void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms);
 
 /* ---- the bootloader's side (board_boot.c) ------------------------------- */
 
-/** This board's type as the bootloader names it. The header carries it,
-    and a bootloader built for another type ignores this image. */
+/** This board's type as the bootloader names it. */
 #define BOARD_BOOT_TYPE  BOOT_TYPE_COAXIAL_63100
 
 /** Who this node is: what a bootloader left in the handover slot, or the
@@ -1528,16 +1124,15 @@ typedef struct
   bool    assigned;   /**< a bootloader left these, or they are defaults */
 } board_identity_t;
 
-/** Apply what the bootloader left: the unit id and the termination.
-    Nothing left, nothing applied - a bench board is unit 1. */
+/** Apply what the bootloader left: the unit id and the termination. */
 void Board_BootInit(void);
 board_identity_t Board_Identity(void);
 
 /** The MCU's unique id, twelve bytes little-endian off UID_BASE. */
 void Board_Uid(uint8_t *out);
 
-/** Back to the bootloader: the reset waits for the reply to leave the
-    wire, and the bootloader finds STAY in the slot. */
+/** Back to the bootloader: the reset waits for the reply to leave the wire,
+    and the bootloader finds STAY in the slot. */
 void Board_BootStay(void);
 void Board_BootPoll(void);
 

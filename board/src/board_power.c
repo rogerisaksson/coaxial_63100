@@ -9,15 +9,13 @@
 #include "board_power.h"
 #include "link.h"
 
-/* One bit per user in a uint8_t. A sixth user is free; a ninth is a silent
-   truncation in bit_of and everything that reads the mask. */
+/* One bit per user in a uint8_t. */
 _Static_assert(BOARD_USER_COUNT <= 8, "the users mask is one uint8_t");
 
 /** One bitmask per rail. A bit is a user, so a leak names itself. */
 static uint8_t s_users[BOARD_RAIL_COUNT];
 
-/** When each hold runs out, HAL ticks. Zero means it never does - only the
-  * host gets that, because only the host can be asked to give it back. */
+/** When each hold runs out, HAL ticks. */
 static uint32_t s_expires[BOARD_RAIL_COUNT][BOARD_USER_COUNT];
 
 static uint8_t bit_of(board_user_t user)
@@ -37,12 +35,7 @@ static uint8_t count_bits(uint8_t mask)
   return n;
 }
 
-/** Whether taking @p rail now would drop something that must not be dropped.
-  *
-  * AFE_ON high removes the gate drivers' supply. With the stage armed that
-  * leaves six driver inputs switching into unpowered drivers, so the answer
-  * is no while MOE is set - the measurement waits, the power stage does not.
-  */
+/** Whether taking @p rail now would drop something that must not be dropped. */
 static bool blocked(board_rail_t rail)
 {
   return (rail == BOARD_RAIL_AFE) && Board_PwmIsEnabled();
@@ -66,9 +59,7 @@ bool Board_PowerAcquire(board_rail_t rail, board_user_t user)
   const uint8_t bit = bit_of(user);
   const bool had = (s_users[rail] & bit) != 0U;
 
-  /* Only a NEW hold can be refused. Renewing one already granted must not
-     fail because the stage armed meanwhile - that would strand the owner
-     holding a rail it can no longer keep alive. */
+  /* Only a NEW hold can be refused. */
   if (!had && blocked(rail))
   {
     return false;
@@ -78,7 +69,7 @@ bool Board_PowerAcquire(board_rail_t rail, board_user_t user)
 
   /* Zero is the sentinel for "never expires", so a lease that lands exactly
      on it would never be collected - a 3 s window once every 49.7 days where
-     a leaked hold becomes permanent. Step past it. */
+     a leaked hold becomes permanent. */
   uint32_t at = HAL_GetTick() + BOARD_POWER_LEASE_MS;
 
   if (at == 0U)
@@ -119,8 +110,7 @@ bool Board_PowerState(board_rail_t rail, board_rail_state_t *out)
     return false;
   }
 
-  /* The pin, read back. What the count says should be true of it is exactly
-     the thing worth catching when it is not. */
+  /* The pin, read back. */
   out->on = (rail == BOARD_RAIL_AFE) ? Board_AfeOn() : false;
   out->users = s_users[rail];
   out->count = count_bits(s_users[rail]);
@@ -137,13 +127,7 @@ bool Board_PowerState(board_rail_t rail, board_rail_state_t *out)
   return true;
 }
 
-/** THE HOST'S HOLDS DIE WITH THE HOST. Its reference is deliberately
-  * unleased so a session can keep a rail as long as it likes - and that is
-  * exactly why a killed script left AFE_ON high until somebody noticed. A
-  * live host talks; silence past BOARD_POWER_HOST_QUIET_MS is the board's
-  * evidence that this one does not, and the rail goes down on its own.
-  * Once per transition: claims can only reappear through traffic, and
-  * traffic re-arms the edge. */
+/** THE HOST'S HOLDS DIE WITH THE HOST. */
 static void drop_host_claims(uint32_t now)
 {
   static uint32_t seen_count;
@@ -173,14 +157,12 @@ static void drop_host_claims(uint32_t now)
     s_expires[rail][BOARD_USER_HOST] = 0U;
     apply((board_rail_t)rail);
   }
-  /* The rest of the session's footprint: an armed stage must not
-     outlive the host that armed it. */
+  /* The rest of the session's footprint: an armed stage must not outlive the
+     host that armed it. */
   Board_PwmSessionDrop();
 }
 
-/** Every lease past its expiry is released. Signed difference, so the
-  * tick wrap costs nothing - the RTU timer's arithmetic, for the same
-  * reason. */
+/** Every lease past its expiry is released. */
 static void expire_leases(uint32_t now)
 {
   for (uint8_t rail = 0U; rail < (uint8_t)BOARD_RAIL_COUNT; rail++)

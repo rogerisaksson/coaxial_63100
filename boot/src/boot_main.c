@@ -4,26 +4,6 @@
   * @brief   The bootloader's hardware: reset, the pins, the clocks, the two
   *          RS485 USARTs and the console, the flash controller, the RTU loop
   *          and the jump. The only file in boot/ that touches a register.
-  *
-  * A Modbus shell, the boot code, and every pin in a known state. The state
-  * machine is boot_core.c, proven on the host; this file is what it runs
-  * on. Registers, not the HAL: five writes and a wait for a lock is the
-  * whole clock tree, and the HAL's own USART, GPIO, RCC and FLASH drivers
-  * are ten times this file. CMSIS gives the register names.
-  *
-  * The type switch is compile-time (BOOT_BOARD): the pins a bootloader must
-  * open to say anything at all differ by type, so the type cannot arrive
-  * over the bus it opens. The position switch is run-time: the master
-  * assigns it, and the last node on a segment closes the termination.
-  *
-  * Everything runs from ITCM and DTCM once the startup has copied it there
-  * (boot/STM32H753xx_BOOT.ld): flash is never read by the core while a
-  * sector of it is being erased or programmed, so the stall the reference
-  * manual documents never lands on the wire.
-  *
-  * No interrupts. The USARTs are polled from the loop with their FIFOs on;
-  * at 10 Mbit a byte is a microsecond and the FIFO holds eight. The
-  * timing is DWT->CYCCNT throughout (invariant 2).
   ******************************************************************************
   */
 #include "boot.h"
@@ -39,14 +19,13 @@
 #define BOOT_BOARD  BOOT_TYPE_COAXIAL_63100
 #endif
 
-/** 0x6E, the device command every 0x6E device rides; the bootloader
-    serves one device of it. */
+/** 0x6E, the device command every 0x6E device rides; the bootloader serves
+    one device of it. */
 #define CMD_DEVICE            0x6EU
 
-/** The clock tree: HSE 25 MHz / 5 = 5 MHz into PLL1, x64 = 320 MHz VCO,
-    / 2 = 160 MHz for the core; HCLK 80, APB1 80 - so a USART with 8x
-    oversampling divides 80 MHz by 16 for exactly 10 Mbit, no fraction.
-    APB at 80 MHz needs VOS1 (VOS3, the reset scale, tops APB at 50). */
+/** The clock tree: HSE 25 MHz / 5 = 5 MHz into PLL1, x64 = 320 MHz VCO, / 2
+    = 160 MHz for the core; HCLK 80, APB1 80 - so a USART with 8x
+    oversampling divides 80 MHz by 16 for exactly 10 Mbit, no fraction. */
 #define HSE_HZ                25000000U
 #define PLL_M                 5U
 #define PLL_N                 64U
@@ -114,11 +93,11 @@ typedef struct
   uint8_t       term_pin;
 } board_t;
 
-/** coaxial_63100: the six gate inputs low (both FETs of every leg off by
-    a driven line - TIM1's idle state is RESET on all six), PA10 low so
-    the STO pump is not fed, PB2 low so the AFE and the IMU stay unpowered,
-    PE14 low so the termination is open; then USART2 on PA1..3 (DE, TX,
-    RX), UART5 on PC8/PC12/PD2 (DE, TX, RX), the console on PB10/PB11. */
+/** coaxial_63100: the six gate inputs low (both FETs of every leg off by a
+    driven line - TIM1's idle state is RESET on all six), PA10 low so the STO
+    pump is not fed, PB2 low so the AFE and the IMU stay unpowered, PE14 low
+    so the termination is open; then USART2 on PA1..3 (DE, TX, RX), UART5 on
+    PC8/PC12/PD2 (DE, TX, RX), the console on PB10/PB11. */
 static const pin_t PINS_63100[] =
 {
   { GPIOE,  8U, PIN_OUT_LOW, 0U },
@@ -146,9 +125,7 @@ static const board_t BOARD_63100 =
   { USART2, UART5 }, USART3, GPIOE, 14U,
 };
 
-/** The type switch. A type with no table here has no bootloader: the
-    build refuses, since a bootloader that cannot open its pins cannot
-    say so either. */
+/** The type switch. */
 static const board_t *board_of(uint32_t type)
 {
   switch (type)
@@ -205,9 +182,8 @@ static void dwt_init(void)
 
 static void clocks_up(void)
 {
-  /* The LDO, as reset left it, settled; then VOS1 - one scale up from
-     VOS3, so APB may run at 80 MHz. VOS is two bits: 01 scale 3, 10
-     scale 2, 11 scale 1. */
+  /* The LDO, as reset left it, settled; then VOS1 - one scale up from VOS3,
+     so APB may run at 80 MHz. */
   while ((PWR->CSR1 & PWR_CSR1_ACTVOSRDY) == 0U) {}
   PWR->D3CR = (PWR->D3CR & ~PWR_D3CR_VOS_Msk) | PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0;
   while ((PWR->D3CR & PWR_D3CR_VOSRDY) == 0U) {}
@@ -240,8 +216,8 @@ static void clocks_up(void)
   (void)RCC->APB1LENR;
 }
 
-/** The tree back to reset before the jump: the application's HAL refuses
-    to configure a PLL that is the system clock, and expects HSI. */
+/** The tree back to reset before the jump: the application's HAL refuses to
+    configure a PLL that is the system clock, and expects HSI. */
 static void clocks_down(void)
 {
   RCC->APB1LRSTR = RCC_APB1LRSTR_USART2RST | RCC_APB1LRSTR_USART3RST | RCC_APB1LRSTR_UART5RST;
@@ -299,8 +275,7 @@ static void pins_up(const board_t *b)
 
 /* -- the USARTs ------------------------------------------------------------ */
 
-/** 8N1, FIFOs on. The RS485 pair: 8x oversampling, BRR 16 for 10 Mbit,
-    the driver enable on the DE pin, active high; the console: 16x. */
+/** 8N1, FIFOs on. */
 static void usart_up(USART_TypeDef *u, uint32_t baud, bool rs485)
 {
   u->CR1 = 0U;
@@ -334,9 +309,7 @@ static void usart_send(USART_TypeDef *u, const uint8_t *data, size_t n)
 
 /* -- the console ----------------------------------------------------------- */
 
-/** `say` queues; the loop drains a byte a pass. A line must never block
-    the loop: at 10 Mbit the RS485 FIFO is eight microseconds deep, and
-    a 40-character line at 115 200 is three and a half milliseconds. */
+/** `say` queues; the loop drains a byte a pass. */
 static void say(void *ctx, const char *line)
 {
   (void)ctx;
@@ -415,8 +388,8 @@ static void bank_unlock(const bank_t *b)
   }
 }
 
-/** Waits for the bank, then answers whether the operation was clean;
-    every error flag is cleared on the way, so the next one starts fresh. */
+/** Waits for the bank, then answers whether the operation was clean; every
+    error flag is cleared on the way, so the next one starts fresh. */
 static bool bank_done(const bank_t *b)
 {
   while ((*b->sr & (FLASH_SR_QW | FLASH_SR_BSY)) != 0U) {}
@@ -548,9 +521,7 @@ static void rtu_up(void)
   }
 }
 
-/** One pass over one segment: the bytes in, the errors, the reply out.
-    Sent blocking - a 253-byte reply is 0.25 ms at 10 Mbit, and the master
-    is waiting for it. */
+/** One pass over one segment: the bytes in, the errors, the reply out. */
 static void rtu_poll(uint32_t i)
 {
   USART_TypeDef *u = s.board->rs485[i];
@@ -586,8 +557,8 @@ static void rtu_poll(uint32_t i)
   }
 }
 
-/** What the core decided this pass: the unit both segments answer to,
-    the termination, and whether a go was taken. */
+/** What the core decided this pass: the unit both segments answer to, the
+    termination, and whether a go was taken. */
 static void follow_core(void)
 {
   const uint8_t unit = boot_unit();
@@ -606,11 +577,9 @@ static void follow_core(void)
 
 /* -- the jump -------------------------------------------------------------- */
 
-/** The pins stay as they are - the safe levels driven, the USART pins
-    at their alternate function with the peripherals in reset, so nothing
-    floats in the microseconds before the application's init takes them.
-    The stack pointer and the branch are one asm statement, so nothing of
-    this frame is read after the stack moved. */
+/** The pins stay as they are - the safe levels driven, the USART pins at
+    their alternate function with the peripherals in reset, so nothing floats
+    in the microseconds before the application's init takes them. */
 static void jump(void)
 {
   const uint32_t *vectors = (const uint32_t *)APP_BASE;
@@ -658,8 +627,8 @@ int main(void)
   boot_init(&PORT, NULL, &s.layout);
   rtu_up();
 
-  /* The decision (docs/BOOT.md): asked to stay, or a valid application
-     and a window for a hold, or nothing to run and a line a second. */
+  /* The decision (docs/BOOT.md): asked to stay, or a valid application and a
+     window for a hold, or nothing to run and a line a second. */
   const bool asked_to_stay = (boot_hand.stay == BOOT_STAY_MAGIC);
   const bool valid = boot_app_valid();
   const uint32_t started = ticks();

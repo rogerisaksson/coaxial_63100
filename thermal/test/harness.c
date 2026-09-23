@@ -3,23 +3,6 @@
   * @file    harness.c
   * @brief   A flat C API over thermal/, so test_thermal_core.py can run the
   *          observer and its envelope on the host through ctypes.
-  *
-  * Built by the Python suite with the host gcc, never by the firmware build.
-  * Test scaffolding; it must not appear in the root CMakeLists.
-  *
-  * `check.c` beside this is a different thing and stays: it is the
-  * CALIBRATION CAMPAIGN's own report, prose about whether the network
-  * reproduces four camera-measured states. This is the API a suite drives
-  * to ask narrow questions about the graph and the envelope - the derate
-  * ramp, the lookahead, the soak joules, a leg warming its neighbour - and
-  * those are the parts that will act on the gates.
-  *
-  * NOTHING CROSSES AS A STRUCT. A ctypes mirror of `thermal_budget_t` would
-  * be a second declaration of a layout the compiler already owns, and the
-  * two would drift the first time a field was appended - which is exactly
-  * what this file exists to test. Flat float arrays in the orders the
-  * BUDGET_ORDER / LOAD_ORDER / LOSS_ORDER / CFG_ORDER comments give, and
-  * the Python side names them by the same lists.
   ******************************************************************************
   */
 #include "thermal.h"
@@ -36,9 +19,7 @@
 #endif
 
 /* BUDGET_ORDER: worst, worst_node, millis_to_limit, throttling, tripped,
-   derate, then used[0..N-1], then soak_j[0..N-1]. `worst` and `used` come
-   back as the FRACTIONS the bytes stand for, because a test that says 216
-   is testing the encoding and one that says 0.847 is testing the budget. */
+   derate, then used[0..N-1], then soak_j[0..N-1]. */
 #define BUDGET_SLOTS (6 + 2 * THERMAL_NODES)
 
 /* LOAD_ORDER: phase_amps[0..2], duty[0..2], link_volts, link_amps,
@@ -46,9 +27,9 @@
 #define LOAD_SLOTS 15
 
 /* LOSS_ORDER: rds_on, rds_alpha, r_shunt, r_hotswap, switching_watt,
-   switch_volts, driver_share, mcu_watt, ldo_watt, afe_watt, f_sw,
-   coss_cjo, coss_m, coss_vj, t_switch_s, v_sd, q_g, v_drive, buck_eff,
-   r_phase, k_iron. */
+   switch_volts, driver_share, mcu_watt, ldo_watt, afe_watt, f_sw, coss_cjo,
+   coss_m, coss_vj, t_switch_s, v_sd, q_g, v_drive, buck_eff, r_phase,
+   k_iron. */
 #define LOSS_SLOTS 21
 
 /* CFG_ORDER, per node: capacity, to_ambient, area_share, rth_die, forced. */
@@ -133,7 +114,7 @@ API void thm_ambient(thermal_t *th, float celsius)
 
 
 /** Put a node at a temperature outright: a test needs to stand the model
-  * somewhere, not drive it there. */
+    somewhere, not drive it there. */
 API void thm_place(thermal_t *th, int node, float celsius)
 {
   if ((th != NULL) && (node >= 0) && (node < (int)THERMAL_NODES))
@@ -207,7 +188,7 @@ API void thm_cfg(const thermal_t *th, float *out)
 
 
 /** The bulk's five scalars: board_to_ambient, board_cal_rise_k,
-  * board_rad_share, ntc_sees, ntc_tau_s. */
+    board_rad_share, ntc_sees, ntc_tau_s. */
 API void thm_bulk(const thermal_t *th, float *out)
 {
   if ((th == NULL) || (out == NULL))
@@ -282,9 +263,7 @@ static void load_from(thermal_load_t *in, const float *load)
 }
 
 
-/** One integration step at a speed. `watt` is THERMAL_NODES long; a NaN
-  * in a sensor means it is not answering, which is what the board passes
-  * when the AFE is off. */
+/** One integration step at a speed. */
 API void thm_step_at(thermal_t *th, const float *watt,
                      float ntc_c, float afe_c, float mcu_c, float speed_rpm,
                      float dt_s)
@@ -331,8 +310,8 @@ static void soa_from(thermal_soa_t *soa, const float *limit_c,
     /* The record's ceiling the trip is judged on; NULL leaves it on
        `limit_c`, the struct's own default. */
     soa->trip_c[i] = (trip_c != NULL) ? trip_c[i] : 0.0f;
-    /* Floats because nothing crosses this boundary as anything else -
-       NULL is every node driven, which is the struct's own default. */
+    /* Floats because nothing crosses this boundary as anything else - NULL
+       is every node driven, which is the struct's own default. */
     soa->undriven[i] = (undriven != NULL) && (undriven[i] != 0.0f);
   }
   soa->throttle_at = throttle_at;
@@ -340,12 +319,7 @@ static void soa_from(thermal_soa_t *soa, const float *limit_c,
 }
 
 
-/** The envelope, flattened. `limit_c` is THERMAL_NODES long - the ceilings
-  * come from the caller because they come from the calibration record, and
-  * there is no compiled-in copy to ask for (invariant 10). `trip_c`, the
-  * same length, is the record's untrimmed ceiling the trip is judged on
-  * where `limit_c` has been pulled in by the margin; NULL judges it on
-  * `limit_c`. */
+/** The envelope, flattened. */
 API void thm_budget_capped(const thermal_t *th, const float *watt,
                            const float *limit_c, const float *trip_c,
                            float throttle_at, float lookahead_s,
@@ -382,7 +356,7 @@ API void thm_budget_capped(const thermal_t *th, const float *watt,
 
 
 /** The envelope with the trip on `limit_c` itself: every caller before
-  * 2026-09-08, and the shape the suites' Model calls by default. */
+    2026-09-08, and the shape the suites' Model calls by default. */
 API void thm_budget(const thermal_t *th, const float *watt,
                     const float *limit_c, float throttle_at,
                     float lookahead_s, const float *undriven, float *out)
@@ -432,10 +406,7 @@ API float thm_junction(const thermal_t *th, const float *watt, int node)
 }
 
 
-/** The power estimator. `load` is LOAD_SLOTS long, `phase_c` three node
-  * temperatures or NULL for the flat 25 C figure, `out` THERMAL_NODES.
-  * `r_phase` overrides the loss table's placeholder when positive, the
-  * way the board's glue hands the record's in. */
+/** The power estimator. */
 API void thm_power_r(const float *load, const float *phase_c, float r_phase,
                      float *out)
 {
@@ -477,10 +448,7 @@ API float thm_coss_energy(float volts)
 }
 
 
-/* THE IDENTIFICATION beside an observer. The box holds the identifier and
-   the base configuration its scales multiply - the observer's own at the
-   time it was made - so a test can run observer and identifier together
-   against a ground truth it drives itself. */
+/* THE IDENTIFICATION beside an observer. */
 typedef struct
 {
   thermal_ident_t id;
@@ -508,10 +476,9 @@ API void thm_ident_free(void *box)
 
 
 
-/** One step of observer AND identifier: the scales applied to the
-  * observer, the observer stepped on the sensors, the identifier stepped
-  * beside it, the scales applied again if they moved. Returns whether
-  * they moved. */
+/** One step of observer AND identifier: the scales applied to the observer,
+    the observer stepped on the sensors, the identifier stepped beside it,
+    the scales applied again if they moved. */
 API int thm_ident_run(void *box, thermal_t *th, const float *watt,
                       float ntc_c, float afe_c, float mcu_c, float speed_rpm,
                       float dt_s)
@@ -541,8 +508,8 @@ API int thm_ident_run(void *box, thermal_t *th, const float *watt,
   const bool moved = thermal_ident_step(&b->id, th, &b->base, &p, &load,
                                         &seen, dt_s);
 
-  /* The room is the identification's: what the board's glue does after
-     every step. */
+  /* The room is the identification's: what the board's glue does after every
+     step. */
   th->ambient = thermal_ident_ambient(&b->id);
 
   if (moved)
@@ -621,8 +588,8 @@ API int thm_ident_online(int which)
 }
 
 
-/** The loss constants, LOSS_ORDER, so a test can check the split against
-  * the parts rather than against a number typed twice. */
+/** The loss constants, LOSS_ORDER, so a test can check the split against the
+    parts rather than against a number typed twice. */
 API void thm_losses(float *out)
 {
   thermal_loss_t loss;

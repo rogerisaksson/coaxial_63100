@@ -2,18 +2,6 @@
   ******************************************************************************
   * @file    board_pwm.c
   * @brief   The three-phase gate drivers: duty in, gates out, the interlocks.
-  *
-  * TIM1 CH1/CH1N..CH3/CH3N drive the three 2EDL8034 half bridges on
-  * PE8..PE13; PE15 is TIM1_BKIN. This owns the compare registers and MOE, not
-  * the timer's configuration - see Board_PwmReady().
-  *
-  * CMSIS registers rather than the htim1 handle: clearing MOE is then one
-  * store that cannot fail partway, and drops every output to its idle level
-  * without the timer.
-  *
-  * Nothing here judges a duty (invariant 10). What it will NOT do is accept
-  * anything until the timer exists and has been armed on purpose, because on
-  * the other side of these six pins are gate drivers with FETs fitted.
   ******************************************************************************
   */
 #include "board_limits.h"
@@ -23,30 +11,25 @@
 
 #define PS_PER_S  1000000000000ULL
 #define PS_PER_NS 1000UL
-/* The gate-short probe's settle after driving a pin: the neighbour follows
-   a real short within 76 ns, measured; this is a few microseconds. */
+/* The gate-short probe's settle after driving a pin: the neighbour follows a
+   real short within 76 ns, measured; this is a few microseconds. */
 #define PROBE_SETTLE_SPINS 4000U
 
 /** The stage's state: the compares as mirrored, the fine duty and its
-  * residue, the alternating triples, the dead-time skew, the counted hold,
-  * the arm, and the drive's next triple. One object: what a debugger shows
-  * whole and a reset clears at once. */
+    residue, the alternating triples, the dead-time skew, the counted hold,
+    the arm, and the drive's next triple. */
 static struct
 {
   /** Compare value per phase, mirrored so a read does not race the timer. */
   uint16_t duty[BOARD_PWM_PHASES];
 
-  /** What was asked for, in ticks Q16.16, and the fraction not yet spent.
-      One tick of ARR 2375 is 0.0421 % of duty, so 34.54 % lands between 820
-      and 821 and neither is it. Rounding throws the difference away; this
-      keeps it and pays it back. */
+  /** What was asked for, in ticks Q16.16, and the fraction not yet spent. */
   uint32_t want_q16[BOARD_PWM_PHASES];
   uint32_t residue[BOARD_PWM_PHASES];
   bool dither;
 
-  /** Two triples the update interrupt swaps between, one per PWM period,
-      and which of them the next period gets. A phase pair driven back and
-      forth every 20 us - what one host write per 15 ms cannot do. */
+  /** Two triples the update interrupt swaps between, one per PWM period, and
+      which of them the next period gets. */
   uint16_t alt[2][BOARD_PWM_PHASES];
   volatile bool alternate;
   volatile uint8_t alt_next;
@@ -56,28 +39,21 @@ static struct
   uint8_t deadtime;               /* what was asked for, in DTG counts  */
   volatile uint8_t half;          /* which half of the period this is   */
 
-  /* Periods left of a counted hold, 0 when free-running. Decremented once per
-     PWM period in the update interrupt; at zero the compares drop to zero in
-     the same interrupt that owns them, so 10 ms asked for is exactly 500
-     periods rather than the link's 93-108 ms (FINDINGS has those numbers). */
+  /* Periods left of a counted hold, 0 when free-running. */
   volatile uint32_t countdown;
 
   /** Set by Board_PwmEnable, cleared by Board_PwmDisable and by a break. */
   bool armed;
 
   /** The drive's next triple, left by ADC3's interrupt and committed by
-      TIM1's update at the underflow. See Board_PwmDriveOwn. */
+      TIM1's update at the underflow. */
   uint16_t next[BOARD_PWM_PHASES];
   volatile bool next_pending;
   volatile bool drive_owns;
 } s;
 
 
-/* The update interrupt, which the dither and the dead-time skew both need.
-   Two owners and one switch: whoever stops has to ask whether the other is
-   still using it, or the first one to finish turns it off under the second.
-   Measured before that was true: the skew was set, nothing armed the
-   dither, and DTG read the same value six times over SWD. */
+/* The update interrupt, which the dither and the dead-time skew both need. */
 static void update_irq(bool wanted)
 {
   if (wanted)
@@ -95,9 +71,7 @@ static void update_irq(bool wanted)
 
 bool Board_PwmReady(void)
 {
-  /* Clocked, and counting over a period somebody chose. An unclocked TIM1
-     reads back zeros, which is exactly what an unconfigured one looks like -
-     so this answers "has MX_TIM1_Init happened yet" without guessing. */
+  /* Clocked, and counting over a period somebody chose. */
   if ((RCC->APB2ENR & RCC_APB2ENR_TIM1EN) == 0U)
   {
     return false;
@@ -114,17 +88,7 @@ uint32_t Board_PwmPeriod(void)
 
 bool Board_PwmFault(void)
 {
-  /* The break flag latches. It is the gate drivers' nFAULT arriving through
-     TIM1_BKIN, which is a hardware path: the outputs are already off by the
-     time any of this runs.
-
-     It does NOT come from the gate_drivers. A 2EDL8034 in PG-DSO-8 has
-     eight pins and no fault output; PE15 carries FAULTIN from the STO
-     chain. Active low, so BDTR.BKP is TIM_BREAKPOLARITY_LOW and AOE stays
-     off - nothing re-arms itself.
-
-     With no pilot tone on RS485 the STO chain holds this asserted and the
-     the gate drivers cannot start. That is the interlock, not a fault to clear. */
+  /* The break flag latches. */
   return Board_PwmReady() && ((TIM1->SR & TIM_SR_BIF) != 0U);
 }
 
@@ -137,9 +101,7 @@ void Board_PwmSessionDrop(void)
 
 void Board_PwmDisable(void)
 {
-  /* The one operation that must work whatever else is true. Clearing MOE
-     drops every output to its idle level in hardware, without waiting for
-     an update event. */
+  /* The one operation that must work whatever else is true. */
   s.armed = false;
   s.dither = false;
   s.alternate = false;
@@ -167,14 +129,7 @@ bool Board_PwmSetBreakBypass(bool on)
 {
   /* Clearing the LATCH is not enough and never was: with BKE set and PE15
      low the break is a level, so the hardware holds MOE clear and software
-     cannot set it at all. The bypass has to disconnect the input.
-
-     What makes this safe is not this file. The STO chain gates the gate
-     drivers' own DC/DC, which no MCU pin reaches - with no pilot tone on
-     RS485 the drivers have no supply, so the six outputs toggle into
-     unpowered inputs and the FETs cannot switch. This removes the MCU's
-     interlock, not the board's. A reset restores it: MX_TIM1_Init sets BKE
-     and nothing here persists. */
+     cannot set it at all. */
   if (!Board_PwmReady())
   {
     return false;
@@ -207,15 +162,14 @@ bool Board_PwmClearFault(void)
   }
 
   /* Clearing the latch does not re-enable anything: the caller has to arm
-     again, deliberately, after it has decided the fault is gone. A driver
-     still pulling nFAULT low will simply latch it again. */
+     again, deliberately, after it has decided the fault is gone. */
   TIM1->SR &= ~TIM_SR_BIF;
   return true;
 }
 
 
 /** Drive one leg's low-side input low, then high, and read the neighbour:
-  * only a path well below its pull-down lifts it. */
+    only a path well below its pull-down lifts it. */
 static bool leg_follows(uint32_t drv, uint32_t obs)
 {
   GPIOE->BSRR = 1UL << (drv + GPIO_BSRR_BR0_Pos);
@@ -232,15 +186,7 @@ static bool leg_follows(uint32_t drv, uint32_t obs)
 
 uint8_t Board_PwmGateShorts(void)
 {
-  /* Each leg's two gate pins, low side first. Both belong to TIM1, so this
-     borrows them as GPIO for a few microseconds and hands them straight
-     back. Only with the outputs off: driving a gate input while the stage
-     is live is not a diagnostic, it is a command.
-
-     The observing pin sinks through its own pull-down - about 40 k - so only a
-     path well below that lifts it. Measured on a board with the W pair
-     joined: the neighbour follows within 76 ns, against the 4 us a few
-     hundred k into the pin capacitance would take. */
+  /* Each leg's two gate pins, low side first. */
   static const uint8_t leg[BOARD_PWM_PHASES][2] =
     { { 8U, 9U }, { 10U, 11U }, { 12U, 13U } };
 
@@ -287,8 +233,7 @@ bool Board_PwmEnable(void)
     return false;               /* a latched break outranks any request */
   }
 
-  /* Arm at zero, always. Enabling into whatever the compare registers
-     happened to hold is how a stage gets a step it was never asked for. */
+  /* Arm at zero, always. */
   TIM1->CCR1 = 0U;
   TIM1->CCR2 = 0U;
   TIM1->CCR3 = 0U;
@@ -312,17 +257,7 @@ bool Board_PwmIsEnabled(void)
 
 void Board_PwmDitherStep(void)
 {
-  /* First-order sigma-delta on the compare register, once per PWM period.
-     Each period spends the whole ticks and carries the fraction; when the
-     carry passes one, that period gets a tick more. The mean is then the
-     asked-for duty exactly rather than the nearest tick.
-
-     First order, so it has idle tones - the pattern is periodic and its
-     lines sit in the band below the switching frequency. That is the price
-     of three adds in an interrupt at 50 kHz, and it is written down here
-     rather than discovered later.
-
-     Short on purpose: this runs in TIM1's update interrupt. */
+  /* First-order sigma-delta on the compare register, once per PWM period. */
   if (!s.dither)
   {
     return;
@@ -353,8 +288,8 @@ void Board_PwmDitherStep(void)
 
 const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
 {
-  /* Ticks in Q16.16 rather than a percentage: the board does no division
-     and the caller keeps whatever precision it had. */
+  /* Ticks in Q16.16 rather than a percentage: the board does no division and
+     the caller keeps whatever precision it had. */
   if (ticks_q16 == NULL)
   {
     return "no duties given - pass three";
@@ -376,8 +311,8 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
   {
     if (ticks_q16[phase] > limit)
     {
-      /* All three or none: a half update runs one cycle with two phases
-         from this call and one from the last. */
+      /* All three or none: a half update runs one cycle with two phases from
+         this call and one from the last. */
       return "a duty is past ARR - the largest is period minus one, which "
              "the state reports";
     }
@@ -395,8 +330,7 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
   Board_IrqRelease(masked);
 
   /* Turned on with the first fractional duty and off again with the next
-     whole one. The cost is small - 4 us of the keepalive's worst gap,
-     measured - but it is not zero and nothing dithering needs it. */
+     whole one. */
   TIM1->SR = ~TIM_SR_UIF;
   update_irq(true);
   return NULL;
@@ -437,17 +371,15 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
   {
     if (ticks[phase] > TIM1->ARR)
     {
-      /* All three or none: a half update runs one cycle with two phases
-         from this call and one from the last. */
+      /* All three or none: a half update runs one cycle with two phases from
+         this call and one from the last. */
       return "a duty is past ARR - the largest is period minus one, which "
              "the state reports";
     }
   }
 
   /* Whole ticks, so the dither has nothing to carry and stops moving the
-     register out from under this. The two paths cannot both own CCR - but
-     the interrupt has a second owner now, so it goes only when the skew
-     does not want it either. */
+     register out from under this. */
   s.dither = false;
   s.alternate = false;
   s.countdown = 0U;
@@ -458,8 +390,8 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
     s.residue[phase] = 0U;
   }
 
-  /* One update event applies all three, so the gate drivers never run a cycle
-     with two phases from this call and one from the last. */
+  /* One update event applies all three, so the gate drivers never run a
+     cycle with two phases from this call and one from the last. */
   TIM1->CCR1 = ticks[0];
   TIM1->CCR2 = ticks[1];
   TIM1->CCR3 = ticks[2];
@@ -474,9 +406,8 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
 
 const char *Board_PwmSetAllCounted(const uint16_t *ticks, uint32_t periods)
 {
-  /* The same triple, held for exactly `periods` PWM periods and then
-     zeroed by the update interrupt. 0 periods is the plain set: run
-     until the next command, exactly as before the count existed. */
+  /* The same triple, held for exactly `periods` PWM periods and then zeroed
+     by the update interrupt. */
   const char *why = Board_PwmSetAll(ticks);
 
   if (why != NULL)
@@ -523,9 +454,8 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
     }
   }
 
-  /* The interrupt owns the compares from here: the dither is off, A is
-     in the registers now and B is what the next overflow writes. Both
-     stay whole ticks, so nothing carries. */
+  /* The interrupt owns the compares from here: the dither is off, A is in
+     the registers now and B is what the next overflow writes. */
   const uint32_t masked = Board_IrqHold();
   s.dither = false;
   s.countdown = 0U;
@@ -571,9 +501,8 @@ void Board_PwmDriveOwn(bool on)
 
 void Board_PwmSetNext(const uint16_t *ticks)
 {
-  /* From ADC3's interrupt, above TIM1_UP's, so these stores are never
-     split by the reader - it copies under PRIMASK. Clamped to ARR, which
-     is 100 %, rather than refused: an interrupt has nobody to tell. */
+  /* From ADC3's interrupt, above TIM1_UP's, so these stores are never split
+     by the reader - it copies under PRIMASK. */
   const uint32_t arr = TIM1->ARR;
 
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
@@ -593,9 +522,9 @@ uint16_t Board_PwmGetDuty(uint8_t phase)
   if (s.alternate)
   {
     /* The MEAN over the pair of periods, which is the leg's load: the
-       compare itself swaps at 50 kHz, and the thermal observer sampling
-       it at its own rate sat phase-locked on one triple - the U driver
-       was charged with the whole run while V ran the same pulses. */
+       compare itself swaps at 50 kHz, and the thermal observer sampling it
+       at its own rate sat phase-locked on one triple - the U driver was
+       charged with the whole run while V ran the same pulses. */
     return (uint16_t)(((uint32_t)s.alt[0][phase] + s.alt[1][phase]) / 2U);
   }
   return s.duty[phase];
@@ -616,11 +545,7 @@ void Board_PwmState(board_pwm_state_t *out)
   out->deadtime = out->ready ? (uint8_t)(TIM1->BDTR & TIM_BDTR_DTG) : 0U;
 
   /* The six outputs as they stand this instant, and where the counter was
-     when they were read. One IDR load, so the six are the same instant -
-     six separate reads at 50 kHz would straddle an edge and show a leg with
-     both FETs on, which is the one thing that cannot happen. TIM1->CNT is
-     read second and is a few cycles later; at 237.5 MHz that is under a
-     tick of the 4.21 ns dead time and the caller is told it is separate. */
+     when they were read. */
   const uint32_t idr = GPIOE->IDR;
 
   out->pins = (uint8_t)(((idr >> 8) & 0x3FU));   /* PE8..PE13, in order */
@@ -636,8 +561,7 @@ void Board_PwmState(board_pwm_state_t *out)
 
 static uint32_t dts_ps(void)
 {
-  /* Picoseconds per DTG count, so the ns arithmetic stays integer. CKD is
-     0 - checked in the silicon, CR1 0xB1 - so t_DTS is one timer tick. */
+  /* Picoseconds per DTG count, so the ns arithmetic stays integer. */
   const uint32_t hz = Board_SysClkHz() / 2UL;   /* TIM1 kernel, 237.5 MHz */
 
   return (hz != 0UL) ? (PS_PER_S / hz) : 0UL;
@@ -660,18 +584,13 @@ uint8_t Board_PwmDeadTimeFloor(void)
 
 uint32_t Board_PwmDeadTimeNs(void)
 {
-  /* What was asked for, not what BDTR holds this half-period. With a skew
-     running the register alternates, and reading it gave 105 ns for an
-     80 ns request - whichever half the read happened to land in. */
+  /* What was asked for, not what BDTR holds this half-period. */
   return (uint32_t)(((uint64_t)s.deadtime * dts_ps()) / PS_PER_NS);
 }
 
 bool Board_PwmInit(void)
 {
-  /* The lazy shape the rest of board/ uses - `if (!Ready() && !Init())`.
-     Leaves the counter running with MOE clear. OSSI forces the idle level
-     only where CCxE or CCxNE is set, so enabling the six outputs here is
-     what holds the gates down in hardware rather than in nobody's hands. */
+  /* The lazy shape the rest of board/ uses - `if (!Ready() && !Init())`. */
   Board_PwmDisable();
 
   if (!Board_PwmReady())
@@ -680,16 +599,10 @@ bool Board_PwmInit(void)
   }
 
   /* The dither's update interrupt is NOT enabled here - one that does
-     nothing should not run at 50 kHz. Measured, it is cheap anyway: worst
-     keepalive gap 190.4 us on against 186.5 off. */
+     nothing should not run at 50 kHz. */
   HAL_NVIC_SetPriority(TIM1_UP_IRQn, 2, 0);
 
-  /* The six gate signals, at a speed CubeMX does not set. Its MSP leaves
-     PE8..PE13 at GPIO_SPEED_FREQ_LOW - OSPEEDR read 0x00000300 over SWD -
-     and a slow edge holds the 2EDL8034's input stage in its linear region
-     while it crosses. From the bench: two drivers ran much hotter than the
-     FETs. Here because the MSP runs inside HAL_TIM_Init and undoes anything
-     set before it. */
+  /* The six gate signals, at a speed CubeMX does not set. */
   {
     GPIO_InitTypeDef gate = {0};
 
@@ -702,9 +615,7 @@ bool Board_PwmInit(void)
     HAL_GPIO_Init(GPIOE, &gate);
 
     /* BKIN is active low and CubeMX generates it AF_OD with no pull, so an
-       unconnected fault line floats and the break fires on noise. ST's own
-       TIM_ComplementarySignals notes say a floating brake pin disturbs the
-       waveform badly. A pull-up makes "nobody driving" mean "no fault". */
+       unconnected fault line floats and the break fires on noise. */
     gate.Pin = GPIO_PIN_15;
     gate.Mode = GPIO_MODE_AF_OD;
     gate.Pull = GPIO_PULLUP;
@@ -716,30 +627,17 @@ bool Board_PwmInit(void)
               | TIM_CCER_CC2E | TIM_CCER_CC2NE
               | TIM_CCER_CC3E | TIM_CCER_CC3NE;
 
-  /* RCR 0, so the update lands at every overflow AND every underflow -
-     twice a PWM period. The .ioc asks for 1, which is once, and once is
-     not enough to give the two transitions different dead times: DTG has
-     no preload, so the only place to change it is between them. The
-     handler counts halves and runs the dither on every second one, which
-     is the rate it always ran at. */
+  /* RCR 0, so the update lands at every overflow AND every underflow - twice
+     a PWM period. */
   TIM1->RCR = 0U;
 
-  /* NOT the dead time. This runs before Board_CalInit - it has to, because
-     its job is driving six gate inputs to their idle level and that cannot
-     wait on flash - so the record is not loaded yet and reading it here got
-     zero, which the floor then turned into 21 ns. Whatever the .ioc set
-     stands until main() applies the record, and the stage is not armed in
-     that window. */
+  /* NOT the dead time. */
   s.deadtime = (uint8_t)(TIM1->BDTR & TIM_BDTR_DTG);
   s.half = 0U;
 
   TIM1->CR1 |= TIM_CR1_CEN;
 
-  /* Measured on target: BIF is latched by the time this runs. PE15 is AF
-     open-drain with no pull and floats while MX_TIM1_Init enables BKE, so
-     the break trips on our own start-up. Clearing it here makes
-     Board_PwmFault() mean the pin; a pin really low latches it straight
-     back. */
+  /* Measured on target: BIF is latched by the time this runs. */
   TIM1->SR &= ~TIM_SR_BIF;
   return true;
 }
@@ -762,10 +660,8 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
   }
 
   /* ROUNDED UP, like the floor above and for the same reason: a dead time
-     that rounded down is under what was asked for, and the direction that
-     is wrong is the one that shortens it. Measured 2026-08-29 - 30 ns
-     truncated to 7 counts = 29.5, and the bench supply tripped its
-     over-current protection on a dry-switching run. 8 counts is 33.7. */
+     that rounded down is under what was asked for, and the direction that is
+     wrong is the one that shortens it. */
   uint32_t counts = (((uint64_t)ns * PS_PER_NS) + ps - 1ULL) / ps;
   const uint8_t floor_counts = Board_PwmDeadTimeFloor();
 
@@ -790,12 +686,7 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
 }
 
 
-/* The skew, and why the update runs twice a period. DTG is the same on both
- * transitions, so it can only come from writing DTG between them; RCR 0 puts
- * an update at every overflow AND underflow. Positive lengthens the up-count
- * transition and shortens the other by the same. NOT MEASURED on the gates -
- * only that DTG reads back (invariant 10).
- */
+/* The skew, and why the update runs twice a period. */
 const char *Board_PwmSetDeadTimeSkew(int8_t counts)
 {
   const uint8_t floor_counts = Board_PwmDeadTimeFloor();
@@ -833,8 +724,8 @@ int8_t Board_PwmDeadTimeSkew(void)
 }
 
 
-/* The counted hold, one period a tick: whether this update is the one
-   that runs it out. */
+/* The counted hold, one period a tick: whether this update is the one that
+   runs it out. */
 static bool hold_counted_down(void)
 {
   if ((s.countdown == 0U) || (s.half != 0U))
@@ -846,9 +737,8 @@ static bool hold_counted_down(void)
 }
 
 /* The hold ran out: every compare to zero, every duty forgotten, the
-   alternate and the dither off - stood down BEFORE the mode branches
-   so that on the expiring event neither writes a compare after the
-   zero lands. */
+   alternate and the dither off - stood down BEFORE the mode branches so that
+   on the expiring event neither writes a compare after the zero lands. */
 static void hold_expired(void)
 {
   s.alternate = false;
@@ -868,11 +758,9 @@ static void hold_expired(void)
   }
 }
 
-/* The drive's next triple, just past the UNDERFLOW - DIR reads up - so
-   a triple written here lands, preloaded, at the next overflow and
-   shapes one symmetric pulse centred on the underflow after it.
-   drive.c's PIPELINE counts on exactly that. Under PRIMASK because
-   ADC3's interrupt, which leaves the triple, outranks this one. */
+/* The drive's next triple, just past the UNDERFLOW - DIR reads up - so a
+   triple written here lands, preloaded, at the next overflow and shapes one
+   symmetric pulse centred on the underflow after it. */
 static void land_next_triple(void)
 {
   if (!s.next_pending || ((TIM1->CR1 & TIM_CR1_DIR) != 0U))
@@ -890,14 +778,7 @@ static void land_next_triple(void)
   __enable_irq();
 }
 
-/** TIM1's update, once per PWM period with RepetitionCounter at 1.
-  *
-  * Overridden here rather than in core/: main.c holds CubeMX functions and
-  * the poll calls, and a compare register belongs beside the code that owns
-  * it. Priority 2 - below ADC3's 1, which is the current loop's, and above
-  * everything else.
-
-  */
+/** TIM1's update, once per PWM period with RepetitionCounter at 1. */
 void TIM1_UP_IRQHandler(void)
 {
   if ((TIM1->SR & TIM_SR_UIF) == 0U)
@@ -907,16 +788,11 @@ void TIM1_UP_IRQHandler(void)
 
   TIM1->SR = ~TIM_SR_UIF;
 
-  /* Two updates a period with RCR 0 - one at overflow, one at underflow -
-     so the dither, which is per period, runs on every second one. Counted
-     here rather than read off CR1's DIR: the flag says which way the
-     counter is going *now*, and by the time this reads it the direction has
-     already turned. */
+  /* Two updates a period with RCR 0 - one at overflow, one at underflow - so
+     the dither, which is per period, runs on every second one. */
   s.half ^= 1U;
 
-  /* The counted hold. Stood down BEFORE the mode branches so that on the
-     expiring event neither the alternate nor the dither writes a compare
-     after the zero lands. */
+  /* The counted hold. */
   if (hold_counted_down())
   {
     hold_expired();
@@ -925,9 +801,8 @@ void TIM1_UP_IRQHandler(void)
   if (s.alternate && ((TIM1->CR1 & TIM_CR1_DIR) != 0U))
   {
     /* Just past the OVERFLOW - DIR already reads down - so these preloaded
-       compares land at the underflow and the whole next period, both
-       slopes, is one triple. Written at the underflow instead, a period
-       would carry A up one slope and B down the other. */
+       compares land at the underflow and the whole next period, both slopes,
+       is one triple. */
     const uint16_t *next = s.alt[s.alt_next];
 
     TIM1->CCR1 = next[0];
@@ -947,9 +822,7 @@ void TIM1_UP_IRQHandler(void)
     Board_PwmDitherStep();
   }
 
-  /* The next transition's dead time. Written now, ahead of it, because DTG
-     has no preload - it takes effect the moment it lands. With no skew this
-     writes the same number twice a period and costs two stores. */
+  /* The next transition's dead time. */
   if (s.skew != 0U)
   {
     const bool more = (s.half != 0U) == s.skew_up;

@@ -2,11 +2,6 @@
   ******************************************************************************
   * @file    console.h
   * @brief   The ASCII console on USART3.
-  *
-  * One reason: to get into the binary link and back out by hand. Every reading
-  * it used to print is a binary command now, decoded on the host. Adding one
-  * back is two implementations of a measurement - how the two ADC read paths
-  * drifted apart.
   ******************************************************************************
   */
 #ifndef CONSOLE_H

@@ -2,29 +2,6 @@
   ******************************************************************************
   * @file    cmd_length.c
   * @brief   The request-length oracle: which PDUs end where their bytes say.
-  *
-  * `mb_rtu`'s early path delivers a frame the moment its last byte arrives
-  * when this function can prove the length - the spec's t3.5 silence is a
-  * delimiter, and a frame whose shape is fixed carries its own. What this
-  * buys, from the measured anatomy (FINDINGS, *Where the write-class
-  * transaction's 15 ms goes*): 1.75 ms of board-side silence per proven
-  * request, and the host may drop its own pre-TX gap against a board that
-  * dispatches this way (MINOR 9).
-  *
-  * THE INVARIANT THIS TABLE LIVES UNDER: an answer other than 0 must equal
-  * the full length of every real request it can match - a shorter answer
-  * would execute a truncated frame on a 1-in-65536 CRC. So:
-  *
-  *   - only shapes with a FIXED tail are answered, and only once enough
-  *     bytes have arrived to rule the shorter form out;
-  *   - an op that later grows an optional tail (as gate drivers op 2 did)
-  *     MUST have its row changed in the same commit, and the suite's
-  *     prefix sweep (test_modbus_core) fails the row that fires early;
-  *   - everything unproven answers 0 and pays the silence, exactly as
-  *     every frame did before this file existed.
-  *
-  * Portable C11, no HAL: the host suite builds it with gcc and drives it
-  * through ctypes beside the Modbus core it serves.
   ******************************************************************************
   */
 #include "cmd_length.h"
@@ -32,8 +9,8 @@
 #include "cmd.h"
 #include "modbus_slave.h"
 
-/** Standard Modbus request lengths, from the specification: these shapes
-  * are the protocol's own and cannot drift with this repository. */
+/** Standard Modbus request lengths, from the specification: these shapes are
+    the protocol's own and cannot drift with this repository. */
 #define MB_REQ_ADDR_VALUE_LEN 5U   /* fc, u16 address, u16 quantity or value */
 #define MB_REQ_MULTI_HEAD     6U   /* the same and a byte count, then that many bytes */
 
@@ -59,9 +36,7 @@ static uint16_t standard_length(const uint8_t *pdu, uint16_t have)
 
 #define DEVICE_HEAD 3U   /* fc, device, op: every 0x6E request starts so */
 
-/** The audited fixed shapes behind 0x6E. Each row is the op's whole
-  * request - DEVICE_HEAD and what the op takes - and a row exists only
-  * where the handler takes nothing optional past it. */
+/** The audited fixed shapes behind 0x6E. */
 static uint16_t device_length(const uint8_t *pdu, uint16_t have)
 {
   const uint8_t device = pdu[1];
@@ -78,9 +53,7 @@ static uint16_t device_length(const uint8_t *pdu, uint16_t have)
 
     case DEVICE_GATE_DRIVERS:
       /* Op 2 has two shapes since MINOR 8 - u16 x3, or that plus a u32
-         period count. Nine bytes might be a whole short form, so nine
-         proves nothing; a tenth byte rules the short form out and the
-         long form's length is settled. */
+         period count. */
       if (op == GATEDRIVERS_OP_DUTY)
       {
         return (have >= 10U) ? 13U : 0U;
@@ -89,8 +62,7 @@ static uint16_t device_length(const uint8_t *pdu, uint16_t have)
 
     case DEVICE_DAQ:
       /* Op 4's `want` is optional: three bytes might be whole, so three
-         proves nothing; the fourth settles it. The host always sends
-         want, so its reads are all proven. */
+         proves nothing; the fourth settles it. */
       if (op == DAQ_OP_READ)
       {
         return (have > DEVICE_HEAD) ? (DEVICE_HEAD + 1U) : 0U;
@@ -139,17 +111,15 @@ uint16_t cmd_request_length(const uint8_t *pdu, uint16_t have)
 
   if (pdu[0] == CMD_DEVICE)
   {
-    /* 0x6E's ops carry no req_len column anywhere - the table above is
-       the one hand-maintained answer, and the suite's prefix sweep is
-       what keeps it honest. */
+    /* 0x6E's ops carry no req_len column anywhere - the table above is the
+       one hand-maintained answer, and the suite's prefix sweep is what keeps
+       it honest. */
     return (have >= DEVICE_HEAD) ? device_length(pdu, have) : 0U;
   }
 
-  /* Every other custom command states its own request length in the
-     dispatch table - the same row the handler is found by, so this
-     cannot drift from what dispatch enforces. CMD_LEN_VARIABLE (the
-     ADC table's optional start, the channel map's paged kinds, echo)
-     stays unproven and pays the silence. */
+  /* Every other custom command states its own request length in the dispatch
+     table - the same row the handler is found by, so this cannot drift from
+     what dispatch enforces. */
   const cmd_desc_t *d = cmd_find(pdu[0]);
 
   if (d != NULL)

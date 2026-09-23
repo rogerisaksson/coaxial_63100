@@ -3,16 +3,6 @@
   * @file    harness.c
   * @brief   A data model and a flat C API, so the portable core can be driven
   *          from host/tests/test_modbus_core.py through ctypes.
-  *
-  * Invariant 1 says modbus_crc/slave/rtu are hardware-free so they can be
-  * tested on a host. Nothing did, until this: their only verification was
-  * test_conformance.py, which needs a board on the other end of a cable. This
-  * file is the application half those three expect - a small register bank and
-  * the vtable over it - plus setters the tests use to make the model refuse
-  * things on purpose.
-  *
-  * Built by the Python suite with the host gcc, never by the firmware build.
-  * It is test scaffolding and must not appear in the root CMakeLists.
   ******************************************************************************
   */
 #include "modbus_crc.h"
@@ -43,10 +33,7 @@ typedef struct
   /* validate_reg_value refuses this value, before anything is applied. */
   int      bad_value;          /* -1 for never */
   int      have_validate;      /* wire validate_reg_value at all */
-  /* validate_range says yes to every address. Without this the harness's own
-     32-bit span check stands in front of the engine's, and a test aimed at
-     span_overflows passes whatever span_overflows does - measured: the engine
-     rewritten to check in 16 bits was caught only by a compiler warning. */
+  /* validate_range says yes to every address. */
   int      accept_all;
 
   char     id[64];
@@ -129,10 +116,7 @@ static const char *h_server_id(void *ctx, uint8_t *run)
 }
 
 /* Echoes its payload back, so a test can tell a reached handler from a
-   refused function code without reading any state. The engine writes the
-   function code itself and hands this the byte after it, so the payload is
-   all there is to write. A payload beginning 0xFF is answered with
-   silence, the way a boot node not named by the request answers. */
+   refused function code without reading any state. */
 static mb_exception_t h_user_function(void *ctx, uint8_t fc,
                                       const uint8_t *req, size_t req_len,
                                       uint8_t *rsp, size_t rsp_cap, size_t *rsp_len)
@@ -192,8 +176,8 @@ API harness_t *mbh_new(void)
 
 API void mbh_free(harness_t *h) { free(h); }
 
-/* Any callback can be unwired, which is how "answers ILLEGAL FUNCTION when the
-   model cannot do it" is tested rather than assumed. */
+/* Any callback can be unwired, which is how "answers ILLEGAL FUNCTION when
+   the model cannot do it" is tested rather than assumed. */
 API void mbh_drop(harness_t *h, int which)
 {
   switch (which)
@@ -250,9 +234,9 @@ API void mbh_rtu_error(harness_t *h, uint32_t ticks)
 API int mbh_rtu_busy(harness_t *h) { return mb_rtu_busy(&h->rtu) ? 1 : 0; }
 
 /* The real oracle, linked in by the suite's build beside a cmd_find stub
-   (comms/test/cmd_find_stub.c): the 0x6E arm and the standard-FC arm are
-   the hand-maintained code under test; the dispatch-table arm is bound to
-   its tables by the suite's source parse instead. */
+   (comms/test/cmd_find_stub.c): the 0x6E arm and the standard-FC arm are the
+   hand-maintained code under test; the dispatch-table arm is bound to its
+   tables by the suite's source parse instead. */
 extern uint16_t cmd_request_length(const uint8_t *pdu, uint16_t have);
 
 API void mbh_rtu_hint(harness_t *h, int on)

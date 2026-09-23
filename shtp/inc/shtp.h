@@ -2,20 +2,6 @@
   ******************************************************************************
   * @file    shtp.h
   * @brief   CEVA SHTP framing and SH-2 report decoding. No hardware.
-  *
-  * The transport half of talking to a BNO08X. This translation unit knows
-  * nothing about SPI, STM32, CMSIS or timers: it turns a byte buffer into a
-  * header and a cargo, and a cargo into reports. Clocking the bytes in and out
-  * is the board's job (see board.h, Board_ImuTransfer).
-  *
-  * That split is the same one modbus/ keeps, and for the same reason: it makes
-  * this file compilable and testable on a host - see test_shtp_core.py.
-  *
-  * Raw counts only. The BNO08X reports fixed-point integers whose Q point is a
-  * property of each report, and converting them to m/s^2 or radians is the
-  * host's job - invariant 10. Nothing here scales anything.
-  *
-  * Datasheet references are to BNO080_085-Datasheet v1.17, in datasheets/.
   ******************************************************************************
   */
 #ifndef SHTP_H
@@ -30,16 +16,15 @@ extern "C" {
 #endif
 
 /** Every cargo is prefixed with four bytes: length LSB, length MSB, channel,
-    sequence number. Figure 1-26. */
+    sequence number. */
 #define SHTP_HEADER_LEN 4U
 
 /** Bit 15 of the length field marks a continuation of a previous transfer;
-    bits 14:0 are the total byte count INCLUDING these four. Figure 1-26. */
+    bits 14:0 are the total byte count INCLUDING these four. */
 #define SHTP_CONTINUATION 0x8000U
 #define SHTP_LENGTH_MASK  0x7FFFU
 
-/** 0xFFFF is reserved: "a failed peripheral can too easily produce 0xFFFF".
-    A header reading it is a dead bus, not a 32 kB cargo. Figure 1-26. */
+/** 0xFFFF is reserved: "a failed peripheral can too easily produce 0xFFFF". */
 #define SHTP_LENGTH_RESERVED 0xFFFFU
 
 /** The six channels the BNO08X supports, section 1.3.1. */
@@ -64,8 +49,7 @@ extern "C" {
 #define SH2_COMMAND_REQUEST      0xF2U
 #define SH2_COMMAND_RESPONSE     0xF1U
 
-/** Input report ids this firmware names. The BNO08X defines more; these are
-    the ones a bring-up asks for. Section 2. */
+/** Input report ids this firmware names. */
 #define SH2_REPORT_ACCELEROMETER   0x01U
 #define SH2_REPORT_GYROSCOPE       0x02U
 #define SH2_REPORT_MAGNETIC_FIELD  0x03U
@@ -75,9 +59,7 @@ extern "C" {
 #define SH2_REPORT_GAME_ROTATION   0x08U
 #define SH2_REPORT_TIMEBASE        0xFBU
 
-/** The largest cargo this firmware will assemble. The protocol allows 32766;
-    a bring-up reading a handful of sensor reports needs nothing like it, and
-    the buffer is static. */
+/** The largest cargo this firmware will assemble. */
 #define SHTP_MAX_CARGO 256U
 
 typedef struct
@@ -88,17 +70,12 @@ typedef struct
   uint8_t  seq;
 } shtp_header_t;
 
-/**
-  * @brief  Decode the four-byte header.
-  * @return False if the length field is the reserved 0xFFFF, or shorter than
-  *         the header it is counting. Both mean the bus, not a cargo.
-  */
+/** Decode the four-byte header.
+    @return False if the length field is the reserved 0xFFFF, or shorter than */
 bool shtp_parse_header(const uint8_t *raw, shtp_header_t *out);
 
-/**
-  * @brief  Write a header plus payload into `buf`.
-  * @return Total bytes written, or 0 if it would not fit.
-  */
+/** Write a header plus payload into `buf`.
+    @return Total bytes written, or 0 if it would not fit. */
 size_t shtp_build(uint8_t *buf, size_t cap, uint8_t channel, uint8_t seq,
                   const uint8_t *payload, size_t len);
 
@@ -117,14 +94,7 @@ typedef struct
 bool shtp_parse_product_id(const uint8_t *cargo, size_t len,
                            shtp_product_id_t *out);
 
-/**
-  * @brief One input report, as it arrived.
-  *
-  * `x`..`w` are the report's own fixed-point counts. The Q point belongs to
-  * the report id and is applied by the host, not here - invariant 10. `w` is
-  * meaningful only for the quaternion reports; `count` says how many of the
-  * four fields the report actually carried.
-  */
+/** One input report, as it arrived. */
 typedef struct
 {
   uint8_t report_id;
@@ -138,16 +108,9 @@ typedef struct
   uint8_t count;       /**< 3 for a vector, 4 for a quaternion         */
 } shtp_report_t;
 
-/**
-  * @brief  Walk one input cargo and decode the reports in it.
-  * @param  cargo  The cargo WITHOUT the SHTP header.
-  * @return How many reports were written to `out`.
-  *
-  * A cargo on channel 3 opens with a timebase report and then carries one or
-  * more sensor reports back to back (Figure 5-2). An unknown report id ends
-  * the walk rather than guessing its length: the reports are not
-  * self-delimiting, so a wrong length would silently mis-frame the rest.
-  */
+/** Walk one input cargo and decode the reports in it.
+    @param  cargo  The cargo WITHOUT the SHTP header.
+    @return How many reports were written to `out`. */
 size_t shtp_parse_reports(const uint8_t *cargo, size_t len,
                           shtp_report_t *out, size_t max);
 
@@ -158,11 +121,9 @@ size_t shtp_parse_reports(const uint8_t *cargo, size_t len,
 
 size_t shtp_report_len(uint8_t report_id);
 
-/**
-  * @brief  Build a Set Feature command, Figure 1-33.
-  * @param  interval_us  Report interval. 0 disables the sensor.
-  * @return Bytes written into `buf`, or 0 if 17 do not fit.
-  */
+/** Build a Set Feature command, Figure 1-33.
+    @param  interval_us  Report interval. 0 disables the sensor.
+    @return Bytes written into `buf`, or 0 if 17 do not fit. */
 size_t shtp_set_feature(uint8_t *buf, size_t cap, uint8_t report_id,
                         uint32_t interval_us);
 

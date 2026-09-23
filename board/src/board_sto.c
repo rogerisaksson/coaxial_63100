@@ -2,17 +2,6 @@
   ******************************************************************************
   * @file    board_sto.c
   * @brief   What the board can see of the Safe Torque Off chain.
-  *
-  * Gate driver supply is not the MCU's to switch and there is no pin for it.
-  * A chain on STO.SchDoc releases it, unlocked by a common-mode pilot tone
-  * the MASTER injects on the RS485 pair. docs/HARDWARE.md has the extraction.
-  *
-  * This file only reads. Two ADC channels bring the chain back: `Cinj`, the
-  * recovered pilot, and `Clevel`, the integrator level.
-  *
-  * It does NOT decide whether the chain released - that needs a threshold,
-  * and invariant 10 puts thresholds in a test executive. The one verdict
-  * allowed here is provable from a register: TIM1's break latch.
   ******************************************************************************
   */
 #include "board.h"
@@ -21,8 +10,7 @@
 #include <string.h>
 
 /** Signal names in the channel table, which is the only place that says
-    which ADC and which pin each one is on. Looked up rather than indexed so
-    a table that grows a channel does not move these two out from under us. */
+    which ADC and which pin each one is on. */
 #define STO_PILOT  "Cinj"
 #define STO_LEVEL  "Clevel"
 
@@ -48,10 +36,8 @@ static bool STO_Find(const char *signal, uint8_t *index)
 static bool STO_ReadOne(const char *signal, int32_t *raw, int32_t *microvolts)
 {
   uint8_t index;
-  int32_t scaled;               /* Board_AdcRead refuses a NULL, and passing
-                                   one here made pilot_ok and level_ok read
-                                   false for every call ever made. Neither
-                                   channel has a cooked unit to collect. */
+  int32_t scaled;               /* Board_AdcRead refuses a NULL, and passing one here made pilot_ok and
+     level_ok read false for every call ever made. */
 
   if (!STO_Find(signal, &index))
   {
@@ -61,9 +47,8 @@ static bool STO_ReadOne(const char *signal, int32_t *raw, int32_t *microvolts)
 }
 
 
-/** The STO chain's state: the keepalive's edges, the worst gap, and the
-  * last pilot and level readings. One object: what a debugger shows whole
-  * and a reset clears at once. */
+/** The STO chain's state: the keepalive's edges, the worst gap, and the last
+    pilot and level readings. */
 static struct
 {
   uint32_t keepalive;
@@ -73,8 +58,7 @@ static struct
 
 
 /** Cycles between edges: 200 kHz of edges is the 100 kHz square wave the
-    model in electronic_simulations/sto drives MCU_PWM with. Cached because
-    this is on the hot path - a divide per call is not free at 200 kHz. */
+    model in electronic_simulations/sto drives MCU_PWM with. */
 static uint32_t sto_edge_cycles(void)
 {
   static uint32_t cached;
@@ -91,18 +75,12 @@ void Board_StoKeepalive(void)
 {
   /* The longest gap between edges, in raw CYCCNT ticks - invariant 2's rule
      applies here too: dividing cycles down moves the wrap off a power of two
-     and the unsigned arithmetic breaks across it. The host divides.
-
-     This is the number that decides whether the pump holds, and the mean
-     rate hides it completely: measured, a 320-byte cargo read stalled the
-     loop 1.73 ms while the mean barely moved. */
+     and the unsigned arithmetic breaks across it. */
   const uint32_t now = Board_Cycles();
   const uint32_t gap = now - s.last_edge;
   const bool pumping = s.keepalive != 0U;
 
-  /* Rate limited, not free-running. Every busy-wait on the board calls
-     this, and a spin loop would otherwise pump at its own megahertz -
-     far off the pump's design point and delivering little per edge. */
+  /* Rate limited, not free-running. */
   if (pumping && (gap < sto_edge_cycles()))
   {
     return;
@@ -113,13 +91,9 @@ void Board_StoKeepalive(void)
   }
   s.last_edge = now;
 
-  /* PA10 into R72 330R, C71 100nF and the D10/D14/D15 diodes: a charge
-     pump, so only edges deliver anything and a held level is worth exactly
-     as much as a stopped CPU. That is the point of it - the chain decays
-     unless main() keeps turning, and no timer can fake that.
-
-     Measured in electronic_simulations/sto: the model drives this at 100 kHz
-     and stops at 18 ms to show the release. */
+  /* PA10 into R72 330R, C71 100nF and the D10/D14/D15 diodes: a charge pump,
+     so only edges deliver anything and a held level is worth exactly as much
+     as a stopped CPU. */
   HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_10);
   s.keepalive++;
 }
@@ -141,8 +115,7 @@ void Board_StoState(board_sto_state_t *out)
   memset(out, 0, sizeof(*out));
 
   /* Both channels come through the AFE's reference, so with AFE_ON low they
-     read exact mid-scale and mean nothing - invariant 9. Reported either
-     way, under a flag that cannot be mistaken for one of them. */
+     read exact mid-scale and mean nothing - invariant 9. */
   out->afe_on = Board_AfeOn();
   out->pilot_ok = STO_ReadOne(STO_PILOT, &out->pilot_raw,
                               &out->pilot_microvolts);

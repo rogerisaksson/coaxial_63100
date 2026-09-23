@@ -3,76 +3,6 @@
   * @file    thermal.h
   * @brief   Lumped-network thermal observer: what each region of the board,
   *          and of the motor behind it, is at.
-  *
-  * Not a finite element model. A mesh and a solver do not fit in a main loop
-  * and are not needed to answer "how hot is the gate driver" - twenty nodes
-  * and the conductances between them do, and the twenty follow the COPPER
-  * rather than the schematic.
-  *
-  * THE GRAPH, since 2026-09-05. It was a star: every source into one board
-  * node, the board into ambient - the coarsest topology that could tell a
-  * hot part from a hot board. Judged against the lumped-network class the
-  * papers in docs/papers put at about ten percent when the nodes follow the
-  * geometry, it was a six: one node for a disc with a seventeen kelvin
-  * gradient across it in the camera's switching state, six leg nodes that
-  * could not warm each other except through that average, the switching
-  * loss a point measurement scaled with voltage alone, the junction a
-  * constant over its package, and still room air for a board that sits
-  * behind a stator. Each of those is a coarser graph than the physics, not
-  * a wrong equation, so each is closed by adding to the graph:
-  *
-  *     driver_u --+                              +-- winding
-  *     phase_u  --+-- patch_u --+--- stator ------+
-  *     driver_v --+             |      |          +-- rotor ---- air
-  *     phase_v  --+-- patch_v --+   (mount, radiation)
-  *     driver_w --+             |
-  *     phase_w  --+-- patch_w --+
-  *     regulators --- patch_left --+--- board (centre) --- patch_right --- hotswap
-  *     mcu ------------------------+        |
-  *     afe ----------------------- patch_bottom
-  *
-  *   * SEVEN LAMINATE PATCHES where there was one board: the centre, one
-  *     under each leg's switches and shunts, the regulators' corner, the
-  *     front end's edge, the hot swap's. Their areas come off the outline
-  *     and the pick and place (the same partition the thermal picture
-  *     draws), their in-plane conductances off a sheet conductance times
-  *     shared boundary over centre distance - the copper's graph.
-  *   * THE LEGS WARM EACH OTHER through the patches beside them, and the
-  *     thermistor sits in the centre patch a driver's width from the V leg's.
-  *   * THE HOT SWAP IS A NODE: 35 W in its FETs and fuse at 100 A had been
-  *     booked on the regulators.
-  *   * THE MOTOR IS THE BOARD'S BOUNDARY: the winding, the stator's iron
-  *     and the rotor's bell, coupled to the rim patches through the mount
-  *     and to their faces by radiation, and cooled by air the rotor moves -
-  *     forced convection with speed. On the bench the mount is open and the
-  *     motor is three nodes at the room, which is what a bench is.
-  *   * LOSSES AS FUNCTIONS: the switching energy per event from the C_oss
-  *     law, the overlap from the gate charge and the drive current, the
-  *     body diode over the dead time, the gate charge - each with a
-  *     physical name - beside the conduction that was already right.
-  *   * JUNCTIONS as `R_th,JC` times the part's own power, not a constant.
-  *
-  * Nine remains the papers' own numerical methods, which do not belong in
-  * a 10 Hz loop on the target. Twenty nodes and thirty edges are a few
-  * hundred floats and a few hundred flops a step on an M7 at 475 MHz.
-  *
-  * EVERY NUMBER IN `thermal_defaults` HAS A DERIVATION AND MOST HAVE NO
-  * MEASUREMENT. The four camera states of 2026-08-28 anchor the bulk and
-  * the zones; the rest is geometry, datasheets and stated estimates, which
-  * is why the record can overlay any of them and why an online
-  * identification (board_thermal.c) exists to replace them with what the
-  * board's own sensors say.
-  *
-  * TWO SENSORS ON THE BOARD, ONE OF THEM IN THE HOT SPOT. The NTC sits in
-  * the centre patch beside a gate driver; TSEN is the MCU's own die; the
-  * A1335's die is in the front end's corner. Each corrects the node it is on
-  * and implies the patch under it. Measured 2026-08-28: gate off, NTC - TSEN
-  * = -0.74 C; three legs switching, +10.94 C - the NTC overstates a board
-  * average by 2.48x, which is why it is a hot-spot sensor here and not a
-  * board thermometer.
-  *
-  * Portable C11: no HAL, no CMSIS, float only (the M7 has an FPU; the wire
-  * still carries integers). Host-testable the same way modbus/ and shtp/ are.
   ******************************************************************************
   */
 #ifndef THERMAL_H
@@ -85,14 +15,7 @@
 extern "C" {
 #endif
 
-/** The nodes. Order is the wire order; append only.
-  *
-  * The first ten are the star's, unchanged in meaning so a host on an
-  * older codec reads them as it did: PER LEG - a leg that is not switching
-  * does not get warm - and `board` the laminate's CENTRE patch, which is
-  * what the old bulk node most nearly was (the bore, the MCU and the
-  * thermistor sit in it). The ten after are the graph's.
-  */
+/** The nodes. */
 typedef enum
 {
   THERMAL_DRIVER_U = 0,  /**< one 2EDL8034 and its two FETs' silicon    */
@@ -123,15 +46,13 @@ typedef enum
 #define THERMAL_PHASE(leg)  ((thermal_node_t)(THERMAL_PHASE_U + (leg)))
 #define THERMAL_PATCH(leg)  ((thermal_node_t)(THERMAL_PATCH_U + (leg)))
 
-/** The thermistor's element sits in the centre patch, a driver's width
-  * from the V leg's patch: it is tied between those two, and it is the V
-  * leg's patch it corrects. */
+/** The thermistor's element sits in the centre patch, a driver's width from
+    the V leg's patch: it is tied between those two, and it is the V leg's
+    patch it corrects. */
 #define THERMAL_NTC_PATCH   THERMAL_PATCH_V
 #define THERMAL_NTC_NEIGHBOUR THERMAL_NTC_PATCH
 
-/** The edges: which two nodes each conductance joins. A fixed table, so an
-  * edge has a number the record and the wire can name; the K/W across it
-  * is the record's (`thermal_cfg_t::r_edge`). Zero K/W is an open edge. */
+/** The edges: which two nodes each conductance joins. */
 #define THERMAL_EDGES 30
 
 typedef struct
@@ -140,16 +61,12 @@ typedef struct
   uint8_t b;
 } thermal_edge_t;
 
-/** Which two nodes edge `e` joins. A function and not an exported table:
-  * a const array reached from a shared object needs position-independent
-  * code the host gcc on CI was not asked for, and a portable core exports
-  * no data anyway. Both ends THERMAL_NODES for an edge past the table. */
+/** Which two nodes edge `e` joins. */
 thermal_edge_t thermal_edge(int e);
 
 /** The edge each node sheds through first - a source into its patch, the
-  * winding into the stator, the stator into the rotor - so a caller with
-  * one number for a node has somewhere to put it. -1 for a node whose
-  * first path is the air (`to_ambient`). */
+    winding into the stator, the stator into the rotor - so a caller with one
+    number for a node has somewhere to put it. */
 int thermal_sink_edge(thermal_node_t node);
 
 /** One node's thermal properties. Set from the calibration record. */
@@ -157,20 +74,17 @@ typedef struct
 {
   float capacity;        /**< J/K - what sets how fast it responds. 0 = off */
   /** K/W to the air AT `board_cal_rise_k`, or zero for a node whose only
-    * paths are edges. A patch's is the bulk's `board_to_ambient` divided
-    * by its share of the face; the rotor's and stator's are their own. */
+      paths are edges. */
   float to_ambient;
   /** The node's share of the board's face, 0..1, for the patches: what
-    * scales its convection, its radiation and its capacity out of the
-    * bulk's measured figures. Zero for everything that is not laminate. */
+      scales its convection, its radiation and its capacity out of the bulk's
+      measured figures. */
   float area_share;
-  /** Junction over node per watt in the part, K/W: `R_th,JC` for the
-    * FETs (0.69, datasheets/mosfet), the die's own for the two that
-    * report one. The die is `node + P * rth_die`. Zero if no die. */
+  /** Junction over node per watt in the part, K/W: `R_th,JC` for the FETs
+      (0.69, datasheets/mosfet), the die's own for the two that report one. */
   float rth_die;
-  /** How much better the node's air path carries per sqrt(krpm) of
-    * rotor speed - forced convection, `Nu ~ Re^1/2` over a plate. Zero
-    * for a node the rotor's air does not reach. */
+  /** How much better the node's air path carries per sqrt(krpm) of rotor
+      speed - forced convection, `Nu ~ Re^1/2` over a plate. */
   float forced;
 } thermal_node_cfg_t;
 
@@ -181,43 +95,25 @@ typedef struct
   /** K/W across each edge of THERMAL_EDGE_ENDS. Zero opens it. */
   float r_edge[THERMAL_EDGES];
 
-  /** K/W off the whole board, AT `board_cal_rise_k`. Not a constant.
-    *
-    * A BOARD LOSES HEAT TO AIR TWO WAYS AND NEITHER IS LINEAR. Free
-    * convection carries `h = Nu k/L` with `Nu` a power of the Rayleigh
-    * number, so `h` grows as roughly the fourth root of the rise
-    * (Ziegenfelder 2022, USU thesis, Eq. 2.4-2.6); radiation carries
-    * `h_rad = eps sigma (T^2 + T0^2)(T + T0)` (Silva 2022, Eq. 5), which
-    * grows faster still. This stays the value AT the calibration rise, so
-    * the measurement is reproduced exactly at its own point and only the
-    * shape away from it is the correlations'. Each patch carries its
-    * share of it by area. */
+  /** K/W off the whole board, AT `board_cal_rise_k`. */
   float board_to_ambient;
   float board_cal_rise_k;   /**< the rise it was measured at, K */
-  /** How much of the loss at that rise is radiation, 0 to 1. The two
-    * mechanisms have DIFFERENT SHAPES, so the split at the calibration
-    * point is what lets them be scaled apart. The 30 to 40 % a compendium
-    * of PCBA thermal work gives for passive cooling (docs/papers). */
+  /** How much of the loss at that rise is radiation, 0 to 1. */
   float board_rad_share;
 
-  /** How far the thermistor's element sits toward the V leg's patch from
-    * the centre patch, 0 to 1: the steady-state fraction of the element
-    * it sits in. A weighted average of the two, so it cannot leave the
-    * interval between them whatever this number is (Silva 2022: every
-    * thermal object a resistance and a capacitor, joined). Geometry: the
-    * part is 8 mm from the V driver and in the centre patch. */
+  /** How far the thermistor's element sits toward the V leg's patch from the
+      centre patch, 0 to 1: the steady-state fraction of the element it sits
+      in. */
   float ntc_sees;
   /** How slowly the modelled thermistor follows, seconds - the laminate
-    * around it, which has no node of its own. Zero: no lag. */
+      around it, which has no node of its own. */
   float ntc_tau_s;
-  /** The NTC's disagreement with the camera in the passive state, K.
-    * Recorded, not applied: an instrument disagreement, not a temperature. */
+  /** The NTC's disagreement with the camera in the passive state, K. */
   float ntc_offset;
 
-  /** Radiation between the board's face and the stator's back, W/K at
-    * 300 K for the whole face - `eps sigma A F 4 T^3` - scaled by each
-    * patch's share and by the two temperatures' bracket. Zero on a bench,
-    * where nothing faces the board. */
+  /** Radiation between the board's face and the stator's back, W/K at 300 K
+      for the whole face - `eps sigma A F 4 T^3` - scaled by each patch's
+      share and by the two temperatures' bracket. */
   float rad_board_stator;
 } thermal_cfg_t;
 
@@ -228,17 +124,15 @@ typedef struct
   float t[THERMAL_NODES];   /**< degrees C per node          */
   float ambient;            /**< estimated, not measured     */
   /** The modelled thermistor reading, LAGGED - the element's own
-    * temperature, integrated toward the weighted average of the two
-    * patches it sits between and never past either of them. */
+      temperature, integrated toward the weighted average of the two patches
+      it sits between and never past either of them. */
   float ntc;
   bool  settled;            /**< true once a die has anchored a patch */
   uint32_t steps;
   /** The rotor's speed at the last step, rpm: the budget's air paths are
-    * evaluated at the same speed the integrator just used. */
+      evaluated at the same speed the integrator just used. */
   float speed_rpm;
-  /** Seconds since a thermometer last anchored the state. The anchor's
-    * pull is sized to it, so a sample every thirty seconds corrects
-    * what thirty seconds of drift deserve - see THERMAL_ANCHOR_HZ. */
+  /** Seconds since a thermometer last anchored the state. */
   float since_seen_s;
 } thermal_t;
 
@@ -248,37 +142,26 @@ typedef struct
   float watt[THERMAL_NODES];
 } thermal_power_t;
 
-/** What the board is doing now, as measured. Input to the estimator.
-  *
-  * The calibration behind `thermal_defaults` was taken DRY - nothing on the
-  * phases, so every current below was zero and the only losses were switching
-  * and the static rails. Under load the picture inverts: at the board's 100 A
-  * rating the shunt alone makes 35 W against the whole dry budget's 1.2 W.
-  */
+/** What the board is doing now, as measured. */
 typedef struct
 {
   float phase_amps[3];   /**< per leg, signed, as the shunts measure it   */
-  /** Mean of the squared phase current since the last estimate, A^2 a leg.
-    * CONDUCTION IS A MEAN SQUARE AND A SAMPLE IS NOT ONE: one instant of a
-    * rotating three-phase current says where the vector is pointing, not
-    * how big it has been. Zero or negative means "not measured", and the
-    * estimator squares `phase_amps` instead. */
+  /** Mean of the squared phase current since the last estimate, A^2 a leg. */
   float phase_sq[3];
   float duty[3];         /**< 0..1 per leg, for the link estimate         */
   float link_volts;      /**< DC link, for the switching terms            */
   float link_amps;       /**< into the board. <0 = estimate from phases   */
   bool  switching;       /**< TIM1 driving the gates                      */
   bool  afe_on;          /**< AFE_ON high: the AFE draws, drivers do not  */
-  /** The rotor's mechanical speed, rpm, for the air it moves and the
-    * iron it magnetises. Zero at rest, and zero when nothing knows. */
+  /** The rotor's mechanical speed, rpm, for the air it moves and the iron it
+      magnetises. */
   float speed_rpm;
   /** The dead time between a leg's two gates, seconds - the record's
-    * `deadtime_ns` - for the body diode's conduction across it. */
+      `deadtime_ns` - for the body diode's conduction across it. */
   float t_dead_s;
 } thermal_load_t;
 
-/** Resistances, charges and times the estimator needs. From electronics/,
-  * the datasheets in datasheets/ and the models in electronic_simulations. */
+/** Resistances, charges and times the estimator needs. */
 typedef struct
 {
   float rds_on;          /**< one FET at 25 C, IAUCN10S7N021 = 1.8 mOhm   */
@@ -309,60 +192,25 @@ typedef struct
 void thermal_losses(thermal_loss_t *loss);
 
 /** The energy C_oss stores at `volts` under the `loss`'s law, joules, for
-  * ONE FET: the integral of `v C(v) dv`, closed form. What a hard-switched
-  * leg dumps once a period per FET. */
+    ONE FET: the integral of `v C(v) dv`, closed form. */
 float thermal_coss_energy(const thermal_loss_t *loss, float volts);
 
-/**
-  * @brief  Dissipation per node from what the board is doing.
-  *
-  * Conduction is the mean square through the FET (its resistance at the
-  * node's own temperature) and through its shunt, each on its own node.
-  * Switching, per driven leg: the no-load figure measured at `switch_volts`
-  * scaled by the C_oss energy's own law rather than linearly; the overlap
-  * `V I t_switch f`; the body diode `2 V_sd I t_dead f`; the gate charge
-  * `2 Q_g V_drive f` - the FET terms on the driver node, the buck's share
-  * on the regulators. The hot swap sees the link current squared through
-  * its FETs. The winding sees the three mean squares through `r_phase`;
-  * the stator its iron loss with speed. Housekeeping is static.
-  *
-  * `link_amps` below zero is estimated as sum(duty * phase_amps).
-  * `phase_c` is the three driver nodes' temperatures, fed back so the FET's
-  * on-resistance rises with the junction it models; NULL keeps 25 C.
-  */
+/** Dissipation per node from what the board is doing. */
 void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
                             const thermal_loss_t *loss,
                             const float *phase_c);
 
-/** What each node may reach. Not the board's opinion: the ceilings live in
-  * the calibration record (invariant 7). The board holds a limit it was
-  * given, and acts on it - throttle, then trip - without judging a reading.
-  */
+/** What each node may reach. */
 typedef struct
 {
   float limit_c[THERMAL_NODES];  /**< absolute ceiling per node, degrees C */
   float throttle_at;             /**< fraction of budget where derating starts */
-  /** The reaction window the throttle keeps, seconds. Each node's HOLD -
-    * its soak over the power spending it - is measured against this, and
-    * `1 - hold/window` joins the temperature fraction; the derate takes
-    * whichever is worse. Time, not a projected temperature: a node at
-    * ambient has its whole soak in front of it however much power is on
-    * it, so a burst runs, and what closes the clamp is the hold falling
-    * into the window. Zero disables it. */
+  /** The reaction window the throttle keeps, seconds. */
   float lookahead_s;
-  /** Nodes the current clamp cannot cool - the housekeeping - judged but
-    * not throttled on. A clamp on the phase current is a loop with no
-    * actuator for them, and weighed in they floor the margin. The
-    * record's to say (invariant 7). */
+  /** Nodes the current clamp cannot cool - the housekeeping - judged but not
+      throttled on. */
   bool undriven[THERMAL_NODES];
-  /** THE CEILING A TRIP IS JUDGED ON: the record's, untrimmed. `limit_c`
-    * is the throttle's, and the policy pulls it in while the model is
-    * doubted - and a ceiling pulled in UNDER a node closes the clamp; it
-    * must not drop MOE. Measured 2026-09-08 on the stand-in: a room step
-    * cut the margin from 1.00 to 0.82 on one sample, a driver at 92 % of
-    * the old span stood at 112 % of the new, and the stage was dropped
-    * for a re-trim, not for heat - then the trip cap put three more
-    * trips under the re-arm in six seconds. Zero: judged on `limit_c`. */
+  /** THE CEILING A TRIP IS JUDGED ON: the record's, untrimmed. */
   float trip_c[THERMAL_NODES];
 } thermal_soa_t;
 
@@ -374,37 +222,34 @@ typedef struct
   uint8_t worst_node;
   int32_t millis_to_limit;       /**< for `worst_node`; -1 = not heading there */
   bool    throttling;
-  bool    tripped;               /**< ANY node at the record's ceiling
-                                    * (`trip_c`): stop                     */
-  /** What a current clamp should be multiplied by, 1.0 down to 0.0: one
-    * at the throttle point and zero at the ceiling, linear between, on
-    * the worse of where a node is and how long it has. */
+  bool    tripped;               /** < ANY node at the record's ceiling (`trip_c`): stop */
+  /** What a current clamp should be multiplied by, 1.0 down to 0.0: one at
+      the throttle point and zero at the ceiling, linear between, on the
+      worse of where a node is and how long it has. */
   float   derate;
   float   soak_j[THERMAL_NODES]; /**< `capacity * (limit - t)`, never negative */
 } thermal_budget_t;
 
 /** One node's own clamp factor - the same ramp the whole budget uses, on
-  * this node's spend and hold alone - so a host can say which node holds
-  * the stage back. The winding's is what the wire reports beside the
-  * whole. */
+    this node's spend and hold alone - so a host can say which node holds the
+    stage back. */
 float thermal_node_derate(const thermal_t *th, const thermal_power_t *p,
                           const thermal_soa_t *soa, thermal_node_t node);
 
 /** The junction of the part on `node`, degrees C: the node plus its power
-  * through `rth_die`. For a leg, `p` is the two FETs' and each carries
-  * half. What the datasheet's 175 C is against. */
+    through `rth_die`. */
 float thermal_junction(const thermal_t *th, const thermal_power_t *p,
                        thermal_node_t node);
 
-/** K/W off a node's air path at a rise over ambient and a rotor speed:
-  * the calibration value scaled by how much better convection and
-  * radiation carry at this rise (a fourth root, and the bracket), and by
-  * the air the rotor moves. */
+/** K/W off a node's air path at a rise over ambient and a rotor speed: the
+    calibration value scaled by how much better convection and radiation
+    carry at this rise (a fourth root, and the bracket), and by the air the
+    rotor moves. */
 float thermal_to_ambient_at(const thermal_cfg_t *cfg, thermal_node_t node,
                             float rise_k, float speed_rpm);
 
 /** The bulk's figure, for the ambient estimate and the host's arithmetic:
-  * the whole face at this rise, still air. */
+    the whole face at this rise, still air. */
 float thermal_board_to_ambient_at(const thermal_cfg_t *cfg, float rise_k);
 
 /** Spend of the thermal budget, and the time left at this power. Pure. */
@@ -412,19 +257,16 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
                     const thermal_soa_t *soa, thermal_budget_t *out);
 
 /** Net watts into every node at the present temperatures: what it makes,
-  * plus what flows in over the edges, less what it sheds to the air. The
-  * one definition the integrator steps on, the budget's hold divides by
-  * and the identification differentiates. `net` is THERMAL_NODES long. */
+    plus what flows in over the edges, less what it sheds to the air. */
 void thermal_net_flows(const thermal_t *th, const thermal_power_t *p,
                        float speed_rpm, float *net);
 
 /** One Euler slice over the whole graph, no anchors: the identification's
-  * shadow steps with this, the observer with `thermal_step`. */
+    shadow steps with this, the observer with `thermal_step`. */
 void thermal_integrate(thermal_t *th, const thermal_power_t *p,
                        float speed_rpm, float dt_s);
 
-/** Start the thermal observer with every node at one temperature. `cfg`
-  * NULL takes the defaults. */
+/** Start the thermal observer with every node at one temperature. */
 void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius);
 
 /** What the thermometers say now. NAN for any that is not answering. */
@@ -435,19 +277,11 @@ typedef struct
   float mcu_c;   /**< the MCU's own die                             */
 } thermal_sense_t;
 
-/**
-  * @brief  Advance the network one step and pull it toward the sensors.
-  * @param  p     Dissipation now, per node.
-  * @param  seen  The thermometers. Any of them may be NAN.
-  * @param  load  What the board is doing - the speed, for the air.
-  * @param  dt_s  Seconds since the last step.
-  *
-  * Explicit Euler over every edge and every air path, then the anchors:
-  * each die corrects its node and implies the patch under it - the node is
-  * patch + P * R into it, both of which the model has - and the thermistor
-  * corrects the V leg's patch through the element it sits in. Ambient is
-  * what the patches' own losses imply, once a die has anchored one.
-  */
+/** Advance the network one step and pull it toward the sensors.
+    @param  p     Dissipation now, per node.
+    @param  seen  The thermometers. Any of them may be NAN.
+    @param  load  What the board is doing - the speed, for the air.
+    @param  dt_s  Seconds since the last step. */
 void thermal_step(thermal_t *th, const thermal_power_t *p,
                   const thermal_sense_t *seen, const thermal_load_t *load,
                   float dt_s);
@@ -456,39 +290,27 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
 float thermal_expected_ntc(const thermal_t *th);
 
 /** One step of the thermistor's element: first order toward the weighted
-  * average of the two patches it sits between at `ntc_tau_s`, and never
-  * past either of them. Returns the node it is held AT when the bound
-  * bit - THERMAL_NTC_PATCH or THERMAL_BOARD - or -1 while it follows
-  * freely. `thermal_step` calls it; so does the identification's shadow,
-  * which must read the element by exactly the observer's rule or a
-  * cooldown fast enough to pin the element to the V patch reads as a
-  * parameter error at every sample (measured 2026-09-05 on the host
-  * ground truth: -0.9 K a sample, charged to the laminate's capacity). */
+    average of the two patches it sits between at `ntc_tau_s`, and never past
+    either of them. */
 int thermal_ntc_follow(thermal_t *th, float dt_s);
 
 /** The centre patch from the NTC with the V leg's share taken out. */
 float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
                              float patch_rise_k);
 
-/** Defaults: the network as derived for this board. Every entry names its
-  * source in thermal.c; the record overlays any of them. */
+/** Defaults: the network as derived for this board. */
 void thermal_defaults(thermal_cfg_t *cfg);
 
-/**
-  * @brief  Change one node's sink and capacity while the observer runs.
-  * @return False for an unknown node or a non-positive value.
-  *
-  * `k_per_w` is the node's first path out - its edge into its patch, or
-  * its air path where that is the first (`thermal_sink_edge`).
-  */
+/** Change one node's sink and capacity while the observer runs.
+    @return False for an unknown node or a non-positive value. */
 bool thermal_set_node(thermal_t *th, thermal_node_t node,
                       float k_per_w, float capacity);
 
 /** Change one edge's K/W. False for an unknown edge or a non-positive value. */
 bool thermal_set_edge(thermal_t *th, int edge, float k_per_w);
 
-/** Change the bulk's two numbers: K/W off the whole face at the
-  * calibration rise, and the laminate's J/K, shared out by area. */
+/** Change the bulk's two numbers: K/W off the whole face at the calibration
+    rise, and the laminate's J/K, shared out by area. */
 bool thermal_set_board(thermal_t *th, float to_ambient, float capacity);
 
 #ifdef __cplusplus

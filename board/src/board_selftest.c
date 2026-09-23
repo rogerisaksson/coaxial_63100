@@ -2,26 +2,13 @@
   ******************************************************************************
   * @file    board_selftest.c
   * @brief   What the board can prove about itself, with nothing attached.
-  *
-  * The rule for what belongs here: a check is PASS/FAIL only if the board can
-  * settle it from its own registers or its own flash. A locked PLL, a
-  * calibration that ran, a checksum that matches - those are provable. A voltage
-  * being "right" is not, because the board has no calibrated reference and its
-  * own ADC is the thing under test.
-  *
-  * So everything needing an external instrument comes out as INFO with a value
-  * attached, and the pass/fail decision belongs to the test executive on the
-  * line, next to the DMM and the electronic load. A limit compiled in here would
-  * be a limit nobody on the line can see, change, or record against a
-  * calibration certificate.
   ******************************************************************************
   */
 #include "board.h"
 #include "board_hw.h"
 #include "modbus_crc.h"
 
-/* End of code and read-only data in flash, from the linker script. The image
-   runs from the vector table to here. */
+/* End of code and read-only data in flash, from the linker script. */
 extern uint32_t _etext;
 
 #define FLASH_IMAGE_BASE 0x08000000UL
@@ -47,8 +34,7 @@ static uint8_t verdict(bool ok)
 }
 
 /* Every configured channel should leave at most its own bit and, for a
-   differential channel, its negative input's bit in PCSEL. More than two bits
-   means the accumulation bug is back. */
+   differential channel, its negative input's bit in PCSEL. */
 static bool pcsel_clean(const ADC_TypeDef *adc)
 {
   uint32_t bits = adc->PCSEL;
@@ -63,12 +49,7 @@ static bool pcsel_clean(const ADC_TypeDef *adc)
   return count <= 2U;
 }
 
-/* Differential calibration factor. Reported, never judged: a well matched ADC
-   legitimately calibrates to an offset of zero, so a zero factor does NOT mean
-   the calibration failed to run - and the registers offer no flag that says it
-   did. An earlier version of this file asserted non-zero and failed a perfectly
-   healthy board, which is precisely the mistake a limit compiled into firmware
-   invites. A line compares these across units instead. */
+/* Differential calibration factor. */
 static int32_t adc_calfact_diff(const ADC_TypeDef *adc)
 {
   return (int32_t)((adc->CALFACT & ADC_CALFACT_CALFACT_D) >>
@@ -79,11 +60,7 @@ uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity)
 {
   uint8_t n = 0U;
 
-  /* Names are kept short deliberately. Each check costs 6 bytes plus its name,
-     and the whole reply has to fit one 250-byte RTU payload - an earlier version
-     with descriptive names came to 276 and was rejected outright by the writer's
-     overflow check rather than truncated, which is the behaviour we want but not
-     a thing to rely on. */
+  /* Names are kept short deliberately. */
 
   /* ---- clock tree: provable from RCC ---- */
   add(out, &n, capacity, "hse_rdy", verdict((RCC->CR & RCC_CR_HSERDY) != 0U), 0);
@@ -91,8 +68,8 @@ uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity)
       verdict((RCC->CR & RCC_CR_PLL1RDY) != 0U), 0);
   add(out, &n, capacity, "clk_crystal", verdict(Board_SysClkOnCrystal()), 0);
 
-  /* HAL derives this from the RCC registers while SystemCoreClock is a variable
-     the startup code set. Disagreement means one of them is stale. */
+  /* HAL derives this from the RCC registers while SystemCoreClock is a
+     variable the startup code set. */
   const uint32_t derived = HAL_RCC_GetSysClockFreq();
   add(out, &n, capacity, "clk_agrees",
       verdict(derived == SystemCoreClock), (int32_t)derived);
@@ -115,8 +92,7 @@ uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity)
   add(out, &n, capacity, "cal_d3", BOARD_CHECK_INFO, adc_calfact_diff(ADC3));
 
   /* This one IS provable: more than two bits in PCSEL means the accumulation
-     bug is back, and no reference is needed to say so. Bitmask so a single
-     offending unit is identifiable: bit 0 = ADC1, bit 1 = ADC2, bit 2 = ADC3. */
+     bug is back, and no reference is needed to say so. */
   const int32_t clean = (pcsel_clean(ADC1) ? 1 : 0) |
                         (pcsel_clean(ADC2) ? 2 : 0) |
                         (pcsel_clean(ADC3) ? 4 : 0);
@@ -126,8 +102,7 @@ uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity)
   const uint8_t *image = (const uint8_t *)FLASH_IMAGE_BASE;
   const uint32_t length = (uint32_t)((const uint8_t *)&_etext - image);
 
-  /* Reported, not judged: the board has nothing to compare these against. A
-     line compares them across units and against the build it meant to load. */
+  /* Reported, not judged: the board has nothing to compare these against. */
   add(out, &n, capacity, "image_len", BOARD_CHECK_INFO, (int32_t)length);
   add(out, &n, capacity, "image_crc", BOARD_CHECK_INFO,
       (int32_t)modbus_crc16(image, length));

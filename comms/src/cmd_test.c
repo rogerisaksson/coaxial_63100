@@ -2,10 +2,6 @@
   ******************************************************************************
   * @file    cmd_test.c
   * @brief   Test fixture commands: link echo and raw pin access.
-  *
-  * Same shape as cmd_board.c. The reader and writer are total, so each handler
-  * is a straight run of statements; the only branches are the ones the rig can
-  * genuinely get wrong.
   ******************************************************************************
   */
 #include "cmd.h"
@@ -36,7 +32,7 @@ static cmd_status_t h_echo(rd_t *in, wr_t *out)
   const uint16_t n = rd_left(in);
 
   /* A response payload has 250 bytes of room once the unit id, function code
-     and CRC are accounted for. Anything longer could not be echoed. */
+     and CRC are accounted for. */
   if (n > 250U)
   {
     return CMD_ERR_VALUE;
@@ -113,9 +109,7 @@ static cmd_status_t h_pin_write(rd_t *in, wr_t *out)
     return CMD_ERR_VALUE;
   }
 
-  /* Read the pin back rather than echoing what was asked for. On an open-drain
-     output or a pin held by the fixture, those differ - and that difference is
-     exactly what a test rig is looking for. */
+  /* Read the pin back rather than echoing what was asked for. */
   bool actual = false;
   (void)testrig_pin_read(port, pin, &actual);
 

@@ -2,16 +2,6 @@
   ******************************************************************************
   * @file    modbus_slave.h
   * @brief   Portable Modbus server (slave) PDU engine.
-  *
-  * MODBUS Application Protocol V1.1b3. Request PDU in, response PDU out; no
-  * UART, STM32, CMSIS or timer. Framing, addressing and CRC belong to the
-  * transport (modbus_rtu.h), which is what makes this host-testable.
-  *
-  * The application supplies a data model as a vtable of per-item callbacks.
-  * Quantity limits, bit packing and PDU layout live here, so they exist once.
-  *
-  * Multi-item writes are validated across the whole range before any item is
-  * applied: a write failing half way must not leave the device half written.
   ******************************************************************************
   */
 #ifndef MODBUS_SLAVE_H
@@ -36,11 +26,7 @@ extern "C" {
 #define MB_FC_WRITE_MULTIPLE_REGS   0x10U
 #define MB_FC_REPORT_SERVER_ID      0x11U
 
-/** Exception codes. MB_EX_NONE is not a wire value; it means "no error".
-    MB_NO_REPLY is not one either: a user function's answer that nothing
-    goes on the wire - the request reached this unit id and was not this
-    node's, which only the function can know. A bus of blank nodes shares
-    one unit id and the one the unique id names answers (docs/BOOT.md). */
+/** Exception codes. */
 typedef enum
 {
   MB_EX_NONE                  = 0x00,
@@ -60,19 +46,7 @@ typedef enum
   MB_TABLE_INPUT_REG        /**< read-only 16-bit  */
 } mb_table_t;
 
-/**
-  * @brief Application data model.
-  *
-  * validate_range() is called once per request with the full span: MB_EX_NONE
-  * if every address in [addr, addr+qty) is accessible in that direction, else
-  * MB_EX_ILLEGAL_DATA_ADDRESS. Illegal quantities and 16-bit address wrap are
-  * already rejected before it runs.
-  *
-  * read_item()/write_item() then run per address and may assume it is valid.
-  * They may still fail with MB_EX_SERVER_DEVICE_FAILURE.
-  *
-  * A NULL callback makes the function codes needing it MB_EX_ILLEGAL_FUNCTION.
-  */
+/** Application data model. */
 typedef struct
 {
   mb_exception_t (*validate_range)(void *ctx, mb_table_t table, uint16_t addr,
@@ -82,37 +56,16 @@ typedef struct
   mb_exception_t (*read_bit)(void *ctx, mb_table_t table, uint16_t addr, bool *out);
   mb_exception_t (*write_bit)(void *ctx, uint16_t addr, bool value);
 
-  /**
-    * @brief Optional: would write_reg accept this value, without applying it?
-    *
-    * validate_range only checks addressability, so a multi-register write
-    * (FC 0x10) spanning several registers can apply the first few through
-    * write_reg() and only then discover the last one's VALUE is illegal -
-    * leaving the device half written despite the client seeing one exception
-    * for the whole request. If this is set, the engine calls it for every
-    * item in a multi-register write before applying any of them, so a bad
-    * value anywhere in the span refuses the whole write instead of applying
-    * a prefix of it. May be NULL: a model with no per-value rule beyond
-    * addressability, or one whose writes are side-effect-free enough that a
-    * partial apply cannot matter, has nothing to gain from it.
-    */
+  /** Optional: would write_reg accept this value, without applying it? */
   mb_exception_t (*validate_reg_value)(void *ctx, uint16_t addr, uint16_t value);
 
-  /** Report Server ID (FC 0x11) payload. Return the id string; set *run to
-      0xFF for "running" or 0x00 for "stopped". May be NULL. */
+  /** Report Server ID (FC 0x11) payload. */
   const char *(*server_id)(void *ctx, uint8_t *run);
 
-  /**
-    * @brief Handle a function code from the specification's user-definable
-    *        ranges, 65..72 and 100..110.
-    *
-    * @param req      Request payload, i.e. the PDU after the function code.
-    * @param rsp      Where to put the response payload, again after the code.
-    * @param rsp_len  Response payload length on success.
-    *
-    * This is the seam the application's own binary commands hang off. NULL
-    * makes every user-defined code answer ILLEGAL FUNCTION.
-    */
+  /** Handle a function code from the specification's user-definable
+      @param req      Request payload, i.e. the PDU after the function code.
+      @param rsp      Where to put the response payload, again after the code.
+      @param rsp_len  Response payload length on success. */
   mb_exception_t (*user_function)(void *ctx, uint8_t fc,
                                   const uint8_t *req, size_t req_len,
                                   uint8_t *rsp, size_t rsp_cap, size_t *rsp_len);
@@ -131,17 +84,12 @@ typedef struct
 
 void mb_slave_init(mb_slave_t *slave, const mb_data_model_t *model);
 
-/**
-  * @brief  Execute one request PDU.
-  * @param  req      Request PDU: function code followed by its data.
-  * @param  req_len  Length of req, at least 1.
-  * @param  rsp      Response buffer, at least MB_MAX_PDU bytes.
-  * @param  rsp_cap  Capacity of rsp.
-  * @return Response PDU length, or 0 if no response is to be sent.
-  *
-  * A length that does not match the function code produces 0, not an
-  * exception: such a frame cannot be trusted to have been parsed at all.
-  */
+/** Execute one request PDU.
+    @param  req      Request PDU: function code followed by its data.
+    @param  req_len  Length of req, at least 1.
+    @param  rsp      Response buffer, at least MB_MAX_PDU bytes.
+    @param  rsp_cap  Capacity of rsp.
+    @return Response PDU length, or 0 if no response is to be sent. */
 size_t mb_slave_execute(mb_slave_t *slave, const uint8_t *req, size_t req_len,
                         uint8_t *rsp, size_t rsp_cap);
 

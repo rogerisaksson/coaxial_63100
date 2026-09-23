@@ -2,17 +2,6 @@
   ******************************************************************************
   * @file    cmd_device.c
   * @brief   Command 0x6E: every peripheral device, chosen by a device byte.
-  *
-  * One function code for all of them because there are no codes left - the
-  * specification's user-defined ranges are 65..72 and 100..110, and this
-  * board had spent all but 110. A second code answered ILLEGAL FUNCTION from
-  * the protocol layer before dispatch saw it.
-  *
-  *     0x6E <device> <op> [payload]
-  *
-  * Adding a device is a row in the table below and an op dispatcher beside
-  * cmd_imu.c and cmd_angle.c. What is *fitted* is a different question and
-  * has a different answer: command 0x6D kind 4, the parts list.
   ******************************************************************************
   */
 #include "boot.h"
@@ -21,12 +10,7 @@
 #include "wire.h"
 
 
-/** What the link can carry in records per second at this record size.
-  *
-  * Both terms move: the stride, and whichever port is answering. The share is
-  * measured, not derived, and leaves out the request, the turnaround and the
-  * host's latency - none of which this board can compute.
-  */
+/** What the link can carry in records per second at this record size. */
 uint32_t cmd_link_records_per_second(uint16_t record_bytes)
 {
   const uint32_t baud = dev_uart_baud();

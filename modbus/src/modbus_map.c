@@ -12,8 +12,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Live unit address. Defaults to 1: this is the board on the end of the link
-   the developer is already using, and 1 is the conventional first server. */
+/* Live unit address. */
 static uint8_t s_unit_id = 1U;
 
 uint8_t modbus_map_unit_id(void)
@@ -36,12 +35,7 @@ bool modbus_map_set_unit_id(uint8_t id)
 /* ---- the input register space ------------------------------------------ */
 
 /* One row per span of input registers: where it starts, how many words it
-   holds, and the reader that produces one of them from its offset. Mapping,
-   the extent and reading all walk this table, so a register added here is
-   mapped, readable and counted at once - the map used to say its layout in
-   two places and a span added to one was a hole in the other. The ADC codes
-   come first and their count is the board's, asked at run time, which is why
-   a span's width is a call rather than a number. */
+   holds, and the reader that produces one of them from its offset. */
 typedef mb_exception_t (*ireg_reader_t)(const mb_rtu_t *rtu, uint16_t offset,
                                         uint16_t *out);
 
@@ -155,7 +149,7 @@ static mb_exception_t read_hclk(const mb_rtu_t *rtu, uint16_t offset, uint16_t *
 }
 
 /* The counters live in the transport, not here, so the model carries the
-   mb_rtu_t as its context. Two words a counter, high first. */
+   mb_rtu_t as its context. */
 static mb_exception_t read_counter(const mb_rtu_t *rtu, uint16_t offset, uint16_t *out)
 {
   const uint16_t idx = (uint16_t)(offset / 2U);
@@ -191,8 +185,7 @@ static const ireg_span_t s_input_spans[] = {
 };
 
 /* The span an address falls in, its offset within it written back; NULL for
-   a hole. The input register space has holes by design - the map is grouped
-   for legibility rather than packed - and a hole is ILLEGAL DATA ADDRESS. */
+   a hole. */
 static const ireg_span_t *span_of(uint16_t addr, uint16_t *offset)
 {
   for (size_t i = 0U; i < (sizeof s_input_spans / sizeof s_input_spans[0]); i++)
@@ -313,24 +306,21 @@ static mb_exception_t read_bit(void *ctx, mb_table_t table, uint16_t addr, bool 
 
 /* Whether write_reg would accept this value, with no side effect - shared by
    the actual write and by validate_reg_value, so a multi-register write (FC
-   0x10) can check every value in its span before applying any of them. Keeping
-   one copy of the legality rule is the point: two copies are two places for
-   the unit-id range or the command enum to drift apart. */
+   0x10) can check every value in its span before applying any of them. */
 static mb_exception_t check_hreg_value(uint16_t addr, uint16_t value)
 {
   switch (addr)
   {
     case MB_HREG_UNIT_ID:
-      /* 0 and 248..255 are not addresses. The register exists and is
-         writable, so this is a bad value rather than a bad address. */
+      /* 0 and 248..255 are not addresses. */
       return ((value >= 1U) && (value <= 247U))
              ? MB_EX_NONE : MB_EX_ILLEGAL_DATA_VALUE;
 
     case MB_HREG_COMMAND:
       switch (value)
       {
-        case 0U:                    /* no-op, so a block write spanning this
-                                        register does not have to invent one */
+        case 0U:                    /* no-op, so a block write spanning this register does not have to
+           invent one */
         case MB_CMD_CONSOLE_MODE:
         case MB_CMD_CLEAR_COUNTERS:
           return MB_EX_NONE;
@@ -349,8 +339,7 @@ static mb_exception_t validate_reg_value(void *ctx, uint16_t addr, uint16_t valu
   return check_hreg_value(addr, value);
 }
 
-/** Holding register 1: a command. 0 is nothing to do; anything else
-  * check_hreg_value has already refused. */
+/** Holding register 1: a command. */
 static mb_exception_t run_command(mb_rtu_t *rtu, uint16_t value)
 {
   if (value == 0U)
@@ -396,8 +385,7 @@ static mb_exception_t write_reg(void *ctx, uint16_t addr, uint16_t value)
   {
     return run_command((mb_rtu_t *)ctx, value);
   }
-  return MB_EX_ILLEGAL_DATA_ADDRESS;         /* unreachable: check_span
-                                                already gated the address */
+  return MB_EX_ILLEGAL_DATA_ADDRESS;         /* unreachable: check_span already gated the address */
 }
 
 static mb_exception_t write_bit(void *ctx, uint16_t addr, bool value)
@@ -410,9 +398,7 @@ static mb_exception_t write_bit(void *ctx, uint16_t addr, bool value)
   }
 
   /* Through the reference count, like every other way of asking for this
-     rail. Writing the pin here worked until the observer took the rail for a
-     sample: its release re-applies whatever the count says, which put the
-     AFE straight back on and made a coil written off read back on. */
+     rail. */
   if (value)
   {
     (void)Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_HOST);

@@ -6,22 +6,6 @@
   *          the ladder of designs it climbs when the ring fills, the tone
   *          generator that stands in for the converter, and the live
   *          accumulator a host reads at its leisure.
-  *
-  * Portable C11 - <stdint.h>, <stdbool.h>, <string.h>, <math.h> and the
-  * filter core - so host/tests/test_daq_core.py builds it with the host
-  * gcc and drives it through ctypes, the way the thermal, drive, filter,
-  * SHTP and Modbus cores are. Nothing here reads a clock, a converter or a
-  * pin: the board's glue, board/src/board_daq.c, passes cycle counts and
-  * samples in, takes records out, and is the one place the hardware is.
-  *
-  * The buffer is bytes and the stride comes from the task, so no host holds
-  * a copy of the record shape - it asks for the layout and the board names
-  * every field. Accumulation SUMS rather than averages: it keeps the bits an
-  * average throws away, and the count rides in the record, so a host
-  * divides by what actually went in. Two ways close a record: a COUNT
-  * (accumulate >= 1, `interval_cycles` gating the triggers) or a CLOCK
-  * (accumulate == 0, the converter free-running and `interval_cycles`
-  * closing the window), and `accumulate` picks which.
   ******************************************************************************
   */
 #ifndef DAQ_H
@@ -39,24 +23,23 @@
 #define DAQ_LADDER       4U    /**< rungs of designs a task can climb          */
 #define DAQ_SENSOR_WORDS 4U    /**< a sensor field is four 16-bit words        */
 
-/** Most additions a summing path takes before it stops widening:
-  * INT32_MAX / 65535, the largest a single-ended code can be, so one more
-  * can never carry an int32 sum past the end. board_limits.h's
-  * LIVE_MAX_ADDITIONS, and the glue holds the two to each other. */
+/** Most additions a summing path takes before it stops widening: INT32_MAX /
+    65535, the largest a single-ended code can be, so one more can never
+    carry an int32 sum past the end. */
 #define DAQ_MAX_ADDITIONS 32767U
 
 #define DAQ_TONE_SINE 0U
 #define DAQ_TONE_RAMP 1U
 
 /** A record on the wire: the start time, a 32-bit sum a field, a byte a
-  * sampled pin, four 16-bit words a sensor, and the count last. */
+    sampled pin, four 16-bit words a sensor, and the count last. */
 #define DAQ_RECORD_BYTES(fields, pins, sensors) \
   (4U + (4U * (fields)) + (pins) + (8U * (sensors)) + 2U)
 #define DAQ_RECORD_MAX \
   DAQ_RECORD_BYTES(DAQ_MAX_CHANNELS, DAQ_MAX_PINS, DAQ_MAX_SENSORS)
 
-/** One task, as the engine needs it: the glue has already checked it
-  * against the converter and turned the wire's microseconds into cycles. */
+/** One task, as the engine needs it: the glue has already checked it against
+    the converter and turned the wire's microseconds into cycles. */
 typedef struct
 {
   uint8_t  fields;                    /**< how many of `order` are in use    */
@@ -71,8 +54,8 @@ typedef struct
 } daq_task_t;
 
 /** Where the ring is when a task climbs and when it comes back down, in
-  * `eighths` of capacity, the climb mark's ceiling in records, and how
-  * many polls at the low mark before it steps down. board_limits.h's. */
+    `eighths` of capacity, the climb mark's ceiling in records, and how many
+    polls at the low mark before it steps down. */
 typedef struct
 {
   uint32_t climb_at;
@@ -82,23 +65,21 @@ typedef struct
   uint32_t fall_after;
 } daq_ladder_t;
 
-/** The interrupt hold around what a feed on the timer's interrupt and a
-  * take on the main loop both touch. NULL for a host with no interrupts. */
+/** The interrupt hold around what a feed on the timer's interrupt and a take
+    on the main loop both touch. */
 typedef struct
 {
   uint32_t (*hold)(void);
   void (*release)(uint32_t masked);
 } daq_guard_t;
 
-/** The sensor snapshot at a record's close: every field the mask names,
-  * four words each, read once for the whole record so they are one
-  * instant. The glue's, since the sensors are the board's. */
+/** The sensor snapshot at a record's close: every field the mask names, four
+    words each, read once for the whole record so they are one instant. */
 typedef void (*daq_snapshot_fn)(void *ctx, uint16_t sensors,
                                 int16_t words[DAQ_MAX_SENSORS][DAQ_SENSOR_WORDS]);
 
-/** The always-available accumulator, one slot a field: every sample adds
-  * to it and a take empties it. It cannot overflow - it saturates - so a
-  * slow reader makes the window longer, not the data older. */
+/** The always-available accumulator, one slot a field: every sample adds to
+    it and a take empties it. */
 typedef struct
 {
   int32_t  sum;
@@ -116,8 +97,8 @@ typedef struct
   daq_slot_t slot[DAQ_MAX_CHANNELS];
 } daq_live_t;
 
-/** The generator: a rotating unit vector for a sine, integer arithmetic
-  * for a ramp, and the samples the elapsed cycles owe. */
+/** The generator: a rotating unit vector for a sine, integer arithmetic for
+    a ramp, and the samples the elapsed cycles owe. */
 typedef struct
 {
   bool     on;
@@ -136,8 +117,7 @@ typedef struct
   uint32_t n;
 } daq_tone_t;
 
-/** The engine. The glue reads its counters and its sweep in place, the
-  * way board_thermal.c reads the observer's temperatures. */
+/** The engine. */
 typedef struct
 {
   /* the ring of records */
@@ -200,7 +180,7 @@ typedef struct
 /* ---- set-up ------------------------------------------------------------ */
 
 /** Everything zero, the ring over `buf`, the guard and the snapshot the
-  * glue's (`guard` NULL: no interrupts to hold). */
+    glue's (`guard` NULL: no interrupts to hold). */
 void daq_init(daq_t *d, uint8_t *buf, uint32_t bytes, const daq_guard_t *guard,
               daq_snapshot_fn snapshot, void *ctx);
 
@@ -208,17 +188,16 @@ void daq_init(daq_t *d, uint8_t *buf, uint32_t bytes, const daq_guard_t *guard,
 void daq_set_ladder(daq_t *d, const daq_ladder_t *ladder);
 
 /** A task that passed the glue's checks becomes the engine's: the stride,
-  * the buffers empty, the ladder at the bottom. */
+    the buffers empty, the ladder at the bottom. */
 void daq_begin(daq_t *d, const daq_task_t *task);
 
-/** The counters and the window back to nothing, and the task running. False
-  * with nothing configured or a task already running. */
+/** The counters and the window back to nothing, and the task running. */
 bool daq_start(daq_t *d, uint32_t now);
 void daq_stop(daq_t *d);
 
 /** What the glue does when the converter's reference went away: the task
-  * stops and every buffer empties, because an accumulator holding half
-  * real samples and half mid-scale divides out to something plausible. */
+    stops and every buffer empties, because an accumulator holding half real
+    samples and half mid-scale divides out to something plausible. */
 void daq_lose_power(daq_t *d);
 
 /* ---- the chain, the ladder and the generator --------------------------- */
@@ -229,8 +208,7 @@ const char *daq_set_filter(daq_t *d, const filter_biquad_t *sections,
 const char *daq_set_rung(daq_t *d, uint8_t rung, uint16_t boxcar,
                          const filter_biquad_t *sections, uint8_t count,
                          uint16_t decimate);
-/** `cycles_per_second` is the clock the cycle counts are in. `hz` of 0
-  * turns the generator off. */
+/** `cycles_per_second` is the clock the cycle counts are in. */
 const char *daq_set_tone(daq_t *d, uint32_t hz, uint32_t rate_hz,
                          int32_t amplitude, int32_t offset, uint8_t kind,
                          uint32_t cycles_per_second, uint32_t now);
@@ -245,13 +223,12 @@ uint32_t daq_triggers_per_record(const daq_t *d);
 /** One trigger's worth of samples, already read. Accumulates and may push. */
 void daq_feed(daq_t *d, const int32_t *values, uint32_t at, uint32_t digital);
 
-/** Closed by a count: the interval gates the triggers. True when the next
-  * sweep may go in; always, with no interval. */
+/** Closed by a count: the interval gates the triggers. */
 bool daq_trigger_due(daq_t *d, uint32_t now);
 
-/** A sweep read one field a turn: begun at `at` with the pins as they
-  * stood, each field put in turn - true when the last one landed - and
-  * closed through the count's gate into the feed. */
+/** A sweep read one field a turn: begun at `at` with the pins as they stood,
+    each field put in turn - true when the last one landed - and closed
+    through the count's gate into the feed. */
 void daq_sweep_begin(daq_t *d, uint32_t at, uint32_t digital);
 bool daq_sweep_put(daq_t *d, int32_t raw);
 void daq_sweep_close(daq_t *d, uint32_t now);
@@ -265,8 +242,7 @@ void daq_live_insert(daq_t *d, uint8_t field, int32_t value, uint32_t at,
 uint32_t daq_available(const daq_t *d);   /**< whole records waiting      */
 uint32_t daq_capacity(const daq_t *d);    /**< whole records the ring holds*/
 uint16_t daq_take(daq_t *d, uint8_t *out, uint16_t max_records);
-/** The live accumulator copied out and emptied. `fresh` false when nothing
-  * arrived since the previous take. */
+/** The live accumulator copied out and emptied. */
 void daq_take_live(daq_t *d, daq_live_t *out);
 
 #endif /* DAQ_H */

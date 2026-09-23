@@ -2,21 +2,6 @@
   ******************************************************************************
   * @file    board_angle.c
   * @brief   Allegro A1335 magnetic angle sensor on SPI4.
-  *
-  * A 20-bit packet per register and a poll loop keeping the newest reading in
-  * shared memory - the IMU's shape, for the same reason: a Modbus round trip
-  * per register is 45 ms, which is not a sample rate.
-  *
-  * From A1335-DS Rev. 12: 20-bit packet, mode 3, 0.1 to 10 MHz, CS high at
-  * least 200 ns between frames, and the MOSI MSB must be 0 or IER asserts.
-  *
-  * The register map is not in that datasheet. The addresses come from
-  * github.com/ScranchNew/Allegro-A1335-Sensor-library, which drives the same
-  * registers over I2C: ANG 0x20, STA 0x22, ERR 0x24, XERR 0x26, TSEN 0x28,
-  * FIELD 0x2A.
-  *
-  * Counts, never degrees: ANG is 360/4096 a count and TSEN eighths of a
-  * kelvin, and both scalings belong to the host (invariant 10).
   ******************************************************************************
   */
 #include "board_limits.h"
@@ -29,13 +14,11 @@
 
 /* PE4 as plain GPIO, and only after HAL_SPI_Init: MspInit hands PE2, PE4,
    PE5 and PE6 to SPI4 as alternate function, so a chip select configured
-   ahead of the init is taken straight back. Hardware NSS pulses per frame
-   and this part wants one assertion across the whole packet. */
+   ahead of the init is taken straight back. */
 #define ANGLE_CS_PORT GPIOE
 #define ANGLE_CS_PIN  GPIO_PIN_4
 
-/* Registers. See the file header on where these come from - they are not in
-   the datasheet in this directory. */
+/* Registers. */
 #define ANGLE_REG_ANG   0x20U
 #define ANGLE_REG_STA   0x22U
 #define ANGLE_REG_ERR   0x24U
@@ -47,8 +30,7 @@
 #define ANGLE_DATA_SHIFT 4U
 #define ANGLE_RW_SHIFT   18U
 
-/* Figure 31 names this bit R/W and never says which way round. Measured on
-   this board rather than assumed - see FINDINGS. */
+/* Figure 31 names this bit R/W and never says which way round. */
 #define ANGLE_RW_READ    0U
 #define ANGLE_RW_WRITE   1U
 #define ANGLE_REG_MASK   0x3FU    /* a 6-bit register address */
@@ -56,22 +38,18 @@
 #define ANGLE_TEMP_MASK  0x0FFFU  /* TSEN's 12-bit count */
 #define ANGLE_SPI_TIMEOUT_MS 100U
 
-/** The angle sensor's state: the link, the latest word and its register,
-  * and the hold. One object: what a debugger shows whole and a reset clears
-  * at once. */
+/** The angle sensor's state: the link, the latest word and its register, and
+    the hold. */
 static struct
 {
   bool ready;
   uint32_t kernel_hz;
   uint32_t bitrate_hz;
 
-  /* The loop's own record. One writer - Board_AnglePoll - and one reader, both
-     on the main loop, so there is nothing to lock. */
+  /* The loop's own record. */
   board_angle_state_t state;
 
-  /* Where the poll loop looks. Settable, because the register map above came
-     from a reference implementation rather than from the datasheet in this
-     tree, and a host that finds a better address must not need a rebuild. */
+  /* Where the poll loop looks. */
   uint8_t poll_reg;
 } s = {
   .poll_reg = ANGLE_REG_ANG
@@ -94,8 +72,7 @@ static uint32_t prescaler_under(uint32_t limit_hz)
 
   /* A kernel clock of zero means the peripheral clock is not configured, and
      the loop below would read 0 <= limit on the first divider and pick the
-     fastest there is. Slowest instead: too slow is a slow read, too fast is
-     a part that never answers. */
+     fastest there is. */
   if (kernel == 0U)
   {
     s.bitrate_hz = 0U;
@@ -148,15 +125,11 @@ bool Board_AngleInit(void)
   }
 
   hspi4.Init.BaudRatePrescaler = prescaler_under(ANGLE_MAX_HZ);
-  /* Four 5-bit words, not one 20-bit one. stm32h7xx_hal_spi.c refuses a
-     data size above 16 bits on any instance IS_SPI_HIGHEND_INSTANCE does not
-     name, and that is SPI1, SPI2 and SPI3 only - SPI4 returns HAL_ERROR from
-     HAL_SPI_Init. Four words of five bits put exactly twenty clock edges on
-     the wire under one chip select, which is what the part counts. */
+  /* Four 5-bit words, not one 20-bit one. */
   hspi4.Init.DataSize     = SPI_DATASIZE_5BIT;
   hspi4.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
-  /* Mode 3, and set here because CubeMX's is not what runs: this
-     re-inits the peripheral, so the .ioc value is overwritten. */
+  /* Mode 3, and set here because CubeMX's is not what runs: this re-inits
+     the peripheral, so the .ioc value is overwritten. */
   hspi4.Init.CLKPolarity  = SPI_POLARITY_HIGH;    /* CPOL = 1 */
   hspi4.Init.CLKPhase     = SPI_PHASE_2EDGE;      /* CPHA = 1 */
   hspi4.Init.NSS          = SPI_NSS_SOFT;
@@ -184,7 +157,7 @@ bool Board_AngleReady(void)
 {
   /* Losing AFE_ON means losing the part, not pausing it: what it was told is
      gone with its supply, so the next command re-initialises rather than
-     carrying on. The IMU learned this the expensive way. */
+     carrying on. */
   if (!Board_AfeOn())
   {
     s.ready = false;
@@ -200,9 +173,7 @@ void Board_AngleClock(uint32_t *kernel_hz, uint32_t *bitrate_hz)
   if (bitrate_hz != NULL) { *bitrate_hz = s.bitrate_hz; }
 }
 
-/* One packet in, one packet out, chip select down across both. The part
-   answers the address it was given in the same frame - there is no second
-   transaction to fetch the result. */
+/* One packet in, one packet out, chip select down across both. */
 #define ANGLE_WORDS 4U          /* 4 x 5 bits = the 20-bit packet */
 #define ANGLE_WORD_BITS 5U
 #define ANGLE_WORD_MASK 0x1FU
@@ -251,23 +222,11 @@ bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc)
 {
   uint32_t got = 0U;
 
-  /* SYNC is bit 19 and must be 0. The read/write bit's polarity is the one
-     field Figure 31 names without defining; ANGLE_RW_READ is what answered
-     on this board. The CRC on MOSI is only checked when the part has been
-     programmed to check it, so this sends zeros rather than a polynomial
-     the datasheet in this tree does not give. */
+  /* SYNC is bit 19 and must be 0. */
   const uint32_t frame = ((uint32_t)ANGLE_RW_READ << ANGLE_RW_SHIFT)
                        | (((uint32_t)reg & ANGLE_REG_MASK) << ANGLE_ADDR_SHIFT);
 
-  /* Two frames, not one. Figure 31 draws MOSI and MISO side by side, but
-     the address arrives on MOSI bits 17..12 while MISO has already shifted
-     out bits 19..16 - the answer cannot be to the frame carrying the
-     address, and it is not. Measured: asking TSEN, FIELD, TSEN in turn
-     returned the previous register's value every time. The first frame
-     posts the address; the second clocks the answer out.
-
-     The second frame re-posts the same address, so a caller reading one
-     register in a loop pays one packet after the first. */
+  /* Two frames, not one. */
   if (!packet(frame, NULL) || !packet(frame, &got))
   {
     return false;
@@ -285,15 +244,7 @@ bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc)
   return true;
 }
 
-/** The A1335's own die, centi-degrees C. False if it did not answer.
-  *
-  * TSEN is eighths of a kelvin - a property of the part, not a calibratable
-  * parameter. DUPLICATED in `host/coaxial/angle.py`, which the thermal observer
-  * cannot reach; one should go, by cmd_angle appending the converted value.
-  *
-  * It measures its own DIE. As a board thermometer it FELL 1.88 K during a
-  * run that warmed the board (2026-08-28); as its node's, that is signal.
-  */
+/** The A1335's own die, centi-degrees C. */
 bool Board_AngleDie(int32_t *centidegc)
 {
   uint16_t counts = 0U;
@@ -332,8 +283,8 @@ static void note(uint8_t err)
   }
 }
 
-/* The part's supply went: the loop is off, nothing is held, and the
-   error says why - once, not every poll. */
+/* The part's supply went: the loop is off, nothing is held, and the error
+   says why - once, not every poll. */
 static void power_lost(void)
 {
   if (s.state.loop == BOARD_ANGLE_LOOP_OFF)
@@ -352,8 +303,7 @@ void Board_AnglePoll(void)
   uint16_t value = 0U;
   uint8_t  crc = 0U;
 
-  /* AFE_ON powers this part too, the same way it powers the BNO08X. A part
-     without its supply is not a part that reads zero. */
+  /* AFE_ON powers this part too, the same way it powers the BNO08X. */
   if (!Board_AfeOn())
   {
     power_lost();
@@ -365,14 +315,7 @@ void Board_AnglePoll(void)
     return;                        /* the host is configuring it */
   }
 
-  /* NOT DURING THE OBSERVER'S BORROW. It takes AFE_ON for about 500 ms every
-     few seconds to read the NTC, and this part needs longer than that to come
-     up - so it would start initialising, lose its supply mid-sequence, and do
-     it again on the next borrow. Reset after reset, an errors counter that
-     climbs and a part that never reports.
-
-     A borrow is a measurement window, not a power-up. Who holds the rail is
-     the reference count's to say, which is what BOARD_USER_THERMAL is for. */
+  /* NOT DURING THE OBSERVER'S BORROW. */
   if (Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
   {
     return;

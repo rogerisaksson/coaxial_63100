@@ -2,14 +2,6 @@
   ******************************************************************************
   * @file    wire.h
   * @brief   Append-only writer and forward-only reader for binary payloads.
-  *
-  * Keeps command handlers flat. Every accessor is total: the writer drops an
-  * overflowing write and the reader returns zero on underrun, both setting a
-  * sticky flag. So a handler is a straight run of statements with one check at
-  * the end, not an if around every field.
-  *
-  * Big-endian, as Modbus is for every field but its CRC. No floats on the
-  * wire; scaled integers, in the units the emitting command names.
   ******************************************************************************
   */
 #ifndef WIRE_H
@@ -42,14 +34,13 @@ void wr_bytes(wr_t *w, const void *src, uint16_t n);
 
 /** Length-prefixed ASCII: one length byte then the characters, no terminator. */
 void wr_str(wr_t *w, const char *s);
-/** The took byte, as every op taking parameters answers: 1, or 0 and
-    the board's words for what is wrong and what to do. */
+/** The took byte, as every op taking parameters answers: 1, or 0 and the
+    board's words for what is wrong and what to do. */
 void wr_took(wr_t *out, const char *refusal);
 
 static inline bool wr_ok(const wr_t *w) { return !w->bad; }
 static inline uint16_t wr_len(const wr_t *w) { return w->len; }
-/** Bytes still free. For a writer that must size a list before it
-  * writes the count that leads it. */
+/** Bytes still free. */
 static inline uint16_t wr_room(const wr_t *w)
 { return (w->cap > w->len) ? (uint16_t)(w->cap - w->len) : 0U; }
 
@@ -68,8 +59,8 @@ uint16_t rd_u16(rd_t *r);
 uint32_t rd_u32(rd_t *r);
 int32_t  rd_i32(rd_t *r);
 
-/** `n` bytes off the reader, or NULL when fewer are left - the raw
-    payload an op carries after its fields. */
+/** `n` bytes off the reader, or NULL when fewer are left - the raw payload
+    an op carries after its fields. */
 const uint8_t *rd_bytes(rd_t *r, uint16_t n);
 static inline bool rd_ok(const rd_t *r) { return !r->bad; }
 static inline uint16_t rd_left(const rd_t *r) { return (uint16_t)(r->len - r->pos); }

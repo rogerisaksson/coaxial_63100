@@ -2510,6 +2510,35 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   on the wire yet - the prefix search's real collision (a CRC error, a
   timeout, or both) is the first bus's to show, as the design says.
   Structure 723 -> 726, boot 15 -> 18, tree 3271.
+* NUMBERS THAT LIVED ONLY IN THE SOURCES' COMMENTS (2026-09-23). The comments were cut to what a reader needs - a block's first sentence, a field note's first clause - and every number in the text removed was checked against the documents; these were in no document and are kept here, each with the sentence it stood in:
+  - board\inc\board_limits.h: 394 Hz - "The divider is a power of two, so at a 190 MHz kernel clock the choice is 2.97 MHz or 1.48 MHz - nothing between. 2.97 MHz was rejected once"
+  - board\inc\board_limits.h: 381 Hz - "The divider is a power of two, so at a 190 MHz kernel clock the choice is 2.97 MHz or 1.48 MHz - nothing between. 2.97 MHz was rejected once"
+  - board\inc\board_limits.h: 394 Hz - "The divider is a power of two, so at a 190 MHz kernel clock the choice is 2.97 MHz or 1.48 MHz - nothing between. 2.97 MHz was rejected once"
+  - board\inc\board_limits.h: 1.73 ms - "A 320-byte cargo at 1.48 MHz is 1.73 ms of blocking transfer, and the keepalive latch holds only a few hundred microseconds (FINDINGS). Chip"
+  - board\inc\board_limits.h: 394 Hz - "Rate limited because it is not free: a four-byte transfer at 2.97 MHz is 13 us and the main loop also carries Modbus, whose t1.5 at 115200 i"
+  - board\inc\board_limits.h: 24.9 us - "The generator owes whatever the elapsed cycles bought, and a long gap owes thousands: a round trip between `tone` and `start` is 15 ms, whic"
+  - board\inc\board_limits.h: 336 bytes - "Each rung is a WHOLE design - boxcar, coefficients, decimation - so climbing one is still an anti-alias filter and not just fewer samples. D"
+  - board\inc\board_limits.h: 0.005 K - "Paired A/B, 12 pairs, 2026-08-28: 500 ms minus 100 ms is +0.005 K, sem 0.008 - 0.6 sigma, under the NTC's 30 mK quantisation. The reference "
+  - board\src\board_adc.c: 3.3000 V - "Empirically verified against a known ~0.5 V input on ADC3 CH1 (PC2/PC3): the raw result is OFFSET BINARY, not two's complement - code 32768 "
+  - board\src\board_adc.c: 2026-08-19 - "Thermistor is Murata NCU18XH103D60RB: R25=10k +/-0.5%, B25/50=3380K +/-0.7% - confirmed against Murata's published spec via web search on 20"
+  - board\src\board_adc.c: 2.50 V - "Traced on the MCU sheet 2026-08-27: R113 is a 10 k array whose four elements are GND, +5, +15V7 through R119 47 k, and GND. So PA4 sits on a"
+  - board\src\board_adc.c: 2.34 V - "Traced on the MCU sheet 2026-08-27: R113 is a 10 k array whose four elements are GND, +5, +15V7 through R119 47 k, and GND. So PA4 sits on a"
+  - board\src\board_drive.c: 20.000 us - "20.000 us at ARR 2375 and 475 MHz."
+  - board\src\board_imu.c: 1280 bytes - "The linker script gives this firmware a 1 KB stack (_Min_Stack_Size = 0x400) and the deepest path here - a command handler into Board_ImuWri"
+  - board\src\board_pwm.c: 4.21 ns - "One IDR load, so the six are the same instant - six separate reads at 50 kHz would straddle an edge and show a leg with both FETs on, which "
+  - board\src\board_pwm.c: 190.4 us - "Measured, it is cheap anyway: worst keepalive gap 190.4 us on against 186.5 off."
+  - board\src\board_sto.c: 1.73 ms - "The host divides. This is the number that decides whether the pump holds, and the mean rate hides it completely: measured, a 320-byte cargo "
+  - board\src\board_thermal.c: 39.1 V - "Negative: none yet. INVARIANT 9, and it cost a factor of 1.6. AFE_ON powers the ADC reference, and switching needs AFE_ON low - so every est"
+  - board\src\board_thermal.c: 14.9 K - "Negative: none yet. INVARIANT 9, and it cost a factor of 1.6. AFE_ON powers the ADC reference, and switching needs AFE_ON low - so every est"
+  - comms\src\dev_uart.c: 1.39 ms - "Measured, a 53-byte reply at 115200 stalled the main loop 4.6 ms - ten times what the STO latch holds, and by far the worst gap on the board"
+  - thermal\src\thermal.c: 847  0.109    V - "The partition is the thermal picture's: a band across the top under the switches and shunts, y >= 12 mm, cut into U, V, W at x = +-14; a ban"
+  - thermal\src\thermal.c: 1046  0.134    W - "The partition is the thermal picture's: a band across the top under the switches and shunts, y >= 12 mm, cut into U, V, W at x = +-14; a ban"
+  - thermal\src\thermal.c: 0.022 W - "0.020 W/K per unit L/d makes the V patch's three neighbours in parallel 15.1 K/W, which is the 15.2 K/W lumped bridge-to-board the camera sa"
+  - thermal\src\thermal.c: 27.9   V - "0.020 W/K per unit L/d makes the V patch's three neighbours in parallel 15.1 K/W, which is the 15.2 K/W lumped bridge-to-board the camera sa"
+  - thermal\src\thermal.c: 45.0 C - "MCU: the camera read the package at 45.0 C in the passive state and the internal sensor 72.0 C - 27 K at 0.666 W is 40.5 K/W, and ASSUMED ra"
+  - thermal\src\thermal.c: 37.47 C - "MCU: the camera read the package at 45.0 C in the passive state and the internal sensor 72.0 C - 27 K at 0.666 W is 40.5 K/W, and ASSUMED ra"
+  - thermal\test\check.c: 8.75 K - "A leg holds a third of what the lumped node did, so 35 W moves it 8.75 K per step; at the 0.5 s this used to be, the whole ceiling fell insi"
+  - thermal\test\check.c: 45.0 C - "The camera saw the package at 45.0 C in the passive state and the internal sensor read 72.0 - the 27 K between them is junction-to-case, and"
 
 ## The local model
 

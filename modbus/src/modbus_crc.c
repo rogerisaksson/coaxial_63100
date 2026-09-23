@@ -6,11 +6,7 @@
   */
 #include "modbus_crc.h"
 
-/* Bit-serial rather than a 512-byte table. At 115200 baud a maximum-length
-   256-byte frame needs 2048 iterations of a 4-instruction loop, which is a
-   few microseconds at 475 MHz - far below the 1.75 ms t3.5 budget we have to
-   respond within. The table would buy nothing and would be one more thing
-   that can be transcribed wrong. */
+/* Bit-serial rather than a 512-byte table. */
 uint16_t modbus_crc16(const uint8_t *data, size_t len)
 {
   uint16_t crc = 0xFFFFU;

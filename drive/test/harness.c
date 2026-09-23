@@ -4,13 +4,6 @@
   * @brief   A flat C API over drive/, so test_drive_core.py can run the
   *          control law on the host through ctypes, against a motor model
   *          written in Python.
-  *
-  * Built by the Python suite with the host gcc, never by the firmware build.
-  * Test scaffolding; it must not appear in the root CMakeLists.
-  *
-  * Parameters, setpoints and the state cross as flat float arrays in the
-  * orders the PARAM_ORDER / SP_ORDER / STATE_ORDER comments give; the Python
-  * side names them by the same lists.
   ******************************************************************************
   */
 #include "drive.h"
@@ -25,8 +18,8 @@
 #endif
 
 /* PARAM_ORDER: r, ld, lq, lambda, pole_pairs, kp, ki, l1, l2, inj_volts,
-   inj_periods, inj_phase, eps_gain, i_max, i_trip, v_frac, sign, w_lo,
-   w_hi, dt_step, dt_volts[0..7] */
+   inj_periods, inj_phase, eps_gain, i_max, i_trip, v_frac, sign, w_lo, w_hi,
+   dt_step, dt_volts[0..7] */
 #define PARAMS (20 + DRIVE_DT_POINTS)
 
 /* SP_ORDER: id_ref, iq_ref, theta, omega_target, accel, vd, vq, pol_volts,
@@ -183,7 +176,7 @@ API void drv_state(const drive_t *d, float *v, int n)
 
 
 /* WINDOW_ORDER: n, then per field (n, sum, sumsq) for id, iq, vd, vq, eps,
-   ih, vdc, then lag[0..7], then i_peak. Takes and resets. */
+   ih, vdc, then lag[0..7], then i_peak. */
 #define WINDOW_DOUBLES (1 + 3 * DRIVE_ACC_FIELDS + (DRIVE_LAGS + 1) + 1)
 
 
@@ -316,12 +309,10 @@ API void drv_model_state(const drive_t *d, float *v)
 
 
 /** The observer chain's state, drive_observer.c, in the order
-  * test_drive_core.py and coaxial.drive read it: the blend, then each
-  * observer on its own, then what the chain says about the machine. */
+    test_drive_core.py and coaxial.drive read it: the blend, then each
+    observer on its own, then what the chain says about the machine. */
 /** The observer chain on its own, fed the stationary-frame voltage and
-  * current directly. The suite drives the same signals through this and
-  * through coaxial.sensorless, so the C and the Python that ranked these
-  * observers are held to the same numbers. */
+    current directly. */
 API void drv_obs_step(drive_t *d, float va, float vb, float ia, float ib)
 {
   drive_observer_step(&d->obs, &d->p, va, vb, ia, ib, d->ts);

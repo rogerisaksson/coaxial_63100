@@ -2,44 +2,6 @@
   ******************************************************************************
   * @file    cmd_thermal.c
   * @brief   The thermal observer behind 0x6E, device 8.
-  *
-  * MEASURED AND ESTIMATED SIT IN SEPARATE FIELDS, which is the whole point of
-  * the reply's shape. The NTC is a measurement and comes with a flag saying
-  * whether it exists; the node temperatures are estimates from power and
-  * time. A reply that put them in one list would be the mistake invariant 9
-  * is about - a value that looks like a measurement without being one.
-  *
-  * `seconds` is how long the thermal observer has run. Without it an
-  * estimate cannot be judged: the laminate's time constant is minutes, so
-  * anything under a few has not settled. Judge it on the host - the board
-  * does not judge (invariant 10).
-  *
-  * Ops:
-  *   0  state       - measured NTC, estimated nodes, ambient, seconds;
-  *                    MINOR 13 appends the three FET junction rises and
-  *                    the speed
-  *   1  set node    - u8 node, i32 k_per_w_milli, i32 capacity_milli: the
-  *                    node's first path out and its J/K
-  *   2  set board   - i32 to_ambient_milli, i32 capacity_milli: the bulk,
-  *                    shared out by area
-  *   3  set sample  - u32 every_ms, u32 settle_ms
-  *   4  budget      - the SOA spend, one byte a node; MINOR 12 appends the
-  *                    winding's estimate, spend and own factor
-  *   5  set limit   - u8 node, i32 limit_milli_c, i32 throttle_ppm
-  *   6  set winding - i32 limit_milli_c, i32 k_per_w_milli, i32 j_per_k_milli
-  *   7  nodes       - u8 first: the network's node table from there, ten a
-  *                    page: capacity, air path, area share, R_th, forced
-  *   8  edges       - the whole edge table: a, b, K/W each
-  *   9  set edge    - u8 edge, i32 k_per_w_milli; negative opens it
-  *  10  ident       - MINOR 14: the online identification - state, which
-  *                    scales move, each scale and its sigma, the filtered
-  *                    innovation, the envelope's margin, updates, saves;
-  *                    MINOR 15 appends the room as identified and its sigma;
-  *                    MINOR 16 appends the margin's floor, and writes the
-  *                    saves as none - the board keeps nothing
-  *  11  ident reset - scales to one, UNCERTAIN, the margin at the floor
-  *  12  set margin  - i32 floor_ppm: the least of every ceiling's span the
-  *                    envelope keeps, through the record
   ******************************************************************************
   */
 #include "board.h"
@@ -61,13 +23,11 @@ static cmd_status_t h_thermal_state(wr_t *out)
     return CMD_ERR_DEVICE;
   }
 
-  /* Measured first, with its flag. AFE_ON low means no reference and so no
-     measurement at all - not a zero, an absence. */
+  /* Measured first, with its flag. */
   wr_u8(out, th.ntc_measured ? 1U : 0U);
   wr_i32(out, th.ntc_centidegc);
 
-  /* Then the estimates, in node order. Append-only like everything here;
-     the count is what a host follows. */
+  /* Then the estimates, in node order. */
   wr_u8(out, (uint8_t)BOARD_THERMAL_NODES);
   for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
   {
@@ -92,9 +52,9 @@ static cmd_status_t h_thermal_state(wr_t *out)
   wr_u32(out, th.seen_ms_ago);
   wr_u32(out, th.steps);
 
-  /* MINOR 13, appended (invariant 3): each leg's FET junction over its
-     node in centi-kelvin - what the datasheet's 175 C is against - and
-     the rotor speed the air paths were evaluated at. */
+  /* MINOR 13, appended (invariant 3): each leg's FET junction over its node
+     in centi-kelvin - what the datasheet's 175 C is against - and the rotor
+     speed the air paths were evaluated at. */
   for (uint8_t leg = 0U; leg < 3U; leg++)
   {
     wr_i32(out, th.junction_over_centi[leg]);
@@ -187,8 +147,7 @@ static cmd_status_t h_thermal_set_sample(rd_t *in, wr_t *out)
 }
 
 
-/** op 4 - what is left of the thermal budget. One byte a node, 0 at
-  * ambient and 255 at the limit; degrees stay on op 0. */
+/** op 4 - what is left of the thermal budget. */
 static cmd_status_t h_thermal_budget(wr_t *out)
 {
   board_budget_t b;
@@ -209,9 +168,7 @@ static cmd_status_t h_thermal_budget(wr_t *out)
   wr_u8(out, b.throttling ? 1U : 0U);
   wr_u8(out, b.tripped ? 1U : 0U);
   wr_u32(out, b.trips);
-  /* MINOR 11, appended (invariant 3). The clamp's factor in micro, the
-     joules each node can still absorb in milli, and the effective duty
-     per phase in micro. */
+  /* MINOR 11, appended (invariant 3). */
   wr_i32(out, (int32_t)(b.derate * PPM_PER_UNIT));
   for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
   {
@@ -230,8 +187,7 @@ static cmd_status_t h_thermal_budget(wr_t *out)
 }
 
 
-/** op 6 - the winding's envelope: ceiling, K/W and J/K, milli-units. A
-  * zero ceiling disables the winding; the constants must be positive. */
+/** op 6 - the winding's envelope: ceiling, K/W and J/K, milli-units. */
 static cmd_status_t h_thermal_set_winding(rd_t *in, wr_t *out)
 {
   const int32_t limit_milli = rd_i32(in);
@@ -288,8 +244,8 @@ static cmd_status_t h_thermal_set_limit(rd_t *in, wr_t *out)
 
 
 /** op 7 - the node table from `first`, NODES_A_PAGE at most: capacity in
-  * milli J/K, the air path in milli K/W (0: none), the area share in ppm,
-  * R_th in milli K/W, the forced-convection gain in milli. */
+    milli J/K, the air path in milli K/W (0: none), the area share in ppm,
+    R_th in milli K/W, the forced-convection gain in milli. */
 static cmd_status_t h_thermal_nodes(rd_t *in, wr_t *out)
 {
   const uint8_t first = rd_u8(in);
@@ -331,8 +287,8 @@ static cmd_status_t h_thermal_nodes(rd_t *in, wr_t *out)
 }
 
 
-/** op 8 - every edge: the two nodes it joins and the K/W across it in
-  * milli, zero for an open one. */
+/** op 8 - every edge: the two nodes it joins and the K/W across it in milli,
+    zero for an open one. */
 static cmd_status_t h_thermal_edges(wr_t *out)
 {
   wr_u8(out, (uint8_t)BOARD_THERMAL_EDGES);
@@ -384,13 +340,7 @@ static cmd_status_t h_thermal_set_edge(rd_t *in, wr_t *out)
 }
 
 
-/** op 10 - the identification beside the observer. State and the mask of
-  * scales the samples move, then each scale with its sigma in milli, the
-  * filtered innovation in milli-kelvin, the margin the envelope keeps in
-  * micro, the counts - the saves zero and the seconds since one all ones,
-  * "never", since MINOR 16: the fields stay (invariant 3) and the board
-  * keeps nothing - then the room, since 16 the margin's floor, and since
-  * 17 the trip cap, so a host can say which of the two holds the margin. */
+/** op 10 - the identification beside the observer. */
 static cmd_status_t h_thermal_ident(wr_t *out)
 {
   board_thermal_ident_t id;
@@ -412,8 +362,8 @@ static cmd_status_t h_thermal_ident(wr_t *out)
   wr_u32(out, id.updates);
   wr_u32(out, 0UL);                /* saves: none, the board keeps nothing */
   wr_u32(out, 0xFFFFFFFFUL);       /* since a save: never                  */
-  /* MINOR 15, appended (invariant 3): the room as identified, centi-C,
-     and its sigma in centi-kelvin. */
+  /* MINOR 15, appended (invariant 3): the room as identified, centi-C, and
+     its sigma in centi-kelvin. */
   wr_i32(out, (int32_t)(id.ambient_c * CENTI_PER_UNIT));
   wr_i32(out, (int32_t)(id.ambient_sigma_k * CENTI_PER_UNIT));
   /* MINOR 16, appended: the floor the margin rises from, micro. */
@@ -437,8 +387,8 @@ static cmd_status_t h_thermal_ident_reset(wr_t *out)
 }
 
 
-/** op 12 - the margin floor, ppm of every ceiling's span, into the
-  * record; cal op 2 is what persists it. */
+/** op 12 - the margin floor, ppm of every ceiling's span, into the record;
+    cal op 2 is what persists it. */
 static cmd_status_t h_thermal_set_margin(rd_t *in, wr_t *out)
 {
   const int32_t floor_ppm = rd_i32(in);

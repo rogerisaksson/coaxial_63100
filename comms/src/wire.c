@@ -39,8 +39,8 @@ void wr_u8(wr_t *w, uint8_t v)
   wr_bytes(w, &v, 1U);
 }
 
-/* A signed byte says so on the wire and in the writer: a reader that
-   takes it as i8 is reading what was written, not guessing at a cast. */
+/* A signed byte says so on the wire and in the writer: a reader that takes
+   it as i8 is reading what was written, not guessing at a cast. */
 void wr_i8(wr_t *w, int8_t v)
 {
   wr_u8(w, (uint8_t)v);
@@ -133,8 +133,8 @@ uint8_t rd_u8(rd_t *r)
   return rd_take(r, 1U, &p) ? p[0] : 0U;
 }
 
-/* A signed byte says so in the reader as in the writer: what was packed
-   as i8 is read as i8, not as a cast a header has to explain. */
+/* A signed byte says so in the reader as in the writer: what was packed as
+   i8 is read as i8, not as a cast a header has to explain. */
 int8_t rd_i8(rd_t *r)
 {
   return (int8_t)rd_u8(r);

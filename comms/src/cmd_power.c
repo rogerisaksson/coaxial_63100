@@ -2,17 +2,6 @@
   ******************************************************************************
   * @file    cmd_power.c
   * @brief   The rail reference counts behind 0x6E, device 9.
-  *
-  * The mask says WHICH subsystem holds a rail, which is the difference
-  * between a diagnosis and a guess - the thermal observer once took AFE_ON, a
-  * starved poll never released it, and nothing on the wire said why.
-  *
-  * `on` is the PIN, read back. Reporting both is for the case where the pin
-  * and the count disagree.
-  *
-  * Ops:
-  *   0  state        - u8 rails, then per rail: on, users, count, blocked, leased
-  *   1  release all  - drop every hold; blunt, for recovering a leak
   ******************************************************************************
   */
 #include "board.h"
@@ -43,9 +32,7 @@ static cmd_status_t h_power_state(wr_t *out)
 }
 
 
-/* No guard on the gate stage here. Releasing every hold switches the AFE
-   rail OFF, which gives the drivers their supply rather than taking it
-   away - the direction that is safe while armed. */
+/* No guard on the gate stage here. */
 static cmd_status_t h_power_release_all(wr_t *out)
 {
   Board_PowerReleaseAll();
