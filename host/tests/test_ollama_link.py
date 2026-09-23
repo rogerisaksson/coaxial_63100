@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tests.ollama_support import (ConnectError, Scope, ScriptedModel,   # noqa: E402
     SimulatedSession, _Held, _NotATty, call, detail, io, sessionmod, toolmod)
-from coaxial import ports                                              # noqa: E402
+from coaxial.comm import ports                                              # noqa: E402
 
 def test_power_check_cannot_halt(report):
     """Diagnosing the link must not be able to break it."""
@@ -209,14 +209,14 @@ def test_link_diagnose(report):
             self.device = device
 
     real_comports = list_ports.comports
-    real_connect = coaxial.board.connect
+    real_connect = coaxial.devices.board.connect
     real_check_power = find_board.check_power
     real_port_state = find_board.port_state
     try:
         # Stubbed for the same reason as the other three: it opens a real port.
         find_board.port_state = lambda *a, **kw: ports.SILENT
         list_ports.comports = lambda: [FakePort('COM4'), FakePort('COM7')]
-        coaxial.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
+        coaxial.devices.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
         find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
 
@@ -234,7 +234,7 @@ def test_link_diagnose(report):
                      'COM4' in result2
                      and 'answers on COM4 right now: no' in result2, result2)
 
-        coaxial.board.connect = lambda *a, **kw: []                # "answers"
+        coaxial.devices.board.connect = lambda *a, **kw: []                # "answers"
         result2b = str(present.call('link_diagnose', {}))
         report.check('and a port that actually answers says the link is '
                      'up, not "silent" just because it exists',
@@ -293,7 +293,7 @@ def test_link_diagnose(report):
         # concluded - on a pulled cable, asserting the one thing that was false
         # and pointing at a busy port and a halted core instead.
         list_ports.comports = lambda: [FakePort('COM4')]
-        coaxial.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
+        coaxial.devices.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
         find_board.check_power = lambda timeout=15: (None, 'fake: unknown')
         unsure = toolmod.Toolbox(sessionmod.Session(port='COM4', baud=115200, unit=1))
@@ -339,7 +339,7 @@ def test_link_diagnose(report):
              build_and_flash.toolchain_path) = was
     finally:
         list_ports.comports = real_comports
-        coaxial.board.connect = real_connect
+        coaxial.devices.board.connect = real_connect
         find_board.check_power = real_check_power
         find_board.port_state = real_port_state
 
@@ -349,7 +349,7 @@ def test_link_diagnose(report):
 
 def test_fallback(report):
     """No cable is not a failing test suite - it is a different board."""
-    from coaxial.session import open_session
+    from coaxial.comm.session import open_session
     from coaxial_ollama import debug
     from coaxial_ollama import spinner as spin
 

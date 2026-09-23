@@ -5,8 +5,8 @@ or under its bottom, joined into loops and simplified along their chains.
 """
 import math
 
-from .. import orientation
-from .solids import _decimated, _parametric, _slab_bottom, _slab_top
+from coaxial.draw import orientation
+from coaxial.graphics.solids import _decimated, _parametric, _slab_bottom, _slab_top
 
 
 #: Outline sources kept the same way.

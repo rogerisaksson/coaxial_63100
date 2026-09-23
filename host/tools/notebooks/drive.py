@@ -15,7 +15,7 @@ ABSTRACT = (
     "and hands over to back-EMF above `w_lo`; above that the angle is what an "
     "observer can make of `v - R i`, and this notebook asks which observer, at "
     "what speed, from what this board can measure. Five observers in "
-    "`coaxial.sensorless` - sliding mode, flux linkage, extended state, adaptive "
+    "`coaxial.model.sensorless` - sliding mode, flux linkage, extended state, adaptive "
     "Luenberger, dual flux with a PLL - run over plants drawn around the 5230SL "
     "with the Monte Carlo's own tolerances and are ranked by angle error in "
     "degrees rms against a 20-degree line, the error a torque command pays as "
@@ -80,9 +80,9 @@ print({k: round(v, 6) for k, v in plant.items()})'''),
            "`cos(eps)` of itself - 20 degrees electrical costs 6 %, 40 costs "
            "23 % - so 20 degrees is the line each has to stay inside."),
         code('''import math
-from coaxial import inverter, sensorless
-from coaxial.loop import CurrentLoop, Machine, Signals
-from coaxial.motor import PLATINUM_5230SL, Parameters
+from coaxial.model import inverter, sensorless
+from coaxial.control.loop import CurrentLoop, Machine, Signals
+from coaxial.model.motor import PLATINUM_5230SL, Parameters
 
 TWO_PI = 2.0 * math.pi
 motor = PLATINUM_5230SL
@@ -238,7 +238,7 @@ print('the extended back-EMF form carries the term instead: zero at every iq')''
     ),
     section(
         'Five observers, ranked by measurement',
-        md("Three more, all in `coaxial.sensorless`. The extended state "
+        md("Three more, all in `coaxial.model.sensorless`. The extended state "
            "observer (ESO, ADRC) refuses to model anything: `di/dt = v/L + f` "
            "and `f` is everything else at once, estimated as a state, so "
            "there is no low-pass on the signal it wants and nothing in its "
@@ -445,7 +445,7 @@ print()
 print('the sensorless floor: rpm where the back-EMF alone lost the rotor')
 print(floor.round(0))
 print('trips with injection: %d of %d' % (int(verified.trip.sum()), len(verified)))'''),
-        code('''from coaxial.figures import figure, show
+        code('''from coaxial.draw.figures import figure, show
 
 fig, (a, b) = figure(rows=1, cols=2)
 for vdc in VDCS:
@@ -474,7 +474,7 @@ show(fig)'''),
            "depth, the blend band in rpm, the held angle error in electrical "
            "and mechanical degrees, and the floor as a share of the speed "
            "that link holds."),
-        code('''from coaxial.motor import APC20x10E, RATINGS, KT_NM_PER_AMP
+        code('''from coaxial.model.motor import APC20x10E, RATINGS, KT_NM_PER_AMP
 
 kt = 1.5 * motor.poles * motor.lam
 print('Kt               %.4f N.m/A  (the sheet: %.4f)' % (kt, KT_NM_PER_AMP))
@@ -533,7 +533,7 @@ for vdc in VDCS:
            "board under it moves in 6.8 minutes - which is why a burst is "
            "planned against `seconds_to_limit` and the envelope throttles at "
            "90 % rather than waiting for the ceiling."),
-        code('''from coaxial import thermal
+        code('''from coaxial.model import thermal
 
 LAMBDA_SPREAD = (0.9, 1.1)          # what mc.draw draws over
 I_RATING = 100.0                    # the board, instantaneous
@@ -805,7 +805,7 @@ for name, f in w['fields'].items():
     print('   %-4s n %-7s mean %s sd %s' % (name, f['n'], f['mean'], f['sd']))
 print('rho', [round(r, 4) for r in w['rho']])'''),
         code('''from IPython.display import display
-from coaxial import ansi, machine as cross_section
+from coaxial.draw import ansi, machine as cross_section
 
 t = [r[0] for r in spin]
 fig, (angle, mid, bottom) = figure(rows=3, sharex=True)
@@ -1075,12 +1075,12 @@ BENCH = (
     "with current flowing before planning a burst on it.")
 
 REFERENCES = [
-    ('host/coaxial/sensorless.py', 'the five observers, `choose_injection` and `decide`'),
-    ('host/coaxial/loop.py', 'the current loop, the machine and the speed loop the search closes'),
+    ('host/coaxial/model/sensorless.py', 'the five observers, `choose_injection` and `decide`'),
+    ('host/coaxial/control/loop.py', 'the current loop, the machine and the speed loop the search closes'),
     ('host/tools/montecarlo.py', "the firmware's C searched over the link sweep, one process per core"),
     ('host/tests/test_drive_core.py', 'the C held to the Python it was ported from, over drawn plants'),
     ('drive/src/drive_observer.c', 'the back-EMF chain the board runs beside the loop, op 14'),
-    ('host/coaxial/drive.py', 'device 10: `state`, `window`, `model`, `observers`, the record'),
+    ('host/coaxial/devices/drive.py', 'device 10: `state`, `window`, `model`, `observers`, the record'),
     ('host/coaxial/simulated/drive.py', 'the stand-in this ran on: the PMSM, and the chain stepped over a bounded window'),
     ('docs/FINDINGS.md', 'the caches were off: 10 040, 6 756 and 2 922 cycles a step'),
 ]

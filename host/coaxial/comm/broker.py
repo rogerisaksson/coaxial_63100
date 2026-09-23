@@ -1,0 +1,574 @@
+"""One process owns the serial port; everything else asks it."""
+import json
+import os
+import socket
+import socketserver
+import subprocess
+import sys
+import threading
+import time
+
+from coaxial import errors
+from coaxial.comm import ports, protocol
+from coaxial.errors import NoReplyError, RigError
+from coaxial.acquire.fanout import Fanout
+from coaxial.comm.transport import Transport, hand_to_binary
+from typing import Any
+from contextlib import suppress
+
+#: Loopback only. The board is a bench instrument on somebody's desk, and a
+#: broker on 0.0.0.0 is that desk's power stage on the network.
+HOST = '127.0.0.1'
+PORT = 8763
+
+#: How long a connect may take. A broker that is serving accepts in the
+#: kernel at once, busy or not, so a connect that has not completed in
+#: a second is one nobody is listening for - and on this bench that
+#: takes the whole timeout to find out: a loopback port with no
+#: listener is not refused here, the SYN is dropped, measured 2.0 s
+#: against a 2.0 s timeout. The timeout a caller gives is for the
+#: asks, where a reply waits on the serial port.
+CONNECT_S = 1.0
+
+#: Where the broker says what it is serving, so a client can name the port it
+#: ended up on rather than guessing. Beside the session snapshot, and removed
+#: on the way out.
+HOST = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+WHERE = os.path.join(HOST, 'tools', '.session.addr')
+
+
+def _line(payload):
+    return (json.dumps(payload) + '\n').encode('utf-8')
+
+
+def _rebuild(answer):
+    """The exception the far side raised, as itself."""
+    kind = getattr(errors, answer['error'], errors.RigError)
+
+    # By FIELD, not by args: ModbusException formats its message in __init__,
+    # so `args` is that one string and rebuilding from it gets `missing 2
+    # required positional arguments`.
+    fields = answer.get('fields') or {}
+    if fields:
+        with suppress(TypeError):
+            return kind(**fields)
+    try:
+        return kind(answer['message'])
+    except TypeError:
+        # A class this host cannot rebuild is still a refusal, and losing the
+        # sentence is worse than losing the class.
+        return errors.RigError('%s: %s' % (answer['error'], answer['message']))
+
+
+class BrokerTransport:
+
+    """A Transport that forwards instead of driving a UART."""
+
+    #: Set by `Board.probe` like the UART's; nothing here reads it - the
+    #: gap is the broker's, on the wire it holds.
+    proven_dispatch = False
+
+    def __init__(self, address=(HOST, PORT), timeout=10.0):
+        self.address = address
+        self.port = '?'
+        self._lock = threading.Lock()
+        self._sock = socket.create_connection(address, timeout=CONNECT_S)
+        self._sock.settimeout(timeout)
+        self._file = self._sock.makefile('rwb')
+        self.baud = self._ask({'op': 'baud'})['baud']
+        self.port = self._ask({'op': 'port'})['port']
+
+    def _ask(self, message):
+        with self._lock:
+            self._file.write(_line(message))
+            self._file.flush()
+            raw = self._file.readline()
+
+        if not raw:
+            raise errors.NoReplyError(
+                'the session broker closed the connection - it was serving '
+                '%s and is not there now' % self.port)
+
+        answer = json.loads(raw.decode('utf-8'))
+        if 'error' in answer:
+            raise _rebuild(answer)
+        return answer
+
+    def request(self, unit, function, payload=b'', exact_payload=None,
+                timeout=None, reply_shape=None):
+        # `reply_shape` is a plain dict for this reason: the saving it buys is
+        # on the OTHER side of this socket, where the serial port is, so it has
+        # to survive the trip as JSON.
+        got = self._ask({'op': 'request', 'unit': unit, 'function': function,
+                         'payload': bytes(payload).hex(),
+                         'exact_payload': exact_payload, 'timeout': timeout,
+                         'reply_shape': reply_shape})
+        return bytes.fromhex(got['payload'])
+
+    # -- the shared ring --------------------------------------------------
+
+    def stream(self, stride, records, unit=1):
+        """Ask the broker to drain unit `unit` into a ring of `records`."""
+        return self._ask({'op': 'daq_stream', 'stride': stride,
+                          'records': records, 'unit': unit})
+
+    def unstream(self):
+        return self._ask({'op': 'daq_unstream'})
+
+    def stream_state(self):
+        return self._ask({'op': 'daq_state'})
+
+    def take(self, cursor, most=0):
+        """Records from `cursor`. (blob, first, lost, next)."""
+        got = self._ask({'op': 'daq_take', 'from': cursor, 'max': most})
+        return (bytes.fromhex(got['blob']), got['first'], got['lost'],
+                got['next'])
+
+    def broadcast(self, function, payload=b'', settle=0.05):
+        self._ask({'op': 'broadcast', 'function': function,
+                   'payload': bytes(payload).hex(), 'settle': settle})
+        return None
+
+    def answers(self, unit=1):
+        """Whether the BOARD behind the broker replies."""
+        return bool(self._ask({'op': 'answers', 'unit': unit})['answers'])
+
+    @property
+    def is_open(self):
+        """Whether this CLIENT is still connected. Always False here."""
+        return False
+
+    def close(self):
+        """Drop this client. The broker and the board carry on."""
+        with suppress(OSError):
+            self._file.close()
+            self._sock.close()
+
+
+class _Handler(socketserver.StreamRequestHandler):
+    """One client, one line at a time. The lock is the whole design."""
+
+    server: '_Server'
+    def setup(self):
+        socketserver.StreamRequestHandler.setup(self)
+        # A LOOK IS NOT A USE.
+        self.uses = False
+
+    def finish(self):
+        # THE COUNT COMES DOWN FIRST.
+        try:
+            last = self._release()
+        finally:
+            with suppress(OSError):
+                socketserver.StreamRequestHandler.finish(self)
+        # THE LAST SESSION TAKES IT DOWN - after a linger.
+        if last and self.server.until_idle:
+            threading.Thread(target=self._stand_down_when_idle,
+                             daemon=True).start()
+
+    def _stand_down_when_idle(self):
+        deadline = time.monotonic() + self.server.linger
+        while time.monotonic() < deadline:
+            time.sleep(0.5)
+            with self.server.lock:
+                if self.server.clients:
+                    return                     # somebody came back - stay up
+        with self.server.lock:
+            if self.server.clients:
+                return
+        self.server.shutdown()
+
+    def _release(self):
+        """Give up this client's use, if it had one. True if it was the last."""
+        if not self.uses:
+            return False
+        self.uses = False
+        with self.server.lock:
+            self.server.clients -= 1
+            return self.server.clients == 0
+
+    def handle(self):
+        while True:
+            raw = self.rfile.readline()
+            if not raw:
+                return
+            try:
+                message = json.loads(raw.decode('utf-8'))
+            except ValueError:
+                message = None
+            if message is None:
+                answer = {'error': 'RigError', 'message': 'not a request'}
+            else:
+                answer = self._answer(message)
+            self.wfile.write(_line(answer))
+            self.wfile.flush()
+
+    def _answer(self, message):
+        served = self.server
+        op = message.get('op')
+        if op in ('request', 'broadcast') and not self.uses:
+            self.uses = True
+            with served.lock:
+                served.clients += 1
+        try:
+            return self._do(served, op, message)
+        except errors.RigError as exc:
+            # The class name AND its arguments, so the client raises what it
+            # would have raised in-process.
+            return {'error': type(exc).__name__, 'message': str(exc),
+                    'fields': {k: v for k, v in vars(exc).items()
+                               if isinstance(v, (int, str))}}
+        except Exception as exc:          # noqa: BLE001 - the server's edge:
+            # the client gets whatever a request raised, as an error
+            return {'error': 'RigError',
+                    'message': '%s: %s' % (type(exc).__name__, exc)}
+
+    @staticmethod
+    def _do(served, op, message):
+        """One op, by the table below - an op it does not list is refused in
+        words, as everything else here is.
+        """
+        handler = OPS.get(op)
+        if handler is None:
+            return {'error': 'RigError', 'message': 'unknown op %r' % (op,)}
+        return handler(served, message)
+
+
+def _baud(served, message):
+    return {'baud': served.transport.baud}
+
+
+def _port(served, message):
+    return {'port': served.serial_port}
+
+
+def _clients(served, message):
+    return {'clients': served.clients}
+
+
+def _answers(served, message):
+    """A LOOK, NOT A USE - the staleness check asks this before it commits
+    `auto` to a real port, and whoever asks whether the board is there
+    must not become the last one out.
+    """
+    try:
+        with served.lock:
+            served.transport.request(
+                message.get('unit', 1), protocol.VERSION, b'', None, 1.0)
+    except (errors.RigError, OSError):
+        return {'answers': False}
+    served.spoke()
+    return {'answers': True}
+
+
+def _stand_down(served, message):
+    """Only with nobody using it."""
+    with served.lock:
+        busy = served.clients
+    if busy:
+        return {'error': 'DeviceStateError',
+                'message': '%d session%s still using %s'
+                           % (busy, '' if busy == 1 else 's',
+                              served.serial_port)}
+    threading.Thread(target=served.shutdown, daemon=True).start()
+    return {'payload': ''}
+
+
+def _request(served, message):
+    with served.lock:
+        got = served.retrying(
+            message['unit'], message['function'],
+            bytes.fromhex(message['payload']),
+            message['exact_payload'], message['timeout'],
+            message.get('reply_shape'))
+    served.spoke()
+    return {'payload': bytes(got).hex()}
+
+
+def _daq_stream(served, message):
+    served.stream(int(message['stride']), int(message['records']),
+                  int(message.get('unit') or 1))
+    return served.fanout.state()
+
+
+def _daq_unstream(served, message):
+    served.unstream()
+    return {'streaming': False}
+
+
+def _daq_state(served, message):
+    if served.fanout is None:
+        return {'streaming': False}
+    got = served.fanout.state()
+    got['streaming'] = served.streaming
+    return got
+
+
+def _daq_take(served, message):
+    if served.fanout is None:
+        raise errors.RigError(
+            'nothing is streaming - daq_stream first, and the '
+            'broker will keep the ring for every client on it')
+    blob, first, lost, nxt = served.fanout.take(
+        int(message['from']), int(message.get('max') or 0))
+    return {'blob': blob.hex(), 'first': first, 'lost': lost, 'next': nxt}
+
+
+def _broadcast(served, message):
+    with served.lock:
+        served.transport.broadcast(
+            message['function'], bytes.fromhex(message['payload']),
+            message['settle'])
+    served.spoke()
+    return {'payload': ''}
+
+
+#: What a client may ask of the broker, by the `op` in its line: each a
+#: function of the server and the message, answering a dict the client
+#: reads back as the reply or the raise.
+OPS = {
+    'baud': _baud, 'port': _port, 'clients': _clients, 'answers': _answers,
+    'stand_down': _stand_down, 'request': _request, 'broadcast': _broadcast,
+    'daq_stream': _daq_stream, 'daq_unstream': _daq_unstream,
+    'daq_state': _daq_state, 'daq_take': _daq_take,
+}
+
+
+class _Server(socketserver.ThreadingTCPServer):
+    """The broker's own state: the transport, the lock, and who is using it."""
+    daemon_threads = True
+    allow_reuse_address = True
+    clients = 0
+    until_idle = True
+    #: Set by `serve()` once the port is open: the wire, its name, and
+    #: the one lock every request takes.
+    transport: Any
+    serial_port: Any
+    lock: threading.Lock
+    #: How long an idle broker waits for the next client, seconds. Long
+    #: enough to hop between menu views; short enough that the port frees
+    #: itself within a minute of real abandonment. Zero in the tests, so
+    #: one test's broker cannot linger on the port and answer the next
+    #: test's clients - which it did, and the suite said so. stand_down
+    #: stays immediate for whoever asks for the port by name.
+    linger = 45.0
+
+    #: The shared ring, and the thread that fills it. ONE READER OF THE
+    #: BOARD, many readers of the ring: the link is a single wire and a
+    #: second drainer would take records the first never sees, so the
+    #: broker drains it once and every client reads its own way through
+    #: `coaxial.acquire.fanout` from its own cursor.
+    fanout = None
+    streaming = False
+    #: Which unit the ring is being filled from.
+    stream_unit = 1
+    _streamer = None
+    _stop_stream = None
+
+    #: Records a client asks for in one go. Whole replies only - the board
+    #: fits four or so in a PDU, and asking for more is a loop here.
+    STREAM_BATCH = 0
+
+    #: When a board frame last went out on anybody's behalf - clients and
+    #: the keepalive both stamp it.
+    heard = 0.0
+    #: Seconds of client silence before the broker speaks for them. The
+    #: firmware drops a silent host's rail claims after 10 s
+    #: (BOARD_POWER_HOST_QUIET_MS) - right for a killed script, wrong for
+    #: an operator thinking between chat turns. The margin is 3x.
+    KEEPALIVE = 3.0
+
+    def stream(self, stride, records, unit=1):
+        """Start draining unit `unit` into a ring of `records`, or resize it.
+        """
+
+        with self.lock:
+            same = (self.fanout is not None
+                    and self.fanout.stride == stride
+                    and self.fanout.capacity == records
+                    and self.stream_unit == unit)
+        if same and self.streaming:
+            return
+        self.unstream()
+        self.fanout = Fanout(stride, records)
+        self.stream_unit = unit
+        self._stop_stream = threading.Event()
+        self._streamer = threading.Thread(
+            target=_stream_loop, args=(self, self._stop_stream),
+            name='broker-daq', daemon=True)
+        self.streaming = True
+        self._streamer.start()
+
+    def unstream(self):
+        """Stop draining. What the ring holds stays readable."""
+        if self._stop_stream is not None:
+            self._stop_stream.set()
+        if self._streamer is not None:
+            self._streamer.join(2.0)
+        self._streamer = None
+        self._stop_stream = None
+        self.streaming = False
+
+    def spoke(self):
+        self.heard = time.monotonic()
+
+    def tick(self, stop):
+        """One version read per KEEPALIVE of quiet, only while somebody is
+        attached.
+        """
+
+        while not stop.wait(0.5):
+            if self.clients <= 0:
+                continue
+            if time.monotonic() - self.heard < self.KEEPALIVE:
+                continue
+            with suppress(RigError, OSError):
+                with self.lock:
+                    self.transport.request(1, protocol.VERSION, b'')
+                self.spoke()
+
+    def retrying(self, unit, function, payload, exact_payload,
+                 timeout, reply_shape=None):
+        """One request, and one re-open if the board went quiet."""
+        with suppress(NoReplyError):
+            return self.transport.request(unit, function, payload,
+                                          exact_payload, timeout, reply_shape)
+
+        hand_to_binary(self.transport)
+        return self.transport.request(unit, function, payload,
+                                      exact_payload, timeout, reply_shape)
+
+
+def _stream_loop(served, stop):
+    """Drain the board into the ring until told to stop."""
+
+    payload = bytes([protocol.DEVICE_DAQ, 4, 0])
+    stride = served.fanout.stride
+    # THE UNIT THE CLIENT ASKED FOR, not 1.
+    unit = served.stream_unit
+    idle = 0.002
+    while not stop.is_set():
+        try:
+            with served.lock:
+                reply = served.transport.request(unit, protocol.DEVICE,
+                                                 payload)
+            served.spoke()
+        except errors.LINK_FAULTS:
+            # A quiet board is not a reason to stop streaming: the task may be
+            # between configurations, and the next turn asks again.
+            stop.wait(0.05)
+            continue
+        got = reply[0] if reply else 0
+        if got:
+            served.fanout.put(reply[1:1 + got * stride])
+        else:
+            stop.wait(idle)
+
+
+def serving():
+    """What a running broker says it is serving, or None. Does not connect."""
+    try:
+        with open(WHERE, encoding='utf-8') as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return None
+
+
+def clients(address=(HOST, PORT)):
+    """How many sessions are using the broker. None if none is serving."""
+    reached = attach(address, timeout=2.0)
+    if reached is None:
+        return None
+    try:
+        return reached._ask({'op': 'clients'})['clients']   # noqa: SLF001
+    finally:
+        reached.close()
+
+
+def stand_down(address=(HOST, PORT), wait=5.0):
+    """Ask a broker to give the port back. True once nothing answers."""
+
+    reached = attach(address, timeout=2.0)
+    if reached is None:
+        return True
+    try:
+        reached._ask({'op': 'stand_down'})                  # noqa: SLF001
+    except errors.RigError:
+        # It says no by refusing, and this function answers `did it`.
+        return False
+    finally:
+        reached.close()
+
+    until = time.time() + wait
+    while time.time() < until:
+        if attach(address, timeout=0.5) is None:
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def attach(address=(HOST, PORT), timeout=10.0):
+    """A BrokerTransport, or None if nothing is serving."""
+    try:
+        return BrokerTransport(address, timeout)
+    except OSError:
+        return None
+
+
+def _kind(port):
+    """`debug probe` or `RS485`, off the port listing. None if it cannot say."""
+    with suppress(OSError):                 # the port listing, not fatal
+        return ports.kind_of(port)
+    return None
+
+
+def spawn(port, baud=115200, wait=8.0):
+    """Start a broker for `port` in its own process. True if it came up."""
+
+    script = os.path.join(HOST, 'tools', 'session.py')
+    try:
+        subprocess.Popen(                                # noqa: S603
+            [sys.executable, script, '--port', port, '--baud', str(baud)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            cwd=HOST)
+    except OSError:
+        return False
+
+    until = time.time() + wait
+    while time.time() < until:
+        said = serving()
+        if said and said.get('serial') == port:
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def serve(port, baud=115200, address=(HOST, PORT), transport=None,
+          until_idle=True, linger=45.0):
+    """Own the port and answer for it until interrupted."""
+    handed = transport is not None
+    if not handed:
+        transport = Transport(port, baud)
+        hand_to_binary(transport)
+    server = _Server(address, _Handler)
+    server.transport = transport
+    server.serial_port = port
+    server.lock = threading.Lock()
+    server.until_idle = until_idle
+    server.linger = linger
+    quiet = threading.Event()
+    threading.Thread(target=server.tick, args=(quiet,), daemon=True).start()
+
+    # The KIND too - debug probe or RS485.
+    with open(WHERE, 'w', encoding='utf-8') as handle:
+        json.dump({'serial': port, 'pid': os.getpid(), 'kind': _kind(port),
+                   'host': address[0], 'tcp': address[1]}, handle)
+    try:
+        server.serve_forever()
+    finally:
+        quiet.set()
+        server.server_close()
+        if not handed:
+            transport.close()
+        with suppress(OSError):
+            os.remove(WHERE)

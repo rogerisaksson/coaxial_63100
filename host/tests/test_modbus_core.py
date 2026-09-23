@@ -11,7 +11,7 @@ REPO = os.path.dirname(HOST)
 CORE = os.path.join(REPO, 'modbus')
 OUT = os.path.join(REPO, 'build', 'hosttest')
 
-# The oracle's Python mirror lives in coaxial.protocol.
+# The oracle's Python mirror lives in coaxial.comm.protocol.
 sys.path.insert(0, HOST)
 
 SOURCES = [os.path.join(CORE, 'test', 'harness.c'),
@@ -611,7 +611,7 @@ def test_oracle_prefixes(report, lib):
     """The C oracle and the Python mirror, over every prefix of every hinted
     shape - and over the shapes that must never prove.
     """
-    from coaxial.protocol import request_length as mirror
+    from coaxial.comm.protocol import request_length as mirror
 
     fn = lib.mbh_request_length
     fn.restype = ctypes.c_uint16
@@ -673,7 +673,7 @@ def test_fixed_dict_matches_tables(report, lib):
     """
     import io
     import re
-    from coaxial.protocol import request_length as mirror
+    from coaxial.comm.protocol import request_length as mirror
 
     rows = {}
     names = {}

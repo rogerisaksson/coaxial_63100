@@ -5,8 +5,8 @@ instead of the tessellation's own folds.
 """
 import math
 
-from .creases import OUTLINE_LEVEL, OUTLINE_RISE, OUTLINES_KEPT, _outline_source
-from .solids import _slab_bottom, _slab_top
+from coaxial.graphics.creases import OUTLINE_LEVEL, OUTLINE_RISE, OUTLINES_KEPT, _outline_source
+from coaxial.graphics.solids import _slab_bottom, _slab_top
 
 
 #: THE PARTS AS BLOCKS AND DRUMS - the pre-scan. A part's crease loops

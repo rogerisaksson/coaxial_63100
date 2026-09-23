@@ -21,9 +21,9 @@ from rich.console import Console                           # noqa: E402
 
 from screen import THEME                                   # noqa: E402
 import menu                                                # noqa: E402
-from coaxial import orientation                            # noqa: E402
-from coaxial import dial                                   # noqa: E402
-from coaxial import thermalmap                             # noqa: E402
+from coaxial.draw import orientation                            # noqa: E402
+from coaxial.draw import dial                                   # noqa: E402
+from coaxial.draw import thermalmap                             # noqa: E402
 from coaxial.graphics import wireframe                              # noqa: E402
 
 

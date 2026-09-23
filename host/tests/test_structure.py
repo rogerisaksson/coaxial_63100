@@ -240,7 +240,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
                 capped = any(_caps_openblas(n) for n in tree.body[:i])
                 break
     r.check('numpy enters the packages at module level in loop.py alone',
-            importers == [os.path.join('coaxial', 'loop.py')],
+            importers == [os.path.join('coaxial', 'control', 'loop.py')],
             ', '.join(importers) or 'nowhere')
     r.check('and loop.py sets OPENBLAS_NUM_THREADS before importing it',
             capped)
@@ -423,7 +423,7 @@ def test_counts_are_measured(r):
 #: `board.<name>.<method>()` is how every view and tool reaches the hardware.
 #: The names come from Board itself, so adding a subsystem needs nothing here.
 def _subsystems():
-    from coaxial.board import Board
+    from coaxial.devices.board import Board
 
     return Board.parts()                 # the declaration, no transport
 
@@ -510,34 +510,34 @@ def test_limits_live_in_one_file(r):
 #: drifts is the second answer this tree keeps deleting, so they are held
 #: to each other here rather than remembered.
 MIRRORS = (
-    ('coaxial.thermal', 'WINDING_INTO_IRON',
+    ('coaxial.model.thermal', 'WINDING_INTO_IRON',
      'board/src/board_thermal.c', 'WINDING_INTO_IRON', 1.0),
-    ('coaxial.thermal', 'IDENT_MARGIN_FLOOR',
+    ('coaxial.model.thermal', 'IDENT_MARGIN_FLOOR',
      'comms/inc/board/thermal.h', 'BOARD_SOA_MARGIN_FLOOR_PPM', 1e-6),
     ('coaxial.simulated.values', 'ACCUMULATE_MAX',
      'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
-    ('coaxial.bessel', 'MAX_BOXCAR',
+    ('coaxial.acquire.bessel', 'MAX_BOXCAR',
      'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
     ('coaxial.simulated.values', 'RING_BYTES',
      'board/inc/board_limits.h', 'DAQ_BYTES', 1.0),
-    ('coaxial.boot', 'CHUNK', 'boot/inc/boot.h', 'BOOT_CHUNK_BYTES', 1.0),
-    ('coaxial.boot', 'UID_BYTES', 'boot/inc/boot.h', 'BOOT_UID_BYTES', 1.0),
-    ('coaxial.boot', 'WORD', 'boot/inc/boot.h', 'BOOT_WORD_BYTES', 1.0),
-    ('coaxial.boot', 'HEADER', 'boot/inc/boot.h', 'BOOT_HEADER_OFFSET', 1.0),
-    ('coaxial.boot', 'MAGIC', 'boot/inc/boot.h', 'BOOT_HEADER_MAGIC', 1.0),
-    ('coaxial.boot', 'BLANK_UNIT', 'boot/inc/boot.h', 'BOOT_UNIT', 1.0),
-    ('coaxial.boot', 'RUN_BASE', 'boot/inc/boot.h', 'BOOT_RUN_BASE', 1.0),
-    ('coaxial.boot', 'RUN_BYTES', 'boot/inc/boot.h', 'BOOT_RUN_BYTES', 1.0),
-    ('coaxial.boot', 'STORE_BASE', 'boot/inc/boot.h', 'BOOT_STORE_BASE', 1.0),
-    ('coaxial.boot', 'STORE_BYTES', 'boot/inc/boot.h', 'BOOT_STORE_BYTES', 1.0),
-    ('coaxial.boot', 'SEAL_MAGIC', 'boot/inc/boot.h', 'BOOT_SEAL_MAGIC', 1.0),
-    ('coaxial.boot', 'PERSIST', 'boot/inc/boot.h', 'BOOT_SEAL_PERSIST', 1.0),
-    ('coaxial.boot', 'SECTOR', 'boot/inc/boot.h', 'BOOT_SECTOR_BYTES', 1.0),
-    ('coaxial.boot', 'RECORD_BASE', 'boot/inc/boot.h', 'BOOT_RECORD_BASE', 1.0),
-    ('coaxial.boot', 'RECORD_MAX', 'boot/inc/boot.h', 'BOOT_RECORD_MAX', 1.0),
-    ('coaxial.sensorless', 'HALF_SQRT3',
+    ('coaxial.devices.boot', 'CHUNK', 'boot/inc/boot.h', 'BOOT_CHUNK_BYTES', 1.0),
+    ('coaxial.devices.boot', 'UID_BYTES', 'boot/inc/boot.h', 'BOOT_UID_BYTES', 1.0),
+    ('coaxial.devices.boot', 'WORD', 'boot/inc/boot.h', 'BOOT_WORD_BYTES', 1.0),
+    ('coaxial.devices.boot', 'HEADER', 'boot/inc/boot.h', 'BOOT_HEADER_OFFSET', 1.0),
+    ('coaxial.devices.boot', 'MAGIC', 'boot/inc/boot.h', 'BOOT_HEADER_MAGIC', 1.0),
+    ('coaxial.devices.boot', 'BLANK_UNIT', 'boot/inc/boot.h', 'BOOT_UNIT', 1.0),
+    ('coaxial.devices.boot', 'RUN_BASE', 'boot/inc/boot.h', 'BOOT_RUN_BASE', 1.0),
+    ('coaxial.devices.boot', 'RUN_BYTES', 'boot/inc/boot.h', 'BOOT_RUN_BYTES', 1.0),
+    ('coaxial.devices.boot', 'STORE_BASE', 'boot/inc/boot.h', 'BOOT_STORE_BASE', 1.0),
+    ('coaxial.devices.boot', 'STORE_BYTES', 'boot/inc/boot.h', 'BOOT_STORE_BYTES', 1.0),
+    ('coaxial.devices.boot', 'SEAL_MAGIC', 'boot/inc/boot.h', 'BOOT_SEAL_MAGIC', 1.0),
+    ('coaxial.devices.boot', 'PERSIST', 'boot/inc/boot.h', 'BOOT_SEAL_PERSIST', 1.0),
+    ('coaxial.devices.boot', 'SECTOR', 'boot/inc/boot.h', 'BOOT_SECTOR_BYTES', 1.0),
+    ('coaxial.devices.boot', 'RECORD_BASE', 'boot/inc/boot.h', 'BOOT_RECORD_BASE', 1.0),
+    ('coaxial.devices.boot', 'RECORD_MAX', 'boot/inc/boot.h', 'BOOT_RECORD_MAX', 1.0),
+    ('coaxial.model.sensorless', 'HALF_SQRT3',
      'drive/src/drive_math.c', 'HALF_SQRT3', 1.0),
-    ('coaxial.sensorless', 'TWO_PI',
+    ('coaxial.model.sensorless', 'TWO_PI',
      'drive/src/drive_math.c', 'TWO_PI', 1.0),
 )
 
@@ -581,7 +581,7 @@ def test_mirrors_agree(r):
     r.check('every named mirror is the macro it names', not off,
             '; '.join(off[:3]) or '%d pairs' % len(MIRRORS))
 
-    from coaxial import protocol
+    from coaxial.comm import protocol
     header = dict(_defines('comms/inc/cmd.h'), **_defines('boot/inc/boot.h'))
     devices = {k: v for k, v in header.items() if k.startswith('DEVICE_')}
     wrong = ['%s: cmd.h %d, protocol %r' % (k, v, getattr(protocol, k, None))
@@ -628,20 +628,23 @@ def test_mirrors_agree(r):
 #: costs every decoder.
 WIRE_SHAPES = (
     ('comms/src/cmd_gate_drivers.c', 'h_gate_drivers_state',
-     'coaxial.gate_drivers', 'GateDrivers', 'state'),
-    ('comms/src/cmd_drive.c', 'h_drive_state', 'coaxial.drive', 'Drive', 'state'),
-    ('comms/src/cmd_daq.c', 'h_daq_state', 'coaxial.daq', 'Daq', 'state'),
-    ('comms/src/cmd_drive.c', 'h_drive_setpoints', 'coaxial.drive', 'Drive', 'setpoints'),
-    ('comms/src/cmd_drive.c', 'h_drive_window', 'coaxial.drive', 'Drive', 'window'),
-    ('comms/src/cmd_drive.c', 'h_drive_moments', 'coaxial.drive', 'Drive', 'moments'),
-    ('comms/src/cmd_drive.c', 'h_drive_model', 'coaxial.drive', 'Drive', 'model'),
-    ('comms/src/cmd_drive.c', 'h_drive_observers', 'coaxial.drive', 'Drive', 'observers'),
-    ('comms/src/cmd_log.c', 'h_log_state', 'coaxial.capture', 'Capture', 'state'),
-    ('comms/src/cmd_power.c', 'h_power_state', 'coaxial.power', 'Power', 'state'),
-    ('comms/src/cmd_thermal.c', 'h_thermal_state', 'coaxial.thermal_device', 'Thermal', 'state'),
-    ('comms/src/cmd_thermal.c', 'h_thermal_budget', 'coaxial.thermal_device', 'Thermal', 'budget'),
-    ('comms/src/cmd_thermal.c', 'h_thermal_edges', 'coaxial.thermal_device', 'Thermal', 'network'),
-    ('comms/src/cmd_time.c', 'h_time_read', 'coaxial.clock', 'Clock', 'read_latch'),
+     'coaxial.devices.gate_drivers', 'GateDrivers', 'state'),
+    ('comms/src/cmd_drive.c', 'h_drive_state', 'coaxial.devices.drive', 'Drive', 'state'),
+    ('comms/src/cmd_daq.c', 'h_daq_state', 'coaxial.acquire.daq', 'Daq', 'state'),
+    ('comms/src/cmd_drive.c', 'h_drive_setpoints', 'coaxial.devices.drive', 'Drive', 'setpoints'),
+    ('comms/src/cmd_drive.c', 'h_drive_window', 'coaxial.devices.drive', 'Drive', 'window'),
+    ('comms/src/cmd_drive.c', 'h_drive_moments', 'coaxial.devices.drive', 'Drive', 'moments'),
+    ('comms/src/cmd_drive.c', 'h_drive_model', 'coaxial.devices.drive', 'Drive', 'model'),
+    ('comms/src/cmd_drive.c', 'h_drive_observers', 'coaxial.devices.drive', 'Drive', 'observers'),
+    ('comms/src/cmd_log.c', 'h_log_state', 'coaxial.acquire.capture', 'Capture', 'state'),
+    ('comms/src/cmd_power.c', 'h_power_state', 'coaxial.devices.power', 'Power', 'state'),
+    ('comms/src/cmd_thermal.c', 'h_thermal_state',
+     'coaxial.devices.thermal_device', 'Thermal', 'state'),
+    ('comms/src/cmd_thermal.c', 'h_thermal_budget',
+     'coaxial.devices.thermal_device', 'Thermal', 'budget'),
+    ('comms/src/cmd_thermal.c', 'h_thermal_edges',
+     'coaxial.devices.thermal_device', 'Thermal', 'network'),
+    ('comms/src/cmd_time.c', 'h_time_read', 'coaxial.acquire.clock', 'Clock', 'read_latch'),
 )
 
 #: What each Reader method takes off the wire; the scaled ones take a width
@@ -1239,7 +1242,7 @@ def test_protocol_agrees(r):
 _PAPER_KEYS = ('# ', '*', '**Abstract.** ', '## 1 Setup', 'SIMULATED = ',
                'Coaxial63100(', 'device.close()', 'Conclusions',
                '**At the bench.** ', '## References')
-_FORBIDDEN = (('plt.subplots(', 'a figure outside coaxial.figures'),
+_FORBIDDEN = (('plt.subplots(', 'a figure outside coaxial.draw.figures'),
               ('figsize=', 'a figure size of its own'),
               ('!', 'an exclamation mark'))
 

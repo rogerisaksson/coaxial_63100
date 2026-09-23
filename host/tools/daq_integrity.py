@@ -34,7 +34,8 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import Coaxial63100, bessel                   # noqa: E402
+from coaxial import Coaxial63100                   # noqa: E402
+from coaxial.acquire import bessel                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 import cmath                                               # noqa: E402
 

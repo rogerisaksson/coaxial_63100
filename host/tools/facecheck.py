@@ -20,7 +20,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.graphics import solids, wireframe                      # noqa: E402
-from coaxial.orientation import _qmul                      # noqa: E402
+from coaxial.draw.orientation import _qmul                      # noqa: E402
 
 HOST = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RENDERS = os.path.join(HOST, 'tests', 'renders')

@@ -29,7 +29,7 @@ class Bus:
     """The port, raw."""
 
     def __init__(self, port=PORT, baud=BAUD):
-        from coaxial import broker
+        from coaxial.comm import broker
 
         said = broker.serving() or {}
         where = (said.get('host', broker.HOST), said.get('tcp', broker.PORT))

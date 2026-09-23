@@ -1,7 +1,7 @@
 """The wire that is not there: the link stand-in, the machine's five buses, the broadcast refusal.
 """
-from .. import protocol
-from ..errors import DeviceStateError
+from coaxial.comm import protocol
+from coaxial.errors import DeviceStateError
 
 
 class SimulatedLink:

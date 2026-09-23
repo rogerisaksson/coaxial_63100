@@ -47,7 +47,7 @@ SECTIONS = [
            'timeout to say (FINDINGS 2026-09-16).'),
         code('''import time
 
-from coaxial import broker
+from coaxial.comm import broker
 
 origin = device.origin
 print('interface %-10s label %-32s real %-5s unit %d'
@@ -196,7 +196,8 @@ print('disarmed here: armed()=%s, break bypassed=%s' % (not disarmed, after['bre
 import tempfile
 import threading
 
-from coaxial import errors, protocol
+from coaxial import errors
+from coaxial.comm import protocol
 
 
 class Wire:
@@ -332,7 +333,7 @@ broker.WHERE = bench_address_file'''),
         md('Who spoke on the wire, and when: the two clients\' requests '
            'alternating, the silence, the broker\'s own two frames in it, and '
            'the linger with nobody attached.'),
-        code('''from coaxial.figures import figure, show
+        code('''from coaxial.draw.figures import figure, show
 
 fig, (panel,) = figure(rows=1)
 lanes = (('client 1', lambda unit, function, payload: payload and unit == 1),
@@ -424,8 +425,8 @@ BENCH = (
     "deadman actually dropping a rail.")
 
 REFERENCES = [
-    ('host/coaxial/session.py', '`open_session`: a serving broker first, then the ports, then the stand-in'),
-    ('host/coaxial/broker.py', 'the broker: one lock, the keepalive, `clients()`, `attach` on `CONNECT_S`'),
+    ('host/coaxial/comm/session.py', '`open_session`: a serving broker first, then the ports, then the stand-in'),
+    ('host/coaxial/comm/broker.py', 'the broker: one lock, the keepalive, `clients()`, `attach` on `CONNECT_S`'),
     ('host/tools/session.py', 'spawns a broker for a port and reports who is attached'),
     ('host/coaxial/rig.py', '`close()`: what a session disarms, and when'),
     ('comms/src/cmd_link.c', 'echo and the counters, per port'),

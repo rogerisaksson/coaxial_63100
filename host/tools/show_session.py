@@ -37,9 +37,11 @@ from screen import (ASH, LABEL, gauge, park, QUIET,  # noqa: E402
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
-from coaxial import Coaxial63100, angle, scaling, thermal  # noqa: E402
+from coaxial import Coaxial63100  # noqa: E402
+from coaxial.devices import angle, scaling  # noqa: E402
+from coaxial.model import thermal  # noqa: E402
 from screen import hud                                     # noqa: E402
-from coaxial import desk, gauges                           # noqa: E402
+from coaxial.draw import desk, gauges                           # noqa: E402
 from screen import panels_of                               # noqa: E402
 from screen import run_view, stage                         # noqa: E402
 

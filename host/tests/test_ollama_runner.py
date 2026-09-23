@@ -345,7 +345,7 @@ def test_smart_selection(report):
     for paths, what in (
         (['terminal/adc.ps1'], 'a demo wrapper'),
         (['coaxial_tty.ps1'], 'the demo picker'),
-        (['host/coaxial/desk.py'], 'a pure renderer'),
+        (['host/coaxial/draw/desk.py'], 'a pure renderer'),
         (['host/tools/show_desk.py'], 'a live view'),
         (['datasheets/imu/UserGuide.pdf'], 'something no suite reads'),
     ):
@@ -355,7 +355,7 @@ def test_smart_selection(report):
                      ', '.join(sorted(suites)) or 'nothing to run')
 
     for paths, what in (
-        (['host/coaxial/board.py'], 'the library'),
+        (['host/coaxial/devices/board.py'], 'the library'),
         (['board/src/board_cal.c'], 'firmware'),
         (['nothing/the/map/knows.xyz'], 'an unmapped path'),
     ):

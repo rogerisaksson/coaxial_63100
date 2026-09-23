@@ -41,7 +41,7 @@ from coaxial_ollama import runner as runmod                # noqa: E402
 from coaxial_ollama import tools as toolmod                # noqa: E402
 from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
 from coaxial_mcp import detail                             # noqa: E402,F401
-from coaxial import session as sessionmod              # noqa: E402
+from coaxial.comm import session as sessionmod              # noqa: E402
 from coaxial_ollama import client as clientmod             # noqa: E402
 BSLASH = chr(92)
 
@@ -116,7 +116,7 @@ class SimulatedAnalog:
     def scaling(self, refresh=False):
         """The conversion parameters, as the real subsystem reports them."""
         del refresh
-        from coaxial import scaling as _scaling
+        from coaxial.devices import scaling as _scaling
         return _scaling.from_calibration({})
 
     def channels(self, refresh=False):

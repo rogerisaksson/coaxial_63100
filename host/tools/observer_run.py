@@ -12,7 +12,7 @@ speed coming from TORQUE against friction and a propeller rather than from
 a setpoint, and the observer given only the phase currents. The angle error
 reported is against the model's own truth, which the observer never sees.
 
-WHAT IT IS NOT. Every constant comes from `coaxial.motor`, where the 5230SL
+WHAT IT IS NOT. Every constant comes from `coaxial.model.motor`, where the 5230SL
 carries `measured=False`: R, Ld, Lq and J are estimates from a size class.
 The saliency Lq/Ld is what an injection observer lives on and it is the
 least trustworthy number here, so read a standstill result as arithmetic
@@ -31,9 +31,9 @@ import sys
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 sys.path.insert(0, os.path.join(__file__.rsplit('tools', 1)[0], 'tests'))
 
-from coaxial import sensorless                                  # noqa: E402
-from coaxial.motor import APC20x10E, BENCH_MOTOR, Motor         # noqa: E402
-from coaxial.motor import PLATINUM_5230SL                       # noqa: E402
+from coaxial.model import sensorless                                  # noqa: E402
+from coaxial.model.motor import APC20x10E, BENCH_MOTOR, Motor         # noqa: E402
+from coaxial.model.motor import PLATINUM_5230SL                       # noqa: E402
 import test_drive_core as H                                     # noqa: E402
 from test_modbus_core import build, find_cc                     # noqa: E402
 

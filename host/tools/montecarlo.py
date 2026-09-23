@@ -4,7 +4,7 @@
 THE C IS THE FIRMWARE'S, through `tests/test_drive_core.py`'s bench: the
 current loop, the injection demodulator, the rotor observer, the dead-time
 table, against `drive_model.c` with a plant drawn around `PLATINUM_5230SL`
-and the stage in `coaxial.inverter`. A host speed loop (`coaxial.loop`,
+and the stage in `coaxial.model.inverter`. A host speed loop (`coaxial.control.loop`,
 the same law the notebook runs) closes over the observer's own speed.
 
 A run: injection finds the rotor from a random error, a raised cosine to
@@ -29,9 +29,9 @@ import time
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 sys.path.insert(0, os.path.join(__file__.rsplit('tools', 1)[0], 'tests'))
 
-from coaxial import inverter, sensorless                         # noqa: E402
-from coaxial.loop import Signals, SpeedLoop                      # noqa: E402
-from coaxial.motor import APC20x10E, PLATINUM_5230SL, Parameters, Propeller  # noqa: E402
+from coaxial.model import inverter, sensorless                         # noqa: E402
+from coaxial.control.loop import Signals, SpeedLoop                      # noqa: E402
+from coaxial.model.motor import APC20x10E, PLATINUM_5230SL, Parameters, Propeller  # noqa: E402
 import test_drive_core as H                                      # noqa: E402
 from test_modbus_core import build, find_cc                      # noqa: E402
 

@@ -2,9 +2,9 @@
 
 The tables: units, subsystems, pins, parts.
 """
-from ..errors import DeviceStateError
-from ..gpio import reserved_reason
-from .values import CHANNELS, SYSCLK_HZ, TICKS_PER_US
+from coaxial.errors import DeviceStateError
+from coaxial.devices.gpio import reserved_reason
+from coaxial.simulated.values import CHANNELS, SYSCLK_HZ, TICKS_PER_US
 
 
 # The same shape the firmware reports over command 0x6D, so a host driven

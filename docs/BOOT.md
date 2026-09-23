@@ -36,7 +36,7 @@ on a node is versioned. Built and host-tested; **not yet run on a board**
   version, type). Valid = SP in DTCM, thumb reset vector inside RUN, magic
   and type match, size in range.
 - The image's first word (8 vectors) is written last, on `seal`.
-- Host side: `coaxial.boot.image_of(elf)` cuts the image from the ELF's
+- Host side: `coaxial.devices.boot.image_of(elf)` cuts the image from the ELF's
   load segments. `store_of(image)` puts the seal word in front of it.
 
 ## What a node knows
@@ -66,7 +66,7 @@ A blank node answers unit 247. Broadcasts are never answered; a user
 function returns `MB_NO_REPLY` for a request not addressed to this uid. A
 0x6E reply carries the fields alone, as the application's (`boot_pdu`).
 
-## Master sequence (`coaxial.boot.Master`)
+## Master sequence (`coaxial.devices.boot.Master`)
 
 ```text
 hold      broadcast repeatedly from power-up
@@ -82,7 +82,7 @@ go        broadcast
 ```
 
 The bootloader works inside its receive path, so the master waits
-(`coaxial.boot`: ERASE_S, CHUNK_S, VERIFY_S, SEAL_S, PERSIST_S). Estimates:
+(`coaxial.devices.boot`: ERASE_S, CHUNK_S, VERIFY_S, SEAL_S, PERSIST_S). Estimates:
 200 K = 915 chunks, ~2 s at 10 Mbit, ~22 s at 115 200 on the ST-Link's port.
 Persist adds 2 sectors' erase. The same image again costs round trips only.
 
@@ -90,7 +90,7 @@ Persist adds 2 sectors' erase. The same image again costs round trips only.
 
 `Coaxial63100.open()` on a real board compares `state`'s image with this
 host's build (`$COAXIAL_IMAGE`, else the newest `build/*/coaxial_63100.elf`).
-If they differ, `coaxial.boot.load` sends `stay`, runs the master's sequence
+If they differ, `coaxial.devices.boot.load` sends `stay`, runs the master's sequence
 on that one node at unit 247 with its unit, position and flags given back,
 persists, sends `go`, and waits until the application names the new image.
 That happens once per build; the ST-Link's port costs ~22 s. Exceptions:

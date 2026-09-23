@@ -12,7 +12,8 @@ import zlib
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100                            # noqa: E402
-from coaxial.boot import Boot, BootControl, Master, chunks_of, enumerate_blank  # noqa: E402
+from coaxial.devices.boot import (Boot, BootControl, Master, chunks_of,  # noqa: E402
+                                  enumerate_blank)
 from coaxial.errors import DeviceStateError                 # noqa: E402
 from coaxial.simulated.boot import SimulatedBoot, SimulatedSegment  # noqa: E402
 from test_modbus_core import Report                         # noqa: E402
@@ -161,7 +162,7 @@ def test_the_image_from_an_elf(report, _boot):
     store_of puts the seal word in front of it."""
     import tempfile
     from pathlib import Path
-    from coaxial.boot import SEAL_MAGIC, image_of, store_of
+    from coaxial.devices.boot import SEAL_MAGIC, image_of, store_of
     img = image(7 * 224 + 5)
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / 'app.elf'

@@ -11,7 +11,7 @@ SUBTITLE = ('The drive as three verbs: a stepper and its ring, a servo and its '
             '5230SL with its propeller against the maker\'s thrust stand.')
 ABSTRACT = (
     '`device.motion` is the drive as three verbs over the link - `stepper`, '
-    '`servo`, `velocity` - and `coaxial.loop` is the speed loop the third one '
+    '`servo`, `velocity` - and `coaxial.control.loop` is the speed loop the third one '
     'runs, as blocks on a bus that close around a motor model without a '
     'board. This notebook drives all of it on the stand-in, whose rotor turns '
     'under the torque the dq solution makes and whose shaft sensor reads that '
@@ -37,7 +37,7 @@ SECTIONS = [
     section(
         'The stage, armed',
     md('Every verb needs the stage armed first, by `device.gates.arm()` - the '
-       'one place arming lives, and nothing in `coaxial.motion` is the second '
+       'one place arming lives, and nothing in `coaxial.control.motion` is the second '
        '- and the drive on the `model` source, where the stand-in\'s rotor '
        'turns under the torque the dq solution makes and the shaft sensor '
        'reads that same rotor. `J` and `B` are the model\'s inertia and '
@@ -97,7 +97,7 @@ print('after the 90 deg move: shaft %.2f deg from the detent, ringing %.2f deg '
       'peak to peak at about %.0f Hz; the spring says %.1f Hz'
       % (level, max(ys) - min(ys), ring_hz, spring_hz))
 print('%d reads in %.2f s = %.0f Hz' % (len(ring), ring[-1][0], len(ring) / ring[-1][0]))'''),
-        code('''from coaxial.figures import figure, show
+        code('''from coaxial.draw.figures import figure, show
 
 fig, (panel,) = figure(rows=1)
 panel.plot([r[0] for r in ring], ys, linewidth=0.8)
@@ -140,16 +140,16 @@ print('the spring says %.2f deg mechanical: 0.02 N.m against 2.0 A x Kt %.4f = %
         'Sensorless: the observer against the shaft',
         md('The rotor observer estimates the electrical angle from the '
            'currents; the A1335 reads the mechanical shaft. Under the '
-           '`velocity` verb - sensorless, `coaxial.loop`\'s speed loop over '
+           '`velocity` verb - sensorless, `coaxial.control.loop`\'s speed loop over '
            '`omega_hat` at link rate - both are sampled once a pass, on the '
            'rotor the model turns. Two reads are two instants: at 600 rpm the '
            'shaft turns 3.6 degrees a millisecond, so the angles are compared '
            'at rest after the stop and the speeds during the run, the shaft\'s '
            'speed being its step over a pass, folded, over the pass\'s '
            'measured length. The stage is disarmed at the end of this section: '
-           'the two that follow are arithmetic on `coaxial.loop` and need no '
+           'the two that follow are arithmetic on `coaxial.control.loop` and need no '
            'board.'),
-        code('''from coaxial.sensorless import RAD_S_PER_RPM
+        code('''from coaxial.model.sensorless import RAD_S_PER_RPM
 
 rows = []
 last = [None, None]
@@ -201,15 +201,15 @@ show(fig)'''),
         md('Blocks on one bus: a ramp, a d-axis probe (torque-free, and the '
            'one thing that lets Ld out of a fit), the speed loop, the current '
            'loop, the machine. `run` records every slot at every second PWM '
-           'period; `identify` hands the run to `coaxial.sysid` and gets the '
+           'period; `identify` hands the run to `coaxial.model.sysid` and gets the '
            'constants back with an uncertainty per parameter. The machine is '
            'the stand-in\'s own, so every fit has a truth to be held against. '
            'The `velocity` verb defaults its `j` and `b` to this machine, the '
            'smallest plausible one, and the pair a bench motor really has is '
            'what this section finds.'),
-        code('''from coaxial.loop import Ramp, Probe, SpeedLoop, CurrentLoop, Machine, identify
-from coaxial.motor import BENCH_MOTOR
-from coaxial import inverter
+        code('''from coaxial.control.loop import Ramp, Probe, SpeedLoop, CurrentLoop, Machine, identify
+from coaxial.model.motor import BENCH_MOTOR
+from coaxial.model import inverter
 
 TWO_PI = 2.0 * math.pi
 bench = BENCH_MOTOR
@@ -262,7 +262,7 @@ for name, truth in TRUTH:
     ),
     section(
         'The 5230SL and its propeller against the stand',
-        md('`coaxial.motor` holds the Hobbywing Platinum 5230SL 190KV as the '
+        md('`coaxial.model.motor` holds the Hobbywing Platinum 5230SL 190KV as the '
            'manufacturer\'s sheet gives it - poles and friction from the sheet, '
            'R, Ld, Lq and J estimated from the size class - and the APC20x10E '
            'fitted over the sheet\'s own 22-row thrust stand at 37 V. The chain '
@@ -272,7 +272,7 @@ for name, truth in TRUTH:
            'the stand\'s 37 V. What the model makes at each of the stand\'s rpm '
            'is read against what the stand measured, and where the model stops '
            'short, the voltage says why.'),
-        code('''from coaxial.motor import PLATINUM_5230SL, APC20x10E, APC20X10E_CURVE, RATINGS, KT_NM_PER_AMP
+        code('''from coaxial.model.motor import PLATINUM_5230SL, APC20x10E, APC20X10E_CURVE, RATINGS, KT_NM_PER_AMP
 
 motor = PLATINUM_5230SL
 print(motor)
@@ -482,10 +482,10 @@ BENCH = (
     'observer\'s own floor.')
 
 REFERENCES = [
-    ('host/coaxial/motion.py', 'the three verbs: the slew, the soft energize, the ring-aware measurement, the fault read a pass'),
-    ('host/coaxial/loop.py', 'the blocks on one bus: ramp, probe, speed loop, current loop, machine, and `identify`'),
-    ('host/coaxial/sysid.py', 'the least squares behind `identify`: two equations a sample, an error bar per column'),
-    ('host/coaxial/motor.py', 'the 5230SL as the sheet gives it, the propeller and its 22-row curve, `Kt = 1.5 P lambda`'),
+    ('host/coaxial/control/motion.py', 'the three verbs: the slew, the soft energize, the ring-aware measurement, the fault read a pass'),
+    ('host/coaxial/control/loop.py', 'the blocks on one bus: ramp, probe, speed loop, current loop, machine, and `identify`'),
+    ('host/coaxial/model/sysid.py', 'the least squares behind `identify`: two equations a sample, an error bar per column'),
+    ('host/coaxial/model/motor.py', 'the 5230SL as the sheet gives it, the propeller and its 22-row curve, `Kt = 1.5 P lambda`'),
     ('host/coaxial/simulated/drive.py', 'the stand-in\'s rotor, the spring under HOLD, and the PLL lag that stands in for the observer'),
     ('host/tests/test_sensorless.py', 'the verbs pinned on the stand-in, the dangerous paths included: a load past the holding torque, a trip mid-spin'),
     ('host/tools/observer_run.py', 'the firmware\'s own observer, run on the host, and the crossover it computes'),

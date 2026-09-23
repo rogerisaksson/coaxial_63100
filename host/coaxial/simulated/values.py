@@ -4,7 +4,7 @@ import math
 import random
 import time
 
-from ..scaling import ADC_CODES
+from coaxial.devices.scaling import ADC_CODES
 
 #: The stand-in's clock, as the board reports it: 475 MHz, the cycle
 #: counter at that rate, HCLK at half.

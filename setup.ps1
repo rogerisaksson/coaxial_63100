@@ -593,11 +593,11 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
     # The LTSpice models are a submodule with its deploy key on the bench
     # machine's GitLab account - a clone elsewhere fails at fetch, not at
     # checkout, and everything that needs its numbers reads them from
-    # coaxial/inverter.py, which carries the traced constants in-tree.
+    # coaxial/model/inverter.py, which carries the traced constants in-tree.
     if ($null -ne $git) {
         $sub = (& $git -C $Root submodule status electronic_simulations 2>$null)
         if ($null -ne $sub -and $sub -match '^-') {
-            Write-Item 'electronic_simulations' 'missing' 'optional - LTSpice sources; the traced constants are in coaxial/inverter.py'
+            Write-Item 'electronic_simulations' 'missing' 'optional - LTSpice sources; the traced constants are in coaxial/model/inverter.py'
             Add-Todo -Optional 'git submodule update --init electronic_simulations   (needs the GitLab SSH key)'
         } elseif ($null -ne $sub) {
             Write-Item 'electronic_simulations' 'ok' 'submodule checked out'

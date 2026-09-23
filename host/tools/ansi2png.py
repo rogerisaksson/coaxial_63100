@@ -10,7 +10,7 @@ braille box is narrower than its cell. Two choices in the thermal map -
 a two-dot edge, a half-density floor - were reversed on the raster
 before the bench saw them. The routine in CLAUDE.md names this tool.
 
-The drawing is `coaxial.ansi.image` - the same one a notebook shows
+The drawing is `coaxial.draw.ansi.image` - the same one a notebook shows
 inline - and this is the command line over it: Consolas for text and
 Segoe UI Symbol for braille (Consolas has none), one cell 10 x 20 px on
 black by default, which is near the bench's terminal. Pillow draws it,
@@ -22,7 +22,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 '..'))
 
-from coaxial import ansi  # noqa: E402
+from coaxial.draw import ansi  # noqa: E402
 
 
 def main(argv=None):

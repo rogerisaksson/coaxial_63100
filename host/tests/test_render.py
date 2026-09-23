@@ -6,9 +6,9 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from coaxial import orientation        # noqa: E402
+from coaxial.draw import orientation        # noqa: E402
 from coaxial.graphics import engine, mesh, raster
-from coaxial.orientation import _qmul                        # noqa: E402
+from coaxial.draw.orientation import _qmul                        # noqa: E402
 from coaxial.graphics import wireframe                                # noqa: E402
 from coaxial.graphics import creases, ground, lines, shading, solids, stereotype   # noqa: E402
 
@@ -795,7 +795,7 @@ def test_the_face_is_a_halftone(report):
     import collections
     import math
 
-    from coaxial import orientation
+    from coaxial.draw import orientation
     from coaxial.graphics import raster
     w = wireframe
 
@@ -1232,8 +1232,8 @@ def test_ladder(report):
 
 
 def test_the_alphabet(report):
-    """`coaxial.braille`: the whole block, and the words to ask for one."""
-    from coaxial import braille as b
+    """`coaxial.draw.braille`: the whole block, and the words to ask for one."""
+    from coaxial.draw import braille as b
 
     report.check('all 256 patterns, in order',
                  len(b.ALL) == 256 and len(set(b.ALL)) == 256

@@ -7,11 +7,11 @@ silhouette, off the fold's reached bits.
 """
 import math
 
-from .raster import BRAILLE, BRAILLE_BITS
-from .shading import OUTLINE_BASE, _edge_tone
-from .creases import _outline_source
-from .solids import _slab_planes
-from .stereotype import _drum_segments, _stereotypes
+from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS
+from coaxial.graphics.shading import OUTLINE_BASE, _edge_tone
+from coaxial.graphics.creases import _outline_source
+from coaxial.graphics.solids import _slab_planes
+from coaxial.graphics.stereotype import _drum_segments, _stereotypes
 
 
 #: An edge shorter than this on SCREEN, in cells, is not drawn: a QFP's

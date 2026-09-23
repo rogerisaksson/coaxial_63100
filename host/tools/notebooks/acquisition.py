@@ -115,7 +115,7 @@ print('channel trims:', [(c['index'], c['offset_raw'], c['gain_ppm'])
         code('''df = daq.frame(run, index='elapsed', scaled=True)
 df.head()'''),
         code('''df.describe().round(3)'''),
-        code('''from coaxial.figures import figure, show
+        code('''from coaxial.draw.figures import figure, show
 
 units = [c for c in df.columns if c.endswith('(A)')]
 shown = units + ['DC bus (V)', 'NTC (C)']
@@ -252,7 +252,7 @@ BENCH = (
 
 REFERENCES = [
     ('host/coaxial/rig.py', 'the front door: `daq`, `set_time_from_pc`, `frame`, `frames`, `history`'),
-    ('host/coaxial/record.py', 'a `Record`: the sum, the count, the mean, the struct behind a sample'),
+    ('host/coaxial/acquire/record.py', 'a `Record`: the sum, the count, the mean, the struct behind a sample'),
     ('host/coaxial/simulated/daq.py', 'the stand-in this ran on, paced to real time like a board'),
     ('daq/src/daq.c', 'the engine on the board: the ring, the window, the ladder'),
     ('docs/PROTOCOL.md', 'device 6, the task and the record on the wire'),

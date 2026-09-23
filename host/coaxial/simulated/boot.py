@@ -3,9 +3,10 @@
 import struct
 import zlib
 
-from ..boot import (BLANK_UNIT, CHUNK, HEADER, MAGIC, RECORD_MAX, RUN_BASE, RUN_BYTES,
-                    SEAL_MAGIC, STATES, WORD, BootControl, Segment, chunks_of)
-from ..errors import CrcError, DeviceStateError
+from coaxial.devices.boot import (BLANK_UNIT, CHUNK, HEADER, MAGIC, RECORD_MAX, RUN_BASE,
+                                  RUN_BYTES, SEAL_MAGIC, STATES, WORD, BootControl, Segment,
+                                  chunks_of)
+from coaxial.errors import CrcError, DeviceStateError
 
 UID = bytes(range(0x10, 0x1C))
 TYPE = 1

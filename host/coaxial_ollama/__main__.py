@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import RigError                  # noqa: E402
 from coaxial_mcp import detail                       # noqa: E402
-from coaxial.session import Session                  # noqa: E402
+from coaxial.comm.session import Session                  # noqa: E402
 
 from. import runner as runmod                       # noqa: E402
 from .client import Ollama, OllamaError              # noqa: E402

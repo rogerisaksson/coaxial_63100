@@ -92,7 +92,7 @@ def test_digital_read(report):
 def test_channel_map(report):
     """The board describes itself; nothing above it keeps a copy."""
     from coaxial.simulated import SimulatedSession as Sim
-    from coaxial import protocol
+    from coaxial.comm import protocol
 
     board = Sim().board
     chart = board.system.channel_map()

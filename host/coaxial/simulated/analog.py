@@ -4,13 +4,14 @@ import math
 import random
 import time
 
-from .. import protocol, scaling
-from ..calibration import CalibrationOps
-from ..errors import DeviceStateError
-from ..scaling import ADC_CODES, ADC_HALF_CODES
-from .values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread,
-                     _sweep, phase_codes)
-from .system import UNITS
+from coaxial.comm import protocol
+from coaxial.devices import scaling
+from coaxial.devices.calibration import CalibrationOps
+from coaxial.errors import DeviceStateError
+from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
+from coaxial.simulated.values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread, _sweep,
+                                      phase_codes)
+from coaxial.simulated.system import UNITS
 from typing import Any
 
 

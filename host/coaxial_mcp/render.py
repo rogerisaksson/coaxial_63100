@@ -1,6 +1,7 @@
 """Compact renderers."""
-from coaxial import angle as a1335     # angle() below is the renderer; this is the sensor's arithmetic
-from coaxial.thermal import pretty
+# angle() below is the renderer; a1335 is the sensor's arithmetic.
+from coaxial.devices import angle as a1335
+from coaxial.model.thermal import pretty
 
 
 def short(signal, index):
@@ -169,7 +170,7 @@ NO_CONTACT = (' -> check the board is powered, and that a JTAG programmer or '
 # ConnectError and NoReplyError both mean no data came back, from different
 # places - ConnectError is the port itself not existing, NoReplyError is the
 # port opening fine and the board staying silent - but a first identify wraps
-# either one as ConnectError (`coaxial.board._build`), so both need the same
+# either one as ConnectError (`coaxial.devices.board._build`), so both need the same
 # troubleshooting line: there is no reliable way to tell a caller which of the
 # two actually happened.
 HINTS = {

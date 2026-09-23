@@ -11,9 +11,9 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100                          # noqa: E402
-from coaxial import sensorless                            # noqa: E402
-from coaxial.commission import Commissioning, _fit_deadtime, _harmonics  # noqa: E402
-from coaxial.drive import from_wire, to_wire              # noqa: E402
+from coaxial.model import sensorless                            # noqa: E402
+from coaxial.control.commission import Commissioning, _fit_deadtime, _harmonics  # noqa: E402
+from coaxial.devices.drive import from_wire, to_wire              # noqa: E402
 from coaxial.errors import RigError                       # noqa: E402
 from coaxial.simulated import SimulatedDrive              # noqa: E402
 
@@ -44,7 +44,7 @@ def stand_in_drive(rig):
     return drive
 
 def test_inverter(r):
-    from coaxial import inverter
+    from coaxial.model import inverter
     r.check('Coss at zero volts is the model CJO',
             inverter.coss(0.0) == inverter.CJO)
     h = 1e-3
@@ -72,9 +72,9 @@ def test_inverter(r):
 
 
 def test_loop(r):
-    from coaxial.loop import (CurrentLoop, Machine, Probe, Ramp, Signals,
-                              SpeedLoop, identify)
-    from coaxial.motor import BENCH_MOTOR
+    from coaxial.control.loop import (CurrentLoop, Machine, Probe, Ramp, Signals, SpeedLoop,
+                                      identify)
+    from coaxial.model.motor import BENCH_MOTOR
     s = Signals()
     try:
         setattr(s, 'wref', 1.0)         # the typo a slot refuses
@@ -82,7 +82,7 @@ def test_loop(r):
     except AttributeError:
         ok = True
     r.check('a typo on the bus fails instead of vanishing', ok)
-    from coaxial.motor import Propeller
+    from coaxial.model.motor import Propeller
     prop = Propeller(k=3.2e-6)      # q excitation: without a load iq spans
     chain = (Ramp(250.0, 0.4) >> Probe(1.0, 300.0)      # 0.4 A and the fit
              >> SpeedLoop(8.0, 60.0, BENCH_MOTOR, load=prop)  # returns a
@@ -485,7 +485,7 @@ def pick_and_place():
 
 def test_the_map_places_its_parts_from_the_file(r):
     """The thermal picture's parts sit where the pick and place puts them."""
-    from coaxial import thermalmap
+    from coaxial.draw import thermalmap
 
     at, path = pick_and_place()
     if at is None:
@@ -541,7 +541,7 @@ def test_the_map_places_its_parts_from_the_file(r):
 
 def test_the_placements_behind_the_thermal_model(r):
     """What `electronics/` places, and what the model claims about it."""
-    from coaxial import thermal
+    from coaxial.model import thermal
 
     at, path = pick_and_place()
     if at is None:
@@ -593,7 +593,7 @@ def test_the_board_stays_in_the_laminar_regime(r):
     """The convection exponent is the regime, not a choice."""
     import math
 
-    from coaxial import thermal
+    from coaxial.model import thermal
 
     # The board's extent, off the same file the element fraction uses.
     side = 0.093
@@ -620,7 +620,7 @@ def test_the_board_stays_in_the_laminar_regime(r):
 
 def test_the_datasheet_against_the_thermal_model(r):
     """What `datasheets/mosfet/` settles, and where it disagrees."""
-    from coaxial import inverter, thermal
+    from coaxial.model import inverter, thermal
 
     # THE DIE, which the network has no node for.
     watt = 100.0 ** 2 * inverter.RDS_ON * 0.5
@@ -659,7 +659,7 @@ def test_the_stand_in_thermistor_stays_between_its_nodes(r):
     """The stand-in's own copy of the thermistor lag carries the chain's
     bound.
     """
-    from coaxial import thermal
+    from coaxial.model import thermal
     from coaxial.simulated.power import SimulatedThermal
 
     model = SimulatedThermal()
@@ -686,7 +686,7 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
     switches', the way `board_thermal.c` does since MINOR 12.
     """
     from coaxial.simulated.power import SimulatedThermal
-    from coaxial.thermal_device import THROTTLE_AT
+    from coaxial.devices.thermal_device import THROTTLE_AT
 
     model = SimulatedThermal()
     # The board's ceilings lifted out of the way; the winding keeps its own -
@@ -717,7 +717,7 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
         if tripped_at is None and gate:
             tripped_at = b
             break
-    from coaxial import thermal as thermal_mirror
+    from coaxial.model import thermal as thermal_mirror
     board_only = (max(v for n, v in throttled_at['used'].items()
                       if n not in thermal_mirror.MOTOR)
                   if throttled_at else None)

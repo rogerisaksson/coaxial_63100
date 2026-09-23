@@ -32,7 +32,7 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import scaling   # noqa: E402
+from coaxial.devices import scaling   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
 from screen import (ASH, LABEL, SODIUM, TO_MENU,  # noqa: E402
                     closing, say, tint)

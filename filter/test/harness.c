@@ -36,7 +36,7 @@ API void flt_free(rig_t *r)
 }
 
 /** The design as the host holds it: boxcar, decimate, then five floats per
-    section in b0 b1 b2 a1 a2 order - the order coaxial/bessel.py emits. */
+    section in b0 b1 b2 a1 a2 order - the order coaxial/acquire/bessel.py emits. */
 API int flt_design(rig_t *r, uint16_t boxcar, uint16_t decimate,
                    uint8_t sections, const float *coeffs)
 {

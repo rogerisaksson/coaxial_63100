@@ -1,7 +1,7 @@
 """The staged 3D engine: pure functions, one per pipeline step."""
 import math
 
-from .raster import BRAILLE_BITS, DOTS_X, DOTS_Y
+from coaxial.graphics.raster import BRAILLE_BITS, DOTS_X, DOTS_Y
 
 #: Classes an art face loses leaning 90 degrees from the viewer:
 #: 3.4 * (1 - cos 45) is one full class, the exporter's own y45 step.

@@ -1,6 +1,6 @@
 """A lean prompt loop for debug jobs: fewest tokens in, fewest tokens out."""
 import find_board
-from coaxial import ports
+from coaxial.comm import ports
 import json
 import os
 import re
@@ -11,7 +11,7 @@ from importlib import import_module
 from coaxial.simulated import bus_nodes
 from .client import FAULTS, Ollama, OllamaError
 from .capability import choose, probe
-from coaxial import session as sessionmod
+from coaxial.comm import session as sessionmod
 from contextlib import suppress
 
 # host/ on the path: this file's own directory's parent, so it does not matter

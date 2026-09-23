@@ -116,7 +116,7 @@ the power budget split into propeller, iron, copper and the rotor's own
 borrowed energy, and the model laid back over Hobbywing's 22-point thrust
 stand. It is checked in with its outputs, so it reads without running.
 
-`notebook_examples/speed_loop.ipynb` closes `coaxial.loop`'s chain over the
+`notebook_examples/speed_loop.ipynb` closes `coaxial.control.loop`'s chain over the
 same machine - reference, d-axis probe, speed PI, current PI - and then
 `identify` pulls R, Ld, Lq and lambda back OUT of the run, uncertainties
 attached: the rehearsal for the day `sysid.from_frame` meets real records.

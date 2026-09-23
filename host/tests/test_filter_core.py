@@ -10,7 +10,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.dirname(HERE))
 
 from test_modbus_core import Report, build, find_cc          # noqa: E402
-from coaxial import bessel                                    # noqa: E402
+from coaxial.acquire import bessel                                    # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(HERE))
 FILTER = os.path.join(REPO, 'filter')
@@ -84,7 +84,7 @@ def amplitude_at(values, hz, fs, drop=0.5):
 # ---- the design, on its own -------------------------------------------------
 
 def test_the_design(report, _lib):
-    """What `coaxial.bessel` computes, against values that are known."""
+    """What `coaxial.acquire.bessel` computes, against values that are known."""
     report.check('the reverse Bessel polynomial is exact',
                  bessel.reverse_bessel(2) == [3, 3, 1] and
                  bessel.reverse_bessel(3) == [15, 15, 6, 1],

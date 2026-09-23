@@ -80,7 +80,7 @@ def report(now, was):
 def main():
     record = '--record' in sys.argv
 
-    from coaxial.session import open_session   # noqa: E402
+    from coaxial.comm.session import open_session   # noqa: E402
     _session, origin = open_session()
     if not origin.real:
         print('no board answered - a benchmark against the stand-in measures '

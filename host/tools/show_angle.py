@@ -6,7 +6,7 @@
 
 Reads the board's parts list for an A1335, powers what powers it, and then
 reads the poll loop's shared record - the board reads the sensor, this reads
-the board. The drawing itself is `coaxial.dial`, which is pure and tested.
+the board. The drawing itself is `coaxial.draw.dial`, which is pure and tested.
 
 Nothing here judges an angle. It shows the counts the part reported and the
 degrees that follow from them - invariant 10 applies to a shaft angle exactly
@@ -21,13 +21,13 @@ from contextlib import suppress
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coaxial import angle                                  # noqa: E402
-from coaxial import dial                                   # noqa: E402
+from coaxial.devices import angle                                  # noqa: E402
+from coaxial.draw import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from screen import closing, Freshness, say, steady, TO_MENU  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
-from coaxial import ansi                                   # noqa: E402
+from coaxial.draw import ansi                                   # noqa: E402
 from screen import frame_of, hud                           # noqa: E402
 from screen import open_rig                                # noqa: E402
 from screen import run_view, stage                         # noqa: E402

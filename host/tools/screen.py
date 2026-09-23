@@ -12,13 +12,13 @@ import time
 import sys
 import threading
 
-from coaxial import ansi
-from coaxial.thermal_device import THROTTLE_AT
+from coaxial.draw import ansi
+from coaxial.devices.thermal_device import THROTTLE_AT
 import importlib
 from coaxial.errors import (DeviceStateError, NoReplyError,  # noqa: E402
                             RigError)
-from coaxial.ascii3d import CELL_ASPECT
-from coaxial import gauges, machine
+from coaxial.draw.ascii3d import CELL_ASPECT
+from coaxial.draw import gauges, machine
 from coaxial import Coaxial63100
 
 ansi.utf8_stdout()          # every view draws outside ASCII

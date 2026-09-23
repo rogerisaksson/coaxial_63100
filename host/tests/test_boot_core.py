@@ -404,7 +404,7 @@ def test_persist_fails(report, node):
 
 
 class Wire:
-    """A board for the host's own client, coaxial.boot.Boot: each 0x6E
+    """A board for the host's own client, coaxial.devices.boot.Boot: each 0x6E
     request handed to boot_pdu as the bootloader's link hands it over."""
 
     unit = 2
@@ -435,7 +435,7 @@ def test_the_hosts_client(report, node):
     """The master's client, byte for byte against the C: the replies carry
     the fields alone, as the application's do, and every shape parses."""
     from coaxial import errors
-    from coaxial.boot import Boot
+    from coaxial.devices.boot import Boot
     boot = Boot(Wire(node.lib))
     img = image(30 * CHUNK + 5)
     record = bytes(range(250))
@@ -514,8 +514,8 @@ def test_the_host_loads_its_image(report, node):
     the host's through its bootloader - its unit, position and termination
     given back, the store keeping it - and one running it already, or one
     a debugger started, is left alone."""
-    from coaxial import boot
-    from coaxial.board import Board
+    from coaxial.devices import boot
+    from coaxial.devices.board import Board
     boot.STAY_S, boot.GO_S = 0.0, 1.0
     img, old = image(20 * CHUNK + 3), image(20 * CHUNK + 3, version=6)
     bench = Bench(node.lib, 3, (len(old), zlib.crc32(old)))
@@ -542,10 +542,11 @@ def test_the_front_door_owns_the_image(report, node):
     and said on stderr; a shared board is refused in words, not reset."""
     import contextlib
     import io as _io
-    from coaxial import Coaxial63100, boot
-    from coaxial.board import Board
+    from coaxial import Coaxial63100
+    from coaxial.devices import boot
+    from coaxial.devices.board import Board
     from coaxial.errors import RigError
-    from coaxial.session import Origin
+    from coaxial.comm.session import Origin
     boot.STAY_S, boot.GO_S = 0.0, 1.0
     img, old = image(12 * CHUNK), image(12 * CHUNK, version=5)
     real_host_image = boot.host_image

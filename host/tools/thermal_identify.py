@@ -40,11 +40,11 @@ sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
 from screen import say                                       # noqa: E402
 
-from coaxial import Coaxial63100, thermal                    # noqa: E402
+from coaxial import Coaxial63100                    # noqa: E402
+from coaxial.model import thermal                    # noqa: E402
 from coaxial.errors import NoReplyError, RigError            # noqa: E402
-from coaxial.thermal import STATE_IS as WHAT
-from coaxial.thermal import (CFG, NTC_OFFSET, STATES,
-                             tau_minutes)     # noqa: E402
+from coaxial.model.thermal import STATE_IS as WHAT
+from coaxial.model.thermal import CFG, NTC_OFFSET, STATES, tau_minutes  # noqa: E402
 from thermal_validate import CAMERA                          # noqa: E402
 
 

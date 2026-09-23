@@ -5,7 +5,7 @@ step, replayed against each frame's depth buffer.
 """
 import math
 
-from .raster import BRAILLE, BRAILLE_BITS
+from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS
 
 
 #: The ground plane's height under the board, model units.

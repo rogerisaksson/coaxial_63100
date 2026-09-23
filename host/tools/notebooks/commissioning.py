@@ -46,7 +46,7 @@ SECTIONS = [
            'and on the zero vector with the stage armed - the difference is '
            'switch pickup - and the interrupt\'s own cost, read where the '
            'board can measure it.'),
-        code('''from coaxial.commission import Commissioning
+        code('''from coaxial.control.commission import Commissioning
 
 c = Commissioning(device, arm=dict(bypass_sto=True, ignore_interlock=True),
                   rated_rpm=3000.0)
@@ -72,7 +72,7 @@ print('ISR entry %.1f us after the trigger, cost %.1f us (%d cycles); '
            'bench it once picked 990 of 2376, mid-period, where the pickup is '
            'worst. The tick it keeps is written to the record as '
            '`drv_trigger_ticks`.'),
-        code('''from coaxial.figures import figure, show
+        code('''from coaxial.draw.figures import figure, show
 
 scan = c.sample_point_scan()
 ticks = [row['trigger'] for row in scan['table']]
@@ -197,7 +197,7 @@ show(fig)'''),
            '`BENCH_MOTOR`, invented to be recoverable, so on it the '
            'identification can be read against a truth; a board has an '
            'instrument, or nothing.'),
-        code('''from coaxial.motor import BENCH_MOTOR, Parameters
+        code('''from coaxial.model.motor import BENCH_MOTOR, Parameters
 
 p = device.drive.params()
 
@@ -227,7 +227,7 @@ if truth:
     section(
         'The budget, the gains and the decision',
         md('Three steps are arithmetic on what was measured, in '
-           '`coaxial.sensorless`. The budget picks the injection frequency and '
+           '`coaxial.model.sensorless`. The budget picks the injection frequency and '
            'amplitude for the best SNR under the constraints - the current '
            'loop\'s bandwidth from R, L and the sampling rate, the injection '
            'current under `i_h_max`, the estimator bandwidth wanted. The gains '
@@ -498,11 +498,11 @@ BENCH = (
     'before believing a tune found at 24.8 V.')
 
 REFERENCES = [
-    ('host/coaxial/commission.py', 'the twelve steps, and the one-line report'),
-    ('host/coaxial/sensorless.py', 'the arithmetic: the budget, the loop and PLL gains, the crossover, Ljung-Box'),
+    ('host/coaxial/control/commission.py', 'the twelve steps, and the one-line report'),
+    ('host/coaxial/model/sensorless.py', 'the arithmetic: the budget, the loop and PLL gains, the crossover, Ljung-Box'),
     ('host/tools/montecarlo.py', 'the search: the plants drawn around the machine, the cost, `design`'),
     ('host/tools/commission.py', 'the procedure as one command at the bench'),
-    ('host/coaxial/motor.py', '`Parameters`, and `BENCH_MOTOR` - the stand-in\'s truth'),
+    ('host/coaxial/model/motor.py', '`Parameters`, and `BENCH_MOTOR` - the stand-in\'s truth'),
     ('host/coaxial/simulated/drive.py', 'the stand-in this ran on: the machine, the pickup, the polarity readings'),
     ('host/tests/test_sensorless.py', 'the arithmetic and the commissioning pinned against the stand-in'),
     ('host/tests/test_drive_core.py', 'the firmware\'s law through the host gcc, which the search drives'),

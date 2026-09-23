@@ -25,7 +25,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import scaling                                # noqa: E402
+from coaxial.devices import scaling                                # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from screen import TO_MENU, Keys, closing, say  # noqa: E402
 from screen import hud, panels_of               # noqa: E402

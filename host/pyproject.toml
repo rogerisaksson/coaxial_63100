@@ -26,7 +26,10 @@ coaxial-dbg = "coaxial_ollama.cli:main"
 coaxial-mcp = "coaxial_mcp.server:main"
 
 [tool.setuptools]
-packages = ["coaxial", "coaxial_mcp", "coaxial_ollama", "testline"]
+packages = ["coaxial", "coaxial.acquire", "coaxial.comm", "coaxial.control",
+            "coaxial.devices", "coaxial.draw", "coaxial.graphics", "coaxial.kalman",
+            "coaxial.model", "coaxial.simulated", "coaxial_mcp", "coaxial_ollama",
+            "testline"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

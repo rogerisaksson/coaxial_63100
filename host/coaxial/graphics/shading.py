@@ -4,9 +4,9 @@ import functools
 import math
 import os
 
-from ..ansi import rgb as _rgb
-from .raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N, RUNGS, SHADE
-from .solids import _casters
+from coaxial.draw.ansi import rgb as _rgb
+from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N, RUNGS, SHADE
+from coaxial.graphics.solids import _casters
 
 
 #: The light in VIEW space, over the viewer's shoulder: the key light's and

@@ -2,10 +2,10 @@
 import math
 import time
 
-from ..errors import RigError
-from ..motor import Parameters
-from ..subsystem import Subsystem
-from ..commission import Commissioning
+from coaxial.errors import RigError
+from coaxial.model.motor import Parameters
+from coaxial.devices.subsystem import Subsystem
+from coaxial.control.commission import Commissioning
 
 #: How far the rotor is walked to count pole pairs, in electrical turns.
 #: Enough that one shaft reading's error is small against the travel: the

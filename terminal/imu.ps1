@@ -42,7 +42,7 @@ try {
         $code = @'
 import sys
 sys.path.insert(0, '.')
-from coaxial.orientation import picture
+from coaxial.draw.orientation import picture
 from coaxial.simulated import SimulatedSession
 part = SimulatedSession().board.imu
 part.feature(0x05, 10000)

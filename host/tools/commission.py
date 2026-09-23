@@ -23,7 +23,7 @@ import sys
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
 from coaxial import Coaxial63100                           # noqa: E402
-from coaxial.commission import Commissioning               # noqa: E402
+from coaxial.control.commission import Commissioning               # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 
 STEPS = ('afe', 'sample_point', 'offsets', 'gains_afe', 'sign', 'deadtime',

@@ -12,7 +12,7 @@ ABSTRACT = (
     'The drive commutates itself at 50 kHz from the record\'s tune; what a '
     'flight controller or a motion planner does with this board at the far '
     'end of a wire runs at link rate, tens of hertz, through '
-    '`coaxial.motion`. This notebook runs four such missions on the '
+    '`coaxial.control.motion`. This notebook runs four such missions on the '
     'stand-in\'s rotor, and on a board with the knob flipped: one lane of a '
     'quadrotor stepped through four speeds under a propeller law, a '
     'fixed-wing cruise holding 2500 rpm through a gust that multiplies the '
@@ -36,7 +36,7 @@ ABSTRACT = (
     'on the same wire.')
 
 #: What the missions need beyond the device: the drive on the stand-in's
-#: rotor, and the stage armed once. Nothing in `coaxial.motion` arms.
+#: rotor, and the stage armed once. Nothing in `coaxial.control.motion` arms.
 SECTIONS = [
     section(
         'The stage, armed',
@@ -66,8 +66,8 @@ print('armed:', device.gates.armed())'''),
            'state read and one setpoint write with a 40 ms pause between; '
            'at the bench each of the two adds its own round trip on the '
            'link, about 7 ms for the write.'),
-        code('''from coaxial.motor import APC20x10E, Propeller
-from coaxial.sensorless import RAD_S_PER_RPM
+        code('''from coaxial.model.motor import APC20x10E, Propeller
+from coaxial.model.sensorless import RAD_S_PER_RPM
 
 K_PROP = 2e-8
 prop = Propeller(K_PROP, name='stand-in propeller')
@@ -112,7 +112,7 @@ drive.model_param(load=0.0)
 print('%d passes in %.1f s: %.1f a second, %.0f ms a pass against %.0f ms asked'
       % (len(lane_log), lane_wall, len(lane_log) / lane_wall,
          1000.0 * lane_wall / len(lane_log), 1000.0 * lane_pause))'''),
-        code('''from coaxial.figures import figure, show
+        code('''from coaxial.draw.figures import figure, show
 
 def draw(log, title):
     t = [r[0] for r in log]
@@ -309,7 +309,7 @@ print('   ring        %.2f deg peak to peak held, %.2f under the load, %.2f corr
        'machine on purpose: an overstated `j` scales kp by the same factor, '
        'and the discrete loop flips sign and doubles - measured, `j` five '
        'times the plant took +900 rpm asked to -1552 delivered. Understating '
-       'only makes a big machine sluggish; `coaxial.sysid` and the motion '
+       'only makes a big machine sluggish; `coaxial.model.sysid` and the motion '
        'notebook identify the real pair. The pass rate is the stand-in\'s: '
        '25 a second is the 40 ms pause and nothing else, and at the bench '
        'each pass pays a state read and a setpoint write on the link.\n\n'
@@ -392,11 +392,11 @@ BENCH = (
     'ends the block with the board\'s own word.')
 
 REFERENCES = [
-    ('host/coaxial/motion.py', 'the three verbs: the slew, the servo\'s mean over the ring, the velocity loop at link rate'),
-    ('host/coaxial/loop.py', '`SpeedLoop`: kp from the mechanical pole, the feedforward, the integrator held on the clamp and `v_sat`'),
-    ('host/coaxial/motor.py', '`Propeller`, `on_model`, `APC20x10E` off the thrust stand, and `Motor` with `k_load` beside `b`'),
+    ('host/coaxial/control/motion.py', 'the three verbs: the slew, the servo\'s mean over the ring, the velocity loop at link rate'),
+    ('host/coaxial/control/loop.py', '`SpeedLoop`: kp from the mechanical pole, the feedforward, the integrator held on the clamp and `v_sat`'),
+    ('host/coaxial/model/motor.py', '`Propeller`, `on_model`, `APC20x10E` off the thrust stand, and `Motor` with `k_load` beside `b`'),
     ('host/coaxial/simulated/drive.py', 'the stand-in\'s rotor the missions turned, a pendulum integrated at a fixed sub-step'),
-    ('host/coaxial/link.py', '`port_stats`: `bus_message`, `server_message`, and `for_others` between them'),
+    ('host/coaxial/devices/link.py', '`port_stats`: `bus_message`, `server_message`, and `for_others` between them'),
     ('docs/FINDINGS.md', 'the motion verbs, 2026-09-07: the aliased measurement, the pumped corrections, the rotor\'s step'),
     ('host/tests/test_sensorless.py', '`test_motion`: the verbs against the stand-in, the dangerous paths included'),
 ]

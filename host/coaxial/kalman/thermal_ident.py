@@ -5,7 +5,7 @@ the same states for the same reasons.
 """
 import math
 
-from .. import thermal
+from coaxial.model import thermal
 
 SCALES = thermal.IDENT_SCALES
 AIR, CAPACITY, SPREAD, NTC, AMBIENT = range(5)

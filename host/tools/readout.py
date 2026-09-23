@@ -58,7 +58,7 @@ CORES = 'MODBUS DRIVE THERMAL FILTER DAQ SHTP BOOT'
 def identity_of(port, simulated):
     """`{'info', 'parts', 'origin', 'real'}` read once off the bus - the
     stand-in's when `simulated` - and the session closed again."""
-    from coaxial.session import open_session
+    from coaxial.comm.session import open_session
 
     session, origin = open_session(port, simulated=True if simulated else None)
     try:

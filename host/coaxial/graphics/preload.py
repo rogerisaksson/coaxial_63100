@@ -11,7 +11,7 @@ import shutil
 import sys
 import time
 
-from ..memory import physical
+from coaxial.memory import physical
 
 #: Free memory under which the background build is not started, and
 #: free disk under which the pickle is not written.
@@ -34,7 +34,7 @@ def stamp(path):
     mesh, solids, creases and stereotype sources - a decimate or a fit
     that changed in the code makes the file stale.
     """
-    from . import creases, mesh, solids, stereotype
+    from coaxial.graphics import creases, mesh, solids, stereotype
     digest = hashlib.sha1()
     for module in (mesh, solids, creases, stereotype):
         with open(module.__file__, 'rb') as source:
@@ -75,7 +75,7 @@ def build(path, progress=None, where=None):
     """Decimate, index and fit `path`, write the pickle atomically, and
     return its size in bytes.
     """
-    from . import creases, solids, stereotype
+    from coaxial.graphics import creases, solids, stereotype
     say = progress or (lambda label: None)
     lods = {}
     for _zoom, divisions in solids.LODS:
@@ -123,7 +123,7 @@ def load(path, where=None):
 def main(argv=None):
     """Build the preload for the board's model, a line per step on
     stdout for the front page to print; exit 0 either way."""
-    from .. import orientation
+    from coaxial.draw import orientation
     path = orientation.MODEL
     why = refusal()
     if why is not None:

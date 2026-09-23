@@ -1,6 +1,6 @@
 # Protocol
 
-Host mirror: `host/coaxial/protocol.py`, `wire.py`, `transport.py`. Version
+Host mirror: `host/coaxial/comm/protocol.py`, `wire.py`, `transport.py`. Version
 in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.18); firmware version in
 `version.h`. A host picks its codec on MAJOR only (invariant 4).
 
@@ -352,7 +352,7 @@ The cycle counter, latched. Ops:
 | 0 latch | - | `u8 1`; every node captures its CYCCNT at the frame |
 | 1 read | - | `u32 seq, u32 latched, u32 now, u32 sysclk_hz` |
 
-Op 0 is for broadcast. Host side: `coaxial.clock`.
+Op 0 is for broadcast. Host side: `coaxial.acquire.clock`.
 
 ### 8 THERMAL, `cmd_thermal.c`
 
@@ -452,7 +452,7 @@ vd, vq, eps, ih, vdc; the moments' four channels are U, V, W and the
 DC bus in milli-codes.
 
 Setpoint ids: 0 id_ref mA, 1 iq_ref mA, 2 theta mrad, 3 omega_target
-mrad/s, 4 accel, 5 vd mV, 6 vq mV, 7-9 polarity (`coaxial.drive.SETPOINTS`).
+mrad/s, 4 accel, 5 vd mV, 6 vq mV, 7-9 polarity (`coaxial.devices.drive.SETPOINTS`).
 
 ### 11 BOOT, `boot_core.c` and `cmd_boot.c`
 

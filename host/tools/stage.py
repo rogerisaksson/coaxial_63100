@@ -39,7 +39,7 @@ from rich.text import Text
 from rich.theme import Theme
 from rich.progress import BarColumn, Progress, TextColumn
 from rich.measure import Measurement
-from coaxial import broker
+from coaxial.comm import broker
 
 #: The palette, named. Blade Runner's teal and sodium over Alien's phosphor
 #: green chip. Meaning colours (LIVE green, SIMULATED yellow, alarm red)

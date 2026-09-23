@@ -279,7 +279,7 @@ API void drv_model_state(const drive_t *d, float *v)
 }
 
 /** The observer chain's state, drive_observer.c, in the order
-    test_drive_core.py and coaxial.drive read it: the blend, then each
+    test_drive_core.py and coaxial.devices.drive read it: the blend, then each
     observer on its own, then what the chain says about the machine. */
 /** The observer chain on its own, fed the stationary-frame voltage and
     current directly. */

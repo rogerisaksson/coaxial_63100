@@ -122,7 +122,7 @@ def rows_of(owner, width, height, kind):
 def test_the_instruments_stand_clear_of_the_machine(report):
     """The gutters equidistant, and the foot gauges off the can."""
     sys.path.insert(0, HOST)
-    from coaxial import machine
+    from coaxial.draw import machine
     from tools import show_rotor_observer as view
 
     width, height = view.BOX.width, view.BOX.rows
@@ -191,7 +191,7 @@ def test_each_gutter_says_its_hottest_node(report):
 def test_both_gutters_run_on_one_scale(report):
     """Height is degrees, colour is margin, and they are two questions."""
     sys.path.insert(0, HOST)
-    from coaxial import machine
+    from coaxial.draw import machine
     from tools import show_rotor_observer as view
 
     nodes = dict.fromkeys(view.SOA_NODES + view.BOARD_NODES, 20.0)
@@ -254,7 +254,7 @@ def test_a_power_node_never_reads_below_the_copper(report):
 def test_the_ntc_is_shown_as_the_one_measurement(report):
     """The reference above the headroom scale, and what it says unread."""
     sys.path.insert(0, HOST)
-    from coaxial import machine
+    from coaxial.draw import machine
     from tools import show_rotor_observer as view
 
     report.check('a reading is shown in degrees',
@@ -299,7 +299,7 @@ def test_the_foot_carries_the_policy(report):
     """
     sys.path.insert(0, HOST)
     sys.path.insert(0, os.path.join(HOST, 'tools'))
-    from coaxial import machine
+    from coaxial.draw import machine
     from screen import plain as visible      # the row without its inks
     from tools import show_rotor_observer as view
 
@@ -395,7 +395,8 @@ def test_the_soa_legend_reads_the_whole_soa(report):
     """
     sys.path.insert(0, HOST)
     sys.path.insert(0, os.path.join(HOST, 'tools'))
-    from coaxial import machine, thermal
+    from coaxial.draw import machine
+    from coaxial.model import thermal
     from tools import show_rotor_observer as rotor
     IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
 
@@ -491,7 +492,7 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     from rich.console import Console
 
     sys.path.insert(0, HOST)
-    from coaxial import ansi, gauges, machine
+    from coaxial.draw import ansi, gauges, machine
     from tools import show_thermal_observer as page
     from tools import stage
 
@@ -550,7 +551,7 @@ def test_the_thermal_page_shows_its_evidence(report):
 
     sys.path.insert(0, HOST)
     sys.path.insert(0, os.path.join(HOST, 'tools'))
-    from coaxial import machine
+    from coaxial.draw import machine
     from coaxial.simulated.power import SimulatedThermal
     from screen import plain as visible
     from tools import show_thermal_observer as page
@@ -690,7 +691,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                       theme=stage.THEME)
     # THE MAP'S LETTERS EXPLAINED, a box of its own under SENSE, each row the
     # mark's references off the pick and place and what they are.
-    from coaxial.thermalmap import MARKS
+    from coaxial.draw.thermalmap import MARKS
     rows = dict(page.map_rows())
     report.check('MAP says what every mark is - U, V, W, REG, MCU, HS, AFE '
                  'and NTC - with the references its frame is drawn round',
@@ -753,8 +754,8 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     edges and a label - placed from the pick and place.
     """
     import re
-    from coaxial import ansi, thermalmap
-    from coaxial.thermal import ALL_NODES
+    from coaxial.draw import ansi, thermalmap
+    from coaxial.model.thermal import ALL_NODES
 
     warm = {n: 40.0 for n in ALL_NODES if n != 'board'}
     cells = 88
@@ -898,7 +899,7 @@ def test_the_demo_actually_loads_the_machine(report):
 def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
     """The kW bar is a power law pinned at 500 W, full at 2 kW, red past."""
     sys.path.insert(0, HOST)
-    from coaxial import machine
+    from coaxial.draw import machine
     from tools import show_rotor_observer as view
 
     at = {w: view.watts_share(w) for w in (0, 20, 100, 500, 2000, 2500)}
@@ -919,7 +920,7 @@ def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
 
 def test_the_level_is_drawn_at_the_dot(report):
     """The top of a bar's mercury is `⣀`, `⣤`, `⣶`, `⣿` - one dot a step."""
-    from coaxial import machine
+    from coaxial.draw import machine
 
     track = chr(0x28D2)
     tops, dots = [], []
@@ -962,7 +963,7 @@ def test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most(
     """The air gap is less than a cell tall, and that is a trade the drawing
     makes on purpose.
     """
-    from coaxial import machine
+    from coaxial.draw import machine
 
     magnet = {machine.NORTH, machine.SOUTH}
     teeth = {machine.TOOTH_U, machine.TOOTH_V, machine.TOOTH_W}
@@ -995,7 +996,7 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
     """A ring through a cell full of tooth or magnet keeps its colour."""
     import math
 
-    from coaxial import machine
+    from coaxial.draw import machine
 
     magnet = {machine.NORTH, machine.SOUTH}
     seat = machine.Seat(46, 18, None, None, None, None, None, None, 2.0)
@@ -1107,7 +1108,7 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     """
     import unicodedata
 
-    from coaxial import machine
+    from coaxial.draw import machine
     import show_rotor_observer as view
     import stage
 
@@ -1138,7 +1139,7 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
 
 def test_the_flat_drawings_spend_the_block(report):
     """The 2D drawings place their edges by coverage, not by "any corner"."""
-    from coaxial import dial, machine
+    from coaxial.draw import dial, machine
     from coaxial.graphics import raster
 
     of = len(raster.SUBDOT)
@@ -1168,7 +1169,7 @@ def test_the_flat_drawings_spend_the_block(report):
 
 def test_every_gauge_shows_its_own_scale(report):
     """The dimmed track runs the whole of every bar, at its own width."""
-    from coaxial import machine
+    from coaxial.draw import machine
 
     n = 4
     art = machine.render(0.0, 24, 28, 46, 18,
@@ -1207,7 +1208,7 @@ def test_every_gauge_shows_its_own_scale(report):
 
 def test_the_bead_is_round_at_every_angle(report):
     """The pointer is `POINTER_GLYPH`, and it rides the rim."""
-    from coaxial import machine
+    from coaxial.draw import machine
 
     for aspect in (2.0, 2.4):
         was, seats = None, set()
@@ -1376,7 +1377,7 @@ def test_the_dial_is_round_on_this_terminal(report):
     """
     sys.path.insert(0, HOST)
     import screen
-    from coaxial import dial
+    from coaxial.draw import dial
     from tools import show_angle as view
 
     report.check('a given aspect wins, said as given',
@@ -1405,7 +1406,7 @@ def test_the_face_wears_its_two_scales(report):
     for, die temperature and field strength in gauss, 2026-09-07.
     """
     sys.path.insert(0, HOST)
-    from coaxial import ansi, dial
+    from coaxial.draw import ansi, dial
 
     def dots(lines):
         return sum(bin(ord(c) - 0x2800).count('1')
@@ -1506,7 +1507,7 @@ def test_the_bead_trails_its_speed(report):
     import re
 
     sys.path.insert(0, HOST)
-    from coaxial import ansi, machine
+    from coaxial.draw import ansi, machine
 
     inks = {machine.INK[c] for c in machine.TRAIL}
 
@@ -1575,7 +1576,7 @@ def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
 
 def test_every_frame_corner_on_the_map_is_a_right_angle(report):
     """A frame's top and bottom lines start AT the side's lane."""
-    from coaxial import thermalmap as tm
+    from coaxial.draw import thermalmap as tm
 
     # side, edge, the lane the side runs down -> the corner cell's glyph.
     right_angle = {('left', 'top', 0): '\u2856', ('left', 'top', 1): '\u28b0',
@@ -1638,7 +1639,7 @@ def test_the_foot_says_trip_while_the_cap_holds(report):
     the model.
     """
     sys.path.insert(0, HOST)
-    from coaxial import machine
+    from coaxial.draw import machine
     from tools import show_rotor_observer as view
 
     def foot(state, margin, cap, floor=None):
@@ -1683,7 +1684,7 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
     """
     sys.path.insert(0, HOST)
     from rich.text import Text
-    from coaxial import machine
+    from coaxial.draw import machine
     from tools import show_rotor_observer as view
 
     def said(mode, budget=None):
@@ -1731,7 +1732,7 @@ def test_a_frame_rasterises_as_the_terminal_draws_it(report):
     terminal shows it: the notebooks' pictures, and `tools/ansi2png.py`.
     """
     sys.path.insert(0, HOST)
-    from coaxial import ansi
+    from coaxial.draw import ansi
 
     frame = (ansi.paint('ab', ansi.RED) + 'c\n'
              + ansi.paint('\u28ff', ansi.GREEN) + ' \u2801')
@@ -1772,7 +1773,7 @@ def test_the_marquee_decodes_the_art_itself(report):
     from rich.console import Console
     from rich.text import Text
     sys.path.insert(0, HOST)
-    from coaxial import ansi
+    from coaxial.draw import ansi
 
     class ByText:
         """The Marquee as it was: Text.from_ansi per line."""
@@ -1846,7 +1847,7 @@ def test_the_preload_is_the_first_inquiry(report):
     """
     import tempfile
     import readout
-    from coaxial import orientation
+    from coaxial.draw import orientation
     from coaxial.graphics import preload
     identity = {'origin': 'simulated', 'real': False,
                 'info': {'device': 'stand-in'}, 'parts': []}

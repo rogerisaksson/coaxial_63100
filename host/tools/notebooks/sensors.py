@@ -124,7 +124,7 @@ print('reset  produced %d cargoes' % drained)'''),
            'quaternion with it.'),
         code('''import time
 
-from coaxial.imu import ROTATION_VECTOR
+from coaxial.devices.imu import ROTATION_VECTOR
 
 with imu.configuring():
     imu.feature(ROTATION_VECTOR, 20000)
@@ -152,12 +152,12 @@ print('error %s, last fault %s (id %d), cargoes %d, errors %d'
            'part must not be confused with a silent one. Enabled at 20 ms '
            'each, they come back with an accuracy word, a unit and the counts '
            'beside the value - Q8 m/s^2, Q9 rad/s, Q4 uT, the Q point kept in '
-           '`coaxial.imu` and not in the firmware, the same division the ADC '
+           '`coaxial.devices.imu` and not in the firmware, the same division the ADC '
            'channels keep. The magnitudes are the check: one g at rest, no '
            'rate, and a field inside the Earth\'s 25 to 65 uT.'),
         code('''import math
 
-from coaxial.imu import ACCELEROMETER, GYROSCOPE, MAGNETIC_FIELD
+from coaxial.devices.imu import ACCELEROMETER, GYROSCOPE, MAGNETIC_FIELD
 
 VECTORS = ('accelerometer', 'gyroscope', 'magnetometer')
 before = imu.state()
@@ -182,14 +182,14 @@ for name in VECTORS:
     section(
         'The board at that attitude',
         md('The board at the quaternion, as the BOARD ATTITUDE page draws it: '
-           '`coaxial.orientation.render` in its wireframe, colour on, and '
-           '`coaxial.ansi.image` rasterising the braille the way the terminal '
+           '`coaxial.draw.orientation.render` in its wireframe, colour on, and '
+           '`coaxial.draw.ansi.image` rasterising the braille the way the terminal '
            'shows it - a picture is judged in a raster, not in glyph counts. '
            'The part sends i, j, k, real in that order, which is not the order '
            'most quaternion maths is written in, and `render` takes them that '
            'way. The stand-in tumbles; a board lying on the bench draws flat, '
            'and one in the hand tilts the picture.'),
-        code('''from coaxial import ansi, orientation
+        code('''from coaxial.draw import ansi, orientation
 
 q = imu.state()['quaternion']
 print({k: round(v, 3) for k, v in q.items()})
@@ -209,8 +209,8 @@ ansi.image(orientation.render((q['i'], q['j'], q['k'], q['real']), 100, 30, wire
            'The twelve low bits are the reading, the four above are flags: '
            'ANG counts 360/4096 of a turn, TSEN eighths of a kelvin, FIELD\'s '
            'count is the gauss.'),
-        code('''from coaxial.angle import ANG, FIELD, TSEN, counts, degrees, gauss, kelvin
-from coaxial.scaling import KELVIN_AT_ZERO_C
+        code('''from coaxial.devices.angle import ANG, FIELD, TSEN, counts, degrees, gauss, kelvin
+from coaxial.devices.scaling import KELVIN_AT_ZERO_C
 
 st = angle.state()
 print({k: st.get(k) for k in ('loop', 'updates', 'errors', 'register_name', 'value', 'degrees', 'crc')})
@@ -239,9 +239,9 @@ print('field  %.0f G' % gauss(field))'''),
            'the right - green inside the recommended band, red with no magnet. '
            'Below a few tens of gauss the face draws the instrument and no '
            'needle, rather than a confident one at a number that means '
-           'nothing. `coaxial.dial` is pure; `coaxial.ansi.image` rasterises '
+           'nothing. `coaxial.draw.dial` is pure; `coaxial.draw.ansi.image` rasterises '
            'it.'),
-        code('''from coaxial import dial
+        code('''from coaxial.draw import dial
 
 ansi.image(dial.instrument(degrees(ang), gauss(field), kelvin(tsen), colour=True))'''),
     ),
@@ -274,7 +274,7 @@ print('%d records, stride %d bytes; shaft snapshot present in %d of %d'
 print(run[0]['sensors'])
 df[['shaft angle (deg)', 'orientation i (unit)', 'orientation j (unit)',
     'orientation k (unit)', 'orientation real (unit)']].describe().round(3)'''),
-        code('''from coaxial.figures import figure, show
+        code('''from coaxial.draw.figures import figure, show
 
 axes = ['orientation %s (unit)' % w for w in ('i', 'j', 'k', 'real')]
 fig, (top, bottom) = figure(rows=2, sharex=True)
@@ -360,7 +360,7 @@ print('7. loops      IMU %s: updates %d, cargoes %d, errors %d, last fault %s (i
        'next good read; `last_fault` is what a host polling at 5 Hz would '
        'never see. The three vectors each carry their own `have`, so a '
        'feature nobody enabled is None and not zero, and the Q points that '
-       'turn their counts into m/s^2, rad/s and uT live in `coaxial.imu` and '
+       'turn their counts into m/s^2, rad/s and uT live in `coaxial.devices.imu` and '
        'nowhere else.\n\n'
        'Every A1335 read is two frames: the address arrives on MOSI bits '
        '17..12 while MISO has already shifted out bits 19..16, so the answer '
@@ -381,7 +381,7 @@ print('7. loops      IMU %s: updates %d, cargoes %d, errors %d, last fault %s (i
        'warmed the board, and NTC minus TSEN read -0.74 C idle and +10.94 C '
        'switching, which is why the NTC is the thermal observer\'s reference '
        'and this is not (FINDINGS). Every conversion is one place - '
-       '`coaxial.angle` for the twelve bits, `coaxial.imu` for the Q points - '
+       '`coaxial.devices.angle` for the twelve bits, `coaxial.devices.imu` for the Q points - '
        'and the record\'s scaled columns in conclusion 6 come through the '
        'same ones (invariant 7).'),
 ]
@@ -407,9 +407,9 @@ BENCH = (
     '50 records a second.')
 
 REFERENCES = [
-    ('host/coaxial/imu.py', 'the BNO085 host side: report lengths, Q points, and the refusal explained'),
-    ('host/coaxial/angle.py', 'the A1335 host side: the register map, the twelve bits as degrees, kelvin and gauss'),
-    ('host/coaxial/sensor.py', '`PolledSensor`: `state`, `hold`, `resume`, `configuring`, `settled`'),
+    ('host/coaxial/devices/imu.py', 'the BNO085 host side: report lengths, Q points, and the refusal explained'),
+    ('host/coaxial/devices/angle.py', 'the A1335 host side: the register map, the twelve bits as degrees, kelvin and gauss'),
+    ('host/coaxial/devices/sensor.py', '`PolledSensor`: `state`, `hold`, `resume`, `configuring`, `settled`'),
     ('host/coaxial/simulated/sensors.py', 'the stand-in this ran on: a BNO085 that tumbles and an A1335 that follows the simulated shaft'),
     ('board/src/board_imu.c', 'the SPI2 poll loop, the drain before a write, the refusal while PB2 is low'),
     ('board/src/board_angle.c', 'the SPI4 loop and the two-frame read'),

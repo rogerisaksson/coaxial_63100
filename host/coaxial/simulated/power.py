@@ -5,20 +5,20 @@ import math
 import random
 import time
 
-from .. import motor
-from .. import thermal
-from ..kalman import thermal_ident
-from ..thermal_device import THROTTLE_AT
-from ..errors import RigError
+from coaxial.model import motor
+from coaxial.model import thermal
+from coaxial.kalman import thermal_ident
+from coaxial.devices.thermal_device import THROTTLE_AT
+from coaxial.errors import RigError
 from typing import Any, Callable, Optional
-from ..gates import GateControl
-from .. import inverter
-from ..power import named
+from coaxial.devices.gates import GateControl
+from coaxial.model import inverter
+from coaxial.devices.power import named
 
 
 class SimulatedThermal:
     """The thermal observer without a board: the same twenty-node graph
-    `thermal.c` integrates, on `coaxial.thermal`'s tables, so a view
+    `thermal.c` integrates, on `coaxial.model.thermal`'s tables, so a view
     running -Simulated draws the network the board runs and the envelope
     rehearses the same play.
     """
@@ -38,7 +38,7 @@ class SimulatedThermal:
 
     #: The stand-in's clock runs this much faster than the wall: the board's
     #: ~7 min constant shows a load step in half a minute. Only the clock - the
-    #: network, capacities and ceilings are `coaxial.thermal`'s.
+    #: network, capacities and ceilings are `coaxial.model.thermal`'s.
     HASTE = 10.0
 
     #: The tracked rms's time constant, s: one sample (a vector, not an

@@ -2,8 +2,8 @@
 import functools
 import os
 
-from . import crew, mesh
-from .. import orientation
+from coaxial.graphics import crew, mesh
+from coaxial.draw import orientation
 
 
 #: In-memory decimates of the STL, keyed on (path, divisions, mtime):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""coaxial.broker: one process owns the port, everything else asks it."""
+"""coaxial.comm.broker: one process owns the port, everything else asks it."""
 import os
 import sys
 import threading
@@ -7,7 +7,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import broker                                  # noqa: E402
+from coaxial.comm import broker                                  # noqa: E402
 from coaxial import errors                                  # noqa: E402
 
 #: A TCP port of its own, so a suite run never fights a broker somebody
@@ -256,7 +256,7 @@ def test_a_stale_address_is_not_a_broker(report):
 
         # The hole this closes: `auto` saw the file, committed to a real port,
         # and raised instead of falling back.
-        from coaxial.session import _answers
+        from coaxial.comm.session import _answers
         report.check('and the session layer says it does not answer',
                      _answers({'host': '127.0.0.1', 'tcp': 8792}) is False)
     finally:
@@ -267,7 +267,7 @@ def test_a_stale_address_is_not_a_broker(report):
     fake = Fake()
     served(fake)
     try:
-        from coaxial.session import _answers as asks
+        from coaxial.comm.session import _answers as asks
         report.check('a live broker answers that question',
                      asks({'host': ADDRESS[0], 'tcp': ADDRESS[1]}) is True)
         report.check('and asking did not take it down',
@@ -278,8 +278,8 @@ def test_a_stale_address_is_not_a_broker(report):
 
 def test_frame_length(report):
     """The reply shapes that stop a read on its last byte."""
-    from coaxial.crc import crc16
-    from coaxial.transport import ACK, frame_length
+    from coaxial.comm.crc import crc16
+    from coaxial.comm.transport import ACK, frame_length
 
     def framed(payload, unit=1, fc=0x6E):
         body = bytes([unit, fc]) + payload
@@ -310,8 +310,8 @@ def test_ack_skips_the_quiet_time(report):
     """The ACK shape through the REAL read loop, on a scripted port."""
     import types
 
-    from coaxial import transport as tmod
-    from coaxial.crc import crc16
+    from coaxial.comm import transport as tmod
+    from coaxial.comm.crc import crc16
 
     class _StubSerial:
         """A slave in four methods: the scripted `reply` arrives when

@@ -19,7 +19,7 @@ ABSTRACT = (
     'counted 500 periods, reads the six gates and the counter in one '
     'snapshot twelve times, and captures 300 records at the loop\'s full '
     'rate with the pins beside the currents. The last three sections need '
-    'no board: `coaxial.inverter` carries the constants traced from the '
+    'no board: `coaxial.model.inverter` carries the constants traced from the '
     'schematic and the LTSpice models, and from them come the output '
     'charge, the switch-node ring, the blanking margin, the dead-time knee '
     'and the conduction loss over the 23 to 63 V link sweep. Headline '
@@ -188,8 +188,8 @@ print('%d reads, CNT %d to %d of %d; high side on in %d of %d leg samples (%.1f 
            '2026-08-27 at every duty from 1 to 100 %. What is left after the '
            'tare is the sense chain\'s noise, read against the floor measured '
            'on the board.'),
-        code('''from coaxial import inverter
-from coaxial.figures import figure, show
+        code('''from coaxial.model import inverter
+from coaxial.draw.figures import figure, show
 
 device.set_time_from_pc()
 print('tare:', device.calibration.tare('phaseU', 'phaseV', 'phaseW'))
@@ -237,7 +237,7 @@ print('pwm_enabled', released['pwm_enabled'], ' break_bypassed', released['break
     ),
     section(
         'What switching costs: the constants',
-        md('This section and the two after it need no board. `coaxial.inverter` '
+        md('This section and the two after it need no board. `coaxial.model.inverter` '
            'carries the stage\'s numbers in one importable place: FSW, the dead '
            'time, the FET\'s junction law (CJO, M, VJ from the vendor VDMOS model '
            'in `half_bridge.asc`), the power loop inductance, the shunt and the '
@@ -328,12 +328,12 @@ for t_dead, which in ((inverter.T_DEAD, 'the record, DTG 8'),
            'on this board is the camera campaign\'s: 1.20 W for three legs at '
            '50 % on 24.6 V, the switching state less the passive one, roughly '
            'half on the supply corner - gate charge comes out of the +15V7 '
-           'buck - and half on the bridge. `coaxial.thermal.POWER_SWITCHING` '
+           'buck - and half on the bridge. `coaxial.model.thermal.POWER_SWITCHING` '
            'is the whole board\'s power per node in that state, the drivers\' '
            'entries being the bridge\'s half. Below, the Coss term and the gate '
            'charge sit beside the two halves, and the E_oss ratio beside the '
            'law the thermal core scales that 1.20 W with.'),
-        code('''from coaxial import thermal
+        code('''from coaxial.model import thermal
 
 print('  I A   conduction W/phase')
 for amps_rms in (1.0, 5.0, 20.0, 50.0, 100.0):
@@ -476,9 +476,9 @@ BENCH = (
     'with it the blanking margin and the settling time.')
 
 REFERENCES = [
-    ('host/coaxial/gates.py', 'the arming policy: `check()`, `interlock()`, `arm()`, `disarm()`'),
-    ('host/coaxial/gate_drivers.py', 'the board\'s ops behind `0x6E` device 4: the snapshot, the counted hold, the alternate'),
-    ('host/coaxial/inverter.py', 'the traced constants and the arithmetic on them: `coss`, `ring`, `blanking`, `knee_amps`, `dt_table`'),
+    ('host/coaxial/devices/gates.py', 'the arming policy: `check()`, `interlock()`, `arm()`, `disarm()`'),
+    ('host/coaxial/devices/gate_drivers.py', 'the board\'s ops behind `0x6E` device 4: the snapshot, the counted hold, the alternate'),
+    ('host/coaxial/model/inverter.py', 'the traced constants and the arithmetic on them: `coss`, `ring`, `blanking`, `knee_amps`, `dt_table`'),
     ('host/coaxial/simulated/power.py', 'the stand-in this ran on: DTG 19, the walking counter, the counted hold on wall time'),
     ('board/src/board_pwm.c', 'TIM1 on the board: MOE, the update ISR\'s counted hold, the gate short probe'),
     ('docs/HARDWARE.md', 'the dead time and its tension, the STO chain, the inverter constants, the loss terms'),

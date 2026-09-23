@@ -289,125 +289,125 @@ def board_note():
 
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
-    ('host/coaxial_ollama/debug.py',  OLLAMA + ('live:all',)),
-    ('host/coaxial_ollama/replies.py', OLLAMA + ('live:tools',)),
-    ('host/coaxial_ollama/language.py', OLLAMA + ('live:language',)),
-    ('host/coaxial_ollama/',          OLLAMA),
-    ('host/coaxial_mcp/tools.py',     ('test_mcp.py', 'test_parity.py',
-                                       'live:tools') + OLLAMA),
-    ('host/coaxial_mcp/render.py',    ('test_mcp.py', 'test_parity.py')
-                                      + OLLAMA),
-    ('host/coaxial_mcp/',             ('test_mcp.py', 'test_parity.py')),
-    ('host/coaxial/simulated',        ('test_simulated.py',
-                                       'test_parity.py') + OLLAMA),
+    ('host/coaxial_ollama/debug.py',        OLLAMA + ('live:all',)),
+    ('host/coaxial_ollama/replies.py',      OLLAMA + ('live:tools',)),
+    ('host/coaxial_ollama/language.py',     OLLAMA + ('live:language',)),
+    ('host/coaxial_ollama/',                OLLAMA),
+    ('host/coaxial_mcp/tools.py',           ('test_mcp.py', 'test_parity.py',
+                                             'live:tools') + OLLAMA),
+    ('host/coaxial_mcp/render.py',          ('test_mcp.py', 'test_parity.py')
+                                            + OLLAMA),
+    ('host/coaxial_mcp/',                   ('test_mcp.py', 'test_parity.py')),
+    ('host/coaxial/simulated',              ('test_simulated.py',
+                                             'test_parity.py') + OLLAMA),
     # The broker is the port itself: every session goes through it when one is
     # up, so its own suite runs whenever it or the two files that reach for it
     # change.
-    ('host/coaxial/broker.py',        (BROKER, DAQ_API,
-                                      'test_parity.py')),
-    ('host/coaxial/ports.py',         (BROKER, 'test_mcp.py',
-                                       'test_ollama_link.py')),
-    ('host/coaxial/rig.py',           (DAQ_API, 'test_simulated.py',
-                                      VIEWS)),
-    ('host/coaxial/record.py',        (DAQ_API,)),
-    ('host/coaxial/fanout.py',        (DAQ_API, BROKER)),
-    ('host/coaxial/reader.py',        (DAQ_API,)),
-    ('host/coaxial/calibration.py',   (DAQ_API, 'test_simulated.py')),
-    ('host/coaxial/board.py',         (BROKER, 'test_simulated.py',
-                                       'test_parity.py', 'test_mcp.py')),
-    ('host/coaxial/session.py',       (BROKER, 'test_mcp.py',
-                                       'test_parity.py')),
-    ('host/tools/session.py',         (BROKER,)),
+    ('host/coaxial/comm/broker.py',         (BROKER, DAQ_API,
+                                             'test_parity.py')),
+    ('host/coaxial/comm/ports.py',          (BROKER, 'test_mcp.py',
+                                             'test_ollama_link.py')),
+    ('host/coaxial/rig.py',                 (DAQ_API, 'test_simulated.py',
+                                             VIEWS)),
+    ('host/coaxial/acquire/record.py',      (DAQ_API,)),
+    ('host/coaxial/acquire/fanout.py',      (DAQ_API, BROKER)),
+    ('host/coaxial/acquire/reader.py',      (DAQ_API,)),
+    ('host/coaxial/devices/calibration.py', (DAQ_API, 'test_simulated.py')),
+    ('host/coaxial/devices/board.py',       (BROKER, 'test_simulated.py',
+                                             'test_parity.py', 'test_mcp.py')),
+    ('host/coaxial/comm/session.py',        (BROKER, 'test_mcp.py',
+                                             'test_parity.py')),
+    ('host/tools/session.py',               (BROKER,)),
     # The pure character renderers: a reading in, text out.
-    ('host/coaxial/orientation.py',   ('test_simulated.py', 'test_mcp.py',
-                                       RENDER)),
-    ('host/coaxial/engine.py',        (RENDER, VIEWS)),
-    ('host/coaxial/wireframe.py',     (RENDER, VIEWS)),
-    ('host/coaxial/ascii3d.py',       ('test_simulated.py',)),
-    ('host/coaxial/desk.py',          ('test_simulated.py',)),
-    ('host/coaxial/dial.py',          ('test_simulated.py',)),
-    ('host/coaxial/mesh.py',          ('test_simulated.py',)),
-    ('host/coaxial/ansi.py',          ('test_simulated.py',)),
-    ('host/coaxial/',                 ('test_simulated.py', 'test_parity.py',
-                                       'test_mcp.py')),
+    ('host/coaxial/draw/orientation.py',    ('test_simulated.py', 'test_mcp.py',
+                                             RENDER)),
+    ('host/coaxial/graphics/engine.py',     (RENDER, VIEWS)),
+    ('host/coaxial/graphics/wireframe.py',  (RENDER, VIEWS)),
+    ('host/coaxial/draw/ascii3d.py',        ('test_simulated.py',)),
+    ('host/coaxial/draw/desk.py',           ('test_simulated.py',)),
+    ('host/coaxial/draw/dial.py',           ('test_simulated.py',)),
+    ('host/coaxial/graphics/mesh.py',       ('test_simulated.py',)),
+    ('host/coaxial/draw/ansi.py',           ('test_simulated.py',)),
+    ('host/coaxial/',                       ('test_simulated.py', 'test_parity.py',
+                                             'test_mcp.py')),
     # A live view is a loop, a screen and a cable around a renderer that is
     # tested on its own.
-    ('host/tools/show_',              (STRUCTURE, VIEWS,
-                                       'test_simulated.py')),
-    ('host/tools/show_session.py',    (VIEWS,) + OLLAMA),
-    ('host/tools/screen.py',          (STRUCTURE, VIEWS,
-                                       'test_simulated.py')),
+    ('host/tools/show_',                    (STRUCTURE, VIEWS,
+                                             'test_simulated.py')),
+    ('host/tools/show_session.py',          (VIEWS,) + OLLAMA),
+    ('host/tools/screen.py',                (STRUCTURE, VIEWS,
+                                             'test_simulated.py')),
     # A CACHE THE TOOLS WRITE, not code they read for behaviour.
-    ('host/tools/.session.json',      ()),
-    ('host/tools/',                   OLLAMA),
-    ('host/tests/',                   ()),          # decided by name below
+    ('host/tools/.session.json',            ()),
+    ('host/tools/',                         OLLAMA),
+    ('host/tests/',                         ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the
     # portable core is also compiled and run on this machine, which is the only
     # check on it that does not need a cable.
-    ('modbus/',                       (CORE, CONFORMANCE, 'test_mcp.py')),
+    ('modbus/',                             (CORE, CONFORMANCE, 'test_mcp.py')),
     # The SHTP layer is hardware-free like the Modbus core, so the host build
     # is what covers it.
-    ('shtp/',                         (SHTP,)),
+    ('shtp/',                               (SHTP,)),
     # The decimating filter is hardware-free the same way, and its design lives
     # on the host beside it.
-    ('filter/',                       (FILTER,)),
-    ('host/coaxial/bessel.py',        (FILTER, STRUCTURE)),
+    ('filter/',                             (FILTER,)),
+    ('host/coaxial/acquire/bessel.py',      (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer, and its suite
     # closes the loop through a motor model - the only check on it that needs
     # no motor.
-    ('drive/',                        (DRIVE,)),
-    ('host/coaxial/drive.py',         (SENSORLESS, 'test_simulated.py',
-                                       'test_parity.py')),
-    ('host/coaxial/sensorless.py',    (SENSORLESS,)),
-    ('host/coaxial/commission.py',    (SENSORLESS,)),
-    ('host/tools/commission.py',      (STRUCTURE, SENSORLESS)),
+    ('drive/',                              (DRIVE,)),
+    ('host/coaxial/devices/drive.py',       (SENSORLESS, 'test_simulated.py',
+                                             'test_parity.py')),
+    ('host/coaxial/model/sensorless.py',    (SENSORLESS,)),
+    ('host/coaxial/control/commission.py',  (SENSORLESS,)),
+    ('host/tools/commission.py',            (STRUCTURE, SENSORLESS)),
     # The stage constants and the host control loops are design arithmetic with
     # closed-form checks; the Monte Carlo drives the compiled law.
-    ('host/coaxial/inverter.py',      (SENSORLESS,)),
-    ('host/coaxial/loop.py',          (SENSORLESS, DRIVE)),
-    ('host/coaxial/motion.py',        (SENSORLESS, 'test_simulated.py')),
-    ('host/tools/montecarlo.py',      (STRUCTURE, DRIVE)),
+    ('host/coaxial/model/inverter.py',      (SENSORLESS,)),
+    ('host/coaxial/control/loop.py',        (SENSORLESS, DRIVE)),
+    ('host/coaxial/control/motion.py',      (SENSORLESS, 'test_simulated.py')),
+    ('host/tools/montecarlo.py',            (STRUCTURE, DRIVE)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
-    ('comms/',                        (CONFORMANCE, 'test_mcp.py', BENCH)),
-    ('board/',                        (CONFORMANCE, 'test_mcp.py',
-                                       'test_parity.py', BENCH)),
-    ('core/',                         (CONFORMANCE, BENCH)),
+    ('comms/',                              (CONFORMANCE, 'test_mcp.py', BENCH)),
+    ('board/',                              (CONFORMANCE, 'test_mcp.py',
+                                             'test_parity.py', BENCH)),
+    ('core/',                               (CONFORMANCE, BENCH)),
     # The observer and its envelope are hardware-free like the filter, so the
     # host build is what covers them; the board glue that acts on the budget
     # lives in board/ and is the bench's.
-    ('thermal/',                      (THERMAL, CONFORMANCE, BENCH)),
+    ('thermal/',                            (THERMAL, CONFORMANCE, BENCH)),
     # The acquisition engine is hardware-free like the observer, so the host
     # build covers it; the glue that reads the converter is board_daq.c and the
     # bench's, and the record's bytes cross the wire.
-    ('boot/',                         (BOOT_CORE, STRUCTURE)),
-    ('host/coaxial/boot.py',          (BOOT, STRUCTURE)),
-    ('host/coaxial/simulated/boot.py', (BOOT, STRUCTURE)),
-    ('host/tools/flash_nodes.py',     (BOOT, STRUCTURE)),
-    ('daq/',                          (DAQ_CORE, CONFORMANCE, 'test_parity.py',
-                                       BENCH)),
-    ('host/coaxial/thermal.py',       (THERMAL, 'test_sensorless.py',
-                                       STRUCTURE)),
+    ('boot/',                               (BOOT_CORE, STRUCTURE)),
+    ('host/coaxial/devices/boot.py',        (BOOT, STRUCTURE)),
+    ('host/coaxial/simulated/boot.py',      (BOOT, STRUCTURE)),
+    ('host/tools/flash_nodes.py',           (BOOT, STRUCTURE)),
+    ('daq/',                                (DAQ_CORE, CONFORMANCE, 'test_parity.py',
+                                             BENCH)),
+    ('host/coaxial/model/thermal.py',       (THERMAL, 'test_sensorless.py',
+                                             STRUCTURE)),
     # A NOTEBOOK EXAMPLE reaches the library and nothing else reaches it.
-    ('notebook_examples/',            (STRUCTURE,)),
+    ('notebook_examples/',                  (STRUCTURE,)),
     # And the file the notebooks are written FROM.
-    ('host/tools/make_notebooks.py',  (STRUCTURE,)),
+    ('host/tools/make_notebooks.py',        (STRUCTURE,)),
     # A document can only break the docs index and the phrase table.
-    ('docs/',                         ('test_ollama_runner.py',)),
-    ('CLAUDE.md',                     ('test_ollama_runner.py',)),
-    ('README.md',                     ('test_ollama_runner.py',)),
+    ('docs/',                               ('test_ollama_runner.py',)),
+    ('CLAUDE.md',                           ('test_ollama_runner.py',)),
+    ('README.md',                           ('test_ollama_runner.py',)),
     # PowerShell around the Python.
-    ('terminal/',                     (STRUCTURE,)),
-    ('coaxial_tty.ps1',                      (STRUCTURE,)),
-    ('env.ps1',                       (STRUCTURE,)),
-    ('host/run_tests.ps1',            (STRUCTURE,)),
-    ('setup.ps1',                     (STRUCTURE,)),
+    ('terminal/',                           (STRUCTURE,)),
+    ('coaxial_tty.ps1',                     (STRUCTURE,)),
+    ('env.ps1',                             (STRUCTURE,)),
+    ('host/run_tests.ps1',                  (STRUCTURE,)),
+    ('setup.ps1',                           (STRUCTURE,)),
     # Neither the CAD export nor the schematic is read by a suite.
-    ('render/',                       ()),
-    ('electronics/',                  ()),
-    ('datasheets/',                   ()),
-    ('.gitignore',                    ()),
-    ('.vscode/',                      ()),
+    ('render/',                             ()),
+    ('electronics/',                        ()),
+    ('datasheets/',                         ()),
+    ('.gitignore',                          ()),
+    ('.vscode/',                            ()),
 )
 
 # Every this many commits, run the lot regardless of what changed.

@@ -24,10 +24,9 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
-from coaxial import gauges, machine                        # noqa: E402
-from coaxial.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty  # noqa: E402
-from coaxial.thermalmap import (CELL_ASPECT, MARKS, SCALE_LINES,  # noqa: E402
-                                render)
+from coaxial.draw import gauges, machine                        # noqa: E402
+from coaxial.model.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty  # noqa: E402
+from coaxial.draw.thermalmap import CELL_ASPECT, MARKS, SCALE_LINES, render  # noqa: E402
 from coaxial.kalman import thermal_ident                   # noqa: E402
 from screen import hud                                     # noqa: E402
 from screen import frame_of, run_view, stage               # noqa: E402

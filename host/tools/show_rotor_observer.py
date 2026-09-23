@@ -45,16 +45,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from rich.text import Text                                  # noqa: E402
 
-from coaxial import braille   # noqa: E402
-from coaxial import machine   # noqa: E402
-from coaxial import motor     # noqa: E402
-from coaxial import thermal as _thermal   # noqa: E402
+from coaxial.draw import braille   # noqa: E402
+from coaxial.draw import machine   # noqa: E402
+from coaxial.model import motor     # noqa: E402
+from coaxial.model import thermal as _thermal   # noqa: E402
 from coaxial.simulated.power import SimulatedThermal   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
-from coaxial.thermal_device import THROTTLE_AT             # noqa: E402
-from coaxial.gauges import (TEMP_FLOOR_C, TEMP_SCALE_C,  # noqa: E402
-                            margin_class as soa_class,
-                            temp_share, thermometer_class as ntc_class)
+from coaxial.devices.thermal_device import THROTTLE_AT             # noqa: E402
+from coaxial.draw.gauges import (TEMP_FLOOR_C, TEMP_SCALE_C,  # noqa: E402
+                                 margin_class as soa_class, temp_share,
+                                 thermometer_class as ntc_class)
 from screen import (ASH, SODIUM, TO_MENU,  # noqa: E402
                     closing, frame_of, hud, open_rig, run_view, say, stage, tint)
 
@@ -223,7 +223,7 @@ DEGREE = chr(0x1D52)
 
 #: The thermal nodes a duty cycle can drive into the SOA: the shunt a
 #: phase current crosses and the half-bridge above it, per leg. Named in
-#: `coaxial.thermal`, ordered here the way a leg is read.
+#: `coaxial.model.thermal`, ordered here the way a leg is read.
 SOA_NODES = ('driver_u', 'phase_u', 'driver_v', 'phase_v',
              'driver_w', 'phase_w')
 #: The nodes no duty cycle drives, in the right gutter. Both gutter figures
@@ -233,7 +233,7 @@ SOA_NODES = ('driver_u', 'phase_u', 'driver_v', 'phase_v',
 
 BOARD_NODES = ('mcu', 'regulators', 'afe', 'board')
 
-#: The thermistor's colour ramp, C: the page's scale (`coaxial.gauges`, one
+#: The thermistor's colour ramp, C: the page's scale (`coaxial.draw.gauges`, one
 #: for every thermometer and the winding), not a limit (invariant 10).
 NTC_COLD_C, NTC_HOT_C = TEMP_FLOOR_C, TEMP_SCALE_C
 
@@ -996,7 +996,7 @@ def flashing(view):
 #: The legend's arrowheads, U+25C2 and U+25B8: the large triangles are East
 #: Asian Ambiguous width and shear the rows on a terminal set for it.
 AIM_LEFT, AIM_RIGHT = chr(0x25C2), chr(0x25B8)
-#: The leader's run, corner and fall, off `coaxial.braille`. The corner
+#: The leader's run, corner and fall, off `coaxial.draw.braille`. The corner
 #: carries the run into the lane it falls in, so run and fall join.
 LEADER = braille.RUN[2]
 TURN = tuple(braille.corner(2, lane, through=True) for lane in (0, 1))

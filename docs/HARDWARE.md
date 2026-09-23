@@ -109,6 +109,6 @@ numbers to the C. Observer steps 100 ms, NTC sampled every 30 s.
 
 ## Other
 
-- `host/coaxial/inverter.py` carries the power-stage constants traced from
+- `host/coaxial/model/inverter.py` carries the power-stage constants traced from
   the LTspice submodule `electronic_simulations` (Q_RING assumed 1.0).
 - `render/models/coaxial_63100.stl`: 100 mm disc, 10 mm bore.

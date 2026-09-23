@@ -12,7 +12,7 @@ import subprocess
 import sys
 import time
 import traceback
-from coaxial import scaling
+from coaxial.devices import scaling
 
 # Shell punctuation, checked as whole tokens.
 _SHELLISM = {'|', '||', '&', '&&', ';', ';;', '>', '>>', '<', '2>', '`'}

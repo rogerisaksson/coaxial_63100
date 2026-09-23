@@ -5,7 +5,7 @@
     python tools/show_orientation.py --port COM4 --hz 20
 
 Enables the rotation vector on the IMU, then reads it and draws the board.
-The drawing itself is `coaxial.orientation`, which is pure and tested; this
+The drawing itself is `coaxial.draw.orientation`, which is pure and tested; this
 file is the loop, the screen and the cable.
 
 Nothing here judges an orientation. It shows the quaternion the part reported
@@ -20,7 +20,7 @@ from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import farm, orientation                      # noqa: E402
+from coaxial.draw import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from screen import closing, say, TO_MENU, WHEEL_STEP      # noqa: E402
 

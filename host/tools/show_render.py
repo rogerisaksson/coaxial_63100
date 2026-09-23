@@ -28,7 +28,7 @@ from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
 
 from coaxial.graphics import shading, wireframe                     # noqa: E402
-from coaxial.orientation import _qmul, matrix, normalise   # noqa: E402
+from coaxial.draw.orientation import _qmul, matrix, normalise   # noqa: E402
 import facecheck                                           # noqa: E402
 from screen import (Keys, WHEEL_STEP, curtain, footer,  # noqa: E402
                     paced, rate_of, stage,

@@ -4,7 +4,7 @@
     python tools/show_desk.py
     python tools/show_desk.py --port COM4 --hz 10 --samples 32
 
-The drawing itself is `coaxial.desk`, which is pure and tested; this file is
+The drawing itself is `coaxial.draw.desk`, which is pure and tested; this file is
 the loop, the screen and the cable. Nothing here judges a reading - the face
 is the converter's own scale and invariant 10 applies to a meter exactly as
 it applies to a table.
@@ -23,7 +23,9 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import bessel, desk, scaling                  # noqa: E402
+from coaxial.acquire import bessel                  # noqa: E402
+from coaxial.draw import desk                  # noqa: E402
+from coaxial.devices import scaling                  # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from screen import Feed, TO_MENU, closing, say            # noqa: E402
 

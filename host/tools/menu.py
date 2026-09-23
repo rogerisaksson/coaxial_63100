@@ -83,7 +83,7 @@ PROBE_EVERY = 30.0
 
 def _watch_broker():
     """Keep the masthead's broker status fresh, off the frame loop."""
-    from coaxial import broker
+    from coaxial.comm import broker
     from coaxial.errors import LINK_FAULTS
 
     while True:
@@ -100,7 +100,7 @@ def _watch_broker():
 
 def _watch_link(port):
     """Whether a board answers anywhere, on its own slow clock."""
-    from coaxial.session import board_answers
+    from coaxial.comm.session import board_answers
     from coaxial.errors import LINK_FAULTS
 
     while True:

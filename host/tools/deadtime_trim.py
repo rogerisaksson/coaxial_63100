@@ -38,7 +38,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import Coaxial63100, scaling, thermal           # noqa: E402
+from coaxial import Coaxial63100           # noqa: E402
+from coaxial.devices import scaling           # noqa: E402
+from coaxial.model import thermal           # noqa: E402
 from show_session import SETTLE_S       # the board's own settle
 from screen import say, steady                                       # noqa: E402
 

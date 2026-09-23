@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 
 from test_modbus_core import Report, build, find_cc          # noqa: E402
 sys.path.insert(0, os.path.dirname(HERE))
-from coaxial.motor import Motor                              # noqa: E402
+from coaxial.model.motor import Motor                              # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(HERE))
 DRIVE = os.path.join(REPO, 'drive')
@@ -214,7 +214,7 @@ class Drive:
         return self.lib.drv_dt_volts(self.h, ctypes.c_float(amps))
 
 
-# The motor lives in `coaxial.motor` now: the DAQ stand-in, the system
+# The motor lives in `coaxial.model.motor` now: the DAQ stand-in, the system
 # identification and a notebook all close a loop around the same one, and four
 # copies of a machine is four places for an inductance to drift.
 
@@ -736,9 +736,9 @@ def test_virtual_sensorless(r, lib):
 
 def test_observer_chain(r, lib):
     """The firmware's observer chain against the Python it was ported from."""
-    from coaxial import sensorless
-    from coaxial.loop import CurrentLoop, Machine, Signals
-    from coaxial.motor import BENCH_MOTOR
+    from coaxial.model import sensorless
+    from coaxial.control.loop import CurrentLoop, Machine, Signals
+    from coaxial.model.motor import BENCH_MOTOR
 
     motor = BENCH_MOTOR
     for w_e in (100.0, 2000.0, 10000.0):
@@ -791,9 +791,9 @@ def test_observer_chain(r, lib):
 
 def test_observer_needs_a_handover(r, lib):
     """It cannot acquire a speed from nothing, and that is by construction."""
-    from coaxial import sensorless
-    from coaxial.loop import CurrentLoop, Machine, Signals
-    from coaxial.motor import BENCH_MOTOR
+    from coaxial.model import sensorless
+    from coaxial.control.loop import CurrentLoop, Machine, Signals
+    from coaxial.model.motor import BENCH_MOTOR
 
     motor = BENCH_MOTOR
     w_e = 4000.0
@@ -845,7 +845,7 @@ def test_montecarlo(r, lib):
     bemf = mc.run_job(dict(job, bemf_only=True))
     r.check('back-EMF alone loses the same rotor on the way down',
             bemf['min_rpm'] > 0.0, bemf['min_rpm'])
-    from coaxial.motor import BENCH_MOTOR
+    from coaxial.model.motor import BENCH_MOTOR
     little = {'name': BENCH_MOTOR.name, 'r': BENCH_MOTOR.r,
               'ld': BENCH_MOTOR.ld, 'lq': BENCH_MOTOR.lq,
               'lam': BENCH_MOTOR.lam, 'poles': BENCH_MOTOR.poles,

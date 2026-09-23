@@ -5,16 +5,16 @@ import math
 import random
 import time
 
-from ..acquisition import Acquisition
-from ..errors import RigError
-from .values import (ACCUMULATE_MAX, AMPS_PER_CODE, CHANNELS, DCBUS_V, MASK32,
-                     NOMINAL, PHASE_LEG, RING_BYTES, SYSCLK_HZ, TICKS_PER_US,
-                     PHASE_STEP, _sweep, phase_codes)
-from .system import UNITS
-from .. import angle, imu
+from coaxial.acquire.acquisition import Acquisition
+from coaxial.errors import RigError
+from coaxial.simulated.values import (ACCUMULATE_MAX, AMPS_PER_CODE, CHANNELS, DCBUS_V, MASK32,
+                                      NOMINAL, PHASE_LEG, RING_BYTES, SYSCLK_HZ, TICKS_PER_US,
+                                      PHASE_STEP, _sweep, phase_codes)
+from coaxial.simulated.system import UNITS
+from coaxial.devices import angle, imu
 from typing import cast
 from typing import Any
-from ..clock import Clock, NTP_SERVER
+from coaxial.acquire.clock import Clock, NTP_SERVER
 
 #: What one read answers, in bytes of records, and the share of the line
 #: rate the stand-in quotes as its ceiling.

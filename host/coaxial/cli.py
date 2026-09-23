@@ -2,9 +2,9 @@
 import argparse
 import sys
 
-from .board import connect, disconnect
-from .errors import RigError
-from .gpio import reserved_reason
+from coaxial.devices.board import connect, disconnect
+from coaxial.errors import RigError
+from coaxial.devices.gpio import reserved_reason
 
 
 def cmd_version(board, args):

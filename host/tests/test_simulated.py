@@ -9,9 +9,10 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import ansi, ascii3d, desk          # noqa: E402
+from coaxial.draw import ansi, ascii3d, desk          # noqa: E402
 from coaxial.graphics import raster
-from coaxial import orientation, scaling               # noqa: E402
+from coaxial.draw import orientation               # noqa: E402
+from coaxial.devices import scaling               # noqa: E402
 from coaxial.errors import DeviceStateError            # noqa: E402
 from coaxial import simulated
 from typing import Any, cast
@@ -331,7 +332,7 @@ def test_subsystems(report):
 
 def test_orientation(report):
     """The quaternion maths and the picture it draws."""
-    from coaxial import orientation as o
+    from coaxial.draw import orientation as o
 
     roll, pitch, yaw = o.euler_degrees((0, 0, 0, 1))
     report.check('the identity quaternion is level in all three angles',
@@ -460,7 +461,7 @@ def test_orientation(report):
                  0.9 <= reach <= 1.01, '%.4f' % reach)
 
     # The dial: the same rules, on a different picture.
-    from coaxial import dial
+    from coaxial.draw import dial
 
     turned = dial.render(90.0, field=380).split(chr(10))
     report.check('the dial is the height it was asked for',
@@ -676,7 +677,7 @@ def test_desk(report):
 
     # THE BAR IS BRAILLE NOW - the motor page's gauge, one instrument on every
     # page.
-    from coaxial import gauges
+    from coaxial.draw import gauges
     level = chr(raster.BRAILLE | 0x3F)
     track = chr(raster.BRAILLE | 0x07)
     middle = 18 + desk.BAR // 2
@@ -701,7 +702,7 @@ def test_desk(report):
                  desk.span(bare) is None
                  and '?' in desk.Desk().update([bare]))
 
-    from coaxial import machine
+    from coaxial.draw import machine
     report.check('the ink says where the converter is before the number is '
                  'read - the motor page\'s own three classes',
                  (desk.Desk._ink(0.1), desk.Desk._ink(0.8),
@@ -745,7 +746,7 @@ def test_desk(report):
 def test_tumble(report):
     """The stand-in's attitude, which is the only thing that moves in a
     view running without a board."""
-    from coaxial import orientation as o
+    from coaxial.draw import orientation as o
     from coaxial.simulated import _tumble
 
     def angles(seq):
@@ -925,7 +926,7 @@ def test_ascii3d(report):
 
 def test_clock_reference(report):
     """UTC when NTP answers, this PC when it does not, and never quietly."""
-    import coaxial.clock as clockmod
+    import coaxial.acquire.clock as clockmod
     from coaxial.errors import RigError
 
     def refuse(*_, **__):
@@ -986,7 +987,7 @@ def test_clock_reference(report):
 
 def test_link_bench(report):
     """What a transaction costs against what its bitrate allows."""
-    from coaxial import bench
+    from coaxial.comm import bench
 
     # 8N1 is ten bits a byte, so 115200 baud is 11520 B/s and 250 bytes is
     # 250/11520 of a second.
@@ -1380,7 +1381,8 @@ def test_thermal_identification(report):
     """The stand-in identifies its own ground truth, and says so."""
     import os
 
-    from coaxial import Coaxial63100, thermal
+    from coaxial import Coaxial63100
+    from coaxial.model import thermal
     from coaxial.simulated.power import SimulatedThermal
 
     rig = Coaxial63100(simulated_device=True, power_afe=False).open()
@@ -1613,7 +1615,7 @@ def test_thermal_identification(report):
     # from the model's own clock, UNDER THE ENVELOPE - measured live in a box:
     # the legs reach the throttle point inside two minutes and the clamp holds
     # driver U near 95-105 C on 12 to 19 A of the 30 asked for.
-    from coaxial.thermal_device import Thermal
+    from coaxial.devices.thermal_device import Thermal
     cyc = SimulatedThermal(situation='box')
     laid = cyc.load_cycle()
     report.check('a load cycle is laid on - 30 A, 360 s on, 840 s off - '

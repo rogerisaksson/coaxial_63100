@@ -5,12 +5,12 @@ import math
 import random
 import time
 
-from .. import angle, imu
-from ..sensor import PolledSensor
-from ..scaling import KELVIN_AT_ZERO_C
-from .values import _tumble
+from coaxial.devices import angle, imu
+from coaxial.devices.sensor import PolledSensor
+from coaxial.devices.scaling import KELVIN_AT_ZERO_C
+from coaxial.simulated.values import _tumble
 from typing import Any
-from ..imu import CHANNELS, decode
+from coaxial.devices.imu import CHANNELS, decode
 
 
 class SimulatedImu(PolledSensor):
@@ -99,7 +99,7 @@ class SimulatedImu(PolledSensor):
         self._vectors(got)
         return got
 
-    #: Q points the part uses, the same table `coaxial.imu` divides
+    #: Q points the part uses, the same table `coaxial.devices.imu` divides
     #: by: accelerometer Q8 in m/s^2, gyroscope Q9 in rad/s,
     #: magnetometer Q4 in uT.
     VECTORS = (('accelerometer', 0x01, 8, 'm/s^2', (0.0, 0.0, 9.81)),

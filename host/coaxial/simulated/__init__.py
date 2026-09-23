@@ -3,16 +3,15 @@
 The REPL, the spinner, a tool call.
 """
 
-from .values import (CHANNELS, DCBUS_V, DRIFT, GUST, GUST_CHANCE, NOMINAL,
-                     PITCH_TURNS, RIPPLE, ROLL_TURNS, SWEEP_HZ, SWING,
-                     _tumble)
-from .link import (BROADCAST_REFUSAL, DEFAULT_BUS, SIMULATED_BUSES,
-                   SimulatedLink, bus_nodes)
-from .system import (DIGITAL, PARTS, RESERVED, SUBSYSTEMS, SimulatedGpio,
-                     SimulatedSystem, UNITS)
-from .analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
-from .sensors import SimulatedAngle, SimulatedImu
-from .power import SimulatedGateDrivers, SimulatedPower, SimulatedThermal
-from .daq import SimulatedCapture, SimulatedClock, SimulatedDaq
-from .drive import SimulatedDrive
-from .board import SimulatedBoard, SimulatedSession
+from coaxial.simulated.values import (CHANNELS, DCBUS_V, DRIFT, GUST, GUST_CHANCE, NOMINAL,
+                                      PITCH_TURNS, RIPPLE, ROLL_TURNS, SWEEP_HZ, SWING, _tumble)
+from coaxial.simulated.link import (BROADCAST_REFUSAL, DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink,
+                                    bus_nodes)
+from coaxial.simulated.system import (DIGITAL, PARTS, RESERVED, SUBSYSTEMS, SimulatedGpio,
+                                      SimulatedSystem, UNITS)
+from coaxial.simulated.analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
+from coaxial.simulated.sensors import SimulatedAngle, SimulatedImu
+from coaxial.simulated.power import SimulatedGateDrivers, SimulatedPower, SimulatedThermal
+from coaxial.simulated.daq import SimulatedCapture, SimulatedClock, SimulatedDaq
+from coaxial.simulated.drive import SimulatedDrive
+from coaxial.simulated.board import SimulatedBoard, SimulatedSession

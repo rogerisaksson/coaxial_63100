@@ -211,7 +211,7 @@ def matching(rows, needle, text):
 
 def build(model, port, simulated, compile_intent=True):
     """(session, chat, real). `simulated=False` probes and falls back."""
-    from coaxial.session import open_session
+    from coaxial.comm.session import open_session
     session, found = open_session(port, 115200, 1,
                                   simulated=True if simulated else None)
     # Held for the whole run, not unloaded after every request.

@@ -3,7 +3,7 @@
 
 The voltage is the ST-Link's to say.
 
-The probe itself is `coaxial.ports`: one implementation, so "does this
+The probe itself is `coaxial.comm.ports`: one implementation, so "does this
 port answer" cannot drift between the session opener, the broker, the
 model's link_diagnose tool and this script, which board_chat/ComPort.ps1's
 Test-BoardPort/Find-BoardPort call before a Python session even exists.
@@ -27,8 +27,8 @@ import sys
 # what the working directory is or what any directory along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial.ports import (ANSWERED, discover, find, kinds,  # noqa: E402
-                           list_ports, port_state, probe)
+from coaxial.comm.ports import (ANSWERED, discover, find, kinds, list_ports,  # noqa: E402
+                                port_state, probe)
 
 
 def _text(out):

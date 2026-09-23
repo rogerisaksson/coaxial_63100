@@ -4,18 +4,18 @@ import sys
 import time
 import zlib
 
-from . import angle as angle_scaling
-from .acquisition import Acquisition
-from .board import Board
-from .clock import NTP_SERVER, WRAP
-from .errors import LINK_FAULTS, CrcError, NoReplyError, RigError
-from .gates import GateStage
-from .reader import BufferedReader
-from .record import Record, build
-from .motion import Motion
-from . import boot as bootmod
-from . import broker
-from . import session as sessionmod
+from coaxial.devices import angle as angle_scaling
+from coaxial.acquire.acquisition import Acquisition
+from coaxial.devices.board import Board
+from coaxial.acquire.clock import NTP_SERVER, WRAP
+from coaxial.errors import LINK_FAULTS, CrcError, NoReplyError, RigError
+from coaxial.devices.gates import GateStage
+from coaxial.acquire.reader import BufferedReader
+from coaxial.acquire.record import Record, build
+from coaxial.control.motion import Motion
+from coaxial.devices import boot as bootmod
+from coaxial.comm import broker
+from coaxial.comm import session as sessionmod
 from contextlib import suppress
 
 #: Bytes the board leaves for records in one reply - `DAQ_REPLY_ROOM` in
@@ -453,7 +453,7 @@ class Coaxial63100(Acquisition):
                 self.board.calibration.read()['channels']}
         out = {}
         # The sensor snapshots' real units, the same one-place scalings the
-        # subsystems use: the shaft through coaxial.angle, the quaternion out
+        # subsystems use: the shaft through coaxial.devices.angle, the quaternion out
         # of Q14.
         if 'shaft angle value' in cols:
             out['shaft angle (deg)'] = [
@@ -657,7 +657,7 @@ class Coaxial63100(Acquisition):
         return self.layout
 
     def shape(self, sections=(), decimate=1):
-        """Load the anti-alias chain `coaxial.bessel` designed."""
+        """Load the anti-alias chain `coaxial.acquire.bessel` designed."""
         self.board.daq.shape(sections, decimate)
         return self
 

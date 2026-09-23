@@ -1,16 +1,17 @@
 """The assembly: SimulatedBoard wires the devices; SimulatedSession answers like session.Session.
 """
-from ..errors import DeviceStateError
-from ..protocol import BROADCAST
-from .link import DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink, _BroadcastRefuses, bus_nodes
-from .system import SimulatedGpio, SimulatedSystem
-from .analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
-from .sensors import SimulatedAngle, SimulatedImu
-from .boot import SimulatedBoot
-from .power import SimulatedGateDrivers, SimulatedPower, SimulatedThermal
-from .daq import SimulatedCapture, SimulatedClock, SimulatedDaq
-from ..kalman.observer import Observer
-from .drive import SimulatedDrive
+from coaxial.errors import DeviceStateError
+from coaxial.comm.protocol import BROADCAST
+from coaxial.simulated.link import (DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink,
+                                    _BroadcastRefuses, bus_nodes)
+from coaxial.simulated.system import SimulatedGpio, SimulatedSystem
+from coaxial.simulated.analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
+from coaxial.simulated.sensors import SimulatedAngle, SimulatedImu
+from coaxial.simulated.boot import SimulatedBoot
+from coaxial.simulated.power import SimulatedGateDrivers, SimulatedPower, SimulatedThermal
+from coaxial.simulated.daq import SimulatedCapture, SimulatedClock, SimulatedDaq
+from coaxial.kalman.observer import Observer
+from coaxial.simulated.drive import SimulatedDrive
 from typing import Any
 
 
@@ -159,7 +160,7 @@ class SimulatedBoard:
 # looks like: same firmware, same commands, different unit id and a different
 # thing bolted to the shaft.
 class SimulatedSession:
-    """Drop-in for `coaxial.session.Session` that never opens a port."""
+    """Drop-in for `coaxial.comm.session.Session` that never opens a port."""
 
     # Read by anything that must not mistake this for a board - see
     # `coaxial_mcp.tools._interface`, which used to decide from the port and

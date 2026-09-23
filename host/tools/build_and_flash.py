@@ -260,7 +260,7 @@ def flash(elf, path):
     # copy at the store, which the bootloader verifies and copies at reset.
     target, sealed = [str(elf)], None
     if elf.name == APP:
-        from coaxial.boot import STORE_BASE, image_of, store_of
+        from coaxial.devices.boot import STORE_BASE, image_of, store_of
         image = image_of(elf)
         sealed = (len(image), zlib.crc32(image))
         store = elf.with_suffix('.store.bin')

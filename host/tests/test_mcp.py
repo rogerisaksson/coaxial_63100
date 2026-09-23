@@ -150,7 +150,7 @@ def exercise(server, report):
     report.result('analog_read custom beta',
                   server.tool('analog_read', {'ch': ['NTC'], 'ntc_beta': 3950}),
                   ['NTC'])
-    # render.angle() shadowed the coaxial.angle module it converts with, and
+    # render.angle() shadowed the coaxial.devices.angle module it converts with, and
     # both replies raised AttributeError until 2026-08-31; the words below are
     # the module's arithmetic showing through.
     report.result('angle read', server.tool('angle'),
@@ -267,7 +267,7 @@ def main():
     # stand-in rather than failing every call, and this suite is then testing
     # the MCP layer - the schemas, the JSON-RPC, the argument coercion, the
     # render - which is all of it that does not need firmware.
-    from coaxial.session import open_session
+    from coaxial.comm.session import open_session
     session, found = open_session('COM4', simulated=None)
     session.close()
     server = ServerProcess(['--port', found.port or 'COM4']

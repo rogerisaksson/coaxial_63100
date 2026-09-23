@@ -458,7 +458,7 @@ def test_the_mirror_walks_with_the_c(report, lib):
     on the constants.
     """
     import copy
-    from coaxial import thermal
+    from coaxial.model import thermal
     from coaxial.kalman import thermal_ident as mirror
 
     truth = GroundTruth(lib, air=2.0)

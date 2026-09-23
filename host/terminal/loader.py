@@ -148,7 +148,7 @@ def preload(state, model=None):
     next time when the machine has the room - the outline's loops, the
     pre-scan's primitives, the shadow casters.
     """
-    from coaxial import orientation
+    from coaxial.draw import orientation
     from coaxial.graphics import creases, shading, stereotype, wireframe
     from coaxial.graphics import preload as pickled
     path = model or orientation.MODEL

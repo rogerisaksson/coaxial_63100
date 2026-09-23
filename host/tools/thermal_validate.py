@@ -12,11 +12,11 @@ import sys
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from coaxial.thermal import (AMBIENT, CFG, DRIVER_RISE_SWITCHING, NODES,
-                             NTC_OFFSET, NTC_SEES_DRIVERS, board_from_ntc,
-                             expected_ntc, settled_fraction, tau_minutes)
-from coaxial import thermal
-from coaxial.thermalmap import LAYOUT, render
+from coaxial.model.thermal import (AMBIENT, CFG, DRIVER_RISE_SWITCHING, NODES, NTC_OFFSET,
+                                   NTC_SEES_DRIVERS, board_from_ntc, expected_ntc,
+                                   settled_fraction, tau_minutes)
+from coaxial.model import thermal
+from coaxial.draw.thermalmap import LAYOUT, render
 
 #: The camera, 2026-08-28. Dead surface is the reference; ntc is the board's.
 CAMERA = {

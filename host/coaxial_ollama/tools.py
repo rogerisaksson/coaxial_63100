@@ -24,7 +24,7 @@ from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
 from coaxial_mcp.tools import TOOLS as BOARD_TOOLS         # noqa: E402
 from coaxial_mcp.tools import coerce as board_coerce       # noqa: E402
 import find_board                                          # noqa: E402
-from coaxial import ports                                  # noqa: E402
+from coaxial.comm import ports                                  # noqa: E402
 
 from .sandbox import clip_ends                             # noqa: E402
 

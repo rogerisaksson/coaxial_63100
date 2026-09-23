@@ -5,7 +5,7 @@
   graph by package, `--deps` per module). A module opens on a one-line
   brief of at most 100 characters; `test_structure` holds it.
 - Front door: `Coaxial63100` (`coaxial/rig.py`); on a real board `open()`
-  first makes it run this host's build (`coaxial.boot.load`, docs/BOOT.md);
+  first makes it run this host's build (`coaxial.devices.boot.load`, docs/BOOT.md);
   `device.daq`, `.imu`, `.angle`, `.thermal`, `.gates`, `.drive`, `.motion`,
   `board.boot`. `simulated_device=True` needs no cable.
 - Interfaces `Acquisition`, `PolledSensor`, `GateControl`, `BootControl`:
@@ -31,8 +31,8 @@
   optional `ITEMS`, `run(args, name)`; a new view is a new page, nothing
   else lists it.
 - Views are `tools/show_*.py` on `stage.frame_of`, `stage.hud` and
-  `screen.run_view`; their drawings are `coaxial/` (`machine dial gauges
-  desk thermalmap`) and `coaxial/graphics/` (the board renderer).
+  `screen.run_view`; their drawings are `coaxial/draw/` (`machine dial
+  gauges desk thermalmap`) and `coaxial/graphics/` (the board renderer).
 - The drawing's top-left corner carries the frame rate and one frame's
   cost in ms (`stage.Corner`, `stage.rate_of(console)`), no box of its
   own; `run_view` ticks it, a page with its own loop (`menu.py`,

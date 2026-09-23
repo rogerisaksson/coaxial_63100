@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.simulated import SimulatedSession                # noqa: E402
 from coaxial_mcp import tools as toolmod                      # noqa: E402
-from coaxial.session import open_session                  # noqa: E402
+from coaxial.comm.session import open_session                  # noqa: E402
 
 # Any run of digits, with or without a sign or a decimal point.
 NUMBER = re.compile(r'[-+]?\d+(?:\.\d+)?')

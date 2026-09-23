@@ -38,8 +38,8 @@ sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
 from coaxial import Coaxial63100
 from coaxial.errors import NoReplyError, RigError
-from coaxial.thermal import STATE_IS as WHAT
-from coaxial.thermal import STATES, tau_minutes
+from coaxial.model.thermal import STATE_IS as WHAT
+from coaxial.model.thermal import STATES, tau_minutes
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 NEXT_FILE = os.path.join(HERE, '.calib-next')

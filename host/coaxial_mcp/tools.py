@@ -5,10 +5,12 @@ import subprocess
 import sys
 import time
 
-from coaxial import DividerParams, NtcParams, ports, protocol, scaling
-from coaxial import orientation as orient
+from coaxial import DividerParams, NtcParams
+from coaxial.comm import ports, protocol
+from coaxial.devices import scaling
+from coaxial.draw import orientation as orient
 from coaxial.errors import LINK_FAULTS, DeviceStateError
-from coaxial.wire import pack
+from coaxial.comm.wire import pack
 
 ROTATION_VECTOR = 0x05
 

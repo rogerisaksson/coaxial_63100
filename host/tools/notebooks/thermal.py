@@ -15,7 +15,7 @@ ABSTRACT = (
     'The board has one thermometer that sees the power stage and a gate '
     'driver it must not cook, so it runs a twenty-node network that follows '
     'the copper and reports where every node stands; the same network is in '
-    '`coaxial.thermal` on the host, fitted against a thermal camera in four '
+    '`coaxial.model.thermal` on the host, fitted against a thermal camera in four '
     'states on 2026-08-28. This notebook reads the network and its fit back, '
     'solves its steady states and time constants, reads the board\'s own '
     'estimate and budget through `device.thermal`, works the envelope out - '
@@ -38,7 +38,7 @@ ABSTRACT = (
 SECTIONS = [
     section(
         'The network, and how it was fitted',
-        md('`coaxial.thermal` carries the network `thermal/src/thermal.c` '
+        md('`coaxial.model.thermal` carries the network `thermal/src/thermal.c` '
            'integrates: twenty nodes that follow the copper - a driver and a '
            'phase per leg, the MCU, the supply corner, the front end, the '
            'laminate as seven patches joined by a sheet conductance, the hot '
@@ -49,7 +49,7 @@ SECTIONS = [
            'a 10 K rise against the supply\'s 50 mA, and a settling of about '
            'seven minutes. `to_board` is a spreading resistance in the '
            'laminate, a few K/W; the parts\' own capacities are not measured.'),
-        code('''from coaxial import thermal
+        code('''from coaxial.model import thermal
 
 print('ambient %.1f C assumed; board_to_ambient %.2f K/W at a %.0f K rise, '
       'board_capacity %.0f J/K, tau %.1f min'
@@ -118,10 +118,10 @@ print('a leg        %.1f K/W off the camera against %.1f off the datasheet coupo
         md('The steady state while switching dry, the whole graph relaxed, '
            'and where the NTC\'s element is heading - the weighted average of '
            'the V patch and the centre it is tied between. Drawn as the '
-           'THERMAL OBSERVER page draws it: `coaxial.thermalmap` in colour, '
-           'rasterised by `coaxial.ansi.image` in the bench\'s own faces. The '
+           'THERMAL OBSERVER page draws it: `coaxial.draw.thermalmap` in colour, '
+           'rasterised by `coaxial.draw.ansi.image` in the bench\'s own faces. The '
            'scale is fixed, so a colour is a temperature in every picture.'),
-        code('''from coaxial import ansi, thermalmap
+        code('''from coaxial.draw import ansi, thermalmap
 
 steady = thermal.steady(thermal.POWER_SWITCHING)
 print('power while switching, dry: %.2f W' % sum(thermal.POWER_SWITCHING.values()))
@@ -192,8 +192,8 @@ print('sample every 30 s:', observer.set_sample(30.0, settle_s=0.5),
            'in a 25 C room. Where the worst node\'s equilibrium reaches it is '
            'the current the board holds for ever; everything above it is '
            'timed by the board\'s own envelope.'),
-        code('''from coaxial import inverter, motor
-from coaxial.thermal_device import THROTTLE_AT
+        code('''from coaxial.model import inverter, motor
+from coaxial.devices.thermal_device import THROTTLE_AT
 
 R_PHASE = inverter.RDS_ON + inverter.SHUNT
 THROTTLE_C = thermal.AMBIENT + THROTTLE_AT * (thermal.CEILING_DEFAULT_C - thermal.AMBIENT)
@@ -354,7 +354,7 @@ for room in observer.TOUR:
                                          title='%s, minute %d: room %.0f C, identified %.0f C, driver U %.0f C'
                                                % (room, minute, observer.SITUATIONS[room]['ambient'],
                                                   found, nodes['driver_u']))))'''),
-        code('''from coaxial.figures import figure, show
+        code('''from coaxial.draw.figures import figure, show
 
 t = [r['minute'] for r in rows]
 fig, (top, room, air, load) = figure(rows=4, sharex=True)
@@ -549,10 +549,10 @@ BENCH = (
     'thermistor, and a room that is not one of three.')
 
 REFERENCES = [
-    ('host/coaxial/thermal.py', 'the network on the host: the nodes, the edges, the campaign\'s table, and every constant\'s argument'),
+    ('host/coaxial/model/thermal.py', 'the network on the host: the nodes, the edges, the campaign\'s table, and every constant\'s argument'),
     ('thermal/src/thermal.c', 'the same network as the board integrates it, and the envelope'),
     ('host/coaxial/thermal_ident.py', 'the identification the stand-in runs, mirroring `thermal/src/thermal_ident.c`'),
-    ('host/coaxial/thermal_device.py', '`device.thermal`: state, budget, identification, the record\'s ceilings and the sample interval'),
+    ('host/coaxial/devices/thermal_device.py', '`device.thermal`: state, budget, identification, the record\'s ceilings and the sample interval'),
     ('host/coaxial/simulated/power.py', 'the stand-in: a hypothetical board with a ground truth, the situations, the tour and the trip cap'),
     ('docs/HARDWARE.md', 'the campaign, the camera, and how a measurement here is to be read'),
     ('docs/FINDINGS.md', 'what ran off and what was ruled out: the room inferred two other ways, the clamped scales'),
