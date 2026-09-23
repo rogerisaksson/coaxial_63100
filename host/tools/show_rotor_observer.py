@@ -5,45 +5,32 @@
     python tools/show_rotor_observer.py --port COM4 --source model --iq 0.5
     python tools/show_rotor_observer.py --port COM4 --source model --switch
 
-The drive (0x6E device 10) runs on the board at the PWM rate; this sets what
-it is asked to do and draws what it did: the estimated rotor angle on the
-dial, the model's own rotor marked on the rim beside it when the model is the
-source, the dq currents, the innovation, the interrupt's cost.
+The drive (0x6E device 10) runs on the board at the PWM rate. This page sets
+its setpoints and draws the estimated rotor on the dial, the model's rotor
+beside it when the model is the source, the dq currents, the innovation and
+the interrupt's cost.
 
     S       start / stop                 M   mode: sensorless, hold, volt
     V       source: model / adc          I   injection on / off
     + -     iq_ref                       [ ] step size
     O / L   I/f speed target up / down   R   reset the model's rotor
-    E       the demo cycle: hold, rock either way to 200 rpm, send it at
-            the clamp, brake back to rest - and round again
-    W       load loop: d current up and back down, so the watts ramp and
-            the thermometers follow them
-    B       heavy start: a second at the clamp accelerating hard, which
-            takes the phase nodes to the top of their thermal budget,
-            then seconds at half the machine's no-load speed against a
-            load, which is where the watts are - then back to the loops
-            and the cooling
+    E       demo cycle: hold, rock to 200 rpm, send at the clamp, brake
+    W       load loop: d current up and down; the watts and thermometers follow
+    B       heavy start: 1 s at the clamp, then 3 s at half the no-load speed
+            against a load
     T       tare the rotor mark
     A       arm / disarm the stage - only with --switch
     Q / ESC close / menu
 
-If the machine reads as an ellipse rather than a circle, that is the
-terminal's font and not the drawing: `--cell-aspect` corrects it. The
-geometry is round at 2.0 - measured, 25.16 cell-widths each way - and a
-taller cell stretches it in Y by the same ratio. A row is four dots, so
-the steps are coarse; 2.4 is what rounds it at this size.
+An ellipse is the terminal's font: `--cell-aspect` (round at 2.0, measured
+25.16 cell-widths each way; 2.4 rounds it at this size).
 
-The two loops are independent and drive different axes - the speed loop
-`iq` and the shaft, the load loop `id` - so either runs alone or both
-together. On the stand-in the speed loop starts on its own, because a
-page opened onto a rotor that is not turning shows nothing; against a
-board neither starts until it is asked for.
+The speed loop (iq, the shaft) and the load loop (id) are independent. The
+stand-in starts the speed loop on its own; a board starts neither unasked.
 
-Every drive parameter is a switch, and every one is checked against the
-stage before it is written: the trip cannot exceed the FETs' rating, the
-clamp cannot exceed the trip, the injection cannot exceed a fifth of the
-link's linear range, and the stage is never armed unless --switch says it
-may be. The board judges nothing; this page does, before it asks.
+Every drive parameter is a switch, checked before it is written (`sane`):
+trip <= the FETs' rating, clamp <= trip, injection <= a fifth of the link's
+linear range, the stage armed only with --switch.
 """
 import argparse
 import math
@@ -65,8 +52,11 @@ from coaxial import thermal as _thermal   # noqa: E402
 from coaxial.simulated.power import SimulatedThermal   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
 from coaxial.thermal_device import THROTTLE_AT             # noqa: E402
+from coaxial.gauges import (TEMP_FLOOR_C, TEMP_SCALE_C,  # noqa: E402
+                            margin_class as soa_class,
+                            temp_share, thermometer_class as ntc_class)
 from screen import (ASH, SODIUM, TO_MENU,  # noqa: E402
-                    closing, say, tint)
+                    closing, frame_of, hud, open_rig, run_view, say, stage, tint)
 
 import screen as _screen                                   # noqa: E402
 from stage import HUD_WIDTH, UP                            # noqa: E402
@@ -91,53 +81,19 @@ LIMITS = {
 MODES = ('sensorless', 'hold', 'volt')
 STEPS = (0.05, 0.1, 0.25, 0.5, 1.0)
 
-#: The dial, drawn smaller than the shaft view's: four instrument boxes
-#: sit beside it and the face is a pointer, not a protractor to read.
-#: THE TIGHTEST BOX THAT KEEPS THE MACHINE'S SIZE. The can is sized
-#: against its own band now - what is left after the foot gauges - so it
-#: no longer grows to fill whatever height it is given, and rows can come
-#: off without it running into anything. Swept: it holds 28 dots of
-#: radius down to twenty-four and only starts shrinking below that, which
-#: is where the band becomes the binding dimension rather than the width.
-#:
-#: It cost an afternoon of adding a row, watching the can grow into the
-#: gauges, and adding another. The height was feeding the thing it was
-#: meant to fix.
-#:
-#: FIFTY-TWO WIDE, FROM FORTY-SIX, on the bench's word: "a shade bigger,
-#: and scale everything after it". The width is what sizes the can -
-#: the gutters take their columns first and the machine gets the rest -
-#: so six more columns are six more dots of radius, a fifth more motor;
-#: the rows follow through `fit`, the legend's runs and the foot's
-#: rules through `machine.gutters`, and the instrument column keeps its
-#: forty. Nothing else is placed by a number of its own. ON A TERMINAL
-#: BOTH FOLLOW ITS SIZE, every frame - `fit` below.
+#: The drawing's height before `fit` sizes it to the terminal. The can is
+#: sized against its own band, not the height, so rows come off without it
+#: running into the foot gauges: 28 dots of radius hold down to 24 rows.
 NOMINAL_HEIGHT = 24
 
-#: Rows of the box that are captions rather than drawing: five above and
-#: one below - the foot gauges' names with the thermal observer's policy
-#: between them (bench 2026-09-05: "TH OBS, then UNCR in red, CONV in
-#: yellow, STABLE in green, between WINDING and POWER").
-#:
-#: THE TOP TWO ARE THE MARGINS, and they are first because they are what
-#: a bench looks at first - how much is left of the board and of the
-#: windings. Under them the two gutter groups name themselves over two
-#: rows and put their hottest reading on a third, beside the NTC.
-#:
-#: The margins were drawn INSIDE the machine's air for a day, on leaders
-#: reaching out to their tubes. It worked and it read as an afterthought:
-#: the two things you must not cook were tucked into the drawing while
-#: the furniture had the top of the page. Rows are cheap - the can is
-#: bound by the width here, so two more cost the machine nothing.
+#: Caption rows above the drawing: the two margins first, then the gutter
+#: groups' names and hottest readings beside the NTC. One foot row: WINDING,
+#: the thermal observer's policy, POWER (bench 2026-09-05).
 CAPTION_ROWS, FOOT_ROWS = 5, 1
 
-#: What is left for the machine. NINETEEN ROWS AND NO INSET AT THE FOOT:
-#: at nineteen with an inset the can came out rows 2..16 and the winding
-#: gauge was drawn on row 16, through the bottom of the can - measured.
-#: A twentieth row cleared it and left the labels a blank row from the
-#: gauges they name; `machine.FLOOR_INSET` clears it the other way, by
-#: spending the row of air that was under the bottom gauge. Can 2..16,
-#: winding 17, watts 18, labels on the row below the box.
+#: What is left for the machine. No inset at the foot: at 19 rows with one
+#: the winding gauge was drawn through the can (measured). Can 2..16,
+#: winding 17, watts 18, labels below the box.
 class Box:
     """The machine's drawing this frame: its columns, the braille rows the
     art gets, and the rows the page spends on it with the captions and
@@ -147,28 +103,19 @@ class Box:
         self.width, self.height = width, height
         self.rows = height - CAPTION_ROWS - FOOT_ROWS
 
-#: What the drawing keeps above the machine and below it - the two floor
-#: gauges. `fit` adds these to the can's own rows.
-#:
-#: NOTHING ABOVE. One row was kept for the leaders to hop into, so the
-#: legend on the bottom caption row arrived at its tube with a vertical
-#: stroke like the four above it. The corner glyph does that job now -
-#: the run turns down in its last cell and the tube it lands on is a
-#: column - and the row read as a line break too many between the words
-#: and the motor, twice from the bench.
+#: Rows above the machine (none: the leaders' corner glyph turns them down)
+#: and below it (the two floor gauges); `fit` adds them to the can's rows.
 HOP_ROWS, FLOOR_GAUGES = 0, 2
 
 
-#: What the page puts round the drawing on a terminal - `stage.frame_of`
-#: places it: the viewport's heavy frame and its padding, two columns a
-#: side; the title band, the key bar and the frame's two edges in rows.
+#: `stage.frame_of`'s furniture round the drawing: the viewport's frame and
+#: padding, 4 columns; the title band, key bar and frame edges, 4 rows.
 VIEWPORT_COLUMNS = 4
 PAGE_ROWS = 4
 
-#: The drawing at its narrowest and its lowest band, whatever the
-#: terminal: under these the gutters' names run into the legend and the
-#: can into the foot gauges. Fifty-two wide is the bench's own size
-#: (above), and it stays the size a piped run draws.
+#: The narrowest drawing and lowest band on any terminal: below them the
+#: gutters' names run into the legend. 52 wide (from 46, the bench's "a
+#: shade bigger") is also what a piped run draws.
 NOMINAL_WIDTH = 52
 MIN_WIDTH = 40
 MIN_BAND = 8
@@ -208,205 +155,70 @@ def fit(aspect, size=None):
     BOX.height = BOX.rows + CAPTION_ROWS + FOOT_ROWS
     return BOX.rows
 
-#: HOW CLOSE TO THE FLOOR IS TOO CLOSE. The chain reports `wc`, the leak's
-#: corner, and calls itself invalid below it - both observers live on
-#: `v - R i` and a rotor that slow makes no back-EMF worth the name. That
-#: is the red line and the board's own number, not one invented here.
-#: Amber is the approach to it: within this many corners the estimate is
-#: still holding but the margin is going, and a drive that waits for red
-#: to act has already lost the rotor.
+#: Amber within this many of the chain's corner `wc`; below one corner the
+#: chain calls itself invalid (red): `v - R i` has no back-EMF there.
 FLOOR_MARGIN = 3.0
 
-#: The demo sweep, simulated only. Down through amber into red, where the
-#: back-EMF observers have nothing and the microstepper takes the rotor
-#: instead, then up through the envelope. Two hundred rpm and forty
-#: seconds because the point is to watch a hand-over happen: a sweep that
-#: crosses in a second reads as flicker, and what changes at the crossing
-#: is a whole commutation strategy. Twenty seconds a pass and the
-#: direction reversed each pass: forty was one reversal a minute and
-#: whoever was watching had stopped by then.
-#:
-#: NINETY RPM AND NOT TWO HUNDRED. At two hundred the rotor turns three
-#: times a second and this page redraws twelve, so the rotor mark moved a
-#: hundred degrees a frame and read as something flickering rather than
-#: something turning - no refresh rate fixes that, only a slower rotor.
-#: Ninety just reaches the speed at which the chain is comfortably clear
-#: of its floor, which is the top of the range worth showing here.
-SWEEP_LO_RPM, SWEEP_HI_RPM, SWEEP_S = 8.0, 200.0, 16.0
-#: How hard the sweep pulls the speed toward its target: amps per rpm of
-#: error PER SECOND. Closed on the speed rather than open on a current -
-#: the current that holds a given speed depends on the damping, and this
-#: view is meant to work whatever machine the record describes.
-#:
-#: Per second and not per frame, which it was: an integrator stepped once
-#: a frame is an integrator whose gain is the frame rate, and at twenty
-#: hertz this one wound up to 475 rpm chasing a target of 200 and never
-#: came back. Against this machine it settles in about two seconds, which
-#: is short against a forty-second sweep and long against the rotor.
-SWEEP_GAIN = 0.0005
-#: The rock's own gain, amps per rpm of error per second. Twenty times
-#: `SWEEP_GAIN` because the rock has a few seconds to reach 200 rpm and
-#: reverse, where the old triangle had twenty to walk 90.
+#: The demo cycle's period, seconds.
+SWEEP_S = 16.0
+#: The demo's speed-loop gain, A per rpm of error per SECOND: stepped per
+#: frame it wound up to 475 rpm at 20 Hz.
 ROCK_GAIN = 0.01
-#: How much of each pass the demo puts current through the legs, and how
-#: much. Twenty amps is half the clamp and a fifth of the stage's rating
-#: - enough that the thermometers move within seconds, well short of
-#: anything the stage would refuse.
-SWEEP_LOAD_FRACTION, SWEEP_LOAD_A, SWEEP_LOAD_NM = 0.34, 20.0, 0.015
 
-#: The load loop's peak and its period. Thirty amps is inside the clamp
-#: the view writes and well inside the stage's hundred; forty seconds
-#: because the legs' own constant is seconds and the board's is minutes,
-#: and a cycle shorter than the slow one never shows the lag between
-#: them. The smallest change worth a round trip is a fifth of an amp -
-#: under what any thermometer here can show.
-#: The heavy start: how hard, how long, and how fast it is asked to get
-#: there. Forty-three amps is under the clamp this page writes and under
-#: half the stage's rating, and a second of it is bounded by HEAT rather
-#: than by the current limit and short enough that the envelope does not
-#: have to act. On the ten-node graph it took the phase nodes to about
-#: nine tenths of their budget; on the twenty-node one, measured
-#: 2026-09-06 on the stand-in, 0.57 of the span in force on a cold board
-#: at the 80 % floor and 0.82 of the whole over four minutes, warm and
-#: STABLE - and 1.4 or 1.8 s of it no higher over two, 0.68 and 0.71,
-#: the leg node saturating against its patch in seconds. Harder or
-#: longer would reach the throttle only by
-#: latching a trip while the model is still doubted, which in a demo is
-#: a dead stage, so it stays.
-#:
-#: At 38 A into a 40 A clamp it only reached 0.70 of the budget, which
-#: is not near anything; the clamp went to 50 to make room for this.
+#: The heavy start (B, and every BURST_EVERY_S on the stand-in): 43 A for
+#: 1 s, bounded by heat, not the clamp. Measured on the stand-in 2026-09-06:
+#: 0.57 of the span on a cold board at the 80 % floor, 0.82 warm and STABLE;
+#: 1.4-1.8 s reached no higher (0.68, 0.71). 38 A into a 40 A clamp reached
+#: 0.70, so the clamp went to 50.
 BURST_A = 43.0
 BURST_S = 1.0
 BURST_ACCEL = 12000.0
-#: And the burn after it: how long, how much torque current, and what it
-#: is pushing against. The load is what makes the power - at half the
-#: no-load speed the back-EMF is real volts, and volts times amps is the
-#: only thing on this page that reaches the kW bar.
-#: How often the sequence takes the machine out to its envelope on its
-#: own. Long against the two loops - they have their own periods of 20
-#: and 40 s - so a burst reads as an event rather than as another cycle.
+#: A burst every 45 s on the stand-in, long against the loops' 20 and 40 s;
+#: then the burn: 3 s at 20 A against BURST_LOAD_NM at half the no-load
+#: speed, where back-EMF times current reaches the kW bar.
 BURST_EVERY_S = 45.0
 BURST_HOLD_S = 3.0
 BURST_HOLD_A = 20.0
-#: Sized so the burn SETTLES at half the no-load speed rather than
-#: being aimed at it: `torque x fade = b w + load`, and at half speed the
-#: link has taken half the back-EMF so `fade` is a half too. At 0.8 N.m
-#: it sat at 778 rpm of a 3902 no-load; at this it sits near 1950.
+#: Sized so the burn settles at half the no-load speed (torque x fade =
+#: b w + load): 0.8 N.m sat at 778 of 3902 rpm, 0.42 sits near 1950.
 BURST_LOAD_NM = 0.42
 
+#: The load loop: 30 A peak, 40 s period (the legs' constant is seconds,
+#: the board's minutes), rewritten when it moves 0.2 A.
 LOAD_PEAK_A = 30.0
 LOAD_PERIOD_S = 40.0
 LOAD_GRAIN = 0.2
-#: How wide the legend's bar is, in cells, and what it is drawn
-#: with - the full braille cell, so the legend is made of the same
-#: ink as the picture it is a key to.
+#: The legend's bar, cells, in the full braille cell the picture is made of.
 BAR_CELLS = 12
-#: ONE SCALE FOR EVERY THERMOMETER ON EVERY PAGE - `coaxial.gauges` owns
-#: it, and the margin and thermometer bands with it, since the thermal
-#: observer and the session draw the same tubes. This page keeps the
-#: names its legend and its tests use. Nothing on this board says what
-#: the magnet wire may take: the winding is drawn against the same
-#: ruler, and that is a scale, not a limit (invariant 10).
-from coaxial.gauges import (TEMP_FLOOR_C, TEMP_SCALE_C,  # noqa: E402
-                            margin_class as soa_class,
-                            temp_share, thermometer_class as ntc_class)
-from screen import frame_of, hud                           # noqa: E402
-from screen import open_rig                                # noqa: E402
-from screen import stage                                   # noqa: E402
-from screen import run_view, stage                         # noqa: E402
-#: The face of the power bar beside the board's thermometers: watts, on
-#: a POWER LAW pinned by where its middle sits.
-#:
-#: Linear to 2 kW it did not move. Measured over a full cycle of both
-#: loops the peak electrical input is 97 W - 4.9 % of the face, under
-#: two cells of the bar - because this page runs the machine at ninety
-#: rpm so the rotor mark reads as motion, and ninety rpm with thirty
-#: amps of d current is an I^2 R number rather than a kilowatt one.
-#: Kilowatts want the machine's envelope, 11 371 rpm at the measured
-#: link, and that is a different page.
-#:
-#: LOGARITHMIC WAS TOO MUCH THE OTHER WAY. Decades from one watt put
-#: 97 W at 60 % of the face and 500 W at 82 %: the whole working range
-#: of the stage lived in the top fifth, and the last part to 2 kW was a
-#: sliver. The bench asked to see small draws at the bottom, half the
-#: bar at about 500 W, and the run up to 2 kW to have room - so the
-#: face is `(W / 2 kW) ^ p` with `p` chosen so `WATTS_MID` lands at
-#: half: 500 of 2000 makes p one half, a square root. 20 W is a tenth
-#: of the bar, 100 W is 22 %, 500 W half, 2 kW full, and past full the
-#: bar and the figure beside it go the deep red of a limit. A curved
-#: face is a choice about legibility and says so - the number beside it
-#: is the watts themselves, undistorted.
+#: The power face: (W / WATTS_SCALE) ^ p, p set so WATTS_MID is half the bar:
+#: 20 W a tenth, 100 W 22 %, 500 W half, 2 kW full, red past it. Linear hid
+#: the page's 97 W peak in two cells; logarithmic put it at 60 %. The figure
+#: beside the bar is the watts, undistorted.
 WATTS_SCALE = 2000.0
 WATTS_MID = 500.0
 #: Where the headroom gauge stops being green. The scale's own, not the
 #: board's - see `headroom_class`.
 HEADROOM_AMBER = 0.5
-#: What the top gauge is called, over the machine it spans.
-#: The two headroom scales, in the order they stand in the gutter.
-#:
-#: TWO, BECAUSE THERE ARE TWO WAYS TO COOK THIS BENCH. The board's is the
-#: worst of ten nodes against ceilings the calibration record gave it -
-#: silicon and copper. The motor's is the winding, which the board has no
-#: sensor for and no authority over: it is `3 i^2 R` relaxed into a
-#: placeholder pair, drawn against this page's own `TEMP_SCALE_C`. One
-#: is a margin the board acts on; the other is a margin only the operator
-#: can act on, and saying so is why they are named apart.
-#: OUTBOARD OF THE BOARD TEMPS, as two more tubes rather than a level
-#: across the drawing. A margin is a level against a ceiling and every
-#: other level on this page stands up in a gutter; the headrooms were the
-#: only ones lying down, which made them read as a scale over the machine
-#: rather than as two more things with room left in them.
-#:
-#: One column each, so the names are a letter each under a shared SOA -
-#: `SWITCH SOA` is ten characters and a tube is one wide.
+#: The two margins as one-column tubes outboard of the board's four: S, the
+#: switches' worst node against the record's ceilings, which the board acts
+#: on; M, the winding (3 i^2 R into a placeholder pair on TEMP_SCALE_C),
+#: which only the operator can act on.
 HEADROOM_TITLES = ('S', 'M')
 
-#: What the leaders inside the drawing call them. Spelled out there
-#: because there is room in the air where there is none over a
-#: one-column tube.
-#:
-#: IT WAS `BOARD SOA` AND THE BOARD STOPPED BEING WHAT IT MEASURED. The
-#: margin is the worst node a current clamp can cool - the six leg nodes
-#: and the laminate they heat - and since the housekeeping nodes came out
-#: of that (`soa_undriven_mask`, `board.h`) what is left is the switching
-#: and what the switching warms. The MCU and the regulators are still
-#: drawn, still judged and still trip; they are just not in this number,
-#: so calling it the board's was naming it after the half it had
-#: dropped.
+#: Their names on the leaders. SWITCH, not BOARD: the margin is the six leg
+#: nodes and the laminate they heat; the MCU and regulators trip but are not
+#: in it (`soa_undriven_mask`).
 HEADROOM_NAMES = ('SWITCH SOA', 'MOTOR SOA')
-HEADROOM_GROUP = 'SOA'
 
-#: Columns of air between the board's thermometers and the two headroom
-#: tubes. THEY ARE NOT THE SAME KIND OF THING: four of them are node
-#: temperatures against their own ceilings and two are margins, one of
-#: which the board acts on and one it has no authority over. Adjacent,
-#: six tubes read as one stack and a reader counts them as six nodes.
-#: `machine._bars` skips a None entry, so the gap costs a column and no
-#: special case.
-#:
-#: TWO, SO THE TWO GUTTERS ARE THE SAME WIDTH. The left is six leg nodes,
-#: a gap and the NTC - eight columns. At one, the right came to seven,
-#: and since a legend's arrowhead sits on the machine's own edge the two
-#: runs then reached different distances from the frame: measured, nine
-#: columns of leader on the left against eight on the right, which is
-#: exactly the extra space the bench saw beside `NTC`. The air is worth
-#: having anyway, and here it buys the symmetry as well.
+#: Air between the board's four tubes and the two margins, which are not
+#: node temperatures. Two, so both gutters are eight columns (at one, the
+#: right leader ran a column short, measured).
 HEADROOM_GAP = 2
 
 BAR_GLYPH = chr(0x28FF)
 TRACK_GLYPH = chr(0x2812)
-#: The degree sign. A bare C beside a number is a coulomb.
-#: The degree sign - the MODIFIER LETTER SMALL O, not U+00B0.
-#:
-#: EAST ASIAN AMBIGUOUS WIDTH IS WHAT SHEARS THESE PAGES. U+00B0 is
-#: ambiguous: a terminal set for East Asian text draws it two columns
-#: wide and every other one draws it narrow, and it is a setting rather
-#: than a font. Wide, the three caption rows carrying a temperature shear
-#: - everything after the sign slides a column, and the colour runs slide
-#: with it, which is the bleeding a bench sees inside the box. U+1D52 is
-#: the same ring at the same place in the line and is unambiguously
-#: NARROW, so no setting can move it.
+#: The degree sign as U+1D52: U+00B0 is East Asian Ambiguous width, and a
+#: terminal set for it shears every caption row carrying a temperature.
 DEGREE = chr(0x1D52)
 
 #: The thermal nodes a duty cycle can drive into the SOA: the shunt a
@@ -414,48 +226,19 @@ DEGREE = chr(0x1D52)
 #: `coaxial.thermal`, ordered here the way a leg is read.
 SOA_NODES = ('driver_u', 'phase_u', 'driver_v', 'phase_v',
              'driver_w', 'phase_w')
-#: And the rest of the network, which no duty cycle drives: the die, the
-#: rails that feed it, the front end, and the laminate everything sits
-#: on. Drawn on the other side of the machine because they fail for
-#: different reasons and are read for different ones.
-#: WHY BOTH FIGURES ARE THEIR GROUP'S HOTTEST, after two goes at it.
-#:
-#: The bench read SWITCH TEMPS below BOARD TEMPS and took it for a broken
-#: model. It is not: idle, every driver and phase node settles at
-#: 31.08 C, which is the board node exactly, and a node below the copper
-#: cannot happen - `thermal_step` sheds `(t - board) / to_board`, so it
-#: takes a negative shed and is pulled back up. The right gutter's
-#: hottest is simply the MCU, 0.666 W through a linear LDO, 15 K over the
-#: copper, and on an idle stage that IS hotter than a FET carrying
-#: nothing.
-#:
-#: FIRST FIX, WITHDRAWN: report the copper on the right, so the ordering
-#: a reader expects held by construction. It bought the ordering by
-#: breaking something worse - the caption then disagreed with its own
-#: gutter, saying 20.9 C under a stack whose tallest tube was the
-#: regulators at 33.7 C. A figure that does not name the tube beside it
-#: is worse than a figure that surprises.
-#:
-#: WHAT ACTUALLY FIXED IT was the tubes, not the caption: they were each
-#: a share of their OWN ceiling, so two at the same height were two
-#: different temperatures and the two gutters could not be compared at
-#: all. `soa_bars` puts them on one temperature scale now. With one
-#: ruler the surprise stops being one - the MCU tube is visibly the
-#: tallest, the caption names it, and both figures are the tallest tube
-#: in their own gutter.
+#: The nodes no duty cycle drives, in the right gutter. Both gutter figures
+#: are their group's hottest tube on one temperature scale: idle, the MCU
+#: (0.666 W through a linear LDO, 15 K over the copper) is hotter than a FET
+#: carrying nothing, and the caption names the tube beside it.
 
 BOARD_NODES = ('mcu', 'regulators', 'afe', 'board')
 
-#: The ends of the thermistor's own colour ramp, degrees C: the page's
-#: scale, so blue is the bottom of the tube and red its top. A BENCH
-#: SCALE, not a limit: nothing on this board was given a ceiling for the
-#: NTC. (They were -20 and 100, a third ruler.)
+#: The thermistor's colour ramp, C: the page's scale (`coaxial.gauges`, one
+#: for every thermometer and the winding), not a limit (invariant 10).
 NTC_COLD_C, NTC_HOT_C = TEMP_FLOOR_C, TEMP_SCALE_C
 
-#: Columns of air between the switch thermometers and the NTC's own,
-#: and where the NTC sits in the left gutter. OUTERMOST, so the six
-#: estimates stand together and the one measurement stands apart from
-#: them - the same reason the margins are outboard of the board's four.
+#: The NTC outermost in the left gutter, a column from the six estimates:
+#: the one measurement stands apart.
 NTC_GAP = 1
 NTC_AT = len(SOA_NODES) + NTC_GAP
 
@@ -512,8 +295,7 @@ def eps_gain(params, v_inj, ts):
     return v_inj * ts * (lq - ld) / (ld * lq) if ld > 0.0 and lq > 0.0 else 0.0
 
 
-#: The instrument column is 40 cells: a label of nine and a value of
-#: twenty-four fit beside the frame. Longer rows were cropped mid-word.
+#: The instrument column is 40 cells: a label of 9, a value of 24.
 def drive_rows(view):
     s = view['state']
     return [
@@ -639,13 +421,10 @@ def _legend_targets(view, left, right):
     said = []
     first, last = machine.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
-    # THE MEASUREMENT FIRST, at the top, because everything under it is an
-    # estimate and a page that opens with a model teaches a bench to trust one.
+    # THE MEASUREMENT FIRST: everything under it is an estimate.
     seen = (view.get('thermal') or {}).get('ntc')
     if len(left) > NTC_AT and seen is not None:
-        # ITS OWN TUBE'S COLOUR, like every other legend here: the name and the
-        # level it belongs to share an ink, and for this one that is the
-        # thermometer ramp rather than a margin's green to red.
+        # Its own tube's colour: the thermometer ramp, not a margin's.
         said.append(_legend(0, reference(view),
                             machine.INK[ntc_class(seen)], left[NTC_AT], True))
     # SWITCH SECOND AND BOARD LAST, with the motor's margin between them.
@@ -694,9 +473,7 @@ def foot_furniture():
 
 def legend_drops(view, left, right):
     """One dotted hop into the drawing, under every legend."""
-    # NONE, SINCE `HOP_ROWS` WENT TO ZERO - the corner glyph turns each run
-    # down in its last cell and the tube it lands on is a column, so the hop
-    # row bought nothing but a line break the bench counted.
+    # None while HOP_ROWS is 0: the corner glyph turns each run down.
     return [(0, column, HOP_ROWS, machine.LEADER_GREY,
              _lane(column, machine.span(BOX.width, BOX.rows,
                                         LEFT_COLUMNS, RIGHT_COLUMNS)[0]))
@@ -713,10 +490,8 @@ def _legend_rows(view, left, right):
     for index in range(CAPTION_ROWS):
         line = [' '] * BOX.width
         marks = []
-        # THE LINES ALREADY FALLING pass through before anything is written,
-        # and the words are placed clear of them: without that a leader broke
-        # at the captions and picked up again inside the drawing, which read as
-        # two marks and not one line.
+        # Leaders already falling pass through first; the words go clear of
+        # them, or a leader breaks at the captions.
         for row, _text, _ink, column, _in in said:
             if row < index:
                 line[column] = DROP[_lane(column, first)]
@@ -774,9 +549,7 @@ def _foot_line(view):
     room = BOX.width - len(head) - len(tail)
     left = max(0, (room - middle) // 2)
     right = max(0, room - middle - left)
-    # THE FIGURE WEARS THE BAR'S INK: past 2 kW the bar goes the deep red of a
-    # limit, and a blue number under a red bar would be two answers to the same
-    # watt.
+    # The figure wears the bar's ink: red past 2 kW, like the bar.
     foot = (tint(head, machine.INK[machine.SOA_WARN])
             + ' ' * left
             + tint(label, machine.LEADER_GREY) + ' ' + tint(word, ink)
@@ -785,9 +558,8 @@ def _foot_line(view):
     return foot
 
 
-#: The identification's states as the foot says them and the inks they
-#: wear - the margin's own, since a state is what the envelope keeps in
-#: hand. The bench's abbreviations.
+#: The identification's states as the foot says them (the bench's
+#: abbreviations), in the margin's inks.
 POLICY_WORD = {'STABLE': 'STABLE', 'CONVERGING': 'CONV',
                'UNCERTAIN': 'UNCR'}
 POLICY_SHORT = {'STABLE': 'STBL'}
@@ -797,12 +569,9 @@ POLICY_INK = {'STABLE': machine.SOA_OK, 'CONVERGING': machine.SOA_WARN,
 
 def _policy(view):
     """`(label, word, ink)` for the foot: TH OBS and the state with the
-    ceiling it leaves - `UNCR 80%`, `CONV 93%`, `STBL 97%`, the margin
-    the board acts on NOW rounded to the percent, and `STABLE` alone once
-    the spans are whole - the bench's "make it visible that it throttles
-    at 80 % of the SOA already, then 90, then 100 as the model's
-    uncertainty goes to zero", continuous since 2026-09-06 - or a dash in
-    the leaders' grey before the board has answered op 10.
+    margin the board acts on now - `UNCR 80%`, `CONV 93%`, `STBL 97%`,
+    `STABLE` once whole (continuous since 2026-09-06) - or a grey dash
+    before op 10 answers.
     """
     ident = view.get('ident')
     state = ident['state'] if ident else None
@@ -938,7 +707,7 @@ def no_load_rpm(view):
 
 
 def heavy_start(rig, view):
-    """A start, a burn, and then back to the dutter."""
+    """A second at the clamp, then the burn."""
     drive = rig.board.drive
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     left = view['burst_until'] - time.time()
@@ -999,29 +768,15 @@ def load_loop(rig, view):
         rig.board.drive.setpoint(id_ref=view['load_amps'])
 
 
-#: The demo cycle, as fractions of `SWEEP_S`. Four things a drive does,
-#: in the order it does them: hold the rotor still against a current,
-#: rock it either way, send it at everything the clamp allows, and brake
-#: it back to rest. Then again.
-#:
-#: IT IS THE SEND THAT MAKES THE PAGE MOVE. With only the gentle half of
-#: the machine running, the worst thermal node is `regulators` - a fixed
-#: housekeeping watt that changes only as the board does - so SOA
-#: HEADROOM sat still and the switch thermometers with it. The legs have
-#: to actually get hot for either to mean anything, and a send at the
-#: clamp is what does that.
-#: The brake gets as much of the cycle as the send does: it is fighting
-#: the same inertia with the same clamp, and the thermal derate is cutting
-#: ITS current too - at 0.82 the rotor was still turning at 1100 rpm when
-#: the hold came round, and a position lock cannot catch that.
+#: The demo cycle as fractions of SWEEP_S: hold, rock, send at the clamp,
+#: brake. The send heats the legs so the margins move; the brake gets as
+#: long as the send (at 0.82 the rotor still turned 1100 rpm at the hold).
 CYCLE_HOLD, CYCLE_ROCK, CYCLE_SEND = 0.14, 0.46, 0.73
 #: What the rock peaks at, and what the hold holds with.
 ROCK_RPM = 200.0
 HOLD_A = 12.0
-#: Above this the brake pulls the whole clamp and below it proportionally
-#: less, so the rotor arrives at zero rather than through it. A quarter of
-#: the electrical no-load speed: enough of the stop is at full current to
-#: be quick, and the last of it is gentle enough to land.
+#: The brake pulls the whole clamp above this and proportionally less below,
+#: so the rotor lands on zero: a quarter of the electrical no-load speed.
 BRAKE_FULL_RAD_S = 700.0
 
 
@@ -1072,10 +827,8 @@ def sweep(rig, view):
         view['iq'] = 0.0
         return
     if stage == 'rock':
-        # ONE swing each way, not two: the speed integrator needs about a
-        # second to reach 200 rpm and two swings in five gave it 2.8 s a side,
-        # so it spent the whole phase chasing a target that had already
-        # reversed and never left 25 rpm.
+        # ONE swing each way: two in five seconds gave the integrator 2.8 s a
+        # side and it never left 25 rpm.
         target = ROCK_RPM * math.sin(math.tau * into)
         view['iq'] = _toward(view, target, clamp)
         drive.setpoint(id_ref=0.0, iq_ref=view['iq'],
@@ -1169,9 +922,7 @@ def winding(view):
     if was is None:
         view['winding'] = _thermal.AMBIENT
         return view['winding']
-    # THE SAME HASTE THE STAND-IN'S BOARD MODEL TAKES, and only there: this
-    # winding's constant is nearly seven minutes, which is right and
-    # unwatchable.
+    # The stand-in's haste, and only there: the real constant is ~7 min.
     tau = max(1e-3, k * heat) / (SimulatedThermal.HASTE
                                 if view['simulated'] else 1.0)
     view['winding'] += (target - view['winding']) * min(1.0, (now - was) / tau)
@@ -1206,12 +957,8 @@ def headroom(view):
     return 1.0 - min(1.0, max(0.0, worst)) if worst is not None else 1.0
 
 
-#: The envelope's word beside the mode, in a red DARKER than the trip's
-#: 196 and the pulse's 210. The DRIVE box has no level to pulse, so the
-#: word carries what the gauges carry by colour: the board holding the
-#: stage back is the envelope working, not a fault, and a dark red says
-#: held rather than hurt. The bench's own words: nearly red, darker, as
-#: when it SOA-throttles.
+#: The envelope's word beside the mode, in a red darker than the trip's 196
+#: and the pulse's 210: held, not hurt (the bench's words).
 THROTTLE_RED = 124
 
 
@@ -1233,15 +980,8 @@ def mode_text(view):
     return tint('%s ' % s['mode'].upper(), SODIUM) + state
 
 
-#: How fast the SOA gauge pulses while the envelope is acting, hertz.
-#: FAST ENOUGH TO CATCH THE CORNER OF AN EYE, slow enough to read the
-#: level under it. The level itself never blinks - only its colour - so
-#: what the bar says stays readable through the pulse.
-#:
-#: DOWN FROM 3. At three it read as an emergency; the board throttling
-#: is the envelope working, not a fault, and a page that shouts about
-#: routine work teaches a bench to stop looking. A slow pulse in a
-#: lighter red says the same thing without the alarm.
+#: The margin tube's pulse while the envelope acts, Hz; only the colour
+#: pulses, the level stays readable. 3 read as an emergency.
 FLASH_HZ = 1.5
 
 
@@ -1252,60 +992,16 @@ def flashing(view):
     return (time.monotonic() * FLASH_HZ * 2.0) % 2.0 < 1.0
 
 
-#: The rows inside the drawing the two headroom names sit on, and the
-#: line that reaches from each to its own tube.
-#:
-#: A STAIRCASE, one row apart. Two tubes one column wide cannot carry a
-#: name between them - `BOARD SOA` is nine characters - and stacking the
-#: names above them left a reader matching two bars to two words by their
-#: order. On its own row beside its own bar, with a rule reaching across
-#: to touch it, each name says which one it means and carries its value
-#: the way the foot gauges carry theirs.
-HEADROOM_ROWS = (0, 1)
-#: How far a leader's stub falls: the first row the tubes may use.
-#: `machine` keeps the bars below whatever was written above them, so
-#: this is only how far the stub has to reach to touch one.
-LEADER_DROP = len(HEADROOM_ROWS)
 
-#: The arrowhead a margin's name ends on, and the line it starts. The
-#: drop continues into the machine's own dots below the captions; this is
-#: the part of it that crosses the caption rows, where a row is a string
-#: and not a raster.
-#: The head sits against the words and says which way to look; the run
-#: that reaches out to the column is braille, like everything else the
-#: page draws. `DROP` is the same line continuing down a later row.
-#: The arrowheads a legend points with. THE SMALL TRIANGLES, and the
-#: size is not why. `\u25c0` and `\u25b6` are EAST ASIAN AMBIGUOUS WIDTH:
-#: Unicode does not decide, a terminal set for East Asian text draws them
-#: two columns wide and every other one draws them narrow, and it is a
-#: setting rather than a font. Wide, every caption row shears - the mark
-#: doubles, everything after it slides a column, and the colour runs slide
-#: with it, which is the bleeding a bench sees inside the box. The small
-#: triangles at U+25C2 and U+25B8 are the same shape and unambiguously
-#: NARROW, so the drawing cannot be sheared by a setting.
+#: The legend's arrowheads, U+25C2 and U+25B8: the large triangles are East
+#: Asian Ambiguous width and shear the rows on a terminal set for it.
 AIM_LEFT, AIM_RIGHT = chr(0x25C2), chr(0x25B8)
-#: The run, the corner it turns at, and the column it falls down - all
-#: off `coaxial.braille`, which holds the whole block and the vocabulary
-#: for asking. Typed as `chr(0x28A4)` these were guesses that had to be
-#: decoded before they could be reviewed, and a corner is exactly the
-#: glyph nobody checks.
-#:
-#: THE RUN AND THE DROP HAVE TO JOIN. A run of dots ending against a
-#: column under it is two marks that happen to touch: the horizontal
-#: crosses the whole cell and the vertical stands beside where it
-#: stopped, so the eye reads a line and then a post. The corner carries
-#: the horizontal into the lane it is going to fall in - left where the
-#: tube is left of its name, right where it is right - and the drop
-#: follows in the same lane, so nothing doubles back.
+#: The leader's run, corner and fall, off `coaxial.braille`. The corner
+#: carries the run into the lane it falls in, so run and fall join.
 LEADER = braille.RUN[2]
 TURN = tuple(braille.corner(2, lane, through=True) for lane in (0, 1))
 DROP = braille.FALL
 
-#: The foot's stroke, climbing out of its arrowhead: the low pair of
-#: dots, then the middle, then the top. Short, because the levels it
-#: names lie right above it and run the machine's whole width - it says
-#: which way to look and nothing more.
-LEADER_RISE = (chr(0x2824), chr(0x2812), chr(0x2809), chr(0x2809))
 
 
 def ntc_bar(view):
@@ -1487,9 +1183,8 @@ def compose(rig, origin, console, view):
     s = view['state']
     # THE MACHINE, NOT A PROTRACTOR.
     pole_pairs = max(1, int(view['params'].get('motor_pole_pairs') or 1))
-    # The true rotor is a notch on the can: the gap between it and the magnet
-    # band under it IS the observer's error, in the units a magnet works in
-    # rather than in electrical degrees.
+    # The true rotor is a notch on the can: its gap to the magnet band IS the
+    # observer's error, in mechanical units.
     amps, full = phase_amps(view)
     # THE THERMOMETERS ARE NAMED, on a row of their own above them.
     heads = gutter_caption(view)
@@ -1663,10 +1358,8 @@ def _key_arm(rig, d, key, view):
     return 'STAGE ARMED - the gates switch'
 
 
-#: The keys the page answers, each a function of the rig, the drive, the
-#: key itself and the view, answering what to say. The box column scrolls
-#: on the arrows, a click on its arrows and a drag over it - `run_view`'s,
-#: on every page, so nothing of it here.
+#: The keys, each `(rig, drive, key, view) -> what to say`. Scrolling the
+#: box column is `run_view`'s, on every page.
 KEYS = {
     's': _key_start_stop, 'm': _key_mode, 'v': _key_source, 'i': _key_inject,
     '+': _key_iq, '=': _key_iq, '-': _key_iq, '_': _key_iq,
@@ -1698,9 +1391,8 @@ def parse_args(argv):
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--frames', type=int, default=0)
     p.add_argument('--hz', type=float, default=DEFAULT_HZ)
-    # The terminal's size to fit the machine to, instead of the real one: both
-    # given, a piped run draws the page as that terminal would -
-    # `tools/ansi2png.py` on the output is the raster.
+    # A terminal size to fit to: a piped run draws as that terminal would
+    # (`tools/ansi2png.py` rasters it).
     p.add_argument('--width', type=int, default=None)
     p.add_argument('--height', type=int, default=None)
     p.add_argument('--source', choices=('model', 'adc'), default='model')
@@ -1753,9 +1445,8 @@ def preflight(rig, args):
         d.model_param(**model_params)
     params = d.params()
     ts = d.state()['ts'] or 20e-6
-    # Injection ON from the start: sensorless at standstill has no other
-    # innovation, and a page that started without it drew the estimate
-    # free-running 71 degrees from the model's rotor.
+    # Injection on from the start: at standstill it is the only innovation
+    # (without it the estimate ran 71 degrees from the model's rotor).
     d.set_params(drv_inj_mv=args.v_inj,
                  drv_eps_gain_ua_per_rad=eps_gain(params, args.v_inj, ts))
     d.source(args.source)
@@ -1776,39 +1467,22 @@ def demo_stage(rig, origin):
 
 #: The page's frame rate unless asked for: a page of numbers.
 DEFAULT_HZ = 8.0
-#: What the stand-in comes up doing on the model. A ROTOR MOVING AT ALL
-#: wants more frames than a page of numbers does, so the rate goes up
-#: from the page's default when the caller did not ask for one.
+#: On the stand-in's model: a moving rotor wants more frames.
 DEMO_HZ = 12.0
-#: THE SPEED WORTH WATCHING IS THE SLOW ONE. The stand-in's own damping
-#: is 1e-5, which puts 0.08 A at 3900 rpm - past the hand-over, past the
-#: machine's envelope, and past anything a first turn of a real rotor
-#: will do. The profile's 5e-4 puts 0.1 A at 100 rpm instead, so `+` and
-#: `-` walk the range that decides whether this drive works at all: 27
-#: rpm, where 20 rad/s electrical is the leak's corner and the back-EMF
-#: observers stop, up to a hundred.
+#: The demo's damping: 5e-4 puts 0.1 A at 100 rpm, the range that decides
+#: this drive (the chain stops at 27 rpm, 20 rad/s electrical). The
+#: placeholder 1e-5 put 0.08 A at 3900 rpm.
 DEMO_B = 5e-4
-#: AND SOMETHING TO TURN. The stand-in's placeholder inertia is 2e-5
-#: kg m^2, which is not even the bare rotor: a 63100 can is a steel shell
-#: 63 mm across with magnets in it, about 0.64 kg at an effective 29 mm,
-#: so 5.4e-4 on its own. At the placeholder the send reached three
-#: thousand rpm inside one frame - the page redraws every seventy
-#: milliseconds and the spin-up took less than one, so there was nothing
-#: to watch. This is the rotor AND a load on the shaft, which is what a
-#: drive on a bench is turning. It is a stand-in's number and says so; a
-#: bench with a real machine writes its own through `--j` or a motor
-#: profile.
+#: Rotor and load, kg m^2: a 63100 can alone is ~5.4e-4 (0.64 kg at 29 mm);
+#: the placeholder 2e-5 reached 3000 rpm inside one frame. A stand-in's
+#: number: a bench writes its own (--j, a motor profile).
 DEMO_J = 8e-3
 #: The torque current it comes up with, and the step `+` and `-` walk it
 #: by on the model.
 DEMO_IQ = 0.06
 DEMO_STEP = 0.01
-#: A CLAMP THE LOAD CAN REACH. The record's placeholder is 5 A and this
-#: machine turns on a tenth of one, so a load step hit the clamp before
-#: it made heat worth watching: three phases at 5 A across 5.3 milliohms
-#: is 0.4 W against 1.8 W of housekeeping. Forty amps is a fifth of the
-#: stage's rating and puts 25 W in the legs, which the thermal observer
-#: answers in seconds rather than in an afternoon.
+#: A clamp the load can reach: at the record's 5 A the legs took 0.4 W
+#: against 1.8 W of housekeeping; 50 A puts ~40 W in them.
 DEMO_I_MAX = 50.0
 DEMO_I_TRIP = 70.0
 #: The iq step on a board, and on the stand-in's ADC source.
@@ -1852,12 +1526,8 @@ def _link(args):
         return None, None, None, None
     origin, board = rig.origin, rig.board
     if not origin.real:
-        # THE GROUND TRUTH ON THE TOUR - temperate, cold, toasty, round and
-        # round, moved on when the identification has earned the room - so TH
-        # OBS walks UNCR, CONV, STABLE and back on the foot: the bench's way of
-        # seeing the policy before a board, and its word (2026-09-06: "now
-        # ROTOR OBSERVER never switches to cold, hot, back to temperate") after
-        # a random situation every few minutes had stood here.
+        # THE TOUR: rooms change as the identification earns them, so TH OBS
+        # walks UNCR, CONV, STABLE on the foot (bench 2026-09-06).
         rig.thermal.situation('tour')
     was_on = board.afe.is_on()
     want_afe = args.afe or args.source == 'adc'
@@ -1866,10 +1536,7 @@ def _link(args):
         time.sleep(0.3)
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
-    # THE DEMO'S DEFAULTS BEFORE THE PREFLIGHT, because the preflight reads
-    # them: `demo_defaults` puts the stand-in's load - `args.b`, the friction
-    # the model turns against - onto `args`, and `preflight` is what hands the
-    # model its parameters.
+    # The demo's defaults first: `preflight` hands `args` to the model.
     view_step = demo_defaults(args, origin)
     demo_stage(rig, origin)
     try:
@@ -1904,10 +1571,6 @@ def main(argv=None):
     sane(args)
 
     rig, params, was_on, view_step = _link(args)
-    if params is None:
-        raise RigError('the drive answered no parameters')
-    if params is None:
-        raise RigError('the drive answered no parameters')
     if rig is None:
         return 1
     origin, board = rig.origin, rig.board
@@ -1942,9 +1605,8 @@ def main(argv=None):
 
     board_view = _console_for(args)
     console = board_view.is_terminal
-    # `console` here is the flag the key reader and the closing want; `compose`
-    # gets THE CONSOLE ITSELF - the paging asks the terminal how big it is and
-    # keeps the scroll on it.
+    # `console` is the flag the keys and the closing want; `compose` gets the
+    # console itself.
     leaving = None
     thermal_at = [0.0]
     # HOW OFTEN THE THERMAL OBSERVER IS READ.
@@ -1960,9 +1622,7 @@ def main(argv=None):
             if view['model']:
                 view['state']['theta_hat'] = view['model']['theta_hat']
                 view['state']['omega_hat'] = view['model']['omega_hat']
-            # The chain is one more round trip, and it is the point of the
-            # view: a second answer to the angle, on the same samples, with no
-            # shaft sensor behind it.
+            # The chain: a second answer to the angle, no shaft sensor behind it.
             view['chain'] = board.drive.observers()
             travel(view)
             turn_the_handle(rig, view)
@@ -1972,10 +1632,7 @@ def main(argv=None):
                 view['ident'] = board.thermal.identification()
                 thermal_at[0] = time.time()
                 rearm_after_trip(rig, origin, view)
-        # THE CONSOLE, not `console`: `frame_of` pages the instrument column on
-        # the console's own scroll state and asks it how tall it is, and this
-        # page handed it the boolean every view calls `console` - the comment
-        # above `board_view` was written and the call was not changed.
+        # The console itself: `frame_of` pages on its scroll state and size.
         fit(view['aspect'], _sized(args, board_view))
         return compose(rig, origin, board_view, view)
 
