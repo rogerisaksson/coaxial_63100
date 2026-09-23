@@ -42,9 +42,14 @@ DECAY_ROW_S = 0.07
 BLINK_HZ = 2.0
 #: The block the machine leaves its cursor on.
 CURSOR = '█'
-#: The leader column: label, dots, value - wide enough for the parts
-#: list's longest name at the box's full width, a third of a narrow one.
-LEADER_COLS = 18
+#: The leader column is the page's: its longest label, a space and at
+#: least one dot - never past half the box. A fixed column either put a
+#: label that filled it a column out or left it with no dot at all, and
+#: the bench asked for both the line-up and the dot (UART5 TERMINATION,
+#: 2026-09-23).
+def _column(labels, width):
+    longest = max((len(label) for label in labels), default=0)
+    return min(longest + 2, max(6, width // 2))
 #: The host's portable cores, host-tested through gcc (docs/ARCHITECTURE.md).
 CORES = 'MODBUS DRIVE THERMAL FILTER DAQ SHTP BOOT'
 
@@ -84,17 +89,13 @@ def suites_measured():
     return len(suites), in_tree, sum(suites.values())
 
 
-def _leader(label, value, width):
-    """`LABEL ...... VALUE`, the dots to the leader column; a value past
-    the width is wrapped under the column, and a label past the column
-    keeps its row to itself with the value under it - so a narrow box
-    still fits every line."""
+def _leader(label, value, width, cols):
+    """`LABEL ...... VALUE`, the dots to the leader column `cols`; a
+    value past the width is wrapped under the column, and a label past
+    the column keeps its row to itself with the value under it - so a
+    narrow box still fits every line."""
     label = label.upper()
-    cols = min(LEADER_COLS, max(6, width // 3))
-    # No dot at all for a label that fills the column: a forced one put
-    # UART5 TERMINATION's value a column past the others (the bench saw
-    # the space).
-    dots = '.' * max(0, cols - len(label) - 1)
+    dots = '.' * max(1, cols - len(label) - 1)
     head = label + ' ' + dots + ' '
     room, below = width - len(head), max(4, width - cols - 1)
     value = str(value).upper()
@@ -122,46 +123,52 @@ def pages(identity, width, note=None):
     wider than `width`. With no identity yet, the one page the machine
     has to say - and `note`, a link's refusal in its own words, under
     it."""
+    def table(pairs):
+        cols = _column([label for label, _v in pairs], width)
+        rows = []
+        for label, value in pairs:
+            rows += _leader(label, value, width, cols)
+        return rows
+
     if identity is None:
         return [('AWAITING LINK',
                  _said('readout online. ready for inquiry', width)
                  + _said('> identify unit', width)
-                 + _leader('status', 'awaiting link', width)
-                 + (_leader('link said', note, width) if note else []))]
+                 + table([('status', 'awaiting link')]
+                         + ([('link said', note)] if note else [])))]
     info, parts = identity['info'], identity['parts']
     # The origin's label says SIMULATED itself; a real one earns LIVE.
     link = identity['origin'] + (' live' if identity['real'] else '')
     first = (_said('readout online. ready for inquiry', width)
              + _said('> identify unit', width)
-             + _leader('unit', info.get('device', 'unknown'), width)
-             + _leader('type', str(info.get('type', 'unknown')).replace('_', ' '),
-                       width)
-             + _leader('firmware', '%s  protocol %s.%s' % (
-                 info.get('firmware', '?'), info.get('proto_major', '?'),
-                 info.get('proto_minor', '?')), width)
-             + _leader('mcu', info.get('mcu', 'unknown'), width)
-             + _leader('commands', info.get('commands', '?'), width)
-             + _leader('link', link, width)
+             + table([
+                 ('unit', info.get('device', 'unknown')),
+                 ('type', str(info.get('type', 'unknown')).replace('_', ' ')),
+                 ('firmware', '%s  protocol %s.%s' % (
+                     info.get('firmware', '?'), info.get('proto_major', '?'),
+                     info.get('proto_minor', '?'))),
+                 ('mcu', info.get('mcu', 'unknown')),
+                 ('commands', info.get('commands', '?')),
+                 ('link', link)])
              + _said('> describe unit', width)
              + _said(info.get('description', 'unable to clarify'), width,
                      'value'))
     fitment = _said('> enumerate fitment', width)
-    for part in parts:
-        fitment += _leader(part.get('name', '?'), part.get('what', ''), width)
+    fitment += table([(part.get('name', '?'), part.get('what', ''))
+                      for part in parts])
     if not parts:
         fitment += _said('no fitment reported', width, 'value')
     measured = suites_measured()
     proof = ('%d of %d suites run here, %d checks' % measured if measured
              else 'unmeasured on this terminal')
     third = (_said('> query origin of systems', width)
-             + _leader('engineered', 'in dialogue with claude / anthropic',
-                       width)
-             + _leader('at the bench', 'local llm, board tools over mcp',
-                       width)
-             + _leader('console', 'ccc local / anthropic claude', width)
-             + _leader('cores', CORES, width)
-             + _leader('verification', proof, width)
-             + _leader('record', 'findings: every measurement kept', width)
+             + table([
+                 ('engineered', 'in dialogue with claude / anthropic'),
+                 ('at the bench', 'local llm, board tools over mcp'),
+                 ('console', 'ccc local / anthropic claude'),
+                 ('cores', CORES),
+                 ('verification', proof),
+                 ('record', 'findings: every measurement kept')])
              + _said('end of inquiry. standing by', width))
     return [('IDENTITY', first), ('FITMENT', fitment), ('PROVENANCE', third)]
 

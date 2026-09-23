@@ -4519,11 +4519,14 @@ looking at the estimate alone.
   inquiries as it takes, so nothing scrolls mid-line. The box takes a
   third of the body's rows, a status row and five lines at least,
   twelve lines at most, and the model keeps the rest; the leader column
-  is eighteen cells at the box's full width and a third of a narrow
-  one, a label that fills it gets no dot (a forced dot put UART5
-  TERMINATION's value a column past the others - the bench saw the
-  space), and a label past it keeps its row with the value under it,
-  so the 26-column floor still fits every line. The turntable rides
+  is each page's own - its longest label, a space and at least one
+  dot, never past half the box. A fixed column of eighteen was tried
+  first: UART5 TERMINATION filled it and a forced dot put its value a
+  column past the others (the bench saw the space), and with no dot it
+  lined up but had no leader (the bench asked for the dot) - both
+  gone with the column following the page. A label past the column
+  keeps its row with the value under it, so the 26-column floor still
+  fits every line. The turntable rides
   the Segment Marquee too. Judged in the raster at 100x30 and 152x48
   (tools/ansi2png.py): the model above, the readout below in teal
   voice, dotted leaders and sodium values, the cursor on the typed
