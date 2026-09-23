@@ -152,14 +152,11 @@ NEEDS_BOARD = (CONFORMANCE,)
 #: the rest. Every other suite opens the stand-in or nothing at all.
 ALONE = ('test_mcp.py', 'test_parity.py', BENCH, CONFORMANCE, LIVE)
 
-#: How many of the others run side by side. A SUITE'S WALL TIME IS MOSTLY
-#: SLEEP: measured 2026-09-21, each suite's own process - sensorless 24 s
-#: of CPU in 151 s of wall, the acquisition front door 0.9 s in 72, the
-#: broker 2.2 s in 31 - because the stand-ins pace themselves on the wall
-#: clock the way a board does. One after another that was a 400 s gate;
-#: the five longest side by side all pass and end with the longest. Half
-#: the cores and never more than four: the bench laptop has no page file,
-#: and one views page is fourteen processes on its own.
+#: Suites run side by side: their wall time is mostly the stand-ins' sleep
+#: (2026-09-21: sensorless 24 s of CPU in 151 s, the DAQ front door 0.9 in
+#: 72, the broker 2.2 in 31); one after another was a 400 s gate. Half the
+#: cores, at most four: no page file here, and one views page is 14
+#: processes.
 JOBS = max(1, min(4, (os.cpu_count() or 2) // 2))
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
@@ -370,11 +367,8 @@ TOUCHES = (
     ('host/coaxial/loop.py',          (SENSORLESS, DRIVE)),
     ('host/coaxial/motion.py',        (SENSORLESS, 'test_simulated.py')),
     ('host/tools/montecarlo.py',      (STRUCTURE, DRIVE)),
-    # BENCH is here and not with the host suites: what slows the board down is
-    # firmware in the main loop, and the regression it guards against was
-    # exactly that - the thermal observer reading two ADC channels and two SPI
-    # transactions on every poll, and before that a poll blocking long enough
-    # to lose a Modbus character.
+    # BENCH: firmware in the main loop is what slows the board (the thermal
+    # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
     ('comms/',                        (CONFORMANCE, 'test_mcp.py', BENCH)),
     ('board/',                        (CONFORMANCE, 'test_mcp.py',
                                        'test_parity.py', BENCH)),

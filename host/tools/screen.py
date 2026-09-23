@@ -42,35 +42,15 @@ BUTTON_REPORTS = ((LEFT_BUTTON, 0), (RIGHT_BUTTON, 2))
 def _ignore(*_):
     """The callback a view did not pass."""
 
-#: What lends the mouse to the view, and gives it back.
-#:
-#: A VIEW THAT REPORTS THE MOUSE CANNOT BE SELECTED FROM, and the mouse
-#: is now the TERMINAL'S until asked for. Reporting the wheel means
-#: asking for SGR reports and clearing QUICK_EDIT, and those are exactly
-#: what a terminal uses to let a reader left-drag across a line and copy
-#: it - so with the view holding the mouse, no number and no braille cell
-#: on any of these pages could be marked.
-#:
-#: IT WAS THE OTHER WAY ROUND AND IT WAS WRONG. The view took the mouse
-#: on entry and a key handed it back, which put the common case - read
-#: the page, copy a figure off it - behind a keystroke nobody had reason
-#: to know about, and left every page unselectable until they did.
-#: Reported three times from the bench before the default moved. The
-#: wheel and the trackball are the special case: worth a key, not worth
-#: the text.
-#:
-#: Handled HERE rather than in each view, so any page that asked for the
-#: mouse can give it back with the same key - which is why it is `F` and
-#: not the obvious `C`: the attitude view binds C to its frame and the
-#: menu to a direct entry, and a key taken universally has to be free
-#: EVERYWHERE, not only where it was written.
+#: The key that lends the mouse to the view and gives it back. The mouse is
+#: the terminal's by default: a view reporting it (SGR, QUICK_EDIT cleared)
+#: cannot be selected from, and taking it on entry was reported three times
+#: from the bench. Here, not per view, so every page takes the same key - F,
+#: since C is the attitude view's frame and a menu entry.
 SELECT_KEYS = frozenset({'f', 'F'})
 
-#: The `Keys` holding the mouse, if one is. MODULE STATE BECAUSE THE
-#: MOUSE IS: there is one of it, the terminal owns it, and a view drawing
-#: a chip that says who has it should not have to be handed the object to
-#: ask. Set on entry and cleared on exit, so a view outside a run reads
-#: False rather than a stale True.
+#: Whether a `Keys` holds the mouse: module state, as the mouse is one; set
+#: on entry, cleared on exit.
 def holding():
     """Whether a view has the mouse right now, for a key legend."""
     return Keys.holder is not None and Keys.holder.holding()
@@ -80,11 +60,9 @@ def holding():
 #: mistaken for Ctrl+C.
 TO_MENU = 64
 
-#: Windows console input flags. VIRTUAL_TERMINAL_INPUT makes the console
-#: send mouse movement as the SGR sequences an xterm does, so one parser
-#: serves both; QUICK_EDIT keeps the mouse for selecting text and has to go,
-#: and EXTENDED_FLAGS is what makes clearing it stick. Without this the wheel
-#: does nothing on Windows whatever the program prints.
+#: Windows console input flags: VIRTUAL_TERMINAL_INPUT sends the mouse as
+#: xterm's SGR sequences (one parser); QUICK_EDIT keeps the mouse for text and
+#: must go, EXTENDED_FLAGS makes that stick. Without them the wheel is dead.
 VT_INPUT = 0x0200
 MOUSE_INPUT = 0x0010
 EXTENDED_FLAGS = 0x0080
@@ -93,19 +71,13 @@ LINE_INPUT = 0x0002
 ECHO_INPUT = 0x0004
 
 
-#: The two control characters the probes send. BUILT, NOT TYPED: a
-#: backslash escape written into this file through a shell heredoc
-#: arrives as the real control character and breaks the string it
-#: was meant to be inside - a trap this tree has fallen into more
-#: than once, and one `chr()` closes for good.
+#: The probes' control characters, built with chr(): a backslash escape
+#: through a shell heredoc arrives as the real character (CLAUDE.md, Traps).
 ESC = chr(27)
 CR = chr(13)
 
-#: What a terminal is asked for its size in pixels and in cells. XTWINOPS
-#: - `CSI 14 t` answers `CSI 4 ; height ; width t` and `CSI 18 t` answers
-#: `CSI 8 ; rows ; columns t`. Between them they give the CELL, which is
-#: the one number every round drawing in this tree depends on and the one
-#: nobody can look up.
+#: XTWINOPS: `CSI 14 t` answers the size in pixels, `CSI 18 t` in cells -
+#: between them the cell's aspect, which every round drawing depends on.
 ASPECT_QUERY = '\033[14t\033[18t'
 
 #: How long to wait for the answer. A terminal that supports it replies
@@ -481,10 +453,7 @@ def say(state, text, detail=''):
     sys.stdout.flush()
 
 
-#: What a board hiccup looks like from a view: a refusal, a lost frame, a
-#: state the board will not answer for. Named here because every view and
-#: every bench tool holds the same list, and a copy of it in two files is
-#: what the structure suite refuses.
+#: A board hiccup as a view sees it: one list, for every view and bench tool.
 QUIET = (NoReplyError, RigError, DeviceStateError)
 
 
@@ -593,10 +562,8 @@ class Keys:
     #: What a view binds against, so no view has to know the escape codes.
     ARROWS = {'A': 'up', 'B': 'down', 'C': 'right', 'D': 'left'}
 
-    #: The prefix of a mouse or arrow sequence still in flight. A report
-    #: SPLIT across two drains matched nothing, fell through to the key
-    #: loop and was eaten as typed characters - drags turned sporadic,
-    #: and the halves' letters hit view bindings.
+    #: A mouse or arrow sequence's prefix still in flight: split across two
+    #: drains, a report was eaten as typed keys.
     PARTIAL_RE = re.compile(r'\033(\[(<[\d;]*)?)?$')
 
     def __init__(self, console, mouse=False, quits=QUIT_KEYS):

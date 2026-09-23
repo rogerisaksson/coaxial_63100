@@ -71,10 +71,7 @@ class SimulatedCapture:
         return {'sources': [names[i] for i in range(3) if self._mask >> i & 1],
                 'mask': self._mask, 'count': len(self._pending),
                 'depth': self.DEPTH, 'dropped': self._dropped,
-                # Nothing here is throttled - there is no link to be short of -
-                # but the field has to exist or a view written against the
-                # board would fail on the stand-in, which is the one thing
-                # test_parity is for.
+                # Never thinned here; the field is the board's (test_parity).
                 'thinned': 0}
 
     def arm(self, sources):
@@ -114,42 +111,26 @@ class SimulatedDaq(Acquisition):
     #: nothing, because it invents each record as it is asked for.
     backlog = None
 
-    #: The line this stand-in pretends to be on. Set from the session's
-    #: baud, and it is what makes a simulated run mean anything about
-    #: throughput: without it every reply is instant and the host looks
-    #: infinitely fast. 10 Mbit/s is an RS485 segment; 115200 is the
-    #: debug probe's VCP.
+    #: The line emulated, from the session's baud (10 Mbit/s an RS485 segment,
+    #: 115200 the probe's VCP); without it every reply is instant.
     baud = 115200
 
-    #: Bytes a reply carries beyond its records - unit, function code,
-    #: the count byte, the backlog and the CRC - plus the request. The
-    #: board's own arithmetic, so the emulated line charges for the same
-    #: frame the real one sends.
+    #: Bytes a reply carries beyond its records, plus the request: the board's
+    #: own frame arithmetic.
     FRAME_BYTES = 2 + 1 + 4 + 2 + 8
 
-    #: Fixed cost of a transaction, whatever it carries. On the real link
-    #: this is t3.5 and the board's turnaround: measured 1.75 ms and
-    #: 2.70 ms on the port itself. It does not shrink with the bitrate,
-    #: which is the whole point of emulating it - at 10 Mbit/s it is what
-    #: is left.
+    #: A transaction's fixed cost: t3.5 and the board's turnaround, measured
+    #: 1.75 and 2.70 ms on the port - what is left at 10 Mbit/s.
     TURNAROUND = 0.0
 
-    #: Channel index -> (signal, unit, differential), the stand-in's table.
-    #: Built from CHANNELS rather than written out. It was written out, and
-    #: two supply senses added to the board's table left the stand-in's DAQ
-    #: refusing a channel its own analog side reported - the second answer
-    #: this module exists to not be.
+    #: Channel index -> (signal, unit, differential), built from CHANNELS: a
+    #: written-out copy refused two supply senses the analog side reported.
     TABLE = {c['index']: (c['signal'], UNITS.get(c['signal']),
                           c['differential'])
              for c in CHANNELS}
     PHASES = tuple(c['index'] for c in CHANNELS if c['differential'])
-    # One per channel the board reports.
-    #: ONE TABLE FOR ONE BOARD. This was a second set of quiet points,
-    #: different from the one `SimulatedAnalog` reads through - Phase U
-    #: sat at 1400 in a record and 900 in a read of the same channel.
-    #: A tare could then never zero a record: `cal.zero()` measures
-    #: through the analog path and the records came from somewhere
-    #: else, so the offset was stored, applied, and wrong.
+    #: The quiet points, one per channel: the analog path's own, or a tare
+    #: never zeroes a record (Phase U sat at 1400 here and 900 there).
     CENTRE = NOMINAL
 
     def __init__(self):
@@ -174,25 +155,16 @@ class SimulatedDaq(Acquisition):
         self._produced = 0
         self._at = 0
 
-    #: Emulated line time owed but not yet slept. `time.sleep` cannot
-    #: honour a sub-millisecond wait on Windows - profiled at an
-    #: emulated 10 Mbit/s, where a reply is 292 us, it slept 2.878 s
-    #: of a 4 s run and the emulator became the bottleneck it was
-    #: written to measure. Owed time is banked and paid in one sleep
-    #: when it is worth sleeping, so the AVERAGE rate is right at any
-    #: bitrate and no single wait is below the clock's resolution.
+    #: Line time owed, not yet slept: Windows cannot sleep under a millisecond
+    #: (at 10 Mbit/s, 292 us replies slept 2.878 s of a 4 s run), so it is banked
+    #: and paid when worth a sleep - the average rate is right.
     _owed = 0.0
 
     #: Bank this much before sleeping it off.
     SLEEP_FLOOR = 0.002
 
-    #: Noise drawn once and cycled, rather than drawn per field per
-    #: record. PROFILED at an emulated 10 Mbit/s: 401 200 gauss calls
-    #: and 361 080 randint calls in four seconds, which was the top
-    #: of the profile - the library's own decode did not appear in
-    #: it at all. A stand-in that costs more than the code it stands
-    #: in for cannot benchmark it. Same distribution to a reader,
-    #: and a pool this size does not repeat visibly.
+    #: Noise drawn once and cycled: per-record draws (401 200 gauss, 361 080
+    #: randint in 4 s at 10 Mbit/s) topped the profile.
     _POOL = 1021
 
     def _noise(self):
@@ -203,13 +175,9 @@ class SimulatedDaq(Acquisition):
         self._noise_at = (self._noise_at + 1) % self._POOL
         return self._noise_pool[self._noise_at]
 
-    #: What each pin is doing, as a duty over the record's window.
-    #: A STEADY OUTPUT IS STEADY: AFE_ON reads 1.0 when the rail is
-    #: up, not a fresh random number every record - noise there made
-    #: the stand-in's own example print `AFE 0.43` for a pin that is
-    #: simply on. KEEPALIVE is the one that genuinely toggles, at
-    #: ~100 kHz, so it lands near half; the gates are down until
-    #: something arms them.
+    #: Each pin's duty over the window: a steady output reads steady (noise
+    #: printed `AFE 0.43` for a pin that is on); KEEPALIVE toggles at ~100 kHz,
+    #: near half; the gates stay down until armed.
     STEADY = {'AFE_ON': 1.0, 'nFAULT/TIM1_BKIN': 1.0,
               'KEEPALIVE': 0.5}
 
@@ -333,10 +301,8 @@ class SimulatedDaq(Acquisition):
             return
         began = time.time()
         time.sleep(self._owed)
-        # Whatever the sleep overshot comes off the next bill, so a coarse
-        # clock does not compound into a slow line - and no more than one
-        # floor's worth is carried, or a long stall would be paid back with a
-        # burst.
+        # The sleep's overshoot comes off the next bill, capped at one floor
+        # so a stall is not repaid as a burst.
         self._owed = max(self._owed - (time.time() - began), -self.SLEEP_FLOOR)
 
     def _period_us(self):
@@ -373,10 +339,8 @@ class SimulatedDaq(Acquisition):
                 'sensors_supported': True,
                 **cfg}
 
-    #: What a record carries, in the board's order - the sampled set, not
-    #: the writable one. The six gates are read and never driven, and the
-    #: buses and the debug port stay out; `s_digital`'s `sampled` column is
-    #: the original and this follows it or the parity suite says so.
+    #: A record's pins in the board's order: the sampled set (`s_digital`'s
+    #: `sampled` column), held by the parity suite.
     PINS = ({'signal': 'AFE_ON', 'direction': 'out'},
             {'signal': 'nFAULT/TIM1_BKIN', 'direction': 'in'},
             {'signal': 'KEEPALIVE', 'direction': 'out'},

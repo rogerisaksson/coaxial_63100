@@ -61,11 +61,9 @@ class Later:
         return repr(self._live())
 
 
-#: Everything the board can measure that is not an ADC channel or a pin.
-#: The ORDER IS THE WIRE'S: a row's index is its bit in daq op 1's
-#: appended sensor mask (MINOR 7). `catalogue()` marks them unselectable
-#: on a board whose firmware predates that, so a caller sees the name and
-#: the reason rather than a silent nothing.
+#: What the board measures besides ADC channels and pins, in wire order: a
+#: row's index is its bit in daq op 1's sensor mask (MINOR 7); older firmware
+#: lists them as unselectable, with the reason.
 SENSOR_FIELDS = (
     {'name': 'orientation', 'kind': 'sensor', 'direction': 'in',
      'unit': 'quaternion'},
@@ -635,10 +633,8 @@ class Coaxial63100(Acquisition):
             channels, pinned, sensors = self._split(channels)
             digital = digital or pinned
 
-        # Stopped first, because the board refuses to reconfigure under a
-        # running task - a stride changing beneath a half-drained buffer hands
-        # out records of two shapes - and a caller reaching for configure wants
-        # the new shape either way.
+        # Stopped first: the board refuses to reconfigure a running task (a
+        # stride changing under a half-drained buffer mixes record shapes).
         self.board.daq.stop()
 
         # AND THE CHAIN CLEARED, for the same reason and the same failure.
@@ -819,10 +815,7 @@ class Coaxial63100(Acquisition):
         if self._reader is not None:
             return self._reader.take() or []
 
-        # `samples` rides in the record now, so this no longer spends a round
-        # trip on state() per block to ask what it was configured with - which
-        # was the wrong number the moment the clock, rather than a count,
-        # closed the record.
+        # `samples` rides in the record: no state() round trip per block.
         return self._timed(self.board.daq.acquire(layout=self.layout))
 
     #: Consecutive unanswered reads that still count as a busy link.
