@@ -38,7 +38,7 @@ from rich.console import Console
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coaxial import engine, wireframe                      # noqa: E402
+from coaxial import engine, shading, wireframe             # noqa: E402
 import facecheck                                           # noqa: E402
 
 PHOTOS = ('x0y45z0', 'x45y45z45')
@@ -194,7 +194,7 @@ def exporter_cells(pose):
 
 def our_cells(pose, width=52, height=34):
     """The same tuple off our colour render."""
-    wireframe._SHADOWS.clear()
+    shading._SHADOWS.clear()
     art = wireframe.render(facecheck.euler(*rotation(pose), order='xyz'),
                            width, height, colour=True, 
                            horizon=False, tip=0.0)
@@ -357,7 +357,7 @@ def staged_cells(pose, color_system, width=94, height=36):
     """Our render as the TERMINAL receives it: through a rich Console
     of the given colour depth into a buffer, then parsed back. What
     show() measures is what we send; this is what arrives."""
-    wireframe._SHADOWS.clear()
+    shading._SHADOWS.clear()
     art = wireframe.render(facecheck.euler(*rotation(pose), order='xyz'),
                            width, height, colour=True, 
                            horizon=False, tip=0.0)
@@ -412,15 +412,15 @@ def stage_report():
     so what remains is structure: a rim, a terminator, a band."""
     print('%-10s %-11s %-12s %s' % ('pose', 'colour depth', 'hard steps',
                                    'longest line'))
-    grain = wireframe.GRAIN_DOT, wireframe.GRAIN_COLON
-    wireframe.GRAIN_DOT = wireframe.GRAIN_COLON = 0.0
+    grain = shading.GRAIN_DOT, shading.GRAIN_COLON
+    shading.GRAIN_DOT = shading.GRAIN_COLON = 0.0
     try:
         for pose in PHOTOS + TURNS[1:]:
             for depth in ('256', 'truecolor'):
                 hard, longest = lines(staged_cells(pose, depth))
                 print('%-10s %-11s %-12d %d' % (pose, depth, hard, longest))
     finally:
-        wireframe.GRAIN_DOT, wireframe.GRAIN_COLON = grain
+        shading.GRAIN_DOT, shading.GRAIN_COLON = grain
 
 
 def main(argv=None):

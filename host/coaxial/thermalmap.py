@@ -302,7 +302,7 @@ SCALE_LINES = 0
 #: was tried when the scale's cold end read black on the bench, and it
 #: put an idle board at seven dots in ten - inside the range the
 #: attitude page measured as a brick wall, every cell a block with dark
-#: mortar round it (`wireframe.DENSITY_FLOOR`). The cold end's fix was
+#: mortar round it (`shading.DENSITY_FLOOR`). The cold end's fix was
 #: its colour, in `ansi.THERMAL_STOPS`.
 DENSITY_COLD, DENSITY_HOT = 0.40, 1.0
 

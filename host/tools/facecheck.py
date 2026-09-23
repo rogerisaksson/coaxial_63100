@@ -20,7 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import wireframe                              # noqa: E402
+from coaxial import solids, wireframe                      # noqa: E402
 from coaxial.orientation import _qmul                      # noqa: E402
 
 HOST = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -31,7 +31,7 @@ RENDERS = os.path.join(HOST, 'tests', 'renders')
 def _cube():
     """The exporter's cube, decimated in memory once - nothing written
     beside the STL."""
-    return wireframe._decimated(
+    return solids._decimated(
         os.path.join(HOST, '..', 'render', 'models', 'cube.stl'), 400)
 
 

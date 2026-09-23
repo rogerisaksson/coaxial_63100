@@ -5127,6 +5127,41 @@ looking at the estimate alone.
   still one block over the base with straight legs; one edge is a
   stroke; a 0.4 box inside a pair of 0.5 profiles is one block of
   extent 0.5 to the profiles' height. test_render 120, 3209 in all.
+* **wireframe.py split into nine modules, one concern each** (2026-
+  09-23, the bench: "split out wireframe and all the other filters so
+  it is not a mess of if-statements - hard to overview for humans and
+  LLMs without the history, and it burns tokens compared with a slick
+  solution"). 3 098 lines cut by line range - every line moved once,
+  none copied (the structure suite's duplicate-definition check), none
+  lost (the script asserted it) - into: `solids` (159 lines: the STL
+  as solids, decimates, the bore kept, the slab's faces, casters),
+  `creases` (302: the crease loops off the exact mesh), `stereotype`
+  (492: the pre-scan), `shading` (884: the depth ramp, the lamp, the
+  key light, the halftone, the rim glyph, the face art, the shadow
+  map), `ground` (335), `lines` (356: `_trace`, `_outline`, `_edge`),
+  `triad` (138), `steady` (57), and `wireframe` (581: the pipeline -
+  `render`, the face held and painted one pose ahead, `_lods` and the
+  preload's adoption - with THE MAP in its docstring). The import
+  graph is a DAG: `orientation` imported `wireframe` at the top and
+  `wireframe` imports `orientation`, harmless in one file, but any
+  new module importing `orientation` first would have met a partial
+  `wireframe`; the import is now inside the one function that renders.
+  The preload's stamp hashes the modules that build the bundle - mesh,
+  solids, creases, stereotype - so the pickle rebuilt once. What the
+  move caught: three moved functions reached their caches by bare
+  name (`_MESHES`, `_OUTLINES`, `_STEREO`) and the structure suite's
+  "uses only names it has" said so before any test ran; two locals
+  named `solids` shadowed the module in the attitude view's boot and
+  in the adopt test; and three monkeypatches had to move to the
+  module that LOOKS UP the name - `_paint` reads `wireframe._outline`,
+  `_stereotypes` reads `stereotype._outline_source` - not the one
+  that defines it. Every external reference was repointed by script
+  (longest names first, so `_outline` never ate `_outline_source`).
+  Measured after: the view's loop at 108x40 42.5 ms median (42.6
+  before), the attitude smoke and the front page's smoke exit 0, the
+  render suite 120, the views 222; the structure suite grew to 715 -
+  one import, one docstring and one names check per new module.
+  3241 in all.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

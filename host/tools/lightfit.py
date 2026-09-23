@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coaxial import wireframe                              # noqa: E402
+from coaxial import shading, wireframe                     # noqa: E402
 import facecheck                                           # noqa: E402
 
 
@@ -44,7 +44,7 @@ def objective(refs):
     cube fixture's light drops under 0.85. The cube is the response
     curve's ground truth: outvoted by the board's seven fixtures, every
     earlier fit saturated the ramp and painted the cube one flat ':'."""
-    wireframe._SHADOWS.clear()
+    shading._SHADOWS.clear()
     sil = lgt = 0.0
     worst_cube = 1.0
     for q, ref_sil, ref_shade, solid in refs:

@@ -114,7 +114,10 @@ commits the compares at underflow.
 ## Host layout
 
 ```text
-host/coaxial/           the library
+host/coaxial/           the library; the board renderer is wireframe
+                        (the pipeline and the map) over solids, creases,
+                        stereotype, shading, ground, lines, triad,
+                        steady, engine and preload - one concern each
 host/coaxial/simulated/ the stand-in: board, drive, daq, system, values,
                         sensors, power (the thermal stand-in: a
                         hypothetical board with a ground truth in a
@@ -201,9 +204,12 @@ are the design arithmetic. `calibration.py` talks to device 3. `clock.py` is
 `Sync` and `set_time_from_pc`. `capture.py` is the log ring.
 `bench.py` is `link_bench`. `broker.py` serves one port to many
 sessions on loopback port 8763 and answers the board's deadman for an
-attached client every 3 s. The renderers - `engine`, `wireframe`,
-`mesh`, `raster`, `ascii3d`, `orientation`, `dial`, `desk`, `farm`,
-`crew`, `ansi` - take a reading in and give text out. `ansi.image`
+attached client every 3 s. The renderers - `engine`, `wireframe` and
+the modules under it (`solids`, `creases`, `stereotype`, `shading`,
+`ground`, `lines`, `triad`, `steady`, `preload`; the map is
+wireframe's docstring), `mesh`, `raster`, `ascii3d`, `orientation`,
+`dial`, `desk`, `farm`, `crew`, `ansi` - take a reading in and give
+text out. `ansi.image`
 draws that text back the way the terminal shows it, colour braille
 included, as a Pillow image a notebook displays inline; `ansi.png`
 writes one, and `tools/ansi2png.py` is the command line over them.
@@ -367,12 +373,12 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-eight suites, 3210 checks, counted in `host/tests/.counts.json`
+Twenty-eight suites, 3242 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 | --- | --- | --- |
-| test_structure.py | 683 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module and every notebook a paper in the builder's shape, executed; the wire's three answers held to each other - the enums, every fixed reply and request, PROTOCOL.md's op tables |
+| test_structure.py | 715 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module and every notebook a paper in the builder's shape, executed; the wire's three answers held to each other - the enums, every fixed reply and request, PROTOCOL.md's op tables |
 | test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 254 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |

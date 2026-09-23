@@ -27,7 +27,7 @@ from rich.table import Table                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
 
-from coaxial import wireframe                              # noqa: E402
+from coaxial import shading, wireframe                     # noqa: E402
 from coaxial.orientation import _qmul, matrix, normalise   # noqa: E402
 import facecheck                                           # noqa: E402
 from screen import (Keys, WHEEL_STEP, curtain, footer,  # noqa: E402
@@ -85,8 +85,8 @@ def hud(view, tris, cost_ms):
                         ('ZOOM', '%.2f' % view['zoom']),
                         ('TRIS', '%d' % tris),
                         ('FRAME', '%.1f ms' % cost_ms),
-                        ('LIGHT', '%.2f' % -wireframe.DUSK),
-                        ('SPOT', '%.2f' % wireframe.SPOT)):
+                        ('LIGHT', '%.2f' % -shading.DUSK),
+                        ('SPOT', '%.2f' % shading.SPOT)):
         grid.add_row(name, value)
     return Panel(grid, title=' ENGINE ', title_align='left',
                  box=box.ROUNDED, border_style='frame.hud')
@@ -147,11 +147,11 @@ def act_on(typed, view):
             continue
         if key in ('up', 'down'):
             step = -0.03 if key == 'up' else 0.03
-            wireframe.DUSK = min(0.60, max(-0.30, wireframe.DUSK + step))
+            shading.DUSK = min(0.60, max(-0.30, shading.DUSK + step))
             continue
         if key in ('left', 'right'):
             step = 0.03 if key == 'right' else -0.03
-            wireframe.SPOT = min(0.80, max(0.0, wireframe.SPOT + step))
+            shading.SPOT = min(0.80, max(0.0, shading.SPOT + step))
             continue
         if key in 'xyz':
             turn(view, AXES3['xyz'.index(key)], STEP)
@@ -189,7 +189,7 @@ def main(argv=None):
             'spin': False, 'zoom': 1.0,
             'carry': (0.0, 0.0)}
     if args.workers > 0:
-        view['crew'] = Crew(wireframe._lods(), art=wireframe._face(),
+        view['crew'] = Crew(wireframe._lods(), art=shading._face(),
                             workers=args.workers)
     frame, last = 0, time.monotonic()
 

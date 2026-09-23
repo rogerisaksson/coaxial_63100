@@ -156,25 +156,25 @@ def bands(args, step):
     shadow casters' decimation (0.86 s, which used to land on the
     FIRST FRAME after the strip) and the spawn, all reported to the
     boot strip's `step`."""
-    from coaxial import crew, wireframe
-    levels = len(wireframe.LODS)
+    from coaxial import creases, crew, shading, solids, stereotype, wireframe
+    levels = len(solids.LODS)
 
     def landed(done, _total, divisions):
         step(0.15 + 0.45 * done / levels, 'DECIMATING GRID %d' % divisions)
 
-    solids = wireframe._lods(landed)
+    lods = wireframe._lods(landed)
     step(0.62, 'SHADOW CASTERS')
-    wireframe._shadowmap((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
+    shading._shadowmap((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
     # The outline's exact index and its loops: 0.6 s once, here behind
     # the strip rather than as a hitch on the first frame.
     step(0.66, 'OUTLINE EDGES')
-    wireframe._outline_source()
-    wireframe._stereotypes()
+    creases._outline_source()
+    stereotype._stereotypes()
     if args.photo or (args.frames and args.frames <= 4):
         return None
     step(0.70, 'SPAWNING %d PROCESSES' % crew.MAX_WORKERS)
     try:
-        return _announced(crew.Crew(solids, art=wireframe._face()))
+        return _announced(crew.Crew(lods, art=shading._face()))
     except (OSError, ValueError) as exc:
         say('warn', 'drawing', 'one process only: %s' % exc)
         return None
@@ -522,9 +522,9 @@ def main(argv=None):
     view = {'zoom': 1.44,                # 77% of the 1.875 it rested at
             'quaternion': (0.0, 0.0, 0.0, 1.0), 'frame': 0}
     # `persist` holds the two frames before this one, so three can vote
-    # per cell - wireframe._steady, one frame of latency for no blinks.
+    # per cell - steady._steady, one frame of latency for no blinks.
     # `t0` is when the ground started moving under the camera
-    # (wireframe.GROUND_SPEED): the view's clock, not the board's.
+    # (ground.GROUND_SPEED): the view's clock, not the board's.
     state = {'tare': None, 'flip': [False, False, False],
              'frame_on': True, 'persist': {}, 't0': time.monotonic()}
     tally = Freshness()

@@ -24,7 +24,7 @@ from rich.panel import Panel                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
 
-from coaxial import engine, wireframe                      # noqa: E402
+from coaxial import engine, shading, wireframe             # noqa: E402
 import facecheck                                           # noqa: E402
 from screen import stage                                   # noqa: E402
 import test_render                                         # noqa: E402
@@ -78,8 +78,8 @@ def main(argv=None):
         cam = engine.camera(WIDTH, HEIGHT, reach,
                             distance=test_render.DISTANCE)
         rows = test_render.oracle(engine.pose(*rot), cam, half,
-                                  wireframe.PIVOT, wireframe.SLOPE,
-                                  wireframe.FLOOR)
+                                  shading.PIVOT, shading.SLOPE,
+                                  shading.FLOOR)
         want = '\n'.join(''.join(' .:'[c] for c in line).rstrip()
                          for line in rows)
     else:

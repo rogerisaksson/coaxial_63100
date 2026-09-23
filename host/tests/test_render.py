@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 from coaxial import engine, mesh, orientation, raster        # noqa: E402
 from coaxial.orientation import _qmul                        # noqa: E402
 from coaxial import wireframe                                # noqa: E402
+from coaxial import creases, ground, lines, shading, solids, stereotype   # noqa: E402
 
 CUBE_STL = os.path.join(os.path.dirname(os.path.dirname(HERE)),
                         'render', 'models', 'cube.stl')
@@ -157,7 +158,7 @@ def interior(rows, x, y):
 
 
 def cube():
-    got = wireframe._decimated(CUBE_STL, 400)
+    got = solids._decimated(CUBE_STL, 400)
     pos = got[0]
     half = tuple(max(abs(pos[3 * i + k]) for i in range(len(pos) // 3))
                  for k in range(3))
@@ -227,8 +228,8 @@ def test_shade_units(report):
 def test_chain(report):
     solid, half = cube()
     reach = math.sqrt(sum(h * h for h in half))
-    pivot, slope, floor = (wireframe.PIVOT, wireframe.SLOPE,
-                           wireframe.FLOOR)
+    pivot, slope, floor = (shading.PIVOT, shading.SLOPE,
+                           shading.FLOOR)
     for rot in ((0, 0, 0), (45, 45, 45), (30, 0, 0), (0, 60, 25),
                 (75, 20, 130), (10, 80, 200)):
         cam = engine.camera(WIDTH, HEIGHT, reach, distance=DISTANCE)
@@ -288,23 +289,23 @@ def test_outline(report):
     solid = (pos, idx, nrm)
 
     report.check('outline: the slab top is measured, not assumed',
-                 abs(wireframe._slab_top(pos)) < 1e-9,
-                 '%.4f' % wireframe._slab_top(pos))
+                 abs(solids._slab_top(pos)) < 1e-9,
+                 '%.4f' % solids._slab_top(pos))
     edges = {tuple(sorted(e))
-             for e in wireframe._features(solid, min_rise=0.02)}
+             for e in creases._features(solid, min_rise=0.02)}
     want = {tuple(sorted((hi[i], hi[(i + 1) % 4]))) for i in range(4)}
     want |= {tuple(sorted((lo[i], hi[i]))) for i in range(4)}
     report.check('outline: a box on a slab is its lid and its corners',
                  edges == want,
                  'extra %s, missing %s' % (sorted(edges - want),
                                            sorted(want - edges)))
-    loops = wireframe._outline_loops(solid)
+    loops = creases._outline_loops(solid)
     shape = sorted((round(e, 3), len(m)) for e, m in loops)
     report.check("outline: the box's lid and corners alone - its footprint "
                  "and the slab's rim are the raster's silhouette, not loops",
                  shape == [(0.4, 8)], str(shape))
     report.check('outline: a slab with one face has no bottom',
-                 wireframe._slab_bottom(pos, wireframe._slab_top(pos)) is None)
+                 solids._slab_bottom(pos, solids._slab_top(pos)) is None)
     # The same slab given its bottom face, a millimetre and a half down,
     # and a box hanging under it: the bottom is found and the hanging
     # box drawn, its lid and corners like the one on top.
@@ -323,17 +324,17 @@ def test_outline(report):
         j = (i + 1) % 4
         quad(lo2[i], hi2[i], hi2[j], lo2[j])
     two = (pos, idx, nrm)
-    shape = sorted((round(e, 3), len(m)) for e, m in wireframe._outline_loops(two))
+    shape = sorted((round(e, 3), len(m)) for e, m in creases._outline_loops(two))
     report.check('outline: with a bottom face the top is still the top, the '
                  'bottom is found, and a box under the slab is a loop too',
                  shape == [(0.2, 8), (0.4, 8)]
-                 and abs(wireframe._slab_top(pos)) < 1e-9
-                 and abs(wireframe._slab_bottom(pos, 0.0) + 0.05) < 1e-9,
+                 and abs(solids._slab_top(pos)) < 1e-9
+                 and abs(solids._slab_bottom(pos, 0.0) + 0.05) < 1e-9,
                  str(shape))
     del pos[len(both):]
     del idx[len(both_idx):]
     del nrm[len(both_nrm):]
-    loops = wireframe._outline_loops(solid)
+    loops = creases._outline_loops(solid)
     loops = [l for l in loops if len(l[1]) == 8]         # the box alone below
     # The size filter: at a camera where 0.4 units is under OUTLINE_CELLS
     # the loop is skipped; where it spans the frame it draws. Same box,
@@ -345,12 +346,12 @@ def test_outline(report):
         tone = [[None] * 40 for _ in range(12)]
         # A depth buffer the lines always pass: nothing in front.
         buf = [0.0] * (40 * 12)
-        real = wireframe._outline_source
-        wireframe._outline_source = lambda: (solid, loops)
+        real = stereotype._outline_source
+        stereotype._outline_source = lambda: (solid, loops)
         try:
-            n = wireframe._outline(grid, tone, buf, cam, m, False)
+            n = lines._outline(grid, tone, buf, cam, m, False)
         finally:
-            wireframe._outline_source = real
+            stereotype._outline_source = real
         return n, grid
 
     # At zoom 0.6 this camera puts 3.9 cells on a unit, so the 0.4 box is
@@ -386,7 +387,7 @@ def test_the_edge_is_the_rasters_silhouette(report):
     def drawn():
         grid = [[' '] * width for _ in range(height)]
         tone = [[None] * width for _ in range(height)]
-        n = wireframe._edge(grid, tone, (None, None, reached), cam, False)
+        n = lines._edge(grid, tone, (None, None, reached), cam, False)
         return n, {(r, c) for r in range(height) for c in range(width)
                    if grid[r][c] != ' '}
     n, cells = drawn()
@@ -433,7 +434,7 @@ def test_the_edge_is_the_rasters_silhouette(report):
     heat[5 * width + 6] = 0.0
     grid = [[' '] * width for _ in range(height)]
     tone = [[None] * width for _ in range(height)]
-    wireframe._edge(grid, tone, (None, None, reached), cam, False, heat=heat)
+    lines._edge(grid, tone, (None, None, reached), cam, False, heat=heat)
     cells = {(r, c) for r in range(height) for c in range(width)
              if grid[r][c] != ' '}
     lit = {(r, c) for r in range(2, 8) for c in range(3, 14)
@@ -520,7 +521,7 @@ def test_the_outline_holds_together(report):
     import re
     q = _diagonal_pose(65.0)
     keep = {}
-    real = wireframe._outline
+    real = lines._outline
 
     def hook(grid, tone, buf, cam, m, colour, heat=None):
         keep['args'] = (buf, cam, m, heat)
@@ -535,7 +536,7 @@ def test_the_outline_holds_together(report):
     buf, cam, m, heat = keep['args']
     grid = [[' '] * 108 for _ in range(44)]
     tone = [[None] * 108 for _ in range(44)]
-    wireframe._outline(grid, tone, buf, cam, m, True, heat=heat)
+    lines._outline(grid, tone, buf, cam, m, True, heat=heat)
     cells = {(r, c) for r in range(44) for c in range(108)
              if grid[r][c] != ' '}
     seen, largest = set(), 0
@@ -607,13 +608,13 @@ def test_stereotypes(report):
     lo = [vertex((x, y, 0.0)) for x, y in square]
     hi = [vertex((x, y, 0.1)) for x, y in square]
     box = [(hi[i], hi[(i + 1) % 4]) for i in range(4)] + [(lo[i], hi[i]) for i in range(4)]
-    prims = wireframe._stereotype_loops(pos, [loop_of(box)], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [loop_of(box)], top, bottom)
     report.check("stereotype: a box's lid and corners are one block of "
                  "twelve segments", [(k, len(d)) for k, _e, d in prims] == [('block', 12)]
                  and abs(prims[0][1] - 0.4) < 1e-6, str([(k, round(e, 3)) for k, e, d in prims]))
     circle = [(0.2 * math.cos(2 * math.pi * k / 12), 0.2 * math.sin(2 * math.pi * k / 12))
               for k in range(12)]
-    prims = wireframe._stereotype_loops(pos, [loop_of(ring(circle, 0.1))], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [loop_of(ring(circle, 0.1))], top, bottom)
     report.check('stereotype: a lone lid of twelve corners on one radius is '
                  'a drum of that radius',
                  [k for k, _e, _d in prims] == ['drum']
@@ -622,7 +623,7 @@ def test_stereotypes(report):
     c = 0.02
     chamfered = [(-.2 + c, -.2), (.2 - c, -.2), (.2, -.2 + c), (.2, .2 - c),
                  (.2 - c, .2), (-.2 + c, .2), (-.2, .2 - c), (-.2, -.2 + c)]
-    prims = wireframe._stereotype_loops(pos, [loop_of(ring(chamfered, 0.1))], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [loop_of(ring(chamfered, 0.1))], top, bottom)
     report.check('stereotype: a chamfered square is a block, not a drum',
                  [k for k, _e, _d in prims] == ['block'], str(prims))
     # two end profiles of a rounded extrusion: up, across, down, in the
@@ -632,13 +633,13 @@ def test_stereotypes(report):
         ids = [vertex(p) for p in ((-.1, y, 0.0), (-.1, y, .08), (-.05, y, .1),
                                    (.05, y, .1), (.1, y, .08), (.1, y, 0.0))]
         arches.append((0.2, [(ids[i], ids[i + 1]) for i in range(5)]))
-    prims = wireframe._stereotype_loops(pos, arches, top, bottom)
+    prims = stereotype._stereotype_loops(pos, arches, top, bottom)
     report.check('stereotype: two end profiles of one width and height, '
                  'facing across, are one block',
                  [(k, len(d)) for k, _e, d in prims] == [('block', 12)], str(prims))
     base = ring([(-.22, -.22), (.22, -.22), (.22, .22), (-.22, .22)], 0.03)
     lid = ring(square, 0.1)
-    prims = wireframe._stereotype_loops(pos, [loop_of(base), loop_of(lid)], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [loop_of(base), loop_of(lid)], top, bottom)
     report.check('stereotype: a base ring and a lid on one footprint are '
                  'one part, one block',
                  [(k, len(d)) for k, _e, d in prims] == [('block', 12)]
@@ -650,12 +651,12 @@ def test_stereotypes(report):
     # in, so a rounded shoulder stands inside the lid's edge
     screw = ring([(0.05 * math.cos(2 * math.pi * k / 8), 0.05 * math.sin(2 * math.pi * k / 8))
                   for k in range(8)], 0.1)
-    prims = wireframe._stereotype_loops(pos, [loop_of(lid), loop_of(screw)], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [loop_of(lid), loop_of(screw)], top, bottom)
     report.check('stereotype: a lid with a small circle on it is a block '
                  'and a ring', [(k, len(d)) for k, _e, d in prims] == [('block', 12), ('ring', 24)],
                  str([(k, round(e, 3)) for k, e, d in prims]))
     stray = ring([(.12, .12), (.22, .12), (.22, .22), (.12, .22)], 0.05)
-    prims = wireframe._stereotype_loops(pos, [loop_of(lid), loop_of(stray)], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [loop_of(lid), loop_of(stray)], top, bottom)
     edge = prims[0][2][0]
     report.check("stereotype: the block takes its widest loop's "
                  "orientation - a nested loop poking out a corner does "
@@ -665,7 +666,7 @@ def test_stereotypes(report):
     lo3 = [vertex((x, y, 0.0)) for x, y in square]
     hi3 = [vertex((x * 0.5, y * 0.5, 0.1)) for x, y in square]
     tapered = [(hi3[i], hi3[(i + 1) % 4]) for i in range(4)] + [(lo3[i], hi3[i]) for i in range(4)]
-    prims = wireframe._stereotype_loops(pos, [loop_of(tapered)], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [loop_of(tapered)], top, bottom)
     legs = [s for s in prims[0][2] if abs(s[2] - s[5]) > 1e-9]
     report.check('stereotype: a crest narrower than the base is still one '
                  'block over the base - lid 0.4 over a base 0.4, legs '
@@ -674,7 +675,7 @@ def test_stereotypes(report):
                  and all(abs(abs(s[0]) - 0.2) < 1e-6 and abs(abs(s[3]) - 0.2) < 1e-6 for s in legs),
                  str(legs))
     lone = [vertex((.5, .5, 0.0)), vertex((.56, .54, .05))]
-    prims = wireframe._stereotype_loops(pos, [(0.07, [(lone[0], lone[1])])], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [(0.07, [(lone[0], lone[1])])], top, bottom)
     report.check('stereotype: a loop of one edge is its own stroke, not a '
                  'box round a diagonal',
                  [(k, len(d)) for k, _e, d in prims] == [('stroke', 1)], str(prims))
@@ -685,7 +686,7 @@ def test_stereotypes(report):
     for y in (-0.2, 0.2):
         ids = [vertex(p) for p in ((-.25, y, 0.0), (-.25, y, .15), (.25, y, .15), (.25, y, 0.0))]
         outer.append((0.5, [(ids[i], ids[i + 1]) for i in range(3)]))
-    prims = wireframe._stereotype_loops(pos, [loop_of(box)] + outer, top, bottom)
+    prims = stereotype._stereotype_loops(pos, [loop_of(box)] + outer, top, bottom)
     tops = sorted(set(round(s[2], 3) for k, e, d in prims for s in d) | set(round(s[5], 3) for k, e, d in prims for s in d))
     report.check('stereotype: a block inside another block is one block, '
                  'the box round both to the taller height',
@@ -694,7 +695,7 @@ def test_stereotypes(report):
                  str([(k, round(e, 3)) for k, e, d in prims]) + str(tops))
     # neighbours whose footprints overlap by a tenth stay two parts
     other = ring([(.15, -.2), (.55, -.2), (.55, .2), (.15, .2)], 0.1)
-    prims = wireframe._stereotype_loops(pos, [loop_of(lid), loop_of(other)], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [loop_of(lid), loop_of(other)], top, bottom)
     report.check('stereotype: two lids overlapping by a tenth are two blocks',
                  [k for k, _e, _d in prims] == ['block', 'block'], str([(k, round(e, 3)) for k, e, d in prims]))
     # a hole in a wall: a closed loop in the plane y = -0.2 floating
@@ -702,7 +703,7 @@ def test_stereotypes(report):
     ids = [vertex((x, -0.2, z)) for x, z in ((-.03, .045), (0.0, .03), (.03, .045),
                                              (.03, .06), (0.0, .06), (-.03, .06))]
     hole = (0.06, [(ids[i], ids[(i + 1) % 6]) for i in range(6)])
-    prims = wireframe._stereotype_loops(pos, [hole], top, bottom)
+    prims = stereotype._stereotype_loops(pos, [hole], top, bottom)
     report.check('stereotype: a closed loop floating in a wall is a hole, '
                  'an oval of twelve segments in its plane',
                  [(k, len(d[0])) for k, _e, d in prims] == [('hole', 12)]
@@ -711,9 +712,9 @@ def test_stereotypes(report):
     # ...and drawn only where its wall faces the camera: face-on the
     # wall is edge-on and the oval a dash, so nothing; tilted 60
     # degrees about x the wall faces the camera and the oval draws.
-    real = wireframe._outline_source
-    wireframe._outline_source = lambda: ((pos, [], []), [hole])
-    wireframe._STEREO.clear()
+    real = stereotype._outline_source
+    stereotype._outline_source = lambda: ((pos, [], []), [hole])
+    stereotype._STEREO.clear()
     try:
         cam = engine.camera(40, 12, 1.5, distance=3.2, zoom=6.0)
         buf = [0.0] * (40 * 12)
@@ -721,13 +722,13 @@ def test_stereotypes(report):
         def drawn(m):
             grid = [[' '] * 40 for _ in range(12)]
             tone = [[None] * 40 for _ in range(12)]
-            return wireframe._outline(grid, tone, buf, cam, m, False)
+            return lines._outline(grid, tone, buf, cam, m, False)
         flat = drawn((1, 0, 0, 0, 1, 0, 0, 0, 1))
         c, s = math.cos(math.radians(60)), math.sin(math.radians(60))
         tilted = drawn((1, 0, 0, 0, c, -s, 0, s, c))
     finally:
-        wireframe._outline_source = real
-        wireframe._STEREO.clear()
+        stereotype._outline_source = real
+        stereotype._STEREO.clear()
     report.check('stereotype: a hole in a wall draws nothing edge-on and '
                  'its oval when the wall faces the camera',
                  flat == 0 and tilted > 0, '%d cells flat, %d tilted' % (flat, tilted))
@@ -739,21 +740,21 @@ def test_the_preload_is_adopted(report):
     and loops, the stereotypes its primitives - by identity, nothing
     rebuilt.
     """
-    solids = wireframe._lods()
-    exact, loops = wireframe._outline_source()
-    prims = wireframe._stereotypes()
-    bundle = {'lods': {d: s for (_z, d), s in zip(wireframe.LODS, solids)},
+    lods = wireframe._lods()
+    exact, loops = creases._outline_source()
+    prims = stereotype._stereotypes()
+    bundle = {'lods': {d: s for (_z, d), s in zip(solids.LODS, lods)},
               'exact': (exact, loops), 'prims': prims}
     wireframe._forget()
-    wireframe._OUTLINES.clear()
+    creases._OUTLINES.clear()
     took = wireframe._adopt(orientation.MODEL, bundle)
     again = wireframe._lods()
     report.check('preload: adopted, the LODs, the outline source and the '
                  'stereotypes are the bundle\'s own objects',
-                 took == (len(wireframe.LODS), len(loops), len(prims))
-                 and all(a is b for a, b in zip(again, solids))
-                 and wireframe._outline_source()[1] is loops
-                 and wireframe._stereotypes() is prims, str(took))
+                 took == (len(solids.LODS), len(loops), len(prims))
+                 and all(a is b for a, b in zip(again, lods))
+                 and creases._outline_source()[1] is loops
+                 and stereotype._stereotypes() is prims, str(took))
 
 
 def test_the_decimate_keeps_the_bore(report):
@@ -766,8 +767,8 @@ def test_the_decimate_keeps_the_bore(report):
     """
     _edges, solid = wireframe._model(1.2672, wireframe.CREW_LEAST)
     pts = solid[0]
-    top = wireframe._slab_top(pts)
-    bottom = wireframe._slab_bottom(pts, top)
+    top = solids._slab_top(pts)
+    bottom = solids._slab_bottom(pts, top)
     ring = inside = 0
     for i in range(len(pts) // 3):
         z = pts[3 * i + 2]
@@ -805,7 +806,7 @@ def test_key_light(report):
         bare = [2.0 + slope * (c - 1) for _r in range(h) for c in range(w)]
         grid = [[' '] * w for _ in range(h)]
         tone: list = [[None] * w for _ in range(h)]
-        wireframe._glow(grid, tone, classes, levels, bare, seed, coverage,
+        shading._glow(grid, tone, classes, levels, bare, seed, coverage,
                         w, h, True, cam=cam)
         cell = tone[1][1]
         if cell is None:
@@ -847,8 +848,8 @@ def test_the_face_is_a_halftone(report):
     from coaxial import orientation, raster
     w = wireframe
 
-    n = w.NOISE_N
-    flat = sorted(v for row in w.NOISE for v in row)
+    n = shading.NOISE_N
+    flat = sorted(v for row in shading.NOISE for v in row)
     report.check('the mask holds every rank once, 0 to %d' % (n * n - 1),
                  n == 64 and flat == list(range(n * n)))
 
@@ -857,7 +858,7 @@ def test_the_face_is_a_halftone(report):
         coverage = [1.0] * (width * height)
         heat = [heat_of(x, y) for y in range(height) for x in range(width)]
         grid = [[' '] * width for _ in range(height)]
-        w._dots(grid, heat, classes, coverage, width, height, (0.0, 1.0))
+        shading._dots(grid, heat, classes, coverage, width, height, (0.0, 1.0))
         return grid
 
     def dots_in(grid, x0, y0, wide, tall):
@@ -865,7 +866,7 @@ def test_the_face_is_a_halftone(report):
                    for y in range(y0, y0 + tall)
                    for x in range(x0, x0 + wide))
 
-    floor, ceil = w.DENSITY_FLOOR, w.DENSITY_CEIL
+    floor, ceil = shading.DENSITY_FLOOR, shading.DENSITY_CEIL
     ok, said = True, []
     for s in (0.0, 0.25, 0.5, 0.75, 1.0):
         want = int((floor + (ceil - floor) * s) * n * n + 0.5)
@@ -911,19 +912,19 @@ def test_the_face_is_a_halftone(report):
 
     report.check('the floor rolls off: continuous at the knee, ordered '
                  'below it, never DIMMEST',
-                 w._floor(w.DIMMEST + w.KNEE) == w.DIMMEST + w.KNEE
-                 and w.DIMMEST < w._floor(-10.0) < w._floor(0.0)
-                 < w._floor(0.3) < w._floor(w.DIMMEST + w.KNEE))
+                 shading._floor(shading.DIMMEST + shading.KNEE) == shading.DIMMEST + shading.KNEE
+                 and shading.DIMMEST < shading._floor(-10.0) < shading._floor(0.0)
+                 < shading._floor(0.3) < shading._floor(shading.DIMMEST + shading.KNEE))
 
     classes = bytearray([1] * 100)
     heat_a = [1.0 + 2.0 * i / 99.0 for i in range(100)]
     heat_b = [h + 3.0 for h in heat_a]
     persist = {}
-    lo_a, hi_a = w._expose(heat_a, classes, persist)
-    lo_b, hi_b = w._expose(heat_b, classes, persist)
-    raw_lo, raw_hi = w._expose(heat_b, classes)
+    lo_a, hi_a = shading._expose(heat_a, classes, persist)
+    lo_b, hi_b = shading._expose(heat_b, classes, persist)
+    raw_lo, raw_hi = shading._expose(heat_b, classes)
     report.check('the exposure follows a jump a third of the way a frame',
-                 abs((lo_b - lo_a) - w.EXPOSE_FOLLOW * (raw_lo - lo_a)) < 1e-9
+                 abs((lo_b - lo_a) - shading.EXPOSE_FOLLOW * (raw_lo - lo_a)) < 1e-9
                  and hi_a < hi_b < raw_hi,
                  '%.2f -> %.2f toward %.2f' % (lo_a, lo_b, raw_lo))
 
@@ -951,10 +952,10 @@ def test_the_face_is_a_halftone(report):
     grid = [[' '] * width for _ in range(height)]
     tone: list = [[None] * width for _ in range(height)]
     heat = [0.0] * (width * height)
-    w._glow(grid, tone, classes, levels, bare, seed, coverage, width,
+    shading._glow(grid, tone, classes, levels, bare, seed, coverage, width,
             height, True, cam=cam, buf=buf, heat_out=heat)
-    w._dots(grid, heat, classes, coverage, width, height,
-            w._expose(heat, classes), reached)
+    shading._dots(grid, heat, classes, coverage, width, height,
+            shading._expose(heat, classes), reached)
     w._rim(grid, tone, classes, reached, heat, width, height, True)
     face = [grid[i // width][i % width] for i in range(width * height)
             if classes[i]]
@@ -1149,7 +1150,7 @@ def test_the_crew_paints_one_pose_behind(report):
     rest = (0.05, 0.02, 0.0, 0.998)
     turn = [(0.05 + 0.04 * k, 0.02, 0.01 * k, 0.998) for k in range(1, 5)]
     asked = [rest] * 3 + turn + [turn[-1]] * 3
-    pool = crewmod.Crew(wireframe._lods(), art=wireframe._face(), workers=4)
+    pool = crewmod.Crew(wireframe._lods(), art=shading._face(), workers=4)
     try:
         sync, ahead = {}, {}
         s = [wireframe.render(q, 60, 20, zoom=1.0, colour=True, crew=pool,
@@ -1181,22 +1182,22 @@ def test_scroll(report):
     the camera - lower on the screen - and the backdrop differs."""
     cam = engine.camera(60, 20, 1.5, distance=3.2, zoom=1.0,
                         tip=wireframe.CAMERA_TIP)
-    static = wireframe._ground_static(60, 20, 3.2, cam['view'])
-    before = wireframe._rungs(static, 0.0)
-    after = wireframe._rungs(static, 0.25)
+    static = ground._ground_static(60, 20, 3.2, cam['view'])
+    before = ground._rungs(static, 0.0)
+    after = ground._rungs(static, 0.25)
     report.check('scroll: a quarter spacing on, every rung is nearer',
                  len(before) == len(after)
                  and all(b[0] < a[0] for b, a in zip(before, after)),
                  '%d rungs' % len(before))
     report.check('scroll: the backdrop differs between the two phases',
-                 wireframe._backdrop(60, 20, 3.2, cam['view'], 0.0)
-                 != wireframe._backdrop(60, 20, 3.2, cam['view'], 0.25),
+                 ground._backdrop(60, 20, 3.2, cam['view'], 0.0)
+                 != ground._backdrop(60, 20, 3.2, cam['view'], 0.25),
                  'the same')
     # A step is under half a dot row for every rung on screen: measured
     # 0.105 rows at 108x44 and 150x44, 0.048 at 60x20 (2026-09-23) -
     # a rung slides rather than jumps.
-    a = wireframe._rungs(static, 0.0)
-    b = wireframe._rungs(static, 1.0 / wireframe.RUNG_STEPS)
+    a = ground._rungs(static, 0.0)
+    b = ground._rungs(static, 1.0 / ground.RUNG_STEPS)
     moved = max(y1 - y0 for (y0, *_), (y1, *_) in zip(a, b)
                 if static['hrow'] <= y0 < 20)
     report.check('scroll: one step moves a rung on screen under half a '
@@ -1213,7 +1214,7 @@ def test_fan_lines(report):
         lit.add((int(fx * 2.0), int(fy * 4.0)))
     # from dot (0, 0) to dot (6, 7), crossing six columns and seven
     # rows, none at a corner: 1 + 6 + 7 dots
-    wireframe._segment(dot, (0.3, 0.1, 1.0), 3.2, 1.9, 2.0, 0)
+    ground._segment(dot, (0.3, 0.1, 1.0), 3.2, 1.9, 2.0, 0)
     report.check('fan: a segment lights every dot it crosses',
                  len(lit) == 14, '%d dots' % len(lit))
     report.check('fan: no dot off the line',
@@ -1225,7 +1226,7 @@ def test_fan_lines(report):
     report.check('fan: every dot touches another along or across',
                  chained, str(sorted(lit)))
     lit.clear()
-    wireframe._segment(dot, (0.3, 0.1, 1.0), 0.3, 0.1, 1.0, 0)
+    ground._segment(dot, (0.3, 0.1, 1.0), 0.3, 0.1, 1.0, 0)
     report.check('fan: a segment of no length is one dot',
                  lit == {(0, 0)}, str(sorted(lit)))
 
@@ -1236,19 +1237,19 @@ def test_backdrop_cache(report):
     that resizes does not keep every size it ever had."""
     cam = engine.camera(60, 20, 1.5, distance=3.2, zoom=1.0,
                         tip=wireframe.CAMERA_TIP)
-    kept = wireframe.BACKDROPS_KEPT
-    wireframe.BACKDROPS_KEPT = 4
-    wireframe._BACKDROP.clear()
+    kept = ground.BACKDROPS_KEPT
+    ground.BACKDROPS_KEPT = 4
+    ground._BACKDROP.clear()
     try:
         for s in range(4):
-            wireframe._backdrop(60, 20, 3.2, cam['view'],
-                                s / wireframe.RUNG_STEPS)
-        full = len(wireframe._BACKDROP)
-        wireframe._backdrop(60, 20, 3.2, cam['view'],
-                            4.0 / wireframe.RUNG_STEPS)
-        after = len(wireframe._BACKDROP)
+            ground._backdrop(60, 20, 3.2, cam['view'],
+                                s / ground.RUNG_STEPS)
+        full = len(ground._BACKDROP)
+        ground._backdrop(60, 20, 3.2, cam['view'],
+                            4.0 / ground.RUNG_STEPS)
+        after = len(ground._BACKDROP)
     finally:
-        wireframe.BACKDROPS_KEPT = kept
+        ground.BACKDROPS_KEPT = kept
     report.check('backdrop: the cache fills to the cap', full == 4,
                  str(full))
     report.check('backdrop: the step past the cap starts it over',
@@ -1287,10 +1288,10 @@ def test_ladder(report):
                  < raster._spread(ord(rows[4][-1]) - raster.BRAILLE),
                  '%s then %s' % (rows[4][0], rows[4][-1]))
     report.check('a drawn cell is never blank, however dark',
-                 wireframe._pattern(0, 0.0) != rows[0][0]
-                 and wireframe._pattern(-3, 0.9) != rows[0][0])
+                 shading._pattern(0, 0.0) != rows[0][0]
+                 and shading._pattern(-3, 0.9) != rows[0][0])
     report.check('and never past the top',
-                 wireframe._pattern(99, 0.0) == rows[8][0])
+                 shading._pattern(99, 0.0) == rows[8][0])
 
     # NO GRAIN. A per-cell phase picked among the 28 patterns that carry
     # six dots, uniformly and then cubed toward the even end, and either
@@ -1299,7 +1300,7 @@ def test_ladder(report):
     # off, and the 79 are real edges. "Blocky", on the bench. A flat
     # surface is a flat pattern; the block is spent where the level
     # changes.
-    phases = {wireframe._pattern(6, i / 32.0) for i in range(32)}
+    phases = {shading._pattern(6, i / 32.0) for i in range(32)}
     report.check('a rung is one pattern whatever the phase',
                  phases == {rows[6][0]}, ''.join(sorted(phases)))
 
@@ -1307,7 +1308,7 @@ def test_ladder(report):
     # own order: his ' ', '.' and ':' rank the same way, only further
     # apart, because one rung between the two glyphs a picture is made of
     # is the carpet this replaces.
-    dots = [bin(ord(wireframe._mono(float(c))) - raster.BRAILLE).count('1')
+    dots = [bin(ord(shading._mono(float(c))) - raster.BRAILLE).count('1')
             for c in (0, 1, 2)]
     # Two and four, near the exporter's own luma; six read as a slab.
     report.check('mono keeps the exporter\'s ordering at his weight',

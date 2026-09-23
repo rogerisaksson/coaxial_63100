@@ -9,11 +9,11 @@ decimates 2.87 s (each parsing the file again), the outline's exact
 index and loops 1.47 s, the stereotypes 0.14 s; the lot pickled is
 7.3 MB and loads in 0.09 s. NOT BESIDE THE MODEL: a cache file beside
 the STL was tried and is not wanted in the tree. The pickle carries
-its stamp - the model's path, size and mtime, and a hash of the mesh
-and wireframe sources - and is ignored unless it matches. Gated on the
-machine's room: RAM_FLOOR free memory to build in the background and
-DISK_FLOOR free disk to keep the file; the front page's readout says
-what was fetched, or why not."""
+its stamp - the model's path, size and mtime, and a hash of the
+solids, creases and stereotype sources - and is ignored unless it
+matches. Gated on the machine's room: RAM_FLOOR free memory to build
+in the background and DISK_FLOOR free disk to keep the file; the front
+page's readout says what was fetched, or why not."""
 import ctypes
 import hashlib
 import os
@@ -40,11 +40,11 @@ def cache_dir():
 def stamp(path):
     """What a pickle must match to be trusted: the model's absolute
     path, size and mtime, and the first twelve hex digits of a hash of
-    the mesh and wireframe sources - a decimate or a fit that changed
-    in the code makes the file stale."""
-    from coaxial import mesh, wireframe
+    the mesh, solids, creases and stereotype sources - a decimate or a
+    fit that changed in the code makes the file stale."""
+    from coaxial import creases, mesh, solids, stereotype
     digest = hashlib.sha1()
-    for module in (mesh, wireframe):
+    for module in (mesh, solids, creases, stereotype):
         with open(module.__file__, 'rb') as source:
             digest.update(source.read())
     st = os.stat(path)
@@ -112,15 +112,15 @@ def build(path, progress=None, where=None):
     """Decimate, index and fit `path`, write the pickle atomically, and
     return its size in bytes. `progress(label)` names each step as it
     lands."""
-    from coaxial import wireframe
+    from coaxial import creases, solids, stereotype
     say = progress or (lambda label: None)
     lods = {}
-    for _zoom, divisions in wireframe.LODS:
-        lods[divisions] = wireframe._decimated(path, divisions)
+    for _zoom, divisions in solids.LODS:
+        lods[divisions] = solids._decimated(path, divisions)
         say('decimate grid %d: %d triangles' % (divisions, len(lods[divisions][1]) // 3))
-    exact, loops = wireframe._outline_source()
+    exact, loops = creases._outline_source()
     say('outline edges: %d loops' % len(loops))
-    prims = wireframe._stereotypes()
+    prims = stereotype._stereotypes()
     say('stereotypes: %d primitives' % len(prims))
     bundle = {'stamp': stamp(path), 'lods': lods, 'exact': (exact, loops),
               'prims': prims, 'built': time.time()}
