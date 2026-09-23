@@ -2094,14 +2094,28 @@ def _pair_arches(arches, top, bottom):
 
 
 def _block(base, lid, ztop, zbase):
-    """The eight segments of a block: its lid's four edges at `lid`,
-    and a leg from each base corner up to the lid's - straight where
-    lid and base agree, leaning in where the crest is narrower."""
+    """The twelve segments of a block: its lid's four edges at `lid`,
+    its base's four at `base`, and a leg from each base corner up to
+    the lid's - straight where lid and base agree, leaning in where
+    the crest is narrower.
+
+    THE BASE'S EDGES TOO. Lid and legs alone were the crease loops'
+    habit - a part's footprint on the slab shared corners with the
+    copper and was left out with it - but a primitive's base is its
+    own rectangle. On a rounded part the base is wider than the crest,
+    and seen from above it IS the silhouette: the CM choke's block
+    drew whole (all 90 dots landed, measured at the bench's pose) and
+    still showed no edge round the choke, because the lid ran through
+    the body's middle and the legs stopped at the base's corners with
+    nothing between them. On a straight box the far base edges lie
+    behind the body and the depth test hides them; the near ones mark
+    where the part meets the board."""
     segs = []
     for i in range(4):
-        (x0, y0), (x1, y1) = lid[i], lid[(i + 1) % 4]
-        segs.append((x0, y0, ztop, x1, y1, ztop))
-        segs.append((x0, y0, ztop, base[i][0], base[i][1], zbase))
+        j = (i + 1) % 4
+        segs.append(lid[i] + (ztop,) + lid[j] + (ztop,))
+        segs.append(base[i] + (zbase,) + base[j] + (zbase,))
+        segs.append(lid[i] + (ztop,) + base[i] + (zbase,))
     return segs
 
 

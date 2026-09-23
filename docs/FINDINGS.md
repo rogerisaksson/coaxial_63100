@@ -5028,6 +5028,28 @@ looking at the estimate alone.
   line of one or two dots that needed tone to be seen at all, and a
   merged cell carries five or six. The rim takes the same rule; at
   4.5 merged it had read as thickness.
+* **A block has twelve edges: the base's four too** (2026-09-23, the
+  bench: "still no edge round the CM choke - and don't start going in
+  circles adjusting thresholds"). No threshold touched; the choke's
+  block traced dot by dot at the bench's face-on pose instead: 90 dots
+  emitted, 0 hidden by the depth test, 90 landed in 38 cells - the
+  block WAS drawn, whole. What it drew was the lid, the crest's box
+  (y -0.46 to -0.40: the toroid's top arc and a ridge), and four legs
+  leaning out to the base's corners at y -0.50 and -0.38 - and no
+  base. Seen from above the base is the silhouette of a rounded part,
+  so the outline ran through the body's middle with four short ticks
+  toward corners nothing joined: no edge round the choke. The crease
+  loops never had base edges because a part's footprint shared
+  corners with the copper and went out with it; a primitive's base is
+  its own rectangle. `_block` now draws lid, base and legs - twelve
+  segments; on a straight box the far base edges lie behind the body
+  and the depth test hides them, the near ones mark where the part
+  meets the board. Rendered face-on and at 30 degrees: the choke's
+  base rectangle round it with the crest's box inside, the phase
+  terminal's outer frame, the USB shell's; the composite at 30
+  degrees shows the choke as a frustum. Held in test_render: a box's
+  loop is one block of twelve segments, a crest 0.2 on a base 0.4
+  still leans four legs.
 * **The floor's lines are their supercover and the rungs slide**
   (2026-09-23, the bench: "the perspective lines toward the horizon
   look jagged and 'static'"). Two faults, both on the raster at

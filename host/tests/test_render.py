@@ -609,7 +609,7 @@ def test_stereotypes(report):
     box = [(hi[i], hi[(i + 1) % 4]) for i in range(4)] + [(lo[i], hi[i]) for i in range(4)]
     prims = wireframe._stereotype_loops(pos, [loop_of(box)], top, bottom)
     report.check("stereotype: a box's lid and corners are one block of "
-                 "eight segments", [(k, len(d)) for k, _e, d in prims] == [('block', 8)]
+                 "twelve segments", [(k, len(d)) for k, _e, d in prims] == [('block', 12)]
                  and abs(prims[0][1] - 0.4) < 1e-6, str([(k, round(e, 3)) for k, e, d in prims]))
     circle = [(0.2 * math.cos(2 * math.pi * k / 12), 0.2 * math.sin(2 * math.pi * k / 12))
               for k in range(12)]
@@ -635,13 +635,13 @@ def test_stereotypes(report):
     prims = wireframe._stereotype_loops(pos, arches, top, bottom)
     report.check('stereotype: two end profiles of one width and height, '
                  'facing across, are one block',
-                 [(k, len(d)) for k, _e, d in prims] == [('block', 8)], str(prims))
+                 [(k, len(d)) for k, _e, d in prims] == [('block', 12)], str(prims))
     base = ring([(-.22, -.22), (.22, -.22), (.22, .22), (-.22, .22)], 0.03)
     lid = ring(square, 0.1)
     prims = wireframe._stereotype_loops(pos, [loop_of(base), loop_of(lid)], top, bottom)
     report.check('stereotype: a base ring and a lid on one footprint are '
                  'one part, one block',
-                 [(k, len(d)) for k, _e, d in prims] == [('block', 8)]
+                 [(k, len(d)) for k, _e, d in prims] == [('block', 12)]
                  and abs(prims[0][1] - 0.44) < 1e-6, str([(k, round(e, 3)) for k, e, d in prims]))
     # a lid with a small circle on it - a PE terminal's screw hole -
     # is a block AND a ring; a lid with a stray diagonal ridge keeps
@@ -652,7 +652,7 @@ def test_stereotypes(report):
                   for k in range(8)], 0.1)
     prims = wireframe._stereotype_loops(pos, [loop_of(lid), loop_of(screw)], top, bottom)
     report.check('stereotype: a lid with a small circle on it is a block '
-                 'and a ring', [(k, len(d)) for k, _e, d in prims] == [('block', 8), ('ring', 24)],
+                 'and a ring', [(k, len(d)) for k, _e, d in prims] == [('block', 12), ('ring', 24)],
                  str([(k, round(e, 3)) for k, e, d in prims]))
     stray = ring([(.12, .12), (.22, .12), (.22, .22), (.12, .22)], 0.05)
     prims = wireframe._stereotype_loops(pos, [loop_of(lid), loop_of(stray)], top, bottom)
