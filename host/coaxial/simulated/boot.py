@@ -3,8 +3,8 @@ over a bytearray flash (docs/BOOT.md). Nothing kept between runs."""
 import struct
 import zlib
 
-from ..boot import BLANK_UNIT, CHUNK, STATES, BootControl, chunks_of
-from ..errors import DeviceStateError
+from ..boot import BLANK_UNIT, CHUNK, STATES, BootControl, Segment, chunks_of
+from ..errors import CrcError, DeviceStateError
 
 WORD = 32
 HEADER = 0x400
@@ -152,3 +152,83 @@ class SimulatedBoot(BootControl):
 
     def dump(self, offset):
         return offset, bytes(self.record_sector[offset:offset + CHUNK])
+
+
+class SimulatedSegment(Segment):
+    """A bus of blank nodes. Unit 247 is every blank node at once: a
+    request they all answer collides on the wire, which is a CRC error
+    at the master, and that is what splits the prefix search."""
+
+    def __init__(self, nodes):
+        self.nodes = list(nodes)
+
+    def blank(self):
+        return _Blank(self.nodes)
+
+    def at(self, unit):
+        for node in self.nodes:
+            if node.unit == unit:
+                return node
+        raise DeviceStateError('no node answers to unit %d on this segment' % unit)
+
+
+class _Blank(BootControl):
+    """Unit 247's voice: the broadcasts reach every node, `who` and
+    `assign` the nodes the prefix or the uid names, and the rest whichever
+    nodes are still blank - one answers, two collide."""
+
+    def __init__(self, nodes):
+        self.nodes = nodes
+
+    def _one(self, answers):
+        answers = [a for a in answers if a is not None]
+        if len(answers) > 1:
+            raise CrcError('%d nodes answered at once' % len(answers))
+        return answers[0] if answers else None
+
+    def _blank(self):
+        return self._one([n for n in self.nodes if n.unit == BLANK_UNIT])
+
+    def state(self):
+        return self._blank().state()
+
+    def stay(self):
+        return self._blank().stay()
+
+    def hold(self, session):
+        for node in self.nodes:
+            node.hold(session)
+
+    def who(self, bits=0, prefix=b''):
+        return self._one([n.who(bits, prefix) for n in self.nodes])
+
+    def assign(self, uid, unit, position, terminate=False):
+        for node in self.nodes:
+            node.assign(uid, unit, position, terminate)
+
+    def erase(self, type_, image):
+        for node in self.nodes:
+            node.erase(type_, image)
+
+    def chunk(self, index, data):
+        for node in self.nodes:
+            node.chunk(index, data)
+
+    def missing(self):
+        return self._blank().missing()
+
+    def verify(self):
+        return self._blank().verify()
+
+    def record(self, offset, data):
+        return self._blank().record(offset, data)
+
+    def seal(self):
+        return self._blank().seal()
+
+    def go(self, session):
+        for node in self.nodes:
+            node.go(session)
+
+    def dump(self, offset):
+        return self._blank().dump(offset)

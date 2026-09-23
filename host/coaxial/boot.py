@@ -21,8 +21,10 @@ from .wire import Reader
 #: The wire's shapes, boot.h's numbers.
 CHUNK = 224
 UID_BYTES = 12
-#: A blank node's unit, before assign gives it its own.
+#: A blank node's unit, before assign gives it its own; the bootloader's
+#: line rate, the one the master's transport opens at.
 BLANK_UNIT = 247
+BOOT_BAUD = 10000000
 STATES = ('blank', 'held', 'assigned', 'erased', 'verified', 'sealed')
 #: How many times the missing chunks are re-sent before the node is named.
 MISSING_ROUNDS = 3
@@ -169,3 +171,118 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
     def dump(self, offset):
         r = Reader(self._op(BootOp.DUMP, struct.pack('>H', offset)))
         return r.u16(), r.remaining()
+
+
+class Segment(ABC):
+    """One serial segment as the master sees it: the blank nodes at unit
+    247 as one voice, and any node by its unit. The real one is a
+    transport; the stand-in's is a list of nodes."""
+
+    @abstractmethod
+    def blank(self):
+        """A BootControl addressed to unit 247 - every blank node hears
+        it, and only the node a prefix names answers."""
+
+    @abstractmethod
+    def at(self, unit):
+        """A BootControl addressed to one unit."""
+
+
+class TransportSegment(Segment):
+    """A segment over one transport: a Board per unit, built on demand."""
+
+    def __init__(self, transport):
+        self._transport = transport
+        self._boards = {}
+
+    def _boot(self, unit):
+        if unit not in self._boards:
+            from .board import Board
+            self._boards[unit] = Board(self._transport, unit=unit)
+        return self._boards[unit].boot
+
+    def blank(self):
+        return self._boot(BLANK_UNIT)
+
+    def at(self, unit):
+        return self._boot(unit)
+
+
+def enumerate_blank(blank):
+    """Every blank node on a segment, by the prefix search on the unique
+    id: `who` with no prefix first; two nodes answering at once is a
+    CRC error or a frame error on the wire, and either splits the
+    prefix one bit deeper, 96 at most. Known uids are one round trip;
+    a bus of N unknown nodes is about 2N."""
+    found, todo = [], [(0, 0)]
+    while todo:
+        bits, prefix = todo.pop()
+        head = (prefix << (UID_BYTES * 8 - bits)).to_bytes(UID_BYTES, 'big')[:(bits + 7) // 8]
+        try:
+            node = blank.who(bits, head)
+        except (errors.CrcError, errors.FrameError):
+            if bits < UID_BYTES * 8:
+                todo += [(bits + 1, prefix << 1), (bits + 1, prefix << 1 | 1)]
+            continue
+        if node is not None:
+            found.append(node)
+    return sorted(found, key=lambda n: n['uid'])
+
+
+class Master:
+    """The master on one segment (docs/BOOT.md): hold, enumerate, assign
+    off the table, one erase and one stream per type, then each node's
+    missing, verify, record and seal, then go. `table` maps a uid to
+    {'unit', 'position', 'type', 'terminate'}; `images` maps a type to
+    its bytes; `records` maps a unit to the record's bytes."""
+
+    def __init__(self, segment, table, images, records, session=1):
+        self.segment = segment
+        self.table = table
+        self.images = images
+        self.records = records
+        self.session = session
+        self.unknown = []
+
+    def run(self):
+        """Every node through to go; returns {unit: state}. A uid not in
+        the table is left blank and listed in `unknown`."""
+        blank = self.segment.blank()
+        blank.hold(self.session)
+        nodes = enumerate_blank(blank)
+        assigned = {}
+        for node in nodes:
+            row = self.table.get(node['uid'])
+            if row is None:
+                self.unknown.append(node['uid'])
+                continue
+            blank.assign(node['uid'], row['unit'], row['position'], row.get('terminate', False))
+            assigned[row['unit']] = row['type']
+        for type_ in sorted(set(assigned.values())):
+            image = self.images[type_]
+            blank.erase(type_, image)
+            for index, piece in enumerate(chunks_of(image)):
+                blank.chunk(index, piece)
+        states = {}
+        for unit, type_ in sorted(assigned.items()):
+            node = self.segment.at(unit)
+            image = self.images[type_]
+            for _round in range(MISSING_ROUNDS):
+                left = node.missing()
+                if not left:
+                    break
+                for index in left:
+                    node.chunk(index, chunks_of(image)[index])
+            ok, crc = node.verify()
+            if not ok:
+                raise errors.DeviceStateError(
+                    'unit %d did not verify: it summed %08x against %08x'
+                    % (unit, crc, zlib.crc32(image)))
+            record = self.records.get(unit, b'')
+            for at in range(0, len(record), CHUNK):
+                node.record(at, record[at:at + CHUNK])
+            node.seal()
+        blank.go(self.session)
+        for unit in assigned:
+            states[unit] = self.segment.at(unit).state()
+        return states

@@ -455,6 +455,7 @@ TOUCHES = (
     ('boot/',                         (BOOT_CORE, STRUCTURE)),
     ('host/coaxial/boot.py',          (BOOT, STRUCTURE)),
     ('host/coaxial/simulated/boot.py', (BOOT, STRUCTURE)),
+    ('host/tools/flash_nodes.py',     (BOOT, STRUCTURE)),
     ('daq/',                          (DAQ_CORE, CONFORMANCE, 'test_parity.py',
                                        BENCH)),
     ('host/coaxial/thermal.py',       (THERMAL, 'test_sensorless.py',

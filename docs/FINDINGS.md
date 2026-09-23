@@ -2489,6 +2489,27 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   prefix search, the store, `flash_nodes.py` - is the next item; the
   target commit before this one was green on CI (c048d9f). Twenty-nine
   suites; rebased on the wireframe split: structure 723, tree 3265.
+* THE BUS-WIDE MASTER, ON A STAND-IN BUS OF FOUR (2026-09-23). `Segment`
+  is the seam: a transport's (a Board per unit, built on demand at the
+  bootloader's 10 Mbit) or the stand-in's `SimulatedSegment`, a list of
+  blank nodes where unit 247 is every one at once - `who` and the
+  unicast ops fan out and two answers are a `CrcError`, which is what
+  the wire gives the master when two nodes speak together. That error
+  is what `enumerate_blank` splits on: the prefix search one bit
+  deeper each collision, 96 at most, known uids one round trip. `Master`
+  is BOOT.md's sequence over a segment - hold, enumerate, assign off
+  the table, one erase and one stream per type present, then each
+  node's missing rounds, verify, record and seal, then go - and names
+  a uid not in the table instead of assigning it. `tools/flash_nodes.py`
+  holds the store: `nodes.json`, `images/<type>.bin`,
+  `records/<bus>/<position>.record`; `--place` writes a row, the plain
+  run prints a line a node and exits 1 with an unplaced uid named.
+  Measured on the stand-in: four nodes, one sharing eight bits of uid
+  with another, found by the search; three placed nodes sealed, valid
+  and jumped, the fourth named; the record reached unit 2 alone. Nothing
+  on the wire yet - the prefix search's real collision (a CRC error, a
+  timeout, or both) is the first bus's to show, as the design says.
+  Structure 723 -> 726, boot 15 -> 18, tree 3271.
 
 ## The local model
 

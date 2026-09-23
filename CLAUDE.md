@@ -218,6 +218,8 @@ python tools/session.py --status         # who is sharing the board's port
 python tools/switch.py --sweep 5,95 -p 10 -s 120  # background; --stop disarms
 python tools/pulse.py -d 0.05 -H U -L V -n 1 --on 30   # one leg against another
 python tools/sto_probe.py --simulated    # the STO chain's channels, a row a second
+python tools/flash_nodes.py --store DIR --simulated --bus LL   # the master:
+                                         # every blank node takes its image and record
 python tools/commission.py --simulated   # the eight steps on the stand-in;
                                          # --arm --port COM4 at the bench
 python -m coaxial_mcp --port COM4        # MCP server, stdio
@@ -227,8 +229,8 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-nine suites, 3265 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (723),
+Twenty-nine suites, 3271 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (726),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
@@ -257,8 +259,9 @@ twice, plus the rotor observer's own geometry - no board),
 `test_ollama_language.py` (12), `test_daq_api.py` (75, the acquisition front
 door against the stand-in - naming, reading, the record shape, the buffers),
 `test_bench.py` (4, the board's loop rates against a recorded baseline),
-`test_boot.py` (15, the master's side of the bootloader against the
-stand-in's blank node - the sequence, the image kept, the refusals).
+`test_boot.py` (18, the master's side of the bootloader against the
+stand-in's blank node and a bus of four - the sequence, the image kept,
+the prefix search, the refusals).
 Wiring: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system). The rules
 that bind you:
 
@@ -286,7 +289,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  778 of this tree's 3265 checks are in those nine files.
+  778 of this tree's 3271 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

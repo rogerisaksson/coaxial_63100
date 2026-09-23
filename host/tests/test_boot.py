@@ -10,9 +10,9 @@ import zlib
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100                            # noqa: E402
-from coaxial.boot import Boot, BootControl, chunks_of       # noqa: E402
+from coaxial.boot import Boot, BootControl, Master, chunks_of, enumerate_blank  # noqa: E402
 from coaxial.errors import DeviceStateError                 # noqa: E402
-from coaxial.simulated.boot import SimulatedBoot            # noqa: E402
+from coaxial.simulated.boot import SimulatedBoot, SimulatedSegment  # noqa: E402
 from test_modbus_core import Report                         # noqa: E402
 
 TYPE = 1
@@ -95,6 +95,26 @@ def test_refusals(report, boot):
         report.check('stay from the bootloader is refused in words', 'already' in str(exc))
 
 
+def test_a_bus_of_four(report, _boot):
+    uids = [bytes([0x10 + k] + list(range(11))) for k in range(4)]
+    uids[2] = bytes([0x10, 0x80] + [0] * 10)          # shares eight bits with the first
+    segment = SimulatedSegment(SimulatedBoot(uid=uid) for uid in uids)
+    found = enumerate_blank(segment.blank())
+    report.check('the prefix search finds all four, splitting where two answer at once',
+                 [n['uid'] for n in found] == sorted(u.hex() for u in uids))
+    table = {u.hex(): {'unit': i + 1, 'position': i + 1, 'type': TYPE, 'terminate': i == 3}
+             for i, u in enumerate(uids[:3])}
+    master = Master(segment, table, {TYPE: image(6 * 224)}, {2: bytes(range(50))})
+    states = master.run()
+    report.check('three placed nodes are sealed, valid and jump; the fourth is named as unknown',
+                 all(s['state'] == 'sealed' and s['valid'] for s in states.values())
+                 and sorted(states) == [1, 2, 3] and master.unknown == [uids[3].hex()]
+                 and [n.jumped for n in segment.nodes] == [True, True, True, False])
+    report.check('the record went to unit 2 alone',
+                 segment.at(2).dump(0)[1][:50] == bytes(range(50))
+                 and segment.at(1).dump(0)[1][:4] == bytes([0xFF] * 4))
+
+
 def test_the_two_implementations_share_their_names(report, _boot):
     names = {n for n in dir(BootControl) if not n.startswith('_')}
     report.check('Boot and SimulatedBoot both implement BootControl, every name',
@@ -107,7 +127,7 @@ def test_the_two_implementations_share_their_names(report, _boot):
 
 def main():
     report = Report()
-    for test in (test_one_node_flashed, test_the_same_image_kept, test_refusals,
+    for test in (test_one_node_flashed, test_the_same_image_kept, test_refusals, test_a_bus_of_four,
                  test_the_two_implementations_share_their_names):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, SimulatedBoot())

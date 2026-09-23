@@ -401,8 +401,14 @@ Changed:
 5. `coaxial/boot.py` - `BootControl`, the interface, `Boot` the real
    one, `flash()` the master's sequence on one node; the stand-in's
    blank node (`coaxial/simulated/boot.py`, the state machine over a
-   bytearray flash, `board.boot` on both boards); `test_boot.py`. The
-   store and `flash_nodes.py` - the bus-wide master - are next.
+   bytearray flash, `board.boot` on both boards); `Segment` - a
+   transport's, or the stand-in's bus of nodes where two answering at
+   once is a CRC error - `enumerate_blank`, the prefix search, and
+   `Master`, the sequence over a segment; `test_boot.py`, 18 checks;
+   `tools/flash_nodes.py` with the store above - `--place` writes the
+   table, the plain run does the sequence and names an unplaced uid.
+   Proven on the stand-in's bus of four, one sharing eight bits of
+   uid with another. Built 2026-09-23; the wire is the bench's.
 6. The bench: the first flash of the bootloader over SWD, the
    application through it, a re-flash over the wire - FINDINGS carries
    what happened.
