@@ -7,94 +7,46 @@ from . import braille
 from .graphics.raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT, table,
                      covered)
 
-#: HOW TALL A CELL ACTUALLY IS, in units of its width - `ascii3d`'s, not
-#: a second copy: it is a property of the terminal's font and every
-#: renderer in this tree has to agree about it or two pictures on one
-#: page are drawn at different aspects. A font that runs taller draws
-#: this circle as an ellipse, tall by exactly the ratio.
+#: A cell's height in widths is `ascii3d.CELL_ASPECT`, one value for every
+#: renderer: a taller font draws the circle an ellipse by exactly the ratio.
 
-#: How much of the box the machine fills. Under one: a drawing that ends
-#: exactly on the frame reads as something cropped rather than something
-#: drawn, and the can needs somewhere to be round in - and outside it,
-#: room for the pointer's dot to be round in too, which is what set this
-#: number. At 0.84 the dot's outer edge landed within a third of a dot of
-#: the frame and came out flattened on one side at three o'clock. It came
-#: down from 0.78 to leave GUTTERS: six bar columns to the left of the
-#: machine and four to the right, which is where the thermal margins are
-#: drawn - beside the thing that gets hot rather than in a box somewhere
-#: else on the page.
-#:
-#: AND BACK TO ONE, because `layout` now hands the machine exactly the
-#: columns the gutters leave it: the air is `BAR_GAP`, reserved before
-#: the radius is worked out, so a fraction here would be a second helping
-#: of the same margin. Every earlier value of this - 0.84, 0.78, 0.70,
-#: 0.62 - was fighting a centre that sat in the middle of the box while
-#: the gutters were six columns one side and four the other.
+#: How much of its band the machine fills: one, since `layout` hands it
+#: exactly the columns the gutters leave (BAR_GAP is the air). 0.84, 0.78,
+#: 0.70 and 0.62 fought a centre that ignored six gutter columns one side
+#: and four the other.
 F_FIT = 1.0
 
-#: Every radius as a fraction of the outermost, which is sized to the box
-#: it is drawn in. NOT fixed dot counts: the drawing was tuned at 40x14,
-#: where the can is 25 dots across and each of 28 magnets is four dots of
-#: arc - few enough that the curves came out as staircases. The same
-#: fractions in a box of 40x24 put the can at 40 dots and the jaggies go,
-#: because the only cure for them is more dots.
+#: Every radius as a fraction of the can's, which is sized to the box: at
+#: 40x14 (25 dots, four a magnet) the curves stepped; more dots are the only
+#: cure.
 F_MAGNET_OUT = 0.78
 F_MAGNET_IN = 0.64
 F_TOOTH_OUT = 0.56
 F_TOOTH_IN = 0.30
 F_BORE = 0.20
-#: THE CAN IS A WALL, NOT A HOOP. One line at the outer radius read as a
-#: wire circle drawn round a motor; a rotor can is a steel shell with a
-#: thickness, and the two edges of it are what says so. The outer edge is
-#: drawn heavier than everything else - it is the silhouette - and a
-#: second, smaller circle sits just inside it - with AIR BETWEEN THEM.
-#: At 1.9 line widths and 0.94 the two overlapped and came out as one
-#: heavy band, which is a thicker hoop and not a wall: what says wall is
-#: the gap.
+#: The can is a wall: two edges with air between (one line read as a wire
+#: hoop; at 0.94 and 1.9 line widths the edges merged into a band).
 F_CAN_INNER = 0.88
-#: How much heavier the can's outer edge is than every other line. ONE:
-#: the wall is two thin edges and the air between them, not a heavy band.
-#: At 1.5 the silhouette outweighed everything inside it and the pointer
-#: - the one thing on the outside that has to be found at a glance - read
-#: as part of the can rather than as a mark on it.
+#: The can's outer edge's weight against the other lines (at 1.5 the pointer
+#: read as part of the can).
 CAN_WEIGHT = 1.0
-#: How thick a drawn line is, as a fraction of the outer radius. Anything
-#: that is not a magnet or a tooth is a RING rather than a filled area:
-#: solid areas at this resolution read as texture, and a cross-section
-#: that reads as texture says nothing. The first drawing filled the bore
-#: and the whole tooth annulus and its middle could not be told from noise.
+#: A line's thickness, a fraction of the can's radius. All but the magnets
+#: and teeth are rings: filled areas read as texture at this resolution.
 F_LINE = 0.032
 #: The most a line's half-width grows to, in dots: uncapped it was 3.0 at
 #: a 200x60 terminal's can of 95, every ring a band; 0.8 broke into dots
 #: (2026-09-23).
 LINE_MAX = 1.0
 
-#: The tooth annulus is deep for a reason: the teeth carry the phase
-#: currents in their LENGTH, and at a sixth of the radius the difference
-#: between a phase at half and a phase at full was two dots - a picture
-#: of the magnetisation nobody could read. A third of the radius makes it
-#: five, which can be seen from across a bench.
-#:
-#: The shortest a tooth is drawn, as a share of its full length. Not
-#: zero: a phase carrying nothing is still a tooth, and teeth that
-#: vanished left a stator with holes in it rather than one at rest.
+#: The shortest a tooth is drawn, a share of its length: an idle phase is
+#: still a tooth. The annulus is a third of the radius, so half against full
+#: drive is five dots (a sixth made it two).
 TOOTH_STUB = 0.22
 
-#: How far in from the top edge the horizontal gauge sits, in rows.
-#:
-#: ZERO NOW, for the reason `FLOOR_INSET` is: the caller writes the
-#: scale's name on the row above the box, and a blank row between a gauge
-#: and the words naming it read as the gauge belonging to the drawing.
-#: The old note said NOT ZERO because hard against the frame a level
-#: reads as part of it - true while there was nothing but frame up there,
-#: and the title is what changed it.
+#: Rows between the frame and the top gauge, and the bottom one: none - the
+#: caller's labels sit on the rows beside them, and a blank row divorced a
+#: gauge from its name.
 GAUGE_INSET = 0
-
-#: And none at the foot. The caller writes its labels on the row under
-#: the box, and a blank row between a gauge and the words naming it read
-#: as the gauge belonging to the drawing rather than to the label. The
-#: top gauge keeps its row of air because what is above it is a frame,
-#: not a caption.
 FLOOR_INSET = 0
 
 
@@ -106,93 +58,46 @@ def _drive(amps, full=None):
     return tuple(max(-1.0, min(1.0, a / scale)) for a in amps)
 
 
-#: Where the bead rides, as a fraction of the can's radius: IN THE CAN'S
-#: WALL, midway between its two edges, and its wake with it - the air
-#: between the rings is a race for it to run in. It rode on the outer
-#: rim, half in and half out, until the bench asked for it between the
-#: two outer circles; a position indicator not attached to the thing
-#: whose position it indicates indicates nothing, and the wall is the
-#: rotor.
+#: Where the bead rides, a fraction of the can's radius: in the can's wall,
+#: between its two edges (bench: a mark off the rotor indicates nothing).
 POINTER_SEAT = (1.0 + F_CAN_INNER) / 2.0
 
-#: The bead: a ring with a dot in it - `_bead` has why a glyph, what it
-#: costs, and the four dot answers that were built and not kept.
-#:
-#: U+0298 AND NOT U+29BF, FOR THE FONT'S SAKE. The circled bullet is
-#: what the bench asked for and it is unambiguously narrow - no terminal
-#: setting widens it - and it still came out squeezed to half its width
-#: on the bench, three times reported. Measured: Consolas, the terminal's
-#: default, has neither U+29BF nor a single braille cell, so the whole
-#: drawing is rendered by the fallback font, and the fallback draws the
-#: bullet into a cell whose proportions are not its own. The bilabial
-#: click is the same mark - a ring round a dot - and Consolas carries it,
-#: so the terminal draws it with its own metrics. Round marks it has and
-#: that are narrow, for the record: `◦` `◌` `∙` `ʘ`.
-#:
-#: What actually shears these pages is the arrowheads and the degree
-#: sign, which were East Asian ambiguous; the view has the note.
+#: The bead, U+0298: Consolas has it, so the terminal draws it in its own
+#: metrics. U+29BF (asked for) is not in Consolas and came out squeezed by the
+#: fallback font, three times. Narrow round marks: `◦` `◌` `∙` `ʘ`.
 POINTER_GLYPH = chr(0x0298)
 
-#: WHICH CELLS THE BEAD MAY COLOUR: the ones whose CENTRE it covers, plus
-#: the one it sits in. A braille cell is eight dots and one colour, two
-#: dots wide by four tall, against a rim two dots thick - so a cell merely
-#: touched by the bead gets coloured over its whole four-dot height and
-#: the mark bleeds above and below the ring it rides. Counting dots did
-#: not fix that: three of the disc's nine still land in a cell it only
-#: clips. Testing the cell's CENTRE bounds the coloured area by the bead's
-#: own shape, which is the only thing that can - measured, ten inked cells
-#: at three o'clock became two.
+#: The bead takes one cell, the nearest by its centre: colouring every cell
+#: it touched bled over four dot rows (ten cells at three o'clock).
 
 #: How much of a slot pitch is tooth. The rest is the slot, and it stays
 #: open or the teeth merge into a ring and the count cannot be read off
 #: the picture, which is the only reason to draw the stator at all.
 TOOTH_FILL = 0.5
 
-#: What owns a cell, and so what colour it takes. A cell holds dots from
-#: whatever passes through it and the highest class present wins.
-#:
-#: THE CAN OUTRANKS THE MAGNETS, which is not what it looks like it
-#: should be. A cell is two dots by four, the air gap between the magnet
-#: band and the can is a couple of dots, and a cell on the silhouette
-#: therefore holds some of each. With the magnets ranked above, that cell
-#: took the magnet's amber and the outer ring came out yellow wherever a
-#: north pole passed behind it - a rotor leaking into the stationary
-#: part, which is the one thing this picture must not say.
+#: The cell classes; a cell takes the highest present. The can outranks the
+#: magnets: a silhouette cell holds some of each, and ranked below them the
+#: outer ring went amber wherever a north pole passed.
 (TRACK, BORE, YOKE, TOOTH_U, TOOTH_V, TOOTH_W, SOUTH, NORTH, CAN,
  TRUTH, POINTER, SOA_OK, SOA_WARN, SOA_TRIP, WATTS, SOA_FLASH) = range(16)
 
-#: A THERMOMETER'S OWN COLOURS, cold to hot. Every other level here takes
-#: its colour from a MARGIN - how close a node is to a ceiling it was
-#: given - and the thermistor has no ceiling: it reads a temperature and
-#: nothing on this board was given a limit for it. So it is coloured like
-#: a thermometer instead, blue through to red, which says the one thing
-#: about it that can be said.
+#: The thermistor's colours, cold to hot: it has no ceiling to take a
+#: margin's colour from.
 NTC_RAMP = tuple(range(SOA_FLASH + 1, SOA_FLASH + 6))
 PHASE_CLASS = (TOOTH_U, TOOTH_V, TOOTH_W)
 
-#: The classes drawn as LINES - the rings - as against the bands and
-#: teeth, which are areas. `Frame.put` has why a line takes a cell it
-#: shares with an area: a line that loses its cell is a broken line, and
-#: an area that loses one is a dot short at its edge.
-#:
-#: NOT THE SOUTH ARC. It is drawn thin, but it is a magnet: counted as a
-#: line its fringe took 46 of 240 cells it shared with tooth tips over 48
-#: poses, which is the rotor's colour on the stator again by another
-#: door. A south pole a dot short at its edge is the fault nobody sees.
+#: The classes drawn as lines (the rings), which keep a cell they share with
+#: an area (`Frame.put`). Not the south arc: as a line it took 46 of 240
+#: tooth cells over 48 poses.
 LINES = frozenset((BORE, YOKE, CAN))
 
 #: The teeth, which the truth stroke yields to. `Frame.put` has why.
 TEETH = frozenset(PHASE_CLASS)
-#: What they are called, in the order the teeth take them. Here
-#: rather than in the view because the drawing and the legend beside
-#: it have to name the same phase the same colour.
+#: The phases' names, here so the drawing and the legend agree.
 PHASE_NAMES = ('U', 'V', 'W')
 
-#: Two voices for the rotor, three for the stator, and the mark loudest.
-#: The magnets are what moves and take the warm pair; the phases are
-#: fixed furniture that still has to be told apart, which in braille it
-#: can only be by colour - a cell carries one, and the two polarities sit
-#: within a cell of each other.
+#: The palette: the rotor warm, the three phases told apart by colour (a
+#: cell carries one), the mark loudest.
 INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
        TOOTH_U: 38, TOOTH_V: 71, TOOTH_W: 103,
        SOUTH: 94, NORTH: ansi.AMBER, TRUTH: 252, POINTER: ansi.AMBER,
@@ -200,37 +105,17 @@ INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
        #: Not a margin against a ceiling like the rest of them, so
        #: not one of their colours: this one is a quantity.
        WATTS: 45,
-       #: The other half of the alarm pulse. A LEVEL THAT IS ALREADY RED
-       #: cannot get redder, so a stage being held back by its own
-       #: envelope looked exactly like one sitting near a limit: the
-       #: pulse is the difference. Which frames take it is the caller's -
-       #: this is a colour, not a clock.
-       #:
-       #: WITHIN THE RED FAMILY, not white against it. 231 was the
-       #: loudest pair on the page and read as an emergency where the
-       #: board is doing exactly what it was built to do - hold the
-       #: stage back. A lighter red still says "this is moving" and
-       #: leaves the shouting for something that deserves it.
+       #: The alarm pulse's other half - a red level cannot get redder - in a
+       #: lighter red: 231 white read as an emergency.
        SOA_FLASH: 210}
 
-#: The legend's own furniture - arrowheads, runs, the lines that fall to
-#: a tube. A NOTCH LIGHTER THAN `TRACK`, which is the empty half of a
-#: thermometer: both are things to be read past rather than read, but a
-#: leader is the thread between a name and its level and disappeared
-#: entirely at the track's grey.
+#: The legend's leaders, a notch lighter than TRACK (at its grey they
+#: vanished).
 LEADER_GREY = 243
 
-#: Which dot rows of its cell a gauge's level fills, and which one a
-#: horizontal leader runs along.
-#:
-#: THREE TALL SO A LEADER CAN ARRIVE IN THE MIDDLE OF IT. Two dots tall
-#: there is no middle: a run either sat on the level's top row or floated
-#: a dot above it, and both read as a line beside the bar rather than one
-#: that lands on it. Three has a centre, and `RULE_Y` is that centre.
-#:
-#: THE COLUMN IT MEETS STILL RUNS THE WHOLE CELL. Clipped to start at the
-#: run, the corner came out as a vertical that fell short; full height it
-#: makes a T, which is the junction the bench drew.
+#: The dot rows a gauge fills and the one a leader runs along: three tall, so
+#: a leader lands in the middle; the column it meets runs the whole cell,
+#: making the T the bench drew.
 GAUGE_Y = (0, 1, 2)
 RULE_Y = 1
 
@@ -239,20 +124,13 @@ RULE_Y = 1
 #: which band it is in.
 INK.update(dict(zip(NTC_RAMP, (33, 45, 41, 178, 196))))
 
-#: A MARK on a gauge - a burst's extreme, a held peak - above every
-#: level class, because a tick that yields to the level it marks is
-#: not seen. The palette's orange, the ink every page gives the thing
-#: to be found: the bead on the rim, a value in a box, a mark on a
-#: meter.
+#: A mark on a gauge (a burst's extreme, a held peak), above every level
+#: class, in the orange every page gives the thing to be found.
 MARK = NTC_RAMP[-1] + 1
 INK[MARK] = ansi.AMBER
 
-#: THE BEAD'S WAKE, nearest first: the arc behind the bead is how fast
-#: the can turns and which way, and it fades from the bead's own
-#: orange into the south pole's brown so it reads as motion and not as
-#: three more marks. Drawn over the rim it rides - a smear across the
-#: can is what a moving thing looks like - and `Frame.put` lets it, as
-#: it lets the truth stroke.
+#: The bead's wake, nearest first: speed and direction, fading from the
+#: bead's orange to the south pole's brown, drawn over the rim it rides.
 TRAIL = tuple(range(MARK + 1, MARK + 4))
 INK.update(dict(zip(TRAIL, (208, 172, 130))))
 MARKS = frozenset((TRUTH,) + TRAIL)
@@ -263,23 +141,12 @@ MARKS = frozenset((TRUTH,) + TRAIL)
 #: calibration record and the board is what acts on them.
 SOA_CLASS = (SOA_OK, SOA_WARN, SOA_TRIP)
 
-#: Columns of air between the machine and the nearest bar. THE SAME
-#: ON BOTH SIDES, which is why the placement is measured off the
-#: can's own edge rather than off the frame: counted from the frame,
-#: six bars and four put the two groups at different distances and
-#: the page looked lopsided.
-#: ONE COLUMN. Closed up entirely the tubes read as part of the drawing
-#: rather than as instruments beside it - a bar chart's bars touch each
-#: other, not the subject. Two was too much; this is the air that says
-#: "these are separate things" and nothing more.
+#: Air between the machine and the nearest bar, the same both sides (measured
+#: off the can's edge): one column; none read as part of the drawing.
 BAR_GAP = 1
 
-#: A PHASE BRIGHTENS WITH ITS CURRENT. One hue each so a tooth says which
-#: phase it belongs to, four steps of it so the same tooth says how hard
-#: that phase is being driven - and over an electrical turn the three
-#: ramps walk a third of a turn apart, which is the machine pulsing in
-#: the terminal rather than a diagram of one. The dimmest step is still
-#: lit: a phase carrying nothing is a phase, not a hole in the stator.
+#: A phase brightens with its current: one hue a phase, four steps, the
+#: dimmest still lit.
 PHASE_RAMP = {TOOTH_U: (23, 30, 38, 51),
               TOOTH_V: (22, 29, 71, 84),
               TOOTH_W: (53, 90, 133, 177)}
@@ -717,13 +584,9 @@ def _bead(frame, seat, pointer_deg, glyph=None, rate=None):
         _wake(frame, seat, phi, seat_r, rate, (row, col))
 
 
-#: The wake's shutter, seconds of travel the trail shows. At 60 rpm
-#: seven hundredths of a second is 25 degrees of rim, seen from across
-#: a bench; at a crawl it is a few dots; and the cap keeps a fast can
-#: from wearing a ring, which would say nothing about which way it
-#: turns. A TENTH AND 120 FIRST, then "a shade narrower and shorter"
-#: from the bench: shorter is the shutter and the cap, narrower is the
-#: dots a dot apart rather than half a dot, a lighter line.
+#: The wake's shutter, seconds of travel shown (25 degrees at 60 rpm), capped
+#: so a fast can shows direction, not a ring; dots a dot apart. 0.1 and 120
+#: were "a shade narrower and shorter" from the bench.
 TRAIL_S = 0.07
 TRAIL_MAX_DEG = 90.0
 TRAIL_PITCH = 1.0

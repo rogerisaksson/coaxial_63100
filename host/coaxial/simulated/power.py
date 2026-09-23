@@ -31,31 +31,18 @@ class SimulatedThermal:
     LIMIT = dict(thermal.CEILING_C)
     DEFAULT_LIMIT = thermal.CEILING_DEFAULT_C
 
-    #: Which nodes the current clamp cannot cool - `soa_undriven_mask` in
-    #: the calibration record, and the same three for the same reason.
-    #:
-    #: A THROTTLE NEEDS AN ACTUATOR. The clamp scales the phase current,
-    #: so it moves the legs, the hot swap and the motor, and nothing at all
-    #: on the MCU, the regulators or the front end: those draw the same
-    #: watts at zero duty as at full. Weighed into the worst node they put
-    #: a floor under the margin that no derating can lift - measured here
-    #: 2026-09-04, an idle board settles at 49.1 C on the MCU and 51.1 C
-    #: on the regulators, 0.30 of the budget gone on a cold bench.
+    #: Nodes the current clamp cannot cool (`soa_undriven_mask`): they draw the
+    #: same watts at any duty. Counted in, an idle board spent 0.30 of its budget
+    #: on a cold bench (MCU 49.1 C, regulators 51.1 C, 2026-09-04).
     UNDRIVEN = ('mcu', 'regulators', 'afe')
 
-    #: How much longer than wall time this stand-in heats. The board's
-    #: own constant is about seven minutes, and a view nobody watches for
-    #: seven minutes shows a flat line: at ten, a load step is visible in
-    #: half a minute. It is the CLOCK that is sped up and nothing else -
-    #: the network, the capacities and the ceilings are the real ones out
-    #: of `coaxial.thermal`, so what a step settles at is right even
-    #: though it gets there sooner.
+    #: The stand-in's clock runs this much faster than the wall: the board's
+    #: ~7 min constant shows a load step in half a minute. Only the clock - the
+    #: network, capacities and ceilings are `coaxial.thermal`'s.
     HASTE = 10.0
 
-    #: How fast the tracked rms follows the samples, seconds. Long enough
-    #: that a single sample cannot move it - one instant of a rotating
-    #: three-phase current is a vector, not an amplitude - and short
-    #: enough that a load step is in the temperatures within a second.
+    #: The tracked rms's time constant, s: one sample (a vector, not an
+    #: amplitude) cannot move it; a load step shows within a second.
     RMS_TAU = 0.5
 
     #: The window of remaining hold the throttle insists on, seconds.
@@ -67,12 +54,9 @@ class SimulatedThermal:
     #: `THERMAL_DERATE_RECOVER_PER_S` in the firmware.
     DERATE_RECOVER_PER_S = 0.05
 
-    #: The longest slice the integrator takes, seconds of model time.
-    #: `THERMAL_STEP_MS` in the firmware, and the same number for the same
-    #: reason: the envelope is evaluated once per step, and a step longer
-    #: than the throttle's ramp steps straight over it. A fifth of the
-    #: stiffest node's constant, too - a leg's silicon at 1.4 s - so the
-    #: explicit step is an integration and not an oscillation.
+    #: The longest slice, model s (`THERMAL_STEP_MS`): the envelope runs once a
+    #: step, and a fifth of the stiffest constant (a leg's 1.4 s) keeps the
+    #: explicit step stable.
     STEP_S = 0.1
 
     #: THE WINDING'S ENVELOPE, the record's CAL_VERSION 12 defaults: the
@@ -91,30 +75,17 @@ class SimulatedThermal:
     #: stand-in's sampler has no duty to weigh by.
     HOTSWAP_R = 3.6e-3
 
-    #: THE GROUND TRUTH'S SITUATIONS: what a box, a fan or a heat sink
-    #: does to the board the stand-in pretends to be, as scales on its
-    #: air path and its laminate. The bench: "a simulated ground truth,
-    #: to see how well the estimator identifies online, and a way to lay
-    #: another thermal situation over it" - and, in simulated mode, "a
-    #: switch at random, moderate intervals so ROTOR OBSERVER and THERMAL
-    #: OBSERVER show the logic in action".
-    #: Each situation: a scale on the air path, one on the laminate's
-    #: capacity, and the ROOM - `outdoors` is the whole assembly, motor
-    #: and electronics, carried to -20 C in a light wind, the bench's
-    #: "from 25 C indoors to -20 C outdoors and back in again"; the
-    #: observer is not told the room and reads its way there from its
-    #: own losses, as the board does.
+    #: The ground truth's situations: scales on its air path and laminate
+    #: capacity, and its room. The observer is not told the room and reads it
+    #: from its own losses, as the board does.
     SITUATIONS = {'bench': {'air': 1.0, 'capacity': 1.0, 'ambient': 25.0},
                   'box': {'air': 2.0, 'capacity': 1.0, 'ambient': 25.0},
                   'fan': {'air': 0.5, 'capacity': 1.0, 'ambient': 25.0},
                   'heatsink': {'air': 0.35, 'capacity': 1.6, 'ambient': 25.0},
                   'stuffy': {'air': 1.5, 'capacity': 1.0, 'ambient': 25.0},
                   'outdoors': {'air': 0.8, 'capacity': 1.0, 'ambient': -20.0},
-                  # The bench's robot: a temperate hall, a cold room, and out
-                  # into a toasty summer - named for the temperature and
-                  # nothing else, on the bench's word (2026-09-06: "call it
-                  # toasty, cold and temperate, or something more neutral");
-                  # they were warehouse, freezer, thai.
+                  # The bench's robot's rooms, named for their temperature
+                  # (2026-09-06; they were warehouse, freezer, thai).
                   'temperate': {'air': 1.0, 'capacity': 1.0, 'ambient': 20.0},
                   'cold': {'air': 0.9, 'capacity': 1.0, 'ambient': -25.0},
                   'toasty': {'air': 1.2, 'capacity': 1.0, 'ambient': 45.0}}
@@ -122,27 +93,11 @@ class SimulatedThermal:
     #: STABLE to be reached between them at HASTE, short enough to watch.
     SWITCH_EVERY_S = (180.0, 360.0)
 
-    #: THE TOUR the THERMAL OBSERVER page takes the truth on: the bench's
-    #: robot, 20 C temperate into -25 C cold and out into 45 C toasty,
-    #: round and round - and it moves on when the
-    #: identification has EARNED the room, not on the clock: the state
-    #: STABLE for TOUR_STABLE_S of model time - a hundred seconds, ten of
-    #: wall time at HASTE - no sooner than TOUR_MIN_S after the last move,
-    #: and after TOUR_MAX_S regardless so a leg that never gets there does
-    #: not stand for ever. The bench, 2026-09-06: "run the predefined
-    #: temperature cycle, +20 to -25 to +45 and back to +20, in a loop, so
-    #: one sees the innovation vary; switch the outdoor temperature after
-    #: it has run with a stable innovation for a while" - and then "do not
-    #: switch until it has run in STABLE for ten seconds or so". It was
-    #: the margin at 0.95 for three minutes, which moved on a leg just
-    #: short of the word. Measured under the page's two-on four-off cycle
-    #: with no cap: STABLE at the tenth minute from a fresh temperate
-    #: room, twenty-three to twenty-five into a cold leg, thirty-eight
-    #: into a toasty one - its 45 C pulls the air scale to 1.5 on the way,
-    #: and with the judge on the movement 38 to 48 - so the cap is fifty
-    #: minutes and every leg earns its move; at forty-five the toasty leg
-    #: ran to the cap now and then, and on a slow machine a minute short
-    #: of the suite's allowance (CI, 2026-09-06).
+    #: THE TOUR: temperate 20 C, cold -25, toasty 45, round again. It moves on
+    #: when the room is earned - STABLE held TOUR_STABLE_S (10 wall s at HASTE),
+    #: no sooner than TOUR_MIN_S - or at TOUR_MAX_S. Measured under the page's
+    #: cycle: STABLE at minute 10 temperate, 23-25 cold, 38-48 toasty, so the cap
+    #: is 50 min (at 45 toasty sometimes hit it; CI, 2026-09-06).
     TOUR = ('temperate', 'cold', 'toasty')
     TOUR_STABLE_S = 100.0
     TOUR_MIN_S = 300.0
@@ -158,44 +113,30 @@ class SimulatedThermal:
     #: thermal op 12 does on the board.
     MARGIN_FLOOR = thermal.IDENT_MARGIN_FLOOR
 
-    #: THE TRIP CAP, as `board_thermal.c` keeps it: after the envelope
-    #: has dropped the stage the margin is held at this, recovering at
-    #: this rate of model time - a percent a minute, half an hour to the
-    #: identification's own - and every trip starts it over. The bench,
-    #: 2026-09-06: "it should trip the limits and push the SOA limit down
-    #: to maybe 70 %, or some other graceful degradation".
+    #: THE TRIP CAP (`board_thermal.c`): after a trip the margin holds at 70 %,
+    #: recovering a percent a model minute; every trip restarts it (bench
+    #: 2026-09-06: "graceful degradation").
     TRIP_MARGIN = 0.70
     TRIP_RECOVER_PER_S = 0.30 / 1800.0
 
-    #: THE LOAD CYCLE a page in simulated mode lays on, model seconds:
-    #: six minutes at 30 A and fourteen cooling - the walk the suites
-    #: take the identification through - so the board's regions warm and
-    #: cool on the map while the state earns its span. Two minutes of
-    #: wall time a cycle at HASTE. The bench, 2026-09-06: "make the
-    #: THERMAL OBSERVER page show the board's temperatures from a
-    #: simulated load cycle".
+    #: The page's load cycle, model s: 6 min at 30 A, 14 cooling - two wall
+    #: minutes at HASTE (bench 2026-09-06).
     CYCLE_AMPS, CYCLE_ON_S, CYCLE_OFF_S = 30.0, 360.0, 840.0
 
     def __init__(self, sample=None, situation='bench', seed=7):
         self._seconds = 0
-        #: THE BOARD'S CADENCE, thirty seconds (THERMAL_SAMPLE_EVERY_MS),
-        #: three of wall time at HASTE. It was five: judged every twenty
-        #: seconds a late cooldown's samples moved under the still rule's
-        #: 0.3 K and the room never separated from the air path, so the
-        #: stand-in stayed CONVERGING where the board goes STABLE.
+        #: The board's cadence, 30 s (THERMAL_SAMPLE_EVERY_MS). At 5 s a late
+        #: cooldown moved under the still rule's 0.3 K and the room never separated
+        #: from the air path.
         self._every_s = 30.0
         self._settle_s = 0.3
-        #: WHERE IT LOOKS, not what it is told. A sampler that answers
-        #: the phase currents and whether the bridge is switching - the
-        #: two things this board has - and nothing about how hot
-        #: anything is or is going to be.
+        #: The sampler: phase currents and whether the bridge switches - what the
+        #: board has - and no temperatures.
         self._sample = sample or (lambda: {'amps': (0.0, 0.0, 0.0),
                                            'switching': False})
         #: An rms per phase, tracked across samples.
         self._rms = 0.0
-        #: WHAT IT DROPS WHEN A NODE REACHES ITS CEILING. The board wires
-        #: the gate drivers' own disable here; a notebook wires its own.
-        #: Typed, so what is wired reads as a callable and not as None.
+        #: What drops the stage at a ceiling: the board wires the gate drivers.
         self._gate: Optional[Callable[[], bool]] = None
         self._trips = 0
         #: What the effective duty is, asked of whatever owns the compares.
@@ -247,11 +188,8 @@ class SimulatedThermal:
         #: trip is in force.
         self._trip_cap = 1.0
         self._trip_at = 0.0
-        #: WHOSE CLOCK. The wall's until a caller drives the model's own
-        #: through `fast_forward`, and the caller's from then on: a walk
-        #: in a suite or a notebook that read `state()` between steps was
-        #: advanced by the wall clock inside the reader as well, and came
-        #: out different on a slow machine - CI, twice, 2026-09-06.
+        #: Whose clock: the wall's until `fast_forward` takes it. A reader advancing
+        #: on the wall mid-walk made CI differ, twice (2026-09-06).
         self._driven = False
         #: The load cycle, `(amps, on_s, off_s, began_model_s)` or None:
         #: what the live path samples instead of the drive while one runs.
@@ -391,10 +329,8 @@ class SimulatedThermal:
                 self._node, self._ntc, self._cfg, power, sample,
                 self._speed_rpm, self._since_seen_s, self._ambient)
             self._since_seen_s = 0.0
-        # THE READING FOLLOWS THE PATCHES, it does not jump with them: toward
-        # the weighted average of the two it sits between, at the laminate's
-        # own lag, and never past either of them - a passive link in a chain
-        # cannot read outside the pair (docs/papers, 2.3).
+        # The reading follows the two patches it sits between, at the
+        # laminate's lag, never outside them (docs/papers, 2.3).
         self._ntc = thermal_ident.ntc_follow(self._node, self._ntc,
                                              self._cfg, dt)[0]
         # THE IDENTIFICATION BESIDE IT, on the same power and slice; a sample
@@ -705,10 +641,8 @@ class SimulatedThermal:
 
     def _derate_applied(self, want):
         """The factor after the recovery slew. Down is immediate."""
-        # ON MODEL TIME, not the wall's: the slew ran on wall seconds times
-        # HASTE, which is model seconds on the live path and noise under
-        # `fast_forward` - two executions of the same notebook walk moved the
-        # tour at different minutes (2026-09-06).
+        # On model time: on the wall's, two runs of one notebook walk moved
+        # the tour at different minutes (2026-09-06).
         now = self._model_s
         was, self._derate_at = self._derate_at, now
         if want <= self._derate_held or was is None:
@@ -847,11 +781,9 @@ class SimulatedThermal:
         return True
 
     def identification(self):
-        """The identification as the stand-in runs it - the wire's shape
-        (`Thermal.identification`) off the same identifier the board
-        runs, plus `truth`: the situation the ground truth is in, which
-        no board can report and a page in simulated mode shows beside the
-        estimate so the logic can be seen working.
+        """The identification in the wire's shape (`Thermal.identification`),
+        off the board's identifier, plus `truth` - the ground truth's
+        situation, which no board can report.
         """
         self._advance()
         ident = self._ident
@@ -994,10 +926,8 @@ class SimulatedGateDrivers(GateControl):
         self._deadtime_ns = counts * self.DTS_PS // 1000
         return self.dead_time()
 
-    #: Counts per read, chosen coprime with PERIOD so repeated reads walk
-    #: the whole period instead of landing in one half of it. A wall-clock
-    #: counter looked right and was not: sixty reads in a millisecond moved
-    #: it seven ticks, and every sample showed the same side conducting.
+    #: Counts per read, coprime with PERIOD so reads walk the whole period (a
+    #: wall-clock counter moved 7 ticks in 60 reads; every sample one side).
     CNT_STEP = 617
 
     def _cnt(self):

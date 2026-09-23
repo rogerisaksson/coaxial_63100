@@ -14,52 +14,25 @@ from .graphics.raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N
 OUTER_MM = 50.0
 BORE_MM = 5.0
 
-#: The finest grid worth drawing. Cost is O(cells^2) field evaluations, so
-#: this is what stops a tall window spending a second a frame - measured, 88
-#: cells is 7744 points and draws in 40 ms, which at 2 Hz is nothing.
-#:
-#: It was 44, which is what made the circle read as a staircase: the raster
-#: is the only antialiasing there is, and half the cells is twice the step.
-#: The halftone puts four dots on every field row and two on every column,
-#: so the field is still evaluated here and only the DOTS are finer.
+#: The finest field grid: cost is O(cells^2) evaluations - 88 cells, 7744
+#: points, 40 ms. At 44 the circle stepped; the halftone's dots are finer
+#: than the field either way.
 CELLS_MAX = 88
 
-#: How tall a drawn FIELD ROW is against a cell's width, on the screen.
-#:
-#: BOTH RENDERERS ARE SQUARE IN CELLS - the ramp spends two characters a
-#: cell and one row, the halftone one character and half a row - so a circle
-#: of equal cells each way is round only if a cell is square on the glass.
-#: It is not: a terminal character is about 9 x 20 pixels, so the cell comes
-#: out a tenth taller than it is wide and the board stands up as an oval.
-#:
-#: Applied to the FIELD rather than to the grid: the row spacing in
-#: millimetres is stretched by this, so fewer rows fit inside the radius and
-#: the drawn shape comes back round. Tunable because it belongs to the font,
-#: not to the board - half the character aspect `screen.aspect_of` measures.
+#: A field row's height against a cell's width on the screen: a terminal
+#: character is ~9 x 20 px, so square cells drew the board an oval. Applied
+#: to the field's row spacing; the font's, not the board's (half the aspect
+#: `screen.aspect_of` measures).
 CELL_ASPECT = 1.10
 
-#: The bore is drawn at least this many CELLS across on the plain ramp,
-#: whatever the board's millimetres work out to at the resolution in hand.
-#:
-#: A drawing concession and not a dimension: 5 mm of 50 is a tenth of the
-#: radius, which lands on one cell at any terminal size worth using, and one
-#: cell is a dent rather than a hole. Widened here rather than in BORE_MM,
-#: because that one is what the board IS and belongs to `electronics/`.
-#:
-#: It only bites on the COARSE grid. The halftone spends a dot every half
-#: cell and the physical 5 mm resolves on its own - this is the plain
-#: ramp's floor, for a pipe or a log.
-#:
-#: SIZE IS THE ONLY KNOB. A superellipse was tried at three exponents and
-#: changed nothing - the raster is too coarse to care about the shape of the
-#: curve, only about how many FIELD ROWS fall inside it:
+#: The bore's least width on the plain ramp, cells: 5 mm lands on one cell,
+#: a dent. A drawing concession (BORE_MM is the board's); the halftone
+#: resolves 5 mm on its own. Size is the only knob - superellipses at three
+#: exponents changed nothing:
 #:
 #:   up to 2.0 cells   2-4-4-2         the discrete circle, and the smallest
 #:   2.4               4-4-4-4         a square
 #:   3.2               4-6-6-6-6-4     an octagon
-#:
-#: The three larger shapes were each tried on the bench and read as a
-#: square or a punched-out middle.
 BORE_MIN_CELLS = 2.0
 
 #: The board's centre in the pick and place's frame, millimetres. The
@@ -128,17 +101,10 @@ def _blob(sigma, *refs):
     return (sum(xs) / len(xs), sum(ys) / len(ys), sigma)
 
 
-#: Where the heat sources sit: (x, y, sigma) in millimetres per zone.
-#:
-#: `sigma` is how wide the blob is laid down, not the part's size - spreading
-#: in copper is wider than the device feeding it. A row of points is a row of
-#: parts, and they sum. Every point is a placed part or the middle of a
-#: pair: a blob for a leg's switches and one for its shunts - the phase
-#: node's watts are the FET's conduction AND the shunt's, and `field`
-#: takes the strongest point so both reach the node's temperature - the
-#: middle driver the NTC's neighbour, which is why the NTC reads that hot
-#: spot and not the board, and the front end as its three chains and the
-#: reference.
+#: The heat sources, (x, y, sigma) mm per zone: sigma is how wide the blob is
+#: laid (copper spreads wider than the part). A leg is a blob for its
+#: switches and one for its shunts, and `field` takes the strongest point;
+#: the middle driver is the NTC's neighbour.
 LAYOUT = {
     'phase_u': [_blob(8, 'Q1U', 'Q2U'), _blob(7, 'RU1', 'RU2')],
     'phase_v': [_blob(8, 'Q1V', 'Q2V'), _blob(7, 'RV1', 'RV2')],
@@ -157,21 +123,13 @@ LAYOUT = {
 #: How far a frame stands off the parts inside it, millimetres.
 FRAME_MM = 1.0
 
-#: What the picture marks: a label, the parts the frame goes round,
-#: where the label sits - `bottom` writes it INTO the frame's bottom
-#: line, `⠧⠤MCU⠤⠼`, the bench's word for every label but one; a side,
-#: `inside`, or a point in millimetres - and how far the frame stands
-#: off its parts. REG is the two bucks and the two LDOs left of the
-#: MCU - they warm a little bringing 63 V down to what the board runs
-#: on - and shares an edge with the MCU's frame, which stands three
-#: millimetres off the package so the temperature inside it shows; HS
-#: is the controller with its back-to-back FETs and the fuse; each
-#: phase's frame takes its shunts, which sit at the rim by the
-#: terminals; NTC is the thermistor beside the bore, its label above
-#: the hole. All on the bench's word. The hot swap runs from the bore's
-#: edge to the rim: the FETs at 14 and 15 mm, the controller at 23, the
-#: fuse and the varistor at 31, the terminals at 40 - which is where the
-#: bench thought the area was, and where its input end is.
+#: The picture's marks: a label, the parts the frame goes round, where the
+#: label sits (`bottom` writes it into the frame's bottom line, `⠧⠤MCU⠤⠼`),
+#: and the frame's stand-off, mm. REG is the two bucks and two LDOs left of
+#: the MCU, whose frame stands 3 mm off the package; each phase takes its
+#: shunts at the rim; HS runs from the bore's edge to the rim (FETs 14-15 mm,
+#: controller 23, fuse and varistor 31, terminals 40). All on the bench's
+#: word.
 MARKS = (
     ('MCU', ('U3',), 'bottom', 3.0),
     ('REG', ('U8', 'U9', 'U1', 'U7'), 'bottom', FRAME_MM),
@@ -238,43 +196,31 @@ RAMP = '.,:;~-=+ic*xX#$%8W@'
 #: it rides beside the board as a vertical rail, hottest at the top.
 SCALE_LINES = 0
 
-#: The halftone's range: the share of a cell's dots lit at the ramp's cold
-#: end and at its hot end. THE COLOUR CARRIES THE TEMPERATURE and the dots
-#: carry it again, so a hot zone reads hot with the palette off. Not down
-#: to nothing: under four dots in ten a cool board dissolved into grain in
-#: the raster, and the rim was the only shape left. NOT UP EITHER: five
-#: was tried when the scale's cold end read black on the bench, and it
-#: put an idle board at seven dots in ten - inside the range the
-#: attitude page measured as a brick wall, every cell a block with dark
-#: mortar round it (`shading.DENSITY_FLOOR`). The cold end's fix was
-#: its colour, in `ansi.THERMAL_STOPS`.
+#: The halftone's range, the share of a cell's dots lit at the ramp's cold and
+#: hot ends; the dots carry the temperature with the palette off. Under 0.4 a
+#: cool board dissolved into grain; 0.5 put an idle board in the brick-wall
+#: range (`shading.DENSITY_FLOOR`). The cold end's fix was its colour
+#: (`ansi.THERMAL_STOPS`).
 DENSITY_COLD, DENSITY_HOT = 0.40, 1.0
 
 #: How many ranks the mask has: a share of one clears every one of them.
 NOISE_LEVELS = NOISE_N * NOISE_N
 
-#: The rim, the outlines and the labels: white, which every stop of the
-#: ramp is darker than. The amber the gauges mark with is a stop of the
-#: ramp itself - 85 C - and an outline in it would vanish over a hot leg.
+#: Rim, outlines and labels in white: every ramp stop is darker (amber is the
+#: ramp's 85 C and vanishes over a hot leg).
 MARK_INK = ansi.WHITE
 
-#: What a dot is, by geometry alone: off the board, the field's
-#: halftone, or a MARK - the rim, the bore's edge, a frame - which its
-#: cell draws alone, in MARK_INK. Two shapes before this, both on the
-#: bench: a dot-wide outline over the stipple that filled each package,
-#: "a faint frame"; then every package a solid block with a white edge,
-#: "grey areas". A frame round the GROUP, its cells lit only where the
-#: line runs, is what reads as a frame.
+#: A dot by geometry alone: off the board, the field's halftone, or a mark
+#: (rim, bore edge, frame) drawn alone in MARK_INK. A frame round the group,
+#: lit only where its line runs, reads as a frame; a dot-wide outline over
+#: each package read "faint", solid packages "grey areas".
 OFF, FIELD, MARK = 0, 1, 2
 
 
-#: Where each laminate patch's centre sits, millimetres from the board's,
-#: off the same raster that gave the model its areas - and how wide the
-#: blend between them is laid. THE PARTITION IS THE MODEL'S, NOT THE
-#: LAMINATE'S: read one patch per point the picture drew a step across
-#: the band's edge where the copper has a gradient, so the laminate under
-#: a point is the patches' temperatures weighted by a Gaussian of their
-#: distance - smooth, and each patch's own value at its own centre.
+#: Each laminate patch's centre, mm from the board's, off the model's area
+#: raster, and the blend's width: the laminate under a point is the patches'
+#: temperatures weighted by a Gaussian of distance - one patch per point drew
+#: a step where the copper has a gradient.
 PATCH_CENTRE = {'board': (0.0, -6.8), 'patch_u': (-27.6, 26.1),
                 'patch_v': (0.0, 30.7), 'patch_w': (27.6, 26.1),
                 'patch_left': (-35.3, -5.9), 'patch_bottom': (0.0, -35.3),
@@ -373,12 +319,9 @@ def _density(celsius):
 
 _MASKS = {}
 
-#: A frame's lines in a cell's dots: the top across dot row 1, the
-#: bottom across dot row 2, the sides down a lane - so the corners are
-#: right angles, `⡖⠒⠒⢲` over `⠧⠤⠤⠼`, the bench's own glyphs ("braille
-#: with just a border and right angles"). A frame sampled from its
-#: millimetres landed its lines on whatever dot row the edge fell, and
-#: the corners came out ragged.
+#: A frame's dot rows: the top across row 1, the bottom across row 2, the
+#: sides down a lane - right-angled corners, `⡖⠒⠒⢲` over `⠧⠤⠤⠼` (bench).
+#: Sampled from millimetres the corners came out ragged.
 FRAME_TOP, FRAME_BOTTOM = 1, 2
 
 

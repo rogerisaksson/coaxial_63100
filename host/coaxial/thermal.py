@@ -24,11 +24,8 @@ MEASURED = {
 #: was warming anything.
 NTC_OFFSET = MEASURED['passive']['ntc'] - MEASURED['passive']['board']
 
-#: The four states the bench can hold. Here and not in a tool because two
-#: tools drive them, and a second copy is the one that goes stale.
-#:
-#: The order matters: each state adds one power term to the one before, so
-#: the DIFFERENCES isolate a subsystem no single state can.
+#: The bench's four states, each adding one power term to the last, so their
+#: differences isolate a subsystem.
 STATES = ('passive', 'afe', 'traffic', 'switch')
 
 STATE_IS = {
@@ -38,16 +35,13 @@ STATE_IS = {
     'switch':  'AFE off: three legs at 50 %',
 }
 
-#: PER LEG. A leg that is not switching does not get warm, and the lumped
-#: pair could not say that - see `thermal_node_t`.
+#: Per leg: an idle leg stays cool (`thermal_node_t`).
 LEGS = ('u', 'v', 'w')
 DRIVERS = tuple('driver_' + leg for leg in LEGS)
 PHASES = tuple('phase_' + leg for leg in LEGS)
 
-#: The thermistor's element sits in the centre patch a driver's width from
-#: the V leg's patch: it is tied between those two and it is the V leg's
-#: patch it corrects. It anchored the V driver's node while the model was
-#: a star; the leg it names is the same.
+#: The thermistor sits in the centre patch a driver's width from the V leg's
+#: patch, which it corrects.
 NTC_PATCH = 'patch_v'
 NTC_NEIGHBOUR = NTC_PATCH
 
@@ -74,213 +68,92 @@ def pretty(node):
     head, _, leg = node.rpartition('_')
     return '%s %s' % (head, leg.upper()) if leg in LEGS else node
 
-#: K/W from a leg node's surface into the board.
+#: K/W from a leg node's surface into the board: 28, the geometric mean of
+#: two readings that disagree - an estimate, not a measurement.
 #:
-#: 28 K/W A LEG, and it is a hip shot between two readings that
-#: disagree - said so here rather than dressed as a measurement.
+#:    camera's bridge zone, 15.2 K/W lumped, x3 legs              45.6 K/W
+#:    datasheet 25.9 K/W junction-air (2s2p) - Rth JC 0.69 - 8.33  16.9 K/W
+#:    geometric mean                                               27.7 K/W
 #:
-#:    the camera's bridge zone, 15.2 K/W lumped, x3 for three
-#:    parallel legs                                        45.6 K/W
-#:    the datasheet's 25.9 K/W junction-to-air on a 2s2p
-#:    coupon, less Rth JC 0.69 and the board's own 8.33     16.9 K/W
-#:    the geometric mean of the two                         27.7 K/W
-#:
-#: NEITHER DOMINATES. The camera measured THIS board but read a mixed
-#: copper and soldermask surface through an emissivity nobody corrected -
-#: the same suspicion the NTC campaign raised. The datasheet is
-#: characterised on a defined board, but not on this one, and with a single
-#: device dissipating where ours carries six FETs and three drivers. The
-#: log-midpoint is what "between two estimates" means when both are ratios.
-#:
-#: WHAT IT COSTS AND WHAT IT KEEPS. Three legs equally loaded, 20 C room,
-#: against the record's 125 C nodes and 105 C board:
-#:
-#:    R_leg    continuous rating   binding node
-#:    45.6     15 to 18 A rms      the shunt
-#:    28       20 to 22 A rms      the shunt
-#:    16.9     about 25 A rms      the shunt
-#:
-#: THE SHUNT BINDS IN EVERY CASE, not the FET - it is 3.5 mOhm against the
-#: FET's 1.8 and has no case path to hide behind. And the FET's own ceiling
-#: keeps its margin: at 100 A each carries about 9 W, so Rth JC 0.69 K/W
-#: puts the junction 6.2 K over its node, and a 125 C node is 131 C at the
-#: junction against the sheet's 175 C limit. Cutting the spreading by 1.6
-#: does not spend that 44 K.
-#:
-#: WHAT WOULD REPLACE IT: a camera run under real load, with the board
-#: reference taken on a surface whose emissivity was corrected.
+#: The camera read an uncorrected mixed copper/soldermask emissivity; the
+#: datasheet's coupon is not this board. Continuous rating, three legs, 20 C
+#: room, 125 C nodes, 105 C board: 15-18 A rms at 45.6, 20-22 A at 28, ~25 A
+#: at 16.9 - the shunt binds in every case (3.5 mOhm against the FET's 1.8).
+#: At 100 A a FET's 9 W puts its junction 6.2 K over its node: 131 C against
+#: the sheet's 175. Settles it: a camera run under load, emissivity corrected.
 LEG_TO_BOARD = 28.0
 DRIVER_SWITCH_WATT = 0.60 / 3
 
-#: The leg nodes' heat capacity, J/K, LUMPED FOR THREE and divided below.
-#:
-#: **NOT MEASURED.** `thermal.c` has said so since the campaign - "the
-#: parts' own are not measured, they respond in seconds, below what this
-#: rig can resolve, and only affect the settling" - and that last clause
-#: was true when this model was a steady-state fit and is FALSE NOW. The
-#: envelope divides by exactly these numbers: `soak_j` is
-#: `capacity x (limit - t)`, `hold_seconds` is that over the net watts,
-#: and the throttle's whole reaction window is a multiple of it. Every
-#: burst figure in FINDINGS rests on a number nobody took.
-#:
-#: HOW WRONG IT COULD BE, from Silva 2022 (Appl. Sci. 12, 12555): a
-#: lumped element's EFFECTIVE transient capacity is `C* = gamma C` with
-#: gamma = 1/3 less a negative term for every contact with a better
-#: conductor - heat crosses a distributed body in one direction, so a
-#: third of the mass is what the transient sees. If 0.35 was a guess at
-#: the physical capacity, the transient one is up to three times smaller
-#: and every burst is three times shorter. If it was already a guess at
-#: the effective one, it stands. Nothing on record says which, so the
-#: honest reading is a BAND rather than a value, and
-#: `test_thermal_core.py` measures what the band is worth.
-#:
-#: WHAT WOULD SETTLE IT, and it is the one soft number a transient can
-#: reach: a power step and the NTC's slope. With the coupling at one the
-#: thermistor reads the leg lump, so `dT/dt` right after a step is
-#: `P / capacity` directly - no camera, and `tools/pulse.py` already
-#: makes the step.
+#: The leg nodes' heat capacity, J/K, lumped for three. NOT MEASURED, and the
+#: envelope divides by it: `soak_j`, `hold_seconds` and the throttle's window
+#: scale with it. Silva 2022 (Appl. Sci. 12, 12555): a lumped element's
+#: transient capacity is ~1/3 of its physical one, so bursts may be up to 3x
+#: shorter; `test_thermal_core.py` measures the band. Settles it: a power
+#: step and the NTC's slope (`tools/pulse.py` makes the step).
 LEG_CAPACITY_DRIVERS = 0.35
 LEG_CAPACITY_PHASES = 1.20
 
-#: Silva's leading term, for a bench that wants to see the other end of
-#: the band. NOT APPLIED - applying it would be correcting an unattributed
-#: number by a factor and calling the product measured.
+#: Silva's gamma, for the other end of the band. Not applied: a factor on an
+#: unattributed number is not a measurement.
 CAPACITY_GAMMA = 1.0 / 3.0
 
-#: How far the drivers node sat above the board while switching, K.
-#:
-#: NOT A MEASUREMENT AND NOT A CONSTANT OF ITS OWN - it is the product
-#: above, and it was written here as a bare 9.1 beside the two numbers it
-#: is made of, free to drift from them.
+#: The drivers node over the board while switching, K: the product of the two
+#: above, not a constant of its own.
 DRIVER_RISE_SWITCHING = DRIVER_SWITCH_WATT * LEG_TO_BOARD
 
-#: How far the thermistor's own element sits toward the leg node, 0 to 1.
+#: Where the thermistor sits between the board and the V leg, 0 to 1: an
+#: element of the network (Silva 2022), so it reads a weighted average and
+#: never leaves the interval. The old `board + 1.055 x rise + offset` read
+#: 6.0 K over its heater at rest, 11.5 K at a 100 K rise.
 #:
-#: AN ELEMENT NOW, NOT A COEFFICIENT. Silva 2022 (Appl. Sci. 12, 12555)
-#: is the form: every thermal object is a resistance and a heat capacitor
-#: in parallel, and objects join into a network. The thermistor is one
-#: such object, tied to the leg on one side and the board on the other,
-#: so its temperature is a WEIGHTED AVERAGE of the two and cannot leave
-#: the interval between them whatever this number is.
-#:
-#: That is the property the old form could not have. It was
-#: `board + c x rise + offset`, with c FITTED at 1.055 and an additive
-#: offset on top, so the modelled sensor read hotter than the node
-#: heating it at every load - 6.0 K over at rest, 11.5 K at a 100 K rise.
-#: Capping c at one left the offset still doing it.
-#:
-#: NOT MEASURED, AND THE CAMPAIGN CANNOT MEASURE IT. Its one switching
-#: state implies 9.6 K of thermistor rise against 9.12 K of leg rise, a
-#: fraction of 1.05, which no passive body can have. Something among the
-#: three inputs is wrong - the leg's spreading resistance (itself three
-#: times a lumped figure the camera saw once), the driver's share of the
-#: switching loss, or the camera's board reference, which reads mixed
-#: copper and soldermask through an emissivity nobody corrected. The
-#: model can no longer absorb that in a coupling, so it comes out as a
-#: residual, which is where an inconsistency belongs.
-#:
-#: 0.30, AND IT IS GEOMETRY NOW. `electronics/Coaxial 63100
-#: Pick-Place.csv` places NTC1 at (99.62, 79.83) mm and every power part
-#: beside it, so the fraction stops being a midpoint of a hand-waved range:
+#: The campaign cannot measure it: its switching state implies 1.05, which no
+#: passive body can have, so the inconsistency stays a residual
+#: (`NTC_CAMPAIGN_RESIDUAL_K`). 0.30 is geometry off the pick-and-place (NTC1
+#: at 99.62, 79.83 mm), f = ln(R/r)/ln(R/a) with R 46 mm and a 1.5 mm:
 #:
 #:    U1V, the V gate driver     8.2 mm    f = 0.50
 #:    Q2V, a V half-bridge FET  15.1 mm    f = 0.33
 #:    Q1V, the other            17.7 mm    f = 0.28
 #:    the next-nearest driver   28.0 mm
 #:
-#: Two-dimensional radial spreading in a plate gives `f = ln(R/r)/ln(R/a)`
-#: with R half the board's short side, 46 mm off the placements, and `a`
-#: the source's own radius - 1.5 mm for these packages. The old 0.5 was
-#: right for the DRIVER IC alone; it is wrong for the node, because the
-#: model lumps the driver's switching loss and both FETs' conduction onto
-#: one lump and the thermistor is 8 mm from one of them and 15 to 18 mm
-#: from the other two. At 100 A the FETs make 18.4 W of that node's 18.6,
-#: so the fraction is theirs: power-weighted, 0.304.
-#:
-#: AND IT CONFIRMS `THERMAL_NTC_NEIGHBOUR`. U1V is the nearest power part
-#: by a factor of 3.4 over the next driver, so anchoring the V leg is
-#: right - that was an assumption until the placements arrived.
+#: At 100 A the FETs make 18.4 W of the node's 18.6: power-weighted, 0.304.
+#: U1V nearest by 3.4x confirms THERMAL_NTC_NEIGHBOUR.
 NTC_SEES_DRIVERS = 0.30
 
-#: K/W off the board at the calibration rise, and the board's own heat
-#: capacity. NAMED ABOVE THE NETWORK because `NTC_TAU_S` is derived from
-#: them and a constant that reads its own dict is a constant defined
-#: twice.
+#: K/W off the board at the calibration rise, and its heat capacity, J/K -
+#: named here because `NTC_TAU_S` derives from them.
 BOARD_TO_AMBIENT = 8.33
 BOARD_CAPACITY = 49.0
 
-#: How slowly a modelled thermistor follows, seconds.
-#:
-#: AN ELEMENT BETWEEN TWO NODES LAGS BETWEEN THEIR CONSTANTS, and the
-#: geometric mean is what "between" means for time constants - the
-#: log-midpoint, not the arithmetic one, because a lag is a ratio and not a
-#: difference. The leg node is 5.3 s and the board 408 s, so this is 47 s.
-#:
-#: IT WAS THE LEG'S OWN, 5.32 s, which made the modelled thermistor exactly
-#: as quick as the thing it watches. That is the one speed it cannot have:
-#: the SOA acts on silicon in a fifth of a second to two thirds, and a
-#: sensor soldered into laminate has to be far slower than that or it is not
-#: a sensor in laminate, it is a second copy of the FET. At 47 s a 100 A
-#: burst moves the reading about a kelvin and a half in its first second
-#: while the leg node moves a hundred and forty - which is the separation
-#: the bench asked for in as many words.
-#:
-#: WHAT SETS IT IS NOT THE THERMISTOR. The part is soldered to the board -
-#: a point sensor on FR4 with copper only to its own pads - and its own
-#: ceramic is a milligram, which settles in well under a second. What
-#: lags is the LAMINATE AROUND IT, and the model has no node for that
-#: local patch: only the leg and the bulk board. This is the pair it sits
-#: between, and a bench day with a power step and the NTC's own slope
-#: would replace it with a measurement.
-#: THE PAIR IS TWO PATCHES since the graph: the V leg's laminate at its
-#: 15 K/W to the rest of the board, and the centre at its 48 - so the
-#: element lags about 215 s between a patch at 98 s and a centre at 470,
-#: where it lagged 47 between a leg's silicon and a bulk board. What sets
-#: it is the same laminate; only the pair it is measured against moved.
-#: The online identification is what would replace this with a slope.
+#: How slowly the modelled thermistor follows, s: the geometric mean of the
+#: constants it sits between, the V leg's patch (15 K/W, ~98 s) and the
+#: centre (48 K/W, ~470 s) - ~215 s. What lags is the laminate round it, not
+#: the part (a milligram of ceramic, under a second). At the leg's own 5.32 s
+#: it was as quick as the FET it watches; the SOA acts in 0.2-0.7 s. Settles
+#: it: the online identification, or a power step's NTC slope.
 NTC_TAU_S = math.sqrt((BOARD_CAPACITY * 0.134 * 15.0)
                       * (BOARD_CAPACITY * 0.199 * 48.0))
 
-#: What the campaign's switching state misses by with the element in
-#: place of the old coupling. Kept as a number rather than absorbed into a slope: it is the
-#: disagreement between a thermistor and a camera, and it belongs where a
-#: bench can see how big it is.
+#: What the campaign's switching state misses by with the element: the
+#: thermistor-against-camera disagreement, kept visible, not absorbed.
 NTC_CAMPAIGN_RESIDUAL_K = (MEASURED['switching']['ntc']
                            - (MEASURED['switching']['board']
                               + NTC_SEES_DRIVERS * DRIVER_RISE_SWITCHING))
 
-#: The network. **Only `board_to_ambient` and `board_capacity` have a clean
-#: measurement behind them.**
-#:
-#: `to_board` is a **spreading resistance in the laminate**, K/W from the
-#: surface at a source to the board some way off - a few K/W, not a
-#: junction-to-board on tens.
-#: The rise `board_to_ambient` was measured at, K: the passive state's
-#: 1.2 W over a 10 K rise.
+#: The rise `board_to_ambient` was measured at, K: the passive state's 1.2 W.
+#: It and `board_capacity` are the network's only clean measurements;
+#: `to_board` is a spreading resistance in the laminate, a few K/W.
 BOARD_CAL_RISE_K = 10.0
 
-#: How much of the board's loss at that rise is radiation.
-#:
-#: NOT MEASURED HERE. It is the 30 to 40 % a compendium of PCBA thermal
-#: work gives for passive cooling - radiation carries 30 to 40 % of the
-#: total heat dissipation under passive cooling and cannot be neglected
-#: (docs/papers, translated) - and the split matters because the two
-#: mechanisms have DIFFERENT SHAPES against the rise, so only their
-#: proportion at the calibration point lets them be scaled apart.
+#: Radiation's share of the board's loss at that rise: 30-40 % for passive
+#: cooling (docs/papers), not measured here. The split matters because the
+#: two scale differently with the rise.
 BOARD_RAD_SHARE = 0.35
 
-#: The power of the rise that free convection carries with, from
-#: `Nu = C Ra^n` and Ra linear in the rise.
-#:
-#: A QUARTER, AND IT IS THE REGIME RATHER THAN A CHOICE. A horizontal
-#: plate is laminar while Ra < 1e7 and a vertical one while Ra < 1e9, and
-#: both give n = 1/4 there; only past those does it become a third. This
-#: board, 92 by 93 mm off the placements, runs Ra = 1.3e4 to 6.4e4 taken
-#: on A/P and 8e5 to 4e6 taken on the side, over rises of 10 to 85 K - so
-#: it is three to four decades short of leaving laminar, whichever way it
-#: is mounted, and the orientation does not even have to be settled to
-#: pick the exponent. `test_sensorless.py` recomputes the Rayleigh number
-#: and fails if a board or a rise ever leaves the regime.
+#: Free convection's exponent on the rise (Nu = C Ra^n): 1/4 while laminar,
+#: Ra < 1e7 horizontal, 1e9 vertical. This 92 x 93 mm board runs Ra 1.3e4
+#: to 4e6 over 10-85 K rises, decades short either way; `test_sensorless.py`
+#: recomputes it.
 CONVECTION_EXPONENT = 0.25
 
 #: The room the campaign was taken in, kelvin. Radiation is a fourth
@@ -526,10 +399,8 @@ def settled_fraction(minutes, cfg=CFG):
     return 1.0 - math.exp(-minutes / tau_minutes(cfg))
 
 
-#: How much of the conduction path is the FET rather than the shunt.
-#: `inverter` holds both - 1.8 mohm of Rds(on) against 3.5 of shunt - and
-#: this is the ratio between them, so a caller that still passes one
-#: lumped `r_phase` gets it split the way the parts actually divide it.
+#: The FET's share of the conduction path: Rds(on) 1.8 against the 3.5 mOhm
+#: shunt (`inverter`), for callers passing one lumped `r_phase`.
 SWITCH_SHARE = inverter.RDS_ON / (inverter.RDS_ON + inverter.SHUNT)
 
 
@@ -577,32 +448,21 @@ def calibrate(camera, board_c, power=None):
     return out
 
 
-#: The online identification (`thermal/inc/thermal_ident.h`): its four
-#: scales in wire order, its states, and the floor the envelope's margin
-#: rises from. THE STATES ARE WORDS since 2026-09-06 - what a page says;
-#: what the envelope acts on is `thermal_ident_margin`, continuous
-#: between the record's floor and one on how far the model is doubted
-#: (the innovation and the covariance, normalised - `thermal_ident.py`
-#: has the arithmetic). The floor is the record's, `soa_margin_floor_ppm`
-#: through thermal op 12, and the bench's 80 % by default: "keep to 80 %
-#: of the SOA when switching starts, with the thermal situation unknown".
-#: AIR and CAPACITY are the scales a cooldown shows the board's three
-#: thermometers and the only two the samples move; SPREAD and NTC ride
-#: along at the record's values until a bench sets them (measured
-#: 2026-09-05: unobservable from a cooldown, they ran to a clamp).
+#: The online identification (`thermal_ident.h`): its scales in wire order,
+#: the two a cooldown moves (spread and NTC are unobservable from one,
+#: 2026-09-05), its states (words; the envelope acts on the continuous
+#: `thermal_ident_margin`) and the margin's floor - the record's
+#: `soa_margin_floor_ppm`, 80 % by default (bench: "keep to 80 % of the SOA
+#: when switching starts").
 IDENT_SCALES = ('air', 'capacity', 'spread', 'ntc')
 IDENT_ONLINE = ('air', 'capacity')
 IDENT_STATES = ('UNCERTAIN', 'CONVERGING', 'STABLE')
 IDENT_MARGIN_FLOOR = 0.80
 
 
-#: THE RECORD'S DEFAULT CEILINGS, degrees C: the laminate's 105, the
-#: motor's 120, the silicon's 125 - `board_cal.c`'s defaults, and what
-#: `SimulatedThermal.LIMIT` starts as. The ceiling in force under the
-#: identification's policy is the reference plus the margin times the
-#: span over it, `ceiling_of` - `board_thermal.c` and the stand-in's
-#: `_limit` do that arithmetic. A board's own ceilings live in its record
-#: (cal op 0); these are what they are unless a bench wrote otherwise.
+#: The record's default ceilings, C: laminate 105, motor 120, silicon 125
+#: (`board_cal.c`). In force: the reference plus margin x span (`ceiling_of`);
+#: a board's own live in its record (cal op 0).
 CEILING_REF_C = 25.0
 CEILING_DEFAULT_C = 125.0
 CEILING_C = dict([(n, 105.0) for n in LAMINATE] + [(n, 120.0) for n in MOTOR])

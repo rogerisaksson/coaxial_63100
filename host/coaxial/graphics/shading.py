@@ -9,11 +9,9 @@ from .raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N, RUNGS, SHADE
 from .solids import _casters
 
 
-#: The cast-shadow beam in VIEW space, over the viewer's shoulder. The
-#: SHADING is depth, not light - a surface-normal lambert was built,
-#: fitted and REMOVED: the exporter's cube proved its '.'/'∶' boundary
-#: cuts across flat faces, which only a depth ramp does. This vector
-#: only decides where component shadows fall.
+#: The light in VIEW space, over the viewer's shoulder: the key light's and
+#: the cast shadows'. The face's base shading is depth, not Lambert: the
+#: exporter's cube cuts its '.'/':' boundary across flat faces.
 LIGHT = (0.60, 0.20, 0.77)
 
 #: The shading constants, fitted by tools/lightfit.py against the
@@ -31,80 +29,38 @@ BIAS = 0.06
 FLOOR = 0.55
 
 
-#: The art draws VERBATIM - its own characters on screen, its blanks
-#: left blank. Block-shade and ramp remappings were both built and both
-#: rejected: the artist picked those glyphs, and the picture is theirs.
-#: Depth still lights the face, but through TONE alone.
+#: The face art draws verbatim - the artist's glyphs; depth lights it
+#: through tone alone.
 
-#: The face's light ramp IN THE EXPORTER'S OWN CHARSET, darkest to
-#: brightest, with the tone each glyph wears. Censused over every
-#: shipped render: ' ' 3751, '.' 2265, ':' 14183 and NOTHING else, so
-#: the ramp is exactly those three. In an ASCII render the 3D lives in
-#: the characters - the exporter's tilted views brighten a near edge to
-#: denser glyphs and starve a far edge to sparser ones - so lighting
-#: that only changed the COLOUR of a constant ':' carpet read as no 3D
-#: at all, twice, on two different attempts.
+#: The ramp in the exporter's own charset, darkest first: censused over every
+#: render, ' ' 3751, '.' 2265, ':' 14183 and nothing else. The 3D lives in
+#: the characters; colour alone on a constant ':' read as no 3D, twice.
 LIT = SHADE
 
 
-#: What each class is worth on the ladder in a MONO render, where there
-#: is no light to ask and the class is the whole signal. Blank, sparse,
-#: and most of the way up.
-#:
-#: NEAR THE EXPORTER'S OWN DENSITIES. His ' ', '.' and ':' measure 0, 96
-#: and 129 of 255 in Rec.709 luma, which on nine rungs is nothing, three
-#: dots and four. Six against two was tried to spend the ladder and it
-#: read as a slab: the board's top at 3.6 dots a cell where the exporter
-#: draws two, "blocky" on the bench. Four against two keeps his ordering
-#: and his weight - 2.8 dots a cell, measured - and the unrounded level
-#: grades between them; the rungs above are for the light, in the colour
-#: pass, where a surface actually turns away.
+#: Rungs per class in a mono render, near the exporter's densities (' ',
+#: '.', ':' at 0, 96, 129 luma): 2.8 dots a cell, measured. 6 against 2 read
+#: as a slab (3.6 dots, "blocky").
 CLASS_RUNG = (0, 2, 4)
 
 
-#: The band of level the ladder spans WHERE THERE IS NO LIGHT TO ASK.
-#: The class scale is 0 to 2 by construction, and rung 0 is blank, so a
-#: drawn cell starts at rung 1 and the seven above it carry the depth
-#: that used to fall through a single step. Only the mono path uses it:
-#: with colour on, the glyph comes off `heat`, which is the same number
-#: the tone does - see `_glow`.
+#: The level band the ladder spans in mono; rung 0 is blank. With colour
+#: the glyph comes off `heat` (`_glow`).
 LEVEL_LO, LEVEL_HI = 0.0, 2.0
 
 
-#: The band of `heat` the ladder spans, as a share of DIMMEST to the top
-#: of the glow. NOT THE WHOLE OF IT: the lamp puts most of a board inside
-#: a narrow band and stretching the ladder over the full range left every
-#: interior cell on the same rung - the picture went solid. This is the
-#: window the shading actually moves in, and what falls outside pins.
-#: FITTED on the shipped board at zoom 1: 368 lit cells span heat 0.92
-#: to 4.70 with the fifth and ninety-fifth percentiles at 1.87 and
-#: 3.83, which as a share of DIMMEST to the top of the glow is 0.22 to
-#: 0.52. What falls outside pins, which is what a percentile band is
-#: for.
+#: The heat band the ladder spans, as a share of DIMMEST to the glow's top:
+#: fitted at zoom 1 - 368 lit cells, p5-p95 heat 1.87-3.83 - 0.22 to 0.52.
+#: The full range put every interior cell on one rung.
 HEAT_LO, HEAT_HI = 0.20, 0.55
 
 
-#: THE FACE IS A HALFTONE, at dot resolution. Each of a cell's eight
-#: dots is lit where the light at the dot's own position clears its
-#: threshold in a BLUE-NOISE mask laid over the DOTS - `raster.NOISE`,
-#: 64 by 64, thirty-two cells wide and sixteen tall, four thousand
-#: densities - fixed in screen space, so a board turning under it moves
-#: the density and not the dots. The thermal picture draws through the
-#: same mask.
-#:
-#: Three things before it, each seen in a raster of the frame rather
-#: than in glyph counts. One rung per cell rounded a desk-lamp gradient
-#: of a fraction of a rung a cell to the same rung across the face - a
-#: carpet of `⢕` with the parts drawn on it. Sampling the light per dot
-#: on the ladder's own nesting order fixed the carpet and left a sparse
-#: lattice - eight dot positions in one fixed order, rows of dots a cell
-#: apart on the dark half. An 8 x 8 Bayer matrix fixed the lattice and
-#: at a real window (150 x 44) showed its own hierarchy: two-by-two
-#: clusters that read as small square blocks across the board, "blocky
-#: as hell". Interleaved gradient noise and the R2 sequence were
-#: rastered beside it - a regular diagonal screen, and a half-structured
-#: one. Blue noise has no structure at any density; the generator has
-#: the method and the file beside `raster` is its output.
+#: THE FACE IS A HALFTONE at dot resolution: a dot lights where the light at
+#: its position clears a blue-noise threshold (`raster.NOISE`, 64 x 64),
+#: fixed in screen space so a turning board moves the density, not the dots.
+#: Rejected in rasters: one rung a cell (a carpet), per-dot in a fixed order
+#: (a lattice), 8 x 8 Bayer at 150 x 44 (2 x 2 blocks, "blocky as hell"),
+#: interleaved gradient noise and R2 (regular screens).
 
 #: Where each of a cell's eight dots sits, in cells from the cell's
 #: centre - two lanes a quarter cell either side, four rows at eighths
@@ -113,110 +69,54 @@ DOT_AT = tuple((lane * 0.5 - 0.25, (y - 1.5) / 4.0, BRAILLE_BITS[lane][y])
                for lane in range(2) for y in range(4))
 
 
-#: The darkest a lit cell's density goes, as a share of its dots. THE
-#: BRIGHTNESS WAS ENCODED TWICE: a dark cell was few dots AND a dim
-#: tone, contrast squared, and the half of the board the lamp reaches
-#: least dissolved into speckle. With the tone carrying the light, the
-#: dots need only carry the shape - a floor of three dots in ten keeps
-#: the face a surface at its darkest. Measured in a raster: at 0 the
-#: dark side was scattered dots, at 0.5 the shading flattened; 0.3
-#: keeps the gradient and the surface both.
-#:
-#: AND THEN DOWN TO 0.12, ON THE BENCH'S SCREENSHOT. In the terminal the
-#: braille glyph box is narrower than the character cell - the fallback
-#: font's, not this drawing's - so at three dots in ten and up every
-#: cell is a brick with dark mortar round it, and the cell grid itself
-#: is the block: "extremely blocky", with the picture attached. The
-#: pattern of the dots was beside the point; only the DENSITY decides
-#: whether a cell reads as a few points on a coloured field or as a
-#: brick. Rastered at 120x40, zoom 1.5: 0.30 to 0.85 the brick wall,
-#: 0.15 to 0.50 a stippled surface, 0.08 to 0.35 a light dusting with
-#: the shape in the rim and the outlines. The tone carries the light;
-#: the dots carry the shape, and few of them do it best.
-#:
-#: AND UP AGAIN TO 0.42 ONCE THE FACE WAS SCANLINES: "still a bit
-#: pixelly", and the pixels were the breaks in the lines. With the tone
-#: carrying the light, the lines can run nearly whole - 0.42 is 84 % of
-#: a lit row, so only the darkest of the board keeps a gap here and
-#: there, and the ceiling's 0.5 is a whole row. Rastered at 0.35, 0.42
-#: and 0.5 at the bench's framing: the whole lines were the smoothest,
-#: and 0.42 keeps a trace of shading in the dots on top of the tone's.
+#: The darkest lit density, a share of the dots: the tone carries the light,
+#: the dots the shape. Rastered: 0.30-0.85 a brick wall (the braille box is
+#: narrower than the cell), 0.08-0.35 a dusting; 0.42 since the face became
+#: scanlines - 84 % of a lit row, only the darkest keeps gaps (0.35 and 0.5
+#: rastered beside it).
 DENSITY_FLOOR = 0.42
 
 
-#: And the brightest, well short of every dot, for the same reason: a
-#: raised part lit squarely and its relief ignited saturated into a
-#: solid bright rectangle. Under half its dots the brightest face is a
-#: denser stipple, not a block; the rim and the outline draw solid on
-#: their own terms, so an edge is still a line.
+#: And the brightest: above half the dots a lit raised part saturated into a
+#: solid block.
 DENSITY_CEIL = 0.5
 
 
-#: THE FACE IS SCANLINES. Of a cell's four dot rows only these light,
-#: and the density rides along them doubled, so a cell carries the same
-#: ink in half its rows. "A shade pixelly" was the stipple's last word
-#: on the bench: scattered single points on black, however evenly
-#: spread, are grain. Confined to alternate rows the same dots join into
-#: fine broken horizontal lines that close up in the highlights - the
-#: coherent structure a stipple has none of, and the retro terminal's
-#: own - and with two rows of four always dark no cell can fill, so the
-#: bricks cannot come back. Rastered beside the stipple and a per-cell
-#: cap at the bench's framing; the lines were the smooth one.
+#: The face is scanlines: only these dot rows light, the density doubled
+#: along them. Scattered points read as grain ("a shade pixelly"); two rows
+#: always dark keep bricks out. Rastered beside the stipple.
 SCAN_ROWS = (0, 2)
 
 
-#: The dots `_dots` samples, worked out once: offset, bit, the lane and
-#: the row in the cell - only the SCAN_ROWS, so the loop over a cell is
-#: four dots and no arithmetic about which four. The bit is also what
-#: the clipping tests: the fold's `reached` mask is in the glyph's own
-#: bit order. Measured: the per-dot `int()` and membership test on all
-#: eight were a third of the pass.
+#: The dots `_dots` samples, once: offset, bit, lane and row, SCAN_ROWS only.
+#: Per-dot int() and membership on all eight were a third of the pass.
 SCAN_DOTS = tuple(
     (ox, oy, bit, 0 if ox < 0.0 else 1, int((oy + 0.5) * 4.0))
     for ox, oy, bit in DOT_AT if int((oy + 0.5) * 4.0) in SCAN_ROWS)
 
 
-#: The exposure: which percentiles of the frame's lit heat land at the
-#: ladder's ends, and how fast the window follows from frame to frame.
-#: PER FRAME, because a fixed window was fitted on one frame - 368 cells
-#: at zoom 1 in one pose - and at the page's own size and a tilt of 30
-#: degrees 316 of 453 lit cells sat on rung 1 with rungs 6 to 8 empty,
-#: measured. The window is never narrower than the fitted one's share
-#: of the ladder (`HEAT_HI - HEAT_LO`): a frame with little range keeps
-#: the calibrated spread rather than stretching its grain over the
-#: ladder, and a frame with more spends all of it. Followed at a third
-#: a frame so a turning board's exposure glides rather than snaps.
+#: The exposure: the lit heat's percentiles at the ladder's ends, per frame,
+#: followed at 0.3 a frame. A fixed window left 316 of 453 cells on rung 1
+#: at 30 degrees, measured; it is never narrower than HEAT_HI - HEAT_LO.
 EXPOSE = (0.05, 0.95)
 EXPOSE_FOLLOW = 0.3
 EXPOSE_LEAST = 16
 
 
-#: Below this much heat over the floor the tone rolls off toward
-#: DIMMEST instead of stopping on it. The hard floor pinned half of a
-#: board turned 45 degrees from the beam at exactly DIMMEST (p50 0.40,
-#: measured): one tone and, exposed, one rung - the dark face was a
-#: slab. Rolled off, every cell under the knee keeps its order, so the
-#: dots can still grade a face the lamp barely reaches. Nothing at or
-#: above the knee moves: the calibrated middle stands.
+#: Under this heat over the floor the tone rolls off toward DIMMEST: a hard
+#: floor pinned half a 45-degree board at one tone (p50 0.40, measured).
 KNEE = 1.0
 
 
-#: ONE hue, the console theme's cyan, as a pure luminance ladder:
-#: black through the teals to white-cyan for the sharpest highlight.
-#: The object never changes colour - only how much light its
-#: characters carry. Plain grey was tried and read as a dead channel
-#: next to the stage's phosphor.
+#: One hue, the console's cyan, as a luminance ladder; grey read as a dead
+#: channel beside the phosphor.
 GLOW = (16, 23, 30, 37, 44, 51, 87, 123, 195)
 
 
-#: The same ladder as RGB, so a fractional heat can sit BETWEEN two
-#: rungs: sent as 24-bit colour, the ramp is continuous. On the palette
-#: alone a lit board lived on three cyans and the lamp's falloff broke
-#: into hard iso-lines wherever a rounding boundary crossed the face.
-#: The lower rungs sit under 4.5:1 contrast on black (2.8 at rung 1)
-#: and a terminal enforcing a minimum contrast rewrites them: VS Code's
-#: default lifted 72% of a y45 board's cells to one brightness -
-#: .vscode/settings.json turns that off for this workspace.
+#: The ladder as RGB, so fractional heat blends between rungs (the palette
+#: alone broke the lamp's falloff into iso-lines). Rungs under 4.5:1 on black
+#: get rewritten by a minimum-contrast terminal: .vscode/settings.json turns
+#: VS Code's off (it lifted 72 % of a y45 board to one brightness).
 GLOW_RGB = tuple(_rgb(c) for c in GLOW)
 
 
@@ -231,22 +131,15 @@ def _blend(heat):
             int(a[2] + (b[2] - a[2]) * f + 0.5))
 
 
-#: Contrast of the glow SIGMOID t^E / (t^E + (1-t)^E): the midtone
-#: stays put while shadows deepen and highlights sharpen together. A
-#: plain power curve was tried first and pulled the whole board into
-#: the dark end - tones 16..30 and nothing lit, measured. At 2.2 the
-#: curve split a y45 board into two tones (47% of cells in one bin,
-#: ':' pinned at 7); near 1 it is the exporter's own near-linear ramp.
+#: The glow sigmoid's exponent, t^E / (t^E + (1-t)^E). A power curve went
+#: dark (tones 16-30); 2.2 split a y45 board into two tones; near 1 is the
+#: exporter's near-linear ramp.
 EDGE = 0.87
 
 
-#: The tone ramp runs on the CLASS scale, fitted by tools/tonecheck.py
-#: to the exporter's lit screenshots (tests/renders/*.png): measured
-#: there in Rec.709 luma, '.' cells sit at 93-99 and ':' at 128-130,
-#: flat across the picture - tone 1.7 and 2.8 of GLOW. Matched on the
-#: peak channel instead they landed two tones bright: his cyan-blue
-#: and the console's cyan differ in hue. Scaled to PIVOT +- SLOPE the
-#: ramp spanned the unclipped depth instead and pinned ':' at 7.
+#: The tone ramp on the class scale, fitted by tools/tonecheck.py to the
+#: exporter's lit screenshots: '.' at luma 93-99, ':' at 128-130, tones 1.7
+#: and 2.8. Peak-channel matching landed two tones bright (hue differs).
 TONE_LO = -0.47
 TONE_SPAN = 7.0
 
@@ -265,50 +158,28 @@ SPOT_AT = (1.05, -0.08)
 SPOT_R = 3.45
 
 
-#: THE KEY LIGHT, on the tone. The glyph classes are depth and stay
-#: depth (the exporter's evidence, above); the colour was flat with
-#: them - measured, luma 97-142 for 80 % of the face and identical at
-#: rest, 25 and 45 degrees of tilt, because the tone was the class plus
-#: the lamp's pool and nothing that saw the surface. This is Lambert
-#: on the SCREEN-SPACE normal: the gradient of `bare` (a linear
-#: function of view z) between neighbouring cells, scaled by the cell's
-#: size in view units, against LIGHT - the same beam the cast shadows
-#: come from, one light for both. KEY is rungs per unit of n.L; KEY_REST
-#: is n.L for a face-on board (LIGHT's z), subtracted so the calibrated
-#: rest tone stands and a tilt toward the light brightens, away
-#: darkens, and a part's wall turned from the beam falls into shade.
-#:
-#: A POINT, not a direction. Directional, a flat board at rest was one
-#: tone - "all the pixels the same brightness" from the bench - because
-#: a plane under a parallel beam IS uniform. The lamp sits KEY_DISTANCE
-#: along LIGHT in view space, so the direction to it changes across the
-#: face: the near side takes it squarely, the far side obliquely, and a
-#: resting board carries a gradient the way one under a desk lamp does.
-#: KEY_REST is n.L at the frame's centre for a face-on board, kept so
-#: the calibrated middle stands.
+#: THE KEY LIGHT on the tone: Lambert on the screen-space normal (the
+#: gradient of `bare` between neighbours) against LIGHT, the shadows' beam.
+#: KEY is rungs per unit n.L; KEY_REST is n.L at the frame's centre for a
+#: face-on board, so the calibrated rest tone stands. A point lamp at
+#: KEY_DISTANCE along LIGHT, not a direction: a parallel beam lit a flat
+#: board one tone. Before it the colour was flat - luma 97-142 for 80 % of
+#: the face, identical at rest, 25 and 45 degrees.
 KEY = 3.5
 KEY_REST = 0.77
 KEY_DISTANCE = 2.2
 
 
-#: Screen-space relief off the real depth buffer: a cell is compared
-#: with its neighbour TOWARD the lamp, so a component edge facing the
-#: light ignites and its far side drops into shadow. The global ramp
-#: cannot see parts a tenth of a unit proud of the slab - one step of
-#: nine - and the board read as one flat sheet, benched. The term goes
-#: through tanh, so a cliff in the buffer saturates at RELIEF_CAP of
-#: the ramp instead of slamming a cell to the end - the "black holes".
+#: Relief off the depth buffer: a cell against its neighbour toward the lamp,
+#: so a part's lit edge ignites. Through tanh, capped at RELIEF_CAP of the
+#: ramp (a cliff made "black holes").
 RELIEF = 9.0
 RELIEF_CAP = 0.11
 
 
-#: Surface texture: tone steps, peak to peak, a cell's glow varies by
-#: its fixed seed - per glyph class, sized by tools/tonecheck.py --fit
-#: against the exporter's screenshots. Measured there, his '.' dots
-#: differ from their neighbours by 21 luma on average (sd 24, neighbour
-#: correlation 0.22 - texture, not gradient) while his ':' blocks are
-#: smooth (8-10 luma, correlation 0.5-0.7). Ours without it: 2.8 luma
-#: between neighbours, a flat wash.
+#: Texture: tone steps a cell's glow varies by its seed, per class, fitted by
+#: tools/tonecheck.py --fit: the exporter's '.' cells differ by 21 luma (sd
+#: 24, correlation 0.22), his ':' by 8-10 (0.5-0.7); ours were 2.8.
 GRAIN_DOT = 1.45
 GRAIN_COLON = 0.0
 
@@ -327,10 +198,8 @@ HOTTEST = -1
 FEATHER = 1.5
 
 
-#: The board's face as a shipped ASCII raster - a dithered render of the
-#: real layout, boardface.txt beside this module. Sampled as a texture
-#: on the board plane, so the picture turns WITH the attitude instead of
-#: a cage of edges suggesting it.
+#: The board's face art (boardface.txt), a texture on the board plane, so it
+#: turns with the attitude.
 
 #: Ink per art character, the emboss's height field.
 _DENSE = {' ': 0, '.': 1, ':': 2, '*': 3}
@@ -445,35 +314,13 @@ PIVOT = 2.375
 SLOPE = 1.30
 
 
-#: The line's tone: the cell's OWN heat lifted OUTLINE_LIFT rungs - "a
-#: touch brighter than the rest of the object", the bench's words - so
-#: an edge in the key light's shade is a touch brighter shade and one
-#: in its pool a touch brighter pool, and the line never flattens the
-#: lighting it sits on. A fixed rung came before it (four, then six on
-#: "more of the edge enhancer") and read as one colour painted over a
-#: lit surface. The lift itself follows the light: a cell at the top of
-#: the ladder lifts the full OUTLINE_LIFT, one at the floor half of it,
-#: so an edge in the lamp's pool glints and one in shade only shows -
-#: "highlighted with the light, not just thicker", the bench's words.
-#: OUTLINE_BASE is the heat a line cell takes where the face gave none
-#: - the rim's dots half off the silhouette.
-#:
-#: 4.5, from 2.5, MEASURED: in Rec.709 luma at the view's size over
-#: four attitudes, a 2.5 lift put the line +51 over the face beside it
-#: (174 against 122, a tenth of the cells within +5) and the bench read
-#: it as "barely noticeable" - a braille dot carries less ink than the
-#: face's `.` and `:`, so a line needs more tone than a face to look
-#: brighter at all. At 4.5 the line sits +82 (205 against 124, the
-#: tenth at +38), and it may reach the ladder's top rung, which HOTTEST
-#: keeps from the face: in the lamp's pool an edge glints white-cyan.
-#:
-#: 3.0 SINCE THE LINE LIES ON THE FACE'S DOTS (2026-09-23): the 4.5
-#: was set while the line's one or two dots stood alone in their cell
-#: and needed tone to be seen at all; merged, the cell carries five or
-#: six dots, and at 4.5 it read as a glowing band round every part -
-#: "a lot of halo in the edges". Measured on the raster at 30 and 45
-#: degrees over 1.5, 2.5, 3.5 and 4.5: 1.5 vanishes into the dither,
-#: 4.5 glows; 3.0 is a denser, brighter run of the same dither.
+#: An edge's tone: the cell's own heat lifted OUTLINE_LIFT rungs, the full
+#: lift at the ladder's top, half at its floor - brighter than the face under
+#: it, glinting in the lamp's pool (bench: "highlighted with the light, not
+#: just thicker"). OUTLINE_BASE is the heat where the face gave none.
+#: Measured in luma over four attitudes: a lift of 2.5 put the line +51 over
+#: the face, "barely noticeable"; 4.5 put it +82. 3.0 since the line lies on
+#: the face's dots (2026-09-23): 4.5 glowed as a halo, 1.5 vanished.
 OUTLINE_LIFT = 3.0
 OUTLINE_BASE = 3.0
 
@@ -568,7 +415,7 @@ def _slope(before, here, after):
 def _dots(grid, heat, classes, coverage, width, height, window,
           reached=None):
     """The glyphs, off the heat field: each of a cell's eight dots is lit
-    where the density at the dot clears its Bayer threshold.
+    where the density at the dot clears its blue-noise threshold.
     """
     lo, hi = window
     gain = 1.0 / (hi - lo) if hi > lo else 0.0
@@ -662,11 +509,8 @@ def _rim(grid, tone, classes, reached, heat, width, height, colour):
                      else 0xFF)
             if reach == 0xFF:
                 continue
-            # The line OVER the face's own dots in the cell, not instead of
-            # them: replaced, the fill stopped a whole cell short of the
-            # silhouette wherever the rim crossed one, and the face's edge
-            # stepped by cells behind a line that did not - the stair the bench
-            # saw.
+            # The line OVER the face's dots, not instead of them: replaced,
+            # the face stepped a cell short of the silhouette.
             face = ord(grid[py][px]) - BRAILLE
             if not 0 <= face <= 0xFF:
                 face = 0
@@ -756,8 +600,5 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             if heat_out is not None:
                 heat_out[at] = heat
             tone[py][px] = _blend(heat)
-            # AND THE GLYPH OFF THE SAME NUMBER, in `_dots` once every cell's
-            # heat is known: an ASCII render carries its 3D in the characters,
-            # and the dots are sampled from the heat FIELD - the neighbours'
-            # heat as well as this cell's - which this loop, one cell at a
-            # time, has not got yet.
+            # The glyph comes off the same heat in `_dots`, once the whole
+            # field is known: it samples the neighbours too.

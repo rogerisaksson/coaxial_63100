@@ -23,69 +23,40 @@ MINOR_TICK, MAJOR_TICK = 2.5, 6.0
 #: between the thirties and the sixes visible without a second colour.
 MAJOR_WIDE = 1.2
 
-#: The reading, swept from zero along the inside of the scale: which
-#: radii the band occupies, in dots inward from the rim.
-#: TWO DOTS DEEP, not four: at four the band was the heaviest thing on
-#: the face and the needle - which is the reading - had to compete with
-#: the trail behind it.
+#: The reading's band, swept from zero inside the scale: radii in dots from
+#: the rim. Two deep: at four it outweighed the needle.
 SWEEP_OUT, SWEEP_IN = 9.0, 11.0
 
-#: A TAIL, NOT A BAND. The sweep still runs from zero - that is what says
-#: how far round the shaft has gone - but it FADES behind the needle, and
-#: fast: bright where the needle has just been, down to a trace a few
-#: tens of degrees back. Drawn at one weight the whole way it was the
-#: loudest thing on the face at large angles, and the needle was reading
-#: against its own trail.
-#:
-#: How far back the fade takes, and how many steps it takes to get there.
+#: The sweep fades behind the needle - bright where it has just been, a trace
+#: a few tens of degrees back; at one weight it outshouted the needle. How
+#: far back the fade takes, and in how many steps.
 SWEEP_FADE = math.radians(70.0)
 SWEEP_STEPS = 6
 
-#: The needle: how far short of the graduations it stops, and its half
-#: width at the hub and at the tip. TAPERED, because a needle of constant
-#: width is a bar, and the end that reads against the scale is the end
-#: that has to be fine.
+#: The needle: its stop short of the graduations and its half width at hub
+#: and tip - tapered, so the reading end is fine.
 NEEDLE_CLEAR = 3.0
 NEEDLE_ROOT, NEEDLE_TIP = 1.3, 0.4
 
-#: The bead at the needle's tip and the hub it turns on, in dots. The
-#: bead is a disc for the reason `machine`'s rotor mark is one: a shape
-#: that changes with the angle it sits at is a mark you cannot follow
-#: round.
+#: The tip bead and the hub, dots; the bead a disc, which reads the same at
+#: every angle.
 BEAD_R, HUB_R = 1.9, 2.6
 
-#: Below this there is no magnet in front of the sensor and the angle is
-#: noise. Measured on this board with nothing mounted: 2 gauss, and a
-#: heading that wandered 27 degrees while the board sat still. Named
-#: because both the needle and the caption have to agree about it - they
-#: did not, once.
+#: No magnet below this: the angle is noise (2 G with nothing mounted, the
+#: heading wandering 27 degrees). One constant for the needle and caption.
 WEAK_GAUSS = 30
 
-#: What owns a cell, and so what colour it takes: a cell holds dots from
-#: whatever passes through it and the highest class present wins. THE HUB
-#: OUTRANKS THE NEEDLE so the needle passes under it rather than through
-#: it, and the BEAD outranks everything because it is the reading.
-#: THE TAIL IS SEVERAL CLASSES, one per step of the fade, because a cell
-#: takes exactly one colour and the fade is a colour that varies along
-#: the band. `SWEEP[0]` is the far end and `SWEEP[-1]` the end the needle
-#: is standing on, so a cell holding two steps takes the brighter - the
-#: one nearer the needle, which is the newer.
+#: Cell classes; the highest present wins. The hub outranks the needle (it
+#: passes under), the bead everything. The tail is one class per fade step,
+#: SWEEP[-1] nearest the needle, so a shared cell takes the newer.
 (FACE, MINOR, MAJOR) = range(3)
 SWEEP = tuple(range(MAJOR + 1, MAJOR + 1 + SWEEP_STEPS))
 (NEEDLE, HUB, BEAD) = range(SWEEP[-1] + 1, SWEEP[-1] + 4)
 
-#: ONE LIGHT AND THE STREET, which is what the character face arrived at
-#: and the matrix does not change: the instrument - rim, graduations, hub -
-#: is one quiet deep teal, and the READING is the only warm thing on it,
-#: a dark sweep under a bright needle. It was rim-ash, ticks-teal,
-#: arc-teal, zero-green and needle-amber at once, and five voices on a
-#: face with one thing to say read as a party.
-#:
-#: The teals are `machine`'s own - its can and yoke are 23 - so the two
-#: round pictures in this tree are lit the same way.
-#: The tail's own ramp, cold to warm, ending a step short of the
-#: needle's amber: a tail that reached the needle's colour would read as
-#: part of it, and what it is is where the needle has been.
+#: One light: the instrument (rim, graduations, hub) in `machine`'s deep teal
+#: 23, the reading the only warm thing - five colours read as a party. The
+#: tail's ramp ends a step short of the needle's amber, so it reads as where
+#: the needle has been.
 SWEEP_RAMP = (236, 238, 58, 94, 136, 172)
 
 INK = dict([(FACE, 23), (MINOR, 23), (MAJOR, 30),
@@ -285,24 +256,14 @@ def caption(degrees, field=None, gauss=True):
 #: A side scale's width in cells: four for a graduation's number, one for
 #: its mark, two for the tube, one of air against the face.
 SCALE_W = 8
-#: The tube: two cells of dots, four wide, solid the whole way - the
-#: reading's own ink up to the reading and the label's ash above it, a
-#: thermometer's empty glass. The glass was one dotted column, and read
-#: as a stray line beside the bar rather than the tube it stood in:
-#: the bench asking why it always got a single greyed line (2026-09-07).
+#: The tube: two cells wide, solid - the reading's ink to the reading, ash
+#: glass above (one dotted column read as a stray line; bench 2026-09-07).
 TUBE_W = 2
-#: The die's range on the scale: the A1335's operating range, -40 to
-#: 150 C (datasheet). The field's: zero to 1200 gauss. EACH TUBE IS
-#: THREE BANDS - blue under normal, green through it, red past it -
-#: the bench's three bands for normal temperature and field - blue,
-#: green, red
-#: (2026-09-07). The die's normal is where this board works, 15 to
-#: 65 C: it idles near 30 and works between 30 and 60, which is where
-#: the thermal ramp spends its resolution too, and the ramp itself was
-#: tried here first - a room-temperature die came out in the ramp's
-#: blue and read as cold. The field's normal is the datasheet's
-#: recommended 300 to 1000 gauss (Field Strength); under it the magnet
-#: is weak or absent, past it too close.
+#: The scales: the die -40 to 150 C (A1335 datasheet), the field 0-1200 G.
+#: Each tube in three bands, blue under normal, green, red past (bench
+#: 2026-09-07): the die's normal is where this board works, 15-65 C (the
+#: thermal ramp read a room-temperature die as cold); the field's is the
+#: datasheet's recommended 300-1000 G - weak or absent under, too close past.
 DIE_RANGE = (-40.0, 150.0)
 DIE_TICKS = (-40, 0, 50, 100, 150)
 DIE_BAND = (15.0, 65.0)

@@ -1,18 +1,11 @@
 """The board's thermal observer, live: one measurement and five estimates.
 
-The estimates come off the wire, not from this file. `0x6E` device 8 is the
-thermal observer running in the firmware at 10 Hz, and drawing anything the host
-recomputed would be a second answer to a question the board already settles.
-
-**The AFE stays as it was found.** The gate is inverted, so switching it on
-takes the gate drivers' supply away - a thermal view that powered the AFE
-would stop the load it is there to watch. With it off there is no NTC either,
-and the thermal observer runs open on power and time; `open for` says how long.
-
-`--switch` drives the load from inside this view. Not a convenience: the port
-is exclusive, so `switch.py` running beside this would keep it, and there was
-otherwise no way to watch the zones move while anything switched. The gates go
-down through the same `finally` that puts the screen back.
+The estimates come off the wire (0x6E device 8, the firmware's observer at
+10 Hz), never recomputed here. The AFE stays as found: on, it takes the gate
+drivers' supply away; off, there is no NTC and the observer runs open on power
+and time (`open for`). `--switch` drives the load from inside this view - the
+port is exclusive, so `switch.py` cannot run beside it - and the gates go down
+in the same `finally` that restores the screen.
 """
 import argparse
 import os
@@ -39,22 +32,11 @@ from coaxial.kalman import thermal_ident                   # noqa: E402
 from screen import hud                                     # noqa: E402
 from screen import frame_of, run_view, stage               # noqa: E402
 
-#: Above the picture: a blank, the banner, a blank, the state line,
-#: the budget line, a blank.
-#:
-#: The FIRST blank is not decoration. `paint` addresses absolute rows from 1,
-#: so without it the banner lands on the terminal's top row - underneath the
-#: shell's own decoration, where the LIVE/SIMULATED tag cannot be read. That
-#: tag is the one thing in the frame that must never be hidden.
-# The stage's frame around the map: the title band (1), the viewport's top and
-# bottom edge (2), and the gutter row the crosses sit in.
+#: Rows the stage puts round the map: the title band, the viewport's two
+#: edges, the crosses' gutter row.
 HEAD_LINES = 4
 
-#: Below the scale: the keys and the blank under them - TRAILING already
-#: covers the blank above. The keys sit at the bottom and the state at the
-#: top because they answer different questions - one is what to press, the
-#: other is what the colours mean - and reading them as one crowded line was
-#: what made the frame feel closed in.
+#: Below the scale: the keys (TRAILING covers the blank above them).
 FOOT_LINES = 1
 
 #: Blank lines between the scale and the keys. Zero since 2026-08-30:
@@ -68,51 +50,29 @@ GAUGE_LINES = 2
 GAUGE_CELLS = 20
 
 
-#: THE PAGE'S LOAD CYCLE, model seconds: two minutes at 30 A and four
-#: idle - a cycle every thirty-six seconds of wall time at HASTE - so
-#: the board's temperatures pulse on the map. The stand-in's own default
-#: is the suites' walk, six and fourteen; the bench, 2026-09-06: "loop
-#: the load cases a bit faster so one sees the temperatures on the board
-#: pulse a bit faster". Measured live in a box: driver U swings 71 to
-#: 109 C, CONVERGING by the fourth minute and the margin 0.98 by the
-#: eighteenth; STABLE wants the longer cooldowns of the walk.
+#: The page's load cycle, model s: 2 min at 30 A, 4 idle - 36 wall s at HASTE
+#: (bench 2026-09-06: "pulse a bit faster"). Measured in a box: driver U
+#: 71-109 C, CONVERGING by minute 4, margin 0.98 by 18; STABLE wants the
+#: walk's longer cooldowns.
 PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
 
-#: THE ROOM AS A HINT above the board, on the ESTIMATED ambient - the
-#: identification's room off op 10, not the stand-in's truth, so it is
-#: the board's own opinion on a board too. The bench, 2026-09-06, after
-#: a day of trying: emoji, then centred, then braille pictograms so as
-#: not to break with the retrofuturism, then "switch back to the emoji:
-#: ❄️🥶, 🍃😌, 🔥🥵, and 🌡️🤔 when the innovation is large; see if you can
-#: scale them up beyond the standard size". Cold under 5 C, hot from 35:
-#: the cold room's -25 and outdoors' -20 shiver, the temperate room's 20
-#: and the bench's 25 are mild, the toasty room's 45 sweat; and while the
-#: filtered innovation is three floors or more - the ratio the state
-#: calls UNCERTAIN, 0.3 K on this board's 0.1 - the model is being
-#: doubted whatever the room says, and the thermometer thinks. THEY ARE
-#: THE CELL'S SIZE: a terminal draws an emoji two cells wide at its font
-#: size and no escape scales a glyph - Windows Terminal and VS Code's
-#: xterm.js both leave DECDHL double height undone, and a sixel image
-#: would need an emoji font rasterised on the host - so they stay the
-#: size the terminal gives them.
+#: The room hint above the board, on the ESTIMATED ambient (op 10): cold
+#: under 5 C, hot from 35, 'unsure' while the filtered innovation is 0.3 K or
+#: more (UNCERTAIN's ratio on this board's 0.1). Emoji on the bench's word
+#: (2026-09-06, after braille pictograms), two cells at the terminal's size:
+#: no escape scales a glyph (DECDHL is undone in Windows Terminal and
+#: xterm.js).
 ROOM_COLD_C, ROOM_HOT_C = 5.0, 35.0
 ROOM_UNSURE_K = 0.3
-#: HYSTERESIS, so a room sitting on a boundary keeps its word - the
-#: bench, 2026-09-06: "put in some hysteresis so the emoji do not
-#: flutter near the limits". A held word stands until the room is this
-#: far past the threshold it crossed, and the thinking thermometer
-#: stands until the innovation is under ROOM_SURE_K, a floor under where
-#: it came on.
+#: Hysteresis, so a boundary room keeps its word (bench 2026-09-06): a held
+#: word stands until the room is this far past its threshold, and 'unsure'
+#: until the innovation is under ROOM_SURE_K.
 ROOM_HYSTERESIS_K = 2.0
 ROOM_SURE_K = 0.2
-#: A SPACE BETWEEN THE TWO - the bench: "so it does not go wrong in the
-#: terminal" - and EVERY ONE OF THEM WIDE ON ITS OWN: the snowflake and
-#: the thermometer the bench first named are narrow characters made
-#: emoji by a variation selector, which the layout counts as one cell
-#: and the terminal draws as two, so that row ran a cell long and the
-#: SENSE frame's edge landed beside it (the bench's screenshot,
-#: 2026-09-06). An ice cube and a face with a thermometer instead, each
-#: a single code point with emoji presentation, two cells to both.
+#: Each hint is two single-code-point emoji with a space between (bench):
+#: the snowflake and thermometer asked for are narrow characters with a
+#: variation selector, counted one cell and drawn two, and the SENSE frame
+#: shifted (2026-09-06).
 ROOM_HINTS = {'cold': '🧊 🥶', 'mild': '🍃 😌', 'hot': '🔥 🥵',
               'unsure': '🤒 🤔'}
 
@@ -281,11 +241,7 @@ def envelope_rows(ident):
     return rows
 
 
-#: What each mark on the map is, in words, beside the references the
-#: frame is drawn round - the bench, 2026-09-06: "an explanation for U,
-#: V, W, REG, MCU, HS and AFE, in SENSE maybe, you decide". A box of
-#: its own under SENSE, so the letters on the picture are read off the
-#: same column as the numbers.
+#: The map's marks in words, a box under SENSE (bench 2026-09-06).
 MAP_WORDS = {'U': 'FETs, shunts', 'V': 'FETs, shunts', 'W': 'FETs, shunts',
              'REG': 'regulators', 'MCU': 'the STM32', 'HS': 'hot swap',
              'AFE': 'front end', 'NTC': 'thermistor, by the bore'}
