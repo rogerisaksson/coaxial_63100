@@ -1,6 +1,5 @@
 """What this machine can run, and which local model to run on it."""
 import argparse
-import ctypes
 import json
 import os
 import platform
@@ -8,6 +7,9 @@ import re
 import subprocess
 import urllib.request
 from contextlib import suppress
+
+from coaxial.memory import physical
+
 try:
     import winreg              # _adapters and _gpu_at read it too: module level, not a local
 except ImportError:            # not Windows
@@ -130,23 +132,11 @@ def _cpu():
 
 
 def _windows_ram():
-    """Installed and available memory in GB off GlobalMemoryStatusEx."""
-    class Status(ctypes.Structure):
-        _fields_ = [('dwLength', ctypes.c_ulong),
-                    ('dwMemoryLoad', ctypes.c_ulong),
-                    ('ullTotalPhys', ctypes.c_ulonglong),
-                    ('ullAvailPhys', ctypes.c_ulonglong),
-                    ('ullTotalPageFile', ctypes.c_ulonglong),
-                    ('ullAvailPageFile', ctypes.c_ulonglong),
-                    ('ullTotalVirtual', ctypes.c_ulonglong),
-                    ('ullAvailVirtual', ctypes.c_ulonglong),
-                    ('ullAvailExtendedVirtual', ctypes.c_ulonglong)]
-    status = Status()
-    status.dwLength = ctypes.sizeof(Status)
-    if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
-        return (status.ullTotalPhys / float(2 ** 30),
-                status.ullAvailPhys / float(2 ** 30), 'GlobalMemoryStatusEx')
-    return 0.0, 0.0, 'GlobalMemoryStatusEx failed'
+    """Installed and available memory in GB (`coaxial.memory`)."""
+    total, free = physical()
+    if total is None:
+        return 0.0, 0.0, 'GlobalMemoryStatusEx failed'
+    return total / float(2 ** 30), free / float(2 ** 30), 'GlobalMemoryStatusEx'
 
 
 def _ram_gb():

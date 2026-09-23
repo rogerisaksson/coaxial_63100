@@ -26,7 +26,6 @@ to spare should not need a different flag: the decision comes from what is
 measured on the machine, not from a constant.
 """
 import argparse
-import ctypes
 import json
 import os
 import platform
@@ -35,6 +34,9 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from coaxial.memory import physical                  # noqa: E402
 
 API = 'http://localhost:11434'
 MODEL_LAYERS = ('application/vnd.ollama.image.model',
@@ -47,26 +49,13 @@ def _ollama_dir():
 
 
 def _ram_gb():
-    """(total, free) in GiB. Windows only - same call capability.py uses."""
+    """(total, free) in GiB. Windows only - `coaxial.memory`, as capability.py."""
     if platform.system() != 'Windows':
         return None, None
-
-    class Status(ctypes.Structure):
-        _fields_ = [('dwLength', ctypes.c_ulong),
-                    ('dwMemoryLoad', ctypes.c_ulong),
-                    ('ullTotalPhys', ctypes.c_ulonglong),
-                    ('ullAvailPhys', ctypes.c_ulonglong),
-                    ('ullTotalPageFile', ctypes.c_ulonglong),
-                    ('ullAvailPageFile', ctypes.c_ulonglong),
-                    ('ullTotalVirtual', ctypes.c_ulonglong),
-                    ('ullAvailVirtual', ctypes.c_ulonglong),
-                    ('ullAvailExtendedVirtual', ctypes.c_ulonglong)]
-    status = Status()
-    status.dwLength = ctypes.sizeof(Status)
-    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+    total, free = physical()
+    if total is None:
         return None, None
-    return (status.ullTotalPhys / float(2 ** 30),
-            status.ullAvailPhys / float(2 ** 30))
+    return total / float(2 ** 30), free / float(2 ** 30)
 
 
 def _manifest_path(tag):

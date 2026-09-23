@@ -4,13 +4,14 @@ Built once by a process behind the front page and kept under the user's
 local application data, so a view opens in a tenth of a second instead of
 parsing the STL and decimating it six times.
 """
-import ctypes
 import hashlib
 import os
 import pickle
 import shutil
 import sys
 import time
+
+from ..memory import physical
 
 #: Free memory under which the background build is not started, and
 #: free disk under which the pickle is not written.
@@ -43,35 +44,6 @@ def stamp(path):
             digest.hexdigest()[:12])
 
 
-def ram_free():
-    """Free physical memory in bytes, or None where the platform does
-    not say."""
-    if sys.platform == 'win32':
-        class _Status(ctypes.Structure):
-            _fields_ = [('dwLength', ctypes.c_ulong),
-                        ('dwMemoryLoad', ctypes.c_ulong),
-                        ('ullTotalPhys', ctypes.c_ulonglong),
-                        ('ullAvailPhys', ctypes.c_ulonglong),
-                        ('ullTotalPageFile', ctypes.c_ulonglong),
-                        ('ullAvailPageFile', ctypes.c_ulonglong),
-                        ('ullTotalVirtual', ctypes.c_ulonglong),
-                        ('ullAvailVirtual', ctypes.c_ulonglong),
-                        ('ullAvailExtendedVirtual', ctypes.c_ulonglong)]
-        status = _Status()
-        status.dwLength = ctypes.sizeof(_Status)
-        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
-            return int(status.ullAvailPhys)
-        return None
-    try:
-        with open('/proc/meminfo', encoding='ascii') as info:
-            for line in info:
-                if line.startswith('MemAvailable:'):
-                    return int(line.split()[1]) * 1024
-    except OSError:
-        pass
-    return None
-
-
 def room(where=None):
     """(free memory, free disk) in bytes for the cache directory, None
     where unknown."""
@@ -83,7 +55,7 @@ def room(where=None):
         disk = shutil.disk_usage(probe).free
     except OSError:
         disk = None
-    return ram_free(), disk
+    return physical()[1], disk
 
 
 def refusal(where=None):
