@@ -34,7 +34,7 @@ from rich.align import Align                               # noqa: E402
 
 from screen import (ENTER_KEYS, band_of, Keys, curtain, footer,  # noqa: E402
                     live, paced, rate_of, stage)
-from stage import Marquee                                  # noqa: E402
+from stage import Corner, Marquee                          # noqa: E402
 import readout                                             # noqa: E402
 
 import screen as _screen                                   # noqa: E402
@@ -304,8 +304,8 @@ def compose(port, picked, view, size=None, who=None, rate=''):
     state = view.setdefault('readout', readout.fresh(time.monotonic()))
     column = Layout()
     column.split_column(
-        Layout(Panel(Align(Marquee(turntable(view, wide - 2, above)),
-                           align='center', vertical='middle'),
+        Layout(Panel(Corner(Align(Marquee(turntable(view, wide - 2, above)),
+                                  align='center', vertical='middle'), rate),
                      title=Text(' COAXIAL 63100 ', style='name'),
                      title_align='left', box=box.HEAVY, border_style='frame',
                      padding=(0, 0), expand=True), name='model'),
@@ -336,7 +336,7 @@ def compose(port, picked, view, size=None, who=None, rate=''):
                       if who is not None else
                       (('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
                        ('S B A M G T C', 'DIRECT'), ('F', 'MOUSE'),
-                       ('Q', 'EXIT')), rate),
+                       ('Q', 'EXIT'))),
                size=1))
     return whole
 

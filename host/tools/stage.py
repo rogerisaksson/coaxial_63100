@@ -210,7 +210,7 @@ def band(*cells):
     return bar
 
 
-#: The newest frame's weight in the key bar's rate: about five frames
+#: The newest frame's weight in the drawing's rate: about five frames
 #: smoothed, so the figure reads rather than flickers.
 RATE_WEIGHT = 0.2
 _RATES = weakref.WeakKeyDictionary()
@@ -222,7 +222,7 @@ def _eased(was, now):
 
 class Rate:
     """Frames a second, start to start, and one frame's cost from the
-    draw's start to the terminal's write: the key bar's right end."""
+    draw's start to the terminal's write: the drawing's top-left corner."""
 
     def __init__(self):
         self.began = self.fps = self.ms = None
@@ -236,8 +236,8 @@ class Rate:
     def label(self):
         if self.ms is None:
             return ''
-        fps = '%5.1f fps  ' % self.fps if self.fps is not None else ''
-        return '%s%4.0f ms' % (fps, self.ms)
+        fps = '%.1f fps  ' % self.fps if self.fps is not None else ''
+        return '%s%.0f ms' % (fps, self.ms)
 
 
 def rate_of(console):
@@ -247,9 +247,8 @@ def rate_of(console):
     return _RATES[console]
 
 
-def footer(pairs, rate=''):
-    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style;
-    `rate` (a `Rate.label()`) right."""
+def footer(pairs):
+    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style."""
     line = Text('  ', style='keys')
     for i, (key, what) in enumerate(pairs):
         if i:
@@ -262,12 +261,8 @@ def footer(pairs, rate=''):
         else:
             line.append(what, style='keys')
     bar = Table.grid(expand=True)
-    bar.add_column(justify='left', ratio=1)
-    cells = [line]
-    if rate:
-        bar.add_column(width=len(rate) + 2, no_wrap=True)   # sized, see band()
-        cells.append(Text(rate + '  ', style='keys'))
-    bar.add_row(*cells)
+    bar.add_column(justify='left')
+    bar.add_row(line)
     bar.style = 'keys'
     return bar
 
@@ -479,10 +474,34 @@ class Marquee:
             yield newline
 
 
-def viewport(title, art):
-    """The drawing, centred in a heavy frame that owns its region."""
-    return Panel(Align(Marquee(art), align='center',
-                       vertical='middle'),
+class Corner:
+    """`inner` with `label` painted over its top-left cells: the frame rate
+    in the drawing's own corner, no box of its own."""
+
+    def __init__(self, inner, label):
+        self.inner, self.label = inner, label
+
+    def __rich_measure__(self, console, options):
+        return Measurement.get(console, options, self.inner)
+
+    def __rich_console__(self, console, options):
+        lines = console.render_lines(self.inner, options, pad=True)
+        wide = cell_len(self.label)
+        if lines and 0 < wide < options.max_width:
+            cut = list(Segment.divide(lines[0], [wide, options.max_width]))
+            lines[0] = (list(Text(self.label, style='label').render(console))
+                        + (cut[1] if len(cut) > 1 else []))
+        newline = Segment.line()
+        for line in lines:
+            yield from line
+            yield newline
+
+
+def viewport(title, art, corner=''):
+    """The drawing, centred in a heavy frame that owns its region; `corner`
+    (a `Rate.label()`) over its top-left cells."""
+    return Panel(Corner(Align(Marquee(art), align='center',
+                              vertical='middle'), corner),
                  title=Text(' %s ' % title, style='name'),
                  title_align='left', box=box.HEAVY, border_style='frame',
                  padding=(0, 1), expand=True)
@@ -648,19 +667,20 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
     # THE COLUMN IS PAGED HERE, for every view at once, and the key bar says so
     # only while there is something to scroll to.
     boxes = paged(console, boxes)
+    rate = rate_of(console).label()
     at, seen, total = scroll_state(console)['pages']
     if at or seen < total:
         keys = list(keys) + [(UP + ' ' + DOWN, 'SCROLL')]
     body = Layout()
     art_region = Layout(name='art')
     if under is None:
-        art_region.update(viewport(art_title or title, art))
+        art_region.update(viewport(art_title or title, art, rate))
     else:
         # `under` is a fixed height because the viewport takes the rest: a box
         # that grew with its content would push the bars off the bottom of a
         # short terminal instead of the other way round.
         art_region.split_column(
-            Layout(viewport(art_title or title, art), name='top'),
+            Layout(viewport(art_title or title, art, rate), name='top'),
             Layout(under, name='under', size=_rows_of(under) + 2))
     body.split_row(art_region,
                    Layout(Group(*boxes) if boxes else Text(''),
@@ -669,7 +689,7 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
     whole = Layout()
     whole.split_column(Layout(header(title, origin), size=1),
                        Layout(body, name='body'),
-                       Layout(footer(keys, rate_of(console).label()), size=1))
+                       Layout(footer(keys), size=1))
     return whole
 
 
@@ -703,5 +723,5 @@ def panels_of(console, origin, title, groups, keys):
     whole = Layout()
     whole.split_column(Layout(header(title, origin), size=1),
                        Layout(framed, name='grid'),
-                       Layout(footer(keys, rate_of(console).label()), size=1))
+                       Layout(footer(keys), size=1))
     return whole

@@ -33,6 +33,7 @@ import facecheck                                           # noqa: E402
 from screen import (Keys, WHEEL_STEP, curtain, footer,  # noqa: E402
                     paced, rate_of, stage,
                     TO_MENU)
+from stage import Corner                                   # noqa: E402
 
 import screen as _screen                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
@@ -111,8 +112,8 @@ def compose(view, size, rate=''):
 
     body = Layout()
     body.split_row(
-        Layout(Panel(Align(Text.from_ansi(art), align='center',
-                           vertical='middle'),
+        Layout(Panel(Corner(Align(Text.from_ansi(art), align='center',
+                                  vertical='middle'), rate),
                      title=' RENDER ', title_align='left', box=box.HEAVY,
                      border_style='frame', padding=0), name='view'),
         Layout(hud(view, len(solid[1]) // 3, cost), name='hud', size=24))
@@ -125,7 +126,7 @@ def compose(view, size, rate=''):
                        ('UP DN', 'LIGHT'), ('LT RT', 'SPOT'),
                        ('x/X y/Y z/Z', 'DEG'), ('SPACE', 'SPIN'),
                        ('R', 'RESET'), ('M', 'MODEL'),
-                       ('Q', 'EXIT')), rate), size=1))
+                       ('Q', 'EXIT'))), size=1))
     return whole
 
 

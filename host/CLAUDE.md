@@ -31,9 +31,10 @@
 - Views are `tools/show_*.py` on `stage.frame_of`, `stage.hud` and
   `screen.run_view`; their drawings are `coaxial/` (`machine dial gauges
   desk thermalmap`) and `coaxial/graphics/` (the board renderer).
-- The key bar's right end is the frame rate and one frame's cost in ms
-  (`stage.rate_of(console)`); `run_view` ticks it, a page with its own
-  loop (`menu.py`, `show_render.py`) ticks it after each update.
+- The drawing's top-left corner carries the frame rate and one frame's
+  cost in ms (`stage.Corner`, `stage.rate_of(console)`), no box of its
+  own; `run_view` ticks it, a page with its own loop (`menu.py`,
+  `show_render.py`) ticks it after each update.
 - Braille is judged in a raster, then by the bench: `COLUMNS=200 LINES=60
   python tools/show_X.py --simulated --frames 1 > f.txt` (the rotor
   observer and BOARD ATTITUDE take `--width --height`), then
