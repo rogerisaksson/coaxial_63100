@@ -4536,6 +4536,25 @@ looking at the estimate alone.
   clock (type, hold, decay, the next inquiry, round again), a
   mid-typing frame ending on the cursor; the two-frame smoke draws it
   with the stand-in's identity. test_views 218, 3164 in all.
+* **BOARD ATTITUDE's board sits at the frame's middle** (2026-09-23,
+  the bench: move the object down so it lies centred in the box).
+  `orientation.LIFT` 0.42 -> 0.5, the bounding sphere's centre on the
+  frame's middle row. MEASURED before choosing, the board's drawn rows
+  at 108x80 (tall enough that nothing clips) and zoom 1.27, three
+  poses: flat, its centre sat 1.5 rows above the middle at 0.42 and
+  4.5 below at 0.5; tilted 25/15 degrees, 4.5 above and 2 below; tilted
+  40/30, 8 above and 2 above - the camera's 34-degree tip projects a
+  flat disc's centre under the sphere's and a tilted one's over it, so
+  no constant centres every pose, and a fit per frame would read as
+  translating (2026-08-30). 0.5 puts the tilted poses, which are what a
+  real IMU shows, within two rows of the middle; 0.46 would split the
+  difference with the flat pose (1.7 low, 1.3 high, 4.8 high) if the
+  bench comes to prefer it. At the chooser's own 108x44 the flat board
+  overflows the frame at this zoom whatever the lift - rows 0..43 at
+  0.42, 4..43 at 0.5, so the feet lose four rows and the top gains
+  them - and the tilted poses fill it either way; the change shows on
+  a taller frame and on a tilted board. test_render's shipped-board
+  check reads LIFT off the constant, so nothing there moved.
 
 ## Ruled Out
 

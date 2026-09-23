@@ -607,11 +607,14 @@ def _fit(cols, rows, zoom=1.0, model=None):
 
 
 #: Where the board's centre sits down the attitude page, as a share of
-#: its height (cy = height * LIFT): above the frame's middle, so the
-#: model clears the horizon line instead of sitting on it. One row at
-#: the view's 36 rows is 0.028: 0.36 was the fit, 0.39 one row lower
-#: (asked 2026-08-30), 0.42 one more - "a bit high up" (2026-09-07).
-LIFT = 0.42
+#: its height (cy = height * LIFT). It sat above the frame's middle so
+#: the model cleared the horizon line instead of sitting on it, and
+#: came down a row at a time on the bench's word: 0.36 was the fit,
+#: 0.39 (2026-08-30), 0.42 (2026-09-07, "a bit high up"), and dead
+#: centre on 2026-09-23 - "move it down so it sits centred in the box".
+#: A constant, not a fit per frame: the sphere's centre stays put while
+#: the board tilts, so it never reads as translating.
+LIFT = 0.5
 
 
 def render(q, width=44, height=19, zoom=1.0, shop=None,
