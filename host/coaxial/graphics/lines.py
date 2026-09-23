@@ -9,6 +9,8 @@ import math
 
 from .raster import BRAILLE, BRAILLE_BITS
 from .shading import OUTLINE_BASE, _edge_tone
+from .creases import _outline_source
+from .solids import _slab_planes
 from .stereotype import _drum_segments, _stereotypes
 
 
@@ -94,6 +96,15 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     n_cells = width * height
     masks = {}
+    # FAR SIDE: an edge on the slab's other face from the camera is behind
+    # 1.6 mm of board, and a tilted face's own span (0.04-0.08 a cell, face
+    # down) must not lend it grace - the top's parts printed through.
+    top, bottom = _slab_planes(_outline_source()[0])
+    camz = distance * m8
+    under = bottom is not None and camz < bottom
+    over = bottom is not None and camz > top
+    mid = top if bottom is None else 0.5 * (top + bottom)
+    slope = OUTLINE_SLOPE
 
     def project(x, y, z):
         tz = m6 * x + m7 * y + m8 * z
@@ -120,17 +131,19 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
                         d = -d
                     if d > span:
                         span = d
-            if 1.0 / we - here > OUTLINE_GRACE + span * OUTLINE_SLOPE:
+            if 1.0 / we - here > OUTLINE_GRACE + span * slope:
                 return                                # behind the surface
         col = 1 if fx - px >= 0.5 else 0
         row = min(3, int((fy - py) * 4.0))
         masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
 
     def segment(x0, y0, z0, x1, y1, z1):
+        nonlocal slope
         sx0, sy0, wa = project(x0, y0, z0)
         sx1, sy1, wb = project(x1, y1, z1)
         if max(abs(sx1 - sx0), 2.0 * abs(sy1 - sy0)) < OUTLINE_MIN_EDGE:
             return                          # sub-pixel detail, see above
+        slope = 0.0 if (under if z0 + z1 > 2.0 * mid else over) else OUTLINE_SLOPE
         _trace(sx0, sy0, wa, sx1, sy1, wb, dot)
 
     # The camera in model space, for the drums' silhouettes: the view's z axis

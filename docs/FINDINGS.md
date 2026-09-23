@@ -160,6 +160,12 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   and past the 0.25 limit on a busy CI runner (red 834519a). Now the
   command's and the shaft's travels, sampled together, after the first
   quarter: 21.00 with six cores busy (2026-09-23).
+- BOARD ATTITUDE face down drew the top's parts on the underside. The
+  outline's grace adds the cell's depth span, and a tilted face spans
+  0.036-0.08 a cell against a 0.032 slab: 533 of 535 drawn dots sat
+  behind it. An edge on the slab's far face now gets the fixed grace
+  only; the face art (the top's layout) is not read from behind
+  (2026-09-23, rasters face down, up, tilted).
 
 ## Local model
 

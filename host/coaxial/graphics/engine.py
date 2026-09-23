@@ -246,14 +246,12 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
     distance, scale = cam['distance'], cam['scale']
     cx, cy = cam['cx'], cam['cy']
     reach = cam.get('reach', 1.0)
-    rows, art_w, art_h, dense = art if art else ([], 0, 0, [])
     back = m[8] < 0.0
-    # The face the art is read on: the slab's bottom from behind, its top from
-    # the front - `planes` is (top, bottom) - and z = 0 for a model that names
-    # none, like the suite's synthetic planes.
-    plane = 0.0
-    if planes is not None:
-        plane = planes[1] if back and planes[1] is not None else planes[0]
+    # The art is the TOP's layout: seen from behind the slab shows none, or
+    # the top's parts print through onto the bottom. It is read on the top
+    # plane (`planes` is (top, bottom); z = 0 where a model names none).
+    rows, art_w, art_h, dense = art if (art and not back) else ([], 0, 0, [])
+    plane = planes[0] if planes is not None else 0.0
     if shadow:
         sbuf, s_n, s_ext, s_right, s_up, s_beam = shadow
         rx, ry, rz = s_right
