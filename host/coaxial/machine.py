@@ -64,6 +64,10 @@ CAN_WEIGHT = 1.0
 #: that reads as texture says nothing. The first drawing filled the bore
 #: and the whole tooth annulus and its middle could not be told from noise.
 F_LINE = 0.032
+#: The most a line's half-width grows to, in dots: uncapped it was 3.0 at
+#: a 200x60 terminal's can of 95, every ring a band; 0.8 broke into dots
+#: (2026-09-23).
+LINE_MAX = 1.0
 
 #: The tooth annulus is deep for a reason: the teeth carry the phase
 #: currents in their LENGTH, and at a sixth of the radius the difference
@@ -307,7 +311,7 @@ class _Radii:
         self.tooth_in = self.can * F_TOOTH_IN
         self.bore = self.can * F_BORE
         self.can_inner = self.can * F_CAN_INNER
-        self.line = max(0.8, self.can * F_LINE)
+        self.line = min(LINE_MAX, max(0.8, self.can * F_LINE))
 
     def ring(self, radius, at, weight=1.0):
         """How much of a dot at `radius` the ring at `at` covers, 0 to 1."""
@@ -339,7 +343,9 @@ def _stubbed(radius, r, share):
 
 
 def _tooth_class(radius, phi, slots, r, drive):
-    """The phase of the tooth at `phi`, or None for the slot beside it."""
+    """The phase of the tooth at `phi`, `TRACK` for the length its phase is
+    not driven to (left empty, 16 teeth floated loose at a can of 95,
+    2026-09-23), or None for the slot beside it."""
     if not r.tooth_in <= radius <= r.tooth_out:
         return None, 0.0
     place = (phi % math.tau) / (math.tau / slots)
@@ -347,7 +353,7 @@ def _tooth_class(radius, phi, slots, r, drive):
         return None, 0.0
     phase = int(place) % 3
     if drive is not None and _stubbed(radius, r, drive[phase]):
-        return None, 0.0
+        return TRACK, 1.0
     # A TOOTH IS A FILLED AREA, so what bounds it is its angle and its length,
     # not a stroke - a sample is inside it or it is not, and the supersampling
     # in `_body` is what softens those edges.
@@ -667,6 +673,7 @@ def _body(frame, seat, rotor_deg, slots, poles, drive):
     """The machine itself, dot by dot."""
     rotor = math.radians(rotor_deg)
     r = seat.radii
+    track = []
     for x, y, samples in _samples(frame, seat):
         # EACH SAMPLE VOTES WITH ITS COVERAGE, and the dot goes to the class
         # that covers most of it.
@@ -681,7 +688,17 @@ def _body(frame, seat, rotor_deg, slots, poles, drive):
             if at is not None:
                 votes[at] = votes.get(at, 0.0) + share
         if votes and covered(sum(votes.values()), len(SUBDOT)):
-            frame.put(x, y, max(votes, key=lambda c: (votes[c], c)))
+            cls = max(votes, key=lambda c: (votes[c], c))
+            if cls == TRACK:
+                track.append((x, y))
+            else:
+                frame.put(x, y, cls)
+    # The track takes no cell an area has, as `_tube`'s: shared, a tooth's
+    # end moved a cell and a tip beside a north magnet went amber.
+    for x, y in track:
+        tally = frame.tally[y // DOTS_Y][x // DOTS_X]
+        if not tally or all(c in LINES or c == TRACK for c in tally):
+            frame.put(x, y, TRACK)
 
 
 def _bead(frame, seat, pointer_deg, glyph=None, rate=None):
