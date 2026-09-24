@@ -63,7 +63,7 @@ def _rails(table, params):
 def sample(rig, params):
     """Stand down, measure, and hand back what the board said."""
     steady(rig.gates.disarm)
-    if steady(rig.board.afe.enable) is None:
+    if steady(rig.board.afe.on) is None:
         return {}
     time.sleep(SETTLE_S)
     got = _rails(steady(rig.board.analog.read_all, nr_of_samples=32), params)
@@ -77,14 +77,14 @@ def sample(rig, params):
         used = spend['used']
         got['drivers'] = max(used[n] for n in thermal.DRIVERS)
         got['phases'] = max(used[n] for n in thermal.PHASES)
-    steady(rig.board.afe.disable)
+    steady(rig.board.afe.off)
     time.sleep(SETTLE_S)
     return got
 
 
 def step(rig, params, nanoseconds, skew, seconds, every, legs):
     """One dead time, held for `seconds`. Returns the samples taken."""
-    steady(rig.board.afe.disable)
+    steady(rig.board.afe.off)
     if steady(rig.gates.arm, bypass_sto=True, ignore_interlock=True) is None:
         return None
 

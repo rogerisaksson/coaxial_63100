@@ -24,7 +24,7 @@ from coaxial import connect, disconnect
 
 boards = connect([1])                  # unit ids; (unit, baud) or (unit, baud, port) per entry
 for board in boards:
-    board.afe.enable()                 # powers the ADC reference: off, every channel is mid-scale
+    board.afe.on()                 # powers the ADC reference: off, every channel is mid-scale
     print(board.analog.ntc_temperature(), board.analog.dcbus_voltage())
 disconnect(boards)
 ```
@@ -82,7 +82,7 @@ not only the signal path: off, every channel reads exact mid-scale and the
 NTC exactly 25.00 C - plausible, and not a measurement. It is on the
 acquisition rather than on `afe` because the rail is REFERENCE COUNTED -
 taken here it is released when the session closes, Ctrl+C included, while
-`board.afe.enable()` takes one that nothing gives back.
+`board.afe.on()` takes one that nothing gives back.
 
 ## Notebooks
 

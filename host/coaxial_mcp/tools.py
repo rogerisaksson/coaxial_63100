@@ -269,7 +269,7 @@ def _afe_order(session, action):
 def _afe_switch(session, afe, action):
     """Switch the rail, and wait out the reference when this turned it on."""
     was = afe.state()['on']
-    {'on': afe.enable, 'off': afe.disable, 'toggle': afe.toggle}[action]()
+    {'on': afe.on, 'off': afe.off, 'toggle': afe.toggle}[action]()
     if afe.is_on() and not was:
         _settle(session)
 

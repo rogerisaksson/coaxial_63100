@@ -177,7 +177,7 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
             raise DeviceStateError(
                 'the IMU did not answer a product id request: %s. '
                 'AFE_ON powers this part - if it is off, that is the whole '
-                'answer and afe.enable() is the fix. With it on, the board '
+                'answer and afe.on() is the fix. With it on, the board '
                 'drives NRSTN and PS0/WAKE and waits on H_INTN, so a silent '
                 'part is the part itself: check it is populated and that '
                 'PS1 is strapped high for SPI' % exc) from exc

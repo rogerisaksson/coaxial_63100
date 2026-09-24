@@ -4,6 +4,7 @@ import functools
 from coaxial.comm import protocol
 from coaxial.errors import DeviceStateError
 from coaxial.devices.power import named
+from coaxial.devices.roles import Output
 from coaxial.devices.subsystem import Subsystem
 from coaxial.comm.wire import Reader, pack
 
@@ -17,8 +18,8 @@ def powered(reading):
     return when_powered
 
 
-class Afe(Subsystem):
-    """The analog front end switch."""
+class Afe(Subsystem, Output):
+    """The analog front end's rail, AFE_ON: every reading needs it on."""
 
     def _act(self, action):
         reader = Reader(self.request(protocol.AFE,
@@ -31,21 +32,18 @@ class Afe(Subsystem):
         """Whether the front end is powered, and the PE15 input beside it."""
         return self._act('read')
 
-    def is_on(self):
-        return self.state()['on']
-
-    def enable(self):
+    def on(self):
         return self._act('on')['on']
 
-    def disable(self):
+    def off(self):
         return self._act('off')['on']
+
+    def write(self, on):
+        """On or off as `on` says; whether it is on after."""
+        return self.on() if on else self.off()
 
     def toggle(self):
         return self._act('toggle')['on']
-
-    def set(self, on):
-        """On or off as `on` says; whether it is on after."""
-        return self.enable() if on else self.disable()
 
     def require(self):
         """Raise unless the front end is powered."""
@@ -53,4 +51,4 @@ class Afe(Subsystem):
             raise DeviceStateError(
                 'the analog front end is off, so every channel would read '
                 'mid-scale and the NTC would report exactly 25.00 C. '
-                'Call board.afe.enable() first.')
+                'Call board.afe.on() first.')

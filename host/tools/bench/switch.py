@@ -73,7 +73,7 @@ def main():
     rig = Coaxial63100(port=a.port, power_afe=False).open()
     try:
         if not a.keep_afe:
-            rig.board.afe.disable()
+            rig.board.afe.off()
         rig.gates.arm(bypass_sto=not a.keep_break,
                              ignore_interlock=not a.interlock)
         what = ('sweep %.0f-%.0f %% every %.0fs' % (lo * 100, hi * 100, a.period)

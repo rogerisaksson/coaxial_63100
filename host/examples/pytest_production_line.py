@@ -15,7 +15,7 @@ from coaxial import connect, disconnect
 @pytest.fixture(scope='module')
 def board():
     boards = connect([(1, 115200)])
-    boards[0].afe.enable()
+    boards[0].afe.on()
     yield boards[0]
     disconnect(boards)
 
@@ -73,7 +73,7 @@ def test_afe_switch_reaches_the_pin(board):
         with_afe_on = board.gpio.pin_read('E', 15)
     finally:
         board.gpio.test_mode(False)
-        board.afe.enable()
+        board.afe.on()
 
     assert with_afe_off and not with_afe_on, (
         'PE15 did not follow AFE_ON: off -> %s, on -> %s'

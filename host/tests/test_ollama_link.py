@@ -376,7 +376,7 @@ def test_fallback(report):
 
     # PB2 is the AFE switch, not a spare pin.
     session.board.gpio.test_mode(True)
-    session.board.afe.enable()
+    session.board.afe.on()
     session.board.gpio.port_write('B', 0xFFFF, 0)
     report.check('clearing PB2 on the stand-in turns its AFE off',
                  not session.board.afe.state()['on'])

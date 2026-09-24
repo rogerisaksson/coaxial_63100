@@ -108,7 +108,7 @@ def main():
     rig = Coaxial63100(port=a.port, power_afe=False).open()
     afe_was_on = rig.gates.state()['afe_on']
     try:
-        rig.board.afe.disable()
+        rig.board.afe.off()
         rig.gates.arm(bypass_sto=True, ignore_interlock=True)
         state = rig.gates.state()
         pins = state['pins']
@@ -184,7 +184,7 @@ def main():
         if afe_was_on:
             # The way it was found: a thermal view sharing the port went blind
             # for good when the pulse left the AFE off.
-            rig.board.afe.enable()
+            rig.board.afe.on()
             print('AFE back on')
         rig.close()
         print('off', flush=True)

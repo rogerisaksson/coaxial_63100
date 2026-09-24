@@ -387,7 +387,7 @@ def test_compensate_and_tare(report):
         report.check('and leaves the gain it did not measure',
                      after['gain_ppm'] == 4000, after)
 
-        device.board.afe.disable()
+        device.board.afe.off()
         try:
             cal.tare(save=False)
             report.check('a tare with the rail down is refused', False)

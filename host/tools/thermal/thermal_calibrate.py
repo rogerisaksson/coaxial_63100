@@ -90,13 +90,13 @@ def peek(rig):
     if not ok:
         return None, None
     try:
-        if not was_on and not insist(rig.board.afe.enable)[0]:
+        if not was_on and not insist(rig.board.afe.on)[0]:
             return None, None
         if not was_on:
             time.sleep(PEEK_SETTLE_S)
         return sensors(rig)
     finally:
-        if not was_on and not insist(rig.board.afe.disable, tries=20, pause=0.5)[0]:
+        if not was_on and not insist(rig.board.afe.off, tries=20, pause=0.5)[0]:
             raise SystemExit(
                     'COULD NOT SWITCH THE AFE BACK OFF after a sample. The '
                     'state is now wrong and everything measured after this is '
@@ -156,9 +156,9 @@ def hold(port, state, dwell_s, poll_s=30.0):
 
     with Coaxial63100(port=port) as rig:
         if state == 'passive':
-            rig.board.afe.disable()
+            rig.board.afe.off()
         else:
-            rig.board.afe.enable()
+            rig.board.afe.on()
             time.sleep(0.3)
 
         if state == 'traffic':

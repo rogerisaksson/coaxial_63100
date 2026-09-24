@@ -30,7 +30,7 @@ def cmd_table(board, args):
 
 def cmd_afe(board, args):
     action = (args.args[0] if args.args else 'read').lower()
-    handler = {'on': board.afe.enable, 'off': board.afe.disable,
+    handler = {'on': board.afe.on, 'off': board.afe.off,
                'toggle': board.afe.toggle, 'read': board.afe.state}
     if action not in handler:
         raise SystemExit('afe: expected on, off, toggle or read')
@@ -38,7 +38,7 @@ def cmd_afe(board, args):
 
 
 def cmd_temp(board, args):
-    board.afe.enable()
+    board.afe.on()
     t = board.analog.ntc_temperature()
     print('  %.3f C   %.0f ohm   spread %.0f mK over %d samples   [%s]'
           % (t['celsius'], t['ohms'], t['spread_millikelvin'], t['samples'],
@@ -46,7 +46,7 @@ def cmd_temp(board, args):
 
 
 def cmd_dcbus(board, args):
-    board.afe.enable()
+    board.afe.on()
     v = board.analog.dcbus_voltage()
     print('  %.4f V   pin %.4f V   x%.3f   ripple %.1f mV   noise %.1f mV rms'
           % (v['volts'], v['volts_at_pin'], v['scale'],
@@ -54,7 +54,7 @@ def cmd_dcbus(board, args):
 
 
 def cmd_analog(board, args):
-    board.afe.enable()
+    board.afe.on()
     samples = int(args.args[0]) if args.args else 64
     rate = float(args.args[1]) if len(args.args) > 1 else 2000.0
     result = board.analog.read_all(samples, rate)
@@ -70,7 +70,7 @@ def cmd_analog(board, args):
 def cmd_scan(board, args):
     # Like the other reading commands: the scan refuses with the front end off,
     # because mid-scale would come back as exactly 25.00 C.
-    board.afe.enable()
+    board.afe.on()
     for key, value in board.analog.scan().items():
         print('  %-16s %s' % (key, value))
 

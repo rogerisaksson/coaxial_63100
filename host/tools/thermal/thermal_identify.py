@@ -58,13 +58,13 @@ def ntc(rig, tries=8):
         try:
             was_on = rig.board.afe.is_on()
             if not was_on:
-                rig.board.afe.enable()
+                rig.board.afe.on()
                 time.sleep(0.5)          # the reference, measured
             try:
                 return rig.board.analog.ntc_temperature()['celsius']
             finally:
                 if not was_on:
-                    insist(rig.board.afe.disable)
+                    insist(rig.board.afe.off)
         except (NoReplyError, RigError):
             time.sleep(0.4)
     return None
@@ -95,17 +95,17 @@ def sample_while_switching(rig, load):
 def enter(rig, state):
     """Put the board in `state`. Returns the load to re-apply after a sample."""
     if state == 'switch':
-        insist(rig.board.afe.disable)
+        insist(rig.board.afe.off)
         insist(lambda: rig.gates.arm(bypass_sto=True, ignore_interlock=True))
         load = {'Phase %s' % leg: 0.50 for leg in ('U', 'V', 'W')}
         insist(lambda: rig.write(analog=load))
         return load
 
     if state == 'passive':
-        insist(rig.board.afe.disable)
+        insist(rig.board.afe.off)
         return None
 
-    insist(rig.board.afe.enable)
+    insist(rig.board.afe.on)
     if state == 'traffic':
         rig.configure(accumulate=1, digital=True)
         rig.start()

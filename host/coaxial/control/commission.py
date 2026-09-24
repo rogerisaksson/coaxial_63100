@@ -153,7 +153,7 @@ class Commissioning:
         """Noise floor per channel with the gates off, and on the zero vector
         with the stage armed - the difference is switch pickup.
         """
-        self.rig.board.afe.enable()
+        self.rig.board.afe.on()
         time.sleep(0.3)
         gd = self.rig.board.gate_drivers
         gd.arm()

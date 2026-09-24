@@ -8,6 +8,7 @@ from typing import Any
 from coaxial.comm import protocol
 from coaxial.devices import scaling
 from coaxial.devices.calibration import CalibrationOps
+from coaxial.devices.roles import Output
 from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
 from coaxial.errors import DeviceStateError
 from coaxial.simulated.system import UNITS
@@ -15,44 +16,34 @@ from coaxial.simulated.values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _
                                       phase_codes)
 
 
-class SimulatedAfe:
-    """The stand-in AFE, with PE15 following AFE_ON inversely - the same
-    relation the real board was measured to have.
-    """
+class SimulatedAfe(Output):
+    """The stand-in AFE; PE15 follows AFE_ON inversely, as measured on the board."""
+
     def __init__(self):
-        self.on = False
+        self._on = False
 
     def state(self):
-        # `users` mirrors the board's reference count.
-        return {'on': self.on, 'pe15': not self.on,
-                'users': ['host'] if self.on else []}
-
-    def is_on(self):
-        """The real Afe has this and the stand-in did not, which is a gap
-        nothing caught until a view asked.
-        """
-        return self.on
+        return {'on': self._on, 'pe15': not self._on, 'users': ['host'] if self._on else []}
 
     def require(self):
-        if not self.on:
+        if not self._on:
             raise DeviceStateError('AFE_ON is off (simulated)')
         return True
 
-    def enable(self):
-        self.on = True
+    def on(self):
+        self._on = True
         return True
 
-    def disable(self):
-        self.on = False
+    def off(self):
+        self._on = False
         return False
 
-    def toggle(self):
-        self.on = not self.on
-        return self.on
+    def write(self, on):
+        return self.on() if on else self.off()
 
-    def set(self, on):
-        """On or off as `on` says; whether it is on after."""
-        return self.enable() if on else self.disable()
+    def toggle(self):
+        self._on = not self._on
+        return self._on
 
 
 class SimulatedAnalog:
@@ -95,7 +86,7 @@ class SimulatedAnalog:
             index = meta['index']
             if not (mask >> index & 1):
                 continue
-            if self._afe.on:
+            if self._afe._on:
                 mean = (NOMINAL[index] + _sweep(index)
                         + phase_codes(meta['signal'], amps, theta)
                         + random.uniform(-DRIFT[index], DRIFT[index]))
@@ -106,7 +97,7 @@ class SimulatedAnalog:
                 # number picked to look plausible.
                 mean = 0.0 if meta['differential'] else ADC_HALF_CODES
             chosen[index] = _spread(
-                meta, mean, self._afe.on,
+                meta, mean, self._afe._on,
                 swing if meta['signal'] in ('Phase U', 'Phase V', 'Phase W')
                 else 0.0)
         return {'samples': samples, 'rate_hz': rate or 2000.0,
@@ -147,7 +138,7 @@ class SimulatedAnalog:
                 'the scan reports the analog front end off, so every channel '
                 'read mid-scale: ntc_centidegc would be exactly 2500 and '
                 'dcbus_mv a plausible number that is not a measurement. '
-                'Call board.afe.enable() first.')
+                'Call board.afe.on() first.')
 
         by_signal = {row['signal']: row['index'] for row in CHANNELS}
         taken = self.burst((1 << len(CHANNELS)) - 1, 1)['channels']

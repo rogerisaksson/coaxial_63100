@@ -29,14 +29,14 @@ class Stream:
     def enable(self):
         """Power the analog front end for this session."""
         if not self._afe_held:
-            self.board.afe.enable()
+            self.board.afe.on()
             self._afe_held = True
         return self
 
     def disable(self):
         """Release this session's hold on the front end."""
         if self._afe_held:
-            self.board.afe.disable()
+            self.board.afe.off()
             self._afe_held = False
         return self
 

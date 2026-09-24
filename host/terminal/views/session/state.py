@@ -95,10 +95,10 @@ class Session:
             return False
 
         taken = None
-        if steady(rig.board.afe.enable) is not None:
+        if steady(rig.board.afe.on) is not None:
             time.sleep(SETTLE_S)
             taken = steady(rig.board.thermal.state)
-            steady(rig.board.afe.disable)
+            steady(rig.board.afe.off)
             time.sleep(SETTLE_S)
 
         if steady(rig.gates.arm, bypass_sto=True,
@@ -156,7 +156,7 @@ class Switching:
 
     def start(self, session):
         rig = session.rig
-        if steady(rig.board.afe.disable) is None:
+        if steady(rig.board.afe.off) is None:
             session.note = 'could not put the AFE down - not arming'
             return None
         if steady(rig.gates.arm, bypass_sto=True, ignore_interlock=True) is None:

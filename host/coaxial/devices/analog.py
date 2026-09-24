@@ -227,7 +227,7 @@ class Analog(Subsystem):
                 'the scan reports the analog front end off, so every channel '
                 'read mid-scale: ntc_centidegc would be exactly 2500 and '
                 'dcbus_mv a plausible number that is not a measurement. '
-                'Call board.afe.enable() first.')
+                'Call board.afe.on() first.')
 
         return result
 

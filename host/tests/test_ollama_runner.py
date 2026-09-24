@@ -182,7 +182,7 @@ def test_scope(report):
     report.check('the namespace persists between calls',
                  scope.run('sum(readings)') == '6')
     report.check('the board is in scope',
-                 'True' in scope.run('board.afe.enable()'))
+                 'True' in scope.run('board.afe.on()'))
     report.check('print output is captured',
                  scope.run('print("hello")') == 'hello')
     text = scope.run('round(board.analog.channels(), 2)')
@@ -231,7 +231,7 @@ def test_scope_repairs(report):
                  'board.analog' in confused and 'read_all' in confused,
                  confused.splitlines()[-1][:52])
     report.check('and the real method still works',
-                 scope.run('board.afe.enable()').strip() == 'True')
+                 scope.run('board.afe.on()').strip() == 'True')
 
 def test_shell(report):
     shell = Shell(['python'], timeout=60)

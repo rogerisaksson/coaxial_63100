@@ -447,7 +447,7 @@ def main():
         if a.switch is not None:
             legs = [x.strip().upper() for x in a.phases.split(',')]
             # AFE off FIRST, then arm.
-            rig.board.afe.disable()
+            rig.board.afe.off()
             rig.gates.arm(bypass_sto=True, ignore_interlock=True)
             load = {'Phase ' + leg: a.switch for leg in legs}
             rig.write(analog=load)

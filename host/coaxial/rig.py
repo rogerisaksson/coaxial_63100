@@ -218,7 +218,7 @@ class Coaxial63100(Task, Stream, Acquisition):
         it was this that switched the rail on.
         """
         already = self.board.afe.is_on()
-        self.board.afe.enable()
+        self.board.afe.on()
         self._afe_held = True
         if not already:
             time.sleep(self.AFE_SETTLE)
@@ -283,7 +283,7 @@ class Coaxial63100(Task, Stream, Acquisition):
         """
         if not self._afe_held:
             return
-        self.board.afe.disable()
+        self.board.afe.off()
         self._afe_held = False
 
     def __enter__(self):

@@ -25,7 +25,7 @@ def toggle_rail(session):
     got = steady(afe.state)
     if got is None:
         return
-    steady(afe.disable if got['on'] else afe.enable)
+    steady(afe.off if got['on'] else afe.on)
     session.note = ''
 
 
@@ -123,8 +123,8 @@ def teardown(session, console, drawn, hold=True):
     others = [u for u in (rail or {}).get('users', ()) if u != 'host']
     if (session.afe_found is not None and rail is not None
             and rail['on'] != session.afe_found and not others):
-        steady(session.rig.board.afe.enable if session.afe_found
-               else session.rig.board.afe.disable)
+        steady(session.rig.board.afe.on if session.afe_found
+               else session.rig.board.afe.off)
     say('ok', 'AFE_ON', 'back the way the session found it')
     say('ok', 'board', 'nothing the session started is still running')
     if console and hold:

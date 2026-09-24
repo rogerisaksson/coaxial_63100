@@ -5,7 +5,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tests.ollama_support import (DeviceStateError, Scope, toolmod)   # noqa: E402
+from coaxial.errors import DeviceStateError  # noqa: E402
+from tests.ollama_support import Scope, toolmod  # noqa: E402
 
 def test_bus(report):
     """Five segments, one per limb plus the axis."""

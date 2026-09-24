@@ -27,7 +27,7 @@ def show(board):
         print('  %s %-20s %s' % (marker, check['name'],
                                  check['value'] if show else ''))
 
-    board.afe.enable()
+    board.afe.on()
 
     print('\nanalog  (raw codes and pin volts; scaling is nominal, not calibrated)')
     reading = board.analog.read_all(nr_of_samples=128, sample_rate=2000.0)

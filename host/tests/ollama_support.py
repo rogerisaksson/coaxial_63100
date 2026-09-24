@@ -33,7 +33,8 @@ import types                                               # noqa: F401
 import threading                                           # noqa: F401
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import simulated                              # noqa: E402,F401
-from coaxial.errors import ConnectError, DeviceStateError   # noqa: E402
+from coaxial.errors import ConnectError  # noqa: E402
+from coaxial.simulated.analog import SimulatedAfe  # noqa: E402
 from tests import counts                                   # noqa: E402
 from coaxial_ollama import (plan as planmod, replies, runner as runmod,  # noqa: E402,F401
                             tools as toolmod, client as clientmod)
@@ -72,32 +73,6 @@ class SimulatedSystem:
 
     def clock(self):
         return {'sysclk_hz': 475000000, 'hclk_hz': 237500000, 'source': 'PLL1'}
-class SimulatedAfe:
-    def __init__(self):
-        self.on = False
-
-    def state(self):
-        return {'on': self.on, 'pe15': not self.on}
-
-    def is_on(self):
-        """The third stand-in for this subsystem, and it was missing this."""
-        return self.on
-
-    def enable(self):
-        self.on = True
-        return True
-
-    def disable(self):
-        self.on = False
-        return False
-
-    def toggle(self):
-        self.on = not self.on
-        return self.on
-
-    def require(self):
-        if not self.on:
-            raise DeviceStateError('the analog front end is off')
 CHANNELS = [
     {'index': 0, 'adc': 1, 'pin': 'PA0', 'differential': True, 'signal': 'Phase U'},
     {'index': 1, 'adc': 1, 'pin': 'PA1', 'differential': True, 'signal': 'Phase V'},

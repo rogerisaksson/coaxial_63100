@@ -350,7 +350,7 @@ def main(argv=None):
     origin, board = rig.origin, rig.board
     was_on = board.afe.is_on()
     if args.afe != was_on:
-        board.afe.set(args.afe)
+        board.afe.write(args.afe)
         time.sleep(0.3)
     say('ok', 'AFE_ON', '%s - %s'
         % ('on' if args.afe else 'off',
@@ -416,7 +416,7 @@ def main(argv=None):
             done.append(('gate stage', 'disarmed, MOE clear'))
             done.append(('BKIN', 'back in circuit'))
             if board.afe.is_on() != was_on:
-                board.afe.set(was_on)
+                board.afe.write(was_on)
             done.append(('AFE_ON', 'back the way it was found'))
         except RigError as exc:
             done.append(('putting it back', 'FAILED: %s' % exc))

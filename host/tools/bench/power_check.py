@@ -61,7 +61,7 @@ def quiet(fn, *a, **kw):
 def check_host_hold(rig, check):
     print('\nthe host\'s hold: taken by name, and it does NOT expire')
     quiet(rig.board.power.release_all)
-    quiet(rig.board.afe.enable)
+    quiet(rig.board.afe.on)
     st = afe(rig)
     check('host acquire switches the rail on', st['on'], True)
     check('and the mask names the host', st['users'], ['host'])
@@ -73,7 +73,7 @@ def check_host_hold(rig, check):
     check('still on after the lease would have run out', st['on'], True)
     check('and still the host holding it', st['users'], ['host'])
 
-    quiet(rig.board.afe.disable)
+    quiet(rig.board.afe.off)
     st = afe(rig)
     check('release switches it off', st['on'], False)
     check('and nobody holds it', st['users'], [])
@@ -112,7 +112,7 @@ def check_observer_borrow(rig, check):
 def check_armed_refusal(rig, check):
     print('\nwhile the gate stage is armed: an acquire is REFUSED')
     print('  AFE_ON high takes the drivers\' supply away - the gate is inverted')
-    quiet(rig.board.afe.disable)
+    quiet(rig.board.afe.off)
     quiet(rig.gates.arm, bypass_sto=True, ignore_interlock=True)
     try:
         st = afe(rig)
@@ -138,7 +138,7 @@ def check_armed_refusal(rig, check):
 
 def check_release_all(rig, check):
     print('\nrelease_all: the way out of a leaked hold')
-    quiet(rig.board.afe.enable)
+    quiet(rig.board.afe.on)
     check('held before', afe(rig)['on'], True)
     quiet(rig.board.power.release_all)
     st = afe(rig)

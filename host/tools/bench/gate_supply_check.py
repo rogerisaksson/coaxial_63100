@@ -57,17 +57,17 @@ def main():
     a = p.parse_args()
 
     with Coaxial63100(port=a.port, power_afe=True) as rig:
-        rig.board.afe.enable()
+        rig.board.afe.on()
         time.sleep(1.0)
         rest = volts(rig)
         print('rest level, AFE on throughout : %.3f V' % rest)
 
         print('switching the AFE off for %.0f s (the drivers should then have '
               'supply) ...' % a.off_seconds)
-        rig.board.afe.disable()
+        rig.board.afe.off()
         time.sleep(a.off_seconds)
 
-        rig.board.afe.enable()          # no settle sleep: we want the first
+        rig.board.afe.on()          # no settle sleep: we want the first
         t0 = time.time()
         got = []
         for _ in range(a.samples):

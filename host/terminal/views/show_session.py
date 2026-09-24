@@ -118,7 +118,7 @@ def main():
                 and gates is not None and not gates['pwm_enabled']):
             # The resting state is the rail UP - values on the dash from the
             # first frame - and A toggles it.
-            steady(rig.board.afe.enable)
+            steady(rig.board.afe.on)
             say('ok', 'AFE_ON', 'up for the session - A toggles it, and '
                                 'it goes back on the way out')
         else:

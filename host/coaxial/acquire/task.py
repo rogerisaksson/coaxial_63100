@@ -382,7 +382,7 @@ class Task:
                            'before the reply came back' % name)
 
         if name == 'AFE_ON':
-            self.board.afe.set(level)
+            self.board.afe.write(level)
             return level
 
         pins = {d['signal']: d for d in
