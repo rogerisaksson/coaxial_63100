@@ -413,9 +413,9 @@ class Task:
         if not state['pwm_enabled']:
             raise RigError(
                 'the gate drivers are not armed, and writing a duty is not what '
-                'arms it - call gates.arm() first, which says what that '
+                'arms it - call gates.on() first, which says what that '
                 'means. %s'
-                % ('The break is latched, so gates.arm(bypass_sto=True) '
+                % ('The break is latched, so gates.on(bypass_sto=True) '
                    'is what gets past it'
                    if state['fault']
                    else 'Nothing is holding it off'))
@@ -426,5 +426,5 @@ class Task:
             int(max(0.0, min(1.0, analog[name])) * period)
             if name in analog else held[i]
             for i, name in enumerate(legs))
-        self.board.gate_drivers.duty(ticks)
+        self.board.gate_drivers.write(ticks)
         return dict(zip(legs, (t / period for t in ticks)))

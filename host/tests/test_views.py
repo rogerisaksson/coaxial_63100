@@ -227,8 +227,8 @@ def test_a_power_node_never_reads_below_the_copper(report):
     rig = Coaxial63100(simulated_device=True)
     rig.open()
     try:
-        rig.board.gate_drivers.bypass_break(True)
-        rig.board.gate_drivers.enable()
+        rig.board.gate_drivers.configure(bypass_break=True)
+        rig.board.gate_drivers.on()
         rig.drive.mode('hold')
         rig.drive.setpoint(iq_ref=30.0)
         worst = None

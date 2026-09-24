@@ -90,7 +90,7 @@ class Session:
         switching.
         """
         rig = self.rig
-        if steady(rig.gates.disarm) is None:
+        if steady(rig.gates.off) is None:
             self.note = 'could not stand down for a sample'
             return False
 
@@ -101,7 +101,7 @@ class Session:
             steady(rig.board.afe.off)
             time.sleep(SETTLE_S)
 
-        if steady(rig.gates.arm, bypass_sto=True,
+        if steady(rig.gates.on, bypass_sto=True,
                   ignore_interlock=True) is None:
             self.note = 'sampled, but the stage would not re-arm'
             return False
@@ -159,18 +159,18 @@ class Switching:
         if steady(rig.board.afe.off) is None:
             session.note = 'could not put the AFE down - not arming'
             return None
-        if steady(rig.gates.arm, bypass_sto=True, ignore_interlock=True) is None:
+        if steady(rig.gates.on, bypass_sto=True, ignore_interlock=True) is None:
             session.note = 'the stage refused to arm'
             return None
 
         load = session.push()
         if load is None:
-            steady(rig.gates.disarm)
+            steady(rig.gates.off)
             session.note = 'armed but the duty did not take - disarmed again'
             return None
 
         return (lambda: rig.write(analog=dict.fromkeys(load, 0.0)),
-                rig.gates.disarm)
+                rig.gates.off)
 
 
 class Acquiring:

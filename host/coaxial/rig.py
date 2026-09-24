@@ -275,7 +275,7 @@ class Coaxial63100(Task, Stream, Acquisition):
         """Disarm on the way out - the safety net for a run that was killed."""
         if (self.gates is None or self.gates.armed_here
                 or not self._others_here()):
-            self.board.gate_drivers.disable()
+            self.board.gate_drivers.off()
 
     def _release_afe(self):
         """Release OUR reference; the refcount keeps the rail up for whoever

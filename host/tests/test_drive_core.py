@@ -310,8 +310,8 @@ def test_mode_refusals(r, lib):
         r.check('a mode that measures is refused with the AFE off, and says so',
                 why is not None and 'AFE_ON' in why, why)
         why = d.mode(HOLD, enabled=False)
-        r.check('a mode that switches is refused with MOE clear, naming arm()',
-                why is not None and 'gates.arm()' in why, why)
+        r.check('a mode that switches is refused with MOE clear, naming on()',
+                why is not None and 'gates.on()' in why, why)
         r.check('OFF is never refused', d.mode(OFF, False, False) is None)
         r.check('a mode past the list is refused', d.mode(9) is not None)
         d.setpoints(pol_periods=0)

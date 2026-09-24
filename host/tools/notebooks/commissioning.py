@@ -35,7 +35,7 @@ ABSTRACT = (
 SECTIONS = [
     section(
         'The converters: the floor, the sample point, the offsets',
-        md('`Commissioning` takes the rig and `arm` - what `gates.arm()` is '
+        md('`Commissioning` takes the rig and `arm` - what `gates.on()` is '
            'called with when a step needs the stage; without it the switching '
            'steps refuse. `run()` is the twelve steps under one `finally` that '
            'puts the stage down; here they go one section at a time, so each '
@@ -367,9 +367,9 @@ for name in sorted(after):
     print('   %-26s %-14.6g %s' % (name, after[name], 'written today' if name in written else ''))
 print('%d parameters in the record, %d of them written today' % (len(after), len(written)))
 device.drive.off()
-device.gates.disarm()
-device.gates.control.disarm()
-print('stage armed:', device.gates.armed())'''),
+device.gates.off()
+device.gates.control.configure(sync=False)
+print('stage armed:', device.gates.is_on())'''),
     ),
 ]
 

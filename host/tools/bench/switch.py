@@ -74,7 +74,7 @@ def main():
     try:
         if not a.keep_afe:
             rig.board.afe.off()
-        rig.gates.arm(bypass_sto=not a.keep_break,
+        rig.gates.on(bypass_sto=not a.keep_break,
                              ignore_interlock=not a.interlock)
         what = ('sweep %.0f-%.0f %% every %.0fs' % (lo * 100, hi * 100, a.period)
                 if a.sweep else '%.0f %%' % (a.duty * 100))
@@ -103,7 +103,7 @@ def main():
         with suppress(RigError):
             write(rig, 0.0)
         with suppress(RigError):
-            rig.gates.disarm()
+            rig.gates.off()
         rig.close()
         print('off', flush=True)
 

@@ -115,8 +115,8 @@ def demo_machine(rig, origin):
 
     if origin.real:
         return None
-    rig.board.gate_drivers.bypass_break(True)
-    rig.board.gate_drivers.enable()
+    rig.board.gate_drivers.configure(bypass_break=True)
+    rig.board.gate_drivers.on()
     drive = rig.drive
     drive.source('model')
     # The stand-in's record clamps the current at 5 A; the meters are 100 A

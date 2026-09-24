@@ -85,9 +85,9 @@ def insist(what, tries=10, pause=0.4):
 
 def sample_while_switching(rig, load):
     """Disarm, read, arm again."""
-    insist(rig.gates.disarm)
+    insist(rig.gates.off)
     got = ntc(rig)
-    insist(lambda: rig.gates.arm(bypass_sto=True, ignore_interlock=True))
+    insist(lambda: rig.gates.on(bypass_sto=True, ignore_interlock=True))
     insist(lambda: rig.write(analog=load))
     return got
 
@@ -96,7 +96,7 @@ def enter(rig, state):
     """Put the board in `state`. Returns the load to re-apply after a sample."""
     if state == 'switch':
         insist(rig.board.afe.off)
-        insist(lambda: rig.gates.arm(bypass_sto=True, ignore_interlock=True))
+        insist(lambda: rig.gates.on(bypass_sto=True, ignore_interlock=True))
         load = {'Phase %s' % leg: 0.50 for leg in ('U', 'V', 'W')}
         insist(lambda: rig.write(analog=load))
         return load
@@ -121,7 +121,7 @@ def leave(rig, state, load):
 def _undo_steps(rig, state, load):
     if state == 'switch':
         return [lambda: rig.write(analog=dict.fromkeys(load, 0.0)),
-                rig.gates.disarm]
+                rig.gates.off]
     if state == 'traffic':
         return [rig.stop]
     return []

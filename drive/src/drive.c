@@ -104,7 +104,7 @@ const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
   }
   if (!stage_enabled)
   {
-    return "the stage is not armed - gates.arm() is what sets MOE, and a "
+    return "the stage is off - gates.on() is what sets MOE, and a "
            "mode that switches is refused until it has";
   }
   if ((mode == DRIVE_POLARITY) && (d->sp.pol_periods == 0U))

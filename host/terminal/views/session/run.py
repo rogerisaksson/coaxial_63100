@@ -139,7 +139,7 @@ def sweep(rig):
     if gates is not None and gates['pwm_enabled']:
         steady(rig.write, analog=dict.fromkeys(
             ['Phase %s' % leg for leg in DEFAULT_PHASES], 0.0))
-        steady(rig.gates.disarm)
+        steady(rig.gates.off)
         done.append(('gate stage', 'was armed - duty to zero, MOE clear'))
 
     task = steady(rig.board.daq.state)

@@ -198,7 +198,7 @@ def run_rows(view, width):
 
 def _duty(rig, view, by):
     view['duty'] = min(1.0, max(0.0, view['duty'] + by))
-    if rig.gates.armed():
+    if rig.gates.is_on():
         rig.write(analog={'Phase U': view['duty'],
                           'Phase V': view['duty'],
                           'Phase W': view['duty']})
@@ -212,16 +212,16 @@ def _step(view, by):
 
 
 def _arm(rig, view):
-    if rig.gates.armed():
-        rig.gates.disarm(keep_bypass=True)
+    if rig.gates.is_on():
+        rig.gates.off(keep_bypass=True)
         return 'disarmed'
-    rig.gates.arm(ignore_interlock=view['override'])
+    rig.gates.on(ignore_interlock=view['override'])
     return 'armed at zero duty - all three low sides on'
 
 
 def _bkin(rig):
     want = not rig.board.gate_drivers.state()['break_bypassed']
-    rig.board.gate_drivers.bypass_break(want)
+    rig.board.gate_drivers.configure(bypass_break=want)
     return ('BKIN overridden - the STO break input is disconnected'
             if want else 'BKIN back in circuit')
 
@@ -243,9 +243,9 @@ def _pulse(rig, view):
     # 31 ms read the pulse would be spent waiting for.
     period = state['period'] - 1
     back = int(view['duty'] * period)
-    rig.board.gate_drivers.duty((int(PULSE * period), 0, 0))
+    rig.board.gate_drivers.write((int(PULSE * period), 0, 0))
     began = time.perf_counter()
-    rig.board.gate_drivers.duty((back, back, back))
+    rig.board.gate_drivers.write((back, back, back))
     held = time.perf_counter() - began
     state = rig.board.gate_drivers.state()
     return ('pulsed U %.0f %% against V low: %.0f ms, ~%d cycles - break %s,'
@@ -412,7 +412,7 @@ def main(argv=None):
             if not refused:
                 rig.stop()
                 done.append(('acquisition', 'task stopped'))
-            rig.gates.disarm()
+            rig.gates.off()
             done.append(('gate stage', 'disarmed, MOE clear'))
             done.append(('BKIN', 'back in circuit'))
             if board.afe.is_on() != was_on:

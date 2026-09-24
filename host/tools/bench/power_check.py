@@ -113,7 +113,7 @@ def check_armed_refusal(rig, check):
     print('\nwhile the gate stage is armed: an acquire is REFUSED')
     print('  AFE_ON high takes the drivers\' supply away - the gate is inverted')
     quiet(rig.board.afe.off)
-    quiet(rig.gates.arm, bypass_sto=True, ignore_interlock=True)
+    quiet(rig.gates.on, bypass_sto=True, ignore_interlock=True)
     try:
         st = afe(rig)
         check('the rail reports itself blocked', st['blocked'], True)
@@ -130,7 +130,7 @@ def check_armed_refusal(rig, check):
         check('the thermal observer never got it while armed', high, 0)
     finally:
         quiet(rig.board.thermal.set_sample, 5.0, 0.5)
-        quiet(rig.gates.disarm)
+        quiet(rig.gates.off)
 
     st = afe(rig)
     check('once disarmed it is no longer blocked', st['blocked'], False)
@@ -162,7 +162,7 @@ def main():
             check_armed_refusal(rig, check)
             check_release_all(rig, check)
         finally:
-            quiet(rig.gates.disarm)
+            quiet(rig.gates.off)
             quiet(rig.board.power.release_all)
             quiet(rig.board.thermal.set_sample, 5.0, 0.5)
 

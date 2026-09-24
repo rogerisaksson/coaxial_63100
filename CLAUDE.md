@@ -12,7 +12,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 ## State
 
 - TIM1 50 kHz centre-aligned, break PE15. `Board_PwmInit`: MOE clear, CCxE
-  set. Only gate op 1 (`rig.gates.arm()`) sets MOE; DTG 0 refused (2EDL8034
+  set. Only gate op 1 (`rig.gates.on()`) sets MOE; DTG 0 refused (2EDL8034
   has no interlock). Host silent 10 s -> stage and rail claims dropped.
 - Gate supply comes from the STO chain, not the MCU. AFE_ON high unpowers
   the drivers: no current is measured while switching here.

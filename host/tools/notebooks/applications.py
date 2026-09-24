@@ -43,15 +43,15 @@ SECTIONS = [
     md('Every mission runs the drive on the stand-in\'s rotor, '
        '`source(\'model\')`, with the machine\'s inertia and friction set '
        'to the smallest plausible pair, and the stage armed once here: '
-       '`gates.arm()` is the one place arming lives, and the verbs refuse '
+       '`gates.on()` is the one place arming lives, and the verbs refuse '
        'an unarmed stage. The two flags are for a bench with no STO chain '
        'unlocked and an unmodified interlock; at the bench the pilot tone '
        'releases the drivers\' supply and the flags go.'),
     code('''drive = device.drive
 drive.source('model')
 print(drive.model_param(j=2e-5, b=1e-5, load=0.0))
-device.gates.arm(bypass_sto=True, ignore_interlock=True)
-print('armed:', device.gates.armed())'''),
+device.gates.on(bypass_sto=True, ignore_interlock=True)
+print('armed:', device.gates.is_on())'''),
     ),
     section(
         'The propeller on the rotor',
@@ -184,9 +184,9 @@ draw(cruise_log, 'the cruise, drag x %.1f from %.1f to %.1f s' % (GUST, GUST_FRO
 elbow = Coaxial63100(port=PORT, unit=2, simulated_device=SIMULATED).open()
 elbow.drive.source('model')
 elbow.drive.model_param(j=2e-5, b=1e-5, load=0.01)
-elbow.gates.arm(bypass_sto=True, ignore_interlock=True)
+elbow.gates.on(bypass_sto=True, ignore_interlock=True)
 for name, joint in (('shoulder', shoulder), ('elbow', elbow)):
-    print('%-9s unit %d  %s  armed %s' % (name, joint.origin.unit, joint, joint.gates.armed()))'''),
+    print('%-9s unit %d  %s  armed %s' % (name, joint.origin.unit, joint, joint.gates.is_on()))'''),
         md('A move is a pair of targets. Each servo slews its command at '
            '90 degrees a second, lets the ring die, reads its shaft as a mean '
            'over the ring, and corrects what the load stole - up to four '
@@ -202,7 +202,7 @@ with shoulder.motion.servo(amps=2.0) as s, elbow.motion.servo(amps=2.0) as e:
         reached.append((a, b, got_a, s.error, s.swing, got_b, e.error, e.swing))
         print('pose (%5.1f, %5.1f)  shoulder %6.2f err %5.2f swing %4.2f   elbow %6.2f err %5.2f swing %4.2f'
               % reached[-1])
-elbow.gates.disarm()
+elbow.gates.off()
 elbow.drive.model_param(load=0.0)
 elbow.drive.source('adc')
 elbow.close()
@@ -248,9 +248,9 @@ with device.motion.servo(amps=3.0, settle=0.3) as hold:
     after = watch_shaft(0.5, origin)
     drive.model_param(load=0.0)
 print('the sensor read %.2f deg at the hold; the trace counts from there' % origin)
-device.gates.disarm()
+device.gates.off()
 drive.source('adc')
-print('armed:', device.gates.armed(), ' drive:', drive.state()['mode'])'''),
+print('armed:', device.gates.is_on(), ' drive:', drive.state()['mode'])'''),
         code('''fig, (shaft,) = figure(rows=1, title='the shaft through the load step')
 t = 0.0
 for rows, label in ((before, 'held'), (during, 'load step'), (after, 'corrected')):
@@ -372,7 +372,7 @@ print('   ring        %.2f deg peak to peak held, %.2f under the load, %.2f corr
 
 BENCH = (
     'Flip `SIMULATED`, name the port, and take the two flags off '
-    '`gates.arm()`: at the bench the STO chain releases the drivers\' supply '
+    '`gates.on()`: at the bench the STO chain releases the drivers\' supply '
     'on the pilot tone and the interlock is the schematic\'s. Drop '
     '`on_model` and the gust - the air is the air - and open the lane with '
     '`load_k` set to the propeller it really turns, `APC20x10E.k` for the '

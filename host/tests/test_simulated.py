@@ -1046,7 +1046,7 @@ def test_gate_driver_arming(report):
     rig = Coaxial63100(simulated_device=True, power_afe=True).open()
     try:
         report.check('nothing is armed on the way in',
-                     rig.gates.armed() is False, rig.gates.armed())
+                     rig.gates.is_on() is False, rig.gates.is_on())
 
         try:
             rig.write(analog={'Phase U': 0.25})
@@ -1058,12 +1058,12 @@ def test_gate_driver_arming(report):
                      refused is not None, refused)
         report.check('and the refusal names the call that would arm it, '
                      'rather than leaving the caller to guess',
-                     refused and 'gates.arm()' in refused, refused)
+                     refused and 'gates.on()' in refused, refused)
 
         # The schematic wants the charge pump up and the level detector tripped
         # first.
         try:
-            rig.gates.arm(bypass_sto=True)
+            rig.gates.on(bypass_sto=True)
             held = None
         except RigError as exc:
             held = str(exc)
@@ -1073,8 +1073,8 @@ def test_gate_driver_arming(report):
                      'the fact that it refused',
                      held and 'Cinj' in held and 'V' in held, held)
 
-        rig.gates.arm(bypass_sto=True, ignore_interlock=True)
-        report.check('after gates.arm(), MOE is set', rig.gates.armed(), True)
+        rig.gates.on(bypass_sto=True, ignore_interlock=True)
+        report.check('after gates.on(), MOE is set', rig.gates.is_on(), True)
         report.check('and the same write goes through',
                      rig.write(analog={'Phase U': 0.25})['Phase U'] > 0,
                      rig.board.gate_drivers.state()['duty'])
@@ -1083,7 +1083,7 @@ def test_gate_driver_arming(report):
         # when the count runs out, and state() is where that is seen - 250
         # periods is 5 ms at the stand-in's 50 kHz.
         gd = rig.board.gate_drivers
-        gd.duty((100, 0, 0), periods=250)
+        gd.write((100, 0, 0), periods=250)
         live = gd.state()
         report.check('a counted duty holds and reports its count',
                      live['duty'][0] == 100 and live['periods_left'] > 0,
@@ -1093,11 +1093,11 @@ def test_gate_driver_arming(report):
         report.check('and the compares are zero when the count runs out',
                      done['duty'] == (0, 0, 0) and done['periods_left'] == 0,
                      '%s left %s' % (done['duty'], done['periods_left']))
-        gd.duty((0, 0, 0))
+        gd.write((0, 0, 0))
 
-        rig.gates.disarm()
-        report.check('gates.disarm() clears it again',
-                     rig.gates.armed() is False, rig.gates.armed())
+        rig.gates.off()
+        report.check('gates.off() clears it again',
+                     rig.gates.is_on() is False, rig.gates.is_on())
 
         # The check reads BDTR every time rather than trusting one reading: a
         # .ioc regeneration and a CubeMX mode name bound to the wrong channel
@@ -1105,7 +1105,7 @@ def test_gate_driver_arming(report):
         state = dict(rig.board.gate_drivers.state(), deadtime=0)
         setattr(rig.board.gate_drivers, 'state', lambda: state)
         try:
-            rig.gates.arm(ignore_interlock=True)
+            rig.gates.on(ignore_interlock=True)
             stopped = None
         except RigError as exc:
             stopped = str(exc)
@@ -1144,15 +1144,15 @@ def test_gate_snapshot(report):
                  'of every leg off, which is what MOE clear means',
                  not any(state['pins'].values()), state['pins'])
 
-    gate_drivers.bypass_break(True)
-    gate_drivers.enable()
-    gate_drivers.duty((0, 0, 0))
+    gate_drivers.configure(bypass_break=True)
+    gate_drivers.on()
+    gate_drivers.write((0, 0, 0))
     seen = [gate_drivers.state()['pins'] for _ in range(40)]
     report.check('armed at zero duty, the low sides carry it',
                  all(p['UL'] and not p['UH'] for p in seen), seen[0])
 
     period = gate_drivers.state()['period']
-    gate_drivers.duty((period // 2, period // 2, period // 2))
+    gate_drivers.write((period // 2, period // 2, period // 2))
     seen = [gate_drivers.state()['pins'] for _ in range(60)]
     report.check('at half duty both halves of the period show up',
                  any(p['UH'] for p in seen) and any(p['UL'] for p in seen),
@@ -1171,8 +1171,8 @@ def test_gate_snapshot(report):
                  'than leaving it to be spotted in a row of ones',
                  'BOTH ON' in '\n'.join(show_gate_drivers.gate_rows(both_on, 100)),
                  None)
-    gate_drivers.disable()
-    gate_drivers.bypass_break(False)
+    gate_drivers.off()
+    gate_drivers.configure(bypass_break=False)
 
 
 def test_dead_time(report):
@@ -1191,19 +1191,19 @@ def test_dead_time(report):
                      set(at_rest) == {'nanoseconds', 'skew', 'floor'},
                      at_rest)
 
-        low = gates.dead_time(1)
+        low = gates.configure(dead_time_ns=1)['dead_time']
         report.check('asking for less than the floor gets the floor, not a '
                      'refusal - a bridge still switches, just not that fast',
                      low['nanoseconds'] > 0
                      and low['nanoseconds'] <= at_rest['nanoseconds'],
                      low['nanoseconds'])
 
-        wide = gates.dead_time(200)
+        wide = gates.configure(dead_time_ns=200)['dead_time']
         report.check('a bigger ask lands on a bigger DTG count',
                      wide['nanoseconds'] > low['nanoseconds'],
                      '%d -> %d ns' % (low['nanoseconds'], wide['nanoseconds']))
 
-        skewed = gates.dead_time(200, skew=8)
+        skewed = gates.configure(dead_time_ns=200, skew=8)['dead_time']
         report.check('the skew is carried and reported back',
                      skewed['skew'] == 8, skewed['skew'])
         report.check('and the dead time it was set against is unchanged - '
@@ -1211,9 +1211,9 @@ def test_dead_time(report):
                      skewed['nanoseconds'] == wide['nanoseconds'],
                      skewed['nanoseconds'])
 
-        gates.dead_time(21)
+        gates.configure(dead_time_ns=21)
         try:
-            gates.dead_time(21, skew=40)
+            gates.configure(dead_time_ns=21, skew=40)
             refused = None
         except RigError as exc:
             refused = str(exc)
@@ -1773,7 +1773,7 @@ def test_closing_leaves_another_session_armed(report):
         return rig
 
     rig = rig_that_thinks(True)
-    rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+    rig.gates.on(bypass_sto=True, ignore_interlock=True)
     report.check('a session that armed the stage says so',
                  rig.gates.armed_here is True)
     board = rig.board
@@ -1783,7 +1783,7 @@ def test_closing_leaves_another_session_armed(report):
 
     # The one that matters: this session never armed anything.
     rig = rig_that_thinks(True)
-    rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+    rig.gates.on(bypass_sto=True, ignore_interlock=True)
     board = rig.board
     rig.gates._armed_here = False          # as if a peer had armed it
     rig.close()
@@ -1793,7 +1793,7 @@ def test_closing_leaves_another_session_armed(report):
 
     # ...and the net still catches the last one out.
     rig = rig_that_thinks(False)
-    rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+    rig.gates.on(bypass_sto=True, ignore_interlock=True)
     board = rig.board
     rig.gates._armed_here = False
     rig.close()

@@ -77,7 +77,7 @@ print('the stage reads DTG %d = %d ns, %.1fx the record\\'s 33.7 ns'
     section(
         'Arming, and what refuses first',
         md('Three things stand between a duty write and the FETs, in order. '
-           'MOE: a compare write before `arm()` is refused by the board. The '
+           'MOE: a compare write before `on()` is refused by the board. The '
            'interlock: the schematic wants the charge pump pumped and the level '
            'detector tripped, Cinj and Clevel at 3 V, before the gate drive is '
            'armed; the unmodified bench board reads 0.77 V and 0.06 V, so '
@@ -98,10 +98,10 @@ for name, volts, ok, want in stage.interlock():
     print('%-8s %-8s ok=%-5s want=%s' % (name, '-' if volts is None else '%.2f V' % volts, ok, want))
 gd = device.gate_drivers
 refused = []
-for what, call in (('a duty before arm', lambda: gd.duty((10, 0, 0))),
-                   ('arm() on the interlock', lambda: stage.arm()),
-                   ('arm() past the interlock, break latched',
-                    lambda: stage.arm(ignore_interlock=True))):
+for what, call in (('a duty before arm', lambda: gd.write((10, 0, 0))),
+                   ('on() under the interlock', lambda: stage.on()),
+                   ('on() past the interlock, break latched',
+                    lambda: stage.on(ignore_interlock=True))):
     try:
         call()
         print('%-42s took' % what)
@@ -109,7 +109,7 @@ for what, call in (('a duty before arm', lambda: gd.duty((10, 0, 0))),
         refused.append(what)
         print(textwrap.fill('%s REFUSED: %s' % (what, e), width=96,
                             subsequent_indent='    '))
-armed = stage.arm(bypass_sto=True, ignore_interlock=True)
+armed = stage.on(bypass_sto=True, ignore_interlock=True)
 print()
 print('armed: pwm_enabled %s  fault %s  break_bypassed %s  duty %s'
       % (armed['pwm_enabled'], armed['fault'], armed['break_bypassed'], armed['duty']))'''),
@@ -130,7 +130,7 @@ print('armed: pwm_enabled %s  fault %s  break_bypassed %s  duty %s'
 
 period = armed['period']
 tenth = (period - 1) // 10
-gd.duty((tenth, 0, 0), periods=500)
+gd.write((tenth, 0, 0), periods=500)
 snap = gd.state()
 for key in ('period', 'deadtime', 'deadtime_ns', 'duty', 'requested_ticks', 'pins',
             'pins_at', 'periods_left', 'updates', 'overruns', 'keepalive',
@@ -158,7 +158,7 @@ print('periods_left straight after the write %d, 50 ms later %d; duty now %s'
            '40 k; with the W pair joined the neighbour followed within 76 ns '
            '(FINDINGS). It reads no legs while armed, because the probe needs '
            'the pins.'),
-        code('''gd.duty((tenth, tenth, tenth))
+        code('''gd.write((tenth, tenth, tenth))
 snapshots = [gd.state() for _ in range(12)]
 print('  CNT   UL UH   VL VH   WL WH   both on?')
 for s in snapshots:
@@ -230,8 +230,8 @@ show(fig)'''),
            'no constant states. The stage is put back '
            'before the device is closed: zero duty, then MOE clear and the '
            'break input restored.'),
-        code('''gd.duty((0, 0, 0))
-released = stage.disarm()
+        code('''gd.write((0, 0, 0))
+released = stage.off()
 print('pwm_enabled', released['pwm_enabled'], ' break_bypassed', released['break_bypassed'],
       ' duty', released['duty'])'''),
     ),
@@ -476,7 +476,7 @@ BENCH = (
     'with it the blanking margin and the settling time.')
 
 REFERENCES = [
-    ('host/coaxial/devices/gates.py', 'the arming policy: `check()`, `interlock()`, `arm()`, `disarm()`'),
+    ('host/coaxial/devices/gates.py', 'the policy over the stage: `check()`, `interlock()`, `on()`, `off()`'),
     ('host/coaxial/devices/gate_drivers.py', 'the board\'s ops behind `0x6E` device 4: the snapshot, the counted hold, the alternate'),
     ('host/coaxial/model/inverter.py', 'the traced constants and the arithmetic on them: `coss`, `ring`, `blanking`, `knee_amps`, `dt_table`'),
     ('host/coaxial/simulated/power.py', 'the stand-in this ran on: DTG 19, the walking counter, the counted hold on wall time'),

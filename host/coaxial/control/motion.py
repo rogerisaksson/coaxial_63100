@@ -298,8 +298,8 @@ class Motion:
         self._device = device
 
     def _armed(self):
-        if not self._device.gates.armed():
-            raise RigError('the stage is not armed - device.gates.arm() '
+        if not self._device.gates.is_on():
+            raise RigError('the stage is not armed - device.gates.on() '
                            'is the one place that does it, and nothing '
                            'in coaxial.control.motion will be the second')
 

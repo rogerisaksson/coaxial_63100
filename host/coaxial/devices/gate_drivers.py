@@ -44,18 +44,8 @@ class GateDrivers(Device, GateControl, device=protocol.DEVICE_GATE_DRIVERS):
 
     """TIM1's compare registers, the injected triple and the STO chain."""
 
-    def dead_time(self, nanoseconds=None, skew=0):
-        """Read the dead time, or set it and its skew."""
-        if nanoseconds is None:
-            state = self.state()
-            return {'nanoseconds': state['deadtime_ns'],
-                    'skew': state['deadtime_skew'],
-                    'floor': state['deadtime_floor']}
-
-        reply = self._op(GateOp.DEADTIME,
-                         pack(('u32', int(nanoseconds)), ('i8', int(skew))))
-        # took() raises on a refusal and returns True otherwise, so the reader
-        # is built here and the took byte read off it.
+    def _dead_time(self, nanoseconds, skew):
+        reply = self._op(GateOp.DEADTIME, pack(('u32', int(nanoseconds)), ('i8', int(skew))))
         r = Reader(reply)
         self.took(reply)
         r.u8()
@@ -106,64 +96,41 @@ class GateDrivers(Device, GateControl, device=protocol.DEVICE_GATE_DRIVERS):
         out['periods_left'] = r.maybe('u32')
         return out
 
-    def enable(self):
-        """Set the master output enable, always at zero duty."""
+    def on(self):
         return self._ack(GateOp.PWM, ON)
 
-    def disable(self):
-        """Clear MOE. Every output drops to its idle level in hardware."""
+    def off(self):
         self._op(GateOp.PWM, OFF)
         return True
 
-    def duty(self, ticks, periods=0):
-        """All three compare registers, or none of them."""
+    def _duty(self, ticks, periods):
         counted = pack(('u32', int(periods))) if periods else b''
         return self._ack(GateOp.DUTY, _triple(ticks) + counted)
 
-    def alternate(self, ticks_a, ticks_b):
-        """Two compare triples, A one PWM period and B the next, swapped by
-        TIM1's update interrupt for as long as they stand.
-        """
+    def _alternate(self, ticks_a, ticks_b):
         return self._ack(GateOp.ALTERNATE, _triple(ticks_a) + _triple(ticks_b))
 
-    def duty_fine(self, fractions):
-        """Duty as a fraction of full scale, dithered to hit it exactly."""
-        fractions = tuple(fractions)
+    def _duty_fine(self, fractions):
         if len(fractions) != PHASES:
             raise ValueError('%d duties, not %d' % (PHASES, len(fractions)))
-
         period = self.state()['period'] - 1
         return self._ack(GateOp.DUTY_FINE,
-                         pack(*(('u32', q16(_unit(f) * period))
-                                for f in fractions)))
+                         pack(*(('u32', q16(_unit(f) * period)) for f in fractions)))
 
-    def arm(self):
-        """Start latching the injected triple."""
-        return self._ack(GateOp.SYNC, ON)
-
-    def disarm(self):
-        """Stop latching, and give the converters back to the meter."""
+    def _sync(self, on):
+        if on:
+            return self._ack(GateOp.SYNC, ON)
         self._op(GateOp.SYNC, OFF)
         return True
 
-    def trigger(self, ticks=None):
-        """Where in the PWM period the triple is taken, as CCR4 in ticks."""
-        if ticks is None:
-            return self.state()['trigger']
-        return Reader(self._op(GateOp.TRIGGER,
-                               pack(('u16', int(ticks))))).u16()
+    def _trigger(self, ticks):
+        return Reader(self._op(GateOp.TRIGGER, pack(('u16', int(ticks))))).u16()
 
-    def bypass_break(self, on=True):
-        """Disconnect TIM1's break input so the gate drivers can run on the
-        bench.
-        """
+    def _bypass(self, on):
         return self._ack(GateOp.BYPASS, ON if on else OFF)
 
     def reset_worst_gap(self):
-        """Forget the longest keepalive gap, so a run is measured on its own.
-        """
         return bool(Reader(self._op(GateOp.GAP_RESET)).u8())
 
-    def clear_fault(self):
-        """Clear the break latch. Does NOT re-arm; the caller asks again."""
+    def clear(self):
         return bool(Reader(self._op(GateOp.CLEAR)).u8())

@@ -391,7 +391,7 @@ def put_back(rig, load):
     for name, what, undo in (
             ('duty', 'three legs to zero',
              lambda: rig.write(analog=dict.fromkeys(load, 0.0))),
-            ('gate stage', 'disarmed, MOE clear', rig.gates.disarm)):
+            ('gate stage', 'disarmed, MOE clear', rig.gates.off)):
         try:
             undo()
             done.append((name, what))
@@ -448,7 +448,7 @@ def main():
             legs = [x.strip().upper() for x in a.phases.split(',')]
             # AFE off FIRST, then arm.
             rig.board.afe.off()
-            rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+            rig.gates.on(bypass_sto=True, ignore_interlock=True)
             load = {'Phase ' + leg: a.switch for leg in legs}
             rig.write(analog=load)
             say('warn', 'switching', '%s at %.0f %% - AFE off, STO bypassed'

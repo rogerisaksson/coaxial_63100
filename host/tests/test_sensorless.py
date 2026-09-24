@@ -253,7 +253,7 @@ def test_commissioning_refuses_to_switch(r):
             refused = str(exc)
         r.check('a switching step refuses without arm=, and says what to pass',
                 refused is not None and 'arm=' in refused, refused)
-        r.check('the stage stayed down', rig.gates.armed() is False)
+        r.check('the stage stayed down', rig.gates.is_on() is False)
     finally:
         rig.close()
 
@@ -313,7 +313,7 @@ def test_commissioning_recovers_the_stand_in(r):
         r.check('and the report ends in the one line',
                 line.startswith('zero-speed: ') and 'iloop' in line, line)
         c.rest()                        # what leaving `with` does
-        r.check('the stage is down afterwards', rig.gates.armed() is False)
+        r.check('the stage is down afterwards', rig.gates.is_on() is False)
     finally:
         rig.close()
 
@@ -370,8 +370,8 @@ def test_motion(r):
             r.check('motion refuses an unarmed stage', False)
         except RigError as exc:
             r.check('motion refuses an unarmed stage',
-                    'gates.arm' in str(exc), exc)
-        rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+                    'gates.on' in str(exc), exc)
+        rig.gates.on(bypass_sto=True, ignore_interlock=True)
         with rig.motion.stepper(amps=3.0, deg_s=120.0) as m:
             got = m.to(45.0)
             r.check('the stepper slews the command where it was asked',

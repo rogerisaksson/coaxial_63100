@@ -62,7 +62,7 @@ def _rails(table, params):
 
 def sample(rig, params):
     """Stand down, measure, and hand back what the board said."""
-    steady(rig.gates.disarm)
+    steady(rig.gates.off)
     if steady(rig.board.afe.on) is None:
         return {}
     time.sleep(SETTLE_S)
@@ -85,15 +85,15 @@ def sample(rig, params):
 def step(rig, params, nanoseconds, skew, seconds, every, legs):
     """One dead time, held for `seconds`. Returns the samples taken."""
     steady(rig.board.afe.off)
-    if steady(rig.gates.arm, bypass_sto=True, ignore_interlock=True) is None:
+    if steady(rig.gates.on, bypass_sto=True, ignore_interlock=True) is None:
         return None
 
-    held = steady(rig.gates.dead_time, nanoseconds, skew=skew)
+    held = (steady(rig.gates.configure, dead_time_ns=nanoseconds, skew=skew) or {}).get('dead_time')
     # ONE LEG IS THE SENSITIVE TEST.
     load = dict(('Phase %s' % leg, 0.5 if leg in legs else 0.0)
                 for leg in ('U', 'V', 'W'))
     if steady(rig.write, analog=load) is None:
-        steady(rig.gates.disarm)
+        steady(rig.gates.off)
         return None
 
     taken, started = [], time.monotonic()
@@ -104,11 +104,11 @@ def step(rig, params, nanoseconds, skew, seconds, every, legs):
         got['held_ns'] = (held or {}).get('nanoseconds')
         taken.append(got)
         if time.monotonic() - started < seconds:
-            steady(rig.gates.arm, bypass_sto=True, ignore_interlock=True)
+            steady(rig.gates.on, bypass_sto=True, ignore_interlock=True)
             steady(rig.write, analog=load)
 
     steady(rig.write, analog=dict.fromkeys(load, 0.0))
-    steady(rig.gates.disarm)
+    steady(rig.gates.off)
     return taken
 
 

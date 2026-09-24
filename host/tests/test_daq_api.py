@@ -483,7 +483,7 @@ def test_sensor_fields_ride_the_record(report):
     record as the current that moved it, off the SAME virtual rotor."""
     with opened(power_afe=False) as device:
         device.board.drive.source('model')
-        device.gates.arm(bypass_sto=True, ignore_interlock=True)
+        device.gates.on(bypass_sto=True, ignore_interlock=True)
         daq = device.daq
         rows = {r['name']: r for r in daq.catalogue()}
         report.check('the sensor rows are selectable on this build',

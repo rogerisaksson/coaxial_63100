@@ -399,20 +399,20 @@ show(fig)'''),
         code('''print('load cycle off:', observer.load_cycle(0))
 truth = observer.situation('cold')
 print('carried into %s at %.0f C' % (truth['situation'], truth['ambient']))
-print('stage armed:', device.gates.arm(bypass_sto=True, ignore_interlock=True)['pwm_enabled'])
+print('stage armed:', device.gates.on(bypass_sto=True, ignore_interlock=True)['pwm_enabled'])
 cooked = {'amps': (200.0, 200.0, 200.0), 'switching': True}
 idle = {'amps': (0.0, 0.0, 0.0), 'switching': False}
 trace = []
 for minute in range(1, 41):
     observer.fast_forward(60.0, seen=cooked if minute <= 2 else idle, live=True)
     b, got = observer.budget(), observer.identification()
-    trace.append((minute, got['margin'], b['worst'], b['trips'], got['trip_cap'], device.gates.armed()))
+    trace.append((minute, got['margin'], b['worst'], b['trips'], got['trip_cap'], device.gates.is_on()))
     if minute in (1, 2, 3, 5, 10, 20, 30, 40):
         print('minute %2d: trips %d, stage armed %-5s worst %.2f of the span in force, '
               'trip cap %.2f, margin %.2f, %s'
-              % (minute, b['trips'], device.gates.armed(), b['worst'], got['trip_cap'],
+              % (minute, b['trips'], device.gates.is_on(), b['worst'], got['trip_cap'],
                  got['margin'], got['state']))
-print('disarmed:', not device.gates.disarm()['pwm_enabled'])'''),
+print('disarmed:', not device.gates.off()['pwm_enabled'])'''),
         md('One trip, and the stage is down from the first minute: the '
            'envelope dropped it, not this notebook. The cap starts at 0.70 '
            'and rises a percent a minute; the margin the envelope acts on is '

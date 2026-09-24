@@ -102,13 +102,13 @@ class Commissioning:
         return {'volts': volts, 'powered': volts is not None and volts > GATE_UVLO_V}
 
     def _stage(self):
-        if self.rig.gates.armed():
+        if self.rig.gates.is_on():
             return
         if self.arm is None:
             raise RigError('this step switches the stage and arming was not '
                            'authorised - pass arm=dict(bypass_sto=..., '
                            'ignore_interlock=...) to Commissioning')
-        self.rig.gates.arm(**self.arm)
+        self.rig.gates.on(**self.arm)
 
     def __enter__(self):
         return self
@@ -120,9 +120,9 @@ class Commissioning:
     def rest(self):
         """Drive off, stage down, converters back to the meter."""
         self.drive.off()
-        if self.rig.gates.armed():
-            self.rig.gates.disarm()
-        self.rig.board.gate_drivers.disarm()
+        if self.rig.gates.is_on():
+            self.rig.gates.off()
+        self.rig.board.gate_drivers.configure(sync=False)
 
     def _window(self, settle, seconds):
         """A window over `seconds`, after `settle` seconds discarded."""
@@ -156,18 +156,18 @@ class Commissioning:
         self.rig.board.afe.on()
         time.sleep(0.3)
         gd = self.rig.board.gate_drivers
-        gd.arm()
+        gd.configure(sync=True)
         off = self._noise_rows(self.drive.moments_run(periods))
         out = {'gates_off': off, 'periods': periods,
                'trigger': gd.state()['trigger']}
         if zero_vector:
             self._stage()
             half = (gd.state()['period'] - 1) // 2
-            gd.duty((half, half, half))
+            gd.write((half, half, half))
             time.sleep(0.05)
             zv = self._noise_rows(self.drive.moments_run(periods))
-            gd.duty((0, 0, 0))
-            self.rig.gates.disarm()
+            gd.write((0, 0, 0))
+            self.rig.gates.off()
             out['zero_vector'] = zv
             out['pickup_amps'] = {
                 n: math.sqrt(max(0.0, zv[n]['sd_amps'] ** 2
@@ -206,18 +206,18 @@ class Commissioning:
         was = gd.state()['trigger']
         self._stage()
         half = (period - 1) // 2
-        gd.duty((half, half, half))
+        gd.write((half, half, half))
         time.sleep(0.05)
         table = []
         for t in ticks:
-            gd.trigger(t)
+            gd.configure(trigger=t)
             m = self.drive.moments_run(periods)
             var = sum(m['channels'][n]['sd'] ** 2 for n in PHASES)
             table.append({'trigger': t, 'variance': var,
                           'sd': {n: m['channels'][n]['sd'] for n in PHASES}})
-        gd.duty((0, 0, 0))
+        gd.write((0, 0, 0))
         best = min(table, key=lambda row: row['variance'])
-        gd.trigger(best['trigger'])
+        gd.configure(trigger=best['trigger'])
         self.drive.set_params(drv_trigger_ticks=best['trigger'])
         out = {'table': table, 'best': best['trigger'], 'was': was,
                'period': period}

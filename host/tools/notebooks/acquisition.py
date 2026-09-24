@@ -147,7 +147,7 @@ print(daq.channel_names())
 print(device.calibration.tare('phaseU', 'phaseV', 'phaseW'))
 drive = device.drive
 drive.source('model')
-device.gates.arm(bypass_sto=True, ignore_interlock=True)
+device.gates.on(bypass_sto=True, ignore_interlock=True)
 drive.setpoint(id_ref=4.0, iq_ref=0.0, theta=0.0, omega_target=2 * math.pi * 3.5)
 drive.mode('hold')'''),
         code('''from IPython.display import clear_output
@@ -171,7 +171,7 @@ for window in daq.frames(window=2.0, buffer=6.0, seconds=6.0, scaled=True):
 live = daq.buffered
 daq.stop()
 drive.off()
-device.gates.disarm()
+device.gates.off()
 drive.source('adc')
 whole = daq.history(scaled=True)
 print(frames, 'frames drawn;', live)

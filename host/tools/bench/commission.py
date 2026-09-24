@@ -7,7 +7,7 @@ Characterised: the AFE, the inverter and the motor.
     python tools/bench/commission.py --arm --step all --iq 0.5   # the lot, armed
     python tools/bench/commission.py --arm --step deadtime,l_map --json out.json
 
-`--arm` is what lets a step set MOE: gates.arm(bypass_sto=True,
+`--arm` is what lets a step set MOE: gates.on(bypass_sto=True,
 ignore_interlock=True), the unmodified bench board's combination. Without
 it every switching step refuses and says so. On this bench AFE_ON high
 unpowers the gate drivers, so the switching steps run dry - the gate
@@ -129,7 +129,7 @@ def arguments(argv):
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--arm', action='store_true',
-                   help='authorise gates.arm(bypass_sto=True, ignore_interlock=True)')
+                   help='authorise gates.on(bypass_sto=True, ignore_interlock=True)')
     p.add_argument('--step', default='all', help='comma list of %s, or all' % ', '.join(STEPS))
     p.add_argument('--iq', type=float, default=0.5, help='A, for verify')
     p.add_argument('--seconds', type=float, default=1.0, help='verify run')

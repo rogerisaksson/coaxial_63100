@@ -109,7 +109,7 @@ def main():
     afe_was_on = rig.gates.state()['afe_on']
     try:
         rig.board.afe.off()
-        rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+        rig.gates.on(bypass_sto=True, ignore_interlock=True)
         state = rig.gates.state()
         pins = state['pins']
         print('armed, dead time %d ns - low sides %s' % (
@@ -140,11 +140,11 @@ def main():
             t0 = time.perf_counter()
             if a.alternate:
                 # The board swaps A and B every period from here on.
-                rig.board.gate_drivers.alternate(ticks, back)
+                rig.board.gate_drivers.write(ticks, then=back)
             elif counted:
-                rig.board.gate_drivers.duty(ticks, periods=counted)
+                rig.board.gate_drivers.write(ticks, periods=counted)
             else:
-                rig.board.gate_drivers.duty(ticks)
+                rig.board.gate_drivers.write(ticks)
             t1 = time.perf_counter()
             if counted:
                 # The board owns the off-edge; the sleep only keeps the next
@@ -153,7 +153,7 @@ def main():
                 held.append(counted / PWM_HZ)
             else:
                 _held(t1, a.on)
-                rig.board.gate_drivers.duty(zeros)
+                rig.board.gate_drivers.write(zeros)
                 held.append(time.perf_counter() - t1)
             if a.count == 1:
                 print('%.1f ms to land' % (1000 * (t1 - t0)))
@@ -174,9 +174,9 @@ def main():
         print('after:', {k: after[k] for k in SHOWN})
     finally:
         with suppress(RigError):
-            rig.board.gate_drivers.duty(zeros)
+            rig.board.gate_drivers.write(zeros)
         try:
-            rig.gates.disarm()
+            rig.gates.off()
         except RigError as exc:
             print('disarm:', exc)
         final = rig.gates.state()

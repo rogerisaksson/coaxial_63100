@@ -163,15 +163,15 @@ print('the rail, seen from second:', second.afe.state())
 shared = second.afe.is_on()
 print('the rail device took is visible from second:', shared)
 print('clients:', broker.clients())'''),
-        code('''device.gates.arm(bypass_sto=True, ignore_interlock=True)
+        code('''device.gates.on(bypass_sto=True, ignore_interlock=True)
 armed_here, armed_there = device.gates.armed_here, second.gates.armed_here
 print('armed: device armed_here=%s armed()=%s | second armed_here=%s armed()=%s'
-      % (armed_here, device.gates.armed(), armed_there, second.gates.armed()))
+      % (armed_here, device.gates.is_on(), armed_there, second.gates.is_on()))
 second.close()
-still_armed = device.gates.armed()
+still_armed = device.gates.is_on()
 print('second closed: device armed()=%s, clients %s' % (still_armed, broker.clients()))
-after = device.gates.disarm()
-disarmed = not device.gates.armed()
+after = device.gates.off()
+disarmed = not device.gates.is_on()
 print('disarmed here: armed()=%s, break bypassed=%s' % (not disarmed, after['break_bypassed']))'''),
         md('On the stand-in `second.close()` cannot touch this board because '
            'there is no shared board to touch, so the stage reading is only '

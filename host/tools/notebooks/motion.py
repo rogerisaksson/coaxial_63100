@@ -36,7 +36,7 @@ ABSTRACT = (
 SECTIONS = [
     section(
         'The stage, armed',
-    md('Every verb needs the stage armed first, by `device.gates.arm()` - the '
+    md('Every verb needs the stage armed first, by `device.gates.on()` - the '
        'one place arming lives, and nothing in `coaxial.control.motion` is the second '
        '- and the drive on the `model` source, where the stand-in\'s rotor '
        'turns under the torque the dq solution makes and the shaft sensor '
@@ -50,7 +50,7 @@ drive = device.drive
 drive.source('model')
 J, B = 2e-5, 1e-5
 drive.model_param(j=J, b=B, load=0.0)
-stage = device.gates.arm(bypass_sto=True, ignore_interlock=True)
+stage = device.gates.on(bypass_sto=True, ignore_interlock=True)
 params = drive.params()
 poles = int(params['motor_pole_pairs'])
 kt = 1.5 * poles * params['motor_lambda_uvs']
@@ -179,7 +179,7 @@ print('%d passes in %.2f s = %.1f Hz' % (len(rows), rows[-1][0], len(rows) / row
 print('at rest: rotor %.2f deg electrical / %d = %.2f deg; shaft %.2f deg, folded onto '
       'the %.2f deg pole pitch %.2f; %.2f deg apart' % (rotor * poles, poles, rotor, shaft,
                                                          pitch, shaft % pitch, offset))
-print('disarmed:', not device.gates.disarm()['pwm_enabled'])
+print('disarmed:', not device.gates.off()['pwm_enabled'])
 drive.source('adc')'''),
         code('''t = [r[0] for r in rows]
 fig, (speed, error, current) = figure(rows=3, sharex=True)

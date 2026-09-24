@@ -134,13 +134,13 @@ class SimulatedBoard:
         if not isinstance(gates, SimulatedGateDrivers) or not gates._enabled:
             return (0.0, 0.0, 0.0)
         period = float(gates.PERIOD or 1)
-        return tuple(t / period for t in gates._duty)
+        return tuple(t / period for t in gates._compares)
 
     def _drop_stage(self):
         """Drop the gates for the thermal envelope. True if it did."""
         if not self.gate_drivers._enabled:
             return False
-        self.gate_drivers.disable()
+        self.gate_drivers.off()
         return True
 
     def close_binary(self):

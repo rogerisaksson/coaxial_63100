@@ -127,9 +127,9 @@ def _key_arm(rig, d, key, view):
     if not view['switch']:
         return ''
     if view['state']['stage_enabled']:
-        rig.gates.disarm()
+        rig.gates.off()
         return 'stage disarmed'
-    rig.gates.arm(bypass_sto=True, ignore_interlock=not view['interlock'])
+    rig.gates.on(bypass_sto=True, ignore_interlock=not view['interlock'])
     return 'STAGE ARMED - the gates switch'
 
 

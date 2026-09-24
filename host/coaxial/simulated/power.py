@@ -42,9 +42,9 @@ class SimulatedGateDrivers(GateControl):
         self._drive: Any = None
         self._armed = False
         self._enabled = False
-        self._duty = (0, 0, 0)
+        self._compares = (0, 0, 0)
         self._hold_until = None
-        self._trigger = self.TRIGGER
+        self._at_trigger = self.TRIGGER
         self._updates = 0
         self._keepalive = 0
         self._bypassed = False
@@ -61,7 +61,7 @@ class SimulatedGateDrivers(GateControl):
             'sync_ready': True, 'sync_armed': self._armed, 'afe_on': True,
             'pilot_ok': True, 'level_ok': True,
             'period': self.PERIOD, 'deadtime': self.DEADTIME,
-            'duty': self._duty, 'trigger': self._trigger,
+            'duty': self._compares, 'trigger': self._at_trigger,
             'phase': (1433, -8136, 390), 'at': 1385,
             'updates': self._updates, 'overruns': 0,
             'keepalive': self._keepalive,
@@ -71,7 +71,7 @@ class SimulatedGateDrivers(GateControl):
             'break_bypassed': self._bypassed,
             # TICKS, like the board: it sends Q16.16 of a CCR count and the
             # host divides that back.
-            'requested_ticks': tuple(float(d) for d in self._duty),
+            'requested_ticks': tuple(float(d) for d in self._compares),
             'pins': self._gates(at),
             'pins_at': at,
             'deadtime_ns': self._deadtime_ns,
@@ -87,11 +87,7 @@ class SimulatedGateDrivers(GateControl):
     DTG_MAX = 127
     DTS_PS = 4210
 
-    def dead_time(self, nanoseconds=None, skew=0):
-        if nanoseconds is None:
-            return {'nanoseconds': self._deadtime_ns, 'skew': self._skew,
-                    'floor': self.DEADTIME_FLOOR}
-
+    def _dead_time(self, nanoseconds, skew):
         counts = max(self.DEADTIME_FLOOR,
                      int(nanoseconds) * 1000 // self.DTS_PS)
         if counts + abs(int(skew)) > self.DTG_MAX:
@@ -117,7 +113,7 @@ class SimulatedGateDrivers(GateControl):
     def _gates(self, at):
         """The six signals a real one would show at this count."""
         out = {}
-        for leg, duty in zip(('U', 'V', 'W'), self._duty):
+        for leg, duty in zip(('U', 'V', 'W'), self._compares):
             high = self._enabled and at < duty
             out[leg + 'L'] = bool(self._enabled and not high)
             out[leg + 'H'] = bool(high)
@@ -126,7 +122,7 @@ class SimulatedGateDrivers(GateControl):
     def reset_worst_gap(self):
         return True
 
-    def bypass_break(self, on=True):
+    def _bypass(self, on):
         self._bypassed = bool(on)
         return True
 
@@ -139,11 +135,11 @@ class SimulatedGateDrivers(GateControl):
         remaining = self._hold_until - time.monotonic()
         if remaining > 0.0:
             return max(1, int(remaining * self.PWM_HZ))
-        self._duty = (0, 0, 0)
+        self._compares = (0, 0, 0)
         self._hold_until = None
         return 0
 
-    def enable(self):
+    def on(self):
         # Refuses for the reason the real board refuses: the break is latched
         # because nFAULT is low, and clearing the latch does not help while it
         # stays low.
@@ -154,19 +150,19 @@ class SimulatedGateDrivers(GateControl):
         self._enabled = True
         return True
 
-    def disable(self):
+    def off(self):
         self._enabled = False
-        self._duty = (0, 0, 0)
+        self._compares = (0, 0, 0)
         return True
 
-    def duty(self, ticks, periods=0):
+    def _duty(self, ticks, periods):
         ticks = tuple(int(t) for t in ticks)
         if not self._enabled:
             raise RigError('the gate drivers are not enabled (simulated)')
         if len(ticks) != 3 or any(t > self.PERIOD - 1 for t in ticks):
             raise RigError('the board refused %r - past ARR (simulated)'
                            % (ticks,))
-        self._duty = ticks
+        self._compares = ticks
         # The counted hold, wall-paced like the rest of the stand-in: the
         # virtual interrupt zeroes the compares when the count runs out, and
         # state() is where the expiry is noticed - the board's own shape, seen
@@ -175,17 +171,16 @@ class SimulatedGateDrivers(GateControl):
                             if periods else None)
         return True
 
-    def duty_fine(self, fractions):
-        fractions = tuple(fractions)
+    def _duty_fine(self, fractions):
         if len(fractions) != 3:
             raise ValueError('%d duties, not 3' % len(fractions))
         if not self._enabled:
             raise RigError('the gate drivers are not enabled (simulated)')
         period = self.PERIOD - 1
-        self._duty = tuple(max(0.0, min(1.0, f)) * period for f in fractions)
+        self._compares = tuple(max(0.0, min(1.0, f)) * period for f in fractions)
         return True
 
-    def alternate(self, ticks_a, ticks_b):
+    def _alternate(self, ticks_a, ticks_b):
         ticks_a, ticks_b = tuple(int(t) for t in ticks_a), tuple(int(t) for t in ticks_b)
         if len(ticks_a) != 3 or len(ticks_b) != 3:
             raise ValueError('two triples of 3 compare values')
@@ -196,24 +191,18 @@ class SimulatedGateDrivers(GateControl):
                            % (ticks_a, ticks_b))
         # The stand-in holds A: the real board's state shows whichever triple
         # the last update wrote.
-        self._duty = ticks_a
+        self._compares = ticks_a
         return True
 
-    def arm(self):
-        self._armed = True
+    def _sync(self, on):
+        self._armed = bool(on)
         return True
 
-    def disarm(self):
-        self._armed = False
-        return True
-
-    def trigger(self, ticks=None):
-        if ticks is None:
-            return self._trigger
-        self._trigger = min(int(ticks), self.PERIOD - 1)
+    def _trigger(self, ticks):
+        self._at_trigger = min(int(ticks), self.PERIOD - 1)
         if self._drive is not None:
-            self._drive.trigger(self._trigger)
-        return self._trigger
+            self._drive.trigger(self._at_trigger)
+        return self._at_trigger
 
-    def clear_fault(self):
+    def clear(self):
         return True

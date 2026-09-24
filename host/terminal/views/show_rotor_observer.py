@@ -122,9 +122,9 @@ def rearm_after_trip(rig, origin, view):
     budget = view.get('budget') or {}
     if not budget.get('trips') or budget.get('tripped'):
         return
-    if view['state'].get('stage_enabled') or rig.gates.armed():
+    if view['state'].get('stage_enabled') or rig.gates.is_on():
         return
-    rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+    rig.gates.on(bypass_sto=True, ignore_interlock=True)
     view['rearms'] = view.get('rearms', 0) + 1
     view['said'] = ('re-armed after thermal trip %d - the stand-in\'s '
                     'operator; the envelope is %d %% of the span'
@@ -238,7 +238,7 @@ def parse_args(argv):
                         'poles are drawn from the record either way.')
     p.add_argument('--mode', choices=MODES, default='sensorless')
     p.add_argument('--switch', action='store_true',
-                   help='let A arm the stage: gates.arm(bypass_sto=True)')
+                   help='let A arm the stage: gates.on(bypass_sto=True)')
     p.add_argument('--interlock', action='store_true',
                    help='honour the arming interlock when A arms')
     p.add_argument('--afe', action='store_true', help='switch AFE_ON on')
@@ -287,8 +287,8 @@ def demo_stage(rig, origin):
     """Give the stand-in a bridge to switch."""
     if origin.real:
         return
-    rig.board.gate_drivers.bypass_break(True)
-    rig.board.gate_drivers.enable()
+    rig.board.gate_drivers.configure(bypass_break=True)
+    rig.board.gate_drivers.on()
 
 
 #: The page's frame rate unless asked for: a page of numbers.
@@ -483,10 +483,10 @@ def main(argv=None):
             board.drive.off()
             done.append(('drive', 'off, the compares released'))
             board.drive.source('adc')
-            if rig.gates.armed():
-                rig.gates.disarm()
+            if rig.gates.is_on():
+                rig.gates.off()
                 done.append(('gate stage', 'disarmed, MOE clear'))
-            board.gate_drivers.disarm()
+            board.gate_drivers.configure(sync=False)
             if board.afe.is_on() != was_on:
                 board.afe.write(was_on)
             done.append(('AFE_ON', 'back the way it was found'))
