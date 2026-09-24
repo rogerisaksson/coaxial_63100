@@ -1,4 +1,6 @@
 """The stand-in's envelope: each node's spend, the derate, the hold, the trip, the budget."""
+from typing import Any
+
 from coaxial.devices.thermal_device import THROTTLE_AT
 from coaxial.model import thermal
 
@@ -6,6 +8,22 @@ from coaxial.model import thermal
 class ThermalEnvelope:
 
     """Where the envelope acts: the one place the observer changes what the drive may do."""
+
+    # What the class this mixes into brings.
+    HASTE: Any
+    LIMIT: Any
+    NODES: Any
+    _advance: Any
+    _ambient: Any
+    _cfg: Any
+    _derate_to: Any
+    _duty: Any
+    _gate: Any
+    _ident: Any
+    _last_net: Any
+    _margin_floor: Any
+    _model_s: Any
+    _node: Any
 
     DEFAULT_LIMIT = thermal.CEILING_DEFAULT_C
 
@@ -23,26 +41,26 @@ class ThermalEnvelope:
     #: `THERMAL_DERATE_RECOVER_PER_S` in the firmware.
     DERATE_RECOVER_PER_S = 0.05
 
-    #: THE TRIP CAP (`board_thermal.c`): after a trip the margin holds at 70 %,
+    #: The trip cap (`board_thermal.c`): after a trip the margin holds at 70 %,
     #: recovering a percent a model minute; every trip restarts it (bench
-    #: 2026-09-06: "graceful degradation").
+    #: 2026-09-06).
     TRIP_MARGIN = 0.70
 
     TRIP_RECOVER_PER_S = 0.30 / 1800.0
 
     def _envelope(self):
-        """THE ONE PLACE THIS CLASS ACTS RATHER THAN REPORTS."""
-        # FIRST IT DERATES.
+        """The one place this class acts rather than reports."""
+        # First the derate.
         applied = self._derate_applied(self.derate())
         if self._derate_to is not None:
             self._derate_to(applied)
-        # THEN, only if that was not enough - AND ON EVERY NODE, not just the
-        # ones the clamp reaches.
+        # Then the trip, only if that was not enough - on every node, not
+        # just the ones the clamp reaches.
         if self._gate is None or not self._tripped():
             return
         if self._gate():
             self._trips += 1
-            # AND THE ENVELOPE SHRINKS, as on the board: the trip cap from now,
+            # And the envelope shrinks, as on the board: the trip cap from now,
             # recovering a percent a minute of model time.
             self._trip_cap = self.TRIP_MARGIN
             self._trip_at = self._model_s
@@ -75,7 +93,7 @@ class ThermalEnvelope:
         return thermal.AMBIENT + self._margin() * (top - thermal.AMBIENT)
 
     def _used(self):
-        """Each node as a fraction of its own ceiling, FROM THE ROOM the
+        """Each node as a fraction of its own ceiling, from the room the
         observer believes it stands in, clamped to 0..1 -
         `thermal_budget` in the C, line for line.
         """
@@ -97,7 +115,7 @@ class ThermalEnvelope:
         return used[name], name, used
 
     def _tripped(self):
-        """Whether ANY node is at the RECORD'S ceiling, driven or not -
+        """Whether any node is at the record's ceiling, driven or not -
         `thermal_budget`'s `trip_c`, untrimmed.
         """
         for name in self.NODES:
@@ -153,7 +171,7 @@ class ThermalEnvelope:
 
     def _soon(self):
         """How far into the last `LOOKAHEAD_S` of hold the worst driven node
-        is - THE SAME ARITHMETIC `thermal.c` DOES: time left, not a
+        is - the same arithmetic `thermal.c` does: time left, not a
         projected temperature, so a node at ambient has its whole soak in
         front of it and a burst runs.
         """
@@ -168,7 +186,7 @@ class ThermalEnvelope:
         return worst
 
     def node_derate(self, name):
-        """One node's OWN factor - its spend and its hold alone."""
+        """One node's own factor - its spend and its hold alone."""
         used = self._used().get(name, 0.0)
         hold = self._hold(name)
         soon = min(1.0, 1.0 - hold / self.LOOKAHEAD_S) if hold is not None \
@@ -195,7 +213,7 @@ class ThermalEnvelope:
                 'tripped': self._tripped(), 'trips': self._trips,
                 'derate': self._derate_held, 'soak_j': self.soak_j(),
                 'duty': list(self._duty() or (0.0, 0.0, 0.0)),
-                # MINOR 12: the winding's estimate, spend and OWN factor, from
+                # MINOR 12: the winding's estimate, spend and own factor, from
                 # the node it is, beside `derate` - the stage's.
                 'winding_c': self._node['winding'],
                 'winding_used': used['winding'],

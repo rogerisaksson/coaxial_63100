@@ -6,19 +6,17 @@ import os
 import re
 import sys
 import time
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from typing import Any, cast
 
 from coaxial import simulated
-from coaxial.devices import scaling               # noqa: E402
-from coaxial.draw import ascii3d, desk, orientation  # noqa: E402
-from coaxial.errors import DeviceStateError            # noqa: E402
+from coaxial.devices import scaling
+from coaxial.draw import ascii3d, desk, orientation
+from coaxial.errors import DeviceStateError
 from coaxial.graphics import raster
-from machine import ansi  # noqa: E402
-from typing import Any, cast
-from coaxial.simulated import CHANNELS, SimulatedSession  # noqa: E402
-from coaxial_mcp import tools as toolmod  # noqa: E402
+from coaxial.simulated import CHANNELS, SimulatedSession
 from coaxial_mcp import bus as busmod
+from coaxial_mcp import tools as toolmod
+from machine import ansi
 
 REPO = os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
@@ -101,7 +99,7 @@ def test_analog_read(report):
     afe_on = SimulatedSession()
     toolmod.afe_power(afe_on, action='on')
     on_text = toolmod.analog_read(afe_on)
-    # Frozen is EVERY channel at the unpowered value - 32768.0 single-ended,
+    # Frozen is every channel at the unpowered value - 32768.0 single-ended,
     # 0.0 differential - not the string 32768 anywhere: MCUdie's nominal sits
     # near mid-scale and a live reading walked through it, measured once on CI
     # (2026-09-13).
@@ -282,7 +280,7 @@ def test_imu(report):
                  'too, not silently truncated on the way to a board',
                  refused)
 
-    # A read is the board's shared record now, not a cargo off the bus: the
+    # A read is the board's shared record, not a cargo off the bus: the
     # firmware polls the part from its own main loop, and a host that drove
     # SPI2 at the same time was two masters on one bus.
     tool = toolmod.imu(session, op='read')
@@ -467,7 +465,7 @@ def test_orientation(report):
     report.check('the dial is the height it was asked for',
                  len(turned) == 23, '%d rows' % len(turned))
 
-    # A PROTRACTOR since 2026-08-29: degree labels every 30 all the way round,
+    # A protractor since 2026-08-29: degree labels every 30 all the way round,
     # like the reference face.
     face = chr(10).join(turned)
     marks = [str(deg) for deg in range(0, 360, 30)]
@@ -475,7 +473,7 @@ def test_orientation(report):
     report.check('every 30-degree graduation is labelled',
                  not missing, 'missing %s' % ', '.join(marks and missing))
 
-    # WHERE THINGS ARE COMES OFF THE OWNER GRID, not off the glyphs.
+    # Positions come off the owner grid, not off the glyphs.
     def owners(deg, kind, field=380):
         weak = field < dial.WEAK_GAUSS
         _, owner, _, geom = dial._raster(deg, 64, 23, weak, 2.0)
@@ -483,7 +481,7 @@ def test_orientation(report):
                  if any(owner[row][col] == kind for col in range(64))], geom)
 
     hub, geom = owners(0.0, dial.HUB)
-    # THREE ROWS, NOT ONE: the hub is a disc of 2.6 dots and a row is four, so
+    # Three rows, not one: the hub is a disc of 2.6 dots and a row is four, so
     # a disc centred on a row boundary reaches into the rows either side.
     axis = [int(geom.cy) // dial.DOTS_Y]
     report.check('the hub straddles the row the axis is in',
@@ -516,7 +514,7 @@ def test_orientation(report):
                  'reading on it, which is what there is',
                  bool(owners(90.0, dial.FACE, field=3)[0]))
 
-    # THE SWEEP IS THE READING FROM ZERO, so more angle is more band.
+    # The sweep is the reading from zero, so more angle is more band.
     def swept(deg):
         _, owner, _, _ = dial._raster(deg, 64, 23, False, 2.0)
         return sum(cls in dial.SWEEP for row in owner for cls in row)
@@ -526,12 +524,12 @@ def test_orientation(report):
                  little < most / 4.0, '%d cells at 20 deg, %d at 340'
                  % (little, most))
 
-    # AND FADES BEHIND THE NEEDLE, fast.
+    # The sweep fades behind the needle, fast.
     _, owner, _, _ = dial._raster(340.0, 64, 23, False, 2.0)
     steps = [sum(row.count(step) for row in owner) for step in dial.SWEEP]
     report.check('and fades behind the needle - most of a long one is trace',
                  steps[0] > 4 * max(steps[1:]), '%s cells a step' % steps)
-    # NOT AN ORDERING CHECK ON THE CODES: 236 is darker than 172 and larger, so
+    # Not an ordering check on the codes: 236 is darker than 172 and larger, so
     # a numeric comparison of ansi-256 indices says nothing about brightness.
     report.check('one colour per step of the fade, and none the needle own',
                  (len(dial.SWEEP_RAMP) == dial.SWEEP_STEPS
@@ -544,9 +542,8 @@ def test_orientation(report):
                                               'loop': 'running', 'updates': 1,
                                               'errors': 0, 'field': 3}))
 
-    # The sensor box moved off the face and into the view's HUD panel on
-    # 2026-08-29 - the face kept four voices (rim, sweep, sensor, pointer) and
-    # read as a party.
+    # The sensor box is in the view's HUD panel since 2026-08-29: on the face
+    # it made four voices (rim, sweep, sensor, pointer).
     report.check('the face carries no sensor box - the HUD names the part',
                  not any('A1335' in row for row in turned))
 
@@ -675,8 +672,7 @@ def test_desk(report):
                  and all('3.3' in line for line in face[3:]),
                  face[0].strip()[:34])
 
-    # THE BAR IS BRAILLE NOW - the motor page's gauge, one instrument on every
-    # page.
+    # The bar is braille: the motor page's gauge, one instrument on every page.
     from coaxial.draw import gauges
     level = chr(raster.BRAILLE | 0x3F)
     track = chr(raster.BRAILLE | 0x07)
@@ -719,7 +715,7 @@ def test_desk(report):
     for row in quiet:
         row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
     gate_drivers.update(quiet)
-    # THE RELEASE (bench, 2026-09-06): a quarter of the distance to the bar's
+    # The release (bench, 2026-09-06): a quarter of the distance to the bar's
     # level an update, the fixed decay at the least - not the fixed decay
     # alone, which took eight seconds for the whole bar and was always seconds
     # behind a swinging phase.
@@ -819,8 +815,8 @@ def test_ascii3d(report):
                  ascii3d.brightness_char(1.0, invert=False) == ' '
                  and ascii3d.brightness_char(0.0, invert=False) == '#')
 
-    # A closer light was tried, to force some modelling onto a flat board seen
-    # face-on.
+    # The reference's light, not a closer one forcing modelling onto a flat
+    # board seen face-on.
     report.check('the light sits where the reference actually puts it',
                  ascii3d.LIGHT_DISTANCE == 4.12
                  and ascii3d.LIGHT_DIRECTION == (35.9, -35.9, 200.0),
@@ -857,7 +853,6 @@ def test_ascii3d(report):
     report.check('and the fit is what fills the shorter axis',
                  max(len(line) for line in fit.split('\n')) <= 60)
 
-    # The light belongs to the world, not to the camera.
     face = ([-0.6, -0.6, 0.0, 0.6, -0.6, 0.0, 0.0, 0.6, 0.0],
             [0, 1, 2], [0.0, 0.0, 1.0])
     square = (1, 0, 0, 0, 1, 0, 0, 0, 1)
@@ -964,7 +959,7 @@ def test_clock_reference(report):
                  'it can be called bounded rather than measured',
                  (flat.floor_ppm or 0.0) > 0, flat.floor_ppm)
 
-    # THE SECOND QUERY CAN FAIL WHERE THE FIRST DID NOT.
+    # The second query can fail where the first did not.
     answers = iter([(0.0, 0.001)])
 
     def once(*_, **__):
@@ -1041,7 +1036,7 @@ def test_gate_driver_arming(report):
     from coaxial import Coaxial63100
     from coaxial.errors import RigError
 
-    # power_afe SAID, not inherited: the interlock refusal under test reports
+    # power_afe passed, not inherited: the interlock refusal under test reports
     # the volts it read, and with the rail down it refuses for the rail instead
     # and never reads them.
     rig = Coaxial63100(simulated=True, power_afe=True).open()
@@ -1181,7 +1176,7 @@ def test_dead_time(report):
     from coaxial import Coaxial63100
     from coaxial.errors import RigError
 
-    # power_afe SAID, not inherited: the interlock refusal under test reports
+    # power_afe passed, not inherited: the interlock refusal under test reports
     # the volts it read, and with the rail down it refuses for the rail instead
     # and never reads them.
     rig = Coaxial63100(simulated=True, power_afe=True).open()
@@ -1258,7 +1253,7 @@ def test_virtual_rotor(report):
                  still['theta'] == 0.0 and 'theta_hat' not in still, still)
 
     def spin(iq, l2, seconds=0.02):
-        # SENSORLESS is the torque path: iq commutated on the rotor.
+        # The sensorless mode is the torque path: iq commutated on the rotor.
         drive = SimulatedDrive()
         drive.configure(source='model')
         drive.model.reset()
@@ -1403,7 +1398,7 @@ def test_thermal_identification(report):
         report.check('air and capacity are the online scales - the two a '
                      'cooldown shows the thermometers',
                      tuple(got['online']) == thermal.IDENT_ONLINE, got['online'])
-        # THE MARGIN IS A NUMBER, continuous from the floor to one on the
+        # The margin is a number, continuous from the floor to one on the
         # evidence (2026-09-06); the state is a word beside it.
         report.check('the margin is at the floor on a fresh stand-in - the '
                      'record\'s 0.80, what the envelope multiplies its '
@@ -1423,7 +1418,7 @@ def test_thermal_identification(report):
     finally:
         rig.close()
 
-    # THE WALK. A truth in a box, driven from the model's own clock.
+    # A truth in a box, driven from the model's own clock.
     model = SimulatedThermal(situation='box')
     load = {'amps': (30.0, 30.0, 30.0), 'switching': True}
     idle = {'amps': (0.0, 0.0, 0.0), 'switching': False}
@@ -1438,7 +1433,7 @@ def test_thermal_identification(report):
             if not states or states[-1] != state:
                 states.append(state)
 
-    # TWO CYCLES: with the room identified beside the scales, one cooldown
+    # Two cycles: with the room identified beside the scales, one cooldown
     # leaves the air scale known to 0.12 and CONVERGING - the room and the air
     # path share a cooldown's evidence - and the second takes it under a tenth,
     # STABLE (measured 2026-09-06).
@@ -1460,8 +1455,8 @@ def test_thermal_identification(report):
                  'mode shows both',
                  got['truth']['situation'] == 'box'
                  and abs(got['truth']['air'] - 2.0) < 1e-9, got['truth'])
-    # THE MARGIN ROSE WITH THE EVIDENCE, off the floor from the first judged
-    # samples (0.88 three minutes in, UNCERTAIN still) to the whole span by the
+    # The margin rose with the evidence, off the floor from the first judged
+    # samples (0.88 three minutes in, while UNCERTAIN) to the whole span by the
     # first cooldown's fourth minute, ahead of the word STABLE by two -
     # measured 2026-09-06.
     report.check('and the margin rose off its 0.80 floor to the whole span, '
@@ -1470,7 +1465,7 @@ def test_thermal_identification(report):
                  and got['since_save_s'] is None,
                  'margin %.3f' % got['margin'])
 
-    # THE BOX COMES OFF AND A FAN GOES ON: the model that was trusted stops
+    # The box comes off and a fan goes on: the model that was trusted stops
     # predicting, and the walk starts again.
     model.situation('fan')
     states, margins[:] = [], []
@@ -1490,7 +1485,7 @@ def test_thermal_identification(report):
                  % (got['scales']['air'], got['sigma']['air'],
                     got['scales']['capacity'], got['state']))
 
-    # THE MARGIN FELL WITH THE FAN - to the floor in the first minute
+    # The margin fell with the fan: to the floor in the first minute
     # (innovation 0.97 K against a 0.1 floor), held there thirteen minutes, and
     # rose again through the cooldown's eighth to fourteenth minute, 0.87 to
     # 0.99 - measured 2026-09-06.
@@ -1499,7 +1494,7 @@ def test_thermal_identification(report):
                  abs(fell - 0.8) < 0.01 and got['margin'] > 0.95,
                  'least %.3f, now %.3f' % (fell, got['margin']))
 
-    # NOTHING BETWEEN RUNS, and the floor is the record's (2026-09-06): a new
+    # Nothing is kept between runs, and the floor is the record's (2026-09-06): a new
     # stand-in starts at the floor whatever the last one found, and the floor
     # is a bench's to set - refused outside (0, 1].
     fresh = SimulatedThermal(situation='fan')
@@ -1531,7 +1526,7 @@ def test_thermal_identification(report):
                  model.situation('random')['situation'] in model.SITUATIONS
                  and _refused(lambda: model.situation('attic')))
 
-    # OUT INTO THE COLD AND BACK IN.
+    # Out into the cold and back in.
     cold = SimulatedThermal(situation='bench')
     run_on = lambda m, seen, model=cold: model.fast_forward(60.0 * m, seen=seen)
     run_on(6, load)
@@ -1544,7 +1539,7 @@ def test_thermal_identification(report):
         if not states or states[-1] != state:
             states.append(state)
     got = cold.identification()
-    # IDLING IN THE COLD IS WEAK EVIDENCE: the board only cools toward a room
+    # Idling in the cold is weak evidence: the board only cools toward a room
     # it is not told, on housekeeping alone, and the room comes out within
     # eight kelvin (measured -23 to -27 for -20 across the configurations
     # tried).
@@ -1556,7 +1551,7 @@ def test_thermal_identification(report):
                  'room %.1f±%.1f C, air %.2f, %s' % (
                      got['ambient'], got['ambient_sigma'], got['scales']['air'],
                      ' > '.join(states)))
-    # AND THE MARGIN SAYS SO: the innovation is back at the floor after ten
+    # The margin says so: the innovation is back at the floor after ten
     # idle minutes, which alone would have given the whole span to a model
     # whose air path is 1.27 for a truth of 0.8; the covariance term holds it
     # at 0.945 until a cooldown tightens the air path (measured 2026-09-06).
@@ -1591,7 +1586,7 @@ def test_thermal_identification(report):
                  and cold.situation('temperate')['ambient'] == 20.0,
                  got['truth'])
 
-    # AN IDLING BOARD STAYS UNCERTAIN - the bench's rule: nothing burning,
+    # An idling board stays UNCERTAIN, the bench's rule: nothing burning,
     # nothing moving, nothing to learn from, so the margin stays in hand until
     # something switches.
     still = SimulatedThermal(situation='box')
@@ -1607,10 +1602,10 @@ def test_thermal_identification(report):
                  % (got['updates'], got['state'], got['scales']['air'],
                     got['margin']))
 
-    # THE LOAD CYCLE a page in simulated mode lays on (bench, 2026-09-06: "show
+    # The load cycle a page in simulated mode lays on (bench, 2026-09-06: "show
     # the board's temperatures from a simulated load cycle, so one sees the
     # regions warm and cool"): six model minutes at 30 A and fourteen idle,
-    # from the model's own clock, UNDER THE ENVELOPE - measured live in a box:
+    # from the model's own clock, under the envelope; measured live in a box:
     # the legs reach the throttle point inside two minutes and the clamp holds
     # driver U near 95-105 C on 12 to 19 A of the 30 asked for.
     from coaxial.devices.thermal_device import Thermal
@@ -1647,8 +1642,8 @@ def test_thermal_identification(report):
                  and cyc.truth()['load_a'] is None
                  and _refused(lambda: cast(Any, Thermal).load_cycle(None)))
 
-    # THE TOUR (bench, 2026-09-06): temperate, cold, toasty and round again,
-    # moved on when the identification has EARNED the room - STABLE held a
+    # The tour (bench, 2026-09-06): temperate, cold, toasty and round again,
+    # moved on when the identification has earned the room - STABLE held a
     # hundred model seconds, ten of wall time, five minutes after the move at
     # the least - or after fifty minutes regardless.
     tour = SimulatedThermal(situation='tour')
@@ -1683,7 +1678,7 @@ def test_thermal_identification(report):
     report.check('a named situation ends the tour',
                  tour.situation('box')['tour'] is False
                  and tour.truth()['situation'] == 'box')
-    # A BOARD STARTS IN ITS ROOM: switched on in the toasty room it reads 45 C,
+    # A board starts in its room: switched on in the toasty room it reads 45 C,
     # the observer starts there and the identification's room too, as
     # `Board_ThermalInit` starts on the NTC; a situation laid on later is a
     # carry-in and moves nothing.
@@ -1702,7 +1697,7 @@ def test_thermal_identification(report):
                  'ntc %.1f, room %.1f' % (born['ntc'],
                                           warm.identification()['ambient']))
 
-    # THE TRIP CAP (bench, 2026-09-06: "it should trip the limits and push the
+    # The trip cap (bench, 2026-09-06: "it should trip the limits and push the
     # SOA limit down to maybe 70 %, or some other graceful degradation"): after
     # the envelope has dropped the stage the margin is held at 0.70, recovering
     # a percent a minute of model time, and the spend is measured from the room

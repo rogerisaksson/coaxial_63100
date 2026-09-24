@@ -39,14 +39,14 @@ class SimulatedBoard:
             ('coaxial_63100', 'bldc_inverter',
              'unassigned unit %d on %s' % (self.unit, bus)))
         self.version_info = {
-            # The MINOR is the one this stand-in actually implements - sensor
+            # The MINOR this stand-in implements - sensor
             # fields in records (7) and the counted duty (8) - so a host gating
             # a feature on the version exercises the same gate here that it
             # will at the bench.
             'proto_major': 2, 'proto_minor': 8, 'firmware': 'simulated',
             'device': name, 'mcu': 'STM32H753 (simulated)',
             'build': 'simulated', 'commands': 21, 'type': kind,
-            # Says what it is AND that it is invented, in the same line, so a
+            # Says what it is and that it is invented, in the same line, so a
             # list of five devices cannot be read as five real ones.
             'description': 'SIMULATED three-phase BLDC inverter at the %s'
                            % where,
@@ -57,7 +57,7 @@ class SimulatedBoard:
         if self.unit != BROADCAST:
             self._wire()
 
-    def __getattr__(self, name):
+    def __getattr__(self, name) -> Any:
         """On the broadcast unit every subsystem refuses, whatever it is
         called - a list of names here was the copy that went stale, and
         left `thermal` and `power` answering with AttributeError instead.
@@ -80,29 +80,29 @@ class SimulatedBoard:
         self.angle = SimulatedAngle()
         self.gate_drivers = SimulatedGateDrivers()
         self.thermal = SimulatedThermal()
-        # THE SAME CLASS AS THE BOARD'S, not a stand-in for it.
+        # The board's own class, not a stand-in for it.
         self.observer = Observer(self)
         self.power = SimulatedPower()
         self.boot = SimulatedBoot()
         self.capture = SimulatedCapture()
         self.clock = SimulatedClock()
         self.daq = SimulatedDaq()
-        # ONE TIMEBASE, as the board has one.
+        # One timebase, as the board has one.
         self.daq.clock = self.clock
         self.drive = SimulatedDrive()
-        # WHAT ITS SHAFT CARRIES, where it sits: found by measuring, never said.
+        # The load where it sits (LOAD_J): measured by a machine, never sent.
         self.drive._set_model(j=load_j(self.version_info['where']))
-        # WHERE IT LOOKS.
+        # What the thermal model samples: the drive.
         self.thermal._sample = self.drive.sample
-        # AND WHAT IT DROPS.
+        # And what it drops at a ceiling: the stage.
         self.thermal._gate = self._drop_stage
         # And what the drive reports as switching: the bridge, so a dropped
         # stage stops making current in the model too.
         self.drive._switching = lambda: self.gate_drivers._enabled
-        # AND THE HAND ON THE THROTTLE.
+        # And the throttle: the drive's clamp and the compares' duty.
         self.thermal._derate_to = self._derate_drive
         self.thermal._duty = self._effective_duty
-        # The drive is what the phases and the gates FOLLOW: a record and the
+        # The drive is what the phases and the gates follow: a record and the
         # modulation that produced it come from one electrical angle, or they
         # are two inventions that happen to be printed together.
         self.gate_drivers._drive = self.drive
@@ -110,7 +110,7 @@ class SimulatedBoard:
         # And the analog reads see the same current on the phases, so a tare
         # through them zeroes the records (values.py).
         self.analog.drive = self.drive
-        # The shaft sensor reads the SAME rotor: a servo closed over the A1335
+        # The shaft sensor reads the same rotor: a servo closed over the A1335
         # moves what the drive torques, or the loop it closes is between two
         # inventions.
         self.angle.drive = self.drive
@@ -168,9 +168,9 @@ class SimulatedBoard:
 class SimulatedSession:
     """Drop-in for `coaxial.comm.session.Session` that never opens a port."""
 
-    # Read by anything that must not mistake this for a board - see
-    # `coaxial_mcp.tools._interface`, which used to decide from the port and
-    # started calling a bus label an RS485 segment.
+    # Read by anything that must not mistake this for a board -
+    # `coaxial_mcp.bus._interface`, where the port alone would call a bus
+    # label an RS485 segment.
     simulated = True
 
     def __init__(self, port=None, baud=115200, unit=1, bus=DEFAULT_BUS,
@@ -182,7 +182,7 @@ class SimulatedSession:
         self.port = self.bus
         self.unit = int(unit)
         self._board = SimulatedBoard(self.unit, self.bus)
-        # THE SESSION'S LINE REACHES THE BOARD.
+        # The session's baud reaches the board and its daq.
         self._board.baud = self.baud
         if isinstance(self._board.daq, SimulatedDaq):
             self._board.daq.baud = self.baud

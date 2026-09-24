@@ -4,6 +4,7 @@ board measured while it ran.
 import json
 import math
 import time
+from typing import Any
 
 from coaxial.comm import protocol
 from coaxial.comm.protocol import DriveOp
@@ -179,6 +180,13 @@ class DriveControl(Controller):
                         the record's drive parameters in SI
     model, observers, moments                the plant, the estimators, the codes
     """
+
+    # What the class this mixes into brings.
+    _set_mode: Any
+    _set_setpoints: Any
+    _set_source: Any
+    _take_window: Any
+    _write_params: Any
 
     WRITES = tuple(name for name, _ in SETPOINTS)
 

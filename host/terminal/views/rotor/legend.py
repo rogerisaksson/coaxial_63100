@@ -26,7 +26,7 @@ def _place(row, name, columns, right_edge=False, until=None):
     middle = (min(columns) + max(columns)) / 2.0
     at = (BOX.width - len(name) if right_edge
           else int(round(middle - (len(name) - 1) / 2.0)))
-    # A NAME WIDER THAN ITS GROUP LEANS INWARD.
+    # A name wider than its group leans inward.
     if not right_edge:
         at = min(at, max(columns) + 1 - len(name))
     if until is not None:
@@ -37,7 +37,7 @@ def _place(row, name, columns, right_edge=False, until=None):
 
 
 def reference(view):
-    """The NTC, as text: the one MEASURED temperature on this page."""
+    """The NTC, as text: the one measured temperature on this page."""
     seen = (view.get('thermal') or {}).get('ntc')
     if seen is None:
         return 'NTC  unread'
@@ -85,35 +85,35 @@ def _legend_targets(view, left, right):
     said = []
     first, last = machine.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
-    # THE MEASUREMENT FIRST: everything under it is an estimate.
+    # The measurement first: everything under it is an estimate.
     seen = (view.get('thermal') or {}).get('ntc')
     if len(left) > NTC_AT and seen is not None:
         # Its own tube's colour: the thermometer ramp, not a margin's.
         said.append(_legend(0, reference(view),
                             machine.INK[ntc_class(seen)], left[NTC_AT], True))
-    # SWITCH SECOND AND BOARD LAST, with the motor's margin between them.
+    # SWITCH second and BOARD last, with the motor's margin between them.
     for group, columns, name, centred in (
             (SOA_NODES, left, 'SWITCH TEMPS', True),):
         peak, cls = hottest(view, group)
         if peak is None or not columns:
             continue
-        # THE MIDDLE OF ITS OWN GROUP, not the edge nearest the machine.
+        # The middle of its own group, not the edge nearest the machine.
         seat = columns[len(columns) // 2 - 2]
         said.append(_legend(len(said), '%s %.1f %sC' % (name, peak, DEGREE),
                             machine.INK[cls], seat, centred))
 
-    # THE MARGINS LAST, under the NTC and nearest the tubes they name.
+    # The margins next, under the NTC and nearest the tubes they name.
     for index in reversed(range(len(HEADROOM_TITLES))):
         if len(right) > HEADROOM_AT:
             share, cls = bars[index]
             said.append(_legend(
                 len(said),
-                # A DECIMAL, BECAUSE THE TUBE CANNOT SHOW THIS.
+                # A decimal: the tube cannot show one.
                 '%s %.1f %%' % (HEADROOM_NAMES[index], 100.0 * share),
                 machine.INK[cls], right[HEADROOM_AT + index], True))
     peak, cls = hottest(view, BOARD_NODES)
     if peak is not None and right:
-        # ONE TUBE FURTHER IN than the middle of its four.
+        # One tube further in than the middle of its four.
         said.append(_legend(
             len(said), 'BOARD TEMPS %.1f %sC' % (peak, DEGREE),
             machine.INK[cls], right[len(BOARD_NODES) // 2 - 1], True))
@@ -126,8 +126,8 @@ def foot_furniture():
     first, last = machine.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
     grey = machine.LEADER_GREY
-    # BOTH RUN PAST THE LAST ART ROW, because both carry on into the foot line
-    # where the arrowhead is.
+    # Both run past the last art row: both carry on into the foot line where
+    # the arrowhead is.
     return ([(BOX.rows - 2, 0, BOX.rows + 1, grey, 0),
              (BOX.rows - 1, BOX.width - 1, BOX.rows + 1, grey, 1)],
             [(BOX.rows - 2, 0, max(0, first - 1), grey),
@@ -163,7 +163,7 @@ def _legend_rows(view, left, right):
         for row, text, ink, column, centred in said:
             if row != index:
                 continue
-            # CENTRED OVER THE MACHINE when the head is out in a gutter's
+            # Centred over the machine when the head is out in a gutter's
             # middle, hard against the head when it is the outermost tube.
             if column < first:
                 at = first + 2
@@ -172,7 +172,7 @@ def _legend_rows(view, left, right):
             at = max(0, min(BOX.width - len(text), at))
             line[at:at + len(text)] = text
             marks.append((at, len(text), ink))
-            # THE HEAD AGAINST THE WORDS, the run in dots.
+            # The head against the words, the run in dots.
             if column < at:
                 head, span = at - 2, list(range(column, at - 3))
                 line[head] = AIM_LEFT
@@ -180,18 +180,18 @@ def _legend_rows(view, left, right):
                 head = at + len(text) + 1
                 span = list(range(head + 2, column + 1))
                 line[head] = AIM_RIGHT
-            # A COLUMN OF AIR BEFORE ANYTHING ALREADY FALLING.
+            # A column of air before anything already falling.
             span = [step for step in span
                     if line[step] not in DROP
                     and not (step + 1 < BOX.width
                              and line[step + 1] in DROP)]
             for step in span:
                 line[step] = LEADER
-            # AND THE FAR END TURNS, whatever the air rule did to the run.
+            # The far end turns, whatever the air rule did to the run.
             turned = 0 <= column < BOX.width and line[column] not in DROP
             if turned:
                 line[column] = TURN[_lane(column, first)]
-            # ONE MARK A CELL.
+            # One mark a cell.
             if turned and column not in span:
                 marks.append((column, 1, machine.LEADER_GREY))
             marks.append((head, 1, machine.LEADER_GREY))
@@ -204,10 +204,10 @@ def _legend_rows(view, left, right):
 
 def _foot_line(view):
     """The row under the box: the winding and the link power."""
-    # THE TWO ALONG THE FOOT, named under them and CARRYING THEIR OWN NUMBERS.
+    # The two along the foot, named under them and carrying their own numbers.
     head = '%s WINDING %5.1f %sC' % (UP, winding(view), DEGREE)
     tail = 'POWER %5.2f kW %s' % (watts(view) / 1000.0, UP)
-    # A STROKE EACH, LEAVING THE HEAD AND RISING toward the level above it.
+    # A stroke each, leaving the head and rising toward the level above it.
     label, word, ink = _policy(view)
     middle = len(label) + 1 + len(word)
     room = BOX.width - len(head) - len(tail)

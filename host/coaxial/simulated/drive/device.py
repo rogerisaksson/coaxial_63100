@@ -1,5 +1,6 @@
 """The stand-in drive: its state, modes, setpoints and parameters, on one lock."""
 import math
+import random
 import threading
 import time
 from typing import Callable, Optional, Any
@@ -35,12 +36,12 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
     I_KNEE = 0.3
     #: TIM1's counter clock. Centre-aligned, so a period is 2 x ARR.
     CLK = 237.5e6
-    #: WHERE THE STAGE SWITCHES, and the one place it is written. The
+    #: Where the stage switches, and the one place it is written. The
     #: `.ioc` sets ARR 2375 off 237.5 MHz, which is 50 kHz, and nothing on
     #: the wire moves it - ARR comes from CubeMX and the board only reads
     #: it back. The stand-in takes 10 kHz to 100 kHz instead, so the
     #: observers, the injection and the model can be tried across the
-    #: range before a period other than this one exists to try them at:
+    #: range:
     #:
     #:     rig.board.drive._sim.pwm_hz = 100e3
     #:
@@ -89,7 +90,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
     BEST_TRIGGER = 2300                          #: where the pickup is least
 
     def __init__(self):
-        # ONE ROTOR, TWO THREADS.
+        # One rotor, two threads.
         self._lock = threading.RLock()
         self._mode = 'off'
         #: The stage's PWM when set by hand, else PWM_HZ; and the shaft,
@@ -111,10 +112,9 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         self._pol = (0.0, 0.0)
         self._cycles_max = 0
         self._source = 'adc'
-        #: The virtual source's rotor, built on demand. The ADC source is
-        #: what every existing caller uses and its rotor is deliberately
-        #: still (see `model`), so a machine integrating in the background
-        #: would be work nobody asked for.
+        #: The virtual source's rotor, built on demand. The ADC source,
+        #: every caller's default, keeps its rotor still (see `model`), so
+        #: no machine integrates in the background.
         self._motor = None
         self._motor_at = 0.0
         self._motor_acc = 0.0
@@ -126,7 +126,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         self._obs_frame = 0.0
         self._obs_flux_omega = 0.0
         self._obs_synced = None
-        #: Whether the bridge is actually switching, asked of whatever
+        #: Whether the bridge is switching, asked of whatever
         #: owns the gates. None until the board wires it, and then the
         #: drive's own mode stands in - a drive with no stage behind it.
         self._switching: Optional[Callable[[], Any]] = None
@@ -139,6 +139,8 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
                        'b': 1e-5, 'load': 0.0, 'v_dt': self.V_DT,
                        'i_knee': self.I_KNEE, 'vdc': DCBUS_V, 'noise': 0.0,
                        'theta0': 0.0, 'sub': 4.0}
+        #: What the model's current noise is drawn from.
+        self._rng = random.Random(self.NOISE_SEED)
 
     @_rotor_locked
     def state(self):
@@ -146,6 +148,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
             self._read_model()                   # the rotor up to now, first
         self._converge()
         iid, iq, vd, vq = self._dq()
+        iid, iq = self._noisy(iid, iq, share=self.CLARKE_NOISE)
         ih, eps_amps = self._ih()
         periods = self._periods_since(self._mode_at)
         if self._mode == 'polarity':
@@ -153,7 +156,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         gain = self._p('drv_eps_gain_ua_per_rad', 0.0)
         return {
             'mode': self._mode, 'fault': self._fault,
-            # THE BRIDGE, NOT THE MODE.
+            # The bridge's state, not the mode's.
             'stage_enabled': bool(self._switching()) if self._switching
                              else self._mode != 'off',
             'afe_on': True,
@@ -171,11 +174,12 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
             'id': iid, 'iq': iq, 'vd': vd, 'vq': vq, 'vdc': DCBUS_V,
             'eps': (eps_amps / gain) if gain else 0.0, 'eps_amps': eps_amps,
             'ih': ih, 'e_bemf': 0.0, 'periods': periods,
+            # isr_cycles_last, isr_cycles_max (1620 its floor), exit_ticks_max
+            # (op 0's MINOR 2) and cycles are the stand-in's constants, not
+            # measurements.
             'isr_cycles_last': 1450, 'isr_cycles_max': max(self._cycles_max, 1620),
             'pol_pos': self._pol[0], 'pol_neg': self._pol[1],
             'trigger': self._trigger, 'ts': self.TS,
-            # The MINOR 2 appendix the board's op 0 carries - absent here,
-            # rotor_observer_session read a KeyError off the stand-in.
             'exit_ticks_max': 2921,
             'cycles': {'sample': 610, 'step': 1690, 'advance': 620},
         }
@@ -187,7 +191,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         if name == 'polarity' and not self._sp['pol_periods']:
             raise RigError('polarity needs pol_periods above zero - one pulse '
                            'of no length measures nothing (simulated)')
-        # INTEGRATE, THEN CHANGE.
+        # Integrate the old mode's time, then change.
         if self._source == 'model':
             self._read_model()
         self._mode = name

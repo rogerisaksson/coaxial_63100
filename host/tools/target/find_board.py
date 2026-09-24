@@ -18,17 +18,13 @@ through this module, so a test can patch them here.
     python tools/target/find_board.py --power       # target voltage over SWD (ST-Link), not USART3
 """
 import argparse
-import os
 import re
 import subprocess
 import sys
 
-# host/ on the path: this file's own directory's parent, so it does not matter
-# what the working directory is or what any directory along the way is called.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial.comm.ports import (ANSWERED, discover, find, kinds, list_ports,  # noqa: E402
+from coaxial.comm.ports import (ANSWERED, discover, find, kinds, list_ports,
                                 port_state, probe)
+
 
 def _text(out):
     """Subprocess output as text, whichever way it came."""
@@ -40,7 +36,7 @@ def _text(out):
 def check_power(timeout=15):
     """(voltage_or_None, detail)."""
 
-    from tools.target import build_and_flash   # lazy: build_and_flash imports _text from here
+    from tools.target import build_and_flash   # build_and_flash imports _text from here
 
     path = build_and_flash.toolchain_path()
     programmer = build_and_flash.find_programmer(path)

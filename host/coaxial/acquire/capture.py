@@ -1,4 +1,6 @@
 """The board's measurement ring, drained in bursts."""
+from typing import Any
+
 from coaxial.comm import protocol
 from coaxial.comm.protocol import LogOp
 from coaxial.comm.wire import Reader, pack
@@ -44,6 +46,10 @@ def _mask(sources):
 class Ring(Stream):
 
     """The board's capture ring: sources started, records read oldest first."""
+
+    # What the class this mixes into brings.
+    _arm: Any
+    take: Any
 
     DEPTH = 1024
 

@@ -72,7 +72,7 @@ def adc_block(got):
     for r in table['channels']:
         to = scaling.converter(r.get('unit'), r['differential'],
                                signal=r.get('signal'), params=params)
-        # THE METER BRIDGE'S GAUGE BESIDE THE NUMBER: where the reading sits in
+        # The meter bridge's gauge beside the number: where the reading sits in
         # the converter's own range, a bipolar channel about its centre - the
         # same instrument that page draws, at the width the thermal box below
         # draws its levels.
@@ -93,9 +93,9 @@ def thermal_block(got):
     if spend is None:
         return block('THERMAL', ['  the thermal observer did not answer'])
 
-    # EVERY NODE, in the firmware's own order, so a leg keeps its row whether it
-    # is heating or not - sorted-and-cut dropped driver W the moment two other
-    # nodes warmed, on the dashboard that exists to show one leg heating alone.
+    # Every node, in the firmware's own order, so a leg keeps its row whether
+    # it is heating or not: sorted-and-cut dropped driver W the moment two
+    # other nodes warmed.
     used = spend['used']
     nodes = [n for n in thermal.ALL_NODES if n in used]
     width = max((len(thermal.pretty(n)) for n in nodes), default=0)

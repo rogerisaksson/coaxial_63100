@@ -1,9 +1,8 @@
 """Recover a machine's constants from what the board recorded."""
 import math
 
-# One definition each, where they already lived: the transform's turn is the
-# observer's, and the channel names are the commissioning's.
-from coaxial.control.commission import PHASES                              # noqa: F401
+# The channel names are the commissioning's: one definition.
+from coaxial.control.commission import PHASES
 from coaxial.errors import RigError
 from coaxial.model.motor import Parameters
 GATES = (('TIM1_CH1/PWMUH', 'TIM1_CH1N/PWMUL'),
@@ -84,7 +83,7 @@ def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
     predicted = matrix @ fit
     rms = float(np.sqrt(np.mean((target - predicted) ** 2)))
 
-    # PER PARAMETER, because one number for the whole fit hides the case that
+    # Per parameter: one number for the whole fit hides the case that
     # matters.
     freedom = max(1, matrix.shape[0] - matrix.shape[1])
     variance = float(np.sum((target - predicted) ** 2)) / freedom

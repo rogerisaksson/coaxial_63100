@@ -24,13 +24,17 @@ def section(heading, *cells):
     return (heading, list(cells))
 
 
-def paper(title, summary, sections, results, bench, references):
-    """# title, summary; 1 Setup; the sections; close; Results; Bench; References."""
-    cells = [md('# %s\n\n%s' % (title, summary)), md('## 1 Setup'), code(KNOB), code(OPEN)]
+def paper(title, summary, sections, results, bench, references, device=True):
+    """# title, summary; 1 Setup; the sections; close; Results; Bench; References.
+    `device`: the paper opens a Coaxial63100 as `device` and closes it; else only the knob."""
+    cells = [md('# %s\n\n%s' % (title, summary)), md('## 1 Setup'), code(KNOB)]
+    if device:
+        cells.append(code(OPEN))
     for number, (heading, body) in enumerate(sections, start=2):
         cells.append(md('## %d %s' % (number, heading)))
         cells.extend(body)
-    cells.append(code(CLOSE))
+    if device:
+        cells.append(code(CLOSE))
     cells.append(md('## %d Results' % (len(sections) + 2)))
     cells.extend(results)
     cells.append(md('**Bench.** ' + bench))

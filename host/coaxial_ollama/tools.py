@@ -9,21 +9,18 @@ import sys
 import time
 from typing import Any
 
-# host/ on the path: this file's own directory's parent, so it does not
-# matter what the working directory is - dbg.py and the runner start from
-# different ones - or what any directory along the way is called.
-_HOST = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, _HOST)
+from .sandbox import clip_ends
+from coaxial.comm import ports
+from coaxial.errors import LINK_FAULTS, RigError
+from coaxial_mcp import detail
+from coaxial_mcp import render
+from coaxial_mcp.schema import TOOLS as BOARD_TOOLS
+from coaxial_mcp.schema import coerce as board_coerce
+from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS
+from tools.target import find_board
 
-from .sandbox import clip_ends                             # noqa: E402
-from coaxial.comm import ports                                  # noqa: E402
-from coaxial.errors import LINK_FAULTS, RigError          # noqa: E402
-from coaxial_mcp import detail                            # noqa: E402
-from coaxial_mcp import render                            # noqa: E402
-from coaxial_mcp.schema import TOOLS as BOARD_TOOLS  # noqa: E402
-from coaxial_mcp.schema import coerce as board_coerce  # noqa: E402
-from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
-from tools.target import find_board                                          # noqa: E402
+# host/, from this file rather than the working directory.
+_HOST = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # The ceiling on anything a tool may put in front of the model, in characters -
 # about a thousand tokens.
@@ -128,8 +125,8 @@ CODE_CALLS = ('run_python', 'run_command', 'build_firmware')
 # gate at all - see _permit().
 UNGATED_EXTRAS = ('run_tests', 'link_diagnose')
 
-# Calls that actually reach the board - not `docs`, which reads local files and
-# proves nothing about a measurement having happened.
+# Calls that reach the board; `docs` reads local files and proves no
+# measurement.
 LINK_TOOLS = set(BOARD_HANDLERS) - {'docs'}
 
 
@@ -161,7 +158,7 @@ class Refused(Exception):
 
 
 class Reported:
-    """Marker: the step is over. Carries what the model said, unjudged."""
+    """The step is over: what the model said, unjudged."""
 
     def __init__(self, value=None, unit='', note=''):
         self.value = value
@@ -208,8 +205,8 @@ class Toolbox:
         # coaxial_mcp/detail.py.
         self.detail = detail.FULL
         self.log = []
-        # Set by the caller before a turn's calls run - True unless the caller
-        # actually checked and the current question never said "afe".
+        # Set by the caller per turn: False when the question never said
+        # "afe".
         self.afe_mentioned = True
         # The operator's own words this turn, for the one check that needs them
         # - see _wrong_side().
@@ -289,10 +286,8 @@ class Toolbox:
     # ---- policy ------------------------------------------------------------
 
     def _permit(self, name, args):
-        # Neither a board tool nor a CODE_CALLS entry, on purpose: neither
-        # touches the board's state or its flash, so neither is gated by
-        # --read-only, --allow-writes or --confirm - the same reasoning that
-        # leaves `docs` ungated, just for different local actions.
+        # UNGATED_EXTRAS touch neither the board's state nor its flash: no
+        # --read-only, --allow-writes or --confirm gate, as for `docs`.
         if (name not in BOARD_HANDLERS and name not in CODE_CALLS
                 and name not in UNGATED_EXTRAS):
             raise Refused('unknown tool %r' % name)
@@ -306,12 +301,10 @@ class Toolbox:
             raise Refused('%s changes state and this run may only read. The '
                           'operator would have to pass --allow-writes.' % name)
 
-        # afe_power is deliberately not in WRITE_CALLS (see the comment there -
-        # a read-only run still has to be able to power the front end it is
-        # reading through), which is exactly why it needs a gate of its own:
-        # nothing else stops it firing as a precondition for a reading, the one
-        # thing the system prompt already says never to do and, measured live,
-        # a model did anyway.
+        # afe_power is not in WRITE_CALLS: a read-only run powers the front
+        # end it reads through. This gate stops it firing as a precondition
+        # for a reading, which the system prompt forbids and a model did,
+        # measured live.
         if (name == 'afe_power' and args.get('action', 'read') != 'read'
                 and not self.afe_mentioned):
             raise Refused('not asked for - call analog_read instead, it '
@@ -323,7 +316,7 @@ class Toolbox:
                           'it; report what you have or explain what is '
                           'missing.')
 
-    # ---- the three that are not the board ---------------------------------
+    # ---- handlers ----------------------------------------------------------
 
     def _python(self, args):
         if self.scope is None:
@@ -374,18 +367,15 @@ class Toolbox:
         if relink:
             text += '\n' + relink
 
-        # Prefixed the same way every other failure in this file is, so the
-        # code_error backstop in debug.py's Chat.ask() catches a failed build
-        # or flash exactly like a declined --confirm call - a fact this loop
-        # already has that the model does not get to override with its own
-        # summary of what happened.
+        # 'ERR ' as every failure here: turn.py's code_error backstop catches
+        # a failed build or flash like a declined --confirm call, and the
+        # model's summary cannot override it.
         return text if done.returncode == 0 else 'ERR %s' % text
 
     def _relink(self):
         """Reopen the serial link after a flash - not just wait for it."""
         if self.session is None or self.session.port is None:
-            # NoBoard (or no session at all) - nothing was ever connected in
-            # this run, so there is nothing a flash could have disconnected.
+            # NoBoard or no session: nothing connected, nothing to reopen.
             return ''
         self.session.reset()
         last = None
@@ -450,8 +440,7 @@ class Toolbox:
         """A checklist, most fundamental first, stopping at the step that
         explains the silence rather than running the rest regardless.
         """
-        # `simulated` first, then the port - the same order `_interface` asks
-        # in, and for the same reason.
+        # `simulated` first, then the port: the order `_interface` asks in.
         if self.session.simulated or self.session.port is None:
             return self._no_board()
         configured, baud, unit = (self.session.port, self.session.baud,
@@ -511,9 +500,8 @@ class Toolbox:
         """
         if (_open_link_answers(self.session)
                 or find_board.probe(configured, baud, unit)):
-            # Measured directly, not inferred from the port merely being
-            # present - so this also correctly says "up" when the link had
-            # already recovered by the time anything reached for this tool.
+            # Measured, not inferred from the port being present: "up" when
+            # the link recovered before this call.
             steps.append('4. Board answers on %s right now: yes - the link '
                          'is up.' % configured)
             return False
@@ -529,6 +517,6 @@ class Toolbox:
 
     def _board(self, name, args):
         # Coerced against the tool's own schema first: see
-        # coaxial_mcp.tools.coerce for what a small model sends instead.
+        # coaxial_mcp.schema.coerce for what a small model sends instead.
         return BOARD_HANDLERS[name](self.session, detail=self.detail,
                                     **board_coerce(name, args))

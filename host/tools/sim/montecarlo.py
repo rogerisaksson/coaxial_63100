@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Monte Carlo over the firmware's FOC loop, one process per core.
 
-THE C IS THE FIRMWARE'S, through `tests/test_drive_core.py`'s bench: the
-current loop, the injection demodulator, the rotor observer, the dead-time
-table, against `drive_model.c` with a plant drawn around `PLATINUM_5230SL`
-and the stage in `coaxial.model.inverter`. A host speed loop (`coaxial.control.loop`,
-the same law the notebook runs) closes over the observer's own speed.
+The C is the firmware's, through `tools/cores/drive.py`: the current loop,
+the injection demodulator, the rotor observer, the dead-time table, against
+`drive_model.c` with a plant drawn around `PLATINUM_5230SL` and the stage in
+`coaxial.model.inverter`. A host speed loop (`coaxial.control.loop`, the
+same law the notebook runs) closes over the observer's own speed.
 
 A run: injection finds the rotor from a random error, a raised cosine to
 `TOP` of the link's no-load speed, a hold, a descent to rest under
@@ -26,15 +26,11 @@ import random
 import sys
 import time
 
-HOST = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, HOST)
-sys.path.insert(0, os.path.join(HOST, 'tests'))
-
-from coaxial.model import inverter, sensorless                         # noqa: E402
-from coaxial.control.loop import Signals, SpeedLoop                      # noqa: E402
-from coaxial.model.motor import APC20x10E, PLATINUM_5230SL, Parameters, Propeller  # noqa: E402
-import test_drive_core as H                                      # noqa: E402
-from test_modbus_core import build, find_cc                      # noqa: E402
+from coaxial.control.loop import Signals, SpeedLoop
+from coaxial.model import inverter, sensorless
+from coaxial.model.motor import APC20x10E, PLATINUM_5230SL, Parameters, Propeller
+from tools.cores import drive as H
+from tools.cores.build import build, find_cc
 
 TS = inverter.TS
 TWO_PI = sensorless.TWO_PI

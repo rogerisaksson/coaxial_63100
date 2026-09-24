@@ -2,28 +2,25 @@
 
 Two ways for a power manager to be wrong, and this checks both:
 
-    HELD WHEN IT SHOULD BE FREE   a leaked hold nobody can see or recover
-    FREE WHEN IT SHOULD BE HELD   a rail switched off under a subsystem
+    held when it should be free   a leaked hold nobody can see or recover
+    free when it should be held   a rail switched off under a subsystem
                                   that had asked for it
 
-Both have already happened here. The second is why the reference count
-exists at all; the first is why every hold but the host's is a lease.
+Both have happened here. The second is why the reference count exists; the
+first is why every hold but the host's is a lease.
 
-NOT A SUITE. It arms the gate stage to check that an acquire is refused
-there, so it belongs beside the board, not in `run_tests.ps1` - which has to
-pass on a bench with no board attached.
+It arms the gate stage to check that an acquire is refused there, so it
+runs beside the board, not in `run_tests.ps1`, which has to pass on a bench
+with no board attached.
 
     python tools/bench/power_check.py
 """
 import argparse
-import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.errors import NoReplyError, RigError  # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.errors import NoReplyError, RigError
 
 #: The lease in the firmware is 3 s. Wait past it, with room for the poll.
 LEASE_WAIT_S = 4.5
@@ -81,8 +78,8 @@ def check_host_hold(rig, check):
 
 def check_observer_borrow(rig, check):
     print('\nthe thermal observer: borrows, then gives it back on its own')
-    # What it was, so what goes back is what was there rather than a copy of
-    # the firmware's default that goes stale when that moves.
+    # Restored as read, not as a copy of the firmware's default, which goes
+    # stale when that moves.
     said = quiet(rig.board.thermal.state) or {}
     was = (said.get('sample_every_s', 30.0), said.get('sample_settle_s', 0.5))
     quiet(rig.board.thermal.configure, sample_every_s=2.0, sample_settle_s=0.3)

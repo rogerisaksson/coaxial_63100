@@ -288,8 +288,8 @@ function Test-PythonRuns {
                             everything downstream failed for its own
                             apparent reason: pip, the suites, the model
                             probe,
-                            host gcc - which is asked of test_modbus_core.py
-                            --which-cc and so goes through python too - and
+                            host gcc - which is asked of python -m
+                            tools.cores.build and so goes through python too - and
                             the
                             MCP server in .mcp.json.
                             and the report pointed at none of them.
@@ -604,13 +604,18 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
         }
     }
 
-    # A host C compiler, for test_modbus_core.py.
+    # A host C compiler, for test_modbus_core.py. -m from host/ puts host/ on
+    # sys.path: host/ is not installed yet.
     $cc = ''
-    $suite = Join-Path $PSScriptRoot 'host/tests/test_modbus_core.py'
-    if ($null -ne $python -and (Test-Path $suite)) {
+    if ($null -ne $python) {
+        Push-Location $Host_
         try {
-            $cc = (& $python $suite --which-cc 2>$null | Select-Object -First 1)
-        } catch { $cc = '' }
+            $cc = (& $python '-m' 'tools.cores.build' 2>$null | Select-Object -First 1)
+        } catch {
+            $cc = ''
+        } finally {
+            Pop-Location
+        }
     }
     if ([string]::IsNullOrWhiteSpace($cc)) {
         Write-Item 'host gcc' 'missing' 'BrechtSanders.WinLibs.POSIX.UCRT - test_modbus_core.py skips without it'
@@ -687,9 +692,9 @@ print(','.join(missing))
         }
     }
 
-    # The stack as an installed package, not a sys.path accident: pyproject
-    # hands out `coaxial`, `coaxial-dbg` and `coaxial-mcp` as commands and
-    # makes the imports work from any directory.
+    # Required: every script, test and view imports the installed packages
+    # (nothing sets sys.path); pyproject also hands out `coaxial`, `coaxial-dbg`
+    # and `coaxial-mcp` as commands.
     $installed = Invoke-Python -Python $Python -Code @'
 try:
     from importlib.metadata import version
@@ -700,7 +705,7 @@ except Exception:
     if (-not [string]::IsNullOrWhiteSpace($installed)) {
         Write-Item 'pip install -e host/' 'ok' ('coaxial63100 ' + $installed)
     } else {
-        Write-Item 'pip install -e host/' 'missing' 'coaxial, coaxial-dbg, coaxial-mcp as commands'
+        Write-Item 'pip install -e host/' 'missing' 'required: scripts, tests and views import it'
         if (Confirm-Step 'pip install -e host/ ?  (editable: the checkout stays the source)') {
             & $Python -m pip install --disable-pip-version-check -e $Host_
             if ($LASTEXITCODE -eq 0) {
@@ -714,8 +719,8 @@ except Exception:
         }
     }
 
-    # THE NOTEBOOKS NAME THEIR KERNEL - `coaxial_63100`, registered on this
-    # interpreter by make_notebooks.py - so an editor holding two CPythons of
+    # The notebooks name their kernel, `coaxial_63100`, registered on this
+    # interpreter by make_notebooks.py, so an editor holding two CPythons of
     # the same version opens them on the one the packages are in.
     $maker = Join-Path $Host_ 'tools\notebooks\make_notebooks.py'
     $kernel = (& $Python $maker --kernel status) -join ' '

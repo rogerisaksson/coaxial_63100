@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Silhouette check: the vector renderer against the CAD exporter's ASCII renders at known rotations.
+"""Silhouette check: the vector renderer against the exporter's ASCII renders at known rotations.
 
 Every fixture in tests/renders/ is named ascii-x{X}y{Y}z{Z}.txt after
 the rotation its exporter applied. The same rotation renders here with
@@ -11,34 +11,24 @@ exporter draws the real assembly's thickness and connectors.
 
     python tools/render/facecheck.py
 """
-import functools
 import math
 import os
 import re
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from coaxial.draw.orientation import _qmul
+from coaxial.graphics import wireframe
+from tools import HOST
+from tools.render import oracle
 
-from coaxial.draw.orientation import _qmul  # noqa: E402
-from coaxial.graphics import solids, wireframe  # noqa: E402
-
-HOST = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RENDERS = os.path.join(HOST, 'tests', 'renders')
-
-
-@functools.cache
-def _cube():
-    """The exporter's cube, decimated in memory once - nothing written
-    beside the STL."""
-    return solids._decimated(
-        os.path.join(HOST, '..', 'render', 'models', 'cube.stl'), 400)
 
 
 def solid_for(name):
     """The mesh a fixture renders with: the exporter's cube for cube-*, the
     board (None, render's default) otherwise.
     """
-    return _cube() if name.startswith('cube-') else None
+    return oracle.cube()[0] if name.startswith('cube-') else None
 
 
 def euler(x, y, z, order):
@@ -77,7 +67,7 @@ def shades(text):
 
 def agreement(mine, theirs, n=48):
     """How often the two renders agree about '.'-vs-':' where both draw
-    ink - the LIGHT, measured, not the silhouette."""
+    ink - the light, measured, not the silhouette."""
     def gridded(field):
         if not field:
             return {}
@@ -142,8 +132,7 @@ def main():
         scores, light = [], 0.0
         for order in ('xyz', 'zyx'):
             art = wireframe.render(euler(x, y, z, order), 100, 50,
-                                   colour=False, 
-                                   horizon=False, tip=0.0,
+                                   colour=False, horizon=False, tip=0.0,
                                    solid=solid_for(name))
             scores.append(iou(resample(occupancy(art)), theirs))
             if order == 'xyz':

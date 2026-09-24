@@ -10,9 +10,6 @@ import time
 import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-HOST = os.path.dirname(HERE)
-if HOST not in sys.path:
-    sys.path.insert(0, HOST)
 
 #: What a view exits with when ESC sent it back: not 0 (that is all), not
 #: 130 (Ctrl+C).
@@ -197,7 +194,9 @@ def run_page(page, name, args):
         return page.run(args, name)
     except KeyboardInterrupt:
         return 0
-    except Exception:                                     # noqa: BLE001
+    except Exception:
+        # The loader's edge: a page that fails, whatever it raised, prints
+        # its traceback and the front page comes back.
         traceback.print_exc()
         print('\n  %s failed - its last lines above say why' % name)
         try:

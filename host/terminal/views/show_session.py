@@ -4,40 +4,34 @@ Six blocks in three columns - the analog channels, the thermal budget and
 the half-bridges over DIO, the IMU and the angle sensor - under one line
 saying what the system is doing. Nothing to page through: every standalone
 view in `terminal/` opens its own rig and owns the port, so switching the gate
-drivers and watching the heat meant two processes and one serial port, which
-is why `show_thermal_observer.py` had to grow a `--switch` of its own.
+drivers in one view and watching the heat in another would take two processes
+on one serial port (`show_thermal_observer.py --switch` does both).
 
-ONE SNAPSHOT PER FRAME. Every block reads from the same round of calls, or
-two columns disagree about whether the stage is switching - which is the one
-thing a dashboard must not do.
+One snapshot per frame: every block reads from the same round of calls, or
+two columns disagree about whether the stage is switching.
 
-WHAT THIS BOARD CANNOT DO, and the session says so rather than hiding it:
-AFE_ON is inverted, so the gate drivers have supply only while the analog
-front end does not - and AFE_ON is what powers the IMU, the angle sensor, the
-ADC reference and every channel behind it. So there is no watching the IMU
-react to switching. It is unpowered for the duration. The thermal observer is
-the one thing that keeps answering, because it runs on power and time between
-samples, and that is what it was built for.
+The session shows what this board cannot do. AFE_ON is inverted: the gate
+drivers have supply only while the analog front end does not, and AFE_ON
+powers the IMU, the angle sensor, the ADC reference and every channel behind
+it. The IMU is unpowered while the stage switches. The thermal observer keeps
+answering: it runs on power and time between samples.
 
     python terminal/views/show_session.py
     python terminal/views/show_session.py --simulated
 """
 import argparse
-import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial import Coaxial63100  # noqa: E402
-from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui import screen as _screen  # noqa: E402
-from terminal.ui.screen import run_view, say, steady  # noqa: E402
-from terminal.ui.stage import stage  # noqa: E402
-from terminal.views.session.blocks import frame  # noqa: E402
-from terminal.views.session.run import (Plan, act_on, leave, start_activities,  # noqa: E402
+from coaxial import Coaxial63100
+from terminal.loader import TO_MENU
+from terminal.ui import screen as _screen
+from terminal.ui.screen import run_view, say, steady
+from terminal.ui.stage import boot, stage
+from terminal.views.session.blocks import frame
+from terminal.views.session.run import (Plan, act_on, leave, start_activities,
                                         teardown)
-from terminal.views.session.state import (ACTIVITIES, DEFAULT_DUTY, Session,  # noqa: E402
+from terminal.views.session.state import (ACTIVITIES, DEFAULT_DUTY, Session,
                                           _start_imu)
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -45,11 +39,11 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 
 #: How often a switching run stands down to let the thermal observer measure.
 #:
-#: THE BOARD CANNOT DO THIS ITSELF. AFE_ON high removes the gate drivers'
+#: The board cannot do this itself: AFE_ON high removes the gate drivers'
 #: supply, so `Board_PowerPoll` refuses the rail while MOE is set - a sample
-#: mid-switch would drop the drivers with six inputs moving. The only way to
-#: take one is to stop switching for it, and stopping is a policy, which
-#: belongs to whoever asked for the run and not to the board (invariant 10).
+#: mid-switch would drop the drivers with six inputs moving. A sample needs
+#: the switching stopped, and stopping is a policy of whoever asked for the
+#: run, not of the board (invariant 10).
 #:
 #: 30 s and not 10: each sample costs an arm/disarm pair and the reference's
 #: 500 ms settle, so 10 s spends 7 % of the run not switching against 2 %,
@@ -58,22 +52,6 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 #: The drivers node at 5.3 s cannot be tracked by sampling at any of these
 #: rates; its anchor is the AFE die, which needs the same rail.
 SAMPLE_EVERY_S = 30.0
-
-#: Where a running session publishes its last snapshot, so a second
-#: terminal can look without a second serial port. One file, replaced
-#: atomically: a socket would need a port, a protocol and a cleanup path,
-#: and none of that is needed to LOOK at a dashboard.
-# The published-snapshot watcher lived here until the broker made it redundant:
-# a second session now attaches through the broker and sees the board live,
-# instead of reading a file of what another process last saw.
-#: Older than this and the shared snapshot is not a reading of anything.
-#: Two frames at the session's default rate, plus the slack a burst costs.
-STALE_S = 3.0
-
-#: Every node. Six-of-ten sorted by load was tried and dropped a leg the
-#: moment two others warmed - driver W vanished from the very dashboard
-#: that exists to show one leg heating alone.
-THERMAL_ROWS = 10
 
 
 def main():
@@ -101,9 +79,8 @@ def main():
     if a.leave:
         return leave(a.port, a.simulated)
 
-    # power_afe stays False here - the session raises the rail ITSELF,
-    # conditionally, a few lines down.
-    from terminal.ui.stage import boot
+    # power_afe=False: the session raises the rail itself, conditionally,
+    # below.
     with (boot('LINKING SESSION') as ready,
           Coaxial63100(port=a.port, simulated=a.simulated,
                        power_afe=False) as rig):
@@ -116,8 +93,8 @@ def main():
             session_afe_found = rail['on']
         if (rail is not None and not rail['on']
                 and gates is not None and not gates['pwm_enabled']):
-            # The resting state is the rail UP - values on the dash from the
-            # first frame - and A toggles it.
+            # The resting state is the rail up (values on the dash from the
+            # first frame); A toggles it.
             steady(rig.board.afe.on)
             say('ok', 'AFE_ON', 'up for the session - A toggles it, and '
                                 'it goes back on the way out')
@@ -129,7 +106,6 @@ def main():
         # produces once a report is asked for, so the session asks (and puts it
         # back on the way out).
         imu_started = rail is not None and _start_imu(rig)
-
 
         dashboard = stage()
         console = dashboard.is_terminal

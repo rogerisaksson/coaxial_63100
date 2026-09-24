@@ -61,8 +61,10 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - **Short and slick.** Comments, docstrings, docs: the fact, the number,
   the date; one definition per thing; no narrative (git holds it). Prose
   at a minimum, technical and terse: no markers (capitals, labels, asides,
-  remarks on progress) and no filler. No worker agents. A change is a cut,
-  not a rewrite.
+  remarks on progress) and no filler. A change is a cut, not a rewrite.
+- **Local first.** Scripts, lint, suites on this machine before agents or
+  workflows, ultracode or not; agents only for what cannot run here. Two
+  swarms (2026-09-24) burned tokens and ran slower than local work.
 - **Narrowest test first** while a bug is live. **Green before the next
   item**, pre-existing failures included.
 - **Suspect your own code before the hardware**: reference implementation,

@@ -2,17 +2,14 @@
 """The portable Modbus core, on this machine, with no board and no cable."""
 import ctypes
 import os
-import subprocess
 import sys
+
+from tools.cores.build import build, find_cc
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = os.path.dirname(HERE)
 REPO = os.path.dirname(HOST)
 CORE = os.path.join(REPO, 'modbus')
-OUT = os.path.join(REPO, 'build', 'hosttest')
-
-# The oracle's Python mirror lives in coaxial.comm.protocol.
-sys.path.insert(0, HOST)
 
 SOURCES = [os.path.join(CORE, 'test', 'harness.c'),
            os.path.join(CORE, 'src', 'modbus_crc.c'),
@@ -27,9 +24,6 @@ SOURCES = [os.path.join(CORE, 'test', 'harness.c'),
 INCLUDES = [os.path.join(CORE, 'inc'), os.path.join(REPO, 'comms', 'inc'),
             os.path.join(REPO, 'board', 'inc')]
 
-# The same warnings the firmware build puts on these three files.
-FLAGS = ['-std=c11', '-O1', '-Wall', '-Wextra', '-Wconversion', '-Wshadow']
-
 EX = {0: 'NONE', 1: 'ILLEGAL FUNCTION', 2: 'ILLEGAL DATA ADDRESS',
       3: 'ILLEGAL DATA VALUE', 4: 'SERVER DEVICE FAILURE'}
 
@@ -38,38 +32,6 @@ def named(code):
     """The exception's name for a code, the code itself for one without
     a name, and nothing for no exception at all."""
     return '' if code is None else EX.get(code, str(code))
-
-
-def find_cc():
-    """A host C compiler, or None. PATH first, then where winget puts one."""
-    from shutil import which
-    found = which('gcc') or which('clang') or which('cc')
-    if found:
-        return found
-    packages = os.path.join(os.environ.get('LOCALAPPDATA', ''),
-                            'Microsoft', 'WinGet', 'Packages')
-    if not os.path.isdir(packages):
-        return None
-    for root, _dirs, files in os.walk(packages):
-        if 'gcc.exe' in files and root.endswith(os.path.join('mingw64', 'bin')):
-            return os.path.join(root, 'gcc.exe')
-    return None
-
-
-def build(cc, sources=None, includes=None, name='mbcore'):
-    """(path, warnings) for a shared library, built fresh every run."""
-    os.makedirs(OUT, exist_ok=True)
-    lib = os.path.join(OUT, name + ('.dll' if os.name == 'nt' else '.so'))
-    flags = [] if os.name == 'nt' else ['-fPIC']    # a .so on Linux; mingw warns on it
-    for path in (includes or INCLUDES):
-        flags += ['-I', path]
-    done = subprocess.run([cc, '-shared', '-o', lib] + FLAGS +
-                          (sources or SOURCES) + flags,
-                          capture_output=True, text=True, encoding='utf-8',
-                          errors='replace')
-    if done.returncode != 0:
-        raise RuntimeError(done.stderr.strip()[-2000:])
-    return lib, [l for l in (done.stderr or '').splitlines() if 'warning:' in l]
 
 
 class Report:
@@ -223,8 +185,8 @@ def test_quantities(report, lib):
 
 def test_span(report, lib):
     """A span straddling 0xFFFF must not wrap past the range check."""
-    # With the model saying yes to every address, span_overflows is the only
-    # thing left that can refuse this - which is the point.
+    # With the model saying yes to every address, span_overflows alone can
+    # refuse this.
     wide = Core(lib)
     wide.accept_all()
     _fc, code = wide.exception(b'\x03\xFF\xFF\x00\x02')
@@ -570,7 +532,7 @@ def test_rtu_early_dispatch(report, lib):
     report.check('and the transport is idle again, mid-silence',
                  not h.busy(), h.busy())
 
-    # The same frame with its CRC broken: the early path must NOT consume it -
+    # The same frame with its CRC broken: the early path must not consume it;
     # the t3.5 judge sees the same bytes and counts the error.
     bad = frame[:-2] + bytes([frame[-2] ^ 0xFF, frame[-1]])
     last = h.feed(bad)
@@ -598,7 +560,7 @@ def test_rtu_early_dispatch(report, lib):
                  h.service(last) == b'' and h.busy(), h.busy())
     h.service((last + h.t35() + 1) & 0xFFFFFFFF)
 
-    # With no oracle installed the old world is byte-for-byte back.
+    # With no oracle installed every frame waits t3.5.
     h.hint(False)
     frame = h.adu(1, [0x03, 0x00, 0x00, 0x00, 0x01])
     last = h.feed(frame)
@@ -650,10 +612,10 @@ def test_oracle_prefixes(report, lib):
             if c != m:
                 bad.append('%s@%d: C %d mirror %d'
                            % (pdu.hex(), have, c, m))
-            # A shape may name its full length before the tail arrives - the
-            # early path only fires once the bytes are all IN HAND - so the one
-            # forbidden answer is a length at or under `have` that is not the
-            # true end, and at the end, anything but the truth.
+            # A shape may name its full length before the tail arrives (the
+            # early path fires only once the bytes are all in hand), so the
+            # forbidden answers are a length at or under `have` that is not
+            # the true end, and at the end, anything but the truth.
             if c != 0:
                 if c < have or (have == full and c != expect_full
                                 and expect_full != 0):
@@ -726,7 +688,7 @@ def main():
 
     print('-- %s --' % cc)
     try:
-        lib_path, warnings = build(cc)
+        lib_path, warnings = build(cc, SOURCES, INCLUDES, 'mbcore')
     except RuntimeError as exc:
         print('  FAIL  %-58s %s' % ('the portable core builds on this host',
                                     str(exc).splitlines()[-1][:80]))

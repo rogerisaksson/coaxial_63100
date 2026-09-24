@@ -4,16 +4,16 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from coaxial.errors import NoReplyError, RigError            # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.comm.session import open_session
+from coaxial.errors import NoReplyError, RigError
 
 BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         '.bench.json')
 
-#: How much slower than the baseline is a regression. Wide enough that a busy
-#: PC does not fail the board, narrow enough to catch a poll that started
-#: blocking - the free-read defect above cost far more than this.
+#: The share of the baseline below which a figure has regressed: wide enough
+#: that a busy PC passes, narrow enough to catch a poll that started blocking
+#: (the free-read defect cost far more).
 SLACK = 0.70
 
 #: Seconds per measurement. Long enough that the 5 s thermal observer sample lands
@@ -43,7 +43,7 @@ def per_second(rig, read, seconds=WINDOW):
 
 
 def measure(rig):
-    """Each figure in its own quiet window, and the ORDER is part of it."""
+    """Each figure in its own quiet window; the order is part of it."""
     got = {
         'angle_updates_per_s': per_second(
             rig, lambda: rig.board.angle.state()['updates']),
@@ -80,7 +80,6 @@ def report(now, was):
 def main():
     record = '--record' in sys.argv
 
-    from coaxial.comm.session import open_session   # noqa: E402
     _session, origin = open_session()
     if not origin.real:
         print('no board answered - a benchmark against the stand-in measures '
@@ -88,8 +87,7 @@ def main():
         print('0 passed, 0 failed')
         return 0
 
-    from coaxial import Coaxial63100                # noqa: E402
-    # AFE_ON HELD, and that is what the baseline was recorded under.
+    # AFE_ON held, as the baseline was recorded.
     with Coaxial63100(port=origin.port, power_afe=True) as rig:
         print('  %s\n' % rig.origin.label)
         now = measure(rig)

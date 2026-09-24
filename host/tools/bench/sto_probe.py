@@ -20,14 +20,11 @@ operator sees both; the `ok` columns are the board's flags, not this
 tool's opinion.
 """
 import argparse
-import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.errors import RigError
 
 #: The gate state's fields that speak of the chain, by the name the board
 #: answers with and the name printed. A stand-in or an older firmware

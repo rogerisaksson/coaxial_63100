@@ -67,7 +67,7 @@ int thermal_sink_edge(thermal_node_t node);
 typedef struct
 {
   float capacity;        /**< J/K - what sets how fast it responds. 0 = off */
-  /** K/W to the air AT `board_cal_rise_k`, or zero for a node whose only
+  /** K/W to the air at `board_cal_rise_k`, or zero for a node whose only
       paths are edges. */
   float to_ambient;
   /** The node's share of the board's face, 0..1, for the patches: what
@@ -89,7 +89,7 @@ typedef struct
   /** K/W across each edge of THERMAL_EDGE_ENDS. Zero opens it. */
   float r_edge[THERMAL_EDGES];
 
-  /** K/W off the whole board, AT `board_cal_rise_k`. */
+  /** K/W off the whole board, at `board_cal_rise_k`. */
   float board_to_ambient;
   float board_cal_rise_k;   /**< the rise it was measured at, K */
   /** How much of the loss at that rise is radiation, 0 to 1. */
@@ -102,8 +102,6 @@ typedef struct
   /** How slowly the modelled thermistor follows, seconds - the laminate
       around it, which has no node of its own. */
   float ntc_tau_s;
-  /** The NTC's disagreement with the camera in the passive state, K. */
-  float ntc_offset;
 
   /** Radiation between the board's face and the stator's back, W/K at 300 K
       for the whole face - `eps sigma A F 4 T^3` - scaled by each patch's
@@ -117,7 +115,7 @@ typedef struct
   thermal_cfg_t cfg;
   float t[THERMAL_NODES];   /**< degrees C per node */
   float ambient;            /**< estimated, not measured */
-  /** The modelled thermistor reading, LAGGED - the element's own
+  /** The modelled thermistor reading, lagged - the element's own
       temperature, integrated toward the weighted average of the two patches
       it sits between and never past either of them. */
   float ntc;
@@ -186,7 +184,7 @@ typedef struct
 void thermal_losses(thermal_loss_t *loss);
 
 /** The energy C_oss stores at `volts` under the `loss`'s law, joules, for
-    ONE FET: the integral of `v C(v) dv`, closed form. */
+    one FET: the integral of `v C(v) dv`, closed form. */
 float thermal_coss_energy(const thermal_loss_t *loss, float volts);
 
 /** Dissipation per node from what the board is doing. */
@@ -204,7 +202,7 @@ typedef struct
   /** Nodes the current clamp cannot cool - the housekeeping - judged but not
       throttled on. */
   bool undriven[THERMAL_NODES];
-  /** THE CEILING A TRIP IS JUDGED ON: the record's, untrimmed. */
+  /** The ceiling a trip is judged on: the record's, untrimmed. */
   float trip_c[THERMAL_NODES];
 } thermal_soa_t;
 
@@ -216,7 +214,7 @@ typedef struct
   uint8_t worst_node;
   int32_t millis_to_limit;       /**< for `worst_node`; -1 = not heading there */
   bool    throttling;
-  bool    tripped;               /**< ANY node at the record's ceiling (`trip_c`): stop */
+  bool    tripped;               /**< any node at the record's ceiling (`trip_c`): stop */
   /** What a current clamp should be multiplied by, 1.0 down to 0.0: one at
       the throttle point and zero at the ceiling, linear between, on the
       worse of where a node is and how long it has. */

@@ -7,18 +7,18 @@ objective (silhouette weighted in at a quarter, so brightness never
 buys itself by erasing shape). The cube fixtures anchor the ramp:
 their flat faces turn any response bug into a wrong character.
 Prints each accepted step and the final constants to bake into
-wireframe.py.
+shading.py.
 
     python tools/render/lightfit.py            # ~a minute of fitting
 """
+import argparse
 import os
 import re
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from coaxial.graphics import shading, wireframe
+from tools.render import facecheck
 
-from coaxial.graphics import shading, wireframe  # noqa: E402
-from tools.render import facecheck  # noqa: E402
 
 def fixtures():
     got = []
@@ -38,15 +38,15 @@ def fixtures():
 
 
 def objective(refs):
-    """Mean light + a quarter silhouette, MINUS a hard penalty when any cube
+    """Mean light + a quarter silhouette, minus a hard penalty when any cube
     fixture's light drops under 0.85.
     """
     shading._SHADOWS.clear()
     sil = lgt = 0.0
     worst_cube = 1.0
     for q, ref_sil, ref_shade, solid in refs:
-        art = wireframe.render(q, 100, 50, colour=False, 
-                               horizon=False, tip=0.0, solid=solid)
+        art = wireframe.render(q, 100, 50, colour=False, horizon=False,
+                               tip=0.0, solid=solid)
         sil += facecheck.iou(facecheck.resample(facecheck.occupancy(art)),
                              ref_sil)
         got = facecheck.agreement(facecheck.shades(art), ref_shade)
@@ -72,13 +72,19 @@ KNOBS = (
 
 
 def put(state):
+    """Each constant into shading, which defines it and whose glow reads
+    SLOPE, and into wireframe, whose import binds its own copy for the
+    raster and the ramp."""
     for name, _step, _lo, _hi in KNOBS:
-        setattr(wireframe, name, state[name])
+        for mod in (shading, wireframe):
+            setattr(mod, name, state[name])
 
 
-def main():
+def main(argv=None):
+    argparse.ArgumentParser(
+        description=(__doc__ or '').splitlines()[0]).parse_args(argv)
     refs = fixtures()
-    state = {name: getattr(wireframe, name)
+    state = {name: getattr(shading, name)
              for name, _step, _lo, _hi in KNOBS}
 
     put(state)

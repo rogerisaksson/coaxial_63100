@@ -9,21 +9,19 @@ from coaxial.graphics.creases import OUTLINE_LEVEL, OUTLINE_RISE, OUTLINES_KEPT,
 from coaxial.graphics.solids import _slab_bottom, _slab_top
 
 
-#: THE PARTS AS BLOCKS AND DRUMS - the pre-scan. A part's crease loops
+#: The parts as blocks and drums, the pre-scan. A part's crease loops
 #: are wherever its tessellation folds past OUTLINE_DEG: a box's lid and
 #: corners, but on a rounded part - the CM choke, the fuse - the
-#: rounding's own facets, which make an edge OF THE CORNER and come
+#: rounding's own facets, which make an edge of the corner and come
 #: and go as the view turns; and a rounded extrusion folds only at its
 #: two end profiles, two arches and nothing along it. So each part is
-#: fitted ONCE, off the exact mesh, to the simple geometry it is - a
-#: BLOCK (its footprint's least oriented box, lid and four legs), a DRUM
+#: fitted once, off the exact mesh, to the simple geometry it is - a
+#: block (its footprint's least oriented box, lid and four legs), a drum
 #: (a lone lid on one radius: the circle, and per frame the two
-#: silhouette lines), or the sharp ARCH of an unpaired profile - and the
-#: overlay draws that, edges and corners fixed, over the render (the
-#: bench, 2026-09-23: "simplify the object to simple geometries, like
-#: a block, and enhance its edges and corners"). Loops of one side
-#: whose footprints overlap are one part; two arches of one width and
-#: height, facing across, are one block.
+#: silhouette lines), or the sharp arch of an unpaired profile - and the
+#: overlay draws that, edges and corners fixed, over the render (bench,
+#: 2026-09-23). Loops of one side whose footprints overlap are one part;
+#: two arches of one width and height, facing across, are one block.
 STEREO_CIRCLE = 0.03   # a lid's radii vary under this share: a drum
 STEREO_EVEN = 2.5      # ...with its corners' angular gaps within this
 # ratio: a chamfered square's corners share a radius too, but crowd in pairs at
@@ -242,7 +240,7 @@ def _part_primitives(over, rings, top, bottom):
                  [pts[0] + pts[-1]])]
     angle = _box_angle([(p[0], p[1]) for p in widest])
     base = _box_along([(p[0], p[1]) for p in pts], angle)
-    # A BLOCK, lid over base.
+    # A block, lid over base.
     return [('block', _box_extent(base), _block(base, base, ztop, zbase))] + prims
 
 
@@ -407,17 +405,16 @@ def _box_fit(pts):
     """(corners, dev): the least-area box round `pts` over angles in
     2-degree steps, and the points' mean distance to its boundary over
     its shorter side - zero when every point sits on a side."""
-    best = None
-    for deg in range(0, 90, 2):
+    def at(deg):
         a = math.radians(deg)
         ca, sa = math.cos(a), math.sin(a)
         us = [p[0] * ca + p[1] * sa for p in pts]
         vs = [-p[0] * sa + p[1] * ca for p in pts]
         u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
-        area = (u1 - u0) * (v1 - v0)
-        if best is None or area < best[0]:
-            best = (area, a, u0, u1, v0, v1, us, vs)
-    _area, a, u0, u1, v0, v1, us, vs = best
+        return (u1 - u0) * (v1 - v0), a, u0, u1, v0, v1, us, vs
+
+    _area, a, u0, u1, v0, v1, us, vs = min((at(d) for d in range(0, 90, 2)),
+                                           key=lambda fit: fit[0])
     short = max(1e-9, min(u1 - u0, v1 - v0))
     dev = sum(min(u - u0, u1 - u, v - v0, v1 - v)
               for u, v in zip(us, vs)) / len(us) / short

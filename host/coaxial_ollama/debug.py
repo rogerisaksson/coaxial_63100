@@ -1,31 +1,22 @@
 """A lean prompt loop for debug jobs: fewest tokens in, fewest tokens out."""
-import os
 import sys
 import threading
 from contextlib import suppress
 from importlib import import_module
-
-from .client import OllamaError
-
-# host/ on the path: this file's own directory's parent, so it does not matter
-# what the working directory is or what any directory along the way is called.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from typing import Any
 
-from . import intent
-from . import language                               # noqa: E402
-from .iolog import IOLog                             # noqa: E402
-from coaxial_mcp import detail                       # noqa: E402
+from .client import OllamaError
+from .iolog import IOLog
+from coaxial_mcp import detail
 from coaxial_ollama.budget import ChatBudget
 from coaxial_ollama.commands import ChatCommands
-from coaxial_ollama.turn import _printable, ChatTurn
+from coaxial_ollama.turn import ChatTurn, _printable
 
 
 class Chat(ChatBudget, ChatTurn, ChatCommands):
     """One conversation, trimmed on the way out to the model."""
 
-    #: WHAT A CHAT HOLDS, declared. A suite builds one bare with __new__
+    #: What a chat holds, declared. A suite builds one bare with __new__
     #: and sets what the method under test reads; the rest are these,
     #: and a method reads an attribute rather than asking getattr whether
     #: it exists. `client` and `out` are Any: a scripted model and a
@@ -62,14 +53,13 @@ class Chat(ChatBudget, ChatTurn, ChatCommands):
         self.print_lock = threading.RLock()
         self.history = []
         self.turn_cost = []
-        # What the prompt's spinner shows: read fresh on every prompt, so
-        # /reconnect changes it on the very next line rather than needing a
-        # restart to notice the cable was plugged back in.
+        # What the prompt's spinner shows, read per prompt: /reconnect
+        # changes it on the next line.
         self.link_ok = link_ok
-        # Names from the most recent successful analog_read, kept across turns
-        # (unlike the turn-local copy in `ask`) so a later turn that answers
-        # with no tool call at all can still be checked against it.
-        self.last_channels = None
+        # Names from the last successful analog_read, kept across turns,
+        # unlike the turn-local copy in `ask`: a later turn with no tool call
+        # is checked against it.
+        self.last_channels: set | None = None     # what the last turn read
         # Where the tools are pointed when the session opens, so the first
         # answer does not announce a node nothing moved to.
         self._said_node = (toolbox.session.bus, toolbox.session.unit)
@@ -78,8 +68,7 @@ class Chat(ChatBudget, ChatTurn, ChatCommands):
         # Every question typed this session, in order - independent of
         # self.history, which the REPL clears after each answered turn.
         self.prompt_history = ()
-        # Off by default: dozens of tests build a Chat and none should touch
-        # the filesystem.
+        # Off by default: suites build a Chat and write no file.
         self.io_log: Any = IOLog(enabled=False)
         # Compile the question into an intent before answering it.
         self.compile_intent = False

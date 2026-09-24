@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Nodes, segments, unit ids, broadcast."""
-import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from coaxial.errors import DeviceStateError
 
-from coaxial.errors import DeviceStateError  # noqa: E402
-from tests.ollama_support import Scope, toolmod  # noqa: E402
+from ollama_support import Scope, run_file, toolmod
 
 def test_bus(report):
     """Five segments, one per limb plus the axis."""
@@ -130,5 +128,4 @@ ROSTER = (
 
 
 if __name__ == '__main__':
-    from tests.ollama_support import run_file
     sys.exit(run_file(ROSTER))

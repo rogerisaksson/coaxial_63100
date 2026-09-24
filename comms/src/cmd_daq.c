@@ -158,7 +158,7 @@ static cmd_status_t h_daq_state(wr_t *out)
   wr_u32(out, st.dropped);
   wr_u16(out, st.config.channels);
   wr_u8(out, st.config.clock);
-  /* What the CONVERTER has, not what the task asked for. */
+  /* What the converter has, not what the task asked for. */
   wr_u8(out, Board_AdcSampleTime());
   wr_u16(out, st.config.decimate);
   wr_u16(out, st.config.accumulate);
@@ -177,7 +177,7 @@ static cmd_status_t h_daq_state(wr_t *out)
   wr_u8(out, st.rungs);
   wr_u32(out, st.rung_changes);
   wr_u32(out, st.triggers);
-  /* Appended, MINOR 7: what the task carries and what this build CAN carry -
+  /* Appended, MINOR 7: what the task carries and what this build can carry -
      the mask the catalogue's `selectable` answers from. */
   wr_u16(out, st.config.sensors);
   wr_u16(out, (uint16_t)((1U << BOARD_DAQ_MAX_SENSORS) - 1U));
@@ -266,7 +266,7 @@ static cmd_status_t h_daq_read(rd_t *in, wr_t *out)
   wr_u8(out, (uint8_t)got);
   wr_bytes(out, batch, (uint16_t)(got * st.stride));
 
-  /* THE BACKLOG, THE WAY A DAQ CARD ANSWERS ONE: what is still in the ring
+  /* The backlog, the way a DAQ card answers one: what is still in the ring
      after this read, in the same transaction that took the records. */
   wr_u32(out, Board_DaqAvailable());
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
@@ -368,7 +368,7 @@ static cmd_status_t h_daq_live(wr_t *out)
   wr_u32(out, live.first);
   wr_u32(out, live.last);
 
-  /* One sum AND one count per channel. */
+  /* One sum and one count per channel. */
   for (uint8_t f = 0U; f < st.fields; f++)
   {
     wr_i32(out, live.slot[f].sum);

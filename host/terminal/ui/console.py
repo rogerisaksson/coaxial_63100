@@ -1,6 +1,5 @@
 """The console's input: keys and the mouse, read raw off the Windows console or a tty."""
 import ctypes
-import importlib
 import re
 import select
 import sys
@@ -30,9 +29,8 @@ def _ignore(*_):
 
 #: The key that lends the mouse to the view and gives it back. The mouse is
 #: the terminal's by default: a view reporting it (SGR, QUICK_EDIT cleared)
-#: cannot be selected from, and taking it on entry was reported three times
-#: from the bench. Here, not per view, so every page takes the same key - F,
-#: since C is the attitude view's frame and a menu entry.
+#: cannot be selected from. Here, not per view, so every page takes the same
+#: key - F, since C is the attitude view's frame and a menu entry.
 SELECT_KEYS = frozenset({'f', 'F'})
 
 
@@ -181,16 +179,17 @@ class Keys:
         if not self.console:
             return self
 
-        try:
-            termios = importlib.import_module('termios')      # POSIX only
-            tty = importlib.import_module('tty')
+        if sys.platform != 'win32':
+            import termios
+            import tty
             self._posix = termios
-            self._saved = termios.tcgetattr(sys.stdin)
-            tty.setcbreak(sys.stdin.fileno())
-        except Exception:       # noqa: BLE001 - Windows, or no tty; and
-            # termios has its own error class, absent where it is absent
-            self._saved = None
-        # THE TERMINAL KEEPS THE MOUSE until a view is asked to take it.
+            try:
+                self._saved = termios.tcgetattr(sys.stdin)
+                tty.setcbreak(sys.stdin.fileno())
+            except (termios.error, OSError, ValueError, TypeError):
+                # stdin not a tty, without a descriptor, or None
+                self._saved = None
+        # The terminal keeps the mouse until a view is asked to take it.
         if self.mouse:
             Keys.holder = self
         return self
@@ -231,7 +230,7 @@ class Keys:
             self._buffer = (self._buffer[:found.start()]
                             + self._buffer[found.end():])
 
-        # A trailing partial sequence waits ONE poll for its other half; the
+        # A trailing partial sequence waits one poll for its other half; the
         # same partial twice in a row is a real lone keypress (ESC) and goes
         # through 20 ms late instead of never.
         held = ''
@@ -250,7 +249,7 @@ class Keys:
             elif leave is None and key in MENU_KEYS:
                 leave = 'menu'
             elif self.mouse and key in SELECT_KEYS:
-                # SWALLOWED, not passed on: no view binds it, and one that did
+                # Swallowed, not passed on: no view binds it, and one that did
                 # would fight the terminal for the same gesture.
                 self.grab(not self._grabbed)
             else:
@@ -259,7 +258,7 @@ class Keys:
         return leave, zoom
 
     def holding(self):
-        """Whether the VIEW has the mouse at the moment."""
+        """Whether the view has the mouse at the moment."""
         return self.mouse and self._grabbed
 
     def grab(self, on):
@@ -338,9 +337,7 @@ class Keys:
 
     def _drain(self):
         """Every key waiting right now, and none of the ones that are not."""
-        try:
-            import msvcrt                                    # noqa: F401
-        except ImportError:
+        if sys.platform != 'win32':                         # no msvcrt
             return self._drain_posix()
         got = self._drain_records()
         if got is not None:

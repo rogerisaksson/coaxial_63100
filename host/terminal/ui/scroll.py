@@ -37,7 +37,7 @@ UP, DOWN = chr(0x25B4), chr(0x25BE)
 #: column moves at the hand's speed rather than flying.
 DRAG_ROWS = 6.0
 
-#: The instrument column's scroll PER CONSOLE, so every view that draws
+#: The instrument column's scroll per console, so every view that draws
 #: through `frame_of` has one without holding it - and gone with the
 #: console, which is what the weak keys are for.
 _SCROLLS = weakref.WeakKeyDictionary()
@@ -78,7 +78,7 @@ def paged(console, boxes):
         return boxes
 
     heights = [_height_of(box) for box in boxes]
-    # The last page is packed from the END, so scrolling to the bottom shows a
+    # The last page is packed from the end, so scrolling to the bottom shows a
     # full column rather than one box and a lot of air.
     last, used = len(boxes), 0
     while last > 0 and used + heights[last - 1] + 1 <= room:
@@ -106,9 +106,8 @@ def scroll_by(console, step):
     """One box up (negative) or down, within what the last frame said
     there was."""
     state = scroll_state(console)
-    # FROM WHERE IT IS, not from where the last frame drew: two arrows between
-    # frames used to land one box down, the second reading the first frame's
-    # position again.
+    # From where it is, not where the last frame drew: two arrows between
+    # frames move two boxes, not one.
     at, seen, total = state['at'], state['pages'][1], state['pages'][2]
     if step > 0 and seen < total:
         state['at'] = at + 1

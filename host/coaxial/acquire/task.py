@@ -1,6 +1,7 @@
 """The rig's task: channels by name, the configuration, the outputs, frames and columns."""
 import re
 import time
+from typing import Any
 
 from coaxial.acquire.record import Record
 from coaxial.devices import angle as angle_scaling
@@ -39,6 +40,11 @@ class Task:
 
     """What the task samples and writes, and what it yields as frames."""
 
+    # What the class this mixes into brings.
+    board: Any
+    read: Any
+    state: Any
+
     def channels(self):
         """What the board says it has. Not a list written down here."""
         return self.board.analog.names()
@@ -70,7 +76,7 @@ class Task:
                          if self._match(s.name) == want), None)
         if spelling is not None:
             return [r.value(spelling) for r in records]
-        # A pin, then.
+        # Not a channel: a pin.
         pin = self._pin_called(records[0], want)
         if pin is not None:
             return [(r.digital or {}).get(pin) for r in records]
@@ -102,7 +108,7 @@ class Task:
         frame = pandas.DataFrame(cols)
         stamped = cols['time'] and cols['time'][0] is not None
         if index == 'since' and stamped:
-            # SECONDS BEFORE NOW: newest at 0, older negative.
+            # Seconds before now: newest at 0, older negative.
             frame['since'] = [t - cols['time'][-1] for t in cols['time']]
             return frame.set_index('since')
         if index == 'elapsed' and stamped:
@@ -122,7 +128,7 @@ class Task:
         pick = {'centi-degC': ('ntc', 'celsius', 'C'),
                 'mA': ('phase', 'amps', 'A'),
                 'mV': ('dcbus', 'volts', 'V')}
-        # THE CHANNEL'S OWN ZERO AND GAIN, from the calibration record - what
+        # The channel's own zero and gain, from the calibration record: what
         # `tare()` wrote.
         trim = {c['index']: c for c in
                 self.board.calibration.read()['channels']}
@@ -190,7 +196,7 @@ class Task:
         """Records as columns: {name: values}, plus `time` and `dt`."""
         records = self._lifted(records)
         names = self.channel_names(records[0] if records else None)
-        # THE PINS ARE COLUMNS TOO.
+        # The pins are columns too.
         pins = list((records[0].digital or {}) if records else {})
         # And the sensor snapshots (MINOR 7), one column per word: 'shaft angle
         # value' beside the currents it was latched with.
@@ -226,7 +232,7 @@ class Task:
                  'direction': c.get('direction', 'in'),
                  'unit': c.get('unit'), 'selectable': True}
                 for c in chart['analog']]
-        # A GROUP, NOT A CHOICE.
+        # A group, not a choice.
         pins = (self.layout or {}).get('pins') or chart['digital']
         rows += [{'name': p['signal'], 'kind': 'digital',
                   'direction': p.get('direction', 'out'),
@@ -287,7 +293,7 @@ class Task:
 
     def configure(self, *channels, **kw):
         """Set up the acquisition. Replaces whatever was there."""
-        # NAMES AS ARGUMENTS, OR A LIST.
+        # Names as arguments, or a list.
         sample_rate = kw.pop('sample_rate', None)
         accumulate = kw.pop('accumulate', None)
         decimate = kw.pop('decimate', 1)
@@ -315,13 +321,13 @@ class Task:
         # stride changing under a half-drained buffer mixes record shapes).
         self.board.daq.stop()
 
-        # AND THE CHAIN CLEARED, for the same reason and the same failure.
+        # The chain cleared too, for the same reason and the same failure.
         if accumulate is None or chain is not None:
             self.board.daq.shape()
 
         burst = {}
         if records is not None:
-            burst['records'] = records          # a run that ENDS: the burst
+            burst['records'] = records          # a run that ends: the burst
         if interval_us is not None:
             burst['interval_us'] = interval_us  # vocabulary, passed through
         if sensors:
@@ -408,7 +414,7 @@ class Task:
                            'its only analog outputs are %s'
                            % (', '.join(unknown), ', '.join(legs)))
 
-        # ONE state read serves the arm check, the period and the held duties.
+        # One state read serves the arm check, the period and the held duties.
         state = self.board.gate_drivers.state()
         if not state['pwm_enabled']:
             raise RigError(

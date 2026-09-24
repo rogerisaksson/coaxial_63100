@@ -9,7 +9,6 @@ markdownlint for .md; pyright in basic mode for .py and a notebook's code cells.
 
 The tools live in %LOCALAPPDATA%/coaxial_63100/lint, fetched on first use: pyright from PyPI,
 markdownlint-cli2 through npm, run by node from PATH or the one Autodesk Fusion ships.
-One pyright at a time: a lock in that folder.
 """
 import argparse
 import glob
@@ -21,11 +20,10 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import time
 import urllib.request
 
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-HOST = os.path.join(REPO, 'host')
+from tools import HOST, REPO
+
 CACHE = os.path.join(os.environ.get('LOCALAPPDATA') or os.path.expanduser('~/.cache'),
                      'coaxial_63100', 'lint')
 KINDS = ('.py', '.md', '.ipynb')
@@ -33,7 +31,6 @@ NPM = 'https://registry.npmjs.org/npm/-/npm-10.9.2.tgz'
 MDLINT = os.path.join(CACHE, 'mdlint', 'node_modules', 'markdownlint-cli2',
                       'markdownlint-cli2-bin.mjs')
 PYRIGHT = os.path.join(CACHE, 'pyright')
-LOCK_S = 30.0
 
 
 def _node():
@@ -89,33 +86,6 @@ def _cells(path):
     return '\n'.join(text) + '\n', starts
 
 
-class _Lock:
-    """One pyright at a time across hooks and agents; a stale lock (2 min) is taken over."""
-
-    def __init__(self):
-        self.path = os.path.join(CACHE, 'pyright.lock')
-
-    def __enter__(self):
-        os.makedirs(CACHE, exist_ok=True)
-        until = time.monotonic() + LOCK_S
-        while True:
-            try:
-                os.close(os.open(self.path, os.O_CREAT | os.O_EXCL))
-                return self
-            except FileExistsError:
-                if time.time() - os.path.getmtime(self.path) > 120.0:
-                    os.remove(self.path)
-                elif time.monotonic() > until:
-                    raise TimeoutError('another pyright holds %s' % self.path)
-                time.sleep(0.5)
-
-    def __exit__(self, *exc):
-        try:
-            os.remove(self.path)
-        except FileNotFoundError:
-            pass
-
-
 def lint_py(paths):
     """pyright over .py files and notebooks' code cells, with the tree's import roots."""
     if not paths:
@@ -136,11 +106,9 @@ def lint_py(paths):
         json.dump({'extraPaths': [HOST, os.path.join(HOST, 'tools'), os.path.join(HOST, 'tests')],
                    'typeCheckingMode': 'basic'},
                   open(os.path.join(work, 'pyrightconfig.json'), 'w'))
-        with _Lock():
-            done = subprocess.run([sys.executable, '-m', 'pyright', '-p', work] + files,
-                                  cwd=work, env=dict(os.environ, PYTHONPATH=PYRIGHT),
-                                  capture_output=True, text=True, encoding='utf-8',
-                                  errors='replace')
+        done = subprocess.run([sys.executable, '-m', 'pyright', '-p', work] + files, cwd=work,
+                              env=dict(os.environ, PYTHONPATH=PYRIGHT), capture_output=True,
+                              text=True, encoding='utf-8', errors='replace')
         found = []
         lines = done.stdout.splitlines()
         for i, line in enumerate(lines):

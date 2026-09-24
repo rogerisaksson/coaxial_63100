@@ -2,7 +2,10 @@
 """Independent Modbus RTU master, used to conformance-test the firmware
 slave.
 """
-import struct, sys, time
+import struct
+import sys
+import time
+
 import serial
 
 PORT, BAUD, SLAVE = 'COM4', 115200, 1
@@ -38,7 +41,6 @@ class Bus:
                 'a session broker still holds %s - conformance needs the '
                 'port raw, so close the sessions using it first' % port)
 
-        # RETRIED.
         self.s = None
         for attempt in range(20):
             try:
@@ -190,7 +192,7 @@ def protocol_tests(run):
     run.expect_exception('FC01 quantity 2001 -> exc 03', pdu_read(0x01, 0, 2001), 0x01, 0x03)
     # A full-length FC10 for 124 registers needs 248 data bytes, i.e. a
     # 257-byte ADU, which cannot exist on an RTU line at all - the spec limit
-    # of 123 IS the framing limit.
+    # of 123 is the framing limit.
     run.expect_exception('FC10 quantity 0 -> exc 03',
                          struct.pack('>BHHB', 0x10, 0, 0, 0), 0x10, 0x03)
     run.expect_exception('FC0F quantity 0 -> exc 03',
@@ -283,7 +285,7 @@ def channels_tests(run):
         run.check('%s payload ends exactly where the rows do' % what,
                   at == len(body), '%d of %d bytes' % (at, len(body)))
 
-    # 5, not 4: kind 4 is the parts list now.
+    # 5, not 4: kind 4 is the parts list.
     refused = parse(b.request(bytes([0x6D, 5])))
     run.check('an unknown section is refused, not answered',
               refused is not None and (refused[1] & 0x80) != 0,
@@ -473,7 +475,7 @@ def map_tests(run):
 
     print('\n-- coil drives real hardware --')
     # AFE_ON powers the voltage reference, and that is the witness: with the
-    # rail off every raw code is EXACT mid-scale and bit-frozen across reads
+    # rail off every raw code is exact mid-scale and bit-frozen across reads
     # (the reference is unpowered - invariant 9's mechanism, a physical fact of
     # the rail the coil drives); on, the NTC channel reads a live code
     # thousands of counts away, wiggling.
@@ -534,8 +536,8 @@ def map_tests(run):
         # detail column so a reader sees them, with no threshold anywhere.
         run.check('FC04 dcbus + ntc', len(v) == 2,
                   '%d mV, %.2f C' % (v[0], s16(v[1]) / 100.0))
-        # No limits here on purpose: this tests the PROTOCOL, and whether 24 V
-        # is right belongs to a test executive with a meter.
+        # No limits: this tests the protocol; whether 24 V is right belongs
+        # to a test executive with a meter.
         scan = parse(b.request(bytes([0x43])))
         if scan is None or not scan[3]:
             run.check('FC43 scan for the scaling cross-check', False, 'no reply')
@@ -623,9 +625,9 @@ def map_tests(run):
                   'bus_comm_error=%d' % c[1])
 
         print('\n-- counters survive leaving and re-entering binary mode --')
-        # link_open() used to memset the whole mb_rtu_t on every 'm', counters
-        # included - so a console round trip ('0x0001=1' out, 'm' back in)
-        # silently zeroed this run's diagnostic history.
+        # link_open() once memset the whole mb_rtu_t on every 'm', counters
+        # included: a console round trip ('0x0001=1' out, 'm' back in) zeroed
+        # them.
         before = c[0]
         leave_modbus(bus)
         enter_modbus(bus)
@@ -642,7 +644,6 @@ def map_tests(run):
 
 def board_answers(port=PORT, baud=BAUD, unit=SLAVE):
     """Whether there is firmware on the other end to conform to."""
-    import os
     from tools.target import find_board
     return find_board.probe(port, baud, unit)
 

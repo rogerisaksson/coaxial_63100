@@ -1,8 +1,8 @@
-/** board_limits.h - The DRIVERS' fixed numbers, and why each is that number. */
+/** board_limits.h - The drivers' fixed numbers, and why each is that number. */
 #ifndef BOARD_LIMITS_H
 #define BOARD_LIMITS_H
 
-/* ---- THE GATE STAGE ---------------------------------------------------- */
+/* ---- Gate stage -------------------------------------------------------- */
 
 /* Dead time, at runtime. */
 
@@ -10,7 +10,7 @@
 
 #define BOARD_PWM_DTG_MAX 127U
 
-/* ---- THE IMU, ON SPI2 -------------------------------------------------- */
+/* ---- IMU, on SPI2 ------------------------------------------------------ */
 
 /* Figure 6-8 puts the ceiling at 3 MHz. */
 
@@ -52,7 +52,7 @@
 
 #define IMU_QUIET_MS 60U
 
-/* ---- THE ANGLE SENSOR, ON SPI4 ----------------------------------------- */
+/* ---- Angle sensor, on SPI4 --------------------------------------------- */
 
 /* Well under the datasheet's 10 MHz ceiling. */
 
@@ -63,11 +63,11 @@
 
 #define ANGLE_SETTLE_US 1U
 
-/* ---- ACQUISITION ------------------------------------------------------- */
+/* ---- Acquisition ------------------------------------------------------- */
 
-/** 16 KB of DTCM. At one channel that is 2048 records, at all nine 409. */
-
-/* THE ACQUISITION RING, in the AXI SRAM rather than DTCM. */
+/* The acquisition ring, in the AXI SRAM rather than DTCM. At one channel
+   that is 45 875 records, at all ten 9 972 (`DAQ_RECORD_BYTES`, no pins or
+   sensors). */
 #define DAQ_BYTES (448U * 1024U)
 
 /** Most samples the running accumulator may take before it stops widening. */
@@ -89,15 +89,15 @@
 #define BOARD_DAQ_FALL_AT  1U
 #define BOARD_DAQ_RUNG_EIGHTHS 8U   /* both above are eighths of the ring */
 
-/** And a ceiling on that in records, because THE LADDER ANSWERS LATENCY AND
-    THE RING ABSORBS BURSTS - two jobs for one buffer, and only the first
-    should move a rung. */
+/** A ceiling on that in records: the ladder answers latency and the ring
+    absorbs bursts, two jobs for one buffer, and only the first should move a
+    rung. */
 #define BOARD_DAQ_CLIMB_MAX 512U
 
 /** Records at the low mark before a task steps back down. */
 #define BOARD_DAQ_FALL_AFTER 64U
 
-/* ---- THE THERMAL OBSERVER ---------------------------------------------- */
+/* ---- Thermal observer -------------------------------------------------- */
 
 /** How often the model is stepped from the main loop. */
 
@@ -118,7 +118,7 @@
     of each. */
 #define THERMAL_IDENT_NOISE_K 0.1f
 
-/** THE MARGIN POLICY'S REFERENCE, degrees C: what a ceiling's span is
+/** The margin policy's reference, degrees C: what a ceiling's span is
     measured up from when the identification's doubt trims it (the record's
     floor, 0.8 by default, up to one as the evidence comes in -
     `thermal_ident_margin`). */
@@ -130,15 +130,15 @@
     precision the wire carries. */
 #define THERMAL_MARGIN_STEP 0.001f
 
-/** THE TRIP CAP: what the margin is held to after the envelope has dropped
+/** The trip cap, what the margin is held to after the envelope has dropped
     the stage, and how fast that hold lets go. */
 #define THERMAL_TRIP_MARGIN        0.70f
 #define THERMAL_TRIP_RECOVER_PER_S (0.30f / 1800.0f)
 
-/** How long the link may be silent before the HOST's holds are dropped. */
+/** How long the link may be silent before the host's holds are dropped. */
 #define BOARD_POWER_HOST_QUIET_MS 10000U
 
-/* ---- POWER ------------------------------------------------------------- */
+/* ---- Power ------------------------------------------------------------- */
 
 /** How long a borrowed hold lasts without renewal, milliseconds. */
 

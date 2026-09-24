@@ -1,13 +1,12 @@
 """Every live view runs two frames against the stand-in, as a subprocess."""
+import math
 import os
 import subprocess
-import math
 import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = os.path.dirname(HERE)
-sys.path.insert(0, HOST)
 
 #: Every view, with the flags its two-frame run needs. Read off terminal/views/
 #: rather than hardcoded where possible - a new show_*.py joins by existing.
@@ -75,8 +74,8 @@ def test_each_view_draws_two_frames(report):
 def test_the_loader_reads_the_pages(report):
     """The terminal is what lies under terminal/pages/: the loader lists the
     pages in ORDER with unique keys, the front page draws that very list,
-    every name a page or an item answers to is found, every page runs IN
-    THIS PROCESS for two frames on the stand-in and answers 0, and
+    every name a page or an item answers to is found, every page runs in
+    this process for two frames on the stand-in and answers 0, and
     `python -m terminal --frames 2` - the front page with the preload
     underneath - exits 0.
     """
@@ -152,7 +151,7 @@ def test_the_instruments_stand_clear_of_the_machine(report):
 
 
 def test_each_gutter_says_its_hottest_node(report):
-    """The caption's third row, in degrees, and WHICH node each one is."""
+    """The caption's third row, in degrees, and which node each one is."""
     from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import layout, legend, thermal
 
@@ -176,7 +175,7 @@ def test_each_gutter_says_its_hottest_node(report):
     report.check('the board caption takes the hottest of its four, which '
                  'is the tube standing tallest beside it',
                  peak == 71.2, 'said %s' % (peak,))
-    # REPORTING THE COPPER INSTEAD WAS TRIED AND WITHDRAWN.
+    # The caption names the tallest tube, not the copper.
     bars = thermal.soa_bars(said, layout.BOARD_NODES)
     tallest = max(zip(layout.BOARD_NODES, bars), key=lambda p: p[1][0])[0]
     report.check('and it names the tallest tube, not some other node',
@@ -220,7 +219,7 @@ def test_both_gutters_run_on_one_scale(report):
 
 
 def test_a_power_node_never_reads_below_the_copper(report):
-    """It sheds INTO the board, so it cannot be colder than the board."""
+    """It sheds into the board, so it cannot be colder than the board."""
     from coaxial import Coaxial63100
     from terminal.views.rotor import layout, legend
 
@@ -258,14 +257,14 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
                  legend.reference({'thermal': {'ntc': 38.04}})
                  == 'NTC 38.0 %sC' % legend.DEGREE,
                  legend.reference({'thermal': {'ntc': 38.04}}))
-    # AFE_ON LOW IS NOT A COLD BOARD.
+    # AFE_ON low is not a cold board.
     for empty in ({'thermal': {'ntc': None}}, {}):
         report.check('and no reading says so rather than drawing a number',
                      'unread' in legend.reference(empty),
                      legend.reference(empty))
 
     # `simulated` and `spin` are view keys the real page always carries; the
-    # caption reaches the winding estimate through the margin rows now, and
+    # caption reaches the winding estimate through the margin rows, and
     # that asks how fast the stand-in's clock is running.
     rows = legend.gutter_caption({
         'simulated': True, 'spin': 0.0,
@@ -275,13 +274,13 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
         'budget': {'used': {}, 'tripped': False},
         'state': {'id': 0.0, 'iq': 0.0, 'vd': 0.0, 'vq': 0.0},
         'params': {}, 'winding_at': None})
-    # THE FIRST CAPTION ROW, and it has a tube of its own now.
+    # The first caption row, with a tube of its own.
     said = rows[0]
     report.check('it opens the stack, above every estimate',
                  'NTC' in said and not any('NTC' in row
                                            for row in rows[1:]),
                  said.replace(chr(27), '^'))
-    # ITS OWN TUBE'S COLOUR, which is the thermometer ramp - blue at the cold
+    # Its own tube's colour, the thermometer ramp - blue at the cold
     # end and red at the hot - because the thermistor has no ceiling to be a
     # margin against.
     report.check('and takes its own tube colour, off the thermometer ramp',
@@ -311,7 +310,7 @@ def test_the_foot_carries_the_policy(report):
                           'vq': 1.0, 'vdc': 24.0},
                 'params': {}, 'winding_at': None, 'ident': ident}
 
-    # THE MARGIN IS A NUMBER THE BOARD SENDS, continuous since 2026-09-06;
+    # The margin is a number the board sends, continuous since 2026-09-06;
     # these three are what the states meant while it was three steps.
     IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
     stable = {'state': 'STABLE', 'margin': 1.0}
@@ -330,9 +329,9 @@ def test_the_foot_carries_the_policy(report):
         inks[state] = ('38;5;%dm%s' % (machine.INK[thermal.POLICY_INK[state]],
                                        thermal.POLICY_WORD[state])) in row
         trims[state] = visible(row)
-    # THE TRIM IS SAID WHILE THERE IS ONE - the bench: "make it visible that it
+    # The trim is said while there is one (the bench: "make it visible that it
     # throttles at 80 % of the SOA already, then 90, then 100 as the model's
-    # uncertainty goes to zero" - and the row stays its width.
+    # uncertainty goes to zero"), and the row stays its width.
     report.check('the ceiling it leaves is on the row: UNCR 80%, CONV 90%, '
                  'and STABLE alone at the whole span',
                  'TH OBS UNCR 80%' in trims['UNCERTAIN']
@@ -345,7 +344,7 @@ def test_the_foot_carries_the_policy(report):
                  all(inks.values())
                  and ('38;5;%dmTH OBS' % machine.LEADER_GREY) in foot,
                  '%s %s' % (inks, foot.replace(chr(27), '^')))
-    # CONTINUOUS: the percent is the margin rounded, whatever the word - a
+    # The percent is the margin rounded, whatever the word: a
     # CONVERGING board at 0.93 says so, a STABLE one at 0.97 as STBL, since
     # `STABLE 97%` is a cell wider than the row has between the gauges' names -
     # and the row keeps its width and its columns.
@@ -374,7 +373,7 @@ def test_the_foot_carries_the_policy(report):
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in absent and absent.find('POWER')
                  == plain.find('POWER'), absent)
-    # THREE DIGITS ON THE WINDING.
+    # Three digits on the winding.
     hot = a_view(20.0, stable)
     hot['budget']['winding_c'] = 123.4
     three = visible(legend.gutter_caption(hot)[-1])
@@ -386,7 +385,7 @@ def test_the_foot_carries_the_policy(report):
 
 
 def test_the_soa_legend_reads_the_whole_soa(report):
-    """SWITCH SOA and MOTOR SOA say how much of the RECORD's SOA is spent,
+    """SWITCH SOA and MOTOR SOA say how much of the record's SOA is spent,
     and flash red where the ceiling in force is.
     """
     from coaxial.draw import machine
@@ -439,8 +438,8 @@ def test_the_soa_legend_reads_the_whole_soa(report):
                  abs(thermal.ceiling_of('board', 0.8) - 89.0) < 1e-9
                  and abs(thermal.ceiling_of('board', 1.0) - 105.0) < 1e-9,
                  '%.1f' % thermal.ceiling_of('board', 0.8))
-    # CONTINUOUS: a board at the ceiling a margin of 0.86 leaves reads 86 % of
-    # the SOA - the legend follows the number, not the word.
+    # A board at the ceiling a margin of 0.86 leaves reads 86 % of the SOA: the
+    # legend follows the number, not the word.
     view = a_view('CONVERGING', 1.0, tripped=True)
     view['ident']['margin'] = 0.86
     spent, _cls = rotor.headrooms(view)[0]
@@ -459,7 +458,7 @@ def test_two_headrooms_named_apart(report):
                  and len(set(layout.HEADROOM_TITLES)) == 2,
                  str(layout.HEADROOM_TITLES))
 
-    # A MOTOR AT THE SCALE'S FLOOR HAS ALL OF ITS MARGIN, a cooking one has
+    # A motor at the scale's floor has all of its margin, a cooking one has
     # none, and neither ever leaves the scale - a headroom below zero would
     # draw a bar longer than its own track.
     for celsius, want in ((view.TEMP_FLOOR_C, 1.0), (view.TEMP_SCALE_C, 0.0),
@@ -477,10 +476,8 @@ def test_two_headrooms_named_apart(report):
 
 def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     """The thermal observer's spend is HEADROOM, its level one row of `⣿`
-    ending in an orange `⡇` or `⢸`, labelled `soak` - the bench's word,
-    twice: the box was BUDGET and the level `[⣿⣿⠒⠒] 42 %`; the brackets
-    went and three rows of braille came, and the answer was "no, one row
-    of ⣿, terminated with an orange ⢸ or ⡇".
+    ending in an orange `⡇` or `⢸`, labelled `soak` (the bench's word): not
+    BUDGET's `[⣿⣿⠒⠒] 42 %`, nor three rows of braille.
     """
     import re
     from rich.console import Console
@@ -564,8 +561,8 @@ def test_the_thermal_page_shows_its_evidence(report):
 
     rows = page.evidence_rows(ident(0.8))
     said = visible(rows[1])
-    # THE BAR ALONE - the bench: "remove the text to the right of the scale,
-    # move it to HEADROOM"; its figures are `envelope_rows`.
+    # The bar alone (the bench: "remove the text to the right of the scale,
+    # move it to HEADROOM"); its figures are `envelope_rows`.
     report.check('two rows under the board: a blank, then TH OBS and the '
                  'bar alone - its figures are HEADROOM\'s',
                  len(rows) == 2 and rows[0] == ''
@@ -583,8 +580,8 @@ def test_the_thermal_page_shows_its_evidence(report):
                         (1.0, machine.SOA_OK)):
         row = page.evidence_rows(ident(margin))[1]
         head, _bar = row.split('TH OBS')[0], row.split('TH OBS')[1]
-        # THE LABEL CONSTANT, the leaders' grey - the bench: "only the
-        # thermometer changes colour" - and the bar's ink after it.
+        # The label constant in the leaders' grey (the bench: "only the
+        # thermometer changes colour"), the bar's ink after it.
         greys[margin] = ('38;5;%dm' % machine.LEADER_GREY) in head
         inks[margin] = (cls is None or ('38;5;%dm' % machine.INK[cls])
                         in row.split('TH OBS')[1])
@@ -603,7 +600,7 @@ def test_the_thermal_page_shows_its_evidence(report):
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in visible(page.evidence_rows(None)[1]),
                  visible(page.evidence_rows(None)[1]))
-    # THE ROOM'S HINT, on the estimated room: the bench's emoji pairs, and the
+    # The room's hint, on the estimated room: the bench's emoji pairs, and the
     # thermometer thinking while the innovation is large.
     import unicodedata
 
@@ -620,7 +617,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and page.room_hint(None) == '' and page.room_hint({}) == ''
                  and page.ROOM_HINTS['unsure'] == '🤒 🤔'
                  and all(' ' in pair for pair in page.ROOM_HINTS.values())
-                 # EVERY GLYPH WIDE ON ITS OWN, no variation selector: a narrow
+                 # Every glyph wide on its own, no variation selector: a narrow
                  # character made emoji by one ran the row a cell long and
                  # broke the frame beside it.
                  and all(len(pair) == 3 and all(
@@ -628,7 +625,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                      for ch in pair.replace(' ', ''))
                      for pair in page.ROOM_HINTS.values()),
                  ' '.join(page.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
-    # HYSTERESIS - the bench: "so the emoji do not flutter near the limits": a
+    # Hysteresis (the bench: "so the emoji do not flutter near the limits"): a
     # held word stands two kelvin past its threshold, and the thermometer
     # stands until the innovation is under 0.2 K.
     def held(room, word, innovation=0.1):
@@ -647,9 +644,8 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and held(20.0, 'unsure', 0.15) == 'mild'
                  and held(20.0, 'mild', 0.25) == 'mild',
                  ' '.join(held(c, 'cold') for c in (6.5, 7.5)))
-    # IN SENSE, beside the room - the bench: "maybe move the emojis to the
-    # SENSE block on the right, a bit more uniform" - after a row above the
-    # board, centred, in braille, and back again.
+    # In SENSE, beside the room (the bench: "maybe move the emojis to the
+    # SENSE block on the right, a bit more uniform").
     rows = page.ident_rows(ident(0.91))
     room = [value for label, value in rows if label == 'room'][0]
     report.check('and the hint sits in SENSE beside the room, the pair '
@@ -658,7 +654,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and room.plain.endswith(page.ROOM_HINTS['mild']),
                  room.plain)
 
-    # SENSE, ONE FACT A ROW, none wider than the panel.
+    # SENSE: one fact a row, none wider than the panel.
     rows = page.ident_rows(ident(0.91))
     texts = [(str(label), value if isinstance(value, str) else value.plain)
              for label, value in rows]
@@ -681,7 +677,7 @@ def test_the_thermal_page_shows_its_evidence(report):
     console = Console(record=True, width=page.PANEL_W + 2,
                       force_terminal=True, color_system='truecolor',
                       theme=stage.THEME)
-    # THE MAP'S LETTERS EXPLAINED, a box of its own under SENSE, each row the
+    # The map's letters explained: a box of its own under SENSE, each row the
     # mark's references off the pick and place and what they are.
     from coaxial.draw.thermalmap import MARKS
     rows = dict(page.map_rows())
@@ -776,7 +772,7 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
         report.check('%s is written on it' % label,
                      any(label in row for row in art))
 
-    # ROUND, AND NOTHING PAST THE RIM: every lit cell's centre inside the
+    # Round, and nothing past the rim: every lit cell's centre inside the
     # radius plus a cell, the top row narrow, the middle row the width.
     per_cell = 2.0 * thermalmap.OUTER_MM / cells
     per_line = 4.0 * thermalmap.OUTER_MM / (2 * len(art))
@@ -806,9 +802,9 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     report.check('the frames and the labels wear the mark ink',
                  '38;5;%dm' % ansi.WHITE in said)
 
-    # FRAMES, NOT AREAS: a marked cell draws the line's dots alone, so no
-    # marked cell is solid and the marks are a thin share of the board - the
-    # bench's word against the blocks that came before.
+    # Frames, not areas (the bench's word): a marked cell draws the line's
+    # dots alone, so no marked cell is solid and the marks are a thin share of
+    # the board.
     white = ansi.rgb(ansi.WHITE)
     lit = [(ch, fg) for row in ansi.parse(said) for ch, fg, _bg in row
            if 0x2800 <= ord(ch) < 0x2900]
@@ -825,7 +821,7 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     report.check('and the frames are a thin share of the board',
                  0 < len(marked) < 0.25 * len(lit),
                  '%d marked of %d lit' % (len(marked), len(lit)))
-    # RIGHT ANGLES: the frames are box-drawing in braille, the bench's own
+    # Right angles: the frames are box-drawing in braille, the bench's own
     # glyphs - corners, and straight runs between them.
     corners = {pair: sum(marked.count(ch) for ch in pair)
                for pair in ('⡖⢰', '⢲⡆', '⠧⠸', '⠼⠇')}
@@ -865,8 +861,7 @@ def test_the_demo_actually_loads_the_machine(report):
 
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
     # No `-P`: it arrived in Python 3.11, and on the 3.10 runner CI declares as
-    # its floor it is "unknown option", exit 2 - four red runs before anyone
-    # read the tail.
+    # its floor it is "unknown option", exit 2.
     done = subprocess.run(
         [sys.executable, '-X', 'utf8',
          os.path.join('terminal', 'views', 'show_rotor_observer.py'),
@@ -932,7 +927,7 @@ def test_the_level_is_drawn_at_the_dot(report):
     report.check('two dots a step - both lanes - and never a whole cell',
                  all(b - a == 2 for a, b in zip(dots, dots[1:])), str(dots))
 
-    # AND ALONG THE FOOT, one lane at a time.
+    # Along the foot, one lane at a time.
     ends = []
     for k in range(1, 5):
         share = (k + 0.5) / 60.0
@@ -1018,7 +1013,7 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
     report.check('and no can-ring cell shared with a magnet is lost to it',
                  lost == 0, '%d cells' % lost)
 
-    # THE RULE ITSELF, on one cell: a line with one dot beats an area with
+    # The rule itself, on one cell: a line with one dot beats an area with
     # seven; two lines settle by dots; two areas settle by dots.
     frame = machine.Frame(1, 1)
     for k in range(7):
@@ -1032,12 +1027,12 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
     frame.put(0, 3, machine.TOOTH_W)
     report.check('and between two areas the most dots win, not the rank',
                  frame.owner[0][0] == machine.TOOTH_U)
-    # NOT THE TRUTH STROKE, which wins outright - `Frame.put` has why.
+    # Not the truth stroke, which wins outright: `Frame.put` has why.
     report.check('the lines are the rings - not the arc, not the stroke',
                  machine.LINES == frozenset((machine.BORE, machine.YOKE,
                                              machine.CAN)))
 
-    # THE SHAFT SENSOR'S STROKE IS DRAWN THROUGH THE MAGNET BAND.
+    # The shaft sensor's stroke is drawn through the magnet band.
     teeth = {machine.TOOTH_U, machine.TOOTH_V, machine.TOOTH_W}
     gutter = set(range(0, 8)) | set(range(38, 46))
     took = in_gutter = 0
@@ -1064,7 +1059,7 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
             own_min = min(own_min, own)
             ring_max = max(ring_max, rings)
     # A cell's diagonal still bridges the band's inner end and a tooth's tip at
-    # some angles, so the stroke may SHARE a cell with a tooth; in that cell it
+    # some angles, so the stroke may share a cell with a tooth; in that cell it
     # is not a candidate, because a white cell on a tooth is a mark on the
     # stator.
     report.check('the truth stroke takes no cell a tooth is in',
@@ -1078,15 +1073,15 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
 
 
 def test_nothing_in_the_drawing_can_be_sheared(report):
-    """No character in the art is EAST ASIAN AMBIGUOUS WIDTH.
+    """No character in the art has East Asian ambiguous width.
 
-    UNICODE DOES NOT DECIDE FOR THOSE. A terminal set for East Asian text
+    Unicode does not decide for those. A terminal set for East Asian text
     draws them two columns wide and every other one draws them narrow,
-    and it is a SETTING rather than a font - so a page carrying one is a
+    and it is a setting rather than a font - so a page carrying one is a
     page that renders correctly on one bench and shears on the next.
     Sheared, the mark doubles, everything after it on the row slides a
     column, and the colour runs slide with it: the drawing bleeds inside
-    its own box, which is exactly what was reported.
+    its own box.
 
     Braille is narrow by definition, so what caught this out was the
     furniture: `\u25c0` and `\u25b6` as arrowheads, `\u25b2` and
@@ -1105,7 +1100,7 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     from terminal.ui import scroll
 
     drawn = machine.render(6.0, 24, 28, 46, 18, pointer_deg=41.0)
-    # The scroll arrows are the stage's now, every page's furniture.
+    # The scroll arrows are the stage's, every page's furniture.
     said = ''.join(str(x) for x in
                    (legend.AIM_LEFT, legend.AIM_RIGHT, scroll.UP, scroll.DOWN,
                     legend.DEGREE, legend.LEADER, machine.POINTER_GLYPH)
@@ -1117,7 +1112,7 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
                      not bad,
                      ' '.join('%s U+%04X' % (c, ord(c)) for c in bad))
 
-    # AND THE SUBSTITUTES ARE THE SAME MARKS, not near misses: a small triangle
+    # The substitutes are the same marks, not near misses: a small triangle
     # points the same way as its big twin.
     report.check('the arrowheads are the small triangles',
                  (legend.AIM_LEFT, legend.AIM_RIGHT) == (chr(0x25C2), chr(0x25B8)),
@@ -1145,9 +1140,8 @@ def test_the_flat_drawings_spend_the_block(report):
                  not any(raster.covered(1, of, x, y)
                          for x in range(4) for y in range(4)))
 
-    # AND THE DRAWINGS ARE RICHER FOR IT: the rotor and the protractor both
-    # raster through the same rule, so both wear patterns a fringe rounded up
-    # to solid could never produce.
+    # The rotor and the protractor both raster through the same rule, so both
+    # wear patterns a fringe rounded up to solid could never produce.
     art = machine.render(0.0, 24, 28, 46, 18)
     face = dial.render(137.0, 60, 20)
     for name, drawn in (('the rotor', art), ('the protractor', face)):
@@ -1171,7 +1165,7 @@ def test_every_gauge_shows_its_own_scale(report):
     rows = art.split(chr(10))
     left, right = machine.gutters(46, 18, n, n)
 
-    # EVERY TUBE, EVERY ROW OF IT.
+    # Every tube, every row of it.
     seen = set()
     for row in rows[1:-2]:
         for col in list(left) + list(right):
@@ -1186,7 +1180,7 @@ def test_every_gauge_shows_its_own_scale(report):
                      or ord(c) - 0x2800 & 0x20 or ord(c) - 0x2800 & 0x80
                      for c in seen), ''.join(sorted(seen)))
 
-    # AND THE FLAT GAUGES ALONG THE FOOT, one dot a cell rather than one every
+    # The flat gauges along the foot, one dot a cell rather than one every
     # other cell.
     first, last = machine.span(46, 18, n, n)
     floor = rows[-1]
@@ -1222,7 +1216,7 @@ def test_the_bead_is_round_at_every_angle(report):
         report.check('and it travels rather than sitting in a few seats',
                      len(seats) > 60, '%d distinct cells' % len(seats))
 
-    # IT RIDES THE RIM IN THE DRAWING'S OWN SPACE.
+    # It rides the rim in the drawing's own space.
     for aspect in (2.0, 2.4):
         stretch = aspect / 4.0 * 2.0
         cx, r, _, _ = machine.layout(46, 18, 0, 0, rows=18)
@@ -1239,7 +1233,7 @@ def test_the_bead_is_round_at_every_angle(report):
                      '%.3f to %.3f against a rim at %.3f'
                      % (min(out), max(out), r.can))
 
-    # THE NEAREST CELL CENTRE, not the one the point fell inside.
+    # The nearest cell centre, not the one the point fell inside.
     cx, r, _, _ = machine.layout(46, 18, 0, 0, rows=18)
     cy = 18 * 4 / 2.0 - 0.5
     seat = r.can + machine.POINTER_SEAT
@@ -1363,8 +1357,8 @@ def test_every_page_scrolls_its_boxes(report):
 
 
 def test_the_dial_is_round_on_this_terminal(report):
-    """The shaft angle's face takes the measured cell aspect, and is a notch
-    smaller than it was.
+    """The shaft angle's face takes the measured cell aspect, a notch under
+    64 by 23.
     """
     from terminal.ui import aspect
     from coaxial.draw import dial
@@ -1564,7 +1558,7 @@ def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
 
 
 def test_every_frame_corner_on_the_map_is_a_right_angle(report):
-    """A frame's top and bottom lines start AT the side's lane."""
+    """A frame's top and bottom lines start at the side's lane."""
     from coaxial.draw import thermalmap as tm
 
     # side, edge, the lane the side runs down -> the corner cell's glyph.
@@ -1619,7 +1613,7 @@ def test_every_frame_corner_on_the_map_is_a_right_angle(report):
 
 def test_the_foot_says_trip_while_the_cap_holds(report):
     """`TRIP 72%` in the trip's red while the trip cap holds the margin
-    UNDER THE FLOOR, whatever the model's state - the bench seeing STBL
+    under the floor, whatever the model's state - the bench seeing STBL
     at 70 % of SOA (2026-09-08), a number no state can give; the state's
     own word with the percent in force once the cap is over the floor -
     the bench's point that it must let go of TRIP once over 80 %, its
@@ -1698,7 +1692,7 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
                  said('hold', {'throttling': False, 'derate': 1.0})[0]
                  == 'HOLD (NORM)')
 
-    # THE RED IS A DARKER ONE: in the 6x6x6 cube, less red and no green or blue
+    # The red is a darker one: in the 6x6x6 cube, less red and no green or blue
     # - not the trip's 196, not the pulse's 210.
     def cube(index):
         i = index - 16
@@ -1762,7 +1756,7 @@ def test_the_marquee_decodes_the_art_itself(report):
     from terminal.ui import marquee, stage
 
     class ByText:
-        """The Marquee as it was: Text.from_ansi per line."""
+        """Text.from_ansi per line: the reference the Marquee is held to."""
 
         def __init__(self, art):
             self.lines = [Text.from_ansi(line) for line in art.split('\n')]
@@ -1860,8 +1854,8 @@ def test_the_preload_is_the_first_inquiry(report):
                  and stale is None, '%d bytes, %s, %s' % (size, back is not None, stale))
     report.check('preload: the room is measured - no refusal, or one in '
                  'words', why is None or why.startswith('skipped'), str(why))
-    # ...and shown once: on a scripted clock the inquiries run PRELOAD,
-    # IDENTITY, FITMENT, PROVENANCE, and round again WITHOUT the preload.
+    # Shown once: on a scripted clock the inquiries run PRELOAD,
+    # IDENTITY, FITMENT, PROVENANCE, and round again without the preload.
     scripted = readout.fresh(0.0)
     seen = []
     for tick in range(2400):

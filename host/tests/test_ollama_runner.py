@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """The plan runner, the sandbox, and the test tooling itself."""
+import json
 import os
 import sys
+import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from coaxial_ollama import plan as planmod, runner as runmod, tools as toolmod
+from coaxial_ollama.sandbox import Scope, Shell
+from tools.dev import counts
 
-from tests.ollama_support import (TAGS, select, BSLASH, Scope, Shell, SimulatedBoard,
-                                  _test_capability, build, call, counts, json, os, planmod, runmod,
-                                  sys, tempfile, toolmod)
+from ollama_support import (BSLASH, TAGS, SimulatedBoard, _test_capability, build, call,
+                            run_file, select)
 
 
 
@@ -271,8 +274,7 @@ def test_shell(report):
                  sandbox.clip_ends('exit=0') == 'exit=0')
 
     # The ceiling that matters is the one at the dispatch point: every tool
-    # goes through it, including the three that run subprocesses of their own
-    # and used to return whatever those printed.
+    # goes through it, including the three that run subprocesses of their own.
     report.check('no tool result may be larger than the ceiling',
                  len(toolmod.bounded('q' * 50000)) < toolmod.TOOL_LIMIT + 120)
     report.check('an ERR prefix survives the ceiling, or the loop stops '
@@ -322,6 +324,12 @@ def test_smart_selection(report):
         report.check('   ...and live: %s (%s)'
                      % (', '.join(sorted(expect_live)) or 'not at all', why),
                      live == expect_live, ', '.join(sorted(live)) or 'none')
+
+    # The first row that prefixes a path takes it.
+    shadowed = [path for at, (path, _) in enumerate(table.TOUCHES)
+                if any(path.startswith(above) for above, _ in table.TOUCHES[:at])]
+    report.check('every row of the path map can match: none sits under a '
+                 'shorter prefix above it', not shadowed, ', '.join(shadowed))
 
     # A path the map does not know is the case to fail safe on: run everything
     # rather than quietly cover nothing.
@@ -396,7 +404,7 @@ def test_smart_selection(report):
                  scope._within_tier(args, 'all') == 'all'
                  and args.file == [table.CONFORMANCE])
 
-    # A tier is arithmetic now, not a table of three, so any 5 % step can be
+    # A tier is arithmetic, not a table of three, so any 5 % step can be
     # named.
     grew = []
     for percent in table.TIERS:
@@ -836,8 +844,8 @@ def test_keep_alive(report):
     # it from the bench.
     from coaxial_ollama import debug
     import coaxial_ollama.__main__ as runner
-    # Not a constant any more: the parsed value is None and the mode decides,
-    # so check what actually reaches the daemon rather than the flag's default.
+    # The parsed value is None and the mode decides, so check what reaches the
+    # daemon rather than the flag's default.
     report.check('dbg holds the model for a question, briefly',
                  debug.keep_alive_for(debug.parse(['why?'])) == debug.KEEP_ALIVE_ONCE)
     report.check('dbg --keep-alive is settable',
@@ -896,10 +904,8 @@ def test_picker(r):
     """
     from tools.dev import pick_tests
 
-    # Not `is`: run as __main__ this file is imported a second time under its
-    # real name, so the picker holds an equal dict, not the same one.
     r.check('the catalogue the model is shown is the one the tests carry',
-            pick_tests.TAGS == TAGS, repr(sorted(pick_tests.TAGS)))
+            pick_tests.TAGS is TAGS, repr(sorted(pick_tests.TAGS)))
 
     j = json.dumps
     # A suite name the picker will recognise.
@@ -977,7 +983,7 @@ def _every_roster():
 
     whole = []
     for tag in sorted(TAGS):
-        module = importlib.import_module('tests.test_ollama_%s' % tag)
+        module = importlib.import_module('test_ollama_%s' % tag)
         whole.extend(module.ROSTER)
     return whole
 
@@ -1054,13 +1060,13 @@ def test_the_terminal_keeps_the_mouse(r):
     r.check('and asked again, gives it straight back',
             not keys.grab(False) and not keys.holding())
 
-    # THE KEY IS SWALLOWED, never handed to a view: no view binds it, and one
+    # The key is swallowed, never handed to a view: no view binds it, and one
     # that did would fight the terminal for the same gesture.
     r.check('F is the key, and C is left to the views that bind it',
             'f' in SELECT_KEYS and 'F' in SELECT_KEYS
             and 'c' not in SELECT_KEYS)
 
-    # AND THE WHEEL IS NOT THE ONLY WAY IN.
+    # The wheel is not the only way in.
     from terminal.views import show_render
     view = {'zoom': 1.0, 'q': None, 'spin': False}
     show_render.act_on(['+'], view)
@@ -1075,7 +1081,7 @@ def test_mouse(r):
     from terminal.ui import console
 
     keys = console.Keys(console=True, mouse=True)
-    # What the caller DOES with the number, not the sign of the number: it
+    # What the caller does with the number, not the sign of the number: it
     # scales zoom by 1 + this, and a bigger zoom stands closer.
     def after(report, zoom=1.0):
         keys._buffer = report
@@ -1106,7 +1112,7 @@ def test_mouse(r):
     r.check('a keystroke mixed in with mouse reports is not eaten',
             keys.poll()[0] == 'quit')
 
-    # Held ONE poll on purpose: the same tail twice is a real lone ESC, once is
+    # Held one poll on purpose: the same tail twice is a real lone ESC, once is
     # maybe the front of a split arrow or mouse report.
     keys._buffer = chr(27)
     held = keys.poll()[0]
@@ -1153,5 +1159,4 @@ ROSTER = (
 
 
 if __name__ == '__main__':
-    from tests.ollama_support import run_file
     sys.exit(run_file(ROSTER))

@@ -5,39 +5,36 @@ A list to the left under `// MAIN TERMINAL ACCESS`, the board itself to the
 right, turning slowly - the toon mesh off the CAD export, so the first thing
 the terminal shows is the hardware it is for. No session is opened here:
 the page has to be instant, so the only live datum is whether a broker is
-serving - and even that is fetched by a background thread, because probing
-it inline cost 2 029 ms A FRAME (measured, tools/render/uibench.py) and the page
-drew at half a frame per second.
+serving, fetched by a background thread: probed inline it cost 2 029 ms a
+frame (tools/render/uibench.py), 0.5 frames/s.
 
 The choice leaves as `main()`'s return - the loader (`terminal.loader`)
-runs this page in its own process and reads it - or as the EXIT CODE
+runs this page in its own process and reads it - or as the exit code
 when run as a script; stdout is the drawing's either way:
     0            quit
     101 + index  the picked entry, in ENTRIES order
 """
 import argparse
 import math
-import os
 import sys
 import threading
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from rich import box
+from rich.align import Align
+from rich.console import Group
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.text import Text
 
-from rich import box  # noqa: E402
-from rich.align import Align  # noqa: E402
-from rich.console import Group  # noqa: E402
-from rich.layout import Layout  # noqa: E402
-from rich.panel import Panel  # noqa: E402
-from rich.text import Text  # noqa: E402
-
-from terminal import readout  # noqa: E402
-from terminal.ui import screen as _screen  # noqa: E402
-from terminal.ui.console import Keys  # noqa: E402
-from terminal.ui.marquee import Marquee  # noqa: E402
-from terminal.ui.rate import Corner, rate_of  # noqa: E402
-from terminal.ui.screen import ENTER_KEYS, paced  # noqa: E402
-from terminal.ui.stage import band_of, curtain, footer, live, stage  # noqa: E402
+from terminal import loader
+from terminal import readout
+from terminal.ui import screen as _screen
+from terminal.ui.console import Keys
+from terminal.ui.marquee import Marquee
+from terminal.ui.rate import Corner, rate_of
+from terminal.ui.screen import ENTER_KEYS, paced
+from terminal.ui.stage import band_of, curtain, footer, live, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -46,7 +43,6 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 #: a new page is a file there and nothing here. The answer indexes
 #: ENTRIES from 101; a second question's later options take codes past
 #: the list, and the loader reads every one back.
-from terminal import loader                                # noqa: E402
 ENTRIES, SUB, OPEN, _PICKS = loader.listing()
 
 #: Degrees of yaw per second for the idle tumble, with slower sways
@@ -94,7 +90,7 @@ def _watch_broker():
             count = broker.clients() if broker.serving() else None
         except LINK_FAULTS + (ValueError,):   # the socket, the address file
             count = None
-        # The broker holding the port IS a session; its clients ride on it.
+        # The broker holding the port is a session; its clients ride on it.
         _BROKER['held'] = count + 1 if count is not None else 0
         time.sleep(3.0)
 
@@ -131,9 +127,8 @@ def masthead(port):
 
 def roster(picked):
     """The access list."""
-    # EVERY row is the same one line whether picked or not - the framed
-    # highlight changed the list's height and the whole page jumped with each
-    # keypress.
+    # Every row is one line, picked or not: a framed highlight changed the
+    # list's height and the page jumped on each keypress.
     lines = [Text('')]
     for i, (key, name, what) in enumerate(ENTRIES):
         if i == picked:
@@ -174,13 +169,13 @@ def asking(sub):
 #: The turntable's zoom: it opens at SWELL_FROM, fills to SWELL_LO over
 #: SWELL_IN seconds, then breathes between SWELL_LO and SWELL_HI while
 #: it turns. Grabbed - a drag turns it, the wheel zooms it - it holds
-#: still; released, the tumble and the breath resume FROM where it was
+#: still; released, the tumble and the breath resume from where it was
 #: left: the pose is state, and the breath re-seats its phase on the
 #: zoom it finds.
 SWELL_FROM, SWELL_IN = 0.25, 2.5
 SWELL_LO, SWELL_HI = 0.75, 1.20
 SWELL_PERIOD = 11.0
-#: render()'s zoom 1.0 fits the bounding sphere at ANY attitude, which in
+#: render()'s zoom 1.0 fits the bounding sphere at any attitude, which in
 #: the box is 56% of its width - measured, and 2.0 is the first zoom
 #: that reaches every edge. The envelope is in shares of the box, so
 #: it rides on this base: 1.2 lands at 2.16, past the box, so the
@@ -268,7 +263,7 @@ def _draw(view, width, height):
 
 #: The turntable's solids build off the frame loop: the page is up in the
 #: import's 0.3 s and the board arrives when the parse and two decimations
-#: are done. The first frame used to wait 2.0 s for them, the parse twice.
+#: are done; drawn inline, the first frame waited 2.0 s, the parse twice.
 _STAGE = {'ready': False}
 
 
@@ -280,7 +275,7 @@ def _warm():
 
 
 #: The turntable's box: this many columns of the page, and the drawing
-#: fills the box's inside, so a zoom past 1.0 clips INTO the frame.
+#: fills the box's inside, so a zoom past 1.0 clips into the frame.
 BOX = 58
 
 
@@ -431,8 +426,7 @@ def main(argv=None, preload=None):
     last = began
 
     if not console and not args.frames:
-        # No terminal to page on: read the choice as a line, the way the old
-        # chooser fell back.
+        # No terminal to page on: read the choice as a line.
         return _typed_choice(sys.stdin.readline().strip().lower())
 
     threading.Thread(target=_watch_broker, daemon=True).start()

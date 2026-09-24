@@ -1,23 +1,18 @@
 """Command line entry point."""
 import argparse
 import json
-import os
 import sys
 from contextlib import suppress
 
-# host/ on the path: this file's own directory's parent, so it does not matter
-# what the working directory is or what any directory along the way is called.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from. import runner as runmod                       # noqa: E402
-from .cli import ask_operator                        # noqa: E402
-from .client import Ollama, OllamaError              # noqa: E402
-from .plan import Plan, PlanError                    # noqa: E402
-from .sandbox import Scope, Shell                    # noqa: E402
-from .tools import TOOLS, Toolbox                    # noqa: E402
-from coaxial.comm.session import Session                  # noqa: E402
-from coaxial.errors import RigError                  # noqa: E402
-from coaxial_mcp import detail                       # noqa: E402
+from . import runner as runmod
+from .cli import ask_operator
+from .client import Ollama, OllamaError
+from .plan import Plan, PlanError
+from .sandbox import Scope, Shell
+from .tools import TOOLS, Toolbox
+from coaxial.comm.session import Session
+from coaxial.errors import RigError
+from coaxial_mcp import detail
 
 DEFAULT_MODEL = 'gemma4:12b'
 DEFAULT_ALLOW = 'python'
@@ -71,9 +66,8 @@ def parse(argv):
 
 
 def list_tools(level=detail.FULL):
-    """The tool surface as a model would be handed it, at one level - so
-    `--detail terse --list-tools` shows what a small model actually reads
-    rather than what this file happens to have written down."""
+    """The tool surface as a model is handed it, at one level:
+    `--detail terse --list-tools` shows what a small model reads."""
     for spec in detail.apply(TOOLS, level):
         print('%-12s %s' % (spec['name'], spec['description']))
     return 0
@@ -95,9 +89,8 @@ def build_plan(args):
 
 def main(argv=None):
     args = parse(argv)
-    # Resolved before anything else needs it, and without a model where the
-    # command line named none - `--list-tools` is answered with no daemon, no
-    # board and no tag to read.
+    # `--list-tools` answers with no daemon, no board and, where the command
+    # line named none, no model tag.
     if args.list_tools:
         return list_tools(detail.resolve(args.detail, model=args.model))
 
@@ -131,8 +124,8 @@ def main(argv=None):
                       allow_writes=args.allow_writes or plan.allow_writes,
                       allow_code=not args.read_only,
                       confirm=ask_operator if args.confirm else None)
-    # Resolved here rather than at parse time: `auto` on the command line
-    # cannot read a model the *plan* named instead of the flags.
+    # Resolved here, not at parse time: `auto` there cannot read a model the
+    # plan named.
     toolbox.detail = detail.resolve(args.detail, model=client.model,
                                     default=detail.TERSE)
 

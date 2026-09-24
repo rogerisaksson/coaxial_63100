@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """The tool surface: schemas, arguments, which tool answers what."""
+import io
+import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from coaxial_mcp import detail
+from coaxial_ollama import client as clientmod, replies, runner as runmod, tools as toolmod
+from coaxial_ollama.sandbox import Scope, Shell
 
-from tests.ollama_support import (CHANNELS, Scope, ScriptedModel, Shell,  # noqa: E402
-    SimulatedSession, build, call, clientmod, detail, io, json, os, replies,
-    runmod, sys, toolmod)
+from ollama_support import CHANNELS, ScriptedModel, SimulatedSession, build, call, run_file
 
 
 
@@ -130,7 +132,7 @@ def test_debug(report):
         kw.setdefault('out', io.StringIO())
         return debug.Chat(ScriptedModel(turns), box, **kw)
 
-    # Was /3, and SYSTEM sat one token under it.
+    # /2.5: at /3, SYSTEM sat one token under the line.
     report.check('the debug prompt is a fraction of the runner prompt',
                  context.approx_tokens(words.SYSTEM)
                  < context.approx_tokens(runmod.SYSTEM) / 2.5,
@@ -170,7 +172,7 @@ def test_debug(report):
                  sent[2]['content'][:44])
     report.check('the recent turns are sent whole',
                  sent[-1]['content'] == 'new question')
-    # Measured against the system message this turn actually built, not against
+    # Measured against the system message this turn built, not against
     # SYSTEM plus a slack number: the hints, the language line and the model's
     # own tag are all in there, and a magic +40 tips over every time one of
     # them gains a sentence.
@@ -344,7 +346,7 @@ def test_debug(report):
                  and 'fortfarande' not in answer, answer)
 
     # ---- a blank answer with no call at all is not taken at face value ----
-    # Measured on this bench: the SECOND question asked (the first had already
+    # Measured on this bench: the second question asked (the first had already
     # succeeded) after the programmer was unplugged got a blank line and
     # nothing else - link_ok was still True right up to that turn (nothing had
     # failed yet to set it False), so the "stale refusal" check above never
@@ -402,7 +404,7 @@ def test_debug(report):
     report.check('an unrelated answer survives even if link_ok started False',
                  answer == '2+2 is 4.', answer)
 
-    # ---- a blank FIRST answer is checked even with nothing to compare it to
+    # ---- a blank first answer is checked even with nothing to compare it to
     # Measured on this bench: "ge mig en lista over matvardena" as the very
     # first question of a session got a blank line and nothing else - the gate
     # above correctly stayed out of the way (self.last_channels was None,
@@ -571,9 +573,8 @@ def test_debug(report):
                  'echoed back', answer == '', answer)
 
     # Measured on this bench: cut off by --words before naming every channel, a
-    # markdown-table retype used to slip past the all-channels-present check
-    # entirely - the very shape SYSTEM already forbids, printed anyway because
-    # it never finished.
+    # markdown-table retype slipped past the all-channels-present check - the
+    # shape SYSTEM forbids, printed because it never finished.
     truncated_session = SimulatedSession()
     truncated_box = toolmod.Toolbox(truncated_session, shell=Shell(['python']),
                                     scope=Scope())
@@ -692,7 +693,7 @@ def test_debug(report):
                  saga_hits[-2:] == ['link', 'analog_read'], saga_hits)
 
     # ---- a pulled cable can leave the cached handle dead - session.reset() is
-    # what actually recovers it, not just retrying.
+    # what recovers it, not retrying.
     dead_session = SimulatedSession()
     dead_box = toolmod.Toolbox(dead_session, shell=Shell(['python']),
                                scope=Scope())
@@ -1048,8 +1049,8 @@ def test_coerce(report):
         report.check('an alias cannot point at a channel that is absent',
                      'unknown channel' in str(exc), str(exc)[:46])
 
-    # A near miss that can only mean one channel now reads it instead of
-    # refusing with the name it meant printed in the refusal.
+    # A near miss that can only mean one channel reads it, rather than refusing
+    # with the name it meant printed in the refusal.
     report.check('a name that can only mean one channel reads that one',
                  _resolve(board, ['dcbusvoltage']) == _resolve(board, ['bus'])
                  == _resolve(board, ['dcbus']))
@@ -1126,7 +1127,7 @@ def test_docs(report):
         encoding='utf-8').read())
     heads = [(len(m.group(1)), m.group(2).strip())
              for m in _re.finditer(r'^(#{2,3}) (.+)$', text, _re.M)]
-    # The first chapter that actually has a subsection - the first chapter in
+    # The first chapter that has a subsection - the first chapter in
     # the file need not, and asserting a parent carries children against one
     # with none proves nothing.
     at = next((i for i, (lvl, _) in enumerate(heads)
@@ -1212,7 +1213,7 @@ def test_docs(report):
     # The bench prompt has to point at the tool, or nothing above matters.
     from coaxial_ollama import debug, runner
     from coaxial_ollama import words
-    # Not in SYSTEM any more: the language is worked out here and named in the
+    # Not in SYSTEM: the language is worked out here and named in the
     # turn's system message, because a model asked to work it out itself
     # answered a European question in Chinese.
     from coaxial_ollama import language
@@ -1402,9 +1403,8 @@ def test_docs(report):
     report.check('and a stream that cannot be reconfigured is left alone',
                  debug._printable(object()) is not None)
 
-    # The reverse of what this checked before, deliberately: asked to measure,
-    # the model called docs and answered with HARDWARE.md's own channel table
-    # instead of a reading.
+    # Asked to measure, the model called docs and answered with HARDWARE.md's
+    # own channel table instead of a reading.
     report.check('the bench prompt does not send the model to the documents',
                  'docs' not in words.SYSTEM and 'FINDINGS' not in words.SYSTEM)
     report.check('the docs warning is there for a session that does ask',
@@ -1453,5 +1453,4 @@ ROSTER = (
 
 
 if __name__ == '__main__':
-    from tests.ollama_support import run_file
     sys.exit(run_file(ROSTER))

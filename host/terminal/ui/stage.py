@@ -3,16 +3,16 @@
 The look is the two reference screens: Alien's Nostromo readouts and the
 green phosphor terminal. What that means concretely, as rules:
 
-  * ONE SOLID TITLE BAR across the top - dark teal, the view's name on it,
+  * One solid title bar across the top - dark teal, the view's name on it,
     the LIVE/SIMULATED chip at its right edge in its meaning colour.
-  * The DRAWING fills a heavy-framed viewport; instruments sit in a fixed
+  * The drawing fills a heavy-framed viewport; instruments sit in a fixed
     column of rounded boxes beside it. Nothing floats in a corner.
-  * VALUES GLOW AMBER. Labels recede in ash. Names are cyan. That single
+  * Values glow amber. Labels recede in ash. Names are cyan. That single
     assignment is most of the look: a dark screen where the numbers are
     the light sources.
-  * A KEY BAR closes the bottom, reversed like the terminal reference.
+  * A key bar closes the bottom, reversed like the terminal reference.
 
-Every style is NAMED here in the Theme and nowhere else - a view says
+Every style is named here in the Theme and nowhere else - a view says
 `value` or `label`, never a colour number, so the palette is one edit.
 """
 import ctypes
@@ -59,7 +59,7 @@ THEME = Theme({
 
 
 def _vt_on():
-    """Enable VT processing on the Windows stdout console BEFORE rich looks
+    """Enable VT processing on the Windows stdout console before rich looks
     at it.
     """
     try:
@@ -112,7 +112,7 @@ def boot(label, console=None):
     bar = Progress(
         BarColumn(bar_width=28, complete_style='value',
                   finished_style='value', style='frame.hud'),
-        # The text AFTER the bar, bracketed.
+        # The text after the bar, bracketed.
         TextColumn('[{task.description}]', style='label', markup=False),
         console=court, transient=True)
     task = bar.add_task(label, total=100)
@@ -186,9 +186,9 @@ def header(title, origin):
     return band_of(title, where, chip(origin))
 
 
-#: Cells the title band is set in from the left edge. Painted from column
-#: 0 it stood out left of every box under it; two cells in - the frames'
-#: title column - read as too far right. One.
+#: Cells the title band is set in from the left edge: at 0 it stood out
+#: left of every box under it, at 2 (the frames' title column) too far
+#: right.
 BAND_INSET = 1
 
 
@@ -262,14 +262,14 @@ def viewport(title, art, corner=''):
 
 def frame_of(console, origin, title, art, boxes, keys, art_title=None,
              under=None):
-    """THE template: title band, viewport left, instruments right, key bar."""
+    """The template: title band, viewport left, instruments right, key bar."""
     if not _fills(console):
         return Group(header(title, origin),
                      viewport(art_title or title, art),
                      *([under] if under is not None else []),
                      *boxes, footer(keys))
 
-    # THE COLUMN IS PAGED HERE, for every view at once, and the key bar says so
+    # The column is paged here, for every view at once; the key bar says so
     # only while there is something to scroll to.
     boxes = paged(console, boxes)
     rate = rate_of(console).label()
@@ -299,7 +299,7 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
 
 
 def panels_of(console, origin, title, groups, keys):
-    """The template for table views: a FIXED grid of instruments, no art."""
+    """The template for table views: a fixed grid of instruments, no art."""
     if not _fills(console):
         flat = [Columns(row, padding=(0, 1), expand=False)
                 for row in groups]
@@ -319,8 +319,8 @@ def panels_of(console, origin, title, groups, keys):
         row_layouts.append(strip)
     body.split_column(*row_layouts)
     # The grid sits in the same heavy frame the drawing views give their
-    # viewport, so a table page owns its region the way they do - the session
-    # read as loose boxes on the bare screen.
+    # viewport, so a table page owns its region the way they do; without it
+    # the session read as loose boxes on the bare screen.
     framed = Panel(body, title=Text(' %s ' % title, style='name'),
                    title_align='left', box=box.HEAVY, border_style='frame',
                    padding=0, expand=True)

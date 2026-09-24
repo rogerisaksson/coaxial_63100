@@ -5,6 +5,7 @@ local application data, so a view opens in a tenth of a second instead of
 parsing the STL and decimating it six times.
 """
 import hashlib
+import inspect
 import os
 import pickle
 import shutil
@@ -37,7 +38,7 @@ def stamp(path):
     from coaxial.graphics import creases, mesh, solids, stereotype
     digest = hashlib.sha1()
     for module in (mesh, solids, creases, stereotype):
-        with open(module.__file__, 'rb') as source:
+        with open(inspect.getfile(module), 'rb') as source:
             digest.update(source.read())
     st = os.stat(path)
     return (os.path.abspath(path), st.st_size, int(st.st_mtime),

@@ -14,19 +14,15 @@ import os
 import re
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), 'tests'))
+from rich import box
+from rich.columns import Columns
+from rich.panel import Panel
+from rich.text import Text
 
-from rich import box                                       # noqa: E402
-from rich.columns import Columns                           # noqa: E402
-from rich.panel import Panel                               # noqa: E402
-from rich.text import Text                                 # noqa: E402
-
-import test_render                                         # noqa: E402
-from coaxial.graphics import engine, shading, wireframe             # noqa: E402
-from terminal.ui.stage import stage  # noqa: E402
-from tools.render import facecheck                                           # noqa: E402
+from coaxial.graphics import engine, shading, wireframe
+from terminal.ui.stage import stage
+from tools.render import facecheck
+from tools.render.oracle import DISTANCE, cube, oracle
 
 WIDTH, HEIGHT = 64, 32
 #: Columns past which the exporter's render is shown at half scale, so
@@ -72,13 +68,11 @@ def main(argv=None):
                             horizon=False, tip=0.0, solid=solid)
 
     if args.model == 'cube':
-        got, half = test_render.cube()
+        got, half = cube()
         reach = sum(h * h for h in half) ** 0.5
-        cam = engine.camera(WIDTH, HEIGHT, reach,
-                            distance=test_render.DISTANCE)
-        rows = test_render.oracle(engine.pose(*rot), cam, half,
-                                  shading.PIVOT, shading.SLOPE,
-                                  shading.FLOOR)
+        cam = engine.camera(WIDTH, HEIGHT, reach, distance=DISTANCE)
+        rows = oracle(engine.pose(*rot), cam, half,
+                      shading.PIVOT, shading.SLOPE, shading.FLOOR)
         want = '\n'.join(''.join(' .:'[c] for c in line).rstrip()
                          for line in rows)
     else:

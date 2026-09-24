@@ -1,14 +1,7 @@
 """The plan an Ollama-driven run executes, and the only place limits exist."""
-import os
-import sys
+import yaml
 
-# host/ on the path: this file's own directory's parent, so it does not matter
-# what the working directory is or what any directory along the way is called.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import yaml                                       # noqa: E402
-
-from testline.plan import Limit, PlanError        # noqa: E402  re-exported
+from testline.plan import Limit, PlanError
 
 __all__ = ['Limit', 'PlanError', 'Task', 'Plan']
 
@@ -38,7 +31,7 @@ class Task:
                                  else (self.limit.describe() if self.limit
                                        else 'no limit'))
     def brief(self):
-        """What the model is told. Note what is absent: the limit."""
+        """What the model is told: everything but the limit."""
         lines = ['Step %s - %s' % (self.id, self.name), self.ask]
         if self.unit:
             lines.append('Report the value as a number in %s.' % self.unit)

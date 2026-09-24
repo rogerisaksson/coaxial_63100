@@ -8,13 +8,9 @@ SECTIONS = [
     section(
         'The plant, drawn around the 5230SL',
         md("`tools/sim/montecarlo.py` runs the firmware's C against `drive_model.c`; plants "
-           'drawn around the 5230SL: R to 125 C, L +/-25 %, saliency 1-1.5, dead time '
+           'drawn around the 5230SL: R to 125 C, L +/-25 %, saliency 1.05-1.5, dead time '
            'either side. Cost `sigma_theta + speed_err + 10 trip`.'),
-        code('''import os
-import sys
-
-sys.path.insert(0, os.path.join('..', 'host'))   # the Monte Carlo is a tool beside the library, not part of it
-from tools.sim import montecarlo as mc'''),
+        code('''from tools.sim import montecarlo as mc'''),
         code('''print('link sweep', mc.VDC_SWEEP)
 print('knobs', {k: v[:2] for k, v in mc.KNOBS.items()})
 print('I_MAX %.0f  I_TRIP %.0f  I_H_MAX %.0f  TOP %.2f  LOST %.2f rad'
@@ -111,15 +107,13 @@ def median(values):
     return values[len(values) // 2]
 
 plants = [mc.draw(90 + i, 43.0) for i in range(PLANTS)]
-table = []
+table = {}                      # rad/s electrical -> each measure over the plants, sorted
 print('deg rms over %d drawn plants, iq 2 A; the residuals are the median plant' % PLANTS)
 print('  rad/s el    rpm   SMO deg rms   resid    flux deg rms   wc/w   |psi|   apart')
 print('                   median  worst  sigma_i  median  worst    deg   off %     deg')
 for w_e in SPEEDS:
     rows = [observe(p, w_e) for p in plants]
-    row = {k: sorted(r[k] for r in rows) for k in rows[0]}
-    row['w_e'] = w_e
-    table.append(row)
+    row = table[w_e] = {k: sorted(r[k] for r in rows) for k in rows[0]}
     print('%10.0f %6.0f %9.1f %6.1f %8.2f %9.1f %6.1f %7.1f %7.1f %7.1f'
           % (w_e, rpm(w_e), median(row['smo']), row['smo'][-1],
              median(row['res_smo']), median(row['flux']), row['flux'][-1],
@@ -129,7 +123,7 @@ for w_e in SPEEDS:
 def band_of(which):
     """(lowest, highest) swept speed whose worst plant is inside the
     criterion; nan and nan when none is."""
-    inside = [row['w_e'] for row in table if row[which][-1] <= CRITERION_DEG]
+    inside = [w for w, row in table.items() if row[which][-1] <= CRITERION_DEG]
     return (min(inside), max(inside)) if inside else (math.nan, math.nan)
 
 print()
@@ -138,8 +132,9 @@ for which, name in (('smo', 'sliding mode'), ('flux', 'flux linkage'),
     lo, hi = band_of(which)
     print('%-15s inside %.0f deg from %5.0f to %5.0f rad/s = %4.0f to %5.0f rpm'
           % (name, CRITERION_DEG, lo, hi, rpm(lo), rpm(hi)))'''),
-        md('Sliding mode lags `atan(w/wc)` (76 deg at 2000 rad/s, `wc` 500); the flux '
-           'integrator leaks at `wc`: 45 deg late at `w = wc`.'),
+        md("Each adds its filter's lag back on its own speed: sliding mode's low-pass "
+           '`atan(w/wc)`, 76 deg at 2000 rad/s (`wc` 500); the flux integrator\'s leak '
+           '`atan(wc/w)`, 45 deg at `w = wc` = 20 rad/s (the `wc/w` column).'),
     ),
     section(
         'The second inductance',
@@ -155,15 +150,14 @@ for iq in (0.0, 2.0, 10.0, 30.0, 60.0, 100.0):
     stray = (motor.lq - motor.ld) * iq
     err = math.atan2(stray, motor.lam)
     print('%7.0f %17.1f %17.2f %13.1f'
-          % (iq, stray * 1e6, math.degrees(err), 100.0 * (1.0 - math.cos(err))))
-print()
-print('the extended back-EMF form carries the term instead: zero at every iq')'''),
+          % (iq, stray * 1e6, math.degrees(err), 100.0 * (1.0 - math.cos(err))))'''),
     ),
     section(
         'Five observers, ranked by measurement',
-        md('ESO (`wo` stable to ~12 000 rad/s at a 20 us step), adaptive Luenberger (adapts '
-           'R), dual flux with a PLL (no lag, no leak). Same plants, step, current.'),
-        code('''RANKED = ('dual', 'smo', 'luen', 'eso', 'flux')
+        md('ESO (`wo` stable to ~12 000 rad/s at a 20 us step), Luenberger (R adaptation '
+           'off, `gamma` 0), dual flux with a PLL (no lag, no leak). Same plants and current; '
+           "a 20 us step, half the sweep's. Ranked by the worst speed."),
+        code('''OBSERVERS = ('dual', 'smo', 'luen', 'eso', 'flux')
 
 def five(fitted, w_e):
     """One of each, with the states a running drive would hand over."""
@@ -203,41 +197,45 @@ def compare(plant, w_e, seconds=1.0, iq=2.0):
                 err[name].append(mc.wrap(th - s.theta))
     return {k: deg_rms(v) for k, v in err.items()}
 
-ranked = []
+medians = []                    # one dict a speed: observer -> median deg rms
 print('deg rms, median of %d plants, iq 2 A' % PLANTS)
-print('  rad/s el    rpm ' + ''.join('%8s' % n for n in RANKED))
+print('  rad/s el    rpm ' + ''.join('%8s' % n for n in OBSERVERS))
 for w_e in (20.0, 100.0, 500.0, 2000.0):
     rows = [compare(p, w_e) for p in plants]
-    got = {name: median(sorted(r[name] for r in rows)) for name in RANKED}
-    ranked.append((w_e, got))
-    print('%10.0f %6.0f ' % (w_e, rpm(w_e)) + ''.join('%8.1f' % got[n] for n in RANKED))
+    got = {name: median(sorted(r[name] for r in rows)) for name in OBSERVERS}
+    medians.append(got)
+    print('%10.0f %6.0f ' % (w_e, rpm(w_e)) + ''.join('%8.1f' % got[n] for n in OBSERVERS))
 print()
+RANKED = sorted(OBSERVERS, key=lambda n: max(g[n] for g in medians))
 for name in RANKED:
     print('%-6s %5.1f deg at its best, %5.1f at its worst'
-          % (name, min(row[1][name] for row in ranked), max(row[1][name] for row in ranked)))'''),
-        md("Dual flux + PLL wins; sliding mode is solid; Luenberger's R never converges on "
-           'one residual; the ESO is limited by the 20 us Euler step.'),
+          % (name, min(g[name] for g in medians), max(g[name] for g in medians)))'''),
+        md("Dual flux + PLL wins; sliding mode is solid; Luenberger's R and back-EMF share one "
+           'residual, so R stays fixed; the ESO is limited by the 20 us Euler step.'),
     ),
     section(
         'The hybrid',
         md("Switch, blend over a band (the firmware's shape), or weight on residuals. The "
-           "cost against the drive step's 2 921 cycles."),
-        code('''print('the blend, %.0f to %.0f rad/s = %.0f to %.0f rpm'
+           "cost against the board's drive step: 2 922 of 9 500 cycles a period (FINDINGS)."),
+        code('''STEP_CYCLES = 2922                          # the board's drive step, CYCCNT (FINDINGS)
+PERIOD_CYCLES = int(round(475e6 * inverter.TS))
+
+print('the blend, %.0f to %.0f rad/s = %.0f to %.0f rpm'
       % (BLEND_BAND[0], BLEND_BAND[1], rpm(BLEND_BAND[0]), rpm(BLEND_BAND[1])))
 print('  rad/s el    rpm   SMO share   blend deg rms   best single   gained')
-for row in table:
+for w_e, row in table.items():
     single = min(median(row['smo']), median(row['flux']))
     got = median(row['blend'])
     print('%10.0f %6.0f %10.2f %14.1f %13.1f %8.1f %%'
-          % (row['w_e'], rpm(row['w_e']), median(row['share']), got, single,
+          % (w_e, rpm(w_e), median(row['share']), got, single,
              100.0 * (single - got) / single))
 print()
-print("cost, per step, against the drive step's own %d cycles:" % 2921)
+print("cost, per step, against the drive step's own %d cycles of %d:" % (STEP_CYCLES, PERIOD_CYCLES))
 print('   sliding mode   2 integrators, 2 saturations, 2 low-passes, one atan2')
 print('   flux linkage   2 integrators, one atan2, a sqrt and an atan')
 print('   the blend      one ramp, two multiplies, one atan2')
 print('   headroom       %d cycles a period at %.0f kHz'
-      % (2 * 2375 - 2921, 1e-3 / inverter.TS))'''),
+      % (PERIOD_CYCLES - STEP_CYCLES, 1e-3 / inverter.TS))'''),
     ),
     section(
         'What the flux magnitude says about the magnets',
@@ -280,18 +278,20 @@ for w_e in SPEEDS:
            "where back-EMF alone lost the rotor. Small here; the tool's 48 x 16 x 24."),
         code('''import contextlib
 import io
+import os
 import time
 
 VDCS = (23.0, 43.0, 63.0)
+DRAWS = 2
 t0 = time.perf_counter()
 with mc.pool() as p, contextlib.redirect_stdout(io.StringIO()):
-    best, runs = mc.search(p, vdcs=VDCS, candidates_n=6, draws=2, refine=3)
+    best, runs = mc.search(p, vdcs=VDCS, candidates_n=6, draws=DRAWS, refine=3)
     checked = mc.verify(p, best, draws=4)
 print('%d runs in the search, %d in the verification, %.0f s on %d cores'
       % (len(runs), len(checked), time.perf_counter() - t0, os.cpu_count()))
-print('draws per point  %d plants, each drawn around the 5230SL' % 2)
+print('draws per point  %d plants, each drawn around the 5230SL' % DRAWS)
 print('cost             sigma_theta + speed_err + 10 x trip')
-verified = checked[~checked.bemf_only]
+verified = checked.query('not bemf_only')
 for vdc in VDCS:
     row = best[best.vdc == vdc].iloc[0]
     sub = verified[verified.vdc == vdc]
@@ -300,7 +300,7 @@ for vdc in VDCS:
     print('        verified sigma_theta %.4f rad (%.2f deg), trips %d of %d'
           % (sub.sigma_theta.mean(), math.degrees(sub.sigma_theta.mean()),
              int(sub.trip.sum()), len(sub)))
-floor = checked[checked.bemf_only].groupby('vdc')['min_rpm'].agg(['mean', 'max', 'count'])
+floor = checked.query('bemf_only').groupby('vdc')['min_rpm'].agg(['mean', 'max', 'count'])
 print()
 print('the sensorless floor: rpm where the back-EMF alone lost the rotor')
 print(floor.round(0))
@@ -324,12 +324,13 @@ show(fig)'''),
            'where `k w^2` meets the current ceiling, or no-load, whichever first.'),
         code('''from coaxial.model.motor import APC20x10E, RATINGS, KT_NM_PER_AMP
 
+I_RATING = 100.0                    # the board, instantaneous
 kt = 1.5 * motor.poles * motor.lam
 print('Kt               %.4f N.m/A  (the sheet: %.4f)' % (kt, KT_NM_PER_AMP))
-print('board rating     %.0f A instantaneous, %.0f V link' % (100.0, 63.0))
+print('board rating     %.0f A instantaneous, %.0f V link' % (I_RATING, max(mc.VDC_SWEEP)))
 print('motor rating     %.1f A burst for %.0f s, %.0f W'
       % (RATINGS['i_max'], RATINGS['t_i_max'], RATINGS['p_max']))
-print('the limit        %s' % ('the inverter' if 100.0 < RATINGS['i_max'] else 'the motor'))
+print('the limit        %s' % ('the inverter' if I_RATING < RATINGS['i_max'] else 'the motor'))
 print()
 print('with an APC20x10E on the shaft, the operating point:')
 print('link   no-load rpm   held rpm   N.m    shaft kW   iq A   phase A rms   limited by')
@@ -337,7 +338,7 @@ operating = {}
 for vdc in (23.0, 33.0, 43.0, 53.0, 63.0):
     w_e = inverter.V_FRAC * vdc / math.sqrt(3.0) / motor.lam
     no_load = w_e / motor.poles
-    by_current = math.sqrt(kt * 100.0 / APC20x10E.k)
+    by_current = math.sqrt(kt * I_RATING / APC20x10E.k)
     wm = min(by_current, no_load)
     torque = APC20x10E.k * wm * wm
     operating[vdc] = (no_load * 60.0 / TWO_PI, wm * 60.0 / TWO_PI, torque)
@@ -374,11 +375,10 @@ for vdc in VDCS:
 from coaxial.model import thermal
 
 LAMBDA_SPREAD = (0.9, 1.1)          # what mc.draw draws over
-I_RATING = 100.0                    # the board, instantaneous
 R_PHASE = inverter.RDS_ON + inverter.SHUNT
 CEILING_C = thermal.ceiling_of('phase_u', THROTTLE_AT)   # the record's throttle point
 AMBIENT_C = thermal.AMBIENT
-capacity = thermal.CFG['capacity']['phase_u']
+capacity = thermal.CFG['capacity']
 
 def spread(f):
     """(min, max) of f over the lambda tolerance."""
@@ -408,14 +408,18 @@ iq_cont = i_rms * math.sqrt(2.0)
 print('continuous, worst node at the %.1f C throttle point:' % CEILING_C)
 print('   %.1f A rms a phase = %.1f A of iq = %.2f N.m' % (i_rms, iq_cont, kt * iq_cont))
 print()
-print('burst from ambient, the node on its own capacity (%.2f J/K):' % capacity)
-print('   iq A   A rms   W a phase   K/s      s to the ceiling')
+print('burst from ambient, the faster of the FET node (%.3f J/K) and the shunt node (%.2f J/K):'
+      % (capacity['driver_u'], capacity['phase_u']))
+print('   iq A   A rms   W FET   W shunt   K/s      s to the ceiling')
+def slope(power):
+    """K/s of the faster node: `phase_power` splits the conduction between the two."""
+    return max(power[n] / capacity[n] for n in ('driver_u', 'phase_u'))
 def burst_s(iq):
-    return (CEILING_C - AMBIENT_C) / ((iq / math.sqrt(2.0)) ** 2 * R_PHASE / capacity)
+    return (CEILING_C - AMBIENT_C) / slope(thermal.phase_power(iq / math.sqrt(2.0), R_PHASE))
 for iq in (20.0, 40.0, 60.0, 100.0):
-    p = (iq / math.sqrt(2.0)) ** 2 * R_PHASE
-    print('%7.0f %7.1f %11.1f %7.1f %17.2f'
-          % (iq, iq / math.sqrt(2.0), p, p / capacity, burst_s(iq)))'''),
+    p = thermal.phase_power(iq / math.sqrt(2.0), R_PHASE)
+    print('%7.0f %7.1f %7.1f %9.1f %5.1f %21.2f'
+          % (iq, iq / math.sqrt(2.0), p['driver_u'], p['phase_u'], slope(p), burst_s(iq)))'''),
         code('''top = spread(lambda lam: no_load_rpm(63.0, lam))
 low = spread(lambda lam: no_load_rpm(23.0, lam))
 peak = spread(lambda lam: 1.5 * motor.poles * lam * I_RATING)
@@ -467,9 +471,9 @@ print('   hand-over at             %.0f rad/s = %.0f rpm, the sliding-mode floor
       % (hand_over, rpm(hand_over)))
 print('   w_lo .. w_hi             %.0f .. %.0f rad/s, blended not switched'
       % (hand_over, 2.0 * hand_over))
-print('   second hand-over at      %.0f rad/s = %.0f rpm to flux linkage,'
-      % (second, rpm(second)))
-print('                            weighted on the two residuals, not on speed')
+print('   to flux linkage          inside %.0f deg from %.0f rad/s = %.0f rpm, blended in'
+      % (CRITERION_DEG, second, rpm(second)))
+print('                            on speed over BLEND_BAND, %.0f .. %.0f rad/s' % BLEND_BAND)
 print('   current loop             %.0f Hz, a twentieth of %.0f kHz sampling'
       % (loop_hz, 1e-3 / inverter.TS))
 print('   injection                clears 10 dB to saliency %.2f here; the cost is'
@@ -477,8 +481,10 @@ print('   injection                clears 10 dB to saliency %.2f here; the cost 
 print('                            HF current, so i_h_max is the knob')
 print()
 print('THERMAL OBSERVER')
-print('   node ceilings            125 C the FETs and the MCU, 105 C the board')
-print('   throttle at              90 %% = %.1f C, and it acts by dropping MOE' % CEILING_C)
+print('   node ceilings            %.0f C the silicon, %.0f C the laminate'
+      % (thermal.CEILING_DEFAULT_C, thermal.CEILING_C['board']))
+print('   throttle at              %.0f %% = %.1f C, derating to the ceiling; a trip drops MOE'
+      % (100.0 * THROTTLE_AT, CEILING_C))
 print('   continuous               %.1f A rms a phase = %.2f N.m' % (i_rms, kt * iq_cont))
 print('   burst                    timed, not held: %.1f s at 100 A from ambient' % burst_s(100.0))
 print('   sample the NTC every     30 s, against a board constant of %.1f min'
@@ -524,7 +530,7 @@ def sweep_all(plant, w_e, seconds=0.6, iq=2.0):
     return {n: (math.nan if any(e != e for e in v) else deg_rms(v))
             for n, v in err.items()}
 
-tall = [dict(mc.draw(90 + i, VDC_TOP), vdc=VDC_TOP) for i in range(PLANTS)]
+tall = [mc.draw(90 + i, VDC_TOP) for i in range(PLANTS)]
 grid = []
 print('angle error deg rms, median of %d plants, %.0f V link' % (PLANTS, VDC_TOP))
 print('  rad/s el     rpm ' + ''.join('%7s' % n for n in ORDER))
@@ -544,7 +550,8 @@ print('%-14s %-9s %13s   %s' % ('channel', 'unit', 'per count', 'floor'))
 print('%-14s %-9s %13.5f   %s A rms measured'
       % ('Phase U/V/W', 'A', inverter.AFE_A_PER_COUNT, inverter.NOISE_A))
 print('%-14s %-9s %13.6f   78.15 V full scale, 49.9k/2.2k' % ('DC bus', 'V', 78.15 / 65536))
-print('%-14s %-9s %13s   30 mK, and it sits in the drivers hot spot' % ('NTC', 'centi-C', '-'))
+print('%-14s %-9s %13s   30 mK, %.2f of the V leg\\'s rise over the board'
+      % ('NTC', 'centi-C', '-', thermal.NTC_SEES_DRIVERS))
 print('%-14s %-9s %13s   0.125 K, reset by every AFE cycle' % ('A1335 TSEN', 'K/8', '-'))
 print('%-14s %-9s %13s   the die itself, 810.5 ADC cycles' % ('MCU VSENSE', 'C', '-'))
 print('   not measured: phase voltage (duty x DC link), rotor angle (only with a')
@@ -588,8 +595,9 @@ print('   the NTC           minutes later, on the board time constant')'''),
         code('''drive = device.drive
 drive.configure(source='model')
 print(drive.model.configure(j=2e-5, b=1e-5, load=0.0, noise=0.0))
-print({k: drive.params()[k] for k in ('motor_r_uohm', 'motor_ld_nh', 'motor_lq_nh',
-                                       'motor_lambda_uvs', 'motor_pole_pairs')})
+params = drive.params()             # the record, in SI
+print({k: params[k] for k in ('motor_r_uohm', 'motor_ld_nh', 'motor_lq_nh',
+                              'motor_lambda_uvs', 'motor_pole_pairs')})
 drive.write(id_ref=0.0, iq_ref=0.05, theta=0.0, omega_target=0.0)
 drive.on('sensorless')
 spin = []
@@ -626,7 +634,7 @@ bottom.set_ylabel('rad/s el')
 bottom.set_xlabel('s')
 bottom.legend()
 show(fig)
-pole_pairs = int(drive.params()['motor_pole_pairs'])
+pole_pairs = int(params['motor_pole_pairs'])
 theta = spin[-1][1]
 amps = tuple(0.05 * math.cos(theta - k * 2.0 * math.pi / 3.0) for k in range(3))
 display(ansi.image(cross_section.render(math.degrees(theta) / pole_pairs, slots=24,
@@ -648,19 +656,17 @@ for iq in (0.05, 0.15, 0.35, 0.60):
     drive.write(iq_ref=iq)
     settle = time.monotonic() + 3.0        # the rotor's j/b is 0.33 s
     while time.monotonic() < settle:
-        drive.observers.read()
+        drive.observers.read()             # the stand-in steps its chain only while asked
         time.sleep(0.02)
     t0 = time.monotonic()
     while time.monotonic() - t0 < 1.5:
         o = drive.observers.read()
         m = drive.model.read()
-        chain.append((m['omega'], o['error'], m['error'], o['blend'],
-                      o['lambda_hat'], o['valid']))
+        chain.append((m['omega'], o['error'], m['error'], o['blend'], o['valid']))
         time.sleep(0.02)
 last = drive.observers.read()
 drive.off()
 print({k: last[k] for k in ('valid', 'blend', 'blend_lo', 'blend_hi', 'wc')})
-pp = drive.params()['motor_pole_pairs'] or 1
 edges = [0.0, 500.0, 1200.0, 2500.0, 1e9]
 print('%10s %8s %5s %11s %15s %7s'
       % ('rad/s el', 'rpm', 'n', 'loop deg', 'chain-loop deg', 'blend'))
@@ -670,12 +676,12 @@ for lo, hi in zip(edges, edges[1:]):
         continue
     speed = sum(abs(r[0]) for r in band_rows) / len(band_rows)
     print('%10.0f %8.0f %5d %11.2f %15.2f %7.2f'
-          % (speed, speed / pp * 60.0 / math.tau, len(band_rows),
+          % (speed, speed / pole_pairs * 60.0 / math.tau, len(band_rows),
              deg_rms([mc.wrap(r[2]) for r in band_rows]),
              deg_rms([mc.wrap(r[1]) for r in band_rows]),
              sum(r[3] for r in band_rows) / len(band_rows)))
 print('lambda   %.5f V.s carried, %.5f in the record'
-      % (last['lambda_hat'], drive.params()['motor_lambda_uvs']))'''),
+      % (last['lambda_hat'], params['motor_lambda_uvs']))'''),
         code('''t = [i * 0.02 for i in range(len(chain))]
 fig, (speed, mid, bottom) = figure(rows=3, sharex=True)
 speed.plot(t, [r[0] for r in chain], label='omega (model)')
@@ -686,7 +692,7 @@ mid.plot(t, [math.degrees(mc.wrap(r[1])) for r in chain], label='chain - loop')
 mid.set_ylabel('error deg')
 mid.legend()
 bottom.plot(t, [r[3] for r in chain], label='blend: 0 dual, 1 flux')
-bottom.plot(t, [1.0 if r[5] else 0.0 for r in chain], label='valid')
+bottom.plot(t, [1.0 if r[4] else 0.0 for r in chain], label='valid')
 bottom.set_xlabel('s')
 bottom.legend()
 show(fig)
@@ -705,12 +711,13 @@ print('2.  the second L     %.2f deg of bias at 100 A on the plain flux observer
       % (math.degrees(math.atan2((motor.lq - motor.ld) * 100.0, motor.lam)),
          100.0 * (1.0 - math.cos(math.atan2((motor.lq - motor.ld) * 100.0, motor.lam)))))
 print('3.  five ranked      ' + ', '.join('%s %.1f to %.1f deg' % (
-    n, min(g[n] for _, g in ranked), max(g[n] for _, g in ranked)) for n in RANKED))
-gain = max(table, key=lambda row: (min(median(row['smo']), median(row['flux'])) - median(row['blend'])))
+    n, min(g[n] for g in medians), max(g[n] for g in medians)) for n in RANKED))
+w_gain, gain = max(table.items(), key=lambda item: min(median(item[1]['smo']), median(item[1]['flux']))
+                   - median(item[1]['blend']))
 print('4.  the blend        gains most at %.0f rad/s: %.1f deg against %.1f for the better single; '
       '%d cycles of headroom a period'
-      % (gain['w_e'], median(gain['blend']), min(median(gain['smo']), median(gain['flux'])),
-         2 * 2375 - 2921))
+      % (w_gain, median(gain['blend']), min(median(gain['smo']), median(gain['flux'])),
+         PERIOD_CYCLES - STEP_CYCLES))
 print('5.  lambda from |psi| %.3f of the truth at %.0f rad/s with R 30 %% high, %.3f at %.0f'
       % (recovered[SPEEDS[-1]][1], SPEEDS[-1], recovered[SPEEDS[0]][1], SPEEDS[0]))
 for vdc in VDCS:
@@ -739,16 +746,16 @@ print('12. the step         %.1f us period, %d cycles at 475 MHz, exit %d of %d 
       'virtual step sample %d, law %d, advance %d cycles'
       % (state['ts'] * 1e6, state['isr_cycles_max'], state['exit_ticks_max'], 2 * 2375,
          state['cycles']['sample'], state['cycles']['step'], state['cycles']['advance']))
-valid = [abs(mc.wrap(r[1])) for r in chain if r[5]]
+valid = [abs(mc.wrap(r[1])) for r in chain if r[4]]
 print('13. the chain on it  %.2f deg rms from the loop where valid, %d of %d; dual below %.0f rad/s, flux above %.0f; '
       'lambda %.5f carried of %.5f'
       % (deg_rms(valid) if valid else math.nan, len(valid), len(chain), last['blend_lo'],
-         last['blend_hi'], last['lambda_hat'], drive.params()['motor_lambda_uvs']))'''),
-    md('- Dual flux + PLL: 0.7 deg at 14 rpm; plain flux: 53.\n- The chain: under 7 deg '
+         last['blend_hi'], last['lambda_hat'], params['motor_lambda_uvs']))'''),
+    md('- Dual flux + PLL: 0.7 deg at 14 rpm; plain flux: 53.\n- The chain: within 7.0 deg '
        'from 14 to 10 231 rpm at 63 V; back-EMF alone loses the rotor at 10-31 rpm.\n- Peak '
-       '3.92-4.79 N.m at 100 A; continuous a quarter, thermal; 1.4 s at 100 A.\n- Injection '
-       'clears 10 dB to saliency 1.02.\n- The step: 2 921 of 4 750 ticks here, 2 922 on the '
-       'board.'),
+       '3.92-4.79 N.m at 100 A; continuous a quarter, thermal; 1.1 s at 100 A.\n- Injection '
+       'clears 10 dB to saliency 1.02.\n- The step: exit at 2 921 of 4 750 TIM1 ticks here; '
+       '2 922 of 9 500 cycles on the board.'),
 ]
 
 BENCH = ('`isr_cycles_max` and `exit_ticks_max` first. With a motor: '
@@ -760,7 +767,7 @@ REFERENCES = [
     ('host/tools/sim/montecarlo.py', "the firmware's C searched over the link sweep, one process per core"),
     ('host/tests/test_drive_core.py', 'the C held to the Python it was ported from, over drawn plants'),
     ('drive/src/drive_observer.c', 'the back-EMF chain the board runs beside the loop, op 14'),
-    ('host/coaxial/devices/drive.py', 'device 10: `state`, `window`, `model`, `observers`, the record'),
+    ('host/coaxial/devices/drive.py', 'device 10: `state`, `read` (the window), `model`, `observers`, `params` (the record)'),
     ('host/coaxial/simulated/drive/', 'the stand-in this ran on: the PMSM, and the chain stepped over a bounded window'),
     ('docs/FINDINGS.md', 'the caches were off: 10 040, 6 756 and 2 922 cycles a step'),
 ]

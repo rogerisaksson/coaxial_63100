@@ -1,35 +1,30 @@
-"""Is the gate drivers' supply actually up while AFE_ON is low?
+"""Is the gate drivers' supply up while AFE_ON is low?
 
-THE CATCH. `Vgate` (PA5, 47k+10k over 10k from +15V7, ratio 6.70) is an ADC
-channel, and the ADC's reference is fed by AFE_ON. So Vgate can only be read
-while the AFE is ON - which is exactly when the inversion says the drivers are
-unpowered. The repo's only Vgate measurement, 0.35 V, was taken that way and
-therefore says nothing about the other state.
+`Vgate` (PA5, 47k+10k over 10k from +15V7, ratio 6.70) is an ADC channel,
+and the ADC's reference is fed by AFE_ON: Vgate reads only while the AFE is
+on, which is when the inversion says the drivers are unpowered. The 0.35 V
+Vgate measurement was taken that way and says nothing about the other state.
 
-THE WAY ROUND: +15V7 has decoupling. If the supply is up while the AFE is off,
-those capacitors are charged, and switching the AFE on and reading immediately
++15V7 has decoupling. If the supply is up while the AFE is off, those
+capacitors are charged, and switching the AFE on and reading immediately
 shows the charge as a decay before it settles.
 
-    supply UP while AFE off   ->  first reading HIGH, then falling
-    supply DOWN throughout    ->  first reading is the rest level, flat
+    supply up while AFE off   ->  first reading high, then falling
+    supply down throughout    ->  first reading is the rest level, flat
 
-It is an indirect measurement and does not prove a voltage level - it tells two
-states apart. That is enough for the question being asked.
+The measurement is indirect: it tells the two states apart and proves no
+voltage level.
 
-NOTE 2026-08-28: the STO chain also gates DCDC_ENABLE, so AFE_ON low is
-necessary but not sufficient. A flat result means "no charge seen", which can
-be either the STO chain holding the supply down or the AFE never having been
-off - check for a stale process holding the port before believing it.
+2026-08-28: the STO chain also gates DCDC_ENABLE, so AFE_ON low is
+necessary but not sufficient. A flat result means "no charge seen": the STO
+chain holding the supply down, or the AFE never off - check for a stale
+process holding the port.
 """
 import argparse
-import os
-import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.errors import NoReplyError, RigError  # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.errors import NoReplyError, RigError
 
 CHANNEL = 'Vgate'
 
@@ -67,7 +62,7 @@ def main():
         rig.board.afe.off()
         time.sleep(a.off_seconds)
 
-        rig.board.afe.on()          # no settle sleep: we want the first
+        rig.board.afe.on()          # no settle: the first reading holds the charge
         t0 = time.time()
         got = []
         for _ in range(a.samples):

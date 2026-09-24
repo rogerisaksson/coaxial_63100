@@ -170,7 +170,7 @@ class SimulatedDaq(Acquisition):
 
     def _sensor_words(self, bit):
         """Four raw words, the board's own encodings - the shaft off the
-        SAME rotor the drive torques, the IMU off the poll record.
+        same rotor the drive torques, the IMU off the poll record.
         """
         if bit == self.SHAFT_BIT:
             return self._shaft_words()
@@ -205,7 +205,7 @@ class SimulatedDaq(Acquisition):
         level = self.STEADY.get(signal, 0.0)
         if level in (0.0, 1.0):
             return level
-        # Only what actually toggles gets jitter, and only a little.
+        # Only what toggles gets jitter, and only a little.
         return min(1.0, max(0.0, level + self._noise() * 0.02))
 
     def _gate_duty(self, leg, high):
@@ -239,9 +239,9 @@ class SimulatedDaq(Acquisition):
     def _period_us(self):
         base = 20.0 if (self._cfg or {}).get('clock') == 'tim1' else 47.0
         cfg = self._cfg or {}
-        # A CLOCK-CLOSED RECORD HAS NO ACCUMULATE, and multiplying by it gave a
-        # period of zero: every record carried the same timestamp, so `dt` came
-        # out 0.0 and a host could not tell how long a window covered.
+        # A clock-closed record has no accumulate: multiplying by it gives a
+        # period of zero, every record the same timestamp and `dt` 0.0, so a
+        # host cannot tell how long a window covered.
         if not cfg.get('accumulate'):
             return float(cfg.get('interval_us') or base)
         return base * cfg['decimate'] * cfg['accumulate']
@@ -300,7 +300,7 @@ class SimulatedDaq(Acquisition):
         one sum per field, the digital word when the task has one, and
         the sample count that closes every record.
         """
-        # ONE BYTE A PIN, not one word: the pins go through the same window as
+        # One byte a pin, not one word: the pins go through the same window as
         # everything else and come out as a duty.
         digital = len(self.PINS) if (self._cfg or {}).get('digital') else 0
         mask = (self._cfg or {}).get('sensors') or 0
@@ -409,9 +409,9 @@ class SimulatedDaq(Acquisition):
 
     def _buffered(self):
         """What a stopped run still owes: the real board's buffer stays
-        readable after stop, so a bounded run's remainder is served -
-        measured jank: the timed-burst notebook drained 0 records here
-        while the board gave 512.
+        readable after stop, so a bounded run's remainder is served - the
+        timed-burst notebook drained 0 records here while the board gave
+        512.
         """
         if self._cfg is None or not self._cfg['records']:
             return 0
@@ -475,16 +475,16 @@ class SimulatedDaq(Acquisition):
         cfg = self._configured()
         left = cfg['records'] - self._produced if cfg['records'] else n
         n = max(0, min(n, left))
-        # THE STAMPS TRACK THE WALL.
+        # The stamps track the wall clock.
         n, step_us = self._pace(n, self._period_us())
         out = []
         for _ in range(n):
             self._at = (self._at + int(step_us * TICKS_PER_US)) & MASK32
             took = self._samples_per_record(len(fields))
             rec = {'at': self._at, 'samples': took}
-            # THE SUM, NOT THE SAMPLES.
+            # The sum's noise, not one sample's.
             spread = math.sqrt(took * 1210.0)
-            # ONE ROTATION, SEEN TWICE.
+            # One rotation for the currents and the pins.
             self._last_spin = self._spin(step_us * 1e-6)
             theta, amps, _index, _delta = self._last_spin
             for f in fields:
@@ -497,7 +497,7 @@ class SimulatedDaq(Acquisition):
                     # stand-in's own amps-per-code.
                     offset = took * phase_codes(f['signal'], amps, theta)
                 else:
-                    # ONE SOURCE FOR A QUIET CHANNEL.
+                    # One source for a quiet channel.
                     offset = took * _sweep(index)
                 rec[f['signal']] = (centre * took + int(offset)
                                     + int(spread * self._noise()))
@@ -517,7 +517,7 @@ class SimulatedDaq(Acquisition):
             self._running = False
             self._done = True
         self.backlog = self._buffered()
-        # THE LINE, CHARGED IN TIME.
+        # The line's time, charged.
         self._charge_line(len(out))
         return out
 

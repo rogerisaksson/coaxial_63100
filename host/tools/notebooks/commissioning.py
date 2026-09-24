@@ -30,8 +30,8 @@ print('ISR entry %.1f us after the trigger, cost %.1f us (%d cycles); '
       % (lat['isr_entry_us'], lat['isr_cost_us'], lat['isr_cost_cycles'],
          lat['to_effect_periods'], lat['to_effect_us']))'''),
         md('`sample_point_scan`: CCR5 across the period on the zero vector, the tick with '
-           'the least phase variance -> `drv_trigger_ticks`. Not switching, it once picked '
-           '990 of 2376.'),
+           'the least phase variance -> `drv_trigger_ticks`. Gates off it picked 990 of '
+           '2376: noise (2026-08-31).'),
         code('''from coaxial.draw.figures import figure, show
 
 scan = c.sample_point_scan()
@@ -46,12 +46,15 @@ show(fig)
 print('sample point CCR5 %d of %d (was %d): variance %.0f there, %.0f at tick %d'
       % (scan['best'], scan['period'], scan['was'], min(variance), max(variance),
          ticks[variance.index(max(variance))]))'''),
-        md('Offsets applied unless past `limit_codes` (-52 A with nothing connected is a '
-           'fault). Gain ratios from `ia + ib + ic = 0`, a vector on each phase axis.'),
+        md('Offsets applied unless past `limit_codes`, 3000: tens of amps with nothing '
+           'connected is a fault. Gain ratios from `ia + ib + ic = 0`, a vector on each '
+           'phase axis.'),
         code('''offsets = c.offsets()
+apc = c.amps_per_code()
 for name, row in offsets.items():
-    print('%-8s %+6d codes  %s' % (name, row['offset_raw'],
-                                   'SUSPECT - reported, not applied' if row['suspect'] else 'applied'))
+    print('%-8s %+6d codes = %+6.1f A  %s'
+          % (name, row['offset_raw'], row['offset_raw'] * apc,
+             'SUSPECT - reported, not applied' if row['suspect'] else 'applied'))
 mismatch = c.gain_mismatch()
 if mismatch['measured']:
     print('relative gains %s, mismatch %.2f %%'
@@ -83,10 +86,10 @@ def bend(amps):
 def folded(amps):
     return (2.0 / 3.0) * (bend(amps) + bend(amps / 2.0))
 
-amps = [i for i, _ in dead['points']]
-grid = [max(amps) * k / 100.0 for k in range(1, 101)]
+currents = [i for i, _ in dead['points']]
+grid = [max(currents) * k / 100.0 for k in range(1, 101)]
 fig, (panel,) = figure()
-panel.plot(amps, [v for _, v in dead['points']], 'o', label='vd held, measured')
+panel.plot(currents, [v for _, v in dead['points']], 'o', label='vd held, measured')
 panel.plot(grid, [dead['r'] * i + folded(i) for i in grid], label='R I + dead time, fitted')
 panel.plot(grid, [dead['r'] * i for i in grid], ':', label='R I alone')
 panel.set_xlabel('id, A')
@@ -125,25 +128,19 @@ panel.set_xlabel('injection angle from the d axis, electrical degrees')
 panel.set_ylabel('L, uH')
 panel.legend(loc='upper left')
 show(fig)'''),
-        md('The four constants into a `Parameters`; a step that saw no current: `measured: '
-           "False`, the record's value stands in. The stand-in's machine is `BENCH_MOTOR`."),
+        md('Each step wrote what it measured into the record; a step that saw no current left '
+           "the record's value. The four constants read back into a `Parameters`, `measured` "
+           "if all three steps saw current. The stand-in's machine is `BENCH_MOTOR`."),
         code('''from coaxial.model.motor import BENCH_MOTOR, Parameters
 
 p = device.drive.params()
-
-def got(step, key, fallback):
-    block = c.results.get(step) or {}
-    return block[key] if block.get('measured') is not False and key in block else fallback
-
 identified = Parameters(
     name='commissioned',
-    r=got('deadtime', 'r', p['motor_r_uohm']),
-    ld=got('l_map', 'ld', p['motor_ld_nh']),
-    lq=got('l_map', 'lq', p['motor_lq_nh']),
-    lam=got('flux', 'lambda', p['motor_lambda_uvs']),
-    poles=int(p['motor_pole_pairs']),
-    sat=0.3, i_sat=4.0,      # the bend's shape as the record has it; the map shows it, no step fits it
-    measured=True, source='commissioning on this rig')
+    r=p['motor_r_uohm'], ld=p['motor_ld_nh'], lq=p['motor_lq_nh'],
+    lam=p['motor_lambda_uvs'], poles=int(p['motor_pole_pairs']),
+    sat=BENCH_MOTOR.sat, i_sat=BENCH_MOTOR.i_sat,    # the stand-in's bend: the map shows one, no step fits it
+    measured=all(c.results[step]['measured'] for step in ('deadtime', 'l_map', 'flux')),
+    source='commissioning on this rig')
 print(identified)
 vdc = device.drive.state()['vdc']
 print('link %.2f V; saliency Lq/Ld %.3f' % (vdc, identified.saliency))
@@ -204,11 +201,7 @@ print(c.report()['line'])'''),
         md("`run_job` scores the firmware's C on plants drawn around this machine. Cost "
            '`sigma_theta + speed_err + 10 x trip`; `robust` = mean + 90th percentile. 6 '
            'candidates x 3 draws here; the tool runs 48 x 16.'),
-        code('''import os
-import sys
-
-sys.path.insert(0, os.path.join('..', 'host'))   # the Monte Carlo is a tool beside the library, not part of it
-from tools.sim import montecarlo as mc'''),
+        code('''from tools.sim import montecarlo as mc'''),
         code('''import time
 
 fields = {k: getattr(identified, k) for k in ('name', 'r', 'ld', 'lq', 'lam', 'poles',
@@ -241,8 +234,6 @@ print('%d runs in %.1f s, %d tripped the stage at i_trip %.0f A; '
            'the record holds after rounding. Then `verify` again.'),
         code('''tune = mc.design({k: float(best[k]) for k in mc.KNOBS}, vdc, identified, i_max, i_trip, 1.0)
 written = device.drive.configure(
-    motor_r_uohm=identified.r, motor_ld_nh=identified.ld, motor_lq_nh=identified.lq,
-    motor_lambda_uvs=identified.lam,
     drv_kp_mv_per_a=tune['kp'], drv_ki_v_per_as=tune['ki'],
     drv_l1_milli=tune['l1'], drv_l2_milli=tune['l2'],
     drv_inj_mv=tune['inj_volts'], drv_inj_periods=tune['inj_periods'],
@@ -256,15 +247,14 @@ lb = check['ljung_box']
 print('%s under the searched tune: sigma_theta %.2f deg (was %.2f), Q %.2f against %.2f, %s, fault %s'
       % (check['method'], check['sigma_theta_deg'], first['sigma_theta_deg'], lb['q'],
          lb['threshold'], 'white' if lb['white'] else 'NOT white', check['fault']))'''),
-        md('`calibration.save()` keeps the record across a reset.'),
+        md('`calibration.save()` keeps the record across a reset; `rest()`: drive off, stage '
+           'down, converters back to the meter.'),
         code('''print('saved:', device.calibration.save())
 after = device.drive.params()
 for name in sorted(after):
-    print('   %-26s %-14.6g %s' % (name, after[name], 'written today' if name in written else ''))
-print('%d parameters in the record, %d of them written today' % (len(after), len(written)))
-device.drive.off()
-device.gates.off()
-device.gates.control.configure(sync=False)
+    print('   %-26s %-14.6g %s' % (name, after[name], 'searched' if name in written else ''))
+print('%d parameters in the record, %d of them searched' % (len(after), len(written)))
+c.rest()
 print('stage armed:', device.gates.is_on())'''),
     ),
 ]
@@ -278,8 +268,9 @@ RESULTS = [
 
 line(1, 'AFE', afe, lambda: 'sigma_i %.4f A, ENOB %.1f, pickup %.4f A; ISR %.1f us of a %.0f us period'
      % (afe['sigma_i'], afe['enob'], max(afe['pickup_amps'].values()), lat['isr_cost_us'], 1e6 / c.fs))
-line(2, 'sample point', scan, lambda: 'CCR5 %d of %d (was %d); variance %.0f there, %.0f mid-period'
-     % (scan['best'], scan['period'], scan['was'], min(variance), max(variance)))
+line(2, 'sample point', scan, lambda: 'CCR5 %d of %d (was %d); variance %.0f there, %.0f at tick %d'
+     % (scan['best'], scan['period'], scan['was'], min(variance), max(variance),
+        ticks[variance.index(max(variance))]))
 line(3, 'offsets', offsets, lambda: ' '.join(
     '%s %+d%s' % (n[-1], v['offset_raw'], ' SUSPECT' if v['suspect'] else '')
     for n, v in offsets.items()))
@@ -317,7 +308,7 @@ print('                  injection %.3f V x %d -> %.3f V x %d, eps gain %.3f -> 
          written['drv_eps_gain_ua_per_rad'], closed['drv_w_lo_mrad_s'], closed['drv_w_hi_mrad_s'],
          written['drv_w_lo_mrad_s'], written['drv_w_hi_mrad_s']))
 print('15. verified      sigma_theta %.2f -> %.2f deg, innovation %s, fault %s; '
-      'saved, %d parameters read back, %d written today'
+      'saved, %d parameters read back, %d searched'
       % (first['sigma_theta_deg'], check['sigma_theta_deg'],
          'white' if check['ljung_box']['white'] else 'NOT white', check['fault'],
          len(after), len(written)))
@@ -343,6 +334,6 @@ REFERENCES = [
     ('host/coaxial/model/motor.py', '`Parameters`, and `BENCH_MOTOR` - the stand-in\'s truth'),
     ('host/coaxial/simulated/drive/', 'the stand-in this ran on: the machine, the pickup, the polarity readings'),
     ('host/tests/test_sensorless.py', 'the arithmetic and the commissioning pinned against the stand-in'),
-    ('host/tests/test_drive_core.py', 'the firmware\'s law through the host gcc, which the search drives'),
+    ('host/tools/cores/drive.py', 'the firmware\'s law through the host gcc, which the search drives'),
 ]
 

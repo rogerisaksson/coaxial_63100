@@ -4,19 +4,16 @@ The sequence on one node, the image kept when it is the one held, the
 refusals in the node's words, and the interface holding both implementations
 to one set of names.
 """
-import os
 import struct
 import sys
 import zlib
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from coaxial import Coaxial63100
+from coaxial.devices.boot import Boot, BootControl, Master, chunks_of, enumerate_blank
+from coaxial.errors import DeviceStateError
+from coaxial.simulated.boot import SimulatedBoot, SimulatedSegment
 
-from coaxial import Coaxial63100                            # noqa: E402
-from coaxial.devices.boot import (Boot, BootControl, Master, chunks_of,  # noqa: E402
-                                  enumerate_blank)
-from coaxial.errors import DeviceStateError                 # noqa: E402
-from coaxial.simulated.boot import SimulatedBoot, SimulatedSegment  # noqa: E402
-from test_modbus_core import Report                         # noqa: E402
+from test_modbus_core import Report
 
 TYPE = 1
 
@@ -34,6 +31,8 @@ def test_one_node_flashed(report, boot):
     node = boot.who()
     report.check('who with no prefix answers with the blank node',
                  node is not None and node['state'] == 'held' and node['unit'] == 247)
+    if node is None:
+        return
     report.check('who with the wrong prefix is silence', boot.who(8, b'\xAA') is None)
     boot.assign(node['uid'], 2, 2, terminate=True)
     done = boot.flash(TYPE, img, record)

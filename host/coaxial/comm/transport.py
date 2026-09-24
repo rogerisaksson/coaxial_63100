@@ -3,13 +3,13 @@ import struct
 import threading
 import time
 from contextlib import contextmanager
+from typing import Any
 
 import serial
 
 from coaxial.comm.crc import crc16
-from coaxial.errors import ConnectError, CrcError, FrameError, ModbusException, NoReplyError
 from coaxial.comm.protocol import BROADCAST, MAX_PAYLOAD, request_length
-from typing import Any
+from coaxial.errors import ConnectError, CrcError, FrameError, ModbusException, NoReplyError
 
 #: A frame's fixed bytes around the payload: the unit id and function
 #: code in front, the CRC behind.
@@ -43,20 +43,12 @@ class Transport:
         return 0.00175 if self.baud > 19200 else 3.5 * 11.0 / self.baud
 
     QUIET_TIME = 0.008
-
-    #: The firmware dispatches proven requests on their own CRC (MINOR 9)
-    #: - Board.probe() sets this when the version says so. Off, every
-    #: transaction pays the spec gap exactly as before.
-    proven_dispatch = False
-    """Gap that ends an inbound frame.
+    """Gap that ends an inbound frame, paid at the end of every transaction.
 
     Measured on the debug probe's VCP at 115200, reading greedily with
-    `in_waiting`: the largest gap inside a frame was **3.40 ms**, across
+    `in_waiting`: the largest gap inside a frame was 3.40 ms, across
     both a 20-byte reply arriving whole in one chunk and a 215-byte one
-    arriving in 175. This is twice that. It was 20 ms, six times the margin
-    the link needs, and since it is paid at the end of every single
-    transaction it was most of the round trip - 46.6 ms became 12.9 ms with
-    this and the gap below.
+    arriving in 175. This is twice that.
 
     It cannot go much lower without knowing the reply's length, and the
     board does not send one: nothing in the frame says where it ends, so a
@@ -65,6 +57,11 @@ class Transport:
     prefix of a 20-byte frame passes the check about once in 4096, which is
     a wrong reading every few minutes rather than an error.
     """
+
+    #: The firmware dispatches proven requests on their own CRC (MINOR 9)
+    #: - Board.probe() sets this when the version says so. Off, every
+    #: transaction pays the spec gap.
+    proven_dispatch = False
 
     DEFAULT_TIMEOUT = 0.5
 
@@ -82,10 +79,10 @@ class Transport:
         except (serial.SerialException, ValueError, OSError) as exc:
             raise ConnectError('cannot open %s at %d baud: %s'
                                % (port, baud, exc)) from exc
-        # ONE TRANSACTION AT A TIME ON THE WIRE.
+        # One transaction at a time on the wire.
         self._wire = threading.RLock()
         #: When the line last went quiet, so t3.5 is only slept for what is
-        #: actually owed.
+        #: owed.
         self._quiet_since = time.monotonic()
         #: Whether the last exchange ended with a validated reply. False
         #: makes the next transmit purge whatever is left over.
@@ -154,16 +151,14 @@ class Transport:
         frame = bytes([unit, function]) + payload
         frame += struct.pack('<H', crc16(frame))    # low byte first, unlike every
                                                     # other field in the frame
-                                                    # T3.5 IS SILENCE ON THE
-                                                    # BUS, NOT A SLEEP TO
-                                                    # PERFORM.
+        # t3.5 is silence on the bus, not a sleep to perform.
         if not (self.proven_dispatch and self._last_proven):
             self._pay_gap()
         pdu_len = len(frame) - 3
         self._last_proven = (request_length(frame[1:-2]) == pdu_len
                              and pdu_len > 0)
         with self._link_errors('transmitting'):
-            # ONLY WHEN THE LAST EXCHANGE DID NOT END CLEANLY.
+            # Only when the last exchange did not end cleanly.
             if not self._clean:
                 self.serial.reset_input_buffer()
             self._clean = False

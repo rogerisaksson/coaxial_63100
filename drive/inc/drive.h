@@ -169,7 +169,7 @@ typedef struct
   uint32_t rng;
 } drive_model_t;
 
-/** THE BACK-EMF OBSERVER CHAIN, drive_observer.c. */
+/** The back-EMF observer chain, drive_observer.c. */
 #define DRIVE_OBS_WC           20.0f   /**< the leak, rad/s electrical */
 #define DRIVE_OBS_CROSS        20.0f   /**< current model pull, rad/s */
 #define DRIVE_OBS_PLL_KP      200.0f
@@ -311,7 +311,7 @@ void drive_model_sample(drive_model_t *m, drive_sample_t *out);
 void drive_model_advance(drive_model_t *m, const float *duty, float ts);
 
 /** One period with the model as the source: sample, step, advance with the
-    step BEFORE's duties - the pipeline the stage has. */
+    step before's duties - the pipeline the stage has. */
 bool drive_step_virtual(drive_t *d, drive_out_t *out);
 
 /** Arm the raw-code moments for `periods`; zero forgets them. */

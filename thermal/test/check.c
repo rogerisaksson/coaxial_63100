@@ -7,7 +7,7 @@
 
 #define AMBIENT   20.0f
 #define SETTLE_S  (60.0f * 60.0f)      /* one hour, ~9 tau */
-/* THE RATE THE BOARD RUNS AT, derived so the two cannot disagree. */
+/* The rate the board runs at, derived so the two cannot disagree. */
 #include "../../board/inc/board_limits.h"
 #define STEP_S    ((float)THERMAL_STEP_MS / 1000.0f)
 
@@ -28,11 +28,11 @@ static const struct sample CASES[] =
   { "4 switch",  { 0.60f, 0.0f, 0.666f, 1.134f, 0.0f, 0.0f }, 40.0f, 55.6f },
 };
 
-/* Does a die sensor buy anything? Start 30 K wrong with ONLY the MCU die and
+/* Does a die sensor buy anything? Start 30 K wrong with only the MCU die and
    no NTC. */
 static int die_anchor(void)
 {
-  /* A DIE reading, not the package. */
+  /* A die reading, not the package. */
   const float truth = 72.0f;
   const float board = 30.0f;
   thermal_cfg_t cfg;
@@ -205,7 +205,7 @@ int main(void)
 {
   int bad = 0;
 
-  /* THE NTC COLUMNS NOW CARRY A RESIDUAL, and it is not a regression. */
+  /* The NTC columns carry a residual, and it is not a regression. */
   printf("%-11s %9s %10s %8s   %9s %9s\n",
          "state", "board mod", "board meas", "err", "ntc mod", "ntc meas");
 

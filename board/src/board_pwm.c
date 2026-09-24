@@ -116,9 +116,8 @@ void Board_PwmDisable(void)
 
 bool Board_PwmSetBreakBypass(bool on)
 {
-  /* Clearing the LATCH is not enough and never was: with BKE set and PE15
-     low the break is a level, so the hardware holds MOE clear and software
-     cannot set it at all. */
+  /* Clearing the latch is not enough: with BKE set and PE15 low the break is
+     a level, so the hardware holds MOE clear and software cannot set it. */
   if (!Board_PwmReady())
   {
     return false;
@@ -500,7 +499,7 @@ uint16_t Board_PwmGetDuty(uint8_t phase)
   }
   if (s.alternate)
   {
-    /* The MEAN over the pair of periods, which is the leg's load: the
+    /* The mean over the pair of periods, which is the leg's load: the
        compare itself swaps at 50 kHz, and the thermal observer sampling it
        at its own rate sat phase-locked on one triple - the U driver was
        charged with the whole run while V ran the same pulses. */
@@ -575,7 +574,7 @@ bool Board_PwmInit(void)
     return false;
   }
 
-  /* The dither's update interrupt is NOT enabled here - one that does
+  /* The dither's update interrupt is not enabled here: one that does
      nothing should not run at 50 kHz. */
   HAL_NVIC_SetPriority(TIM1_UP_IRQn, 2, 0);
 
@@ -604,11 +603,11 @@ bool Board_PwmInit(void)
               | TIM_CCER_CC2E | TIM_CCER_CC2NE
               | TIM_CCER_CC3E | TIM_CCER_CC3NE;
 
-  /* RCR 0, so the update lands at every overflow AND every underflow - twice
+  /* RCR 0, so the update lands at every overflow and every underflow - twice
      a PWM period. */
   TIM1->RCR = 0U;
 
-  /* NOT the dead time. */
+  /* Not the dead time. */
   s.deadtime = (uint8_t)(TIM1->BDTR & TIM_BDTR_DTG);
   s.half = 0U;
 
@@ -635,7 +634,7 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
            "cannot be worked out";
   }
 
-  /* ROUNDED UP, like the floor above and for the same reason: a dead time
+  /* Rounded up, like the floor above and for the same reason: a dead time
      that rounded down is under what was asked for, and the direction that is
      wrong is the one that shortens it. */
   uint32_t counts = (((uint64_t)ns * PS_PER_NS) + ps - 1ULL) / ps;
@@ -711,7 +710,7 @@ static bool hold_counted_down(void)
 }
 
 /* The hold ran out: every compare to zero, every duty forgotten, the
-   alternate and the dither off - stood down BEFORE the mode branches so that
+   alternate and the dither off - stood down before the mode branches so that
    on the expiring event neither writes a compare after the zero lands. */
 static void hold_expired(void)
 {
@@ -732,7 +731,7 @@ static void hold_expired(void)
   }
 }
 
-/* The drive's next triple, just past the UNDERFLOW - DIR reads up - so a
+/* The drive's next triple, just past the underflow - DIR reads up - so a
    triple written here lands, preloaded, at the next overflow and shapes one
    symmetric pulse centred on the underflow after it. */
 static void land_next_triple(void)
@@ -774,7 +773,7 @@ void TIM1_UP_IRQHandler(void)
 
   if (s.alternate && ((TIM1->CR1 & TIM_CR1_DIR) != 0U))
   {
-    /* Just past the OVERFLOW - DIR already reads down - so these preloaded
+    /* Just past the overflow - DIR already reads down - so these preloaded
        compares land at the underflow and the whole next period, both slopes,
        is one triple. */
     const uint16_t *next = s.alt[s.alt_next];

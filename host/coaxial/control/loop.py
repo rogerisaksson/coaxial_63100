@@ -1,20 +1,18 @@
 """The control loops as blocks on one bus, closing around `coaxial.model.motor`."""
 import math
 import os
+import random
 
-# NUMPY'S OPENBLAS COMMITS 32 MB A CORE THE MOMENT IT IS IMPORTED - a scratch
-# buffer per worker thread, never touched, but charged against the machine's
-# commit limit.
+# numpy's OpenBLAS commits 32 MB a core on import: a scratch buffer per
+# worker thread, never touched, charged against the machine's commit limit.
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-import numpy                                                     # noqa: E402
-import random                                                    # noqa: E402
+import numpy
 
-from coaxial.model import sysid                                              # noqa: E402
-from coaxial.model.motor import Parameters                                    # noqa: E402
-from coaxial.model.motor import Motor                                         # noqa: E402
-from coaxial.model.sensorless import TWO_PI                                   # noqa: E402
-from machine.parts import SpeedPI                                              # noqa: E402
+from coaxial.model import sysid
+from coaxial.model.motor import Motor, Parameters
+from coaxial.model.sensorless import TWO_PI
+from machine.parts import SpeedPI
 
 SQRT3 = math.sqrt(3.0)
 
@@ -117,8 +115,8 @@ class CurrentLoop(Block):
 
     """vd, vq from the current error: kp = L w0 and ki = R w0 per axis, the
     speed cross-terms fed forward, the pair clamped to link/sqrt(3) as a
-    VECTOR - and the integrators held while it is, drive.c's conditional
-    integration.
+    vector; while the clamp acts the integrators hold: drive.c's
+    conditional integration.
     """
 
     def __init__(self, hz, motor, vdc):
@@ -162,7 +160,7 @@ class Machine(Block):
         s.id, s.iq = m.id + g(), m.iq + g()
         s.w_e, s.theta = m.omega, m.theta
         s.w = m.omega / m.p
-        # Half a period of angle advance: the vector is held in the STATOR
+        # Half a period of angle advance: the vector is held in the stator
         # frame while the rotor turns w*dt through it, so aiming at the middle
         # makes the mean dq voltage the commanded one.
         ahead = m.theta + 0.5 * m.omega * dt

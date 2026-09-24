@@ -1,4 +1,4 @@
-"""Commissioning a motor on this board: the eight steps, against a rig."""
+"""Commissioning a motor on this board: the twelve steps, against a rig."""
 import math
 import time
 
@@ -120,8 +120,7 @@ class Commissioning:
     def rest(self):
         """Drive off, stage down, converters back to the meter."""
         self.drive.off()
-        if self.rig.gates.is_on():
-            self.rig.gates.off()
+        self.rig.gates.off()
         self.rig.board.gate_drivers.configure(sync=False)
 
     def _window(self, settle, seconds):
@@ -267,7 +266,7 @@ class Commissioning:
             out = {'measured': False,
                    'why': 'no current flowed - the stage is unpowered on '
                           'this bench, so the sums say nothing'}
-            self.results['gains'] = out
+            self.results['gain_mismatch'] = out
             return out
         # m_a + m_b u_b + m_c u_c = 0 per row, u = 1/g relative to phase a
         a11 = sum(r[1] * r[1] for r in rows)
@@ -280,7 +279,7 @@ class Commissioning:
             out = {'measured': False,
                    'why': 'the three sums are dependent - the current vector '
                           'did not move between the axes'}
-            self.results['gains'] = out
+            self.results['gain_mismatch'] = out
             return out
         ub = (b1 * a22 - b2 * a12) / det
         uc = (a11 * b2 - a12 * b1) / det
@@ -294,7 +293,7 @@ class Commissioning:
                 ppm = int(round((1.0 / rel[k] - 1.0) * 1e6))
                 self.rig.board.calibration.set_channel(
                     k, cal[k]['offset_raw'], ppm)
-        self.results['gains'] = out
+        self.results['gain_mismatch'] = out
         return out
 
     # -- step 2: the inverter ---------------------------------------------

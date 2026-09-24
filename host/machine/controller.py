@@ -6,7 +6,7 @@
                                sink='drive.iq_ref', prefilter=Slew(157.0),
                                measure=Gain(1 / 7), estimator=SpeedKalman(...)))
     loop.write(w_target=100.0)       # the hook: any channel - a script, a plan, a model
-    loop.run(2.0); loop.move(2.0, w_target=50.0); loop.follow(plan)
+    loop.run(2.0); loop.move(2.0, w_target=50.0); loop.follow(steps)
     loop.read()                      # every channel after the last pass
     loop.save(path); Loop.load(path, sources, sinks); with loop.saving(path): ...
 
@@ -271,7 +271,7 @@ class Loop(Controller):
         for name in self.feedbacks:
             part = self.parts.get(name + '/measure')
             if part is not None:
-                x = self.bus.get(self.wires.get(name + '/measure.x'), 0.0)
+                x = self.bus.get(self.wires.get(name + '/measure.x', ''), 0.0)
                 self.bus[self.channel_of(name + '/measure', 'y')] = float(
                     part.step(0.0, x=x)['y'])
         return dict(self.bus)
@@ -311,10 +311,9 @@ class Loop(Controller):
         self.write(**setpoints)
         return self.run(seconds, watch)
 
-    def follow(self, plan, watch=None):
-        """Setpoints in sequence: (seconds, {channel: value}) pairs, or a planner
-        `plan(loop) -> (seconds, {channel: value})`, None when done."""
-        steps = iter(lambda: plan(self), None) if callable(plan) else iter(plan)
+    def follow(self, steps, watch=None):
+        """Setpoints in sequence: (seconds, {channel: value}) pairs - a table, or a
+        generator that plans each block from what the loop reads."""
         rows = []
         for seconds, setpoints in steps:
             rows += self.move(seconds, watch, **setpoints)
@@ -397,7 +396,7 @@ class Paced:
     def __init__(self, part, hz, feed=None, clock=time.monotonic, sleep=time.sleep):
         self.part, self.pause, self.feed = part, 1.0 / float(hz), feed
         self._clock, self._sleep = clock, sleep
-        self._inputs, self._out, self._thread = {}, None, None
+        self._inputs, self._out, self._thread = {}, {}, None
         self._lock, self._part_lock = threading.Lock(), threading.Lock()
         self._ready = threading.Event()
         self._stopping = False

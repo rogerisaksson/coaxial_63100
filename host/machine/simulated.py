@@ -57,21 +57,22 @@ class SimulatedBms(Node):
 class SimulatedCamera(Node):
 
     """A camera and one target at `target_deg`: where it sits in the frame, -1..1 across the
-    field of view, from where the actuator named `where` points (`yaw()`, deg); 0 unseen."""
+    field of view (`identity['fov']`, deg), from where the actuator named `where` points
+    (`yaw()`, deg); 0 unseen."""
 
-    FOV = 60.0
     UNITS = dict(Node.UNITS, x='1', y='1', seen='0/1')
 
     def __init__(self, name='head_camera', target_deg=40.0, yaw=None, where='head'):
         self.target_deg, self.yaw = float(target_deg), yaw or (lambda: 0.0)
         super().__init__(name, {'type': 'camera', 'device': 'simulated_camera', 'where': where,
-                                'link': 'simulated', 'unit': 0},
+                                'link': 'simulated', 'unit': 0, 'fov': 60.0},
                          {'vision': Module(self._read)})
 
     def _read(self):
         off = (self.target_deg - self.yaw() + 180.0) % 360.0 - 180.0
-        seen = abs(off) <= self.FOV / 2.0
-        return {'target': {'x': off / (self.FOV / 2.0) if seen else 0.0, 'y': 0.0,
+        half = self.identity['fov'] / 2.0
+        seen = abs(off) <= half
+        return {'target': {'x': off / half if seen else 0.0, 'y': 0.0,
                            'seen': seen}}
 
     def couple(self, machine):

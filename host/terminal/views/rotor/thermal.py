@@ -149,7 +149,7 @@ def ntc_bar(view):
 
 
 def switch_headroom(view):
-    """What is left of the SWITCHES' budget, 0 to 1: the worst of the six
+    """What is left of the switches' budget, 0 to 1: the worst of the six
     nodes a duty cycle drives (SOA_NODES), each against its own ceiling.
     """
     used = (view.get('budget') or {}).get('used') or {}
@@ -164,7 +164,7 @@ def headrooms(view):
     switch = switch_headroom(view)
     motor = motor_headroom(view)
     budget = view.get('budget') or {}
-    # THE LEVEL IS WHAT IS SPENT, not what is left.
+    # The level is what is spent, not what is left.
     margin = policy_margin(view)
     motor_spent = 1.0 - motor
     if 'winding_used' in budget:
@@ -182,7 +182,7 @@ def policy_margin(view):
 
 
 def motor_flashing(view):
-    """The motor's pulse: the board holding the stage back FOR THE WINDING -
+    """The motor's pulse: the board holding the stage back for the winding -
     its own factor under one, or its ceiling reached - since MINOR 12
     made it a node the envelope acts on.
     """
@@ -215,7 +215,7 @@ def headroom_class(left):
 
 
 def soa_bars(view, names):
-    """`(fraction, class)` per node: HEIGHT IS HEAT, COLOUR IS MARGIN."""
+    """`(fraction, class)` per node: height is heat, colour is margin."""
     budget = view.get('budget') or {}
     used = budget.get('used') or {}
     seen = view.get('thermal') or {}
@@ -270,7 +270,6 @@ def thermal_rows(view):
     rows.append(('headroom', '%9.0f %% left, worst %s'
                  % (100.0 * headroom(view),
                     (budget or {}).get('worst_node', '?'))))
-    # THE THROTTLE AND THE BUDGET.
     factor = (budget or {}).get('derate')
     if factor is not None:
         rows.append(('throttle', Text(' %3.0f %% of the clamp ' % (100 * factor),
@@ -295,9 +294,8 @@ def thermal_rows(view):
                         'rising' if view['load_rising'] else 'falling')))
     rows.append(('NTC', '%7.1f C' % th['ntc'] if th.get('ntc') is not None
                  else '%7s' % 'unread'))
-    # THE ROOM, as identified - the board has no sensor for it - and on the
-    # stand-in the one the truth stands in, so the tour can be read off this
-    # page too.
+    # The room as identified (the board has no sensor for it), and on the
+    # stand-in the truth's, so the tour reads off this page too.
     ident = view.get('ident') or {}
     if ident.get('ambient') is not None:
         truth = ident.get('truth') or {}

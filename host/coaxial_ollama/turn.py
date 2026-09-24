@@ -3,6 +3,7 @@ import json
 import re
 import textwrap
 from contextlib import suppress
+from typing import Any
 
 from . import intent
 from . import language
@@ -130,6 +131,24 @@ class Turn:
 class ChatTurn:
 
     """A question in, the calls made, an answer out that the facts hold up."""
+
+    # What the class this mixes into brings.
+    _lock_language: Any
+    _meter: Any
+    _switch_board: Any
+    budget: Any
+    client: Any
+    compile_intent: Any
+    history: Any
+    io_log: Any
+    out: Any
+    over_budget: Any
+    print_lock: Any
+    prompt_history: Any
+    quiet: Any
+    schemas: Any
+    toolbox: Any
+    trim: Any
 
     _traced = False
 

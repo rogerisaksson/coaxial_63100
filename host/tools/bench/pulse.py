@@ -10,7 +10,7 @@ the two sees the DC link for `duty` of every period. The pulse lasts
 as long as the second compare write takes to land: 15.5 ms measured
 2026-08-30, ~780 cycles at 50 kHz. It was 110 ms through rig.write(),
 whose arm check and period lookup were three state reads at 31 ms
-each. **From protocol 2.8 the board counts the pulse itself**: --on
+each. From protocol 2.8 the board counts the pulse itself: --on
 rides as a period count with the duty write and the update ISR zeroes
 the compares after exactly that many periods - 10 ms is 500 cycles,
 not 93-108. Older firmware gets the link-timed train unchanged.
@@ -22,16 +22,12 @@ exclusive here. It prints the gate state after the pulse and after the
 disarm, so a fault latch, an overrun or a gate short shows.
 """
 import argparse
-import os
-import sys
 import time
 from contextlib import suppress
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from tools.bench.switch import PHASES  # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.errors import RigError
+from tools.bench.switch import PHASES
 
 #: Seconds a compare write takes to land, measured 14.9-16.0 ms over the
 #: probe's COM port: what an --on wait is shortened by.
@@ -48,7 +44,7 @@ SLACK_S = 0.002
 
 def _counted(rig, a):
     """Periods the board counts for the on-time itself: none for a
-    link-timed hold, an alternate train (op 10 carries no count yet),
+    link-timed hold, an alternate train (op 10 carries no count),
     or a firmware from before the count."""
     if a.on <= 0.0 or a.alternate:
         return 0

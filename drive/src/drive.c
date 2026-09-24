@@ -13,7 +13,7 @@
 
 void drive_defaults(drive_params_t *p)
 {
-  /* PLACEHOLDERS. */
+  /* Placeholders. */
   memset(p, 0, sizeof(*p));
   p->r = 0.05f;
   p->ld = 20e-6f;

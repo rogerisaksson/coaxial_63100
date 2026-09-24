@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 """The acquisition front door: picking channels, reading them, shaping them."""
 import contextlib
-import os
 import sys
 import threading
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from coaxial import Coaxial63100                            # noqa: E402
-from coaxial.acquire import bessel                          # noqa: E402
-from coaxial.errors import RigError                         # noqa: E402
-from coaxial.acquire.fanout import Fanout                           # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.acquire import bessel
+from coaxial.acquire.fanout import Fanout
+from coaxial.errors import RigError
 
 
 class Report:
@@ -95,7 +92,7 @@ def test_configure_takes_names_or_a_list(report):
         report.check('a list, sliced, works the same',
                      len(daq.channel_names()) == 3, daq.channel_names())
 
-        # A pin is a GROUP: naming one turns them all on and none of them goes
+        # A pin is a group: naming one turns them all on and none of them goes
         # in the channel mask.
         daq.configure('phaseU', 'AFE_ON')
         report.check('a pin does not become an analog field',
@@ -166,7 +163,7 @@ def test_configure_takes_a_designed_chain(report):
 
 
 def test_read_of_a_finite_run(report):
-    """THE REGRESSION."""
+    """read(n) of a 5-record run: min(n, 5) records, 5 for -1, never a hang."""
     for ask, expect in ((50, 5), (5, 5), (3, 3), (-1, 5)):
         with opened() as device:
             daq = device.daq
@@ -174,7 +171,7 @@ def test_read_of_a_finite_run(report):
             daq.start()
             got, spent = _read_within(daq, ask)
             if ask < 0:
-                # WHAT THERE IS.
+                # read(-1) gives what there is: gathered to 5, or 3 s.
                 while got is not None and len(got) < expect and spent < 3.0:
                     more, took = _read_within(daq, ask)
                     got, spent = got + (more or []), spent + took
@@ -480,7 +477,7 @@ def test_records_track_the_wall(report):
 
 def test_sensor_fields_ride_the_record(report):
     """MINOR 7: snapshots beside the sums - the shaft angle in the same
-    record as the current that moved it, off the SAME virtual rotor."""
+    record as the current that moved it, off the same virtual rotor."""
     with opened(power_afe=False) as device:
         device.board.drive.configure(source='model')
         device.gates.on(bypass_sto=True, ignore_interlock=True)

@@ -2,6 +2,7 @@
 import math
 import random
 import time
+from typing import Any
 
 from coaxial.model.sensorless import HALF_SQRT3
 from coaxial.simulated.values import DCBUS_V, NOMINAL
@@ -10,6 +11,16 @@ from coaxial.simulated.values import DCBUS_V, NOMINAL
 class DriveCapture:
 
     """What the drive records for the host: windows and moments at the sample point."""
+
+    # What the class this mixes into brings.
+    PERIOD: Any
+    _converge: Any
+    _dq: Any
+    _ih: Any
+    _mode: Any
+    _p: Any
+    _periods_since: Any
+    _sp: Any
 
     SIGMA_I = 0.02      #: current noise on the shunts, A rms
 

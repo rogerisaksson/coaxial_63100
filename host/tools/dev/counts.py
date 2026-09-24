@@ -1,23 +1,24 @@
 """How many checks each suite and each test group last reported."""
 import io
 import json
-import os
 
-PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.counts.json')
+from tools.dev.suites import ROOT
+
+PATH = ROOT / 'tests' / '.counts.json'
 
 
 def load():
     try:
         with io.open(PATH, encoding='utf-8') as handle:
             got = json.load(handle)
-    except Exception:                                         # noqa: BLE001
+    except (OSError, ValueError):       # absent, unreadable, or not JSON
         return {}
     return got if isinstance(got, dict) else {}
 
 
 def record(section, sizes):
     """Merge sizes into one section and return the whole file."""
-    # A SUITE THAT RAN NOTHING MEASURED NOTHING.
+    # A suite that ran nothing measured nothing.
     sizes = {name: n for name, n in sizes.items() if n}
     got = load()
     have = got.get(section)
@@ -25,7 +26,7 @@ def record(section, sizes):
     try:
         with io.open(PATH, 'w', encoding='utf-8') as handle:
             json.dump(got, handle, indent=1, sort_keys=True)
-    except Exception:                                         # noqa: BLE001
+    except OSError:
         pass
     return got
 

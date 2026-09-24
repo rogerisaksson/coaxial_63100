@@ -27,16 +27,13 @@ import subprocess
 import sys
 from contextlib import suppress
 
+from coaxial_ollama import client as clientmod
+from tools.dev.suites import TAGS
+
 # What the model was asked for, once it has answered.
 Plan = collections.namedtuple('Plan', 'suites tags live why')
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # host/
-sys.path.insert(0, ROOT)
-
-# The subject catalogue lives with the tests it names, so a tag cannot be added
-# in one place and mean nothing in the other.
-from coaxial_ollama import client as clientmod  # noqa: E402
-from tests.ollama_support import TAGS  # noqa: E402
 
 # How much of the diff the model sees.
 DIFF_CHARS = 6000
@@ -199,7 +196,6 @@ def pick(model='gemma4:12b', against='HEAD', keep_alive='30m'):
                  '\n'.join('  ' + name for name in changed(against)),
                  clip(patch))
     try:
-        # think=False, and not just for the tokens.
         client = clientmod.Ollama(model, keep_alive=keep_alive, fmt=SCHEMA,
                                   think=False, num_predict=400)
         client.model = client.require_model()

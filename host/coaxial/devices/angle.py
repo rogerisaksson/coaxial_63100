@@ -1,4 +1,6 @@
 """The A1335 on SPI4: what it reads, and what the poll loop saw."""
+from typing import Any
+
 from coaxial.comm import protocol
 from coaxial.comm.protocol import AngleOp
 from coaxial.devices.sensor import PolledSensor
@@ -92,6 +94,9 @@ DECODED = {ANG: _angle, TSEN: _temperature}
 class AngleSensor(PolledSensor):
 
     """An A1335 as an input: degrees, off the register the loop polls."""
+
+    # What the class this mixes into brings.
+    _poll: Any
 
     READING = 'degrees'
 

@@ -34,16 +34,17 @@ print('NTC_SEES_DRIVERS  %.2f of the V leg\\'s rise; the element lags %.0f s'
       % (thermal.NTC_SEES_DRIVERS, thermal.NTC_TAU_S))
 print('drivers switching %.2f W over three legs = %.2f W a leg x %.0f K/W = %.1f K over the patch'
       % (watts, thermal.DRIVER_SWITCH_WATT, thermal.LEG_TO_BOARD, thermal.DRIVER_RISE_SWITCHING))
-print('NTC while switching %.1f - %.1f - %.1f = %.1f K over the offset; the element accounts for '
-      '%.2f x %.1f = %.2f K; residual %.2f K, a thermistor against a camera'
-      % (thermal.MEASURED['switching']['ntc'], thermal.MEASURED['switching']['board'],
-         thermal.NTC_OFFSET, thermal.MEASURED['switching']['ntc']
-         - thermal.MEASURED['switching']['board'] - thermal.NTC_OFFSET,
-         thermal.NTC_SEES_DRIVERS, thermal.DRIVER_RISE_SWITCHING,
-         thermal.NTC_SEES_DRIVERS * thermal.DRIVER_RISE_SWITCHING,
-         thermal.NTC_CAMPAIGN_RESIDUAL_K))'''),
+switching = thermal.MEASURED['switching']
+print('NTC while switching %.1f against the element\\'s %.1f + %.2f x %.1f = %.2f C: residual %.2f K, '
+      '%.1f of it the passive offset - a thermistor against a camera'
+      % (switching['ntc'], switching['board'], thermal.NTC_SEES_DRIVERS,
+         thermal.DRIVER_RISE_SWITCHING,
+         switching['board'] + thermal.NTC_SEES_DRIVERS * thermal.DRIVER_RISE_SWITCHING,
+         thermal.NTC_CAMPAIGN_RESIDUAL_K, thermal.NTC_OFFSET))'''),
         md('`calibrate`: `to_board = (T_zone - T_reference) / P_zone`, one division a node.'),
         code('''import math
+
+from coaxial.model import inverter
 
 passive_power = {'mcu': thermal.POWER_SWITCHING['mcu'],
                  'regulators': thermal.POWER_SWITCHING['regulators'] - watts}
@@ -54,7 +55,7 @@ for node, k_per_w in sorted(fit.items()):
           % (node, k_per_w, thermal.CFG['to_board'][node]))
 bridge_lumped = (10.1 - 1.0) / watts                # the bridge zone, state 4 less state 1
 camera_leg = 3.0 * bridge_lumped
-sheet_leg = 25.9 - 0.69 - thermal.CFG['board_to_ambient']
+sheet_leg = inverter.RTH_JA_JEDEC - inverter.RTH_JC - thermal.CFG['board_to_ambient']
 print('bridge       %5.1f K/W lumped for three legs, %.1f a leg in parallel'
       % (bridge_lumped, camera_leg))
 print('a leg        %.1f K/W off the camera against %.1f off the datasheet coupon; '
@@ -81,7 +82,9 @@ ansi.image(thermalmap.render({n: steady[n] for n in thermal.NODES}, steady['boar
         md('`state()`: nodes in C and `error` (expected NTC - measured). `ntc` None while '
            "AFE_ON is low. `budget()`: `used`, the fraction of each node's span to its "
            'record ceiling.'),
-        code('''observer = device.thermal
+        code('''from coaxial.devices.thermal_device import THROTTLE_AT
+
+observer = device.thermal
 st = observer.state()
 print('NTC %s C  ambient %.1f C (estimated)  expected NTC %.2f C  error %s  settled %s'
       % (st['ntc'], st['ambient'], st['expected_ntc'], st['error'], st['settled']))
@@ -90,10 +93,10 @@ print('other dies: afe %s C, mcu %s C, seen %.1f s ago; %d integration steps'
 cal = device.calibration.read()
 budget = observer.budget()
 limits = dict(zip(thermal.ALL_NODES, cal['soa_limit_c']))
-print('ceilings written in the record: %d, throttle at %.2f; the defaults in force: '
-      'silicon %.0f C, laminate %.0f, motor %.0f'
+print('written in the record: %d ceilings, throttle %.2f; where none is written: '
+      'silicon %.0f C, laminate %.0f, motor %.0f, throttle at %.2f of the span'
       % (len(limits), cal['soa_throttle_at'], thermal.CEILING_DEFAULT_C,
-         thermal.CEILING_C['board'], thermal.CEILING_C['winding']))
+         thermal.CEILING_C['board'], thermal.CEILING_C['winding'], THROTTLE_AT))
 for node in thermal.ALL_NODES:
     print('%-12s %6.2f C  used %5.1f %%  ceiling %s'
           % (node, st['nodes'][node], 100.0 * budget['used'][node],
@@ -109,8 +112,7 @@ print('sample every 30 s:', observer.configure(sample_every_s=30.0, sample_settl
         'The envelope',
         md('Quiet, switching dry, under current, cooling. Throttle at 90 % of the span: 115 '
            'C for silicon in a 25 C room. Conduction split FET 1.8 mohm / shunt 3.5 mohm.'),
-        code('''from coaxial.model import inverter, motor
-from coaxial.devices.thermal_device import THROTTLE_AT
+        code('''from coaxial.model import motor
 
 R_PHASE = inverter.RDS_ON + inverter.SHUNT
 THROTTLE_C = thermal.AMBIENT + THROTTLE_AT * (thermal.CEILING_DEFAULT_C - thermal.AMBIENT)
@@ -132,7 +134,7 @@ for name, iq, on in STATES:
 rms = thermal.continuous_amps(R_PHASE, THROTTLE_C)
 iq_cont = rms * math.sqrt(2.0)
 at = thermal.steady(thermal.phase_power(rms, R_PHASE))
-print('continuous: %.1f A rms a phase = %.1f A of iq = %.2f N.m on the bench motor; '
+print('continuous: %.1f A rms a phase = %.1f A of iq = %.2f N.m on the 5230SL; '
       'worst node %.1f C against the %.1f C throttle point, board %.1f C'
       % (rms, iq_cont, motor.KT_NM_PER_AMP * iq_cont,
          max(at[n] for n in thermal.NODES), THROTTLE_C, at['board']))'''),
@@ -187,8 +189,7 @@ for node in ('driver_u', 'phase_u'):
     print('%-9s after a burst to the throttle point: to +20 K over the board in %.1f s, +5 K in %.1f, +1 K in %.1f'
           % (node, cooling[node][0], cooling[node][1], cooling[node][2]))
 board_cools = {}
-for name, iq, on in STATES:
-    at, holds = holdable[name]
+for name, (at, holds) in holdable.items():
     if not holds:
         continue
     board_cools[name] = (at['board'] - thermal.AMBIENT, cools_in(at['board'] - thermal.AMBIENT, tau_board * 60.0) / 60.0)
@@ -210,13 +211,13 @@ for minute in range(1, 151):
     observer.fast_forward(60.0, live=True)
     now, got, truth = observer.state(), observer.identification(), observer.truth()
     if truth['load_a']:
-        faces[truth['situation']] = (minute, got['ambient'], dict(now['nodes']))   # the last loaded minute of each leg
+        faces[truth['situation']] = (minute, got['ambient'], dict(now['nodes']))   # each room's last loaded minute
     rows.append({'minute': minute, 'situation': truth['situation'], 'state': got['state'],
                  'margin': got['margin'], 'room': got['ambient'], 'room_sigma': got['ambient_sigma'],
                  'room_truth': truth['ambient'], 'air': got['scales']['air'],
                  'air_sigma': got['sigma']['air'], 'air_truth': truth['air'],
                  'capacity': got['scales']['capacity'], 'capacity_truth': truth['capacity'],
-                 'innovation': got['innovation_k'], 'driver_u': now['nodes']['driver_u'],
+                 'driver_u': now['nodes']['driver_u'],
                  'load_a': truth['load_a'] or 0.0})
     if truth['situation'] != last:
         print('minute %3d: %s -> %s' % (minute, last, truth['situation']))
@@ -280,26 +281,30 @@ trace = []
 for minute in range(1, 41):
     observer.fast_forward(60.0, seen=cooked if minute <= 2 else idle, live=True)
     b, got = observer.budget(), observer.identification()
-    trace.append((minute, got['margin'], b['worst'], b['trips'], got['trip_cap'], device.gates.is_on()))
+    armed = device.gates.is_on()
+    trace.append((minute, got['margin'], b['trips'], got['trip_cap'], armed))
     if minute in (1, 2, 3, 5, 10, 20, 30, 40):
         print('minute %2d: trips %d, stage armed %-5s worst %.2f of the span in force, '
               'trip cap %.2f, margin %.2f, %s'
-              % (minute, b['trips'], device.gates.is_on(), b['worst'], got['trip_cap'],
+              % (minute, b['trips'], armed, b['worst'], got['trip_cap'],
                  got['margin'], got['state']))
-print('disarmed:', not device.gates.off()['pwm_enabled'])'''),
+released = device.gates.off()
+print('released: pwm_enabled %s, break_bypassed %s'
+      % (released['pwm_enabled'], released['break_bypassed']))'''),
         ),
 ]
 
 RESULTS = [
     code('''moves = [r['minute'] for a, r in zip(rows, rows[1:]) if a['situation'] != r['situation']]
-before = [rows[m - 2] for m in moves]          # the minute before each move: STABLE, the leg settled
+before = [rows[m - 2] for m in moves]          # each leg's last minute, before the move
 print('1. the network     %d nodes; board %.2f K/W and %.0f J/K, tau %.1f min - the two measured numbers; '
       'a leg %.0f K/W between the camera\\'s %.1f and the coupon\\'s %.1f'
       % (len(thermal.ALL_NODES), thermal.CFG['board_to_ambient'], thermal.CFG['board_capacity'],
          tau_board, thermal.LEG_TO_BOARD, camera_leg, sheet_leg))
 print('2. the NTC         %.1f K over the board at rest, %.2f of the V leg\\'s rise, lag %.0f s; '
-      'the switching state misses by %.1f K'
-      % (thermal.NTC_OFFSET, thermal.NTC_SEES_DRIVERS, thermal.NTC_TAU_S, thermal.NTC_CAMPAIGN_RESIDUAL_K))
+      'the switching state misses by %.1f K, %.1f of it that offset'
+      % (thermal.NTC_OFFSET, thermal.NTC_SEES_DRIVERS, thermal.NTC_TAU_S, thermal.NTC_CAMPAIGN_RESIDUAL_K,
+         thermal.NTC_OFFSET))
 print('3. the fit         mcu %.1f and regulators %.1f K/W off the passive state, the graph\\'s %.1f and %.1f; '
       'bridge %.1f K/W lumped'
       % (fit['mcu'], fit['regulators'], thermal.CFG['to_board']['mcu'],
@@ -309,8 +314,10 @@ print('4. switching dry   %.2f W: board %.1f C, %s the hottest at %.1f C, NTC ex
       % (sum(thermal.POWER_SWITCHING.values()), steady['board'],
          max(thermal.NODES, key=lambda n: steady[n]), max(steady[n] for n in thermal.NODES),
          ntc_steady, 100 * thermal.settled_fraction(25)))
-print('5. the board       NTC %s C, error %s, worst %s at %.1f %%; ceilings written %d, the defaults in force'
-      % (st['ntc'], st['error'], budget['worst_node'], 100.0 * budget['worst'], len(limits)))
+print('5. the board       NTC %s C, error %s, worst %s at %.1f %%; ceilings written %d, throttle %.2f '
+      'in the record, %.2f the default'
+      % (st['ntc'], st['error'], budget['worst_node'], 100.0 * budget['worst'], len(limits),
+         cal['soa_throttle_at'], THROTTLE_AT))
 print('6. holdable        ' + '; '.join('%s: board %.1f C, worst %.1f' % (name, at['board'], max(at[n] for n in thermal.NODES))
                                         for name, (at, holds) in holdable.items() if holds))
 print('7. continuous      %.1f A rms a phase = %.1f A of iq = %.2f N.m against the %.0f C throttle point'
@@ -322,7 +329,7 @@ print('8. a burst         driver %.1f s, shunt %.1f s, board %.1f min; 60 A of i
 print('9. the board cools %s' % '; '.join('%s +%.1f K, back to +1 K in %.0f min' % (name, rise, minutes)
                                           for name, (rise, minutes) in board_cools.items()))
 print('10. the tour       moved at minutes %s; STABLE %d of %d, the margin at the floor %d minutes, whole %d'
-      % (moves, len(stable), len(rows), sum(1 for r in rows if r['margin'] <= 0.8 + 1e-9),
+      % (moves, len(stable), len(rows), sum(1 for r in rows if r['margin'] <= thermal.IDENT_MARGIN_FLOOR + 1e-9),
          sum(1 for r in rows if r['margin'] >= 0.999)))
 print('    the room       at each leg\\'s end: ' + ', '.join('%.1f for %.0f' % (r['room'], r['room_truth']) for r in before)
       + '; worst %.1f K' % max(abs(r['room'] - r['room_truth']) for r in before))
@@ -330,12 +337,12 @@ print('    the air path   at each leg\\'s end: ' + ', '.join('%.2f for %.2f' % (
       + '; capacity %.2f for %.2f at the end' % (rows[-1]['capacity'], rows[-1]['capacity_truth']))
 print('11. the trip       %d trip, stage armed after it: %s; margin %.2f the minute after, %.2f at minute 10, '
       '%.2f at 20, %.2f at 30, %.2f at 40; the cap %.2f -> %.2f'
-      % (trace[-1][3], trace[0][5], trace[0][1], trace[9][1], trace[19][1], trace[29][1], trace[39][1],
-         trace[0][4], trace[-1][4]))'''),
+      % (trace[-1][2], trace[0][4], trace[0][1], trace[9][1], trace[19][1], trace[29][1], trace[39][1],
+         trace[0][3], trace[-1][3]))'''),
     md('- Board 8.33 K/W, 49 J/K: 6.8 min. NTC +6.0 K over the board at rest.\n- 2.40 W '
        'switching dry; the regulators hottest at 72.3 C.\n- Continuous ~20 A rms a phase; '
-       '60 A lasts seconds.\n- Taken dry: at 100 A the shunt alone is 35 W a phase, against '
-       "the camera's 1.20 W of switching."),
+       '60 A of iq lasts 3 s.\n- Taken dry: at 100 A of iq the shunt alone is 17.5 W a phase, '
+       "against the camera's 1.20 W of switching."),
 ]
 
 BENCH = ('`error` first. Capacities: `dT/dt` right after a power step '
@@ -344,11 +351,11 @@ BENCH = ('`error` first. Capacities: `dT/dt` right after a power step '
 REFERENCES = [
     ('host/coaxial/model/thermal.py', 'the network on the host: the nodes, the edges, the campaign\'s table, and every constant\'s argument'),
     ('thermal/src/thermal.c', 'the same network as the board integrates it, and the envelope'),
-    ('host/coaxial/thermal_ident.py', 'the identification the stand-in runs, mirroring `thermal/src/thermal_ident.c`'),
+    ('host/coaxial/kalman/thermal_ident.py', 'the identification the stand-in runs, mirroring `thermal/src/thermal_ident.c`'),
     ('host/coaxial/devices/thermal_device.py', '`device.thermal`: state, budget, identification, the record\'s ceilings and the sample interval'),
     ('host/coaxial/simulated/thermal/', 'the stand-in: a hypothetical board with a ground truth, the situations, the tour and the trip cap'),
     ('docs/HARDWARE.md', 'the campaign, the camera, and how a measurement here is to be read'),
-    ('docs/FINDINGS.md', 'what ran off and what was ruled out: the room inferred two other ways, the clamped scales'),
+    ('docs/FINDINGS.md', 'the camera campaign, the two measured numbers, the envelope\'s 100 ms slice, the identification against a ground truth'),
     ('host/tests/test_thermal_core.py', 'the envelope as the C that will run, and the identification against a ground truth'),
 ]
 

@@ -15,7 +15,7 @@ extern "C" {
 #define BOARD_DAQ_CLOCK_SOFTWARE 0U  /**< the main loop, as fast as it gets round */
 #define BOARD_DAQ_CLOCK_TIM1     1U  /**< the injected group, one per PWM period */
 
-/** The sensor fields a record may append - SNAPSHOTS, never sums: a summed
+/** The sensor fields a record may append - snapshots, never sums: a summed
     quaternion means nothing. */
 #define BOARD_DAQ_SENSOR_ORIENTATION (1U << 0)  /**< i, j, k, real - Q14 */
 #define BOARD_DAQ_SENSOR_ACCEL       (1U << 1)  /**< x, y, z, status - Q8 */
@@ -54,16 +54,16 @@ typedef struct
   uint32_t available;    /**< whole records waiting to be taken */
   uint32_t produced;
   uint32_t dropped;      /**< records the buffer had no room for */
-  /* THE BUFFER LEVEL, and it takes both numbers to be one: `available` alone
+  /* The buffer level, and it takes both numbers to be one: `available` alone
      is a count nobody can read as full or empty without knowing what the
-     ring holds at THIS stride, which changes with the channel count. */
+     ring holds at this stride, which changes with the channel count. */
   uint32_t capacity;     /**< whole records the ring holds at `stride` */
   uint32_t worst;        /**< the fullest it has been since the start */
   uint8_t  rung;         /**< which rung of the ladder is running */
   uint8_t  rungs;        /**< how many the host sent */
   uint32_t rung_changes; /**< how often it has climbed or fallen */
-  /* SWEEPS, not records: what the acquisition loop is actually managing
-     underneath the decimation. */
+  /* Sweeps, not records: what the acquisition loop manages underneath the
+     decimation. */
   uint32_t triggers;
   board_daq_config_t config;
 } board_daq_state_t;
@@ -125,7 +125,7 @@ void Board_DaqTonePoll(void);
 /** Whether a tone is standing in for the converter. */
 bool Board_DaqToneOn(void);
 
-/** Triggers one record costs: the decimation, the accumulate AND the
+/** Triggers one record costs: the decimation, the accumulate and the
     filter's own decimation. */
 uint32_t Board_DaqTriggersPerRecord(void);
 

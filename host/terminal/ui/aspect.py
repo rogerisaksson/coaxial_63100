@@ -1,5 +1,4 @@
 """The terminal's cell aspect: asked of the terminal, else the flag, else 2.0."""
-import importlib
 import re
 import select
 import sys
@@ -41,20 +40,21 @@ def cell_aspect_of(pixels, cells):
 
 def probe_aspect(console=True, wait=ASPECT_WAIT):
     """Ask the terminal how tall its cell is against its width."""
-    # BOTH ENDS, or the query itself is the damage: written to a pipe the
-    # escape lands in whatever is reading the render.
+    # Both ends a tty, or the query itself is the damage: written to a pipe
+    # the escape lands in whatever is reading the render.
     if not console or not sys.stdin.isatty() or not sys.stdout.isatty():
         return None
     saved = posix = None
     try:
-        try:
-            termios = importlib.import_module('termios')      # POSIX only
-            tty = importlib.import_module('tty')
-            posix, saved = termios, termios.tcgetattr(sys.stdin)
-            tty.setcbreak(sys.stdin.fileno())
-        except Exception:       # noqa: BLE001 - Windows, or no tty; and
-            # termios has its own error class, absent where it is absent
-            saved = None
+        if sys.platform != 'win32':
+            import termios
+            import tty
+            try:
+                posix, saved = termios, termios.tcgetattr(sys.stdin)
+                tty.setcbreak(sys.stdin.fileno())
+            except (termios.error, OSError, ValueError):
+                # stdin not a tty, or without a descriptor
+                saved = None
         out = sys.__stdout__ or sys.stdout
         out.write(ASPECT_QUERY)
         out.flush()
@@ -91,7 +91,7 @@ def _read_now():
 
 
 def aspect_of(cell_aspect=None):
-    """`(aspect, how)`: what makes a circle round on THIS terminal."""
+    """`(aspect, how)`: what makes a circle round on this terminal."""
     if cell_aspect is not None:
         return cell_aspect, 'given'
     seen = probe_aspect()

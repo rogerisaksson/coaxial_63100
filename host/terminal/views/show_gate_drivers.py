@@ -3,9 +3,9 @@
 
     python terminal/views/show_gate_drivers.py --port COM4
 
-The **gate snapshot** is one IDR read, so the six signals are the same
+The gate snapshot is one IDR read, so the six signals are the same
 instant: six asks at 50 kHz can straddle an edge and show a leg with both
-FETs on. The **currents** and **DC link** come from the acquisition task's
+FETs on. The currents and DC link come from the acquisition task's
 live accumulator, which carries a count, a lowest and a highest per
 channel, so ripple is measured rather than inferred.
 
@@ -15,8 +15,8 @@ channel, so ripple is measured rather than inferred.
     P       one pulse, U against V low   1 2 3 4 run length 1/10/100/1000 ms
     Q / ESC close / menu
 
-**Arming arms a power stage**, and TIM1's 80 ns dead time is the only thing
-between the two FETs of a leg - the 2EDL8034 has no interlock of its own.
+Arming arms a power stage, and TIM1's 80 ns dead time is the only thing
+between the two FETs of a leg: the 2EDL8034 has no interlock of its own.
 On this bench board AFE_ON is inverted, so the drivers have supply while it
 is off, and with it off the board refuses to convert: switching and
 measuring are mutually exclusive here. `--afe` runs it the other way.
@@ -24,30 +24,27 @@ measuring are mutually exclusive here. `--afe` runs it the other way.
 Nothing here judges a reading.
 """
 import argparse
-import os
 import sys
 import time
 from contextlib import suppress
 
 from rich.text import Text
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial.devices import scaling  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui import screen as _screen  # noqa: E402
-from terminal.ui.screen import (ASH, LABEL, SODIUM, closing, open_rig, panel_width,  # noqa: E402
+from coaxial.devices import scaling
+from coaxial.errors import RigError
+from terminal.loader import TO_MENU
+from terminal.ui import screen as _screen
+from terminal.ui.screen import (ASH, LABEL, SODIUM, closing, open_rig, panel_width,
                                 run_view, say, tint)
-from terminal.ui.stage import hud, panels_of, stage  # noqa: E402
+from terminal.ui.stage import hud, panels_of, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
-#: What R runs for, in seconds. Two floors, and the view reports both
-#: rather than hiding either: the board takes one conversion per main-loop
-#: turn, measured at 521 us for seven channels, and start and stop are a
-#: round trip each at about 15 ms - so an ask under about 30 ms is bounded
-#: by the link and not by the ask. The stamps say what actually happened.
+#: What R runs for, in seconds. Two floors, both reported: the board takes
+#: one conversion per main-loop turn, measured at 521 us for seven
+#: channels, and start and stop are a round trip each at about 15 ms, so an
+#: ask under about 30 ms is bounded by the link and not by the ask. The
+#: stamps give the span that ran.
 RUNS = {'1': 0.001, '2': 0.010, '3': 0.100, '4': 1.000}
 
 STEPS = (0.001, 0.005, 0.01, 0.05, 0.10)
@@ -56,11 +53,11 @@ STEPS = (0.001, 0.005, 0.01, 0.05, 0.10)
 LEGS = (('U', 'UH', 'UL'), ('V', 'VH', 'VL'), ('W', 'WH', 'WL'))
 
 
-#: What P pulses: U at this duty against V held low, through whatever is
-#: wired across them - on the bench 2026-08-30 about 8 ohm, with the DC
-#: link read at 25 V: 3.1 A for the on-time, 60 mA mean. It lasts until
-#: the second compare write lands - 15.5 ms measured, ~780 cycles; the
-#: protocol has no cycle-counted burst.
+#: What P pulses: U at this duty against V held low, through the load
+#: across them (2026-08-30: about 8 ohm, DC link read at 25 V, 3.1 A for
+#: the on-time, 60 mA mean). It lasts until the second compare write
+#: lands: 15.5 ms measured, ~780 cycles; the protocol has no cycle-counted
+#: burst.
 PULSE = 0.02
 
 
@@ -71,8 +68,8 @@ def gate_rows(state, width):
            % (state['pins_at'], state['period'] - 1)]
     for name, high, low in LEGS:
         both = pins[high] and pins[low]
-        # A lamp each: lit is sodium, dark is ash - the row reads at a glance
-        # which half conducts, without decoding ones and zeros.
+        # A lamp each, lit sodium and dark ash: which half conducts, at a
+        # glance.
         def lamp(on):
             return tint('[#]', SODIUM) if on else tint('[ ]', ASH)
         out.append('    phase %s     H %s  L %s     %s'
@@ -239,7 +236,7 @@ def _pulse(rig, view):
     state = rig.board.gate_drivers.state()
     if not state['pwm_enabled']:
         return 'arm first - A - then P pulses'
-    # Raw compare writes off ONE state read: rig.write()'s own arm check is a
+    # Raw compare writes off one state read: rig.write()'s own arm check is a
     # 31 ms read the pulse would be spent waiting for.
     period = state['period'] - 1
     back = int(view['duty'] * period)
@@ -340,9 +337,8 @@ def main(argv=None):
     args = parse_args(argv)
 
     # power_afe=False so the rig changes nothing on the way in; this view sets
-    # it itself, because which way round it goes is the whole question here and
-    # leaving it as found makes the run mean different things on different
-    # days.
+    # AFE_ON itself: its polarity decides what the run measures, and left as
+    # found it would differ from day to day.
     rig = open_rig('LINKING GATE DRIVERS', port=args.port, power_afe=False,
                    simulated=bool(args.simulated))
     if rig is None:

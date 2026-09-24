@@ -9,9 +9,9 @@ tabled here. Nothing is measured against an instrument unless it says so.
 ## MCU, clocks, memory
 
 - STM32H753VIT6, 25 MHz crystal, PLL1 M2 N76 P2: SYSCLK 475, HCLK 237.5,
-  TIM1 237.5 MHz. ADC kernel 37.5 MHz (0x45 reports). SPI2 kernel 190 MHz (PLL1Q),
-  SPI4 118.75 MHz (APB2); both report their bitrate (IMU op 3, angle op 6).
-  CYCCNT wraps every 9.04 s.
+  TIM1 237.5 MHz. ADC kernel 37.5 MHz (0x45 reports). SPI2 kernel 190 MHz
+  (PLL1Q), SPI4 118.75 MHz (APB2); both report their bitrate (IMU op 3,
+  angle op 6). CYCCNT wraps every 9.04 s.
 - I-cache on; D-cache off (record read back through a pointer; sample path
   data in DTCM).
 
@@ -20,7 +20,7 @@ tabled here. Nothing is measured against an instrument unless it says so.
 | ITCM 64 K | sample-path code (`.itcm`, copied by `Board_Early`), ~30 K |
 | DTCM 128 K | .data, .bss, 1 K stack, log ring; top 32 B = handover slot |
 | AXI SRAM 512 K | 448 K DAQ ring (`.buffers`, NOLOAD) |
-| D2 SRAM 0x30000000, 288 K | the application, linked and run here; header at +0x400 |
+| D2 SRAM 0x30000000, 288 K | application, linked to run here; header +0x400 |
 | Flash 0x08000000, 128 K | bootloader |
 | Flash 0x08020000, 1792 K | store: the application's sealed copy (BOOT.md) |
 | Flash 0x081E0000, 128 K | calibration record, magic 'CX63', CAL_VERSION 15 |
@@ -94,9 +94,9 @@ layouts), taken up with later fields at defaults.
 ## Thermal
 
 `thermal/src/thermal.c`: 20 nodes, 30 edges, fitted to one camera campaign
-(2026-08-28, 20 C room, 25 min per state):
+(2026-08-28, 20 C room, 25 min per state; board is a dead patch of soldermask):
 
-| State | NTC C | bridge | MCU | regulators | AFE |
+| State | board C | MCU | regulators | bridge | AFE |
 | --- | --- | --- | --- | --- | --- |
 | passive | 30.0 | +15.0 | +8.0 | +1.0 | +1.0 |
 | AFE on | 31.1 | +14.2 | +8.1 | - | +5.9 |

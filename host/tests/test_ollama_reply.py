@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """What an answer means: retypes, blank answers, nudges."""
-import os
+import io
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession,
-    call, io, simulated, toolmod)   # noqa: E402
+from ollama_support import (Scope, ScriptedModel, SimulatedSession, call,
+                            run_file, simulated, toolmod)
 
 def test_retype_with_the_trace_off(report):
     """A silenced retype must not leave an empty screen."""
@@ -187,5 +185,4 @@ ROSTER = (
 
 
 if __name__ == '__main__':
-    from tests.ollama_support import run_file
     sys.exit(run_file(ROSTER))

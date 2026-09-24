@@ -46,7 +46,7 @@ def tag(origin, unit=None, where=None):
 
 
 def _answers(served, unit=1):
-    """Whether the BOARD behind the broker answers - not just the broker."""
+    """Whether the board behind the broker answers, not just the broker."""
     # Long enough for the broker's own answer: it gives the board a second and
     # retries once across a console handover before saying no.
     reached = broker.attach((served.get('host', broker.HOST),
@@ -79,7 +79,7 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     kind = None
     fell_back = False
 
-    # A BROKER IS THE BOARD.
+    # A broker is the board.
     served = broker.serving() if only is None else None
     if served and simulated is not True and not _answers(served, unit):
         served = None
@@ -104,7 +104,7 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
                 Origin(False, port, baud, None,
                        _label(False, port, None, fell_back),
                        INTERFACE[None], unit))
-    # A BROKER FOR IT, now that the probe has let the port go.
+    # A broker for it, now that the probe has let the port go.
     broker.spawn(port, baud)
 
     if port is None:
@@ -150,8 +150,8 @@ class Session:
 
     def info(self, refresh=False):
         """Version, clock and channel table, cached: none of it changes at
-        run time, and re-reading it on every call is exactly the waste
-        this server exists to avoid.
+        run time, and re-reading it on every call is the waste this
+        server exists to avoid.
         """
         if self._info is None or refresh:
             board = self.board

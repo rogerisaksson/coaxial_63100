@@ -3,6 +3,7 @@ import sys
 import time
 import zlib
 from contextlib import suppress
+from typing import Any
 
 from coaxial.acquire.acquisition import Acquisition
 from coaxial.acquire.clock import NTP_SERVER
@@ -127,7 +128,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         #: (path of this host's build, whether open() loaded it), or None.
         self.image_loaded = None
 
-        self.session = None
+        self.session: Any = None         # open() sets it, close() clears it
         self._board = None
         # No `self.gates = None` here: before open() the name goes through
         # __getattr__ like every subsystem, so `stage = device.gates` binds a
@@ -172,7 +173,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             self.port, baud=self.baud, unit=self.unit, simulated=simulated)
         self._board = self.session.board
         self.gates = GateStage(self.board)
-        # THE WAY BACK.
+        # The board's way back to its rig.
         self.board.rig = self
         self.simulated = not self.origin.real
         if self.own_image and not self.simulated:
@@ -183,7 +184,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         return self
 
     def _own_image(self):
-        """THE HOST'S OWN BUILD ON THE BOARD (docs/BOOT.md): a board running
+        """This host's own build on the board (docs/BOOT.md): a board running
         another image takes this host's through its bootloader, into RAM and
         its store - once per build - so nothing is asked of a firmware this
         host was not built with. A board others share is not reset under
@@ -225,7 +226,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             time.sleep(self.AFE_SETTLE)
 
     def __getattr__(self, name):
-        """`device.imu` is `device.board.imu`, and it can be NAMED early."""
+        """`device.imu` is `device.board.imu`, and it can be named early."""
         if name.startswith('_') or name in ('board', 'session'):
             raise AttributeError(name)
 
@@ -279,8 +280,8 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             self.board.gate_drivers.off()
 
     def _release_afe(self):
-        """Release OUR reference; the refcount keeps the rail up for whoever
-        else holds it.
+        """Release this session's reference; the refcount keeps the rail up
+        for whoever else holds it.
         """
         if not self._afe_held:
             return
@@ -315,6 +316,8 @@ class Coaxial63100(Task, TaskStream, Acquisition):
 
     def __repr__(self):
         where = self._origin.label if self._origin else 'not open'
+        if self._origin and self.session is None:
+            where += ' closed'
         return '<Coaxial63100 %s%s>' % (
             where, ' SIMULATED' if self.simulated else '')
 

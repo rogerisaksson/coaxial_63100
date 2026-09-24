@@ -99,7 +99,7 @@ class BootControl(ABC):
     """
 
     @abstractmethod
-    def state(self):
+    def state(self) -> dict:
         """{'state', 'type', 'unit', 'position', 'held', 'of', 'valid', 'uid',
         'image', 'flags'} - image is (bytes, crc) of what RAM holds verified,
         (0, 0) for none; image and flags None from a node older than MINOR 19."""
@@ -129,11 +129,11 @@ class BootControl(ABC):
         """Broadcast: one chunk."""
 
     @abstractmethod
-    def missing(self):
+    def missing(self) -> list:
         """The chunk indices not yet held."""
 
     @abstractmethod
-    def verify(self):
+    def verify(self) -> tuple:
         """(ok, crc) over the image as it will stand."""
 
     @abstractmethod

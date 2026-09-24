@@ -1,11 +1,10 @@
-"""BOARD CHAT: the CCC prompt drawn inside the stage.
+"""Board chat: the CCC prompt drawn inside the stage.
 
 The transcript rides a frame under the title band, the input line sits
 above the key bar, and the local model answers through the same Chat the
-bench prompt (host/board_chat.ps1) drives - a terminal in the terminal.
-ESC returns to the menu. Q is a letter here, so the only ways out are
-ESC and Ctrl+C. `--frames` draws the page with a canned transcript and
-no model at all - the smoke path, like every view.
+bench prompt (host/board_chat.ps1) drives. ESC returns to the menu. Q is
+a letter here, so the only ways out are ESC and Ctrl+C. `--frames` draws
+the page with a canned transcript and no model: the smoke path.
 """
 import argparse
 import glob
@@ -19,27 +18,25 @@ import threading
 import time
 from contextlib import suppress
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from rich import box
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.text import Text
 
-from rich import box  # noqa: E402
-from rich.layout import Layout  # noqa: E402
-from rich.panel import Panel  # noqa: E402
-from rich.text import Text  # noqa: E402
-
-from coaxial_mcp.schema import TOOLS  # noqa: E402
-from coaxial_ollama import cli, language, pull as pulling  # noqa: E402
-from coaxial_ollama.client import OllamaError  # noqa: E402
-from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui.console import Keys  # noqa: E402
-from terminal.ui.screen import ENTER_KEYS, paced  # noqa: E402
-from terminal.ui.stage import boot, curtain, footer, header, hud, stage  # noqa: E402
+from coaxial_mcp.schema import TOOLS
+from coaxial_ollama import cli, language, pull as pulling
+from coaxial_ollama.client import OllamaError
+from terminal.loader import TO_MENU
+from terminal.ui.console import Keys
+from terminal.ui.screen import ENTER_KEYS, paced
+from terminal.ui.stage import boot, curtain, footer, header, hud, stage
 
 #: Rows the page spends outside the transcript: band, input, key bar,
 #: and the frame's own two edges.
 RESERVE = 5
 
 #: One cell, ten frames: the busy glyph, where the prompt arrow sat.
-#: The growing THINKING dots in the key bar wobbled the whole row.
+#: Dots growing in the key bar shifted the whole row.
 SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 
 
@@ -136,19 +133,18 @@ def open_chat(a, script, strip=None):
     """The same Chat the bench prompt builds, its prints tapped; the
     picker's tag pulled first when `ollama list` lacks it, on `strip`."""
 
-    # NOT --quiet: quiet suppresses _trace, and _trace is where a tool result's
-    # value grid prints - without it the model's one-line summary is all that
-    # reaches the transcript, values nowhere.
+    # No --quiet: it suppresses _trace, where a tool result's value grid
+    # prints; without it only the model's one-line summary reaches the
+    # transcript.
     argv = ['-m', 'auto', '--port', a.port]
     if a.simulated:
         argv.append('--simulated')
     args = cli.parse(argv)
     client, _session, chat = cli.build(args)
     # Through ensure_pulled, as dbg.py's start and the bench prompt's
-    # preflight: the picker names the tag that fits this card, and the day it
-    # named one `ollama list` lacked (2026-09-22, llama3.1:8b beside a pulled
-    # gemma4:12b that did not fit) this page died in a traceback with the
-    # command to type as its last line.
+    # preflight: the picker names the tag that fits this card, which
+    # `ollama list` can lack (2026-09-22: llama3.1:8b picked, gemma4:12b
+    # pulled and too big); unpulled, the page died in a traceback.
     client.model = cli.ensure_pulled(client, sys.stderr,
                                      pull_with=pulled_on(strip))
     chat.io_log = cli.IOLog()
@@ -160,7 +156,7 @@ def open_chat(a, script, strip=None):
 
 
 #: What -p is told about this page. CLAUDE.md routes routine board work
-#: to the local model and has claude ASK "local model, or here?" - on
+#: to the local model and has claude ask "local model, or here?"; on
 #: this page the operator picked Anthropic, so the question is answered.
 PAGE = ('You are the ANTHROPIC page of coaxial_tty. The operator chose '
         'you over the local model by opening this page, so the '
@@ -189,7 +185,7 @@ def find_claude():
 
 
 class _Claude:
-    """The ANTHROPIC backend: one `claude -p` per turn, continued in the
+    """The Anthropic backend: one `claude -p` per turn, continued in the
     repo root.
     """
 
@@ -205,12 +201,10 @@ class _Claude:
         self.exe = exe
         self.root = os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.dirname(os.path.abspath(__file__)))))
-        host = os.path.join(self.root, 'host')
         spec = {'mcpServers': {'coaxial': {
             'command': sys.executable,
             'args': ['-m', 'coaxial_mcp', '--port', port],
-            'cwd': host,
-            'env': {'PYTHONPATH': host, 'PYTHONUNBUFFERED': '1'}}}}
+            'env': {'PYTHONUNBUFFERED': '1'}}}}
         self.config = os.path.join(tempfile.gettempdir(),
                                    'coaxial_mcp_config.json')
         with open(self.config, 'w', encoding='utf-8') as f:
@@ -264,19 +258,18 @@ class _Claude:
         return '\n'.join(a for a in answer if a) or '(no answer)'
 
 
-def mcp_ready(chat, port, script, step):
+def mcp_ready(port, script, step):
     """Prove the coaxial MCP server starts before the first turn needs it:
     run it once against a closed stdin - a stdio server answers its
     startup line and exits on the EOF.
     """
 
-    host = os.path.join(chat.root, 'host')
     step(0.5, 'MCP SERVER')
     done = subprocess.run(
         [sys.executable, '-m', 'coaxial_mcp', '--port', port],
-        cwd=host, stdin=subprocess.DEVNULL, capture_output=True,
+        stdin=subprocess.DEVNULL, capture_output=True,
         text=True, encoding='utf-8', errors='replace', timeout=30,
-        env=dict(os.environ, PYTHONPATH=host, PYTHONUNBUFFERED='1'))
+        env=dict(os.environ, PYTHONUNBUFFERED='1'))
     said = (done.stdout or done.stderr).strip().splitlines()
     if said:
         script.say('label', '  mcp: %s' % said[0])
@@ -298,14 +291,16 @@ def _turn(chat, line, script, state):
             done = chat.ask(line)
         if done:
             script.say(None, str(done))
-    except Exception as exc:                    # noqa: BLE001 - shown, kept
+    except Exception as exc:
+        # The turn thread's edge: whatever a turn raised goes into the
+        # transcript; a traceback on stderr would tear the live frame.
         script.say('value', '%s: %s' % (type(exc).__name__, exc))
     finally:
         state['busy'] = False
 
 
 def _sent(line, script, state, chat):
-    """ENTER: the line goes to the model on its own thread - unless it is
+    """On ENTER the line goes to the model on its own thread, unless it is
     empty, a turn is still running, or there is no model.
     """
     if not line or state['busy'] or chat is None:
@@ -413,7 +408,7 @@ def _claude_chat(a, script, state):
     with boot('LINKING ANTHROPIC') as step:
         chat = _Claude(a.port, script, exe)
         step(0.3, 'MCP CONFIG')
-        mcp_ready(chat, a.port, script, step)
+        mcp_ready(a.port, script, step)
     state['tools'] = tuple(spec['name'] for spec in TOOLS)
     state['served'] = 'MCP TOOLS'
     script.say('name', 'ANTHROPIC - one claude -p per turn, continued '
@@ -474,19 +469,18 @@ def main():
 def _run(a, page, console, script, state, chat, origin):
     """The frame loop."""
     entry, frame, drawn, painted, face = '', 0, None, 0.0, None
-    # NO mouse mode: with reporting on the terminal hands selections to the
-    # view and copy stops working - in a chat, the transcript is exactly what
-    # gets copied.
+    # No mouse mode: with reporting on, the terminal hands selections to the
+    # view and copy stops working; the transcript is what gets copied.
     with curtain(page) as show, Keys(console,
                                      quits=frozenset()) as keys:
         while True:
             frame += 1
-            # Painted ONLY when something changed.
+            # Painted only when something changed.
             blink = frame % 16 < 8
             lead = (SPIN[frame // 2 % len(SPIN)] if state['busy']
                     else '>')
             size = page.size
-            # The page's mark carries NO entry: typing never repaints the page,
+            # The page's mark carries no entry: typing never repaints the page,
             # only its own row through echo().
             mark = (len(script.rows), script.pin,
                     size.width if size else 0,

@@ -121,9 +121,9 @@ def reached(name, defined, public, seen=None):
 
 
 def show_ops():
-    public = {re.search(r'(\w+)\s*\(', p).group(1)
+    public = {m.group(1)
               for rel, text in files(DIRS) if rel.endswith('.h') and not rel.endswith('/wire.h')
-              for p in prototypes(text)}
+              for p in prototypes(text) if (m := re.search(r'(\w+)\s*\(', p))}
     for rel, text in files(('comms',)):
         defined = bodies(text)
         rows = ([(code, what, fn) for code, what, fn in ROW.findall(text)]
@@ -141,7 +141,8 @@ def main(argv=None):
     parser.add_argument('--deps', action='store_true', help="each file's tree headers")
     parser.add_argument('--ops', action='store_true', help='command -> handler -> public calls')
     args = parser.parse_args(argv)
-    sys.stdout.reconfigure(encoding='utf-8')   # a cp1252 pipe cannot carry every brief
+    if isinstance(sys.stdout, io.TextIOWrapper):   # a cp1252 pipe cannot carry every brief
+        sys.stdout.reconfigure(encoding='utf-8')
     if args.ops:
         return show_ops()
     if args.layers or args.deps:

@@ -12,11 +12,10 @@ gates on `python`, and every write still passes through the toolbox's
 `--confirm` gate before this file is ever reached - see
 `coaxial_ollama/sandbox.py` and `tools.py`.
 
-Nothing here is new toolchain logic. It is env.ps1's bundle search
-(`Get-NewestBundleBin`) and its `cbuild`/`cflash` functions, translated to
-Python so a program that did not source that script can still find
-arm-none-eabi-gcc, cmake, ninja and the programmer under
-%LOCALAPPDATA%\\stm32cube\\bundles and the VS Code extension folder.
+The toolchain logic is env.ps1's bundle search (`Get-NewestBundleBin`) and
+its `cbuild`/`cflash` functions in Python, so a program that did not source
+that script can find arm-none-eabi-gcc, cmake, ninja and the programmer
+under %LOCALAPPDATA%\\stm32cube\\bundles and the VS Code extension folder.
 
 Exit code is 0 only if every requested step succeeded.
 """
@@ -32,11 +31,9 @@ from contextlib import suppress
 from pathlib import Path
 from shutil import which
 
+from tools.target.find_board import _text
+
 ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / 'host'))
-
-from tools.target.find_board import _text  # noqa: E402
-
 BUNDLE_ROOT = Path(os.environ.get('LOCALAPPDATA', '')) / 'stm32cube' / 'bundles'
 VSCODE_EXT = Path(os.environ.get('USERPROFILE', '')) / '.vscode' / 'extensions'
 
@@ -116,9 +113,8 @@ def find_cube_cmake(path):
     return which('cube-cmake', path=path)
 
 
-#: Helpers cube-cmake starts and never stops. Measured: four of them, 121 MB,
-#: still up from builds hours apart, and the VS Code extension keeps its own
-#: alive on top of that.
+#: Helpers cube-cmake starts and never stops: four measured, 121 MB, still up
+#: from builds hours apart; the VS Code extension keeps its own besides.
 CUBE_HELPERS = ('cube.exe', 'cube-cmsis-scanner.exe')
 
 
@@ -163,12 +159,11 @@ def run(argv, cwd, path):
     return done.returncode, (done.stdout or '') + (done.stderr or ''), time.monotonic() - started
 
 
-#: The two images and what their linker scripts give each region, so the
-#: print says how much of it is spent rather than a byte count nobody can
-#: size up. The bootloader is sector 0; the application runs from D2 SRAM
+#: The two images and their linker regions (base, size), for the build line's
+#: percentages. The bootloader is sector 0; the application runs from D2 SRAM
 #: and flash keeps its sealed copy behind the bootloader (docs/BOOT.md). The
-#: first region is where an image's bytes are counted - code that runs from
-#: ITCM and .data's initialiser included.
+#: first region counts an image's bytes, ITCM code and .data's initialiser
+#: included.
 IMAGES = {
     'coaxial_63100.elf': {'IMAGE': (0x30000000, 288 * 1024),
                           'DTCMRAM': (0x20000000, 128 * 1024),

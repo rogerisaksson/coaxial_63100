@@ -1,8 +1,6 @@
-# The host stack as an installable package: `pip install -e host/` puts
-# machine, coaxial, coaxial_mcp and coaxial_ollama on the path and hands out the
-# console entries, so nothing outside this tree needs sys.path surgery to
-# use the library. The scripts inside the tree keep their root-finders -
-# they must run from a bare clone, installed or not.
+# The host stack as an installable package: `pip install -e host/`, once per clone, puts
+# every package here on the path - machine, coaxial, the MCP server and model runner, the
+# terminal, the tools - and hands out the console entries. Nothing sets sys.path.
 #
 # ONE DEPENDENCY LIST. `requirements.txt` stays the annotated authority -
 # its comments say why each package is here - and `dynamic` reads it, so
@@ -25,11 +23,8 @@ coaxial = "coaxial.cli:main"
 coaxial-dbg = "coaxial_ollama.cli:main"
 coaxial-mcp = "coaxial_mcp.server:main"
 
-[tool.setuptools]
-packages = ["coaxial", "coaxial.acquire", "coaxial.comm", "coaxial.control",
-            "coaxial.devices", "coaxial.draw", "coaxial.graphics", "coaxial.kalman",
-            "coaxial.model", "coaxial.simulated", "coaxial_mcp", "coaxial_ollama",
-            "machine", "testline"]
+[tool.setuptools.packages.find]
+include = ["coaxial*", "machine*", "terminal*", "testline*", "tools*"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

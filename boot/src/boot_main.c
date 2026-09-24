@@ -613,7 +613,7 @@ int main(void)
   boot_init(&PORT, NULL, &s.layout);
   rtu_up();
 
-  /* THE GATE (docs/BOOT.md): RAM still whole with the image the slot names,
+  /* The gate (docs/BOOT.md): RAM still whole with the image the slot names,
      or the store's sealed copy verified into RAM - then a window for a hold;
      asked to stay, or nothing to run, and the node waits for the master. */
   const bool asked_to_stay = (boot_hand.stay == BOOT_STAY_MAGIC);

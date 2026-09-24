@@ -1,6 +1,7 @@
 """The stand-in's observer chain: the firmware's two observers stepped on its rotor."""
 import math
 import time
+from typing import Any
 
 from coaxial.model import sensorless
 from coaxial.simulated.drive.locked import _rotor_locked
@@ -9,6 +10,22 @@ from coaxial.simulated.drive.locked import _rotor_locked
 class DriveObservers:
 
     """The chain the firmware runs, stepped, skipped in closed form, and blended."""
+
+    # What the class this mixes into brings.
+    CLARKE_NOISE: Any
+    TS: Any
+    _dq: Any
+    _lam: Any
+    _ld: Any
+    _machine: Any
+    _mode_at: Any
+    _noise: Any
+    _omega_hat: Any
+    _r: Any
+    _read_model: Any
+    _rng: Any
+    _source: Any
+    _theta_hat: Any
 
     #: DRIVE_OBS_WC, the leak the firmware's chain is scaled off.
     OBS_WC = 20.0
@@ -64,7 +81,8 @@ class DriveObservers:
         if self._source == 'model':
             self._read_model()
         dual, flux = self._observer_chain()
-        # THE HAND-OVER, AND THE ONE THE STAND-IN NEEDS AND THE BOARD DOES NOT.
+        # The hand-over: at a mode change, and - the stand-in's alone - when
+        # the dual observer's PLL is under OBS_WC and the tracker at or past it.
         if (self._obs_synced != self._mode_at
                 or abs(dual.omega) < self.OBS_WC <= abs(self._omega_hat)):
             self._observer_sync(self._theta_hat, self._omega_hat)
@@ -96,7 +114,7 @@ class DriveObservers:
                           % (2.0 * math.pi) - math.pi)}
 
     def _observers_skip(self, dual, flux, skipped):
-        """THE PERIODS THIS STAND-IN DID NOT STEP, IN CLOSED FORM."""
+        """The periods this stand-in did not step, in closed form."""
         if skipped <= 0.0:
             return
         for obs, w in ((dual, dual.omega), (flux, self._obs_flux_omega)):
@@ -110,16 +128,19 @@ class DriveObservers:
     def _observers_window(self, dual, flux, n, theta, omega):
         """The window at the end, integrated period by period at the
         firmware's own step, ending at the rotor: the dq solution rotated
-        back out to the stationary frame, which is what the board's chain
-        gets too.
+        back out to the stationary frame, the model's noise on the currents,
+        which is what the board's chain gets too.
         """
         iid, iq, vd, vq = self._dq()
         ts = self.TS
-        frame = theta - n * ts * omega       # the window ENDS at the rotor
+        frame = theta - n * ts * omega       # the window ends at the rotor
+        sd, gauss = self._noise(self.CLARKE_NOISE), self._rng.gauss
         for _ in range(n):
             c, s = math.cos(frame), math.sin(frame)
             va, vb = vd * c - vq * s, vd * s + vq * c
             ia, ib = iid * c - iq * s, iid * s + iq * c
+            if sd > 0.0:
+                ia, ib = ia + gauss(0.0, sd), ib + gauss(0.0, sd)
             dual.update(va, vb, ia, ib, ts)
             # The lag correction rests on the PLL's speed, not on this model's
             # own: at rest `atan(wc/w)` is a quarter turn, and an observer

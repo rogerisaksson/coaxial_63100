@@ -2,14 +2,17 @@
 from .parts import code, md, section
 
 TITLE = 'The machines'
+#: The nodes are discovered here; no single device is opened.
+DEVICE = False
 SUMMARY = 'Every board a node; a humanoid, a quad, a fixed wing, an e-bike over them; programs a model writes, streamed live behind a failsafe.'
 
 SECTIONS = [
     section(
         'The nodes',
         md('`Nodes.discover` loads each installed board family - here `coaxial.node` - which finds '
-           'its boards on every bus; then the robot\'s other boards, a battery pack and a head '
-           'camera. Each is a node named by its bus and unit, asked what it offers first.'),
+           'its boards on every bus, each a node named by its bus and unit (`LL_2`); then the '
+           'robot\'s other boards, a battery pack and a head camera. Each is asked what it '
+           'offers first.'),
         code('''from machine.nodes import Nodes
 
 nodes = Nodes.discover(port=PORT, simulated=SIMULATED)
@@ -29,8 +32,8 @@ print(offered, 'channels in all')'''),
 humanoid = Machine(nodes, type='humanoid')
 for name in ('left_hip', 'left_knee', 'left_ankle', 'left_foot'):
     board = humanoid.actuators[name].node
-    print('%-10s %s  %.1f Hz  J %.2g' % (name, board.name, board.identify()['hz'],
-                                         board.identify()['j']))
+    ring = board.identify()
+    print('%-10s %s  %.1f Hz  J %.2g' % (name, board.name, ring['hz'], ring['j']))
 told = humanoid.prompt()
 print(told)
 print('%d characters, about %d tokens' % (len(told), len(told) / 4))'''),
@@ -56,13 +59,14 @@ print(out.summary('head.deg', 'head_camera.vision.target.x', 'battery.pack.volts
         code('''from coaxial.draw.figures import figure, show
 
 t = [r['t'] for r in out.rows]
-fig, (legs, head) = figure(rows=2, sharex=True)
+half = nodes['head_camera'].identity['fov'] / 2            # deg
+fig, (joints, head) = figure(rows=2, sharex=True)
 for joint in ('left_hip', 'left_knee', 'right_shoulder'):
-    legs.plot(t, [r[joint + '.deg'] for r in out.rows], label=joint)
-legs.set_ylabel('deg')
-legs.legend(loc='upper right')
+    joints.plot(t, [r[joint + '.deg'] for r in out.rows], label=joint)
+joints.set_ylabel('deg')
+joints.legend(loc='upper right')
 head.plot(t, [r['head.deg'] for r in out.rows], label='head, deg')
-head.plot(t, [30 * r['head_camera.vision.target.x'] for r in out.rows], label='target off centre, deg')
+head.plot(t, [half * r['head_camera.vision.target.x'] for r in out.rows], label='target off centre, deg')
 head.set_xlabel('s')
 head.legend(loc='upper left')
 show(fig)'''),
@@ -86,14 +90,17 @@ for wrong in ('0 run=wlak', '0 run=walk strides=3', '0 run=squat knee=120', '0.5
         md('A type is data: the actuators it wants by kind, and its routines. The quad\'s rotors '
            'are speed loops (rpm), the fixed wing\'s surfaces narrow joints, the e-bike\'s '
            'assist a current.'),
-        code('''RUNS = {'quad': '0 run=take_off\\n0 run=hover seconds=1\\n0 run=yaw\\n0 run=land',
+        code('''from machine.sequencer import card
+
+RUNS = {'quad': '0 run=take_off\\n0 run=hover seconds=1\\n0 run=yaw\\n0 run=land',
         'fixed_wing': '0 run=take_off\\n0 run=bank deg=-15\\n0 run=land',
         'ebike': '0 run=assist amps=3 seconds=2\\n0 run=coast'}
 others = {}
-for kind, program in RUNS.items():
-    machine = Machine(nodes, type=kind)
-    print(machine.prompt().splitlines()[-1])
-    others[kind] = machine.run(program)
+for kind, steps in RUNS.items():
+    craft = Machine(nodes, type=kind)
+    print('%s, routines %s' % (kind, ', '.join(craft.routines)))
+    print(card(craft.loop, craft.units, craft.ranges))
+    others[kind] = craft.run(steps)
     print('  %s' % others[kind].summary().splitlines()[0])'''),
     ),
     section(
@@ -138,19 +145,20 @@ print('first move %.2f s fed, %.2f s whole; woken in %d tokens'
     ),
     section(
         'Through the board chat',
-        md('The `program` tool is what the local model calls: `card` once, `run` a whole '
-           'program, or live - `start`, `send`, `wait`, `stop` - each reply a line.'),
-        code('''from coaxial.simulated.board import SimulatedSession
-from coaxial_mcp.tools import program
+        md('The `program` tool is what the local model calls on its session: `card` once, `run` '
+           'a whole program (its summary back), or live - `start`, `send`, `wait`, `stop` - '
+           'each reply a line.'),
+        code('''from coaxial.comm.session import open_session
+from coaxial_mcp.tools import close_programs, program
 
-session = SimulatedSession(port='AX')
+session, _ = open_session(PORT, simulated=SIMULATED)
 print(program(session, op='run', machine='quad', text='0 run=take_off\\n0 run=land'))
 calls = [('start', ''), ('send', '0 run=take_off seconds=0.5\\n0 run=hover seconds=0.8'),
          ('wait', ''), ('stop', '')]
 replies = [program(session, op=op, machine='quad', text=text) for op, text in calls]
 for (op, _), reply in zip(calls, replies):
     print('%-5s %3d tokens  %s' % (op, len(reply) / 4, reply[:70]))
-session.nodes.close()
+close_programs(session)
 nodes.close()'''),
     ),
 ]
@@ -159,7 +167,7 @@ RESULTS = [
     code('''print('1. nodes      %d; %d channels offered' % (len(nodes), offered))
 print('2. the prompt %d characters for %d joints and their routines' % (len(told), len(humanoid.actuators)))
 print('3. the run    %s, %d steps; the target %.2f of the half field off centre'
-      % (out.status, len(out.steps), out.rows[-1]['head_camera.vision.target.x']))
+      % (out.status, len(out.steps), abs(out.rows[-1]['head_camera.vision.target.x'])))
 print('4. refused    %d of 4, each in a line' % len(refusals))
 print('5. others     %s' % ', '.join('%s %s' % (k, o.status) for k, o in others.items()))
 print('6. live       first move %.2f s fed, %.2f s sent whole; woken in %d tokens; %s'
@@ -171,8 +179,9 @@ print('7. the chat   %s' % ', '.join('%s %d' % (op, len(r) / 4) for (op, _), r i
        '- A line moves the machine once written; a wait costs a line: what happened, what moved.'),
 ]
 
-BENCH = ('Discover through the broker; arming empty (the STO chain released); every joint '
-         'commissioned and its span set; the failsafe a routine that is safe from anywhere.')
+BENCH = ('Discover through the broker, the pack and camera given as `peripherals`; arming '
+         'empty (the STO chain released); every joint commissioned and its span set; the '
+         'failsafe a routine that is safe from anywhere.')
 
 REFERENCES = [
     ('host/machine/nodes.py', '`Node`, `Nodes`, `FAMILIES`: boards as IO nodes, capabilities first'),
@@ -180,6 +189,7 @@ REFERENCES = [
     ('host/coaxial/node.py', 'the Coaxial63100 family: its node, joint, surface, rotor, torque'),
     ('host/machine/routines.py', 'the types and their routines'),
     ('host/machine/live.py', '`Live`: chunks, a buffer, a watchdog, a failsafe'),
-    ('host/machine/sequencer.py', 'lines or tables; `check`, `summary`, `GRAMMAR`'),
-    ('host/coaxial_mcp/tools.py', '`program`: the board-chat tool'),
+    ('host/machine/sequencer.py', 'lines or tables; `check`, `summary`, `card`, `GRAMMAR`'),
+    ('host/coaxial_mcp/tools.py', '`program`, `close_programs`: the board-chat tool'),
+    ('host/coaxial/comm/session.py', '`open_session`: the board, or its stand-in'),
 ]

@@ -5,13 +5,12 @@ import math
 import os
 import sys
 
+from coaxial.acquire import bessel
+from tools.cores.build import build, find_cc
+
+from test_modbus_core import Report
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.dirname(HERE))
-
-from test_modbus_core import Report, build, find_cc          # noqa: E402
-from coaxial.acquire import bessel                                    # noqa: E402
-
 REPO = os.path.dirname(os.path.dirname(HERE))
 FILTER = os.path.join(REPO, 'filter')
 SOURCES = [os.path.join(FILTER, 'test', 'harness.c'),
@@ -105,8 +104,8 @@ def test_the_design(report, _lib):
                      abs(dc - 1.0) < 1e-9 and abs(cut + 3.01) < 0.05,
                      'DC %.9f, fc %.3f dB, %d sections' % (dc, cut, len(s)))
 
-    # The pre-warp earns its place here: without it the digital cutoff lands
-    # low by tan(x)/x, which at a tenth of the rate is already 3 %.
+    # Without the pre-warp the digital cutoff lands low by tan(x)/x: 3 % at a
+    # tenth of the rate.
     s = bessel.sections(1000.0, 100.0, 4)
     cut = 20.0 * math.log10(abs(bessel.response(s, 100.0, 1000.0)))
     report.check('the pre-warp puts -3 dB where it was asked for, not near it',
@@ -121,10 +120,9 @@ def test_bessel_buys_group_delay(report, _lib):
                  '%.4f output samples peak to peak'
                  % chain['group_delay_samples'])
 
-    # And what it costs, stated rather than hidden: order steepens the far
-    # stopband and leaves the knee alone, which is the whole reason the default
-    # cutoff is a fifth of the output rate and not the half the sampling
-    # theorem would allow.
+    # Order steepens the far stopband and leaves the knee alone: the default
+    # cutoff is a fifth of the output rate, not the half the sampling theorem
+    # allows.
     mid, fc = 10000.0, 400.0
     knee = [20.0 * math.log10(abs(bessel.response(
         bessel.sections(mid, fc, n), 1.5 * fc, mid))) for n in (2, 8)]
@@ -224,7 +222,7 @@ def test_dc_survives_the_chain(report, lib):
 
 
 def test_a_tone_that_would_alias_is_stopped(report, lib):
-    """THE POINT OF ALL OF IT."""
+    """A tone past the output Nyquist folds in at the level the design predicts."""
     chain = bessel.design(fs=100000.0, out_rate=1000.0, order=4)
     c = Chain(lib)
     c.load(chain)
@@ -232,9 +230,8 @@ def test_a_tone_that_would_alias_is_stopped(report, lib):
     for hz in (800.0, 1200.0, 2000.0, 5000.0):
         c.reset()
         out = c.run(tone(hz, chain['fs'], 200000))
-        # WHERE IT LANDS is the whole point: decimation does not move the
-        # amplitude, it moves the frequency, and 2 kHz off a 1 kHz output rate
-        # arrives as a DC offset rather than a tone.
+        # Decimation moves the frequency, not the amplitude: 2 kHz off a 1 kHz
+        # output rate arrives as a DC offset rather than a tone.
         lands = bessel._fold(hz, chain['out_rate'])
         got = amplitude_at(out, lands, chain['out_rate']) / 10000.0
         want = bessel.chain_gain(chain, hz)
@@ -244,7 +241,6 @@ def test_a_tone_that_would_alias_is_stopped(report, lib):
                      'ran %.6f (%.1f dB) at %.0f Hz, computed %.6f'
                      % (got, 20.0 * math.log10(max(got, 1e-12)), lands, want))
 
-    # And the passband is not damaged by any of it.
     c.reset()
     out = c.run(tone(50.0, chain['fs'], 200000))
     got = amplitude_at(out, 50.0, chain['out_rate']) / 10000.0

@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """The board, its channels, its pins, the AFE."""
-import os
+import io
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession, 
-    call, io, toolmod)   # noqa: E402
+from ollama_support import (Scope, ScriptedModel, SimulatedSession, call,
+                            run_file, toolmod)
 
 def test_afe_trace(report):
     """A switch that did what it was told needs no line of its own."""
@@ -66,9 +64,8 @@ def test_digital_read(report):
                                             cold.splitlines()[2][:22]))
     report.check('PB2 follows the AFE switch',
                  'PB2  out   1' in hot and 'PB2  out   0' in cold)
-    # nFAULT is not read here any more: PE15 became TIM1_BKIN, so it is
-    # reserved rather than digital I/O and driving it would disconnect the
-    # break (board_io.c).
+    # nFAULT is not read here: PE15 is TIM1_BKIN, so it is reserved rather
+    # than digital I/O and driving it would disconnect the break (board_io.c).
     report.check('nFAULT is not a channel a fixture may drive',
                  'PE15' not in hot and 'PE15' not in cold)
     report.check('and it still reads back inversely, through afe_power',
@@ -136,7 +133,7 @@ def test_channel_map(report):
     report.check('the static fallback names no pin the board does not',
                  not stale, ', '.join(sorted(stale)) or 'none')
 
-    # The refusal is the board's answer now, so its wording is the board's
+    # The refusal is the board's answer, so its wording is the board's
     # signal name rather than a string compiled into the host.
     try:
         board.gpio.read('B', 10)
@@ -154,5 +151,4 @@ ROSTER = (
 
 
 if __name__ == '__main__':
-    from tests.ollama_support import run_file
     sys.exit(run_file(ROSTER))

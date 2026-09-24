@@ -1,11 +1,5 @@
 """Template: how a production line consumes this board."""
-import os
-import sys
-
 import pytest
-
-# host/ on the path: this file's own directory's parent.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import connect, disconnect
 

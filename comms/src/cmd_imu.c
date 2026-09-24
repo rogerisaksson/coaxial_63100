@@ -264,7 +264,7 @@ static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
   wr_u8(out, st.last_fault);
   wr_u8(out, st.last_fault_id);
 
-  /* THE THREE VECTORS, appended like everything else here. */
+  /* The three vectors, appended like everything else here. */
   wr_u8(out, st.have_accel ? 1U : 0U);
   wr_u8(out, st.accel_status);
   wr_u16(out, (uint16_t)st.accel[0]);

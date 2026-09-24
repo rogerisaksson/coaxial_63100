@@ -7,14 +7,13 @@ SUMMARY = 'A throttle lane, a cruise through a gust, two joints on one wire, a h
 SECTIONS = [
     section(
         'The stage, armed',
-    md("The drive on the stand-in's rotor (`configure(source='model')`), the smallest "
-       'plausible J and b, the stage armed once. The two flags are for a bench without STO '
-       'or interlock.'),
+    md("The drive on the stand-in's rotor (`configure(source='model')`), J and b at "
+       "`velocity`'s own defaults, the stage armed once. The two flags are for a bench "
+       'without STO or interlock.'),
     code('''drive = device.drive
 drive.configure(source='model')
 print(drive.model.configure(j=2e-5, b=1e-5, load=0.0))
-device.gates.on(bypass_sto=True, ignore_interlock=True)
-print('armed:', device.gates.is_on())'''),
+print('armed:', device.gates.on(bypass_sto=True, ignore_interlock=True)['pwm_enabled'])'''),
     ),
     section(
         'The propeller on the rotor',
@@ -25,9 +24,9 @@ from coaxial.model.sensorless import RAD_S_PER_RPM
 
 K_PROP = 2e-8
 prop = Propeller(K_PROP, name='stand-in propeller')
-tune = drive.params()
-poles = int(tune['motor_pole_pairs'])
-kt = 1.5 * poles * tune['motor_lambda_uvs']
+params = drive.params()
+poles = int(params['motor_pole_pairs'])
+kt = 1.5 * poles * params['motor_lambda_uvs']
 top = 3500.0 * RAD_S_PER_RPM
 print(prop, ' ', APC20x10E)
 print('kt %.4f N.m/A from the record, %d pole pairs' % (kt, poles))
@@ -38,8 +37,8 @@ for law in (prop, APC20x10E):
     section(
         'A throttle lane',
         md('One quadrotor lane: `velocity` with a 2 A clamp, a 3 Hz loop, `load_k` the '
-           'propeller; four speeds, two seconds each. The reference slews over a third of '
-           'the block.'),
+           'propeller; four speeds, 1.5-2 s each. The reference slews over a third of the '
+           'block.'),
         code('''import time
 
 LANE = ((1500.0, 2.0), (3000.0, 2.0), (2000.0, 1.5), (3500.0, 2.0))
@@ -139,7 +138,7 @@ print(elbow)'''),
     section(
         'A hold against a load step',
         md('30 deg at 3 A; 0.03 N.m steps on. Read every 2 ms relative to the hold (20 ms '
-           'aliased the ~30 Hz ring, 2026-09-07).'),
+           'aliased the ring, 2026-09-07).'),
         code('''def watch_shaft(seconds, about, every=0.002):
     rows = []
     t0 = time.monotonic()
@@ -150,8 +149,8 @@ print(elbow)'''),
     return rows
 
 with device.motion.servo(amps=3.0, settle=0.3) as hold:
-    zero = hold.to(30.0, tol=0.25)
-    print('held at %.2f deg, error %.2f, swing %.2f' % (zero, hold.error, hold.swing))
+    landed = hold.to(30.0, tol=0.25)
+    print('held at %.2f deg, error %.2f, swing %.2f' % (landed, hold.error, hold.swing))
     origin = device.angle.state()['degrees']
     before = watch_shaft(0.5, origin)
     drive.model.configure(load=0.03)
@@ -211,11 +210,11 @@ print('4. hold        from the hold: %+.2f before the load, %+.2f under 0.03 N.m
 print('   ring        %.2f deg peak to peak held, %.2f under the load, %.2f corrected; sampled at %.0f Hz; 3.0 A, tol 0.25 deg'
       % tuple([max(r[1] for r in rows) - min(r[1] for r in rows) for rows in (before, during, after)]
               + [len(before) / before[-1][0]]))'''),
-    md('- 25 passes/s is the 40 ms pause; each speed settles within 5 % in its 2 s.\n- The '
-       'gust pulls 2500 rpm down about 100 for 0.07 A more; the loop gives both back.\n- '
-       'Both joints within 0.1 deg on every pose.\n- The hold sags 1.6 deg under 0.03 N.m, '
-       'as the spring says; one correction takes it back inside the 0.25 deg tolerance. '
-       'Stiffness is current, not gain.'),
+    md('- 25 passes/s is the 40 ms pause; the worst end is 3324 of 3500 rpm, -5.0 %, after '
+       '2 s.\n- The gust pulls 2500 rpm down about 100 for 0.07 A more; the loop gives '
+       'both back.\n- Both joints within 0.1 deg on every pose.\n- The hold sags 1.6 deg '
+       'under 0.03 N.m; `to()` takes it back inside the 0.25 deg tolerance. Stiffness is '
+       'current, not gain.'),
 ]
 
 BENCH = ('No flags on `gates.on()`, no `on_model`, `load_k` = `APC20x10E.k`, the record '
@@ -223,11 +222,11 @@ BENCH = ('No flags on `gates.on()`, no `on_model`, `load_k` = `APC20x10E.k`, the
 
 REFERENCES = [
     ('host/coaxial/control/motion.py', 'the three verbs: the slew, the servo\'s mean over the ring, the velocity loop at link rate'),
-    ('host/coaxial/control/loop.py', '`SpeedLoop`: kp from the mechanical pole, the feedforward, the integrator held on the clamp and `v_sat`'),
-    ('host/coaxial/model/motor.py', '`Propeller`, `on_model`, `APC20x10E` off the thrust stand, and `Motor` with `k_load` beside `b`'),
+    ('host/machine/parts.py', '`SpeedPI`, the velocity verb\'s regulator: the zero on the mechanical pole, acceleration and drag fed forward, the integrator held on the clamp'),
+    ('host/coaxial/model/motor.py', '`Propeller`, `on_model`, `APC20x10E` off the thrust stand'),
     ('host/coaxial/simulated/drive/', 'the stand-in\'s rotor the missions turned, a pendulum integrated at a fixed sub-step'),
     ('host/coaxial/devices/link.py', '`state(port)`: `bus_message`, `server_message`, and `for_others` between them'),
-    ('docs/FINDINGS.md', 'the motion verbs, 2026-09-07: the aliased measurement, the pumped corrections, the rotor\'s step'),
+    ('docs/FINDINGS.md', 'the stand-in\'s 2 A hold, 2026-09-24: zeta 0.0013, a 30 Hz ring a 25 Hz loop pumps'),
     ('host/tests/test_sensorless.py', '`test_motion`: the verbs against the stand-in, the dangerous paths included'),
 ]
 

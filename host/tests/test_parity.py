@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """The stand-in must answer in the same shape as the board."""
-import os
 import re
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from coaxial.simulated import SimulatedSession                # noqa: E402
-from coaxial_mcp import tools as toolmod                      # noqa: E402
-from coaxial.comm.session import open_session                  # noqa: E402
+from coaxial.comm.session import open_session
+from coaxial.errors import LINK_FAULTS
+from coaxial.simulated import SimulatedSession
+from coaxial_mcp import tools as toolmod
 
 # Any run of digits, with or without a sign or a decimal point.
 NUMBER = re.compile(r'[-+]?\d+(?:\.\d+)?')
+
+#: A bad channel's refusal: ValueError from the name, or a link fault on the way.
+REFUSED = (ValueError,) + LINK_FAULTS
 
 
 class Report:
@@ -112,7 +113,7 @@ def main():
         report.check('the parts list matches, bar what each one measured',
                      live_parts == fake_parts,
                      '%d vs %d parts' % (len(live_parts), len(fake_parts)))
-        # This used to require every supply to be a signal in the digital map.
+        # A supply need not be a signal in the digital map.
         def offboard(rows, dmap):
             signals = {d['signal'] for d in dmap['digital']}
             return {r[3] for r in rows if r[3]} - signals
@@ -130,7 +131,7 @@ def main():
                 toolmod.HANDLERS['board_info'](board),
                 toolmod.HANDLERS['board_info'](stand_in), skip=3)
 
-        # ...and the description is the one line that must NOT match: a
+        # The description is the one line that must not match: a
         # stand-in a caller could mistake for the board is the whole thing this
         # suite exists to prevent.
         live_head = shape(toolmod.HANDLERS['board_info'](board))[:3]
@@ -140,18 +141,18 @@ def main():
                      and 'simulated' not in live_head[2].lower(),
                      fake_head[2][:46])
 
-        # THE RAIL IS SHARED, so ask for it exclusively before comparing.
+        # The rail is shared, so ask for it exclusively before comparing.
         was = (0.0, 0.0)
         try:
             said = board.board.thermal.state()
             was = (said['sample_every_s'], said['sample_settle_s'])
-        except Exception:                     # noqa: BLE001 - older firmware
+        except LINK_FAULTS:                   # older firmware
             pass
 
         try:
             board.board.thermal.configure(sample_every_s=0.0, sample_settle_s=0.0)
             time.sleep(0.6)
-        except Exception:                     # noqa: BLE001 - older firmware
+        except LINK_FAULTS:                   # older firmware
             pass
 
         # A reading, with the front end in the same state on both sides, so the
@@ -181,11 +182,11 @@ def main():
             live = fake = ''
             try:
                 toolmod.HANDLERS['analog_read'](board, ch=[bad])
-            except Exception as exc:                          # noqa: BLE001
+            except REFUSED as exc:
                 live = '%s: %s' % (type(exc).__name__, exc)
             try:
                 toolmod.HANDLERS['analog_read'](stand_in, ch=[bad])
-            except Exception as exc:                          # noqa: BLE001
+            except REFUSED as exc:
                 fake = '%s: %s' % (type(exc).__name__, exc)
             report.check('ch=[%r] is refused the same way' % bad,
                          shape(live) == shape(fake),
@@ -194,11 +195,11 @@ def main():
         toolmod.HANDLERS['afe_power'](board, action='off')
         try:
             board.board.thermal.configure(sample_every_s=was[0], sample_settle_s=was[1])       # as it was found
-        except Exception:                     # noqa: BLE001 - older firmware
+        except LINK_FAULTS:                   # older firmware
             pass
         try:
             board.close()
-        except Exception:                                     # noqa: BLE001
+        except LINK_FAULTS:
             pass
 
     print('\n%d passed, %d failed' % (report.passed, report.failed))

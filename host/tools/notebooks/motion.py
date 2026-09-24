@@ -93,19 +93,18 @@ print('the spring says %.2f deg mechanical: 0.02 N.m against 2.0 A x Kt %.4f = %
         code('''from coaxial.model.sensorless import RAD_S_PER_RPM
 
 rows = []
-last = [None, None]
 
 def watch(v):
     m = drive.model.read()
     shaft = device.angle.state()['degrees']
     now = time.monotonic() - t0
     shaft_rpm = float('nan')
-    if last[0] is not None:
-        shaft_rpm = ((shaft - last[1] + 90.0) % 360.0 - 90.0) / (now - last[0]) / 6.0
-    last[0], last[1] = now, shaft
+    if rows:
+        then, was = rows[-1][0], rows[-1][7]
+        shaft_rpm = ((shaft - was + 90.0) % 360.0 - 90.0) / (now - then) / 6.0
     bus = v.loop.read()
     rows.append((now, bus['w_ref'] / RAD_S_PER_RPM, m['omega'] / poles / RAD_S_PER_RPM,
-                 v.rpm_now, shaft_rpm, math.degrees(m['error']), bus['iq_ref']))
+                 v.rpm_now, shaft_rpm, math.degrees(m['error']), bus['iq_ref'], shaft))
 
 t0 = time.monotonic()
 with device.motion.velocity(amps=1.0, hz=3.0) as v:
@@ -113,16 +112,17 @@ with device.motion.velocity(amps=1.0, hz=3.0) as v:
     print('settled at %.0f rpm' % v.rpm_now)
     v.rpm(0.0, seconds=1.5, watch=watch)
     print('stopped at %.0f rpm' % v.rpm_now)
-    rotor = math.degrees(drive.model.read()['theta']) / poles
+    hat = math.degrees(drive.model.read()['theta_hat']) / poles
     shaft = device.angle.state()['degrees']
 pitch = 360.0 / poles
-offset = (shaft - rotor + pitch / 2.0) % pitch - pitch / 2.0
+offset = (shaft - hat + pitch / 2.0) % pitch - pitch / 2.0
 print('%d passes in %.2f s = %.1f Hz' % (len(rows), rows[-1][0], len(rows) / rows[-1][0]))
-print('at rest: rotor %.2f deg electrical / %d = %.2f deg; shaft %.2f deg, folded onto '
-      'the %.2f deg pole pitch %.2f; %.2f deg apart' % (rotor * poles, poles, rotor, shaft,
+print('at rest: observer %.2f deg electrical / %d = %.2f deg; shaft %.2f deg, folded onto '
+      'the %.2f deg pole pitch %.2f; %.2f deg apart' % (hat * poles, poles, hat, shaft,
                                                          pitch, shaft % pitch, offset))
 print('disarmed:', not device.gates.off()['pwm_enabled'])
-print('back on the converters:', drive.configure(source='adc')['source'])'''),
+drive.configure(source='adc')
+print('source:', drive.model.read()['source'])'''),
         code('''t = [r[0] for r in rows]
 fig, (speed, error, current) = figure(rows=3, sharex=True)
 speed.plot(t, [r[1] for r in rows], label='asked')
@@ -255,7 +255,7 @@ print('fit: k %.3e N.m/(rad/s)^2, worst row %.1f %% off a pure square' % (APC20x
 RESULTS = [
     code('''errs = [abs(r[5]) for r in rows]
 rms = math.sqrt(sum(e * e for e in errs) / len(errs))
-settled = [r for r in rows if abs(r[1] - 600.0) < 1.0 and r[4] == r[4]]
+settled = [r for r in rows if abs(r[1] - 600.0) < 1.0 and not math.isnan(r[4])]
 tach = [r[3] - r[4] for r in settled]
 top_rpm = max(r[2] for r in rows)
 top_row = APC20X10E_CURVE[-1]
@@ -283,15 +283,14 @@ print('               trusted with the probe %s, without %s; condition %.2e and 
          got['condition'], got2['condition']))
 print('5. propeller   k %.3e N.m/(rad/s)^2, worst row %.1f %% off a square; at %d rpm %.2f N.m needs %.1f A at Kt %.4f'
       % (APC20x10E.k, 100.0 * worst, top_row[0], top_row[1], top_row[1] / KT_NM_PER_AMP, KT_NM_PER_AMP))
-print('               the model reached %.0f rpm at 37 V, iq peak %.1f A, v_sat %.0f %% of the run; the board %.0f A rated, the motor %.1f A burst'
-      % (rpm.max(), abs(prop['iq']).max(), 100.0 * prop['v_sat'].mean(), 100.0, RATINGS['i_max']))
+print('               the model reached %.0f rpm at 37 V, iq peak %.1f A, v_sat %.0f %% of the run; the board 100 A rated, the motor %.1f A burst'
+      % (rpm.max(), abs(prop['iq']).max(), 100.0 * prop['v_sat'].mean(), RATINGS['i_max']))
 print('               lambda %.5f Wb from %d KV at %d pole pairs; Kt = 1.5 P lambda = %.4f N.m/A'
       % (motor.lam, RATINGS['kv'], motor.poles, 1.5 * motor.poles * motor.lam))'''),
-    md('- The servo corrects once per move: per pass it pumps its ring (FINDINGS '
-       '2026-09-07).\n- With the probe R, Ld, lambda are trusted, R 63 % high (the '
-       'discretisation); Lq not. Without it, lambda alone.\n- `j` 5x the plant: +900 rpm '
-       'asked, -1552 delivered (FINDINGS).\n- Out of voltage short of 6717 rpm: Lq drops 11 '
-       'of 21.4 V at 46 A.\n- 100 A inverter before 112.5 A motor.'),
+    md('- The servo closes once per move, not per pass: a 25 Hz loop pumps the 30 Hz ring '
+       'until poles slip (FINDINGS 2026-09-24).\n- With the probe R, Ld, lambda are trusted, R 63 % high '
+       '(the discretisation); Lq not. Without it, lambda alone.\n- Out of voltage short of '
+       '6717 rpm: Lq drops 11 of 21.4 V at 46 A.\n- 100 A inverter before 112.5 A motor.'),
 ]
 
 BENCH = ('The ring against `sqrt(Kt I P / J)` gives the real J. The servo needs a magnet, '
@@ -305,6 +304,6 @@ REFERENCES = [
     ('host/coaxial/simulated/drive/', 'the stand-in\'s rotor, the spring under HOLD, and the PLL lag that stands in for the observer'),
     ('host/tests/test_sensorless.py', 'the verbs pinned on the stand-in, the dangerous paths included: a load past the holding torque, a trip mid-spin'),
     ('host/tools/sim/observer_run.py', 'the firmware\'s own observer, run on the host, and the crossover it computes'),
-    ('docs/FINDINGS.md', 'the motion verbs, 2026-09-07: the aliased ring, the pumped corrections, the rotor\'s integrator'),
+    ('docs/FINDINGS.md', 'the stand-in\'s 2 A hold, 2026-09-24: zeta 0.0013, a 30 Hz ring a 25 Hz loop pumps'),
 ]
 

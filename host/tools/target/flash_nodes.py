@@ -15,13 +15,11 @@ four blank nodes with uids 10.., 11.., 12.., 13..; place them first.
 """
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial.devices.boot import BOOT_BAUD, Master  # noqa: E402
+from coaxial.comm.transport import Transport
+from coaxial.devices.boot import BOOT_BAUD, Master, TransportSegment
 
 TYPES = {'coaxial_63100': 1, 'coaxial_63020': 2}
 
@@ -66,8 +64,6 @@ def segment_of(args):
         from coaxial.simulated.boot import SimulatedBoot, SimulatedSegment
         return SimulatedSegment(SimulatedBoot(uid=bytes([0x10 + k] + list(range(11))))
                                 for k in range(4))
-    from coaxial.devices.boot import TransportSegment
-    from coaxial.comm.transport import Transport
     return TransportSegment(Transport(args.port, BOOT_BAUD))
 
 

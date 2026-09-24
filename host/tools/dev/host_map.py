@@ -120,7 +120,8 @@ def main(argv=None):
     parser.add_argument('--layers', action='store_true', help='the import graph by package')
     parser.add_argument('--deps', action='store_true', help="each module's host imports")
     args = parser.parse_args(argv)
-    sys.stdout.reconfigure(encoding='utf-8')   # a cp1252 pipe cannot carry every brief
+    if isinstance(sys.stdout, io.TextIOWrapper):   # a cp1252 pipe cannot carry every brief
+        sys.stdout.reconfigure(encoding='utf-8')
     if args.layers or args.deps:
         return show_graph(args.dirs, args.layers)
     for rel, _, tree in modules(args.dirs):

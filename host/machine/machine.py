@@ -105,7 +105,7 @@ class Machine:
             actuators = fit(nodes, TYPES[type].body, arming)
             routines = dict(TYPES[type].routines, **(routines or {}))
             failsafe = failsafe or TYPES[type].failsafe
-        self.nodes, self.actuators, self.type = nodes, dict(actuators), type
+        self.nodes, self.actuators, self.type = nodes, dict(actuators or {}), type
         self.routines, self.arming, self.failsafe = dict(routines or {}), arming, failsafe
         kinds = {a.node.type for a in self.actuators.values()}
         self.others = [n for n in nodes if n.type not in kinds]

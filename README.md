@@ -8,6 +8,7 @@ local-model runner. Open work: [docs/TODO.md](docs/TODO.md).
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
+python -m pip install -e host/                                # once: every script imports it
 . .\env.ps1                                                   # PATH + aliases
 .\coaxial_tty.ps1                                             # terminal front page
 .\coaxial_tty.ps1 adc -Simulated                              # one view, no cable

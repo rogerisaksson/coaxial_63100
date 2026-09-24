@@ -5,8 +5,7 @@
 
 Three shapes, because they cost differently: a ping that carries nothing, an
 echo that loads both directions, and the ring's burst, which is one small
-request for the largest reply the board sends - the shape a capture actually
-runs in.
+request for the largest reply the board sends - the shape a capture runs in.
 
 `floor` is the bitrate alone, `bytes * 10 / baud` for 8N1. Everything above
 it is turnaround, driver latency and the gap that ends a frame, and none of
@@ -18,13 +17,10 @@ Nothing here judges the link. It reports what it measured against what the
 bitrate allows.
 """
 import argparse
-import os
-import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from coaxial import Coaxial63100
+from coaxial.comm import bench
 
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.comm import bench  # noqa: E402
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

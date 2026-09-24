@@ -9,8 +9,8 @@ def flux_from_kv(kv_rpm_per_volt, pole_pairs):
     return 60.0 / (math.sqrt(3.0) * TWO_PI * pole_pairs * kv_rpm_per_volt)
 
 
-#: The winding against still air, and its heat capacity. PLACEHOLDERS,
-#: the order of magnitude an outrunner of this size has and measured
+#: The winding against still air, and its heat capacity: placeholders,
+#: the order of magnitude an outrunner of this size has, measured
 #: against nothing - a motor profile carries its own pair, and a bench
 #: with a thermocouple writes real ones over them. They exist so an
 #: estimate is made from a number that travels with the machine rather
@@ -33,16 +33,16 @@ class Parameters:
                  winding_j_per_k=WINDING_J_PER_K):
         self.name = name
         self.r, self.ld, self.lq, self.lam = r, ld, lq, lam
-        self.poles = poles              # pole PAIRS
+        self.poles = poles              # pole pairs
         self.j, self.b = j, b
         #: How far Ld bends at `i_sat` of d current. The polarity
         #: pulse has nothing to find without it: injection locks the
-        #: d AXIS, and only saturation says which end is the magnet.
+        #: d axis, and only saturation says which end is the magnet.
         self.sat, self.i_sat = sat, i_sat
         self.measured = measured
         self.source = source
         #: How the winding sheds what it makes, and how much it holds.
-        #: NOT MEASURED and not measurable from the terminals - `measured`
+        #: Not measured and not measurable from the terminals - `measured`
         #: says nothing about these two, and a page that estimates a
         #: winding temperature from them says estimate.
         self.winding_k_per_w = winding_k_per_w
@@ -67,11 +67,11 @@ class Parameters:
                    self.poles, self.kv))
 
 
-#: The nameplate, off Hobbywing's own specification page. These are the
-#: manufacturer's numbers, not this bench's - nothing here has been near an
-#: instrument. Kept because two of them bound what the drive may ask for:
-#: the motor's 112.5 A burst sits just above the board's 100 A rating, so
-#: the INVERTER is the limit, and a 12S pack at full charge is 50.4 V
+#: The nameplate, off Hobbywing's own specification page: the
+#: manufacturer's numbers, none measured here. Two of them bound what the
+#: drive may ask for: the motor's 112.5 A burst sits just above the
+#: board's 100 A rating, so the inverter is the limit, and a 12S pack at
+#: full charge is 50.4 V
 #: against a 63 V rating and 78.15 V of divider scale.
 RATINGS = {
     'slots_poles': '24N28P',        # 24 stator slots, 28 magnet poles
@@ -85,27 +85,27 @@ RATINGS = {
     'source': 'hobbywing.com Platinum 5220/5230 specification page',
 }
 
-#: The motor this bench is aimed at. NOT MEASURED HERE - every electrical
-#: constant is an estimate, and the notebook's first job is to replace
-#: them. What comes from where:
+#: The motor this bench is aimed at, not measured here: every electrical
+#: constant is an estimate, for the notebook to replace first. What comes
+#: from where:
 #:
-#:   poles   the SHEET: 24N28P is 28 poles, 14 pairs. It is not derivable
+#:   poles   the sheet: 24N28P is 28 poles, 14 pairs. It is not derivable
 #:           from any torque measurement - see KT_NM_PER_AMP - and it sets
 #:           the whole electrical frequency, so it had to come from the
 #:           winding.
-#:   b       the SHEET, arithmetic: 3.0 A at 44.4 V spins it at 190*44.4 =
+#:   b       the sheet, arithmetic: 3.0 A at 44.4 V spins it at 190*44.4 =
 #:           8436 rpm, so 133 W of iron and friction against 883 rad/s is
 #:           0.151 N.m of drag, b = 1.71e-4. Copper at 3 A is 0.4 W, lost
 #:           in the rounding. The guess this replaced was 4.3x too low.
 #:   lambda  the label's 190 KV through `flux_from_kv` at 14 pole pairs.
-#:   R       ESTIMATE, the size class. The sheet states no winding
+#:   R       estimate, the size class. The sheet states no winding
 #:           resistance. R is what an identification finds first, because
 #:           it is the easiest thing to see.
-#:   Ld, Lq  ESTIMATE, the size class again, with the ~1.3 saliency an
+#:   Ld, Lq  estimate, the size class again, with the ~1.3 saliency an
 #:           outrunner of this construction tends to show. This is the
 #:           number the sensorless observer lives or dies on, and it is the
-#:           LEAST trustworthy one here.
-#:   J       ESTIMATE. 582 g total, of which the bell is the part that
+#:           least trustworthy one here.
+#:   J       estimate. 582 g total, of which the bell is the part that
 #:           turns; a thin ring at 30 mm would be 3e-4 and a hub pulls it
 #:           down, so this is a middling guess and not arithmetic.
 PLATINUM_5230SL = Parameters(
@@ -117,7 +117,7 @@ PLATINUM_5230SL = Parameters(
     poles=14,                       # 24N28P: 28 poles, 14 pairs
     j=1.2e-4,
     b=1.71e-4,
-    # ESTIMATE.
+    # Estimated.
     sat=0.3, i_sat=40.0,
     measured=False,
     source='poles and friction from the manufacturer sheet (see RATINGS); '
@@ -125,7 +125,7 @@ PLATINUM_5230SL = Parameters(
            'an identification against the real machine')
 
 
-#: The machine behind the stand-in's drive device. DELIBERATELY NOT the
+#: The machine behind the stand-in's drive device, not the
 #: 5230SL: its constants were picked so every commissioning step recovers a
 #: number it can be checked against, which is a different job from
 #: resembling the motor on the bench. It lives here rather than as literals
@@ -155,7 +155,7 @@ class Propeller:
 
     def on_model(self, drive, log=None):
         """A `watch` for `Velocity.rpm` that puts this propeller on the
-        STAND-IN'S rotor: each pass it reads the model's speed and feeds
+        stand-in's rotor: each pass it reads the model's speed and feeds
         the load this law gives at it to `model.configure`.
         """
         def watch(verb):
@@ -191,17 +191,17 @@ APC20x10E = Propeller(
     k=5.143e-6, name='APC20x10E',
     source='least squares over the 190KV sheet, 37 V, 25 C, sea level')
 
-#: WHAT THE SHEET ACTUALLY PINS. Torque per ampere of q current, from
+#: What the sheet pins: torque per ampere of q current, from
 #: 2.78 N.m at the top of the 190KV curve:
 #:
 #:     Kt = 1.5 * P * lambda = T / iq
 #:
-#: and it is the PRODUCT that the sheet determines. iq comes out 63.9 A at
+#: and it is the product that the sheet determines. iq comes out 63.9 A at
 #: full throttle whether the machine has 5 pole pairs or 10, because
 #: lambda from a KV goes as 1/P and the P cancels - so this document
 #: cannot tell you the pole count, and neither can any torque measurement.
 #: The observer needs P on its own, because electrical speed is P times
-#: mechanical. It came from the WINDING and not from any measurement of
+#: mechanical. It came from the winding and not from any measurement of
 #: torque: 24N28P is 28 poles, 14 pairs. Kt is unchanged by that - 1.5 *
 #: 14 * 0.00207 is the same 0.0435 as 1.5 * 7 * 0.00415 - which is the
 #: cancellation stated above, seen from the other side.

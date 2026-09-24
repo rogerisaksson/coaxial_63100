@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """SYSTEM, the per-turn hints, and what the model is told."""
-import os
+import io
+import json
 import sys
+import threading
+import types
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession,  # noqa: E402
-    build, call, clientmod, io, json, safe_head, simulated, sys, threading,
-    toolmod, types)
+from ollama_support import (Scope, ScriptedModel, SimulatedSession, build,
+                            call, clientmod, run_file, safe_head, simulated,
+                            toolmod)
 
 def test_prompt(report):
-    """|robot icon| Coaxial_63<bar>00> - the bar spins in place of the
-    text's own '1'; the icon repaints on state changes next to it."""
+    """«robot icon» Coaxial_63100> - the name written whole; the icon beside
+    it turns while busy and repaints on state changes."""
     import time as clock
     from coaxial_ollama import spinner as spin
 
-    # A real robot ("\U0001F916") is outside cp1252 entirely - not a wide or
-    # combining character, just absent - so the fixture used for the "normal"
-    # behaviour tests below has to be genuinely Unicode-capable, same as this
-    # bench's actual console would need to be to show it for real.
+    # The robot ("\U0001F916") is absent from cp1252 - not wide, not
+    # combining, just absent - so the fixture for the normal-case tests below
+    # is UTF-8, as this bench's console must be to show it.
     class Tty(io.StringIO):
         encoding = 'utf-8'
 
@@ -40,7 +40,7 @@ def test_prompt(report):
     report.check('and any name at all comes through unsplit',
                  text in written and 'Coaxial_63100' in written)
 
-    # The old design span the '1' in the name.
+    # The bar once spun in place of the name's '1'.
     plain = spin.prompt('no-ones-here', Tty(), tick=10)
     report.check('a name with no digit is not a special case any more',
                  plain.out.real.getvalue().endswith(
@@ -98,10 +98,9 @@ def test_prompt(report):
                  spin.ICON_WAIT in face._prefix()
                  and spin.GREEN in face._prefix())
 
-    # Measured live: a real session left the bar frozen on '/' or '-' in
-    # scrollback, because stop() reset the icon and colour but never the frame
-    # the ticker had drifted to while the operator was still typing the
-    # question.
+    # A live session left the bar frozen on '/' or '-' in scrollback: stop()
+    # reset the icon and colour but not the frame the ticker had drifted to
+    # while the operator was still typing the question.
     drifted = Tty()
     mid_spin = spin.prompt(text, drifted, tick=10, ok=True)
     mid_spin.frame = 2       # as if the bar had ticked to '-' before stop()
@@ -124,9 +123,8 @@ def test_prompt(report):
                  + spin.RESTORE,
                  ascii(added2))
 
-    # ---- reported live: a tick landed inside a channel table mid-print, -
-    # ---- because "one row up" was fixed at busy() time, not recomputed ---
-    # ---- as _trace() kept printing more of it.
+    # ---- "one row up" is recomputed as _trace() prints, not fixed at busy() -
+    # A tick once landed inside a channel table mid-print.
     busy_screen = Tty()
     drifting = spin.prompt(text, busy_screen, tick=10, ok=True)
     drifting.busy()
@@ -160,10 +158,9 @@ def test_prompt(report):
                  '%d repaints' % ticking.getvalue().count(spin.SAVE))
 
     # ---- a shared lock keeps a tick and a trace print from interleaving ---
-    # Real Chat._trace() output while the bar is still ticking for the busy
-    # phase is exactly the race this lock exists for - proved here by holding
-    # it ourselves and showing a tick cannot get past it, not by hoping a
-    # timing-based race never happens to interleave in the test run.
+    # Chat._trace() output while the bar ticks for the busy phase is the race
+    # this lock is for: proved by holding it and showing a tick cannot pass,
+    # not by timing a race.
     shared = threading.RLock()
     locked = Tty()
     guarded = spin.prompt(text, locked, tick=0.01, ok=True, lock=shared)
@@ -185,10 +182,9 @@ def test_prompt(report):
                  locked.getvalue() != before_lock)
 
     # ---- _Tracked's own lock protects a caller who never wraps their write
-    # Reported live: the answer text came back with the prompt group spliced
-    # into the middle of a sentence - print(answer, file=face.out) never
-    # wrapped itself in the lock, so nothing stopped a tick writing at the same
-    # time.
+    # The prompt group once spliced into an answer mid-sentence:
+    # print(answer, file=face.out) takes no lock, so nothing stopped a tick
+    # writing at the same time.
     class SlowReal:
         def __init__(self):
             self.log = []
@@ -369,9 +365,9 @@ def test_policy(report):
                  summary['counts'] == {'skipped': 1}
                  and summary['records'][0]['warnings'], summary['counts'])
 
-    # Measured live: told to turn the AFE off, then asked in a later, unrelated
-    # turn for a reading, gemma4:12b turned it back on to "serve" the reading -
-    # exactly what the system prompt already says never to do.
+    # Told to turn the AFE off, then asked in a later, unrelated turn for a
+    # reading, gemma4:12b turned it back on to "serve" the reading (measured):
+    # what the system prompt says never to do.
     runner, _, _ = build(task, [])
     toolbox = runner.toolbox
     toolbox.afe_mentioned = False
@@ -555,8 +551,7 @@ def test_intent(r):
     r.check('and exactly the kinds',
             intent.SCHEMA['properties']['kind']['enum'] == list(intent.KINDS))
 
-    # The axis that caused this module: same intent, different kind, and the
-    # kind is what picks the tool.
+    # Same intent, different kind: the kind picks the tool.
     r.check('read+analog is analog_read',
             intent.tool_for('read', 'analog') == 'analog_read')
     r.check('read+digital is digital_read',
@@ -568,7 +563,7 @@ def test_intent(r):
     r.check('words names no tool at all',
             intent.tool_for('words', 'none') is None)
 
-    # The hint is now for the intents the loop does *not* plan.
+    # The hint is for the intents the loop does not plan.
     r.check('an intent that plans its calls needs no hint at all',
             all(intent.hint(name, kind) == ''
                 or 'no board call' in intent.hint(name, kind)
@@ -707,9 +702,8 @@ def test_intent(r):
     r.check('and the answer is the sentence, not the rows',
             answer == 'NTC läser 38,5 C.', repr(answer[:40]))
 
-    # The retype is the failure this replaced, and it still has to be caught:
-    # measured on screen, the whole table written out again as prose under
-    # itself, comma decimals and all.
+    # A retype is caught here too: measured on screen, the whole table
+    # written out again as prose under itself, comma decimals and all.
     _, _, retyped = planned(
         'De analoga värdena är: %s.'
         % ', '.join(c['signal'].replace(' ', '')
@@ -789,8 +783,8 @@ def test_intent(r):
             screen.getvalue().count(render.ANALOG_HEAD) == 0,
             safe_head(screen.getvalue()))
 
-    # ...and the same loop with no compiled intent must not block anything:
-    # every failure in intent.py returns None, and None means old behaviour.
+    # The same loop with no compiled intent blocks nothing: every failure in
+    # intent.py returns None, and None runs the turn without the pass.
     plain = debug.Chat(ScriptedModel([
         call('board_info'), call('analog_read'),
         {'role': 'assistant', 'content': 'Klart.'},
@@ -821,5 +815,4 @@ ROSTER = (
 
 
 if __name__ == '__main__':
-    from tests.ollama_support import run_file
     sys.exit(run_file(ROSTER))

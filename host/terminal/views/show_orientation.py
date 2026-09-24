@@ -8,9 +8,8 @@ Enables the rotation vector on the IMU, then reads it and draws the board.
 The drawing itself is `coaxial.draw.orientation`, which is pure and tested; this
 file is the loop, the screen and the cable.
 
-Nothing here judges an orientation. It shows the quaternion the part reported
-and the angles that follow from it - invariant 10 applies to attitude exactly
-as it applies to a voltage.
+Nothing here judges an orientation: it shows the quaternion the part reported
+and the angles that follow from it (invariant 10).
 """
 import argparse
 import os
@@ -19,15 +18,13 @@ import time
 
 from rich.text import Text
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial.draw import farm, orientation  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui import console as _console, screen as _screen  # noqa: E402
-from terminal.ui.console import WHEEL_STEP  # noqa: E402
-from terminal.ui.screen import Freshness, closing, run_view, say  # noqa: E402
-from terminal.ui.stage import frame_of, hud, stage  # noqa: E402
+from coaxial.draw import farm, orientation
+from coaxial.errors import RigError
+from terminal.loader import TO_MENU
+from terminal.ui import console as _console, screen as _screen
+from terminal.ui.console import WHEEL_STEP
+from terminal.ui.screen import Freshness, closing, open_rig, run_view, say
+from terminal.ui.stage import boot, frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -63,9 +60,7 @@ def capability(board):
 
 
 def preflight(board, part):
-    """Say what is about to happen, and return whether AFE_ON was already
-    on.
-    """
+    """Say what is about to happen."""
     say('ok', 'capability', '%s - %s, on %s'
         % (part['name'], part['what'], part['where']))
 
@@ -96,10 +91,10 @@ def workshop(args):
     if args.frames and args.frames <= 4:
         return None
     if not args.photo:
-        # The toon mesh draws in 12 ms single-process - measured, against 108
-        # for the photographic one - so a pool would cost more in spawn time
-        # than it saves, and render() only draws the toon package when no shop
-        # is passed.
+        # The toon mesh draws in 12 ms single-process, measured, against 108
+        # for the photographic one: a pool would cost more in spawn time than
+        # it saves, and render() only draws the toon package when no shop is
+        # passed.
         return None
 
     try:
@@ -165,7 +160,7 @@ def start_reporting(board, interval_us):
     """Ask the part for a rotation vector, and say whether it took."""
     board.imu.settled()          # anything before 'running' is startup
 
-    # The product id is DECORATION - the feature is the point.
+    # The product id is decoration; the feature is what is needed.
     pid = {}
     try:
         with board.imu.configuring():
@@ -277,8 +272,8 @@ def compose(origin, args, view, colour, console):
                              if view['tare'] is not None else None)
 
     tall = view['tall']
-    # The FULL width the HUD leaves over: the old 2*tall+14 cap cropped a
-    # zoomed model at the frame long before the window ran out of columns.
+    # The full width the HUD leaves over: a 2*tall+14 cap cropped a zoomed
+    # model at the frame long before the window ran out of columns.
     art_w = max(24, view['wide'] - 42)
     art = orientation.render(
         q, width=art_w, height=tall,
@@ -286,8 +281,8 @@ def compose(origin, args, view, colour, console):
         shop=view['shop'], toon=not args.photo, wire=not args.photo,
         colour=colour, frame_on=view['frame_on'],
         crew=view.get('crew'), persist=view.get('persist'),
-        # ONE POSE AHEAD: the crew rasters the pose just read while the
-        # previous one is painted - wireframe._face_ahead has the numbers.
+        # One pose ahead: the crew rasters the pose just read while the
+        # previous one is painted; wireframe._face_ahead has the numbers.
         scroll=view.get('scroll'), ahead=True).splitlines()
     margin = min((len(l) - len(l.lstrip(' '))
                   for l in art if l.strip()), default=0)
@@ -300,20 +295,19 @@ def compose(origin, args, view, colour, console):
         (tuple(_mirror_keys(view['flip']))
          + (('C', 'FRAME'), ('T', 'TARE'), ('WHEEL', 'ZOOM'),
             ('+ -', 'ZOOM'),
-            # LIT WHILE THE VIEW HAS THE MOUSE, dark while the terminal does -
-            # which is the default, so a left-drag marks text.
+            # Lit while the view has the mouse, dark while the terminal has
+            # it, the default, so a left-drag marks text.
             ('F', _lit('MOUSE') if _console.holding() else 'MOUSE'),
             ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))))
 
 
-#: The most frames a second this view will draw, whatever `--hz` asks.
-#: THE FANS, on the bench's word: a frame that costs more than its
-#: period never sleeps, and at 20 Hz a 52 ms frame - eight workers
-#: rastering, the parent shading - held a core and most of the others
-#: for as long as the view was open. Thirty is past what a hand's turn
-#: needs and past what the terminal repaints; the cap is the ceiling,
-#: the default stays 20, and a resting board costs almost nothing now
-#: that its face is held (`wireframe.FACE_SETTLE`).
+#: The most frames a second this view will draw, whatever `--hz` asks,
+#: for the fans: a frame that costs more than its period never sleeps,
+#: and at 20 Hz a 52 ms frame (eight workers rastering, the parent
+#: shading) held a core and most of the others for as long as the view
+#: was open. Thirty is past what a hand's turn needs and past what the
+#: terminal repaints; the default is 20, and a resting board costs almost
+#: nothing: its face is held (`wireframe.FACE_SETTLE`).
 HZ_CAP = 30.0
 
 
@@ -351,16 +345,13 @@ def parse_args(argv):
 
 
 def launch(args):
-    """Everything before the first frame, behind ONE boot strip that rides
-    the real milestones - link, six decimations, shadow casters, the
-    part, its power, the rotation vector, the pool - so the strip ends
-    where the view begins.
+    """Everything before the first frame, behind one boot strip that rides
+    the milestones (link, six decimations, shadow casters, the part, its
+    power, the rotation vector, the pool), so the strip ends where the
+    view begins.
     """
-    # power_afe SAID: the default went quiet-False when every connect stopped
-    # flipping the rail, and this view inherited it - the part it exists to
-    # show is AFE-powered, so it asks by name and puts it back.
-    from terminal.ui.stage import boot
-    from terminal.ui.screen import open_rig
+    # power_afe by name: the default is False and the part this view shows
+    # is AFE-powered; the rail goes back as found.
     rig = open_rig('LINKING BNO085', port=args.port, power_afe=True,
                    simulated=bool(args.simulated))
     if rig is None:
@@ -386,9 +377,8 @@ def launch(args):
         step(0.86, 'ROTATION VECTOR')
         pid = start_reporting(board, args.interval_us)
         if pid is None:
-            # ONE retry, after the loop has settled: the first launch after the
-            # rail rises can catch the part mid-advertisement, and a view that
-            # needs a second start by hand reads as broken.
+            # One retry, after the loop has settled: the first launch after the
+            # rail rises can catch the part mid-advertisement.
             board.imu.settled()
             pid = start_reporting(board, args.interval_us)
         if pid is None:
@@ -426,9 +416,8 @@ def main(argv=None):
     terminal = board_view.is_terminal
     leaving = None
 
-    # zoom: 1.0 is the guaranteed fit at ANY attitude; 1.5 rests larger and
-    # lets an axis tip clip in the extremes, which the eye forgives and the
-    # wheel undoes.
+    # zoom: 1.0 is the guaranteed fit at any attitude; 1.44 rests larger and
+    # lets an axis tip clip in the extremes.
     view = {'zoom': 1.44,                # 77% of the 1.875 it rested at
             'quaternion': (0.0, 0.0, 0.0, 1.0), 'frame': 0}
     # `persist` holds the two frames before this one, so three can vote per
@@ -458,7 +447,7 @@ def main(argv=None):
                        console=board_view)
 
     def on_input(typed, moved):
-        # THE KEYS ZOOM TOO.
+        # The keys zoom too.
         for key in typed:
             if key in '+=-_':
                 moved += WHEEL_STEP if key in '+=' else -WHEEL_STEP

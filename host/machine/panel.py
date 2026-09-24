@@ -103,7 +103,8 @@ def panel(loop, path=None):
                 show(name)
             return apply
 
-        rows = [w.HTML('<span style="color:%s">channels</span>' % _hex(TITLE))]
+        rows = []
+        rows.append(w.HTML('<span style="color:%s">channels</span>' % _hex(TITLE)))
         setpoint = w.Combobox(value=f.setpoint or '', options=channels()[1:],
                               description='setpoint', ensure_option=False, style=wide,
                               layout=fit)
@@ -122,7 +123,9 @@ def panel(loop, path=None):
             current = type(getattr(part, 'part', part)).__name__ if part is not None else NONE
             rows.append(w.HTML('<span style="color:%s">%s</span>' % (_hex(TITLE), slot)))
             rows.append(pick('kind', options, current, swapped(slot)))
-            for param, value in (part.params().items() if part is not None else ()):
+            if part is None:
+                continue
+            for param, value in part.params().items():
                 field = w.FloatText(value=value, description=param, style=wide, layout=fit)
                 field.observe(lambda c, part=part, param=param: part.configure(
                     **{param: c['new']}), 'value')
@@ -157,7 +160,7 @@ def panel(loop, path=None):
         """The widget, and a still of the selected loop for a viewer with no kernel."""
 
         def _repr_mimebundle_(self, **kwargs):
-            data = super()._repr_mimebundle_(**kwargs)
+            data = super()._repr_mimebundle_(**kwargs) or {}
             data['text/plain'] = 'the controller panel - run the cell for its controls'
             data['image/png'] = base64.b64encode(image.value or still(loop)).decode('ascii')
             return data

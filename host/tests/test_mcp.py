@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 """End-to-end test of the MCP server, plus a token accounting."""
 import json
-import os
 import subprocess
 import sys
 import time
-
-# host/ on the path: this file's own directory's parent, so it does not matter
-# what the working directory is.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 PROTOCOL_VERSION = '2024-11-05'
 
@@ -192,9 +187,9 @@ def exercise(server, report):
                   ['echo ok'])
     report.result('link state', server.tool('link', {'op': 'state'}),
                   ['bus_message='])
-    # THE THERMAL OBSERVER, three questions, every one headed and the one
-    # measurement named - the bench's rule sends "how hot is the board" to the
-    # local model, which had no way to device 8.
+    # The thermal observer (device 8), three questions, each headed and its
+    # one measurement named: the bench's rule sends "how hot is the board" to
+    # the local model, which has no other way to device 8.
     report.result('thermal state', server.tool('thermal', {'op': 'state'}),
                   ['thermal:', 'legs', 'room', 'ESTIMATE'])
     report.result('thermal budget', server.tool('thermal', {'op': 'budget'}),
@@ -203,7 +198,7 @@ def exercise(server, report):
                   ['ident:', 'margin', 'room', 'innovation'])
     report.result('test_gate close', server.tool('test_gate', {'enable': False}),
                   ['gate=0'])
-    # THE BODY: every node a joint, a program as text - what a small model writes.
+    # Every node a joint, a program as text: what a small model writes.
     report.result('program card', server.tool('program', {'op': 'card'}),
                   ['One step a line', 'left_knee', '-90..90', '<name>.deg'])
     report.result('program run', server.tool('program', {
@@ -212,7 +207,7 @@ def exercise(server, report):
     refused = server.tool('program', {'op': 'run', 'text': '0.3 left_kne=20'})
     report.check('a program\'s typo comes back as the name meant',
                  'did you mean left_knee' in refused, refused.splitlines()[-1])
-    # LIVE: a line plays once checked; the model is woken with one line.
+    # A line plays once checked; the model is woken with one line.
     early = server.tool('program', {'op': 'send', 'text': '0'})
     report.check('send before start: one line, the way out', 'op=start first' in early
                  and '\n' not in early, early)

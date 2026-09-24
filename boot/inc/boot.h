@@ -24,7 +24,7 @@ extern "C" {
 #define BOOT_UID_BYTES       12U      /**< the MCU's unique id, 96 bits */
 #define BOOT_UID_BITS        (BOOT_UID_BYTES * 8U)
 
-/** WHERE THE APPLICATION RUNS AND WHERE IT IS KEPT (docs/BOOT.md). It is
+/** Where the application runs and where it is kept (docs/BOOT.md). It is
     linked into D2 SRAM, which nothing else uses, and streamed there; flash
     keeps a sealed copy for a power-up with no master - the seal word first,
     the image behind it. */
@@ -65,7 +65,7 @@ typedef struct
 #define BOOT_TYPE_COAXIAL_63100  1U
 #define BOOT_TYPE_COAXIAL_63020  2U
 
-/** THE STORE'S SEAL: its first flash word, programmed after the image
+/** The store's seal: its first flash word, programmed after the image
     behind it, so a store interrupted anywhere holds nothing. */
 #define BOOT_SEAL_MAGIC      0x4C414553U   /**< 'SEAL' */
 
@@ -82,7 +82,7 @@ typedef struct
 /** seal's flags. */
 #define BOOT_SEAL_PERSIST    0x01U    /**< keep a copy in the store, if it holds another */
 
-/** THE HANDOVER SLOT: the top 32 bytes of DTCM, which both linker scripts
+/** The handover slot: the top 32 bytes of DTCM, which both linker scripts
     place at the same address and neither startup zeroes or copies, so it is
     exactly what the last image left. */
 #define BOOT_HAND_BYTES      32U
@@ -179,7 +179,7 @@ int boot_pdu(const uint8_t *req, size_t req_len, uint8_t *rsp, size_t rsp_cap);
     range. */
 bool boot_app_valid(void);
 
-/** THE GATE AT RESET: RAM still holding, whole, the image the slot names (a
+/** The gate at reset: RAM still holding, whole, the image the slot names (a
     warm reset), or the store's sealed copy verified and copied into RAM.
     False: nothing may run. */
 bool boot_ready(uint32_t hand_bytes, uint32_t hand_crc);

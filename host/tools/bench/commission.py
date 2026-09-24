@@ -1,6 +1,6 @@
 """Commission a motor: characterise, budget the injection, set gains, decide, verify, print the line.
 
-Characterised: the AFE, the inverter and the motor.
+It characterises the AFE, the inverter and the motor.
 
     python tools/bench/commission.py --simulated                 # the stand-in
     python tools/bench/commission.py --step afe                  # no switching
@@ -18,13 +18,10 @@ import argparse
 import json
 import math
 import os
-import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.control.commission import Commissioning  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.control.commission import Commissioning
+from coaxial.errors import RigError
 
 STEPS = ('afe', 'sample_point', 'offsets', 'gains_afe', 'sign', 'deadtime',
          'l_map', 'flux', 'budget', 'gains', 'decide', 'verify')

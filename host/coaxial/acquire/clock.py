@@ -95,6 +95,10 @@ class Timebase(Input):
 
     """The board's cycle counter: latched by `trigger()`, read by `read()`, tied to this machine."""
 
+    def trigger(self, settle=0.05):
+        """Latch the counter; `settle` seconds for the latch to land."""
+        raise NotImplementedError
+
     def _bracket(self):
         """One latch, bracketed by this machine's clock."""
         before = time.perf_counter()

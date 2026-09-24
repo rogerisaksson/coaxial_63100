@@ -170,7 +170,7 @@ static void take_rung(daq_t *d, uint8_t n)
   d->rung_changes++;
   d->low_for = 0U;
 
-  /* PRIMED, NOT ZEROED. */
+  /* Primed, not zeroed. */
   for (uint8_t f = 0U; f < d->task.fields; f++)
   {
     filter_prime(&d->chain, &d->filter[f], (float)d->pending[f]);
@@ -291,7 +291,7 @@ static void push_record(daq_t *d)
     }
   }
 
-  /* THE DIVISOR TRAVELS WITH THE SUM. */
+  /* The divisor travels with the sum. */
   at = put_be16(rec, at, d->acc_n);
 
   const uint32_t masked = held(d);
@@ -317,7 +317,7 @@ static bool filtered(daq_t *d, uint8_t field, int32_t sum, uint16_t count,
 {
   float y = 0.0f;
 
-  /* THE MEAN, not the sum: the task's accumulate is the chain's first stage
+  /* The mean, not the sum: the task's accumulate is the chain's first stage
      and has already run, so what goes into the biquads is what came out of
      it. */
   if (!filter_push_value(&d->chain, &d->filter[field],
@@ -386,7 +386,7 @@ void daq_feed(daq_t *d, const int32_t *values, uint32_t at, uint32_t digital)
     d->first_digital = digital;
   }
 
-  /* SATURATE, do not wrap. */
+  /* Saturate, do not wrap. */
   if (d->acc_n < DAQ_MAX_ADDITIONS)
   {
     accumulate(d, values, digital);
@@ -450,7 +450,7 @@ bool daq_sweep_put(daq_t *d, int32_t raw)
 
 void daq_sweep_close(daq_t *d, uint32_t now)
 {
-  /* CLOSED BY THE CLOCK: nothing gates the triggers. */
+  /* Closed by the clock: nothing gates the triggers. */
   if ((d->task.accumulate != 0U) && !daq_trigger_due(d, now))
   {
     return;
@@ -554,7 +554,7 @@ const char *daq_set_filter(daq_t *d, const filter_biquad_t *sections,
     memcpy(d->chain.section, sections,
            (size_t)count * sizeof(d->chain.section[0]));
   }
-  /* The task's accumulate IS the boxcar. One first stage. */
+  /* The task's accumulate is the boxcar. One first stage. */
   d->chain.boxcar = 1U;
   d->filtering = (count > 0U) || (decimate > 1U);
   memset(d->filter, 0, sizeof(d->filter));
@@ -724,7 +724,7 @@ void daq_tone_poll(daq_t *d, uint32_t now, uint32_t burst)
     return;
   }
 
-  /* EXACTLY the samples the elapsed time owed, and the remainder is carried
+  /* Exactly the samples the elapsed time owed, and the remainder is carried
      rather than dropped: a generator that rounded down every turn would run
      slow by a fraction of a sample per poll, and a host checking phase would
      see the drift and call it a lost record. */
@@ -780,7 +780,7 @@ void daq_live_insert(daq_t *d, uint8_t field, int32_t value, uint32_t at,
     slot->highest = value;
   }
 
-  /* SATURATE. */
+  /* Saturate. */
   if (slot->additions < DAQ_MAX_ADDITIONS)
   {
     slot->sum += value;

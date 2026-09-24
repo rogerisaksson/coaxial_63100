@@ -1,4 +1,4 @@
-"""Where model-authored commands and code actually run."""
+"""Where model-authored commands and code run."""
 import ast
 import contextlib
 import importlib.util
@@ -129,7 +129,7 @@ class Scope:
     def available(self):
         """What this namespace holds, for a snippet that reached past it."""
         names = sorted(n for n in self.namespace if not n.startswith('__'))
-        # WHAT IS ACTUALLY IMPORTABLE, not what was decided once.
+        # What is importable now, not what was decided once.
         extra = []
         for name in ('pandas', 'numpy'):
             if importlib.util.find_spec(name) is not None:
@@ -186,9 +186,10 @@ class Scope:
                          eval(compile(tail, '<bench>', 'eval'), self.namespace))
                 if value is not None:
                     print(repr(value), file=buffer)
-        except BaseException:                       # noqa: BLE001 - see docstring
-            # Including KeyboardInterrupt and SystemExit: model code calling
-            # sys.exit() must not take the runner down mid-plan.
+        except BaseException:
+            # The sandbox's edge: whatever model code raised is its output,
+            # SystemExit and KeyboardInterrupt included - a sys.exit() in a
+            # snippet must not take the runner down mid-plan.
             etype, value, tb = sys.exc_info()
             buffer.write('\n' + ''.join(traceback.format_exception(
                 etype, value, tb.tb_next if tb and tb.tb_next else tb,

@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 """The controller: feedback loops over float channels, its parts, its panel, its sequencer."""
+import importlib.util
 import os
 import random
 import sys
 import tempfile
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from coaxial import Coaxial63100                                      # noqa: E402
-from machine.controller import Feedback, Loop, Paced, Polled          # noqa: E402
-from machine.errors import MachineError                               # noqa: E402
-from machine.parts import Gain, LowPass, PI, Slew, SpeedKalman, SpeedPI  # noqa: E402
-from machine.roles import Estimator, Input, Output, Regulator         # noqa: E402
-from machine.sequencer import Sequencer                               # noqa: E402
-from machine.wiring import diagram, feedback                          # noqa: E402
+from coaxial import Coaxial63100
+from machine.controller import Feedback, Loop, Paced
+from machine.errors import MachineError
+from machine.parts import Gain, LowPass, PI, Slew, SpeedKalman, SpeedPI
+from machine.roles import Estimator, Input, Output, Regulator
+from machine.sequencer import Sequencer
+from machine.wiring import diagram, feedback
 
 KT, J, B = 0.07, 2e-5, 1e-5
 DT = 0.002
@@ -37,7 +36,7 @@ class Rotor(Input, Output):
     WRITES = ('iq_ref',)
 
     def __init__(self, noise=5.0, fault=None):
-        self.w, self.iq, self.noise, self.fault = 0.0, 0.0, noise, fault
+        self.w, self.iq, self.noise, self._fault = 0.0, 0.0, noise, fault
         self.rng = random.Random(1)
         self.stopped = False
 
@@ -48,7 +47,7 @@ class Rotor(Input, Output):
         return {'w': self.w}
 
     def read(self, count=None, timeout=None):
-        return {'w': self.w + self.rng.gauss(0.0, self.noise), 'fault': self.fault,
+        return {'w': self.w + self.rng.gauss(0.0, self.noise), 'fault': self._fault,
                 'spinning': abs(self.w) > 1.0, 'name': 'toy'}
 
     def write(self, **command):
@@ -183,12 +182,15 @@ def test_a_table_or_a_planner(report):
                  abs(rotor.w - 50.0) < 2.0, '%.1f at %.2f s' % (rotor.w, clock.t))
     asked = []
 
-    def planner(loop):
-        asked.append(loop.read()['w_ref'])
-        return (0.5, {'w_target': asked[-1] + 20.0}) if len(asked) < 4 else None
+    def planner():
+        while True:
+            asked.append(loop.read()['w_ref'])
+            if len(asked) == 4:
+                return
+            yield 0.5, {'w_target': asked[-1] + 20.0}
 
-    loop.follow(planner)
-    report.check('a planner: asked after each block, until it answers None',
+    loop.follow(planner())
+    report.check('a generator plans: asked after each block, until it returns',
                  len(asked) == 4, asked)
 
 
@@ -350,9 +352,7 @@ def test_the_pictures_and_the_panel(report):
                                           'rotor.iq_ref', 'rotor.w')))
     report.check('the overview draws every part', all(p in diagram(loop, colour=False)
                                                      for p in loop.parts))
-    try:
-        import ipywidgets  # noqa: F401
-    except ImportError:
+    if importlib.util.find_spec('ipywidgets') is None:
         report.check('the panel (ipywidgets absent: skipped)', True)
         return
     from machine.panel import kinds, panel
@@ -562,7 +562,7 @@ def test_live_from_a_stream(report):
                 live.send('0.4 left_knee=30 right_knee=30'),
                 live.send('0.4 left_knee=40 right_knee=40')]
         report.check('chunks queue; a bad one is refused alone, in a line',
-                     said[0] is None and 'left_knee=4O is not a number' in said[1]
+                     said[0] is None and 'left_knee=4O is not a number' in (said[1] or '')
                      and said[2] is None, said[1])
         report.check('past the horizon the writer is told to wait',
                      'send when it drains' in (said[3] or ''), said[3])
@@ -575,7 +575,7 @@ def test_live_from_a_stream(report):
         live.stop()
         report.check('stop: stopped, and nothing more is taken',
                      live.state()['status'] == 'stopped'
-                     and 'stopped' in live.send('0.4 left_knee=10'))
+                     and 'stopped' in (live.send('0.4 left_knee=10') or ''))
         machine.limits['left_knee.deg'] = {'HH': 15.0}
         live = Live(machine, failsafe='0.4 left_knee=0', timeout=5.0).start()
         live.send('0.8 left_knee=30')

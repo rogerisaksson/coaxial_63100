@@ -1,4 +1,4 @@
-/** harness.c - A flat C API over drive/, so test_drive_core.py can run the
+/** harness.c - A flat C API over drive/, so tools/cores/drive.py can run the
     control law on the host through ctypes, against a motor model written in
     Python. */
 #include "drive.h"
@@ -278,9 +278,6 @@ API void drv_model_state(const drive_t *d, float *v)
   v[3] = d->model.iq;
 }
 
-/** The observer chain's state, drive_observer.c, in the order
-    test_drive_core.py and coaxial.devices.drive read it: the blend, then each
-    observer on its own, then what the chain says about the machine. */
 /** The observer chain on its own, fed the stationary-frame voltage and
     current directly. */
 API void drv_obs_step(drive_t *d, float va, float vb, float ia, float ib)
@@ -303,6 +300,9 @@ API int drv_obs_count(void)
   return 8;
 }
 
+/** The observer chain's state, drive_observer.c, in the order Drive.obs in
+    tools/cores/drive.py names it: the blend, then each observer on its own,
+    then what the chain says about the machine. */
 API void drv_obs(const drive_t *d, float *v, int n)
 {
   const float got[8] = {

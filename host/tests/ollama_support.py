@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-"""Everything the split-out ollama suites share."""
-#!/usr/bin/env python3
-"""Offline test of the Ollama runner: no board, no ollama, no network.
+"""What the test_ollama_* suites share; not a suite itself.
 
-The board and the model are both simulated, on purpose. What is under test
-here is not whether a language model can read a thermistor - that is what a
-bench is for - but whether this runner keeps its promises when the model
-behaves badly:
+Board and model both simulated: no board, no ollama, no network. Under test
+is not whether a model can read a thermistor (a bench's job) but whether the
+runner keeps its promises when the model behaves badly:
 
   * the limit never reaches the model;
   * the verdict never comes from the model;
@@ -14,33 +11,29 @@ behaves badly:
     writes code that raises still leaves a complete transcript and a recorded
     step;
   * a state change cannot happen without the operator's flag.
-
-Every one of those is a property of this package, so every one of them is
-testable on a desk with nothing plugged in.
-
-Imported by the test_ollama_* suites; not a suite itself.
 """
-# Every import here is also the suites' import: test_ollama_* take io, json,
-# simulated, detail and the rest FROM this module, so pyflakes' 'unused' on any
-# of them is wrong - removing eight crashed three suites.
-import io                                                  # noqa: F401
-import json                                                # noqa: F401
 import os
 import random
 import sys
-import tempfile                                            # noqa: F401
-import types                                               # noqa: F401
-import threading                                           # noqa: F401
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from coaxial import simulated                              # noqa: E402,F401
-from coaxial.errors import ConnectError  # noqa: E402
-from coaxial.simulated.analog import SimulatedAfe  # noqa: E402
-from tests import counts                                   # noqa: E402
-from coaxial_ollama import (plan as planmod, replies, runner as runmod,  # noqa: E402,F401
-                            tools as toolmod, client as clientmod)
-from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
-from coaxial_mcp import detail                             # noqa: E402,F401
-from coaxial.comm import session as sessionmod              # noqa: E402
+
+from coaxial import simulated
+from coaxial.comm import session as sessionmod
+from coaxial.errors import ConnectError
+from coaxial.simulated.analog import SimulatedAfe
+from coaxial_mcp import detail
+from coaxial_ollama import (client as clientmod, plan as planmod,
+                            runner as runmod, tools as toolmod)
+from coaxial_ollama.sandbox import Scope, Shell
+from tools.dev import counts
+from tools.dev.suites import TAGS
+
+#: What test_ollama_* import from here, modules included.
+__all__ = [
+    'BSLASH', 'CHANNELS', 'TAGS', 'ConnectError', 'Scope', 'ScriptedModel',
+    'SimulatedBoard', 'SimulatedSession', '_Held', '_NotATty', '_flat',
+    '_test_capability', '_unformat', 'build', 'call', 'clientmod', 'detail',
+    'run_file', 'safe_head', 'select', 'sessionmod', 'simulated', 'toolmod',
+]
 BSLASH = chr(92)
 
 
@@ -59,10 +52,10 @@ class SimulatedLink:
         if self.board.broken:
             raise ConnectError('cable pulled')
         if self.board.dead_handle:
-            # Distinct from `broken`: a real cable pull can leave the OS handle
-            # Session.board cached permanently invalid, since a USB VCP
-            # re-enumerates on replug rather than reviving the same handle -
-            # measured directly against real hardware.
+            # Distinct from `broken`: a cable pull leaves the OS handle
+            # Session.board cached invalid for good, since a USB VCP
+            # re-enumerates on replug rather than reviving the handle
+            # (measured on hardware).
             raise ConnectError('Attempting to use a port that is not open')
         return {'unit_id': 1, 'bus_message': 42, 'char_overrun': 0}
 class SimulatedSystem:
@@ -223,7 +216,7 @@ def _unformat(template):
 def _capability_tags(report, cap, machine):
     """Which tag a machine chooses, and why it never splits one."""
 
-    # A workstation card: the biggest tag that fits WHOLE, never a split one.
+    # A workstation card: the biggest tag that fits whole, never a split one.
     big = cap.choose(machine(32, 64, 16))
     report.check('16 GB card takes the largest model that fits whole',
                  big.tag == 'qwen2.5:14b' and 'num_gpu' not in big.options,
@@ -272,7 +265,6 @@ def _capability_tags(report, cap, machine):
     report.check('the reserve never exceeds the card',
                  cap.reserve_for(8, 20) <= 8 + cap.HEADROOM_GB)
 
-    import os
     os.environ[cap.RESERVE_ENV] = '8'
     try:
         report.check('a machine can say how much to hold back',
@@ -375,22 +367,6 @@ def _test_capability(report, cap):
     _capability_budget(report, cap, machine)
 def safe_head(text, n=44):
     return (text or '').strip().splitlines()[0][:n] if (text or '').strip() else '(nothing)'
-
-
-#: The subjects a change can be about. The catalogue lives here rather than
-#: beside any one suite, because pick_tests.py asks the model to choose from
-#: it and every split file is named after one of them.
-TAGS = {
-    'prompt': 'SYSTEM, the per-turn hints, what the model is told',
-    'tools': 'the tool surface: schemas, arguments, which tool answers what',
-    'reply': 'what an answer means: retypes, blank answers, nudges',
-    'language': 'the session language, its lock, and the phrase table',
-    'render': 'how a result reaches the screen: columns, blocks, clipping',
-    'board': 'the board, its channels, its pins, the AFE',
-    'bus': 'nodes, segments, unit ids, broadcast',
-    'link': 'the serial link: ports, probing, diagnosis, recovery',
-    'runner': 'the plan runner, the sandbox, and the test tooling itself',
-}
 
 
 def select(roster, chosen, seed, coverage=None):

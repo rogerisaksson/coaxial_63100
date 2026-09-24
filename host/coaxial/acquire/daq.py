@@ -2,14 +2,14 @@
 import itertools
 import struct
 import time
-
-from coaxial.comm import protocol
-from coaxial.acquire.acquisition import Acquisition
-from coaxial.errors import RigError
-from coaxial.comm.protocol import DaqOp
-from coaxial.devices.subsystem import Device
-from coaxial.comm.wire import BYTE_FRACTION, Reader, pack
 from typing import Any
+
+from coaxial.acquire.acquisition import Acquisition
+from coaxial.comm import protocol
+from coaxial.comm.protocol import DaqOp
+from coaxial.comm.wire import BYTE_FRACTION, Reader, pack
+from coaxial.devices.subsystem import Device
+from coaxial.errors import RigError
 
 #: Clock sources. SOFTWARE is the main loop; TIM1 is the injected group, one
 #: record per PWM period, and it carries the three phases and nothing else.
@@ -75,13 +75,13 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         })
         # Appended by MINOR 4, and read only if it is there: a board older than
         # that answers a shorter reply, and a decoder that assumed the field
-        # would raise on a board that is simply older.
+        # would raise on it.
         state['capacity'] = r.maybe('u32')
         state['worst'] = r.maybe('u32')
         state['rung'] = r.maybe('u8') or 0
         state['rungs'] = r.maybe('u8') or 0
         state['rung_changes'] = r.maybe('u32') or 0
-        # SWEEPS, not records: what the loop manages underneath the decimation.
+        # Sweeps, not records: what the loop manages underneath the decimation.
         state['triggers'] = r.maybe('u32')
         # Appended, MINOR 7: which sensor fields this build can put in a
         # record, and which the task carries now.
@@ -134,13 +134,13 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         """Replace the task. Refused while one is running."""
         if accumulate is None:
             accumulate = 0 if sample_rate is not None else 1
-        # Only what stops the request being FORMED is checked here - a name
+        # Only what stops the request being formed is checked here: a name
         # that is not a clock cannot be packed into a byte.
         if clock not in CLOCKS and clock not in CLOCK_NAMES:
             raise ValueError('clock is %s, not one of %s'
                              % (clock, ', '.join(CLOCKS)))
 
-        # A software clock has to be a clock.
+        # The software clock's period, from `sample_rate`.
         if interval_us is None:
             interval_us = (0 if sample_rate is None
                            else int(1e6 / float(sample_rate)))
@@ -155,7 +155,7 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
                        ('u8', int(bool(digital))), ('u32', int(interval_us)),
                        ('u8', int(bool(adapt))))
         if sensors:
-            # Appended, MINOR 7 - SNAPSHOT fields, software clock only.
+            # Appended, MINOR 7: snapshot fields, software clock only.
             payload += pack(('u16', int(sensors)))
         self._ack(DaqOp.CONFIGURE, payload)
         return self.layout()
@@ -220,14 +220,14 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
         first = 1 + len(fields)
         if pins:
-            # A DUTY, not a level: the pin went through the same window as
+            # A duty, not a level: the pin went through the same window as
             # everything else, and 255 is all of it.
             rec['digital'] = {p['signal']: values[first + n] / BYTE_FRACTION
                               for n, p in enumerate(pins)}
         first += len(pins)
         if sensors:
-            # SNAPSHOTS, not sums: raw and source-defined, the way device 5
-            # carries them - the scale stays this host's.
+            # Snapshots, not sums: raw and source-defined, as device 5
+            # carries them; the scale stays this host's.
             ends = list(itertools.accumulate((x['words'] for x in sensors),
                                              initial=first))
             rec['sensors'] = {x['signal']: tuple(values[a:b])
@@ -237,11 +237,11 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
     def acquire(self, want=0, layout=None):
         """Whole records, oldest first, decoded from the board's layout."""
         layout = layout or self.layout()
-        # THE BOARD'S STRIDE, not one worked out here.
+        # The board's stride, not one worked out here.
         stride = layout['stride']
-        # AND ITS REPLY'S LENGTH IS KNOWABLE, so say so: the first payload byte
-        # is the record count and the stride is already in hand, which turns
-        # the 8 ms of silence that ends every other transaction into nothing.
+        # The reply's length is known: the first payload byte is the record
+        # count and the stride is in hand, so the read skips the 8 ms of
+        # silence that ends every other transaction.
         raw = self._op(DaqOp.READ, pack(('u8', min(int(want), 255))),
                        reply_shape={'at': 0, 'head': 1, 'stride': stride,
                                     'tail': 4})
@@ -249,8 +249,8 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         end = 1 + (got * stride)
         out = self.decode(raw[1:end], layout)
 
-        # THE BACKLOG THE READ ITSELF ANSWERED, the way a DAQ card does it:
-        # records still in the board's ring the instant this read took its own.
+        # The backlog the read itself answered: records still in the board's
+        # ring the instant this read took its own.
         self.backlog = Reader(raw[end:]).maybe('u32')
         return out
 

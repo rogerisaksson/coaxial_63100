@@ -1,4 +1,6 @@
 """The board's thermal observer, behind `0x6E` device 8."""
+from typing import Any
+
 from coaxial.comm import protocol
 from coaxial.comm.protocol import ThermalOp
 from coaxial.comm.wire import Reader, label, micro, milli, pack, pages
@@ -65,6 +67,9 @@ class ThermalControl(Input):
         node=, limit_c, throttle_at                       a node's ceiling, derating from
         edge=, k_per_w                                    an edge by index; None opens it
     """
+
+    # What the class this mixes into brings.
+    _reset_identification: Any
 
     #: setting -> (its keys, the primitive, defaults)
     SETTINGS = {
@@ -252,6 +257,34 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
         raise RigError('a board has no load to lay on from the observer - '
                        'the drive and tools/bench/switch.py put current through '
                        'it; the stand-in (simulated=True) cycles one')
+
+    def fast_forward(self, model_seconds, seen=None, live=False):
+        """A board runs on the wall clock: taking a model ahead is the
+        stand-in's (`SimulatedThermal.fast_forward`).
+        """
+        raise RigError('a board runs on the wall clock and cannot be run ahead - '
+                       'the stand-in (simulated=True) can')
+
+    def truth(self):
+        """A board has no ground truth beside its estimate: that is the
+        stand-in's (`SimulatedThermal.truth`).
+        """
+        raise RigError('a board has no ground truth to tell - state() is its '
+                       'estimate; the stand-in (simulated=True) has one')
+
+    @property
+    def SITUATIONS(self):
+        """The stand-in's rooms (`SimulatedThermal.SITUATIONS`); a board is
+        in the one it is in.
+        """
+        raise RigError('a board has no situations to name - it is in the room '
+                       'it is in; the stand-in (simulated=True) has them')
+
+    @property
+    def TOUR(self):
+        """The stand-in's round of rooms (`SimulatedThermal.TOUR`)."""
+        raise RigError('a board takes no tour of rooms - the stand-in '
+                       '(simulated=True) does')
 
     def _set_winding(self, limit_c, k_per_w, j_per_k):
         return self._ack(ThermalOp.SET_WINDING, pack(

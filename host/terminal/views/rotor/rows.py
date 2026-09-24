@@ -85,7 +85,7 @@ def phase_amps(view):
     beta = s['id'] * sin + s['iq'] * cos
     root3 = math.sqrt(3.0) / 2.0
     amps = (alpha, -0.5 * alpha + root3 * beta, -0.5 * alpha - root3 * beta)
-    # FULL SCALE IS THE VECTOR, NOT THE TRIP.
+    # Full scale is the vector, not the trip.
     return amps, math.hypot(s['id'], s['iq'])
 
 
@@ -152,7 +152,7 @@ def status_rows(view):
             ('travel', '%9.1f deg %7.2f turns %s'
              % (gone, gone / 360.0,
                 'cw' if (o.get('omega') or 0.0) >= 0.0 else 'ccw')),
-            # THE CELL'S SHAPE, AND WHERE THE NUMBER CAME FROM.
+            # The cell's shape, and where the number came from.
             ('cell', '%.2f tall %s' % (view.get('aspect', machine.CELL_ASPECT),
                                        view.get('aspect_how', 'assumed')))]
 
@@ -213,7 +213,7 @@ def loop_rows(view):
 
 
 #: The envelope's word beside the mode, in a red darker than the trip's 196
-#: and the pulse's 210: held, not hurt (the bench's words).
+#: and the pulse's 210: held, not hurt.
 THROTTLE_RED = 124
 
 

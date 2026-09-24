@@ -5,15 +5,13 @@ import sys
 import threading
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from coaxial import errors
+from coaxial.comm import broker
 
-from coaxial.comm import broker                                  # noqa: E402
-from coaxial import errors                                  # noqa: E402
-
-#: A TCP port of its own, so a suite run never fights a broker somebody
-#: started at the bench - and an address FILE of its own for the same
-#: reason. Writing the bench's pointed conformance at a broker that was
-#: this suite's, on a port it then asked the wrong address to release.
+#: A TCP port and an address file of its own, so a suite run never fights a
+#: broker started at the bench: a shared file pointed the bench's
+#: conformance at this suite's broker, on a port it then asked the wrong
+#: address to release.
 ADDRESS = ('127.0.0.1', 8791)
 broker.WHERE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             '.session.addr.test')
@@ -77,7 +75,7 @@ def served(fake, address=ADDRESS):
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
 
-    # Wait on the ADDRESS FILE, not on a probe connection: serve() writes it
+    # Wait on the address file, not on a probe connection: serve() writes it
     # before it answers, and a probe that attached and closed would be the last
     # one out and take the broker down before the test began.
     for _ in range(200):                       # up in milliseconds
@@ -262,7 +260,7 @@ def test_a_stale_address_is_not_a_broker(report):
     finally:
         stop()
 
-    # The other half: a broker that IS there answers, and asking does not count
+    # The other half: a broker that is there answers, and asking does not count
     # as a use - the question must not be what takes it down.
     fake = Fake()
     served(fake)
@@ -307,7 +305,7 @@ def test_frame_length(report):
 
 
 def test_ack_skips_the_quiet_time(report):
-    """The ACK shape through the REAL read loop, on a scripted port."""
+    """The ACK shape through the real read loop, on a scripted port."""
     import types
 
     from coaxial.comm import transport as tmod
@@ -315,7 +313,7 @@ def test_ack_skips_the_quiet_time(report):
 
     class _StubSerial:
         """A slave in four methods: the scripted `reply` arrives when
-        the request is WRITTEN - preloading the stream instead met
+        the request is written - preloading the stream instead met
         transmit()'s purge-on-unclean and tested an empty wire."""
 
         def __init__(self, *args, **kwargs):

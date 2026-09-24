@@ -36,7 +36,7 @@ static struct
   thermal_loss_t loss;
   thermal_power_t power;
 
-  /** The last DC link voltage that was a MEASUREMENT, volts. */
+  /** The last DC link voltage that was a measurement, volts. */
   float link_volts;
   thermal_soa_t soa;
   thermal_budget_t budget;
@@ -51,14 +51,14 @@ static struct
   uint32_t sampled_ms;            /**< when the last sample finished */
   thermal_sense_t last_seen;
   uint32_t seen_ms;               /**< when s.last_seen was taken */
-  bool seen;                      /**< whether anything answered yet */
+  bool seen;                      /**< whether anything has answered */
   uint32_t every_ms;
   uint32_t settle_ms;
   uint32_t millis;
   uint32_t steps;                 /**< model integrations, for a rate */
   float speed_rpm;                /**< the rotor at the last step */
 
-  /* THE IDENTIFICATION BESIDE THE OBSERVER. */
+  /* The identification beside the observer. */
   thermal_ident_t ident;
   thermal_cfg_t base;
   /** The margin the ceilings are trimmed by now - what the board acts on and
@@ -124,7 +124,7 @@ static void soa_from_cal(void)
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
   {
     s.soa.limit_c[i] = (float)cal->soa_limit_centi[i] / CENTI_PER_UNIT;
-    /* Which of them the clamp can actually cool - `board.h` has why the
+    /* Which of them the clamp can cool - `board.h` has why the
        housekeeping nodes are judged but not throttled on. */
     s.soa.undriven[i] = ((cal->soa_undriven_mask >> i) & 1UL) != 0UL;
   }
@@ -134,12 +134,11 @@ static void soa_from_cal(void)
   s.soa.throttle_at = (float)cal->soa_throttle_ppm / PPM_PER_UNIT;
   s.soa.lookahead_s = (float)cal->soa_lookahead_ms / MILLI_PER_UNIT;
 
-  /* THE POLICY. */
   const float margin = margin_now();
 
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
   {
-    /* THE TRIP KEEPS THE RECORD'S CEILING; the trim below is the throttle's. */
+    /* The trip keeps the record's ceiling; the trim below is the throttle's. */
     s.soa.trip_c[i] = s.soa.limit_c[i];
     if (s.soa.limit_c[i] > THERMAL_MARGIN_REF_C)
     {
@@ -319,7 +318,7 @@ void Board_ThermalInit(void)
   s.ready = true;
 }
 
-/** How fast the derate may RECOVER, per second. */
+/** How fast the derate may recover, per second. */
 #define THERMAL_DERATE_RECOVER_PER_S 0.05f
 
 static float derate_applied(float want, uint32_t since_ms)
@@ -357,7 +356,7 @@ static void sense_read(thermal_sense_t *out)
   out->ntc_c = Board_Ntc(&raw, &centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
   out->mcu_c = Board_McuDie(&raw, &centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
 
-  /* The A1335 sits in the AFE corner, so its die anchors THAT node - not the
+  /* The A1335 sits in the AFE corner, so its die anchors that node, not the
      board. */
   out->afe_c = Board_AngleDie(&centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
 }
@@ -368,9 +367,8 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
   out->afe_c = NAN;
   out->mcu_c = NAN;
 
-  /* Zero is OFF, and it has to be said out loud: the period test is
-     unsigned, so a zero period made the observer borrow the rail on EVERY
-     poll instead of never, and pinned PE15 low. */
+  /* Zero is off: the period test is unsigned, so a zero period would borrow
+     the rail on every poll instead of never, and pin PE15 low. */
   const bool due = (s.every_ms != 0U) && ((now - s.sampled_ms) >= s.every_ms);
 
   if (!s.holding && !due)
@@ -452,7 +450,7 @@ static void load_now(thermal_load_t *load)
       load->phase_amps[i] = Board_PhaseAmps(i, sample.phase[i]);
     }
 
-    /* AND THE MEAN SQUARE, which is what the conduction is actually made of. */
+    /* The mean square, which is what the conduction is made of. */
     (void)Board_SyncMeanSquare(load->phase_sq);
   }
 
@@ -495,14 +493,14 @@ static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
 
   thermal_power_estimate(&s.power, load, &s.loss, phase_c);
   thermal_step(&s.th, &s.power, seen, load, dt);
-  /* THE IDENTIFICATION, beside it: the shadow and its sensitivities step
+  /* The identification, beside it: the shadow and its sensitivities step
      with the same power and the same slice; when a sample moves the scales
      the observer's network takes them at once. */
   if (thermal_ident_step(&s.ident, &s.th, &s.base, &s.power, load, seen, dt))
   {
     thermal_ident_apply(&s.ident, &s.base, &s.th.cfg);
   }
-  /* THE ROOM IS THE IDENTIFICATION'S: the board has no ambient sensor, and
+  /* The room is the identification's: the board has no ambient sensor, and
      the observer's rise is against what the identification says the room is. */
   s.th.ambient = thermal_ident_ambient(&s.ident);
   thermal_budget(&s.th, &s.power, &s.soa, &s.budget);
@@ -512,7 +510,7 @@ static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
                                          THERMAL_WINDING);
 }
 
-/** THE ONE PLACE THIS FILE ACTS RATHER THAN REPORTS, and it acts twice. */
+/** The one place this file acts rather than reports, and it acts twice. */
 static void hold_envelope(uint32_t slice, uint32_t now)
 {
   Board_DriveDerate(derate_applied(s.budget.derate, slice));
@@ -523,7 +521,7 @@ static void hold_envelope(uint32_t slice, uint32_t now)
   }
   Board_PwmDisable();
   s.trips++;
-  /* AND THE ENVELOPE SHRINKS: the trip cap, from now, recovering a percent a
+  /* The envelope shrinks to the trip cap, recovering from now at a percent a
      minute (board_limits.h). */
   s.trip_cap = THERMAL_TRIP_MARGIN;
   s.trip_ms = now;
@@ -566,7 +564,7 @@ void Board_ThermalPoll(void)
     s.seen = true;
   }
 
-  /* IN SLICES, AND THE ENVELOPE ON EVERY ONE. */
+  /* In slices, and the envelope on every one. */
   uint32_t left = (since > THERMAL_CATCHUP_MS) ? THERMAL_CATCHUP_MS : since;
 
   while (left > 0U)
@@ -642,7 +640,7 @@ bool Board_ThermalBudget(board_budget_t *out)
   out->millis_to_limit = s.budget.millis_to_limit;
   out->throttling = s.budget.throttling;
   out->tripped = s.budget.tripped;
-  /* What is APPLIED, not what the arithmetic asked for: the recovery slew is
+  /* What is applied, not what the arithmetic asked for: the recovery slew is
      part of the answer and a host that saw the raw factor would see it
      flicker while the clamp did not. */
   out->derate = Board_DriveDerating();
@@ -650,7 +648,7 @@ bool Board_ThermalBudget(board_budget_t *out)
   {
     out->soak_j[i] = s.budget.soak_j[i];
   }
-  /* The EFFECTIVE duty, off the compares themselves rather than off whatever
+  /* The effective duty, off the compares themselves rather than off whatever
      was last asked for: what the clamp and the derate left. */
   {
     const uint32_t period = Board_PwmPeriod();
@@ -662,8 +660,7 @@ bool Board_ThermalBudget(board_budget_t *out)
     }
   }
   out->trips = s.trips;
-  /* MINOR 12's winding fields, from the node it is now: the same numbers a
-     host read when it was a separate element. */
+  /* MINOR 12's winding fields, from the winding node. */
   out->winding_c = s.th.t[THERMAL_WINDING];
   out->winding_used = s.budget.used[THERMAL_WINDING];
   out->winding_derate = s.winding_derate;

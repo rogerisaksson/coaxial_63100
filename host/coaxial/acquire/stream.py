@@ -1,5 +1,6 @@
 """The rig's task running: the host reader, blocks off the board or the ring, their times."""
 import time
+from typing import Any
 
 from coaxial.acquire.clock import WRAP
 from coaxial.acquire.daq import REPLY_ROOM
@@ -11,6 +12,14 @@ from coaxial.errors import CrcError, NoReplyError, RigError
 class TaskStream:
 
     """The task started, read and stopped; every record timed on the board's clock."""
+
+    # What the class this mixes into brings.
+    _lost: Any
+    board: Any
+    configure: Any
+    layout: Any
+    sync: Any
+    unit: Any
 
     #: How often an idle read asks whether a finite run has ended.
     #: A round trip, so not on every turn of a 2 ms poll.
@@ -45,12 +54,12 @@ class TaskStream:
         if kw:
             raise TypeError('capture() got %s' % ', '.join(sorted(kw)))
 
-        # NO CHAIN.
+        # No filter chain.
         self.board.daq.shape()
         self.configure(*channels, accumulate=1, interval_us=0,
                        digital=digital, sample_time=sample_time)
         if records is None:
-            # The ring's own size at THIS stride, asked rather than worked out
+            # The ring's own size at this stride, asked rather than worked out
             # here: the board knows what its buffer holds and the arithmetic
             # changes with every field added to a record.
             records = (self.state() or {}).get('capacity') or 1
@@ -65,7 +74,7 @@ class TaskStream:
         self.start()
         got = []
         try:
-            # TO EXHAUSTION, not `read(-1)`.
+            # To exhaustion, not `read(-1)`.
             deadline = time.time() + timeout
             for block in self.read_buffer(-1):
                 got.extend(block)
@@ -76,7 +85,7 @@ class TaskStream:
         return got
 
     def configure_buffer(self, records):
-        """Size the circular buffer the records land in, in RECORDS."""
+        """Size the circular buffer the records land in, in records."""
         self._buffer_records = max(1, int(records))
         return self._buffer_records
 
@@ -145,7 +154,7 @@ class TaskStream:
 
     def acquire(self):
         """One block of records, oldest first, with times on them."""
-        # ONE DRAINER.
+        # One drainer: the reader, when it runs.
         if self._reader is not None:
             return self._reader.take() or []
 
@@ -169,12 +178,12 @@ class TaskStream:
         for block in self.read_buffer(-1, timeout):
             out.extend(block)
             if count < 0:
-                # EVERYTHING THERE IS, not the first block of it.
+                # Everything there is, not the first block of it.
                 out.extend(self._queued())
                 break
             if len(out) >= count:
                 break
-        # WHAT THERE IS, when a finite run ends first.
+        # What there is, when a finite run ends first.
         return out[:count] if count > 0 else out
 
     def _queued(self):
@@ -186,7 +195,7 @@ class TaskStream:
         return [record for block in blocks for record in block]
 
     def _ended(self, reader):
-        """Whether a finite run has ended AND drained, asked of the board."""
+        """Whether a finite run has ended and drained, asked of the board."""
         now = time.time()
         if now - self._asked_done <= self.DONE_EVERY:
             return False
@@ -199,7 +208,7 @@ class TaskStream:
         return self._done_seen >= self.DONE_LOOKS
 
     def read_buffer(self, count, timeout=None):
-        """`count` blocks off the HOST buffer, one at a time, until `timeout`."""
+        """`count` blocks off the host buffer, one at a time, until `timeout`."""
         if self._reader is None:
             raise RigError('nothing is buffering yet - start() puts the '
                            'reader on the link, and read_buffer() takes '

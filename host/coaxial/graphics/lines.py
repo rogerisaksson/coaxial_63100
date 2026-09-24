@@ -7,19 +7,19 @@ silhouette, off the fold's reached bits.
 """
 import math
 
+from coaxial.graphics.creases import _outline_source
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS
 from coaxial.graphics.shading import OUTLINE_BASE, _edge_tone
-from coaxial.graphics.creases import _outline_source
 from coaxial.graphics.solids import _slab_planes
 from coaxial.graphics.stereotype import _drum_segments, _stereotypes
 
 
-#: An edge shorter than this on SCREEN, in cells, is not drawn: a QFP's
+#: An edge shorter than this on screen, in cells, is not drawn: a QFP's
 #: hundred pin creases and a can's facets are a third of a cell each at
 #: the view's zoom, and stacking their dots in one cell drew a solid
 #: braille blob where the part was. Measured over the 90 loops wider
 #: than 0.06 units: the blobs had 24-190 edges of 0.3-0.6 mm, the
-#: outlines edges of millimetres. Judged per EDGE and per FRAME rather
+#: outlines edges of millimetres. Judged per edge and per frame rather
 #: than per loop, because a loop's total length could not tell a box
 #: with its footprint (twice the perimeter) from the pins - and because
 #: it is the zoom that decides: bring a can up and its facets draw.
@@ -41,13 +41,11 @@ OUTLINE_GRACE = 0.012
 OUTLINE_SLOPE = 1.0
 
 
-#: Two, from five by way of three, on the bench's word - "more of the
-#: edge enhancer, also on somewhat smaller objects", then "even smaller
-#: components highlighted". Counted at the view's zoom (46.8 cells per
-#: unit): five drew 43 loops, three 65, two 95 - a part 2.1 mm wide is
-#: the smallest now, an 0805 on its edge; 1.5 would draw 112 and one
-#: 167, into the 0603s and the chip-scale parts, which OUTLINE_MIN_EDGE
-#: would strip to a dot or two each.
+#: The least part outlined, cells across, the bench's choice. At the
+#: view's zoom (46.8 cells per unit) five drew 43 loops, three 65, two
+#: 95 - the smallest a part 2.1 mm wide, an 0805 on its edge; 1.5 would
+#: draw 112 and one 167, into the 0603s and the chip-scale parts, which
+#: OUTLINE_MIN_EDGE would strip to a dot or two each.
 OUTLINE_CELLS = 2
 
 
@@ -96,7 +94,7 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     n_cells = width * height
     masks = {}
-    # FAR SIDE: an edge on the slab's other face from the camera is behind
+    # An edge on the slab's other face from the camera is behind
     # 1.6 mm of board, and a tilted face's own span (0.04-0.08 a cell, face
     # down) must not lend it grace - the top's parts printed through.
     top, bottom = _slab_planes(_outline_source()[0])
@@ -121,7 +119,7 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
         at = py * width + px
         near = buf[at]
         if near and we > 0.0:
-            # THE GRACE FOLLOWS THE CELL'S OWN DEPTH SPAN.
+            # The grace follows the cell's own depth span.
             here = 1.0 / near
             span = 0.0
             for j in (at - 1, at + 1, at - width, at + width):
@@ -159,7 +157,7 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
         else:
             # A wall's feature - an arch, a hole - seen edge-on is a dash:
             # face-on, the screw terminals' openings lay as short bright
-            # strokes along the rim, "junk" on the bench's screenshot.
+            # strokes along the rim.
             segs, (nx, ny) = data
             if abs(nx * m6 + ny * m7) < STEREO_FACING:
                 continue
@@ -180,7 +178,7 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
 
 
 def _ink(grid, tone, masks, width, colour, heat):
-    """`masks` ONTO the face's dots - a cell keeps its own dither under the
+    """`masks` onto the face's dots - a cell keeps its own dither under the
     line's - in the edge tone, lit by `heat` where the glow left any. The
     count of cells inked."""
     for at, mask in masks.items():
@@ -274,7 +272,7 @@ def _regions(reached, width, height):
 
 
 def _edge(grid, tone, cells, cam, colour, heat=None):
-    """The slab's edge and its holes as the RASTER'S OWN SILHOUETTE: the
+    """The slab's edge and its holes as the raster's own silhouette: the
     covered dots that border what the fold left empty - the exterior, and
     any hole of EDGE_HOLE_CELLS empty cells or more - at braille dot
     resolution, off the fold's `reached` bits and the tables above.

@@ -5,12 +5,11 @@ import os
 import struct
 import sys
 
+from tools.cores.build import build, find_cc
+
+from test_modbus_core import Report
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.dirname(HERE))
-
-from test_modbus_core import Report, build, find_cc          # noqa: E402
-
 REPO = os.path.dirname(os.path.dirname(HERE))
 DAQ = os.path.join(REPO, 'daq')
 FILTER = os.path.join(REPO, 'filter')
@@ -169,7 +168,7 @@ def test_the_ring(report, e):
                  capacity == 4096 // stride, str(capacity))
     # A record goes in while more than a stride is free, so the ring holds
     # every whole record it has room for and never lets the head catch the
-    # tail: that many, and not one more.
+    # tail.
     held = -(-(4096 - stride) // stride)
     e.feed_records(capacity + 5)
     report.check('past the ring the rest is dropped and counted, not wrapped',

@@ -8,9 +8,9 @@ SECTIONS = [
     section(
         'Where this session landed',
         md('`origin`: the path taken (`debug probe`, `RS485`, `simulated`), asked for or '
-           'fallen back to. `broker.clients()` with nothing serving: None - at once with no '
-           'address file, after the 1 s connect timeout with a stale one (section 6; a '
-           'loopback SYN is dropped here, FINDINGS 2026-09-16).'),
+           'fallen back to. `broker.serving()` reads the address file; `broker.clients()` '
+           'connects: None with nothing serving, within `CONNECT_S` (a loopback SYN is '
+           "dropped here: `broker.CONNECT_S`'s comment)."),
         code('''import time
 
 from coaxial.comm import broker
@@ -64,8 +64,7 @@ for _ in range(100):
     link.echo(b'\\x00\\xff\\x5a\\xa5')
 echo_ms = 1000 * (time.perf_counter() - t) / 100
 print('echo: 100 round trips, %.3f ms each' % echo_ms)'''),
-        md("t35/t15 = 3.5/1.5 = 2.33 whatever the tick. A board's echo over the probe at "
-           '115200: ~15 ms (FINDINGS).'),
+        md("A board's echo over the probe at 115200: ~15 ms (FINDINGS)."),
     ),
     section(
         'A reading with the front end off',
@@ -76,9 +75,7 @@ try:
     device.analog.scan()
 except DeviceStateError as exc:
     print('refused:', exc)
-daq = device.daq
-daq.open()
-daq.enable()
+device.daq.enable()
 rail = device.afe.state()
 print('after enable:', rail)
 scan = device.analog.scan()
@@ -98,21 +95,21 @@ print('the rail device took is visible from second:', shared)
 print('clients:', broker.clients())'''),
         code('''device.gates.on(bypass_sto=True, ignore_interlock=True)
 armed_here, armed_there = device.gates.armed_here, second.gates.armed_here
-print('armed: device armed_here=%s armed()=%s | second armed_here=%s armed()=%s'
+print('armed: device armed_here=%s is_on()=%s | second armed_here=%s is_on()=%s'
       % (armed_here, device.gates.is_on(), armed_there, second.gates.is_on()))
 second.close()
 still_armed = device.gates.is_on()
-print('second closed: device armed()=%s, clients %s' % (still_armed, broker.clients()))
+print('second closed: device is_on()=%s, clients %s' % (still_armed, broker.clients()))
 after = device.gates.off()
 disarmed = not device.gates.is_on()
-print('disarmed here: armed()=%s, break bypassed=%s' % (not disarmed, after['break_bypassed']))'''),
+print('disarmed here: is_on()=%s, break bypassed=%s' % (not disarmed, after['break_bypassed']))'''),
         md('No shared board on the stand-in: the stage check holds at the bench only.'),
     ),
     section(
         'The broker, on a scripted wire',
         md('`broker.serve` takes a transport in place of the UART: a scripted wire, 4 ms '
-           'replies, its own port and address file. Linger 45 s -> 2 s; keepalive 3 s, the '
-           "board's."),
+           'replies, its own port and address file. Linger 45 s -> 2 s; keepalive 3 s as at '
+           'the bench.'),
         code('''import os
 import tempfile
 import threading
@@ -148,18 +145,18 @@ class Wire:
 
 ADDRESS = ('127.0.0.1', 8795)         # not 8763: a broker serving the bench is left alone
 LINGER = 2.0                          # 45 s at the bench, scaled to fit the page
-bench_address_file = broker.WHERE
-broker.WHERE = os.path.join(tempfile.gettempdir(), 'coaxial_link_paper.addr')
+WHERE = os.path.join(tempfile.gettempdir(), 'coaxial_link_paper.addr')   # not broker.WHERE, the bench's
 wire = Wire()
 threading.Thread(target=broker.serve, args=('WIRE', 115200, ADDRESS),
-                 kwargs={'transport': wire, 'linger': LINGER}, daemon=True).start()
+                 kwargs={'transport': wire, 'linger': LINGER, 'where': WHERE}, daemon=True).start()
 up = time.perf_counter()
-while not broker.serving():
+while not broker.serving(WHERE):
     time.sleep(0.01)
-print('serving after %.3f s:' % (time.perf_counter() - up), broker.serving())'''),
-        md('A look is not a use: a client counts from its first request.'),
+print('serving after %.3f s:' % (time.perf_counter() - up), broker.serving(WHERE))'''),
+        md('A look is not a use: a client counts from its first request. `BrokerTransport` '
+           'raises where nothing serves; `attach` answers None.'),
         code('''t = time.perf_counter()
-client_1 = broker.attach(ADDRESS)
+client_1 = broker.BrokerTransport(ADDRESS)
 attach_ms = 1000 * (time.perf_counter() - t)
 print('attached in %.1f ms to %r at %d baud' % (attach_ms, client_1.port, client_1.baud))
 looked = broker.clients(ADDRESS)
@@ -167,7 +164,7 @@ print('clients after a look:', looked)
 print('a request crosses:', client_1.request(1, protocol.VERSION, b'\\x01').hex(' '))
 used = broker.clients(ADDRESS)
 print('clients after a use:', used)
-client_2 = broker.attach(ADDRESS)
+client_2 = broker.BrokerTransport(ADDRESS)
 client_2.request(2, protocol.VERSION, b'\\x02')
 both = broker.clients(ADDRESS)
 print('clients with two using:', both)'''),
@@ -230,15 +227,16 @@ while probe is not None:
 down_at = time.perf_counter()
 print('nothing answers %.2f s after the last client left; the linger is %.1f s here, 45 s at the bench'
       % (down_at - left_at, LINGER))
-print('address file after stand-down:', broker.serving())
-with open(broker.WHERE, 'w', encoding='utf-8') as handle:     # what a killed broker leaves
+print('address file after stand-down:', broker.serving(WHERE))
+with open(WHERE, 'w', encoding='utf-8') as handle:     # what a killed broker leaves
     json.dump({'serial': 'WIRE', 'pid': 0, 'host': ADDRESS[0], 'tcp': ADDRESS[1]}, handle)
+named = broker.serving(WHERE)
 t = time.perf_counter()
-stale = broker.serving()['serial'], broker.attach(ADDRESS, timeout=0.5)
+stale = broker.attach(ADDRESS, timeout=0.5)
 stale_s = time.perf_counter() - t
-print('a stale file names %r; attaching answers %s in %.2f s' % (stale[0], stale[1], stale_s))
-os.remove(broker.WHERE)
-broker.WHERE = bench_address_file'''),
+print('a stale file says %s; attaching answers %s in %.2f s (CONNECT_S %.1f s)'
+      % (named, stale, stale_s, broker.CONNECT_S))
+os.remove(WHERE)'''),
         md('Who was on the wire, and when.'),
         code('''from coaxial.draw.figures import figure, show
 
@@ -279,24 +277,24 @@ print('5. broker    attached in %.1f ms; clients after a look %d, a use %d, two 
       % (attach_ms, looked, used, both, one_left, len(crossed),
          1000 * hammer_s / len(crossed), len(wrong), wire.overlapped, crossed_as))
 print('6. timers    %d keepalives in %.0f s of silence at %s s (3 s apart, under the 10 s deadman); '
-      'down %.2f s after the last client at a %.1f s linger; a stale file named %r and attaching '
+      'down %.2f s after the last client at a %.1f s linger; a stale file said %s and attaching '
       'answered %s in %.2f s'
       % (len(ticks), QUIET, ', '.join('%.2f' % s for s in ticks), down_at - left_at, LINGER,
-         stale[0], stale[1], stale_s))'''),
-    md('- Attaching to a live broker 0.05 s, starting one 5.85 s: it lingers 45 s (FINDINGS '
+         named, stale, stale_s))'''),
+    md('- `open()` through a live broker 0.05 s, starting one 5.85 s: it lingers 45 s (FINDINGS '
        '2026-08-29).\n- One lock: 50 requests crossed whole, alternating, never '
        'overlapped.\n- A refusal crosses as its own `coaxial.errors` class (invariant '
        "8).\n- The stage is the board's: three runs once ended when a second session asked "
        '(FINDINGS 2026-08-29).'),
 ]
 
-BENCH = ('`python tools/target/session.py --status`: who else is on the port. t35/t15 2.33; '
-         'comm errors 0 after a minute of traffic.')
+BENCH = ('`python tools/target/session.py --status`: what serves the port, and whether it '
+         'answers. t35/t15 2.33; comm errors 0 after a minute of traffic.')
 
 REFERENCES = [
     ('host/coaxial/comm/session.py', '`open_session`: a serving broker first, then the ports, then the stand-in'),
     ('host/coaxial/comm/broker.py', 'the broker: one lock, the keepalive, `clients()`, `attach` on `CONNECT_S`'),
-    ('host/tools/target/session.py', 'spawns a broker for a port and reports who is attached'),
+    ('host/tools/target/session.py', 'the broker `spawn()` starts for a port; `--status` names what serves it'),
     ('host/coaxial/rig.py', '`close()`: what a session disarms, and when'),
     ('comms/src/cmd_link.c', 'echo and the counters, per port'),
     ('board/src/board_power.c', 'the deadman: a silent host loses its claims after `BOARD_POWER_HOST_QUIET_MS`'),

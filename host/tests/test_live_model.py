@@ -2,14 +2,12 @@
 """The real model, the real board, one session that changes language."""
 import argparse
 import io
-import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from coaxial_ollama import debug, language, tools as toolmod  # noqa: E402
-from coaxial_ollama.client import Ollama                    # noqa: E402
-from coaxial_ollama.sandbox import Scope                    # noqa: E402
+from coaxial.errors import LINK_FAULTS
+from coaxial_ollama import debug, language, tools as toolmod
+from coaxial_ollama.client import FAULTS, Ollama
+from coaxial_ollama.sandbox import Scope
 
 # The one tool that reaches the board for a reading.
 READING = 'analog_read'
@@ -102,7 +100,7 @@ TOOL_CHOICE = (
     ('the board is not answering - why?', 'link_diagnose',
      ('analog_read', 'digital_read')),
 
-    # What a thing IS.
+    # What a thing is.
     ('beskriv hårdvaran i detta projektet för en novis', None,
      ('analog_read', 'digital_read', 'afe_power', 'link_diagnose')),
     ('what is this project about', None,
@@ -110,8 +108,8 @@ TOOL_CHOICE = (
 )
 
 
-# question, must it reach the board, what language the answer is in Two
-# questions in one session, history kept - the shape an operator types.
+# Two questions in one session, history kept - the shape an operator types.
+# Each: question, must call, must not call.
 SEQUENCES = (
     (('ge mig en lista på alla analoga kanalerna', 'board_info', 'analog_read'),
      ('ge mig en lista på alla analoga mätvärdena', 'analog_read',
@@ -138,6 +136,7 @@ SEQUENCES = (
       'board_info')),
 )
 
+# question, must it reach the board, the language of the answer.
 TURNS = (
     ('läs NTC:n och DC-länken', True, 'Swedish'),
     ('beskriv hårdvaran i detta projektet för en novis', False, 'Swedish'),
@@ -190,7 +189,7 @@ def _twice(answer, results):
     return ''
 
 
-WORDS = 300        # debug.py's --words default
+WORDS = 300        # coaxial_ollama/cli.py's --words default
 TOOLS = 'code'     # and its --tools default, which is what board_chat runs
 
 
@@ -215,8 +214,8 @@ def build(model, port, simulated, compile_intent=True):
     # Held for the whole run, not unloaded after every request.
     client = Ollama(model, keep_alive='30m', num_predict=WORDS, think=False)
     toolbox = toolmod.Toolbox(session, scope=Scope())
-    # `read` rather than the default set: the fewer tools in the schema, the
-    # less this measures the model's taste in tools it was never going to need.
+    # board_chat's set, not every tool: the fewer tools in the schema, the
+    # less this measures the model's taste in tools it never needs.
     chat = debug.Chat(client, toolbox, tools=TOOLS, quiet=False,
                       out=io.StringIO(), session_language=START)
     # The intent pass is what the prompt loop runs with, so this measures it by
@@ -292,13 +291,12 @@ def main(argv=None):
                           if name != 'link']
                 # prompt_history as well as history: trim() puts the last five
                 # questions in the system message as "already tried in this
-                # conversation", and by the third row this suite had asked for
-                # the same list twice in two languages - measured, the model
-                # then answered "list every analog channel" from nothing at
-                # all, with no call, because it read the question as one it had
-                # already done.
+                # conversation"; with the same list asked twice in two
+                # languages by the third row, the model answered "list every
+                # analog channel" with no call, as a question already done
+                # (measured).
                 chat.history = []
-                chat.prompt_history = []
+                chat.prompt_history = ()
                 chat.last_channels = None
 
                 # "Answered" is not "wrote a sentence": the host silences a
@@ -331,7 +329,7 @@ def main(argv=None):
             for pair in matching(SEQUENCES, args.match,
                                  lambda row: ' '.join(q for q, _, _ in row)):
                 chat.history = []
-                chat.prompt_history = []
+                chat.prompt_history = ()
                 chat.last_channels = None
                 seen = []
                 for question, must, must_not in pair:
@@ -351,9 +349,9 @@ def main(argv=None):
                     report.check('%s -> the operator got something' % label,
                                  bool(answer.strip()) or bool(results),
                                  safe(answer, 40) or '(the trace)')
-                    # The visible symptom, and the reason this section exists:
-                    # the second question put the first question's block on
-                    # screen again, character for character.
+                    # The symptom this section guards: the second question put
+                    # the first question's block on screen again, character
+                    # for character.
                     if seen:
                         report.check('%s -> and not the block above it again'
                                      % label,
@@ -405,13 +403,13 @@ def main(argv=None):
     finally:
         try:
             session.close()
-        except Exception:                                     # noqa: BLE001
+        except LINK_FAULTS:
             pass
-        # The model stays loaded.
+        # The model stays loaded unless --release.
         if release:
             try:
                 chat.client.unload()
-            except Exception:                                 # noqa: BLE001
+            except FAULTS:
                 pass
 
     print('\n%d passed, %d failed' % (report.passed, report.failed))

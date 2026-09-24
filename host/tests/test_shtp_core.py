@@ -4,12 +4,11 @@ import ctypes
 import os
 import sys
 
+from tools.cores.build import build, find_cc
+
+from test_modbus_core import Report
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.dirname(HERE))
-
-from test_modbus_core import Report, build, find_cc          # noqa: E402
-
 REPO = os.path.dirname(os.path.dirname(HERE))
 SHTP = os.path.join(REPO, 'shtp')
 SOURCES = [os.path.join(SHTP, 'src', 'shtp.c')]

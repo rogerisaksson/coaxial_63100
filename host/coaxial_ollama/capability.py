@@ -134,7 +134,7 @@ def _cpu():
 def _windows_ram():
     """Installed and available memory in GB (`coaxial.memory`)."""
     total, free = physical()
-    if total is None:
+    if total is None or free is None:
         return 0.0, 0.0, 'GlobalMemoryStatusEx failed'
     return total / float(2 ** 30), free / float(2 ** 30), 'GlobalMemoryStatusEx'
 

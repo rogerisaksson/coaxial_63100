@@ -4,18 +4,15 @@ stand-in.
 """
 import io
 import math
-import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from coaxial import Coaxial63100                          # noqa: E402
-from coaxial.model import sensorless                            # noqa: E402
-from coaxial.control.commission import Commissioning, _fit_deadtime, _harmonics  # noqa: E402
-from coaxial.devices.drive import from_wire, to_wire              # noqa: E402
-from coaxial.errors import RigError                       # noqa: E402
-from coaxial.simulated import SimulatedDrive              # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.control.commission import Commissioning, _fit_deadtime, _harmonics
+from coaxial.devices.drive import from_wire, to_wire
+from coaxial.errors import RigError
+from coaxial.model import sensorless
+from coaxial.simulated import SimulatedDrive
 
 
 class Report:
@@ -86,7 +83,7 @@ def test_loop(r):
     prop = Propeller(k=3.2e-6)      # q excitation: without a load iq spans
     chain = (Ramp(250.0, 0.4) >> Probe(1.0, 300.0)      # 0.4 A and the fit
              >> SpeedLoop(8.0, 60.0, BENCH_MOTOR, load=prop)  # returns a
-             >> CurrentLoop(2000.0, BENCH_MOTOR, 24.0)  # CONFIDENT Lq 50 %
+             >> CurrentLoop(2000.0, BENCH_MOTOR, 24.0)  # confident Lq 50 %
              >> Machine(BENCH_MOTOR, 24.0, load=prop, noise=0.02))  # off
     run = chain.run(0.8, 5e-5, every=5)
     at_top = run['w'][abs(run['t'] - 0.4) < 0.01]
@@ -391,7 +388,7 @@ def test_motion(r):
         r.check('the drive is OFF after every block',
                 rig.drive.state()['mode'] == 'off')
 
-        # THE DANGEROUS PATHS: what a block does when the plant misbehaves.
+        # What a block does when the plant misbehaves.
         with rig.motion.servo(amps=3.0, settle=0.15) as s:
             rig.drive.model.configure(load=0.06)     # a load pulse winds it
             time.sleep(0.3)
@@ -400,11 +397,10 @@ def test_motion(r):
             got = s.to(0.0, tol=0.8)
             r.check('a load pulse sags the hold and the servo takes it back',
                     sagged < -1.0 and abs(got) <= 0.8, (sagged, got))
-            # PAST 3 A OF HOLDING TORQUE BY A MARGIN THAT NO TIMING CAN CLOSE.
+            # Past 3 A of holding torque by a margin no timing can close.
             rig.drive.model.configure(load=1.2)
             try:
                 got = s.to(30.0, tol=0.5, tries=2)
-                # WITH WHAT IT SAW.
                 r.check('an overpowered servo raises, not returns', False,
                         'returned %.2f deg under 1.2 N.m at %.1f A'
                         % (got, s.amps))
@@ -431,7 +427,7 @@ def test_motion(r):
         # first.
         rig.drive.model.reset()
 
-        # ONE ROTOR, TWO THREADS.
+        # One rotor, two threads.
         import threading
         stop, seen = [False], []
 
@@ -511,9 +507,8 @@ def test_the_map_places_its_parts_from_the_file(r):
             'a millimetre', abs(u + w) < 1.0 and u < -20.0 < 20.0 < w,
             'U at %.2f, W at %.2f' % (u, w))
 
-    # EACH PHASE'S FRAME TAKES ITS SHUNTS - the bench's word - and they are the
-    # phase's own: the U shunts left of the V shunts left of the W shunts, each
-    # pair within its leg's frame.
+    # Each phase's frame takes that phase's shunts: the U shunts left of the V
+    # shunts left of the W shunts, each pair within its leg's frame.
     frames = {label: thermalmap.frame(refs, margin)
               for label, refs, _where, margin in thermalmap.MARKS}
     shunts = {leg: [thermalmap.placed('R%s%d' % (leg, i)) for i in (1, 2)]
@@ -564,7 +559,7 @@ def test_the_placements_behind_the_thermal_model(r):
             near == 'U1V' and second > 3.0 * away(near),
             '%s at %.1f mm, next at %.1f' % (near, away(near), second))
 
-    # THE FRACTION, from two-dimensional radial spreading in a plate: `f =
+    # The fraction, from two-dimensional radial spreading in a plate: `f =
     # ln(R/r) / ln(R/a)`.
     xs = [p[0] for p in at.values()]
     ys = [p[1] for p in at.values()]
@@ -575,8 +570,7 @@ def test_the_placements_behind_the_thermal_model(r):
         return math.log(reach / away(ref)) / math.log(reach / source)
 
     # At 100 A the two FETs make 18.4 W of the leg node's 18.6, so the fraction
-    # is theirs and not the driver IC's - which is the whole correction the
-    # placements bought.
+    # is theirs, not the driver IC's.
     weighted = (0.2 * share('U1V') + 9.2 * share('Q2V')
                 + 9.2 * share('Q1V')) / 18.6
     r.check('the model fraction is what the placements imply under load',
@@ -622,7 +616,7 @@ def test_the_datasheet_against_the_thermal_model(r):
     """What `datasheets/mosfet/` settles, and where it disagrees."""
     from coaxial.model import inverter, thermal
 
-    # THE DIE, which the network has no node for.
+    # The die, which the network has no node for.
     watt = 100.0 ** 2 * inverter.RDS_ON * 0.5
     over = watt * inverter.RTH_JC
     r.check('one FET at 100 A puts its junction a few K over its case, '
@@ -634,7 +628,7 @@ def test_the_datasheet_against_the_thermal_model(r):
             '%.0f C junction against %.0f C' % (125.0 + over,
                                                 inverter.T_J_MAX))
 
-    # THE SPREADING RESISTANCE, and here the sheet and the model fight.
+    # The spreading resistance, where the sheet and the model disagree.
     patch = 0.0
     for (a, b, _r), r_edge in zip(thermal.EDGES, thermal.CFG['edges']):
         if r_edge > 0.0 and 'patch_v' in (a, b) \
@@ -648,7 +642,7 @@ def test_the_datasheet_against_the_thermal_model(r):
             inverter.RTH_JA_JEDEC < leg < 2.0 * inverter.RTH_JA_JEDEC,
             '%.1f K/W against %.1f' % (leg, inverter.RTH_JA_JEDEC))
 
-    # AND THE CONDUCTION IS BOOKED ON THE TYPICAL.
+    # Conduction is booked on the typical Rds(on).
     r.check('Rds(on) is the typical, so the envelope under-books a '
             'worst-case part by about a sixth',
             abs(2.1e-3 / inverter.RDS_ON - 1.167) < 0.01,
@@ -689,9 +683,8 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
     from coaxial.devices.thermal_device import THROTTLE_AT
 
     model = SimulatedThermal()
-    # The board's ceilings lifted out of the way; the winding keeps its own -
-    # it is a node of the same graph since the graph, and its ceiling is the
-    # record's 120.
+    # The board's ceilings lifted out of the way; the winding, a node of the
+    # same graph, keeps its own: the record's 120.
     model.LIMIT, model.DEFAULT_LIMIT = {'winding': 120.0}, 1e4
     got, gate = [], []
     model._derate_to = got.append
@@ -711,7 +704,7 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
         model._envelope()
         b = model.budget()
         if throttled_at is None and b['winding_derate'] < 1.0:
-            # The factor the stage held AT THAT MOMENT: by the end of the loop
+            # The factor the stage held at that moment: by the end of the loop
             # the winding is at its ceiling and the clamp is shut.
             throttled_at, stage_got = b, got[-1]
         if tripped_at is None and gate:

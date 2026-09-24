@@ -321,13 +321,13 @@ def program(session, op='card', text='', machine='humanoid', **_):
     whole run, or live - start, send (a line plays once checked), wait (one line), now, stop."""
     from machine import Machine, MachineError, Nodes
     from machine.live import Live
-    machines = session.__dict__.setdefault('machines', {})
-    lives = session.__dict__.setdefault('lives', {})
+    held = vars(session)
+    machines, lives = held.setdefault('machines', {}), held.setdefault('lives', {})
     if machine not in machines:
-        if 'nodes' not in session.__dict__:
-            session.nodes = Nodes.discover(port=session.port,
+        if 'nodes' not in held:
+            held['nodes'] = Nodes.discover(port=session.port,
                                            simulated=bool(getattr(session, 'simulated', False)))
-        machines[machine] = Machine(session.nodes, type=machine)
+        machines[machine] = Machine(held['nodes'], type=machine)
     built, live = machines[machine], lives.get(machine)
     if op == 'card':
         return built.prompt()
@@ -353,6 +353,17 @@ def program(session, op='card', text='', machine='humanoid', **_):
     named = [name for name in built.actuators if re.search(r'\b%s\b' % name, text)]
     return built.run(text).summary(*['%s.%s' % (name, built.actuators[name].BACK)
                                      for name in named])
+
+
+def close_programs(session):
+    """What `program` opened on this session: live runs stopped, the nodes closed."""
+    held = vars(session)
+    for live in held.pop('lives', {}).values():
+        live.stop()
+    held.pop('machines', None)
+    nodes = held.pop('nodes', None)
+    if nodes is not None:
+        nodes.close()
 
 
 def test_gate(session, enable=False, **_):

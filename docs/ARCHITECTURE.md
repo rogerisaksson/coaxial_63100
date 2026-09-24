@@ -37,38 +37,47 @@ boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),
 ## Host
 
 ```text
-machine/            any board family, no import of one: roles (Input, Stream, Output,
-                    Controller; Part: Filter, Estimator, Regulator), errors, controller (Loop
-                    of Feedbacks over float channels), parts, panel, wiring, ansi (palette),
-                    sequencer (lines or tables: limits, jumps, routines; check, summary),
-                    nodes (Node, Nodes, FAMILIES), machine (Machine, Actuator, fit), routines
-                    (types: a body of subsystems, a bus each), live (fed a line at a time,
-                    a buffer, woken with a line, a failsafe), simulated (pack, camera)
-coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory; node (the
-                    family for machine: Coaxial node, joint, surface, rotor, torque)
+machine/            any board family, no import of one: roles (Input, Stream,
+                    Output, Controller; Part: Filter, Estimator, Regulator),
+                    errors, controller (Loop of Feedbacks over float channels),
+                    parts, panel, wiring, ansi (palette), sequencer (lines or
+                    tables: limits, jumps, routines; check, summary), nodes
+                    (Node, Nodes, FAMILIES), machine (Machine, Actuator, fit),
+                    routines (types: a body of subsystems, a bus each), live
+                    (fed a line at a time, a buffer, woken with a line, a
+                    failsafe), simulated (pack, camera)
+coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory;
+                    node (the family for machine: Coaxial node, joint, surface,
+                    rotor, torque)
 coaxial/comm/       the wire: transport, crc, codecs, protocol, broker, sessions
-coaxial/devices/    one subsystem per functional area (board, afe, gates, boot..)
-coaxial/acquire/    the rig's task and stream (its mixins), records, reader, clock, filter
+coaxial/devices/    one subsystem per functional area: board, afe, gates, boot..
+coaxial/acquire/    the rig's task and stream (its mixins), records, reader,
+                    clock, filter
 coaxial/model/      motor, inverter, thermal network, sensorless, sysid
 coaxial/control/    loop (sim blocks), motion, commission
 coaxial/draw/       2D drawings: dials, gauges, machine, thermal map
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
-coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c), observer
-coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/ drive/ thermal/
+coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c),
+                    observer
+coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/
+                    drive/ thermal/
 coaxial_mcp/        MCP server (stdio), docs tool
 coaxial_ollama/     local-model runner
 terminal/           python -m terminal: loader, menu, readout
 terminal/pages/     the front page's entries, one module each
 terminal/views/     the live views (show_*.py), each runnable on its own
 terminal/ui/        what they draw with: stage, screen, console, scroll, ..
-tools/dev/          run_tests, pick_tests, host_map, target_map, warm_model
+tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
+                    warm_model, lint (markdownlint + pyright, the hooks)
 tools/target/       build_and_flash, find_board, flash_nodes, session
 tools/bench/        one question to the board per script: pulse, switch, ..
 tools/thermal/      calibrate, identify, validate, trace
 tools/render/       renderer checks against the exporter; ansi2png
 tools/sim/          the drive core on this machine: montecarlo, observer_run
+tools/cores/        build: the portable cores' gcc build;
+                    drive, thermal: their ctypes harnesses
 tools/notebooks/    the paper builder and make_notebooks
-tests/              suites, counts.py, .counts.json (measured sizes)
+tests/              suites, .counts.json (measured sizes)
 ```
 
 - `Board` (`board.py`): one subsystem per annotation; `parts()` reads them

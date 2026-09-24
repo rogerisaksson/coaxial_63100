@@ -2,7 +2,7 @@
 """The engine watched live: the cube - or the board - under your hands.
 
 The same staged engine the attitude view flies, on the exporter's own
-cube testbed, drawn on the house stage. Grab it with the LEFT mouse
+cube testbed, drawn on the house stage. Grab it with the left mouse
 button to turn it in the room; x/y/z add five degrees about the room's
 axes and X/Y/Z take them back, SPACE spins, R resets, M
 swaps cube and board, the wheel zooms, Q leaves.
@@ -13,30 +13,27 @@ The HUD shows the pose, the mesh budget and what the frame cost.
 """
 import argparse
 import math
-import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from rich import box
+from rich.align import Align
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 
-from rich import box  # noqa: E402
-from rich.align import Align  # noqa: E402
-from rich.layout import Layout  # noqa: E402
-from rich.panel import Panel  # noqa: E402
-from rich.table import Table  # noqa: E402
-from rich.text import Text  # noqa: E402
-
-from coaxial.draw.orientation import _qmul, matrix, normalise  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from coaxial.graphics import shading, wireframe  # noqa: E402
-from coaxial.graphics.crew import Crew  # noqa: E402
-from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui import screen as _screen  # noqa: E402
-from terminal.ui.console import WHEEL_STEP, Keys  # noqa: E402
-from terminal.ui.rate import Corner, rate_of  # noqa: E402
-from terminal.ui.screen import paced  # noqa: E402
-from terminal.ui.stage import curtain, footer, stage  # noqa: E402
-from tools.render import facecheck  # noqa: E402
+from coaxial.draw.orientation import _qmul, matrix, normalise
+from coaxial.errors import RigError
+from coaxial.graphics import shading, wireframe
+from coaxial.graphics.crew import Crew
+from terminal.loader import TO_MENU
+from terminal.ui import screen as _screen
+from terminal.ui.console import WHEEL_STEP, Keys
+from terminal.ui.rate import Corner, rate_of
+from terminal.ui.screen import paced
+from terminal.ui.stage import curtain, footer, stage
+from tools.render import facecheck
 
 _screen.CHATTER = False
 
@@ -44,8 +41,8 @@ _screen.CHATTER = False
 STEP = 5.0
 SPIN_DPS = 25.0
 
-#: Degrees per dragged cell. Terminals BATCH drag reports - a burst
-#: landing as one turn read as a 40-degree jump - so the deltas go into
+#: Degrees per dragged cell. Terminals batch drag reports (a burst
+#: landing as one turn read as a 40-degree jump), so the deltas go into
 #: a carry that eases out at half per frame: the same total rotation,
 #: spread smooth.
 DRAG_DEG = 2.0
@@ -56,9 +53,9 @@ def solid_of(model):
 
 
 def turn(view, axis, deg):
-    """One rotation IN THE ROOM: about the screen's own axis, whatever
-    the pose - pre-multiplied, which is what makes a drag feel like
-    grabbing the object instead of twisting its body frame."""
+    """One rotation in the room: about the screen's own axis, whatever
+    the pose. Pre-multiplied, so a drag grabs the object instead of
+    twisting its body frame."""
     h = math.radians(deg) / 2.0
     s = math.sin(h)
     spin_q = (axis[0] * s, axis[1] * s, axis[2] * s, math.cos(h))
@@ -121,7 +118,7 @@ def compose(view, size, rate=''):
     whole = Layout()
     whole.split_column(
         Layout(body, name='body'),
-        # SELECT NEAR THE FRONT.
+        # F, the mouse toggle, near the front.
         Layout(footer((('F', 'MOUSE'), ('+ -', 'ZOOM'),
                        ('UP DN', 'LIGHT'), ('LT RT', 'SPOT'),
                        ('x/X y/Y z/Z', 'DEG'), ('SPACE', 'SPIN'),
@@ -135,7 +132,7 @@ AXES3 = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
 def act_on(typed, view):
     for key in typed:
-        # ZOOM ON KEYS AS WELL AS THE WHEEL.
+        # Zoom on keys as well as the wheel.
         if key in '+=-_':
             step = 1.0 + (WHEEL_STEP if key in '+=' else -WHEEL_STEP)
             view['zoom'] = max(0.3, min(4.0, view['zoom'] * step))
@@ -178,8 +175,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     page = stage()
-    # Spin is OFF at start: the view opens under the hand, not on a carousel -
-    # SPACE starts the idle tumble.
+    # Spin is off at start; SPACE starts the idle tumble.
     view = {'model': args.model, 'pose': (0.0, 0.0, 0.0, 1.0),
             'spin': False, 'zoom': 1.0,
             'carry': (0.0, 0.0)}

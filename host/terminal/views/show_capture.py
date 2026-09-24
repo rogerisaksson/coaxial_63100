@@ -19,18 +19,15 @@ Nothing judges a reading. Raw codes and the board's own units, and
 invariant 10 applies to a capture exactly as it applies to a meter.
 """
 import argparse
-import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial.devices import scaling  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui.console import Keys  # noqa: E402
-from terminal.ui.screen import closing, open_rig, panel_width, say  # noqa: E402
-from terminal.ui.stage import curtain, hud, panels_of, stage  # noqa: E402
+from coaxial.devices import scaling
+from coaxial.errors import RigError
+from terminal.loader import TO_MENU
+from terminal.ui.console import Keys
+from terminal.ui.screen import closing, open_rig, panel_width, say
+from terminal.ui.stage import curtain, hud, panels_of, stage
 
 ROTATION_VECTOR = 0x05
 
@@ -57,7 +54,6 @@ class Rate:
 def start(rig, args):
     """Arm both buffers, and say what the board accepted."""
     board = rig.board
-    # TAKING THE BOARD OVER STARTS BY TAKING IT OVER.
     rig.stop()
     layout = rig.configure(clock=args.clock, digital=True,
                            sample_time=args.sample_time,
@@ -95,8 +91,8 @@ def analog_rows(layout, record, width, params=None):
             continue
         code = value // samples
         # signal= is what picks the right divider: without it every millivolt
-        # channel fell back to the DC link's 23.68 and +5V read 60.4 V -
-        # measured, off this very view.
+        # channel fell back to the DC link's 23.68 and +5V read 60.4 V on this
+        # view.
         convert = scaling.converter(field['unit'], field['differential'],
                                     signal=field['signal'], params=params)
         out.append('  %-9s %+7d  %+9.2f %s'
@@ -258,9 +254,9 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=0)
     args = parser.parse_args(argv)
 
-    # power_afe SAID: both parts in the ring and the converter's reference live
-    # behind AFE_ON, and the quiet-False default left all three dead - the daq
-    # refused, the view returned 1 and the menu read that as quit.
+    # power_afe given: both ring parts and the converter's reference are
+    # behind AFE_ON; with the default False the daq refused, the view
+    # returned 1 and the menu read that as quit.
     rig = open_rig('LINKING THE RING', port=args.port, power_afe=True,
                    simulated=bool(args.simulated))
     if rig is None:

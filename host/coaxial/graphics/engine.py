@@ -7,7 +7,7 @@ from coaxial.graphics.raster import BRAILLE_BITS, DOTS_X, DOTS_Y
 #: 3.4 * (1 - cos 45) is one full class, the exporter's own y45 step.
 LEAN = 3.4
 
-#: The share of the depth ramp ABOVE ':' a cell's colour tone keeps;
+#: The share of the depth ramp above ':' a cell's colour tone keeps;
 #: its glyph class keeps all of it.
 TONE_DEPTH = 0.0
 
@@ -100,7 +100,7 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
         nz = m6 * bx + m7 * by + m8 * bz
         if nz < 0.0:
             nx, ny, nz = -nx, -ny, -nz
-        # Shadow-eligible: facing the beam, AND on the component side of the
+        # Shadow-eligible: facing the beam, and on the component side of the
         # board (body +z).
         lit = bz > 0.0 and nx * lx + ny * ly + nz * lz > sun_min
         flat = bz > 0.9 or bz < -0.9
@@ -161,7 +161,7 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
 
 #: A cell's eight dot samples in the fine raster: (column, row) offset
 #: within the cell and the braille bit that dot is, so the fold's mask
-#: IS the glyph's own bit order and a dot grid can be clipped by one
+#: is the glyph's own bit order and a dot grid can be clipped by one
 #: `&`.
 DOT_SAMPLES = tuple((lane, y, BRAILLE_BITS[lane][y])
                     for y in range(DOTS_Y) for lane in range(DOTS_X))
@@ -204,16 +204,16 @@ def fold(depth, top, sun, width, height):
 #: Beyond this radius a surface point takes no ink from the art: the
 #: art's own ink reaches 0.94 to 1.00 of the span by direction
 #: (measured 2026-09-23, 24 directions), so a covered cell at the
-#: mesh's rim can land on the art's blank OUTSIDE - and drew nothing,
-#: which pulled the lit edge a cell inward wherever it happened, a
-#: second staircase inside the first: "the band inside the edges is
-#: really torn" at i -0.1350 j -0.7956 k -0.5388 real -0.2413. Past
-#: the disc the rim is bare geometry and draws by depth, like a wall.
+#: mesh's rim can land on the art's blank outside and draw nothing,
+#: pulling the lit edge a cell inward - a second staircase inside the
+#: first, the band inside the edges torn at i -0.1350 j -0.7956
+#: k -0.5388 real -0.2413. Past the disc the rim is bare geometry and
+#: draws by depth, like a wall.
 ART_DISC = 0.96
 
 
 def _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane=0.0):
-    """The art cell under a cell's OWN SURFACE POINT, and that point's rise
+    """The art cell under a cell's own surface point, and that point's rise
     above the art's plane - or None outside the unit disc.
     """
     d = distance - tz
@@ -247,7 +247,7 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
     cx, cy = cam['cx'], cam['cy']
     reach = cam.get('reach', 1.0)
     back = m[8] < 0.0
-    # The art is the TOP's layout: seen from behind the slab shows none, or
+    # The art is the top's layout: seen from behind the slab shows none, or
     # the top's parts print through onto the bottom. It is read on the top
     # plane (`planes` is (top, bottom); z = 0 where a model names none).
     rows, art_w, art_h, dense = art if (art and not back) else ([], 0, 0, [])
@@ -297,19 +297,19 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
                 lean = m[8] if m[8] >= 0.0 else -m[8]
                 level = (pivot + ink - 2 - LEAN * (1.0 - lean)
                          + slope * rise / reach - shaded)
-                # INK NEVER LEANS BELOW THE FLOOR.
+                # Ink never leans below the floor.
                 if ink > 0 and level < floor:
                     level = floor
             else:
                 level = max(level - shaded, floor)
             if seed is not None:
                 # A fixed 0..1 per cell for the glow's surface texture: hashed
-                # on the ART cell an art pixel shows, so the grain turns with
+                # on the art cell an art pixel shows, so the grain turns with
                 # the board; on the screen cell elsewhere.
                 seed[row + px] = (((ix * 73856093) ^ (iy * 19349663))
                                   & 255) / 255.0
             if levels is not None:
-                # The tone is the CLASS the glyph shows plus TONE_DEPTH of the
+                # The tone is the class the glyph shows plus TONE_DEPTH of the
                 # residual - depth grades within a class, never across the
                 # picture.
                 cls = int(level + 0.5)

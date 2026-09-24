@@ -5,13 +5,13 @@
     python tools/target/session.py --port COM7
     python tools/target/session.py --status        # what is serving, if anything
 
-Everything else - the views, the session dashboard, switch.py, the MCP
-server, a one-off script - reaches the broker on its own once it is up, and
-opens the port directly when it is not. Nothing has to be told which.
+The views, the session dashboard, switch.py, the MCP server and one-off
+scripts reach the broker when it is up and open the port directly when it
+is not; none is told which.
 
-The board is still one slave on one wire: requests are serialised, so two
-clients interleave whole transactions and never a frame. What this removes
-is the exclusive OWNERSHIP, not the exclusivity of the wire.
+The board is one slave on one wire: requests are serialised, so two clients
+interleave whole transactions, never frames. The broker shares the port, not
+the wire.
 """
 import argparse
 import os
@@ -19,10 +19,9 @@ import signal
 import sys
 from contextlib import suppress
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from coaxial.comm import broker
+from terminal.ui.screen import say
 
-from coaxial.comm import broker  # noqa: E402
-from terminal.ui.screen import say  # noqa: E402
 
 def status():
     """What is serving, and whether it actually answers."""

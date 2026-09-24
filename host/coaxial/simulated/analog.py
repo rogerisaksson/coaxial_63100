@@ -9,12 +9,12 @@ from coaxial.comm import protocol
 from coaxial.devices import scaling
 from coaxial.devices.calibration import CalibrationOps
 from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
+from coaxial.devices.thermal_device import THROTTLE_AT
 from coaxial.errors import DeviceStateError
 from coaxial.simulated.system import UNITS
-from machine.roles import Output
-from machine.roles import Input
 from coaxial.simulated.values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread, _sweep,
                                       phase_codes)
+from machine.roles import Input, Output
 
 
 class SimulatedAfe(Output):
@@ -76,7 +76,7 @@ class SimulatedAnalog(Input):
 
     def burst(self, mask, samples, rate=None):
         chosen = {}
-        # THE MACHINE'S CURRENT ON THE PHASES, the same one a record carries:
+        # The machine's current on the phases, the same one a record carries:
         # what the drive holds, at the angle it holds it.
         drive = self.drive
         amps, theta = drive._carrying() if drive is not None else (0.0, 0.0)
@@ -92,10 +92,9 @@ class SimulatedAnalog(Input):
                         + phase_codes(meta['signal'], amps, theta)
                         + random.uniform(-DRIFT[index], DRIFT[index]))
             else:
-                # Invariant 9, reproduced exactly: with the reference
-                # unpowered, a differential input sits at 0 and a single-ended
-                # one at mid-scale - measured on real hardware, not a rounder
-                # number picked to look plausible.
+                # Invariant 9: with the reference unpowered, a differential
+                # input sits at 0 and a single-ended one at mid-scale, as
+                # measured on the board.
                 mean = 0.0 if meta['differential'] else ADC_HALF_CODES
             chosen[index] = _spread(
                 meta, mean, self._afe._on,
@@ -216,7 +215,7 @@ class SimulatedCalibration(CalibrationOps):
     def read(self):
         return {'stored': False, 'version': 0, 'params': dict(self._params),
                 'channels': [dict(c) for c in self._channels],
-                'soa_limit_c': [], 'soa_throttle_at': 0.0}
+                'soa_limit_c': [], 'soa_throttle_at': THROTTLE_AT}
 
     def _set_param(self, name, value):
         """Held, not invented: what a caller wrote is what it reads back."""

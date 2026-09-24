@@ -1,5 +1,6 @@
 """The prompt loop's slash commands, and the switches they make: model, node, board."""
 from contextlib import suppress
+from typing import Any
 
 from . import language
 from .capability import choose, probe
@@ -26,6 +27,19 @@ def _without_side(where):
 class ChatCommands:
 
     """What a line starting with / does."""
+
+    # What the class this mixes into brings.
+    _model_tag: Any
+    context_cost: Any
+    cost_line: Any
+    detail: Any
+    io_log: Any
+    prompt_budget: Any
+    set_detail: Any
+    set_tools: Any
+    tool_cost: Any
+    tool_names: Any
+    toolbox: Any
 
     origin: 'tuple[str, bool] | None' = None   # once a board was opened
 

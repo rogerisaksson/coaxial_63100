@@ -64,7 +64,7 @@ void drive_observer_sync(drive_obs_t *o, const drive_params_t *p,
   {
     return;
   }
-  /* A HAND-OVER, NOT A COLD START. */
+  /* A hand-over, not a cold start. */
   o->pll_theta = theta;
   o->pll_omega = omega;
   o->flux_theta = theta;
@@ -117,7 +117,7 @@ static void step_flux(drive_obs_t *o, const drive_params_t *p,
   o->leak_a += ts * (va - p->r * ia - o->wc * o->leak_a);
   o->leak_b += ts * (vb - p->r * ib - o->wc * o->leak_b);
 
-  /* THE SPEED COMES FROM THE PLL, not from this model's own angle. */
+  /* The speed comes from the PLL, not from this model's own angle. */
   const float speed = o->pll_omega;
   const float w = fabsf(speed);
   float gain = 1.0f;
@@ -141,7 +141,7 @@ static void step_flux(drive_obs_t *o, const drive_params_t *p,
 
   o->flux_theta = atan2f(rotor_b, rotor_a);
   o->flux_only = o->flux_theta;
-  /* THE MAGNITUDE IS LAMBDA, and it is the one thing on this board that can
+  /* The magnitude is lambda, and it is the one thing on this board that can
      see the magnets - the NTC is on the PCB and the rotor is across an air
      gap. */
   o->lambda_hat = sqrtf(rotor_a * rotor_a + rotor_b * rotor_b);

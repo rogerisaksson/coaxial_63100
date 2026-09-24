@@ -6,10 +6,10 @@
     python tools/bench/switch.py -P U,V                # only those legs
     python tools/bench/switch.py --stop                # stop a run, disarmed
 
-**Turns the AFE off and bypasses the STO break before arming**, because on
-this bench board AFE_ON high takes the supply off the gate drivers - so
-measuring and switching are mutually exclusive and switching is what this
-tool is for. It reads no temperature and settles no baseline.
+Turns the AFE off and bypasses the STO break before arming: on this bench
+board AFE_ON high takes the supply off the gate drivers, so measuring and
+switching are mutually exclusive. It reads no temperature and settles no
+baseline.
 
 `--stop` exists because killing a switching run from outside leaves the
 stage armed. It drops a file the run watches for, so the run exits through
@@ -17,14 +17,11 @@ its own `finally` and the gates go down.
 """
 import argparse
 import os
-import sys
 import time
 from contextlib import suppress
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.errors import RigError
 
 PHASES = ('U', 'V', 'W')
 STOP_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),

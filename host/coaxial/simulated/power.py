@@ -5,6 +5,7 @@ from typing import Any
 from coaxial.devices.gates import GateControl
 from coaxial.devices.power import named
 from coaxial.errors import RigError
+from coaxial.simulated.values import NOMINAL, _sweep
 from machine.roles import Output
 
 
@@ -80,6 +81,10 @@ class SimulatedGateDrivers(GateControl):
             'periods_left': left,
             'deadtime_floor': self.DEADTIME_FLOOR,
             'gate_shorts': (),
+            # The injected sequence's DC link and NTC (MINOR 2): the link the
+            # drive runs on (DCBUS_V), the NTC where the analog reads it.
+            'dcbus_raw': int(NOMINAL[5]),
+            'ntc_raw': int(NOMINAL[4] + _sweep(4)),
         }
 
     #: DTG counts for 20 ns at 237.5 MHz, rounded up - the same floor the
@@ -113,6 +118,7 @@ class SimulatedGateDrivers(GateControl):
 
     def _gates(self, at):
         """The six signals a real one would show at this count."""
+        # Enabled, L is not H by construction: a shoot-through check cannot fail here.
         out = {}
         for leg, duty in zip(('U', 'V', 'W'), self._compares):
             high = self._enabled and at < duty

@@ -3,6 +3,7 @@ import time
 from contextlib import suppress
 
 from coaxial import Coaxial63100
+from machine.errors import MachineError
 from terminal.ui.screen import park, QUIET, say, steady
 from terminal.views.session.state import ACTIVITIES, DEFAULT_PHASES
 
@@ -98,10 +99,9 @@ def teardown(session, console, drawn, hold=True):
 
     try:
         undone = session.stop_all()
-    except Exception as exc:          # noqa: BLE001 - the stop must finish
-        # The lines matter more than the exception: this is the only place that
-        # says what was put back, and a stop that raised is exactly when
-        # somebody needs to read it.
+    except (MachineError, OSError) as exc:
+        # The library's raise, or the port's: the lines matter more than the
+        # exception - this is the only place that says what was put back.
         say('fail', 'stopping', str(exc)[:60])
         undone = []
 
@@ -116,7 +116,7 @@ def teardown(session, console, drawn, hold=True):
             say('ok', 'rotation vector', 'disabled - the session asked '
                                          'for it')
 
-    # PUT BACK, not just claimed: the session may have raised the rail on the
+    # Put back, not just claimed: the session may have raised the rail on the
     # way in, or the user toggled it with A.
     rail = steady(session.rig.board.afe.state)
     others = [u for u in (rail or {}).get('users', ()) if u != 'host']
@@ -164,8 +164,9 @@ def leave(port, simulated):
     except QUIET as exc:
         say('warn', 'leaving', 'the board did not answer: %s' % str(exc)[:60])
         return 0
-    except Exception as exc:          # noqa: BLE001 - shown, and the session
-        # still ends the way it should
+    except (MachineError, OSError) as exc:
+        # A port another process holds, a broker socket: shown, and the
+        # session still ends the way it should.
         say('warn', 'leaving', '%s: %s' % (type(exc).__name__, str(exc)[:50]))
         return 0
 

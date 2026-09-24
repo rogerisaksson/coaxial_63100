@@ -1,29 +1,27 @@
 """Four thermal states, one at a time, to equilibrium - for a thermal camera.
 
-The differences between the states isolate each power term on its own, which
-is the point: no single measurement can separate the drivers' loss from the
-MCU's, but the difference between state 1 and state 4 can.
+The differences between the states isolate each power term: no single
+measurement separates the drivers' loss from the MCU's, the difference between
+state 1 and state 4 does.
 
-    1 passive  AFE off -> the drivers HAVE SUPPLY (the gate is inverted), no PWM
+    1 passive  AFE off -> the drivers have supply (the gate is inverted), no PWM
     2 afe      AFE on  -> drivers unpowered, sensors alive, no traffic
     3 traffic  AFE on  + DAQ at full tilt and data pumped off the board
     4 switch   AFE off + three legs at 50 %
 
-WHY A FIXED DWELL AND NOT PLATEAU DETECTION
-AFE_ON feeds the NTC, so in states 1 and 4 the board's own thermometer is
-blind - and those are exactly the states where the drivers have supply. The
-same dwell in all four is therefore the only consistent choice: tau is 6.8 min
-measured, and 25 minutes is 3.7 tau = 97 % of the way to equilibrium.
+A fixed dwell, not plateau detection: AFE_ON feeds the NTC, so in states 1 and
+4, the states where the drivers have supply, the board's own thermometer is
+blind. The same dwell in all four: tau is 6.8 min measured, and 25 minutes is
+3.7 tau = 97 % of the way to equilibrium.
 
-TSEN IS NOT USED HERE
-The A1335's TSEN measures its own die, not the board, and its self-heating is
-reset every time AFE_ON breaks: measured 2026-08-28 it FELL 1.88 K during a
-run that warmed the board. It also quantises at 0.125 K. The NTC has 30 mK and
-a stable bias (it sits still in the drivers' hot spot), so it is the reference.
-The camera is the truth.
+The A1335's TSEN is not used: it measures its own die, not the board, and its
+self-heating resets every time AFE_ON breaks (2026-08-28: it fell 1.88 K during
+a run that warmed the board). It quantises at 0.125 K. The NTC has 30 mK and a
+stable bias (it sits in the drivers' hot spot), so it is the reference; the
+camera is the truth.
 
-The script holds each state and WAITS for a file before moving on, so the
-camera measurement can take as long as it takes:
+Each state is held until a file appears, so the camera measurement can take as
+long as it takes:
 
     python tools/thermal/thermal_calibrate.py --next
 """
@@ -34,11 +32,9 @@ import sys
 import time
 from contextlib import suppress
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.errors import NoReplyError, RigError  # noqa: E402
-from coaxial.model.thermal import STATE_IS as WHAT, STATES, tau_minutes  # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.errors import NoReplyError, RigError
+from coaxial.model.thermal import STATE_IS as WHAT, STATES, tau_minutes
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 NEXT_FILE = os.path.join(HERE, '.calib-next')
@@ -50,18 +46,18 @@ POINTS = ('the middle half-bridge', 'buck + LDO', 'the MCU',
           'angle sensor / IMU', 'hot swap / DC link - the mask beside it',
           'DEAD SURFACE - mask well away from anything that warms')
 
-#: How often the AFE may come on for a sample in an AFE-off state. SAMPLING
-#: PERTURBS THE STATE - the gate is inverted, so the drivers lose supply for
-#: as long as it lasts.
+#: How often the AFE may come on for a sample in an AFE-off state. Sampling
+#: perturbs the state: the gate is inverted, so the drivers lose supply for as
+#: long as it lasts.
 #:
 #: Measured 2026-08-28: a sample is 0.42 s, so every 60 s is 0.7 % of the time
 #: in the wrong state - nothing against tau 6.8 min, and 25 samples a state
 #: instead of 5. Four samples 3 s apart spread 50 mK with no drift.
 PEEK_EVERY_S = 60.0
 
-#: How long the reference is given to come up before reading. 300 ms is
-#: enough - see the spread above. It is three quarters of the sample's length,
-#: so this is where speeding up would gain anything.
+#: How long the reference is given to come up before reading: 300 ms, enough
+#: by the spread above. Three quarters of the sample's length, so the place a
+#: faster sample gains.
 PEEK_SETTLE_S = 0.3
 
 
@@ -133,9 +129,9 @@ def hold(port, state, dwell_s, poll_s=30.0):
         done = 0.0
         while done < dwell_s:
             this = min(chunk, dwell_s - done)
-            subprocess.run([sys.executable, 'tools/bench/switch.py', '--port', port,
+            subprocess.run([sys.executable, '-m', 'tools.bench.switch', '--port', port,
                             '-P', 'U,V,W', '-d', '0.50', '-s', str(int(this))],
-                           cwd=os.path.dirname(HERE), check=True)
+                           check=True)
             done += this
             # power_afe=False: the rig must not switch the AFE on at open.
             with Coaxial63100(port=port, power_afe=False) as rig:

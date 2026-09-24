@@ -1,5 +1,6 @@
 """What a prompt costs: the tool list and its detail, the trim to the window, the meter."""
 import json
+from typing import Any
 
 from . import context
 from . import language
@@ -14,6 +15,16 @@ from coaxial_ollama.words import (BUILD_FIRMWARE_HINT, BUILD_HINT, DOCS_HINT, LI
 class ChatBudget:
 
     """The prompt held inside the model's window, and what each turn cost."""
+
+    # What the class this mixes into brings.
+    budget: Any
+    client: Any
+    history: Any
+    intent: Any
+    keep: Any
+    prompt_history: Any
+    toolbox: Any
+    turn_cost: Any
 
     def set_tools(self, wanted):
         names = SETS.get(wanted)

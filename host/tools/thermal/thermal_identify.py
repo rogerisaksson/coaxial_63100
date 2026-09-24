@@ -1,30 +1,25 @@
 """System identification for the thermal observer: drive states, fit, compare.
 
 Four states, each a step change in what the board dissipates. The NTC is
-logged through all of them - including the AFE-off ones, which used to be
-blind, because the thermal observer now borrows the rail for a sample and gives it
-back (`board_power.h`).
+logged through all of them, the AFE-off ones included: the thermal observer
+borrows the rail for a sample and gives it back (`board_power.h`).
 
-    1 passive  AFE off -> the drivers HAVE SUPPLY (the gate is inverted), no PWM
+    1 passive  AFE off -> the drivers have supply (the gate is inverted), no PWM
     2 afe      AFE on  -> drivers unpowered, sensors alive, no traffic
     3 traffic  AFE on  + DAQ at full tilt and data pumped off the board
     4 switch   AFE off + three legs at 50 %
 
-WHAT COMES OUT, AND WHAT DOES NOT
-The transient gives tau directly, with no power measurement involved. The
-differences between plateaux give the power of each subsystem RELATIVE to the
-others. What neither gives is an absolute K/W: that needs one trusted power
-number, and this bench does not have one - the supply's shunt is not trusted
-by its owner. So absolute figures are printed as conditional on the assumed
-passive power and labelled that way. Invariant 10: the board reports, the
+The transient gives tau directly, with no power measurement. The differences
+between plateaux give each subsystem's power relative to the others. Neither
+gives an absolute K/W: that needs one trusted power number, and the supply's
+shunt is not trusted by its owner. Absolute figures print as conditional on
+the assumed passive power, labelled so. Invariant 10: the board reports, the
 host judges, and a number nobody measured says so.
 
-TAU IS FITTED FROM THE WHOLE CURVE, NOT THE PLATEAU
-dT/dt = (T_inf - T) / tau is linear in T, so a regression of the rate against
-the temperature gives both tau and the asymptote without a nonlinear solver
-and without waiting for the plateau. An earlier fit took the mean of a
-3.5-minute window far from the asymptote and called it the equilibrium; it
-was wrong, and the runs that were meant to start cold all started warm.
+Tau is fitted from the whole curve, not the plateau: dT/dt = (T_inf - T) / tau
+is linear in T, so a regression of the rate against the temperature gives tau
+and the asymptote with no nonlinear solver and no wait for the plateau. The
+mean of a 3.5-minute window far from the asymptote is not the equilibrium.
 
     python tools/thermal/thermal_identify.py                    # all four, 25 min each
     python tools/thermal/thermal_identify.py --minutes 8        # quicker, less settled
@@ -32,23 +27,19 @@ was wrong, and the runs that were meant to start cold all started warm.
     python tools/thermal/thermal_identify.py --apply            # push the fit to the board
 """
 import argparse
-import os
 import sys
 import time
 from contextlib import suppress
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from coaxial import Coaxial63100
+from coaxial.errors import NoReplyError, RigError
+from coaxial.model import thermal
+from coaxial.model.thermal import CFG, NTC_OFFSET, STATE_IS as WHAT, STATES, tau_minutes
+from terminal.ui.screen import say
+from tools.thermal.thermal_validate import CAMERA
 
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.errors import NoReplyError, RigError  # noqa: E402
-from coaxial.model import thermal  # noqa: E402
-from coaxial.model.thermal import (CFG, NTC_OFFSET, STATE_IS as WHAT, STATES,  # noqa: E402
-                                   tau_minutes)
-from terminal.ui.screen import say  # noqa: E402
-from tools.thermal.thermal_validate import CAMERA  # noqa: E402
-
-#: The one power number this bench has, and it is not trusted - the owner
-#: says so. Everything absolute below is conditional on it and prints as such.
+#: The bench's one power number, untrusted by its owner: everything absolute
+#: below is conditional on it and prints as such.
 ASSUMED_PASSIVE_W = 24.0 * 0.050
 
 
@@ -259,17 +250,14 @@ def apply_fit(rig, fits):
     rig.board.thermal.configure(board_to_ambient=CFG['board_to_ambient'], board_capacity=capacity)
 
 
-#: What the camera saw, mapped onto the thermal observer's node names. `dead` is the
-#: board itself; `bridge` is the half-bridge, which the model splits into the
-#: drivers and the phases and cannot tell apart.
-#: The camera's own state names. They are not the rig's: two of the four
-#: differ, and looking them up by the rig's name returned nothing while
-#: reporting it as "the camera recorded none for this state" - a mismatch
-#: that reads exactly like a measurement nobody took.
+#: The rig's state names to the camera's: two of the four differ, and a
+#: miss prints as a state the camera recorded no NTC for.
 STATE_TO_CAMERA = {'passive': 'passive', 'afe': 'afe on',
                    'traffic': 'traffic', 'switch': 'switching'}
 
-
+#: What the camera saw, mapped onto the thermal observer's node names. `dead`
+#: is the board itself; `bridge` is the half-bridge, which the model splits
+#: into the drivers and the phases and cannot tell apart.
 CAMERA_AS_NODES = {
     'dead': 'board', 'mcu': 'mcu', 'regulators': 'regulators',
     # The camera's one bridge zone is the NTC's neighbour - the only leg it can

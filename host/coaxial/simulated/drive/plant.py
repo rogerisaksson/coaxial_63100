@@ -1,6 +1,7 @@
 """The stand-in's machine: the dq currents it carries, the sample, the rotor it turns."""
 import math
 import time
+from typing import Any
 
 from coaxial.devices.drive import MODEL_IDS
 from coaxial.model.motor import Motor
@@ -12,6 +13,18 @@ class DrivePlant:
 
     """The PMSM under the stand-in's drive: currents, the HF step, the rotor's motion."""
 
+    # What the class this mixes into brings.
+    FS: Any
+    TS: Any
+    _derate: Any
+    _mode_at: Any
+    _model: Any
+    _params: Any
+    _rng: Any
+    _source: Any
+    _sp: Any
+    _switching: Any
+
     #: What the polarity pulse reads for the aligned and the opposed half
     #: - invented, like everything here, and told apart by size.
     POL_READINGS = (34.0, 18.0)
@@ -19,10 +32,18 @@ class DrivePlant:
     #: Periods past the two pulses and two gaps before the sign is read.
     POL_SETTLE = 4
 
+    #: What one shunt's noise leaves on alpha, beta, d or q: drive_clarke's
+    #: amplitude-invariant form keeps sqrt(2/3) of it on each, uncorrelated.
+    CLARKE_NOISE = math.sqrt(2.0 / 3.0)
+
+    #: The noise's seed, taken again at a reset so a run repeats
+    #: (drive_model_init).
+    NOISE_SEED = 1
+
     def _p(self, name, default):
         return self._params.get(name, default)
 
-    # THE MACHINE THIS STAND-IN IS PRETENDING TO BE.
+    # The machine this stand-in models.
     @property
     def _r(self):
         return self._model['r']
@@ -47,6 +68,19 @@ class DrivePlant:
         """The inverter's dead-time voltage error at this current."""
         m = self._model
         return m['v_dt'] * math.tanh(amps / m['i_knee'])
+
+    def _noise(self, share=1.0):
+        """The model's current noise, A rms, `share` of a shunt's: on the
+        model source only, where drive_model_sample puts it on each sample.
+        """
+        return share * self._model['noise'] if self._source == 'model' else 0.0
+
+    def _noisy(self, *amps, share=1.0):
+        """These currents as the samples report them: the noise on each."""
+        sd = self._noise(share)
+        if sd <= 0.0:
+            return amps
+        return tuple(a + self._rng.gauss(0.0, sd) for a in amps)
 
     def _periods_since(self, at):
         return int((time.time() - at) * self.FS)
@@ -75,7 +109,7 @@ class DrivePlant:
             return iid, self._sp['vq'] / self._r, self._sp['vd'], self._sp['vq']
         if self._mode not in ('hold', 'sensorless'):
             return 0.0, 0.0, 0.0, 0.0
-        # THE CLAMP, AS THE ENVELOPE LEFT IT.
+        # The clamp, as the envelope left it.
         i_max = self._p('drv_i_max_ma', 5.0) * self._derate
         iid = max(-i_max, min(i_max, self._sp['id_ref']))
         iq = max(-i_max, min(i_max, self._sp['iq_ref']))
@@ -99,12 +133,11 @@ class DrivePlant:
         alpha = iid * cos - iq * sin
         beta = iid * sin + iq * cos
         root3 = math.sqrt(3.0) / 2.0
-        # SWITCHING IS THE BRIDGE'S ANSWER, NOT THE LOOP'S.
+        # Switching is the bridge's answer, not the loop's.
         on = self._switching() if self._switching else self._mode != 'off'
-        return {'amps': (alpha, -0.5 * alpha + root3 * beta,
-                         -0.5 * alpha - root3 * beta) if on
-                        else (0.0, 0.0, 0.0),
-                'switching': bool(on)}
+        amps = ((alpha, -0.5 * alpha + root3 * beta,
+                 -0.5 * alpha - root3 * beta) if on else (0.0, 0.0, 0.0))
+        return {'amps': self._noisy(*amps), 'switching': bool(on)}
 
     def _ih(self):
         """The demodulated HF current step: V.T over the inductance along
@@ -148,7 +181,7 @@ class DrivePlant:
         self._mode = 'off'
 
     #: The model parameters a running Motor takes live, by the attribute
-    #: each is on it - `ld` is a METHOD on Motor and `ld0` holds the number.
+    #: each is on it - `ld` is a method on Motor and `ld0` holds the number.
     LIVE = {'r': 'r', 'ld': 'ld0', 'lq': 'lq', 'lambda': 'lam',
             'sat': 'sat', 'i_sat': 'i_sat', 'j': 'j', 'b': 'b',
             'load': 'load', 'v_dt': 'v_dt', 'i_knee': 'i_knee'}
@@ -162,14 +195,14 @@ class DrivePlant:
         if self._source == 'model':
             self._read_model()                   # the old parameters' time, first
         self._model.update({k: float(v) for k, v in values.items()})
-        # The RUNNING rotor too, as the firmware's own model applies them:
+        # The running rotor too, as the firmware's own model applies them:
         # writing `load` mid-hold reached only the dict, and the servo's sag
         # demo measured nothing because nothing sagged.
         motor = self._motor
         if motor is not None:
             for k in self.LIVE.keys() & values.keys():
                 setattr(motor, self.LIVE[k], float(values[k]))
-        # POLE PAIRS ARE NOT IN `live`: a Motor's `p` divides its own angle, so
+        # Pole pairs are not in `LIVE`: a Motor's `p` divides its own angle, so
         # changing it under a turning rotor is a different machine rather than
         # a different parameter.
         if 'pole_pairs' in values:
@@ -197,7 +230,7 @@ class DrivePlant:
             return motor
         if self._mode != 'off':
             self._spin(motor, dt, now)
-        # THE LAG IS CLOSED FORM, NOT INTEGRATED.
+        # The tracker: its PLL's lag in closed form, not integrated.
         wn = 2.0 * math.pi * self._pll_hz()
         alpha = (motor.omega - self._omega_hat) / dt if dt > 0.0 else 0.0
         self._omega_hat = motor.omega
@@ -210,7 +243,7 @@ class DrivePlant:
         """
         iid, iq, _, _ = self._dq()
         ld = self._ld(iid)
-        # TORQUE BY MODE.
+        # Torque by mode.
         hold = self._mode == 'hold'
         k_t = TORQUE_FACTOR * motor.p * motor.lam
         i_mag = math.hypot(iid, iq)
@@ -222,17 +255,18 @@ class DrivePlant:
                + self._omega() * (now - acc - self._mode_at))
         w_cmd = self._omega()
         wm = motor.omega / motor.p
-        # SUBSTEPPED, SYMPLECTIC.
+        # Sub-stepped, symplectic.
         step = min(0.002, 0.1 * motor.j / max(motor.b, 1e-12))
         if hold and i_mag > 0.0:
             spring = TORQUE_FACTOR * motor.p * motor.p * motor.lam * i_mag
             step = min(step, 0.05 * math.sqrt(motor.j / spring))
-        # THE SUB-STEP IS FIXED and the remainder carried to the next call.
+        # The sub-step is fixed and the remainder carried to the next call.
         h = step
         n = int(acc // h)
         self._motor_acc = acc - n * h
         theta = motor.theta
-        # THE LINK RUNS OUT, and until now it never did.
+        # The link runs out: torque fades to none where lambda omega
+        # reaches vdc / sqrt 3.
         ceiling = (self._model['vdc'] / (math.sqrt(3.0) * motor.lam)
                    if motor.lam > 0.0 else float('inf'))
         for _ in range(n):
@@ -242,7 +276,7 @@ class DrivePlant:
             fade = max(0.0, 1.0 - abs(wm * motor.p) / ceiling)
             wm += (torque * fade - motor.b * wm - motor.load)                     / motor.j * h
             theta += wm * motor.p * h
-        # The SHAFT, accumulated: electrical theta wraps at 2 pi and a shaft
+        # The shaft, accumulated: electrical theta wraps at 2 pi and a shaft
         # sensor reads the mechanical angle, which is 1/p of the whole
         # unwrapped travel - `SimulatedAngle` reads this.
         self._mech += (theta - motor.theta) / motor.p
@@ -286,5 +320,6 @@ class DrivePlant:
         self._motor_acc = 0.0
         self._omega_hat = 0.0
         self._obs = None
+        self._rng.seed(self.NOISE_SEED)
         self._theta_hat = self._model['theta0']
         return True

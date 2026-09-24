@@ -26,10 +26,9 @@ print(len(nodes.capabilities()), 'channels in all, over', ', '.join(nodes['motor
     ),
     section(
         'The controller',
-        md('`motion.velocity` is a `Loop` with one feedback, `speed`. Two gains put it in rpm: '
-           '`rpm_target` in, `rpm` out.'),
-        code('''lane = device.motion.velocity(2.0)
-loop = lane.loop
+        md('`motion.velocity(2.0)` holds a `Loop` of one feedback, `speed`, clamped at 2 A; '
+           'its slew set to 3000 rpm/s. Two gains put it in rpm: `rpm_target` in, `rpm` out.'),
+        code('''loop = device.motion.velocity(2.0).loop
 loop.parts['speed/prefilter'].configure(rate=3000 * RAD_S_PER_RPM)
 loop.plug('rpm_in', Gain(RAD_S_PER_RPM), x='rpm_target', y='w_target')
 loop.plug('rpm_out', Gain(1.0 / RAD_S_PER_RPM), x='w_hat', y='rpm')
@@ -66,7 +65,7 @@ def disarm(loop):
     drive.off()
 
 seq = Sequencer.read(path, limits={'iq_ref': {'HH': 1.9, 'LL': -1.9}}, init=arm, cleanup=disarm)
-for group, steps in seq.groups.items():
+for steps in seq.groups.values():
     for step in steps:
         print(step)'''),
     ),

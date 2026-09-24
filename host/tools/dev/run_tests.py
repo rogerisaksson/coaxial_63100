@@ -2,14 +2,11 @@
 """Run this project's suites and print one deterministic tally.
 
 The numbers each suite already counts itself, never a summary an LLM was
-asked to write.
-
-That distinction is the point. A model relaying its own paraphrase of "did
-the tests pass" is the failure mode documented across this codebase's own
-FINDINGS.md and MODELS.md: a plausible sentence standing in for a fact
-nobody actually checked. This script never asks anyone to summarise
-anything - it parses the exact "  PASS "/"  FAIL " lines a human reads
-running these files directly, and repeats only what it counted.
+asked to write: a model's paraphrase of "did the tests pass" is the failure
+mode FINDINGS.md and MODELS.md document, a plausible sentence standing in
+for a fact nobody checked. This script parses the exact "  PASS "/"  FAIL "
+lines a human reads running these files directly, and repeats only what it
+counted.
 
     python tools/dev/run_tests.py                 # test_ollama, test_mcp, test_simulated
     python tools/dev/run_tests.py --conformance    # + test_conformance.py (needs a real board)
@@ -22,14 +19,12 @@ import argparse
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from tests import counts  # noqa: E402
-from tools.dev.runner import _results  # noqa: E402
-from tools.dev.scope import _plan, hold_model, release_model  # noqa: E402
-from tools.dev.suites import (ALL_SUITES, ALONE, CONFORMANCE, DEFAULT_SUITES,  # noqa: E402
+from tools.dev import counts
+from tools.dev.runner import _results
+from tools.dev.scope import _plan, hold_model, release_model
+from tools.dev.suites import (ALL_SUITES, ALONE, CONFORMANCE, DEFAULT_SUITES,
                               FULL_EVERY, LIVE, NEEDS_BOARD, ROOT, STRUCTURE, TIERS)
-from tools.target import find_board  # noqa: E402
+from tools.target import find_board
 
 #: Suites run side by side: their wall time is mostly the stand-ins' sleep
 #: (2026-09-21: sensorless 24 s of CPU in 151 s, the DAQ front door 0.9 in
@@ -126,7 +121,7 @@ def _run(args, tags, live_sections):
     if STRUCTURE not in suites and not args.match and not args.only:
         suites.insert(0, STRUCTURE)
 
-    # The model's whole life, in one place.
+    # The model is held here, released in the finally.
     holding = LIVE in suites
     if holding:
         held = hold_model(args.model)
@@ -167,11 +162,11 @@ def _run(args, tags, live_sections):
             print('%-20s %s, %d failed  %.1fs'
                   % (name, '%d passed' % passed, failed, elapsed))
 
-            # Suites that did not run at all, in checks, from what they came to
-            # last time.
         sizes = {n: p + f + s for n, (p, f, s) in suite_sizes.items()}
         counts.record('suites', sizes)
         counts.record('seconds', seconds)
+        # Suites that did not run at all, in checks, from what they came to
+        # last time.
         missed, never = counts.missing(
             'suites', [n for n in ALL_SUITES if n not in suite_sizes])
         total_skip += missed
@@ -191,15 +186,13 @@ def _run(args, tags, live_sections):
             release_model(held)
 
 
-#: What a run that was stopped on purpose exits with. The shell's own
-#: convention for it, and distinct from 1 so a caller can tell a suite that
-#: failed from a run somebody cut short - which matters when the reason for
-#: cutting it short is that it should never have been this long.
+#: What a run stopped on purpose exits with: the shell's convention, distinct
+#: from 1 so a caller can tell a suite that failed from a run cut short.
 STOPPED = 130
 
 
 def main(argv=None):
-    # THE RUNNER MUST SURVIVE WHAT IT REPORTS.
+    # The runner must survive what it reports: unencodable output is replaced.
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, 'reconfigure', None)
         if reconfigure is not None:
@@ -217,7 +210,7 @@ def main(argv=None):
         print('\nstopped - the suites after this point did not run')
         return STOPPED
     finally:
-        # One place, every path.
+        # Every exit path.
         release_model()
 
 

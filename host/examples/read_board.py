@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """Read everything the board will tell you, and judge none of it."""
-import os
 import sys
-
-# host/ on the path: this file's own directory's parent.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import connect, disconnect
 

@@ -25,7 +25,7 @@
     thermistor's seat comes off the pick and place. */
 static const float PRIOR_SIGMA[THERMAL_IDENT_PARAMS] = { 0.5f, 0.2f, 0.5f,
                                                         0.3f, 10.0f };
-/* THE ROOM'S PRIOR IS TEN KELVIN, AND IT IS A WEIGHT. */
+/* The room's prior is ten kelvin, and it is a weight. */
 
 /** Below what sigma each is CONVERGING, and STABLE: three tenths of a scale,
     and a tenth - but 0.15 for the air path, since with the room identified
@@ -89,7 +89,7 @@ static const float VAR_MAX[THERMAL_IDENT_PARAMS] = { 1.0f, 1.0f, 1.0f, 1.0f,
     the noise floor, for the sample to say anything about the scales. */
 #define IDENT_STILL_GAIN 3.0f
 
-/** THE ERROR IS JUDGED AGAINST WHAT THE THERMOMETER DID. */
+/** The error is judged against what the thermometer did. */
 #define IDENT_MOVE_SHARE 0.05f
 
 /** What the states are: the innovation against the noise floor that says the
@@ -379,7 +379,7 @@ static void reseat(thermal_ident_t *id, const thermal_t *th,
 
       sh->t[patch] = at + per_r * sh->cfg.r_edge[edge];
       /* The seat itself depends on the spread: the patch is placed the die's
-         watts through a SCALED edge below the node, so a sample judged from
+         watts through a scaled edge below the node, so a sample judged from
          here already owes that much to the scale. */
       id->s[THERMAL_IDENT_SPREAD][patch] = per_r * base->r_edge[edge];
     }
@@ -467,7 +467,7 @@ static bool known(const thermal_ident_t *id, const float *threshold)
   return true;
 }
 
-/** THE ROOM IS RESET WHEN THE MODEL STOPS PREDICTING. */
+/** The room is reset when the model stops predicting. */
 static void room_reset(thermal_ident_t *id)
 {
   const int a = THERMAL_IDENT_AMBIENT;
@@ -535,7 +535,7 @@ static void judge(thermal_ident_t *id)
       }
       else if (ratio >= IDENT_RATIO_UNCERTAIN)
       {
-        /* NOT PREDICTING, SO NOT SURE: while the innovation says the model
+        /* Not predicting, so not sure: while the innovation says the model
            is wrong the scales are kept free to move, each online variance
            floored at half its prior. */
         for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
@@ -605,7 +605,7 @@ static void predict(const thermal_ident_t *id, const thermal_power_t *p,
 
 /* One judged sample: each seated thermometer against the shadow, the scales
    updated unless the board is still, the innovation and the state judged.
-   True when the scales moved. Judged only where the shadow was SEATED on
+   True when the scales moved. Judged only where the shadow was seated on
    that thermometer's reading, so the innovation is the reading's change
    over the interval against the model's, not the state's error at the seat. */
 static bool learn(thermal_ident_t *id, const thermal_power_t *p,
@@ -618,7 +618,7 @@ static bool learn(thermal_ident_t *id, const thermal_power_t *p,
   float predicted[3];
   float h[3][THERMAL_IDENT_PARAMS];
 
-  /* A STILL BOARD TEACHES NOTHING. */
+  /* A still board teaches nothing. */
   const bool still = stirred(id, readings) < IDENT_STILL_GAIN * id->noise_k;
 
   predict(id, p, predicted, h);
@@ -697,7 +697,7 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
 
   const bool any = !isnan(seen->ntc_c) || !isnan(seen->mcu_c)
                    || !isnan(seen->afe_c);
-  /* Blind is measured from the last READING, not the last seat: the shadow
+  /* Blind is measured from the last reading, not the last seat: the shadow
      is re-seated at THERMAL_IDENT_MAX_HORIZON_S whether or not anything was
      read, and a ten-minute run ends exactly there. */
   const bool blind = any && (id->since_sample_s > THERMAL_IDENT_BLIND_S);
@@ -709,8 +709,8 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
 
   if (blind)
   {
-    /* THE SAMPLE THAT ENDS A BLIND RUN SEATS THE SHADOW AND NOTHING IS
-       JUDGED FROM IT: the observer has just been pulled onto the
+    /* The sample that ends a blind run seats the shadow and nothing is
+       judged from it: the observer has just been pulled onto the
        thermometers from a state ten minutes of the wrong scales made, and
        what it still carries in the nodes they do not reach is the state's
        error. */
@@ -765,13 +765,13 @@ float thermal_ident_doubt(const thermal_ident_t *id)
   {
     return 1.0f;
   }
-  /* THE INNOVATION, NORMALISED: none at the thermometers' floor, all of it
+  /* The innovation, normalised: none at the thermometers' floor, all of it
      at the ratio that says UNCERTAIN - the same three floors the state is
      judged on, so the two agree about what "not predicting" means. */
   const float ratio = id->innovation_k / id->noise_k;
   float doubt = unit((ratio - 1.0f) / (IDENT_RATIO_UNCERTAIN - 1.0f));
 
-  /* AND THE COVARIANCE, the same way: each online quantity's sigma from
+  /* The covariance, the same way: each online quantity's sigma from
      where STABLE calls it known (none) up to its prior (all). */
   for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
   {
@@ -790,7 +790,7 @@ float thermal_ident_doubt(const thermal_ident_t *id)
 
 float thermal_ident_margin(const thermal_ident_t *id, float floor)
 {
-  /* THE POLICY, CONTINUOUS: the spans to the ceilings multiplied by a number
+  /* The policy, continuous: the spans to the ceilings multiplied by a number
      that is the floor while the model is doubted whole and one when it is
      doubted not at all, and the evidence between. */
   const float f = unit(floor);

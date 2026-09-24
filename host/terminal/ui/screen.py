@@ -1,8 +1,6 @@
 """What every live view needs: a preflight line, a flicker-free redraw, a way out that cleans up.
 
-Shared because every view wants them identically, and a second copy of any of
-them is the thing that drifts - the structure suite fails a definition that
-lives in two files.
+Shared: the structure suite fails a definition that lives in two files.
 """
 import os
 import re
@@ -43,13 +41,12 @@ STATES = {'ok': '32', 'wait': '36', 'warn': '33', 'fail': '31'}
 #: the teardown listing on the way out - warn and fail always print.
 CHATTER = True
 
-#: The motif, two light sources and wet asphalt between: Blade Runner, not a
-#: christmas tree.
+#: The motif's two light sources, wet asphalt between (Blade Runner).
 NEON = 44
 
 SODIUM = 214
 
-#: Inline-label ash - THE SAME 66 the theme's `label` style uses, so a
+#: Inline-label ash - the same 66 the theme's `label` style uses, so a
 #: tinted string beside a hud row reads as one voice. 242 stays for the
 #: gauge rails and key hints, where receding further is the point.
 ASH = 242
@@ -91,9 +88,8 @@ def stamp_crosses(lines, width, inset=2):
     for top in (inset - 1, len(out) - inset - tall + 1):
         for left in (inset, width - inset - len(CROSS[0])):
             rows = range(max(0, top), min(len(out), top + tall))
-            # ALL OR NOTHING: a cross that loses a row to the drawing is not a
-            # mark, it is debris - so the whole corner yields if any of its
-            # cells are taken.
+            # A cross that loses a row to the drawing is debris, not a mark:
+            # the whole corner yields if any of its cells are taken.
             clear = all(
                 out[r][left:left + len(CROSS[0])] == ' ' * len(CROSS[0])
                 for r in rows) and len(rows) == tall
@@ -106,7 +102,6 @@ def stamp_crosses(lines, width, inset=2):
             else line for line in out]
 
 
-# -- the console renderer -------------------------------------------------
 def panel_width():
     """The window less two, at least 60 - or 100 when this is not a terminal."""
     try:
@@ -167,9 +162,10 @@ class Feed:
         while not self._stop.is_set():
             try:
                 got = self.read()
-            except Exception as exc:    # noqa: BLE001 - the view shows it and
-                # keeps drawing: a bench page that dies hides its own reason
-                # The board's own sentence, kept for the drawer to show.
+            except Exception as exc:
+                # The thread's edge: whatever `read` raised is kept for the
+                # view to show while it keeps drawing - a feed that dies
+                # hides its own reason.
                 self.error = exc
             else:
                 self.error = None
@@ -214,10 +210,9 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
         with curtain(board_view) as page, Keys(console, mouse=mouse) as keys:
             while True:
                 count += 1
-                # The period is FRAME TO FRAME, measured from this draw's start
-                # - not a sleep after it.
+                # The period is frame to frame, measured from this draw's
+                # start - not a sleep after it.
                 started = time.monotonic()
-                # AND IT KEEPS DRAWING.
                 page.update(draw(), refresh=True)
                 rate_of(board_view).tick(started)
                 if tick is not None and tick():
@@ -308,7 +303,7 @@ def steady(fn, *args, **kwargs):
 
 
 def park(rows, console):
-    """Put the cursor on the first line BELOW a painted frame."""
+    """Put the cursor on the first line below a painted frame."""
     if console:
         sys.stdout.write('%s[%d;1H%s[J' % (chr(27), rows + 1, chr(27)))
         sys.stdout.flush()

@@ -1,15 +1,15 @@
 """The node network `thermal/src/thermal.c` runs in firmware, on the host."""
 import math
 
-from coaxial.model import inverter
 from coaxial.devices.scaling import KELVIN_AT_ZERO_C
+from coaxial.model import inverter
 
 SECONDS_PER_MINUTE = 60.0
 #: Of the winding's K/W, the share that is the edge into the iron; the rest
 #: is the iron's own air path - board_thermal.c's WINDING_INTO_IRON.
 WINDING_INTO_IRON = 0.25
 
-#: The room, assumed: 25 C on the bench's word, 2026-09-05 (it was 20).
+#: The room, assumed: 25 C on the bench's word, 2026-09-05.
 #: The board cannot read it itself; the stand-in starts every node here.
 AMBIENT = 25.0
 
@@ -80,16 +80,16 @@ def pretty(node):
 #: room, 125 C nodes, 105 C board: 15-18 A rms at 45.6, 20-22 A at 28, ~25 A
 #: at 16.9 - the shunt binds in every case (3.5 mOhm against the FET's 1.8).
 #: At 100 A a FET's 9 W puts its junction 6.2 K over its node: 131 C against
-#: the sheet's 175. Settles it: a camera run under load, emissivity corrected.
+#: the sheet's 175. A camera run under load, emissivity corrected, settles it.
 LEG_TO_BOARD = 28.0
 DRIVER_SWITCH_WATT = 0.60 / 3
 
-#: The leg nodes' heat capacity, J/K, lumped for three. NOT MEASURED, and the
+#: The leg nodes' heat capacity, J/K, lumped for three. Not measured, and the
 #: envelope divides by it: `soak_j`, `hold_seconds` and the throttle's window
 #: scale with it. Silva 2022 (Appl. Sci. 12, 12555): a lumped element's
 #: transient capacity is ~1/3 of its physical one, so bursts may be up to 3x
-#: shorter; `test_thermal_core.py` measures the band. Settles it: a power
-#: step and the NTC's slope (`tools/bench/pulse.py` makes the step).
+#: shorter; `test_thermal_core.py` measures the band. A power step and the
+#: NTC's slope settle it (`tools/bench/pulse.py` makes the step).
 LEG_CAPACITY_DRIVERS = 0.35
 LEG_CAPACITY_PHASES = 1.20
 
@@ -103,10 +103,11 @@ DRIVER_RISE_SWITCHING = DRIVER_SWITCH_WATT * LEG_TO_BOARD
 
 #: Where the thermistor sits between the board and the V leg, 0 to 1: an
 #: element of the network (Silva 2022), so it reads a weighted average and
-#: never leaves the interval. The old `board + 1.055 x rise + offset` read
-#: 6.0 K over its heater at rest, 11.5 K at a 100 K rise.
+#: never leaves the interval: a linear `board + 1.71 x rise + offset` reads
+#: 6.0 K over its heater at rest, 77 K at a 100 K rise.
 #:
-#: The campaign cannot measure it: its switching state implies 1.05, which no
+#: The campaign cannot measure it: its switching state, 9.6 K over board and
+#: offset on a 5.6 K rise (`DRIVER_RISE_SWITCHING`), implies 1.71, which no
 #: passive body can have, so the inconsistency stays a residual
 #: (`NTC_CAMPAIGN_RESIDUAL_K`). 0.30 is geometry off the pick-and-place (NTC1
 #: at 99.62, 79.83 mm), f = ln(R/r)/ln(R/a) with R 46 mm and a 1.5 mm:
@@ -129,8 +130,8 @@ BOARD_CAPACITY = 49.0
 #: constants it sits between, the V leg's patch (15 K/W, ~98 s) and the
 #: centre (48 K/W, ~470 s) - ~215 s. What lags is the laminate round it, not
 #: the part (a milligram of ceramic, under a second). At the leg's own 5.32 s
-#: it was as quick as the FET it watches; the SOA acts in 0.2-0.7 s. Settles
-#: it: the online identification, or a power step's NTC slope.
+#: it would be as quick as the FET it watches; the SOA acts in 0.2-0.7 s. The
+#: online identification or a power step's NTC slope settles it.
 NTC_TAU_S = math.sqrt((BOARD_CAPACITY * 0.134 * 15.0)
                       * (BOARD_CAPACITY * 0.199 * 48.0))
 
@@ -173,12 +174,12 @@ def board_to_ambient_at(rise_k, cfg=None):
     rad = (((now * now + ROOM_K * ROOM_K) * (now + ROOM_K))
            / ((was * was + ROOM_K * ROOM_K) * (was + ROOM_K)))
     share = min(1.0, max(0.0, cfg.get('board_rad_share', BOARD_RAD_SHARE)))
-    # In parallel, so their CONDUCTANCES add.
+    # In parallel, so their conductances add.
     better = (1.0 - share) * conv + share * rad
     return flat / better if better > 0.0 else flat
 
 
-#: THE LAMINATE AS SEVEN PATCHES: each one's share of the board's face,
+#: The laminate as seven patches: each one's share of the board's face,
 #: off a quarter-millimetre raster of the 100 mm disc less its 10 mm bore
 #: over the partition `patch_of` draws - the thermal picture's own bands.
 #: 7776 mm^2 in all. The same numbers `thermal_defaults` carries.
@@ -270,7 +271,7 @@ CFG = {
     'board_rad_share': BOARD_RAD_SHARE,
     'board_capacity': BOARD_CAPACITY,   # J/K, from tau ~6.8 min
     'ntc_sees_drivers': NTC_SEES_DRIVERS,
-    # THE STAR'S VIEW OF THE SOURCES, kept for the tools that fit the camera:
+    # The star's view of the sources, for the tools that fit the camera:
     # each source's edge into the laminate under it.
     'to_board': dict((a, r) for a, _b, r in EDGES[:10]),
     'capacity': dict([(n, LEG_CAPACITY_DRIVERS / 3) for n in DRIVERS]
@@ -279,7 +280,7 @@ CFG = {
                         ('hotswap', 0.50)]
                      + [(n, BOARD_CAPACITY * AREA_SHARE[n]) for n in LAMINATE]
                      + list(MOTOR_CAPACITY.items())),
-    # THE GRAPH: the edges' K/W in table order, each node's air path (a patch's
+    # The graph: the edges' K/W in table order, each node's air path (a patch's
     # the bulk's over its share), its share of the face, its junction-per-watt
     # and its forced-convection gain.
     'edges': [r for _a, _b, r in EDGES],
@@ -452,8 +453,8 @@ def calibrate(camera, board_c, power=None):
 #: the two a cooldown moves (spread and NTC are unobservable from one,
 #: 2026-09-05), its states (words; the envelope acts on the continuous
 #: `thermal_ident_margin`) and the margin's floor - the record's
-#: `soa_margin_floor_ppm`, 80 % by default (bench: "keep to 80 % of the SOA
-#: when switching starts").
+#: `soa_margin_floor_ppm`, 80 % of the SOA by default when switching
+#: starts.
 IDENT_SCALES = ('air', 'capacity', 'spread', 'ntc')
 IDENT_ONLINE = ('air', 'capacity')
 IDENT_STATES = ('UNCERTAIN', 'CONVERGING', 'STABLE')

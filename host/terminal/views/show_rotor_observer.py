@@ -40,28 +40,26 @@ import time
 import types
 from contextlib import suppress
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from rich.text import Text
 
-from rich.text import Text  # noqa: E402
-
-from coaxial.draw import machine  # noqa: E402
-from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from coaxial.model import thermal as _thermal  # noqa: E402
-from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui import aspect as _aspect, console as _console, screen as _screen  # noqa: E402
-from terminal.ui.screen import closing, open_rig, run_view, say  # noqa: E402
-from terminal.ui.stage import frame_of, hud, stage  # noqa: E402
-from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act  # noqa: E402
-from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,  # noqa: E402
+from coaxial.draw import machine
+from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share
+from coaxial.errors import RigError
+from coaxial.model import thermal as _thermal
+from terminal.loader import TO_MENU
+from terminal.ui import aspect as _aspect, console as _console, screen as _screen
+from terminal.ui.screen import closing, open_rig, run_view, say
+from terminal.ui.stage import frame_of, hud, stage
+from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act
+from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
                                          HEADROOM_GAP, LEFT_COLUMNS, NTC_GAP, RIGHT_COLUMNS,
                                          SOA_NODES, fit)
-from terminal.views.rotor.legend import foot_furniture, gutter_caption, legend_drops  # noqa: E402
-from terminal.views.rotor.motions import turn_the_handle  # noqa: E402
-from terminal.views.rotor.rows import (chain_rows, drive_rows, loop_rows,  # noqa: E402
+from terminal.views.rotor.legend import foot_furniture, gutter_caption, legend_drops
+from terminal.views.rotor.motions import turn_the_handle
+from terminal.views.rotor.rows import (chain_rows, drive_rows, loop_rows,
                                        observer_rows, phase_amps, phase_rows, pointer_rate,
                                        status_rows, travel)
-from terminal.views.rotor.thermal import (headrooms, ntc_bar, policy_margin,  # noqa: E402
+from terminal.views.rotor.thermal import (headrooms, ntc_bar, policy_margin,
                                           soa_bars, thermal_rows, watts_bar, winding)
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -116,7 +114,7 @@ def eps_gain(params, v_inj, ts):
 
 
 def rearm_after_trip(rig, origin, view):
-    """THE STAND-IN'S OPERATOR."""
+    """The stand-in's operator: re-arm the stage after a thermal trip."""
     if origin.real or not view.get('spin'):
         return
     budget = view.get('budget') or {}
@@ -135,21 +133,21 @@ def rearm_after_trip(rig, origin, view):
 def compose(rig, origin, console, view):
 
     s = view['state']
-    # THE MACHINE, NOT A PROTRACTOR.
+    # The dial is the machine (poles from the record), not a protractor.
     pole_pairs = max(1, int(view['params'].get('motor_pole_pairs') or 1))
-    # The true rotor is a notch on the can: its gap to the magnet band IS the
+    # The true rotor is a notch on the can: its gap to the magnet band is the
     # observer's error, in mechanical units.
     amps, full = phase_amps(view)
-    # THE THERMOMETERS ARE NAMED, on a row of their own above them.
+    # The thermometers are named on a row of their own above them.
     heads = gutter_caption(view)
     # The names in ash, the readings in their own inks already.
     caption = list(heads[:CAPTION_ROWS])
     foot = list(heads[CAPTION_ROWS:])          # FOOT_ROWS of them
     turned = math.degrees(s['theta_hat']) / pole_pairs
-    # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES.
+    # The can and the pointer are different quantities.
     art = machine.render(turned, view['slots'], 2 * pole_pairs,
                          BOX.width, BOX.rows,
-                         # THE SENSOR'S OWN STROKE IS NOT DRAWN.
+                         # The sensor's own stroke is not drawn.
                          truth_deg=None,
                          amps=amps, full=full, aspect=view['aspect'],
                          pointer_deg=view['travel'] - view['tare'],
@@ -179,7 +177,7 @@ def compose(rig, origin, console, view):
     # Paged by `frame_of`, which is every view's; this only says what the boxes
     # are.
     boxes = [hud(*panel) for panel in panels]
-    # FIXED-WIDTH LABELS.
+    # Fixed-width labels.
     keys = [('S', '%-5s' % ('STOP' if s['mode'] != 'off' else 'START')),
             ('M', '%-10s' % (s['mode'].upper() if s['mode'] != 'off'
                              else view['mode'].upper())),
@@ -194,7 +192,7 @@ def compose(rig, origin, console, view):
              else 'SPEED'),
             ('W', Text('LOAD', style='chip.live') if view['load']
              else 'LOAD'),
-            # WHO HAS THE MOUSE.
+            # Who has the mouse.
             ('F', Text('MOUSE', style='chip.live') if _console.holding()
              else 'MOUSE')]
     if view['switch']:
@@ -207,7 +205,7 @@ def compose(rig, origin, console, view):
 
 
 def aspect_of(args):
-    """What makes the can round on THIS terminal."""
+    """What makes the can round on this terminal."""
     return _aspect.aspect_of(args.cell_aspect)
 
 
@@ -224,7 +222,7 @@ def parse_args(argv):
     p.add_argument('--source', choices=('model', 'adc'), default='model')
     p.add_argument('--motor', help='a profile under motors/, written first')
     p.add_argument('--cell-aspect', type=float, default=None,
-                   help='what makes the can round on THIS terminal. The '
+                   help='what makes the can round on this terminal. The '
                         'geometry is exactly round at 2.0 - measured, 25.16 '
                         'cell-widths each way - so an ellipse is the font '
                         'being taller than one by two. The steps are coarse: '
@@ -232,7 +230,7 @@ def parse_args(argv):
                         'the value that rounds it is not always the font\'s '
                         'true ratio. Try 2.4 if it looks stretched in Y.')
     p.add_argument('--slots', type=int, default=24,
-                   help='stator teeth to draw. NOT a measurement: the slot '
+                   help='stator teeth to draw. Not a measurement: the slot '
                         'count is not in the calibration record and cannot '
                         'be inferred from the pole count, which is. The '
                         'poles are drawn from the record either way.')
@@ -352,15 +350,16 @@ def demo_defaults(args, origin):
 
 
 def _link(args):
-    """Open the board and put the front end where the source needs it."""
+    """(rig, params, was_on, step) with the front end where the source needs it;
+    None when the board would not open."""
     rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
                    power_afe=False,
                    simulated=bool(args.simulated))
     if rig is None:
-        return None, None, None, None
+        return None
     origin, board = rig.origin, rig.board
     if not origin.real:
-        # THE TOUR: rooms change as the identification earns them, so TH OBS
+        # The stand-in tours its rooms as the identification earns them: TH OBS
         # walks UNCR, CONV, STABLE on the foot (bench 2026-09-06).
         rig.thermal.situation('tour')
     was_on = board.afe.is_on()
@@ -378,7 +377,7 @@ def _link(args):
     except RigError as exc:
         say('fail', 'drive', str(exc))
         rig.close()
-        return None, None, None, None
+        return None
 
 
 def _sized(args, board_view):
@@ -404,12 +403,13 @@ def main(argv=None):
     args = parse_args(argv)
     sane(args)
 
-    rig, params, was_on, view_step = _link(args)
-    if rig is None:
+    linked = _link(args)
+    if linked is None:
         return 1
+    rig, params, was_on, view_step = linked
     origin, board = rig.origin, rig.board
 
-    # MEASURED ONCE, at start-up: the cell's shape is the terminal's and cannot
+    # Measured once, at start-up: the cell's shape is the terminal's and cannot
     # change under a running view.
     aspect, aspect_how = aspect_of(args)
     fit(aspect)
@@ -443,7 +443,7 @@ def main(argv=None):
     # console itself.
     leaving = None
     thermal_at = [0.0]
-    # HOW OFTEN THE THERMAL OBSERVER IS READ.
+    # Thermal observer read period, s.
     thermal_every = 2.0 if origin.real else 0.25
 
     def draw():
@@ -452,7 +452,7 @@ def main(argv=None):
             view['gate'] = board.gate_drivers.state()
             view['model'] = (board.drive.model.read()
                              if view['source'] == 'model' else None)
-            # ONE REPLY FOR THE DIAL AND THE MARK.
+            # One reply for the dial and the mark.
             if view['model']:
                 view['state']['theta_hat'] = view['model']['theta_hat']
                 view['state']['omega_hat'] = view['model']['omega_hat']

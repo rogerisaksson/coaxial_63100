@@ -57,7 +57,7 @@ OFF = '\x1b[0m'
 
 LABEL = '\x1b[38;5;66m'        # the theme's `label`, the street
 
-#: The half of a pin's name that is a PERIPHERAL FUNCTION rather than a
+#: The half of a pin's name that is a peripheral function rather than a
 #: signal. The board names a pin both ways - `TIM1_CH1N/PWMUL` is the
 #: timer's channel and the schematic's gate - and truncating the string
 #: keeps the wrong one: six gates all read `TIM1_CH1N/` and nothing said
@@ -77,7 +77,7 @@ def digital_box(pins, width=34):
     if not pins:
         return hud('DIGITAL', ['  this task carries no pins'])
 
-    # THE COLOUR IS THE VALUE.
+    # The colour is the value.
     cells = ['%s%s%s %s%-10s%s'
              % (LIT if duty >= 0.5 else DARK, BOX, OFF, LABEL,
                 short(name), OFF)
@@ -101,7 +101,7 @@ def buffer_box(state, host, link=None):
     """Every buffer between the converter and the frame, and the rate."""
 
     def row(name, held, peak, dropped, capacity=None):
-        # the scale is the buffer's OWN PEAK, never its capacity: the ring
+        # The scale is the buffer's own peak, never its capacity: the ring
         # holds thousands and a reader keeping up leaves one in it, so a bar
         # against capacity is pinned at zero however hard the link works.
         top = float(max(peak, 1))
@@ -126,8 +126,8 @@ def buffer_box(state, host, link=None):
         lines.append('  link    %6.1f reads/s%s'
                      % (link['rate'], _line_share(link)))
 
-    # THE RATE IN THE TITLE, the way LOW PASS carries its channel count - and
-    # in a unit that has digits to show.
+    # The rate in the title, as LOW PASS carries its channel count, in a unit
+    # that has digits to show.
     title = 'BUFFER'
     if link is not None and link.get('bits'):
         title = 'BUFFER (%s)' % wire_rate(link['bits'])

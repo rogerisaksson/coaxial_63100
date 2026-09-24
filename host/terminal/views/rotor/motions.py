@@ -2,19 +2,17 @@
 import math
 import time
 
-from terminal.ui.stage import stage
-
 
 #: The demo cycle's period, seconds.
 SWEEP_S = 16.0
 
-#: The demo's speed-loop gain, A per rpm of error per SECOND: stepped per
+#: The demo's speed-loop gain, A per rpm of error per second: stepped per
 #: frame it wound up to 475 rpm at 20 Hz.
 ROCK_GAIN = 0.01
 
 #: The heavy start (B, and every BURST_EVERY_S on the stand-in): 43 A for
 #: 1 s, bounded by heat, not the clamp. Measured on the stand-in 2026-09-06:
-#: 0.57 of the span on a cold board at the 80 % floor, 0.82 warm and STABLE;
+#: 0.57 of the span on a cold board at the 80 % floor, 0.82 warm and stable;
 #: 1.4-1.8 s reached no higher (0.68, 0.71). 38 A into a 40 A clamp reached
 #: 0.70, so the clamp went to 50.
 BURST_A = 43.0
@@ -82,7 +80,7 @@ def turn_the_handle(rig, view):
     if view['state']['mode'] == 'off':
         return
     now = time.time()
-    # THE BURST IS PART OF THE SEQUENCE, not only a key.
+    # The burst is part of the sequence, not only a key.
     if (view['simulated'] and view['spin']
             and now - view['burst_at'] > BURST_EVERY_S):
         view['burst_at'] = now
@@ -162,7 +160,7 @@ def sweep(rig, view):
         view['iq'] = 0.0
         return
     if stage == 'rock':
-        # ONE swing each way: two in five seconds gave the integrator 2.8 s a
+        # One swing each way: two in five seconds gave the integrator 2.8 s a
         # side and it never left 25 rpm.
         target = ROCK_RPM * math.sin(math.tau * into)
         view['iq'] = _toward(view, target, clamp)
@@ -174,8 +172,8 @@ def sweep(rig, view):
                     omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
         view['iq'] = clamp
         return
-    # BRAKE: the same current the other way until it is stopped, then let it
-    # be.
+    # The brake: the same current the other way until the rotor stops, then
+    # none.
     turning = (view.get('chain') or {}).get('omega') or 0.0
     share = min(1.0, abs(turning) / BRAKE_FULL_RAD_S)
     view['iq'] = -math.copysign(clamp * share, turning) if share > 0.03 else 0.0

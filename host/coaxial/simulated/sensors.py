@@ -8,7 +8,7 @@ from typing import Any
 
 from coaxial.devices import angle, imu
 from coaxial.devices.angle import AngleSensor
-from coaxial.devices.imu import CHANNELS, ImuSensor, decode
+from coaxial.devices.imu import CHANNELS, ROTATION_VECTOR, ImuSensor, decode
 from coaxial.devices.scaling import KELVIN_AT_ZERO_C
 from coaxial.simulated.values import _tumble
 
@@ -25,8 +25,21 @@ class SimulatedImu(ImuSensor):
     def __init__(self):
         self._seq = 0
         self._enabled = {}
-        self._updates = 0
+        self._updates = 0.0
+        self._at = time.monotonic()
+        #: The last Set Feature that took, zero before one: the board's record.
+        self._asked = (0, 0)
         self._held = False
+
+    def _advance(self):
+        """Rotation vectors the running loop took since the last call, at the
+        interval asked for - the board counts those as `updates`.
+        """
+        now = time.monotonic()
+        interval_us = self._enabled.get(ROTATION_VECTOR)
+        if interval_us and not self._held:
+            self._updates += (now - self._at) * 1e6 / interval_us
+        self._at = now
 
     def product_id(self):
         return {
@@ -66,21 +79,22 @@ class SimulatedImu(ImuSensor):
         if not 0 <= interval_us <= 0xFFFFFFFF:
             raise ValueError('interval %r does not fit 32 bits'
                              % (interval_us,))
+        self._advance()
         if interval_us:
             self._enabled[report_id] = interval_us
         else:
             self._enabled.pop(report_id, None)
+        self._asked = (report_id, interval_us)
 
     def state(self):
-        self._updates += 17
+        self._advance()
+        report_id, interval_us = self._asked
+        updates = int(self._updates)
         got = {'loop': 'held' if self._held else 'running',
                'error': 'none', 'last_fault': 'none', 'last_fault_id': 0,
-               # The board reports what it asked the part for; a stand-in
-               # without it crashed the first view that read the field.
-               'feature': {'report_id': 0x05, 'interval_us': 20000,
+               'feature': {'report_id': report_id, 'interval_us': interval_us,
                            'pending': False},
-               'updates': self._updates,
-               'cargoes': self._updates, 'errors': 0}
+               'updates': updates, 'cargoes': updates, 'errors': 0}
         for report in self.peek()['reports']:
             if 'quaternion' not in report:
                 continue
@@ -123,10 +137,12 @@ class SimulatedImu(ImuSensor):
                 'value': dict(zip('xyz', value))}
 
     def hold(self):
+        self._advance()
         self._held = True
         return 'held'
 
     def resume(self):
+        self._advance()
         self._held = False
         return 'running'
 

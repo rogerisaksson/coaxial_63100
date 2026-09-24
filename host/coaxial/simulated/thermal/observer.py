@@ -65,7 +65,7 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         self._derate_held = 1.0
         self._derate_at = None
         self._node = {n: thermal.AMBIENT for n in self.NODES}
-        #: THE READING, LAGGED. See `thermal.NTC_TAU_S`.
+        #: The modelled thermistor reading, lagged (`thermal.NTC_TAU_S`).
         self._ntc = thermal.AMBIENT
         self._at = None
         #: The rotor's speed the air paths see, rpm: what the drive says,
@@ -73,13 +73,13 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         self._speed_rpm = 0.0
         self._speed_of = lambda: 0.0
         self._lay_base()
-        # THE GROUND TRUTH: a second board, the base with a situation laid over
+        # The ground truth: a second board, the base with a situation laid over
         # it, integrated on the same power and read through three noisy
         # thermometers every sample.
         self._random = random.Random(seed)
         self._truth = {n: thermal.AMBIENT for n in self.NODES}
         self._truth_ntc = thermal.AMBIENT
-        #: The room the truth stands in, and the observer's ESTIMATE of
+        #: The room the truth stands in, and the observer's estimate of
         #: it - `thermal.c` infers ambient from the laminate's losses,
         #: there being no sensor for it, and so does the mirror's anchor.
         self._truth_ambient = thermal.AMBIENT
@@ -99,7 +99,7 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         self._settled = False
         self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K,
                                                thermal.AMBIENT)
-        # NOTHING BETWEEN RUNS.
+        # The class default: nothing carries between runs.
         self._margin_floor = self.MARGIN_FLOOR
         #: The trip cap and when it was set, model seconds; one when no
         #: trip is in force.
@@ -122,14 +122,14 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         centre = self._node['board']
         power = self._last_power or {}
         seen = self._seen
-        # MEASURED where a sample has been taken - the truth's thermometers -
+        # Measured where a sample has been taken - the truth's thermometers -
         # and the observer's own element where none has; the board reports both
         # what the thermistor says and what the model expects.
         ntc = seen.get('ntc', self._ntc)
         return {
             'ntc': ntc,
             'nodes': dict(self._node),
-            'ambient': self._ambient,          # ESTIMATED, as the board's
+            'ambient': self._ambient,          # estimated, as the board's
             'expected_ntc': self._ntc,
             'seconds': self._seconds,
             'settled': self._settled or not seen,

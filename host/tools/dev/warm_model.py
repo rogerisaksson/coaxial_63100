@@ -4,26 +4,22 @@
 Faster by ollama's own reported `load_duration`.
 
 Windows holds recently-read files in its standby list while nothing else needs
-the RAM, so a normal `dbg`/`board_chat` session warms whatever it loads as a
-side effect. This covers the case that does not: a model untouched for a while,
-warmed on purpose rather than discovering the hard way that the standby list
-let it go.
+the RAM, so a `dbg`/`board_chat` session warms whatever it loads. This covers
+a model untouched for a while, which the standby list may have let go.
 
     python tools/dev/warm_model.py llama3.1:8b             # warm it, then measure
     python tools/dev/warm_model.py llama3.1:8b --measure-only   # skip the read,
                                                               # just time two loads
     python tools/dev/warm_model.py llama3.1:8b --auto      # decide first, quietly
 
-Nothing here changes what ollama does: a read of files it already owns, and a
-timing measurement through the same `/api/chat` empty-message trick
-`client.py`'s `preload()` uses. Both loads pass `keep_alive=0`, so the model is
-left unloaded, as found.
+Ollama's behaviour is unchanged: a read of files it already owns, and a timing
+through the `/api/chat` empty-message request `client.py`'s `preload()` uses.
+Both loads pass `keep_alive=0`, so the model is left unloaded.
 
---auto is the unattended one, from board_chat.ps1's preflight. Measured
-2.8-2.9 GB/s reading these blobs on this machine - three NVMe/SSDs, nothing
-spinning - so warming buys nothing and --auto skips it. A slower disk with RAM
-to spare should not need a different flag: the decision comes from what is
-measured on the machine, not from a constant.
+--auto is unattended, run by board_chat.ps1's preflight. Measured 2.8-2.9 GB/s
+reading these blobs on this machine (three NVMe/SSDs), so --auto skips the
+warming. The decision comes from the disk speed and free RAM measured on the
+machine, not from a constant.
 """
 import argparse
 import json
@@ -35,8 +31,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from coaxial.memory import physical  # noqa: E402
+from coaxial.memory import physical
 
 API = 'http://localhost:11434'
 MODEL_LAYERS = ('application/vnd.ollama.image.model',
@@ -53,7 +48,7 @@ def _ram_gb():
     if platform.system() != 'Windows':
         return None, None
     total, free = physical()
-    if total is None:
+    if total is None or free is None:
         return None, None
     return total / float(2 ** 30), free / float(2 ** 30)
 
@@ -89,20 +84,17 @@ def warm(paths, chunk=64 * 1024 * 1024):
     return total, time.monotonic() - started
 
 
-# Below this measured throughput, OS-cache warming is plausibly worth its own
-# read: a modern NVMe/SSD clears it several times over (2.8-2.9 GB/s Measured -
-# see the module docstring), a spinning disk does not (80-160 MB/s is typical).
+# Below this measured throughput, warming the OS cache can pay for its own read:
+# NVMe/SSD clears it (2.8-2.9 GB/s measured here), a spinning disk does not
+# (80-160 MB/s typical).
 SLOW_DISK_MB_S = 1000.0
-# Free RAM must be this many times the model's own size before warming is worth
-# it - the same shape of margin capability.py leaves the desktop on the GPU
-# side, applied to system RAM instead.
+# Free RAM, as a multiple of the model's size, before warming keeps the model
+# rather than evicting something else: --auto's floor, the manual run's warning.
 RAM_MARGIN = 1.3
 
 
 def probe_read_speed(path, sample=128 * 1024 * 1024):
-    """MB/s for one real, timed read of the front of `path` - never a guess
-    from the disk's reported type.
-    """
+    """MB/s of one timed read of the front of `path`, not the disk's reported type."""
     started = time.monotonic()
     read = 0
     with open(path, 'rb', buffering=0) as handle:
@@ -180,11 +172,6 @@ def measure_load(tag, timeout=180):
     return reply.get('load_duration', 0) / 1e9
 
 
-#: Free RAM wanted, as a multiple of the model, before warming it is
-#: likely to keep it rather than evict something else.
-HEADROOM = 1.2
-
-
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('tag')
@@ -212,7 +199,7 @@ def main(argv=None):
     print('%s: %.1f GB across %d file(s)' % (args.tag, total_gb, len(paths)))
     if total_ram is not None and free_ram is not None:
         print('this machine: %.1f GB free of %.1f GB' % (free_ram, total_ram))
-    if free_ram is not None and free_ram < total_gb * HEADROOM:
+    if free_ram is not None and free_ram < total_gb * RAM_MARGIN:
         print('WARNING: not much headroom above the model itself - '
               'warming this may just evict something else.')
 

@@ -27,7 +27,7 @@ typedef struct
   int16_t  k;
   int16_t  real;        /**< all four Q14 counts - the scale is the host's */
 
-  /* THE THREE VECTORS, each on its own report and its own Q point - the
+  /* The three vectors, each on its own report and its own Q point - the
      scale stays the host's, as the quaternion's does. */
   bool     have_accel;
   bool     have_gyro;
@@ -77,7 +77,7 @@ bool Board_ImuReady(void);
 
 /** Read one SHTP cargo, if the part has one waiting.
     @param  channel  The SHTP channel it arrived on.
-    @param  cargo    The cargo WITHOUT its four-byte header.
+    @param  cargo    The cargo without its four-byte header.
     @param  len      Cargo bytes, 0 when the part had nothing to say.
     @return False on a transfer error or a header that contradicts itself. */
 bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
@@ -90,7 +90,7 @@ bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len);
 /** Wait up to @p ms for the part to say it has something. */
 bool Board_ImuWaitReady(uint32_t ms);
 
-/** Ask the part to report `report_id` every `interval_us`, and REMEMBER it. */
+/** Ask the part to report `report_id` every `interval_us`, and remember it. */
 bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us);
 
 /** What was last asked for. Interval zero means nothing has been. */

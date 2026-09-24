@@ -36,7 +36,7 @@ static struct
   /** CCR5 as last set. */
   uint16_t trigger;
 
-  /* THE MEAN SQUARE, ACCUMULATED WHERE THE SAMPLES ARE. */
+  /* The mean square, accumulated where the samples are. */
   int64_t sq[3];
   int64_t sum[3];
   uint32_t squares;
@@ -140,7 +140,7 @@ bool Board_SyncMeanSquare(float *out)
     return false;
   }
 
-  /* THE AFFINE CONVERSION UNDONE ONCE, not per sample. */
+  /* The affine conversion undone once, not per sample. */
   for (uint8_t leg = 0U; leg < 3U; leg++)
   {
     const float k = Board_PhaseAmps(leg, 0);

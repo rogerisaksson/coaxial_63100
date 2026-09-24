@@ -43,7 +43,7 @@
 #define IMU_BOOT_PORT GPIOD
 #define IMU_BOOT_PIN  GPIO_PIN_11
 
-/* EVERY FEATURE ASKED FOR, not the last one. */
+/* Every feature asked for, not the last one. */
 #define IMU_FEATURES 4U
 
 /** The IMU driver's state: the link and its buffers, the part's clocks, the
@@ -76,7 +76,7 @@ static struct
   uint32_t feature_us;
 
   /** Set when a reset has thrown the feature away and it has not been asked
-      for again yet. */
+      for again. */
   bool feature_pending;
 
   /** Which slot the re-apply has got to, since it does one a turn. */
@@ -88,7 +88,7 @@ static struct
 static const uint8_t s_zeros[IMU_BUF];
 
 /* The slowest divider that still clears the part's ceiling, chosen from the
-   kernel clock the peripheral actually has rather than from a field in the
+   kernel clock the peripheral has rather than from a field in the
    .ioc. */
 static uint32_t prescaler_under(uint32_t limit_hz)
 {
@@ -322,7 +322,7 @@ bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
   /* No gate here. */
   (void)intn_asserted();
 
-  /* One chip select assertion for the header AND the cargo behind it. */
+  /* One chip select assertion for the header and the cargo behind it. */
   cs(true);
   settle();
 
@@ -434,7 +434,7 @@ uint8_t Board_ImuPinCheck(uint8_t pin)
 
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /* CHIP SELECT DEASSERTED FIRST, and this is not housekeeping. */
+  /* Chip select deasserted first, and this is not housekeeping. */
   if (pin != BOARD_IMU_SPI_PIN_FIRST)
   {
     GPIO_InitTypeDef cs = {0};
@@ -700,7 +700,7 @@ static bool reapply_due(void)
          && !intn_asserted();
 }
 
-/** ONE PER TURN. */
+/** One per turn. */
 static void reapply_one(void)
 {
   if (Board_ImuSetFeature(s.feature_id_of[s.feature_next],
@@ -721,8 +721,8 @@ void Board_ImuPoll(void)
     return;
   }
 
-  /* Not while the host is configuring it, and NOT DURING THE OBSERVER'S
-     BORROW. */
+  /* Not while the host is configuring it, and not during the observer's
+     borrow. */
   if ((s.state.loop == BOARD_IMU_LOOP_HELD)
       || Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
   {
@@ -797,7 +797,7 @@ void Board_ImuResume(void)
   /* Back to RUN when the part is still up, because the usual hold is to
      enable a report and going through init would reset the part and throw
      that away - measured: hold, Set Feature, resume, and the loop absorbed
-     nothing at all afterwards. */
+     nothing afterwards. */
   s.state.loop = s.ready ? BOARD_IMU_LOOP_RUN : BOARD_IMU_LOOP_INIT;
 }
 

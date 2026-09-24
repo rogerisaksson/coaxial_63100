@@ -4,9 +4,9 @@ import math
 from coaxial.devices import angle
 from coaxial.devices.scaling import KELVIN_AT_ZERO_C
 from coaxial.draw.ascii3d import CELL_ASPECT
-from machine import ansi
 from coaxial.graphics.raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y, table,
                      SUBDOT, covered)
+from machine import ansi
 
 #: Dots between the rim and the ring the numbers stand on, and the room
 #: their own row needs beyond that. The face is sized to whatever is left
@@ -167,7 +167,7 @@ def _classify(sample, geom, span, needle):
     if fixed is not _SWEEP_BAND:
         return fixed
 
-    # ZERO TO THE READING, the way the angles run.
+    # Zero to the reading, the way the angles run.
     if span is not None and 0.0 < phi <= span:
         behind = min(1.0, (span - phi) / SWEEP_FADE)
         return SWEEP[int((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5)]
@@ -181,7 +181,7 @@ def _on_bead(dx, dy, needle):
 
 
 def _on_needle(dx, dy, geom, needle):
-    """On the needle's TAPERED SHAFT, measured along the needle and across
+    """On the needle's tapered shaft, measured along the needle and across
     it: `along` is how far out the point is and `across` how far off the
     line, so the half width can be a function of the first."""
     c, s, _tip_x, _tip_y = needle
@@ -206,7 +206,7 @@ def _raster(degrees, width, height, weak, aspect):
     for x, y, samples in _samples(width, height, aspect):
         seen = [at for at in (_classify(sample, geom, span, needle)
                               for sample in samples) if at is not None]
-        # THE CORNERS ARE COVERAGE.
+        # A dot lights when half its samples or more hit (`covered`).
         if not seen or not covered(len(seen), len(SUBDOT)):
             continue
         col, row = x // DOTS_X, y // DOTS_Y
@@ -215,7 +215,7 @@ def _raster(degrees, width, height, weak, aspect):
         dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
         owner[row][col] = max(owner[row][col], max(seen))
 
-    # THE NUMBERS LAST, and only onto cells no dot reached.
+    # The numbers last, and only onto cells no dot reached.
     for mark in range(0, 360, 30):
         phi = math.radians(mark)
         label = str(mark)

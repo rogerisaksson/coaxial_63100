@@ -3,9 +3,9 @@ import math
 
 from coaxial.draw import braille
 from coaxial.draw.ascii3d import CELL_ASPECT
-from machine import ansi
 from coaxial.graphics.raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT, table,
                      covered)
+from machine import ansi
 
 #: A cell's height in widths is `ascii3d.CELL_ASPECT`, one value for every
 #: renderer: a taller font draws the circle an ellipse by exactly the ratio.
@@ -137,7 +137,7 @@ MARKS = frozenset((TRUTH,) + TRAIL)
 
 #: The bar classes in the order a fraction picks one: below the
 #: board's throttle point, past it, at the ceiling. Which fraction
-#: means which is the CALLER's - the ceilings live in the
+#: means which is the caller's: the ceilings live in the
 #: calibration record and the board is what acts on them.
 SOA_CLASS = (SOA_OK, SOA_WARN, SOA_TRIP)
 
@@ -168,12 +168,12 @@ class _Radii:
     """The radii for one drawing, in dots, from the box it fits in."""
 
     def __init__(self, width, height, stretch=1.0):
-        # THE HEIGHT IS MEASURED IN THE SAME UNITS AS THE WIDTH.
+        # The height is measured in the same units as the width.
         self.can = (min(width * DOTS_X, height * DOTS_Y * stretch) / 2.0
                     - 1.0) * F_FIT
         self.magnet_out = self.can * F_MAGNET_OUT
         self.magnet_in = self.can * F_MAGNET_IN
-        # THE TEETH REACH THEIR FULL FRACTION.
+        # The teeth reach their full fraction.
         self.tooth_out = self.can * F_TOOTH_OUT
         self.tooth_in = self.can * F_TOOTH_IN
         self.bore = self.can * F_BORE
@@ -221,8 +221,8 @@ def _tooth_class(radius, phi, slots, r, drive):
     phase = int(place) % 3
     if drive is not None and _stubbed(radius, r, drive[phase]):
         return TRACK, 1.0
-    # A TOOTH IS A FILLED AREA, so what bounds it is its angle and its length,
-    # not a stroke - a sample is inside it or it is not, and the supersampling
+    # A tooth is a filled area, so what bounds it is its angle and its length,
+    # not a stroke: a sample is inside it or it is not, and the supersampling
     # in `_body` is what softens those edges.
     return PHASE_CLASS[phase], 1.0
 
@@ -289,7 +289,7 @@ def layout(width, height, n_left=0, n_right=0, rows=None, stretch=1.0):
     lead = (n_left + BAR_GAP) if n_left else 0
     trail = (n_right + BAR_GAP) if n_right else 0
     room = max(1, width - lead - trail)
-    # THE CAN IS SIZED AGAINST ITS OWN BAND, not the whole box.
+    # The can is sized against its own band, not the whole box.
     r = _Radii(room, rows if rows else height, stretch)
     cx = (lead + room / 2.0) * DOTS_X - 0.5
     left = [c for c in (lead - BAR_GAP - 1 - i for i in range(n_left))
@@ -313,12 +313,12 @@ def span(width, height, n_left=0, n_right=0, rows=None):
 
 def _gauge(dots, owner, width, height, row, share, cls,
            n_left=0, n_right=0, part=None):
-    """One horizontal level across the MACHINE'S width, from the left."""
+    """One horizontal level across the machine's width, from the left."""
     if row < 0 or row >= height:
         return
     first, last = span(width, height, n_left, n_right)
     if part is not None:
-        # ONE OF SEVERAL ACROSS THE SAME WIDTH.
+        # One of several across the same width.
         index, count = part
         step = (last - first + 1) / float(max(1, count))
         first, last = (int(first + index * step),
@@ -329,7 +329,7 @@ def _gauge(dots, owner, width, height, row, share, cls,
 
 
 def _level(dots, owner, row, lo, hi, start, end, cls):
-    """A horizontal level on `row`, in DOT columns: the scale runs `lo` to
+    """A horizontal level on `row`, in dot columns: the scale runs `lo` to
     `hi` (exclusive) and the level fills `start` to `end` in `cls`; the
     rest of the scale is track.
     """
@@ -361,7 +361,7 @@ def _mark(dots, owner, row, x, cls, ys=GAUGE_Y):
 def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
           has_top=True):
     """Vertical margin bars, filled from the bottom, one cell wide."""
-    # THE FIRST ROW AND THE LAST FEW BELONG TO THE GAUGES.
+    # The first row and the last few belong to the gauges.
     top_row = GAUGE_INSET + (1 if has_top else 0) + reserve
     tall = max(1, height - GAUGE_INSET - FLOOR_INSET - reserve
                - (1 if has_top else 0) - max(1, floors)) * DOTS_Y
@@ -373,7 +373,7 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
     for bars, columns in ((left, at_left), (right, at_right)):
         for index, entry in enumerate(bars or []):
             if index >= len(columns) or entry is None:
-                # A None is a SPACER: it takes a column and draws nothing,
+                # A None is a spacer: it takes a column and draws nothing,
                 # which is how a caller puts air between two groups of bars
                 # that measure different things.
                 continue
@@ -406,7 +406,7 @@ def _tube(dots, owner, col, top, tall, share, cls):
 
 def _overlay(dots, text, width, height, labels, leaders, rules):
     """Leaders in dots and names in text, over cells no drawing reached."""
-    # THE LEADERS, IN DOTS, AND THEY FALL.
+    # The leaders, in dots, falling.
     lit = []
     met = {}
     for row, from_col, to_col, _shade in list(rules or []):
@@ -414,16 +414,15 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
         met.setdefault(row, []).append((lo, hi))
     for entry in list(leaders or []):
         from_row, col, to_row, shade = entry[:4]
-        # WHICH HALF OF THE CELL IT FALLS DOWN.
+        # Which half of the cell it falls down.
         lane = entry[4] if len(entry) > 4 else 0
         for row in range(from_row, to_row):
             if not (0 <= row < height and 0 <= col < width):
                 continue
-            # A HOOK WHERE IT MEETS A RULE, not a bar through it.
             turn = any(lo <= col <= hi for lo, hi in met.get(row, ()))
-            # A CORNER WHERE IT MEETS A RULE, a stroke where it does not - and
-            # how far down the corner reaches depends on whether the line
-            # carries on.
+            # A corner where it meets a rule, not a bar through it, and a
+            # stroke where it does not; how far down the corner reaches
+            # depends on whether the line carries on.
             if turn:
                 dots[row][col] |= braille.mask(braille.lit(
                     braille.corner(RULE_Y, lane,
@@ -433,7 +432,7 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
                     (lane, y) for y in range(DOTS_Y))
                 lit.append((row, col, shade))
 
-    # AND THE HORIZONTAL HALF OF THE SAME FURNITURE.
+    # The rules: the leaders' horizontal half.
     for row, from_col, to_col, shade in list(rules or []):
         for col in range(min(from_col, to_col), max(from_col, to_col) + 1):
             if 0 <= row < height and 0 <= col < width:
@@ -441,7 +440,7 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
                     dots[row][col] |= BRAILLE_BITS[x][RULE_Y]
                 lit.append((row, col, shade))
 
-    # THE OVERLAY LAST, and only where no dot went.
+    # The overlay last, and only where no dot went.
     for row, col, said, _ink in list(labels or []):
         for step, ch in enumerate(said):
             here = col + step
@@ -466,7 +465,7 @@ class Frame:
         self.tally: list = [[None] * width for _ in range(height)]
 
     def put(self, x, y, cls):
-        """Light one dot, in DOT coordinates."""
+        """Light one dot, in dot coordinates."""
         col, row = int(x) // DOTS_X, int(y) // DOTS_Y
         if not (0 <= row < self.height and 0 <= col < self.width):
             return
@@ -477,7 +476,7 @@ class Frame:
         if tally is None:
             tally = self.tally[row][col] = {}
         tally[cls] = tally.get(cls, 0) + 1
-        # THE TRUTH STROKE FIRST, the one thing drawn to be FOUND: yielding to
+        # The truth stroke first, the one thing drawn to be found: yielding to
         # the rings it owned no cell at all in some poses, so at its own angle
         # a ring cell goes white and it reads as reaching the rim.
         running = ([c for c in tally if c != TRUTH]
@@ -487,7 +486,7 @@ class Frame:
                                     tally[c], c))
 
     def claim(self, row, col, cls, said=None):
-        """Give a CELL to `cls`, and a character with it where the mark
+        """Give a cell to `cls`, and a character with it where the mark
         cannot be made of dots."""
         if not (0 <= row < self.height and 0 <= col < self.width):
             return
@@ -496,7 +495,7 @@ class Frame:
             self.text[row][col] = said
 
     def lines(self, ink, colour=False, tint=None):
-        """THE ONE PLACE THIS BECOMES TERMINAL OUTPUT."""
+        """The one place this becomes terminal output."""
         at = dict(tint or {})
         out = []
         for row in range(self.height):
@@ -517,7 +516,7 @@ class Seat:
     def __init__(self, width, height, left, right, top, bottom,
                  labels, leaders, aspect):
         self.floors = max(1, len(list(bottom or ())))
-        # A LABEL'S ROW IS WRITTEN ON, A LEADER'S `to_row` IS PAST ITS LAST:
+        # A label's row is written on, a leader's `to_row` is past its last:
         # the two are one column of arithmetic with different ends, and the can
         # has to start under both.
         written = [row + 1 for row, _col, _said, _ink in list(labels or [])]
@@ -525,12 +524,12 @@ class Seat:
                     if entry[0] == 0]
         self.reserve = max(written) if written else 0
         self.band = max(1, height - self.floors - self.reserve)
-        # A DOT IS SQUARE ONLY WHEN A CELL IS TWO BY ONE.
+        # A dot is square only when a cell is two by one.
         self.stretch = aspect / DOTS_Y * DOTS_X
         self.cx, self.radii, _, _ = layout(
             width, height, len(left or ()), len(right or ()), rows=self.band,
             stretch=self.stretch)
-        # AND SEATED AT THE TOP OF THAT BAND, its first dot in the first row
+        # Seated at the top of that band, its first dot in the first row
         # under the reserve.
         self.cy = (self.reserve * DOTS_Y + 0.5
                    + self.radii.can / self.stretch)
@@ -542,7 +541,7 @@ def _body(frame, seat, rotor_deg, slots, poles, drive):
     r = seat.radii
     track = []
     for x, y, samples in _samples(frame, seat):
-        # EACH SAMPLE VOTES WITH ITS COVERAGE, and the dot goes to the class
+        # Each sample votes with its coverage, and the dot goes to the class
         # that covers most of it.
         votes = {}
         for kind, a, b in samples:
@@ -571,12 +570,12 @@ def _body(frame, seat, rotor_deg, slots, poles, drive):
 def _bead(frame, seat, pointer_deg, glyph=None, rate=None):
     """The bench's own zero, riding the can's rim."""
     phi = math.radians(pointer_deg)
-    # IN THE WALL, between the can's two edges, so the rings stay whole and the
+    # In the wall, between the can's two edges, so the rings stay whole and the
     # bead runs in the race between them.
     seat_r = seat.radii.can * POINTER_SEAT
     at_x = seat.cx + seat_r * math.cos(phi)
     at_y = seat.cy - seat_r * math.sin(phi) / seat.stretch
-    # THE NEAREST CELL, MEASURED FROM ITS CENTRE.
+    # The nearest cell, measured from its centre.
     col = int(math.floor((at_x - (DOTS_X - 1) / 2.0) / DOTS_X + 0.5))
     row = int(math.floor((at_y - (DOTS_Y - 1) / 2.0) / DOTS_Y + 0.5))
     frame.claim(row, col, POINTER, glyph or POINTER_GLYPH)
@@ -613,10 +612,10 @@ def _wake(frame, seat, phi, seat_r, rate, bead_cell):
 
 
 def _truth(frame, seat, truth_deg):
-    """The angle a shaft sensor says, as a tick in the AIR GAP."""
+    """The angle a shaft sensor says, as a tick in the air gap."""
     phi = math.radians(truth_deg)
     r = seat.radii
-    # THROUGH THE MAGNET BAND, which is the thing it is read against.
+    # Through the magnet band, which is the thing it is read against.
     inner, outer = r.magnet_in + 1.5, r.magnet_out - 0.5
     for step in range(int((outer - inner) * 4) + 1):
         radius = inner + step * 0.25
@@ -626,7 +625,7 @@ def _truth(frame, seat, truth_deg):
 
 def _machine(frame, seat, rotor_deg, slots, poles, drive,
              truth_deg=None, pointer_deg=None, bead=None, pointer_rate=None):
-    """THE MACHINE AND NOTHING ELSE: the cross-section, the bench's mark on
+    """The machine and nothing else: the cross-section, the bench's mark on
     the rim, and the tick a shaft sensor claims.
     """
     _body(frame, seat, rotor_deg, slots, poles, drive)
@@ -637,7 +636,7 @@ def _machine(frame, seat, rotor_deg, slots, poles, drive,
 
 
 def _instruments(frame, seat, left, right, top, bottom):
-    """The gutters and the gauges: everything measured AGAINST the machine
+    """The gutters and the gauges: everything measured against the machine
     rather than part of it.
     """
     floor = list(bottom or ())
@@ -697,7 +696,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
                          truth_deg, drive, pointer_deg, left, right,
                          top, bottom, aspect, labels, leaders, rules,
                          bead, pointer_rate)
-    # THE ONLY THING LEFT HERE IS WHO GETS WHICH COLOUR.
+    # The only thing left here is who gets which colour.
     at = {}
     for row, col, said, said_ink in list(labels or []):
         for step in range(len(said)):

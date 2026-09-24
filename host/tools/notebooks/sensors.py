@@ -35,9 +35,9 @@ print('IMU loop running:', imu.settled(), ' angle loop running:', angle.settled(
         ),
     section(
         'SPI2 belongs to the poll loop',
-        md('SPI2 belongs to the poll loop: every call that drives it refuses while the loop '
-           'runs - on a board; the stand-in answers. `configuring()` holds it for the '
-           'block. Pins: `bits` 15 = followed the MCU every way.'),
+        md('Every call that drives SPI2 refuses while the loop runs - on a board; the '
+           'stand-in answers. `configuring()` holds it for the block. Pins: `bits` 15 = '
+           'followed the MCU every way.'),
         code('''try:
     print('while running: answered, version', imu.product_id()['sw_version'])
 except RigError as exc:
@@ -100,10 +100,12 @@ for name in VECTORS:
     print('%-14s %s' % (name, before[name]))
 imu.configure(dict.fromkeys((ACCELEROMETER, GYROSCOPE, MAGNETIC_FIELD), 20000))
 vectors = imu.state()
-while any(vectors[n] is None for n in VECTORS) and waited < 4.0:
+vectors_waited = 0.0
+while any(vectors[n] is None for n in VECTORS) and vectors_waited < 2.0:
     time.sleep(0.02)                    # one report interval
-    waited += 0.02
+    vectors_waited += 0.02
     vectors = imu.state()
+print('all three after %.2f s' % vectors_waited)
 magnitude = {}
 for name in VECTORS:
     v = vectors[name]
@@ -128,15 +130,17 @@ ansi.image(orientation.render((q['i'], q['j'], q['k'], q['real']), 100, 30, wire
         md('A1335: ANG 0x20, STA 0x22, ERR 0x24, XERR 0x26, TSEN 0x28, FIELD 0x2A. Twelve '
            "bits: ANG 360/4096 deg, TSEN 1/8 K, FIELD 1 G. `state()` reads the loop's "
            'record, no SPI.'),
-        code('''from coaxial.devices.angle import ANG, FIELD, TSEN, counts, degrees, gauss, kelvin
+        code('''from coaxial.devices.angle import (ANG, ERR, FIELD, STA, TSEN, XERR, counts, degrees,
+                                   gauss, kelvin)
 from coaxial.devices.scaling import KELVIN_AT_ZERO_C
 
 st = angle.state()
 print({k: st.get(k) for k in ('loop', 'updates', 'errors', 'register_name', 'value', 'degrees', 'crc')})
-print(angle.clock(), angle.state()['register_name'])
+clock = angle.clock()
+print('SPI4 %d bit/s off a %d Hz kernel' % (clock['bitrate_hz'], clock['kernel_hz']))
 with angle.configuring():
     print('in the block:', angle.state()['loop'])
-    got = {reg: angle.peek(reg) for reg in (0x20, 0x22, 0x24, 0x26, 0x28, 0x2A)}
+    got = {reg: angle.peek(reg) for reg in (ANG, STA, ERR, XERR, TSEN, FIELD)}
 print('after:', angle.state()['loop'])
 for r in got.values():
     print('%-5s 0x%04X  data %4d  flags 0x%X  crc %d'
@@ -150,7 +154,7 @@ print('field  %.0f G' % gauss(field))'''),
     section(
         'The dial',
         md('The SHAFT ANGLE dial: ANG, the die on -40..150 C, the field on 0..1200 G; no '
-           'needle below a few tens of gauss.'),
+           'needle below 30 G (`dial.WEAK_GAUSS`).'),
         code('''from coaxial.draw import dial
 
 ansi.image(dial.instrument(degrees(ang), gauss(field), kelvin(tsen), colour=True))'''),
@@ -158,10 +162,9 @@ ansi.image(dial.instrument(degrees(ang), gauss(field), kelvin(tsen), colour=True
     section(
         'Both parts in one record',
         md('Sensor snapshots ride any software-clocked record beside the sums (MINOR 7); '
-           "the NTC is the analog channel. The shaft's rate off record stamps, not a wall "
-           'clock.'),
-        code('''daq = device.daq
-print(device.set_time_from_pc(reference='pc'))
+           "a record needs one analog channel, here the NTC. The shaft's rate off record "
+           'stamps, not a wall clock.'),
+        code('''print(device.set_time_from_pc(reference='pc'))
 layout = daq.configure('NTC', 'shaft angle', 'orientation', sample_rate=50)
 print(layout['sensors'])
 daq.start()
@@ -171,9 +174,7 @@ df = daq.frame(run, index='elapsed', scaled=True)
 present = int(df['shaft angle have'].sum())
 print('%d records, stride %d bytes; shaft snapshot present in %d of %d'
       % (len(run), layout['stride'], present, len(df)))
-print(run[0]['sensors'])
-df[['shaft angle (deg)', 'orientation i (unit)', 'orientation j (unit)',
-    'orientation k (unit)', 'orientation real (unit)']].describe().round(3)'''),
+print(run[0]['sensors'])'''),
         code('''from coaxial.draw.figures import figure, show
 
 axes = ['orientation %s (unit)' % w for w in ('i', 'j', 'k', 'real')]
@@ -213,15 +214,16 @@ print('3. rotation   report 0x%02X at %d us, pending %s; first report after %.2f
          first['feature']['pending'], waited, second['updates'] - first['updates'],
          second['accuracy'],
          math.sqrt(sum(v * v for v in second['quaternion'].values()))))
-print('4. vectors    before enabling: %s; after: |a| %.2f m/s^2, |w| %.3f rad/s, |B| %.1f uT'
-      % (', '.join(str(before[n]) for n in VECTORS), magnitude['accelerometer'],
+print('4. vectors    before enabling: %s; all three after %.2f s: |a| %.2f m/s^2, |w| %.3f rad/s, '
+      '|B| %.1f uT'
+      % (', '.join(str(before[n]) for n in VECTORS), vectors_waited, magnitude['accelerometer'],
          magnitude['gyroscope'], magnitude['magnetometer']))
-print('5. A1335      ANG 0x%04X = %.2f deg; TSEN 0x%04X = %.1f K = %.1f C (%.3f K a count); '
+print('5. A1335      ANG 0x%04X = %.2f deg; TSEN 0x%04X = %.1f K = %.1f C; '
       'FIELD 0x%04X = %.0f G, %s; CRC %d reported, not checked; SPI4 %.3f Mbit/s off %.2f MHz'
-      % (ang, degrees(ang), tsen, kelvin(tsen), kelvin(tsen) - KELVIN_AT_ZERO_C, 1.0 / 8,
+      % (ang, degrees(ang), tsen, kelvin(tsen), kelvin(tsen) - KELVIN_AT_ZERO_C,
          field, gauss(field),
          'no magnet' if gauss(field) < dial.WEAK_GAUSS else 'a magnet in place',
-         got[ANG]['crc'], angle.clock()['bitrate_hz'] / 1e6, angle.clock()['kernel_hz'] / 1e6))
+         got[ANG]['crc'], clock['bitrate_hz'] / 1e6, clock['kernel_hz'] / 1e6))
 print('6. record     %d records at 50/s, stride %d bytes; shaft %.2f deg over %.2f s = %.1f deg/s; '
       'snapshot in %d of %d; |q| %.4f to %.4f'
       % (len(run), layout['stride'], turned[-1] - turned[0], span, rate, present,
@@ -248,6 +250,6 @@ REFERENCES = [
     ('board/src/board_imu.c', 'the SPI2 poll loop, the drain before a write, the refusal while PB2 is low'),
     ('board/src/board_angle.c', 'the SPI4 loop and the two-frame read'),
     ('docs/PROTOCOL.md', 'devices 0 and 1 on the wire; op 8\'s appended vectors (MINOR 6); the record\'s snapshots (MINOR 7)'),
-    ('docs/FINDINGS.md', 'The AFE and the reference, The IMU, The A1335: what was measured and ruled out'),
+    ('docs/FINDINGS.md', 'AFE and ADC, IMU (BNO085), A1335: what was measured and ruled out'),
 ]
 

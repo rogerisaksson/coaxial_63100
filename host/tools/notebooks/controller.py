@@ -96,12 +96,12 @@ ansi.image(feedback(loop, 'speed'))'''),
     return max(abs(r['iq_ref']) for r in rows)
 
 loop.move(2.0, w_target=0.0)
-bare = peak(loop.move(1.5, w_target=2000 * RAD_S_PER_RPM))
+slewed = peak(loop.move(1.5, w_target=2000 * RAD_S_PER_RPM))
 loop.move(2.0, w_target=0.0)
 f.prefilter = LowPass(0.3)
 loop.add('speed', f)
-smooth = peak(loop.move(1.5, w_target=2000 * RAD_S_PER_RPM))
-print('peak iq to 2000 rpm: Slew %.3f A, LowPass %.3f A' % (bare, smooth))'''),
+lowpassed = peak(loop.move(1.5, w_target=2000 * RAD_S_PER_RPM))
+print('peak iq to 2000 rpm: Slew %.3f A, LowPass %.3f A' % (slewed, lowpassed))'''),
     ),
     section(
         'A part at its own pace',
@@ -172,7 +172,7 @@ print('back on the converters:', drive.configure(source='adc')['source'])'''),
 
 RESULTS = [
     code('''print('1. estimate spread    measured %.2f rpm, SpeedKalman %.2f rpm' % (raw, estimated))
-print('2. peak current       Slew %.3f A, LowPass %.3f A' % (bare, smooth))
+print('2. peak current       Slew %.3f A, LowPass %.3f A' % (slewed, lowpassed))
 print('3. paced              %d estimator steps under %d loop passes' % (fast.steps, passes))
 print('4. steady error       Proportional %.0f rpm, SpeedPI %.0f rpm' % (p_error, pi_error))
 print('5. kept               %s' % kept)'''),
@@ -185,6 +185,7 @@ BENCH = ('The record commissioned first (`commissioning.ipynb`); no flags on `ga
 
 REFERENCES = [
     ('host/machine/controller.py', '`Loop`, `Feedback`, `Paced`, `Polled`; save and load'),
+    ('host/machine/nodes.py', '`Nodes`: `card`, and `loop` over their modules'),
     ('host/machine/parts.py', 'the parts: Gain, Slew, LowPass, SpeedKalman, PI, SpeedPI'),
     ('host/machine/panel.py', 'the panel'),
     ('host/machine/wiring.py', 'the pictures: a loop, a feedback'),

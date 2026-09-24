@@ -61,7 +61,7 @@ def _clustered(faces, divisions, keep=None):
     cells = {}
     centres = []            # the cell's middle, for the collapse test
     sums = []               # the corners that landed in it, summed, and
-    indices = []            # how many: the vertex is their MEAN
+    indices = []            # how many: the vertex is their mean
     normals = []
 
     for corners, stated in faces:
@@ -96,7 +96,7 @@ def _clustered(faces, divisions, keep=None):
         if normal is None:
             continue
 
-        # Shade with the ORIGINAL face's normal, not the snapped triangle's.
+        # Shade with the original face's normal, not the snapped triangle's.
         first = face_normal(corners[0], corners[1], corners[2], stated)
         if first is not None:
             normal = first
@@ -108,7 +108,7 @@ def _clustered(faces, divisions, keep=None):
         normals.append(normal[1])
         normals.append(normal[2])
 
-    # THE VERTEX IS THE MEAN OF WHAT LANDED IN THE CELL, not the cell's middle.
+    # The vertex is the mean of what landed in the cell, not the cell's middle.
     positions = []
     for sx, sy, sz, n in sums:
         positions.append(sx / n)

@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """The target's rotor observer, against a motor, on this machine.
 
-THE C IS THE FIRMWARE'S. `drive/` is hardware-free for exactly this
-reason: `tests/test_drive_core.py` already builds drive.c, drive_math.c
-and the harness with the host gcc and drives them through ctypes. This
-tool borrows that bench and asks a different question from a test's - not
-"does it still work" but "how hard can it be driven before it does not".
+The C is the firmware's: `drive/` is hardware-free. `tools/cores/build.py`
+builds it and the harness with the host gcc; `tools/cores/drive.py` lists the
+sources and wraps the library through ctypes. The question is not whether it
+works but how hard it can be driven before it does not.
 
-WHAT IT MEASURES. A settled run at a commanded q current, with the rotor's
-speed coming from TORQUE against friction and a propeller rather than from
-a setpoint, and the observer given only the phase currents. The angle error
-reported is against the model's own truth, which the observer never sees.
+A settled run at a commanded q current, with the rotor's speed coming from
+torque against friction and a propeller rather than from a setpoint, and
+the observer given only the phase currents. The angle error reported is
+against the model's own truth, which the observer never sees.
 
-WHAT IT IS NOT. Every constant comes from `coaxial.model.motor`, where the 5230SL
+Every constant comes from `coaxial.model.motor`, where the 5230SL
 carries `measured=False`: R, Ld, Lq and J are estimates from a size class.
 The saliency Lq/Ld is what an injection observer lives on and it is the
 least trustworthy number here, so read a standstill result as arithmetic
@@ -28,22 +27,17 @@ import math
 import os
 import sys
 
-HOST = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, HOST)
-sys.path.insert(0, os.path.join(HOST, 'tests'))
-
-from coaxial.model import sensorless                                  # noqa: E402
-from coaxial.model.motor import APC20x10E, BENCH_MOTOR, Motor, PLATINUM_5230SL  # noqa: E402
-import test_drive_core as H                                     # noqa: E402
-from test_modbus_core import build, find_cc                     # noqa: E402
+from coaxial.model import sensorless
+from coaxial.model.motor import APC20x10E, BENCH_MOTOR, Motor, PLATINUM_5230SL
+from tools.cores import drive as H
+from tools.cores.build import build, find_cc
 
 MOTORS = {'5230': PLATINUM_5230SL, 'bench': BENCH_MOTOR}
 
-#: 10S LiPo, which is what Hobbywing's own thrust table was taken on. It
-#: matters: back-EMF at the top of that table is 20.4 V peak against the
-#: 21.4 V an amplitude-invariant SVM can reach off 37 V, so a 24 V link
-#: cannot turn this motor that fast and the run would report a voltage
-#: limit as an observer failure.
+#: 10S LiPo, the link Hobbywing's thrust table was taken on: back-EMF at the
+#: top of that table is 20.4 V peak against the 21.4 V an amplitude-invariant
+#: SVM can reach off 37 V. A 24 V link cannot turn this motor that fast, and
+#: the run would report a voltage limit as an observer failure.
 VDC = 37.0
 
 #: Sized from `sensorless`, not chosen: the current loop an order above the
@@ -61,11 +55,10 @@ def spin(params, iq, seconds=0.35, vdc=VDC, pll_hz=PLL_HZ, noise=0.02,
     x = sensorless.crossover(lam=params.lam, r=params.r, i_max=60.0,
                              v_dt_residual=0.5, pole_pairs=params.poles)
     d = H.Drive(lib)
-    #: TWO FIGURES, NOT ONE. The handover from injection to back-EMF is a
-    #: transient and the tracking above it is a steady state; a single
-    #: worst-case conflates them and reads as "the observer is bad at
-    #: 40 A" when what it means is "the start is hard and the run is
-    #: fine". `steady` is counted only once the rotor is past w_hi.
+    #: Two figures: the handover from injection to back-EMF is a transient,
+    #: the tracking above it a steady state. One worst case conflates them,
+    #: a hard start read as "the observer is bad at 40 A". `steady` counts
+    #: only once the rotor is past w_hi.
     worst, steady, reached = [0.0], [0.0], [False]
     settled = int(0.05 / H.TS)
 
@@ -92,7 +85,7 @@ def spin(params, iq, seconds=0.35, vdc=VDC, pll_hz=PLL_HZ, noise=0.02,
         d.mode(H.SENSORLESS)
         H.run(d, m, 0.05, vdc=vdc, noise=noise)      # injection finds the axis
 
-        # THE PI INJECTION CANNOT RESOLVE.
+        # Polarity pulses: the pi ambiguity injection cannot resolve.
         theta_hat = d.state()['theta_hat']
         d.setpoints(pol_volts=6.0, pol_periods=8, pol_gap=40)
         d.mode(H.POLARITY)
@@ -115,7 +108,7 @@ def spin(params, iq, seconds=0.35, vdc=VDC, pll_hz=PLL_HZ, noise=0.02,
             'worst_rad': worst[0],
             'worst_deg': math.degrees(worst[0]),
             'steady_deg': math.degrees(steady[0]),
-            # Lock is judged on the STEADY error and on the rotor turning the
+            # Lock is judged on the steady error and on the rotor turning the
             # way it was asked to.
             'reached': reached[0],
             # A rotor that never passed w_hi has no steady error to be judged
@@ -145,7 +138,7 @@ def sweep_speed(params, lib):
 
 
 def sweep_bandwidth(params, lib):
-    """How aggressive is too aggressive - the actual question."""
+    """How aggressive is too aggressive: the PLL swept, the rest held."""
     print('the PLL at %.0f A of q current, everything else held\n' % 35.0)
     print('%-9s %9s %9s %9s  %s'
           % ('PLL Hz', 'start deg', 'run deg', 'rpm', 'lock'))

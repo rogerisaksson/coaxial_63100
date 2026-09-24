@@ -24,7 +24,7 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: host/requirements.txt
-      - run: pip install -r host/requirements.txt
+      - run: pip install -r host/requirements.txt && pip install --no-deps -e host
       - run: python tools/dev/run_tests.py --offline 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host

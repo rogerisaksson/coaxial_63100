@@ -8,7 +8,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 
-from tests import counts
+from tools.dev import counts
 from tools.dev.suites import ALONE, LIVE, OLLAMA, ROOT
 
 

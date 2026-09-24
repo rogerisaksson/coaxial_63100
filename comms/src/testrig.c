@@ -22,9 +22,9 @@ bool testrig_gate(uint32_t key, bool open)
   return true;
 }
 
-/* Which pins are refused is the board's answer, not this file's: the list
-   used to live here as well as in the pin table the channels command
-   reports, and two lists of what PB10 is are one edit away from disagreeing. */
+/* Which pins are refused is the board's answer, not this file's: one list,
+   the pin table the channels command reports, since two lists of what PB10
+   is are one edit away from disagreeing. */
 bool testrig_pin_allowed(char port, uint8_t pin)
 {
   if ((board_port(port) == NULL) || (pin > 15U))
@@ -84,7 +84,7 @@ bool testrig_pin_write(char port, uint8_t pin, bool level)
     return false;
   }
 
-  /* PB2 IS NOT A SIGNAL, IT IS A RAIL. */
+  /* PB2 is not a signal, it is a rail. */
   if ((port == 'B') && (pin == 2U))
   {
     return level ? Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_HOST)

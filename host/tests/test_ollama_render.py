@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """How a result reaches the screen: columns, blocks, clipping."""
-import os
+import io
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession, 
-    call, io, simulated, toolmod)   # noqa: E402
+from ollama_support import (Scope, ScriptedModel, SimulatedSession, call,
+                            run_file, simulated, toolmod)
 
 def test_reading_block(report):
     """A reading is a headed block, like the map is."""
@@ -57,9 +55,9 @@ def test_reading_block(report):
     report.check('and both blocks start their first column the same way',
                  levels.splitlines()[1].split()[0] == 'ch'
                  and head[2].split()[0] == 'ch')
-    # Counted off the stand-in's own list, not written here: the number grew
-    # from 7 to 15 when SPI2 and the IMU's control pins were added, and a count
-    # in a test is the same second answer a pin table in a document is.
+    # Counted off the stand-in's own list, not written here: SPI2 and the
+    # IMU's control pins took it from 7 to 15, and a count in a test is the
+    # same second answer a pin table in a document is.
     reserved = mcp.HANDLERS['board_info'](Sim(), kind='reserved')
     expected = 'reserved: %d pins' % len(simulated.RESERVED)
     report.check('while the reserved list stays pins - it is not channels',
@@ -135,9 +133,9 @@ def test_map_sections(report):
                  .startswith('ERR unknown kind'))
 
 def test_screen(report):
-    """Measured with the board unplugged: every board question printed the
-    same four-step checklist twice - once clipped as a tool trace, once whole
-    as the answer - and paid the ST-Link's fifteen-second timeout twice."""
+    """A dead link's checklist on screen once. Measured unplugged: every
+    board question printed the four-step checklist twice - clipped as a tool
+    trace, whole as the answer - and paid the ST-Link's 15 s timeout twice."""
     from coaxial_ollama import debug
     from coaxial_ollama import turn
 
@@ -222,5 +220,4 @@ ROSTER = (
 
 
 if __name__ == '__main__':
-    from tests.ollama_support import run_file
     sys.exit(run_file(ROSTER))

@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """The session language, its lock, and the phrase table."""
+import io
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession, 
-    _flat, _unformat, io, os, toolmod)   # noqa: E402
-
+from ollama_support import (Scope, ScriptedModel, SimulatedSession, _flat,
+                            _unformat, run_file, toolmod)
 
 
 # ---- one screen, one language ---------------------------------------------
@@ -61,11 +59,11 @@ def test_screen_language(report):
     # The locale is where it starts, not where it is stuck: a question in
     # another language moves it, and so does asking for one.
     local.history = [{'role': 'user', 'content': 'read all the analog channels'}]
-    local.prompt_history = ['read all the analog channels']
+    local.prompt_history = ('read all the analog channels',)
     local.trim()
     report.check('a question in another language moves it',
                  local.language == 'English', local.language)
-    local.prompt_history.append('svara på svenska')
+    local.prompt_history += ('svara på svenska',)
     local.history = [{'role': 'user', 'content': 'svara på svenska'}]
     local.trim()
     report.check('and asking for one outright moves it too',
@@ -107,5 +105,4 @@ ROSTER = (
 
 
 if __name__ == '__main__':
-    from tests.ollama_support import run_file
     sys.exit(run_file(ROSTER))

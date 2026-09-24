@@ -3,7 +3,7 @@ import cmath
 import math
 
 #: Biquads the board will run. `filter/inc/filter.h`'s FILTER_MAX_SECTIONS,
-#: and the one place a host may not simply ask for more.
+#: and the one place a host may not ask for more.
 MAX_SECTIONS = 4
 
 #: A boxcar sums into an int32 against a 65535 code, so it cannot hold more
@@ -219,7 +219,7 @@ def design(fs, out_rate, order=4, cutoff=None, headroom=8):
     ratio = int(round(fs / float(out_rate)))
     boxcar, decimate = _split(max(1, ratio), headroom)
     mid_rate = fs / float(boxcar)
-    # THE ACHIEVED RATE, NOT THE ASKED ONE.
+    # The achieved rate, not the asked one.
     achieved = fs / float(boxcar * decimate)
     edge = float(cutoff) if cutoff else 0.2 * achieved
 

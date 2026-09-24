@@ -8,7 +8,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - AFE_ON (PB2) powers the ADC reference: off, every channel reads exact
   mid-scale and the NTC exactly 25.00 C. It also powers the BNO085 and A1335.
 - PE15 follows AFE_ON inversely; reads as a fault with the AFE on. Cause open.
-- ADC offset calibration runs with AFE_ON low: offsets vary ~100 mV boot to boot.
+- ADC offset calibration runs with AFE_ON low: offsets vary ~100 mV boot to
+  boot.
 - HAL only ORs PCSEL: ADC3 PCSEL read 0xC03 (four channels live). Every read
   path clears it (invariant 6).
 - Phase noise floor, AFE on: 0.35-0.41 A rms per phase.
@@ -62,8 +63,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 | CS never moved | configured before `HAL_SPI_DeInit`, whose MSP reset the pin |
 | every read `FF FF FF FF` | CS released between header and cargo |
 | reads refused after reset | advertisement 276 B, buffer 64 |
-| 60 ms interval never reported | interval sent little-endian on a big-endian wire |
-| write works twice, fails third | gated on an INTN an awake part never asserts |
+| 60 ms interval never reported | interval sent little-endian, wire big-endian |
+| write works twice, fails 3rd | gated on an INTN an awake part never asserts |
 
 - Reset then Set Feature gave 0 rotation vectors; feature alone 49/s.
   `Board_ImuWrite` drains queued announcements first.
@@ -81,8 +82,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## Thermal
 
-- Camera 2026-08-28, 20 C room, four states x 25 min (tau 6.8 min): NTC and
-  rises (bridge/MCU/regulators/AFE) passive 30.0 / +15.0 / +8.0 / +1.0 /
+- Camera 2026-08-28, 20 C room, four states x 25 min (tau 6.8 min): board and
+  rises (MCU/regulators/bridge/AFE) passive 30.0 / +15.0 / +8.0 / +1.0 /
   +1.0. NTC - TSEN: -0.74 C idle, +10.94 C switching.
 - Measured: board 8.33 K/W off the board (one passive point, 1.2 W), 49 J/K
   from a transient. Assumed: per-leg `to_board` 45.6 K/W (one camera zone
@@ -156,12 +157,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   grew to 3.0 dots half-width, pulled teeth floated loose. Stroke capped
   at 1.0 (0.8 broke into dots), undriven tooth length drawn as track,
   kept out of any cell an area holds (2026-09-23).
-- `env.ps1` dot-sourced into `coaxial_tty.ps1`: its `foreach ($name ...)` was the
-  caller's `[ValidateSet] $Name` and failed it; the loop is `$bundle` (2026-09-23).
-- One DC bus connector's screw hole drew as a box, then vanished into the connector
-  (724f950 absorbs nested blocks): the circle test centred on the centroid and 14
-  unevenly spaced points read dev 0.047 (limit 0.03). Least-squares centre: a drum,
-  like the other four; no other primitive moved (2026-09-23).
+- `env.ps1` dot-sourced into `coaxial_tty.ps1`: its `foreach ($name ...)` was
+  the caller's `[ValidateSet] $Name` and failed it; the loop is `$bundle`
+  (2026-09-23).
+- One DC bus connector's screw hole drew as a box, then vanished into the
+  connector (724f950 absorbs nested blocks): the circle test centred on the
+  centroid and 14 unevenly spaced points read dev 0.047 (limit 0.03).
+  Least-squares centre: a drum, like the other four; no other primitive moved
+  (2026-09-23).
 
 - `pole_pairs` counted shaft travel over a wall-clock walk against the
   nominal travel: 20.80 for 21 (the rotor pulling in from its rest angle),

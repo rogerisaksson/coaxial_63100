@@ -5,45 +5,41 @@
     python tools/bench/deadtime_trim.py --from 40 --to 30
     python tools/bench/deadtime_trim.py --skew 2           # trim lead against lag
 
-WHAT IT MEASURES. Dry switching draws almost nothing, so an over-current with
-no load is shoot-through: both FETs of a leg conducting through the dead time.
-The bench supply's OCP is the instrument - it trips, the DC link collapses,
-and the step that did it is the one the board could not hold.
+Dry switching draws almost nothing, so an over-current with no load is
+shoot-through: both FETs of a leg conducting through the dead time. The
+bench supply's OCP is the instrument - it trips, the DC link collapses, and
+the step that did it is the one the board could not hold.
 
-HOW IT SEES A TRIP. By the OBSERVER'S UPTIME going backwards, which is the
-only thing that survives the event. The DC link was tried first and does not
-work: the sample is taken with the stage down, and by then the supply has
-recovered - it read 24.86 V at the very step that had just reset the board.
-Measured 2026-08-29 with the bench OCP at 300 mA, and the reset was visible
-only because the thermal nodes had gone to zero.
+A trip shows as the observer's uptime going backwards, the only thing that
+survives the event. The DC link does not show it: the sample is taken with
+the stage down, and by then the supply has recovered - it read 24.86 V at
+the step that had just reset the board. Measured 2026-08-29 with the bench
+OCP at 300 mA; the reset was visible only because the thermal nodes had
+gone to zero.
 
 The uptime is not a threshold on anything (invariant 10): a counter that was
 larger a minute ago and is smaller now says the board restarted, which is a
 fact about the board rather than a judgement about volts.
 
-LEAD AND LAG. `--skew` is DTG counts, positive lengthening the transition the
-counter reaches counting up and shortening the other by the same, so the pair
-still averages the dead time asked for. It exists because the two transitions
-of a leg need not be symmetric - one gate turns off through a different
-impedance than the other turns on. Nothing here has been on a scope.
+`--skew` is DTG counts, positive lengthening the transition the counter
+reaches counting up and shortening the other by the same, so the pair still
+averages the dead time asked for. The two transitions of a leg need not be
+symmetric: one gate turns off through a different impedance than the other
+turns on.
 
 The thermal observer runs beside it: `drivers` and `phases` climbing faster at one
 step than the last is the bridge heating from something the previous step did
 not have, which is what approaching the limit looks like from inside.
 """
 import argparse
-import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial import Coaxial63100           # noqa: E402
-from coaxial.devices import scaling           # noqa: E402
-from coaxial.model import thermal           # noqa: E402
-from terminal.views.session.state import SETTLE_S       # the board's own settle
-from terminal.ui.screen import say, steady                                       # noqa: E402
-
+from coaxial import Coaxial63100
+from coaxial.devices import scaling
+from coaxial.model import thermal
+from terminal.ui.screen import say, steady
+from terminal.views.session.state import SETTLE_S  # the board's own settle
 
 
 #: The rails a trim sample reads, by the board's own signal names.
@@ -73,7 +69,7 @@ def sample(rig, params):
         got['ntc'] = state['ntc']
         got['uptime'] = state['seconds']
     if spend is not None:
-        # THE HOTTEST LEG.
+        # The hottest leg.
         used = spend['used']
         got['drivers'] = max(used[n] for n in thermal.DRIVERS)
         got['phases'] = max(used[n] for n in thermal.PHASES)
@@ -89,7 +85,7 @@ def step(rig, params, nanoseconds, skew, seconds, every, legs):
         return None
 
     held = (steady(rig.gates.configure, dead_time_ns=nanoseconds, skew=skew) or {}).get('dead_time')
-    # ONE LEG IS THE SENSITIVE TEST.
+    # One leg is the sensitive test.
     load = dict(('Phase %s' % leg, 0.5 if leg in legs else 0.0)
                 for leg in ('U', 'V', 'W'))
     if steady(rig.write, analog=load) is None:

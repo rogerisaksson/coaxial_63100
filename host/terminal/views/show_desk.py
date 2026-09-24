@@ -5,12 +5,11 @@
     python terminal/views/show_desk.py --port COM4 --hz 10 --samples 32
 
 The drawing itself is `coaxial.draw.desk`, which is pure and tested; this file is
-the loop, the screen and the cable. Nothing here judges a reading - the face
-is the converter's own scale and invariant 10 applies to a meter exactly as
-it applies to a table.
+the loop, the screen and the cable. Nothing here judges a reading: the face
+is the converter's own scale (invariant 10).
 
-The AFE has to be on for any of it to mean anything (invariant 9), and it is
-put back the way it was found on the way out.
+AFE_ON is on for the run (invariant 9) and put back the way it was found on
+the way out.
 """
 import argparse
 import collections
@@ -19,17 +18,15 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial.draw import desk  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui import screen as _screen  # noqa: E402
-from terminal.ui.screen import Feed, closing, open_rig, run_view, say  # noqa: E402
-from terminal.ui.stage import frame_of, stage  # noqa: E402
-from terminal.views.desk.boxes import (buffer_box, chain_box, digital_box, legend,  # noqa: E402
+from coaxial.draw import desk
+from coaxial.errors import RigError
+from terminal.loader import TO_MENU
+from terminal.ui import screen as _screen
+from terminal.ui.screen import Feed, closing, open_rig, run_view, say
+from terminal.ui.stage import frame_of, stage
+from terminal.views.desk.boxes import (buffer_box, chain_box, digital_box, legend,
                                        scale)
-from terminal.views.desk.load import (HOST_RING, _clocked, drain, duties_from, plan,  # noqa: E402
+from terminal.views.desk.load import (HOST_RING, _clocked, drain, duties_from, plan,
                                       rows_from, take_link)
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -59,9 +56,8 @@ def main(argv=None):
                              'closed')
     args = parser.parse_args(argv)
 
-    # power_afe SAID: invariant 9 - with the rail down the board refuses to
-    # start the task at all, and that refusal used to escape as a traceback
-    # rather than a said line.
+    # power_afe by name (invariant 9): with the rail down the board refuses
+    # to start the task.
     rig = open_rig('LINKING CONVERTERS', port=args.port, power_afe=True,
                    simulated=bool(args.simulated))
     if rig is None:
@@ -71,7 +67,7 @@ def main(argv=None):
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
     say('ok', 'AFE_ON', 'on for this run, and put back the way it was found')
 
-    # Every channel the board reports, summed AND SHAPED on the board rather
+    # Every channel the board reports, summed and shaped on the board rather
     # than read one at a time: a meter face wants a low-pass, and one record a
     # frame is what it draws.
     try:
@@ -96,14 +92,13 @@ def main(argv=None):
     return watch(rig, args, layout, chain, params)
 
 
-#: The stand-in's machine, for the meters to show. Simulated only: a
-#: bench with the stage down reads three offsets and their noise, and so
-#: does the stand-in now that its phases carry the machine's current and
-#: nothing invented (values.py) - so the drive holds a current vector
-#: turning at DEMO_HZ electrical, "one electrical revolution every seven
-#: seconds or so, slow enough to watch", and the current runs up and down
-#: DEMO_AMPS over DEMO_S: a machine at crawl. On a board nothing here
-#: touches the stage; the view opens onto whatever the drive is doing.
+#: The stand-in's machine, for the meters to show. Simulated only: the
+#: stand-in's phases carry the machine's current (values.py), so with the
+#: stage down they read three offsets and their noise, as a bench does.
+#: The drive holds a current vector turning at DEMO_HZ electrical (one
+#: revolution in ~7 s) and runs it from 0 to DEMO_AMPS and back over
+#: DEMO_S. On a board nothing here touches the stage; the view shows
+#: whatever the drive is doing.
 DEMO_HZ = 0.14
 DEMO_AMPS = 30.0
 DEMO_S = 45.0
@@ -138,8 +133,7 @@ def watch(rig, args, layout, chain, params):
     """Draw it until Q, ESC or the frame count runs out."""
     origin = rig.origin
     demo = demo_machine(rig, origin)
-    # THE BAR FILLS THE WINDOW: at 38 columns the face floated in a sea of
-    # frame.
+    # The bar fills the window: at 38 columns the face floated in the frame.
     try:
         columns = os.get_terminal_size().columns
     except OSError:
@@ -154,9 +148,9 @@ def watch(rig, args, layout, chain, params):
     console = board_view.is_terminal
     leaving = None
 
-    # THE LINK IS THIS THREAD'S AND NOTHING ELSE'S.
+    # The link is this thread's alone.
     clock = {'at': 0.0, 'state': None, 'triggers': None, 'sweeps': 0.0}
-    # The library's own reader, sampled BEFORE the drain below empties it.
+    # The library's own reader, sampled before the drain below empties it.
     link = {'host': 0, 'peak': 0, 'dropped': 0, 'backlog': None,
             'rate': 0.0, 'reads': 0, 'records': 0, 'seen': 0, 'bits': 0.0,
             'at': 0.0, 'stride': layout.get('stride') or 0,
@@ -173,13 +167,13 @@ def watch(rig, args, layout, chain, params):
             # The buffer gauge moves slowly by construction, and this is a
             # whole round trip spent on it.
             _clocked(clock, rig, now)
-        # The level BEFORE the drain: after it every queue is empty by
+        # The level before the drain: after it every queue is empty by
         # construction and the gauge would read nothing on a task that is only
         # just keeping up.
         take_link(link, rig.buffered, now)
         for record in drain(rig):
             if len(inbox) >= HOST_RING:
-                # THE HOST'S OWN DROP, counted rather than hidden.
+                # The host's own drop, counted.
                 inbox.popleft()
                 host['dropped'] += 1
             inbox.append(record)
@@ -187,7 +181,7 @@ def watch(rig, args, layout, chain, params):
         host['peak'] = max(host['peak'], host['held'])
         return clock['state']
 
-    # NOT TIED TO THE FRAME RATE.
+    # Not tied to the frame rate.
     feed = Feed(read, period=0.01).start()
 
     def draw():
@@ -222,8 +216,8 @@ def watch(rig, args, layout, chain, params):
     try:
         leaving = run_view(board_view, console, period, args.frames, draw)
     finally:
-        # Stopped BEFORE anything puts the board back: two threads on one
-        # serial transport is the one thing this arrangement must not do.
+        # Stopped before anything puts the board back: never two threads on
+        # one serial transport.
         feed.stop()
         done = [('acquisition', 'task stopped')]
         rig.close()

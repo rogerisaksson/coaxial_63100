@@ -6,12 +6,12 @@ import struct
 import sys
 import zlib
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-from test_modbus_core import Report, build, find_cc          # noqa: E402
+from tools.cores.build import build, find_cc
 
+from test_modbus_core import Report
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-sys.path.insert(0, os.path.dirname(HERE))
 BOOT = os.path.join(REPO, 'boot')
 SOURCES = [os.path.join(BOOT, 'test', 'harness.c'),
            os.path.join(BOOT, 'src', 'boot_core.c'),
@@ -61,6 +61,8 @@ class Node:
 
     def took(self, op, payload=b''):
         got = self.op(op, payload)
+        if got is None:
+            return False, 'no reply'
         return (got[0] == 1, got[2:2 + got[1]].decode() if got[0] == 0 else '')
 
     def read(self, address, n):
@@ -492,7 +494,9 @@ class Bench:
         self.frames += 1
         if self.in_app:
             return self._app(unit, payload)
-        n, out = self._core(payload) if unit == self.lib.boot_h_unit() else (-1, None)
+        if unit != self.lib.boot_h_unit():
+            raise errors.NoReplyError('silence')
+        n, out = self._core(payload)
         if n == -1:
             raise errors.NoReplyError('silence')
         if n < 0:
@@ -560,7 +564,7 @@ def test_the_front_door_owns_the_image(report, node):
             said = _io.StringIO()
             try:
                 with contextlib.redirect_stderr(said):
-                    rig._board.probe = lambda: None
+                    rig._board.probe = lambda tries=3: {}
                     rig._own_image()
                 refused = None
             except RigError as exc:

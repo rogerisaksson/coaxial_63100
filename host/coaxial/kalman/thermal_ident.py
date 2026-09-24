@@ -17,7 +17,7 @@ UNCERTAIN, CONVERGING, STABLE = STATES
 #: Which the samples move, and what each starts believed to: the air
 #: path and the spread are what a situation or a layout can double, the
 #: laminate's capacity was measured, the thermistor's seat comes off the
-#: pick and place, and the room is ten kelvin either way - A WEIGHT: in
+#: pick and place, and the room is ten kelvin either way - a weight: in
 #: the Kalman step the prior decides who takes an innovation neither
 #: quantity predicted, and a room that steps 45 K must be able to take it.
 #: At three kelvin the room moved 0.6 K a gated sample and the air scale
@@ -59,7 +59,7 @@ EXCITATION_MIN = 1.0e-4     # below this the sample says nothing
 INNOVATION_FOLLOW = 0.2
 GATE_SIGMAS = 3.0
 #: A thermometer that moved less than this many floors since the seat is
-#: a STILL board - nothing burning, nothing moving - and its sample moves
+#: a still board - nothing burning, nothing moving - and its sample moves
 #: neither the quantities nor their covariance: at idle the readings
 #: agree with the shadow whatever the air scale or the room, and
 #: confidence from that would be confidence from silence.
@@ -162,7 +162,7 @@ def anchor(temps, ntc, cfg, power, seen, speed_rpm, since_s,
         held.add(node)
         edge = thermal.sink_edge(node)
         if edge is not None:
-            # THE NODE LAGS ITS PATCH: patch = node - P R + C R dT/dt.
+            # The node lags its patch: patch = node - P R + C R dT/dt.
             patch, r = thermal.EDGES[edge][1], cfg['edges'][edge]
             cap = cfg['capacity'].get(node, 0.0)
             rate = net[node] / cap if cap > 0.0 else 0.0
@@ -174,7 +174,7 @@ def anchor(temps, ntc, cfg, power, seen, speed_rpm, since_s,
     reading = seen.get('ntc')
     if not dies:
         return _anchor_degraded(temps, ntc, cfg, reading, k), False
-    # THE REST OF THE LAMINATE MOVES WITH THE DIES.
+    # The rest of the laminate moves with the dies.
     _pull_laminate(temps, cfg, held, k * common / dies)
     f = cfg.get('ntc_sees', thermal.NTC_SEES_DRIVERS)
     if reading is not None and f > 0.01:
@@ -199,7 +199,7 @@ def _lag_gain(cfg, since_s):
 
 
 def _anchor_ntc(temps, ntc, cfg, reading, f, held, k, since_s):
-    """THE THERMISTOR AGAINST THE ELEMENT AS MODELLED; the miss through the
+    """The thermistor against the element as modelled; the miss through the
     share and the lag, one for one at the leg.
     """
     miss = reading - ntc
@@ -311,8 +311,8 @@ class Identifier:
 
     def margin(self, floor=MARGIN_FLOOR):
         """`thermal_ident_margin`: the floor while the model is doubted
-        whole, one when not at all, the doubt between - continuous since
-        2026-09-06; it was three steps on the state.
+        whole, one when not at all, continuous in the doubt between
+        (2026-09-06).
         """
         f = _unit(floor)
         return f + (1.0 - f) * (1.0 - self.doubt())
@@ -481,7 +481,7 @@ class Identifier:
             return
         if ratio < RATIO_UNCERTAIN:
             return
-        # NOT PREDICTING, SO NOT SURE: the online quantities stay free.
+        # Not predicting, so not sure: the online quantities stay free.
         for k in range(PARAMS):
             floor = (FLOOR_SHARE[k] * PRIOR_SIGMA[k]) ** 2
             if ONLINE[k] and self.p[k][k] < floor:

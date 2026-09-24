@@ -5,7 +5,7 @@ palette, under the turning model. The register is the point, not the quotes:
 the bench struck the ship's-computer talk and the film's own lines as silly
 (2026-09-23).
 
-EVERY HARDWARE FACT IS THE BUS'S. The identity page is command 0x41 -
+Every hardware fact is the bus's. The identity page is command 0x41 -
 the unit's name, type, firmware, protocol, MCU and its own description
 line - and the fitment page is the parts list (0x6D kind 4), read once
 through a short session that is closed again so a view can have the
@@ -17,7 +17,7 @@ Claude, a local LLM with the board's tools over MCP at the bench - and
 the suites' size is read off `tests/.counts.json`, measured, or said to
 be unmeasured on this terminal.
 
-THE MOTION: a page types in at teletype pace, holds, and decays from
+A page types in at teletype pace, holds, and decays from
 the top row by row like phosphor before the next page ticks in -
 identity, fitment, provenance, round again - with a block cursor
 blinking throughout and a status row naming the inquiry. Nothing
@@ -25,13 +25,13 @@ scrolls mid-line and nothing jumps: a page longer than the box is
 split into as many inquiries as it takes.
 """
 import os
-import sys
 import textwrap
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from rich.text import Text
 
-from rich.text import Text  # noqa: E402
+from tools.dev import counts
+from tools.dev.suites import ROOT
 
 #: Characters a second while a page types in: a teletype, not a modem.
 CPS = 90.0
@@ -76,15 +76,11 @@ def suites_measured():
     and a tier runs a subset - so the readout says how many of the tree's
     suites this terminal has run.
     """
-    tests = os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), 'tests')
+    suites = counts.load().get('suites') or {}
     try:
-        sys.path.insert(0, tests)
-        import counts
-        suites = counts.load().get('suites') or {}
-        in_tree = len([f for f in os.listdir(tests)
+        in_tree = len([f for f in os.listdir(ROOT / 'tests')
                        if f.startswith('test_') and f.endswith('.py')])
-    except (OSError, ImportError, ValueError, AttributeError):
+    except OSError:
         return None
     if not suites:
         return None
@@ -100,15 +96,12 @@ def _leader(label, value, width, cols):
     value = str(value).upper()
     parts = textwrap.wrap(value, room) if room >= 6 else []
     if parts:
-        rows = [(('label', label + ' '), ('frame', dots + ' '),
-                 ('value', parts[0]))]
+        first = (('label', label + ' '), ('frame', dots + ' '), ('value', parts[0]))
         rest = textwrap.wrap(' '.join(parts[1:]), below) if parts[1:] else []
     else:
-        rows = [(('label', label + ' '), ('frame', dots))]
+        first = (('label', label + ' '), ('frame', dots))
         rest = textwrap.wrap(value, below)
-    for more in rest:
-        rows.append((('label', ' ' * (cols + 1)), ('value', more)))
-    return rows
+    return [first] + [(('label', ' ' * (cols + 1)), ('value', more)) for more in rest]
 
 
 def _said(text, width, style='name'):

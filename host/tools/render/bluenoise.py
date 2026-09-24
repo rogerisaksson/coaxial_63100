@@ -7,20 +7,20 @@ Void-and-cluster, Ulichney's method, on a 64 x 64 torus: start from a
 sparse random pattern, relax it by moving the tightest cluster to the
 largest void until that would undo itself, then rank every position -
 clusters removed downward from the initial count, voids filled upward
-from it - so that thresholding the ranks at ANY level gives an even,
+from it - so that thresholding the ranks at any level gives an even,
 structure-free pattern. The energy is a Gaussian (sigma 1.9) on the
 torus, taken through the FFT, which is why this wants numpy and the
 renderer, which only reads the file, does not.
 
-WHY A MASK AND NOT A MATRIX. The face was an 8 x 8 Bayer dither, and at
-a real window (150 x 44) its hierarchy showed: two-by-two clusters of
-dots that read as small square blocks across the board - "blocky as
-hell", the bench said, after the Bayer had replaced a sparser lattice
-that was blocky in its own way. Interleaved gradient noise and the R2
-sequence were rastered beside it: a regular diagonal screen, and a
-half-structured one. Blue noise has no structure at any density, and
-fixed in screen space it does not crawl when the board turns - the one
-thing error diffusion, the other structure-free dither, cannot offer.
+The face was an 8 x 8 Bayer dither, and at a real window (150 x 44) its
+hierarchy showed: two-by-two clusters of dots that read as small square
+blocks across the board - "blocky as hell", the bench said, after the
+Bayer had replaced a sparser lattice that was blocky in its own way.
+Interleaved gradient noise and the R2 sequence were rastered beside it:
+a regular diagonal screen, and a half-structured one. Blue noise has no
+structure at any density, and fixed in screen space it does not crawl
+when the board turns - the one thing error diffusion, the other
+structure-free dither, cannot offer.
 
 Deterministic: seeded, so the file is reproducible from this script.
 The renderer reads 4096 little-endian uint16 ranks, row-major.
@@ -29,12 +29,13 @@ import os
 import struct
 import sys
 
+from tools import HOST
+
 SIZE = 64
 SIGMA = 1.9
 SEED = 7
 START = SIZE * SIZE // 10
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                   'coaxial', 'graphics', 'bluenoise64.bin')
+OUT = os.path.join(HOST, 'coaxial', 'graphics', 'bluenoise64.bin')
 
 
 def ranks(n=SIZE, sigma=SIGMA, seed=SEED):

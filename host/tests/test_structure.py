@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Does `host/` still hold together? No board, no model, no network.
 
-Every check here is a defect that actually happened while moving code around:
+Every check here is a defect that happened while moving code around:
 a module that stopped importing, a name left behind in two files at once, a
 re-export that pointed nowhere, an import nothing used any more. The
 behavioural suites cannot see any of it - they import what they need and pass
@@ -13,18 +13,20 @@ Run it after editing anything under host/:
     python tests/test_structure.py
 """
 import ast
-import glob
 import builtins
+import glob
 import importlib
+import inspect
 import io
+import operator
 import os
 import re
 import sys
+import textwrap
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = os.path.dirname(HERE)
 REPO = os.path.dirname(HOST)
-sys.path.insert(0, HOST)
 
 # Packages this suite walks.
 PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'machine', 'testline', 'terminal')
@@ -117,7 +119,7 @@ def test_imports(r):
         try:
             importlib.import_module(name)
             r.check('%s imports' % name, True)
-        except Exception as exc:                              # noqa: BLE001
+        except Exception as exc:    # a module body can raise anything: each is a FAIL here
             r.check('%s imports' % name, False,
                     '%s: %s' % (type(exc).__name__, exc))
 
@@ -152,7 +154,7 @@ def test_no_cycles(r):
 
 
 def test_reexports(r):
-    """Every name debug.py says lives elsewhere actually does."""
+    """Every name debug.py says lives elsewhere does."""
     from coaxial_ollama import debug
     for name, where in sorted(debug._ELSEWHERE.items()):
         try:
@@ -160,7 +162,7 @@ def test_reexports(r):
             module = importlib.import_module('coaxial_ollama.' + where)
             r.check('debug.%s comes from %s' % (name, where),
                     getattr(module, name, None) is got)
-        except Exception as exc:                              # noqa: BLE001
+        except Exception as exc:    # a module body can raise anything: each is a FAIL here
             r.check('debug.%s comes from %s' % (name, where), False, str(exc))
     try:
         debug.no_such_name_at_all
@@ -236,7 +238,7 @@ def test_no_duplicate_definitions(r):
 
 def test_no_unused_imports(r):
     """An import nothing references. Left behind by every move."""
-    for path, text, tree in sources():
+    for path, _, tree in sources():
         if path.endswith('__init__.py'):
             continue        # re-exporting is what a package __init__ is for
         used = set()
@@ -246,17 +248,12 @@ def test_no_unused_imports(r):
             elif isinstance(node, ast.Attribute) and isinstance(node.value,
                                                                 ast.Name):
                 used.add(node.value.id)
-        lines = text.split('\n')
         brought = []
         for node in tree.body:
-            if not isinstance(node, (ast.Import, ast.ImportFrom)) or any(
-                    re.search(r'noqa:[^#]*F401', line)
-                    for line in lines[node.lineno - 1:node.end_lineno]):
-                continue        # a re-export says so on its line
             if isinstance(node, ast.Import):
                 brought += [a.asname or a.name.split('.')[0]
                             for a in node.names]
-            else:
+            elif isinstance(node, ast.ImportFrom):
                 brought += [a.asname or a.name for a in node.names]
         dead = [n for n in brought if n not in used]
         r.check('%s imports nothing it does not use' % path,
@@ -359,9 +356,8 @@ def test_shape(r):
     long_ones, deep_ones = [], []
     for path, _, tree in sources():
         for node in ast.walk(tree):
-            # AsyncFunctionDef too: it is not a subclass of FunctionDef, so the
-            # three async handlers in coaxial_mcp/server.py were exempt from
-            # both ceilings without anyone deciding they should be.
+            # AsyncFunctionDef too: it is not a subclass of FunctionDef, and
+            # coaxial_mcp/server.py has three async handlers.
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             lines = (node.end_lineno or node.lineno) - node.lineno + 1
@@ -421,9 +417,7 @@ def test_no_escaping_scars(r):
     """chr(10) and chr(92) where a literal belongs."""
     for path, text, tree in sources():
         if path.endswith(('replies.py', 'sandbox.py')):
-            continue        # these are *about* escaping: the first two by
-                            # their tests, the third because a backslash is
-                            # what a PDF literal string escapes with
+            continue        # both are about escaping
         scars = [w for w in ('chr(10)', 'chr(92)') if w in text]
         r.check('%s has no heredoc scars' % path, not scars, ', '.join(scars))
 
@@ -494,12 +488,15 @@ def _subsystems():
 
 
 def test_subsystem_calls_resolve(r):
-    """Every `board.X.y()` in this tree names a method X actually has."""
+    """Every `board.X.y()` in this tree names a method X has."""
     known = _subsystems()
 
     # The stand-in too, and by the same names.
+    from coaxial.rig import Coaxial63100, DaqView
     from coaxial.simulated import SimulatedSession
     stand_in = SimulatedSession().board
+    # On a rig, `.daq` is its DaqView, which hands the rest to the rig itself.
+    rig_views = {'daq': (DaqView, Coaxial63100)}
 
     wrong, missing = [], []
     for path, _, tree in sources():
@@ -512,10 +509,12 @@ def test_subsystem_calls_resolve(r):
             owner = call.value
             if not isinstance(owner, ast.Attribute) or owner.attr not in known:
                 continue
-            if not hasattr(known[owner.attr], call.attr):
+            on_board = hasattr(known[owner.attr], call.attr)
+            if not on_board and not any(hasattr(c, call.attr)
+                                        for c in rig_views.get(owner.attr, ())):
                 wrong.append('%s:%d %s.%s'
                              % (path, node.lineno, owner.attr, call.attr))
-            elif not hasattr(getattr(stand_in, owner.attr, None), call.attr):
+            elif on_board and not hasattr(getattr(stand_in, owner.attr, None), call.attr):
                 missing.append('%s:%d %s.%s'
                                % (path, node.lineno, owner.attr, call.attr))
 
@@ -616,6 +615,22 @@ OP_CLASSES = {'IMU': 'ImuOp', 'ANGLE': 'AngleOp', 'LINK': 'LinkOp',
 
 _NUMBER = re.compile(r'\b(0[xX][0-9a-fA-F]+|\d+(?:\.\d*)?(?:[eE][-+]?\d+)?)[uUlL]*[fF]?\b')
 
+_ARITH = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
+          ast.Div: operator.truediv, ast.UAdd: operator.pos, ast.USub: operator.neg}
+
+
+def _arith(node):
+    """A parsed expression of numbers and + - * /, evaluated; anything else raises."""
+    if isinstance(node, ast.Expression):
+        return _arith(node.body)
+    if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+        return node.value
+    if isinstance(node, ast.BinOp) and type(node.op) in _ARITH:
+        return _ARITH[type(node.op)](_arith(node.left), _arith(node.right))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _ARITH:
+        return _ARITH[type(node.op)](_arith(node.operand))
+    raise ValueError('not arithmetic: %s' % ast.dump(node))
+
 
 def _defines(rel):
     """`#define NAME <number or arithmetic>` in one C file, evaluated -
@@ -627,7 +642,7 @@ def _defines(rel):
             continue
         expr = _NUMBER.sub(r'\1', m.group(2).split('/*')[0].split('//')[0])
         if re.fullmatch(r'(0[xX][0-9a-fA-F]+|[\d.eE+\-*/() ])+', expr.strip()):
-            found[m.group(1)] = eval(expr)          # noqa: S307 - numbers only
+            found[m.group(1)] = _arith(ast.parse(expr.strip(), mode='eval'))
     return found
 
 
@@ -690,7 +705,7 @@ def test_mirrors_agree(r):
 #: in Python, and the two sequences held to each other: the C file and
 #: handler, the Python module, class and method. PROTOCOL.md describes the
 #: same shape in prose, which no parser holds; these two are what a wire
-#: actually crosses, and the C's own comments say what one moved offset
+#: crosses, and the C's own comments say what one moved offset
 #: costs every decoder.
 WIRE_SHAPES = (
     ('comms/src/cmd_gate_drivers.c', 'h_gate_drivers_state',
@@ -844,11 +859,9 @@ def _py_reads(module, cls, method):
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
                 and node.func.id == 'range'):
             arg = node.args[-1]
-            if isinstance(arg, ast.Constant):
-                return arg.value
-            if isinstance(arg, ast.Name) and hasattr(mod, arg.id):
-                return getattr(mod, arg.id)
-            return None
+            value = (arg.value if isinstance(arg, ast.Constant) else
+                     getattr(mod, arg.id, None) if isinstance(arg, ast.Name) else None)
+            return value if isinstance(value, int) else None
         if isinstance(node, (ast.Tuple, ast.List)):
             return len(node.elts)
         if isinstance(node, ast.Name) and hasattr(mod, node.id):
@@ -865,11 +878,13 @@ def _py_reads(module, cls, method):
         return None
 
     def function_reads(fn, reader_at, out, depth):
-        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
-        params = [a.arg for a in tree.body[0].args.args]
+        fn_def = ast.parse(textwrap.dedent(inspect.getsource(fn))).body[0]
+        if not isinstance(fn_def, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            raise ValueError('a reader this check cannot follow: %s' % fn)
+        params = [a.arg for a in fn_def.args.args]
         if params and params[0] == 'self':
             params = params[1:]
-        visit(tree.body[0], out, params[reader_at], depth + 1)
+        visit(fn_def, out, params[reader_at], depth + 1)
 
     def visit(node, out, reader, depth=0):
         if isinstance(node, (ast.For, ast.GeneratorExp, ast.ListComp, ast.DictComp)):
@@ -891,7 +906,10 @@ def _py_reads(module, cls, method):
                     and node.func.value.id == reader):
                 name = node.func.attr
                 if name == 'maybe':
-                    out.append(node.args[0].value)
+                    width = node.args[0]
+                    if not isinstance(width, ast.Constant):
+                        raise ValueError('a maybe() this check cannot size: %s' % reader)
+                    out.append(width.value)
                 elif name in _READS:
                     width = _READS[name]
                     if name in _WIDTH_ARG and node.args and isinstance(node.args[0], ast.Constant):
@@ -960,9 +978,6 @@ def test_wire_shapes_agree(r):
     """A reply's shape is one sequence of widths, written in C and read in
     Python, and the two are held to each other field by field.
     """
-    import inspect
-    import textwrap
-    globals()['inspect'], globals()['textwrap'] = inspect, textwrap
     for rel, func, module, cls, method in WIRE_SHAPES:
         wrote = _c_writes(rel, func)
         read = _py_reads(module, cls, method)
@@ -1335,9 +1350,9 @@ def _paper(path):
         wrong.append('no title cell')
     elif len(head) != 3 or not head[2]:
         wrong.append('the title cell is not a title and one line')
-    if len(cells) < 4 or said[1] != '## 1 Setup' or 'SIMULATED = ' not in said[2] \
-            or 'Coaxial63100(' not in said[3]:
-        wrong.append('Setup is not the knob and the open cell')
+    opens = len(said) > 3 and 'Coaxial63100(' in said[3]
+    if len(cells) < 4 or said[1] != '## 1 Setup' or 'SIMULATED = ' not in said[2]:
+        wrong.append('Setup is not the knob, and the open cell if it opens a device')
     headings = [s for k, s in zip(kinds, said) if k == 'markdown' and s.startswith('## ')]
     numbers = [h.split()[1] for h in headings if h[3].isdigit()]
     if numbers != [str(n) for n in range(1, len(numbers) + 1)]:
@@ -1352,8 +1367,9 @@ def _paper(path):
             if k == 'markdown' and len(s) > PROSE_MAX and not s.startswith('## References')]
     if long:
         wrong.append('%d markdown cells over %d characters: %s' % (len(long), PROSE_MAX, long[0]))
-    if not any(k == 'code' and 'device.close()' in s for k, s in zip(kinds, said)):
-        wrong.append('the device is never closed')
+    closes = any(k == 'code' and 'device.close()' in s for k, s in zip(kinds, said))
+    if opens != closes:
+        wrong.append('the device is never closed' if opens else 'a device closed, never opened')
     for k, c in zip(kinds, cells):
         if k != 'code':
             continue

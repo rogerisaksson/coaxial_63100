@@ -5,15 +5,14 @@ import os
 import random
 import sys
 
+from machine import parts
+from machine.controller import Feedback, Loop, Polled
+from machine.roles import Part
+from tools.cores.build import build, find_cc
+
+from test_modbus_core import Report
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.dirname(HERE))
-
-from test_modbus_core import Report, build, find_cc          # noqa: E402
-from machine import parts                                     # noqa: E402
-from machine.controller import Feedback, Loop, Polled         # noqa: E402
-from machine.roles import Part                                # noqa: E402
-
 REPO = os.path.dirname(os.path.dirname(HERE))
 CTRL = os.path.join(REPO, 'ctrl')
 SOURCES = [os.path.join(CTRL, 'test', 'harness.c'), os.path.join(CTRL, 'src', 'ctrl.c')]

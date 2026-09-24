@@ -269,7 +269,7 @@ void Board_AnglePoll(void)
     return;                        /* the host is configuring it */
   }
 
-  /* NOT DURING THE OBSERVER'S BORROW. */
+  /* Not during the observer's borrow. */
   if (Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
   {
     return;
@@ -327,8 +327,8 @@ void Board_AngleHold(void)
   s.state.loop = BOARD_ANGLE_LOOP_HELD;
 
   /* A hold hands the host a part that is up, the way the IMU's does: one
-     that landed before the bus was configured left every command after it
-     refused for a reason that had nothing to do with the part. */
+     that lands before the bus is configured leaves every later command
+     refused for a reason that has nothing to do with the part. */
   if (!s.ready && !Board_AngleInit())
   {
     note(BOARD_ANGLE_ERR_INIT);

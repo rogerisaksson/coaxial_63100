@@ -1,25 +1,21 @@
-"""The command line: what `dbg.py` and `board_chat` actually run."""
+"""The command line: what `dbg.py` and `board_chat` run."""
 import argparse
 import json
-import os
 import sys
 from contextlib import suppress
 
+from . import language
+from . import spinner as spin
 from .capability import choose, probe
+from .client import Ollama, OllamaError
+from .iolog import IOLog
+from .sandbox import Scope, Shell, clip, clip_ends
 from .tools import Toolbox
 from coaxial.comm import session as sessionmod
+from coaxial.errors import RigError
 from coaxial.simulated import SimulatedSession
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from . import language                               # noqa: E402
-from . import spinner as spin                        # noqa: E402
-from .client import Ollama, OllamaError              # noqa: E402
-from .iolog import IOLog                             # noqa: E402
-from .sandbox import Scope, Shell, clip, clip_ends   # noqa: E402
-from coaxial.errors import RigError                  # noqa: E402
-from coaxial_mcp import detail, render  # noqa: E402
-from coaxial_ollama.debug import Chat, _printable  # noqa: E402
+from coaxial_mcp import detail, render
+from coaxial_ollama.debug import Chat, _printable
 from coaxial_ollama.words import PROMPT
 
 
@@ -280,10 +276,8 @@ def _turn(chat, face, line):
         done = chat.command(line)
         if done is None:
             asked = True
-            # See tools.py's afe_power gate: set from the real question text,
-            # here rather than inside ask() itself, so a scripted test driving
-            # Chat.ask() directly keeps its old, permissive default instead of
-            # needing "afe" in every unrelated fixture question.
+            # tools.py's afe_power gate, set from the question here, not in
+            # ask(): a suite driving Chat.ask() keeps the permissive default.
             chat.toolbox.afe_mentioned = 'afe' in line.lower()
             chat.toolbox.asked = line
             # No note when the lock moves.
@@ -310,8 +304,7 @@ def repl(chat, hold=False):
     _greet(chat)
     try:
         while True:
-            # Read fresh every time, not captured once: /reconnect flips this
-            # mid-loop and the very next prompt is what should show it.
+            # Read per prompt: /reconnect flips it mid-loop.
             tag, tag_ok = chat.prompt_tag()
             face = spin.prompt(PROMPT, sys.stdout, lock=chat.print_lock,
                                ok=chat.link_ok, tag=tag, tag_ok=tag_ok)
@@ -330,12 +323,12 @@ def repl(chat, hold=False):
                 break
         print(chat.cost_line())
     finally:
-        # The 30-minute keep_alive that makes turn nine as quick as turn two is
-        # exactly wrong once there is no turn ten coming.
+        # The 30 min keep_alive serves a next turn and none comes: unload,
+        # unless --keep-alive was given.
         if hold:
             chat.io_log.close()
         else:
-            chat.close()               # unload AND the log - one definition
+            chat.close()               # unloads and closes the log
 
 
 def ensure_pulled(client, out, pull_with=None):
@@ -364,9 +357,8 @@ def _one_question(chat, question, extra, quiet):
 
 def main(argv=None):
     args = parse(argv)
-    # Before anything prints: every path out of here, including the error
-    # branches below, goes through a console that may not hold the alphabet the
-    # answer arrives in.
+    # Before anything prints, error branches included: the console may not
+    # hold the answer's alphabet.
     _printable(sys.stdin)
     _printable(sys.stdout)
     _printable(sys.stderr)
@@ -383,16 +375,13 @@ def main(argv=None):
         # use.
         print('ollama: %s' % exc, file=sys.stderr)
         return 2
-    # Real sessions only - build() itself is what dozens of tests call through,
-    # and none of them should write a file to do it.
+    # Real sessions only: suites call build() and write no file.
     chat.io_log = IOLog()
     # A typed sentence is the one input with ambiguity worth a second call.
     chat.compile_intent = not args.no_compile
     if args.simulated:
-        # Loud on purpose, before the model ever answers a thing: board_info
-        # says the same ("firmware": "simulated"), but a line here means nobody
-        # has to ask a tool first to find out these readings are invented, not
-        # measured.
+        # Said before the first answer; board_info says it too ("firmware":
+        # "simulated"), after a tool call.
         print('SIMULATED - no port opened, every board reading is invented',
               file=sys.stderr)
     interactive = args.repl or not question
@@ -424,9 +413,8 @@ def main(argv=None):
     finally:
         with suppress(RigError):
             session.close()
-        # Unconditional, and close() is idempotent: repl() closes on its own
-        # way out, but a one-shot question never enters repl() at all, and
-        # `python dbg.py` with no question enters it despite args.repl being
-        # False.
+        # Unconditional, close() is idempotent: a one-shot question never
+        # enters repl(), and `python dbg.py` with no question enters it with
+        # args.repl False.
         chat.io_log.close()
     return 0

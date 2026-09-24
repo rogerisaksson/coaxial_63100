@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """The serial link: ports, probing, diagnosis, recovery."""
+import io
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from coaxial.comm import ports
 
-from tests.ollama_support import (ConnectError, Scope, ScriptedModel,   # noqa: E402
-    SimulatedSession, _Held, _NotATty, call, detail, io, sessionmod, toolmod)
-from coaxial.comm import ports                                              # noqa: E402
+from ollama_support import (ConnectError, Scope, ScriptedModel,
+                            SimulatedSession, _Held, _NotATty, call, detail,
+                            run_file, sessionmod, toolmod)
 
 def test_power_check_cannot_halt(report):
     """Diagnosing the link must not be able to break it."""
@@ -186,8 +187,8 @@ def test_link_recovery(report):
         {'role': 'assistant', 'content': ''},
     ]), box, out=screen)
     talk.toolbox = box                      # the fake stands in for both
-    # Not a board order any more: board_switch intercepts that before the model
-    # is reached, and this needs a question that actually runs a turn.
+    # Not a board order: board_switch intercepts that before the model is
+    # reached, and this needs a question that runs a turn.
     answer = talk.ask('vad läser NTC:n?')
     whole = screen.getvalue() + chr(10) + answer
     report.check('one screen carries the checklist once, not twice',
@@ -200,7 +201,7 @@ def test_link_diagnose(report):
     """OS-level, not another board round trip - see tools.py's own docstring
     for why.
     """
-    import coaxial
+    from coaxial.devices import board as boardmod
     from tools.target import find_board
     import serial.tools.list_ports as list_ports
 
@@ -209,14 +210,14 @@ def test_link_diagnose(report):
             self.device = device
 
     real_comports = list_ports.comports
-    real_connect = coaxial.devices.board.connect
+    real_connect = boardmod.connect
     real_check_power = find_board.check_power
     real_port_state = find_board.port_state
     try:
         # Stubbed for the same reason as the other three: it opens a real port.
         find_board.port_state = lambda *a, **kw: ports.SILENT
         list_ports.comports = lambda: [FakePort('COM4'), FakePort('COM7')]
-        coaxial.devices.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
+        boardmod.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
         find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
 
@@ -234,7 +235,7 @@ def test_link_diagnose(report):
                      'COM4' in result2
                      and 'answers on COM4 right now: no' in result2, result2)
 
-        coaxial.devices.board.connect = lambda *a, **kw: []                # "answers"
+        boardmod.connect = lambda *a, **kw: []                # "answers"
         result2b = str(present.call('link_diagnose', {}))
         report.check('and a port that actually answers says the link is '
                      'up, not "silent" just because it exists',
@@ -289,11 +290,11 @@ def test_link_diagnose(report):
         report.check('and no SWD probe is spent on a session with no SWD',
                      not probed, '%d call(s)' % len(probed))
 
-        # Step 4's closing advice used to open with "Powered" whatever step 1
-        # concluded - on a pulled cable, asserting the one thing that was false
-        # and pointing at a busy port and a halted core instead.
+        # Step 4's closing advice once opened with "Powered" whatever step 1
+        # concluded: on a pulled cable it asserted the one thing that was
+        # false and pointed at a busy port and a halted core instead.
         list_ports.comports = lambda: [FakePort('COM4')]
-        coaxial.devices.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
+        boardmod.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
         find_board.check_power = lambda timeout=15: (None, 'fake: unknown')
         unsure = toolmod.Toolbox(sessionmod.Session(port='COM4', baud=115200, unit=1))
@@ -339,7 +340,7 @@ def test_link_diagnose(report):
              build_and_flash.toolchain_path) = was
     finally:
         list_ports.comports = real_comports
-        coaxial.devices.board.connect = real_connect
+        boardmod.connect = real_connect
         find_board.check_power = real_check_power
         find_board.port_state = real_port_state
 
@@ -387,8 +388,8 @@ def test_fallback(report):
                  session.board.afe.state()['on']
                  and session.board.gpio.port_read('B') & (1 << 2))
 
-    # link_diagnose's step 4 opened the port a second time to ask whether the
-    # board answers - while the session held it open.
+    # link_diagnose's step 4 once opened the port a second time to ask whether
+    # the board answers, while the session held it open.
     class Held(sessionmod.Session):
         """A session holding an open link - the real class, the link
         handed in."""
@@ -470,7 +471,7 @@ def test_fallback(report):
             ('vad är debugproben?', None),
             ('vilket läge är du i?', None),
             ('vet du om kortet svarar?', None),
-            #...and so does a second request the host cannot carry out.
+            # So does a second request the host cannot carry out.
             ('byt till simulerat läge och läs NTC:n', None),
             ('byt till proben och mät NTC:n', None),
             ('byt språk till svenska', None),
@@ -491,7 +492,7 @@ def test_fallback(report):
                                         'errors': 'replace'},
                  str(_NotATty.asked))
 
-    #...and it reaches the swap, without a model turn.
+    # The order reaches the swap without a model turn.
     ordered = debug.Chat.__new__(debug.Chat)
     ordered.toolbox = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     ordered.origin, ordered.link_ok = ('Simulated', False), False
@@ -660,9 +661,9 @@ def test_pull_draws_the_daemons_numbers(report):
                {'status': 'writing manifest'}, {'status': 'success'}]
 
     def scripted():
-        # A second an EVENT, read as often as the code likes: the clock is how
-        # many events have been handed over, so a rate is bytes an event and
-        # the estimate follows from it.
+        # One second an event, read as often as the code likes: the clock is
+        # how many events have been handed over, so a rate is bytes an event
+        # and the estimate follows from it.
         tick = [0.0]
 
         def stream():
@@ -784,7 +785,7 @@ def test_pull_draws_the_daemons_numbers(report):
                  and 'llama-server binary not found' in page
                  and 'install.ps1' in page)
 
-    # THE CHOOSER'S CHAT PAGE PULLS ON ITS BOOT STRIP.
+    # The chooser's chat page pulls on its boot strip.
     from terminal.views import show_chat
     text = io.open(os.path.join(host, 'terminal', 'views', 'show_chat.py'),
                    encoding='utf-8').read()
@@ -835,5 +836,4 @@ ROSTER = (
 
 
 if __name__ == '__main__':
-    from tests.ollama_support import run_file
     sys.exit(run_file(ROSTER))

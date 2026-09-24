@@ -7,14 +7,14 @@ import subprocess
 import sys
 import threading
 import time
+from contextlib import suppress
+from typing import Any
 
 from coaxial import errors
-from coaxial.comm import ports, protocol
-from coaxial.errors import NoReplyError, RigError
 from coaxial.acquire.fanout import Fanout
+from coaxial.comm import ports, protocol
 from coaxial.comm.transport import Transport, hand_to_binary
-from typing import Any
-from contextlib import suppress
+from coaxial.errors import NoReplyError, RigError
 
 #: Loopback only. The board is a bench instrument on somebody's desk, and a
 #: broker on 0.0.0.0 is that desk's power stage on the network.
@@ -33,8 +33,8 @@ CONNECT_S = 1.0
 #: Where the broker says what it is serving, so a client can name the port it
 #: ended up on rather than guessing. Beside the session snapshot, and removed
 #: on the way out.
-HOST = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-WHERE = os.path.join(HOST, 'tools', '.session.addr')
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # host/
+WHERE = os.path.join(ROOT, 'tools', '.session.addr')
 
 
 def _line(payload):
@@ -45,7 +45,7 @@ def _rebuild(answer):
     """The exception the far side raised, as itself."""
     kind = getattr(errors, answer['error'], errors.RigError)
 
-    # By FIELD, not by args: ModbusException formats its message in __init__,
+    # By field, not by args: ModbusException formats its message in __init__,
     # so `args` is that one string and rebuilding from it gets `missing 2
     # required positional arguments`.
     fields = answer.get('fields') or {}
@@ -89,7 +89,12 @@ class BrokerTransport:
                 'the session broker closed the connection - it was serving '
                 '%s and is not there now' % self.port)
 
-        answer = json.loads(raw.decode('utf-8'))
+        try:
+            answer = json.loads(raw.decode('utf-8'))
+        except ValueError:
+            raise errors.NoReplyError(
+                'the session broker sent half a reply - it was serving %s'
+                % self.port) from None
         if 'error' in answer:
             raise _rebuild(answer)
         return answer
@@ -97,7 +102,7 @@ class BrokerTransport:
     def request(self, unit, function, payload=b'', exact_payload=None,
                 timeout=None, reply_shape=None):
         # `reply_shape` is a plain dict for this reason: the saving it buys is
-        # on the OTHER side of this socket, where the serial port is, so it has
+        # on the other side of this socket, where the serial port is, so it has
         # to survive the trip as JSON.
         got = self._ask({'op': 'request', 'unit': unit, 'function': function,
                          'payload': bytes(payload).hex(),
@@ -130,12 +135,20 @@ class BrokerTransport:
         return None
 
     def answers(self, unit=1):
-        """Whether the BOARD behind the broker replies."""
+        """Whether the board behind the broker replies."""
         return bool(self._ask({'op': 'answers', 'unit': unit})['answers'])
+
+    def clients(self):
+        """How many sessions are using the broker."""
+        return self._ask({'op': 'clients'})['clients']
+
+    def stand_down(self):
+        """Ask the broker to give the port back: DeviceStateError if in use."""
+        self._ask({'op': 'stand_down'})
 
     @property
     def is_open(self):
-        """Whether this CLIENT is still connected. Always False here."""
+        """Whether this client is still connected. Always False here."""
         return False
 
     def close(self):
@@ -146,22 +159,22 @@ class BrokerTransport:
 
 
 class _Handler(socketserver.StreamRequestHandler):
-    """One client, one line at a time. The lock is the whole design."""
+    """One client, one line at a time, every wire op under the server's lock."""
 
     server: '_Server'
     def setup(self):
         socketserver.StreamRequestHandler.setup(self)
-        # A LOOK IS NOT A USE.
+        # A look is not a use.
         self.uses = False
 
     def finish(self):
-        # THE COUNT COMES DOWN FIRST.
+        # The count comes down first.
         try:
             last = self._release()
         finally:
             with suppress(OSError):
                 socketserver.StreamRequestHandler.finish(self)
-        # THE LAST SESSION TAKES IT DOWN - after a linger.
+        # The last session takes it down, after `linger`.
         if last and self.server.until_idle:
             threading.Thread(target=self._stand_down_when_idle,
                              daemon=True).start()
@@ -196,7 +209,7 @@ class _Handler(socketserver.StreamRequestHandler):
                 message = json.loads(raw.decode('utf-8'))
             except ValueError:
                 message = None
-            if message is None:
+            if not isinstance(message, dict):
                 answer = {'error': 'RigError', 'message': 'not a request'}
             else:
                 answer = self._answer(message)
@@ -213,13 +226,14 @@ class _Handler(socketserver.StreamRequestHandler):
         try:
             return self._do(served, op, message)
         except errors.RigError as exc:
-            # The class name AND its arguments, so the client raises what it
+            # The class name and its arguments, so the client raises what it
             # would have raised in-process.
             return {'error': type(exc).__name__, 'message': str(exc),
                     'fields': {k: v for k, v in vars(exc).items()
                                if isinstance(v, (int, str))}}
-        except Exception as exc:          # noqa: BLE001 - the server's edge:
-            # the client gets whatever a request raised, as an error
+        except Exception as exc:
+            # The server's edge: whatever a request raised goes back to the
+            # client in words, and the broker keeps serving.
             return {'error': 'RigError',
                     'message': '%s: %s' % (type(exc).__name__, exc)}
 
@@ -247,7 +261,7 @@ def _clients(served, message):
 
 
 def _answers(served, message):
-    """A LOOK, NOT A USE - the staleness check asks this before it commits
+    """A look, not a use: the staleness check asks this before it commits
     `auto` to a real port, and whoever asks whether the board is there
     must not become the last one out.
     """
@@ -349,12 +363,12 @@ class _Server(socketserver.ThreadingTCPServer):
     #: enough to hop between menu views; short enough that the port frees
     #: itself within a minute of real abandonment. Zero in the tests, so
     #: one test's broker cannot linger on the port and answer the next
-    #: test's clients - which it did, and the suite said so. stand_down
-    #: stays immediate for whoever asks for the port by name.
+    #: test's clients. stand_down stays immediate for whoever asks for the
+    #: port by name.
     linger = 45.0
 
-    #: The shared ring, and the thread that fills it. ONE READER OF THE
-    #: BOARD, many readers of the ring: the link is a single wire and a
+    #: The shared ring, and the thread that fills it. One reader of the
+    #: board, many readers of the ring: the link is a single wire and a
     #: second drainer would take records the first never sees, so the
     #: broker drains it once and every client reads its own way through
     #: `coaxial.acquire.fanout` from its own cursor.
@@ -444,7 +458,7 @@ def _stream_loop(served, stop):
 
     payload = bytes([protocol.DEVICE_DAQ, 4, 0])
     stride = served.fanout.stride
-    # THE UNIT THE CLIENT ASKED FOR, not 1.
+    # The unit the client asked for, not 1.
     unit = served.stream_unit
     idle = 0.002
     while not stop.is_set():
@@ -465,10 +479,12 @@ def _stream_loop(served, stop):
             stop.wait(idle)
 
 
-def serving():
-    """What a running broker says it is serving, or None. Does not connect."""
+def serving(where=None):
+    """What the address file `where` (as `serve`) says is served, or None.
+    Does not connect.
+    """
     try:
-        with open(WHERE, encoding='utf-8') as handle:
+        with open(where or WHERE, encoding='utf-8') as handle:
             return json.load(handle)
     except (OSError, ValueError):
         return None
@@ -480,7 +496,7 @@ def clients(address=(HOST, PORT)):
     if reached is None:
         return None
     try:
-        return reached._ask({'op': 'clients'})['clients']   # noqa: SLF001
+        return reached.clients()
     finally:
         reached.close()
 
@@ -492,7 +508,7 @@ def stand_down(address=(HOST, PORT), wait=5.0):
     if reached is None:
         return True
     try:
-        reached._ask({'op': 'stand_down'})                  # noqa: SLF001
+        reached.stand_down()
     except errors.RigError:
         # It says no by refusing, and this function answers `did it`.
         return False
@@ -525,12 +541,12 @@ def _kind(port):
 def spawn(port, baud=115200, wait=8.0):
     """Start a broker for `port` in its own process. True if it came up."""
 
-    script = os.path.join(HOST, 'tools', 'target', 'session.py')
+    script = os.path.join(ROOT, 'tools', 'target', 'session.py')
     try:
-        subprocess.Popen(                                # noqa: S603
+        subprocess.Popen(
             [sys.executable, script, '--port', port, '--baud', str(baud)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            cwd=HOST)
+            cwd=ROOT)
     except OSError:
         return False
 
@@ -544,8 +560,11 @@ def spawn(port, baud=115200, wait=8.0):
 
 
 def serve(port, baud=115200, address=(HOST, PORT), transport=None,
-          until_idle=True, linger=45.0):
-    """Own the port and answer for it until interrupted."""
+          until_idle=True, linger=45.0, where=None):
+    """Own the port and answer for it until interrupted, saying so in the
+    address file `where` (None: WHERE, read at the call).
+    """
+    where = where or WHERE
     handed = transport is not None
     if not handed:
         transport = Transport(port, baud)
@@ -559,8 +578,8 @@ def serve(port, baud=115200, address=(HOST, PORT), transport=None,
     quiet = threading.Event()
     threading.Thread(target=server.tick, args=(quiet,), daemon=True).start()
 
-    # The KIND too - debug probe or RS485.
-    with open(WHERE, 'w', encoding='utf-8') as handle:
+    # The kind too: debug probe or RS485.
+    with open(where, 'w', encoding='utf-8') as handle:
         json.dump({'serial': port, 'pid': os.getpid(), 'kind': _kind(port),
                    'host': address[0], 'tcp': address[1]}, handle)
     try:
@@ -571,4 +590,4 @@ def serve(port, baud=115200, address=(HOST, PORT), transport=None,
         if not handed:
             transport.close()
         with suppress(OSError):
-            os.remove(WHERE)
+            os.remove(where)

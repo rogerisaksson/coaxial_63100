@@ -32,8 +32,9 @@ print('the stage reads DTG %d = %d ns, %.1fx the record\\'s 33.7 ns'
     section(
         'Arming, and what refuses first',
         md('Three refusals before the FETs: MOE (`on()` sets it), the interlock (Cinj and '
-           'Clevel want 3 V; the bench board reads 0.77 and 0.06 V, the stand-in 0.97 and '
-           '0.04: `ignore_interlock=True`), the break on PE15 (`bypass_sto=True`).'),
+           'Clevel want 3 V; the bench board reads 0.77 and 0.06 V, 2026-08-27: '
+           '`ignore_interlock=True`), the break on PE15 (`bypass_sto=True`). The interlock '
+           'reads through AFE_ON, which `daq.enable()` holds.'),
         code('''import textwrap
 
 from coaxial.errors import RigError
@@ -72,8 +73,8 @@ gd.write((tenth, 0, 0), periods=500)
 snap = gd.state()
 for key in ('period', 'deadtime', 'deadtime_ns', 'duty', 'requested_ticks', 'pins',
             'pins_at', 'periods_left', 'updates', 'overruns', 'keepalive',
-            'worst_gap_cycles', 'gate_shorts', 'break_bypassed', 'dcbus_raw', 'ntc_raw'):
-    print('%-16s %s' % (key, snap.get(key, 'not in this reply')))
+            'worst_gap_cycles', 'gate_shorts', 'break_bypassed'):
+    print('%-16s %s' % (key, snap[key]))
 time.sleep(0.05)
 after = gd.state()
 print()
@@ -115,14 +116,14 @@ from coaxial.draw.figures import figure, show
 device.set_time_from_pc()
 print('tare:', device.calibration.tare('phaseU', 'phaseV', 'phaseW'))
 burst = daq.capture('phaseU', 'phaseV', 'phaseW', records=300)
-shape = daq.state()
+task_state = daq.state()
 df = daq.frame(burst, index='elapsed', scaled=True)
 amps = [c for c in df.columns if c.endswith('(A)')]
 gates = [c for c in df.columns if c.startswith('TIM1_CH')]
 spans = [r.dt for r in burst if r.dt]
 print('%d records, dropped %d, %.3f s of window; dt %.0f us to %.0f us; the ring holds %d'
-      % (len(burst), shape['dropped'], df.index[-1], min(spans) * 1e6, max(spans) * 1e6,
-         shape['capacity']))
+      % (len(burst), task_state['dropped'], df.index[-1], min(spans) * 1e6, max(spans) * 1e6,
+         task_state['capacity']))
 noise = df[amps].std()
 for column in amps:
     print('%-12s mean %+.3f A  rms %.3f A' % (column, df[column].mean(), noise[column]))
@@ -259,7 +260,7 @@ print('5. keepalive    %d edges, worst gap %d cycles = %.1f us'
       % (snap['keepalive'], snap['worst_gap_cycles'], snap['worst_gap_cycles'] / 475.0))
 print('6. burst        %d records, dropped %d, %.3f s; %d current columns, %d gate columns; '
       'noise %.2f to %.2f A rms against %s measured'
-      % (len(burst), shape['dropped'], df.index[-1], len(amps), len(gates),
+      % (len(burst), task_state['dropped'], df.index[-1], len(amps), len(gates),
          noise.min(), noise.max(), inverter.NOISE_A))
 print('7. output charge  Coss %.2f to %.2f nF, E_oss %.2f to %.2f uJ over 23 to 63 V; '
       'six switches %.2f W at 63 V' % (inverter.coss(63.0) * 1e9, inverter.coss(23.0) * 1e9,
@@ -282,7 +283,7 @@ print()
 print('MEASURED on this board:')
 print('   NOISE_A            %s A rms, the phase noise floor' % (inverter.NOISE_A,))
 print('   T_DEAD             %.1f ns, DTG 8, trimmed against the supply OCP' % (inverter.T_DEAD * 1e9))
-print('   switching          1.20 W, three legs 50 % at 24.6 V, the camera campaign')
+print('   switching          %.2f W, three legs 50 %% at 24.6 V, the camera campaign' % (2.0 * bridge))
 print('TRACED from the schematic:')
 print('   SHUNT              %.1f mohm, two 7 mohm in parallel' % (inverter.SHUNT * 1e3))
 print('   AFE_V_PER_A        %.3f V/A, 4.5455 V/V x the shunt' % inverter.AFE_V_PER_A)
@@ -296,8 +297,9 @@ print('   Q_RING             %.1f, the ring damping' % inverter.Q_RING)
 print('   L_LOOP             %.1f nH, 0.25 nH/mm over the layout' % (inverter.L_LOOP * 1e9))'''),
     md('- Dead-time error at 43 V: 0.072 V at DTG 8, 0.170 V at DTG 19; knee 10.3 A vs 4.4 '
        'A.\n- 500 periods = 10.000 ms; no snapshot in twelve showed both FETs of a leg '
-       'on.\n- Blanking margin at 63 V 152.7 ns - a design figure until TODO 6 measures '
-       "Q_RING.\n- Coss ~60 % of the bridge's 0.6 W; E_oss(63)/E_oss(24.6) ~ V^1.55."),
+       'on.\n- Blanking margin at 63 V 152.7 ns - a design figure until the TODO\'s scope '
+       "trace measures Q_RING.\n- Coss ~60 % of the bridge's 0.6 W; E_oss(63)/E_oss(24.6) = "
+       '4.37 ~ V^1.57.'),
 ]
 
 BENCH = ("A loaded record answers DTG 8; the drivers need the STO chain's supply. Phase "
@@ -309,7 +311,7 @@ REFERENCES = [
     ('host/coaxial/model/inverter.py', 'the traced constants and the arithmetic on them: `coss`, `ring`, `blanking`, `knee_amps`, `dt_table`'),
     ('host/coaxial/simulated/power.py', 'the stand-in this ran on: DTG 19, the walking counter, the counted hold on wall time'),
     ('board/src/board_pwm.c', 'TIM1 on the board: MOE, the update ISR\'s counted hold, the gate short probe'),
-    ('docs/HARDWARE.md', 'the dead time and its tension, the STO chain, the inverter constants, the loss terms'),
+    ('docs/HARDWARE.md', 'the gate stage and its dead time, the STO chain and its 0.77 / 0.06 V, where the inverter constants come from'),
     ('docs/FINDINGS.md', 'the OCP trip at 7 counts, the 93 to 108 ms hold, the gate short probe, the camera states'),
     ('host/tests/test_sensorless.py', 'the design arithmetic pinned: `coss` and `qoss` consistent, the blanking margin positive over the sweep'),
 ]

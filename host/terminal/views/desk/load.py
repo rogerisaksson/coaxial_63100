@@ -50,34 +50,18 @@ def duties_from(records):
 #: does - which is the point of showing both.
 HOST_RING = 2048
 
-#: How much of what the board says it can carry a task actually asks
-#: for. A ring produced at exactly the drain rate overflows on the first
-#: slow read; `bessel.for_link` uses the same 0.8 for the same reason.
-#: What a task asks for against what the board says it carries. OVER
-#: ONE on purpose: the board should stay a little ahead of the link
-#: so every read finds a full reply and the ring absorbs the rest.
-#: Measured at ten channels and stride 55, ring flat and nothing
-#: dropped: 0.8 held 39% of the line, 1.2 held 56%, 1.45 held 65% and
-#: 2.5 holds 73%. Higher asks buy throughput by taking DECIMATION out
-#: - ratio 7, then 4, then 2 - and two is the floor: at one there is
-#: nothing left for the chain to shape. The passband follows the rate
-#: that actually comes out (see `bessel.design`), so this cannot buy
-#: speed by putting the cutoff above Nyquist, which is what it did
-#: before that was fixed.
+#: What a task asks for against what the board says it carries. Over one
+#: on purpose: the board stays a little ahead of the link so every read
+#: finds a full reply and the ring absorbs the rest (`bessel.for_link`
+#: keeps 0.8: a ring produced at exactly the drain rate overflows on the
+#: first slow read). Measured at ten channels and stride 55, ring flat
+#: and nothing dropped: 0.8 held 39% of the line, 1.2 held 56%, 1.45
+#: held 65% and 2.5 holds 73%. A higher ask buys throughput by taking
+#: decimation out - ratio 7, then 4, then 2 - and two is the floor: at
+#: one there is nothing left for the chain to shape. The passband follows
+#: the rate that comes out (`bessel.design`), so the cutoff cannot go
+#: above Nyquist.
 LINK_SHARE = 2.5
-
-#: Sweeps a record below which the anti-alias chain would cost more
-#: link than it is worth - the loop spends N sweeps for one record
-#: and those sweeps come off the link, because sampling and the
-#: Modbus handler share main(). Not reached since the board started
-#: sampling while the UART drains, which took the loop from 380 to
-#: 1880 sweeps/s and left plenty to decimate.
-MIN_OVERSAMPLE = 4.0
-
-#: How far ahead of the link the board is asked to run when nothing
-#: is gating it. Measured: 2x gave 53% of the line, 4x 63%, 6x 68%,
-#: 10x nothing more - the transaction floor is what is left.
-RUN_AHEAD = 6.0
 
 
 def sweep_rate(rig, records=300, timeout=6.0):
@@ -122,7 +106,7 @@ def load(rig, args, sweeps, rate):
     try:
         chain = bessel.design(fs=sweeps, out_rate=rate, order=args.order)
     except ValueError:
-        # A CHAIN NEEDS A RATE TO BE DESIGNED AGAINST.
+        # A chain needs a rate to be designed against.
         return rig.configure(sample_rate=rate, digital=True), None
     layout = rig.configure(accumulate=chain['boxcar'], digital=True)
     rig.shape(chain['sections'], chain['decimate'])
@@ -132,21 +116,20 @@ def load(rig, args, sweeps, rate):
 
 def plan(rig, args):
     """Measure what the loop gives, design the low-pass for it, load it."""
-    # TAKING THE BOARD OVER STARTS BY TAKING IT OVER.
     rig.stop()
     sweeps = sweep_rate(rig)
-    # WHAT THE LINK CARRIES, NOT WHAT THE SCREEN DRAWS.
+    # What the link carries, not what the screen draws.
     carries = (rig.state() or {}).get('max_rate_hz') or 0
     rate = args.rate if args.rate > 0 else carries * LINK_SHARE
     if rate <= 0:
         rate = max(1.0, args.hz)
 
-    # A CHAIN ONLY EARNS ITS KEEP ON OVERSAMPLING.
+    # A chain only earns its keep on oversampling.
     layout, chain = load(rig, args, sweeps, rate)
     if chain is None:
         return layout, chain
 
-    # ONE REDESIGN, AGAINST THE LOOP IT WILL RUN IN.
+    # One redesign, against the loop it will run in.
     live, made, drift, per_read = under_load(rig)
     off = live and abs(live - sweeps) > 0.2 * sweeps
     fresh = load(rig, args, live, rate) if off else (None, None)
@@ -188,7 +171,7 @@ def take_link(link, seen, now):
     elif now - link['at'] > 0.2:
         since = now - link['at']
         link['rate'] = (seen['reads'] - link['reads']) / since
-        # WHAT ACTUALLY GOES DOWN THE WIRE, not the records' own size: a
+        # What goes down the wire, not the records' own size: a
         # record's bytes plus the transaction around it - unit, function, the
         # count byte, the backlog and the CRC - and ten bits a byte, because
         # 8N1 sends a start and a stop with every one.

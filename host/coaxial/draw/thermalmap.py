@@ -9,7 +9,7 @@ import sys
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N
 from machine import ansi
 
-#: Board dimensions, RADII in millimetres: 100 mm across with a 10 mm bore,
+#: Board dimensions, radii in millimetres: 100 mm across with a 10 mm bore,
 #: confirmed 2026-08-29. `electronics/` is the authority on the rest.
 OUTER_MM = 50.0
 BORE_MM = 5.0
@@ -168,7 +168,7 @@ def frame(refs, margin=FRAME_MM):
 
 def label_at(box, where, label):
     """Where a label's centre goes, millimetres, for a frame `box` and a
-    placement: `bottom` or `top` ON the frame's line, `inside`, `above`,
+    placement: `bottom` or `top` on the frame's line, `inside`, `above`,
     `below`, `left`, `right` beside it, or a point."""
     if isinstance(where, tuple):
         return where
@@ -191,9 +191,9 @@ CELL = '  '
 #: and drew the board flat.
 RAMP = '.,:;~-=+ic*xX#$%8W@'
 
-#: The bar and its tick labels. Counted by the caller, so it is named.
-#: Lines the scale spends BELOW the picture: none since 2026-08-30 -
-#: it rides beside the board as a vertical rail, hottest at the top.
+#: Lines the scale - the bar and its tick labels - spends below the
+#: picture, counted by the caller: none since 2026-08-30, as it rides
+#: beside the board as a vertical rail, hottest at the top.
 SCALE_LINES = 0
 
 #: The halftone's range, the share of a cell's dots lit at the ramp's cold and
@@ -260,7 +260,7 @@ def field(x_mm, y_mm, board_c, nodes, layout=None):
         over = value - got
         if abs(over) < 1e-6:
             continue
-        # STRONGEST point in the zone, not the sum of them.
+        # The strongest point in the zone, not the sum of them.
         near = 0.0
         for sx, sy, sigma in spots:
             d2 = (x_mm - sx) ** 2 + (y_mm - sy) ** 2
@@ -274,7 +274,7 @@ def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     per_cell = 2.0 * OUTER_MM / cells
     bore = max(BORE_MM, BORE_MIN_CELLS * per_cell)
 
-    # THE GRID IS NOT SQUARE, and that is the point.
+    # Not square: rows `aspect` times the column pitch apart.
     down = max(4, int(round(cells / aspect)) // 2 * 2)
     per_row = 2.0 * OUTER_MM / down
 
@@ -306,7 +306,7 @@ def _fit(colour, reserve, margin=0):
     else:
         wide, high = columns // 2, rows
 
-    # EVEN.
+    # An even count.
     return max(10, min(CELLS_MAX, min(wide, high))) // 2 * 2
 
 
@@ -351,7 +351,7 @@ def _cell_rect(box, cells, down, dx, dy):
 
 
 def _share_edges(rects, lanes):
-    """Two frames side by side SHARE THE LINE between them: where one's
+    """Two frames side by side share the line between them: where one's
     right edge and the other's left land within a cell column of each
     other, the second is drawn on the first's column, in the first's lane
     - one line, not two a dot apart into a solid column, nor two a cell
@@ -367,7 +367,7 @@ def _share_edges(rects, lanes):
 
 
 def _draw_frame(rows, rect, lane, cells, down):
-    """A frame SNAPPED TO THE CELL GRID: drawn as lines through its cells'
+    """A frame snapped to the cell grid: drawn as lines through its cells'
     dots - FRAME_TOP and FRAME_BOTTOM across, a lane down each side - so
     every corner is a right angle and every side a straight run.
     """
@@ -381,7 +381,7 @@ def _draw_frame(rows, rect, lane, cells, down):
 
     for c in range(c0, c1 + 1):
         for which in (0, 1):
-            # THE LINE STARTS AT THE SIDE'S LANE, not at the corner cell's
+            # The line starts at the side's lane, not at the corner cell's
             # edge.
             if (c == c0 and which < lane[0]) or (c == c1 and which > lane[1]):
                 continue
@@ -389,7 +389,7 @@ def _draw_frame(rows, rect, lane, cells, down):
             mark(r1, c, which, FRAME_BOTTOM)
     for r in range(r0, r1 + 1):
         for y in range(4):
-            # The corner starts AT the line, not above or below it.
+            # The corner starts at the line, not above or below it.
             if (r == r0 and y < FRAME_TOP) or (r == r1 and y > FRAME_BOTTOM):
                 continue
             mark(r, c0, lane[0], y)

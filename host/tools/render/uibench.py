@@ -2,26 +2,24 @@
 """Frame-cost benchmark for the stage: what each surface costs to draw.
 
 Two numbers per surface, measured separately because they bound different
-things: COMPOSE is building the renderable (data formatting, the 3D
-raster), PRINT is rich rendering it to a styled 110x40 terminal buffer.
+things: compose is building the renderable (data formatting, the 3D
+raster), print is rich rendering it to a styled 110x40 terminal buffer.
 Their sum is the frame floor; the achievable rate is 1/sum.
 
     python tools/render/uibench.py            # everything
     python tools/render/uibench.py menu       # one surface
 """
 import io
-import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from rich.console import Console
 
-from rich.console import Console  # noqa: E402
+from coaxial.draw import dial, orientation, thermalmap
+from coaxial.graphics import wireframe
+from terminal import menu
+from terminal.ui.stage import THEME
 
-from coaxial.draw import dial, orientation, thermalmap  # noqa: E402
-from coaxial.graphics import wireframe  # noqa: E402
-from terminal import menu  # noqa: E402
-from terminal.ui.stage import THEME  # noqa: E402
 
 def timed(fn, seconds=1.0):
     """Mean milliseconds per call over `seconds` of calling it."""

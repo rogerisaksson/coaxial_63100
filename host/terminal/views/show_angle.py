@@ -18,16 +18,14 @@ import sys
 import time
 from contextlib import suppress
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial.devices import angle  # noqa: E402
-from coaxial.draw import dial  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from machine import ansi  # noqa: E402
-from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui import aspect as _aspect, screen as _screen  # noqa: E402
-from terminal.ui.screen import Freshness, closing, open_rig, run_view, say, steady  # noqa: E402
-from terminal.ui.stage import frame_of, hud, stage  # noqa: E402
+from coaxial.devices import angle
+from coaxial.draw import dial
+from coaxial.errors import RigError
+from machine import ansi
+from terminal.loader import TO_MENU
+from terminal.ui import aspect as _aspect, screen as _screen
+from terminal.ui.screen import Freshness, closing, open_rig, run_view, say, steady
+from terminal.ui.stage import frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -35,27 +33,25 @@ REG_ANG = 0x20
 REG_TSEN = 0x28
 REG_FIELD = 0x2A
 
-#: The face, in character cells. WIDER AND TALLER THAN THE CHARACTER ONE
-#: WAS: at 52 by 21 the old rim was thirteen columns of full stops, and
-#: the dot matrix that replaced it buys four times the rows and twice the
-#: columns - a face worth drawing bigger. Bounded by the height, since a
-#: dot is square and the circle is round. A NOTCH SMALLER AND TIGHTER
-#: than 64 by 23, on the bench's word, once the face was drawn round on
-#: its terminal (`screen.aspect_of`, the rotor observer's probe): the
-#: same theme as the motor page, an instrument that fills its box.
+#: The face, in character cells, bounded by the height: a dot is square
+#: and the circle round. The dot matrix has four times the rows and twice
+#: the columns of the 52 by 21 character face, whose rim was thirteen
+#: columns of full stops. Cut from 64 by 23 on the bench's word once the
+#: face was drawn round on its terminal (`aspect.aspect_of`, the rotor
+#: observer's probe): like the motor page, an instrument that fills its
+#: box.
 ART_WIDTH, ART_HEIGHT = 58, 21
 
 #: The scales either side of the face - the die's temperature left, the
-#: field right - and THE FACE GIVES WAY TO THEM: the viewport is what
+#: field right - and the face gives way to them: the viewport is what
 #: the terminal leaves after the instrument column and the frames, and
 #: the face is drawn as wide as the room left after two scales and their
-#: air, down to FACE_MIN. It was gated instead - scales on a terminal
-#: 124 columns or wider, the full face or nothing - and the bench's
-#: terminal is narrower - the bench saw SHAFT ANGLE still not updated
-#: (2026-09-07). The face is bounded by its height anyway: at
-#: 21 rows the rim is 33 dots however wide the box, and at FACE_MIN it
-#: is 29 - an eighth smaller, with the scales beside it. Under that the
-#: face stands alone; `--scales` and `--no-scales` force either way.
+#: air, down to FACE_MIN. A fixed 124-column gate showed SHAFT ANGLE
+#: without them on the bench's narrower terminal (2026-09-07). The
+#: face is bounded by its height anyway: at 21 rows the rim is 33 dots
+#: however wide the box, and at FACE_MIN it is 29 - an eighth smaller,
+#: with the scales beside it. Under that the face stands alone;
+#: `--scales` and `--no-scales` force either way.
 FACE_MIN = 36
 #: What the stage takes off a terminal's columns before the art: the
 #: instrument column and the viewport's frame and padding.
@@ -160,7 +156,7 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
         degrees = state.get('degrees', counts * 360.0 / 4096.0)
         weak = field is not None and field < dial.WEAK_GAUSS
 
-        # COLOURED AT THE RENDER, not after it: a braille cell carries dots
+        # Coloured at the render, not after it: a braille cell carries dots
         # from up to eight places and its glyph does not say which, so there is
         # nothing for a `colourise(text)` to key on.
         art = _face(degrees, field, kelvin, width, aspect[0],
@@ -208,9 +204,9 @@ def main(argv=None):
     parser.add_argument('--no-scales', dest='scales', action='store_false')
     args = parser.parse_args(argv)
 
-    # power_afe SAID: the default went quiet-False when every connect stopped
-    # flipping the rail, and this view inherited it - the part it exists to
-    # show is AFE-powered, so it asks by name and puts it back.
+    # power_afe given: the default is False, as no connect flips the rail,
+    # and the part this view shows is AFE-powered; rig.close() releases the
+    # rail (`Coaxial63100._release_afe`).
     rig = open_rig('LINKING A1335', port=args.port, power_afe=True,
                    simulated=bool(args.simulated))
     if rig is None:
@@ -240,13 +236,12 @@ def main(argv=None):
     period = 1.0 / max(args.hz, 0.5)
     tally = Freshness()
 
-
     board_view = stage()
     terminal = board_view.is_terminal
     leaving = None
-    # THE CELL'S SHAPE, ASKED ONCE: the face is drawn round for this terminal
-    # the way the rotor observer's can is, and the box says whether the
-    # measurement happened.
+    # The cell's shape, asked once: the face is drawn round for this terminal
+    # the way the rotor observer's can is, and the box says whether it was
+    # measured.
     aspect = _aspect.aspect_of(args.cell_aspect)
     say('ok', 'cell', '%.2f tall, %s' % aspect)
     try:

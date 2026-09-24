@@ -140,6 +140,10 @@ class ImuSensor(PolledSensor):
 
     """A BNO085 as an input: the quaternion, and the reports it is configured for."""
 
+    # What the class this mixes into brings.
+    _feature: Any
+    reset: Any
+
     READING = 'quaternion'
 
     def configure(self, reports, reset=False):

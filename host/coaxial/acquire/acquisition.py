@@ -34,7 +34,7 @@ class Acquisition(Stream, ABC):
         """The newest reading, taken from the live accumulator."""
 
     @abstractmethod
-    def state(self):
+    def state(self) -> dict:
         """How the task is doing: rate, what is buffered, what was lost."""
 
     @abstractmethod

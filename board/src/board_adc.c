@@ -30,9 +30,8 @@ static const uint32_t SAMPLE_TIMES[] =
 };
 #define SAMPLE_TIME_COUNT (sizeof(SAMPLE_TIMES) / sizeof(SAMPLE_TIMES[0]))
 
-/* 1.5 cycles is what every read used before this was settable, and it stays
-   the default: FINDINGS records it as ruled out for the quiet channels
-   because the 15 nF node cap supplies the S&H charge. */
+/* 1.5 cycles by default: FINDINGS records it as ruled out for the quiet
+   channels because the 15 nF node cap supplies the S&H charge. */
 static uint32_t s_sample_time = ADC_SAMPLETIME_1CYCLE_5;
 static uint8_t  s_sample_index;
 
@@ -99,7 +98,7 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
     return false;
   }
 
-  /* A timed-out conversion used to leave *outRaw at 0 and say nothing. */
+  /* A timed-out conversion fails rather than leaving *outRaw at 0. */
   if (HAL_ADC_PollForConversion(hadc, 10) != HAL_OK)
   {
     HAL_ADC_Stop(hadc);
@@ -256,7 +255,7 @@ int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase)
 
 bool Board_AdcInjected(uint8_t index)
 {
-  /* WHAT THE SEQUENCE ACTUALLY CONVERTS, which is more than the triple: rank
+  /* What the sequence converts, which is more than the triple: rank
      2 carries the DC link on ADC3 and the NTC on ADC1, and both are latched
      at the same instant as the phases. */
   return Board_AdcIsPhase(index) || (index == CH_DCBUS) ||
@@ -280,15 +279,15 @@ _Static_assert(BOARD_CAL_CHANNELS ==
                "the calibration record and the ADC table disagree on how "
                "many channels there are");
 
-/* The CH_* constants are POSITIONS in the table above, and read_index takes
+/* The CH_* constants are positions in the table above, and read_index takes
    them without a bounds check - it is called from paths that pass a
    constant, so the check would only ever fire on a table that had already
    been edited wrong. */
 _Static_assert(CH_MCU_DIE < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "CH_MCU_DIE is past the end of the ADC table");
 
-/* The acquisition task's arrays are sized by their own constant, and it was
-   left at nine when the die sensor made the table ten. */
+/* The acquisition task's arrays are sized by their own constant, which is
+   the table's length. */
 _Static_assert(BOARD_DAQ_MAX_CHANNELS ==
                (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "the acquisition task cannot reach every ADC channel");

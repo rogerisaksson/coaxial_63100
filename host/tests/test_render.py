@@ -1,21 +1,17 @@
 """The 3D engine, stage by stage, against exact expectations."""
+import collections
 import math
-import os
+import re
 import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(HERE))
+from coaxial.draw import braille, orientation
+from coaxial.draw.orientation import _qmul
+from coaxial.graphics import (creases, engine, ground, lines, mesh, raster, shading, solids,
+                              stereotype, wireframe)
+from coaxial.graphics import crew as crewmod
+from tools.render.oracle import DISTANCE, cube, oracle
 
-from coaxial.draw import orientation        # noqa: E402
-from coaxial.graphics import engine, mesh, raster
-from coaxial.draw.orientation import _qmul                        # noqa: E402
-from coaxial.graphics import wireframe                                # noqa: E402
-from coaxial.graphics import creases, ground, lines, shading, solids, stereotype   # noqa: E402
-
-CUBE_STL = os.path.join(os.path.dirname(os.path.dirname(HERE)),
-                        'render', 'models', 'cube.stl')
 WIDTH, HEIGHT = 100, 50
-DISTANCE = 3.2
 
 
 class Report:
@@ -95,48 +91,6 @@ def test_camera(report):
                  'asymmetri %.4f' % lop)
 
 
-def oracle(q_m, cam, half, pivot, slope, floor):
-    """The expected picture: rays against the cube's slabs, no raster."""
-    m = q_m
-    rows = []
-    for py in range(cam['height']):
-        v = (cam['cy'] - (py + 0.5)) / (cam['scale'] * 0.5)
-        line = []
-        for px in range(cam['width']):
-            u = (px + 0.5 - cam['cx']) / cam['scale']
-            ex, ey, ez = (m[6] * cam['distance'], m[7] * cam['distance'],
-                          m[8] * cam['distance'])
-            dx = m[0] * u + m[3] * v - m[6]
-            dy = m[1] * u + m[4] * v - m[7]
-            dz = m[2] * u + m[5] * v - m[8]
-            t0, t1, ok = 0.0, 1e9, True
-            for e, d, h in ((ex, dx, half[0]), (ey, dy, half[1]),
-                            (ez, dz, half[2])):
-                if abs(d) < 1e-12:
-                    if abs(e) > h:
-                        ok = False
-                        break
-                    continue
-                ta, tb = (-h - e) / d, (h - e) / d
-                if ta > tb:
-                    ta, tb = tb, ta
-                t0, t1 = max(t0, ta), min(t1, tb)
-                if t0 > t1:
-                    ok = False
-                    break
-            if not ok:
-                line.append(0)
-                continue
-            level = pivot + slope * (cam['distance'] - t0) / cam['reach']
-            if level < floor:
-                level = floor
-            level = 0.0 if level < 0.0 else (2.0 if level > 2.0
-                                             else level)
-            line.append(int(level + 0.5))
-        rows.append(line)
-    return rows
-
-
 def interior(rows, x, y):
     me = rows[y][x]
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
@@ -145,14 +99,6 @@ def interior(rows, x, y):
                 and rows[ny][nx] != me:
             return False
     return True
-
-
-def cube():
-    got = solids._decimated(CUBE_STL, 400)
-    pos = got[0]
-    half = tuple(max(abs(pos[3 * i + k]) for i in range(len(pos) // 3))
-                 for k in range(3))
-    return got, half
 
 
 def test_shade_units(report):
@@ -311,7 +257,8 @@ def test_outline(report):
                  'bottom is found, and a box under the slab is a loop too',
                  shape == [(0.2, 8), (0.4, 8)]
                  and abs(solids._slab_top(pos)) < 1e-9
-                 and abs(solids._slab_bottom(pos, 0.0) + 0.05) < 1e-9,
+                 and (bottom := solids._slab_bottom(pos, 0.0)) is not None
+                 and abs(bottom + 0.05) < 1e-9,
                  str(shape))
     del pos[len(both):]
     del idx[len(both_idx):]
@@ -395,9 +342,9 @@ def test_the_edge_is_the_rasters_silhouette(report):
     report.check('edge: the dots are the coverage\'s own - a cell with '
                  'its lower row alone draws that row',
                  (2, 0) in cells and n == left[0], str(n))
-    # THE LIT COVERAGE: with the light given, a covered cell the light left at
-    # zero - a wall seen edge-on, drawn blank - counts as empty, so the line
-    # goes round what is drawn.
+    # With the light given, a covered cell the light left at zero - a wall
+    # seen edge-on, drawn blank - counts as empty, so the line goes round what
+    # is drawn.
     reached = bytearray(width * height)
     for r in range(2, 8):
         for c in range(3, 17):
@@ -422,12 +369,11 @@ def test_the_edge_is_the_rasters_silhouette(report):
 
 
 def test_ink_never_leans_below_the_floor(report):
-    """At a steep tilt the lean dimming took every cell of the art to class
-    0 - 599 of 653 blank cells at 73 degrees, the face gone and the
-    parts' walls left standing as a thick block - so an inked art cell
-    now floors at the bare geometry's floor.
+    """An inked art cell floors at the bare geometry's floor: lean dimming
+    alone takes every cell of the art to class 0 at a steep tilt - 599 of
+    653 blank cells at 73 degrees, the face gone and the parts' walls left
+    standing as a thick block.
     """
-    import re
     q = (-0.600, 0.264, -0.257, 0.710)
     keep = {}
     real = wireframe._cells
@@ -484,12 +430,11 @@ def test_the_art_stops_at_its_disc(report):
 
 def test_the_outline_holds_together(report):
     """The outline's hidden-line grace follows the cell's own depth span, so
-    a lid's edge no longer loses to the lid's near corner in the same
-    cell: at the component side 65 degrees off face-on, the parts' loops
-    drawn alone at 108x44 fall into pieces whose largest is over a
-    hundred cells (163 measured; 45 with the fixed grace).
+    a lid's edge does not lose to the lid's near corner in the same cell:
+    at the component side 65 degrees off face-on, the parts' loops drawn
+    alone at 108x44 fall into pieces whose largest is over a hundred
+    cells (163 measured; 45 with the fixed grace).
     """
-    import re
     q = _diagonal_pose(65.0)
     keep = {}
     real = lines._outline
@@ -537,20 +482,15 @@ def _diagonal_pose(off_deg):
     want = math.cos(math.radians(off_deg))
     cam = engine.camera(108, 44, 1.5, distance=3.2, zoom=1.2672,
                         tip=wireframe.CAMERA_TIP, lift=orientation.LIFT)
-    best = None
-    for a in range(0, 360, 5):
-        for b in range(0, 360, 5):
-            q = _qmul((math.sin(math.radians(a) / 2), 0.0, 0.0,
-                       math.cos(math.radians(a) / 2)),
-                      (0.0, math.sin(math.radians(b) / 2), 0.0,
-                       math.cos(math.radians(b) / 2)))
-            m = engine.multiply(cam['view'], orientation.matrix(q))
-            nx, ny, nz = m[2], m[5], m[8]
-            score = (abs(nz - want) + abs(abs(nx) - abs(ny))
-                     + 0.2 * (nx < 0) + 0.2 * (ny > 0))
-            if best is None or score < best[0]:
-                best = (score, q)
-    return best[1]
+    def scored(a, b):
+        q = _qmul((math.sin(math.radians(a) / 2), 0.0, 0.0, math.cos(math.radians(a) / 2)),
+                  (0.0, math.sin(math.radians(b) / 2), 0.0, math.cos(math.radians(b) / 2)))
+        m = engine.multiply(cam['view'], orientation.matrix(q))
+        nx, ny, nz = m[2], m[5], m[8]
+        return (abs(nz - want) + abs(abs(nx) - abs(ny)) + 0.2 * (nx < 0) + 0.2 * (ny > 0)), q
+
+    return min((scored(a, b) for a in range(0, 360, 5) for b in range(0, 360, 5)),
+               key=lambda s: s[0])[1]
 
 
 def test_stereotypes(report):
@@ -558,9 +498,9 @@ def test_stereotypes(report):
     once: a box's lid and corners are a block of eight segments; a lone
     lid of twelve corners on one radius is a drum; a chamfered square's
     eight corners share a radius too but sit on a box's sides, so it is a
-    block (the CPU came out round once); two end profiles of one width
-    and height facing across are one block; and two loops on one
-    footprint - a rounded part's base ring and lid - are one part.
+    block; two end profiles of one width and height facing across are one
+    block; and two loops on one footprint - a rounded part's base ring and
+    lid - are one part.
     """
     pos = []
 
@@ -616,7 +556,7 @@ def test_stereotypes(report):
                  [(k, len(d)) for k, _e, d in prims] == [('block', 12)]
                  and abs(prims[0][1] - 0.44) < 1e-6, str([(k, round(e, 3)) for k, e, d in prims]))
     # a lid with a small circle on it - a PE terminal's screw hole - is a block
-    # AND a ring; a lid with a stray diagonal ridge keeps its own orientation,
+    # and a ring; a lid with a stray diagonal ridge keeps its own orientation,
     # the box round every point turned the USB shell 60 degrees; a crest
     # narrower than the base leans the legs in, so a rounded shoulder stands
     # inside the lid's edge
@@ -737,6 +677,9 @@ def test_the_decimate_keeps_the_bore(report):
     pts = solid[0]
     top = solids._slab_top(pts)
     bottom = solids._slab_bottom(pts, top)
+    if bottom is None:
+        report.check('the slab has a bottom face to measure the bore between', False)
+        return
     ring = inside = 0
     for i in range(len(pts) // 3):
         z = pts[3 * i + 2]
@@ -792,11 +735,6 @@ def test_the_face_is_a_halftone(report):
     laid over the dots, against the light sampled at each dot, between a
     density floor and a ceiling.
     """
-    import collections
-    import math
-
-    from coaxial.draw import orientation
-    from coaxial.graphics import raster
     w = wireframe
 
     n = shading.NOISE_N
@@ -834,9 +772,9 @@ def test_the_face_is_a_halftone(report):
                  'floor, then the light, up to the ceiling',
                  ok, ', '.join(said))
 
-    # BLUE: at the window's middle every 8 x 8 window of dots holds near the
-    # middle's share - no clusters, no voids - which a Bayer tile holds exactly
-    # and a random field does not hold at all.
+    # Blue noise at the middle density: every 8 x 8 window of dots holds near
+    # the middle's share - no clusters, no voids - which a Bayer tile holds
+    # exactly and a random field does not hold at all.
     grid = field(n // 2, n // 4, lambda x, y: 0.5)
     middle = 0.5 * (floor + ceil) * 64.0
     windows = [dots_in(grid, x, y, 4, 2)
@@ -879,10 +817,9 @@ def test_the_face_is_a_halftone(report):
                  and hi_a < hi_b < raw_hi,
                  '%.2f -> %.2f toward %.2f' % (lo_a, lo_b, raw_lo))
 
-    # THE SHIPPED BOARD at the attitude page's size, at the attitude the
+    # The shipped board at the attitude page's size, at the attitude the
     # stand-in reports - `(i, j, k, real)`, rpy -5.6, +2.8, -0.6: a board lying
     # on a bench.
-    from coaxial.graphics import engine
     q = (-0.0489, 0.0245, -0.0036, 0.9984)
     width, height, zoom = 78, 30, 0.88
     _edges, solid = w._model(zoom, 0)
@@ -907,7 +844,6 @@ def test_the_face_is_a_halftone(report):
     w._rim(grid, tone, classes, reached, heat, width, height, True)
     face = [grid[i // width][i % width] for i in range(width * height)
             if classes[i]]
-    # NO SURFACE UNDER THE DOTS.
     report.check('no lit cell carries a background: the ink is the '
                  'foreground alone',
                  all(isinstance(tone[i // width][i % width], tuple)
@@ -916,9 +852,9 @@ def test_the_face_is_a_halftone(report):
     counts = [bin(ord(g) - raster.BRAILLE).count('1') for g in face]
     hist = collections.Counter(counts)
     mean = sum(counts) / float(8 * len(face))
-    # THE DENSITY WINDOW IS THE POINT, on the bench's screenshot: in the
-    # terminal the glyph box is narrower than the cell, and past about three
-    # dots in ten every cell reads as a brick.
+    # The density window, from the bench's screenshot: in the terminal the
+    # glyph box is narrower than the cell, and past about three dots in ten
+    # every cell reads as a brick.
     report.check('the shipped board at the page\'s size is scanlines, not '
                  'a wall: the face sits inside the density window, no '
                  'cell is blank, and whole and broken lines both occur',
@@ -931,7 +867,6 @@ def test_the_face_is_a_halftone(report):
     report.check('and it wears more glyphs than a carpet of one',
                  len(set(face)) >= 8, '%d distinct' % len(set(face)))
 
-    # THE RIM, CLIPPED AND LIT.
     def luma(rgb):
         return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
 
@@ -1077,8 +1012,6 @@ def test_the_crew_paints_one_pose_behind(report):
     the previous is painted - and every picture is the one the
     synchronous path draws, a frame later.
     """
-    from coaxial.graphics import crew as crewmod
-
     rest = (0.05, 0.02, 0.0, 0.998)
     turn = [(0.05 + 0.04 * k, 0.02, 0.01 * k, 0.998) for k in range(1, 5)]
     asked = [rest] * 3 + turn + [turn[-1]] * 3
@@ -1190,8 +1123,6 @@ def test_backdrop_cache(report):
 
 def test_ladder(report):
     """The tone ladder: every pattern in U+2800, bucketed by dot count."""
-    from coaxial.graphics import raster, wireframe
-
     rows = raster.SHADE
     report.check('nine rungs, blank to all eight dots', len(rows) == 9,
                  str([len(r) for r in rows]))
@@ -1204,7 +1135,6 @@ def test_ladder(report):
     report.check('a rung holds the patterns with that many dots',
                  all(all(bin(ord(c) - raster.BRAILLE).count('1') == rung
                          for c in row) for rung, row in enumerate(rows)))
-    # THE EVEN ONE FIRST.
     report.check('each rung is ordered smoothest first',
                  raster._spread(ord(rows[4][0]) - raster.BRAILLE)
                  < raster._spread(ord(rows[4][-1]) - raster.BRAILLE),
@@ -1215,12 +1145,11 @@ def test_ladder(report):
     report.check('and never past the top',
                  shading._pattern(99, 0.0) == rows[8][0])
 
-    # NO GRAIN.
     phases = {shading._pattern(6, i / 32.0) for i in range(32)}
     report.check('a rung is one pattern whatever the phase',
                  phases == {rows[6][0]}, ''.join(sorted(phases)))
 
-    # THE MONO LADDER IS THE CLASS SCALE, spread and in the exporter's own
+    # The mono ladder is the class scale, spread and in the exporter's own
     # order: his ' ', '.' and ':' rank the same way, only further apart,
     # because one rung between the two glyphs a picture is made of is the
     # carpet this replaces.
@@ -1233,8 +1162,7 @@ def test_ladder(report):
 
 def test_the_alphabet(report):
     """`coaxial.draw.braille`: the whole block, and the words to ask for one."""
-    from coaxial.draw import braille as b
-
+    b = braille
     report.check('all 256 patterns, in order',
                  len(b.ALL) == 256 and len(set(b.ALL)) == 256
                  and b.ALL[0] == chr(0x2800) and b.ALL[255] == chr(0x28FF))
@@ -1243,8 +1171,7 @@ def test_the_alphabet(report):
                      for n, at in b.AT.items()))
     report.check('what is read back is what was drawn',
                  all(b.glyph(b.lit(c)) == c for c in b.ALL))
-    # THE BENCH ASKS IN DOT NUMBERS: `⠲` is 2, 5 and 6, and that is how the
-    # corner arrived in the first place.
+    # The bench asks in dot numbers: `⠲` is 2, 5 and 6.
     report.check('the chart\'s own numbering answers the chart\'s glyph',
                  b.numbered(2, 5, 6) == chr(0x2832), b.numbered(2, 5, 6))
 
@@ -1254,8 +1181,8 @@ def test_the_alphabet(report):
     report.check('a fall is a column in its own lane',
                  b.FALL == ('\u2847', '\u28b8'), ''.join(b.FALL))
 
-    # A CORNER THE LINE ENDS AT IS A HOOK; one it falls THROUGH has to reach
-    # the cell's floor or it breaks against the row below.
+    # A corner the line ends at is a hook; one it falls through reaches the
+    # cell's floor or it breaks against the row below.
     report.check('a hook stops two dots along',
                  (b.corner(1, 0), b.corner(1, 1)) == ('\u2816', '\u2832'),
                  b.corner(1, 0) + b.corner(1, 1))
@@ -1267,9 +1194,8 @@ def test_the_alphabet(report):
     report.check('a tee is met, not turned',
                  (b.tee(0, 0), b.tee(0, 1)) == ('\u284f', '\u28b9'),
                  b.tee(0, 0) + b.tee(0, 1))
-    # THE SAME TURN THE OTHER WAY: a run on dot row 2 climbing to the cell's
-    # top in the far lane, for a leader that rises to what it names instead of
-    # falling to it.
+    # The same turn the other way: a run on dot row 2 climbing to the cell's
+    # top in the far lane, for a leader that rises to what it names.
     report.check('a corner turning up mirrors one turning down',
                  b.corner(2, 1, up=True, through=True) == '\u283c',
                  b.corner(2, 1, up=True, through=True))

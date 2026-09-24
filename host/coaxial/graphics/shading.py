@@ -9,13 +9,13 @@ from coaxial.graphics.solids import _casters
 from machine.ansi import rgb as _rgb
 
 
-#: The light in VIEW space, over the viewer's shoulder: the key light's and
+#: The light in view space, over the viewer's shoulder: the key light's and
 #: the cast shadows'. The face's base shading is depth, not Lambert: the
 #: exporter's cube cuts its '.'/':' boundary across flat faces.
 LIGHT = (0.60, 0.20, 0.77)
 
 #: The shading constants, fitted by tools/render/lightfit.py against the
-#: exporter's renders and PROVEN against test_render.py's analytic
+#: exporter's renders and proven against test_render.py's analytic
 #: oracle - do not hand-tweak what the fitter measures. SUN_MIN is the
 #: grazing cutoff for the shadow test, SHADOW_DIM the cast-shadow class
 #: step, BIAS the acne guard, FLOOR the darkest a bare-geometry cell
@@ -40,7 +40,7 @@ LIT = SHADE
 
 #: Rungs per class in a mono render, near the exporter's densities (' ',
 #: '.', ':' at 0, 96, 129 luma): 2.8 dots a cell, measured. 6 against 2 read
-#: as a slab (3.6 dots, "blocky").
+#: as a slab (3.6 dots).
 CLASS_RUNG = (0, 2, 4)
 
 
@@ -55,11 +55,11 @@ LEVEL_LO, LEVEL_HI = 0.0, 2.0
 HEAT_LO, HEAT_HI = 0.20, 0.55
 
 
-#: THE FACE IS A HALFTONE at dot resolution: a dot lights where the light at
+#: The face is a halftone at dot resolution: a dot lights where the light at
 #: its position clears a blue-noise threshold (`raster.NOISE`, 64 x 64),
 #: fixed in screen space so a turning board moves the density, not the dots.
 #: Rejected in rasters: one rung a cell (a carpet), per-dot in a fixed order
-#: (a lattice), 8 x 8 Bayer at 150 x 44 (2 x 2 blocks, "blocky as hell"),
+#: (a lattice), 8 x 8 Bayer at 150 x 44 (2 x 2 blocks),
 #: interleaved gradient noise and R2 (regular screens).
 
 #: Where each of a cell's eight dots sits, in cells from the cell's
@@ -71,8 +71,8 @@ DOT_AT = tuple((lane * 0.5 - 0.25, (y - 1.5) / 4.0, BRAILLE_BITS[lane][y])
 
 #: The darkest lit density, a share of the dots: the tone carries the light,
 #: the dots the shape. Rastered: 0.30-0.85 a brick wall (the braille box is
-#: narrower than the cell), 0.08-0.35 a dusting; 0.42 since the face became
-#: scanlines - 84 % of a lit row, only the darkest keeps gaps (0.35 and 0.5
+#: narrower than the cell), 0.08-0.35 a dusting; 0.42 on the scanline
+#: face - 84 % of a lit row, only the darkest keeps gaps (0.35 and 0.5
 #: rastered beside it).
 DENSITY_FLOOR = 0.42
 
@@ -83,7 +83,7 @@ DENSITY_CEIL = 0.5
 
 
 #: The face is scanlines: only these dot rows light, the density doubled
-#: along them. Scattered points read as grain ("a shade pixelly"); two rows
+#: along them. Scattered points read as grain; two rows
 #: always dark keep bricks out. Rastered beside the stipple.
 SCAN_ROWS = (0, 2)
 
@@ -145,25 +145,25 @@ TONE_SPAN = 7.0
 
 
 #: The lighting rig: a weak even backlight - DIMMEST is its floor, no
-#: cell falls to black - and ONE spot. SPOT_AT places it in frame
+#: cell falls to black - and one spot. SPOT_AT places it in frame
 #: fractions (upper right), SPOT_R is its radius, SPOT its strength in
 #: t-units; the falloff is quadratic to the rim. Tone only - the glyph
 #: classes, the oracle and the calibration never see it.
 SPOT = 0.30
 
 #: Global dusk: the whole scene sits this far down the ramp before the
-#: spot lifts its pool - the weak backlight, a shade darker on request.
+#: spot lifts its pool - the weak backlight, a shade darker.
 DUSK = 0.24
 SPOT_AT = (1.05, -0.08)
 SPOT_R = 3.45
 
 
-#: THE KEY LIGHT on the tone: Lambert on the screen-space normal (the
+#: The key light on the tone: Lambert on the screen-space normal (the
 #: gradient of `bare` between neighbours) against LIGHT, the shadows' beam.
 #: KEY is rungs per unit n.L; KEY_REST is n.L at the frame's centre for a
 #: face-on board, so the calibrated rest tone stands. A point lamp at
 #: KEY_DISTANCE along LIGHT, not a direction: a parallel beam lit a flat
-#: board one tone. Before it the colour was flat - luma 97-142 for 80 % of
+#: board one tone. Without it the colour is flat - luma 97-142 for 80 % of
 #: the face, identical at rest, 25 and 45 degrees.
 KEY = 3.5
 KEY_REST = 0.77
@@ -191,7 +191,7 @@ DIMMEST = 0.4
 HOTTEST = -1
 
 
-#: Tone steps a rim cell loses when the model misses ALL of it; it
+#: Tone steps a rim cell loses when the model misses all of it; it
 #: loses the share it misses. A quarter missed drops 0.38 - 12 luma,
 #: inside the exporter's own cell-to-cell spread - half 0.75, three
 #: quarters 1.1.
@@ -230,7 +230,7 @@ _SHADOWS = {}
 
 
 def _shadowmap(m, size=56, extent=1.3):
-    """The scene from the LIGHT: an orthographic depth raster along the
+    """The scene from LIGHT: an orthographic depth raster along the
     beam, so any cell can ask whether something sits sunward of it - the
     cast shadow a component throws across the pcb.
     """
@@ -316,17 +316,16 @@ SLOPE = 1.30
 
 #: An edge's tone: the cell's own heat lifted OUTLINE_LIFT rungs, the full
 #: lift at the ladder's top, half at its floor - brighter than the face under
-#: it, glinting in the lamp's pool (bench: "highlighted with the light, not
-#: just thicker"). OUTLINE_BASE is the heat where the face gave none.
-#: Measured in luma over four attitudes: a lift of 2.5 put the line +51 over
-#: the face, "barely noticeable"; 4.5 put it +82. 3.0 since the line lies on
-#: the face's dots (2026-09-23): 4.5 glowed as a halo, 1.5 vanished.
+#: it, glinting in the lamp's pool. OUTLINE_BASE is the heat where the face
+#: gave none. Measured in luma over four attitudes: a lift of 2.5 put the
+#: line +51 over the face, barely noticeable; 4.5 put it +82. 3.0 with the
+#: line on the face's dots (2026-09-23): 4.5 glowed as a halo, 1.5 vanished.
 OUTLINE_LIFT = 3.0
 OUTLINE_BASE = 3.0
 
 
 def _mono(level, phase=0.0):
-    """One cell from the CLASS scale alone, for a render with no colour."""
+    """One cell from the class scale alone, for a render with no colour."""
     low = 0 if level < 1.0 else 1
     step = level - low
     step = 0.0 if step < 0.0 else (1.0 if step > 1.0 else step)
@@ -337,7 +336,7 @@ def _mono(level, phase=0.0):
 def _pattern(rung, phase):
     """The glyph for `rung` dots, phased."""
     rung = 1 if rung < 1 else (RUNGS if rung > RUNGS else rung)
-    # THE SMOOTHEST PATTERN OF THE RUNG, EVERY TIME.
+    # The rung's smoothest pattern, whatever the phase.
     return LIT[rung][0]
 
 
@@ -474,7 +473,7 @@ def _edge_tone(base):
 
 
 def _edge_glyphs():
-    """The braille LINE for every way a cell can be part-covered: of the
+    """The braille line for every way a cell can be part-covered: of the
     dots the model reaches, those beside a dot it misses - across the
     lane, or the row above or below, inside the cell.
     """
@@ -498,7 +497,8 @@ EDGE_GLYPH = _edge_glyphs()
 
 
 def _rim(grid, tone, classes, reached, heat, width, height, colour):
-    """THE EDGE, ENHANCED."""
+    """The rim: each part-covered cell's `EDGE_GLYPH` line over its face
+    dots, in the edge tone."""
     for py in range(height):
         row = py * width
         for px in range(width):
@@ -509,7 +509,7 @@ def _rim(grid, tone, classes, reached, heat, width, height, colour):
                      else 0xFF)
             if reach == 0xFF:
                 continue
-            # The line OVER the face's dots, not instead of them: replaced,
+            # The line over the face's dots, not instead of them: replaced,
             # the face stepped a cell short of the silhouette.
             face = ord(grid[py][px]) - BRAILLE
             if not 0 <= face <= 0xFF:
@@ -556,20 +556,20 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             if not cls:
                 continue
             at = row + px
-            # THE GLYPH CARRIES THE LEVEL, not the rounded class.
+            # The glyph carries the level, not the rounded class.
             hashed = seed[at] if seed is not None else 0.0
             level = levels[at] if levels is not None else float(cls)
             grid[py][px] = _mono(level, hashed)
             if not colour:
                 continue
             nx = (px + 0.5) / width - spot_x
-            # The desk-lamp pool: squared falloff lands at ZERO slope on the
+            # The desk-lamp pool: squared falloff lands at zero slope on the
             # rim.
             pool = 1.0 - (nx * nx + ny * ny) / rr
             t = (level - lo) / span - DUSK
             if pool > 0.0:
                 t += SPOT * pool * pool
-            # Relief is the SECOND difference of bare geometry, joined after
+            # Relief is the second difference of bare geometry, joined after
             # the sigmoid in tone steps.
             rel = 0.0
             if py > 1 and px < width - 2 and classes[at - width + 1] \
@@ -591,7 +591,7 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
                 heat += KEY * (_key_lit(px, py, at, width, height, classes,
                                         bare, key, lamp, colf, rowf,
                                         distance, buf) - KEY_REST)
-            # Anti-aliasing is the GLYPH only: a staircase corner (two or more
+            # Anti-aliasing is the glyph only: a staircase corner (two or more
             # empty neighbours) thins ':' to '.'.
             missed = 1.0 - coverage[at]
             if missed:

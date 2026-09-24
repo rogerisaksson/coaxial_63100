@@ -54,7 +54,7 @@ bool Board_PowerAcquire(board_rail_t rail, board_user_t user)
   const uint8_t bit = bit_of(user);
   const bool had = (s_users[rail] & bit) != 0U;
 
-  /* Only a NEW hold can be refused. */
+  /* Only a new hold can be refused. */
   if (!had && blocked(rail))
   {
     return false;
@@ -122,7 +122,7 @@ bool Board_PowerState(board_rail_t rail, board_rail_state_t *out)
   return true;
 }
 
-/** THE HOST'S HOLDS DIE WITH THE HOST. */
+/** The host's holds die with the host. */
 static void drop_host_claims(uint32_t now)
 {
   static uint32_t seen_count;

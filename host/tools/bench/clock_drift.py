@@ -16,13 +16,10 @@ reading past the noise of the reference it was measured against: NTP is
 good to about a millisecond a side, so 1 ppm needs a thousand seconds.
 """
 import argparse
-import os
-import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from coaxial import Coaxial63100
+from coaxial.acquire.clock import NTP_SERVER, ntp_offset
 
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.acquire.clock import NTP_SERVER, ntp_offset  # noqa: E402
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

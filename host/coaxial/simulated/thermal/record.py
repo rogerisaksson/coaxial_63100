@@ -1,4 +1,6 @@
 """The stand-in's thermal record: the network as held, each setter, the identification."""
+from typing import Any
+
 from coaxial.devices.thermal_device import THROTTLE_AT
 from coaxial.errors import RigError
 from coaxial.kalman import thermal_ident
@@ -8,6 +10,16 @@ from coaxial.model import thermal
 class ThermalRecord:
 
     """The record's thermal fields, read and written as the board's device 9 does."""
+
+    # What the class this mixes into brings.
+    IDENT_NOISE_K: Any
+    NODES: Any
+    _advance: Any
+    _ambient: Any
+    _base: Any
+    _margin: Any
+    _trip_cap_now: Any
+    truth: Any
 
     def network(self):
         """The graph as the stand-in holds it - the same shape

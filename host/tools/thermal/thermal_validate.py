@@ -5,18 +5,15 @@ measurement, and that the model with those numbers lands where the camera
 did. A network can have the right resistances and still not converge, and a
 parameter can be set without anyone remembering where it came from.
 
-Every line says SOURCE (which measurement it comes from) or ASSUMED. That
-distinction is what matters when somebody has to trust an estimate.
+Every line says SOURCE (which measurement it comes from) or ASSUMED.
 """
-import os
+import argparse
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial.draw.thermalmap import LAYOUT, render  # noqa: E402
-from coaxial.model import thermal  # noqa: E402
-from coaxial.model.thermal import (AMBIENT, CFG, DRIVER_RISE_SWITCHING, NODES,  # noqa: E402
-                                   NTC_OFFSET, NTC_SEES_DRIVERS, board_from_ntc, expected_ntc,
+from coaxial.draw.thermalmap import LAYOUT, render
+from coaxial.model import thermal
+from coaxial.model.thermal import (AMBIENT, CFG, DRIVER_RISE_SWITCHING, NODES, NTC_OFFSET,
+                                   NTC_SEES_DRIVERS, board_from_ntc, expected_ntc,
                                    settled_fraction, tau_minutes)
 
 #: The camera, 2026-08-28. Dead surface is the reference; ntc is the board's.
@@ -49,6 +46,7 @@ def check(name, got, want, tol, source):
 
 
 def main():
+    argparse.ArgumentParser(description=__doc__).parse_args()
     bad = 0
 
     rule('1. The board\'s own two numbers')
@@ -71,7 +69,7 @@ def main():
         bad += not check('%s K/W' % node, CFG['to_board'][node], delta / watt,
                          1.5, source)
 
-    # THE CAMERA SAW ONE BRIDGE ZONE, so it constrains the three legs together
+    # The camera saw one bridge zone, so it constrains the three legs together
     # and not one of them.
     for group, delta, watt, source in (
             (thermal.DRIVERS, 9.1, 0.60, 'SOURCE: 4-1, half the switching'),

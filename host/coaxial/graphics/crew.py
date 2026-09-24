@@ -129,7 +129,7 @@ class Crew:
         return any(held is solid for held in self.solids)
 
     def close(self):
-        if self.conns is None:
+        if self.conns is None or self.procs is None:
             return
         for conn in self.conns:
             try:

@@ -48,7 +48,7 @@ class GateControl(Output, ABC):
         return bool(self.state()['pwm_enabled'])
 
     @abstractmethod
-    def state(self):
+    def state(self) -> dict:
         """Everything the gate drivers know, from one conversion's worth."""
 
     @abstractmethod

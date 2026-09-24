@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""The exporter's LIT screenshots against our colour render, in numbers.
+"""The exporter's lit screenshots against our colour render, in numbers.
 
 tests/renders/ascii-<pose>.png is a screenshot of the exporter's
 render of ascii-<pose>.txt with its lighting on. Each fixture cell
 maps onto the PNG (bounding boxes aligned) and yields the Rec.709
-luma of its ink; our render's cells yield the luma of their GLOW
+luma of its ink; our render's cells yield the luma of their glow
 colour. Luma, not the peak channel: the exporter's cyan-blue and
 the console's cyan differ in hue, and peak-channel matching landed
 two tones bright. Per class and pose: mean, spread within the class,
@@ -35,10 +35,8 @@ import zlib
 from rich.console import Console
 from rich.text import Text
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from coaxial.graphics import engine, shading, wireframe  # noqa: E402
-from tools.render import facecheck  # noqa: E402
+from coaxial.graphics import engine, shading, wireframe
+from tools.render import facecheck
 
 PHOTOS = ('x0y45z0', 'x45y45z45')
 TURNS = ('x0y0z0', 'x0y15z0', 'x0y30z0', 'x0y60z0', 'x30y0z0')
@@ -196,8 +194,7 @@ def our_cells(pose, width=52, height=34):
     """The same tuple off our colour render."""
     shading._SHADOWS.clear()
     art = wireframe.render(facecheck.euler(*rotation(pose), order='xyz'),
-                           width, height, colour=True, 
-                           horizon=False, tip=0.0)
+                           width, height, colour=True, horizon=False, tip=0.0)
     got = []
     for py, line in enumerate(art.splitlines()):
         lum, col = None, 0
@@ -291,15 +288,15 @@ def objective():
 
 
 KNOBS = (
-    (wireframe, 'DUSK', 0.03, -0.3, 0.6),
-    (wireframe, 'SPOT', 0.03, 0.0, 0.8),
-    (wireframe, 'SPOT_R', 0.2, 1.2, 3.5),
-    (wireframe, 'TONE_LO', 0.05, -1.5, 1.5),
-    (wireframe, 'TONE_SPAN', 0.2, 1.0, 8.0),
-    (wireframe, 'EDGE', 0.1, 0.8, 3.0),
-    (wireframe, 'RELIEF_CAP', 0.02, 0.1, 0.26),
-    (wireframe, 'GRAIN_DOT', 0.2, 0.0, 4.0),
-    (wireframe, 'GRAIN_COLON', 0.1, 0.0, 2.0),
+    (shading, 'DUSK', 0.03, -0.3, 0.6),
+    (shading, 'SPOT', 0.03, 0.0, 0.8),
+    (shading, 'SPOT_R', 0.2, 1.2, 3.5),
+    (shading, 'TONE_LO', 0.05, -1.5, 1.5),
+    (shading, 'TONE_SPAN', 0.2, 1.0, 8.0),
+    (shading, 'EDGE', 0.1, 0.8, 3.0),
+    (shading, 'RELIEF_CAP', 0.02, 0.1, 0.26),
+    (shading, 'GRAIN_DOT', 0.2, 0.0, 4.0),
+    (shading, 'GRAIN_COLON', 0.1, 0.0, 2.0),
     (engine, 'TONE_DEPTH', 0.1, 0.0, 1.0),
 )
 
@@ -354,13 +351,12 @@ def show():
 
 
 def staged_cells(pose, color_system, width=94, height=36):
-    """Our render as the TERMINAL receives it: through a rich Console of the
+    """Our render as the terminal receives it: through a rich Console of the
     given colour depth into a buffer, then parsed back.
     """
     shading._SHADOWS.clear()
     art = wireframe.render(facecheck.euler(*rotation(pose), order='xyz'),
-                           width, height, colour=True, 
-                           horizon=False, tip=0.0)
+                           width, height, colour=True, horizon=False, tip=0.0)
     sink = io.StringIO()
     court = Console(file=sink, force_terminal=True, width=width + 4,
                     color_system=color_system, highlight=False)

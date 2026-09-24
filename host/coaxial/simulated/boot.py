@@ -6,7 +6,7 @@ import zlib
 from coaxial.devices.boot import (BLANK_UNIT, CHUNK, HEADER, MAGIC, RECORD_MAX, RUN_BASE,
                                   RUN_BYTES, SEAL_MAGIC, STATES, WORD, BootControl, Segment,
                                   chunks_of)
-from coaxial.errors import CrcError, DeviceStateError
+from coaxial.errors import CrcError, DeviceStateError, NoReplyError
 
 UID = bytes(range(0x10, 0x1C))
 TYPE = 1
@@ -208,7 +208,11 @@ class _Blank(BootControl):
         return answers[0] if answers else None
 
     def _blank(self):
-        return self._one([n for n in self.nodes if n.unit == BLANK_UNIT])
+        """The one blank node; silence, as the wire says it, when none is."""
+        node = self._one([n for n in self.nodes if n.unit == BLANK_UNIT])
+        if node is None:
+            raise NoReplyError('no node answers at unit %d' % BLANK_UNIT)
+        return node
 
     def state(self):
         return self._blank().state()

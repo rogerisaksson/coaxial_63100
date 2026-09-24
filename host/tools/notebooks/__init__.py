@@ -6,7 +6,7 @@ from .parts import paper
 
 def _laid_out(area):
     return paper(area.TITLE, area.SUMMARY, area.SECTIONS, area.RESULTS, area.BENCH,
-                 area.REFERENCES)
+                 area.REFERENCES, getattr(area, 'DEVICE', True))
 
 
 #: Name -> cells, in the README's order.

@@ -31,7 +31,7 @@ def root():
 
 
 def paths():
-    """Name -> path, for the documents that actually exist."""
+    """Name -> path, for the documents that exist."""
     base = root()
     found = {}
     for name in NAMES:
@@ -49,7 +49,10 @@ def _read(path):
 
 
 def _headings(text):
-    """(level, title, line index) for every ## or ### heading."""
+    """(depth, title, line index) for every ## or ### heading.
+
+    `depth` for the heading; `level` is the detail parameter.
+    """
     out = []
     for index, line in enumerate(text.splitlines()):
         match = re.match(r'^(#{2,3})\s+(.*\S)\s*$', line)
@@ -78,13 +81,13 @@ def index(level=None):
                          % (name, text.count('\n') + 1, len(text) // 4))
 
         shown = [h for h in heads if not (terse and h[0] > 2)]
-        # A LOG DOES NOT GET A LINE EACH.
+        # A log keeps its last INDEX_HEADS headings.
         clipped = len(shown) - INDEX_HEADS
         if clipped > 0:
             shown = shown[-INDEX_HEADS:]
 
-        for head_level, title, _ in shown:
-            lines.append('  %s%s' % ('  ' * (head_level - 2), title))
+        for depth, title, _ in shown:
+            lines.append('  %s%s' % ('  ' * (depth - 2), title))
         if clipped > 0:
             lines.append('  ... and %d older, by `doc=%s`' % (clipped, name))
     if not lines:
@@ -108,8 +111,8 @@ def outline(name, level=None):
              "docs(doc='%s', section=TITLE) for the text, "
              "docs(find=TEXT) to search."
              % (name, text.count('\n') + 1, name)]
-    for level, title, _ in _headings(text):
-        lines.append('  %s%s' % ('  ' * (level - 2), title))
+    for depth, title, _ in _headings(text):
+        lines.append('  %s%s' % ('  ' * (depth - 2), title))
     return '\n'.join(lines)
 
 
@@ -124,9 +127,6 @@ def section(name, wanted, level=None):
     heads = _headings(text)
     needle = wanted.strip().lower()
 
-    # `depth` throughout, not `level`: the heading's depth and the detail level
-    # are two different numbers and the second one is a parameter of this
-    # function.
     hit = None
     for position, (depth, title, line_no) in enumerate(heads):
         low = title.lower()
@@ -169,13 +169,13 @@ def find(needle, level=None):
             if low not in line.lower():
                 continue
 
-            # BOTH ancestors, chapter and entry, because in FINDINGS the
-            # chapter is the meaning.
+            # Both ancestors, chapter and entry: in FINDINGS the chapter is
+            # the meaning.
             chapter = entry = ''
-            for level, title, head_line in heads:
+            for depth, title, head_line in heads:
                 if head_line > number:
                     break
-                if level == 2:
+                if depth == 2:
                     chapter, entry = title, ''
                 else:
                     entry = title

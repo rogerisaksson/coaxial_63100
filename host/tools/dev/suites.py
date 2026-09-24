@@ -39,13 +39,25 @@ CTRL_CORE = 'test_ctrl_core.py'
 
 SENSORLESS = 'test_sensorless.py'
 
+#: The subjects a change can be about: pick_tests.py asks the model to choose
+#: from them, and each names one test_ollama_<tag>.py.
+TAGS = {
+    'tools': 'the tool surface: schemas, arguments, which tool answers what',
+    'runner': 'the plan runner, the sandbox, and the test tooling itself',
+    'prompt': 'SYSTEM, the per-turn hints, what the model is told',
+    'link': 'the serial link: ports, probing, diagnosis, recovery',
+    'render': 'how a result reaches the screen: columns, blocks, clipping',
+    'bus': 'nodes, segments, unit ids, broadcast',
+    'board': 'the board, its channels, its pins, the AFE',
+    'reply': 'what an answer means: retypes, blank answers, nudges',
+    'language': 'the session language, its lock, and the phrase table',
+}
+
 #: test_ollama.py was 5,496 lines and 733 checks - a third of every check
 #: this tree has, in one file, and the reason a tier could not be asked for at
 #: any useful resolution. One file per subject now: the largest is 218 checks
 #: and the smallest 12, so a budget can actually choose.
-OLLAMA = tuple('test_ollama_%s.py' % tag for tag in
-               ('tools', 'runner', 'prompt', 'link', 'render', 'bus',
-                'board', 'reply', 'language'))
+OLLAMA = tuple('test_ollama_%s.py' % tag for tag in TAGS)
 
 BENCH = 'test_bench.py'
 
@@ -163,8 +175,6 @@ TOUCHES = (
     ('host/coaxial_mcp/render.py',             ('test_mcp.py', 'test_parity.py')
                                                + OLLAMA),
     ('host/coaxial_mcp/',                      ('test_mcp.py', 'test_parity.py')),
-    ('host/coaxial/simulated',                 ('test_simulated.py',
-                                                'test_parity.py') + OLLAMA),
     # The broker is the port itself: every session goes through it when one is
     # up, so its own suite runs whenever it or the two files that reach for it
     # change.
@@ -196,18 +206,19 @@ TOUCHES = (
     ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE)),
     ('host/machine/',                          (CONTROLLER, 'test_simulated.py', 'test_mcp.py')),
     ('host/coaxial/node.py',                   (CONTROLLER, 'test_mcp.py')),
-    ('host/coaxial/control/',                  (CONTROLLER, SENSORLESS, 'test_simulated.py')),
-    ('host/coaxial/',                          ('test_simulated.py', 'test_parity.py',
-                                                'test_mcp.py')),
+    ('host/terminal/views/show_session.py',    (VIEWS,) + OLLAMA),
+    ('host/terminal/views/session/',           (VIEWS,) + OLLAMA),
     # A live view is a loop, a screen and a cable around a renderer that is
     # tested on its own.
     ('host/terminal/views/',                   (STRUCTURE, VIEWS,
                                                 'test_simulated.py')),
-    ('host/terminal/views/show_session.py',    (VIEWS,) + OLLAMA),
-    ('host/terminal/views/session/',           (VIEWS,) + OLLAMA),
     ('host/terminal/ui/',                      (STRUCTURE, VIEWS,
                                                 'test_simulated.py')),
-    ('host/tools/',                            OLLAMA),
+    ('host/tools/cores/build.py',              (CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE,
+                                                BOOT_CORE, CTRL_CORE)),
+    ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, SENSORLESS)),
+    ('host/tools/cores/thermal.py',            (THERMAL,)),
+    ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
     ('host/tests/',                            ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the
     # portable core is also compiled and run on this machine, which is the only
@@ -277,6 +288,14 @@ TOUCHES = (
     ('datasheets/',                            ()),
     ('.gitignore',                             ()),
     ('.vscode/',                               ()),
+    # A path takes the first row that prefixes it (scope.pick): the rows that
+    # hold others come last.
+    ('host/coaxial/simulated',                 ('test_simulated.py',
+                                                'test_parity.py') + OLLAMA),
+    ('host/coaxial/control/',                  (CONTROLLER, SENSORLESS, 'test_simulated.py')),
+    ('host/coaxial/',                          ('test_simulated.py', 'test_parity.py',
+                                                'test_mcp.py')),
+    ('host/tools/',                            OLLAMA),
 )
 
 # Every this many commits, run the lot regardless of what changed.

@@ -6,13 +6,13 @@ import time
 from coaxial.errors import CrcError, NoReplyError, RigError
 
 #: Blocks the host keeps between the reader and the consumer. Past this
-#: the OLDEST goes, and the drop is counted rather than hidden: a reader
+#: the oldest goes, and the drop is counted rather than hidden: a reader
 #: that silently replaced its last result is how 208 dropped records were
 #: once charged to the board.
 #:
 #: A block is a read's worth - four records at ten channels and the pins -
 #: so this is thousands of records and a few megabytes of dicts. Cheap on
-#: the machine at this end of the link, and the whole point of buffering
+#: the machine at this end of the link, and the point of buffering
 #: here: a consumer that stops to plot must not cost the board a record.
 HOST_BLOCKS = 4096
 
@@ -41,15 +41,15 @@ class BufferedReader:
         #: Records a reply can carry. A transaction costs the same whether
         #: it brings one record or a full reply, so reading the instant a
         #: single record appears spends the whole cost on 55 bytes.
-        #: MEASURED: eager reads ran 95 a second at 1.0 records each and
-        #: took 56% of the line; waiting for a full reply is worth more
-        #: than the milliseconds it costs.
+        #: Eager reads measured 95 a second at 1.0 records each and 56% of
+        #: the line; waiting for a full reply is worth more than the
+        #: milliseconds it costs.
         self._batch = max(1, int(batch))
         #: Longest this will wait for a reply to fill. The wait itself
-        #: is COMPUTED - the shortfall over the observed record rate -
+        #: is computed, the shortfall over the observed record rate,
         #: because a guessed slice is wrong in both directions: 20 ms gave
-        #: up just short of four records and ran at 1.55 a read, and 50 ms
-        #: overshot and took 140 records/s down to 76. This is only the
+        #: up short of four records and ran at 1.55 a read, and 50 ms
+        #: overshot and took 140 records/s down to 76. This is the
         #: ceiling on it, so a stalled board cannot hold the reader.
         self._max_wait = float(max_wait)
         self._rate = 0.0                      # records/s, this reader's own
@@ -62,7 +62,7 @@ class BufferedReader:
         self.peak = 0
         #: What the board still held after the last read, off that same
         #: reply. This is the pacing signal: a backlog means read again
-        #: NOW, and nothing means the ring is dry and a spin would just
+        #: at once, and nothing means the ring is dry and a spin would
         #: ask an empty ring the same question at the link's expense.
         self.backlog = None
         #: What the last reply said was left, read by the loop before it
@@ -155,7 +155,7 @@ class BufferedReader:
         self.peak = max(self.peak, len(self._blocks))
 
     def _count(self, block):
-        """The rate this reader is actually seeing, smoothed a window at a
+        """The rate this reader is seeing, smoothed a window at a
         time.
         """
         self.records += len(block)
@@ -172,8 +172,8 @@ class BufferedReader:
         misses = 0
         self._since = time.time()
         while not self._stop.is_set():
-            # A TRANSACTION COSTS THE SAME WHATEVER IT CARRIES, and on this
-            # board it costs the acquisition loop as well - the sampling and
+            # A transaction costs the same whatever it carries, and on this
+            # board it costs the acquisition loop as well: the sampling and
             # the Modbus handler share main().
             self._hold()
             try:
@@ -187,7 +187,9 @@ class BufferedReader:
                     return
                 time.sleep(RETRY_PAUSE)
                 continue
-            except Exception as exc:              # noqa: BLE001 - re-raised
+            except Exception as exc:
+                # The thread's edge: anything else ends the reader and is
+                # raised again on the consumer's thread (raise_if_failed).
                 self.error = exc
                 return
             misses = 0
@@ -197,6 +199,6 @@ class BufferedReader:
             if block:
                 self._count(block)
                 self._keep(block)
-            # PACED BY THE BOARD, NOT BY A CLOCK.
+            # Paced by the board, not by a clock.
             if not self.backlog and not block:
                 time.sleep(self._idle)
