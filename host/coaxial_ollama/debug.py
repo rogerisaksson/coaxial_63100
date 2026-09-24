@@ -1001,23 +1001,23 @@ class Chat:
 
     def _switch_node(self, rest):
         """Which node on the bus the tools talk to."""
-        from coaxial_mcp import tools as mcp
+        from coaxial_mcp import bus
 
         session = self.toolbox.session
         want = rest.strip()
         if not want:
-            return mcp.devices(session)
+            return bus.devices(session)
         if want.lower() in ('buses', 'bus'):
-            return mcp.devices(session, op='buses')
+            return bus.devices(session, op='buses')
         # "LL 2" is a bus and a node, which is what a node id needs beside it
         # once there is more than one segment.
         parts = want.split()
         if len(parts) == 2 and parts[1].lstrip('-').isdigit():
-            return mcp.devices(session, op='use', bus=parts[0].upper(),
+            return bus.devices(session, op='use', bus=parts[0].upper(),
                                unit=int(parts[1]))
         if not want.lstrip('-').isdigit():
-            return mcp.devices(session, op='use', name=want)
-        return mcp.devices(session, op='use', unit=int(want))
+            return bus.devices(session, op='use', name=want)
+        return bus.devices(session, op='use', unit=int(want))
 
     def prompt_tag(self):
         """(text, ok) for the prompt: the interface, then the node."""

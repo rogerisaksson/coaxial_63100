@@ -26,7 +26,7 @@ from rich.layout import Layout                             # noqa: E402
 from rich.panel import Panel                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 
-from coaxial_mcp.tools import TOOLS                        # noqa: E402
+from coaxial_mcp.schema import TOOLS  # noqa: E402
 from coaxial_ollama import cli, language, pull as pulling  # noqa: E402
 from coaxial_ollama.client import OllamaError              # noqa: E402
 from terminal.loader import TO_MENU

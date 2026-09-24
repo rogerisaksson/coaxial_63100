@@ -11,12 +11,12 @@ import mcp.types as types
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
-from coaxial.errors import RigError
-
 from. import detail as detailmod
 from . import render
 from coaxial.comm.session import open_session
-from .tools import HANDLERS, TOOLS
+from coaxial.errors import RigError
+from coaxial_mcp.schema import TOOLS
+from coaxial_mcp.tools import HANDLERS
 
 SERVER_NAME = 'coaxial-63100'
 

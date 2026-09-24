@@ -48,7 +48,7 @@ def test_board_tools(report):
                  results[3]['result'].splitlines()[0])
     # Counted against the MCP set rather than a number written here, so adding
     # a tool on that side does not fail this for the wrong reason.
-    from coaxial_mcp.tools import TOOLS as MCP_TOOLS
+    from coaxial_mcp.schema import TOOLS as MCP_TOOLS
     report.check('the tool surface is the MCP set plus six',
                  len(toolmod.TOOLS) == len(MCP_TOOLS) + 6,
                  '%d tools, MCP has %d' % (len(toolmod.TOOLS),
@@ -989,7 +989,7 @@ def test_detail(report):
 
 def test_coerce(report):
     """A tool that is hard to call is a tool that gets guessed around."""
-    from coaxial_mcp.tools import coerce
+    from coaxial_mcp.schema import coerce
 
     got = coerce('analog_read', {'ch': 'ntc', 'samples': '100',
                                  'rate_hz': '1000', 'vref': '3.3'})
@@ -1000,7 +1000,7 @@ def test_coerce(report):
     report.check('a list that arrived as text is a list',
                  coerce('analog_read', {'ch': "['NTC']"})['ch'] == ['NTC'])
     # The separator a model puts in a name is not information.
-    from coaxial_mcp.tools import _key
+    from coaxial_mcp.names import _key
     report.check('the separator in a channel name is not information',
                  len({_key(n) for n in ('dc_bus', 'DC bus', 'dc-bus', 'DCbus',
                                         'dcbus', ' DCBUS ')}) == 1)
@@ -1010,7 +1010,7 @@ def test_coerce(report):
 
     # And the whole path, not just the key: the resolver has to turn every
     # spelling into the same channel index against a real channel table.
-    from coaxial_mcp.tools import _resolve
+    from coaxial_mcp.names import _resolve
     session = SimulatedSession()
     wanted = [_resolve(session, [spelling])
               for spelling in ('dc_bus', 'DC bus', 'DCbus', 'dcbus')]
@@ -1100,7 +1100,8 @@ def test_coerce(report):
 def test_docs(report):
     """The one reader who could not open docs/ was the model at the bench."""
     from coaxial_mcp import docs as docmod
-    from coaxial_mcp.tools import HANDLERS, TOOLS
+    from coaxial_mcp.tools import HANDLERS
+    from coaxial_mcp.schema import TOOLS
 
     report.check('docs is a tool the model can call',
                  'docs' in HANDLERS

@@ -16,7 +16,8 @@ from coaxial.errors import DeviceStateError            # noqa: E402
 from coaxial import simulated
 from typing import Any, cast
 from coaxial.simulated import CHANNELS, SimulatedSession  # noqa: E402
-from coaxial_mcp import tools as toolmod                # noqa: E402
+from coaxial_mcp import tools as toolmod  # noqa: E402
+from coaxial_mcp import bus as busmod
 
 REPO = os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
@@ -169,9 +170,9 @@ def test_self_test_and_link(report):
     report.check('self_test reports all pass, nothing invented as a limit',
                  'FAIL' not in toolmod.self_test(session))
     report.check('link echo is a round trip, unchanged',
-                 toolmod.link(session, op='echo', text='ping')
+                 busmod.link(session, op='echo', text='ping')
                  == "echo ok 'ping'")
-    stats = toolmod.link(session, op='stats')
+    stats = busmod.link(session, op='stats')
     report.check('link stats carries the real field names, not a subset',
                  'char_overrun' in stats and 'bus_message' in stats, stats)
 
