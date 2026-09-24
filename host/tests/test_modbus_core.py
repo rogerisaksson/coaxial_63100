@@ -60,7 +60,7 @@ def build(cc, sources=None, includes=None, name='mbcore'):
     """(path, warnings) for a shared library, built fresh every run."""
     os.makedirs(OUT, exist_ok=True)
     lib = os.path.join(OUT, name + ('.dll' if os.name == 'nt' else '.so'))
-    flags = []
+    flags = [] if os.name == 'nt' else ['-fPIC']    # a .so on Linux; mingw warns on it
     for path in (includes or INCLUDES):
         flags += ['-I', path]
     done = subprocess.run([cc, '-shared', '-o', lib] + FLAGS +
