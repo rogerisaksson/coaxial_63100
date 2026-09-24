@@ -134,6 +134,51 @@ def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None,
     return out
 
 
+#: Stars over the horizon: STARS a 150-column frame, each on a fixed spot of the sky,
+#: twinkling at its own rate; under TWINKLE_OUT of its light it is gone for a moment.
+STARS = 24
+TWINKLE_OUT = 0.18
+STAR = (225, 232, 255)
+
+#: Decoration, meaning nothing: a column of half-width kana and hex flickering at the
+#: right edge, a kana line under the tag (2026-09-24, "Ghost in the Shell, Nostromo").
+KANA = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ'
+HEX = '0123456789ABCDEF'
+DATA = (60, 190, 140)
+FLICKER_HZ = 6.0
+SUBTAG = 'ｻｲﾄ ﾀﾝｻｸ ﾁｭｳ'
+
+
+def _hashed(*n):
+    """A number from integers, the same every run: a star's place, a glyph's pick."""
+    h = 2166136261
+    for v in n:
+        h = ((h ^ (v & 0xFFFFFFFF)) * 16777619) & 0xFFFFFFFF
+    return h
+
+
+def stars(static, width, height, t, roll=None):
+    """{cell: (braille mask, (r, g, b))}: the stars at `t`, each a dot over the horizon."""
+    sky = static['sky']
+    out = {}
+    for i in range(max(6, STARS * width // 150)):
+        x = _hashed(i, 1) % (2 * width) / 2.0 + 0.25
+        top = sky(x) - 1.0
+        if top <= 0.5:
+            continue
+        y = _hashed(i, 2) % 1000 / 1000.0 * top
+        light = 0.5 + 0.5 * math.sin(t * (1.1 + (_hashed(i, 3) % 7) * 0.45) + i)
+        if light < TWINKLE_OUT:
+            continue
+        if roll is not None:
+            x, y = roll(x, y)
+        if 0.0 <= x < width and 0.0 <= y < height:
+            px, py = int(x), int(y)
+            bit = BRAILLE_BITS[1 if x - px >= 0.5 else 0][min(3, int((y - py) * 4.0))]
+            out[py * width + px] = (bit, tuple(int(c * (0.35 + 0.65 * light)) for c in STAR))
+    return out
+
+
 def roller(fl, width, height, static):
     """(fx, fy) -> (fx, fy): the screen as the craft sees it - rolled against the bank
     about the view's centre, lifted by the bob at the camera's own rows a degree."""
@@ -237,16 +282,27 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
                                (bottom, first, '└─'), (bottom, last - 1, '─┘')):
             _put(grid, tone, row, col, text, amber)
         if int(t * 2.0) % 2 == 0:
-            _put(grid, tone, top, first + 3, 'LOCK', amber)
+            _put(grid, tone, top, first + 3, 'ﾛｯｸ ｵﾝ', amber)
 
     # The view's pitch (its centre against the horizon) and bank; the clock, the gates.
     pitch = -math.degrees(math.atan((height / 2.0 - static['hrow']) / static['rows'])) \
         + fl['bob']
-    _put(grid, tone, height - 2, 1, 'PITCH %+05.1f  BANK %s%04.1f' % (
+    _put(grid, tone, height - 2, 1, 'ﾋﾟｯﾁ %+05.1f  ﾊﾞﾝｸ %s%04.1f' % (
         pitch, 'R' if fl['bank'] >= 0 else 'L', abs(fl['bank'])), dim)
     minutes, seconds = divmod(t, 60.0)
-    _put(grid, tone, height - 1, 1, 'T+%02d:%04.1f  GATE %02d' % (minutes, seconds,
+    _put(grid, tone, height - 1, 1, 'T+%02d:%04.1f  ｹﾞｰﾄ %02d' % (minutes, seconds,
                                                                 gates % 100), amber)
     if int(t * 1.5) % 2 == 0:
-        tag = '>> ORBITAL APPROACH'
+        tag = '>> SCANNING FOR SITE'
         _put(grid, tone, height - 1, width - len(tag) - 1, tag, red)
+    data = DATA if colour else None
+    _put(grid, tone, height - 2, width - len(SUBTAG) - 1, SUBTAG, data)
+
+    # The data column, right edge: kana and hex, a new pick FLICKER_HZ times a second.
+    tick = int(t * FLICKER_HZ)
+    for row in range(6, height - 3):
+        pick = _hashed(row, tick)
+        if pick % 5 == 0:
+            continue
+        _put(grid, tone, row, width - 2, KANA[pick % len(KANA)], data)
+        _put(grid, tone, row, width - 1, HEX[(pick >> 8) % 16], data)

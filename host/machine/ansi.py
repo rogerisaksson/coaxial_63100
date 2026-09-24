@@ -217,6 +217,9 @@ CELL = (10, 20)
 #: The faces, where the bench's Windows keeps them.
 TEXT_FONT = 'C:/Windows/Fonts/consola.ttf'
 BRAILLE_FONT = 'C:/Windows/Fonts/seguisym.ttf'
+#: Half-width kana (U+FF61..FF9F): the terminal falls back to MS Gothic for them.
+KANA_FONT = 'C:/Windows/Fonts/msgothic.ttc'
+KANA = (0xFF61, 0xFF9F)
 #: Characters from here up are drawn with the braille face: the box
 #: drawing, blocks and braille ranges, none of which Consolas carries
 #: in the widths the pages assume.
@@ -323,6 +326,7 @@ def image(text, cell=CELL, fonts=(TEXT_FONT, BRAILLE_FONT)):
     draw = ImageDraw.Draw(img)
     text_font = _font(fonts[0], int(cell_h * 0.8))
     symbol_font = _font(fonts[1], int(cell_h * 0.8))
+    kana_font = _font(KANA_FONT, int(cell_h * 0.8))
     for y, row in enumerate(rows):
         for x, (c, fg, bg) in enumerate(row):
             if bg:
@@ -331,7 +335,8 @@ def image(text, cell=CELL, fonts=(TEXT_FONT, BRAILLE_FONT)):
                                fill=bg)
             if c == ' ':
                 continue
-            font = symbol_font if ord(c) >= SYMBOL_FROM else text_font
+            font = (kana_font if KANA[0] <= ord(c) <= KANA[1] else
+                    symbol_font if ord(c) >= SYMBOL_FROM else text_font)
             draw.text((x * cell_w, y * cell_h), c, fill=fg, font=font)
     return img
 
