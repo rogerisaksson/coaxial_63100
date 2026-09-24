@@ -42,6 +42,7 @@ extern "C" {
 #define DEVICE_THERMAL   8U
 #define DEVICE_POWER     9U
 #define DEVICE_DRIVE    10U
+#define DEVICE_CTRL     12U
 
 /* The thermal observer, device 8. */
 #define THERMAL_OP_STATE        0U
@@ -78,6 +79,14 @@ extern "C" {
 #define DRIVE_OP_MODEL       12U  /**< -> u8 source, i32 theta, omega, id, iq, vdc */
 #define DRIVE_OP_MODEL_RESET 13U  /**< the rotor back to theta0, at rest -> u8 */
 #define DRIVE_OP_OBSERVERS   14U  /**< -> the back-EMF chain beside the loop */
+
+/** Device 12's ops: the board's loop, ctrl/ ticked from the drive's sample. */
+#define CTRL_OP_STATE  0U  /**< -> flags, wire, rows, counts, channels */
+#define CTRL_OP_SLOT   1U  /**< u8 slot, u8 kind, u8 n, n x dec -> u8 took */
+#define CTRL_OP_WIRE   2U  /**< u8 measured, u8 command, u16 hz -> u8 took */
+#define CTRL_OP_ROWS   3U  /**< u8 n, n x (u16 ms, i32 milli) -> u8 took; all or none */
+#define CTRL_OP_CLEAR  4U  /**< -> u8 took; the rows dropped, the setpoint held */
+#define CTRL_OP_RUN    5U  /**< u8 on -> u8 took */
 
 /** Device 4's ops: the gate drivers, the synced triple and the STO chain. */
 #define GATEDRIVERS_OP_STATE    0U   /**< -> flags, registers, triple, STO */
@@ -155,7 +164,7 @@ extern "C" {
 /* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 19U        /* history: PROTOCOL.md, Versioning */
+#define CMD_PROTO_MINOR 20U        /* history: PROTOCOL.md, Versioning */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -200,6 +209,7 @@ cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_power_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_drive_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_ctrl_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_boot_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);
 

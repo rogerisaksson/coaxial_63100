@@ -1,6 +1,7 @@
 /** board_drive.c - The control law on this hardware, once a PWM period. */
 #include "board.h"
 #include "board_irq.h"
+#include "board_ctrl.h"
 #include "board_drive.h"
 #include "board_hw.h"
 #include "board_units.h"
@@ -399,6 +400,9 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   int32_t codes[DRIVE_MOMENT_CHANNELS];
   drive_sample_t in;
   drive_out_t out;
+
+  /* The board's loop first: its command is this period's setpoint. */
+  Board_CtrlTick(&s.drive);
 
   for (uint8_t k = 0U; k < BOARD_PWM_PHASES; k++)
   {

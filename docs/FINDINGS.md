@@ -191,6 +191,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   the first full `now` (~120); the humanoid prompt 1 360 characters. Every pass
   wrote unset outputs as 0, opening the stand-in pack's contactor: unset now
   holds what the node reads (2026-09-24).
+- Device 12, the board's loop (MINOR 20): a joint's feedback loaded as slots,
+  rows of 0.8 s at 20 and -20 deg, 100 Hz on the stand-in: within 0.05 deg,
+  the last held. On the board it ticks in the drive's sample; not yet run on
+  the bench (2026-09-24).
 
 ## Local model
 

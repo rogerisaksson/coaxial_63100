@@ -92,6 +92,16 @@ static uint16_t device_length(const uint8_t *pdu, uint16_t have)
         default:                    return 0U;
       }
 
+    case DEVICE_CTRL:
+      switch (op)
+      {
+        case CTRL_OP_STATE: return DEVICE_HEAD;
+        case CTRL_OP_WIRE:  return DEVICE_HEAD + 4U;   /* u8, u8, u16 hz */
+        case CTRL_OP_CLEAR: return DEVICE_HEAD;
+        case CTRL_OP_RUN:   return DEVICE_HEAD + 1U;   /* u8 on */
+        default:            return 0U;
+      }
+
     default:
       return 0U;
   }

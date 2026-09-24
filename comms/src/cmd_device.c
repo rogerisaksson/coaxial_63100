@@ -39,6 +39,7 @@ static cmd_status_t h_device(rd_t *in, wr_t *out)
     case DEVICE_THERMAL: return cmd_thermal_op(op, in, out);
     case DEVICE_POWER:  return cmd_power_op(op, in, out);
     case DEVICE_DRIVE:  return cmd_drive_op(op, in, out);
+    case DEVICE_CTRL:   return cmd_ctrl_op(op, in, out);
     case DEVICE_BOOT:   return cmd_boot_op(op, in, out);
     default:           return CMD_ERR_VALUE;
   }

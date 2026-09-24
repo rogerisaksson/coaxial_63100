@@ -15,6 +15,7 @@
 #include "board/thermal.h"
 #include "board/power.h"
 #include "board/drive.h"
+#include "board/ctrl.h"
 #include "board/selftest.h"
 #include "board/handover.h"
 

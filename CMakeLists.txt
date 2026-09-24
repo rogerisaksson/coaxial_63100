@@ -64,6 +64,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     drive/src/drive_observer.c
     # Filter: the decimating anti-alias chain.
     filter/src/filter.c
+    # Ctrl: machine.parts and a feedback, the board's loop.
+    ctrl/src/ctrl.c
 
     # Board layer: this hardware, behind comms/inc/board.h.
     board/src/board_imu.c
@@ -81,6 +83,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     board/src/board_thermal.c
     board/src/board_power.c
     board/src/board_drive.c
+    board/src/board_ctrl.c
     board/src/board_boot.c
 
     # Comms stack: cmd (request/response) over proto (Modbus) over dev (USART3).
@@ -103,6 +106,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     comms/src/cmd_thermal.c
     comms/src/cmd_power.c
     comms/src/cmd_drive.c
+    comms/src/cmd_ctrl.c
     comms/src/cmd_boot.c
     comms/src/testrig.c
     comms/src/link.c
@@ -121,7 +125,7 @@ set(COAXIAL_SOURCES
     daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
-    filter/src/filter.c
+    filter/src/filter.c ctrl/src/ctrl.c
     board/src/board_adc.c board/src/board_clock.c board/src/board_selftest.c
     board/src/board_io.c board/src/board_imu.c board/src/board_angle.c
     board/src/board_cal.c
@@ -131,14 +135,14 @@ set(COAXIAL_SOURCES
     board/src/board_daq.c
     board/src/board_thermal.c
     board/src/board_power.c
-    board/src/board_drive.c board/src/board_boot.c
+    board/src/board_drive.c board/src/board_ctrl.c board/src/board_boot.c
     comms/src/console.c comms/src/wire.c comms/src/dev_uart.c
     comms/src/cmd.c comms/src/cmd_board.c comms/src/cmd_test.c
     comms/src/cmd_angle.c comms/src/cmd_device.c comms/src/cmd_link.c
     comms/src/cmd_cal.c comms/src/cmd_gate_drivers.c comms/src/cmd_log.c
     comms/src/cmd_daq.c comms/src/cmd_time.c
     comms/src/cmd_power.c
-    comms/src/cmd_drive.c comms/src/cmd_boot.c
+    comms/src/cmd_drive.c comms/src/cmd_ctrl.c comms/src/cmd_boot.c
     comms/src/testrig.c comms/src/link.c comms/src/link_report.c
 )
 set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES
@@ -162,7 +166,7 @@ set_source_files_properties(
     comms/src/cmd_gate_drivers.c
     comms/src/cmd_log.c comms/src/cmd_daq.c comms/src/cmd_time.c
     comms/src/cmd_power.c
-    comms/src/cmd_drive.c comms/src/cmd_boot.c
+    comms/src/cmd_drive.c comms/src/cmd_ctrl.c comms/src/cmd_boot.c
     comms/src/link.c comms/src/link_report.c
     PROPERTIES COMPILE_OPTIONS "-Wextra;-Wshadow;-Wconversion")
 
@@ -175,9 +179,11 @@ set_source_files_properties(
     # stage, and at -O0 it is not a single add.
     filter/src/filter.c
     daq/src/daq.c
+    # ctrl.c ticks inside the drive's sample.
+    ctrl/src/ctrl.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 set_source_files_properties(
-    board/src/board_drive.c board/src/board_sync.c board/src/board_daq.c
+    board/src/board_drive.c board/src/board_ctrl.c board/src/board_sync.c board/src/board_daq.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow")
 # And the HAL in front of it: HAL_ADC_IRQHandler is every flag check in the
 # peripheral before the callback runs, fifty thousand times a second.
@@ -194,6 +200,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     thermal/inc
     drive/inc
     filter/inc
+    ctrl/inc
     shtp/inc
     comms/inc
     board/inc

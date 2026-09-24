@@ -192,6 +192,7 @@ TWINS = (
     ('coaxial.devices.system:System', 'coaxial.simulated.system:SimulatedSystem'),
     ('coaxial.devices.link:Link', 'coaxial.simulated.link:SimulatedLink'),
     ('coaxial.devices.boot:Boot', 'coaxial.simulated.boot:SimulatedBoot'),
+    ('coaxial.devices.ctrl:Ctrl', 'coaxial.simulated.ctrl:SimulatedCtrl'),
 )
 
 #: The wire's own plumbing, which a stand-in has no wire to carry.
@@ -623,7 +624,8 @@ MIRRORS = (
 OP_CLASSES = {'IMU': 'ImuOp', 'ANGLE': 'AngleOp', 'LINK': 'LinkOp',
               'CAL': 'CalOp', 'GATEDRIVERS': 'GateOp', 'LOG': 'LogOp',
               'DAQ': 'DaqOp', 'TIME': 'TimeOp', 'THERMAL': 'ThermalOp',
-              'DRIVE': 'DriveOp', 'POWER': 'PowerOp', 'BOOT': 'BootOp'}
+              'DRIVE': 'DriveOp', 'POWER': 'PowerOp', 'BOOT': 'BootOp',
+              'CTRL': 'CtrlOp'}
 
 _NUMBER = re.compile(r'\b(0[xX][0-9a-fA-F]+|\d+(?:\.\d*)?(?:[eE][-+]?\d+)?)[uUlL]*[fF]?\b')
 
@@ -723,6 +725,7 @@ WIRE_SHAPES = (
     ('comms/src/cmd_gate_drivers.c', 'h_gate_drivers_state',
      'coaxial.devices.gate_drivers', 'GateDrivers', 'state'),
     ('comms/src/cmd_drive.c', 'h_drive_state', 'coaxial.devices.drive', 'Drive', 'state'),
+    ('comms/src/cmd_ctrl.c', 'h_ctrl_state', 'coaxial.devices.ctrl', 'Ctrl', 'state'),
     ('comms/src/cmd_daq.c', 'h_daq_state', 'coaxial.acquire.daq', 'Daq', 'state'),
     ('comms/src/cmd_drive.c', 'h_drive_setpoints', 'coaxial.devices.drive', 'Drive', 'setpoints'),
     ('comms/src/cmd_drive.c', 'h_drive_window', 'coaxial.devices.drive', 'Drive', '_take_window'),

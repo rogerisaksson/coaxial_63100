@@ -54,9 +54,11 @@ SECTIONS
     _sitcm = .;
     *drive/src/*.c.obj(.text .text.*)
     *filter/src/filter.c.obj(.text .text.*)
+    *ctrl/src/ctrl.c.obj(.text .text.*)
     *daq/src/daq.c.obj(.text .text.*)
     *board/src/board_daq.c.obj(.text .text.*)
     *board/src/board_drive.c.obj(.text .text.*)
+    *board/src/board_ctrl.c.obj(.text .text.*)
     *board/src/board_sync.c.obj(.text .text.*)
     *board/src/board_pwm.c.obj(.text .text.*)
     *board/src/board_clock.c.obj(.text .text.*)

@@ -41,6 +41,7 @@ DEVICE_THERMAL = 8
 DEVICE_POWER = 9
 DEVICE_DRIVE = 10
 DEVICE_BOOT = 11
+DEVICE_CTRL = 12
 
 
 class ImuOp(IntEnum):
@@ -191,6 +192,16 @@ class DriveOp(IntEnum):
     OBSERVERS = 14
 
 
+class CtrlOp(IntEnum):
+    """Device 12, the board's loop - `coaxial.devices.ctrl`."""
+    STATE = 0
+    SLOT = 1
+    WIRE = 2
+    ROWS = 3
+    CLEAR = 4
+    RUN = 5
+
+
 class MapKind(IntEnum):
     """What command 0x6D is asked for: the sections of the channel map, and the
     two lists that ride beside it.
@@ -270,6 +281,10 @@ DEVICE_REQUESTS = {
     (DEVICE_DRIVE, DriveOp.MODEL_RESET): 3,
     (DEVICE_BOOT, BootOp.STATE): 3,
     (DEVICE_BOOT, BootOp.STAY): 3,
+    (DEVICE_CTRL, CtrlOp.STATE): 3,
+    (DEVICE_CTRL, CtrlOp.WIRE): 7,                   # u8, u8, u16
+    (DEVICE_CTRL, CtrlOp.CLEAR): 3,
+    (DEVICE_CTRL, CtrlOp.RUN): 4,                    # u8
 }
 
 #: Ops with two shapes, proven only once enough bytes rule the shorter one

@@ -656,6 +656,61 @@ def test_a_model_writes_lines(report):
                  len(many.summary().splitlines()) == 13, len(many.steps))
 
 
+def test_the_board_loops_a_joint(report):
+    """A joint's feedback on device 12: rows streamed, played for their time, the last held."""
+    from coaxial.devices.ctrl import dec
+    from coaxial.errors import RigError
+    from coaxial.node import Coaxial
+    back = [int.from_bytes(b[:4], 'big', signed=True) * 10.0 ** int.from_bytes(b[4:], 'big',
+                                                                               signed=True)
+            for b in (dec(v) for v in (0.735, -2e-5, 90.0, 314.159265, 0.0))]
+    report.check('a dec carries a parameter to float32 digits',
+                 all(abs(b - v) <= 1e-7 * abs(v) for b, v in
+                     zip(back, (0.735, -2e-5, 90.0, 314.159265, 0.0))), back)
+    rig = Coaxial63100(simulated=True).open()
+    try:
+        joint = Coaxial(rig, name='knee').actuator('joint')
+        f = joint.feedback('knee')
+        joint.arm(f)
+        joint.align(f)
+        time.sleep(0.3)
+        f.measure.configure(zero=joint.zero())
+        ctrl = rig.ctrl
+        ctrl.load(f)
+        ctrl.wire('angle', 'theta', 100)
+        ctrl.write(0.0)
+        ctrl.on()
+        try:
+            ctrl.slot('regulator', PI())
+            report.check('a slot is refused while the loop runs', False)
+        except RigError as exc:
+            report.check('a slot is refused while the loop runs', 'off' in str(exc), exc)
+        ctrl.rows([(0.8, 20.0), (0.8, -20.0)])
+        time.sleep(0.7)
+        up = ctrl.state()
+        time.sleep(0.8)
+        down = ctrl.state()
+        time.sleep(0.5)
+        held = ctrl.state()
+        report.check('the shaft follows the rows, 20 deg then -20',
+                     abs(up['value'] - 20.0) < 1.0 and abs(down['value'] + 20.0) < 1.0,
+                     (up['value'], down['value']))
+        report.check('and holds the last once they run out',
+                     held['rows'] == 0 and not held['playing'] and held['played'] == 3
+                     and abs(held['value'] + 20.0) < 1.0, held)
+        try:
+            ctrl.rows([(0.1, 0.0)] * 64)
+            report.check('rows past the ring are refused, all of them', False)
+        except RigError as exc:
+            report.check('rows past the ring are refused, all of them',
+                         'room' in str(exc) and ctrl.state()['rows'] == 0, exc)
+        ctrl.off()
+        report.check('off stops the ticks', not ctrl.is_on())
+    finally:
+        joint.disarm()
+        rig.close()
+
+
 def main():
     report = Report()
     for test in (test_a_feedback_holds_a_speed, test_every_channel_is_a_float,
@@ -667,7 +722,8 @@ def main():
                  test_nodes_offer_then_configure, test_fitment_by_measurement,
                  test_the_body_runs_a_program,
                  test_a_model_writes_lines, test_machine_types_and_routines,
-                 test_live_from_a_stream, test_a_model_streams_and_is_woken):
+                 test_live_from_a_stream, test_a_model_streams_and_is_woken,
+                 test_the_board_loops_a_joint):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

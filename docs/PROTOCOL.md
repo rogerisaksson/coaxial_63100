@@ -32,7 +32,8 @@ in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.18); firmware version in
 ## Wire types
 
 Big-endian integers, no floats (declared scales: mV, mA, uV, urad, mrad/s,
-ppm, Q16.16, Q28). `str` = `u8 len` + ASCII. Short read -> `CMD_ERR_LENGTH`,
+ppm, Q16.16, Q28). `str` = `u8 len` + ASCII. `dec` = `i32 m, i8 e`, the
+value m x 10^e: a parameter of any size or unit. Short read -> `CMD_ERR_LENGTH`,
 full writer -> `CMD_ERR_DEVICE`; never a truncated frame.
 
 Every op taking parameters answers **`u8 took`**: `1`, or `0` + `str` with
@@ -478,6 +479,28 @@ are broadcasts. Design: [BOOT.md](BOOT.md).
 
 States: 0 blank, 1 held, 2 assigned, 3 erased, 4 verified, 5 sealed.
 
+### 12 CTRL, `cmd_ctrl.c`
+
+The board's loop: `machine.parts` in C (`ctrl/`), a tick every whole number
+of PWM periods in the drive's sample, before its step. Rows stream in, each
+held for its milliseconds, the last held. Channels in milli-units.
+
+| op | Request | Reply |
+| --- | --- | --- |
+| 0 state | - | `u8 flags` (0x01 running, 0x02 playing), `u8 measured, u8 command, u16 hz, u16 rows, u16 free, u32 queued_ms, u32 played, u32 idle, u32 blind, i32 setpoint, i32 ref, i32 value, i32 estimate, i32 command` |
+| 1 slot | `u8 slot, u8 kind, u8 n`, per parameter `i32 m, i8 e` | `u8 took`; stopped only |
+| 2 wire | `u8 measured, u8 command, u16 hz` | `u8 took`; stopped only |
+| 3 rows | `u8 n`, per row `u16 ms, i32 milli` | `u8 took`; all or none, 40 at most |
+| 4 clear | - | `u8 took`; the rows dropped, the setpoint held |
+| 5 run | `u8 on` | `u8 took`; on resets the feedback, needs a wire and a regulator |
+
+Slots: 0 prefilter, 1 measure, 2 estimator, 3 regulator. Kinds: 0 none,
+1 Gain, 2 Slew, 3 Wrap, 4 LowPass, 5 SpeedKalman, 6 PI, 7 AngleHold,
+8 Direct, 9 SpeedPI, each with its `PARAMS` in order. Measured: 0 the
+A1335's angle, deg; 1 omega_hat, rad/s; 2 iq, A. Command: 0 theta, rad;
+1 iq_ref, A. `hz` kept: the PWM rate over the nearest whole divider.
+`blind`: ticks with no reading; the command stood.
+
 ### Drive op 14
 
 A second angle estimate beside the loop (`drive_observer.c`), steering
@@ -518,6 +541,7 @@ MINOR appends; MAJOR breaks a codec.
 | 17 | thermal op 10 appends `i32 trip_cap_micro`, the trip cap as it stands, so a host can say whether the trip or the model holds the margin |
 | 18 | device 11 BOOT as the application serves it: op 10 `state`, op 12 `stay`; the rest refused in words. The image sits at 0x08020000 with its header, and a bootloader's assignment reaches it through the handover slot (BOOT.md) |
 | 19 | device 11 `state` appends `u32 image_bytes, u32 image_crc, u8 flags` - the image the bootloader verified and ran, and assign's flags; `seal` takes `[u8 flags]`. The application runs from D2 SRAM at 0x30000000; flash at 0x08020000 keeps a sealed copy (BOOT.md) |
+| 20 | device 12 CTRL, the board's loop: slots, a wire, rows streamed and held; the `dec` wire type |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

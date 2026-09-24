@@ -10,6 +10,7 @@ from coaxial.simulated.acquire.clock import SimulatedClock
 from coaxial.simulated.acquire.daq import SimulatedDaq
 from coaxial.simulated.analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
 from coaxial.simulated.boot import SimulatedBoot
+from coaxial.simulated.ctrl import SimulatedCtrl
 from coaxial.simulated.drive.device import SimulatedDrive
 from coaxial.simulated.link import (DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink,
                                     _BroadcastRefuses, bus_nodes, load_j)
@@ -114,6 +115,9 @@ class SimulatedBoard:
         # moves what the drive torques, or the loop it closes is between two
         # inventions.
         self.angle.drive = self.drive
+        # The board's loop measures the drive and the shaft, and drives the drive.
+        self.ctrl = SimulatedCtrl()
+        self.ctrl.drive, self.ctrl.angle = self.drive, self.angle
         # And the A1335's die is as warm as the board it sits on.
         self.angle.thermal = self.thermal
         self.daq.angle = self.angle

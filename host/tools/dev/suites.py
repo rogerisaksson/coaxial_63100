@@ -206,6 +206,8 @@ TOUCHES = (
     ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE)),
     ('host/machine/',                          (CONTROLLER, 'test_simulated.py', 'test_mcp.py')),
     ('host/coaxial/node.py',                   (CONTROLLER, 'test_mcp.py')),
+    ('host/coaxial/devices/ctrl.py',           (CONTROLLER, STRUCTURE)),
+    ('host/coaxial/simulated/ctrl.py',         (CONTROLLER, STRUCTURE)),
     ('host/terminal/views/show_session.py',    (VIEWS,) + OLLAMA),
     ('host/terminal/views/session/',           (VIEWS,) + OLLAMA),
     # A live view is a loop, a screen and a cable around a renderer that is
