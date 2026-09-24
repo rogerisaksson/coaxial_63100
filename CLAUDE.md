@@ -104,7 +104,7 @@ one question) and stop. Design questions are yours.
 6. Every ADC read calls `HAL_ADC_ConfigChannel` and clears `PCSEL`.
 7. Scaling lives once, in the calibration record. Only the DC link is
    spanned (2026-08-30, -32 418 ppm ch 5).
-8. Python library: a result or a raise from `coaxial.errors`.
+8. Python library: a result or a raise from `coaxial.errors` (`machine.errors`).
 9. AFE_ON off: mid-scale, NTC 25.00 C - labelled; cooked readings refuse.
 10. No limits or expected values in firmware or tests, except `self_test`
     and the thermal envelope (drops MOE at the record's ceiling).

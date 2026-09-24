@@ -1,9 +1,9 @@
 """Who is holding a rail, behind `0x6E` device 9."""
 from coaxial.comm import protocol
 from coaxial.comm.protocol import PowerOp
-from coaxial.devices.subsystem import Device
-from coaxial.devices.roles import Output
 from coaxial.comm.wire import Reader, label
+from coaxial.devices.subsystem import Device
+from machine.roles import Output
 
 #: Rails, in the order the board reports them.
 RAILS = ('afe',)

@@ -2,9 +2,9 @@
 import math
 
 from coaxial.devices import angle
-from coaxial.draw import ansi
-from coaxial.draw.ascii3d import CELL_ASPECT
 from coaxial.devices.scaling import KELVIN_AT_ZERO_C
+from coaxial.draw.ascii3d import CELL_ASPECT
+from machine import ansi
 from coaxial.graphics.raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y, table,
                      SUBDOT, covered)
 

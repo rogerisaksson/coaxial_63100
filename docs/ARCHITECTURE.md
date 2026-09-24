@@ -35,17 +35,21 @@ boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),
 ## Host
 
 ```text
-coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory
+machine/            any board family, no import of one: roles (Input, Stream, Output,
+                    Controller; Part: Filter, Estimator, Regulator), errors, controller (Loop
+                    of Feedbacks over float channels), parts, panel, wiring, ansi (palette),
+                    sequencer (lines or tables: limits, jumps, routines; check, summary),
+                    nodes (Node, Nodes, FAMILIES), machine (Machine, Actuator), routines
+                    (types as data), live (a stream, a buffer, a failsafe), simulated (pack,
+                    camera)
+coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory; node (the
+                    family for machine: Coaxial node, joint, surface, rotor, torque)
 coaxial/comm/       the wire: transport, crc, codecs, protocol, broker, sessions
-coaxial/devices/    one subsystem per functional area (board, afe, gates, boot..); roles:
-                    Input, Stream, Output, Controller; the parts' Filter, Estimator, Regulator
+coaxial/devices/    one subsystem per functional area (board, afe, gates, boot..)
 coaxial/acquire/    the rig's task and stream (its mixins), records, reader, clock, filter
-coaxial/nodes/      boards as IO nodes: capabilities() per module, then loops over them; Nodes
 coaxial/model/      motor, inverter, thermal network, sensorless, sysid
-coaxial/control/    controller (Loop of Feedbacks over float channels), parts, panel,
-                    sequencer (lines or tables: limits, jumps; check, summary, prompt), body (a joint
-                    per node), loop (sim blocks), motion, commission
-coaxial/draw/       2D drawings: palette, dials, gauges, machine, thermal map, wiring
+coaxial/control/    loop (sim blocks), motion, commission
+coaxial/draw/       2D drawings: dials, gauges, machine, thermal map
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c), observer
 coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/ drive/ thermal/

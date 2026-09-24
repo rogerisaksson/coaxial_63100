@@ -4,8 +4,8 @@ from typing import Any
 
 from coaxial.devices.gates import GateControl
 from coaxial.devices.power import named
-from coaxial.devices.roles import Output
 from coaxial.errors import RigError
+from machine.roles import Output
 
 
 class SimulatedPower(Output):

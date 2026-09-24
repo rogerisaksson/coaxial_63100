@@ -4,8 +4,7 @@ Each constructs with no arguments, so a panel can add one.
 """
 import math
 
-from coaxial.devices.roles import Estimator, Filter, Regulator
-from coaxial.model.sensorless import TWO_PI
+from machine.roles import Estimator, Filter, Regulator
 
 
 # -- filters ---------------------------------------------------------------------------
@@ -148,31 +147,48 @@ class AngleHold(Regulator):
         self.x = self.at = 0.0
 
 
+class Direct(Regulator):
+
+    """The setpoint as the command, within +/-`limit`: a current, a duty, a torque."""
+
+    PARAMS = ('limit',)
+
+    def __init__(self, limit=1.0):
+        self.limit = float(limit)
+
+    def step(self, dt, setpoint=0.0, measured=0.0):
+        return {'command': max(-self.limit, min(self.limit, setpoint))}
+
+
 class SpeedPI(Regulator):
 
     """iq from w: a PI whose zero cancels the mechanical pole, acceleration and drag
     (b w + load_k w|w|) fed forward, the integrator held while clamped or `held` (the
-    inner loop saturated). `accel` unwired: the setpoint's own slope."""
+    inner loop saturated). `accel` unwired: the setpoint's own slope. `scale`: rad/s per
+    unit of setpoint and measurement (RAD_S_PER_RPM for rpm)."""
 
     INPUTS = ('setpoint', 'measured', 'accel', 'held')
-    PARAMS = ('hz', 'limit', 'kt', 'j', 'b', 'load_k')
+    PARAMS = ('hz', 'limit', 'kt', 'j', 'b', 'load_k', 'scale')
 
-    def __init__(self, hz=3.0, limit=1.0, kt=0.05, j=2e-5, b=1e-5, load_k=0.0):
-        self.hz, self.limit, self.kt, self.j, self.b, self.load_k = (
-            float(v) for v in (hz, limit, kt, j, b, load_k))
+    def __init__(self, hz=3.0, limit=1.0, kt=0.05, j=2e-5, b=1e-5, load_k=0.0, scale=1.0):
+        self.hz, self.limit, self.kt, self.j, self.b, self.load_k, self.scale = (
+            float(v) for v in (hz, limit, kt, j, b, load_k, scale))
         self.reset()
 
     @classmethod
     def of(cls, hz, limit, motor, load=None):
-        """From a `coaxial.model.motor.Parameters` and a `Propeller`."""
+        """From a motor (`poles lam j b`) and a load (`k`), as `coaxial.model.motor` has them."""
         return cls(hz, limit, 1.5 * motor.poles * motor.lam, motor.j, motor.b,
                    load.k if load else 0.0)
 
     def step(self, dt, setpoint=0.0, measured=0.0, accel=None, held=0.0):
+        setpoint, measured = setpoint * self.scale, measured * self.scale
         if accel is None:
             accel = (setpoint - self.was) / dt if dt else 0.0
+        else:
+            accel *= self.scale
         self.was = setpoint
-        w0 = TWO_PI * self.hz
+        w0 = math.tau * self.hz
         err = setpoint - measured
         damp = self.b + 2.0 * self.load_k * abs(setpoint)
         ff = (self.j * accel + self.b * setpoint + self.load_k * setpoint * abs(setpoint)) / self.kt

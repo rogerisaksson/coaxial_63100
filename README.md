@@ -38,10 +38,22 @@ with Coaxial63100(port='COM4') as device:          # device=True: no cable
 - Everything raises rather than returning a status. Channels and parts come
   from the board.
 
+## Machines
+
+```python
+from machine import Machine
+humanoid = Machine.discover('humanoid', device=True)   # every board found; a joint per Coaxial
+print(humanoid.prompt())                               # what a model is told, ~1300 characters
+humanoid.run('0 run=squat times=2\n0 run=walk stride=15')
+```
+
+- `host/machine/` imports no board: a family (`coaxial.node`) is loaded by
+  `Nodes.discover` when installed. Types: humanoid, quad, fixed_wing, ebike.
+
 ## Notebooks
 
 Twelve executed papers in `notebook_examples/` (acquisition, link, sensors,
-power_stage, thermal, drive, controller, sequencer, humanoid, motion, applications,
+power_stage, thermal, drive, controller, sequencer, machines, motion, applications,
 commissioning), generated from `host/tools/notebooks/`:
 
 ```powershell

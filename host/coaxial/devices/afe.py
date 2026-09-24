@@ -2,11 +2,11 @@
 import functools
 
 from coaxial.comm import protocol
-from coaxial.errors import DeviceStateError
-from coaxial.devices.power import named
-from coaxial.devices.roles import Output
-from coaxial.devices.subsystem import Subsystem
 from coaxial.comm.wire import Reader, pack
+from coaxial.devices.power import named
+from coaxial.devices.subsystem import Subsystem
+from coaxial.errors import DeviceStateError
+from machine.roles import Output
 
 
 def powered(reading):

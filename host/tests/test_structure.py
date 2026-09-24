@@ -27,7 +27,7 @@ REPO = os.path.dirname(HOST)
 sys.path.insert(0, HOST)
 
 # Packages this suite walks.
-PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'testline', 'terminal')
+PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'machine', 'testline', 'terminal')
 SCRIPTS = ('tools', 'examples')
 
 #: Outside host/, and judged the same: a reader copies from these.
@@ -299,6 +299,16 @@ def test_numpy_enters_behind_the_thread_cap(r):
             ', '.join(importers) or 'nowhere')
     r.check('and loop.py sets OPENBLAS_NUM_THREADS before importing it',
             capped)
+
+
+def test_machine_imports_no_board(r):
+    """machine/ names a board family only as a string in FAMILIES: no import of one,
+    anywhere in a module, so the family can leave for its own repository."""
+    importers = sorted({path for path, _text, tree in sources(beside=False)
+                        if path.startswith('machine' + os.sep)
+                        for node in ast.walk(tree)
+                        if any(n.startswith('coaxial') for n in _names_imported(node))})
+    r.check('machine imports no board family', not importers, ', '.join(importers))
 
 
 def _bound(tree):
@@ -1383,7 +1393,7 @@ def test_notebooks_are_papers(r):
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles, test_stand_ins_answer_every_call,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
-          test_numpy_enters_behind_the_thread_cap,
+          test_numpy_enters_behind_the_thread_cap, test_machine_imports_no_board,
           test_shape, test_documented, test_target_briefs,
           test_no_escaping_scars,
           test_counts_are_measured, test_subsystem_calls_resolve,

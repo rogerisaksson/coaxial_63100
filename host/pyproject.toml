@@ -1,5 +1,5 @@
 # The host stack as an installable package: `pip install -e host/` puts
-# coaxial, coaxial_mcp and coaxial_ollama on the path and hands out the
+# machine, coaxial, coaxial_mcp and coaxial_ollama on the path and hands out the
 # console entries, so nothing outside this tree needs sys.path surgery to
 # use the library. The scripts inside the tree keep their root-finders -
 # they must run from a bare clone, installed or not.
@@ -29,7 +29,7 @@ coaxial-mcp = "coaxial_mcp.server:main"
 packages = ["coaxial", "coaxial.acquire", "coaxial.comm", "coaxial.control",
             "coaxial.devices", "coaxial.draw", "coaxial.graphics", "coaxial.kalman",
             "coaxial.model", "coaxial.simulated", "coaxial_mcp", "coaxial_ollama",
-            "testline"]
+            "machine", "testline"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

@@ -1,11 +1,11 @@
 """The board's thermal observer, behind `0x6E` device 8."""
 from coaxial.comm import protocol
-from coaxial.errors import RigError
 from coaxial.comm.protocol import ThermalOp
-from coaxial.devices.roles import Input
-from coaxial.devices.subsystem import Device
-from coaxial.model.thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES, PHASES
 from coaxial.comm.wire import Reader, label, micro, milli, pack, pages
+from coaxial.devices.subsystem import Device
+from coaxial.errors import RigError
+from coaxial.model.thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES, PHASES
+from machine.roles import Input
 
 #: Where derating starts, a fraction of a node's ceiling: the record's
 #: `soa_throttle_ppm` default (from 0.85: that took a sixth of every burst).

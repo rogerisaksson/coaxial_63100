@@ -1,8 +1,9 @@
 """Exception hierarchy for the coaxial_63100 host library."""
+from machine.errors import MachineError
 
 
-class RigError(Exception):
-    """Base class, so a caller can catch this library in one clause."""
+class RigError(MachineError):
+    """Base class, so a caller can catch this library in one clause; a MachineError."""
 
 
 class ConnectError(RigError):

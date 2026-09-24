@@ -62,7 +62,8 @@ print('a leg        %.1f K/W off the camera against %.1f off the datasheet coupo
       % (camera_leg, sheet_leg, math.sqrt(camera_leg * sheet_leg), thermal.LEG_TO_BOARD))'''),
         md('Switching dry, relaxed; drawn as the THERMAL OBSERVER page draws it, fixed '
            'scale.'),
-        code('''from coaxial.draw import ansi, thermalmap
+        code('''from coaxial.draw import thermalmap
+from machine import ansi
 
 steady = thermal.steady(thermal.POWER_SWITCHING)
 print('power while switching, dry: %.2f W' % sum(thermal.POWER_SWITCHING.values()))

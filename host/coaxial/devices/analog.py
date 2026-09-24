@@ -1,12 +1,12 @@
 """The analog front end: channels, bursts and the conversions that are known.
 """
 from coaxial.comm import protocol
+from coaxial.comm.wire import Reader, pack
 from coaxial.devices import scaling
 from coaxial.devices.afe import powered
-from coaxial.errors import DeviceStateError
 from coaxial.devices.subsystem import Subsystem, remembered
-from coaxial.devices.roles import Input
-from coaxial.comm.wire import Reader, pack
+from coaxial.errors import DeviceStateError
+from machine.roles import Input
 
 
 class Analog(Subsystem, Input):

@@ -2,11 +2,12 @@
 import math
 import time
 
-from coaxial.control.controller import Feedback, Loop, Polled
-from coaxial.control.parts import Gain, Slew, SpeedPI
 from coaxial.errors import RigError
 from coaxial.model.motor import Parameters, Propeller
 from coaxial.model.sensorless import RAD_S_PER_RPM
+from machine.controller import Feedback, Loop, Polled
+from machine.errors import MachineError
+from machine.parts import Gain, Slew, SpeedPI
 
 #: Mechanical degrees: a full turn, and the jump past which a reading
 #: has wrapped rather than the shaft having moved.
@@ -265,8 +266,13 @@ class Velocity(_Mode):
         if accel_rpm_s is None:
             accel_rpm_s = abs(target - ramp.y / RAD_S_PER_RPM) * 3.0 / max(seconds, 0.1)
         ramp.configure(rate=accel_rpm_s * RAD_S_PER_RPM)
-        self.loop.move(seconds, (lambda _: watch(self)) if watch else None,
-                       w_target=float(target) * RAD_S_PER_RPM)
+        try:
+            self.loop.move(seconds, (lambda _: watch(self)) if watch else None,
+                           w_target=float(target) * RAD_S_PER_RPM)
+        except RigError:
+            raise
+        except MachineError as exc:                 # the loop's words, as this library's
+            raise RigError(str(exc)) from None
         return self.rpm_now
 
     def stop(self, seconds=1.0):

@@ -21,8 +21,9 @@ from contextlib import suppress
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.devices import angle  # noqa: E402
-from coaxial.draw import ansi, dial  # noqa: E402
+from coaxial.draw import dial  # noqa: E402
 from coaxial.errors import RigError  # noqa: E402
+from machine import ansi  # noqa: E402
 from terminal.loader import TO_MENU  # noqa: E402
 from terminal.ui import aspect as _aspect, screen as _screen  # noqa: E402
 from terminal.ui.screen import Freshness, closing, open_rig, run_view, say, steady  # noqa: E402

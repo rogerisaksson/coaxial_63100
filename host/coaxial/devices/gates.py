@@ -1,8 +1,8 @@
 """The gate drive: the board's raw ops, and the policy for switching them on."""
 from abc import ABC, abstractmethod
 
-from coaxial.devices.roles import Output
 from coaxial.errors import RigError
+from machine.roles import Output
 
 
 class GateControl(Output, ABC):

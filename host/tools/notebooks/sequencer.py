@@ -9,17 +9,18 @@ SECTIONS = [
         'The streams',
         md("An array of IO nodes, here one: what it offers comes first - every module's "
            'channels, ins with units, outs with ranges - and every number is a float.'),
-        code('''from coaxial.control.parts import Gain
-from coaxial.draw import ansi
-from coaxial.draw.wiring import diagram, feedback
-from coaxial.model.sensorless import RAD_S_PER_RPM
-from coaxial.nodes import Node, Nodes
+        code('''from coaxial.model.sensorless import RAD_S_PER_RPM
+from coaxial.node import Coaxial
+from machine import ansi
+from machine.nodes import Nodes
+from machine.parts import Gain
+from machine.wiring import diagram, feedback
 
 drive = device.drive
 drive.configure(source='model')
 drive.model.configure(j=2e-5, b=1e-5, load=0.0, noise=0.05)
 device.gates.on(bypass_sto=True, ignore_interlock=True)
-nodes = Nodes([Node(device, name='motor')])
+nodes = Nodes([Coaxial(device, name='motor')])
 print(nodes.card('drive', 'angle', keys=('omega_hat', 'iq', 'degrees', 'iq_ref', 'theta')))
 print(len(nodes.capabilities()), 'channels in all, over', ', '.join(nodes['motor'].modules))'''),
     ),
@@ -42,7 +43,7 @@ ansi.image(feedback(loop, 'speed'))'''),
            'enter and leave the drive\'s mode.'),
         code('''import os
 import tempfile
-from coaxial.control.sequencer import Sequencer
+from machine.sequencer import Sequencer
 
 TABLE = """group,seconds,label,rpm_target,rpm.H,rpm.L,goto,times
 init,0.5,,0,,,,
@@ -149,8 +150,8 @@ BENCH = ('Commission the record first; `init` arms, `cleanup` disarms; HH and LL
          'currents the stage may carry.')
 
 REFERENCES = [
-    ('host/coaxial/control/sequencer.py', '`Sequencer`: rows, groups, jumps, limits, `run`'),
-    ('host/coaxial/control/controller.py', '`Loop`, `Feedback`: the controller it drives'),
+    ('host/machine/sequencer.py', '`Sequencer`: rows, groups, jumps, limits, `run`'),
+    ('host/machine/controller.py', '`Loop`, `Feedback`: the controller it drives'),
     ('host/coaxial/control/motion.py', '`Velocity`: the loop behind `device.motion.velocity`'),
     ('host/tests/test_controller.py', 'the sequencer against a toy rotor'),
 ]

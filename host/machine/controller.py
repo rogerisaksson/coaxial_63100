@@ -22,9 +22,9 @@ import json
 import threading
 import time
 
-from coaxial.control.parts import PI
-from coaxial.devices.roles import Controller, Estimator, Filter, Input, Part, Regulator
-from coaxial.errors import RigError
+from machine.errors import MachineError
+from machine.parts import PI
+from machine.roles import Controller, Estimator, Filter, Input, Part, Regulator
 
 
 def _float(value):
@@ -105,7 +105,7 @@ class Loop(Controller):
     def add(self, name, feedback):
         """A feedback loop in as `name` - in place of one so named, else last."""
         if '.' in name or '/' in name:
-            raise RigError('a loop name has no . or /: %r' % name)
+            raise MachineError('a loop name has no . or /: %r' % name)
         order = list(self.feedbacks)
         if name in self.feedbacks:
             self.remove(name)
@@ -159,7 +159,7 @@ class Loop(Controller):
         """'<part>.<port>': channel; None unwires it."""
         for key, channel in wires.items():
             if key not in self.ports():
-                raise RigError('no port %s - there are %s' % (key, ', '.join(self.ports())))
+                raise MachineError('no port %s - there are %s' % (key, ', '.join(self.ports())))
             if channel is None:
                 self.wires.pop(key, None)
             else:
@@ -170,7 +170,7 @@ class Loop(Controller):
         """'<sink>.<key>': channel, written to that sink every pass; None drops it."""
         for key, channel in outputs.items():
             if key.rpartition('.')[0] not in self.sinks:
-                raise RigError('no sink %s - there are %s' % (key, ', '.join(self.sinks)))
+                raise MachineError('no sink %s - there are %s' % (key, ', '.join(self.sinks)))
             if channel is None:
                 self.outputs.pop(key, None)
             else:
@@ -242,7 +242,7 @@ class Loop(Controller):
         for key, value in channels.items():
             f = _float(value)
             if f is None:
-                raise RigError('%s: a channel carries a float, not %r' % (key, value))
+                raise MachineError('%s: a channel carries a float, not %r' % (key, value))
             self.bus[key] = f
             self.setpoints.add(key)
         return {k: self.bus[k] for k in channels}
@@ -260,7 +260,7 @@ class Loop(Controller):
         for name, source in self.sources.items():
             got = source.read()
             if got.get('fault'):
-                raise RigError('%s faulted mid-loop - %s; the loop is over'
+                raise MachineError('%s faulted mid-loop - %s; the loop is over'
                                % (name, got['fault']))
             self.bus.update(flat(got, name + '.'))
 
@@ -357,7 +357,7 @@ class Loop(Controller):
         return path
 
     def __str__(self):
-        from coaxial.draw.wiring import diagram
+        from machine.wiring import diagram
         return diagram(self, colour=False)
 
 
@@ -370,7 +370,7 @@ def _spec(part):
 def _part(spec):
     kind = Part.KINDS.get(spec['kind'])
     if kind is None:
-        raise RigError('no part kind %s in this process - import the module that defines it; '
+        raise MachineError('no part kind %s in this process - import the module that defines it; '
                        'known: %s' % (spec['kind'], ', '.join(sorted(Part.KINDS))))
     part = kind(**spec['params'])
     return Paced(part, spec['hz']) if 'hz' in spec else part

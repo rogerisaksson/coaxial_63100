@@ -9,11 +9,12 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial.draw import ansi, ascii3d, desk, orientation  # noqa: E402
-from coaxial.graphics import raster
-from coaxial.devices import scaling               # noqa: E402
-from coaxial.errors import DeviceStateError            # noqa: E402
 from coaxial import simulated
+from coaxial.devices import scaling               # noqa: E402
+from coaxial.draw import ascii3d, desk, orientation  # noqa: E402
+from coaxial.errors import DeviceStateError            # noqa: E402
+from coaxial.graphics import raster
+from machine import ansi  # noqa: E402
 from typing import Any, cast
 from coaxial.simulated import CHANNELS, SimulatedSession  # noqa: E402
 from coaxial_mcp import tools as toolmod  # noqa: E402

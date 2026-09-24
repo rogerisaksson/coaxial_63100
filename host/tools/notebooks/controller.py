@@ -11,13 +11,14 @@ SECTIONS = [
            'drive on the model. Ask what it offers, then build the loop over its `drive` '
            'module: `motor.drive.omega_hat` in, `motor.drive.iq_ref` out, every channel a '
            'float.'),
-        code('''from coaxial.control.controller import Feedback, Loop, Paced
-from coaxial.control.parts import Gain, LowPass, Slew, SpeedKalman, SpeedPI
-from coaxial.draw import ansi
-from coaxial.draw.wiring import feedback
-from coaxial.model.motor import Parameters
+        code('''from coaxial.model.motor import Parameters
 from coaxial.model.sensorless import RAD_S_PER_RPM
-from coaxial.nodes import Node, Nodes
+from coaxial.node import Coaxial
+from machine import ansi
+from machine.controller import Feedback, Loop, Paced
+from machine.nodes import Nodes
+from machine.parts import Gain, LowPass, Slew, SpeedKalman, SpeedPI
+from machine.wiring import feedback
 
 J, B = 2e-5, 1e-5
 drive = device.drive
@@ -33,7 +34,7 @@ motor = Parameters(name='the record', r=p['motor_r_uohm'], ld=p['motor_ld_nh'],
                    lq=p['motor_lq_nh'], lam=p['motor_lambda_uvs'], poles=poles, j=J, b=B,
                    measured=False)
 kt = 1.5 * poles * motor.lam
-nodes = Nodes([Node(device, name='motor')])
+nodes = Nodes([Coaxial(device, name='motor')])
 print(nodes.card('drive', keys=('omega_hat', 'iq', 'vdc', 'id_ref', 'iq_ref', 'theta')))
 loop = nodes.loop(inputs=['motor.drive'], outputs=['motor.drive'], rate_hz=25)'''),
     ),
@@ -56,7 +57,7 @@ for r in rows[::10]:
            '`SpeedKalman` predicts on the command, corrects on the measurement: `w` raw, '
            '`w_hat` estimated, one run.'),
         code('''import random
-from coaxial.devices.roles import Filter
+from machine.roles import Filter
 
 def spread(values):
     m = sum(values) / len(values)
@@ -122,7 +123,7 @@ loop.pause = 0.04'''),
         'A regulator of your own',
         md('A `Regulator` names its PARAMS and steps: `step(dt, setpoint, measured)` -> '
            '`{\'command\': ...}`. Proportional alone leaves the drag as its error.'),
-        code('''from coaxial.devices.roles import Regulator
+        code('''from machine.roles import Regulator
 
 class Proportional(Regulator):
     PARAMS = ('kp', 'limit')
@@ -152,7 +153,7 @@ print('error at 1000 rpm: Proportional %.0f rpm, SpeedPI %.0f rpm' % (p_error, p
            '`Loop.load` rebuilds it on live sources and sinks.'),
         code('''import os
 import tempfile
-from coaxial.control.panel import panel
+from machine.panel import panel
 
 path = os.path.join(tempfile.gettempdir(), 'coaxial_controller.json')
 loop.save_at_exit(path)
@@ -183,10 +184,10 @@ BENCH = ('The record commissioned first (`commissioning.ipynb`); no flags on `ga
          'At the bench `r` is the observer\'s measured variance.')
 
 REFERENCES = [
-    ('host/coaxial/control/controller.py', '`Loop`, `Feedback`, `Paced`, `Polled`; save and load'),
-    ('host/coaxial/control/parts.py', 'the parts: Gain, Slew, LowPass, SpeedKalman, PI, SpeedPI'),
-    ('host/coaxial/control/panel.py', 'the panel'),
-    ('host/coaxial/draw/wiring.py', 'the pictures: a loop, a feedback'),
-    ('host/coaxial/devices/roles.py', 'the roles, and Part: ports, PARAMS, step'),
+    ('host/machine/controller.py', '`Loop`, `Feedback`, `Paced`, `Polled`; save and load'),
+    ('host/machine/parts.py', 'the parts: Gain, Slew, LowPass, SpeedKalman, PI, SpeedPI'),
+    ('host/machine/panel.py', 'the panel'),
+    ('host/machine/wiring.py', 'the pictures: a loop, a feedback'),
+    ('host/machine/roles.py', 'the roles, and Part: ports, PARAMS, step'),
     ('host/tests/test_controller.py', 'the loop against a toy rotor and the stand-in'),
 ]

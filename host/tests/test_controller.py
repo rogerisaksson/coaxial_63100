@@ -8,13 +8,13 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import Coaxial63100                                            # noqa: E402
-from coaxial.control.controller import Feedback, Loop, Paced, Polled        # noqa: E402
-from coaxial.control.parts import Gain, LowPass, PI, Slew, SpeedKalman, SpeedPI  # noqa: E402
-from coaxial.control.sequencer import Sequencer                             # noqa: E402
-from coaxial.devices.roles import Estimator, Input, Output, Regulator       # noqa: E402
-from coaxial.draw.wiring import diagram, feedback                           # noqa: E402
-from coaxial.errors import RigError                                         # noqa: E402
+from coaxial import Coaxial63100                                      # noqa: E402
+from machine.controller import Feedback, Loop, Paced, Polled          # noqa: E402
+from machine.errors import MachineError                               # noqa: E402
+from machine.parts import Gain, LowPass, PI, Slew, SpeedKalman, SpeedPI  # noqa: E402
+from machine.roles import Estimator, Input, Output, Regulator         # noqa: E402
+from machine.sequencer import Sequencer                               # noqa: E402
+from machine.wiring import diagram, feedback                          # noqa: E402
 
 KT, J, B = 0.07, 2e-5, 1e-5
 DT = 0.002
@@ -120,7 +120,7 @@ def test_every_channel_is_a_float(report):
     try:
         loop.write(mode='hold')
         report.check('a string setpoint is refused', False)
-    except RigError as exc:
+    except MachineError as exc:
         report.check('a string setpoint is refused', 'float' in str(exc), exc)
 
 
@@ -149,7 +149,7 @@ def test_parts_swap_in_place(report):
     try:
         loop.wire(**{'speed/regulator.nothing': 'x'})
         report.check('a port that is not there is refused', False)
-    except RigError as exc:
+    except MachineError as exc:
         report.check('a port that is not there is refused', 'no port' in str(exc), exc)
 
 
@@ -245,7 +245,7 @@ def test_the_sequencer(report):
     try:
         Sequencer([{'seconds': 1, 'goto': 'nowhere'}])
         report.check('a goto to no label is refused', False)
-    except RigError as exc:
+    except MachineError as exc:
         report.check('a goto to no label is refused', 'nowhere' in str(exc), exc)
 
 
@@ -274,7 +274,7 @@ def test_a_program_as_data(report):
     try:
         Sequencer([{'seconds': 1, 'label': 'stop'}])
         report.check('stop is not a label', False)
-    except RigError as exc:
+    except MachineError as exc:
         report.check('stop is not a label', 'stop' in str(exc), exc)
 
 
@@ -301,7 +301,7 @@ def test_a_fault_ends_the_loop(report):
     try:
         loop.step(DT)
         report.check('a source that reports a fault stops the loop', False)
-    except RigError as exc:
+    except MachineError as exc:
         report.check('a source that reports a fault stops the loop', 'overcurrent' in str(exc),
                      exc)
 
@@ -355,7 +355,7 @@ def test_the_pictures_and_the_panel(report):
     except ImportError:
         report.check('the panel (ipywidgets absent: skipped)', True)
         return
-    from coaxial.control.panel import kinds, panel
+    from machine.panel import kinds, panel
     report.check('a part of your own is a kind the panel offers',
                  'Proportional' in kinds(Regulator) and 'Regulator' not in kinds(Regulator))
     box = panel(loop, path=os.path.join(tempfile.mkdtemp(), 'loop.json'))
@@ -396,19 +396,23 @@ def test_velocity_is_a_feedback(report):
 
 
 def test_nodes_offer_then_configure(report):
-    from coaxial.nodes import Nodes
+    from machine.nodes import Nodes
     nodes = Nodes.discover(device=True)
     try:
         names = [n.name for n in nodes]
-        report.check('every node on every bus, named where it sits',
-                     len(nodes) == 20 and 'left_knee' in names and 'pelvis' in names, names[:4])
-        caps = {c.name: c for c in nodes['left_knee'].capabilities('drive', 'angle')}
+        report.check('every node on every bus, named where it sits; the pack and camera too',
+                     len(nodes.of_type('bldc_inverter')) == 20 and 'left_knee' in names
+                     and [n.type for n in nodes][-2:] == ['bms', 'camera'], names[-3:])
+        bare = Nodes.discover(device=True, families=())
+        report.check('no family, no inverters: the stand-in peripherals alone',
+                     [n.type for n in bare] == ['bms', 'camera'], [n.name for n in bare])
+        caps ={c.name: c for c in nodes['left_knee'].capabilities('drive', 'angle')}
         report.check('a node says what it offers: ins with units, outs with ranges',
                      caps['left_knee.angle.degrees'].unit == 'deg'
                      and caps['left_knee.drive.iq_ref'].direction == 'out'
                      and caps['left_knee.drive.iq_ref'].high > 0,
                      caps['left_knee.drive.iq_ref'])
-        card = nodes.card('angle', keys=('degrees',))
+        card = Nodes(nodes.of_type('bldc_inverter')).card('angle', keys=('degrees',))
         report.check('the card is a line a node and direction',
                      card.count('\n') + 1 == 40 and 'left_knee.angle' not in card
                      and 'angle.degrees deg' in card, card.splitlines()[:2])
@@ -419,23 +423,25 @@ def test_nodes_offer_then_configure(report):
         try:
             nodes.loop(inputs=['left_knee.gears'])
             report.check('a module a node lacks is refused', False)
-        except RigError as exc:
+        except MachineError as exc:
             report.check('a module a node lacks is refused', 'gears' in str(exc), exc)
     finally:
         nodes.close()
 
 
 def test_the_body_runs_a_program(report):
-    from coaxial.control.body import Body
-    from coaxial.nodes import Nodes
+    from machine import Machine
+    from machine.nodes import Nodes
     nodes = Nodes.discover(device=True)
     try:
-        body = Body(nodes, joints=['left_hip', 'left_knee', 'right_hip', 'right_knee'])
+        body = Machine(nodes, {j: nodes[j].actuator('joint') for j in
+                               ('left_hip', 'left_knee', 'right_hip', 'right_knee')})
         told = body.prompt()
         report.check('the prompt: the grammar, then each joint and what reads it back',
                      'One step a line' in told and 'set  left_hip, left_knee, right_hip, '
                      'right_knee deg -90..90  (read back as <name>.deg)' in told
-                     and len(told) < 700, len(told))
+                     and 'read battery.pack.amps' in told
+                     and 'set  battery.contactor 0..1' in told and len(told) < 1000, len(told))
         program = ('# a squat, twice\n'
                    '0.2 group=init left_hip=0 right_hip=0 left_knee=0 right_knee=0\n'
                    '2 label=down left_hip=-30 right_hip=-30 left_knee=60 right_knee=60 '
@@ -453,9 +459,99 @@ def test_the_body_runs_a_program(report):
         for _ in range(3):
             again = body.run(program)
             gaps.append(max(abs(r[j + '.ref'] - r[j + '.deg']) for r in again.rows
-                            for j in body.joints))
+                            for j in body.actuators))
         report.check('armed again and again, no joint slips a pole (worst gap under 10 deg)',
                      max(gaps) < 10.0, ['%.1f' % g for g in gaps])
+    finally:
+        nodes.close()
+
+
+def test_machine_types_and_routines(report):
+    from machine import Machine
+    from machine.routines import TYPES
+    from machine.nodes import Nodes
+    nodes = Nodes.discover(device=True)
+    try:
+        for kind, program, back in (
+                ('humanoid', '0 run=squat seconds=0.6\n0 run=look yaw=35', 'head.deg'),
+                ('quad', '0 run=take_off seconds=0.6\n0 run=land seconds=0.6', 'rotor_fl.rpm'),
+                ('fixed_wing', '0 run=take_off seconds=0.6\n0 run=bank deg=-15 seconds=0.6',
+                 'aileron_l.deg'),
+                ('ebike', '0 run=assist amps=3 seconds=0.6', 'assist.amps')):
+            machine = Machine(nodes, type=kind)
+            out = machine.run(program)
+            report.check('%s: its routines run, its actuators read back' % kind,
+                         out.status == 'done' and back in out.rows[-1], out.summary())
+        humanoid = Machine(nodes, type='humanoid')
+        report.check('the camera sees what the head turned to',
+                     abs(humanoid.run('0 run=look yaw=35').rows[-1]
+                         ['head_camera.vision.target.x'] - 5.0 / 30.0) < 0.05)
+        told = humanoid.prompt()
+        report.check('the prompt names the type, its routines and what it reads',
+                     'This machine (humanoid)' in told and 'walk(stride=20' in told
+                     and 'head_camera.vision.target.x' in told, len(told))
+        for text, want in (('0 run=wlak', 'did you mean walk'),
+                           ('0 run=walk strides=3', 'walk takes stride'),
+                           ('0 run=squat knee=120', 'outside -90..90')):
+            try:
+                humanoid.run(text)
+                report.check('refused: %s' % want, False)
+            except MachineError as exc:
+                report.check('refused: %s' % want, want in str(exc), str(exc).splitlines()[-1])
+        try:
+            Machine(nodes, type='submarine')
+            report.check('an unknown type is refused, the types named', False)
+        except MachineError as exc:
+            report.check('an unknown type is refused, the types named',
+                         all(t in str(exc) for t in TYPES), exc)
+        ebike = Machine.discover('ebike', device=True)
+        try:
+            report.check('the factory: the family loaded, the type over what it found',
+                         type(ebike.actuators['assist']).__module__ == 'coaxial.node'
+                         and len(ebike.nodes) == len(nodes), list(ebike.actuators))
+        finally:
+            ebike.close()
+    finally:
+        nodes.close()
+
+
+def test_live_from_a_stream(report):
+    from machine.live import Live
+    from machine import Machine
+    from machine.nodes import Nodes
+    nodes = Nodes.discover(device=True)
+    try:
+        legs = ('left_hip', 'left_knee', 'right_hip', 'right_knee')
+        machine = Machine(nodes, {j: nodes[j].actuator('joint') for j in legs})
+        live = Live(machine, failsafe='0.6 left_knee=0 right_knee=0', timeout=0.8,
+                    horizon=1.0).start()
+        said = [live.send('0.4 left_knee=20 right_knee=20'),
+                live.send('0.4 left_knee=4O'),
+                live.send('0.4 left_knee=30 right_knee=30'),
+                live.send('0.4 left_knee=40 right_knee=40')]
+        report.check('chunks queue; a bad one is refused alone, in a line',
+                     said[0] is None and 'left_knee=4O is not a number' in said[1]
+                     and said[2] is None, said[1])
+        report.check('past the horizon the writer is told to wait',
+                     'send when it drains' in (said[3] or ''), said[3])
+        time.sleep(2.5)
+        state = live.state()
+        report.check('silence past the timeout plays the failsafe',
+                     state['status'] == 'failsafe' and state['played'] == 2
+                     and abs(machine.pose()['left_knee']) < 5.0, state)
+        report.check('each chunk\'s wait is kept: the latency', state['wait_max'] is not None)
+        live.stop()
+        report.check('stop: stopped, and nothing more is taken',
+                     live.state()['status'] == 'stopped'
+                     and 'stopped' in live.send('0.4 left_knee=10'))
+        machine.limits['left_knee.deg'] = {'HH': 15.0}
+        live = Live(machine, failsafe='0.4 left_knee=0', timeout=5.0).start()
+        live.send('0.8 left_knee=30')
+        time.sleep(1.6)
+        report.check('a trip stops the machine, the failsafe played, the reason kept',
+                     live.state()['status'] == 'tripped'
+                     and 'left_knee.deg' in live.state()['reason'], live.state()['reason'])
+        live.stop()
     finally:
         nodes.close()
 
@@ -477,7 +573,7 @@ def test_a_model_writes_lines(report):
         try:
             Sequencer.parse(text).run(loop)
             report.check('refused: %s' % want, False)
-        except RigError as exc:
+        except MachineError as exc:
             report.check('refused: %s' % want, want in str(exc), exc)
     marker = Sequencer.parse('0.1 phase=2').run(loop)
     report.check('a name like no other is the program\'s own', marker.status == 'done'
@@ -496,7 +592,8 @@ def main():
                  test_a_fault_ends_the_loop, test_a_paced_part_keeps_its_own_rate,
                  test_the_pictures_and_the_panel, test_velocity_is_a_feedback,
                  test_nodes_offer_then_configure, test_the_body_runs_a_program,
-                 test_a_model_writes_lines):
+                 test_a_model_writes_lines, test_machine_types_and_routines,
+                 test_live_from_a_stream):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

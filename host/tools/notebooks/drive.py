@@ -27,8 +27,8 @@ print({k: round(v, 6) for k, v in plant.items()})'''),
         md('Sliding mode against flux linkage: seven speeds, five plants, 2 A. Torque at '
            'angle error `eps` is `cos(eps)`: 20 deg costs 6 %, the line.'),
         code('''import math
-from coaxial.model import inverter, sensorless
 from coaxial.control.loop import CurrentLoop, Machine, Signals
+from coaxial.model import inverter, sensorless
 from coaxial.model.motor import PLATINUM_5230SL, Parameters
 
 TWO_PI = 2.0 * math.pi
@@ -609,7 +609,8 @@ for name, f in w['fields'].items():
     print('   %-4s n %-7s mean %s sd %s' % (name, f['n'], f['mean'], f['sd']))
 print('rho', [round(r, 4) for r in w['rho']])'''),
         code('''from IPython.display import display
-from coaxial.draw import ansi, machine as cross_section
+from coaxial.draw import machine as cross_section
+from machine import ansi
 
 t = [r[0] for r in spin]
 fig, (angle, mid, bottom) = figure(rows=3, sharex=True)

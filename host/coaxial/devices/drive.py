@@ -6,11 +6,11 @@ import math
 import time
 
 from coaxial.comm import protocol
-from coaxial.errors import RigError
 from coaxial.comm.protocol import DriveOp
-from coaxial.devices.roles import Controller, Input
-from coaxial.devices.subsystem import Device
 from coaxial.comm.wire import Reader, micro, pack
+from coaxial.devices.subsystem import Device
+from coaxial.errors import RigError
+from machine.roles import Controller, Input
 
 MODES = {'off': 0, 'volt': 1, 'hold': 2, 'sensorless': 3, 'polarity': 4}
 MODE_NAMES = {v: k for k, v in MODES.items()}

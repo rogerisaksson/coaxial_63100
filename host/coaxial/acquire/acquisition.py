@@ -2,7 +2,7 @@
 import time
 from abc import ABC, abstractmethod
 
-from coaxial.devices.roles import Stream
+from machine.roles import Stream
 
 
 class Acquisition(Stream, ABC):

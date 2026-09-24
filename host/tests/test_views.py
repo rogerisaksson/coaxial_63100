@@ -485,7 +485,8 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     import re
     from rich.console import Console
 
-    from coaxial.draw import ansi, gauges, machine
+    from coaxial.draw import gauges, machine
+    from machine import ansi
     from terminal.views import show_thermal_observer as page
     from terminal.ui import stage
 
@@ -744,7 +745,8 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     edges and a label - placed from the pick and place.
     """
     import re
-    from coaxial.draw import ansi, thermalmap
+    from coaxial.draw import thermalmap
+    from machine import ansi
     from coaxial.model.thermal import ALL_NODES
 
     warm = {n: 40.0 for n in ALL_NODES if n != 'board'}
@@ -1393,7 +1395,8 @@ def test_the_face_wears_its_two_scales(report):
     as tubes on their own ranges - the scales beside it the bench asked
     for, die temperature and field strength in gauss, 2026-09-07.
     """
-    from coaxial.draw import ansi, dial
+    from coaxial.draw import dial
+    from machine import ansi
 
     def dots(lines):
         return sum(bin(ord(c) - 0x2800).count('1')
@@ -1493,7 +1496,8 @@ def test_the_bead_trails_its_speed(report):
     """
     import re
 
-    from coaxial.draw import ansi, machine
+    from coaxial.draw import machine
+    from machine import ansi
 
     inks = {machine.INK[c] for c in machine.TRAIL}
 
@@ -1714,7 +1718,7 @@ def test_a_frame_rasterises_as_the_terminal_draws_it(report):
     """`ansi.image` draws a coloured frame cell by cell, the way the bench's
     terminal shows it: the notebooks' pictures, and `tools/render/ansi2png.py`.
     """
-    from coaxial.draw import ansi
+    from machine import ansi
 
     frame = (ansi.paint('ab', ansi.RED) + 'c\n'
              + ansi.paint('\u28ff', ansi.GREEN) + ' \u2801')
@@ -1754,7 +1758,7 @@ def test_the_marquee_decodes_the_art_itself(report):
     from rich.console import Console
     from rich.measure import Measurement
     from rich.text import Text
-    from coaxial.draw import ansi
+    from machine import ansi
     from terminal.ui import marquee, stage
 
     class ByText:

@@ -6,7 +6,7 @@
     Output      + write(**values)  on()  off()  is_on()  trip()
     Controller  Input + Output, + move(**targets)
 
-The parts a controller is wired from (`coaxial.control.controller.Loop`), every port a float:
+The parts a controller is wired from (`machine.controller.Loop`), every port a float:
 
     Part        INPUTS, OUTPUTS, PARAMS; step(dt, **inputs) -> {output: float}; reset();
                 params(); configure(**params)
@@ -15,13 +15,13 @@ The parts a controller is wired from (`coaxial.control.controller.Loop`), every 
     Regulator   setpoint, measured -> command
 
 One verb, one meaning, on every device. A verb a device cannot do refuses
-in words (RigError); what a device adds beyond the verbs is a setting of
+in words (MachineError); what a device adds beyond the verbs is a setting of
 `configure`, or a named method of its own.
 """
 import time
 from collections import namedtuple
 
-from coaxial.errors import RigError
+from machine.errors import MachineError
 
 #: One run of a stream: what it read, its state at the end, how long it took.
 Run = namedtuple('Run', 'records state seconds')
@@ -37,7 +37,7 @@ class Endpoint:
 
     def configure(self, **settings):
         """Replace its settings."""
-        raise RigError('%s takes no settings' % type(self).__name__)
+        raise MachineError('%s takes no settings' % type(self).__name__)
 
     def fault(self):
         """What stops it, in its own words; None while well."""
@@ -45,15 +45,15 @@ class Endpoint:
 
     def clear(self):
         """Clear a latched fault."""
-        raise RigError('%s latches no fault' % type(self).__name__)
+        raise MachineError('%s latches no fault' % type(self).__name__)
 
     def hold(self):
         """Freeze where it is: a sensor's poll loop, an output's value, a shaft."""
-        raise RigError('%s has no hold' % type(self).__name__)
+        raise MachineError('%s has no hold' % type(self).__name__)
 
     def resume(self):
         """Carry on after `hold`."""
-        raise RigError('%s has no hold' % type(self).__name__)
+        raise MachineError('%s has no hold' % type(self).__name__)
 
 
 class Input(Endpoint):
@@ -66,7 +66,7 @@ class Input(Endpoint):
 
     def trigger(self):
         """Take one acquisition now."""
-        raise RigError('%s takes no trigger' % type(self).__name__)
+        raise MachineError('%s takes no trigger' % type(self).__name__)
 
 
 class Stream(Input):
@@ -103,18 +103,18 @@ class Output(Endpoint):
 
     def on(self):
         """To its working state."""
-        raise RigError('%s has no on' % type(self).__name__)
+        raise MachineError('%s has no on' % type(self).__name__)
 
     def is_on(self):
         return bool(self.state().get('on'))
 
     def off(self):
         """To its safe state."""
-        raise RigError('%s has no off' % type(self).__name__)
+        raise MachineError('%s has no off' % type(self).__name__)
 
     def trip(self):
         """To its safe state now, latched as a fault."""
-        raise RigError('%s has no trip' % type(self).__name__)
+        raise MachineError('%s has no trip' % type(self).__name__)
 
 
 class Controller(Input, Output):
@@ -123,7 +123,7 @@ class Controller(Input, Output):
 
     def move(self, **targets):
         """Go to the targets: a position, a speed, a current."""
-        raise RigError('%s does not move' % type(self).__name__)
+        raise MachineError('%s does not move' % type(self).__name__)
 
 
 class Part:
@@ -152,7 +152,7 @@ class Part:
     def configure(self, **params):
         unknown = sorted(set(params) - set(self.PARAMS))
         if unknown:
-            raise RigError('%s has no %s - its parameters are %s' % (
+            raise MachineError('%s has no %s - its parameters are %s' % (
                 type(self).__name__, ', '.join(unknown), ', '.join(self.PARAMS) or 'none'))
         for name, value in params.items():
             setattr(self, name, float(value))

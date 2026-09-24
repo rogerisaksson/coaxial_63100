@@ -12,8 +12,9 @@ import time
 
 from coaxial import Coaxial63100
 from coaxial.devices.thermal_device import THROTTLE_AT
-from coaxial.draw import ansi, gauges, machine
+from coaxial.draw import gauges, machine
 from coaxial.errors import DeviceStateError, NoReplyError, RigError
+from machine import ansi
 from terminal.ui.console import Keys, _ignore
 from terminal.ui.rate import rate_of
 from terminal.ui.scroll import scroll_by, scroll_click, scroll_drag

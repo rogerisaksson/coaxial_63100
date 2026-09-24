@@ -6,10 +6,10 @@ slots' kinds and parameters, save. Every change applies to the running loop at o
 import base64
 import io
 
-from coaxial.control.controller import Feedback
-from coaxial.devices.roles import Part
-from coaxial.draw import ansi
-from coaxial.draw.wiring import FRAME, LABEL, TITLE, diagram, feedback
+from machine import ansi
+from machine.controller import Feedback
+from machine.roles import Part
+from machine.wiring import FRAME, LABEL, TITLE, diagram, feedback
 
 NONE = '-'
 
@@ -20,12 +20,12 @@ def _hex(number):
 
 #: The terminal's field: black, Consolas, ash labels, teal values, the amber action.
 CSS = ('<style>'
-       '.coaxial {background: #000; padding: 8px; font-family: Consolas, monospace}'
-       '.coaxial .widget-label, .coaxial .widget-html-content {color: %s;'
+       '.machine {background: #000; padding: 8px; font-family: Consolas, monospace}'
+       '.machine .widget-label, .machine .widget-html-content {color: %s;'
        ' font-family: Consolas, monospace}'
-       '.coaxial select, .coaxial input {background: #000; color: %s; border: 1px solid %s;'
+       '.machine select, .machine input {background: #000; color: %s; border: 1px solid %s;'
        ' font-family: Consolas, monospace}'
-       '.coaxial button {background: #000; color: %s; border: 1px solid %s;'
+       '.machine button {background: #000; color: %s; border: 1px solid %s;'
        ' font-family: Consolas, monospace}'
        '</style>') % (_hex(LABEL), _hex(ansi.TEAL), _hex(FRAME), _hex(ansi.AMBER),
                       _hex(ansi.AMBER))
@@ -166,5 +166,5 @@ def panel(loop, path=None):
                   layout=w.Layout(width='220px'))
     box = Panel([w.HTML(CSS), w.HBox([left, image]),
                  w.Box([detail], layout=w.Layout(max_height='520px', overflow_y='auto'))])
-    box.add_class('coaxial')
+    box.add_class('machine')
     return box

@@ -4,11 +4,12 @@ import functools
 import math
 import os
 
+from coaxial.draw import orientation
 from coaxial.graphics import creases, engine, preload, solids, stereotype
-from coaxial.draw import ansi, orientation
 from coaxial.graphics.creases import OUTLINE_EXACT
 from coaxial.graphics.ground import GROUND_SPEED, _ground
 from coaxial.graphics.lines import _edge, _outline
+from machine import ansi
 from coaxial.graphics.shading import (BIAS, FLOOR, LIGHT, PIVOT, SHADOW_DIM, SLOPE, SUN_MIN, _dots,
                                       _expose, _face, _glow, _rim, _shadowmap)
 from coaxial.graphics.solids import (LODS, MESHES_KEPT, _decimate_missing, _decimated, _parametric,

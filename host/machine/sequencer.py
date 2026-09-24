@@ -22,9 +22,10 @@ cleanup; `ranges` {channel: (low, high)} refuse a setpoint outside before anythi
 import csv
 import io
 import math
+import re
 from collections import namedtuple
 
-from coaxial.errors import RigError
+from machine.errors import MachineError
 
 #: The columns that steer rather than set.
 STEER = ('seconds', 'label', 'goto', 'times', 'group', 'then', 'else')
@@ -39,6 +40,7 @@ GRAMMAR = """One step a line: seconds, then name=value. # starts a comment.
   label=up           name the line           then=up else=down   go there when a level
   goto=up times=3    after the line, back 3 times             ended the step / when time did
   group=init         runs first; group=cleanup runs last, always
+  run=walk times=4 stride=25   a routine below, its params by name, times over
 0 seconds: a decision, no time passes. A jump to stop ends the program."""
 
 
@@ -64,7 +66,7 @@ class Outcome(namedtuple('Outcome', 'rows status reason steps')):
         return '\n'.join(lines)
 
 
-class Tripped(RigError):
+class Tripped(MachineError):
     """A channel past its HH or LL."""
 
 
@@ -99,8 +101,45 @@ def _line(line, row):
         elif 'seconds' not in cells:
             cells['seconds'] = key
         else:
-            raise RigError('row %d: %r is neither seconds nor name=value' % (row, token))
+            raise MachineError('row %d: %r is neither seconds nor name=value' % (row, token))
     return cells
+
+
+_PARAM = re.compile(r'\{(-?)(\w+)(?:\*([0-9.]+))?\}')
+
+
+def _format(text, params):
+    """A routine's text with {p}, {-p} and {p*k} as numbers."""
+    def value(m):
+        sign, name, factor = m.groups()
+        return '%g' % ((-1.0 if sign else 1.0) * params[name] * float(factor or 1.0))
+    return _PARAM.sub(value, text)
+
+
+def _expand(lines, routines, depth=0):
+    """Lines with every `run=` line replaced by its routine's lines, `times` over."""
+    if depth > 8:
+        raise MachineError('routines call each other more than 8 deep')
+    out = []
+    for n, line in enumerate(lines):
+        cells = dict(token.partition('=')[::2] for token in line.split() if '=' in token)
+        if 'run' not in cells:
+            out.append(line)
+            continue
+        name = cells.pop('run')
+        if name not in routines:
+            raise MachineError('line %d: no routine %s%s - there are %s' % (
+                n, name, _near(name, routines), ', '.join(routines) or 'none'))
+        routine = routines[name]
+        times = int(float(cells.pop('times', 1)))
+        unknown = sorted(set(cells) - set(routine.defaults))
+        if unknown:
+            raise MachineError('line %d: %s takes %s, not %s' % (
+                n, name, ', '.join(routine.defaults), ', '.join(unknown)))
+        params = dict(routine.defaults, **{k: float(v) for k, v in cells.items()})
+        body = [x for x in _format(routine.text, params).splitlines() if x.strip()]
+        out += _expand(body, routines, depth + 1) * times
+    return out
 
 
 def _near(name, names):
@@ -147,13 +186,16 @@ class Step:
     def of(cls, cells, row=0):
         """A table row."""
         if _value(cells.get('seconds')) is None:
-            raise RigError('row %d needs seconds: %r' % (row, cells))
+            raise MachineError('row %d needs seconds: %r' % (row, cells))
         group = _text(cells.get('group')) or 'main'
         if group not in GROUPS:
-            raise RigError('row %d: group %s - there are %s' % (row, group, ', '.join(GROUPS)))
+            raise MachineError('row %d: group %s - there are %s' % (row, group, ', '.join(GROUPS)))
         setpoints, adds, limits = {}, {}, {}
         for key, cell in cells.items():
-            value = _value(cell) if key not in STEER else None
+            try:
+                value = _value(cell) if key not in STEER else None
+            except ValueError:
+                raise MachineError('row %d: %s=%s is not a number' % (row, key, cell)) from None
             if value is None:
                 continue
             channel, _, level = key.rpartition('.')
@@ -209,11 +251,11 @@ class Sequencer:
         self.ranges = dict(ranges or {})
         self.at, self.taken = 0, {}
         if STOP in self.labels():
-            raise RigError('%s is where a jump ends the run, not a label' % STOP)
+            raise MachineError('%s is where a jump ends the run, not a label' % STOP)
         missing = sorted({t for s in self.steps for t in s.targets()}
                          - set(self.labels()) - {STOP})
         if missing:
-            raise RigError('a jump names no main row: %s; the labels are %s'
+            raise MachineError('a jump names no main row: %s; the labels are %s'
                            % (', '.join(missing), ', '.join(self.labels()) or 'none'))
 
     @classmethod
@@ -226,12 +268,13 @@ class Sequencer:
             return cls.parse(handle.read(), **kw)
 
     @classmethod
-    def parse(cls, text, **kw):
-        """Steps as text: lines (`0.5 knee=40`) or csv with a header row."""
+    def parse(cls, text, routines=None, **kw):
+        """Steps as text: lines (`0.5 knee=40`, `0 run=walk times=2`) or csv with a header."""
         lines = [line.split('#')[0].strip() for line in text.strip().splitlines()]
         lines = [line for line in lines if line]
         if lines and ',' in lines[0] and '=' not in lines[0]:
             return cls(list(csv.DictReader(io.StringIO('\n'.join(lines)))), **kw)
+        lines = _expand(lines, routines or {})
         return cls([_line(line, n) for n, line in enumerate(lines)], **kw)
 
     def check(self, loop):
@@ -323,31 +366,15 @@ class Sequencer:
 
     def run(self, loop, watch=None):
         """The whole sequence on `loop`, checked first; cleanup however it ends."""
-        problems = self.check(loop)
-        if problems:
-            raise RigError('the program names what the loop has not:\n' + '\n'.join(problems))
+        self._checked(loop)
         out = {'rows': [], 'steps': []}
-        status, reason, spent = 'done', None, 0.0
+        status, reason = 'done', None
         try:
             if self.on_init is not None:
                 self.on_init(loop)
             for step in self.groups['init']:
                 self._run(loop, step, out, watch)
-            cycle = 0
-            while cycle < self.cycles and status == 'done':
-                while self.at < len(self.steps):
-                    if self.limit is not None and spent >= self.limit:
-                        status, reason = 'limit', '%.3g s spent' % spent
-                        break
-                    if len(out['steps']) >= self.max_steps:
-                        status, reason = 'limit', '%d steps taken' % self.max_steps
-                        break
-                    before = loop.bus['t']
-                    ended = self._run(loop, self.steps[self.at], out, watch)
-                    spent += loop.bus['t'] - before
-                    self._advance(ended)
-                cycle += 1
-                self.at, self.taken = 0, {}
+            status, reason = self._main(loop, out, watch)
         except Tripped as trip:
             status, reason = 'tripped', str(trip)
         finally:
@@ -356,3 +383,35 @@ class Sequencer:
             if self.on_cleanup is not None:
                 self.on_cleanup(loop)
         return Outcome(out['rows'], status, reason, out['steps'])
+
+    def play(self, loop, watch=None, trips=True):
+        """The main group only, on a loop already armed: no hooks, no cleanup; a trip is
+        raised (Tripped) for whoever armed it."""
+        out = {'rows': [], 'steps': []}
+        status, reason = self._main(loop, out, watch, trips)
+        return Outcome(out['rows'], status, reason, out['steps'])
+
+    def seconds(self):
+        """The main group's seconds, each row once: what it adds to a buffer."""
+        return sum(step.seconds for step in self.steps)
+
+    def _checked(self, loop):
+        problems = self.check(loop)
+        if problems:
+            raise MachineError('the program names what the loop has not:\n' + '\n'.join(problems))
+
+    def _main(self, loop, out, watch, trips=True):
+        """The main group, `cycles` times, within `limit` and `max_steps`."""
+        spent = 0.0
+        for _ in range(int(self.cycles) if self.cycles != math.inf else 1 << 30):
+            while self.at < len(self.steps):
+                if self.limit is not None and spent >= self.limit:
+                    return 'limit', '%.3g s spent' % spent
+                if len(out['steps']) >= self.max_steps:
+                    return 'limit', '%d steps taken' % self.max_steps
+                before = loop.bus['t']
+                ended = self._run(loop, self.steps[self.at], out, watch, trips)
+                spent += loop.bus['t'] - before
+                self._advance(ended)
+            self.at, self.taken = 0, {}
+        return 'done', None

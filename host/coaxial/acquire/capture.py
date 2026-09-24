@@ -2,9 +2,9 @@
 from coaxial.comm import protocol
 from coaxial.comm.protocol import LogOp
 from coaxial.comm.wire import Reader, pack
-from coaxial.devices.roles import Stream
 from coaxial.devices.subsystem import Device
 from coaxial.errors import RigError
+from machine.roles import Stream
 
 #: Source ids, and what `v` means for each.
 PHASES = 0      #: v = U, V, W, TIM1->CNT at latch

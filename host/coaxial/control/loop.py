@@ -10,11 +10,11 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy                                                     # noqa: E402
 import random                                                    # noqa: E402
 
-from coaxial.model.sensorless import TWO_PI                                   # noqa: E402
-from coaxial.control.parts import SpeedPI                                     # noqa: E402
 from coaxial.model import sysid                                              # noqa: E402
 from coaxial.model.motor import Parameters                                    # noqa: E402
 from coaxial.model.motor import Motor                                         # noqa: E402
+from coaxial.model.sensorless import TWO_PI                                   # noqa: E402
+from machine.parts import SpeedPI                                              # noqa: E402
 
 SQRT3 = math.sqrt(3.0)
 
@@ -103,7 +103,7 @@ class Probe(Block):
 
 class SpeedLoop(Block):
 
-    """iq_ref from w_ref: `coaxial.control.parts.SpeedPI` on the bus."""
+    """iq_ref from w_ref: `machine.parts.SpeedPI` on the bus."""
 
     def __init__(self, hz, limit, motor, load=None):
         self.law = SpeedPI.of(hz, limit, motor, load)

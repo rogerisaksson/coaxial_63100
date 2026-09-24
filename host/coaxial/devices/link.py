@@ -1,10 +1,10 @@
 """The communication link itself: echo and the protocol's own counters."""
 from coaxial.comm import protocol
-from coaxial.errors import FrameError
 from coaxial.comm.protocol import LinkOp
-from coaxial.devices.roles import Endpoint
-from coaxial.devices.subsystem import Device
 from coaxial.comm.wire import Reader, pack
+from coaxial.devices.subsystem import Device
+from coaxial.errors import FrameError
+from machine.roles import Endpoint
 
 #: Every loopback pattern returned, one bit each.
 ALL_PATTERNS = (1 << len(protocol.ECHO_PATTERNS)) - 1

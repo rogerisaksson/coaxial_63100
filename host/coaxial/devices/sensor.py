@@ -4,7 +4,7 @@ import time
 from abc import ABC, abstractmethod
 
 from coaxial.comm.wire import Reader
-from coaxial.devices.roles import Input
+from machine.roles import Input
 
 
 class PolledSensor(Input, ABC):

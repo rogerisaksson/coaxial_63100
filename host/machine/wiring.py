@@ -3,7 +3,7 @@
 A box per setpoint group, source, part and sink in flow order, each channel in one ink
 wherever it appears; one feedback loop as a block diagram.
 """
-from coaxial.draw import ansi
+from machine import ansi
 
 #: A channel's ink, the same in every box it touches: the motif first, then its neighbours.
 INKS = (ansi.TEAL, ansi.AMBER, 110, 176, 150, 74, 216, 146, 80, 180)

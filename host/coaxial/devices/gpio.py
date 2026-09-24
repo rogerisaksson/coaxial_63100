@@ -1,9 +1,9 @@
 """Raw pin access, for a production test fixture."""
 from coaxial.comm import protocol
-from coaxial.errors import RigError
-from coaxial.devices.subsystem import Subsystem, remembered
-from coaxial.devices.roles import Input, Output
 from coaxial.comm.wire import Reader, pack
+from coaxial.devices.subsystem import Subsystem, remembered
+from coaxial.errors import RigError
+from machine.roles import Input, Output
 
 
 def _letter(port):

@@ -6,8 +6,8 @@ import math
 import shutil
 import sys
 
-from coaxial.draw import ansi
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N
+from machine import ansi
 
 #: Board dimensions, RADII in millimetres: 100 mm across with a 10 mm bore,
 #: confirmed 2026-08-29. `electronics/` is the authority on the rest.

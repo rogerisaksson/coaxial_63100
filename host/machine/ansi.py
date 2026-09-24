@@ -313,7 +313,7 @@ def image(text, cell=CELL, fonts=(TEXT_FONT, BRAILLE_FONT)):
     try:
         from PIL import Image, ImageDraw
     except ImportError:
-        raise ImportError('coaxial.draw.ansi.image needs Pillow, which '
+        raise ImportError('machine.ansi.image needs Pillow, which '
                           'matplotlib brings: pip install matplotlib')
     rows = parse(text)
     cell_w, cell_h = cell

@@ -316,19 +316,22 @@ def gpio_port(session, op='read', port='E', mask=0, value=0, **_):
                             reserved)
 
 
-def program(session, op='card', text='', **_):
-    """The machine's body - every node a joint, found once a session: its card, or a run."""
-    body = getattr(session, 'body', None)
-    if body is None:
-        from coaxial.control.body import Body
-        from coaxial.nodes import Nodes
-        body = session.body = Body(Nodes.discover(port=session.port,
-                                                  device=bool(getattr(session, 'simulated',
-                                                                      False))))
+def program(session, op='card', text='', machine='humanoid', **_):
+    """The machine the session's buses make - found once, each preset built once: its card,
+    or a run."""
+    from machine import Machine, Nodes
+    machines = session.__dict__.setdefault('machines', {})
+    if machine not in machines:
+        if 'nodes' not in session.__dict__:
+            session.nodes = Nodes.discover(port=session.port,
+                                           device=bool(getattr(session, 'simulated', False)))
+        machines[machine] = Machine(session.nodes, type=machine)
+    built = machines[machine]
     if op == 'card':
-        return body.prompt()
-    named = [j for j in body.joints if re.search(r'\b%s\b' % j, text)]
-    return body.run(text).summary(*[j + '.deg' for j in named])
+        return built.prompt()
+    named = [name for name in built.actuators if re.search(r'\b%s\b' % name, text)]
+    return built.run(text).summary(*['%s.%s' % (name, built.actuators[name].BACK)
+                                     for name in named])
 
 
 def test_gate(session, enable=False, **_):

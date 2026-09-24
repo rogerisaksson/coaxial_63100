@@ -116,7 +116,8 @@ for name in VECTORS:
         'The board at that attitude',
         md('The quaternion as the BOARD ATTITUDE page draws it; the part sends i, j, k, '
            'real.'),
-        code('''from coaxial.draw import ansi, orientation
+        code('''from coaxial.draw import orientation
+from machine import ansi
 
 q = imu.state()['quaternion']
 print({k: round(v, 3) for k, v in q.items()})

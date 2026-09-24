@@ -191,6 +191,7 @@ TOOLS = [
             'properties': {
                 'op': {'enum': ['card', 'run']},
                 'text': {'type': 'string'},
+                'machine': {'enum': ['humanoid', 'quad', 'fixed_wing', 'ebike']},
             },
             'required': ['op'],
         },
