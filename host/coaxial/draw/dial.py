@@ -11,12 +11,21 @@ from machine import ansi
 #: Dots between the rim and the ring the numbers stand on, and the room
 #: their own row needs beyond that. The face is sized to whatever is left
 #: - a protractor whose numbers fall off the frame is not a reference.
-LABEL_GAP = 4
+LABEL_GAP = 7
 
 #: The graduations, in dots inward from the rim. Every 6 degrees like the
 #: reference face, heavier every 30. The minor tick is short enough that
-#: sixty of them read as a scale rather than as a second ring.
+#: sixty of them read as a scale rather than as a second ring. On a rim of
+#: MICRO_RIM dots or more, a micro tick each 3 degrees.
 MINOR_TICK, MAJOR_TICK = 2.5, 6.0
+MICRO_TICK, MICRO_RIM = 1.2, 60.0
+
+#: The bezel: a ring BEZEL_GAP dots outside the rim.
+BEZEL_GAP = 3.0
+
+#: The crosshair: dotted along the axes, a dot each CROSS_PITCH, from the hub
+#: to the sweep band.
+CROSS_PITCH = 3
 
 #: How wide a major tick is at the rim, in dots across. A tick one dot
 #: wide is a tick one dot wide wherever it points; two make the difference
@@ -27,16 +36,19 @@ MAJOR_WIDE = 1.2
 #: the rim. Two deep: at four it outweighed the needle.
 SWEEP_OUT, SWEEP_IN = 9.0, 11.0
 
-#: The sweep fades behind the needle - bright where it has just been, a trace
-#: a few tens of degrees back; at one weight it outshouted the needle. How
-#: far back the fade takes, and in how many steps.
+#: The sweep fades behind the needle - bright where it has just been, to black
+#: SWEEP_FADE back (2026-09-24: "tonas till svärta", not grey); at one weight
+#: it outshouted the needle. In SWEEP_STEPS steps.
 SWEEP_FADE = math.radians(70.0)
-SWEEP_STEPS = 6
+SWEEP_STEPS = 8
 
 #: The needle: its stop short of the graduations and its half width at hub
 #: and tip - tapered, so the reading end is fine.
 NEEDLE_CLEAR = 3.0
 NEEDLE_ROOT, NEEDLE_TIP = 1.3, 0.4
+#: The counterweight behind the hub: COUNTER of the needle's length, as wide as
+#: its root.
+COUNTER = 0.18
 
 #: The tip bead and the hub, dots; the bead a disc, which reads the same at
 #: every angle.
@@ -49,18 +61,20 @@ WEAK_GAUSS = 30
 #: Cell classes; the highest present wins. The hub outranks the needle (it
 #: passes under), the bead everything. The tail is one class per fade step,
 #: SWEEP[-1] nearest the needle, so a shared cell takes the newer.
-(FACE, MINOR, MAJOR) = range(3)
+(CROSS, BEZEL, FACE, MICRO, MINOR, MAJOR) = range(6)
 SWEEP = tuple(range(MAJOR + 1, MAJOR + 1 + SWEEP_STEPS))
-(NEEDLE, HUB, BEAD) = range(SWEEP[-1] + 1, SWEEP[-1] + 4)
+(COUNTERWEIGHT, NEEDLE, HUB, BEAD) = range(SWEEP[-1] + 1, SWEEP[-1] + 5)
 
 #: One light: the instrument (rim, graduations, hub) in `cross_section`'s deep teal
-#: 23, the reading the only warm thing - five colours read as a party. The
-#: tail's ramp ends a step short of the needle's amber, so it reads as where
-#: the needle has been.
-SWEEP_RAMP = (236, 238, 58, 94, 136, 172)
+#: 23, the thirties brighter, the reading the only warm thing - five colours
+#: read as a party. The tail's ramp is the needle's amber from 0.8 of it down
+#: to near black, so it reads as where the needle has been, fading out.
+SWEEP_RAMP = tuple(tuple(int(ch * (0.1 + 0.7 * i / (SWEEP_STEPS - 1)))
+                         for ch in (255, 176, 0)) for i in range(SWEEP_STEPS))
 
-INK = dict([(FACE, 23), (MINOR, 23), (MAJOR, 30),
-            (NEEDLE, ansi.AMBER), (HUB, 250), (BEAD, 231)]
+INK = dict([(CROSS, (20, 52, 58)), (BEZEL, 23), (FACE, 30), (MICRO, 23), (MINOR, 30),
+            (MAJOR, 44), (COUNTERWEIGHT, (150, 100, 0)), (NEEDLE, ansi.AMBER), (HUB, 250),
+            (BEAD, 231)]
            + list(zip(SWEEP, SWEEP_RAMP)))
 
 #: The graduation numbers. Ash, like every other caption here: they name
@@ -79,7 +93,8 @@ class _Geometry:
         # numbers need outside the rim.
         self.rim = (min(width * DOTS_X, height * DOTS_Y) / 2.0
                     - LABEL_GAP - DOTS_Y - 1.0)
-        self.line = max(0.8, self.rim * 0.020)
+        # A dot at most: grown with the rim it made the rim a fuzzy band (2026-09-24).
+        self.line = max(0.8, min(1.0, self.rim * 0.020))
         self.label = self.rim + LABEL_GAP + DOTS_Y / 2.0
         self.needle = self.rim - MAJOR_TICK - NEEDLE_CLEAR
 
@@ -104,17 +119,24 @@ def _fixed(radius, phi, geom):
     """
     if radius <= HUB_R:
         return HUB
-    for step, depth, wide in ((30, MAJOR_TICK, MAJOR_WIDE),
-                              (6, MINOR_TICK, 0.0)):
+    ticks = ((30, MAJOR_TICK, MAJOR_WIDE, MAJOR), (6, MINOR_TICK, 0.0, MINOR))
+    if geom.rim >= MICRO_RIM:
+        ticks += ((3, MICRO_TICK, 0.0, MICRO),)
+    for step, depth, wide, cls in ticks:
         pitch = math.radians(step)
         off = abs(((phi + pitch / 2.0) % pitch) - pitch / 2.0)
         if (off * radius <= max(wide, geom.line) / 2.0
                 and geom.rim - depth <= radius <= geom.rim):
-            return MAJOR if step == 30 else MINOR
+            return cls
     if abs(radius - geom.rim) <= geom.line:
         return FACE
+    if abs(radius - geom.rim - BEZEL_GAP) <= geom.line * 0.6:
+        return BEZEL
     if geom.rim - SWEEP_IN <= radius <= geom.rim - SWEEP_OUT:
         return _SWEEP_BAND
+    if HUB_R + 2.0 < radius < geom.rim - SWEEP_IN - 2.0 and int(radius) % CROSS_PITCH == 0:
+        if min(abs(math.cos(phi)), abs(math.sin(phi))) * radius <= 0.5:
+            return CROSS
     return None
 
 
@@ -138,7 +160,7 @@ def _sampled(width, height, aspect):
             for ox, oy in SUBDOT:
                 dx, dy = x + ox - geom.cx, (geom.cy - y - oy) * stretch
                 radius = math.hypot(dx, dy)
-                if radius > geom.rim + geom.line + 1.0:
+                if radius > geom.rim + BEZEL_GAP + geom.line + 1.0:
                     continue
                 phi = math.atan2(dy, dx) % math.tau
                 samples.append((dx, dy, radius, phi,
@@ -164,12 +186,14 @@ def _classify(sample, geom, span, needle):
         return HUB
     if needle is not None and _on_needle(dx, dy, geom, needle):
         return NEEDLE
+    if needle is not None and _on_counter(dx, dy, geom, needle):
+        return COUNTERWEIGHT
     if fixed is not _SWEEP_BAND:
         return fixed
 
-    # Zero to the reading, the way the angles run.
-    if span is not None and 0.0 < phi <= span:
-        behind = min(1.0, (span - phi) / SWEEP_FADE)
+    # Zero to the reading, the way the angles run: SWEEP_FADE of it, to black.
+    if span is not None and 0.0 < phi <= span and span - phi < SWEEP_FADE:
+        behind = (span - phi) / SWEEP_FADE
         return SWEEP[int((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5)]
     return None
 
@@ -191,6 +215,15 @@ def _on_needle(dx, dy, geom, needle):
         return False
     share = along / max(1e-6, geom.needle)
     return across <= NEEDLE_ROOT + (NEEDLE_TIP - NEEDLE_ROOT) * share
+
+
+def _on_counter(dx, dy, geom, needle):
+    """On the counterweight: COUNTER of the needle behind the hub, as wide as
+    the needle's root."""
+    c, s, _tip_x, _tip_y = needle
+    along = dx * c + dy * s
+    return (-COUNTER * geom.needle <= along < -HUB_R
+            and abs(-dx * s + dy * c) <= NEEDLE_ROOT)
 
 
 def _raster(degrees, width, height, weak, aspect):

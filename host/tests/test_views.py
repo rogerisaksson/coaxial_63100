@@ -1463,15 +1463,16 @@ def test_the_face_wears_its_two_scales(report):
                  and '61.0 C' in ansi_plain(art[-1]),
                  (len(art), sorted({len(ansi_plain(l)) for l in art})))
     from terminal.views import show_angle as page
-    report.check('and the face gives way to the scales: full at 130 columns, '
-                 'FACE_MIN at 98, alone under that, whole where the '
-                 'terminal would not say',
-                 page.fit(130) == (True, page.ART_WIDTH)
-                 and page.fit(100) == (True, 38)
-                 and page.fit(98) == (True, page.FACE_MIN)
-                 and page.fit(90) == (False, 46)
-                 and page.fit(0) == (False, page.ART_WIDTH)
-                 and page.fit(0, True) == (True, page.ART_WIDTH),
+    report.check('and the face gives way to the scales and fills the rest: 68 wide at 130 '
+                 'columns, FACE_MIN at 98, alone under that, as tall as the terminal leaves, '
+                 'the whole face where the terminal would not say',
+                 page.fit(130) == (True, 68, page.ART_HEIGHT)
+                 and page.fit(100) == (True, 38, page.ART_HEIGHT)
+                 and page.fit(98) == (True, page.FACE_MIN, page.ART_HEIGHT)
+                 and page.fit(90) == (False, 46, page.ART_HEIGHT)
+                 and page.fit(150, 44) == (True, 88, 44 - page.STAGE_ROWS)
+                 and page.fit(0) == (False, page.ART_WIDTH, page.ART_HEIGHT)
+                 and page.fit(0, 0, True) == (True, page.ART_WIDTH, page.ART_HEIGHT),
                  [page.fit(c) for c in (130, 100, 98, 90, 0)])
     report.check('and the caption leaves the gauss to the scale that shows it',
                  'gauss' not in dial.caption(137.0, 380, gauss=False)

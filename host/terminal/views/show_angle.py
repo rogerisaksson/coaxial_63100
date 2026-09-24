@@ -39,8 +39,10 @@ REG_FIELD = 0x2A
 #: columns of full stops. Cut from 64 by 23 on the bench's word once the
 #: face was drawn round on its terminal (`aspect.aspect_of`, the rotor
 #: observer's probe): like the motor page, an instrument that fills its
-#: box.
+#: box - sized to the terminal every frame (2026-09-24); these where it does
+#: not say, ART_LEAST the fewest rows it is drawn in.
 ART_WIDTH, ART_HEIGHT = 58, 21
+ART_LEAST = 12
 
 #: The scales either side of the face - the die's temperature left, the
 #: field right - and the face gives way to them: the viewport is what
@@ -54,8 +56,10 @@ ART_WIDTH, ART_HEIGHT = 58, 21
 #: `--scales` and `--no-scales` force either way.
 FACE_MIN = 36
 #: What the stage takes off a terminal's columns before the art: the
-#: instrument column and the viewport's frame and padding.
+#: instrument column and the viewport's frame and padding; off its rows:
+#: the band, the key bar, the viewport's frame and the caption under the face.
 STAGE_COLS = 40 + 4
+STAGE_ROWS = 5
 #: How often TSEN and FIELD are read again while the page runs. Each read
 #: is one register through `configuring()`, which stops the poll loop on
 #: ANG and starts it again, so the angle loses a reading or two every
@@ -100,18 +104,19 @@ def preflight(board, part):
     return field, kelvin
 
 
-def fit(columns, forced=None):
-    """(scales, face width) for a terminal `columns` wide - 0 for one
-    that would not say - and `forced` True or False from the command
-    line, None to decide from the width."""
+def fit(columns, lines=0, forced=None):
+    """(scales, face width, face height) for a terminal `columns` wide and
+    `lines` tall - 0 for one that would not say - and `forced` True or
+    False from the command line, None to decide from the width."""
     room = columns - STAGE_COLS if columns else 0
+    tall = max(ART_LEAST, lines - STAGE_ROWS) if lines else ART_HEIGHT
     with_scales = room - 2 * (dial.SCALE_W + 1)
     scales = (with_scales >= FACE_MIN) if forced is None else forced
     if scales and room:
-        return True, max(FACE_MIN, min(ART_WIDTH, with_scales))
+        return True, max(FACE_MIN, with_scales), tall
     if room:
-        return scales, max(FACE_MIN, min(ART_WIDTH, room))
-    return scales, ART_WIDTH
+        return scales, max(FACE_MIN, room), tall
+    return scales, ART_WIDTH, tall
 
 
 def reread(board, field, kelvin):
@@ -133,20 +138,20 @@ def _foot(colour, degrees, field, width=ART_WIDTH):
     return ansi.paint(line, dial.INK[dial.NEEDLE]) if colour else line
 
 
-def _face(degrees, field, kelvin, width, aspect, colour, scales):
+def _face(degrees, field, kelvin, width, height, aspect, colour, scales):
     """The dial between its two scales, or alone with its caption
     under it."""
     if scales:
-        return dial.instrument(degrees, field, kelvin, width, ART_HEIGHT,
+        return dial.instrument(degrees, field, kelvin, width, height,
                                aspect, colour=colour)
-    return '\n'.join([dial.render(degrees, width, ART_HEIGHT, field,
+    return '\n'.join([dial.render(degrees, width, height, field,
                                   aspect=aspect, colour=colour),
                       _foot(colour, degrees, field, width)])
 
 
 def compose(origin, console, part, state, field, kelvin, rate, note,
             aspect=(dial.CELL_ASPECT, 'assumed'), scales=False,
-            width=ART_WIDTH):
+            width=ART_WIDTH, height=ART_HEIGHT):
     """One frame on the stage: the dial left, the target's numbers right."""
 
     if state is None:
@@ -159,7 +164,7 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
         # Coloured at the render, not after it: a braille cell carries dots
         # from up to eight places and its glyph does not say which, so there is
         # nothing for a `colourise(text)` to key on.
-        art = _face(degrees, field, kelvin, width, aspect[0],
+        art = _face(degrees, field, kelvin, width, height, aspect[0],
                     console.is_terminal, scales)
 
         side = [hud(part['name'], [
@@ -248,9 +253,10 @@ def main(argv=None):
         columns = os.get_terminal_size().columns
     except OSError:
         columns = 0
-    args.scales, width = fit(columns, args.scales)
+    forced = args.scales
+    scales, width, _tall = fit(columns, 0, forced)
     say('ok', 'scales', 'die and field beside a face %d wide, read again '
-        'every %.0f s' % (width, SIDE_EVERY) if args.scales
+        'every %.0f s' % (width, SIDE_EVERY) if scales
         else 'off - the face alone at %d, %d columns leave no room'
         % (width, columns))
     side = {'at': time.time(), 'field': field, 'kelvin': kelvin}
@@ -258,13 +264,16 @@ def main(argv=None):
     def draw():
         state = steady(board.angle.state)
         tally.take(state['updates'] if state is not None else None)
-        if args.scales and time.time() - side['at'] >= SIDE_EVERY:
+        size = board_view.size if terminal else None
+        scales, width, tall = fit(size.width if size else 0, size.height if size else 0,
+                                  forced)
+        if scales and time.time() - side['at'] >= SIDE_EVERY:
             side['field'], side['kelvin'] = reread(board, side['field'],
                                                    side['kelvin'])
             side['at'] = time.time()
         return compose(origin, board_view, part, state, side['field'],
                        side['kelvin'], tally.rate, tally.note, aspect,
-                       scales=args.scales, width=width)
+                       scales=scales, width=width, height=tall)
 
     try:
         leaving = run_view(board_view, terminal, period, args.frames, draw)

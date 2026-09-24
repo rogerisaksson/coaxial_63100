@@ -514,7 +514,7 @@ def test_orientation(report):
                  'reading on it, which is what there is',
                  bool(owners(90.0, dial.FACE, field=3)[0]))
 
-    # The sweep is the reading from zero, so more angle is more band.
+    # The trace is the last SWEEP_FADE of the reading: more angle, more trace, to that.
     def swept(deg):
         _, owner, _, _ = dial._raster(deg, 64, 23, False, 2.0)
         return sum(cls in dial.SWEEP for row in owner for cls in row)
@@ -524,11 +524,11 @@ def test_orientation(report):
                  little < most / 4.0, '%d cells at 20 deg, %d at 340'
                  % (little, most))
 
-    # The sweep fades behind the needle, fast.
-    _, owner, _, _ = dial._raster(340.0, 64, 23, False, 2.0)
-    steps = [sum(row.count(step) for row in owner) for step in dial.SWEEP]
-    report.check('and fades behind the needle - most of a long one is trace',
-                 steps[0] > 4 * max(steps[1:]), '%s cells a step' % steps)
+    # The trace fades to black behind the needle: past SWEEP_FADE, nothing.
+    far, near = swept(340.0), swept(100.0)
+    report.check('and fades to black behind the needle - a long reading no more trace '
+                 'than SWEEP_FADE of it',
+                 abs(far - near) <= 0.15 * near, '%d cells at 340 deg, %d at 100' % (far, near))
     # Not an ordering check on the codes: 236 is darker than 172 and larger, so
     # a numeric comparison of ansi-256 indices says nothing about brightness.
     report.check('one colour per step of the fade, and none the needle own',
