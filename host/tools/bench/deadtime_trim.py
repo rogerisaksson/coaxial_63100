@@ -41,7 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from coaxial import Coaxial63100           # noqa: E402
 from coaxial.devices import scaling           # noqa: E402
 from coaxial.model import thermal           # noqa: E402
-from terminal.views.show_session import SETTLE_S       # the board's own settle
+from terminal.views.session.state import SETTLE_S       # the board's own settle
 from terminal.screen import say, steady                                       # noqa: E402
 
 
