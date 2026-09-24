@@ -126,7 +126,8 @@ def test_no_cycles(r):
     """No package module imports another that imports it back."""
     def is_module(dotted):
         base = os.path.join(HOST, *dotted.split('.'))
-        return os.path.isfile(base + '.py') or os.path.isfile(os.path.join(base, '__init__.py'))
+        return os.path.isfile(base + '.py') or os.path.isfile(
+            os.path.join(base, '__init__.py'))
 
     edges = {}
     for path, _, tree in sources():
@@ -186,7 +187,7 @@ def test_no_duplicate_definitions(r):
                 seen.setdefault((name, body.strip()), []).append(path)
     twice = {name: where for (name, _), where in seen.items()
              if len(where) > 1
-             and len({os.path.dirname(p) for p in where}) == 1}
+             and len({p.split(os.sep)[0] for p in where}) == 1}
     r.check('no definition is copied into two files of one package',
             not twice, '; '.join('%s in %s' % (n, ', '.join(w))
                                  for n, w in sorted(twice.items())[:4]))
@@ -524,6 +525,7 @@ MIRRORS = (
      'comms/inc/board/thermal.h', 'BOARD_SOA_MARGIN_FLOOR_PPM', 1e-6),
     ('coaxial.simulated.values', 'ACCUMULATE_MAX',
      'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
+    ('coaxial.acquire.daq', 'REPLY_ROOM', 'comms/src/cmd_daq.c', 'DAQ_REPLY_ROOM', 1.0),
     ('coaxial.acquire.bessel', 'MAX_BOXCAR',
      'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
     ('coaxial.simulated.values', 'RING_BYTES',

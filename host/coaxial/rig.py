@@ -8,6 +8,7 @@ from coaxial.devices import angle as angle_scaling
 from coaxial.acquire.acquisition import Acquisition
 from coaxial.devices.board import Board
 from coaxial.acquire.clock import NTP_SERVER, WRAP
+from coaxial.acquire.daq import REPLY_ROOM
 from coaxial.errors import LINK_FAULTS, CrcError, NoReplyError, RigError
 from coaxial.devices.gates import GateStage
 from coaxial.acquire.reader import BufferedReader
@@ -18,10 +19,6 @@ from coaxial.comm import broker
 from coaxial.comm import session as sessionmod
 from contextlib import suppress
 
-#: Bytes the board leaves for records in one reply - `DAQ_REPLY_ROOM` in
-#: `cmd_daq.c`. Named here because it decides how many records a single
-#: transaction is worth waiting for.
-REPLY_ROOM = 240
 
 
 def _subsystem_names():

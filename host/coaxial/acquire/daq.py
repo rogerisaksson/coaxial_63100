@@ -33,6 +33,9 @@ COEFF_SCALE = 1 << 28
 #: A biquad section is five coefficients.
 SECTION = 5
 
+#: Bytes of records one read answers (`DAQ_REPLY_ROOM`, cmd_daq.c).
+REPLY_ROOM = 240
+
 
 def _sections(sections):
     """Biquad sections as five Q28 words each, in the order given."""

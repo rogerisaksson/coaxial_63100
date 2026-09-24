@@ -6,6 +6,7 @@ import random
 import time
 
 from coaxial.acquire.acquisition import Acquisition
+from coaxial.acquire.daq import REPLY_ROOM
 from coaxial.errors import RigError
 from coaxial.simulated.values import (ACCUMULATE_MAX, AMPS_PER_CODE, CHANNELS, DCBUS_V, MASK32,
                                       NOMINAL, PHASE_LEG, RING_BYTES, SYSCLK_HZ, TICKS_PER_US,
@@ -16,9 +17,7 @@ from typing import cast
 from typing import Any
 from coaxial.acquire.clock import Clock, NTP_SERVER
 
-#: What one read answers, in bytes of records, and the share of the line
-#: rate the stand-in quotes as its ceiling.
-REPLY_ROOM = 240
+#: The share of the line rate the stand-in quotes as its ceiling.
 LINE_SHARE_PERCENT = 75
 
 
