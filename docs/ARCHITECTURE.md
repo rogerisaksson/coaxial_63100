@@ -90,7 +90,8 @@ tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
 tools/target/       build_and_flash, find_board, flash_nodes, session
 tools/bench/        one question to the board per script: pulse, switch, ..
 tools/thermal/      calibrate, identify, validate, trace
-tools/render/       renderer checks against the exporter; ansi2png
+tools/render/       renderer checks against the exporter; ansi2png; attitude (the
+                    view at a pose and a moment, to a PNG - no window)
 tools/sim/          the drive core on this host: montecarlo, observer_run
 tools/cores/        build: the portable cores' gcc build;
                     drive, thermal: their ctypes harnesses
