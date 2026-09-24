@@ -7,22 +7,21 @@ SUMMARY = 'Streams in and out, a controller between, and a test stand in miniatu
 SECTIONS = [
     section(
         'The streams',
-        md('The drive on the model: `drive.state()` is what comes in, every number a float '
-           'channel; `drive.WRITES` is what goes out.'),
-        code('''from coaxial.control.controller import Polled
-from coaxial.control.parts import Gain
+        md("An array of IO nodes, here one: what it offers comes first - every module's "
+           'channels, ins with units, outs with ranges - and every number is a float.'),
+        code('''from coaxial.control.parts import Gain
 from coaxial.draw import ansi
 from coaxial.draw.wiring import diagram, feedback
 from coaxial.model.sensorless import RAD_S_PER_RPM
+from coaxial.nodes import Node, Nodes
 
 drive = device.drive
 drive.configure(source='model')
 drive.model.configure(j=2e-5, b=1e-5, load=0.0, noise=0.05)
 device.gates.on(bypass_sto=True, ignore_interlock=True)
-source = Polled(drive.state)
-floats = {k: v for k, v in source.read().items() if isinstance(v, (int, float))}
-print('%d channels in, e.g. omega_hat %.1f rad/s; out: %s'
-      % (len(floats), floats['omega_hat'], ', '.join(drive.WRITES)))'''),
+nodes = Nodes([Node(device, name='motor')])
+print(nodes.card('drive', 'angle', keys=('omega_hat', 'iq', 'degrees', 'iq_ref', 'theta')))
+print(len(nodes.capabilities()), 'channels in all, over', ', '.join(nodes['motor'].modules))'''),
     ),
     section(
         'The controller',

@@ -40,8 +40,8 @@ with Coaxial63100(port='COM4') as device:          # device=True: no cable
 
 ## Notebooks
 
-Eleven executed papers in `notebook_examples/` (acquisition, link, sensors,
-power_stage, thermal, drive, controller, sequencer, motion, applications,
+Twelve executed papers in `notebook_examples/` (acquisition, link, sensors,
+power_stage, thermal, drive, controller, sequencer, humanoid, motion, applications,
 commissioning), generated from `host/tools/notebooks/`:
 
 ```powershell

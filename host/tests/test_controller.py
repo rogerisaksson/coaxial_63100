@@ -449,6 +449,13 @@ def test_the_body_runs_a_program(report):
                      and all(s[3] < 2.0 and 'past H' in s[2] for s in downs), out.summary())
         report.check('the summary is a few lines', len(out.summary('left_knee.deg')
                                                         .splitlines()) <= 9)
+        gaps = []
+        for _ in range(3):
+            again = body.run(program)
+            gaps.append(max(abs(r[j + '.ref'] - r[j + '.deg']) for r in again.rows
+                            for j in body.joints))
+        report.check('armed again and again, no joint slips a pole (worst gap under 10 deg)',
+                     max(gaps) < 10.0, ['%.1f' % g for g in gaps])
     finally:
         nodes.close()
 

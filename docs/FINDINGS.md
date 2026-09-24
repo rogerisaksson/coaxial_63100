@@ -174,6 +174,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   behind it. An edge on the slab's far face now gets the fixed grace
   only; the face art (the top's layout) is not read from behind
   (2026-09-23, rasters face down, up, tilted).
+- The stand-in's bare rotor on a 2 A hold (k 0.735 N.m/rad, J 2e-5, b 1e-5) has
+  zeta 0.0013: it rings at 30 Hz for seconds and a 25 Hz loop pumps it until poles
+  slip (224 deg). A joint's damping, b 4e-3 (zeta ~0.5), holds 20 joints within
+  4.1 deg over three runs (2026-09-24). A 25 Hz loop cannot damp 30 Hz: that is the
+  board's loop to do.
 
 ## Local model
 

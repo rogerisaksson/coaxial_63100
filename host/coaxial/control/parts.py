@@ -128,20 +128,24 @@ class PI(Regulator):
 class AngleHold(Regulator):
 
     """A joint angle (deg) as the drive's HOLD angle (rad electrical): the spring drags the
-    rotor onto it; `ki` trims what a load sags, within +/-`trim` deg."""
+    rotor onto it; `ki` trims what a load sags, within +/-`trim` deg. The command moves at
+    most `most` deg a step: a stalled pass costs time, never a slipped pole."""
 
-    PARAMS = ('poles', 'theta0', 'ki', 'trim')
+    PARAMS = ('poles', 'theta0', 'ki', 'trim', 'most')
 
-    def __init__(self, poles=7.0, theta0=0.0, ki=0.0, trim=5.0):
-        self.poles, self.theta0, self.ki, self.trim = (float(v) for v in (poles, theta0, ki, trim))
+    def __init__(self, poles=7.0, theta0=0.0, ki=0.0, trim=5.0, most=6.0):
+        self.poles, self.theta0, self.ki, self.trim, self.most = (
+            float(v) for v in (poles, theta0, ki, trim, most))
         self.reset()
 
     def step(self, dt, setpoint=0.0, measured=0.0):
         self.x = max(-self.trim, min(self.trim, self.x + self.ki * (setpoint - measured) * dt))
-        return {'command': self.theta0 + math.radians(setpoint + self.x) * self.poles}
+        target = setpoint + self.x
+        self.at += max(-self.most, min(self.most, target - self.at))
+        return {'command': self.theta0 + math.radians(self.at) * self.poles}
 
     def reset(self):
-        self.x = 0.0
+        self.x = self.at = 0.0
 
 
 class SpeedPI(Regulator):

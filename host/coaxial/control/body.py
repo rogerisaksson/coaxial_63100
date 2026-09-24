@@ -9,11 +9,25 @@ A joint `knee`: setpoint `knee` (deg from where it detented at arm) -> Slew -> A
 `knee.deg`, the joint angle a program tests. A target outside +/-`span` is refused before
 anything moves; a joint 10 deg past it trips the run.
 """
+import math
 import time
 
 from coaxial.control.controller import Feedback
 from coaxial.control.parts import AngleHold, Slew, Wrap
 from coaxial.control.sequencer import Sequencer, prompt
+
+
+#: The stand-in's joint damping, N.m.s: a gearbox and a limb, zeta ~0.5 on a 2 A hold of the
+#: bench motor (k 0.735 N.m/rad, J 2e-5). The bare rotor's 1e-5 (zeta 0.0013) rings at 30 Hz
+#: for seconds, and a 25 Hz loop pumps it until a pole slips (2026-09-24).
+JOINT_B = 4e-3
+
+
+def _mean_angle(degrees):
+    """The mean of angles near each other, across the 0/360 seam."""
+    s = sum(math.sin(math.radians(d)) for d in degrees)
+    c = sum(math.cos(math.radians(d)) for d in degrees)
+    return math.degrees(math.atan2(s, c)) % 360.0
 
 
 class Body:
@@ -40,28 +54,38 @@ class Body:
     def _simulated(self):
         return all(node.rig.simulated for node in self.nodes)
 
-    def arm(self, loop=None, steps=6, settle=0.05):
-        """Every joint: the stage on, HOLD with the current ramped, zero where it detents."""
+    def arm(self, loop=None, steps=6, settle=0.05, reads=8):
+        """Every joint: the stage on, HOLD with the current ramped at +90 deg electrical, then
+        onto the angle - two points, so no rotor rests on the unstable one - and the zero
+        averaged where it detents."""
         drives = [self.nodes[j].rig.drive for j in self.joints]
         for j, drive in zip(self.joints, drives):
             rig = self.nodes[j].rig
             if rig.simulated:
                 drive.configure(source='model')
-                drive.model.configure(j=2e-5, b=1e-5, load=0.0)
+                drive.model.configure(j=2e-5, b=JOINT_B, load=0.0)
             rig.gates.on(**self.arming)
             f = self.loop.feedbacks[j]
             f.regulator.configure(theta0=drive.state()['theta_hat'])
-            drive.write(id_ref=self.amps / steps, iq_ref=0.0, theta=f.regulator.theta0,
-                        omega_target=0.0)
+            drive.write(id_ref=self.amps / steps, iq_ref=0.0,
+                        theta=f.regulator.theta0 + math.pi / 2, omega_target=0.0)
             drive.hold()
         for k in range(2, steps + 1):
             time.sleep(settle)
             for drive in drives:
                 drive.write(id_ref=self.amps * k / steps)
         time.sleep(2.0 * settle)
+        for j, drive in zip(self.joints, drives):
+            drive.write(theta=self.loop.feedbacks[j].regulator.theta0)
+        time.sleep(4.0 * settle)
+        zeros = {j: [] for j in self.joints}
+        for _ in range(reads):
+            for j in self.joints:
+                zeros[j].append(self.nodes[j].rig.board.angle.state()['degrees'])
+            time.sleep(settle / 2.0)
         for j in self.joints:
             f = self.loop.feedbacks[j]
-            f.measure.configure(zero=self.nodes[j].rig.board.angle.state()['degrees'])
+            f.measure.configure(zero=_mean_angle(zeros[j]))
             f.prefilter.reset()
             f.regulator.reset()
         self.loop.write(**{j: 0.0 for j in self.joints})
