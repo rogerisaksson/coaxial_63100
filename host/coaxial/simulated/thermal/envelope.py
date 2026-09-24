@@ -1,7 +1,7 @@
 """The stand-in's envelope: each node's spend, the derate, the hold, the trip, the budget."""
 from typing import Any
 
-from coaxial.devices.thermal_device import THROTTLE_AT
+from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.model import thermal
 
 

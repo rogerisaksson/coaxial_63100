@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""The control law, on this machine, against a motor that exists only here."""
+"""The control law, on this host, against a motor that exists only here."""
 import ctypes
 import math
 import os
 import sys
 
-from coaxial.model.motor import Motor
+from motor.pmsm import Motor
 from tools.cores.build import build, find_cc
 from tools.cores.drive import (DRIVE, HOLD, OFF, POLARITY, SENSORLESS, SOURCES,
                                TS, TWO_PI, Drive, eps_gain, loop_gains,
@@ -412,7 +412,7 @@ def test_moments(r, lib):
 
 
 def test_model_agrees(r, lib):
-    """The C model in drive_model.c against `coaxial.model.motor.Motor`, driven
+    """The C model in drive_model.c against `motor.pmsm.Motor`, driven
     by the same duties from the same controller."""
     d = Drive(lib)
     m = Motor(j=2e-5, b=1e-5, theta=0.4, sat=0.3, i_sat=4.0, v_dt=0.3,
@@ -492,9 +492,9 @@ def test_virtual_sensorless(r, lib):
 
 def test_observer_chain(r, lib):
     """The firmware's observer chain against the Python it was ported from."""
+    from coaxial.model.blocks import CurrentLoop, Plant, Signals
     from coaxial.model import sensorless
-    from coaxial.control.loop import CurrentLoop, Machine, Signals
-    from coaxial.model.motor import BENCH_MOTOR
+    from motor.catalog import BENCH_MOTOR
 
     motor = BENCH_MOTOR
     for w_e in (100.0, 2000.0, 10000.0):
@@ -506,7 +506,7 @@ def test_observer_chain(r, lib):
         flux = sensorless.FluxObserver(motor.r, motor.ld, wc=20.0)
         dual.omega = flux.omega = w_e
         loop = CurrentLoop(hz=800.0, motor=motor, vdc=24.0)
-        plant = Machine(motor, vdc=24.0, noise=0.0, sub=4, locked=True)
+        plant = Plant(motor, vdc=24.0, noise=0.0, sub=4, locked=True)
         plant.motor.omega = w_e
         s = Signals()
         s.iq_ref = 2.0
@@ -547,9 +547,9 @@ def test_observer_chain(r, lib):
 
 def test_observer_needs_a_handover(r, lib):
     """It cannot acquire a speed from nothing, and that is by construction."""
+    from coaxial.model.blocks import CurrentLoop, Plant, Signals
     from coaxial.model import sensorless
-    from coaxial.control.loop import CurrentLoop, Machine, Signals
-    from coaxial.model.motor import BENCH_MOTOR
+    from motor.catalog import BENCH_MOTOR
 
     motor = BENCH_MOTOR
     w_e = 4000.0
@@ -559,7 +559,7 @@ def test_observer_needs_a_handover(r, lib):
         d.params(r=motor.r, ld=motor.ld, lq=motor.lq, **{'lambda': motor.lam})
         d.obs_sync(0.0, seed)
         loop = CurrentLoop(hz=800.0, motor=motor, vdc=24.0)
-        plant = Machine(motor, vdc=24.0, noise=0.0, sub=4, locked=True)
+        plant = Plant(motor, vdc=24.0, noise=0.0, sub=4, locked=True)
         plant.motor.omega = w_e
         s = Signals()
         s.iq_ref = 2.0
@@ -600,7 +600,7 @@ def test_montecarlo(r, lib):
     bemf = mc.run_job(dict(job, bemf_only=True))
     r.check('back-EMF alone loses the same rotor on the way down',
             bemf['min_rpm'] > 0.0, bemf['min_rpm'])
-    from coaxial.model.motor import BENCH_MOTOR
+    from motor.catalog import BENCH_MOTOR
     little = {'name': BENCH_MOTOR.name, 'r': BENCH_MOTOR.r,
               'ld': BENCH_MOTOR.ld, 'lq': BENCH_MOTOR.lq,
               'lam': BENCH_MOTOR.lam, 'poles': BENCH_MOTOR.poles,
@@ -609,7 +609,7 @@ def test_montecarlo(r, lib):
     row = mc.run_job({'vdc': 24.8, 'knobs': mc.candidates(4, 2)[1], 'seed': 5,
                       'motor': little, 'i_max': 5.0, 'i_trip': 8.0,
                       'i_h_max': 0.8, 'k_prop': 2e-7})
-    r.check('a job carries another machine and the run sizes itself to it',
+    r.check('a job carries another motor and the run sizes itself to it',
             not row['trip'] and row['i_peak'] < 5.5,
             (row['trip'], row['i_peak']))
 

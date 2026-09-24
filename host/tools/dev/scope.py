@@ -77,7 +77,7 @@ def _ask_model(args, live_sections):
     """The model's own pick, held inside whatever tier is in force."""
     # The picker loads the model too.
     if args.model == 'auto':
-        # The machine's own pick, resolved once - a hardcoded default tag asked
+        # The host's own pick, resolved once - a hardcoded default tag asked
         # a 16 GB bench to test against a model an 8 GB one runs.
         try:
             args.model = choose(probe()).tag

@@ -61,7 +61,7 @@ def room(where=None):
 
 def refusal(where=None):
     """Why the preload will not build here, in words - or None when the
-    machine has the room."""
+    host has the room."""
     ram, disk = room(where)
     if ram is not None and ram < RAM_FLOOR:
         return 'skipped: %.1f gb of memory free, under the %.0f gb floor' % (

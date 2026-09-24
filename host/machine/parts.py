@@ -177,7 +177,7 @@ class SpeedPI(Regulator):
 
     @classmethod
     def of(cls, hz, limit, motor, load=None):
-        """From a motor (`poles lam j b`) and a load (`k`), as `coaxial.model.motor` has them."""
+        """From a motor (`poles lam j b`) and a load (`k`), as `motor` has them."""
         return cls(hz, limit, 1.5 * motor.poles * motor.lam, motor.j, motor.b,
                    load.k if load else 0.0)
 

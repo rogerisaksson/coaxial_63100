@@ -65,7 +65,7 @@ def devices(found, here, interface='unknown'):
 
 def buses(found, here):
     """The segments, and how many nodes answer on each."""
-    lines = ['Buses on this machine:', 'bus  sel serves           nodes']
+    lines = ['Buses on this host:', 'bus  sel serves           nodes']
     for label, serves, count in found:
         lines.append('%-4s %-3s %-16s %d'
                      % (label, '*' if label == here else '', serves, count))

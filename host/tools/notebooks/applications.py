@@ -19,14 +19,15 @@ print('armed:', device.gates.on(bypass_sto=True, ignore_interlock=True)['pwm_ena
         'The propeller on the rotor',
         md("`Propeller(k)`: `T = k w^2`; `on_model` feeds it to the model's load every "
            'pass. A pass: one state read, one setpoint write, 40 ms apart.'),
-        code('''from coaxial.model.motor import APC20x10E, Propeller
-from coaxial.model.sensorless import RAD_S_PER_RPM
+        code('''from coaxial.control.motion import on_model
+from motor.loads import APC20x10E, Propeller
+from motor.pmsm import RAD_S_PER_RPM
 
 K_PROP = 2e-8
 prop = Propeller(K_PROP, name='stand-in propeller')
 params = drive.params()
 poles = int(params['motor_pole_pairs'])
-kt = 1.5 * poles * params['motor_lambda_uvs']
+kt = 1.5 * poles * params['motor_lambda']
 top = 3500.0 * RAD_S_PER_RPM
 print(prop, ' ', APC20x10E)
 print('kt %.4f N.m/A from the record, %d pole pairs' % (kt, poles))
@@ -44,7 +45,7 @@ for law in (prop, APC20x10E):
 LANE = ((1500.0, 2.0), (3000.0, 2.0), (2000.0, 1.5), (3500.0, 2.0))
 lane_log, lane_settled = [], []
 with device.motion.velocity(amps=2.0, hz=3.0, load_k=K_PROP) as lane:
-    air = prop.on_model(drive, lane_log)
+    air = on_model(prop, drive, lane_log)
     began = time.monotonic()
     for rpm, hold in LANE:
         got = lane.rpm(rpm, seconds=hold, watch=air)
@@ -79,7 +80,7 @@ draw(lane_log, 'the throttle lane')'''),
         code('''K_CRUISE = 2e-8
 GUST, GUST_FROM, GUST_TO = 2.5, 3.5, 4.5        # times the drag, over which seconds
 cruise_log = []
-still_air = Propeller(K_CRUISE).on_model(drive, cruise_log)
+still_air = on_model(Propeller(K_CRUISE), drive, cruise_log)
 
 def gusty(verb):
     still_air(verb)                             # the row, and the still-air load
@@ -223,7 +224,8 @@ BENCH = ('No flags on `gates.on()`, no `on_model`, `load_k` = `APC20x10E.k`, the
 REFERENCES = [
     ('host/coaxial/control/motion.py', 'the three verbs: the slew, the servo\'s mean over the ring, the velocity loop at link rate'),
     ('host/machine/parts.py', '`SpeedPI`, the velocity verb\'s regulator: the zero on the mechanical pole, acceleration and drag fed forward, the integrator held on the clamp'),
-    ('host/coaxial/model/motor.py', '`Propeller`, `on_model`, `APC20x10E` off the thrust stand'),
+    ('host/motor/loads.py', '`Propeller`, `APC20x10E` off the thrust stand'),
+    ('host/coaxial/control/motion.py', '`on_model`: a load on the stand-in\'s rotor'),
     ('host/coaxial/simulated/drive/', 'the stand-in\'s rotor the missions turned, a pendulum integrated at a fixed sub-step'),
     ('host/coaxial/devices/link.py', '`state(port)`: `bus_message`, `server_message`, and `for_others` between them'),
     ('docs/FINDINGS.md', 'the stand-in\'s 2 A hold, 2026-09-24: zeta 0.0013, a 30 Hz ring a 25 Hz loop pumps'),

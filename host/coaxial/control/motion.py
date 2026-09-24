@@ -3,11 +3,11 @@ import math
 import time
 
 from coaxial.errors import RigError
-from coaxial.model.motor import Parameters, Propeller
-from coaxial.model.sensorless import RAD_S_PER_RPM
 from machine.controller import Feedback, Loop, Polled
 from machine.errors import MachineError
 from machine.parts import Gain, Slew, SpeedPI
+from motor.loads import Propeller
+from motor.pmsm import RAD_S_PER_RPM, Parameters
 
 #: Mechanical degrees: a full turn, and the jump past which a reading
 #: has wrapped rather than the shaft having moved.
@@ -235,8 +235,8 @@ class Velocity(_Mode):
         super().__init__(device)
         p = self._params
         motor = Parameters(
-            name='the record', r=p['motor_r_uohm'], ld=p['motor_ld_nh'],
-            lq=p['motor_lq_nh'], lam=p['motor_lambda_uvs'],
+            name='the record', r=p['motor_r'], ld=p['motor_ld'],
+            lq=p['motor_lq'], lam=p['motor_lambda'],
             poles=self.poles, j=j, b=b, measured=False)
         self.loop = Loop({'drive': Polled(self.drive.state)}, {'drive': self.drive},
                          rate_hz=rate_hz)
@@ -278,6 +278,21 @@ class Velocity(_Mode):
     def stop(self, seconds=1.0):
         """Back to rest, the same ramp down."""
         return self.rpm(0.0, seconds)
+
+
+def on_model(load, drive, log=None):
+    """A `watch` for `Velocity.rpm` that puts `load` (a `motor.loads.Propeller`) on the
+    stand-in's rotor: each pass it reads the model's speed and feeds the load this law gives
+    at it to `model.configure`.
+    """
+    def watch(verb):
+        wm = drive.model.read()['omega'] / verb.poles
+        drive.model.configure(load=load.torque(wm * verb.poles, verb.poles))
+        if log is not None:
+            bus = verb.loop.read()
+            log.append((bus['t'], bus['w_ref'] / RAD_S_PER_RPM,
+                        bus['w_hat'] / RAD_S_PER_RPM, bus['iq_ref']))
+    return watch
 
 
 class Motion:

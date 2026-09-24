@@ -2,12 +2,13 @@
 import random
 from typing import Callable, Optional
 
-from coaxial.devices.thermal_device import ThermalControl
+from coaxial.devices.thermal import ThermalControl
 from coaxial.kalman import thermal_ident
-from coaxial.model import motor, thermal
+from coaxial.model import thermal
 from coaxial.simulated.thermal.envelope import ThermalEnvelope
 from coaxial.simulated.thermal.record import ThermalRecord
 from coaxial.simulated.thermal.truth import ThermalTruth
+from motor import pmsm
 
 
 class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalControl):
@@ -29,8 +30,8 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
     #: network, capacities and ceilings are `coaxial.model.thermal`'s.
     HASTE = 10.0
 
-    WINDING_K_PER_W = motor.WINDING_K_PER_W
-    WINDING_J_PER_K = motor.WINDING_J_PER_K
+    WINDING_K_PER_W = pmsm.WINDING_K_PER_W
+    WINDING_J_PER_K = pmsm.WINDING_J_PER_K
     WINDING_LIMIT_C = 120.0
 
     IDENT_NOISE_K = 0.1

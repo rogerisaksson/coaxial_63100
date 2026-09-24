@@ -1,13 +1,8 @@
 """The sensorless design arithmetic: what the measurements buy."""
 import math
 
-TWO_PI = 2.0 * math.pi
-#: One revolution a minute, in radians a second.
-RAD_S_PER_RPM = TWO_PI / 60.0
-#: The dq frame's torque factor - three halves, the power-invariant form.
-TORQUE_FACTOR = 1.5
-#: sin 60, as the firmware's drive_math.c rounds it.
-HALF_SQRT3 = 0.8660254
+from motor.pmsm import RAD_S_PER_RPM, TWO_PI
+
 
 #: chi-squared at p = 0.05 for 1..7 degrees of freedom, for Ljung-Box.
 CHI2_05 = (3.841, 5.991, 7.815, 9.488, 11.070, 12.592, 14.067)

@@ -1,55 +1,15 @@
-"""Recover a machine's constants from what the board recorded."""
-import math
-
-# The channel names are the commissioning's: one definition.
-from coaxial.control.commission import PHASES
-from coaxial.errors import RigError
-from coaxial.model.motor import Parameters
-GATES = (('TIM1_CH1/PWMUH', 'TIM1_CH1N/PWMUL'),
-         ('TIM1_CH2/PWMVH', 'TIM1_CH2N/PWMVL'),
-         ('TIM1_CH3/PWMWH', 'TIM1_CH3N/PWMWL'))
-
-
-def _numpy():
-    try:
-        import numpy
-    except ImportError:
-        raise RigError('system identification needs numpy - '
-                       '`pip install numpy`') from None
-    return numpy
-
-
-def to_dq(values, theta, amplitude_invariant=True):
-    """Three phase quantities to (d, q) at electrical angle `theta`."""
-    np = _numpy()
-    a, b, c = (np.asarray(v, dtype=float) for v in values)
-    theta = np.asarray(theta, dtype=float)
-    alpha = (2.0 * a - b - c) / 3.0
-    beta = (b - c) / math.sqrt(3.0)
-    if not amplitude_invariant:
-        alpha *= math.sqrt(1.5)
-        beta *= math.sqrt(1.5)
-    cos, sin = np.cos(theta), np.sin(theta)
-    return alpha * cos + beta * sin, beta * cos - alpha * sin
-
-
-def phase_voltages(duties, vdc):
-    """Phase voltages from the six gate duties and the link."""
-    np = _numpy()
-    legs = np.asarray([np.asarray(d, dtype=float) for d in duties])
-    vdc = np.asarray(vdc, dtype=float)
-    return (legs - legs.mean(axis=0)) * vdc
+"""A PMSM's constants recovered from its dq voltages and currents: least squares."""
 
 
 def _derivative(x, t):
     """dx/dt on an unevenly sampled series, centred where it can be."""
-    np = _numpy()
+    import numpy as np
     return np.gradient(np.asarray(x, dtype=float), np.asarray(t, dtype=float))
 
 
 def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
     """(R, Ld, Lq, lambda) by least squares, with what it is worth."""
-    np = _numpy()
+    import numpy as np
     vd, vq = np.asarray(vd, float), np.asarray(vq, float)
     id_, iq = np.asarray(id_, float), np.asarray(iq, float)
     omega, t = np.asarray(omega, float), np.asarray(t, float)
@@ -71,7 +31,7 @@ def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
 
 
     if condition < min_condition:
-        raise RigError(
+        raise ValueError(
             'this run cannot separate the four constants - condition %.2e '
             'against a floor of %.0e. omega has to VARY for lambda to come '
             'out of it, and the currents have to change fast somewhere for '
@@ -103,30 +63,3 @@ def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
         for name, value, err in zip(names, fit, errors)}
     got['trusted'] = {name: got['uncertainty'][name] < 0.10 for name in names}
     return got
-
-
-def from_frame(frame, theta, poles, vdc='DC bus (V)', name='identified'):
-    """Identify straight off a `daq.frame()`."""
-    np = _numpy()
-
-    currents = [frame[c].to_numpy() for c in
-                ('%s (A)' % p for p in PHASES)]
-    duties = [frame[high].to_numpy() for high, _low in GATES]
-    link = (frame[vdc].to_numpy() if vdc in frame
-            else np.full(len(frame), 31.0))
-
-    volts = phase_voltages(duties, link)
-    vd, vq = to_dq(volts, theta)
-    id_, iq = to_dq(currents, theta)
-
-    seconds = np.asarray(frame.index.to_numpy(), dtype='datetime64[ns]')
-    seconds = (seconds - seconds[0]) / np.timedelta64(1, 's')
-    omega = _derivative(np.unwrap(np.asarray(theta, float)), seconds)
-
-    got = identify(vd, vq, id_, iq, omega, seconds)
-    return Parameters(name=name, r=got['r'], ld=got['ld'], lq=got['lq'],
-                      lam=got['lam'], poles=poles, measured=True,
-                      source='least squares over %d records, condition %.1e, '
-                             'residual %.3f V'
-                             % (got['samples'], got['condition'],
-                                got['residual_v'])), got

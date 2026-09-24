@@ -213,37 +213,37 @@ def _unformat(template):
     values go."""
     import re
     return max(re.split(r'%(?:\.\d+)?[a-z]', template), key=len)
-def _capability_tags(report, cap, machine):
-    """Which tag a machine chooses, and why it never splits one."""
+def _capability_tags(report, cap, host):
+    """Which tag a host chooses, and why it never splits one."""
 
     # A workstation card: the biggest tag that fits whole, never a split one.
-    big = cap.choose(machine(32, 64, 16))
+    big = cap.choose(host(32, 64, 16))
     report.check('16 GB card takes the largest model that fits whole',
                  big.tag == 'qwen2.5:14b' and 'num_gpu' not in big.options,
                  big.tag)
 
     # A decent laptop: 8 GB card, 2 GB reserve, 6 GB to spend.
-    laptop = cap.choose(machine(8, 32, 8))
+    laptop = cap.choose(host(8, 32, 8))
     report.check('8 GB card drops to a model that fits it',
                  laptop.entry['gb'] <= 6.0 and 'num_gpu' not in laptop.options,
                  laptop.tag)
 
     # No GPU at all: everything on the CPU, and it says so rather than
     # recommending something that cannot load.
-    headless = cap.choose(machine(64, 128, 0))
+    headless = cap.choose(host(64, 128, 0))
     report.check('no GPU means num_gpu 0', headless.options.get('num_gpu') == 0,
                  headless.tag)
     report.check('no GPU is explained, not silently slow',
                  'CPU' in headless.why or 'cpu' in headless.why)
 
     # Under-specified: 4 GB of RAM cannot hold anything in the catalogue.
-    tiny = cap.choose(machine(2, 4, 0))
-    report.check('a machine too small for any of them says so',
+    tiny = cap.choose(host(2, 4, 0))
+    report.check('a host too small for any of them says so',
                  any('under-specified' in w for w in tiny.warnings))
 
     # Capability mode is allowed to spill onto the CPU, and must warn that it
     # costs - otherwise it is a slow default nobody chose.
-    step = cap.choose(machine(32, 64, 16), prefer='capability')
+    step = cap.choose(host(32, 64, 16), prefer='capability')
     report.check('capability mode reaches for the bigger model',
                  step.tag == 'qwen2.5:32b' and step.options['num_gpu'] > 0,
                  '%s num_gpu=%s' % (step.tag, step.options.get('num_gpu')))
@@ -267,9 +267,9 @@ def _capability_tags(report, cap, machine):
 
     os.environ[cap.RESERVE_ENV] = '8'
     try:
-        report.check('a machine can say how much to hold back',
+        report.check('a host can say how much to hold back',
                      cap.reserve_for(16, 2.6) == 8.0)
-        stingy = cap.choose(machine(32, 64, 16))
+        stingy = cap.choose(host(32, 64, 16))
         report.check('and that changes the model, not just the number',
                      stingy.entry['gb'] <= 8.0, stingy.tag)
         os.environ[cap.RESERVE_ENV] = 'nonsense'
@@ -285,12 +285,12 @@ def _capability_tags(report, cap, machine):
 
 
 
-def _capability_budget(report, cap, machine):
+def _capability_budget(report, cap, host):
     """The reserve, the layer arithmetic, and the ratchet."""
     # Layer arithmetic: as many as the budget holds, never more than the model
     # has, never negative.
     for vram, ram in ((10, 32), (6, 16), (24, 64), (0, 64)):
-        picked = cap.choose(machine(16, ram, vram), prefer='capability')
+        picked = cap.choose(host(16, ram, vram), prefer='capability')
         layers = picked.options.get('num_gpu')
         if layers is not None:
             report.check('layer count stays inside the model (%d GB card)' % vram,
@@ -298,18 +298,18 @@ def _capability_budget(report, cap, machine):
                          '%s %s/%s' % (picked.tag, layers, picked.entry['layers']))
 
     # Free RAM, not the sticker.
-    squeezed = cap.choose(machine(32, 64, 0, free=8))
+    squeezed = cap.choose(host(32, 64, 0, free=8))
     report.check('the choice is made on free RAM, not installed RAM',
                  squeezed.entry['ram_gb'] <= 8, squeezed.tag)
-    report.check('a roomy machine still reaches the big models',
-                 cap.choose(machine(32, 64, 0, free=64)).entry['gb']
+    report.check('a roomy host still reaches the big models',
+                 cap.choose(host(32, 64, 0, free=64)).entry['gb']
                  >= squeezed.entry['gb'])
 
-    # A busy machine gets a warning, not a different tag: load now says nothing
+    # A busy host gets a warning, not a different tag: load now says nothing
     # about load in ten minutes, and the tag is chosen for the session.
-    busy = cap.choose(machine(32, 64, 0, free=64, busy=90))
-    idle = cap.choose(machine(32, 64, 0, free=64, busy=1))
-    report.check('a busy machine is warned, not quietly downgraded',
+    busy = cap.choose(host(32, 64, 0, free=64, busy=90))
+    idle = cap.choose(host(32, 64, 0, free=64, busy=1))
+    report.check('a busy host is warned, not quietly downgraded',
                  busy.tag == idle.tag
                  and any('busy' in w for w in busy.warnings)
                  and not any('busy' in w for w in idle.warnings))
@@ -346,25 +346,25 @@ def _capability_budget(report, cap, machine):
 
     # And the probe itself has to survive whatever it finds, on any OS.
     found = cap.probe()
-    report.check('probe returns a usable machine',
+    report.check('probe returns a usable host',
                  found.threads >= 1 and found.cores >= 1 and found.ram_gb >= 0)
     report.check('probe records how it measured each number',
                  set(found.notes) == set(['cpu', 'ram', 'gpu']), str(found.notes))
     report.check('report is text a human can read',
-                 'machine:' in cap.report(found) and 'model:' in cap.report(found))
+                 'host:' in cap.report(found) and 'model:' in cap.report(found))
 
 
 def _test_capability(report, cap):
     """The capability picker, in two halves."""
-    def machine(cores, ram, vram, name='card', used=0.0, free=None, busy=None):
+    def host(cores, ram, vram, name='card', used=0.0, free=None, busy=None):
         gpus = ([{'name': name, 'vram_gb': vram, 'used_gb': used, 'via': 'test'}]
                 if vram else [])
-        return cap.Machine(cores=cores, threads=cores * 2, ram_gb=ram,
+        return cap.Host(cores=cores, threads=cores * 2, ram_gb=ram,
                            ram_free_gb=ram if free is None else free,
                            cpu_busy=busy, gpus=gpus, system='test', notes={})
 
-    _capability_tags(report, cap, machine)
-    _capability_budget(report, cap, machine)
+    _capability_tags(report, cap, host)
+    _capability_budget(report, cap, host)
 def safe_head(text, n=44):
     return (text or '').strip().splitlines()[0][:n] if (text or '').strip() else '(nothing)'
 

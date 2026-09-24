@@ -172,9 +172,9 @@ if (-not $Model) {
     $choice = Get-Choice
     $Model = $choice.model
     $layers = $choice.num_gpu
-    if ($choice.machine) {
+    if ($choice.host) {
         Say 'ok' 'this machine' ('{0} cores, {1:n0} GB RAM, {2:n0} GB VRAM' `
-            -f $choice.machine.cores, $choice.machine.ram_gb, $choice.machine.vram_gb)
+            -f $choice.host.cores, $choice.host.ram_gb, $choice.host.vram_gb)
     }
     Say 'ok' 'model choice' ('{0}  ({1})' -f $Model, $choice.why)
 }

@@ -1,4 +1,4 @@
-"""The board's cycle counter, tied to this machine's clock."""
+"""The board's cycle counter, tied to this host's clock."""
 import socket
 import struct
 import time
@@ -19,7 +19,7 @@ NTP_EPOCH = 2208988800
 
 
 def ntp_offset(server=NTP_SERVER, rounds=8, timeout=3.0):
-    """How far this machine's clock is from UTC. Seconds, and the trip."""
+    """How far this host's clock is from UTC. Seconds, and the trip."""
     best = None
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(timeout)
@@ -93,14 +93,14 @@ def unwrap(cycles, start=None):
 
 class Timebase(Input):
 
-    """The board's cycle counter: latched by `trigger()`, read by `read()`, tied to this machine."""
+    """The board's cycle counter: latched by `trigger()`, read by `read()`, tied to this host."""
 
     def trigger(self, settle=0.05):
         """Latch the counter; `settle` seconds for the latch to land."""
         raise NotImplementedError
 
     def _bracket(self):
-        """One latch, bracketed by this machine's clock."""
+        """One latch, bracketed by this host's clock."""
         before = time.perf_counter()
         self.trigger(settle=0)
         after = time.perf_counter()

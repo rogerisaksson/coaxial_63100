@@ -9,8 +9,8 @@ import threading
 import time
 
 from coaxial import Coaxial63100
-from coaxial.devices.thermal_device import THROTTLE_AT
-from coaxial.draw import gauges, machine
+from coaxial.devices.thermal import THROTTLE_AT
+from coaxial.draw import cross_section, gauges
 from coaxial.errors import DeviceStateError, NoReplyError, RigError
 from machine import ansi
 from terminal.ui.console import Keys, _ignore
@@ -133,8 +133,8 @@ def gauge(fraction, width, hot=THROTTLE_AT):
     """
     fraction = max(0.0, min(1.0, fraction))
     return gauges.gauge(fraction, width,
-                        cls=machine.SOA_WARN if fraction >= hot
-                        else machine.SOA_OK)
+                        cls=cross_section.SOA_WARN if fraction >= hot
+                        else cross_section.SOA_OK)
 
 
 class Feed:

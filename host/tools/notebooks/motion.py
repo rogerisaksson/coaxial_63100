@@ -19,10 +19,10 @@ drive.model.configure(j=J, b=B, load=0.0)
 stage = device.gates.on(bypass_sto=True, ignore_interlock=True)
 params = drive.params()
 poles = int(params['motor_pole_pairs'])
-kt = 1.5 * poles * params['motor_lambda_uvs']
+kt = 1.5 * poles * params['motor_lambda']
 print('armed:', stage['pwm_enabled'])
 print('%d pole pairs, lambda %.5f Wb, Kt = 1.5 P lambda = %.4f N.m/A; J %.0e kg.m^2, B %.0e N.m.s'
-      % (poles, params['motor_lambda_uvs'], kt, J, B))'''),
+      % (poles, params['motor_lambda'], kt, J, B))'''),
     ),
     section(
         'The stepper: a move and its ring',
@@ -90,7 +90,7 @@ print('the spring says %.2f deg mechanical: 0.02 N.m against 2.0 A x Kt %.4f = %
         md("The observer's electrical angle against the A1335's mechanical one: angles "
            'compared at rest, speeds on the way (600 rpm = 3.6 deg/ms). The stage is off '
            'after this section.'),
-        code('''from coaxial.model.sensorless import RAD_S_PER_RPM
+        code('''from motor.pmsm import RAD_S_PER_RPM
 
 rows = []
 
@@ -140,11 +140,11 @@ show(fig)'''),
     ),
     section(
         'The speed loop identified out of its own run',
-        md('Ramp, d-axis probe, speed loop, current loop, machine on one bus; `identify` '
+        md('Ramp, d-axis probe, speed loop, current loop, plant on one bus; `identify` '
            'returns R, Ld, Lq, lambda, each with its standard error.'),
-        code('''from coaxial.control.loop import Ramp, Probe, SpeedLoop, CurrentLoop, Machine, identify
-from coaxial.model.motor import BENCH_MOTOR
+        code('''from coaxial.model.blocks import Ramp, Probe, SpeedLoop, CurrentLoop, Plant, identify
 from coaxial.model import inverter
+from motor.catalog import BENCH_MOTOR
 
 TWO_PI = 2.0 * math.pi
 bench = BENCH_MOTOR
@@ -154,7 +154,7 @@ chain = (Ramp(top=300.0 * TWO_PI, rise=0.6)
          >> Probe(amps=1.0, hz=40.0)
          >> SpeedLoop(hz=8.0, limit=6.0, motor=bench)
          >> CurrentLoop(hz=1000.0, motor=bench, vdc=vdc)
-         >> Machine(bench, vdc=vdc, noise=0.02, sub=4))
+         >> Plant(bench, vdc=vdc, noise=0.02, sub=4))
 run = chain.run(seconds=1.4, dt=2.0 * inverter.TS)
 print('samples %d at %.0f us; top %.0f rad/s mechanical'
       % (len(run['t']), 2e6 * inverter.TS, run['w'].max()))'''),
@@ -186,7 +186,7 @@ for name, truth in TRUTH:
         code('''still = (Ramp(top=300.0 * TWO_PI, rise=0.6)
          >> SpeedLoop(hz=8.0, limit=6.0, motor=bench)
          >> CurrentLoop(hz=1000.0, motor=bench, vdc=vdc)
-         >> Machine(bench, vdc=vdc, noise=0.02, sub=4))
+         >> Plant(bench, vdc=vdc, noise=0.02, sub=4))
 run2 = still.run(seconds=1.4, dt=2.0 * inverter.TS)
 _, got2 = identify(run2, bench.poles)
 for name, truth in TRUTH:
@@ -196,10 +196,11 @@ for name, truth in TRUTH:
     ),
     section(
         'The 5230SL and its propeller against the stand',
-        md('`coaxial.model.motor`: the 5230SL 190KV from the sheet, R/Ld/Lq/J from the size '
+        md('`motor.catalog`: the 5230SL 190KV from the sheet, R/Ld/Lq/J from the size '
            "class; the APC20x10E fitted over the stand's 22 rows at 37 V; up to 6717 rpm "
            'and back.'),
-        code('''from coaxial.model.motor import PLATINUM_5230SL, APC20x10E, APC20X10E_CURVE, RATINGS, KT_NM_PER_AMP
+        code('''from motor.catalog import KT_NM_PER_AMP, PLATINUM_5230SL, RATINGS
+from motor.loads import APC20X10E_CURVE, APC20x10E
 
 motor = PLATINUM_5230SL
 print(motor)
@@ -213,7 +214,7 @@ top = 6717.0 * TWO_PI / 60.0
 sweep = (Ramp(top, rise=2.0)
          >> SpeedLoop(hz=4.0, limit=RATINGS['i_max'], motor=motor, load=APC20x10E)
          >> CurrentLoop(hz=800.0, motor=motor, vdc=37.0)
-         >> Machine(motor, vdc=37.0, load=APC20x10E, noise=0.0, sub=4))
+         >> Plant(motor, vdc=37.0, load=APC20x10E, noise=0.0, sub=4))
 prop = sweep.run(seconds=4.5, dt=4.0 * inverter.TS, every=25)
 rpm = prop['w'] * 60.0 / TWO_PI
 torque = APC20x10E.k * prop['w'] ** 2
@@ -298,9 +299,10 @@ BENCH = ('The ring against `sqrt(Kt I P / J)` gives the real J. The servo needs 
 
 REFERENCES = [
     ('host/coaxial/control/motion.py', 'the three verbs: the slew, the soft energize, the ring-aware measurement, the fault read a pass'),
-    ('host/coaxial/control/loop.py', 'the blocks on one bus: ramp, probe, speed loop, current loop, machine, and `identify`'),
-    ('host/coaxial/model/sysid.py', 'the least squares behind `identify`: two equations a sample, an error bar per column'),
-    ('host/coaxial/model/motor.py', 'the 5230SL as the sheet gives it, the propeller and its 22-row curve, `Kt = 1.5 P lambda`'),
+    ('host/coaxial/model/blocks.py', 'the blocks on one bus: ramp, probe, speed loop, current loop, plant, and `identify`'),
+    ('host/motor/sysid.py', 'the least squares behind `identify`: two equations a sample, an error bar per column'),
+    ('host/motor/catalog.py', 'the 5230SL as the sheet gives it, `Kt = 1.5 P lambda`'),
+    ('host/motor/loads.py', 'the propeller and its 22-row curve'),
     ('host/coaxial/simulated/drive/', 'the stand-in\'s rotor, the spring under HOLD, and the PLL lag that stands in for the observer'),
     ('host/tests/test_sensorless.py', 'the verbs pinned on the stand-in, the dangerous paths included: a load past the holding torque, a trip mid-spin'),
     ('host/tools/sim/observer_run.py', 'the firmware\'s own observer, run on the host, and the crossover it computes'),

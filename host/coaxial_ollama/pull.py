@@ -203,7 +203,7 @@ def pull(tag, host=DEFAULT_HOST, out=None, source=None, glyphs=None,
         raise OllamaError('%s is a cloud tag: ollama runs those on their '
                           'hardware, and there is nothing to pull' % tag)
     if not is_local(host):
-        raise OllamaError('%s is not this machine: a pull goes to the local '
+        raise OllamaError('%s is not this host: a pull goes to the local '
                           'daemon only' % host)
     out = out if out is not None else sys.stderr
     glyphs = glyphs or (BRAILLE if carries(out) else ASCII)

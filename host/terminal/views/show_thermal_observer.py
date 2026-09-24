@@ -15,7 +15,7 @@ from contextlib import suppress
 from rich.text import Text
 
 from coaxial import Coaxial63100
-from coaxial.draw import gauges, machine
+from coaxial.draw import cross_section, gauges
 from coaxial.draw.thermalmap import CELL_ASPECT, MARKS, SCALE_LINES, render
 from coaxial.errors import NoReplyError, RigError
 from coaxial.kalman import thermal_ident
@@ -170,8 +170,8 @@ def evidence_class(level):
     red below a third, yellow to two thirds, green above - red to
     yellow to green as it fills, the bench's ramp for it."""
     if level < 1.0 / 3.0:
-        return machine.SOA_TRIP
-    return machine.SOA_WARN if level < 2.0 / 3.0 else machine.SOA_OK
+        return cross_section.SOA_TRIP
+    return cross_section.SOA_WARN if level < 2.0 / 3.0 else cross_section.SOA_OK
 
 
 def evidence_rows(ident, colour=True):
@@ -190,7 +190,7 @@ def evidence_rows(ident, colour=True):
     bar = gauges.bar(level, GAUGE_CELLS, cls=cls, colour=colour)
     # The label in the leaders' grey, constant; only the bar changes colour
     # (bench 2026-09-06).
-    label = ('\x1b[38;5;%dmTH OBS\x1b[0m' % machine.LEADER_GREY) if colour \
+    label = ('\x1b[38;5;%dmTH OBS\x1b[0m' % cross_section.LEADER_GREY) if colour \
         else 'TH OBS'
     return ['', '   %s %s' % (label, bar)]
 

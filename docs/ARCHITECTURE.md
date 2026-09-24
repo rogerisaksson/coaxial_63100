@@ -36,7 +36,20 @@ boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),
 
 ## Host
 
+Three domains; imports run one way: `coaxial` -> `machine`, `motor`.
+
+| Word | Is |
+| --- | --- |
+| machine | the executive: actuators over IO nodes, programs, `machine/` |
+| motor | the PMSM a board drives, `motor/` |
+| board, node | one Coaxial63100 on a bus; as a `machine` node, `coaxial.node` |
+| rig | `Coaxial63100`, the library's front door to one board |
+| host | the computer this runs on |
+
 ```text
+motor/              pmsm (Motor, Parameters, TWO_PI, RAD_S_PER_RPM), catalog
+                    (5230SL, BENCH_MOTOR), loads (Propeller), sysid; imports
+                    nothing here
 machine/            any board family, no import of one: roles (Input, Stream,
                     Output, Controller; Part: Filter, Estimator, Regulator),
                     errors, controller (Loop of Feedbacks over float channels),
@@ -48,14 +61,16 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     failsafe), simulated (pack, camera)
 coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory;
                     node (the family for machine: Coaxial node, joint, surface,
-                    rotor, torque)
+                    rotor, torque); profiles/ (a motor's drive record and
+                    stand-in model, JSON)
 coaxial/comm/       the wire: transport, crc, codecs, protocol, broker, sessions
 coaxial/devices/    one subsystem per functional area: board, afe, gates, boot..
 coaxial/acquire/    the rig's task and stream (its mixins), records, reader,
                     clock, filter
-coaxial/model/      motor, inverter, thermal network, sensorless, sysid
-coaxial/control/    loop (sim blocks), motion, commission
-coaxial/draw/       2D drawings: dials, gauges, machine, thermal map
+coaxial/model/      inverter, thermal network, sensorless, blocks (the
+                    control loops as sim blocks around motor.pmsm)
+coaxial/control/    motion, commission: procedures on a rig
+coaxial/draw/       2D drawings: dials, gauges, cross_section, thermal map
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c),
                     observer
@@ -73,7 +88,7 @@ tools/target/       build_and_flash, find_board, flash_nodes, session
 tools/bench/        one question to the board per script: pulse, switch, ..
 tools/thermal/      calibrate, identify, validate, trace
 tools/render/       renderer checks against the exporter; ansi2png
-tools/sim/          the drive core on this machine: montecarlo, observer_run
+tools/sim/          the drive core on this host: montecarlo, observer_run
 tools/cores/        build: the portable cores' gcc build;
                     drive, thermal: their ctypes harnesses
 tools/notebooks/    the paper builder and make_notebooks

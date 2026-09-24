@@ -23,19 +23,14 @@ ANALOG_BURST = 0x6B
 SELF_TEST = 0x6C
 CHANNELS = 0x6D
 DEVICE = 0x6E
-IMU = DEVICE
-"""0x6E carries every peripheral device, chosen by a device byte. IMU is
-the old name for it, kept because nothing else on this board reads better
-for the code itself."""
-"""Every IMU operation, chosen by the first payload byte. One code because it
-is the last one: MODBUS reserves 65..72 and 100..110 for user-defined
-functions and this board had spent all but 110. A second code is answered
-ILLEGAL FUNCTION by the protocol layer, before the command table sees it."""
+"""Every peripheral device, chosen by a device byte. One code because it is the last one:
+MODBUS reserves 65..72 and 100..110 for user-defined functions and this board had spent all
+but 110. A second code is answered ILLEGAL FUNCTION by the protocol layer, before the command
+table sees it."""
 
+#: Which peripheral 0x6E's payload is addressed to.
 DEVICE_IMU = 0
 DEVICE_ANGLE = 1
-"""Which peripheral 0x6E's payload is addressed to. One function code for
-all of them because the user-defined ranges are spent - see cmd_device.c."""
 DEVICE_LINK = 2
 DEVICE_CAL = 3
 DEVICE_GATE_DRIVERS = 4
@@ -136,7 +131,7 @@ class TimeOp(IntEnum):
 
 
 class ThermalOp(IntEnum):
-    """Device 8, the thermal observer - `coaxial.devices.thermal_device`."""
+    """Device 8, the thermal observer - `coaxial.devices.thermal`."""
     STATE = 0
     SET_NODE = 1
     SET_BOARD = 2
@@ -361,7 +356,7 @@ NAMES = {
     PIN_READ: 'pin_read', PIN_WRITE: 'pin_write', PORT_READ: 'port_read',
     PORT_WRITE: 'port_write', ANALOG_BURST: 'analog_burst',
     SELF_TEST: 'self_test', CHANNELS: 'channels',
-    IMU: 'imu',
+    DEVICE: 'device',
 }
 
 BROADCAST = 0

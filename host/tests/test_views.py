@@ -117,32 +117,32 @@ def rows_of(owner, width, height, kind):
             if any(owner[row][col] == kind for col in range(width))]
 
 
-def test_the_instruments_stand_clear_of_the_machine(report):
+def test_the_instruments_stand_clear_of_the_motor(report):
     """The gutters equidistant, and the foot gauges off the can."""
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from terminal.views.rotor import layout
 
     width, height = layout.BOX.width, layout.BOX.rows
     n_left, n_right = len(layout.SOA_NODES), len(layout.BOARD_NODES)
-    frame, _lit = machine._raster(
+    frame, _lit = cross_section._raster(
         6.0, 24, 28, width, height, None, None, None,
-        [(0.4, machine.SOA_OK)] * n_left, [(0.3, machine.SOA_OK)] * n_right,
-        [(0.5, machine.SOA_OK)],
-        [(0.4, machine.SOA_WARN), (0.3, machine.WATTS)], 2.0)
+        [(0.4, cross_section.SOA_OK)] * n_left, [(0.3, cross_section.SOA_OK)] * n_right,
+        [(0.5, cross_section.SOA_OK)],
+        [(0.4, cross_section.SOA_WARN), (0.3, cross_section.WATTS)], 2.0)
     can = [col for row in range(height) for col in range(width)
-           if frame.owner[row][col] == machine.CAN]
-    left, right = machine.gutters(width, height, n_left, n_right)
+           if frame.owner[row][col] == cross_section.CAN]
+    left, right = cross_section.gutters(width, height, n_left, n_right)
     gaps = (min(can) - max(left) - 1, min(right) - max(can) - 1)
-    report.check('the gutters stand the same distance off the machine',
+    report.check('the gutters stand the same distance off the motor',
                  gaps[0] == gaps[1], 'left %d, right %d columns' % gaps)
     report.check('both groups fit inside the frame',
                  len(left) == n_left and len(right) == n_right,
                  '%d of %d left, %d of %d right'
                  % (len(left), n_left, len(right), n_right))
 
-    can_rows = rows_of(frame.owner, width, height, machine.CAN)
-    for name, kind in (('winding', machine.SOA_WARN),
-                       ('power', machine.WATTS)):
+    can_rows = rows_of(frame.owner, width, height, cross_section.CAN)
+    for name, kind in (('winding', cross_section.SOA_WARN),
+                       ('power', cross_section.WATTS)):
         on = rows_of(frame.owner, width, height, kind)
         report.check('the %s gauge clears the can' % name,
                      bool(on) and not set(on) & set(can_rows),
@@ -169,7 +169,7 @@ def test_each_gutter_says_its_hottest_node(report):
     report.check('the switch caption takes the hottest leg',
                  peak == 118.4, 'said %s' % (peak,))
     report.check('and its colour comes from that same node margin',
-                 cls == view.machine.SOA_WARN, 'class %s' % (cls,))
+                 cls == view.cross_section.SOA_WARN, 'class %s' % (cls,))
 
     peak, _ = legend.hottest(said, layout.BOARD_NODES)
     report.check('the board caption takes the hottest of its four, which '
@@ -187,7 +187,7 @@ def test_each_gutter_says_its_hottest_node(report):
 
 def test_both_gutters_run_on_one_scale(report):
     """Height is degrees, colour is margin, and they are two questions."""
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import layout, thermal
 
@@ -204,7 +204,7 @@ def test_both_gutters_run_on_one_scale(report):
                  '%.4f against %.4f' % (left[0], right[0]))
     report.check('and the copper still colours hotter, because its ceiling '
                  'is lower - the margin is what the colour carries',
-                 left[1] == machine.SOA_OK and right[1] == machine.SOA_WARN,
+                 left[1] == cross_section.SOA_OK and right[1] == cross_section.SOA_WARN,
                  'phase %s, board %s' % (left[1], right[1]))
     report.check('the scale is stated, not taken from a limit the board '
                  'acts on: -35 to 130 on the bench\'s word, one ruler for '
@@ -249,7 +249,7 @@ def test_a_power_node_never_reads_below_the_copper(report):
 
 def test_the_ntc_is_shown_as_the_one_measurement(report):
     """The reference above the headroom scale, and what it says unread."""
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import layout, legend
 
@@ -284,8 +284,8 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
     # end and red at the hot - because the thermistor has no ceiling to be a
     # margin against.
     report.check('and takes its own tube colour, off the thermometer ramp',
-                 any('38;5;%d' % machine.INK[step] in said
-                     for step in machine.NTC_RAMP),
+                 any('38;5;%d' % cross_section.INK[step] in said
+                     for step in cross_section.NTC_RAMP),
                  said.replace(chr(27), '^'))
 
 
@@ -293,7 +293,7 @@ def test_the_foot_carries_the_policy(report):
     """TH OBS and the policy between WINDING and POWER, in the margin's
     colours, and nothing moves when the power goes negative.
     """
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from terminal.ui.screen import plain as visible      # the row without its inks
     from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import layout, legend, thermal
@@ -326,7 +326,7 @@ def test_the_foot_carries_the_policy(report):
     for state in ('STABLE', 'CONVERGING', 'UNCERTAIN'):
         row = legend.gutter_caption(a_view(20.0, {
             'state': state, 'margin': IDENT_MARGIN[state]}))[-1]
-        inks[state] = ('38;5;%dm%s' % (machine.INK[thermal.POLICY_INK[state]],
+        inks[state] = ('38;5;%dm%s' % (cross_section.INK[thermal.POLICY_INK[state]],
                                        thermal.POLICY_WORD[state])) in row
         trims[state] = visible(row)
     # The trim is said while there is one (the bench: "make it visible that it
@@ -342,7 +342,7 @@ def test_the_foot_carries_the_policy(report):
     report.check('the word wears the margin\'s ink: STABLE green, CONV '
                  'yellow, UNCR red - and TH OBS the leaders\' grey',
                  all(inks.values())
-                 and ('38;5;%dmTH OBS' % machine.LEADER_GREY) in foot,
+                 and ('38;5;%dmTH OBS' % cross_section.LEADER_GREY) in foot,
                  '%s %s' % (inks, foot.replace(chr(27), '^')))
     # The percent is the margin rounded, whatever the word: a
     # CONVERGING board at 0.93 says so, a STABLE one at 0.97 as STBL, since
@@ -388,7 +388,7 @@ def test_the_soa_legend_reads_the_whole_soa(report):
     """SWITCH SOA and MOTOR SOA say how much of the record's SOA is spent,
     and flash red where the ceiling in force is.
     """
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from coaxial.model import thermal
     from terminal.views.rotor import thermal as rotor
     IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
@@ -416,7 +416,7 @@ def test_the_soa_legend_reads_the_whole_soa(report):
                  ' '.join('%s %.2f' % (s, v[0]) for s, v in reads.items()))
     report.check('and in the trip\'s red, pulsing, since the board is '
                  'acting there',
-                 all(cls in (machine.SOA_TRIP, machine.SOA_FLASH)
+                 all(cls in (cross_section.SOA_TRIP, cross_section.SOA_FLASH)
                      for _spent, cls in reads.values()),
                  [cls for _s, cls in reads.values()])
     spent, cls = rotor.headrooms(a_view('UNCERTAIN', 0.5))[0]
@@ -424,14 +424,14 @@ def test_the_soa_legend_reads_the_whole_soa(report):
                  'neither red nor pulsing - the amber there is the '
                  'gauge\'s own band, not the policy\'s',
                  abs(spent - 0.40) < 1e-9
-                 and cls not in (machine.SOA_TRIP, machine.SOA_FLASH),
+                 and cls not in (cross_section.SOA_TRIP, cross_section.SOA_FLASH),
                  '%.2f cls %d' % (spent, cls))
     motor = rotor.headrooms(a_view('UNCERTAIN', 0.2, winding_used=1.0))[1]
     report.check('the winding\'s own legend the same way, off the board\'s '
                  'winding under the same policy, and pulsing when the '
                  'board holds the stage back for it',
                  abs(motor[0] - 0.80) < 1e-9
-                 and motor[1] in (machine.SOA_TRIP, machine.SOA_FLASH),
+                 and motor[1] in (cross_section.SOA_TRIP, cross_section.SOA_FLASH),
                  '%.2f cls %d' % motor)
     report.check('the ceiling in force is the record\'s span trimmed: the '
                  'laminate\'s 105 is 89 C at the 0.8 floor',
@@ -482,7 +482,7 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     import re
     from rich.console import Console
 
-    from coaxial.draw import gauges, machine
+    from coaxial.draw import cross_section, gauges
     from machine import ansi
     from terminal.views import show_thermal_observer as page
     from terminal.ui import stage
@@ -498,7 +498,7 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
                  and line[9:] == '⡇' * 7, line)
     report.check('the tip is orange and the track is the track\'s grey',
                  '38;5;%dm' % ansi.AMBER in half
-                 and '38;5;%dm' % machine.INK[machine.TRACK] in half,
+                 and '38;5;%dm' % cross_section.INK[cross_section.TRACK] in half,
                  half.replace(chr(27), '^'))
     odd = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(17.0 / 32.0, 16))
     report.check('a level ending in the other lane tips with ⢸, the '
@@ -540,7 +540,7 @@ def test_the_thermal_page_shows_its_evidence(report):
     import re
     from rich.console import Console
 
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from coaxial.simulated.thermal.observer import SimulatedThermal
     from terminal.ui.screen import plain as visible
     from terminal.views import show_thermal_observer as page
@@ -576,14 +576,14 @@ def test_the_thermal_page_shows_its_evidence(report):
         return visible(page.evidence_rows(ident(margin))[1]).split()[2]
 
     inks, greys = {}, {}
-    for margin, cls in ((0.8, None), (0.9, machine.SOA_WARN),
-                        (1.0, machine.SOA_OK)):
+    for margin, cls in ((0.8, None), (0.9, cross_section.SOA_WARN),
+                        (1.0, cross_section.SOA_OK)):
         row = page.evidence_rows(ident(margin))[1]
         head, _bar = row.split('TH OBS')[0], row.split('TH OBS')[1]
         # The label constant in the leaders' grey (the bench: "only the
         # thermometer changes colour"), the bar's ink after it.
-        greys[margin] = ('38;5;%dm' % machine.LEADER_GREY) in head
-        inks[margin] = (cls is None or ('38;5;%dm' % machine.INK[cls])
+        greys[margin] = ('38;5;%dm' % cross_section.LEADER_GREY) in head
+        inks[margin] = (cls is None or ('38;5;%dm' % cross_section.INK[cls])
                         in row.split('TH OBS')[1])
     report.check('empty at the floor - the tip and the track alone - half '
                  'full at 0.90 in yellow, full at the whole span in green: '
@@ -853,7 +853,7 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
                  plain[len(plain) // 2][:80])
 
 
-def test_the_demo_actually_loads_the_machine(report):
+def test_the_demo_actually_loads_the_motor(report):
     """Two hundred frames of the stand-in warm the winding and spend the
     switches' margin - the demo puts a load on, and it stays on.
     """
@@ -885,7 +885,7 @@ def test_the_demo_actually_loads_the_machine(report):
 
 def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
     """The kW bar is a power law pinned at 500 W, full at 2 kW, red past."""
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from terminal.views.rotor import thermal
 
     at = {w: thermal.watts_share(w) for w in (0, 20, 100, 500, 2000, 2500)}
@@ -897,23 +897,23 @@ def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
     report.check('half a kilowatt is half the bar',
                  abs(at[500][0] - 0.5) < 1e-9, '%.3f' % at[500][0])
     report.check('two kilowatts is the whole of it, still in its own ink',
-                 at[2000] == (1.0, machine.WATTS), str(at[2000]))
+                 at[2000] == (1.0, cross_section.WATTS), str(at[2000]))
     report.check('and past it the bar is full and deep red',
-                 at[2500] == (1.0, machine.SOA_TRIP), str(at[2500]))
+                 at[2500] == (1.0, cross_section.SOA_TRIP), str(at[2500]))
     report.check('the middle is a named constant, not a magic exponent',
                  thermal.WATTS_MID == 500.0 and thermal.WATTS_SCALE == 2000.0)
 
 
 def test_the_level_is_drawn_at_the_dot(report):
     """The top of a bar's mercury is `⣀`, `⣤`, `⣶`, `⣿` - one dot a step."""
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
 
     track = chr(0x28D2)
     tops, dots = [], []
     for k in range(0, 8):
         share = (k + 0.5) / 40.0          # a ten-row tube is forty dots
-        art = machine.render(0.0, 24, 28, 30, 12,
-                             left=[(share, machine.SOA_OK)]).split(chr(10))
+        art = cross_section.render(0.0, 24, 28, 30, 12,
+                             left=[(share, cross_section.SOA_OK)]).split(chr(10))
         column = [row[0] for row in art]
         mercury = [c for c in column if c not in (track, chr(0x2800))]
         tops.append(mercury[0] if mercury else '?')
@@ -931,12 +931,12 @@ def test_the_level_is_drawn_at_the_dot(report):
     ends = []
     for k in range(1, 5):
         share = (k + 0.5) / 60.0
-        frame, _lit = machine._raster(
+        frame, _lit = cross_section._raster(
             0.0, 24, 28, 30, 12, None, None, None, None, None, None,
-            [(share, machine.WATTS)], 2.0)
+            [(share, cross_section.WATTS)], 2.0)
         row = frame.height - 1
         level = [col for col in range(frame.width)
-                 if frame.owner[row][col] == machine.WATTS]
+                 if frame.owner[row][col] == cross_section.WATTS]
         ends.append(chr(0x2800 + frame.dots[row][max(level)]) if level
                     else '?')
     report.check('the foot gauge ends on a lane, not a cell',
@@ -949,22 +949,22 @@ def test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most(
     """The air gap is less than a cell tall, and that is a trade the drawing
     makes on purpose.
     """
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
 
-    magnet = {machine.NORTH, machine.SOUTH}
-    teeth = {machine.TOOTH_U, machine.TOOTH_V, machine.TOOTH_W}
-    seat = machine.Seat(46, 18, None, None, None, None, None, None, 2.0)
+    magnet = {cross_section.NORTH, cross_section.SOUTH}
+    teeth = {cross_section.TOOTH_U, cross_section.TOOTH_V, cross_section.TOOTH_W}
+    seat = cross_section.Seat(46, 18, None, None, None, None, None, None, 2.0)
     report.check('the teeth reach their full fraction of the radius',
                  abs(seat.radii.tooth_out
-                     - seat.radii.can * machine.F_TOOTH_OUT) < 1e-9,
+                     - seat.radii.can * cross_section.F_TOOTH_OUT) < 1e-9,
                  '%.2f of %.2f' % (seat.radii.tooth_out,
-                                   seat.radii.can * machine.F_TOOTH_OUT))
+                                   seat.radii.can * cross_section.F_TOOTH_OUT))
     mixed = elsewhere = 0
     for aspect in (2.0, 2.3):
         for deg in range(0, 360, 30):
-            frame, _lit = machine._raster(
+            frame, _lit = cross_section._raster(
                 6.0, 24, 28, 46, 18, None,
-                machine._drive((30.0, -15.0, -15.0)), None,
+                cross_section._drive((30.0, -15.0, -15.0)), None,
                 None, None, None, None, aspect)
             for row, cells in enumerate(frame.tally):
                 for col, tally in enumerate(cells):
@@ -982,22 +982,22 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
     """A ring through a cell full of tooth or magnet keeps its colour."""
     import math
 
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
 
-    magnet = {machine.NORTH, machine.SOUTH}
-    seat = machine.Seat(46, 18, None, None, None, None, None, None, 2.0)
+    magnet = {cross_section.NORTH, cross_section.SOUTH}
+    seat = cross_section.Seat(46, 18, None, None, None, None, None, None, 2.0)
     r = seat.radii
     yoke_worst, lost = 1.0, 0
     for aspect in (2.0, 2.3):
         for deg in (0.0, 6.0, 12.0, 18.0):
-            frame, _lit = machine._raster(
+            frame, _lit = cross_section._raster(
                 deg, 24, 28, 46, 18, None,
-                machine._drive((30.0, -15.0, -15.0)), None,
+                cross_section._drive((30.0, -15.0, -15.0)), None,
                 None, None, None, None, aspect)
             for row, cells in enumerate(frame.tally):
                 for col, tally in enumerate(cells):
-                    if (tally and machine.CAN in tally and set(tally) & magnet
-                            and frame.owner[row][col] != machine.CAN):
+                    if (tally and cross_section.CAN in tally and set(tally) & magnet
+                            and frame.owner[row][col] != cross_section.CAN):
                         lost += 1
             ring = set()
             for k in range(720):
@@ -1006,7 +1006,7 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
                 y = seat.cy - r.tooth_in * math.sin(phi) / (aspect / 2.0)
                 ring.add((int(y) // 4, int(x) // 2))
             own = sum(1 for row, col in ring
-                      if frame.owner[row][col] in (machine.YOKE, machine.BORE))
+                      if frame.owner[row][col] in (cross_section.YOKE, cross_section.BORE))
             yoke_worst = min(yoke_worst, own / len(ring))
     report.check('the yoke ring is wholly its own colour where the teeth '
                  'root', yoke_worst >= 0.99, 'worst %.2f' % yoke_worst)
@@ -1015,47 +1015,47 @@ def test_a_line_keeps_the_cell_it_shares_with_an_area(report):
 
     # The rule itself, on one cell: a line with one dot beats an area with
     # seven; two lines settle by dots; two areas settle by dots.
-    frame = machine.Frame(1, 1)
+    frame = cross_section.Frame(1, 1)
     for k in range(7):
-        frame.put(k % 2, k // 2, machine.NORTH)
-    frame.put(1, 3, machine.CAN)
+        frame.put(k % 2, k // 2, cross_section.NORTH)
+    frame.put(1, 3, cross_section.CAN)
     report.check('one dot of ring outweighs seven of magnet',
-                 frame.owner[0][0] == machine.CAN)
-    frame = machine.Frame(1, 1)
+                 frame.owner[0][0] == cross_section.CAN)
+    frame = cross_section.Frame(1, 1)
     for k in range(6):
-        frame.put(k % 2, k // 2, machine.TOOTH_U)
-    frame.put(0, 3, machine.TOOTH_W)
+        frame.put(k % 2, k // 2, cross_section.TOOTH_U)
+    frame.put(0, 3, cross_section.TOOTH_W)
     report.check('and between two areas the most dots win, not the rank',
-                 frame.owner[0][0] == machine.TOOTH_U)
+                 frame.owner[0][0] == cross_section.TOOTH_U)
     # Not the truth stroke, which wins outright: `Frame.put` has why.
     report.check('the lines are the rings - not the arc, not the stroke',
-                 machine.LINES == frozenset((machine.BORE, machine.YOKE,
-                                             machine.CAN)))
+                 cross_section.LINES == frozenset((cross_section.BORE, cross_section.YOKE,
+                                             cross_section.CAN)))
 
     # The shaft sensor's stroke is drawn through the magnet band.
-    teeth = {machine.TOOTH_U, machine.TOOTH_V, machine.TOOTH_W}
+    teeth = {cross_section.TOOTH_U, cross_section.TOOTH_V, cross_section.TOOTH_W}
     gutter = set(range(0, 8)) | set(range(38, 46))
     took = in_gutter = 0
     own_min, ring_max = 999, 0
     for aspect in (2.0, 2.3):
         for deg in range(0, 360, 30):
-            frame, _lit = machine._raster(
+            frame, _lit = cross_section._raster(
                 6.0, 24, 28, 46, 18, float(deg),
-                machine._drive((30.0, -15.0, -15.0)), 41.0,
-                [(0.3, machine.SOA_OK)] * 8, [(0.3, machine.SOA_OK)] * 8,
-                None, [(0.3, machine.SOA_WARN), (0.3, machine.WATTS)],
+                cross_section._drive((30.0, -15.0, -15.0)), 41.0,
+                [(0.3, cross_section.SOA_OK)] * 8, [(0.3, cross_section.SOA_OK)] * 8,
+                None, [(0.3, cross_section.SOA_WARN), (0.3, cross_section.WATTS)],
                 aspect)
             own = rings = 0
             for row, cells in enumerate(frame.tally):
                 for col, tally in enumerate(cells):
-                    if not tally or machine.TRUTH not in tally:
+                    if not tally or cross_section.TRUTH not in tally:
                         continue
-                    if frame.owner[row][col] == machine.TRUTH:
+                    if frame.owner[row][col] == cross_section.TRUTH:
                         took += bool(set(tally) & teeth)
                         own += 1
                         in_gutter += col in gutter
-                        rings += (machine.CAN in tally
-                                  or machine.YOKE in tally)
+                        rings += (cross_section.CAN in tally
+                                  or cross_section.YOKE in tally)
             own_min = min(own_min, own)
             ring_max = max(ring_max, rings)
     # A cell's diagonal still bridges the band's inner end and a tooth's tip at
@@ -1094,16 +1094,16 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     """
     import unicodedata
 
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import legend
     from terminal.ui import scroll
 
-    drawn = machine.render(6.0, 24, 28, 46, 18, pointer_deg=41.0)
+    drawn = cross_section.render(6.0, 24, 28, 46, 18, pointer_deg=41.0)
     # The scroll arrows are the stage's, every page's furniture.
     said = ''.join(str(x) for x in
                    (legend.AIM_LEFT, legend.AIM_RIGHT, scroll.UP, scroll.DOWN,
-                    legend.DEGREE, legend.LEADER, machine.POINTER_GLYPH)
+                    legend.DEGREE, legend.LEADER, cross_section.POINTER_GLYPH)
                    ) + ''.join(legend.TURN) + ''.join(legend.DROP)
     for name, text in (('the drawing', drawn), ("the view's furniture", said)):
         bad = sorted({c for c in text
@@ -1126,7 +1126,7 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
 
 def test_the_flat_drawings_spend_the_block(report):
     """The 2D drawings place their edges by coverage, not by "any corner"."""
-    from coaxial.draw import dial, machine
+    from coaxial.draw import cross_section, dial
     from coaxial.graphics import raster
 
     of = len(raster.SUBDOT)
@@ -1142,7 +1142,7 @@ def test_the_flat_drawings_spend_the_block(report):
 
     # The rotor and the protractor both raster through the same rule, so both
     # wear patterns a fringe rounded up to solid could never produce.
-    art = machine.render(0.0, 24, 28, 46, 18)
+    art = cross_section.render(0.0, 24, 28, 46, 18)
     face = dial.render(137.0, 60, 20)
     for name, drawn in (('the rotor', art), ('the protractor', face)):
         seen = {c for c in drawn if 0x2800 < ord(c) < 0x2900}
@@ -1155,15 +1155,15 @@ def test_the_flat_drawings_spend_the_block(report):
 
 def test_every_gauge_shows_its_own_scale(report):
     """The dimmed track runs the whole of every bar, at its own width."""
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
 
     n = 4
-    art = machine.render(0.0, 24, 28, 46, 18,
-                         left=[(0.0, machine.SOA_OK)] * n,
-                         right=[(0.0, machine.SOA_OK)] * n,
-                         bottom=[(0.0, machine.SOA_WARN), (0.0, machine.WATTS)])
+    art = cross_section.render(0.0, 24, 28, 46, 18,
+                         left=[(0.0, cross_section.SOA_OK)] * n,
+                         right=[(0.0, cross_section.SOA_OK)] * n,
+                         bottom=[(0.0, cross_section.SOA_WARN), (0.0, cross_section.WATTS)])
     rows = art.split(chr(10))
-    left, right = machine.gutters(46, 18, n, n)
+    left, right = cross_section.gutters(46, 18, n, n)
 
     # Every tube, every row of it.
     seen = set()
@@ -1182,7 +1182,7 @@ def test_every_gauge_shows_its_own_scale(report):
 
     # The flat gauges along the foot, one dot a cell rather than one every
     # other cell.
-    first, last = machine.span(46, 18, n, n)
+    first, last = cross_section.span(46, 18, n, n)
     floor = rows[-1]
     drawn = [floor[col] for col in range(first, last + 1)]
     report.check('the foot gauge draws a scale in every cell it spans',
@@ -1194,16 +1194,16 @@ def test_every_gauge_shows_its_own_scale(report):
 
 def test_the_bead_is_round_at_every_angle(report):
     """The pointer is `POINTER_GLYPH`, and it rides the rim."""
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
 
     for aspect in (2.0, 2.4):
         was, seats = None, set()
         for deg in range(0, 360, 5):
-            art = machine.render(0.0, 24, 28, 46, 18, aspect=aspect,
+            art = cross_section.render(0.0, 24, 28, 46, 18, aspect=aspect,
                                  pointer_deg=float(deg)).split(chr(10))
-            at = [(r, line.index(machine.POINTER_GLYPH))
+            at = [(r, line.index(cross_section.POINTER_GLYPH))
                   for r, line in enumerate(art)
-                  if machine.POINTER_GLYPH in line]
+                  if cross_section.POINTER_GLYPH in line]
             if len(at) != 1:
                 was = '%d degrees: %d marks' % (deg, len(at))
                 break
@@ -1219,9 +1219,9 @@ def test_the_bead_is_round_at_every_angle(report):
     # It rides the rim in the drawing's own space.
     for aspect in (2.0, 2.4):
         stretch = aspect / 4.0 * 2.0
-        cx, r, _, _ = machine.layout(46, 18, 0, 0, rows=18)
+        cx, r, _, _ = cross_section.layout(46, 18, 0, 0, rows=18)
         cy = 18 * 4 / 2.0 - 0.5
-        seat = r.can + machine.POINTER_SEAT
+        seat = r.can + cross_section.POINTER_SEAT
         out = []
         for deg in range(0, 360, 5):
             phi = math.radians(deg)
@@ -1234,9 +1234,9 @@ def test_the_bead_is_round_at_every_angle(report):
                      % (min(out), max(out), r.can))
 
     # The nearest cell centre, not the one the point fell inside.
-    cx, r, _, _ = machine.layout(46, 18, 0, 0, rows=18)
+    cx, r, _, _ = cross_section.layout(46, 18, 0, 0, rows=18)
     cy = 18 * 4 / 2.0 - 0.5
-    seat = r.can + machine.POINTER_SEAT
+    seat = r.can + cross_section.POINTER_SEAT
 
     def worst(pick):
         out = 0.0
@@ -1490,13 +1490,13 @@ def test_the_bead_trails_its_speed(report):
     """
     import re
 
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from machine import ansi
 
-    inks = {machine.INK[c] for c in machine.TRAIL}
+    inks = {cross_section.INK[c] for c in cross_section.TRAIL}
 
     def wake(rate):
-        lines = machine.motor(0.0, width=60, height=30, pointer_deg=0.0,
+        lines = cross_section.motor(0.0, width=60, height=30, pointer_deg=0.0,
                               pointer_rate=rate, colour=True)
         rows = []
         for row, line in enumerate(lines):
@@ -1505,7 +1505,7 @@ def test_the_bead_trails_its_speed(report):
                 if int(hit.group(1)) in inks:
                     rows += [row] * len(hit.group(2))
         bead = next(row for row, line in enumerate(lines)
-                    if machine.POINTER_GLYPH in line)
+                    if cross_section.POINTER_GLYPH in line)
         return rows, bead
 
     still, _ = wake(0.0)
@@ -1524,8 +1524,8 @@ def test_the_bead_trails_its_speed(report):
                  % (sum(slow) / max(1, len(slow)),
                     sum(back) / max(1, len(back)), bead))
     report.check('the bead wears the palette\'s orange, the north pole\'s',
-                 machine.INK[machine.POINTER] == ansi.AMBER
-                 == machine.INK[machine.NORTH])
+                 cross_section.INK[cross_section.POINTER] == ansi.AMBER
+                 == cross_section.INK[cross_section.NORTH])
 
 
 def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
@@ -1621,7 +1621,7 @@ def test_the_foot_says_trip_while_the_cap_holds(report):
     state's word and the model's number once the cap has recovered past
     the model.
     """
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from terminal.views.rotor import thermal
 
     def foot(state, margin, cap, floor=None):
@@ -1633,13 +1633,13 @@ def test_the_foot_says_trip_while_the_cap_holds(report):
     label, word, ink = foot('STABLE', 0.72, 0.72)
     report.check('the trip cap in hand under the floor says TRIP with the '
                  'capped percent, in the trip\'s red',
-                 word == 'TRIP 72%' and ink == machine.INK[machine.SOA_TRIP],
+                 word == 'TRIP 72%' and ink == cross_section.INK[cross_section.SOA_TRIP],
                  (word, ink))
     label, word, ink = foot('STABLE', 0.89, 0.89)
     report.check('over the floor the cap still in hand leaves the word to '
                  'the state, its percent the one in force: STBL 89%, not '
                  'TRIP 89%',
-                 word == 'STBL 89%' and ink == machine.INK[machine.SOA_OK],
+                 word == 'STBL 89%' and ink == cross_section.INK[cross_section.SOA_OK],
                  (word, ink))
     report.check('and the floor is the wire\'s: under a floor of 0.90 the '
                  'same 0.89 is still the trip\'s',
@@ -1647,7 +1647,7 @@ def test_the_foot_says_trip_while_the_cap_holds(report):
                  foot('STABLE', 0.89, 0.89, floor=0.90)[1])
     label, word, ink = foot('STABLE', 0.90, 1.0)
     report.check('no trip: the state\'s word and the margin',
-                 word == 'STBL 90%' and ink == machine.INK[machine.SOA_OK],
+                 word == 'STBL 90%' and ink == cross_section.INK[cross_section.SOA_OK],
                  (word, ink))
     label, word, ink = foot('CONVERGING', 0.90, 0.95)
     report.check('a cap that has recovered past the identification leaves '
@@ -1665,7 +1665,7 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
     mode.
     """
     from rich.text import Text
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     from terminal.views.rotor import rows, thermal
 
     def said(mode, budget=None):
@@ -1698,7 +1698,7 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
         i = index - 16
         return i // 36, i // 6 % 6, i % 6
 
-    ours, trip = cube(rows.THROTTLE_RED), cube(machine.INK[machine.SOA_TRIP])
+    ours, trip = cube(rows.THROTTLE_RED), cube(cross_section.INK[cross_section.SOA_TRIP])
     report.check('THR is a red darker than the trip',
                  ours[1] == 0 and ours[2] == 0 and ours[0] < trip[0],
                  '%s against %s' % (ours, trip))
@@ -1953,7 +1953,7 @@ def main():
     test_each_view_draws_two_frames(report)
     test_the_loader_reads_the_pages(report)
     print('\n-- the rotor observer\'s geometry --')
-    test_the_instruments_stand_clear_of_the_machine(report)
+    test_the_instruments_stand_clear_of_the_motor(report)
     test_each_gutter_says_its_hottest_node(report)
     test_both_gutters_run_on_one_scale(report)
     test_a_power_node_never_reads_below_the_copper(report)
@@ -1968,7 +1968,7 @@ def main():
     test_switch_soa_is_the_switches_and_motor_soa_the_winding(report)
     test_the_flat_drawings_spend_the_block(report)
     test_every_gauge_shows_its_own_scale(report)
-    test_the_demo_actually_loads_the_machine(report)
+    test_the_demo_actually_loads_the_motor(report)
     test_the_power_face_has_its_middle_at_half_a_kilowatt(report)
     test_the_level_is_drawn_at_the_dot(report)
     test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most(

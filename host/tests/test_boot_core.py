@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The bootloader's state machine as the C that will run, on byte-array flash and RAM."""
+"""The bootloader's state host as the C that will run, on byte-array flash and RAM."""
 import ctypes
 import os
 import struct

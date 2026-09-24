@@ -141,7 +141,7 @@ def preload(state, model=None):
     """Everything a page will ask for, into this process's memory, once and
     off the frame loop: the model's decimates - the preload's pickle
     taken as it stands when its stamp matches, else built and written for
-    next time when the machine has the room - the outline's loops, the
+    next time when the host has the room - the outline's loops, the
     pre-scan's primitives, the shadow casters.
     """
     from coaxial.draw import orientation

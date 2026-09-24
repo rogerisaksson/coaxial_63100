@@ -16,7 +16,7 @@ RUNNER_RETRY_WAIT = 1.5
 _RUNNER_CRASH = ('model runner has unexpectedly stopped',
                  'llama runner process has terminated')
 
-# When the machine, not the request, is the problem.
+# When the host, not the request, is the problem.
 _OUT_OF_MEMORY = ('out of memory', 'cudamalloc failed', 'std::bad_alloc',
                   'bad_alloc', 'failed to allocate', 'unable to allocate',
                   'cannot allocate memory', 'not enough memory',
@@ -40,10 +40,10 @@ FAULTS = (OllamaError, OSError, http.client.HTTPException, ValueError,
 
 # What is left to say once every rung of the ladder has been climbed.
 _NO_ROOM_LEFT = (
-    'this machine could not fit the model even with the card cleared and '
+    'this host could not fit the model even with the card cleared and '
     'the window at its smallest. Ask for less: --num-ctx smaller, --num-gpu '
     'with fewer layers on the card, or -m with a smaller tag - '
-    '`python -m coaxial_ollama.capability` says which one this machine is '
+    '`python -m coaxial_ollama.capability` says which one this host is '
     'actually sized for.')
 
 
@@ -55,7 +55,7 @@ def _runner_crashed(exc):
 
 
 def _out_of_memory(exc):
-    """Whether the machine ran out of memory, rather than the runner having
+    """Whether the host ran out of memory, rather than the runner having
     simply fallen over.
     """
     text = str(exc).lower()
@@ -63,7 +63,7 @@ def _out_of_memory(exc):
 
 
 def is_local(host):
-    """True when this URL can only reach a daemon on this machine."""
+    """True when this URL can only reach a daemon on this host."""
     parsed = urllib.parse.urlsplit(host)
     return (parsed.hostname or '') in LOOPBACK
 
@@ -74,16 +74,16 @@ def is_cloud(model):
 
 
 def _stay_local(host, model):
-    """Refuse a host or a tag that would send the prompt off this machine."""
+    """Refuse a host or a tag that would send the prompt off this host."""
     if not is_local(host):
         raise OllamaError(
-            'host %r is not this machine. The bench runs against a local'
+            'host %r is not this host. The bench runs against a local'
             ' daemon; pass remote_ok=True (--allow-remote) to mean it.'
             % (host,))
     if is_cloud(model):
         raise OllamaError(
             'model %r is an ollama cloud tag: the prompt, and every'
-            ' register value in it, would be sent off this machine.'
+            ' register value in it, would be sent off this host.'
             ' Pull a local tag, or pass --allow-remote.' % (model,))
 
 
@@ -140,7 +140,7 @@ class Ollama(Model):
         self.truncated = False
         self.eval_tokens = 0
         self.prompt_tokens = 0
-        # What this client had to do to the machine to keep answering.
+        # What this client had to do to the host to keep answering.
         self.notes = []
 
     def __repr__(self):

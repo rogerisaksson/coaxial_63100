@@ -1,5 +1,5 @@
 """The rotor observer's gutter: the legend, its leaders to the drawing, the foot line."""
-from coaxial.draw import braille, machine
+from coaxial.draw import braille, cross_section
 from coaxial.draw.gauges import margin_class as soa_class, thermometer_class as ntc_class
 from terminal.ui.screen import tint
 from terminal.ui.scroll import UP
@@ -50,7 +50,7 @@ def hottest(view, names):
     budget = view.get('budget') or {}
     seen = [name for name in names if nodes.get(name) is not None]
     if not seen:
-        return None, machine.TRACK
+        return None, cross_section.TRACK
     at = max(seen, key=lambda name: nodes[name])
     return nodes[at], soa_class((budget.get('used') or {}).get(at, 0.0),
                                 bool(budget.get('tripped')))
@@ -83,24 +83,24 @@ def _legend_targets(view, left, right):
     """Every legend as `(row, text, ink, column, centred)`."""
     bars = headrooms(view)
     said = []
-    first, last = machine.span(BOX.width, BOX.rows,
+    first, last = cross_section.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
     # The measurement first: everything under it is an estimate.
     seen = (view.get('thermal') or {}).get('ntc')
     if len(left) > NTC_AT and seen is not None:
         # Its own tube's colour: the thermometer ramp, not a margin's.
         said.append(_legend(0, reference(view),
-                            machine.INK[ntc_class(seen)], left[NTC_AT], True))
+                            cross_section.INK[ntc_class(seen)], left[NTC_AT], True))
     # SWITCH second and BOARD last, with the motor's margin between them.
     for group, columns, name, centred in (
             (SOA_NODES, left, 'SWITCH TEMPS', True),):
         peak, cls = hottest(view, group)
         if peak is None or not columns:
             continue
-        # The middle of its own group, not the edge nearest the machine.
+        # The middle of its own group, not the edge nearest the motor.
         seat = columns[len(columns) // 2 - 2]
         said.append(_legend(len(said), '%s %.1f %sC' % (name, peak, DEGREE),
-                            machine.INK[cls], seat, centred))
+                            cross_section.INK[cls], seat, centred))
 
     # The margins next, under the NTC and nearest the tubes they name.
     for index in reversed(range(len(HEADROOM_TITLES))):
@@ -110,22 +110,22 @@ def _legend_targets(view, left, right):
                 len(said),
                 # A decimal: the tube cannot show one.
                 '%s %.1f %%' % (HEADROOM_NAMES[index], 100.0 * share),
-                machine.INK[cls], right[HEADROOM_AT + index], True))
+                cross_section.INK[cls], right[HEADROOM_AT + index], True))
     peak, cls = hottest(view, BOARD_NODES)
     if peak is not None and right:
         # One tube further in than the middle of its four.
         said.append(_legend(
             len(said), 'BOARD TEMPS %.1f %sC' % (peak, DEGREE),
-            machine.INK[cls], right[len(BOARD_NODES) // 2 - 1], True))
+            cross_section.INK[cls], right[len(BOARD_NODES) // 2 - 1], True))
 
     return said
 
 
 def foot_furniture():
     """The two upside-down L's under the drawing, `(leaders, rules)`."""
-    first, last = machine.span(BOX.width, BOX.rows,
+    first, last = cross_section.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
-    grey = machine.LEADER_GREY
+    grey = cross_section.LEADER_GREY
     # Both run past the last art row: both carry on into the foot line where
     # the arrowhead is.
     return ([(BOX.rows - 2, 0, BOX.rows + 1, grey, 0),
@@ -138,8 +138,8 @@ def foot_furniture():
 def legend_drops(view, left, right):
     """One dotted hop into the drawing, under every legend."""
     # None while HOP_ROWS is 0: the corner glyph turns each run down.
-    return [(0, column, HOP_ROWS, machine.LEADER_GREY,
-             _lane(column, machine.span(BOX.width, BOX.rows,
+    return [(0, column, HOP_ROWS, cross_section.LEADER_GREY,
+             _lane(column, cross_section.span(BOX.width, BOX.rows,
                                         LEFT_COLUMNS, RIGHT_COLUMNS)[0]))
             for _row, _text, _ink, column, _centred
             in _legend_targets(view, left, right)] if HOP_ROWS else []
@@ -148,7 +148,7 @@ def legend_drops(view, left, right):
 def _legend_rows(view, left, right):
     """The caption rows: four legends and the NTC, in dots and text."""
     said = _legend_targets(view, left, right)
-    first, last = machine.span(BOX.width, BOX.rows,
+    first, last = cross_section.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
     rows = []
     for index in range(CAPTION_ROWS):
@@ -159,11 +159,11 @@ def _legend_rows(view, left, right):
         for row, _text, _ink, column, _in in said:
             if row < index:
                 line[column] = DROP[_lane(column, first)]
-                marks.append((column, 1, machine.LEADER_GREY))
+                marks.append((column, 1, cross_section.LEADER_GREY))
         for row, text, ink, column, centred in said:
             if row != index:
                 continue
-            # Centred over the machine when the head is out in a gutter's
+            # Centred over the motor when the head is out in a gutter's
             # middle, hard against the head when it is the outermost tube.
             if column < first:
                 at = first + 2
@@ -193,10 +193,10 @@ def _legend_rows(view, left, right):
                 line[column] = TURN[_lane(column, first)]
             # One mark a cell.
             if turned and column not in span:
-                marks.append((column, 1, machine.LEADER_GREY))
-            marks.append((head, 1, machine.LEADER_GREY))
+                marks.append((column, 1, cross_section.LEADER_GREY))
+            marks.append((head, 1, cross_section.LEADER_GREY))
             for step in span:
-                marks.append((step, 1, machine.LEADER_GREY))
+                marks.append((step, 1, cross_section.LEADER_GREY))
         rows.append((line, marks))
 
     return [_tinted(line, marks) for line, marks in rows]
@@ -214,17 +214,17 @@ def _foot_line(view):
     left = max(0, (room - middle) // 2)
     right = max(0, room - middle - left)
     # The figure wears the bar's ink: red past 2 kW, like the bar.
-    foot = (tint(head, machine.INK[machine.SOA_WARN])
+    foot = (tint(head, cross_section.INK[cross_section.SOA_WARN])
             + ' ' * left
-            + tint(label, machine.LEADER_GREY) + ' ' + tint(word, ink)
+            + tint(label, cross_section.LEADER_GREY) + ' ' + tint(word, ink)
             + ' ' * right
-            + tint(tail, machine.INK[watts_bar(view)[1]]))
+            + tint(tail, cross_section.INK[watts_bar(view)[1]]))
     return foot
 
 
 def gutter_caption(view):
     """The caption rows above the drawing, and the one under its foot."""
-    left, right = machine.gutters(BOX.width, BOX.rows,
+    left, right = cross_section.gutters(BOX.width, BOX.rows,
                                   LEFT_COLUMNS, RIGHT_COLUMNS)
     return _legend_rows(view, left, right) + [_foot_line(view)]
 

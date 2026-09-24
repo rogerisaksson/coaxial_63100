@@ -3,8 +3,8 @@
 #include "board.h"
 #include "wire.h"
 
-/** How many parameters op 0 carries: the fifteen it had at MINOR 1. */
-#define CAL_LEGACY_PARAMS 15U
+/** Parameters op 0 carries, fixed by its shape; op 8 pages them all. */
+#define CAL_GET_PARAMS 15U
 
 /** Parameters one op 8 reply carries: 60 x 4 = 240 bytes, plus three. */
 #define CAL_PAGE 60U
@@ -18,9 +18,9 @@ static cmd_status_t h_cal_get(rd_t *in, wr_t *out)
 
   wr_u8(out, (uint8_t)(Board_CalStored() ? 1U : 0U));
   wr_u16(out, cal->version);
-  wr_u8(out, (uint8_t)CAL_LEGACY_PARAMS);
+  wr_u8(out, (uint8_t)CAL_GET_PARAMS);
 
-  for (uint8_t id = 0U; id < CAL_LEGACY_PARAMS; id++)
+  for (uint8_t id = 0U; id < CAL_GET_PARAMS; id++)
   {
     uint32_t value = 0U;
 

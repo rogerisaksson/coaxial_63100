@@ -166,7 +166,7 @@ PAGE = ('You are the ANTHROPIC page of coaxial_tty. The operator chose '
 
 
 def find_claude():
-    """claude, wherever this machine keeps it - a path, or None."""
+    """claude, wherever this host keeps it - a path, or None."""
 
     found = shutil.which('claude')
     if found:

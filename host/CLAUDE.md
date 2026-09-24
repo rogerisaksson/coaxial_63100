@@ -4,6 +4,10 @@
   line per module; `--api` adds public signatures; `--layers` the import
   graph by package, `--deps` per module). A module opens on a one-line
   brief of at most 100 characters; `test_structure` holds it.
+- Domains, imports one way: `motor/` (the PMSM; imports nothing here),
+  `machine/` (the executive over IO nodes; imports no board), `coaxial/`
+  (the inverter; imports both). Machine means the executive, motor the PMSM,
+  host this computer (docs/ARCHITECTURE.md).
 - Front door: `Coaxial63100` (`coaxial/rig.py`); on a real board `open()` first
   makes it run this host's build (`coaxial.devices.boot.load`, docs/BOOT.md);
   `device.daq`, `.imu`, `.angle`, `.thermal`, `.gates`, `.drive`, `.motion`,
@@ -34,7 +38,7 @@
   folder beside it: `rotor/`, `session/`) on `terminal/ui/`: `stage`
   (`frame_of`, `hud`), `screen` (`run_view`, `say`), `console` (`Keys`),
   `scroll`, `marquee`, `rate`, `aspect`. Their drawings are `coaxial/draw/`
-  (`machine dial gauges desk thermalmap`) and `coaxial/graphics/` (the board
+  (`cross_section dial gauges desk thermalmap`) and `coaxial/graphics/` (the board
   renderer).
 - The drawing's top-left corner carries the frame rate and one frame's
   cost in ms (`rate.Corner`, `rate.rate_of(console)`), no box of its

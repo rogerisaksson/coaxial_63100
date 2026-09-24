@@ -5,8 +5,8 @@ import time
 from coaxial.model import sensorless
 from coaxial.errors import RigError
 
-from coaxial.model.sensorless import RAD_S_PER_RPM, TWO_PI
-from coaxial.devices.drive import to_wire
+from coaxial.devices.drive import DT_ROWS
+from motor.pmsm import RAD_S_PER_RPM, TWO_PI
 
 #: The dead-time fit's search: a grid this many steps a side over each
 #: span, and a second pass this far either side of the first's best.
@@ -340,21 +340,19 @@ class Commissioning:
         r, v_dt, i_knee, residual = _fit_deadtime(points)
         step = max(currents) / 7.0
         table = [v_dt * math.tanh(k * step / i_knee) for k in range(8)]
-        params = {'motor_r_uohm': r, 'drv_dt_step_ma': step}
-        params.update({'drv_dt_mv%d' % k: v for k, v in enumerate(table)})
-        self._set_table(params)
+        params = {'motor_r': r, 'drv_dt_step': step}
+        self._set_table(params, table)
         out = {'measured': True, 'r': r, 'v_dt': v_dt, 'i_knee': i_knee,
                'residual_volts': residual, 'points': points,
                'table': table, 'step': step}
         self.results['deadtime'] = out
         return out
 
-    def _set_table(self, params):
-        """The dead-time table by id, since the record names its rows."""
-        plain = {k: v for k, v in params.items() if not k.startswith('drv_dt_mv')}
-        self.drive.configure(**plain)
-        self.rig.board.calibration.write(**{
-            'drv_dt_mv%d' % k: to_wire('drv_inj_mv', params['drv_dt_mv%d' % k]) for k in range(8)})
+    def _set_table(self, params, table):
+        """`params` in SI, then the dead-time table's rows, V, into the record's mV."""
+        self.drive.configure(**params)
+        self.rig.board.calibration.write(**{row: int(round(v * 1e3))
+                                            for row, v in zip(DT_ROWS, table)})
         self.drive.reload()
 
     # -- step 3: the motor ------------------------------------------------
@@ -365,12 +363,12 @@ class Commissioning:
         self._stage()
         ts = 1.0 / self.fs
         angles = [math.pi * k / points for k in range(points)]
-        self.drive.configure(drv_inj_mv=v_inj, drv_inj_periods=periods)
+        self.drive.configure(drv_inj_volts=v_inj, drv_inj_periods=periods)
         rows = {}
         for bias in biases:
             ls = []
             for phi in angles:
-                self.drive.configure(drv_inj_phase_mrad=phi)
+                self.drive.configure(drv_inj_phase=phi)
                 w = self._hold(settle, seconds, id_ref=bias, iq_ref=0.0, theta=0.0)
                 ih = w['fields']['ih']['mean'] or 0.0
                 ls.append(v_inj * ts / ih if ih > 0.0 else float('nan'))
@@ -386,14 +384,14 @@ class Commissioning:
                           # is phi = 0, the q axis a quarter turn on
                           'ld': h['mean'] + h['h2'] * math.cos(h['h2_phase']),
                           'lq': h['mean'] - h['h2'] * math.cos(h['h2_phase'])}
-        self.drive.configure(drv_inj_mv=0.0, drv_inj_phase_mrad=0.0)
+        self.drive.configure(drv_inj_volts=0.0, drv_inj_phase=0.0)
         base = rows.get(biases[0]) or {}
         out = {'angles': angles, 'rows': rows, 'v_inj': v_inj,
                'periods': periods, 'measured': bool(base.get('measured'))}
         if out['measured']:
             out['ld'], out['lq'] = base['ld'], base['lq']
             out['dl_over_l'] = base['dl_over_l']
-            self.drive.configure(motor_ld_nh=base['ld'], motor_lq_nh=base['lq'])
+            self.drive.configure(motor_ld=base['ld'], motor_lq=base['lq'])
         self.results['l_map'] = out
         return out
 
@@ -412,7 +410,7 @@ class Commissioning:
         self.drive.off()
         f = w['fields']
         iid, iq, vd, vq = (f[k]['mean'] for k in ('id', 'iq', 'vd', 'vq'))
-        r, ld, lq = p['motor_r_uohm'], p['motor_ld_nh'], p['motor_lq_nh']
+        r, ld, lq = p['motor_r'], p['motor_ld'], p['motor_lq']
         ed = vd - r * iid + omega * lq * iq
         eq = vq - r * iq - omega * ld * iid
         lam = math.hypot(ed, eq) / omega
@@ -421,7 +419,7 @@ class Commissioning:
                'load_angle': math.atan2(-ed, eq), 'omega': omega,
                'omega_hat': state['omega_hat'], 'e': (ed, eq)}
         if measured:
-            self.drive.configure(motor_lambda_uvs=lam)
+            self.drive.configure(motor_lambda=lam)
         self.results['flux'] = out
         return out
 
@@ -430,12 +428,12 @@ class Commissioning:
     def _known(self):
         p = self.drive.params()
         afe = self.results.get('afe') or {}
-        return {'r': p['motor_r_uohm'], 'ld': p['motor_ld_nh'],
-                'lq': p['motor_lq_nh'], 'lambda': p['motor_lambda_uvs'],
+        return {'r': p['motor_r'], 'ld': p['motor_ld'],
+                'lq': p['motor_lq'], 'lambda': p['motor_lambda'],
                 'pole_pairs': p['motor_pole_pairs'] or 1.0,
-                'sigma_i': afe.get('sigma_i') or p['drv_sigma_i_ua'] or 0.05,
+                'sigma_i': afe.get('sigma_i') or p['drv_sigma_i'] or 0.05,
                 'vdc': self.drive.state()['vdc'] or 24.0,
-                'i_max': p['drv_i_max_ma'] or 5.0}
+                'i_max': p['drv_i_max'] or 5.0}
 
     def budget(self):
         """f_inj and amplitude for the best SNR under the constraints."""
@@ -459,19 +457,19 @@ class Commissioning:
             k['lambda'], k['r'], k['i_max'],
             v_dt_residual=0.1 * (dt.get('v_dt') or 0.0) + 0.05,
             pole_pairs=k['pole_pairs'])
-        params = {'drv_kp_mv_per_a': loop['kp'], 'drv_ki_v_per_as': loop['ki'],
-                  'drv_sigma_i_ua': k['sigma_i'],
-                  'drv_w_lo_mrad_s': cross['omega_e'],
-                  'drv_w_hi_mrad_s': 2.0 * cross['omega_e']}
+        params = {'drv_kp': loop['kp'], 'drv_ki': loop['ki'],
+                  'drv_sigma_i': k['sigma_i'],
+                  'drv_w_lo': cross['omega_e'],
+                  'drv_w_hi': 2.0 * cross['omega_e']}
         kal = None
         if c is not None:
             t_upd = 2.0 * c['periods'] / self.fs
             sigma_upd = k['sigma_i'] / c['periods'] / abs(c['gain'])
             kal = sensorless.kalman_gains(sigma_upd, t_upd, self.accel_sd)
-            params.update({'drv_l1_milli': kal['l1'], 'drv_l2_milli': kal['l2'],
-                           'drv_inj_mv': c['v_inj'],
+            params.update({'drv_l1': kal['l1'], 'drv_l2': kal['l2'],
+                           'drv_inj_volts': c['v_inj'],
                            'drv_inj_periods': c['periods'],
-                           'drv_eps_gain_ua_per_rad': c['gain']})
+                           'drv_eps_gain': c['gain']})
         self.drive.configure(**params)
         out = {'loop': loop, 'kalman': kal, 'crossover': cross, 'written': params}
         self.results['gains'] = out

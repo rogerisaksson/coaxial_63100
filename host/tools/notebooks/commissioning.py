@@ -2,7 +2,7 @@
 from .parts import code, md, section
 
 TITLE = 'Commissioning'
-SUMMARY = 'The machine measured step by step, identified, a tune searched against it, the record written, the drive verified.'
+SUMMARY = 'The motor measured step by step, identified, a tune searched against it, the record written, the drive verified.'
 
 SECTIONS = [
     section(
@@ -130,14 +130,15 @@ panel.legend(loc='upper left')
 show(fig)'''),
         md('Each step wrote what it measured into the record; a step that saw no current left '
            "the record's value. The four constants read back into a `Parameters`, `measured` "
-           "if all three steps saw current. The stand-in's machine is `BENCH_MOTOR`."),
-        code('''from coaxial.model.motor import BENCH_MOTOR, Parameters
+           "if all three steps saw current. The stand-in's motor is `BENCH_MOTOR`."),
+        code('''from motor.catalog import BENCH_MOTOR
+from motor.pmsm import Parameters
 
 p = device.drive.params()
 identified = Parameters(
     name='commissioned',
-    r=p['motor_r_uohm'], ld=p['motor_ld_nh'], lq=p['motor_lq_nh'],
-    lam=p['motor_lambda_uvs'], poles=int(p['motor_pole_pairs']),
+    r=p['motor_r'], ld=p['motor_ld'], lq=p['motor_lq'],
+    lam=p['motor_lambda'], poles=int(p['motor_pole_pairs']),
     sat=BENCH_MOTOR.sat, i_sat=BENCH_MOTOR.i_sat,    # the stand-in's bend: the map shows one, no step fits it
     measured=all(c.results[step]['measured'] for step in ('deadtime', 'l_map', 'flux')),
     source='commissioning on this rig')
@@ -175,7 +176,7 @@ if kal:
           % (kal['wn_hz'], kal['zeta'], kal['l1'], kal['l2'], kal['sigma_theta_est']))
 print('crossover: %.3f V of floor, %.1f rad/s electrical = %.0f rpm; blend %.0f to %.0f rad/s'
       % (cross['floor_volts'], cross['omega_e'], cross['rpm'],
-         closed['drv_w_lo_mrad_s'], closed['drv_w_hi_mrad_s']))
+         closed['drv_w_lo'], closed['drv_w_hi']))
 decision = c.decide()
 print('decision: %s (SNR %.1f dB against %.0f)'
       % (decision['method'], decision['snr_db'], decision['threshold_db']))'''),
@@ -197,8 +198,8 @@ print('innovation Ljung-Box Q %.2f against %.2f at %d lags: %s'
 print(c.report()['line'])'''),
     ),
     section(
-        'A tune searched against this machine',
-        md("`run_job` scores the firmware's C on plants drawn around this machine. Cost "
+        'A tune searched against this motor',
+        md("`run_job` scores the firmware's C on plants drawn around this motor. Cost "
            '`sigma_theta + speed_err + 10 x trip`; `robust` = mean + 90th percentile. 6 '
            'candidates x 3 draws here; the tool runs 48 x 16.'),
         code('''from tools.sim import montecarlo as mc'''),
@@ -206,7 +207,7 @@ print(c.report()['line'])'''),
 
 fields = {k: getattr(identified, k) for k in ('name', 'r', 'ld', 'lq', 'lam', 'poles',
                                              'j', 'b', 'sat', 'i_sat', 'measured', 'source')}
-i_max, i_trip = p['drv_i_max_ma'], p['drv_i_trip_ma']
+i_max, i_trip = p['drv_i_max'], p['drv_i_trip']
 knobs = mc.candidates(6, seed=3)
 jobs = [{'vdc': vdc, 'knobs': k, 'seed': 1000 * i + s, 'motor': fields,
          'i_max': i_max, 'i_trip': i_trip, 'i_h_max': 1.0, 'k_prop': 0.0}
@@ -234,11 +235,11 @@ print('%d runs in %.1f s, %d tripped the stage at i_trip %.0f A; '
            'the record holds after rounding. Then `verify` again.'),
         code('''tune = mc.design({k: float(best[k]) for k in mc.KNOBS}, vdc, identified, i_max, i_trip, 1.0)
 written = device.drive.configure(
-    drv_kp_mv_per_a=tune['kp'], drv_ki_v_per_as=tune['ki'],
-    drv_l1_milli=tune['l1'], drv_l2_milli=tune['l2'],
-    drv_inj_mv=tune['inj_volts'], drv_inj_periods=tune['inj_periods'],
-    drv_eps_gain_ua_per_rad=tune['eps_gain'],
-    drv_w_lo_mrad_s=tune['w_lo'], drv_w_hi_mrad_s=tune['w_hi'])['params']
+    drv_kp=tune['kp'], drv_ki=tune['ki'],
+    drv_l1=tune['l1'], drv_l2=tune['l2'],
+    drv_inj_volts=tune['inj_volts'], drv_inj_periods=tune['inj_periods'],
+    drv_eps_gain=tune['eps_gain'],
+    drv_w_lo=tune['w_lo'], drv_w_hi=tune['w_hi'])['params']
 print('%-24s %-12s %s' % ('written for %.1f V' % vdc, 'searched', 'closed form'))
 for name, value in written.items():
     print('%-24s %-12.6g %s' % (name, value, '%.6g' % closed[name] if name in closed else '-'))
@@ -298,15 +299,15 @@ print('13. search        %d runs, %d tripped; best robust %.3f (mean %.3f, p90 %
          best['w_lo'], best['w_ratio'], best['bw_w']))
 print('14. tune          closed form -> searched: kp %.3f -> %.3f V/A, ki %.0f -> %.0f, '
       'l1 %.4f -> %.4f, l2 %.2f -> %.2f'
-      % (closed['drv_kp_mv_per_a'], written['drv_kp_mv_per_a'], closed['drv_ki_v_per_as'],
-         written['drv_ki_v_per_as'], closed['drv_l1_milli'], written['drv_l1_milli'],
-         closed['drv_l2_milli'], written['drv_l2_milli']))
+      % (closed['drv_kp'], written['drv_kp'], closed['drv_ki'],
+         written['drv_ki'], closed['drv_l1'], written['drv_l1'],
+         closed['drv_l2'], written['drv_l2']))
 print('                  injection %.3f V x %d -> %.3f V x %d, eps gain %.3f -> %.3f, '
       'blend %.0f-%.0f -> %.0f-%.0f rad/s'
-      % (closed['drv_inj_mv'], closed['drv_inj_periods'], written['drv_inj_mv'],
-         written['drv_inj_periods'], closed['drv_eps_gain_ua_per_rad'],
-         written['drv_eps_gain_ua_per_rad'], closed['drv_w_lo_mrad_s'], closed['drv_w_hi_mrad_s'],
-         written['drv_w_lo_mrad_s'], written['drv_w_hi_mrad_s']))
+      % (closed['drv_inj_volts'], closed['drv_inj_periods'], written['drv_inj_volts'],
+         written['drv_inj_periods'], closed['drv_eps_gain'],
+         written['drv_eps_gain'], closed['drv_w_lo'], closed['drv_w_hi'],
+         written['drv_w_lo'], written['drv_w_hi']))
 print('15. verified      sigma_theta %.2f -> %.2f deg, innovation %s, fault %s; '
       'saved, %d parameters read back, %d searched'
       % (first['sigma_theta_deg'], check['sigma_theta_deg'],
@@ -329,10 +330,11 @@ BENCH = ('`tools/bench/commission.py --arm --port COM4` is the twelve steps in o
 REFERENCES = [
     ('host/coaxial/control/commission.py', 'the twelve steps, and the one-line report'),
     ('host/coaxial/model/sensorless.py', 'the arithmetic: the budget, the loop and PLL gains, the crossover, Ljung-Box'),
-    ('host/tools/sim/montecarlo.py', 'the search: the plants drawn around the machine, the cost, `design`'),
+    ('host/tools/sim/montecarlo.py', 'the search: the plants drawn around the motor, the cost, `design`'),
     ('host/tools/bench/commission.py', 'the procedure as one command at the bench'),
-    ('host/coaxial/model/motor.py', '`Parameters`, and `BENCH_MOTOR` - the stand-in\'s truth'),
-    ('host/coaxial/simulated/drive/', 'the stand-in this ran on: the machine, the pickup, the polarity readings'),
+    ('host/motor/pmsm.py', '`Parameters`'),
+    ('host/motor/catalog.py', '`BENCH_MOTOR` - the stand-in\'s truth'),
+    ('host/coaxial/simulated/drive/', 'the stand-in this ran on: the motor, the pickup, the polarity readings'),
     ('host/tests/test_sensorless.py', 'the arithmetic and the commissioning pinned against the stand-in'),
     ('host/tools/cores/drive.py', 'the firmware\'s law through the host gcc, which the search drives'),
 ]

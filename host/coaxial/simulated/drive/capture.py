@@ -4,8 +4,8 @@ import random
 import time
 from typing import Any
 
-from coaxial.model.sensorless import HALF_SQRT3
 from coaxial.simulated.values import DCBUS_V, NOMINAL
+from motor.pmsm import HALF_SQRT3
 
 
 class DriveCapture:
@@ -46,7 +46,7 @@ class DriveCapture:
         self._window_at = time.time()
         iid, iq, vd, vq = self._dq()
         ih, eps_amps = self._ih()
-        gain = self._p('drv_eps_gain_ua_per_rad', 0.0)
+        gain = self._p('drv_eps_gain', 0.0)
         n_inj = self._p('drv_inj_periods', 1.0) or 1.0
         sd_eps = (self.SIGMA_I / n_inj / gain) if gain else 0.0
         fields = {

@@ -9,5 +9,3 @@ __all__ = ['Ollama', 'OllamaError', 'is_cloud', 'is_local',
            'Plan', 'PlanError', 'Task', 'Limit',
            'Runner', 'Record', 'Transcript', 'report_text', 'Scope', 'Shell',
            'Toolbox', 'TOOLS']
-
-__version__ = '0.1.0'

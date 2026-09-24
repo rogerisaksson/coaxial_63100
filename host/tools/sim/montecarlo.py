@@ -4,7 +4,7 @@
 The C is the firmware's, through `tools/cores/drive.py`: the current loop,
 the injection demodulator, the rotor observer, the dead-time table, against
 `drive_model.c` with a plant drawn around `PLATINUM_5230SL` and the stage in
-`coaxial.model.inverter`. A host speed loop (`coaxial.control.loop`, the
+`coaxial.model.inverter`. A host speed loop (`coaxial.model.blocks`, the
 same law the notebook runs) closes over the observer's own speed.
 
 A run: injection finds the rotor from a random error, a raised cosine to
@@ -26,14 +26,15 @@ import random
 import sys
 import time
 
-from coaxial.control.loop import Signals, SpeedLoop
+from coaxial.model.blocks import Signals, SpeedLoop
 from coaxial.model import inverter, sensorless
-from coaxial.model.motor import APC20x10E, PLATINUM_5230SL, Parameters, Propeller
+from motor.catalog import PLATINUM_5230SL
+from motor.loads import APC20x10E, Propeller
+from motor.pmsm import TWO_PI, Parameters
 from tools.cores import drive as H
 from tools.cores.build import build, find_cc
 
 TS = inverter.TS
-TWO_PI = sensorless.TWO_PI
 VDC_SWEEP = (23.0, 33.0, 43.0, 53.0, 63.0)
 TICK = 40                  # periods per speed-loop step: 1.25 kHz
 TOP = 0.5                  # of the link's no-load speed the profile reaches
@@ -81,7 +82,7 @@ def library():
 def _load(path):
     # A job must hold only builtin floats: one numpy scalar smuggled into a
     # knob makes every worker import numpy at once, and 16 OpenBLAS buffer
-    # pools spiking together took a 24 GB machine down.
+    # pools spiking together took a 24 GB host down.
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
     hold(ctypes.CDLL(path))
 
@@ -269,7 +270,7 @@ def run_job(job):
 def pool(workers=None, lib=None):
     """One process per core, each holding the library; open it once for a
     session - a pool per round respawned 61 interpreters three times and
-    the third spawn died of commit charge on a machine with no page-file
+    the third spawn died of commit charge on a host with no page-file
     headroom.
     """
     return concurrent.futures.ProcessPoolExecutor(

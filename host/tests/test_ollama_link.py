@@ -26,7 +26,7 @@ def test_power_check_cannot_halt(report):
         seen['timeout'] = kw.get('timeout')
         return Done()
 
-    # The question here is the shape of the call, not whether this machine has
+    # The question here is the shape of the call, not whether this host has
     # the programmer installed - a runner does not, and without the stub
     # check_power returns early and the spy never sees the argv.
     real_run = subprocess.run

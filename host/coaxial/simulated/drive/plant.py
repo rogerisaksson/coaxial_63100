@@ -1,12 +1,11 @@
-"""The stand-in's machine: the dq currents it carries, the sample, the rotor it turns."""
+"""The stand-in's motor: the dq currents it carries, the sample, the rotor it turns."""
 import math
 import time
 from typing import Any
 
 from coaxial.devices.drive import MODEL_IDS
-from coaxial.model.motor import Motor
-from coaxial.model.sensorless import TORQUE_FACTOR
 from coaxial.simulated.drive.locked import _rotor_locked
+from motor.pmsm import TORQUE_FACTOR, Motor
 
 
 class DrivePlant:
@@ -43,7 +42,7 @@ class DrivePlant:
     def _p(self, name, default):
         return self._params.get(name, default)
 
-    # The machine this stand-in models.
+    # The motor this stand-in models.
     @property
     def _r(self):
         return self._model['r']
@@ -110,7 +109,7 @@ class DrivePlant:
         if self._mode not in ('hold', 'sensorless'):
             return 0.0, 0.0, 0.0, 0.0
         # The clamp, as the envelope left it.
-        i_max = self._p('drv_i_max_ma', 5.0) * self._derate
+        i_max = self._p('drv_i_max', 5.0) * self._derate
         iid = max(-i_max, min(i_max, self._sp['id_ref']))
         iq = max(-i_max, min(i_max, self._sp['iq_ref']))
         # The speed in the voltage solution: HOLD's is the command's,
@@ -144,11 +143,11 @@ class DrivePlant:
         the injection axis, with the rotor at zero and the frame at
         `theta` (HOLD) or the rotor observer's estimate (SENSORLESS).
         """
-        v_inj = self._p('drv_inj_mv', 0.0)
+        v_inj = self._p('drv_inj_volts', 0.0)
         if not v_inj or self._mode not in ('hold', 'sensorless'):
             return 0.0, 0.0
         frame = self._sp['theta'] if self._mode == 'hold' else self._theta_hat
-        phi = frame + self._p('drv_inj_phase_mrad', 0.0)
+        phi = frame + self._p('drv_inj_phase', 0.0)
         iid = self._sp['id_ref'] if self._mode == 'hold' else 0.0
         ld = self._ld(iid)
         l_sum, l_del = (ld + self._lq) / 2.0, (ld - self._lq) / 2.0
@@ -159,7 +158,7 @@ class DrivePlant:
 
     def _converge(self):
         """SENSORLESS pulls theta_hat onto the rotor (0) or pi off it."""
-        if self._mode != 'sensorless' or not self._p('drv_inj_mv', 0.0):
+        if self._mode != 'sensorless' or not self._p('drv_inj_volts', 0.0):
             return
         dt = time.time() - self._theta_hat_at
         self._theta_hat_at = time.time()
@@ -203,11 +202,11 @@ class DrivePlant:
             for k in self.LIVE.keys() & values.keys():
                 setattr(motor, self.LIVE[k], float(values[k]))
         # Pole pairs are not in `LIVE`: a Motor's `p` divides its own angle, so
-        # changing it under a turning rotor is a different machine rather than
+        # changing it under a turning rotor is a different motor rather than
         # a different parameter.
         if 'pole_pairs' in values:
             self._motor = None
-        # The chain took its R, L and lambda when it was built, so a machine
+        # The chain took its R, L and lambda when it was built, so a motor
         # written after that would be observed as the old one - the observers
         # would still be reporting the stand-in's defaults while the model made
         # back-EMF for something else.
@@ -216,13 +215,13 @@ class DrivePlant:
 
     def _pll_hz(self):
         """The natural frequency the loaded PLL gains imply."""
-        l2 = self._p('drv_l2_milli', 100.0)
+        l2 = self._p('drv_l2', 100.0)
         wn = math.sqrt(max(l2, 1e-9) / (2.0 * self.TS))
         return min(max(wn / (2.0 * math.pi), 1.0), 5000.0)
 
     def _advance_model(self):
         """Turn the virtual rotor by the torque the dq solution makes."""
-        motor = self._machine()
+        motor = self._motor_model()
         now = time.time()
         dt = min(now - self._motor_at, 0.25)     # bounded catch-up
         self._motor_at = now
@@ -283,7 +282,7 @@ class DrivePlant:
         motor.omega = wm * motor.p
         motor.theta = theta % (2.0 * math.pi)
 
-    def _machine(self):
+    def _motor_model(self):
         if self._motor is None:
             m = self._model
             self._motor = Motor(r=m['r'], ld=m['ld'], lq=m['lq'],

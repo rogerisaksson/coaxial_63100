@@ -52,5 +52,5 @@ function Get-Choice {
     return @{ model = $picked.model
               num_gpu = $picked.options.num_gpu
               why = $picked.why
-              machine = $picked.machine }
+              host = $picked.host }
 }

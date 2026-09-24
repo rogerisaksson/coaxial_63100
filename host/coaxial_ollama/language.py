@@ -167,7 +167,7 @@ _LOCALE_CODES = {
 
 
 def system_language(default='English'):
-    """The language this machine is set up in."""
+    """The language this host is set up in."""
     candidates = []
     with suppress(ValueError, TypeError):
         candidates.append(locale.getlocale()[0] or '')
@@ -367,7 +367,7 @@ def _fill(translated, values):
 
 
 def greeting(model, name=None, encoding=None):
-    """The one line a session opens with, in `name` or this machine's own
+    """The one line a session opens with, in `name` or this host's own
     language.
     """
     name = name or system_language()

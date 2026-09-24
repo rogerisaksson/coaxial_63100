@@ -5,7 +5,7 @@ from coaxial.devices.analog import Analog
 from coaxial.devices.gate_drivers import GateDrivers
 from coaxial.devices.boot import Boot
 from coaxial.devices.power import Power
-from coaxial.devices.thermal_device import Thermal
+from coaxial.devices.thermal import Thermal
 from coaxial.acquire.capture import Capture
 from coaxial.acquire.clock import Clock
 from coaxial.acquire.daq import Daq

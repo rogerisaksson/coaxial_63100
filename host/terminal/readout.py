@@ -41,7 +41,7 @@ HOLD_S = 4.0
 DECAY_ROW_S = 0.07
 #: The cursor's blink, cycles a second.
 BLINK_HZ = 2.0
-#: The block the machine leaves its cursor on.
+#: The block the console leaves its cursor on.
 CURSOR = '█'
 #: The leader column is the page's: its longest label, a space and at
 #: least one dot - never past half the box. A fixed column either put a
@@ -72,7 +72,7 @@ def identity_of(port, simulated):
 
 def suites_measured():
     """(suites measured here, suites in the tree, checks measured) or None:
-    the counts file is per machine, a fresh clone has measured nothing,
+    the counts file is per host, a fresh clone has measured nothing,
     and a tier runs a subset - so the readout says how many of the tree's
     suites this terminal has run.
     """

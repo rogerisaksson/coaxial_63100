@@ -698,12 +698,12 @@ def test_desk(report):
                  desk.span(bare) is None
                  and '?' in desk.Desk().update([bare]))
 
-    from coaxial.draw import machine
+    from coaxial.draw import cross_section
     report.check('the ink says where the converter is before the number is '
                  'read - the motor page\'s own three classes',
                  (desk.Desk._ink(0.1), desk.Desk._ink(0.8),
                   desk.Desk._ink(0.99))
-                 == (machine.SOA_OK, machine.SOA_WARN, machine.SOA_TRIP))
+                 == (cross_section.SOA_OK, cross_section.SOA_WARN, cross_section.SOA_TRIP))
 
     gate_drivers = desk.Desk(decay=0.04)
     loud = _desk_rows(**{'Phase U': 30000})
@@ -1257,7 +1257,7 @@ def test_virtual_rotor(report):
         drive = SimulatedDrive()
         drive.configure(source='model')
         drive.model.reset()
-        drive.configure(drv_l2_milli=l2)
+        drive.configure(drv_l2=l2)
         drive.write(iq_ref=iq)
         drive._mode = 'sensorless'
         time.sleep(seconds)
@@ -1608,7 +1608,7 @@ def test_thermal_identification(report):
     # from the model's own clock, under the envelope; measured live in a box:
     # the legs reach the throttle point inside two minutes and the clamp holds
     # driver U near 95-105 C on 12 to 19 A of the 30 asked for.
-    from coaxial.devices.thermal_device import Thermal
+    from coaxial.devices.thermal import Thermal
     cyc = SimulatedThermal(situation='box')
     laid = cyc.load_cycle()
     report.check('a load cycle is laid on - 30 A, 360 s on, 840 s off - '

@@ -113,15 +113,15 @@ class Coaxial63100(Task, TaskStream, Acquisition):
 
     """One board, one acquisition task, one clock."""
 
-    def __init__(self, port='COM4', baud=115200, unit=1, link='auto',
+    def __init__(self, port='COM4', baud=115200, unit=1, fallback=True,
                  simulated=False, power_afe=False, own_image=True):
-        """Say where the board is: `port`, or `simulated=True` for the stand-in. Nothing
-        is opened until `open()`, which makes a real board run this host's own build
-        (`own_image`)."""
+        """Say where the board is: `port`, or `simulated=True` for the stand-in; `fallback`:
+        no board answering, the stand-in. Nothing is opened until `open()`, which makes a real
+        board run this host's own build (`own_image`)."""
         self.port = port
         self.baud = baud
         self.unit = unit
-        self.link = link
+        self._fallback = fallback
         self._stand_in = simulated
         self.power_afe = power_afe
         self.own_image = own_image
@@ -167,7 +167,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             return self
 
         simulated = True if self._stand_in else (
-            None if self.link == 'auto' else False)
+            None if self._fallback else False)
 
         self.session, self._origin = sessionmod.open_session(
             self.port, baud=self.baud, unit=self.unit, simulated=simulated)

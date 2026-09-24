@@ -7,12 +7,12 @@ from typing import Callable, Optional, Any
 
 from coaxial.devices.drive import MODES, PARAMS, SOURCES, DriveControl
 from coaxial.errors import RigError
-from coaxial.model.motor import BENCH_MOTOR
 from coaxial.simulated.drive.capture import DriveCapture
 from coaxial.simulated.drive.locked import _rotor_locked
 from coaxial.simulated.drive.observers import DriveObservers
 from coaxial.simulated.drive.plant import DrivePlant
 from coaxial.simulated.values import DCBUS_V
+from motor.catalog import BENCH_MOTOR
 
 
 class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
@@ -23,7 +23,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
     the constants below.
     """
 
-    #: One definition, in `coaxial.model.motor`, so this machine cannot drift
+    #: One definition, in `motor.catalog`, so this motor cannot drift
     #: away from the ones the identification and the notebook use.
     R = BENCH_MOTOR.r
     LD = BENCH_MOTOR.ld
@@ -114,7 +114,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         self._source = 'adc'
         #: The virtual source's rotor, built on demand. The ADC source,
         #: every caller's default, keeps its rotor still (see `model`), so
-        #: no machine integrates in the background.
+        #: no motor integrates in the background.
         self._motor = None
         self._motor_at = 0.0
         self._motor_acc = 0.0
@@ -153,14 +153,14 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         periods = self._periods_since(self._mode_at)
         if self._mode == 'polarity':
             self._settle_polarity(periods)
-        gain = self._p('drv_eps_gain_ua_per_rad', 0.0)
+        gain = self._p('drv_eps_gain', 0.0)
         return {
             'mode': self._mode, 'fault': self._fault,
             # The bridge's state, not the mode's.
             'stage_enabled': bool(self._switching()) if self._switching
                              else self._mode != 'off',
             'afe_on': True,
-            'injecting': bool(self._p('drv_inj_mv', 0.0)) and self._mode in ('hold', 'sensorless'),
+            'injecting': bool(self._p('drv_inj_volts', 0.0)) and self._mode in ('hold', 'sensorless'),
             'owns_compares': self._mode != 'off', 'sync_armed': True,
             # On the model source the observer is the tracker that follows the
             # virtual rotor - a speed loop over omega_hat read 0.0 for ever
@@ -233,15 +233,15 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
     #: What an uncommissioned board answers: the firmware's compiled-in
     #: placeholders (board_cal.c), in SI, the same as the real record reads.
     DEFAULTS = {
-        'motor_r_uohm': 0.05, 'motor_ld_nh': 20e-6, 'motor_lq_nh': 25e-6,
-        'motor_lambda_uvs': 0.005, 'motor_pole_pairs': 7.0,
-        'drv_kp_mv_per_a': 0.1, 'drv_ki_v_per_as': 250.0,
-        'drv_l1_milli': 0.1, 'drv_l2_milli': 100.0,
-        'drv_inj_mv': 0.0, 'drv_inj_periods': 1.0, 'drv_inj_phase_mrad': 0.0,
-        'drv_eps_gain_ua_per_rad': 0.0, 'drv_i_max_ma': 5.0,
-        'drv_i_trip_ma': 100.0, 'drv_v_frac_ppm': 0.95, 'drv_sign': 1.0,
-        'drv_w_lo_mrad_s': 60.0, 'drv_w_hi_mrad_s': 120.0,
-        'drv_dt_step_ma': 1.0, 'drv_sigma_i_ua': 0.0, 'drv_trigger_ticks': 0.0,
+        'motor_r': 0.05, 'motor_ld': 20e-6, 'motor_lq': 25e-6,
+        'motor_lambda': 0.005, 'motor_pole_pairs': 7.0,
+        'drv_kp': 0.1, 'drv_ki': 250.0,
+        'drv_l1': 0.1, 'drv_l2': 100.0,
+        'drv_inj_volts': 0.0, 'drv_inj_periods': 1.0, 'drv_inj_phase': 0.0,
+        'drv_eps_gain': 0.0, 'drv_i_max': 5.0,
+        'drv_i_trip': 100.0, 'drv_v_frac': 0.95, 'drv_sign': 1.0,
+        'drv_w_lo': 60.0, 'drv_w_hi': 120.0,
+        'drv_dt_step': 1.0, 'drv_sigma_i': 0.0, 'drv_trigger_ticks': 0.0,
     }
 
     def params(self):

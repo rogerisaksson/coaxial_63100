@@ -17,7 +17,7 @@ class DriveObservers:
     _dq: Any
     _lam: Any
     _ld: Any
-    _machine: Any
+    _motor_model: Any
     _mode_at: Any
     _noise: Any
     _omega_hat: Any
@@ -87,7 +87,7 @@ class DriveObservers:
                 or abs(dual.omega) < self.OBS_WC <= abs(self._omega_hat)):
             self._observer_sync(self._theta_hat, self._omega_hat)
 
-        motor = self._machine() if self._source == 'model' else None
+        motor = self._motor_model() if self._source == 'model' else None
         now = time.time()
         elapsed = max(0.0, now - self._obs_at)
         self._obs_at = now

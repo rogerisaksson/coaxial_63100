@@ -147,7 +147,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - The offline gate was 400 s of sleeping on the stand-in's clock; suites run
   four at a time: 142 s.
 - numpy's OpenBLAS pool costs ~499 MB commit per process; this laptop has no
-  page file. Capped in `coaxial.control.loop`.
+  page file. Capped in `coaxial.model.blocks`.
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
 - Ollama answered 500 from 2026-09-03 to 09-12: the runner failed to start.
 - Front page model drawn at inner height - 2 and inside a 1-column padding:

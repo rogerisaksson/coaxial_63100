@@ -35,7 +35,7 @@ FLOOR_SHARE = (0.5, 0.25, 0.25, 0.25, 0.5)
 #: Below what sigma each is CONVERGING, and STABLE: three tenths of a
 #: scale, and a tenth - 0.15 for the air path, since with the room
 #: identified beside it one transient leaves it known to about 0.12 and a
-#: machine holding a steady current after a change has one transient to
+#: motor holding a steady current after a change has one transient to
 #: learn from (the rotor page never showed STABLE at a tenth, 2026-09-06);
 #: three and six kelvin of room - one cycle leaves it at 2.3 from the
 #: ten-kelvin prior, and three is as much as the envelope can use.
@@ -519,7 +519,7 @@ class Identifier:
 
     def _drift(self, still):
         """The online quantities' variance grows a little per judged sample,
-        so a machine that changes is followed - unless the board is
+        so a motor that changes is followed - unless the board is
         still, which teaches nothing.
         """
         if still:

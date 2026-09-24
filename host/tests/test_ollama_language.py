@@ -49,7 +49,7 @@ def test_screen_language(report):
     box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     talk = debug.Chat(ScriptedModel([], model='gemma4:12b'), box,
                       out=io.StringIO())
-    report.check('a test session starts in no language, not the machine one',
+    report.check('a test session starts in no language, not the host one',
                  talk.language is None and talk.screen_language() is None)
     local = debug.Chat(ScriptedModel([], model='gemma4:12b'), box,
                        out=io.StringIO(), session_language='Swedish')
@@ -69,7 +69,7 @@ def test_screen_language(report):
     report.check('and asking for one outright moves it too',
                  local.language == 'Swedish', local.language)
 
-    # Every locale this module can name must have a greeting, or a machine set
+    # Every locale this module can name must have a greeting, or a host set
     # to it opens in English for no reason anyone can see.
     missing = [name for name in set(language._LOCALE_CODES.values())
                if name not in language.GREETINGS]

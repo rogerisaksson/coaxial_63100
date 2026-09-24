@@ -9,7 +9,7 @@ from coaxial.comm import protocol
 from coaxial.devices import scaling
 from coaxial.devices.calibration import CalibrationOps
 from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
-from coaxial.devices.thermal_device import THROTTLE_AT
+from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.errors import DeviceStateError
 from coaxial.simulated.system import UNITS
 from coaxial.simulated.values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread, _sweep,
@@ -76,7 +76,7 @@ class SimulatedAnalog(Input):
 
     def burst(self, mask, samples, rate=None):
         chosen = {}
-        # The machine's current on the phases, the same one a record carries:
+        # The motor's current on the phases, the same one a record carries:
         # what the drive holds, at the angle it holds it.
         drive = self.drive
         amps, theta = drive._carrying() if drive is not None else (0.0, 0.0)

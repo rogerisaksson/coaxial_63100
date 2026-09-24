@@ -69,9 +69,9 @@ def test_inverter(r):
 
 
 def test_loop(r):
-    from coaxial.control.loop import (CurrentLoop, Machine, Probe, Ramp, Signals, SpeedLoop,
+    from coaxial.model.blocks import (CurrentLoop, Plant, Probe, Ramp, Signals, SpeedLoop,
                                       identify)
-    from coaxial.model.motor import BENCH_MOTOR
+    from motor.catalog import BENCH_MOTOR
     s = Signals()
     try:
         setattr(s, 'wref', 1.0)         # the typo a slot refuses
@@ -79,22 +79,22 @@ def test_loop(r):
     except AttributeError:
         ok = True
     r.check('a typo on the bus fails instead of vanishing', ok)
-    from coaxial.model.motor import Propeller
+    from motor.loads import Propeller
     prop = Propeller(k=3.2e-6)      # q excitation: without a load iq spans
     chain = (Ramp(250.0, 0.4) >> Probe(1.0, 300.0)      # 0.4 A and the fit
              >> SpeedLoop(8.0, 60.0, BENCH_MOTOR, load=prop)  # returns a
              >> CurrentLoop(2000.0, BENCH_MOTOR, 24.0)  # confident Lq 50 %
-             >> Machine(BENCH_MOTOR, 24.0, load=prop, noise=0.02))  # off
+             >> Plant(BENCH_MOTOR, 24.0, load=prop, noise=0.02))  # off
     run = chain.run(0.8, 5e-5, every=5)
     at_top = run['w'][abs(run['t'] - 0.4) < 0.01]
     r.check('the speed loop tracks the raised cosine to its top',
             abs(at_top.mean() / 250.0 - 1.0) < 0.05, at_top.mean())
-    r.check('and brings the machine back to rest',
+    r.check('and brings the motor back to rest',
             abs(run['w'][-1]) < 10.0, run['w'][-1])
     r.check('an easy ramp never hits the voltage ceiling',
             not run['v_sat'].any())
     fit, got = identify(run, BENCH_MOTOR.poles)
-    r.check('the run identifies the machine it closed around',
+    r.check('the run identifies the motor it closed around',
             abs(got['r'] / BENCH_MOTOR.r - 1.0) < 0.10
             and abs(got['lam'] / BENCH_MOTOR.lam - 1.0) < 0.02
             and abs(got['ld'] / BENCH_MOTOR.ld - 1.0) < 0.15,
@@ -210,10 +210,10 @@ def test_record_units(r):
             to_wire('drv_sign', -1) == 0xFFFFFFFF
             and from_wire('drv_sign', 0xFFFFFFFF) == -1.0)
     r.check('inductance in nanohenry round-trips',
-            abs(from_wire('motor_ld_nh', to_wire('motor_ld_nh', 23.4e-6))
+            abs(from_wire('motor_ld', to_wire('motor_ld', 23.4e-6))
                 - 23.4e-6) < 1e-12)
     r.check('a phase in milliradians keeps its sign',
-            from_wire('drv_inj_phase_mrad', to_wire('drv_inj_phase_mrad', -0.7))
+            from_wire('drv_inj_phase', to_wire('drv_inj_phase', -0.7))
             == -0.7)
 
 
@@ -298,7 +298,7 @@ def test_commissioning_recovers_the_stand_in(r):
         gains = c.gains()
         r.check('gains written: loop, Kalman, injection, crossover',
                 gains['kalman'] is not None
-                and rig.board.drive.params()['drv_inj_mv'] > 0.0
+                and rig.board.drive.params()['drv_inj_volts'] > 0.0
                 and gains['crossover']['rpm'] > 0.0, gains['written'])
         d = c.decide()
         r.check('the decision follows the SNR',
@@ -315,16 +315,15 @@ def test_commissioning_recovers_the_stand_in(r):
         rig.close()
 
 
-def test_autodetect_recovers_each_machine(r):
+def test_autodetect_recovers_each_motor(r):
     """`observer.autodetect` against five different simulated outrunners."""
     import glob
     import json
     import os
 
-    here = os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), 'motors')
-    profiles = sorted(glob.glob(os.path.join(here, 'outrunner_*.json')))
-    r.check('there is more than one machine to identify', len(profiles) > 1,
+    from coaxial.devices.drive import PROFILES
+    profiles = sorted(glob.glob(os.path.join(PROFILES, 'outrunner_*.json')))
+    r.check('there is more than one motor to identify', len(profiles) > 1,
             '%d profiles' % len(profiles))
     for path in profiles:
         want = json.load(io.open(path, encoding='utf-8'))
@@ -338,10 +337,10 @@ def test_autodetect_recovers_each_machine(r):
         finally:
             rig.close()
         name = os.path.basename(path)
-        for field, key, tol in (('r', 'motor_r_uohm', 0.05),
-                                ('ld', 'motor_ld_nh', 0.05),
-                                ('lq', 'motor_lq_nh', 0.05),
-                                ('lam', 'motor_lambda_uvs', 0.05)):
+        for field, key, tol in (('r', 'motor_r', 0.05),
+                                ('ld', 'motor_ld', 0.05),
+                                ('lq', 'motor_lq', 0.05),
+                                ('lam', 'motor_lambda', 0.05)):
             truth = want['drive'][key]
             found = getattr(got, field)
             r.check('%s: %s within %d%%' % (name, field, 100 * tol),
@@ -680,7 +679,7 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
     switches', the way `board_thermal.c` does since MINOR 12.
     """
     from coaxial.simulated.thermal.observer import SimulatedThermal
-    from coaxial.devices.thermal_device import THROTTLE_AT
+    from coaxial.devices.thermal import THROTTLE_AT
 
     model = SimulatedThermal()
     # The board's ceilings lifted out of the way; the winding, a node of the
@@ -738,7 +737,7 @@ ROSTER = (test_inverter, test_the_placements_behind_the_thermal_model,
           test_the_stand_in_thermistor_stays_between_its_nodes,
           test_the_stand_in_throttles_on_the_winding_too,
           test_loop, test_motion,
-          test_autodetect_recovers_each_machine,
+          test_autodetect_recovers_each_motor,
           test_arithmetic, test_budget, test_kalman,
           test_crossover_and_verdicts, test_record_units, test_fits,
           test_commissioning_refuses_to_switch,

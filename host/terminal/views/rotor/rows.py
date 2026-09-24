@@ -4,8 +4,8 @@ import time
 
 from rich.text import Text
 
-from coaxial.draw import machine
-from coaxial.model import motor
+from coaxial.draw import cross_section
+from motor import pmsm
 from terminal.ui.screen import ASH, SODIUM, tint
 from terminal.views.rotor.layout import BAR_CELLS, BAR_GLYPH
 from terminal.views.rotor.thermal import envelope_acting
@@ -95,8 +95,8 @@ def phase_rows(view):
     amps, full = phase_amps(view)
     scale = full or max((abs(a) for a in amps), default=0.0) or 1.0
     rows = []
-    for name, cls, value in zip(machine.PHASE_NAMES, machine.PHASE_CLASS, amps):
-        ramp = machine.PHASE_RAMP[cls]
+    for name, cls, value in zip(cross_section.PHASE_NAMES, cross_section.PHASE_CLASS, amps):
+        ramp = cross_section.PHASE_RAMP[cls]
         share = min(1.0, abs(value) / scale)
         step = min(len(ramp) - 1, int(share * (len(ramp) - 1) + 0.5))
         bar = Text()
@@ -109,15 +109,15 @@ def phase_rows(view):
 
 
 def identity(view):
-    """What machine the record says is on the shaft, or that it cannot say."""
+    """What motor the record says is on the shaft, or that it cannot say."""
     params = view['params']
     pairs = int(params.get('motor_pole_pairs') or 0)
-    lam = params.get('motor_lambda_uvs') or 0.0
+    lam = params.get('motor_lambda') or 0.0
     if not pairs or not lam:
         return Text(' IDENTIFYING ', style='chip.sim')
-    kv = motor.Parameters('', params.get('motor_r_uohm') or 0.0,
-                          params.get('motor_ld_nh') or 0.0,
-                          params.get('motor_lq_nh') or 0.0,
+    kv = pmsm.Parameters('', params.get('motor_r') or 0.0,
+                          params.get('motor_ld') or 0.0,
+                          params.get('motor_lq') or 0.0,
                           lam, pairs).kv
     return '%dN%dP %2d pp  KV %4.0f' % (view['slots'], 2 * pairs, pairs, kv)
 
@@ -126,9 +126,9 @@ def torque(view):
     """Shaft torque from the loop's own dq, newton-metres."""
     s, params = view['state'], view['params']
     pairs = params.get('motor_pole_pairs') or 0.0
-    lam = params.get('motor_lambda_uvs') or 0.0
-    ld = params.get('motor_ld_nh') or 0.0
-    lq = params.get('motor_lq_nh') or 0.0
+    lam = params.get('motor_lambda') or 0.0
+    ld = params.get('motor_ld') or 0.0
+    lq = params.get('motor_lq') or 0.0
     return 1.5 * pairs * (lam * s['iq'] + (ld - lq) * s['id'] * s['iq'])
 
 
@@ -144,7 +144,7 @@ def status_rows(view):
         loops = 'BURST' + (' + ' + loops if loops else '')
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     speed = (view.get('chain') or {}).get('omega') or 0.0
-    return [('machine', identity(view)),
+    return [('motor', identity(view)),
             ('shaft', '%8.0f rpm %8.3f N.m'
              % (speed / pairs * 60.0 / math.tau, torque(view))),
             ('back-EMF', regime(view)),
@@ -153,7 +153,7 @@ def status_rows(view):
              % (gone, gone / 360.0,
                 'cw' if (o.get('omega') or 0.0) >= 0.0 else 'ccw')),
             # The cell's shape, and where the number came from.
-            ('cell', '%.2f tall %s' % (view.get('aspect', machine.CELL_ASPECT),
+            ('cell', '%.2f tall %s' % (view.get('aspect', cross_section.CELL_ASPECT),
                                        view.get('aspect_how', 'assumed')))]
 
 
@@ -175,7 +175,7 @@ def chain_rows(view):
     if not o:
         return [('chain', '%7s' % '--')] * 7
     pp = max(1.0, view['params'].get('motor_pole_pairs', 1.0))
-    lam = view['params'].get('motor_lambda_uvs') or 0.0
+    lam = view['params'].get('motor_lambda') or 0.0
     share = 'dual' if o['blend'] < 0.5 else 'flux'
     return [('theta', '%7.1f %-5s %6.1f mech'
              % (math.degrees(o['theta']), 'deg',

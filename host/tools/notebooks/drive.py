@@ -23,9 +23,10 @@ print({k: round(v, 6) for k, v in plant.items()})'''),
         md('Sliding mode against flux linkage: seven speeds, five plants, 2 A. Torque at '
            'angle error `eps` is `cos(eps)`: 20 deg costs 6 %, the line.'),
         code('''import math
-from coaxial.control.loop import CurrentLoop, Machine, Signals
+from coaxial.model.blocks import CurrentLoop, Plant, Signals
 from coaxial.model import inverter, sensorless
-from coaxial.model.motor import PLATINUM_5230SL, Parameters
+from motor.catalog import PLATINUM_5230SL
+from motor.pmsm import Parameters
 
 TWO_PI = 2.0 * math.pi
 motor = PLATINUM_5230SL
@@ -61,9 +62,9 @@ def observe(plant, w_e, seconds=0.4):
     fitted = fitted_of(plant)
     dt = 2.0 * inverter.TS
     loop = CurrentLoop(hz=800.0, motor=fitted, vdc=plant['vdc'])
-    machine = Machine(fitted, vdc=plant['vdc'], noise=plant['noise'], sub=4,
+    pmsm = Plant(fitted, vdc=plant['vdc'], noise=plant['noise'], sub=4,
                       locked=True)
-    machine.motor.omega = w_e
+    pmsm.motor.omega = w_e
     smo = sensorless.SlidingModeObserver(
         fitted.r, fitted.ld, k=1.5 * fitted.lam * abs(w_e) + 1.0)
     flux = sensorless.FluxObserver(fitted.r, fitted.ld, wc=20.0)
@@ -76,7 +77,7 @@ def observe(plant, w_e, seconds=0.4):
     for step in range(int(seconds / dt)):
         s.t = step * dt
         loop(s, dt)
-        machine(s, dt)
+        pmsm(s, dt)
         va, vb, ia, ib = stationary(s)
         th_s = smo.update(va, vb, ia, ib, dt)
         th_f = flux.update(va, vb, ia, ib, dt)
@@ -179,9 +180,9 @@ def compare(plant, w_e, seconds=1.0, iq=2.0):
     fitted = fitted_of(plant)
     dt = inverter.TS
     loop = CurrentLoop(hz=800.0, motor=fitted, vdc=plant['vdc'])
-    machine = Machine(fitted, vdc=plant['vdc'], noise=plant['noise'], sub=4,
+    pmsm = Plant(fitted, vdc=plant['vdc'], noise=plant['noise'], sub=4,
                       locked=True)
-    machine.motor.omega = w_e
+    pmsm.motor.omega = w_e
     made = five(fitted, w_e)
     s = Signals()
     s.iq_ref = iq
@@ -189,7 +190,7 @@ def compare(plant, w_e, seconds=1.0, iq=2.0):
     for step in range(int(seconds / dt)):
         s.t = step * dt
         loop(s, dt)
-        machine(s, dt)
+        pmsm(s, dt)
         va, vb, ia, ib = stationary(s)
         for name, one in made.items():
             th = one.update(va, vb, ia, ib, dt)
@@ -247,9 +248,9 @@ print('   headroom       %d cycles a period at %.0f kHz'
     fitted, truth = fitted_of(plant, r_error), fitted_of(plant)
     dt = 2.0 * inverter.TS
     loop = CurrentLoop(hz=800.0, motor=fitted, vdc=plant['vdc'])
-    machine = Machine(truth, vdc=plant['vdc'], noise=plant['noise'], sub=4,
+    pmsm = Plant(truth, vdc=plant['vdc'], noise=plant['noise'], sub=4,
                       locked=True)
-    machine.motor.omega = w_e
+    pmsm.motor.omega = w_e
     flux = sensorless.FluxObserver(fitted.r, fitted.ld, wc=20.0)
     s = Signals()
     s.iq_ref = 2.0
@@ -257,7 +258,7 @@ print('   headroom       %d cycles a period at %.0f kHz'
     for step in range(int(seconds / dt)):
         s.t = step * dt
         loop(s, dt)
-        machine(s, dt)
+        pmsm(s, dt)
         va, vb, ia, ib = stationary(s)
         flux.update(va, vb, ia, ib, dt)
         if s.t > 0.5 * seconds:
@@ -322,7 +323,8 @@ b.legend()
 show(fig)'''),
         md('No-load speed `V_FRAC Vdc/sqrt(3) / lambda`, `V_FRAC` 0.95. With an APC20x10E: '
            'where `k w^2` meets the current ceiling, or no-load, whichever first.'),
-        code('''from coaxial.model.motor import APC20x10E, RATINGS, KT_NM_PER_AMP
+        code('''from motor.catalog import KT_NM_PER_AMP, RATINGS
+from motor.loads import APC20x10E
 
 I_RATING = 100.0                    # the board, instantaneous
 kt = 1.5 * motor.poles * motor.lam
@@ -371,7 +373,7 @@ for vdc in VDCS:
         md("Lambda +/-10 %: speed as `1/lambda`, torque as `lambda`. 100 A is the board's; "
            "continuous torque the thermal network's, at the throttle point: 90 % of the "
            'span from 25 to 125 C, 115 C.'),
-        code('''from coaxial.devices.thermal_device import THROTTLE_AT
+        code('''from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.model import thermal
 
 LAMBDA_SPREAD = (0.9, 1.1)          # what mc.draw draws over
@@ -441,7 +443,7 @@ print('%-34s %.2f s at 100 A, %.2f s at 60 A'
 print('%-34s %.1f to %.1f deg electrical' % ('ANGLE ERROR, injection held', *held))'''),
     ),
     section(
-        'A low-saliency machine',
+        'A low-saliency motor',
         md("Saliency 1.05-1.5: `choose_injection` at this AFE's floor, `decide` at 10 dB, "
            'with 5 A and with 1 A of HF current.'),
         code('''sigma_i = max(inverter.NOISE_A)
@@ -492,7 +494,7 @@ print('   sample the NTC every     30 s, against a board constant of %.1f min'
 print('   re-fit first             the phase node to_board, with current flowing')'''),
     ),
     section(
-        'The observers against the machine this board drives',
+        'The observers against the motor this board drives',
         md('No phase-voltage sense: the voltage is the commanded duty against the measured '
            "DC link. The five observers and the firmware's chain (dual flux < 800, flux > "
            '3000 rad/s).'),
@@ -506,9 +508,9 @@ def sweep_all(plant, w_e, seconds=0.6, iq=2.0):
     fitted = fitted_of(plant)
     dt = inverter.TS
     loop = CurrentLoop(hz=800.0, motor=fitted, vdc=plant['vdc'])
-    machine = Machine(fitted, vdc=plant['vdc'], noise=plant['noise'], sub=4,
+    pmsm = Plant(fitted, vdc=plant['vdc'], noise=plant['noise'], sub=4,
                       locked=True)
-    machine.motor.omega = w_e
+    pmsm.motor.omega = w_e
     made = five(fitted, w_e)
     lo, hi = CHAIN_BAND
     s = Signals()
@@ -517,7 +519,7 @@ def sweep_all(plant, w_e, seconds=0.6, iq=2.0):
     for step in range(int(seconds / dt)):
         s.t = step * dt
         loop(s, dt)
-        machine(s, dt)
+        pmsm(s, dt)
         va, vb, ia, ib = stationary(s)
         angles = {n: o.update(va, vb, ia, ib, dt) for n, o in made.items()}
         g = min(1.0, max(0.0, (abs(made['dual'].omega) - lo) / (hi - lo)))
@@ -557,7 +559,7 @@ print('%-14s %-9s %13s   the die itself, 810.5 ADC cycles' % ('MCU VSENSE', 'C',
 print('   not measured: phase voltage (duty x DC link), rotor angle (only with a')
 print('   magnet at the A1335), torque (Kt x iq, and Kt is the sheet, not a stand)')
 print()
-print('THE OBSERVERS AGAINST THE MACHINE THIS BOARD DRIVES')
+print('THE OBSERVERS AGAINST THE MOTOR THIS BOARD DRIVES')
 print('%-7s %15s %10s %9s %13s' % ('', 'holds rpm', 'worst deg', 'torque', 'of the range'))
 grip = {}
 for name in ORDER:
@@ -570,7 +572,7 @@ for name in ORDER:
     print('%-7s %6.0f - %6.0f %10.1f %8.1f %% %11.0f %%'
           % (name, rpm(lo), rpm(hi), worst, grip[name][3], 100.0 * (hi - lo) / TOP_RAD_S))
 print()
-print('THE MACHINE, IN WHAT THE BOARD READS')
+print('THE MOTOR, IN WHAT THE BOARD READS')
 accel = kt * I_RATING / motor.j
 print('%-20s %.1f V on channel 5' % ('link, measured', VDC_TOP))
 print('%-20s %.0f rpm, V_FRAC Vdc/sqrt3 over lambda' % ('no-load speed', rpm(TOP_RAD_S)))
@@ -596,8 +598,8 @@ print('   the NTC           minutes later, on the board time constant')'''),
 drive.configure(source='model')
 print(drive.model.configure(j=2e-5, b=1e-5, load=0.0, noise=0.0))
 params = drive.params()             # the record, in SI
-print({k: params[k] for k in ('motor_r_uohm', 'motor_ld_nh', 'motor_lq_nh',
-                              'motor_lambda_uvs', 'motor_pole_pairs')})
+print({k: params[k] for k in ('motor_r', 'motor_ld', 'motor_lq',
+                              'motor_lambda', 'motor_pole_pairs')})
 drive.write(id_ref=0.0, iq_ref=0.05, theta=0.0, omega_target=0.0)
 drive.on('sensorless')
 spin = []
@@ -617,7 +619,7 @@ for name, f in w['fields'].items():
     print('   %-4s n %-7s mean %s sd %s' % (name, f['n'], f['mean'], f['sd']))
 print('rho', [round(r, 4) for r in w['rho']])'''),
         code('''from IPython.display import display
-from coaxial.draw import machine as cross_section
+from coaxial.draw import cross_section
 from machine import ansi
 
 t = [r[0] for r in spin]
@@ -681,7 +683,7 @@ for lo, hi in zip(edges, edges[1:]):
              deg_rms([mc.wrap(r[1]) for r in band_rows]),
              sum(r[3] for r in band_rows) / len(band_rows)))
 print('lambda   %.5f V.s carried, %.5f in the record'
-      % (last['lambda_hat'], params['motor_lambda_uvs']))'''),
+      % (last['lambda_hat'], params['motor_lambda']))'''),
         code('''t = [i * 0.02 for i in range(len(chain))]
 fig, (speed, mid, bottom) = figure(rows=3, sharex=True)
 speed.plot(t, [r[0] for r in chain], label='omega (model)')
@@ -750,7 +752,7 @@ valid = [abs(mc.wrap(r[1])) for r in chain if r[4]]
 print('13. the chain on it  %.2f deg rms from the loop where valid, %d of %d; dual below %.0f rad/s, flux above %.0f; '
       'lambda %.5f carried of %.5f'
       % (deg_rms(valid) if valid else math.nan, len(valid), len(chain), last['blend_lo'],
-         last['blend_hi'], last['lambda_hat'], params['motor_lambda_uvs']))'''),
+         last['blend_hi'], last['lambda_hat'], params['motor_lambda']))'''),
     md('- Dual flux + PLL: 0.7 deg at 14 rpm; plain flux: 53.\n- The chain: within 7.0 deg '
        'from 14 to 10 231 rpm at 63 V; back-EMF alone loses the rotor at 10-31 rpm.\n- Peak '
        '3.92-4.79 N.m at 100 A; continuous a quarter, thermal; 1.1 s at 100 A.\n- Injection '
@@ -763,7 +765,7 @@ BENCH = ('`isr_cycles_max` and `exit_ticks_max` first. With a motor: '
 
 REFERENCES = [
     ('host/coaxial/model/sensorless.py', 'the five observers, `choose_injection` and `decide`'),
-    ('host/coaxial/control/loop.py', 'the current loop, the machine and the speed loop the search closes'),
+    ('host/coaxial/model/blocks.py', 'the current loop, the plant and the speed loop the search closes'),
     ('host/tools/sim/montecarlo.py', "the firmware's C searched over the link sweep, one process per core"),
     ('host/tests/test_drive_core.py', 'the C held to the Python it was ported from, over drawn plants'),
     ('drive/src/drive_observer.c', 'the back-EMF chain the board runs beside the loop, op 14'),

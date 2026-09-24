@@ -11,11 +11,11 @@ import math
 import time
 
 from coaxial.errors import RigError
-from coaxial.model.sensorless import RAD_S_PER_RPM
 from machine.controller import Feedback
 from machine.machine import Actuator
 from machine.nodes import Module, Node
 from machine.parts import AngleHold, Direct, Gain, Slew, SpeedPI, Wrap
+from motor.pmsm import RAD_S_PER_RPM
 
 #: The stand-in's joint damping, N.m.s: a gearbox and a limb, zeta 0.4..0.7 on a 2 A hold of
 #: the bench motor (k 0.735 N.m/rad) over the stand-in's J 1.2e-5..3.2e-5. The bare rotor's
@@ -129,7 +129,7 @@ class Rotor(_OnDrive):
 
     def feedback(self, name):
         p = self.node.rig.drive.params()
-        kt = 1.5 * self.poles * p.get('motor_lambda_uvs', 0.005)
+        kt = 1.5 * self.poles * p.get('motor_lambda', 0.005)
         return Feedback(SpeedPI(self.hz, self.amps, kt, 2e-5, 1e-5, scale=RAD_S_PER_RPM),
                         setpoint=name, measured=self.node.name + '.drive.omega_hat',
                         command=name + '.iq', sink='%s.drive.iq_ref' % self.node.name,
@@ -182,7 +182,7 @@ class Coaxial(Node):
 
     def __init__(self, rig, name=None):
         identity = rig.board.system.version()
-        i_max = rig.drive.params().get('drv_i_max_ma')
+        i_max = rig.drive.params().get('drv_i_max')
         currents = {'id_ref': (-i_max, i_max), 'iq_ref': (-i_max, i_max)} if i_max else {}
         board = rig.board
         super().__init__(
@@ -234,7 +234,7 @@ class Coaxial(Node):
         hz = 0.5 / halves[len(halves) // 2]             # the median: a gap in the reads moves none
         p = drive.params()
         pp = p.get('motor_pole_pairs') or 7
-        k = 1.5 * pp * pp * p.get('motor_lambda_uvs', 0.005) * amps
+        k = 1.5 * pp * pp * p.get('motor_lambda', 0.005) * amps
         self._carried = {'hz': hz, 'j': k / (2.0 * math.pi * hz) ** 2}
         return self._carried
 

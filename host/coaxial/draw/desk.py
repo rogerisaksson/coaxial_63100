@@ -1,6 +1,6 @@
 """Every analog channel at once, drawn as a meter bridge."""
 from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
-from coaxial.draw import machine, gauges
+from coaxial.draw import cross_section, gauges
 from machine import ansi
 
 #: Columns of bar. Wide, because the bar is the only part of a row that a
@@ -106,8 +106,8 @@ class Desk:
         before any scale is: a converter near its rail has stopped
         moving, which is worth seeing before the number is read."""
         if magnitude >= RAIL_ABOVE:
-            return machine.SOA_TRIP
-        return machine.SOA_WARN if magnitude >= HOT_ABOVE else machine.SOA_OK
+            return cross_section.SOA_TRIP
+        return cross_section.SOA_WARN if magnitude >= HOT_ABOVE else cross_section.SOA_OK
 
     def _bar(self, row, colour):
         """One channel's bar, as a string of BAR columns."""

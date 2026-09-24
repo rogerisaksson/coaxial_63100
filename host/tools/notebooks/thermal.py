@@ -82,7 +82,7 @@ ansi.image(thermalmap.render({n: steady[n] for n in thermal.NODES}, steady['boar
         md('`state()`: nodes in C and `error` (expected NTC - measured). `ntc` None while '
            "AFE_ON is low. `budget()`: `used`, the fraction of each node's span to its "
            'record ceiling.'),
-        code('''from coaxial.devices.thermal_device import THROTTLE_AT
+        code('''from coaxial.devices.thermal import THROTTLE_AT
 
 observer = device.thermal
 st = observer.state()
@@ -112,7 +112,7 @@ print('sample every 30 s:', observer.configure(sample_every_s=30.0, sample_settl
         'The envelope',
         md('Quiet, switching dry, under current, cooling. Throttle at 90 % of the span: 115 '
            'C for silicon in a 25 C room. Conduction split FET 1.8 mohm / shunt 3.5 mohm.'),
-        code('''from coaxial.model import motor
+        code('''from motor import catalog
 
 R_PHASE = inverter.RDS_ON + inverter.SHUNT
 THROTTLE_C = thermal.AMBIENT + THROTTLE_AT * (thermal.CEILING_DEFAULT_C - thermal.AMBIENT)
@@ -136,7 +136,7 @@ iq_cont = rms * math.sqrt(2.0)
 at = thermal.steady(thermal.phase_power(rms, R_PHASE))
 print('continuous: %.1f A rms a phase = %.1f A of iq = %.2f N.m on the 5230SL; '
       'worst node %.1f C against the %.1f C throttle point, board %.1f C'
-      % (rms, iq_cont, motor.KT_NM_PER_AMP * iq_cont,
+      % (rms, iq_cont, catalog.KT_NM_PER_AMP * iq_cont,
          max(at[n] for n in thermal.NODES), THROTTLE_C, at['board']))'''),
         md('A burst climbs at `P / capacity`; capacities unmeasured, so the seconds are a '
            'band, up to 3x shorter.'),
@@ -321,7 +321,7 @@ print('5. the board       NTC %s C, error %s, worst %s at %.1f %%; ceilings writ
 print('6. holdable        ' + '; '.join('%s: board %.1f C, worst %.1f' % (name, at['board'], max(at[n] for n in thermal.NODES))
                                         for name, (at, holds) in holdable.items() if holds))
 print('7. continuous      %.1f A rms a phase = %.1f A of iq = %.2f N.m against the %.0f C throttle point'
-      % (rms, iq_cont, motor.KT_NM_PER_AMP * iq_cont, THROTTLE_C))
+      % (rms, iq_cont, catalog.KT_NM_PER_AMP * iq_cont, THROTTLE_C))
 print('8. a burst         driver %.1f s, shunt %.1f s, board %.1f min; 60 A of iq: %.1f W on the FET, %.1f on the shunt, '
       '%.0f K/s, %.1f s to the throttle point from ambient, %.1f from 60 C; cold to +1 K over the board in %.1f s'
       % (tau_node['driver_u'], tau_node['phase_u'], tau_board, burst[60.0][0], burst[60.0][1], burst[60.0][2],
@@ -352,7 +352,7 @@ REFERENCES = [
     ('host/coaxial/model/thermal.py', 'the network on the host: the nodes, the edges, the campaign\'s table, and every constant\'s argument'),
     ('thermal/src/thermal.c', 'the same network as the board integrates it, and the envelope'),
     ('host/coaxial/kalman/thermal_ident.py', 'the identification the stand-in runs, mirroring `thermal/src/thermal_ident.c`'),
-    ('host/coaxial/devices/thermal_device.py', '`device.thermal`: state, budget, identification, the record\'s ceilings and the sample interval'),
+    ('host/coaxial/devices/thermal.py', '`device.thermal`: state, budget, identification, the record\'s ceilings and the sample interval'),
     ('host/coaxial/simulated/thermal/', 'the stand-in: a hypothetical board with a ground truth, the situations, the tour and the trip cap'),
     ('docs/HARDWARE.md', 'the campaign, the camera, and how a measurement here is to be read'),
     ('docs/FINDINGS.md', 'the camera campaign, the two measured numbers, the envelope\'s 100 ms slice, the identification against a ground truth'),

@@ -34,7 +34,6 @@ linear range, the stage armed only with --switch.
 """
 import argparse
 import math
-import os
 import sys
 import time
 import types
@@ -42,7 +41,7 @@ from contextlib import suppress
 
 from rich.text import Text
 
-from coaxial.draw import machine
+from coaxial.draw import cross_section
 from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share
 from coaxial.errors import RigError
 from coaxial.model import thermal as _thermal
@@ -93,10 +92,10 @@ def sane(args):
 def parameters(args):
     """The drive and model parameters the switches asked for, SI."""
     drive = {}
-    for name, key in (('kp', 'drv_kp_mv_per_a'), ('ki', 'drv_ki_v_per_as'),
-                      ('l1', 'drv_l1_milli'), ('l2', 'drv_l2_milli'),
-                      ('i_max', 'drv_i_max_ma'), ('i_trip', 'drv_i_trip_ma'),
-                      ('w_lo', 'drv_w_lo_mrad_s'), ('w_hi', 'drv_w_hi_mrad_s'),
+    for name, key in (('kp', 'drv_kp'), ('ki', 'drv_ki'),
+                      ('l1', 'drv_l1'), ('l2', 'drv_l2'),
+                      ('i_max', 'drv_i_max'), ('i_trip', 'drv_i_trip'),
+                      ('w_lo', 'drv_w_lo'), ('w_hi', 'drv_w_hi'),
                       ('inj_periods', 'drv_inj_periods')):
         if getattr(args, name) is not None:
             drive[key] = getattr(args, name)
@@ -109,7 +108,7 @@ def parameters(args):
 
 def eps_gain(params, v_inj, ts):
     """Demodulated amps per radian, from the record's Ld and Lq."""
-    ld, lq = params['motor_ld_nh'], params['motor_lq_nh']
+    ld, lq = params['motor_ld'], params['motor_lq']
     return v_inj * ts * (lq - ld) / (ld * lq) if ld > 0.0 and lq > 0.0 else 0.0
 
 
@@ -133,7 +132,7 @@ def rearm_after_trip(rig, origin, view):
 def compose(rig, origin, console, view):
 
     s = view['state']
-    # The dial is the machine (poles from the record), not a protractor.
+    # The dial is the motor (poles from the record), not a protractor.
     pole_pairs = max(1, int(view['params'].get('motor_pole_pairs') or 1))
     # The true rotor is a notch on the can: its gap to the magnet band is the
     # observer's error, in mechanical units.
@@ -145,7 +144,7 @@ def compose(rig, origin, console, view):
     foot = list(heads[CAPTION_ROWS:])          # FOOT_ROWS of them
     turned = math.degrees(s['theta_hat']) / pole_pairs
     # The can and the pointer are different quantities.
-    art = machine.render(turned, view['slots'], 2 * pole_pairs,
+    art = cross_section.render(turned, view['slots'], 2 * pole_pairs,
                          BOX.width, BOX.rows,
                          # The sensor's own stroke is not drawn.
                          truth_deg=None,
@@ -156,14 +155,14 @@ def compose(rig, origin, console, view):
                                + [None] * NTC_GAP + ntc_bar(view)),
                          right=(soa_bars(view, BOARD_NODES)
                                 + [None] * HEADROOM_GAP + headrooms(view)),
-                         leaders=legend_drops(view, *machine.gutters(
+                         leaders=legend_drops(view, *cross_section.gutters(
                              BOX.width, BOX.rows,
                              LEFT_COLUMNS, RIGHT_COLUMNS))
                          + foot_furniture()[0],
                          rules=foot_furniture()[1],
                          top=None,
                          bottom=[(temp_share(winding(view)),
-                                  machine.SOA_WARN),
+                                  cross_section.SOA_WARN),
                                  watts_bar(view)],
                          colour=True)
     art = '\n'.join(caption + [art] + foot)
@@ -220,7 +219,7 @@ def parse_args(argv):
     p.add_argument('--width', type=int, default=None)
     p.add_argument('--height', type=int, default=None)
     p.add_argument('--source', choices=('model', 'adc'), default='model')
-    p.add_argument('--motor', help='a profile under motors/, written first')
+    p.add_argument('--motor', help='a profile, a file or a name in coaxial/profiles/, written first')
     p.add_argument('--cell-aspect', type=float, default=None,
                    help='what makes the can round on this terminal. The '
                         'geometry is exactly round at 2.0 - measured, 25.16 '
@@ -257,10 +256,7 @@ def preflight(rig, args):
     d = rig.board.drive
     d.off()
     if args.motor:
-        path = args.motor if os.path.exists(args.motor) else os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            'motors', args.motor)
-        got = d.configure(profile=path)['profile']
+        got = d.configure(profile=args.motor)['profile']
         say('ok', 'motor', got['name'])
     drive_params, model_params = parameters(args)
     if drive_params:
@@ -271,13 +267,13 @@ def preflight(rig, args):
     ts = d.state()['ts'] or 20e-6
     # Injection on from the start: at standstill it is the only innovation
     # (without it the estimate ran 71 degrees from the model's rotor).
-    d.configure(drv_inj_mv=args.v_inj,
-                drv_eps_gain_ua_per_rad=eps_gain(params, args.v_inj, ts))
+    d.configure(drv_inj_volts=args.v_inj,
+                drv_eps_gain=eps_gain(params, args.v_inj, ts))
     d.configure(source=args.source)
     say('ok', 'source', '%s%s' % (args.source, ' - the board integrates its own '
                                   'rotor' if args.source == 'model' else ''))
     say('ok', 'trip', '%.1f A clamp, %.1f A trip, rating %.0f'
-        % (params['drv_i_max_ma'], params['drv_i_trip_ma'], RATING_A))
+        % (params['drv_i_max'], params['drv_i_trip'], RATING_A))
     return params
 
 
@@ -322,7 +318,7 @@ BOARD_STEP = 0.1
 
 
 def _model_defaults(args):
-    """The stand-in's machine on the model: the damping, the inertia, the
+    """The stand-in's motor on the model: the damping, the inertia, the
     torque current and the clamps above, where the caller left them."""
     if args.b is None:
         args.b = DEMO_B
@@ -429,7 +425,7 @@ def main(argv=None):
             'load': False, 'load_at': 0.0, 'load_rising': True,
             'load_amps': 0.0, 'load_written': 0.0,
             'interlock': args.interlock,
-            'i_max': params['drv_i_max_ma'], 'theta0': args.theta0 or 0.0,
+            'i_max': params['drv_i_max'], 'theta0': args.theta0 or 0.0,
             'params': params, 'said': '', 'state': board.drive.state(),
             'chain': board.drive.observers.read(),
             'gate': board.gate_drivers.state(), 'model': None,

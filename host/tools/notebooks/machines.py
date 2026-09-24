@@ -2,8 +2,6 @@
 from .parts import code, md, section
 
 TITLE = 'The machines'
-#: The nodes are discovered here; no single device is opened.
-DEVICE = False
 SUMMARY = 'Every board a node; a humanoid, a quad, a fixed wing, an e-bike over them; programs a model writes, streamed live behind a failsafe.'
 
 SECTIONS = [

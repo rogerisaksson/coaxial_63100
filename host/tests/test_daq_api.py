@@ -479,7 +479,7 @@ def test_sensor_fields_ride_the_record(report):
     """MINOR 7: snapshots beside the sums - the shaft angle in the same
     record as the current that moved it, off the same virtual rotor."""
     with opened(power_afe=False) as device:
-        device.board.drive.configure(source='model')
+        device.drive.configure(source='model')
         device.gates.on(bypass_sto=True, ignore_interlock=True)
         daq = device.daq
         rows = {r['name']: r for r in daq.catalogue()}

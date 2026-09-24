@@ -7,13 +7,10 @@ SUMMARY = 'Sources in, sinks out, feedback loops of prefilter, measure, estimato
 SECTIONS = [
     section(
         'Source and sink',
-        md("The application's IO is an array of nodes; here one board, named `motor`, its "
-           'drive on the model. Ask what it offers, then build the loop over its `drive` '
-           'module: `motor.drive.omega_hat` in, `motor.drive.iq_ref` out, every channel a '
-           'float.'),
-        code('''from coaxial.model.motor import Parameters
-from coaxial.model.sensorless import RAD_S_PER_RPM
-from coaxial.node import Coaxial
+        md("The application's IO is an array of nodes, discovered; the first board's drive runs "
+           'on the model. Ask what it offers, then build the loop over its `drive` module: '
+           '`<node>.drive.omega_hat` in, `<node>.drive.iq_ref` out, every channel a float.'),
+        code('''from motor.pmsm import RAD_S_PER_RPM, Parameters
 from machine import ansi
 from machine.controller import Feedback, Loop, Paced
 from machine.nodes import Nodes
@@ -21,28 +18,31 @@ from machine.parts import Gain, LowPass, Slew, SpeedKalman, SpeedPI
 from machine.wiring import feedback
 
 J, B = 2e-5, 1e-5
-drive = device.drive
+nodes = Nodes.discover(port=PORT, simulated=SIMULATED, peripherals=())
+node = nodes.of_type('bldc_inverter')[0]
+at = node.name + '.drive'
+drive, gates = node.rig.drive, node.rig.gates
 drive.configure(source='model')
 drive.model.configure(j=J, b=B, load=0.0, noise=0.05)
-device.gates.on(bypass_sto=True, ignore_interlock=True)
+gates.on(bypass_sto=True, ignore_interlock=True)
 drive.write(id_ref=0.0, iq_ref=0.0)
 drive.on('sensorless')
 
 p = drive.params()
 poles = int(p['motor_pole_pairs'])
-motor = Parameters(name='the record', r=p['motor_r_uohm'], ld=p['motor_ld_nh'],
-                   lq=p['motor_lq_nh'], lam=p['motor_lambda_uvs'], poles=poles, j=J, b=B,
+motor = Parameters(name='the record', r=p['motor_r'], ld=p['motor_ld'],
+                   lq=p['motor_lq'], lam=p['motor_lambda'], poles=poles, j=J, b=B,
                    measured=False)
 kt = 1.5 * poles * motor.lam
-nodes = Nodes([Coaxial(device, name='motor')])
-print(nodes.card('drive', keys=('omega_hat', 'iq', 'vdc', 'id_ref', 'iq_ref', 'theta')))
-loop = nodes.loop(inputs=['motor.drive'], outputs=['motor.drive'], rate_hz=25)'''),
+print('%d nodes; %s drives the loop' % (len(nodes), node.name))
+print(Nodes([node]).card('drive', keys=('omega_hat', 'iq', 'vdc', 'id_ref', 'iq_ref', 'theta')))
+loop = nodes.loop(inputs=[at], outputs=[at], rate_hz=25)'''),
     ),
     section(
         'A feedback loop',
         code('''loop.add('speed', Feedback(
-    SpeedPI.of(3.0, 2.0, motor), setpoint='w_target', measured='motor.drive.omega_hat',
-    command='iq_ref', sink='motor.drive.iq_ref', prefilter=Slew(1500 * RAD_S_PER_RPM),
+    SpeedPI.of(3.0, 2.0, motor), setpoint='w_target', measured=at + '.omega_hat',
+    command='iq_ref', sink=at + '.iq_ref', prefilter=Slew(1500 * RAD_S_PER_RPM),
     measure=Gain(1.0 / poles), ref='w_ref', value='w_hat'))
 ansi.image(feedback(loop, 'speed'))'''),
         code('''rows = loop.move(2.0, w_target=1000 * RAD_S_PER_RPM)
@@ -165,8 +165,9 @@ print('saved %s: %d loop, %d parts, reloaded the same: %s'
       % (os.path.basename(path), len(again.feedbacks), len(again.parts), kept))
 loop.move(1.0, w_target=0.0)
 loop.off()
-device.gates.off()
-print('back on the converters:', drive.configure(source='adc')['source'])'''),
+gates.off()
+print('back on the converters:', drive.configure(source='adc')['source'])
+nodes.close()'''),
     ),
 ]
 

@@ -4,13 +4,17 @@ from . import (acquisition, applications, commissioning, controller, drive, link
 from .parts import paper
 
 
-def _laid_out(area):
+#: Papers over discovered nodes: no single device opened.
+NODES = ('controller', 'machines', 'sequencer')
+
+
+def _laid_out(name, area):
     return paper(area.TITLE, area.SUMMARY, area.SECTIONS, area.RESULTS, area.BENCH,
-                 area.REFERENCES, getattr(area, 'DEVICE', True))
+                 area.REFERENCES, name not in NODES)
 
 
 #: Name -> cells, in the README's order.
-AREAS = {name: _laid_out(area) for name, area in (
+AREAS = {name: _laid_out(name, area) for name, area in (
     ('acquisition', acquisition), ('link', link), ('sensors', sensors),
     ('power_stage', power_stage), ('thermal', thermal), ('drive', drive),
     ('controller', controller), ('sequencer', sequencer), ('machines', machines),

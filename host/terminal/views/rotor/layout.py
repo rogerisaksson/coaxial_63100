@@ -1,7 +1,7 @@
 """The rotor observer's geometry: the box, the fit, the columns and the glyphs the parts share."""
 import math
 
-from coaxial.draw import machine
+from coaxial.draw import cross_section
 from terminal.ui.scroll import HUD_WIDTH
 
 
@@ -16,11 +16,11 @@ NOMINAL_HEIGHT = 24
 CAPTION_ROWS, FOOT_ROWS = 5, 1
 
 
-#: What is left for the machine. No inset at the foot: at 19 rows with one
+#: What is left for the motor. No inset at the foot: at 19 rows with one
 #: the winding gauge was drawn through the can (measured). Can 2..16,
 #: winding 17, watts 18, labels below the box.
 class Box:
-    """The machine's drawing this frame: its columns, the braille rows the
+    """The motor's drawing this frame: its columns, the braille rows the
     art gets, and the rows the page spends on it with the captions and
     the foot.
     """
@@ -29,7 +29,7 @@ class Box:
         self.rows = height - CAPTION_ROWS - FOOT_ROWS
 
 
-#: Rows above the machine (none: the leaders' corner glyph turns them down)
+#: Rows above the motor (none: the leaders' corner glyph turns them down)
 #: and below it (the two floor gauges); `fit` adds them to the can's rows.
 HOP_ROWS, FLOOR_GAUGES = 0, 2
 
@@ -53,12 +53,12 @@ BOX = Box(NOMINAL_WIDTH, NOMINAL_HEIGHT)
 
 def _width_for(can):
     """The columns a can of `can` dots needs with the gutters beside it:
-    `machine.layout` inverted, so a machine bound by the rows is not left
+    `cross_section.layout` inverted, so a motor bound by the rows is not left
     in the middle of a wide box with its thermometers at the far edges."""
-    room = 2.0 * (can / machine.F_FIT + 1.0)
-    lead = LEFT_COLUMNS + machine.BAR_GAP
-    trail = RIGHT_COLUMNS + machine.BAR_GAP
-    return int(math.ceil(room / machine.DOTS_X)) + lead + trail
+    room = 2.0 * (can / cross_section.F_FIT + 1.0)
+    lead = LEFT_COLUMNS + cross_section.BAR_GAP
+    trail = RIGHT_COLUMNS + cross_section.BAR_GAP
+    return int(math.ceil(room / cross_section.DOTS_X)) + lead + trail
 
 
 def fit(aspect, size=None):
@@ -68,16 +68,16 @@ def fit(aspect, size=None):
     and the can the smaller of the two allows, the gutters drawn in
     against it.
     """
-    stretch = aspect / machine.DOTS_Y * machine.DOTS_X
+    stretch = aspect / cross_section.DOTS_Y * cross_section.DOTS_X
     width = (NOMINAL_WIDTH if size is None else
              max(MIN_WIDTH, size.width - HUD_WIDTH - VIEWPORT_COLUMNS))
     band = (10 ** 6 if size is None else
             max(MIN_BAND, size.height - PAGE_ROWS - CAPTION_ROWS - FOOT_ROWS
                 - HOP_ROWS - FLOOR_GAUGES))
-    can = machine.layout(width, band, LEFT_COLUMNS, RIGHT_COLUMNS,
+    can = cross_section.layout(width, band, LEFT_COLUMNS, RIGHT_COLUMNS,
                          stretch=stretch)[1].can
     width = min(width, max(MIN_WIDTH, _width_for(can)))
-    rows = int(math.ceil((2.0 * can + 2.0) / (machine.DOTS_Y * stretch)))
+    rows = int(math.ceil((2.0 * can + 2.0) / (cross_section.DOTS_Y * stretch)))
     BOX.width = width
     BOX.rows = HOP_ROWS + rows + FLOOR_GAUGES
     BOX.height = BOX.rows + CAPTION_ROWS + FOOT_ROWS

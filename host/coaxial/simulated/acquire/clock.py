@@ -6,8 +6,8 @@ from coaxial.simulated.values import SYSCLK_HZ
 
 
 class SimulatedClock(Timebase):
-    """The cycle counter tied to this machine's clock, 12 ppm off: against UTC it
-    shows this machine's error plus its own."""
+    """The cycle counter tied to this host's clock, 12 ppm off: against UTC it
+    shows this host's error plus its own."""
 
     NOMINAL_HZ = SYSCLK_HZ
     SKEW = 1 - 12e-6

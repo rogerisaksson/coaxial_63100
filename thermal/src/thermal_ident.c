@@ -30,7 +30,7 @@ static const float PRIOR_SIGMA[THERMAL_IDENT_PARAMS] = { 0.5f, 0.2f, 0.5f,
 /** Below what sigma each is CONVERGING, and STABLE: three tenths of a scale,
     and a tenth - but 0.15 for the air path, since with the room identified
     beside it one transient leaves the air path known to about 0.12 (the two
-    share a cooldown's evidence) and a machine that holds a steady current
+    share a cooldown's evidence) and a motor that holds a steady current
     after a change has exactly one transient to learn from; at a tenth the
     rotor page never showed STABLE (bench, 2026-09-06). */
 static const float SIGMA_CONVERGING[THERMAL_IDENT_PARAMS] = { 0.30f, 0.30f,

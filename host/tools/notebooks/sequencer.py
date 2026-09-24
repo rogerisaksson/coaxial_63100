@@ -7,28 +7,29 @@ SUMMARY = 'Streams in and out, a controller between, and a test stand in miniatu
 SECTIONS = [
     section(
         'The streams',
-        md("An array of IO nodes, here one: what it offers comes first - every module's "
-           'channels, ins with units, outs with ranges - and every number is a float.'),
-        code('''from coaxial.model.sensorless import RAD_S_PER_RPM
-from coaxial.node import Coaxial
+        md("An array of IO nodes, discovered; the first board's offer comes first - every "
+           "module's channels, ins with units, outs with ranges - and every number is a float."),
+        code('''from motor.pmsm import RAD_S_PER_RPM
 from machine import ansi
 from machine.nodes import Nodes
 from machine.parts import Gain
 from machine.wiring import diagram, feedback
 
-drive = device.drive
+nodes = Nodes.discover(port=PORT, simulated=SIMULATED, peripherals=())
+node = nodes.of_type('bldc_inverter')[0]
+drive, gates = node.rig.drive, node.rig.gates
 drive.configure(source='model')
 drive.model.configure(j=2e-5, b=1e-5, load=0.0, noise=0.05)
-device.gates.on(bypass_sto=True, ignore_interlock=True)
-nodes = Nodes([Coaxial(device, name='motor')])
-print(nodes.card('drive', 'angle', keys=('omega_hat', 'iq', 'degrees', 'iq_ref', 'theta')))
-print(len(nodes.capabilities()), 'channels in all, over', ', '.join(nodes['motor'].modules))'''),
+gates.on(bypass_sto=True, ignore_interlock=True)
+print(Nodes([node]).card('drive', 'angle', keys=('omega_hat', 'iq', 'degrees', 'iq_ref', 'theta')))
+print('%d channels on %d nodes, each over %s'
+      % (len(nodes.capabilities()), len(nodes), ', '.join(node.modules)))'''),
     ),
     section(
         'The controller',
         md('`motion.velocity(2.0)` holds a `Loop` of one feedback, `speed`, clamped at 2 A; '
            'its slew set to 3000 rpm/s. Two gains put it in rpm: `rpm_target` in, `rpm` out.'),
-        code('''loop = device.motion.velocity(2.0).loop
+        code('''loop = node.rig.motion.velocity(2.0).loop
 loop.parts['speed/prefilter'].configure(rate=3000 * RAD_S_PER_RPM)
 loop.plug('rpm_in', Gain(RAD_S_PER_RPM), x='rpm_target', y='w_target')
 loop.plug('rpm_out', Gain(1.0 / RAD_S_PER_RPM), x='w_hat', y='rpm')
@@ -129,8 +130,9 @@ same = ([repr(s) for g in twice.groups.values() for s in g]
         == [repr(s) for g in seq.groups.values() for s in g])
 again = twice.run(loop)
 print('xlsx rows as the csv: %s; %s, %d steps' % (same, again.status, len(again.steps)))
-device.gates.off()
-print('back on the converters:', drive.configure(source='adc')['source'])'''),
+gates.off()
+print('back on the converters:', drive.configure(source='adc')['source'])
+nodes.close()'''),
     ),
 ]
 
@@ -151,6 +153,6 @@ BENCH = ('Commission the record first; `init` arms, `cleanup` disarms; HH and LL
 REFERENCES = [
     ('host/machine/sequencer.py', '`Sequencer`: rows, groups, jumps, limits, `run`'),
     ('host/machine/controller.py', '`Loop`, `Feedback`: the controller it drives'),
-    ('host/coaxial/control/motion.py', '`Velocity`: the loop behind `device.motion.velocity`'),
+    ('host/coaxial/control/motion.py', '`Velocity`: the loop behind `motion.velocity`'),
     ('host/tests/test_controller.py', 'the sequencer against a toy rotor'),
 ]

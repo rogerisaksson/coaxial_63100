@@ -207,8 +207,8 @@ class Drive:
 
 def run(drive, motor, seconds, vdc=24.0, noise=0.0, enabled=True, seed=1,
         watch=None):
-    """Close the loop for `seconds` around `motor`, a `coaxial.model.motor.Motor`:
-    the machine the DAQ stand-in, the system identification and a notebook
+    """Close the loop for `seconds` around `motor`, a `motor.pmsm.Motor`:
+    the motor the DAQ stand-in, the system identification and a notebook
     close their loops around."""
     rng = random.Random(seed)
     prev = (0.0, 0.0, 0.0)

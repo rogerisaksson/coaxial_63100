@@ -417,13 +417,13 @@ def test_identity(report):
     # One line in, in the operator's own language.
     from coaxial_ollama import language
     hello = language.greeting('gemma4:12b', 'Swedish')
-    report.check('the prompt opens with one line, in the machine language',
+    report.check('the prompt opens with one line, in the host language',
                  hello.count(chr(10)) == 0 and 'gemma4:12b' in hello
                  and '/help' in hello and 'expert' in hello, hello)
     report.check('a language with no greeting written falls back to English',
                  language.greeting('x', 'Turkish')
                  == language.greeting('x', 'English'))
-    report.check('and this machine resolves to a language it can print',
+    report.check('and this host resolves to a language it can print',
                  language.system_language() in language.LANGUAGE_NAMES,
                  language.system_language())
     report.check('/help carries what the banner no longer does',

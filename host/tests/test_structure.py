@@ -29,7 +29,8 @@ HOST = os.path.dirname(HERE)
 REPO = os.path.dirname(HOST)
 
 # Packages this suite walks.
-PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'machine', 'testline', 'terminal')
+PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'machine', 'motor', 'testline',
+            'terminal')
 SCRIPTS = ('tools', 'examples')
 
 #: Outside host/, and judged the same: a reader copies from these.
@@ -185,7 +186,7 @@ TWINS = (
     ('coaxial.acquire.clock:Clock', 'coaxial.simulated.acquire.clock:SimulatedClock'),
     ('coaxial.acquire.daq:Daq', 'coaxial.simulated.acquire.daq:SimulatedDaq'),
     ('coaxial.devices.drive:Drive', 'coaxial.simulated.drive.device:SimulatedDrive'),
-    ('coaxial.devices.thermal_device:Thermal',
+    ('coaxial.devices.thermal:Thermal',
      'coaxial.simulated.thermal.observer:SimulatedThermal'),
     ('coaxial.devices.calibration:Calibration', 'coaxial.simulated.analog:SimulatedCalibration'),
     ('coaxial.devices.system:System', 'coaxial.simulated.system:SimulatedSystem'),
@@ -279,7 +280,7 @@ def _caps_openblas(node):
 
 
 def test_numpy_enters_behind_the_thread_cap(r):
-    """numpy is imported at module level in one package module, loop.py, and
+    """numpy is imported at module level in one package module, blocks.py, and
     that module caps OpenBLAS's thread pool before importing it.
     """
     importers, capped = [], False
@@ -291,10 +292,10 @@ def test_numpy_enters_behind_the_thread_cap(r):
                 importers.append(path)
                 capped = any(_caps_openblas(n) for n in tree.body[:i])
                 break
-    r.check('numpy enters the packages at module level in loop.py alone',
-            importers == [os.path.join('coaxial', 'control', 'loop.py')],
+    r.check('numpy enters the packages at module level in blocks.py alone',
+            importers == [os.path.join('coaxial', 'model', 'blocks.py')],
             ', '.join(importers) or 'nowhere')
-    r.check('and loop.py sets OPENBLAS_NUM_THREADS before importing it',
+    r.check('and blocks.py sets OPENBLAS_NUM_THREADS before importing it',
             capped)
 
 
@@ -306,6 +307,17 @@ def test_machine_imports_no_board(r):
                         for node in ast.walk(tree)
                         if any(n.startswith('coaxial') for n in _names_imported(node))})
     r.check('machine imports no board family', not importers, ', '.join(importers))
+
+
+def test_motor_imports_no_board(r):
+    """motor/ is a PMSM and its loads: no board family, no machine."""
+    importers = sorted({path for path, _text, tree in sources(beside=False)
+                        if path.startswith('motor' + os.sep)
+                        for node in ast.walk(tree)
+                        if any(n.startswith(('coaxial', 'machine'))
+                               for n in _names_imported(node))})
+    r.check('motor imports no board family and no machine', not importers,
+            ', '.join(importers))
 
 
 def _bound(tree):
@@ -441,9 +453,9 @@ def test_counts_are_measured(r):
     except (OSError, ValueError, KeyError):
         suites = {}
     if not suites:
-        # A fresh clone has measured nothing - .counts.json is per-machine by
+        # A fresh clone has measured nothing - .counts.json is per-host by
         # design.
-        r.check('no suite sizes measured on this machine yet - the '
+        r.check('no suite sizes measured on this host yet - the '
                 'documents keep the last measured totals', True)
         return
     total = sum(suites.values())
@@ -600,9 +612,9 @@ MIRRORS = (
     ('coaxial.devices.boot', 'SECTOR', 'boot/inc/boot.h', 'BOOT_SECTOR_BYTES', 1.0),
     ('coaxial.devices.boot', 'RECORD_BASE', 'boot/inc/boot.h', 'BOOT_RECORD_BASE', 1.0),
     ('coaxial.devices.boot', 'RECORD_MAX', 'boot/inc/boot.h', 'BOOT_RECORD_MAX', 1.0),
-    ('coaxial.model.sensorless', 'HALF_SQRT3',
+    ('motor.pmsm', 'HALF_SQRT3',
      'drive/src/drive_math.c', 'HALF_SQRT3', 1.0),
-    ('coaxial.model.sensorless', 'TWO_PI',
+    ('motor.pmsm', 'TWO_PI',
      'drive/src/drive_math.c', 'TWO_PI', 1.0),
 )
 
@@ -720,11 +732,11 @@ WIRE_SHAPES = (
     ('comms/src/cmd_log.c', 'h_log_state', 'coaxial.acquire.capture', 'Capture', 'state'),
     ('comms/src/cmd_power.c', 'h_power_state', 'coaxial.devices.power', 'Power', 'state'),
     ('comms/src/cmd_thermal.c', 'h_thermal_state',
-     'coaxial.devices.thermal_device', 'Thermal', 'state'),
+     'coaxial.devices.thermal', 'Thermal', 'state'),
     ('comms/src/cmd_thermal.c', 'h_thermal_budget',
-     'coaxial.devices.thermal_device', 'Thermal', 'budget'),
+     'coaxial.devices.thermal', 'Thermal', 'budget'),
     ('comms/src/cmd_thermal.c', 'h_thermal_edges',
-     'coaxial.devices.thermal_device', 'Thermal', 'network'),
+     'coaxial.devices.thermal', 'Thermal', 'network'),
     ('comms/src/cmd_time.c', 'h_time_read', 'coaxial.acquire.clock', 'Clock', 'read'),
 )
 
@@ -1410,6 +1422,7 @@ ROSTER = (test_imports, test_no_undefined_names, test_no_cycles, test_stand_ins_
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
           test_numpy_enters_behind_the_thread_cap, test_machine_imports_no_board,
+          test_motor_imports_no_board,
           test_shape, test_documented, test_target_briefs,
           test_no_escaping_scars,
           test_counts_are_measured, test_subsystem_calls_resolve,

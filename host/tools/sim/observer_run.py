@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The target's rotor observer, against a motor, on this machine.
+"""The target's rotor observer, against a motor, on this host.
 
 The C is the firmware's: `drive/` is hardware-free. `tools/cores/build.py`
 builds it and the harness with the host gcc; `tools/cores/drive.py` lists the
@@ -11,15 +11,15 @@ torque against friction and a propeller rather than from a setpoint, and
 the observer given only the phase currents. The angle error reported is
 against the model's own truth, which the observer never sees.
 
-Every constant comes from `coaxial.model.motor`, where the 5230SL
+Every constant comes from `motor.catalog`, where the 5230SL
 carries `measured=False`: R, Ld, Lq and J are estimates from a size class.
 The saliency Lq/Ld is what an injection observer lives on and it is the
 least trustworthy number here, so read a standstill result as arithmetic
-about a plausible machine, not about the one on the bench.
+about a plausible motor, not about the one on the bench.
 
     python tools/sim/observer_run.py                    # the 5230SL, speed sweep
     python tools/sim/observer_run.py --bandwidth        # how aggressive is too
-    python tools/sim/observer_run.py --motor bench      # the stand-in's machine
+    python tools/sim/observer_run.py --motor bench      # the stand-in's motor
 """
 import argparse
 import ctypes
@@ -28,7 +28,9 @@ import os
 import sys
 
 from coaxial.model import sensorless
-from coaxial.model.motor import APC20x10E, BENCH_MOTOR, Motor, PLATINUM_5230SL
+from motor.catalog import BENCH_MOTOR, PLATINUM_5230SL
+from motor.loads import APC20x10E
+from motor.pmsm import Motor
 from tools.cores import drive as H
 from tools.cores.build import build, find_cc
 

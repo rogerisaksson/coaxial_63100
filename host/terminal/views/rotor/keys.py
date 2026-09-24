@@ -61,7 +61,7 @@ def _key_source(rig, d, key, view):
 
 def _key_inject(rig, d, key, view):
     view['inject'] = not view['inject']
-    d.configure(drv_inj_mv=view['v_inj'] if view['inject'] else 0.0)
+    d.configure(drv_inj_volts=view['v_inj'] if view['inject'] else 0.0)
     return 'injection %s' % ('on' if view['inject'] else 'off')
 
 

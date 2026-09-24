@@ -19,8 +19,7 @@ origin = device.origin
 print('interface %-10s label %-32s real %-5s unit %d'
       % (origin.interface, origin.label, origin.real, origin.unit))
 print('description:', device.system.version()['description'])
-print('opened with link=%r on %r at %d baud' % (device.link, device.port, device.baud))
-print('board.link:', type(device.board.link).__name__)
+print('opened on %r at %d baud; link: %s' % (device.port, device.baud, type(device.link).__name__))
 serving = broker.serving()
 print('serving:', serving)
 t = time.perf_counter()
@@ -36,7 +35,7 @@ print('clients: %s, answered in %.2f s (connect timeout %.1f s)'
            "four patterns back through RE-to-GND transceivers; the link's own port refuses."),
         code('''from coaxial.errors import DeviceStateError
 
-link = device.board.link
+link = device.link
 ports = {port: link.state(port) for port in (0, 1, 2)}
 for port, stat in ports.items():
     print('%d %-7s rs485=%-5s open=%-5s %6d baud  t15 %5d  t35 %5d ticks'
@@ -260,8 +259,8 @@ show(fig)'''),
 ]
 
 RESULTS = [
-    code('''print('1. session   %s (%s); link=%r on %r; serving %s; clients %s, answered in %.2f s'
-      % (origin.interface, origin.label, device.link, device.port, serving, others, asked_s))
+    code('''print('1. session   %s (%s) on %r; serving %s; clients %s, answered in %.2f s'
+      % (origin.interface, origin.label, device.port, serving, others, asked_s))
 print('2. wire      t15 %d, t35 %d ticks, t35/t15 %.3f; %d frames seen, %d for this unit, '
       '%d for others, %d comm errors; loopback ok on ports %s, refused on %s; echo %.3f ms a round trip'
       % (ports[0]['t15_ticks'], ports[0]['t35_ticks'], gaps, ports[0]['bus_message'],

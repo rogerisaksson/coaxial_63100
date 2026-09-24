@@ -99,7 +99,7 @@ void drive_model_advance(drive_model_t *m, const float *duty, float ts)
 {
   /* One period at these duties: the average-voltage inverter with its
      neutral floating, the dead-time error taken off each phase by the sign
-     of its current, then the machine in its own frame. */
+     of its current, then the motor in its own frame. */
   const float mean = (duty[0] + duty[1] + duty[2]) / 3.0f;
   float v[DRIVE_PHASES];
 

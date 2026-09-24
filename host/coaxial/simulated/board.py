@@ -189,7 +189,7 @@ class SimulatedSession:
         self._info = None
 
     def buses(self):
-        """[(label, what it serves)] - every segment on this machine."""
+        """[(label, what it serves)] - every segment on this host."""
         return [(label, serves)
                 for label, (serves, _) in sorted(SIMULATED_BUSES.items())]
 

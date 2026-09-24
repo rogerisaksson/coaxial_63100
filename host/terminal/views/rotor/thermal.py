@@ -4,12 +4,13 @@ import time
 
 from rich.text import Text
 
-from coaxial.devices.thermal_device import THROTTLE_AT
-from coaxial.draw import machine
+from coaxial.devices.thermal import THROTTLE_AT
+from coaxial.draw import cross_section
 from coaxial.draw.gauges import (margin_class as soa_class, temp_share,
                                  thermometer_class as ntc_class)
-from coaxial.model import motor, thermal as _thermal
+from coaxial.model import thermal as _thermal
 from coaxial.simulated.thermal.observer import SimulatedThermal
+from motor import pmsm
 from terminal.views.rotor.layout import BAR_CELLS, BAR_GLYPH, BOARD_NODES, SOA_NODES
 from terminal.views.rotor.motions import LOAD_PEAK_A
 
@@ -35,8 +36,8 @@ POLICY_WORD = {'STABLE': 'STABLE', 'CONVERGING': 'CONV',
 
 POLICY_SHORT = {'STABLE': 'STBL'}
 
-POLICY_INK = {'STABLE': machine.SOA_OK, 'CONVERGING': machine.SOA_WARN,
-              'UNCERTAIN': machine.SOA_TRIP}
+POLICY_INK = {'STABLE': cross_section.SOA_OK, 'CONVERGING': cross_section.SOA_WARN,
+              'UNCERTAIN': cross_section.SOA_TRIP}
 
 
 def _policy(view):
@@ -50,7 +51,7 @@ def _policy(view):
     if state in POLICY_INK:
         word, ink = _policy_word(ident, state)
         return 'TH OBS', word, ink
-    return 'TH OBS', '-', machine.LEADER_GREY
+    return 'TH OBS', '-', cross_section.LEADER_GREY
 
 
 def _policy_word(ident, state):
@@ -60,11 +61,11 @@ def _policy_word(ident, state):
     cap = ident.get('trip_cap', 1.0)
     floor = ident.get('margin_floor', _thermal.IDENT_MARGIN_FLOOR)
     if cap < 1.0 and abs(margin - cap) < 1e-6 and margin < floor - 1e-6:
-        return 'TRIP %d%%' % percent, machine.INK[machine.SOA_TRIP]
+        return 'TRIP %d%%' % percent, cross_section.INK[cross_section.SOA_TRIP]
     word = POLICY_WORD[state]
     if percent < 100:
         word = '%s %d%%' % (POLICY_SHORT.get(state, word), percent)
-    return word, machine.INK[POLICY_INK[state]]
+    return word, cross_section.INK[POLICY_INK[state]]
 
 
 def winding(view):
@@ -78,9 +79,9 @@ def winding(view):
     now = time.monotonic()
     was, view['winding_at'] = view.get('winding_at'), now
     params = view['params']
-    r_phase = params.get('motor_r_uohm') or 0.0
-    k = params.get('winding_k_per_w') or motor.WINDING_K_PER_W
-    heat = params.get('winding_j_per_k') or motor.WINDING_J_PER_K
+    r_phase = params.get('motor_r') or 0.0
+    k = params.get('winding_k_per_w') or pmsm.WINDING_K_PER_W
+    heat = params.get('winding_j_per_k') or pmsm.WINDING_J_PER_K
     s = view['state']
     amps_rms = math.hypot(s['id'], s['iq']) / math.sqrt(2.0)
     target = _thermal.AMBIENT + 3.0 * amps_rms * amps_rms * r_phase * k
@@ -95,7 +96,7 @@ def winding(view):
 
 
 def watts(view):
-    """What the stage is putting into the machine, electrical, watts."""
+    """What the stage is putting into the motor, electrical, watts."""
     s = view['state']
     return 1.5 * (s['vd'] * s['id'] + s['vq'] * s['iq'])
 
@@ -112,8 +113,8 @@ def watts_share(w):
     power = math.log(0.5) / math.log(WATTS_MID / WATTS_SCALE)
     share = (abs(w) / WATTS_SCALE) ** power
     if share > 1.0:
-        return 1.0, machine.SOA_TRIP
-    return share, machine.WATTS
+        return 1.0, cross_section.SOA_TRIP
+    return share, cross_section.WATTS
 
 
 def headroom(view):
@@ -169,9 +170,9 @@ def headrooms(view):
     motor_spent = 1.0 - motor
     if 'winding_used' in budget:
         motor_spent *= margin       # the board's winding, under its policy
-    return [((1.0 - switch) * margin, machine.SOA_FLASH if flashing(view)
+    return [((1.0 - switch) * margin, cross_section.SOA_FLASH if flashing(view)
              else headroom_class(switch)),
-            (motor_spent, machine.SOA_FLASH if motor_flashing(view)
+            (motor_spent, cross_section.SOA_FLASH if motor_flashing(view)
              else headroom_class(motor))]
 
 
@@ -210,8 +211,8 @@ def motor_headroom_of(celsius):
 def headroom_class(left):
     """The headroom gauge's colour: green, then amber, then red."""
     if left <= 1.0 - THROTTLE_AT:
-        return machine.SOA_TRIP
-    return machine.SOA_WARN if left <= HEADROOM_AMBER else machine.SOA_OK
+        return cross_section.SOA_TRIP
+    return cross_section.SOA_WARN if left <= HEADROOM_AMBER else cross_section.SOA_OK
 
 
 def soa_bars(view, names):
@@ -234,13 +235,13 @@ def soa_bars(view, names):
 def soa_bar(share, tripped=False):
     """One node's margin as a bar, in the same ink the gutters use."""
     share = max(0.0, min(1.0, share))
-    ink = machine.INK[soa_class(share, tripped)]
+    ink = cross_section.INK[soa_class(share, tripped)]
     bar = Text()
     bar.append(BAR_GLYPH * max(1, int(share * BAR_CELLS + 0.5)),
                style='color(%d)' % ink)
     # The rest of the tube.
     bar.append(TRACK_GLYPH * (BAR_CELLS - len(bar.plain)),
-               style='color(%d)' % machine.INK[machine.TRACK])
+               style='color(%d)' % cross_section.INK[cross_section.TRACK])
     return bar
 
 

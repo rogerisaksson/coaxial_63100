@@ -59,7 +59,7 @@ def _options(argv):
                              'board on COM4, not just simulated')
     parser.add_argument('--model', default='auto',
                         help="the tag test_live_model.py runs against, or "
-                             "'auto' for the tag THIS machine runs - the "
+                             "'auto' for the tag THIS host runs - the "
                              "same capability pick board_chat makes. This "
                              "script loads it once and releases it when "
                              "the run ends.")

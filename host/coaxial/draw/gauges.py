@@ -1,13 +1,13 @@
 """Levels in braille: the one instrument every page draws a level with."""
-from coaxial.devices.thermal_device import THROTTLE_AT
-from coaxial.draw import machine
-from coaxial.draw.machine import Frame, INK, SOA_OK, TRACK
+from coaxial.devices.thermal import THROTTLE_AT
+from coaxial.draw import cross_section
+from coaxial.draw.cross_section import Frame, INK, SOA_OK, TRACK
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
 from machine import ansi
 
 #: The tick class a caller puts on a gauge - a burst's extreme, a held
-#: peak - here so a view need not reach into `machine` for it.
-MARK = machine.MARK
+#: peak - here so a view need not reach into `cross_section` for it.
+MARK = cross_section.MARK
 
 
 def gauge(share, cells, cls=SOA_OK, centre=None, marks=(), colour=True):
@@ -25,15 +25,15 @@ def gauge(share, cells, cls=SOA_OK, centre=None, marks=(), colour=True):
     else:
         here, zero = dot(share), dot(centre)
         start, end = (zero, here + 1) if here >= zero else (here, zero + 1)
-    machine._level(frame.dots, frame.owner, 0, 0, wide, start, end, cls)
+    cross_section._level(frame.dots, frame.owner, 0, 0, wide, start, end, cls)
     if centre is not None and not start <= dot(centre) < end:
         # THE CENTRE IS MARKED when the level does not cover it: a bipolar
         # gauge at rest still says where zero is.
-        machine._mark(frame.dots, frame.owner, 0, dot(centre), TRACK)
+        cross_section._mark(frame.dots, frame.owner, 0, dot(centre), TRACK)
     for mark in marks:
         at, mark_cls = mark[0], mark[1]
-        machine._mark(frame.dots, frame.owner, 0, dot(at), mark_cls,
-                      mark[2] if len(mark) > 2 else machine.GAUGE_Y)
+        cross_section._mark(frame.dots, frame.owner, 0, dot(at), mark_cls,
+                      mark[2] if len(mark) > 2 else cross_section.GAUGE_Y)
     return frame.lines(INK, colour=colour)[0]
 
 
@@ -54,13 +54,13 @@ def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
     for x in range(at - at % DOTS_X):   # the whole cells before its cell
         col = x // DOTS_X
         for y in range(DOTS_Y):
-            frame.dots[0][col] |= machine.BRAILLE_BITS[x % DOTS_X][y]
+            frame.dots[0][col] |= cross_section.BRAILLE_BITS[x % DOTS_X][y]
         if cls > frame.owner[0][col]:
             frame.owner[0][col] = cls
-    machine._mark(frame.dots, frame.owner, 0, at, tip, range(DOTS_Y))
+    cross_section._mark(frame.dots, frame.owner, 0, at, tip, range(DOTS_Y))
     for col in range(at // DOTS_X + 1, cells):
         for y in range(DOTS_Y):
-            frame.dots[0][col] |= machine.BRAILLE_BITS[0][y]
+            frame.dots[0][col] |= cross_section.BRAILLE_BITS[0][y]
         if TRACK > frame.owner[0][col]:
             frame.owner[0][col] = TRACK
     return frame.lines(INK, colour=colour)[0]
@@ -88,15 +88,15 @@ def temp_share(celsius):
 
 
 def margin_class(share, tripped=False):
-    """Which band a node's margin is in - `machine.SOA_CLASS`'s order."""
+    """Which band a node's margin is in - `cross_section.SOA_CLASS`'s order."""
     if tripped or share >= 1.0:
-        return machine.SOA_TRIP
-    return machine.SOA_WARN if share >= THROTTLE_AT else machine.SOA_OK
+        return cross_section.SOA_TRIP
+    return cross_section.SOA_WARN if share >= THROTTLE_AT else cross_section.SOA_OK
 
 
 def thermometer_class(celsius):
     """Which band of the thermometer ramp a reading is in."""
-    ramp = machine.NTC_RAMP
+    ramp = cross_section.NTC_RAMP
     step = int(temp_share(celsius) * (len(ramp) - 1) + 0.5)
     return ramp[max(0, min(len(ramp) - 1, step))]
 
@@ -113,7 +113,7 @@ def tubes(entries, rows, labels=(), pitch=None, colour=True):
             continue
         share, cls = entry
         col = index * pitch + (pitch - 1) // 2
-        machine._tube(frame.dots, frame.owner, col, 0, rows * DOTS_Y,
+        cross_section._tube(frame.dots, frame.owner, col, 0, rows * DOTS_Y,
                       share, cls)
     lines = frame.lines(INK, colour=colour)
     if labels:

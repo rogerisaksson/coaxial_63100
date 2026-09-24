@@ -331,7 +331,7 @@ def facets(steps=PHI_STEPS, tinted=False, relief=1.0) -> tuple:
 
 
 #: The CAD export, if this tree has one. The parametric board above is what
-#: draws when it does not - a machine with the library and no model still
+#: draws when it does not - a host with the library and no model still
 #: gets a picture, and every test runs without a 21 MB file.
 MODEL = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))), 'render', 'models',

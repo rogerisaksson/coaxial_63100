@@ -12,7 +12,7 @@ from coaxial.errors import CrcError, NoReplyError, RigError
 #:
 #: A block is a read's worth - four records at ten channels and the pins -
 #: so this is thousands of records and a few megabytes of dicts. Cheap on
-#: the machine at this end of the link, and the point of buffering
+#: the host at this end of the link, and the point of buffering
 #: here: a consumer that stops to plot must not cost the board a record.
 HOST_BLOCKS = 4096
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The portable Modbus core, on this machine, with no board and no cable."""
+"""The portable Modbus core, on this host, with no board and no cable."""
 import ctypes
 import os
 import sys

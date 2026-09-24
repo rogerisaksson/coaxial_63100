@@ -6,7 +6,8 @@ from typing import Any
 
 from coaxial.errors import RigError
 from coaxial.kalman import thermal_ident
-from coaxial.model import motor, thermal, inverter
+from coaxial.model import inverter, thermal
+from motor import catalog
 
 
 class ThermalTruth:
@@ -41,7 +42,7 @@ class ThermalTruth:
     #: stand-in record's phase resistance. Split into the graph as the
     #: firmware splits it: a quarter of the K/W from the copper into the
     #: iron, the rest the iron's air path.
-    WINDING_R = motor.BENCH_MOTOR.r
+    WINDING_R = catalog.BENCH_MOTOR.r
 
     #: The hot swap's two pass FETs in series - the bridge's own part,
     #: `thermal_losses` says 3.6 mOhm - and the link current they see is

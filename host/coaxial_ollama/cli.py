@@ -86,7 +86,7 @@ def _model_arguments(parser):
     """Which model, where, and whether it may be far away."""
     parser.add_argument('-m', '--model', default='gemma4:12b',
                         help="ollama tag, or 'auto' to pick one from this"
-                             " machine's cores, RAM and VRAM - see"
+                             " host's cores, RAM and VRAM - see"
                              " coaxial_ollama/capability.py")
     parser.add_argument('--ollama-host', default='http://localhost:11434')
     parser.add_argument('--allow-remote', action='store_true',
@@ -122,7 +122,7 @@ def _turn_arguments(parser):
                         help='layers on the GPU; the rest run on the CPU.'
                              ' Set for you by -m auto and by board_chat.ps1')
     parser.add_argument('--lang',
-                        help='answer in this language, whatever the machine '
+                        help='answer in this language, whatever the host '
                              'is set to. Default: the Windows locale, moved '
                              'only by a question in another language or by '
                              'asking for one. /lang changes it mid-session.')
@@ -131,7 +131,7 @@ def _turn_arguments(parser):
                              'every turn. auto reads the model tag: terse for '
                              'the sizes this loop runs locally, full for '
                              'anything with room to read it. %s overrides for '
-                             'the whole machine.' % detail.ENV)
+                             'the whole host.' % detail.ENV)
     parser.add_argument('--num-ctx', type=int, default=8192)
     parser.add_argument('--keep', type=int, default=6,
                         help='recent messages sent whole; older ones are stubbed')
@@ -208,7 +208,7 @@ def attach(paths, chars, limit=INPUT_LIMIT):
 
 
 def _auto_model(args, gpu_layers):
-    """The tag this machine runs, and its layer split unless one was asked."""
+    """The tag this host runs, and its layer split unless one was asked."""
     picked = choose(probe())
     if gpu_layers is None:
         gpu_layers = picked.options.get('num_gpu')
@@ -252,7 +252,7 @@ def build(args):
 
 
 def _greet(chat):
-    """One line, in this machine's language."""
+    """One line, in this host's language."""
     print(language.greeting(chat.client.model, chat.language,
                             getattr(sys.stdout, 'encoding', None)))
     if not ({'run_command', 'build_firmware'} & set(chat.tool_names)):

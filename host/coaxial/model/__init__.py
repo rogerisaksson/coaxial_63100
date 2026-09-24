@@ -1,1 +1,1 @@
-"""The physics the host reasons with: motor, inverter, thermal network, sensorless, sysid."""
+"""The inverter's physics: power stage, thermal network, sensorless design, loop blocks."""

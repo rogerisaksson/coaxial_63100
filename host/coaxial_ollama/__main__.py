@@ -28,7 +28,7 @@ def parse(argv):
     parser.add_argument('--model', help='ollama tag; the plan may name one')
     parser.add_argument('--ollama-host', default='http://localhost:11434')
     parser.add_argument('--allow-remote', action='store_true',
-                        help='permit a cloud tag or a daemon on another machine;'
+                        help='permit a cloud tag or a daemon on another host;'
                              ' the prompts leave this bench if you do')
     parser.add_argument('--keep-alive', default='30m',
                         help='how long ollama holds the model between tasks,'
@@ -59,7 +59,7 @@ def parse(argv):
     parser.add_argument('--detail', default=detail.AUTO, choices=detail.LEVELS,
                         help='how much documentation each tool carries into '
                              'every turn: terse, full, or auto from the model '
-                             'tag. %s overrides for the whole machine.'
+                             'tag. %s overrides for the whole host.'
                              % detail.ENV)
     return parser.parse_args(argv)
 

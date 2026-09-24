@@ -53,7 +53,7 @@ WEAK_GAUSS = 30
 SWEEP = tuple(range(MAJOR + 1, MAJOR + 1 + SWEEP_STEPS))
 (NEEDLE, HUB, BEAD) = range(SWEEP[-1] + 1, SWEEP[-1] + 4)
 
-#: One light: the instrument (rim, graduations, hub) in `machine`'s deep teal
+#: One light: the instrument (rim, graduations, hub) in `cross_section`'s deep teal
 #: 23, the reading the only warm thing - five colours read as a party. The
 #: tail's ramp ends a step short of the needle's amber, so it reads as where
 #: the needle has been.

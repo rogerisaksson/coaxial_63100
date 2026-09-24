@@ -490,12 +490,12 @@ class ChatTurn:
 
     def screen_language(self):
         """Which language this session's own text prints in - the session
-        language, which starts as the machine's locale and moves only when a
+        language, which starts as the host's locale and moves only when a
         question is actually in another one."""
         return self.language
 
     def _notes(self):
-        """Say what the client had to do to the machine to answer at all."""
+        """Say what the client had to do to the host to answer at all."""
         notes = self.client.notes
         if not notes:
             return

@@ -1,4 +1,4 @@
-"""Host library for the coaxial_63100 test firmware."""
+"""The Coaxial63100 BLDC inverter: the board over its wire, its stand-in, its procedures."""
 from coaxial.comm import protocol
 from coaxial.devices import scaling
 from coaxial.acquire.acquisition import Acquisition
@@ -22,5 +22,3 @@ __all__ = [
     'PayloadError', 'UnsupportedProtocolError', 'DeviceStateError',
     'ModbusException', 'protocol', 'scaling',
 ]
-
-__version__ = '2.0.0'

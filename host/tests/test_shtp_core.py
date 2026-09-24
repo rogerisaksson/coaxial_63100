@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SHTP framing and SH-2 decoding, on this machine, with no IMU."""
+"""SHTP framing and SH-2 decoding, on this host, with no IMU."""
 import ctypes
 import os
 import sys

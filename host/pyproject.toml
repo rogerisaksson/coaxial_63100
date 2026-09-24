@@ -1,5 +1,5 @@
 # The host stack as an installable package: `pip install -e host/`, once per clone, puts
-# every package here on the path - machine, coaxial, the MCP server and model runner, the
+# every package here on the path - machine, motor, coaxial, the MCP server and model runner, the
 # terminal, the tools - and hands out the console entries. Nothing sets sys.path.
 #
 # ONE DEPENDENCY LIST. `requirements.txt` stays the annotated authority -
@@ -24,7 +24,7 @@ coaxial-dbg = "coaxial_ollama.cli:main"
 coaxial-mcp = "coaxial_mcp.server:main"
 
 [tool.setuptools.packages.find]
-include = ["coaxial*", "machine*", "terminal*", "testline*", "tools*"]
+include = ["coaxial*", "machine*", "motor*", "terminal*", "testline*", "tools*"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

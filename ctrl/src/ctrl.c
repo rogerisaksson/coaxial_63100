@@ -1,4 +1,4 @@
-/** ctrl.c - The machine's parts and a feedback, as host/machine/parts.py steps them. */
+/** ctrl.c - machine.parts and a feedback, step for step (ctrl.h). */
 #include "ctrl.h"
 
 #include <math.h>

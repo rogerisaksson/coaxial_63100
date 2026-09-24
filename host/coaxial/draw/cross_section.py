@@ -1,4 +1,4 @@
-"""The machine in cross-section: stator teeth inside, magnets outside."""
+"""The motor in cross-section: stator teeth inside, magnets outside."""
 import math
 
 from coaxial.draw import braille
@@ -10,7 +10,7 @@ from machine import ansi
 #: A cell's height in widths is `ascii3d.CELL_ASPECT`, one value for every
 #: renderer: a taller font draws the circle an ellipse by exactly the ratio.
 
-#: How much of its band the machine fills: one, since `layout` hands it
+#: How much of its band the motor fills: one, since `layout` hands it
 #: exactly the columns the gutters leave (BAR_GAP is the air). 0.84, 0.78,
 #: 0.70 and 0.62 fought a centre that ignored six gutter columns one side
 #: and four the other.
@@ -141,7 +141,7 @@ MARKS = frozenset((TRUTH,) + TRAIL)
 #: calibration record and the board is what acts on them.
 SOA_CLASS = (SOA_OK, SOA_WARN, SOA_TRIP)
 
-#: Air between the machine and the nearest bar, the same both sides (measured
+#: Air between the motor and the nearest bar, the same both sides (measured
 #: off the can's edge): one column; none read as part of the drawing.
 BAR_GAP = 1
 
@@ -232,13 +232,13 @@ def _tooth_class(radius, phi, slots, r, drive):
 #: the rotor decides.
 _FIXED, _TOOTH, _MAGNET = 0, 1, 2
 
-#: Each seat's sample table, by the numbers that place the machine in
+#: Each seat's sample table, by the numbers that place the motor in
 #: its box - one per size and cell aspect a page draws at.
 _SEATS = {}
 
 
 def _samples(frame, seat):
-    """Every dot the machine reaches, with its four samples in `SUBDOT`
+    """Every dot the motor reaches, with its four samples in `SUBDOT`
     order, each `(kind, a, b)`: a fixed vote `(class, coverage)`, or the
     `(radius, angle)` of a sample in the tooth band or the magnet band.
     """
@@ -305,7 +305,7 @@ def gutters(width, height, n_left, n_right):
 
 
 def span(width, height, n_left=0, n_right=0, rows=None):
-    """The columns the machine itself occupies, first and last."""
+    """The columns the motor itself occupies, first and last."""
     cx, r, _, _ = layout(width, height, n_left, n_right, rows)
     return (int(math.floor((cx - r.can) / DOTS_X)),
             int(math.floor((cx + r.can) / DOTS_X)))
@@ -313,7 +313,7 @@ def span(width, height, n_left=0, n_right=0, rows=None):
 
 def _gauge(dots, owner, width, height, row, share, cls,
            n_left=0, n_right=0, part=None):
-    """One horizontal level across the machine's width, from the left."""
+    """One horizontal level across the motor's width, from the left."""
     if row < 0 or row >= height:
         return
     first, last = span(width, height, n_left, n_right)
@@ -366,7 +366,7 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
     tall = max(1, height - GAUGE_INSET - FLOOR_INSET - reserve
                - (1 if has_top else 0) - max(1, floors)) * DOTS_Y
     # Floor one side and ceil the other inside `gutters`: the centre sits
-    # between two columns, so flooring both put the machine's right edge half a
+    # between two columns, so flooring both put the motor's right edge half a
     # column further out than its left and the gaps came out 1 and 0.
     _, _, at_left, at_right = layout(width, height,
                                      len(left or ()), len(right or ()))
@@ -511,7 +511,7 @@ class Frame:
 
 class Seat:
 
-    """Where the machine sits in its box, and what is left around it."""
+    """Where the motor sits in its box, and what is left around it."""
 
     def __init__(self, width, height, left, right, top, bottom,
                  labels, leaders, aspect):
@@ -536,7 +536,7 @@ class Seat:
 
 
 def _body(frame, seat, rotor_deg, slots, poles, drive):
-    """The machine itself, dot by dot."""
+    """The motor itself, dot by dot."""
     rotor = math.radians(rotor_deg)
     r = seat.radii
     track = []
@@ -623,9 +623,9 @@ def _truth(frame, seat, truth_deg):
                   seat.cy - radius * math.sin(phi) / seat.stretch, TRUTH)
 
 
-def _machine(frame, seat, rotor_deg, slots, poles, drive,
+def _motor(frame, seat, rotor_deg, slots, poles, drive,
              truth_deg=None, pointer_deg=None, bead=None, pointer_rate=None):
-    """The machine and nothing else: the cross-section, the bench's mark on
+    """The motor and nothing else: the cross-section, the bench's mark on
     the rim, and the tick a shaft sensor claims.
     """
     _body(frame, seat, rotor_deg, slots, poles, drive)
@@ -636,7 +636,7 @@ def _machine(frame, seat, rotor_deg, slots, poles, drive,
 
 
 def _instruments(frame, seat, left, right, top, bottom):
-    """The gutters and the gauges: everything measured against the machine
+    """The gutters and the gauges: everything measured against the motor
     rather than part of it.
     """
     floor = list(bottom or ())
@@ -655,10 +655,10 @@ def _instruments(frame, seat, left, right, top, bottom):
 def motor(rotor_deg, slots=24, poles=28, width=40, height=22, drive=None,
           truth_deg=None, pointer_deg=None, aspect=CELL_ASPECT,
           colour=False, bead=None, pointer_rate=None):
-    """The machine alone, as text rows - no gutters, no gauges, no legend."""
+    """The motor alone, as text rows - no gutters, no gauges, no legend."""
     frame = Frame(width, height)
     seat = Seat(width, height, None, None, None, None, None, None, aspect)
-    _machine(frame, seat, rotor_deg, slots, poles, drive,
+    _motor(frame, seat, rotor_deg, slots, poles, drive,
              truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead,
              pointer_rate=pointer_rate)
     return frame.lines(phase_ink(drive), colour=colour)
@@ -667,13 +667,13 @@ def motor(rotor_deg, slots=24, poles=28, width=40, height=22, drive=None,
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             pointer_deg, left, right, top, bottom, aspect, labels=None,
             leaders=None, rules=None, bead=None, pointer_rate=None):
-    """The whole page: the machine, its instruments, and the legend over
+    """The whole page: the motor, its instruments, and the legend over
     both.
     """
     frame = Frame(width, height)
     seat = Seat(width, height, left, right, top, bottom, labels, leaders,
                 aspect)
-    _machine(frame, seat, rotor_deg, slots, poles, drive,
+    _motor(frame, seat, rotor_deg, slots, poles, drive,
              truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead,
              pointer_rate=pointer_rate)
     _instruments(frame, seat, left, right, top, bottom)
@@ -707,7 +707,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
 
 
 def caption(slots, poles, rotor_deg, slipped=None):
-    """One line naming the machine drawn and where the can is."""
+    """One line naming the motor drawn and where the can is."""
     text = '%dN%dP  can %5.1f deg' % (slots, poles, rotor_deg % 360.0)
     if slipped:
         text += '  %+d magnets' % slipped

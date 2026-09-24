@@ -113,7 +113,7 @@ def _job(name, args, tags, live_sections):
 
 def _results(suites, args, tags, live_sections):
     """(suite, its result) in the order the report lists them: the suites
-    that share the machine, in the plan's order, then the ones that want
+    that share the host, in the plan's order, then the ones that want
     it alone.
     """
     took = counts.load().get('seconds') or {}

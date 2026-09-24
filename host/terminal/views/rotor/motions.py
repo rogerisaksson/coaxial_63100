@@ -44,9 +44,9 @@ LOAD_GRAIN = 0.2
 
 
 def no_load_rpm(view):
-    """What the link will spin this machine to with nothing on the shaft."""
+    """What the link will spin this motor to with nothing on the shaft."""
     params = view['params']
-    lam = params.get('motor_lambda_uvs') or 0.0
+    lam = params.get('motor_lambda') or 0.0
     pairs = max(1.0, params.get('motor_pole_pairs') or 1.0)
     vdc = (view['state'] or {}).get('vdc') or 0.0
     if lam <= 0.0 or vdc <= 0.0:
@@ -148,7 +148,7 @@ def sweep(rig, view):
     drive = rig.board.drive
     stage, into = cycle_phase(view)
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
-    clamp = view['params'].get('drv_i_max_ma') or 5.0
+    clamp = view['params'].get('drv_i_max') or 5.0
     if stage != view['stage']:
         view['stage'] = stage
         view['leaning'] = False

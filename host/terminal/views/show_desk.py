@@ -92,8 +92,8 @@ def main(argv=None):
     return watch(rig, args, layout, chain, params)
 
 
-#: The stand-in's machine, for the meters to show. Simulated only: the
-#: stand-in's phases carry the machine's current (values.py), so with the
+#: The stand-in's motor, for the meters to show. Simulated only: the
+#: stand-in's phases carry the motor's current (values.py), so with the
 #: stage down they read three offsets and their noise, as a bench does.
 #: The drive holds a current vector turning at DEMO_HZ electrical (one
 #: revolution in ~7 s) and runs it from 0 to DEMO_AMPS and back over
@@ -104,8 +104,8 @@ DEMO_AMPS = 30.0
 DEMO_S = 45.0
 
 
-def demo_machine(rig, origin):
-    """Turn the stand-in's machine; the per-frame step that runs it up
+def demo_motor(rig, origin):
+    """Turn the stand-in's motor; the per-frame step that runs it up
     and down, or None on a board."""
 
     if origin.real:
@@ -116,7 +116,7 @@ def demo_machine(rig, origin):
     drive.configure(source='model')
     # The stand-in's record clamps the current at 5 A; the meters are 100 A
     # wide.
-    drive.configure(drv_i_max_ma=DEMO_AMPS)
+    drive.configure(drv_i_max=DEMO_AMPS)
     drive.write(id_ref=0.0, iq_ref=0.0, theta=0.0,
                 omega_target=2.0 * math.pi * DEMO_HZ)
     drive.hold()
@@ -132,7 +132,7 @@ def demo_machine(rig, origin):
 def watch(rig, args, layout, chain, params):
     """Draw it until Q, ESC or the frame count runs out."""
     origin = rig.origin
-    demo = demo_machine(rig, origin)
+    demo = demo_motor(rig, origin)
     # The bar fills the window: at 38 columns the face floated in the frame.
     try:
         columns = os.get_terminal_size().columns

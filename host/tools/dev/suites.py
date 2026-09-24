@@ -33,7 +33,7 @@ DAQ_CORE = 'test_daq_core.py'
 #: is touched (docs/BOOT.md).
 BOOT_CORE = 'test_boot_core.py'
 
-#: The machine's parts and feedback as the C a board will loop on, stepped beside
+#: machine/'s parts and feedback as the C a board will loop on, stepped beside
 #: host/machine/parts.py.
 CTRL_CORE = 'test_ctrl_core.py'
 
@@ -159,7 +159,7 @@ def plan_for(percent):
 NEEDS_BOARD = (CONFORMANCE,)
 
 #: Suites that may reach the board's port, or hold the model on the card.
-#: Each wants the machine to itself - the bench suite measures the link's
+#: Each wants the host to itself - the bench suite measures the link's
 #: own rates, conformance its frame gaps - so they run one at a time after
 #: the rest. Every other suite opens the stand-in or nothing at all.
 ALONE = ('test_mcp.py', 'test_parity.py', BENCH, CONFORMANCE, LIVE)
@@ -221,7 +221,7 @@ TOUCHES = (
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
     ('host/tests/',                            ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the
-    # portable core is also compiled and run on this machine, which is the only
+    # portable core is also compiled and run on this host, which is the only
     # check on it that does not need a cable.
     ('modbus/',                                (CORE, CONFORMANCE, 'test_mcp.py')),
     # The SHTP layer is hardware-free like the Modbus core, so the host build
@@ -239,12 +239,13 @@ TOUCHES = (
     ('host/coaxial/devices/drive.py',          (SENSORLESS, 'test_simulated.py',
                                                 'test_parity.py')),
     ('host/coaxial/model/sensorless.py',       (SENSORLESS,)),
+    ('host/motor/',                            (SENSORLESS, DRIVE, CONTROLLER)),
     ('host/coaxial/control/commission.py',     (SENSORLESS,)),
     ('host/tools/bench/commission.py',         (STRUCTURE, SENSORLESS)),
     # The stage constants and the host control loops are design arithmetic with
     # closed-form checks; the Monte Carlo drives the compiled law.
     ('host/coaxial/model/inverter.py',         (SENSORLESS,)),
-    ('host/coaxial/control/loop.py',           (SENSORLESS, DRIVE)),
+    ('host/coaxial/model/blocks.py',           (SENSORLESS, DRIVE)),
     ('host/coaxial/control/motion.py',         (SENSORLESS, 'test_simulated.py')),
     ('host/tools/sim/montecarlo.py',           (STRUCTURE, DRIVE)),
     # BENCH: firmware in the main loop is what slows the board (the thermal

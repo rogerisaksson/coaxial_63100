@@ -514,7 +514,7 @@ def test_cli(report):
 
 
 
-# ---- the daemon is on this machine ----------------------------------------
+# ---- the daemon is on this host ----------------------------------------
 
 def test_local_only(report):
     """No prompt leaves the bench PC unless somebody asked for that."""
@@ -524,7 +524,7 @@ def test_local_only(report):
                  all(is_local(url) for url in
                      ('http://localhost:11434', 'http://127.0.0.1:11434',
                       'http://[::1]:11434')))
-    report.check('another machine is not local',
+    report.check('another host is not local',
                  not is_local('http://bench-gpu.lan:11434')
                  and not is_local('https://ollama.com'))
     report.check('a cloud tag is recognised as one',
@@ -535,13 +535,13 @@ def test_local_only(report):
             Ollama('gemma4:12b', host=host)
             report.check('a remote host is refused', False, host)
         except OllamaError as exc:
-            report.check('a remote host is refused', 'not this machine' in str(exc))
+            report.check('a remote host is refused', 'not this host' in str(exc))
 
     try:
         Ollama('minimax-m3:cloud')
         report.check('a cloud tag is refused', False)
     except OllamaError as exc:
-        report.check('a cloud tag is refused', 'off this machine' in str(exc))
+        report.check('a cloud tag is refused', 'off this host' in str(exc))
 
     remote = Ollama('minimax-m3:cloud', host='https://ollama.com', remote_ok=True)
     report.check('--allow-remote still means yes', remote.host == 'https://ollama.com')
@@ -609,7 +609,7 @@ def test_runner_crash_retry(report):
         report.check('the token meter counts the reply that arrived, not the '
                      'attempts', talker.calls == 1 and talker.prompt_tokens == 5)
 
-        # A machine genuinely out of memory must still fail, not loop.
+        # A host genuinely out of memory must still fail, not loop.
         forever = Ollama('gemma4:12b')
         tries = []
 
@@ -697,7 +697,7 @@ def test_out_of_memory(report):
         report.check('and this model is dropped too, caches and all',
                      any(p[0] == '/api/chat' and p[1].get('keep_alive') == 0
                          and not p[1].get('messages') for p in posts))
-        report.check('what it did to the machine is recorded, not printed',
+        report.check('what it did to the host is recorded, not printed',
                      len(talker.notes) == 1 and 'qwen2.5:14b' in talker.notes[0]
                      and '9.0 GB' in talker.notes[0], talker.notes)
         report.check('the window is not shrunk while there is VRAM to free',
@@ -727,7 +727,7 @@ def test_out_of_memory(report):
                      any('4096' in note for note in stubborn.notes),
                      stubborn.notes)
 
-        # A machine that cannot hold the model at the floor has a problem no
+        # A host that cannot hold the model at the floor has a problem no
         # retry solves.
         hopeless = Ollama('gemma4:12b', num_ctx=clientmod.MIN_NUM_CTX)
         attempts = []
@@ -741,10 +741,10 @@ def test_out_of_memory(report):
         hopeless._get = lambda path: {'models': []}
         try:
             hopeless.chat([{'role': 'user', 'content': 'read the ntc'}])
-            report.check('a machine with no room left fails rather than '
+            report.check('a host with no room left fails rather than '
                          'looping', False)
         except OllamaError as exc:
-            report.check('a machine with no room left fails rather than '
+            report.check('a host with no room left fails rather than '
                          'looping', len(attempts) == 2, attempts)
             report.check('and says which lever the operator has',
                          '--num-ctx' in str(exc) and '--num-gpu' in str(exc)
@@ -784,7 +784,7 @@ def test_keep_alive(report):
     report.check('every turn re-arms the unload timer',
                  sent[-1][1].get('keep_alive') == '30m')
 
-    # An explicit 0 is how a shared machine gives the VRAM straight back, and
+    # An explicit 0 is how a shared host gives the VRAM straight back, and
     # None is how a caller says 'do not mention it at all' - the daemon then
     # applies its own default.
     zero = Ollama('gemma4:12b', keep_alive=0)
@@ -858,7 +858,7 @@ def test_keep_alive(report):
 
 
 
-# ---- the tag follows the machine ------------------------------------------
+# ---- the tag follows the host ------------------------------------------
 
 def test_chat_hands_the_card_back(report):
     """Chat.close() unloads - the teardown every page reaches for."""
@@ -888,7 +888,7 @@ def test_capability(report):
 
     # This bench itself runs with COAXIAL_VRAM_RESERVE_GB set - see MODELS.md's
     # own `-Reserve 8` example - so a test that leaves the real environment in
-    # place fails every unoverridden assertion below on the exact machine these
+    # place fails every unoverridden assertion below on the exact host these
     # docs were measured on.
     had_override = cap.RESERVE_ENV in os.environ
     saved_override = os.environ.pop(cap.RESERVE_ENV, None)

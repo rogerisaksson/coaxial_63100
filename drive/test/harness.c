@@ -302,7 +302,7 @@ API int drv_obs_count(void)
 
 /** The observer chain's state, drive_observer.c, in the order Drive.obs in
     tools/cores/drive.py names it: the blend, then each observer on its own,
-    then what the chain says about the machine. */
+    then what the chain says about the motor. */
 API void drv_obs(const drive_t *d, float *v, int n)
 {
   const float got[8] = {

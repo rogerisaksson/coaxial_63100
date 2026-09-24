@@ -17,9 +17,9 @@ through the `/api/chat` empty-message request `client.py`'s `preload()` uses.
 Both loads pass `keep_alive=0`, so the model is left unloaded.
 
 --auto is unattended, run by board_chat.ps1's preflight. Measured 2.8-2.9 GB/s
-reading these blobs on this machine (three NVMe/SSDs), so --auto skips the
+reading these blobs on this host (three NVMe/SSDs), so --auto skips the
 warming. The decision comes from the disk speed and free RAM measured on the
-machine, not from a constant.
+host, not from a constant.
 """
 import argparse
 import json
@@ -198,7 +198,7 @@ def main(argv=None):
     total_ram, free_ram = _ram_gb()
     print('%s: %.1f GB across %d file(s)' % (args.tag, total_gb, len(paths)))
     if total_ram is not None and free_ram is not None:
-        print('this machine: %.1f GB free of %.1f GB' % (free_ram, total_ram))
+        print('this host: %.1f GB free of %.1f GB' % (free_ram, total_ram))
     if free_ram is not None and free_ram < total_gb * RAM_MARGIN:
         print('WARNING: not much headroom above the model itself - '
               'warming this may just evict something else.')

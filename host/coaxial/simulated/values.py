@@ -62,17 +62,17 @@ DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0,
 #: The pace the wandering channels wander at: slow enough to watch a
 #: meter follow it, fast enough that a still frame is rarely the same
 #: twice. It was the phases' one electrical revolution every seven
-#: seconds; the bridge's demo machine turns at the same rate now
+#: seconds; the bridge's demo motor turns at the same rate now
 #: (`show_desk.DEMO_HZ`), on the drive rather than on an invention.
 SWEEP_HZ = 0.14
 
 #: How far each channel wanders, in codes. NOT THE PHASES: they carry the
-#: machine's current, `phase_codes`, and nothing else - they swept +-9000
+#: motor's current, `phase_codes`, and nothing else - they swept +-9000
 #: codes at 0.14 Hz so the meters had something to show, and a tare
 #: through the analog path then stored the sweep's value of that moment
 #: as the zero, which a record through the DAQ's path could never agree
 #: with (+-57 A of "current" on a stage that was down, 2026-09-07). The
-#: meters have a machine to show instead: the bridge page turns the
+#: meters have a motor to show instead: the bridge page turns the
 #: stand-in's drive.
 SWING = {3: 300.0, 4: 6000.0, 5: 4000.0, 6: 3000.0, 7: 200.0, 8: 100.0,
          9: 300.0}
@@ -113,7 +113,7 @@ AMPS_PER_CODE = 3.3 / 32768.0 / (0.0035 * 1500.0 / 330.0)
 
 
 def phase_codes(signal, amps, theta):
-    """The machine's current on one phase, in codes a sample: `amps` of
+    """The motor's current on one phase, in codes a sample: `amps` of
     stator current at electrical angle `theta`, put into the leg's own
     phase.
     """
@@ -132,7 +132,7 @@ def _spread(meta, mean, powered, extra=0.0):
     reach = RIPPLE[index] * random.uniform(0.55, 1.0)
     if random.random() < GUST_CHANCE:
         reach *= GUST
-    # What the machine moved within the burst, on top of the noise.
+    # What the motor moved within the burst, on top of the noise.
     reach += extra
 
     floor, ceiling = ((-32768, 32767) if meta['differential']

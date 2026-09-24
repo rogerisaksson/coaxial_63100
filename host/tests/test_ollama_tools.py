@@ -207,7 +207,7 @@ def test_debug(report):
     noisy = chat([{'role': 'assistant', 'content': 'ok'}])
     noisy.client.notes.append('out of memory: freed qwen2.5:14b (9.0 GB)')
     noisy.ask('read the ntc')
-    report.check('what the client did to the machine reaches the operator',
+    report.check('what the client did to the host reaches the operator',
                  'freed qwen2.5:14b' in noisy.out.getvalue()
                  and not noisy.client.notes, noisy.out.getvalue()[:60])
 
@@ -893,7 +893,7 @@ def test_detail(report):
 
     env, os.environ[detail.ENV] = os.environ.get(detail.ENV), 'terse'
     try:
-        report.check('%s decides for the whole machine' % detail.ENV,
+        report.check('%s decides for the whole host' % detail.ENV,
                      detail.resolve('auto', model='x:70b') == detail.TERSE)
         report.check('and an explicit flag still beats the environment',
                      detail.resolve('full', model='x:70b') == detail.FULL)

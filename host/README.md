@@ -2,7 +2,9 @@
 
 ```text
 host/
-  coaxial/          the library; Coaxial63100 (rig.py) is the front door
+  motor/            a PMSM: model, catalog, loads, identification; imports nothing here
+  machine/          the executive: actuators over IO nodes, programs, any board family
+  coaxial/          the Coaxial63100 inverter; Coaxial63100 (rig.py) is the front door
   coaxial_mcp/      MCP server: the board as fourteen tools over stdio
   coaxial_ollama/   the local-model runner, and what dbg.py drives
   board_chat.ps1    preflight + prompt loop; board_chat/ holds its parts
@@ -10,7 +12,6 @@ host/
   testline/         production line: plans, instruments, and the limits
   examples/         read_board.py (measure, judge nothing),
                     pytest_production_line.py (where limits belong)
-  motors/           the profiles the drive loads (outrunner_14p.json)
   tests/            twenty-five suites; run_tests.ps1 is the interface
   terminal/         python -m terminal: the front page, pages/, views/ (show_*.py)
   tools/            scripts by function: dev target bench thermal render sim notebooks
@@ -115,10 +116,9 @@ bench without it: `columns()` is a dict of plain lists, which is what
 APC20x10E from rest to 6717 rpm and back on a raised-cosine profile, the
 power budget split into propeller, iron, copper and the rotor's own borrowed
 energy, and the model laid back over Hobbywing's 22-point thrust stand. It
-then closes `coaxial.control.loop`'s chain over the same machine - reference,
-d-axis probe, speed PI, current PI - and `identify` pulls R, Ld, Lq and
-lambda back OUT of the run, uncertainties attached: the rehearsal for the day
-`sysid.from_frame` meets real records.
+then closes `coaxial.model.blocks`'s chain over the same motor - reference,
+d-axis probe, speed PI, current PI - and `identify` (`motor.sysid`) pulls R,
+Ld, Lq and lambda back out of the run, uncertainties attached.
 
 `notebook_examples/drive.ipynb` compiles the firmware's own control law and
 searches its tuning against thousands of drawn plants across the 23-63 V link
@@ -271,7 +271,7 @@ sixty times an afternoon:
 ```text
 python dbg.py "the NTC reads exactly 25.00 - what is wrong?"
 python dbg.py -q "which channel is the DC link?"       # answer only
-python dbg.py -m auto -q "read the NTC"                # the model this machine runs
+python dbg.py -m auto -q "read the NTC"                # the model this host runs
 python dbg.py --repl                                   # prompt loop
 python dbg.py --no-board --file ../core/src/main.c "what configures ADC3?"
 ```
@@ -303,5 +303,5 @@ Coaxial 63100> /tools read           # reprice the turn
 Coaxial 63100> /clear                # the cheapest command there is
 ```
 
-`/py` and `/sh` work with ollama not running. Which model this machine
+`/py` and `/sh` work with ollama not running. Which model this host
 runs, and why: [../docs/MODELS.md](../docs/MODELS.md).

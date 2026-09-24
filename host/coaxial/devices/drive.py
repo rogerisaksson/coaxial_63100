@@ -3,6 +3,7 @@ board measured while it ran.
 """
 import json
 import math
+import os
 import time
 from typing import Any
 
@@ -12,6 +13,9 @@ from coaxial.comm.wire import Reader, micro, pack
 from coaxial.devices.subsystem import Device
 from coaxial.errors import RigError
 from machine.roles import Controller, Input
+
+#: The motor profiles: this drive's record and its stand-in model, one motor a file.
+PROFILES = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'profiles')
 
 MODES = {'off': 0, 'volt': 1, 'hold': 2, 'sensorless': 3, 'polarity': 4}
 MODE_NAMES = {v: k for k, v in MODES.items()}
@@ -50,30 +54,42 @@ WINDOW_FIELDS = (('id', 1e6), ('iq', 1e6), ('vd', 1e6), ('vq', 1e6),
 #: The moments' channels in wire order - the injected sequence's own.
 MOMENT_CHANNELS = ('Phase U', 'Phase V', 'Phase W', 'DC bus')
 
-#: Drive parameters in the calibration record, and their wire units, so a
-#: commissioning writes SI and reads SI. Signed ones say so.
+#: Drive parameters: SI name -> (the record's name, record units per SI unit).
 PARAMS = {
-    'motor_r_uohm': 1e6, 'motor_ld_nh': 1e9, 'motor_lq_nh': 1e9,
-    'motor_lambda_uvs': 1e6, 'motor_pole_pairs': 1.0,
-    'drv_kp_mv_per_a': 1e3, 'drv_ki_v_per_as': 1.0,
-    'drv_l1_milli': 1e3, 'drv_l2_milli': 1e3,
-    'drv_inj_mv': 1e3, 'drv_inj_periods': 1.0, 'drv_inj_phase_mrad': 1e3,
-    'drv_eps_gain_ua_per_rad': 1e6, 'drv_i_max_ma': 1e3, 'drv_i_trip_ma': 1e3,
-    'drv_v_frac_ppm': 1e6, 'drv_sign': 1.0,
-    'drv_w_lo_mrad_s': 1e3, 'drv_w_hi_mrad_s': 1e3, 'drv_dt_step_ma': 1e3,
-    'drv_sigma_i_ua': 1e6, 'drv_trigger_ticks': 1.0,
-    # The winding's envelope, CAL_VERSION 12: K/W and J/K in milli, the ceiling
-    # in centi-degrees.
-    'winding_k_per_w_milli': 1e3, 'winding_j_per_k_milli': 1e3,
-    'winding_limit_centi': 1e2,
+    'motor_r': ('motor_r_uohm', 1e6),
+    'motor_ld': ('motor_ld_nh', 1e9),
+    'motor_lq': ('motor_lq_nh', 1e9),
+    'motor_lambda': ('motor_lambda_uvs', 1e6),
+    'motor_pole_pairs': ('motor_pole_pairs', 1.0),
+    'drv_kp': ('drv_kp_mv_per_a', 1e3),
+    'drv_ki': ('drv_ki_v_per_as', 1.0),
+    'drv_l1': ('drv_l1_milli', 1e3),
+    'drv_l2': ('drv_l2_milli', 1e3),
+    'drv_inj_volts': ('drv_inj_mv', 1e3),
+    'drv_inj_periods': ('drv_inj_periods', 1.0),
+    'drv_inj_phase': ('drv_inj_phase_mrad', 1e3),
+    'drv_eps_gain': ('drv_eps_gain_ua_per_rad', 1e6),
+    'drv_i_max': ('drv_i_max_ma', 1e3),
+    'drv_i_trip': ('drv_i_trip_ma', 1e3),
+    'drv_v_frac': ('drv_v_frac_ppm', 1e6),
+    'drv_sign': ('drv_sign', 1.0),
+    'drv_w_lo': ('drv_w_lo_mrad_s', 1e3),
+    'drv_w_hi': ('drv_w_hi_mrad_s', 1e3),
+    'drv_dt_step': ('drv_dt_step_ma', 1e3),
+    'drv_sigma_i': ('drv_sigma_i_ua', 1e6),
+    'drv_trigger_ticks': ('drv_trigger_ticks', 1.0),
+    'winding_k_per_w': ('winding_k_per_w_milli', 1e3),
+    'winding_j_per_k': ('winding_j_per_k_milli', 1e3),
+    'winding_limit_c': ('winding_limit_centi', 1e2),
 }
-SIGNED = ('drv_inj_phase_mrad', 'drv_eps_gain_ua_per_rad', 'drv_sign',
-          'winding_limit_centi')
+SIGNED = ('drv_inj_phase', 'drv_eps_gain', 'drv_sign', 'winding_limit_c')
+#: The dead-time table's rows in the record, mV.
+DT_ROWS = tuple('drv_dt_mv%d' % k for k in range(8))
 
 
 def to_wire(name, value):
     """An SI value as the u32 the record holds for `name`."""
-    raw = int(round(value * PARAMS[name]))
+    raw = int(round(value * PARAMS[name][1]))
     return raw & 0xFFFFFFFF if name in SIGNED else raw
 
 
@@ -81,7 +97,7 @@ def from_wire(name, raw):
     """The record's u32 for `name`, in SI."""
     if name in SIGNED and raw & 0x80000000:
         raw -= 1 << 32
-    return raw / PARAMS[name]
+    return raw / PARAMS[name][1]
 
 
 def _known(table, name, what):
@@ -99,7 +115,7 @@ def _wrapped(radians):
 
 class Plant(Input):
 
-    """The drive's virtual machine: what the loop runs on when its source is 'model'."""
+    """The drive's virtual motor: what the loop runs on when its source is 'model'."""
 
     def __init__(self, drive):
         self._drive = drive
@@ -231,9 +247,11 @@ class DriveControl(Controller):
 
 
 def load_profile(drive, path):
-    """A motor profile - a JSON file of `drive` parameters (the record's
-    names, SI) and `model` parameters - written through `drive`, the
-    board's or the stand-in's."""
+    """A motor profile - a JSON file of `drive` parameters (PARAMS, SI) and `model`
+    parameters (MODEL_PARAMS, SI) - written through `drive`, the board's or the stand-in's.
+    `path`: a file, or a name in PROFILES."""
+    if not os.path.exists(path):
+        path = os.path.join(PROFILES, path if path.endswith('.json') else path + '.json')
     with open(path, encoding='utf-8') as handle:
         data = json.load(handle)
     done = {'name': data.get('name', path)}
@@ -408,14 +426,15 @@ class Drive(Device, DriveControl, device=protocol.DEVICE_DRIVE):
     def params(self):
         """The drive's parameters out of the calibration record, in SI."""
         record = self.board.calibration.read()['params']
-        return {name: from_wire(name, record[name])
-                for name in PARAMS if name in record}
+        return {name: from_wire(name, record[wire])
+                for name, (wire, _) in PARAMS.items() if wire in record}
 
     def _write_params(self, **values):
         """Write drive parameters into the record (RAM) in SI, and reload."""
         for name in values:
             _known(PARAMS, name, 'drive parameter')
-        self.board.calibration.write(**{name: to_wire(name, v) for name, v in values.items()})
+        self.board.calibration.write(**{PARAMS[name][0]: to_wire(name, v)
+                                        for name, v in values.items()})
         self.reload()
         return {name: from_wire(name, to_wire(name, v))
                 for name, v in values.items()}

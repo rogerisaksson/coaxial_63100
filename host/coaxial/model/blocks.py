@@ -1,18 +1,17 @@
-"""The control loops as blocks on one bus, closing around `coaxial.model.motor`."""
+"""The control loops as blocks on one bus, closing around `motor.pmsm`."""
 import math
 import os
 import random
 
 # numpy's OpenBLAS commits 32 MB a core on import: a scratch buffer per
-# worker thread, never touched, charged against the machine's commit limit.
+# worker thread, never touched, charged against the host's commit limit.
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy
 
-from coaxial.model import sysid
-from coaxial.model.motor import Motor, Parameters
-from coaxial.model.sensorless import TWO_PI
 from machine.parts import SpeedPI
+from motor import sysid
+from motor.pmsm import TWO_PI, Motor, Parameters
 
 SQRT3 = math.sqrt(3.0)
 
@@ -89,7 +88,7 @@ class Probe(Block):
 
     """d-axis excitation, `amps` at `hz`: torque-free, so the speed loop
     never sees it, and the one thing that lets Ld out of a fit - without
-    did/dt the inductance column is R's (`coaxial.model.sysid`).
+    did/dt the inductance column is R's (`motor.sysid`).
     """
 
     def __init__(self, amps, hz):
@@ -140,12 +139,12 @@ class CurrentLoop(Block):
         s.vd, s.vq = vd, vq
 
 
-class Machine(Block):
+class Plant(Block):
 
-    """`coaxial.model.motor.Motor` behind the bus: vd/vq become duties at the
+    """`motor.pmsm.Motor` behind the bus: vd/vq become duties at the
     rotor's own angle, one PWM period advances, and what comes back out
     carries `noise` amps of gaussian on each current - the AFE's floor,
-    on what the loop sees, never on the machine itself.
+    on what the loop sees, never on the motor itself.
     """
 
     def __init__(self, params, vdc, load=None, noise=0.0, seed=2, **kw):
@@ -172,7 +171,7 @@ class Machine(Block):
 
 
 def identify(run, poles, **kw):
-    """`coaxial.model.sysid` over a run: (Parameters, the fit record)."""
+    """`motor.sysid` over a run: (Parameters, the fit record)."""
     got = sysid.identify(run['vd'], run['vq'], run['id'], run['iq'],
                          run['w'] * poles, run['t'], **kw)
     fit = Parameters(

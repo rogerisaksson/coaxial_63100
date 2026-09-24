@@ -18,7 +18,7 @@ import sys
 from collections import Counter
 
 TREE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DIRS = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'machine', 'terminal', 'testline', 'tools',
+DIRS = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'machine', 'motor', 'terminal', 'testline', 'tools',
         'examples')
 WIDTH = 100
 
