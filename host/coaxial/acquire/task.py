@@ -297,6 +297,9 @@ class Task:
         records = kw.pop('records', None)
         interval_us = kw.pop('interval_us', None)
         adapt = kw.pop('adapt', False)
+        chain = kw.pop('chain', None)             # bessel.design(): boxcar, sections, decimate
+        if chain is not None:
+            accumulate = chain['boxcar']
         if kw:
             raise TypeError('configure() got %s'
                             % ', '.join(sorted(kw)))
@@ -329,6 +332,8 @@ class Task:
             accumulate=accumulate, digital=digital, sample_rate=sample_rate,
             adapt=adapt,
             **burst)
+        if chain is not None:
+            self.shape(chain['sections'], chain['decimate'])
         return self.layout
 
     def shape(self, sections=(), decimate=1):

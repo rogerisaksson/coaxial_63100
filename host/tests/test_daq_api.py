@@ -9,6 +9,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100                            # noqa: E402
+from coaxial.acquire import bessel                          # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
 from coaxial.acquire.fanout import Fanout                           # noqa: E402
 
@@ -112,15 +113,38 @@ def test_configure_takes_names_or_a_list(report):
 
 # -- reading -----------------------------------------------------------------
 
-def _read_within(daq, count, budget=10.0):
+def _read_within(daq, count, budget=10.0, **kw):
     """`daq.read(count)` on a thread, so a hang is a failure and not one."""
     got = []
-    worker = threading.Thread(target=lambda: got.append(daq.read(count)),
+    worker = threading.Thread(target=lambda: got.append(daq.read(count, **kw)),
                               daemon=True)
     began = time.time()
     worker.start()
     worker.join(budget)
     return (got[0] if got else None), time.time() - began
+
+
+def test_read_stops_at_its_timeout(report):
+    with opened() as device:
+        daq = device.daq
+        daq.configure('NTC', sample_rate=20)
+        with daq:
+            got, took = _read_within(daq, 10 ** 6, timeout=0.5)
+        report.check('read(n, timeout=) gives what came in the time',
+                     got is not None and 0 < len(got) < 10 ** 6 and took < 2.0,
+                     '%s records in %.2f s' % (len(got or ()), took))
+
+
+def test_configure_takes_a_designed_chain(report):
+    with opened() as device:
+        chain = bessel.design(20000.0, 200.0)
+        device.daq.configure('NTC', chain=chain)
+        report.check('configure(chain=) sums by its boxcar',
+                     device.daq.state()['accumulate'] == chain['boxcar'],
+                     device.daq.state()['accumulate'])
+        report.check('and loads its sections and decimation',
+                     device.board.daq._shape == (len(chain['sections']), chain['decimate']),
+                     device.board.daq._shape)
 
 
 def test_read_of_a_finite_run(report):
@@ -480,6 +504,7 @@ def main():
     report = Report()
     for test in (test_catalogue, test_pick,
                  test_configure_takes_names_or_a_list,
+                 test_read_stops_at_its_timeout, test_configure_takes_a_designed_chain,
                  test_read_of_a_finite_run, test_read_of_a_running_task,
                  test_capture_is_a_single_shot,
                  test_the_task_brackets_itself,

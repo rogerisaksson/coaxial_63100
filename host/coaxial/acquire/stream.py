@@ -160,12 +160,13 @@ class Stream:
 
     EMPTY_PAUSE = 0.005
 
-    def read(self, count=-1):
-        """Records, waiting for them. NEGATIVE means everything there is."""
+    def read(self, count=-1, timeout=None):
+        """Records, waiting for them: `count` (negative: all there is), or what
+        came within `timeout` seconds."""
         out = []
         if count == 0:
             return out
-        for block in self.read_buffer(-1):
+        for block in self.read_buffer(-1, timeout):
             out.extend(block)
             if count < 0:
                 # EVERYTHING THERE IS, not the first block of it.
@@ -197,15 +198,16 @@ class Stream:
         self._done_seen = self._done_seen + 1 if ended else 0
         return self._done_seen >= self.DONE_LOOKS
 
-    def read_buffer(self, count):
-        """`count` blocks off the HOST buffer, one at a time."""
+    def read_buffer(self, count, timeout=None):
+        """`count` blocks off the HOST buffer, one at a time, until `timeout`."""
         if self._reader is None:
             raise RigError('nothing is buffering yet - start() puts the '
                            'reader on the link, and read_buffer() takes '
                            'what it has collected')
         seen = 0
         self._done_seen = 0
-        while count < 0 or seen < count:
+        until = None if timeout is None else time.time() + timeout
+        while (count < 0 or seen < count) and (until is None or time.time() < until):
             self._reader.raise_if_failed()
             block = self._reader.take()
             if block:
