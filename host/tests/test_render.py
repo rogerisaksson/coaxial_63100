@@ -1145,13 +1145,18 @@ def test_approach(report):
                  '%d sites' % len(sites))
     rise = [q / 20.0 for q, now in ((q, approach._pass(q / 20.0)) for q in range(20 * 60))
             if now and now[3] == 'by']
-    inks = {rgb for q in rise[len(rise) // 3:2 * len(rise) // 3]
-            for _mask, rgb, _body in approach.craft(116, 46, q).values()}
-    report.check('approach: the fly-by climbs on a flame, leaving smoke',
-                 rise and any(rgb in approach.FIRE for rgb in inks)
-                 and any(b and abs(r / b - approach.SMOKE[0] / approach.SMOKE[2]) < 0.02
-                         for r, _g, b in inks),
-                 '%d inks' % len(inks))
+    beam, off = 0, 0.0
+    for q in rise[len(rise) // 3:2 * len(rise) // 3]:
+        pose = approach._pose(116, 46, q, None) or {}
+        h = pose['heading']
+        for at, (_mask, _rgb, body) in approach.craft(116, 46, q).items():
+            if not body:
+                r, c = divmod(at, 116)
+                dx, dy = c + 0.5 - pose['x'], (r + 0.5 - pose['y']) * 2.0
+                off = max(off, abs(-dx * math.sin(h) + dy * math.cos(h)))
+                beam += 1
+    report.check('approach: the riser burns a jet dead straight back along its axis',
+                 rise and beam and off < 1.2, '%d cells, %.2f columns off its axis' % (beam, off))
     flown = [approach.flight(q / 4.0) for q in range(4 * 600)]
     banks = [fl['bank'] for fl in flown]
     level = [len(run) for run in ''.join('0' if b == 0.0 else '1' for b in banks).split('1')

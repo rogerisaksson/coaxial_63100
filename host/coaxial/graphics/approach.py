@@ -239,14 +239,14 @@ SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
 #: A corner pass comes in from its side's edge and arcs down through the bottom corner,
 #: diving out under the frame, rolling to ROLL into its turn and yawing YAW each way
 #: through it; none where the corner has under LEAST lengths.
-#: A fly-by climbs toward space ahead of us, near vertical, in its side's lane - BY_LANE
-#: columns in from the edge, out beyond it where the bound comes near - from BY_START of the
+#: A fly-by climbs toward space ahead of us, vertical, on one column: BY_LANE in from its
+#: side's edge, or as far out as the bound asks anywhere on the way - from BY_START of the
 #: frame down. We close on it: it grows from BY_FAR of BY_SIZE columns to the whole as an
 #: approach magnifies (1 / (1 - (1 - BY_FAR) k)), its haze lifting from BY_HAZE, and moves
 #: with its growth - slow far off, a swish out over the top edge near. A roll over BY_ROLL
-#: of the way. A FLAME lengths long flickers at its tail; its smoke is left in PUFFS puffs
-#: each PUFF_EVERY of the way, swelling to its reach then, thinning, drifting out past the
-#: edge as we pass.
+#: of the way. Its jet runs dead straight back along its axis, a ramjet burning a metal:
+#: JET lengths at most, ending CLEAR off the bound, white-hot at the nozzle to violet at the
+#: end (JET_INK), SPARKS points of it flaring along the line each frame.
 #: CRAFT columns nose to tail at a 150-column frame: a spinner seen from above in steel
 #: alone - a wedge lit along its spine, swept fins lit by its bank, a glinting canopy - its
 #: trail fading along its path for TRAIL lengths. One colour a cell: lights of other
@@ -272,11 +272,9 @@ BY_HAZE = 0.6
 BY_START = 0.3
 BY_ROLL = (0.15, 0.55)
 BY_LANE = 9.0
-FLAME = 0.45
-FIRE = ((255, 236, 170), (255, 150, 50), (220, 70, 30))
-PUFFS = 7
-PUFF_EVERY = 0.045
-SMOKE = (135, 138, 145)
+JET = 3.0
+JET_INK = ((255, 252, 240), (190, 222, 255), (90, 110, 220))
+SPARKS = 4
 TRAIL = 1.4
 HULL = (175, 196, 214)
 GLASS = (235, 245, 255)
@@ -398,29 +396,31 @@ def _corner(width, height, side, board):
 
 
 def _by(width, height, side, board):
-    """(track, size) of a fly-by: from BY_START of the frame down, up and out over the top
-    edge as it grows, in its lane but CLEAR and its reach off the bound at every size."""
+    """(track, size) of a fly-by: from BY_START of the frame down, straight up and out over
+    the top edge as it grows, on the one column CLEAR and its reach off the bound all the
+    way."""
     cx, cy, reach = board
     near = BY_SIZE * width / 150.0
-    lane = BY_LANE * width / 150.0
     edge = 0.0 if side > 0 else float(width)
     low, high = BY_START * height, -1.0 - REACH * near / ASPECT
 
     def size(k):
         return near * BY_FAR / (1.0 - (1.0 - BY_FAR) * k)
 
-    def track(k):
-        y = low + (high - low) * (size(k) - near * BY_FAR) / (near - near * BY_FAR)
+    def y(k):
+        return low + (high - low) * (size(k) - near * BY_FAR) / (near - near * BY_FAR)
+
+    def room(k):
+        """Columns in from the edge to the bound, CLEAR and the reach off it, at k."""
         rim = reach + CLEAR + REACH * size(k)
-        dy = (y - cy) * ASPECT
-        # Columns in from the edge to the bound at this row: the lane where it has room.
-        room = (side * (cx - side * math.sqrt(rim * rim - dy * dy) - edge)
-                if rim > abs(dy) else float(width))
-        least = min(lane, room)                        # a soft min: never over either
-        d = least - 1.5 * math.log(math.exp((least - lane) / 1.5)
-                                    + math.exp((least - room) / 1.5))
-        return edge + side * d, y
-    return track, size
+        dy = (y(k) - cy) * ASPECT
+        if rim <= abs(dy):
+            return float(width)
+        return side * (cx - side * math.sqrt(rim * rim - dy * dy) - edge)
+
+    column = edge + side * min([BY_LANE * width / 150.0]
+                               + [room(i / 40.0) - 0.2 for i in range(41)])
+    return (lambda k: (column, y(k))), size
 
 
 def _ease(k):
@@ -430,7 +430,7 @@ def _ease(k):
 
 def _pose(width, height, t, board):
     """The pass on at `t`: {k, side, kind, x, y, heading, bank, roll, size, sized, fade,
-    speed, track}, or None; `board` None a bound of the frame's own."""
+    speed, track, board}, or None; `board` None a bound of the frame's own."""
     now = _pass(t)
     if now is None:
         return None
@@ -455,7 +455,8 @@ def _pose(width, height, t, board):
             'bank': math.copysign(max(0.15, abs(bank)), bank), 'roll': roll, 'size': size(k),
             'sized': size,
             'fade': 1.0 if kind == 'corner' else BY_HAZE + (1.0 - BY_HAZE) * k,
-            'speed': math.hypot(x1 - x, (y1 - y) * ASPECT) / 0.01, 'track': track}
+            'speed': math.hypot(x1 - x, (y1 - y) * ASPECT) / 0.01, 'track': track,
+            'board': board}
 
 
 def craft(width, height, t, board=None):
@@ -496,8 +497,7 @@ def craft(width, height, t, board=None):
             mark(bx + (1.0 - f) * (tx - ax), by + (1.0 - f) * (ty - ay), steel(0.8 - 0.6 * f),
                  -1)
     else:
-        _smoke(pose, mark, width)
-        _flame(pose, mark, t)
+        _jet(pose, mark, t)
 
     for py in range(int(y0 - reach / ASPECT) - 1, int(y0 + reach / ASPECT) + 2):
         for half in range(2 * int(x0 - reach) - 2, 2 * int(x0 + reach) + 4):
@@ -517,43 +517,34 @@ def craft(width, height, t, board=None):
     return {at: (mask, inks[at][1], inks[at][0] >= 0) for at, mask in cells.items()}
 
 
-def _flame(pose, mark, t):
-    """The riser's flame: FLAME lengths back from its tail, flickering, white to red."""
-    size, bank = pose['size'], pose['bank']
+def _jet(pose, mark, t):
+    """The riser's jet: dead straight back from its tail along its axis, JET lengths at most
+    and short of the bound by CLEAR, white-hot to violet, fading over its last third,
+    SPARKS points flaring on its line."""
+    size, (cx, cy, reach) = pose['size'], pose['board']
     c, s = math.cos(pose['heading']), math.sin(pose['heading'])
-    long = FLAME * (0.75 + 0.25 * math.sin(t * 29.0) * math.sin(t * 17.0 + 1.0))
-    steps = max(2, int(4.0 * long * size))
-    for i in range(steps + 1):
-        f = i / steps
-        u = TAIL - f * long
-        for v in (-0.07, 0.0, 0.07) if f < 0.5 else (0.0,):
-            v *= (1.0 - f) * bank
-            mark(pose['x'] + size * (u * c - v * s), pose['y'] + size * (u * s + v * c) / ASPECT,
-                 FIRE[min(2, int(f * 3.0))], 3)
+    nx = pose['x'] + size * TAIL * c
+    ny = pose['y'] + size * TAIL * s / ASPECT
+    step, most, length = 0.25, JET * size, 0.0
 
+    def at(d):
+        return nx - d * c, ny - d * s / ASPECT
 
-def _smoke(pose, mark, width):
-    """The riser's smoke: a puff each PUFF_EVERY of the way, where it was then, swelling
-    to its reach there, thinning and drifting out past its edge."""
-    k, side = pose['k'], pose['side']
-    first = int(k / PUFF_EVERY)
-    for j in range(first, first - PUFFS, -1):
-        at = j * PUFF_EVERY
-        age = (k - at) / (PUFFS * PUFF_EVERY)          # 0 new .. 1 gone
-        if at < 0.0 or age >= 1.0:
-            continue
-        x, y = pose['track'](at)
-        x -= side * 9.0 * width / 150.0 * age          # drifting out as we pass
-        size = pose['sized'](at)
-        rho = REACH * size * min(1.0, 0.3 + 1.4 * age)
-        thin = 0.55 * (1.0 - age)
-        ink = tuple(int(ch * (0.95 - 0.45 * age)) for ch in SMOKE)
-        for hy in range(int(4.0 * (y - rho / ASPECT)), int(4.0 * (y + rho / ASPECT)) + 1):
-            for hx in range(int(2.0 * (x - rho)), int(2.0 * (x + rho)) + 1):
-                px, py = hx / 2.0 + 0.25, hy / 4.0 + 0.125
-                if (math.hypot(px - x, (py - y) * ASPECT) <= rho
-                        and _hashed(j, hx, hy) % 1000 < thin * 1000):
-                    mark(px, py, ink, -2)
+    while length < most:
+        x, y = at(length + step)
+        if math.hypot(x - cx, (y - cy) * ASPECT) < reach + CLEAR:
+            break
+        length += step
+    flicker = 0.9 + 0.1 * math.sin(t * 37.0)
+    for i in range(int(length / step) + 1):
+        d = i * step
+        f = min(1.0, d / most)
+        a, b = (JET_INK[0], JET_INK[1]) if f < 0.5 else (JET_INK[1], JET_INK[2])
+        share = 2.0 * f if f < 0.5 else 2.0 * f - 1.0
+        fade = flicker * (1.0 - f) ** 0.6 * min(1.0, 3.0 * (1.0 - d / max(length, step)))
+        mark(*at(d), tuple(int((p + (q - p) * share) * fade) for p, q in zip(a, b)), -1)
+    for j in range(SPARKS if length else 0):
+        mark(*at(_hashed(int(t * 24.0), j) % 1000 / 1000.0 * length), JET_INK[0], -1)
 
 
 def marker(width, height, t, board=None):
