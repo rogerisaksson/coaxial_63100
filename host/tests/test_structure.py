@@ -1291,13 +1291,9 @@ def test_protocol_agrees(r):
                     compared, (', prose: ' + ', '.join(skipped)) if skipped else ''))
 
 
-#: The notebooks' shape, as `tools/notebooks/parts.paper` lays it out:
-#: what a reader finds in every one, in this order. Held here so a cell
-#: edited by hand, or a module that stops using the builder, fails a run
-#: later rather than reading differently from the other eight.
-_PAPER_KEYS = ('# ', '*', '**Abstract.** ', '## 1 Setup', 'SIMULATED = ',
-               'Coaxial63100(', 'device.close()', 'Conclusions',
-               '**At the bench.** ', '## References')
+#: The notebooks' shape, as `tools/notebooks/parts.paper` lays it out.
+#: A markdown cell is a fact, not an essay.
+PROSE_MAX = 400
 _FORBIDDEN = (('plt.subplots(', 'a figure outside coaxial.draw.figures'),
               ('figsize=', 'a figure size of its own'),
               ('!', 'an exclamation mark'))
@@ -1315,8 +1311,8 @@ def _paper(path):
     head = said[0].splitlines() if said else []
     if kinds[:2] != ['markdown', 'markdown'] or not head or not head[0].startswith('# '):
         wrong.append('no title cell')
-    elif len(head) < 5 or not head[2].startswith('*') or not head[4].startswith('**Abstract.** '):
-        wrong.append('the title cell is not title, subtitle, abstract')
+    elif len(head) != 3 or not head[2]:
+        wrong.append('the title cell is not a title and one line')
     if len(cells) < 4 or said[1] != '## 1 Setup' or 'SIMULATED = ' not in said[2] \
             or 'Coaxial63100(' not in said[3]:
         wrong.append('Setup is not the knob and the open cell')
@@ -1326,10 +1322,14 @@ def _paper(path):
         wrong.append('sections not numbered 1.. in order: %s' % numbers)
     if not headings or not headings[-1].startswith('## References'):
         wrong.append('References is not the last section')
-    if len(headings) < 2 or not headings[-2].endswith(' Conclusions'):
-        wrong.append('Conclusions is not the section before References')
-    if not any(s.startswith('**At the bench.** ') for s in said):
-        wrong.append('no At the bench paragraph')
+    if len(headings) < 2 or not headings[-2].endswith(' Results'):
+        wrong.append('Results is not the section before References')
+    if not any(s.startswith('**Bench.** ') for s in said):
+        wrong.append('no Bench line')
+    long = [s[:40] for k, s in zip(kinds, said)
+            if k == 'markdown' and len(s) > PROSE_MAX and not s.startswith('## References')]
+    if long:
+        wrong.append('%d markdown cells over %d characters: %s' % (len(long), PROSE_MAX, long[0]))
     if not any(k == 'code' and 'device.close()' in s for k, s in zip(kinds, said)):
         wrong.append('the device is never closed')
     for k, c in zip(kinds, cells):

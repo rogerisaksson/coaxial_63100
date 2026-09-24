@@ -1,51 +1,15 @@
-"""Commissioning: the bench-day procedure end to end on the stand-in.
-
-The machine measured, identified, a tune searched against exactly that
-machine, the record written, and the drive verifying itself, as one paper
-(the auto-tune notebook, rewritten).
-"""
+"""Commissioning: the bench day end to end, the record written and verified."""
 from .parts import code, md, section
 
 TITLE = 'Commissioning'
-SUBTITLE = ('The bench day end to end: the machine measured step by step, its '
-            'constants identified, a tune searched against exactly that '
-            'machine, the record written, and the drive verifying itself '
-            'under it.')
-ABSTRACT = (
-    'The drive runs on constants held in the calibration record - the motor, '
-    'the loop and observer gains, the injection, the dead-time table - and an '
-    'uncommissioned board holds placeholders there. This notebook runs the '
-    'bench-day procedure on the stand-in, and on a board with the knob '
-    'flipped: the twelve steps of `Commissioning` one section at a time, each '
-    'number read back where it is made; the four constants into a '
-    '`Parameters` that says it was measured; a search of the firmware\'s own '
-    'control law against plants drawn around exactly that machine; the '
-    'winning tune written to the record, saved, and the drive verified under '
-    'it. What it measures: a phase noise floor of 0.16 A rms at 9.5 ENOB and '
-    'a sample point at tick 2360 of 2376; R 0.051 ohm, Ld 19.5 uH, Lq 29.4 uH '
-    'and lambda 0.00546 V.s, the stand-in\'s truth recovered within 3 % except '
-    'the flux at 9 %; a dead-time voltage of 0.50 V with a 0.30 A knee; an '
-    'injection budget of 20 dB against a 10 dB threshold; and a searched tune '
-    'whose innovation proxy is 1.7 degrees against the closed form\'s 11.2. '
-    'What a reader takes to the bench: every number is the board\'s and every '
-    'verdict the host\'s, a step that saw no current says so and the '
-    'record\'s value stands in, and an offset that looks like a fault is '
-    'reported rather than zeroed.')
+SUMMARY = 'The machine measured step by step, identified, a tune searched against it, the record written, the drive verified.'
 
 SECTIONS = [
     section(
         'The converters: the floor, the sample point, the offsets',
-        md('`Commissioning` takes the rig and `arm` - what `gates.on()` is '
-           'called with when a step needs the stage; without it the switching '
-           'steps refuse. `run()` is the twelve steps under one `finally` that '
-           'puts the stage down; here they go one section at a time, so each '
-           'number is read back where it is made. `gate_supply()` comes first: '
-           'under 7.3 V the 2EDL8034 is in UVLO and nothing switches whatever '
-           'TIM1 does, which on the unmodified bench board is what AFE_ON high '
-           'does to it. Then the noise floor per channel with the gates off, '
-           'and on the zero vector with the stage armed - the difference is '
-           'switch pickup - and the interrupt\'s own cost, read where the '
-           'board can measure it.'),
+        md('`Commissioning(rig, arm=...)`: `arm` is what `gates.on()` gets when a step '
+           'switches. `gate_supply()` first: under 7.3 V the 2EDL8034 is in UVLO. Then the '
+           'noise floor, gates off and on the zero vector.'),
         code('''from coaxial.control.commission import Commissioning
 
 c = Commissioning(device, arm=dict(bypass_sto=True, ignore_interlock=True),
@@ -65,13 +29,9 @@ print('ISR entry %.1f us after the trigger, cost %.1f us (%d cycles); '
       'to effect %d periods = %.0f us'
       % (lat['isr_entry_us'], lat['isr_cost_us'], lat['isr_cost_cycles'],
          lat['to_effect_periods'], lat['to_effect_us']))'''),
-        md('`sample_point_scan` moves CCR5 across the period on the zero vector '
-           'and keeps the tick with the least phase variance - after the '
-           'ringing, before the next edge. It needs the stage switching: with '
-           'nothing on the gates the scan is a walk through noise, and on this '
-           'bench it once picked 990 of 2376, mid-period, where the pickup is '
-           'worst. The tick it keeps is written to the record as '
-           '`drv_trigger_ticks`.'),
+        md('`sample_point_scan`: CCR5 across the period on the zero vector, the tick with '
+           'the least phase variance -> `drv_trigger_ticks`. Not switching, it once picked '
+           '990 of 2376.'),
         code('''from coaxial.draw.figures import figure, show
 
 scan = c.sample_point_scan()
@@ -86,14 +46,8 @@ show(fig)
 print('sample point CCR5 %d of %d (was %d): variance %.0f there, %.0f at tick %d'
       % (scan['best'], scan['period'], scan['was'], min(variance), max(variance),
          ticks[variance.index(max(variance))]))'''),
-        md('Each phase\'s code at zero current becomes its offset, applied to '
-           'the record unless it is past `limit_codes`: a phase reading -52 A '
-           'with nothing connected is a fault in that chain, and zeroing it '
-           'would hide it. Then the three shunt chains against each other from '
-           '`ia + ib + ic = 0`, a current vector held on each phase axis in '
-           'turn and the sums solved for the two gain ratios - the offsets '
-           'taken as measured, not as the record holds them, so a declined one '
-           'still sits under the reading.'),
+        md('Offsets applied unless past `limit_codes` (-52 A with nothing connected is a '
+           'fault). Gain ratios from `ia + ib + ic = 0`, a vector on each phase axis.'),
         code('''offsets = c.offsets()
 for name, row in offsets.items():
     print('%-8s %+6d codes  %s' % (name, row['offset_raw'],
@@ -108,16 +62,8 @@ else:
     ),
     section(
         'The inverter: the sign and the dead time',
-        md('A small positive d voltage on phase a, and the current it makes '
-           'says which way the shunts read; `drv_sign` is set from it. Then '
-           '`vd` against a held d current from 0.25 to 4 A: R is the slope, '
-           'and what is left is the dead-time curve `v_dt tanh(I / i_knee)` '
-           'folded across the three phases - a vector on phase a puts I on a '
-           'and -I/2 on b and c, so the three errors land on d as two thirds '
-           'of their sum - fitted on a grid and refined once. Mandatory at '
-           'weak saliency: the voltage error is an angle error in every '
-           'estimate built on the applied voltage. The fit is unfolded into '
-           'the record\'s eight-row table by current step.'),
+        md('The shunt sign from a small positive vd. Then vd against id 0.25-4 A: R the '
+           "slope, the rest `v_dt tanh(I / i_knee)`, into the record's eight-row table."),
         code('''sign = c.sign_check()
 print('sign %+d, from id %.3f A' % (sign['sign'], sign['id']) if sign['measured']
       else 'sign not measured - ' + sign['why'])
@@ -153,16 +99,8 @@ print('at %.2f A: %.3f V held, of which R I is %.3f V and the dead time %.3f V'
     ),
     section(
         'The motor: the inductance map and the flux',
-        md('L against the injection angle at four d biases, from `V T / i_h`: '
-           'the mean is L, the second harmonic over it is dL/L - the '
-           'saturation saliency an SPM has and a salient rotor adds to - and '
-           'the fourth is the secondary harmonic the demodulator has to live '
-           'with. The d axis is angle zero, so Ld and Lq fall out of the '
-           'zero-bias row, and the bias rows show Ld bending under current. '
-           'Then lambda from an I/f spin at 300 rad/s and 2 A: the back-EMF in '
-           'the command frame is `v - R i - j omega L i`, its magnitude over '
-           'omega is the flux, and the load angle is where the rotor sat '
-           'behind the command.'),
+        md('L against injection angle at four d biases: the mean L, the 2nd harmonic dL/L. '
+           'Lambda from an I/f spin, 300 rad/s at 2 A.'),
         code('''lmap = c.l_map()
 if lmap['measured']:
     print('Ld %.1f uH, Lq %.1f uH at zero bias; dL/L %.3f, fourth harmonic %.3f of L'
@@ -187,16 +125,8 @@ panel.set_xlabel('injection angle from the d axis, electrical degrees')
 panel.set_ylabel('L, uH')
 panel.legend(loc='upper left')
 show(fig)'''),
-        md('The four constants into a `Parameters`: R from the dead-time '
-           'sweep, Ld and Lq from the map, lambda from the flux step, pole '
-           'pairs from the record - no terminal measurement recovers those. A '
-           'step that saw no current reports `measured: False` and the '
-           'record\'s value stands in. `measured` and `source` travel with the '
-           'set, so constants recovered from a machine and constants estimated '
-           'from a label cannot be confused later. The stand-in\'s machine is '
-           '`BENCH_MOTOR`, invented to be recoverable, so on it the '
-           'identification can be read against a truth; a board has an '
-           'instrument, or nothing.'),
+        md('The four constants into a `Parameters`; a step that saw no current: `measured: '
+           "False`, the record's value stands in. The stand-in's machine is `BENCH_MOTOR`."),
         code('''from coaxial.model.motor import BENCH_MOTOR, Parameters
 
 p = device.drive.params()
@@ -226,18 +156,9 @@ if truth:
     ),
     section(
         'The budget, the gains and the decision',
-        md('Three steps are arithmetic on what was measured, in '
-           '`coaxial.model.sensorless`. The budget picks the injection frequency and '
-           'amplitude for the best SNR under the constraints - the current '
-           'loop\'s bandwidth from R, L and the sampling rate, the injection '
-           'current under `i_h_max`, the estimator bandwidth wanted. The gains '
-           'are the loop PI from that bandwidth, the Kalman-form PLL gains from '
-           'the measured noise, and the crossover: the speed where '
-           '`omega lambda` clearly exceeds the voltage floor the dead-time '
-           'residual and the uncertainty in `R i` leave, which sets the blend '
-           'band. All of it is written to the record and the drive reloads. '
-           'The decision is injection when the budget clears the threshold, '
-           'else an I/f start.'),
+        md('`coaxial.model.sensorless`: the injection budget, the gains (PI, PLL, '
+           'crossover), the decision - injection if the budget clears the threshold, else '
+           'I/f.'),
         code('''budget = c.budget()
 choice, loop = budget['choice'], budget['loop']
 print('AFE %s: sigma_i %.4f A' % (budget['afe'], budget['known']['sigma_i']))
@@ -264,15 +185,8 @@ print('decision: %s (SNR %.1f dB against %.0f)'
     ),
     section(
         'A first run, under the closed-form tune',
-        md('`verify` runs the drive sensorless under whatever the record holds '
-           'and judges the innovation: white by Ljung-Box over seven lags, and '
-           'its deviation as the `sigma_theta` proxy. Under injection it locks '
-           'first, then fires the polarity pulses - two along `theta_hat`, and '
-           'the one that saturates peaks higher; the estimate is flipped by pi '
-           'when the opposed one did - then takes half a second of window at '
-           '0.5 A of q current. The report line is the executive\'s one '
-           'sentence: zero-speed or not, the SNR, the closed-loop floor as a '
-           'share of the rated speed, the loop bandwidth, the proxy.'),
+        md('`verify`: sensorless under the record; innovation white by Ljung-Box over 7 '
+           'lags, its deviation the `sigma_theta` proxy. Polarity by two saturation pulses.'),
         code('''first = c.verify(iq=0.5, seconds=1.0)
 pol = c.results.get('polarity')
 if pol:
@@ -287,17 +201,9 @@ print(c.report()['line'])'''),
     ),
     section(
         'A tune searched against this machine',
-        md('`gains` wrote a tune in closed form. This searches for one instead: '
-           '`run_job` takes the motor and the board\'s limits, so every '
-           'candidate is scored against the firmware\'s own C driving plants '
-           'drawn around **this** machine - R up to a hot winding, L a quarter '
-           'either way, the dead time either side of the commissioned one, the '
-           'rotor anywhere. A run locks, rises to half the link\'s no-load '
-           'speed, holds and descends. Cost is `sigma_theta + speed_err + 10 x '
-           'trip`; `robust` is its mean plus its 90th percentile, so a tune '
-           'that occasionally loses the rotor scores worse than one that is '
-           'merely average. Six candidates and three draws here, against the '
-           'tool\'s 48 and 16 over five link voltages.'),
+        md("`run_job` scores the firmware's C on plants drawn around this machine. Cost "
+           '`sigma_theta + speed_err + 10 x trip`; `robust` = mean + 90th percentile. 6 '
+           'candidates x 3 draws here; the tool runs 48 x 16.'),
         code('''import os
 import sys
 
@@ -331,13 +237,8 @@ print('%d runs in %.1f s, %d tripped the stage at i_trip %.0f A; '
     ),
     section(
         'The record written, and the drive verified under it',
-        md('`design` turns the winning knobs into the firmware\'s parameters - '
-           'kp and ki from the loop bandwidth, l1 and l2 from the PLL\'s, the '
-           'injection volts and the demodulator gain, the blend band. '
-           '`configure` writes them into the record in SI and reloads, and '
-           'answers what the record holds after the wire\'s rounding; the '
-           'closed-form value stands beside each for comparison. Then `verify` '
-           'again, under the searched tune.'),
+        md('`design` -> firmware parameters; `configure` writes them in SI and answers what '
+           'the record holds after rounding. Then `verify` again.'),
         code('''tune = mc.design({k: float(best[k]) for k in mc.KNOBS}, vdc, identified, i_max, i_trip, 1.0)
 written = device.drive.configure(
     motor_r_uohm=identified.r, motor_ld_nh=identified.ld, motor_lq_nh=identified.lq,
@@ -355,12 +256,7 @@ lb = check['ljung_box']
 print('%s under the searched tune: sigma_theta %.2f deg (was %.2f), Q %.2f against %.2f, %s, fault %s'
       % (check['method'], check['sigma_theta_deg'], first['sigma_theta_deg'], lb['q'],
          lb['threshold'], 'white' if lb['white'] else 'NOT white', check['fault']))'''),
-        md('`device.calibration.save()` is what keeps the record across a '
-           'reset - the drive reloads its parameters from it at boot, so a '
-           'board runs the same tune after a power cycle that it ran before. '
-           'The drive reads them back through the record, the one place any '
-           'of them lives. The stage this section armed goes down here, and '
-           'the converters go back to the meter, before the device is closed.'),
+        md('`calibration.save()` keeps the record across a reset.'),
         code('''print('saved:', device.calibration.save())
 after = device.drive.params()
 for name in sorted(after):
@@ -373,7 +269,7 @@ print('stage armed:', device.gates.is_on())'''),
     ),
 ]
 
-CONCLUSIONS = [
+RESULTS = [
     code('''def line(number, name, block, text):
     if isinstance(block, dict) and block.get('measured') is False:
         print('%2d. %-13s not measured - %s' % (number, name, block.get('why', 'no current')))
@@ -429,73 +325,15 @@ if truth:
     print('16. truth         R %+.1f %%, Ld %+.1f %%, Lq %+.1f %%, lambda %+.1f %% off the stand-in\\'s'
           % tuple(100.0 * (getattr(identified, k) / getattr(truth, k) - 1.0)
                   for k in ('r', 'ld', 'lq', 'lam')))'''),
-    md('Three steps decide rather than measure. **The sample point** needs '
-       'the stage switching: with nothing on the gates the scan is a walk '
-       'through noise, which once picked 990 of 2376 - mid-period, where the '
-       'pickup is worst. On the stand-in the variance mid-period is twenty '
-       'times the floor at 2360, and the pickup on the zero vector reads zero '
-       'because the sample point already sits past the ringing. **An offset '
-       'past `limit_codes`** is reported, not applied: a phase reading -52 A '
-       'with nothing connected is a fault in that chain, and storing it as the '
-       'zero hides it - which is why Phase V stays SUSPECT in finding 3, and '
-       'why the gain solve takes the offsets as measured rather than as the '
-       'record holds them. **The method** needs saliency - the demodulator\'s '
-       'gain goes as `Lq - Ld` - so a machine with little of it lands on I/f. '
-       'The polarity comes from a saturation pulse either way: injection '
-       'locks the d **axis**, and only saturation says which end is the '
-       'magnet.\n\n'
-       'The search scores the firmware\'s own C, not a model of it: '
-       '`run_job` takes the motor and the board\'s limits, so every candidate '
-       'drives plants drawn around **this** machine - R up to a hot winding, '
-       'L a quarter either way, the dead time either side of the commissioned '
-       'one, the rotor anywhere. Cost is `sigma_theta + speed_err + 10 x '
-       'trip`, and `robust` is its mean plus its 90th percentile, so a tune '
-       'that occasionally loses the rotor scores worse than one that is '
-       'merely average: eight of the eighteen runs tripped the stage at '
-       '100 A, and the winner tripped none at under 5 A of peak. Six '
-       'candidates and three draws here, against the tool\'s 48 and 16 over '
-       'five link voltages. `design` turns the winning knobs into the '
-       'firmware\'s parameters - kp and ki from the loop bandwidth, l1 and l2 '
-       'from the PLL\'s, the injection volts and the demodulator gain, the '
-       'blend band - and `configure` writes them in SI and reloads. On the '
-       'stand-in the innovation\'s spread is its noise over the demodulator '
-       'gain and the periods averaged, so the fall from 11.2 to 1.7 degrees is '
-       'the arithmetic of a louder, longer injection; on a board it is the '
-       'machine\'s.\n\n'
-       'The stand-in was built to be recoverable: `BENCH_MOTOR` is 0.05 ohm, '
-       '20 and 30 uH and 0.005 V.s, its dead time 0.5 V with a 0.3 A knee, '
-       'its chains 1.0, 1.01 and 0.995. R, Ld, Lq, the dead time and the '
-       'gain mismatch come back within 3 %; lambda lands 9 % high, and the '
-       'crossover, three floors over lambda, inherits it. '
-       '`calibration.save()` is what keeps the record across a reset - the '
-       'drive reloads its parameters from it at boot, so a board runs the '
-       'same tune after a power cycle that it ran before. The record now '
-       'holds what the drive runs on after the next reset, the one place any '
-       'of it lives (invariant 7); every number is the board\'s and every '
-       'verdict this executive\'s (invariant 10), which is why the steps live '
-       'in the host and not in the firmware. Nothing here has closed a '
-       'current loop through a winding: every step has run dry on the bench '
-       'board and none against a motor (TODO), and the record\'s ids 15 to 44 '
-       'are placeholders until one is.'),
+    md('- Noise floor 0.16 A rms, 9.5 ENOB; sample point tick 2360 of 2376.\n- R 0.051 ohm, '
+       'Ld 19.5 uH, Lq 29.4 uH within 3 % of the truth; lambda 0.00546 V.s, 9 % high.\n- '
+       'Dead time 0.50 V, knee 0.30 A; injection 20 dB against 10 dB.\n- Searched tune 1.7 '
+       "deg against the closed form's 11.2; 8 of 18 runs tripped at 100 A.\n- Record ids "
+       '15-44 are placeholders until a motor is commissioned (TODO).'),
 ]
 
-BENCH = (
-    'Flip `SIMULATED` and name the port, with a motor on the phases and the '
-    'gate drivers\' supply released by the STO chain - `gate_supply()` says '
-    'whether it is, and under 7.3 V every switching step reads a dry stage as '
-    '`measured: False`. `tools/bench/commission.py --arm --port COM4` is the same '
-    'twelve steps as one command under one `finally`. Compare finding 2 '
-    'against the scan\'s figure: a best tick mid-period means the stage was '
-    'not switching. Compare finding 6 against a DMM across a phase pair - '
-    'half the line-to-line resistance is R - and finding 8 against the '
-    'nameplate KV, whose flux the stand-in\'s 144 does not pretend to match. '
-    'Read finding 3 before anything else: a SUSPECT chain is a fault to find, '
-    'not an offset to store. The stand-in could not show switch pickup, a '
-    'dead time that is not a clean tanh, an innovation that is not white, or '
-    'a stage that trips - the search\'s trips are the model\'s, and the '
-    'board\'s `i_trip` sits at the rating (invariant 10). Run the search '
-    'from `tools/sim/montecarlo.py` at the link voltage the machine will see '
-    'before believing a tune found at 24.8 V.')
+BENCH = ('`tools/bench/commission.py --arm --port COM4` is the twelve steps in one command. '
+         'Finding 3 first: SUSPECT is a fault, not an offset.')
 
 REFERENCES = [
     ('host/coaxial/control/commission.py', 'the twelve steps, and the one-line report'),

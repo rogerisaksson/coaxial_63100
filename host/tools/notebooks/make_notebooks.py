@@ -1,29 +1,11 @@
 #!/usr/bin/env python3
-"""Write notebook_examples/*.ipynb, and optionally execute them.
+"""notebook_examples/*.ipynb out of tools/notebooks/, checked in executed.
 
-The notebooks are checked in WITH their outputs so they read without a
-kernel, which makes them artefacts rather than sources: editing the
-JSON by hand is how a cell's code and its printed output part company.
-The source is `tools/notebooks/`, one module per functional area, each
-a short paper laid out by `notebooks.parts.paper` so every one reads
-the same way; this file writes them and `--execute` runs them, so what
-is checked in is what the code actually printed.
+    python tools/notebooks/make_notebooks.py                  # write, outputs empty
+    python tools/notebooks/make_notebooks.py --execute [name..]  # write and run
+    python tools/notebooks/make_notebooks.py --kernel status|install
 
-    python tools/notebooks/make_notebooks.py                  # write them
-    python tools/notebooks/make_notebooks.py --execute        # write and run
-    python tools/notebooks/make_notebooks.py --execute acquisition thermal
-    python tools/notebooks/make_notebooks.py --kernel status    # which python runs them
-    python tools/notebooks/make_notebooks.py --kernel install   # this one; setup.ps1 does it
-
-Executing needs a kernel and the library: `jupyter`, `nbclient`,
-`pandas` and `matplotlib`. Writing needs none of them. The notebooks
-run against the stand-in, so no board is needed either - the knob at
-the top of each is what a reader flips at the bench.
-
-test_structure.py parses the code cells of every notebook as one module
-(`notebook_source`), so a rename that leaves a dead call in a cell
-fails there. What it cannot check is that the outputs match the code,
-which is what --execute is for.
+Executing needs jupyter, nbclient, pandas, matplotlib; the stand-in, no board.
 """
 import argparse
 import io
@@ -34,25 +16,16 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from tools import notebooks  # noqa: E402
 
-#: notebook_examples/ sits beside host/, not under it: this file is
-#: host/tools/notebooks/make_notebooks.py, so the repository is two levels up.
 OUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))))),
     'notebook_examples')
 
-#: THE KERNEL THE NOTEBOOKS NAME, registered on the interpreter setup.ps1
-#: installs into (`--kernel install`). An editor matches a notebook to a
-#: kernel by this name first and by the language's version second, and
-#: the second is not enough: this bench carries two CPython 3.14.7s, one
-#: with the packages and one - uv-managed - with none, and the editor
-#: opened every notebook on the empty one (2026-09-13). A name only one
-#: kernelspec carries settles it, and that kernelspec starts the
-#: interpreter by its absolute path.
+#: A name only this kernelspec carries: two CPython 3.14.7s here, one without
+#: the packages, and the editor picked that one by version (2026-09-13).
 KERNEL = 'coaxial_63100'
 KERNEL_DISPLAY = 'Python (coaxial_63100)'
 
-#: Name -> cells, one notebook per functional area, in the README's order.
 NOTEBOOKS = notebooks.AREAS
 
 
@@ -115,8 +88,6 @@ def execute(path, out_dir, timeout=1800):
 
 
 def _kernelspec_api():
-    """The registry and the installer, which arrive with ipykernel -
-    optional here, like nbclient: reading a notebook needs neither."""
     try:
         import ipykernel.kernelspec
         import jupyter_client.kernelspec
@@ -143,8 +114,7 @@ def install_kernel():
 
 
 def kernel_status():
-    """One line on the registered kernel, and whether it is this
-    interpreter - the property setup.ps1 checks."""
+    """The registered kernel's interpreter, and whether it is this one."""
     found = kernel_interpreter()
     if found is None:
         return 'not registered', False
@@ -154,10 +124,7 @@ def kernel_status():
 
 
 def kernel_command(action):
-    """`--kernel status` prints which interpreter the notebooks' kernel
-    starts and exits 1 unless it is this one; `--kernel install`
-    registers it here.
-    """
+    """status: exit 1 unless the kernel starts this python; install: register it."""
     try:
         detail, fine = (('%s -> %s' % (install_kernel(), sys.executable), True)
                         if action == 'install' else kernel_status())
@@ -168,7 +135,6 @@ def kernel_command(action):
 
 
 def main(argv=None):
-    """Write the notebooks named on the command line, or all of them."""
     parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n')[0])
     parser.add_argument('names', nargs='*', help='notebooks; default all')
     parser.add_argument('--execute', action='store_true',

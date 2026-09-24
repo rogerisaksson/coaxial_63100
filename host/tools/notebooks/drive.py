@@ -1,57 +1,15 @@
-"""The drive: observers ranked by measurement, the law over the link sweep, and the envelope.
-
-The rotor observer on the board's own PMSM model: the FOC Monte Carlo and
-the rotor observer session, as one paper.
-"""
+"""The drive: sensorless observers ranked, the firmware's law searched, the envelope."""
 from .parts import code, md, section
 
 TITLE = 'The drive'
-SUBTITLE = ("Five sensorless observers ranked by what they measure, the "
-            "firmware's own law searched over the 23-63 V link, speed and "
-            "torque against the tolerances, and the rotor observer on the "
-            "board's own PMSM model.")
-ABSTRACT = (
-    "Device 10 holds the rotor at rest by injecting on the machine's saliency "
-    "and hands over to back-EMF above `w_lo`; above that the angle is what an "
-    "observer can make of `v - R i`, and this notebook asks which observer, at "
-    "what speed, from what this board can measure. Five observers in "
-    "`coaxial.model.sensorless` - sliding mode, flux linkage, extended state, adaptive "
-    "Luenberger, dual flux with a PLL - run over plants drawn around the 5230SL "
-    "with the Monte Carlo's own tolerances and are ranked by angle error in "
-    "degrees rms against a 20-degree line, the error a torque command pays as "
-    "`1 - cos`. The firmware's own C is then searched over the link sweep with "
-    "`tools/sim/montecarlo.py`, one process per core, and its best tune verified "
-    "with the injection off through the descent, which is the sensorless floor. "
-    "The envelope both land in is read against the lambda tolerance, the "
-    "thermal network and a low-saliency outrunner; last, the rotor observer "
-    "runs on the stand-in's own PMSM model, the one source whose true angle is "
-    "known, beside the back-EMF chain the board carries as a second answer. "
-    "Headline numbers: dual flux with a PLL holds 0.7 degrees at 14 rpm where "
-    "the plain flux observer holds 53; the chain of the two holds under 7 "
-    "degrees from 14 to 10 231 rpm at 63 V, better than 99 % of the commanded "
-    "torque; the back-EMF alone loses the rotor at 10 to 31 rpm; peak torque is "
-    "3.92 to 4.79 N.m at the board's 100 A and continuous torque a quarter of "
-    "it, thermal; the board steps the law in 2 921 of a period's 4 750 ticks. "
-    "What a reader takes to the bench: the floor is the injection's and the "
-    "ceiling the link's, the weight between observers should come from what "
-    "each says about itself, and the one measurement that moves most of the "
-    "envelope is the phase node's spreading resistance with current flowing.")
+SUMMARY = 'Five observers ranked, the firmware\'s law searched over 23-63 V, the envelope, the rotor observer on the board\'s model.'
 
 SECTIONS = [
     section(
         'The plant, drawn around the 5230SL',
-        md("`tools/sim/montecarlo.py` runs the firmware's own C - the current "
-           "loop, the injection demodulator, the rotor observer, the dead-time "
-           "table - through `test_drive_core.py`'s bench against "
-           "`drive_model.c`, one process per core. A plant is drawn around the "
-           "5230SL that the controller was not told about: copper to 125 C on "
-           "R, a quarter either way on L, saliency from barely there to 1.5, "
-           "the dead time either side of the commissioned one, the AFE at its "
-           "measured floor, the rotor inside the injection's pull-in. The cost "
-           "of a run is `sigma_theta + speed_err + 10 trip`, a robustness "
-           "figure because the plant is never the fitted one. Every simulation "
-           "below draws its plants with `mc.draw`, so the observers and the "
-           "search are judged over one spread."),
+        md("`tools/sim/montecarlo.py` runs the firmware's C against `drive_model.c`; plants "
+           'drawn around the 5230SL: R to 125 C, L +/-25 %, saliency 1-1.5, dead time '
+           'either side. Cost `sigma_theta + speed_err + 10 trip`.'),
         code('''import os
 import sys
 
@@ -66,19 +24,8 @@ print({k: round(v, 6) for k, v in plant.items()})'''),
     ),
     section(
         'Sliding mode against flux linkage over the speed sweep',
-        md("The two oldest back-EMF observers, side by side over seven held "
-           "speeds and five drawn plants, fed nothing but the phase voltages "
-           "and currents at 2 A of torque current. The sliding-mode observer "
-           "runs the stator's current equation as a model with a switching "
-           "term driving its current onto the measured one; once it slides "
-           "that term is the back-EMF, low-passed, and `e = lambda w (-sin, "
-           "cos)` gives the angle. The flux observer integrates `v - R i`, and "
-           "`psi - L i` is the rotor's flux, whose angle is the rotor's. Each "
-           "carries a residual that needs no truth: the sliding-mode current "
-           "error in units of the AFE's floor, and the flux magnitude against "
-           "lambda. A torque command at an angle error `eps` delivers "
-           "`cos(eps)` of itself - 20 degrees electrical costs 6 %, 40 costs "
-           "23 % - so 20 degrees is the line each has to stay inside."),
+        md('Sliding mode against flux linkage: seven speeds, five plants, 2 A. Torque at '
+           'angle error `eps` is `cos(eps)`: 20 deg costs 6 %, the line.'),
         code('''import math
 from coaxial.model import inverter, sensorless
 from coaxial.control.loop import CurrentLoop, Machine, Signals
@@ -191,38 +138,14 @@ for which, name in (('smo', 'sliding mode'), ('flux', 'flux linkage'),
     lo, hi = band_of(which)
     print('%-15s inside %.0f deg from %5.0f to %5.0f rad/s = %4.0f to %5.0f rpm'
           % (name, CRITERION_DEG, lo, hi, rpm(lo), rpm(hi)))'''),
-        md("The sliding-mode observer degrades at both ends for different "
-           "reasons: low down the back-EMF is small against `R i` and the "
-           "boundary layer, so the error grows as the signal shrinks; high up "
-           "the lag `atan(w/wc)` is a large correction - 76 degrees at 2000 "
-           "rad/s with `wc` 500 - resting on the speed estimate under it. `k` "
-           "is sized from `lambda w` rather than tuned, and the switching term "
-           "absorbs what R and L get wrong, which is the point of it. The flux "
-           "observer's integrator leaks at `wc` to hold off the drift a pure "
-           "one walks away on, and the leak costs exactly what it saves: "
-           "`sqrt(1 + (wc/w)^2)` short and `atan(wc/w)` late, 45 degrees at "
-           "`w = wc` and nothing below it. Above the corner it is the quieter "
-           "of the two by a growing margin, and lambda falls out of it."),
+        md('Sliding mode lags `atan(w/wc)` (76 deg at 2000 rad/s, `wc` 500); the flux '
+           'integrator leaks at `wc`: 45 deg late at `w = wc`.'),
     ),
     section(
         'The second inductance',
-        md("`psi - L i` needs one L, and a salient machine has two. "
-           "Subtracting Ld along both axes leaves `(Lq - Ld) iq` on the q axis "
-           "of what is supposed to be the rotor's flux, so the estimate is "
-           "pulled round by an angle that grows with load and vanishes at no "
-           "load - a flux observer looks perfect on a bench and loses the "
-           "rotor pulling a propeller. The extended back-EMF form is the same "
-           "physics arranged so it cannot: with Ld in both axes everything "
-           "left over goes into `E_ex = (Ld - Lq)(w id - d iq/dt) + w lambda`, "
-           "which points along the plain back-EMF, so an observer estimating "
-           "it recovers the angle with no saliency error. At the 2 A the sweep "
-           "runs the error is a fifth of a degree, which is how it gets "
-           "missed; at the rated current it is a bias that moves with torque, "
-           "not noise that averages out. `sensorless.FluxObserver` is the "
-           "plain form: on a surface-magnet outrunner the two coincide, and "
-           "the more saliency a machine has, the more the injection has at "
-           "rest and the more the flux observer needs the extended form at "
-           "speed - one constant paying twice in opposite directions."),
+        md('`psi - L i` with one L leaves `(Lq - Ld) iq` on q: an error that grows with '
+           'load. The extended back-EMF `E_ex` has none. `FluxObserver` is the plain form '
+           '(SPM: the same).'),
         code('''print('what one L costs the plain flux observer under load, 5230SL')
 print('Ld %.1f uH, Lq %.1f uH, saliency %.2f, lambda %.5f Wb'
       % (motor.ld * 1e6, motor.lq * 1e6, motor.saliency, motor.lam))
@@ -238,24 +161,8 @@ print('the extended back-EMF form carries the term instead: zero at every iq')''
     ),
     section(
         'Five observers, ranked by measurement',
-        md("Three more, all in `coaxial.model.sensorless`. The extended state "
-           "observer (ESO, ADRC) refuses to model anything: `di/dt = v/L + f` "
-           "and `f` is everything else at once, estimated as a state, so "
-           "there is no low-pass on the signal it wants and nothing in its "
-           "angle rests on the speed it is estimating; one knob, `wo`, with "
-           "both poles there, and at the drive's 20 us explicit step `wo` "
-           "past about 12 000 rad/s is where the second pole stops being "
-           "stable - six times the top of this sweep. The adaptive Luenberger "
-           "observer integrates the current error into a back-EMF and adapts "
-           "R from the part of that error along the current, because a "
-           "winding rises 0.4 % per kelvin and the R it was handed at "
-           "commissioning is not the R an hour of load leaves. The dual flux "
-           "observer has two flux models correcting each other - the voltage "
-           "model right at speed, the current model `L i + lambda` right at "
-           "rest - so there is no leak and no `atan(wc/w)` to pay, and the "
-           "angle comes off a PLL so the speed falls out of the loop rather "
-           "than a subtraction. Same plants, same step, same current; the "
-           "speed states start where a running drive would leave them."),
+        md('ESO (`wo` stable to ~12 000 rad/s at a 20 us step), adaptive Luenberger (adapts '
+           'R), dual flux with a PLL (no lag, no leak). Same plants, step, current.'),
         code('''RANKED = ('dual', 'smo', 'luen', 'eso', 'flux')
 
 def five(fitted, w_e):
@@ -308,40 +215,13 @@ print()
 for name in RANKED:
     print('%-6s %5.1f deg at its best, %5.1f at its worst'
           % (name, min(row[1][name] for row in ranked), max(row[1][name] for row in ranked)))'''),
-        md("The ranking is not the one the literature's reputations suggest, "
-           "and it matters which parts are the method and which are this "
-           "bench. Dual flux with a PLL wins, by an order of magnitude where "
-           "the others are weakest: the only one of the five with neither a "
-           "lag to correct nor a leak to pay for, and the PLL keeps its speed "
-           "out of a difference - a property of the arrangement, not of this "
-           "simulation. The sliding-mode observer is the solid one across the "
-           "range and the cheapest to reason about, which is why it is the "
-           "classic. The adaptive Luenberger is best at the top and useless "
-           "at the bottom, a back-EMF observer behaving like one; its "
-           "adaptation does not converge in this arrangement - `e_hat` and "
-           "`r_hat` feed on one residual and `e_hat` is three orders faster - "
-           "which says R needs an excitation the back-EMF cannot explain, "
-           "the d-axis current `commission.deadtime` already applies offline. "
-           "The ESO comes last, and that is this bench: its case is sound, "
-           "but the bandwidth has to fit inside a 20 us forward-Euler step, "
-           "and 12 000 rad/s is what this step can carry."),
+        md("Dual flux + PLL wins; sliding mode is solid; Luenberger's R never converges on "
+           'one residual; the ESO is limited by the 20 us Euler step.'),
     ),
     section(
         'The hybrid',
-        md("The two oldest fail at opposite ends, so there are three ways to "
-           "use the pair, in rising order of what they ask for. Switch on "
-           "speed with hysteresis: no extra state, but a threshold where both "
-           "are marginal is one the estimate chatters across, and the "
-           "commutation rests on the estimate. Blend over a band on the "
-           "observer's own speed, the shape the firmware uses between "
-           "injection and back-EMF over `w_lo .. w_hi`: the two disagree by a "
-           "few degrees in the overlap, and a step of that size in the "
-           "commutation angle is a step in torque, so a ramped weight on the "
-           "unit vectors removes it for a multiply. Weight on each observer's "
-           "own residual: neither needs truth to say how it is doing. The "
-           "table is the blend from section 3 read back, with what it gained "
-           "over the better single observer at each speed, and the cost of "
-           "each against the drive step's own 2 921 cycles."),
+        md("Switch, blend over a band (the firmware's shape), or weight on residuals. The "
+           "cost against the drive step's 2 921 cycles."),
         code('''print('the blend, %.0f to %.0f rad/s = %.0f to %.0f rpm'
       % (BLEND_BAND[0], BLEND_BAND[1], rpm(BLEND_BAND[0]), rpm(BLEND_BAND[1])))
 print('  rad/s el    rpm   SMO share   blend deg rms   best single   gained')
@@ -361,18 +241,8 @@ print('   headroom       %d cycles a period at %.0f kHz'
     ),
     section(
         'What the flux magnitude says about the magnets',
-        md("The angle is not all that is in the residuals. The flux "
-           "observer's rotor flux has a magnitude as well as a direction, and "
-           "that magnitude is lambda - the one constant that says what the "
-           "magnets are doing, and nothing else on this board can see them: "
-           "the NTC is on the PCB and the rotor is across an air gap. So the "
-           "observer that commutates the machine is also measuring it, for "
-           "one `hypot` a step. What corrupts the measurement is R: the flux "
-           "integrates `v - R i`, so an error in R lands in the flux, and "
-           "hardest where `R i` is a large share of `v`, at low speed. The "
-           "table runs one plant over the sweep with R exact and 30 % off "
-           "either way, and reads the magnitude as a fraction of the true "
-           "lambda."),
+        md('The flux magnitude is lambda - the magnets. R error lands in it, worst at low '
+           'speed: one plant, R exact and +/-30 %.'),
         code('''def identify_lambda(plant, w_e, r_error=0.0, seconds=0.4):
     """What the flux observer's magnitude says lambda is, with R off by
     `r_error` as a fraction: the estimate over the truth."""
@@ -406,18 +276,8 @@ for w_e in SPEEDS:
     ),
     section(
         "The firmware's law over the link sweep",
-        md("A run is a lock from a random error, a raised cosine to half the "
-           "link's no-load speed, a hold, a descent under injection again; "
-           "the statistics start after the lock. Two rounds per link voltage: "
-           "a Latin hypercube over the knobs, then a half-box about the best "
-           "three, and the best per link is verified against fresh draws with "
-           "and without the injection through the descent - `min_rpm` is "
-           "where the back-EMF alone lost the rotor, the sensorless floor. A "
-           "small search here so the notebook executes in seconds; the "
-           "tool's defaults are 48 candidates, 16 draws and 24 refinements "
-           "per link. The tool's progress lines are held back; what it "
-           "found is printed, and the figure is every run's cost against the "
-           "link beside the best tune's mean and 90th percentile."),
+        md('Per link: a Latin hypercube, then a half-box about the best three; `min_rpm` is '
+           "where back-EMF alone lost the rotor. Small here; the tool's 48 x 16 x 24."),
         code('''import contextlib
 import io
 import time
@@ -460,20 +320,8 @@ b.set_xlabel('V link')
 b.set_ylabel('cost, best tune')
 b.legend()
 show(fig)'''),
-        md("Expected performance follows from the search and the machine. "
-           "The no-load speed is what the modulator can hold against the "
-           "back-EMF, `V_FRAC Vdc/sqrt(3) / lambda`, with `V_FRAC` 0.95 of "
-           "the link the vector may use. With an APC20x10E on the shaft the "
-           "held speed is where the propeller's `k w^2` meets the torque the "
-           "current ceiling makes, or that no-load speed, whichever comes "
-           "first - the last column names which. Torque and top speed do not "
-           "coexist: the shaft power is at the operating point, not the "
-           "product of the two ceilings. Under it, what the search chose per "
-           "link and what it implies: the current loop against the ceiling "
-           "two periods of pipeline delay allow, the injection frequency and "
-           "depth, the blend band in rpm, the held angle error in electrical "
-           "and mechanical degrees, and the floor as a share of the speed "
-           "that link holds."),
+        md('No-load speed `V_FRAC Vdc/sqrt(3) / lambda`, `V_FRAC` 0.95. With an APC20x10E: '
+           'where `k w^2` meets the current ceiling, or no-load, whichever first.'),
         code('''from coaxial.model.motor import APC20x10E, RATINGS, KT_NM_PER_AMP
 
 kt = 1.5 * motor.poles * motor.lam
@@ -519,20 +367,8 @@ for vdc in VDCS:
     ),
     section(
         'Speed and torque against the tolerances',
-        md("Every number here moves with lambda, and the plants are drawn "
-           "with lambda at plus or minus 10 %: speed goes as `1/lambda` and "
-           "torque as `lambda`, so the two ends of the tolerance are the two "
-           "ends of the envelope. The link sets the speed and the board's "
-           "100 A sets the torque; neither is the motor, whose 112.5 A burst "
-           "sits above the rating. Continuous torque is the thermal network's "
-           "and nothing else: the worst node's equilibrium against the "
-           "record's throttle point, 90 % of the 125 C ceiling, housekeeping "
-           "and drivers included, the same definition the thermal notebook "
-           "uses. A burst from ambient runs at `P / capacity` and nothing "
-           "else, the node holding 0.40 J/K and moving in seconds while the "
-           "board under it moves in 6.8 minutes - which is why a burst is "
-           "planned against `seconds_to_limit` and the envelope throttles at "
-           "90 % rather than waiting for the ceiling."),
+        md("Lambda +/-10 %: speed as `1/lambda`, torque as `lambda`. 100 A is the board's; "
+           "continuous torque the thermal network's (90 % of 125 C)."),
         code('''from coaxial.model import thermal
 
 LAMBDA_SPREAD = (0.9, 1.1)          # what mc.draw draws over
@@ -600,20 +436,8 @@ print('%-34s %.1f to %.1f deg electrical' % ('ANGLE ERROR, injection held', *hel
     ),
     section(
         'A low-saliency machine',
-        md("An outrunner is the case this has to survive. Saliency is what "
-           "the injection lives on - the demodulator's gain goes as `Lq - Ld` "
-           "- and an outrunner's magnets sit on the rotor surface, so there is "
-           "little of it. The plants are drawn from 1.05 to 1.5, which spans "
-           "the case where injection works and the case where it does not. "
-           "`choose_injection` sizes the injection for each saliency at this "
-           "AFE's measured floor and `decide` names the method at its 10 dB "
-           "threshold, once with 5 A of HF current to spend and once with 1 A. "
-           "Under the table, the control strategy for such a machine in the "
-           "drive's own terms, and the thermal observer's numbers, which are "
-           "the board's and travel with any motor bolted to it - except the "
-           "continuous rating, which is conduction and moves with `r_phase` "
-           "and with whatever the phase node's spreading resistance turns out "
-           "to be once re-fitted with current flowing."),
+        md("Saliency 1.05-1.5: `choose_injection` at this AFE's floor, `decide` at 10 dB, "
+           'with 5 A and with 1 A of HF current.'),
         code('''sigma_i = max(inverter.NOISE_A)
 loop_hz = sensorless.current_loop(motor.r, motor.ld, 1.0 / inverter.TS, sigma_i, 43.0)['bw_hz']
 print('             ---- 5 A of HF headroom ----   ---- 1 A ----')
@@ -661,19 +485,9 @@ print('   re-fit first             the phase node to_board, with current flowing
     ),
     section(
         'The observers against the machine this board drives',
-        md("Everything here is read off this hardware or computed from what "
-           "it reads. The board has three phase-current channels, a DC link "
-           "channel, an NTC, two die thermometers and the supply senses; it "
-           "has no phase-voltage sense, so the voltage every observer "
-           "integrates is reconstructed from the commanded duties and the "
-           "measured link - not a simplification for the simulation but what "
-           "the electronics can do, and why the DC link channel sits in the "
-           "loop rather than beside it. The sweep is the five observers and "
-           "the chain the firmware runs - dual flux below 800 rad/s "
-           "electrical, plain flux above 3000, blended between on the unit "
-           "vectors - over the whole range the 63 V link can reach, on plants "
-           "drawn at that link. Then each one's band inside the 20-degree "
-           "line, and the machine in the quantities the board reads."),
+        md('No phase-voltage sense: the voltage is the commanded duty against the measured '
+           "DC link. The five observers and the firmware's chain (dual flux < 800, flux > "
+           '3000 rad/s).'),
         code('''FULL = (20.0, 100.0, 500.0, 2000.0, 5000.0, 10000.0, 15000.0)
 CHAIN_BAND = (800.0, 3000.0)
 VDC_TOP = 63.0
@@ -767,20 +581,8 @@ print('   the NTC           minutes later, on the board time constant')'''),
     ),
     section(
         "The rotor observer on the board's own model",
-        md("Device 10 has two sample sources: the converters, and a PMSM the "
-           "firmware steps in the same interrupt. On the model the law needs "
-           "no reference and no stage, and the rotor's true angle is known, so "
-           "the observer's error can be measured at all - the only source "
-           "where it can. `theta_hat` and the model's `theta` ride one reply, "
-           "because two requests are 15 ms apart and six radians at 440 rad/s. "
-           "The loop polls at 20 Hz for four seconds while 0.05 A of torque "
-           "current spins the unloaded rotor up; the sleep is the rotor's "
-           "time, not the link's. The cross-section is the ROTOR OBSERVER "
-           "page's, at the last angle: the can turned to where the rotor is, "
-           "the teeth driven to the three phase currents `iq_ref` makes at "
-           "that angle - this machine driven this hard. The window since the "
-           "last take carries means, deviations, the peak current and the "
-           "innovation's autocorrelation `rho`, the whiteness test."),
+        md('On the model the true angle is known: `theta_hat` and `theta` in one reply (two '
+           'are 15 ms apart). 0.05 A spins the unloaded rotor; 20 Hz polls for 4 s.'),
         code('''drive = device.drive
 drive.configure(source='model')
 print(drive.model.configure(j=2e-5, b=1e-5, load=0.0, noise=0.0))
@@ -830,22 +632,8 @@ display(ansi.image(cross_section.render(math.degrees(theta) / pole_pairs, slots=
     ),
     section(
         'The back-EMF chain beside the loop',
-        md("Op 14 answers a second observer running beside the loop on the "
-           "same samples: `drive_observer.c`, the pair section 11 ranked "
-           "first - a dual flux model with a PLL below 800 rad/s electrical, "
-           "a leaking flux integrator with its lag put back above 3000, "
-           "blended on the unit vectors between. It drives nothing; it is a "
-           "second answer to the angle from different arithmetic, so the "
-           "loop's estimate can be checked without a shaft sensor. The chain "
-           "reads `v - R i`, and a rotor at rest makes no back-EMF, so "
-           "`valid` is false below the leak's corner. Four torque currents, "
-           "each given three seconds to settle because the rotor's j/b is "
-           "0.33 s, hold speeds spanning the hand-over, so the table is the "
-           "blend crossing from one observer to the other. `o['error']` is "
-           "the chain minus the loop's estimate out of ONE reply, and the "
-           "rotor's true angle out of another: at 4000 rad/s a 15 ms round "
-           "trip is 60 radians, so neither column is differenced across the "
-           "link."),
+        md('Op 14: `drive_observer.c` beside the loop, driving nothing. `valid` false below '
+           "the leak's corner. `error` is the chain minus the loop out of one reply."),
         code('''drive.model.reset()
 drive.model.configure(j=2e-5, b=6e-5, load=0.0, noise=0.0)
 drive.write(id_ref=0.0, iq_ref=0.05, theta=0.0, omega_target=0.0)
@@ -902,7 +690,7 @@ drive.configure(source='adc')'''),
     ),
 ]
 
-CONCLUSIONS = [
+RESULTS = [
     code('''bands = {which: band_of(which) for which in ('smo', 'flux', 'blend')}
 print('1.  two observers    sliding mode inside %.0f deg from %.0f to %.0f rpm, flux linkage from %.0f to %.0f, '
       'the blend from %.0f to %.0f'
@@ -951,128 +739,15 @@ print('13. the chain on it  %.2f deg rms from the loop where valid, %d of %d; du
       'lambda %.5f carried of %.5f'
       % (deg_rms(valid) if valid else math.nan, len(valid), len(chain), last['blend_lo'],
          last['blend_hi'], last['lambda_hat'], drive.params()['motor_lambda_uvs']))'''),
-    md("The angle is covered end to end by three mechanisms rather than one: "
-       "saliency at rest, a switching term through the middle, an integrator "
-       "at the top. None covers the range alone, and the hand-overs are where "
-       "the design work is, which is why the weight should come from what "
-       "each estimator says about itself rather than a speed threshold "
-       "someone picked. The blend is not a compromise: in the overlap it "
-       "beats both, because a lag correction resting on a speed estimate and "
-       "an integrator's leak are not the same error, and averaging two partly "
-       "independent errors is worth more than picking the better one. "
-       "Weighting on the residuals instead was tried and does not work as "
-       "written - the sliding-mode current residual is dominated by the AFE's "
-       "own noise, which its low-pass rejects but the residual still shows, "
-       "so referred to an angle it over-states by orders of magnitude and the "
-       "weight collapses onto the flux observer at every speed. What the "
-       "residuals are good for as they stand is validity: whether the "
-       "sliding-mode observer is on its surface, and whether the flux "
-       "integrator has drifted off lambda - two conditions a speed threshold "
-       "cannot see and a supervisor would trip on.\n\n"
-       "Lambda is recoverable at speed and only at speed: high up the "
-       "back-EMF dominates `v` and 30 % on R barely moves the magnitude, low "
-       "down `R i` is most of `v` and the same error swamps it. Run the other "
-       "way, at low speed with lambda fixed at what the high-speed measurement "
-       "said, the magnitude error is a function of R alone - the same "
-       "observer at two speeds separates the two constants the thermal model "
-       "most wants, R being the winding's temperature and lambda the "
-       "magnets'. The board's thermal observer has one measurement, the NTC "
-       "in the drivers' hot spot; a winding resistance and a magnet flux "
-       "tracked online are two more anchors on the other side of the gap, "
-       "from an observer the drive is running anyway.\n\n"
-       "The search's current-loop ceiling is a twentieth of the sampling "
-       "rate, two periods of pipeline delay wanting the phase margin, and the "
-       "injection stays eight times above whatever the loop ended up at or "
-       "the two fight. The observer's bandwidth is no knob: `kalman_gains` "
-       "iterates the Riccati recursion to its fixed point, so the measured "
-       "noise sets it and quieter shunts give a faster observer. The floor is "
-       "the AFE's: the demodulated angle error is `sigma_i` over the "
-       "demodulator's gain `V_inj Ts (Lq - Ld) / (2 Ld Lq)`, and the 5230SL's "
-       "saliency of about 1.3 is what the zero-speed method rests on - less, "
-       "and `decide` picks I/f at its 10 dB threshold. At this AFE's floor the "
-       "injection clears 10 dB down to a saliency of 1.02; what falls is the "
-       "exchange rate, 0.39 A of HF current at 1.5 and 2.26 A at 1.05, loss "
-       "and acoustic noise for no torque, so `i_h_max` is the knob a "
-       "low-saliency machine is set up around, and where it forces `if_start` "
-       "the drive ramps open-loop on current until the back-EMF is readable, "
-       "with a saturation pulse to settle the polarity. The hand-over speed is "
-       "where the sliding-mode observer's error crosses what the torque can "
-       "carry; it moves with lambda and the AFE's floor, not with saliency, "
-       "and on a machine run without injection it is the lowest speed the "
-       "drive can hold at all.\n\n"
-       "The envelope is set by the board, not the machine: 100 A "
-       "instantaneous against the motor's 112.5, the link's no-load speed "
-       "over lambda, and a continuous rating that is thermal and nothing "
-       "else. Speed goes as `1/lambda` and torque as `lambda`, so the "
-       "plus-or-minus 10 % the plants are drawn over puts a 22 % spread on "
-       "both; everything above the continuous torque is a burst measured in "
-       "seconds, 1.3 s at 100 A from ambient and less from a warm board, "
-       "which is what the thermal notebook plans against `seconds_to_limit`. "
-       "The floor is the injection's, not an observer's: it holds at rest "
-       "and the back-EMF observers do not. The network was fitted dry, so "
-       "the phase node's `to_board` is the first number to re-fit with "
-       "current flowing, `(T_zone - T_board) / P` off a camera into "
-       "`thermal.set_node`; it sets the continuous rating and every burst "
-       "time. The board never calls a reading good, it acts: at the record's "
-       "ceiling it drops MOE, the same path the break uses (invariant 10), "
-       "and the DC link's 78.15 V full scale on a 63 V rating is the 24 % of "
-       "headroom that records an over-rating transient instead of clipping "
-       "it (invariant 11).\n\n"
-       "The chain is the answer at 63 V: dual flux below 800 rad/s, plain "
-       "flux above 3000, blended between, so better than 99 % of the "
-       "commanded torque arrives at every speed the link can reach, and "
-       "nothing in it needs a sensor this board does not have. Two limits in "
-       "the board's own terms: neither observer sees a standstill - both live "
-       "on `v - R i` - which is the injection's job and what the saliency "
-       "pays for; and the acceleration this stage commands sweeps the whole "
-       "range in a few hundredths of a second, so the blend has to ride a "
-       "quantity the observer already holds, its own speed estimate, not a "
-       "scheduler. What a bench can check without a reference is the current "
-       "it takes to hold a speed: an angle error costs torque as `cos`, so "
-       "the phase channels see `1/cos` more current for the same shaft "
-       "torque, 0.7 % at seven degrees, inside the AFE's noise, and 6 % at "
-       "twenty, which is not.\n\n"
-       "On the converters the law reads the injected triple; on the model it "
-       "reads a PMSM stepped in the same interrupt, with the AFE off, no "
-       "stage, and a rotor whose true angle is known. `theta_hat` and the "
-       "model's `theta` ride one reply: two requests are 15 ms apart, six "
-       "radians at 440 rad/s, so an error across two round trips would be the "
-       "link's. At -O0 with the caches off a step was 10 040 cycles, 21 us "
-       "against a 20 us period, and the interrupt outgrew it; with the "
-       "instruction cache on and -O2 it is 6 756, and the board steps at "
-       "2 922 cycles a period with the drivers unpowered (FINDINGS, *The "
-       "caches were off*). `rho` is the innovation's autocorrelation: a "
-       "residual that is not white is a model that is wrong, and `ljung_box` "
-       "judges it. The chain is arithmetic this board already has - no "
-       "phase-voltage sense, so the voltage it integrates is the commanded "
-       "duty against the measured DC link, and the current the three phase "
-       "channels at 3.2 mA a count; its `lambda_hat` is the magnitude the "
-       "flux model carries, the one quantity here that sees the magnets. On "
-       "the stand-in the chain is the C's Python mirror stepped over a "
-       "bounded window of real periods on the stand-in's own rotor, so its "
-       "error against the loop is the mirror's, not the board's; the C runs "
-       "on the board, and `test_drive_core.py` holds that C to the Python it "
-       "was ported from, over plants drawn with the Monte Carlo's own "
-       "tolerances."),
+    md('- Dual flux + PLL: 0.7 deg at 14 rpm; plain flux: 53.\n- The chain: under 7 deg '
+       'from 14 to 10 231 rpm at 63 V (> 99 % torque); back-EMF alone loses the rotor at '
+       '10-31 rpm.\n- Peak torque 3.92-4.79 N.m at 100 A; continuous a quarter, thermal; '
+       '1.3 s at 100 A.\n- Injection clears 10 dB to saliency 1.02: 0.39 A HF at 1.5, 2.26 '
+       'A at 1.05.\n- The step: 2 922 of 4 750 ticks, drivers off.'),
 ]
 
-BENCH = (
-    "Flip `SIMULATED` and name the port; the first eleven sections run on the "
-    "host and need no board, and the last two need the drivers unpowered, "
-    "since on the model the law's duties reach the gates only if MOE happens "
-    "to be set. Compare conclusion 12 against the board's own step: "
-    "`isr_cycles_max` and `exit_ticks_max` are the interrupt measured, and a "
-    "step past 4 750 ticks is the caches or the optimiser, not the law. "
-    "Then, with a motor on the stand and `tools/bench/commission.py` run, put the "
-    "chain to work: `drive.observers.read()['error']` against the loop is the "
-    "number to watch, and two observers disagreeing is the first thing "
-    "either being wrong looks like. The current it takes to hold a speed is "
-    "the check that needs no reference - `1/cos` of the angle error on the "
-    "phase channels. The stand-in cannot show the search's tune on a real "
-    "plant, the injection's acoustic cost, or the chain's error against a "
-    "rotor it does not model; and the continuous rating in conclusion 8 "
-    "stands on a network fitted dry, so re-fit the phase node's `to_board` "
-    "with current flowing before planning a burst on it.")
+BENCH = ('`isr_cycles_max` and `exit_ticks_max` first. With a motor: '
+         "`drive.observers.read()['error']`; phase current `1/cos` of the angle error.")
 
 REFERENCES = [
     ('host/coaxial/model/sensorless.py', 'the five observers, `choose_injection` and `decide`'),

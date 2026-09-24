@@ -1,36 +1,14 @@
-"""Acquisition: the converters into records, a frame, and a live plot.
-
-The DAQ session, the pandas run and the live plot, as one paper."""
+"""Acquisition: the converters into records, a frame, and a live plot."""
 from .parts import code, md, section
 
 TITLE = 'Acquisition'
-SUBTITLE = ('The converters into records: a task configured and clocked, its '
-            'records read in a loop, scaled into a frame, and drawn live over '
-            'the switches.')
-ABSTRACT = (
-    'The board records sums of converter codes at a rate the task asks for '
-    'and the loop manages, and a host reads them as `Record`s over one link. '
-    'This notebook runs the whole path on the stand-in, and on a board with '
-    'the knob flipped: the catalogue of what can be recorded, the rail that '
-    'makes a reading a measurement, the clock tied to the host, a task of two '
-    'then five channels, the record read back as sums, counts and means, a '
-    'run scaled into a pandas frame through the calibration record, and a '
-    'two-second window of phase currents and gate duties redrawn as they '
-    'arrive. What it measures: the record period the loop managed against '
-    'the rate asked for, the spread of `dt`, what the ring holds, and how far '
-    'behind a reader is allowed to fall. What a reader takes to the bench: '
-    'a record is a sum and a count, `dt` is measured and not configured, and '
-    'a code column beside a scaled one is what arrived beside what it means.')
+SUMMARY = 'A task configured, read in a loop, scaled into a frame, drawn live.'
 
 SECTIONS = [
     section(
         'What the board can record',
-        md('`daq.catalogue()` is the board\'s own list, each row saying its '
-           'kind and whether `configure()` may ask for it. AFE_ON powers the '
-           'ADC reference: with it off every channel reads exact mid-scale '
-           'and the NTC exactly 25.00 C (invariant 9), so `enable()` takes '
-           'this session\'s reference on the rail before anything is '
-           'believed, and `close()` releases it.'),
+        md("`catalogue()` is the board's list. AFE_ON off reads mid-scale and 25.00 C "
+           '(invariant 9): `enable()` takes the rail, `close()` gives it back.'),
         code('''daq = device.daq
 daq.open()
 for row in daq.catalogue():
@@ -42,19 +20,14 @@ print(device.afe.state())'''),
     ),
     section(
         'The clock',
-        md('The board counts cycles, not time. `set_time_from_pc` ties the '
-           'counter to the host\'s clock; `reference=\'utc\'` measures that '
-           'clock against NTP over the same window and takes out its offset '
-           'and its rate, since a host clock is not a reference either.'),
+        md('The board counts cycles: `set_time_from_pc` ties them to the host clock, '
+           "`reference='utc'` to NTP."),
         code('''sync = device.set_time_from_pc(reference='pc')
 print(sync)'''),
     ),
     section(
         'A task, read in a loop',
-        md('`start()` puts a reader thread on the link, and it is the only '
-           'thing that touches the transport while it lives. Every `read(-1)` '
-           'answers its own backlog: the first record blocks, the rest come '
-           'with it.'),
+        md('`start()` puts a reader thread on the link; `read(-1)` is its backlog.'),
         code('''import time
 
 layout = daq.configure('phaseU', 'NTC', sample_rate=50)
@@ -74,10 +47,7 @@ shape = daq.state()
 held = daq.buffered
 print(shape)
 print(held)'''),
-        md('A `Record` is a dict underneath: `r[\'NTC\']` is the SUM over '
-           '`r.count` readings, `r.value(\'NTC\')` that channel\'s mean and '
-           '`r.sample(\'NTC\')` the struct behind it. `daq.series` and '
-           '`daq.columns` are the two helpers around a whole run.'),
+        md("A `Record`: `r['NTC']` the sum over `r.count`, `r.value('NTC')` the mean."),
         code('''r = records[0]
 print('sum   ', r['NTC'])
 print('count ', r.count, ' (r["samples"] is the same number:', r['samples'], ')')
@@ -93,13 +63,8 @@ print('%.1f s of NTC, first %.1f last %.1f' % (seconds[-1] - seconds[0], ntc[0],
     ),
     section(
         'A run into a frame, scaled by the record',
-        md('`frame(scaled=True)` adds one column per channel in real units '
-           'beside the codes, through the board\'s own converters and the '
-           'channel trims in its calibration record (invariant 7). `stored` '
-           'says whether that record was ever written or is the schematic\'s '
-           'arithmetic; an uncalibrated board answers an empty record and '
-           'every converter falls back to the compiled-in constant, which is '
-           'what `name` says.'),
+        md('`frame(scaled=True)`: a column in units beside each code, through the '
+           "calibration record (invariant 7). `stored` False: the schematic's arithmetic."),
         code('''daq.configure('phaseU', 'phaseV', 'phaseW', 'DC bus', 'NTC', sample_rate=100)
 daq.start()
 run = daq.read(300)
@@ -125,21 +90,12 @@ for panel, column in zip(panels, shown):
     panel.set_ylabel(column)
 panels[-1].set_xlabel('s')
 show(fig)'''),
-        md('The codes stay in the frame under the board\'s own channel names, '
-           'so a tare or a span can be checked against what arrived.'),
         code('''print(df[['Phase U', 'Phase U (A)', 'NTC', 'NTC (C)']].iloc[:3])'''),
     ),
     section(
         'Currents over the switches, live',
-        md('The pins ride the same records as the analog fields, so every '
-           'point on both is one window. The phase sense is zeroed with the '
-           'stage down - a tare stores what the channels read now as their '
-           'zero - and then the drive holds a current vector turning at 3.5 Hz '
-           'electrical on the model: three currents 120 degrees apart, and '
-           'the six gates modulating about half. Fifty records a second is '
-           'fourteen points per electrical turn. `frames()` yields the last '
-           '`window` seconds each time records arrive, indexed on seconds '
-           'before now.'),
+        md('Tare with the stage off, then 4 A turning at 3.5 Hz electrical on the model: 50 '
+           'records/s is 14 points a turn. `frames()` yields the last `window` s.'),
         code('''import math
 
 daq.configure('phaseU', 'phaseV', 'phaseW', digital=True, sample_rate=50)
@@ -179,7 +135,7 @@ print(len(whole), 'records held,', round(-whole.index.min(), 2), 's back')'''),
     ),
 ]
 
-CONCLUSIONS = [
+RESULTS = [
     code('''spans = [r.dt for r in records if r.dt]
 counts = [r.count for r in records]
 codes = [c for c in df.columns if not c.endswith(')')]
@@ -203,52 +159,13 @@ print('7. live             %d frames in 6 s = %.1f /s; %d records %.2f s deep; '
       'reader %d reads, %.1f records/s; queue peak %d, dropped %d, board backlog %s'
       % (frames, frames / 6.0, len(whole), -whole.index.min(), live['reads'],
          live['rate'], live['peak'], live['dropped'], live['backlog']))'''),
-    md('`dt` is measured, not configured: it is the gap to the next record\'s '
-       'timestamp within the block that carried it, because what the task was '
-       'asked for and what the loop managed are different numbers - which is '
-       'why the board sends a count with every sum. It is per block because '
-       'the stamps are raw CYCCNT and that counter wraps every 9.04 s at '
-       '475 MHz; the acquisition unwraps each block it receives, so an index '
-       'that runs longer than that stays monotonic. `dropped` is what the '
-       'ring had no room for; a reader thread that keeps up leaves it at '
-       'zero.\n\n'
-       'A code column is what arrived; the column beside it is what it means. '
-       'The conversion is the board\'s own (invariant 7): the scaling lives '
-       'in the calibration record, so `frame(scaled=True)` asks '
-       '`board.analog.scaling()` rather than holding a constant, then applies '
-       'that channel\'s offset and gain trim. Both columns stay, because what '
-       'arrived and what it means are two things. With an empty record every '
-       'converter falls back to the compiled-in constant and says so in '
-       '`name`. `calibration.span(index, reference)` writes a gain trim '
-       'against an instrument, taking the reference in the channel\'s own '
-       'unit - mA for a phase, mV for the DC link; the DC link\'s stands at '
-       '-32 418 ppm (FINDINGS). That divider is 49.9k/2.2k: 78.15 V full '
-       'scale on a 63 V rating, 24 % of headroom so an over-rating transient '
-       'is recorded rather than clipped (invariant 11).\n\n'
-       'Live, the reader thread is the only thing on the transport, so a '
-       'redraw in the loop never sits between two round trips, and every '
-       'read answers its own backlog in the same transaction. `frames()` '
-       'yields what is on screen and keeps `buffer` seconds behind it as '
-       'records, so nothing is concatenated and nothing grows; the index is '
-       'seconds before now, newest at 0, so the axis stands still while the '
-       'data moves through it. A ring is finite: a reader that falls far '
-       'enough behind for the writer to lap it loses records and is told how '
-       'many in `buffered[\'lost\']` - a terminal that stopped drawing for '
-       'six seconds once overflowed a 16 K ring, 334 records (FINDINGS).'),
+    md('- `dt` is measured: the gap to the next stamp in its block (CYCCNT wraps every 9.04 '
+       "s).\n- `dropped`: what the ring had no room for; `buffered['lost']`: what a lapped "
+       'reader lost (334 records, 16 K ring, 6 s stall - FINDINGS).\n- DC link span -32 418 '
+       'ppm; 49.9k/2.2k = 78.15 V full scale (invariant 11).'),
 ]
 
-BENCH = (
-    'Flip `SIMULATED` and name the port. Run the first three sections before '
-    'trusting a number: the catalogue says what this firmware records, '
-    '`afe.state()` says the reference rail is up, and the sync says how far '
-    'the host clock sat from NTP. Then compare conclusion 2 against the rate '
-    'asked for - the loop\'s own period is what the board managed, and a '
-    'board under a switching run manages less. Before a scaled frame means '
-    'amperes, read `stored` and `version` in section 5: an empty record is '
-    'the schematic\'s arithmetic, and `calibration.span` against a meter is '
-    'what turns it into a measurement. The stand-in cannot show a lapped '
-    'ring or a reader falling behind a real link; `buffered[\'lost\']` on a '
-    'board is where that shows.')
+BENCH = ('`stored` False until `calibration.span` against a meter.')
 
 REFERENCES = [
     ('host/coaxial/rig.py', 'the front door: `daq`, `set_time_from_pc`, `frame`, `frames`, `history`'),
