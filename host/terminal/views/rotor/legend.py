@@ -1,8 +1,8 @@
 """The rotor observer's gutter: the legend, its leaders to the drawing, the foot line."""
 from coaxial.draw import braille, machine
 from coaxial.draw.gauges import margin_class as soa_class, thermometer_class as ntc_class
-from terminal.screen import tint
-from terminal.stage import UP
+from terminal.ui.screen import tint
+from terminal.ui.scroll import UP
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS, HEADROOM_AT,
                                          HEADROOM_TITLES, HOP_ROWS, LEFT_COLUMNS, NTC_AT,
                                          RIGHT_COLUMNS, SOA_NODES)

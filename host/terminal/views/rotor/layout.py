@@ -2,7 +2,7 @@
 import math
 
 from coaxial.draw import machine
-from terminal.stage import HUD_WIDTH
+from terminal.ui.scroll import HUD_WIDTH
 
 
 #: The drawing's height before `fit` sizes it to the terminal. The can is

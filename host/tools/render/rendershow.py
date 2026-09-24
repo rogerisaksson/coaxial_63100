@@ -18,15 +18,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), 'tests'))
 
+from rich import box                                       # noqa: E402
 from rich.columns import Columns                           # noqa: E402
 from rich.panel import Panel                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
-from rich import box                                       # noqa: E402
 
-from coaxial.graphics import engine, shading, wireframe             # noqa: E402
-from tools.render import facecheck                                           # noqa: E402
-from terminal.screen import stage                                   # noqa: E402
 import test_render                                         # noqa: E402
+from coaxial.graphics import engine, shading, wireframe             # noqa: E402
+from terminal.ui.stage import stage  # noqa: E402
+from tools.render import facecheck                                           # noqa: E402
 
 WIDTH, HEIGHT = 64, 32
 #: Columns past which the exporter's render is shown at half scale, so

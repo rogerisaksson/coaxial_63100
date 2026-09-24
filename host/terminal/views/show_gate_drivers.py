@@ -27,17 +27,19 @@ import argparse
 import os
 import sys
 import time
-from rich.text import Text
 from contextlib import suppress
+
+from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.devices import scaling   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
-from terminal.screen import (ASH, LABEL, SODIUM, TO_MENU, closing, say, tint, hud,  # noqa: E402
-                             panels_of, open_rig, panel_width, run_view, stage)
-
-from terminal import screen as _screen                                   # noqa: E402
+from terminal.loader import TO_MENU
+from terminal.ui import screen as _screen                                   # noqa: E402
+from terminal.ui.screen import (ASH, LABEL, SODIUM, closing, say, tint, open_rig,  # noqa: E402
+                                panel_width, run_view)
+from terminal.ui.stage import hud, panels_of, stage
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 #: What R runs for, in seconds. Two floors, and the view reports both

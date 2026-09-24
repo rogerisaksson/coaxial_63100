@@ -30,11 +30,14 @@
   `terminal/pages/`. A page is one module - `HEADLINE KEY WHAT ORDER NAME`,
   optional `ITEMS`, `run(args, name)`; a new view is a new page, nothing
   else lists it.
-- Views are `terminal/views/show_*.py` on `stage.frame_of`, `stage.hud` and
-  `screen.run_view`; their drawings are `coaxial/draw/` (`machine dial
-  gauges desk thermalmap`) and `coaxial/graphics/` (the board renderer).
+- Views are `terminal/views/show_*.py` (a long one keeps its parts in a
+  folder beside it: `rotor/`, `session/`) on `terminal/ui/`: `stage`
+  (`frame_of`, `hud`), `screen` (`run_view`, `say`), `console` (`Keys`),
+  `scroll`, `marquee`, `rate`, `aspect`. Their drawings are `coaxial/draw/`
+  (`machine dial gauges desk thermalmap`) and `coaxial/graphics/` (the board
+  renderer).
 - The drawing's top-left corner carries the frame rate and one frame's
-  cost in ms (`stage.Corner`, `stage.rate_of(console)`), no box of its
+  cost in ms (`rate.Corner`, `rate.rate_of(console)`), no box of its
   own; `run_view` ticks it, a page with its own loop (`menu.py`,
   `show_render.py`) ticks it after each update.
 - Braille is judged in a raster, then by the bench: `COLUMNS=200 LINES=60

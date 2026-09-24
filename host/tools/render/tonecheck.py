@@ -31,8 +31,9 @@ import re
 import struct
 import sys
 import zlib
-from rich.text import Text
+
 from rich.console import Console
+from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 

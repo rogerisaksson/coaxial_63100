@@ -10,7 +10,7 @@ from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS
 #: frame's upper right, turning with the board - the reference every
 #: CAD view keeps in a corner: braille lines from an origin, the
 #: letter one letter past each tip. Each axis in one of the console
-#: motif's three roles (terminal/screen.py: NEON teal 44 names things,
+#: motif's three roles (terminal/ui/screen.py: NEON teal 44 names things,
 #: SODIUM amber 214 is the value that matters, ASH grey 242 the
 #: frame) - three colours the theme already owns, not a christmas
 #: tree of red, green and blue - X sodium, Y neon, Z ash, asked for as

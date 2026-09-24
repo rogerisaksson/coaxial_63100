@@ -6,7 +6,8 @@ from rich.text import Text
 from coaxial.devices import scaling
 from coaxial.draw import desk, gauges
 from coaxial.model import thermal
-from terminal.screen import ASH, LABEL, SODIUM, gauge, hud, panels_of, steady, tint
+from terminal.ui.screen import ASH, LABEL, SODIUM, gauge, steady, tint
+from terminal.ui.stage import hud, panels_of
 from terminal.views.session.state import ACTIVITIES
 
 

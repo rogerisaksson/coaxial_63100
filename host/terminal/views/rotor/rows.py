@@ -6,7 +6,7 @@ from rich.text import Text
 
 from coaxial.draw import machine
 from coaxial.model import motor
-from terminal.screen import ASH, SODIUM, tint
+from terminal.ui.screen import ASH, SODIUM, tint
 from terminal.views.rotor.layout import BAR_CELLS, BAR_GLYPH
 from terminal.views.rotor.thermal import envelope_acting
 

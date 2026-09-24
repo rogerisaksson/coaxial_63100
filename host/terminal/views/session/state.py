@@ -3,7 +3,7 @@ import time
 from typing import Any
 
 from coaxial.devices import angle
-from terminal.screen import QUIET, steady
+from terminal.ui.screen import QUIET, steady
 
 
 #: FIELD, from the A1335's register map.

@@ -18,10 +18,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from rich.console import Console                           # noqa: E402
 
-from terminal.screen import THEME                                   # noqa: E402
-from terminal import menu                                                # noqa: E402
 from coaxial.draw import orientation, dial, thermalmap  # noqa: E402
 from coaxial.graphics import wireframe                              # noqa: E402
+from terminal import menu                                                # noqa: E402
+from terminal.ui.stage import THEME  # noqa: E402
 
 
 def timed(fn, seconds=1.0):

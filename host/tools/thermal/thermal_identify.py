@@ -39,7 +39,7 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from terminal.screen import say                                       # noqa: E402
+from terminal.ui.screen import say                                       # noqa: E402
 
 from coaxial import Coaxial63100                    # noqa: E402
 from coaxial.model import thermal                    # noqa: E402

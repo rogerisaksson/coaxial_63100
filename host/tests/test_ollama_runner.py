@@ -1041,7 +1041,7 @@ def test_tag_roster(r):
 
 def test_the_terminal_keeps_the_mouse(r):
     """A view does not report the mouse until it is asked to."""
-    from terminal.screen import Keys, SELECT_KEYS
+    from terminal.ui.console import Keys, SELECT_KEYS
 
     keys = Keys(console=False, mouse=True)
     r.check('a view starts without the mouse', not keys.holding())
@@ -1071,9 +1071,9 @@ def test_the_terminal_keeps_the_mouse(r):
 
 def test_mouse(r):
     """The wheel and the right-drag, out of a terminal's own reports."""
-    from terminal import screen
+    from terminal.ui import console
 
-    keys = screen.Keys(console=True, mouse=True)
+    keys = console.Keys(console=True, mouse=True)
     # What the caller DOES with the number, not the sign of the number: it
     # scales zoom by 1 + this, and a bigger zoom stands closer.
     def after(report, zoom=1.0):
@@ -1094,7 +1094,7 @@ def test_mouse(r):
     leave, zoom = keys.poll()
     r.check('a right-drag pulled down backs away, and adds up over the '
             'frame it arrived in',
-            leave is None and abs(zoom + 6 * screen.DRAG_STEP) < 1e-9,
+            leave is None and abs(zoom + 6 * console.DRAG_STEP) < 1e-9,
             '%.3f over 6 rows' % zoom)
 
     keys._buffer = chr(27) + '[<2;5;26m' + chr(27) + '[<34;5;40M'
@@ -1113,18 +1113,18 @@ def test_mouse(r):
             'half-read report', held is None and keys.poll()[0] == 'menu')
 
     r.check('a view with no terminal reads no mouse at all',
-            screen.Keys(console=False, mouse=True).poll() == (None, 0.0))
+            console.Keys(console=False, mouse=True).poll() == (None, 0.0))
 
     # A Windows console hands mouse movement over as MOUSE_EVENT records, which
     # msvcrt never shows the program.
-    was = screen.LINE_INPUT | screen.ECHO_INPUT | screen.QUICK_EDIT
-    now = screen.console_mode(was)
+    was = console.LINE_INPUT | console.ECHO_INPUT | console.QUICK_EDIT
+    now = console.console_mode(was)
     r.check('a mouse view asks the console for VT input and takes the mouse',
-            now & screen.VT_INPUT and now & screen.MOUSE_INPUT
-            and now & screen.EXTENDED_FLAGS, '0x%04X -> 0x%04X' % (was, now))
+            now & console.VT_INPUT and now & console.MOUSE_INPUT
+            and now & console.EXTENDED_FLAGS, '0x%04X -> 0x%04X' % (was, now))
     r.check('and gives up quick-edit, line mode and echo to get it',
-            not (now & (screen.QUICK_EDIT | screen.LINE_INPUT
-                        | screen.ECHO_INPUT)))
+            not (now & (console.QUICK_EDIT | console.LINE_INPUT
+                        | console.ECHO_INPUT)))
 
 
 ROSTER = (

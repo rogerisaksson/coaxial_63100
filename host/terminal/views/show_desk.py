@@ -24,13 +24,13 @@ from contextlib import suppress
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.acquire import bessel                  # noqa: E402
-from coaxial.draw import desk                  # noqa: E402
 from coaxial.devices import scaling                  # noqa: E402
+from coaxial.draw import desk                  # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from terminal.screen import (Feed, TO_MENU, closing, say, hud, gauge, open_rig,  # noqa: E402
-                             frame_of, run_view, stage)
-
-from terminal import screen as _screen                                   # noqa: E402
+from terminal.loader import TO_MENU
+from terminal.ui import screen as _screen                                   # noqa: E402
+from terminal.ui.screen import Feed, closing, say, gauge, open_rig, run_view  # noqa: E402
+from terminal.ui.stage import hud, frame_of, stage
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 

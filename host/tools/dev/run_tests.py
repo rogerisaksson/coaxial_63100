@@ -334,8 +334,8 @@ TOUCHES = (
     ('host/terminal/views/',                   (STRUCTURE, VIEWS,
                                                 'test_simulated.py')),
     ('host/terminal/views/show_session.py',    (VIEWS,) + OLLAMA),
-    ('host/terminal/views/session/',          (VIEWS,) + OLLAMA),
-    ('host/terminal/screen.py',                (STRUCTURE, VIEWS,
+    ('host/terminal/views/session/',           (VIEWS,) + OLLAMA),
+    ('host/terminal/ui/',                      (STRUCTURE, VIEWS,
                                                 'test_simulated.py')),
     ('host/tools/',                            OLLAMA),
     ('host/tests/',                            ()),          # decided by name below

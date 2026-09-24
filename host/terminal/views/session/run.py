@@ -3,7 +3,7 @@ import time
 from contextlib import suppress
 
 from coaxial import Coaxial63100
-from terminal.screen import park, QUIET, say, steady
+from terminal.ui.screen import park, QUIET, say, steady
 from terminal.views.session.state import ACTIVITIES, DEFAULT_PHASES
 
 

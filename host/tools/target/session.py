@@ -22,7 +22,7 @@ from contextlib import suppress
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.comm import broker                                # noqa: E402
-from terminal.screen import say                                    # noqa: E402
+from terminal.ui.screen import say                                    # noqa: E402
 
 
 def status():

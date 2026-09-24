@@ -23,10 +23,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from coaxial.devices import angle                                  # noqa: E402
 from coaxial.draw import dial, ansi  # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from terminal.screen import (closing, Freshness, say, steady, TO_MENU, frame_of, hud,  # noqa: E402
-                             open_rig, run_view, stage)
-
-from terminal import screen as _screen                                   # noqa: E402
+from terminal.loader import TO_MENU
+from terminal.ui import aspect as _aspect  # noqa: E402
+from terminal.ui import screen as _screen                                   # noqa: E402
+from terminal.ui.screen import closing, Freshness, say, steady, open_rig, run_view  # noqa: E402
+from terminal.ui.stage import frame_of, hud, stage
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 REG_ANG = 0x20
@@ -245,7 +246,7 @@ def main(argv=None):
     # THE CELL'S SHAPE, ASKED ONCE: the face is drawn round for this terminal
     # the way the rotor observer's can is, and the box says whether the
     # measurement happened.
-    aspect = _screen.aspect_of(args.cell_aspect)
+    aspect = _aspect.aspect_of(args.cell_aspect)
     say('ok', 'cell', '%.2f tall, %s' % aspect)
     try:
         columns = os.get_terminal_size().columns

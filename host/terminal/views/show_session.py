@@ -30,8 +30,10 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial import Coaxial63100  # noqa: E402
-from terminal import screen as _screen  # noqa: E402
-from terminal.screen import TO_MENU, run_view, say, stage, steady  # noqa: E402
+from terminal.loader import TO_MENU  # noqa: E402
+from terminal.ui import screen as _screen  # noqa: E402
+from terminal.ui.screen import run_view, say, steady
+from terminal.ui.stage import stage
 from terminal.views.session.blocks import frame  # noqa: E402
 from terminal.views.session.run import (Plan, act_on, leave,  # noqa: E402
                                         start_activities, teardown)
@@ -101,7 +103,7 @@ def main():
 
     # power_afe stays False here - the session raises the rail ITSELF,
     # conditionally, a few lines down.
-    from terminal.screen import boot
+    from terminal.ui.stage import boot
     with (boot('LINKING SESSION') as ready,
           Coaxial63100(port=a.port, simulated_device=a.simulated,
                        power_afe=False) as rig):

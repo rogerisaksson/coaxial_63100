@@ -2,7 +2,7 @@
 import math
 import time
 
-from terminal.screen import stage
+from terminal.ui.stage import stage
 
 
 #: The demo cycle's period, seconds.

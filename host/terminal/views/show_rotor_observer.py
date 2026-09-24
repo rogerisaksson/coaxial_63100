@@ -48,9 +48,12 @@ from coaxial.draw import machine  # noqa: E402
 from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share  # noqa: E402
 from coaxial.errors import RigError  # noqa: E402
 from coaxial.model import thermal as _thermal  # noqa: E402
-from terminal import screen as _screen  # noqa: E402
-from terminal.screen import (TO_MENU, closing, frame_of, hud, open_rig, run_view,  # noqa: E402
-                             say, stage)
+from terminal.loader import TO_MENU  # noqa: E402
+from terminal.ui import aspect as _aspect  # noqa: E402
+from terminal.ui import console as _console  # noqa: E402
+from terminal.ui import screen as _screen  # noqa: E402
+from terminal.ui.screen import closing, open_rig, run_view, say
+from terminal.ui.stage import frame_of, hud, stage
 from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act  # noqa: E402
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,  # noqa: E402
                                          HEADROOM_GAP, LEFT_COLUMNS, NTC_GAP,
@@ -194,7 +197,7 @@ def compose(rig, origin, console, view):
             ('W', Text('LOAD', style='chip.live') if view['load']
              else 'LOAD'),
             # WHO HAS THE MOUSE.
-            ('F', Text('MOUSE', style='chip.live') if _screen.holding()
+            ('F', Text('MOUSE', style='chip.live') if _console.holding()
              else 'MOUSE')]
     if view['switch']:
         keys.append(('A', Text('ARMED', style='chip.live')
@@ -207,7 +210,7 @@ def compose(rig, origin, console, view):
 
 def aspect_of(args):
     """What makes the can round on THIS terminal."""
-    return _screen.aspect_of(args.cell_aspect)
+    return _aspect.aspect_of(args.cell_aspect)
 
 
 def parse_args(argv):

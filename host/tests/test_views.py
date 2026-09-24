@@ -295,7 +295,7 @@ def test_the_foot_carries_the_policy(report):
     colours, and nothing moves when the power goes negative.
     """
     from coaxial.draw import machine
-    from terminal.screen import plain as visible      # the row without its inks
+    from terminal.ui.screen import plain as visible      # the row without its inks
     from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import layout, legend, thermal
 
@@ -487,7 +487,7 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
 
     from coaxial.draw import ansi, gauges, machine
     from terminal.views import show_thermal_observer as page
-    from terminal import stage
+    from terminal.ui import stage
 
     half = gauges.bar(0.5, 16)
     line = re.sub('\x1b\\[[0-9;]*m', '', half)
@@ -544,9 +544,9 @@ def test_the_thermal_page_shows_its_evidence(report):
 
     from coaxial.draw import machine
     from coaxial.simulated.power import SimulatedThermal
-    from terminal.screen import plain as visible
+    from terminal.ui.screen import plain as visible
     from terminal.views import show_thermal_observer as page
-    from terminal import stage
+    from terminal.ui import stage
 
     def ident(margin, state='CONVERGING'):
         return {'state': state, 'margin': margin, 'margin_floor': 0.8,
@@ -1100,12 +1100,12 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     from coaxial.draw import machine
     from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import legend
-    from terminal import stage
+    from terminal.ui import scroll
 
     drawn = machine.render(6.0, 24, 28, 46, 18, pointer_deg=41.0)
     # The scroll arrows are the stage's now, every page's furniture.
     said = ''.join(str(x) for x in
-                   (legend.AIM_LEFT, legend.AIM_RIGHT, stage.UP, stage.DOWN,
+                   (legend.AIM_LEFT, legend.AIM_RIGHT, scroll.UP, scroll.DOWN,
                     legend.DEGREE, legend.LEADER, machine.POINTER_GLYPH)
                    ) + ''.join(legend.TURN) + ''.join(legend.DROP)
     for name, text in (('the drawing', drawn), ("the view's furniture", said)):
@@ -1120,11 +1120,11 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     report.check('the arrowheads are the small triangles',
                  (legend.AIM_LEFT, legend.AIM_RIGHT) == (chr(0x25C2), chr(0x25B8)),
                  legend.AIM_LEFT + legend.AIM_RIGHT)
-    from terminal import stage
+    from terminal.ui import scroll
     report.check('and the foot uses their up and down - the stage\'s, which '
                  'every page\'s scroll markers wear too',
-                 (stage.UP, stage.DOWN) == (chr(0x25B4), chr(0x25BE)),
-                 stage.UP + stage.DOWN)
+                 (scroll.UP, scroll.DOWN) == (chr(0x25B4), chr(0x25BE)),
+                 scroll.UP + scroll.DOWN)
 
 
 def test_the_flat_drawings_spend_the_block(report):
@@ -1260,21 +1260,21 @@ def test_the_bead_is_round_at_every_angle(report):
 
 def test_the_terminal_is_asked_how_tall_a_cell_is(report):
     """The cell's shape is measured, not assumed."""
-    from terminal import screen
+    from terminal.ui import aspect
 
     report.check('a terminal 1200 by 800 pixels over 100 by 40 cells has a '
                  'cell 1.67 times as tall as it is wide',
-                 abs((screen.cell_aspect_of((800, 1200), (40, 100)) or 0)
+                 abs((aspect.cell_aspect_of((800, 1200), (40, 100)) or 0)
                      - 5.0 / 3.0) < 1e-9)
     report.check('nothing divisible by zero comes back as a number',
-                 screen.cell_aspect_of((0, 0), (1, 1)) is None
-                 and screen.cell_aspect_of((800, 1200), (0, 100)) is None)
+                 aspect.cell_aspect_of((0, 0), (1, 1)) is None
+                 and aspect.cell_aspect_of((800, 1200), (0, 100)) is None)
     report.check('and a reply that cannot be a cell is refused',
-                 screen.cell_aspect_of((8000, 100), (40, 100)) is None
-                 and screen.cell_aspect_of((10, 1200), (40, 100)) is None,
-                 str(screen.ASPECT_RANGE))
+                 aspect.cell_aspect_of((8000, 100), (40, 100)) is None
+                 and aspect.cell_aspect_of((10, 1200), (40, 100)) is None,
+                 str(aspect.ASPECT_RANGE))
     report.check('a pipe is never asked, so the query cannot land in a '
-                 'render', screen.probe_aspect(console=False) is None)
+                 'render', aspect.probe_aspect(console=False) is None)
 
 
 def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
@@ -1303,7 +1303,8 @@ def test_every_page_scrolls_its_boxes(report):
     a click on its markers and a drag over it too, and the key bar says
     SCROLL only while there is somewhere to go.
     """
-    from terminal import stage
+    from terminal.ui import stage
+    from terminal.ui import scroll
 
     class Size:
         width, height = 100, 14
@@ -1315,42 +1316,42 @@ def test_every_page_scrolls_its_boxes(report):
     console = Console()
     boxes = [stage.hud('BOX %d' % i, [('a', 1), ('b', 2), ('c', 3)])
              for i in range(6)]
-    shown = stage.paged(console, boxes)
-    at, seen, total = stage.scroll_state(console)['pages']
+    shown = scroll.paged(console, boxes)
+    at, seen, total = scroll.scroll_state(console)['pages']
     report.check('a short terminal shows what fits and says the rest are '
                  'below', at == 0 and 0 < seen < total == 6
-                 and stage.DOWN in shown[-1].plain,
+                 and scroll.DOWN in shown[-1].plain,
                  '%d of %d shown' % (seen, total))
-    stage.scroll_by(console, 1)
-    stage.scroll_by(console, 1)
-    shown = stage.paged(console, boxes)
-    at, seen, total = stage.scroll_state(console)['pages']
+    scroll.scroll_by(console, 1)
+    scroll.scroll_by(console, 1)
+    shown = scroll.paged(console, boxes)
+    at, seen, total = scroll.scroll_state(console)['pages']
     report.check('two arrows down start two boxes in, with a row saying so',
-                 at == 2 and stage.UP in shown[0].plain, '%d above' % at)
+                 at == 2 and scroll.UP in shown[0].plain, '%d above' % at)
     for _ in range(10):
-        stage.scroll_by(console, 1)
-    stage.paged(console, boxes)
-    at, seen, total = stage.scroll_state(console)['pages']
+        scroll.scroll_by(console, 1)
+    scroll.paged(console, boxes)
+    at, seen, total = scroll.scroll_state(console)['pages']
     report.check('and the bottom is a full column, not one box and air',
                  seen == total and at < total, '%d..%d of %d' % (at, seen, total))
-    stage.scroll_click(console, Size.width - 2, 2)
-    stage.paged(console, boxes)
+    scroll.scroll_click(console, Size.width - 2, 2)
+    scroll.paged(console, boxes)
     report.check('a click on the top marker goes up one',
-                 stage.scroll_state(console)['pages'][0] == at - 1)
-    stage.scroll_click(console, 10, 2)
+                 scroll.scroll_state(console)['pages'][0] == at - 1)
+    scroll.scroll_click(console, 10, 2)
     report.check('a click over the drawing takes no grip, so a drag there '
-                 'does not scroll', not stage.scroll_state(console)['grip'])
-    before = stage.scroll_state(console)['pages'][0]
-    stage.scroll_drag(console, 20.0)
-    report.check('...and moves nothing', stage.scroll_state(console)['at'] == before)
+                 'does not scroll', not scroll.scroll_state(console)['grip'])
+    before = scroll.scroll_state(console)['pages'][0]
+    scroll.scroll_drag(console, 20.0)
+    report.check('...and moves nothing', scroll.scroll_state(console)['at'] == before)
 
     class Pipe:
         is_terminal = False
 
     report.check('piped, nothing is windowed',
-                 len(stage.paged(Pipe(), boxes)) == 6)
+                 len(scroll.paged(Pipe(), boxes)) == 6)
     try:
-        stage.paged(True, boxes)
+        scroll.paged(True, boxes)
         refused = False
     except TypeError:
         refused = True
@@ -1363,12 +1364,12 @@ def test_the_dial_is_round_on_this_terminal(report):
     """The shaft angle's face takes the measured cell aspect, and is a notch
     smaller than it was.
     """
-    from terminal import screen
+    from terminal.ui import aspect
     from coaxial.draw import dial
     from terminal.views import show_angle as view
 
     report.check('a given aspect wins, said as given',
-                 screen.aspect_of(2.3) == (2.3, 'given'))
+                 aspect.aspect_of(2.3) == (2.3, 'given'))
     report.check('and the face is a notch smaller than 64 by 23',
                  view.ART_WIDTH < 64 and view.ART_HEIGHT < 23
                  and view.ART_HEIGHT >= 19,
@@ -1750,10 +1751,11 @@ def test_the_marquee_decodes_the_art_itself(report):
     the console are the ones Text.from_ansi produced.
     """
     import io
-    from terminal import stage
     from rich.console import Console
+    from rich.measure import Measurement
     from rich.text import Text
     from coaxial.draw import ansi
+    from terminal.ui import marquee, stage
 
     class ByText:
         """The Marquee as it was: Text.from_ansi per line."""
@@ -1765,13 +1767,12 @@ def test_the_marquee_decodes_the_art_itself(report):
             self.wide = max((l.cell_len for l in self.lines), default=0)
 
         def __rich_measure__(self, console, options):
-            return stage.Measurement(min(self.wide, options.max_width),
-                                     self.wide)
+            return Measurement(min(self.wide, options.max_width), self.wide)
 
         def __rich_console__(self, console, options):
             width = options.max_width
             extra = self.wide - width
-            at = stage._slide(extra) if extra > 0 else 0
+            at = marquee._slide(extra) if extra > 0 else 0
             for line in self.lines:
                 if at or line.cell_len > width:
                     line = line[at:at + width]
@@ -1796,7 +1797,7 @@ def test_the_marquee_decodes_the_art_itself(report):
         '\x1b[31mred\x1b[92mbright\x1b[44m on blue\x1b[0m plain',
         'no colour at all',
         '\x1b[1mbold\x1b[0m falls back to Text'))
-    mine, theirs = stage.Marquee(art), ByText(art)
+    mine, theirs = marquee.Marquee(art), ByText(art)
     report.check('every colour form renders to the bytes the Text path '
                  'produced', drawn(mine, 40) == drawn(theirs, 40),
                  repr(drawn(mine, 40))[:200])
@@ -1810,14 +1811,14 @@ def test_the_marquee_decodes_the_art_itself(report):
                  [len(l) for l in mine.lines[:4]] == [3, 4, 4, 1],
                  [len(l) for l in mine.lines[:4]])
     wide = ansi.code((1, 2, 3)) + 'x' * 20 + ansi.code(40) + 'y' * 20 + ansi.RESET
-    slide = stage._slide
-    stage._slide = lambda extra: 7
+    slide = marquee._slide
+    marquee._slide = lambda extra: 7
     try:
         report.check('cropped and slid, the same cells in the same bytes',
-                     drawn(stage.Marquee(wide), 24) == drawn(ByText(wide), 24),
-                     repr(drawn(stage.Marquee(wide), 24))[:200])
+                     drawn(marquee.Marquee(wide), 24) == drawn(ByText(wide), 24),
+                     repr(drawn(marquee.Marquee(wide), 24))[:200])
     finally:
-        stage._slide = slide
+        marquee._slide = slide
 
 
 def test_the_preload_is_the_first_inquiry(report):

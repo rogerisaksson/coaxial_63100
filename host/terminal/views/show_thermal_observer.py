@@ -11,24 +11,27 @@ import argparse
 import os
 import sys
 import time
-from rich.text import Text
 from contextlib import suppress
+
+from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from terminal.screen import (closing, say, stamp_crosses, TO_MENU, visible)  # noqa: E402
-
-from terminal import screen as _screen                                   # noqa: E402
+from terminal.loader import TO_MENU
+from terminal.ui import aspect as _aspect  # noqa: E402
+from terminal.ui import screen as _screen                                   # noqa: E402
+from terminal.ui.screen import closing, say, stamp_crosses, visible  # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100                          # noqa: E402
-from coaxial.errors import NoReplyError, RigError         # noqa: E402
 from coaxial.draw import gauges, machine                        # noqa: E402
-from coaxial.model.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty  # noqa: E402
 from coaxial.draw.thermalmap import CELL_ASPECT, MARKS, SCALE_LINES, render  # noqa: E402
+from coaxial.errors import NoReplyError, RigError         # noqa: E402
 from coaxial.kalman import thermal_ident                   # noqa: E402
-from terminal.screen import hud                                     # noqa: E402
-from terminal.screen import frame_of, run_view, stage               # noqa: E402
+from coaxial.model.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty  # noqa: E402
+from terminal.ui.screen import run_view
+from terminal.ui.stage import hud  # noqa: E402
+from terminal.ui.stage import frame_of, stage  # noqa: E402
 
 #: Rows the stage puts round the map: the title band, the viewport's two
 #: edges, the crosses' gutter row.
@@ -415,9 +418,9 @@ def main():
     a = p.parse_args()
 
     # power_afe=False, and it is not a preference.
-    from terminal.screen import boot
-    with boot('LINKING OBSERVER') as ready,          Coaxial63100(port=a.port, simulated_device=a.simulated,
-                      power_afe=False) as rig:
+    from terminal.ui.stage import boot
+    with (boot('LINKING OBSERVER') as ready,
+          Coaxial63100(port=a.port, simulated_device=a.simulated, power_afe=False) as rig):
         ready()
         origin = rig.origin
         # ON THE STAND-IN, however it was reached: `--simulated` or a bench
@@ -456,7 +459,7 @@ def main():
         console = board_view.is_terminal
         # ROUND ON THIS TERMINAL: the field's row aspect is half the
         # character's, and the character's is asked, not assumed.
-        aspect = _screen.aspect_of(a.cell_aspect)
+        aspect = _aspect.aspect_of(a.cell_aspect)
 
         period = 1.0 / max(a.hz, 0.2)
         # Everything in the frame that is not picture, so `render` can size the
