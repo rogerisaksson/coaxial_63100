@@ -36,9 +36,9 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial import Coaxial63100
-from coaxial.errors import NoReplyError, RigError
-from coaxial.model.thermal import STATE_IS as WHAT, STATES, tau_minutes
+from coaxial import Coaxial63100  # noqa: E402
+from coaxial.errors import NoReplyError, RigError  # noqa: E402
+from coaxial.model.thermal import STATE_IS as WHAT, STATES, tau_minutes  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 NEXT_FILE = os.path.join(HERE, '.calib-next')

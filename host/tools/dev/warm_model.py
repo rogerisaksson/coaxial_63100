@@ -36,7 +36,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from coaxial.memory import physical                  # noqa: E402
+from coaxial.memory import physical  # noqa: E402
 
 API = 'http://localhost:11434'
 MODEL_LAYERS = ('application/vnd.ollama.image.model',

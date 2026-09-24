@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from coaxial.draw import ansi  # noqa: E402
 
-
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if len(argv) < 2:

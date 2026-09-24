@@ -37,8 +37,8 @@ from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.graphics import engine, shading, wireframe             # noqa: E402
-from tools.render import facecheck                                           # noqa: E402
+from coaxial.graphics import engine, shading, wireframe  # noqa: E402
+from tools.render import facecheck  # noqa: E402
 
 PHOTOS = ('x0y45z0', 'x45y45z45')
 TURNS = ('x0y0z0', 'x0y15z0', 'x0y30z0', 'x0y60z0', 'x30y0z0')

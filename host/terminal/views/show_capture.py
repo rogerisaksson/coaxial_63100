@@ -25,12 +25,12 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.devices import scaling                                # noqa: E402
-from coaxial.errors import RigError                        # noqa: E402
+from coaxial.devices import scaling  # noqa: E402
+from coaxial.errors import RigError  # noqa: E402
 from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui.console import Keys
-from terminal.ui.screen import closing, say, open_rig, panel_width
-from terminal.ui.stage import hud, panels_of, curtain, stage
+from terminal.ui.console import Keys  # noqa: E402
+from terminal.ui.screen import closing, open_rig, panel_width, say  # noqa: E402
+from terminal.ui.stage import curtain, hud, panels_of, stage  # noqa: E402
 
 ROTATION_VECTOR = 0x05
 

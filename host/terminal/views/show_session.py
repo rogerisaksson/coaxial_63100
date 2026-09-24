@@ -32,13 +32,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from coaxial import Coaxial63100  # noqa: E402
 from terminal.loader import TO_MENU  # noqa: E402
 from terminal.ui import screen as _screen  # noqa: E402
-from terminal.ui.screen import run_view, say, steady
-from terminal.ui.stage import stage
+from terminal.ui.screen import run_view, say, steady  # noqa: E402
+from terminal.ui.stage import stage  # noqa: E402
 from terminal.views.session.blocks import frame  # noqa: E402
-from terminal.views.session.run import (Plan, act_on, leave,  # noqa: E402
-                                        start_activities, teardown)
-from terminal.views.session.state import (ACTIVITIES, DEFAULT_DUTY,  # noqa: E402
-                                          Session, _start_imu)
+from terminal.views.session.run import (Plan, act_on, leave, start_activities,  # noqa: E402
+                                        teardown)
+from terminal.views.session.state import (ACTIVITIES, DEFAULT_DUTY, Session,  # noqa: E402
+                                          _start_imu)
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 

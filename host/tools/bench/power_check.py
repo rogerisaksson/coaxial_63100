@@ -22,8 +22,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial import Coaxial63100                          # noqa: E402
-from coaxial.errors import NoReplyError, RigError         # noqa: E402
+from coaxial import Coaxial63100  # noqa: E402
+from coaxial.errors import NoReplyError, RigError  # noqa: E402
 
 #: The lease in the firmware is 3 s. Wait past it, with room for the poll.
 LEASE_WAIT_S = 4.5

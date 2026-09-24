@@ -20,14 +20,14 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.devices import angle                                  # noqa: E402
-from coaxial.draw import dial, ansi  # noqa: E402
-from coaxial.errors import RigError                        # noqa: E402
-from terminal.loader import TO_MENU
-from terminal.ui import aspect as _aspect  # noqa: E402
-from terminal.ui import screen as _screen                                   # noqa: E402
-from terminal.ui.screen import closing, Freshness, say, steady, open_rig, run_view  # noqa: E402
-from terminal.ui.stage import frame_of, hud, stage
+from coaxial.devices import angle  # noqa: E402
+from coaxial.draw import ansi, dial  # noqa: E402
+from coaxial.errors import RigError  # noqa: E402
+from terminal.loader import TO_MENU  # noqa: E402
+from terminal.ui import aspect as _aspect, screen as _screen  # noqa: E402
+from terminal.ui.screen import Freshness, closing, open_rig, run_view, say, steady  # noqa: E402
+from terminal.ui.stage import frame_of, hud, stage  # noqa: E402
+
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 REG_ANG = 0x20

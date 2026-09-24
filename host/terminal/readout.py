@@ -31,7 +31,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rich.text import Text                                 # noqa: E402
+from rich.text import Text  # noqa: E402
 
 #: Characters a second while a page types in: a teletype, not a modem.
 CPS = 90.0

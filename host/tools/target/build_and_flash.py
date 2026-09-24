@@ -35,7 +35,7 @@ from shutil import which
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'host'))
 
-from tools.target.find_board import _text          # noqa: E402
+from tools.target.find_board import _text  # noqa: E402
 
 BUNDLE_ROOT = Path(os.environ.get('LOCALAPPDATA', '')) / 'stm32cube' / 'bundles'
 VSCODE_EXT = Path(os.environ.get('USERPROFILE', '')) / '.vscode' / 'extensions'

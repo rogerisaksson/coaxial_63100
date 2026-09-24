@@ -22,9 +22,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial import Coaxial63100                           # noqa: E402
-from coaxial.control.commission import Commissioning               # noqa: E402
-from coaxial.errors import RigError                        # noqa: E402
+from coaxial import Coaxial63100  # noqa: E402
+from coaxial.control.commission import Commissioning  # noqa: E402
+from coaxial.errors import RigError  # noqa: E402
 
 STEPS = ('afe', 'sample_point', 'offsets', 'gains_afe', 'sign', 'deadtime',
          'l_map', 'flux', 'budget', 'gains', 'decide', 'verify')

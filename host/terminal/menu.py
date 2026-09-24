@@ -24,21 +24,20 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rich import box                                       # noqa: E402
-from rich.align import Align                               # noqa: E402
-from rich.console import Group                             # noqa: E402
-from rich.layout import Layout                             # noqa: E402
-from rich.panel import Panel                               # noqa: E402
-from rich.text import Text                                 # noqa: E402
+from rich import box  # noqa: E402
+from rich.align import Align  # noqa: E402
+from rich.console import Group  # noqa: E402
+from rich.layout import Layout  # noqa: E402
+from rich.panel import Panel  # noqa: E402
+from rich.text import Text  # noqa: E402
 
 from terminal import readout  # noqa: E402
 from terminal.ui import screen as _screen  # noqa: E402
-from terminal.ui.console import Keys
-from terminal.ui.marquee import Marquee
-from terminal.ui.rate import rate_of
-from terminal.ui.rate import Corner  # noqa: E402
+from terminal.ui.console import Keys  # noqa: E402
+from terminal.ui.marquee import Marquee  # noqa: E402
+from terminal.ui.rate import Corner, rate_of  # noqa: E402
 from terminal.ui.screen import ENTER_KEYS, paced  # noqa: E402
-from terminal.ui.stage import band_of, curtain, footer, live, stage
+from terminal.ui.stage import band_of, curtain, footer, live, stage  # noqa: E402
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 

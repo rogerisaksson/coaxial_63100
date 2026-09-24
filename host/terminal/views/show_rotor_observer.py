@@ -49,20 +49,18 @@ from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share  # noqa: 
 from coaxial.errors import RigError  # noqa: E402
 from coaxial.model import thermal as _thermal  # noqa: E402
 from terminal.loader import TO_MENU  # noqa: E402
-from terminal.ui import aspect as _aspect  # noqa: E402
-from terminal.ui import console as _console  # noqa: E402
-from terminal.ui import screen as _screen  # noqa: E402
-from terminal.ui.screen import closing, open_rig, run_view, say
-from terminal.ui.stage import frame_of, hud, stage
+from terminal.ui import aspect as _aspect, console as _console, screen as _screen  # noqa: E402
+from terminal.ui.screen import closing, open_rig, run_view, say  # noqa: E402
+from terminal.ui.stage import frame_of, hud, stage  # noqa: E402
 from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act  # noqa: E402
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,  # noqa: E402
-                                         HEADROOM_GAP, LEFT_COLUMNS, NTC_GAP,
-                                         RIGHT_COLUMNS, SOA_NODES, fit)
+                                         HEADROOM_GAP, LEFT_COLUMNS, NTC_GAP, RIGHT_COLUMNS,
+                                         SOA_NODES, fit)
 from terminal.views.rotor.legend import foot_furniture, gutter_caption, legend_drops  # noqa: E402
 from terminal.views.rotor.motions import turn_the_handle  # noqa: E402
 from terminal.views.rotor.rows import (chain_rows, drive_rows, loop_rows,  # noqa: E402
-                                       observer_rows, phase_amps, phase_rows,
-                                       pointer_rate, status_rows, travel)
+                                       observer_rows, phase_amps, phase_rows, pointer_rate,
+                                       status_rows, travel)
 from terminal.views.rotor.thermal import (headrooms, ntc_bar, policy_margin,  # noqa: E402
                                           soa_bars, thermal_rows, watts_bar, winding)
 

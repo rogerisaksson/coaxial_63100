@@ -13,11 +13,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.model.thermal import (AMBIENT, CFG, DRIVER_RISE_SWITCHING, NODES, NTC_OFFSET,
-                                   NTC_SEES_DRIVERS, board_from_ntc, expected_ntc,
+from coaxial.draw.thermalmap import LAYOUT, render  # noqa: E402
+from coaxial.model import thermal  # noqa: E402
+from coaxial.model.thermal import (AMBIENT, CFG, DRIVER_RISE_SWITCHING, NODES,  # noqa: E402
+                                   NTC_OFFSET, NTC_SEES_DRIVERS, board_from_ntc, expected_ntc,
                                    settled_fraction, tau_minutes)
-from coaxial.model import thermal
-from coaxial.draw.thermalmap import LAYOUT, render
 
 #: The camera, 2026-08-28. Dead surface is the reference; ntc is the board's.
 CAMERA = {

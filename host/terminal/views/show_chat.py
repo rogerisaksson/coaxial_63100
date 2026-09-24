@@ -21,18 +21,18 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from rich import box                                       # noqa: E402
-from rich.layout import Layout                             # noqa: E402
-from rich.panel import Panel                               # noqa: E402
-from rich.text import Text                                 # noqa: E402
+from rich import box  # noqa: E402
+from rich.layout import Layout  # noqa: E402
+from rich.panel import Panel  # noqa: E402
+from rich.text import Text  # noqa: E402
 
 from coaxial_mcp.schema import TOOLS  # noqa: E402
 from coaxial_ollama import cli, language, pull as pulling  # noqa: E402
-from coaxial_ollama.client import OllamaError              # noqa: E402
-from terminal.loader import TO_MENU
-from terminal.ui.console import Keys
+from coaxial_ollama.client import OllamaError  # noqa: E402
+from terminal.loader import TO_MENU  # noqa: E402
+from terminal.ui.console import Keys  # noqa: E402
 from terminal.ui.screen import ENTER_KEYS, paced  # noqa: E402
-from terminal.ui.stage import boot, curtain, footer, header, hud, stage
+from terminal.ui.stage import boot, curtain, footer, header, hud, stage  # noqa: E402
 
 #: Rows the page spends outside the transcript: band, input, key bar,
 #: and the frame's own two edges.

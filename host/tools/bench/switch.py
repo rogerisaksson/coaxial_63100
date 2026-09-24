@@ -23,8 +23,8 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial import Coaxial63100
-from coaxial.errors import RigError
+from coaxial import Coaxial63100  # noqa: E402
+from coaxial.errors import RigError  # noqa: E402
 
 PHASES = ('U', 'V', 'W')
 STOP_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),

@@ -17,9 +17,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.graphics import shading, wireframe                     # noqa: E402
-from tools.render import facecheck                                           # noqa: E402
-
+from coaxial.graphics import shading, wireframe  # noqa: E402
+from tools.render import facecheck  # noqa: E402
 
 def fixtures():
     got = []

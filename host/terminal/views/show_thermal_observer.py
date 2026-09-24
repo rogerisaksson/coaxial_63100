@@ -17,10 +17,10 @@ from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from terminal.loader import TO_MENU
-from terminal.ui import aspect as _aspect  # noqa: E402
-from terminal.ui import screen as _screen                                   # noqa: E402
+from terminal.loader import TO_MENU  # noqa: E402
+from terminal.ui import aspect as _aspect, screen as _screen  # noqa: E402
 from terminal.ui.screen import closing, say, stamp_crosses, visible  # noqa: E402
+
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100                          # noqa: E402

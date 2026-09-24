@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.devices.boot import BOOT_BAUD, Master                  # noqa: E402
+from coaxial.devices.boot import BOOT_BAUD, Master  # noqa: E402
 
 TYPES = {'coaxial_63100': 1, 'coaxial_63020': 2}
 

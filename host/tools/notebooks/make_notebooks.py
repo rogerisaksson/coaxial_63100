@@ -32,7 +32,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from tools import notebooks                                    # noqa: E402
+from tools import notebooks  # noqa: E402
 
 #: notebook_examples/ sits beside host/, not under it: this file is
 #: host/tools/notebooks/make_notebooks.py, so the repository is two levels up.

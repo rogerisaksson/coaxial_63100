@@ -21,9 +21,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial import Coaxial63100                           # noqa: E402
-from coaxial.acquire.clock import NTP_SERVER, ntp_offset           # noqa: E402
-
+from coaxial import Coaxial63100  # noqa: E402
+from coaxial.acquire.clock import NTP_SERVER, ntp_offset  # noqa: E402
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

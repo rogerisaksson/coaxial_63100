@@ -21,14 +21,14 @@ from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.draw import farm, orientation                      # noqa: E402
-from coaxial.errors import RigError                        # noqa: E402
-from terminal.loader import TO_MENU
-from terminal.ui import screen as _screen  # noqa: E402
-from terminal.ui import console as _console
-from terminal.ui.console import WHEEL_STEP
-from terminal.ui.screen import closing, say, Freshness, run_view  # noqa: E402
-from terminal.ui.stage import hud, frame_of, stage
+from coaxial.draw import farm, orientation  # noqa: E402
+from coaxial.errors import RigError  # noqa: E402
+from terminal.loader import TO_MENU  # noqa: E402
+from terminal.ui import console as _console, screen as _screen  # noqa: E402
+from terminal.ui.console import WHEEL_STEP  # noqa: E402
+from terminal.ui.screen import Freshness, closing, run_view, say  # noqa: E402
+from terminal.ui.stage import frame_of, hud, stage  # noqa: E402
+
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 ROTATION_VECTOR = 0x05

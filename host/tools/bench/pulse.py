@@ -29,9 +29,9 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial import Coaxial63100                           # noqa: E402
-from coaxial.errors import RigError                        # noqa: E402
-from tools.bench.switch import PHASES                                  # noqa: E402
+from coaxial import Coaxial63100  # noqa: E402
+from coaxial.errors import RigError  # noqa: E402
+from tools.bench.switch import PHASES  # noqa: E402
 
 #: Seconds a compare write takes to land, measured 14.9-16.0 ms over the
 #: probe's COM port: what an --on wait is shortened by.

@@ -28,8 +28,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial import Coaxial63100
-from coaxial.errors import NoReplyError, RigError
+from coaxial import Coaxial63100  # noqa: E402
+from coaxial.errors import NoReplyError, RigError  # noqa: E402
 
 CHANNEL = 'Vgate'
 

@@ -19,25 +19,25 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from rich import box                                       # noqa: E402
-from rich.align import Align                               # noqa: E402
-from rich.layout import Layout                             # noqa: E402
-from rich.panel import Panel                               # noqa: E402
-from rich.table import Table                               # noqa: E402
-from rich.text import Text                                 # noqa: E402
+from rich import box  # noqa: E402
+from rich.align import Align  # noqa: E402
+from rich.layout import Layout  # noqa: E402
+from rich.panel import Panel  # noqa: E402
+from rich.table import Table  # noqa: E402
+from rich.text import Text  # noqa: E402
 
-from coaxial.draw.orientation import _qmul, matrix, normalise   # noqa: E402
-from coaxial.errors import RigError                        # noqa: E402
-from coaxial.graphics import shading, wireframe                     # noqa: E402
-from coaxial.graphics.crew import Crew                              # noqa: E402
-from terminal.loader import TO_MENU
-from terminal.ui import screen as _screen                                   # noqa: E402
-from terminal.ui.console import Keys, WHEEL_STEP  # noqa: E402
-from terminal.ui.rate import rate_of
-from terminal.ui.rate import Corner  # noqa: E402
-from terminal.ui.screen import paced
-from terminal.ui.stage import curtain, footer, stage
-from tools.render import facecheck                                           # noqa: E402
+from coaxial.draw.orientation import _qmul, matrix, normalise  # noqa: E402
+from coaxial.errors import RigError  # noqa: E402
+from coaxial.graphics import shading, wireframe  # noqa: E402
+from coaxial.graphics.crew import Crew  # noqa: E402
+from terminal.loader import TO_MENU  # noqa: E402
+from terminal.ui import screen as _screen  # noqa: E402
+from terminal.ui.console import WHEEL_STEP, Keys  # noqa: E402
+from terminal.ui.rate import Corner, rate_of  # noqa: E402
+from terminal.ui.screen import paced  # noqa: E402
+from terminal.ui.stage import curtain, footer, stage  # noqa: E402
+from tools.render import facecheck  # noqa: E402
+
 _screen.CHATTER = False
 
 #: Degrees per keypress, and per second under SPACE.

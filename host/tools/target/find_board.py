@@ -30,7 +30,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from coaxial.comm.ports import (ANSWERED, discover, find, kinds, list_ports,  # noqa: E402
                                 port_state, probe)
 
-
 def _text(out):
     """Subprocess output as text, whichever way it came."""
     if isinstance(out, bytes):

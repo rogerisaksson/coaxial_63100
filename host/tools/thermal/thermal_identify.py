@@ -39,15 +39,13 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from terminal.ui.screen import say                                       # noqa: E402
-
-from coaxial import Coaxial63100                    # noqa: E402
-from coaxial.model import thermal                    # noqa: E402
-from coaxial.errors import NoReplyError, RigError            # noqa: E402
-from coaxial.model.thermal import (STATE_IS as WHAT, CFG, NTC_OFFSET, STATES,  # noqa: E402
+from coaxial import Coaxial63100  # noqa: E402
+from coaxial.errors import NoReplyError, RigError  # noqa: E402
+from coaxial.model import thermal  # noqa: E402
+from coaxial.model.thermal import (CFG, NTC_OFFSET, STATE_IS as WHAT, STATES,  # noqa: E402
                                    tau_minutes)
-from tools.thermal.thermal_validate import CAMERA                          # noqa: E402
-
+from terminal.ui.screen import say  # noqa: E402
+from tools.thermal.thermal_validate import CAMERA  # noqa: E402
 
 #: The one power number this bench has, and it is not trusted - the owner
 #: says so. Everything absolute below is conditional on it and prints as such.
