@@ -1133,6 +1133,25 @@ def test_approach(report):
     report.check('approach: its passes come from both sides', sides == {1.0, -1.0}, sides)
     straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)
     report.check('approach: the curvature bends the corridor', straight != gates[0])
+    left, right = (approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment,
+                                     search=(way, 0.0)) for way in (-1.0, 1.0))
+    look = approach.LOOK
+    held = [approach.flight(look + approach.SLIDE[1] + f * (look - approach.SLIDE[1]) * 0.9)
+            ['search'] for f in (0.0, 0.5, 1.0)]
+    sites = {tuple(round(v, 6) for v in approach.flight((j + 0.99) * look)['search'])
+             for j in range(12)}
+    report.check('approach: the corridor sweeps for a site - slides to one each LOOK, holds it',
+                 left != right and held[0] == held[1] == held[2] and len(sites) == 12,
+                 '%d sites' % len(sites))
+    rise = [q / 20.0 for q, now in ((q, approach._pass(q / 20.0)) for q in range(20 * 60))
+            if now and now[3] == 'by']
+    inks = {rgb for q in rise[len(rise) // 3:2 * len(rise) // 3]
+            for _mask, rgb, _body in approach.craft(116, 46, q).values()}
+    report.check('approach: the fly-by climbs on a flame, leaving smoke',
+                 rise and any(rgb in approach.FIRE for rgb in inks)
+                 and any(b and abs(r / b - approach.SMOKE[0] / approach.SMOKE[2]) < 0.02
+                         for r, _g, b in inks),
+                 '%d inks' % len(inks))
     flown = [approach.flight(q / 4.0) for q in range(4 * 600)]
     banks = [fl['bank'] for fl in flown]
     level = [len(run) for run in ''.join('0' if b == 0.0 else '1' for b in banks).split('1')

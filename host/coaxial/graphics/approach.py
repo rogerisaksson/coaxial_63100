@@ -27,7 +27,9 @@ ASPECT = 2.0
 #: unit), rolled into and out of over ROLL_IN seconds at most, and level again - each state
 #: held, never dithered. A turn reverses the last with REVERSE, else goes on the same way.
 #: The craft banks BANK degrees at full curvature, into the bend, and turns TURN degrees a
-#: second there; the nose bobs BOB degrees over BOB_S.
+#: second there; the nose bobs BOB degrees over BOB_S. The corridor's far end searches
+#: for a site the while: each LOOK seconds it slides to the next candidate, over SLIDE
+#: seconds (least, most), and holds there.
 CURVE = 0.045
 BANK = 14.0
 TURN = 6.0
@@ -39,6 +41,8 @@ REVERSE = 0.65
 BOB = 1.2
 BOB_S = 7.0
 HEADING = 274.0
+LOOK = 3.0
+SLIDE = (0.7, 1.6)
 
 #: The legs laid so far: (start s, seconds, peak curvature signed, heading at start, the
 #: last turn's way); _STARTS their starts.
@@ -95,7 +99,22 @@ def flight(t):
         share = 0.0
     curve = peak * share
     return {'curve': curve, 'bank': BANK * curve / CURVE,
-            'bob': BOB * math.sin(2.0 * math.pi * t / BOB_S), 'heading': heading % 360.0}
+            'bob': BOB * math.sin(2.0 * math.pi * t / BOB_S), 'heading': heading % 360.0,
+            'search': _search(t)}
+
+
+def _site(j):
+    """Candidate site `j`: (across, dip), each -1..1."""
+    return (_hashed(j, 31) % 2001 / 1000.0 - 1.0, _hashed(j, 32) % 2001 / 1000.0 - 1.0)
+
+
+def _search(t):
+    """(across, dip) the corridor's far end looks at, `t` seconds in: sliding to the next
+    candidate at each LOOK, holding it after."""
+    j = int(t // LOOK)
+    k = _ease((t - j * LOOK) / _share(j, 33, SLIDE))
+    (a0, d0), (a1, d1) = _site(j - 1), _site(j)
+    return a0 + (a1 - a0) * k, d0 + (d1 - d0) * k
 
 
 #: The corridor, in the pilot's eye: square gates each GATE_EVERY deep from GATE_FIRST to
@@ -106,6 +125,8 @@ def flight(t):
 #: narrowing to it as they near it (x (1 - depth / GATE_LAST)) - and bends as depth
 #: to the 1.5 with the flight's curvature, SWING of the frame's width at full bend. They
 #: close on the craft with the floor's speed. GATE_HAZE of the amber is left at the last.
+#: The far end sweeps for a site (`flight`'s search, each -1..1): SEARCH of the frame's
+#: width across at GATE_LAST, as depth to the 1.5, and SEARCH_DIP of its dive.
 NEAR = 0.8
 GATE_EVERY = 3.0
 GATE_FIRST = 1.2
@@ -113,6 +134,8 @@ GATE_LAST = 26.0
 DIVE = 0.36
 SWING = 0.32
 GATE_HAZE = 0.35
+SEARCH = 0.3
+SEARCH_DIP = 0.18
 #: A gate within GREEN of the craft is cleared: green, just before it is passed.
 GREEN = 0.9
 CLEARED = (90, 255, 150)
@@ -124,24 +147,25 @@ FLAT = 0.4
 
 
 def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None,
-             beacons=False):
+             beacons=False, search=(0.0, 0.0)):
     """{cell: (braille mask, (r, g, b))}: the gates `travel` model units closer, each a
     square at its depth on the path, hazed by it, its corners moved by `roll` and its
     edges drawn dot by dot by `segment` (ground._segment)."""
     cx, cy = width / 2.0, height / 2.0
     size = NEAR * width * GATE_FIRST                     # half-width x depth, columns
-    fall = DIVE * height / GATE_LAST ** 2                # rows at depth z: fall * z^2
+    fall = DIVE * height / GATE_LAST ** 2 * (1.0 + SEARCH_DIP * search[1])
     bend = SWING * width / GATE_LAST ** 1.5 * (curve / CURVE if CURVE else 0.0)
+    seek = SEARCH * width * search[0] / GATE_LAST ** 1.5
     shown = []
     z = GATE_FIRST + (GATE_EVERY - travel % GATE_EVERY) % GATE_EVERY
     while z <= GATE_LAST:
         half = 0.5 * size / z * (1.0 - z / GATE_LAST)
-        shown.append((z, cx + bend * z ** 1.5, cy + fall * z * z, half))
+        shown.append((z, cx + (bend + seek) * z ** 1.5, cy + fall * z * z, half))
         z += GATE_EVERY
     if not shown:
         return {}
     out = {}
-    land = (cx + bend * GATE_LAST ** 1.5, cy + fall * GATE_LAST ** 2)
+    land = (cx + (bend + seek) * GATE_LAST ** 1.5, cy + fall * GATE_LAST ** 2)
 
     def put(x, y, rgb):
         if 0.0 <= x < width and 0.0 <= y < height:
@@ -215,9 +239,12 @@ SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
 #: A corner pass comes in from its side's edge and arcs down through the bottom corner,
 #: diving out under the frame, rolling to ROLL into its turn and yawing YAW each way
 #: through it; none where the corner has under LEAST lengths.
-#: A fly-by comes up from behind, BY_SIZE columns long, and spirals round the bound past its
-#: side's edge into the top corner, shrinking to BY_FAR of that and dimming to BY_HAZE as it
-#: recedes, a barrel roll over BY_ROLL of the way.
+#: A fly-by comes up from behind, BY_SIZE columns long, and climbs near vertical toward
+#: space in its side's lane - BY_LANE columns in from the edge, out beyond it where the
+#: bound comes near - shrinking to BY_FAR of that and dimming to BY_HAZE as it goes, a roll
+#: over BY_ROLL of the way. A FLAME lengths long flickers at its tail; its smoke is left in
+#: PUFFS puffs each PUFF_EVERY of the way, swelling to its reach then, thinning, drifting
+#: out past the edge as we pass.
 #: CRAFT columns nose to tail at a 150-column frame: a spinner seen from above in steel
 #: alone - a wedge lit along its spine, swept fins lit by its bank, a glinting canopy - its
 #: trail fading along its path for TRAIL lengths. One colour a cell: lights of other
@@ -231,7 +258,7 @@ FIRST = 3.0
 FIRST_BY = 14.0
 PASS_CHANCE = 0.55
 CROSS = (2.4, 4.2)
-BY = (1.6, 2.4)
+BY = (2.6, 3.6)
 CLEAR = 2.0
 LEAST = 1.2
 CRAFT = 9.5
@@ -240,7 +267,13 @@ YAW = 22.0
 BY_SIZE = 16.0
 BY_FAR = 0.12
 BY_HAZE = 0.7
-BY_ROLL = (0.04, 0.32)
+BY_ROLL = (0.15, 0.55)
+BY_LANE = 9.0
+FLAME = 0.45
+FIRE = ((255, 236, 170), (255, 150, 50), (220, 70, 30))
+PUFFS = 7
+PUFF_EVERY = 0.045
+SMOKE = (135, 138, 145)
 TRAIL = 1.4
 HULL = (175, 196, 214)
 GLASS = (235, 245, 255)
@@ -362,25 +395,31 @@ def _corner(width, height, side, board):
 
 
 def _by(width, height, side, board):
-    """(track, size) of a fly-by: up from under the bottom edge round the bound, CLEAR and
-    its reach off it at every size, to the top corner on its side; fast, then receding."""
+    """(track, size) of a fly-by: up from under the bottom edge to over the top, faster and
+    smaller as it climbs, in its lane but CLEAR and its reach off the bound at every size."""
     cx, cy, reach = board
     near = BY_SIZE * width / 150.0
+    lane = BY_LANE * width / 150.0
+    edge = 0.0 if side > 0 else float(width)
+    low, high = height + REACH * near / ASPECT, -1.0 - REACH * near * BY_FAR / ASPECT
+
+    def climbed(k):
+        return 0.35 * k + 0.65 * k * k
 
     def size(k):
-        return near * BY_FAR ** k
-
-    def radius(k):
-        return reach + CLEAR + REACH * size(k)
-
-    # Angles on screen, rows at ASPECT, from +x toward the bottom edge.
-    rise = math.asin(min(1.0, ((height - cy) * ASPECT + REACH * near) / radius(0.0)))
-    far = math.atan2(-cy * ASPECT, (0.0 if side > 0 else float(width)) - cx)
-    start, end = (math.pi - rise, far % (2.0 * math.pi)) if side > 0 else (rise, far)
+        return near * BY_FAR ** climbed(k)
 
     def track(k):
-        turn = start + (end - start) * (0.8 * (1.0 - (1.0 - k) ** 2) + 0.2 * k)
-        return cx + radius(k) * math.cos(turn), cy + radius(k) * math.sin(turn) / ASPECT
+        y = low + (high - low) * climbed(k)
+        rim = reach + CLEAR + REACH * size(k)
+        dy = (y - cy) * ASPECT
+        # Columns in from the edge to the bound at this row: the lane where it has room.
+        room = (side * (cx - side * math.sqrt(rim * rim - dy * dy) - edge)
+                if rim > abs(dy) else float(width))
+        least = min(lane, room)                        # a soft min: never over either
+        d = least - 1.5 * math.log(math.exp((least - lane) / 1.5)
+                                    + math.exp((least - room) / 1.5))
+        return edge + side * d, y
     return track, size
 
 
@@ -390,8 +429,8 @@ def _ease(k):
 
 
 def _pose(width, height, t, board):
-    """The pass on at `t`: {k, side, kind, x, y, heading, bank, roll, size, fade, speed,
-    track}, or None; `board` None a bound of the frame's own."""
+    """The pass on at `t`: {k, side, kind, x, y, heading, bank, roll, size, sized, fade,
+    speed, track}, or None; `board` None a bound of the frame's own."""
     now = _pass(t)
     if now is None:
         return None
@@ -410,11 +449,12 @@ def _pose(width, height, t, board):
         heading += math.radians(YAW * math.sin(2.0 * math.pi * k)) * side
         roll = math.radians(ROLL * math.sin(math.pi * k))
     else:
-        roll = 2.0 * math.pi * _ease((k - BY_ROLL[0]) / (BY_ROLL[1] - BY_ROLL[0]))
+        roll = 2.0 * math.pi * _ease((k - BY_ROLL[0]) / (BY_ROLL[1] - BY_ROLL[0]))   # the roll program
     bank = math.cos(roll)
     return {'k': k, 'side': side, 'kind': kind, 'x': x, 'y': y, 'heading': heading,
             'bank': math.copysign(max(0.15, abs(bank)), bank), 'roll': roll, 'size': size(k),
-            'fade': 1.0 if kind == 'corner' else 1.0 - (1.0 - BY_HAZE) * k,
+            'sized': size,
+            'fade': 1.0 if kind == 'corner' else 1.0 - (1.0 - BY_HAZE) * k * k,
             'speed': math.hypot(x1 - x, (y1 - y) * ASPECT) / 0.01, 'track': track}
 
 
@@ -443,16 +483,21 @@ def craft(width, height, t, board=None):
     def steel(f):
         return tuple(int(ch * f * pose['fade']) for ch in HULL)
 
-    # The trail: from the tail onto the path behind, fading.
-    tx = x0 + size * TAIL * c
-    ty = y0 + size * TAIL * s / ASPECT
-    ax, ay = pose['track'](pose['k'] + TAIL * size / pose['speed'])
-    steps = 2.0 * (TRAIL - abs(TAIL)) * size
-    for i in range(int(steps) + 1):
-        f = i / max(1.0, steps)
-        bx, by = pose['track'](pose['k'] + (TAIL - f * (TRAIL - abs(TAIL))) * size
-                               / pose['speed'])
-        mark(bx + (1.0 - f) * (tx - ax), by + (1.0 - f) * (ty - ay), steel(0.8 - 0.6 * f), -1)
+    if pose['kind'] == 'corner':
+        # The trail: from the tail onto the path behind, fading.
+        tx = x0 + size * TAIL * c
+        ty = y0 + size * TAIL * s / ASPECT
+        ax, ay = pose['track'](pose['k'] + TAIL * size / pose['speed'])
+        steps = 2.0 * (TRAIL - abs(TAIL)) * size
+        for i in range(int(steps) + 1):
+            f = i / max(1.0, steps)
+            bx, by = pose['track'](pose['k'] + (TAIL - f * (TRAIL - abs(TAIL))) * size
+                                   / pose['speed'])
+            mark(bx + (1.0 - f) * (tx - ax), by + (1.0 - f) * (ty - ay), steel(0.8 - 0.6 * f),
+                 -1)
+    else:
+        _smoke(pose, mark, width)
+        _flame(pose, mark, t)
 
     for py in range(int(y0 - reach / ASPECT) - 1, int(y0 + reach / ASPECT) + 2):
         for half in range(2 * int(x0 - reach) - 2, 2 * int(x0 + reach) + 4):
@@ -470,6 +515,45 @@ def craft(width, height, t, board=None):
                 elif any(_inside(u, v, fin) for fin in FINS):
                     mark(x, y, steel(0.7 + 0.25 * lean * (1.0 if v > 0.0 else -1.0)), 0)
     return {at: (mask, inks[at][1], inks[at][0] >= 0) for at, mask in cells.items()}
+
+
+def _flame(pose, mark, t):
+    """The riser's flame: FLAME lengths back from its tail, flickering, white to red."""
+    size, bank = pose['size'], pose['bank']
+    c, s = math.cos(pose['heading']), math.sin(pose['heading'])
+    long = FLAME * (0.75 + 0.25 * math.sin(t * 29.0) * math.sin(t * 17.0 + 1.0))
+    steps = max(2, int(4.0 * long * size))
+    for i in range(steps + 1):
+        f = i / steps
+        u = TAIL - f * long
+        for v in (-0.07, 0.0, 0.07) if f < 0.5 else (0.0,):
+            v *= (1.0 - f) * bank
+            mark(pose['x'] + size * (u * c - v * s), pose['y'] + size * (u * s + v * c) / ASPECT,
+                 FIRE[min(2, int(f * 3.0))], 3)
+
+
+def _smoke(pose, mark, width):
+    """The riser's smoke: a puff each PUFF_EVERY of the way, where it was then, swelling
+    to its reach there, thinning and drifting out past its edge."""
+    k, side = pose['k'], pose['side']
+    first = int(k / PUFF_EVERY)
+    for j in range(first, first - PUFFS, -1):
+        at = j * PUFF_EVERY
+        age = (k - at) / (PUFFS * PUFF_EVERY)          # 0 new .. 1 gone
+        if at < 0.0 or age >= 1.0:
+            continue
+        x, y = pose['track'](at)
+        x -= side * 9.0 * width / 150.0 * age          # drifting out as we pass
+        size = pose['sized'](at)
+        rho = REACH * size * min(1.0, 0.3 + 1.4 * age)
+        thin = 0.55 * (1.0 - age)
+        ink = tuple(int(ch * (0.95 - 0.45 * age)) for ch in SMOKE)
+        for hy in range(int(4.0 * (y - rho / ASPECT)), int(4.0 * (y + rho / ASPECT)) + 1):
+            for hx in range(int(2.0 * (x - rho)), int(2.0 * (x + rho)) + 1):
+                px, py = hx / 2.0 + 0.25, hy / 4.0 + 0.125
+                if (math.hypot(px - x, (py - y) * ASPECT) <= rho
+                        and _hashed(j, hx, hy) % 1000 < thin * 1000):
+                    mark(px, py, ink, -2)
 
 
 def marker(width, height, t, board=None):
