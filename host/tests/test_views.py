@@ -121,10 +121,10 @@ def rows_of(owner, width, height, kind):
 def test_the_instruments_stand_clear_of_the_machine(report):
     """The gutters equidistant, and the foot gauges off the can."""
     from coaxial.draw import machine
-    from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import layout
 
-    width, height = view.BOX.width, view.BOX.rows
-    n_left, n_right = len(view.SOA_NODES), len(view.BOARD_NODES)
+    width, height = layout.BOX.width, layout.BOX.rows
+    n_left, n_right = len(layout.SOA_NODES), len(layout.BOARD_NODES)
     frame, _lit = machine._raster(
         6.0, 24, 28, width, height, None, None, None,
         [(0.4, machine.SOA_OK)] * n_left, [(0.3, machine.SOA_OK)] * n_right,
@@ -154,8 +154,9 @@ def test_the_instruments_stand_clear_of_the_machine(report):
 def test_each_gutter_says_its_hottest_node(report):
     """The caption's third row, in degrees, and WHICH node each one is."""
     from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import layout, legend, thermal
 
-    nodes = dict.fromkeys(view.SOA_NODES + view.BOARD_NODES, 30.0)
+    nodes = dict.fromkeys(layout.SOA_NODES + layout.BOARD_NODES, 30.0)
     nodes['phase_v'], nodes['regulators'], nodes['board'] = 118.4, 71.2, 44.5
     # `used` for every node, because `soa_bars` draws only what the board
     # reported a spend for - a node with no ceiling in the record is a node it
@@ -165,39 +166,40 @@ def test_each_gutter_says_its_hottest_node(report):
                                 for name in nodes},
                        'tripped': False}}
     said['budget']['used']['phase_v'] = 0.95
-    peak, cls = view.hottest(said, view.SOA_NODES)
+    peak, cls = legend.hottest(said, layout.SOA_NODES)
     report.check('the switch caption takes the hottest leg',
                  peak == 118.4, 'said %s' % (peak,))
     report.check('and its colour comes from that same node margin',
                  cls == view.machine.SOA_WARN, 'class %s' % (cls,))
 
-    peak, _ = view.hottest(said, view.BOARD_NODES)
+    peak, _ = legend.hottest(said, layout.BOARD_NODES)
     report.check('the board caption takes the hottest of its four, which '
                  'is the tube standing tallest beside it',
                  peak == 71.2, 'said %s' % (peak,))
     # REPORTING THE COPPER INSTEAD WAS TRIED AND WITHDRAWN.
-    bars = view.soa_bars(said, view.BOARD_NODES)
-    tallest = max(zip(view.BOARD_NODES, bars), key=lambda p: p[1][0])[0]
+    bars = thermal.soa_bars(said, layout.BOARD_NODES)
+    tallest = max(zip(layout.BOARD_NODES, bars), key=lambda p: p[1][0])[0]
     report.check('and it names the tallest tube, not some other node',
                  nodes[tallest] == peak,
                  '%s at %.1f C' % (tallest, nodes[tallest]))
     report.check('a group with nothing measured says nothing',
-                 view.hottest({}, view.SOA_NODES)[0] is None)
+                 legend.hottest({}, layout.SOA_NODES)[0] is None)
 
 
 def test_both_gutters_run_on_one_scale(report):
     """Height is degrees, colour is margin, and they are two questions."""
     from coaxial.draw import machine
     from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import layout, thermal
 
-    nodes = dict.fromkeys(view.SOA_NODES + view.BOARD_NODES, 20.0)
+    nodes = dict.fromkeys(layout.SOA_NODES + layout.BOARD_NODES, 20.0)
     nodes['phase_u'] = nodes['board'] = 100.0
     said = {'thermal': {'nodes': nodes, 'ambient': 20.0},
             'budget': {'used': {'phase_u': 80.0 / 105.0,
                                 'board': 80.0 / 85.0},
                        'tripped': False}}
-    left = view.soa_bars(said, ('phase_u',))[0]
-    right = view.soa_bars(said, ('board',))[0]
+    left = thermal.soa_bars(said, ('phase_u',))[0]
+    right = thermal.soa_bars(said, ('board',))[0]
     report.check('two nodes at one temperature draw one height',
                  abs(left[0] - right[0]) < 1e-9,
                  '%.4f against %.4f' % (left[0], right[0]))
@@ -220,7 +222,7 @@ def test_both_gutters_run_on_one_scale(report):
 def test_a_power_node_never_reads_below_the_copper(report):
     """It sheds INTO the board, so it cannot be colder than the board."""
     from coaxial import Coaxial63100
-    from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import layout, legend
 
     rig = Coaxial63100(simulated_device=True)
     rig.open()
@@ -234,7 +236,7 @@ def test_a_power_node_never_reads_below_the_copper(report):
             time.sleep(0.15)
             said = {'thermal': rig.thermal.state(),
                     'budget': rig.thermal.budget()}
-            switch = view.hottest(said, view.SOA_NODES)[0]
+            switch = legend.hottest(said, layout.SOA_NODES)[0]
             copper = said['thermal']['nodes']['board']
             gap = switch - copper
             worst = gap if worst is None else min(worst, gap)
@@ -250,23 +252,24 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
     """The reference above the headroom scale, and what it says unread."""
     from coaxial.draw import machine
     from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import layout, legend
 
     report.check('a reading is shown in degrees',
-                 view.reference({'thermal': {'ntc': 38.04}})
-                 == 'NTC 38.0 %sC' % view.DEGREE,
-                 view.reference({'thermal': {'ntc': 38.04}}))
+                 legend.reference({'thermal': {'ntc': 38.04}})
+                 == 'NTC 38.0 %sC' % legend.DEGREE,
+                 legend.reference({'thermal': {'ntc': 38.04}}))
     # AFE_ON LOW IS NOT A COLD BOARD.
     for empty in ({'thermal': {'ntc': None}}, {}):
         report.check('and no reading says so rather than drawing a number',
-                     'unread' in view.reference(empty),
-                     view.reference(empty))
+                     'unread' in legend.reference(empty),
+                     legend.reference(empty))
 
     # `simulated` and `spin` are view keys the real page always carries; the
     # caption reaches the winding estimate through the margin rows now, and
     # that asks how fast the stand-in's clock is running.
-    rows = view.gutter_caption({
+    rows = legend.gutter_caption({
         'simulated': True, 'spin': 0.0,
-        'thermal': {'nodes': dict.fromkeys(view.SOA_NODES + view.BOARD_NODES,
+        'thermal': {'nodes': dict.fromkeys(layout.SOA_NODES + layout.BOARD_NODES,
                                            40.0),
                     'ambient': 20.0, 'ntc': 38.0},
         'budget': {'used': {}, 'tripped': False},
@@ -294,13 +297,14 @@ def test_the_foot_carries_the_policy(report):
     from coaxial.draw import machine
     from terminal.screen import plain as visible      # the row without its inks
     from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import layout, legend, thermal
 
     def a_view(watts, ident):
         # `watts(view)` is 1.5 (vd id + vq iq) off the loop's means; a volt of
         # vq makes the current the power, and its sign.
         return {'simulated': True, 'spin': 0.0,
                 'thermal': {'nodes': dict.fromkeys(
-                    view.SOA_NODES + view.BOARD_NODES, 40.0),
+                    layout.SOA_NODES + layout.BOARD_NODES, 40.0),
                     'ambient': 20.0, 'ntc': 38.0},
                 'budget': {'used': {}, 'tripped': False},
                 'state': {'id': 0.0, 'iq': watts / 1.5, 'vd': 0.0,
@@ -311,20 +315,20 @@ def test_the_foot_carries_the_policy(report):
     # these three are what the states meant while it was three steps.
     IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
     stable = {'state': 'STABLE', 'margin': 1.0}
-    foot = view.gutter_caption(a_view(20.0, stable))[-1]
+    foot = legend.gutter_caption(a_view(20.0, stable))[-1]
     plain = visible(foot)
     report.check('the foot row names WINDING, TH OBS with its state, and '
                  'POWER, in that order, and is the art\'s width',
                  plain.find('WINDING') < plain.find('TH OBS STABLE')
-                 < plain.find('POWER') and len(plain) == view.BOX.width,
+                 < plain.find('POWER') and len(plain) == layout.BOX.width,
                  '%d: %s' % (len(plain), plain))
     at = plain.find('TH OBS')
     inks, trims = {}, {}
     for state in ('STABLE', 'CONVERGING', 'UNCERTAIN'):
-        row = view.gutter_caption(a_view(20.0, {
+        row = legend.gutter_caption(a_view(20.0, {
             'state': state, 'margin': IDENT_MARGIN[state]}))[-1]
-        inks[state] = ('38;5;%dm%s' % (machine.INK[view.POLICY_INK[state]],
-                                       view.POLICY_WORD[state])) in row
+        inks[state] = ('38;5;%dm%s' % (machine.INK[thermal.POLICY_INK[state]],
+                                       thermal.POLICY_WORD[state])) in row
         trims[state] = visible(row)
     # THE TRIM IS SAID WHILE THERE IS ONE - the bench: "make it visible that it
     # throttles at 80 % of the SOA already, then 90, then 100 as the model's
@@ -334,7 +338,7 @@ def test_the_foot_carries_the_policy(report):
                  'TH OBS UNCR 80%' in trims['UNCERTAIN']
                  and 'TH OBS CONV 90%' in trims['CONVERGING']
                  and 'TH OBS STABLE ' in trims['STABLE']
-                 and all(len(t) == view.BOX.width for t in trims.values()),
+                 and all(len(t) == layout.BOX.width for t in trims.values()),
                  ' | '.join(trims.values()))
     report.check('the word wears the margin\'s ink: STABLE green, CONV '
                  'yellow, UNCR red - and TH OBS the leaders\' grey',
@@ -348,37 +352,37 @@ def test_the_foot_carries_the_policy(report):
     between = {}
     for state, margin in (('CONVERGING', 0.93), ('STABLE', 0.97),
                           ('UNCERTAIN', 0.812)):
-        between[state] = visible(view.gutter_caption(a_view(20.0, {
+        between[state] = visible(legend.gutter_caption(a_view(20.0, {
             'state': state, 'margin': margin}))[-1])
     report.check('a margin between the steps is said to the percent: CONV '
                  '93%, STBL 97%, UNCR 81% - and the row keeps its width',
                  'TH OBS CONV 93%' in between['CONVERGING']
                  and 'TH OBS STBL 97%' in between['STABLE']
                  and 'TH OBS UNCR 81%' in between['UNCERTAIN']
-                 and all(len(t) == view.BOX.width
+                 and all(len(t) == layout.BOX.width
                          and t.find('POWER') == plain.find('POWER')
                          for t in between.values()),
                  ' | '.join(between.values()))
-    negative = visible(view.gutter_caption(a_view(-20.0, stable))[-1])
+    negative = visible(legend.gutter_caption(a_view(-20.0, stable))[-1])
     report.check('and a negative kilowatt shifts nothing: POWER, TH OBS '
                  'and the arrows stay where they are',
                  negative.find('POWER') == plain.find('POWER')
                  and negative.find('TH OBS') == at
                  and len(negative) == len(plain) and '-0.02 kW' in negative,
                  negative)
-    absent = visible(view.gutter_caption(a_view(20.0, None))[-1])
+    absent = visible(legend.gutter_caption(a_view(20.0, None))[-1])
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in absent and absent.find('POWER')
                  == plain.find('POWER'), absent)
     # THREE DIGITS ON THE WINDING.
     hot = a_view(20.0, stable)
     hot['budget']['winding_c'] = 123.4
-    three = visible(view.gutter_caption(hot)[-1])
+    three = visible(legend.gutter_caption(hot)[-1])
     report.check('and a three-digit winding pushes nothing: TH OBS and '
                  'POWER keep their columns',
                  'WINDING 123.4' in three and three.find('TH OBS') == at
                  and three.find('POWER') == plain.find('POWER')
-                 and len(three) == view.BOX.width, three)
+                 and len(three) == layout.BOX.width, three)
 
 
 def test_the_soa_legend_reads_the_whole_soa(report):
@@ -387,7 +391,7 @@ def test_the_soa_legend_reads_the_whole_soa(report):
     """
     from coaxial.draw import machine
     from coaxial.model import thermal
-    from terminal.views import show_rotor_observer as rotor
+    from terminal.views.rotor import thermal as rotor
     IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
 
     def a_view(state, worst, tripped=False, winding_used=None):
@@ -448,26 +452,27 @@ def test_the_soa_legend_reads_the_whole_soa(report):
 def test_two_headrooms_named_apart(report):
     """The board's margin and the motor's are different facts."""
     from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import layout, thermal
 
     report.check('both scales are named, and named differently',
-                 len(view.HEADROOM_TITLES) == 2
-                 and len(set(view.HEADROOM_TITLES)) == 2,
-                 str(view.HEADROOM_TITLES))
+                 len(layout.HEADROOM_TITLES) == 2
+                 and len(set(layout.HEADROOM_TITLES)) == 2,
+                 str(layout.HEADROOM_TITLES))
 
     # A MOTOR AT THE SCALE'S FLOOR HAS ALL OF ITS MARGIN, a cooking one has
     # none, and neither ever leaves the scale - a headroom below zero would
     # draw a bar longer than its own track.
     for celsius, want in ((view.TEMP_FLOOR_C, 1.0), (view.TEMP_SCALE_C, 0.0),
                           (view.TEMP_SCALE_C + 80.0, 0.0)):
-        got = view.motor_headroom_of(celsius)
+        got = thermal.motor_headroom_of(celsius)
         report.check('a winding at %.0f C leaves %.0f %% of the scale'
                      % (celsius, 100.0 * want),
                      abs(got - want) < 0.02, '%.3f' % got)
 
     half = (view.TEMP_FLOOR_C + view.TEMP_SCALE_C) / 2.0
     report.check('and half way up the scale is half the margin',
-                 abs(view.motor_headroom_of(half) - 0.5) < 0.02,
-                 '%.3f at %.0f C' % (view.motor_headroom_of(half), half))
+                 abs(thermal.motor_headroom_of(half) - 0.5) < 0.02,
+                 '%.3f at %.0f C' % (thermal.motor_headroom_of(half), half))
 
 
 def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
@@ -884,9 +889,9 @@ def test_the_demo_actually_loads_the_machine(report):
 def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
     """The kW bar is a power law pinned at 500 W, full at 2 kW, red past."""
     from coaxial.draw import machine
-    from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import thermal
 
-    at = {w: view.watts_share(w) for w in (0, 20, 100, 500, 2000, 2500)}
+    at = {w: thermal.watts_share(w) for w in (0, 20, 100, 500, 2000, 2500)}
     report.check('nothing draws nothing', at[0][0] == 0.0)
     report.check('twenty watts is a tenth of the bar - a small draw is seen',
                  abs(at[20][0] - 0.1) < 0.01, '%.3f' % at[20][0])
@@ -899,7 +904,7 @@ def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
     report.check('and past it the bar is full and deep red',
                  at[2500] == (1.0, machine.SOA_TRIP), str(at[2500]))
     report.check('the middle is a named constant, not a magic exponent',
-                 view.WATTS_MID == 500.0 and view.WATTS_SCALE == 2000.0)
+                 thermal.WATTS_MID == 500.0 and thermal.WATTS_SCALE == 2000.0)
 
 
 def test_the_level_is_drawn_at_the_dot(report):
@@ -1094,14 +1099,15 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
 
     from coaxial.draw import machine
     from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import legend
     from terminal import stage
 
     drawn = machine.render(6.0, 24, 28, 46, 18, pointer_deg=41.0)
     # The scroll arrows are the stage's now, every page's furniture.
     said = ''.join(str(x) for x in
-                   (view.AIM_LEFT, view.AIM_RIGHT, stage.UP, stage.DOWN,
-                    view.DEGREE, view.LEADER, machine.POINTER_GLYPH)
-                   ) + ''.join(view.TURN) + ''.join(view.DROP)
+                   (legend.AIM_LEFT, legend.AIM_RIGHT, stage.UP, stage.DOWN,
+                    legend.DEGREE, legend.LEADER, machine.POINTER_GLYPH)
+                   ) + ''.join(legend.TURN) + ''.join(legend.DROP)
     for name, text in (('the drawing', drawn), ("the view's furniture", said)):
         bad = sorted({c for c in text
                       if unicodedata.east_asian_width(c) == 'A'})
@@ -1112,8 +1118,8 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     # AND THE SUBSTITUTES ARE THE SAME MARKS, not near misses: a small triangle
     # points the same way as its big twin.
     report.check('the arrowheads are the small triangles',
-                 (view.AIM_LEFT, view.AIM_RIGHT) == (chr(0x25C2), chr(0x25B8)),
-                 view.AIM_LEFT + view.AIM_RIGHT)
+                 (legend.AIM_LEFT, legend.AIM_RIGHT) == (chr(0x25C2), chr(0x25B8)),
+                 legend.AIM_LEFT + legend.AIM_RIGHT)
     from terminal import stage
     report.check('and the foot uses their up and down - the stage\'s, which '
                  'every page\'s scroll markers wear too',
@@ -1273,22 +1279,22 @@ def test_the_terminal_is_asked_how_tall_a_cell_is(report):
 
 def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
     """The alarm is the envelope acting, not a level this page picked."""
-    from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import thermal
 
-    report.check('an idle board does not pulse', not view.flashing({}))
+    report.check('an idle board does not pulse', not thermal.flashing({}))
     report.check('nor does one merely close to a limit - near is not an '
                  'event',
-                 not view.flashing({'budget': {'worst': 0.99,
+                 not thermal.flashing({'budget': {'worst': 0.99,
                                                'throttling': False}}))
 
     for flag in ('throttling', 'tripped'):
         seen = set()
         until = time.monotonic() + 1.0
         while time.monotonic() < until:
-            seen.add(view.flashing({'budget': {flag: True}}))
+            seen.add(thermal.flashing({'budget': {flag: True}}))
             time.sleep(0.01)
         report.check('while %s it pulses - both halves inside a second at '
-                     '%.0f Hz' % (flag, view.FLASH_HZ),
+                     '%.0f Hz' % (flag, thermal.FLASH_HZ),
                      seen == {True, False}, str(sorted(seen)))
 
 
@@ -1527,20 +1533,20 @@ def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
     """The two gutter tubes read two different things: the worst of the six
     switch nodes, and the winding.
     """
-    from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import layout, thermal
 
-    used = {n: 0.3 for n in view.SOA_NODES}
+    used = {n: 0.3 for n in layout.SOA_NODES}
     used.update({'patch_u': 0.78, 'winding': 0.6, 'board': 0.2})
     seen = {'budget': {'worst': 0.78, 'worst_node': 'patch_u', 'used': used,
                        'winding_used': 0.6, 'throttling': False,
                        'tripped': False},
             'ident': {'margin': 1.0}, 'thermal': {'nodes': {}}}
-    (switch, _), (motor, _) = view.headrooms(seen)
+    (switch, _), (motor, _) = thermal.headrooms(seen)
     report.check("SWITCH SOA is the worst of the six switch nodes, not the "
                  "board's worst",
                  abs(switch - 0.3) < 1e-9
-                 and abs((1.0 - view.headroom(seen)) - 0.78) < 1e-9,
-                 (switch, 1.0 - view.headroom(seen)))
+                 and abs((1.0 - thermal.headroom(seen)) - 0.78) < 1e-9,
+                 (switch, 1.0 - thermal.headroom(seen)))
     report.check("and MOTOR SOA is the winding's, so the tubes differ when "
                  "the winding is the worst node",
                  abs(motor - 0.6) < 1e-9 and switch != motor, (switch, motor))
@@ -1548,8 +1554,8 @@ def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
             'ident': {}}
     report.check('a board that reports no per-node spend falls back to its '
                  'worst',
-                 abs(view.switch_headroom(bare) - 0.5) < 1e-9,
-                 view.switch_headroom(bare))
+                 abs(thermal.switch_headroom(bare) - 0.5) < 1e-9,
+                 thermal.switch_headroom(bare))
 
 
 def test_every_frame_corner_on_the_map_is_a_right_angle(report):
@@ -1617,13 +1623,13 @@ def test_the_foot_says_trip_while_the_cap_holds(report):
     the model.
     """
     from coaxial.draw import machine
-    from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import thermal
 
     def foot(state, margin, cap, floor=None):
         ident = {'state': state, 'margin': margin, 'trip_cap': cap}
         if floor is not None:
             ident['margin_floor'] = floor
-        return view._policy({'ident': ident})
+        return thermal._policy({'ident': ident})
 
     label, word, ink = foot('STABLE', 0.72, 0.72)
     report.check('the trip cap in hand under the floor says TRIP with the '
@@ -1650,7 +1656,7 @@ def test_the_foot_says_trip_while_the_cap_holds(report):
     label, word, ink = foot('UNCERTAIN', 0.80, 1.0)
     report.check('and a board before MINOR 17 answers no cap and reads as '
                  'before', foot('UNCERTAIN', 0.80, 1.0)[1] == 'UNCR 80%'
-                 and view._policy({'ident': {'state': 'UNCERTAIN',
+                 and thermal._policy({'ident': {'state': 'UNCERTAIN',
                                              'margin': 0.8}})[1] == 'UNCR 80%',
                  word)
 
@@ -1661,10 +1667,10 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
     """
     from rich.text import Text
     from coaxial.draw import machine
-    from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import rows, thermal
 
     def said(mode, budget=None):
-        raw = view.mode_text({'state': {'mode': mode}, 'budget': budget})
+        raw = rows.mode_text({'state': {'mode': mode}, 'budget': budget})
         return Text.from_ansi(raw).plain, raw
 
     plain, raw = said('off')
@@ -1673,13 +1679,13 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
     report.check('holding with no budget answered, HOLD (NORM)',
                  plain == 'HOLD (NORM)', plain)
     report.check('and nothing in it wears the throttle red',
-                 ('38;5;%d' % view.THROTTLE_RED) not in raw,
+                 ('38;5;%d' % rows.THROTTLE_RED) not in raw,
                  raw.replace(chr(27), '^'))
     plain, raw = said('sensorless', {'throttling': True})
     report.check('throttling, SENSORLESS (THR)',
                  plain == 'SENSORLESS (THR)', plain)
     report.check('with THR in the throttle red',
-                 ('38;5;%dm(THR)' % view.THROTTLE_RED) in raw,
+                 ('38;5;%dm(THR)' % rows.THROTTLE_RED) in raw,
                  raw.replace(chr(27), '^'))
     report.check('tripped is held back too',
                  said('hold', {'tripped': True})[0] == 'HOLD (THR)')
@@ -1693,14 +1699,14 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
         i = index - 16
         return i // 36, i // 6 % 6, i % 6
 
-    ours, trip = cube(view.THROTTLE_RED), cube(machine.INK[machine.SOA_TRIP])
+    ours, trip = cube(rows.THROTTLE_RED), cube(machine.INK[machine.SOA_TRIP])
     report.check('THR is a red darker than the trip',
                  ours[1] == 0 and ours[2] == 0 and ours[0] < trip[0],
                  '%s against %s' % (ours, trip))
     report.check('and the word and the pulse take the same verdict',
-                 view.envelope_acting({'budget': {'throttling': True}})
-                 and not view.envelope_acting({'budget': {'derate': 0.5}})
-                 and not view.flashing({'budget': None}))
+                 thermal.envelope_acting({'budget': {'throttling': True}})
+                 and not thermal.envelope_acting({'budget': {'derate': 0.5}})
+                 and not thermal.flashing({'budget': None}))
 
 
 def test_a_frame_rasterises_as_the_terminal_draws_it(report):
