@@ -59,6 +59,33 @@ def run_view(name):
     return done
 
 
+def test_the_crt_draws_on_the_terminal(report):
+    """Through a screen-mode Live - the terminal's path, which gives its renderable no
+    height - the CRT draws: snow over the screen, the braille band at the beam."""
+    import io
+    from rich.console import Console
+    from rich.live import Live
+    from rich.text import Text
+    from terminal.ui import chrome
+
+    def dots(t):
+        out = io.StringIO()
+        court = Console(file=out, force_terminal=True, width=100, height=30,
+                        color_system='truecolor', legacy_windows=False)
+        was = chrome.time.monotonic
+        chrome.time.monotonic = lambda: t
+        try:
+            with Live(console=court, screen=True, auto_refresh=False, transient=True) as live:
+                live.update(chrome.Crt(Text('hello')), refresh=True)
+        finally:
+            chrome.time.monotonic = was
+        return sum(1 for ch in out.getvalue() if 0x2801 <= ord(ch) <= 0x28FF)
+    quiet, beam = dots(0.0), dots(chrome.SWEEP_S * 0.5)
+    report.check('the CRT draws through a screen-mode Live: snow, and more at the beam',
+                 quiet > 0 and beam > quiet, '%d dots, %d with the beam mid-screen'
+                 % (quiet, beam))
+
+
 def test_each_view_draws_two_frames(report):
     for name in views():
         done = run_view(name)
@@ -1168,9 +1195,9 @@ def test_every_gauge_shows_its_own_scale(report):
     rows = art.split(chr(10))
     left, right = cross_section.gutters(46, 18, n, n)
 
-    # Every tube, every row of it.
+    # Every tube, every row of it: down to the row of air over the floors.
     seen = set()
-    for row in rows[1:-2]:
+    for row in rows[1:-(2 + cross_section.FLOOR_AIR)]:
         for col in list(left) + list(right):
             seen.add(row[col])
     report.check('an empty tube is drawn in every one of its rows',
@@ -1489,24 +1516,23 @@ def ansi_plain(text):
 
 def test_the_bead_trails_its_speed(report):
     """The wake behind the bead: its length is the speed, its side the
-    direction, and it fades from the bead's orange into the south pole's
-    brown.
+    direction, and it fades from the bead's orange into the can's teal.
     """
     import re
 
     from coaxial.draw import cross_section
     from machine import ansi
 
-    inks = {cross_section.INK[c] for c in cross_section.TRAIL}
+    inks = {ansi.code(cross_section.INK[c]) for c in cross_section.TRAIL}
 
     def wake(rate):
         lines = cross_section.motor(0.0, width=60, height=30, pointer_deg=0.0,
                               pointer_rate=rate, colour=True)
         rows = []
         for row, line in enumerate(lines):
-            for hit in re.finditer(chr(27) + r'\[38;5;(\d+)m([^' + chr(27)
+            for hit in re.finditer('(' + chr(27) + r'\[38;[25];[\d;]+m)([^' + chr(27)
                                    + ']*)', line):
-                if int(hit.group(1)) in inks:
+                if hit.group(1) in inks:
                     rows += [row] * len(hit.group(2))
         bead = next(row for row, line in enumerate(lines)
                     if cross_section.POINTER_GLYPH in line)
@@ -1997,6 +2023,7 @@ def main():
     test_the_headroom_box_carries_a_solid_bar_with_a_tip(report)
     test_the_thermal_page_shows_its_evidence(report)
     test_a_frame_rasterises_as_the_terminal_draws_it(report)
+    test_the_crt_draws_on_the_terminal(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

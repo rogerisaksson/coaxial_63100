@@ -49,6 +49,11 @@ TOOTH_STUB = 0.22
 GAUGE_INSET = 0
 FLOOR_INSET = 0
 
+#: A blank row between the tubes' foot and the floor gauges: without it the leader
+#: turning on the upper floor row sat right under a tube and read as its next segment
+#: (2026-09-24, a braille pixel too many in the WINDING pointer against POWER's).
+FLOOR_AIR = 1
+
 
 def _drive(amps, full=None):
     """The three phase currents as shares of full scale, or None."""
@@ -99,16 +104,16 @@ PHASE_NAMES = ('U', 'V', 'W')
 #: The palette: the rotor warm, the three phases told apart by colour (a
 #: cell carries one), the mark loudest; phosphor, no muted mid-tones
 #: (2026-09-24, "mossy").
-INK = {TRACK: 237, BORE: 240, CAN: 30, YOKE: 23,
-       TOOTH_U: 45, TOOTH_V: 48, TOOTH_W: 135,
-       SOUTH: 136, NORTH: ansi.AMBER, TRUTH: 255, POINTER: ansi.AMBER,
-       SOA_OK: 41, SOA_WARN: 178, SOA_TRIP: 196,
-       #: Not a margin against a ceiling like the rest of them, so
-       #: not one of their colours: this one is a quantity.
-       WATTS: 45,
-       #: The alarm pulse's other half - a red level cannot get redder - in a
-       #: lighter red: 231 white read as an emergency.
-       SOA_FLASH: 210}
+INK: dict = {TRACK: 237, BORE: 240, CAN: 30, YOKE: 23,
+             TOOTH_U: 45, TOOTH_V: 48, TOOTH_W: 135,
+             SOUTH: 136, NORTH: ansi.AMBER, TRUTH: 255, POINTER: ansi.AMBER,
+             SOA_OK: 41, SOA_WARN: 178, SOA_TRIP: 196,
+             #: Not a margin against a ceiling like the rest of them, so
+             #: not one of their colours: this one is a quantity.
+             WATTS: 45,
+             #: The alarm pulse's other half - a red level cannot get redder - in a
+             #: lighter red: 231 white read as an emergency.
+             SOA_FLASH: 210}
 
 #: The legend's leaders, a notch lighter than TRACK (at its grey they
 #: vanished).
@@ -131,9 +136,14 @@ MARK = NTC_RAMP[-1] + 1
 INK[MARK] = ansi.AMBER
 
 #: The bead's wake, nearest first: speed and direction, fading from the
-#: bead's orange to the south pole's brown, drawn over the rim it rides.
-TRAIL = tuple(range(MARK + 1, MARK + 4))
-INK.update(dict(zip(TRAIL, (208, 172, 130))))
+#: The bead's wake, nearest first: the can wall behind it glowing, TRAIL_STEPS
+#: steps from the bead's amber to the can's teal (2026-09-24: trail dots coloured
+#: whole ring cells orange here and there - a broken, jagged tail).
+TRAIL_STEPS = 6
+TRAIL = tuple(range(MARK + 1, MARK + 1 + TRAIL_STEPS))
+INK.update(dict(zip(TRAIL, (tuple(int(a + (b - a) * (i + 1) / (TRAIL_STEPS + 1))
+                                  for a, b in zip((255, 175, 0), (0, 135, 135)))
+                            for i in range(TRAIL_STEPS)))))
 MARKS = frozenset((TRUTH,) + TRAIL)
 
 #: The bar classes in the order a fraction picks one: below the
@@ -374,7 +384,7 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
     # The first row and the last few belong to the gauges.
     top_row = GAUGE_INSET + (1 if has_top else 0) + reserve
     tall = max(1, height - GAUGE_INSET - FLOOR_INSET - reserve
-               - (1 if has_top else 0) - max(1, floors)) * DOTS_Y
+               - (1 if has_top else 0) - max(1, floors) - FLOOR_AIR) * DOTS_Y
     # Floor one side and ceil the other inside `gutters`: the centre sits
     # between two columns, so flooring both put the motor's right edge half a
     # column further out than its left and the gaps came out 1 and 0.
@@ -609,23 +619,34 @@ TRAIL_PITCH = 1.0
 
 
 def _wake(frame, seat, phi, seat_r, rate, bead_cell):
-    """The trail behind the bead: an arc on the rim, TRAIL_S of travel long
-    at `rate` degrees a second, on the side the bead came from, fading in
-    thirds through `TRAIL`.
+    """The wake behind the bead, TRAIL_S of travel long at `rate` degrees a
+    second, on the side the bead came from: dots along the race, and every
+    cell of the can wall in that span glowing through `TRAIL` by its angle
+    back from the bead - the whole wall, so no ring cell is left out of it.
     """
-    length = min(TRAIL_MAX_DEG, abs(rate) * TRAIL_S)
+    length = math.radians(min(TRAIL_MAX_DEG, abs(rate) * TRAIL_S))
     if length <= 0.0:
         return
     back = -1.0 if rate > 0.0 else 1.0
-    steps = max(2, int(seat_r * math.radians(length) / TRAIL_PITCH) + 1)
+    steps = max(2, int(seat_r * length / TRAIL_PITCH) + 1)
     for i in range(1, steps + 1):
-        t = i / float(steps)
-        a = phi + back * math.radians(length) * t
-        x = seat.cx + seat_r * math.cos(a)
-        y = seat.cy - seat_r * math.sin(a) / seat.stretch
-        if (int(y) // DOTS_Y, int(x) // DOTS_X) == bead_cell:
-            continue
-        frame.put(x, y, TRAIL[min(len(TRAIL) - 1, int(t * len(TRAIL)))])
+        a = phi + back * length * i / float(steps)
+        frame.put(seat.cx + seat_r * math.cos(a), seat.cy - seat_r * math.sin(a) / seat.stretch,
+                  None)
+    r = seat.radii
+    lo, hi = r.can_inner - r.line - 0.5, r.can + r.line + 0.5
+    for row in range(frame.height):
+        for col in range(frame.width):
+            if not frame.dots[row][col] or (row, col) == bead_cell:
+                continue
+            dx = col * DOTS_X + (DOTS_X - 1) / 2.0 - seat.cx
+            dy = (seat.cy - row * DOTS_Y - (DOTS_Y - 1) / 2.0) * seat.stretch
+            if not lo <= math.hypot(dx, dy) <= hi:
+                continue
+            behind = ((phi - math.atan2(dy, dx)) * -back) % math.tau
+            if 0.0 < behind <= length:
+                frame.claim(row, col, TRAIL[min(len(TRAIL) - 1,
+                                                int(behind / length * len(TRAIL)))])
 
 
 def _truth(frame, seat, truth_deg):

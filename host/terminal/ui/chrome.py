@@ -3,8 +3,10 @@
 Over the whole screen (`Crt`, every frame `stage.curtain` shows): an old CRT's snow in
 its blank cells, barely there - NOISE of them lit a frame, a dot each in SNOW's
 near-black inks, redrawn NOISE_HZ times a second; its refresh sweep, a beam going down
-over SWEEP_S seconds, the rows behind it glowing BEAM at the beam and decaying over
-DECAY_ROWS as a phosphor does, under everything but what has a background of its own.
+over SWEEP_S seconds and decaying behind it over DECAY_ROWS as a phosphor does - in
+braille, BAND_DENSITY of a row's cells a dot at the beam in BAND_INK's brightest,
+thinning and dimming as the square of the decay; under that, BEAM's faint glow, under
+everything but what has a background of its own.
 Over a page's drawing (`Chrome`): lock brackets round what the page draws, `ﾛｯｸ ｵﾝ` blinking on them; the page's clock bottom left; its status tag in red
 kana, blinking, over a teal subtag bottom right. Chrome only fills blanks: nothing the
 page draws is covered, and a piece with no room is left out whole. KANA names each page.
@@ -42,6 +44,9 @@ SNOW = tuple(Style(color=Color.from_rgb(*rgb))
 SWEEP_S = 5.0
 DECAY_ROWS = 6.0
 BEAM = (9, 24, 26)
+BAND_DENSITY = 0.22
+BAND_INK = tuple(Style(color=Color.from_rgb(*rgb))
+                 for rgb in ((26, 44, 48), (36, 64, 70), (46, 86, 94), (60, 112, 120)))
 #: The glow's steps, faintest first: a row takes the one its decay rounds to.
 GLOW = tuple(Style(bgcolor=Color.from_rgb(*(int(ch * (i / 8.0) ** 2) for ch in BEAM)))
              for i in range(1, 9))
@@ -162,9 +167,9 @@ class Crt:
         return Measurement.get(console, options, self.inner)
 
     def __rich_console__(self, console, options):
-        if options.height is None:
-            yield from console.render(self.inner, options)
-            return
+        # A screen-mode Live gives no height: the screen's, as a Layout takes it. Passed
+        # through on None, there was no CRT at all (42f9432).
+        options = options.update(height=options.height or console.height)
         rows = [_cells(line) for line in console.render_lines(self.inner, options, pad=True)]
         if rows and rows[0]:
             _crt(rows, time.monotonic())
@@ -183,8 +188,19 @@ def _crt(rows, t):
         if all(_blank(rows[m][n]) for m in (r - 1, r, r + 1) for n in (c - 1, c, c + 1)
                if 0 <= m < height and 0 <= n < width):
             rows[r][c] = [chr(0x2800 + (1 << rng.randrange(8))), rng.choice(SNOW)]
-    # The sweep last, under everything: a background, so what is drawn keeps its ink.
+    # The sweep: braille snow dense and bright at the beam, decaying behind it.
     beam = (t / SWEEP_S) % 1.0 * (height + DECAY_ROWS)
+    for r in range(max(0, int(beam - DECAY_ROWS)), min(height, int(beam) + 1)):
+        level = 1.0 - (beam - r) / DECAY_ROWS
+        if level <= 0.0:
+            continue
+        ink = BAND_INK[min(len(BAND_INK) - 1, int(level * len(BAND_INK)))]
+        for _ in range(int(BAND_DENSITY * level * level * width)):
+            c = rng.randrange(width)
+            if all(_blank(rows[m][n]) for m in (r - 1, r, r + 1) for n in (c - 1, c, c + 1)
+                   if 0 <= m < height and 0 <= n < width):
+                rows[r][c] = [chr(0x2800 + (1 << rng.randrange(8))), ink]
+    # Its glow last, under everything: a background, so what is drawn keeps its ink.
     for r in range(max(0, int(beam - DECAY_ROWS)), min(height, int(beam) + 1)):
         step = int((1.0 - (beam - r) / DECAY_ROWS) * len(GLOW))
         if step > 0:
