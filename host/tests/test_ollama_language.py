@@ -85,12 +85,13 @@ def test_screen_language(report):
 
     # Every English key must exist verbatim in the source, or a call site has
     # moved on and its translation is dead text nothing will ever match.
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sources = []
-    for name in ('coaxial_ollama/debug.py', 'coaxial_ollama/tools.py',
-                 'coaxial_mcp/tools.py', 'coaxial_mcp/render.py'):
-        with io.open(os.path.join(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__))), name), encoding='utf-8') as handle:
-            sources.append(handle.read())
+    for package in ('coaxial_ollama', 'coaxial_mcp'):
+        for name in sorted(os.listdir(os.path.join(host, package))):
+            if name.endswith('.py'):
+                with io.open(os.path.join(host, package, name), encoding='utf-8') as handle:
+                    sources.append(handle.read())
     # Quotes stripped before comparing: the source splits these strings across
     # lines, so the literal run is broken by a `' '` at every wrap.
     joined = ' '.join(_flat(text) for text in sources)
