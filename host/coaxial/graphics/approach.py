@@ -145,7 +145,24 @@ KANA = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈ
 HEX = '0123456789ABCDEF'
 DATA = (60, 190, 140)
 FLICKER_HZ = 6.0
-SUBTAG = 'ｻｲﾄ ﾀﾝｻｸ ﾁｭｳ'
+TAG = '>> ﾁｬｸﾘｸﾁ ﾀﾝｻｸﾁｭｳ'
+SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
+
+#: A craft far below, crossing now and then: one pass each PASS_S seconds, CROSS_S long,
+#: from the lower left to the right; CRAFT columns nose to tail at a 150-column frame,
+#: pale steel, a red beacon blinking, a white strobe at the tail.
+PASS_S = 28.0
+CROSS_S = 9.0
+CRAFT = 11.0
+HULL = (190, 215, 235)
+STROBE = (255, 255, 255)
+
+#: The craft's outline, nose along +x, in its lengths: a fuselage, a wing, two rotor pods,
+#: a V tail - segments ((x0, y0), (x1, y1)), y across the craft.
+OUTLINE = (((-0.5, 0.0), (0.5, 0.0)), ((0.5, 0.0), (0.58, 0.0)),
+           ((-0.08, -0.34), (-0.08, 0.34)),
+           ((-0.16, -0.38), (0.0, -0.38)), ((-0.16, 0.38), (0.0, 0.38)),
+           ((-0.5, 0.0), (-0.62, -0.14)), ((-0.5, 0.0), (-0.62, 0.14)))
 
 
 def _hashed(*n):
@@ -175,6 +192,43 @@ def stars(static, width, height, t, roll=None):
             px, py = int(x), int(y)
             bit = BRAILLE_BITS[1 if x - px >= 0.5 else 0][min(3, int((y - py) * 4.0))]
             out[py * width + px] = (bit, tuple(int(c * (0.35 + 0.65 * light)) for c in STAR))
+    return out
+
+
+def craft(width, height, t, roll=None):
+    """{cell: (braille mask, (r, g, b))}: the craft at `t` when a pass is on, else {}."""
+    into = t % PASS_S
+    if into > CROSS_S:
+        return {}
+    k = into / CROSS_S
+    size = CRAFT * width / 150.0
+    x0, y0 = -0.1 * width + 1.2 * width * k, (0.78 - 0.16 * k) * height
+    heading = math.atan2(-0.16 * height * ASPECT, 1.2 * width)
+    c, s = math.cos(heading), math.sin(heading)
+    out = {}
+
+    def put(x, y, rgb):
+        if roll is not None:
+            x, y = roll(x, y)
+        if 0.0 <= x < width and 0.0 <= y < height:
+            px, py = int(x), int(y)
+            at = py * width + px
+            bit = BRAILLE_BITS[1 if x - px >= 0.5 else 0][min(3, int((y - py) * 4.0))]
+            out[at] = (out[at][0] | bit if at in out else bit, rgb)
+
+    def at(u, v):
+        """The craft's (along, across) as a screen point."""
+        x, y = size * (u * c - v * s), size * (u * s + v * c)
+        return x0 + x, y0 + y / ASPECT
+
+    for (u0, v0), (u1, v1) in OUTLINE:
+        n = max(2, int(size * math.hypot(u1 - u0, v1 - v0) * 2.0))
+        for i in range(n + 1):
+            put(*at(u0 + (u1 - u0) * i / n, v0 + (v1 - v0) * i / n), HULL)
+    if int(t * 2.0) % 2 == 0:
+        put(*at(0.1, 0.0), RED)
+    if t % 1.5 < 0.12:
+        put(*at(-0.62, 0.0), STROBE)
     return out
 
 
@@ -292,8 +346,7 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
     _put(grid, tone, height - 1, 1, 'T+%02d:%04.1f  ｹﾞｰﾄ %02d' % (minutes, seconds,
                                                                 gates % 100), amber)
     if int(t * 1.5) % 2 == 0:
-        tag = '>> SCANNING FOR SITE'
-        _put(grid, tone, height - 1, width - len(tag) - 1, tag, red)
+        _put(grid, tone, height - 1, width - len(TAG) - 1, TAG, red)
     data = DATA if colour else None
     _put(grid, tone, height - 2, width - len(SUBTAG) - 1, SUBTAG, data)
 
