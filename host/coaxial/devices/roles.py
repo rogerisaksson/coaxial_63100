@@ -5,8 +5,13 @@
     Stream      Input that runs once started: + start()  stop()  collect(count, timeout)
     Output      + write(**values)  on()  off()  is_on()  trip()
     Controller  Input + Output, + move(**targets)
-    Regulator   Controller on the host: step(measured) -> command, reset()
-    Estimator   Controller on the host: step(measured) -> estimate, reset()
+
+The parts a controller is put together from (`coaxial.control.controller.Loop`):
+
+    Filter      step(x, dt) -> x shaped                          a prefilter
+    Estimator   step(measured, command, dt) -> estimate          a board's own is also an Input
+    Regulator   step(setpoint, estimate, dt) -> command
+    each        reset()
 
 One verb, one meaning, on every device. A verb a device cannot do refuses
 in words (RigError); what a device adds beyond the verbs is a setting of
@@ -118,23 +123,34 @@ class Controller(Input, Output):
         raise RigError('%s does not move' % type(self).__name__)
 
 
-class Regulator(Controller):
+class Filter:
 
-    """A loop computed on the host: a measurement in, a command out."""
+    """Shapes a dict of values: a setpoint on its way in."""
 
-    def step(self, *measured):
+    def step(self, x, dt):
         raise NotImplementedError
 
     def reset(self):
-        raise NotImplementedError
+        pass
 
 
-class Estimator(Controller):
+class Estimator:
 
-    """A filter computed on the host: a measurement in, an estimate out."""
+    """The measurement and the last command in, the estimate out."""
 
-    def step(self, *measured):
+    def step(self, measured, command, dt):
         raise NotImplementedError
 
     def reset(self):
+        pass
+
+
+class Regulator:
+
+    """The setpoint and the estimate in, the command out."""
+
+    def step(self, setpoint, estimate, dt):
         raise NotImplementedError
+
+    def reset(self):
+        pass

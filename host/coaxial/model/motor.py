@@ -162,8 +162,9 @@ class Propeller:
             wm = drive.model.read()['omega'] / verb.poles
             drive.model.configure(load=self.torque(wm * verb.poles, verb.poles))
             if log is not None:
-                log.append((len(log) * verb.pause, verb.bus.w_ref / RAD_S_PER_RPM,
-                            verb.rpm_now, verb.bus.iq_ref))
+                last = verb.loop.read()
+                log.append((last['t'], last['setpoint']['w'] / RAD_S_PER_RPM,
+                            last['estimate']['w'] / RAD_S_PER_RPM, last['command']['iq_ref']))
         return watch
 
 

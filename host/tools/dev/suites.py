@@ -58,11 +58,14 @@ BOOT = 'test_boot.py'
 
 VIEWS = 'test_views.py'
 
+#: The composed controller and its parts, against a toy rotor and the stand-in.
+CONTROLLER = 'test_controller.py'
+
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
                    SENSORLESS,
-                   BROKER, DAQ_API, BOOT, VIEWS,
+                   BROKER, DAQ_API, CONTROLLER, BOOT, VIEWS,
                    RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -84,6 +87,7 @@ ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
 JOINS = (
     (10, 'test_simulated.py'),
     (12, DAQ_API),
+    (12, CONTROLLER),
     (12, BOOT),
     (15, CORE),
     (20, SHTP),
@@ -183,6 +187,7 @@ TOUCHES = (
     ('host/coaxial/draw/dial.py',              ('test_simulated.py',)),
     ('host/coaxial/graphics/mesh.py',          ('test_simulated.py',)),
     ('host/coaxial/draw/ansi.py',              ('test_simulated.py',)),
+    ('host/coaxial/control/',                  (CONTROLLER, SENSORLESS, 'test_simulated.py')),
     ('host/coaxial/',                          ('test_simulated.py', 'test_parity.py',
                                                 'test_mcp.py')),
     # A live view is a loop, a screen and a cable around a renderer that is

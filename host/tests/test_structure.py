@@ -1349,6 +1349,12 @@ def _paper(path):
     return wrong
 
 
+def notebook_areas():
+    """The areas `tools/notebooks` builds, by name."""
+    from tools.notebooks import AREAS
+    return AREAS
+
+
 def test_notebooks_are_papers(r):
     """Every example notebook is one paper in the builder's shape, executed."""
     folder = os.path.join(REPO, 'notebook_examples')
@@ -1358,9 +1364,7 @@ def test_notebooks_are_papers(r):
         r.check('%s is a paper in the builder\'s shape, executed' % name,
                 not wrong, '; '.join(wrong[:3]))
     r.check('and there is one notebook per functional area',
-            names == ['%s.ipynb' % a for a in sorted(
-                ('acquisition', 'link', 'sensors', 'power_stage', 'thermal',
-                 'drive', 'motion', 'applications', 'commissioning'))],
+            names == ['%s.ipynb' % a for a in sorted(notebook_areas())],
             ', '.join(names))
 
 

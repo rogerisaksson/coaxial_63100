@@ -2,7 +2,7 @@
 import math
 import time
 
-from coaxial.control.loop import Signals, SpeedLoop
+from coaxial.control.controller import Direct, Loop, Polled, Slew, SpeedPI
 from coaxial.errors import RigError
 from coaxial.model.motor import Parameters, Propeller
 from coaxial.model.sensorless import RAD_S_PER_RPM
@@ -222,24 +222,27 @@ class Servo(_Mode):
 
 class Velocity(_Mode):
 
-    """Sensorless speed under `coaxial.control.loop`'s own law - the ESC's job."""
+    """Sensorless speed, a `Loop`: the drive's state in, `SpeedPI` by default, `iq_ref` out.
 
-    #: `load_k` is the LOOP's knowledge - the propeller law its
-    #: feedforward leans on. It moves no air: on the stand-in the plant's
-    #: drag is fed separately (`model.configure(load=...)` from a `watch`,
-    #: as the notebooks do), and at the bench the air is the air.
+    `load_k` is the regulator's feedforward, not a load: the stand-in's drag is
+    `model.configure(load=...)` from a `watch`. `regulator=`, `estimator=` swap the parts.
+    """
+
     def __init__(self, device, amps, hz=3.0, j=2e-5, b=1e-5, load_k=0.0,
-                 rate_hz=25.0):
+                 rate_hz=25.0, regulator=None, estimator=None):
         super().__init__(device)
         p = self._params
         motor = Parameters(
             name='the record', r=p['motor_r_uohm'], ld=p['motor_ld_nh'],
             lq=p['motor_lq_nh'], lam=p['motor_lambda_uvs'],
             poles=self.poles, j=j, b=b, measured=False)
-        self.loop = SpeedLoop(hz, float(amps),
-                              motor, load=Propeller(load_k) if load_k else None)
-        self.bus = Signals()
-        self.pause = 1.0 / float(rate_hz)
+        self.slew = Slew(w=0.0)
+        self.loop = Loop(
+            Polled(self.drive.state), self.drive,
+            regulator or SpeedPI(hz, float(amps), motor,
+                                 load=Propeller(load_k) if load_k else None),
+            estimator or Direct(w=('omega_hat', 1.0 / self.poles)),
+            prefilters=(self.slew,), rate_hz=rate_hz)
 
     def _start(self):
         self.drive.write(id_ref=0.0, iq_ref=0.0)
@@ -253,36 +256,14 @@ class Velocity(_Mode):
                 / RAD_S_PER_RPM)
 
     def rpm(self, target, seconds=1.5, accel_rpm_s=None, watch=None):
-        """Ramp to `target` rpm and serve the loop for `seconds` after."""
-        w_ref = self.bus.w_ref
-        w_target = float(target) * RAD_S_PER_RPM
+        """Ramp to `target` rpm - in a third of the block unless `accel_rpm_s` - and serve
+        the loop for `seconds`; `watch(velocity)` after every pass."""
+        now_rpm = self.slew.at.get('w', 0.0) / RAD_S_PER_RPM
         if accel_rpm_s is None:
-            # Reach the target in a third of the block, whole rpm terms.
-            accel_rpm_s = (abs(target - w_ref / RAD_S_PER_RPM) * 3.0
-                           / max(seconds, 0.1))
-        slew = accel_rpm_s * RAD_S_PER_RPM
-        end = time.monotonic() + seconds
-        last = time.monotonic()
-        while time.monotonic() < end:
-            now = time.monotonic()
-            dt, last = now - last, now
-            move = max(-slew * dt, min(slew * dt, w_target - w_ref))
-            w_ref += move
-            self.bus.w_ref = w_ref
-            self.bus.a_ref = move / dt if dt else 0.0
-            # One state read a pass, and the fault rides it: a trip here is a
-            # runaway or an overcurrent, the one place stopping the loop
-            # matters most.
-            st = self.drive.state()
-            if st['fault']:
-                raise RigError('the drive tripped mid-spin - %s. The stage '
-                               'is down; the loop is over.' % st['fault'])
-            self.bus.w = st['omega_hat'] / self.poles
-            self.loop(self.bus, dt)
-            self.drive.write(iq_ref=self.bus.iq_ref)
-            if watch is not None:
-                watch(self)
-            time.sleep(self.pause)
+            accel_rpm_s = abs(target - now_rpm) * 3.0 / max(seconds, 0.1)
+        self.slew.rates['w'] = accel_rpm_s * RAD_S_PER_RPM
+        self.loop.move(seconds, (lambda _: watch(self)) if watch else None,
+                       w=float(target) * RAD_S_PER_RPM)
         return self.rpm_now
 
     def stop(self, seconds=1.0):

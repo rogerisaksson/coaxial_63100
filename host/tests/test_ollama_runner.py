@@ -425,14 +425,14 @@ def test_smart_selection(report):
                                   table.DRIVE, table.FILTER,
                                   table.THERMAL, table.BOOT_CORE,
                                   table.SENSORLESS, table.DAQ_API,
-                                  table.BOOT,
+                                  table.CONTROLLER, table.BOOT,
                                   } | set(table.OLLAMA)),
                             (75, {table.STRUCTURE, table.CORE,
                                   table.SHTP, 'test_simulated.py',
                                   table.DRIVE, table.FILTER,
                                   table.THERMAL, table.BOOT_CORE,
                                   table.SENSORLESS, table.DAQ_API,
-                                  table.BOOT,
+                                  table.CONTROLLER, table.BOOT,
                                   'test_parity.py', 'test_mcp.py',
                                   table.CONFORMANCE, table.BENCH}
                              | set(table.OLLAMA))):

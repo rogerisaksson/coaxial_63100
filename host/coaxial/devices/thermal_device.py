@@ -2,7 +2,7 @@
 from coaxial.comm import protocol
 from coaxial.errors import RigError
 from coaxial.comm.protocol import ThermalOp
-from coaxial.devices.roles import Estimator
+from coaxial.devices.roles import Estimator, Input
 from coaxial.devices.subsystem import Device
 from coaxial.model.thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES, PHASES
 from coaxial.comm.wire import Reader, label, micro, milli, pack, pages
@@ -50,7 +50,7 @@ def _edge(r):
     return (_node(a), _node(b), r.milli())
 
 
-class ThermalControl(Estimator):
+class ThermalControl(Input, Estimator):
 
     """The thermal observer's verbs, once, over what the board and the stand-in implement.
 
