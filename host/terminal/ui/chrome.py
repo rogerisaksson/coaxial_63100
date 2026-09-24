@@ -1,8 +1,9 @@
 """The house HUD over a page's drawing: the attitude view's look on every page.
 
 An old CRT's snow in the drawing's blank cells, barely there - NOISE of them lit a frame,
-a dot each in SNOW's near-black inks, redrawn NOISE_HZ times a second, a band ROLL_ROWS
-deep rolling down over ROLL_S seconds a shade denser and brighter; lock brackets round
+a dot each in SNOW's near-black inks, redrawn NOISE_HZ times a second; its refresh sweep,
+a beam going down over SWEEP_S seconds, the rows behind it glowing BEAM at the beam and
+decaying over DECAY_ROWS as a phosphor does, under everything; lock brackets round
 what the page draws, `ﾛｯｸ ｵﾝ` blinking on them; the page's clock bottom left; its status tag in red
 kana, blinking, over a teal subtag bottom right. Chrome only fills blanks: nothing the
 page draws is covered, and a piece with no room is left out whole. KANA names each page.
@@ -35,11 +36,14 @@ KANA = {
 
 NOISE = 0.035
 NOISE_HZ = 15.0
-ROLL_S = 7.0
-ROLL_ROWS = 2
 SNOW = tuple(Style(color=Color.from_rgb(*rgb))
              for rgb in ((16, 22, 24), (22, 30, 33), (28, 38, 41)))
-ROLLING = Style(color=Color.from_rgb(36, 50, 54))
+SWEEP_S = 5.0
+DECAY_ROWS = 6.0
+BEAM = (9, 24, 26)
+#: The glow's steps, faintest first: a row takes the one its decay rounds to.
+GLOW = tuple(Style(bgcolor=Color.from_rgb(*(int(ch * (i / 8.0) ** 2) for ch in BEAM)))
+             for i in range(1, 9))
 INK = {
     'lock': Style(color=Color.from_rgb(*AMBER)),
     'tag': Style(color=Color.from_rgb(*RED)),
@@ -144,12 +148,17 @@ def _dress(rows, title, lock, t):
             if int(t * 2.0) % 2 == 0:
                 _put(rows, top, left + 3, LOCKED, INK['lock'])
     rng = random.Random(int(t * NOISE_HZ))
-    roll = (t / ROLL_S) % 1.0 * height
-    snow = [(rng.randrange(height), rng.randrange(width), rng.choice(SNOW))
-            for _ in range(int(NOISE * width * height))]
-    snow += [(int(roll + rng.uniform(-ROLL_ROWS, ROLL_ROWS)) % height, rng.randrange(width),
-              ROLLING) for _ in range(int(NOISE * width * 2 * ROLL_ROWS))]
-    for r, c, ink in snow:
-        # Off any text by a cell: a dot beside a word reads as its punctuation.
-        if all(_blank(rows[r][n]) for n in (c - 1, c, c + 1) if 0 <= n < width):
-            rows[r][c] = [chr(0x2800 + (1 << rng.randrange(8))), ink]
+    for _ in range(int(NOISE * width * height)):
+        r, c = rng.randrange(height), rng.randrange(width)
+        # Off any text or line by a cell: a dot beside one reads as part of it.
+        if all(_blank(rows[m][n]) for m in (r - 1, r, r + 1) for n in (c - 1, c, c + 1)
+               if 0 <= m < height and 0 <= n < width):
+            rows[r][c] = [chr(0x2800 + (1 << rng.randrange(8))), rng.choice(SNOW)]
+    # The sweep last, under everything: a background, so what is drawn keeps its ink.
+    beam = (t / SWEEP_S) % 1.0 * (height + DECAY_ROWS)
+    for r in range(max(0, int(beam - DECAY_ROWS)), min(height, int(beam) + 1)):
+        step = int((1.0 - (beam - r) / DECAY_ROWS) * len(GLOW))
+        if step > 0:
+            glow = GLOW[min(len(GLOW), step) - 1]
+            for cell in rows[r]:
+                cell[1] = glow if cell[1] is None else cell[1] + glow
