@@ -7,7 +7,8 @@
     machine.status(changed=True)   # 'now t=4.2 left_knee=30 ..': what moved, as a program says it
 
 An actuator is a feedback on one node, of a kind the node offers (`Node.ACTUATORS`): its
-setpoint is its name, it reads back as `<name>.<BACK>`. Nodes of a kind no actuator uses
+setpoint is its name, it reads back as `<name>.<BACK>`. `node_hz`: an actuator whose node runs
+loops (`Actuator.LOOPS`) runs its feedback there once armed, the host forwarding its setpoint. Nodes of a kind no actuator uses
 are read each pass and their outputs set as `<node>.<key>`; their limits trip the run. A
 type is a body and its routines - named programs a line calls: `0 run=walk times=4`. Which
 board is which joint is measured (`fit`), never read from a name.
@@ -15,8 +16,10 @@ board is which joint is measured (`fit`), never read from a name.
 import math
 import time
 
+from machine.controller import Feedback
 from machine.errors import MachineError
 from machine.nodes import Nodes
+from machine.parts import Direct
 from machine.routines import TYPES
 from machine.sequencer import GRAMMAR, Sequencer, card
 
@@ -31,9 +34,10 @@ def _mean_angle(degrees):
 class Actuator:
 
     """One kind of feedback on a node: the modules it READS and DRIVES, how it is built, armed
-    and disarmed. ALIGNS: armed in steps (`ramp`, `align`), zeroed where it rests (`zero`)."""
+    and disarmed. ALIGNS: armed in steps (`ramp`, `align`), zeroed where it rests (`zero`).
+    LOOPS: the node module that runs a feedback (`hand_over`), '' where the host runs it."""
 
-    UNIT, READS, DRIVES, BACK, ALIGNS = '', '', '', '', False
+    UNIT, READS, DRIVES, BACK, ALIGNS, LOOPS = '', '', '', '', False, ''
 
     def __init__(self, node):
         self.node = node
@@ -63,6 +67,13 @@ class Actuator:
 
     def zero(self):
         return None
+
+    def hand_over(self, f, hz):
+        """`f`, armed, run on the node at `hz`: its setpoint written to `<node>.<LOOPS>`."""
+        raise MachineError('%s runs no loop on its node' % type(self).__name__)
+
+    def take_back(self):
+        """The node's loop stopped; the host runs the feedback again."""
 
 
 def fit(nodes, body, arming=None):
@@ -98,7 +109,7 @@ class Machine:
     as `actuators`, or by `type` - a name in TYPES. `arming` overrides each actuator's own."""
 
     def __init__(self, nodes, actuators=None, type=None, rate_hz=25.0, arming=None,
-                 routines=None, failsafe=None):
+                 routines=None, failsafe=None, node_hz=None):
         if type is not None:
             if type not in TYPES:
                 raise MachineError('no machine type %r - there are %s' % (type, ', '.join(TYPES)))
@@ -107,6 +118,7 @@ class Machine:
             failsafe = failsafe or TYPES[type].failsafe
         self.nodes, self.actuators, self.type = nodes, dict(actuators or {}), type
         self.routines, self.arming, self.failsafe = dict(routines or {}), arming, failsafe
+        self.node_hz, self._handed = node_hz, {}
         kinds = {a.node.type for a in self.actuators.values()}
         self.others = [n for n in nodes if n.type not in kinds]
         self.reads = sorted(c.name for n in self.others for c in n.capabilities()
@@ -115,6 +127,7 @@ class Machine:
         inputs = sorted({'%s.%s' % (a.node.name, a.READS) for a in self.actuators.values()}
                         | {'%s.%s' % (n.name, m) for n in self.others for m in n.modules})
         outputs = sorted({'%s.%s' % (a.node.name, a.DRIVES) for a in self.actuators.values()}
+                         | {'%s.%s' % (a.node.name, a.LOOPS) for a in self._on_nodes()}
                          | {'%s.%s' % (n.name, m) for n in self.others
                             for m, mod in n.modules.items() if mod.writer is not None})
         self.loop = nodes.loop(inputs=inputs, outputs=outputs, rate_hz=rate_hz)
@@ -171,11 +184,31 @@ class Machine:
             f.prefilter.reset()
             f.regulator.reset()
         self.loop.write(**{name: 0.0 for name in self.actuators})
+        for name, actuator in self.actuators.items():
+            if actuator in self._on_nodes():
+                self._hand_over(name, actuator)
         return list(self.actuators)
 
+    def _on_nodes(self):
+        """The actuators whose feedback their node runs."""
+        return [a for a in self.actuators.values() if self.node_hz and a.LOOPS]
+
+    def _hand_over(self, name, actuator):
+        """The feedback to the node; on the host a pass-through to its setpoint, the same
+        measure reading it back."""
+        f = self.loop.feedbacks[name]
+        actuator.hand_over(f, self.node_hz)
+        self._handed[name] = f
+        self.loop.add(name, Feedback(Direct(math.inf), setpoint=f.setpoint, measured=f.measured,
+                                     command=name + '.set', measure=f.measure, value=f.value,
+                                     sink='%s.%s.setpoint' % (actuator.node.name, actuator.LOOPS)))
+
     def disarm(self, loop=None):
-        """Every actuator off."""
-        for actuator in self.actuators.values():
+        """Every actuator off; a feedback its node ran, the host's again."""
+        for name, actuator in self.actuators.items():
+            if name in self._handed:
+                actuator.take_back()
+                self.loop.add(name, self._handed.pop(name))
             actuator.disarm()
         return list(self.actuators)
 

@@ -193,8 +193,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   holds what the node reads (2026-09-24).
 - Device 12, the board's loop (MINOR 20): a joint's feedback loaded as slots,
   rows of 0.8 s at 20 and -20 deg, 100 Hz on the stand-in: within 0.05 deg,
-  the last held. On the board it ticks in the drive's sample; not yet run on
-  the bench (2026-09-24).
+  the last held. Four legs with `node_hz=100`: the squat's down ends on its
+  level at 0.65 s, the board's 90 deg/s slew over 58. On the board it ticks
+  in the drive's sample; not yet run on the bench (2026-09-24).
 
 ## Local model
 

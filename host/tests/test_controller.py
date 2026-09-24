@@ -499,6 +499,39 @@ def test_the_body_runs_a_program(report):
         nodes.close()
 
 
+def test_the_body_loops_on_its_boards(report):
+    """node_hz: each joint's feedback runs on its board once armed; the host forwards
+    setpoints and reads the joints back through the same measure."""
+    from machine import Machine
+    from machine.nodes import Nodes
+    nodes = Nodes.discover(simulated=True, peripherals=())
+    try:
+        body = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()},
+                       node_hz=100)
+        program = ('0.2 group=init left_hip=0 right_hip=0 left_knee=0 right_knee=0\n'
+                   '2 label=down left_hip=-30 right_hip=-30 left_knee=60 right_knee=60 '
+                   'left_knee.deg.H=58\n'
+                   '1 left_hip=0 right_hip=0 left_knee=0 right_knee=0\n'
+                   '1 group=cleanup left_hip=0 right_hip=0 left_knee=0 right_knee=0\n')
+        seen = {}
+
+        def watch(loop):
+            f = loop.feedbacks['left_knee']
+            seen[type(f.regulator).__name__] = nodes['LL_2'].rig.ctrl.state()['running']
+        out = Sequencer.parse(program, init=body.arm, cleanup=body.disarm).run(
+            body.loop, watch=watch)
+        down = [s for s in out.steps if s[1] == 'down']
+        report.check('the squat runs on the boards, down ending on its level',
+                     out.status == 'done' and down and 'past H' in down[0][2], out.summary())
+        report.check('armed, the host forwards: a pass-through, the board loop running',
+                     seen.get('Direct') is True, seen)
+        report.check('disarmed, the feedback is the host\'s again and the board loop stopped',
+                     type(body.loop.feedbacks['left_knee'].regulator).__name__ == 'AngleHold'
+                     and not nodes['LL_2'].rig.ctrl.state()['running'])
+    finally:
+        nodes.close()
+
+
 def test_machine_types_and_routines(report):
     from machine import Machine
     from machine.routines import TYPES
@@ -723,7 +756,7 @@ def main():
                  test_the_body_runs_a_program,
                  test_a_model_writes_lines, test_machine_types_and_routines,
                  test_live_from_a_stream, test_a_model_streams_and_is_woken,
-                 test_the_board_loops_a_joint):
+                 test_the_board_loops_a_joint, test_the_body_loops_on_its_boards):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

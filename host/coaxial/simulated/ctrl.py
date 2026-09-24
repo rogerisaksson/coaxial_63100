@@ -89,8 +89,13 @@ class SimulatedCtrl(Controller):
             self._queue, self._left, self._playing = [], 0.0, False
         return True
 
+    _written = None
+
     def write(self, setpoint):
-        return self.rows([(0.0, setpoint)])
+        if setpoint != self._written:
+            self.rows([(0.0, setpoint)])
+            self._written = setpoint
+        return True
 
     def on(self):
         if not self._wire:

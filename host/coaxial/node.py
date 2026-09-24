@@ -45,12 +45,23 @@ def discover(port='COM4', simulated=False, units=range(1, 17), **kw):
 class _OnDrive(Actuator):
 
     """A feedback through the drive: armed through the gates, the drive and gates off at
-    disarm."""
+    disarm. On the board's loop (device 12) it MEASURES one reading and COMMANDS one setpoint."""
 
     READS = DRIVES = 'drive'
+    LOOPS = 'ctrl'
+    MEASURES, COMMANDS = 'omega_hat', 'iq_ref'
 
     def _gates(self, arming):
         self.node.rig.gates.on(**_arming(self.node.rig, arming))
+
+    def hand_over(self, f, hz):
+        ctrl = self.node.rig.ctrl
+        ctrl.load(f)
+        ctrl.wire(self.MEASURES, self.COMMANDS, hz)
+        ctrl.on()
+
+    def take_back(self):
+        self.node.rig.ctrl.off()
 
     def disarm(self):
         rig = self.node.rig
@@ -69,6 +80,7 @@ class Joint(_OnDrive):
     """An angle, deg from where it detented at arm: the drive's HOLD drags the rotor there."""
 
     UNIT, READS, BACK, ALIGNS = 'deg', 'angle', 'deg', True
+    MEASURES, COMMANDS = 'angle', 'theta'
 
     def __init__(self, node, span=90.0, deg_s=90.0, amps=2.0):
         super().__init__(node)
@@ -151,6 +163,7 @@ class Torque(Rotor):
     """A current, A: the setpoint straight to iq, the speed read back as rpm too."""
 
     UNIT, BACK = 'A', 'amps'
+    MEASURES = 'iq'
 
     def __init__(self, node, amps=5.0, a_s=10.0):
         super().__init__(node, amps=amps)
@@ -191,6 +204,7 @@ class Coaxial(Node):
              'link': rig.origin.port, 'unit': rig.origin.unit},
             {'drive': Module(rig.drive.state, rig.drive, rig.drive.WRITES, currents),
              'angle': Module(board.angle.state),
+             'ctrl': Module(writer=rig.ctrl, writes=('setpoint',)),
              'imu': Module(board.imu.state),
              'thermal': Module(board.thermal.state),
              'power': Module(board.power.state)})

@@ -119,9 +119,15 @@ class Ctrl(Device, Controller, device=protocol.DEVICE_CTRL):
         """The queued rows dropped; the setpoint held."""
         return self._ack(CtrlOp.CLEAR)
 
+    #: The setpoint last written: a loop writes every pass, the wire only a change.
+    _written = None
+
     def write(self, setpoint):
-        """One setpoint now, held: a row of no length."""
-        return self.rows([(0.0, setpoint)])
+        """One setpoint now, held: a row of no length; the same one again sends nothing."""
+        if setpoint != self._written:
+            self.rows([(0.0, setpoint)])
+            self._written = setpoint
+        return True
 
     def on(self):
         """The feedback reset, ticking; needs a wire and a regulator."""
