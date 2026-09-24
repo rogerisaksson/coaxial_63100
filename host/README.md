@@ -104,31 +104,31 @@ board's own calibration beside the codes.
 RECORDS and builds each frame from them, so nothing is concatenated and
 nothing grows. A plot that trims by hand becomes the bottleneck that fills
 the board's ring, which is the bookkeeping this exists to take away.
-Drawing is plain matplotlib - `notebook_examples/daq_live_plot.ipynb` puts the
+Drawing is plain matplotlib - `notebook_examples/acquisition.ipynb` puts the
 phase currents over one axis per leg, HS and LS.
 
 pandas is imported **where it is called**, so the library still runs on a
 bench without it: `columns()` is a dict of plain lists, which is what
 `DataFrame` takes anyway.
 
-`notebook_examples/propeller_sweep.ipynb` needs no board at all: the 5230SL
-and an APC20x10E from rest to 6717 rpm and back on a raised-cosine profile,
-the power budget split into propeller, iron, copper and the rotor's own
-borrowed energy, and the model laid back over Hobbywing's 22-point thrust
-stand. It is checked in with its outputs, so it reads without running.
+`notebook_examples/motion.ipynb` needs no board at all: the 5230SL and an
+APC20x10E from rest to 6717 rpm and back on a raised-cosine profile, the
+power budget split into propeller, iron, copper and the rotor's own borrowed
+energy, and the model laid back over Hobbywing's 22-point thrust stand. It
+then closes `coaxial.control.loop`'s chain over the same machine - reference,
+d-axis probe, speed PI, current PI - and `identify` pulls R, Ld, Lq and
+lambda back OUT of the run, uncertainties attached: the rehearsal for the day
+`sysid.from_frame` meets real records.
 
-`notebook_examples/speed_loop.ipynb` closes `coaxial.control.loop`'s chain over
-the same machine - reference, d-axis probe, speed PI, current PI - and then
-`identify` pulls R, Ld, Lq and lambda back OUT of the run, uncertainties
-attached: the rehearsal for the day `sysid.from_frame` meets real records.
-`notebook_examples/foc_montecarlo.ipynb` compiles the firmware's own control law
-and searches its tuning against thousands of drawn plants across the 23-63 V
-link sweep, one process per core - the controller schedule, its robustness, and
-the speed where back-EMF alone loses the rotor. Both are checked in with their
-outputs. `notebook_examples/auto_tune.ipynb` is the bench-day procedure end to
-end - commission, identify, search a robust tune with the compiled control law,
-write the calibration record, verify - rehearsed against the stand-in until a
-motor can answer.
+`notebook_examples/drive.ipynb` compiles the firmware's own control law and
+searches its tuning against thousands of drawn plants across the 23-63 V link
+sweep, one process per core - the controller schedule, its robustness, and the
+speed where back-EMF alone loses the rotor.
+`notebook_examples/commissioning.ipynb` is the bench-day procedure end to end -
+commission, identify, search a robust tune with the compiled control law, write
+the calibration record, verify - rehearsed against the stand-in until a motor
+can answer. Every notebook is checked in with its outputs, so it reads without
+running.
 
 **Zero and span belong to the calibration block**, not to the acquisition
 one: they write the calibration record, so they live where it does.

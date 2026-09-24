@@ -88,8 +88,9 @@ clipped at 4000 chars.
 
 ## Runner and MCP
 
-- `runner.py` drives `plans/bringup.yaml`: tasks with limits judged in
-  Python; a `report` tool called once, last, with a board tool behind it.
+- `runner.py` drives `coaxial_ollama/plans/bringup.yaml`: tasks with limits
+  judged in Python; a `report` tool called once, last, with a board tool behind
+  it.
 - MCP (`python -m coaxial_mcp --port COMx`, stdio): board_info,
   analog_read, docs, self_test, imu, angle, orientation, afe_power,
   devices, digital_read, gpio_pin, gpio_port, test_gate, thermal, link.

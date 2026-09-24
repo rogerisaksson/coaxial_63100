@@ -44,7 +44,7 @@ coaxial/control/    loop, motion verbs, commissioning
 coaxial/draw/       2D drawings: palette, dials, gauges, machine, thermal map
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c), observer
-coaxial/simulated/  the stand-in: same reply shapes as the board
+coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/ drive/ thermal/
 coaxial_mcp/        MCP server (stdio), docs tool
 coaxial_ollama/     local-model runner
 terminal/           python -m terminal: loader, menu, readout
