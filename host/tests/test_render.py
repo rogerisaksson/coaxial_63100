@@ -1104,12 +1104,14 @@ def test_approach(report):
     tone = [[None] * 60 for _ in range(20)]
     busy = [1.0] * (60 * 20)                      # the board everywhere: the craft still shows
     passes = [t / 4.0 for t in range(4 * 600) if approach.craft(60, 20, t / 4.0)]
-    at = passes[0] if passes else 0.0
-    approach.hud(over, tone, busy, 60, 20, approach.flight(at), static, at, 0, None, True)
-    report.check('approach: the craft passes rarely, and in front of the board',
-                 passes and len(passes) < 0.12 * 4 * 600
-                 and any(ink == approach.HULL for row in tone for ink in row),
-                 '%d of %d quarter-seconds' % (len(passes), 4 * 600))
+    report.check('approach: the craft passes rarely, the first at once',
+                 passes and passes[0] < 5.0 and len(passes) < 0.12 * 4 * 600,
+                 '%d of %d quarter-seconds, first at %s s' % (len(passes), 4 * 600,
+                                                              passes[0] if passes else '-'))
+    board = (4, 15, 22, 38)                        # a board in the frame's middle
+    over = [at for t in passes for at in approach.craft(60, 20, t, None, board)
+            if board[0] <= at // 60 <= board[1] and board[2] <= at % 60 <= board[3]]
+    report.check('approach: and never over the board', not over, '%d cells' % len(over))
     sides = {now[1] for now in map(approach._pass, passes) if now}
     report.check('approach: its passes come from both sides', sides == {1.0, -1.0}, sides)
     straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)

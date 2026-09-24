@@ -387,9 +387,9 @@ class Sequencer:
 
         def check(loop):
             out['rows'].append(loop.read())
-            self.alarms.check(loop.bus, trips)
             if watch is not None:
-                watch(loop)
+                watch(loop)                   # a stop it asks for counts this pass
+            self.alarms.check(loop.bus, trips)
             if timed:
                 return False
             left[0] = step.unmet(loop.bus, back, self.band)

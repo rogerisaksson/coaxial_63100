@@ -8,7 +8,9 @@
 L and H alarm: logged once a step, the run goes on. LL and HH trip: `check` raises
 Tripped and the sequencer goes to cleanup. A row's level columns arrive through `set`
 and hold from there (inf clears one); a step's timeout through `timeout`. Whatever else
-watches - a pack, a camera, an operator - ends a run the same way: `stop(why)`.
+watches - a pack, a camera, an operator - ends a run the same way: `stop(why)`. A
+handler is any object with these hooks; one of your own subclasses Alarms and calls
+`super().check` first.
 """
 from machine.errors import MachineError
 
@@ -75,9 +77,11 @@ class Alarms:
         self._say('timeout ' + what)
 
     def stop(self, why):
-        """End the run at its next pass, from any thread: to cleanup."""
-        self._stop = 'stop: %s' % why
-        self._say(self._stop)
+        """End the run at its next check, from any thread: to cleanup. The first stop is the
+        one kept and logged; a watcher that keeps asking changes nothing."""
+        if self._stop is None:
+            self._stop = 'stop: %s' % why
+            self._say(self._stop)
 
     def _say(self, what):
         self.log.append('%s: %s' % (self._where, what) if self._where else what)

@@ -153,12 +153,16 @@ SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
 
 #: A craft far below, rarely: each SLOT seconds holds a pass with PASS_CHANCE, at a moment,
 #: from a side, at a height, a dive and a speed of its own (CROSS seconds, least and most)
-#: - in, across, then banking off into a dive out under the frame. CRAFT columns nose to
-#: tail at a 150-column frame, pale steel, a red beacon blinking, a white strobe at the
-#: tail; in front of the board, a dark cell each side of it.
+#: - in from its side, turning short of the board by CLEAR columns and banking off into
+#: a dive out under the frame; never over the board, no pass where it leaves no room.
+#: CRAFT columns nose to tail at a 150-column frame, pale steel, a red beacon blinking,
+#: a white strobe at the tail.
 SLOT = 45.0
+#: The first pass comes at once: FIRST seconds in.
+FIRST = 3.0
 PASS_CHANCE = 0.55
 CROSS = (2.4, 4.2)
+CLEAR = 4.0
 CRAFT = 6.0
 HULL = (190, 215, 235)
 STROBE = (255, 255, 255)
@@ -207,10 +211,11 @@ def stars(static, width, height, t, roll=None):
 def _pass(t):
     """The pass under way at `t`: (k along it, its side +-1, height, dive), or None."""
     n = int(t // SLOT)
-    if _hashed(n, 10) % 100 >= PASS_CHANCE * 100:
+    if n and _hashed(n, 10) % 100 >= PASS_CHANCE * 100:
         return None
     length = CROSS[0] + (CROSS[1] - CROSS[0]) * (_hashed(n, 11) % 100) / 100.0
-    start = n * SLOT + (_hashed(n, 12) % 1000) / 1000.0 * (SLOT - length)
+    start = (n * SLOT + (_hashed(n, 12) % 1000) / 1000.0 * (SLOT - length) if n
+             else FIRST)
     k = (t - start) / length
     if not 0.0 <= k <= 1.0:
         return None
@@ -219,19 +224,25 @@ def _pass(t):
             0.45 + 0.50 * (_hashed(n, 15) % 100) / 100.0)
 
 
-def craft(width, height, t, roll=None):
-    """{cell: (braille mask, (r, g, b))}: the craft at `t` when a pass is on, else {}."""
+def craft(width, height, t, roll=None, box=None):
+    """{cell: (braille mask, (r, g, b))}: the craft at `t` when a pass is on, else {};
+    `box` (the board's first and last row and column) is kept clear."""
     now = _pass(t)
     if now is None:
         return {}
     k, side, level, dive = now
     size = CRAFT * width / 150.0
+    # From its edge to CLEAR short of the board - or to the frame's far side, no board.
+    edge = -0.08 * width if side > 0 else 1.08 * width
+    turn = ((box[2] - CLEAR - size if side > 0 else box[3] + CLEAR + size)
+            if box is not None else (0.82 * width if side > 0 else 0.18 * width))
+    if (turn - edge) * side < 3.0 * size:
+        return {}
 
     def track(k):
-        """Where the pass is at `k` of it: across from its side, then diving out below."""
-        across = -0.08 + 0.9 * k
-        return ((across if side > 0 else 1.0 - across) * width,
-                (level + dive * k ** 3) * height)
+        """Where the pass is at `k` of it: in from its side, easing to the turn, diving."""
+        ease = 1.0 - (1.0 - k) ** 2
+        return edge + (turn - edge) * ease, (level + dive * k ** 3) * height
 
     x0, y0 = track(k)
     x1, y1 = track(k + 0.01)
@@ -336,15 +347,8 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
     # The ladder first: text over it.
     _ladder(grid, tone, buf, width, height, static, roll, dim)
 
-    # The craft, in front of everything drawn so far - the board included: a dark cell
-    # each side of it first, so it hides what it passes rather than mixing with it.
-    drawn = craft(width, height, t, roll)
-    for at in drawn:
-        r, c = divmod(at, width)
-        for side in (c - 1, c + 1):
-            if 0 <= side < width and r * width + side not in drawn:
-                grid[r][side], tone[r][side] = ' ', None
-    for at, (mask, rgb) in drawn.items():
+    # The craft, over the scenery; its pass keeps clear of the board.
+    for at, (mask, rgb) in craft(width, height, t, roll, box).items():
         r, c = divmod(at, width)
         grid[r][c], tone[r][c] = chr(0x2800 + mask), rgb if colour else None
 
