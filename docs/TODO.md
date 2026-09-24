@@ -11,24 +11,22 @@ Open work. Measured results are in FINDINGS.
 - **First flash since 2026-09-16**: ITCM sample path (a wrong copy
   hard-faults on the first ADC interrupt), `test_bench.py` vs baseline,
   LOOP cycle counters, `__sbrk_heap_end` stable over an hour.
-- **Drive**: no current has closed a loop through a winding.
-  `tools/bench/commission.py` has run dry only. Record ids 15..44 (motor R, L,
-  lambda, gains, injection, dead-time table) are placeholders.
-- **SOA path** has never run on target: dry `budget()` over the wire, gate
-  proof with a lowered ceiling, a load run. `Board_SyncMeanSquare` ISR cost
+- **Drive**: a current loop closed through a winding;
+  `tools/bench/commission.py` beyond its dry run. Record ids 15..44 (motor R,
+  L, lambda, gains, injection, dead-time table) are placeholders.
+- **SOA path** on target: dry `budget()` over the wire, gate proof with a
+  lowered ceiling, a load run. `Board_SyncMeanSquare` ISR cost
   unmeasured.
 - **STO chain**: circuit change, pilot tone sent on RS485, Cinj/Clevel with and
   without it, interlock thresholds from those readings, one arm with neither
-  bypass (`tools/bench/sto_probe.py`). All sessions so far armed with both
-  bypasses.
+  bypass (`tools/bench/sto_probe.py`).
 - **Scope**: counted hold (MINOR 8), dead-time skew (record holds 0),
   `Q_RING` in `inverter.py`.
 - **Thermal**: camera under load (`board_to_ambient` at high dT, per-leg
   `to_board`), a power step and the NTC's slope (leg capacity: burst budget
   is 0.22-0.67 s), a thermocouple on a winding. Ceilings for drivers,
   regulators, AFE and laminate are estimates.
-- **Spans**: phase gain never spanned; DC link is the only spanned channel.
-- Nothing has run near 63 V or 100 A.
+- **Spans**: phase gain; DC link is the only spanned channel.
 
 ## Host
 

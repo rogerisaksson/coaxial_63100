@@ -137,7 +137,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - Found by driving the host's `Boot` client through the C core: the
   bootloader echoed device and op in front of every 0x6E reply, where the
   application sends the fields alone; `missing`, `dump` called the
-  `remaining` property. Never run, so never seen (2026-09-23).
+  `remaining` property (2026-09-23).
 
 ## Host and tooling
 

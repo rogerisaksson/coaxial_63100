@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$CLAUDE_PROJECT_DIR/host/tools/dev/lint.py\" --hook post",
+            "timeout": 120,
+            "statusMessage": "Linting the edited file"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$CLAUDE_PROJECT_DIR/host/tools/dev/lint.py\" --hook stop",
+            "timeout": 300,
+            "statusMessage": "Linting the changed files"
+          }
+        ]
+      }
+    ]
+  }
+}

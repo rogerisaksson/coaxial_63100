@@ -60,10 +60,11 @@ hold 3 s leases.
 
 ## STO chain
 
-PA10 KEEPALIVE toggles at 200 kHz (a 100 kHz square wave) -> R72 330 / C71 100 nF -> charge pump; the chain
-also wants the RS485 pilot tone. Cinj (PC1) = recovered pilot, Clevel (PB1)
-= integrator. `GateStage.interlock()` wants >= 3.0 V each; the unmodified
-board reads 0.77 / 0.06 V (2026-08-27), so sessions arm with
+PA10 KEEPALIVE toggles at 200 kHz (a 100 kHz square wave) -> R72 330 /
+C71 100 nF -> charge pump; the chain also wants the RS485 pilot tone.
+Cinj (PC1) = recovered pilot, Clevel (PB1) = integrator.
+`GateStage.interlock()` wants >= 3.0 V each; the unmodified board reads
+0.77 / 0.06 V (2026-08-27), so sessions arm with
 `ignore_interlock=True, bypass_sto=True`. `tools/bench/sto_probe.py` reads it.
 
 ## SPI sensors

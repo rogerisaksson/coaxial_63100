@@ -52,9 +52,9 @@ raise. `release()` sends keep_alive 0. Never a second client at another
 
 ## Prompt loop (`dbg.py`)
 
-`coaxial_ollama/debug.py` `Chat` = `budget` (the prompt inside the window)
-+ `turn` (one question, its rounds and calls) + `commands` (the / lines);
-the fixed words are `words.py`.
+`coaxial_ollama/debug.py` `Chat` = `budget` (the prompt inside the
+window), `turn` (one question, its rounds and calls) and `commands` (the /
+lines); the fixed words are `words.py`.
 
 ### SYSTEM and tools
 

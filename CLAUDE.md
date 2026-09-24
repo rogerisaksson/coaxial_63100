@@ -17,10 +17,10 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - Gate supply comes from the STO chain, not the MCU. AFE_ON high unpowers
   the drivers: no current is measured while switching here.
 - Measured: duty 1-100 % dry; 26 pulse runs into 8 ohm at 25/31 V,
-  3.1-3.75 A. Nothing near 63 V/100 A. Drive: 2 922 cycles/period, drivers
-  off. Bootloader built, not run: the app runs from D2 SRAM, and
-  `Coaxial63100.open()` loads the host's own build into a board running
-  another (docs/BOOT.md). Open work: docs/TODO.md.
+  3.1-3.75 A. Drive: 2 922 cycles/period, drivers off. Bootloader built,
+  not run: the app runs from D2 SRAM, and `Coaxial63100.open()` loads the
+  host's own build into a board running another (docs/BOOT.md). Open work:
+  docs/TODO.md.
 
 | Read | Before |
 | --- | --- |
@@ -59,8 +59,10 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 ## Rules
 
 - **Short and slick.** Comments, docstrings, docs: the fact, the number,
-  the date; one definition per thing; no narrative (git holds it). No
-  worker agents. A change is a cut, not a rewrite.
+  the date; one definition per thing; no narrative (git holds it). Prose
+  at a minimum, technical and terse: no markers (capitals, labels, asides,
+  remarks on progress) and no filler. No worker agents. A change is a cut,
+  not a rewrite.
 - **Narrowest test first** while a bug is live. **Green before the next
   item**, pre-existing failures included.
 - **Suspect your own code before the hardware**: reference implementation,
@@ -72,7 +74,8 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 
 1. Narrow suite (`cd host; python -X utf8 tests/<suite>.py`); `-Structure`
    after host/ edits; offline gate (`python tools/dev/run_tests.py --offline`)
-   before pushing `coaxial/` changes.
+   before pushing `coaxial/` changes. Lint (`host/tools/dev/lint.py`:
+   markdownlint, pyright basic) runs as a hook after every edit and at stop.
 2. Braille output: judge a PNG (`tools/render/ansi2png.py`), then the bench.
 3. One dated FINDINGS line if something was measured or settled;
    PROTOCOL for wire changes (MINOR per appended field).
