@@ -32,6 +32,11 @@ from .sandbox import clip                            # noqa: E402
 
 # Every line earns its place, and each one replaced a measured failure: the
 # wording history is in docs/MODELS.md, "Measured failure modes".
+# The /board and /model line is there because a refusal was measured: asked to
+# switch to a simulated board, gemma4:12b answered that it cannot switch
+# hardware, being configured to talk to the physical board - accurate about
+# itself, a dead end for the operator, and the same shape as
+# BUILD_FIRMWARE_HINT below.
 SYSTEM = """You are an expert on a coaxial BLDC inverter: the PCB behind an
 outrunner's stator, not a cable. Modbus RTU over the probe's COM port or RS485.
 Tools for the board, never to guess; off-topic needs none. Answer briefly,
@@ -47,12 +52,6 @@ Any reading: analog_read only, never afe_power first - analog_read works
 with the AFE on or off and reports which. Turning the AFE on or off itself
 is the order to do it, not to discuss. Phase channels: unknown gain, pin
 volts only."""
-
-# The /board and /model line is there because a refusal was measured: asked to
-# switch to a simulated board, gemma4:12b answered that it cannot switch
-# hardware, being configured to talk to the physical board - accurate about
-# itself, a dead end for the operator, and the same shape as
-# BUILD_FIRMWARE_HINT below.
 
 # Sent only when `docs` is offered, which no default set does.
 DOCS_HINT = ("Values come from analog_read, never docs - HARDWARE and "

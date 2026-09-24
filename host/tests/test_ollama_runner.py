@@ -5,9 +5,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tests.ollama_support import (TAGS, select, BSLASH, Scope, Shell, SimulatedBoard, 
-    _test_capability, build, call, counts, json, os, planmod, runmod, 
-    sys, tempfile, toolmod, types)   # noqa: E402
+from tests.ollama_support import (TAGS, select, BSLASH, Scope, Shell, SimulatedBoard,
+                                  _test_capability, build, call, counts, json, os, planmod, runmod,
+                                  sys, tempfile, toolmod)
 
 
 

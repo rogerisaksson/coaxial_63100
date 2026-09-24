@@ -2,10 +2,10 @@
 import math
 import time
 
-from coaxial.errors import RigError
-from coaxial.model.sensorless import RAD_S_PER_RPM, TWO_PI
 from coaxial.control.loop import Signals, SpeedLoop
+from coaxial.errors import RigError
 from coaxial.model.motor import Parameters, Propeller
+from coaxial.model.sensorless import RAD_S_PER_RPM
 
 #: Mechanical degrees: a full turn, and the jump past which a reading
 #: has wrapped rather than the shaft having moved.

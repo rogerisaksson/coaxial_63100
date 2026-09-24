@@ -38,7 +38,7 @@ boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),
 coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory
 coaxial/comm/       the wire: transport, crc, codecs, protocol, broker, sessions
 coaxial/devices/    one subsystem per functional area (board, afe, gates, boot..)
-coaxial/acquire/    acquisition tasks, records, reader, clock, anti-alias design
+coaxial/acquire/    the rig's task and stream (its mixins), records, reader, clock, filter
 coaxial/model/      motor, inverter, thermal network, sensorless, sysid
 coaxial/control/    loop, motion verbs, commissioning
 coaxial/draw/       2D drawings: palette, dials, gauges, machine, thermal map

@@ -205,14 +205,19 @@ def test_no_unused_imports(r):
             elif isinstance(node, ast.Attribute) and isinstance(node.value,
                                                                 ast.Name):
                 used.add(node.value.id)
+        lines = text.split('\n')
         brought = []
         for node in tree.body:
+            if not isinstance(node, (ast.Import, ast.ImportFrom)) or any(
+                    re.search(r'noqa:[^#]*F401', line)
+                    for line in lines[node.lineno - 1:node.end_lineno]):
+                continue        # a re-export says so on its line
             if isinstance(node, ast.Import):
                 brought += [a.asname or a.name.split('.')[0]
                             for a in node.names]
-            elif isinstance(node, ast.ImportFrom):
+            else:
                 brought += [a.asname or a.name for a in node.names]
-        dead = [n for n in brought if n not in used and n not in text.split()]
+        dead = [n for n in brought if n not in used]
         r.check('%s imports nothing it does not use' % path,
                 not dead, ', '.join(dead))
 
