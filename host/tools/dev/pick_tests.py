@@ -36,6 +36,7 @@ sys.path.insert(0, ROOT)
 # The subject catalogue lives with the tests it names, so a tag cannot be added
 # in one place and mean nothing in the other.
 from tests.ollama_support import TAGS                          # noqa: E402
+
 from coaxial_ollama import client as clientmod                 # noqa: E402
 
 # How much of the diff the model sees.

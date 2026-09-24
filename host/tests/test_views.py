@@ -49,7 +49,7 @@ def run_view(name):
     """One view run against the stand-in for two frames; its whole process
     tree killed at the timeout - a view's crew workers held the captured
     pipe otherwise, and the suite sat on it (2026-09-13)."""
-    from tools.dev.run_tests import run_captured
+    from tools.dev.runner import run_captured
     where = 'terminal' if name == 'menu.py' else os.path.join('terminal', 'views')
     done = run_captured(
         [sys.executable, '-X', 'utf8', os.path.join(where, name),
@@ -102,7 +102,7 @@ def test_the_loader_reads_the_pages(report):
         got = loader.run_page(page, name, args)
         report.check('loader: %s runs here for two frames and answers 0' % name,
                      got == 0, 'answered %r' % (got,))
-    from tools.dev.run_tests import run_captured
+    from tools.dev.runner import run_captured
     done = run_captured([sys.executable, '-X', 'utf8', '-m', 'terminal',
                          '--simulated', '--frames', '2'], VIEW_TIMEOUT, cwd=HOST)
     tail = ((done.stdout + done.stderr).strip().splitlines() or ['no output'])[-1][:70] \

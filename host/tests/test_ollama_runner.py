@@ -286,17 +286,18 @@ def test_smart_selection(report):
     """Which suites a change can have broken."""
     import os
     import sys as _sys
-    from tools.dev import run_tests
+    from tools.dev import scope
+    from tools.dev import suites as table
 
     for paths, expect_suites, expect_live, why in (
             (['host/coaxial_ollama/language.py'],
-             set(run_tests.OLLAMA), {'language'},
+             set(table.OLLAMA), {'language'},
              'the language lock is half the live suite, not all of it'),
             (['host/coaxial_ollama/replies.py'],
-             set(run_tests.OLLAMA), {'tools'},
+             set(table.OLLAMA), {'tools'},
              'what an answer means is the tool-choice half'),
             (['host/coaxial_mcp/render.py'],
-             {'test_mcp.py', 'test_parity.py'} | set(run_tests.OLLAMA), set(),
+             {'test_mcp.py', 'test_parity.py'} | set(table.OLLAMA), set(),
              'a renderer cannot change which tool gets called'),
             (['docs/HARDWARE.md'], {'test_ollama_runner.py'}, set(),
              'a document can only break the docs index'),
@@ -311,10 +312,10 @@ def test_smart_selection(report):
             (['host/tests/test_parity.py'], {'test_parity.py'}, set(),
              'editing a suite is a reason to run it'),
             (['host/coaxial_ollama/debug.py'],
-             set(run_tests.OLLAMA), {'all'},
+             set(table.OLLAMA), {'all'},
              'the prompt and the tool sets are both in there'),
     ):
-        suites, live, _ = run_tests.pick(paths)
+        suites, live, _ = scope.pick(paths)
         report.check('%s -> %s' % (paths[0].rsplit('/', 1)[-1],
                                    ', '.join(sorted(suites)) or 'none'),
                      suites == expect_suites, ', '.join(sorted(suites)))
@@ -324,20 +325,20 @@ def test_smart_selection(report):
 
     # A path the map does not know is the case to fail safe on: run everything
     # rather than quietly cover nothing.
-    suites, live, why = run_tests.pick(['nothing/the/map/knows.xyz'])
+    suites, live, why = scope.pick(['nothing/the/map/knows.xyz'])
     report.check('an unmapped path runs everything, and says why',
-                 run_tests.CONFORMANCE in suites and live == {'all'}
+                 table.CONFORMANCE in suites and live == {'all'}
                  and 'unmapped' in why[-1], why[-1][:52])
 
     # And the other half of that: an entry deliberately mapped to nothing is a
     # rule, not a hole, and must not fall through to the whole gate.
-    suites, live, why = run_tests.pick(['datasheets/imu/UserGuide.pdf'])
+    suites, live, why = scope.pick(['datasheets/imu/UserGuide.pdf'])
     report.check('a path nothing reads runs nothing, and says that instead',
                  not suites and not live and 'nothing reads it' in why[-1],
                  why[-1][:52])
 
     report.check('and the whole lot goes every tenth commit',
-                 run_tests.FULL_EVERY == 10)
+                 table.FULL_EVERY == 10)
 
     # The map settles the cheap cases on its own.
     for paths, what in (
@@ -347,9 +348,9 @@ def test_smart_selection(report):
         (['host/terminal/views/show_desk.py'], 'a live view'),
         (['datasheets/imu/UserGuide.pdf'], 'something no suite reads'),
     ):
-        suites, _, why = run_tests.pick(paths)
+        suites, _, why = scope.pick(paths)
         report.check('%s does not need the model' % what,
-                     run_tests.settled(suites, why),
+                     scope.settled(suites, why),
                      ', '.join(sorted(suites)) or 'nothing to run')
 
     for paths, what in (
@@ -357,85 +358,85 @@ def test_smart_selection(report):
         (['board/src/board_cal.c'], 'firmware'),
         (['nothing/the/map/knows.xyz'], 'an unmapped path'),
     ):
-        suites, _, why = run_tests.pick(paths)
+        suites, _, why = scope.pick(paths)
         report.check('%s still goes to the model' % what,
-                     not run_tests.settled(suites, why),
+                     not scope.settled(suites, why),
                      ', '.join(sorted(suites)))
 
     report.check('and what it settles on runs without a board or a model',
-                 run_tests.CONFORMANCE not in run_tests.CHEAP
-                 and run_tests.LIVE not in run_tests.CHEAP
-                 and not (set(run_tests.OLLAMA) & run_tests.CHEAP),
-                 ', '.join(sorted(run_tests.CHEAP)))
+                 table.CONFORMANCE not in table.CHEAP
+                 and table.LIVE not in table.CHEAP
+                 and not (set(table.OLLAMA) & table.CHEAP),
+                 ', '.join(sorted(table.CHEAP)))
 
     # A tier is a budget and the model spends inside it.
     class _Args:
         def __init__(self, coverage, files):
             self.coverage, self.file, self.live = coverage, list(files), True
 
-    args = _Args(25, [run_tests.STRUCTURE, 'test_simulated.py',
-                      run_tests.CONFORMANCE])
-    left = run_tests._within_tier(args, 'all')
+    args = _Args(25, [table.STRUCTURE, 'test_simulated.py',
+                      table.CONFORMANCE])
+    left = scope._within_tier(args, 'all')
     report.check('the 25% tier drops what the model added past it',
-                 run_tests.CONFORMANCE not in args.file and left == ''
+                 table.CONFORMANCE not in args.file and left == ''
                  and not args.live, ', '.join(args.file))
     report.check('   ...and keeps what was inside it',
-                 args.file == [run_tests.STRUCTURE, 'test_simulated.py'],
+                 args.file == [table.STRUCTURE, 'test_simulated.py'],
                  ', '.join(args.file))
 
     # 75 % is the tier that does buy conformance and the live tool matrix.
-    args = _Args(75, [run_tests.STRUCTURE, run_tests.CONFORMANCE])
-    left = run_tests._within_tier(args, 'tools')
+    args = _Args(75, [table.STRUCTURE, table.CONFORMANCE])
+    left = scope._within_tier(args, 'tools')
     report.check('a tier that does stretch to conformance keeps it',
-                 run_tests.CONFORMANCE in args.file and left == 'tools',
+                 table.CONFORMANCE in args.file and left == 'tools',
                  '%s live:%s' % (', '.join(args.file), left))
 
-    args = _Args(None, [run_tests.CONFORMANCE])
+    args = _Args(None, [table.CONFORMANCE])
     report.check('and with no tier at all nothing is clamped',
-                 run_tests._within_tier(args, 'all') == 'all'
-                 and args.file == [run_tests.CONFORMANCE])
+                 scope._within_tier(args, 'all') == 'all'
+                 and args.file == [table.CONFORMANCE])
 
     # A tier is arithmetic now, not a table of three, so any 5 % step can be
     # named.
     grew = []
-    for percent in run_tests.TIERS:
-        suites, sections = run_tests.plan_for(percent)
+    for percent in table.TIERS:
+        suites, sections = table.plan_for(percent)
         grew.append((percent, set(suites), sections))
 
     report.check('every 5 %% step from %d to 100 is a tier'
-                 % run_tests.STEP, len(run_tests.TIERS) == 20
-                 and run_tests.TIERS[0] == 5 and run_tests.TIERS[-1] == 100,
-                 '%d tiers' % len(run_tests.TIERS))
+                 % table.STEP, len(table.TIERS) == 20
+                 and table.TIERS[0] == 5 and table.TIERS[-1] == 100,
+                 '%d tiers' % len(table.TIERS))
     report.check('structure is in every one of them - it is the precondition '
                  'for reading any other result',
-                 all(run_tests.STRUCTURE in s for _, s, _ in grew))
+                 all(table.STRUCTURE in s for _, s, _ in grew))
     report.check('a deeper tier never runs less than a shallower one',
                  all(grew[i][1] <= grew[i + 1][1]
                      for i in range(len(grew) - 1)),
                  ' -> '.join('%d:%d' % (p, len(s)) for p, s, _ in grew[:6]))
     report.check('the live suite is the last thing any budget buys',
                  all(sections is None for p, _, sections in grew
-                     if p < run_tests.LIVE_FROM),
-                 'joins at %d %%' % run_tests.LIVE_FROM)
+                     if p < table.LIVE_FROM),
+                 'joins at %d %%' % table.LIVE_FROM)
 
     # The four named switches are what everybody types.
-    for percent, expect in ((25, {run_tests.STRUCTURE, run_tests.CORE,
-                                  run_tests.SHTP, 'test_simulated.py',
-                                  run_tests.DRIVE, run_tests.FILTER,
-                                  run_tests.THERMAL, run_tests.BOOT_CORE,
-                                  run_tests.SENSORLESS, run_tests.DAQ_API,
-                                  run_tests.BOOT,
-                                  } | set(run_tests.OLLAMA)),
-                            (75, {run_tests.STRUCTURE, run_tests.CORE,
-                                  run_tests.SHTP, 'test_simulated.py',
-                                  run_tests.DRIVE, run_tests.FILTER,
-                                  run_tests.THERMAL, run_tests.BOOT_CORE,
-                                  run_tests.SENSORLESS, run_tests.DAQ_API,
-                                  run_tests.BOOT,
+    for percent, expect in ((25, {table.STRUCTURE, table.CORE,
+                                  table.SHTP, 'test_simulated.py',
+                                  table.DRIVE, table.FILTER,
+                                  table.THERMAL, table.BOOT_CORE,
+                                  table.SENSORLESS, table.DAQ_API,
+                                  table.BOOT,
+                                  } | set(table.OLLAMA)),
+                            (75, {table.STRUCTURE, table.CORE,
+                                  table.SHTP, 'test_simulated.py',
+                                  table.DRIVE, table.FILTER,
+                                  table.THERMAL, table.BOOT_CORE,
+                                  table.SENSORLESS, table.DAQ_API,
+                                  table.BOOT,
                                   'test_parity.py', 'test_mcp.py',
-                                  run_tests.CONFORMANCE, run_tests.BENCH}
-                             | set(run_tests.OLLAMA))):
-        suites, _ = run_tests.plan_for(percent)
+                                  table.CONFORMANCE, table.BENCH}
+                             | set(table.OLLAMA))):
+        suites, _ = table.plan_for(percent)
         report.check('%d %% is what it always was' % percent,
                      set(suites) == expect,
                      ', '.join(sorted(set(suites) ^ expect)) or 'unchanged')
