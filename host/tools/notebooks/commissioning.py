@@ -325,11 +325,11 @@ if truth:
     print('16. truth         R %+.1f %%, Ld %+.1f %%, Lq %+.1f %%, lambda %+.1f %% off the stand-in\\'s'
           % tuple(100.0 * (getattr(identified, k) / getattr(truth, k) - 1.0)
                   for k in ('r', 'ld', 'lq', 'lam')))'''),
-    md('- Noise floor 0.16 A rms, 9.5 ENOB; sample point tick 2360 of 2376.\n- R 0.051 ohm, '
-       'Ld 19.5 uH, Lq 29.4 uH within 3 % of the truth; lambda 0.00546 V.s, 9 % high.\n- '
-       'Dead time 0.50 V, knee 0.30 A; injection 20 dB against 10 dB.\n- Searched tune 1.7 '
-       "deg against the closed form's 11.2; 8 of 18 runs tripped at 100 A.\n- Record ids "
-       '15-44 are placeholders until a motor is commissioned (TODO).'),
+    md('- Noise floor 0.16 A rms, 9.5 ENOB; sample point 2360 of 2376.\n- R, Ld, Lq within '
+       '3 % of the truth; lambda 9 % high.\n- Dead time 0.50 V, knee 0.30 A; injection 20 '
+       "dB against 10.\n- Searched tune 1.7 deg against the closed form's 11.2; a third of "
+       'the 18 runs tripped at 100 A.\n- Record ids 15-44 are placeholders until a motor is '
+       'commissioned (TODO).'),
 ]
 
 BENCH = ('`tools/bench/commission.py --arm --port COM4` is the twelve steps in one command. '

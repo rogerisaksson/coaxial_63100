@@ -206,15 +206,16 @@ print('   swing       up to %.2f deg shoulder, %.2f deg elbow while measured; to
 held = sum(r[1] for r in before) / len(before)
 pulled = sum(r[1] for r in during[len(during) // 2:]) / (len(during) - len(during) // 2)
 back = sum(r[1] for r in after) / len(after)
-print('4. hold        %.2f deg held (asked 30.00); %.2f under 0.03 N.m, sag %.2f; %.2f corrected, residual %+.2f'
-      % (held, pulled, pulled - held, back, back - 30.0))
+print('4. hold        from the hold: %+.2f before the load, %+.2f under 0.03 N.m (sag %.2f), %+.2f corrected'
+      % (held, pulled, pulled - held, back))
 print('   ring        %.2f deg peak to peak held, %.2f under the load, %.2f corrected; sampled at %.0f Hz; 3.0 A, tol 0.25 deg'
       % tuple([max(r[1] for r in rows) - min(r[1] for r in rows) for rows in (before, during, after)]
               + [len(before) / before[-1][0]]))'''),
-    md('- 25 passes/s is the 40 ms pause; every speed within 3 %.\n- The gust: within 40 '
-       'rpm of 2500 for 0.1 A more.\n- Both joints within 0.1 deg on every pose.\n- The '
-       'hold: 1.58 deg sag, 0.62 after the correction (FINDINGS 2026-09-07). Stiffness is '
-       'current, not gain.'),
+    md('- 25 passes/s is the 40 ms pause; each speed settles within 5 % in its 2 s.\n- The '
+       'gust pulls 2500 rpm down about 100 for 0.07 A more; the loop gives both back.\n- '
+       'Both joints within 0.1 deg on every pose.\n- The hold sags 1.6 deg under 0.03 N.m, '
+       'as the spring says; one correction takes it back inside the 0.25 deg tolerance. '
+       'Stiffness is current, not gain.'),
 ]
 
 BENCH = ('No flags on `gates.on()`, no `on_model`, `load_k` = `APC20x10E.k`, the record '

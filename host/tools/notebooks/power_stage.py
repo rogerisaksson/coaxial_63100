@@ -31,9 +31,9 @@ print('the stage reads DTG %d = %d ns, %.1fx the record\\'s 33.7 ns'
         ),
     section(
         'Arming, and what refuses first',
-        md('Three refusals before the FETs: MOE (`on()` sets it), the interlock (bench '
-           'board 0.77 V and 0.06 V against 3 V: `ignore_interlock=True`), the break on '
-           'PE15 (`bypass_sto=True`).'),
+        md('Three refusals before the FETs: MOE (`on()` sets it), the interlock (Cinj and '
+           'Clevel want 3 V; the bench board reads 0.77 and 0.06 V, the stand-in 0.97 and '
+           '0.04: `ignore_interlock=True`), the break on PE15 (`bypass_sto=True`).'),
         code('''import textwrap
 
 from coaxial.errors import RigError

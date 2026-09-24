@@ -122,7 +122,7 @@ print('at rest: rotor %.2f deg electrical / %d = %.2f deg; shaft %.2f deg, folde
       'the %.2f deg pole pitch %.2f; %.2f deg apart' % (rotor * poles, poles, rotor, shaft,
                                                          pitch, shaft % pitch, offset))
 print('disarmed:', not device.gates.off()['pwm_enabled'])
-drive.configure(source='adc')'''),
+print('back on the converters:', drive.configure(source='adc')['source'])'''),
         code('''t = [r[0] for r in rows]
 fig, (speed, error, current) = figure(rows=3, sharex=True)
 speed.plot(t, [r[1] for r in rows], label='asked')
@@ -287,11 +287,11 @@ print('               the model reached %.0f rpm at 37 V, iq peak %.1f A, v_sat 
       % (rpm.max(), abs(prop['iq']).max(), 100.0 * prop['v_sat'].mean(), 100.0, RATINGS['i_max']))
 print('               lambda %.5f Wb from %d KV at %d pole pairs; Kt = 1.5 P lambda = %.4f N.m/A'
       % (motor.lam, RATINGS['kv'], motor.poles, 1.5 * motor.poles * motor.lam))'''),
-    md('- The servo corrects once per move: per pass it pumps its own ring (FINDINGS '
-       '2026-09-07).\n- Without the probe only lambda is trusted; with it R is 63 % high '
-       "inside a 0.8 % bar - the chain's discretisation.\n- `j` 5x the plant: +900 rpm "
-       'asked, -1552 delivered.\n- The model runs out of voltage short of 6717 rpm: Lq '
-       'drops 11 of 21.4 V at 46 A.\n- 100 A inverter before 112.5 A motor.'),
+    md('- The servo corrects once per move: per pass it pumps its ring (FINDINGS '
+       '2026-09-07).\n- With the probe R, Ld, lambda are trusted, R 63 % high (the '
+       'discretisation); Lq not. Without it, lambda alone.\n- `j` 5x the plant: +900 rpm '
+       'asked, -1552 delivered (FINDINGS).\n- Out of voltage short of 6717 rpm: Lq drops 11 '
+       'of 21.4 V at 46 A.\n- 100 A inverter before 112.5 A motor.'),
 ]
 
 BENCH = ('The ring against `sqrt(Kt I P / J)` gives the real J. The servo needs a magnet, '

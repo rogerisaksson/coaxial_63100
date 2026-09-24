@@ -47,23 +47,46 @@ for r in rows[::10]:
     ),
     section(
         'An estimator in its slot',
-        md('`SpeedKalman` predicts on the command and corrects on the measurement: the raw '
-           'speed on `w`, the estimate on `w_hat`, one run.'),
-        code('''def spread(values):
+        md("The stand-in's speed carries no noise, so the measure slot gets a sensor of "
+           "your own that adds some: a `Filter` is `step(dt, x) -> {'y': ...}`. "
+           '`SpeedKalman` predicts on the command, corrects on the measurement: `w` raw, '
+           '`w_hat` estimated, one run.'),
+        code('''import random
+from coaxial.devices.roles import Filter
+
+def spread(values):
     m = sum(values) / len(values)
     return (sum((v - m) ** 2 for v in values) / len(values)) ** 0.5
 
+class Noisy(Filter):
+    """A speed sensor: the scaled speed, and gaussian noise of `rms` on it."""
+    PARAMS = ('k', 'rms')
+
+    def __init__(self, k=1.0, rms=5.0):
+        self.k, self.rms, self.rng = k, rms, random.Random(1)
+
+    def step(self, dt, x=0.0):
+        return {'y': self.k * x + self.rng.gauss(0.0, self.rms)}
+
+NOISE = 20.0 * RAD_S_PER_RPM
+
+def kalman():
+    """r the sensor's variance; q small: the rotor's law predicts well."""
+    return SpeedKalman(kt, J, B, q=10.0, r=NOISE ** 2)
+
 f = loop.feedbacks['speed']
-f.estimator, f.value, f.estimate = SpeedKalman(kt, J, B, 1e5, 400.0), 'w', 'w_hat'
+f.measure = Noisy(1.0 / poles, NOISE)
+f.estimator, f.value, f.estimate = kalman(), 'w', 'w_hat'
 loop.add('speed', f)
 held = loop.run(1.5)[-20:]
-raw, kalman = (spread([r[k] / RAD_S_PER_RPM for r in held]) for k in ('w', 'w_hat'))
-print('spread at 1000 rpm: measured %.2f rpm, estimated %.2f rpm' % (raw, kalman))
+raw, estimated = (spread([r[k] / RAD_S_PER_RPM for r in held]) for k in ('w', 'w_hat'))
+print('spread at 1000 rpm: measured %.2f rpm, estimated %.2f rpm' % (raw, estimated))
 ansi.image(feedback(loop, 'speed'))'''),
     ),
     section(
         'Another prefilter',
-        md('0 to 2000 rpm through `Slew`, then through `LowPass`: the peak current each asks.'),
+        md('0 to 2000 rpm through `Slew` (1500 rpm/s), then `LowPass` (0.3 s): a low-pass '
+           'starts steep and ends soft, so it asks more peak current and has no corner.'),
         code('''def peak(rows):
     return max(abs(r['iq_ref']) for r in rows)
 
@@ -79,7 +102,7 @@ print('peak iq to 2000 rpm: Slew %.3f A, LowPass %.3f A' % (bare, smooth))'''),
         'A part at its own pace',
         md('`Paced` steps a part on its own thread; `feed` hands it fresh inputs between the '
            'loop\'s passes. The estimator at 100 Hz under a 10 Hz loop.'),
-        code('''fast = Paced(SpeedKalman(kt, J, B, 1e5, 400.0), 100,
+        code('''fast = Paced(kalman(), 100,
              feed=lambda: {'measured': drive.state()['omega_hat'] / poles})
 f.estimator = fast
 loop.add('speed', f)
@@ -87,7 +110,7 @@ loop.pause = 0.1
 passes = len(loop.run(1.5))
 print('%d estimator steps under %d loop passes' % (fast.steps, passes))
 fast.stop()
-f.estimator = SpeedKalman(kt, J, B, 1e5, 400.0)
+f.estimator = kalman()
 loop.add('speed', f)
 loop.pause = 0.04'''),
     ),
@@ -138,12 +161,12 @@ print('saved %s: %d loop, %d parts, reloaded the same: %s'
 loop.move(1.0, w_target=0.0)
 loop.off()
 device.gates.off()
-drive.configure(source='adc')'''),
+print('back on the converters:', drive.configure(source='adc')['source'])'''),
     ),
 ]
 
 RESULTS = [
-    code('''print('1. estimate spread    measured %.2f rpm, SpeedKalman %.2f rpm' % (raw, kalman))
+    code('''print('1. estimate spread    measured %.2f rpm, SpeedKalman %.2f rpm' % (raw, estimated))
 print('2. peak current       Slew %.3f A, LowPass %.3f A' % (bare, smooth))
 print('3. paced              %d estimator steps under %d loop passes' % (fast.steps, passes))
 print('4. steady error       Proportional %.0f rpm, SpeedPI %.0f rpm' % (p_error, pi_error))

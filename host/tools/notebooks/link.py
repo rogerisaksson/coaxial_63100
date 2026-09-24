@@ -8,8 +8,9 @@ SECTIONS = [
     section(
         'Where this session landed',
         md('`origin`: the path taken (`debug probe`, `RS485`, `simulated`), asked for or '
-           'fallen back to. `broker.clients()` with nothing serving: None after the 1 s '
-           'connect timeout (a loopback SYN is dropped here, FINDINGS 2026-09-16).'),
+           'fallen back to. `broker.clients()` with nothing serving: None - at once with no '
+           'address file, after the 1 s connect timeout with a stale one (section 6; a '
+           'loopback SYN is dropped here, FINDINGS 2026-09-16).'),
         code('''import time
 
 from coaxial.comm import broker

@@ -1303,11 +1303,23 @@ def _paper(path):
     """The cells of one notebook, and every way it departs from the shape."""
     import json
     with io.open(path, encoding='utf-8') as handle:
-        cells = json.load(handle)['cells']
+        book = json.load(handle)
+    cells = book['cells']
     text = lambda c: ''.join(c['source'])
     kinds = [c['cell_type'] for c in cells]
     said = [text(c) for c in cells]
+    outputs = [o for c in cells for o in c.get('outputs', [])]
     wrong = []
+    if 'widgets' in book['metadata'] or any(
+            'application/vnd.jupyter.widget-view+json' in o.get('data', {}) for o in outputs):
+        wrong.append('a widget kept - no viewer draws one without its kernel')
+    if any(o.get('name') == 'stderr' for o in outputs):
+        wrong.append('a cell wrote to stderr')
+    if any('image/png' in o.get('data', {}) and 'image/jpeg' in o['data'] for o in outputs):
+        wrong.append('a picture kept twice, png and jpeg')
+    if any(o['output_type'] == 'execute_result' and set(o['data']) == {'text/plain'}
+           for o in outputs):
+        wrong.append('a cell ends on a bare value - print what it means')
     head = said[0].splitlines() if said else []
     if kinds[:2] != ['markdown', 'markdown'] or not head or not head[0].startswith('# '):
         wrong.append('no title cell')

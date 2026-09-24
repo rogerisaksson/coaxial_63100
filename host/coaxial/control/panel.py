@@ -3,12 +3,13 @@
 The feedback loops in a list with + and -, the selected one's picture, its channels, its
 slots' kinds and parameters, save. Every change applies to the running loop at once.
 """
+import base64
 import io
 
 from coaxial.control.controller import Feedback
 from coaxial.devices.roles import Part
 from coaxial.draw import ansi
-from coaxial.draw.wiring import FRAME, LABEL, TITLE, feedback
+from coaxial.draw.wiring import FRAME, LABEL, TITLE, diagram, feedback
 
 NONE = '-'
 
@@ -30,11 +31,20 @@ CSS = ('<style>'
                       _hex(ansi.AMBER))
 
 
+def _png(text):
+    buf = io.BytesIO()
+    ansi.image(text).save(buf, 'PNG')
+    return buf.getvalue()
+
+
 def picture(loop, name):
     """One feedback loop drawn as the terminal draws it: PNG bytes."""
-    buf = io.BytesIO()
-    ansi.image(feedback(loop, name)).save(buf, 'PNG')
-    return buf.getvalue()
+    return _png(feedback(loop, name))
+
+
+def still(loop):
+    """The whole loop drawn as the terminal draws it: PNG bytes."""
+    return _png(diagram(loop))
 
 
 def kinds(role):
@@ -94,13 +104,15 @@ def panel(loop, path=None):
             return apply
 
         rows = [w.HTML('<span style="color:%s">channels</span>' % _hex(TITLE))]
-        setpoint = w.Combobox(value=f.setpoint or '', options=channels()[1:], description='setpoint',
-                              ensure_option=False, style=wide, layout=fit)
+        setpoint = w.Combobox(value=f.setpoint or '', options=channels()[1:],
+                              description='setpoint', ensure_option=False, style=wide,
+                              layout=fit)
         setpoint.observe(lambda c: rewired('setpoint')(c['new'] or None), 'value')
         rows.append(setpoint)
         rows.append(pick('measured', channels(), f.measured or NONE, rewired('measured')))
         command = w.Text(value=f.command or '', placeholder='%s/command' % name,
-                         description='command', continuous_update=False, style=wide, layout=fit)
+                         description='command', continuous_update=False, style=wide,
+                         layout=fit)
         command.observe(lambda c: rewired('command')(c['new'] or None), 'value')
         rows.append(command)
         rows.append(pick('sink', [NONE] + sink_keys(loop), f.sink or NONE, rewired('sink')))
@@ -139,9 +151,20 @@ def panel(loop, path=None):
     drop.on_click(removed)
     save.on_click(lambda _: setattr(status, 'value', 'saved %s' % loop.save(path)))
     refresh(listing.options[0] if listing.options else None)
+
+    class Panel(w.VBox):
+
+        """The widget, and a still of the selected loop for a viewer with no kernel."""
+
+        def _repr_mimebundle_(self, **kwargs):
+            data = super()._repr_mimebundle_(**kwargs)
+            data['text/plain'] = 'the controller panel - run the cell for its controls'
+            data['image/png'] = base64.b64encode(image.value or still(loop)).decode('ascii')
+            return data
+
     left = w.VBox([listing, w.HBox([named]), w.HBox([add, drop]), save, status],
                   layout=w.Layout(width='220px'))
-    box = w.VBox([w.HTML(CSS), w.HBox([left, image]),
-                  w.Box([detail], layout=w.Layout(max_height='520px', overflow_y='auto'))])
+    box = Panel([w.HTML(CSS), w.HBox([left, image]),
+                 w.Box([detail], layout=w.Layout(max_height='520px', overflow_y='auto'))])
     box.add_class('coaxial')
     return box

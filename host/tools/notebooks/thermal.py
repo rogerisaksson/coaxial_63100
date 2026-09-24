@@ -329,11 +329,12 @@ print('    the air path   at each leg\\'s end: ' + ', '.join('%.2f for %.2f' % (
       + '; capacity %.2f for %.2f at the end' % (rows[-1]['capacity'], rows[-1]['capacity_truth']))
 print('11. the trip       %d trip, stage armed after it: %s; margin %.2f the minute after, %.2f at minute 10, '
       '%.2f at 20, %.2f at 30, %.2f at 40; the cap %.2f -> %.2f'
-      % (trace[-1][3], trace[0][5], trace[2][1], trace[9][1], trace[19][1], trace[29][1], trace[39][1],
+      % (trace[-1][3], trace[0][5], trace[0][1], trace[9][1], trace[19][1], trace[29][1], trace[39][1],
          trace[0][4], trace[-1][4]))'''),
     md('- Board 8.33 K/W, 49 J/K: 6.8 min. NTC +6.0 K over the board at rest.\n- 2.40 W '
-       'switching dry; the supply corner hottest at 72 C.\n- Continuous ~20 A rms a phase; '
-       '60 A lasts seconds.\n- Taken dry: at 100 A the shunt alone is 35 W against 1.2 W.'),
+       'switching dry; the regulators hottest at 72.3 C.\n- Continuous ~20 A rms a phase; '
+       '60 A lasts seconds.\n- Taken dry: at 100 A the shunt alone is 35 W a phase, against '
+       "the camera's 1.20 W of switching."),
 ]
 
 BENCH = ('`error` first. Capacities: `dT/dt` right after a power step '

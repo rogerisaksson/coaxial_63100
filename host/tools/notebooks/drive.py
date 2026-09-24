@@ -368,13 +368,15 @@ for vdc in VDCS:
     section(
         'Speed and torque against the tolerances',
         md("Lambda +/-10 %: speed as `1/lambda`, torque as `lambda`. 100 A is the board's; "
-           "continuous torque the thermal network's (90 % of 125 C)."),
-        code('''from coaxial.model import thermal
+           "continuous torque the thermal network's, at the throttle point: 90 % of the "
+           'span from 25 to 125 C, 115 C.'),
+        code('''from coaxial.devices.thermal_device import THROTTLE_AT
+from coaxial.model import thermal
 
 LAMBDA_SPREAD = (0.9, 1.1)          # what mc.draw draws over
 I_RATING = 100.0                    # the board, instantaneous
 R_PHASE = inverter.RDS_ON + inverter.SHUNT
-CEILING_C = 125.0 * 0.90            # the record's throttle point
+CEILING_C = thermal.ceiling_of('phase_u', THROTTLE_AT)   # the record's throttle point
 AMBIENT_C = thermal.AMBIENT
 capacity = thermal.CFG['capacity']['phase_u']
 
@@ -633,7 +635,9 @@ display(ansi.image(cross_section.render(math.degrees(theta) / pole_pairs, slots=
     section(
         'The back-EMF chain beside the loop',
         md('Op 14: `drive_observer.c` beside the loop, driving nothing. `valid` false below '
-           "the leak's corner. `error` is the chain minus the loop out of one reply."),
+           "the leak's corner. `error` is the chain minus the loop out of one reply. On the "
+           "stand-in the chain is the C's Python mirror over a short window: its error and "
+           "lambda are the mirror's, not the board's."),
         code('''drive.model.reset()
 drive.model.configure(j=2e-5, b=6e-5, load=0.0, noise=0.0)
 drive.write(id_ref=0.0, iq_ref=0.05, theta=0.0, omega_target=0.0)
@@ -686,7 +690,7 @@ bottom.set_xlabel('s')
 bottom.legend()
 show(fig)
 drive.model.reset()
-drive.configure(source='adc')'''),
+print('back on the converters:', drive.configure(source='adc')['source'])'''),
     ),
 ]
 
@@ -740,10 +744,10 @@ print('13. the chain on it  %.2f deg rms from the loop where valid, %d of %d; du
       % (deg_rms(valid) if valid else math.nan, len(valid), len(chain), last['blend_lo'],
          last['blend_hi'], last['lambda_hat'], drive.params()['motor_lambda_uvs']))'''),
     md('- Dual flux + PLL: 0.7 deg at 14 rpm; plain flux: 53.\n- The chain: under 7 deg '
-       'from 14 to 10 231 rpm at 63 V (> 99 % torque); back-EMF alone loses the rotor at '
-       '10-31 rpm.\n- Peak torque 3.92-4.79 N.m at 100 A; continuous a quarter, thermal; '
-       '1.3 s at 100 A.\n- Injection clears 10 dB to saliency 1.02: 0.39 A HF at 1.5, 2.26 '
-       'A at 1.05.\n- The step: 2 922 of 4 750 ticks, drivers off.'),
+       'from 14 to 10 231 rpm at 63 V; back-EMF alone loses the rotor at 10-31 rpm.\n- Peak '
+       '3.92-4.79 N.m at 100 A; continuous a quarter, thermal; 1.4 s at 100 A.\n- Injection '
+       'clears 10 dB to saliency 1.02.\n- The step: 2 921 of 4 750 ticks here, 2 922 on the '
+       'board.'),
 ]
 
 BENCH = ('`isr_cycles_max` and `exit_ticks_max` first. With a motor: '

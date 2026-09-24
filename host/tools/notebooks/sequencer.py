@@ -131,7 +131,7 @@ same = ([repr(s) for g in twice.groups.values() for s in g]
 again = twice.run(loop)
 print('xlsx rows as the csv: %s; %s, %d steps' % (same, again.status, len(again.steps)))
 device.gates.off()
-drive.configure(source='adc')'''),
+print('back on the converters:', drive.configure(source='adc')['source'])'''),
     ),
 ]
 

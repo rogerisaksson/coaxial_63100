@@ -64,8 +64,12 @@ def write(name, out_dir):
     return path
 
 
+#: A widget view names a live kernel's model: no viewer draws it from the file.
+WIDGET_VIEW = 'application/vnd.jupyter.widget-view+json'
+
+
 def execute(path, out_dir, timeout=1800):
-    """Run a notebook in place."""
+    """Run a notebook in place; what it keeps is what a viewer with no kernel can draw."""
     import nbformat
     from jupyter_client.kernelspec import NoSuchKernel
     from nbclient import NotebookClient
@@ -74,10 +78,17 @@ def execute(path, out_dir, timeout=1800):
     try:
         NotebookClient(book, timeout=timeout, kernel_name=KERNEL,
                        resources={'metadata': {'path': out_dir}},
-                       allow_errors=True).execute()
+                       allow_errors=True, store_widget_state=False).execute()
     except NoSuchKernel:
         return ('kernel %s is not registered on this python: '
                 'make_notebooks.py --kernel install' % KERNEL)
+    book.metadata.pop('widgets', None)
+    for one in book.cells:
+        for output in one.get('outputs', []):
+            data = output.get('data', {})
+            data.pop(WIDGET_VIEW, None)
+            if 'image/png' in data:
+                data.pop('image/jpeg', None)      # a picture once, lossless
     nbformat.write(book, path)
     for number, one in enumerate(book.cells):
         for output in one.get('outputs', []):

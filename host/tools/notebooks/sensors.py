@@ -9,7 +9,8 @@ SECTIONS = [
         'The rail both parts hang on',
         md('AFE_ON powers the ADC reference, the BNO085 and the A1335 (`0x6D` kind 4, '
            'column `power`). Unpowered, the BNO085 still advertises and ignores writes '
-           '(FINDINGS). `settled()` waits for each loop to say `running`.'),
+           '(FINDINGS). `settled()` waits for each loop to say `running`. The stand-in '
+           'answers with the rail off; a board refuses.'),
         code('''from coaxial.errors import RigError
 
 parts = device.system.channel_map()['parts']
@@ -35,8 +36,8 @@ print('IMU loop running:', imu.settled(), ' angle loop running:', angle.settled(
     section(
         'SPI2 belongs to the poll loop',
         md('SPI2 belongs to the poll loop: every call that drives it refuses while the loop '
-           'runs. `configuring()` holds it for the block. Pins: `bits` 15 = followed the '
-           'MCU every way.'),
+           'runs - on a board; the stand-in answers. `configuring()` holds it for the '
+           'block. Pins: `bits` 15 = followed the MCU every way.'),
         code('''try:
     print('while running: answered, version', imu.product_id()['sw_version'])
 except RigError as exc:

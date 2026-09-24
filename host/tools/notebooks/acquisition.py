@@ -64,7 +64,8 @@ print('%.1f s of NTC, first %.1f last %.1f' % (seconds[-1] - seconds[0], ntc[0],
     section(
         'A run into a frame, scaled by the record',
         md('`frame(scaled=True)`: a column in units beside each code, through the '
-           "calibration record (invariant 7). `stored` False: the schematic's arithmetic."),
+           "calibration record (invariant 7). `stored` False: the schematic's arithmetic. "
+           "Untared, a phase's offset reads as amps until section 6's tare."),
         code('''daq.configure('phaseU', 'phaseV', 'phaseW', 'DC bus', 'NTC', sample_rate=100)
 daq.start()
 run = daq.read(300)
@@ -105,7 +106,7 @@ drive = device.drive
 drive.configure(source='model')
 device.gates.on(bypass_sto=True, ignore_interlock=True)
 drive.write(id_ref=4.0, iq_ref=0.0, theta=0.0, omega_target=2 * math.pi * 3.5)
-drive.hold()'''),
+print('holding:', drive.hold())'''),
         code('''from IPython.display import clear_output
 
 daq.start()
