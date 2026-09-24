@@ -45,9 +45,9 @@ print('%d characters, about %d tokens' % (len(told), len(told) / 4))'''),
 0 run=squat times=2
 0 run=wave times=3
 0 run=rest
-0.3 label=scan head+=10 head_camera.vision.target.seen.H=1 then=aim
+0.3 label=scan head+=10 head_camera.vision.target.seen.GE=1 then=aim
 0 goto=scan times=6
-0.2 label=aim head+=2 head_camera.vision.target.x.L=0.05 then=found
+0.2 label=aim head+=2 head_camera.vision.target.x.LE=0.05 then=found
 0 goto=aim times=20
 0 label=found
 0 run=stand

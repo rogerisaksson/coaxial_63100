@@ -196,6 +196,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   the last held. Four legs with `node_hz=100`: the squat's down ends on its
   level at 0.65 s, the board's 90 deg/s slew over 58. On the board it ticks
   in the drive's sample; not yet run on the bench (2026-09-24).
+- A step waits for its targets (1 % of their range) or its tests, its seconds a
+  timeout; L and H alarm, LL and HH trip, in `machine.alarms` beside the sequencer.
+  The squat's down ends on arrival in 0.6-0.7 s of its 2; the scan's timeouts are
+  answers, not alarms (it branches). The humanoid prompt: 1 434 characters
+  (2026-09-24).
 
 ## Local model
 

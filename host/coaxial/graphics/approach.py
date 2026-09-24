@@ -1,5 +1,4 @@
-"""The approach from the pilot's seat: an orbital corridor bending away, the scene banking
-into it, a HUD reading what the screen shows - eye candy, amber.
+"""The approach from the pilot's seat: gates down to a pad, the scene banking, a HUD - eye candy.
 
 The flight is a function of the view's clock (`flight`): the corridor's curvature swings
 left and right, the craft banks into the bend and turns with it, the nose bobs. The

@@ -16,6 +16,7 @@ board is which joint is measured (`fit`), never read from a name.
 import math
 import time
 
+from machine.alarms import Alarms
 from machine.controller import Feedback
 from machine.errors import MachineError
 from machine.nodes import Nodes
@@ -149,6 +150,8 @@ class Machine:
                 for key, levels in module.limits.items():
                     self.limits['%s.%s.%s' % (node.name, m, key)] = dict(levels)
             node.couple(self)
+        #: The levels, the alarm log, a stop: every program's handler (`machine.alarms`).
+        self.alarms = Alarms(self.limits)
 
     @classmethod
     def discover(cls, type, port='COM4', simulated=False, **kw):
@@ -231,7 +234,7 @@ class Machine:
 
     def run(self, text, **kw):
         """A program as text: checked, armed, run, disarmed however it ends."""
-        return Sequencer.parse(text, ranges=self.ranges, limits=self.limits, init=self.arm,
+        return Sequencer.parse(text, ranges=self.ranges, alarms=self.alarms, init=self.arm,
                                cleanup=self.disarm, routines=self.routines, **kw).run(self.loop)
 
     def status(self, changed=False):

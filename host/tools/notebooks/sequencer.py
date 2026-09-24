@@ -38,14 +38,14 @@ ansi.image(feedback(loop, 'speed'))'''),
     ),
     section(
         'A sequence from a table',
-        md('`init` rows first, `cleanup` rows last - always; `rpm.H` and `rpm.L` end a step when '
-           'reached, `goto` jumps; the limits trip the whole run. `init` and `cleanup` hooks '
-           'enter and leave the drive\'s mode.'),
+        md('`init` rows first, `cleanup` rows last - always; a step waits for its tests '
+           '(`rpm.GE`, `rpm.LE`) or its time, `goto` jumps; the limits trip the whole run. '
+           '`init` and `cleanup` hooks enter and leave the drive\'s mode.'),
         code('''import os
 import tempfile
 from machine.sequencer import Sequencer
 
-TABLE = """group,seconds,label,rpm_target,rpm.H,rpm.L,goto,times
+TABLE = """group,seconds,label,rpm_target,rpm.GE,rpm.LE,goto,times
 init,0.5,,0,,,,
 ,3,up,1500,1450,,,
 ,1.5,hold,1500,,,,
@@ -92,10 +92,10 @@ show(fig)'''),
     ),
     section(
         'A program, not only a table',
-        md('`n+` adds to a counter; a zero-second row with `n.L` decides - `then` when reached, '
+        md('`n+` adds to a counter; a zero-second row with `n.LE` decides - `then` when it holds, '
            '`else` when not. Five stairs of 300 rpm, counted down: counters, adding and a '
            'branch make any program a table, and a model writes tables.'),
-        code('''PROGRAM = """group,seconds,label,rpm_target,rpm_target+,n,n+,n.L,then,else
+        code('''PROGRAM = """group,seconds,label,rpm_target,rpm_target+,n,n+,n.LE,then,else
 ,0,,0,,5,,,,
 ,1,stair,,300,,,,,
 ,0,,,,,-1,0,stop,stair
@@ -140,7 +140,7 @@ RESULTS = [
     code('''up = [s for s in out.steps if s[1] == 'up']
 print('1. the table          %s, %d steps, %.1f s' % (out.status, len(out.steps),
                                                      sum(s[3] for s in out.steps)))
-print('2. up ends on rpm.H   %s' % ', '.join('%.2f s' % s[3] for s in up))
+print('2. up ends on rpm.GE  %s' % ', '.join('%.2f s' % s[3] for s in up))
 print('3. the trip           %s' % tripped.reason)
 print('4. excel, twice       %s, %d steps' % (again.status, len(again.steps)))'''),
     md('- Streams, a controller, a sequence: each a layer with its own verbs.\n'

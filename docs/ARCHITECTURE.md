@@ -54,7 +54,9 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     Output, Controller; Part: Filter, Estimator, Regulator),
                     errors, controller (Loop of Feedbacks over float channels),
                     parts, panel, wiring, ansi (palette), sequencer (lines or
-                    tables: limits, jumps, routines; check, summary), nodes
+                    tables: a step waits for its targets or tests, its time a
+                    timeout; jumps, routines; check, summary), alarms (L H
+                    logged, LL HH and stop() trip, the sequencer's hooks), nodes
                     (Node, Nodes, FAMILIES), machine (Machine, Actuator, fit;
                     node_hz: a feedback its node runs, the host forwarding),
                     routines (types: a body of subsystems, a bus each), live

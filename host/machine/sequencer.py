@@ -7,17 +7,28 @@
     print(prompt(loop))                  # GRAMMAR and the loop's card: all a model needs
 
 A step is a row of a .csv or an .xlsx's first sheet, or a line: `0.5 knee=40 hip=-20`
-(the bare number is seconds, the rest name=value, # a comment). Every value a number:
-    seconds            the most the step lasts; 0 is a decision, no time passes
-    <channel>          set it (blank: holds)          <channel>+    add to it: a counter
-    <channel>.H .L     the step ends when reached     <channel>.HH .LL   trip: to cleanup
+(the bare number is seconds, the rest name=value, # a comment). A step sets, then waits:
+    seconds            the step time: waited out, a timeout alarm and on - no alarm
+                       where the row branches: its timeout is its answer (`else`)
+    <channel>          a target: done once it reads back within `band` (blank: holds)
+    <channel>+         add to it: a counter
+    <channel>.GE .LE   a test: done once >= / <= the value; a row's tests replace
+                       its targets' arrival
+    wait               at (the default): until its targets and tests hold; time: its
+                       seconds whatever, a timed move. Nothing to wait for: its seconds
+    band               how near a target counts, its unit (1 % of its range)
+    <channel>.L .H     alarm: logged once a step, the run goes on
+    <channel>.LL .HH   trip: to cleanup at once. Levels hold from their row on; inf clears
     label              a row's name                   group    init | cleanup | blank (main)
-    then / else        where to go when a level ended the step / when its time did
+    then / else        where to go when done / when timed out
     goto, times        after the row, to `goto` `times` times (blank 1, inf), then on
-A target is a label, or `stop`: the main group is over. Counters, adding and branching on a
-level make it a counter machine - any program, as data. `limits` apply to every step but
-cleanup; `ranges` {channel: (low, high)} refuse a setpoint outside before anything runs;
-`cycles` repeats the main group; `limit` seconds or `max_steps` rows end a run.
+0 seconds is a decision: its tests once, then `then` or `else`, no alarm. A target is a
+label, or `stop`: the main group is over. Counters, adding and branching on a test make
+it a counter machine - any program, as data. Levels, the alarm log and trips are the
+`alarms` handler's (`machine.alarms`; `limits` make one): the sequencer calls its hooks
+and goes to cleanup when it trips. `ranges` {channel: (low, high)} refuse a setpoint
+outside before anything runs and size `band`; `cycles` repeats the main group; `limit`
+seconds or `max_steps` rows end a run.
 """
 import csv
 import io
@@ -25,32 +36,39 @@ import math
 import re
 from collections import namedtuple
 
+from machine.alarms import LEVELS, Alarms, Tripped, crossed
 from machine.errors import MachineError
 
 #: The columns that steer rather than set.
-STEER = ('seconds', 'label', 'goto', 'times', 'group', 'then', 'else')
-LEVELS = ('LL', 'L', 'H', 'HH')
+STEER = ('seconds', 'label', 'goto', 'times', 'group', 'then', 'else', 'wait', 'band')
+TESTS = ('GE', 'LE')
+WAITS = ('at', 'time')
+
+#: A target's band where no range sizes it: this share of the target, at least FLOOR.
+BAND_SHARE, BAND_FLOOR = 0.01, 1e-3
 GROUPS = ('init', 'main', 'cleanup')
 STOP = 'stop'
 
 #: What a model is told, with the loop's card (`prompt`).
-GRAMMAR = """One step a line: seconds, then name=value. # starts a comment.
-  knee=40            set a target            n+=1         add to a counter
-  knee.deg.H=38      end the step once reached (.L: once below)
-  label=up           name the line           then=up else=down   go there when a level
-  goto=up times=3    after the line, back 3 times             ended the step / when time did
-  group=init         runs first; group=cleanup runs last, always
-  run=walk times=4 stride=25   a routine below, its params by name, times over
+GRAMMAR = """One step a line: seconds, name=value; # a comment. A csv: names as columns.
+  knee=40         a target: the step waits till it reads back (band=, 1 % of range)
+  knee.deg.GE=38  waits till >= 38 instead (.LE <=)       n+=1  add to a counter
+  seconds         the step time: past it an alarm, and on   wait=time  lasts it all
+  knee.deg.H=60   alarm (.L below); .HH .LL trip to cleanup; from their row on
+  label=up then=up else=down  go there when done / timed out (then no alarm)
+  goto=up times=3  back 3 times    group=init | cleanup, runs always
+  run=walk times=4 stride=25  a routine below, its params by name
 0 seconds: a decision, no time passes. A jump to stop ends the program."""
 
 
-class Outcome(namedtuple('Outcome', 'rows status reason steps')):
+class Outcome(namedtuple('Outcome', 'rows status reason steps alarms')):
 
-    """A finished run: every pass's channels, how it ended, why, and each step it took
-    (row, label, how the step ended, seconds)."""
+    """A finished run: every pass's channels, how it ended, why, each step it took (row,
+    label, done | time | timeout, seconds) and the alarm log, a line each."""
 
-    def summary(self, *channels, most=12):
-        """A few lines: the ending, the steps (at most `most`), `channels` at the end."""
+    def summary(self, *channels, most=12, alarms=4):
+        """A few lines: the ending, the steps (at most `most`), the first `alarms`,
+        `channels` at the end."""
         seconds = sum(s[3] for s in self.steps)
         lines = ['%s after %.2f s, %d steps%s' % (self.status, seconds, len(self.steps),
                                                   ': ' + self.reason if self.reason else '')]
@@ -59,15 +77,14 @@ class Outcome(namedtuple('Outcome', 'rows status reason steps')):
         for step in shown:
             lines.append('  ...' if step is None else '  row %d%s %.2f s %s' % (
                 step[0], ' ' + step[1] if step[1] else '', step[3], step[2]))
+        if self.alarms:
+            lines.append('  %d alarm%s: %s' % (len(self.alarms), 's' if len(self.alarms) > 1
+                                              else '', '; '.join(self.alarms[:alarms])))
         last = self.rows[-1] if self.rows else {}
         if channels:
             lines.append('  end: ' + ', '.join('%s %.4g' % (c, last[c]) for c in channels
                                                if c in last))
         return '\n'.join(lines)
-
-
-class Tripped(MachineError):
-    """A channel past its HH or LL."""
 
 
 def _value(cell):
@@ -85,10 +102,6 @@ def _value(cell):
 def _text(cell):
     text = '' if cell is None else str(cell).strip()
     return None if text.lower() in ('', 'nan') else text
-
-
-def _crossed(value, level, bound):
-    return value >= bound if level in ('H', 'HH') else value <= bound
 
 
 def _line(line, row):
@@ -172,13 +185,15 @@ def prompt(loop, units=None, ranges=None):
 
 class Step:
 
-    """One row: how long, what to set and add, when to end or trip, where to go after."""
+    """One row: its time, what it sets, adds and tests, the levels it brings, where next."""
 
     def __init__(self, seconds, setpoints=None, adds=None, limits=None, label=None, group='main',
-                 then=None, otherwise=None, goto=None, times=1.0, row=0):
+                 then=None, otherwise=None, goto=None, times=1.0, row=0, tests=None, wait='at',
+                 band=None):
         self.seconds = float(seconds)
         self.setpoints, self.adds, self.limits = dict(setpoints or {}), dict(adds or {}), \
             dict(limits or {})
+        self.tests, self.wait, self.band = dict(tests or {}), wait, band
         self.label, self.group, self.row = label, group, row
         self.then, self.otherwise, self.goto, self.times = then, otherwise, goto, times
 
@@ -190,7 +205,10 @@ class Step:
         group = _text(cells.get('group')) or 'main'
         if group not in GROUPS:
             raise MachineError('row %d: group %s - there are %s' % (row, group, ', '.join(GROUPS)))
-        setpoints, adds, limits = {}, {}, {}
+        wait = _text(cells.get('wait')) or 'at'
+        if wait not in WAITS:
+            raise MachineError('row %d: wait=%s - it is %s' % (row, wait, ' or '.join(WAITS)))
+        setpoints, adds, limits, tests = {}, {}, {}, {}
         for key, cell in cells.items():
             try:
                 value = _value(cell) if key not in STEER else None
@@ -201,39 +219,55 @@ class Step:
             channel, _, level = key.rpartition('.')
             if level in LEVELS and channel:
                 limits.setdefault(channel, {})[level] = value
+            elif level in TESTS and channel:
+                tests.setdefault(channel, {})[level] = value
             elif key.endswith('+'):
                 adds[key[:-1]] = value
             else:
                 setpoints[key] = value
-        times = _value(cells.get('times'))
+        times, band = _value(cells.get('times')), _value(cells.get('band'))
+        if band is not None and not band > 0:
+            raise MachineError('row %d: band=%g - a band is above 0' % (row, band))
         return cls(_value(cells['seconds']), setpoints, adds, limits, _text(cells.get('label')),
                    group, _text(cells.get('then')), _text(cells.get('else')),
-                   _text(cells.get('goto')), 1.0 if times is None else times, row)
+                   _text(cells.get('goto')), 1.0 if times is None else times, row, tests, wait,
+                   band)
 
     def targets(self):
         return [t for t in (self.then, self.otherwise, self.goto) if t]
 
-    def ended(self, bus, limits):
-        """('trip' | 'exit', why) once a channel crosses a level, else None."""
-        merged = {ch: dict(levels) for ch, levels in limits.items()}
-        for channel, levels in self.limits.items():
-            merged.setdefault(channel, {}).update(levels)
-        hits = [(level, channel, bound) for channel, levels in merged.items()
-                for level, bound in levels.items()
-                if channel in bus and _crossed(bus[channel], level, bound)]
-        for level, channel, bound in sorted(hits, key=lambda h: len(h[0]), reverse=True):
-            return ('trip' if len(level) == 2 else 'exit',
-                    '%s %.4g past %s %.4g' % (channel, bus[channel], level, bound))
-        return None
+    def unmet(self, bus, back, band):
+        """What the step still waits for, a phrase each: its tests not holding, or with none,
+        its targets not read back within their band (`back` {target: readback},
+        `band(target)`)."""
+        out = []
+        for target, value in ({} if self.tests else self.setpoints).items():
+            channel = back.get(target)
+            if channel is not None and channel in bus and \
+                    abs(bus[channel] - value) > (self.band or band(target, value)):
+                out.append('%s %.4g of %.4g' % (channel, bus[channel], value))
+        for channel, tests in self.tests.items():
+            for test, bound in tests.items():
+                if channel not in bus or not crossed(bus[channel], test, bound):
+                    out.append('%s %s %s %.4g' % (channel, '%.4g' % bus[channel] if channel in bus
+                                                   else 'unread', 'below' if test == 'GE'
+                                                   else 'above', bound))
+        return out
+
+    def timed(self, back):
+        """Whether its seconds end it: wait=time, or nothing to wait for."""
+        return self.wait == 'time' or not (self.tests or any(t in back for t in self.setpoints))
 
     def __repr__(self):
         jumps = ''.join(' %s %s' % (k, v) for k, v in (
             ('then', self.then), ('else', self.otherwise),
             ('goto', '%s x%g' % (self.goto, self.times) if self.goto else None)) if v)
-        return '<%s %s%.3g s%s%s%s%s>' % (
+        return '<%s %s%.3g s%s%s%s%s%s%s>' % (
             self.group, '%s: ' % self.label if self.label else '', self.seconds,
+            ' wait=time' if self.wait == 'time' else '',
             ' set %s' % self.setpoints if self.setpoints else '',
             ' add %s' % self.adds if self.adds else '',
+            ' tests %s' % self.tests if self.tests else '',
             ' levels %s' % self.limits if self.limits else '', jumps)
 
 
@@ -242,11 +276,12 @@ class Sequencer:
     """init rows, the main rows with their jumps `cycles` times, cleanup rows - always."""
 
     def __init__(self, rows, limits=None, cycles=1, limit=None, max_steps=100000, init=None,
-                 cleanup=None, ranges=None):
+                 cleanup=None, ranges=None, alarms=None):
         steps = [r if isinstance(r, Step) else Step.of(r, i) for i, r in enumerate(rows)]
         self.groups = {g: [s for s in steps if s.group == g] for g in GROUPS}
         self.steps = self.groups['main']
-        self.limits, self.cycles, self.limit = dict(limits or {}), cycles, limit
+        self.alarms = alarms if alarms is not None else Alarms(limits)
+        self.cycles, self.limit = cycles, limit
         self.max_steps, self.on_init, self.on_cleanup = max_steps, init, cleanup
         self.ranges = dict(ranges or {})
         self.at, self.taken = 0, {}
@@ -294,7 +329,7 @@ class Sequencer:
                 near = _near(ch, known)
                 if ch not in known and near:
                     problems.append('row %d: nothing reads %s%s' % (step.row, ch, near))
-            for ch in step.limits:
+            for ch in list(step.limits) + list(step.tests):
                 if ch not in known and ch not in sets:
                     problems.append('row %d: no channel %s to test%s' % (
                         step.row, ch, _near(ch, known)))
@@ -318,9 +353,9 @@ class Sequencer:
         return self.jump(max(0, self.at - rows))
 
     def _advance(self, ended):
-        """Past the current main row: then, else, goto, or the next."""
+        """Past the current main row: then when done, else when timed out, goto, the next."""
         here, step = self.at, self.steps[self.at]
-        branch = step.then if ended == 'exit' else step.otherwise
+        branch = step.otherwise if ended == 'timeout' else step.then
         if branch:
             return self.jump(branch)
         self.at = here + 1
@@ -333,41 +368,56 @@ class Sequencer:
                 self.taken[here] = 0
         return self.at
 
+    def band(self, target, value):
+        """How near `target` counts as there: 1 % of its range, else of its value."""
+        low, high = self.ranges.get(target, (-math.inf, math.inf))
+        if math.isfinite(high - low) and high > low:
+            return BAND_SHARE * (high - low)
+        return max(BAND_FLOOR, BAND_SHARE * abs(value))
+
     def _run(self, loop, step, out, watch, trips=True):
-        """One step: its setpoints and adds, then the loop until its seconds or a level.
-        'exit' when a level ended it, 'time' when its seconds did."""
-        why = ['time']
-        limits = self.limits if trips else {}
+        """One step: the handler told, its setpoints and adds, then the loop until it is
+        done, timed out, or tripped. 'done', 'time' (its seconds were the plan) or
+        'timeout' (the handler told, unless a decision)."""
+        self.alarms.step('row %d%s' % (step.row, ' ' + step.label if step.label else ''))
+        self.alarms.set(step.limits)
+        back = dict(zip(loop.targets(), loop.controlled()))
+        timed = step.timed(back)
+        left: list = [None]
 
         def check(loop):
             out['rows'].append(loop.read())
-            hit = step.ended(loop.bus, limits)
+            self.alarms.check(loop.bus, trips)
             if watch is not None:
                 watch(loop)
-            if hit is None:
+            if timed:
                 return False
-            if hit[0] == 'trip' and trips:
-                raise Tripped(hit[1])
-            why[0] = hit[1]
-            return True
+            left[0] = step.unmet(loop.bus, back, self.band)
+            return not left[0]
 
         start = loop.bus['t']
         writes = dict(step.setpoints, step=float(step.row),
                       **{k: loop.bus.get(k, 0.0) + v for k, v in step.adds.items()})
+        ended = 'time'
         try:
             if step.seconds > 0:
                 loop.move(step.seconds, check, **writes)
             else:
                 loop.write(**writes)
                 check(loop)
+            if not timed:
+                ended = 'done' if left[0] == [] else 'timeout'
+            if ended == 'timeout' and step.seconds > 0 and not (step.then or step.otherwise):
+                self.alarms.timeout('after %.3g s - %s' % (step.seconds, ', '.join(left[0] or ())))
         finally:
-            out['steps'].append((step.row, step.label, why[0], loop.bus['t'] - start))
-        return 'time' if why[0] == 'time' else 'exit'
+            out['steps'].append((step.row, step.label, ended, loop.bus['t'] - start))
+        return ended
 
     def run(self, loop, watch=None):
         """The whole sequence on `loop`, checked first; cleanup however it ends."""
         self._checked(loop)
         out = {'rows': [], 'steps': []}
+        first = self.alarms.begin()
         status, reason = 'done', None
         try:
             if self.on_init is not None:
@@ -382,17 +432,18 @@ class Sequencer:
                 self._run(loop, step, out, watch, trips=False)
             if self.on_cleanup is not None:
                 self.on_cleanup(loop)
-        return Outcome(out['rows'], status, reason, out['steps'])
+        return Outcome(out['rows'], status, reason, out['steps'], self.alarms.log[first:])
 
     def play(self, loop, watch=None, trips=True):
-        """The main group only, on a loop already armed: no hooks, no cleanup; a trip is
-        raised (Tripped) for whoever armed it."""
+        """The main group only, on a loop already armed: no init or cleanup, the handler's
+        levels and log carried on; a trip is raised (Tripped) for whoever armed it."""
         out = {'rows': [], 'steps': []}
+        first = len(self.alarms.log)
         status, reason = self._main(loop, out, watch, trips)
-        return Outcome(out['rows'], status, reason, out['steps'])
+        return Outcome(out['rows'], status, reason, out['steps'], self.alarms.log[first:])
 
     def seconds(self):
-        """The main group's seconds, each row once: what it adds to a buffer."""
+        """The main group's step times, each row once: the most it adds to a buffer."""
         return sum(step.seconds for step in self.steps)
 
     def _checked(self, loop):

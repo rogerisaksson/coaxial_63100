@@ -22,7 +22,8 @@ import threading
 import time
 
 from machine.errors import MachineError
-from machine.sequencer import Sequencer, Tripped
+from machine.alarms import Tripped
+from machine.sequencer import Sequencer
 
 #: What ties a line to others: it waits for its block's blank line.
 _TIED = re.compile(r'\b(label|goto|then|else|group)=')
@@ -42,13 +43,13 @@ class Live:
         self._thread, self._stopping, self._passed = None, False, threading.Event()
         self._until, self._partial, self._block = 0.0, '', []
         self.status, self.reason, self.errors, self.waits, self.played = 'stopped', None, [], [], 0
-        self.events = []
+        self.events, self._heard = [], 0
         if self._failsafe:
             self._parse(self._failsafe)      # a failsafe that would be refused is refused now
 
     def _parse(self, text):
         m = self.machine
-        seq = Sequencer.parse(text, ranges=m.ranges, limits=m.limits, routines=m.routines)
+        seq = Sequencer.parse(text, ranges=m.ranges, alarms=m.alarms, routines=m.routines)
         seq._checked(m.loop)
         return seq
 
@@ -129,9 +130,19 @@ class Live:
             self.events.append(status + (': ' + reason if reason else ''))
             self._cond.notify_all()
 
+    def _alarmed(self):
+        """The handler's new log lines, each an event: `wait` wakes on an alarm."""
+        log = self.machine.alarms.log
+        with self._cond:
+            if len(log) > self._heard:
+                self.events += ['alarm ' + line for line in log[self._heard:]]
+                self._heard = len(log)
+                self._cond.notify_all()
+
     def start(self):
         """Arm, then play from the buffer on a thread of its own."""
         self.machine.arm()
+        self._heard = self.machine.alarms.begin()
         self.status, self.reason, self._stopping = 'running', None, False
         self._passed.clear()
         self._thread = threading.Thread(target=self._play, daemon=True)
@@ -152,7 +163,10 @@ class Live:
                     sent, seq = chunk
                     self.waits.append(self._clock() - sent)
                     self.status = 'running'
-                    seq.play(loop)
+                    try:
+                        seq.play(loop)
+                    finally:
+                        self._alarmed()
                     self.played += 1
                     idle = self._clock()
                     with self._cond:
@@ -178,14 +192,12 @@ class Live:
                 self._event('stopped')
 
     def _limits(self, loop):
-        """The machine's limits on a holding pass."""
+        """The alarm handler on a holding pass: its levels, its stop."""
         self._passed.set()
-        for channel, levels in self.machine.limits.items():
-            value = loop.bus.get(channel)
-            for level, bound in levels.items():
-                if value is not None and (value >= bound if level.startswith('H') else
-                                          value <= bound) and len(level) == 2:
-                    raise Tripped('%s %.4g past %s %.4g' % (channel, value, level, bound))
+        try:
+            self.machine.alarms.check(loop.bus)
+        finally:
+            self._alarmed()
         return False
 
     def _safe(self, loop):

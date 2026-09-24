@@ -198,7 +198,7 @@ def test_the_sequencer(report):
     folder = tempfile.mkdtemp()
     path = os.path.join(folder, 'steps.csv')
     with open(path, 'w', encoding='utf-8') as handle:
-        handle.write('group,seconds,label,w_target,enable,w_ref.H,goto,times\n'
+        handle.write('group,seconds,label,w_target,enable,w_ref.GE,goto,times\n'
                      'init,0.2,,0,false,,,\n'
                      ',0.5,start,100,true,,,\n'
                      ',3,,150,,120,,\n'
@@ -215,9 +215,9 @@ def test_the_sequencer(report):
     rows = [s[0] for s in out.steps]
     report.check('init, the goto block three times, end, cleanup',
                  rows == [0] + [1, 2, 3] * 3 + [4, 5] and out.status == 'done', rows)
-    report.check('H ends a step early, before its seconds',
-                 all(s[2].startswith('w_ref') and s[3] < 3.0 for s in out.steps if s[0] == 2),
-                 [round(s[3], 2) for s in out.steps if s[0] == 2])
+    report.check('a test ends a step early, before its seconds',
+                 all(s[2] == 'done' and s[3] < 3.0 for s in out.steps if s[0] == 2),
+                 [(s[2], round(s[3], 2)) for s in out.steps if s[0] == 2])
     report.check('the hooks ran, init first, cleanup last', hooks == ['init', 'cleanup'])
     report.check('a blank cell holds its channel; true is 1',
                  all(r['enable'] == 1.0 for r in out.rows if int(r['step']) == 2))
@@ -253,13 +253,13 @@ def test_the_sequencer(report):
 
 def test_a_program_as_data(report):
     """3 x 4 by counters: set, add, and branch on a level - a counter machine."""
-    table = ('seconds,label,a,a+,c,c+,t,t+,a.L,t.L,then,else\n'
+    table = ('seconds,label,a,a+,c,c+,t,t+,a.LE,t.LE,then,else\n'
              '0,,3,,0,,,,,,,\n'
              '0,outer,,,,,,,0,,stop,\n'
              '0,,,,,,4,,,,,\n'
              '0,inner,,,,,,,,0,dec,\n'
-             '0,,,,,1,,-1,,,,inner\n'
-             '0,dec,,-1,,,,,,,,outer\n')
+             '0,,,,,1,,-1,,,inner,\n'
+             '0,dec,,-1,,,,,,,outer,\n')
     path = os.path.join(tempfile.mkdtemp(), 'multiply.csv')
     with open(path, 'w', encoding='utf-8') as handle:
         handle.write(table)
@@ -269,7 +269,7 @@ def test_a_program_as_data(report):
     report.check('the table multiplies: c = 12, and no time passed',
                  loop.bus['c'] == 12.0 and out.status == 'done' and loop.bus['t'] == 0.0,
                  (loop.bus['c'], out.status, len(out.steps)))
-    endless = Sequencer([{'seconds': 0, 'label': 'spin', 'else': 'spin'}], max_steps=50)
+    endless = Sequencer([{'seconds': 0, 'label': 'spin', 'then': 'spin'}], max_steps=50)
     out = endless.run(loop)
     report.check('a program that never stops is stopped by max_steps',
                  out.status == 'limit' and len(out.steps) == 50, out.reason)
@@ -474,18 +474,17 @@ def test_the_body_runs_a_program(report):
                      'One step a line' in told and 'set  left_hip, left_knee, right_hip, '
                      'right_knee deg -90..90  (read back as <name>.deg)' in told
                      and 'read battery.pack.amps' in told
-                     and 'set  battery.contactor 0..1' in told and len(told) < 1000, len(told))
+                     and 'set  battery.contactor 0..1' in told and len(told) < 1100, len(told))
         program = ('# a squat, twice\n'
                    '0.2 group=init left_hip=0 right_hip=0 left_knee=0 right_knee=0\n'
-                   '2 label=down left_hip=-30 right_hip=-30 left_knee=60 right_knee=60 '
-                   'left_knee.deg.H=58\n'
+                   '2 label=down left_hip=-30 right_hip=-30 left_knee=60 right_knee=60\n'
                    '1 left_hip=0 right_hip=0 left_knee=0 right_knee=0 goto=down times=1\n'
                    '1 group=cleanup left_hip=0 right_hip=0 left_knee=0 right_knee=0\n')
         out = Sequencer.parse(program, init=body.arm, cleanup=body.disarm).run(body.loop)
         downs = [s for s in out.steps if s[1] == 'down']
-        report.check('the squat runs twice, each down ending on its level before its time',
+        report.check('the squat runs twice, each down done on arrival, before its time',
                      out.status == 'done' and len(downs) == 2
-                     and all(s[3] < 2.0 and 'past H' in s[2] for s in downs), out.summary())
+                     and all(s[3] < 2.0 and s[2] == 'done' for s in downs), out.summary())
         report.check('the summary is a few lines', len(out.summary('left_knee.deg')
                                                         .splitlines()) <= 9)
         gaps = []
@@ -509,8 +508,7 @@ def test_the_body_loops_on_its_boards(report):
         body = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()},
                        node_hz=100)
         program = ('0.2 group=init left_hip=0 right_hip=0 left_knee=0 right_knee=0\n'
-                   '2 label=down left_hip=-30 right_hip=-30 left_knee=60 right_knee=60 '
-                   'left_knee.deg.H=58\n'
+                   '2 label=down left_hip=-30 right_hip=-30 left_knee=60 right_knee=60\n'
                    '1 left_hip=0 right_hip=0 left_knee=0 right_knee=0\n'
                    '1 group=cleanup left_hip=0 right_hip=0 left_knee=0 right_knee=0\n')
         seen = {}
@@ -521,8 +519,8 @@ def test_the_body_loops_on_its_boards(report):
         out = Sequencer.parse(program, init=body.arm, cleanup=body.disarm).run(
             body.loop, watch=watch)
         down = [s for s in out.steps if s[1] == 'down']
-        report.check('the squat runs on the boards, down ending on its level',
-                     out.status == 'done' and down and 'past H' in down[0][2], out.summary())
+        report.check('the squat runs on the boards, down done on arrival',
+                     out.status == 'done' and down and down[0][2] == 'done', out.summary())
         report.check('armed, the host forwards: a pass-through, the board loop running',
                      seen.get('Direct') is True, seen)
         report.check('disarmed, the feedback is the host\'s again and the board loop stopped',
@@ -550,7 +548,7 @@ def test_machine_types_and_routines(report):
                          out.status == 'done' and back in out.rows[-1], out.summary())
         humanoid = Machine(nodes, type='humanoid')
         report.check('the camera sees what the head turned to',
-                     abs(humanoid.run('0 run=look yaw=35').rows[-1]
+                     abs(humanoid.run('0 run=look yaw=35\n0.4').rows[-1]
                          ['head_camera.vision.target.x'] - 5.0 / 30.0) < 0.05)
         told = humanoid.prompt()
         report.check('the prompt names the type, its routines and what it reads',
@@ -669,7 +667,7 @@ def test_a_model_writes_lines(report):
     seq = Sequencer.parse('# lines, as a model answers\n'
                           '0 n=3 group=init\n'
                           '0.5 label=up w_target+=50 rotor.w.H=500\n'
-                          '0 n+=-1 n.L=0 then=stop else=up\n')
+                          '0 n+=-1 n.LE=0 then=stop else=up\n')
     out = seq.run(loop)
     report.check('lines parse like the csv: counters, levels, jumps',
                  out.status == 'done' and loop.bus['w_target'] == 150.0, out.summary())
@@ -684,7 +682,7 @@ def test_a_model_writes_lines(report):
     marker = Sequencer.parse('0.1 phase=2').run(loop)
     report.check('a name like no other is the program\'s own', marker.status == 'done'
                  and loop.bus['phase'] == 2.0)
-    many = Sequencer.parse('0 label=a n+=1 n.H=40 then=stop else=a').run(loop)
+    many = Sequencer.parse('0 label=a n+=1 n.GE=40 then=stop else=a').run(loop)
     report.check('a long run summarises in a dozen lines',
                  len(many.summary().splitlines()) == 13, len(many.steps))
 
