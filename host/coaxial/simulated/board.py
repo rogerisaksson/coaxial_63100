@@ -12,7 +12,7 @@ from coaxial.simulated.analog import SimulatedAfe, SimulatedAnalog, SimulatedCal
 from coaxial.simulated.boot import SimulatedBoot
 from coaxial.simulated.drive.device import SimulatedDrive
 from coaxial.simulated.link import (DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink,
-                                    _BroadcastRefuses, bus_nodes)
+                                    _BroadcastRefuses, bus_nodes, load_j)
 from coaxial.simulated.power import SimulatedGateDrivers, SimulatedPower
 from coaxial.simulated.sensors import SimulatedAngle, SimulatedImu
 from coaxial.simulated.system import SimulatedGpio, SimulatedSystem
@@ -90,6 +90,8 @@ class SimulatedBoard:
         # ONE TIMEBASE, as the board has one.
         self.daq.clock = self.clock
         self.drive = SimulatedDrive()
+        # WHAT ITS SHAFT CARRIES, where it sits: found by measuring, never said.
+        self.drive._set_model(j=load_j(self.version_info['where']))
         # WHERE IT LOOKS.
         self.thermal._sample = self.drive.sample
         # AND WHAT IT DROPS.

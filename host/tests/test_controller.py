@@ -400,31 +400,65 @@ def test_nodes_offer_then_configure(report):
     nodes = Nodes.discover(simulated=True)
     try:
         names = [n.name for n in nodes]
-        report.check('every node on every bus, named where it sits; the pack and camera too',
-                     len(nodes.of_type('bldc_inverter')) == 20 and 'left_knee' in names
+        report.check('every node on every bus, named by bus and unit; the pack and camera too',
+                     len(nodes.of_type('bldc_inverter')) == 20 and 'LL_2' in names
                      and [n.type for n in nodes][-2:] == ['bms', 'camera'], names[-3:])
         bare = Nodes.discover(simulated=True, families=())
         report.check('no family, no inverters: the stand-in peripherals alone',
                      [n.type for n in bare] == ['bms', 'camera'], [n.name for n in bare])
-        caps ={c.name: c for c in nodes['left_knee'].capabilities('drive', 'angle')}
+        caps = {c.name: c for c in nodes['LL_2'].capabilities('drive', 'angle')}
         report.check('a node says what it offers: ins with units, outs with ranges',
-                     caps['left_knee.angle.degrees'].unit == 'deg'
-                     and caps['left_knee.drive.iq_ref'].direction == 'out'
-                     and caps['left_knee.drive.iq_ref'].high > 0,
-                     caps['left_knee.drive.iq_ref'])
+                     caps['LL_2.angle.degrees'].unit == 'deg'
+                     and caps['LL_2.drive.iq_ref'].direction == 'out'
+                     and caps['LL_2.drive.iq_ref'].high > 0,
+                     caps['LL_2.drive.iq_ref'])
         card = Nodes(nodes.of_type('bldc_inverter')).card('angle', keys=('degrees',))
         report.check('the card is a line a node and direction',
-                     card.count('\n') + 1 == 40 and 'left_knee.angle' not in card
+                     card.count('\n') + 1 == 40 and 'LL_2.angle' not in card
                      and 'angle.degrees deg' in card, card.splitlines()[:2])
-        loop = nodes.loop(inputs=['left_knee.angle'], outputs=['left_knee.drive'])
+        loop = nodes.loop(inputs=['LL_2.angle'], outputs=['LL_2.drive'])
         loop.step(0.04)
         report.check('a loop over a node\'s modules reads its channels by dotted name',
-                     'left_knee.angle.degrees' in loop.bus)
+                     'LL_2.angle.degrees' in loop.bus)
         try:
-            nodes.loop(inputs=['left_knee.gears'])
+            nodes.loop(inputs=['LL_2.gears'])
             report.check('a module a node lacks is refused', False)
         except MachineError as exc:
             report.check('a module a node lacks is refused', 'gears' in str(exc), exc)
+    finally:
+        nodes.close()
+
+
+#: Four joints by the stand-in's wiring, named by hand.
+LEGS = {'left_hip': 'LL_1', 'left_knee': 'LL_2', 'right_hip': 'RL_1', 'right_knee': 'RL_2'}
+
+
+def test_fitment_by_measurement(report):
+    from machine import Machine
+    from machine.nodes import Nodes
+    nodes = Nodes.discover(simulated=True)
+    try:
+        humanoid = Machine(nodes, type='humanoid')
+        where = {name: a.node.rig.board.system.version()['where'].replace(' ', '_')
+                 for name, a in humanoid.actuators.items()}
+        report.check('every joint lands where the stand-in put it, by a ring test alone',
+                     len(where) == 20 and all(n == w for n, w in where.items()),
+                     [(n, w, '%.1f Hz' % humanoid.actuators[n].node.identify()['hz'])
+                      for n, w in where.items() if n != w])
+        hz = [nodes['LL_%d' % u].identify()['hz'] for u in (1, 2, 3, 4)]
+        report.check('down a leg each board rings higher: less carried outward',
+                     hz == sorted(hz), ['%.1f' % h for h in hz])
+        hip, knee = nodes['LL_1'], nodes['LL_2']
+        hip.rig.drive.model.configure(j=2.6e-5)
+        knee.rig.drive.model.configure(j=3.2e-5)
+        hip.identify(again=True)
+        knee.identify(again=True)
+        swapped = Machine(nodes, type='humanoid')
+        report.check('two loads swapped: the names follow the measurement',
+                     swapped.actuators['left_hip'].node is knee
+                     and swapped.actuators['left_knee'].node is hip,
+                     (swapped.actuators['left_hip'].node.name,
+                      swapped.actuators['left_knee'].node.name))
     finally:
         nodes.close()
 
@@ -434,8 +468,7 @@ def test_the_body_runs_a_program(report):
     from machine.nodes import Nodes
     nodes = Nodes.discover(simulated=True)
     try:
-        body = Machine(nodes, {j: nodes[j].actuator('joint') for j in
-                               ('left_hip', 'left_knee', 'right_hip', 'right_knee')})
+        body = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()})
         told = body.prompt()
         report.check('the prompt: the grammar, then each joint and what reads it back',
                      'One step a line' in told and 'set  left_hip, left_knee, right_hip, '
@@ -521,8 +554,7 @@ def test_live_from_a_stream(report):
     from machine.nodes import Nodes
     nodes = Nodes.discover(simulated=True)
     try:
-        legs = ('left_hip', 'left_knee', 'right_hip', 'right_knee')
-        machine = Machine(nodes, {j: nodes[j].actuator('joint') for j in legs})
+        machine = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()})
         live = Live(machine, failsafe='0.6 left_knee=0 right_knee=0', timeout=0.8,
                     horizon=1.0).start()
         said = [live.send('0.4 left_knee=20 right_knee=20'),
@@ -591,7 +623,8 @@ def main():
                  test_save_and_load,
                  test_a_fault_ends_the_loop, test_a_paced_part_keeps_its_own_rate,
                  test_the_pictures_and_the_panel, test_velocity_is_a_feedback,
-                 test_nodes_offer_then_configure, test_the_body_runs_a_program,
+                 test_nodes_offer_then_configure, test_fitment_by_measurement,
+                 test_the_body_runs_a_program,
                  test_a_model_writes_lines, test_machine_types_and_routines,
                  test_live_from_a_stream):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))

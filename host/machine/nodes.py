@@ -1,14 +1,15 @@
 """The application's IO: boards as nodes, what each offers, loops over their channels.
 
     nodes = Nodes.discover(port='COM4')                       # every family's boards on every bus
-    nodes = Nodes.discover(simulated=True)                       # the stand-in robot
+    nodes = Nodes.discover(simulated=True)                    # the stand-in robot
     nodes = Nodes([board, bms, camera])                       # nodes in hand
     nodes.capabilities('drive', 'angle')                      # [Channel], '<node>.<module>.<key>'
     print(nodes.card('angle', 'drive'))                       # the same, one line a node
-    loop = nodes.loop(inputs=['left_knee.angle'], outputs=['left_knee.drive'])
+    loop = nodes.loop(inputs=['LL_2.angle'], outputs=['LL_2.drive'])
 
-A node is one board: a type, where it sits, modules of float channels, the actuators it
-offers (`ACTUATORS`, by kind). A family is the module that finds its boards: `FAMILIES`.
+A node is one board: a type, its bus and unit, modules of float channels, the actuators it
+offers (`ACTUATORS`, by kind). Nothing names what it drives: a machine finds that by
+measuring (`identify`). A family is the module that finds its boards: `FAMILIES`.
 """
 import importlib
 import importlib.util
@@ -22,7 +23,7 @@ from machine.roles import Endpoint
 #: its range (None where the node sets none).
 Channel = namedtuple('Channel', 'name direction unit low high')
 
-#: Board families by the module that finds them: `discover(port, device, units, **kw)` ->
+#: Board families by the module that finds them: `discover(port, simulated, units, **kw)` ->
 #: [Node]. Imported only when discovering, skipped where its package is not installed.
 FAMILIES = ('coaxial.node',)
 
@@ -40,7 +41,7 @@ class Module:
 class Node(Endpoint):
 
     """One board: `capabilities()` first, then `source(module)` and `sink(module)` for a
-    loop, `actuator(kind)` for a machine. `identity`: type, device, where, link, unit."""
+    loop, `actuator(kind)` for a machine. `identity`: type, device, link (the bus), unit."""
 
     #: Units by key, where the key says it; a family adds its own.
     UNITS = {'volts': 'V', 'amps': 'A', 'degrees': 'deg', 'seconds': 's', 'temp': 'C',
@@ -86,6 +87,11 @@ class Node(Endpoint):
             raise MachineError('%s (%s) is no %s - it offers %s' % (
                 self.name, self.type, kind, ', '.join(self.ACTUATORS) or 'none'))
         return self.ACTUATORS[kind](self, **settings)
+
+    def identify(self, arming=None, again=False):
+        """What a measurement says this board carries, e.g. {'hz': ..}: identical boards on
+        a bus are told apart by it, never by a name. {} where nothing moves."""
+        return {}
 
     def couple(self, machine):
         """A stand-in's physics: what it sees of the machine it serves. A board sees the world."""
@@ -146,10 +152,9 @@ class Nodes:
         `keys` keeps only those keys (e.g. ('degrees', 'theta'))."""
         lines = []
         for node in self:
-            lines.append('%s: %s %s at %s, %s unit %s' % (
-                node.name, node.type,
-                node.identity['device'], node.identity['where'],
-                node.identity['link'], node.identity['unit']))
+            lines.append('%s: %s %s, %s unit %s' % (
+                node.name, node.type, node.identity['device'], node.identity['link'],
+                node.identity['unit']))
             for direction in ('in', 'out'):
                 shown = []
                 for c in node.capabilities(*modules):

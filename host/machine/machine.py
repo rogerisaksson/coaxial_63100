@@ -8,7 +8,8 @@
 An actuator is a feedback on one node, of a kind the node offers (`Node.ACTUATORS`): its
 setpoint is its name, it reads back as `<name>.<BACK>`. Nodes of a kind no actuator uses
 are read each pass and their outputs set as `<node>.<key>`; their limits trip the run. A
-type is its actuators and its routines - named programs a line calls: `0 run=walk times=4`.
+type is a body and its routines - named programs a line calls: `0 run=walk times=4`. Which
+board is which joint is measured (`fit`), never read from a name.
 """
 import math
 import time
@@ -63,21 +64,30 @@ class Actuator:
         return None
 
 
-def assign(nodes, wanted):
-    """[(name, kind)] -> {name: Actuator}, each on the next free node offering the kind;
-    (None, kind): every node left that offers it, named where it sits."""
-    free, out = list(nodes), {}
-    for name, kind in wanted:
-        offering = [n for n in free if kind in n.ACTUATORS]
-        if name is None:
-            out.update((n.name, n.actuator(kind)) for n in offering)
-            free = [n for n in free if n not in offering]
-            continue
-        if not offering:
-            raise MachineError('no node left offers a %s for %s - offered: %s' % (
-                kind, name, ', '.join(sorted({k for n in nodes for k in n.ACTUATORS})) or '-'))
-        free.remove(offering[0])
-        out[name] = offering[0].actuator(kind)
+def fit(nodes, body, arming=None):
+    """[Subsystem] -> {name: Actuator}: subsystem i on bus i, the buses in the order found.
+    On its bus a subsystem's actuators go outward in the order the boards `identify`: the
+    lowest ring, the most carried, innermost. A subsystem of one takes the bus's first."""
+    kinds = {s.kind for s in body}
+    buses = []
+    for node in nodes:
+        if kinds & set(node.ACTUATORS) and node.identity.get('link') not in buses:
+            buses.append(node.identity.get('link'))
+    if len(buses) < len(body):
+        raise MachineError('%d buses of actuators (%s), the body wants %d: %s' % (
+            len(buses), ', '.join(map(str, buses)) or '-', len(body),
+            ', '.join(s.name for s in body)))
+    out = {}
+    for subsystem, bus in zip(body, buses):
+        boards = [n for n in nodes
+                  if n.identity.get('link') == bus and subsystem.kind in n.ACTUATORS]
+        if len(boards) < len(subsystem.actuators):
+            raise MachineError('bus %s has %d boards that can be a %s; %s wants %d' % (
+                bus, len(boards), subsystem.kind, subsystem.name, len(subsystem.actuators)))
+        if len(subsystem.actuators) > 1:
+            boards.sort(key=lambda n: n.identify(arming).get('hz', math.inf))
+        out.update((name, board.actuator(subsystem.kind))
+                   for name, board in zip(subsystem.actuators, boards))
     return out
 
 
@@ -91,7 +101,7 @@ class Machine:
         if type is not None:
             if type not in TYPES:
                 raise MachineError('no machine type %r - there are %s' % (type, ', '.join(TYPES)))
-            actuators = assign(nodes, TYPES[type].actuators)
+            actuators = fit(nodes, TYPES[type].body, arming)
             routines = dict(TYPES[type].routines, **(routines or {}))
         self.nodes, self.actuators, self.type = nodes, dict(actuators), type
         self.routines, self.arming = dict(routines or {}), arming

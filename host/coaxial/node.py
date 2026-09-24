@@ -1,23 +1,34 @@
 """The Coaxial63100 family for `machine`: a board as a node, the actuators it can be, discovery.
 
     from machine import Machine
-    Machine.discover('humanoid', simulated=True)     # loads this module: a joint per Coaxial
+    Machine.discover('humanoid', simulated=True)   # loads this module; a joint per Coaxial
 
 A joint (deg, the drive holding an angle), a surface (a joint of narrow span), a rotor
-(rpm, a speed loop), a torque (A, the current itself).
+(rpm, a speed loop), a torque (A, the current itself). A board is named by its bus and unit
+('LL_2'); what it drives, a machine measures (`Coaxial.identify`).
 """
 import math
+import time
 
+from coaxial.errors import RigError
 from coaxial.model.sensorless import RAD_S_PER_RPM
 from machine.controller import Feedback
 from machine.machine import Actuator
 from machine.nodes import Module, Node
 from machine.parts import AngleHold, Direct, Gain, Slew, SpeedPI, Wrap
 
-#: The stand-in's joint damping, N.m.s: a gearbox and a limb, zeta ~0.5 on a 2 A hold of the
-#: bench motor (k 0.735 N.m/rad, J 2e-5). The bare rotor's 1e-5 (zeta 0.0013) rings at 30 Hz
-#: for seconds, and a 25 Hz loop pumps it until a pole slips (2026-09-24).
+#: The stand-in's joint damping, N.m.s: a gearbox and a limb, zeta 0.4..0.7 on a 2 A hold of
+#: the bench motor (k 0.735 N.m/rad) over the stand-in's J 1.2e-5..3.2e-5. The bare rotor's
+#: 1e-5 (zeta 0.0013) rings at 30 Hz for seconds, and a 25 Hz loop pumps it until a pole
+#: slips (2026-09-24).
 JOINT_B = 4e-3
+
+
+def _arming(rig, arming):
+    """What gates.on() takes: `arming`, or on the stand-in past the STO chain and interlock."""
+    if arming is not None:
+        return arming
+    return {'bypass_sto': True, 'ignore_interlock': True} if rig.simulated else {}
 
 
 def discover(port='COM4', simulated=False, units=range(1, 17), **kw):
@@ -34,15 +45,12 @@ def discover(port='COM4', simulated=False, units=range(1, 17), **kw):
 class _OnDrive(Actuator):
 
     """A feedback through the drive: armed through the gates, the drive and gates off at
-    disarm. On the stand-in the gates arm past the STO chain and the interlock."""
+    disarm."""
 
     READS = DRIVES = 'drive'
 
     def _gates(self, arming):
-        rig = self.node.rig
-        if arming is None:
-            arming = {'bypass_sto': True, 'ignore_interlock': True} if rig.simulated else {}
-        rig.gates.on(**arming)
+        self.node.rig.gates.on(**_arming(self.node.rig, arming))
 
     def disarm(self):
         rig = self.node.rig
@@ -80,7 +88,7 @@ class Joint(_OnDrive):
         rig, drive = self.node.rig, self.node.rig.drive
         if rig.simulated:
             drive.configure(source='model')
-            drive.model.configure(j=2e-5, b=JOINT_B, load=0.0)
+            drive.model.configure(b=JOINT_B, load=0.0)
         self._gates(arming)
         f.regulator.configure(theta0=drive.state()['theta_hat'])
         drive.write(id_ref=self.amps / 6.0, iq_ref=0.0, theta=f.regulator.theta0 + math.pi / 2,
@@ -132,7 +140,7 @@ class Rotor(_OnDrive):
         rig, drive = self.node.rig, self.node.rig.drive
         if rig.simulated:
             drive.configure(source='model')
-            drive.model.configure(j=2e-5, b=1e-5, load=0.0)
+            drive.model.configure(b=1e-5, load=0.0)
         self._gates(arming)
         drive.write(id_ref=0.0, iq_ref=0.0)
         drive.on('sensorless')
@@ -161,7 +169,7 @@ class Torque(Rotor):
 class Coaxial(Node):
 
     """An opened Coaxial63100: modules drive (state in, setpoints out), angle, imu,
-    thermal, power; named where it sits unless named."""
+    thermal, power; named '<bus>_<unit>' unless named."""
 
     UNITS = dict(Node.UNITS, **{
         'omega_hat': 'rad/s', 'omega_cmd': 'rad/s', 'omega_target': 'rad/s', 'accel': 'rad/s2',
@@ -178,15 +186,57 @@ class Coaxial(Node):
         currents = {'id_ref': (-i_max, i_max), 'iq_ref': (-i_max, i_max)} if i_max else {}
         board = rig.board
         super().__init__(
-            name or (identity.get('where') or 'unit%d' % rig.origin.unit).replace(' ', '_'),
+            name or '%s_%d' % (rig.origin.port, rig.origin.unit),
             {'type': identity.get('type'), 'device': identity.get('device'),
-             'where': identity.get('where'), 'link': rig.origin.port, 'unit': rig.origin.unit},
+             'link': rig.origin.port, 'unit': rig.origin.unit},
             {'drive': Module(rig.drive.state, rig.drive, rig.drive.WRITES, currents),
              'angle': Module(board.angle.state),
              'imu': Module(board.imu.state),
              'thermal': Module(board.thermal.state),
              'power': Module(board.power.state)})
         self.rig = rig
+        self._carried = None
+
+    def identify(self, arming=None, again=False, amps=2.0, step_deg=20.0, settle=0.1,
+                 window=0.25):
+        """What the shaft carries, by a ring test: held on `amps` of d current, the hold stepped
+        `step_deg` electrical, the ring's frequency from the angle sensor's zero crossings.
+        {'hz': .., 'j': kg.m2 from the record's lambda}; the heavier, the lower. Measured
+        once, then kept (`again` measures anew). Moves the shaft a few degrees."""
+        if self._carried is not None and not again:
+            return self._carried
+        rig, drive, angle = self.rig, self.rig.drive, self.rig.board.angle
+        if rig.simulated:
+            drive.configure(source='model')
+        rig.gates.on(**_arming(rig, arming))
+        try:
+            theta0 = drive.state()['theta_hat']
+            drive.write(id_ref=amps, iq_ref=0.0, theta=theta0, omega_target=0.0)
+            drive.hold()
+            time.sleep(settle)
+            drive.write(theta=theta0 + math.radians(step_deg))
+            start, t0, rows = angle.state()['degrees'], time.perf_counter(), []
+            while time.perf_counter() - t0 < window:
+                rows.append((time.perf_counter() - t0,
+                             (angle.state()['degrees'] - start + 180.0) % 360.0 - 180.0))
+        finally:
+            drive.off()
+            rig.gates.off()
+            if rig.simulated:
+                drive.configure(source='adc')
+        mean = sum(d for _, d in rows) / len(rows)
+        cross = [ta + (tb - ta) * (mean - da) / (db - da)
+                 for (ta, da), (tb, db) in zip(rows, rows[1:]) if (da - mean) * (db - mean) < 0]
+        if len(cross) < 3:
+            raise RigError('%s did not ring: %d crossings in %.2f s - held, or not free'
+                           % (self.name, len(cross), window))
+        halves = sorted(b - a for a, b in zip(cross, cross[1:]))
+        hz = 0.5 / halves[len(halves) // 2]             # the median: a gap in the reads moves none
+        p = drive.params()
+        pp = p.get('motor_pole_pairs') or 7
+        k = 1.5 * pp * pp * p.get('motor_lambda_uvs', 0.005) * amps
+        self._carried = {'hz': hz, 'j': k / (2.0 * math.pi * hz) ** 2}
+        return self._carried
 
     def close(self):
         self.rig.close()

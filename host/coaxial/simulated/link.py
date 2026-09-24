@@ -96,7 +96,19 @@ SIMULATED_BUSES = {
 
 DEFAULT_BUS = 'AX'
 
+#: What each position's shaft carries, kg.m2, lighter outward along a limb: the stand-in's
+#: truth, found by measurement (`coaxial.node.Coaxial.identify`), never sent. The pelvis,
+#: the default unit, keeps the bare rotor's 2e-5.
+LOAD_J = {'pelvis': 2.0e-5, 'waist': 1.7e-5, 'neck': 1.4e-5, 'head': 1.2e-5,
+          'shoulder': 2.6e-5, 'elbow': 2.1e-5, 'wrist': 1.7e-5, 'gripper': 1.4e-5,
+          'hip': 3.2e-5, 'knee': 2.6e-5, 'ankle': 2.0e-5, 'foot': 1.6e-5}
+
 
 def bus_nodes(label):
     """{unit: (name, type, where)} for one bus, empty for an unknown one."""
     return SIMULATED_BUSES.get(label, ('', {}))[1]
+
+
+def load_j(where):
+    """The shaft's inertia at `where` ('left knee'), 2e-5 where no position is known."""
+    return LOAD_J.get(where.rpartition(' ')[2], 2.0e-5)

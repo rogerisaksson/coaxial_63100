@@ -9,7 +9,7 @@ SECTIONS = [
         'The nodes',
         md('`Nodes.discover` loads each installed board family - here `coaxial.node` - which finds '
            'its boards on every bus; then the robot\'s other boards, a battery pack and a head '
-           'camera. Each is a node named where it sits, asked what it offers first.'),
+           'camera. Each is a node named by its bus and unit, asked what it offers first.'),
         code('''from machine.nodes import Nodes
 
 nodes = Nodes.discover(port=PORT, simulated=SIMULATED)
@@ -21,12 +21,16 @@ print(offered, 'channels in all')'''),
     ),
     section(
         'A humanoid, and what a model is told',
-        md('`Machine(nodes, type=\'humanoid\')`: a joint on every node that offers one, the pack '
-           'and the camera read beside them; `Machine.discover(\'humanoid\', port=PORT)` is both '
-           'steps. `prompt()` is the grammar, the joints, what can be read, the routines.'),
+        md('`Machine(nodes, type=\'humanoid\')`: a limb a bus, bus 1 the axis. Which board is '
+           'which joint is measured: a ring test on each, the lowest ring innermost. The pack '
+           'and camera are read beside; `prompt()` is what a model is told.'),
         code('''from machine import Machine
 
 humanoid = Machine(nodes, type='humanoid')
+for name in ('left_hip', 'left_knee', 'left_ankle', 'left_foot'):
+    board = humanoid.actuators[name].node
+    print('%-10s %s  %.1f Hz  J %.2g' % (name, board.name, board.identify()['hz'],
+                                         board.identify()['j']))
 told = humanoid.prompt()
 print(told)
 print('%d characters, about %d tokens' % (len(told), len(told) / 4))'''),
