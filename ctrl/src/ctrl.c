@@ -170,3 +170,76 @@ float ctrl_feedback_step(ctrl_feedback_t *f, float dt, float setpoint, float mea
   f->command = ctrl_regulate(&f->regulator, dt, f->ref, f->estimate, NAN, false);
   return f->command;
 }
+
+uint16_t ctrl_rows_free(const ctrl_runner_t *r)
+{
+  uint16_t used = (uint16_t)((r->head + CTRL_ROWS - r->tail) % CTRL_ROWS);
+
+  return (uint16_t)(CTRL_ROWS - 1U - used);
+}
+
+bool ctrl_rows_push(ctrl_runner_t *r, uint16_t ms, float setpoint)
+{
+  uint16_t head = r->head;
+
+  if (ctrl_rows_free(r) == 0U)
+  {
+    return false;
+  }
+  r->row[head].ms = ms;
+  r->row[head].setpoint = setpoint;
+  r->head = (uint16_t)((head + 1U) % CTRL_ROWS);   /* the row first, then the index */
+  return true;
+}
+
+float ctrl_rows_seconds(const ctrl_runner_t *r)
+{
+  float s = (r->playing && (r->left_s > 0.0f)) ? r->left_s : 0.0f;
+
+  for (uint16_t i = r->tail; i != r->head; i = (uint16_t)((i + 1U) % CTRL_ROWS))
+  {
+    s += (float)r->row[i].ms * 0.001f;
+  }
+  return s;
+}
+
+void ctrl_rows_clear(ctrl_runner_t *r)
+{
+  r->tail = r->head;
+  r->left_s = 0.0f;
+  r->playing = false;
+}
+
+float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured)
+{
+  if (r->left_s <= 0.0f)
+  {
+    if (r->playing)
+    {
+      r->played++;
+      r->playing = false;
+    }
+    if (r->tail != r->head)
+    {
+      const ctrl_row_t *row = &r->row[r->tail];
+
+      r->setpoint = row->setpoint;
+      r->left_s += (float)row->ms * 0.001f;
+      r->playing = true;
+      r->tail = (uint16_t)((r->tail + 1U) % CTRL_ROWS);
+    }
+    else
+    {
+      r->left_s = 0.0f;
+    }
+  }
+  if (r->playing)
+  {
+    r->left_s -= dt;
+  }
+  else
+  {
+    r->idle++;
+  }
+  return ctrl_feedback_step(&r->f, dt, r->setpoint, measured);
+}

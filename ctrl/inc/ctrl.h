@@ -50,6 +50,30 @@ typedef struct
   float       command;    /**< the regulator's output; the estimator's next input */
 } ctrl_feedback_t;
 
+/** Rows a runner queues. */
+#define CTRL_ROWS 64U
+
+/** One row the host streams: hold `setpoint` for `ms`. */
+typedef struct
+{
+  uint16_t ms;
+  float    setpoint;
+} ctrl_row_t;
+
+/** A feedback playing rows: the host pushes (comms), one tick plays (the ISR). */
+typedef struct
+{
+  ctrl_feedback_t   f;
+  ctrl_row_t        row[CTRL_ROWS];
+  volatile uint16_t head;     /**< written by the pusher only */
+  volatile uint16_t tail;     /**< written by the tick only */
+  float             setpoint; /**< the row playing, or the last one, held */
+  float             left_s;   /**< the row playing's time left */
+  bool              playing;
+  uint32_t          played;   /**< rows finished */
+  uint32_t          idle;     /**< ticks with no row playing */
+} ctrl_runner_t;
+
 /** Class names by kind, "" for CTRL_NONE. */
 extern const char *const ctrl_kind_names[CTRL_KINDS];
 
@@ -78,5 +102,20 @@ void ctrl_feedback_reset(ctrl_feedback_t *f);
 
 /** One pass, in slot order; the command. */
 float ctrl_feedback_step(ctrl_feedback_t *f, float dt, float setpoint, float measured);
+
+/** Rows that still fit. */
+uint16_t ctrl_rows_free(const ctrl_runner_t *r);
+
+/** A row onto the ring; false when it is full. */
+bool ctrl_rows_push(ctrl_runner_t *r, uint16_t ms, float setpoint);
+
+/** Seconds queued, the row playing included. */
+float ctrl_rows_seconds(const ctrl_runner_t *r);
+
+/** Every queued row dropped; the setpoint held. Call where the tick cannot run. */
+void ctrl_rows_clear(ctrl_runner_t *r);
+
+/** One tick: the next row when the last ran out, then the feedback; the command. */
+float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured);
 
 #endif /* CTRL_H */

@@ -91,3 +91,46 @@ API void ctl_feedback_reset(ctrl_feedback_t *f)
 {
   ctrl_feedback_reset(f);
 }
+
+API ctrl_runner_t *ctl_runner(void)
+{
+  return (ctrl_runner_t *)calloc(1U, sizeof(ctrl_runner_t));
+}
+
+/** The runner's feedback, for ctl_slot and ctl_step. */
+API ctrl_feedback_t *ctl_runner_feedback(ctrl_runner_t *r)
+{
+  return &r->f;
+}
+
+API int ctl_push(ctrl_runner_t *r, uint16_t ms, float setpoint)
+{
+  return ctrl_rows_push(r, ms, setpoint) ? 1 : 0;
+}
+
+API int ctl_free_rows(ctrl_runner_t *r)
+{
+  return ctrl_rows_free(r);
+}
+
+API float ctl_seconds(ctrl_runner_t *r)
+{
+  return ctrl_rows_seconds(r);
+}
+
+API void ctl_clear(ctrl_runner_t *r)
+{
+  ctrl_rows_clear(r);
+}
+
+API float ctl_tick(ctrl_runner_t *r, float dt, float measured)
+{
+  return ctrl_runner_step(r, dt, measured);
+}
+
+/** played, idle */
+API void ctl_counts(ctrl_runner_t *r, uint32_t *out)
+{
+  out[0] = r->played;
+  out[1] = r->idle;
+}

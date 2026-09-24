@@ -50,7 +50,15 @@ class C:
                                 ('ctl_filter', f, [p, f, f]),
                                 ('ctl_estimate', f, [p, f, f, f]),
                                 ('ctl_regulate', f, [p, f, f, f, f, ctypes.c_int, ctypes.c_int]),
-                                ('ctl_step', f, [p, f, f, f])):
+                                ('ctl_step', f, [p, f, f, f]),
+                                ('ctl_runner', p, []),
+                                ('ctl_runner_feedback', p, [p]),
+                                ('ctl_push', ctypes.c_int, [p, ctypes.c_uint16, f]),
+                                ('ctl_free_rows', ctypes.c_int, [p]),
+                                ('ctl_seconds', f, [p]),
+                                ('ctl_clear', None, [p]),
+                                ('ctl_tick', f, [p, f, f]),
+                                ('ctl_counts', None, [p, ctypes.POINTER(ctypes.c_uint32)])):
             fn = getattr(lib, name)
             fn.restype, fn.argtypes = res, args
         self.lib = lib
@@ -162,8 +170,56 @@ def test_the_c_holds_a_speed(report, c):
                  abs(w - 200.0) < 4.0, '%.1f rad/s' % w)
 
 
+def test_rows_play_in_order(report, c):
+    r = c.lib.ctl_runner()
+    counts = (ctypes.c_uint32 * 2)()
+    for ms, sp in ((100, 10.0), (200, 20.0), (50, -5.0)):
+        c.lib.ctl_push(r, ms, sp)
+    report.check('rows queued: their seconds', abs(c.lib.ctl_seconds(r) - 0.35) < 1e-4,
+                 c.lib.ctl_seconds(r))
+    out = [c.lib.ctl_tick(r, 0.001, 0.0) for _ in range(400)]    # no parts: the setpoint out
+    report.check('each row held its milliseconds, in order',
+                 out[:100] == [10.0] * 100 and out[100:300] == [20.0] * 200
+                 and out[300:350] == [-5.0] * 50, (out[99], out[100], out[299], out[300]))
+    c.lib.ctl_counts(r, counts)
+    report.check('dry, the last setpoint holds; the ticks without a row counted',
+                 out[350:] == [-5.0] * 50 and counts[0] == 3 and counts[1] == 50, list(counts))
+    took = sum(c.lib.ctl_push(r, 10, 1.0) for _ in range(70))
+    report.check('the ring takes 63 rows and refuses the next', took == 63
+                 and c.lib.ctl_free_rows(r) == 0, took)
+    c.lib.ctl_tick(r, 0.001, 0.0)
+    c.lib.ctl_clear(r)
+    report.check('clear: nothing queued, the setpoint held',
+                 c.lib.ctl_seconds(r) == 0.0 and c.lib.ctl_tick(r, 0.001, 0.0) == 1.0)
+    c.lib.ctl_free(r)
+
+
+def test_rows_drive_a_joint(report, c):
+    """A hold on the toy spring: rows of angle, AngleHold's command a spring's zero."""
+    r = c.lib.ctl_runner()
+    f = c.lib.ctl_runner_feedback(r)
+    for i, (kind, values) in enumerate((('Slew', [90.0]), ('Wrap', [0.0]), (None, []),
+                                        ('AngleHold', [7.0, 0.0, 0.0, 5.0, 6.0]))):
+        if kind:
+            c.lib.ctl_slot(f, i, c.kind(kind), (ctypes.c_float * len(values))(*values))
+    for ms, deg in ((500, 30.0), (500, -20.0)):
+        c.lib.ctl_push(r, ms, deg)
+    deg, w, cmds = 0.0, 0.0, []
+    for _ in range(1200):
+        theta = c.lib.ctl_tick(r, 0.001, deg % 360.0)
+        torque = 0.735 * math.sin(theta - math.radians(deg) * 7.0) - 4e-3 * w
+        w += 0.001 * torque / 2e-5
+        deg += math.degrees(w * 0.001)
+        cmds.append(deg)
+    report.check('rows of angle: the joint slews to 30, then to -20 and holds',
+                 abs(cmds[480] - 30.0) < 1.5 and abs(cmds[-1] + 20.0) < 1.5,
+                 '%.1f at 0.48 s, %.1f at 1.2 s' % (cmds[480], cmds[-1]))
+    c.lib.ctl_free(r)
+
+
 ROSTER = (test_every_part_has_its_twin, test_each_part_steps_as_the_host,
-          test_a_feedback_composes_as_the_loop, test_the_c_holds_a_speed)
+          test_a_feedback_composes_as_the_loop, test_the_c_holds_a_speed,
+          test_rows_play_in_order, test_rows_drive_a_joint)
 
 
 def main():
