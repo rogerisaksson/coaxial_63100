@@ -498,11 +498,11 @@ def test_orientation(report):
     report.check('and at zero it lies flat along that row and no other',
                  flat == axis, '%s against %s' % (flat, axis))
 
-    # The bead is the reading's own end, and it stands against the scale: short
-    # of the rim, and past everything the needle crosses.
-    bead, geom = owners(0.0, dial.BEAD)
-    report.check('the bead sits at the needle tip, inside the graduations',
-                 bool(bead) and geom.needle < geom.rim - dial.MAJOR_TICK + 1e-9,
+    # The needle ends in its own line - no ball - short of the graduations.
+    shaft, geom = owners(0.0, dial.NEEDLE)
+    report.check('the needle ends in its own line, no ball, inside the graduations',
+                 bool(shaft) and not hasattr(dial, 'BEAD')
+                 and geom.needle < geom.rim - dial.MAJOR_TICK + 1e-9,
                  'needle %.1f, rim %.1f dots' % (geom.needle, geom.rim))
 
     report.check('a weak field draws no needle at all',
@@ -537,12 +537,20 @@ def test_orientation(report):
           for what in ('380 G', '25.0 C')}
     axis = int(geom.cy) // dial.DOTS_Y
     classes = {cls for row in owner for cls in row}
-    report.check('dials in the dial: the field above the hub, the die below, each with its '
-                 "hand, its arc in its bands and its reading in its band's ink",
+    report.check('dials in the dial: the field above the hub, the die below, each LED '
+                 'segments lit to its reading in its band, the lead white-hot, notches at '
+                 "its band edges, its reading in its band's ink under its kana name",
                  0 <= at['380 G'] < axis < at['25.0 C']
-                 and {dial.SUB_OK, dial.SUB_HAND, dial.SUB_HUB, dial.SUB_TICK} <= classes
-                 and set(inks.values()) == {dial.field_ink(380), dial.die_ink(25.0)},
+                 and {dial.SEG_OFF, dial.SEG_OK, dial.SEG_LEAD, dial.NOTCH_MARK} <= classes
+                 and dial.SEG_LOW not in classes
+                 and set(inks.values()) == {dial.field_ink(380), dial.die_ink(25.0),
+                                            dial.NAME_INK},
                  '%s, axis row %d' % (at, axis))
+    _, owner, _, geom, _ = dial._raster(90.0, 88, 39, False, 2.0, 380, 298.15)
+    middle = dial.cell((geom.cy - geom.subs[0][0] / 1.0) / dial.DOTS_Y - 0.5)
+    report.check('the needle passes under the sub-dial it points through',
+                 dial.NEEDLE in {c for row in owner for c in row}
+                 and dial.NEEDLE not in owner[middle], 'row %d' % middle)
 
     report.check('one colour per step of the fade, and none the needle own',
                  (len(dial.SWEEP_RAMP) == dial.SWEEP_STEPS

@@ -36,7 +36,7 @@ from rich.text import Text
 from rich.theme import Theme
 
 from coaxial.comm import broker
-from terminal.ui.chrome import KANA, Chrome, clock
+from terminal.ui.chrome import KANA, Chrome, Crt, clock
 from terminal.ui.marquee import Marquee
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.scroll import DOWN, HUD_WIDTH, UP, _fills, _rows_of, paged, scroll_state
@@ -53,6 +53,7 @@ THEME = Theme({
     'value':      'color(214)',                    # the light source
     'frame':      'color(23)',                     # the viewport's edge
     'frame.hud':  'color(66)',                     # an instrument's edge
+    'rate':       '#2c5258',                       # the frame rate, in the background
     'keys':       'color(242) on grey15',
     'keys.key':   'bold color(44) on grey15',
     'chip.live':  'black on green3',
@@ -92,14 +93,30 @@ def stage():
 @contextmanager
 def curtain(console):
     """The Live a view runs inside: the alternate screen on a terminal, so
-    the shell underneath is untouched and comes back on exit.
+    the shell underneath is untouched and comes back on exit; on one, every
+    frame on the CRT (`chrome.Crt`).
     """
     live = Live(console=console, screen=console.is_terminal,
                 auto_refresh=False, transient=console.is_terminal)
     with live:
         if console.is_terminal:
             console.clear()
-        yield live
+            yield _Tube(live)
+        else:
+            yield live
+
+
+class _Tube:
+    """A Live whose every frame is shown on the CRT."""
+
+    def __init__(self, live):
+        self._live = live
+
+    def update(self, renderable, *, refresh=False):
+        self._live.update(Crt(renderable), refresh=refresh)
+
+    def __getattr__(self, name):
+        return getattr(self._live, name)
 
 
 @contextmanager

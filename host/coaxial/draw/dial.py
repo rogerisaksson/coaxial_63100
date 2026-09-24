@@ -27,15 +27,20 @@ BEZEL_GAP = 3.0
 #: to the sweep band; its horizontal arm alone where the sub-dials stand.
 CROSS_PITCH = 3
 
-#: Dials in the dial, as a chronograph's: on a rim of SUB_RIM dots or more, the
-#: field in the face's upper half and the die in its lower - each SUB_R of the
-#: rim across, its centre SUB_OFF of the rim off the hub; a SUB_ARC arc in its
-#: side scale's bands (blue, green, red), ticks at its graduations, a hand, the
-#: reading in the arc's gap at the foot.
+#: Dials in the dial: on a rim of SUB_RIM dots or more, the field in the face's upper
+#: half and the die in its lower - each SUB_R of the rim across, its centre SUB_OFF of
+#: the rim off the hub. SEGMENTS LED segments round SUB_ARC degrees, SEG_DEPTH dots
+#: deep, SEG_FILL of their pitch lit and dark teal off; lit to the reading in the
+#: phosphor of the band it is in (BAND_INK: cool under, cyan in, red past), the leading one
+#: white-hot; a notch NOTCH long outside the arc at each band edge; the reading and its
+#: kana name (SUB_NAMES) at the centre (2026-09-24: hands and arcs read as a watch's).
 SUB_RIM = 30.0
 SUB_R, SUB_OFF = 0.27, 0.44
 SUB_ARC = 270.0
-SUB_TICK_DEPTH = 2.0
+SEGMENTS = 24
+SEG_DEPTH, SEG_FILL = 3.0, 0.68
+NOTCH = 1.5
+SUB_NAMES = ('ｼﾞｶｲ', 'ｵﾝﾄﾞ')
 
 #: How wide a major tick is at the rim, in dots across. A tick one dot
 #: wide is a tick one dot wide wherever it points; two make the difference
@@ -53,27 +58,28 @@ SWEEP_FADE = math.radians(70.0)
 SWEEP_STEPS = 8
 
 #: The needle: its stop short of the graduations and its half width at hub
-#: and tip - tapered, so the reading end is fine.
+#: and tip - a crisp line, tapering to the reading end.
 NEEDLE_CLEAR = 3.0
-NEEDLE_ROOT, NEEDLE_TIP = 1.3, 0.4
-#: The counterweight behind the hub: COUNTER of the needle's length, as wide as
-#: its root.
-COUNTER = 0.18
+NEEDLE_ROOT, NEEDLE_TIP = 0.75, 0.35
 
-#: The tip bead and the hub, dots; the bead a disc, which reads the same at
-#: every angle.
-BEAD_R, HUB_R = 1.9, 2.6
+#: The hub, a ring HUB_R across and RING thick: hollow - a filled disc read as a
+#: watch's. No ball at the needle's tip (2026-09-24).
+HUB_R, RING = 2.6, 0.7
 
 #: No magnet below this: the angle is noise (2 G with nothing mounted, the
 #: heading wandering 27 degrees). One constant for the needle and caption.
 WEAK_GAUSS = 30
 
 #: Cell classes; the highest present wins. The hub outranks the needle (it
-#: passes under), the bead everything. The tail is one class per fade step,
-#: SWEEP[-1] nearest the needle, so a shared cell takes the newer.
-(CROSS, BEZEL, FACE, MICRO, MINOR, MAJOR, SUB_LO, SUB_OK, SUB_HI, SUB_TICK) = range(10)
-SWEEP = tuple(range(SUB_TICK + 1, SUB_TICK + 1 + SWEEP_STEPS))
-(SUB_HAND, SUB_HUB, COUNTERWEIGHT, NEEDLE, HUB, BEAD) = range(SWEEP[-1] + 1, SWEEP[-1] + 7)
+#: passes under), and the needle passes under the sub-dials: none of it inside
+#: their discs. The tail is one class per fade step, SWEEP[-1] nearest the
+#: needle, so a shared cell takes the newer.
+(CROSS, BEZEL, FACE, MICRO, MINOR, MAJOR, SEG_OFF, NOTCH_MARK) = range(8)
+SWEEP = tuple(range(NOTCH_MARK + 1, NOTCH_MARK + 1 + SWEEP_STEPS))
+(NEEDLE, SEG_LOW, SEG_OK, SEG_HOT, SEG_LEAD, HUB) = range(SWEEP[-1] + 1, SWEEP[-1] + 7)
+
+#: The bands' phosphor: under, in, past - the side scales' and the sub-dials'.
+BAND_INK = ((70, 130, 235), (40, 225, 200), (255, 64, 48))
 
 #: One light: the instrument (rim, graduations, hub) in `cross_section`'s deep teal
 #: 23, the thirties brighter, the reading the only warm thing - five colours
@@ -83,11 +89,12 @@ SWEEP_RAMP = tuple(tuple(int(ch * (0.1 + 0.7 * i / (SWEEP_STEPS - 1)))
                          for ch in (255, 176, 0)) for i in range(SWEEP_STEPS))
 
 INK = dict([(CROSS, (20, 52, 58)), (BEZEL, 23), (FACE, 30), (MICRO, 23), (MINOR, 30),
-            (MAJOR, 44), (SUB_LO, ansi.BLUE), (SUB_OK, ansi.GREEN), (SUB_HI, ansi.RED),
-            (SUB_TICK, 30), (SUB_HAND, (255, 220, 150)), (SUB_HUB, 250),
-            (COUNTERWEIGHT, (150, 100, 0)),
-            (NEEDLE, ansi.AMBER), (HUB, 250), (BEAD, 231)]
+            (MAJOR, 44), (SEG_OFF, (16, 46, 50)), (NOTCH_MARK, 44),
+            (SEG_LOW, BAND_INK[0]), (SEG_OK, BAND_INK[1]), (SEG_HOT, BAND_INK[2]),
+            (SEG_LEAD, (220, 255, 250)), (NEEDLE, ansi.AMBER), (HUB, 44)]
            + list(zip(SWEEP, SWEEP_RAMP)))
+#: A sub-dial's kana name.
+NAME_INK = (40, 120, 130)
 
 #: The graduation numbers. Ash, like every other caption here: they name
 #: the scale and the reading is what the eye is meant to find.
@@ -127,7 +134,7 @@ class _Geometry:
         self.needle = self.rim - MAJOR_TICK - NEEDLE_CLEAR
         # The sub-dials, (centre's height, radius, range, band, ticks), or none.
         r, off = self.rim * SUB_R, self.rim * SUB_OFF
-        self.subs = (((off, r) + FIELD, (-off, r) + DIE) if self.rim >= SUB_RIM else ())
+        self.subs: tuple = (((off, r) + FIELD, (-off, r) + DIE) if self.rim >= SUB_RIM else ())
 
 
 def _sweep_span(degrees):
@@ -137,6 +144,9 @@ def _sweep_span(degrees):
 
 #: A sample in the band the sweep may light, decided per reading.
 _SWEEP_BAND = object()
+#: A sample in a sub-dial's disc that nothing of its own lights: air the needle
+#: passes under.
+_UNDER = object()
 
 #: The face's sample tables by (width, height, aspect) - one per size
 #: a page draws at.
@@ -149,7 +159,7 @@ def _fixed(radius, phi, geom):
     or nothing.
     """
     if radius <= HUB_R:
-        return HUB
+        return HUB if radius >= HUB_R - RING else None
     ticks = ((30, MAJOR_TICK, MAJOR_WIDE, MAJOR), (6, MINOR_TICK, 0.0, MINOR))
     if geom.rim >= MICRO_RIM:
         ticks += ((3, MICRO_TICK, 0.0, MICRO),)
@@ -166,8 +176,8 @@ def _fixed(radius, phi, geom):
     if geom.rim - SWEEP_IN <= radius <= geom.rim - SWEEP_OUT:
         return _SWEEP_BAND
     dx, dy = radius * math.cos(phi), radius * math.sin(phi)
-    for oy, r, span, band, ticks in geom.subs:
-        cls = _sub_fixed(dx, dy - oy, r, span, band, ticks, geom.line)
+    for which, (oy, r, span, band, _ticks) in enumerate(geom.subs):
+        cls = _sub_fixed(dx, dy - oy, r, span, band, which)
         if cls is not None:
             return cls
     if HUB_R + 2.0 < radius < geom.rim - SWEEP_IN - 2.0 and int(radius) % CROSS_PITCH == 0:
@@ -176,35 +186,30 @@ def _fixed(radius, phi, geom):
     return None
 
 
-def _sub_angle(share):
-    """Where `share` of a sub-dial's scale points, radians: 0 at its lower left,
-    the whole SUB_ARC round clockwise to its lower right."""
-    return math.radians(90.0 + SUB_ARC / 2.0 - SUB_ARC * max(0.0, min(1.0, share)))
-
-
 def _sub_share(value, span):
-    return (value - span[0]) / (span[1] - span[0])
+    return max(0.0, min(1.0, (value - span[0]) / (span[1] - span[0])))
 
 
-def _sub_fixed(sx, sy, r, span, band, ticks, line):
-    """What a sub-dial puts at (sx, sy) off its centre: its hub, a tick, its arc
-    in the band of the value there, or None."""
+def _sub_fixed(sx, sy, r, span, band, which):
+    """What sub-dial `which` puts at (sx, sy) off its centre: ('seg', which, k)
+    for its k-th segment - lit or not is the reading's - a notch at a band edge,
+    _UNDER for the rest of its disc, which the needle passes under, or None off
+    it. Its scale runs SUB_ARC clockwise from its lower left."""
     sr = math.hypot(sx, sy)
-    if sr <= 1.3:
-        return SUB_HUB
-    if sr > r + line:
+    if sr > r + 1.0 + NOTCH:
         return None
     turned = (90.0 + SUB_ARC / 2.0 - math.degrees(math.atan2(sy, sx))) % 360.0
-    if turned > SUB_ARC:
-        return None
-    for value in ticks:
-        off = math.radians(abs(turned - SUB_ARC * _sub_share(value, span)))
-        if off * sr <= 0.6 and r - SUB_TICK_DEPTH <= sr <= r:
-            return SUB_TICK
-    if abs(sr - r) <= line * 0.7:
-        value = span[0] + (span[1] - span[0]) * turned / SUB_ARC
-        return SUB_LO if value < band[0] else SUB_OK if value <= band[1] else SUB_HI
-    return None
+    if sr < r - SEG_DEPTH or turned > SUB_ARC:
+        return _UNDER
+    if sr > r:
+        for value in band:
+            off = math.radians(abs(turned - SUB_ARC * _sub_share(value, span)))
+            if off * sr <= 0.6 and sr >= r + 1.0:
+                return NOTCH_MARK
+        return _UNDER
+    pitch = SUB_ARC / SEGMENTS
+    k = min(SEGMENTS - 1, int(turned / pitch))
+    return ('seg', which, k) if turned - k * pitch <= SEG_FILL * pitch else _UNDER
 
 
 def _samples(width, height, aspect):
@@ -244,24 +249,21 @@ def _needle(geom, at):
     return c, s, geom.needle * c, geom.needle * s
 
 
-def _classify(sample, geom, span, needle, hands=()):
-    """What is at a sample this reading, or None for air."""
+def _classify(sample, geom, span, needle, lit=()):
+    """What is at a sample this reading, or None for air; `lit` each sub-dial's
+    segments lit and their classes, or None where it has no reading."""
     dx, dy, _radius, phi, fixed = sample
-    if needle is not None and _on_bead(dx, dy, needle):
-        return BEAD
     if fixed == HUB:
         return HUB
+    if fixed is _UNDER:
+        return None
+    if isinstance(fixed, tuple):
+        on = lit[fixed[1]] if fixed[1] < len(lit) else None
+        return on[fixed[2]] if on and fixed[2] < len(on) else SEG_OFF
+    if fixed == NOTCH_MARK:
+        return fixed
     if needle is not None and _on_needle(dx, dy, geom, needle):
         return NEEDLE
-    if needle is not None and _on_counter(dx, dy, geom, needle):
-        return COUNTERWEIGHT
-    for oy, c, s, length in hands:
-        if abs(dx) > length or abs(dy - oy) > length:
-            continue
-        along = dx * c + (dy - oy) * s
-        if (0.0 <= along <= length
-                and abs(-dx * s + (dy - oy) * c) <= 0.9 - 0.55 * along / length):
-            return SUB_HAND
     if fixed is not _SWEEP_BAND:
         return fixed
 
@@ -270,12 +272,6 @@ def _classify(sample, geom, span, needle, hands=()):
         behind = (span - phi) / SWEEP_FADE
         return SWEEP[int((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5)]
     return None
-
-
-def _on_bead(dx, dy, needle):
-    """Within the bead at the needle's tip."""
-    _c, _s, tip_x, tip_y = needle
-    return math.hypot(dx - tip_x, dy - tip_y) <= BEAD_R
 
 
 def _on_needle(dx, dy, geom, needle):
@@ -291,15 +287,6 @@ def _on_needle(dx, dy, geom, needle):
     return across <= NEEDLE_ROOT + (NEEDLE_TIP - NEEDLE_ROOT) * share
 
 
-def _on_counter(dx, dy, geom, needle):
-    """On the counterweight: COUNTER of the needle behind the hub, as wide as
-    the needle's root."""
-    c, s, _tip_x, _tip_y = needle
-    along = dx * c + dy * s
-    return (-COUNTER * geom.needle <= along < -HUB_R
-            and abs(-dx * s + dy * c) <= NEEDLE_ROOT)
-
-
 def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None):
     """Dots, their owners, the label overlay and its inks, one entry per cell."""
     dots = [[0] * width for _ in range(height)]
@@ -310,16 +297,13 @@ def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None):
     span = None if weak else _sweep_span(degrees)
     needle = None if weak else _needle(geom, math.radians(degrees))
     celsius = None if kelvin is None else kelvin - KELVIN_AT_ZERO_C
-    readings = [(sub, value) for sub, value in zip(geom.subs, (field, celsius))
-                if value is not None]
-    hands = []
-    for (oy, r, scale_span, _band, _ticks), value in readings:
-        at = _sub_angle(_sub_share(value, scale_span))
-        hands.append((oy, math.cos(at), math.sin(at), r - 2.0))
+    readings = list(zip(geom.subs, (field, celsius)))
+    lit = [_segments(value, scale_span, band) if value is not None else None
+           for (_oy, _r, scale_span, band, _ticks), value in readings]
 
     stretch = aspect / DOTS_Y * DOTS_X
     for x, y, samples in _samples(width, height, aspect):
-        seen = [at for at in (_classify(sample, geom, span, needle, hands)
+        seen = [at for at in (_classify(sample, geom, span, needle, lit)
                               for sample in samples) if at is not None]
         # A dot lights when half its samples or more hit (`covered`).
         if not seen or not covered(len(seen), len(SUBDOT)):
@@ -341,18 +325,32 @@ def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None):
             col = cell((lx + index * DOTS_X) / DOTS_X - 0.5)
             if 0 <= row < height and 0 <= col < width and not dots[row][col]:
                 text[row][col] = digit
-    # Each sub-dial's reading in its arc's gap, in its band's ink.
-    for (oy, r, _scale_span, band, _ticks), value in readings:
-        said = ('%d G' % value) if band == FIELD_BAND else ('%.1f C' % value)
-        ly = geom.cy - (oy - 0.62 * r) / stretch
-        lx = geom.cx - (len(said) - 1) * DOTS_X / 2.0
-        row = cell(ly / DOTS_Y - 0.5)
-        for index, ch in enumerate(said):
-            col = cell((lx + index * DOTS_X) / DOTS_X - 0.5)
-            if 0 <= row < height and 0 <= col < width and not dots[row][col]:
-                text[row][col] = ch
-                inks[(row, col)] = _band_ink(value, band)
+    # Each sub-dial's reading at its centre in its band's ink, its kana name over it.
+    for which, ((oy, _r, _scale_span, band, _ticks), value) in enumerate(readings):
+        if value is None:
+            said, ink = '--', NAME_INK
+        else:
+            said = ('%d G' % value) if band == FIELD_BAND else ('%.1f C' % value)
+            ink = _band_ink(value, band)
+        centre = cell((geom.cy - oy / stretch) / DOTS_Y - 0.5)
+        for row, words, shade in ((centre - 1, SUB_NAMES[which], NAME_INK),
+                                  (centre, said, ink)):
+            lx = geom.cx - (len(words) - 1) * DOTS_X / 2.0
+            for index, ch in enumerate(words):
+                col = cell((lx + index * DOTS_X) / DOTS_X - 0.5)
+                if 0 <= row < height and 0 <= col < width and not dots[row][col]:
+                    text[row][col] = ch
+                    inks[(row, col)] = shade
     return dots, owner, text, geom, inks
+
+
+def _segments(value, span, band):
+    """A sub-dial's lit segments' classes, in order, for `value`: all in the band
+    the reading is in - the bar says the state, the notches where it turns - the
+    leading one white-hot."""
+    count = max(1, int(_sub_share(value, span) * SEGMENTS + 0.5))
+    lit = SEG_LOW if value < band[0] else SEG_OK if value <= band[1] else SEG_HOT
+    return [lit] * (count - 1) + [SEG_LEAD]
 
 
 def render(degrees, width=64, height=23, field=None, aspect=CELL_ASPECT,
@@ -391,12 +389,8 @@ TUBE_W = 2
 
 
 def _band_ink(value, band):
-    """Blue under `band`, green inside it, red past it."""
-    if value < band[0]:
-        return ansi.BLUE
-    if value <= band[1]:
-        return ansi.GREEN
-    return ansi.RED
+    """BAND_INK's: cool under `band`, cyan inside it, red past it."""
+    return BAND_INK[0 if value < band[0] else 1 if value <= band[1] else 2]
 
 
 def field_ink(gauss):

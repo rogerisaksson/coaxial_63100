@@ -1,10 +1,11 @@
-"""The house HUD over a page's drawing: the attitude view's look on every page.
+"""The house HUD: the attitude view's look on every page.
 
-An old CRT's snow in the drawing's blank cells, barely there - NOISE of them lit a frame,
-a dot each in SNOW's near-black inks, redrawn NOISE_HZ times a second; its refresh sweep,
-a beam going down over SWEEP_S seconds, the rows behind it glowing BEAM at the beam and
-decaying over DECAY_ROWS as a phosphor does, under everything; lock brackets round
-what the page draws, `ﾛｯｸ ｵﾝ` blinking on them; the page's clock bottom left; its status tag in red
+Over the whole screen (`Crt`, every frame `stage.curtain` shows): an old CRT's snow in
+its blank cells, barely there - NOISE of them lit a frame, a dot each in SNOW's
+near-black inks, redrawn NOISE_HZ times a second; its refresh sweep, a beam going down
+over SWEEP_S seconds, the rows behind it glowing BEAM at the beam and decaying over
+DECAY_ROWS as a phosphor does, under everything but what has a background of its own.
+Over a page's drawing (`Chrome`): lock brackets round what the page draws, `ﾛｯｸ ｵﾝ` blinking on them; the page's clock bottom left; its status tag in red
 kana, blinking, over a teal subtag bottom right. Chrome only fills blanks: nothing the
 page draws is covered, and a piece with no room is left out whole. KANA names each page.
 """
@@ -66,7 +67,7 @@ def _blank(cell):
 
 
 class Chrome:
-    """`inner` with the house HUD in its blank cells: the snow, lock brackets round
+    """`inner` with the house HUD in its blank cells: lock brackets round
     what it draws (`lock`), the clock and `title`'s tags (KANA, `tags`)."""
 
     def __init__(self, inner, title, lock=True, tags=True):
@@ -130,7 +131,7 @@ def _dress(rows, title, lock, t):
     height, width = len(rows), len(rows[0])
     drawn = [(r, c) for r in range(height) for c in range(width) if not _blank(rows[r][c])]
     kana = KANA.get(title)
-    # The tags and the clock first: the snow goes round them.
+    # The tags and the clock first: the lock goes round them.
     if kana and height >= 6 and width >= 40:
         _put(rows, height - 1, 1, clock(t), INK['lock'])
         if int(t * 1.5) % 2 == 0:
@@ -147,6 +148,34 @@ def _dress(rows, title, lock, t):
                 _put(rows, r, c, text, INK['lock'])
             if int(t * 2.0) % 2 == 0:
                 _put(rows, top, left + 3, LOCKED, INK['lock'])
+
+
+class Crt:
+    """`inner` on an old CRT: its snow in the blank cells, its refresh sweep under all
+    that has no background of its own."""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    def __rich_measure__(self, console, options):
+        from rich.measure import Measurement
+        return Measurement.get(console, options, self.inner)
+
+    def __rich_console__(self, console, options):
+        if options.height is None:
+            yield from console.render(self.inner, options)
+            return
+        rows = [_cells(line) for line in console.render_lines(self.inner, options, pad=True)]
+        if rows and rows[0]:
+            _crt(rows, time.monotonic())
+        newline = Segment.line()
+        for row in rows:
+            yield from _segments(row)
+            yield newline
+
+
+def _crt(rows, t):
+    height, width = len(rows), len(rows[0])
     rng = random.Random(int(t * NOISE_HZ))
     for _ in range(int(NOISE * width * height)):
         r, c = rng.randrange(height), rng.randrange(width)
@@ -161,4 +190,7 @@ def _dress(rows, title, lock, t):
         if step > 0:
             glow = GLOW[min(len(GLOW), step) - 1]
             for cell in rows[r]:
-                cell[1] = glow if cell[1] is None else cell[1] + glow
+                if cell[1] is None:
+                    cell[1] = glow
+                elif cell[1].bgcolor is None:
+                    cell[1] = cell[1] + glow

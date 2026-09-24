@@ -5,7 +5,6 @@ import weakref
 from rich.cells import cell_len
 from rich.measure import Measurement
 from rich.segment import Segment
-from rich.text import Text
 
 
 #: The newest frame's weight in the drawing's rate: about five frames
@@ -61,7 +60,8 @@ class Corner:
         wide = cell_len(self.label)
         if lines and 0 < wide < options.max_width:
             cut = list(Segment.divide(lines[0], [wide, options.max_width]))
-            lines[0] = (list(Text(self.label, style='label').render(console))
+            # Text.render drops a base style with no spans: the label came out white.
+            lines[0] = ([Segment(self.label, console.get_style('rate'))]
                         + (cut[1] if len(cut) > 1 else []))
         newline = Segment.line()
         for line in lines:
