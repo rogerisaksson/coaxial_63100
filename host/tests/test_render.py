@@ -1092,10 +1092,20 @@ def test_approach(report):
     static = ground._ground_static(60, 20, 3.2, cam['view'])
     gates = [approach.corridor(static, 60, 20, travel, 0.03, None, ground._segment)
              for travel in (0.0, 0.5)]
-    report.check('approach: the gates are amber and move with the floor',
+    inks = {rgb for _mask, rgb in gates[0].values()}
+    report.check('approach: the gates are amber, the one about to pass green; they move',
                  gates[0] and gates[0] != gates[1]
-                 and all(rgb[0] >= rgb[2] for _mask, rgb in gates[0].values()),
-                 '%d cells' % len(gates[0]))
+                 and all(r >= b or g > r for r, g, b in inks), '%d cells' % len(gates[0]))
+    passing = approach.corridor(static, 60, 20, approach.GATE_EVERY - 0.2, 0.0, None,
+                                ground._segment)
+    report.check('approach: the gate about to be passed is cleared green',
+                 any(g > r and g > b for _mask, (r, g, b) in passing.values()))
+    over = [[' '] * 60 for _ in range(20)]
+    tone = [[None] * 60 for _ in range(20)]
+    busy = [1.0] * (60 * 20)                      # the board everywhere: the craft still shows
+    approach.hud(over, tone, busy, 60, 20, approach.flight(1.0), static, 1.0, 0, None, True)
+    report.check('approach: the craft is composited over the board',
+                 any(ink == approach.HULL for row in tone for ink in row))
     straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)
     report.check('approach: the curvature bends the corridor', straight != gates[0])
     fl = approach.flight(approach.CURVE_S / 4.0)

@@ -366,7 +366,6 @@ def _ground(grid, tone, buf, distance, width, height, colour, view, scroll=None,
         step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
         masks = _greys(_lay(_runs(static, width, height, step), width, height, roll), static)
         masks.update(approach.stars(static, width, height, scroll or 0.0, roll))
-        masks.update(approach.craft(width, height, scroll or 0.0, roll))
         masks.update(approach.corridor(static, width, height,
                                        (scroll or 0.0) * GROUND_SPEED * RUNG_SPACING,
                                        flown['curve'], roll, _segment,

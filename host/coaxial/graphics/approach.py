@@ -317,6 +317,11 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
     # The ladder first: text over it.
     _ladder(grid, tone, buf, width, height, static, roll, dim)
 
+    # The craft, composited over everything drawn so far - the board included.
+    for at, (mask, rgb) in craft(width, height, t, roll).items():
+        r, c = divmod(at, width)
+        grid[r][c], tone[r][c] = chr(0x2800 + mask), rgb if colour else None
+
     # The heading tape: a degree a column, a tick each 5, each 10 labelled.
     span = min(61, width - 24) | 1
     left = (width - span) // 2
