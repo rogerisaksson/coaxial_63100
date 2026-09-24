@@ -157,7 +157,7 @@ print('scan: DC link %d mV, NTC %.2f C, afe_on %s'
            'answers for everybody. Then `second.close()`: a close disarms what '
            'its own session armed, and otherwise only when nobody else is '
            'left, because the stage is the board\'s and not a session\'s.'),
-        code('''second = Coaxial63100(port=PORT, simulated_device=SIMULATED).open()
+        code('''second = Coaxial63100(port=PORT, device=SIMULATED).open()
 print(second)
 print('the rail, seen from second:', second.afe.state())
 shared = second.afe.is_on()

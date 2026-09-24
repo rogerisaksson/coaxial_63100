@@ -262,20 +262,20 @@ def preflight(rig, args):
         path = args.motor if os.path.exists(args.motor) else os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             'motors', args.motor)
-        got = d.profile(path)
+        got = d.configure(profile=path)['profile']
         say('ok', 'motor', got['name'])
     drive_params, model_params = parameters(args)
     if drive_params:
-        d.set_params(**drive_params)
+        d.configure(**drive_params)
     if model_params:
-        d.model_param(**model_params)
+        d.model.configure(**model_params)
     params = d.params()
     ts = d.state()['ts'] or 20e-6
     # Injection on from the start: at standstill it is the only innovation
     # (without it the estimate ran 71 degrees from the model's rotor).
-    d.set_params(drv_inj_mv=args.v_inj,
-                 drv_eps_gain_ua_per_rad=eps_gain(params, args.v_inj, ts))
-    d.source(args.source)
+    d.configure(drv_inj_mv=args.v_inj,
+                drv_eps_gain_ua_per_rad=eps_gain(params, args.v_inj, ts))
+    d.configure(source=args.source)
     say('ok', 'source', '%s%s' % (args.source, ' - the board integrates its own '
                                   'rotor' if args.source == 'model' else ''))
     say('ok', 'trip', '%.1f A clamp, %.1f A trip, rating %.0f'
@@ -355,7 +355,7 @@ def _link(args):
     """Open the board and put the front end where the source needs it."""
     rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
                    power_afe=False,
-                   simulated_device=bool(args.simulated))
+                   device=bool(args.simulated))
     if rig is None:
         return None, None, None, None
     origin, board = rig.origin, rig.board
@@ -431,7 +431,7 @@ def main(argv=None):
             'interlock': args.interlock,
             'i_max': params['drv_i_max_ma'], 'theta0': args.theta0 or 0.0,
             'params': params, 'said': '', 'state': board.drive.state(),
-            'chain': board.drive.observers(),
+            'chain': board.drive.observers.read(),
             'gate': board.gate_drivers.state(), 'model': None,
             'thermal': None, 'budget': None, 'ident': None}
     if args.start:
@@ -450,14 +450,14 @@ def main(argv=None):
         with suppress(RigError):
             view['state'] = board.drive.state()
             view['gate'] = board.gate_drivers.state()
-            view['model'] = (board.drive.model()
+            view['model'] = (board.drive.model.read()
                              if view['source'] == 'model' else None)
             # ONE REPLY FOR THE DIAL AND THE MARK.
             if view['model']:
                 view['state']['theta_hat'] = view['model']['theta_hat']
                 view['state']['omega_hat'] = view['model']['omega_hat']
             # The chain: a second answer to the angle, no shaft sensor behind it.
-            view['chain'] = board.drive.observers()
+            view['chain'] = board.drive.observers.read()
             travel(view)
             turn_the_handle(rig, view)
             if time.time() - thermal_at[0] > thermal_every:
@@ -482,7 +482,7 @@ def main(argv=None):
         try:
             board.drive.off()
             done.append(('drive', 'off, the compares released'))
-            board.drive.source('adc')
+            board.drive.configure(source='adc')
             if rig.gates.is_on():
                 rig.gates.off()
                 done.append(('gate stage', 'disarmed, MOE clear'))

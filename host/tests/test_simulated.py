@@ -1043,7 +1043,7 @@ def test_gate_driver_arming(report):
     # power_afe SAID, not inherited: the interlock refusal under test reports
     # the volts it read, and with the rail down it refuses for the rail instead
     # and never reads them.
-    rig = Coaxial63100(simulated_device=True, power_afe=True).open()
+    rig = Coaxial63100(device=True, power_afe=True).open()
     try:
         report.check('nothing is armed on the way in',
                      rig.gates.is_on() is False, rig.gates.is_on())
@@ -1183,7 +1183,7 @@ def test_dead_time(report):
     # power_afe SAID, not inherited: the interlock refusal under test reports
     # the volts it read, and with the rail down it refuses for the rail instead
     # and never reads them.
-    rig = Coaxial63100(simulated_device=True, power_afe=True).open()
+    rig = Coaxial63100(device=True, power_afe=True).open()
     try:
         gates = rig.board.gate_drivers
         at_rest = gates.dead_time()
@@ -1252,22 +1252,22 @@ def test_virtual_rotor(report):
     import time
     from coaxial.simulated import SimulatedDrive
 
-    still = SimulatedDrive().model()
+    still = SimulatedDrive().model.read()
     report.check('the ADC source keeps its still rotor',
                  still['theta'] == 0.0 and 'theta_hat' not in still, still)
 
     def spin(iq, l2, seconds=0.02):
         # SENSORLESS is the torque path: iq commutated on the rotor.
         drive = SimulatedDrive()
-        drive.source('model')
-        drive.model_reset()
-        drive.set_params(drv_l2_milli=l2)
-        drive.setpoint(iq_ref=iq)
+        drive.configure(source='model')
+        drive.model.reset()
+        drive.configure(drv_l2_milli=l2)
+        drive.write(iq_ref=iq)
         drive._mode = 'sensorless'
         time.sleep(seconds)
-        drive.model()
+        drive.model.read()
         time.sleep(seconds)
-        return drive.model()
+        return drive.model.read()
 
     fast = spin(2.0, 100.0)
     report.check('torque turns the virtual rotor', fast['omega'] > 100.0,
@@ -1287,15 +1287,15 @@ def test_virtual_rotor(report):
     report.check('the lag goes as 1 / wn^2', 15.0 < ratio < 40.0, ratio)
 
     turning = SimulatedDrive()
-    turning.source('model')
-    turning.setpoint(iq_ref=2.0)
+    turning.configure(source='model')
+    turning.write(iq_ref=2.0)
     turning._mode = 'hold'
     time.sleep(0.05)
-    turning.model()
-    turning.model_reset()
-    report.check('model_reset puts the rotor back at rest',
-                 abs(turning.model()['omega']) < 1.0,
-                 turning.model()['omega'])
+    turning.model.read()
+    turning.model.reset()
+    report.check('model.reset() puts the rotor back at rest',
+                 abs(turning.model.read()['omega']) < 1.0,
+                 turning.model.read()['omega'])
 
 
 def test_sto_probe(report):
@@ -1304,7 +1304,7 @@ def test_sto_probe(report):
     chain fields, the keepalive pulses a second - and judges nothing."""
     from tools.bench import sto_probe
     from coaxial import Coaxial63100
-    rig = Coaxial63100(simulated_device=True, power_afe=True).open()
+    rig = Coaxial63100(device=True, power_afe=True).open()
     try:
         first = sto_probe.probe(rig)
         second = sto_probe.probe(rig, first)
@@ -1382,7 +1382,7 @@ def test_thermal_identification(report):
     from coaxial.model import thermal
     from coaxial.simulated.thermal.observer import SimulatedThermal
 
-    rig = Coaxial63100(simulated_device=True, power_afe=False).open()
+    rig = Coaxial63100(device=True, power_afe=False).open()
     try:
         got = rig.thermal.identification()
         report.check('the identification has the wire\'s fields, and the '
@@ -1768,7 +1768,7 @@ def test_closing_leaves_another_session_armed(report):
     from coaxial import Coaxial63100
 
     def rig_that_thinks(others):
-        rig = Coaxial63100(simulated_device=True, power_afe=False).open()
+        rig = Coaxial63100(device=True, power_afe=False).open()
         rig._others_here = lambda: others
         return rig
 

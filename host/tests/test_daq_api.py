@@ -27,7 +27,7 @@ class Report:
 @contextlib.contextmanager
 def opened(**kw):
     """A stand-in session with the front end up, closed on the way out."""
-    device = Coaxial63100(simulated_device=True, **kw).open()
+    device = Coaxial63100(device=True, **kw).open()
     try:
         device.set_time_from_pc()
         device.daq.enable()
@@ -346,7 +346,7 @@ def test_fanout_ring(report):
 # -- the front end and the record it is scaled by ----------------------------
 
 def test_enable_is_session_scoped(report):
-    device = Coaxial63100(simulated_device=True).open()
+    device = Coaxial63100(device=True).open()
     board = device.board
     report.check('the rail is down before anyone asks', not board.afe.is_on())
     device.daq.enable()
@@ -359,7 +359,7 @@ def test_enable_is_session_scoped(report):
 
 
 def test_close_stops_the_reader(report):
-    device = Coaxial63100(simulated_device=True).open()
+    device = Coaxial63100(device=True).open()
     device.daq.enable()
     device.daq.configure('phaseU', sample_rate=1000)
     device.daq.start()
@@ -451,7 +451,7 @@ def test_frames_rolls_a_window(report):
 
 def test_open_is_idempotent(report):
     """open() twice is one session."""
-    device = Coaxial63100(simulated_device=True).open()
+    device = Coaxial63100(device=True).open()
     try:
         board = device.board
         device.daq.open()
@@ -482,7 +482,7 @@ def test_sensor_fields_ride_the_record(report):
     """MINOR 7: snapshots beside the sums - the shaft angle in the same
     record as the current that moved it, off the SAME virtual rotor."""
     with opened(power_afe=False) as device:
-        device.board.drive.source('model')
+        device.board.drive.configure(source='model')
         device.gates.on(bypass_sto=True, ignore_interlock=True)
         daq = device.daq
         rows = {r['name']: r for r in daq.catalogue()}
@@ -492,9 +492,9 @@ def test_sensor_fields_ride_the_record(report):
         daq.configure('Phase U', 'shaft angle', sample_rate=100,
                       digital=False)
         d = device.drive
-        d.setpoint(id_ref=2.0, iq_ref=0.0, theta=0.0, omega_target=200.0,
-                   accel=400.0)
-        d.mode('hold')
+        d.write(id_ref=2.0, iq_ref=0.0, theta=0.0, omega_target=200.0,
+                accel=400.0)
+        d.hold()
         daq.start()
         time.sleep(0.8)
         recs = list(daq.read(-1))

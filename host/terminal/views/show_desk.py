@@ -63,7 +63,7 @@ def main(argv=None):
     # start the task at all, and that refusal used to escape as a traceback
     # rather than a said line.
     rig = open_rig('LINKING CONVERTERS', port=args.port, power_afe=True,
-                   simulated_device=bool(args.simulated))
+                   device=bool(args.simulated))
     if rig is None:
         return 1
     origin = rig.origin
@@ -118,19 +118,19 @@ def demo_machine(rig, origin):
     rig.board.gate_drivers.configure(bypass_break=True)
     rig.board.gate_drivers.on()
     drive = rig.drive
-    drive.source('model')
+    drive.configure(source='model')
     # The stand-in's record clamps the current at 5 A; the meters are 100 A
     # wide.
-    drive.set_params(drv_i_max_ma=DEMO_AMPS)
-    drive.setpoint(id_ref=0.0, iq_ref=0.0, theta=0.0,
-                   omega_target=2.0 * math.pi * DEMO_HZ)
-    drive.mode('hold')
+    drive.configure(drv_i_max_ma=DEMO_AMPS)
+    drive.write(id_ref=0.0, iq_ref=0.0, theta=0.0,
+                omega_target=2.0 * math.pi * DEMO_HZ)
+    drive.hold()
     began = time.time()
 
     def step(now):
         phase = (now - began) / DEMO_S
-        drive.setpoint(id_ref=DEMO_AMPS * 0.5
-                       * (1.0 - math.cos(2.0 * math.pi * phase)))
+        drive.write(id_ref=DEMO_AMPS * 0.5
+                    * (1.0 - math.cos(2.0 * math.pi * phase)))
     return step
 
 

@@ -362,7 +362,7 @@ def launch(args):
     from terminal.ui.stage import boot
     from terminal.ui.screen import open_rig
     rig = open_rig('LINKING BNO085', port=args.port, power_afe=True,
-                   simulated_device=bool(args.simulated))
+                   device=bool(args.simulated))
     if rig is None:
         return None
     with boot('BRINGING THE PART UP') as step:

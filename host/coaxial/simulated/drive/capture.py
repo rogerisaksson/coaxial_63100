@@ -3,7 +3,6 @@ import math
 import random
 import time
 
-from coaxial.devices.drive import run_moments
 from coaxial.model.sensorless import HALF_SQRT3
 from coaxial.simulated.values import DCBUS_V, NOMINAL
 
@@ -30,7 +29,7 @@ class DriveCapture:
     #: The shunt chains' gain mismatch the commissioning has to find.
     GAIN = (1.0, 1.01, 0.995)
 
-    def window(self):
+    def _take_window(self):
         self._converge()
         n = max(1, self._periods_since(self._window_at))
         self._window_at = time.time()
@@ -72,11 +71,11 @@ class DriveCapture:
         x = (self._trigger - self.PERIOD / 2.0) / (self.PERIOD / 4.0)
         return 90.0 * math.exp(-x * x)
 
-    def moments_arm(self, periods):
+    def _arm_moments(self, periods):
         self._mom = (time.time(), int(periods))
         return True
 
-    def moments(self):
+    def _read_moments(self):
         if self._mom is None:
             n, want = 0, 0
         else:
@@ -95,9 +94,6 @@ class DriveCapture:
         return {'done': bool(want) and n >= want, 'n': n, 'want': want,
                 'trigger': self._trigger, 'channels': channels}
 
-    def moments_run(self, periods, timeout=5.0, poll=0.02):
-        return run_moments(self, periods, timeout, poll)
-
     def reload(self):
         return True
 
@@ -105,6 +101,6 @@ class DriveCapture:
         self._cycles_max = 0
         return True
 
-    def trigger(self, ticks):
+    def _move_trigger(self, ticks):
         """The stand-in's sample point, moved by its gate drivers' trigger()."""
         self._trigger = int(ticks)

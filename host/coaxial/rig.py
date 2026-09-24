@@ -113,14 +113,15 @@ class Coaxial63100(Task, TaskStream, Acquisition):
     """One board, one acquisition task, one clock."""
 
     def __init__(self, port='COM4', baud=115200, unit=1, link='auto',
-                 simulated_device=False, power_afe=False, own_image=True):
-        """Say where the board is. Nothing is opened until `open()`, which
-        makes a real board run this host's own build (`own_image`)."""
+                 device=False, power_afe=False, own_image=True):
+        """Say where the board is: `port`, or `device=True` for the stand-in. Nothing
+        is opened until `open()`, which makes a real board run this host's own build
+        (`own_image`)."""
         self.port = port
         self.baud = baud
         self.unit = unit
         self.link = link
-        self.simulated_device = simulated_device
+        self._stand_in = device
         self.power_afe = power_afe
         self.own_image = own_image
         #: (path of this host's build, whether open() loaded it), or None.
@@ -136,7 +137,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         # like `device.daq`, opened lazily by its factories.
         self.motion = Motion(self)
         self._origin = None
-        self.simulated = simulated_device
+        self.simulated = device
         self.layout = None
         self.sync = None
         # The stamps' wrap count, carried from block to block - `_epoch` - and
@@ -164,7 +165,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         if self.session is not None:
             return self
 
-        simulated = True if self.simulated_device else (
+        simulated = True if self._stand_in else (
             None if self.link == 'auto' else False)
 
         self.session, self._origin = sessionmod.open_session(

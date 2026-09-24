@@ -202,7 +202,7 @@ class SimulatedGateDrivers(GateControl):
     def _trigger(self, ticks):
         self._at_trigger = min(int(ticks), self.PERIOD - 1)
         if self._drive is not None:
-            self._drive.trigger(self._at_trigger)
+            self._drive._move_trigger(self._at_trigger)
         return self._at_trigger
 
     def clear(self):

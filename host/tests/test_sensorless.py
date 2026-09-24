@@ -238,7 +238,7 @@ def test_fits(r):
 
 
 def test_commissioning_refuses_to_switch(r):
-    rig = Coaxial63100(simulated_device=True, power_afe=True).open()
+    rig = Coaxial63100(device=True, power_afe=True).open()
     try:
         c = Commissioning(rig)
         got = c.afe_noise(zero_vector=False)
@@ -260,7 +260,7 @@ def test_commissioning_refuses_to_switch(r):
 
 def test_commissioning_recovers_the_stand_in(r):
     """Every step against the stand-in's known constants."""
-    rig = Coaxial63100(simulated_device=True, power_afe=True).open()
+    rig = Coaxial63100(device=True, power_afe=True).open()
     S = SimulatedDrive
     try:
         c = Commissioning(rig, arm=dict(bypass_sto=True, ignore_interlock=True))
@@ -331,10 +331,10 @@ def test_autodetect_recovers_each_machine(r):
             '%d profiles' % len(profiles))
     for path in profiles:
         want = json.load(io.open(path, encoding='utf-8'))
-        rig = Coaxial63100(simulated_device=True, power_afe=True).open()
+        rig = Coaxial63100(device=True, power_afe=True).open()
         try:
-            rig.board.drive.profile(path)
-            rig.board.drive.source('model')
+            rig.board.drive.configure(profile=path)
+            rig.board.drive.configure(source='model')
             got = rig.observer.autodetect(
                 arm=dict(bypass_sto=True, ignore_interlock=True),
                 slots=want.get('slots'))
@@ -361,10 +361,10 @@ def test_motion(r):
     virtual rotor - the shaft sensor reads what the drive torques."""
     from coaxial import Coaxial63100
     from coaxial.errors import RigError
-    rig = Coaxial63100(port='COM99', simulated_device=True,
+    rig = Coaxial63100(port='COM99', device=True,
                        power_afe=False).open()
     try:
-        rig.drive.source('model')
+        rig.drive.configure(source='model')
         try:
             rig.motion.stepper(amps=2.0)
             r.check('motion refuses an unarmed stage', False)
@@ -393,15 +393,15 @@ def test_motion(r):
 
         # THE DANGEROUS PATHS: what a block does when the plant misbehaves.
         with rig.motion.servo(amps=3.0, settle=0.15) as s:
-            rig.drive.model_param(load=0.06)     # a load pulse winds it
+            rig.drive.model.configure(load=0.06)     # a load pulse winds it
             time.sleep(0.3)
             sagged = s._measure()
-            rig.drive.model_param(load=0.0)
+            rig.drive.model.configure(load=0.0)
             got = s.to(0.0, tol=0.8)
             r.check('a load pulse sags the hold and the servo takes it back',
                     sagged < -1.0 and abs(got) <= 0.8, (sagged, got))
             # PAST 3 A OF HOLDING TORQUE BY A MARGIN THAT NO TIMING CAN CLOSE.
-            rig.drive.model_param(load=1.2)
+            rig.drive.model.configure(load=1.2)
             try:
                 got = s.to(30.0, tol=0.5, tries=2)
                 # WITH WHAT IT SAW.
@@ -411,7 +411,7 @@ def test_motion(r):
             except RigError as exc:
                 r.check('an overpowered servo raises, not returns',
                         'holding torque' in str(exc), exc)
-            rig.drive.model_param(load=0.0)
+            rig.drive.model.configure(load=0.0)
         sim = stand_in_drive(rig)
         try:
             with rig.motion.velocity(amps=4.0, hz=2.0) as v:
@@ -429,7 +429,7 @@ def test_motion(r):
         # The aborted block leaves a coasting flywheel (tau = j/b is seconds);
         # the next check wants a known rotor, as a bench block would brake
         # first.
-        rig.drive.model_reset()
+        rig.drive.model.reset()
 
         # ONE ROTOR, TWO THREADS.
         import threading

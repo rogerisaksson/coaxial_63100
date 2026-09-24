@@ -334,19 +334,19 @@ print('%d runs in %.1f s, %d tripped the stage at i_trip %.0f A; '
         md('`design` turns the winning knobs into the firmware\'s parameters - '
            'kp and ki from the loop bandwidth, l1 and l2 from the PLL\'s, the '
            'injection volts and the demodulator gain, the blend band. '
-           '`set_params` writes them into the record in SI and reloads, and '
+           '`configure` writes them into the record in SI and reloads, and '
            'answers what the record holds after the wire\'s rounding; the '
            'closed-form value stands beside each for comparison. Then `verify` '
            'again, under the searched tune.'),
         code('''tune = mc.design({k: float(best[k]) for k in mc.KNOBS}, vdc, identified, i_max, i_trip, 1.0)
-written = device.drive.set_params(
+written = device.drive.configure(
     motor_r_uohm=identified.r, motor_ld_nh=identified.ld, motor_lq_nh=identified.lq,
     motor_lambda_uvs=identified.lam,
     drv_kp_mv_per_a=tune['kp'], drv_ki_v_per_as=tune['ki'],
     drv_l1_milli=tune['l1'], drv_l2_milli=tune['l2'],
     drv_inj_mv=tune['inj_volts'], drv_inj_periods=tune['inj_periods'],
     drv_eps_gain_ua_per_rad=tune['eps_gain'],
-    drv_w_lo_mrad_s=tune['w_lo'], drv_w_hi_mrad_s=tune['w_hi'])
+    drv_w_lo_mrad_s=tune['w_lo'], drv_w_hi_mrad_s=tune['w_hi'])['params']
 print('%-24s %-12s %s' % ('written for %.1f V' % vdc, 'searched', 'closed form'))
 for name, value in written.items():
     print('%-24s %-12.6g %s' % (name, value, '%.6g' % closed[name] if name in closed else '-'))
@@ -457,7 +457,7 @@ if truth:
        'five link voltages. `design` turns the winning knobs into the '
        'firmware\'s parameters - kp and ki from the loop bandwidth, l1 and l2 '
        'from the PLL\'s, the injection volts and the demodulator gain, the '
-       'blend band - and `set_params` writes them in SI and reloads. On the '
+       'blend band - and `configure` writes them in SI and reloads. On the '
        'stand-in the innovation\'s spread is its noise over the demodulator '
        'gain and the periods averaged, so the fall from 11.2 to 1.7 degrees is '
        'the arithmetic of a louder, longer injection; on a board it is the '

@@ -31,11 +31,11 @@ def start(rig, view):
     """Enter the chosen mode with the setpoints the view holds."""
     d = rig.board.drive
     if view['mode'] == 'sensorless' and view['source'] == 'model':
-        d.set_theta(d.model()['theta'] + 0.3)
-    d.setpoint(iq_ref=view['iq'], id_ref=view['id'], theta=0.0,
-               omega_target=view['omega'] if view['mode'] == 'hold' else 0.0,
-               accel=view['accel'], vd=view['vd'], vq=0.0)
-    d.mode(view['mode'])
+        d.set_theta(d.model.read()['theta'] + 0.3)
+    d.write(iq_ref=view['iq'], id_ref=view['id'], theta=0.0,
+            omega_target=view['omega'] if view['mode'] == 'hold' else 0.0,
+            accel=view['accel'], vd=view['vd'], vq=0.0)
+    d.on(view['mode'])
     return 'running %s' % view['mode']
 
 
@@ -55,20 +55,20 @@ def _key_mode(rig, d, key, view):
 
 def _key_source(rig, d, key, view):
     view['source'] = 'adc' if view['source'] == 'model' else 'model'
-    d.source(view['source'])
+    d.configure(source=view['source'])
     return 'source %s' % view['source']
 
 
 def _key_inject(rig, d, key, view):
     view['inject'] = not view['inject']
-    d.set_params(drv_inj_mv=view['v_inj'] if view['inject'] else 0.0)
+    d.configure(drv_inj_mv=view['v_inj'] if view['inject'] else 0.0)
     return 'injection %s' % ('on' if view['inject'] else 'off')
 
 
 def _key_iq(rig, d, key, view):
     view['iq'] += view['step'] if key in '+=' else -view['step']
     view['iq'] = max(-view['i_max'], min(view['i_max'], view['iq']))
-    d.setpoint(iq_ref=view['iq'])
+    d.write(iq_ref=view['iq'])
     return 'iq_ref %+.2f A' % view['iq']
 
 
@@ -81,7 +81,7 @@ def _key_step(rig, d, key, view):
 def _key_omega(rig, d, key, view):
     view['omega'] = max(0.0, min(LIMITS['omega'][1],
                                  view['omega'] + (50.0 if key == 'o' else -50.0)))
-    d.setpoint(omega_target=view['omega'] if view['mode'] == 'hold' else 0.0)
+    d.write(omega_target=view['omega'] if view['mode'] == 'hold' else 0.0)
     return 'I/f target %.0f rad/s' % view['omega']
 
 
@@ -96,7 +96,7 @@ def _key_spin(rig, d, key, view):
     view['spin'] = not view['spin']
     view['spin_at'] = time.time()
     if not view['spin']:
-        d.setpoint(omega_target=0.0)
+        d.write(omega_target=0.0)
     return ('speed loop running - down through the floor and back'
             if view['spin'] else 'speed loop off')
 
@@ -106,7 +106,7 @@ def _key_load(rig, d, key, view):
     view['load_at'] = time.time()
     view['load_amps'] = view['load_written'] = 0.0
     if not view['load']:
-        d.setpoint(id_ref=0.0)
+        d.write(id_ref=0.0)
     return ('load loop running - d current in steps'
             if view['load'] else 'load loop off')
 
@@ -118,7 +118,7 @@ def _key_tare(rig, d, key, view):
 
 
 def _key_reset(rig, d, key, view):
-    d.model_reset()
+    d.model.reset()
     d.set_theta(view['theta0'] + 0.3)
     return 'model rotor reset, theta_hat 0.3 rad off it'
 

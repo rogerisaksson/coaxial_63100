@@ -61,21 +61,21 @@ class _Mode:
         while abs(theta_e - self._theta_e) > step:
             self._check()
             self._theta_e += math.copysign(step, theta_e - self._theta_e)
-            self.drive.setpoint(theta=self._theta_e)
+            self.drive.write(theta=self._theta_e)
             time.sleep(pause)
         self._theta_e = theta_e
-        self.drive.setpoint(theta=self._theta_e)
+        self.drive.write(theta=self._theta_e)
 
     def _energize(self, amps, steps=6, settle=0.05):
         """HOLD, with the current RAMPED - a stepper driver's soft energize."""
         self._theta_e = self.drive.state()['theta_hat']
-        self.drive.setpoint(id_ref=amps / steps, iq_ref=0.0,
-                            theta=self._theta_e, omega_target=0.0)
-        self.drive.mode('hold')
+        self.drive.write(id_ref=amps / steps, iq_ref=0.0,
+                         theta=self._theta_e, omega_target=0.0)
+        self.drive.hold()
         for k in range(2, steps + 1):
             time.sleep(settle)
             self._check()              # a trip mid-ramp must not be
-            self.drive.setpoint(id_ref=amps * k / steps)   # stepped past
+            self.drive.write(id_ref=amps * k / steps)   # stepped past
         time.sleep(2.0 * settle)
 
 
@@ -226,7 +226,7 @@ class Velocity(_Mode):
 
     #: `load_k` is the LOOP's knowledge - the propeller law its
     #: feedforward leans on. It moves no air: on the stand-in the plant's
-    #: drag is fed separately (`model_param(load=...)` from a `watch`,
+    #: drag is fed separately (`model.configure(load=...)` from a `watch`,
     #: as the notebooks do), and at the bench the air is the air.
     def __init__(self, device, amps, hz=3.0, j=2e-5, b=1e-5, load_k=0.0,
                  rate_hz=25.0):
@@ -242,8 +242,8 @@ class Velocity(_Mode):
         self.pause = 1.0 / float(rate_hz)
 
     def _start(self):
-        self.drive.setpoint(id_ref=0.0, iq_ref=0.0)
-        self.drive.mode('sensorless')
+        self.drive.write(id_ref=0.0, iq_ref=0.0)
+        self.drive.on('sensorless')
         time.sleep(0.2)                        # the injection lock
 
     @property
@@ -279,7 +279,7 @@ class Velocity(_Mode):
                                'is down; the loop is over.' % st['fault'])
             self.bus.w = st['omega_hat'] / self.poles
             self.loop(self.bus, dt)
-            self.drive.setpoint(iq_ref=self.bus.iq_ref)
+            self.drive.write(iq_ref=self.bus.iq_ref)
             if watch is not None:
                 watch(self)
             time.sleep(self.pause)

@@ -90,7 +90,7 @@ def main(argv=None):
     names = args.channels.split(',')
     try:
         with Coaxial63100(port=args.port, power_afe=True,
-                          simulated_device=args.simulated) as rig:
+                          device=args.simulated) as rig:
             print('link: %s' % rig.origin.label)
             daq = rig.board.daq                # the ladder is the board's
             daq.stop()                         # a dead session's task refuses the rest

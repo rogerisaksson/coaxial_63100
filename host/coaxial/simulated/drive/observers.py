@@ -59,10 +59,10 @@ class DriveObservers:
         self._obs_synced = self._mode_at
 
     @_rotor_locked
-    def observers(self):
+    def _read_observers(self):
         """The chain the firmware runs, stepped on this stand-in's rotor."""
         if self._source == 'model':
-            self.model()
+            self._read_model()
         dual, flux = self._observer_chain()
         # THE HAND-OVER, AND THE ONE THE STAND-IN NEEDS AND THE BOARD DOES NOT.
         if (self._obs_synced != self._mode_at

@@ -64,16 +64,16 @@ def heavy_start(rig, view):
     if left > BURST_HOLD_S:
         # Breaking away: everything the clamp allows, at the top of the speed
         # range, and no load in the way of it.
-        drive.model_param(load=0.0)
-        drive.setpoint(id_ref=0.0, iq_ref=BURST_A, accel=BURST_ACCEL,
-                       omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
+        drive.model.configure(load=0.0)
+        drive.write(id_ref=0.0, iq_ref=BURST_A, accel=BURST_ACCEL,
+                    omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
         view['iq'] = BURST_A
         return
     # Burning: half the no-load speed, and a load to make the volts and the
     # amps happen at the same time.
-    drive.model_param(load=BURST_LOAD_NM)
-    drive.setpoint(id_ref=0.0, iq_ref=BURST_HOLD_A, accel=BURST_ACCEL,
-                   omega_target=no_load_rpm(view) / 120.0 * math.tau * pairs)
+    drive.model.configure(load=BURST_LOAD_NM)
+    drive.write(id_ref=0.0, iq_ref=BURST_HOLD_A, accel=BURST_ACCEL,
+                omega_target=no_load_rpm(view) / 120.0 * math.tau * pairs)
     view['iq'] = BURST_HOLD_A
 
 
@@ -94,8 +94,8 @@ def turn_the_handle(rig, view):
     if view['bursting']:
         view['bursting'] = False
         view['leaning'] = False
-        rig.board.drive.model_param(load=0.0)
-        rig.board.drive.setpoint(id_ref=0.0, iq_ref=view['iq'])
+        rig.board.drive.model.configure(load=0.0)
+        rig.board.drive.write(id_ref=0.0, iq_ref=view['iq'])
     if view['load']:
         load_loop(rig, view)
     if view['spin']:
@@ -115,7 +115,7 @@ def load_loop(rig, view):
     # one a frame against a board is the link's whole budget.
     if abs(view['load_amps'] - view['load_written']) >= LOAD_GRAIN:
         view['load_written'] = view['load_amps']
-        rig.board.drive.setpoint(id_ref=view['load_amps'])
+        rig.board.drive.write(id_ref=view['load_amps'])
 
 
 #: The demo cycle as fractions of SWEEP_S: hold, rock, send at the clamp,
@@ -154,11 +154,11 @@ def sweep(rig, view):
     if stage != view['stage']:
         view['stage'] = stage
         view['leaning'] = False
-        drive.model_param(load=0.0)
-        drive.mode('hold' if stage == 'hold' else 'sensorless')
+        drive.model.configure(load=0.0)
+        drive.hold() if stage == 'hold' else drive.on('sensorless')
     if stage == 'hold':
-        drive.setpoint(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0,
-                       theta=0.0)
+        drive.write(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0,
+                    theta=0.0)
         view['iq'] = 0.0
         return
     if stage == 'rock':
@@ -166,12 +166,12 @@ def sweep(rig, view):
         # side and it never left 25 rpm.
         target = ROCK_RPM * math.sin(math.tau * into)
         view['iq'] = _toward(view, target, clamp)
-        drive.setpoint(id_ref=0.0, iq_ref=view['iq'],
-                       omega_target=abs(target) / 60.0 * math.tau * pairs)
+        drive.write(id_ref=0.0, iq_ref=view['iq'],
+                    omega_target=abs(target) / 60.0 * math.tau * pairs)
         return
     if stage == 'send':
-        drive.setpoint(id_ref=0.0, iq_ref=clamp, accel=BURST_ACCEL,
-                       omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
+        drive.write(id_ref=0.0, iq_ref=clamp, accel=BURST_ACCEL,
+                    omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
         view['iq'] = clamp
         return
     # BRAKE: the same current the other way until it is stopped, then let it
@@ -179,7 +179,7 @@ def sweep(rig, view):
     turning = (view.get('chain') or {}).get('omega') or 0.0
     share = min(1.0, abs(turning) / BRAKE_FULL_RAD_S)
     view['iq'] = -math.copysign(clamp * share, turning) if share > 0.03 else 0.0
-    drive.setpoint(id_ref=0.0, iq_ref=view['iq'], omega_target=0.0)
+    drive.write(id_ref=0.0, iq_ref=view['iq'], omega_target=0.0)
 
 
 def _toward(view, rpm, clamp):

@@ -310,7 +310,7 @@ def main(argv=None):
     report = Report()
     try:
         with Coaxial63100(port=args.port, power_afe=True,
-                          simulated_device=args.simulated) as rig:
+                          device=args.simulated) as rig:
             describe(rig, chain)
             for check in PASSES:
                 check(rig.daq, chain, args, report)

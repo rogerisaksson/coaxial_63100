@@ -146,10 +146,10 @@ daq.configure('phaseU', 'phaseV', 'phaseW', digital=True, sample_rate=50)
 print(daq.channel_names())
 print(device.calibration.tare('phaseU', 'phaseV', 'phaseW'))
 drive = device.drive
-drive.source('model')
+drive.configure(source='model')
 device.gates.on(bypass_sto=True, ignore_interlock=True)
-drive.setpoint(id_ref=4.0, iq_ref=0.0, theta=0.0, omega_target=2 * math.pi * 3.5)
-drive.mode('hold')'''),
+drive.write(id_ref=4.0, iq_ref=0.0, theta=0.0, omega_target=2 * math.pi * 3.5)
+drive.hold()'''),
         code('''from IPython.display import clear_output
 
 daq.start()
@@ -172,7 +172,7 @@ live = daq.buffered
 daq.stop()
 drive.off()
 device.gates.off()
-drive.source('adc')
+drive.configure(source='adc')
 whole = daq.history(scaled=True)
 print(frames, 'frames drawn;', live)
 print(len(whole), 'records held,', round(-whole.index.min(), 2), 's back')'''),

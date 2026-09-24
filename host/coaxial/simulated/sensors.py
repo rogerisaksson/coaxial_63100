@@ -167,7 +167,7 @@ class SimulatedAngle(AngleSensor):
         """
         drive = self.drive
         if drive is not None and drive._source == 'model':
-            drive.model()                      # advance to now
+            drive.model.read()                      # advance to now
             return int(drive._mech
                        / (2.0 * math.pi) * 4096.0) % 4096
         return int(((time.monotonic() - self._at) / 12.0) * 4096.0) % 4096

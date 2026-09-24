@@ -23,7 +23,7 @@ page.
 
 ```python
 from coaxial import Coaxial63100
-with Coaxial63100(port='COM4') as device:          # simulated_device=True: no cable
+with Coaxial63100(port='COM4') as device:          # device=True: no cable
     daq = device.daq
     daq.open(); daq.enable(); device.set_time_from_pc()
     daq.configure('phaseU', 'NTC')                  # names in any spelling

@@ -8,7 +8,7 @@ PORT = 'COM4'"""
 #: drive and says so.
 OPEN = """from coaxial import Coaxial63100
 
-device = Coaxial63100(port=PORT, simulated_device=SIMULATED).open()
+device = Coaxial63100(port=PORT, device=SIMULATED).open()
 print(device)"""
 
 #: The device put back as found: the port, and the supply if this

@@ -105,7 +105,7 @@ def main():
     # conditionally, a few lines down.
     from terminal.ui.stage import boot
     with (boot('LINKING SESSION') as ready,
-          Coaxial63100(port=a.port, simulated_device=a.simulated,
+          Coaxial63100(port=a.port, device=a.simulated,
                        power_afe=False) as rig):
         ready()
         say('ok' if rig.origin.real else 'warn', 'link', rig.origin.label)

@@ -101,7 +101,7 @@ def main(argv=None):
                         help='seconds between rows')
     args = parser.parse_args(argv)
 
-    rig = Coaxial63100(port=args.port, simulated_device=args.simulated,
+    rig = Coaxial63100(port=args.port, device=args.simulated,
                        power_afe=True).open()
     try:
         print('%s - %s' % (rig.origin.label, 'live' if rig.origin.real

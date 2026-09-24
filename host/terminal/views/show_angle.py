@@ -211,7 +211,7 @@ def main(argv=None):
     # flipping the rail, and this view inherited it - the part it exists to
     # show is AFE-powered, so it asks by name and puts it back.
     rig = open_rig('LINKING A1335', port=args.port, power_afe=True,
-                   simulated_device=bool(args.simulated))
+                   device=bool(args.simulated))
     if rig is None:
         return 1
     origin, board = rig.origin, rig.board

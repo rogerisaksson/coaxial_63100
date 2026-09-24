@@ -156,11 +156,11 @@ class Propeller:
     def on_model(self, drive, log=None):
         """A `watch` for `Velocity.rpm` that puts this propeller on the
         STAND-IN'S rotor: each pass it reads the model's speed and feeds
-        the load this law gives at it to `model_param`.
+        the load this law gives at it to `model.configure`.
         """
         def watch(verb):
-            wm = drive.model()['omega'] / verb.poles
-            drive.model_param(load=self.torque(wm * verb.poles, verb.poles))
+            wm = drive.model.read()['omega'] / verb.poles
+            drive.model.configure(load=self.torque(wm * verb.poles, verb.poles))
             if log is not None:
                 log.append((len(log) * verb.pause, verb.bus.w_ref / RAD_S_PER_RPM,
                             verb.rpm_now, verb.bus.iq_ref))

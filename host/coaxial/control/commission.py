@@ -127,14 +127,14 @@ class Commissioning:
     def _window(self, settle, seconds):
         """A window over `seconds`, after `settle` seconds discarded."""
         time.sleep(settle)
-        self.drive.window()
+        self.drive.read()
         time.sleep(seconds)
-        return self.drive.window()
+        return self.drive.read()
 
     def _hold(self, settle=0.05, seconds=0.1, **setpoints):
         """HOLD with these setpoints, and the window it produced."""
-        self.drive.setpoint(**setpoints)
-        self.drive.mode('hold')
+        self.drive.write(**setpoints)
+        self.drive.hold()
         return self._window(settle, seconds)
 
     # -- step 1: the AFE --------------------------------------------------
@@ -157,7 +157,7 @@ class Commissioning:
         time.sleep(0.3)
         gd = self.rig.board.gate_drivers
         gd.configure(sync=True)
-        off = self._noise_rows(self.drive.moments_run(periods))
+        off = self._noise_rows(self.drive.moments.read(periods))
         out = {'gates_off': off, 'periods': periods,
                'trigger': gd.state()['trigger']}
         if zero_vector:
@@ -165,7 +165,7 @@ class Commissioning:
             half = (gd.state()['period'] - 1) // 2
             gd.write((half, half, half))
             time.sleep(0.05)
-            zv = self._noise_rows(self.drive.moments_run(periods))
+            zv = self._noise_rows(self.drive.moments.read(periods))
             gd.write((0, 0, 0))
             self.rig.gates.off()
             out['zero_vector'] = zv
@@ -211,14 +211,14 @@ class Commissioning:
         table = []
         for t in ticks:
             gd.configure(trigger=t)
-            m = self.drive.moments_run(periods)
+            m = self.drive.moments.read(periods)
             var = sum(m['channels'][n]['sd'] ** 2 for n in PHASES)
             table.append({'trigger': t, 'variance': var,
                           'sd': {n: m['channels'][n]['sd'] for n in PHASES}})
         gd.write((0, 0, 0))
         best = min(table, key=lambda row: row['variance'])
         gd.configure(trigger=best['trigger'])
-        self.drive.set_params(drv_trigger_ticks=best['trigger'])
+        self.drive.configure(drv_trigger_ticks=best['trigger'])
         out = {'table': table, 'best': best['trigger'], 'was': was,
                'period': period}
         self.results['sample_point'] = out
@@ -226,7 +226,7 @@ class Commissioning:
 
     def offsets(self, periods=2000, apply=True, limit_codes=3000):
         """Each phase's code at zero current becomes its offset."""
-        m = self.drive.moments_run(periods)
+        m = self.drive.moments.read(periods)
         cal = self.rig.board.calibration.read()['channels']
         out = {}
         for k, name in enumerate(PHASES):
@@ -253,10 +253,10 @@ class Commissioning:
         zero = self.results.get('offsets') or {}
         rows = []
         for k in range(3):
-            self.drive.setpoint(id_ref=amps, iq_ref=0.0, theta=k * TWO_PI / 3.0)
-            self.drive.mode('hold')
+            self.drive.write(id_ref=amps, iq_ref=0.0, theta=k * TWO_PI / 3.0)
+            self.drive.hold()
             time.sleep(0.05)
-            m = self.drive.moments_run(periods)
+            m = self.drive.moments.read(periods)
             rows.append([m['channels'][n]['mean']
                          - (zero[n]['offset_raw'] if n in zero
                             else cal[i]['offset_raw'])
@@ -304,8 +304,8 @@ class Commissioning:
         which way the shunts read.
         """
         self._stage()
-        self.drive.setpoint(vd=volts, vq=0.0, theta=0.0)
-        self.drive.mode('volt')
+        self.drive.write(vd=volts, vq=0.0, theta=0.0)
+        self.drive.on('volt')
         w = self._window(0.02, seconds)
         self.drive.off()
         iid = w['fields']['id']['mean']
@@ -316,7 +316,7 @@ class Commissioning:
                           'unpowered, or the winding is open'}
         else:
             sign = 1 if iid > 0.0 else -1
-            self.drive.set_params(drv_sign=sign)
+            self.drive.configure(drv_sign=sign)
             out = {'measured': True, 'id': iid, 'sign': sign}
         self.results['sign'] = out
         return out
@@ -353,7 +353,7 @@ class Commissioning:
     def _set_table(self, params):
         """The dead-time table by id, since the record names its rows."""
         plain = {k: v for k, v in params.items() if not k.startswith('drv_dt_mv')}
-        self.drive.set_params(**plain)
+        self.drive.configure(**plain)
         for k in range(8):
             self.rig.board.calibration.set_param(
                 'drv_dt_mv%d' % k, to_wire('drv_inj_mv', params['drv_dt_mv%d' % k]))
@@ -367,12 +367,12 @@ class Commissioning:
         self._stage()
         ts = 1.0 / self.fs
         angles = [math.pi * k / points for k in range(points)]
-        self.drive.set_params(drv_inj_mv=v_inj, drv_inj_periods=periods)
+        self.drive.configure(drv_inj_mv=v_inj, drv_inj_periods=periods)
         rows = {}
         for bias in biases:
             ls = []
             for phi in angles:
-                self.drive.set_params(drv_inj_phase_mrad=phi)
+                self.drive.configure(drv_inj_phase_mrad=phi)
                 w = self._hold(settle, seconds, id_ref=bias, iq_ref=0.0, theta=0.0)
                 ih = w['fields']['ih']['mean'] or 0.0
                 ls.append(v_inj * ts / ih if ih > 0.0 else float('nan'))
@@ -388,14 +388,14 @@ class Commissioning:
                           # is phi = 0, the q axis a quarter turn on
                           'ld': h['mean'] + h['h2'] * math.cos(h['h2_phase']),
                           'lq': h['mean'] - h['h2'] * math.cos(h['h2_phase'])}
-        self.drive.set_params(drv_inj_mv=0.0, drv_inj_phase_mrad=0.0)
+        self.drive.configure(drv_inj_mv=0.0, drv_inj_phase_mrad=0.0)
         base = rows.get(biases[0]) or {}
         out = {'angles': angles, 'rows': rows, 'v_inj': v_inj,
                'periods': periods, 'measured': bool(base.get('measured'))}
         if out['measured']:
             out['ld'], out['lq'] = base['ld'], base['lq']
             out['dl_over_l'] = base['dl_over_l']
-            self.drive.set_params(motor_ld_nh=base['ld'], motor_lq_nh=base['lq'])
+            self.drive.configure(motor_ld_nh=base['ld'], motor_lq_nh=base['lq'])
         self.results['l_map'] = out
         return out
 
@@ -405,12 +405,12 @@ class Commissioning:
         """
         self._stage()
         p = self.drive.params()
-        self.drive.setpoint(id_ref=amps, iq_ref=0.0, theta=0.0,
-                            omega_target=omega, accel=accel)
-        self.drive.mode('hold')
+        self.drive.write(id_ref=amps, iq_ref=0.0, theta=0.0,
+                         omega_target=omega, accel=accel)
+        self.drive.hold()
         w = self._window(omega / accel + 0.1, seconds)
         state = self.drive.state()
-        self.drive.setpoint(omega_target=0.0)
+        self.drive.write(omega_target=0.0)
         self.drive.off()
         f = w['fields']
         iid, iq, vd, vq = (f[k]['mean'] for k in ('id', 'iq', 'vd', 'vq'))
@@ -423,7 +423,7 @@ class Commissioning:
                'load_angle': math.atan2(-ed, eq), 'omega': omega,
                'omega_hat': state['omega_hat'], 'e': (ed, eq)}
         if measured:
-            self.drive.set_params(motor_lambda_uvs=lam)
+            self.drive.configure(motor_lambda_uvs=lam)
         self.results['flux'] = out
         return out
 
@@ -474,7 +474,7 @@ class Commissioning:
                            'drv_inj_mv': c['v_inj'],
                            'drv_inj_periods': c['periods'],
                            'drv_eps_gain_ua_per_rad': c['gain']})
-        self.drive.set_params(**params)
+        self.drive.configure(**params)
         out = {'loop': loop, 'kalman': kal, 'crossover': cross, 'written': params}
         self.results['gains'] = out
         return out
@@ -496,9 +496,9 @@ class Commissioning:
     def polarity(self, volts=3.0, periods=8, gap=40):
         """Two pulses along theta_hat; the one that saturates peaks higher."""
         self._stage()
-        self.drive.setpoint(pol_volts=volts, pol_periods=periods, pol_gap=gap)
+        self.drive.write(pol_volts=volts, pol_periods=periods, pol_gap=gap)
         before = self.drive.state()['theta_hat']
-        self.drive.mode('polarity')
+        self.drive.on('polarity')
         time.sleep((2 * periods + 2 * gap + 8) / self.fs + 0.02)
         s = self.drive.state()
         flipped = s['pol_neg'] > s['pol_pos']
@@ -516,20 +516,20 @@ class Commissioning:
         self._stage()
         d = self.results.get('decision') or self.decide()
         if d['method'] == 'injection':
-            self.drive.setpoint(id_ref=0.0, iq_ref=0.0)
-            self.drive.mode('sensorless')
+            self.drive.write(id_ref=0.0, iq_ref=0.0)
+            self.drive.on('sensorless')
             time.sleep(lock)
             self.polarity()
-            self.drive.mode('sensorless')
+            self.drive.on('sensorless')
         else:
             cross = (self.results.get('gains') or self.gains())['crossover']
-            self.drive.setpoint(id_ref=self._known()['i_max'] / 2.0,
-                                omega_target=1.5 * cross['omega_e'],
-                                accel=cross['omega_e'] * 2.0, theta=0.0)
-            self.drive.mode('hold')
+            self.drive.write(id_ref=self._known()['i_max'] / 2.0,
+                             omega_target=1.5 * cross['omega_e'],
+                             accel=cross['omega_e'] * 2.0, theta=0.0)
+            self.drive.hold()
             time.sleep(0.75 + lock)
-            self.drive.mode('sensorless')
-        self.drive.setpoint(iq_ref=iq)
+            self.drive.on('sensorless')
+        self.drive.write(iq_ref=iq)
         w = self._window(seconds / 2.0, seconds / 2.0)
         state = self.drive.state()
         self.drive.off()

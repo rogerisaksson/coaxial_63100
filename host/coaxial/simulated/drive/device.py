@@ -4,7 +4,7 @@ import threading
 import time
 from typing import Callable, Optional, Any
 
-from coaxial.devices.drive import load_profile, MODES, SOURCES, PARAMS
+from coaxial.devices.drive import MODES, PARAMS, SOURCES, DriveControl
 from coaxial.errors import RigError
 from coaxial.model.motor import BENCH_MOTOR
 from coaxial.simulated.drive.capture import DriveCapture
@@ -14,7 +14,7 @@ from coaxial.simulated.drive.plant import DrivePlant
 from coaxial.simulated.values import DCBUS_V
 
 
-class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture):
+class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
     """The control law's device without a motor: a locked rotor at zero
     electrical angle, a phase resistance, two inductances that bend with
     the d current, a flux linkage and a dead-time voltage error - enough
@@ -143,7 +143,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture):
     @_rotor_locked
     def state(self):
         if self._source == 'model':
-            self.model()                   # the rotor up to now, first
+            self._read_model()                   # the rotor up to now, first
         self._converge()
         iid, iq, vd, vq = self._dq()
         ih, eps_amps = self._ih()
@@ -181,7 +181,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture):
         }
 
     @_rotor_locked
-    def mode(self, name):
+    def _set_mode(self, name):
         if name not in MODES:
             raise ValueError('%r is not a mode; they are %s' % (name, ', '.join(MODES)))
         if name == 'polarity' and not self._sp['pol_periods']:
@@ -189,7 +189,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture):
                            'of no length measures nothing (simulated)')
         # INTEGRATE, THEN CHANGE.
         if self._source == 'model':
-            self.model()
+            self._read_model()
         self._mode = name
         self._fault = None
         self._mode_at = time.time()
@@ -197,16 +197,13 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture):
             self._pol = (0.0, 0.0)
         return True
 
-    def off(self):
-        return self.mode('off')
-
     @_rotor_locked
-    def setpoint(self, **values):
+    def _set_setpoints(self, **values):
         for name in values:
             if name not in self._sp:
                 raise ValueError('%r is not a setpoint; they are %s' % (name, ', '.join(self._sp)))
         if self._source == 'model':
-            self.model()                       # the old command's time, first
+            self._read_model()                       # the old command's time, first
         self._sp.update({k: float(v) for k, v in values.items()})
         return dict(values)
 
@@ -220,7 +217,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture):
         return True
 
     @_rotor_locked
-    def source(self, name):
+    def _set_source(self, name):
         if name not in SOURCES:
             raise ValueError('%r is not a source; they are %s' % (name, ', '.join(SOURCES)))
         if self._mode != 'off':
@@ -228,9 +225,6 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture):
                            'where its samples come from (simulated)')
         self._source = name
         return True
-
-    def profile(self, path):
-        return load_profile(self, path)
 
     #: What an uncommissioned board answers: the firmware's compiled-in
     #: placeholders (board_cal.c), in SI, the same as the real record reads.
@@ -250,7 +244,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture):
         return {name: self._params.get(name, self.DEFAULTS.get(name, 0.0))
                 for name in PARAMS}
 
-    def set_params(self, **values):
+    def _write_params(self, **values):
         for name in values:
             if name not in PARAMS:
                 raise ValueError('%r is not a drive parameter; they are %s'

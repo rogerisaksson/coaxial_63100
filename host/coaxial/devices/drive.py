@@ -8,6 +8,7 @@ import time
 from coaxial.comm import protocol
 from coaxial.errors import RigError
 from coaxial.comm.protocol import DriveOp
+from coaxial.devices.roles import Controller, Input
 from coaxial.devices.subsystem import Device
 from coaxial.comm.wire import Reader, micro, pack
 
@@ -95,20 +96,128 @@ def _wrapped(radians):
     return (radians + math.pi) % math.tau - math.pi
 
 
-def run_moments(drive, periods, timeout=5.0, poll=0.02):
-    """Arm `drive`'s moments, wait for the count, return them - the board's
-    drive or the stand-in's."""
-    drive.moments_arm(periods)
-    deadline = time.time() + timeout
-    while True:
-        got = drive.moments()
-        if got['done']:
-            return got
-        if time.time() > deadline:
-            raise RigError('%d of %d periods counted in %.1f s - is the '
-                           'sync armed and the timer running? %s'
-                           % (got['n'], periods, timeout, drive.state()))
-        time.sleep(poll)
+class Plant(Input):
+
+    """The drive's virtual machine: what the loop runs on when its source is 'model'."""
+
+    def __init__(self, drive):
+        self._drive = drive
+
+    def state(self):
+        return self._drive._read_model()
+
+    def read(self, count=None, timeout=None):
+        """The model's truth: source, rotor angle and speed (electrical), dq currents,
+        the link, and the estimate beside it."""
+        return self._drive._read_model()
+
+    def configure(self, **params):
+        """By name, SI: r ohm, ld/lq H, lambda V.s, pole_pairs, sat, i_sat A, j kg.m2,
+        b N.m.s, load N.m, v_dt V, i_knee A, vdc V, noise A rms, theta0 rad, sub steps."""
+        return self._drive._set_model(**params)
+
+    def reset(self):
+        """The rotor back to theta0, at rest."""
+        return self._drive._reset_model()
+
+
+class Observers(Input):
+
+    """The back-EMF observer chain beside the loop: the board's estimators, in SI."""
+
+    def __init__(self, drive):
+        self._drive = drive
+
+    def state(self):
+        return self._drive._read_observers()
+
+    def read(self, count=None, timeout=None):
+        return self._drive._read_observers()
+
+
+class Moments(Input):
+
+    """Raw codes at the sample point, counted over a number of PWM periods."""
+
+    def __init__(self, drive):
+        self._drive = drive
+
+    def state(self):
+        return self._drive._read_moments()
+
+    def trigger(self, periods):
+        """Start counting `periods`."""
+        return self._drive._arm_moments(periods)
+
+    def read(self, count=None, timeout=5.0, poll=0.02):
+        """The moments so far: per channel mean, sd (codes), lowest, highest; `done`
+        once `n` reached `want`. With `count`: trigger that many, wait, return."""
+        if count is None:
+            return self._drive._read_moments()
+        self.trigger(count)
+        deadline = time.time() + timeout
+        while True:
+            got = self._drive._read_moments()
+            if got['done']:
+                return got
+            if time.time() > deadline:
+                raise RigError('%d of %d periods counted in %.1f s - is the sync armed and '
+                               'the timer running? %s'
+                               % (got['n'], count, timeout, self._drive.state()))
+            time.sleep(poll)
+
+
+class DriveControl(Controller):
+
+    """The drive's verbs, once, over what the board and the stand-in implement.
+
+    on(mode)            'volt', 'sensorless' or 'polarity'; hold() holds the rotor
+    write(**setpoints)  SI: id_ref/iq_ref A, theta rad, omega_target rad/s, accel
+                        rad/s^2, vd/vq V, pol_volts V, pol_periods/pol_gap periods
+    read()              the window since the last read
+    configure(source=, profile=, **params)   'adc'/'model'; a motor profile;
+                        the record's drive parameters in SI
+    model, observers, moments                the plant, the estimators, the codes
+    """
+
+    def on(self, mode):
+        return self._set_mode(mode)
+
+    def hold(self):
+        return self._set_mode('hold')
+
+    def off(self):
+        """Never refused."""
+        return self._set_mode('off')
+
+    def write(self, **setpoints):
+        return self._set_setpoints(**setpoints)
+
+    def read(self, count=None, timeout=None):
+        return self._take_window()
+
+    def configure(self, source=None, profile=None, **params):
+        """What each setting took: `source`, `profile` (drive and model parts), `params`."""
+        done = {}
+        if source is not None:
+            done['source'] = self._set_source(source)
+        if profile is not None:
+            done['profile'] = load_profile(self, profile)
+        if params:
+            done['params'] = self._write_params(**params)
+        return done
+
+    @property
+    def model(self):
+        return Plant(self)
+
+    @property
+    def observers(self):
+        return Observers(self)
+
+    @property
+    def moments(self):
+        return Moments(self)
 
 
 def load_profile(drive, path):
@@ -119,13 +228,13 @@ def load_profile(drive, path):
         data = json.load(handle)
     done = {'name': data.get('name', path)}
     if data.get('drive'):
-        done['drive'] = drive.set_params(**data['drive'])
+        done['drive'] = drive._write_params(**data['drive'])
     if data.get('model'):
-        done['model'] = drive.model_param(**data['model'])
+        done['model'] = drive.model.configure(**data['model'])
     return done
 
 
-class Drive(Device, device=protocol.DEVICE_DRIVE):
+class Drive(Device, DriveControl, device=protocol.DEVICE_DRIVE):
 
     """Device 10 behind 0x6E: the current loop, injection and rotor observer."""
 
@@ -159,13 +268,9 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
                              'advance': r.u32()}
         return out
 
-    def mode(self, name):
+    def _set_mode(self, name):
         """Enter a mode by name."""
         return self._ack(DriveOp.MODE, pack(('u8', _known(MODES, name, 'mode'))))
-
-    def off(self):
-        """Mode off. Never refused."""
-        return self.mode('off')
 
     def _by_name(self, op, table, ids, what, values):
         """Named SI values, one `u8 id, i32` op each; what landed, in SI."""
@@ -178,7 +283,7 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
             done[name] = raw / scales[name]
         return done
 
-    def setpoint(self, **values):
+    def _set_setpoints(self, **values):
         """Set setpoints by name, SI: id_ref/iq_ref A, theta rad,
         omega_target rad/s, accel rad/s^2, vd/vq V, pol_volts V,
         pol_periods/pol_gap PWM periods.
@@ -197,7 +302,7 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         """Put both frames at an angle: the polarity flip, or a known start."""
         return self._ack(DriveOp.THETA, pack(('i32', micro(radians))))
 
-    def window(self):
+    def _take_window(self):
         """The window since the last take, then a new one starts."""
         r = Reader(self._op(DriveOp.WINDOW))
         out = {'n': r.u32(), 'fields': {}}
@@ -211,11 +316,11 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         out['i_peak'] = r.milli()
         return out
 
-    def moments_arm(self, periods):
+    def _arm_moments(self, periods):
         """Count raw codes at the sample point for this many periods."""
         return self._ack(DriveOp.MOMENTS_ARM, pack(('u32', int(periods))))
 
-    def moments(self):
+    def _read_moments(self):
         """The moments so far: per channel mean, sd (codes), lowest, highest;
         `done` once `n` reached `want`; `trigger` is CCR5.
         """
@@ -228,10 +333,6 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
                                      'lo': r.i32(), 'hi': r.i32()}
         return out
 
-    def moments_run(self, periods, timeout=5.0, poll=0.02):
-        """Arm, wait for the count, return the moments (`run_moments`)."""
-        return run_moments(self, periods, timeout, poll)
-
     def reload(self):
         """Take the parameters out of the calibration record again."""
         return self._ack(DriveOp.RELOAD)
@@ -242,12 +343,12 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
 
     # -- the model as the source -----------------------------------------
 
-    def source(self, name):
+    def _set_source(self, name):
         """Where the samples come from: 'adc' or 'model'."""
         return self._ack(DriveOp.SOURCE,
                          pack(('u8', _known(SOURCES, name, 'source'))))
 
-    def model_param(self, **values):
+    def _set_model(self, **values):
         """Set model parameters by name, SI: r ohm, ld/lq H, lambda V.s,
         pole_pairs, sat (fraction Ld bends by at i_sat), i_sat A, j
         kg.m2, b N.m.s, load N.m, v_dt V, i_knee A, vdc V, noise A rms,
@@ -256,7 +357,7 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return self._by_name(DriveOp.MODEL_PARAM, MODEL_PARAMS, MODEL_IDS,
                              'model parameter', values)
 
-    def model(self):
+    def _read_model(self):
         """The model's truth: source, the rotor's angle and speed (electrical),
         its dq currents, the link it runs from.
         """
@@ -273,7 +374,7 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
             out['error'] = _wrapped(out['theta_hat'] - out['theta'])
         return out
 
-    def observers(self):
+    def _read_observers(self):
         """The back-EMF observer chain that runs beside the loop, in SI."""
         r = Reader(self._op(DriveOp.OBSERVERS))
         out = {'valid': bool(r.u8()),
@@ -288,13 +389,9 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         out['error'] = _wrapped(out['theta'] - out['theta_hat'])
         return out
 
-    def model_reset(self):
+    def _reset_model(self):
         """The rotor back to theta0, at rest."""
         return self._ack(DriveOp.MODEL_RESET)
-
-    def profile(self, path):
-        """A motor profile written to the board (`load_profile`)."""
-        return load_profile(self, path)
 
     # -- the record ------------------------------------------------------
 
@@ -304,7 +401,7 @@ class Drive(Device, device=protocol.DEVICE_DRIVE):
         return {name: from_wire(name, record[name])
                 for name in PARAMS if name in record}
 
-    def set_params(self, **values):
+    def _write_params(self, **values):
         """Write drive parameters into the record (RAM) in SI, and reload."""
         for name, value in values.items():
             _known(PARAMS, name, 'drive parameter')

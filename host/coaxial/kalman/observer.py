@@ -34,7 +34,7 @@ class Observer(Subsystem):
 
     def chain(self):
         """The firmware's back-EMF chain, in the terms a drive cares about."""
-        got = dict(self.board.drive.observers())
+        got = dict(self.board.drive.observers.read())
         span = got['blend_hi'] - got['blend_lo']
         got['error_deg'] = math.degrees(got['error'])
         #: What a wrong angle costs: torque follows the cosine of it, so
@@ -65,15 +65,15 @@ class Observer(Subsystem):
                 'nothing to count pole pairs against - the A1335 needs its '
                 'magnet in front of it and AFE_ON up before it reads')
         travel = turns * 2.0 * math.pi
-        drive.setpoint(id_ref=amps if amps is not None
-                       else drive.params()['drv_i_max_ma'] * 0.5,
-                       iq_ref=0.0, theta=0.0, omega_target=omega,
-                       accel=omega * 4.0)
+        drive.write(id_ref=amps if amps is not None
+                    else drive.params()['drv_i_max_ma'] * 0.5,
+                    iq_ref=0.0, theta=0.0, omega_target=omega,
+                    accel=omega * 4.0)
         try:
-            drive.mode('hold')
+            drive.hold()
             walked, commanded = self._walk(angle, drive, travel / omega)
         finally:
-            drive.setpoint(omega_target=0.0)
+            drive.write(omega_target=0.0)
             drive.off()
         if walked <= 0.0:
             raise RigError(
@@ -123,7 +123,7 @@ class Observer(Subsystem):
         got['poles'] = self.pole_pairs()
         say('pole pairs %(pole_pairs)d, fit %(exact).2f' % got['poles'])
         pairs = got['poles']['pole_pairs']
-        self.board.drive.set_params(motor_pole_pairs=pairs)
+        self.board.drive.configure(motor_pole_pairs=pairs)
 
         record = self.board.drive.params()
         measured = (got['poles']['measured']

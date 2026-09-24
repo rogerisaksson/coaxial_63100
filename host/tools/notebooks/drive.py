@@ -782,21 +782,21 @@ print('   the NTC           minutes later, on the board time constant')'''),
            "last take carries means, deviations, the peak current and the "
            "innovation's autocorrelation `rho`, the whiteness test."),
         code('''drive = device.drive
-drive.source('model')
-print(drive.model_param(j=2e-5, b=1e-5, load=0.0, noise=0.0))
+drive.configure(source='model')
+print(drive.model.configure(j=2e-5, b=1e-5, load=0.0, noise=0.0))
 print({k: drive.params()[k] for k in ('motor_r_uohm', 'motor_ld_nh', 'motor_lq_nh',
                                        'motor_lambda_uvs', 'motor_pole_pairs')})
-drive.setpoint(id_ref=0.0, iq_ref=0.05, theta=0.0, omega_target=0.0)
-drive.mode('sensorless')
+drive.write(id_ref=0.0, iq_ref=0.05, theta=0.0, omega_target=0.0)
+drive.on('sensorless')
 spin = []
 t0 = time.monotonic()
 while time.monotonic() - t0 < 4.0:
-    m = drive.model()
+    m = drive.model.read()
     spin.append((time.monotonic() - t0, m['theta'], m['theta_hat'], m['error'],
                  m['omega'], m['omega_hat']))
     time.sleep(0.05)
 state = drive.state()
-w = drive.window()
+w = drive.read()
 drive.off()
 print({k: state[k] for k in ('mode', 'fault', 'omega_hat', 'iq', 'vq', 'periods',
                              'isr_cycles_max', 'exit_ticks_max', 'cycles')})
@@ -846,25 +846,25 @@ display(ansi.image(cross_section.render(math.degrees(theta) / pole_pairs, slots=
            "rotor's true angle out of another: at 4000 rad/s a 15 ms round "
            "trip is 60 radians, so neither column is differenced across the "
            "link."),
-        code('''drive.model_reset()
-drive.model_param(j=2e-5, b=6e-5, load=0.0, noise=0.0)
-drive.setpoint(id_ref=0.0, iq_ref=0.05, theta=0.0, omega_target=0.0)
-drive.mode('sensorless')
+        code('''drive.model.reset()
+drive.model.configure(j=2e-5, b=6e-5, load=0.0, noise=0.0)
+drive.write(id_ref=0.0, iq_ref=0.05, theta=0.0, omega_target=0.0)
+drive.on('sensorless')
 chain = []
 for iq in (0.05, 0.15, 0.35, 0.60):
-    drive.setpoint(iq_ref=iq)
+    drive.write(iq_ref=iq)
     settle = time.monotonic() + 3.0        # the rotor's j/b is 0.33 s
     while time.monotonic() < settle:
-        drive.observers()
+        drive.observers.read()
         time.sleep(0.02)
     t0 = time.monotonic()
     while time.monotonic() - t0 < 1.5:
-        o = drive.observers()
-        m = drive.model()
+        o = drive.observers.read()
+        m = drive.model.read()
         chain.append((m['omega'], o['error'], m['error'], o['blend'],
                       o['lambda_hat'], o['valid']))
         time.sleep(0.02)
-last = drive.observers()
+last = drive.observers.read()
 drive.off()
 print({k: last[k] for k in ('valid', 'blend', 'blend_lo', 'blend_hi', 'wc')})
 pp = drive.params()['motor_pole_pairs'] or 1
@@ -897,8 +897,8 @@ bottom.plot(t, [1.0 if r[5] else 0.0 for r in chain], label='valid')
 bottom.set_xlabel('s')
 bottom.legend()
 show(fig)
-drive.model_reset()
-drive.source('adc')'''),
+drive.model.reset()
+drive.configure(source='adc')'''),
     ),
 ]
 
@@ -1064,7 +1064,7 @@ BENCH = (
     "`isr_cycles_max` and `exit_ticks_max` are the interrupt measured, and a "
     "step past 4 750 ticks is the caches or the optimiser, not the law. "
     "Then, with a motor on the stand and `tools/bench/commission.py` run, put the "
-    "chain to work: `drive.observers()['error']` against the loop is the "
+    "chain to work: `drive.observers.read()['error']` against the loop is the "
     "number to watch, and two observers disagreeing is the first thing "
     "either being wrong looks like. The current it takes to hold a speed is "
     "the check that needs no reference - `1/cos` of the angle error on the "

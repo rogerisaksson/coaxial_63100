@@ -154,13 +154,13 @@ class DrivePlant:
             'load': 'load', 'v_dt': 'v_dt', 'i_knee': 'i_knee'}
 
     @_rotor_locked
-    def model_param(self, **values):
+    def _set_model(self, **values):
         for name in values:
             if name not in MODEL_IDS:
                 raise ValueError('%r is not a model parameter; they are %s'
                                  % (name, ', '.join(MODEL_IDS)))
         if self._source == 'model':
-            self.model()                   # the old parameters' time, first
+            self._read_model()                   # the old parameters' time, first
         self._model.update({k: float(v) for k, v in values.items()})
         # The RUNNING rotor too, as the firmware's own model applies them:
         # writing `load` mid-hold reached only the dict, and the servo's sag
@@ -263,7 +263,7 @@ class DrivePlant:
         return self._motor
 
     @_rotor_locked
-    def model(self):
+    def _read_model(self):
         """The virtual source's rotor, or a still one on the ADC source."""
         iid, iq, _, _ = self._dq()
         if self._source != 'model':
@@ -280,7 +280,7 @@ class DrivePlant:
                 'error': err}
 
     @_rotor_locked
-    def model_reset(self):
+    def _reset_model(self):
         """The rotor back to theta0, at rest - the contract `drive.py` states."""
         self._motor = None
         self._motor_acc = 0.0

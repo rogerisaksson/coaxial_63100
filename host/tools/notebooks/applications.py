@@ -48,8 +48,8 @@ SECTIONS = [
        'unlocked and an unmodified interlock; at the bench the pilot tone '
        'releases the drivers\' supply and the flags go.'),
     code('''drive = device.drive
-drive.source('model')
-print(drive.model_param(j=2e-5, b=1e-5, load=0.0))
+drive.configure(source='model')
+print(drive.model.configure(j=2e-5, b=1e-5, load=0.0))
 device.gates.on(bypass_sto=True, ignore_interlock=True)
 print('armed:', device.gates.is_on())'''),
     ),
@@ -108,7 +108,7 @@ with device.motion.velocity(amps=2.0, hz=3.0, load_k=K_PROP) as lane:
     lane_wall = time.monotonic() - began
     lane.stop(seconds=1.0)
     lane_pause = lane.pause
-drive.model_param(load=0.0)
+drive.model.configure(load=0.0)
 print('%d passes in %.1f s: %.1f a second, %.0f ms a pass against %.0f ms asked'
       % (len(lane_log), lane_wall, len(lane_log) / lane_wall,
          1000.0 * lane_wall / len(lane_log), 1000.0 * lane_pause))'''),
@@ -148,15 +148,15 @@ still_air = Propeller(K_CRUISE).on_model(drive, cruise_log)
 def gusty(verb):
     still_air(verb)                             # the row, and the still-air load
     if GUST_FROM <= cruise_log[-1][0] < GUST_TO:
-        wm = drive.model()['omega'] / verb.poles
-        drive.model_param(load=GUST * K_CRUISE * wm * abs(wm))
+        wm = drive.model.read()['omega'] / verb.poles
+        drive.model.configure(load=GUST * K_CRUISE * wm * abs(wm))
 
 with device.motion.velocity(amps=2.0, hz=2.0, load_k=K_CRUISE) as cruise:
     cruise.rpm(2500.0, seconds=1.5, watch=gusty)
     cruise.rpm(2500.0, seconds=5.0, watch=gusty)
     after_gust = cruise.rpm_now
     cruise.stop(seconds=1.0)
-drive.model_param(load=0.0)
+drive.model.configure(load=0.0)
 
 def window(log, lo, hi):
     rows = [r for r in log if lo <= r[0] < hi]
@@ -181,9 +181,9 @@ draw(cruise_log, 'the cruise, drag x %.1f from %.1f to %.1f s' % (GUST, GUST_FRO
            'the stand-in each unit is its own board. The elbow carries a '
            'standing 0.01 N.m, which is what a link hanging off it is.'),
         code('''shoulder = device
-elbow = Coaxial63100(port=PORT, unit=2, simulated_device=SIMULATED).open()
-elbow.drive.source('model')
-elbow.drive.model_param(j=2e-5, b=1e-5, load=0.01)
+elbow = Coaxial63100(port=PORT, unit=2, device=SIMULATED).open()
+elbow.drive.configure(source='model')
+elbow.drive.model.configure(j=2e-5, b=1e-5, load=0.01)
 elbow.gates.on(bypass_sto=True, ignore_interlock=True)
 for name, joint in (('shoulder', shoulder), ('elbow', elbow)):
     print('%-9s unit %d  %s  armed %s' % (name, joint.origin.unit, joint, joint.gates.is_on()))'''),
@@ -203,8 +203,8 @@ with shoulder.motion.servo(amps=2.0) as s, elbow.motion.servo(amps=2.0) as e:
         print('pose (%5.1f, %5.1f)  shoulder %6.2f err %5.2f swing %4.2f   elbow %6.2f err %5.2f swing %4.2f'
               % reached[-1])
 elbow.gates.off()
-elbow.drive.model_param(load=0.0)
-elbow.drive.source('adc')
+elbow.drive.model.configure(load=0.0)
+elbow.drive.configure(source='adc')
 elbow.close()
 print(elbow)'''),
     ),
@@ -240,16 +240,16 @@ with device.motion.servo(amps=3.0, settle=0.3) as hold:
     print('held at %.2f deg, error %.2f, swing %.2f' % (zero, hold.error, hold.swing))
     origin = device.angle.state()['degrees']
     before = watch_shaft(0.5, origin)
-    drive.model_param(load=0.03)
+    drive.model.configure(load=0.03)
     during = watch_shaft(0.8, origin)
     corrected = hold.to(30.0, tol=0.25)
     print('after the load step: shaft %.2f deg, error %.2f, swing %.2f'
           % (corrected, hold.error, hold.swing))
     after = watch_shaft(0.5, origin)
-    drive.model_param(load=0.0)
+    drive.model.configure(load=0.0)
 print('the sensor read %.2f deg at the hold; the trace counts from there' % origin)
 device.gates.off()
-drive.source('adc')
+drive.configure(source='adc')
 print('armed:', device.gates.is_on(), ' drive:', drive.state()['mode'])'''),
         code('''fig, (shaft,) = figure(rows=1, title='the shaft through the load step')
 t = 0.0

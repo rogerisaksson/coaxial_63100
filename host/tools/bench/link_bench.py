@@ -37,7 +37,7 @@ def main():
     # No analog supply is needed to measure a wire, and a ten-second run with
     # AFE_ON raised is current drawn for nothing.
     with Coaxial63100(port=args.port, power_afe=False,
-                      simulated_device=args.simulated) as daq:
+                      device=args.simulated) as daq:
         print(daq)
         results = bench.run(daq.board, rounds=args.rounds)
 

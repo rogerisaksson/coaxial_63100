@@ -90,7 +90,7 @@ def main(argv=None):
     args = arguments(argv)
     try:
         with Coaxial63100(port=args.port, power_afe=True,
-                          simulated_device=args.simulated) as rig:
+                          device=args.simulated) as rig:
             print('link: %s' % rig.origin.label)
             daq = rig.daq
             if args.sweep:

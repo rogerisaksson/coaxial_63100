@@ -224,13 +224,13 @@ def test_a_power_node_never_reads_below_the_copper(report):
     from coaxial import Coaxial63100
     from terminal.views.rotor import layout, legend
 
-    rig = Coaxial63100(simulated_device=True)
+    rig = Coaxial63100(device=True)
     rig.open()
     try:
         rig.board.gate_drivers.configure(bypass_break=True)
         rig.board.gate_drivers.on()
-        rig.drive.mode('hold')
-        rig.drive.setpoint(iq_ref=30.0)
+        rig.drive.hold()
+        rig.drive.write(iq_ref=30.0)
         worst = None
         for _ in range(8):
             time.sleep(0.15)

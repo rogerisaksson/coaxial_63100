@@ -47,9 +47,9 @@ SECTIONS = [
 import time
 
 drive = device.drive
-drive.source('model')
+drive.configure(source='model')
 J, B = 2e-5, 1e-5
-drive.model_param(j=J, b=B, load=0.0)
+drive.model.configure(j=J, b=B, load=0.0)
 stage = device.gates.on(bypass_sto=True, ignore_interlock=True)
 params = drive.params()
 poles = int(params['motor_pole_pairs'])
@@ -123,7 +123,7 @@ show(fig)'''),
     first = device.angle.state()['degrees']
     before = trace(0.2, first)
     held = first + sum(r[1] for r in before) / len(before)
-    drive.model_param(load=0.02)
+    drive.model.configure(load=0.02)
     pulled = trace(1.0, held)
     tail = pulled[len(pulled) // 2:]
     sag = sum(r[1] for r in tail) / len(tail)
@@ -131,7 +131,7 @@ show(fig)'''),
     print('0.02 N.m:  sagged %.2f deg, ringing %.2f deg peak to peak under the load'
           % (sag, max(r[1] for r in tail) - min(r[1] for r in tail)))
     print('corrected: shaft %.2f deg, error %.2f, swing %.2f deg' % (back, s.error, s.swing))
-    drive.model_param(load=0.0)
+    drive.model.configure(load=0.0)
 spring_sag = math.degrees(math.asin(0.02 / (2.0 * kt))) / poles
 print('the spring says %.2f deg mechanical: 0.02 N.m against 2.0 A x Kt %.4f = %.3f N.m'
       % (spring_sag, kt, 2.0 * kt))'''),
@@ -155,7 +155,7 @@ rows = []
 last = [None, None]
 
 def watch(v):
-    m = drive.model()
+    m = drive.model.read()
     shaft = device.angle.state()['degrees']
     now = time.monotonic() - t0
     shaft_rpm = float('nan')
@@ -171,7 +171,7 @@ with device.motion.velocity(amps=1.0, hz=3.0) as v:
     print('settled at %.0f rpm' % v.rpm_now)
     v.rpm(0.0, seconds=1.5, watch=watch)
     print('stopped at %.0f rpm' % v.rpm_now)
-    rotor = math.degrees(drive.model()['theta']) / poles
+    rotor = math.degrees(drive.model.read()['theta']) / poles
     shaft = device.angle.state()['degrees']
 pitch = 360.0 / poles
 offset = (shaft - rotor + pitch / 2.0) % pitch - pitch / 2.0
@@ -180,7 +180,7 @@ print('at rest: rotor %.2f deg electrical / %d = %.2f deg; shaft %.2f deg, folde
       'the %.2f deg pole pitch %.2f; %.2f deg apart' % (rotor * poles, poles, rotor, shaft,
                                                          pitch, shaft % pitch, offset))
 print('disarmed:', not device.gates.off()['pwm_enabled'])
-drive.source('adc')'''),
+drive.configure(source='adc')'''),
         code('''t = [r[0] for r in rows]
 fig, (speed, error, current) = figure(rows=3, sharex=True)
 speed.plot(t, [r[1] for r in rows], label='asked')
