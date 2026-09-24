@@ -488,7 +488,8 @@ def render(q, width, height, zoom=1.0, colour=True,
                 max(at % width for at in lit)) if lit else None)
         _approach.hud(grid, tone, buf, width, height, flown, _geometry(width, height),
                       scroll, int((scroll or 0.0) * GROUND_SPEED * RUNG_SPACING
-                                  / _approach.GATE_EVERY), box, colour)
+                                  / _approach.GATE_EVERY), box, colour,
+                      _approach.bound(cam, reach))
 
     if not colour:
         return '\n'.join(''.join(row).rstrip() for row in grid)

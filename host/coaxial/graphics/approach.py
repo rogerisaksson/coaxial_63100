@@ -154,19 +154,20 @@ SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
 #: A craft far below, rarely: each SLOT seconds holds a pass with PASS_CHANCE, at a moment,
 #: from a side and at a speed of its own (CROSS seconds, least and most); the first at
 #: FIRST. It comes in from its side's edge and arcs down through the bottom corner, diving
-#: out under the frame - the widest arc that keeps CLEAR columns off the board's own
-#: silhouette, chosen as the pass begins; none where the corner has no room. CRAFT columns
-#: nose to tail at a 150-column frame, pale steel, a red beacon blinking, a white strobe.
+#: out under the frame. The arc keeps CLEAR columns and its own half-length off the board's
+#: BOUND - the circle the board stays inside at every attitude (`bound`) - so it is planned
+#: once and never meets the board; no pass where the corner has less than LEAST lengths.
+#: CRAFT columns nose to tail at a 150-column frame, pale steel, a red beacon blinking, a
+#: white strobe at the tail.
 SLOT = 45.0
 FIRST = 3.0
 PASS_CHANCE = 0.55
 CROSS = (2.4, 4.2)
 CLEAR = 2.0
+LEAST = 2.5
 CRAFT = 6.0
 HULL = (190, 215, 235)
 STROBE = (255, 255, 255)
-#: Each pass's arc, chosen once: {(pass, width, height): radius or 0}.
-_ARCS = {}
 
 #: The craft's outline, nose along +x, in its lengths: a fuselage, a wing, two rotor pods,
 #: a V tail - segments ((x0, y0), (x1, y1)), y across the craft.
@@ -223,78 +224,45 @@ def _pass(t):
     return n, k, 1.0 if _hashed(n, 13) % 2 else -1.0
 
 
+def bound(cam, reach):
+    """(cx, cy, radius in columns): the circle the board, of bounding radius `reach`, stays
+    inside at every attitude - the camera's own fit, rows at ASPECT to a column."""
+    d = cam['distance']
+    return cam['cx'], cam['cy'], cam['scale'] * reach / math.sqrt(d * d - reach * reach)
+
+
 def _arc(radius, side, width, height, phi):
     """A point of the corner arc: `phi` 0 at the side's edge, pi/2 at the bottom edge."""
     corner = 0.0 if side > 0 else float(width)
     return corner + side * radius * math.sin(phi), height - radius * math.cos(phi) / ASPECT
 
 
-def _radius(width, height, side, size, buf):
-    """The widest corner arc whose points keep CLEAR columns and the craft's half-length off
-    the board (`buf`, non-zero where it is); 0 where not even the least fits."""
-    reach = 0.6 * size + CLEAR
-    least, most = 2.5 * size, 0.55 * min(width, height * ASPECT)
-    if buf is None:
+def arc_radius(width, height, side, board=None):
+    """The corner arc's radius: its nearest point to the board's bound `board` (cx, cy,
+    radius) CLEAR columns and the craft's half-length off it; 0 where under LEAST lengths."""
+    size = CRAFT * width / 150.0
+    most = 0.55 * min(width, height * ASPECT)
+    if board is None:
         return most
-    radius = most
-    while radius >= least:
-        clear = True
-        for i in range(13):
-            x, y = _arc(radius, side, width, height, (math.pi / 2.0) * i / 12.0)
-            rows = reach / ASPECT
-            for py in range(int(y - rows), int(y + rows) + 1):
-                for px in range(int(x - reach), int(x + reach) + 1):
-                    if 0 <= px < width and 0 <= py < height and buf[py * width + px]:
-                        clear = False
-                        break
-                if not clear:
-                    break
-            if not clear:
-                break
-        if clear:
-            return radius
-        radius -= 1.0
-    return 0.0
+    cx, cy, reach = board
+    corner = 0.0 if side > 0 else float(width)
+    room = math.hypot(corner - cx, (height - cy) * ASPECT) - reach - CLEAR - 0.6 * size
+    radius = min(most, room)
+    return radius if radius >= LEAST * size else 0.0
 
 
-def craft(width, height, t, buf=None):
+def craft(width, height, t, board=None):
     """{cell: (braille mask, (r, g, b))}: the craft at `t` when a pass is on and its corner
-    has room, else {}; `buf` (the board's depth per cell) is kept clear."""
+    has room, else {}; `board` (cx, cy, radius) its bound, kept clear at every attitude."""
     now = _pass(t)
     if now is None:
         return {}
-    n, k, side = now
+    _n, k, side = now
+    radius = arc_radius(width, height, side, board)
+    if not radius:
+        return {}
     size = CRAFT * width / 150.0
-    key = (n, width, height)
-    if key not in _ARCS:
-        if len(_ARCS) > 64:
-            _ARCS.clear()
-        _ARCS[key] = _radius(width, height, side, size, buf)
-    radius = _ARCS[key]
-    cells = _drawn(width, height, t, k, side, size, radius) if radius else {}
-    if buf is not None and cells and _touches(cells, buf, width):
-        # The board moved into the arc: the tightest that clears it now, or the pass ends.
-        radius = min(radius, _radius(width, height, side, size, buf))
-        _ARCS[key] = radius
-        cells = _drawn(width, height, t, k, side, size, radius) if radius else {}
-        if cells and _touches(cells, buf, width):
-            _ARCS[key] = 0.0
-            return {}
-    return cells
 
-
-def _touches(cells, buf, width):
-    """Whether any cell of the craft, or one beside it, is the board's."""
-    for at in cells:
-        r, c = divmod(at, width)
-        for cc in (c - 1, c, c + 1):
-            if 0 <= cc < width and buf[r * width + cc]:
-                return True
-    return False
-
-
-def _drawn(width, height, t, k, side, size, radius):
-    """The craft's cells at `k` along a corner arc of `radius`."""
     def track(k):
         """In from beyond its edge, round the corner, out below the frame."""
         return _arc(radius, side, width, height, -0.35 + (math.pi / 2.0 + 0.5) * k)
@@ -390,10 +358,11 @@ def _ladder(grid, tone, buf, width, height, static, roll, ink):
             grid[py][px], tone[py][px] = chr(0x2800 + mask), ink
 
 
-def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
+def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour, board=None):
     """The overlay, the flight's: the heading tape, the roll arc, the conformal ladder,
     lock brackets round the board (`box`: first and last row and column, or None), the
-    pitch and bank, the clock, the gates flown and a tag."""
+    pitch and bank, the clock, the gates flown, a tag; the craft kept off `board`, the
+    board's bound at every attitude (`bound`)."""
     if width < 40 or height < 14:
         return
     amber, dim, red = (AMBER, DIM, RED) if colour else (None, None, None)
@@ -404,7 +373,7 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
     _ladder(grid, tone, buf, width, height, static, roll, dim)
 
     # The craft, over the scenery; its pass keeps clear of the board.
-    for at, (mask, rgb) in craft(width, height, t, buf).items():
+    for at, (mask, rgb) in craft(width, height, t, board).items():
         r, c = divmod(at, width)
         grid[r][c], tone[r][c] = chr(0x2800 + mask), rgb if colour else None
 

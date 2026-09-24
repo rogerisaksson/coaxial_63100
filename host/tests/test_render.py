@@ -1108,15 +1108,16 @@ def test_approach(report):
                  passes and passes[0] < 5.0 and len(passes) < 0.12 * 4 * 600,
                  '%d of %d quarter-seconds, first at %s s' % (len(passes), 4 * 600,
                                                               passes[0] if passes else '-'))
-    # A board as the view draws it at 116x46: columns 7-108, rows 4-45, the corners free.
-    disc = [1.0 if ((c - 57.5) / 50.5) ** 2 + ((r - 24.5) / 20.5) ** 2 <= 1.0 else 0.0
-            for r in range(46) for c in range(116)]
-    approach._ARCS.clear()
-    drawn = [approach.craft(116, 46, t, disc) for t in passes]
-    over = [at for cells in drawn for at in cells if disc[at]]
-    report.check('approach: with a board filling the frame it still comes, round a corner, '
-                 'never over the board', any(drawn) and not over,
-                 '%d frames drawn, %d cells over' % (sum(1 for d in drawn if d), len(over)))
+    # The board's bound as the view draws it at 116x46: every attitude inside this circle.
+    board = (58.0, 20.24, 53.6)
+    drawn = [approach.craft(116, 46, t, board) for t in passes]
+    near = [at for cells in drawn for at in cells
+            if math.hypot(at % 116 + 0.5 - board[0], (at // 116 + 0.5 - board[1]) * 2.0)
+            < board[2] + approach.CLEAR - 1.0]
+    report.check('approach: with the board filling the frame it still comes, round a corner, '
+                 'clear of the board at any attitude', all(drawn) and not near,
+                 '%d of %d frames drawn, %d cells inside the bound' % (
+                     sum(1 for d in drawn if d), len(drawn), len(near)))
     sides = {now[2] for now in map(approach._pass, passes) if now}
     report.check('approach: its passes come from both sides', sides == {1.0, -1.0}, sides)
     straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)
@@ -1149,7 +1150,6 @@ def test_nothing_on_the_board(report):
                        if buf[r * width + c] and grid[r][c] != before[r][c])
         seen.append(any(ink == approach.HULL for row in tone for ink in row))
     approach.hud = spy
-    approach._ARCS.clear()
     try:
         for n in range(28):
             q = normalise((0.25 * math.sin(n * 0.4), 0.2 * math.cos(n * 0.3),
