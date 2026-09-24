@@ -683,8 +683,9 @@ def test_desk(report):
                  and level in face[0], repr(face[0][18:40]))
     report.check('a unipolar one from the left',
                  face[3][18] == level, repr(face[3][18:34]))
-    report.check('and it is the same gauge the motor page draws',
-                 gauges.gauge(1.0, 10, colour=False) == level * 10
+    # LED segments: every fourth dot dark, so a full level is a whole cell, then its left lane.
+    report.check('and it is the same gauge the motor page draws, in LED segments',
+                 gauges.gauge(1.0, 10, colour=False) == (level + chr(raster.BRAILLE | 0x07)) * 5
                  and gauges.gauge(0.5, 10, colour=False)[0] == level
                  and gauges.gauge(0.5, 10, colour=False)[-1] == track)
 
