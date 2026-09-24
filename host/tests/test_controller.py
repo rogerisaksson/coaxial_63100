@@ -280,6 +280,58 @@ def test_a_program_as_data(report):
         report.check('stop is not a label', 'stop' in str(exc), exc)
 
 
+def test_the_alarm_handler(report):
+    """machine.alarms beside the sequencer: L and H logged once a step, LL and HH to cleanup,
+    a row's level held from its row on, a timeout's alarm where the row does not branch, a
+    stop from outside."""
+    from machine.alarms import Alarms
+
+    def ran(text, watch=None, **kw):
+        """`text` on a rotor at rest."""
+        rotor = Rotor(noise=0.0)
+        clock = Clock(rotor)
+        loop = speed(rotor, rate_hz=50, clock=clock, sleep=clock.sleep)
+        return Sequencer.parse(text, **kw).run(loop, watch=watch)
+
+    out = ran('1 w_target=100 wait=time\n1 w_target=100 wait=time\n1 w_target=0 wait=time',
+              alarms=Alarms({'rotor.w': {'H': 80.0}}))
+    rows = [a.split(':')[0] for a in out.alarms if 'H rotor.w' in a]
+    report.check('H is logged once a step while it holds, and the run goes on',
+                 out.status == 'done' and rows[:2] == ['row 0', 'row 1']
+                 and len(rows) == len(set(rows)), out.alarms)
+    hot = ran('2 w_target=100\n0.5 group=cleanup w_target=0',
+              alarms=Alarms({'rotor.w': {'HH': 50.0}}))
+    report.check('HH trips to cleanup, the trip in the log',
+                 hot.status == 'tripped' and 'HH rotor.w' in (hot.reason or '')
+                 and any('HH rotor.w' in a for a in hot.alarms) and hot.steps[-1][0] == 1,
+                 (hot.status, hot.reason))
+    held = ran('1 w_target=30 rotor.w.HH=60\n2 w_target=100')
+    report.check("a row's level holds from its row on",
+                 held.status == 'tripped' and 'HH rotor.w' in (held.reason or ''), held.reason)
+    cleared = ran('1 w_target=30 rotor.w.HH=60\n2 w_target=100 rotor.w.HH=inf')
+    report.check('and inf clears it', cleared.status == 'done', cleared.reason)
+    late = ran('0.3 w_target=500')
+    report.check('a step out of time logs its timeout and goes on',
+                 late.status == 'done' and any('timeout after 0.3 s' in a for a in late.alarms),
+                 late.alarms)
+    asked = ran('0.3 label=a w_target=500 else=b\n0 label=b')
+    report.check('a row that branches takes its timeout as its answer: no alarm',
+                 asked.status == 'done' and asked.steps[0][2] == 'timeout'
+                 and not any('timeout' in a for a in asked.alarms), asked.alarms)
+    alarms, passes = Alarms(), [0]
+
+    def operator(_loop):
+        passes[0] += 1
+        if passes[0] == 20:
+            alarms.stop('operator')
+    stopped = ran('3 w_target=100 wait=time\n0.2 group=cleanup w_target=0', operator,
+                  alarms=alarms)
+    report.check('a stop from outside ends the run at the next pass, to cleanup',
+                 stopped.status == 'tripped' and stopped.reason == 'stop: operator'
+                 and stopped.steps[-1][0] == 1 and 'stop: operator' in stopped.alarms[0],
+                 (stopped.status, stopped.reason, stopped.alarms[:1]))
+
+
 def test_save_and_load(report):
     rotor = Rotor()
     loop = speed(rotor, estimator=Paced(SpeedKalman(KT, J, B, 1e4, 25.0), 200))
@@ -615,6 +667,15 @@ def test_live_from_a_stream(report):
                      live.state()['status'] == 'tripped'
                      and 'left_knee.deg' in live.state()['reason'], live.state()['reason'])
         live.stop()
+        machine.limits['left_knee.deg'] = {'H': 15.0}
+        live = Live(machine, failsafe='0.4 left_knee=0', timeout=5.0).start()
+        live.send('0.8 left_knee=30')
+        woke = live.wait(low=-1.0, timeout=3.0)
+        report.check('an H alarm wakes the writer, in a line, and the machine runs on',
+                     woke.startswith('alarm ') and 'H left_knee.deg' in woke
+                     and live.state()['status'] == 'running', woke)
+        live.stop()
+        del machine.limits['left_knee.deg']
     finally:
         nodes.close()
 
@@ -747,6 +808,7 @@ def main():
     for test in (test_a_feedback_holds_a_speed, test_every_channel_is_a_float,
                  test_parts_swap_in_place, test_the_estimator_is_quieter, test_filters,
                  test_a_table_or_a_planner, test_the_sequencer, test_a_program_as_data,
+                 test_the_alarm_handler,
                  test_save_and_load,
                  test_a_fault_ends_the_loop, test_a_paced_part_keeps_its_own_rate,
                  test_the_pictures_and_the_panel, test_velocity_is_a_feedback,
