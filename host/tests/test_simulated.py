@@ -248,7 +248,7 @@ def test_imu(report):
                  ident['sw_part'] == 0 and ident['sw_build'] == 0,
                  '%s %s' % (ident['sw_part'], ident['sw_build']))
 
-    got = part.read()
+    got = part.peek()
     report.check('a read comes back on the input channel, framed like a '
                  'real cargo', got['channel'] == 3 and got['cargo'],
                  'ch %s, %d bytes' % (got['channel'], len(got['cargo'])))
@@ -268,13 +268,13 @@ def test_imu(report):
 
     report.check('the sequence number moves, so a caller can see a new '
                  'sample rather than a frozen one',
-                 part.read()['reports'][1]['seq'] != accel['seq'])
+                 part.peek()['reports'][1]['seq'] != accel['seq'])
 
-    part.feature(0x01, 60000)
-    part.feature(0x01, 0)
+    part.configure({0x01: 60000})
+    part.configure({0x01: 0})
     refused = False
     try:
-        part.feature(0x01, 1 << 33)
+        part.configure({0x01: 1 << 33})
     except ValueError:
         refused = True
     report.check('an interval that does not fit 32 bits is refused here '

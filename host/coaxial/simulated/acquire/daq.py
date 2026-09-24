@@ -180,7 +180,7 @@ class SimulatedDaq(Acquisition):
         part = self.angle
         if part is None:
             return self.NO_WORDS
-        got = part.read(angle.ANG)
+        got = part.peek(angle.ANG)
         value = got['value'] - 0x10000 if got['value'] >= 0x8000 else got['value']
         return (value, got['crc'], angle.ANG, 1)
 
@@ -399,7 +399,7 @@ class SimulatedDaq(Acquisition):
         # record's stamp has to be on the same timebase the sync was made
         # against, and monotone within a burst.
         if self.clock is not None:
-            self._at = self.clock.read_latch()['now']
+            self._at = self.clock.read()['now']
         self._produced = 0
         # The clock's own cadence: what a read may answer is what the interval
         # has produced since the last, `acquire`.

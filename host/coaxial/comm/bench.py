@@ -89,7 +89,7 @@ def echo_block(board, size, rounds=20):
 def receive_block(board, rounds=20):
     """A small ask for the largest reply the board sends: the ring's burst."""
 
-    board.capture.arm(['angle'])
+    board.capture.start('angle')
     time.sleep(0.3)
     try:
         held = board.capture.state()['count']
@@ -98,7 +98,7 @@ def receive_block(board, rounds=20):
         reply = FRAME_OVERHEAD + 1 + want * RECORD_BYTES
         times = _time(lambda: board.capture.take(want), rounds)
     finally:
-        board.capture.arm([])
+        board.capture.stop()
     return Result('receive %d records' % want, request, reply,
                   times, board.baud)
 

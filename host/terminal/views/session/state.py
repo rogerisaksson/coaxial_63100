@@ -29,8 +29,7 @@ def _start_imu(rig):
     if steady(rig.board.imu.settled, seconds=6.0) is not True:
         return False
     try:
-        with rig.board.imu.configuring():
-            rig.board.imu.feature(0x05, 20000)
+        rig.board.imu.configure({0x05: 20000})
         return True
     except QUIET:
         return False
@@ -63,7 +62,7 @@ class Session:
         if steady(self.rig.board.angle.hold) is None:
             return None
         try:
-            got = steady(self.rig.board.angle.read, ANGLE_REG_FIELD)
+            got = steady(self.rig.board.angle.peek, ANGLE_REG_FIELD)
         finally:
             steady(self.rig.board.angle.resume)
         return None if got is None else angle.gauss(got['value'])

@@ -1,9 +1,10 @@
 """The board's measurement ring, drained in bursts."""
 from coaxial.comm import protocol
-from coaxial.errors import RigError
 from coaxial.comm.protocol import LogOp
-from coaxial.devices.subsystem import Device
 from coaxial.comm.wire import Reader, pack
+from coaxial.devices.roles import Stream
+from coaxial.devices.subsystem import Device
+from coaxial.errors import RigError
 
 #: Source ids, and what `v` means for each.
 PHASES = 0      #: v = U, V, W, TIM1->CNT at latch
@@ -40,9 +41,36 @@ def _mask(sources):
     return mask
 
 
-class Capture(Device, device=protocol.DEVICE_LOG):
+class Ring(Stream):
 
-    """Arm a set of sources, then drain what they produced."""
+    """The board's capture ring: sources started, records read oldest first."""
+
+    DEPTH = 1024
+
+    def start(self, *sources):
+        """Arm `sources` (names, or one raw mask) and empty the ring."""
+        one = len(sources) == 1 and not isinstance(sources[0], str)
+        return self._arm(_mask(sources[0] if one else list(sources)))
+
+    def stop(self):
+        """Disarm every source; the ring empties with them."""
+        return self._arm(0)
+
+    def read(self, count=None, timeout=None):
+        """What is waiting, oldest first, up to `count` (default: a ring's depth)."""
+        cap = self.DEPTH if count is None else count
+        out = []
+        while len(out) < cap:
+            batch = self.take()
+            if not batch:
+                break
+            out.extend(batch)
+        return out[:cap]
+
+
+class Capture(Device, Ring, device=protocol.DEVICE_LOG):
+
+    """The ring on the board: `0x6E` device LOG."""
 
     def state(self):
         """What is armed, how much is waiting, and how much did not make it."""
@@ -57,16 +85,10 @@ class Capture(Device, device=protocol.DEVICE_LOG):
             'thinned': r.u32(),
         }
 
-    def arm(self, sources):
-        """Arm a list of source names (or a raw mask) and empty the ring."""
-        took = Reader(self._op(LogOp.ARM, pack(('u8', _mask(sources))))).u8()
-        if not took:
+    def _arm(self, mask):
+        if not Reader(self._op(LogOp.ARM, pack(('u8', mask)))).u8():
             raise RigError('the board refused to arm the capture ring')
         return True
-
-    def stop(self):
-        """Disarm every source. The ring is emptied with them."""
-        return self.arm(0)
 
     def take(self, want=MAX_BURST):
         """Up to `want` records, oldest first, freed from the ring as they go."""
@@ -81,12 +103,3 @@ class Capture(Device, device=protocol.DEVICE_LOG):
                 'seq': r.u8(),
                 'v': tuple(r.i16() for _ in range(WORDS))}
 
-    def drain(self, limit=None):
-        """Everything waiting, in order, stopping at `limit` records."""
-        out = []
-        while limit is None or len(out) < limit:
-            batch = self.take()
-            if not batch:
-                break
-            out.extend(batch)
-        return out[:limit] if limit is not None else out

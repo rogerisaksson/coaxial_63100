@@ -126,10 +126,9 @@ print('reset  produced %d cargoes' % drained)'''),
 
 from coaxial.devices.imu import ROTATION_VECTOR
 
-with imu.configuring():
-    imu.feature(ROTATION_VECTOR, 20000)
+imu.configure({ROTATION_VECTOR: 20000})
 waited = 0.0
-while imu.state()['quaternion'] is None and waited < 2.0:
+while imu.read() is None and waited < 2.0:
     time.sleep(0.02)                    # one report interval
     waited += 0.02
 first = imu.state()
@@ -163,9 +162,7 @@ VECTORS = ('accelerometer', 'gyroscope', 'magnetometer')
 before = imu.state()
 for name in VECTORS:
     print('%-14s %s' % (name, before[name]))
-with imu.configuring():
-    for report in (ACCELEROMETER, GYROSCOPE, MAGNETIC_FIELD):
-        imu.feature(report, 20000)
+imu.configure(dict.fromkeys((ACCELEROMETER, GYROSCOPE, MAGNETIC_FIELD), 20000))
 vectors = imu.state()
 while any(vectors[n] is None for n in VECTORS) and waited < 4.0:
     time.sleep(0.02)                    # one report interval
@@ -214,10 +211,10 @@ from coaxial.devices.scaling import KELVIN_AT_ZERO_C
 
 st = angle.state()
 print({k: st.get(k) for k in ('loop', 'updates', 'errors', 'register_name', 'value', 'degrees', 'crc')})
-print(angle.clock(), angle.poll_register())
+print(angle.clock(), angle.state()['register_name'])
 with angle.configuring():
     print('in the block:', angle.state()['loop'])
-    got = {reg: angle.read(reg) for reg in (0x20, 0x22, 0x24, 0x26, 0x28, 0x2A)}
+    got = {reg: angle.peek(reg) for reg in (0x20, 0x22, 0x24, 0x26, 0x28, 0x2A)}
 print('after:', angle.state()['loop'])
 for r in got.values():
     print('%-5s 0x%04X  data %4d  flags 0x%X  crc %d'
@@ -294,9 +291,7 @@ rate = (turned[-1] - turned[0]) / span
 norm = (df[axes] ** 2).sum(axis=1) ** 0.5
 print('shaft  %.2f deg over %.2f s = %.1f deg/s' % (turned[-1] - turned[0], span, rate))
 print('|q|    %.4f to %.4f over %d records' % (norm.min(), norm.max(), len(norm)))
-with imu.configuring():
-    for report in (ROTATION_VECTOR, ACCELEROMETER, GYROSCOPE, MAGNETIC_FIELD):
-        imu.feature(report, 0)
+imu.configure(dict.fromkeys((ROTATION_VECTOR, ACCELEROMETER, GYROSCOPE, MAGNETIC_FIELD), 0))
 imu_final = imu.state()
 angle_final = angle.state()
 print('features off; IMU loop %s, angle loop %s' % (imu_final['loop'], angle_final['loop']))'''),

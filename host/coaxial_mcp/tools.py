@@ -33,7 +33,7 @@ def angle(session, op='read', **_):
 
     if op == 'registers':
         with part.configuring():
-            rows = [(name, part.read(reg)['value'])
+            rows = [(name, part.peek(reg)['value'])
                     for reg, name in ((0x20, 'ANG'), (0x22, 'STA'),
                                       (0x24, 'ERR'), (0x28, 'TSEN'),
                                       (0x2A, 'FIELD'))]
@@ -171,12 +171,7 @@ def _imu_feature(part, report_id, interval_us):
     if report_id is None:
         raise ValueError("op='feature' needs report_id - 1 accelerometer, "
                          "2 gyroscope, 3 magnetic field, 5 rotation vector")
-    with part.configuring():
-        # The reset is not optional: measured, a Set Feature onto a part that
-        # was already running took no effect and the loop absorbed nothing
-        # afterwards.
-        part.reset()
-        part.feature(int(report_id), int(interval_us or 0))
+    part.configure({int(report_id): int(interval_us or 0)}, reset=True)
     return 'imu: report 0x%02X %s' % (
         int(report_id),
         'every %d us' % int(interval_us) if interval_us else 'disabled')
@@ -195,9 +190,7 @@ def _rotation_vector(part):
     got = part.state()
     if got['quaternion'] is not None:
         return got
-    with part.configuring():
-        part.reset()
-        part.feature(ROTATION_VECTOR, ORIENTATION_INTERVAL_US)
+    part.configure({ROTATION_VECTOR: ORIENTATION_INTERVAL_US}, reset=True)
     for _ in range(ORIENTATION_LOOKS):
         got = part.state()
         if got['quaternion'] is not None:

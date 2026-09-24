@@ -1,6 +1,5 @@
 """The rig's task running: the host reader, blocks off the board or the ring, their times."""
 import time
-from collections import namedtuple
 
 from coaxial.acquire.clock import WRAP
 from coaxial.acquire.daq import REPLY_ROOM
@@ -8,11 +7,8 @@ from coaxial.acquire.reader import BufferedReader
 from coaxial.acquire.record import build
 from coaxial.errors import CrcError, NoReplyError, RigError
 
-#: One run of the task: its records, its state at the end, and how long it took.
-Run = namedtuple('Run', 'records state seconds')
 
-
-class Stream:
+class TaskStream:
 
     """The task started, read and stopped; every record timed on the board's clock."""
 
@@ -180,17 +176,6 @@ class Stream:
                 break
         # WHAT THERE IS, when a finite run ends first.
         return out[:count] if count > 0 else out
-
-    def collect(self, count=-1, timeout=None):
-        """Start, `read(count, timeout)`, stop: one `Run`."""
-        began = time.time()
-        self.start()
-        try:
-            records = self.read(count, timeout)
-            state = self.state()
-        finally:
-            self.stop()
-        return Run(records, state, time.time() - began)
 
     def _queued(self):
         """Every record the reader has queued, without waiting - and none when

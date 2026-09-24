@@ -136,7 +136,24 @@ def _vector(r, report_id):
             'value': dict(zip('xyz', (c / divisor for c in counts)))}
 
 
-class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
+class ImuSensor(PolledSensor):
+
+    """A BNO085 as an input: the quaternion, and the reports it is configured for."""
+
+    READING = 'quaternion'
+
+    def configure(self, reports, reset=False):
+        """Report intervals by id in microseconds (0 disables), under one hold;
+        `reset` the part first - a Set Feature onto a running part was
+        measured to take no effect."""
+        with self.configuring():
+            if reset:
+                self.reset()
+            for report_id, interval_us in reports.items():
+                self._feature(int(report_id), int(interval_us))
+
+
+class Imu(Device, ImuSensor, device=protocol.DEVICE_IMU):
     """The BNO08X behind SPI2."""
 
     LOOP_STATES = LOOP_STATES
@@ -193,7 +210,7 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
             'sw_patch': r.u16(),
         }
 
-    def read(self):
+    def peek(self):
         """One SHTP cargo, decoded as far as the datasheet allows."""
         r = Reader(self._op(ImuOp.READ))
         channel = r.u8()
@@ -235,10 +252,6 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
             got[name] = _vector(r, report)
         return got
 
-    def latest(self):
-        """The newest quaternion, or None when the loop has not seen one."""
-        return self.state()['quaternion']
-
     def hold(self):
         """Stop the poll loop so the part can be configured."""
         return self._loop_state(self._op(ImuOp.HOLD))
@@ -278,14 +291,13 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
         return {'kernel_hz': kernel, 'bitrate_hz': bitrate,
                 'raw': bytes(r.take(r.u8()))}
 
-    def write(self, channel, payload):
+    def poke(self, channel, payload):
         """Put `payload` on `channel` as one SHTP cargo, unparsed."""
         if channel not in CHANNELS:
             raise ValueError('channel %r is not one of the six' % (channel,))
         self._op(ImuOp.WRITE, pack(('u8', channel)) + bytes(payload))
 
-    def feature(self, report_id, interval_us):
-        """Enable a sensor report, or disable it with an interval of 0."""
+    def _feature(self, report_id, interval_us):
         self._op(ImuOp.FEATURE,
                  pack(('u8', report_id), ('u32', interval_us)))
 

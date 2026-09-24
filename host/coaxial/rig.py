@@ -6,7 +6,7 @@ from contextlib import suppress
 
 from coaxial.acquire.acquisition import Acquisition
 from coaxial.acquire.clock import NTP_SERVER
-from coaxial.acquire.stream import Stream
+from coaxial.acquire.stream import TaskStream
 from coaxial.acquire.task import Task
 from coaxial.comm import broker, session as sessionmod
 from coaxial.control.motion import Motion
@@ -108,7 +108,7 @@ class DaqView:
                 'or start(); read()/series()/columns(); stop(), close()>')
 
 
-class Coaxial63100(Task, Stream, Acquisition):
+class Coaxial63100(Task, TaskStream, Acquisition):
 
     """One board, one acquisition task, one clock."""
 

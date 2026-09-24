@@ -1,11 +1,11 @@
 """The stand-in's capture ring: the AFE, the pins and both SPI parts in one buffer."""
 import random
 
-from coaxial.simulated.acquire.daq import _source_mask
+from coaxial.acquire.capture import Ring
 from coaxial.simulated.values import MASK32
 
 
-class SimulatedCapture:
+class SimulatedCapture(Ring):
     """The measurement ring, without measurements."""
 
     DEPTH = 1024
@@ -42,15 +42,12 @@ class SimulatedCapture:
                 # Never thinned here; the field is the board's (test_parity).
                 'thinned': 0}
 
-    def arm(self, sources):
-        self._mask = _source_mask(sources)
+    def _arm(self, mask):
+        self._mask = mask
         self._pending = []
         self._seq = [0, 0, 0]
         self._dropped = 0
         return True
-
-    def stop(self):
-        return self.arm(0)
 
     def take(self, want=15):
         want = max(1, min(int(want), 15))
@@ -59,13 +56,3 @@ class SimulatedCapture:
         batch, self._pending = self._pending[:want], self._pending[want:]
         return batch
 
-    def drain(self, limit=None):
-        out = []
-        while limit is None or len(out) < limit:
-            batch = self.take()
-            if not batch:
-                break
-            out.extend(batch)
-            if limit is None and len(out) >= self.DEPTH:
-                break
-        return out[:limit] if limit is not None else out

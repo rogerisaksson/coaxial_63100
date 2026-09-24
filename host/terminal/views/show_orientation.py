@@ -174,9 +174,7 @@ def start_reporting(board, interval_us):
         say('warn', 'product id', 'not answered - the HUD shows a dash')
 
     try:
-        # No reset first.
-        with board.imu.configuring():
-            board.imu.feature(ROTATION_VECTOR, interval_us)
+        board.imu.configure({ROTATION_VECTOR: interval_us})
     except RigError as exc:
         say('fail', 'rotation vector', str(exc))
         return None
@@ -224,8 +222,7 @@ def put_back(board, part):
             # The loop is down - the rail dropped, and the part forgot the
             # report with it.
             return [('rotation vector', 'already gone with the rail')]
-        with board.imu.configuring():
-            board.imu.feature(ROTATION_VECTOR, 0)
+        board.imu.configure({ROTATION_VECTOR: 0})
         done.append(('rotation vector', 'disabled - the part stops streaming'))
     except RigError as exc:
         done.append(('rotation vector', 'FAILED: %s' % exc))

@@ -73,15 +73,13 @@ def start(rig, args):
     # ask for one would show a source that looks broken rather than idle.
     try:
         board.imu.settled()      # a feature before 'running' is refused
-        # No reset first.
-        with board.imu.configuring():
-            board.imu.feature(ROTATION_VECTOR, args.interval_us)
+        board.imu.configure({ROTATION_VECTOR: args.interval_us})
         say('ok', 'rotation vector', 'every %d us' % args.interval_us)
     except RigError as exc:
         say('warn', 'rotation vector', '%s - the ring will show angle only'
             % exc)
 
-    board.capture.arm(['angle', 'imu'])
+    board.capture.start('angle', 'imu')
     say('ok', 'ring', 'angle and imu')
     return layout
 
@@ -182,7 +180,7 @@ def _drain(rig, board, layout, view):
     if batch:
         view['record'] = batch[-1]
 
-    for record in board.capture.drain(limit=90):
+    for record in board.capture.read(90):
         view['latest'][record['source']] = record
         view['rates'][record['source']].add(1)
     for source in ('angle', 'imu'):
@@ -235,8 +233,7 @@ def put_back(board):
         except RigError as exc:
             done.append((name, 'FAILED: %s' % exc))
     try:
-        with board.imu.configuring():
-            board.imu.feature(ROTATION_VECTOR, 0)
+        board.imu.configure({ROTATION_VECTOR: 0})
         done.append(('rotation vector', 'disabled'))
     except RigError as exc:
         done.append(('rotation vector', 'FAILED: %s' % exc))

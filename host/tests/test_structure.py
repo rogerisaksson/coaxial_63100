@@ -659,7 +659,7 @@ WIRE_SHAPES = (
      'coaxial.devices.thermal_device', 'Thermal', 'budget'),
     ('comms/src/cmd_thermal.c', 'h_thermal_edges',
      'coaxial.devices.thermal_device', 'Thermal', 'network'),
-    ('comms/src/cmd_time.c', 'h_time_read', 'coaxial.acquire.clock', 'Clock', 'read_latch'),
+    ('comms/src/cmd_time.c', 'h_time_read', 'coaxial.acquire.clock', 'Clock', 'read'),
 )
 
 #: What each Reader method takes off the wire; the scaled ones take a width

@@ -5,9 +5,10 @@ import time
 
 from coaxial.comm import protocol
 from coaxial.comm.protocol import TimeOp
-from coaxial.errors import RigError
-from coaxial.devices.subsystem import Device
 from coaxial.comm.wire import Reader
+from coaxial.devices.roles import Input
+from coaxial.devices.subsystem import Device
+from coaxial.errors import RigError
 
 #: CYCCNT is 32 bits and free-running.
 WRAP = 1 << 32
@@ -90,24 +91,14 @@ def unwrap(cycles, start=None):
     return out
 
 
-class Clock(Device, device=protocol.DEVICE_TIME):
+class Timebase(Input):
 
-    """Tie the board's counter to this machine's, and keep the rate."""
-
-    def latch(self, settle=0.05):
-        """Broadcast a latch: the board takes CYCCNT, and nobody replies."""
-        self._broadcast(TimeOp.LATCH, settle=settle)
-
-    def read_latch(self):
-        """What was latched, what the counter says now, and how fast it runs."""
-        r = Reader(self._op(TimeOp.READ))
-        return {'seq': r.u32(), 'latched': r.u32(), 'now': r.u32(),
-                'sysclk_hz': r.u32()}
+    """The board's cycle counter: latched by `trigger()`, read by `read()`, tied to this machine."""
 
     def _bracket(self):
         """One latch, bracketed by this machine's clock."""
         before = time.perf_counter()
-        self.latch(settle=0)
+        self.trigger(settle=0)
         after = time.perf_counter()
         time.sleep(0.02)
         return (before + after) / 2.0, after - before
@@ -117,7 +108,7 @@ class Clock(Device, device=protocol.DEVICE_TIME):
         best = None
         for _ in range(rounds):
             t1 = time.perf_counter()
-            got = self.read_latch()
+            got = self.read()
             t4 = time.perf_counter()
             trip = t4 - t1
             if best is None or trip < best[2]:
@@ -128,7 +119,7 @@ class Clock(Device, device=protocol.DEVICE_TIME):
     def sync(self, seconds=2.0, rounds=8, reference='utc',
              ntp_server=NTP_SERVER):
         """Measure where the counter is and how fast it actually runs."""
-        nominal = self.read_latch()['sysclk_hz']
+        nominal = self.read()['sysclk_hz']
         step = WRAP / nominal / 2.0                  # 4.52 s at 475 MHz
 
         first_offset, reference, note = _ntp_or_pc(
@@ -150,15 +141,26 @@ class Clock(Device, device=protocol.DEVICE_TIME):
                     * 1e6, nominal, reference, pc_ppm, floor, note)
 
 
-# The sync's steps, as functions of the clock they bracket: the stand-in
-# borrows `Clock.sync` with itself as the receiver, so nothing sync calls may
-# be a method the stand-in would have to carry too.
+class Clock(Device, Timebase, device=protocol.DEVICE_TIME):
+
+    """The counter on the board: `0x6E` device TIME."""
+
+    def trigger(self, settle=0.05):
+        """Broadcast a latch: the board takes CYCCNT, and nobody replies."""
+        self._broadcast(TimeOp.LATCH, settle=settle)
+
+    def read(self, count=None, timeout=None):
+        """What was latched, what the counter says now, and how fast it runs."""
+        r = Reader(self._op(TimeOp.READ))
+        return {'seq': r.u32(), 'latched': r.u32(), 'now': r.u32(), 'sysclk_hz': r.u32()}
+
+
 def _best_bracket(clock, n):
     """The tightest of `n` brackets: (latched cycles, host time, width)."""
     best = None
     for _ in range(n):
         host, width = clock._bracket()
-        got = clock.read_latch()
+        got = clock.read()
         if best is None or width < best[2]:
             best = (got['latched'], host, width)
     if best is None:

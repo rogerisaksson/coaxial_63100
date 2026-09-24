@@ -91,9 +91,9 @@ def preflight(board, part):
 
     field = kelvin = None
     with board.angle.configuring():
-        field = angle.gauss(board.angle.read(REG_FIELD)['value'])
-        kelvin = angle.kelvin(board.angle.read(REG_TSEN)['value'])
-        board.angle.poll_register(REG_ANG)
+        field = angle.gauss(board.angle.peek(REG_FIELD)['value'])
+        kelvin = angle.kelvin(board.angle.peek(REG_TSEN)['value'])
+        board.angle.configure(REG_ANG)
 
     say('ok', 'die temperature', '%.1f K, %.1f C' % (kelvin, kelvin - 273.15))
     say('ok' if field >= 30 else 'warn', 'field', '%d gauss%s'
@@ -122,9 +122,9 @@ def reread(board, field, kelvin):
     was known before, if the board refuses."""
     with suppress(RigError):
         with board.angle.configuring():
-            field = angle.gauss(board.angle.read(REG_FIELD)['value'])
-            kelvin = angle.kelvin(board.angle.read(REG_TSEN)['value'])
-            board.angle.poll_register(REG_ANG)
+            field = angle.gauss(board.angle.peek(REG_FIELD)['value'])
+            kelvin = angle.kelvin(board.angle.peek(REG_TSEN)['value'])
+            board.angle.configure(REG_ANG)
     return field, kelvin
 
 

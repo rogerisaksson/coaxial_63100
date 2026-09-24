@@ -89,7 +89,19 @@ def _nothing(value):
 DECODED = {ANG: _angle, TSEN: _temperature}
 
 
-class Angle(Device, PolledSensor, device=protocol.DEVICE_ANGLE):
+class AngleSensor(PolledSensor):
+
+    """An A1335 as an input: degrees, off the register the loop polls."""
+
+    READING = 'degrees'
+
+    def configure(self, register):
+        """The register the poll loop reads; what the part now polls."""
+        got = self._poll(register)
+        return {'register': got, 'register_name': _name(got)}
+
+
+class Angle(Device, AngleSensor, device=protocol.DEVICE_ANGLE):
     """The A1335 behind SPI4."""
 
     LOOP_STATES = LOOP_STATES
@@ -118,7 +130,7 @@ class Angle(Device, PolledSensor, device=protocol.DEVICE_ANGLE):
             got.update(DECODED.get(register, _nothing)(value))
         return got
 
-    def read(self, register):
+    def peek(self, register):
         """One register: its sixteen data bits and its four CRC bits."""
         r = Reader(self._op(AngleOp.READ, pack(('u8', _address(register)))))
         got = r.u8()
@@ -126,16 +138,13 @@ class Angle(Device, PolledSensor, device=protocol.DEVICE_ANGLE):
                 'register_name': _name(got),
                 'value': r.u16(), 'crc': r.u8()}
 
-    def write(self, register, value):
+    def poke(self, register, value):
         """Eight data bits into one register."""
         self._op(AngleOp.WRITE,
                  pack(('u8', _address(register)), ('u8', value)))
 
-    def poll_register(self, register=None):
-        """Which register the loop reads, asked or set."""
-        payload = b'' if register is None else pack(('u8', register))
-        got = Reader(self._op(AngleOp.POLLREG, payload)).u8()
-        return {'register': got, 'register_name': _name(got)}
+    def _poll(self, register):
+        return Reader(self._op(AngleOp.POLLREG, pack(('u8', register)))).u8()
 
     def clock(self):
         """SPI4's kernel clock and the bitrate derived from it, in hertz."""

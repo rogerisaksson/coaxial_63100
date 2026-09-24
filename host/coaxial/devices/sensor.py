@@ -4,9 +4,10 @@ import time
 from abc import ABC, abstractmethod
 
 from coaxial.comm.wire import Reader
+from coaxial.devices.roles import Input
 
 
-class PolledSensor(ABC):
+class PolledSensor(Input, ABC):
 
     """One part, polled by the board's own loop, read through its record."""
 
@@ -37,12 +38,19 @@ class PolledSensor(ABC):
     def state(self) -> dict:
         """The poll loop's shared record: the reading, and what went wrong."""
 
+    #: The key of `state()` that is the reading.
+    READING: str = ''
+
+    def read(self, count=None, timeout=None):
+        """The loop's newest reading; None before it has one."""
+        return self.state()[self.READING]
+
     @abstractmethod
-    def read(self, *args, **kwargs):
+    def peek(self, *args, **kwargs):
         """Take from the part directly. Needs the loop held."""
 
     @abstractmethod
-    def write(self, *args, **kwargs):
+    def poke(self, *args, **kwargs):
         """Put to the part directly. Needs the loop held."""
 
     @abstractmethod

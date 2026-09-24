@@ -112,8 +112,7 @@ def teardown(session, console, drawn, hold=True):
 
     if session.imu_started:
         with suppress(*QUIET):
-            with session.rig.board.imu.configuring():
-                session.rig.board.imu.feature(0x05, 0)
+            session.rig.board.imu.configure({0x05: 0})
             say('ok', 'rotation vector', 'disabled - the session asked '
                                          'for it')
 

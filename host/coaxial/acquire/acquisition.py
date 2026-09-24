@@ -1,9 +1,11 @@
-"""The acquisition surface, named in one place."""
+"""The acquisition surface, named in one place: a Stream of records."""
 import time
 from abc import ABC, abstractmethod
 
+from coaxial.devices.roles import Stream
 
-class Acquisition(ABC):
+
+class Acquisition(Stream, ABC):
 
     """Configure a task, run it, take records off it."""
 

@@ -7,13 +7,13 @@ import time
 from typing import Any
 
 from coaxial.devices import angle, imu
-from coaxial.devices.imu import CHANNELS, decode
+from coaxial.devices.angle import AngleSensor
+from coaxial.devices.imu import CHANNELS, ImuSensor, decode
 from coaxial.devices.scaling import KELVIN_AT_ZERO_C
-from coaxial.devices.sensor import PolledSensor
 from coaxial.simulated.values import _tumble
 
 
-class SimulatedImu(PolledSensor):
+class SimulatedImu(ImuSensor):
     """A BNO08X that was never soldered on."""
 
     #: Q8 counts for 9.81 m/s^2, which is what SCALE[0x01] divides by.
@@ -38,7 +38,7 @@ class SimulatedImu(PolledSensor):
             'sw_patch': 0,
         }
 
-    def read(self):
+    def peek(self):
         """A timebase, then whatever has been enabled - framed the way a real
         cargo on channel 3 is, Figure 5-2.
         """
@@ -60,7 +60,7 @@ class SimulatedImu(PolledSensor):
         return {'channel': 3, 'channel_name': CHANNELS[3],
                 'cargo': cargo, 'reports': decode(cargo)}
 
-    def feature(self, report_id, interval_us):
+    def _feature(self, report_id, interval_us):
         if not 0 <= report_id <= 0xFF:
             raise ValueError('report id %r is not a byte' % (report_id,))
         if not 0 <= interval_us <= 0xFFFFFFFF:
@@ -81,7 +81,7 @@ class SimulatedImu(PolledSensor):
                            'pending': False},
                'updates': self._updates,
                'cargoes': self._updates, 'errors': 0}
-        for report in self.read()['reports']:
+        for report in self.peek()['reports']:
             if 'quaternion' not in report:
                 continue
             # The same shape the real state() builds: the counts the part sent
@@ -122,9 +122,6 @@ class SimulatedImu(PolledSensor):
                                     for v in value))),
                 'value': dict(zip('xyz', value))}
 
-    def latest(self):
-        return self.state()['quaternion']
-
     def hold(self):
         self._held = True
         return 'held'
@@ -136,7 +133,7 @@ class SimulatedImu(PolledSensor):
     def reset(self):
         return 3        # the advertisement and the two announcements
 
-    def write(self, channel, payload):
+    def poke(self, channel, payload):
         if not 0 <= channel <= 5:
             raise ValueError('channel %r is not one of the six' % (channel,))
 
@@ -152,7 +149,7 @@ class SimulatedImu(PolledSensor):
         return 0
 
 
-class SimulatedAngle(PolledSensor):
+class SimulatedAngle(AngleSensor):
     """The A1335 without an A1335."""
     def __init__(self):
         self._at = time.monotonic()
@@ -208,7 +205,7 @@ class SimulatedAngle(PolledSensor):
             got['kelvin'] = angle.kelvin(value)
         return got
 
-    def read(self, register):
+    def peek(self, register):
         if not 0 <= register <= 0x3F:
             raise ValueError('register %r is past the six address bits'
                              % (register,))
@@ -217,17 +214,14 @@ class SimulatedAngle(PolledSensor):
                                                      '0x%02X' % register),
                 'value': self._value(register), 'crc': 0}
 
-    def write(self, register, value):
+    def poke(self, register, value):
         if not 0 <= register <= 0x3F:
             raise ValueError('register %r is past the six address bits'
                              % (register,))
 
-    def poll_register(self, register=None):
-        if register is not None:
-            self._reg = register
-        return {'register': self._reg,
-                'register_name': angle.REGISTERS.get(self._reg,
-                                                     '0x%02X' % self._reg)}
+    def _poll(self, register):
+        self._reg = register
+        return self._reg
 
     def clock(self):
         return {'kernel_hz': 118750000, 'bitrate_hz': 1855468}
