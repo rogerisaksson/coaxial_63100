@@ -476,7 +476,7 @@ def test_orientation(report):
     # Positions come off the owner grid, not off the glyphs.
     def owners(deg, kind, field=380):
         weak = field < dial.WEAK_GAUSS
-        _, owner, _, geom = dial._raster(deg, 64, 23, weak, 2.0)
+        _, owner, _, geom, _ = dial._raster(deg, 64, 23, weak, 2.0)
         return ([row for row in range(23)
                  if any(owner[row][col] == kind for col in range(64))], geom)
 
@@ -516,7 +516,7 @@ def test_orientation(report):
 
     # The trace is the last SWEEP_FADE of the reading: more angle, more trace, to that.
     def swept(deg):
-        _, owner, _, _ = dial._raster(deg, 64, 23, False, 2.0)
+        _, owner, _, _, _ = dial._raster(deg, 64, 23, False, 2.0)
         return sum(cls in dial.SWEEP for row in owner for cls in row)
 
     little, most = swept(20.0), swept(340.0)
@@ -529,8 +529,21 @@ def test_orientation(report):
     report.check('and fades to black behind the needle - a long reading no more trace '
                  'than SWEEP_FADE of it',
                  abs(far - near) <= 0.15 * near, '%d cells at 340 deg, %d at 100' % (far, near))
-    # Not an ordering check on the codes: 236 is darker than 172 and larger, so
-    # a numeric comparison of ansi-256 indices says nothing about brightness.
+
+    # Dials in the dial: the field above the hub, the die below.
+    _, owner, text, geom, inks = dial._raster(40.0, 88, 39, False, 2.0, 380, 298.15)
+    said = [''.join(ch or ' ' for ch in row) for row in text]
+    at = {what: next((r for r, line in enumerate(said) if what in line), -1)
+          for what in ('380 G', '25.0 C')}
+    axis = int(geom.cy) // dial.DOTS_Y
+    classes = {cls for row in owner for cls in row}
+    report.check('dials in the dial: the field above the hub, the die below, each with its '
+                 "hand, its arc in its bands and its reading in its band's ink",
+                 0 <= at['380 G'] < axis < at['25.0 C']
+                 and {dial.SUB_OK, dial.SUB_HAND, dial.SUB_HUB, dial.SUB_TICK} <= classes
+                 and set(inks.values()) == {dial.field_ink(380), dial.die_ink(25.0)},
+                 '%s, axis row %d' % (at, axis))
+
     report.check('one colour per step of the fade, and none the needle own',
                  (len(dial.SWEEP_RAMP) == dial.SWEEP_STEPS
                   and ansi.AMBER not in dial.SWEEP_RAMP

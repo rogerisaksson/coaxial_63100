@@ -24,8 +24,18 @@ MICRO_TICK, MICRO_RIM = 1.2, 60.0
 BEZEL_GAP = 3.0
 
 #: The crosshair: dotted along the axes, a dot each CROSS_PITCH, from the hub
-#: to the sweep band.
+#: to the sweep band; its horizontal arm alone where the sub-dials stand.
 CROSS_PITCH = 3
+
+#: Dials in the dial, as a chronograph's: on a rim of SUB_RIM dots or more, the
+#: field in the face's upper half and the die in its lower - each SUB_R of the
+#: rim across, its centre SUB_OFF of the rim off the hub; a SUB_ARC arc in its
+#: side scale's bands (blue, green, red), ticks at its graduations, a hand, the
+#: reading in the arc's gap at the foot.
+SUB_RIM = 30.0
+SUB_R, SUB_OFF = 0.27, 0.44
+SUB_ARC = 270.0
+SUB_TICK_DEPTH = 2.0
 
 #: How wide a major tick is at the rim, in dots across. A tick one dot
 #: wide is a tick one dot wide wherever it points; two make the difference
@@ -61,9 +71,9 @@ WEAK_GAUSS = 30
 #: Cell classes; the highest present wins. The hub outranks the needle (it
 #: passes under), the bead everything. The tail is one class per fade step,
 #: SWEEP[-1] nearest the needle, so a shared cell takes the newer.
-(CROSS, BEZEL, FACE, MICRO, MINOR, MAJOR) = range(6)
-SWEEP = tuple(range(MAJOR + 1, MAJOR + 1 + SWEEP_STEPS))
-(COUNTERWEIGHT, NEEDLE, HUB, BEAD) = range(SWEEP[-1] + 1, SWEEP[-1] + 5)
+(CROSS, BEZEL, FACE, MICRO, MINOR, MAJOR, SUB_LO, SUB_OK, SUB_HI, SUB_TICK) = range(10)
+SWEEP = tuple(range(SUB_TICK + 1, SUB_TICK + 1 + SWEEP_STEPS))
+(SUB_HAND, SUB_HUB, COUNTERWEIGHT, NEEDLE, HUB, BEAD) = range(SWEEP[-1] + 1, SWEEP[-1] + 7)
 
 #: One light: the instrument (rim, graduations, hub) in `cross_section`'s deep teal
 #: 23, the thirties brighter, the reading the only warm thing - five colours
@@ -73,13 +83,31 @@ SWEEP_RAMP = tuple(tuple(int(ch * (0.1 + 0.7 * i / (SWEEP_STEPS - 1)))
                          for ch in (255, 176, 0)) for i in range(SWEEP_STEPS))
 
 INK = dict([(CROSS, (20, 52, 58)), (BEZEL, 23), (FACE, 30), (MICRO, 23), (MINOR, 30),
-            (MAJOR, 44), (COUNTERWEIGHT, (150, 100, 0)), (NEEDLE, ansi.AMBER), (HUB, 250),
-            (BEAD, 231)]
+            (MAJOR, 44), (SUB_LO, ansi.BLUE), (SUB_OK, ansi.GREEN), (SUB_HI, ansi.RED),
+            (SUB_TICK, 30), (SUB_HAND, (255, 220, 150)), (SUB_HUB, 250),
+            (COUNTERWEIGHT, (150, 100, 0)),
+            (NEEDLE, ansi.AMBER), (HUB, 250), (BEAD, 231)]
            + list(zip(SWEEP, SWEEP_RAMP)))
 
 #: The graduation numbers. Ash, like every other caption here: they name
 #: the scale and the reading is what the eye is meant to find.
 LABEL_INK = ansi.ASH
+
+
+#: The scales: the die -40 to 150 C (A1335 datasheet), the field 0-1200 G.
+#: Each in three bands, blue under normal, green, red past (bench
+#: 2026-09-07): the die's normal is where this board works, 15-65 C (the
+#: thermal ramp read a room-temperature die as cold); the field's is the
+#: datasheet's recommended 300-1000 G - weak or absent under, too close past.
+DIE_RANGE = (-40.0, 150.0)
+DIE_TICKS = (-40, 0, 50, 100, 150)
+DIE_BAND = (15.0, 65.0)
+FIELD_RANGE = (0.0, 1200.0)
+FIELD_TICKS = (0, 300, 600, 900, 1200)
+FIELD_BAND = (300.0, 1000.0)
+#: (range, band, ticks) of each, as a sub-dial takes them.
+FIELD = (FIELD_RANGE, FIELD_BAND, FIELD_TICKS)
+DIE = (DIE_RANGE, DIE_BAND, DIE_TICKS)
 
 
 class _Geometry:
@@ -97,6 +125,9 @@ class _Geometry:
         self.line = max(0.8, min(1.0, self.rim * 0.020))
         self.label = self.rim + LABEL_GAP + DOTS_Y / 2.0
         self.needle = self.rim - MAJOR_TICK - NEEDLE_CLEAR
+        # The sub-dials, (centre's height, radius, range, band, ticks), or none.
+        r, off = self.rim * SUB_R, self.rim * SUB_OFF
+        self.subs = (((off, r) + FIELD, (-off, r) + DIE) if self.rim >= SUB_RIM else ())
 
 
 def _sweep_span(degrees):
@@ -134,9 +165,45 @@ def _fixed(radius, phi, geom):
         return BEZEL
     if geom.rim - SWEEP_IN <= radius <= geom.rim - SWEEP_OUT:
         return _SWEEP_BAND
+    dx, dy = radius * math.cos(phi), radius * math.sin(phi)
+    for oy, r, span, band, ticks in geom.subs:
+        cls = _sub_fixed(dx, dy - oy, r, span, band, ticks, geom.line)
+        if cls is not None:
+            return cls
     if HUB_R + 2.0 < radius < geom.rim - SWEEP_IN - 2.0 and int(radius) % CROSS_PITCH == 0:
-        if min(abs(math.cos(phi)), abs(math.sin(phi))) * radius <= 0.5:
+        if abs(dy) <= 0.5 or (not geom.subs and abs(dx) <= 0.5):
             return CROSS
+    return None
+
+
+def _sub_angle(share):
+    """Where `share` of a sub-dial's scale points, radians: 0 at its lower left,
+    the whole SUB_ARC round clockwise to its lower right."""
+    return math.radians(90.0 + SUB_ARC / 2.0 - SUB_ARC * max(0.0, min(1.0, share)))
+
+
+def _sub_share(value, span):
+    return (value - span[0]) / (span[1] - span[0])
+
+
+def _sub_fixed(sx, sy, r, span, band, ticks, line):
+    """What a sub-dial puts at (sx, sy) off its centre: its hub, a tick, its arc
+    in the band of the value there, or None."""
+    sr = math.hypot(sx, sy)
+    if sr <= 1.3:
+        return SUB_HUB
+    if sr > r + line:
+        return None
+    turned = (90.0 + SUB_ARC / 2.0 - math.degrees(math.atan2(sy, sx))) % 360.0
+    if turned > SUB_ARC:
+        return None
+    for value in ticks:
+        off = math.radians(abs(turned - SUB_ARC * _sub_share(value, span)))
+        if off * sr <= 0.6 and r - SUB_TICK_DEPTH <= sr <= r:
+            return SUB_TICK
+    if abs(sr - r) <= line * 0.7:
+        value = span[0] + (span[1] - span[0]) * turned / SUB_ARC
+        return SUB_LO if value < band[0] else SUB_OK if value <= band[1] else SUB_HI
     return None
 
 
@@ -177,7 +244,7 @@ def _needle(geom, at):
     return c, s, geom.needle * c, geom.needle * s
 
 
-def _classify(sample, geom, span, needle):
+def _classify(sample, geom, span, needle, hands=()):
     """What is at a sample this reading, or None for air."""
     dx, dy, _radius, phi, fixed = sample
     if needle is not None and _on_bead(dx, dy, needle):
@@ -188,6 +255,13 @@ def _classify(sample, geom, span, needle):
         return NEEDLE
     if needle is not None and _on_counter(dx, dy, geom, needle):
         return COUNTERWEIGHT
+    for oy, c, s, length in hands:
+        if abs(dx) > length or abs(dy - oy) > length:
+            continue
+        along = dx * c + (dy - oy) * s
+        if (0.0 <= along <= length
+                and abs(-dx * s + (dy - oy) * c) <= 0.9 - 0.55 * along / length):
+            return SUB_HAND
     if fixed is not _SWEEP_BAND:
         return fixed
 
@@ -226,18 +300,26 @@ def _on_counter(dx, dy, geom, needle):
             and abs(-dx * s + dy * c) <= NEEDLE_ROOT)
 
 
-def _raster(degrees, width, height, weak, aspect):
-    """Dots, their owners and the label overlay, one entry per cell."""
+def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None):
+    """Dots, their owners, the label overlay and its inks, one entry per cell."""
     dots = [[0] * width for _ in range(height)]
     owner = [[-1] * width for _ in range(height)]
     text = [[None] * width for _ in range(height)]
+    inks = {}
     geom = _Geometry(width, height)
     span = None if weak else _sweep_span(degrees)
     needle = None if weak else _needle(geom, math.radians(degrees))
+    celsius = None if kelvin is None else kelvin - KELVIN_AT_ZERO_C
+    readings = [(sub, value) for sub, value in zip(geom.subs, (field, celsius))
+                if value is not None]
+    hands = []
+    for (oy, r, scale_span, _band, _ticks), value in readings:
+        at = _sub_angle(_sub_share(value, scale_span))
+        hands.append((oy, math.cos(at), math.sin(at), r - 2.0))
 
     stretch = aspect / DOTS_Y * DOTS_X
     for x, y, samples in _samples(width, height, aspect):
-        seen = [at for at in (_classify(sample, geom, span, needle)
+        seen = [at for at in (_classify(sample, geom, span, needle, hands)
                               for sample in samples) if at is not None]
         # A dot lights when half its samples or more hit (`covered`).
         if not seen or not covered(len(seen), len(SUBDOT)):
@@ -259,18 +341,32 @@ def _raster(degrees, width, height, weak, aspect):
             col = cell((lx + index * DOTS_X) / DOTS_X - 0.5)
             if 0 <= row < height and 0 <= col < width and not dots[row][col]:
                 text[row][col] = digit
-    return dots, owner, text, geom
+    # Each sub-dial's reading in its arc's gap, in its band's ink.
+    for (oy, r, _scale_span, band, _ticks), value in readings:
+        said = ('%d G' % value) if band == FIELD_BAND else ('%.1f C' % value)
+        ly = geom.cy - (oy - 0.62 * r) / stretch
+        lx = geom.cx - (len(said) - 1) * DOTS_X / 2.0
+        row = cell(ly / DOTS_Y - 0.5)
+        for index, ch in enumerate(said):
+            col = cell((lx + index * DOTS_X) / DOTS_X - 0.5)
+            if 0 <= row < height and 0 <= col < width and not dots[row][col]:
+                text[row][col] = ch
+                inks[(row, col)] = _band_ink(value, band)
+    return dots, owner, text, geom, inks
 
 
 def render(degrees, width=64, height=23, field=None, aspect=CELL_ASPECT,
-           colour=False):
-    """The face at `degrees`, with the reading swept from zero."""
+           colour=False, kelvin=None):
+    """The face at `degrees`, with the reading swept from zero; the field and
+    the die (`kelvin`) on their sub-dials when there is room."""
     weak = field is not None and field < WEAK_GAUSS
-    dots, owner, text, _ = _raster(degrees, width, height, weak, aspect)
+    dots, owner, text, _, inks = _raster(degrees, width, height, weak, aspect, field,
+                                         kelvin)
     lines = []
     for row in range(height):
         cells = [(text[row][col] or chr(BRAILLE + dots[row][col]),
-                  LABEL_INK if text[row][col] else INK.get(owner[row][col]))
+                  inks.get((row, col), LABEL_INK) if text[row][col]
+                  else INK.get(owner[row][col]))
                  for col in range(width)]
         lines.append(ansi.run(cells) if colour
                      else ''.join(char for char, _ in cells))
@@ -292,17 +388,6 @@ SCALE_W = 8
 #: The tube: two cells wide, solid - the reading's ink to the reading, ash
 #: glass above (one dotted column read as a stray line; bench 2026-09-07).
 TUBE_W = 2
-#: The scales: the die -40 to 150 C (A1335 datasheet), the field 0-1200 G.
-#: Each tube in three bands, blue under normal, green, red past (bench
-#: 2026-09-07): the die's normal is where this board works, 15-65 C (the
-#: thermal ramp read a room-temperature die as cold); the field's is the
-#: datasheet's recommended 300-1000 G - weak or absent under, too close past.
-DIE_RANGE = (-40.0, 150.0)
-DIE_TICKS = (-40, 0, 50, 100, 150)
-DIE_BAND = (15.0, 65.0)
-FIELD_RANGE = (0.0, 1200.0)
-FIELD_TICKS = (0, 300, 600, 900, 1200)
-FIELD_BAND = (300.0, 1000.0)
 
 
 def _band_ink(value, band):
@@ -406,7 +491,7 @@ def instrument(degrees, field, kelvin, width=58, height=21,
     text = caption(degrees, field, gauss=False)
     foot = (' ' * max(0, (width - len(text)) // 2) + text).ljust(width)
     face = '\n'.join([render(degrees, width, height, field, aspect=aspect,
-                             colour=colour),
+                             colour=colour, kelvin=kelvin),
                       ansi.paint(foot, INK[NEEDLE]) if colour else foot])
     celsius = (kelvin or KELVIN_AT_ZERO_C) - KELVIN_AT_ZERO_C
     left = scale(celsius, DIE_RANGE, height, DIE_TICKS, 'DIE',

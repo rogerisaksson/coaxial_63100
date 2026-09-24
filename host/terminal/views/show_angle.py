@@ -145,7 +145,7 @@ def _face(degrees, field, kelvin, width, height, aspect, colour, scales):
         return dial.instrument(degrees, field, kelvin, width, height,
                                aspect, colour=colour)
     return '\n'.join([dial.render(degrees, width, height, field,
-                                  aspect=aspect, colour=colour),
+                                  aspect=aspect, colour=colour, kelvin=kelvin),
                       _foot(colour, degrees, field, width)])
 
 
