@@ -46,12 +46,13 @@ def flight(t):
 #: The corridor, in the pilot's eye: square gates each GATE_EVERY deep from GATE_FIRST to
 #: GATE_LAST ahead, sized and placed by 1/depth - the nearest frames the board, NEAR of
 #: the frame wide; the farthest a few columns. The path falls away from the line of
-#: sight as depth squared, reaching DIVE of the frame's height below its centre at the
-#: last gate - a steep dive to the surface, short of the horizon - and bends as depth
+#: sight as depth squared, reaching DIVE of the frame's height below its centre at
+#: GATE_LAST - a steep dive to a point on the surface, short of the horizon, the gates
+#: narrowing to it as they near it (x (1 - depth / GATE_LAST)) - and bends as depth
 #: to the 1.5 with the flight's curvature, SWING of the frame's width at full bend. They
 #: close on the craft with the floor's speed. GATE_HAZE of the amber is left at the last.
 NEAR = 0.8
-GATE_EVERY = 1.6
+GATE_EVERY = 3.0
 GATE_FIRST = 1.2
 GATE_LAST = 26.0
 DIVE = 0.36
@@ -70,12 +71,13 @@ def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None):
     shown = []
     z = GATE_FIRST + (GATE_EVERY - travel % GATE_EVERY) % GATE_EVERY
     while z <= GATE_LAST:
-        half = 0.5 * size / z
+        half = 0.5 * size / z * (1.0 - z / GATE_LAST)
         shown.append((z, cx + bend * z ** 1.5, cy + fall * z * z, half))
         z += GATE_EVERY
     if not shown:
         return {}
     out = {}
+    land = (cx + bend * GATE_LAST ** 1.5, cy + fall * GATE_LAST ** 2)
 
     def put(x, y, rgb):
         if 0.0 <= x < width and 0.0 <= y < height:
@@ -85,9 +87,12 @@ def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None):
             out[at] = (out[at][0] | bit if at in out else bit, rgb)
 
     # The flight path through the gates' centres: faint, dotted, the curve they lie on.
-    path = [(x, y) for _z, x, y, _h in shown]
+    path = [(x, y) for _z, x, y, _h in shown] + [land]
     if roll is not None:
         path = [roll(x, y) for x, y in path]
+    # The point on the surface the corridor closes to.
+    for dx, dy in ((0.0, 0.0), (-0.5, 0.0), (0.5, 0.0), (0.0, -0.25), (0.0, 0.25)):
+        put(path[-1][0] + dx, path[-1][1] + dy, AMBER)
     for (x0, y0), (x1, y1) in zip(path, path[1:]):
         for i in range(0, 12, 3):
             put(x0 + (x1 - x0) * i / 12.0, y0 + (y1 - y0) * i / 12.0, DIM)
