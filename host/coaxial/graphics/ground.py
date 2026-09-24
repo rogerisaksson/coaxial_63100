@@ -367,7 +367,8 @@ def _ground(grid, tone, buf, distance, width, height, colour, view, scroll=None,
         masks = _greys(_lay(_runs(static, width, height, step), width, height, roll), static)
         masks.update(approach.corridor(static, width, height,
                                        (scroll or 0.0) * GROUND_SPEED * RUNG_SPACING,
-                                       flown['curve'], roll, _segment))
+                                       flown['curve'], roll, _segment,
+                                       beacons=int((scroll or 0.0) * 2.0) % 2 == 0))
     for at, (mask, grey) in masks.items():
         r, c = divmod(at, width)
         if buf[at] == 0.0 and grid[r][c] == ' ':

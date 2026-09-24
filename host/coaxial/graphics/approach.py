@@ -56,11 +56,17 @@ GATE_EVERY = 3.0
 GATE_FIRST = 1.2
 GATE_LAST = 26.0
 DIVE = 0.36
-SWING = 0.42
+SWING = 0.32
 GATE_HAZE = 0.35
 
+#: The landing pad where the corridor closes: PAD of the frame wide, seen from high above
+#: (FLAT of a square's height), a cross on it, its corner beacons blinking red.
+PAD = 0.035
+FLAT = 0.4
 
-def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None):
+
+def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None,
+             beacons=False):
     """{cell: (braille mask, (r, g, b))}: the gates `travel` model units closer, each a
     square at its depth on the path, hazed by it, its corners moved by `roll` and its
     edges drawn dot by dot by `segment` (ground._segment)."""
@@ -90,9 +96,23 @@ def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None):
     path = [(x, y) for _z, x, y, _h in shown] + [land]
     if roll is not None:
         path = [roll(x, y) for x, y in path]
-    # The point on the surface the corridor closes to.
-    for dx, dy in ((0.0, 0.0), (-0.5, 0.0), (0.5, 0.0), (0.0, -0.25), (0.0, 0.25)):
-        put(path[-1][0] + dx, path[-1][1] + dy, AMBER)
+    # The pad the corridor closes to: an outline, a cross, beacons at its corners.
+    px, py = land
+    half = PAD * width
+    tall = half / ASPECT * FLAT
+    pad = [(px - half, py - tall), (px + half, py - tall), (px + half, py + tall),
+           (px - half, py + tall)]
+    cross = [((px - 0.5 * half, py), (px + 0.5 * half, py)),
+             ((px, py - 0.5 * tall), (px, py + 0.5 * tall))]
+    if roll is not None:
+        pad = [roll(x, y) for x, y in pad]
+        cross = [(roll(*p), roll(*q)) for p, q in cross]
+    for (x0, y0), (x1, y1) in list(zip(pad, pad[1:] + pad[:1])) + cross:
+        for i in range(25):
+            put(x0 + (x1 - x0) * i / 24.0, y0 + (y1 - y0) * i / 24.0, AMBER)
+    if beacons:
+        for x, y in pad:
+            put(x, y, RED)
     for (x0, y0), (x1, y1) in zip(path, path[1:]):
         for i in range(0, 12, 3):
             put(x0 + (x1 - x0) * i / 12.0, y0 + (y1 - y0) * i / 12.0, DIM)
