@@ -152,20 +152,21 @@ TAG = '>> ﾁｬｸﾘｸﾁ ﾀﾝｻｸﾁｭｳ'
 SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
 
 #: A craft far below, rarely: each SLOT seconds holds a pass with PASS_CHANCE, at a moment,
-#: from a side, at a height, a dive and a speed of its own (CROSS seconds, least and most)
-#: - in from its side, turning short of the board by CLEAR columns and banking off into
-#: a dive out under the frame; never over the board, no pass where it leaves no room.
-#: CRAFT columns nose to tail at a 150-column frame, pale steel, a red beacon blinking,
-#: a white strobe at the tail.
+#: from a side and at a speed of its own (CROSS seconds, least and most); the first at
+#: FIRST. It comes in from its side's edge and arcs down through the bottom corner, diving
+#: out under the frame - the widest arc that keeps CLEAR columns off the board's own
+#: silhouette, chosen as the pass begins; none where the corner has no room. CRAFT columns
+#: nose to tail at a 150-column frame, pale steel, a red beacon blinking, a white strobe.
 SLOT = 45.0
-#: The first pass comes at once: FIRST seconds in.
 FIRST = 3.0
 PASS_CHANCE = 0.55
 CROSS = (2.4, 4.2)
-CLEAR = 4.0
+CLEAR = 2.0
 CRAFT = 6.0
 HULL = (190, 215, 235)
 STROBE = (255, 255, 255)
+#: Each pass's arc, chosen once: {(pass, width, height): radius or 0}.
+_ARCS = {}
 
 #: The craft's outline, nose along +x, in its lengths: a fuselage, a wing, two rotor pods,
 #: a V tail - segments ((x0, y0), (x1, y1)), y across the craft.
@@ -209,7 +210,7 @@ def stars(static, width, height, t, roll=None):
 
 
 def _pass(t):
-    """The pass under way at `t`: (k along it, its side +-1, height, dive), or None."""
+    """The pass under way at `t`: (its number, k along it, its side +-1), or None."""
     n = int(t // SLOT)
     if n and _hashed(n, 10) % 100 >= PASS_CHANCE * 100:
         return None
@@ -219,30 +220,84 @@ def _pass(t):
     k = (t - start) / length
     if not 0.0 <= k <= 1.0:
         return None
-    return (k, 1.0 if _hashed(n, 13) % 2 else -1.0,
-            0.30 + 0.35 * (_hashed(n, 14) % 100) / 100.0,
-            0.45 + 0.50 * (_hashed(n, 15) % 100) / 100.0)
+    return n, k, 1.0 if _hashed(n, 13) % 2 else -1.0
 
 
-def craft(width, height, t, roll=None, box=None):
-    """{cell: (braille mask, (r, g, b))}: the craft at `t` when a pass is on, else {};
-    `box` (the board's first and last row and column) is kept clear."""
+def _arc(radius, side, width, height, phi):
+    """A point of the corner arc: `phi` 0 at the side's edge, pi/2 at the bottom edge."""
+    corner = 0.0 if side > 0 else float(width)
+    return corner + side * radius * math.sin(phi), height - radius * math.cos(phi) / ASPECT
+
+
+def _radius(width, height, side, size, buf):
+    """The widest corner arc whose points keep CLEAR columns and the craft's half-length off
+    the board (`buf`, non-zero where it is); 0 where not even the least fits."""
+    reach = 0.6 * size + CLEAR
+    least, most = 2.5 * size, 0.55 * min(width, height * ASPECT)
+    if buf is None:
+        return most
+    radius = most
+    while radius >= least:
+        clear = True
+        for i in range(13):
+            x, y = _arc(radius, side, width, height, (math.pi / 2.0) * i / 12.0)
+            rows = reach / ASPECT
+            for py in range(int(y - rows), int(y + rows) + 1):
+                for px in range(int(x - reach), int(x + reach) + 1):
+                    if 0 <= px < width and 0 <= py < height and buf[py * width + px]:
+                        clear = False
+                        break
+                if not clear:
+                    break
+            if not clear:
+                break
+        if clear:
+            return radius
+        radius -= 1.0
+    return 0.0
+
+
+def craft(width, height, t, buf=None):
+    """{cell: (braille mask, (r, g, b))}: the craft at `t` when a pass is on and its corner
+    has room, else {}; `buf` (the board's depth per cell) is kept clear."""
     now = _pass(t)
     if now is None:
         return {}
-    k, side, level, dive = now
+    n, k, side = now
     size = CRAFT * width / 150.0
-    # From its edge to CLEAR short of the board - or to the frame's far side, no board.
-    edge = -0.08 * width if side > 0 else 1.08 * width
-    turn = ((box[2] - CLEAR - size if side > 0 else box[3] + CLEAR + size)
-            if box is not None else (0.82 * width if side > 0 else 0.18 * width))
-    if (turn - edge) * side < 3.0 * size:
-        return {}
+    key = (n, width, height)
+    if key not in _ARCS:
+        if len(_ARCS) > 64:
+            _ARCS.clear()
+        _ARCS[key] = _radius(width, height, side, size, buf)
+    radius = _ARCS[key]
+    cells = _drawn(width, height, t, k, side, size, radius) if radius else {}
+    if buf is not None and cells and _touches(cells, buf, width):
+        # The board moved into the arc: the tightest that clears it now, or the pass ends.
+        radius = min(radius, _radius(width, height, side, size, buf))
+        _ARCS[key] = radius
+        cells = _drawn(width, height, t, k, side, size, radius) if radius else {}
+        if cells and _touches(cells, buf, width):
+            _ARCS[key] = 0.0
+            return {}
+    return cells
 
+
+def _touches(cells, buf, width):
+    """Whether any cell of the craft, or one beside it, is the board's."""
+    for at in cells:
+        r, c = divmod(at, width)
+        for cc in (c - 1, c, c + 1):
+            if 0 <= cc < width and buf[r * width + cc]:
+                return True
+    return False
+
+
+def _drawn(width, height, t, k, side, size, radius):
+    """The craft's cells at `k` along a corner arc of `radius`."""
     def track(k):
-        """Where the pass is at `k` of it: in from its side, easing to the turn, diving."""
-        ease = 1.0 - (1.0 - k) ** 2
-        return edge + (turn - edge) * ease, (level + dive * k ** 3) * height
+        """In from beyond its edge, round the corner, out below the frame."""
+        return _arc(radius, side, width, height, -0.35 + (math.pi / 2.0 + 0.5) * k)
 
     x0, y0 = track(k)
     x1, y1 = track(k + 0.01)
@@ -252,8 +307,6 @@ def craft(width, height, t, roll=None, box=None):
     out = {}
 
     def put(x, y, rgb):
-        if roll is not None:
-            x, y = roll(x, y)
         if 0.0 <= x < width and 0.0 <= y < height:
             px, py = int(x), int(y)
             at = py * width + px
@@ -267,9 +320,9 @@ def craft(width, height, t, roll=None, box=None):
         return x0 + x, y0 + y / ASPECT
 
     for (u0, v0), (u1, v1) in OUTLINE:
-        n = max(2, int(size * math.hypot(u1 - u0, v1 - v0) * 2.0))
-        for i in range(n + 1):
-            put(*at(u0 + (u1 - u0) * i / n, v0 + (v1 - v0) * i / n), HULL)
+        steps = max(2, int(size * math.hypot(u1 - u0, v1 - v0) * 2.0))
+        for i in range(steps + 1):
+            put(*at(u0 + (u1 - u0) * i / steps, v0 + (v1 - v0) * i / steps), HULL)
     if int(t * 2.0) % 2 == 0:
         put(*at(0.1, 0.0), RED)
     if t % 1.5 < 0.12:
@@ -291,13 +344,15 @@ def roller(fl, width, height, static):
     return roll
 
 
-def _put(grid, tone, row, col, text, ink):
-    """`text` into the grid at (row, col), clipped to it."""
+def _put(grid, tone, row, col, text, ink, clear=False, buf=None):
+    """`text` into the grid at (row, col), clipped to it and, given `buf`, kept off the
+    board's cells; `clear`: its blanks too."""
     if not 0 <= row < len(grid):
         return
+    width = len(grid[row])
     for i, ch in enumerate(text):
         c = col + i
-        if 0 <= c < len(grid[row]) and ch != ' ':
+        if 0 <= c < width and (ch != ' ' or clear) and not (buf and buf[row * width + c]):
             grid[row][c], tone[row][c] = ch, ink
 
 
@@ -328,7 +383,8 @@ def _ladder(grid, tone, buf, width, height, static, roll, ink):
             fx, fy = roll(cx + side * (reach + 2.0), y)
             if deg and top <= int(fy) < foot:
                 label = '%+d' % deg
-                _put(grid, tone, int(fy), int(fx) - (len(label) if side < 0 else 0), label, ink)
+                _put(grid, tone, int(fy), int(fx) - (len(label) if side < 0 else 0), label, ink,
+                     buf=buf)
     for (py, px), mask in marks.items():
         if grid[py][px] == ' ' or 0x2800 <= ord(grid[py][px]) <= 0x28FF:
             grid[py][px], tone[py][px] = chr(0x2800 + mask), ink
@@ -348,7 +404,7 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
     _ladder(grid, tone, buf, width, height, static, roll, dim)
 
     # The craft, over the scenery; its pass keeps clear of the board.
-    for at, (mask, rgb) in craft(width, height, t, roll, box).items():
+    for at, (mask, rgb) in craft(width, height, t, buf).items():
         r, c = divmod(at, width)
         grid[r][c], tone[r][c] = chr(0x2800 + mask), rgb if colour else None
 
@@ -364,17 +420,18 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
             ticks[c] = '|' if whole % 10 == 0 else "'"
             if whole % 10 == 0 and 1 <= c < span - 2:
                 labels[c - 1:c + 2] = list('%03d' % whole)
-    _put(grid, tone, 0, left, ''.join(labels), amber)
-    _put(grid, tone, 1, left, ''.join(ticks), dim)
-    _put(grid, tone, 2, width // 2 - 3, '<%03d>' % (int(round(fl['heading'])) % 360), amber)
+    _put(grid, tone, 0, left, ''.join(labels), amber, buf=buf)
+    _put(grid, tone, 1, left, ''.join(ticks), dim, buf=buf)
+    _put(grid, tone, 2, width // 2 - 3, '<%03d>' % (int(round(fl['heading'])) % 360), amber,
+         buf=buf)
 
     # The roll arc: -30..30, a column each 2 degrees, the pointer on the bank.
     arc = [' '] * 31
     for deg in range(-30, 31, 10):
         arc[15 + deg // 2] = '|' if deg == 0 else "'"
-    _put(grid, tone, 3, width // 2 - 15, ''.join(arc), dim)
+    _put(grid, tone, 3, width // 2 - 15, ''.join(arc), dim, buf=buf)
     pointer = 15 + int(round(max(-30.0, min(30.0, fl['bank'])) / 2.0))
-    _put(grid, tone, 4, width // 2 - 15 + pointer, '^', amber)
+    _put(grid, tone, 4, width // 2 - 15 + pointer, '^', amber, buf=buf)
 
     # Lock brackets round the board, when it is in the frame.
     if box is not None:
@@ -383,18 +440,20 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
         first, last = max(0, first - 2), min(width - 1, last + 2)
         for row, col, text in ((top, first, '┌─'), (top, last - 1, '─┐'),
                                (bottom, first, '└─'), (bottom, last - 1, '─┘')):
-            _put(grid, tone, row, col, text, amber)
+            _put(grid, tone, row, col, text, amber, buf=buf)
         if int(t * 2.0) % 2 == 0:
-            _put(grid, tone, top, first + 3, 'ﾛｯｸ ｵﾝ', amber)
+            _put(grid, tone, top, first + 3, 'ﾛｯｸ ｵﾝ  ', amber, clear=True, buf=buf)
 
     # The view's pitch (its centre against the horizon) and bank; the clock, the gates.
     pitch = -math.degrees(math.atan((height / 2.0 - static['hrow']) / static['rows'])) \
         + fl['bob']
     _put(grid, tone, height - 2, 1, 'ﾋﾟｯﾁ %+05.1f  ﾊﾞﾝｸ %s%04.1f' % (
-        pitch, 'R' if fl['bank'] >= 0 else 'L', abs(fl['bank'])), dim)
+        pitch, 'R' if fl['bank'] >= 0 else 'L', abs(fl['bank'])), dim, buf=buf)
     minutes, seconds = divmod(t, 60.0)
     _put(grid, tone, height - 1, 1, 'T+%02d:%04.1f  ｹﾞｰﾄ %02d' % (minutes, seconds,
-                                                                gates % 100), amber)
+                                                                gates % 100), amber,
+         buf=buf)
     if int(t * 1.5) % 2 == 0:
-        _put(grid, tone, height - 1, width - len(TAG) - 1, TAG, red)
-    _put(grid, tone, height - 2, width - len(SUBTAG) - 1, SUBTAG, DATA if colour else None)
+        _put(grid, tone, height - 1, width - len(TAG) - 1, TAG, red, buf=buf)
+    _put(grid, tone, height - 2, width - len(SUBTAG) - 1, SUBTAG, DATA if colour else None,
+         buf=buf)

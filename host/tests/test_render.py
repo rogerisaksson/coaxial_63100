@@ -1108,11 +1108,16 @@ def test_approach(report):
                  passes and passes[0] < 5.0 and len(passes) < 0.12 * 4 * 600,
                  '%d of %d quarter-seconds, first at %s s' % (len(passes), 4 * 600,
                                                               passes[0] if passes else '-'))
-    board = (4, 15, 22, 38)                        # a board in the frame's middle
-    over = [at for t in passes for at in approach.craft(60, 20, t, None, board)
-            if board[0] <= at // 60 <= board[1] and board[2] <= at % 60 <= board[3]]
-    report.check('approach: and never over the board', not over, '%d cells' % len(over))
-    sides = {now[1] for now in map(approach._pass, passes) if now}
+    # A board as the view draws it at 116x46: columns 7-108, rows 4-45, the corners free.
+    disc = [1.0 if ((c - 57.5) / 50.5) ** 2 + ((r - 24.5) / 20.5) ** 2 <= 1.0 else 0.0
+            for r in range(46) for c in range(116)]
+    approach._ARCS.clear()
+    drawn = [approach.craft(116, 46, t, disc) for t in passes]
+    over = [at for cells in drawn for at in cells if disc[at]]
+    report.check('approach: with a board filling the frame it still comes, round a corner, '
+                 'never over the board', any(drawn) and not over,
+                 '%d frames drawn, %d cells over' % (sum(1 for d in drawn if d), len(over)))
+    sides = {now[2] for now in map(approach._pass, passes) if now}
     report.check('approach: its passes come from both sides', sides == {1.0, -1.0}, sides)
     straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)
     report.check('approach: the curvature bends the corridor', straight != gates[0])
@@ -1128,6 +1133,35 @@ def test_approach(report):
     report.check('approach: the heading tape reads the flight, the clock the scroll',
                  '<%03d>' % (int(round(heading)) % 360) in art and 'T+00:12.5' in art,
                  art.splitlines()[2].strip())
+
+
+def test_nothing_on_the_board(report):
+    """At the view's own zoom (1.44 x 0.88, 116 x 46), over a tumbling board and the whole
+    first craft pass, the HUD and the craft leave every cell of the board as it was drawn."""
+    from coaxial.draw.orientation import normalise
+    from coaxial.graphics import approach
+    real, touched, seen = approach.hud, [], []
+
+    def spy(grid, tone, buf, width, height, *rest):
+        before = [row[:] for row in grid]
+        real(grid, tone, buf, width, height, *rest)
+        touched.extend((r, c) for r in range(height) for c in range(width)
+                       if buf[r * width + c] and grid[r][c] != before[r][c])
+        seen.append(any(ink == approach.HULL for row in tone for ink in row))
+    approach.hud = spy
+    approach._ARCS.clear()
+    try:
+        for n in range(28):
+            q = normalise((0.25 * math.sin(n * 0.4), 0.2 * math.cos(n * 0.3),
+                           0.15 * math.sin(n * 0.25), 1.0))
+            wireframe.render(q, 116, 46, zoom=1.44 * 0.88, colour=True,
+                             scroll=approach.FIRST + n * 0.15, approach=True)
+    finally:
+        approach.hud = real
+    report.check('the craft flies its first pass in the view as the view draws it',
+                 any(seen), '%d of %d frames' % (sum(seen), len(seen)))
+    report.check('and neither it nor the HUD lands on the board, tumbling or not',
+                 not touched, '%d cells, first %s' % (len(touched), touched[:3]))
 
 
 def test_fan_lines(report):
@@ -1289,6 +1323,7 @@ def main():
     test_fan_lines(report)
     test_backdrop_cache(report)
     test_approach(report)
+    test_nothing_on_the_board(report)
     test_ladder(report)
     test_the_alphabet(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

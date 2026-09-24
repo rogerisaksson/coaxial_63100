@@ -30,7 +30,7 @@ def pass_at(n, width, height, step=0.05, within=3600.0):
     """The middle of the `n`th craft pass (1 the first), seconds; None past `within`."""
     seen, t, during = 0, 0.0, []
     while t < within:
-        on = bool(approach.craft(width, height, t))
+        on = approach._pass(t) is not None
         if on:
             during.append(t)
         elif during:
@@ -42,7 +42,8 @@ def pass_at(n, width, height, step=0.05, within=3600.0):
     return None
 
 
-def frame(roll=0.0, pitch=0.0, yaw=0.0, at=0.0, width=110, height=34, zoom=0.88, hud=True):
+def frame(roll=0.0, pitch=0.0, yaw=0.0, at=0.0, width=116, height=46, zoom=1.44 * 0.88,
+          hud=True):
     """The view's picture as ANSI text."""
     q = orientation.attitude(quaternion(roll, pitch, yaw))
     return orientation.render(q, width=width, height=height, zoom=zoom, toon=True, wire=True,
@@ -55,9 +56,10 @@ def main(argv=None):
                         metavar=('ROLL', 'PITCH', 'YAW'), help='the board, degrees')
     parser.add_argument('--at', type=float, default=0.0, help="the approach's clock, s")
     parser.add_argument('--craft', type=int, help='mid the nth craft pass instead of --at')
-    parser.add_argument('--size', type=int, nargs=2, default=(110, 34),
+    parser.add_argument('--size', type=int, nargs=2, default=(116, 46),
                         metavar=('WIDTH', 'HEIGHT'))
-    parser.add_argument('--zoom', type=float, default=0.88)
+    parser.add_argument('--zoom', type=float, default=1.44 * 0.88,
+                        help="the view's own: its 1.44 over the frame's 0.88")
     parser.add_argument('--bare', action='store_true', help='no ground, no HUD')
     parser.add_argument('--png', help='also the picture as a PNG here')
     args = parser.parse_args(argv)
