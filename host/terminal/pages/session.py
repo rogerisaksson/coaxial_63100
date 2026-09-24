@@ -7,5 +7,5 @@ ORDER, NAME = 10, 'session'
 
 
 def run(args, name):
-    import show_session
+    from terminal.views import show_session
     return call(show_session.main, common(args))

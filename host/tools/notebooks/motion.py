@@ -405,7 +405,7 @@ print('               lambda %.5f Wb from %d KV at %d pole pairs; Kt = 1.5 P lam
        'not the firmware\'s observer: it is a type-2 PLL lag at the record\'s '
        'own natural frequency, settling at `alpha / wn^2` - zero at constant '
        'speed, growing with acceleration, which is what the error trace shows; '
-       'the firmware\'s is C, `tools/observer_run.py` runs it and '
+       'the firmware\'s is C, `tools/sim/observer_run.py` runs it and '
        '`test_drive_core.py` holds it to the Python it was ported from. One '
        'state read a pass carries both `omega_hat` and the fault: a trip here '
        'is a runaway or an overcurrent, the one place stopping the loop '
@@ -488,7 +488,7 @@ REFERENCES = [
     ('host/coaxial/model/motor.py', 'the 5230SL as the sheet gives it, the propeller and its 22-row curve, `Kt = 1.5 P lambda`'),
     ('host/coaxial/simulated/drive.py', 'the stand-in\'s rotor, the spring under HOLD, and the PLL lag that stands in for the observer'),
     ('host/tests/test_sensorless.py', 'the verbs pinned on the stand-in, the dangerous paths included: a load past the holding torque, a trip mid-spin'),
-    ('host/tools/observer_run.py', 'the firmware\'s own observer, run on the host, and the crossover it computes'),
+    ('host/tools/sim/observer_run.py', 'the firmware\'s own observer, run on the host, and the crossover it computes'),
     ('docs/FINDINGS.md', 'the motion verbs, 2026-09-07: the aliased ring, the pumped corrections, the rotor\'s integrator'),
 ]
 

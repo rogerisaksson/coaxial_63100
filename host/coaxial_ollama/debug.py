@@ -1,6 +1,6 @@
 """A lean prompt loop for debug jobs: fewest tokens in, fewest tokens out."""
-import find_board
-from coaxial.comm import ports
+from tools.target import find_board
+from coaxial.comm import ports, session as sessionmod
 import json
 import os
 import re
@@ -11,7 +11,6 @@ from importlib import import_module
 from coaxial.simulated import bus_nodes
 from .client import FAULTS, Ollama, OllamaError
 from .capability import choose, probe
-from coaxial.comm import session as sessionmod
 from contextlib import suppress
 
 # host/ on the path: this file's own directory's parent, so it does not matter
@@ -70,7 +69,7 @@ BUILD_FIRMWARE_HINT = ("A question about building, compiling or flashing "
 
 # Sent only when run_command is offered.
 BUILD_HINT = ("To build or flash: run_command with cmd exactly "
-             "'python tools/build_and_flash.py' (add --build-only or "
+             "'python tools/target/build_and_flash.py' (add --build-only or "
              "--flash-only). Not python3 - only python is allowlisted. "
              "No other command compiles or programs this board.")
 

@@ -25,7 +25,7 @@ jobs:
           cache: pip
           cache-dependency-path: host/requirements.txt
       - run: pip install -r host/requirements.txt
-      - run: python tools/run_tests.py --offline 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
+      - run: python tools/dev/run_tests.py --offline 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host
       # A red run must be readable without the Actions UI: the tail of the

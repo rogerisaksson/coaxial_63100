@@ -65,7 +65,7 @@ Write-Rule $mode
 # One invocation, not a --dry-run and then the real thing.
 Push-Location $hostDir
 $started = Get-Date
-$output = & python tools/run_tests.py @runArgs
+$output = & python tools/dev/run_tests.py @runArgs
 $code = $LASTEXITCODE
 $elapsed = (Get-Date) - $started
 Pop-Location

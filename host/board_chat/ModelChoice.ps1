@@ -7,7 +7,7 @@
 
 function Invoke-Warm {
     <#
-  host/tools/warm_model.py --auto owns the decision, not this script:
+  host/tools/dev/warm_model.py --auto owns the decision, not this script:
         a real timed read of the model's own blob against a measured
         free-RAM
         figure, not a guess from the disk's reported type.

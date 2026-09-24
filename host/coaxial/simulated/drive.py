@@ -6,18 +6,13 @@ import random
 import threading
 import time
 
-from coaxial.devices.drive import load_profile, run_moments
+from coaxial.devices.drive import load_profile, run_moments, MODES, SOURCES, MODEL_IDS, PARAMS
 from coaxial.errors import RigError
 from coaxial.model.motor import BENCH_MOTOR, Motor
 from coaxial.model.sensorless import HALF_SQRT3, TORQUE_FACTOR
 from coaxial.simulated.values import DCBUS_V, NOMINAL
-from typing import Callable, Optional
-from typing import Any
-from coaxial.devices.drive import MODES
-from coaxial.devices.drive import SOURCES
-from coaxial.devices.drive import MODEL_IDS
+from typing import Callable, Optional, Any
 from coaxial.model import sensorless
-from coaxial.devices.drive import PARAMS
 
 
 def _rotor_locked(method):

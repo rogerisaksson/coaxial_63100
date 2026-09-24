@@ -34,7 +34,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 
 Push-Location (Join-Path $Root 'host')
 try {
-    $call = @('tools/show_gate_drivers.py', '--hz', [string]$Hz, '--port', $Port)
+    $call = @('terminal/views/show_gate_drivers.py', '--hz', [string]$Hz, '--port', $Port)
     if ($Afe)       { $call += '--afe' }
     if ($Simulated) { $call += '--simulated' }
     if ($Frames -gt 0) { $call += @('--frames', [string]$Frames) }

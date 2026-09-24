@@ -35,14 +35,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import simulated                              # noqa: E402,F401
 from coaxial.errors import ConnectError, DeviceStateError   # noqa: E402
 from tests import counts                                   # noqa: E402
-from coaxial_ollama import plan as planmod                 # noqa: E402
-from coaxial_ollama import replies                         # noqa: E402,F401
-from coaxial_ollama import runner as runmod                # noqa: E402
-from coaxial_ollama import tools as toolmod                # noqa: E402
+from coaxial_ollama import (plan as planmod, replies, runner as runmod,  # noqa: E402
+                            tools as toolmod, client as clientmod)
 from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
 from coaxial_mcp import detail                             # noqa: E402,F401
 from coaxial.comm import session as sessionmod              # noqa: E402
-from coaxial_ollama import client as clientmod             # noqa: E402
 BSLASH = chr(92)
 
 

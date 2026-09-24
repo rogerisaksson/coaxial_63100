@@ -57,7 +57,7 @@
     // default for the .py files in a fresh workspace; an interpreter chosen
     // by hand outranks it. The notebooks do not depend on it: each names
     // the kernel `coaxial_63100`, which setup.ps1 registers on the python
-    // it installs into (host/tools/make_notebooks.py --kernel install).
+    // it installs into (host/tools/notebooks/make_notebooks.py --kernel install).
     "python.defaultInterpreterPath": "${env:LOCALAPPDATA}\\Python\\bin\\python.exe",
     "python.analysis.extraPaths": [
         "host",

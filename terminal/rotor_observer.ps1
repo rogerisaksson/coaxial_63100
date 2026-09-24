@@ -47,7 +47,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 
 Push-Location (Join-Path $Root 'host')
 try {
-    $call = @('tools/show_rotor_observer.py', '--hz', [string]$Hz, '--port', $Port,
+    $call = @('terminal/views/show_rotor_observer.py', '--hz', [string]$Hz, '--port', $Port,
               '--source', $Source)
     if ($Motor)     { $call += @('--motor', $Motor) }
     if ($Switch)    { $call += '--switch' }

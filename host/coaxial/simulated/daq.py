@@ -13,8 +13,7 @@ from coaxial.simulated.values import (ACCUMULATE_MAX, AMPS_PER_CODE, CHANNELS, D
                                       PHASE_STEP, _sweep, phase_codes)
 from coaxial.simulated.system import UNITS
 from coaxial.devices import angle, imu
-from typing import cast
-from typing import Any
+from typing import cast, Any
 from coaxial.acquire.clock import Clock, NTP_SERVER
 
 #: The share of the line rate the stand-in quotes as its ceiling.

@@ -206,13 +206,13 @@ class Thermal(Device, device=protocol.DEVICE_THERMAL):
 
     def load_cycle(self, amps=None, on_s=None, off_s=None):
         """A board's load is the drive's and the bench's to put through it -
-        `tools/switch.py`, `tools/pulse.py`, the drive - not the
+        `tools/bench/switch.py`, `tools/bench/pulse.py`, the drive - not the
         observer's to lay on from here: that is the stand-in's
         (`SimulatedThermal.load_cycle`), where a page in simulated mode
         cycles 30 A on and off so the map's regions warm and cool.
         """
         raise RigError('a board has no load to lay on from the observer - '
-                       'the drive and tools/switch.py put current through '
+                       'the drive and tools/bench/switch.py put current through '
                        'it; the stand-in (simulated_device=True) cycles one')
 
     def set_winding(self, limit_c, k_per_w, j_per_k):

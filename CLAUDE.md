@@ -34,7 +34,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 
 ## Target
 
-- Map first, files second: `python host/tools/target_map.py [--api] [dir..]`
+- Map first, files second: `python host/tools/dev/target_map.py [--api] [dir..]`
   (one line per file; `--api` adds every header's prototypes). Structure:
   `--layers` (include graph, 6 lines), `--deps` (per file), `--ops`
   (command -> handler -> public calls).
@@ -46,7 +46,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - New 0x6E op: define in `cmd.h`, handler in `cmd_<dev>.c`, row in
   PROTOCOL.md, `IntEnum` in `protocol.py`; `test_structure` holds all four
   together. New hardware: a row in `board_io.c` (`s_parts`, `s_digital`).
-- Build: `python host/tools/build_and_flash.py --build-only [--preset
+- Build: `python host/tools/target/build_and_flash.py --build-only [--preset
   Release]`; both images, 0 warnings, both presets. `--boot` flashes the
   bootloader first. Toolchain under `%LOCALAPPDATA%\stm32cube\bundles`
   (`. .\env.ps1`).
@@ -71,9 +71,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 ## Routine, per item
 
 1. Narrow suite (`cd host; python -X utf8 tests/<suite>.py`); `-Structure`
-   after host/ edits; offline gate (`python tools/run_tests.py --offline`)
+   after host/ edits; offline gate (`python tools/dev/run_tests.py --offline`)
    before pushing `coaxial/` changes.
-2. Braille output: judge a PNG (`tools/ansi2png.py`), then the bench.
+2. Braille output: judge a PNG (`tools/render/ansi2png.py`), then the bench.
 3. One dated FINDINGS line if something was measured or settled;
    PROTOCOL for wire changes (MINOR per appended field).
 4. Commit, push, move on: do not wait for CI. Read it at the next push

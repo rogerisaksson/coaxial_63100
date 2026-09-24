@@ -7,9 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial_ollama import debug                            # noqa: E402
-from coaxial_ollama import language                         # noqa: E402
-from coaxial_ollama import tools as toolmod                 # noqa: E402
+from coaxial_ollama import debug, language, tools as toolmod  # noqa: E402
 from coaxial_ollama.client import Ollama                    # noqa: E402
 from coaxial_ollama.sandbox import Scope                    # noqa: E402
 

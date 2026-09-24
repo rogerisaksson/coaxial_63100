@@ -377,7 +377,7 @@ print('6. timers    %d keepalives in %.0f s of silence at %s s (3 s apart, under
       % (len(ticks), QUIET, ', '.join('%.2f' % s for s in ticks), down_at - left_at, LINGER,
          stale[0], stale[1], stale_s))'''),
     md('The first session on a real port spawns a broker in its own process '
-       '(`tools/session.py`) and every later one attaches to it on loopback '
+       '(`tools/target/session.py`) and every later one attaches to it on loopback '
        'port 8763. The broker owns the port and hands the console over once - '
        'the board boots into its text console, and the escape cannot go into '
        'a link that is already framed - then forwards Modbus requests '
@@ -410,7 +410,7 @@ print('6. timers    %d keepalives in %.0f s of silence at %s s (3 s apart, under
 BENCH = (
     "Flip `SIMULATED` and name the port. Section 2 then says which path the "
     "session took - the debug probe, RS485, or a broker already serving - "
-    "and `python tools/session.py --status` says who else is on it. Compare "
+    "and `python tools/target/session.py --status` says who else is on it. Compare "
     "conclusion 2's t35/t15 against 2.33 (the standard's 3.5 over 1.5 "
     "characters) and its comm errors against zero after a minute of traffic; "
     "errors that climb are a termination or a baud problem before they are "
@@ -427,7 +427,7 @@ BENCH = (
 REFERENCES = [
     ('host/coaxial/comm/session.py', '`open_session`: a serving broker first, then the ports, then the stand-in'),
     ('host/coaxial/comm/broker.py', 'the broker: one lock, the keepalive, `clients()`, `attach` on `CONNECT_S`'),
-    ('host/tools/session.py', 'spawns a broker for a port and reports who is attached'),
+    ('host/tools/target/session.py', 'spawns a broker for a port and reports who is attached'),
     ('host/coaxial/rig.py', '`close()`: what a session disarms, and when'),
     ('comms/src/cmd_link.c', 'echo and the counters, per port'),
     ('board/src/board_power.c', 'the deadman: a silent host loses its claims after `BOARD_POWER_HOST_QUIET_MS`'),

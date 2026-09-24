@@ -12,14 +12,14 @@ Open work. Measured results are in FINDINGS.
   hard-faults on the first ADC interrupt), `test_bench.py` vs baseline,
   LOOP cycle counters, `__sbrk_heap_end` stable over an hour.
 - **Drive**: no current has closed a loop through a winding.
-  `tools/commission.py` has run dry only. Record ids 15..44 (motor R, L,
+  `tools/bench/commission.py` has run dry only. Record ids 15..44 (motor R, L,
   lambda, gains, injection, dead-time table) are placeholders.
 - **SOA path** has never run on target: dry `budget()` over the wire, gate
   proof with a lowered ceiling, a load run. `Board_SyncMeanSquare` ISR cost
   unmeasured.
-- **STO chain**: circuit change, pilot tone sent on RS485, Cinj/Clevel with
-  and without it, interlock thresholds from those readings, one arm with
-  neither bypass (`tools/sto_probe.py`). All sessions so far armed with both
+- **STO chain**: circuit change, pilot tone sent on RS485, Cinj/Clevel with and
+  without it, interlock thresholds from those readings, one arm with neither
+  bypass (`tools/bench/sto_probe.py`). All sessions so far armed with both
   bypasses.
 - **Scope**: counted hold (MINOR 8), dead-time skew (record holds 0),
   `Q_RING` in `inverter.py`.

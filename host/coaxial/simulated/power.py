@@ -5,14 +5,12 @@ import math
 import random
 import time
 
-from coaxial.model import motor
-from coaxial.model import thermal
+from coaxial.model import motor, thermal, inverter
 from coaxial.kalman import thermal_ident
 from coaxial.devices.thermal_device import THROTTLE_AT
 from coaxial.errors import RigError
 from typing import Any, Callable, Optional
 from coaxial.devices.gates import GateControl
-from coaxial.model import inverter
 from coaxial.devices.power import named
 
 

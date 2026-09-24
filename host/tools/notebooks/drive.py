@@ -20,7 +20,7 @@ ABSTRACT = (
     "with the Monte Carlo's own tolerances and are ranked by angle error in "
     "degrees rms against a 20-degree line, the error a torque command pays as "
     "`1 - cos`. The firmware's own C is then searched over the link sweep with "
-    "`tools/montecarlo.py`, one process per core, and its best tune verified "
+    "`tools/sim/montecarlo.py`, one process per core, and its best tune verified "
     "with the injection off through the descent, which is the sensorless floor. "
     "The envelope both land in is read against the lambda tolerance, the "
     "thermal network and a low-saliency outrunner; last, the rotor observer "
@@ -40,7 +40,7 @@ ABSTRACT = (
 SECTIONS = [
     section(
         'The plant, drawn around the 5230SL',
-        md("`tools/montecarlo.py` runs the firmware's own C - the current "
+        md("`tools/sim/montecarlo.py` runs the firmware's own C - the current "
            "loop, the injection demodulator, the rotor observer, the dead-time "
            "table - through `test_drive_core.py`'s bench against "
            "`drive_model.c`, one process per core. A plant is drawn around the "
@@ -55,8 +55,8 @@ SECTIONS = [
         code('''import os
 import sys
 
-sys.path.insert(0, os.path.join('..', 'host', 'tools'))   # the Monte Carlo is a tool beside the library, not part of it
-import montecarlo as mc'''),
+sys.path.insert(0, os.path.join('..', 'host'))   # the Monte Carlo is a tool beside the library, not part of it
+from tools.sim import montecarlo as mc'''),
         code('''print('link sweep', mc.VDC_SWEEP)
 print('knobs', {k: v[:2] for k, v in mc.KNOBS.items()})
 print('I_MAX %.0f  I_TRIP %.0f  I_H_MAX %.0f  TOP %.2f  LOST %.2f rad'
@@ -1063,7 +1063,7 @@ BENCH = (
     "to be set. Compare conclusion 12 against the board's own step: "
     "`isr_cycles_max` and `exit_ticks_max` are the interrupt measured, and a "
     "step past 4 750 ticks is the caches or the optimiser, not the law. "
-    "Then, with a motor on the stand and `tools/commission.py` run, put the "
+    "Then, with a motor on the stand and `tools/bench/commission.py` run, put the "
     "chain to work: `drive.observers()['error']` against the loop is the "
     "number to watch, and two observers disagreeing is the first thing "
     "either being wrong looks like. The current it takes to hold a speed is "
@@ -1077,7 +1077,7 @@ BENCH = (
 REFERENCES = [
     ('host/coaxial/model/sensorless.py', 'the five observers, `choose_injection` and `decide`'),
     ('host/coaxial/control/loop.py', 'the current loop, the machine and the speed loop the search closes'),
-    ('host/tools/montecarlo.py', "the firmware's C searched over the link sweep, one process per core"),
+    ('host/tools/sim/montecarlo.py', "the firmware's C searched over the link sweep, one process per core"),
     ('host/tests/test_drive_core.py', 'the C held to the Python it was ported from, over drawn plants'),
     ('drive/src/drive_observer.c', 'the back-EMF chain the board runs beside the loop, op 14'),
     ('host/coaxial/devices/drive.py', 'device 10: `state`, `window`, `model`, `observers`, the record'),

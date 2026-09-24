@@ -323,7 +323,7 @@ def test_shape(r):
 def test_documented(r):
     """Every module, class and public function says what it is for."""
     # Modules and classes only.
-    from tools.host_map import brief
+    from tools.dev.host_map import brief
     missing, long_ = [], []
     for path, _, tree in sources(beside=False):
         if not ast.get_docstring(tree):
@@ -340,13 +340,13 @@ def test_documented(r):
             missing.append('%s:%s' % (path, node.name))
     r.check('every module and class says what it is for',
             not missing, '; '.join(missing[:4]))
-    r.check('every module opens on a one-line brief (tools/host_map.py)',
+    r.check('every module opens on a one-line brief (tools/dev/host_map.py)',
             not long_, '; '.join(long_[:4]))
 
 
 def test_target_briefs(r):
     """Every firmware file opens on `/** name - brief */`, one line, <= 100."""
-    from tools import target_map
+    from tools.dev import target_map
     bad = []
     for d in target_map.DIRS:
         for path in glob.glob(os.path.join(REPO, d, '**', '*.[chs]'), recursive=True):
@@ -357,7 +357,7 @@ def test_target_briefs(r):
             if not (first.startswith('/**') and first.endswith('*/') and len(first) <= 100
                     and target_map.brief(text)):
                 bad.append(os.path.relpath(path, REPO))
-    r.check('every target file opens on a one-line brief (tools/target_map.py)',
+    r.check('every target file opens on a one-line brief (tools/dev/target_map.py)',
             not bad, '; '.join(bad[:4]))
 
 

@@ -8,9 +8,8 @@ import serial
 
 from coaxial.comm.crc import crc16
 from coaxial.errors import ConnectError, CrcError, FrameError, ModbusException, NoReplyError
-from coaxial.comm.protocol import BROADCAST, MAX_PAYLOAD
+from coaxial.comm.protocol import BROADCAST, MAX_PAYLOAD, request_length
 from typing import Any
-from coaxial.comm.protocol import request_length
 
 #: A frame's fixed bytes around the payload: the unit id and function
 #: code in front, the CRC behind.

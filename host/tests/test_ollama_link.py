@@ -11,8 +11,8 @@ from coaxial.comm import ports                                              # no
 
 def test_power_check_cannot_halt(report):
     """Diagnosing the link must not be able to break it."""
-    import build_and_flash
-    import find_board
+    from tools.target import build_and_flash
+    from tools.target import find_board
     import subprocess
 
     seen = {}
@@ -51,7 +51,7 @@ def test_power_check_cannot_halt(report):
 
 def test_port_state(report):
     """Why a port is not answering, not just that it is not."""
-    import find_board
+    from tools.target import find_board
     import serial
 
     real_serial = serial.Serial
@@ -201,7 +201,7 @@ def test_link_diagnose(report):
     for why.
     """
     import coaxial
-    import find_board
+    from tools.target import find_board
     import serial.tools.list_ports as list_ports
 
     class FakePort:
@@ -314,7 +314,7 @@ def test_link_diagnose(report):
         find_board.port_state = lambda *a, **kw: ports.SILENT
 
         # check_power's own timeout path.
-        import build_and_flash
+        from tools.target import build_and_flash
         import subprocess
         was = (subprocess.run, build_and_flash.find_programmer,
                build_and_flash.toolchain_path)
@@ -784,9 +784,8 @@ def test_pull_draws_the_daemons_numbers(report):
                  and 'install.ps1' in page)
 
     # THE CHOOSER'S CHAT PAGE PULLS ON ITS BOOT STRIP.
-    sys.path.insert(0, os.path.join(host, 'tools'))
-    import show_chat
-    text = io.open(os.path.join(host, 'tools', 'show_chat.py'),
+    from terminal.views import show_chat
+    text = io.open(os.path.join(host, 'terminal', 'views', 'show_chat.py'),
                    encoding='utf-8').read()
     report.check('the chooser\'s chat page pulls through ensure_pulled, '
                  'not require_model',

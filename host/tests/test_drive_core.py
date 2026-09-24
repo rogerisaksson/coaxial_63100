@@ -829,10 +829,9 @@ def test_observer_needs_a_handover(r, lib):
 
 
 def test_montecarlo(r, lib):
-    """One of tools/montecarlo.py's jobs, in process: a drawn plant the
+    """One of tools/sim/montecarlo.py's jobs, in process: a drawn plant the
     controller was not told about, locked, spun and brought back."""
-    sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'tools'))
-    import montecarlo as mc
+    from tools.sim import montecarlo as mc
     mc.hold(lib)
     job = {'vdc': 43.0, 'knobs': mc.candidates(4, 1)[0], 'seed': 3}
     row = mc.run_job(job)

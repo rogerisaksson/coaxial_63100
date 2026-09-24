@@ -82,7 +82,7 @@ RUNGS = len(SHADE) - 1
 
 
 def _bluenoise():
-    """The threshold mask beside this module - `tools/bluenoise.py`'s
+    """The threshold mask beside this module - `tools/render/bluenoise.py`'s
     output, 64 x 64 ranks 0..4095 by void-and-cluster - as rows.
     """
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)),

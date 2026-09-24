@@ -64,7 +64,7 @@ PA10 KEEPALIVE toggles at 200 kHz (a 100 kHz square wave) -> R72 330 / C71 100 n
 also wants the RS485 pilot tone. Cinj (PC1) = recovered pilot, Clevel (PB1)
 = integrator. `GateStage.interlock()` wants >= 3.0 V each; the unmodified
 board reads 0.77 / 0.06 V (2026-08-27), so sessions arm with
-`ignore_interlock=True, bypass_sto=True`. `tools/sto_probe.py` reads it.
+`ignore_interlock=True, bypass_sto=True`. `tools/bench/sto_probe.py` reads it.
 
 ## SPI sensors
 
@@ -86,7 +86,7 @@ UART5 termination on PE14.
 
 `board_cal.c` holds the ids, units and schematic defaults; `0x6E` dev 3
 reads and writes them. Ids 15-44 (motor, drive gains, dead-time table) are
-placeholders until `tools/commission.py` writes them. A stored record of
+placeholders until `tools/bench/commission.py` writes them. A stored record of
 another version is refused, except the two before the firmware's (prefix
 layouts), taken up with later fields at defaults.
 

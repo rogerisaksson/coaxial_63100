@@ -1,0 +1,194 @@
+"""One short pulse between two phases, then off. Nothing else.
+
+    python tools/bench/pulse.py                    # U at 2 %, V held low, W low
+    python tools/bench/pulse.py -d 0.05 -H V -L W  # V at 5 % against W
+    python tools/bench/pulse.py -n 20 --gap 0.05   # twenty in a row, armed once
+
+The HIGH leg switches at the duty; the LOW leg and the third sit at
+zero, which with MOE set is the low-side FET on - so a load between
+the two sees the DC link for `duty` of every period. The pulse lasts
+as long as the second compare write takes to land: 15.5 ms measured
+2026-08-30, ~780 cycles at 50 kHz. It was 110 ms through rig.write(),
+whose arm check and period lookup were three state reads at 31 ms
+each. **From protocol 2.8 the board counts the pulse itself**: --on
+rides as a period count with the duty write and the update ISR zeroes
+the compares after exactly that many periods - 10 ms is 500 cycles,
+not 93-108. Older firmware gets the link-timed train unchanged.
+
+Like switch.py it turns the AFE off and bypasses the STO break before
+arming - on this bench board AFE_ON high takes the supply off the gate
+drivers - and reads no current: measuring and switching are mutually
+exclusive here. It prints the gate state after the pulse and after the
+disarm, so a fault latch, an overrun or a gate short shows.
+"""
+import argparse
+import os
+import sys
+import time
+from contextlib import suppress
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from coaxial import Coaxial63100                           # noqa: E402
+from coaxial.errors import RigError                        # noqa: E402
+from tools.bench.switch import PHASES                                  # noqa: E402
+
+#: Seconds a compare write takes to land, measured 14.9-16.0 ms over the
+#: probe's COM port: what an --on wait is shortened by.
+LANDING = 0.015
+#: The stage's PWM, Hz, and the ms one period is: the board's counted
+#: pulse is a whole number of periods, spoken since protocol 2.8.
+PWM_HZ = 50000
+MS_PER_PERIOD = 1000.0 / PWM_HZ
+COUNTED_SINCE = (2, 8)
+#: Seconds of slack: short of the spin the sleep stops, and past a
+#: counted pulse before the next write, so it cannot land inside it.
+SLACK_S = 0.002
+
+
+def _counted(rig, a):
+    """Periods the board counts for the on-time itself: none for a
+    link-timed hold, an alternate train (op 10 carries no count yet),
+    or a firmware from before the count."""
+    if a.on <= 0.0 or a.alternate:
+        return 0
+    info = rig.board.version_info or rig.board.system.version()
+    if (info['proto_major'], info['proto_minor']) < COUNTED_SINCE:
+        return 0
+    return max(1, round(a.on * PWM_HZ))
+
+
+def _held(t1, on):
+    """Sleep to SLACK_S short of the spin, then spin to LANDING before
+    the off-edge: Windows sleeps in ~15 ms steps, and 100 ms asked for
+    came out 109."""
+    if on <= LANDING:
+        return
+    until = t1 + on - LANDING
+    if until - time.perf_counter() > SLACK_S:
+        time.sleep(until - time.perf_counter() - SLACK_S)
+    while time.perf_counter() < until:
+        pass
+
+SHOWN = ('pwm_enabled', 'sync_armed', 'fault', 'break_bypassed', 'updates',
+         'overruns', 'duty', 'pins', 'worst_gap_cycles', 'gate_shorts',
+         'periods_left')
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--port', default='COM4')
+    p.add_argument('-d', '--duty', type=float, default=0.02)
+    p.add_argument('-H', '--high', default='U', help='the leg that switches')
+    p.add_argument('-L', '--low', default='V', help='the leg held low')
+    p.add_argument('-n', '--count', type=int, default=1,
+                   help='pulses in a row, armed once')
+    p.add_argument('--gap', type=float, default=0.05,
+                   help='seconds off between pulses')
+    p.add_argument('--on', type=float, default=0.0,
+                   help='seconds on per pulse - 0 is as short as the link '
+                        'allows, about 15 ms; longer waits before the off '
+                        'write, with its 15 ms landing counted in')
+    p.add_argument('--prime', type=float, default=0.2,
+                   help='seconds at zero duty after arming, before the '
+                        'train: every low side on, phase nodes at ground, '
+                        'the bootstraps charging - the same PWM, no tricks; '
+                        "the train's first edge is what takes them low")
+    p.add_argument('--alternate', action='store_true',
+                   help='the board swaps direction every PWM period: HIGH '
+                        'at the duty against LOW held low one period, LOW '
+                        'at the duty against HIGH the next - current back '
+                        'and forth through the load at 25 kHz')
+    a = p.parse_args()
+    high, low = a.high.upper(), a.low.upper()
+    if high not in PHASES or low not in PHASES or high == low:
+        raise SystemExit('pick two different legs from U, V, W')
+    zeros = (0, 0, 0)
+
+    rig = Coaxial63100(port=a.port, power_afe=False).open()
+    afe_was_on = rig.gates.state()['afe_on']
+    try:
+        rig.board.afe.disable()
+        rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+        state = rig.gates.state()
+        pins = state['pins']
+        print('armed, dead time %d ns - low sides %s' % (
+            state['deadtime_ns'],
+            'ON' if pins['UL'] and pins['VL'] and pins['WL'] else str(pins)))
+        if a.prime > 0.0:
+            time.sleep(a.prime)
+            print('primed %.0f ms at zero duty: phase nodes at ground, '
+                  'bootstraps charged; the train takes them low'
+                  % (1000 * a.prime))
+        # The raw compare write, twice, with nothing between: the stage is
+        # armed by the line above, and rig.write()'s own arm check is a 31 ms
+        # state read the pulse would be spent waiting for.
+        ticks = [0, 0, 0]
+        ticks[PHASES.index(high)] = int(a.duty * (state['period'] - 1))
+        back = [0, 0, 0]
+        back[PHASES.index(low)] = ticks[PHASES.index(high)]
+
+        # The counted pulse, where the firmware speaks it.
+        counted = _counted(rig, a)
+        if counted:
+            print('counted: %d periods on the board, %.3f ms exactly'
+                  % (counted, counted * MS_PER_PERIOD))
+        held = []
+        for i in range(a.count):
+            if i:
+                time.sleep(a.gap)
+            t0 = time.perf_counter()
+            if a.alternate:
+                # The board swaps A and B every period from here on.
+                rig.board.gate_drivers.alternate(ticks, back)
+            elif counted:
+                rig.board.gate_drivers.duty(ticks, periods=counted)
+            else:
+                rig.board.gate_drivers.duty(ticks)
+            t1 = time.perf_counter()
+            if counted:
+                # The board owns the off-edge; the sleep only keeps the next
+                # pulse's write from landing inside this one.
+                time.sleep(a.on + SLACK_S)
+                held.append(counted / PWM_HZ)
+            else:
+                _held(t1, a.on)
+                rig.board.gate_drivers.duty(zeros)
+                held.append(time.perf_counter() - t1)
+            if a.count == 1:
+                print('%.1f ms to land' % (1000 * (t1 - t0)))
+        after = rig.gates.state()
+        on = sorted(held)
+        if counted:
+            print('%s at %.1f %% against %s low, %d pulse%s: %d periods '
+                  'each, counted by the board - %.3f ms at 50 kHz'
+                  % (high, 100 * a.duty, low, len(on),
+                     '' if len(on) == 1 else 's', counted, counted * MS_PER_PERIOD))
+        else:
+            print('%s at %.1f %% against %s low, %d pulse%s: on %.1f ms min, '
+                  '%.1f median, %.1f max - ~%d cycles each at 50 kHz'
+                  % (high, 100 * a.duty, low, len(on),
+                     '' if len(on) == 1 else 's',
+                     1000 * on[0], 1000 * on[len(on) // 2], 1000 * on[-1],
+                     int(on[len(on) // 2] * PWM_HZ)))
+        print('after:', {k: after[k] for k in SHOWN})
+    finally:
+        with suppress(RigError):
+            rig.board.gate_drivers.duty(zeros)
+        try:
+            rig.gates.disarm()
+        except RigError as exc:
+            print('disarm:', exc)
+        final = rig.gates.state()
+        print('disarmed:', {k: final[k] for k in SHOWN})
+        if afe_was_on:
+            # The way it was found: a thermal view sharing the port went blind
+            # for good when the pulse left the AFE off.
+            rig.board.afe.enable()
+            print('AFE back on')
+        rig.close()
+        print('off', flush=True)
+
+
+if __name__ == '__main__':
+    main()

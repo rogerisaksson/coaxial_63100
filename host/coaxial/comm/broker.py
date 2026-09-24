@@ -525,7 +525,7 @@ def _kind(port):
 def spawn(port, baud=115200, wait=8.0):
     """Start a broker for `port` in its own process. True if it came up."""
 
-    script = os.path.join(HOST, 'tools', 'session.py')
+    script = os.path.join(HOST, 'tools', 'target', 'session.py')
     try:
         subprocess.Popen(                                # noqa: S603
             [sys.executable, script, '--port', port, '--baud', str(baud)],

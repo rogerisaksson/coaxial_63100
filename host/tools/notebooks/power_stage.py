@@ -467,7 +467,7 @@ BENCH = (
     'conclusion 3 against a scope on one gate: 500 periods is 10.000 ms at '
     'the FETs, where a link-timed hold was 93 to 108. In section 6 the six '
     'gate columns\' means are the duties asked for, and the phase noise after '
-    'the tare should sit near 0.35 to 0.41 A rms; `tools/pulse.py` is the '
+    'the tare should sit near 0.35 to 0.41 A rms; `tools/bench/pulse.py` is the '
     'one-leg-against-another test that puts current through a resistor, and '
     '3.1 to 3.75 A on-time is what it measured at 25 to 31 V. The stand-in '
     'could not show the gate columns under a raw compare write, a real '

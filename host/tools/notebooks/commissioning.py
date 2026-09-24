@@ -301,8 +301,8 @@ print(c.report()['line'])'''),
         code('''import os
 import sys
 
-sys.path.insert(0, os.path.join('..', 'host', 'tools'))   # the Monte Carlo is a tool beside the library, not part of it
-import montecarlo as mc'''),
+sys.path.insert(0, os.path.join('..', 'host'))   # the Monte Carlo is a tool beside the library, not part of it
+from tools.sim import montecarlo as mc'''),
         code('''import time
 
 fields = {k: getattr(identified, k) for k in ('name', 'r', 'ld', 'lq', 'lam', 'poles',
@@ -483,7 +483,7 @@ BENCH = (
     'Flip `SIMULATED` and name the port, with a motor on the phases and the '
     'gate drivers\' supply released by the STO chain - `gate_supply()` says '
     'whether it is, and under 7.3 V every switching step reads a dry stage as '
-    '`measured: False`. `tools/commission.py --arm --port COM4` is the same '
+    '`measured: False`. `tools/bench/commission.py --arm --port COM4` is the same '
     'twelve steps as one command under one `finally`. Compare finding 2 '
     'against the scan\'s figure: a best tick mid-period means the stage was '
     'not switching. Compare finding 6 against a DMM across a phase pair - '
@@ -494,14 +494,14 @@ BENCH = (
     'dead time that is not a clean tanh, an innovation that is not white, or '
     'a stage that trips - the search\'s trips are the model\'s, and the '
     'board\'s `i_trip` sits at the rating (invariant 10). Run the search '
-    'from `tools/montecarlo.py` at the link voltage the machine will see '
+    'from `tools/sim/montecarlo.py` at the link voltage the machine will see '
     'before believing a tune found at 24.8 V.')
 
 REFERENCES = [
     ('host/coaxial/control/commission.py', 'the twelve steps, and the one-line report'),
     ('host/coaxial/model/sensorless.py', 'the arithmetic: the budget, the loop and PLL gains, the crossover, Ljung-Box'),
-    ('host/tools/montecarlo.py', 'the search: the plants drawn around the machine, the cost, `design`'),
-    ('host/tools/commission.py', 'the procedure as one command at the bench'),
+    ('host/tools/sim/montecarlo.py', 'the search: the plants drawn around the machine, the cost, `design`'),
+    ('host/tools/bench/commission.py', 'the procedure as one command at the bench'),
     ('host/coaxial/model/motor.py', '`Parameters`, and `BENCH_MOTOR` - the stand-in\'s truth'),
     ('host/coaxial/simulated/drive.py', 'the stand-in this ran on: the machine, the pickup, the polarity readings'),
     ('host/tests/test_sensorless.py', 'the arithmetic and the commissioning pinned against the stand-in'),

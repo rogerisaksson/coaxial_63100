@@ -89,7 +89,7 @@ DRIVER_SWITCH_WATT = 0.60 / 3
 #: scale with it. Silva 2022 (Appl. Sci. 12, 12555): a lumped element's
 #: transient capacity is ~1/3 of its physical one, so bursts may be up to 3x
 #: shorter; `test_thermal_core.py` measures the band. Settles it: a power
-#: step and the NTC's slope (`tools/pulse.py` makes the step).
+#: step and the NTC's slope (`tools/bench/pulse.py` makes the step).
 LEG_CAPACITY_DRIVERS = 0.35
 LEG_CAPACITY_PHASES = 1.20
 

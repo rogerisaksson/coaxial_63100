@@ -591,13 +591,13 @@ def orientation(session, op='once', **_):
 def _open_orientation_window(session):
     """Start the live view in a console of its own, and say so."""
     tools_dir = os.path.dirname(os.path.abspath(__file__))
-    script = os.path.join(os.path.dirname(tools_dir), 'tools',
+    script = os.path.join(os.path.dirname(tools_dir), 'terminal', 'views',
                           'show_orientation.py')
     port = session.port or 'COM4'
 
     if os.name != 'nt':
         return ('a live view needs its own console and this is not Windows - '
-                'run: python tools/show_orientation.py --port %s' % port)
+                'run: python terminal/views/show_orientation.py --port %s' % port)
 
     subprocess.Popen(
         [sys.executable, script, '--port', str(port)],

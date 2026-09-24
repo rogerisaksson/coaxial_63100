@@ -12,8 +12,7 @@ from contextlib import suppress
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import RigError                  # noqa: E402
-from coaxial_mcp import detail                       # noqa: E402
-from coaxial_mcp import render                       # noqa: E402
+from coaxial_mcp import detail, render  # noqa: E402
 from . import language                               # noqa: E402
 from . import spinner as spin                        # noqa: E402
 from .client import Ollama, OllamaError              # noqa: E402
@@ -173,7 +172,7 @@ def _permission_arguments(parser):
                              'Building and flashing does not need anything '
                              'on this list - see the build_firmware tool, '
                              "which is in the default `code` set and always "
-                             'runs tools/build_and_flash.py regardless of '
+                             'runs tools/target/build_and_flash.py regardless of '
                              '--allow.')
     parser.add_argument('--allow-writes', action='store_true')
     parser.add_argument('--confirm', action='store_true',

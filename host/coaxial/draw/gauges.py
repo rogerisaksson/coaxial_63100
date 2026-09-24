@@ -1,9 +1,8 @@
 """Levels in braille: the one instrument every page draws a level with."""
-from coaxial.draw import machine
+from coaxial.draw import machine, ansi
 from coaxial.draw.machine import Frame, INK, SOA_OK, TRACK
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
 from coaxial.devices.thermal_device import THROTTLE_AT
-from coaxial.draw import ansi
 
 #: The tick class a caller puts on a gauge - a burst's extreme, a held
 #: peak - here so a view need not reach into `machine` for it.

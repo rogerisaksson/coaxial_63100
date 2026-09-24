@@ -4,7 +4,7 @@ import sys
 import time
 import zlib
 
-from coaxial.devices import angle as angle_scaling
+from coaxial.devices import angle as angle_scaling, boot as bootmod
 from coaxial.acquire.acquisition import Acquisition
 from coaxial.devices.board import Board
 from coaxial.acquire.clock import NTP_SERVER, WRAP
@@ -14,11 +14,8 @@ from coaxial.devices.gates import GateStage
 from coaxial.acquire.reader import BufferedReader
 from coaxial.acquire.record import Record, build
 from coaxial.control.motion import Motion
-from coaxial.devices import boot as bootmod
-from coaxial.comm import broker
-from coaxial.comm import session as sessionmod
+from coaxial.comm import broker, session as sessionmod
 from contextlib import suppress
-
 
 
 def _subsystem_names():

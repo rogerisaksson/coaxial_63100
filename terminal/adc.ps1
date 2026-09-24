@@ -35,7 +35,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 
 Push-Location (Join-Path $Root 'host')
 try {
-    $call = @('tools/show_desk.py', '--hz', [string]$Hz, '--port', $Port,
+    $call = @('terminal/views/show_desk.py', '--hz', [string]$Hz, '--port', $Port,
               '--rate', [string]$Rate)
     if ($Simulated) { $call += '--simulated' }
     if ($Frames -gt 0) { $call += @('--frames', [string]$Frames) }

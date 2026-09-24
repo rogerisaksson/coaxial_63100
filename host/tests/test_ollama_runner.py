@@ -286,9 +286,7 @@ def test_smart_selection(report):
     """Which suites a change can have broken."""
     import os
     import sys as _sys
-    _sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), 'tools'))
-    import run_tests
+    from tools.dev import run_tests
 
     for paths, expect_suites, expect_live, why in (
             (['host/coaxial_ollama/language.py'],
@@ -346,7 +344,7 @@ def test_smart_selection(report):
         (['terminal/adc.ps1'], 'a demo wrapper'),
         (['coaxial_tty.ps1'], 'the demo picker'),
         (['host/coaxial/draw/desk.py'], 'a pure renderer'),
-        (['host/tools/show_desk.py'], 'a live view'),
+        (['host/terminal/views/show_desk.py'], 'a live view'),
         (['datasheets/imu/UserGuide.pdf'], 'something no suite reads'),
     ):
         suites, _, why = run_tests.pick(paths)
@@ -892,12 +890,10 @@ def test_capability(report):
             os.environ[cap.RESERVE_ENV] = saved_override
 
 def test_picker(r):
-    """tools/pick_tests.py - the model picks subjects, this checks the
+    """tools/dev/pick_tests.py - the model picks subjects, this checks the
     frame.
     """
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), 'tools'))
-    import pick_tests
+    from tools.dev import pick_tests
 
     # Not `is`: run as __main__ this file is imported a second time under its
     # real name, so the picker holds an equal dict, not the same one.
@@ -1045,7 +1041,7 @@ def test_tag_roster(r):
 
 def test_the_terminal_keeps_the_mouse(r):
     """A view does not report the mouse until it is asked to."""
-    from screen import Keys, SELECT_KEYS
+    from terminal.screen import Keys, SELECT_KEYS
 
     keys = Keys(console=False, mouse=True)
     r.check('a view starts without the mouse', not keys.holding())
@@ -1064,7 +1060,7 @@ def test_the_terminal_keeps_the_mouse(r):
             and 'c' not in SELECT_KEYS)
 
     # AND THE WHEEL IS NOT THE ONLY WAY IN.
-    import show_render
+    from terminal.views import show_render
     view = {'zoom': 1.0, 'q': None, 'spin': False}
     show_render.act_on(['+'], view)
     r.check('the render view zooms on a key', view['zoom'] > 1.0,
@@ -1075,7 +1071,7 @@ def test_the_terminal_keeps_the_mouse(r):
 
 def test_mouse(r):
     """The wheel and the right-drag, out of a terminal's own reports."""
-    import screen
+    from terminal import screen
 
     keys = screen.Keys(console=True, mouse=True)
     # What the caller DOES with the number, not the sign of the number: it

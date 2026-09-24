@@ -11,12 +11,11 @@ import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = os.path.dirname(HERE)
-for _path in (HOST, os.path.join(HOST, 'tools')):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
+if HOST not in sys.path:
+    sys.path.insert(0, HOST)
 
-#: A view's answer asking for the front page rather than the door -
-#: screen.TO_MENU, spelled here so the loader imports no view to know it.
+#: What a view exits with when ESC sent it back: not 0 (that is all), not
+#: 130 (Ctrl+C).
 TO_MENU = 64
 #: The front page answers with FIRST + the entry's index; a second
 #: question's later options take codes past the list.
@@ -181,7 +180,7 @@ def preload(state, model=None):
 
 def front_page(args, opened, state):
     """The front page, here: its choice as the code it answers with."""
-    import menu
+    from terminal import menu
     argv = ['--port', args.port]
     if args.simulated:
         argv.append('--simulated')
@@ -211,7 +210,7 @@ def run_page(page, name, args):
 def leave(args):
     """On the way out: the session opened once more and whatever a page
     left running stopped, so "nothing was left running" is measured."""
-    import show_session
+    from terminal.views import show_session
     argv = ['--leave', '--port', args.port]
     if args.simulated:
         argv.append('--simulated')

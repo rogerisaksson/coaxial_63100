@@ -1,9 +1,8 @@
 """The machine in cross-section: stator teeth inside, magnets outside."""
 import math
 
-from coaxial.draw import ansi
+from coaxial.draw import ansi, braille
 from coaxial.draw.ascii3d import CELL_ASPECT
-from coaxial.draw import braille
 from coaxial.graphics.raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT, table,
                      covered)
 

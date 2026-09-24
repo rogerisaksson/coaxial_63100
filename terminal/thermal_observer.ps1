@@ -25,7 +25,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 
-$argv = @('tools/show_thermal_observer.py', '--port', $Port)
+$argv = @('terminal/views/show_thermal_observer.py', '--port', $Port)
 if ($Simulated) { $argv += '--simulated' }
 $argv += @('--hz', $Hz)
 if ($Frames -gt 0) { $argv += @('--frames', $Frames) }

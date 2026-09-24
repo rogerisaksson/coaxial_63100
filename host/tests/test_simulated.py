@@ -9,15 +9,13 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial.draw import ansi, ascii3d, desk          # noqa: E402
+from coaxial.draw import ansi, ascii3d, desk, orientation  # noqa: E402
 from coaxial.graphics import raster
-from coaxial.draw import orientation               # noqa: E402
 from coaxial.devices import scaling               # noqa: E402
 from coaxial.errors import DeviceStateError            # noqa: E402
 from coaxial import simulated
 from typing import Any, cast
-from coaxial.simulated import CHANNELS                  # noqa: E402
-from coaxial.simulated import SimulatedSession          # noqa: E402
+from coaxial.simulated import CHANNELS, SimulatedSession  # noqa: E402
 from coaxial_mcp import tools as toolmod                # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(
@@ -1128,9 +1126,7 @@ PAIRS = (('UH', 'UL'), ('VH', 'VL'), ('WH', 'WL'))
 
 def test_gate_snapshot(report):
     """The six gate signals, and the one state they must never show."""
-    sys.path.insert(0, os.path.join(os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))), 'tools'))
-    import show_gate_drivers
+    from terminal.views import show_gate_drivers
 
     session = SimulatedSession()
     gate_drivers = session.board.gate_drivers
@@ -1238,10 +1234,10 @@ def test_views(report):
     """Each view draws three frames against the stand-in without raising."""
     import subprocess
 
-    tools = os.path.join(REPO, 'host', 'tools')
+    views = os.path.join(REPO, 'host', 'terminal', 'views')
     for view in VIEWS:
         done = subprocess.run(
-            [sys.executable, os.path.join(tools, view + '.py'),
+            [sys.executable, os.path.join(views, view + '.py'),
              '--simulated', '--frames', '3'],
             capture_output=True, text=True, timeout=120,
             stdin=subprocess.DEVNULL)
@@ -1302,10 +1298,10 @@ def test_virtual_rotor(report):
 
 
 def test_sto_probe(report):
-    """`tools/sto_probe.py` reads the STO chain the way the bench day will:
+    """`tools/bench/sto_probe.py` reads the STO chain the way the bench day will:
     the interlock's two channels beside their want, the gate state's
     chain fields, the keepalive pulses a second - and judges nothing."""
-    from tools import sto_probe
+    from tools.bench import sto_probe
     from coaxial import Coaxial63100
     rig = Coaxial63100(simulated_device=True, power_afe=True).open()
     try:

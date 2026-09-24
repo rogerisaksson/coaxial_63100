@@ -14,7 +14,7 @@ from coaxial.graphics.solids import _casters
 #: exporter's cube cuts its '.'/':' boundary across flat faces.
 LIGHT = (0.60, 0.20, 0.77)
 
-#: The shading constants, fitted by tools/lightfit.py against the
+#: The shading constants, fitted by tools/render/lightfit.py against the
 #: exporter's renders and PROVEN against test_render.py's analytic
 #: oracle - do not hand-tweak what the fitter measures. SUN_MIN is the
 #: grazing cutoff for the shadow test, SHADOW_DIM the cast-shadow class
@@ -137,7 +137,7 @@ def _blend(heat):
 EDGE = 0.87
 
 
-#: The tone ramp on the class scale, fitted by tools/tonecheck.py to the
+#: The tone ramp on the class scale, fitted by tools/render/tonecheck.py to the
 #: exporter's lit screenshots: '.' at luma 93-99, ':' at 128-130, tones 1.7
 #: and 2.8. Peak-channel matching landed two tones bright (hue differs).
 TONE_LO = -0.47
@@ -178,7 +178,7 @@ RELIEF_CAP = 0.11
 
 
 #: Texture: tone steps a cell's glow varies by its seed, per class, fitted by
-#: tools/tonecheck.py --fit: the exporter's '.' cells differ by 21 luma (sd
+#: tools/render/tonecheck.py --fit: the exporter's '.' cells differ by 21 luma (sd
 #: 24, correlation 0.22), his ':' by 8-10 (0.5-0.7); ours were 2.8.
 GRAIN_DOT = 1.45
 GRAIN_COLON = 0.0
@@ -309,7 +309,7 @@ def _shadowmap(m, size=56, extent=1.3):
 
 #: The depth ramp: class = PIVOT + SLOPE * view-z / reach. Anchored on
 #: the exporter's cube - deepest visible face '.', near faces ':' -
-#: and fitted from there by tools/lightfit.py.
+#: and fitted from there by tools/render/lightfit.py.
 PIVOT = 2.375
 SLOPE = 1.30
 

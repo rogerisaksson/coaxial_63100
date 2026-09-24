@@ -43,7 +43,7 @@ htmlcov/
 # ---- bench output ----------------------------------------------------------
 # Captures stay on the bench machine. They are one board on one bench on one
 # day, and a reader cannot tell that from a file in a repo - which is the same
-# reason invariant 10 keeps thresholds out. host/tools/analyze_phase_log.py
+# reason invariant 10 keeps thresholds out. host/tools/bench/analyze_phase_log.py
 # takes a path, so nothing here needs them checked in.
 *.csv
 # The BOM is not a measurement log: it is the authority on what is
@@ -137,9 +137,7 @@ render/models/*.samples
 
 # The session broker says what it is serving here, and removes it on the
 # way out. A stale one is handled; committing one would be a lie.
-host/tools/.attitude_mount
 host/tools/.session.addr
-host/tools/.session.json
 host/tests/.session.addr.test
 
 # the hand-off script Claude rewrites and you run - not the project's

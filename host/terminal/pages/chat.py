@@ -10,6 +10,6 @@ ITEMS = ('who answers', (
 
 
 def run(args, name):
-    import show_chat
+    from terminal.views import show_chat
     argv = common(args) + (['--claude'] if name == 'claude' else [])
     return call(show_chat.main, argv)

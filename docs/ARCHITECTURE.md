@@ -47,9 +47,16 @@ coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c), observe
 coaxial/simulated/  the stand-in: same reply shapes as the board
 coaxial_mcp/        MCP server (stdio), docs tool
 coaxial_ollama/     local-model runner
-terminal/           python -m terminal: loader.py + pages/ (one module per view)
-tools/              run_tests, build_and_flash, flash_nodes, pulse, commission,
-                    show_* views, notebooks/ (paper builder)
+terminal/           python -m terminal: loader, menu, readout, screen, stage
+terminal/pages/     the front page's entries, one module each
+terminal/views/     the live views (show_*.py), each runnable on its own
+tools/dev/          run_tests, pick_tests, host_map, target_map, warm_model
+tools/target/       build_and_flash, find_board, flash_nodes, session
+tools/bench/        one question to the board per script: pulse, switch, ..
+tools/thermal/      calibrate, identify, validate, trace
+tools/render/       renderer checks against the exporter; ansi2png
+tools/sim/          the drive core on this machine: montecarlo, observer_run
+tools/notebooks/    the paper builder and make_notebooks
 tests/              suites, counts.py, .counts.json (measured sizes)
 ```
 

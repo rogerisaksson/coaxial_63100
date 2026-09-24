@@ -51,7 +51,7 @@
         },
         {
             "label": "Build & flash (model)",
-            "detail": "The local model builds and flashes over SWD - host/tools/build_and_flash.py, one human confirm before it writes to the chip",
+            "detail": "The local model builds and flashes over SWD - host/tools/target/build_and_flash.py, one human confirm before it writes to the chip",
             "type": "shell",
             "command": "powershell",
             "args": [

@@ -59,7 +59,7 @@ else:
     }
 
     # No size: the view fills the window.
-    $call = @('tools/show_orientation.py', '--hz', [string]$Hz,
+    $call = @('terminal/views/show_orientation.py', '--hz', [string]$Hz,
               '--port', $Port)
     if ($Simulated) { $call += '--simulated' }
     if ($Frames -gt 0) { $call += @('--frames', [string]$Frames) }

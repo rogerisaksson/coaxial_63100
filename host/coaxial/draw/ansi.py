@@ -32,7 +32,7 @@ BLUE = 33
 DIM = 236
 WHITE = 231
 
-# The views' motif - tools/screen.py names the roles (NEON names things, SODIUM
+# The views' motif - terminal/screen.py names the roles (NEON names things, SODIUM
 # is what matters now, ASH is the street).
 TEAL = 44
 ASH = 242

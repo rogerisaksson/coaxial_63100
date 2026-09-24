@@ -7,8 +7,9 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = os.path.dirname(HERE)
+sys.path.insert(0, HOST)
 
-#: Every view, with the flags its two-frame run needs. Read off tools/
+#: Every view, with the flags its two-frame run needs. Read off terminal/views/
 #: rather than hardcoded where possible - a new show_*.py joins by existing.
 EXTRA = {
     'show_session.py': [],
@@ -34,8 +35,8 @@ class Report:
 
 
 def views():
-    """The scripts under tools/ that are views, plus the session."""
-    got = sorted(name for name in os.listdir(os.path.join(HOST, 'tools'))
+    """The views under terminal/views/, plus the session and the front page."""
+    got = sorted(name for name in os.listdir(os.path.join(HOST, 'terminal', 'views'))
                  if name.startswith('show_') and name.endswith('.py'))
     return ['show_session.py', 'menu.py'] + got
 
@@ -48,10 +49,10 @@ def run_view(name):
     """One view run against the stand-in for two frames; its whole process
     tree killed at the timeout - a view's crew workers held the captured
     pipe otherwise, and the suite sat on it (2026-09-13)."""
-    sys.path.insert(0, os.path.join(HOST, 'tools'))
-    from run_tests import run_captured
+    from tools.dev.run_tests import run_captured
+    where = 'terminal' if name == 'menu.py' else os.path.join('terminal', 'views')
     done = run_captured(
-        [sys.executable, '-X', 'utf8', os.path.join('tools', name),
+        [sys.executable, '-X', 'utf8', os.path.join(where, name),
          '--simulated', '--frames', '2'] + EXTRA.get(name, []),
         VIEW_TIMEOUT, cwd=HOST)
     if done is None:
@@ -80,10 +81,8 @@ def test_the_loader_reads_the_pages(report):
     underneath - exits 0.
     """
     import argparse
-    sys.path.insert(0, HOST)
-    sys.path.insert(0, os.path.join(HOST, 'tools'))
     from terminal import loader
-    import menu
+    from terminal import menu
     entries, sub, opens, picks = loader.listing()
     keys = [key for key, _h, _w in entries]
     report.check('loader: seven pages, keys unique, SESSION first',
@@ -103,7 +102,7 @@ def test_the_loader_reads_the_pages(report):
         got = loader.run_page(page, name, args)
         report.check('loader: %s runs here for two frames and answers 0' % name,
                      got == 0, 'answered %r' % (got,))
-    from run_tests import run_captured
+    from tools.dev.run_tests import run_captured
     done = run_captured([sys.executable, '-X', 'utf8', '-m', 'terminal',
                          '--simulated', '--frames', '2'], VIEW_TIMEOUT, cwd=HOST)
     tail = ((done.stdout + done.stderr).strip().splitlines() or ['no output'])[-1][:70] \
@@ -121,9 +120,8 @@ def rows_of(owner, width, height, kind):
 
 def test_the_instruments_stand_clear_of_the_machine(report):
     """The gutters equidistant, and the foot gauges off the can."""
-    sys.path.insert(0, HOST)
     from coaxial.draw import machine
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     width, height = view.BOX.width, view.BOX.rows
     n_left, n_right = len(view.SOA_NODES), len(view.BOARD_NODES)
@@ -155,8 +153,7 @@ def test_the_instruments_stand_clear_of_the_machine(report):
 
 def test_each_gutter_says_its_hottest_node(report):
     """The caption's third row, in degrees, and WHICH node each one is."""
-    sys.path.insert(0, HOST)
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     nodes = dict.fromkeys(view.SOA_NODES + view.BOARD_NODES, 30.0)
     nodes['phase_v'], nodes['regulators'], nodes['board'] = 118.4, 71.2, 44.5
@@ -190,9 +187,8 @@ def test_each_gutter_says_its_hottest_node(report):
 
 def test_both_gutters_run_on_one_scale(report):
     """Height is degrees, colour is margin, and they are two questions."""
-    sys.path.insert(0, HOST)
     from coaxial.draw import machine
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     nodes = dict.fromkeys(view.SOA_NODES + view.BOARD_NODES, 20.0)
     nodes['phase_u'] = nodes['board'] = 100.0
@@ -223,9 +219,8 @@ def test_both_gutters_run_on_one_scale(report):
 
 def test_a_power_node_never_reads_below_the_copper(report):
     """It sheds INTO the board, so it cannot be colder than the board."""
-    sys.path.insert(0, HOST)
     from coaxial import Coaxial63100
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     rig = Coaxial63100(simulated_device=True)
     rig.open()
@@ -253,9 +248,8 @@ def test_a_power_node_never_reads_below_the_copper(report):
 
 def test_the_ntc_is_shown_as_the_one_measurement(report):
     """The reference above the headroom scale, and what it says unread."""
-    sys.path.insert(0, HOST)
     from coaxial.draw import machine
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     report.check('a reading is shown in degrees',
                  view.reference({'thermal': {'ntc': 38.04}})
@@ -297,11 +291,9 @@ def test_the_foot_carries_the_policy(report):
     """TH OBS and the policy between WINDING and POWER, in the margin's
     colours, and nothing moves when the power goes negative.
     """
-    sys.path.insert(0, HOST)
-    sys.path.insert(0, os.path.join(HOST, 'tools'))
     from coaxial.draw import machine
-    from screen import plain as visible      # the row without its inks
-    from tools import show_rotor_observer as view
+    from terminal.screen import plain as visible      # the row without its inks
+    from terminal.views import show_rotor_observer as view
 
     def a_view(watts, ident):
         # `watts(view)` is 1.5 (vd id + vq iq) off the loop's means; a volt of
@@ -393,11 +385,9 @@ def test_the_soa_legend_reads_the_whole_soa(report):
     """SWITCH SOA and MOTOR SOA say how much of the RECORD's SOA is spent,
     and flash red where the ceiling in force is.
     """
-    sys.path.insert(0, HOST)
-    sys.path.insert(0, os.path.join(HOST, 'tools'))
     from coaxial.draw import machine
     from coaxial.model import thermal
-    from tools import show_rotor_observer as rotor
+    from terminal.views import show_rotor_observer as rotor
     IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
 
     def a_view(state, worst, tripped=False, winding_used=None):
@@ -457,8 +447,7 @@ def test_the_soa_legend_reads_the_whole_soa(report):
 
 def test_two_headrooms_named_apart(report):
     """The board's margin and the motor's are different facts."""
-    sys.path.insert(0, HOST)
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     report.check('both scales are named, and named differently',
                  len(view.HEADROOM_TITLES) == 2
@@ -491,10 +480,9 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     import re
     from rich.console import Console
 
-    sys.path.insert(0, HOST)
     from coaxial.draw import ansi, gauges, machine
-    from tools import show_thermal_observer as page
-    from tools import stage
+    from terminal.views import show_thermal_observer as page
+    from terminal import stage
 
     half = gauges.bar(0.5, 16)
     line = re.sub('\x1b\\[[0-9;]*m', '', half)
@@ -549,13 +537,11 @@ def test_the_thermal_page_shows_its_evidence(report):
     import re
     from rich.console import Console
 
-    sys.path.insert(0, HOST)
-    sys.path.insert(0, os.path.join(HOST, 'tools'))
     from coaxial.draw import machine
     from coaxial.simulated.power import SimulatedThermal
-    from screen import plain as visible
-    from tools import show_thermal_observer as page
-    from tools import stage
+    from terminal.screen import plain as visible
+    from terminal.views import show_thermal_observer as page
+    from terminal import stage
 
     def ident(margin, state='CONVERGING'):
         return {'state': state, 'margin': margin, 'margin_floor': 0.8,
@@ -732,8 +718,7 @@ def test_the_attitude_caps_its_frame_rate(report):
     """BOARD ATTITUDE draws at most HZ_CAP frames a second whatever
     `--hz` asks - the bench's word, so the laptop's fans stay down -
     and never slower than one every two seconds."""
-    sys.path.insert(0, HOST)
-    from tools import show_orientation as view
+    from terminal.views import show_orientation as view
 
     report.check('the cap is thirty', view.HZ_CAP == 30.0, str(view.HZ_CAP))
     report.check('--hz 60 draws at thirty',
@@ -877,7 +862,7 @@ def test_the_demo_actually_loads_the_machine(report):
     # read the tail.
     done = subprocess.run(
         [sys.executable, '-X', 'utf8',
-         os.path.join('tools', 'show_rotor_observer.py'),
+         os.path.join('terminal', 'views', 'show_rotor_observer.py'),
          '--simulated', '--frames', '200'],
         cwd=HOST, env=env, capture_output=True, text=True,
         encoding='utf-8', errors='replace', timeout=300)
@@ -898,9 +883,8 @@ def test_the_demo_actually_loads_the_machine(report):
 
 def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
     """The kW bar is a power law pinned at 500 W, full at 2 kW, red past."""
-    sys.path.insert(0, HOST)
     from coaxial.draw import machine
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     at = {w: view.watts_share(w) for w in (0, 20, 100, 500, 2000, 2500)}
     report.check('nothing draws nothing', at[0][0] == 0.0)
@@ -1109,8 +1093,8 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     import unicodedata
 
     from coaxial.draw import machine
-    import show_rotor_observer as view
-    import stage
+    from terminal.views import show_rotor_observer as view
+    from terminal import stage
 
     drawn = machine.render(6.0, 24, 28, 46, 18, pointer_deg=41.0)
     # The scroll arrows are the stage's now, every page's furniture.
@@ -1130,7 +1114,7 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     report.check('the arrowheads are the small triangles',
                  (view.AIM_LEFT, view.AIM_RIGHT) == (chr(0x25C2), chr(0x25B8)),
                  view.AIM_LEFT + view.AIM_RIGHT)
-    import stage
+    from terminal import stage
     report.check('and the foot uses their up and down - the stage\'s, which '
                  'every page\'s scroll markers wear too',
                  (stage.UP, stage.DOWN) == (chr(0x25B4), chr(0x25BE)),
@@ -1270,7 +1254,7 @@ def test_the_bead_is_round_at_every_angle(report):
 
 def test_the_terminal_is_asked_how_tall_a_cell_is(report):
     """The cell's shape is measured, not assumed."""
-    import screen
+    from terminal import screen
 
     report.check('a terminal 1200 by 800 pixels over 100 by 40 cells has a '
                  'cell 1.67 times as tall as it is wide',
@@ -1289,8 +1273,7 @@ def test_the_terminal_is_asked_how_tall_a_cell_is(report):
 
 def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
     """The alarm is the envelope acting, not a level this page picked."""
-    sys.path.insert(0, HOST)
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     report.check('an idle board does not pulse', not view.flashing({}))
     report.check('nor does one merely close to a limit - near is not an '
@@ -1314,8 +1297,7 @@ def test_every_page_scrolls_its_boxes(report):
     a click on its markers and a drag over it too, and the key bar says
     SCROLL only while there is somewhere to go.
     """
-    sys.path.insert(0, HOST)
-    import stage
+    from terminal import stage
 
     class Size:
         width, height = 100, 14
@@ -1375,10 +1357,9 @@ def test_the_dial_is_round_on_this_terminal(report):
     """The shaft angle's face takes the measured cell aspect, and is a notch
     smaller than it was.
     """
-    sys.path.insert(0, HOST)
-    import screen
+    from terminal import screen
     from coaxial.draw import dial
-    from tools import show_angle as view
+    from terminal.views import show_angle as view
 
     report.check('a given aspect wins, said as given',
                  screen.aspect_of(2.3) == (2.3, 'given'))
@@ -1405,7 +1386,6 @@ def test_the_face_wears_its_two_scales(report):
     as tubes on their own ranges - the scales beside it the bench asked
     for, die temperature and field strength in gauss, 2026-09-07.
     """
-    sys.path.insert(0, HOST)
     from coaxial.draw import ansi, dial
 
     def dots(lines):
@@ -1475,7 +1455,7 @@ def test_the_face_wears_its_two_scales(report):
                  and ansi.code(dial.die_ink(61.0)) in art[-1]
                  and '61.0 C' in ansi_plain(art[-1]),
                  (len(art), sorted({len(ansi_plain(l)) for l in art})))
-    from tools import show_angle as page
+    from terminal.views import show_angle as page
     report.check('and the face gives way to the scales: full at 130 columns, '
                  'FACE_MIN at 98, alone under that, whole where the '
                  'terminal would not say',
@@ -1506,7 +1486,6 @@ def test_the_bead_trails_its_speed(report):
     """
     import re
 
-    sys.path.insert(0, HOST)
     from coaxial.draw import ansi, machine
 
     inks = {machine.INK[c] for c in machine.TRAIL}
@@ -1548,8 +1527,7 @@ def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
     """The two gutter tubes read two different things: the worst of the six
     switch nodes, and the winding.
     """
-    sys.path.insert(0, HOST)
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     used = {n: 0.3 for n in view.SOA_NODES}
     used.update({'patch_u': 0.78, 'winding': 0.6, 'board': 0.2})
@@ -1638,9 +1616,8 @@ def test_the_foot_says_trip_while_the_cap_holds(report):
     state's word and the model's number once the cap has recovered past
     the model.
     """
-    sys.path.insert(0, HOST)
     from coaxial.draw import machine
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     def foot(state, margin, cap, floor=None):
         ident = {'state': state, 'margin': margin, 'trip_cap': cap}
@@ -1682,10 +1659,9 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
     """`HOLD (NORM)`, `SENSORLESS (THR)`: the envelope's state beside the
     mode.
     """
-    sys.path.insert(0, HOST)
     from rich.text import Text
     from coaxial.draw import machine
-    from tools import show_rotor_observer as view
+    from terminal.views import show_rotor_observer as view
 
     def said(mode, budget=None):
         raw = view.mode_text({'state': {'mode': mode}, 'budget': budget})
@@ -1729,9 +1705,8 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
 
 def test_a_frame_rasterises_as_the_terminal_draws_it(report):
     """`ansi.image` draws a coloured frame cell by cell, the way the bench's
-    terminal shows it: the notebooks' pictures, and `tools/ansi2png.py`.
+    terminal shows it: the notebooks' pictures, and `tools/render/ansi2png.py`.
     """
-    sys.path.insert(0, HOST)
     from coaxial.draw import ansi
 
     frame = (ansi.paint('ab', ansi.RED) + 'c\n'
@@ -1769,10 +1744,9 @@ def test_the_marquee_decodes_the_art_itself(report):
     the console are the ones Text.from_ansi produced.
     """
     import io
-    import stage
+    from terminal import stage
     from rich.console import Console
     from rich.text import Text
-    sys.path.insert(0, HOST)
     from coaxial.draw import ansi
 
     class ByText:
@@ -1846,7 +1820,7 @@ def test_the_preload_is_the_first_inquiry(report):
     first inquiry says what is being loaded and the room it has.
     """
     import tempfile
-    import readout
+    from terminal import readout
     from coaxial.draw import orientation
     from coaxial.graphics import preload
     identity = {'origin': 'simulated', 'real': False,
@@ -1899,7 +1873,7 @@ def test_the_readout_prints_what_the_bus_said(report):
     cycled - a late-seventies console's register in the tree's palette,
     without its lines: the bench struck those as silly.
     """
-    import readout
+    from terminal import readout
 
     identity = {
         'info': {'device': 'coaxial_63100', 'type': 'bldc_inverter',

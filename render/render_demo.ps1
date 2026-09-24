@@ -24,7 +24,7 @@ $hostDir = Join-Path $root 'host'
 $code = 0
 
 if (-not ($Test -or $Calibration -or $Show -or $Fit)) {
-    python -X utf8 (Join-Path $hostDir 'tools\show_render.py') `
+    python -X utf8 (Join-Path $hostDir 'terminal\views\show_render.py') `
         --model $Model
     exit $LASTEXITCODE
 }
@@ -37,19 +37,19 @@ if ($Test) {
 if ($Test -or $Calibration) {
     Write-Host ''
     Write-Host '-- calibration against the exporter''s renders --------------'
-    python -X utf8 (Join-Path $hostDir 'tools\facecheck.py')
+    python -X utf8 (Join-Path $hostDir 'tools\render\facecheck.py')
 }
 
 if ($Show) {
     Write-Host ''
-    python -X utf8 (Join-Path $hostDir 'tools\rendershow.py') `
+    python -X utf8 (Join-Path $hostDir 'tools\render\rendershow.py') `
         --model $Model --pose $Pose
 }
 
 if ($Fit) {
     Write-Host ''
     Write-Host '-- fitting the shading constants ---------------------------'
-    python -X utf8 (Join-Path $hostDir 'tools\lightfit.py')
+    python -X utf8 (Join-Path $hostDir 'tools\render\lightfit.py')
 }
 
 exit $code

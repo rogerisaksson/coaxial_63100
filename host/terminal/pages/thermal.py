@@ -6,5 +6,5 @@ ORDER, NAME = 60, 'thermal_observer'
 
 
 def run(args, name):
-    import show_thermal_observer
+    from terminal.views import show_thermal_observer
     return call(show_thermal_observer.main, common(args, hz=2.0))

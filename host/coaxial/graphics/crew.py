@@ -2,9 +2,8 @@
 import multiprocessing
 import os
 
-from coaxial.graphics import engine
+from coaxial.graphics import engine, mesh
 from coaxial.errors import RigError
-from coaxial.graphics import mesh
 
 class _Worker:
     """The solids and the art, set once per worker by `_load`: 50,000

@@ -717,7 +717,7 @@ except Exception:
     # THE NOTEBOOKS NAME THEIR KERNEL - `coaxial_63100`, registered on this
     # interpreter by make_notebooks.py - so an editor holding two CPythons of
     # the same version opens them on the one the packages are in.
-    $maker = Join-Path $Host_ 'tools\make_notebooks.py'
+    $maker = Join-Path $Host_ 'tools\notebooks\make_notebooks.py'
     $kernel = (& $Python $maker --kernel status) -join ' '
     if ($LASTEXITCODE -eq 0) {
         Write-Item 'notebook kernel' 'ok' $kernel
@@ -729,10 +729,10 @@ except Exception:
                 Write-Item 'notebook kernel' 'done' $kernel
             } else {
                 Write-Item 'notebook kernel' 'failed' $kernel
-                Add-Todo 'python tools/make_notebooks.py --kernel install failed - run it from host/ and read the output'
+                Add-Todo 'python tools/notebooks/make_notebooks.py --kernel install failed - run it from host/ and read the output'
             }
         } else {
-            Add-Todo 'python tools/make_notebooks.py --kernel install   (from host/)'
+            Add-Todo 'python tools/notebooks/make_notebooks.py --kernel install   (from host/)'
         }
     }
 }

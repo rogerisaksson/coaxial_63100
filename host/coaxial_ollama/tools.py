@@ -9,13 +9,11 @@ import sys
 import time
 from typing import Any
 
-# host/ and host/tools on the path: this file's own directory's parent, so it
-# does not matter what the working directory is - dbg.py and the runner start
-# from different ones - or what any directory along the way is called.
+# host/ on the path: this file's own directory's parent, so it does not
+# matter what the working directory is - dbg.py and the runner start from
+# different ones - or what any directory along the way is called.
 _HOST = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_TOOLS = os.path.join(_HOST, 'tools')
 sys.path.insert(0, _HOST)
-sys.path.insert(0, _TOOLS)
 
 from coaxial.errors import LINK_FAULTS, RigError          # noqa: E402
 from coaxial_mcp import detail                            # noqa: E402
@@ -23,7 +21,7 @@ from coaxial_mcp import render                            # noqa: E402
 from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
 from coaxial_mcp.tools import TOOLS as BOARD_TOOLS         # noqa: E402
 from coaxial_mcp.tools import coerce as board_coerce       # noqa: E402
-import find_board                                          # noqa: E402
+from tools.target import find_board                                          # noqa: E402
 from coaxial.comm import ports                                  # noqa: E402
 
 from .sandbox import clip_ends                             # noqa: E402
@@ -40,8 +38,8 @@ def bounded(result, limit=TOOL_LIMIT):
     return result
 
 
-_BUILD_AND_FLASH = os.path.join(_TOOLS, 'build_and_flash.py')
-_RUN_TESTS = os.path.join(_TOOLS, 'run_tests.py')
+_BUILD_AND_FLASH = os.path.join(_HOST, 'tools', 'target', 'build_and_flash.py')
+_RUN_TESTS = os.path.join(_HOST, 'tools', 'dev', 'run_tests.py')
 
 EXTRA_TOOLS = [
     {
@@ -67,7 +65,7 @@ EXTRA_TOOLS = [
     },
     {
         'name': 'build_firmware',
-        'description': "Build this firmware and flash it to the board over SWD. Runs host/tools/build_and_flash.py with a fixed build preset and a fixed SWD flash command - nothing about the build or the flash is configurable here beyond which of the two steps to run. 'action': 'build' (compile only), 'flash' (flash the existing build only), or 'both' (default).",
+        'description': "Build this firmware and flash it to the board over SWD. Runs host/tools/target/build_and_flash.py with a fixed build preset and a fixed SWD flash command - nothing about the build or the flash is configurable here beyond which of the two steps to run. 'action': 'build' (compile only), 'flash' (flash the existing build only), or 'both' (default).",
         'description_terse': "Build this firmware and flash it over SWD. action: 'build', 'flash' or 'both' (default). Nothing else is configurable.",
         'inputSchema': {
             'type': 'object',
@@ -345,7 +343,7 @@ class Toolbox:
         return self.shell.run(cmd, args.get('timeout_s'))
 
     def _build_firmware(self, args):
-        """tools/build_and_flash.py directly, not through `self.shell`, so
+        """tools/target/build_and_flash.py directly, not through `self.shell`, so
         this works whatever --allow was set to.
         """
         action = args.get('action') or 'both'
@@ -404,7 +402,7 @@ class Toolbox:
                 'before reporting a dead link.' % last)
 
     def _run_tests(self, args):
-        """tools/run_tests.py - every suite's own tally, parsed by that
+        """tools/dev/run_tests.py - every suite's own tally, parsed by that
         script, never re-summarised here or by the model.
         """
         argv = [sys.executable, _RUN_TESTS]

@@ -643,9 +643,7 @@ def map_tests(run):
 def board_answers(port=PORT, baud=BAUD, unit=SLAVE):
     """Whether there is firmware on the other end to conform to."""
     import os
-    sys.path.insert(0, os.path.join(os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))), 'tools'))
-    import find_board
+    from tools.target import find_board
     return find_board.probe(port, baud, unit)
 
 

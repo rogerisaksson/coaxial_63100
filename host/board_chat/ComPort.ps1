@@ -1,7 +1,7 @@
 ﻿<#
     Finding which COM port this board is actually on - board_chat.ps1's
     -AutodetectComport path.
-    Both functions here call into host/tools/find_board.py rather than
+    Both functions here call into host/tools/target/find_board.py rather than
     probing a port themselves - that script is also what
     coaxial_ollama/tools.py's link_diagnose tool imports directly, mid-
     session, so "does this port answer" is one implementation, not two that
@@ -64,7 +64,7 @@ function Find-BoardPort {
     # One call, no port opened: "COM4 probe" per line.
     $kind = @{}
     try {
-        $lines = & python (Join-Path $HostDir 'tools/find_board.py') --kinds
+        $lines = & python (Join-Path $HostDir 'tools/target/find_board.py') --kinds
         foreach ($line in $lines) {
             $bits = "$line".Trim() -split '\s+'
             if ($bits.Count -ge 2) { $kind[$bits[0]] = $bits[1] }

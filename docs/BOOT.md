@@ -82,18 +82,19 @@ go        broadcast
 ```
 
 The bootloader works inside its receive path, so the master waits
-(`coaxial.devices.boot`: ERASE_S, CHUNK_S, VERIFY_S, SEAL_S, PERSIST_S). Estimates:
-200 K = 915 chunks, ~2 s at 10 Mbit, ~22 s at 115 200 on the ST-Link's port.
-Persist adds 2 sectors' erase. The same image again costs round trips only.
+(`coaxial.devices.boot`: ERASE_S, CHUNK_S, VERIFY_S, SEAL_S, PERSIST_S).
+Estimates: 200 K = 915 chunks, ~2 s at 10 Mbit, ~22 s at 115 200 on the
+ST-Link's port. Persist adds 2 sectors' erase. The same image again costs round
+trips only.
 
 ## The host's own build
 
-`Coaxial63100.open()` on a real board compares `state`'s image with this
-host's build (`$COAXIAL_IMAGE`, else the newest `build/*/coaxial_63100.elf`).
-If they differ, `coaxial.devices.boot.load` sends `stay`, runs the master's sequence
-on that one node at unit 247 with its unit, position and flags given back,
-persists, sends `go`, and waits until the application names the new image.
-That happens once per build; the ST-Link's port costs ~22 s. Exceptions:
+`Coaxial63100.open()` on a real board compares `state`'s image with this host's
+build (`$COAXIAL_IMAGE`, else the newest `build/*/coaxial_63100.elf`). If they
+differ, `coaxial.devices.boot.load` sends `stay`, runs the master's sequence on
+that one node at unit 247 with its unit, position and flags given back,
+persists, sends `go`, and waits until the application names the new image. That
+happens once per build; the ST-Link's port costs ~22 s. Exceptions:
 
 - No build at hand: nothing is compared.
 - Image (0, 0), meaning a debugger started the app: left alone.
@@ -117,8 +118,8 @@ store/images/<type>.bin
 store/records/<bus>/<position>.record
 ```
 
-- `tools/flash_nodes.py --store DIR --port COMx --bus LL [--persist]` runs
-  the master; `--persist` has each store keep the image.
+- `tools/target/flash_nodes.py --store DIR --port COMx --bus LL [--persist]`
+  runs the master; `--persist` has each store keep the image.
   `--place UID BUS POS TYPE` writes a row; `--simulated` uses four stand-in
   nodes.
 - `build_and_flash.py` programs the app's sealed store over SWD (`.store.bin`

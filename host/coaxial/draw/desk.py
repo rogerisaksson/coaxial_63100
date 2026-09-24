@@ -1,7 +1,5 @@
 """Every analog channel at once, drawn as a meter bridge."""
-from coaxial.draw import ansi
-from coaxial.draw import machine
-from coaxial.draw import gauges
+from coaxial.draw import ansi, machine, gauges
 from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
 
 #: Columns of bar. Wide, because the bar is the only part of a row that a

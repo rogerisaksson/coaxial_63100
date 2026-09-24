@@ -45,14 +45,14 @@ power_stage, thermal, drive, motion, applications, commissioning), generated
 from `host/tools/notebooks/`:
 
 ```powershell
-python tools/make_notebooks.py --execute [area ...]
+python tools/notebooks/make_notebooks.py --execute [area ...]
 ```
 
 ## Build and test
 
 ```powershell
 cube-cmake --build --preset Debug      # zero warnings; two images (app + bootloader)
-python host/tools/build_and_flash.py   # --boot flashes the bootloader first
+python host/tools/target/build_and_flash.py   # --boot flashes the bootloader first
 .\host\run_tests.ps1                   # ~25 %; -All the gate; -Structure 4 s
 ```
 
