@@ -150,7 +150,7 @@ class Scope:
         if not parts:
             return ''
         return ('\nboard has: %s. The tool names are not the method names - '
-                'analog_read is a tool, board.analog.read_all() is the method.'
+                'analog_read is a tool, board.analog.read() is the method.'
                 % ', '.join('board.' + p for p in parts))
 
     def run(self, code):

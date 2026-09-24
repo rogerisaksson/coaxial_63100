@@ -3,6 +3,7 @@
 The tables: units, subsystems, pins, parts.
 """
 from coaxial.devices.gpio import reserved_reason
+from coaxial.devices.roles import Input, Output
 from coaxial.errors import DeviceStateError
 from coaxial.simulated.values import CHANNELS, SYSCLK_HZ, TICKS_PER_US
 
@@ -138,7 +139,7 @@ class SimulatedSystem:
                 'adc_hz': 37500000}
 
 
-class SimulatedGpio:
+class SimulatedGpio(Input, Output):
     """In-memory pins, gated the same way the firmware documents the real
     ones - reads always allowed, writes only with the gate open - but
     this is a courtesy for a script that forgets the gate, not a protocol
@@ -156,9 +157,16 @@ class SimulatedGpio:
         self._ports = {}
         self.afe = afe
 
-    def test_mode(self, enable):
-        self.gate_open = bool(enable)
-        return self.gate_open
+    def state(self):
+        return {'on': self.gate_open, 'reserved': None}
+
+    def on(self):
+        self.gate_open = True
+        return True
+
+    def off(self):
+        self.gate_open = False
+        return False
 
     def _guard(self, port, pin):
         reason = reserved_reason(port, pin)
@@ -172,7 +180,7 @@ class SimulatedGpio:
             raise DeviceStateError('the gate is closed; call test_gate '
                                    'first')
 
-    def pin_mode(self, port, pin, mode, pull='none'):
+    def configure(self, port, pin, mode, pull='none'):
         self._guard(port, pin)
         self._require_gate()
 
@@ -193,7 +201,7 @@ class SimulatedGpio:
         return {(self.AFE_PORT, self.AFE_PIN): self._afe_on,
                 (self.PE15_PORT, self.PE15_PIN): lambda: not self._afe_on()}
 
-    def pin_read(self, port, pin):
+    def read(self, port, pin):
         self._guard(port, pin)
         letter = str(port).upper()[:1]
         witness = self._witnesses().get((letter, pin))
@@ -201,7 +209,7 @@ class SimulatedGpio:
             return witness()
         return self._pins.get((letter, pin), False)
 
-    def pin_write(self, port, pin, level):
+    def write(self, port, pin, level):
         self._guard(port, pin)
         self._require_gate()
         letter = str(port).upper()[:1]

@@ -150,7 +150,7 @@ class GateStage(Output):
 
         rows = []
         readings = {r['signal']: r for r in
-                    self._board.analog.read_all(nr_of_samples=32)['channels']}
+                    self._board.analog.read(samples=32)['channels']}
         for name, want in self.INTERLOCK:
             got = readings.get(name)
             volts = got['volts_at_pin'] if got else None

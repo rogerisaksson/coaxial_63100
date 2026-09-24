@@ -38,7 +38,7 @@ def volts(rig, name=CHANNEL):
     """Volts at the pin for a named channel, or None if the link stays quiet."""
     for _ in range(6):
         try:
-            for row in rig.board.analog.read_all(nr_of_samples=1)['channels']:
+            for row in rig.board.analog.read(samples=1)['channels']:
                 if row['signal'] == name:
                     return row['volts_at_pin']
             raise SystemExit('no channel is called %r - check 0x6D kind 0'

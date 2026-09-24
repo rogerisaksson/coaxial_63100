@@ -5,10 +5,11 @@ from coaxial.devices import scaling
 from coaxial.devices.afe import powered
 from coaxial.errors import DeviceStateError
 from coaxial.devices.subsystem import Subsystem, remembered
+from coaxial.devices.roles import Input
 from coaxial.comm.wire import Reader, pack
 
 
-class Analog(Subsystem):
+class Analog(Subsystem, Input):
 
     """The ADC channels: what exists, and what they read now."""
 
@@ -71,17 +72,17 @@ class Analog(Subsystem):
 
     # -- sampling ----------------------------------------------------------
 
-    def burst(self, mask, nr_of_samples, sample_rate=None):
+    def burst(self, mask, count, sample_rate=None):
         """Sample the masked channels and return raw statistics per channel."""
         interval_us = 0 if not sample_rate else int(round(1e6 / sample_rate))
-        duration_us = nr_of_samples * interval_us
+        duration_us = count * interval_us
 
         if duration_us > protocol.BURST_MAX_MICROSECONDS:
             raise ValueError(
                 "%d samples at %g Hz would take %.1f s; the firmware refuses "
                 "bursts over %.1f s so the link is never left silent longer "
                 "than the master will wait"
-                % (nr_of_samples, sample_rate, duration_us / 1e6,
+                % (count, sample_rate, duration_us / 1e6,
                    protocol.BURST_MAX_MICROSECONDS / 1e6))
 
         # A burst legitimately blocks the slave for as long as it samples.
@@ -90,7 +91,7 @@ class Analog(Subsystem):
 
         reader = Reader(self.request(
             protocol.ANALOG_BURST,
-            pack(('u16', mask), ('u16', nr_of_samples), ('u32', interval_us)),
+            pack(('u16', mask), ('u16', count), ('u32', interval_us)),
             timeout=timeout))
 
         samples = reader.u16()
@@ -116,9 +117,9 @@ class Analog(Subsystem):
         }
 
     @powered
-    def _one(self, index, nr_of_samples, sample_rate):
+    def _one(self, index, samples, sample_rate):
         """Burst a single channel and return just its statistics."""
-        result = self.burst(1 << index, nr_of_samples, sample_rate)
+        result = self.burst(1 << index, samples, sample_rate)
         stats = dict(result['channels'][index])
         stats['samples'] = result['samples']
         stats['rate_hz'] = result['rate_hz']
@@ -127,11 +128,13 @@ class Analog(Subsystem):
     # -- readings ----------------------------------------------------------
 
     @powered
-    def read_all(self, nr_of_samples=64, sample_rate=1000.0, vref=3.3):
-        """Every configured channel at once, with its table metadata merged in.
-        """
+    def state(self):
+        return {'channels': self.channels()}
+
+    def read(self, samples=64, sample_rate=1000.0, vref=3.3):
+        """Every channel at once: its table row, its statistics, its volts at the pin."""
         table = self.channels()
-        result = self.burst(self.mask_all(), nr_of_samples, sample_rate)
+        result = self.burst(self.mask_all(), samples, sample_rate)
 
         rows = []
         for index, stats in sorted(result['channels'].items()):
@@ -148,11 +151,11 @@ class Analog(Subsystem):
                 'channels': rows}
 
     def ntc_temperature(self, adc_chan=None, ntc_params=None,
-                        nr_of_samples=64, sample_rate=2000.0):
+                        samples=64, sample_rate=2000.0):
         """Temperature in degrees Celsius."""
         ntc_params = ntc_params or self.scaling()['ntc']
         index = self.index_of('NTC') if adc_chan is None else adc_chan
-        stats = self._one(index, nr_of_samples, sample_rate)
+        stats = self._one(index, samples, sample_rate)
 
         return {
             'celsius': ntc_params.celsius(stats['mean_raw']),
@@ -166,11 +169,11 @@ class Analog(Subsystem):
         }
 
     def dcbus_voltage(self, adc_chan=None, divider=None,
-                      nr_of_samples=64, sample_rate=2000.0):
+                      samples=64, sample_rate=2000.0):
         """DC bus volts."""
         divider = divider or self.scaling()['dcbus']
         index = self.index_of('DC bus') if adc_chan is None else adc_chan
-        stats = self._one(index, nr_of_samples, sample_rate)
+        stats = self._one(index, samples, sample_rate)
 
         return {
             'volts': divider.volts(stats['mean_raw']),
@@ -186,10 +189,10 @@ class Analog(Subsystem):
         }
 
     def phase_current(self, signal='Phase U', shunt=None,
-                      nr_of_samples=64, sample_rate=2000.0):
+                      samples=64, sample_rate=2000.0):
         """Phase current in amperes."""
         shunt = shunt or self.scaling()['phase']
-        stats = self._one(self.index_of(signal), nr_of_samples, sample_rate)
+        stats = self._one(self.index_of(signal), samples, sample_rate)
 
         return {
             'amps': shunt.amps(stats['mean_raw']),
@@ -232,10 +235,10 @@ class Analog(Subsystem):
         return result
 
     @powered
-    def noise(self, adc, nr_of_samples=200):
+    def noise(self, adc, samples=200):
         """The firmware's own noise measurement on one ADC's phase channel."""
         reader = Reader(self.request(protocol.ADC_NOISE,
-                                     pack(('u8', adc), ('u16', nr_of_samples))))
+                                     pack(('u8', adc), ('u16', samples))))
         return {
             'samples': reader.u16(),
             'mean_uv': reader.i32(),

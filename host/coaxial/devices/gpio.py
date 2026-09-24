@@ -2,6 +2,7 @@
 from coaxial.comm import protocol
 from coaxial.errors import RigError
 from coaxial.devices.subsystem import Subsystem, remembered
+from coaxial.devices.roles import Input, Output
 from coaxial.comm.wire import Reader, pack
 
 
@@ -26,16 +27,30 @@ def reserved_reason(port, pin):
     return protocol.RESERVED_PINS.get((_letter(port), int(pin)))
 
 
-class Gpio(Subsystem):
+class Gpio(Subsystem, Input, Output):
 
     """The digital pins a fixture may read or drive."""
 
-    def test_mode(self, enable):
-        """Open or close the gate. Returns the state the firmware reports."""
+    _gate = False
+
+    def state(self):
+        """The test gate as this session last set it, and the board's reserved pins."""
+        return {'on': self._gate, 'reserved': self._reserved()}
+
+    def on(self):
+        """Open the test gate: the pins are the host's to drive."""
+        return self._test_gate(True)
+
+    def off(self):
+        """Close it: the pins are the firmware's again."""
+        return self._test_gate(False)
+
+    def _test_gate(self, enable):
         reader = Reader(self.request(
             protocol.TEST_GATE,
             pack(('u32', protocol.TEST_GATE_KEY), ('u8', int(bool(enable))))))
-        return bool(reader.u8())
+        self._gate = bool(reader.u8())
+        return self._gate
 
     @remembered
     def _reserved(self):
@@ -63,7 +78,7 @@ class Gpio(Subsystem):
                              'it would cost the link or the debug port'
                              % (_pin_name(port, pin), reason))
 
-    def pin_mode(self, port, pin, mode, pull='none'):
+    def configure(self, port, pin, mode, pull='none'):
         """Configure one pin. Needs the gate open."""
         self._guard(port, pin)
         if mode not in protocol.PIN_MODES:
@@ -77,14 +92,14 @@ class Gpio(Subsystem):
                           ('u8', protocol.PIN_MODES[mode]),
                           ('u8', protocol.PIN_PULLS[pull])))
 
-    def pin_read(self, port, pin):
+    def read(self, port, pin):
         """Read one pin. Allowed with the gate shut."""
         self._guard(port, pin)
         reader = Reader(self.request(protocol.PIN_READ,
                                      pack(('u8', _port_byte(port)), ('u8', pin))))
         return bool(reader.u8())
 
-    def pin_write(self, port, pin, level):
+    def write(self, port, pin, level):
         """Drive one pin and return the level READ BACK from it."""
         self._guard(port, pin)
         reader = Reader(self.request(

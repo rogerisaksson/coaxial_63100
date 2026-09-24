@@ -283,11 +283,11 @@ def gpio_pin(session, op='read', pin='B2', level=False, mode='input',
     gpio = session.board.gpio
 
     if op == 'read':
-        return '%s=%d' % (pin.upper(), gpio.pin_read(port, number))
+        return '%s=%d' % (pin.upper(), gpio.read(port, number))
     if op == 'write':
         return '%s=%d readback' % (pin.upper(),
-                                   gpio.pin_write(port, number, level))
-    gpio.pin_mode(port, number, mode, pull)
+                                   gpio.write(port, number, level))
+    gpio.configure(port, number, mode, pull)
     return '%s mode=%s pull=%s' % (pin.upper(), mode, pull)
 
 
@@ -300,7 +300,7 @@ def digital_read(session, **_):
         # The map spells them "PB2"; _split_pin takes "B2".
         name = entry['pin']
         port, number = _split_pin(name[1:] if name[:1] == 'P' else name)
-        rows.append(dict(entry, level=int(bool(gpio.pin_read(port, number)))))
+        rows.append(dict(entry, level=int(bool(gpio.read(port, number)))))
     return render.digital_levels(rows)
 
 
@@ -316,7 +316,8 @@ def gpio_port(session, op='read', port='E', mask=0, value=0, **_):
 
 
 def test_gate(session, enable=False, **_):
-    return 'gate=%d' % session.board.gpio.test_mode(enable)
+    gpio = session.board.gpio
+    return 'gate=%d' % (gpio.on() if enable else gpio.off())
 
 
 HANDLERS = {

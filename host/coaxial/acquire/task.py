@@ -392,11 +392,11 @@ class Task:
                            % (name, ', '.join(self.outputs()['digital'])))
 
         port, number = pins[name]['pin'][1], int(pins[name]['pin'][2:])
-        self.board.gpio.test_mode(True)
+        self.board.gpio.on()
         try:
-            self.board.gpio.pin_write(port, number, level)
+            self.board.gpio.write(port, number, level)
         finally:
-            self.board.gpio.test_mode(False)
+            self.board.gpio.off()
         return level
 
     def _write_duty(self, analog):

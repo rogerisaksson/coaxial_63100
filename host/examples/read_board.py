@@ -30,7 +30,7 @@ def show(board):
     board.afe.on()
 
     print('\nanalog  (raw codes and pin volts; scaling is nominal, not calibrated)')
-    reading = board.analog.read_all(nr_of_samples=128, sample_rate=2000.0)
+    reading = board.analog.read(samples=128, sample_rate=2000.0)
     print('  %d samples at %.0f Hz' % (reading['samples'], reading['rate_hz']))
     for channel in reading['channels']:
         print('    %-9s ADC%d IN%-2d %-12s %-4s mean %9.2f  %+8.4f V  '

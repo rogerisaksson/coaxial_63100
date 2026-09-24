@@ -95,7 +95,7 @@ class Commissioning:
     def gate_supply(self):
         """Volts on the gate driver supply, and whether it clears UVLO."""
         rows = {r['signal']: r for r in
-                self.rig.board.analog.read_all(nr_of_samples=16)['channels']}
+                self.rig.board.analog.read(samples=16)['channels']}
         row = rows.get('Vgate')
         scale = self.rig.board.analog.scaling()['vgate'].scale
         volts = row['volts_at_pin'] * scale if row else None

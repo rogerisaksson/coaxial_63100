@@ -169,6 +169,47 @@ def test_reexports(r):
         r.check('and an unknown name still raises AttributeError', True)
 
 
+#: Every device on the board, and its stand-in: the stand-in answers every
+#: public call the device does (docs: add a method to both or neither).
+TWINS = (
+    ('coaxial.devices.afe:Afe', 'coaxial.simulated.analog:SimulatedAfe'),
+    ('coaxial.devices.analog:Analog', 'coaxial.simulated.analog:SimulatedAnalog'),
+    ('coaxial.devices.gpio:Gpio', 'coaxial.simulated.system:SimulatedGpio'),
+    ('coaxial.devices.power:Power', 'coaxial.simulated.power:SimulatedPower'),
+    ('coaxial.devices.gate_drivers:GateDrivers', 'coaxial.simulated.power:SimulatedGateDrivers'),
+    ('coaxial.devices.imu:Imu', 'coaxial.simulated.sensors:SimulatedImu'),
+    ('coaxial.devices.angle:Angle', 'coaxial.simulated.sensors:SimulatedAngle'),
+    ('coaxial.acquire.capture:Capture', 'coaxial.simulated.acquire.capture:SimulatedCapture'),
+    ('coaxial.acquire.clock:Clock', 'coaxial.simulated.acquire.clock:SimulatedClock'),
+    ('coaxial.acquire.daq:Daq', 'coaxial.simulated.acquire.daq:SimulatedDaq'),
+    ('coaxial.devices.drive:Drive', 'coaxial.simulated.drive.device:SimulatedDrive'),
+    ('coaxial.devices.thermal_device:Thermal',
+     'coaxial.simulated.thermal.observer:SimulatedThermal'),
+    ('coaxial.devices.calibration:Calibration', 'coaxial.simulated.analog:SimulatedCalibration'),
+    ('coaxial.devices.system:System', 'coaxial.simulated.system:SimulatedSystem'),
+    ('coaxial.devices.link:Link', 'coaxial.simulated.link:SimulatedLink'),
+    ('coaxial.devices.boot:Boot', 'coaxial.simulated.boot:SimulatedBoot'),
+)
+
+#: The wire's own plumbing, which a stand-in has no wire to carry.
+WIRE_ONLY = {'board', 'request', 'took'}
+
+
+def test_stand_ins_answer_every_call(r):
+    """A device and its stand-in: the same public calls."""
+    def load(spec):
+        module, _, name = spec.partition(':')
+        return getattr(importlib.import_module(module), name)
+
+    def public(cls):
+        return {n for n in dir(cls) if not n.startswith('_') and callable(getattr(cls, n, None))}
+
+    for real, stand_in in TWINS:
+        missing = sorted(public(load(real)) - public(load(stand_in)) - WIRE_ONLY)
+        r.check('the stand-in answers every call %s does' % real.rpartition(':')[2],
+                not missing, ', '.join(missing))
+
+
 def test_no_duplicate_definitions(r):
     """A name defined at the top level of two modules in one package."""
     seen = {}
@@ -1323,7 +1364,7 @@ def test_notebooks_are_papers(r):
             ', '.join(names))
 
 
-ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
+ROSTER = (test_imports, test_no_undefined_names, test_no_cycles, test_stand_ins_answer_every_call,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
           test_numpy_enters_behind_the_thread_cap,

@@ -81,25 +81,19 @@ def main():
 
         # Same calls on both, not just the same answers.
         CALLED = {
-            'afe': ('state', 'is_on', 'enable', 'disable', 'toggle',
-                    'require'),
+            'afe': ('state', 'is_on', 'on', 'off', 'write', 'toggle', 'require'),
             'system': ('channel_map', 'self_test'),
-            'analog': ('channels', 'names', 'index_of', 'read_all', 'burst'),
-            'imu': ('product_id', 'read', 'feature', 'state', 'latest',
-                    'hold', 'resume', 'configuring', 'reset', 'write',
-                    'probe', 'pins', 'wake_test'),
-            'angle': ('state', 'read', 'write', 'poll_register', 'clock',
-                      'hold', 'resume', 'configuring'),
+            'analog': ('channels', 'names', 'index_of', 'read', 'burst'),
+            'imu': ('product_id', 'peek', 'configure', 'state', 'read', 'hold', 'resume',
+                    'configuring', 'reset', 'poke', 'probe', 'pins', 'wake_test'),
+            'angle': ('state', 'read', 'peek', 'poke', 'configure', 'clock', 'hold', 'resume',
+                      'configuring'),
             'link': ('echo', 'stats', 'loopback', 'port_stats'),
-            'gate_drivers': ('state', 'enable', 'disable', 'duty', 'arm',
-                       'disarm', 'trigger', 'clear_fault', 'bypass_break',
-                       'reset_worst_gap', 'duty_fine', 'alternate'),
-            'capture': ('state', 'arm', 'stop', 'take', 'drain'),
-            # `acquire` drains what has arrived and `once` is the whole capture
-            # in one call.
-              'daq': ('state', 'layout', 'configure', 'start', 'stop',
-                      'acquire', 'once', 'drain', 'latest'),
-            'clock': ('latch', 'read_latch', 'sync', 'probe'),
+            'gate_drivers': ('state', 'on', 'off', 'is_on', 'write', 'configure', 'clear',
+                             'dead_time', 'reset_worst_gap'),
+            'capture': ('state', 'start', 'stop', 'take', 'read'),
+            'daq': ('state', 'layout', 'configure', 'start', 'stop', 'acquire', 'latest'),
+            'clock': ('trigger', 'read', 'sync', 'probe'),
         }
         for name, calls in CALLED.items():
             fake = getattr(stand_in.board, name)

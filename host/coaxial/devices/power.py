@@ -2,6 +2,7 @@
 from coaxial.comm import protocol
 from coaxial.comm.protocol import PowerOp
 from coaxial.devices.subsystem import Device
+from coaxial.devices.roles import Output
 from coaxial.comm.wire import Reader, label
 
 #: Rails, in the order the board reports them.
@@ -20,7 +21,7 @@ def named(mask):
             if mask >> bit & 1]
 
 
-class Power(Device, device=protocol.DEVICE_POWER):
+class Power(Device, Output, device=protocol.DEVICE_POWER):
 
     """The rail reference counts, and a way out of a leaked hold."""
 
@@ -42,6 +43,6 @@ class Power(Device, device=protocol.DEVICE_POWER):
             'leased': named(r.u8()),
         }
 
-    def release_all(self):
+    def off(self):
         """Drop every hold on every rail."""
         return self._ack(PowerOp.RELEASE_ALL)

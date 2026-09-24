@@ -375,14 +375,14 @@ def test_fallback(report):
                  (session.board.version_info or {})['firmware'])
 
     # PB2 is the AFE switch, not a spare pin.
-    session.board.gpio.test_mode(True)
+    session.board.gpio.on()
     session.board.afe.on()
     session.board.gpio.port_write('B', 0xFFFF, 0)
     report.check('clearing PB2 on the stand-in turns its AFE off',
                  not session.board.afe.state()['on'])
     report.check('and PE15 follows it inversely, as the real one does',
-                 session.board.gpio.pin_read('E', 15) is True)
-    session.board.gpio.pin_write('B', 2, True)
+                 session.board.gpio.read('E', 15) is True)
+    session.board.gpio.write('B', 2, True)
     report.check('setting PB2 turns it back on',
                  session.board.afe.state()['on']
                  and session.board.gpio.port_read('B') & (1 << 2))

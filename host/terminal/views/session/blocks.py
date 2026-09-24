@@ -39,8 +39,8 @@ def snapshot(session):
     }
     # Only while the rail is up.
     afe_on = bool(got['afe'] and got['afe']['on'])
-    got['analog'] = (steady(board.analog.read_all,
-                            nr_of_samples=ADC_SAMPLES) if afe_on else None)
+    got['analog'] = (steady(board.analog.read,
+                            samples=ADC_SAMPLES) if afe_on else None)
     got['daq'] = steady(board.daq.state)
     got['ring'] = steady(board.capture.state)
     got['scaling'] = session.scaling

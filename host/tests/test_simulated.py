@@ -631,7 +631,7 @@ def test_scaling(report):
 
 
 def _desk_rows(**over):
-    """Seven channels in the shape read_all() hands back."""
+    """Seven channels in the shape analog.read() hands back."""
     base = [('Phase U', True, 1500), ('Phase V', True, -8293),
             ('Phase W', True, 490), ('Clevel', False, 1012),
             ('NTC', False, 40207), ('DC bus', False, 20600),
@@ -644,7 +644,7 @@ def _desk_rows(**over):
                      'differential': differential, 'mean_raw': mean,
                      'min_raw': mean - 20, 'max_raw': mean + 20,
                      'unit': None,
-                     # read_all() carries this for every channel, and it is
+                     # read() carries this for every channel, and it is
                      # what a channel with no defined signal prints instead of
                      # a raw code.
                      'volts_at_pin': mean / divisor * 3.3})

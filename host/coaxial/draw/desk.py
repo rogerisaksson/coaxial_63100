@@ -149,7 +149,7 @@ class Desk:
         return label, '%+.*f %s' % (decimals, now, suffix)
 
     def update(self, rows, colour=False):
-        """The desk, as text, from one read_all()'s channel rows."""
+        """The desk, as text, from one analog read()'s channel rows."""
         lines = []
         for row in sorted(rows, key=lambda r: r['index']):
             name = SHORT.get(row['signal'], (row['signal'] or '?')[:2])

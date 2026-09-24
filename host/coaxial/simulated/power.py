@@ -4,10 +4,11 @@ from typing import Any
 
 from coaxial.devices.gates import GateControl
 from coaxial.devices.power import named
+from coaxial.devices.roles import Output
 from coaxial.errors import RigError
 
 
-class SimulatedPower:
+class SimulatedPower(Output):
     """Rail reference counts without a board."""
 
     def __init__(self):
@@ -18,7 +19,7 @@ class SimulatedPower:
                         'mask': self._mask, 'count': bin(self._mask).count('1'),
                         'blocked': False, 'leased': []}}
 
-    def release_all(self):
+    def off(self):
         self._mask = 0
         return True
 

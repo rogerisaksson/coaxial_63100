@@ -60,7 +60,7 @@ def quiet(fn, *a, **kw):
 
 def check_host_hold(rig, check):
     print('\nthe host\'s hold: taken by name, and it does NOT expire')
-    quiet(rig.board.power.release_all)
+    quiet(rig.board.power.off)
     quiet(rig.board.afe.on)
     st = afe(rig)
     check('host acquire switches the rail on', st['on'], True)
@@ -136,11 +136,11 @@ def check_armed_refusal(rig, check):
     check('once disarmed it is no longer blocked', st['blocked'], False)
 
 
-def check_release_all(rig, check):
-    print('\nrelease_all: the way out of a leaked hold')
+def check_off(rig, check):
+    print('\noff: the way out of a leaked hold')
     quiet(rig.board.afe.on)
     check('held before', afe(rig)['on'], True)
-    quiet(rig.board.power.release_all)
+    quiet(rig.board.power.off)
     st = afe(rig)
     check('every hold dropped', st['users'], [])
     check('and the rail is off', st['on'], False)
@@ -160,10 +160,10 @@ def main():
             check_host_hold(rig, check)
             check_observer_borrow(rig, check)
             check_armed_refusal(rig, check)
-            check_release_all(rig, check)
+            check_off(rig, check)
         finally:
             quiet(rig.gates.off)
-            quiet(rig.board.power.release_all)
+            quiet(rig.board.power.off)
             quiet(rig.board.thermal.set_sample, 5.0, 0.5)
 
     print('\n%s' % ('the rail is held exactly when something holds it'

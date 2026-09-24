@@ -9,6 +9,7 @@ from coaxial.comm import protocol
 from coaxial.devices import scaling
 from coaxial.devices.calibration import CalibrationOps
 from coaxial.devices.roles import Output
+from coaxial.devices.roles import Input
 from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
 from coaxial.errors import DeviceStateError
 from coaxial.simulated.system import UNITS
@@ -46,7 +47,7 @@ class SimulatedAfe(Output):
         return self._on
 
 
-class SimulatedAnalog:
+class SimulatedAnalog(Input):
     """Invented readings, in the shape the real ones come in."""
     def __init__(self, afe):
         self._afe = afe
@@ -104,7 +105,7 @@ class SimulatedAnalog:
                 'channels': chosen}
 
     def ntc_temperature(self, adc_chan=None, ntc_params=None,
-                        nr_of_samples=64, sample_rate=2000.0):
+                        samples=64, sample_rate=2000.0):
         """The NTC in the shape `Analog.ntc_temperature` returns it."""
         celsius = 31.4 + 0.6 * math.sin(time.time() / 30.0)
         return {
@@ -113,11 +114,27 @@ class SimulatedAnalog:
             'spread_millikelvin': 28.0,
             'params': 'simulated',
             'mean_raw': 40500,
-            'samples': nr_of_samples,
+            'samples': samples,
         }
 
+    def mask_all(self):
+        return (1 << len(CHANNELS)) - 1
+
+    def phase_current(self, signal='Phase U', shunt=None, samples=64, sample_rate=2000.0):
+        """A phase at rest in the shape `Analog.phase_current` returns it."""
+        shunt = shunt or scaling.PHASE_ONBOARD
+        return {'amps': 0.0, 'volts_at_pin': shunt.volts_at_pin(ADC_HALF_CODES),
+                'ripple_amps': 0.05, 'noise_amps_rms': 0.01,
+                'full_scale_amps': shunt.full_scale_amps, 'params': 'simulated',
+                'mean_raw': ADC_HALF_CODES, 'samples': samples}
+
+    def noise(self, adc, samples=200):
+        """A quiet converter in the shape of the firmware's noise report."""
+        return {'samples': samples, 'mean_uv': 0, 'min_raw': -6, 'max_raw': 6,
+                'span_raw': 12, 'stddev_uv': 150}
+
     def dcbus_voltage(self, adc_chan=None, divider=None,
-                      nr_of_samples=64, sample_rate=2000.0):
+                      samples=64, sample_rate=2000.0):
         """The DC link in the shape `Analog.dcbus_voltage` returns it."""
         return {
             'volts': 24.5,
@@ -127,7 +144,7 @@ class SimulatedAnalog:
             'scale': 23.68,
             'params': 'simulated',
             'mean_raw': 20375,
-            'samples': nr_of_samples,
+            'samples': samples,
         }
 
     def scan(self):
@@ -159,11 +176,13 @@ class SimulatedAnalog:
             'pe15': not self._afe.is_on(),
         }
 
-    def read_all(self, nr_of_samples=64, sample_rate=1000.0, vref=3.3):
+    def state(self):
+        return {'channels': CHANNELS}
+
+    def read(self, samples=64, sample_rate=1000.0, vref=3.3):
         """Every channel with its table row merged in, like the real one."""
         table = {row['index']: row for row in CHANNELS}
-        result = self.burst((1 << len(CHANNELS)) - 1, nr_of_samples,
-                            sample_rate)
+        result = self.burst((1 << len(CHANNELS)) - 1, samples, sample_rate)
 
         rows = []
         for index, stats in sorted(result['channels'].items()):
@@ -214,7 +233,7 @@ class SimulatedCalibration(CalibrationOps):
 
     def zero(self, index):
         """Measure the channel now and keep the reading as its offset."""
-        rows = (self.board.analog.read_all()['channels']
+        rows = (self.board.analog.read()['channels']
                 if self.board is not None else ())
         code = next((int(row['mean_raw']) for row in rows
                      if row['index'] == index), 0)

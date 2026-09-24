@@ -228,7 +228,7 @@ def test_scope_repairs(report):
     # has called analog_read all session reaches for it here too.
     confused = scope.run('board.analog_read(ch=["ntc"])')
     report.check('a tool name used as a method is corrected',
-                 'board.analog' in confused and 'read_all' in confused,
+                 'board.analog.read()' in confused,
                  confused.splitlines()[-1][:52])
     report.check('and the real method still works',
                  scope.run('board.afe.on()').strip() == 'True')

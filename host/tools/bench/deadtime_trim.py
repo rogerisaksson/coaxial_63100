@@ -66,7 +66,7 @@ def sample(rig, params):
     if steady(rig.board.afe.on) is None:
         return {}
     time.sleep(SETTLE_S)
-    got = _rails(steady(rig.board.analog.read_all, nr_of_samples=32), params)
+    got = _rails(steady(rig.board.analog.read, samples=32), params)
     state = steady(rig.board.thermal.state)
     spend = steady(rig.board.thermal.budget)
     if state is not None:

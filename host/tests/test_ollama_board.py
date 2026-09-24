@@ -139,7 +139,7 @@ def test_channel_map(report):
     # The refusal is the board's answer now, so its wording is the board's
     # signal name rather than a string compiled into the host.
     try:
-        board.gpio.pin_read('B', 10)
+        board.gpio.read('B', 10)
         report.check('a reserved pin is refused by name', False, 'it was read')
     except ValueError as exc:
         report.check('a reserved pin is refused by the name the board gave it',

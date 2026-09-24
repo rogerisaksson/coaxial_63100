@@ -99,7 +99,7 @@ class CalibrationOps:
     def _burst_mean(self, name):
         """One channel's code, meaned over a burst, for a tare to keep."""
         code = next((row['mean_raw']
-                     for row in self.board.analog.read_all()['channels']
+                     for row in self.board.analog.read()['channels']
                      if row['signal'] == name), None)
         if code is None:
             raise RigError('%r is not a channel this board reads' % name)

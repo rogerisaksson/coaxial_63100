@@ -57,7 +57,7 @@ def cmd_analog(board, args):
     board.afe.on()
     samples = int(args.args[0]) if args.args else 64
     rate = float(args.args[1]) if len(args.args) > 1 else 2000.0
-    result = board.analog.read_all(samples, rate)
+    result = board.analog.read(samples, rate)
     print('  %d samples at %.0f Hz actual' % (result['samples'], result['rate_hz']))
     for c in result['channels']:
         print('    %-9s ADC%d IN%-2d %-12s %-4s mean %9.2f  %+8.4f V  '

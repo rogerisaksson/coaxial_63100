@@ -52,7 +52,7 @@ def test_link_is_clean(board):
 
 def test_every_channel_responds(board):
     """Structural, not numeric: each configured channel returns a reading."""
-    reading = board.analog.read_all(nr_of_samples=64, sample_rate=2000.0)
+    reading = board.analog.read(samples=64, sample_rate=2000.0)
 
     assert len(reading['channels']) == len(board.analog.channels())
 
@@ -64,15 +64,15 @@ def test_every_channel_responds(board):
 
 def test_afe_switch_reaches_the_pin(board):
     """A physical witness for a logical write, needing no calibration."""
-    board.gpio.test_mode(True)
+    board.gpio.on()
     try:
-        board.gpio.pin_write('B', 2, False)
-        with_afe_off = board.gpio.pin_read('E', 15)
+        board.gpio.write('B', 2, False)
+        with_afe_off = board.gpio.read('E', 15)
 
-        board.gpio.pin_write('B', 2, True)
-        with_afe_on = board.gpio.pin_read('E', 15)
+        board.gpio.write('B', 2, True)
+        with_afe_on = board.gpio.read('E', 15)
     finally:
-        board.gpio.test_mode(False)
+        board.gpio.off()
         board.afe.on()
 
     assert with_afe_off and not with_afe_on, (
