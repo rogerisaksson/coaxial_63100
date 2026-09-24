@@ -1,7 +1,8 @@
 """The approach from the pilot's seat: gates down to a pad, the scene banking, a HUD - eye candy.
 
-The flight is a function of the view's clock (`flight`): the corridor's curvature swings
-left and right, the craft banks into the bend and turns with it, the nose bobs. The
+The flight is a function of the view's clock (`flight`): level a while, a turn left or
+right bending the corridor, level again; the craft banks into the bend and turns with it,
+the nose bobs. The
 ground (`coaxial.graphics.ground`) is cast flat and cached; each frame the corridor is
 laid on it and the whole is rolled by the bank and lifted by the bob (`scene`). The HUD
 is conformal: its ladder is the horizon itself at the camera's own degrees a row, its arc
@@ -9,6 +10,7 @@ the bank, its tape the heading the bend turns (2026-09-24, "Elite, Blade Runner,
 Nostromo: an orbital approach, from the pilot's eyes"). The board's attitude is the
 panel's beside it, never these.
 """
+import bisect
 import math
 
 from coaxial.graphics.raster import BRAILLE_BITS
@@ -20,26 +22,80 @@ DIM = (150, 104, 0)
 #: A cell's height in widths: rolling the scene is a rotation of the screen as seen.
 ASPECT = 2.0
 
-#: The flight: the corridor's curvature swings +-CURVE (1/model unit) over CURVE_S
-#: seconds; the craft banks BANK degrees at full curvature, into the bend, and turns TURN
-#: degrees a second there; the nose bobs BOB degrees over BOB_S.
+#: The flight in legs from t 0, each drawn from its own seed: level for HOLD seconds (least,
+#: most), then a turn of TURN_S seconds bending the corridor to DEPTH of +-CURVE (1/model
+#: unit), rolled into and out of over ROLL_IN seconds at most, and level again - each state
+#: held, never dithered. A turn reverses the last with REVERSE, else goes on the same way.
+#: The craft banks BANK degrees at full curvature, into the bend, and turns TURN degrees a
+#: second there; the nose bobs BOB degrees over BOB_S.
 CURVE = 0.045
-CURVE_S = 22.0
 BANK = 14.0
 TURN = 6.0
+HOLD = (3.0, 11.0)
+TURN_S = (4.0, 13.0)
+DEPTH = (0.35, 1.0)
+ROLL_IN = 2.5
+REVERSE = 0.65
 BOB = 1.2
 BOB_S = 7.0
 HEADING = 274.0
+
+#: The legs laid so far: (start s, seconds, peak curvature signed, heading at start, the
+#: last turn's way); _STARTS their starts.
+_LEGS, _STARTS = [], []
+
+
+def _share(i, salt, span):
+    """A number in `span` (least, most), leg `i`'s own."""
+    return span[0] + (span[1] - span[0]) * (_hashed(i, salt) % 1000) / 1000.0
+
+
+def _swept(x, d, r):
+    """Seconds at full curvature, integrated to `x` into a turn of `d` rolled over `r`."""
+    def lead(u):
+        return u ** 3 - u ** 4 / 2.0                     # the smoothstep's integral
+    if x < r:
+        return r * lead(x / r)
+    if x <= d - r:
+        return r / 2.0 + x - r
+    return r / 2.0 + d - 2.0 * r + r * (0.5 - lead((d - x) / r))
+
+
+def _leg(t):
+    """The leg under way at `t`: (start, seconds, peak, heading at start, way)."""
+    while not _LEGS or _LEGS[-1][0] + _LEGS[-1][1] <= t:
+        i = len(_LEGS)
+        if _LEGS:
+            start, d, peak, heading, way = _LEGS[-1]
+            if peak:
+                heading += TURN * peak / CURVE * _swept(d, d, min(ROLL_IN, d / 3.0))
+            start += d
+        else:
+            start, heading, way = 0.0, HEADING, -1.0
+        if i % 2:
+            way = -way if _hashed(i, 21) % 1000 < REVERSE * 1000 else way
+            d, peak = _share(i, 22, TURN_S), way * CURVE * _share(i, 23, DEPTH)
+        else:
+            d, peak = _share(i, 24, HOLD), 0.0
+        _LEGS.append((start, d, peak, heading % 360.0, way))
+        _STARTS.append(start)
+    return _LEGS[bisect.bisect_right(_STARTS, t) - 1]
 
 
 def flight(t):
     """The craft at `t` seconds: curve (1/unit, + to the right), bank (deg, + right wing
     down), bob (deg, + nose up), heading (deg), all smooth in `t`."""
-    w = 2.0 * math.pi / CURVE_S
-    swing = math.sin(w * t)
-    return {'curve': CURVE * swing, 'bank': BANK * swing,
-            'bob': BOB * math.sin(2.0 * math.pi * t / BOB_S),
-            'heading': (HEADING + TURN / w * (1.0 - math.cos(w * t))) % 360.0}
+    t = max(0.0, t)
+    start, d, peak, heading, _way = _leg(t)
+    x, r = t - start, min(ROLL_IN, d / 3.0)
+    if peak:
+        share = 1.0 if r <= x <= d - r else _ease(min(x, d - x) / r)
+        heading += TURN * peak / CURVE * _swept(x, d, r)
+    else:
+        share = 0.0
+    curve = peak * share
+    return {'curve': curve, 'bank': BANK * curve / CURVE,
+            'bob': BOB * math.sin(2.0 * math.pi * t / BOB_S), 'heading': heading % 360.0}
 
 
 #: The corridor, in the pilot's eye: square gates each GATE_EVERY deep from GATE_FIRST to
@@ -152,32 +208,45 @@ TAG = '>> ﾁｬｸﾘｸﾁ ﾀﾝｻｸﾁｭｳ'
 SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
 
 #: A craft far below, rarely: each SLOT seconds holds a pass with PASS_CHANCE, at a moment,
-#: from a side and at a speed of its own (CROSS seconds, least and most); the first at
-#: FIRST. It comes in from its side's edge and arcs down through the bottom corner, diving
-#: out under the frame. The arc keeps CLEAR columns, the craft's REACH and CORNER off the
-#: board's BOUND - the circle the board stays inside at every attitude (`bound`) - so it is
-#: planned once and never meets the board; no pass where the corner has under LEAST lengths.
+#: of a kind, from a side and at a speed of its own (CROSS or BY seconds, least and most);
+#: slot 0 opens with a corner pass at FIRST and a fly-by at FIRST_BY. Each is planned once
+#: against the board's BOUND - the circle the board stays inside at every attitude
+#: (`bound`) - CLEAR columns and its own reach off it, so neither ever meets the board.
+#: A corner pass comes in from its side's edge and arcs down through the bottom corner,
+#: diving out under the frame, rolling to ROLL into its turn and yawing YAW each way
+#: through it; none where the corner has under LEAST lengths.
+#: A fly-by comes up from behind, BY_SIZE columns long, and spirals round the bound past its
+#: side's edge into the top corner, shrinking to BY_FAR of that and dimming to BY_HAZE as it
+#: recedes, a barrel roll over BY_ROLL of the way.
 #: CRAFT columns nose to tail at a 150-column frame: a spinner seen from above in steel
 #: alone - a wedge lit along its spine, swept fins lit by its bank, a glinting canopy - its
-#: trail fading along its arc for TRAIL lengths. It rolls up to ROLL degrees into its turn
-#: and yaws YAW each way through it. One colour a cell: lights of other colours would flip
-#: whole cells as it moves.
-#: A marker glides in from outside, away from the board, over GRIP of the pass and closes
-#: on the craft, AMBER; gripped, it squeezes once and holds it, DATA, labelled MARKED.
+#: trail fading along its path for TRAIL lengths. One colour a cell: lights of other
+#: colours would flip whole cells as it moves.
+#: On a corner pass a marker glides in from outside, away from the board, over GRIP and
+#: closes on the craft, AMBER: a frame FRAME lengths each side of it, square on screen, its
+#: corners in the arc's plan with CORNER for their cells. Gripped, it squeezes once and
+#: holds, DATA, MARKED in its top edge.
 SLOT = 45.0
 FIRST = 3.0
+FIRST_BY = 14.0
 PASS_CHANCE = 0.55
 CROSS = (2.4, 4.2)
+BY = (1.6, 2.4)
 CLEAR = 2.0
-CORNER = 1.2
-LEAST = 1.5
+LEAST = 1.2
 CRAFT = 9.5
 ROLL = 35.0
 YAW = 22.0
+BY_SIZE = 16.0
+BY_FAR = 0.12
+BY_HAZE = 0.7
+BY_ROLL = (0.04, 0.32)
 TRAIL = 1.4
 HULL = (175, 196, 214)
 GLASS = (235, 245, 255)
 GRIP = (0.08, 0.38)
+FRAME = 0.75
+CORNER = 1.2
 MARKED = 'ｼｷﾍﾞﾂ'
 
 #: The craft from above, nose along +u, in its lengths (v across): the hull a wedge, the fins
@@ -236,17 +305,24 @@ def stars(static, width, height, t, roll=None):
 
 
 def _pass(t):
-    """The pass under way at `t`: (its number, k along it, its side +-1), or None."""
+    """The pass under way at `t`: (its number, k along it, its side +-1, 'corner' or 'by'),
+    or None."""
     n = int(t // SLOT)
-    if n and _hashed(n, 10) % 100 >= PASS_CHANCE * 100:
-        return None
-    length = CROSS[0] + (CROSS[1] - CROSS[0]) * (_hashed(n, 11) % 100) / 100.0
-    start = (n * SLOT + (_hashed(n, 12) % 1000) / 1000.0 * (SLOT - length) if n
-             else FIRST)
-    k = (t - start) / length
-    if not 0.0 <= k <= 1.0:
-        return None
-    return n, k, 1.0 if _hashed(n, 13) % 2 else -1.0
+    if n:
+        if _hashed(n, 10) % 100 >= PASS_CHANCE * 100:
+            return None
+        kinds = (('by' if _hashed(n, 14) % 2 else 'corner', None),)
+    else:
+        kinds = (('corner', FIRST), ('by', FIRST_BY))
+    for i, (kind, start) in enumerate(kinds):
+        least, most = CROSS if kind == 'corner' else BY
+        length = least + (most - least) * (_hashed(n, 11, i) % 100) / 100.0
+        if start is None:
+            start = n * SLOT + (_hashed(n, 12) % 1000) / 1000.0 * (SLOT - length)
+        k = (t - start) / length
+        if 0.0 <= k <= 1.0:
+            return n, k, 1.0 if _hashed(n, 13, i) % 2 else -1.0, kind
+    return None
 
 
 def bound(cam, reach):
@@ -262,49 +338,90 @@ def _arc(radius, side, width, height, phi):
     return corner + side * radius * math.sin(phi), height - radius * math.cos(phi) / ASPECT
 
 
-def arc_radius(width, height, side, board=None):
+def arc_radius(width, height, side, board):
     """The corner arc's radius: its nearest point to the board's bound `board` (cx, cy,
-    radius) CLEAR columns, the craft's REACH and CORNER - its marker's corners, rounded to
-    their cells - off it; 0 where under LEAST lengths."""
+    radius) CLEAR columns, the reach of the craft or of its marker's frame and CORNER off
+    it; 0 where under LEAST lengths."""
     size = CRAFT * width / 150.0
-    most = 0.55 * min(width, height * ASPECT)
-    if board is None:
-        return most
     cx, cy, reach = board
     corner = 0.0 if side > 0 else float(width)
-    room = math.hypot(corner - cx, (height - cy) * ASPECT) - reach - CLEAR - REACH * size - CORNER
-    radius = min(most, room)
+    room = (math.hypot(corner - cx, (height - cy) * ASPECT) - reach - CLEAR
+            - max(REACH, FRAME * math.sqrt(2.0)) * size - CORNER)
+    radius = min(0.55 * min(width, height * ASPECT), room)
     return radius if radius >= LEAST * size else 0.0
 
 
-def _pose(width, height, t, board):
-    """The pass on at `t`: {k, side, x, y, heading, bank, roll, size, track}, or None."""
-    now = _pass(t)
-    if now is None:
-        return None
-    _n, k, side = now
+def _corner(width, height, side, board):
+    """(track, size) of a corner pass - k to the screen point, k to columns - or None."""
     radius = arc_radius(width, height, side, board)
     if not radius:
         return None
+    size = CRAFT * width / 150.0
+    return (lambda k: _arc(radius, side, width, height, -0.35 + (math.pi / 2.0 + 0.5) * k),
+            lambda k: size)
+
+
+def _by(width, height, side, board):
+    """(track, size) of a fly-by: up from under the bottom edge round the bound, CLEAR and
+    its reach off it at every size, to the top corner on its side; fast, then receding."""
+    cx, cy, reach = board
+    near = BY_SIZE * width / 150.0
+
+    def size(k):
+        return near * BY_FAR ** k
+
+    def radius(k):
+        return reach + CLEAR + REACH * size(k)
+
+    # Angles on screen, rows at ASPECT, from +x toward the bottom edge.
+    rise = math.asin(min(1.0, ((height - cy) * ASPECT + REACH * near) / radius(0.0)))
+    far = math.atan2(-cy * ASPECT, (0.0 if side > 0 else float(width)) - cx)
+    start, end = (math.pi - rise, far % (2.0 * math.pi)) if side > 0 else (rise, far)
 
     def track(k):
-        """In from beyond its edge, round the corner, out below the frame."""
-        return _arc(radius, side, width, height, -0.35 + (math.pi / 2.0 + 0.5) * k)
+        turn = start + (end - start) * (0.8 * (1.0 - (1.0 - k) ** 2) + 0.2 * k)
+        return cx + radius(k) * math.cos(turn), cy + radius(k) * math.sin(turn) / ASPECT
+    return track, size
 
+
+def _ease(k):
+    k = min(1.0, max(0.0, k))
+    return k * k * (3.0 - 2.0 * k)
+
+
+def _pose(width, height, t, board):
+    """The pass on at `t`: {k, side, kind, x, y, heading, bank, roll, size, fade, speed,
+    track}, or None; `board` None a bound of the frame's own."""
+    now = _pass(t)
+    if now is None:
+        return None
+    _n, k, side, kind = now
+    if board is None:
+        board = (width / 2.0, height / 2.0, 0.35 * min(width, height * ASPECT))
+    path = (_corner if kind == 'corner' else _by)(width, height, side, board)
+    if path is None:
+        return None
+    track, size = path
     x, y = track(k)
     x1, y1 = track(k + 0.01)
-    # The manoeuvre: the arc's own 90 degrees, a yaw S through it, a roll into the turn.
-    heading = math.atan2((y1 - y) * ASPECT, x1 - x) + math.radians(
-        YAW * math.sin(2.0 * math.pi * k)) * side
-    roll = math.radians(ROLL * math.sin(math.pi * k))
-    return {'k': k, 'side': side, 'x': x, 'y': y, 'heading': heading, 'bank': math.cos(roll),
-            'roll': roll, 'size': CRAFT * width / 150.0, 'length': radius * (math.pi / 2.0 + 0.5),
-            'track': track}
+    heading = math.atan2((y1 - y) * ASPECT, x1 - x)
+    if kind == 'corner':
+        # The arc's own 90 degrees, a yaw S through it, a roll into the turn.
+        heading += math.radians(YAW * math.sin(2.0 * math.pi * k)) * side
+        roll = math.radians(ROLL * math.sin(math.pi * k))
+    else:
+        roll = 2.0 * math.pi * _ease((k - BY_ROLL[0]) / (BY_ROLL[1] - BY_ROLL[0]))
+    bank = math.cos(roll)
+    return {'k': k, 'side': side, 'kind': kind, 'x': x, 'y': y, 'heading': heading,
+            'bank': math.copysign(max(0.15, abs(bank)), bank), 'roll': roll, 'size': size(k),
+            'fade': 1.0 if kind == 'corner' else 1.0 - (1.0 - BY_HAZE) * k,
+            'speed': math.hypot(x1 - x, (y1 - y) * ASPECT) / 0.01, 'track': track}
 
 
 def craft(width, height, t, board=None):
-    """{cell: (braille mask, (r, g, b))}: the craft at `t` when a pass is on and its corner
-    has room, else {}; `board` (cx, cy, radius) its bound, kept clear at every attitude."""
+    """{cell: (braille mask, (r, g, b), its body's)}: the craft at `t` when a pass is on and
+    has room, else {} - a cell of its trail alone not its body's; `board` (cx, cy, radius)
+    its bound, kept clear at every attitude."""
     pose = _pose(width, height, t, board)
     if pose is None:
         return {}
@@ -324,16 +441,17 @@ def craft(width, height, t, board=None):
                 inks[at] = (rank, rgb)
 
     def steel(f):
-        return tuple(int(ch * f) for ch in HULL)
+        return tuple(int(ch * f * pose['fade']) for ch in HULL)
 
-    # The trail: from the tail onto the arc behind, fading.
+    # The trail: from the tail onto the path behind, fading.
     tx = x0 + size * TAIL * c
     ty = y0 + size * TAIL * s / ASPECT
-    ax, ay = pose['track'](pose['k'] + TAIL * size / pose['length'])
-    for i in range(int(2.0 * (TRAIL - abs(TAIL)) * size) + 1):
-        f = i / max(1.0, 2.0 * (TRAIL - abs(TAIL)) * size)
+    ax, ay = pose['track'](pose['k'] + TAIL * size / pose['speed'])
+    steps = 2.0 * (TRAIL - abs(TAIL)) * size
+    for i in range(int(steps) + 1):
+        f = i / max(1.0, steps)
         bx, by = pose['track'](pose['k'] + (TAIL - f * (TRAIL - abs(TAIL))) * size
-                               / pose['length'])
+                               / pose['speed'])
         mark(bx + (1.0 - f) * (tx - ax), by + (1.0 - f) * (ty - ay), steel(0.8 - 0.6 * f), -1)
 
     for py in range(int(y0 - reach / ASPECT) - 1, int(y0 + reach / ASPECT) + 2):
@@ -344,39 +462,43 @@ def craft(width, height, t, board=None):
                 u, v = dx * c + dy * s, (-dx * s + dy * c) / bank
                 if math.hypot(u, v * bank) > REACH:
                     continue
-                if ((u - CANOPY_AT[0]) / CANOPY_R[0]) ** 2 + (v / CANOPY_R[1]) ** 2 <= 1.0:
-                    mark(x, y, GLASS, 2)
+                if bank > 0.0 and ((u - CANOPY_AT[0]) / CANOPY_R[0]) ** 2 \
+                        + (v / CANOPY_R[1]) ** 2 <= 1.0:
+                    mark(x, y, steel(GLASS[2] / HULL[2]) if pose['fade'] < 1.0 else GLASS, 2)
                 elif _inside(u, v, HULL_SHAPE):
                     mark(x, y, steel(1.0 - 0.35 * min(1.0, abs(v) / 0.19)), 1)   # its spine lit
                 elif any(_inside(u, v, fin) for fin in FINS):
                     mark(x, y, steel(0.7 + 0.25 * lean * (1.0 if v > 0.0 else -1.0)), 0)
-    return {at: (mask, inks[at][1]) for at, mask in cells.items()}
+    return {at: (mask, inks[at][1], inks[at][0] >= 0) for at, mask in cells.items()}
 
 
 def marker(width, height, t, board=None):
-    """[(row, col, text)], gripped: the marker's corners round the craft at `t` - closing
-    in from outside, away from the board, over GRIP; gripped, squeezing once and holding,
-    labelled MARKED. Never nearer the board than its gripped self."""
+    """[(row, col, text)], gripped: the marker's frame round a corner pass's craft at `t` -
+    closing in from outside, away from the board, over GRIP; gripped, squeezing once and
+    holding, MARKED in its top edge. Never nearer the board than its gripped self."""
     pose = _pose(width, height, t, board)
-    if pose is None or pose['k'] < GRIP[0]:
+    if pose is None or pose['kind'] != 'corner' or pose['k'] < GRIP[0]:
         return [], False
     k, x, y = pose['k'], pose['x'], pose['y']
-    g = min(1.0, (k - GRIP[0]) / (GRIP[1] - GRIP[0]))
-    g = g * g * (3.0 - 2.0 * g)
+    g = _ease((k - GRIP[0]) / (GRIP[1] - GRIP[0]))
     cx, cy = (board[0], board[1]) if board else (width / 2.0, height / 2.0)
     ox, oy = x - cx, (y - cy) * ASPECT
     norm = math.hypot(ox, oy) or 1.0
-    grip = REACH * pose['size'] / math.sqrt(2.0)          # its corners on the craft's reach
     # Its offset outward outruns its corners' growth: no nearer the board than gripped.
-    away = 2.5 * grip * (1.0 - g)
-    half = grip * (1.0 + 1.2 * (1.0 - g)
-                   - 0.25 * math.sin(math.pi * min(1.0, max(0.0, (k - GRIP[1]) / 0.06))))
+    away = 1.5 * FRAME * math.sqrt(2.0) * pose['size'] * (1.0 - g)
+    half = FRAME * pose['size'] * (1.0 + 1.2 * (1.0 - g) - 0.25 * math.sin(
+        math.pi * min(1.0, max(0.0, (k - GRIP[1]) / 0.06))))
     mx, my = x + away * ox / norm, y + away * oy / norm / ASPECT
     top, bottom = int(my - half / ASPECT), int(my + half / ASPECT)
     left, right = int(mx - half), int(mx + half)
-    out = [(top, left, '┌'), (top, right, '┐'), (bottom, left, '└'), (bottom, right, '┘')]
-    if g >= 1.0:
-        out.append((bottom + 1, right + 1 - len(MARKED) if pose['side'] > 0 else left, MARKED))
+    out = [(top, left, '┌─'), (top, right - 1, '─┐'), (bottom, left, '└─'),
+           (bottom, right - 1, '─┘')]
+    if bottom - top >= 4:
+        out += [(top + 1, left, '│'), (top + 1, right, '│'), (bottom - 1, left, '│'),
+                (bottom - 1, right, '│')]
+    gap = right - left - 3                     # between the corners' arms
+    if g >= 1.0 and gap >= len(MARKED) + 2:
+        out.append((top, left + 2 + (gap - len(MARKED)) // 2, MARKED))
     return out, g >= 1.0
 
 
@@ -514,11 +636,13 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour, 
         _put(grid, tone, height - 1, width - len(TAG) - 1, TAG, red, buf=buf)
     _put(grid, tone, height - 2, width - len(SUBTAG) - 1, SUBTAG, data, buf=buf)
 
-    # The craft's marker where no text is, whole or not at all; the craft over everything.
+    # The craft's marker where no text is, whole or not at all; the craft over everything,
+    # its trail where no text is.
     corners, gripped = marker(width, height, t, board)
     for row, col, text in corners:
         if _free(grid, buf, row, col, len(text)):
             _put(grid, tone, row, col, text, data if gripped else amber)
-    for at, (mask, rgb) in craft(width, height, t, board).items():
+    for at, (mask, rgb, body) in craft(width, height, t, board).items():
         r, c = divmod(at, width)
-        grid[r][c], tone[r][c] = chr(0x2800 + mask), rgb if colour else None
+        if body or grid[r][c] == ' ' or 0x2800 <= ord(grid[r][c]) <= 0x28FF:
+            grid[r][c], tone[r][c] = chr(0x2800 + mask), rgb if colour else None

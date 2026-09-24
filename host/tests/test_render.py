@@ -1109,30 +1109,51 @@ def test_approach(report):
                  '%d of %d quarter-seconds, first at %s s' % (len(passes), 4 * 600,
                                                               passes[0] if passes else '-'))
     # The board's bound at 116x46, bare and framed: every attitude inside this circle.
+    kind = {t: now[3] for t, now in zip(passes, map(approach._pass, passes)) if now}
+    report.check('approach: corner passes and fly-bys both come',
+                 set(kind.values()) == {'corner', 'by'}, set(kind.values()))
     for board in ((58.0, 20.24, 53.6), (58.0, 23.0, 53.6)):
-        drawn = [approach.craft(116, 46, t, board) for t in passes]
+        drawn = {t: approach.craft(116, 46, t, board) for t in passes}
         marks = [approach.marker(116, 46, t, board)[0] for t in passes]
-        near = [(r, c) for cells in drawn for r, c in (divmod(at, 116) for at in cells)] + [
+        near = [divmod(at, 116) for cells in drawn.values() for at in cells] + [
             (r, c + i) for corners in marks for r, c, text in corners for i in range(len(text))]
         near = [(r, c) for r, c in near
                 if math.hypot(c + 0.5 - board[0], (r + 0.5 - board[1]) * 2.0)
                 < board[2] + approach.CLEAR - 1.0]
-        report.check('approach: with the board filling the frame (bound %s) it still comes, '
-                     'round a corner, it and its marker clear of the board at any attitude'
-                     % (board,), all(drawn) and any(g for _c, g in map(
-                         lambda t: approach.marker(116, 46, t, board), passes)) and not near,
-                     '%d of %d frames drawn, %d cells inside the bound' % (
-                         sum(1 for d in drawn if d), len(drawn), len(near)))
+        corner = [cells for t, cells in drawn.items() if kind[t] == 'corner']
+        by = [cells for t, cells in drawn.items() if kind[t] == 'by']
+        report.check('approach: with the board filling the frame (bound %s) both kinds come, '
+                     'the corner gripped by its marker, none of them on the board at any '
+                     'attitude' % (board,), all(corner) and any(by) and any(
+                         approach.marker(116, 46, t, board)[1] for t in passes) and not near,
+                     '%d of %d corner frames and %d of %d fly-by frames drawn, %d cells inside '
+                     'the bound' % (sum(1 for d in corner if d), len(corner),
+                                    sum(1 for d in by if d), len(by), len(near)))
     sides = {now[2] for now in map(approach._pass, passes) if now}
     report.check('approach: its passes come from both sides', sides == {1.0, -1.0}, sides)
     straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)
     report.check('approach: the curvature bends the corridor', straight != gates[0])
-    fl = approach.flight(approach.CURVE_S / 4.0)
+    flown = [approach.flight(q / 4.0) for q in range(4 * 600)]
+    banks = [fl['bank'] for fl in flown]
+    level = [len(run) for run in ''.join('0' if b == 0.0 else '1' for b in banks).split('1')
+             if len(run) >= 4 * approach.HOLD[0]]
+    report.check('approach: the flight turns both ways and levels out between, holding each; '
+                 'it banks BANK at full bend, into it',
+                 max(banks) > 0.3 * approach.BANK and min(banks) < -0.3 * approach.BANK
+                 and len(level) >= 10 and all(
+                     abs(fl['bank'] - approach.BANK * fl['curve'] / approach.CURVE) < 1e-9
+                     and abs(fl['bank']) <= approach.BANK + 1e-9 for fl in flown),
+                 '%d level stretches, bank %.1f..%.1f' % (len(level), min(banks), max(banks)))
+    steps = [abs((b['heading'] - a['heading'] + 180.0) % 360.0 - 180.0
+                 - approach.TURN * (a['curve'] + b['curve']) / 2.0 / approach.CURVE * 0.25)
+             for a, b in zip(flown, flown[1:])]
+    report.check('approach: the heading turns TURN a second at full bend, not level',
+                 max(steps) < 0.05, '%.4f deg off' % max(steps))
+    fl = flown[banks.index(max(banks))]
     roll = approach.roller(fl, 60, 20, static)
     x, y = roll(50.0, 10.0)
-    report.check('approach: at full bend the craft banks BANK and the scene rolls against it',
-                 abs(fl['bank'] - approach.BANK) < 1e-9 and y < 10.0 and fl['curve'] > 0.0,
-                 '(%.2f, %.2f)' % (x, y))
+    report.check('approach: banked right the scene rolls against it',
+                 y < 10.0 and fl['curve'] > 0.0, '(%.2f, %.2f)' % (x, y))
     art = wireframe.render((0.0, 0.0, 0.0, 1.0), 90, 30, colour=False, scroll=12.5,
                            approach=True)
     heading = approach.flight(12.5)['heading']
