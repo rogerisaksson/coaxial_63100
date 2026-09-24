@@ -29,6 +29,7 @@ from coaxial_ollama.client import OllamaError
 from terminal.loader import TO_MENU
 from terminal.ui.console import Keys
 from terminal.ui.screen import ENTER_KEYS, paced
+from terminal.ui.chrome import Chrome
 from terminal.ui.stage import boot, curtain, footer, header, hud, stage
 
 #: Rows the page spends outside the transcript: band, input, key bar,
@@ -347,7 +348,7 @@ def compose(script, entry, state, origin, size, lead, blink):
     ask.append('_' if blink else ' ', style='value')
     keys = (('ENTER', 'SEND'), ('UP DOWN', 'SCROLL'), ('ESC', 'MENU'),
             ('CTRL+C', 'EXIT'))
-    log = Panel(body, box=box.HEAVY, border_style='frame',
+    log = Panel(Chrome(body, 'BOARD CHAT', lock=False), box=box.HEAVY, border_style='frame',
                 title=Text(' %s ' % state['title'], style='name'),
                 title_align='left', padding=(0, 1))
     mid = Layout(name='mid')

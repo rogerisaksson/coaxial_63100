@@ -32,7 +32,8 @@ from terminal.ui import screen as _screen
 from terminal.ui.console import WHEEL_STEP, Keys
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.screen import paced
-from terminal.ui.stage import curtain, footer, stage
+from terminal.ui.chrome import Chrome
+from terminal.ui.stage import band_of, curtain, footer, stage
 from tools.render import facecheck
 
 _screen.CHATTER = False
@@ -109,14 +110,15 @@ def compose(view, size, rate=''):
 
     body = Layout()
     body.split_row(
-        Layout(Panel(Corner(Align(Text.from_ansi(art), align='center',
-                                  vertical='middle'), rate),
+        Layout(Panel(Corner(Chrome(Align(Text.from_ansi(art), align='center',
+                                         vertical='middle'), 'RENDER'), rate),
                      title=' RENDER ', title_align='left', box=box.HEAVY,
                      border_style='frame', padding=0), name='view'),
         Layout(hud(view, len(solid[1]) // 3, cost), name='hud', size=24))
 
     whole = Layout()
     whole.split_column(
+        Layout(band_of('RENDER', 'ENGINE TESTBED'), size=1),
         Layout(body, name='body'),
         # F, the mouse toggle, near the front.
         Layout(footer((('F', 'MOUSE'), ('+ -', 'ZOOM'),

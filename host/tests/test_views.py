@@ -905,7 +905,8 @@ def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
 
 
 def test_the_level_is_drawn_at_the_dot(report):
-    """The top of a bar's mercury is `⣀`, `⣤`, `⣶`, `⣿` - one dot a step."""
+    """The top of a bar's mercury is `⣀`, `⣤`, `⣶` - one dot a step, every LED_PITCH-th
+    dark: LED segments."""
     from coaxial.draw import cross_section
 
     track = chr(0x28D2)
@@ -918,14 +919,16 @@ def test_the_level_is_drawn_at_the_dot(report):
         mercury = [c for c in column if c not in (track, chr(0x2800))]
         tops.append(mercury[0] if mercury else '?')
         dots.append(sum(bin(ord(c) - 0x2800).count('1') for c in mercury))
-    report.check('the top cell climbs a dot at a time',
+    report.check('the top cell climbs a dot at a time, its fourth dot a segment gap',
                  tops[:4] == [chr(0x28C0), chr(0x28E4), chr(0x28F6),
-                              chr(0x28FF)], ''.join(tops))
+                              chr(0x28F6)], ''.join(tops))
     report.check('and keeps climbing into the next cell the same way',
                  tops[4:8] == [chr(0x28C0), chr(0x28E4), chr(0x28F6),
-                               chr(0x28FF)], ''.join(tops))
-    report.check('two dots a step - both lanes - and never a whole cell',
-                 all(b - a == 2 for a, b in zip(dots, dots[1:])), str(dots))
+                               chr(0x28F6)], ''.join(tops))
+    gap = cross_section.LED_PITCH - 1
+    report.check('two dots a step - both lanes - none at a gap, never a whole cell',
+                 all(b - a == (0 if (i + 1) % cross_section.LED_PITCH == gap else 2)
+                     for i, (a, b) in enumerate(zip(dots, dots[1:]))), str(dots))
 
     # Along the foot, one lane at a time.
     ends = []
@@ -939,8 +942,8 @@ def test_the_level_is_drawn_at_the_dot(report):
                  if frame.owner[row][col] == cross_section.WATTS]
         ends.append(chr(0x2800 + frame.dots[row][max(level)]) if level
                     else '?')
-    report.check('the foot gauge ends on a lane, not a cell',
-                 ends == [chr(0x2807), chr(0x283F), chr(0x2807), chr(0x283F)],
+    report.check('the foot gauge ends on a lane, not a cell, its fourth dot a gap',
+                 ends == [chr(0x2807), chr(0x283F), chr(0x2807), chr(0x2807)],
                  ''.join(ends))
 
 

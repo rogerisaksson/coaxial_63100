@@ -181,6 +181,6 @@ def legend(rows, held):
         keep = held.setdefault(name, [now, now])
         keep[0] = min(lo, keep[0] + desk.RELEASE * (now - keep[0]))
         keep[1] = max(hi, keep[1] + desk.RELEASE * (now - keep[1]))
-        lines.append((name, '%+9.3f %-2s  %+8.2f/%+8.2f'
+        lines.append((name, '%+8.3f %-2s %+7.2f %+7.2f'
                       % (now, unit, keep[0], keep[1])))
-    return hud('LEGEND  now / held lo / hi', lines)
+    return hud('LEGEND  now / held lo  hi', lines)

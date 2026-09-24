@@ -11,6 +11,8 @@ green phosphor terminal. What that means concretely, as rules:
     assignment is most of the look: a dark screen where the numbers are
     the light sources.
   * A key bar closes the bottom, reversed like the terminal reference.
+  * Over the drawing, the attitude view's HUD (`terminal.ui.chrome`): a graticule, lock
+    brackets, the clock, a status tag in kana; the band carries the kana name too.
 
 Every style is named here in the Theme and nowhere else - a view says
 `value` or `label`, never a colour number, so the palette is one edit.
@@ -34,6 +36,7 @@ from rich.text import Text
 from rich.theme import Theme
 
 from coaxial.comm import broker
+from terminal.ui.chrome import KANA, Chrome, clock
 from terminal.ui.marquee import Marquee
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.scroll import DOWN, HUD_WIDTH, UP, _fills, _rows_of, paged, scroll_state
@@ -170,12 +173,13 @@ def chip(origin):
 
 
 def band_of(name, extra='', tag=None):
-    """The band every page wears: `name` hard left, `extra` dim after it,
-    `tag` right with one cell of air before the band's end.
+    """The band every page wears: `name` hard left, its kana and `extra` dim after it,
+    the clock and `tag` right with one cell of air before the band's end.
     """
-    left = Text.assemble((name, 'bar'),
+    kana = KANA[name][0] if name in KANA else ''
+    left = Text.assemble((name, 'bar'), ('  ' + kana if kana else '', 'bar.dim'),
                          ('   ' + extra if extra else '', 'bar.dim'))
-    right = Text.assemble(tag, (' ', 'bar.dim')) if tag else Text('')
+    right = Text.assemble((clock() + '  ', 'bar.dim'), tag or '', (' ', 'bar.dim'))
     return band(left, right)
 
 
@@ -250,19 +254,21 @@ def hud(title, rows):
 _ESCAPE = re.compile(r'\x1b')
 
 
-def viewport(title, art, corner=''):
+def viewport(title, art, corner='', page=None):
     """The drawing, centred in a heavy frame that owns its region; `corner`
-    (a `Rate.label()`) over its top-left cells."""
-    return Panel(Corner(Align(Marquee(art), align='center',
-                              vertical='middle'), corner),
+    (a `Rate.label()`) over its top-left cells; `page` its title, the house HUD
+    over it (Chrome), None for a drawing that carries its own."""
+    drawing = Align(Marquee(art), align='center', vertical='middle')
+    return Panel(Corner(drawing if page is None else Chrome(drawing, page), corner),
                  title=Text(' %s ' % title, style='name'),
                  title_align='left', box=box.HEAVY, border_style='frame',
                  padding=(0, 1), expand=True)
 
 
 def frame_of(console, origin, title, art, boxes, keys, art_title=None,
-             under=None):
-    """The template: title band, viewport left, instruments right, key bar."""
+             under=None, dressed=True):
+    """The template: title band, viewport left, instruments right, key bar;
+    `dressed` False for a drawing with a HUD of its own."""
     if not _fills(console):
         return Group(header(title, origin),
                      viewport(art_title or title, art),
@@ -278,14 +284,15 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
         keys = list(keys) + [(UP + ' ' + DOWN, 'SCROLL')]
     body = Layout()
     art_region = Layout(name='art')
+    page = title if dressed else None
     if under is None:
-        art_region.update(viewport(art_title or title, art, rate))
+        art_region.update(viewport(art_title or title, art, rate, page))
     else:
         # `under` is a fixed height because the viewport takes the rest: a box
         # that grew with its content would push the bars off the bottom of a
         # short terminal instead of the other way round.
         art_region.split_column(
-            Layout(viewport(art_title or title, art, rate), name='top'),
+            Layout(viewport(art_title or title, art, rate, page), name='top'),
             Layout(under, name='under', size=_rows_of(under) + 2))
     body.split_row(art_region,
                    Layout(Group(*boxes) if boxes else Text(''),
@@ -321,7 +328,7 @@ def panels_of(console, origin, title, groups, keys):
     # The grid sits in the same heavy frame the drawing views give their
     # viewport, so a table page owns its region the way they do; without it
     # the session read as loose boxes on the bare screen.
-    framed = Panel(body, title=Text(' %s ' % title, style='name'),
+    framed = Panel(Chrome(body, title, lock=False), title=Text(' %s ' % title, style='name'),
                    title_align='left', box=box.HEAVY, border_style='frame',
                    padding=0, expand=True)
 

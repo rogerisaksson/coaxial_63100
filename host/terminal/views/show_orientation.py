@@ -298,7 +298,8 @@ def compose(origin, args, view, colour, console):
             # Lit while the view has the mouse, dark while the terminal has
             # it, the default, so a left-drag marks text.
             ('F', _lit('MOUSE') if _console.holding() else 'MOUSE'),
-            ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))))
+            ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))),
+        dressed=False)
 
 
 #: The most frames a second this view will draw, whatever `--hz` asks,

@@ -34,6 +34,7 @@ from terminal.ui.console import Keys
 from terminal.ui.marquee import Marquee
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.screen import ENTER_KEYS, paced
+from terminal.ui.chrome import KANA, Chrome
 from terminal.ui.stage import band_of, curtain, footer, live, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -131,14 +132,15 @@ def roster(picked):
     # list's height and the page jumped on each keypress.
     lines = [Text('')]
     for i, (key, name, what) in enumerate(ENTRIES):
+        kana = '%-12s' % KANA[name][0] if name in KANA else ' ' * 12
         if i == picked:
             row = Text.assemble((' > ', 'value'), (key, 'value'),
-                                ('  ', ''), (name, 'value'),
-                                ('   ' + what, 'label'))
+                                ('  ', ''), ('%-18s' % name, 'value'),
+                                (kana, 'name'), ('  ' + what.upper(), 'label'))
         else:
             row = Text.assemble('   ', (key, 'label'), ('  ', ''),
-                                (name, 'label'),
-                                ('   ' + what, 'label'))
+                                ('%-18s' % name, 'label'), (kana, 'frame.hud'),
+                                ('  ' + what.upper(), 'label'))
         # Cropped, never wrapped: on a narrow tty a wrapped row doubled the
         # list's height and the page scrolled.
         row.no_wrap, row.overflow = True, 'ellipsis'
@@ -300,8 +302,9 @@ def compose(port, picked, view, size=None, who=None, rate=''):
     state = view.setdefault('readout', readout.fresh(time.monotonic()))
     column = Layout()
     column.split_column(
-        Layout(Panel(Corner(Align(Marquee(turntable(view, wide - 2, above)),
-                                  align='center', vertical='middle'), rate),
+        Layout(Panel(Corner(Chrome(Align(Marquee(turntable(view, wide - 2, above)),
+                                         align='center', vertical='middle'),
+                                   'COAXIAL 63100', tags=False), rate),
                      title=Text(' COAXIAL 63100 ', style='name'),
                      title_align='left', box=box.HEAVY, border_style='frame',
                      padding=(0, 0), expand=True), name='model'),
@@ -314,7 +317,8 @@ def compose(port, picked, view, size=None, who=None, rate=''):
                size=below))
     body = Layout()
     body.split_row(
-        Layout(Panel(asking(who) if who is not None else roster(picked),
+        Layout(Panel(Chrome(asking(who) if who is not None else roster(picked),
+                            'COAXIAL 63100', lock=False),
                      box=box.ROUNDED,
                      title=Text(' MAIN TERMINAL ACCESS ', style='name'),
                      title_align='left', border_style='frame.hud',

@@ -84,14 +84,16 @@ coaxial_ollama/     local-model runner
 terminal/           python -m terminal: loader, menu, readout
 terminal/pages/     the front page's entries, one module each
 terminal/views/     the live views (show_*.py), each runnable on its own
-terminal/ui/        what they draw with: stage, screen, console, scroll, ..
+terminal/ui/        what they draw with: stage, chrome (the house HUD: CRT snow, lock,
+                    clock, kana tags), screen, console, scroll, ..
 tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
                     warm_model, lint (markdownlint + pyright, the hooks)
 tools/target/       build_and_flash, find_board, flash_nodes, session
 tools/bench/        one question to the board per script: pulse, switch, ..
 tools/thermal/      calibrate, identify, validate, trace
 tools/render/       renderer checks against the exporter; ansi2png; attitude (the
-                    view at a pose and a moment, to a PNG - no window)
+                    view at a pose and a moment, to a PNG - no window); page (any
+                    page's last frame, simulated, to a PNG)
 tools/sim/          the drive core on this host: montecarlo, observer_run
 tools/cores/        build: the portable cores' gcc build;
                     drive, thermal: their ctypes harnesses

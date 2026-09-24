@@ -97,10 +97,11 @@ TEETH = frozenset(PHASE_CLASS)
 PHASE_NAMES = ('U', 'V', 'W')
 
 #: The palette: the rotor warm, the three phases told apart by colour (a
-#: cell carries one), the mark loudest.
-INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
-       TOOTH_U: 38, TOOTH_V: 71, TOOTH_W: 103,
-       SOUTH: 94, NORTH: ansi.AMBER, TRUTH: 252, POINTER: ansi.AMBER,
+#: cell carries one), the mark loudest; phosphor, no muted mid-tones
+#: (2026-09-24, "mossy").
+INK = {TRACK: 237, BORE: 240, CAN: 30, YOKE: 23,
+       TOOTH_U: 45, TOOTH_V: 48, TOOTH_W: 135,
+       SOUTH: 136, NORTH: ansi.AMBER, TRUTH: 255, POINTER: ansi.AMBER,
        SOA_OK: 41, SOA_WARN: 178, SOA_TRIP: 196,
        #: Not a margin against a ceiling like the rest of them, so
        #: not one of their colours: this one is a quantity.
@@ -141,15 +142,22 @@ MARKS = frozenset((TRUTH,) + TRAIL)
 #: calibration record and the board is what acts on them.
 SOA_CLASS = (SOA_OK, SOA_WARN, SOA_TRIP)
 
+#: A filled tube or level is LED segments: every LED_PITCH-th dot along it dark.
+LED_PITCH = 4
+
 #: Air between the motor and the nearest bar, the same both sides (measured
 #: off the can's edge): one column; none read as part of the drawing.
 BAR_GAP = 1
 
+#: A north magnet is drawn as its outline, a dot wide: filled, the eight of
+#: them were amber blocks over everything else (2026-09-24).
+HOLLOW = frozenset(((1, 0), (-1, 0), (0, 1), (0, -1)))
+
 #: A phase brightens with its current: one hue a phase, four steps, the
 #: dimmest still lit.
-PHASE_RAMP = {TOOTH_U: (23, 30, 38, 51),
-              TOOTH_V: (22, 29, 71, 84),
-              TOOTH_W: (53, 90, 133, 177)}
+PHASE_RAMP = {TOOTH_U: (24, 31, 45, 51),
+              TOOTH_V: (22, 28, 41, 48),
+              TOOTH_W: (54, 91, 135, 177)}
 
 
 def phase_ink(drive):
@@ -338,6 +346,8 @@ def _level(dots, owner, row, lo, hi, start, end, cls):
     for x in range(lo, hi):
         col = x // DOTS_X
         if start <= x < end:
+            if (x - start) % LED_PITCH == LED_PITCH - 1:
+                continue
             for y in GAUGE_Y:
                 dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
             owner[row][col] = max(owner[row][col], cls)
@@ -395,6 +405,8 @@ def _tube(dots, owner, col, top, tall, share, cls):
         if not (0 <= row < len(dots)):
             continue
         if step < filled:
+            if step % LED_PITCH == LED_PITCH - 1:
+                continue
             for lane in range(DOTS_X):
                 dots[row][col] |= BRAILLE_BITS[lane][y % DOTS_Y]
             owner[row][col] = max(owner[row][col], cls)
@@ -539,7 +551,7 @@ def _body(frame, seat, rotor_deg, slots, poles, drive):
     """The motor itself, dot by dot."""
     rotor = math.radians(rotor_deg)
     r = seat.radii
-    track = []
+    track, north = [], set()
     for x, y, samples in _samples(frame, seat):
         # Each sample votes with its coverage, and the dot goes to the class
         # that covers most of it.
@@ -557,8 +569,13 @@ def _body(frame, seat, rotor_deg, slots, poles, drive):
             cls = max(votes, key=lambda c: (votes[c], c))
             if cls == TRACK:
                 track.append((x, y))
+            elif cls == NORTH:
+                north.add((x, y))
             else:
                 frame.put(x, y, cls)
+    for x, y in north:
+        if any((x + dx, y + dy) not in north for dx, dy in HOLLOW):
+            frame.put(x, y, NORTH)
     # The track takes no cell an area has, as `_tube`'s: shared, a tooth's
     # end moved a cell and a tip beside a north magnet went amber.
     for x, y in track:
