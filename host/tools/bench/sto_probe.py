@@ -39,7 +39,7 @@ def probe(rig, last=None):
     """One reading of the chain: the interlock's rows, the gate state's
     chain fields, and the keepalive pulses a second since `last`.
     """
-    now = time.monotonic()
+    now = time.perf_counter()        # monotonic is 15.6 ms on Windows before 3.13
     rows = rig.gates.interlock()
     state = rig.board.gate_drivers.state()
     got = {'at': now,
@@ -103,12 +103,12 @@ def main(argv=None):
     try:
         print('%s - %s' % (rig.origin.label, 'live' if rig.origin.real
                            else 'simulated'))
-        began = time.monotonic()
+        began = time.perf_counter()
         last = None
         first = True
         while True:
             got = probe(rig, last)
-            got['t'] = time.monotonic() - began
+            got['t'] = time.perf_counter() - began
             print(line(got, first))
             first = False
             last = got

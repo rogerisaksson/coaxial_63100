@@ -57,6 +57,9 @@ GATE_LAST = 26.0
 DIVE = 0.36
 SWING = 0.32
 GATE_HAZE = 0.35
+#: A gate within GREEN of the craft is cleared: green, just before it is passed.
+GREEN = 0.9
+CLEARED = (90, 255, 150)
 
 #: The landing pad where the corridor closes: PAD of the frame wide, seen from high above
 #: (FLAT of a square's height), a cross on it, its corner beacons blinking red.
@@ -117,7 +120,8 @@ def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None,
             put(x0 + (x1 - x0) * i / 12.0, y0 + (y1 - y0) * i / 12.0, DIM)
     for z, x, y, half in reversed(shown):               # the nearest drawn last, on top
         fade = GATE_HAZE ** ((z - GATE_FIRST) / (GATE_LAST - GATE_FIRST))
-        rgb = tuple(int(c * fade + 0.5) for c in AMBER)
+        rgb = tuple(int(c * fade + 0.5) for c in (CLEARED if z < GATE_FIRST + GREEN
+                                                   else AMBER))
         tall = half / ASPECT
         corners = [(x - half, y - tall), (x + half, y - tall), (x + half, y + tall),
                    (x - half, y + tall)]
@@ -133,27 +137,27 @@ def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None,
     return out
 
 
-#: Stars over the horizon: STARS a 150-column frame, each on a fixed spot of the sky,
-#: twinkling at its own rate; under TWINKLE_OUT of its light it is gone for a moment.
-STARS = 24
-TWINKLE_OUT = 0.18
-STAR = (225, 232, 255)
+#: Stars over the horizon: STARS a 150-column frame, each on a fixed spot of the sky and a
+#: brightness of its own, SCINTILLATING - the air's refraction and damp: a fast shimmer
+#: of SHIMMER of its light at two rates of its own, its hue drifting toward WARM and back.
+STARS = 22
+SHIMMER = 0.35
+STAR = (170, 182, 214)
+WARM = (214, 176, 160)
 
-#: Decoration, meaning nothing: a column of half-width kana and hex flickering at the
-#: right edge, a kana line under the tag (2026-09-24, "Ghost in the Shell, Nostromo").
-KANA = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ'
-HEX = '0123456789ABCDEF'
+#: Decoration, meaning nothing: a kana line under the tag (2026-09-24, "Ghost in the
+#: Shell, Nostromo").
 DATA = (60, 190, 140)
-FLICKER_HZ = 6.0
 TAG = '>> ﾁｬｸﾘｸﾁ ﾀﾝｻｸﾁｭｳ'
 SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
 
-#: A craft far below, crossing now and then: one pass each PASS_S seconds, CROSS_S long,
-#: from the lower left to the right; CRAFT columns nose to tail at a 150-column frame,
-#: pale steel, a red beacon blinking, a white strobe at the tail.
-PASS_S = 28.0
-CROSS_S = 9.0
-CRAFT = 11.0
+#: A craft far below, now and then: one pass each PASS_S seconds, CROSS_S long - in from
+#: the left, across, then banking off into a dive that takes it out under the frame;
+#: CRAFT columns nose to tail at a 150-column frame, pale steel, a red beacon blinking, a
+#: white strobe at the tail.
+PASS_S = 24.0
+CROSS_S = 3.2
+CRAFT = 6.0
 HULL = (190, 215, 235)
 STROBE = (255, 255, 255)
 
@@ -183,15 +187,18 @@ def stars(static, width, height, t, roll=None):
         if top <= 0.5:
             continue
         y = _hashed(i, 2) % 1000 / 1000.0 * top
-        light = 0.5 + 0.5 * math.sin(t * (1.1 + (_hashed(i, 3) % 7) * 0.45) + i)
-        if light < TWINKLE_OUT:
-            continue
+        base = 0.35 + 0.65 * (_hashed(i, 3) % 100) / 100.0
+        fast, faster = 2.3 + (_hashed(i, 4) % 9) * 0.37, 5.1 + (_hashed(i, 5) % 11) * 0.41
+        shimmer = 0.5 * (math.sin(t * fast + i) + math.sin(t * faster + 2.0 * i))
+        light = base * (1.0 - SHIMMER * (0.5 + 0.5 * shimmer))
+        warm = 0.5 + 0.5 * math.sin(t * 0.7 + 1.7 * i)
+        rgb = tuple(int(light * (c + (w - c) * warm * 0.6)) for c, w in zip(STAR, WARM))
         if roll is not None:
             x, y = roll(x, y)
         if 0.0 <= x < width and 0.0 <= y < height:
             px, py = int(x), int(y)
             bit = BRAILLE_BITS[1 if x - px >= 0.5 else 0][min(3, int((y - py) * 4.0))]
-            out[py * width + px] = (bit, tuple(int(c * (0.35 + 0.65 * light)) for c in STAR))
+            out[py * width + px] = (bit, rgb)
     return out
 
 
@@ -202,9 +209,16 @@ def craft(width, height, t, roll=None):
         return {}
     k = into / CROSS_S
     size = CRAFT * width / 150.0
-    x0, y0 = -0.1 * width + 1.2 * width * k, (0.78 - 0.16 * k) * height
-    heading = math.atan2(-0.16 * height * ASPECT, 1.2 * width)
+
+    def track(k):
+        """Where the pass is at `k` of it: across, then diving out under the frame."""
+        return (-0.08 + 0.9 * k) * width, (0.52 + 0.62 * k ** 3) * height
+
+    x0, y0 = track(k)
+    x1, y1 = track(k + 0.01)
+    heading = math.atan2((y1 - y0) * ASPECT, x1 - x0)
     c, s = math.cos(heading), math.sin(heading)
+    bank = 1.0 - 0.7 * k * k                  # the wings foreshorten as it rolls in
     out = {}
 
     def put(x, y, rgb):
@@ -217,7 +231,8 @@ def craft(width, height, t, roll=None):
             out[at] = (out[at][0] | bit if at in out else bit, rgb)
 
     def at(u, v):
-        """The craft's (along, across) as a screen point."""
+        """The craft's (along, across) as a screen point, the across foreshortened."""
+        v *= bank
         x, y = size * (u * c - v * s), size * (u * s + v * c)
         return x0 + x, y0 + y / ASPECT
 
@@ -347,14 +362,4 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
                                                                 gates % 100), amber)
     if int(t * 1.5) % 2 == 0:
         _put(grid, tone, height - 1, width - len(TAG) - 1, TAG, red)
-    data = DATA if colour else None
-    _put(grid, tone, height - 2, width - len(SUBTAG) - 1, SUBTAG, data)
-
-    # The data column, right edge: kana and hex, a new pick FLICKER_HZ times a second.
-    tick = int(t * FLICKER_HZ)
-    for row in range(6, height - 3):
-        pick = _hashed(row, tick)
-        if pick % 5 == 0:
-            continue
-        _put(grid, tone, row, width - 2, KANA[pick % len(KANA)], data)
-        _put(grid, tone, row, width - 1, HEX[(pick >> 8) % 16], data)
+    _put(grid, tone, height - 2, width - len(SUBTAG) - 1, SUBTAG, DATA if colour else None)
