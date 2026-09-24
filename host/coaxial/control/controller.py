@@ -1,144 +1,395 @@
-"""A controller put together from parts, and the parts.
+"""A controller: feedback loops over named float channels, sources in, sinks out.
 
-    loop = Loop(source, sink, regulator, estimator=Direct(), prefilters=(), rate_hz=25)
-    loop.write(w=100.0)              # the hook: setpoints from a script, a plan, a model
-    loop.run(2.0)                    # serve it: prefilter, read, estimate, regulate, write
-    loop.move(seconds=2.0, w=100.0)  # write, then run
-    loop.follow(plan)                # a sequence of (seconds, setpoints), or a planner
-    loop.read()                      # the last pass: setpoint, measured, estimate, command
+    loop = Loop(sources={'drive': Polled(drive.state)}, sinks={'drive': drive})
+    loop.add('speed', Feedback(SpeedPI(...), setpoint='w_target',
+                               measured='drive.omega_hat', command='iq_ref',
+                               sink='drive.iq_ref', prefilter=Slew(157.0),
+                               measure=Gain(1 / 7), estimator=SpeedKalman(...)))
+    loop.write(w_target=100.0)       # the hook: any channel - a script, a plan, a model
+    loop.run(2.0); loop.move(2.0, w_target=50.0); loop.follow(plan)
+    loop.read()                      # every channel after the last pass
+    loop.save(path); Loop.load(path, sources, sinks); with loop.saving(path): ...
 
-source   an Input: read() -> dict (a board's device, a model)
-sink     an Output: write(**command)
-parts    Filter.step(x, dt), Estimator.step(measured, command, dt),
-         Regulator.step(setpoint, estimate, dt) -> dict; reset()
-Paced    any part on its own thread at its own rate
+A feedback steps prefilter, measure, estimator, regulator; loops step in the order added.
+A source's read() lands as '<source>.<key>' (numbers, bools as 0/1); a channel read before
+its writer steps holds the last pass's value. Under it: parts wired port by port
+(plug, wire, route) for what is not a feedback.
 """
-import math
+import atexit
+import contextlib
+import json
 import threading
 import time
 
-from coaxial.control.loop import Signals, SpeedLoop
-from coaxial.devices.roles import Controller, Estimator, Filter, Input, Regulator
+from coaxial.control.parts import PI
+from coaxial.devices.roles import Controller, Estimator, Filter, Input, Part, Regulator
 from coaxial.errors import RigError
+
+
+def _float(value):
+    """A number as a float, a bool as 0/1; anything else None."""
+    if isinstance(value, bool):
+        return 1.0 if value else 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+class Feedback:
+
+    """One feedback loop: setpoint -> prefilter -> (+) -> regulator -> command -> sink;
+    measured -> measure -> estimator -> back into (+). A slot is a part or None; a channel
+    None is unwired, but `command`, `ref`, `value`, `estimate` default to '<loop>/<name>'."""
+
+    SLOTS = {'prefilter': Filter, 'measure': Filter, 'estimator': Estimator,
+             'regulator': Regulator}
+    IO = ('setpoint', 'measured', 'command', 'sink', 'ref', 'value', 'estimate')
+
+    def __init__(self, regulator=None, setpoint=None, measured=None, command=None, sink=None,
+                 prefilter=None, measure=None, estimator=None, ref=None, value=None,
+                 estimate=None):
+        self.regulator = regulator or PI()
+        self.prefilter, self.measure, self.estimator = prefilter, measure, estimator
+        self.setpoint, self.measured, self.command, self.sink = setpoint, measured, command, sink
+        self.ref, self.value, self.estimate = ref, value, estimate
+
+    def slots(self):
+        return {slot: getattr(self, slot) for slot in self.SLOTS}
+
+    def config(self):
+        return dict({k: getattr(self, k) for k in self.IO},
+                    slots={s: _spec(p) if p is not None else None
+                           for s, p in self.slots().items()})
+
+    @classmethod
+    def of(cls, cfg):
+        slots = {s: _part(spec) if spec else None for s, spec in cfg['slots'].items()}
+        return cls(**slots, **{k: cfg[k] for k in cls.IO})
 
 
 class Loop(Controller):
 
-    """source -> estimator -> regulator -> sink, setpoints through the prefilters."""
+    """Sources, feedback loops in order, sinks; one pass = read, step, write."""
 
-    def __init__(self, source, sink, regulator, estimator=None, prefilters=(), rate_hz=25.0,
-                 clock=time.monotonic, sleep=time.sleep):
-        self.source, self.sink = source, sink
-        self.regulator = regulator
-        self.estimator = estimator or Direct()
-        self.prefilters = tuple(prefilters)
+    def __init__(self, sources, sinks, feedbacks=None, parts=None, wires=None, outputs=None,
+                 rate_hz=25.0, clock=time.monotonic, sleep=time.sleep):
+        self.sources, self.sinks = dict(sources), dict(sinks)
+        self.parts, self.feedbacks = dict(parts or {}), {}
+        self.wires, self.outputs, self.setpoints = {}, {}, set()
         self.pause = 1.0 / float(rate_hz)
         self._clock, self._sleep = clock, sleep
-        self._target, self._command, self._last = {}, {}, None
-        self._t = 0.0
+        self.bus = {'t': 0.0}
+        self.wire(**(wires or {}))
+        self.route(**(outputs or {}))
+        for name, feedback in (feedbacks or {}).items():
+            self.add(name, feedback)
+
+    # -- feedback loops ----------------------------------------------------------------
+
+    def add(self, name, feedback):
+        """A feedback loop in as `name` - in place of one so named, else last."""
+        if '.' in name or '/' in name:
+            raise RigError('a loop name has no . or /: %r' % name)
+        order = list(self.feedbacks)
+        if name in self.feedbacks:
+            self.remove(name)
+        else:
+            order.append(name)
+        self.feedbacks[name] = feedback
+        self.feedbacks = {n: self.feedbacks[n] for n in order}
+        f = feedback
+        command, ref, value, est = (getattr(f, k) or '%s/%s' % (name, k)
+                                    for k in ('command', 'ref', 'value', 'estimate'))
+        setpoint, measured = f.setpoint, f.measured
+        if f.prefilter is not None:
+            self.plug(name + '/prefilter', f.prefilter, x=setpoint, y=ref)
+            setpoint = ref
+        if f.measure is not None:
+            self.plug(name + '/measure', f.measure, x=measured, y=value)
+            measured = value
+        if f.estimator is not None:
+            self.plug(name + '/estimator', f.estimator, measured=measured, command=command,
+                      estimate=est)
+            measured = est
+        self.plug(name + '/regulator', f.regulator, setpoint=setpoint, measured=measured,
+                  command=command)
+        if f.sink:
+            self.route(**{f.sink: command})
+        self._order()
+        return feedback
+
+    def remove(self, name):
+        """The feedback loop `name` out, its parts and its sink route with it."""
+        feedback = self.feedbacks.pop(name)
+        for part in [p for p in self.parts if p.startswith(name + '/')]:
+            self.unplug(part)
+        if feedback.sink and feedback.sink in self.outputs:
+            self.route(**{feedback.sink: None})
+        return feedback
+
+    def _order(self):
+        """Feedback loops' parts in loop order and slot order, then the free parts."""
+        owned = ['%s/%s' % (n, s) for n in self.feedbacks for s in Feedback.SLOTS]
+        self.parts = dict([(p, self.parts[p]) for p in owned if p in self.parts]
+                          + [(p, q) for p, q in self.parts.items() if p not in owned])
+
+    # -- wiring ------------------------------------------------------------------------
+
+    def ports(self):
+        return ['%s.%s' % (n, p) for n, part in self.parts.items()
+                for p in part.INPUTS + part.OUTPUTS]
+
+    def wire(self, **wires):
+        """'<part>.<port>': channel; None unwires it."""
+        for key, channel in wires.items():
+            if key not in self.ports():
+                raise RigError('no port %s - there are %s' % (key, ', '.join(self.ports())))
+            if channel is None:
+                self.wires.pop(key, None)
+            else:
+                self.wires[key] = channel
+        return dict(self.wires)
+
+    def route(self, **outputs):
+        """'<sink>.<key>': channel, written to that sink every pass; None drops it."""
+        for key, channel in outputs.items():
+            if key.partition('.')[0] not in self.sinks:
+                raise RigError('no sink %s - there are %s' % (key, ', '.join(self.sinks)))
+            if channel is None:
+                self.outputs.pop(key, None)
+            else:
+                self.outputs[key] = channel
+        return dict(self.outputs)
+
+    def plug(self, name, part, before=None, **ports):
+        """`part` in as `name` - in place of one so named, else before `before`, else last -
+        and its ports wired: plug('kf', SpeedKalman(...), before='pi', measured='w')."""
+        items = list(self.parts.items())
+        names = [n for n, _ in items]
+        if name in names:
+            items[names.index(name)] = (name, part)
+        else:
+            items.insert(names.index(before) if before else len(items), (name, part))
+        self.parts = dict(items)
+        own = set(part.INPUTS + part.OUTPUTS)
+        for key in [k for k in self.wires if k.partition('.')[0] == name]:
+            if key.partition('.')[2] not in own:
+                del self.wires[key]
+        return self.wire(**{'%s.%s' % (name, port): ch for port, ch in ports.items()})
+
+    def unplug(self, name):
+        part = self.parts.pop(name)
+        for key in [k for k in self.wires if k.partition('.')[0] == name]:
+            del self.wires[key]
+        return part
+
+    def channel_of(self, name, port):
+        """Where a part's port reads or publishes."""
+        return self.wires.get('%s.%s' % (name, port), '%s.%s' % (name, port))
+
+    def channels(self):
+        """Every channel a pass knows: the sources' (read now if never read), the parts',
+        the setpoints'."""
+        if not any(k.partition('.')[0] in self.sources for k in self.bus):
+            self._read_sources()
+        return sorted(set(self.bus) | set(self.wires.values()) | set(self.outputs.values())
+                      | {self.channel_of(n, p) for n, part in self.parts.items()
+                         for p in part.OUTPUTS})
+
+    # -- the verbs ---------------------------------------------------------------------
 
     def state(self):
-        return {'target': dict(self._target), 'last': self._last, 't': self._t}
+        return {'bus': dict(self.bus), 'wires': dict(self.wires), 'outputs': dict(self.outputs)}
 
-    def write(self, **setpoints):
-        """The hook: new targets, reached through the prefilters on the next passes."""
-        self._target.update(setpoints)
-        return dict(self._target)
+    def write(self, **channels):
+        """The hook: setpoints on any channel, floats (a bool is 0/1)."""
+        for key, value in channels.items():
+            f = _float(value)
+            if f is None:
+                raise RigError('%s: a channel carries a float, not %r' % (key, value))
+            self.bus[key] = f
+            self.setpoints.add(key)
+        return {k: self.bus[k] for k in channels}
 
     def read(self, count=None, timeout=None):
-        return self._last
+        return dict(self.bus)
 
     def reset(self):
-        for part in (self.estimator, self.regulator) + self.prefilters:
+        """Every part back to rest; the bus to its setpoints."""
+        for part in self.parts.values():
             part.reset()
-        self._command, self._last, self._t = {}, None, 0.0
+        self.bus = {'t': 0.0, **{k: self.bus[k] for k in self.setpoints if k in self.bus}}
+
+    def _read_sources(self):
+        for name, source in self.sources.items():
+            got = source.read()
+            if got.get('fault'):
+                raise RigError('%s faulted mid-loop - %s; the loop is over'
+                               % (name, got['fault']))
+            for key, value in got.items():
+                f = _float(value)
+                if f is not None:
+                    self.bus['%s.%s' % (name, key)] = f
 
     def step(self, dt):
-        """One pass; the row it made."""
-        setpoint = dict(self._target)
-        for f in self.prefilters:
-            setpoint = f.step(setpoint, dt)
-        measured = self.source.read()
-        if measured.get('fault'):
-            raise RigError('%s faulted mid-loop - %s; the loop is over'
-                           % (type(self.source).__name__, measured['fault']))
-        estimate = self.estimator.step(measured, self._command, dt)
-        self._command = self.regulator.step(setpoint, estimate, dt)
-        self.sink.write(**self._command)
-        self._t += dt
-        self._last = {'t': self._t, 'dt': dt, 'setpoint': setpoint, 'measured': measured,
-                      'estimate': estimate, 'command': dict(self._command)}
-        return self._last
+        """One pass; every channel after it."""
+        self._read_sources()
+        for name, part in self.parts.items():
+            inputs = {p: self.bus.get(self.wires['%s.%s' % (name, p)], 0.0)
+                      for p in part.INPUTS if '%s.%s' % (name, p) in self.wires}
+            for port, value in part.step(dt, **inputs).items():
+                self.bus[self.channel_of(name, port)] = float(value)
+        written = {}
+        for key, channel in self.outputs.items():
+            sink, _, what = key.partition('.')
+            written.setdefault(sink, {})[what] = self.bus.get(channel, 0.0)
+        for sink, values in written.items():
+            self.sinks[sink].write(**values)
+        self.bus['t'] += dt
+        return dict(self.bus)
 
     def run(self, seconds, watch=None):
-        """Serve the loop for `seconds` of the clock; `watch(loop)` after every pass."""
+        """Serve the loop for `seconds` of the clock; `watch(loop)` after every pass, and a
+        true answer ends the block."""
         rows = []
         last = start = self._clock()
         while self._clock() - start < seconds:
             now = self._clock()
             rows.append(self.step(max(now - last, 1e-6)))
             last = now
-            if watch is not None:
-                watch(self)
+            if watch is not None and watch(self):
+                break
             self._sleep(self.pause)
         return rows
 
-    def move(self, seconds, watch=None, **targets):
-        self.write(**targets)
+    def move(self, seconds, watch=None, **setpoints):
+        self.write(**setpoints)
         return self.run(seconds, watch)
 
     def follow(self, plan, watch=None):
-        """Setpoints in sequence: `plan` is (seconds, {setpoints}) pairs, or a planner
-        `plan(loop) -> (seconds, {setpoints})`, None when done - a script, a table, a model."""
-        steps = iter(plan) if not callable(plan) else iter(lambda: plan(self), None)
+        """Setpoints in sequence: (seconds, {channel: value}) pairs, or a planner
+        `plan(loop) -> (seconds, {channel: value})`, None when done."""
+        steps = iter(lambda: plan(self), None) if callable(plan) else iter(plan)
         rows = []
         for seconds, setpoints in steps:
             rows += self.move(seconds, watch, **setpoints)
         return rows
 
     def off(self):
-        """The sink to its safe state, and every paced part stopped."""
-        for part in (self.estimator, self.regulator) + self.prefilters:
+        """Every paced part stopped, every sink to its safe state."""
+        for part in self.parts.values():
             if isinstance(part, Paced):
                 part.stop()
-        return self.sink.off()
+        return {name: sink.off() for name, sink in self.sinks.items()}
+
+    # -- kept ---------------------------------------------------------------------------
+
+    def config(self):
+        """Feedback loops, free parts and their wires, setpoints: what save() writes."""
+        routed = {f.sink for f in self.feedbacks.values() if f.sink}
+        free = [p for p in self.parts if p.partition('/')[0] not in self.feedbacks]
+        return {'rate_hz': 1.0 / self.pause,
+                'feedbacks': {n: f.config() for n, f in self.feedbacks.items()},
+                'parts': {n: _spec(self.parts[n]) for n in free},
+                'wires': {k: v for k, v in self.wires.items() if k.partition('.')[0] in free},
+                'outputs': {k: v for k, v in self.outputs.items() if k not in routed},
+                'setpoints': {k: self.bus[k] for k in sorted(self.setpoints) if k in self.bus}}
+
+    def save(self, path):
+        with open(path, 'w', encoding='utf-8') as handle:
+            json.dump(self.config(), handle, indent=1)
+        return path
+
+    @classmethod
+    def load(cls, path, sources, sinks, **kw):
+        """A saved loop on live sources and sinks, by their names."""
+        with open(path, encoding='utf-8') as handle:
+            cfg = json.load(handle)
+        loop = cls(sources, sinks, {n: Feedback.of(f) for n, f in cfg['feedbacks'].items()},
+                   {n: _part(s) for n, s in cfg['parts'].items()}, cfg['wires'],
+                   cfg['outputs'], rate_hz=cfg['rate_hz'], **kw)
+        loop.write(**cfg['setpoints'])
+        return loop
+
+    @contextlib.contextmanager
+    def saving(self, path):
+        """The block, then save(path) however it ended."""
+        try:
+            yield self
+        finally:
+            self.save(path)
+
+    def save_at_exit(self, path):
+        atexit.register(self.save, path)
+        return path
+
+    def __str__(self):
+        from coaxial.draw.wiring import diagram
+        return diagram(self, colour=False)
+
+
+def _spec(part):
+    if isinstance(part, Paced):
+        return dict(_spec(part.part), hz=1.0 / part.pause)
+    return {'kind': type(part).__name__, 'params': part.params()}
+
+
+def _part(spec):
+    kind = Part.KINDS.get(spec['kind'])
+    if kind is None:
+        raise RigError('no part kind %s in this process - import the module that defines it; '
+                       'known: %s' % (spec['kind'], ', '.join(sorted(Part.KINDS))))
+    part = kind(**spec['params'])
+    return Paced(part, spec['hz']) if 'hz' in spec else part
 
 
 class Paced:
 
-    """A part on its own thread at its own rate; the loop hands it its inputs and takes
-    its latest answer. With `source`, it reads its own measurements (an estimator faster
-    than the loop): `Paced(SpeedKalman(...), 500, source=Polled(drive.state))`."""
+    """A part on its own thread at its own rate, answering the loop with its latest outputs.
+    `feed()` -> {port: float} refreshes inputs between passes (an estimator faster than
+    the loop reading its own measurement)."""
 
-    def __init__(self, part, hz, source=None, clock=time.monotonic, sleep=time.sleep):
-        self.part, self.pause, self.source = part, 1.0 / float(hz), source
+    def __init__(self, part, hz, feed=None, clock=time.monotonic, sleep=time.sleep):
+        self.part, self.pause, self.feed = part, 1.0 / float(hz), feed
         self._clock, self._sleep = clock, sleep
-        self._args, self._out, self._thread = None, None, None
+        self._inputs, self._out, self._thread = {}, None, None
         self._lock, self._part_lock = threading.Lock(), threading.Lock()
         self._ready = threading.Event()
+        self._stopping = False
         self.steps = 0
 
-    def step(self, *args):
+    INPUTS = property(lambda self: self.part.INPUTS)
+    OUTPUTS = property(lambda self: self.part.OUTPUTS)
+    PARAMS = property(lambda self: self.part.PARAMS)
+
+    def params(self):
+        return self.part.params()
+
+    def configure(self, **params):
+        with self._part_lock:
+            return self.part.configure(**params)
+
+    def step(self, dt, **inputs):
         with self._lock:
-            self._args = args[:-1]
+            self._inputs = inputs
         if self._thread is None:
             self._stopping = False
             self._thread = threading.Thread(target=self._run, daemon=True)
             self._thread.start()
         self._ready.wait()
         with self._lock:
-            return self._out
+            return dict(self._out)
 
     def _run(self):
         last = self._clock()
         while not self._stopping:
             now = self._clock()
             with self._lock:
-                args = self._args
-            if self.source is not None:
-                args = (self.source.read(),) + args[1:]
+                inputs = dict(self._inputs)
+            if self.feed is not None:
+                inputs.update(self.feed())
             with self._part_lock:
-                out = self.part.step(*args, max(now - last, 1e-6))
+                out = self.part.step(max(now - last, 1e-6), **inputs)
             last = now
             with self._lock:
                 self._out = out
@@ -170,137 +421,3 @@ class Polled(Input):
 
     def read(self, count=None, timeout=None):
         return self.call()
-
-
-# -- estimators ------------------------------------------------------------------------
-
-class Direct(Estimator):
-
-    """The measurement is the estimate: `Direct(w=('omega_hat', 1 / poles))` picks and scales;
-    no keys passes everything."""
-
-    def __init__(self, **picked):
-        self.picked = picked
-
-    def step(self, measured, command, dt):
-        if not self.picked:
-            return dict(measured)
-        return {name: measured[key] * scale for name, (key, scale) in self.picked.items()}
-
-
-class SpeedKalman(Estimator):
-
-    """Speed from a noisy speed, through the rotor's own law: w' = (kt iq - b w) / j.
-
-    Predicts on `command`, corrects on `measured` = (key, scale) - ('omega_hat', 1 / poles)
-    off a drive; q the process noise ((rad/s)^2 per s), r the measurement's variance."""
-
-    def __init__(self, kt, j, b, q, r, key='w', command='iq_ref', measured=None):
-        self.kt, self.j, self.b, self.q, self.r = kt, j, b, q, r
-        self.key, self.command = key, command
-        self.measured = measured or (key, 1.0)
-        self.reset()
-
-    def step(self, measured, command, dt):
-        z = measured[self.measured[0]] * self.measured[1]
-        if self.w is None:
-            self.w = z
-        else:
-            iq = command.get(self.command, 0.0)
-            self.w += dt * (self.kt * iq - self.b * self.w) / self.j
-            self.p += self.q * dt
-            gain = self.p / (self.p + self.r)
-            self.w += gain * (z - self.w)
-            self.p *= 1.0 - gain
-        return {self.key: self.w, 'sigma': math.sqrt(self.p)}
-
-    def reset(self):
-        self.w, self.p = None, self.r
-
-
-# -- regulators ------------------------------------------------------------------------
-
-class PI(Regulator):
-
-    """`out` = kp e + ki integral(e), clamped to +/-`limit`, the integrator held while clamped."""
-
-    def __init__(self, kp, ki, limit, key='w', out='iq_ref'):
-        self.kp, self.ki, self.limit, self.key, self.out = kp, ki, limit, key, out
-        self.reset()
-
-    def step(self, setpoint, estimate, dt):
-        e = setpoint.get(self.key, 0.0) - estimate[self.key]
-        raw = self.kp * e + self.x
-        u = max(-self.limit, min(self.limit, raw))
-        if u == raw:
-            self.x += self.ki * e * dt
-        return {self.out: u}
-
-    def reset(self):
-        self.x = 0.0
-
-
-class SpeedPI(Regulator):
-
-    """`coaxial.control.loop.SpeedLoop` as a part: the zero on the mechanical pole,
-    acceleration and drag fed forward, `iq_ref` from `w`."""
-
-    def __init__(self, hz, limit, motor, load=None):
-        self.law = SpeedLoop(hz, limit, motor, load)
-        self.reset()
-
-    def step(self, setpoint, estimate, dt):
-        s = self.bus
-        w_ref = setpoint.get('w', 0.0)
-        s.a_ref = (w_ref - s.w_ref) / dt if dt else 0.0
-        s.w_ref, s.w = w_ref, estimate['w']
-        self.law(s, dt)
-        return {'iq_ref': s.iq_ref}
-
-    def reset(self):
-        self.bus = Signals()
-        self.law.x = 0.0
-
-
-# -- prefilters ------------------------------------------------------------------------
-
-class Slew(Filter):
-
-    """Each named setpoint moves at most `rate` a second, from 0: `Slew(w=2000.0)`."""
-
-    def __init__(self, **rates):
-        self.rates = rates
-        self.reset()
-
-    def step(self, x, dt):
-        out = dict(x)
-        for key, rate in self.rates.items():
-            if key in x:
-                was = self.at.get(key, 0.0)
-                move = max(-rate * dt, min(rate * dt, x[key] - was))
-                out[key] = self.at[key] = was + move
-        return out
-
-    def reset(self):
-        self.at = {}
-
-
-class LowPass(Filter):
-
-    """First order, time constant `tau` s, on the named setpoints."""
-
-    def __init__(self, tau, *keys):
-        self.tau, self.keys = tau, keys
-        self.reset()
-
-    def step(self, x, dt):
-        out = dict(x)
-        k = dt / (self.tau + dt)
-        for key in self.keys:
-            if key in x:
-                self.y[key] = self.y.get(key, 0.0) + k * (x[key] - self.y.get(key, 0.0))
-                out[key] = self.y[key]
-        return out
-
-    def reset(self):
-        self.y = {}

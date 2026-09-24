@@ -6,12 +6,13 @@
     Output      + write(**values)  on()  off()  is_on()  trip()
     Controller  Input + Output, + move(**targets)
 
-The parts a controller is put together from (`coaxial.control.controller.Loop`):
+The parts a controller is wired from (`coaxial.control.controller.Loop`), every port a float:
 
-    Filter      step(x, dt) -> x shaped                          a prefilter
-    Estimator   step(measured, command, dt) -> estimate          a board's own is also an Input
-    Regulator   step(setpoint, estimate, dt) -> command
-    each        reset()
+    Part        INPUTS, OUTPUTS, PARAMS; step(dt, **inputs) -> {output: float}; reset();
+                params(); configure(**params)
+    Filter      x -> y                                a prefilter, a gain
+    Estimator   measured, command -> estimate
+    Regulator   setpoint, measured -> command
 
 One verb, one meaning, on every device. A verb a device cannot do refuses
 in words (RigError); what a device adds beyond the verbs is a setting of
@@ -92,7 +93,9 @@ class Stream(Input):
 
 class Output(Endpoint):
 
-    """Something written: a rail, a pin, a stage."""
+    """Something written: a rail, a pin, a stage. `WRITES`: the keys write() takes, when fixed."""
+
+    WRITES = ()
 
     def write(self, **values):
         """Put values out."""
@@ -123,34 +126,55 @@ class Controller(Input, Output):
         raise RigError('%s does not move' % type(self).__name__)
 
 
-class Filter:
+class Part:
 
-    """Shapes a dict of values: a setpoint on its way in."""
+    """A block of floats: named ports, float parameters, one step. A subclass that steps
+    is a kind (`KINDS`) a panel offers and a saved loop is rebuilt from, its constructor
+    taking its PARAMS by name, each with a default."""
 
-    def step(self, x, dt):
+    INPUTS, OUTPUTS, PARAMS = (), (), ()
+    KINDS = {}
+
+    def __init_subclass__(cls, **kw):
+        super().__init_subclass__(**kw)
+        if cls.step is not Part.step:
+            Part.KINDS[cls.__name__] = cls
+
+    def step(self, dt, **inputs):
         raise NotImplementedError
 
     def reset(self):
         pass
 
+    def params(self):
+        return {name: float(getattr(self, name)) for name in self.PARAMS}
 
-class Estimator:
+    def configure(self, **params):
+        unknown = sorted(set(params) - set(self.PARAMS))
+        if unknown:
+            raise RigError('%s has no %s - its parameters are %s' % (
+                type(self).__name__, ', '.join(unknown), ', '.join(self.PARAMS) or 'none'))
+        for name, value in params.items():
+            setattr(self, name, float(value))
+        return self.params()
+
+
+class Filter(Part):
+
+    """x in, y out: a setpoint shaped, a measurement scaled."""
+
+    INPUTS, OUTPUTS = ('x',), ('y',)
+
+
+class Estimator(Part):
 
     """The measurement and the last command in, the estimate out."""
 
-    def step(self, measured, command, dt):
-        raise NotImplementedError
-
-    def reset(self):
-        pass
+    INPUTS, OUTPUTS = ('measured', 'command'), ('estimate',)
 
 
-class Regulator:
+class Regulator(Part):
 
-    """The setpoint and the estimate in, the command out."""
+    """The setpoint and the measurement (or its estimate) in, the command out."""
 
-    def step(self, setpoint, estimate, dt):
-        raise NotImplementedError
-
-    def reset(self):
-        pass
+    INPUTS, OUTPUTS = ('setpoint', 'measured'), ('command',)

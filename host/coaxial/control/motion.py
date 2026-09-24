@@ -2,7 +2,8 @@
 import math
 import time
 
-from coaxial.control.controller import Direct, Loop, Polled, Slew, SpeedPI
+from coaxial.control.controller import Feedback, Loop, Polled
+from coaxial.control.parts import Gain, Slew, SpeedPI
 from coaxial.errors import RigError
 from coaxial.model.motor import Parameters, Propeller
 from coaxial.model.sensorless import RAD_S_PER_RPM
@@ -222,10 +223,10 @@ class Servo(_Mode):
 
 class Velocity(_Mode):
 
-    """Sensorless speed, a `Loop`: the drive's state in, `SpeedPI` by default, `iq_ref` out.
-
-    `load_k` is the regulator's feedforward, not a load: the stand-in's drag is
-    `model.configure(load=...)` from a `watch`. `regulator=`, `estimator=` swap the parts.
+    """Sensorless speed: a `Loop` of one `Feedback`, 'speed' - w_target -> Slew -> w_ref,
+    drive.omega_hat -> Gain(1 / poles) -> w (-> estimator) -> w_hat, SpeedPI -> iq_ref ->
+    the drive. `regulator=`, `estimator=` plug other parts in; `load_k` is the regulator's
+    feedforward, not a load (the stand-in's drag is `model.configure(load=...)`).
     """
 
     def __init__(self, device, amps, hz=3.0, j=2e-5, b=1e-5, load_k=0.0,
@@ -236,13 +237,15 @@ class Velocity(_Mode):
             name='the record', r=p['motor_r_uohm'], ld=p['motor_ld_nh'],
             lq=p['motor_lq_nh'], lam=p['motor_lambda_uvs'],
             poles=self.poles, j=j, b=b, measured=False)
-        self.slew = Slew(w=0.0)
-        self.loop = Loop(
-            Polled(self.drive.state), self.drive,
-            regulator or SpeedPI(hz, float(amps), motor,
-                                 load=Propeller(load_k) if load_k else None),
-            estimator or Direct(w=('omega_hat', 1.0 / self.poles)),
-            prefilters=(self.slew,), rate_hz=rate_hz)
+        self.loop = Loop({'drive': Polled(self.drive.state)}, {'drive': self.drive},
+                         rate_hz=rate_hz)
+        self.loop.add('speed', Feedback(
+            regulator or SpeedPI.of(hz, float(amps), motor,
+                                    load=Propeller(load_k) if load_k else None),
+            setpoint='w_target', measured='drive.omega_hat', command='iq_ref',
+            sink='drive.iq_ref', prefilter=Slew(rate=0.0), measure=Gain(1.0 / self.poles),
+            estimator=estimator, ref='w_ref', value='w' if estimator else 'w_hat',
+            estimate='w_hat'))
 
     def _start(self):
         self.drive.write(id_ref=0.0, iq_ref=0.0)
@@ -258,12 +261,12 @@ class Velocity(_Mode):
     def rpm(self, target, seconds=1.5, accel_rpm_s=None, watch=None):
         """Ramp to `target` rpm - in a third of the block unless `accel_rpm_s` - and serve
         the loop for `seconds`; `watch(velocity)` after every pass."""
-        now_rpm = self.slew.at.get('w', 0.0) / RAD_S_PER_RPM
+        ramp = self.loop.parts['speed/prefilter']
         if accel_rpm_s is None:
-            accel_rpm_s = abs(target - now_rpm) * 3.0 / max(seconds, 0.1)
-        self.slew.rates['w'] = accel_rpm_s * RAD_S_PER_RPM
+            accel_rpm_s = abs(target - ramp.y / RAD_S_PER_RPM) * 3.0 / max(seconds, 0.1)
+        ramp.configure(rate=accel_rpm_s * RAD_S_PER_RPM)
         self.loop.move(seconds, (lambda _: watch(self)) if watch else None,
-                       w=float(target) * RAD_S_PER_RPM)
+                       w_target=float(target) * RAD_S_PER_RPM)
         return self.rpm_now
 
     def stop(self, seconds=1.0):

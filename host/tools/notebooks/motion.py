@@ -103,8 +103,9 @@ def watch(v):
     if last[0] is not None:
         shaft_rpm = ((shaft - last[1] + 90.0) % 360.0 - 90.0) / (now - last[0]) / 6.0
     last[0], last[1] = now, shaft
-    rows.append((now, v.bus.w_ref / RAD_S_PER_RPM, m['omega'] / poles / RAD_S_PER_RPM,
-                 v.rpm_now, shaft_rpm, math.degrees(m['error']), v.bus.iq_ref))
+    bus = v.loop.read()
+    rows.append((now, bus['w_ref'] / RAD_S_PER_RPM, m['omega'] / poles / RAD_S_PER_RPM,
+                 v.rpm_now, shaft_rpm, math.degrees(m['error']), bus['iq_ref']))
 
 t0 = time.monotonic()
 with device.motion.velocity(amps=1.0, hz=3.0) as v:

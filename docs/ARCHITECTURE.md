@@ -37,11 +37,13 @@ boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),
 ```text
 coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory
 coaxial/comm/       the wire: transport, crc, codecs, protocol, broker, sessions
-coaxial/devices/    one subsystem per functional area (board, afe, gates, boot..)
+coaxial/devices/    one subsystem per functional area (board, afe, gates, boot..); roles:
+                    Input, Stream, Output, Controller; the parts' Filter, Estimator, Regulator
 coaxial/acquire/    the rig's task and stream (its mixins), records, reader, clock, filter
 coaxial/model/      motor, inverter, thermal network, sensorless, sysid
-coaxial/control/    loop, motion verbs, commissioning
-coaxial/draw/       2D drawings: palette, dials, gauges, machine, thermal map
+coaxial/control/    controller (Loop of Feedbacks over float channels), parts, panel,
+                    sequencer (tables with limits and jumps), loop (sim blocks), motion, commission
+coaxial/draw/       2D drawings: palette, dials, gauges, machine, thermal map, wiring
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c), observer
 coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/ drive/ thermal/

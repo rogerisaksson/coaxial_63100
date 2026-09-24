@@ -36,6 +36,7 @@ mcp>=1.2,<2      # 2.x removed the low-level Server decorator API this uses
 anyio>=4.0
 rich>=13.0
 pandas>=2.0
+openpyxl>=3.1       # a sequence from .xlsx (coaxial.control.sequencer)
 matplotlib>=3.7
 
 # Only for examples/pytest_production_line.py. Nothing else in tests/ needs it:
@@ -48,3 +49,4 @@ pytest>=8.0
 # in with their outputs - and the library imports neither.
 nbconvert>=7.0
 ipykernel>=6.0
+ipywidgets>=8.0      # the controller panel: a dropdown per port

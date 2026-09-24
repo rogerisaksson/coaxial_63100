@@ -2,7 +2,7 @@
 from coaxial.comm import protocol
 from coaxial.errors import RigError
 from coaxial.comm.protocol import ThermalOp
-from coaxial.devices.roles import Estimator, Input
+from coaxial.devices.roles import Input
 from coaxial.devices.subsystem import Device
 from coaxial.model.thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES, PHASES
 from coaxial.comm.wire import Reader, label, micro, milli, pack, pages
@@ -50,7 +50,7 @@ def _edge(r):
     return (_node(a), _node(b), r.milli())
 
 
-class ThermalControl(Input, Estimator):
+class ThermalControl(Input):
 
     """The thermal observer's verbs, once, over what the board and the stand-in implement.
 
@@ -85,10 +85,6 @@ class ThermalControl(Input, Estimator):
 
     def reset(self):
         return self._reset_identification()
-
-    def step(self, *measured):
-        raise RigError('the thermal observer steps itself, every 100 ms on a board; '
-                       'the stand-in\'s clock is fast_forward()')
 
     def configure(self, **settings):
         known = {k for keys, _, _ in self.SETTINGS.values() for k in keys}

@@ -1,16 +1,18 @@
-"""The controller: a loop put together from parts, and each part swapped."""
+"""The controller: feedback loops over float channels, each slot a part to swap."""
 from .parts import code, md, section
 
 TITLE = 'The controller'
-SUMMARY = 'Source, estimator, regulator, sink and prefilters plugged into one `Loop`; setpoints from a table or a planner.'
+SUMMARY = 'Sources in, sinks out, feedback loops of prefilter, measure, estimator and regulator between; a panel; saved.'
 
 SECTIONS = [
     section(
         'Source and sink',
-        md('The drive on the model: `Polled(drive.state)` is the source, the drive itself the '
-           'sink (`write(iq_ref=)`). The record gives the motor the regulator is tuned on.'),
-        code('''from coaxial.control.controller import (Direct, LowPass, Loop, Paced, Polled, Slew,
-                                        SpeedKalman, SpeedPI)
+        md('The drive on the model: `Polled(drive.state)` is the source, the drive the sink. '
+           'Every channel is a float; the record gives the motor.'),
+        code('''from coaxial.control.controller import Feedback, Loop, Paced, Polled
+from coaxial.control.parts import Gain, LowPass, Slew, SpeedKalman, SpeedPI
+from coaxial.draw import ansi
+from coaxial.draw.wiring import feedback
 from coaxial.model.motor import Parameters
 from coaxial.model.sensorless import RAD_S_PER_RPM
 
@@ -28,111 +30,112 @@ motor = Parameters(name='the record', r=p['motor_r_uohm'], ld=p['motor_ld_nh'],
                    lq=p['motor_lq_nh'], lam=p['motor_lambda_uvs'], poles=poles, j=J, b=B,
                    measured=False)
 kt = 1.5 * poles * motor.lam
-source = Polled(drive.state)
-print(sorted(source.read())[:8], '...')
-print('poles %d, kt %.4f N.m/A' % (poles, kt))'''),
+loop = Loop({'drive': Polled(drive.state)}, {'drive': drive}, rate_hz=25)
+print('%d source channels, the sink writes %s' % (len(loop.channels()), ', '.join(drive.WRITES)))'''),
     ),
     section(
-        'A loop from parts',
-        code('''def rpm(rows, part):
-    return [r[part]['w'] / RAD_S_PER_RPM for r in rows]
-
-loop = Loop(source, drive,
-            regulator=SpeedPI(3.0, 2.0, motor),
-            estimator=Direct(w=('omega_hat', 1.0 / poles)),
-            prefilters=(Slew(w=1500 * RAD_S_PER_RPM),),
-            rate_hz=25)
-rows = loop.move(2.0, w=1000 * RAD_S_PER_RPM)
+        'A feedback loop',
+        code('''loop.add('speed', Feedback(
+    SpeedPI.of(3.0, 2.0, motor), setpoint='w_target', measured='drive.omega_hat',
+    command='iq_ref', sink='drive.iq_ref', prefilter=Slew(1500 * RAD_S_PER_RPM),
+    measure=Gain(1.0 / poles), ref='w_ref', value='w_hat'))
+ansi.image(feedback(loop, 'speed'))'''),
+        code('''rows = loop.move(2.0, w_target=1000 * RAD_S_PER_RPM)
 for r in rows[::10]:
-    print('%5.2f s  setpoint %6.0f  estimate %6.0f rpm  iq %6.3f A'
-          % (r['t'], r['setpoint']['w'] / RAD_S_PER_RPM, r['estimate']['w'] / RAD_S_PER_RPM,
-             r['command']['iq_ref']))'''),
+    print('%5.2f s  w_ref %6.0f  w_hat %6.0f rpm  iq %6.3f A'
+          % (r['t'], r['w_ref'] / RAD_S_PER_RPM, r['w_hat'] / RAD_S_PER_RPM, r['iq_ref']))'''),
     ),
     section(
-        'Another estimator',
-        md('`SpeedKalman` predicts on the command it was handed and corrects on the read.'),
+        'An estimator in its slot',
+        md('`SpeedKalman` predicts on the command and corrects on the measurement: the raw '
+           'speed on `w`, the estimate on `w_hat`, one run.'),
         code('''def spread(values):
     m = sum(values) / len(values)
     return (sum((v - m) ** 2 for v in values) / len(values)) ** 0.5
 
+f = loop.feedbacks['speed']
+f.estimator, f.value, f.estimate = SpeedKalman(kt, J, B, 1e5, 400.0), 'w', 'w_hat'
+loop.add('speed', f)
 held = loop.run(1.5)[-20:]
-direct = spread(rpm(held, 'estimate'))
-loop.estimator = SpeedKalman(kt, J, B, q=1e5, r=400.0, measured=('omega_hat', 1.0 / poles))
-held = loop.run(1.5)[-20:]
-kalman = spread(rpm(held, 'estimate'))
-print('estimate spread at 1000 rpm: Direct %.1f rpm, SpeedKalman %.1f rpm' % (direct, kalman))'''),
+raw, kalman = (spread([r[k] / RAD_S_PER_RPM for r in held]) for k in ('w', 'w_hat'))
+print('spread at 1000 rpm: measured %.2f rpm, estimated %.2f rpm' % (raw, kalman))
+ansi.image(feedback(loop, 'speed'))'''),
     ),
     section(
-        'A prefilter',
-        md('0 to 2000 rpm with and without a `LowPass` behind the `Slew`: the peak current.'),
+        'Another prefilter',
+        md('0 to 2000 rpm through `Slew`, then through `LowPass`: the peak current each asks.'),
         code('''def peak(rows):
-    return max(abs(r['command']['iq_ref']) for r in rows)
+    return max(abs(r['iq_ref']) for r in rows)
 
-loop.move(2.0, w=0.0)
-loop.prefilters = (Slew(w=3000 * RAD_S_PER_RPM),)
-bare = peak(loop.move(1.5, w=2000 * RAD_S_PER_RPM))
-loop.move(2.0, w=0.0)
-loop.prefilters = (Slew(w=3000 * RAD_S_PER_RPM), LowPass(0.3, 'w'))
-smooth = peak(loop.move(1.5, w=2000 * RAD_S_PER_RPM))
-print('peak iq to 2000 rpm: Slew %.3f A, Slew + LowPass %.3f A' % (bare, smooth))'''),
+loop.move(2.0, w_target=0.0)
+bare = peak(loop.move(1.5, w_target=2000 * RAD_S_PER_RPM))
+loop.move(2.0, w_target=0.0)
+f.prefilter = LowPass(0.3)
+loop.add('speed', f)
+smooth = peak(loop.move(1.5, w_target=2000 * RAD_S_PER_RPM))
+print('peak iq to 2000 rpm: Slew %.3f A, LowPass %.3f A' % (bare, smooth))'''),
     ),
     section(
         'A part at its own pace',
-        md('`Paced` runs a part on its own thread; with a `source` it reads its own measurements. '
-           'Here the estimator at 100 Hz under a 10 Hz loop.'),
-        code('''fast = Paced(SpeedKalman(kt, J, B, q=1e5, r=400.0, measured=('omega_hat', 1.0 / poles)),
-             hz=100, source=source)
-loop.estimator, loop.pause = fast, 0.1
+        md('`Paced` steps a part on its own thread; `feed` hands it fresh inputs between the '
+           'loop\'s passes. The estimator at 100 Hz under a 10 Hz loop.'),
+        code('''fast = Paced(SpeedKalman(kt, J, B, 1e5, 400.0), 100,
+             feed=lambda: {'measured': drive.state()['omega_hat'] / poles})
+f.estimator = fast
+loop.add('speed', f)
+loop.pause = 0.1
 passes = len(loop.run(1.5))
 print('%d estimator steps under %d loop passes' % (fast.steps, passes))
 fast.stop()
-loop.estimator, loop.pause = SpeedKalman(kt, J, B, q=1e5, r=400.0,
-                                         measured=('omega_hat', 1.0 / poles)), 0.04'''),
-    ),
-    section(
-        'Setpoints from a table, or a planner',
-        md('`follow` takes (seconds, setpoints) rows, or a planner called after each block with '
-           'the loop - the seam a model plugs into. None ends it.'),
-        code('''table = [(1.0, {'w': 1500 * RAD_S_PER_RPM}), (1.0, {'w': 500 * RAD_S_PER_RPM})]
-rows = loop.follow(table)
-print('table: %d passes, last setpoint %.0f rpm' % (len(rows), rpm(rows, 'setpoint')[-1]))
-
-asked = []
-
-def planner(loop):
-    """Up 25 % whenever the estimate is within 5 % of the setpoint; done past 1500 rpm."""
-    last = loop.read()
-    at, want = last['estimate']['w'], last['setpoint']['w']
-    asked.append(round(at / RAD_S_PER_RPM))
-    if want > 1500 * RAD_S_PER_RPM or len(asked) > 12:
-        return None
-    return (0.8, {'w': want * 1.25 if abs(at - want) < 0.05 * want else want})
-
-rows = loop.follow(planner)
-print('planner saw', asked)'''),
+f.estimator = SpeedKalman(kt, J, B, 1e5, 400.0)
+loop.add('speed', f)
+loop.pause = 0.04'''),
     ),
     section(
         'A regulator of your own',
-        md('A `Regulator` is `step(setpoint, estimate, dt) -> command`. Proportional only: the '
-           'drag it cannot hold without an integrator is its error.'),
+        md('A `Regulator` names its PARAMS and steps: `step(dt, setpoint, measured)` -> '
+           '`{\'command\': ...}`. Proportional alone leaves the drag as its error.'),
         code('''from coaxial.devices.roles import Regulator
 
 class Proportional(Regulator):
-    def __init__(self, kp, limit):
+    PARAMS = ('kp', 'limit')
+
+    def __init__(self, kp=2e-3, limit=2.0):
         self.kp, self.limit = kp, limit
 
-    def step(self, setpoint, estimate, dt):
-        u = self.kp * (setpoint['w'] - estimate['w'])
-        return {'iq_ref': max(-self.limit, min(self.limit, u))}
+    def step(self, dt, setpoint=0.0, measured=0.0):
+        u = self.kp * (setpoint - measured)
+        return {'command': max(-self.limit, min(self.limit, u))}
 
-loop.regulator = Proportional(kp=2e-3, limit=2.0)
-rows = loop.move(2.0, w=1000 * RAD_S_PER_RPM)
-p_error = 1000 - sum(rpm(rows[-10:], 'estimate')) / 10
-loop.regulator = SpeedPI(3.0, 2.0, motor)
-rows = loop.move(2.0, w=1000 * RAD_S_PER_RPM)
-pi_error = 1000 - sum(rpm(rows[-10:], 'estimate')) / 10
-print('error at 1000 rpm: Proportional %.0f rpm, SpeedPI %.0f rpm' % (p_error, pi_error))
-loop.move(1.0, w=0.0)
+def error(rows):
+    return 1000 - sum(r['w_hat'] for r in rows[-10:]) / 10 / RAD_S_PER_RPM
+
+f.regulator = Proportional()
+loop.add('speed', f)
+p_error = error(loop.move(2.0, w_target=1000 * RAD_S_PER_RPM))
+f.regulator = SpeedPI.of(3.0, 2.0, motor)
+loop.add('speed', f)
+pi_error = error(loop.move(2.0, w_target=1000 * RAD_S_PER_RPM))
+print('error at 1000 rpm: Proportional %.0f rpm, SpeedPI %.0f rpm' % (p_error, pi_error))'''),
+    ),
+    section(
+        'The panel, and kept',
+        md('The loops in a list with + and -; the selected one drawn, its channels, kinds and '
+           'parameters in dropdowns and fields, live. `save` writes the loop; '
+           '`Loop.load` rebuilds it on live sources and sinks.'),
+        code('''import os
+import tempfile
+from coaxial.control.panel import panel
+
+path = os.path.join(tempfile.gettempdir(), 'coaxial_controller.json')
+loop.save_at_exit(path)
+panel(loop, path)'''),
+        code('''loop.save(path)
+again = Loop.load(path, {'drive': Polled(drive.state)}, {'drive': drive})
+kept = again.config() == loop.config()
+print('saved %s: %d loop, %d parts, reloaded the same: %s'
+      % (os.path.basename(path), len(again.feedbacks), len(again.parts), kept))
+loop.move(1.0, w_target=0.0)
 loop.off()
 device.gates.off()
 drive.configure(source='adc')'''),
@@ -140,21 +143,23 @@ drive.configure(source='adc')'''),
 ]
 
 RESULTS = [
-    code('''print('1. estimate spread    Direct %.1f rpm, SpeedKalman %.1f rpm' % (direct, kalman))
-print('2. peak current       Slew %.3f A, Slew + LowPass %.3f A' % (bare, smooth))
+    code('''print('1. estimate spread    measured %.2f rpm, SpeedKalman %.2f rpm' % (raw, kalman))
+print('2. peak current       Slew %.3f A, LowPass %.3f A' % (bare, smooth))
 print('3. paced              %d estimator steps under %d loop passes' % (fast.steps, passes))
-print('4. steady error       Proportional %.0f rpm, SpeedPI %.0f rpm' % (p_error, pi_error))'''),
-    md('- One `Loop`; every part a line to swap. `motion.velocity` is this loop with '
-       '`SpeedPI` and `Direct`.\n'
-       '- A paced part with a `source` shares the link with the loop.'),
+print('4. steady error       Proportional %.0f rpm, SpeedPI %.0f rpm' % (p_error, pi_error))
+print('5. kept               %s' % kept)'''),
+    md('- `motion.velocity` is this loop: one feedback, `speed`.\n'
+       '- A paced part with a `feed` reads the link between the loop\'s passes.'),
 ]
 
 BENCH = ('The record commissioned first (`commissioning.ipynb`); no flags on `gates.on()`. '
          'At the bench `r` is the observer\'s measured variance.')
 
 REFERENCES = [
-    ('host/coaxial/control/controller.py', '`Loop`, `Paced`, `Polled`, the estimators, regulators, prefilters'),
-    ('host/coaxial/devices/roles.py', 'the roles: Input, Output, Controller; Filter, Estimator, Regulator'),
-    ('host/coaxial/control/motion.py', '`Velocity`: the same loop behind `device.motion.velocity`'),
+    ('host/coaxial/control/controller.py', '`Loop`, `Feedback`, `Paced`, `Polled`; save and load'),
+    ('host/coaxial/control/parts.py', 'the parts: Gain, Slew, LowPass, SpeedKalman, PI, SpeedPI'),
+    ('host/coaxial/control/panel.py', 'the panel'),
+    ('host/coaxial/draw/wiring.py', 'the pictures: a loop, a feedback'),
+    ('host/coaxial/devices/roles.py', 'the roles, and Part: ports, PARAMS, step'),
     ('host/tests/test_controller.py', 'the loop against a toy rotor and the stand-in'),
 ]

@@ -1,0 +1,150 @@
+"""The parts a `Loop` is wired from: floats in, floats out, float parameters.
+
+Each constructs with no arguments, so a panel can add one.
+"""
+import math
+
+from coaxial.devices.roles import Estimator, Filter, Regulator
+from coaxial.model.sensorless import TWO_PI
+
+
+# -- filters ---------------------------------------------------------------------------
+
+class Gain(Filter):
+
+    """y = k x: a unit, a pole count, a sign."""
+
+    PARAMS = ('k',)
+
+    def __init__(self, k=1.0):
+        self.k = float(k)
+
+    def step(self, dt, x=0.0):
+        return {'y': self.k * x}
+
+
+class Slew(Filter):
+
+    """y follows x at most `rate` a second, from 0."""
+
+    PARAMS = ('rate',)
+
+    def __init__(self, rate=1.0):
+        self.rate = float(rate)
+        self.reset()
+
+    def step(self, dt, x=0.0):
+        self.y += max(-self.rate * dt, min(self.rate * dt, x - self.y))
+        return {'y': self.y}
+
+    def reset(self):
+        self.y = 0.0
+
+
+class LowPass(Filter):
+
+    """First order, time constant `tau` s."""
+
+    PARAMS = ('tau',)
+
+    def __init__(self, tau=0.1):
+        self.tau = float(tau)
+        self.reset()
+
+    def step(self, dt, x=0.0):
+        self.y += dt / (self.tau + dt) * (x - self.y)
+        return {'y': self.y}
+
+    def reset(self):
+        self.y = 0.0
+
+
+# -- estimators ------------------------------------------------------------------------
+
+class SpeedKalman(Estimator):
+
+    """A speed through the rotor's own law, w' = (kt iq - b w) / j: predicts on the
+    command, corrects on the measurement; q process noise ((rad/s)^2/s), r its variance."""
+
+    OUTPUTS = ('estimate', 'sigma')
+    PARAMS = ('kt', 'j', 'b', 'q', 'r')
+
+    def __init__(self, kt=0.05, j=2e-5, b=1e-5, q=1e4, r=100.0):
+        self.kt, self.j, self.b, self.q, self.r = (float(v) for v in (kt, j, b, q, r))
+        self.reset()
+
+    def step(self, dt, measured=0.0, command=0.0):
+        if self.w is None:
+            self.w = measured
+        else:
+            self.w += dt * (self.kt * command - self.b * self.w) / self.j
+            self.p += self.q * dt
+            gain = self.p / (self.p + self.r)
+            self.w += gain * (measured - self.w)
+            self.p *= 1.0 - gain
+        return {'estimate': self.w, 'sigma': math.sqrt(self.p)}
+
+    def reset(self):
+        self.w, self.p = None, self.r
+
+
+# -- regulators ------------------------------------------------------------------------
+
+class PI(Regulator):
+
+    """command = kp e + ki integral(e), clamped to +/-limit, the integrator held while clamped."""
+
+    PARAMS = ('kp', 'ki', 'limit')
+
+    def __init__(self, kp=1e-3, ki=0.0, limit=1.0):
+        self.kp, self.ki, self.limit = float(kp), float(ki), float(limit)
+        self.reset()
+
+    def step(self, dt, setpoint=0.0, measured=0.0):
+        e = setpoint - measured
+        raw = self.kp * e + self.x
+        u = max(-self.limit, min(self.limit, raw))
+        if u == raw:
+            self.x += self.ki * e * dt
+        return {'command': u}
+
+    def reset(self):
+        self.x = 0.0
+
+
+class SpeedPI(Regulator):
+
+    """iq from w: a PI whose zero cancels the mechanical pole, acceleration and drag
+    (b w + load_k w|w|) fed forward, the integrator held while clamped or `held` (the
+    inner loop saturated). `accel` unwired: the setpoint's own slope."""
+
+    INPUTS = ('setpoint', 'measured', 'accel', 'held')
+    PARAMS = ('hz', 'limit', 'kt', 'j', 'b', 'load_k')
+
+    def __init__(self, hz=3.0, limit=1.0, kt=0.05, j=2e-5, b=1e-5, load_k=0.0):
+        self.hz, self.limit, self.kt, self.j, self.b, self.load_k = (
+            float(v) for v in (hz, limit, kt, j, b, load_k))
+        self.reset()
+
+    @classmethod
+    def of(cls, hz, limit, motor, load=None):
+        """From a `coaxial.model.motor.Parameters` and a `Propeller`."""
+        return cls(hz, limit, 1.5 * motor.poles * motor.lam, motor.j, motor.b,
+                   load.k if load else 0.0)
+
+    def step(self, dt, setpoint=0.0, measured=0.0, accel=None, held=0.0):
+        if accel is None:
+            accel = (setpoint - self.was) / dt if dt else 0.0
+        self.was = setpoint
+        w0 = TWO_PI * self.hz
+        err = setpoint - measured
+        damp = self.b + 2.0 * self.load_k * abs(setpoint)
+        ff = (self.j * accel + self.b * setpoint + self.load_k * setpoint * abs(setpoint)) / self.kt
+        raw = w0 * self.j / self.kt * err + self.x + ff
+        u = max(-self.limit, min(self.limit, raw))
+        if u == raw and not held:
+            self.x += w0 * damp / self.kt * err * dt
+        return {'command': u}
+
+    def reset(self):
+        self.x = self.was = 0.0

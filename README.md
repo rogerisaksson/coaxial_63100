@@ -40,9 +40,9 @@ with Coaxial63100(port='COM4') as device:          # device=True: no cable
 
 ## Notebooks
 
-Ten executed papers in `notebook_examples/` (acquisition, link, sensors,
-power_stage, thermal, drive, controller, motion, applications, commissioning), generated
-from `host/tools/notebooks/`:
+Eleven executed papers in `notebook_examples/` (acquisition, link, sensors,
+power_stage, thermal, drive, controller, sequencer, motion, applications,
+commissioning), generated from `host/tools/notebooks/`:
 
 ```powershell
 python tools/notebooks/make_notebooks.py --execute [area ...]

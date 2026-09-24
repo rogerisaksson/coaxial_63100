@@ -180,6 +180,8 @@ class DriveControl(Controller):
     model, observers, moments                the plant, the estimators, the codes
     """
 
+    WRITES = tuple(name for name, _ in SETPOINTS)
+
     def on(self, mode):
         return self._set_mode(mode)
 

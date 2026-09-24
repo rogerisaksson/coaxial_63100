@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""The composed controller: a loop put together from parts, against a toy rotor and the stand-in."""
+"""The controller: feedback loops over float channels, its parts, its panel, its sequencer."""
 import os
 import random
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100                                            # noqa: E402
-from coaxial.control.controller import (Direct, Loop, LowPass, Paced, PI,   # noqa: E402
-                                        Slew, SpeedKalman, SpeedPI)
-from coaxial.devices.roles import Estimator, Input, Output                  # noqa: E402
+from coaxial.control.controller import Feedback, Loop, Paced, Polled        # noqa: E402
+from coaxial.control.parts import Gain, LowPass, PI, Slew, SpeedKalman, SpeedPI  # noqa: E402
+from coaxial.control.sequencer import Sequencer                             # noqa: E402
+from coaxial.devices.roles import Estimator, Input, Output, Regulator       # noqa: E402
+from coaxial.draw.wiring import diagram, feedback                           # noqa: E402
 from coaxial.errors import RigError                                         # noqa: E402
-from coaxial.model.motor import Parameters                                  # noqa: E402
 
 KT, J, B = 0.07, 2e-5, 1e-5
-MOTOR = Parameters(name='toy', r=0.05, ld=2e-5, lq=3e-5, lam=KT / 10.5, poles=7, j=J, b=B,
-                   measured=False)
 DT = 0.002
 
 
@@ -32,7 +32,9 @@ class Report:
 
 class Rotor(Input, Output):
 
-    """w' = (kt iq - b w) / j; read with `noise` rad/s rms on it."""
+    """w' = (kt iq - b w) / j, read with `noise` rad/s rms on it."""
+
+    WRITES = ('iq_ref',)
 
     def __init__(self, noise=5.0, fault=None):
         self.w, self.iq, self.noise, self.fault = 0.0, 0.0, noise, fault
@@ -46,10 +48,11 @@ class Rotor(Input, Output):
         return {'w': self.w}
 
     def read(self, count=None, timeout=None):
-        return {'w': self.w + self.rng.gauss(0.0, self.noise), 'fault': self.fault}
+        return {'w': self.w + self.rng.gauss(0.0, self.noise), 'fault': self.fault,
+                'spinning': abs(self.w) > 1.0, 'name': 'toy'}
 
     def write(self, **command):
-        self.iq = command['iq_ref']
+        self.iq = command.get('iq_ref', self.iq)
 
     def off(self):
         self.iq, self.stopped = 0.0, True
@@ -71,6 +74,16 @@ class Clock:
             self.t += DT
 
 
+def speed(rotor, regulator=None, estimator=None, **kw):
+    """A loop of one feedback, 'speed', around the toy rotor."""
+    loop = Loop({'rotor': rotor}, {'rotor': rotor}, **kw)
+    loop.add('speed', Feedback(regulator or SpeedPI(3.0, 2.0, KT, J, B), setpoint='w_target',
+                               measured='rotor.w', command='iq_ref', sink='rotor.iq_ref',
+                               prefilter=Slew(400.0), estimator=estimator, ref='w_ref',
+                               estimate='w_hat'))
+    return loop
+
+
 def served(rotor, loop, seconds):
     rows = []
     for _ in range(int(seconds / DT)):
@@ -79,86 +92,212 @@ def served(rotor, loop, seconds):
     return rows
 
 
-def mean_sd(values):
+def spread(values):
     m = sum(values) / len(values)
-    return m, (sum((v - m) ** 2 for v in values) / len(values)) ** 0.5
+    return (sum((v - m) ** 2 for v in values) / len(values)) ** 0.5
 
 
-def test_a_loop_holds_a_speed(report):
-    for regulator, estimator in ((PI(kp=2e-3, ki=0.05, limit=2.0), Direct()),
-                                 (SpeedPI(3.0, 2.0, MOTOR),
-                                  SpeedKalman(KT, J, B, q=1e4, r=25.0))):
+def test_a_feedback_holds_a_speed(report):
+    for regulator, estimator in ((PI(2e-3, 0.05, 2.0), None),
+                                 (SpeedPI(3.0, 2.0, KT, J, B), SpeedKalman(KT, J, B, 1e4, 25.0))):
         rotor = Rotor()
-        loop = Loop(rotor, rotor, regulator, estimator, prefilters=(Slew(w=400.0),))
-        loop.write(w=200.0)
+        loop = speed(rotor, regulator, estimator)
+        loop.write(w_target=200.0)
         served(rotor, loop, 3.0)
-        name = '%s over %s' % (type(regulator).__name__, type(estimator).__name__)
-        report.check('%s holds 200 rad/s within 2 %%' % name, abs(rotor.w - 200.0) < 4.0,
-                     '%.1f' % rotor.w)
+        report.check('%s%s holds 200 rad/s within 2 %%' % (
+            type(regulator).__name__, ' over SpeedKalman' if estimator else ''),
+            abs(rotor.w - 200.0) < 4.0, '%.1f' % rotor.w)
 
 
-def test_a_part_swaps_in_one_line(report):
+def test_every_channel_is_a_float(report):
     rotor = Rotor()
-    loop = Loop(rotor, rotor, PI(kp=2e-3, ki=0.05, limit=2.0))
-    loop.write(w=100.0)
+    loop = speed(rotor)
+    loop.write(w_target=10, enable=True)
+    row = loop.step(DT)
+    report.check('ints and bools land as floats, a string never does',
+                 all(isinstance(v, float) for v in row.values()) and row['enable'] == 1.0
+                 and row['rotor.spinning'] == 0.0 and 'rotor.name' not in row, sorted(row))
+    try:
+        loop.write(mode='hold')
+        report.check('a string setpoint is refused', False)
+    except RigError as exc:
+        report.check('a string setpoint is refused', 'float' in str(exc), exc)
+
+
+def test_parts_swap_in_place(report):
+    rotor = Rotor()
+    loop = speed(rotor, PI(2e-3, 0.05, 2.0))
+    loop.write(w_target=100.0)
     served(rotor, loop, 2.0)
-    loop.regulator = SpeedPI(3.0, 2.0, MOTOR)
-    loop.write(w=150.0)
+    f = loop.feedbacks['speed']
+    f.regulator = SpeedPI(3.0, 2.0, KT, J, B)
+    loop.add('speed', f)
+    loop.write(w_target=150.0)
     served(rotor, loop, 3.0)
-    report.check('the regulator swapped mid-run, and the new one holds the new target',
+    report.check('the regulator swapped mid-run holds the new target',
                  abs(rotor.w - 150.0) < 3.0, '%.1f' % rotor.w)
-    loop.reset()
-    report.check('reset clears every part', loop.regulator.law.x == 0.0 and loop.read() is None)
+    report.check('its parts step in slot order',
+                 list(loop.parts) == ['speed/prefilter', 'speed/regulator'], list(loop.parts))
+    loop.add('outer', Feedback(PI(1.0, 0.0, 500.0), setpoint='x_target', measured='rotor.w',
+                               command='w_target'))
+    report.check('a second loop cascades into the first by channel name',
+                 loop.channel_of('outer/regulator', 'command') == 'w_target'
+                 and 'outer/regulator' in loop.parts)
+    loop.remove('outer')
+    report.check('and comes out again, parts and all', 'outer' not in loop.feedbacks
+                 and not any(p.startswith('outer/') for p in loop.parts))
+    try:
+        loop.wire(**{'speed/regulator.nothing': 'x'})
+        report.check('a port that is not there is refused', False)
+    except RigError as exc:
+        report.check('a port that is not there is refused', 'no port' in str(exc), exc)
 
 
 def test_the_estimator_is_quieter(report):
     rotor = Rotor(noise=20.0)
-    loop = Loop(rotor, rotor, SpeedPI(3.0, 2.0, MOTOR), SpeedKalman(KT, J, B, q=1e4, r=400.0))
-    loop.write(w=200.0)
+    loop = speed(rotor, estimator=SpeedKalman(KT, J, B, 1e4, 400.0))
+    loop.write(w_target=200.0)
     rows = served(rotor, loop, 3.0)[-500:]
-    _, raw = mean_sd([r['measured']['w'] for r in rows])
-    _, est = mean_sd([r['estimate']['w'] for r in rows])
+    raw, est = spread([r['rotor.w'] for r in rows]), spread([r['w_hat'] for r in rows])
     report.check('the Kalman estimate spreads less than half the raw read', est < raw / 2,
                  '%.2f against %.2f rad/s' % (est, raw))
-    report.check('and predicts on the command it was handed',
-                 'iq_ref' in rows[-1]['command'] and 'sigma' in rows[-1]['estimate'])
 
 
-def test_prefilters_shape_the_setpoint(report):
-    slew = Slew(w=400.0)
-    got = [slew.step({'w': 200.0}, 0.01)['w'] for _ in range(10)]
-    report.check('Slew moves 400 a second from 0', abs(got[-1] - 40.0) < 1e-9, got[-1])
-    low = LowPass(0.1, 'w')
+def test_filters(report):
+    slew = Slew(400.0)
+    y = [slew.step(0.01, x=200.0)['y'] for _ in range(10)][-1]
+    report.check('Slew moves 400 a second from 0', abs(y - 40.0) < 1e-9, y)
+    low = LowPass(0.1)
     for _ in range(100):
-        y = low.step({'w': 1.0, 'x': 5.0}, 0.001)
-    report.check('LowPass: 1 - 1/e after one tau, the others untouched',
-                 abs(y['w'] - 0.632) < 0.01 and y['x'] == 5.0, y)
+        y = low.step(0.001, x=1.0)['y']
+    report.check('LowPass: 1 - 1/e after one tau', abs(y - 0.632) < 0.01, y)
+    report.check('Gain scales', Gain(0.5).step(0.0, x=4.0) == {'y': 2.0})
 
 
-def test_setpoints_from_a_plan_or_a_planner(report):
+def test_a_table_or_a_planner(report):
     rotor = Rotor(noise=0.0)
     clock = Clock(rotor)
-    loop = Loop(rotor, rotor, SpeedPI(3.0, 2.0, MOTOR), rate_hz=50, clock=clock,
-                sleep=clock.sleep)
-    loop.follow([(1.0, {'w': 100.0}), (1.5, {'w': 50.0})])
+    loop = speed(rotor, rate_hz=50, clock=clock, sleep=clock.sleep)
+    loop.follow([(1.0, {'w_target': 100.0}), (1.5, {'w_target': 50.0})])
     report.check('a table: each row held for its seconds, the last one standing',
-                 abs(rotor.w - 50.0) < 2.0 and loop.state()['target'] == {'w': 50.0},
-                 '%.1f at %.2f s' % (rotor.w, clock.t))
+                 abs(rotor.w - 50.0) < 2.0, '%.1f at %.2f s' % (rotor.w, clock.t))
     asked = []
 
     def planner(loop):
-        """What a model would do: look at the last pass, name the next setpoint."""
-        asked.append(loop.read()['estimate']['w'])
-        return (0.5, {'w': asked[-1] + 20.0}) if len(asked) < 4 else None
+        asked.append(loop.read()['w_ref'])
+        return (0.5, {'w_target': asked[-1] + 20.0}) if len(asked) < 4 else None
 
     loop.follow(planner)
     report.check('a planner: asked after each block, until it answers None',
-                 len(asked) == 4 and loop.state()['target']['w'] > 100.0, asked)
+                 len(asked) == 4, asked)
+
+
+def test_the_sequencer(report):
+    folder = tempfile.mkdtemp()
+    path = os.path.join(folder, 'steps.csv')
+    with open(path, 'w', encoding='utf-8') as handle:
+        handle.write('group,seconds,label,w_target,enable,w_ref.H,goto,times\n'
+                     'init,0.2,,0,false,,,\n'
+                     ',0.5,start,100,true,,,\n'
+                     ',3,,150,,120,,\n'
+                     ',0.5,,50,,,start,2\n'
+                     ',0.5,end,0,,,,\n'
+                     'cleanup,0.2,,0,false,,,\n')
+    rotor = Rotor(noise=0.0)
+    clock = Clock(rotor)
+    loop = speed(rotor, rate_hz=50, clock=clock, sleep=clock.sleep)
+    hooks = []
+    seq = Sequencer.read(path, init=lambda _: hooks.append('init'),
+                         cleanup=lambda _: hooks.append('cleanup'))
+    out = seq.run(loop)
+    rows = [s[0] for s in out.steps]
+    report.check('init, the goto block three times, end, cleanup',
+                 rows == [0] + [1, 2, 3] * 3 + [4, 5] and out.status == 'done', rows)
+    report.check('H ends a step early, before its seconds',
+                 all(s[2].startswith('w_ref') and s[3] < 3.0 for s in out.steps if s[0] == 2),
+                 [round(s[3], 2) for s in out.steps if s[0] == 2])
+    report.check('the hooks ran, init first, cleanup last', hooks == ['init', 'cleanup'])
+    report.check('a blank cell holds its channel; true is 1',
+                 all(r['enable'] == 1.0 for r in out.rows if int(r['step']) == 2))
+    import pandas
+    xlsx = os.path.join(folder, 'steps.xlsx')
+    pandas.read_csv(path).to_excel(xlsx, index=False)
+    again = Sequencer.read(xlsx)
+    report.check('an xlsx reads as the csv does',
+                 [repr(s) for g in again.groups.values() for s in g]
+                 == [repr(s) for g in seq.groups.values() for s in g])
+    hot = Sequencer([{'seconds': 3, 'w_target': 400.0},
+                     {'group': 'cleanup', 'seconds': 0.5, 'w_target': 0.0}],
+                    limits={'rotor.w': {'HH': 300.0}})
+    out = hot.run(loop)
+    report.check('HH trips the sequence, and cleanup still runs',
+                 out.status == 'tripped' and 'rotor.w' in out.reason
+                 and [s[0] for s in out.steps] == [0, 1], (out.status, out.reason))
+    looped = Sequencer([{'seconds': 0.2, 'w_target': 10.0}], cycles=3)
+    report.check('cycles repeat the main group', len(looped.run(loop).steps) == 3)
+    forever = Sequencer([{'seconds': 0.2, 'label': 'a', 'goto': 'a', 'times': 'inf'}], limit=1.0)
+    out = forever.run(loop)
+    report.check('inf loops until the limit', out.status == 'limit' and 5 <= len(out.steps) <= 6,
+                 len(out.steps))
+    seq.jump('end')
+    report.check('jump, back, forward move the next main row',
+                 (seq.at, seq.back(), seq.forward()) == (3, 2, 3))
+    try:
+        Sequencer([{'seconds': 1, 'goto': 'nowhere'}])
+        report.check('a goto to no label is refused', False)
+    except RigError as exc:
+        report.check('a goto to no label is refused', 'nowhere' in str(exc), exc)
+
+
+def test_a_program_as_data(report):
+    """3 x 4 by counters: set, add, and branch on a level - a counter machine."""
+    table = ('seconds,label,a,a+,c,c+,t,t+,a.L,t.L,then,else\n'
+             '0,,3,,0,,,,,,,\n'
+             '0,outer,,,,,,,0,,stop,\n'
+             '0,,,,,,4,,,,,\n'
+             '0,inner,,,,,,,,0,dec,\n'
+             '0,,,,,1,,-1,,,,inner\n'
+             '0,dec,,-1,,,,,,,,outer\n')
+    path = os.path.join(tempfile.mkdtemp(), 'multiply.csv')
+    with open(path, 'w', encoding='utf-8') as handle:
+        handle.write(table)
+    rotor = Rotor(noise=0.0)
+    loop = speed(rotor)
+    out = Sequencer.read(path).run(loop)
+    report.check('the table multiplies: c = 12, and no time passed',
+                 loop.bus['c'] == 12.0 and out.status == 'done' and loop.bus['t'] == 0.0,
+                 (loop.bus['c'], out.status, len(out.steps)))
+    endless = Sequencer([{'seconds': 0, 'label': 'spin', 'else': 'spin'}], max_steps=50)
+    out = endless.run(loop)
+    report.check('a program that never stops is stopped by max_steps',
+                 out.status == 'limit' and len(out.steps) == 50, out.reason)
+    try:
+        Sequencer([{'seconds': 1, 'label': 'stop'}])
+        report.check('stop is not a label', False)
+    except RigError as exc:
+        report.check('stop is not a label', 'stop' in str(exc), exc)
+
+
+def test_save_and_load(report):
+    rotor = Rotor()
+    loop = speed(rotor, estimator=Paced(SpeedKalman(KT, J, B, 1e4, 25.0), 200))
+    loop.write(w_target=120.0)
+    loop.feedbacks['speed'].regulator.configure(hz=4.5)
+    path = os.path.join(tempfile.mkdtemp(), 'loop.json')
+    with loop.saving(path):
+        pass
+    again = Loop.load(path, {'rotor': rotor}, {'rotor': rotor})
+    report.check('a saved loop loads with its loops, parameters, wires and setpoints',
+                 again.config() == loop.config(), path)
+    report.check('a paced part comes back paced',
+                 isinstance(again.feedbacks['speed'].estimator, Paced))
+    loop.off()
+    again.off()
 
 
 def test_a_fault_ends_the_loop(report):
     rotor = Rotor(fault='overcurrent')
-    loop = Loop(rotor, rotor, PI(kp=1e-3, ki=0.0, limit=1.0))
+    loop = speed(rotor)
     try:
         loop.step(DT)
         report.check('a source that reports a fault stops the loop', False)
@@ -171,43 +310,85 @@ class Counted(Estimator):
     def __init__(self):
         self.n = 0
 
-    def step(self, measured, command, dt):
+    def step(self, dt, measured=0.0, command=0.0):
         self.n += 1
-        return dict(measured)
+        return {'estimate': measured}
 
 
 def test_a_paced_part_keeps_its_own_rate(report):
     rotor = Rotor(noise=0.0)
     counted = Counted()
-    paced = Paced(counted, hz=400, source=rotor)
-    loop = Loop(rotor, rotor, PI(kp=1e-3, ki=0.0, limit=1.0), paced, rate_hz=20)
-    loop.write(w=10.0)
+    loop = speed(rotor, PI(1e-3, 0.0, 1.0),
+                 Paced(counted, hz=400, feed=lambda: {'measured': rotor.state()['w']}),
+                 rate_hz=20)
+    loop.write(w_target=10.0)
     rows = loop.run(0.4)
     report.check('an estimator at 400 Hz steps many times a 20 Hz pass',
                  counted.n > 4 * len(rows), '%d steps, %d passes' % (counted.n, len(rows)))
     loop.off()
     stopped = counted.n
     time.sleep(0.05)
-    report.check('off() stops its thread and the sink', counted.n == stopped and rotor.stopped,
-                 '%d then %d' % (stopped, counted.n))
+    report.check('off() stops its thread and the sink', counted.n == stopped and rotor.stopped)
 
 
-def test_velocity_is_a_loop(report):
+class Proportional(Regulator):
+    PARAMS = ('kp',)
+
+    def __init__(self, kp=1e-3):
+        self.kp = kp
+
+    def step(self, dt, setpoint=0.0, measured=0.0):
+        return {'command': self.kp * (setpoint - measured)}
+
+
+def test_the_pictures_and_the_panel(report):
+    rotor = Rotor()
+    loop = speed(rotor, estimator=SpeedKalman())
+    text = feedback(loop, 'speed', colour=False)
+    report.check('the feedback picture names its slots and channels',
+                 all(s in text for s in ('prefilter Slew', 'regulator SpeedPI', 'Σ', 'w_hat',
+                                          'rotor.iq_ref', 'rotor.w')))
+    report.check('the overview draws every part', all(p in diagram(loop, colour=False)
+                                                     for p in loop.parts))
+    try:
+        import ipywidgets  # noqa: F401
+    except ImportError:
+        report.check('the panel (ipywidgets absent: skipped)', True)
+        return
+    from coaxial.control.panel import kinds, panel
+    report.check('a part of your own is a kind the panel offers',
+                 'Proportional' in kinds(Regulator) and 'Regulator' not in kinds(Regulator))
+    box = panel(loop, path=os.path.join(tempfile.mkdtemp(), 'loop.json'))
+    left = box.children[1].children[0]
+    listing, named, (add, drop) = left.children[0], left.children[1].children[0], \
+        left.children[2].children
+    named.value = 'position'
+    add.click()
+    report.check('+ adds a loop and selects it', listing.value == 'position'
+                 and 'position/regulator' in loop.parts)
+    detail = box.children[2].children[0]
+    slot = [c for c in detail.children if getattr(c, 'description', '') == 'kind']
+    slot[0].value = 'LowPass'
+    report.check('a slot\'s kind plugs that part in', 'position/prefilter' in loop.parts)
+    drop.click()
+    report.check('- takes it out', 'position' not in loop.feedbacks)
+
+
+def test_velocity_is_a_feedback(report):
     device = Coaxial63100(device=True).open()
     try:
         drive = device.drive
         drive.configure(source='model')
         drive.model.configure(j=J, b=B, load=0.0)
         device.gates.on(bypass_sto=True, ignore_interlock=True)
-        lane = device.motion.velocity(2.0, estimator=SpeedKalman(
-            1.5 * 7 * 0.005, J, B, q=1e5, r=100.0, measured=('omega_hat', 1.0 / 7)))
+        lane = device.motion.velocity(2.0, estimator=SpeedKalman(1.5 * 7 * 0.005, J, B, 1e5, 100.0))
         with lane:
             rpm = lane.rpm(1500.0, seconds=2.0)
-            last = lane.loop.read()
-        report.check('motion.velocity runs a Loop, the estimator plugged in',
-                     isinstance(lane.loop, Loop) and isinstance(lane.loop.estimator, SpeedKalman))
+        report.check('motion.velocity is a loop with one feedback, the estimator plugged in',
+                     list(lane.loop.feedbacks) == ['speed']
+                     and isinstance(lane.loop.feedbacks['speed'].estimator, SpeedKalman))
         report.check('and holds 1500 rpm on the stand-in within 5 %', abs(rpm - 1500.0) < 75.0,
-                     '%.0f rpm, iq %.3f A' % (rpm, last['command']['iq_ref']))
+                     '%.0f rpm' % rpm)
     finally:
         device.gates.off()
         drive.configure(source='adc')
@@ -216,10 +397,12 @@ def test_velocity_is_a_loop(report):
 
 def main():
     report = Report()
-    for test in (test_a_loop_holds_a_speed, test_a_part_swaps_in_one_line,
-                 test_the_estimator_is_quieter, test_prefilters_shape_the_setpoint,
-                 test_setpoints_from_a_plan_or_a_planner, test_a_fault_ends_the_loop,
-                 test_a_paced_part_keeps_its_own_rate, test_velocity_is_a_loop):
+    for test in (test_a_feedback_holds_a_speed, test_every_channel_is_a_float,
+                 test_parts_swap_in_place, test_the_estimator_is_quieter, test_filters,
+                 test_a_table_or_a_planner, test_the_sequencer, test_a_program_as_data,
+                 test_save_and_load,
+                 test_a_fault_ends_the_loop, test_a_paced_part_keeps_its_own_rate,
+                 test_the_pictures_and_the_panel, test_velocity_is_a_feedback):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

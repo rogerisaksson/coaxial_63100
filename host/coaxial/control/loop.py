@@ -11,6 +11,7 @@ import numpy                                                     # noqa: E402
 import random                                                    # noqa: E402
 
 from coaxial.model.sensorless import TWO_PI                                   # noqa: E402
+from coaxial.control.parts import SpeedPI                                     # noqa: E402
 from coaxial.model import sysid                                              # noqa: E402
 from coaxial.model.motor import Parameters                                    # noqa: E402
 from coaxial.model.motor import Motor                                         # noqa: E402
@@ -102,24 +103,14 @@ class Probe(Block):
 
 class SpeedLoop(Block):
 
-    """iq_ref from w_ref: a PI whose zero cancels the mechanical pole."""
+    """iq_ref from w_ref: `coaxial.control.parts.SpeedPI` on the bus."""
 
     def __init__(self, hz, limit, motor, load=None):
-        self.w0, self.limit = TWO_PI * hz, limit
-        self.kt = 1.5 * motor.poles * motor.lam
-        self.j, self.b = motor.j, motor.b
-        self.k = load.k if load else 0.0
-        self.x = 0.0
+        self.law = SpeedPI.of(hz, limit, motor, load)
 
     def __call__(self, s, dt):
-        err = s.w_ref - s.w
-        damp = self.b + 2.0 * self.k * abs(s.w_ref)
-        ff = (self.j * s.a_ref + self.b * s.w_ref
-              + self.k * s.w_ref * abs(s.w_ref)) / self.kt
-        raw = self.w0 * self.j / self.kt * err + self.x + ff
-        s.iq_ref = max(-self.limit, min(self.limit, raw))
-        if s.iq_ref == raw and not s.v_sat:
-            self.x += self.w0 * damp / self.kt * err * dt
+        s.iq_ref = self.law.step(dt, setpoint=s.w_ref, measured=s.w, accel=s.a_ref,
+                                 held=s.v_sat)['command']
 
 
 class CurrentLoop(Block):

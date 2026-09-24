@@ -53,7 +53,7 @@ with device.motion.velocity(amps=2.0, hz=3.0, load_k=K_PROP) as lane:
         print('asked %5.0f  settled %5.0f rpm  (%+5.1f %%)' % (rpm, got, 100.0 * (got - rpm) / rpm))
     lane_wall = time.monotonic() - began
     lane.stop(seconds=1.0)
-    lane_pause = lane.pause
+    lane_pause = lane.loop.pause
 drive.model.configure(load=0.0)
 print('%d passes in %.1f s: %.1f a second, %.0f ms a pass against %.0f ms asked'
       % (len(lane_log), lane_wall, len(lane_log) / lane_wall,
