@@ -1108,16 +1108,21 @@ def test_approach(report):
                  passes and passes[0] < 5.0 and len(passes) < 0.12 * 4 * 600,
                  '%d of %d quarter-seconds, first at %s s' % (len(passes), 4 * 600,
                                                               passes[0] if passes else '-'))
-    # The board's bound as the view draws it at 116x46: every attitude inside this circle.
-    board = (58.0, 20.24, 53.6)
-    drawn = [approach.craft(116, 46, t, board) for t in passes]
-    near = [at for cells in drawn for at in cells
-            if math.hypot(at % 116 + 0.5 - board[0], (at // 116 + 0.5 - board[1]) * 2.0)
-            < board[2] + approach.CLEAR - 1.0]
-    report.check('approach: with the board filling the frame it still comes, round a corner, '
-                 'clear of the board at any attitude', all(drawn) and not near,
-                 '%d of %d frames drawn, %d cells inside the bound' % (
-                     sum(1 for d in drawn if d), len(drawn), len(near)))
+    # The board's bound at 116x46, bare and framed: every attitude inside this circle.
+    for board in ((58.0, 20.24, 53.6), (58.0, 23.0, 53.6)):
+        drawn = [approach.craft(116, 46, t, board) for t in passes]
+        marks = [approach.marker(116, 46, t, board)[0] for t in passes]
+        near = [(r, c) for cells in drawn for r, c in (divmod(at, 116) for at in cells)] + [
+            (r, c + i) for corners in marks for r, c, text in corners for i in range(len(text))]
+        near = [(r, c) for r, c in near
+                if math.hypot(c + 0.5 - board[0], (r + 0.5 - board[1]) * 2.0)
+                < board[2] + approach.CLEAR - 1.0]
+        report.check('approach: with the board filling the frame (bound %s) it still comes, '
+                     'round a corner, it and its marker clear of the board at any attitude'
+                     % (board,), all(drawn) and any(g for _c, g in map(
+                         lambda t: approach.marker(116, 46, t, board), passes)) and not near,
+                     '%d of %d frames drawn, %d cells inside the bound' % (
+                         sum(1 for d in drawn if d), len(drawn), len(near)))
     sides = {now[2] for now in map(approach._pass, passes) if now}
     report.check('approach: its passes come from both sides', sides == {1.0, -1.0}, sides)
     straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)
@@ -1148,7 +1153,7 @@ def test_nothing_on_the_board(report):
         real(grid, tone, buf, width, height, *rest)
         touched.extend((r, c) for r in range(height) for c in range(width)
                        if buf[r * width + c] and grid[r][c] != before[r][c])
-        seen.append(any(ink == approach.HULL for row in tone for ink in row))
+        seen.append(any(ink == approach.GLASS for row in tone for ink in row))
     approach.hud = spy
     try:
         for n in range(28):

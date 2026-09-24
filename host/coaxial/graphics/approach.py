@@ -154,27 +154,52 @@ SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
 #: A craft far below, rarely: each SLOT seconds holds a pass with PASS_CHANCE, at a moment,
 #: from a side and at a speed of its own (CROSS seconds, least and most); the first at
 #: FIRST. It comes in from its side's edge and arcs down through the bottom corner, diving
-#: out under the frame. The arc keeps CLEAR columns and its own half-length off the board's
-#: BOUND - the circle the board stays inside at every attitude (`bound`) - so it is planned
-#: once and never meets the board; no pass where the corner has less than LEAST lengths.
-#: CRAFT columns nose to tail at a 150-column frame, pale steel, a red beacon blinking, a
-#: white strobe at the tail.
+#: out under the frame. The arc keeps CLEAR columns, the craft's REACH and CORNER off the
+#: board's BOUND - the circle the board stays inside at every attitude (`bound`) - so it is
+#: planned once and never meets the board; no pass where the corner has under LEAST lengths.
+#: CRAFT columns nose to tail at a 150-column frame: a spinner seen from above in steel
+#: alone - a wedge lit along its spine, swept fins lit by its bank, a glinting canopy - its
+#: trail fading along its arc for TRAIL lengths. It rolls up to ROLL degrees into its turn
+#: and yaws YAW each way through it. One colour a cell: lights of other colours would flip
+#: whole cells as it moves.
+#: A marker glides in from outside, away from the board, over GRIP of the pass and closes
+#: on the craft, AMBER; gripped, it squeezes once and holds it, DATA, labelled MARKED.
 SLOT = 45.0
 FIRST = 3.0
 PASS_CHANCE = 0.55
 CROSS = (2.4, 4.2)
 CLEAR = 2.0
-LEAST = 2.5
-CRAFT = 6.0
-HULL = (190, 215, 235)
-STROBE = (255, 255, 255)
+CORNER = 1.2
+LEAST = 1.5
+CRAFT = 9.5
+ROLL = 35.0
+YAW = 22.0
+TRAIL = 1.4
+HULL = (175, 196, 214)
+GLASS = (235, 245, 255)
+GRIP = (0.08, 0.38)
+MARKED = 'ｼｷﾍﾞﾂ'
 
-#: The craft's outline, nose along +x, in its lengths: a fuselage, a wing, two rotor pods,
-#: a V tail - segments ((x0, y0), (x1, y1)), y across the craft.
-OUTLINE = (((-0.5, 0.0), (0.5, 0.0)), ((0.5, 0.0), (0.58, 0.0)),
-           ((-0.08, -0.34), (-0.08, 0.34)),
-           ((-0.16, -0.38), (0.0, -0.38)), ((-0.16, 0.38), (0.0, 0.38)),
-           ((-0.5, 0.0), (-0.62, -0.14)), ((-0.5, 0.0), (-0.62, 0.14)))
+#: The craft from above, nose along +u, in its lengths (v across): the hull a wedge, the fins
+#: swept back from it, the canopy on the nose.
+HULL_SHAPE = ((0.62, 0.0), (0.46, 0.09), (0.16, 0.16), (-0.26, 0.19), (-0.52, 0.15),
+              (-0.58, 0.07), (-0.58, -0.07), (-0.52, -0.15), (-0.26, -0.19), (0.16, -0.16),
+              (0.46, -0.09))
+FINS = (((0.02, 0.16), (-0.38, 0.44), (-0.52, 0.44), (-0.36, 0.17)),
+        ((0.02, -0.16), (-0.38, -0.44), (-0.52, -0.44), (-0.36, -0.17)))
+CANOPY_AT, CANOPY_R = (0.24, 0.0), (0.15, 0.075)
+TAIL = -0.6
+#: The craft's farthest dot from its centre, in lengths.
+REACH = max(math.hypot(u, v) for u, v in HULL_SHAPE + FINS[0] + FINS[1])
+
+
+def _inside(u, v, polygon):
+    """Whether (u, v) is inside `polygon`: a ray to +u crosses its edges an odd number."""
+    inside = False
+    for (u0, v0), (u1, v1) in zip(polygon, polygon[1:] + polygon[:1]):
+        if (v0 > v) != (v1 > v) and u < u0 + (u1 - u0) * (v - v0) / (v1 - v0):
+            inside = not inside
+    return inside
 
 
 def _hashed(*n):
@@ -239,63 +264,120 @@ def _arc(radius, side, width, height, phi):
 
 def arc_radius(width, height, side, board=None):
     """The corner arc's radius: its nearest point to the board's bound `board` (cx, cy,
-    radius) CLEAR columns and the craft's half-length off it; 0 where under LEAST lengths."""
+    radius) CLEAR columns, the craft's REACH and CORNER - its marker's corners, rounded to
+    their cells - off it; 0 where under LEAST lengths."""
     size = CRAFT * width / 150.0
     most = 0.55 * min(width, height * ASPECT)
     if board is None:
         return most
     cx, cy, reach = board
     corner = 0.0 if side > 0 else float(width)
-    room = math.hypot(corner - cx, (height - cy) * ASPECT) - reach - CLEAR - 0.6 * size
+    room = math.hypot(corner - cx, (height - cy) * ASPECT) - reach - CLEAR - REACH * size - CORNER
     radius = min(most, room)
     return radius if radius >= LEAST * size else 0.0
 
 
-def craft(width, height, t, board=None):
-    """{cell: (braille mask, (r, g, b))}: the craft at `t` when a pass is on and its corner
-    has room, else {}; `board` (cx, cy, radius) its bound, kept clear at every attitude."""
+def _pose(width, height, t, board):
+    """The pass on at `t`: {k, side, x, y, heading, bank, roll, size, track}, or None."""
     now = _pass(t)
     if now is None:
-        return {}
+        return None
     _n, k, side = now
     radius = arc_radius(width, height, side, board)
     if not radius:
-        return {}
-    size = CRAFT * width / 150.0
+        return None
 
     def track(k):
         """In from beyond its edge, round the corner, out below the frame."""
         return _arc(radius, side, width, height, -0.35 + (math.pi / 2.0 + 0.5) * k)
 
-    x0, y0 = track(k)
+    x, y = track(k)
     x1, y1 = track(k + 0.01)
-    heading = math.atan2((y1 - y0) * ASPECT, x1 - x0)
-    c, s = math.cos(heading), math.sin(heading)
-    bank = 1.0 - 0.7 * k * k                  # the wings foreshorten as it rolls in
-    out = {}
+    # The manoeuvre: the arc's own 90 degrees, a yaw S through it, a roll into the turn.
+    heading = math.atan2((y1 - y) * ASPECT, x1 - x) + math.radians(
+        YAW * math.sin(2.0 * math.pi * k)) * side
+    roll = math.radians(ROLL * math.sin(math.pi * k))
+    return {'k': k, 'side': side, 'x': x, 'y': y, 'heading': heading, 'bank': math.cos(roll),
+            'roll': roll, 'size': CRAFT * width / 150.0, 'length': radius * (math.pi / 2.0 + 0.5),
+            'track': track}
 
-    def put(x, y, rgb):
+
+def craft(width, height, t, board=None):
+    """{cell: (braille mask, (r, g, b))}: the craft at `t` when a pass is on and its corner
+    has room, else {}; `board` (cx, cy, radius) its bound, kept clear at every attitude."""
+    pose = _pose(width, height, t, board)
+    if pose is None:
+        return {}
+    x0, y0, size, bank = pose['x'], pose['y'], pose['size'], pose['bank']
+    c, s = math.cos(pose['heading']), math.sin(pose['heading'])
+    lean = math.sin(pose['roll']) * pose['side']
+    reach = REACH * size
+    cells, inks = {}, {}
+
+    def mark(x, y, rgb, rank):
+        """A dot at the screen point (x, y); a cell's ink the highest rank's."""
         if 0.0 <= x < width and 0.0 <= y < height:
-            px, py = int(x), int(y)
-            at = py * width + px
-            bit = BRAILLE_BITS[1 if x - px >= 0.5 else 0][min(3, int((y - py) * 4.0))]
-            out[at] = (out[at][0] | bit if at in out else bit, rgb)
+            at = int(y) * width + int(x)
+            cells[at] = cells.get(at, 0) | BRAILLE_BITS[1 if x - int(x) >= 0.5 else 0][
+                min(3, int((y - int(y)) * 4.0))]
+            if rank >= inks.get(at, (-9, None))[0]:
+                inks[at] = (rank, rgb)
 
-    def at(u, v):
-        """The craft's (along, across) as a screen point, the across foreshortened."""
-        v *= bank
-        x, y = size * (u * c - v * s), size * (u * s + v * c)
-        return x0 + x, y0 + y / ASPECT
+    def steel(f):
+        return tuple(int(ch * f) for ch in HULL)
 
-    for (u0, v0), (u1, v1) in OUTLINE:
-        steps = max(2, int(size * math.hypot(u1 - u0, v1 - v0) * 2.0))
-        for i in range(steps + 1):
-            put(*at(u0 + (u1 - u0) * i / steps, v0 + (v1 - v0) * i / steps), HULL)
-    if int(t * 2.0) % 2 == 0:
-        put(*at(0.1, 0.0), RED)
-    if t % 1.5 < 0.12:
-        put(*at(-0.62, 0.0), STROBE)
-    return out
+    # The trail: from the tail onto the arc behind, fading.
+    tx = x0 + size * TAIL * c
+    ty = y0 + size * TAIL * s / ASPECT
+    ax, ay = pose['track'](pose['k'] + TAIL * size / pose['length'])
+    for i in range(int(2.0 * (TRAIL - abs(TAIL)) * size) + 1):
+        f = i / max(1.0, 2.0 * (TRAIL - abs(TAIL)) * size)
+        bx, by = pose['track'](pose['k'] + (TAIL - f * (TRAIL - abs(TAIL))) * size
+                               / pose['length'])
+        mark(bx + (1.0 - f) * (tx - ax), by + (1.0 - f) * (ty - ay), steel(0.8 - 0.6 * f), -1)
+
+    for py in range(int(y0 - reach / ASPECT) - 1, int(y0 + reach / ASPECT) + 2):
+        for half in range(2 * int(x0 - reach) - 2, 2 * int(x0 + reach) + 4):
+            for row in range(4):
+                x, y = half / 2.0 + 0.25, py + 0.125 + 0.25 * row
+                dx, dy = (x - x0) / size, (y - y0) * ASPECT / size
+                u, v = dx * c + dy * s, (-dx * s + dy * c) / bank
+                if math.hypot(u, v * bank) > REACH:
+                    continue
+                if ((u - CANOPY_AT[0]) / CANOPY_R[0]) ** 2 + (v / CANOPY_R[1]) ** 2 <= 1.0:
+                    mark(x, y, GLASS, 2)
+                elif _inside(u, v, HULL_SHAPE):
+                    mark(x, y, steel(1.0 - 0.35 * min(1.0, abs(v) / 0.19)), 1)   # its spine lit
+                elif any(_inside(u, v, fin) for fin in FINS):
+                    mark(x, y, steel(0.7 + 0.25 * lean * (1.0 if v > 0.0 else -1.0)), 0)
+    return {at: (mask, inks[at][1]) for at, mask in cells.items()}
+
+
+def marker(width, height, t, board=None):
+    """[(row, col, text)], gripped: the marker's corners round the craft at `t` - closing
+    in from outside, away from the board, over GRIP; gripped, squeezing once and holding,
+    labelled MARKED. Never nearer the board than its gripped self."""
+    pose = _pose(width, height, t, board)
+    if pose is None or pose['k'] < GRIP[0]:
+        return [], False
+    k, x, y = pose['k'], pose['x'], pose['y']
+    g = min(1.0, (k - GRIP[0]) / (GRIP[1] - GRIP[0]))
+    g = g * g * (3.0 - 2.0 * g)
+    cx, cy = (board[0], board[1]) if board else (width / 2.0, height / 2.0)
+    ox, oy = x - cx, (y - cy) * ASPECT
+    norm = math.hypot(ox, oy) or 1.0
+    grip = REACH * pose['size'] / math.sqrt(2.0)          # its corners on the craft's reach
+    # Its offset outward outruns its corners' growth: no nearer the board than gripped.
+    away = 2.5 * grip * (1.0 - g)
+    half = grip * (1.0 + 1.2 * (1.0 - g)
+                   - 0.25 * math.sin(math.pi * min(1.0, max(0.0, (k - GRIP[1]) / 0.06))))
+    mx, my = x + away * ox / norm, y + away * oy / norm / ASPECT
+    top, bottom = int(my - half / ASPECT), int(my + half / ASPECT)
+    left, right = int(mx - half), int(mx + half)
+    out = [(top, left, '┌'), (top, right, '┐'), (bottom, left, '└'), (bottom, right, '┘')]
+    if g >= 1.0:
+        out.append((bottom + 1, right + 1 - len(MARKED) if pose['side'] > 0 else left, MARKED))
+    return out, g >= 1.0
 
 
 def roller(fl, width, height, static):
@@ -322,6 +404,17 @@ def _put(grid, tone, row, col, text, ink, clear=False, buf=None):
         c = col + i
         if 0 <= c < width and (ch != ' ' or clear) and not (buf and buf[row * width + c]):
             grid[row][c], tone[row][c] = ch, ink
+
+
+def _free(grid, buf, row, col, n):
+    """Whether the `n` cells from (row, col) are in the grid, off the board and hold no
+    text - blank or a braille dot."""
+    if not 0 <= row < len(grid) or col < 0 or col + n > len(grid[row]):
+        return False
+    width = len(grid[row])
+    return all(not buf[row * width + c] and (grid[row][c] == ' '
+                                             or 0x2800 <= ord(grid[row][c]) <= 0x28FF)
+               for c in range(col, col + n))
 
 
 #: The ladder's band: under the tape and the roll arc, over the bottom lines.
@@ -361,21 +454,16 @@ def _ladder(grid, tone, buf, width, height, static, roll, ink):
 def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour, board=None):
     """The overlay, the flight's: the heading tape, the roll arc, the conformal ladder,
     lock brackets round the board (`box`: first and last row and column, or None), the
-    pitch and bank, the clock, the gates flown, a tag; the craft kept off `board`, the
-    board's bound at every attitude (`bound`)."""
+    pitch and bank, the clock, the gates flown, a tag; the craft over all, its marker
+    beside the text, both kept off `board`, the board's bound at every attitude (`bound`)."""
     if width < 40 or height < 14:
         return
-    amber, dim, red = (AMBER, DIM, RED) if colour else (None, None, None)
+    amber, dim, red, data = (AMBER, DIM, RED, DATA) if colour else (None,) * 4
     t = scroll or 0.0
     roll = roller(fl, width, height, static)
 
     # The ladder first: text over it.
     _ladder(grid, tone, buf, width, height, static, roll, dim)
-
-    # The craft, over the scenery; its pass keeps clear of the board.
-    for at, (mask, rgb) in craft(width, height, t, board).items():
-        r, c = divmod(at, width)
-        grid[r][c], tone[r][c] = chr(0x2800 + mask), rgb if colour else None
 
     # The heading tape: a degree a column, a tick each 5, each 10 labelled.
     span = min(61, width - 24) | 1
@@ -424,5 +512,13 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour, 
          buf=buf)
     if int(t * 1.5) % 2 == 0:
         _put(grid, tone, height - 1, width - len(TAG) - 1, TAG, red, buf=buf)
-    _put(grid, tone, height - 2, width - len(SUBTAG) - 1, SUBTAG, DATA if colour else None,
-         buf=buf)
+    _put(grid, tone, height - 2, width - len(SUBTAG) - 1, SUBTAG, data, buf=buf)
+
+    # The craft's marker where no text is, whole or not at all; the craft over everything.
+    corners, gripped = marker(width, height, t, board)
+    for row, col, text in corners:
+        if _free(grid, buf, row, col, len(text)):
+            _put(grid, tone, row, col, text, data if gripped else amber)
+    for at, (mask, rgb) in craft(width, height, t, board).items():
+        r, c = divmod(at, width)
+        grid[r][c], tone[r][c] = chr(0x2800 + mask), rgb if colour else None
