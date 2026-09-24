@@ -291,8 +291,7 @@ class Coaxial63100(Acquisition):
         """Everything this session started, undone."""
         if self._board is not None:
             # One try per step.
-            for step in (self.board.daq.stop, self._release_stage,
-                         self._release_afe):
+            for step in (self.stop, self._release_stage, self._release_afe):
                 with suppress(RigError):
                     step()
         if self.session is not None:

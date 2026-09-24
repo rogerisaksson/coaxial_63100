@@ -316,6 +316,17 @@ def test_enable_is_session_scoped(report):
                  not board.afe.is_on())
 
 
+def test_close_stops_the_reader(report):
+    device = Coaxial63100(simulated_device=True).open()
+    device.daq.enable()
+    device.daq.configure('phaseU', sample_rate=1000)
+    device.daq.start()
+    reader = device._reader
+    device.close()
+    report.check('close() mid-run joins the host reader before the session '
+                 'goes', reader is not None and not reader.running)
+
+
 def test_compensate_and_tare(report):
     with opened() as device:
         cal = device.board.calibration
@@ -474,7 +485,8 @@ def main():
                  test_the_task_brackets_itself,
                  test_record_shape, test_series_and_columns,
                  test_configure_buffer, test_fanout_ring,
-                 test_enable_is_session_scoped, test_compensate_and_tare,
+                 test_enable_is_session_scoped, test_close_stops_the_reader,
+                 test_compensate_and_tare,
                  test_scaled_columns_use_the_record,
                  test_frames_rolls_a_window,
                  test_open_is_idempotent, test_records_track_the_wall,
