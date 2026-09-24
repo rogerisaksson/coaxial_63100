@@ -4,17 +4,16 @@ cycle-counting clock.
 import math
 import random
 import time
+from typing import Any
 
 from coaxial.acquire.acquisition import Acquisition
 from coaxial.acquire.daq import REPLY_ROOM
-from coaxial.errors import RigError
-from coaxial.simulated.values import (ACCUMULATE_MAX, AMPS_PER_CODE, CHANNELS, DCBUS_V, MASK32,
-                                      NOMINAL, PHASE_LEG, RING_BYTES, SYSCLK_HZ, TICKS_PER_US,
-                                      PHASE_STEP, _sweep, phase_codes)
-from coaxial.simulated.system import UNITS
 from coaxial.devices import angle, imu
-from typing import cast, Any
-from coaxial.acquire.clock import Clock, NTP_SERVER
+from coaxial.errors import RigError
+from coaxial.simulated.system import UNITS
+from coaxial.simulated.values import (ACCUMULATE_MAX, AMPS_PER_CODE, CHANNELS, DCBUS_V, MASK32,
+                                      NOMINAL, PHASE_LEG, RING_BYTES, TICKS_PER_US, PHASE_STEP,
+                                      _sweep, phase_codes)
 
 #: The share of the line rate the stand-in quotes as its ceiling.
 LINE_SHARE_PERCENT = 75
@@ -33,72 +32,6 @@ def _source_mask(sources):
         raise ValueError('no such source: %s - have %s'
                          % (', '.join(unknown), ', '.join(SOURCES)))
     return sum(1 << SOURCES[s] for s in set(sources))
-
-
-class SimulatedCapture:
-    """The measurement ring, without measurements."""
-
-    DEPTH = 1024
-
-    def __init__(self):
-        self._mask = 0
-        self._pending = []
-        self._seq = [0, 0, 0]
-        self._at = 0
-        self._dropped = 0
-
-    def _fill(self):
-        for src in (0, 1, 2):
-            if not self._mask >> src & 1:
-                continue
-            for _ in range(4):
-                self._at += random.randint(9000, 10000)
-                v = {0: (1400 + random.randint(-60, 60),
-                         -9020 + random.randint(-60, 60),
-                         -650 + random.randint(-60, 60), 1385),
-                     1: (24442, 8, 32, 0),
-                     2: (random.randint(-16384, 16384),) * 4}[src]
-                self._pending.append({'at': self._at & MASK32,
-                                      'source': ('phases', 'angle', 'imu')[src],
-                                      'seq': self._seq[src] & 0xFF,
-                                      'v': tuple(v)})
-                self._seq[src] += 1
-
-    def state(self):
-        names = ('phases', 'angle', 'imu')
-        return {'sources': [names[i] for i in range(3) if self._mask >> i & 1],
-                'mask': self._mask, 'count': len(self._pending),
-                'depth': self.DEPTH, 'dropped': self._dropped,
-                # Never thinned here; the field is the board's (test_parity).
-                'thinned': 0}
-
-    def arm(self, sources):
-        self._mask = _source_mask(sources)
-        self._pending = []
-        self._seq = [0, 0, 0]
-        self._dropped = 0
-        return True
-
-    def stop(self):
-        return self.arm(0)
-
-    def take(self, want=15):
-        want = max(1, min(int(want), 15))
-        if self._mask and len(self._pending) < want:
-            self._fill()
-        batch, self._pending = self._pending[:want], self._pending[want:]
-        return batch
-
-    def drain(self, limit=None):
-        out = []
-        while limit is None or len(out) < limit:
-            batch = self.take()
-            if not batch:
-                break
-            out.extend(batch)
-            if limit is None and len(out) >= self.DEPTH:
-                break
-        return out[:limit] if limit is not None else out
 
 
 class SimulatedDaq(Acquisition):
@@ -622,45 +555,3 @@ class SimulatedDaq(Acquisition):
             out['digital'] = {p['signal']: bool(random.getrandbits(1))
                               for p in self.PINS}
         return out
-
-class SimulatedClock:
-    """The cycle counter tied to nothing, but tied consistently."""
-
-    NOMINAL_HZ = SYSCLK_HZ
-    SKEW = 1 - 12e-6
-
-    def __init__(self):
-        self._seq = 0
-        self._latched = 0
-        self._t0 = None
-
-    def _cycles(self):
-        if self._t0 is None:
-            self._t0 = time.time()
-        return int((time.time() - self._t0) * self.NOMINAL_HZ
-                   * self.SKEW) % (1 << 32)
-
-    def latch(self):
-        self._latched = self._cycles()
-        self._seq += 1
-
-    def read_latch(self):
-        return {'seq': self._seq, 'latched': self._latched,
-                'now': self._cycles(), 'sysclk_hz': self.NOMINAL_HZ}
-
-    def probe(self, rounds=16):
-        return Clock.probe(cast(Clock, self), rounds=rounds)
-    def sync(self, seconds=2.0, rounds=8, reference='utc', ntp_server=None):
-        # Its cycles come off this machine's clock, so against UTC it is this
-        # machine's error plus its own 12 ppm - which is the honest answer, not
-        # a bug.
-        return Clock.sync(cast(Clock, self), seconds=seconds, rounds=rounds,
-                          reference=reference,
-                          ntp_server=ntp_server or NTP_SERVER)
-
-    def _bracket(self):
-        """One latch, bracketed - on `perf_counter`, as the real one is."""
-        before = time.perf_counter()
-        self.latch()
-        after = time.perf_counter()
-        return (before + after) / 2.0, after - before

@@ -253,7 +253,7 @@ BENCH = (
 REFERENCES = [
     ('host/coaxial/rig.py', 'the front door: `daq`, `set_time_from_pc`, `frame`, `frames`, `history`'),
     ('host/coaxial/acquire/record.py', 'a `Record`: the sum, the count, the mean, the struct behind a sample'),
-    ('host/coaxial/simulated/daq.py', 'the stand-in this ran on, paced to real time like a board'),
+    ('host/coaxial/simulated/acquire/', 'the stand-in this ran on, paced to real time like a board'),
     ('daq/src/daq.c', 'the engine on the board: the ring, the window, the ladder'),
     ('docs/PROTOCOL.md', 'device 6, the task and the record on the wire'),
     ('host/tests/test_daq_api.py', 'the front door pinned: naming, reading, the record shape, the buffers'),

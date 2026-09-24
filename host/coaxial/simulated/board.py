@@ -1,19 +1,22 @@
 """The assembly: SimulatedBoard wires the devices; SimulatedSession answers like session.Session.
 """
-from coaxial.errors import DeviceStateError
+from typing import Any
+
 from coaxial.comm.protocol import BROADCAST
+from coaxial.errors import DeviceStateError
+from coaxial.kalman.observer import Observer
+from coaxial.simulated.acquire.capture import SimulatedCapture
+from coaxial.simulated.acquire.clock import SimulatedClock
+from coaxial.simulated.acquire.daq import SimulatedDaq
+from coaxial.simulated.analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
+from coaxial.simulated.boot import SimulatedBoot
+from coaxial.simulated.drive.device import SimulatedDrive
 from coaxial.simulated.link import (DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink,
                                     _BroadcastRefuses, bus_nodes)
-from coaxial.simulated.system import SimulatedGpio, SimulatedSystem
-from coaxial.simulated.analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
-from coaxial.simulated.sensors import SimulatedAngle, SimulatedImu
-from coaxial.simulated.boot import SimulatedBoot
 from coaxial.simulated.power import SimulatedGateDrivers, SimulatedPower
+from coaxial.simulated.sensors import SimulatedAngle, SimulatedImu
+from coaxial.simulated.system import SimulatedGpio, SimulatedSystem
 from coaxial.simulated.thermal.observer import SimulatedThermal
-from coaxial.simulated.daq import SimulatedCapture, SimulatedClock, SimulatedDaq
-from coaxial.kalman.observer import Observer
-from coaxial.simulated.drive.device import SimulatedDrive
-from typing import Any
 
 
 class SimulatedBoard:

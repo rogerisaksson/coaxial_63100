@@ -4,13 +4,13 @@ simulated shaft.
 import math
 import random
 import time
+from typing import Any
 
 from coaxial.devices import angle, imu
-from coaxial.devices.sensor import PolledSensor
-from coaxial.devices.scaling import KELVIN_AT_ZERO_C
-from coaxial.simulated.values import _tumble
-from typing import Any
 from coaxial.devices.imu import CHANNELS, decode
+from coaxial.devices.scaling import KELVIN_AT_ZERO_C
+from coaxial.devices.sensor import PolledSensor
+from coaxial.simulated.values import _tumble
 
 
 class SimulatedImu(PolledSensor):

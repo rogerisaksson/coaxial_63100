@@ -2,8 +2,8 @@
 
 The tables: units, subsystems, pins, parts.
 """
-from coaxial.errors import DeviceStateError
 from coaxial.devices.gpio import reserved_reason
+from coaxial.errors import DeviceStateError
 from coaxial.simulated.values import CHANNELS, SYSCLK_HZ, TICKS_PER_US
 
 
