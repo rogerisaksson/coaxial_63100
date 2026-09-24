@@ -121,23 +121,58 @@ print('then cleanup: row %d, %.2f s, rpm %.0f at the end'
       % (tripped.steps[-1][0], tripped.steps[-1][3], tripped.rows[-1]['rpm']))'''),
     ),
     section(
-        'The alarm handler beside it',
-        md('Levels, the log and trips are `machine.alarms`, not the sequencer\'s: it calls '
-           'the handler every pass. H and L are logged once a step; HH and LL trip to '
-           'cleanup; anything watching may `stop()` the run - here an operator at 1450 rpm.'),
+        'Alarms in the table',
+        md('Level columns are alarms, not the ends of steps: `rpm.H` and `rpm.L` are logged '
+           'as they come and as they go (`ok`), `rpm.HH` and `rpm.LL` trip to cleanup, and '
+           'a row\'s level holds from that row on. A test (`rpm.GE`, `rpm.LE`) is what a step '
+           'waits for; out of its time it is an alarm - unless the row branches: then '
+           '`else` is its answer. The handler is `machine.alarms`, beside the sequencer.'),
         code('''from machine.alarms import Alarms
 
-alarms = Alarms({'rpm': {'H': 1300}})
+ALARMED = \"\"\"group,seconds,label,rpm_target,rpm.GE,rpm.LE,rpm.H,rpm.L,else
+init,0.5,,0,,,1600,,
+,3,up,1500,1490,,,,
+,1,hold,1500,,,1450,1300,
+,0.4,dip,200,,210,,,
+,1.5,,200,,,,,
+,0.2,ask,200,,150,,,settle
+,1,settle,0,,,,,
+cleanup,2,,0,,,,,
+\"\"\"
+logged = Sequencer.parse(ALARMED, init=arm, cleanup=disarm).run(loop)
+print(logged.summary('rpm', alarms=0))
+print('\\n'.join('  ' + line for line in logged.alarms))'''),
+    ),
+    section(
+        'A handler of your own',
+        md('The sequencer only calls the handler: `begin`, `step`, `set`, `check`, `timeout`. '
+           'One of your own adds its checks to `Alarms` and may `stop()` the run - here one '
+           'that stops on rpm rising faster than 2000 a second; the loop asks 3000.'),
+        code('''class RateGuard(Alarms):
+    \"\"\"Past `most` rpm a second, stop.\"\"\"
 
-def operator(loop):
-    if loop.bus.get('rpm', 0.0) > 1450:
-        alarms.stop('the operator, at %.0f rpm' % loop.bus['rpm'])
+    def __init__(self, levels=None, most=2000.0):
+        self.most, self.was = most, None
+        super().__init__(levels)
 
-guarded = Sequencer.parse('3 rpm_target=1500 rpm.GE=1490\\n2 group=cleanup rpm_target=0',
-                          alarms=alarms, init=arm, cleanup=disarm)
-stopped = guarded.run(loop, watch=operator)
+    def begin(self):
+        self.was = None
+        return super().begin()
+
+    def check(self, bus, trips=True):
+        super().check(bus, trips)
+        t, rpm = bus.get('t'), bus.get('rpm')
+        if self.was is not None and rpm is not None and t > self.was[0]:
+            rate = (rpm - self.was[1]) / (t - self.was[0])
+            if rate > self.most:
+                self.stop('rpm rising %.0f a second, past %.0f' % (rate, self.most))
+        self.was = (t, rpm)
+
+guard = RateGuard({'rpm': {'H': 1300}})
+stopped = Sequencer.parse('3 rpm_target=1500 rpm.GE=1490\\n2 group=cleanup rpm_target=0',
+                          alarms=guard, init=arm, cleanup=disarm).run(loop)
 print(stopped.status, '-', stopped.reason)
-print('\\n'.join(stopped.alarms))'''),
+print('\\n'.join('  ' + line for line in stopped.alarms))'''),
     ),
     section(
         'The same from Excel, twice',
@@ -162,7 +197,8 @@ print('1. the table          %s, %d steps, %.1f s' % (out.status, len(out.steps)
 print('2. up ends on rpm.GE  %s' % ', '.join('%.2f s' % s[3] for s in up))
 print('3. the trip           %s' % tripped.reason)
 print('4. excel, twice       %s, %d steps' % (again.status, len(again.steps)))
-print('5. the handler        %s, %d alarm lines' % (stopped.status, len(stopped.alarms)))'''),
+print('5. table alarms       %s: %s' % (logged.status, '; '.join(logged.alarms[:3])))
+print('6. own handler        %s - %s' % (stopped.status, stopped.reason))'''),
     md('- Streams, a controller, a sequence: each a layer with its own verbs.\n'
        '- Cleanup runs however a run ends: done, tripped, or an exception.'),
 ]

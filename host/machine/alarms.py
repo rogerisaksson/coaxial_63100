@@ -5,7 +5,9 @@
     alarms.log                                      # a line an alarm
     alarms.stop('operator')                         # from any thread: the run trips
 
-L and H alarm: logged once a step, the run goes on. LL and HH trip: `check` raises
+L and H alarm: logged when one comes and when it goes (`ok`), the run going on; it goes
+only once the value is back past its bound by DEADBAND of it, so a value on the bound
+cannot chatter; `active` holds the ones that are on. LL and HH trip: `check` raises
 Tripped and the sequencer goes to cleanup. A row's level columns arrive through `set`
 and hold from there (inf clears one); a step's timeout through `timeout`. Whatever else
 watches - a pack, a camera, an operator - ends a run the same way: `stop(why)`. A
@@ -15,6 +17,10 @@ handler is any object with these hooks; one of your own subclasses Alarms and ca
 from machine.errors import MachineError
 
 LEVELS = ('LL', 'L', 'H', 'HH')
+
+#: How far back past its bound a value must come for its alarm to go: this share of the
+#: bound, at least DEADBAND_FLOOR.
+DEADBAND, DEADBAND_FLOOR = 0.01, 1e-6
 
 
 class Tripped(MachineError):
@@ -28,25 +34,28 @@ def crossed(value, level, bound):
 
 class Alarms:
 
-    """Levels by channel ({channel: {'HH': 1.9}}), the log, a stop; the sequencer's hooks:
-    `begin` a run, `step` a step, `set` a row's levels, `check` a pass, `timeout`."""
+    """Levels by channel ({channel: {'HH': 1.9}}), the log, the active alarms, a stop; the
+    sequencer's hooks: `begin` a run, `step` a step, `set` a row's levels, `check` a pass,
+    `timeout`."""
 
     def __init__(self, levels=None):
         #: The levels a run begins with - the caller's own dict, read at each `begin`.
         self.base = levels if levels is not None else {}
         self.levels, self.log = {}, []
-        self._where, self._logged, self._stop = '', set(), None
+        #: {(channel, level): the value it came at} - the alarms on now.
+        self.active = {}
+        self._where, self._stop = '', None
         self.begin()
 
     def begin(self):
         """A run from the start: the base levels, an empty log, no stop."""
         self.levels = {ch: dict(lv) for ch, lv in self.base.items()}
-        self.log, self._stop = [], None
+        self.log, self.active, self._stop = [], {}, None
         return 0
 
     def step(self, where):
-        """A step begins: its alarms may be logged again."""
-        self._where, self._logged = where, set()
+        """A step begins: what the log says it happened in."""
+        self._where = where
 
     def set(self, levels):
         """A row's levels, in force from here: {channel: {level: bound}}."""
@@ -54,8 +63,8 @@ class Alarms:
             self.levels.setdefault(channel, {}).update(lv)
 
     def check(self, bus, trips=True):
-        """Every level against `bus`: L and H logged once a step; LL, HH and a stop raise
-        Tripped when `trips` (cleanup logs them, never trips)."""
+        """Every level against `bus`: an alarm logged as it comes and as it goes; LL, HH
+        and a stop raise Tripped when `trips` (cleanup logs them, never trips)."""
         if self._stop is not None and trips:
             raise Tripped(self._stop)
         for channel, lv in self.levels.items():
@@ -63,14 +72,20 @@ class Alarms:
             if value is None:
                 continue
             for level, bound in lv.items():
-                if not crossed(value, level, bound):
-                    continue
-                said = '%s %s %.4g past %.4g' % (level, channel, value, bound)
-                if (channel, level) not in self._logged:
-                    self._logged.add((channel, level))
-                    self._say(said)
-                if trips and len(level) == 2:
-                    raise Tripped(said)
+                key = (channel, level)
+                if crossed(value, level, bound):
+                    said = '%s %s %.4g past %.4g' % (level, channel, value, bound)
+                    if key not in self.active:
+                        self.active[key] = value
+                        self._say(said)
+                    if trips and len(level) == 2:
+                        raise Tripped(said)
+                elif key in self.active:
+                    band = max(DEADBAND_FLOOR, DEADBAND * abs(bound))
+                    back = bound - band if level in ('H', 'HH') else bound + band
+                    if not crossed(value, level, back):
+                        del self.active[key]
+                        self._say('ok %s %s %.4g' % (level, channel, value))
 
     def timeout(self, what):
         """A step waited out its time: logged; the sequencer goes on."""

@@ -17,7 +17,7 @@ A step is a row of a .csv or an .xlsx's first sheet, or a line: `0.5 knee=40 hip
     wait               at (the default): until its targets and tests hold; time: its
                        seconds whatever, a timed move. Nothing to wait for: its seconds
     band               how near a target counts, its unit (1 % of its range)
-    <channel>.L .H     alarm: logged once a step, the run goes on
+    <channel>.L .H     alarm: logged as it comes and as it goes, the run goes on
     <channel>.LL .HH   trip: to cleanup at once. Levels hold from their row on; inf clears
     label              a row's name                   group    init | cleanup | blank (main)
     then / else        where to go when done / when timed out
@@ -78,8 +78,9 @@ class Outcome(namedtuple('Outcome', 'rows status reason steps alarms')):
             lines.append('  ...' if step is None else '  row %d%s %.2f s %s' % (
                 step[0], ' ' + step[1] if step[1] else '', step[3], step[2]))
         if self.alarms:
-            lines.append('  %d alarm%s: %s' % (len(self.alarms), 's' if len(self.alarms) > 1
-                                              else '', '; '.join(self.alarms[:alarms])))
+            lines.append('  %d alarm%s%s' % (len(self.alarms), 's' if len(self.alarms) > 1
+                                            else '', ': ' + '; '.join(self.alarms[:alarms])
+                                            if alarms else ''))
         last = self.rows[-1] if self.rows else {}
         if channels:
             lines.append('  end: ' + ', '.join('%s %.4g' % (c, last[c]) for c in channels

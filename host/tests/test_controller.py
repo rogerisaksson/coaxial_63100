@@ -293,12 +293,19 @@ def test_the_alarm_handler(report):
         loop = speed(rotor, rate_hz=50, clock=clock, sleep=clock.sleep)
         return Sequencer.parse(text, **kw).run(loop, watch=watch)
 
+    alarms = Alarms({'rotor.w': {'H': 80.0}})
     out = ran('1 w_target=100 wait=time\n1 w_target=100 wait=time\n1 w_target=0 wait=time',
-              alarms=Alarms({'rotor.w': {'H': 80.0}}))
-    rows = [a.split(':')[0] for a in out.alarms if 'H rotor.w' in a]
-    report.check('H is logged once a step while it holds, and the run goes on',
-                 out.status == 'done' and rows[:2] == ['row 0', 'row 1']
-                 and len(rows) == len(set(rows)), out.alarms)
+              alarms=alarms)
+    came = [a for a in out.alarms if ': H rotor.w' in a]
+    went = [a for a in out.alarms if ': ok H rotor.w' in a]
+    report.check('H is logged as it comes and as it goes, once each; the run goes on',
+                 out.status == 'done' and len(came) == 1 and came[0].startswith('row 0')
+                 and len(went) == 1 and went[0].startswith('row 2') and not alarms.active,
+                 out.alarms)
+    hover = Alarms({'rotor.w': {'H': 100.0}})
+    ran('3 w_target=100 wait=time', alarms=hover)
+    report.check('a value on its bound does not chatter: the deadband holds it',
+                 len(hover.log) <= 2, hover.log)
     hot = ran('2 w_target=100\n0.5 group=cleanup w_target=0',
               alarms=Alarms({'rotor.w': {'HH': 50.0}}))
     report.check('HH trips to cleanup, the trip in the log',
