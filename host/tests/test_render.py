@@ -1103,9 +1103,15 @@ def test_approach(report):
     over = [[' '] * 60 for _ in range(20)]
     tone = [[None] * 60 for _ in range(20)]
     busy = [1.0] * (60 * 20)                      # the board everywhere: the craft still shows
-    approach.hud(over, tone, busy, 60, 20, approach.flight(1.0), static, 1.0, 0, None, True)
-    report.check('approach: the craft is composited over the board',
-                 any(ink == approach.HULL for row in tone for ink in row))
+    passes = [t / 4.0 for t in range(4 * 600) if approach.craft(60, 20, t / 4.0)]
+    at = passes[0] if passes else 0.0
+    approach.hud(over, tone, busy, 60, 20, approach.flight(at), static, at, 0, None, True)
+    report.check('approach: the craft passes rarely, and in front of the board',
+                 passes and len(passes) < 0.12 * 4 * 600
+                 and any(ink == approach.HULL for row in tone for ink in row),
+                 '%d of %d quarter-seconds' % (len(passes), 4 * 600))
+    sides = {now[1] for now in map(approach._pass, passes) if now}
+    report.check('approach: its passes come from both sides', sides == {1.0, -1.0}, sides)
     straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)
     report.check('approach: the curvature bends the corridor', straight != gates[0])
     fl = approach.flight(approach.CURVE_S / 4.0)
