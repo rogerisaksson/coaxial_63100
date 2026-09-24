@@ -8,7 +8,8 @@ from coaxial.simulated.system import SimulatedGpio, SimulatedSystem
 from coaxial.simulated.analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
 from coaxial.simulated.sensors import SimulatedAngle, SimulatedImu
 from coaxial.simulated.boot import SimulatedBoot
-from coaxial.simulated.power import SimulatedGateDrivers, SimulatedPower, SimulatedThermal
+from coaxial.simulated.power import SimulatedGateDrivers, SimulatedPower
+from coaxial.simulated.thermal.observer import SimulatedThermal
 from coaxial.simulated.daq import SimulatedCapture, SimulatedClock, SimulatedDaq
 from coaxial.kalman.observer import Observer
 from coaxial.simulated.drive import SimulatedDrive

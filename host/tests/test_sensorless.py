@@ -660,7 +660,7 @@ def test_the_stand_in_thermistor_stays_between_its_nodes(r):
     bound.
     """
     from coaxial.model import thermal
-    from coaxial.simulated.power import SimulatedThermal
+    from coaxial.simulated.thermal.observer import SimulatedThermal
 
     model = SimulatedThermal()
     worst, lagged = -1e9, False
@@ -685,7 +685,7 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
     """The stand-in's stage backs off on the motor's SOA as well as the
     switches', the way `board_thermal.c` does since MINOR 12.
     """
-    from coaxial.simulated.power import SimulatedThermal
+    from coaxial.simulated.thermal.observer import SimulatedThermal
     from coaxial.devices.thermal_device import THROTTLE_AT
 
     model = SimulatedThermal()

@@ -9,7 +9,7 @@ from coaxial.draw import machine
 from coaxial.draw.gauges import (margin_class as soa_class, temp_share,
                                  thermometer_class as ntc_class)
 from coaxial.model import motor, thermal as _thermal
-from coaxial.simulated.power import SimulatedThermal
+from coaxial.simulated.thermal.observer import SimulatedThermal
 from terminal.views.rotor.layout import BAR_CELLS, BAR_GLYPH, BOARD_NODES, SOA_NODES
 from terminal.views.rotor.motions import LOAD_PEAK_A
 

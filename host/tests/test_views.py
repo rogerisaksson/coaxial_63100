@@ -543,7 +543,7 @@ def test_the_thermal_page_shows_its_evidence(report):
     from rich.console import Console
 
     from coaxial.draw import machine
-    from coaxial.simulated.power import SimulatedThermal
+    from coaxial.simulated.thermal.observer import SimulatedThermal
     from terminal.ui.screen import plain as visible
     from terminal.views import show_thermal_observer as page
     from terminal.ui import stage

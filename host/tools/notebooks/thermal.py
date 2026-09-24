@@ -553,7 +553,7 @@ REFERENCES = [
     ('thermal/src/thermal.c', 'the same network as the board integrates it, and the envelope'),
     ('host/coaxial/thermal_ident.py', 'the identification the stand-in runs, mirroring `thermal/src/thermal_ident.c`'),
     ('host/coaxial/devices/thermal_device.py', '`device.thermal`: state, budget, identification, the record\'s ceilings and the sample interval'),
-    ('host/coaxial/simulated/power.py', 'the stand-in: a hypothetical board with a ground truth, the situations, the tour and the trip cap'),
+    ('host/coaxial/simulated/thermal/', 'the stand-in: a hypothetical board with a ground truth, the situations, the tour and the trip cap'),
     ('docs/HARDWARE.md', 'the campaign, the camera, and how a measurement here is to be read'),
     ('docs/FINDINGS.md', 'what ran off and what was ruled out: the room inferred two other ways, the clamped scales'),
     ('host/tests/test_thermal_core.py', 'the envelope as the C that will run, and the identification against a ground truth'),

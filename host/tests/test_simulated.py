@@ -1352,7 +1352,7 @@ def test_a_ceiling_pulled_in_under_a_node_closes_the_clamp(report):
     """The stand-in's trip is the record's ceiling, as the C's `trip_c`; the
     trimmed ceiling is the throttle's.
     """
-    from coaxial.simulated.power import SimulatedThermal
+    from coaxial.simulated.thermal.observer import SimulatedThermal
 
     th = SimulatedThermal(situation='bench')
     th.fast_forward(0.0)                    # the caller owns the clock
@@ -1380,7 +1380,7 @@ def test_thermal_identification(report):
 
     from coaxial import Coaxial63100
     from coaxial.model import thermal
-    from coaxial.simulated.power import SimulatedThermal
+    from coaxial.simulated.thermal.observer import SimulatedThermal
 
     rig = Coaxial63100(simulated_device=True, power_afe=False).open()
     try:
