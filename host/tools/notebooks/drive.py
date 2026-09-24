@@ -1081,7 +1081,7 @@ REFERENCES = [
     ('host/tests/test_drive_core.py', 'the C held to the Python it was ported from, over drawn plants'),
     ('drive/src/drive_observer.c', 'the back-EMF chain the board runs beside the loop, op 14'),
     ('host/coaxial/devices/drive.py', 'device 10: `state`, `window`, `model`, `observers`, the record'),
-    ('host/coaxial/simulated/drive.py', 'the stand-in this ran on: the PMSM, and the chain stepped over a bounded window'),
+    ('host/coaxial/simulated/drive/', 'the stand-in this ran on: the PMSM, and the chain stepped over a bounded window'),
     ('docs/FINDINGS.md', 'the caches were off: 10 040, 6 756 and 2 922 cycles a step'),
 ]
 

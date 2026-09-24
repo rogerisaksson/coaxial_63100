@@ -395,7 +395,7 @@ REFERENCES = [
     ('host/coaxial/control/motion.py', 'the three verbs: the slew, the servo\'s mean over the ring, the velocity loop at link rate'),
     ('host/coaxial/control/loop.py', '`SpeedLoop`: kp from the mechanical pole, the feedforward, the integrator held on the clamp and `v_sat`'),
     ('host/coaxial/model/motor.py', '`Propeller`, `on_model`, `APC20x10E` off the thrust stand, and `Motor` with `k_load` beside `b`'),
-    ('host/coaxial/simulated/drive.py', 'the stand-in\'s rotor the missions turned, a pendulum integrated at a fixed sub-step'),
+    ('host/coaxial/simulated/drive/', 'the stand-in\'s rotor the missions turned, a pendulum integrated at a fixed sub-step'),
     ('host/coaxial/devices/link.py', '`port_stats`: `bus_message`, `server_message`, and `for_others` between them'),
     ('docs/FINDINGS.md', 'the motion verbs, 2026-09-07: the aliased measurement, the pumped corrections, the rotor\'s step'),
     ('host/tests/test_sensorless.py', '`test_motion`: the verbs against the stand-in, the dangerous paths included'),

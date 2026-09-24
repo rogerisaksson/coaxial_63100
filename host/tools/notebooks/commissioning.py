@@ -503,7 +503,7 @@ REFERENCES = [
     ('host/tools/sim/montecarlo.py', 'the search: the plants drawn around the machine, the cost, `design`'),
     ('host/tools/bench/commission.py', 'the procedure as one command at the bench'),
     ('host/coaxial/model/motor.py', '`Parameters`, and `BENCH_MOTOR` - the stand-in\'s truth'),
-    ('host/coaxial/simulated/drive.py', 'the stand-in this ran on: the machine, the pickup, the polarity readings'),
+    ('host/coaxial/simulated/drive/', 'the stand-in this ran on: the machine, the pickup, the polarity readings'),
     ('host/tests/test_sensorless.py', 'the arithmetic and the commissioning pinned against the stand-in'),
     ('host/tests/test_drive_core.py', 'the firmware\'s law through the host gcc, which the search drives'),
 ]

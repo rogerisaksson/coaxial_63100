@@ -12,7 +12,7 @@ from coaxial.simulated.power import SimulatedGateDrivers, SimulatedPower
 from coaxial.simulated.thermal.observer import SimulatedThermal
 from coaxial.simulated.daq import SimulatedCapture, SimulatedClock, SimulatedDaq
 from coaxial.kalman.observer import Observer
-from coaxial.simulated.drive import SimulatedDrive
+from coaxial.simulated.drive.device import SimulatedDrive
 from typing import Any
 
 

@@ -486,7 +486,7 @@ REFERENCES = [
     ('host/coaxial/control/loop.py', 'the blocks on one bus: ramp, probe, speed loop, current loop, machine, and `identify`'),
     ('host/coaxial/model/sysid.py', 'the least squares behind `identify`: two equations a sample, an error bar per column'),
     ('host/coaxial/model/motor.py', 'the 5230SL as the sheet gives it, the propeller and its 22-row curve, `Kt = 1.5 P lambda`'),
-    ('host/coaxial/simulated/drive.py', 'the stand-in\'s rotor, the spring under HOLD, and the PLL lag that stands in for the observer'),
+    ('host/coaxial/simulated/drive/', 'the stand-in\'s rotor, the spring under HOLD, and the PLL lag that stands in for the observer'),
     ('host/tests/test_sensorless.py', 'the verbs pinned on the stand-in, the dangerous paths included: a load past the holding torque, a trip mid-spin'),
     ('host/tools/sim/observer_run.py', 'the firmware\'s own observer, run on the host, and the crossover it computes'),
     ('docs/FINDINGS.md', 'the motion verbs, 2026-09-07: the aliased ring, the pumped corrections, the rotor\'s integrator'),
