@@ -1,8 +1,7 @@
 """Where model-authored commands and code actually run."""
 import ast
-import coaxial
-import importlib.util
 import contextlib
+import importlib.util
 import io
 import math
 import os
@@ -12,6 +11,8 @@ import subprocess
 import sys
 import time
 import traceback
+
+import coaxial
 from coaxial.devices import scaling
 
 # Shell punctuation, checked as whole tokens.

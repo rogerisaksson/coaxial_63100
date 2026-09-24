@@ -515,6 +515,7 @@ def test_intent(r):
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_mcp import render
     from coaxial_ollama import debug
+    from coaxial_ollama import words
     from coaxial_ollama import intent
 
     j = json.dumps
@@ -590,7 +591,7 @@ def test_intent(r):
     r.check('and neither does control',
             intent.plan('control', 'none') == ())
     r.check('every planned call names a tool the toolbox has',
-            all(n in debug.SETS['read'] or n in debug.SETS['code']
+            all(n in words.SETS['read'] or n in words.SETS['code']
                 for name in intent.INTENTS for kind in intent.KINDS
                 for n, _ in intent.plan(name, kind)),
             repr(sorted({n for name in intent.INTENTS

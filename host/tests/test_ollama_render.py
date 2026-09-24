@@ -139,6 +139,7 @@ def test_screen(report):
     same four-step checklist twice - once clipped as a tool trace, once whole
     as the answer - and paid the ST-Link's fifteen-second timeout twice."""
     from coaxial_ollama import debug
+    from coaxial_ollama import turn
 
     box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     talk = debug.Chat(ScriptedModel([]), box, tools='code', out=io.StringIO())
@@ -191,17 +192,17 @@ def test_screen(report):
     # A row that fits is untouched; prose wraps instead of being cut mid-word.
     row = '  4  NTC     SE    32768.0  +1.6500V 25.00C'
     report.check('a reading row is not touched by wrapping',
-                 debug._wrapped(row.strip()) == ['  ' + row.strip()])
+                 turn._wrapped(row.strip()) == ['  ' + row.strip()])
     prose = ('3. Configured port COM9: not among the ports above - the cable '
              'may be unplugged from this PC\'s side, or the driver did not '
              'enumerate it.')
-    wrapped = debug._wrapped(prose)
+    wrapped = turn._wrapped(prose)
     report.check('a long line wraps rather than losing its end',
                  len(wrapped) > 1 and wrapped[-1].rstrip().endswith('it.')
-                 and all(len(part) <= debug.TRACE_WIDTH for part in wrapped),
+                 and all(len(part) <= turn.TRACE_WIDTH for part in wrapped),
                  '%d lines' % len(wrapped))
     report.check('and one row cannot take over the screen',
-                 len(debug._wrapped('x ' * 400)) == debug.TRACE_LINES)
+                 len(turn._wrapped('x ' * 400)) == turn.TRACE_LINES)
 
     # A capture redirected to a file has no codepage to mismatch, and the
     # locale default here is cp1252 - which turned every Swedish answer in

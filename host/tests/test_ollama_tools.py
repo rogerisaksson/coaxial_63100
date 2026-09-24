@@ -58,20 +58,20 @@ def test_board_tools(report):
     shapes = all(s['type'] == 'function' and s['function']['parameters']['type']
                  == 'object' for s in schemas)
     report.check('every schema is an ollama function schema', shapes)
-    from coaxial_ollama import debug
+    from coaxial_ollama import words
     report.check('the thermal observer is a tool, and in the read and code '
                  'sets - the rule sends "how hot is the board" to the local '
                  'model, which had no way to device 8',
                  any(s['name'] == 'thermal' for s in MCP_TOOLS)
-                 and 'thermal' in debug.SETS['read']
-                 and 'thermal' in debug.SETS['code']
-                 and 'thermal' not in debug.SETS['pins'])
+                 and 'thermal' in words.SETS['read']
+                 and 'thermal' in words.SETS['code']
+                 and 'thermal' not in words.SETS['pins'])
 
 def test_corrections_are_reported(report):
     """A mistake in the question is answered, and said out loud."""
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_mcp import tools as mcp
-    from coaxial_ollama import debug
+    from coaxial_ollama import words
 
     session = Sim()
     mcp.HANDLERS['afe_power'](session, action='on')
@@ -110,9 +110,9 @@ def test_corrections_are_reported(report):
                      'unknown channel' in str(exc), str(exc)[:46])
 
     report.check('and the prompt says the same thing one layer up',
-                 'a typo or a wrong fact' in debug.SYSTEM
-                 and 'answer what was meant' in debug.SYSTEM,
-                 [l for l in debug.SYSTEM.splitlines()
+                 'a typo or a wrong fact' in words.SYSTEM
+                 and 'answer what was meant' in words.SYSTEM,
+                 [l for l in words.SYSTEM.splitlines()
                   if 'typo' in l][:1])
 
 
@@ -121,6 +121,8 @@ def test_corrections_are_reported(report):
 
 def test_debug(report):
     from coaxial_ollama import debug
+    from coaxial_ollama import context
+    from coaxial_ollama import words
 
     box = toolmod.Toolbox(SimulatedSession(), shell=Shell(['python']), scope=Scope())
 
@@ -130,12 +132,12 @@ def test_debug(report):
 
     # Was /3, and SYSTEM sat one token under it.
     report.check('the debug prompt is a fraction of the runner prompt',
-                 debug.approx_tokens(debug.SYSTEM)
-                 < debug.approx_tokens(runmod.SYSTEM) / 2.5,
-                 '%d tok against %d' % (debug.approx_tokens(debug.SYSTEM),
-                                        debug.approx_tokens(runmod.SYSTEM)))
+                 context.approx_tokens(words.SYSTEM)
+                 < context.approx_tokens(runmod.SYSTEM) / 2.5,
+                 '%d tok against %d' % (context.approx_tokens(words.SYSTEM),
+                                        context.approx_tokens(runmod.SYSTEM)))
 
-    costs = {name: chat([], tools=name).tool_cost() for name in debug.SETS}
+    costs = {name: chat([], tools=name).tool_cost() for name in words.SETS}
     report.check('a tool subset costs less per turn than the whole set',
                  costs['read'] < costs['all'] / 1.5 and costs['none'] < 5,
                  ' '.join('%s=%d' % kv for kv in sorted(costs.items())))
@@ -161,7 +163,7 @@ def test_debug(report):
     blob = json.dumps(sent)
     report.check('the system prompt leads every turn',
                  sent[0]['role'] == 'system'
-                 and sent[0]['content'].startswith(debug.SYSTEM),
+                 and sent[0]['content'].startswith(words.SYSTEM),
                  sent[0]['content'][-60:].replace('\n', ' '))
     report.check('an old tool result is stubbed to its first line',
                  '128 samples' in sent[2]['content'] and 'xxxx' not in blob,
@@ -172,9 +174,9 @@ def test_debug(report):
     # SYSTEM plus a slack number: the hints, the language line and the model's
     # own tag are all in there, and a magic +40 tips over every time one of
     # them gains a sentence.
-    whole = (debug.approx_tokens(json.dumps(session.history))
+    whole = (context.approx_tokens(json.dumps(session.history))
              + session.tool_cost()
-             + debug.approx_tokens(session.trim()[0]['content']))
+             + context.approx_tokens(session.trim()[0]['content']))
     report.check('trimming is what the cost estimate measures',
                  session.context_cost() < whole,
                  '%d tok trimmed against %d whole'
@@ -240,7 +242,7 @@ def test_debug(report):
                  broken.command('/reconnect'))
     report.check('/tools reprices the turn',
                  'tok/turn' in (session.command('/tools read') or '')
-                 and session.tool_names == debug.SETS['read'])
+                 and session.tool_names == words.SETS['read'])
     report.check('/ctx explains where the tokens go',
                  'of it tools' in (session.command('/ctx') or ''))
     report.check('/clear is the cheapest command there is',
@@ -862,6 +864,7 @@ def test_detail(report):
     out of.
     """
     from coaxial_ollama import debug
+    from coaxial_ollama import words
 
     report.check('a tag that names its size decides on the size',
                  detail.parse_billions('gemma4:12b') == 12.0
@@ -903,7 +906,7 @@ def test_detail(report):
         else:
             os.environ[detail.ENV] = env
 
-    specs = [s for s in toolmod.TOOLS if s['name'] in debug.SETS['code']]
+    specs = [s for s in toolmod.TOOLS if s['name'] in words.SETS['code']]
     full = json.dumps(toolmod.schemas(specs, detail.FULL))
     terse = json.dumps(toolmod.schemas(specs, detail.TERSE))
     report.check('the default tool set costs meaningfully less terse',
@@ -1208,6 +1211,7 @@ def test_docs(report):
 
     # The bench prompt has to point at the tool, or nothing above matters.
     from coaxial_ollama import debug, runner
+    from coaxial_ollama import words
     # Not in SYSTEM any more: the language is worked out here and named in the
     # turn's system message, because a model asked to work it out itself
     # answered a European question in Chinese.
@@ -1402,40 +1406,40 @@ def test_docs(report):
     # the model called docs and answered with HARDWARE.md's own channel table
     # instead of a reading.
     report.check('the bench prompt does not send the model to the documents',
-                 'docs' not in debug.SYSTEM and 'FINDINGS' not in debug.SYSTEM)
+                 'docs' not in words.SYSTEM and 'FINDINGS' not in words.SYSTEM)
     report.check('the docs warning is there for a session that does ask',
-                 'never docs' in debug.DOCS_HINT)
+                 'never docs' in words.DOCS_HINT)
     report.check('and never to restate a result already printed above',
-                 'restate' in debug.SYSTEM)
+                 'restate' in words.SYSTEM)
     report.check('afe_power is never framed as refusable',
-                 'afe_power' in debug.SYSTEM and 'order to do it' in debug.SYSTEM)
+                 'afe_power' in words.SYSTEM and 'order to do it' in words.SYSTEM)
 
     # The line that taught the error.
     report.check('SYSTEM does not tell the model a list is a reading',
-                 'table or list' not in debug.SYSTEM,
-                 [l for l in debug.SYSTEM.splitlines() if 'analog_read' in l][:1])
+                 'table or list' not in words.SYSTEM,
+                 [l for l in words.SYSTEM.splitlines() if 'analog_read' in l][:1])
     # The rule, not the sentence: board_info owns the map, and "list" is named
     # as the word that decides nothing.
     report.check('it names board_info as the map, and disowns "list"',
-                 'board_info' in debug.SYSTEM
-                 and 'never "list"' in debug.SYSTEM,
-                 [l for l in debug.SYSTEM.splitlines() if 'board_info' in l])
+                 'board_info' in words.SYSTEM
+                 and 'never "list"' in words.SYSTEM,
+                 [l for l in words.SYSTEM.splitlines() if 'board_info' in l])
     report.check('and digital_read for a pin, beside analog_read',
-                 'digital_read' in debug.SYSTEM and 'analog_read' in debug.SYSTEM)
+                 'digital_read' in words.SYSTEM and 'analog_read' in words.SYSTEM)
     report.check('and a read with AFE off is never framed as impossible',
-                 'AFE on or off and reports' in debug.SYSTEM)
+                 'AFE on or off and reports' in words.SYSTEM)
     report.check('and afe_power never fires as a side effect of a reading',
-                 'never afe_power first' in debug.SYSTEM)
+                 'never afe_power first' in words.SYSTEM)
     report.check("and mid-scale is the tool's fact to report, not the prompt's "
                  'to recite',
-                 'mid-scale' not in debug.SYSTEM)
+                 'mid-scale' not in words.SYSTEM)
     report.check('the runner tells it too',
                  'docs' in runner.SYSTEM and 'FINDINGS' in runner.SYSTEM)
     report.check('no default tool set offers docs - only `docs` and `all`',
-                 not any('docs' in debug.SETS[s]
+                 not any('docs' in words.SETS[s]
                          for s in ('read', 'code', 'pins', 'build'))
-                 and 'docs' in debug.SETS['docs']
-                 and 'docs' in debug.SETS['all'])
+                 and 'docs' in words.SETS['docs']
+                 and 'docs' in words.SETS['all'])
 
 
 ROSTER = (

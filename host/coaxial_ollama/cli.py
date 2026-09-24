@@ -3,22 +3,24 @@ import argparse
 import json
 import os
 import sys
+from contextlib import suppress
+
 from .capability import choose, probe
 from .tools import Toolbox
-from coaxial.simulated import SimulatedSession
 from coaxial.comm import session as sessionmod
-from contextlib import suppress
+from coaxial.simulated import SimulatedSession
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial.errors import RigError                  # noqa: E402
-from coaxial_mcp import detail, render  # noqa: E402
 from . import language                               # noqa: E402
 from . import spinner as spin                        # noqa: E402
 from .client import Ollama, OllamaError              # noqa: E402
-from .debug import Chat, PROMPT, _printable          # noqa: E402
 from .iolog import IOLog                             # noqa: E402
 from .sandbox import Scope, Shell, clip, clip_ends   # noqa: E402
+from coaxial.errors import RigError                  # noqa: E402
+from coaxial_mcp import detail, render  # noqa: E402
+from coaxial_ollama.debug import Chat, _printable  # noqa: E402
+from coaxial_ollama.words import PROMPT
 
 
 # Two numbers, because the modes want opposite things.

@@ -1,5 +1,6 @@
 """Compile the operator's sentence into a plan, before the model sees it."""
 import json
+
 from .client import FAULTS
 
 # What an operator can be asking for at this bench.

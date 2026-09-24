@@ -11,6 +11,7 @@ from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession,
 def test_afe_trace(report):
     """A switch that did what it was told needs no line of its own."""
     from coaxial_ollama import debug
+    from coaxial_ollama import turn
 
     for action, raw, silent, why in (
             ('on', 'on=1 pe15=0', True, 'did what it was told'),
@@ -21,13 +22,13 @@ def test_afe_trace(report):
             ('read', 'on=1 pe15=0', False, 'the state is the answer'),
             ('on', 'ERR ConnectError: cable pulled', False, 'an error'),
             ('on', 'ERR not asked for', True, 'a refusal it recovers from')):
-        got = debug._afe_noise('afe_power', {'action': action}, raw)
+        got = turn._afe_noise('afe_power', {'action': action}, raw)
         report.check('afe_power %s -> %s (%s)'
                      % (action, 'silent' if silent else 'traced', why),
                      got is silent, 'silent' if got else 'traced')
 
     report.check('and no other tool is quietened by this',
-                 not debug._afe_noise('analog_read', {}, 'on=1 pe15=0'))
+                 not turn._afe_noise('analog_read', {}, 'on=1 pe15=0'))
 
     # End to end: the turn shows the answer, and nothing above it.
     screen = io.StringIO()
@@ -83,9 +84,9 @@ def test_digital_read(report):
                  'PB10' not in hot and 'PA13' not in hot)
 
     # A tool the model cannot call is a tool that does not exist.
-    from coaxial_ollama import debug as debugmod
+    from coaxial_ollama import words
     missing = [name for name in ('read', 'code', 'pins')
-               if 'digital_read' not in debugmod.SETS[name]]
+               if 'digital_read' not in words.SETS[name]]
     report.check('and the sets a bench session runs actually offer it',
                  not missing, ', '.join(missing) or 'read, code, pins')
 

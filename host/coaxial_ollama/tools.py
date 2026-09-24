@@ -15,16 +15,15 @@ from typing import Any
 _HOST = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _HOST)
 
+from .sandbox import clip_ends                             # noqa: E402
+from coaxial.comm import ports                                  # noqa: E402
 from coaxial.errors import LINK_FAULTS, RigError          # noqa: E402
 from coaxial_mcp import detail                            # noqa: E402
 from coaxial_mcp import render                            # noqa: E402
-from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
 from coaxial_mcp.schema import TOOLS as BOARD_TOOLS  # noqa: E402
 from coaxial_mcp.schema import coerce as board_coerce  # noqa: E402
+from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
 from tools.target import find_board                                          # noqa: E402
-from coaxial.comm import ports                                  # noqa: E402
-
-from .sandbox import clip_ends                             # noqa: E402
 
 # The ceiling on anything a tool may put in front of the model, in characters -
 # about a thousand tokens.

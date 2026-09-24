@@ -4,9 +4,9 @@ import json
 import os
 import sys
 import time
+from contextlib import suppress
 
 from .sandbox import clip
-from contextlib import suppress
 
 
 # host/prompt_io.tmp - resolved from this file's own location, not the caller's

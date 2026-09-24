@@ -13,6 +13,7 @@ def test_bus(report):
                                    SimulatedSession as Sim)
     from coaxial_mcp import tools as mcp
     from coaxial_ollama import debug
+    from coaxial_ollama import words
 
     session = Sim()
 
@@ -82,7 +83,7 @@ def test_bus(report):
                                                             samples=8))
 
     report.check('and the model is offered the tool at all',
-                 all('devices' in debug.SETS[name]
+                 all('devices' in words.SETS[name]
                      for name in ('read', 'code', 'pins')))
 
     # Node 0 is the Modbus broadcast address, not a node.

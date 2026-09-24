@@ -2,10 +2,10 @@
 import json
 import os
 import time
+from typing import Any
 
 from. import context
 from . import tools as toolmod
-from typing import Any
 
 SYSTEM = """You are driving a hardware test bench from a written test plan.
 

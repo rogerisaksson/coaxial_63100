@@ -351,6 +351,7 @@ def test_fallback(report):
     """No cable is not a failing test suite - it is a different board."""
     from coaxial.comm.session import open_session
     from coaxial_ollama import debug
+    from coaxial_ollama import words
     from coaxial_ollama import spinner as spin
 
     session, found = open_session(simulated=True)
@@ -477,13 +478,13 @@ def test_fallback(report):
             ('beskriv hårdvaran för en novis', None),
             # Names a board, orders nothing.
             ('debugproben är inte inkopplad', None)):
-        got = debug.board_switch(question)
+        got = words.board_switch(question)
         report.check('board order: %s' % question[:34], got == want, str(got))
 
     # A pipe is not a console.
     mangled = 'byter du till simulerat läge'.encode('utf-8').decode('cp1252')
     report.check('the mangling really does hide the order',
-                 debug.board_switch(mangled) is None, mangled[-12:])
+                 words.board_switch(mangled) is None, mangled[-12:])
     report.check('so a pipe is decoded as UTF-8, like the outputs are',
                  debug._printable(_NotATty()) is not None
                  and _NotATty.asked == {'encoding': 'utf-8',
