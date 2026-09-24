@@ -239,12 +239,14 @@ SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
 #: A corner pass comes in from its side's edge and arcs down through the bottom corner,
 #: diving out under the frame, rolling to ROLL into its turn and yawing YAW each way
 #: through it; none where the corner has under LEAST lengths.
-#: A fly-by comes up from behind, BY_SIZE columns long, and climbs near vertical toward
-#: space in its side's lane - BY_LANE columns in from the edge, out beyond it where the
-#: bound comes near - shrinking to BY_FAR of that and dimming to BY_HAZE as it goes, a roll
-#: over BY_ROLL of the way. A FLAME lengths long flickers at its tail; its smoke is left in
-#: PUFFS puffs each PUFF_EVERY of the way, swelling to its reach then, thinning, drifting
-#: out past the edge as we pass.
+#: A fly-by climbs toward space ahead of us, near vertical, in its side's lane - BY_LANE
+#: columns in from the edge, out beyond it where the bound comes near - from BY_START of the
+#: frame down. We close on it: it grows from BY_FAR of BY_SIZE columns to the whole as an
+#: approach magnifies (1 / (1 - (1 - BY_FAR) k)), its haze lifting from BY_HAZE, and moves
+#: with its growth - slow far off, a swish out over the top edge near. A roll over BY_ROLL
+#: of the way. A FLAME lengths long flickers at its tail; its smoke is left in PUFFS puffs
+#: each PUFF_EVERY of the way, swelling to its reach then, thinning, drifting out past the
+#: edge as we pass.
 #: CRAFT columns nose to tail at a 150-column frame: a spinner seen from above in steel
 #: alone - a wedge lit along its spine, swept fins lit by its bank, a glinting canopy - its
 #: trail fading along its path for TRAIL lengths. One colour a cell: lights of other
@@ -266,7 +268,8 @@ ROLL = 35.0
 YAW = 22.0
 BY_SIZE = 16.0
 BY_FAR = 0.12
-BY_HAZE = 0.7
+BY_HAZE = 0.6
+BY_START = 0.3
 BY_ROLL = (0.15, 0.55)
 BY_LANE = 9.0
 FLAME = 0.45
@@ -395,22 +398,19 @@ def _corner(width, height, side, board):
 
 
 def _by(width, height, side, board):
-    """(track, size) of a fly-by: up from under the bottom edge to over the top, faster and
-    smaller as it climbs, in its lane but CLEAR and its reach off the bound at every size."""
+    """(track, size) of a fly-by: from BY_START of the frame down, up and out over the top
+    edge as it grows, in its lane but CLEAR and its reach off the bound at every size."""
     cx, cy, reach = board
     near = BY_SIZE * width / 150.0
     lane = BY_LANE * width / 150.0
     edge = 0.0 if side > 0 else float(width)
-    low, high = height + REACH * near / ASPECT, -1.0 - REACH * near * BY_FAR / ASPECT
-
-    def climbed(k):
-        return 0.35 * k + 0.65 * k * k
+    low, high = BY_START * height, -1.0 - REACH * near / ASPECT
 
     def size(k):
-        return near * BY_FAR ** climbed(k)
+        return near * BY_FAR / (1.0 - (1.0 - BY_FAR) * k)
 
     def track(k):
-        y = low + (high - low) * climbed(k)
+        y = low + (high - low) * (size(k) - near * BY_FAR) / (near - near * BY_FAR)
         rim = reach + CLEAR + REACH * size(k)
         dy = (y - cy) * ASPECT
         # Columns in from the edge to the bound at this row: the lane where it has room.
@@ -454,7 +454,7 @@ def _pose(width, height, t, board):
     return {'k': k, 'side': side, 'kind': kind, 'x': x, 'y': y, 'heading': heading,
             'bank': math.copysign(max(0.15, abs(bank)), bank), 'roll': roll, 'size': size(k),
             'sized': size,
-            'fade': 1.0 if kind == 'corner' else 1.0 - (1.0 - BY_HAZE) * k * k,
+            'fade': 1.0 if kind == 'corner' else BY_HAZE + (1.0 - BY_HAZE) * k,
             'speed': math.hypot(x1 - x, (y1 - y) * ASPECT) / 0.01, 'track': track}
 
 
