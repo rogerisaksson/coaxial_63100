@@ -1,4 +1,5 @@
 """The acquisition surface, named in one place."""
+import time
 from abc import ABC, abstractmethod
 
 
@@ -33,3 +34,20 @@ class Acquisition(ABC):
     @abstractmethod
     def state(self):
         """How the task is doing: rate, what is buffered, what was lost."""
+
+    @abstractmethod
+    def shape(self, sections=(), decimate=1):
+        """Load an anti-alias chain; none clears it."""
+
+    def sweep_rate(self, channels, records=300, timeout=6.0):
+        """Sweeps a second the poll loop manages over `channels`: a finite burst, timed."""
+        self.shape()
+        self.configure(channels, accumulate=1, digital=True, records=records, interval_us=0)
+        began = time.time()
+        self.start()
+        while time.time() - began < timeout and not self.state()['done']:
+            time.sleep(0.005)
+        span = time.time() - began
+        state = self.state()
+        self.stop()
+        return (state['produced'] + state['dropped']) / max(span, 1e-6)

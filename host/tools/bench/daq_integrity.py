@@ -1,57 +1,74 @@
-"""Does the whole path carry every sample it was given - and stop the rest?
+"""Does the path carry every sample it was given, and stop the rest?
 
-A known tone is generated ON THE TARGET, filtered by the chain the host
-designed, decimated into the ring, and read back over the link. The host
-knows the frequency, the sample rate and the decimation, so it knows what
-every output sample should be. That is what makes this a transfer test
-rather than a measurement: a record that fell out of the ring, a block read
-twice, a byte lost in a frame all show up as a phase that jumped, and
-nothing else does.
+A tone or a ramp generated on the target, filtered by the host's chain,
+decimated into the ring and read back. The host knows every output sample,
+so a lost record shows as a phase step and nothing else does. No analog
+path is involved.
 
-Two passes, because the chain has two jobs:
+    exact transport   a ramp, every record the exact integer it should be
+    exact filter      the same ramp through the biquads, against float64
+    in band           a tone the chain passes: whole amplitude, no phase step
+    out of band       a tone above the output Nyquist: stopped, not folded
 
-  in band   a tone the filter is meant to pass. It must arrive with its
-            amplitude and with a phase that never steps - that is the
-            transfer being honest.
-  out of    a tone above the output's Nyquist. It must NOT arrive. An
-  band      unfiltered decimation would fold it into the passband as
-            something that was never there, which is the whole reason the
-            filter is in the path.
-
-    cd host
-    python tools/bench/daq_integrity.py
-    python tools/bench/daq_integrity.py --alias 100000 --rate 1000000
-
-Nothing analog is involved: with a tone on, the meter is not read at all.
-The answer says whether the LINK and the RING are honest, not the front end.
+    python tools/bench/daq_integrity.py [--alias 100000 --rate 1000000]
 """
 import argparse
+import cmath
 import math
 import os
 import sys
-import time
-from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-import cmath  # noqa: E402
 
 from coaxial import Coaxial63100  # noqa: E402
 from coaxial.acquire import bessel  # noqa: E402
 from coaxial.errors import RigError  # noqa: E402
 
+
 class Report:
 
-    """What passed and what did not, a line each."""
+    """A line per check; the verdict is the exit code."""
 
     def __init__(self):
         self.passed = self.failed = 0
 
     def check(self, what, ok, detail=''):
         self.passed += bool(ok)
-        self.failed += (not ok)
+        self.failed += not ok
         print('  %s  %-44s %s' % ('PASS' if ok else 'FAIL', what, detail))
 
+    def verdict(self):
+        print('\n%d passed, %d failed' % (self.passed, self.failed))
+        return 1 if self.failed else 0
+
+
+# -- the run ------------------------------------------------------------------
+
+def run(daq, args, chain, **tone):
+    """Chain loaded, generator on, one run collected; the path left clear."""
+    layout = daq.configure(args.channels.split(','), chain=chain, digital=False)
+    daq.tone(**tone)
+    try:
+        return layout, daq.collect(args.records, timeout=args.seconds)
+    finally:
+        daq.tone(0)
+        daq.shape()
+
+
+def ramp_run(daq, args, sections):
+    """The ramp through `sections`, at a rate the link drains."""
+    rate = int(args.exact_out * args.accumulate * args.decimate)
+    chain = {'boxcar': args.accumulate, 'sections': sections, 'decimate': args.decimate}
+    return run(daq, args, chain, hz=args.step, rate_hz=rate, amplitude=args.modulus,
+               offset=0, kind=1)
+
+
+def tone_run(daq, args, chain, hz):
+    return run(daq, args, chain, hz=hz, rate_hz=args.rate, amplitude=args.amplitude,
+               offset=args.offset)
+
+
+# -- the arithmetic -------------------------------------------------------------
 
 def fold(f, rate):
     """Where a tone lands after sampling at `rate`."""
@@ -60,7 +77,7 @@ def fold(f, rate):
 
 
 def project(values, hz, rate):
-    """The amplitude of `hz` in `values`, by projection."""
+    """The amplitude of `hz` in `values`."""
     n = len(values)
     if n < 8:
         return 0.0
@@ -73,7 +90,7 @@ def project(values, hz, rate):
 
 
 def phase_steps(values, hz, rate, window):
-    """How far the tone's phase moved between windows."""
+    """The tone's phase step between windows, and how many windows."""
     mean = sum(values) / len(values)
     phases = []
     for start in range(0, len(values) - window + 1, window):
@@ -81,61 +98,22 @@ def phase_steps(values, hz, rate, window):
                   for i in range(start, start + window))
         if abs(acc) > 1e-9:
             phases.append(cmath.phase(acc))
-
-    steps = []
-    for before, after in zip(phases, phases[1:]):
-        step = after - before
-        while step > math.pi:
-            step -= 2.0 * math.pi
-        while step < -math.pi:
-            step += 2.0 * math.pi
-        steps.append(step)
+    steps = [(b - a + math.pi) % (2.0 * math.pi) - math.pi for a, b in zip(phases, phases[1:])]
     return steps, len(phases)
 
 
 def settle_records(chain):
-    """Records to throw away before judging: the filter's own settling."""
+    """Records the filter takes to settle."""
     return max(16, int(3.0 * chain['out_rate'] / chain['cutoff']))
 
 
-def capture(device, chain, hz, args):
-    """One pass: load the chain, run the tone, drain the ring."""
-    daq = device.daq
-    daq.shape()                        # cleared first - configure refuses a
-    layout = daq.configure(args.channels.split(','),   # clock-closed record
-                           accumulate=chain['boxcar'], digital=False)
-    daq.shape(chain['sections'], chain['decimate'])
-    daq.tone(hz=hz, rate_hz=args.rate, amplitude=args.amplitude,
-             offset=args.offset)
-    daq.start()
-
-    got, began = [], time.time()
-    while len(got) < args.records and time.time() - began < args.seconds:
-        block = daq.acquire()
-        if block:
-            got.extend(block)
-        else:
-            time.sleep(0.002)
-    span = time.time() - began
-    state = daq.state()
-    daq.stop()
-    daq.tone(0)
-    daq.shape()
-    return layout, got, state, span
-
-
 def ramp_record(first_sample, n, step, modulus, offset):
-    """The exact integer a record holds, for `n` ramp samples from
-    `first_sample`.
-    """
-    return sum(offset + ((first_sample + i) * step) % modulus
-               for i in range(n))
+    """The integer a record holds for `n` ramp samples from `first_sample`."""
+    return sum(offset + ((first_sample + i) * step) % modulus for i in range(n))
 
 
 def biquad_run(sections, values):
-    """The cascade in float64, transposed DF2 - the same difference
-    equation `filter/src/filter.c` runs, so a per-sample comparison is of
-    the arithmetic and not of two different filters."""
+    """The cascade in float64, transposed DF2 - filter/src/filter.c's equation."""
     state = [[0.0, 0.0] for _ in sections]
     out = []
     for x in values:
@@ -148,291 +126,197 @@ def biquad_run(sections, values):
     return out
 
 
-def ramp_capture(device, args, sections, report):
-    """Configure, run the ramp, drain. Shared by both exact passes."""
-    daq = device.daq
-    daq.shape()
-    layout = daq.configure(args.channels.split(','),
-                           accumulate=args.accumulate, digital=False)
-    daq.shape(sections, args.decimate)
-    # A RATE THE LINK CAN DRAIN.
-    rate = int(args.exact_out * args.accumulate * args.decimate)
-    daq.tone(hz=args.step, rate_hz=rate, amplitude=args.modulus,
-             offset=0, kind=1)
-    daq.start()
-
-    got, began = [], time.time()
-    while len(got) < args.records and time.time() - began < args.seconds:
-        block = daq.acquire()
-        if block:
-            got.extend(block)
-        else:
-            time.sleep(0.002)
-    span = time.time() - began
-    state = daq.state()
-    daq.stop()
-    daq.tone(0)
-    daq.shape()
-
-    report.check('records arrived', len(got) > 32,
-                 '%d in %.2f s' % (len(got), span))
-    report.check('the ring dropped nothing', state['dropped'] == 0,
-                 '%d dropped, peak %s of %s' % (state['dropped'],
-                                                state.get('worst'),
-                                                state.get('capacity')))
-    return layout, got
+def means(layout, got, chain):
+    """Each record's mean, after the filter settled."""
+    name = layout['fields'][0]['signal']
+    return [r[name] / max(1, r['samples']) for r in got.records[settle_records(chain):]]
 
 
-def pass_exact_transport(device, args, report):
-    """EVERY RECORD, EXACTLY."""
-    print('\n-- exact: a ramp, %d summed, every %dth kept --'
-          % (args.accumulate, args.decimate))
-    layout, got = ramp_capture(device, args, (), report)
-    if len(got) <= 32:
-        return
+def first_boxcar(layout, got, args):
+    """Every boxcar the first record can have come from, and those that explain all records."""
     name = layout['fields'][0]['signal']
     n, dec = args.accumulate, args.decimate
-
-    # WHICH BOXCAR THE FIRST RECORD CAME FROM IS NOT ON THE WIRE - the
-    # generator starts with the task and the host reads when it can.
-    first = got[0][name]
     starts = [b for b in range(args.search)
-              if ramp_record(b * n, n, args.step, args.modulus, 0) == first]
-
+              if ramp_record(b * n, n, args.step, args.modulus, 0) == got.records[0][name]]
     fits, best = [], None
     for base in starts:
-        wrong = []
-        for k, record in enumerate(got):
-            want = ramp_record((base + k * dec) * n, n, args.step,
-                               args.modulus, 0)
-            if record[name] != want:
-                wrong.append((k, record[name], want))
-                break
-        if not wrong:
+        wrong = next(((k, r[name], want) for k, r in enumerate(got.records)
+                      for want in [ramp_record((base + k * dec) * n, n, args.step,
+                                               args.modulus, 0)] if r[name] != want), None)
+        if wrong is None:
             fits.append(base)
-        elif best is None or wrong[0][0] > best[0][0]:
+        elif best is None or wrong[0] > best[0]:
             best = wrong
-    report.check('EVERY record is the exact integer it should be',
-                 len(fits) >= 1,
-                 '%d records, %d candidate start(s), %d explain all of them%s'
-                 % (len(got), len(starts), len(fits),
-                    '' if fits or not best else
-                    '; best diverges at %d: got %d want %d' % best[0]))
-
-    counts = sorted(set(r['samples'] for r in got))
-    report.check('and carries the sample count that made it', counts == [n],
-                 'counts seen: %s' % counts)
-
-    # One record, two fields, both fed the same sample: a stride that slipped
-    # would show here and nowhere else.
-    if len(layout['fields']) > 1:
-        other = layout['fields'][1]['signal']
-        report.check('both fields of a record hold the same sample',
-                     all(r[other] == r[name] for r in got),
-                     '%s against %s over %d records'
-                     % (other, name, len(got)))
+    return starts, fits, best
 
 
-def pass_exact_filter(device, chain, args, report):
-    """The filter, per sample, against the same arithmetic in float64."""
-    print('\n-- exact: the same ramp through %d biquads --'
-          % len(chain['sections']))
-    layout, got = ramp_capture(device, args, chain['sections'], report)
-    if len(got) <= 32:
+# -- the passes -----------------------------------------------------------------
+
+def arrived(report, got, least):
+    report.check('records arrived', len(got.records) > least,
+                 '%d in %.2f s' % (len(got.records), got.seconds))
+    return len(got.records) > least
+
+
+def dropped_nothing(report, got):
+    report.check('the ring dropped nothing', got.state['dropped'] == 0,
+                 '%d dropped, peak %s of %s' % (got.state['dropped'], got.state.get('worst'),
+                                                got.state.get('capacity')))
+
+
+def exact_transport(daq, chain, args, report):
+    """Every record, exactly."""
+    print('\n-- exact: a ramp, %d summed, every %dth kept --' % (args.accumulate, args.decimate))
+    layout, got = ramp_run(daq, args, ())
+    if not arrived(report, got, 32):
         return
+    dropped_nothing(report, got)
+    starts, fits, best = first_boxcar(layout, got, args)
+    report.check('EVERY record is the exact integer it should be', len(fits) >= 1,
+                 '%d records, %d candidate start(s), %d explain all%s'
+                 % (len(got.records), len(starts), len(fits),
+                    '' if fits or not best else '; best diverges at %d: got %d want %d' % best))
+    counts = sorted(set(r['samples'] for r in got.records))
+    report.check('and carries the sample count that made it', counts == [args.accumulate],
+                 'counts seen: %s' % counts)
+    fields = [f['signal'] for f in layout['fields']]
+    if len(fields) > 1:
+        report.check('both fields of a record hold the same sample',
+                     all(r[fields[1]] == r[fields[0]] for r in got.records),
+                     '%s against %s over %d records' % (fields[1], fields[0], len(got.records)))
+
+
+def exact_filter(daq, chain, args, report):
+    """The biquads per sample, against the same arithmetic in float64."""
+    print('\n-- exact: the same ramp through %d biquads --' % len(chain['sections']))
+    layout, got = ramp_run(daq, args, chain['sections'])
+    if not arrived(report, got, 32):
+        return
+    dropped_nothing(report, got)
     name = layout['fields'][0]['signal']
     n, dec = args.accumulate, args.decimate
-
-    # The board starts the filter from rest with the task, so the host runs the
-    # whole sequence from the same rest.
-    means = [ramp_record(b * n, n, args.step, args.modulus, 0) / float(n)
-             for b in range((len(got) + 2) * dec)]
-    kept = biquad_run(chain['sections'], means)
-
-    # IN CODES, not relative to the sample.
-    worst, at = 0.0, -1
-    for k, record in enumerate(got):
-        want = kept[(k + 1) * dec - 1]
-        error = abs(float(record[name]) / n - want)
-        if error > worst:
-            worst, at = error, k
-    report.check('EVERY sample matches the same filter in double precision',
-                 worst < 0.05,
+    boxcars = [ramp_record(b * n, n, args.step, args.modulus, 0) / float(n)
+               for b in range((len(got.records) + 2) * dec)]
+    kept = biquad_run(chain['sections'], boxcars)
+    errors = [abs(float(r[name]) / n - kept[(k + 1) * dec - 1]) for k, r in enumerate(got.records)]
+    worst = max(errors)
+    report.check('EVERY sample matches the same filter in double precision', worst < 0.05,
                  'worst %.4f codes of a %d-code ramp, at record %d of %d'
-                 % (worst, args.modulus, at, len(got)))
+                 % (worst, args.modulus, errors.index(worst), len(got.records)))
 
 
-def pass_in_band(device, chain, args, report):
-    """A tone the chain passes: it must arrive whole and in step."""
-    hz = args.tone
-    print('\n-- in band: %d Hz, which the chain is meant to pass --' % hz)
-    layout, got, state, span = capture(device, chain, hz, args)
-    name = layout['fields'][0]['signal']
-    settle = settle_records(chain)
-
-    report.check('records arrived',
-                 len(got) > 64 + settle,
-                 '%d in %.2f s, %.0f/s against %.0f asked for'
-                 % (len(got), span, len(got) / max(span, 1e-6),
-                    chain['out_rate']))
-    if len(got) <= 64 + settle:
+def in_band(daq, chain, args, report):
+    """A tone the chain passes: whole, and in step."""
+    print('\n-- in band: %d Hz, which the chain is meant to pass --' % args.tone)
+    layout, got = tone_run(daq, args, chain, args.tone)
+    if not arrived(report, got, 64 + settle_records(chain)):
         return
-
-    report.check('the ring dropped nothing', state['dropped'] == 0,
-                 '%d dropped, peak %s of %s records held'
-                 % (state['dropped'], state.get('worst'), state.get('capacity')))
-    counts = sorted(set(r['samples'] for r in got))
+    dropped_nothing(report, got)
+    counts = sorted(set(r['samples'] for r in got.records))
     report.check('every record holds the same sample count', len(counts) == 1,
                  'counts seen: %s' % counts)
 
-    values = [r[name] / max(1, r['samples']) for r in got[settle:]]
-    lands = fold(hz, chain['out_rate'])
-    got_amp = project(values, lands, chain['out_rate'])
-    want = args.amplitude * bessel.chain_gain(chain, hz)
-
+    values = means(layout, got, chain)
+    lands = fold(args.tone, chain['out_rate'])
+    amplitude = project(values, lands, chain['out_rate'])
+    want = args.amplitude * bessel.chain_gain(chain, args.tone)
     report.check('the tone arrived at the amplitude the design predicted',
-                 abs(got_amp - want) < max(0.2 * want, 2.0),
-                 '%.1f codes at %.1f Hz, design says %.1f' % (got_amp, lands, want))
+                 abs(amplitude - want) < max(0.2 * want, 2.0),
+                 '%.1f codes at %.1f Hz, design says %.1f' % (amplitude, lands, want))
 
     window = max(16, int(2.0 * chain['out_rate'] / max(lands, 1.0)))
     if len(values) < 4 * window:
         print('  ....  too few records for a phase track (%d)' % len(values))
         return
     steps, windows = phase_steps(values, lands, chain['out_rate'], window)
-    worst = max((abs(s) for s in steps), default=0.0)
-    # One lost record moves every sample after it by a whole sample's worth of
-    # phase.
-    per_record = 2.0 * math.pi * lands / chain['out_rate']
-    ranked = sorted((abs(s) for s in steps), reverse=True)
+    ranked = sorted((abs(s) for s in steps), reverse=True) or [0.0]
+    per_record = 2.0 * math.pi * lands / chain['out_rate']        # one lost record's step
     report.check('the phase never jumped - nothing fell out of the stream',
-                 worst < 0.35 * per_record,
-                 'worst step %.4f rad, one lost record would be %.4f, over '
-                 '%d windows (next three %s)'
-                 % (worst, per_record, windows,
-                    ', '.join('%.3f' % s for s in ranked[1:4])))
+                 ranked[0] < 0.35 * per_record,
+                 'worst step %.4f rad, one lost record %.4f, over %d windows (next %s)'
+                 % (ranked[0], per_record, windows, ', '.join('%.3f' % s for s in ranked[1:4])))
 
 
-def pass_out_of_band(device, chain, args, report):
-    """A tone above the output's Nyquist: it must not come through."""
-    hz = args.alias
-    lands = fold(hz, chain['out_rate'])
-    print('\n-- out of band: %d Hz, which would fold onto %.1f Hz --'
-          % (hz, lands))
-    layout, got, state, span = capture(device, chain, hz, args)
-    name = layout['fields'][0]['signal']
-    settle = settle_records(chain)
-
-    report.check('records arrived', len(got) > 64 + settle,
-                 '%d in %.2f s, %d dropped as the filter settled'
-                 % (len(got), span, settle))
-    if len(got) <= 64 + settle:
+def out_of_band(daq, chain, args, report):
+    """A tone above the output's Nyquist: stopped."""
+    lands = fold(args.alias, chain['out_rate'])
+    print('\n-- out of band: %d Hz, which would fold onto %.1f Hz --' % (args.alias, lands))
+    layout, got = tone_run(daq, args, chain, args.alias)
+    if not arrived(report, got, 64 + settle_records(chain)):
         return
-
-    values = [r[name] / max(1, r['samples']) for r in got[settle:]]
-    leaked = project(values, lands, chain['out_rate'])
-    unfiltered = float(args.amplitude)
-    stopped = 20.0 * math.log10(max(leaked, 1e-9) / unfiltered)
-
-    report.check('the fold was stopped, not passed on',
-                 leaked < unfiltered * 0.02,
-                 '%.2f codes of %d got through: %.1f dB'
-                 % (leaked, args.amplitude, stopped))
+    dropped_nothing(report, got)
+    leaked = project(means(layout, got, chain), lands, chain['out_rate'])
+    stopped = 20.0 * math.log10(max(leaked, 1e-9) / args.amplitude)
+    predicted = 20.0 * math.log10(max(bessel.chain_gain(chain, args.alias), 1e-12))
+    report.check('the fold was stopped, not passed on', leaked < args.amplitude * 0.02,
+                 '%.2f codes of %d got through: %.1f dB' % (leaked, args.amplitude, stopped))
     report.check('stopped hard, not merely reduced', stopped < -40.0,
-                 'chain predicts %.1f dB here; measured %.1f'
-                 % (20.0 * math.log10(max(bessel.chain_gain(chain, hz), 1e-12)),
-                    stopped))
-    report.check('nothing was dropped doing it', state['dropped'] == 0,
-                 '%d dropped' % state['dropped'])
+                 'chain predicts %.1f dB here; measured %.1f' % (predicted, stopped))
 
 
-def main(argv=None):
+PASSES = (exact_transport, exact_filter, in_band, out_of_band)
+
+
+# -- the run of runs ------------------------------------------------------------
+
+def describe(rig, chain):
+    print('\n-- the chain --')
+    print('  link      %s' % rig.origin.label)
+    print('  design    boxcar %d x decimate %d, %d biquads, cutoff %.1f Hz'
+          % (chain['boxcar'], chain['decimate'], len(chain['sections']), chain['cutoff']))
+    print('  rejects   %.1f dB of what would fold, %.3f samples of group delay ripple'
+          % (chain['worst_alias_db'], chain['group_delay_samples']))
+    print('  carries   %d input samples a record, %.1f records a second'
+          % (chain['boxcar'] * chain['decimate'], chain['out_rate']))
+
+
+def folded_onto(tone, chain):
+    """The alias that lands exactly on `tone`: only the filter can tell them apart."""
+    harmonic = int(chain['fs'] / 4.0 / chain['out_rate'])
+    return int(harmonic * chain['out_rate']) + tone
+
+
+def arguments(argv):
     p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
-    p.add_argument('--tone', type=int, default=61,
-                   help='the in-band tone, Hz - it must survive the chain')
+    p.add_argument('--tone', type=int, default=61, help='in-band tone, Hz')
     p.add_argument('--alias', type=int, default=0,
-                   help='the out-of-band tone, Hz - it must not. Default 0 '
-                        'places it so it folds onto the in-band tone exactly: '
-                        'same output frequency, one real and one an alias, '
-                        'and the chain has to tell them apart')
-    p.add_argument('--rate', type=int, default=1000000,
-                   help='what the generator samples at, Hz')
-    p.add_argument('--out', type=float, default=500.0,
-                   help='records a second the link is to carry')
+                   help='out-of-band tone, Hz; 0 folds it onto --tone')
+    p.add_argument('--rate', type=int, default=1000000, help='generator rate, Hz')
+    p.add_argument('--out', type=float, default=500.0, help='records a second on the link')
     p.add_argument('--order', type=int, default=4)
     p.add_argument('--amplitude', type=int, default=12000)
     p.add_argument('--offset', type=int, default=32768)
     p.add_argument('--records', type=int, default=600)
     p.add_argument('--seconds', type=float, default=20.0)
     p.add_argument('--channels', default='Phase U,NTC')
-    p.add_argument('--accumulate', type=int, default=64,
-                   help='ramp samples summed into a record, exact passes')
-    p.add_argument('--decimate', type=int, default=4,
-                   help='boxcars kept, one in this many')
-    p.add_argument('--step', type=int, default=1,
-                   help='what the ramp adds each sample')
+    p.add_argument('--accumulate', type=int, default=64, help='ramp samples a record')
+    p.add_argument('--decimate', type=int, default=4, help='one boxcar kept in this many')
+    p.add_argument('--step', type=int, default=1, help='what the ramp adds a sample')
     p.add_argument('--modulus', type=int, default=4093,
-                   help='what the ramp counts up to. Prime, so its period '
-                        'and the record length share no factor and exactly '
-                        'one alignment fits')
-    p.add_argument('--exact-out', type=float, default=120.0,
-                   dest='exact_out',
-                   help='records a second for the exact passes. Under what '
-                        'the link drains, so the ring never overflows and '
-                        'the stream has no holes to excuse a mismatch')
+                   help='the ramp period; prime, so one alignment fits')
+    p.add_argument('--exact-out', type=float, default=120.0, dest='exact_out',
+                   help='records a second in the exact passes, under what the link drains')
     p.add_argument('--search', type=int, default=512,
-                   help='boxcars searched for where the first record came '
-                        'from. The first is boxcar decimate-1, so a few '
-                        'hundred is ample - and staying under the ramp period '
-                        'keeps the answer unique instead of one hit per '
-                        'period: 8192 found three, all of them the same phase')
-    args = p.parse_args(argv)
+                   help='boxcars searched for the first record; under the ramp period')
+    return p.parse_args(argv)
 
-    device = Coaxial63100(port=args.port, power_afe=True,
-                          simulated_device=bool(args.simulated))
-    daq = device.daq
-    try:
-        daq.open()
-    except RigError as exc:
-        print('  FAIL  could not open the board: %s' % exc)
-        return 1
 
-    chain = bessel.design(fs=float(args.rate), out_rate=float(args.out),
-                          order=args.order)
-    if not args.alias:
-        # Folded onto the in-band tone's own frequency: the strongest form of
-        # the question, because the two are then indistinguishable in the
-        # record and only the filter can have stopped one.
-        harmonic = int(chain['fs'] / 4.0 / chain['out_rate'])
-        args.alias = int(harmonic * chain['out_rate']) + args.tone
+def main(argv=None):
+    args = arguments(argv)
+    chain = bessel.design(fs=float(args.rate), out_rate=float(args.out), order=args.order)
+    args.alias = args.alias or folded_onto(args.tone, chain)
     report = Report()
-    print('\n-- the chain --')
-    print('  link      %s' % device.origin.label)
-    print('  design    boxcar %d x decimate %d, %d biquads, cutoff %.1f Hz'
-          % (chain['boxcar'], chain['decimate'], len(chain['sections']),
-             chain['cutoff']))
-    print('  rejects   %.1f dB of what would fold, %.3f samples of group '
-          'delay ripple' % (chain['worst_alias_db'],
-                            chain['group_delay_samples']))
-    print('  carries   %d input samples a record, %.1f records a second'
-          % (chain['boxcar'] * chain['decimate'], chain['out_rate']))
-
     try:
-        pass_exact_transport(device, args, report)
-        pass_exact_filter(device, chain, args, report)
-        pass_in_band(device, chain, args, report)
-        pass_out_of_band(device, chain, args, report)
+        with Coaxial63100(port=args.port, power_afe=True,
+                          simulated_device=args.simulated) as rig:
+            describe(rig, chain)
+            for check in PASSES:
+                check(rig.daq, chain, args, report)
     except RigError as exc:
         report.check('the board answered throughout', False, str(exc))
-    finally:
-        with suppress(RigError):
-            device.daq.tone(0)
-            device.daq.shape()
-        device.close()
-
-    print('\n%d passed, %d failed' % (report.passed, report.failed))
-    return 1 if report.failed else 0
+    return report.verdict()
 
 
 if __name__ == '__main__':

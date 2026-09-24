@@ -135,6 +135,24 @@ def test_read_stops_at_its_timeout(report):
                      '%s records in %.2f s' % (len(got or ()), took))
 
 
+def test_collect_is_one_run(report):
+    with opened() as device:
+        daq = device.daq
+        daq.configure('NTC', sample_rate=200)
+        run = daq.collect(20, timeout=5.0)
+        report.check('collect(n, timeout=) starts, reads n and stops',
+                     len(run.records) == 20 and not device.board.daq.state()['running'],
+                     '%d records' % len(run.records))
+        report.check('and says how long it took', 0 < run.seconds < 5.0, '%.2f s' % run.seconds)
+
+
+def test_sweep_rate_on_every_acquisition(report):
+    with opened() as device:
+        door = device.daq.sweep_rate(['NTC'], records=50)
+        report.check('sweep_rate() measures through the front door, and the board has it',
+                     door > 0 and callable(device.board.daq.sweep_rate), '%.0f sweeps/s' % door)
+
+
 def test_configure_takes_a_designed_chain(report):
     with opened() as device:
         chain = bessel.design(20000.0, 200.0)
@@ -504,7 +522,9 @@ def main():
     report = Report()
     for test in (test_catalogue, test_pick,
                  test_configure_takes_names_or_a_list,
-                 test_read_stops_at_its_timeout, test_configure_takes_a_designed_chain,
+                 test_read_stops_at_its_timeout, test_collect_is_one_run,
+                 test_sweep_rate_on_every_acquisition,
+                 test_configure_takes_a_designed_chain,
                  test_read_of_a_finite_run, test_read_of_a_running_task,
                  test_capture_is_a_single_shot,
                  test_the_task_brackets_itself,

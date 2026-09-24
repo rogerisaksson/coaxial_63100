@@ -56,7 +56,7 @@ class Later:
 #: What the acquisition front door answers. A whitelist, not everything:
 #: `daq.write` reaching the pin writer would put the device vocabulary
 #: behind the wrong name.
-DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
+DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop', 'collect', 'sweep_rate',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
             'configure_buffer', 'capture', 'enable', 'disable',

@@ -117,50 +117,50 @@ def _brief(name, got):
     return str(got)[:100]
 
 
-def main():
+def supply_line(supply):
+    volts = '%.2f' % supply['volts'] if supply['volts'] is not None else '?'
+    return 'gate supply %s V - %s' % (volts, 'powered' if supply['powered']
+                                      else 'UNPOWERED: switching steps run dry')
+
+
+def arguments(argv):
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--arm', action='store_true',
                    help='authorise gates.arm(bypass_sto=True, ignore_interlock=True)')
-    p.add_argument('--step', default='all',
-                   help='comma list of %s, or all' % ', '.join(STEPS))
+    p.add_argument('--step', default='all', help='comma list of %s, or all' % ', '.join(STEPS))
     p.add_argument('--iq', type=float, default=0.5, help='A, for verify')
     p.add_argument('--seconds', type=float, default=1.0, help='verify run')
     p.add_argument('--i-h-max', type=float, default=1.0, help='HF current ceiling, A')
     p.add_argument('--f-min', type=float, default=0.0, help='lowest f_inj, Hz')
     p.add_argument('--rated-rpm', type=float, default=3000.0)
     p.add_argument('--json', help='write every result here')
-    a = p.parse_args()
-
-    steps = STEPS if a.step == 'all' else tuple(s.strip() for s in a.step.split(','))
-    unknown = [s for s in steps if s not in STEPS]
+    args = p.parse_args(argv)
+    args.steps = STEPS if args.step == 'all' else tuple(s.strip() for s in args.step.split(','))
+    unknown = [s for s in args.steps if s not in STEPS]
     if unknown:
-        raise SystemExit('unknown step %s; pick from %s' % (unknown, ', '.join(STEPS)))
+        p.error('unknown step %s; pick from %s' % (unknown, ', '.join(STEPS)))
+    args.arm = dict(bypass_sto=True, ignore_interlock=True) if args.arm else None
+    return args
 
-    rig = Coaxial63100(port=a.port, simulated_device=a.simulated,
-                       power_afe=True).open()
-    arm = dict(bypass_sto=True, ignore_interlock=True) if a.arm else None
-    c = Commissioning(rig, arm=arm, log=print, i_h_max=a.i_h_max,
-                      f_min_hz=a.f_min, rated_rpm=a.rated_rpm)
-    try:
+
+def main(argv=None):
+    args = arguments(argv)
+    with Coaxial63100(port=args.port, simulated_device=args.simulated, power_afe=True) as rig, \
+            Commissioning(rig, arm=args.arm, log=print, i_h_max=args.i_h_max,
+                          f_min_hz=args.f_min, rated_rpm=args.rated_rpm) as c:
         print('%s  fs %.0f Hz' % (rig, c.fs))
-        supply = c.gate_supply()
-        print('gate supply %s V - %s' % (
-            '%.2f' % supply['volts'] if supply['volts'] is not None else '?',
-            'powered' if supply['powered'] else 'UNPOWERED: switching steps run dry'))
-        run_steps(c, steps, a.iq, a.seconds)
+        print(supply_line(c.gate_supply()))
+        run_steps(c, args.steps, args.iq, args.seconds)
         report = c.report()
-        print()
-        print(report['line'])
-        if a.json:
-            with open(a.json, 'w', encoding='utf-8') as out:
-                json.dump(report, out, indent=1, default=str)
-            print('written', os.path.abspath(a.json))
-    finally:
-        c._rest()
-        rig.close()
+
+    print('\n' + report['line'])
+    if args.json:
+        with open(args.json, 'w', encoding='utf-8') as out:
+            json.dump(report, out, indent=1, default=str)
+        print('written', os.path.abspath(args.json))
 
 
 if __name__ == '__main__':

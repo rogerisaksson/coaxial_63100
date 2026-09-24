@@ -312,7 +312,7 @@ def test_commissioning_recovers_the_stand_in(r):
         line = c.report()['line']
         r.check('and the report ends in the one line',
                 line.startswith('zero-speed: ') and 'iloop' in line, line)
-        c._rest()                       # what run() does in its finally
+        c.rest()                        # what leaving `with` does
         r.check('the stage is down afterwards', rig.gates.armed() is False)
     finally:
         rig.close()

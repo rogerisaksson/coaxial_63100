@@ -316,7 +316,7 @@ class Task:
         self.board.daq.stop()
 
         # AND THE CHAIN CLEARED, for the same reason and the same failure.
-        if accumulate is None:
+        if accumulate is None or chain is not None:
             self.board.daq.shape()
 
         burst = {}

@@ -110,7 +110,14 @@ class Commissioning:
                            'ignore_interlock=...) to Commissioning')
         self.rig.gates.arm(**self.arm)
 
-    def _rest(self):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.rest()
+        return False
+
+    def rest(self):
         """Drive off, stage down, converters back to the meter."""
         self.drive.off()
         if self.rig.gates.armed():
@@ -572,5 +579,5 @@ class Commissioning:
             self.decide()
             self.verify(seconds=verify_seconds)
         finally:
-            self._rest()
+            self.rest()
         return self.report()

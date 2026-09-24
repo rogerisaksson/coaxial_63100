@@ -1,25 +1,16 @@
 """Every channel the board has, through the filter chain, over the link.
 
-The point the numbers make: **more channels is a lower cutoff, and the
-board is what says by how much.** A record grows with every channel added,
-the link carries a fixed number of bytes a second, so the records a second
-falls - and the passband falls with it. Nothing here chooses that; it is
-read off the board's own `max_rate_hz` for the stride it actually has.
+More channels is a longer record, fewer records a second on the same link,
+and a lower cutoff; the board's `max_rate_hz` for the stride says by how
+much. Digital pins ride the same chain and come out as a duty (KEEPALIVE
+toggles at ~100 kHz; one sample decimated by 2000 is a coin toss).
 
-The digital pins ride the same chain and come out as a DUTY, because a
-level sampled once and decimated by two thousand is aliased by
-construction: KEEPALIVE toggles at about 100 kHz and would read as a coin
-toss.
-
-    cd host
-    python tools/bench/daq_allchannels.py                 # every channel
-    python tools/bench/daq_allchannels.py --sweep         # what each count costs
+    python tools/bench/daq_allchannels.py            # every channel
+    python tools/bench/daq_allchannels.py --sweep    # what each count costs
 """
 import argparse
 import os
 import sys
-import time
-from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -28,122 +19,62 @@ from coaxial.acquire import bessel  # noqa: E402
 from coaxial.devices import scaling  # noqa: E402
 from coaxial.errors import RigError  # noqa: E402
 
-def sweep_rate(daq, names, records=300, timeout=6.0):
-    """What the poll loop actually manages, in sweeps a second."""
-    daq.shape()
-    daq.configure(names, accumulate=1, digital=True, records=records,
-                  interval_us=0)
-    began = time.time()
-    daq.start()
-    while time.time() - began < timeout:
-        if daq.state()['done']:
-            break
-        time.sleep(0.005)
-    span = time.time() - began
-    state = daq.state()
-    daq.stop()
-    made = state['produced'] + state['dropped']
-    return made / max(span, 1e-6)
-
 
 def plan_for(daq, names, order):
-    """Configure for `names`, measure what the board really gives, design."""
-    fs = sweep_rate(daq, names)
-    daq.shape()
+    """The chain for `names`: the measured sweep rate against what the link carries."""
+    fs = daq.sweep_rate(names)
     layout = daq.configure(names, accumulate=1, digital=True)
     carries = daq.state()['max_rate_hz']
-    chain = bessel.for_link(fs=fs, max_rate_hz=carries, order=order)
-    chain['sweeps'] = fs
+    chain = dict(bessel.for_link(fs=fs, max_rate_hz=carries, order=order), sweeps=fs)
     return layout, carries, chain
 
 
-def sweep(daq, every, order):
-    """What each channel count costs: the loop's rate, the link's, and the
-    cutoff and rejection that fall out of the two."""
+def sweep(daq, order):
     print('\n%-3s %6s %8s %7s %11s %7s %9s %9s'
-          % ('ch', 'stride', 'sweeps/s', 'link/s', 'boxcar x d', 'out/s',
-             'cutoff', 'alias'))
+          % ('ch', 'stride', 'sweeps/s', 'link/s', 'boxcar x d', 'out/s', 'cutoff', 'alias'))
+    every = daq.channels()
     for count in range(1, len(every) + 1):
         layout, carries, chain = plan_for(daq, every[:count], order)
         print('%-3d %6d %8.0f %7d %6d x %-4d %7.1f %6.1f Hz %6.1f dB'
-              % (count, layout['stride'], chain['sweeps'], carries,
-                 chain['boxcar'], chain['decimate'], chain['out_rate'],
-                 chain['cutoff'], chain['worst_alias_db']))
+              % (count, layout['stride'], chain['sweeps'], carries, chain['boxcar'],
+                 chain['decimate'], chain['out_rate'], chain['cutoff'], chain['worst_alias_db']))
 
 
-def run(device, args):
-    """Every channel at once, and what came back."""
-    daq = device.daq
-    every = daq.channels()
-    names = every if args.channels == 'all' else args.channels.split(',')
-
-    if args.sweep:
-        sweep(daq, every, args.order)
-        return 0
-
-    layout, carries, chain = plan_for(daq, names, args.order)
-    print('\n-- %d channels, %d pins --' % (len(layout['fields']),
-                                            len(layout['pins'])))
-    print('  record    %d bytes; the link carries %d of them a second'
-          % (layout['stride'], carries))
-    print('  converter %.0f sweeps a second, measured - one channel a turn '
-          'of the main loop' % chain['sweeps'])
+def describe(layout, carries, chain):
+    print('\n-- %d channels, %d pins --' % (len(layout['fields']), len(layout['pins'])))
+    print('  record    %d bytes; the link carries %d a second' % (layout['stride'], carries))
+    print('  converter %.0f sweeps a second, measured' % chain['sweeps'])
     print('  chain     boxcar %d x decimate %d, %d biquads'
           % (chain['boxcar'], chain['decimate'], len(chain['sections'])))
-    print('  cutoff    %.1f Hz - a fifth of the %.1f records a second this '
-          'many channels leave' % (chain['cutoff'], chain['out_rate']))
+    print('  cutoff    %.1f Hz, a fifth of %.1f records a second'
+          % (chain['cutoff'], chain['out_rate']))
     print('  rejects   %.1f dB of what would fold' % chain['worst_alias_db'])
 
-    # And now for real: the accumulate the chain wants, the sections, and a
-    # rate under what the link drains so the ring is never the story.
-    daq.shape()
-    daq.configure(names, accumulate=chain['boxcar'], digital=True)
-    daq.shape(chain['sections'], chain['decimate'])
-    daq.start()
 
-    got, began = [], time.time()
-    while len(got) < args.records and time.time() - began < args.seconds:
-        block = daq.acquire()
-        if block:
-            got.extend(block)
-        else:
-            time.sleep(0.002)
-    span = time.time() - began
-    state = daq.state()
-    daq.stop()
-    daq.shape()
-
-    if not got:
-        print('  nothing came back in %.1f s' % span)
-        return 1
-
-    print('\n  %d records in %.2f s (%.0f/s), %d dropped, peak %s of %s'
-          % (len(got), span, len(got) / max(span, 1e-6), state['dropped'],
-             state.get('worst'), state.get('capacity')))
-
-    params = device.board.analog.scaling()
+def means(rig, layout, run):
+    """Each channel's mean over the run, in codes and in its unit."""
+    params = rig.board.analog.scaling()
     print('\n%-10s %14s %12s' % ('channel', 'mean', 'in its unit'))
     for field in layout['fields']:
         name = field['signal']
-        total = sum(r[name] for r in got)
-        count = sum(max(1, r['samples']) for r in got)
-        mean = total / float(count)
-        convert = scaling.converter(field['unit'], field['differential'],
-                                    signal=name, params=params)
+        mean = sum(r[name] for r in run.records) / float(sum(max(1, r['samples'])
+                                                             for r in run.records))
+        convert = scaling.converter(field['unit'], field['differential'], signal=name,
+                                    params=params)
         print('%-10s %14.1f %9.3f %-3s'
-              % (name, mean, convert(mean),
-                 scaling.symbol(field['unit'], name)))
+              % (name, mean, convert(mean), scaling.symbol(field['unit'], name)))
 
+
+def duties(layout, run):
     if layout['pins']:
         print('\n%-14s %10s' % ('pin', 'duty'))
-        for pin in layout['pins']:
-            name = pin['signal']
-            duty = sum(r['digital'][name] for r in got) / len(got)
-            print('%-14s %9.1f %%' % (name, duty * 100.0))
-    return 0
+    for pin in layout['pins']:
+        name = pin['signal']
+        duty = sum(r['digital'][name] for r in run.records) / len(run.records)
+        print('%-14s %9.1f %%' % (name, duty * 100.0))
 
 
-def main(argv=None):
+def arguments(argv):
     p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
@@ -151,28 +82,39 @@ def main(argv=None):
     p.add_argument('--order', type=int, default=4)
     p.add_argument('--records', type=int, default=200)
     p.add_argument('--seconds', type=float, default=15.0)
-    p.add_argument('--sweep', action='store_true',
-                   help='what each channel count costs, and nothing else')
-    args = p.parse_args(argv)
+    p.add_argument('--sweep', action='store_true', help='what each channel count costs')
+    return p.parse_args(argv)
 
-    device = Coaxial63100(port=args.port, power_afe=True,
-                          simulated_device=bool(args.simulated))
-    daq = device.daq
+
+def main(argv=None):
+    args = arguments(argv)
     try:
-        daq.open()
-    except RigError as exc:
-        print('  could not open the board: %s' % exc)
-        return 1
-    print('link: %s' % device.origin.label)
-    try:
-        return run(device, args)
+        with Coaxial63100(port=args.port, power_afe=True,
+                          simulated_device=args.simulated) as rig:
+            print('link: %s' % rig.origin.label)
+            daq = rig.daq
+            if args.sweep:
+                return sweep(daq, args.order)
+            names = daq.channels() if args.channels == 'all' else args.channels.split(',')
+
+            layout, carries, chain = plan_for(daq, names, args.order)
+            describe(layout, carries, chain)
+            layout = daq.configure(names, chain=chain, digital=True)
+            run = daq.collect(args.records, timeout=args.seconds)
+            daq.shape()
+
+            if not run.records:
+                print('  nothing came back in %.1f s' % run.seconds)
+                return 1
+            print('\n  %d records in %.2f s (%.0f/s), %d dropped, peak %s of %s'
+                  % (len(run.records), run.seconds, len(run.records) / run.seconds,
+                     run.state['dropped'], run.state.get('worst'), run.state.get('capacity')))
+            means(rig, layout, run)
+            duties(layout, run)
+            return 0
     except RigError as exc:
         print('  the board refused: %s' % exc)
         return 1
-    finally:
-        with suppress(RigError):
-            daq.shape()
-        device.close()
 
 
 if __name__ == '__main__':
