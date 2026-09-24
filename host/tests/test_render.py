@@ -975,12 +975,15 @@ def test_the_face_is_held_while_the_pose_holds(report):
         drawn, rastered = len(calls), len(rasters)
         held = wireframe.render(q, 60, 20, zoom=1.0, colour=True,
                                 persist=state, scroll=0.0)
-        moved = wireframe.render(q, 60, 20, zoom=1.0, colour=True,
-                                 persist=state, scroll=0.7)
+        # The vote shows a change a frame late: the second frame at the new scroll.
+        moved = [wireframe.render(q, 60, 20, zoom=1.0, colour=True, persist=state,
+                                  scroll=0.7) for _ in range(2)][-1]
         after_hold = len(calls)
         turned = wireframe.render((0.3, 0.02, 0.0, 0.95), 60, 20, zoom=1.0,
                                   colour=True, persist=state, scroll=0.7)
-        after_turn = len(calls)
+        after_turn, face = len(calls), dict(state['face'])
+        turned = wireframe.render((0.3, 0.02, 0.0, 0.95), 60, 20, zoom=1.0,
+                                  colour=True, persist=state, scroll=0.7)
     finally:
         wireframe._paint, wireframe._cells = real, real_cells
 
@@ -1001,9 +1004,7 @@ def test_the_face_is_held_while_the_pose_holds(report):
                  '%d drawings' % (after_turn - drawn))
     report.check('and the cache is one entry, keyed by everything the '
                  'face depends on',
-                 state['face']['settles'] == 0
-                 and state['face']['key'][:2] == (60, 20),
-                 str(state['face']['key']))
+                 face['settles'] == 0 and face['key'][:2] == (60, 20), str(face['key']))
 
 
 def test_the_crew_paints_one_pose_behind(report):
@@ -1067,6 +1068,14 @@ def test_scroll(report):
                 if static['hrow'] <= y0 < 20)
     report.check('scroll: one step moves a rung on screen under half a '
                  'dot row', 0.0 < moved < 0.125, '%.3f rows' % moved)
+    rest, slid = ground._fan(static, 60, 20, 0.0)[0], ground._fan(static, 60, 20, 0.25)[0]
+    near = [at for at in slid if at // 60 >= 15]
+    report.check('sway: slid a quarter spacing, the near ends of the fan move, the horizon holds',
+                 any(rest.get(at, [0])[0] != slid[at][0] for at in near)
+                 and all(at in slid for at in static['horizon']), '%d near cells' % len(near))
+    report.check('sway: the scroll clock sways it, at most SWAY spacings',
+                 ground._backdrop(60, 20, 3.2, cam['view'], 0.0, ground.SWAY)
+                 != ground._backdrop(60, 20, 3.2, cam['view'], 0.0, 0.0), 'the same')
 
 
 def test_fan_lines(report):

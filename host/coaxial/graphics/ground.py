@@ -66,6 +66,14 @@ RUNG_FADE = 1.5
 BACKDROPS_KEPT = 2 * RUNG_STEPS
 _BACKDROP_STATIC = {}
 
+#: THE FAN SWAYS. Its lines slide sideways at most SWAY spacings, a sine of SWAY_S
+#: seconds: the camera drifting over the floor - the near ends move, the vanishing point
+#: holds (2026-09-24, "the vertical lines move too, a little"). A position is quantised to
+#: SWAY_STEPS a spacing, cast once and kept.
+SWAY = 0.25
+SWAY_S = 14.0
+SWAY_STEPS = 64
+
 
 def _ground_dot(cells, width, height, fx, fy, depth, line, fade=1.0):
     """One braille dot into the backdrop's cells: the mask, whether the
@@ -108,13 +116,14 @@ def _rungs(static, phase):
     return out
 
 
-def _backdrop(width, height, distance, view, phase=0.0):
+def _backdrop(width, height, distance, view, phase=0.0, shift=0.0):
     """{cell: (braille mask, grey (r, g, b))} for the ground grid at a phase
-    of its scroll: the static horizon and fan, the rungs at the phase's
-    step, greys settled per cell.
+    of its scroll and a shift of its fan: the horizon and the fan at the
+    shift's step, the rungs at the phase's, greys settled per cell.
     """
     step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
-    key = (width, height, step)
+    slid = int(round(shift * SWAY_STEPS))
+    key = (width, height, slid, step)
     got = _BACKDROP.get(key)
     if got is not None:
         return got
@@ -122,24 +131,26 @@ def _backdrop(width, height, distance, view, phase=0.0):
         _BACKDROP.clear()
     static = _BACKDROP_STATIC.get((width, height))
     if static is None:
-        static = _ground_static(width, height, distance, view)
-        static['masks'] = _greys(static['cells'], static)
-        _BACKDROP_STATIC[(width, height)] = static
-    masks = dict(static['masks'])
-    masks.update(_greys(_rung_cells(static, width, height,
+        static = _BACKDROP_STATIC[(width, height)] = _ground_static(width, height, distance,
+                                                                    view)
+    fan = static['fans'].get(slid)
+    if fan is None:
+        cells = _fan(static, width, height, slid / SWAY_STEPS)[0]
+        fan = static['fans'][slid] = {'cells': cells, 'masks': _greys(cells, static)}
+    masks = dict(fan['masks'])
+    masks.update(_greys(_rung_cells(fan['cells'], static, width, height,
                                     step / RUNG_STEPS), static))
     _BACKDROP[key] = masks
     return masks
 
 
-def _rung_cells(static, width, height, phase):
+def _rung_cells(under, static, width, height, phase):
     """The cells the rungs at `phase` touch, in _ground_dot's shape, each
-    seeded from the static cell under it - a rung under half its grey
-    stays out of a cell another line already holds, the static's
+    seeded from the fan's cell under it (`under`) - a rung under half its
+    grey stays out of a cell another line already holds, the fan's
     included.
     """
     cells = {}
-    under = static['cells']
     hrow = static['hrow']
     rungs = _rungs(static, phase)
     for k, (yc, wc, x0, y0, w0, x1, y1, w1) in enumerate(rungs):
@@ -200,8 +211,8 @@ def _greys(cells, static):
 
 
 def _ground_static(width, height, distance, view):
-    """The horizon and the fan for a window size: own scale, own centre,
-    cast once.
+    """The horizon and the camera for a window size: own scale, own centre,
+    cast once; the fan cast per shift (`fans`).
     """
     v0, v1, v2, v3, v4, v5, v6, v7, v8 = view
     south, far = -5.0, 30.0
@@ -226,23 +237,35 @@ def _ground_static(width, height, distance, view):
         return cx + scale * sx, cy - scale * 0.5 * sy, w
 
     # The backdrop is BRAILLE, like the outline: a 2x4 dot matrix per cell.
-    cells = {}
+    horizon = {}
+    _x, _y, w_far = ray(0.0, far)
+    far_depth = 1.0 / w_far
+    for half in range(2 * width):
+        _ground_dot(horizon, width, height, half / 2.0 + 0.25, hrow, far_depth, 'horizon')
+    static = {'horizon': horizon, 'cast': cast, 'hrow': hrow, 'south': south, 'far': far,
+              'far_depth': far_depth, 'fans': {}}
+    # The haze's reach from the fan at rest, whatever it sways to.
+    static['near_depth'] = _fan(static, width, height, 0.0)[1]
+    return static
+
+
+def _fan(static, width, height, shift):
+    """The horizon and the fan's seventeen lines, slid `shift` spacings sideways: (cells,
+    the nearest depth in the frame). Wide enough that the outer lines meet the horizon past
+    the frame's edges - the fan covers the WHOLE line, not a band in the middle."""
+    cast, hrow, south, far = static['cast'], static['hrow'], static['south'], static['far']
+    cells = {at: [c[0], c[1], c[2], c[3], set(c[4]), c[5]]
+             for at, c in static['horizon'].items()}
 
     def dot(fx, fy, depth, line):
         _ground_dot(cells, width, height, fx, fy, depth, line)
 
-    _x, _y, w_far = ray(0.0, far)
-    far_depth = 1.0 / w_far
-    for half in range(2 * width):
-        dot(half / 2.0 + 0.25, hrow, far_depth, 'horizon')
-
-    # Seventeen lines, wide enough that the outer ones meet the horizon past
-    # the frame edges - the fan covers the WHOLE line, not a band in the
-    # middle.
-    samples = height * 6
-    near_depth = far_depth
+    # A world line is a straight screen line: the samples only carry depth for the haze.
+    # Two a row draw the same dots as six at 60 % of the cost (2026-09-24, 150x44).
+    samples = height * 2
+    near_depth = static['far_depth']
     for k in range(-8, 9):
-        fixed = k * 2.2
+        fixed = (k + shift) * RUNG_SPACING
         prev = None
         for i in range(samples + 1):
             wy = south + (far - south) * (i / samples) ** 2
@@ -256,19 +279,18 @@ def _ground_static(width, height, distance, view):
             if prev is not None and fy < height:
                 near_depth = min(near_depth, depth)
             prev = (fx, fy, depth)
-
-    return {'cells': cells, 'cast': cast, 'hrow': hrow, 'south': south,
-            'far': far, 'near_depth': near_depth, 'far_depth': far_depth}
+    return cells, near_depth
 
 
-def _ground(grid, tone, buf, distance, width, height, colour, view,
-            phase=0.0):
-    """The landscape behind the board: the cached backdrop at this phase of
-    its scroll, replayed against this frame's depth buffer so the board
-    occludes it.
+def _ground(grid, tone, buf, distance, width, height, colour, view, scroll=None):
+    """The landscape behind the board at `scroll` seconds (None: at rest): the cached
+    backdrop - the rungs GROUND_SPEED spacings a second toward the camera, the fan
+    swaying - replayed against this frame's depth buffer so the board occludes it.
     """
-    for at, (mask, grey) in _backdrop(width, height, distance, view,
-                                      phase).items():
+    phase = (scroll * GROUND_SPEED) % 1.0 if scroll is not None else 0.0
+    shift = SWAY * math.sin(2.0 * math.pi * scroll / SWAY_S) if scroll is not None else 0.0
+    for at, (mask, grey) in _backdrop(width, height, distance, view, phase,
+                                      shift).items():
         r, c = divmod(at, width)
         if buf[at] == 0.0 and grid[r][c] == ' ':
             grid[r][c] = chr(BRAILLE + mask)

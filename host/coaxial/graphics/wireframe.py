@@ -7,7 +7,7 @@ import os
 from coaxial.draw import orientation
 from coaxial.graphics import creases, engine, preload, solids, stereotype
 from coaxial.graphics.creases import OUTLINE_EXACT
-from coaxial.graphics.ground import GROUND_SPEED, _ground
+from coaxial.graphics.ground import _ground
 from coaxial.graphics.lines import _edge, _outline
 from machine import ansi
 from coaxial.graphics.shading import (BIAS, FLOOR, LIGHT, PIVOT, SHADOW_DIM, SLOPE, SUN_MIN, _dots,
@@ -430,9 +430,7 @@ def render(q, width, height, zoom=1.0, colour=True,
     tone = [[None] * width for _ in range(height)]
 
     if horizon:
-        phase = (scroll * GROUND_SPEED) % 1.0 if scroll is not None else 0.0
-        _ground(grid, tone, buf, distance, width, height, colour, view,
-                phase)
+        _ground(grid, tone, buf, distance, width, height, colour, view, scroll)
     for r, c, glyph, ink in layer:
         grid[r][c] = glyph
         tone[r][c] = ink
