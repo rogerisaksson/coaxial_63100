@@ -100,7 +100,7 @@ for node in thermal.ALL_NODES:
 print('worst %s at %.1f %% of its span; throttling %s, tripped %s, trips %d, derate %.2f'
       % (budget['worst_node'], 100.0 * budget['worst'], budget['throttling'],
          budget['tripped'], budget['trips'], budget['derate']))
-print('sample every 30 s:', observer.set_sample(30.0, settle_s=0.5),
+print('sample every 30 s:', observer.configure(sample_every_s=30.0, sample_settle_s=0.5),
       observer.state()['sample_every_s'])'''),
         md('Defaults with no ceiling written: 125 C silicon, 105 laminate, 120 motor.'),
     ),

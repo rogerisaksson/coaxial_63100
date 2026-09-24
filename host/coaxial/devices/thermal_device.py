@@ -2,22 +2,13 @@
 from coaxial.comm import protocol
 from coaxial.errors import RigError
 from coaxial.comm.protocol import ThermalOp
+from coaxial.devices.roles import Estimator
 from coaxial.devices.subsystem import Device
 from coaxial.model.thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES, PHASES
 from coaxial.comm.wire import Reader, label, micro, milli, pack, pages
 
-#: Where the board starts backing off, as a fraction of a node's ceiling.
-#: `set_limit`'s default and therefore what is in the record unless a
-#: bench wrote something else - named here so a page drawing a margin
-#: draws it against the same number the board acts on, rather than one of
-#: its own. The board still owns the action; this is only where the bar
-#: changes colour.
-#:
-#: NINETY, FROM EIGHTY-FIVE, on the bench's word: the ramp from here to
-#: the ceiling is where the clamp comes off, and at eighty-five it took
-#: the last sixth of every node's budget away from a burst the board is
-#: there to survive. The record's `soa_throttle_ppm` carries the same
-#: number, and a bench that wants more warning writes a smaller one.
+#: Where derating starts, a fraction of a node's ceiling: the record's
+#: `soa_throttle_ppm` default (from 0.85: that took a sixth of every burst).
 THROTTLE_AT = 0.90
 
 #: `since_save_s` on the wire when the record was never written this boot
@@ -59,7 +50,68 @@ def _edge(r):
     return (_node(a), _node(b), r.milli())
 
 
-class Thermal(Device, device=protocol.DEVICE_THERMAL):
+class ThermalControl(Estimator):
+
+    """The thermal observer's verbs, once, over what the board and the stand-in implement.
+
+    read()      the estimate, `state()`
+    reset()     forget what was identified: scales to one, UNCERTAIN, the margin at the floor
+    configure(**settings)   the record's thermal fields in SI; what each took:
+        sample_every_s, sample_settle_s                   how often the NTC borrows AFE_ON
+        margin_floor                                      (0, 1] of every span
+        board_to_ambient, board_capacity                  the bulk: K/W, J/K
+        winding_limit_c, winding_k_per_w, winding_j_per_k  0 C disables it
+        node=, to_board, capacity                         a node's first path out, J/K
+        node=, limit_c, throttle_at                       a node's ceiling, derating from
+        edge=, k_per_w                                    an edge by index; None opens it
+    """
+
+    #: setting -> (its keys, the primitive, defaults)
+    SETTINGS = {
+        'sample': (('sample_every_s', 'sample_settle_s'), '_set_sample',
+                   {'sample_settle_s': 0.3}),
+        'margin_floor': (('margin_floor',), '_set_margin_floor', {}),
+        'board': (('board_to_ambient', 'board_capacity'), '_set_board', {}),
+        'winding': (('winding_limit_c', 'winding_k_per_w', 'winding_j_per_k'), '_set_winding',
+                    {}),
+        'node': (('node', 'to_board', 'capacity'), '_set_node', {}),
+        'limit': (('node', 'limit_c', 'throttle_at'), '_set_limit', {'throttle_at': THROTTLE_AT}),
+        'edge': (('edge', 'k_per_w'), '_set_edge', {}),
+    }
+    _WHERE = ('node', 'edge')
+
+    def read(self, count=None, timeout=None):
+        return self.state()
+
+    def reset(self):
+        return self._reset_identification()
+
+    def step(self, *measured):
+        raise RigError('the thermal observer steps itself, every 100 ms on a board; '
+                       'the stand-in\'s clock is fast_forward()')
+
+    def configure(self, **settings):
+        known = {k for keys, _, _ in self.SETTINGS.values() for k in keys}
+        unknown = sorted(set(settings) - known)
+        if unknown:
+            raise RigError('no thermal setting %s - there are %s'
+                           % (', '.join(unknown), ', '.join(sorted(known))))
+        chosen = [(name, spec) for name, spec in self.SETTINGS.items()
+                  if any(k in settings for k in spec[0] if k not in self._WHERE)]
+        if settings and not chosen:
+            raise RigError('%s names where, not what: to_board and capacity, limit_c, or '
+                           'k_per_w' % ' and '.join(sorted(settings)))
+        done = {}
+        for name, (keys, primitive, defaults) in chosen:
+            missing = [k for k in keys if k not in settings and k not in defaults]
+            if missing:
+                raise RigError('%s needs %s' % (name, ', '.join(missing)))
+            done[name] = getattr(self, primitive)(*[settings.get(k, defaults.get(k))
+                                                    for k in keys])
+        return done
+
+
+class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
 
     """What each region of the board is at: one measurement, the rest model."""
 
@@ -114,10 +166,7 @@ class Thermal(Device, device=protocol.DEVICE_THERMAL):
     def _nodes_from(self, first):
         return self._op(ThermalOp.NODES, pack(('u8', first)))
 
-    def set_edge(self, edge, k_per_w):
-        """One edge's K/W, by index in the table `network()` lists; None
-        opens it.
-        """
+    def _set_edge(self, edge, k_per_w):
         on_wire = OPEN_EDGE if k_per_w is None else milli(k_per_w)
         return self._ack(ThermalOp.SET_EDGE,
                          pack(('u8', int(edge)), ('i32', on_wire)))
@@ -181,17 +230,10 @@ class Thermal(Device, device=protocol.DEVICE_THERMAL):
             got['trip_cap'] = r.micro()
         return got
 
-    def reset_identification(self):
-        """Forget what was identified: scales to one, UNCERTAIN, the margin
-        back at the floor.
-        """
+    def _reset_identification(self):
         return self._ack(ThermalOp.IDENT_RESET)
 
-    def set_margin_floor(self, floor):
-        """The least of every ceiling's span the envelope keeps while the
-        identification has no evidence for its model, a fraction (0, 1];
-        the margin rises from here to one as the evidence comes in.
-        """
+    def _set_margin_floor(self, floor):
         return self._ack(ThermalOp.SET_MARGIN, pack(('i32', micro(floor))))
 
     def situation(self, name=None, switching=None):
@@ -215,32 +257,25 @@ class Thermal(Device, device=protocol.DEVICE_THERMAL):
                        'the drive and tools/bench/switch.py put current through '
                        'it; the stand-in (device=True) cycles one')
 
-    def set_winding(self, limit_c, k_per_w, j_per_k):
-        """The winding's envelope: its ceiling in degrees C - zero disables it
-        - and its K/W to the air and J/K.
-        """
+    def _set_winding(self, limit_c, k_per_w, j_per_k):
         return self._ack(ThermalOp.SET_WINDING, pack(
             ('i32', milli(limit_c)), ('i32', milli(k_per_w)),
             ('i32', milli(j_per_k))))
 
-    def set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
-        """One node's ceiling in degrees C, and where derating starts."""
+    def _set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
         return self._ack(ThermalOp.SET_LIMIT, pack(
             ('u8', _index(node)), ('i32', milli(limit_c)),
             ('i32', micro(throttle_at))))
 
-    def set_sample(self, every_s, settle_s=0.3):
-        """How often the thermal observer borrows AFE_ON for an NTC reading."""
+    def _set_sample(self, every_s, settle_s=0.3):
         return self._ack(ThermalOp.SET_SAMPLE, pack(
             ('u32', milli(every_s)), ('u32', milli(settle_s))))
 
-    def set_node(self, node, to_board, capacity):
-        """Set one node's first path out (K/W) and heat capacity (J/K)."""
+    def _set_node(self, node, to_board, capacity):
         return self._ack(ThermalOp.SET_NODE, pack(
             ('u8', _index(node)), ('i32', milli(to_board)),
             ('i32', milli(capacity))))
 
-    def set_board(self, to_ambient, capacity):
-        """The board's own two numbers: K/W to ambient and J/K."""
+    def _set_board(self, to_ambient, capacity):
         return self._ack(ThermalOp.SET_BOARD, pack(
             ('i32', milli(to_ambient)), ('i32', milli(capacity))))

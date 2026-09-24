@@ -36,7 +36,7 @@ print('clients: %s, answered in %.2f s (connect timeout %.1f s)'
         code('''from coaxial.errors import DeviceStateError
 
 link = device.board.link
-ports = {port: link.port_stats(port) for port in (0, 1, 2)}
+ports = {port: link.state(port) for port in (0, 1, 2)}
 for port, stat in ports.items():
     print('%d %-7s rs485=%-5s open=%-5s %6d baud  t15 %5d  t35 %5d ticks'
           % (port, stat['name'], stat['rs485'], stat['open'], stat['baud'],

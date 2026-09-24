@@ -131,7 +131,7 @@ def _run(args, tags, live_sections):
     if holding:
         held = hold_model(args.model)
 
-    total_pass = total_fail = total_skip = ran = 0
+    total_pass = total_fail = total_skip = ran = crashed = 0
     approx = False
     suite_sizes = {}
     seconds = {}
@@ -150,6 +150,7 @@ def _run(args, tags, live_sections):
                     '%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed),
                     crash])))
                 ok = False
+                crashed += 1
                 continue
             passed, failed, skipped, rough = tally
             total_skip += skipped
@@ -175,10 +176,10 @@ def _run(args, tags, live_sections):
             'suites', [n for n in ALL_SUITES if n not in suite_sizes])
         total_skip += missed
         mark = '~' if approx or never else ''
-        print('Total: %s%d  Passed: %d, Skipped: %s%d, Failed: %d, '
+        print('Total: %s%d  Passed: %d, Skipped: %s%d, Failed: %d, Crashed: %d, '
               '(%d of %d suites ran)'
               % (mark, total_pass + total_fail + total_skip, total_pass,
-                 mark, total_skip, total_fail, ran, len(ALL_SUITES)))
+                 mark, total_skip, total_fail, crashed, ran, len(ALL_SUITES)))
         for line in failing_lines:
             print('  ' + line)
         if total_fail and any(line.split(':')[0] in NEEDS_BOARD

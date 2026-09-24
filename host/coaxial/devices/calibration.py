@@ -4,6 +4,7 @@ import re
 
 from coaxial.comm import protocol
 from coaxial.devices.afe import powered
+from coaxial.devices.roles import Input, Output
 from coaxial.errors import DeviceStateError, ModbusException, RigError
 from coaxial.comm.protocol import CalOp
 from coaxial.devices.subsystem import Device, forgetting, remembered
@@ -11,18 +12,25 @@ from coaxial.comm.wire import Reader, label, pack, pages
 from typing import Any
 
 
-class CalibrationOps:
-    """Zero and span by name, over whatever answers `set_channel`."""
+class CalibrationOps(Input, Output):
 
-    #: What the concrete class brings: the board the channels are read
-    #: through, and the record's own read, write and save. Declared so
-    #: the mixin's methods read as calls on something that exists.
+    """The record: read() it, write(**params) by name; channels by name over `set_channel`."""
+
     board: Any
 
-    def read(self, *args, **kwargs):
-        raise NotImplementedError
+    def state(self):
+        return self.read()
+
+    def write(self, **params):
+        """Record parameters by the names read() returns them under, raw u32; RAM until save()."""
+        for name, value in params.items():
+            self._set_param(name, value)
+        return params
 
     def set_channel(self, index, offset_raw, gain_ppm):
+        raise NotImplementedError
+
+    def _set_param(self, name, value):
         raise NotImplementedError
 
     def zero(self, index):
@@ -158,8 +166,7 @@ class Calibration(CalibrationOps, Device, device=protocol.DEVICE_CAL):
         return protocol.CAL_PARAMS.index(name)
 
     @forgetting('read')
-    def set_param(self, name, value):
-        """One scalar, by the name read() returns it under."""
+    def _set_param(self, name, value):
         self._op(CalOp.SET_PARAM,
                  pack(('u8', self._ident(name)), ('u32', int(value))))
 

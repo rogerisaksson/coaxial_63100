@@ -184,12 +184,12 @@ TOOLS = [
     },
     {
         'name': 'link',
-        'description': 'echo tests the wire, stats returns frame counters, release hands the UART back to the text console.',
-        'description_terse': 'echo tests the wire, stats returns counters, release hands back the console.',
+        'description': 'echo tests the wire, state returns frame counters, release hands the UART back to the text console.',
+        'description_terse': 'echo tests the wire, state returns counters, release hands back the console.',
         'inputSchema': {
             'type': 'object',
             'properties': {
-                'op': {'enum': ['echo', 'stats', 'release']},
+                'op': {'enum': ['echo', 'state', 'release']},
                 'text': {'type': 'string'},
             },
             'required': ['op'],

@@ -172,8 +172,8 @@ def test_self_test_and_link(report):
     report.check('link echo is a round trip, unchanged',
                  busmod.link(session, op='echo', text='ping')
                  == "echo ok 'ping'")
-    stats = busmod.link(session, op='stats')
-    report.check('link stats carries the real field names, not a subset',
+    stats = busmod.link(session, op='state')
+    report.check('link state carries the real field names, not a subset',
                  'char_overrun' in stats and 'bus_message' in stats, stats)
 
 
@@ -1511,16 +1511,16 @@ def test_thermal_identification(report):
                                               got['margin']))
     report.check('the floor is adjustable - 0.7 puts a fresh margin at 0.7 - '
                  'and refused at zero and above one in the board\'s words',
-                 fresh.set_margin_floor(0.7) is True
+                 fresh.configure(margin_floor=0.7) == {'margin_floor': True}
                  and abs(fresh.identification()['margin'] - 0.7) < 1e-9
                  and abs(fresh.identification()['margin_floor'] - 0.7) < 1e-9
-                 and _refused(lambda: fresh.set_margin_floor(0.0))
-                 and _refused(lambda: fresh.set_margin_floor(1.5)),
+                 and _refused(lambda: fresh.configure(margin_floor=0.0))
+                 and _refused(lambda: fresh.configure(margin_floor=1.5)),
                  '%.2f of %.2f' % (fresh.identification()['margin'],
                                    fresh.identification()['margin_floor']))
     report.check('and told to forget, the walked one is UNCERTAIN at one with '
                  'its margin back at the floor',
-                 model.reset_identification() is True
+                 model.reset() is True
                  and model.identification()['state'] == 'UNCERTAIN'
                  and abs(model.identification()['margin'] - 0.8) < 1e-9,
                  '%s %.2f' % (model.identification()['state'],

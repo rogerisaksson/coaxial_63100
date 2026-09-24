@@ -96,7 +96,7 @@ def _use(session, here, unit, name, bus, first, last):
                           _interface(session))
 
 
-def link(session, op='stats', text='ping', **_):
+def link(session, op='state', text='ping', **_):
     board = session.board
     if op == 'echo':
         return 'echo ok %r' % board.link.echo(text)
@@ -104,4 +104,4 @@ def link(session, op='stats', text='ping', **_):
         board.close_binary()
         session.reset()
         return 'console released'
-    return render.kv(board.link.stats())
+    return render.kv(board.link.state())

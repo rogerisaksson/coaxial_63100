@@ -218,7 +218,7 @@ class SimulatedCalibration(CalibrationOps):
                 'channels': [dict(c) for c in self._channels],
                 'soa_limit_c': [], 'soa_throttle_at': 0.0}
 
-    def set_param(self, name, value):
+    def _set_param(self, name, value):
         """Held, not invented: what a caller wrote is what it reads back."""
         if name not in protocol.CAL_PARAMS:
             raise DeviceStateError('%r is not a calibration parameter (simulated)'

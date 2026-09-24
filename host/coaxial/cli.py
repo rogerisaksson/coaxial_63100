@@ -81,7 +81,7 @@ def cmd_echo(board, args):
 
 
 def cmd_stats(board, args):
-    for key, value in board.link.stats().items():
+    for key, value in board.link.state().items():
         print('  %-20s %s' % (key, value))
 
 

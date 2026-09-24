@@ -102,7 +102,7 @@ class Output(Endpoint):
 
     def off(self):
         """To its safe state."""
-        raise NotImplementedError
+        raise RigError('%s has no off' % type(self).__name__)
 
     def trip(self):
         """To its safe state now, latched as a fault."""

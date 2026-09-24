@@ -135,7 +135,7 @@ class ChatTurn:
 
     def _probe_link(self):
         """A live, free-standing check of the link - no AFE, no sample."""
-        probe = self.toolbox.call('link', {'op': 'stats'})
+        probe = self.toolbox.call('link', {'op': 'state'})
         lost = ERR_CLASS.match(str(probe))
         self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
         if not self.link_ok:
@@ -145,7 +145,7 @@ class ChatTurn:
             # rather than reviving the same handle.
             self.toolbox.session.reset()
             # ...and try once more, which is the whole point of the reset.
-            probe = self.toolbox.call('link', {'op': 'stats'})
+            probe = self.toolbox.call('link', {'op': 'state'})
             lost = ERR_CLASS.match(str(probe))
             self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
         self.history.append({'role': 'tool', 'tool_name': 'link',

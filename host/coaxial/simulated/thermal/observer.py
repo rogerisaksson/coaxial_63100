@@ -2,6 +2,7 @@
 import random
 from typing import Callable, Optional
 
+from coaxial.devices.thermal_device import ThermalControl
 from coaxial.kalman import thermal_ident
 from coaxial.model import motor, thermal
 from coaxial.simulated.thermal.envelope import ThermalEnvelope
@@ -9,7 +10,7 @@ from coaxial.simulated.thermal.record import ThermalRecord
 from coaxial.simulated.thermal.truth import ThermalTruth
 
 
-class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord):
+class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalControl):
     """The thermal observer without a board: the same twenty-node graph
     `thermal.c` integrates, on `coaxial.model.thermal`'s tables, so a view
     running -Simulated draws the network the board runs and the envelope
@@ -35,7 +36,7 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord):
     IDENT_NOISE_K = 0.1
 
     #: The floor the envelope's margin rises from, the record's default
-    #: (`thermal.IDENT_MARGIN_FLOOR`); `set_margin_floor` moves it as
+    #: (`thermal.IDENT_MARGIN_FLOOR`); `configure(margin_floor=)` moves it as
     #: thermal op 12 does on the board.
     MARGIN_FLOOR = thermal.IDENT_MARGIN_FLOOR
 
@@ -147,7 +148,7 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord):
             'speed_rpm': int(self._speed_rpm),
         }
 
-    def set_sample(self, every_s, settle_s=0.3):
+    def _set_sample(self, every_s, settle_s=0.3):
         self._every_s, self._settle_s = every_s, settle_s
         return True
 

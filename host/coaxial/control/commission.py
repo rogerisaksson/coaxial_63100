@@ -354,9 +354,8 @@ class Commissioning:
         """The dead-time table by id, since the record names its rows."""
         plain = {k: v for k, v in params.items() if not k.startswith('drv_dt_mv')}
         self.drive.configure(**plain)
-        for k in range(8):
-            self.rig.board.calibration.set_param(
-                'drv_dt_mv%d' % k, to_wire('drv_inj_mv', params['drv_dt_mv%d' % k]))
+        self.rig.board.calibration.write(**{
+            'drv_dt_mv%d' % k: to_wire('drv_inj_mv', params['drv_dt_mv%d' % k]) for k in range(8)})
         self.drive.reload()
 
     # -- step 3: the motor ------------------------------------------------

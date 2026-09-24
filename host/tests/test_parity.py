@@ -88,7 +88,7 @@ def main():
                     'configuring', 'reset', 'poke', 'probe', 'pins', 'wake_test'),
             'angle': ('state', 'read', 'peek', 'poke', 'configure', 'clock', 'hold', 'resume',
                       'configuring'),
-            'link': ('echo', 'stats', 'loopback', 'port_stats'),
+            'link': ('echo', 'state', 'loopback'),
             'gate_drivers': ('state', 'on', 'off', 'is_on', 'write', 'configure', 'clear',
                              'dead_time', 'reset_worst_gap'),
             'capture': ('state', 'start', 'stop', 'take', 'read'),
@@ -149,7 +149,7 @@ def main():
             pass
 
         try:
-            board.board.thermal.set_sample(0.0, 0.0)
+            board.board.thermal.configure(sample_every_s=0.0, sample_settle_s=0.0)
             time.sleep(0.6)
         except Exception:                     # noqa: BLE001 - older firmware
             pass
@@ -193,7 +193,7 @@ def main():
     finally:
         toolmod.HANDLERS['afe_power'](board, action='off')
         try:
-            board.board.thermal.set_sample(*was)       # as it was found
+            board.board.thermal.configure(sample_every_s=was[0], sample_settle_s=was[1])       # as it was found
         except Exception:                     # noqa: BLE001 - older firmware
             pass
         try:

@@ -2,6 +2,7 @@
 from coaxial.comm import protocol
 from coaxial.errors import FrameError
 from coaxial.comm.protocol import LinkOp
+from coaxial.devices.roles import Endpoint
 from coaxial.devices.subsystem import Device
 from coaxial.comm.wire import Reader, pack
 
@@ -16,7 +17,7 @@ def _port(port):
     return port
 
 
-class Link(Device, device=protocol.DEVICE_LINK):
+class Link(Device, Endpoint, device=protocol.DEVICE_LINK):
     """Diagnostics for the wire, as opposed to the board on the end of it."""
 
     def echo(self, data):
@@ -52,8 +53,7 @@ class Link(Device, device=protocol.DEVICE_LINK):
             'ok': matched == (ALL_PATTERNS if rs485 else 0),
         }
 
-    def port_stats(self, port):
-        """One port's framing state and counters."""
+    def _port_state(self, port):
         r = Reader(self._op(LinkOp.STATS, pack(('u8', _port(port)))))
         got = {
             'port': r.u8(),
@@ -75,8 +75,11 @@ class Link(Device, device=protocol.DEVICE_LINK):
         got['for_others'] = max(0, got['bus_message'] - got['server_message'])
         return got
 
-    def stats(self):
-        """Frame counters kept by the slave, named as in the specification."""
+    def state(self, port=None):
+        """The slave's frame counters, named as in the specification; with `port`
+        (0 console, 1-2 RS485) that port's framing state and counters."""
+        if port is not None:
+            return self._port_state(port)
         reader = Reader(self.request(protocol.LINK_STATS))
         return {
             'unit_id': reader.u8(),

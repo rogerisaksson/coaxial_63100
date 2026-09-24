@@ -24,10 +24,10 @@ class ThermalRecord:
                  in zip(thermal.EDGES, self._cfg['edges'])]
         return {'nodes': nodes, 'edges': edges}
 
-    def set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
+    def _set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
         return True
 
-    def set_winding(self, limit_c, k_per_w, j_per_k):
+    def _set_winding(self, limit_c, k_per_w, j_per_k):
         if k_per_w <= 0.0 or j_per_k <= 0.0:
             raise RigError('the winding needs a positive K/W and J/K; '
                            'a zero ceiling is how it is disabled')
@@ -41,7 +41,7 @@ class ThermalRecord:
             (1.0 - thermal.WINDING_INTO_IRON) * float(k_per_w)
         return True
 
-    def set_node(self, node, to_board, capacity):
+    def _set_node(self, node, to_board, capacity):
         """One node's first path out and its capacity - the sink edge for a
         source, the air for a patch, as `thermal_set_node` does.
         """
@@ -55,13 +55,13 @@ class ThermalRecord:
         self._cfg['capacity'][node] = float(capacity)
         return True
 
-    def set_edge(self, edge, k_per_w):
+    def _set_edge(self, edge, k_per_w):
         """One edge's K/W by index; None opens it."""
         self._cfg['edges'][int(edge)] = 0.0 if k_per_w is None \
             else float(k_per_w)
         return True
 
-    def set_board(self, to_ambient, capacity):
+    def _set_board(self, to_ambient, capacity):
         """The bulk's two numbers, shared out by area as the core does."""
         if to_ambient <= 0.0 or capacity <= 0.0:
             raise RigError('both are positive')
@@ -100,7 +100,7 @@ class ThermalRecord:
                'truth': self.truth()}
         return got
 
-    def reset_identification(self):
+    def _reset_identification(self):
         """Forget what was identified: scales to one, UNCERTAIN, the margin
         back at the floor.
         """
@@ -109,7 +109,7 @@ class ThermalRecord:
         self._cfg = self._ident.apply(self._base)
         return True
 
-    def set_margin_floor(self, floor):
+    def _set_margin_floor(self, floor):
         """The floor the margin rises from, a fraction (0, 1] of every
         ceiling's span - thermal op 12, refused in the board's words.
         """

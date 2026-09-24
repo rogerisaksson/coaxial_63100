@@ -49,13 +49,13 @@ BSLASH = chr(92)
 class SimulatedLink:
     def __init__(self, board):
         self.board = board
-        self.stats_reads = 0
+        self.state_reads = 0
 
     def echo(self, data):
         return data
 
-    def stats(self):
-        self.stats_reads += 1
+    def state(self, port=None):
+        self.state_reads += 1
         if self.board.broken:
             raise ConnectError('cable pulled')
         if self.board.dead_handle:

@@ -403,9 +403,9 @@ class Drive(Device, DriveControl, device=protocol.DEVICE_DRIVE):
 
     def _write_params(self, **values):
         """Write drive parameters into the record (RAM) in SI, and reload."""
-        for name, value in values.items():
+        for name in values:
             _known(PARAMS, name, 'drive parameter')
-            self.board.calibration.set_param(name, to_wire(name, value))
+        self.board.calibration.write(**{name: to_wire(name, v) for name, v in values.items()})
         self.reload()
         return {name: from_wire(name, to_wire(name, v))
                 for name, v in values.items()}

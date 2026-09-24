@@ -49,7 +49,7 @@ def show(board):
           % (link['volts'], link['volts_at_pin'], link['scale'], link['params']))
 
     print('\nlink')
-    for key, value in board.link.stats().items():
+    for key, value in board.link.state().items():
         print('  %-20s %s' % (key, value))
 
 

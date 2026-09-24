@@ -46,7 +46,7 @@ def test_link_is_clean(board):
     payload = 'production line ' + 'x' * 200
     assert board.link.echo(payload) == payload
 
-    stats = board.link.stats()
+    stats = board.link.state()
     assert stats['char_overrun'] == 0, 'the receiver overran; the link is unhealthy'
 
 

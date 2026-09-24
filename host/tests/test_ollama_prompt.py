@@ -354,7 +354,7 @@ def test_policy(report):
                  asked == ['run_command'] and 'declined' in result['result'],
                  result['result'][:50])
 
-    runner, _, _ = build(task, [call('link', op='stats'),
+    runner, _, _ = build(task, [call('link', op='state'),
                                 call('report', note='read')],
                          confirm=lambda n, a: False)
     runner.run_task(runner.plan.tasks[0])

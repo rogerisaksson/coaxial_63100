@@ -190,7 +190,7 @@ def exercise(server, report):
     report.result('link echo', server.tool('link', {'op': 'echo',
                                                     'text': 'hello mcp'}),
                   ['echo ok'])
-    report.result('link stats', server.tool('link', {'op': 'stats'}),
+    report.result('link state', server.tool('link', {'op': 'state'}),
                   ['bus_message='])
     # THE THERMAL OBSERVER, three questions, every one headed and the one
     # measurement named - the bench's rule sends "how hot is the board" to the

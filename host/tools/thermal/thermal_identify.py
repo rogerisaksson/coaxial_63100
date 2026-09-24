@@ -256,7 +256,7 @@ def apply_fit(rig, fits):
     capacity = got[0] / CFG['board_to_ambient']
     print('\napplying: board capacity %.1f J/K (tau %.1f min at %.2f K/W)'
           % (capacity, got[0] / 60.0, CFG['board_to_ambient']))
-    rig.board.thermal.set_board(CFG['board_to_ambient'], capacity)
+    rig.board.thermal.configure(board_to_ambient=CFG['board_to_ambient'], board_capacity=capacity)
 
 
 #: What the camera saw, mapped onto the thermal observer's node names. `dead` is the

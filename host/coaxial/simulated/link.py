@@ -1,16 +1,14 @@
 """The wire that is not there: the link stand-in, the machine's five buses, the broadcast refusal.
 """
 from coaxial.comm import protocol
+from coaxial.devices.roles import Endpoint
 from coaxial.errors import DeviceStateError
 
 
-class SimulatedLink:
+class SimulatedLink(Endpoint):
     """A stand-in link."""
     def echo(self, data):
         return data
-
-    def stats(self):
-        return self.port_stats(0)
 
     def loopback(self, port):
         """What a healthy board answers: all four patterns back on the two
@@ -32,7 +30,8 @@ class SimulatedLink:
             'ok': True,
         }
 
-    def port_stats(self, port=0):
+    def state(self, port=None):
+        port = 0 if port is None else port
         if port not in protocol.PORTS:
             raise ValueError('port %r is not one of the three' % (port,))
         rs485 = port != 0

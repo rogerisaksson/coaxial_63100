@@ -52,9 +52,9 @@ def test_verdicts(report):
     limited = [{'id': 'T1', 'name': 'inside', 'ask': 'a',
                 'limit': {'low': 0.0, 'high': 10.0, 'unit': 'V'}}]
 
-    # Every scenario below touches the board (link stats) before reporting - a
+    # Every scenario below touches the board (link state) before reporting - a
     # report with nothing behind it is refused, see test_misbehaviour.
-    touch = call('link', op='stats')
+    touch = call('link', op='state')
 
     runner, _, _ = build(limited, [touch, call('report', value=5.0, unit='V',
                                                note='measured')])
@@ -93,7 +93,7 @@ def test_verdicts(report):
 def test_model_never_sees_limits(report):
     tasks = [{'id': 'T1', 'name': 'dc link error', 'ask': 'measure the link',
               'limit': {'low': -0.25, 'high': 0.25, 'unit': 'V error'}}]
-    runner, model, _ = build(tasks, [call('link', op='stats'),
+    runner, model, _ = build(tasks, [call('link', op='state'),
                                      call('report', value=0.1, unit='V error',
                                           note='ok')])
     runner.run_task(runner.plan.tasks[0])
@@ -118,7 +118,7 @@ def test_misbehaviour(report):
     report.check('prose without a report ends unfinished',
                  record.verdict == 'unfinished', record.warnings[0])
 
-    loop = call('link', op='stats')
+    loop = call('link', op='state')
     runner, _, session = build(task, [loop] * 10)
     record = runner.run_task(runner.plan.tasks[0])
     report.check('a looping model is stopped by max_turns',
@@ -126,14 +126,14 @@ def test_misbehaviour(report):
                  '%d turns, %d calls' % (record.turns, len(record.calls)))
 
     runner, _, _ = build(task, [call('no_such_tool', x=1),
-                                call('link', op='stats'),
+                                call('link', op='state'),
                                 call('report', value=0.5, unit='V', note='n')])
     record = runner.run_task(runner.plan.tasks[0])
     report.check('an unknown tool is an answer, not a crash',
                  record.verdict == 'pass' and 'no_such_tool' in record.calls)
 
     runner, _, _ = build(task, [
-        call('link', op='stats'),
+        call('link', op='state'),
         {'role': 'assistant', 'content': '',
          'tool_calls': [{'function': {
              'name': 'report',
@@ -157,7 +157,7 @@ def test_misbehaviour(report):
         {'role': 'assistant', 'content': 'hm',
          'thinking': 'a long private monologue',
          'tool_calls': [{'function': {'name': 'link',
-                                      'arguments': {'op': 'stats'}}}]},
+                                      'arguments': {'op': 'state'}}}]},
         call('report', value=0.5, unit='V', note='n')])
     record = runner.run_task(runner.plan.tasks[0])
     logged = json.dumps(runner.transcript.events)
@@ -452,10 +452,10 @@ def test_transcript(report):
         tasks = [{'id': 'T1', 'name': 'first', 'ask': 'a', 'unit': 'V',
                   'limit': {'high': 1.0, 'unit': 'V'}},
                  {'id': 'T2', 'name': 'second', 'ask': 'b', 'record_only': True}]
-        runner, _, _ = build(tasks, [call('link', op='stats'),
+        runner, _, _ = build(tasks, [call('link', op='state'),
                                      call('report', value=0.5, unit='V',
                                           note='one'),
-                                     call('link', op='stats'),
+                                     call('link', op='state'),
                                      call('report', value=2, note='two')],
                              transcript=path)
         summary = runner.run()
@@ -475,7 +475,7 @@ def test_transcript(report):
                      events[0]['plan']['measurement_system_study']
                      == 'none, a unit test')
         report.check('a tool call records its arguments and its result',
-                     any(e['kind'] == 'tool' and e['args'] == {'op': 'stats'}
+                     any(e['kind'] == 'tool' and e['args'] == {'op': 'state'}
                          and 'unit_id' in e['result'] for e in events))
         report.check('both steps are counted',
                      summary['counts'] == {'pass': 1, 'record': 1},

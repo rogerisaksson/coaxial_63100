@@ -85,7 +85,7 @@ def check_observer_borrow(rig, check):
     # the firmware's default that goes stale when that moves.
     said = quiet(rig.board.thermal.state) or {}
     was = (said.get('sample_every_s', 30.0), said.get('sample_settle_s', 0.5))
-    quiet(rig.board.thermal.set_sample, 2.0, 0.3)
+    quiet(rig.board.thermal.configure, sample_every_s=2.0, sample_settle_s=0.3)
     seen_thermal, seen_leased, high, n = False, False, 0, 0
 
     end = time.time() + 8.0
@@ -104,7 +104,7 @@ def check_observer_borrow(rig, check):
     check('and its hold carries a lease', seen_leased, True)
     check('it is not held most of the time', high < n * 0.5, True)
 
-    quiet(rig.board.thermal.set_sample, *was)
+    quiet(rig.board.thermal.configure, sample_every_s=was[0], sample_settle_s=was[1])
     time.sleep(1.5)
     check('and it is free again once sampling slows', afe(rig)['on'], False)
 
@@ -120,7 +120,7 @@ def check_armed_refusal(rig, check):
         check('and is off, so the drivers have supply', st['on'], False)
 
         # The thermal observer is sampling every 5 s; give it several chances.
-        quiet(rig.board.thermal.set_sample, 1.0, 0.3)
+        quiet(rig.board.thermal.configure, sample_every_s=1.0, sample_settle_s=0.3)
         high = 0
         end = time.time() + 6.0
         while time.time() < end:
@@ -129,7 +129,7 @@ def check_armed_refusal(rig, check):
             time.sleep(0.05)
         check('the thermal observer never got it while armed', high, 0)
     finally:
-        quiet(rig.board.thermal.set_sample, 5.0, 0.5)
+        quiet(rig.board.thermal.configure, sample_every_s=5.0, sample_settle_s=0.5)
         quiet(rig.gates.off)
 
     st = afe(rig)
@@ -164,7 +164,7 @@ def main():
         finally:
             quiet(rig.gates.off)
             quiet(rig.board.power.off)
-            quiet(rig.board.thermal.set_sample, 5.0, 0.5)
+            quiet(rig.board.thermal.configure, sample_every_s=5.0, sample_settle_s=0.5)
 
     print('\n%s' % ('the rail is held exactly when something holds it'
                     if not check.bad else '%d claim(s) failed' % check.bad))

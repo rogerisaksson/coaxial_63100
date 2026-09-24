@@ -427,7 +427,7 @@ def test_debug(report):
     # The probe itself is plumbing, not a reading - measured here, its raw
     # counters ("unit_id=1 t15_ticks=...") printed on screen for a question
     # that only asked for a list of ADC values, nothing to do with the link.
-    report.check('the probe itself is not traced - nobody asked for link stats',
+    report.check('the probe itself is not traced - nobody asked for link state',
                  'unit_id=' not in first_blank_out.getvalue()
                  and 'samples @' in first_blank_out.getvalue(),
                  first_blank_out.getvalue())
@@ -677,7 +677,7 @@ def test_debug(report):
     saga.ask('ger du mig en tabell over de analoga matvardena')  # 1) works
 
     saga_session.board.broken = True
-    saga.client.turns = [call('link', op='stats')]     # 2) it checks, fails
+    saga.client.turns = [call('link', op='state')]     # 2) it checks, fails
     answer = saga.ask('ger du mig en tabell over de analoga matvardena')
     report.check('unplugged: reported plainly, not guessed',
                  answer.startswith('link is down, not answered:'), answer)
@@ -707,7 +707,7 @@ def test_debug(report):
     dead.ask('ger du mig en tabell over de analoga matvardena')  # 1) works
 
     dead_session.board.dead_handle = True                # 2) cable pulled
-    dead.client.turns = [call('link', op='stats')]
+    dead.client.turns = [call('link', op='state')]
     answer = dead.ask('ger du mig en tabell over de analoga matvardena')
     report.check('a dead cached handle is reported plainly, same as any '
                  'other lost link',
@@ -721,7 +721,7 @@ def test_debug(report):
 
     # 3) no further "replug" step needed - the automatic reset already fixed
     # it, so the very next question measures again on its own.
-    dead.client.turns = [call('link', op='stats'), call('analog_read')]
+    dead.client.turns = [call('link', op='state'), call('analog_read')]
     dead.ask('ger du mig en tabell over de analoga matvardena')
     report.check('so the next question actually reaches analog_read, not '
                  'stuck retrying a dead handle forever',
