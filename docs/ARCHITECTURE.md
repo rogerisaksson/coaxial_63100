@@ -40,9 +40,11 @@ coaxial/comm/       the wire: transport, crc, codecs, protocol, broker, sessions
 coaxial/devices/    one subsystem per functional area (board, afe, gates, boot..); roles:
                     Input, Stream, Output, Controller; the parts' Filter, Estimator, Regulator
 coaxial/acquire/    the rig's task and stream (its mixins), records, reader, clock, filter
+coaxial/nodes/      boards as IO nodes: capabilities() per module, then loops over them; Nodes
 coaxial/model/      motor, inverter, thermal network, sensorless, sysid
 coaxial/control/    controller (Loop of Feedbacks over float channels), parts, panel,
-                    sequencer (tables with limits and jumps), loop (sim blocks), motion, commission
+                    sequencer (lines or tables: limits, jumps; check, summary, prompt), body (a joint
+                    per node), loop (sim blocks), motion, commission
 coaxial/draw/       2D drawings: palette, dials, gauges, machine, thermal map, wiring
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c), observer

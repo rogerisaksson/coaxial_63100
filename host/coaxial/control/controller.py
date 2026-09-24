@@ -11,9 +11,10 @@
     loop.save(path); Loop.load(path, sources, sinks); with loop.saving(path): ...
 
 A feedback steps prefilter, measure, estimator, regulator; loops step in the order added.
-A source's read() lands as '<source>.<key>' (numbers, bools as 0/1); a channel read before
-its writer steps holds the last pass's value. Under it: parts wired port by port
-(plug, wire, route) for what is not a feedback.
+A source's read() lands as '<source>.<key>' - nested dicts and lists as '<key>.<sub>',
+numbers and bools (0/1) only; a source or sink name may itself be dotted ('knee.drive').
+A channel read before its writer steps holds the last pass's value. Under it: parts wired
+port by port (plug, wire, route) for what is not a feedback.
 """
 import atexit
 import contextlib
@@ -33,6 +34,21 @@ def _float(value):
     if isinstance(value, (int, float)):
         return float(value)
     return None
+
+
+def flat(reading, prefix=''):
+    """{channel: float} of a reading: nested dicts and lists by dotted key, numbers only."""
+    items = reading.items() if isinstance(reading, dict) else enumerate(reading)
+    out = {}
+    for key, value in items:
+        name = '%s%s' % (prefix, key)
+        if isinstance(value, (dict, list, tuple)):
+            out.update(flat(value, name + '.'))
+        else:
+            f = _float(value)
+            if f is not None:
+                out[name] = f
+    return out
 
 
 class Feedback:
@@ -153,7 +169,7 @@ class Loop(Controller):
     def route(self, **outputs):
         """'<sink>.<key>': channel, written to that sink every pass; None drops it."""
         for key, channel in outputs.items():
-            if key.partition('.')[0] not in self.sinks:
+            if key.rpartition('.')[0] not in self.sinks:
                 raise RigError('no sink %s - there are %s' % (key, ', '.join(self.sinks)))
             if channel is None:
                 self.outputs.pop(key, None)
@@ -183,6 +199,26 @@ class Loop(Controller):
             del self.wires[key]
         return part
 
+    def source_of(self, channel):
+        """The source a channel comes from, or None."""
+        return next((s for s in sorted(self.sources, key=len, reverse=True)
+                     if channel.startswith(s + '.')), None)
+
+    def reads(self):
+        """Every channel a part reads or a sink is written from."""
+        return ({ch for key, ch in self.wires.items()
+                 if key.rpartition('.')[2] in self.parts[key.rpartition('.')[0]].INPUTS}
+                | set(self.outputs.values()))
+
+    def targets(self):
+        """What a feedback loop is told: each one's setpoint channel."""
+        return [f.setpoint for f in self.feedbacks.values() if f.setpoint]
+
+    def controlled(self):
+        """What each feedback loop holds: the channel its regulator measures."""
+        return [self.wires['%s/regulator.measured' % n] for n in self.feedbacks
+                if '%s/regulator.measured' % n in self.wires]
+
     def channel_of(self, name, port):
         """Where a part's port reads or publishes."""
         return self.wires.get('%s.%s' % (name, port), '%s.%s' % (name, port))
@@ -190,7 +226,7 @@ class Loop(Controller):
     def channels(self):
         """Every channel a pass knows: the sources' (read now if never read), the parts',
         the setpoints'."""
-        if not any(k.partition('.')[0] in self.sources for k in self.bus):
+        if not any(self.source_of(k) for k in self.bus):
             self._read_sources()
         return sorted(set(self.bus) | set(self.wires.values()) | set(self.outputs.values())
                       | {self.channel_of(n, p) for n, part in self.parts.items()
@@ -226,10 +262,7 @@ class Loop(Controller):
             if got.get('fault'):
                 raise RigError('%s faulted mid-loop - %s; the loop is over'
                                % (name, got['fault']))
-            for key, value in got.items():
-                f = _float(value)
-                if f is not None:
-                    self.bus['%s.%s' % (name, key)] = f
+            self.bus.update(flat(got, name + '.'))
 
     def step(self, dt):
         """One pass; every channel after it."""
@@ -241,7 +274,7 @@ class Loop(Controller):
                 self.bus[self.channel_of(name, port)] = float(value)
         written = {}
         for key, channel in self.outputs.items():
-            sink, _, what = key.partition('.')
+            sink, _, what = key.rpartition('.')
             written.setdefault(sink, {})[what] = self.bus.get(channel, 0.0)
         for sink, values in written.items():
             self.sinks[sink].write(**values)

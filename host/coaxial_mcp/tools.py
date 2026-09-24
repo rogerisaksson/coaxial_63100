@@ -1,5 +1,6 @@
 """Tool schemas and handlers."""
 import os
+import re
 import subprocess
 import sys
 import time
@@ -315,6 +316,21 @@ def gpio_port(session, op='read', port='E', mask=0, value=0, **_):
                             reserved)
 
 
+def program(session, op='card', text='', **_):
+    """The machine's body - every node a joint, found once a session: its card, or a run."""
+    body = getattr(session, 'body', None)
+    if body is None:
+        from coaxial.control.body import Body
+        from coaxial.nodes import Nodes
+        body = session.body = Body(Nodes.discover(port=session.port,
+                                                  device=bool(getattr(session, 'simulated',
+                                                                      False))))
+    if op == 'card':
+        return body.prompt()
+    named = [j for j in body.joints if re.search(r'\b%s\b' % j, text)]
+    return body.run(text).summary(*[j + '.deg' for j in named])
+
+
 def test_gate(session, enable=False, **_):
     gpio = session.board.gpio
     return 'gate=%d' % (gpio.on() if enable else gpio.off())
@@ -334,6 +350,7 @@ HANDLERS = {
     'gpio_pin': gpio_pin,
     'gpio_port': gpio_port,
     'test_gate': test_gate,
+    'program': program,
     'thermal': thermal,
     'link': link,
 }

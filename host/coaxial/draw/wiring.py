@@ -21,12 +21,12 @@ def _nodes(loop):
              if key.partition('.')[2] in loop.parts[key.partition('.')[0]].INPUTS}
             | set(loop.outputs.values()))
     fed = sorted(ch for ch in used if ch not in made
-                 and ch.partition('.')[0] not in loop.sources and ch != 't')
+                 and loop.source_of(ch) is None and ch != 't')
     nodes = [('setpoints', 'write()', [], [(ch, ch) for ch in fed], [])] if fed else []
     for name, source in loop.sources.items():
-        read = sorted(ch for ch in used if ch.partition('.')[0] == name)
+        read = sorted(ch for ch in used if loop.source_of(ch) == name)
         nodes.append((name, type(source).__name__, [],
-                      [(ch.partition('.')[2], ch) for ch in read], []))
+                      [(ch[len(name) + 1:], ch) for ch in read], []))
     for name, part in loop.parts.items():
         inner = getattr(part, 'part', part)
         kind = type(inner).__name__ + (' @%g Hz' % (1.0 / part.pause) if inner is not part else '')
@@ -36,8 +36,8 @@ def _nodes(loop):
                       ['%s %.4g' % kv for kv in part.params().items()]))
     for name, sink in loop.sinks.items():
         nodes.append((name, type(sink).__name__,
-                      [(key.partition('.')[2], ch) for key, ch in loop.outputs.items()
-                       if key.partition('.')[0] == name], [], []))
+                      [(key.rpartition('.')[2], ch) for key, ch in loop.outputs.items()
+                       if key.rpartition('.')[0] == name], [], []))
     return nodes
 
 

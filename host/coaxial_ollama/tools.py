@@ -118,6 +118,7 @@ WRITE_CALLS = {
     'gpio_pin': lambda a: a.get('op') in ('write', 'mode'),
     'gpio_port': lambda a: a.get('op') == 'write',
     'test_gate': lambda a: bool(a.get('enable')),
+    'program': lambda a: a.get('op') == 'run',
 }
 
 # On by default, and what --read-only takes away.

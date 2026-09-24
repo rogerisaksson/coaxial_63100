@@ -203,6 +203,15 @@ def exercise(server, report):
                   ['ident:', 'margin', 'room', 'innovation'])
     report.result('test_gate close', server.tool('test_gate', {'enable': False}),
                   ['gate=0'])
+    # THE BODY: every node a joint, a program as text - what a small model writes.
+    report.result('program card', server.tool('program', {'op': 'card'}),
+                  ['One step a line', 'left_knee', '-90..90', '<name>.deg'])
+    report.result('program run', server.tool('program', {
+        'op': 'run', 'text': '0.3 left_knee=20 right_knee=20\n0.3 left_knee=0 right_knee=0'}),
+        ['done after', 'left_knee.deg'])
+    refused = server.tool('program', {'op': 'run', 'text': '0.3 left_kne=20'})
+    report.check('a program\'s typo comes back as the name meant',
+                 'did you mean left_knee' in refused, refused.splitlines()[-1])
 
 
 def error_paths(server, report):

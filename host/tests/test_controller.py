@@ -395,6 +395,91 @@ def test_velocity_is_a_feedback(report):
         device.close()
 
 
+def test_nodes_offer_then_configure(report):
+    from coaxial.nodes import Nodes
+    nodes = Nodes.discover(device=True)
+    try:
+        names = [n.name for n in nodes]
+        report.check('every node on every bus, named where it sits',
+                     len(nodes) == 20 and 'left_knee' in names and 'pelvis' in names, names[:4])
+        caps = {c.name: c for c in nodes['left_knee'].capabilities('drive', 'angle')}
+        report.check('a node says what it offers: ins with units, outs with ranges',
+                     caps['left_knee.angle.degrees'].unit == 'deg'
+                     and caps['left_knee.drive.iq_ref'].direction == 'out'
+                     and caps['left_knee.drive.iq_ref'].high > 0,
+                     caps['left_knee.drive.iq_ref'])
+        card = nodes.card('angle', keys=('degrees',))
+        report.check('the card is a line a node and direction',
+                     card.count('\n') + 1 == 40 and 'left_knee.angle' not in card
+                     and 'angle.degrees deg' in card, card.splitlines()[:2])
+        loop = nodes.loop(inputs=['left_knee.angle'], outputs=['left_knee.drive'])
+        loop.step(0.04)
+        report.check('a loop over a node\'s modules reads its channels by dotted name',
+                     'left_knee.angle.degrees' in loop.bus)
+        try:
+            nodes.loop(inputs=['left_knee.gears'])
+            report.check('a module a node lacks is refused', False)
+        except RigError as exc:
+            report.check('a module a node lacks is refused', 'gears' in str(exc), exc)
+    finally:
+        nodes.close()
+
+
+def test_the_body_runs_a_program(report):
+    from coaxial.control.body import Body
+    from coaxial.nodes import Nodes
+    nodes = Nodes.discover(device=True)
+    try:
+        body = Body(nodes, joints=['left_hip', 'left_knee', 'right_hip', 'right_knee'])
+        told = body.prompt()
+        report.check('the prompt: the grammar, then each joint and what reads it back',
+                     'One step a line' in told and 'set  left_hip, left_knee, right_hip, '
+                     'right_knee deg -90..90  (read back as <name>.deg)' in told
+                     and len(told) < 700, len(told))
+        program = ('# a squat, twice\n'
+                   '0.2 group=init left_hip=0 right_hip=0 left_knee=0 right_knee=0\n'
+                   '2 label=down left_hip=-30 right_hip=-30 left_knee=60 right_knee=60 '
+                   'left_knee.deg.H=58\n'
+                   '1 left_hip=0 right_hip=0 left_knee=0 right_knee=0 goto=down times=1\n'
+                   '1 group=cleanup left_hip=0 right_hip=0 left_knee=0 right_knee=0\n')
+        out = Sequencer.parse(program, init=body.arm, cleanup=body.disarm).run(body.loop)
+        downs = [s for s in out.steps if s[1] == 'down']
+        report.check('the squat runs twice, each down ending on its level before its time',
+                     out.status == 'done' and len(downs) == 2
+                     and all(s[3] < 2.0 and 'past H' in s[2] for s in downs), out.summary())
+        report.check('the summary is a few lines', len(out.summary('left_knee.deg')
+                                                        .splitlines()) <= 9)
+    finally:
+        nodes.close()
+
+
+def test_a_model_writes_lines(report):
+    rotor = Rotor(noise=0.0)
+    clock = Clock(rotor)
+    loop = speed(rotor, rate_hz=50, clock=clock, sleep=clock.sleep)
+    seq = Sequencer.parse('# lines, as a model answers\n'
+                          '0 n=3 group=init\n'
+                          '0.5 label=up w_target+=50 rotor.w.H=500\n'
+                          '0 n+=-1 n.L=0 then=stop else=up\n')
+    out = seq.run(loop)
+    report.check('lines parse like the csv: counters, levels, jumps',
+                 out.status == 'done' and loop.bus['w_target'] == 150.0, out.summary())
+    for text, want in (('1 w_targt=100', 'did you mean w_target'),
+                       ('1 w_target=1 rotor.ww.H=5', 'no channel rotor.ww to test'),
+                       ('1 w_target 5', 'neither seconds nor name=value')):
+        try:
+            Sequencer.parse(text).run(loop)
+            report.check('refused: %s' % want, False)
+        except RigError as exc:
+            report.check('refused: %s' % want, want in str(exc), exc)
+    marker = Sequencer.parse('0.1 phase=2').run(loop)
+    report.check('a name like no other is the program\'s own', marker.status == 'done'
+                 and loop.bus['phase'] == 2.0)
+    many = Sequencer.parse('0 label=a n+=1 n.H=40 then=stop else=a').run(loop)
+    report.check('a long run summarises in a dozen lines',
+                 len(many.summary().splitlines()) == 13, len(many.steps))
+
+
 def main():
     report = Report()
     for test in (test_a_feedback_holds_a_speed, test_every_channel_is_a_float,
@@ -402,7 +487,9 @@ def main():
                  test_a_table_or_a_planner, test_the_sequencer, test_a_program_as_data,
                  test_save_and_load,
                  test_a_fault_ends_the_loop, test_a_paced_part_keeps_its_own_rate,
-                 test_the_pictures_and_the_panel, test_velocity_is_a_feedback):
+                 test_the_pictures_and_the_panel, test_velocity_is_a_feedback,
+                 test_nodes_offer_then_configure, test_the_body_runs_a_program,
+                 test_a_model_writes_lines):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

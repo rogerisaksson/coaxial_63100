@@ -73,6 +73,8 @@ SETS = {
     # run_command, not build_firmware: the wider, allowlisted surface for a
     # session actually about the toolchain, not just build_and_flash.py.
     'build': ('board_info', 'run_command', 'run_tests', 'link_diagnose'),
+    # Moving the machine: the body's card, a program, the joints read back.
+    'motion': ('board_info', 'devices', 'program', 'angle', 'link_diagnose'),
     # For a question about the documents rather than the hardware.
     'docs': ('board_info', 'analog_read', 'docs', 'link_diagnose'),
     'all': tuple(spec['name'] for spec in toolmod.TOOLS if spec['name'] != 'report'),

@@ -183,6 +183,19 @@ TOOLS = [
         },
     },
     {
+        'name': 'program',
+        'description': "Move the joints: op=card gives the grammar and the joints; op=run runs `text`, one step a line (seconds, joint=deg), and says how it ended.",
+        'description_terse': "op=card: the grammar and the joints. op=run: run `text`, one step a line (seconds, joint=deg); answers how it ended.",
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'op': {'enum': ['card', 'run']},
+                'text': {'type': 'string'},
+            },
+            'required': ['op'],
+        },
+    },
+    {
         'name': 'link',
         'description': 'echo tests the wire, state returns frame counters, release hands the UART back to the text console.',
         'description_terse': 'echo tests the wire, state returns counters, release hands back the console.',

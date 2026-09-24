@@ -1,10 +1,13 @@
 """A test stand in miniature: a table of setpoints and jumps, run through a controller.
 
     seq = Sequencer.read('steps.csv', limits={'iq_ref': {'HH': 1.8}}, init=arm, cleanup=disarm)
-    seq = Sequencer.parse(csv_text)       # a model's answer, as it came
-    out = seq.run(loop)      # out.status done | tripped | limit; out.rows; out.steps
+    seq = Sequencer.parse(text)          # a model's answer as it came: lines or csv
+    out = seq.run(loop)                  # checked first; out.status done | tripped | limit
+    print(out.summary())                 # a few lines back to the model
+    print(prompt(loop))                  # GRAMMAR and the loop's card: all a model needs
 
-The table, one row a step (a .csv or an .xlsx's first sheet); every cell a number or blank:
+A step is a row of a .csv or an .xlsx's first sheet, or a line: `0.5 knee=40 hip=-20`
+(the bare number is seconds, the rest name=value, # a comment). Every value a number:
     seconds            the most the step lasts; 0 is a decision, no time passes
     <channel>          set it (blank: holds)          <channel>+    add to it: a counter
     <channel>.H .L     the step ends when reached     <channel>.HH .LL   trip: to cleanup
@@ -13,7 +16,8 @@ The table, one row a step (a .csv or an .xlsx's first sheet); every cell a numbe
     goto, times        after the row, to `goto` `times` times (blank 1, inf), then on
 A target is a label, or `stop`: the main group is over. Counters, adding and branching on a
 level make it a counter machine - any program, as data. `limits` apply to every step but
-cleanup; `cycles` repeats the main group; `limit` seconds or `max_steps` rows end a run.
+cleanup; `ranges` {channel: (low, high)} refuse a setpoint outside before anything runs;
+`cycles` repeats the main group; `limit` seconds or `max_steps` rows end a run.
 """
 import csv
 import io
@@ -28,9 +32,36 @@ LEVELS = ('LL', 'L', 'H', 'HH')
 GROUPS = ('init', 'main', 'cleanup')
 STOP = 'stop'
 
-#: A finished run: every pass's channels, how it ended, why, and each step it took
-#: (row, label, how the step ended, seconds).
-Outcome = namedtuple('Outcome', 'rows status reason steps')
+#: What a model is told, with the loop's card (`prompt`).
+GRAMMAR = """One step a line: seconds, then name=value. # starts a comment.
+  knee=40            set a target            n+=1         add to a counter
+  knee.deg.H=38      end the step once reached (.L: once below)
+  label=up           name the line           then=up else=down   go there when a level
+  goto=up times=3    after the line, back 3 times             ended the step / when time did
+  group=init         runs first; group=cleanup runs last, always
+0 seconds: a decision, no time passes. A jump to stop ends the program."""
+
+
+class Outcome(namedtuple('Outcome', 'rows status reason steps')):
+
+    """A finished run: every pass's channels, how it ended, why, and each step it took
+    (row, label, how the step ended, seconds)."""
+
+    def summary(self, *channels, most=12):
+        """A few lines: the ending, the steps (at most `most`), `channels` at the end."""
+        seconds = sum(s[3] for s in self.steps)
+        lines = ['%s after %.2f s, %d steps%s' % (self.status, seconds, len(self.steps),
+                                                  ': ' + self.reason if self.reason else '')]
+        shown = self.steps if len(self.steps) <= most else \
+            self.steps[:most - 2] + [None] + self.steps[-1:]
+        for step in shown:
+            lines.append('  ...' if step is None else '  row %d%s %.2f s %s' % (
+                step[0], ' ' + step[1] if step[1] else '', step[3], step[2]))
+        last = self.rows[-1] if self.rows else {}
+        if channels:
+            lines.append('  end: ' + ', '.join('%s %.4g' % (c, last[c]) for c in channels
+                                               if c in last))
+        return '\n'.join(lines)
 
 
 class Tripped(RigError):
@@ -56,6 +87,48 @@ def _text(cell):
 
 def _crossed(value, level, bound):
     return value >= bound if level in ('H', 'HH') else value <= bound
+
+
+def _line(line, row):
+    """A line's cells: the bare number is seconds, the rest name=value."""
+    cells = {}
+    for token in line.split():
+        key, sep, value = token.partition('=')
+        if sep:
+            cells[key] = value
+        elif 'seconds' not in cells:
+            cells['seconds'] = key
+        else:
+            raise RigError('row %d: %r is neither seconds nor name=value' % (row, token))
+    return cells
+
+
+def _near(name, names):
+    """' - did you mean x?' when one is close."""
+    import difflib
+    close = difflib.get_close_matches(name, sorted(names), n=1, cutoff=0.6)
+    return ' - did you mean %s?' % close[0] if close else ''
+
+
+def card(loop, units=None, ranges=None):
+    """What a program may set and test on `loop`, one line each: the feedback loops'
+    targets, their unit and range, and what reads each back."""
+    units, ranges = units or {}, ranges or {}
+    held = dict(zip(loop.targets(), loop.controlled()))
+    groups = {}
+    for target in loop.targets():
+        back = held.get(target, '-')
+        like = '<name>' + back[len(target):] if back.startswith(target) else back
+        key = (units.get(target, ''), ranges.get(target), like)
+        groups.setdefault(key, []).append(target)
+    return '\n'.join('set  %s%s%s  (read back as %s)' % (
+        ', '.join(targets), ' ' + unit if unit else '', ' %g..%g' % span if span else '', like)
+        for (unit, span, like), targets in groups.items())
+
+
+def prompt(loop, units=None, ranges=None):
+    """GRAMMAR, then the loop's card: what a model is told."""
+    return GRAMMAR + '\n\nThis machine:\n' + card(loop, units, ranges)
 
 
 class Step:
@@ -127,12 +200,13 @@ class Sequencer:
     """init rows, the main rows with their jumps `cycles` times, cleanup rows - always."""
 
     def __init__(self, rows, limits=None, cycles=1, limit=None, max_steps=100000, init=None,
-                 cleanup=None):
+                 cleanup=None, ranges=None):
         steps = [r if isinstance(r, Step) else Step.of(r, i) for i, r in enumerate(rows)]
         self.groups = {g: [s for s in steps if s.group == g] for g in GROUPS}
         self.steps = self.groups['main']
         self.limits, self.cycles, self.limit = dict(limits or {}), cycles, limit
         self.max_steps, self.on_init, self.on_cleanup = max_steps, init, cleanup
+        self.ranges = dict(ranges or {})
         self.at, self.taken = 0, {}
         if STOP in self.labels():
             raise RigError('%s is where a jump ends the run, not a label' % STOP)
@@ -153,8 +227,35 @@ class Sequencer:
 
     @classmethod
     def parse(cls, text, **kw):
-        """The table as csv text: what a model answers with."""
-        return cls(list(csv.DictReader(io.StringIO(text.strip()))), **kw)
+        """Steps as text: lines (`0.5 knee=40`) or csv with a header row."""
+        lines = [line.split('#')[0].strip() for line in text.strip().splitlines()]
+        lines = [line for line in lines if line]
+        if lines and ',' in lines[0] and '=' not in lines[0]:
+            return cls(list(csv.DictReader(io.StringIO('\n'.join(lines)))), **kw)
+        return cls([_line(line, n) for n, line in enumerate(lines)], **kw)
+
+    def check(self, loop):
+        """Every name a step uses, against `loop`: a set that nearly names a loop channel
+        (a typo), a test of a channel nothing writes. One line a problem, the close match."""
+        known = set(loop.channels()) | loop.reads()
+        steps = [s for g in self.groups.values() for s in g]
+        sets = {ch for s in steps for ch in list(s.setpoints) + list(s.adds)}
+        problems = []
+        for step in steps:
+            for ch, value in step.setpoints.items():
+                low, high = self.ranges.get(ch, (-math.inf, math.inf))
+                if not low <= value <= high:
+                    problems.append('row %d: %s=%g is outside %g..%g' % (
+                        step.row, ch, value, low, high))
+            for ch in list(step.setpoints) + list(step.adds):
+                near = _near(ch, known)
+                if ch not in known and near:
+                    problems.append('row %d: nothing reads %s%s' % (step.row, ch, near))
+            for ch in step.limits:
+                if ch not in known and ch not in sets:
+                    problems.append('row %d: no channel %s to test%s' % (
+                        step.row, ch, _near(ch, known)))
+        return problems
 
     def labels(self):
         return {s.label: i for i, s in enumerate(self.steps) if s.label}
@@ -221,7 +322,10 @@ class Sequencer:
         return 'time' if why[0] == 'time' else 'exit'
 
     def run(self, loop, watch=None):
-        """The whole sequence on `loop`; cleanup however it ends."""
+        """The whole sequence on `loop`, checked first; cleanup however it ends."""
+        problems = self.check(loop)
+        if problems:
+            raise RigError('the program names what the loop has not:\n' + '\n'.join(problems))
         out = {'rows': [], 'steps': []}
         status, reason, spent = 'done', None, 0.0
         try:

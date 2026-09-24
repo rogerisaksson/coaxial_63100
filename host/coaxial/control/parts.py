@@ -41,6 +41,19 @@ class Slew(Filter):
         self.y = 0.0
 
 
+class Wrap(Filter):
+
+    """Degrees from `zero`, folded into -180..180: an absolute sensor as a joint angle."""
+
+    PARAMS = ('zero',)
+
+    def __init__(self, zero=0.0):
+        self.zero = float(zero)
+
+    def step(self, dt, x=0.0):
+        return {'y': (x - self.zero + 180.0) % 360.0 - 180.0}
+
+
 class LowPass(Filter):
 
     """First order, time constant `tau` s."""
@@ -107,6 +120,25 @@ class PI(Regulator):
         if u == raw:
             self.x += self.ki * e * dt
         return {'command': u}
+
+    def reset(self):
+        self.x = 0.0
+
+
+class AngleHold(Regulator):
+
+    """A joint angle (deg) as the drive's HOLD angle (rad electrical): the spring drags the
+    rotor onto it; `ki` trims what a load sags, within +/-`trim` deg."""
+
+    PARAMS = ('poles', 'theta0', 'ki', 'trim')
+
+    def __init__(self, poles=7.0, theta0=0.0, ki=0.0, trim=5.0):
+        self.poles, self.theta0, self.ki, self.trim = (float(v) for v in (poles, theta0, ki, trim))
+        self.reset()
+
+    def step(self, dt, setpoint=0.0, measured=0.0):
+        self.x = max(-self.trim, min(self.trim, self.x + self.ki * (setpoint - measured) * dt))
+        return {'command': self.theta0 + math.radians(setpoint + self.x) * self.poles}
 
     def reset(self):
         self.x = 0.0
