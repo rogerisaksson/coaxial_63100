@@ -737,7 +737,7 @@ def _command_files():
              if name.startswith('cmd_') and name != 'cmd_length.c']
     return files + ['boot/src/boot_core.c']
 _HEADERS = ('comms/inc', 'board/inc', 'drive/inc', 'thermal/inc', 'daq/inc', 'boot/inc',
-            'filter/inc', 'shtp/inc', 'modbus/inc')
+            'filter/inc', 'shtp/inc', 'modbus/inc', 'ctrl/inc')
 
 
 def _c_defines(extra_text=''):

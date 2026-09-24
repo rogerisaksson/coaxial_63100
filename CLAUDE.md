@@ -41,7 +41,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - Layers: `core/` (CubeMX) -> `board/` (hardware; API in
   `comms/inc/board/<x>.h`, one per `board_<x>.c`) -> `comms/` (cmd tables,
   handlers `h_<device>_<op>`, `rd_t` in, `wr_t` out, `wr_took` refusals)
-  -> portable C11 cores (`modbus drive thermal filter daq shtp boot`,
+  -> portable C11 cores (`modbus drive thermal filter daq shtp boot ctrl`,
   host-tested through gcc).
 - New 0x6E op: define in `cmd.h`, handler in `cmd_<dev>.c`, row in
   PROTOCOL.md, `IntEnum` in `protocol.py`; `test_structure` holds all four

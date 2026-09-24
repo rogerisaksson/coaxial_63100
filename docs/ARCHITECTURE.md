@@ -14,6 +14,8 @@ modbus/   crc, slave, rtu, map          portable C11, host-tested
 drive/    control law + motor model     portable C11, host-tested
 thermal/  20-node observer, envelope, online identification
 filter/   anti-alias biquad chain
+ctrl/     machine.parts and a feedback in C, for the board's loops (host-tested,
+          not yet on the wire)
 daq/      acquisition engine (ring, window, ladder, tone, live)
 shtp/     BNO08X transport
 boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),

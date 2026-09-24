@@ -33,6 +33,10 @@ DAQ_CORE = 'test_daq_core.py'
 #: is touched (docs/BOOT.md).
 BOOT_CORE = 'test_boot_core.py'
 
+#: The machine's parts and feedback as the C a board will loop on, stepped beside
+#: host/machine/parts.py.
+CTRL_CORE = 'test_ctrl_core.py'
+
 SENSORLESS = 'test_sensorless.py'
 
 #: test_ollama.py was 5,496 lines and 733 checks - a third of every check
@@ -64,6 +68,7 @@ CONTROLLER = 'test_controller.py'
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
+                   CTRL_CORE,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, BOOT, VIEWS,
                    RENDER) + OLLAMA
@@ -102,6 +107,7 @@ JOINS = (
     # The bootloader's core: a compiler and a second, and the one thing that
     # decides whether a blank node ever runs anything.
     (20, BOOT_CORE),
+    (20, CTRL_CORE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
     (45, 'test_mcp.py'),
@@ -187,6 +193,7 @@ TOUCHES = (
     ('host/coaxial/draw/dial.py',              ('test_simulated.py',)),
     ('host/coaxial/graphics/mesh.py',          ('test_simulated.py',)),
     ('host/machine/ansi.py',                   ('test_simulated.py', CONTROLLER)),
+    ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE)),
     ('host/machine/',                          (CONTROLLER, 'test_simulated.py', 'test_mcp.py')),
     ('host/coaxial/node.py',                   (CONTROLLER, 'test_mcp.py')),
     ('host/coaxial/control/',                  (CONTROLLER, SENSORLESS, 'test_simulated.py')),
@@ -212,6 +219,7 @@ TOUCHES = (
     # The decimating filter is hardware-free the same way, and its design lives
     # on the host beside it.
     ('filter/',                                (FILTER,)),
+    ('ctrl/',                                  (CTRL_CORE,)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer, and its suite
     # closes the loop through a motor model - the only check on it that needs
