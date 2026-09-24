@@ -184,12 +184,12 @@ TOOLS = [
     },
     {
         'name': 'program',
-        'description': "Move the joints: op=card gives the grammar and the joints; op=run runs `text`, one step a line (seconds, joint=deg), and says how it ended.",
-        'description_terse': "op=card: the grammar and the joints. op=run: run `text`, one step a line (seconds, joint=deg); answers how it ended.",
+        'description': "Move the machine: card (grammar, joints), run `text` whole, or live: start, send `text`, wait (one line), now, stop.",
+        'description_terse': "card: grammar and joints. run: `text` whole. Live: start, send `text`, wait (one line back), now, stop.",
         'inputSchema': {
             'type': 'object',
             'properties': {
-                'op': {'enum': ['card', 'run']},
+                'op': {'enum': ['card', 'run', 'start', 'send', 'wait', 'now', 'stop']},
                 'text': {'type': 'string'},
                 'machine': {'enum': ['humanoid', 'quad', 'fixed_wing', 'ebike']},
             },

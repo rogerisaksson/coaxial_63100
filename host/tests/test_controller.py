@@ -588,6 +588,47 @@ def test_live_from_a_stream(report):
         nodes.close()
 
 
+def test_a_model_streams_and_is_woken(report):
+    from machine import Machine
+    from machine.live import Live
+    from machine.nodes import Nodes
+    nodes = Nodes.discover(simulated=True)
+    try:
+        machine = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()},
+                          failsafe='0.6 left_knee=0 right_knee=0')
+        now = machine.status()
+        report.check('now is one line, as a program writes it',
+                     now.startswith('now t=') and 'left_knee=' in now
+                     and 'battery.pack.volts=' in now and '\n' not in now, now)
+        report.check('asked again, only what changed', 'left_hip=' not in
+                     machine.status(changed=True), machine.status(changed=True))
+        live = Live(machine, timeout=2.0, horizon=2.0).start()
+        answer = '0.6 left_knee=30 right_knee=30\n0.6 left_knee=0 right_knee=0\n'
+        live.feed(answer[:20])
+        unfinished = live.buffered()
+        live.feed(answer[20:31])
+        report.check('a line plays once finished, the rest of the answer still unwritten',
+                     unfinished == 0.0 and live.buffered() > 0.3, live.buffered())
+        report.check('the rest follows as it comes', live.feed(answer[31:]) == [])
+        woke = live.wait(low=0.3, timeout=5.0)
+        report.check('wait: one line when the buffer runs low, and what moved',
+                     woke.startswith('low') and 'now t=' in woke and '\n' not in woke, woke)
+        before = live.buffered()
+        live.feed('0.3 label=bend left_knee=20\n0.3 left_knee=0 goto=bend times=1\n')
+        tied = live.buffered()
+        live.feed('\n')
+        report.check('lines tied by a jump wait for their blank line, then go whole',
+                     tied <= before and live.buffered() >= 0.5, (before, tied, live.buffered()))
+        woke = live.wait(low=-1.0, timeout=8.0)
+        report.check('silence past the timeout wakes the writer: the failsafe, in a line',
+                     woke.startswith('failsafe: nothing sent'), woke)
+        live.stop()
+        report.check('an output no program set holds what it read: the pack stays closed',
+                     'battery.pack.contactor=1' in machine.status(), machine.status()[-160:])
+    finally:
+        nodes.close()
+
+
 def test_a_model_writes_lines(report):
     rotor = Rotor(noise=0.0)
     clock = Clock(rotor)
@@ -626,7 +667,7 @@ def main():
                  test_nodes_offer_then_configure, test_fitment_by_measurement,
                  test_the_body_runs_a_program,
                  test_a_model_writes_lines, test_machine_types_and_routines,
-                 test_live_from_a_stream):
+                 test_live_from_a_stream, test_a_model_streams_and_is_woken):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

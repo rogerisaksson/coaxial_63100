@@ -212,6 +212,20 @@ def exercise(server, report):
     refused = server.tool('program', {'op': 'run', 'text': '0.3 left_kne=20'})
     report.check('a program\'s typo comes back as the name meant',
                  'did you mean left_knee' in refused, refused.splitlines()[-1])
+    # LIVE: a line plays once checked; the model is woken with one line.
+    early = server.tool('program', {'op': 'send', 'text': '0'})
+    report.check('send before start: one line, the way out', 'op=start first' in early
+                 and '\n' not in early, early)
+    report.result('program start', server.tool('program', {'op': 'start'}),
+                  ['started, failsafe 0 run=stand', 'now t='])
+    report.result('program send', server.tool('program', {
+        'op': 'send', 'text': '0.4 left_knee=20 right_knee=20\n0.4 left_knee=0 right_knee=0'}),
+        ['queued', 's to play'])
+    woke = server.tool('program', {'op': 'wait'})
+    report.check('program wait: one line, low or an event, and what moved',
+                 woke.startswith('low') and '| now t=' in woke and '\n' not in woke, woke[:90])
+    report.result('program stop', server.tool('program', {'op': 'stop'}),
+                  ['stopped', 'now t='])
 
 
 def error_paths(server, report):

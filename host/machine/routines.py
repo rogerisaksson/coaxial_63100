@@ -14,8 +14,9 @@ Routine = namedtuple('Routine', 'text defaults')
 #: One bus of a body: its name, the kind its actuators are, their names outward.
 Subsystem = namedtuple('Subsystem', 'name kind actuators')
 
-#: `body` [Subsystem], bus 1 first; `routines` {name: Routine}.
-Type = namedtuple('Type', 'body routines')
+#: `body` [Subsystem], bus 1 first; `routines` {name: Routine}; `failsafe` a program safe
+#: from anywhere, what `Live` plays on silence, a trip or a stop.
+Type = namedtuple('Type', 'body routines failsafe')
 
 
 def _limb(name, side, *joints):
@@ -50,7 +51,7 @@ TYPES = {
                         {'seconds': 0.8, 'yaw': 0, 'pitch': 0}),
         'rest': Routine('{seconds} right_shoulder=0 right_elbow=0 left_shoulder=0 '
                         'left_elbow=0 head=0 neck=0', {'seconds': 1.0}),
-    }),
+    }, '0 run=stand'),
     'quad': Type([Subsystem('rotors', 'rotor', ('rotor_fl', 'rotor_fr', 'rotor_rl', 'rotor_rr'))], {
         'take_off': Routine('{seconds} ' + ROTORS.format('{rpm*0.5}') + '\n'
                             '{seconds} ' + ROTORS.format('{rpm}'),
@@ -62,7 +63,7 @@ TYPES = {
                          'rotor_rr={rear}', {'seconds': 1.0, 'front': 2800, 'rear': 3200}),
         'land': Routine('{seconds} ' + ROTORS.format('{rpm}') + '\n{seconds} ' +
                         ROTORS.format('0'), {'seconds': 1.5, 'rpm': 1500}),
-    }),
+    }, '0 run=land'),
     'fixed_wing': Type([Subsystem('propulsion', 'rotor', ('throttle',)),
                         Subsystem('surfaces', 'surface',
                                   ('aileron_l', 'aileron_r', 'elevator', 'rudder'))], {
@@ -76,9 +77,9 @@ TYPES = {
                         {'seconds': 1.5, 'deg': 15}),
         'land': Routine('{seconds} throttle={rpm} elevator={pitch}\n{seconds} throttle=0',
                         {'seconds': 2.0, 'rpm': 2000, 'pitch': 5}),
-    }),
+    }, '0 run=land'),
     'ebike': Type([Subsystem('drive', 'torque', ('assist',))], {
         'assist': Routine('{seconds} assist={amps}', {'seconds': 5.0, 'amps': 2.5}),
         'coast': Routine('{seconds} assist=0', {'seconds': 1.0}),
-    }),
+    }, '0 run=coast'),
 }

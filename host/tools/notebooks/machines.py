@@ -97,33 +97,59 @@ for kind, program in RUNS.items():
     print('  %s' % others[kind].summary().splitlines()[0])'''),
     ),
     section(
-        'Live: a stream, a buffer, a failsafe',
-        md('`Live` plays chunks as they arrive, from a buffer of at most `horizon` seconds; '
-           'silence past `timeout` plays the failsafe. Here the model streams, stumbles once, '
-           'then goes quiet.'),
+        'Live: a line at a time, woken with a line',
+        md('`feed` takes the answer as the model writes it: each finished line is checked and '
+           'plays at once. `wait` returns one line when the buffer runs low or something '
+           'happens, with what changed. Silence plays the type\'s failsafe.'),
         code('''import time
 from machine.live import Live
 
-live = Live(humanoid, failsafe='0 run=stand seconds=0.8', timeout=1.0, horizon=2.0).start()
-t0 = time.monotonic()
-for chunk in ('0.5 left_knee=20 right_knee=20', '0 run=walk stride=15', '0.5 head=4O',
-              '0 run=walk stride=15', '0 run=walk stride=15'):
-    said = live.send(chunk)
-    print('%4.1f s  %-30s %s' % (time.monotonic() - t0, chunk, said or 'queued'))
-    time.sleep(0.4)
-time.sleep(4.0)
+ANSWER = ('0.5 left_knee=20 right_knee=20\\n0 run=walk stride=15 period=0.25\\n'
+          '0 run=walk stride=15 period=0.25\\n')
+CPS = 160.0                                  # 40 tokens a second, 4 characters a token
+
+
+def stream(live, fed):
+    """Seconds from the answer's first token to the first move."""
+    t0, first = time.monotonic(), None
+    for i in range(0, len(ANSWER), 4):
+        time.sleep(4 / CPS)
+        if fed:
+            live.feed(ANSWER[i:i + 4])
+        if first is None and live.buffered() > 0:
+            first = time.monotonic() - t0
+    if not fed:
+        live.send(ANSWER)
+        first = time.monotonic() - t0
+    return first
+
+
+live = Live(humanoid, timeout=1.0, horizon=2.5).start()
+first = {'whole': stream(live, fed=False)}
+print(live.wait(low=0.0, timeout=6.0))
+first['fed'] = stream(live, fed=True)
+woke = live.wait(low=0.3, timeout=6.0)
+print(woke)
+print(live.feed('0.5 head=4O\\n'))
+print(live.wait(low=-1.0, timeout=6.0))
 streamed = live.stop()
-print(streamed)'''),
+print('first move %.2f s fed, %.2f s whole; woken in %d tokens'
+      % (first['fed'], first['whole'], len(woke) / 4))'''),
     ),
     section(
         'Through the board chat',
-        md('The `program` tool is what the local model calls: `op=card`, then `op=run` with its '
-           'answer, on any type.'),
+        md('The `program` tool is what the local model calls: `card` once, `run` a whole '
+           'program, or live - `start`, `send`, `wait`, `stop` - each reply a line.'),
         code('''from coaxial.simulated.board import SimulatedSession
 from coaxial_mcp.tools import program
 
 session = SimulatedSession(port='AX')
 print(program(session, op='run', machine='quad', text='0 run=take_off\\n0 run=land'))
+calls = [('start', ''), ('send', '0 run=take_off seconds=0.5\\n0 run=hover seconds=0.8'),
+         ('wait', ''), ('stop', '')]
+replies = [program(session, op=op, machine='quad', text=text) for op, text in calls]
+for (op, _), reply in zip(calls, replies):
+    print('%-5s %3d tokens  %s' % (op, len(reply) / 4, reply[:70]))
 session.nodes.close()
 nodes.close()'''),
     ),
@@ -136,11 +162,13 @@ print('3. the run    %s, %d steps; the target %.2f of the half field off centre'
       % (out.status, len(out.steps), out.rows[-1]['head_camera.vision.target.x']))
 print('4. refused    %d of 4, each in a line' % len(refusals))
 print('5. others     %s' % ', '.join('%s %s' % (k, o.status) for k, o in others.items()))
-print('6. live       %s after %s; %d chunks played, worst wait %.2f s'
-      % (streamed['status'], streamed['reason'], streamed['played'], streamed['wait_max']))'''),
+print('6. live       first move %.2f s fed, %.2f s sent whole; woken in %d tokens; %s'
+      % (first['fed'], first['whole'], len(woke) / 4, streamed['status']))
+print('7. the chat   %s' % ', '.join('%s %d' % (op, len(r) / 4) for (op, _), r in zip(calls, replies)))'''),
     md('- The model writes lines and names routines, not code: the sequencer runs, the loop '
        'holds.\n'
-       '- A wrong line costs one line back; silence costs the failsafe; a limit trips.'),
+       '- A wrong line costs one line back; silence costs the failsafe; a limit trips.\n'
+       '- A line moves the machine once written; a wait costs a line: what happened, what moved.'),
 ]
 
 BENCH = ('Discover through the broker; arming empty (the STO chain released); every joint '

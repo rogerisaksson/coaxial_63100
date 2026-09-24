@@ -1,9 +1,10 @@
 """A machine: actuators over nodes, the robot's other boards beside them, run by programs.
 
-    machine = Machine.discover('humanoid', simulated=True)   # the nodes found, a type over them
-    machine = Machine(nodes, type='quad')                 # TYPES: humanoid, quad, ...
+    machine = Machine.discover('humanoid', simulated=True)  # the nodes found, a type over them
+    machine = Machine(nodes, type='quad')                   # TYPES: humanoid, quad, ...
     print(machine.prompt())        # the grammar; what a program sets and reads; its routines
     out = machine.run(program)     # checked, armed, run, disarmed however it ends
+    machine.status(changed=True)   # 'now t=4.2 left_knee=30 ..': what moved, as a program says it
 
 An actuator is a feedback on one node, of a kind the node offers (`Node.ACTUATORS`): its
 setpoint is its name, it reads back as `<name>.<BACK>`. Nodes of a kind no actuator uses
@@ -97,16 +98,20 @@ class Machine:
     as `actuators`, or by `type` - a name in TYPES. `arming` overrides each actuator's own."""
 
     def __init__(self, nodes, actuators=None, type=None, rate_hz=25.0, arming=None,
-                 routines=None):
+                 routines=None, failsafe=None):
         if type is not None:
             if type not in TYPES:
                 raise MachineError('no machine type %r - there are %s' % (type, ', '.join(TYPES)))
             actuators = fit(nodes, TYPES[type].body, arming)
             routines = dict(TYPES[type].routines, **(routines or {}))
+            failsafe = failsafe or TYPES[type].failsafe
         self.nodes, self.actuators, self.type = nodes, dict(actuators), type
-        self.routines, self.arming = dict(routines or {}), arming
+        self.routines, self.arming, self.failsafe = dict(routines or {}), arming, failsafe
         kinds = {a.node.type for a in self.actuators.values()}
         self.others = [n for n in nodes if n.type not in kinds]
+        self.reads = sorted(c.name for n in self.others for c in n.capabilities()
+                            if c.direction == 'in')
+        self._said = {}
         inputs = sorted({'%s.%s' % (a.node.name, a.READS) for a in self.actuators.values()}
                         | {'%s.%s' % (n.name, m) for n in self.others for m in n.modules})
         outputs = sorted({'%s.%s' % (a.node.name, a.DRIVES) for a in self.actuators.values()}
@@ -121,10 +126,13 @@ class Machine:
             self.units[name] = actuator.UNIT
         for node in self.others:
             for m, module in node.modules.items():
+                now = module.read() if module.writes and module.read else {}
                 for key in module.writes:
                     channel = '%s.%s' % (node.name, key)
                     self.loop.route(**{'%s.%s.%s' % (node.name, m, key): channel})
                     self.ranges[channel] = module.ranges.get(key, (-math.inf, math.inf))
+                    if key in now:              # unset, an output holds what it reads now
+                        self.loop.write(**{channel: now[key]})
                 for key, levels in module.limits.items():
                     self.limits['%s.%s.%s' % (node.name, m, key)] = dict(levels)
             node.couple(self)
@@ -174,8 +182,7 @@ class Machine:
     def prompt(self):
         """The grammar, what a program sets, what it reads: what a model is told."""
         sets = [ch for ch in self.ranges if ch not in self.actuators]
-        reads = sorted(c.name for n in self.others for c in n.capabilities()
-                       if c.direction == 'in')
+        reads = self.reads
         lines = [GRAMMAR, '', 'This machine%s:' % (' (%s)' % self.type if self.type else ''),
                  card(self.loop, self.units, self.ranges)]
         if sets:
@@ -186,12 +193,31 @@ class Machine:
         if self.routines:
             lines.append('run  ' + ', '.join('%s(%s)' % (name, ' '.join(
                 '%s=%g' % kv for kv in r.defaults.items())) for name, r in self.routines.items()))
+        lines.append('back now t=4.2 knee=30 ..: what changed')
         return '\n'.join(lines)
 
     def run(self, text, **kw):
         """A program as text: checked, armed, run, disarmed however it ends."""
         return Sequencer.parse(text, ranges=self.ranges, limits=self.limits, init=self.arm,
                                cleanup=self.disarm, routines=self.routines, **kw).run(self.loop)
+
+    def status(self, changed=False):
+        """Now, as a program writes it: 'now t=4.2 left_knee=30 battery.pack.volts=45.1' -
+        every actuator's reading (deg and rpm whole, A to 0.1), every other read to 3 digits.
+        `changed`: only what reads differently from the last status. Polls (`Loop.poll`)
+        only while no pass has run: a running loop's bus is read, never its sources."""
+        bus = self.loop.read()
+        if any('%s.%s' % (n, a.BACK) not in bus for n, a in self.actuators.items()):
+            bus = self.loop.poll()
+        said = {}
+        for name, a in self.actuators.items():
+            v = bus.get('%s.%s' % (name, a.BACK))
+            if v is not None:
+                said[name] = '%.1f' % v if a.UNIT == 'A' else '%d' % round(v)
+        said.update((c, '%.3g' % bus[c]) for c in self.reads if bus.get(c) is not None)
+        shown = [(k, v) for k, v in said.items() if not changed or self._said.get(k) != v]
+        self._said.update(said)
+        return ' '.join(['now t=%.1f' % bus.get('t', 0.0)] + ['%s=%s' % kv for kv in shown])
 
     def pose(self):
         """Every actuator's reading now."""

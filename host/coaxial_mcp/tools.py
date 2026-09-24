@@ -317,18 +317,39 @@ def gpio_port(session, op='read', port='E', mask=0, value=0, **_):
 
 
 def program(session, op='card', text='', machine='humanoid', **_):
-    """The machine the session's buses make - found once, each preset built once: its card,
-    or a run."""
-    from machine import Machine, Nodes
+    """The machine the session's buses make - found once, each type built once: its card, a
+    whole run, or live - start, send (a line plays once checked), wait (one line), now, stop."""
+    from machine import Machine, MachineError, Nodes
+    from machine.live import Live
     machines = session.__dict__.setdefault('machines', {})
+    lives = session.__dict__.setdefault('lives', {})
     if machine not in machines:
         if 'nodes' not in session.__dict__:
             session.nodes = Nodes.discover(port=session.port,
                                            simulated=bool(getattr(session, 'simulated', False)))
         machines[machine] = Machine(session.nodes, type=machine)
-    built = machines[machine]
+    built, live = machines[machine], lives.get(machine)
     if op == 'card':
         return built.prompt()
+    if op == 'now':
+        return built.status()
+    if op == 'start':
+        if live is None or live.status in ('stopped', 'tripped', 'fault'):
+            lives[machine] = live = Live(built).start()
+        return 'started, failsafe %s | %s' % (built.failsafe, built.status(changed=True))
+    if op in ('send', 'wait', 'stop'):
+        if live is None:
+            raise MachineError('%s is not live - op=start first' % machine)
+        if op == 'send':
+            refused = live.feed(text + '\n') + live.flush()
+            return '\n'.join(refused) or 'queued, %.2f s to play' % live.buffered()
+        if op == 'wait':
+            return live.wait()
+        state = lives.pop(machine).stop()
+        return '%s%s | %s' % (state['status'], ' - ' + state['reason'] if state['reason'] else '',
+                              built.status(changed=True))
+    if live is not None:
+        raise MachineError('%s is live - op=stop first, or op=send' % machine)
     named = [name for name in built.actuators if re.search(r'\b%s\b' % name, text)]
     return built.run(text).summary(*['%s.%s' % (name, built.actuators[name].BACK)
                                      for name in named])

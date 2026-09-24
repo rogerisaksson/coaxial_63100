@@ -42,8 +42,8 @@ machine/            any board family, no import of one: roles (Input, Stream, Ou
                     of Feedbacks over float channels), parts, panel, wiring, ansi (palette),
                     sequencer (lines or tables: limits, jumps, routines; check, summary),
                     nodes (Node, Nodes, FAMILIES), machine (Machine, Actuator, fit), routines
-                    (types: a body of subsystems, a bus each), live (a stream, a buffer, a
-                    failsafe), simulated (pack, camera)
+                    (types: a body of subsystems, a bus each), live (fed a line at a time,
+                    a buffer, woken with a line, a failsafe), simulated (pack, camera)
 coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory; node (the
                     family for machine: Coaxial node, joint, surface, rotor, torque)
 coaxial/comm/       the wire: transport, crc, codecs, protocol, broker, sessions

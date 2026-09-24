@@ -4,19 +4,16 @@ import sys
 
 import anyio
 import anyio.to_thread
-import anyio.to_thread
-import anyio.to_thread
-import anyio.to_thread
 import mcp.types as types
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
-from. import detail as detailmod
+from . import detail as detailmod
 from . import render
 from coaxial.comm.session import open_session
-from coaxial.errors import RigError
 from coaxial_mcp.schema import TOOLS
 from coaxial_mcp.tools import HANDLERS
+from machine.errors import MachineError
 
 SERVER_NAME = 'coaxial-63100'
 
@@ -45,7 +42,7 @@ def build(session, level=detailmod.FULL):
                 # `detail` is this server's, not the caller's: it decides how
                 # much of a document `docs` hands back.
                 return handler(session, detail=level, **(arguments or {}))
-            except (RigError, ValueError, KeyError) as exc:
+            except (MachineError, ValueError, KeyError) as exc:
                 # Expected and actionable, so answer compactly instead of
                 # letting the SDK wrap a traceback the model has to read.
                 return render.error(exc)

@@ -183,6 +183,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   23.8 Hz (hip, J 3.2e-5) to 38.9 Hz (head, 1.2e-5); repeats within 1 %, J back
   within 3 %. The crossing count failed mid-suite (a read gap hid a pair: waist
   and neck swapped); the median half-period holds (2026-09-24).
+- A model's answer at 40 tokens/s (3 lines, 2.5 s of motion): first move 0.21 s
+  fed a line at a time, 0.66 s sent whole. A `wait` wake costs 15 tokens after
+  the first full `now` (~120); the humanoid prompt 1 360 characters. Every pass
+  wrote unset outputs as 0, opening the stand-in pack's contactor: unset now
+  holds what the node reads (2026-09-24).
 
 ## Local model
 

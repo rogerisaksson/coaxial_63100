@@ -261,8 +261,20 @@ class Loop(Controller):
             got = source.read()
             if got.get('fault'):
                 raise MachineError('%s faulted mid-loop - %s; the loop is over'
-                               % (name, got['fault']))
+                                   % (name, got['fault']))
             self.bus.update(flat(got, name + '.'))
+
+    def poll(self):
+        """What a pass would see, nothing commanded: the sources read, each feedback's
+        measure stepped at dt 0 (no state moves), nothing written."""
+        self._read_sources()
+        for name in self.feedbacks:
+            part = self.parts.get(name + '/measure')
+            if part is not None:
+                x = self.bus.get(self.wires.get(name + '/measure.x'), 0.0)
+                self.bus[self.channel_of(name + '/measure', 'y')] = float(
+                    part.step(0.0, x=x)['y'])
+        return dict(self.bus)
 
     def step(self, dt):
         """One pass; every channel after it."""
