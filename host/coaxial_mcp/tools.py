@@ -324,7 +324,7 @@ def program(session, op='card', text='', machine='humanoid', **_):
     if machine not in machines:
         if 'nodes' not in session.__dict__:
             session.nodes = Nodes.discover(port=session.port,
-                                           device=bool(getattr(session, 'simulated', False)))
+                                           simulated=bool(getattr(session, 'simulated', False)))
         machines[machine] = Machine(session.nodes, type=machine)
     built = machines[machine]
     if op == 'card':

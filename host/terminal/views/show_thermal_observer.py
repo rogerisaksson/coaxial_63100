@@ -420,7 +420,7 @@ def main():
     # power_afe=False, and it is not a preference.
     from terminal.ui.stage import boot
     with (boot('LINKING OBSERVER') as ready,
-          Coaxial63100(port=a.port, device=a.simulated, power_afe=False) as rig):
+          Coaxial63100(port=a.port, simulated=a.simulated, power_afe=False) as rig):
         ready()
         origin = rig.origin
         # ON THE STAND-IN, however it was reached: `--simulated` or a bench

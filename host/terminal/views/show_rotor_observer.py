@@ -355,7 +355,7 @@ def _link(args):
     """Open the board and put the front end where the source needs it."""
     rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
                    power_afe=False,
-                   device=bool(args.simulated))
+                   simulated=bool(args.simulated))
     if rig is None:
         return None, None, None, None
     origin, board = rig.origin, rig.board

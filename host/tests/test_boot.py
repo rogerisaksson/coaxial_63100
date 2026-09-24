@@ -190,7 +190,7 @@ def test_the_two_implementations_share_their_names(report, _boot):
                  issubclass(Boot, BootControl) and issubclass(SimulatedBoot, BootControl)
                  and names <= set(dir(Boot)) and names <= set(dir(SimulatedBoot)),
                  ', '.join(sorted(names)))
-    with Coaxial63100(device=True) as device:
+    with Coaxial63100(simulated=True) as device:
         report.check('the rig exposes it as board.boot', isinstance(device.board.boot, BootControl))
 
 

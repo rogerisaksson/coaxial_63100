@@ -1,6 +1,6 @@
 """A machine: actuators over nodes, the robot's other boards beside them, run by programs.
 
-    machine = Machine.discover('humanoid', device=True)   # the nodes found, a type over them
+    machine = Machine.discover('humanoid', simulated=True)   # the nodes found, a type over them
     machine = Machine(nodes, type='quad')                 # TYPES: humanoid, quad, ...
     print(machine.prompt())        # the grammar; what a program sets and reads; its routines
     out = machine.run(program)     # checked, armed, run, disarmed however it ends
@@ -120,9 +120,9 @@ class Machine:
             node.couple(self)
 
     @classmethod
-    def discover(cls, type, port='COM4', device=False, **kw):
+    def discover(cls, type, port='COM4', simulated=False, **kw):
         """Every board on every bus (`Nodes.discover`), the type over them."""
-        return cls(Nodes.discover(port=port, device=device), type=type, **kw)
+        return cls(Nodes.discover(port=port, simulated=simulated), type=type, **kw)
 
     # -- the run -----------------------------------------------------------------------
 

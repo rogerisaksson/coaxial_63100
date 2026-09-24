@@ -1,7 +1,7 @@
 """The Coaxial63100 family for `machine`: a board as a node, the actuators it can be, discovery.
 
     from machine import Machine
-    Machine.discover('humanoid', device=True)     # loads this module: a joint per Coaxial
+    Machine.discover('humanoid', simulated=True)     # loads this module: a joint per Coaxial
 
 A joint (deg, the drive holding an angle), a surface (a joint of narrow span), a rotor
 (rpm, a speed loop), a torque (A, the current itself).
@@ -20,14 +20,14 @@ from machine.parts import AngleHold, Direct, Gain, Slew, SpeedPI, Wrap
 JOINT_B = 4e-3
 
 
-def discover(port='COM4', device=False, units=range(1, 17), **kw):
+def discover(port='COM4', simulated=False, units=range(1, 17), **kw):
     """Every Coaxial answering on every bus this host reaches, each opened as a node."""
     from coaxial import Coaxial63100
-    first = Coaxial63100(port=port, device=device, **kw).open()
+    first = Coaxial63100(port=port, simulated=simulated, **kw).open()
     found = [(bus, unit) for bus, _ in first.session.buses()
              for unit, _ in first.session.scan(units, bus)]
     first.close()
-    return [Coaxial(Coaxial63100(port=bus, unit=unit, device=device, **kw).open())
+    return [Coaxial(Coaxial63100(port=bus, unit=unit, simulated=simulated, **kw).open())
             for bus, unit in found]
 
 

@@ -1044,7 +1044,7 @@ def test_gate_driver_arming(report):
     # power_afe SAID, not inherited: the interlock refusal under test reports
     # the volts it read, and with the rail down it refuses for the rail instead
     # and never reads them.
-    rig = Coaxial63100(device=True, power_afe=True).open()
+    rig = Coaxial63100(simulated=True, power_afe=True).open()
     try:
         report.check('nothing is armed on the way in',
                      rig.gates.is_on() is False, rig.gates.is_on())
@@ -1184,7 +1184,7 @@ def test_dead_time(report):
     # power_afe SAID, not inherited: the interlock refusal under test reports
     # the volts it read, and with the rail down it refuses for the rail instead
     # and never reads them.
-    rig = Coaxial63100(device=True, power_afe=True).open()
+    rig = Coaxial63100(simulated=True, power_afe=True).open()
     try:
         gates = rig.board.gate_drivers
         at_rest = gates.dead_time()
@@ -1305,7 +1305,7 @@ def test_sto_probe(report):
     chain fields, the keepalive pulses a second - and judges nothing."""
     from tools.bench import sto_probe
     from coaxial import Coaxial63100
-    rig = Coaxial63100(device=True, power_afe=True).open()
+    rig = Coaxial63100(simulated=True, power_afe=True).open()
     try:
         first = sto_probe.probe(rig)
         second = sto_probe.probe(rig, first)
@@ -1383,7 +1383,7 @@ def test_thermal_identification(report):
     from coaxial.model import thermal
     from coaxial.simulated.thermal.observer import SimulatedThermal
 
-    rig = Coaxial63100(device=True, power_afe=False).open()
+    rig = Coaxial63100(simulated=True, power_afe=False).open()
     try:
         got = rig.thermal.identification()
         report.check('the identification has the wire\'s fields, and the '
@@ -1769,7 +1769,7 @@ def test_closing_leaves_another_session_armed(report):
     from coaxial import Coaxial63100
 
     def rig_that_thinks(others):
-        rig = Coaxial63100(device=True, power_afe=False).open()
+        rig = Coaxial63100(simulated=True, power_afe=False).open()
         rig._others_here = lambda: others
         return rig
 

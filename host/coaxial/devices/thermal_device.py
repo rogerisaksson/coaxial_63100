@@ -239,7 +239,7 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
         identification to find.
         """
         raise RigError('a board has no ground truth to put in a situation - '
-                       'the stand-in has (device=True): box, fan, '
+                       'the stand-in has (simulated=True): box, fan, '
                        'heatsink, stuffy, bench, or random')
 
     def load_cycle(self, amps=None, on_s=None, off_s=None):
@@ -251,7 +251,7 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
         """
         raise RigError('a board has no load to lay on from the observer - '
                        'the drive and tools/bench/switch.py put current through '
-                       'it; the stand-in (device=True) cycles one')
+                       'it; the stand-in (simulated=True) cycles one')
 
     def _set_winding(self, limit_c, k_per_w, j_per_k):
         return self._ack(ThermalOp.SET_WINDING, pack(

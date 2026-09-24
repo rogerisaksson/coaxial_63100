@@ -262,7 +262,7 @@ def main(argv=None):
     # behind AFE_ON, and the quiet-False default left all three dead - the daq
     # refused, the view returned 1 and the menu read that as quit.
     rig = open_rig('LINKING THE RING', port=args.port, power_afe=True,
-                   device=bool(args.simulated))
+                   simulated=bool(args.simulated))
     if rig is None:
         return 1
     origin, board = rig.origin, rig.board

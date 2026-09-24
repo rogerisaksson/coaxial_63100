@@ -1,7 +1,7 @@
 """The application's IO: boards as nodes, what each offers, loops over their channels.
 
     nodes = Nodes.discover(port='COM4')                       # every family's boards on every bus
-    nodes = Nodes.discover(device=True)                       # the stand-in robot
+    nodes = Nodes.discover(simulated=True)                       # the stand-in robot
     nodes = Nodes([board, bms, camera])                       # nodes in hand
     nodes.capabilities('drive', 'angle')                      # [Channel], '<node>.<module>.<key>'
     print(nodes.card('angle', 'drive'))                       # the same, one line a node
@@ -106,7 +106,7 @@ class Nodes:
             self.nodes[node.name] = node
 
     @classmethod
-    def discover(cls, port='COM4', device=False, units=range(1, 17), peripherals=None,
+    def discover(cls, port='COM4', simulated=False, units=range(1, 17), peripherals=None,
                  families=FAMILIES, **kw):
         """Every board of every installed family on every bus this host reaches, and the
         robot's other boards: `peripherals`, or on the stand-in its pack and camera."""
@@ -114,9 +114,9 @@ class Nodes:
         for family in families:
             if importlib.util.find_spec(family.partition('.')[0]) is None:
                 continue
-            found += importlib.import_module(family).discover(port=port, device=device,
+            found += importlib.import_module(family).discover(port=port, simulated=simulated,
                                                               units=units, **kw)
-        if peripherals is None and device:
+        if peripherals is None and simulated:
             from machine.simulated import SimulatedBms, SimulatedCamera
             peripherals = [SimulatedBms(), SimulatedCamera()]
         return cls(found + list(peripherals or ()))

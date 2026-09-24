@@ -23,7 +23,7 @@ page.
 
 ```python
 from coaxial import Coaxial63100
-with Coaxial63100(port='COM4') as device:          # device=True: no cable
+with Coaxial63100(port='COM4') as device:          # simulated=True: no cable
     daq = device.daq
     daq.open(); daq.enable(); device.set_time_from_pc()
     daq.configure('phaseU', 'NTC')                  # names in any spelling
@@ -42,8 +42,8 @@ with Coaxial63100(port='COM4') as device:          # device=True: no cable
 
 ```python
 from machine import Machine
-humanoid = Machine.discover('humanoid', device=True)   # every board found; a joint per Coaxial
-print(humanoid.prompt())                               # what a model is told, ~1300 characters
+humanoid = Machine.discover('humanoid', simulated=True)  # every board found
+print(humanoid.prompt())                                # what a model is told, ~1300 characters
 humanoid.run('0 run=squat times=2\n0 run=walk stride=15')
 ```
 

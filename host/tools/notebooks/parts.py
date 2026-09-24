@@ -5,7 +5,7 @@ PORT = 'COM4'"""
 
 OPEN = """from coaxial import Coaxial63100
 
-device = Coaxial63100(port=PORT, device=SIMULATED).open()
+device = Coaxial63100(port=PORT, simulated=SIMULATED).open()
 print(device)"""
 
 CLOSE = """device.close()

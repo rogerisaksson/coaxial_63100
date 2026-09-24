@@ -148,7 +148,7 @@ def arguments(argv):
 
 def main(argv=None):
     args = arguments(argv)
-    with Coaxial63100(port=args.port, device=args.simulated, power_afe=True) as rig, \
+    with Coaxial63100(port=args.port, simulated=args.simulated, power_afe=True) as rig, \
             Commissioning(rig, arm=args.arm, log=print, i_h_max=args.i_h_max,
                           f_min_hz=args.f_min, rated_rpm=args.rated_rpm) as c:
         print('%s  fs %.0f Hz' % (rig, c.fs))

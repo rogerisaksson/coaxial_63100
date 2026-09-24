@@ -375,7 +375,7 @@ def test_the_pictures_and_the_panel(report):
 
 
 def test_velocity_is_a_feedback(report):
-    device = Coaxial63100(device=True).open()
+    device = Coaxial63100(simulated=True).open()
     try:
         drive = device.drive
         drive.configure(source='model')
@@ -397,13 +397,13 @@ def test_velocity_is_a_feedback(report):
 
 def test_nodes_offer_then_configure(report):
     from machine.nodes import Nodes
-    nodes = Nodes.discover(device=True)
+    nodes = Nodes.discover(simulated=True)
     try:
         names = [n.name for n in nodes]
         report.check('every node on every bus, named where it sits; the pack and camera too',
                      len(nodes.of_type('bldc_inverter')) == 20 and 'left_knee' in names
                      and [n.type for n in nodes][-2:] == ['bms', 'camera'], names[-3:])
-        bare = Nodes.discover(device=True, families=())
+        bare = Nodes.discover(simulated=True, families=())
         report.check('no family, no inverters: the stand-in peripherals alone',
                      [n.type for n in bare] == ['bms', 'camera'], [n.name for n in bare])
         caps ={c.name: c for c in nodes['left_knee'].capabilities('drive', 'angle')}
@@ -432,7 +432,7 @@ def test_nodes_offer_then_configure(report):
 def test_the_body_runs_a_program(report):
     from machine import Machine
     from machine.nodes import Nodes
-    nodes = Nodes.discover(device=True)
+    nodes = Nodes.discover(simulated=True)
     try:
         body = Machine(nodes, {j: nodes[j].actuator('joint') for j in
                                ('left_hip', 'left_knee', 'right_hip', 'right_knee')})
@@ -470,7 +470,7 @@ def test_machine_types_and_routines(report):
     from machine import Machine
     from machine.routines import TYPES
     from machine.nodes import Nodes
-    nodes = Nodes.discover(device=True)
+    nodes = Nodes.discover(simulated=True)
     try:
         for kind, program, back in (
                 ('humanoid', '0 run=squat seconds=0.6\n0 run=look yaw=35', 'head.deg'),
@@ -504,7 +504,7 @@ def test_machine_types_and_routines(report):
         except MachineError as exc:
             report.check('an unknown type is refused, the types named',
                          all(t in str(exc) for t in TYPES), exc)
-        ebike = Machine.discover('ebike', device=True)
+        ebike = Machine.discover('ebike', simulated=True)
         try:
             report.check('the factory: the family loaded, the type over what it found',
                          type(ebike.actuators['assist']).__module__ == 'coaxial.node'
@@ -519,7 +519,7 @@ def test_live_from_a_stream(report):
     from machine.live import Live
     from machine import Machine
     from machine.nodes import Nodes
-    nodes = Nodes.discover(device=True)
+    nodes = Nodes.discover(simulated=True)
     try:
         legs = ('left_hip', 'left_knee', 'right_hip', 'right_knee')
         machine = Machine(nodes, {j: nodes[j].actuator('joint') for j in legs})

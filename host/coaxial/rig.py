@@ -113,15 +113,15 @@ class Coaxial63100(Task, TaskStream, Acquisition):
     """One board, one acquisition task, one clock."""
 
     def __init__(self, port='COM4', baud=115200, unit=1, link='auto',
-                 device=False, power_afe=False, own_image=True):
-        """Say where the board is: `port`, or `device=True` for the stand-in. Nothing
+                 simulated=False, power_afe=False, own_image=True):
+        """Say where the board is: `port`, or `simulated=True` for the stand-in. Nothing
         is opened until `open()`, which makes a real board run this host's own build
         (`own_image`)."""
         self.port = port
         self.baud = baud
         self.unit = unit
         self.link = link
-        self._stand_in = device
+        self._stand_in = simulated
         self.power_afe = power_afe
         self.own_image = own_image
         #: (path of this host's build, whether open() loaded it), or None.
@@ -137,7 +137,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         # like `device.daq`, opened lazily by its factories.
         self.motion = Motion(self)
         self._origin = None
-        self.simulated = device
+        self.simulated = simulated
         self.layout = None
         self.sync = None
         # The stamps' wrap count, carried from block to block - `_epoch` - and

@@ -158,7 +158,7 @@ def sweep(rig):
 def leave(port, simulated):
     """Stop whatever the terminal left running, and say so - or say nothing."""
     try:
-        with Coaxial63100(port=port, device=simulated,
+        with Coaxial63100(port=port, simulated=simulated,
                           power_afe=False) as rig:
             found = sweep(rig)
     except QUIET as exc:

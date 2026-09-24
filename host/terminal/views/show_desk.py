@@ -63,7 +63,7 @@ def main(argv=None):
     # start the task at all, and that refusal used to escape as a traceback
     # rather than a said line.
     rig = open_rig('LINKING CONVERTERS', port=args.port, power_afe=True,
-                   device=bool(args.simulated))
+                   simulated=bool(args.simulated))
     if rig is None:
         return 1
     origin = rig.origin

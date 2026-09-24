@@ -12,7 +12,7 @@ SECTIONS = [
            'camera. Each is a node named where it sits, asked what it offers first.'),
         code('''from machine.nodes import Nodes
 
-nodes = Nodes.discover(port=PORT, device=SIMULATED)
+nodes = Nodes.discover(port=PORT, simulated=SIMULATED)
 kinds = sorted({n.type for n in nodes})
 print('%d nodes: %s' % (len(nodes), ', '.join('%d %s' % (len(nodes.of_type(k)), k) for k in kinds)))
 print(Nodes([nodes['battery'], nodes['head_camera']]).card())

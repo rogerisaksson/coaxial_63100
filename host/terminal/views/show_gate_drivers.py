@@ -344,7 +344,7 @@ def main(argv=None):
     # leaving it as found makes the run mean different things on different
     # days.
     rig = open_rig('LINKING GATE DRIVERS', port=args.port, power_afe=False,
-                   device=bool(args.simulated))
+                   simulated=bool(args.simulated))
     if rig is None:
         return 1
     origin, board = rig.origin, rig.board
