@@ -503,7 +503,8 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
         # strokes - coaxial.wireframe, not a wireframed mesh.
         from coaxial.graphics import wireframe   # here, not at the top: it imports this
         return wireframe.render(q, width, height, zoom=zoom, colour=colour,
-                                horizon=frame_on, triad=frame_on, lift=LIFT,
+                                horizon=frame_on, triad=frame_on, approach=frame_on,
+                                lift=LIFT,
                                 crew=crew, persist=persist, scroll=scroll,
                                 ahead=ahead)
 

@@ -1068,14 +1068,48 @@ def test_scroll(report):
                 if static['hrow'] <= y0 < 20)
     report.check('scroll: one step moves a rung on screen under half a '
                  'dot row', 0.0 < moved < 0.125, '%.3f rows' % moved)
-    rest, slid = ground._fan(static, 60, 20, 0.0)[0], ground._fan(static, 60, 20, 0.25)[0]
-    near = [at for at in slid if at // 60 >= 15]
-    report.check('sway: slid a quarter spacing, the near ends of the fan move, the horizon holds',
-                 any(rest.get(at, [0])[0] != slid[at][0] for at in near)
-                 and all(at in slid for at in static['horizon']), '%d near cells' % len(near))
-    report.check('sway: the scroll clock sways it, at most SWAY spacings',
-                 ground._backdrop(60, 20, 3.2, cam['view'], 0.0, ground.SWAY)
-                 != ground._backdrop(60, 20, 3.2, cam['view'], 0.0, 0.0), 'the same')
+    dashes = [ground._fan_cells(static, 60, 20, p) for p in (0.0, 0.25)]
+    near = [at for at in dashes[0] if at // 60 >= 15]
+    horizon = {int(fy) * 60 + int(fx) for fx, fy, _d in static['horizon']
+               if 0 <= fx < 60 and 0 <= fy < 20}
+    report.check('dash: the fan moves with the rungs, its near dashes a quarter on',
+                 any(dashes[1].get(at, [0])[0] != dashes[0][at][0] for at in near)
+                 and horizon <= set(dashes[1]), '%d near cells' % len(near))
+    far = [(fx, fy) for _k, run in static['fan'] for fx, fy, _d, wy in run
+           if wy >= static['south'] + (ground.DASHED + 1) * ground.RUNG_SPACING
+           and 0 <= fx < 60 and 0 <= fy < 20]
+    report.check('dash: past DASHED spacings the fan is solid, whatever the phase',
+                 far and all(int(fy) * 60 + int(fx) in dashes[0]
+                             and int(fy) * 60 + int(fx) in dashes[1] for fx, fy in far),
+                 '%d far points' % len(far))
+
+
+def test_approach(report):
+    """The approach: gates down a bending path, moving with the floor; the scene rolled by
+    the bank; the HUD reading the flight - its heading, its clock."""
+    from coaxial.graphics import approach
+    cam = engine.camera(60, 20, 1.5, distance=3.2, zoom=1.0, tip=wireframe.CAMERA_TIP)
+    static = ground._ground_static(60, 20, 3.2, cam['view'])
+    gates = [approach.corridor(static, 60, 20, travel, 0.03, None, ground._segment)
+             for travel in (0.0, 0.5)]
+    report.check('approach: the gates are amber and move with the floor',
+                 gates[0] and gates[0] != gates[1]
+                 and all(rgb[0] >= rgb[2] for _mask, rgb in gates[0].values()),
+                 '%d cells' % len(gates[0]))
+    straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)
+    report.check('approach: the curvature bends the corridor', straight != gates[0])
+    fl = approach.flight(approach.CURVE_S / 4.0)
+    roll = approach.roller(fl, 60, 20, static)
+    x, y = roll(50.0, 10.0)
+    report.check('approach: at full bend the craft banks BANK and the scene rolls against it',
+                 abs(fl['bank'] - approach.BANK) < 1e-9 and y < 10.0 and fl['curve'] > 0.0,
+                 '(%.2f, %.2f)' % (x, y))
+    art = wireframe.render((0.0, 0.0, 0.0, 1.0), 90, 30, colour=False, scroll=12.5,
+                           approach=True)
+    heading = approach.flight(12.5)['heading']
+    report.check('approach: the heading tape reads the flight, the clock the scroll',
+                 '<%03d>' % (int(round(heading)) % 360) in art and 'T+00:12.5' in art,
+                 art.splitlines()[2].strip())
 
 
 def test_fan_lines(report):
@@ -1236,6 +1270,7 @@ def main():
     test_scroll(report)
     test_fan_lines(report)
     test_backdrop_cache(report)
+    test_approach(report)
     test_ladder(report)
     test_the_alphabet(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

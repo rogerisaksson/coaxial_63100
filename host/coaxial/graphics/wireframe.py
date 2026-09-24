@@ -7,7 +7,9 @@ import os
 from coaxial.draw import orientation
 from coaxial.graphics import creases, engine, preload, solids, stereotype
 from coaxial.graphics.creases import OUTLINE_EXACT
-from coaxial.graphics.ground import _ground
+from coaxial.graphics import approach as _approach
+from coaxial.graphics.ground import (_BACKDROP_STATIC as _geometries, GROUND_SPEED,
+                                     RUNG_SPACING, _ground)
 from coaxial.graphics.lines import _edge, _outline
 from machine import ansi
 from coaxial.graphics.shading import (BIAS, FLOOR, LIGHT, PIVOT, SHADOW_DIM, SLOPE, SUN_MIN, _dots,
@@ -383,11 +385,16 @@ def _face_of(solid, q, m, cam, crew, colour, persist, foreign, ahead,
     return m, buf, layer
 
 
+def _geometry(width, height):
+    """The ground's camera for a window size, cast by the frame's `_ground`."""
+    return _geometries[(width, height)]
+
+
 def render(q, width, height, zoom=1.0, colour=True,
            horizon=True, face=True, tip=None, solid=None,
            distance=None, lift=0.44, crew=None, least=0, triad=False,
-           persist=None, scroll=None, ahead=False):
-    """The board under rotation `q`, as a vector drawing."""
+           persist=None, scroll=None, ahead=False, approach=False):
+    """The board under rotation `q`, as a vector drawing; `approach`: the HUD over it."""
 
     # `solid` overrides the board with another mesh - facecheck proves the
     # LIGHT MODEL on the exporter's cube, whose flat faces turn a shading bug
@@ -429,8 +436,9 @@ def render(q, width, height, zoom=1.0, colour=True,
     grid = [[' '] * width for _ in range(height)]
     tone = [[None] * width for _ in range(height)]
 
+    flown = _approach.flight(scroll or 0.0) if approach else None
     if horizon:
-        _ground(grid, tone, buf, distance, width, height, colour, view, scroll)
+        _ground(grid, tone, buf, distance, width, height, colour, view, scroll, flown)
     for r, c, glyph, ink in layer:
         grid[r][c] = glyph
         tone[r][c] = ink
@@ -473,6 +481,14 @@ def render(q, width, height, zoom=1.0, colour=True,
             grid[py][px] = glyph
             tone[py][px] = shades[third] if colour else None
 
+
+    if approach:
+        lit = [at for at, v in enumerate(buf) if v]
+        box = ((lit[0] // width, lit[-1] // width, min(at % width for at in lit),
+                max(at % width for at in lit)) if lit else None)
+        _approach.hud(grid, tone, buf, width, height, flown, _geometry(width, height),
+                      scroll, int((scroll or 0.0) * GROUND_SPEED * RUNG_SPACING
+                                  / _approach.GATE_EVERY), box, colour)
 
     if not colour:
         return '\n'.join(''.join(row).rstrip() for row in grid)

@@ -1,10 +1,11 @@
-"""The landscape behind the board: a horizon, a fan of lines to it and rungs sliding toward the camera.
+"""The landscape behind the board: a bowed horizon, a dashed fan, rungs and gates toward the camera.
 
 The camera's world, not the board's: cast once per window size and scroll
 step, replayed against each frame's depth buffer.
 """
 import math
 
+from coaxial.graphics import approach
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS
 
 
@@ -53,7 +54,7 @@ HORIZON_GREY = 128
 #: of stacking into a bar. A rung under half its grey stays out of a
 #: cell another line already holds: one tone per cell would lend it
 #: the fan's.
-RUNG_SPACING = 2.2
+RUNG_SPACING = 1.65
 GROUND_SPEED = 0.2
 #: Ninety-six steps a spacing: at 24 a rung stood for 0.21 s and
 #: jumped, the near one 1.7 dot rows at a time - "static", the bench
@@ -65,14 +66,24 @@ RUNG_STEPS = 96
 RUNG_FADE = 1.5
 BACKDROPS_KEPT = 2 * RUNG_STEPS
 _BACKDROP_STATIC = {}
+#: The floor's polylines per (window size, scroll step), flat or to be rolled.
+_RUNS = {}
 
-#: THE FAN SWAYS. Its lines slide sideways at most SWAY spacings, a sine of SWAY_S
-#: seconds: the camera drifting over the floor - the near ends move, the vanishing point
-#: holds (2026-09-24, "the vertical lines move too, a little"). A position is quantised to
-#: SWAY_STEPS a spacing, cast once and kept.
-SWAY = 0.25
-SWAY_S = 14.0
-SWAY_STEPS = 64
+#: THE FAN MOVES WITH THE RUNGS. Its lines are dashed, DASH of each spacing lit from a
+#: rung outward, and the dashes scroll toward the camera with the rungs: the floor reads
+#: as travelled, not drawn (2026-09-24, "the vertical lines follow the horizontal ones").
+#: Past DASHED spacings the fan runs solid into the haze - dashes there are under a dot
+#: row and shimmer. The fan's dots are cast once a window size; a step keeps its dashes.
+DASH = 0.5
+DASHED = 6
+
+#: Fan lines each side of the centre: far enough out that the outer ones meet the
+#: horizon past the frame's edges.
+FAN_HALF = 11
+
+#: THE HORIZON BOWS: a planet under the approach, BOW of the height lower at the frame's
+#: edges than at its centre, a parabola; the floor stops at it.
+BOW = 0.09
 
 
 def _ground_dot(cells, width, height, fx, fy, depth, line, fade=1.0):
@@ -116,14 +127,13 @@ def _rungs(static, phase):
     return out
 
 
-def _backdrop(width, height, distance, view, phase=0.0, shift=0.0):
+def _backdrop(width, height, distance, view, phase=0.0):
     """{cell: (braille mask, grey (r, g, b))} for the ground grid at a phase
-    of its scroll and a shift of its fan: the horizon and the fan at the
-    shift's step, the rungs at the phase's, greys settled per cell.
+    of its scroll: the horizon, the fan's dashes and the rungs at the phase's
+    step, greys settled per cell.
     """
     step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
-    slid = int(round(shift * SWAY_STEPS))
-    key = (width, height, slid, step)
+    key = (width, height, step)
     got = _BACKDROP.get(key)
     if got is not None:
         return got
@@ -133,63 +143,106 @@ def _backdrop(width, height, distance, view, phase=0.0, shift=0.0):
     if static is None:
         static = _BACKDROP_STATIC[(width, height)] = _ground_static(width, height, distance,
                                                                     view)
-    fan = static['fans'].get(slid)
-    if fan is None:
-        cells = _fan(static, width, height, slid / SWAY_STEPS)[0]
-        fan = static['fans'][slid] = {'cells': cells, 'masks': _greys(cells, static)}
-    masks = dict(fan['masks'])
-    masks.update(_greys(_rung_cells(fan['cells'], static, width, height,
-                                    step / RUNG_STEPS), static))
+    masks = _greys(_lay(_runs(static, width, height, step), width, height), static)
     _BACKDROP[key] = masks
     return masks
 
 
-def _rung_cells(under, static, width, height, phase):
-    """The cells the rungs at `phase` touch, in _ground_dot's shape, each
-    seeded from the fan's cell under it (`under`) - a rung under half its
-    grey stays out of a cell another line already holds, the fan's
-    included.
-    """
-    cells = {}
-    hrow = static['hrow']
+def _runs(static, width, height, step):
+    """The floor at a scroll step as polylines, (line, [(fx, fy, depth)], fade), in the
+    order _ground_dot's faint rule wants: the horizon, the fan's dashes, the rungs. Kept a
+    step (`_RUNS`)."""
+    key = (width, height, step)
+    got = _RUNS.get(key)
+    if got is not None:
+        return got
+    if len(_RUNS) >= BACKDROPS_KEPT:
+        _RUNS.clear()
+    phase = step / RUNG_STEPS
+    south, sky = static['south'], static['sky']
+    solid = south + DASHED * RUNG_SPACING
+    runs: list = [('horizon', static['horizon'], 1.0)]
+    for line, points in static['fan']:
+        run = []
+        for p, q in zip(points, points[1:]):
+            for t0, t1 in _lit(p[3], q[3], south, phase, solid):
+                a = tuple(p[i] + (q[i] - p[i]) * t0 for i in range(3))
+                if run and t0 > 0.0:
+                    runs.append((line, run, 1.0))
+                    run = []
+                run = run or [a]
+                run.append(tuple(p[i] + (q[i] - p[i]) * t1 for i in range(3)))
+                if t1 < 1.0:
+                    runs.append((line, run, 1.0))
+                    run = []
+        if len(run) > 1:
+            runs.append((line, run, 1.0))
     rungs = _rungs(static, phase)
-    for k, (yc, wc, x0, y0, w0, x1, y1, w1) in enumerate(rungs):
-        if wc <= 0.0 or wc > 2.0 or yc < hrow:
+    for k, (yc, wc, x0, y0, _w0, x1, y1, _w1) in enumerate(rungs):
+        if wc <= 0.0 or wc > 2.0 or yc < static['hrow']:
             continue
-        beyond = rungs[k + 1][0] if k + 1 < len(rungs) else hrow
+        beyond = rungs[k + 1][0] if k + 1 < len(rungs) else static['hrow']
         fade = min(1.0, max(0.0, (yc - beyond) / RUNG_FADE))
         if fade < 0.1:
             continue
-        depth = 1.0 / wc
-        faint = fade < 0.5
-        line = ('rung', k)
-        for half in range(2 * width):
-            fx = half / 2.0 + 0.25
-            t = (fx - x0) / (x1 - x0)
-            if not 0.0 <= t <= 1.0:
-                continue
+        run = []
+        for col in range(width + 1):
+            t = (col - x0) / (x1 - x0)
             fy = y0 + (y1 - y0) * t
-            if fy < hrow or fy >= height:
-                continue
-            py = int(fy)
-            at = py * width + (half >> 1)
-            cell = cells.get(at)
-            if cell is None:
-                base = under.get(at)
-                if base is None:
-                    cell = cells[at] = [0, False, 0.0, 0, set(), fade]
-                elif faint:
-                    continue
-                else:
-                    cell = cells[at] = [base[0], base[1], base[2], base[3],
-                                        set(base[4]), base[5]]
-            elif faint and cell[4]:
-                continue
-            cell[0] |= BRAILLE_BITS[half & 1][min(3, int((fy - py) * 4.0))]
-            cell[2] += depth
-            cell[3] += 1
-            cell[4].add(line)
-            cell[5] = max(cell[5], fade)
+            if 0.0 <= t <= 1.0 and sky(col) <= fy:
+                run.append((float(col), fy, 1.0 / wc))
+            elif len(run) > 1:
+                runs.append((('rung', k), run, fade))
+                run = []
+            else:
+                run = []
+        if len(run) > 1:
+            runs.append((('rung', k), run, fade))
+    _RUNS[key] = runs
+    return runs
+
+
+def _lit(wy0, wy1, south, phase, solid):
+    """The pieces of a fan segment from world y `wy0` to `wy1` a dash lights, as fractions
+    [(t0, t1)]: DASH of each spacing from its rung out, all of it past `solid`."""
+    if wy1 == wy0:
+        return [(0.0, 1.0)]
+    u0, u1 = sorted(((wy - south) / RUNG_SPACING + phase) for wy in (wy0, wy1))
+    edges = {u0, u1}
+    for n in range(int(math.floor(u0)), int(math.ceil(u1)) + 1):
+        edges.update(e for e in (n, n + DASH) if u0 < e < u1)
+    us = ((solid - south) / RUNG_SPACING + phase)
+    if u0 < us < u1:
+        edges.add(us)
+    edges = sorted(edges)
+    out = []
+    for e0, e1 in zip(edges, edges[1:]):
+        mid = 0.5 * (e0 + e1)
+        if mid >= us or mid % 1.0 < DASH:
+            t0, t1 = ((e0 - u0) / (u1 - u0), (e1 - u0) / (u1 - u0))
+            if wy1 < wy0:
+                t0, t1 = 1.0 - t1, 1.0 - t0
+            if out and abs(out[-1][1] - t0) < 1e-9:
+                out[-1] = (out[-1][0], t1)
+            else:
+                out.append((t0, t1))
+    return sorted(out)
+
+
+def _lay(runs, width, height, roll=None):
+    """Polylines into _ground_dot's cells, every dot they pass through - each point moved
+    by `roll` first, when given, so a rolled line is drawn, not a line's dots moved."""
+    cells = {}
+    for line, points, fade in runs:
+        def dot(fx, fy, depth, _k, line=line, fade=fade):
+            _ground_dot(cells, width, height, fx, fy, depth, line, fade)
+        prev = None
+        for fx, fy, depth in points:
+            if roll is not None:
+                fx, fy = roll(fx, fy)
+            if prev is not None:
+                _segment(dot, prev, fx, fy, depth, line)
+            prev = (fx, fy, depth)
     return cells
 
 
@@ -211,16 +264,16 @@ def _greys(cells, static):
 
 
 def _ground_static(width, height, distance, view):
-    """The horizon and the camera for a window size: own scale, own centre,
-    cast once; the fan cast per shift (`fans`).
+    """The horizon, the camera and the fan's dots for a window size: own scale,
+    own centre, cast once.
     """
     v0, v1, v2, v3, v4, v5, v6, v7, v8 = view
     south, far = -5.0, 30.0
 
-    def ray(wx, wy):
-        tx = v0 * wx + v1 * wy + v2 * GROUND
-        ty = v3 * wx + v4 * wy + v5 * GROUND
-        tz = v6 * wx + v7 * wy + v8 * GROUND
+    def ray(wx, wy, wz=GROUND):
+        tx = v0 * wx + v1 * wy + v2 * wz
+        ty = v3 * wx + v4 * wy + v5 * wz
+        tz = v6 * wx + v7 * wy + v8 * wz
         w = 1.0 / (distance - tz)
         return w * tx, w * ty, w
 
@@ -231,66 +284,91 @@ def _ground_static(width, height, distance, view):
     cy = hrow + scale * 0.5 * top
     cx = width / 2.0
 
-    def cast(wx, wy):
+    def cast(wx, wy, wz=GROUND):
         # ray() already carries the perspective weight in its x and y.
-        sx, sy, w = ray(wx, wy)
+        sx, sy, w = ray(wx, wy, wz)
         return cx + scale * sx, cy - scale * 0.5 * sy, w
 
     # The backdrop is BRAILLE, like the outline: a 2x4 dot matrix per cell.
-    horizon = {}
+    horizon = []
     _x, _y, w_far = ray(0.0, far)
     far_depth = 1.0 / w_far
-    for half in range(2 * width):
-        _ground_dot(horizon, width, height, half / 2.0 + 0.25, hrow, far_depth, 'horizon')
-    static = {'horizon': horizon, 'cast': cast, 'hrow': hrow, 'south': south, 'far': far,
-              'far_depth': far_depth, 'fans': {}}
-    # The haze's reach from the fan at rest, whatever it sways to.
-    static['near_depth'] = _fan(static, width, height, 0.0)[1]
+    bow = BOW * height
+
+    def sky(fx):
+        """The horizon's row at column `fx`: hrow at the centre, `bow` lower at the edges."""
+        return hrow + bow * ((fx - cx) / cx) ** 2
+
+    for col in range(width + 1):
+        horizon.append((float(col), sky(col), far_depth))
+    def along(wx, depth):
+        """How far out a fan dot is, world y, from its depth on the line at `wx`."""
+        return (distance - depth - v6 * wx - v8 * GROUND) / v7
+
+    static = {'horizon': horizon, 'cast': cast, 'along': along, 'hrow': hrow, 'sky': sky,
+              'ground': GROUND, 'scale': scale, 'rows': 0.5 * scale,
+              'south': south, 'far': far, 'far_depth': far_depth}
+    static['fan'], static['near_depth'] = _fan(static, width, height)
     return static
 
 
-def _fan(static, width, height, shift):
-    """The horizon and the fan's seventeen lines, slid `shift` spacings sideways: (cells,
-    the nearest depth in the frame). Wide enough that the outer lines meet the horizon past
-    the frame's edges - the fan covers the WHOLE line, not a band in the middle."""
-    cast, hrow, south, far = static['cast'], static['hrow'], static['south'], static['far']
-    cells = {at: [c[0], c[1], c[2], c[3], set(c[4]), c[5]]
-             for at, c in static['horizon'].items()}
-
-    def dot(fx, fy, depth, line):
-        _ground_dot(cells, width, height, fx, fy, depth, line)
-
-    # A world line is a straight screen line: the samples only carry depth for the haze.
-    # Two a row draw the same dots as six at 60 % of the cost (2026-09-24, 150x44).
+def _fan(static, width, height):
+    """The fan's lines as polylines, [(line, [(fx, fy, depth, world y)])], and the nearest
+    depth in the frame. Wide enough that the outer lines meet the horizon past the frame's
+    edges - the fan covers the WHOLE line, not a band in the middle."""
+    cast, sky = static['cast'], static['sky']
+    south, far = static['south'], static['far']
+    # A world line is a straight screen line: the samples only carry depth for the haze
+    # and the dashes their world y.
     samples = height * 2
     near_depth = static['far_depth']
-    for k in range(-8, 9):
-        fixed = (k + shift) * RUNG_SPACING
-        prev = None
+    lines = []
+    for k in range(-FAN_HALF, FAN_HALF + 1):
+        fixed = k * RUNG_SPACING
+        run = []
         for i in range(samples + 1):
             wy = south + (far - south) * (i / samples) ** 2
             fx, fy, w = cast(fixed, wy)
-            if w <= 0.0 or w > 2.0 or fy < hrow:
-                prev = None
+            if w <= 0.0 or w > 2.0 or fy < sky(fx):
+                if len(run) > 1:
+                    lines.append((k, run))
+                run = []
                 continue
             depth = 1.0 / w
-            if prev is not None:
-                _segment(dot, prev, fx, fy, depth, k)
-            if prev is not None and fy < height:
+            if run and fy < height:
                 near_depth = min(near_depth, depth)
-            prev = (fx, fy, depth)
-    return cells, near_depth
+            run.append((fx, fy, depth, wy))
+        if len(run) > 1:
+            lines.append((k, run))
+    return lines, near_depth
 
 
-def _ground(grid, tone, buf, distance, width, height, colour, view, scroll=None):
+def _fan_cells(static, width, height, phase):
+    """The horizon and the fan's dashes at `phase`, in _ground_dot's shape."""
+    step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
+    return _lay([r for r in _runs(static, width, height, step)
+                 if not (isinstance(r[0], tuple) and r[0][0] == 'rung')], width, height)
+
+
+def _ground(grid, tone, buf, distance, width, height, colour, view, scroll=None,
+            flown=None):
     """The landscape behind the board at `scroll` seconds (None: at rest): the cached
-    backdrop - the rungs GROUND_SPEED spacings a second toward the camera, the fan
-    swaying - replayed against this frame's depth buffer so the board occludes it.
+    backdrop - rungs and dashes GROUND_SPEED spacings a second toward the camera -
+    replayed against this frame's depth buffer so the board occludes it. `flown`
+    (approach.flight): the corridor's gates laid on, the whole rolled by its bank.
     """
     phase = (scroll * GROUND_SPEED) % 1.0 if scroll is not None else 0.0
-    shift = SWAY * math.sin(2.0 * math.pi * scroll / SWAY_S) if scroll is not None else 0.0
-    for at, (mask, grey) in _backdrop(width, height, distance, view, phase,
-                                      shift).items():
+    masks = _backdrop(width, height, distance, view, phase)
+    if flown is not None:
+        # The approach: the floor's own dots rolled by the bank, the gates over them.
+        static = _BACKDROP_STATIC[(width, height)]
+        roll = approach.roller(flown, width, height, static)
+        step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
+        masks = _greys(_lay(_runs(static, width, height, step), width, height, roll), static)
+        masks.update(approach.corridor(static, width, height,
+                                       (scroll or 0.0) * GROUND_SPEED * RUNG_SPACING,
+                                       flown['curve'], roll, _segment))
+    for at, (mask, grey) in masks.items():
         r, c = divmod(at, width)
         if buf[at] == 0.0 and grid[r][c] == ' ':
             grid[r][c] = chr(BRAILLE + mask)
