@@ -51,13 +51,37 @@ def test_the_front_end_feeds_the_image(report, rig, emu):
                  ', '.join('%g V -> %d mV' % pair for pair in got))
 
 
+#: Where no emulator runs: Renode named at nothing, found nowhere else.
+NOWHERE = {'RENODE': os.path.join(os.sep, 'no', 'renode'), 'LOCALAPPDATA': os.path.join(os.sep, 'no'),
+           'PATH': ''}
+
+FALLS_BACK = '''from coaxial import EMULATED, Coaxial63100
+rig = Coaxial63100(execution_mode=EMULATED).open()
+print(rig.simulated, rig.origin.label)
+rig.close()'''
+
+
+def test_emulated_falls_back_where_none_runs(report):
+    """EMULATED on a machine with no Renode - CI's host job, a bare checkout - opens the
+    stand-in and says why, as HARDWARE does where no board answers."""
+    done = subprocess.run([sys.executable, '-X', 'utf8', '-c', FALLS_BACK],
+                          env=dict(os.environ, **NOWHERE), capture_output=True, text=True,
+                          encoding='utf-8', timeout=120)
+    said = done.stdout.strip()
+    report.check('EMULATED with no emulator falls back to the stand-in, and says why',
+                 said.startswith('True Simulated - no emulator here'),
+                 said[:100] or done.stderr.strip()[-200:])
+
+
 def main():
     report = wire.Report()
+    print('\n-- emulated falls back where none runs --')
+    test_emulated_falls_back_where_none_runs(report)
     if find_renode() is None or not os.path.exists(ELF):
         print('no Renode or no image (%s): the emulator needs both' % ELF)
         required = os.environ.get('COAXIAL_EMULATOR') == 'required'
-        print('\n0 passed, %d failed' % required)
-        return int(required)
+        print('\n%d passed, %d failed' % (report.passed, report.failed + required))
+        return int(required or report.failed)
     with Emulator(monitor=True) as emu:
         print('\n-- the bench conformance holds --')
         test_the_bench_conformance_holds(report, emu)

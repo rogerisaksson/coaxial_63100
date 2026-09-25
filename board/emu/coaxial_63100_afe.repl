@@ -1,8 +1,14 @@
-// coaxial_63100_afe.repl - Written by host/tools/emu/afe_spice.py from
+// coaxial_63100_afe.repl - Written by host/tools/emu/afe_spice.py.
 // electronic_simulations/afe/amplifiers.asc (6bc736b), nominal: 33 ADC samples of V(v_diff) against
 // I(RSHUNT) over -2.3 .. 106.3 A, fitted. The residual, 6.48 mV sigma, is the current
 // moving within the sample window, not converter noise; the bus ratio
 // V(vdcbus)/V(adc_vbus) there is 23.5982.
+// Spread: amplifiers.asc (6bc736b)'s tolerances, sigma tol/3, root sum of squares - the gain over RSHUNT, R12, R17, R1, R19, R5, R44,
+// the zero 1.65 V of common mode on R1/R19/R5/R44's mismatch, the bus divider R23/R37. No tempco
+// is given in the schematic, so no drift.
 afe:
     PhaseVoltsPerAmp: 0.010238
     PhaseZeroVolts: 0.008682
+    PhaseGainSigma: 0.000517
+    PhaseZeroSigmaVolts: 0.000793
+    BusGainSigma: 0.000471

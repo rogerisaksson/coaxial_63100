@@ -1,0 +1,8 @@
+{
+  "name": "kickbike",
+  "note": "A scenario, not a measurement: 85 kg with its rider on the flat, a 0.1 m hub wheel direct driven, the rider kicking 150 N for a quarter of every 1.2 s. Rolling and drag are assumptions.",
+  "body": {"kind": "vehicle", "mass": 85.0, "crr": 0.01, "cda": 0.45, "rider": 150.0, "kick": 1.2, "duty": 0.25},
+  "nodes": [
+    {"name": "hub", "motor": "outrunner_63100_14p", "load": {"kind": "wheel", "gear": 1, "inertia": 0.01, "radius": 0.1}}
+  ]
+}

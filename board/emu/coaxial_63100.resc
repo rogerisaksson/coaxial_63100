@@ -11,6 +11,7 @@ include @board/emu/Coaxial63100_AFE.cs
 include @board/emu/RS485_Transceiver.cs
 include @board/emu/UART_Line.cs
 include @board/emu/RS485_Adapter.cs
+include @board/emu/Coaxial63100_Plant.cs
 using sysbus
 mach create $name
 machine LoadPlatformDescription @board/emu/coaxial_63100.repl

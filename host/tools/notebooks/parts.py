@@ -1,8 +1,8 @@
 """The cells every notebook shares, and the one shape they are laid out in."""
 #: The knob flipped at the bench.
-KNOB = """from coaxial import EMULATED, HARDWARE, SIMULATED
+KNOB = """from coaxial import ExecutionMode
 
-MODE = SIMULATED          # HARDWARE, and PORT, at the bench; EMULATED: the image on Renode
+MODE = ExecutionMode.SIMULATED   # .HARDWARE, and PORT, at the bench; .EMULATED: the image on Renode
 PORT = 'COM4'"""
 
 OPEN = """from coaxial import Coaxial63100

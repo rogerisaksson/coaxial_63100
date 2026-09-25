@@ -1366,7 +1366,7 @@ def _paper(path):
     elif len(head) != 3 or not head[2]:
         wrong.append('the title cell is not a title and one line')
     opens = len(said) > 3 and 'Coaxial63100(' in said[3]
-    if len(cells) < 4 or said[1] != '## 1 Setup' or 'SIMULATED = ' not in said[2]:
+    if len(cells) < 4 or said[1] != '## 1 Setup' or 'MODE = ' not in said[2]:
         wrong.append('Setup is not the knob, and the open cell if it opens a device')
     headings = [s for k, s in zip(kinds, said) if k == 'markdown' and s.startswith('## ')]
     numbers = [h.split()[1] for h in headings if h[3].isdigit()]

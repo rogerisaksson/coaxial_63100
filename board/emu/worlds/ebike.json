@@ -1,0 +1,8 @@
+{
+  "name": "ebike",
+  "note": "A scenario, not a measurement: 100 kg with its rider on a 3 % grade, a mid drive through 20:1 to a 0.35 m wheel, the rider pedalling a steady 30 N. Rolling and drag are assumptions of a city bike.",
+  "body": {"kind": "vehicle", "mass": 100.0, "slope_deg": 1.72, "crr": 0.006, "cda": 0.5, "rider": 30.0},
+  "nodes": [
+    {"name": "assist", "motor": "outrunner_63100_14p", "load": {"kind": "wheel", "gear": 20, "inertia": 0.1, "radius": 0.35}}
+  ]
+}

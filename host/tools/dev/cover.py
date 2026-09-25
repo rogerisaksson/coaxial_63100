@@ -34,7 +34,7 @@ PY_JSON = os.path.join(WHERE, 'python.json')
 C_JSON = os.path.join(WHERE, 'c.json')
 
 #: The portable cores, as their directories under the repo.
-CORES = ('modbus', 'drive', 'thermal', 'filter', 'daq', 'shtp', 'boot', 'ctrl', 'comms')
+CORES = ('modbus', 'drive', 'thermal', 'filter', 'daq', 'shtp', 'boot', 'ctrl', 'comms', 'world')
 
 #: board/ as the fake board builds it.
 HOSTED = tuple(name for name in (os.path.relpath(p, REPO).replace('\\', '/')

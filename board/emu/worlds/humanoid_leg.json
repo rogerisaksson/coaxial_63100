@@ -1,0 +1,10 @@
+{
+  "name": "humanoid_leg",
+  "note": "A scenario, not a measurement: a leg on a fixed pelvis, hip, knee and ankle through 36:1 gears, hanging straight at the start. Link masses, arms and inertias are assumptions of an adult-sized leg.",
+  "body": {"kind": "ground"},
+  "nodes": [
+    {"name": "hip", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.12, "mass": 6.0, "arm": 0.20, "damping": 0.5}},
+    {"name": "knee", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.05, "mass": 3.5, "arm": 0.20, "damping": 0.3}},
+    {"name": "ankle", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.005, "mass": 1.2, "arm": 0.08, "damping": 0.1}}
+  ]
+}

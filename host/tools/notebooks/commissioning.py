@@ -145,7 +145,7 @@ identified = Parameters(
 print(identified)
 vdc = device.drive.state()['vdc']
 print('link %.2f V; saliency Lq/Ld %.3f' % (vdc, identified.saliency))
-truth = BENCH_MOTOR if MODE is SIMULATED else None
+truth = BENCH_MOTOR if MODE is ExecutionMode.SIMULATED else None
 if truth:
     for name in ('r', 'ld', 'lq', 'lam'):
         print('   %-3s identified %.6g against the stand-in\\'s %.6g: %+.1f %%'

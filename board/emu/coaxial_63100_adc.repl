@@ -72,6 +72,13 @@ die: Analog.Coaxial63100_AFEChannel @ adc3 18
     afe: afe
     signal: "MCU die"
 
+// The power stage and what it turns (Coaxial63100_Plant.cs) on TIM1_CH1, PE9: idle until a
+// world is given it (host/tools/emu/world.py), the front end's values its until then; it keeps
+// TIM1's BDTR.
+plant: Analog.Coaxial63100_Plant @ gpioPortE 9
+    afe: afe
+    tim1: timer1
+
 // USART2 and UART5 behind their RS485 transceivers (RS485_Transceiver.cs), each on its DE pin
 // (PA1, PC8).
 transceiverA: UART.RS485_Transceiver @ gpioPortA 1

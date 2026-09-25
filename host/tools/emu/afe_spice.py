@@ -1,30 +1,26 @@
 #!/usr/bin/env python3
-"""The front end the emulator models, from LTspice runs of the AFE: transfer, spread, drift.
+"""The front end the emulator models: the transfer off a nominal LTspice run, the spread by arithmetic.
 
-    python tools/emu/afe_spice.py                  # run LTspice twice, fit, write the repl
-    python tools/emu/afe_spice.py --keep DIR       # and keep the runs in DIR
-    python tools/emu/afe_spice.py --from DIR       # fit runs already kept
+    python tools/emu/afe_spice.py                  # the spread from the tolerances, the transfer kept
+    python tools/emu/afe_spice.py --raw RUN.raw    # and the transfer refitted off a nominal run
 
-electronic_simulations/afe/amplifiers.asc (the submodule), twice, each run saving only what
-the fit reads:
-
-- spread: `.step param run 0 N 1` in place of the schematic's 0..10 - run 0 nominal, 1..N the
-  parts drawn inside the tolerances given in its `val(nom, tol)`s (`--runs`, RUNS: a run is
-  ~5 min on the laptop);
-- drift: nominal parts, `.step temp` over TEMPERATURES.
-
-At every ADC sample instant - the end of each window the sample switch (V(s1+)) is closed -
-the held V(v_diff) against I(RSHUNT) is fitted to zero + k * I, and V(vdcbus)/V(adc_vbus)
-taken as the bus ratio. The result is board/emu/coaxial_63100_afe.repl: the nominal transfer,
-the spread between boards (each emulated board draws its own, seeded by its UID) and the
-drift with the board's temperature.
+Nothing here runs LTspice: a run of electronic_simulations/afe/amplifiers.asc is minutes and
+its Monte Carlo the schematic's owner's to run. A run given (`--raw`, nominal, `.step` off) is
+fitted at every ADC sample instant - the end of each window the sample switch (V(s1+)) is
+closed - as the held V(v_diff) against I(RSHUNT), zero + k * I, and V(vdcbus)/V(adc_vbus) as
+the bus ratio. The spread between boards is the schematic's own tolerances, its `val(nom, tol)`
+read off the .asc: a part's sigma tol/3 (the schematic's gauss(tol/3)), the gain's sigma the
+root sum of squares over the parts that set it (PHASE_GAIN), the zero's the Rf/Rg sides'
+mismatch on the common mode (PHASE_ZERO), the bus divider's its two resistors (BUS). Drift:
+nothing in the schematic gives a tempco, so none. The result is
+board/emu/coaxial_63100_afe.repl.
 """
 import argparse
+import math
 import os
-import shutil
+import re
 import subprocess
 import sys
-import tempfile
 
 import numpy as np
 
@@ -34,38 +30,42 @@ from tools import REPO  # noqa: E402
 
 SIMULATIONS = os.path.join(REPO, 'electronic_simulations')
 SCHEMATIC = os.path.join(SIMULATIONS, 'afe', 'amplifiers.asc')
-MODELS = os.path.join(SIMULATIONS, 'motor_inverters', 'half_bridge')
 OUT = os.path.join(REPO, 'board', 'emu', 'coaxial_63100_afe.repl')
-LTSPICE = os.path.join(os.environ.get('ProgramFiles', r'C:\Program Files'), 'ADI', 'LTspice',
-                       'LTspice.exe')
-STEP = '!.step param run 0 10 1'
 TRACES = ('V(s1+)', 'V(v_diff)', 'I(RSHUNT)', 'V(vdcbus)', 'V(adc_vbus)')
-#: Boards drawn by default: enough for a sigma, few for a run of 5 min each (2026-09-25).
-RUNS = 4
-#: The drift run's board temperatures, C: its ends, the slope through them.
-TEMPERATURES = (0, 85)
 #: The sample switch's drive threshold, the ADCSW model's Vt.
 SWITCH_VT = 0.5
-#: Where a directive lands on the sheet: below everything drawn there.
-DIRECTIVE_AT = 'TEXT 288 1900 Left 2 !%s\n'
+
+#: What sets the phase gain (the design notes' chain): the shunt, the divider into the FDA, the
+#: THS4551's Rf and Rg on each side.
+PHASE_GAIN = ('RSHUNT', 'R12', 'R17', 'R1', 'R19', 'R5', 'R44')
+#: The two sides whose Rf/Rg mismatch turns the common mode into a zero, and that mode, V.
+PHASE_ZERO = ('R1', 'R19', 'R5', 'R44')
+COMMON_MODE = 1.65
+#: The DC link divider, 49.9k over 2.2k.
+BUS = ('R23', 'R37')
 
 
-def run_ltspice(workdir, name, step):
-    """amplifiers.asc as `name`.asc in `workdir`, its step replaced by `step`, only TRACES
-    saved; the .raw's path."""
-    shutil.copytree(os.path.dirname(SCHEMATIC), workdir, dirs_exist_ok=True)
-    for lib in os.listdir(MODELS):
-        if lib.lower().endswith('.lib'):
-            shutil.copy(os.path.join(MODELS, lib), workdir)
-    with open(SCHEMATIC, encoding='latin-1') as f:
+def tolerances(path=SCHEMATIC):
+    """{part: tolerance} off the schematic's `val(nom, tol)`s."""
+    with open(path, encoding='latin-1') as f:
         text = f.read()
-    text = text.replace(STEP, ';' + STEP[1:]) + DIRECTIVE_AT % step
-    text += DIRECTIVE_AT % ('.save ' + ' '.join(TRACES))
-    asc = os.path.join(workdir, name + '.asc')
-    with open(asc, 'w', encoding='latin-1') as f:
-        f.write(text)
-    subprocess.run([LTSPICE, '-b', asc], cwd=workdir, check=True)
-    return asc[:-4] + '.raw'
+    found = {}
+    for block in text.split('SYMBOL ')[1:]:
+        name = re.search(r'SYMATTR InstName (\S+)', block)
+        value = re.search(r'val\([^,]+,\s*([0-9.eE+-]+)\)', block)
+        if name and value:
+            found[name.group(1)] = float(value.group(1))
+    return found
+
+
+def spread(tol):
+    """The sigmas the repl carries, from the tolerances."""
+    sigma = {part: t / 3.0 for part, t in tol.items()}
+
+    def rss(parts):
+        return math.sqrt(sum(sigma[p] ** 2 for p in parts))
+
+    return {'gain': rss(PHASE_GAIN), 'zero': COMMON_MODE * rss(PHASE_ZERO), 'bus': rss(BUS)}
 
 
 def steps(path):
@@ -89,78 +89,74 @@ def steps(path):
 
 
 def fit(t):
-    """One step's transfer at the sample instants."""
+    """A nominal run's transfer at the sample instants."""
     closed = t['V(s1+)'] > SWITCH_VT
     held = np.flatnonzero(closed[:-1] & ~closed[1:])      # the last point of each window
     volts, amps = t['V(v_diff)'][held], t['I(RSHUNT)'][held]
     slope, zero = np.polyfit(amps, volts, 1)
-    return {'samples': len(held), 'volts_per_amp': slope, 'zero_volts': zero,
+    return {'samples': len(held), 'volts_per_amp': float(slope), 'zero_volts': float(zero),
             'residual_volts': float(np.std(volts - (zero + slope * amps))),
             'amps': (float(amps.min()), float(amps.max())),
             'bus_ratio': float(np.median(t['V(vdcbus)'][held] / t['V(adc_vbus)'][held]))}
 
 
-def summary(spread, drift):
-    """The repl's numbers from the two runs' fits."""
-    nominal, boards = spread[0], spread[1:]
-    gain = np.array([b['volts_per_amp'] for b in boards]) / nominal['volts_per_amp'] - 1.0
-    zero = np.array([b['zero_volts'] for b in boards]) - nominal['zero_volts']
-    bus = np.array([b['bus_ratio'] for b in boards]) / nominal['bus_ratio'] - 1.0
-    kelvin = np.array(TEMPERATURES[:len(drift)], dtype=float)
-    return {'nominal': nominal, 'boards': len(boards),
-            'gain_sigma': float(np.std(gain)), 'zero_sigma': float(np.std(zero)),
-            'bus_sigma': float(np.std(bus)),
-            'gain_per_kelvin': float(np.polyfit(kelvin, [d['volts_per_amp'] for d in drift], 1)[0]
-                                     / nominal['volts_per_amp']),
-            'zero_per_kelvin': float(np.polyfit(kelvin, [d['zero_volts'] for d in drift], 1)[0])}
+def kept():
+    """The transfer the repl carries now, and its lines on where it came from."""
+    with open(OUT, encoding='utf-8') as f:
+        text = f.read()
+
+    def number(key):
+        found = re.search(r'%s: ([0-9.eE+-]+)' % key, text)
+        if found is None:
+            raise SystemExit('%s carries no %s - refit it: --raw RUN.raw' % (OUT, key))
+        return float(found.group(1))
+
+    said = [l for l in text.splitlines() if l.startswith('// ') and 'afe_spice' not in l
+            and not l.startswith(('// Spread', '// the zero', '// is given'))]
+    return {'volts_per_amp': number('PhaseVoltsPerAmp'), 'zero_volts': number('PhaseZeroVolts'),
+            'said': said}
 
 
-def repl(got, source):
-    n = got['nominal']
-    return (
-        '// coaxial_63100_afe.repl - Written by host/tools/emu/afe_spice.py from\r\n'
-        '// %s. Nominal: %d ADC samples of V(v_diff)\r\n'
-        '// against I(RSHUNT) over %.1f .. %.1f A, fitted; the residual, %.2f mV sigma, is the\r\n'
-        '// current moving within the sample window, not converter noise. Spread: %d boards\r\n'
-        '// drawn inside the schematic\'s tolerances. Drift: nominal parts over %s C.\r\n'
-        'afe:\r\n'
-        '    PhaseVoltsPerAmp: %.6f\r\n'
-        '    PhaseZeroVolts: %.6f\r\n'
-        '    PhaseGainSigma: %.6f\r\n'
-        '    PhaseZeroSigmaVolts: %.6f\r\n'
-        '    PhaseGainPerKelvin: %.8f\r\n'
-        '    PhaseZeroVoltsPerKelvin: %.8f\r\n'
-        '    BusGainSigma: %.6f\r\n'
-        % (source, n['samples'], n['amps'][0], n['amps'][1], n['residual_volts'] * 1e3,
-           got['boards'], ', '.join(str(t) for t in TEMPERATURES),
-           n['volts_per_amp'], n['zero_volts'], got['gain_sigma'], got['zero_sigma'],
-           got['gain_per_kelvin'], got['zero_per_kelvin'], got['bus_sigma']))
+def repl(transfer, sig, source):
+    return ''.join(line + '\r\n' for line in (
+        ['// coaxial_63100_afe.repl - Written by host/tools/emu/afe_spice.py.']
+        + transfer['said']
+        + ['// Spread: %s\'s tolerances, sigma tol/3, root sum of squares - the gain over %s,'
+           % (source, ', '.join(PHASE_GAIN)),
+           '// the zero %.2f V of common mode on %s\'s mismatch, the bus divider %s. No tempco'
+           % (COMMON_MODE, '/'.join(PHASE_ZERO), '/'.join(BUS)),
+           '// is given in the schematic, so no drift.',
+           'afe:',
+           '    PhaseVoltsPerAmp: %.6f' % transfer['volts_per_amp'],
+           '    PhaseZeroVolts: %.6f' % transfer['zero_volts'],
+           '    PhaseGainSigma: %.6f' % sig['gain'],
+           '    PhaseZeroSigmaVolts: %.6f' % sig['zero'],
+           '    BusGainSigma: %.6f' % sig['bus']]))
 
 
 def main():
-    parser = argparse.ArgumentParser(description='The AFE the emulator models, from LTspice.')
-    parser.add_argument('--keep', help='run into this directory and keep the runs')
-    parser.add_argument('--from', dest='source', help='fit the runs kept in this directory')
-    parser.add_argument('--runs', type=int, default=RUNS, help='boards drawn (default %d)' % RUNS)
+    parser = argparse.ArgumentParser(description='The AFE the emulator models: no LTspice run.')
+    parser.add_argument('--raw', help='a nominal run of amplifiers.asc to refit the transfer from')
     args = parser.parse_args()
     head = subprocess.run(['git', '-C', SIMULATIONS, 'rev-parse', '--short', 'HEAD'],
                           capture_output=True, text=True).stdout.strip()
-    source = 'electronic_simulations/afe/amplifiers.asc (%s)' % head
-    with tempfile.TemporaryDirectory() as scratch:
-        work = args.source or args.keep or scratch
-        if args.source:
-            raws = [os.path.join(work, name + '.raw') for name in ('spread', 'drift')]
-        else:
-            os.makedirs(work, exist_ok=True)
-            raws = [run_ltspice(work, 'spread', '.step param run 0 %d 1' % args.runs),
-                    run_ltspice(work, 'drift', '.step temp list %s'
-                                % ' '.join(str(t) for t in TEMPERATURES))]
-        spread, drift = ([fit(t) for t in steps(raw)] for raw in raws)
-    got = summary(spread, drift)
-    for key, value in got.items():
-        print('%-16s %s' % (key, value))
+    source = 'amplifiers.asc (%s)' % head
+    if args.raw:
+        n = fit(steps(args.raw)[0])
+        transfer = dict(n, said=[
+            '// %s, nominal: %d ADC samples of V(v_diff) against I(RSHUNT) over %.1f .. %.1f A,'
+            % (source, n['samples'], n['amps'][0], n['amps'][1]),
+            '// fitted; the residual, %.2f mV sigma, is the current moving within the sample'
+            % (n['residual_volts'] * 1e3),
+            '// window, not converter noise; the bus ratio V(vdcbus)/V(adc_vbus) there %.4f.'
+            % n['bus_ratio']])
+    else:
+        transfer = kept()
+    sig = spread(tolerances())
+    for key, value in sig.items():
+        print('%-6s sigma %.3g' % (key, value))
     with open(OUT, 'w', encoding='utf-8', newline='') as f:
-        f.write(repl(got, source))
+        f.write(repl(transfer, sig, source))
     print('wrote', os.path.relpath(OUT, REPO))
     return 0
 

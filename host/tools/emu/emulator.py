@@ -29,6 +29,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO  # noqa: E402
+from tools.emu import world as worlds  # noqa: E402
 
 SCRIPT = 'board/emu/coaxial_63100.resc'
 LIMB_REPL = 'board/emu/coaxial_63100_limb.repl'
@@ -59,7 +60,7 @@ UID_AT = 0x1FF1E800
 def find_renode():
     """Renode's executable, or None."""
     named = os.environ.get('RENODE') or shutil.which('renode')
-    if named:
+    if named and os.path.exists(named):
         return named
     local = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'renode', 'renode_*', 'renode.exe')
     found = sorted(glob.glob(local))
@@ -76,9 +77,11 @@ def free_port():
 class Emulator:
     """One Renode process running `elf`, its console at `url` once `start()` returns."""
 
-    def __init__(self, elf=ELF, port=None, log=None, monitor=None):
-        """`monitor`: a TCP port for Renode's monitor, True for a free one, None for none."""
+    def __init__(self, elf=ELF, port=None, log=None, monitor=None, world=None):
+        """`monitor`: a TCP port for Renode's monitor, True for a free one, None for none;
+        `world`: a world's name (board/emu/worlds), its first node this board."""
         self.elf = os.path.abspath(elf)
+        self.world = worlds.load(world) if world else None
         self.port = port or free_port()
         self.monitor = free_port() if monitor is True else monitor
         self.monitor_socket = None
@@ -89,8 +92,16 @@ class Emulator:
 
     def script(self):
         """The monitor's commands that build and start the emulation."""
-        return ['$port=%d' % self.port, '$elf=@%s' % self.elf.replace(os.sep, '/'),
-                'include @%s' % SCRIPT, 'start']
+        return (['$port=%d' % self.port, '$elf=@%s' % self.elf.replace(os.sep, '/'),
+                 'include @%s' % SCRIPT] + self.planted(0) + ['start'])
+
+    def planted(self, node):
+        """The world's commands for the board at `node`, none without a world."""
+        if self.world is None:
+            return []
+        if not hasattr(self, '_library'):
+            self._library = worlds.library()
+        return worlds.commands(self.world, node, self._library, first=node == 0)
 
     def start(self):
         renode = find_renode()
@@ -164,8 +175,8 @@ class Limb(Emulator):
     unit i at position i, the last closing the termination. `url` is the host's adapter on
     the bus, `consoles` each node's console port; the nodes' machines are node1..nodeN."""
 
-    def __init__(self, nodes, elf=ELF, log=None, monitor=None):
-        super().__init__(elf, log=log, monitor=monitor)
+    def __init__(self, nodes, elf=ELF, log=None, monitor=None, world=None):
+        super().__init__(elf, log=log, monitor=monitor, world=world)
         self.nodes = nodes
         self.consoles = [free_port() for _ in range(nodes)]
 
@@ -179,10 +190,14 @@ class Limb(Emulator):
             flags = FLAG_TERMINATE if unit == self.nodes else 0
             out += [line.replace('$name', '"node%d"' % unit).replace('$port', str(port))
                     .replace('$console', '"node%d-console"' % unit) for line in board]
+            out += self.planted(unit - 1)
             out += ['sysbus WriteDoubleWord 0x%08X 0x%08X' % (HAND_AT, HAND_MAGIC),
                     'sysbus WriteDoubleWord 0x%08X 0x%08X' % (HAND_AT + 8,
                                                               unit | unit << 8 | flags << 16),
-                    'sysbus WriteDoubleWord 0x%08X 0x%08X' % (UID_AT, 0x63100000 | unit)]
+                    'sysbus WriteDoubleWord 0x%08X 0x%08X' % (UID_AT, 0x63100000 | unit),
+                    # Its own board within the tolerances: the front end's errors drawn from
+                    # its UID.
+                    'sysbus.gpioPortB.afe NoiseSeed %d' % (0x63100000 | unit)]
         out += ['emulation CreateUARTHub "limb"']
         for unit in range(1, self.nodes + 1):
             out += ['mach set "node%d"' % unit,
@@ -259,11 +274,12 @@ def main():
     parser.add_argument('--elf', default=ELF, help='the application image (default: Debug)')
     parser.add_argument('--port', type=int, help='the console\'s TCP port (default: a free one)')
     parser.add_argument('--nodes', type=int, default=0, help='a limb of this many boards')
+    parser.add_argument('--world', choices=worlds.names(), help='what the motors turn')
     parser.add_argument('--log', help='Renode\'s output into this file')
     parser.add_argument('--monitor', type=int, help='Renode\'s monitor on this TCP port')
     args = parser.parse_args()
-    emu = (Limb(args.nodes, args.elf, args.log, args.monitor) if args.nodes
-           else Emulator(args.elf, args.port, args.log, args.monitor))
+    emu = (Limb(args.nodes, args.elf, args.log, args.monitor, args.world) if args.nodes
+           else Emulator(args.elf, args.port, args.log, args.monitor, args.world))
     with emu:
         print(emu.url, flush=True)
         if args.nodes:

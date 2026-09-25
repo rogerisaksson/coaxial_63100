@@ -2,6 +2,7 @@
 
     Coaxial63100(port='emulator://').open()                  # one board, its console
     Coaxial63100(port='emulator://?nodes=4', unit=3).open()  # a limb: the bus, a unit on it
+    Coaxial63100(port='emulator://?world=quad&nodes=4').open()  # on the quad's rotors
     .\\coaxial_tty.ps1 -Port emulator://
 
 One emulator per URL a process (tools.emu.emulator); every open of the URL is a connection
@@ -23,7 +24,8 @@ def emulator_for(url):
     if url not in _RUNNING:
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
         nodes = int(query.get('nodes', ['0'])[0])
-        emu = (Limb(nodes) if nodes else Emulator()).start()
+        world = query.get('world', [None])[0]
+        emu = (Limb(nodes, world=world) if nodes else Emulator(world=world)).start()
         atexit.register(emu.stop)
         _RUNNING[url] = emu
     return _RUNNING[url]
@@ -35,8 +37,11 @@ class Serial(SerialBase):
     def open(self):
         if self.port is None:
             raise serial.SerialException('no URL to open')
-        self._inner = serial.serial_for_url(emulator_for(self.port).url, self.baudrate,
-                                            timeout=self.timeout)
+        try:
+            emu = emulator_for(self.port)
+        except RuntimeError as exc:           # no Renode, no image: said as a port that fails
+            raise serial.SerialException(str(exc)) from exc
+        self._inner = serial.serial_for_url(emu.url, self.baudrate, timeout=self.timeout)
         self.is_open = True
 
     def close(self):

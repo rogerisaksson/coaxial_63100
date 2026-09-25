@@ -1,0 +1,8 @@
+{
+  "name": "fixed_wing",
+  "note": "A scenario, not a measurement: one direct-drive propeller on a fixed base, its thrust the load's output. The propeller as quad.json's.",
+  "body": {"kind": "ground"},
+  "nodes": [
+    {"name": "throttle", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 8e-4, "k_drag": 5.143e-6, "k_thrust": 2.07e-4}}
+  ]
+}

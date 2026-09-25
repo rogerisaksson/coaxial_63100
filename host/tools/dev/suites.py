@@ -37,6 +37,9 @@ BOOT_CORE = 'test_boot_core.py'
 #: host/machine/parts.py.
 CTRL_CORE = 'test_ctrl_core.py'
 
+#: What the motors turn (world/): loads and bodies against closed forms, the emulator's plant.
+WORLD_CORE = 'test_world_core.py'
+
 #: The device clients through the firmware's own wire - comms/ built for this host over a
 #: fake board (tools.cores.fakeboard): a disagreement between the two sides fails here.
 WIRE = 'test_wire.py'
@@ -88,7 +91,7 @@ CONTROLLER = 'test_controller.py'
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
-                   CTRL_CORE, WIRE, EMULATOR,
+                   CTRL_CORE, WORLD_CORE, WIRE, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, BOOT, VIEWS,
                    RENDER) + OLLAMA
@@ -128,6 +131,7 @@ JOINS = (
     # decides whether a blank node ever runs anything.
     (20, BOOT_CORE),
     (20, CTRL_CORE),
+    (20, WORLD_CORE),
     (20, WIRE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
@@ -244,11 +248,12 @@ TOUCHES = (
     # on the host beside it.
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
+    ('world/',                                 (WORLD_CORE, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer, and its suite
     # closes the loop through a motor model - the only check on it that needs
     # no motor.
-    ('drive/',                                 (DRIVE,)),
+    ('drive/',                                 (DRIVE, WORLD_CORE)),
     ('host/coaxial/devices/drive.py',          (SENSORLESS, 'test_simulated.py',
                                                 'test_parity.py')),
     ('host/coaxial/model/sensorless.py',       (SENSORLESS,)),

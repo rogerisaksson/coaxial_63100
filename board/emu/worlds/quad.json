@@ -1,0 +1,11 @@
+{
+  "name": "quad",
+  "note": "A scenario, not a measurement: 2 kg on four direct-drive rotors. k_drag is host/motor/loads.py's APC20x10E fit (5.143e-6 N m/(rad/s)^2); k_thrust assumes CT 0.10 at sea level on its 0.508 m disc; the prop's inertia is an assumption.",
+  "body": {"kind": "lift", "mass": 2.0},
+  "nodes": [
+    {"name": "rotor_fl", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 8e-4, "k_drag": 5.143e-6, "k_thrust": 2.07e-4}},
+    {"name": "rotor_fr", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 8e-4, "k_drag": 5.143e-6, "k_thrust": 2.07e-4}},
+    {"name": "rotor_rl", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 8e-4, "k_drag": 5.143e-6, "k_thrust": 2.07e-4}},
+    {"name": "rotor_rr", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 8e-4, "k_drag": 5.143e-6, "k_thrust": 2.07e-4}}
+  ]
+}

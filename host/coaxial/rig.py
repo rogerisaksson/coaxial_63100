@@ -14,7 +14,7 @@ from coaxial.control.motion import Motion
 from coaxial.devices import boot as bootmod
 from coaxial.devices.board import Board
 from coaxial.devices.gates import GateStage
-from coaxial.errors import LINK_FAULTS, RigError
+from coaxial.errors import LINK_FAULTS, ConnectError, RigError
 from machine.modes import EMULATED, HARDWARE, SIMULATED, ExecutionMode
 
 
@@ -121,9 +121,10 @@ class Coaxial63100(Task, TaskStream, Acquisition):
 
     def __init__(self, port='COM4', baud=115200, unit=1, fallback=True,
                  execution_mode=HARDWARE, power_afe=False, own_image=True):
-        """Say where the board runs: HARDWARE on `port` - with `fallback`, the stand-in when
-        none answers - SIMULATED the stand-in, EMULATED this host's image on an emulated MCU
-        (`port` if it is an emulator:// URL, else EMULATOR_URL). Nothing is opened until
+        """Say where the board runs: HARDWARE on `port`, SIMULATED the stand-in, EMULATED
+        this host's image on an emulated MCU (`port` if it is an emulator:// URL, else
+        EMULATOR_URL). With `fallback`, the stand-in where no board answers or no emulator runs
+        (no Renode, no image) - CI's host job, a bare machine. Nothing is opened until
         `open()`, which makes a real board run this host's own build (`own_image`)."""
         self.execution_mode = ExecutionMode(execution_mode)
         if self.execution_mode is EMULATED and not str(port).startswith(EMULATOR_URL):
@@ -178,10 +179,12 @@ class Coaxial63100(Task, TaskStream, Acquisition):
 
         simulated = (True if self.execution_mode is SIMULATED
                      else None if self._fallback and self.execution_mode is HARDWARE else False)
-
-        self.session, self._origin = sessionmod.open_session(
-            self.port, baud=self.baud, unit=self.unit, simulated=simulated)
-        self._board = self.session.board
+        try:
+            self._connect(simulated)
+        except ConnectError as exc:
+            if not (self._fallback and self.execution_mode is EMULATED):
+                raise
+            self._connect(True, 'Simulated - no emulator here: %s' % exc)
         self.gates = GateStage(self.board)
         # The board's way back to its rig.
         self.board.rig = self
@@ -192,6 +195,14 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         if self.power_afe:
             self._take_afe()
         return self
+
+    def _connect(self, simulated, why=None):
+        """The session, and the board on it: opening the link is what finds none there.
+        `why` a fallback's label."""
+        self.session, origin = sessionmod.open_session(
+            self.port, baud=self.baud, unit=self.unit, simulated=simulated)
+        self._origin = origin._replace(label=why) if why else origin
+        self._board = self.session.board
 
     def _own_image(self):
         """This host's own build on the board (docs/BOOT.md): a board running
