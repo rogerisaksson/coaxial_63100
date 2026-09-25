@@ -113,31 +113,31 @@ BOARD_RAMP = (22, 22, 28, 34, 40, 46, 47, 83, 119, 155, 191, 227, 231)
 
 
 #: Colour stops by DEGREES, not by fraction of a span: auto-ranging made a
-#: cool board look exactly like a hot one. Spacing is deliberately uneven -
-#: the board idles near 30 C, so 20-60 gets the resolution and red starts at
-#: 90, where a laminate is in trouble rather than merely working.
+#: cool board look exactly like a hot one. A thermal camera's ironbow
+#: (2026-09-25; the rainbow before it read as mossy): blue at the floor - a
+#: colour, not black, "bottom-frozen" - violet where the board idles, magenta,
+#: red from 50, orange, yellow at 80, white-hot at 100. 5 K apart through
+#: 25-60, where this board works: coarser stops hid the hot swap.
 THERMAL_STOPS = (
-    (-20.0, 19),    # blue - 19, not 17: at four dots in ten the
-                    # halftone's cold end was black on the bench, and a scale's
-                    # floor should be a colour, "bottom-frozen"
-    (0.0, 20),
-    (15.0, 25),
-    (25.0, 31),     # ambient, and where the resolution has to be fine:
-    (30.0, 37),     # this board idles near 30 and works between 30 and 60,
-    (35.0, 43),     # so the steps are 5 K apart through there. Coarser stops
-    (40.0, 44),     # put a 6 K difference inside one colour and hid the hot
-    (45.0, 49),     # swap entirely.
-    (50.0, 50),
-    (55.0, 79),
-    (60.0, 83),     # green reaches here
-    (65.0, 118),
-    (70.0, 154),
-    (75.0, 190),
-    (80.0, 220),    # yellow
-    (85.0, 214),
-    (90.0, 208),    # orange - the warm end starts late on purpose
-    (95.0, 202),
-    (100.0, 196),   # red
+    (-20.0, (0, 0, 160)),
+    (0.0, (30, 0, 175)),
+    (15.0, (70, 0, 180)),
+    (25.0, (110, 0, 176)),
+    (30.0, (145, 0, 162)),
+    (35.0, (175, 10, 140)),
+    (40.0, (200, 22, 112)),
+    (45.0, (220, 36, 82)),
+    (50.0, (235, 56, 52)),
+    (55.0, (245, 80, 30)),
+    (60.0, (250, 106, 14)),
+    (65.0, (255, 130, 4)),
+    (70.0, (255, 155, 0)),
+    (75.0, (255, 180, 0)),
+    (80.0, (255, 205, 20)),
+    (85.0, (255, 225, 62)),
+    (90.0, (255, 240, 122)),
+    (95.0, (255, 250, 186)),
+    (100.0, (255, 255, 240)),
 )
 
 #: The ends of the scale. What a picture is drawn against, whatever is in it.
@@ -151,9 +151,7 @@ def thermal(celsius):
         return THERMAL_STOPS[0][1]
     for (lo_c, lo_n), (hi_c, hi_n) in zip(THERMAL_STOPS, THERMAL_STOPS[1:]):
         if celsius <= hi_c:
-            # Nearest stop rather than a blend: the 256-colour cube has no
-            # useful intermediates between these, and rounding to one of the
-            # two keeps a band readable as a band.
+            # Nearest stop rather than a blend: a band readable as a band.
             half = (lo_c + hi_c) / 2.0
             return lo_n if celsius < half else hi_n
     return THERMAL_STOPS[-1][1]
@@ -165,15 +163,14 @@ def thermal_rgb(celsius):
     is a gradient and not a staircase of bands.
     """
     if celsius <= THERMAL_STOPS[0][0]:
-        return rgb(THERMAL_STOPS[0][1])
-    for (lo_c, lo_n), (hi_c, hi_n) in zip(THERMAL_STOPS, THERMAL_STOPS[1:]):
+        return THERMAL_STOPS[0][1]
+    for (lo_c, a), (hi_c, b) in zip(THERMAL_STOPS, THERMAL_STOPS[1:]):
         if celsius <= hi_c:
             f = (celsius - lo_c) / (hi_c - lo_c)
-            a, b = rgb(lo_n), rgb(hi_n)
             return (int(a[0] + (b[0] - a[0]) * f + 0.5),
                     int(a[1] + (b[1] - a[1]) * f + 0.5),
                     int(a[2] + (b[2] - a[2]) * f + 0.5))
-    return rgb(THERMAL_STOPS[-1][1])
+    return THERMAL_STOPS[-1][1]
 
 
 def board(fraction):

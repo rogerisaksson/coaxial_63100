@@ -144,9 +144,13 @@ def _dress(rows, title, lock, t):
         bottom = max(r for r, _c in drawn) + 1
         left = min(c for _r, c in drawn) - 2
         right = max(c for _r, c in drawn) + 1
-        if top >= 0 and bottom < height and left >= 0 and right < width - 1:
-            for r, c, text in ((top, left, '┌─'), (top, right, '─┐'),
-                               (bottom, left, '└─'), (bottom, right, '─┘')):
+        corners = ((top, left, '┌─'), (top, right, '─┐'), (bottom, left, '└─'),
+                   (bottom, right, '─┘'))
+        # All four or none: half a lock read as a broken one.
+        if (top >= 0 and bottom < height and left >= 0 and right < width - 1
+                and all(_blank(rows[r][c + i]) for r, c, text in corners
+                        for i in range(len(text)))):
+            for r, c, text in corners:
                 _put(rows, r, c, text, INK['lock'])
             if int(t * 2.0) % 2 == 0:
                 _put(rows, top, left + 3, LOCKED, INK['lock'])

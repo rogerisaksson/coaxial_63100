@@ -206,9 +206,10 @@ DENSITY_COLD, DENSITY_HOT = 0.40, 1.0
 #: How many ranks the mask has: a share of one clears every one of them.
 NOISE_LEVELS = NOISE_N * NOISE_N
 
-#: Rim, outlines and labels in white: every ramp stop is darker (amber is the
-#: ramp's 85 C and vanishes over a hot leg).
-MARK_INK = ansi.WHITE
+#: Rim, outlines and labels in the instrument's teal: off the ironbow's hues, so
+#: they hold over a hot leg (white shouted, 2026-09-25); the rail's numbers ash.
+MARK_INK = (60, 175, 185)
+RAIL_INK = ansi.ASH
 
 #: A dot by geometry alone: off the board, the field's halftone, or a mark
 #: (rim, bore edge, frame) drawn alone in MARK_INK. A frame round the group,
@@ -582,5 +583,6 @@ def _rail(rows, colour):
         else:
             block = RAMP[int((t - lo) / float(hi - lo)
                              * (len(RAMP) - 1))] * 2
-        out.append(block + marks.get(r, ''))
+        label = marks.get(r, '')
+        out.append(block + (ansi.paint(label, RAIL_INK) if colour and label else label))
     return out

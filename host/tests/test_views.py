@@ -858,15 +858,14 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     report.check('the ramp is blended to 24 bits on the field',
                  '38;2;' in said)
     report.check('the frames and the labels wear the mark ink',
-                 '38;5;%dm' % ansi.WHITE in said)
+                 ansi.code(thermalmap.MARK_INK) in said)
 
     # Frames, not areas (the bench's word): a marked cell draws the line's
     # dots alone, so no marked cell is solid and the marks are a thin share of
     # the board.
-    white = ansi.rgb(ansi.WHITE)
     lit = [(ch, fg) for row in ansi.parse(said) for ch, fg, _bg in row
            if 0x2800 <= ord(ch) < 0x2900]
-    marked = [ch for ch, fg in lit if fg == white]
+    marked = [ch for ch, fg in lit if fg == thermalmap.MARK_INK]
     # A solid marked cell is two frames' sides sharing a cell column - REG's
     # right and the MCU's left are a millimetre apart - and nothing else: a
     # handful, never an area.

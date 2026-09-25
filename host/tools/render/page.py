@@ -13,6 +13,8 @@ import argparse
 import importlib
 import inspect
 import io
+import os
+import shutil
 import sys
 
 from rich.console import Console
@@ -59,8 +61,13 @@ def frame(name, width=150, height=44, frames=12):
         drawn.append(renderable)
         return update(self, renderable, refresh=refresh)
 
-    was = stage_module.stage, keys_module.Keys, Live.update
+    # A page that sizes itself off the terminal (the thermal map) is told this size too.
+    told = os.terminal_size((width, height))
+    was = (stage_module.stage, keys_module.Keys, Live.update, shutil.get_terminal_size,
+           os.get_terminal_size)
     stage_module.stage, keys_module.Keys, Live.update = sized, _Still, kept
+    shutil.get_terminal_size = lambda *_args, **_kwargs: told
+    os.get_terminal_size = lambda *_args, **_kwargs: told
     try:
         module = importlib.import_module(PAGES[name])
         setattr(module, 'stage', sized)
@@ -76,7 +83,8 @@ def frame(name, width=150, height=44, frames=12):
             finally:
                 sys.argv = saved
     finally:
-        stage_module.stage, keys_module.Keys, Live.update = was
+        (stage_module.stage, keys_module.Keys, Live.update, shutil.get_terminal_size,
+         os.get_terminal_size) = was
     if not drawn:
         raise RuntimeError('%s drew no frame' % name)
     out = Console(file=io.StringIO(), record=True, force_terminal=True, width=width,
