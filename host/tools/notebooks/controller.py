@@ -18,7 +18,7 @@ from machine.parts import Gain, LowPass, Slew, SpeedKalman, SpeedPI
 from machine.wiring import feedback
 
 J, B = 2e-5, 1e-5
-nodes = Nodes.discover(port=PORT, simulated=SIMULATED, peripherals=())
+nodes = Nodes.discover(port=PORT, execution_mode=MODE, peripherals=())
 node = nodes.of_type('bldc_inverter')[0]
 at = node.name + '.drive'
 drive, gates = node.rig.drive, node.rig.gates

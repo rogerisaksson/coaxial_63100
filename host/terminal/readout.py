@@ -58,7 +58,7 @@ CORES = 'MODBUS DRIVE THERMAL FILTER DAQ SHTP BOOT'
 def identity_of(port, simulated):
     """`{'info', 'parts', 'origin', 'real'}` read once off the bus - the
     stand-in's when `simulated` - and the session closed again."""
-    from coaxial.comm.session import open_session
+    from coaxial.comm.session import open_session, standing
 
     session, origin = open_session(port, simulated=True if simulated else None)
     try:
@@ -67,7 +67,7 @@ def identity_of(port, simulated):
     finally:
         session.close()
     return {'info': dict(info), 'parts': [dict(p) for p in parts],
-            'origin': origin.label, 'real': origin.real}
+            'origin': origin.label, 'real': origin.real, 'standing': standing(origin)}
 
 
 def suites_measured():
@@ -138,8 +138,9 @@ def pages(identity, width, note=None, preload=None):
                          + table([('status', 'awaiting link')]
                                  + ([('link said', note)] if note else [])))]
     info, parts = identity['info'], identity['parts']
-    # The origin's label says SIMULATED itself; a real one earns LIVE.
-    link = identity['origin'] + (' live' if identity['real'] else '')
+    # The origin's label says SIMULATED itself; a real one earns LIVE, an emulated one EMULATED.
+    said = identity.get('standing', 'live' if identity['real'] else 'simulated')
+    link = identity['origin'] + ('' if said == 'simulated' else ' ' + said)
     first = (_said('readout online. ready for inquiry', width)
              + _said('> identify unit', width)
              + table([

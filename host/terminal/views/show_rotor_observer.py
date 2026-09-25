@@ -41,13 +41,14 @@ from contextlib import suppress
 
 from rich.text import Text
 
+from coaxial.comm.session import standing
 from coaxial.draw import cross_section
 from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share
 from coaxial.errors import RigError
 from coaxial.model import thermal as _thermal
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, console as _console, screen as _screen
-from terminal.ui.screen import closing, open_rig, run_view, say
+from terminal.ui.screen import closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, hud, stage
 from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
@@ -350,7 +351,7 @@ def _link(args):
     None when the board would not open."""
     rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
                    power_afe=False,
-                   simulated=bool(args.simulated))
+                   execution_mode=mode_of(args))
     if rig is None:
         return None
     origin, board = rig.origin, rig.board
@@ -364,7 +365,7 @@ def _link(args):
         board.afe.write(want_afe)
         time.sleep(0.3)
     say('ok' if origin.real else 'warn', 'link',
-        '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+        '%s - %s' % (origin.label, standing(origin)))
     # The demo's defaults first: `preflight` hands `args` to the model.
     view_step = demo_defaults(args, origin)
     demo_stage(rig, origin)

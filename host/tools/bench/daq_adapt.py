@@ -12,7 +12,7 @@ import argparse
 import sys
 import time
 
-from coaxial import Coaxial63100
+from coaxial import HARDWARE, SIMULATED, Coaxial63100
 from coaxial.acquire import bessel
 from coaxial.errors import RigError
 
@@ -87,7 +87,7 @@ def main(argv=None):
     names = args.channels.split(',')
     try:
         with Coaxial63100(port=args.port, power_afe=True,
-                          simulated=args.simulated) as rig:
+                          execution_mode=SIMULATED if args.simulated else HARDWARE) as rig:
             print('link: %s' % rig.origin.label)
             daq = rig.board.daq                # the ladder is the board's
             daq.stop()                         # a dead session's task refuses the rest

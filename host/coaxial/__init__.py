@@ -6,6 +6,7 @@ from coaxial.devices.board import BOARD_CLASSES, Board, connect, disconnect, sca
 from coaxial.devices.gates import GateControl, GateStage
 from coaxial.devices.sensor import PolledSensor
 from coaxial.rig import Coaxial63100
+from machine.modes import EMULATED, HARDWARE, SIMULATED, ExecutionMode
 from coaxial.errors import (ConnectError, CrcError, DeviceStateError, FrameError, ModbusException,
                             NoReplyError, PayloadError, RigError, UnsupportedProtocolError)
 from coaxial.devices.scaling import (DCBUS_ONBOARD, NTC_ONBOARD, PHASE_ONBOARD, DividerParams,
@@ -13,7 +14,7 @@ from coaxial.devices.scaling import (DCBUS_ONBOARD, NTC_ONBOARD, PHASE_ONBOARD, 
 from coaxial.comm.transport import Transport
 
 __all__ = [
-    'Coaxial63100',
+    'Coaxial63100', 'ExecutionMode', 'HARDWARE', 'SIMULATED', 'EMULATED',
     'Acquisition', 'PolledSensor', 'GateControl', 'GateStage',
     'connect', 'disconnect', 'scan', 'Board', 'BOARD_CLASSES', 'Transport',
     'NtcParams', 'DividerParams', 'ShuntParams',

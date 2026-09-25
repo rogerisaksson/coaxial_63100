@@ -4,6 +4,7 @@ from contextlib import suppress
 
 from coaxial import Coaxial63100
 from machine.errors import MachineError
+from machine.modes import HARDWARE, SIMULATED
 from terminal.ui.screen import park, QUIET, say, steady
 from terminal.views.session.state import ACTIVITIES, DEFAULT_PHASES
 
@@ -158,7 +159,7 @@ def sweep(rig):
 def leave(port, simulated):
     """Stop whatever the terminal left running, and say so - or say nothing."""
     try:
-        with Coaxial63100(port=port, simulated=simulated,
+        with Coaxial63100(port=port, execution_mode=SIMULATED if simulated else HARDWARE,
                           power_afe=False) as rig:
             found = sweep(rig)
     except QUIET as exc:

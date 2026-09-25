@@ -18,12 +18,13 @@ import time
 
 from rich.text import Text
 
+from coaxial.comm.session import standing
 from coaxial.draw import farm, orientation
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui import console as _console, screen as _screen
 from terminal.ui.console import WHEEL_STEP
-from terminal.ui.screen import Freshness, closing, open_rig, run_view, say
+from terminal.ui.screen import Freshness, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import boot, frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -354,7 +355,7 @@ def launch(args):
     # power_afe by name: the default is False and the part this view shows
     # is AFE-powered; the rail goes back as found.
     rig = open_rig('LINKING BNO085', port=args.port, power_afe=True,
-                   simulated=bool(args.simulated))
+                   execution_mode=mode_of(args))
     if rig is None:
         return None
     with boot('BRINGING THE PART UP') as step:
@@ -388,7 +389,7 @@ def launch(args):
         step(0.95, 'DRAWING')
         shop = workshop(args)
     say('ok' if origin.real else 'warn', 'link',
-        '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+        '%s - %s' % (origin.label, standing(origin)))
     say('wait', 'drawing',
         'Q closes it, ESC goes back to the menu, and both undo the above')
     return rig, origin, board, part, pid, pool, shop

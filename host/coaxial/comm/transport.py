@@ -18,6 +18,10 @@ CRC_BYTES = 2
 #: The bit a slave sets on the function code to answer an exception.
 EXCEPTION = 0x80
 
+#: URL schemes this checkout's tools serve, by the package pyserial finds their handler in:
+#: the firmware's comms/ built for this host, and the image on an emulated MCU.
+URL_PACKAGES = {'fakeboard': 'tools.cores', 'emulator': 'tools.emu'}
+
 
 def hand_to_binary(transport, settle=0.5):
     """Hand USART3 from the text console to the binary protocol."""
@@ -73,8 +77,11 @@ class Transport:
     def __init__(self, port, baud):
         self.port = port
         self.baud = baud
+        scheme = str(port).split('://')[0] if '://' in str(port) else None
+        if scheme in URL_PACKAGES and URL_PACKAGES[scheme] not in serial.protocol_handler_packages:
+            serial.protocol_handler_packages.append(URL_PACKAGES[scheme])
         try:
-            # A URL as well as a port name: `loop://`, or `fakeboard://` (tools.cores).
+            # A URL as well as a port name: `loop://`, `socket://`, or one of URL_PACKAGES.
             self.serial: Any = serial.serial_for_url(port, baud, bytesize=8, parity='N',
                                                      stopbits=1, timeout=self.QUIET_TIME)
         except (serial.SerialException, ValueError, OSError) as exc:

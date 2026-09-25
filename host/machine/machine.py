@@ -1,6 +1,6 @@
 """A machine: actuators over nodes, the robot's other boards beside them, run by programs.
 
-    machine = Machine.discover('humanoid', simulated=True)  # the nodes found, a type over them
+    machine = Machine.discover('humanoid', execution_mode=SIMULATED)  # a type over the nodes
     machine = Machine(nodes, type='quad')                   # TYPES: humanoid, quad, ...
     print(machine.prompt())        # the grammar; what a program sets and reads; its routines
     out = machine.run(program)     # checked, armed, run, disarmed however it ends
@@ -19,6 +19,7 @@ import time
 from machine.alarms import Alarms
 from machine.controller import Feedback
 from machine.errors import MachineError
+from machine.modes import HARDWARE
 from machine.nodes import Nodes
 from machine.parts import Direct
 from machine.routines import TYPES
@@ -154,9 +155,9 @@ class Machine:
         self.alarms = Alarms(self.limits)
 
     @classmethod
-    def discover(cls, type, port='COM4', simulated=False, **kw):
+    def discover(cls, type, port='COM4', execution_mode=HARDWARE, **kw):
         """Every board on every bus (`Nodes.discover`), the type over them."""
-        return cls(Nodes.discover(port=port, simulated=simulated), type=type, **kw)
+        return cls(Nodes.discover(port=port, execution_mode=execution_mode), type=type, **kw)
 
     # -- the run -----------------------------------------------------------------------
 

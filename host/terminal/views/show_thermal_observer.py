@@ -15,6 +15,7 @@ from contextlib import suppress
 from rich.text import Text
 
 from coaxial import Coaxial63100
+from coaxial.comm.session import standing
 from coaxial.draw import cross_section, gauges
 from coaxial.draw.thermalmap import CELL_ASPECT, MARKS, SCALE_LINES, render
 from coaxial.errors import NoReplyError, RigError
@@ -22,7 +23,7 @@ from coaxial.kalman import thermal_ident
 from coaxial.model.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
-from terminal.ui.screen import closing, run_view, say, stamp_crosses, visible
+from terminal.ui.screen import closing, mode_of, run_view, say, stamp_crosses, visible
 from terminal.ui.stage import boot, frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -406,7 +407,7 @@ def main():
 
     # power_afe=False: the AFE stays as found.
     with (boot('LINKING OBSERVER') as ready,
-          Coaxial63100(port=a.port, simulated=a.simulated, power_afe=False) as rig):
+          Coaxial63100(port=a.port, execution_mode=mode_of(a), power_afe=False) as rig):
         ready()
         origin = rig.origin
         # On the stand-in, however reached: `--simulated`, or a bench with no
@@ -423,7 +424,7 @@ def main():
             rig.thermal.load_cycle(on_s=PAGE_CYCLE_ON_S,
                                    off_s=PAGE_CYCLE_OFF_S)
         say('ok' if origin.real else 'warn', 'link',
-            '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+            '%s - %s' % (origin.label, standing(origin)))
         say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
         say('wait', 'drawing', 'Q closes it, ESC goes back to the menu')
 

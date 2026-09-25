@@ -1,11 +1,13 @@
 """The cells every notebook shares, and the one shape they are laid out in."""
 #: The knob flipped at the bench.
-KNOB = """SIMULATED = True          # False, and PORT, at the bench
+KNOB = """from coaxial import EMULATED, HARDWARE, SIMULATED
+
+MODE = SIMULATED          # HARDWARE, and PORT, at the bench; EMULATED: the image on Renode
 PORT = 'COM4'"""
 
 OPEN = """from coaxial import Coaxial63100
 
-device = Coaxial63100(port=PORT, simulated=SIMULATED).open()
+device = Coaxial63100(port=PORT, execution_mode=MODE).open()
 print(device)"""
 
 CLOSE = """device.close()

@@ -13,6 +13,7 @@ from coaxial.devices.drive import from_wire, to_wire
 from coaxial.errors import RigError
 from coaxial.model import sensorless
 from coaxial.simulated import SimulatedDrive
+from machine.modes import SIMULATED
 
 
 class Report:
@@ -235,7 +236,7 @@ def test_fits(r):
 
 
 def test_commissioning_refuses_to_switch(r):
-    rig = Coaxial63100(simulated=True, power_afe=True).open()
+    rig = Coaxial63100(execution_mode=SIMULATED, power_afe=True).open()
     try:
         c = Commissioning(rig)
         got = c.afe_noise(zero_vector=False)
@@ -257,7 +258,7 @@ def test_commissioning_refuses_to_switch(r):
 
 def test_commissioning_recovers_the_stand_in(r):
     """Every step against the stand-in's known constants."""
-    rig = Coaxial63100(simulated=True, power_afe=True).open()
+    rig = Coaxial63100(execution_mode=SIMULATED, power_afe=True).open()
     S = SimulatedDrive
     try:
         c = Commissioning(rig, arm=dict(bypass_sto=True, ignore_interlock=True))
@@ -327,7 +328,7 @@ def test_autodetect_recovers_each_motor(r):
             '%d profiles' % len(profiles))
     for path in profiles:
         want = json.load(io.open(path, encoding='utf-8'))
-        rig = Coaxial63100(simulated=True, power_afe=True).open()
+        rig = Coaxial63100(execution_mode=SIMULATED, power_afe=True).open()
         try:
             rig.board.drive.configure(profile=path)
             rig.board.drive.configure(source='model')
@@ -357,7 +358,7 @@ def test_motion(r):
     virtual rotor - the shaft sensor reads what the drive torques."""
     from coaxial import Coaxial63100
     from coaxial.errors import RigError
-    rig = Coaxial63100(port='COM99', simulated=True,
+    rig = Coaxial63100(port='COM99', execution_mode=SIMULATED,
                        power_afe=False).open()
     try:
         rig.drive.configure(source='model')

@@ -1,7 +1,7 @@
 """The application's IO: boards as nodes, what each offers, loops over their channels.
 
     nodes = Nodes.discover(port='COM4')                       # every family's boards on every bus
-    nodes = Nodes.discover(simulated=True)                    # the stand-in robot
+    nodes = Nodes.discover(execution_mode=SIMULATED)          # the stand-in robot
     nodes = Nodes([board, bms, camera])                       # nodes in hand
     nodes.capabilities('drive', 'angle')                      # [Channel], '<node>.<module>.<key>'
     print(nodes.card('angle', 'drive'))                       # the same, one line a node
@@ -17,13 +17,14 @@ from collections import namedtuple
 
 from machine.controller import Loop, Polled, flat
 from machine.errors import MachineError
+from machine.modes import HARDWARE, SIMULATED
 from machine.roles import Endpoint
 
 #: One channel a node offers: its name ('<node>.<module>.<key>'), 'in' or 'out', its unit,
 #: its range (None where the node sets none).
 Channel = namedtuple('Channel', 'name direction unit low high')
 
-#: Board families by the module that finds them: `discover(port, simulated, units, **kw)` ->
+#: Board families by the module that finds them: `discover(port, execution_mode, units, **kw)` ->
 #: [Node]. Imported only when discovering, skipped where its package is not installed.
 FAMILIES = ('coaxial.node',)
 
@@ -112,7 +113,7 @@ class Nodes:
             self.nodes[node.name] = node
 
     @classmethod
-    def discover(cls, port='COM4', simulated=False, units=range(1, 17), peripherals=None,
+    def discover(cls, port='COM4', execution_mode=HARDWARE, units=range(1, 17), peripherals=None,
                  families=FAMILIES, **kw):
         """Every board of every installed family on every bus this host reaches, and the
         robot's other boards: `peripherals`, or on the stand-in its pack and camera."""
@@ -120,9 +121,9 @@ class Nodes:
         for family in families:
             if importlib.util.find_spec(family.partition('.')[0]) is None:
                 continue
-            found += importlib.import_module(family).discover(port=port, simulated=simulated,
-                                                              units=units, **kw)
-        if peripherals is None and simulated:
+            found += importlib.import_module(family).discover(
+                port=port, execution_mode=execution_mode, units=units, **kw)
+        if peripherals is None and execution_mode is SIMULATED:
             from machine.simulated import SimulatedBms, SimulatedCamera
             peripherals = [SimulatedBms(), SimulatedCamera()]
         return cls(found + list(peripherals or ()))

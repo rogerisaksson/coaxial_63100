@@ -26,7 +26,7 @@ import time
 from coaxial import Coaxial63100
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import run_view, say, steady
+from terminal.ui.screen import mode_of, run_view, say, steady
 from terminal.ui.stage import boot, stage
 from terminal.views.session.blocks import frame
 from terminal.views.session.run import (Plan, act_on, leave, start_activities,
@@ -82,7 +82,7 @@ def main():
     # power_afe=False: the session raises the rail itself, conditionally,
     # below.
     with (boot('LINKING SESSION') as ready,
-          Coaxial63100(port=a.port, simulated=a.simulated,
+          Coaxial63100(port=a.port, execution_mode=mode_of(a),
                        power_afe=False) as rig):
         ready()
         say('ok' if rig.origin.real else 'warn', 'link', rig.origin.label)

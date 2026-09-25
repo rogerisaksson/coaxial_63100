@@ -25,6 +25,7 @@ import time
 
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
+from machine.modes import HARDWARE, SIMULATED
 
 #: The gate state's fields that speak of the chain, by the name the board
 #: answers with and the name printed. A stand-in or an older firmware
@@ -98,7 +99,7 @@ def main(argv=None):
                         help='seconds between rows')
     args = parser.parse_args(argv)
 
-    rig = Coaxial63100(port=args.port, simulated=args.simulated,
+    rig = Coaxial63100(port=args.port, execution_mode=SIMULATED if args.simulated else HARDWARE,
                        power_afe=True).open()
     try:
         print('%s - %s' % (rig.origin.label, 'live' if rig.origin.real

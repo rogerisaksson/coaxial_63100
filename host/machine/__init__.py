@@ -10,6 +10,8 @@ if its package is here; nothing in this package imports one.
 """
 from machine.errors import MachineError
 from machine.machine import Machine
+from machine.modes import EMULATED, HARDWARE, SIMULATED, ExecutionMode
 from machine.nodes import Nodes
 
-__all__ = ['Machine', 'MachineError', 'Nodes']
+__all__ = ['Machine', 'MachineError', 'Nodes', 'ExecutionMode', 'HARDWARE', 'SIMULATED',
+           'EMULATED']

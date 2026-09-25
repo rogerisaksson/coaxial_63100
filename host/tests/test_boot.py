@@ -12,6 +12,7 @@ from coaxial import Coaxial63100
 from coaxial.devices.boot import Boot, BootControl, Master, chunks_of, enumerate_blank
 from coaxial.errors import DeviceStateError
 from coaxial.simulated.boot import SimulatedBoot, SimulatedSegment
+from machine.modes import SIMULATED
 
 from test_modbus_core import Report
 
@@ -189,7 +190,7 @@ def test_the_two_implementations_share_their_names(report, _boot):
                  issubclass(Boot, BootControl) and issubclass(SimulatedBoot, BootControl)
                  and names <= set(dir(Boot)) and names <= set(dir(SimulatedBoot)),
                  ', '.join(sorted(names)))
-    with Coaxial63100(simulated=True) as device:
+    with Coaxial63100(execution_mode=SIMULATED) as device:
         report.check('the rig exposes it as board.boot', isinstance(device.board.boot, BootControl))
 
 

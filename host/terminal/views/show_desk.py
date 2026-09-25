@@ -18,11 +18,12 @@ import os
 import sys
 import time
 
+from coaxial.comm.session import standing
 from coaxial.draw import desk
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import Feed, closing, open_rig, run_view, say
+from terminal.ui.screen import Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, stage
 from terminal.views.desk.boxes import (buffer_box, chain_box, digital_box, legend,
                                        scale)
@@ -59,12 +60,12 @@ def main(argv=None):
     # power_afe by name (invariant 9): with the rail down the board refuses
     # to start the task.
     rig = open_rig('LINKING CONVERTERS', port=args.port, power_afe=True,
-                   simulated=bool(args.simulated))
+                   execution_mode=mode_of(args))
     if rig is None:
         return 1
     origin = rig.origin
     say('ok' if origin.real else 'warn', 'link',
-        '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+        '%s - %s' % (origin.label, standing(origin)))
     say('ok', 'AFE_ON', 'on for this run, and put back the way it was found')
 
     # Every channel the board reports, summed and shaped on the board rather

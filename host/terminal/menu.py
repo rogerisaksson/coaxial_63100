@@ -35,7 +35,7 @@ from terminal.ui.marquee import Marquee
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.screen import ENTER_KEYS, paced
 from terminal.ui.chrome import KANA, Chrome
-from terminal.ui.stage import band_of, curtain, footer, live, stage
+from terminal.ui.stage import EMULATOR_CHIP, band_of, curtain, footer, live, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -116,9 +116,13 @@ def _watch_link(port):
 
 def masthead(port):
     """The top strip: the views' band, and the chip a view would wear."""
+    from coaxial.comm.session import url_kind
+
     held, board = _BROKER['held'], _BROKER['board']
     if board is False:
         tag = Text(' SIMULATED ', style='chip.sim')
+    elif board and url_kind(port) == 'emulator':
+        tag = EMULATOR_CHIP
     elif board is None or held is None:
         tag = Text('LINK: PROBING', style='bar.dim')
     else:

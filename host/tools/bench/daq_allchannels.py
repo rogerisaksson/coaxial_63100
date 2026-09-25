@@ -11,7 +11,7 @@ toggles at ~100 kHz; one sample decimated by 2000 is a coin toss).
 import argparse
 import sys
 
-from coaxial import Coaxial63100
+from coaxial import HARDWARE, SIMULATED, Coaxial63100
 from coaxial.acquire import bessel
 from coaxial.devices import scaling
 from coaxial.errors import RigError
@@ -87,7 +87,7 @@ def main(argv=None):
     args = arguments(argv)
     try:
         with Coaxial63100(port=args.port, power_afe=True,
-                          simulated=args.simulated) as rig:
+                          execution_mode=SIMULATED if args.simulated else HARDWARE) as rig:
             print('link: %s' % rig.origin.label)
             daq = rig.daq
             if args.sweep:

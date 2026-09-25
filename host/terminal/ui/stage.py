@@ -58,6 +58,7 @@ THEME = Theme({
     'keys.key':   'bold color(44) on grey15',
     'chip.live':  'black on green3',
     'chip.sim':   'black on yellow3',
+    'chip.emu':   'black on #3cafb9',
     'alarm':      'bold black on red3',
 })
 
@@ -183,10 +184,16 @@ def live(count):
 
 
 def chip(origin):
-    """The meaning tag. Green LIVE / yellow SIMULATED, never restyled."""
+    """The meaning tag. Green LIVE / teal EMULATOR / yellow SIMULATED, never restyled."""
+    if origin.kind == 'emulator':
+        return EMULATOR_CHIP
     if origin.real:
         return live(broker.clients() or 0)
     return Text(' SIMULATED ', style='chip.sim')
+
+
+#: The emulated MCU's chip (tools.emu): the firmware real, the board not.
+EMULATOR_CHIP = Text(' EMULATOR ', style='chip.emu')
 
 
 def band_of(name, extra='', tag=None):

@@ -11,6 +11,8 @@
     The ollama tag to pull.
 .PARAMETER Prefer
     What the automatic choice optimises for.
+.PARAMETER SkipRenode
+    Leave the emulator out: no Renode download.
 .PARAMETER SkipOllama
     Leave the model side alone - for a machine that only builds and flashes.
 .PARAMETER SkipCubeMX
@@ -48,6 +50,7 @@ param(
     [ValidateSet('speed', 'capability')]
     [string]$Prefer = 'speed',
     [switch]$SkipOllama,
+    [switch]$SkipRenode,
     [switch]$SkipCubeMX,
     [switch]$SkipDriver,
     [switch]$SkipFirmware,
@@ -590,19 +593,6 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
         }
     }
 
-    # The LTSpice models are a submodule with its deploy key on the bench
-    # machine's GitLab account - a clone elsewhere fails at fetch, not at
-    # checkout, and everything that needs its numbers reads them from
-    # coaxial/model/inverter.py, which carries the traced constants in-tree.
-    if ($null -ne $git) {
-        $sub = (& $git -C $Root submodule status electronic_simulations 2>$null)
-        if ($null -ne $sub -and $sub -match '^-') {
-            Write-Item 'electronic_simulations' 'missing' 'optional - LTSpice sources; the traced constants are in coaxial/model/inverter.py'
-            Add-Todo -Optional 'git submodule update --init electronic_simulations   (needs the GitLab SSH key)'
-        } elseif ($null -ne $sub) {
-            Write-Item 'electronic_simulations' 'ok' 'submodule checked out'
-        }
-    }
 
     # A host C compiler, for test_modbus_core.py. -m from host/ puts host/ on
     # sys.path: host/ is not installed yet.
@@ -1671,6 +1661,101 @@ function Test-Setup {
     }
 }
 
+# ---- 5. the emulator and the electronics ------------------------------------
+
+#: Renode, the emulator tools/emu runs the image on; the version CI's firmware job fetches too.
+$RenodeVersion = '1.17.0'
+
+function Find-Renode {
+    <#
+  Where host/tools/emu/emulator.py looks, in its order: RENODE, PATH, then the
+        portable builds under %LOCALAPPDATA%\renode.
+#>
+    if ($env:RENODE -and (Test-Path $env:RENODE)) { return $env:RENODE }
+    $onPath = Get-Tool 'renode'
+    if ($null -ne $onPath) { return $onPath }
+    $local = Get-ChildItem (Join-Path $env:LOCALAPPDATA 'renode') -Directory -Filter 'renode_*' `
+                          -ErrorAction SilentlyContinue |
+             Sort-Object Name -Descending | Select-Object -First 1
+    if ($null -ne $local) {
+        $exe = Join-Path $local.FullName 'renode.exe'
+        if (Test-Path $exe) { return $exe }
+    }
+    return $null
+}
+
+function Install-Renode {
+    Write-Head 'emulator'
+    $renode = Find-Renode
+    if ($null -ne $renode) {
+        Write-Item 'Renode' 'ok' $renode
+        return
+    }
+    if ($SkipRenode) {
+        Write-Item 'Renode' 'missing' '-SkipRenode: emulator:// and tests/test_emulator.py skip'
+        return
+    }
+    $zip = "renode-$RenodeVersion.windows-portable.zip"
+    if (-not (Confirm-Step "download Renode $RenodeVersion ($zip, 106 MB) into %LOCALAPPDATA%\renode ?")) {
+        Write-Item 'Renode' 'missing' "github.com/renode/renode/releases v$RenodeVersion"
+        Add-Todo "Renode $RenodeVersion portable under %LOCALAPPDATA%\renode (setup.ps1 again, or RENODE=path)"
+        return
+    }
+    $into = Join-Path $env:LOCALAPPDATA 'renode'
+    New-Item -ItemType Directory -Force $into | Out-Null
+    $file = Join-Path $into $zip
+    try {
+        Invoke-WebRequest -UseBasicParsing -OutFile $file `
+            "https://github.com/renode/renode/releases/download/v$RenodeVersion/$zip"
+        Expand-Archive -Force $file $into
+        Remove-Item $file
+    } catch {
+        Write-Item 'Renode' 'failed' $_.Exception.Message
+        Add-Todo "Renode $RenodeVersion portable under %LOCALAPPDATA%\renode"
+        return
+    }
+    $renode = Find-Renode
+    if ($null -eq $renode) {
+        Write-Item 'Renode' 'failed' "no renode.exe under $into"
+        Add-Todo "Renode $RenodeVersion portable under %LOCALAPPDATA%\renode"
+    } else {
+        Write-Item 'Renode' 'done' $renode
+    }
+}
+
+function Install-Simulations {
+    <#
+  The electronic_simulations submodule: the LTspice runs the emulator's front end is fitted
+        from (host/tools/emu/afe_spice.py). Over HTTPS - .gitmodules names it by SSH, and a
+        machine without a GitLab key cannot clone that; HTTPS asks for a GitLab login. LTspice itself is only needed to
+        refit; the fit is checked in.
+#>
+    $sims = Join-Path $Root 'electronic_simulations'
+    if (Test-Path (Join-Path $sims 'afe\amplifiers.asc')) {
+        Write-Item 'electronic_simulations' 'ok' $sims
+    } elseif (Confirm-Step 'git submodule update --init electronic_simulations (over HTTPS) ?') {
+        & git -C $Root -c 'url.https://gitlab.com/.insteadOf=git@gitlab.com:' `
+            submodule update --init electronic_simulations 2>&1 | Out-Null
+        if (Test-Path (Join-Path $sims 'afe\amplifiers.asc')) {
+            Write-Item 'electronic_simulations' 'done' $sims
+        } else {
+            Write-Item 'electronic_simulations' 'failed' 'the clone did not land'
+            Add-Todo 'git submodule update --init electronic_simulations' -Optional
+        }
+    } else {
+        Write-Item 'electronic_simulations' 'missing' 'only afe_spice.py; the traced constants are in coaxial/model/inverter.py'
+        Add-Todo 'git submodule update --init electronic_simulations' -Optional
+    }
+
+    $ltspice = Join-Path $env:ProgramFiles 'ADI\LTspice\LTspice.exe'
+    if (Test-Path $ltspice) {
+        Write-Item 'LTspice' 'ok' $ltspice
+    } else {
+        Write-Item 'LTspice' 'missing' 'only to refit the front end (analog.com, LTspice)'
+        Add-Todo 'LTspice, to refit the emulator''s front end from the simulations' -Optional
+    }
+}
+
 # ---- main ------------------------------------------------------------------
 
 Write-Host ''
@@ -1720,6 +1805,9 @@ Install-CubeMXFromInstaller
 Install-FirmwarePackage
 Install-CubeIDE
 
+Install-Renode
+Install-Simulations
+
 if (-not $SkipOllama) {
     Install-Ollama -Python $python
 } 
@@ -1755,6 +1843,8 @@ Write-Host '    board all                   measure, no model involved'
 Write-Host '    dbg "why is the NTC 25.00?" ask the local model, cheaply'
 Write-Host '    board_chat                  a prompt with the model and the board in it'
 Write-Host '    cubemx                      open the .ioc in STM32CubeMX'
+Write-Host '    .\coaxial_tty.ps1 -Emulated  the terminal on the image in Renode, no board'
+Write-Host '    python host/tools/emu/emulator.py [--nodes N]   the emulator alone, its URL printed'
 Write-Host ''
 if ($Check) {
     Write-Host '  run again without -Check to install what is missing.' -ForegroundColor DarkGray

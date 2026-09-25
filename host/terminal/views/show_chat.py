@@ -23,6 +23,7 @@ from rich.layout import Layout
 from rich.panel import Panel
 from rich.text import Text
 
+from coaxial.comm.session import Origin
 from coaxial_mcp.schema import TOOLS
 from coaxial_ollama import cli, language, pull as pulling
 from coaxial_ollama.client import OllamaError
@@ -41,11 +42,9 @@ RESERVE = 5
 SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 
 
-class _Origin:
-    """What header() asks of a session origin, for a chat that has none."""
-
-    def __init__(self, label, real, port):
-        self.label, self.real, self.port = label, real, port
+def _origin(label, real, port):
+    """A session origin for header(), for a chat that has none of its own."""
+    return Origin(real, port, None, None, label, None, None)
 
 
 class Script:
@@ -415,7 +414,7 @@ def _claude_chat(a, script, state):
     script.say('name', 'ANTHROPIC - one claude -p per turn, continued '
                        'in the repo root; the coaxial MCP tools ride '
                        'along. ESC returns to the menu.')
-    return chat, _Origin('claude + coaxial MCP', True, a.port)
+    return chat, _origin('claude + coaxial MCP', True, a.port)
 
 
 def main():
@@ -437,7 +436,7 @@ def main():
                        else 'CCC - COAXIAL 63100 CHAT CLIENT')}
     if a.frames:
         canned(script)
-        origin = _Origin('Simulated', False, a.port)
+        origin = _origin('Simulated', False, a.port)
         state['tools'] = ('board_info', 'analog_read', 'docs')
     elif a.claude:
         chat, origin = _claude_chat(a, script, state)
@@ -457,7 +456,7 @@ def main():
             print('ollama: %s' % exc, file=sys.stderr)
             return 2
         label, real = chat.origin or ('unknown', False)
-        origin = _Origin(label, real, a.port)
+        origin = _origin(label, real, a.port)
         state['tools'] = tuple(sorted(chat.tool_names))
 
     try:

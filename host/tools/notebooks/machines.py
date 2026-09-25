@@ -13,7 +13,7 @@ SECTIONS = [
            'offers first.'),
         code('''from machine.nodes import Nodes
 
-nodes = Nodes.discover(port=PORT, simulated=SIMULATED)
+nodes = Nodes.discover(port=PORT, execution_mode=MODE)
 kinds = sorted({n.type for n in nodes})
 print('%d nodes: %s' % (len(nodes), ', '.join('%d %s' % (len(nodes.of_type(k)), k) for k in kinds)))
 print(Nodes([nodes['battery'], nodes['head_camera']]).card())
@@ -146,10 +146,11 @@ print('first move %.2f s fed, %.2f s whole; woken in %d tokens'
         md('The `program` tool is what the local model calls on its session: `card` once, `run` '
            'a whole program (its summary back), or live - `start`, `send`, `wait`, `stop` - '
            'each reply a line.'),
-        code('''from coaxial.comm.session import open_session
+        code('''from coaxial import Coaxial63100
 from coaxial_mcp.tools import close_programs, program
 
-session, _ = open_session(PORT, simulated=SIMULATED)
+rig = Coaxial63100(port=PORT, execution_mode=MODE).open()
+session = rig.session
 print(program(session, op='run', machine='quad', text='0 run=take_off\\n0 run=land'))
 calls = [('start', ''), ('send', '0 run=take_off seconds=0.5\\n0 run=hover seconds=0.8'),
          ('wait', ''), ('stop', '')]
@@ -157,6 +158,7 @@ replies = [program(session, op=op, machine='quad', text=text) for op, text in ca
 for (op, _), reply in zip(calls, replies):
     print('%-5s %3d tokens  %s' % (op, len(reply) / 4, reply[:70]))
 close_programs(session)
+rig.close()
 nodes.close()'''),
     ),
 ]
@@ -189,5 +191,5 @@ REFERENCES = [
     ('host/machine/live.py', '`Live`: chunks, a buffer, a watchdog, a failsafe'),
     ('host/machine/sequencer.py', 'lines or tables; `check`, `summary`, `card`, `GRAMMAR`'),
     ('host/coaxial_mcp/tools.py', '`program`, `close_programs`: the board-chat tool'),
-    ('host/coaxial/comm/session.py', '`open_session`: the board, or its stand-in'),
+    ('host/coaxial/rig.py', '`Coaxial63100`: the board in its execution mode'),
 ]

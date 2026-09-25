@@ -4,9 +4,10 @@
     python tools/render/page.py desk --png desk.png
     python tools/render/page.py rotor_observer --frames 40 --size 150 44
     python tools/render/page.py menu
+    python tools/render/page.py desk --port emulator://      # the image on Renode
 
-The page runs its own `main` with `--simulated --frames N` on a console of the given
-size, as a terminal would size it; the last frame it drew is printed to text and,
+The page runs its own `main` with `--simulated --frames N` - or `--port PORT` - on a
+console of the given size, as a terminal would size it; the last frame it drew is printed to text and,
 with `--png`, drawn by `machine.ansi.png`. PAGES names each page's module.
 """
 import argparse
@@ -46,8 +47,8 @@ class _Still(keys_module.Keys):
         super().__init__(False, *args, **kwargs)
 
 
-def frame(name, width=150, height=44, frames=12):
-    """The page's last frame as ANSI text."""
+def frame(name, width=150, height=44, frames=12, port=None):
+    """The page's last frame as ANSI text: simulated, or on `port`."""
     drawn = []
 
     def sized():
@@ -73,7 +74,7 @@ def frame(name, width=150, height=44, frames=12):
         setattr(module, 'stage', sized)
         if hasattr(module, 'Keys'):
             setattr(module, 'Keys', _Still)
-        argv = ['--simulated', '--frames', str(frames)]
+        argv = (['--port', port] if port else ['--simulated']) + ['--frames', str(frames)]
         if inspect.signature(module.main).parameters:
             module.main(argv)
         else:
@@ -101,8 +102,9 @@ def main(argv=None):
                         metavar=('WIDTH', 'HEIGHT'))
     parser.add_argument('--frames', type=int, default=12)
     parser.add_argument('--png', help='also the picture as a PNG here')
+    parser.add_argument('--port', help='a port, not the stand-in (emulator:// for the image)')
     args = parser.parse_args(argv)
-    art = frame(args.page, *args.size, frames=args.frames)
+    art = frame(args.page, *args.size, frames=args.frames, port=args.port)
     print(art)
     if args.png:
         size = ansi.png(art, args.png)

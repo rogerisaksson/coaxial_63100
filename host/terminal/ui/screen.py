@@ -12,6 +12,7 @@ from coaxial import Coaxial63100
 from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.draw import cross_section, gauges
 from coaxial.errors import DeviceStateError, NoReplyError, RigError
+from machine.modes import HARDWARE, SIMULATED
 from machine import ansi
 from terminal.ui.console import Keys, _ignore
 from terminal.ui.rate import rate_of
@@ -181,6 +182,11 @@ class Feed:
         if self._thread is not None:
             self._thread.join(wait)
         return self
+
+
+def mode_of(args):
+    """The execution mode a view's flags ask for: --simulated, else the board on --port."""
+    return SIMULATED if args.simulated else HARDWARE
 
 
 def open_rig(banner, **kwargs):

@@ -10,6 +10,7 @@ import time
 from coaxial import Coaxial63100
 from machine.controller import Feedback, Loop, Paced
 from machine.errors import MachineError
+from machine.modes import SIMULATED
 from machine.parts import Gain, LowPass, PI, Slew, SpeedKalman, SpeedPI
 from machine.roles import Estimator, Input, Output, Regulator
 from machine.sequencer import Sequencer
@@ -468,7 +469,7 @@ def test_the_pictures_and_the_panel(report):
 
 
 def test_velocity_is_a_feedback(report):
-    device = Coaxial63100(simulated=True).open()
+    device = Coaxial63100(execution_mode=SIMULATED).open()
     try:
         drive = device.drive
         drive.configure(source='model')
@@ -490,13 +491,13 @@ def test_velocity_is_a_feedback(report):
 
 def test_nodes_offer_then_configure(report):
     from machine.nodes import Nodes
-    nodes = Nodes.discover(simulated=True)
+    nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         names = [n.name for n in nodes]
         report.check('every node on every bus, named by bus and unit; the pack and camera too',
                      len(nodes.of_type('bldc_inverter')) == 20 and 'LL_2' in names
                      and [n.type for n in nodes][-2:] == ['bms', 'camera'], names[-3:])
-        bare = Nodes.discover(simulated=True, families=())
+        bare = Nodes.discover(execution_mode=SIMULATED, families=())
         report.check('no family, no inverters: the stand-in peripherals alone',
                      [n.type for n in bare] == ['bms', 'camera'], [n.name for n in bare])
         caps = {c.name: c for c in nodes['LL_2'].capabilities('drive', 'angle')}
@@ -529,7 +530,7 @@ LEGS = {'left_hip': 'LL_1', 'left_knee': 'LL_2', 'right_hip': 'RL_1', 'right_kne
 def test_fitment_by_measurement(report):
     from machine import Machine
     from machine.nodes import Nodes
-    nodes = Nodes.discover(simulated=True)
+    nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         humanoid = Machine(nodes, type='humanoid')
         where = {name: a.node.rig.board.system.version()['where'].replace(' ', '_')
@@ -559,7 +560,7 @@ def test_fitment_by_measurement(report):
 def test_the_body_runs_a_program(report):
     from machine import Machine
     from machine.nodes import Nodes
-    nodes = Nodes.discover(simulated=True)
+    nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         body = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()})
         told = body.prompt()
@@ -596,7 +597,7 @@ def test_the_body_loops_on_its_boards(report):
     setpoints and reads the joints back through the same measure."""
     from machine import Machine
     from machine.nodes import Nodes
-    nodes = Nodes.discover(simulated=True, peripherals=())
+    nodes = Nodes.discover(execution_mode=SIMULATED, peripherals=())
     try:
         body = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()},
                        node_hz=100)
@@ -627,7 +628,7 @@ def test_machine_types_and_routines(report):
     from machine import Machine
     from machine.routines import TYPES
     from machine.nodes import Nodes
-    nodes = Nodes.discover(simulated=True)
+    nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         for kind, program, back in (
                 ('humanoid', '0 run=squat seconds=0.6\n0 run=look yaw=35', 'head.deg'),
@@ -661,7 +662,7 @@ def test_machine_types_and_routines(report):
         except MachineError as exc:
             report.check('an unknown type is refused, the types named',
                          all(t in str(exc) for t in TYPES), exc)
-        ebike = Machine.discover('ebike', simulated=True)
+        ebike = Machine.discover('ebike', execution_mode=SIMULATED)
         try:
             report.check('the factory: the family loaded, the type over what it found',
                          type(ebike.actuators['assist']).__module__ == 'coaxial.node'
@@ -676,7 +677,7 @@ def test_live_from_a_stream(report):
     from machine.live import Live
     from machine import Machine
     from machine.nodes import Nodes
-    nodes = Nodes.discover(simulated=True)
+    nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         machine = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()})
         live = Live(machine, failsafe='0.6 left_knee=0 right_knee=0', timeout=0.8,
@@ -725,7 +726,7 @@ def test_a_model_streams_and_is_woken(report):
     from machine import Machine
     from machine.live import Live
     from machine.nodes import Nodes
-    nodes = Nodes.discover(simulated=True)
+    nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         machine = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()},
                           failsafe='0.6 left_knee=0 right_knee=0')
@@ -800,7 +801,7 @@ def test_the_board_loops_a_joint(report):
     report.check('a dec carries a parameter to float32 digits',
                  all(abs(b - v) <= 1e-7 * abs(v) for b, v in
                      zip(back, (0.735, -2e-5, 90.0, 314.159265, 0.0))), back)
-    rig = Coaxial63100(simulated=True).open()
+    rig = Coaxial63100(execution_mode=SIMULATED).open()
     try:
         joint = Coaxial(rig, name='knee').actuator('joint')
         f = joint.feedback('knee')

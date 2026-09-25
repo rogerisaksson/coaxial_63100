@@ -15,6 +15,7 @@ from coaxial.devices import boot as bootmod
 from coaxial.devices.board import Board
 from coaxial.devices.gates import GateStage
 from coaxial.errors import LINK_FAULTS, RigError
+from machine.modes import EMULATED, HARDWARE, SIMULATED, ExecutionMode
 
 
 def _subsystem_names():
@@ -22,6 +23,11 @@ def _subsystem_names():
     `daq`.
     """
     return frozenset(Board.parts()) | {'gates', 'daq'}
+
+
+#: Where EMULATED runs when no emulator URL is named: one board, this host's image on
+#: Renode (tools.emu).
+EMULATOR_URL = 'emulator://'
 
 
 class Later:
@@ -114,15 +120,18 @@ class Coaxial63100(Task, TaskStream, Acquisition):
     """One board, one acquisition task, one clock."""
 
     def __init__(self, port='COM4', baud=115200, unit=1, fallback=True,
-                 simulated=False, power_afe=False, own_image=True):
-        """Say where the board is: `port`, or `simulated=True` for the stand-in; `fallback`:
-        no board answering, the stand-in. Nothing is opened until `open()`, which makes a real
-        board run this host's own build (`own_image`)."""
+                 execution_mode=HARDWARE, power_afe=False, own_image=True):
+        """Say where the board runs: HARDWARE on `port` - with `fallback`, the stand-in when
+        none answers - SIMULATED the stand-in, EMULATED this host's image on an emulated MCU
+        (`port` if it is an emulator:// URL, else EMULATOR_URL). Nothing is opened until
+        `open()`, which makes a real board run this host's own build (`own_image`)."""
+        self.execution_mode = ExecutionMode(execution_mode)
+        if self.execution_mode is EMULATED and not str(port).startswith(EMULATOR_URL):
+            port = EMULATOR_URL
         self.port = port
         self.baud = baud
         self.unit = unit
         self._fallback = fallback
-        self._stand_in = simulated
         self.power_afe = power_afe
         self.own_image = own_image
         #: (path of this host's build, whether open() loaded it), or None.
@@ -138,7 +147,8 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         # like `device.daq`, opened lazily by its factories.
         self.motion = Motion(self)
         self._origin = None
-        self.simulated = simulated
+        #: Whether the stand-in answers: asked for, or fallen back to on open().
+        self.simulated = self.execution_mode is SIMULATED
         self.layout = None
         self.sync = None
         # The stamps' wrap count, carried from block to block - `_epoch` - and
@@ -166,8 +176,8 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         if self.session is not None:
             return self
 
-        simulated = True if self._stand_in else (
-            None if self._fallback else False)
+        simulated = (True if self.execution_mode is SIMULATED
+                     else None if self._fallback and self.execution_mode is HARDWARE else False)
 
         self.session, self._origin = sessionmod.open_session(
             self.port, baud=self.baud, unit=self.unit, simulated=simulated)

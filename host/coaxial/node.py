@@ -1,7 +1,7 @@
 """The Coaxial63100 family for `machine`: a board as a node, the actuators it can be, discovery.
 
     from machine import Machine
-    Machine.discover('humanoid', simulated=True)   # loads this module; a joint per Coaxial
+    Machine.discover('humanoid', execution_mode=SIMULATED)   # loads this module; a joint each
 
 A joint (deg, the drive holding an angle), a surface (a joint of narrow span), a rotor
 (rpm, a speed loop), a torque (A, the current itself). A board is named by its bus and unit
@@ -13,6 +13,7 @@ import time
 from coaxial.errors import RigError
 from machine.controller import Feedback
 from machine.machine import Actuator
+from machine.modes import HARDWARE
 from machine.nodes import Module, Node
 from machine.parts import AngleHold, Direct, Gain, Slew, SpeedPI, Wrap
 from motor.pmsm import RAD_S_PER_RPM
@@ -31,14 +32,14 @@ def _arming(rig, arming):
     return {'bypass_sto': True, 'ignore_interlock': True} if rig.simulated else {}
 
 
-def discover(port='COM4', simulated=False, units=range(1, 17), **kw):
+def discover(port='COM4', execution_mode=HARDWARE, units=range(1, 17), **kw):
     """Every Coaxial answering on every bus this host reaches, each opened as a node."""
     from coaxial import Coaxial63100
-    first = Coaxial63100(port=port, simulated=simulated, **kw).open()
+    first = Coaxial63100(port=port, execution_mode=execution_mode, **kw).open()
     found = [(bus, unit) for bus, _ in first.session.buses()
              for unit, _ in first.session.scan(units, bus)]
     first.close()
-    return [Coaxial(Coaxial63100(port=bus, unit=unit, simulated=simulated, **kw).open())
+    return [Coaxial(Coaxial63100(port=bus, unit=unit, execution_mode=execution_mode, **kw).open())
             for bus, unit in found]
 
 

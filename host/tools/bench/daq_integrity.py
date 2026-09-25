@@ -17,7 +17,7 @@ import cmath
 import math
 import sys
 
-from coaxial import Coaxial63100
+from coaxial import HARDWARE, SIMULATED, Coaxial63100
 from coaxial.acquire import bessel
 from coaxial.errors import RigError
 
@@ -307,7 +307,7 @@ def main(argv=None):
     report = Report()
     try:
         with Coaxial63100(port=args.port, power_afe=True,
-                          simulated=args.simulated) as rig:
+                          execution_mode=SIMULATED if args.simulated else HARDWARE) as rig:
             describe(rig, chain)
             for check in PASSES:
                 check(rig.daq, chain, args, report)

@@ -13,7 +13,10 @@
 .PARAMETER Port
     The board's VCP.
 .PARAMETER Simulated
-    No cable.
+    No cable: the stand-in.
+.PARAMETER Emulated
+    No cable: this host's image on an emulated MCU (Renode, host/tools/emu), the port
+    emulator://.
 .PARAMETER Frames
     Stop after this many rather than running until closed - the smoke.
 .EXAMPLE
@@ -25,6 +28,7 @@ param(
     [string]$Name,
     [string]$Port = 'COM4',
     [switch]$Simulated,
+    [switch]$Emulated,
     [int]$Frames = 0
 )
 
@@ -40,6 +44,7 @@ $ErrorActionPreference = 'Continue'
 
 $argv = @('-X', 'utf8', '-m', 'terminal')
 if ($Name) { $argv += $Name }
+if ($Emulated) { $Port = 'emulator://' }
 $argv += @('--port', $Port)
 if ($Simulated) { $argv += '--simulated' }
 if ($Frames -gt 0) { $argv += @('--frames', [string]$Frames) }

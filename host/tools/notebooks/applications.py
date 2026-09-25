@@ -113,7 +113,7 @@ draw(cruise_log, 'the cruise, drag x %.1f from %.1f to %.1f s' % (GUST, GUST_FRO
         md('One board a joint on one segment: `shoulder` unit 1, `elbow` unit 2. The elbow '
            'carries 0.01 N.m.'),
         code('''shoulder = device
-elbow = Coaxial63100(port=PORT, unit=2, simulated=SIMULATED).open()
+elbow = Coaxial63100(port=PORT, unit=2, execution_mode=MODE).open()
 elbow.drive.configure(source='model')
 elbow.drive.model.configure(j=2e-5, b=1e-5, load=0.01)
 elbow.gates.on(bypass_sto=True, ignore_interlock=True)

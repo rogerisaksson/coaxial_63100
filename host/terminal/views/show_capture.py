@@ -22,11 +22,12 @@ import argparse
 import sys
 import time
 
+from coaxial.comm.session import standing
 from coaxial.devices import scaling
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui.console import Keys
-from terminal.ui.screen import closing, open_rig, panel_width, say
+from terminal.ui.screen import closing, mode_of, open_rig, panel_width, say
 from terminal.ui.stage import curtain, hud, panels_of, stage
 
 ROTATION_VECTOR = 0x05
@@ -258,12 +259,12 @@ def main(argv=None):
     # behind AFE_ON; with the default False the daq refused, the view
     # returned 1 and the menu read that as quit.
     rig = open_rig('LINKING THE RING', port=args.port, power_afe=True,
-                   simulated=bool(args.simulated))
+                   execution_mode=mode_of(args))
     if rig is None:
         return 1
     origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
-        '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+        '%s - %s' % (origin.label, standing(origin)))
     say('ok', 'AFE_ON', 'on for this run, and put back the way it was found')
 
     try:

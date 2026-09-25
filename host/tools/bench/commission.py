@@ -22,6 +22,7 @@ import os
 from coaxial import Coaxial63100
 from coaxial.control.commission import Commissioning
 from coaxial.errors import RigError
+from machine.modes import HARDWARE, SIMULATED
 
 STEPS = ('afe', 'sample_point', 'offsets', 'gains_afe', 'sign', 'deadtime',
          'l_map', 'flux', 'budget', 'gains', 'decide', 'verify')
@@ -145,7 +146,7 @@ def arguments(argv):
 
 def main(argv=None):
     args = arguments(argv)
-    with Coaxial63100(port=args.port, simulated=args.simulated, power_afe=True) as rig, \
+    with Coaxial63100(port=args.port, execution_mode=SIMULATED if args.simulated else HARDWARE, power_afe=True) as rig, \
             Commissioning(rig, arm=args.arm, log=print, i_h_max=args.i_h_max,
                           f_min_hz=args.f_min, rated_rpm=args.rated_rpm) as c:
         print('%s  fs %.0f Hz' % (rig, c.fs))

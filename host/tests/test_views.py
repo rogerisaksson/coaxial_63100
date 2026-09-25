@@ -203,6 +203,7 @@ def test_the_view_loop_and_its_helpers(report):
     from coaxial.errors import NoReplyError, RigError
     from rich.console import Console
     from rich.text import Text
+    from coaxial.comm.session import Origin
     from terminal.ui import screen, stage
     from tools.render import page
 
@@ -347,11 +348,15 @@ def test_the_view_loop_and_its_helpers(report):
     stage.broker.clients = lambda: 2
     try:
         chips = [stage.live(1).plain, stage.live(0).plain,
-                 stage.chip(types.SimpleNamespace(real=True)).plain]
+                 stage.chip(Origin(True, 'COM4', 115200, 'serial', 'RS485 at COM4', 'RS485',
+                                   1)).plain,
+                 stage.chip(Origin(True, 'emulator://', 115200, 'emulator', 'Emulated MCU',
+                                   'emulated MCU', 1)).plain]
     finally:
         stage.broker.clients = real_clients
-    report.check('the band: LIVE with the sessions on the port, a Live passes the rest on',
-                 chips == [' LIVE 1 SESSION ', ' LIVE ', ' LIVE 2 SESSIONS ']
+    report.check('the band: LIVE with the sessions on the port, EMULATOR on an emulated MCU, '
+                 'a Live passes the rest on',
+                 chips == [' LIVE 1 SESSION ', ' LIVE ', ' LIVE 2 SESSIONS ', ' EMULATOR ']
                  and live.console == 'the console', str(chips))
 
     blank = types.ModuleType('blank_page')
@@ -563,10 +568,10 @@ def test_both_gutters_run_on_one_scale(report):
 
 def test_a_power_node_never_reads_below_the_copper(report):
     """It sheds into the board, so it cannot be colder than the board."""
-    from coaxial import Coaxial63100
+    from coaxial import SIMULATED, Coaxial63100
     from terminal.views.rotor import layout, legend
 
-    rig = Coaxial63100(simulated=True)
+    rig = Coaxial63100(execution_mode=SIMULATED)
     rig.open()
     try:
         rig.board.gate_drivers.configure(bypass_break=True)

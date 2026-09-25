@@ -319,14 +319,14 @@ def gpio_port(session, op='read', port='E', mask=0, value=0, **_):
 def program(session, op='card', text='', machine='humanoid', **_):
     """The machine the session's buses make - found once, each type built once: its card, a
     whole run, or live - start, send (a line plays once checked), wait (one line), now, stop."""
-    from machine import Machine, MachineError, Nodes
+    from machine import HARDWARE, SIMULATED, Machine, MachineError, Nodes
     from machine.live import Live
     held = vars(session)
     machines, lives = held.setdefault('machines', {}), held.setdefault('lives', {})
     if machine not in machines:
         if 'nodes' not in held:
-            held['nodes'] = Nodes.discover(port=session.port,
-                                           simulated=bool(getattr(session, 'simulated', False)))
+            held['nodes'] = Nodes.discover(
+                port=session.port, execution_mode=SIMULATED if session.simulated else HARDWARE)
         machines[machine] = Machine(held['nodes'], type=machine)
     built, live = machines[machine], lives.get(machine)
     if op == 'card':

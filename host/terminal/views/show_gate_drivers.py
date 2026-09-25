@@ -30,12 +30,13 @@ from contextlib import suppress
 
 from rich.text import Text
 
+from coaxial.comm.session import standing
 from coaxial.devices import scaling
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
 from terminal.ui.screen import (ASH, LABEL, SODIUM, closing, open_rig, panel_width,
-                                run_view, say, tint)
+                                run_view, say, tint, mode_of)
 from terminal.ui.stage import hud, panels_of, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -340,7 +341,7 @@ def main(argv=None):
     # AFE_ON itself: its polarity decides what the run measures, and left as
     # found it would differ from day to day.
     rig = open_rig('LINKING GATE DRIVERS', port=args.port, power_afe=False,
-                   simulated=bool(args.simulated))
+                   execution_mode=mode_of(args))
     if rig is None:
         return 1
     origin, board = rig.origin, rig.board
@@ -353,7 +354,7 @@ def main(argv=None):
            'currents are real, drivers unpowered' if args.afe
            else 'drivers have supply, currents are not measurements'))
     say('ok' if origin.real else 'warn', 'link',
-        '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+        '%s - %s' % (origin.label, standing(origin)))
 
     try:
         state = rig.gates.check()

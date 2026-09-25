@@ -12,7 +12,11 @@ from coaxial.simulated import SimulatedSession
 
 # `kind` is the *communication interface type*: how the host reaches the bus,
 # which is not the same question as which device is on it.
-INTERFACE = {'probe': 'debug probe', 'serial': 'RS485', 'url': 'url', None: 'simulated'}
+INTERFACE = {'probe': 'debug probe', 'serial': 'RS485', 'url': 'url', 'emulator': 'emulated MCU',
+             None: 'simulated'}
+
+#: URL schemes that name an emulated MCU (tools.emu): the firmware real, the board not.
+EMULATED = ('emulator',)
 
 Origin = collections.namedtuple(
     'Origin', 'real port baud kind label interface unit')
@@ -38,7 +42,21 @@ def _label(real, port, kind, fell_back=False):
         return 'JTAG and %s' % port
     if kind == 'url':
         return port
+    if kind == 'emulator':
+        return 'Emulated MCU at %s' % port
     return 'RS485 at %s' % port
+
+
+def url_kind(port):
+    """An Origin's kind for a URL port: `emulator` for an emulated MCU, else `url`."""
+    return 'emulator' if port.split('://')[0] in EMULATED else 'url'
+
+
+def standing(origin):
+    """What a session talks to, in a word: live, emulated or simulated."""
+    if origin.kind == 'emulator':
+        return 'emulated'
+    return 'live' if origin.real else 'simulated'
 
 
 def tag(origin, unit=None, where=None):
@@ -67,7 +85,17 @@ def _answers(served, unit=1):
 
 
 def board_answers(port=None, baud=115200, unit=1):
-    """Whether a board answers anywhere, without opening a session."""
+    """Whether a board answers anywhere, without opening a session - or, for a URL, whether
+    one opened on it does."""
+    if port and '://' in port:
+        session = Session(port, baud, unit)
+        try:
+            session.info()
+            return True
+        except RigError:
+            return False
+        finally:
+            session.close()
     served = broker.serving()
     if served and _answers(served, unit):
         return True
@@ -84,9 +112,9 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     # A URL - tools.cores' fakeboard:// - is named, never discovered, and this process's
     # own: no broker serves it and none is spawned for it.
     if port and '://' in port and not simulated:
+        kind = url_kind(port)
         return (Session(port, baud, unit),
-                Origin(True, port, baud, 'url', _label(True, port, 'url'), INTERFACE['url'],
-                       unit))
+                Origin(True, port, baud, kind, _label(True, port, kind), INTERFACE[kind], unit))
 
     # A broker is the board.
     served = broker.serving() if only is None else None

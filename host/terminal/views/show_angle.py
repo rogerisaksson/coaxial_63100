@@ -18,13 +18,14 @@ import sys
 import time
 from contextlib import suppress
 
+from coaxial.comm.session import standing
 from coaxial.devices import angle
 from coaxial.draw import dial
 from coaxial.errors import RigError
 from machine import ansi
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
-from terminal.ui.screen import Freshness, closing, open_rig, run_view, say, steady
+from terminal.ui.screen import Freshness, closing, mode_of, open_rig, run_view, say, steady
 from terminal.ui.stage import frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -213,12 +214,12 @@ def main(argv=None):
     # and the part this view shows is AFE-powered; rig.close() releases the
     # rail (`Coaxial63100._release_afe`).
     rig = open_rig('LINKING A1335', port=args.port, power_afe=True,
-                   simulated=bool(args.simulated))
+                   execution_mode=mode_of(args))
     if rig is None:
         return 1
     origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
-        '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+        '%s - %s' % (origin.label, standing(origin)))
 
     part = capability(board)
     if part is None:

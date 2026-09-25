@@ -15,7 +15,7 @@ from machine.nodes import Nodes
 from machine.parts import Gain
 from machine.wiring import diagram, feedback
 
-nodes = Nodes.discover(port=PORT, simulated=SIMULATED, peripherals=())
+nodes = Nodes.discover(port=PORT, execution_mode=MODE, peripherals=())
 node = nodes.of_type('bldc_inverter')[0]
 drive, gates = node.rig.drive, node.rig.gates
 drive.configure(source='model')

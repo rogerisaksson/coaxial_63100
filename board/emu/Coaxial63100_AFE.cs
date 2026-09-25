@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             DcBusVolts = GateVolts = 0.0;
             Rail5Volts = 5.0;
             NtcCelsius = DieCelsius = 25.0;
-            noise = new Random(NoiseSeed);
+            Draw();
             // The die sensor's factory points, where __LL_ADC_CALC_TEMPERATURE reads them.
             machine.SystemBus.WriteWord(TsCal1Address, (ushort)DieCode(30.0));
             machine.SystemBus.WriteWord(TsCal2Address, (ushort)DieCode(110.0));
@@ -80,24 +80,65 @@ namespace Antmicro.Renode.Peripherals.Analog
         public double DieVoltsAt30 { get; set; } = 0.62;
         public double DieVoltsPerKelvin { get; set; } = 0.002;
 
-        // One sigma at the pin; LTspice's spread at the sample instant (afe_spice.py).
+        // This board among the boards the parts' tolerances allow (afe_spice.py's spread) and
+        // its drift with the board's temperature, which the NTC reads (the drift run).
+        public double PhaseGainSigma { get; set; }
+        public double PhaseZeroSigmaVolts { get; set; }
+        public double BusGainSigma { get; set; }
+        public double PhaseGainPerKelvin { get; set; }
+        public double PhaseZeroVoltsPerKelvin { get; set; }
+
+        // One sigma at the pin: the converter's own noise.
         public double NoiseVolts { get; set; } = 0.0001;
-        public int NoiseSeed { get; set; } = 63100;
+
+        /// <summary>Which board this is: its errors are drawn from it, again when it is set -
+        /// a limb seeds each node from its UID.</summary>
+        public int NoiseSeed
+        {
+            get => seed;
+            set
+            {
+                seed = value;
+                Draw();
+            }
+        }
 
         private double Nominal(string signal)
         {
             switch(signal)
             {
-                case "Phase U": return Differential(PhaseZeroVolts + PhaseVoltsPerAmp * PhaseUAmps);
-                case "Phase V": return Differential(PhaseZeroVolts + PhaseVoltsPerAmp * PhaseVAmps);
-                case "Phase W": return Differential(PhaseZeroVolts + PhaseVoltsPerAmp * PhaseWAmps);
-                case "DC bus":  return DcBusVolts * BusBottomOhms / (BusTopOhms + BusBottomOhms);
+                case "Phase U": return Differential(Phase(PhaseUAmps, 0));
+                case "Phase V": return Differential(Phase(PhaseVAmps, 1));
+                case "Phase W": return Differential(Phase(PhaseWAmps, 2));
+                case "DC bus":  return DcBusVolts * (1.0 + busError) * BusBottomOhms / (BusTopOhms + BusBottomOhms);
                 case "NTC":     return ReferenceVolts * NtcFixedOhms / (NtcOhms() + NtcFixedOhms);
                 case "+5V":     return Rail5Volts * Rail5BottomOhms / (Rail5TopOhms + Rail5BottomOhms);
                 case "Vgate":   return GateVolts * GateBottomOhms / (GateTopOhms + GateBottomOhms);
                 case "MCU die": return DieVoltsAt30 + (DieCelsius - 30.0) * DieVoltsPerKelvin;
                 default:        return 0.0;          // Clevel, Cinj: not modelled
             }
+        }
+
+        /// <summary>One leg's volts at the ADC: its own gain and zero, drifted to the board's
+        /// temperature.</summary>
+        private double Phase(double amps, int leg)
+        {
+            var warmer = NtcCelsius - 25.0;
+            var gain = PhaseVoltsPerAmp * (1.0 + gainError[leg] + PhaseGainPerKelvin * warmer);
+            var zero = PhaseZeroVolts + zeroError[leg] + PhaseZeroVoltsPerKelvin * warmer;
+            return zero + gain * amps;
+        }
+
+        /// <summary>This board's errors, from its seed: a leg's gain and zero, the bus divider's.</summary>
+        private void Draw()
+        {
+            noise = new Random(seed);
+            for(var leg = 0; leg < Legs; leg++)
+            {
+                gainError[leg] = Gauss() * PhaseGainSigma;
+                zeroError[leg] = Gauss() * PhaseZeroSigmaVolts;
+            }
+            busError = Gauss() * BusGainSigma;
         }
 
         private double Differential(double volts)
@@ -127,7 +168,13 @@ namespace Antmicro.Renode.Peripherals.Analog
         private double MidVolts => ReferenceVolts * 32768.0 / FullScaleCode;
 
         private Random noise;
+        private int seed = 63100;
+        private double busError;
+        private readonly double[] gainError = new double[Legs];
+        private readonly double[] zeroError = new double[Legs];
         private readonly IMachine machine;
+
+        private const int Legs = 3;
 
         private const double KelvinAtZero = 273.15;
         private const double FullScaleCode = 65535.0;

@@ -21,6 +21,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   not run: the app runs from D2 SRAM, and `Coaxial63100.open()` loads the
   host's own build into a board running another (docs/BOOT.md). Open work:
   docs/TODO.md.
+- Emulated: the image on Renode's STM32H753 (`board/emu`, `host/tools/emu`),
+  its front end from the schematic and LTspice (`electronic_simulations`,
+  `afe_spice.py`): conformance 110/110; a limb of N boards on one RS485 bus.
 
 | Read | Before |
 | --- | --- |

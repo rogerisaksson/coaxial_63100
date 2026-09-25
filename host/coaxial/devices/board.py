@@ -191,7 +191,10 @@ def scan(units=range(1, 17), port='COM4', baud=115200):
 
 
 def _reach(port, baud):
-    """The broker for this port, started if there is not one yet."""
+    """The broker for this port, started if there is not one yet; a URL - fakeboard://,
+    emulator:// - is this process's own, opened here."""
+    if '://' in str(port):
+        return Transport(port, baud)
     reached = _attach(port)
     if reached is None and broker.spawn(port, baud):
         reached = _attach(port)

@@ -86,7 +86,7 @@ print('scan: DC link %d mV, NTC %.2f C, afe_on %s'
         md("`second`: another session on the port - the broker's at the bench, its own "
            'stand-in here. `close()` disarms what its session armed, else only when nobody '
            'is left.'),
-        code('''second = Coaxial63100(port=PORT, simulated=SIMULATED).open()
+        code('''second = Coaxial63100(port=PORT, execution_mode=MODE).open()
 print(second)
 print('the rail, seen from second:', second.afe.state())
 shared = second.afe.is_on()

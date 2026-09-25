@@ -18,7 +18,7 @@ bitrate allows.
 """
 import argparse
 
-from coaxial import Coaxial63100
+from coaxial import HARDWARE, SIMULATED, Coaxial63100
 from coaxial.comm import bench
 
 
@@ -33,7 +33,7 @@ def main():
     # No analog supply is needed to measure a wire, and a ten-second run with
     # AFE_ON raised is current drawn for nothing.
     with Coaxial63100(port=args.port, power_afe=False,
-                      simulated=args.simulated) as daq:
+                      execution_mode=SIMULATED if args.simulated else HARDWARE) as daq:
         print(daq)
         results = bench.run(daq.board, rounds=args.rounds)
 
