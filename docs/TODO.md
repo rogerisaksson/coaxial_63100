@@ -23,7 +23,9 @@ Open work. Measured results are in FINDINGS.
 - **DMA and WFI**: the A1335's reads by DMA against the old poll, CYCCNT
   through WFI with DBGSLEEP_D1 (`clock.probe`), the gate supply back after an
   idle's paused keepalive before MOE; ADC3's injected end off HAL's handler
-  (`Board_SyncIrq`) against the drive's cycle count.
+  (`Board_SyncIrq`) against the drive's cycle count; the drive at RCR 1 on the
+  scope - pulses symmetric about the underflow, 30 us after the sample - and
+  a skew set mid-run falling back to RCR 0.
 - **Scope**: counted hold (MINOR 8), dead-time skew (record holds 0),
   `Q_RING` in `inverter.py`.
 - **Thermal**: camera under load (`board_to_ambient` at high dT, per-leg

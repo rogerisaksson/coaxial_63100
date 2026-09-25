@@ -243,6 +243,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   keeps its accounting. CYCCNT and TIM1's count run on one virtual clock:
   instructions, sleeps and skips. The Release image ran 7: its main() polls
   more registers a slice (2026-09-25).
+- The drive's triples straight into the compares (RCR 1 while it owns them,
+  unskewed): no TIM1 update interrupt, 1 interrupt and ~18 register accesses a
+  period. A/B, alternating on one quiet laptop: the emulated drive 4.8-5.7 ->
+  3.0-3.5 wall s a virtual s; the same image read 2.5 hours earlier, so only
+  alternated runs compare (2026-09-25).
 - A script killed by `timeout` left its Renode spinning 4 h, skewing every
   measure since; each Renode now sits in a job that dies with its Python
   (2026-09-25).

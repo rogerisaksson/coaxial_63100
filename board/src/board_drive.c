@@ -454,7 +454,7 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   /* The trigger fires on the down-slope at CCR5; the counter has fallen
      since, or turned at zero and climbed. */
   const uint32_t cnt = TIM1->CNT;
-  const uint32_t trigger = TIM1->CCR5;
+  const uint32_t trigger = Board_SyncTrigger();
   const uint32_t since = ((TIM1->CR1 & TIM_CR1_DIR) != 0U)
                          ? (trigger - cnt) : (trigger + cnt);
 

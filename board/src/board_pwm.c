@@ -49,9 +49,25 @@ static struct
   uint16_t next[BOARD_PWM_PHASES];
   volatile bool next_pending;
   volatile bool drive_owns;
+
+  /** The drive's triples straight into the compares: RCR 1, the update at
+      each overflow alone and its interrupt off - a write after one transfers
+      whole at the next. Entered by the update at an underflow (to_direct),
+      which loads RCR at the overflow; left with the skew or the drive. */
+  volatile bool direct;
+  volatile bool to_direct;
 } s;
 
-/* The update interrupt, which the dither and the dead-time skew both need. */
+/* RCR 0 again: every overflow and underflow, from the next update. */
+static void leave_direct(void)
+{
+  TIM1->RCR = 0U;
+  s.direct = false;
+  s.to_direct = false;
+}
+
+/* The update interrupt, which the dither, the dead-time skew and the drive's
+   landing all need. */
 static void update_irq(bool wanted)
 {
   if (wanted)
@@ -109,6 +125,7 @@ void Board_PwmDisable(void)
 
   if ((RCC->APB2ENR & RCC_APB2ENR_TIM1EN) != 0U)
   {
+    leave_direct();
     TIM1->DIER &= ~TIM_DIER_UIE;
     TIM1->BDTR &= ~TIM_BDTR_MOE;
     TIM1->CCR1 = 0U;
@@ -477,10 +494,26 @@ void Board_PwmDriveOwn(bool on)
     s.countdown = 0U;
     s.next_pending = false;
     s.drive_owns = true;
+    /* Landed by the update until one at an underflow switches to direct -
+       this runs in ADC3's interrupt, on the down-count, where RCR written
+       would load at the underflow. */
+    s.to_direct = (s.skew == 0U);
     TIM1->SR = ~TIM_SR_UIF;
     update_irq(true);
     return;
   }
+  /* A triple still to land - the zeros the drive lets go with - goes in now,
+     not dropped with the landing. */
+  if (s.next_pending)
+  {
+    TIM1->CCR1 = s.next[0];
+    TIM1->CCR2 = s.next[1];
+    TIM1->CCR3 = s.next[2];
+    s.duty[0] = s.next[0];
+    s.duty[1] = s.next[1];
+    s.duty[2] = s.next[2];
+  }
+  leave_direct();
   s.drive_owns = false;
   s.next_pending = false;
   update_irq((s.skew != 0U) || s.dither);
@@ -495,6 +528,19 @@ void Board_PwmSetNext(const uint16_t *ticks)
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
     s.next[phase] = (ticks[phase] > arr) ? (uint16_t)arr : ticks[phase];
+  }
+  if (s.direct)
+  {
+    /* Past the overflow's update - the trigger is 15 ticks after it - so
+       they transfer whole at the next overflow, the pulse centred on the
+       underflow after it, as the landing below did. */
+    TIM1->CCR1 = s.next[0];
+    TIM1->CCR2 = s.next[1];
+    TIM1->CCR3 = s.next[2];
+    s.duty[0] = s.next[0];
+    s.duty[1] = s.next[1];
+    s.duty[2] = s.next[2];
+    return;
   }
   s.next_pending = true;
 }
@@ -688,7 +734,20 @@ const char *Board_PwmSetDeadTimeSkew(int8_t counts)
 
   s.skew = (uint8_t)(counts < 0 ? -counts : counts);
   s.skew_up = (counts >= 0);
-  update_irq((s.skew != 0U) || s.dither);
+  /* The skew wants both updates, so the drive's triples go back to being
+     landed; without it they go straight in again. */
+  if (s.drive_owns)
+  {
+    if (s.skew != 0U)
+    {
+      leave_direct();
+    }
+    else if (!s.direct)
+    {
+      s.to_direct = true;
+    }
+  }
+  update_irq((s.skew != 0U) || s.dither || (s.drive_owns && !s.direct));
 
   if (s.skew == 0U)
   {
@@ -759,7 +818,23 @@ static void land_next_triple(void)
   __enable_irq();
 }
 
-/** TIM1's update, once per PWM period with RepetitionCounter at 1. */
+/* Just past an underflow - DIR reads up - RCR 1 loads at the overflow, and
+   the update comes at every overflow alone from there: the drive's triples
+   go straight into the compares, and this interrupt stops. */
+static void enter_direct(void)
+{
+  if (!s.to_direct || ((TIM1->CR1 & TIM_CR1_DIR) != 0U))
+  {
+    return;
+  }
+  TIM1->RCR = 1U;
+  s.direct = true;
+  s.to_direct = false;
+  update_irq(false);
+}
+
+/** TIM1's update, at every overflow and underflow (RCR 0); off while the
+    drive writes its triples straight in. */
 void TIM1_UP_IRQHandler(void)
 {
   if ((TIM1->SR & TIM_SR_UIF) == 0U)
@@ -797,6 +872,7 @@ void TIM1_UP_IRQHandler(void)
   else if (s.drive_owns)
   {
     land_next_triple();
+    enter_direct();
   }
   else if (s.half == 0U)
   {

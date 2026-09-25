@@ -49,7 +49,9 @@ hold 3 s leases.
 ## Gate stage
 
 - TIM1 centre-aligned, 50 kHz, RCR 0 (update at both ends). CH5/TRGO2
-  triggers injected ADC, lead 15 ticks. BKIN = PE15 active low, AOE off,
+  triggers injected ADC, lead 15 ticks. The drive, unskewed, runs RCR 1: the
+  update at the overflow alone, its interrupt off, the triples written from
+  ADC3's interrupt 15 ticks past the overflow. BKIN = PE15 active low, AOE off,
   OSSI/OSSR on. Gate pins VERY_HIGH speed.
 - Dead time: record `deadtime_ns` 30 -> DTG 8 = 33.7 ns (floor 20 ns, DTG
   max 127 = 535 ns). `.ioc` DTG 19 holds until the record loads. Trimmed

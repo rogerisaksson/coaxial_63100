@@ -74,7 +74,8 @@ bool Board_SyncSetTrigger(uint16_t ticks)
 
 uint16_t Board_SyncTrigger(void)
 {
-  return Board_PwmReady() ? (uint16_t)TIM1->CCR5 : 0U;
+  /* CCR5 as written here, the only writer: read every PWM period. */
+  return Board_PwmReady() ? s.trigger : 0U;
 }
 
 static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel,
