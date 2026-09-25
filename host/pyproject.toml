@@ -35,3 +35,6 @@ source = ["coaxial", "coaxial_mcp", "coaxial_ollama", "machine", "motor", "termi
           "testline", "tools"]
 parallel = true
 patch = ["subprocess"]
+
+[tool.coverage.report]
+exclude_also = ["if __name__ == .__main__.:"]      # a script's entry, run by hand

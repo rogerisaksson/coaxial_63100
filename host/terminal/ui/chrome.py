@@ -75,10 +75,6 @@ class Chrome:
     def __init__(self, inner, title, lock=True, tags=True):
         self.inner, self.title, self.lock, self.tags = inner, title, lock, tags
 
-    def __rich_measure__(self, console, options):
-        from rich.measure import Measurement
-        return Measurement.get(console, options, self.inner)
-
     def __rich_console__(self, console, options):
         if options.height is None:                     # piped: no region to dress
             yield from console.render(self.inner, options)
@@ -162,10 +158,6 @@ class Crt:
 
     def __init__(self, inner):
         self.inner = inner
-
-    def __rich_measure__(self, console, options):
-        from rich.measure import Measurement
-        return Measurement.get(console, options, self.inner)
 
     def __rich_console__(self, console, options):
         # A screen-mode Live gives no height: the screen's, as a Layout takes it. Passed

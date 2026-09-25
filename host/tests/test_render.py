@@ -1186,6 +1186,30 @@ def test_approach(report):
                  art.splitlines()[2].strip())
 
 
+def test_the_approach_at_its_edges(report):
+    """What the approach and the craft do off their usual ground: a sky too low for a star,
+    text outside the grid, a frame too small for the HUD, a corner with no room."""
+    from coaxial.graphics import approach, craft
+    report.check('no star under a sky that leaves no room over the horizon',
+                 approach.stars({'sky': lambda x: 1.0}, 60, 20, 5.0) == {})
+    grid, tone = [[' '] * 10 for _ in range(3)], [[None] * 10 for _ in range(3)]
+    approach.put(grid, tone, 7, 0, 'text', None)
+    approach.put(grid, tone, -1, 0, 'text', None)
+    report.check('text off the grid is not written', all(c == ' ' for row in grid for c in row))
+    small = [[' '] * 30 for _ in range(10)]
+    approach.hud(small, [[None] * 30 for _ in range(10)], [0.0] * 300, 30, 10,
+                 approach.flight(1.0), None, 1.0, 0, None, True)
+    craft.draw(small, [[None] * 30 for _ in range(10)], [0.0] * 300, 30, 10, craft.FIRST + 1.0,
+               True)
+    report.check('a frame under 40 x 14 gets no HUD and no craft',
+                 all(c == ' ' for row in small for c in row))
+    filled = (58.0, 23.0, 80.0)
+    report.check('a corner the bound leaves no room in has no pass drawn',
+                 craft.arc_radius(116, 46, 1.0, filled) == 0.0
+                 and craft.pose(116, 46, craft.FIRST + 1.0, filled) is None
+                 and craft.craft(116, 46, craft.FIRST + 1.0, filled) == {})
+
+
 def test_nothing_on_the_board(report):
     """At the view's own zoom (1.44 x 0.88, 116 x 46), over a tumbling board and the whole
     first craft pass, the HUD and the craft leave every cell of the board as it was drawn."""
@@ -1378,6 +1402,7 @@ def main():
     test_backdrop_cache(report)
     test_approach(report)
     test_nothing_on_the_board(report)
+    test_the_approach_at_its_edges(report)
     test_ladder(report)
     test_the_alphabet(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

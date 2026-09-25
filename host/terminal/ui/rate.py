@@ -3,7 +3,6 @@ import time
 import weakref
 
 from rich.cells import cell_len
-from rich.measure import Measurement
 from rich.segment import Segment
 
 
@@ -51,9 +50,6 @@ class Corner:
 
     def __init__(self, inner, label):
         self.inner, self.label = inner, label
-
-    def __rich_measure__(self, console, options):
-        return Measurement.get(console, options, self.inner)
 
     def __rich_console__(self, console, options):
         lines = console.render_lines(self.inner, options, pad=True)

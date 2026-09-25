@@ -146,8 +146,8 @@ PAD = 0.035
 FLAT = 0.4
 
 
-def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None,
-             beacons=False, search=(0.0, 0.0)):
+def corridor(static, width, height, travel, curve, roll, segment, beacons=False,
+             search=(0.0, 0.0)):
     """{cell: (braille mask, (r, g, b))}: the gates `travel` model units closer, each a
     square at its depth on the path, hazed by it, its corners moved by `roll` and its
     edges drawn dot by dot by `segment` (ground._segment)."""
@@ -162,8 +162,6 @@ def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None,
         half = 0.5 * size / z * (1.0 - z / GATE_LAST)
         shown.append((z, cx + (bend + seek) * z ** 1.5, cy + fall * z * z, half))
         z += GATE_EVERY
-    if not shown:
-        return {}
     out = {}
     land = (cx + (bend + seek) * GATE_LAST ** 1.5, cy + fall * GATE_LAST ** 2)
 
@@ -208,12 +206,7 @@ def corridor(static, width, height, travel, curve=0.0, roll=None, segment=None,
         if roll is not None:
             corners = [roll(a, b) for a, b in corners]
         for (x0, y0), (x1, y1) in zip(corners, corners[1:] + corners[:1]):
-            if segment is not None:
-                segment(lambda a, b, _d, _k, rgb=rgb: put(a, b, rgb), (x0, y0, z), x1, y1,
-                        z, 0)
-            else:
-                for t in range(17):
-                    put(x0 + (x1 - x0) * t / 16.0, y0 + (y1 - y0) * t / 16.0, rgb)
+            segment(lambda a, b, _d, _k, rgb=rgb: put(a, b, rgb), (x0, y0, z), x1, y1, z, 0)
     return out
 
 

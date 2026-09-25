@@ -90,6 +90,291 @@ def test_the_screen_keeps_its_own_rate(report):
                  '%d draws, the first shown %d times' % (len(drawn), again))
 
 
+def test_the_chrome_at_its_edges(report):
+    """The chrome off its usual ground: no region to dress, control codes and wide
+    characters in what it dresses, a piece of it with no room."""
+    import io
+    from rich.console import Console
+    from rich.segment import ControlType, Segment
+    from rich.style import Style
+    from rich.text import Text
+    from terminal.ui import chrome
+
+    court = Console(file=io.StringIO(), record=True, force_terminal=True, width=40)
+    court.print(chrome.Chrome(Text('plain'), 'METER BRIDGE'))
+    report.check('with no height there is no region to dress: the drawing as it is',
+                 court.export_text().strip() == 'plain')
+    cells = chrome._cells([Segment('a'), Segment('', None, [(ControlType.HOME,)]), Segment('\u6f22b')])
+    report.check('a control code takes no cell, a wide character two',
+                 [ch for ch, _style in cells] == ['a', '\u6f22', '', 'b'], str(cells))
+    rows = [[[' ', None] for _ in range(6)] for _ in range(2)]
+    rows[0][2] = ['x', Style()]
+    report.check('a piece goes in whole where it fits on blanks, or not at all',
+                 not chrome._put(rows, 5, 0, 'ab', None)
+                 and not chrome._put(rows, 0, 5, 'ab', None)
+                 and not chrome._put(rows, 0, 1, 'ab', None)
+                 and chrome._put(rows, 1, 1, 'ab', None) and rows[1][1][0] == 'a')
+
+
+def test_each_page_draws_on_a_terminal(report):
+    """Every page, simulated, on a terminal of the bench's size through the page tool: the
+    full-screen layout, the CRT and the chrome - the path a pipe never takes."""
+    import contextlib
+    import io
+    import re
+    from tools.render import page
+
+    drawn = {}
+    for name in sorted(page.PAGES):
+        with contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(io.StringIO()):
+            art = page.frame(name, 150, 44, frames=2)
+        drawn[name] = [re.sub('\x1b\\[[0-9;]*m', '', line) for line in art.split('\n')]
+    short = {name: len(lines) for name, lines in drawn.items() if len(lines) < 44}
+    report.check('every page fills a 150 x 44 terminal', not short, str(short))
+    bare = [name for name, lines in drawn.items()
+            if not any(0x2801 <= ord(ch) <= 0x28FF for line in lines for ch in line)]
+    report.check('and every one is on the CRT - its snow in braille', not bare, str(bare))
+
+
+def test_the_console_it_draws_on(report):
+    """stage(): VT processing asked of a Windows console, nothing where there is none;
+    truecolor on a terminal rich guessed short of it."""
+    from terminal.ui import stage
+
+    asked = []
+
+    class Kernel:
+        def GetStdHandle(self, which):
+            asked.append(('handle', which))
+            return 7
+
+        def GetConsoleMode(self, handle, mode):
+            asked.append(('get', handle))
+            return 1
+
+        def SetConsoleMode(self, handle, mode):
+            asked.append(('set', handle, mode & 0x0004))
+
+    class Windows:
+        kernel32 = Kernel()
+
+    had = getattr(stage.ctypes, 'windll', None)
+    try:
+        stage.ctypes.windll = Windows()
+        stage._vt_on()
+        if hasattr(stage.ctypes, 'windll'):
+            del stage.ctypes.windll
+        stage._vt_on()
+    finally:
+        if had is not None:
+            stage.ctypes.windll = had
+    report.check('VT processing is switched on through kernel32, and skipped without it',
+                 asked == [('handle', -11), ('get', 7), ('set', 7, 4)], str(asked))
+
+    made = []
+    real = stage.Console
+
+    class Guessed(real):
+        def __init__(self, *args, **kwargs):
+            made.append(kwargs.get('color_system'))
+            super().__init__(*args, **dict(kwargs, force_terminal=True))
+
+        @property
+        def color_system(self):
+            return 'truecolor' if made[-1] == 'truecolor' else '256'
+    stage.Console = Guessed
+    try:
+        console = stage.stage()
+    finally:
+        stage.Console = real
+    report.check('a terminal guessed at 256 colours is drawn in truecolor',
+                 made == [None, 'truecolor'] and console.color_system == 'truecolor',
+                 str(made))
+
+
+def test_the_view_loop_and_its_helpers(report):
+    """run_view against scripted keys - a scroll, a click, a drag, then leaving; Ctrl+C;
+    a view's own tick - and what a view draws with around it."""
+    import contextlib
+    import io
+    import sys as _sys
+    import types
+    from coaxial.errors import NoReplyError, RigError
+    from rich.console import Console
+    from rich.text import Text
+    from terminal.ui import screen, stage
+    from tools.render import page
+
+    class Scripted:
+        """Keys that say what the test says, a frame at a time."""
+        script, typed = [], []
+
+        def __init__(self, _console, mouse=False):
+            self.mouse = mouse
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+        def poll(self):
+            return Scripted.script.pop(0) if Scripted.script else (None, 0.0)
+
+        def taken(self):
+            typed, Scripted.typed = Scripted.typed, []
+            return typed
+
+        def clicked(self):
+            return [(3, 4)]
+
+        def dragged(self):
+            return (1, 2)
+
+    seen = {'scroll': [], 'click': [], 'drag': [], 'input': []}
+    real = screen.Keys, screen.scroll_by, screen.scroll_click, screen.scroll_drag
+    screen.Keys = Scripted
+    screen.scroll_by = lambda _view, step: seen['scroll'].append(step)
+    screen.scroll_click = lambda _view, col, row: seen['click'].append((col, row))
+    screen.scroll_drag = lambda _view, dy: seen['drag'].append(dy)
+    court = Console(file=io.StringIO())
+    try:
+        Scripted.script, Scripted.typed = [(None, 0.5)], ['down', 'x']
+        screen.run_view(court, False, 0.01, 2, lambda: Text('frame'), mouse=True,
+                        on_input=lambda typed, moved: seen['input'].append((typed, moved)),
+                        on_click=lambda col, row: None, on_drag=lambda dx, dy: None)
+        Scripted.script = [('menu', 0.0)]
+        left = screen.run_view(court, False, 0.01, 0, lambda: Text('frame'))
+
+        def interrupted():
+            raise KeyboardInterrupt
+        stopped = screen.run_view(court, False, 0.01, 0, interrupted)
+        ticked = screen.run_view(court, False, 0.01, 0, lambda: Text('frame'),
+                                 tick=lambda: True)
+    finally:
+        screen.Keys, screen.scroll_by, screen.scroll_click, screen.scroll_drag = real
+    report.check('the loop scrolls on its keys, hands the rest on, takes clicks and drags '
+                 'and leaves on the key that says so',
+                 left == 'menu' and seen['scroll'] == [1]
+                 and seen['input'][:1] == [(['x'], 0.5)] and (3, 4) in seen['click']
+                 and 2 in seen['drag'], '%s %s' % (left, seen))
+    report.check('Ctrl+C and a view that says it is done both end it quietly',
+                 stopped is None and ticked is None)
+
+    class Leaving:
+        def poll(self):
+            return 'quit', 0.0
+
+        def taken(self):
+            return []
+    report.check('a key cuts the wait short', screen.paced(Leaving(), 5.0)[0] == 'quit')
+
+    feed = screen.Feed(lambda: 1 / 0).start()
+    for _ in range(50):
+        if feed.error is not None:
+            break
+        time.sleep(0.01)
+    feed.stop()
+    report.check('a feed keeps what its read raised, for the view to show',
+                 isinstance(feed.error, ZeroDivisionError))
+
+    class Silent:
+        def __init__(self, **_kwargs):
+            pass
+
+        def open(self):
+            raise RigError('no board on COM9')
+    was = screen.Coaxial63100
+    screen.Coaxial63100 = Silent
+    try:
+        with contextlib.redirect_stdout(io.StringIO()) as said:
+            rig = screen.open_rig('LINKING', port='COM9')
+    finally:
+        screen.Coaxial63100 = was
+    report.check('a board that does not answer is no rig, with its words said',
+                 rig is None and 'no board on COM9' in said.getvalue())
+
+    clock = [100.0]
+    real_time = screen.time.time
+    screen.time.time = lambda: clock[0]
+    try:
+        fresh = screen.Freshness()
+        fresh.take(5)
+        fresh.take(5)
+        stale = fresh.stale
+        clock[0] += 2.0
+        fresh.take(25)
+        clock[0] += 2.0
+        fresh.take(45)
+        fresh.take(None)
+    finally:
+        screen.time.time = real_time
+    report.check('freshness: a counter that does not move is stale, and its rate is read',
+                 stale == 1 and fresh.rate == 10.0 and fresh.stale == 1 and fresh.note != 'live',
+                 '%d %.1f %s' % (stale, fresh.rate, fresh.note))
+
+    class Tty(io.StringIO):
+        def isatty(self):
+            return True
+    tty = Tty()
+    real_out, real_sleep = _sys.stdout, screen.time.sleep
+    _sys.stdout, screen.time.sleep = tty, lambda _s: None
+    try:
+        screen.say('warn', 'link', 'slow')
+        tries = []
+
+        def quiet():
+            tries.append(1)
+            raise NoReplyError('silent')
+        gave = screen.steady(quiet)
+        screen.closing([('gates', 'off'), ('rail', 'FAILED: held')], True, 10)
+        screen.clear(True)
+    finally:
+        _sys.stdout, screen.time.sleep = real_out, real_sleep
+    wrote = tty.getvalue()
+    report.check('on a terminal the preflight line is coloured, a closing parks under the '
+                 'frame and a clear wipes it',
+                 chr(27) + '[33m' in wrote and chr(27) + '[11;1H' in wrote
+                 and 'FAILED' in wrote and chr(27) + '[2J' in wrote)
+    report.check('a quiet link is retried four times, then given up on',
+                 gave is None and len(tries) == 4)
+    report.check('a field too small for the corner crosses keeps its lines',
+                 screen.stamp_crosses(['ab'], 10) == ['ab'])
+
+    live = stage._Tube(types.SimpleNamespace(console='the console'))
+    real_clients = stage.broker.clients
+    stage.broker.clients = lambda: 2
+    try:
+        chips = [stage.live(1).plain, stage.live(0).plain,
+                 stage.chip(types.SimpleNamespace(real=True)).plain]
+    finally:
+        stage.broker.clients = real_clients
+    report.check('the band: LIVE with the sessions on the port, a Live passes the rest on',
+                 chips == [' LIVE 1 SESSION ', ' LIVE ', ' LIVE 2 SESSIONS ']
+                 and live.console == 'the console', str(chips))
+
+    blank = types.ModuleType('blank_page')
+    setattr(blank, 'main', lambda argv: 0)
+    _sys.modules['blank_page'] = blank
+    page.PAGES['blank'] = 'blank_page'
+    try:
+        try:
+            page.frame('blank', 60, 20, frames=1)
+            drew = True
+        except RuntimeError:
+            drew = False
+    finally:
+        del page.PAGES['blank'], _sys.modules['blank_page']
+    shot = os.path.join(os.environ.get('TEMP', '.'), 'page_test.png')
+    with contextlib.redirect_stdout(io.StringIO()) as out, \
+            contextlib.redirect_stderr(io.StringIO()) as err:
+        code = page.main(['desk', '--size', '100', '30', '--frames', '2', '--png', shot])
+    report.check('the page tool: a page that draws nothing is said to, a page draws to '
+                 'text and a PNG', not drew and code == 0 and 'METER BRIDGE' in out.getvalue()
+                 and 'page_test.png' in err.getvalue() and os.path.exists(shot))
+
+
 def test_the_crt_draws_on_the_terminal(report):
     """Through a screen-mode Live - the terminal's path, which gives its renderable no
     height - the CRT draws: snow over the screen, the braille band at the beam."""
@@ -2054,6 +2339,10 @@ def main():
     test_the_thermal_page_shows_its_evidence(report)
     test_a_frame_rasterises_as_the_terminal_draws_it(report)
     test_the_crt_draws_on_the_terminal(report)
+    test_the_chrome_at_its_edges(report)
+    test_each_page_draws_on_a_terminal(report)
+    test_the_console_it_draws_on(report)
+    test_the_view_loop_and_its_helpers(report)
     test_the_screen_keeps_its_own_rate(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
