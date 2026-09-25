@@ -185,6 +185,42 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   the knee went -180 -> +409 deg/s. Rising through it (420 deg/stride) into a
   septic swing: the foot never under 0.93 m/s, the knee flexing throughout,
   the toes 0-3 mm over the floor early in the swing, 23 at mid (2026-09-25).
+- The gynoid in MuJoCo (55 kg, 26 drives, 1 kHz): on the line the legs stand
+  in a V, 8 cm out at the hip for 3 at the foot, and need 0.773 m of 0.770:
+  the IK clamped, a foot hung 3 mm off the floor and she tipped over it; the
+  pelvis 12 mm lower. On one leg no stiffness held her (x5 4.8 s, x20
+  unstable); the CoM fed back through the pelvis's target did (2026-09-25).
+- Walking free in 3D: a swing leg reached from the pelvis's target put the
+  foot 6 cm across the line; reached from the measured pelvis, a stance foot
+  held where it landed and taking its weight from 0 over 0.04 of a stride,
+  she walks 60 s at 0.6-1.0 strides/s. The sideways speed raw in the
+  feedback, 500 Hz, or a sole turning at 0.03 m of torsion: she fell in 2 s
+  (2026-09-25).
+- Her torso on the pelvis pitched 8 degrees a stride, the head 9 cm fore and
+  aft; the spine taking the pelvis's pitch back out: 2.4 and 3 cm. The
+  walker, loop and world 0.63 ms a pass: x1.6 real time in her own process
+  (2026-09-25).
+- Her stance knee at its straightest stood at 27-31 degrees: the pelvis held
+  level where the gait drops it on the swing side put the stance hip 2 cm
+  low. The pelvis dropped as planned (5 degrees), the spine's roll set to
+  take it back out (fed back from the measured roll she fell): 5.5, 9.0,
+  12.7 degrees at 0.6, 0.75, 0.9 strides/s, 30 s each on her feet
+  (2026-09-25).
+- Landed on the ball, heel up, the landing knee stood at 42 degrees and the
+  step struck 3.3 body weights: the stumble. On the heel, toes up 9 degrees,
+  rolled flat by 0.13 of a stride: 29 -> 10 degrees in the plan (2026-09-26).
+- The finest of 576 walks (16 cores, cross-entropy, 23 knobs), judged by the
+  stance knee past 5 degrees, the soles' 20 ms peak, the pelvis's shake, the
+  head's travel and the copper: bend 11.7 -> 5.7 degrees, peak 2.9 -> 2.2
+  body weights, head 8.5 -> 6.0 cm, heat 0.47 -> 0.29, work 0.60 -> 0.35 m g
+  d. Cost of transport 0.64: the cheapest, knees bent, 0.52; the old walk
+  1.07. Straight legs cut the copper by 37 % (2026-09-26).
+- Its sideways gains (STEP_D 0.01) held the walk and lost every start from
+  standing: 0.057 back. Started as the right foot lands, on her standing
+  stance gliding into the catwalk, she walks on at 0.85 strides/s; at 0.7
+  and 0.9 she falls within 2.5 s. Stopping: a stride shortened at the pace
+  kept threw her off the floor; carried in phase, slowed, she settles onto
+  the front foot and runs on over its ball (2026-09-26).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

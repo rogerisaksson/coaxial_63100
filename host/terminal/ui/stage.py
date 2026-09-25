@@ -60,6 +60,7 @@ THEME = Theme({
     'chip.sim':   'black on yellow3',
     'chip.emu':   'black on #3cafb9',
     'chip.virtual': 'black on #a58cff',
+    'chip.dynamic': 'black on #ff9f5a',
     'alarm':      'bold black on red3',
 })
 
@@ -185,12 +186,14 @@ def live(count):
 
 
 def chip(origin):
-    """The meaning tag. Green LIVE / teal EMULATOR / yellow SIMULATED / violet VIRTUAL, never
-    restyled."""
+    """The meaning tag. Green LIVE / teal EMULATOR / yellow SIMULATED / violet VIRTUAL / amber
+    DYNAMIC, never restyled."""
     if origin.kind == 'emulator':
         return EMULATOR_CHIP
     if origin.kind == 'virtual':
         return VIRTUAL_CHIP
+    if origin.kind == 'dynamic':
+        return DYNAMIC_CHIP
     if origin.real:
         return live(broker.clients() or 0)
     return Text(' SIMULATED ', style='chip.sim')
@@ -201,6 +204,9 @@ EMULATOR_CHIP = Text(' EMULATOR ', style='chip.emu')
 
 #: Virtual actuators' chip (machine.virtual): no board, nothing simulated.
 VIRTUAL_CHIP = Text(' VIRTUAL ', style='chip.virtual')
+
+#: A body with mass's chip (machine.physics): no board, the physics simulated.
+DYNAMIC_CHIP = Text(' DYNAMIC ', style='chip.dynamic')
 
 
 def band_of(name, extra='', tag=None):

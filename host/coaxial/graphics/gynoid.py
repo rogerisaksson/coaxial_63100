@@ -1,27 +1,21 @@
-"""The gynoid: a slender body on the humanoid's twenty joints, posed, lit, drawn in braille.
+"""The gynoid: a slender body on `machine.figure`'s joints, posed, lit, drawn in braille.
 
     lines = render(angles, 96, 40, yaw=30, lit=gpu.LitRaster())   # the GPU's lit raster
-    lines = render(angles, 96, 40)                                  # no card: dots splatted here
+    lines = render(angles, 96, 40, root=(where, turn))             # the pelvis placed, world
+    lines = render(angles, 96, 40, labels={'left_knee': (boxes, number)})   # called out
 
-A part is a closed loft or ellipsoid in its own frame, hung off its parent at an offset and turned
-by its joint - the humanoid's names and signs; the legs are `machine.gait`'s. Given the pelvis's
-place (`gait.sway`), what the type has no joint for is drawn: the spine bends the pelvis's drop
-back out, so the torso stands upright over the line, and each leg keeps its track and heading
-as a hip's ab- and adduction and rotation would. Without it, the lowest point of the feet stands
-on the floor. 1.69 m tall; the lattice, the glowing core and the plates are the materials
-`gpu.LIT_WGSL` lights. The floor scrolls under her by `travel` metres.
+A part is a closed loft or ellipsoid in its own frame, hung off its parent at the figure's offset
+and turned by its joints - the figure's names and signs. Without `root`, the lowest point of the
+feet stands on the floor. 1.69 m tall; the lattice, the glowing core and the plates are the
+materials `gpu.LIT_WGSL` lights. The floor scrolls under her by `travel` metres.
 """
 import math
 
 from coaxial.graphics import engine
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, NOISE
-from machine import ansi
-from machine.gait import ANKLE_H, BALL, HIP_DROP, HIP_HALF, SHANK, STAND_M, THIGH
-
-#: How much of the pelvis's sideways shift, and of its rise and fall about its level, the torso's
-#: base takes: the rest the spine bends out and gives, so the head sails - riding the pelvis, it
-#: bobbed 23 mm a step.
-FOLLOW, FOLLOW_Y = 0.15, 0.15
+from machine import ansi, figure
+from machine.figure import TOE_RY
+from machine.gait import ANKLE_H, BALL, SHANK, THIGH
 
 #: A corner's material, as `gpu.LIT_WGSL` colours it.
 MESH, SKIN, PLATE, CORE = 0, 1, 2, 3
@@ -114,64 +108,54 @@ def _core(corners):
                     CORE, MESH)
 
 
-def _parts():
-    """(name, parent, joint, axis, sign, offset, rest, mesh): parents first. `rest` is a fixed turn
-    (axis, degrees) before the joint's own."""
+def _meshes():
+    """{segment: mesh} for the figure's segments, and the parts it has no joint for:
+    [(name, parent, offset, mesh)]."""
     pelvis = _loft([(-0.10, 0.055, 0.048), (-0.07, 0.115, 0.08, -0.006),
                     (-0.03, 0.15, 0.095, -0.014), (0.02, 0.148, 0.09, -0.008), (0.07, 0.122, 0.078),
                     (0.11, 0.1, 0.07), (0.13, 0.094, 0.066)], PLATE, poles=(-0.115, 0.14))
-    # From 4.5 cm inside the pelvis: the spine gives the pelvis's rise and fall, and the waist
-    # must not open.
+    # From 4.5 cm inside the pelvis, so the waist does not open as the spine bends.
     torso = _loft([(-0.045, 0.09, 0.063), (0.0, 0.094, 0.066), (0.047, 0.096, 0.068),
                    (0.093, 0.105, 0.074),
                    (0.149, 0.118, 0.08), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078),
                    (0.307, 0.138, 0.07), (0.344, 0.14, 0.062), (0.372, 0.1, 0.055),
                    (0.39, 0.05, 0.045)], _core, poles=(-0.055, 0.40))
-    out = [('pelvis', None, 'pelvis', 'y', 1, (0.0, 0.0, 0.0), None, pelvis),
-           ('torso', 'pelvis', 'waist', 'y', 1, (0.0, 0.12, 0.0), None, torso),
-           ('neck', 'torso', 'neck', 'x', 1, (0.0, 0.385, 0.006), None,
-            _loft([(0.0, 0.031, 0.029), (0.05, 0.027, 0.026), (0.095, 0.026, 0.025)], MESH,
-                  poles=(-0.01, 0.10))),
-           ('head', 'neck', 'head', 'y', 1, (0.0, 0.09, 0.012), None,
-            _ellipsoid((0.0, HEAD_Y, 0.012), (0.066, 0.1, 0.084), _face, rows=12)),
-           ('jaw', 'head', None, 'y', 1, (0.0, 0.0, 0.0), None,
-            _ellipsoid((0.0, 0.042, 0.03), (0.045, 0.046, 0.054), SKIN))]
+    meshes = {'pelvis': pelvis, 'torso': torso,
+              'neck': _loft([(0.0, 0.031, 0.029), (0.05, 0.027, 0.026), (0.095, 0.026, 0.025)],
+                            MESH, poles=(-0.01, 0.10)),
+              'head': _ellipsoid((0.0, HEAD_Y, 0.012), (0.066, 0.1, 0.084), _face, rows=12)}
+    extra = [('jaw', 'head', (0.0, 0.0, 0.0),
+              _ellipsoid((0.0, 0.042, 0.03), (0.045, 0.046, 0.054), SKIN))]
     for side, x in (('left', 1.0), ('right', -1.0)):
-        out += [
-            ('%s_bust' % side, 'torso', None, 'y', 1, (0.052 * x, 0.21, 0.05), None,
-             _ellipsoid((0.0, 0.0, 0.0), (0.048, 0.044, 0.04), PLATE, rows=8)),
-            ('%s_cap' % side, 'torso', None, 'y', 1, (0.135 * x, 0.335, -0.004), None,
-             _ellipsoid((0.0, 0.0, 0.0), (0.042, 0.036, 0.04), PLATE, rows=8)),
-            ('%s_upper_arm' % side, 'torso', side + '_shoulder', 'x', -1,
-             (0.148 * x, 0.325, -0.005), ('z', 6.0 * x),
-             _limb(0.27, 0.031, 0.03, 0.023, MESH, flat=0.95)),
-            ('%s_forearm' % side, '%s_upper_arm' % side, side + '_elbow', 'x', -1,
-             (0.0, -0.27, 0.0), None, _limb(0.24, 0.024, 0.023, 0.017, MESH, flat=0.85)),
-            ('%s_hand' % side, '%s_forearm' % side, side + '_wrist', 'x', -1, (0.0, -0.24, 0.0),
-             None, _ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8)),
-            ('%s_fingers' % side, '%s_hand' % side, side + '_gripper', 'x', -1,
-             (0.0, -0.086, 0.004), None,
-             _ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8)),
-            ('%s_thigh' % side, 'pelvis', side + '_hip', 'x', 1,
-             (HIP_HALF * x, -HIP_DROP, 0.0), ('z', 0.5 * x),
-             _limb(THIGH, 0.064, 0.055, 0.039, MESH, bulge_at=0.22)),
-            ('%s_shank' % side, '%s_thigh' % side, side + '_knee', 'x', 1, (0.0, -THIGH, 0.0),
-             None, _limb(SHANK, 0.04, 0.044, 0.024, PLATE, bulge_at=0.3)),
-            ('%s_foot' % side, '%s_shank' % side, side + '_ankle', 'x', 1, (0.0, -SHANK, 0.0),
-             None, _loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SOLE], PLATE,
-                         poles=(-0.07, BALL + 0.01), along='z')),
-            ('%s_toes' % side, '%s_foot' % side, side + '_foot', 'x', 1,
-             (0.0, -(ANKLE_H - TOE_RY), BALL), None,
-             _ellipsoid((0.0, 0.0, 0.03), (0.04, TOE_RY, 0.035), PLATE, rows=6))]
-    return out
+        extra += [('%s_bust' % side, 'torso', (0.052 * x, 0.21, 0.05),
+                   _ellipsoid((0.0, 0.0, 0.0), (0.048, 0.044, 0.04), PLATE, rows=8)),
+                  ('%s_cap' % side, 'torso', (0.135 * x, 0.335, -0.004),
+                   _ellipsoid((0.0, 0.0, 0.0), (0.042, 0.036, 0.04), PLATE, rows=8))]
+        meshes.update({
+            side + '_upper_arm': _limb(0.27, 0.031, 0.03, 0.023, MESH, flat=0.95),
+            side + '_forearm': _limb(0.24, 0.024, 0.023, 0.017, MESH, flat=0.85),
+            side + '_hand': _ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
+            side + '_fingers': _ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
+            side + '_thigh': _limb(THIGH, 0.064, 0.055, 0.039, MESH, bulge_at=0.22),
+            side + '_shank': _limb(SHANK, 0.04, 0.044, 0.024, PLATE, bulge_at=0.3),
+            side + '_foot': _loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SOLE], PLATE,
+                                  poles=(-0.07, BALL + 0.01), along='z'),
+            side + '_toes': _ellipsoid((0.0, 0.0, 0.03), (0.04, TOE_RY, 0.035), PLATE, rows=6)})
+    return meshes, extra
+
+
+def _parts():
+    """(name, parent, joints ((joint, axis, sign), ..), offset, rest turn about z (deg), mesh):
+    the figure's segments, then the parts it carries without a joint; parents first."""
+    meshes, extra = _meshes()
+    out = [(seg[0], seg[1], seg[2], seg[3], seg[4], meshes[seg[0]]) for seg in figure.SEGMENTS]
+    return out + [(name, parent, (), offset, 0.0, mesh) for name, parent, offset, mesh in extra]
 
 
 #: The foot's rings forward of the ankle, (z, half width, half height): each hung so its
 #: bottom is the sole, flat ANKLE_H under the ankle, as the walk plants it.
 _SOLE = ((-0.055, 0.028, 0.03), (-0.02, 0.034, 0.042), (0.04, 0.042, 0.034),
          (0.10, 0.044, 0.024), (BALL, 0.04, 0.018))
-#: The toes' half height: their bottom the sole too.
-TOE_RY = 0.014
 
 
 class Body:
@@ -204,43 +188,41 @@ class Body:
         #: normals, uv, materials) in their parts' frames, and each part's span of them.
         self.dense, self.dense_spans = _sampled(self, np.concatenate(faces))
 
-    def _frames(self, angles, root=None, tracks=None):
-        """Each part's (turn, spot) in the body's frame for {joint: degrees}; with `root`, the
-        pelvis's (lateral metres, roll degrees, height metres), the torso upright over the line
-        and each leg down to its foot's `tracks` (left, right; `gait.tracks`), facing ahead."""
+    def _frames(self, angles, root=None):
+        """Each part's (turn, spot) in the world for {joint: degrees}; `root` the pelvis's (place,
+        turn 3x3), else at the origin, upright."""
         np = _np()
-        lateral, roll, height, level = root if root is not None else (0.0, 0.0, 0.0, 0.0)
-        left, right, turn_left, turn_right = (tracks if tracks is not None
-                                              else (STAND_M, -STAND_M, 0.0, 0.0))
+        where, turn = root if root is not None else ((0.0, 0.0, 0.0), np.eye(3))
         placed, out = {}, []
-        for name, parent, joint, axis, sign, offset, rest, _mesh in self.parts:
-            turn, at = (placed[parent] if parent
-                        else (_turn('z', roll), np.array([lateral, height, 0.0])))
-            spot = at + turn @ np.asarray(offset, float)
-            base = turn @ (_turn(*rest) if rest else np.eye(3))
-            if root is not None and name == 'torso':
-                # The spine bends the pelvis's drop back out: the torso upright, its base
-                # FOLLOW of the way with the pelvis.
-                base = _turn('z', -roll) @ turn
-                spot[0] = FOLLOW * lateral
-                spot[1] -= (1.0 - FOLLOW_Y) * (height - level)
-            elif root is not None and joint and joint.endswith('_hip'):
-                # A hip's ab/adduction and rotation, the type's lack: the leg down its track,
-                # facing ahead, whatever the pelvis does.
-                track, twist = ((left, turn_left) if name.startswith('left')
-                                else (right, turn_right))
-                base = (_turn('z', math.degrees(math.atan2(track - spot[0], spot[1])))
-                        @ _turn('y', twist))
-            here = base @ _turn(axis, sign * float(angles.get(joint, 0.0))) if joint else base
+        for name, parent, joints, offset, rest, _mesh in self.parts:
+            if parent:
+                above, at = placed[parent]
+                spot = at + above @ np.asarray(offset, float)
+                here = above @ _turn('z', rest) if rest else above
+            else:
+                spot, here = np.asarray(where, float), np.asarray(turn, float)
+            for joint, axis, sign in joints:
+                here = here @ _turn(axis, sign * float(angles.get(joint, 0.0)))
             placed[name] = (here, spot)
             out.append(placed[name])
         return out
 
-    def pose(self, angles, dense=False, root=None, tracks=None):
+    def pivots(self, angles, root=None):
+        """{joint: its pivot, world}; `root` as `pose` takes it."""
+        np = _np()
+        frames = self._frames(angles, root)
+        floor = np.zeros(3)
+        if root is None:
+            positions, _normals = _placed(self.corners, self.normals, self.spans, frames)
+            floor[1] = min(positions[slice(*self.spans[i]), 1].min() for i in self.soles)
+        return {joint: spot - floor for (_name, _parent, joints, *_rest), (_turn, spot)
+                in zip(self.parts, frames) for joint, _axis, _sign in joints}
+
+    def pose(self, angles, dense=False, root=None):
         """(positions, normals) in metres, the floor at y 0, for {joint: degrees}; `root` the
-        pelvis's place (`gait.sway`) and `tracks` the feet's (`gait.tracks`), else the feet found
-        and stood on the floor; `dense` the sampled points' instead of the corners'."""
-        frames = self._frames(angles, root, tracks)
+        pelvis's (place, turn), else the feet found and stood on the floor; `dense` the sampled
+        points' instead of the corners'."""
+        frames = self._frames(angles, root)
         positions, normals = _placed(self.corners, self.normals, self.spans, frames)
         floor = 0.0 if root is not None else min(
             positions[slice(*self.spans[i]), 1].min() for i in self.soles)
@@ -404,9 +386,76 @@ def _mask(height, width):
     return np.tile(noise, reps)[:height, :width]
 
 
-def braille(depth, rgb, floor, width, height, colour=True):
+#: A callout's leader ink, and how far either side of her middle the callouts stand, metres
+#: across the view: clear of her widest stride and arm.
+LEADER_INK, CALLOUT_M = (96, 110, 124), 0.42
+
+
+def _line(dots, a, b):
+    """The dots from `a` to `b`, (x, y) dot coordinates, set in `dots`."""
+    np = _np()
+    n = int(max(abs(b[0] - a[0]), abs(b[1] - a[1]))) + 1
+    x = np.rint(np.linspace(a[0], b[0], n)).astype(int)
+    y = np.rint(np.linspace(a[1], b[1], n)).astype(int)
+    keep = (x >= 0) & (x < dots.shape[1]) & (y >= 0) & (y < dots.shape[0])
+    dots[y[keep], x[keep]] = True
+
+
+def _packed(fg, bg=None):
+    """A cell's inks as one key: fg's 24 bits, bg's over them plus one, 0 for none; -1 no fg."""
+    if fg is None:
+        return -1
+    key = (fg[0] << 16) | (fg[1] << 8) | fg[2]
+    return key if bg is None else key | (((bg[0] << 16) | (bg[1] << 8) | bg[2]) + 1) << 24
+
+
+def callouts(labels, anchors, places, columns, width, height):
+    """({(row, col): (codepoint, key)}, leader dots) for `labels` {joint: (inner, outer)}, each
+    [(char, fg, bg)], inks (r, g, b) or None: outside `columns` (left, right) dots, a side's
+    joints on its side and the rest on the side they stand, each on the row its joint has at rest
+    (`places` {joint: (x, y)}, dots) or the next free one down, the inner end toward her, a space
+    between, and a leader from it to the joint's pivot as it is (`anchors`, dots). The callouts
+    stand still; the leaders follow."""
+    np = _np()
+    dots = np.zeros((height * DOTS_Y, width * DOTS_X), bool)
+    mid = (columns[0] + columns[1]) / 2.0
+    xs = {side: [x for j, (x, _y) in places.items() if j.startswith(side)]
+          for side in ('left_', 'right_')}
+    flip = bool(xs['left_'] and xs['right_']) and np.mean(xs['left_']) > np.mean(xs['right_'])
+    sides = {True: [], False: []}
+    for joint, (inner, outer) in labels.items():
+        if joint in anchors and joint in places:
+            side = places[joint][0] < mid
+            if joint.startswith(('left_', 'right_')):
+                side = joint.startswith('left_') != flip
+            sides[side].append((places[joint][1], joint, inner, outer))
+    overlay = {}
+    for left, items in sides.items():
+        items.sort(key=lambda item: item[:2])
+        rows, last = [], -1
+        for y, *_rest in items:
+            last = max(int(y // DOTS_Y), last + 1)
+            rows.append(last)
+        over = (rows[-1] - (height - 1)) if rows else 0
+        rows = [max(0, r - max(0, over)) for r in rows]
+        for row, (_y, joint, inner, outer) in zip(rows, items):
+            gap = [(' ', None, None)]
+            cells = outer + gap + inner if left else inner + gap + outer
+            start = (int(columns[0] // DOTS_X) - len(cells) if left
+                     else int(columns[1] // DOTS_X) + 1)
+            for k, (char, fg, bg) in enumerate(cells):
+                if 0 <= start + k < width:
+                    overlay[(row, start + k)] = (ord(char), _packed(fg, bg))
+            end = (start + len(cells)) * DOTS_X if left else start * DOTS_X - 1
+            _line(dots, (end, row * DOTS_Y + DOTS_Y // 2), anchors[joint])
+    return overlay, dots
+
+
+def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders=None):
     """Dot rasters down to cells: a dot where the light clears the blue noise, the silhouette and
-    every depth step always; the floor's dots where she is not. Lines, ANSI where `colour`."""
+    every depth step always; the floor's dots where she is not, and the `leaders`' dots; the
+    `overlay`'s cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where
+    `colour`."""
     np = _np()
     covered = depth > 0.0
     lum = rgb.astype(float) @ (0.2126, 0.7152, 0.0722) / 255.0
@@ -415,8 +464,9 @@ def braille(depth, rgb, floor, width, height, colour=True):
     edge = covered & np.any([(s == 0.0) | (np.abs(s - depth) > 0.04 * depth) for s in steps], 0)
     lit = (covered & (0.04 + 0.96 * np.clip(lum, 0.0, 1.0) ** 1.5 > _mask(*depth.shape))) | edge
     ground = (floor > 0.0) & ~covered
+    lead = leaders & ~covered if leaders is not None else np.zeros_like(covered)
     bits = np.array([[BRAILLE_BITS[lane][y] for lane in range(DOTS_X)] for y in range(DOTS_Y)])
-    cells = ((lit | ground).reshape(height, DOTS_Y, width, DOTS_X)
+    cells = ((lit | ground | lead).reshape(height, DOTS_Y, width, DOTS_X)
              * bits[None, :, None, :]).sum(axis=(1, 3))
     hits = covered.reshape(height, DOTS_Y, width, DOTS_X).sum(axis=(1, 3))
     body = ((rgb * covered[..., None]).reshape(height, DOTS_Y, width, DOTS_X, 3).sum(axis=(1, 3))
@@ -424,23 +474,34 @@ def braille(depth, rgb, floor, width, height, colour=True):
     body = np.clip(body * 1.2 + 18.0, 0.0, 255.0)
     shine = floor.reshape(height, DOTS_Y, width, DOTS_X).max(axis=(1, 3))
     text = np.where(cells > 0, BRAILLE + cells, ord(' ')).tolist()
+    for (row, col), (char, _ink) in (overlay or {}).items():
+        text[row][col] = char
     if not colour:
         return [''.join(map(chr, row)) for row in text]
     # A cell's ink in steps of INK_STEP a channel, so runs of it share one escape; a blank cell
     # takes its left neighbour's, so a gap does not break a run. Cell by cell: 11.7 ms a frame at
     # 180 x 56, and rich parsed an escape a cell after it.
     ink = np.where((hits > 0)[..., None], body, np.asarray(FLOOR_INK) * shine[..., None])
+    led = lead.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3)) & (hits == 0)
+    ink = np.where(led[..., None], np.asarray(LEADER_INK, float), ink)
     ink = (ink.astype(int) // INK_STEP) * INK_STEP
     key = np.where(cells > 0, (ink[..., 0] << 16) | (ink[..., 1] << 8) | ink[..., 2], -1)
+    for (row, col), (_char, packed) in (overlay or {}).items():
+        key[row, col] = packed
+    # A blank cell takes its left neighbour's ink, not its ground.
     left = np.maximum.accumulate(np.where(key >= 0, np.arange(width), 0), axis=1)
-    key = np.take_along_axis(key, left, axis=1)
+    carried = np.take_along_axis(key, left, axis=1)
+    key = np.where((key < 0) & (carried >= 0), carried & 0xFFFFFF, carried)
     lines = []
     for row, keys in zip(text, key.tolist()):
-        out, at = [], 0
+        out, at, ground = [], 0, False
         line = ''.join(map(chr, row))
         for end in [i for i in range(1, width) if keys[i] != keys[i - 1]] + [width]:
             if keys[at] >= 0:
                 out.append(_escape(keys[at]))
+                if ground and keys[at] < 1 << 24:
+                    out.append(NO_GROUND)
+                ground = keys[at] >= 1 << 24
             out.append(line[at:end])
             at = end
         lines.append(''.join(out) + (ansi.RESET if max(keys) >= 0 else ''))
@@ -454,10 +515,19 @@ INK_STEP = 8
 _ESCAPES = {}
 
 
+#: The terminal's own ground again.
+NO_GROUND = '\033[49m'
+
+
 def _escape(packed):
     got = _ESCAPES.get(packed)
     if got is None:
-        got = _ESCAPES[packed] = ansi.code((packed >> 16, (packed >> 8) & 255, packed & 255))
+        fg = packed & 0xFFFFFF
+        got = ansi.code((fg >> 16, (fg >> 8) & 255, fg & 255))
+        if packed >= 1 << 24:
+            bg = (packed >> 24) - 1
+            got += ansi.back((bg >> 16, (bg >> 8) & 255, bg & 255))
+        _ESCAPES[packed] = got
     return got
 
 
@@ -473,19 +543,34 @@ def body():
 
 
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=0.0,
-           lit=None, root=None, tracks=None):
-    """Her, posed at {joint: degrees}, swayed by `root` (`machine.gait.sway`) on `tracks`, `width` x
-    `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here."""
+           lit=None, root=None, labels=None):
+    """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
+    `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
+    {joint: (inner, outer)} called out either side of her (`callouts`)."""
     np = _np()
     who = body()
     m = view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, REACH, distance=DISTANCE, zoom=zoom))
     centre = np.asarray(CENTRE)
     if lit is not None:
-        positions, normals = who.pose(angles, root=root, tracks=tracks)
+        positions, normals = who.pose(angles, root=root)
         depth, rgb = lit.raster(positions, normals, who.uv, who.materials, who.index, m, fine,
                                 CENTRE, REACH * 1.4)
     else:
-        positions, normals = who.pose(angles, dense=True, root=root, tracks=tracks)
+        positions, normals = who.pose(angles, dense=True, root=root)
         depth, rgb = _splat((positions, normals, who.dense[3], who.dense[2]), m, fine, centre)
-    return braille(depth, rgb, _floor(m, fine, centre, travel), width, height, colour)
+    overlay = leaders = None
+    if labels:
+        pivots, rest = who.pivots(angles, root=root), who.pivots({})
+        names = [j for j in labels if j in pivots]
+
+        def dots_of(points):
+            sx, sy, _w = _project(points, m, fine, centre)
+            return list(zip(sx.tolist(), sy.tolist()))
+        across = np.asarray(m).reshape(3, 3)[0] * CALLOUT_M
+        (x0, _y0), (x1, _y1) = dots_of([centre - across, centre + across])
+        overlay, leaders = callouts(labels, dict(zip(names, dots_of([pivots[j] for j in names]))),
+                                    dict(zip(names, dots_of([rest[j] for j in names]))),
+                                    (min(x0, x1), max(x0, x1)), width, height)
+    return braille(depth, rgb, _floor(m, fine, centre, travel), width, height, colour, overlay,
+                   leaders)

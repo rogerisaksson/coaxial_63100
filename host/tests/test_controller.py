@@ -629,6 +629,88 @@ def test_a_virtual_body_walks(report):
     body.disarm()
 
 
+def test_a_leg_by_its_foot(report):
+    """figure.leg answers the six joints that put a foot where `foot_of` finds it, any pose."""
+    import math
+    import random
+    from machine import figure
+    rng, worst = random.Random(1), 0.0
+    for _ in range(200):
+        angles = (rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), rng.uniform(-0.8, 0.4),
+                  rng.uniform(0.05, 1.5), rng.uniform(-0.5, 0.5), rng.uniform(-0.3, 0.3))
+        sign = rng.choice((1.0, -1.0))
+        pelvis = (rng.uniform(-0.2, 0.2), rng.uniform(0.8, 1.2), rng.uniform(-0.2, 0.2))
+        turn = figure.mul(figure.mul(figure.ry(rng.uniform(-0.5, 0.5)), figure.rx(rng.uniform(-0.2, 0.2))),
+                          figure.rz(rng.uniform(-0.2, 0.2)))
+        ankle, foot = figure.foot_of(sign, pelvis, turn, angles)
+        got = figure.leg(sign, pelvis, turn, ankle, foot)
+        worst = max(worst, max(abs(a - b) for a, b in zip(got, angles)))
+    report.check('a leg\'s six joints from its foot, 200 poses round trip', worst < 1e-9,
+                 '%.2g rad' % worst)
+    report.check('the figure weighs her 55 kg, every share of it', abs(
+        sum(seg[5] for seg in figure.SEGMENTS) - 1.0) < 1e-3,
+        sum(seg[5] for seg in figure.SEGMENTS))
+
+
+def test_a_body_with_mass_walks(report):
+    """DYNAMIC: the gynoid's 27 joints each a drive on a body with mass; the walker sets them
+    every millisecond from what the loop reads, and she walks on the line without falling."""
+    from machine import Machine
+    from machine.modes import DYNAMIC
+    from machine.physics import DriveJoint
+    from machine.walker import Walker
+    body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+    report.check('27 drives fitted bus by bus, and her pose read beside them',
+                 len(body.actuators) == 27
+                 and all(isinstance(a, DriveJoint) for a in body.actuators.values())
+                 and body.actuators['spine'].node.name == 'D1_1'
+                 and [n.name for n in body.others] == ['pelvis'],
+                 {n: a.node.name for n, a in list(body.actuators.items())[:4]})
+    body.arm()
+    walker = Walker(body, 0.85)
+    walker.start()
+    body.loop.step(0.0)
+    lowest = 9.0
+    while body.loop.bus['t'] < 3.0:
+        body.loop.write(**walker.step(0.001))
+        body.loop.step(0.001)
+        lowest = min(lowest, body.loop.bus['pelvis.pose.y'])
+    bus = body.loop.bus
+    report.check('3 s at 0.85 strides/s: on her feet, over 2 m on, within 0.2 m of the line',
+                 lowest > 0.7 and bus['pelvis.pose.z'] > 2.0 and abs(bus['pelvis.pose.x']) < 0.2,
+                 'lowest %.2f m, %.2f m on, %+.2f m off' % (lowest, bus['pelvis.pose.z'],
+                                                           bus['pelvis.pose.x']))
+    report.check('her weight is on her soles: 539 N between them',
+                 abs(sum(bus['pelvis.pose.%s_load' % s] for s in ('left', 'right')) - 539.0) < 270.0,
+                 '%.0f N' % sum(bus['pelvis.pose.%s_load' % s] for s in ('left', 'right')))
+    body.disarm()
+
+
+def test_she_rises_and_walks(report):
+    """The director: landed in the squat, she rises, steps off on her standing stance and walks
+    on into the catwalk, the moves handing one to the next."""
+    from machine import Machine
+    from machine.director import Director
+    from machine.modes import DYNAMIC
+    body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+    body.arm()
+    director = Director(body, 0.85)
+    director.begin()
+    body.loop.step(0.0)
+    stages = []
+    while body.loop.bus['t'] < 13.0:
+        body.loop.write(**director.step(0.001))
+        body.loop.step(0.001)
+        if not stages or stages[-1] != director.stage:
+            stages.append(director.stage)
+    bus = body.loop.bus
+    report.check('the squat to the walk, move by move, and walking at 13 s',
+                 stages == ['squat', 'look', 'push', 'rise', 'stand', 'shift', 'step', 'walk'],
+                 ' '.join(stages))
+    report.check('walked on over 2.5 m', bus['pelvis.pose.z'] > 2.5, '%.2f m' % bus['pelvis.pose.z'])
+    body.disarm()
+
+
 def test_the_body_loops_on_its_boards(report):
     """node_hz: each joint's feedback runs on its board once armed; the host forwards
     setpoints and reads the joints back through the same measure."""
@@ -893,6 +975,8 @@ def main():
                  test_the_pictures_and_the_panel, test_velocity_is_a_feedback,
                  test_nodes_offer_then_configure, test_fitment_by_measurement,
                  test_the_body_runs_a_program, test_a_virtual_body_walks,
+                 test_a_leg_by_its_foot, test_a_body_with_mass_walks,
+                 test_she_rises_and_walks,
                  test_a_model_writes_lines, test_machine_types_and_routines,
                  test_live_from_a_stream, test_a_model_streams_and_is_woken,
                  test_the_board_loops_a_joint, test_the_body_loops_on_its_boards):

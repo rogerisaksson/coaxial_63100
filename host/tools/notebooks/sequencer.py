@@ -6,6 +6,19 @@ SUMMARY = 'Streams in and out, a controller between, and a test stand in miniatu
 
 SECTIONS = [
     section(
+        'The system',
+        md('A table says what to set and what to wait for; the sequencer runs it row by row '
+           'into a loop, init first and cleanup last; the loop runs the drive through its '
+           'feedback, the limits over all of it.'),
+        code('''from machine import ansi
+from machine.wiring import blocks
+
+ansi.image(blocks([([('Table', 'CSV', ['a row a step: setpoints,', 'tests, limits, jumps']),
+                     ('Sequencer', 'the run', ['init, the steps, cleanup', 'alarms beside it']),
+                     ('Loop', 'the controller', ['setpoints to the drive', 'its feedback back'])],
+                    None)], width=30))'''),
+    ),
+    section(
         'The streams',
         md("An array of IO nodes, discovered; the first board's offer comes first - every "
            "module's channels, ins with units, outs with ranges - and every number is a float."),

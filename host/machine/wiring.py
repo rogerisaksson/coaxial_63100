@@ -99,6 +99,43 @@ def diagram(loop, width=100, colour=True):
     return '\n'.join(out).rstrip('\n')
 
 
+#: A block's width in cells, in a system's picture (`blocks`).
+BLOCK = 30
+
+
+def _block(title, kind, lines, paint, width):
+    """A block as rows of `width` visible cells: its title and kind, then its lines."""
+    inner = width - 4
+    head = (title + (' ' + kind if kind else ''))[:inner - 2]
+    rows = [paint('╭─ ', FRAME) + paint(head[:len(title)], TITLE)
+            + paint(head[len(title):], ansi.ASH)
+            + paint(' ' + '─' * (inner - len(head) - 1) + '╮', FRAME)]
+    for line in lines:
+        shown = line if len(line) <= inner else line[:inner - 1] + '…'
+        rows.append(paint('│ ', FRAME) + paint(shown.ljust(inner), LABEL) + paint(' │', FRAME))
+    rows.append(paint('╰' + '─' * (width - 2) + '╯', FRAME))
+    return rows
+
+
+def blocks(rows, width=BLOCK, colour=True):
+    """A system as blocks `width` wide, top to bottom: `rows` [(blocks, down)], each block
+    (title, kind, [line]), a row's joined left to right by ▸; `down` the words on the ▾ to the
+    next row."""
+    def paint(text, number):
+        return ansi.paint(text, number) if colour else text
+
+    out = []
+    for row, down in rows:
+        drawn = [_block(title, kind, lines, paint, width) for title, kind, lines in row]
+        for r in range(max(len(b) for b in drawn)):
+            cells = [b[r] if r < len(b) else ' ' * width for b in drawn]
+            join = paint(JOIN, FRAME) if r == 1 else ' ' * len(JOIN)
+            out.append(join.join(cells).rstrip())
+        if down:
+            out.append(paint(' ' * (width // 2) + '▾ ', FRAME) + paint(down, ansi.ASH))
+    return '\n'.join(out)
+
+
 class _Canvas:
 
     """Cells of (glyph, ink), rendered as runs."""

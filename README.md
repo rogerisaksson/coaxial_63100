@@ -19,9 +19,10 @@ Renode; `-Check` only reports. Its stages and areas are `setup/*.ps1`.
 
 Views (`host/terminal/pages/`, one module each): session, imu (attitude),
 angle, adc (meter bridge), gate_drivers (the one that switches), rotor
-observer, thermal observer, humanoid (a gynoid walking on virtual
-actuators), chat. `-Simulated` needs no cable; `-Frames N` ends a view after
-N frames. In a view: Q quits, ESC returns to the front page. The 3D pages
+observer, thermal observer, humanoid (a gynoid walking under gravity,
+MuJoCo, a drive a joint), chat. `-Simulated` needs no cable; `-Frames N`
+ends a view after N frames. In a view: Q quits, ESC returns to the front
+page. The 3D pages
 raster on the GPU where a card answers (wgpu); `COAXIAL_GPU=0` keeps them on
 the CPU.
 
@@ -54,13 +55,14 @@ humanoid.run('0 run=squat times=2\n0 run=walk stride=15')
 ```
 
 - `host/machine/` imports no board: a family (`coaxial.node`) is loaded by
-  `Nodes.discover` when installed. Types: humanoid, quad, fixed_wing, ebike.
+  `Nodes.discover` when installed. Types: humanoid, gynoid, quad, fixed_wing,
+  ebike.
 
 ## Notebooks
 
-Twelve executed papers in `notebook_examples/` (acquisition, link, sensors,
-power_stage, thermal, drive, controller, sequencer, machines, motion, applications,
-commissioning), generated from `host/tools/notebooks/`:
+Thirteen executed papers in `notebook_examples/` (acquisition, link, sensors,
+power_stage, thermal, drive, controller, sequencer, machines, director, motion,
+applications, commissioning), generated from `host/tools/notebooks/`:
 
 ```powershell
 python tools/notebooks/make_notebooks.py --execute [area ...]

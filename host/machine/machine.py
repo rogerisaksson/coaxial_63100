@@ -19,7 +19,7 @@ import time
 from machine.alarms import Alarms
 from machine.controller import Feedback
 from machine.errors import MachineError
-from machine.modes import HARDWARE, VIRTUAL
+from machine.modes import DYNAMIC, HARDWARE, VIRTUAL
 from machine.nodes import Nodes
 from machine.parts import Direct
 from machine.routines import TYPES
@@ -157,10 +157,14 @@ class Machine:
     @classmethod
     def discover(cls, type, port='COM4', execution_mode=HARDWARE, **kw):
         """Every board on every bus (`Nodes.discover`), the type over them; VIRTUAL: the
-        type's own actuators, no board (`machine.virtual`)."""
+        type's own actuators, no board (`machine.virtual`); DYNAMIC: each a drive on a body with
+        mass (`machine.physics`)."""
         if execution_mode is VIRTUAL:
             from machine.virtual import body
             return cls(Nodes(body(type)), type=type, **kw)
+        if execution_mode is DYNAMIC:
+            from machine.physics import body as physical
+            return cls(Nodes(physical(type)), type=type, **kw)
         return cls(Nodes.discover(port=port, execution_mode=execution_mode), type=type, **kw)
 
     # -- the run -----------------------------------------------------------------------
@@ -189,7 +193,8 @@ class Machine:
                 self.loop.feedbacks[name].measure.configure(zero=_mean_angle(zeros[name]))
         for name in self.actuators:
             f = self.loop.feedbacks[name]
-            f.prefilter.reset()
+            if f.prefilter is not None:
+                f.prefilter.reset()
             f.regulator.reset()
         self.loop.write(**{name: 0.0 for name in self.actuators})
         for name, actuator in self.actuators.items():

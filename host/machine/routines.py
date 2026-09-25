@@ -55,6 +55,18 @@ TYPES = {
         'rest': Routine('{seconds} right_shoulder=0 right_elbow=0 left_shoulder=0 '
                         'left_elbow=0 head=0 neck=0', {'seconds': 1.0}),
     }, '0 run=stand'),
+    'gynoid': Type([
+        _limb('axis', '', 'spine', 'spine_roll', 'waist', 'neck', 'head'),
+        _limb('left_arm', 'left_', 'shoulder', 'elbow', 'wrist', 'gripper'),
+        _limb('left_leg', 'left_', 'hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll', 'foot'),
+        _limb('right_arm', 'right_', 'shoulder', 'elbow', 'wrist', 'gripper'),
+        _limb('right_leg', 'right_', 'hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll',
+              'foot')], {
+        'look': Routine('{seconds} head={yaw} neck={pitch}',
+                        {'seconds': 0.8, 'yaw': 0, 'pitch': 0}),
+        'rest': Routine('{seconds} right_shoulder=0 right_elbow=0 left_shoulder=0 '
+                        'left_elbow=0 head=0 neck=0', {'seconds': 1.0}),
+    }, '0 run=rest'),
     'quad': Type([Subsystem('rotors', 'rotor', ('rotor_fl', 'rotor_fr', 'rotor_rl', 'rotor_rr'))], {
         'take_off': Routine('{seconds} ' + ROTORS.format('{rpm*0.5}') + '\n'
                             '{seconds} ' + ROTORS.format('{rpm}'),

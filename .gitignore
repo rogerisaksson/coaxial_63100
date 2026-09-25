@@ -145,3 +145,6 @@ claude_do_it.ps1
 claude_do_it.log
 claude_watch.ps1
 claude_watch.pid
+
+# MuJoCo writes its warnings here, in the working directory
+MUJOCO_LOG.TXT

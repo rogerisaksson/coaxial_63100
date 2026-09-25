@@ -6,6 +6,19 @@ SUMMARY = 'Sources in, sinks out, feedback loops of prefilter, measure, estimato
 
 SECTIONS = [
     section(
+        'The system',
+        md('Boards offer channels, each a float; a loop on the host reads some, writes others, '
+           'and between them runs its feedbacks, each slot a part to swap; the board closes '
+           'its own current loop under them.'),
+        code('''from machine import ansi
+from machine.wiring import blocks
+
+ansi.image(blocks([([('Nodes', 'discovered', ['every board, its channels', 'each a float, in or out']),
+                     ('Loop', 'the host', ['sources in, sinks out', 'feedbacks between them']),
+                     ('Board', 'the drive', ['iq_ref in, omega_hat out', 'its current loop its own'])],
+                    None)], width=30))'''),
+    ),
+    section(
         'Source and sink',
         md("The application's IO is an array of nodes, discovered; the first board's drive runs "
            'on the model. Ask what it offers, then build the loop over its `drive` module: '

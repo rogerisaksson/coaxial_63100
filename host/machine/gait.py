@@ -45,20 +45,24 @@ CADENCE, PACE_POWER, PACE_STEP = 0.85, 0.6, 0.05
 
 #: The stance knee's bend at its straightest, degrees, at a stride of 1: soft, the hip and the
 #: ball of the foot carry the glide; a longer stride bends it as the stride to KNEE_POWER.
-KNEE_SOFT_DEG, KNEE_POWER = 6.0, 1.5
+KNEE_SOFT_DEG, KNEE_POWER = 4.7, 1.5
 
-#: The foot lands on its ball, heel up (`pitch_of`), and pivots there all stance: the heel comes
-#: down to the floor by SETTLE, mid-step, rises from HEEL_OFF and leaves it at toe-off, TOE_OFF.
-#: Landed flat on a heel, the step came down as a slap; held up, she tripped along on her toes
-#: (2026-09-25).
-SETTLE, HEEL_OFF, TOE_OFF = 0.25, 0.40, 0.62
+#: Never straighter than KNEE_MIN_DEG, whatever the stride: at a short first stride the soft
+#: knee came to 1 degree, the IK out of reach, and the front foot hung over the floor (2026-09-26).
+KNEE_MIN_DEG = 4.0
+
+#: The foot lands on its heel, toes up LAND_DEG (`pitch_of`), and rolls about it flat by SETTLE;
+#: its heel rises from HEEL_OFF about the ball and leaves the floor at toe-off, TOE_OFF. Landed on
+#: the ball, heel up, the landing knee stood at 42 degrees and the step struck 3.3 body weights
+#: (2026-09-26).
+SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.62, 9.3, -75.0
 
 #: The foot's pitch toes-up at its knots: (phase, degrees, a stride, a stride squared), a quintic
 #: between. The heel rises fastest at toe-off and on to 73 degrees in the air: eased to a stop
 #: there, the whole foot stood still, the knee straightened -180 deg/s and then bent +409
-#: (2026-09-25). The landing's the heel still coming down.
+#: (2026-09-25). The landing's the toes already coming down.
 PITCH_KNOTS = ((SETTLE, 0.0, 0.0, 0.0), (HEEL_OFF, 0.0, 0.0, 0.0),
-               (TOE_OFF, -45.0, -420.0, 1000.0), (1.0, -15.6, 136.0, -373.0),
+               (TOE_OFF, -37.0, -400.0, -200.0), (1.0, LAND_DEG, LAND_RATE, 0.0),
                (1.0 + SETTLE, 0.0, 0.0, 0.0))
 
 #: The middle of a leg's single support: from the other's toe-off to its own landing.
@@ -66,7 +70,7 @@ MID_STANCE = 0.5 * TOE_OFF
 
 #: Where the ball is planted: the ankle over it at STANCE_AT, early, so the leg's reach is
 #: behind her; centred, the thigh never passed upright and her feet were always in front.
-STANCE_AT = 0.22
+STANCE_AT = 0.26
 
 #: The hips ride as high as a stance leg reaches (REACH), smoothed: held level, the knees stood
 #: at 33-40 degrees, a crouch. Swept (2026-09-25): stance knee at most 16 degrees, the thigh 20
@@ -76,7 +80,7 @@ STANCE_AT = 0.22
 #: parallelogram), dropping on the swing side (degrees,
 #: its obliquity) and turning about the spine (degrees, its rotation); the torso turns all of it
 #: back (COUNTER 1), so the shoulders and the head go straight.
-SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.012, 7.0, 8.0, 1.0
+SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.010, 4.0, 12.0, 1.0
 
 #: How far each arm joint trails the one above it, radians of the stride.
 TRAIL = 0.55
@@ -124,12 +128,15 @@ def pitch_of(q):
 
 def planted(q, stride=1.0):
     """(ankle ahead of the hip, ankle over the floor, the foot's pitch toes-up) of a planted foot
-    at its leg's phase `q`, metres and degrees: pivoting on its ball, the hip moving on at a
-    stride a cycle. The stance's; the swing is the joints' own (`leg`)."""
+    at its leg's phase `q`, metres and degrees: toes up, pivoting on its heel, heel up on its
+    ball, the hip moving on at a stride a cycle. The stance's; the swing is `swung`."""
     length = STRIDE_M * stride
     q %= 1.0
     pitch = pitch_of(q)
-    x, y = _pivot(length * STANCE_AT + BALL, 0.0, -BALL, ANKLE_H, pitch)
+    if pitch > 0.0:
+        x, y = _pivot(length * STANCE_AT - HEEL, 0.0, HEEL, ANKLE_H, pitch)
+    else:
+        x, y = _pivot(length * STANCE_AT + BALL, 0.0, -BALL, ANKLE_H, pitch)
     return x - length * q, y, pitch
 
 
@@ -164,7 +171,7 @@ def _limit(p, stride):
 #: through by a Catmull-Rom curve. Fitted by three harmonics it overshot the dips and came down
 #: 3 cm to clear them, the knees bent 30 degrees; eroded alone, the rise as the other foot left
 #: the floor was a step, a jerk 156 times the median.
-SAMPLES, ERODE, SOFT_MIN_M, BLUR = 240, 0.035, 0.002, 0.035
+SAMPLES, ERODE, SOFT_MIN_M, BLUR = 240, 0.027, 0.002, 0.030
 
 
 def _eroded(limits):
@@ -210,7 +217,7 @@ def _fit(stride):
     smooth = _blurred(_eroded(limits))
     over = max(_through(smooth, k / (4.0 * SAMPLES)) - _limit(k / (4.0 * SAMPLES), stride)
                for k in range(4 * SAMPLES))
-    knee = math.radians(KNEE_SOFT_DEG * stride ** KNEE_POWER)
+    knee = math.radians(max(KNEE_MIN_DEG, KNEE_SOFT_DEG * stride ** KNEE_POWER))
     soft = REACH - math.sqrt(THIGH ** 2 + SHANK ** 2 + 2.0 * THIGH * SHANK * math.cos(knee))
     return [v - max(0.0, over) - soft for v in smooth]
 
@@ -266,7 +273,7 @@ def _ik(x, y, hip, ahead):
 
 #: The swing ankle's lift over the path between toe-off and the landing, metres at mid-swing:
 #: at 0.07, the foot pitched on past toe-off, the toes dragged 10 mm into the floor.
-LIFT_M = 0.09
+LIFT_M = 0.082
 
 #: The step the swing's end conditions are differenced over, of a stride.
 DIFF = 1e-4
@@ -326,11 +333,15 @@ def leg(q, where, stride=1.0):
     pitch = pitch_of(q)
     x, y = planted(q, stride)[:2] if q < TOE_OFF else swung(q, stride)
     thigh, knee = _ik(x, y, *where(q))
-    # The toes lie flat on the floor the whole stance, the heel over them; in the air they point
-    # with the foot, and flatten again to take the floor.
-    u = max(0.0, (q - TOE_OFF) / (1.0 - TOE_OFF))
-    hold = 1.0 - 64.0 * u ** 3 * (1.0 - u) ** 3
-    return -thigh, knee, thigh - knee - pitch, pitch * hold
+    return -thigh, knee, thigh - knee - pitch, toes_of(q, pitch)
+
+
+def toes_of(q, pitch):
+    """The toes' bend, degrees, at the leg's phase `q` and the foot's `pitch`: flat on the floor
+    while the heel is up over them; in the air they point with the foot, and flatten again to take
+    the floor; lined up with it toes up."""
+    u = max(0.0, (q % 1.0 - TOE_OFF) / (1.0 - TOE_OFF))
+    return min(0.0, pitch) * (1.0 - 64.0 * u ** 3 * (1.0 - u) ** 3)
 
 
 def walk(t, cadence=CADENCE, stride=None, glance=True, phase=None):
@@ -379,19 +390,19 @@ def sway(t, cadence=CADENCE, stride=None, phase=None):
 #: A swinging leg turns in at the hip, TWIST_DEG at mid-swing: its knee comes in toward the line
 #: and its foot goes round the standing one, left and right mirrored - wax on, wax off. The
 #: turn is nothing at toe-off and at the landing, to its second derivative.
-TWIST_DEG = 12.0
+TWIST_DEG = 11.0
 
 
-def tracks(t, cadence=CADENCE, phase=None):
+def tracks(t, cadence=CADENCE, phase=None, track=TRACK_M, widen=WIDEN_M):
     """(left, right, left twist, right twist): each foot's place off the line, metres, positive
-    her left - TRACK_M while planted, WIDEN_M further out at mid-swing - and each leg's turn in
+    her left - `track` while planted, `widen` further out at mid-swing - and each leg's turn in
     at the hip, degrees about the vertical, positive turning a forward point to her left. Not
     joints the type has: what the hips' ab/adduction and rotation do, drawn."""
     p = (t * cadence if phase is None else phase) % 1.0
     places, turns = [], []
     for sign, q in ((1.0, p), (-1.0, (p + 0.5) % 1.0)):
         u = (q - TOE_OFF) / (1.0 - TOE_OFF) if q >= TOE_OFF else 0.0
-        places.append(sign * (TRACK_M + WIDEN_M * math.sin(math.pi * u) ** 2))
+        places.append(sign * (track + widen * math.sin(math.pi * u) ** 2))
         turns.append(-sign * TWIST_DEG * 64.0 * u ** 3 * (1.0 - u) ** 3)
     return tuple(places + turns)
 

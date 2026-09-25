@@ -76,7 +76,14 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     routines (types: a body of subsystems, a bus each), live
                     (fed a line at a time, a buffer, woken with a line, a
                     failsafe), simulated (pack, camera), virtual (VIRTUAL: a
-                    type's joints where told, no board), gait (a walk's angles)
+                    type's joints where told, no board), gait (a walk's angles),
+                    figure (the gynoid's segments, masses, leg IK), physics
+                    (DYNAMIC: the figure in MuJoCo, a drive a joint), walker
+                    (her setpoints each ms: plan, IK, balance), arrival
+                    (keyframes, the CoM fed back: the squat, the rise, the
+                    first step, the settling), director (which move has her,
+                    catches, falls), running (her own process, paced to the
+                    clock)
 coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory;
                     node (the family for machine: Coaxial node, joint, surface,
                     rotor, torque); profiles/ (a motor's drive record and
@@ -91,7 +98,7 @@ coaxial/control/    motion, commission: procedures on a rig
 coaxial/draw/       2D drawings: dials, gauges, cross_section, thermal map
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern);
                     gpu (the raster and a lit mesh on a card, wgpu; the crew
-                    where none), gynoid (the humanoid's body, posed and lit)
+                    where none), gynoid (the figure's body, posed and lit)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c),
                     observer
 coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/

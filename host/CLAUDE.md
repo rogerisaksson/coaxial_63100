@@ -16,7 +16,9 @@
   the last two need no cable. Any URL port (`fakeboard://`, `native://`,
   `emulator://`, `socket://`) is this process's own: no broker. `Machine.discover(type,
   execution_mode=VIRTUAL)`: no board, each joint where it is told
-  (`machine.virtual`); the HUMANOID page drives one.
+  (`machine.virtual`); `DYNAMIC`: the gynoid's figure in MuJoCo, each
+  joint a drive (`machine.physics`), set every ms by `machine.walker`; the
+  HUMANOID page runs her in her own process (`machine.running`).
 - 3D pages raster on the GPU (`coaxial.graphics.gpu`, wgpu) where a card
   answers, else the process crew; `COAXIAL_GPU=0` forces the CPU.
 - Interfaces `Acquisition`, `PolledSensor`, `GateControl`, `BootControl`:
