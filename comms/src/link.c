@@ -167,35 +167,51 @@ uint32_t link_rx_count(void)
   return s.rx_count;
 }
 
-/* One port's pump. Four steps, no nesting beyond a guard each. */
-static void pump(link_port_t *l)
+static void pump(link_port_t *l, uint32_t now, bool faulted);
+
+/* One port's waiting bytes, up to LINK_TAKE_MAX - the first half of a pump. A byte that came
+   after the frame's silence closes that frame first, as a pass between them would have. */
+static void take(link_port_t *l, bool *faulted)
 {
-  if (!l->open)
+  for (uint16_t k = 0U; k < LINK_TAKE_MAX; k++)
   {
-    return;
-  }
+    uint8_t  byte;
+    uint32_t at = 0U;
 
-  uint8_t  byte;
-  uint32_t at = 0U;
-
-  if (l->dev->fault(l->dev->ctx))
-  {
-    mb_rtu_on_error(&l->rtu, l->dev->ticks(l->dev->ctx));
-  }
-  else if (l->dev->get(l->dev->ctx, &byte, &at))
-  {
+    if (l->dev->fault(l->dev->ctx))
+    {
+      *faulted = true;
+      return;
+    }
+    if (!l->dev->get(l->dev->ctx, &byte, &at))
+    {
+      return;
+    }
     /* `at` is when the character arrived, which on the interrupt-driven
        ports is not when this loop reached it. */
+    if (mb_rtu_busy(&l->rtu) && ((uint32_t)(at - l->rtu.last_event_ticks) > l->rtu.t35_ticks))
+    {
+      pump(l, at, false);
+    }
     mb_rtu_on_byte(&l->rtu, byte, at);
     s.rx_count++;
+  }
+}
+
+/* One port's pump at `now`, read after every port's byte this pass was taken - a clock read
+   before a byte's stamp would make its silence look over. */
+static void pump(link_port_t *l, uint32_t now, bool faulted)
+{
+  if (faulted)
+  {
+    mb_rtu_on_error(&l->rtu, now);
   }
 
   const uint8_t *frame = NULL;
 
   s.current = (uint8_t)(l - s.links);
 
-  const size_t n = mb_rtu_service(&l->rtu, l->dev->ticks(l->dev->ctx),
-                                  &frame);
+  const size_t n = mb_rtu_service(&l->rtu, now, &frame);
 
   if (n > 0U)
   {
@@ -215,9 +231,27 @@ static void pump(link_port_t *l)
 
 void link_poll(void)
 {
+  /* The ports share one clock: read once a pass, not once a port - a register read is
+     cheap on the part and costly in the emulator. */
+  bool faulted[LINK_COUNT] = { false };
+
   for (uint8_t i = 0U; i < LINK_COUNT; i++)
   {
-    pump(&s.links[i]);
+    if (s.links[i].open)
+    {
+      take(&s.links[i], &faulted[i]);
+    }
+  }
+
+  const link_port_t *console = &s.links[LINK_CONSOLE];
+  const uint32_t now = console->dev->ticks(console->dev->ctx);
+
+  for (uint8_t i = 0U; i < LINK_COUNT; i++)
+  {
+    if (s.links[i].open)
+    {
+      pump(&s.links[i], now, faulted[i]);
+    }
   }
 }
 

@@ -32,6 +32,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   silent. Ask the session that holds it.
 - `close()` disarmed a running stage when a second session asked a question
   (2026-08-29): the broker exists for this (open 0.05 s vs 5.85 s).
+- RS485 was never pumped unless the console was in binary mode: main() polled
+  the link only then (found on the emulated limb, 2026-09-25).
+- 10 Mbit on RS485, emulated: one byte a pass lost to a byte a microsecond.
+  The link drains up to LINK_TAKE_MAX a pass, a frame closed at its silence,
+  one clock read a pass; 200 echoes of 240 B, none lost (2026-09-25).
 
 ## Gate stage
 

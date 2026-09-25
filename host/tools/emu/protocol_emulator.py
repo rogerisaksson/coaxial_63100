@@ -3,6 +3,7 @@
     Coaxial63100(port='emulator://').open()                  # one board, its console
     Coaxial63100(port='emulator://?nodes=4', unit=3).open()  # a limb: the bus, a unit on it
     Coaxial63100(port='emulator://?world=quad&nodes=4').open()  # on the quad's rotors
+    Coaxial63100(port='emulator://?nodes=2&mips=475&baud=10000000', unit=2).open()  # 10 Mbit
     .\\coaxial_tty.ps1 -Port emulator://
 
 One emulator per URL a process (tools.emu.emulator); every open of the URL is a connection
@@ -25,7 +26,10 @@ def emulator_for(url):
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
         nodes = int(query.get('nodes', ['0'])[0])
         world = query.get('world', [None])[0]
-        emu = (Limb(nodes, world=world) if nodes else Emulator(world=world)).start()
+        mips = int(query['mips'][0]) if 'mips' in query else None
+        baud = int(query['baud'][0]) if 'baud' in query else None
+        emu = (Limb(nodes, world=world, mips=mips, baud=baud) if nodes
+               else Emulator(world=world, mips=mips)).start()
         atexit.register(emu.stop)
         _RUNNING[url] = emu
     return _RUNNING[url]

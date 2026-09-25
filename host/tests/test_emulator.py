@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import test_wire as wire  # noqa: E402
 from coaxial import Coaxial63100  # noqa: E402
-from tools.emu.emulator import ELF, Emulator, find_renode  # noqa: E402
+from tools.emu.emulator import ELF, FAITHFUL_MIPS, Emulator, Limb, find_renode  # noqa: E402
 
 AFE = 'sysbus.gpioPortB.afe'
 
@@ -61,6 +61,34 @@ print(rig.simulated, rig.origin.label)
 rig.close()'''
 
 
+#: Echoes a blast sends, of the most a frame carries less the envelope.
+BLAST, BLAST_BYTES = 50, 240
+
+
+def test_ten_megabit_on_the_bus(report):
+    """A limb's bus at the bootloader's 10 Mbit/s, the core at the part's own speed: every echo
+    comes back byte for byte, and the node counts no framing error past the host's handover
+    byte and drops nothing from its ring."""
+    with Limb(1, mips=FAITHFUL_MIPS, baud=10_000_000) as limb:
+        rig = Coaxial63100(port=limb.url, unit=1, own_image=False).open()
+        try:
+            link = rig.board.link
+            wrong = 0
+            for k in range(BLAST):
+                data = bytes((k * 31 + n * 7) % 256 for n in range(BLAST_BYTES))
+                try:
+                    link.echo(data)
+                except Exception:          # a lost echo is the finding, counted
+                    wrong += 1
+            port = link.state(port=1)
+        finally:
+            rig.close()
+    report.check('10 Mbit/s on the bus: every echo back, nothing dropped, framing clean',
+                 wrong == 0 and port['ring_dropped'] == 0 and port['bus_comm_error'] <= 1,
+                 '%d of %d echoes wrong, %d framing errors, %d dropped'
+                 % (wrong, BLAST, port['bus_comm_error'], port['ring_dropped']))
+
+
 def test_emulated_falls_back_where_none_runs(report):
     """EMULATED on a machine with no Renode - CI's host job, a bare checkout - opens the
     stand-in and says why, as HARDWARE does where no board answers."""
@@ -98,6 +126,8 @@ def main():
             test_the_front_end_feeds_the_image(report, rig, emu)
         finally:
             rig.close()
+    print('\n-- ten megabit on the bus --')
+    test_ten_megabit_on_the_bus(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

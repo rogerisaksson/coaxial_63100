@@ -24,6 +24,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -56,6 +57,17 @@ FLAG_TERMINATE = 0x01
 #: The 96-bit unique id (UID_BASE): its first word told apart per node.
 UID_AT = 0x1FF1E800
 
+#: The core's instructions a virtual second: Renode's own figure, 100 M, runs 4.75 times the
+#: wall speed of the part's 475 M - which is what a 10 Mbit bus or the drive's 20 us period
+#: needs (a 240 B echo blast at 10 Mbit: 12 of 200 lost at 100, none at 475; 2026-09-25).
+FAITHFUL_MIPS = 475
+
+#: How far a limb's boards run apart before they wait for each other, s: 100 us held 8 boards
+#: to 37 M instructions a second in all, 1 ms to 49 M (2026-09-25). The bus's bytes cross at
+#: these boundaries, so it stays under RTU's t1.5 of 750 us inside a frame: 1 ms broke every
+#: frame longer than a quantum's bytes.
+QUANTUM = '0.0005'
+
 
 def find_renode():
     """Renode's executable, or None."""
@@ -77,10 +89,12 @@ def free_port():
 class Emulator:
     """One Renode process running `elf`, its console at `url` once `start()` returns."""
 
-    def __init__(self, elf=ELF, port=None, log=None, monitor=None, world=None):
+    def __init__(self, elf=ELF, port=None, log=None, monitor=None, world=None, mips=None):
         """`monitor`: a TCP port for Renode's monitor, True for a free one, None for none;
-        `world`: a world's name (board/emu/worlds), its first node this board."""
+        `world`: a world's name (board/emu/worlds), its first node this board; `mips`: the
+        core's instructions a virtual second, millions - FAITHFUL_MIPS for the part's own."""
         self.elf = os.path.abspath(elf)
+        self.mips = mips
         self.world = worlds.load(world) if world else None
         self.port = port or free_port()
         self.monitor = free_port() if monitor is True else monitor
@@ -93,7 +107,11 @@ class Emulator:
     def script(self):
         """The monitor's commands that build and start the emulation."""
         return (['$port=%d' % self.port, '$elf=@%s' % self.elf.replace(os.sep, '/'),
-                 'include @%s' % SCRIPT] + self.planted(0) + ['start'])
+                 'include @%s' % SCRIPT] + self.planted(0) + self.paced() + ['start'])
+
+    def paced(self):
+        """The core's speed, if not Renode's own: for the machine last created."""
+        return ['cpu PerformanceInMips %d' % self.mips] if self.mips else []
 
     def planted(self, node):
         """The world's commands for the board at `node`, none without a world."""
@@ -175,8 +193,10 @@ class Limb(Emulator):
     unit i at position i, the last closing the termination. `url` is the host's adapter on
     the bus, `consoles` each node's console port; the nodes' machines are node1..nodeN."""
 
-    def __init__(self, nodes, elf=ELF, log=None, monitor=None, world=None):
-        super().__init__(elf, log=log, monitor=monitor, world=world)
+    def __init__(self, nodes, elf=ELF, log=None, monitor=None, world=None, mips=None, baud=None):
+        """`baud`: the bus's rate, bits a second; the app starts at the record's, 115 200."""
+        super().__init__(elf, log=log, monitor=monitor, world=world, mips=mips)
+        self.baud = baud
         self.nodes = nodes
         self.consoles = [free_port() for _ in range(nodes)]
 
@@ -190,7 +210,7 @@ class Limb(Emulator):
             flags = FLAG_TERMINATE if unit == self.nodes else 0
             out += [line.replace('$name', '"node%d"' % unit).replace('$port', str(port))
                     .replace('$console', '"node%d-console"' % unit) for line in board]
-            out += self.planted(unit - 1)
+            out += self.planted(unit - 1) + self.paced()
             out += ['sysbus WriteDoubleWord 0x%08X 0x%08X' % (HAND_AT, HAND_MAGIC),
                     'sysbus WriteDoubleWord 0x%08X 0x%08X' % (HAND_AT + 8,
                                                               unit | unit << 8 | flags << 16),
@@ -202,11 +222,55 @@ class Limb(Emulator):
         for unit in range(1, self.nodes + 1):
             out += ['mach set "node%d"' % unit,
                     'connector Connect sysbus.gpioPortA.transceiverA limb']
-        out += ['mach set "node1"', 'machine LoadPlatformDescription @%s' % LIMB_REPL,
-                'connector Connect sysbus.gpioPortK.adapterBus limb',
+        out += ['emulation SetGlobalQuantum "%s"' % QUANTUM,
+                'mach set "node1"', 'machine LoadPlatformDescription @%s' % LIMB_REPL,
+                'connector Connect sysbus.gpioPortK.adapterBus limb']
+        out += ['sysbus.gpioPortK.adapterBus BaudRate %d' % self.baud] if self.baud else []
+        out += [
                 'emulation CreateServerSocketTerminal %d "limb-host" false' % self.port,
                 'connector Connect sysbus.gpioPortK.adapterHost limb-host', 'start']
         return out
+
+
+class Body:
+    """A machine's limbs, a Renode process each so they run on the host's cores side by side -
+    one process's machines wait for each other every quantum, eight boards in one doing 3.4 a
+    board's work (2026-09-25). Each limb is its own RS485 segment, as on the machine:
+    `urls[name]` is its bus. `limbs` {name: boards}, `worlds` {name: a world's name}."""
+
+    def __init__(self, limbs, elf=ELF, worlds=None):
+        worlds = worlds or {}
+        self.limbs = {name: Limb(n, elf, world=worlds.get(name)) for name, n in limbs.items()}
+        self.urls = {name: limb.url for name, limb in self.limbs.items()}
+
+    def start(self):
+        failed = []
+
+        def up(limb):
+            try:
+                limb.start()
+            except RuntimeError as exc:
+                failed.append(str(exc))
+
+        threads = [threading.Thread(target=up, args=(limb,)) for limb in self.limbs.values()]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        if failed:
+            self.stop()
+            raise RuntimeError('; '.join(failed))
+        return self
+
+    def stop(self):
+        for limb in self.limbs.values():
+            limb.stop()
+
+    def __enter__(self):
+        return self.start()
+
+    def __exit__(self, *exc):
+        self.stop()
 
 
 def _answers(port):

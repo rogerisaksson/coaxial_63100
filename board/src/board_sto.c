@@ -46,6 +46,7 @@ static struct
   uint32_t keepalive;
   uint32_t last_edge;
   uint32_t worst_gap;
+  bool     high;       /* the level PA10 was last driven to */
 } s;
 
 /** Cycles between edges: 200 kHz of edges is the 100 kHz square wave the
@@ -83,8 +84,10 @@ void Board_StoKeepalive(void)
 
   /* PA10 into R72 330R, C71 100nF and the D10/D14/D15 diodes: a charge pump,
      so only edges deliver anything and a held level is worth exactly as much
-     as a stopped CPU. */
-  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_10);
+     as a stopped CPU. The edge off the level kept here: BSRR alone, no read of
+     ODR first - a register read is cheap on the part and costly in the emulator. */
+  s.high = !s.high;
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, s.high ? GPIO_PIN_SET : GPIO_PIN_RESET);
   s.keepalive++;
 }
 

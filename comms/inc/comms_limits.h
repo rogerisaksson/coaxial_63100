@@ -14,6 +14,10 @@
 
 #define DEV_RING 256U
 
+/** Bytes a port gives the link in one main-loop pass: at 10 Mbit a byte a microsecond outruns
+    one a pass; the bound keeps a pass short for the STO keepalive. */
+#define LINK_TAKE_MAX 32U
+
 #define LINK_BITS_PER_CHAR 11U
 
 /* ---- THE IMU, THROUGH A MODBUS REPLY ----------------------------------- */
