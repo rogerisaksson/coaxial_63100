@@ -3,10 +3,10 @@
 Over the whole screen (`Crt`, every frame `stage.curtain` shows): an old CRT's snow in
 its blank cells, barely there - NOISE of them lit a frame, a dot each in SNOW's
 near-black inks, redrawn NOISE_HZ times a second; its refresh sweep, a beam going down
-over SWEEP_S seconds and decaying behind it over DECAY_ROWS as a phosphor does - in
-braille, BAND_DENSITY of a row's cells a dot at the beam in BAND_INK's brightest,
-thinning and dimming as the square of the decay; under that, BEAM's faint glow, under
-everything but what has a background of its own.
+over SWEEP_S seconds and decaying behind it over DECAY_ROWS as a phosphor does, in faint
+braille only: BAND_DENSITY of a row's cells a dot at the beam, thinning as the square of
+the decay, its ink stepping down BAND_INK to the snow's. No background: a glow a row at a
+time banded (2026-09-25).
 Over a page's drawing (`Chrome`): lock brackets round what the page draws, `ﾛｯｸ ｵﾝ` blinking on them; the page's clock bottom left; its status tag in red
 kana, blinking, over a teal subtag bottom right. Chrome only fills blanks: nothing the
 page draws is covered, and a piece with no room is left out whole. KANA names each page.
@@ -43,13 +43,10 @@ SNOW = tuple(Style(color=Color.from_rgb(*rgb))
              for rgb in ((16, 22, 24), (22, 30, 33), (28, 38, 41)))
 SWEEP_S = 5.0
 DECAY_ROWS = 6.0
-BEAM = (9, 24, 26)
-BAND_DENSITY = 0.22
-BAND_INK = tuple(Style(color=Color.from_rgb(*rgb))
-                 for rgb in ((26, 44, 48), (36, 64, 70), (46, 86, 94), (60, 112, 120)))
-#: The glow's steps, faintest first: a row takes the one its decay rounds to.
-GLOW = tuple(Style(bgcolor=Color.from_rgb(*(int(ch * (i / 8.0) ** 2) for ch in BEAM)))
-             for i in range(1, 9))
+BAND_DENSITY = 0.08
+#: The band's inks, faintest first: from the snow's brightest up a shade at a time.
+BAND_INK = tuple(Style(color=Color.from_rgb(28 + 2 * i, 38 + 3 * i, 41 + 3 * i))
+                 for i in range(8))
 INK = {
     'lock': Style(color=Color.from_rgb(*AMBER)),
     'tag': Style(color=Color.from_rgb(*RED)),
@@ -188,7 +185,7 @@ def _crt(rows, t):
         if all(_blank(rows[m][n]) for m in (r - 1, r, r + 1) for n in (c - 1, c, c + 1)
                if 0 <= m < height and 0 <= n < width):
             rows[r][c] = [chr(0x2800 + (1 << rng.randrange(8))), rng.choice(SNOW)]
-    # The sweep: braille snow dense and bright at the beam, decaying behind it.
+    # The sweep: faint braille at the beam, thinning and dimming behind it.
     beam = (t / SWEEP_S) % 1.0 * (height + DECAY_ROWS)
     for r in range(max(0, int(beam - DECAY_ROWS)), min(height, int(beam) + 1)):
         level = 1.0 - (beam - r) / DECAY_ROWS
@@ -200,13 +197,3 @@ def _crt(rows, t):
             if all(_blank(rows[m][n]) for m in (r - 1, r, r + 1) for n in (c - 1, c, c + 1)
                    if 0 <= m < height and 0 <= n < width):
                 rows[r][c] = [chr(0x2800 + (1 << rng.randrange(8))), ink]
-    # Its glow last, under everything: a background, so what is drawn keeps its ink.
-    for r in range(max(0, int(beam - DECAY_ROWS)), min(height, int(beam) + 1)):
-        step = int((1.0 - (beam - r) / DECAY_ROWS) * len(GLOW))
-        if step > 0:
-            glow = GLOW[min(len(GLOW), step) - 1]
-            for cell in rows[r]:
-                if cell[1] is None:
-                    cell[1] = glow
-                elif cell[1].bgcolor is None:
-                    cell[1] = cell[1] + glow

@@ -197,11 +197,19 @@ def open_rig(banner, **kwargs):
         return None
 
 
+#: The screen's own rate: between a page's draws - its data's rate, 2 Hz on the
+#: thermal page - the last frame is shown again UI_HZ times a second, so what moves
+#: with the clock (the CRT, the lock, the tags, the clocks) never waits on the data
+#: (2026-09-25).
+UI_HZ = 15.0
+
+
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False, on_click=None, on_drag=None,
              scroll_keys=True):
     """The loop every view runs: draw, pace, take keys - until Q, ESC,
-    Ctrl+C or `frames` frames.
+    Ctrl+C or `frames` frames. Between draws the frame is shown again at UI_HZ;
+    a key cuts the wait and draws at once.
     """
 
     click, drag = on_click or _ignore, on_drag or _ignore
@@ -213,14 +221,22 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 # The period is frame to frame, measured from this draw's
                 # start - not a sleep after it.
                 started = time.monotonic()
-                page.update(draw(), refresh=True)
+                shown = draw()
+                page.update(shown, refresh=True)
                 rate_of(board_view).tick(started)
                 if tick is not None and tick():
                     return None
                 if frames and count >= frames:
                     return None
-                leaving, moved, typed = paced(
-                    keys, max(0.0, period - (time.monotonic() - started)))
+                leaving, moved, typed = None, 0.0, []
+                while True:
+                    left = period - (time.monotonic() - started)
+                    leaving, more, got = paced(keys, max(0.0, min(left, 1.0 / UI_HZ)))
+                    moved += more
+                    typed.extend(got)
+                    if leaving or typed or moved or left <= 1.0 / UI_HZ:
+                        break
+                    page.update(shown, refresh=True)
                 if leaving:
                     return leaving
                 if scroll_keys:

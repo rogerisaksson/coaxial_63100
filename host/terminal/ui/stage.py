@@ -196,8 +196,23 @@ def band_of(name, extra='', tag=None):
     kana = KANA[name][0] if name in KANA else ''
     left = Text.assemble((name, 'bar'), ('  ' + kana if kana else '', 'bar.dim'),
                          ('   ' + extra if extra else '', 'bar.dim'))
-    right = Text.assemble((clock() + '  ', 'bar.dim'), tag or '', (' ', 'bar.dim'))
-    return band(left, right)
+    return band(left, _Ticking(tag))
+
+
+class _Ticking(Text):
+    """The band's right end - the clock, then `tag` - read when it is drawn, so a
+    frame shown again between draws keeps time."""
+
+    def __init__(self, tag):
+        super().__init__()
+        self._tag = tag
+        self.append_text(self._now())
+
+    def _now(self):
+        return Text.assemble((clock() + '  ', 'bar.dim'), self._tag or '', (' ', 'bar.dim'))
+
+    def __rich_console__(self, console, options):
+        yield from self._now().__rich_console__(console, options)
 
 
 def header(title, origin):

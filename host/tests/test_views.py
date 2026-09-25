@@ -59,6 +59,37 @@ def run_view(name):
     return done
 
 
+def test_the_screen_keeps_its_own_rate(report):
+    """A page drawing at 2.5 Hz - its data's rate - is shown again at UI_HZ between
+    draws, so what moves with the clock never waits on the data."""
+    import io
+    from rich.console import Console
+    from rich.live import Live
+    from rich.text import Text
+    from terminal.ui import screen
+
+    shown, drawn = [], []
+    real = Live.update
+
+    def counted(self, renderable, *, refresh=False):
+        shown.append(renderable)
+        return real(self, renderable, refresh=refresh)
+
+    def draw():
+        drawn.append(Text('frame %d' % len(drawn)))
+        return drawn[-1]
+    Live.update = counted
+    try:
+        screen.run_view(Console(file=io.StringIO()), False, 0.4, 2, draw,
+                        scroll_keys=False)
+    finally:
+        Live.update = real
+    again = sum(1 for r in shown if r is drawn[0])
+    report.check('between two draws the frame is shown again at UI_HZ',
+                 len(drawn) == 2 and again >= 0.4 * screen.UI_HZ - 2,
+                 '%d draws, the first shown %d times' % (len(drawn), again))
+
+
 def test_the_crt_draws_on_the_terminal(report):
     """Through a screen-mode Live - the terminal's path, which gives its renderable no
     height - the CRT draws: snow over the screen, the braille band at the beam."""
@@ -2024,6 +2055,7 @@ def main():
     test_the_thermal_page_shows_its_evidence(report)
     test_a_frame_rasterises_as_the_terminal_draws_it(report)
     test_the_crt_draws_on_the_terminal(report)
+    test_the_screen_keeps_its_own_rate(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 
