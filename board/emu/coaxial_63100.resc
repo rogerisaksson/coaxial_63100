@@ -19,12 +19,6 @@ machine LoadPlatformDescription @board/emu/coaxial_63100_afe.repl
 
 emulation CreateServerSocketTerminal $port "console" false
 connector Connect sysbus.gpioPortB.consoleLine console
-emulation CreateUARTHub "rs485a"
-connector Connect usart2 rs485a
-connector Connect sysbus.gpioPortA.transceiverA rs485a
-emulation CreateUARTHub "rs485b"
-connector Connect uart5 rs485b
-connector Connect sysbus.gpioPortC.transceiverB rs485b
 
 macro reset
 """

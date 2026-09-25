@@ -72,11 +72,13 @@ die: Analog.Coaxial63100_AFEChannel @ adc3 18
     afe: afe
     signal: "MCU die"
 
-// USART2 and UART5 on their RS485 transceivers (RS485_Transceiver.cs), each on its DE pin (PA1,
-// PC8) and joined to its UART by a hub in coaxial_63100.resc.
+// USART2 and UART5 behind their RS485 transceivers (RS485_Transceiver.cs), each on its DE pin
+// (PA1, PC8).
 transceiverA: UART.RS485_Transceiver @ gpioPortA 1
+    uart: usart2
 
 transceiverB: UART.RS485_Transceiver @ gpioPortC 8
+    uart: uart5
 
 // The console's wire (UART_Line.cs) on USART3's RX pin, PB11.
 consoleLine: UART.UART_Line @ gpioPortB 11
