@@ -106,8 +106,9 @@ def workshop(args):
 
 
 def _announced(pool):
-    say('ok', 'drawing', '%d processes, one band of the picture each'
-        % pool.workers)
+    name = getattr(pool, 'name', None)
+    say('ok', 'drawing', ('the GPU, %s' % name) if name else
+        '%d processes, one band of the picture each' % pool.workers)
     return pool
 
 
@@ -115,7 +116,7 @@ def bands(args, step):
     """The staged engine's crew for the vector drawing, or None for a run
     too short to pay for spawning it.
     """
-    from coaxial.graphics import creases, crew, shading, solids, stereotype, wireframe
+    from coaxial.graphics import creases, crew, gpu, shading, solids, stereotype, wireframe
     levels = len(solids.LODS)
 
     def landed(done, _total, divisions):
@@ -131,9 +132,9 @@ def bands(args, step):
     stereotype._stereotypes()
     if args.photo or (args.frames and args.frames <= 4):
         return None
-    step(0.70, 'SPAWNING %d PROCESSES' % crew.MAX_WORKERS)
+    step(0.70, 'THE GPU, OR %d PROCESSES' % crew.MAX_WORKERS)
     try:
-        return _announced(crew.Crew(lods, art=shading._face()))
+        return _announced(gpu.crew_for(lods, art=shading._face()))
     except (OSError, ValueError) as exc:
         say('warn', 'drawing', 'one process only: %s' % exc)
         return None

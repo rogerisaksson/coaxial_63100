@@ -25,7 +25,7 @@ from rich.text import Text
 
 from coaxial.draw.orientation import _qmul, matrix, normalise
 from coaxial.errors import RigError
-from coaxial.graphics import shading, wireframe
+from coaxial.graphics import gpu, shading, wireframe
 from coaxial.graphics.crew import Crew
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
@@ -172,8 +172,9 @@ def main(argv=None):
                              'opens a session either way')
     parser.add_argument('--workers', type=int, default=0,
                         help='raster the board as row bands in this many '
-                             'processes (0: this one). Measured at 220x60: '
-                             '14.8 ms to 5.8 with eight')
+                             'processes (0: the GPU where a card answers, else '
+                             'this one). Measured at 220x60: 14.8 ms to 5.8 '
+                             'with eight')
     args = parser.parse_args(argv)
 
     page = stage()
@@ -184,6 +185,8 @@ def main(argv=None):
     if args.workers > 0:
         view['crew'] = Crew(wireframe._lods(), art=shading._face(),
                             workers=args.workers)
+    elif (card := gpu.adapter()) is not None:
+        view['crew'] = gpu.GpuCrew(wireframe._lods(), art=shading._face(), found=card)
     frame, last = 0, time.monotonic()
 
     try:

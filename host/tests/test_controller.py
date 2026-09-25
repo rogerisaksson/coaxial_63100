@@ -592,6 +592,43 @@ def test_the_body_runs_a_program(report):
         nodes.close()
 
 
+def test_a_virtual_body_walks(report):
+    """VIRTUAL: no board, the humanoid's twenty joints each where it is told, slewed; the walk
+    (`machine.gait`) writes them all, each reads its command back, the type's routines run."""
+    from machine import Machine, gait
+    from machine.modes import VIRTUAL
+    from machine.virtual import VirtualJoint
+    body = Machine.discover('humanoid', execution_mode=VIRTUAL)
+    report.check('twenty virtual joints, fitted bus by bus as the type names them',
+                 len(body.actuators) == 20
+                 and all(isinstance(a, VirtualJoint) for a in body.actuators.values())
+                 and body.actuators['pelvis'].node.name == 'V1_1'
+                 and body.actuators['right_foot'].node.name == 'V5_4',
+                 {n: a.node.name for n, a in list(body.actuators.items())[:5]})
+    body.arm()
+    told = gait.walk(0.4)
+    body.loop.write(**told)
+    for _ in range(12):
+        got = body.loop.step(0.04)
+    worst = max(abs(got[j + '.deg'] - told[j]) for j in body.actuators)
+    report.check('the walk written, every joint reads back where it was told', worst < 1e-9,
+                 '%.3g deg' % worst)
+    body.loop.write(left_knee=told['left_knee'] + 120.0)
+    got = body.loop.step(0.05)
+    got = body.loop.step(0.05)
+    moved = got['left_knee.deg'] - told['left_knee']
+    report.check('a joint slews at its rate: 120 deg asked, 75 there 0.05 s on (1500 deg/s)',
+                 abs(moved - 75.0) < 1e-6, '%.3f deg' % moved)
+    out = body.run('0 run=walk times=1')
+    report.check('the type\'s walk routine runs on them', out.status == 'done', out.status)
+    phases = [gait.walk(k / 50.0) for k in range(50)]
+    report.check('the gait names every joint the body has, each within its span',
+                 all(set(p) == set(body.actuators) for p in phases)
+                 and all(abs(v) <= body.ranges[j][1] for p in phases for j, v in p.items()),
+                 max(abs(v) for p in phases for v in p.values()))
+    body.disarm()
+
+
 def test_the_body_loops_on_its_boards(report):
     """node_hz: each joint's feedback runs on its board once armed; the host forwards
     setpoints and reads the joints back through the same measure."""
@@ -855,7 +892,7 @@ def main():
                  test_a_fault_ends_the_loop, test_a_paced_part_keeps_its_own_rate,
                  test_the_pictures_and_the_panel, test_velocity_is_a_feedback,
                  test_nodes_offer_then_configure, test_fitment_by_measurement,
-                 test_the_body_runs_a_program,
+                 test_the_body_runs_a_program, test_a_virtual_body_walks,
                  test_a_model_writes_lines, test_machine_types_and_routines,
                  test_live_from_a_stream, test_a_model_streams_and_is_woken,
                  test_the_board_loops_a_joint, test_the_body_loops_on_its_boards):

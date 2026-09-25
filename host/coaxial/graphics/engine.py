@@ -167,38 +167,35 @@ DOT_SAMPLES = tuple((lane, y, BRAILLE_BITS[lane][y])
                     for y in range(DOTS_Y) for lane in range(DOTS_X))
 
 
+def _cellwise(field, width, height, dtype):
+    """A fine raster (lists, bytes or an array) as (height, width, 8): a cell's
+    samples in DOT_SAMPLES order."""
+    from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
+    return (np.asarray(field, dtype).reshape(height, DOTS_Y, width, DOTS_X)
+            .transpose(0, 2, 1, 3).reshape(height, width, DOTS_X * DOTS_Y))
+
+
 def fold(depth, top, sun, width, height):
     """A dot-resolution raster (`fine`) down to cells: (depth, top, sun,
-    coverage, reached).
+    coverage, reached). A cell's depth, top and sun are its nearest sample's,
+    the first of equals in DOT_SAMPLES order.
     """
-    wide = DOTS_X * width
-    out_depth = [0.0] * (width * height)
-    out_top = bytearray(width * height)
-    out_sun = bytearray(width * height)
-    coverage = [0.0] * (width * height)
-    reached = bytearray(width * height)
-    per = float(len(DOT_SAMPLES))
-    for py in range(height):
-        row = py * width
-        base = DOTS_Y * py * wide
-        for px in range(width):
-            cell = base + DOTS_X * px
-            best, hits, where, bits = 0.0, 0, cell, 0
-            for lane, y, bit in DOT_SAMPLES:
-                at = cell + y * wide + lane
-                d = depth[at]
-                if d:
-                    hits += 1
-                    bits |= bit
-                    if d > best:
-                        best, where = d, at
-            if hits:
-                out_depth[row + px] = best
-                out_top[row + px] = top[where]
-                out_sun[row + px] = sun[where]
-                coverage[row + px] = hits / per
-                reached[row + px] = bits
-    return out_depth, out_top, out_sun, coverage, reached
+    from coaxial.model.blocks import numpy as np
+    d = _cellwise(depth, width, height, float)
+    hit = d != 0.0
+    hits = hit.sum(axis=2)
+    near = d.argmax(axis=2)[..., None]
+    bits = np.array([bit for _lane, _y, bit in DOT_SAMPLES])
+    covered = hits > 0
+
+    def at_near(field):
+        got = np.take_along_axis(_cellwise(field, width, height, np.uint8), near, 2)[..., 0]
+        return bytearray(np.where(covered, got, 0).astype(np.uint8).tobytes())
+
+    return (np.where(covered, np.take_along_axis(d, near, 2)[..., 0], 0.0).ravel().tolist(),
+            at_near(top), at_near(sun),
+            np.where(covered, hits / float(len(DOT_SAMPLES)), 0.0).ravel().tolist(),
+            bytearray((hit * bits).sum(axis=2).astype(np.uint8).tobytes()))
 
 
 #: Beyond this radius a surface point takes no ink from the art: the
@@ -213,16 +210,17 @@ ART_DISC = 0.96
 
 
 def _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane=0.0):
-    """The art cell under a cell's own surface point, and that point's rise
-    above the art's plane - or None outside the unit disc.
+    """The art cell under each cell's own surface point (numpy arrays), that
+    point's rise above the art's plane, and whether it is inside the unit
+    disc at all: (ix, iy, rise, inside).
     """
+    from coaxial.model.blocks import numpy as np
     d = distance - tz
     tx, ty = u * d, v * d
     hx = m[0] * tx + m[3] * ty + m[6] * tz
     hy = m[1] * tx + m[4] * ty + m[7] * tz
     hz = m[2] * tx + m[5] * ty + m[8] * tz
-    if hx * hx + hy * hy > ART_DISC * ART_DISC:
-        return None
+    inside = np.logical_not(hx * hx + hy * hy > ART_DISC * ART_DISC)
     lean = m[8] if m[8] >= 0.05 else (m[8] if m[8] <= -0.05
                                       else (0.05 if not back else -0.05))
     rise = (hz - plane) / lean
@@ -230,18 +228,23 @@ def _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane=0.0):
     # An art cell covers [i/w, (i+1)/w) of the span, so the origin is cell w/2,
     # not (w-1)/2: scaled by (w - 1) the lookup sat half a cell low and left -
     # 0.02 units in x and 0.04 in y, a braille row on screen - and the bore's
-    # blank sat beside the see-through.
-    iy = int((1.0 - (hy + 1.0) * 0.5) * art_h)
-    ix = int((hx + 1.0) * 0.5 * art_w)
-    iy = 0 if iy < 0 else (art_h - 1 if iy >= art_h else iy)
-    ix = 0 if ix < 0 else (art_w - 1 if ix >= art_w else ix)
-    return ix, iy, rise
+    # blank sat beside the see-through. Truncated toward zero, as int() does.
+    iy = np.clip(np.asarray((1.0 - (hy + 1.0) * 0.5) * art_h).astype(int), 0, art_h - 1)
+    ix = np.clip(np.asarray((hx + 1.0) * 0.5 * art_w).astype(int), 0, art_w - 1)
+    return ix, iy, rise, inside
+
+
+#: The art's ink as an array, by the list it came as: converted once.
+_DENSE = {}
 
 
 def shade(depth, top, sun, cam, m, pivot, slope, floor,
           art=None, shadow=None, shadow_step=0.0, bias=0.0, levels=None,
           bare=None, seed=None, planes=None):
-    """Depth to classes 0..2: 0 blank, 1 the exporter's '.', 2 its ':'."""
+    """Depth to classes 0..2: 0 blank, 1 the exporter's '.', 2 its ':'.
+    Every covered cell at once; `levels`, `bare`, `seed` written at those.
+    """
+    from coaxial.model.blocks import numpy as np
     width, height = cam['width'], cam['height']
     distance, scale = cam['distance'], cam['scale']
     cx, cy = cam['cx'], cam['cy']
@@ -250,75 +253,73 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
     # The art is the top's layout: seen from behind the slab shows none, or
     # the top's parts print through onto the bottom. It is read on the top
     # plane (`planes` is (top, bottom); z = 0 where a model names none).
-    rows, art_w, art_h, dense = art if (art and not back) else ([], 0, 0, [])
+    _rows, art_w, art_h, dense = art if (art and not back) else ([], 0, 0, [])
     plane = planes[0] if planes is not None else 0.0
+    w_all = np.asarray(depth, float)
+    at = np.flatnonzero(w_all != 0.0)
+    py, px = np.divmod(at, width)
+    w = w_all[at]
+    lid = np.asarray(top, np.uint8)[at] != 0
+    v = (cy - (py + 0.5)) / (scale * 0.5)
+    u = (px + 0.5 - cx) / scale
+    # The cell's own view-space point, back out of the projection: one depth
+    # value is a full position.
+    tz = distance - 1.0 / w
+    tx, ty = u / w, v / w
+    shaded = np.zeros(len(at))
     if shadow:
         sbuf, s_n, s_ext, s_right, s_up, s_beam = shadow
         rx, ry, rz = s_right
         ux, uy, uz = s_up
         bx, by, bz = s_beam
-    out = bytearray(width * height)
-    for py in range(height):
-        row = py * width
-        v = (cy - (py + 0.5)) / (scale * 0.5)
-        for px in range(width):
-            w = depth[row + px]
-            if w == 0.0:
-                continue
-            u = (px + 0.5 - cx) / scale
-            # The cell's own view-space point, back out of the projection: one
-            # depth value is a full position.
-            tz = distance - 1.0 / w
-            tx, ty = u / w, v / w
-            shaded = 0.0
-            if shadow and top[row + px] and sun[row + px]:
-                sa = tx * rx + ty * ry + tz * rz
-                sb = tx * ux + ty * uy + tz * uz
-                si = int((sa / s_ext * 0.5 + 0.5) * (s_n - 1))
-                sj = int((sb / s_ext * 0.5 + 0.5) * (s_n - 1))
-                behind = (0 <= si < s_n and 0 <= sj < s_n
-                          and sbuf[sj * s_n + si] > (tx * bx + ty * by
-                                                     + tz * bz + bias))
-                shaded = shadow_step if behind else 0.0
-            ink = -1
-            ix, iy = px, py
-            hit = (_art_hit(m, u, v, distance, tz, back, art_w, art_h,
-                            plane)
-                   if art_w and top[row + px] else None)
-            if hit is not None:
-                ix, iy, rise = hit
-                ink = dense[iy][ix]
-            level = pivot + slope * tz / reach
-            if bare is not None:
-                bare[row + px] = level
-            if ink >= 0:
-                # An art cell's class is its ink dimmed by how far the face
-                # leans from the viewer - no depth term.
-                lean = m[8] if m[8] >= 0.0 else -m[8]
-                level = (pivot + ink - 2 - LEAN * (1.0 - lean)
-                         + slope * rise / reach - shaded)
-                # Ink never leans below the floor.
-                if ink > 0 and level < floor:
-                    level = floor
-            else:
-                level = max(level - shaded, floor)
-            if seed is not None:
-                # A fixed 0..1 per cell for the glow's surface texture: hashed
-                # on the art cell an art pixel shows, so the grain turns with
-                # the board; on the screen cell elsewhere.
-                seed[row + px] = (((ix * 73856093) ^ (iy * 19349663))
-                                  & 255) / 255.0
-            if levels is not None:
-                # The tone is the class the glyph shows plus TONE_DEPTH of the
-                # residual - depth grades within a class, never across the
-                # picture.
-                cls = int(level + 0.5)
-                cls = 0 if cls < 0 else (2 if cls > 2 else cls)
-                levels[row + px] = cls + TONE_DEPTH * (level - cls)
-            level = 0.0 if level < 0.0 else (2.0 if level > 2.0
-                                             else level)
-            out[row + px] = int(level + 0.5)
-    return out
+        si = ((tx * rx + ty * ry + tz * rz) / s_ext * 0.5 + 0.5) * (s_n - 1)
+        sj = ((tx * ux + ty * uy + tz * uz) / s_ext * 0.5 + 0.5) * (s_n - 1)
+        si, sj = si.astype(int), sj.astype(int)
+        cast = (lid & (np.asarray(sun, np.uint8)[at] != 0)
+                & (0 <= si) & (si < s_n) & (0 <= sj) & (sj < s_n))
+        occluder = np.asarray(sbuf, float)[np.where(cast, sj * s_n + si, 0)]
+        shaded = np.where(cast & (occluder > tx * bx + ty * by + tz * bz + bias),
+                          shadow_step, 0.0)
+    ink = np.full(len(at), -1)
+    ix, iy, rise = px, py, np.zeros(len(at))
+    if art_w:
+        ink_of = _DENSE.get(id(dense))
+        if ink_of is None or ink_of[0] is not dense:
+            ink_of = _DENSE[id(dense)] = (dense, np.asarray(dense))
+        aix, aiy, arise, inside = _art_hit(m, u, v, distance, tz, back, art_w, art_h, plane)
+        hit = lid & inside
+        ink = np.where(hit, ink_of[1][aiy, aix], -1)
+        ix, iy, rise = np.where(hit, aix, px), np.where(hit, aiy, py), np.where(hit, arise, 0.0)
+    level = pivot + slope * tz / reach
+    if bare is not None:
+        bare[:] = _written(bare, at, level)
+    # An art cell's class is its ink dimmed by how far the face leans from the
+    # viewer - no depth term - and never leans below the floor.
+    lean = m[8] if m[8] >= 0.0 else -m[8]
+    inked = pivot + ink - 2 - LEAN * (1.0 - lean) + slope * rise / reach - shaded
+    inked = np.where((ink > 0) & (inked < floor), floor, inked)
+    level = np.where(ink >= 0, inked, np.maximum(level - shaded, floor))
+    if seed is not None:
+        # A fixed 0..1 per cell for the glow's surface texture: hashed on the
+        # art cell an art pixel shows, so the grain turns with the board; on the
+        # screen cell elsewhere.
+        seed[:] = _written(seed, at, (((ix * 73856093) ^ (iy * 19349663)) & 255) / 255.0)
+    if levels is not None:
+        # The tone is the class the glyph shows plus TONE_DEPTH of the residual -
+        # depth grades within a class, never across the picture.
+        cls = np.clip((level + 0.5).astype(int), 0, 2)
+        levels[:] = _written(levels, at, cls + TONE_DEPTH * (level - cls))
+    out = np.zeros(width * height, np.uint8)
+    out[at] = (np.clip(level, 0.0, 2.0) + 0.5).astype(int)
+    return bytearray(out.tobytes())
+
+
+def _written(into, at, values):
+    """`into` as a list with `values` at `at`, everything else as it was."""
+    from coaxial.model.blocks import numpy as np
+    whole = np.asarray(into, float)
+    whole[at] = values
+    return whole.tolist()
 
 
 def compose(classes, width, height, ramp=' .:'):

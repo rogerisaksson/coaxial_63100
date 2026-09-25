@@ -14,7 +14,11 @@
   `board.boot`. `execution_mode=` HARDWARE (the board on `port`), SIMULATED
   (the stand-in), EMULATED (this host's image on Renode, `emulator://`);
   the last two need no cable. Any URL port (`fakeboard://`, `emulator://`,
-  `socket://`) is this process's own: no broker.
+  `socket://`) is this process's own: no broker. `Machine.discover(type,
+  execution_mode=VIRTUAL)`: no board, each joint where it is told
+  (`machine.virtual`); the HUMANOID page drives one.
+- 3D pages raster on the GPU (`coaxial.graphics.gpu`, wgpu) where a card
+  answers, else the process crew; `COAXIAL_GPU=0` forces the CPU.
 - Interfaces `Acquisition`, `PolledSensor`, `GateControl`, `BootControl`:
   real + simulated implementations; add a method to both or neither.
 - Refusals are the board's words (`u8 took` + text); the host validates only

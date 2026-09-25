@@ -177,6 +177,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   ADC converts the injected group on TRGO2 (MMS2 1000, OC5REF): 6 032 triples
   in 2 s, no overrun. At Renode's 100 MIPS the drive's ISR outran its period;
   the emulator runs the part's 475 (2026-09-25).
+- The gynoid's walk (`machine.gait`) at 0.85 strides/s: every joint's jerk
+  under 4.6 times its rms, the knee's peak 409 deg/s, the head 3.7 mm up and
+  down, 5 mm sideways, the pelvis 8 degrees each way. Past 1.0 strides/s the
+  legs reach full length early in the swing and the knee snaps (2026-09-25).
+- The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
+  the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
+  frame at 200x60: its ground (32 ms) and paint (15) are the frame now
+  (2026-09-25).
 - Conformance on `emulator://` on a Threadripper 1950X: 110/110 at 100 MIPS,
   109 at 200, 107 at 475. The three after the 257 B ADU go unanswered: the
   master's waits are wall seconds, unscaled by the port's `time_scale`

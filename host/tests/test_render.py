@@ -419,12 +419,12 @@ def test_the_art_stops_at_its_disc(report):
     outside = engine._art_hit(identity, 0.98 / distance, 0.0, distance, 0.0,
                               False, w, h)
     report.check('art: a point at 0.90 of the span hits the art, at 0.98 '
-                 'it does not', inside is not None and outside is None,
+                 'it does not', bool(inside[3]) and not outside[3],
                  '%s / %s' % (inside, outside))
     centre = engine._art_hit(identity, 0.0, 0.0, distance, 0.0, False, w, h)
     report.check('art: the origin lands on the middle cell, %d of %d and '
                  '%d of %d' % (w // 2, w, h // 2, h),
-                 centre is not None and centre[:2] == (w // 2, h // 2),
+                 bool(centre[3]) and (int(centre[0]), int(centre[1])) == (w // 2, h // 2),
                  str(centre))
 
 
@@ -1376,8 +1376,42 @@ def test_the_alphabet(report):
                  b.glyph([(9, 9), (0, 0)]) == b.glyph([(0, 0)]))
 
 
+def test_the_gynoid(report):
+    """The gynoid stands on the floor at her height, a stride shows, and her dots are the same
+    cells on the GPU as splatted here - where a card answers."""
+    from coaxial.graphics import gpu, gynoid
+    from machine import gait
+    body = gynoid.body()
+    still, _normals = body.pose(gait.stand())
+    report.check('gynoid: her soles on the floor, 1.60 to 1.75 m tall',
+                 abs(still[:, 1].min()) < 1e-9 and 1.60 < still[:, 1].max() < 1.75,
+                 '%.3f m' % still[:, 1].max())
+    feet = [i for i, part in enumerate(body.parts) if part[0] in ('left_foot', 'right_foot')]
+    walking, _normals = body.pose(gait.walk(0.0))
+    reach = [walking[slice(*body.spans[i]), 2].mean() for i in feet]
+    report.check('gynoid: as a foot lands the feet are a stride apart, the left ahead',
+                 reach[0] - reach[1] > 0.35, '%.2f m' % (reach[0] - reach[1]))
+    here = gynoid.render(gait.walk(0.3), 48, 22, colour=False)
+    report.check('gynoid: drawn here, 22 lines of 48 cells, her dots in them',
+                 len(here) == 22 and all(len(line) == 48 for line in here)
+                 and sum(ch not in ' ' for line in here for ch in line) > 100,
+                 sum(ch not in ' ' for line in here for ch in line))
+    card = gpu.adapter()
+    if card is None:
+        report.check('gynoid: no card here - drawn by this process alone', True)
+        return
+    there = gynoid.render(gait.walk(0.3), 48, 22, colour=False, lit=gpu.LitRaster(found=card))
+    a = {(r, c) for r, line in enumerate(here) for c, ch in enumerate(line) if ch != ' '}
+    b = {(r, c) for r, line in enumerate(there) for c, ch in enumerate(line) if ch != ' '}
+    report.check('gynoid: the card lights the cells the splat does (Jaccard over 0.8)',
+                 len(a & b) > 0.8 * len(a | b), '%.2f of %d' % (len(a & b) / len(a | b),
+                                                                len(a | b)))
+
+
 def main():
     report = Report()
+    print('\n-- the gynoid --')
+    test_the_gynoid(report)
     print('\n-- the 3D engine, stage by stage --')
     test_pose(report)
     test_camera(report)

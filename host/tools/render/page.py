@@ -32,6 +32,7 @@ PAGES = {
     'chat': 'terminal.views.show_chat',
     'desk': 'terminal.views.show_desk',
     'gate_drivers': 'terminal.views.show_gate_drivers',
+    'humanoid': 'terminal.views.show_humanoid',
     'orientation': 'terminal.views.show_orientation',
     'render': 'terminal.views.show_render',
     'rotor_observer': 'terminal.views.show_rotor_observer',

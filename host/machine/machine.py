@@ -19,7 +19,7 @@ import time
 from machine.alarms import Alarms
 from machine.controller import Feedback
 from machine.errors import MachineError
-from machine.modes import HARDWARE
+from machine.modes import HARDWARE, VIRTUAL
 from machine.nodes import Nodes
 from machine.parts import Direct
 from machine.routines import TYPES
@@ -156,7 +156,11 @@ class Machine:
 
     @classmethod
     def discover(cls, type, port='COM4', execution_mode=HARDWARE, **kw):
-        """Every board on every bus (`Nodes.discover`), the type over them."""
+        """Every board on every bus (`Nodes.discover`), the type over them; VIRTUAL: the
+        type's own actuators, no board (`machine.virtual`)."""
+        if execution_mode is VIRTUAL:
+            from machine.virtual import body
+            return cls(Nodes(body(type)), type=type, **kw)
         return cls(Nodes.discover(port=port, execution_mode=execution_mode), type=type, **kw)
 
     # -- the run -----------------------------------------------------------------------

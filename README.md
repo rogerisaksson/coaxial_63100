@@ -16,9 +16,11 @@ python -m pip install -e host/                                # once: every scri
 
 Views (`host/terminal/pages/`, one module each): session, imu (attitude),
 angle, adc (meter bridge), gate_drivers (the one that switches), rotor
-observer, thermal observer, chat. `-Simulated` needs no cable; `-Frames N`
-ends a view after N frames. In a view: Q quits, ESC returns to the front
-page.
+observer, thermal observer, humanoid (a gynoid walking on virtual
+actuators), chat. `-Simulated` needs no cable; `-Frames N` ends a view after
+N frames. In a view: Q quits, ESC returns to the front page. The 3D pages
+raster on the GPU where a card answers (wgpu); `COAXIAL_GPU=0` keeps them on
+the CPU.
 
 ## Library
 

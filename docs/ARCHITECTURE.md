@@ -70,7 +70,8 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     node_hz: a feedback its node runs, the host forwarding),
                     routines (types: a body of subsystems, a bus each), live
                     (fed a line at a time, a buffer, woken with a line, a
-                    failsafe), simulated (pack, camera)
+                    failsafe), simulated (pack, camera), virtual (VIRTUAL: a
+                    type's joints where told, no board), gait (a walk's angles)
 coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory;
                     node (the family for machine: Coaxial node, joint, surface,
                     rotor, torque); profiles/ (a motor's drive record and
@@ -83,7 +84,9 @@ coaxial/model/      inverter, thermal network, sensorless, blocks (the
                     control loops as sim blocks around motor.pmsm)
 coaxial/control/    motion, commission: procedures on a rig
 coaxial/draw/       2D drawings: dials, gauges, cross_section, thermal map
-coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
+coaxial/graphics/   board renderer (wireframe pipeline + one module per concern);
+                    gpu (the raster and a lit mesh on a card, wgpu; the crew
+                    where none), gynoid (the humanoid's body, posed and lit)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c),
                     observer
 coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/

@@ -267,18 +267,21 @@ def _draw(view, width, height):
 
     return wireframe.render(view['pose'], width, height, zoom=view['zoom'],
                             horizon=False, tip=0.0, lift=0.5,
-                            least=wireframe.CREW_LEAST)
+                            least=wireframe.CREW_LEAST, crew=_STAGE.get('crew'))
 
 
 #: The turntable's solids build off the frame loop: the page is up in the
 #: import's 0.3 s and the board arrives when the parse and two decimations
 #: are done; drawn inline, the first frame waited 2.0 s, the parse twice.
-_STAGE = {'ready': False}
+_STAGE: dict = {'ready': False}
 
 
 def _warm():
     try:
         _draw({'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM}, 8, 4)
+        # On the card where one answers: 64 ms a frame at 52x18 on the CPU (2026-09-25).
+        from coaxial.graphics import gpu, shading
+        _STAGE['crew'] = gpu.card_crew(art=shading._face())
     finally:
         _STAGE['ready'] = True
 

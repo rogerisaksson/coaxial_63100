@@ -21,17 +21,23 @@ def _load(solids, art):
 
 
 def _band(job) -> tuple:
-    """One strip: the dot-resolution raster, fold to cells, shade - all
-    of a cell's work that needs no neighbour."""
+    """One strip: the dot-resolution raster, then `cells`."""
     which, m, cam, beam, sun_min, band, shading = job
     first, last = band
-    rows = last - first
-    width = cam['width']
-    fine = engine.fine(cam)
-    depth, top, sun = engine.raster(_Worker.bodies[which], m, fine, beam=beam,
+    depth, top, sun = engine.raster(_Worker.bodies[which], m, engine.fine(cam), beam=beam,
                                     sun_min=sun_min,
                                     band=(engine.DOTS_Y * first,
                                           engine.DOTS_Y * last))
+    return cells(depth, top, sun, m, cam, band, shading, _Worker.art)
+
+
+def cells(depth, top, sun, m, cam, band, shading, face_art) -> tuple:
+    """A strip's dot raster to its cells: fold, and shade under `shading` -
+    all of a cell's work that needs no neighbour. The crew's workers and
+    `gpu.GpuCrew` alike."""
+    first, last = band
+    rows = last - first
+    width = cam['width']
     depth, top, sun, coverage, reached = engine.fold(depth, top, sun, width,
                                                      rows)
     if shading is None:
@@ -44,7 +50,7 @@ def _band(job) -> tuple:
     n = width * rows
     levels, bare, seed = [0.0] * n, [0.0] * n, [0.0] * n
     classes = engine.shade(depth, top, sun, strip, m, pivot, slope, floor,
-                           art=_Worker.art if art else None, shadow=shadow,
+                           art=face_art if art else None, shadow=shadow,
                            shadow_step=shadow_step, bias=bias,
                            levels=levels, bare=bare, seed=seed,
                            planes=planes)
