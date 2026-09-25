@@ -13,7 +13,6 @@ through the monitor. Skips without Renode or a built image, unless COAXIAL_EMULA
 import os
 import subprocess
 import sys
-import time
 import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -79,7 +78,7 @@ def test_the_injected_triple_runs(report, rig, emu):
         seen = []
         for volts in (12.0, 36.0):
             emu.command('%s DcBusVolts %g' % (AFE, volts))
-            time.sleep(2.0)
+            b.transport.sleep(0.05)                 # of the board's: 2 500 periods
             seen.append(b.gate_drivers.state())
     finally:
         b.gate_drivers.configure(sync=False)
@@ -103,7 +102,7 @@ def test_the_angle_sensor_reads(report, rig, emu):
         got = []
         for degrees in (30.0, 250.0):
             emu.command('%s Degrees %g' % (ANGLE, degrees))
-            time.sleep(1.5)
+            b.transport.sleep(0.05)
             got.append((degrees, b.angle.state().get('degrees')))
     finally:
         b.afe.off()
@@ -120,11 +119,11 @@ def test_the_imu_answers(report, rig, emu):
     rig.board.afe.on()
     try:
         emu.command('%s AccelZ 3.5' % IMU)
-        time.sleep(1.5)
+        rig.board.transport.sleep(0.2)
         with imu.configuring():
             ident = imu.product_id()
         imu.configure({ACCELEROMETER: 20000})
-        time.sleep(1.5)
+        rig.board.transport.sleep(0.2)               # ten reports at 20 ms
         accel = (imu.state().get('accelerometer') or {}).get('value') or {}
     finally:
         rig.board.afe.off()

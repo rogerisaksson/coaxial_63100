@@ -2,7 +2,7 @@
 #: The knob flipped at the bench.
 KNOB = """from coaxial import ExecutionMode
 
-MODE = ExecutionMode.SIMULATED   # .HARDWARE, and PORT, at the bench; .EMULATED: the image on Renode
+MODE = ExecutionMode.EMULATED   # the image on Renode, the stand-in where none runs; .HARDWARE and PORT at the bench
 PORT = 'COM4'"""
 
 OPEN = """from coaxial import Coaxial63100

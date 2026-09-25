@@ -199,8 +199,11 @@ for name, (at, holds) in holdable.items():
         'The tour: the room, the air path and the capacity identified',
         md("The stand-in's ground truth: a room, an air-path scale, a capacity scale, "
            'identified by `coaxial/kalman/thermal_ident.py` (mirrors `thermal_ident.c`). '
-           'Rooms 20, -25, 45 C; load 2 min at 30 A, 4 idle; 150 model minutes.'),
-        code('''truth = observer.situation('tour')
+           'Rooms 20, -25, 45 C; load 2 min at 30 A, 4 idle; 150 model minutes - the '
+           "stand-in's whatever MODE is: no board or emulated MCU runs ahead."),
+        code('''standin = device if device.simulated else Coaxial63100(execution_mode=ExecutionMode.SIMULATED).open()
+observer = standin.thermal
+truth = observer.situation('tour')
 print('the board, switched on at %.0f C, carried into %s at %.0f C' % (thermal.AMBIENT, truth['situation'], truth['ambient']))
 print('rooms on the tour: ' + ', '.join('%s %.0f C' % (name, observer.SITUATIONS[name]['ambient'])
                                         for name in observer.TOUR))
@@ -274,23 +277,25 @@ show(fig)'''),
         code('''print('load cycle off:', observer.load_cycle(0))
 truth = observer.situation('cold')
 print('carried into %s at %.0f C' % (truth['situation'], truth['ambient']))
-print('stage armed:', device.gates.on(bypass_sto=True, ignore_interlock=True)['pwm_enabled'])
+print('stage armed:', standin.gates.on(bypass_sto=True, ignore_interlock=True)['pwm_enabled'])
 cooked = {'amps': (200.0, 200.0, 200.0), 'switching': True}
 idle = {'amps': (0.0, 0.0, 0.0), 'switching': False}
 trace = []
 for minute in range(1, 41):
     observer.fast_forward(60.0, seen=cooked if minute <= 2 else idle, live=True)
     b, got = observer.budget(), observer.identification()
-    armed = device.gates.is_on()
+    armed = standin.gates.is_on()
     trace.append((minute, got['margin'], b['trips'], got['trip_cap'], armed))
     if minute in (1, 2, 3, 5, 10, 20, 30, 40):
         print('minute %2d: trips %d, stage armed %-5s worst %.2f of the span in force, '
               'trip cap %.2f, margin %.2f, %s'
               % (minute, b['trips'], armed, b['worst'], got['trip_cap'],
                  got['margin'], got['state']))
-released = device.gates.off()
+released = standin.gates.off()
 print('released: pwm_enabled %s, break_bypassed %s'
-      % (released['pwm_enabled'], released['break_bypassed']))'''),
+      % (released['pwm_enabled'], released['break_bypassed']))
+if standin is not device:
+    standin.close()'''),
         ),
 ]
 
