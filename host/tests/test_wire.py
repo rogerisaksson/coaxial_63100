@@ -5,9 +5,11 @@ A rig on `fakeboard://` (tools.cores.fakeboard): what answers is comms/ - the Mo
 slave, the command tables, every handler - built with the host's compiler over a board
 that answers neutrally. Every client's reads decode what the firmware encodes and its
 settings are taken: a disagreement between the two sides of the wire fails here, not on
-the bench.
+the bench. The record is the board's own (board_cal.c over a RAM sector), and the bench's
+conformance suite runs over the same fake.
 """
 import os
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15,6 +17,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import Coaxial63100  # noqa: E402
 from tools.cores import fakeboard  # noqa: E402
 from tools.cores.build import find_cc  # noqa: E402
+
+CONFORMANCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_conformance.py')
+#: 18 s measured on the laptop (2026-09-25), the harness's settle sleeps.
+CONFORMANCE_S = 120
 
 
 class Report:
@@ -105,6 +111,32 @@ def test_the_wire_refuses(report, rig):
                  not wrong, str(wrong) if wrong else '')
 
 
+def test_the_record_survives_a_save(report, rig):
+    """An edit is volatile until saved; a load reads back what was saved."""
+    cal = rig.board.calibration
+    cal.set_channel(0, 12, 345)
+    cal.save()
+    cal.set_channel(0, 0, 0)
+    cal.load()
+    got = cal.read()
+    report.check('the record saved, edited and loaded reads back the save',
+                 got['stored'] and got['channels'][0] == {'index': 0, 'offset_raw': 12,
+                                                          'gain_ppm': 345},
+                 str(got['channels'][0]))
+
+
+def test_the_bench_conformance_holds(report, rig):
+    """Every check the bench's conformance suite makes of a board, in a process of its own:
+    one fake board a process."""
+    done = subprocess.run([sys.executable, '-X', 'utf8', CONFORMANCE, '--port', 'fakeboard://'],
+                          capture_output=True, text=True, encoding='utf-8',
+                          timeout=CONFORMANCE_S)
+    lines = done.stdout.strip().splitlines() or ['no output: ' + done.stderr.strip()[-200:]]
+    failed = [line.strip() for line in lines if line.strip().startswith('FAIL')]
+    report.check('the bench conformance suite holds over fakeboard://',
+                 done.returncode == 0, '; '.join([lines[-1]] + failed[:3]))
+
+
 def main():
     report = Report()
     if find_cc() is None:
@@ -114,7 +146,8 @@ def main():
     rig = Coaxial63100(port='fakeboard://', own_image=False).open()
     try:
         for test in (test_the_rig_opens_on_the_firmware, test_every_read_decodes,
-                     test_settings_are_taken, test_the_wire_refuses):
+                     test_settings_are_taken, test_the_wire_refuses,
+                     test_the_record_survives_a_save, test_the_bench_conformance_holds):
             print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
             test(report, rig)
     finally:

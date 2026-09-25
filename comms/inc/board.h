@@ -6,6 +6,7 @@
 #include "board/clock.h"
 #include "board/adc.h"
 #include "board/cal.h"
+#include "board/flash.h"
 #include "board/pwm.h"
 #include "board/sync.h"
 #include "board/log.h"

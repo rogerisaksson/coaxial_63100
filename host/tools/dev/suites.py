@@ -257,8 +257,8 @@ TOUCHES = (
     ('host/tools/sim/montecarlo.py',           (STRUCTURE, DRIVE)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
-    ('comms/',                                 (CONFORMANCE, 'test_mcp.py', BENCH)),
-    ('board/',                                 (CONFORMANCE, 'test_mcp.py',
+    ('comms/',                                 (WIRE, CONFORMANCE, 'test_mcp.py', BENCH)),
+    ('board/',                                 (WIRE, CONFORMANCE, 'test_mcp.py',
                                                 'test_parity.py', BENCH)),
     ('core/',                                  (CONFORMANCE, BENCH)),
     # The observer and its envelope are hardware-free like the filter, so the

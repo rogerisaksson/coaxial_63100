@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "board/pwm.h"
 
 #ifdef __cplusplus
 extern "C" {

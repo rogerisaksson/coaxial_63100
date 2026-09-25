@@ -2,9 +2,11 @@
 """Independent Modbus RTU master, used to conformance-test the firmware
 slave.
 """
+import os
 import struct
 import sys
 import time
+from typing import TypeGuard
 
 import serial
 
@@ -44,8 +46,8 @@ class Bus:
         self.s = None
         for attempt in range(20):
             try:
-                self.s = serial.Serial(port, baud, bytesize=8, parity='N',
-                                       stopbits=1, timeout=REPLY_TIMEOUT)
+                self.s = serial.serial_for_url(port, baud, bytesize=8, parity='N',
+                                               stopbits=1, timeout=REPLY_TIMEOUT)
                 break
             except serial.SerialException:
                 if attempt == 19:
@@ -95,6 +97,11 @@ def parse(reply: bytes):
         return None
     body, crc_rx = reply[:-2], struct.unpack('<H', reply[-2:])[0]
     return reply[0], reply[1], body[2:], crc_rx == crc16(body)
+
+def answered(p) -> TypeGuard[tuple]:
+    """Whether a parsed reply is an answer to parse: there, its CRC good, and not an
+    exception - whose one byte is a code, not data."""
+    return p is not None and p[3] and not p[1] & 0x80
 
 # ---- PDU builders -------------------------------------------------------
 def pdu_read(fc, addr, qty):      return struct.pack('>BHH', fc, addr, qty)
@@ -364,7 +371,7 @@ def cal_tests(run):
     print(chr(10) + '-- 0x6E device 3, the calibration record --')
     r = b.request(bytes([0x6E, 3, 0]))
     p = parse(r)
-    if p is None or not p[3]:
+    if not answered(p):
         return run.check('device 3 op 0 answers', False,
                          'bad reply %s' % r.hex(' '))
 
@@ -444,7 +451,7 @@ def map_tests(run):
     print('\n-- input registers, semantic cross-checks --')
     r = b.request(pdu_read(0x04, 0x0020, 4))
     p = parse(r)
-    if p is None or not p[3]:
+    if not answered(p):
         run.check('FC04 clock registers', False, 'bad reply %s' % r.hex(' '))
     else:
         v = regs_from(p[2])
@@ -455,7 +462,7 @@ def map_tests(run):
 
     r = b.request(pdu_read(0x04, 0x0000, 7))
     p = parse(r)
-    if p is None or not p[3]:
+    if not answered(p):
         run.check('FC04 seven ADC channels', False, 'bad reply %s' % r.hex(' '))
     else:
         v = regs_from(p[2])
@@ -466,7 +473,7 @@ def map_tests(run):
     print('\n-- holding registers --')
     r = b.request(pdu_read(0x03, 0x0000, 2))
     p = parse(r)
-    if p is None or not p[3]:
+    if not answered(p):
         run.check('FC03 holding 0..1', False, 'bad reply %s' % r.hex(' '))
     else:
         v = regs_from(p[2])
@@ -527,7 +534,7 @@ def map_tests(run):
 
     print('\n-- scaled physical quantities (AFE on) --')
     p = parse(b.request(pdu_read(0x04, 0x0010, 2)))
-    if p is None or not p[3]:
+    if not answered(p):
         run.check('FC04 dcbus + ntc', False, 'bad reply')
     else:
         v = regs_from(p[2])
@@ -571,7 +578,7 @@ def map_tests(run):
                          pdu_w_multi_reg(0x0000, [99, 999]), 0x10, 0x03)
     r = b.request(pdu_read(0x03, 0x0000, 1))
     p = parse(r)
-    unit_unchanged = p is not None and p[3] and regs_from(p[2]) == [1]
+    unit_unchanged = answered(p) and regs_from(p[2]) == [1]
     run.check('and unit id was not changed by the refused write',
               unit_unchanged,
               'got %s' % (r.hex(' ') if r else '<silence - unit id may have changed>'))
@@ -609,12 +616,12 @@ def map_tests(run):
     time.sleep(0.3)
     p = parse(b.request(pdu_read(0x01, 0x0000, 1)))
     run.check('broadcast write took effect',
-              p is not None and p[3] and coils_from(p[2], 1)[0] is True,
-              'coil now %s' % (coils_from(p[2], 1)[0] if p and p[3] else '?'))
+              answered(p) and coils_from(p[2], 1)[0] is True,
+              'coil now %s' % (coils_from(p[2], 1)[0] if answered(p) else '?'))
 
     print('\n-- diagnostic counters --')
     p = parse(b.request(pdu_read(0x04, 0x0030, 12)))
-    if p is None or not p[3]:
+    if not answered(p):
         run.check('FC04 counters', False, 'bad reply')
     else:
         v = regs_from(p[2])
@@ -651,7 +658,14 @@ def board_answers(port=PORT, baud=BAUD, unit=SLAVE):
 if __name__ == '__main__':
     print(selftest_crc())
     offline = len(sys.argv) > 1 and sys.argv[1] == '--offline'
-    if not offline and not board_answers():
+    # --port fakeboard:// conforms the firmware's comms/ built for this host
+    # (tools.cores.fakeboard); any other port is a board's.
+    if '--port' in sys.argv:
+        PORT = sys.argv[sys.argv.index('--port') + 1]
+        if PORT.startswith('fakeboard://'):
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            import tools.cores.fakeboard  # noqa: F401 - the scheme
+    if not offline and not board_answers(PORT):
         offline = True
         print('no board on %s - the bus tests need firmware to conform to '
               'and cannot be simulated' % PORT)
@@ -661,7 +675,7 @@ if __name__ == '__main__':
         # having crashed before it could print its own numbers.
         print(chr(10) + '1 passed, 0 failed')
         sys.exit(0)
-    bus = Bus()
+    bus = Bus(PORT)
     run = Runner(bus)
     try:
         enter_modbus(bus)

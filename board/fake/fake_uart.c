@@ -2,6 +2,7 @@
 
 /* Bytes in from the host at 115200's pace, a frame out to it, a clock of one tick a
    microsecond that the exchange steps. */
+#include "board/cal.h"
 #include "dev_serial.h"
 #include "link.h"
 
@@ -96,17 +97,22 @@ const char *dev_uart_name(uint8_t index)
   return index < DEV_UART_COUNT ? names[index] : "?";
 }
 
+/* USART2 and UART5 are the RS485 pair: their receivers hear their own transmission, so
+   an echo matches all four patterns. */
 bool dev_uart_rs485(uint8_t index)
 {
-  (void)index;
-  return false;
+  return (index != LINK_CONSOLE) && (index < DEV_UART_COUNT);
 }
 
 uint8_t dev_uart_echo(uint8_t index, uint8_t *seen)
 {
-  (void)index;
-  (void)seen;
-  return 0U;
+  bool heard = dev_uart_rs485(index);
+
+  if (seen != NULL)
+  {
+    *seen = heard ? 4U : 0U;
+  }
+  return heard ? 0x0FU : 0U;
 }
 
 uint32_t dev_uart_dropped(uint8_t index)
@@ -128,9 +134,10 @@ uint32_t dev_uart_port_baud(uint8_t index)
 
 /* The host's side, through ctypes. */
 
-/** The stack up and the console port in binary mode, as a host's 'm' leaves it. */
+/** The record and the stack up, the console port in binary mode, as a host's 'm' leaves it. */
 void fake_open(void)
 {
+  Board_CalInit();
   memset(s_port, 0, sizeof s_port);
   s_clock = 0U;
   link_init();

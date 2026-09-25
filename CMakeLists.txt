@@ -75,6 +75,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     board/src/board_selftest.c
     board/src/board_io.c
     board/src/board_cal.c
+    board/src/board_flash.c
     board/src/board_pwm.c
     board/src/board_sync.c
     board/src/board_sto.c
@@ -128,7 +129,7 @@ set(COAXIAL_SOURCES
     filter/src/filter.c ctrl/src/ctrl.c
     board/src/board_adc.c board/src/board_clock.c board/src/board_selftest.c
     board/src/board_io.c board/src/board_imu.c board/src/board_angle.c
-    board/src/board_cal.c
+    board/src/board_cal.c board/src/board_flash.c
     board/src/board_pwm.c
     board/src/board_sync.c
     board/src/board_sto.c board/src/board_log.c

@@ -9,9 +9,10 @@
 The host's Python under coverage.py, followed into every suite's process
 (`[tool.coverage.run]`); the portable C cores under gcov, built with
 COAXIAL_GCOV by `tools.cores.build`, and comms/ with them - built for this host over the
-fake board (tools.cores.fakeboard). Not counted: the CubeMX code - core/, startup_*.s,
-cmake/stm32cubemx/, the HAL - which is generated; board/, which runs on the target only
-and is the bench's conformance suite's, and its fake, which is scaffolding. tools/ is
+fake board (tools.cores.fakeboard), and what of board/ that builds (HOSTED). Not counted:
+the CubeMX code - core/, startup_*.s, cmake/stm32cubemx/, the HAL - which is generated; the
+rest of board/, which runs on the target only and is the bench's conformance suite's, and
+the fake, which is scaffolding. tools/ is
 shown apart, a folder a line, each with what runs it (TOOLS), and left out of the totals:
 the product is the rest.
 """
@@ -23,6 +24,7 @@ import subprocess
 import sys
 
 from tools import REPO
+from tools.cores import fakeboard
 from tools.cores.build import OUT
 from tools.dev.suites import ROOT
 
@@ -33,6 +35,10 @@ C_JSON = os.path.join(WHERE, 'c.json')
 
 #: The portable cores, as their directories under the repo.
 CORES = ('modbus', 'drive', 'thermal', 'filter', 'daq', 'shtp', 'boot', 'ctrl', 'comms')
+
+#: board/ as the fake board builds it.
+HOSTED = tuple(name for name in (os.path.relpath(p, REPO).replace('\\', '/')
+                                 for p in fakeboard.SOURCES) if name.startswith('board/src/'))
 
 #: tools/ by folder, and what runs each: a folder not named here is run by hand.
 TOOLS = {'tools/bench': 'a board', 'tools/target': 'a board', 'tools/thermal': 'a board',
@@ -73,10 +79,11 @@ def c_lines():
             if not line.startswith('{'):
                 continue
             for record in json.loads(line)['files']:
-                source = os.path.relpath(os.path.join(REPO, record['file']), REPO)
-                if source.replace('\\', '/').split('/')[0] not in CORES:
+                source = os.path.relpath(os.path.join(REPO, record['file']),
+                                         REPO).replace('\\', '/')
+                if source.split('/')[0] not in CORES and source not in HOSTED:
                     continue
-                seen = hit.setdefault(source.replace('\\', '/'), {})
+                seen = hit.setdefault(source, {})
                 for entry in record['lines']:
                     at = entry['line_number']
                     seen[at] = seen.get(at, 0) + entry['count']

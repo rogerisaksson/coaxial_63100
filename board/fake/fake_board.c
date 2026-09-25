@@ -3,7 +3,8 @@
 /* No part fitted, nothing read, every out-parameter zeroed, every setting taken (a NULL
    refusal): so the offline suites drive comms/ through its own wire
    (tools/cores/fakeboard.py). Generated once from the prototypes; what a check needs is
-   answered by hand here - the AFE rail and the PWM below. */
+   answered by hand here - the AFE rail, the PWM, the channel table, the raw codes and
+   the clocks. The record is board/src/board_cal.c over fake_flash.c. */
 #include "board/adc.h"
 #include "board/angle.h"
 #include "board/cal.h"
@@ -33,9 +34,42 @@
 
 static struct
 {
-  uint8_t users;
-  bool    pwm_enabled;
+  uint8_t  users;
+  bool     pwm_enabled;
+  uint32_t noise;
 } s;
+
+/* A raw code as the rail leaves it: the AFE off, the reference unpowered and every code
+   exact mid-scale; on, 1..8 codes of noise above it. */
+#define FAKE_MID_CODE 32768
+
+static int32_t fake_code(void)
+{
+  if (s.users == 0U)
+  {
+    return FAKE_MID_CODE;
+  }
+  s.noise = (s.noise * 1664525U) + 1013904223U;
+  return FAKE_MID_CODE + 1 + (int32_t)(s.noise >> 29);
+}
+
+/* The board's facts, as board/src/board_adc.c's table and the clock tree have them: the
+   channels in the table's order, SYSCLK 475 MHz with HCLK half of it. */
+#define FAKE_SYSCLK_HZ 475000000U
+
+static const board_chan_t s_chan[] =
+{
+  { 3U, 1U,  "PC3_C/PC2_C", true,  "Phase U", BOARD_UNIT_MILLIAMP  },
+  { 1U, 3U,  "PA6/PA7",     true,  "Phase V", BOARD_UNIT_MILLIAMP  },
+  { 2U, 4U,  "PC4/PC5",     true,  "Phase W", BOARD_UNIT_MILLIAMP  },
+  { 2U, 5U,  "PB1",         false, "Clevel",  BOARD_UNIT_NONE      },
+  { 1U, 9U,  "PB0",         false, "NTC",     BOARD_UNIT_CENTIDEGC },
+  { 3U, 10U, "PC0",         false, "DC bus",  BOARD_UNIT_MILLIVOLT },
+  { 3U, 11U, "PC1",         false, "Cinj",    BOARD_UNIT_NONE      },
+  { 1U, 18U, "PA4",         false, "+5V",     BOARD_UNIT_MILLIVOLT },
+  { 1U, 19U, "PA5",         false, "Vgate",   BOARD_UNIT_MILLIVOLT },
+  { 3U, 18U, "internal",    false, "MCU die", BOARD_UNIT_CENTIDEGC },
+};
 
 bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us, board_burst_t *out, uint8_t *count, uint32_t *elapsed_us)
 {
@@ -59,11 +93,11 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us, board
 
 bool Board_AdcChan(uint8_t index, board_chan_t *info)
 {
-  (void)index;
-  if (info != NULL)
+  if ((index >= Board_AdcCount()) || (info == NULL))
   {
-    memset(info, 0, sizeof *info);
+    return false;
   }
+  *info = s_chan[index];
   return true;
 }
 
@@ -74,7 +108,7 @@ uint32_t Board_AdcClockHz(void)
 
 uint8_t Board_AdcCount(void)
 {
-  return (uint8_t)0;
+  return (uint8_t)(sizeof s_chan / sizeof s_chan[0]);
 }
 
 bool Board_AdcNoise(uint8_t adc_index, uint16_t samples, int32_t *mean_uv, int32_t *min_raw, int32_t *max_raw, uint32_t *span_raw, uint32_t *stddev_uv)
@@ -106,19 +140,12 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples, int32_t *mean_uv, int32
 
 bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *scaled)
 {
-  (void)index;
-  if (raw != NULL)
+  if ((index >= Board_AdcCount()) || (raw == NULL) || (microvolts == NULL) || (scaled == NULL))
   {
-    memset(raw, 0, sizeof *raw);
+    return false;
   }
-  if (microvolts != NULL)
-  {
-    memset(microvolts, 0, sizeof *microvolts);
-  }
-  if (scaled != NULL)
-  {
-    memset(scaled, 0, sizeof *scaled);
-  }
+  *raw = fake_code();
+  *microvolts = *scaled = 0;
   return true;
 }
 
@@ -204,91 +231,6 @@ bool Board_AngleWrite(uint8_t reg, uint8_t value)
 
 void Board_BootStay(void)
 {
-}
-
-const board_cal_t * Board_Cal(void)
-{
-  static board_cal_t none;
-  return &none;
-}
-
-bool Board_CalChannel(uint8_t index, int32_t *offset_raw, int32_t *gain_ppm)
-{
-  (void)index;
-  if (offset_raw != NULL)
-  {
-    memset(offset_raw, 0, sizeof *offset_raw);
-  }
-  if (gain_ppm != NULL)
-  {
-    memset(gain_ppm, 0, sizeof *gain_ppm);
-  }
-  return true;
-}
-
-void Board_CalDefaults(void)
-{
-}
-
-bool Board_CalGetParam(uint8_t id, uint32_t *value)
-{
-  (void)id;
-  if (value != NULL)
-  {
-    memset(value, 0, sizeof *value);
-  }
-  return true;
-}
-
-bool Board_CalLoad(void)
-{
-  return false;
-}
-
-bool Board_CalSave(void)
-{
-  return false;
-}
-
-bool Board_CalSetChannel(uint8_t index, int32_t offset_raw, int32_t gain_ppm)
-{
-  (void)index;
-  (void)offset_raw;
-  (void)gain_ppm;
-  return false;
-}
-
-bool Board_CalSetParam(uint8_t id, uint32_t value)
-{
-  (void)id;
-  (void)value;
-  return false;
-}
-
-bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
-{
-  (void)index;
-  (void)reference;
-  if (measured != NULL)
-  {
-    memset(measured, 0, sizeof *measured);
-  }
-  return true;
-}
-
-bool Board_CalStored(void)
-{
-  return false;
-}
-
-bool Board_CalZero(uint8_t index, int32_t *measured)
-{
-  (void)index;
-  if (measured != NULL)
-  {
-    memset(measured, 0, sizeof *measured);
-  }
-  return true;
 }
 
 void Board_CtrlClear(void)
@@ -588,7 +530,7 @@ void Board_DriveWindowTake(drive_window_t *out)
 
 uint32_t Board_HclkHz(void)
 {
-  return (uint32_t)0;
+  return FAKE_SYSCLK_HZ / 2U;
 }
 
 board_identity_t Board_Identity(void)
@@ -1017,7 +959,7 @@ uint16_t Board_SyncTrigger(void)
 
 uint32_t Board_SysClkHz(void)
 {
-  return (uint32_t)0;
+  return FAKE_SYSCLK_HZ;
 }
 
 uint8_t Board_SysClkSource(void)
@@ -1234,5 +1176,31 @@ bool testrig_port_write(char port, uint16_t mask, uint16_t value)
   (void)port;
   (void)mask;
   (void)value;
+  return false;
+}
+
+/* Zero and span are board_adc.c's: they read the ADC. Zero takes the code as the offset;
+   nothing the fake reads is a current or a voltage, so no span factor exists. */
+bool Board_CalZero(uint8_t index, int32_t *measured)
+{
+  int32_t offset = 0;
+  int32_t gain = 0;
+
+  if ((measured == NULL) || !Board_CalChannel(index, &offset, &gain))
+  {
+    return false;
+  }
+  *measured = fake_code();
+  return Board_CalSetChannel(index, *measured, gain);
+}
+
+bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
+{
+  (void)index;
+  (void)reference;
+  if (measured != NULL)
+  {
+    *measured = 0;
+  }
   return false;
 }
