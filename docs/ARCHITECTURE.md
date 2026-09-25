@@ -13,8 +13,9 @@ board/    this hardware; API in comms/inc/board.h -> comms/inc/board/<x>.h
           (tools/cores/fakeboard.py, tests/test_wire.py, the conformance
           suite through it)
           board/emu/: the board on Renode's STM32H753 for the image itself -
-          twenty-input ADCs, the AFE from the electronics and LTspice, the
-          RS485 echo, the console's wire (tools/emu, tests/test_emulator.py)
+          the ADCs (injected on TIM1's TRGO2), the AFE from the electronics and
+          LTspice, the A1335, the BNO085, the plant, the RS485 echo, the
+          console's wire (tools/emu, tests/test_emulator.py)
 comms/    cmd.c tables -> cmd_<device>.c handlers (rd_t in, wr_t out, wire.c)
           link.c: which port, console or Modbus; dev_uart.c: the only USART code
           cmd_length.c: request-length oracle for modbus_rtu.c

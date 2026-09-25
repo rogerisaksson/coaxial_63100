@@ -178,9 +178,14 @@ def scan(units=range(1, 17), port='COM4', baud=115200):
         return []
 
     boards = connect([(unit, baud, port) for unit in wanted], verify=False)
+    # An emulator names the units it runs: an absent one's silence would cost the reply
+    # timeout times its time scale.
+    present = getattr(getattr(boards[0].transport, 'serial', None), 'units', None)
     found = []
     try:
         for board in boards:
+            if present is not None and board.unit not in present:
+                continue
             try:
                 found.append((board.unit, board.probe()))
             except RigError:

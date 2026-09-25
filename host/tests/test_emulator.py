@@ -13,6 +13,7 @@ through the monitor. Skips without Renode or a built image, unless COAXIAL_EMULA
 import os
 import subprocess
 import sys
+import time
 import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -27,6 +28,8 @@ from tools.emu.emulator import (BOOT_ELF, ELF, FAITHFUL_MIPS, Emulator, Limb,  #
                                 find_renode)
 
 AFE = 'sysbus.gpioPortB.afe'
+ANGLE = 'sysbus.spi4.angle'
+IMU = 'sysbus.spi2.imu'
 
 
 def test_the_bench_conformance_holds(report, emu):
@@ -64,6 +67,70 @@ FALLS_BACK = '''from coaxial import EMULATED, Coaxial63100
 rig = Coaxial63100(execution_mode=EMULATED).open()
 print(rig.simulated, rig.origin.label)
 rig.close()'''
+
+
+def test_the_injected_triple_runs(report, rig, emu):
+    """The sync armed: the injected triple counts once a PWM period on TIM1's TRGO2, and rank 2
+    on ADC3 follows the DC link as the front end is fed it."""
+    b = rig.board
+    b.afe.on()
+    try:
+        b.gate_drivers.configure(sync=True)
+        seen = []
+        for volts in (12.0, 36.0):
+            emu.command('%s DcBusVolts %g' % (AFE, volts))
+            time.sleep(2.0)
+            seen.append(b.gate_drivers.state())
+    finally:
+        b.gate_drivers.configure(sync=False)
+        emu.command('%s DcBusVolts 0' % AFE)
+        b.afe.off()
+    first, last = seen
+    report.check('the injected triple counts on TRGO2 while the sync is armed',
+                 last['sync_armed'] and last['updates'] > first['updates'] > 0,
+                 '%d then %d triples' % (first['updates'], last['updates']))
+    report.check('its rank 2 follows the DC link fed in',
+                 (last['dcbus_raw'] or 0) > (first['dcbus_raw'] or 0),
+                 '12 V -> %s, 36 V -> %s' % (first['dcbus_raw'], last['dcbus_raw']))
+
+
+def test_the_angle_sensor_reads(report, rig, emu):
+    """The A1335 on SPI4: the shaft's angle, set, read back through the firmware's poll to its
+    twelve bits."""
+    b = rig.board
+    b.afe.on()
+    try:
+        got = []
+        for degrees in (30.0, 250.0):
+            emu.command('%s Degrees %g' % (ANGLE, degrees))
+            time.sleep(1.5)
+            got.append((degrees, b.angle.state().get('degrees')))
+    finally:
+        b.afe.off()
+    report.check('the angle sensor reads the shaft, to a count',
+                 all(read is not None and abs(read - want) <= 360.0 / 4096 for want, read in got),
+                 ', '.join('%g -> %s' % pair for pair in got))
+
+
+def test_the_imu_answers(report, rig, emu):
+    """The BNO085 on SPI2: its product id, and the accelerometer reading what it is given."""
+    from coaxial.devices.imu import ACCELEROMETER
+
+    imu = rig.board.imu
+    rig.board.afe.on()
+    try:
+        emu.command('%s AccelZ 3.5' % IMU)
+        time.sleep(1.5)
+        with imu.configuring():
+            ident = imu.product_id()
+        imu.configure({ACCELEROMETER: 20000})
+        time.sleep(1.5)
+        accel = (imu.state().get('accelerometer') or {}).get('value') or {}
+    finally:
+        rig.board.afe.off()
+    report.check('the IMU answers its product id', bool(ident.get('sw_version')), str(ident))
+    report.check('its accelerometer reads what it is given, to a count',
+                 abs(accel.get('z', 0.0) - 3.5) <= 1.0 / 256, str(accel))
 
 
 #: Echoes a blast sends, of the most a frame carries less the envelope.
@@ -137,10 +204,12 @@ def main():
         required = os.environ.get('COAXIAL_EMULATOR') == 'required'
         print('\n%d passed, %d failed' % (report.passed, report.failed + required))
         return int(required or report.failed)
-    with Emulator(monitor=True) as emu:
+    # Renode's own 100 MIPS: nothing here runs to the part's cycle budget.
+    with Emulator(monitor=True, mips=None) as emu:
         print('\n-- the bench conformance holds --')
         test_the_bench_conformance_holds(report, emu)
         rig = Coaxial63100(port=emu.url, own_image=False).open()
+        rig.board.transport.time_scale_source = emu.load
         try:
             for test in (wire.test_every_read_decodes, wire.test_settings_are_taken,
                          wire.test_the_wire_refuses, wire.test_every_verb_answers_or_refuses,
@@ -150,6 +219,10 @@ def main():
                 test(report, rig)
             print('\n-- the front end feeds the image --')
             test_the_front_end_feeds_the_image(report, rig, emu)
+            for test in (test_the_injected_triple_runs, test_the_angle_sensor_reads,
+                         test_the_imu_answers):
+                print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
+                test(report, rig, emu)
             # Last: its boot.stay resets the board 50 ms on.
             print('\n-- acquisition answers or refuses --')
             wire.test_acquisition_answers_or_refuses(report, rig)

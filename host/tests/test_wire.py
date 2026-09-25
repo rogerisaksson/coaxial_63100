@@ -202,6 +202,8 @@ def test_the_acquisition_records_decode(report, rig):
     """board_daq.c on the fake's clock: a software-clocked task's records decode to the
     layout it answered, in time order."""
     b, q = rig.board, rig.board.daq
+    # The converters back from the sync: the sweep's drive.on armed it, and drive.off keeps it.
+    b.gate_drivers.configure(sync=False)
     layout = q.configure(['Phase U', 'DC bus'], sample_rate=1000)
     b.afe.on()
     q.start()

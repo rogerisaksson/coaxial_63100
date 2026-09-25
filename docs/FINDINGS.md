@@ -172,6 +172,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   lost: 47 % of the stream. The DWT counts the core's clock now, and the
   adapter keeps t3.5 + 0.25 ms between the host's frames: none lost. Wall s a
   virtual s at 475 MIPS: app 28, bootloader 10 (2026-09-25).
+- Renode's ADC keeps no JEXTSEL or JEXTEN in JSQR: HAL's InjectedStart refused,
+  and seven papers stopped at "an injected group would not start". board/emu's
+  ADC converts the injected group on TRGO2 (MMS2 1000, OC5REF): 6 032 triples
+  in 2 s, no overrun. At Renode's 100 MIPS the drive's ISR outran its period;
+  the emulator runs the part's 475 (2026-09-25).
+- An armed sync stays armed past drive.off: the meter is the injected group's
+  until gate drivers op 3 gives it back (the emulated wire sweep, 2026-09-25).
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
 - Ollama answered 500 from 2026-09-03 to 09-12: the runner failed to start.
 - Front page model drawn at inner height - 2 and inside a 1-column padding:

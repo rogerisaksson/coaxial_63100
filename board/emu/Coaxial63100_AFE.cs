@@ -7,7 +7,6 @@
 
 using System;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
@@ -183,7 +182,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     }
 
     /// <summary>One ADC input wired to the front end: registered on its ADC at its channel.</summary>
-    public class Coaxial63100_AFEChannel : IRESDSampleSource<VoltageSample>
+    public class Coaxial63100_AFEChannel : ICoaxial63100_AdcInput
     {
         public Coaxial63100_AFEChannel(Coaxial63100_AFE afe, string signal)
         {
@@ -195,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
         }
 
-        public VoltageSample Sample => new VoltageSample((uint)Math.Round(afe.PinVolts(signal) * 1e6));
+        public double Volts => afe.PinVolts(signal);
 
         private readonly Coaxial63100_AFE afe;
         private readonly string signal;

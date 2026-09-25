@@ -7,11 +7,13 @@ $port?=3456
 $console?="console"
 $vtor?=0x30000000
 
-include @board/emu/STM32H7_ADC20.cs
+include @board/emu/Coaxial63100_ADC.cs
 include @board/emu/Coaxial63100_AFE.cs
 include @board/emu/RS485_Transceiver.cs
 include @board/emu/UART_Line.cs
 include @board/emu/RS485_Adapter.cs
+include @board/emu/Coaxial63100_A1335.cs
+include @board/emu/Coaxial63100_BNO085.cs
 include @board/emu/Coaxial63100_Plant.cs
 include @board/emu/FastDWT.cs
 using sysbus

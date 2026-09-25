@@ -66,9 +66,10 @@ FLAG_TERMINATE = 0x01
 #: The 96-bit unique id (UID_BASE): its first word told apart per node.
 UID_AT = 0x1FF1E800
 
-#: The core's instructions a virtual second: Renode's own figure, 100 M, runs 4.75 times the
-#: wall speed of the part's 475 M - which is what a 10 Mbit bus or the drive's 20 us period
-#: needs (a 240 B echo blast at 10 Mbit: 12 of 200 lost at 100, none at 475; 2026-09-25).
+#: The core's instructions a virtual second, the default: the part's 475 M. Renode's own 100 M
+#: runs 4.75 times the wall speed, and neither a 10 Mbit bus nor the drive's 20 us period holds
+#: at it: a 240 B echo blast at 10 Mbit lost 12 of 200, and the drive's ISR (2 922 cycles)
+#: outran its period and starved the link (2026-09-25).
 FAITHFUL_MIPS = 475
 
 #: How far a limb's boards run apart before they wait for each other, s: 100 us held 8 boards
@@ -105,11 +106,12 @@ def free_port():
 class Emulator:
     """One Renode process running `elf`, its console at `url` once `start()` returns."""
 
-    def __init__(self, elf=ELF, port=None, log=None, monitor=None, world=None, mips=None,
-                 boot=False):
+    def __init__(self, elf=ELF, port=None, log=None, monitor=None, world=None,
+                 mips: int | None = FAITHFUL_MIPS, boot=False):
         """`monitor`: a TCP port for Renode's monitor, a free one if None or True;
         `world`: a world's name (board/emu/worlds), its first node this board; `mips`: the
-        core's instructions a virtual second, millions - FAITHFUL_MIPS for the part's own;
+        core's instructions a virtual second, millions, the part's own by default - None for
+        Renode's 100;
         `boot`: the bootloader from flash, blank, waiting for the host to load the image
         over Modbus (docs/BOOT.md) - host and target then run one build."""
         self.boot = boot
@@ -126,6 +128,8 @@ class Emulator:
         self.time_scale = 1.0
         self.url = 'socket://127.0.0.1:%d' % self.port
         self.consoles = [self.port]
+        #: The units its images answer to: the app's 1, none while blank in the bootloader.
+        self.units = () if boot else (1,)
         self.log = log
         self.process = None
 
@@ -166,6 +170,12 @@ class Emulator:
         self._ready(self.process)
         self.measure()
         return self
+
+    def load(self):
+        """Renode's Current load - wall seconds a virtual second, lately - at least 1: the
+        Transport's time scale, asked each transaction."""
+        said = re.search(r'Current load: (\S+)', self.command('emulation GetTimeSourceInfo'))
+        return max(1.0, float(said.group(1))) if said else self.time_scale
 
     def measure(self, seconds=SCALE_S):
         """`time_scale` over `seconds` of wall time, at least 1."""
@@ -238,13 +248,15 @@ class Limb(Emulator):
     unit i at position i, the last closing the termination. `url` is the host's adapter on
     the bus, `consoles` each node's console port; the nodes' machines are node1..nodeN."""
 
-    def __init__(self, nodes, elf=ELF, log=None, monitor=None, world=None, mips=None, baud=None,
-                 boot=False):
+    def __init__(self, nodes, elf=ELF, log=None, monitor=None, world=None,
+                 mips: int | None = FAITHFUL_MIPS,
+                 baud=None, boot=False):
         """`baud`: the bus's rate, bits a second - the app starts at the record's, 115 200, the
         bootloader (`boot`, each node blank until the host loads it) at BOOT_BAUD."""
         super().__init__(elf, log=log, monitor=monitor, world=world, mips=mips, boot=boot)
         self.baud = baud or (BOOT_BAUD if boot else None)
         self.nodes = nodes
+        self.units = () if boot else tuple(range(1, nodes + 1))
         self.consoles = [free_port() for _ in range(nodes)]
 
     def script(self):

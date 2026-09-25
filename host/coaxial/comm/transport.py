@@ -90,6 +90,8 @@ class Transport:
             raise ConnectError('cannot open %s at %d baud: %s'
                                % (port, baud, exc)) from exc
         self.time_scale = getattr(self.serial, 'time_scale', 1.0)
+        #: What says the time scale now, asked each transaction: an emulator's load.
+        self.time_scale_source = getattr(self.serial, 'time_scale_source', None)
         # One transaction at a time on the wire.
         self._wire = threading.RLock()
         #: When the line last went quiet, so t3.5 is only slept for what is
@@ -119,6 +121,13 @@ class Transport:
     def sleep(self, seconds):
         """`seconds` of the board's."""
         time.sleep(seconds * self._time_scale)
+
+    def _rescale(self):
+        """The time scale as its source has it now, where one does."""
+        if self.time_scale_source is not None:
+            scale = self.time_scale_source()
+            if abs(scale - self._time_scale) > 0.1 * self._time_scale:
+                self.time_scale = scale
 
     # -- pyserial failures, translated ------------------------------------
 
@@ -249,6 +258,7 @@ class Transport:
                 timeout=None, reply_shape=None):
         """Send a request and return the reply payload, or raise."""
         with self._wire:
+            self._rescale()
             self.transmit(unit, function, payload)
             reply = self.receive(exact_payload, timeout, reply_shape)
             self._quiet_since = time.monotonic()
@@ -258,6 +268,7 @@ class Transport:
 
     def broadcast(self, function, payload=b'', settle=0.05):
         """Acted on by every slave, answered by none. Nothing to return."""
+        self._rescale()
         self.transmit(BROADCAST, function, payload)
         if settle:
             self.sleep(settle)

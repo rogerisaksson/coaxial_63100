@@ -3,13 +3,14 @@
     Coaxial63100(port='emulator://').open()                  # one board, its console
     Coaxial63100(port='emulator://?nodes=4', unit=3).open()  # a limb: the bus, a unit on it
     Coaxial63100(port='emulator://?world=quad&nodes=4').open()  # on the quad's rotors
-    Coaxial63100(port='emulator://?nodes=2&mips=475&baud=10000000', unit=2).open()  # 10 Mbit
+    Coaxial63100(port='emulator://?nodes=2&baud=10000000', unit=2).open()  # 10 Mbit
+    Coaxial63100(port='emulator://?mips=100').open()         # Renode's own speed, 4.75 x faster
     Coaxial63100(port='emulator://?nodes=1&boot=1').open()   # blank: the host loads its build
     .\\coaxial_tty.ps1 -Port emulator://
 
 One emulator per URL a process (tools.emu.emulator); every open of the URL is a connection
-to it, its `time_scale` measured on the open and the Transport's. COAXIAL_ELF picks the
-image.
+to it, its `time_scale` measured on the open and the Transport's, its `units` what a scan
+probes. COAXIAL_ELF picks the image.
 """
 import atexit
 import urllib.parse
@@ -17,7 +18,7 @@ import urllib.parse
 import serial
 from serial.serialutil import SerialBase
 
-from tools.emu.emulator import Emulator, Limb
+from tools.emu.emulator import FAITHFUL_MIPS, Emulator, Limb
 
 _RUNNING = {}
 
@@ -35,7 +36,7 @@ def emulator_for(url):
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
         nodes = int(query.get('nodes', ['0'])[0])
         world = query.get('world', [None])[0]
-        mips = int(query['mips'][0]) if 'mips' in query else None
+        mips = int(query['mips'][0]) if 'mips' in query else FAITHFUL_MIPS
         baud = int(query['baud'][0]) if 'baud' in query else None
         boot = query.get('boot', ['0'])[0] not in ('0', '')
         emu = (Limb(nodes, world=world, mips=mips, baud=baud, boot=boot) if nodes
@@ -57,6 +58,8 @@ class Serial(SerialBase):
             raise serial.SerialException(str(exc)) from exc
         self._inner = serial.serial_for_url(emu.url, self.baudrate, timeout=self.timeout)
         self.time_scale = emu.measure()
+        self.time_scale_source = emu.load
+        self.units = emu.units
         self.is_open = True
 
     def close(self):

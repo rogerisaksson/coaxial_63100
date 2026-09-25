@@ -1,29 +1,22 @@
 // coaxial_63100_board.repl - The board's models in place of Renode's (coaxial_63100.resc
-// unregisters those): the three ADCs as STM32H7_ADC20 (twenty inputs), the DWT as FastDWT. ADC1 and ADC2 apart: Renode's model answers
-// ADC1 and the common block and drops ADC2's registers at +0x100 (2026-09-25).
-adc1: Analog.STM32H7_ADC20 @ sysbus <0x40022000, +0x100>
+// unregisters those): the three ADCs as Coaxial63100_ADC, their common blocks as memory, the DWT
+// as FastDWT. ADC1 and ADC2 share their interrupt; ADC3's reaches the NVIC through EXTI 75.
+adc1: Analog.Coaxial63100_ADC @ sysbus <0x40022000, +0x100>
     referenceVoltage: 3.3
-    externalEventFrequency: 1000
-    dmaPeripheral: dmamux1
-    dmaChannel: 9
     -> nvic@18
 
-adc2: Analog.STM32H7_ADC20 @ sysbus <0x40022100, +0x100>
+adc2: Analog.Coaxial63100_ADC @ sysbus <0x40022100, +0x100>
     referenceVoltage: 3.3
-    externalEventFrequency: 1000
-    dmaPeripheral: dmamux1
-    dmaChannel: 10
-    -> nvic@18
 
 adc12Common: Memory.ArrayMemory @ sysbus 0x40022300
     size: 0x100
 
-adc3: Analog.STM32H7_ADC20 @ sysbus 0x58026000
+adc3: Analog.Coaxial63100_ADC @ sysbus <0x58026000, +0x100>
     referenceVoltage: 3.3
-    externalEventFrequency: 1000
-    dmaPeripheral: dmamux1
-    dmaChannel: 115
     -> exti@75
+
+adc3Common: Memory.ArrayMemory @ sysbus 0x58026300
+    size: 0x100
 
 // The front end (Coaxial63100_AFE.cs) on AFE_ON, PB2, and the pins it drives, as board_adc.c's
 // table wires them; its phase transfer is coaxial_63100_afe.repl's, from LTspice.
@@ -31,6 +24,7 @@ afe: Analog.Coaxial63100_AFE @ gpioPortB 2
 
 gpioPortB:
     2 -> afe@0
+    12 -> imu@0
 
 phaseU: Analog.Coaxial63100_AFEChannel @ adc3 1
     afe: afe
@@ -78,6 +72,27 @@ die: Analog.Coaxial63100_AFEChannel @ adc3 18
 plant: Analog.Coaxial63100_Plant @ gpioPortE 9
     afe: afe
     tim1: timer1
+    adc1: adc1
+    adc2: adc2
+    adc3: adc3
+    angle: angle
+
+// The A1335 on SPI4, its chip select PE4 (Coaxial63100_A1335.cs): the plant's shaft.
+angle: Sensors.Coaxial63100_A1335 @ spi4
+    afe: afe
+
+gpioPortE:
+    4 -> angle@0
+
+// The BNO085 on SPI2 (Coaxial63100_BNO085.cs): chip select PB12, WAKE PD9 and NRSTN PD10 in,
+// H_INTN out on PD8.
+imu: Sensors.Coaxial63100_BNO085 @ spi2
+    afe: afe
+    Interrupt -> gpioPortD@8
+
+gpioPortD:
+    9 -> imu@1
+    10 -> imu@2
 
 // USART2 and UART5 behind their RS485 transceivers (RS485_Transceiver.cs), each on its DE pin
 // (PA1, PC8).

@@ -23,7 +23,8 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   (docs/BOOT.md). Open work: docs/TODO.md.
 - Emulated: the image on Renode's STM32H753 (`board/emu`, `host/tools/emu`),
   its front end from the schematic and LTspice (`electronic_simulations`,
-  `afe_spice.py`): conformance 110/110; a limb of N boards on one RS485 bus.
+  `afe_spice.py`), the A1335 and BNO085 modelled, 475 MIPS: conformance
+  110/110; a limb of N boards on one RS485 bus.
 
 | Read | Before |
 | --- | --- |
