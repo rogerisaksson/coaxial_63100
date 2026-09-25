@@ -26,9 +26,9 @@ import time
 from coaxial import Coaxial63100
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import mode_of, run_view, say, steady
+from terminal.ui.screen import Feed, mode_of, run_view, say, steady
 from terminal.ui.stage import boot, stage
-from terminal.views.session.blocks import frame
+from terminal.views.session.blocks import frame, snapshot
 from terminal.views.session.run import (Plan, act_on, leave, start_activities,
                                         teardown)
 from terminal.views.session.state import (ACTIVITIES, DEFAULT_DUTY, Session,
@@ -120,8 +120,12 @@ def main():
             session.plan = Plan(a.sequence, a.duty)
         sampled = [time.time()]
 
+        # The round of reads on its own thread: a frame draws at the screen's pace, not the
+        # link's - an emulated board's is several times slower than a real one's.
+        feed = Feed(lambda: snapshot(session), period=0.005).start()
+
         def draw():
-            return frame(session, dashboard, session.note)
+            return frame(session, dashboard, session.note, feed.latest)
 
         def tick():
             # The thermal observer is blind while the stage is armed, so a run
@@ -149,6 +153,7 @@ def main():
                                a.frames, draw, on_input, tick,
                                scroll_keys=False)
         finally:
+            feed.stop()
             print()
             teardown(session, console, 0, hold=leaving != 'menu')
 

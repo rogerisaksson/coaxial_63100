@@ -258,11 +258,10 @@ def dash(session, got):
     return '  ' + '   '.join(bits)
 
 
-def frame(session, console, note):
-    """The dashboard on the stage: dash strip, six instruments, key bar."""
-
-
-    got = snapshot(session)
+def frame(session, console, note, got=None):
+    """The dashboard on the stage: dash strip, six instruments, key bar - off `got`, a round
+    of reads taken elsewhere (a Feed), or one taken here."""
+    got = snapshot(session) if got is None else got
     rows = [[Text.from_ansi(dash(session, got))],
             [adc_block(got), thermal_block(got), bridges_block(got)],
             [dio_block(got), imu_block(got), angle_block(got),
