@@ -71,6 +71,17 @@ python host/tools/target/build_and_flash.py   # --boot flashes the bootloader fi
 
 CI builds both presets and runs the offline suites on every push.
 
+## Coverage
+
+Lines of the hand-written code the offline suites run
+(`python host/tools/dev/cover.py --readme` writes this table). Not counted: the
+CubeMX code - `core/`, `startup_*.s`, `cmake/stm32cubemx/`, the HAL - which is
+generated, and `board/` and `comms/`, which run on the target: the bench's
+conformance suite is theirs.
+
+<!-- coverage -->
+<!-- /coverage -->
+
 ## Docs
 
 [ARCHITECTURE](docs/ARCHITECTURE.md), [PROTOCOL](docs/PROTOCOL.md),

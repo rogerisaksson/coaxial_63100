@@ -4,12 +4,15 @@
     python tools/dev/cover.py              # run, then the table
     python tools/dev/cover.py --files      # and every file under 100 %
     python tools/dev/cover.py --report     # the last run's table, no run
+    python tools/dev/cover.py --readme     # and the table into README.md's section
 
 The host's Python under coverage.py, followed into every suite's process
 (`[tool.coverage.run]`); the portable C cores under gcov, built with
 COAXIAL_GCOV by `tools.cores.build`. Not counted: the CubeMX code - core/,
 startup_*.s, cmake/stm32cubemx/, the HAL - which is generated, and board/ and
-comms/, which run on the target only and are the bench's conformance suite's.
+comms/, which run on the target only and are the bench's conformance suite's. Parts
+run elsewhere (ELSEWHERE) are shown apart and left out of the total: the bench's and the
+flash tools need a board, the papers run as notebooks.
 """
 import argparse
 import glob
@@ -29,6 +32,13 @@ C_JSON = os.path.join(WHERE, 'c.json')
 
 #: The portable cores, as their directories under the repo.
 CORES = ('modbus', 'drive', 'thermal', 'filter', 'daq', 'shtp', 'boot', 'ctrl')
+
+#: Parts the offline suites do not run, and what does.
+ELSEWHERE = {'tools/bench': 'a board', 'tools/target': 'a board',
+             'tools/thermal': 'a board', 'tools/notebooks': 'the papers, as notebooks'}
+
+README = os.path.join(REPO, 'README.md')
+MARKS = ('<!-- coverage -->', '<!-- /coverage -->')
 
 
 def run():
@@ -81,47 +91,94 @@ def python_lines():
             for name, data in files.items()}
 
 
-def table(files=False):
-    """The report: each part, its lines and the share covered; with `files`, every
-    file under 100 %, least covered first."""
+def parts():
+    """[(kind, part, lines, covered)], each file under its part - a top package, a
+    folder of tools, a core."""
     with open(C_JSON, encoding='utf-8') as f:
         c = json.load(f)
-    py = python_lines()
     groups = {}
-    for name, (lines, covered) in py.items():
-        part = name.split('/')[0]
-        got = groups.setdefault(('python', part), [0, 0])
-        got[0] += lines
-        got[1] += covered
-    for name, (lines, covered) in c.items():
-        got = groups.setdefault(('c', name.split('/')[0]), [0, 0])
-        got[0] += lines
-        got[1] += covered
+    for kind, files in (('python', python_lines()), ('c', c)):
+        for name, (lines, covered) in files.items():
+            bits = name.split('/')
+            part = '/'.join(bits[:2]) if bits[0] == 'tools' and len(bits) > 2 else bits[0]
+            got = groups.setdefault((kind, part), [0, 0])
+            got[0] += lines
+            got[1] += covered
+    return [(kind, part, lines, covered) for (kind, part), (lines, covered)
+            in sorted(groups.items())]
+
+
+def _share(lines, covered):
+    return 100.0 * covered / max(1, lines)
+
+
+def table(files=False):
+    """The report: each part, its lines and the share covered, the parts run elsewhere
+    apart; with `files`, every file under 100 %, least covered first."""
+    rows = parts()
     print('%-8s %-16s %7s %7s %7s' % ('', 'part', 'lines', 'covered', 'share'))
-    for (kind, part), (lines, covered) in sorted(groups.items()):
-        print('%-8s %-16s %7d %7d %6.1f%%' % (kind, part, lines, covered,
-                                              100.0 * covered / max(1, lines)))
+    for kind, part, lines, covered in rows:
+        print('%-8s %-16s %7d %7d %6.1f%%%s' % (kind, part, lines, covered,
+                                                _share(lines, covered),
+                                                '  (%s)' % ELSEWHERE[part]
+                                                if part in ELSEWHERE else ''))
     for kind in ('python', 'c'):
-        lines = sum(v[0] for (k, _p), v in groups.items() if k == kind)
-        covered = sum(v[1] for (k, _p), v in groups.items() if k == kind)
+        mine = [r for r in rows if r[0] == kind and r[1] not in ELSEWHERE]
+        lines, covered = sum(r[2] for r in mine), sum(r[3] for r in mine)
         print('%-8s %-16s %7d %7d %6.1f%%' % (kind, 'all', lines, covered,
-                                              100.0 * covered / max(1, lines)))
+                                              _share(lines, covered)))
     if files:
-        short = sorted(((covered / max(1, lines), name, lines, covered)
-                        for name, (lines, covered) in list(py.items()) + list(c.items())
-                        if covered < lines))
+        with open(C_JSON, encoding='utf-8') as f:
+            every = list(python_lines().items()) + list(json.load(f).items())
         print()
-        for share, name, lines, covered in short:
+        for share, name, lines, covered in sorted((covered / max(1, lines), name, lines,
+                                                   covered)
+                                                  for name, (lines, covered) in every
+                                                  if covered < lines):
             print('%6.1f%%  %5d of %5d  %s' % (100.0 * share, covered, lines, name))
+
+
+def markdown():
+    """The table as the README shows it: the offline parts, their totals, the rest
+    apart."""
+    rows = parts()
+    out = ['| Code | Lines | Covered |', '| --- | ---: | ---: |']
+    for kind, label in (('python', 'Python'), ('c', 'C, portable cores')):
+        mine = [r for r in rows if r[0] == kind and r[1] not in ELSEWHERE]
+        lines, covered = sum(r[2] for r in mine), sum(r[3] for r in mine)
+        out.append('| **%s** | %d | **%.1f %%** |' % (label, lines, _share(lines, covered)))
+        out += ['| %s | %d | %.1f %% |' % (part, lines, _share(lines, covered))
+                for k, part, lines, covered in mine if k == kind]
+    away = [r for r in rows if r[1] in ELSEWHERE]
+    if away:
+        out += ['', 'Run elsewhere, not in the totals:', '']
+        out += ['- %s, %d lines, %.1f %% offline: %s' % (part, lines, _share(lines, covered),
+                                                          ELSEWHERE[part])
+                for _k, part, lines, covered in away]
+    return out
+
+
+def readme():
+    """The README's coverage section, between its MARKS, rewritten."""
+    with open(README, encoding='utf-8', newline='') as f:
+        text = f.read()
+    nl = '\r\n' if '\r\n' in text else '\n'
+    head, rest = text.split(MARKS[0], 1)
+    _old, tail = rest.split(MARKS[1], 1)
+    with open(README, 'w', encoding='utf-8', newline='') as f:
+        f.write(head + MARKS[0] + nl + nl.join(markdown()) + nl + MARKS[1] + tail)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--files', action='store_true', help='every file under 100 %%')
     parser.add_argument('--report', action='store_true', help="the last run's table only")
+    parser.add_argument('--readme', action='store_true', help="the table into README.md")
     args = parser.parse_args(argv)
     code = 0 if args.report else run()
     table(args.files)
+    if args.readme:
+        readme()
     return code
 
 

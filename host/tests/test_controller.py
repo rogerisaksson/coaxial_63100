@@ -280,6 +280,40 @@ def test_a_program_as_data(report):
         report.check('stop is not a label', 'stop' in str(exc), exc)
 
 
+def test_the_table_refuses(report):
+    """A row with no seconds, a group or a wait that is not one, a band not above 0,
+    routines calling each other past 8 deep - each refused, saying which; the prompt is
+    the grammar and the machine's card; a level on a channel the bus does not carry is
+    left alone."""
+    from machine import sequencer
+    from machine.alarms import Alarms
+    from machine.routines import Routine
+
+    said = {}
+    for text, routines in (('w_target=100', None), ('1 group=later', None),
+                           ('1 wait=never', None), ('1 w_target=100 band=0', None),
+                           ('0 run=deep', {'deep': Routine('0 run=deep', {})})):
+        try:
+            Sequencer.parse(text, routines=routines)
+            said[text] = None
+        except MachineError as exc:
+            said[text] = str(exc)
+    report.check('a table is refused, saying why, for a row it cannot run',
+                 'needs seconds' in (said['w_target=100'] or '')
+                 and 'group later' in (said['1 group=later'] or '')
+                 and 'wait=never' in (said['1 wait=never'] or '')
+                 and 'band=0' in (said['1 w_target=100 band=0'] or '')
+                 and '8 deep' in (said['0 run=deep'] or ''), str(said))
+    rotor = Rotor(noise=0.0)
+    told = sequencer.prompt(speed(rotor, rate_hz=50, clock=Clock(rotor)))
+    report.check('the prompt: the grammar, then this machine',
+                 told.startswith(sequencer.GRAMMAR) and 'This machine:' in told)
+    alarms = Alarms({'rotor.x': {'H': 1.0}})
+    alarms.check({'rotor.w': 5.0})
+    report.check('a level on a channel the bus does not carry is left alone',
+                 not alarms.active)
+
+
 def test_the_alarm_handler(report):
     """machine.alarms beside the sequencer: L and H logged once a step, LL and HH to cleanup,
     a row's level held from its row on, a timeout's alarm where the row does not branch, a
@@ -815,7 +849,7 @@ def main():
     for test in (test_a_feedback_holds_a_speed, test_every_channel_is_a_float,
                  test_parts_swap_in_place, test_the_estimator_is_quieter, test_filters,
                  test_a_table_or_a_planner, test_the_sequencer, test_a_program_as_data,
-                 test_the_alarm_handler,
+                 test_the_alarm_handler, test_the_table_refuses,
                  test_save_and_load,
                  test_a_fault_ends_the_loop, test_a_paced_part_keeps_its_own_rate,
                  test_the_pictures_and_the_panel, test_velocity_is_a_feedback,
