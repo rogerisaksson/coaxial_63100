@@ -37,6 +37,10 @@ BOOT_CORE = 'test_boot_core.py'
 #: host/machine/parts.py.
 CTRL_CORE = 'test_ctrl_core.py'
 
+#: The device clients through the firmware's own wire - comms/ built for this host over a
+#: fake board (tools.cores.fakeboard): a disagreement between the two sides fails here.
+WIRE = 'test_wire.py'
+
 SENSORLESS = 'test_sensorless.py'
 
 #: The subjects a change can be about: pick_tests.py asks the model to choose
@@ -80,7 +84,7 @@ CONTROLLER = 'test_controller.py'
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
-                   CTRL_CORE,
+                   CTRL_CORE, WIRE,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, BOOT, VIEWS,
                    RENDER) + OLLAMA
@@ -120,6 +124,7 @@ JOINS = (
     # decides whether a blank node ever runs anything.
     (20, BOOT_CORE),
     (20, CTRL_CORE),
+    (20, WIRE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
     (45, 'test_mcp.py'),

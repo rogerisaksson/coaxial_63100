@@ -76,8 +76,9 @@ CI builds both presets and runs the offline suites on every push.
 Lines of the hand-written code the offline suites run
 (`python host/tools/dev/cover.py --readme` writes this table). Not counted: the
 CubeMX code - `core/`, `startup_*.s`, `cmake/stm32cubemx/`, the HAL - which is
-generated, and `board/` and `comms/`, which run on the target: the bench's
-conformance suite is theirs.
+generated, and `board/`, which runs on the target: the bench's conformance
+suite is its. `comms/` is counted: it runs here over a fake board
+(`tests/test_wire.py`).
 
 <!-- coverage -->
 | Product | Lines | Covered |

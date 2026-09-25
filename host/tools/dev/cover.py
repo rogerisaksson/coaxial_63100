@@ -8,9 +8,10 @@
 
 The host's Python under coverage.py, followed into every suite's process
 (`[tool.coverage.run]`); the portable C cores under gcov, built with
-COAXIAL_GCOV by `tools.cores.build`. Not counted: the CubeMX code - core/,
-startup_*.s, cmake/stm32cubemx/, the HAL - which is generated, and board/ and
-comms/, which run on the target only and are the bench's conformance suite's. tools/ is
+COAXIAL_GCOV by `tools.cores.build`, and comms/ with them - built for this host over the
+fake board (tools.cores.fakeboard). Not counted: the CubeMX code - core/, startup_*.s,
+cmake/stm32cubemx/, the HAL - which is generated; board/, which runs on the target only
+and is the bench's conformance suite's, and its fake, which is scaffolding. tools/ is
 shown apart, a folder a line, each with what runs it (TOOLS), and left out of the totals:
 the product is the rest.
 """
@@ -31,7 +32,7 @@ PY_JSON = os.path.join(WHERE, 'python.json')
 C_JSON = os.path.join(WHERE, 'c.json')
 
 #: The portable cores, as their directories under the repo.
-CORES = ('modbus', 'drive', 'thermal', 'filter', 'daq', 'shtp', 'boot', 'ctrl')
+CORES = ('modbus', 'drive', 'thermal', 'filter', 'daq', 'shtp', 'boot', 'ctrl', 'comms')
 
 #: tools/ by folder, and what runs each: a folder not named here is run by hand.
 TOOLS = {'tools/bench': 'a board', 'tools/target': 'a board', 'tools/thermal': 'a board',

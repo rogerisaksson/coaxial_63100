@@ -12,7 +12,7 @@ from coaxial.simulated import SimulatedSession
 
 # `kind` is the *communication interface type*: how the host reaches the bus,
 # which is not the same question as which device is on it.
-INTERFACE = {'probe': 'debug probe', 'serial': 'RS485', None: 'simulated'}
+INTERFACE = {'probe': 'debug probe', 'serial': 'RS485', 'url': 'url', None: 'simulated'}
 
 Origin = collections.namedtuple(
     'Origin', 'real port baud kind label interface unit')
@@ -36,6 +36,8 @@ def _label(real, port, kind, fell_back=False):
         return 'Simulated'
     if kind == 'probe':
         return 'JTAG and %s' % port
+    if kind == 'url':
+        return port
     return 'RS485 at %s' % port
 
 
@@ -78,6 +80,13 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     """`(session, origin)` - the board, or a stand-in for it."""
     kind = None
     fell_back = False
+
+    # A URL - tools.cores' fakeboard:// - is named, never discovered, and this process's
+    # own: no broker serves it and none is spawned for it.
+    if port and '://' in port and not simulated:
+        return (Session(port, baud, unit),
+                Origin(True, port, baud, 'url', _label(True, port, 'url'), INTERFACE['url'],
+                       unit))
 
     # A broker is the board.
     served = broker.serving() if only is None else None

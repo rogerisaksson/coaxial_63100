@@ -7,6 +7,8 @@ core/     CubeMX. main.c: CubeMX code + calls in USER CODE blocks only
 board/    this hardware; API in comms/inc/board.h -> comms/inc/board/<x>.h
           (one header per board_<x>.c; board_boot.c -> board/handover.h)
           board/inc/board_hw.h: CubeMX handles, board layer only
+          board/fake/: the API on the host, neutral, under comms/ for the
+          offline suites (tools/cores/fakeboard.py, tests/test_wire.py)
 comms/    cmd.c tables -> cmd_<device>.c handlers (rd_t in, wr_t out, wire.c)
           link.c: which port, console or Modbus; dev_uart.c: the only USART code
           cmd_length.c: request-length oracle for modbus_rtu.c
@@ -96,7 +98,8 @@ tools/render/       renderer checks against the exporter; ansi2png; attitude (th
                     page's last frame, simulated, to a PNG)
 tools/sim/          the drive core on this host: montecarlo, observer_run
 tools/cores/        build: the portable cores' gcc build;
-                    drive, thermal: their ctypes harnesses
+                    drive, thermal: their ctypes harnesses;
+                    fakeboard: comms/ over board/fake as fakeboard://
 tools/notebooks/    the paper builder and make_notebooks
 tests/              suites, .counts.json (measured sizes)
 ```

@@ -74,8 +74,9 @@ class Transport:
         self.port = port
         self.baud = baud
         try:
-            self.serial: Any = serial.Serial(port, baud, bytesize=8, parity='N',
-                                        stopbits=1, timeout=self.QUIET_TIME)
+            # A URL as well as a port name: `loop://`, or `fakeboard://` (tools.cores).
+            self.serial: Any = serial.serial_for_url(port, baud, bytesize=8, parity='N',
+                                                     stopbits=1, timeout=self.QUIET_TIME)
         except (serial.SerialException, ValueError, OSError) as exc:
             raise ConnectError('cannot open %s at %d baud: %s'
                                % (port, baud, exc)) from exc
