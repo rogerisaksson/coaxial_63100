@@ -13,7 +13,7 @@ import math
 import sys
 
 from coaxial.draw import orientation
-from coaxial.graphics import approach
+from coaxial.graphics import craft
 from machine import ansi
 
 
@@ -30,7 +30,7 @@ def pass_at(n, width, height, step=0.05, within=3600.0):
     """The middle of the `n`th craft pass (1 the first), seconds; None past `within`."""
     seen, t, during = 0, 0.0, []
     while t < within:
-        on = approach._pass(t) is not None
+        on = craft.under_way(t) is not None
         if on:
             during.append(t)
         elif during:

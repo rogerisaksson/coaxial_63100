@@ -39,6 +39,10 @@ pandas>=2.0
 openpyxl>=3.1       # a sequence from .xlsx (coaxial.control.sequencer)
 matplotlib>=3.7
 
+# Only for tools/dev/cover.py: the line coverage of the hand-written code, the
+# Python followed into every suite's process (`patch = subprocess`, 7.10).
+coverage>=7.10
+
 # Only for examples/pytest_production_line.py. Nothing else in tests/ needs it:
 # the conformance, MCP and runner suites are plain scripts with their own
 # reporters, so they run on a machine with nothing but the four above.

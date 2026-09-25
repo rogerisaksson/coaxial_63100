@@ -8,6 +8,7 @@ from coaxial.draw import orientation
 from coaxial.graphics import creases, engine, preload, solids, stereotype
 from coaxial.graphics.creases import OUTLINE_EXACT
 from coaxial.graphics import approach as _approach
+from coaxial.graphics import craft as _craft
 from coaxial.graphics.ground import (_BACKDROP_STATIC as _geometries, GROUND_SPEED,
                                      RUNG_SPACING, _ground)
 from coaxial.graphics.lines import _edge, _outline
@@ -488,8 +489,9 @@ def render(q, width, height, zoom=1.0, colour=True,
                 max(at % width for at in lit)) if lit else None)
         _approach.hud(grid, tone, buf, width, height, flown, _geometry(width, height),
                       scroll, int((scroll or 0.0) * GROUND_SPEED * RUNG_SPACING
-                                  / _approach.GATE_EVERY), box, colour,
-                      _approach.bound(cam, reach))
+                                  / _approach.GATE_EVERY), box, colour)
+        _craft.draw(grid, tone, buf, width, height, scroll or 0.0, colour,
+                    _craft.bound(cam, reach))
 
     if not colour:
         return '\n'.join(''.join(row).rstrip() for row in grid)

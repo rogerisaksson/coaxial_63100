@@ -10,6 +10,10 @@ OUT = os.path.join(REPO, 'build', 'hosttest')
 # The warnings the firmware build puts on the portable cores.
 FLAGS = ['-std=c11', '-O1', '-Wall', '-Wextra', '-Wconversion', '-Wshadow']
 
+#: With COAXIAL_GCOV set (tools/dev/cover.py), built for gcov: unoptimised, so a
+#: line is a line, the counts beside the library.
+GCOV = ['--coverage', '-O0']
+
 
 def find_cc():
     """A host C compiler, or None. PATH first, then where winget puts one."""
@@ -33,6 +37,8 @@ def build(cc, sources, includes, name):
     flags = [] if os.name == 'nt' else ['-fPIC']    # a .so on Linux; mingw warns on it
     for path in includes:
         flags += ['-I', path]
+    if os.environ.get('COAXIAL_GCOV'):
+        flags += GCOV
     done = subprocess.run([cc, '-shared', '-o', lib] + FLAGS +
                           sources + flags,
                           capture_output=True, text=True, encoding='utf-8',

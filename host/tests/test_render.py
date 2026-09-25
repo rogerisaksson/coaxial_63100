@@ -1087,7 +1087,7 @@ def test_scroll(report):
 def test_approach(report):
     """The approach: gates down a bending path, moving with the floor; the scene rolled by
     the bank; the HUD reading the flight - its heading, its clock."""
-    from coaxial.graphics import approach
+    from coaxial.graphics import approach, craft
     cam = engine.camera(60, 20, 1.5, distance=3.2, zoom=1.0, tip=wireframe.CAMERA_TIP)
     static = ground._ground_static(60, 20, 3.2, cam['view'])
     gates = [approach.corridor(static, 60, 20, travel, 0.03, None, ground._segment)
@@ -1103,33 +1103,33 @@ def test_approach(report):
     over = [[' '] * 60 for _ in range(20)]
     tone = [[None] * 60 for _ in range(20)]
     busy = [1.0] * (60 * 20)                      # the board everywhere: the craft still shows
-    passes = [t / 4.0 for t in range(4 * 600) if approach.craft(60, 20, t / 4.0)]
+    passes = [t / 4.0 for t in range(4 * 600) if craft.craft(60, 20, t / 4.0)]
     report.check('approach: the craft passes rarely, the first at once',
                  passes and passes[0] < 5.0 and len(passes) < 0.12 * 4 * 600,
                  '%d of %d quarter-seconds, first at %s s' % (len(passes), 4 * 600,
                                                               passes[0] if passes else '-'))
     # The board's bound at 116x46, bare and framed: every attitude inside this circle.
-    kind = {t: now[3] for t, now in zip(passes, map(approach._pass, passes)) if now}
+    kind = {t: now[3] for t, now in zip(passes, map(craft.under_way, passes)) if now}
     report.check('approach: corner passes and fly-bys both come',
                  set(kind.values()) == {'corner', 'by'}, set(kind.values()))
     for board in ((58.0, 20.24, 53.6), (58.0, 23.0, 53.6)):
-        drawn = {t: approach.craft(116, 46, t, board) for t in passes}
-        marks = [approach.marker(116, 46, t, board)[0] for t in passes]
+        drawn = {t: craft.craft(116, 46, t, board) for t in passes}
+        marks = [craft.marker(116, 46, t, board)[0] for t in passes]
         near = [divmod(at, 116) for cells in drawn.values() for at in cells] + [
             (r, c + i) for corners in marks for r, c, text in corners for i in range(len(text))]
         near = [(r, c) for r, c in near
                 if math.hypot(c + 0.5 - board[0], (r + 0.5 - board[1]) * 2.0)
-                < board[2] + approach.CLEAR - 1.0]
+                < board[2] + craft.CLEAR - 1.0]
         corner = [cells for t, cells in drawn.items() if kind[t] == 'corner']
         by = [cells for t, cells in drawn.items() if kind[t] == 'by']
         report.check('approach: with the board filling the frame (bound %s) both kinds come, '
                      'the corner gripped by its marker, none of them on the board at any '
                      'attitude' % (board,), all(corner) and any(by) and any(
-                         approach.marker(116, 46, t, board)[1] for t in passes) and not near,
+                         craft.marker(116, 46, t, board)[1] for t in passes) and not near,
                      '%d of %d corner frames and %d of %d fly-by frames drawn, %d cells inside '
                      'the bound' % (sum(1 for d in corner if d), len(corner),
                                     sum(1 for d in by if d), len(by), len(near)))
-    sides = {now[2] for now in map(approach._pass, passes) if now}
+    sides = {now[2] for now in map(craft.under_way, passes) if now}
     report.check('approach: its passes come from both sides', sides == {1.0, -1.0}, sides)
     straight = approach.corridor(static, 60, 20, 0.0, 0.0, None, ground._segment)
     report.check('approach: the curvature bends the corridor', straight != gates[0])
@@ -1143,13 +1143,13 @@ def test_approach(report):
     report.check('approach: the corridor sweeps for a site - slides to one each LOOK, holds it',
                  left != right and held[0] == held[1] == held[2] and len(sites) == 12,
                  '%d sites' % len(sites))
-    rise = [q / 20.0 for q, now in ((q, approach._pass(q / 20.0)) for q in range(20 * 60))
+    rise = [q / 20.0 for q, now in ((q, craft.under_way(q / 20.0)) for q in range(20 * 60))
             if now and now[3] == 'by']
     beam, off = 0, 0.0
     for q in rise[len(rise) // 3:2 * len(rise) // 3]:
-        pose = approach._pose(116, 46, q, None) or {}
+        pose = craft.pose(116, 46, q, None) or {}
         h = pose['heading']
-        for at, (_mask, _rgb, body) in approach.craft(116, 46, q).items():
+        for at, (_mask, _rgb, body) in craft.craft(116, 46, q).items():
             if not body:
                 r, c = divmod(at, 116)
                 dx, dy = c + 0.5 - pose['x'], (r + 0.5 - pose['y']) * 2.0
@@ -1190,24 +1190,28 @@ def test_nothing_on_the_board(report):
     """At the view's own zoom (1.44 x 0.88, 116 x 46), over a tumbling board and the whole
     first craft pass, the HUD and the craft leave every cell of the board as it was drawn."""
     from coaxial.draw.orientation import normalise
-    from coaxial.graphics import approach
-    real, touched, seen = approach.hud, [], []
+    from coaxial.graphics import approach, craft
+    touched, seen = [], []
 
-    def spy(grid, tone, buf, width, height, *rest):
-        before = [row[:] for row in grid]
-        real(grid, tone, buf, width, height, *rest)
-        touched.extend((r, c) for r in range(height) for c in range(width)
-                       if buf[r * width + c] and grid[r][c] != before[r][c])
-        seen.append(any(ink == approach.GLASS for row in tone for ink in row))
-    approach.hud = spy
+    def spied(real, looks):
+        def spy(grid, tone, buf, width, height, *rest):
+            before = [row[:] for row in grid]
+            real(grid, tone, buf, width, height, *rest)
+            touched.extend((r, c) for r in range(height) for c in range(width)
+                           if buf[r * width + c] and grid[r][c] != before[r][c])
+            if looks:
+                seen.append(any(ink == craft.GLASS for row in tone for ink in row))
+        return spy
+    real = approach.hud, craft.draw
+    approach.hud, craft.draw = spied(real[0], False), spied(real[1], True)
     try:
         for n in range(28):
             q = normalise((0.25 * math.sin(n * 0.4), 0.2 * math.cos(n * 0.3),
                            0.15 * math.sin(n * 0.25), 1.0))
             wireframe.render(q, 116, 46, zoom=1.44 * 0.88, colour=True,
-                             scroll=approach.FIRST + n * 0.15, approach=True)
+                             scroll=craft.FIRST + n * 0.15, approach=True)
     finally:
-        approach.hud = real
+        approach.hud, craft.draw = real
     report.check('the craft flies its first pass in the view as the view draws it',
                  any(seen), '%d of %d frames' % (sum(seen), len(seen)))
     report.check('and neither it nor the HUD lands on the board, tumbling or not',

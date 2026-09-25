@@ -28,3 +28,10 @@ include = ["coaxial*", "machine*", "motor*", "terminal*", "testline*", "tools*"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
+
+# tools/dev/cover.py: the host's own packages, measured in every suite's process.
+[tool.coverage.run]
+source = ["coaxial", "coaxial_mcp", "coaxial_ollama", "machine", "motor", "terminal",
+          "testline", "tools"]
+parallel = true
+patch = ["subprocess"]
