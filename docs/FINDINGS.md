@@ -233,6 +233,19 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - The thermal observer's borrow of AFE_ON (0.5 s every 30 s) took test_wire's
   AFE-off scan once the idle board kept real time: the test holds sampling
   off (2026-09-25).
+- The emulated drive, 50 kHz, costs a period 3 interrupts (Renode: 3.7 us an
+  entry and exit, 4.8 with FPU state), ~30 register accesses (0.9 us each on
+  board/emu's models) and ~2 950 instructions at -O0. Floor with the handlers
+  whole: ~2 wall s a virtual s. main() skipped to 0.5 us short of each timer
+  event: 16.5 -> 6; Board_PwmReady and ARR kept once read, ADC3's injected end
+  without HAL's walk: 6 -> 2.5, 50 000 updates a virtual second, no overrun.
+  Changing MIPS inside a Renode round lost a third of the periods; SkipTime
+  keeps its accounting. CYCCNT and TIM1's count run on one virtual clock:
+  instructions, sleeps and skips. The Release image ran 7: its main() polls
+  more registers a slice (2026-09-25).
+- A script killed by `timeout` left its Renode spinning 4 h, skewing every
+  measure since; each Renode now sits in a job that dies with its Python
+  (2026-09-25).
 - An armed sync stays armed past drive.off: the meter is the injected group's
   until gate drivers op 3 gives it back (the emulated wire sweep, 2026-09-25).
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.

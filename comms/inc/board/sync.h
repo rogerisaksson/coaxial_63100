@@ -52,6 +52,10 @@ void Board_SyncState(board_sync_state_t *out);
 
 /** From the injected end-of-sequence callback, and from the overrun one. */
 void Board_SyncOnInjected(const void *hadc);
+
+/** ADC3's interrupt when it is the injected sequence's end alone: the callback
+    and the flags, true; anything else false, for HAL. */
+bool Board_SyncIrq(void);
 void Board_SyncOverrun(void);
 
 #ifdef __cplusplus

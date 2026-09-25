@@ -831,6 +831,11 @@ void Board_StoIdle(void)
 {
 }
 
+bool Board_SyncIrq(void)
+{
+  return false;
+}
+
 void Board_StoState(board_sto_state_t *out)
 {
   if (out == NULL)

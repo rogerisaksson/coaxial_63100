@@ -322,6 +322,25 @@ void Board_SyncState(board_sync_state_t *out)
   Board_SyncLatest(&out->latest);
 }
 
+bool Board_SyncIrq(void)
+{
+  /* Once a PWM period: HAL_ADC_IRQHandler reads CFGR, JSQR and the common CCR
+     to decide a hardware-triggered group keeps its interrupts, which it does;
+     an overrun, a watchdog or the regular group still goes to HAL. */
+  const uint32_t isr = ADC3->ISR;
+
+  if (((isr & ADC_FLAG_JEOS) == 0U)
+      || ((isr & (ADC_FLAG_JQOVF | ADC_FLAG_OVR | ADC_FLAG_AWD1 | ADC_FLAG_AWD2
+                  | ADC_FLAG_AWD3)) != 0U))
+  {
+    return false;
+  }
+  SET_BIT(hadc3.State, HAL_ADC_STATE_INJ_EOC);
+  HAL_ADCEx_InjectedConvCpltCallback(&hadc3);
+  ADC3->ISR = ADC_FLAG_JEOC | ADC_FLAG_JEOS;
+  return true;
+}
+
 /* HAL's weak callbacks, overridden here rather than in core/: main.c holds
    CubeMX functions and the two poll calls, and this is neither. */
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)

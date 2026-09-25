@@ -13,6 +13,7 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -147,22 +148,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private double TickHz => frequency / (double)((registers[Psc / 4] & 0xFFFF) + 1);
 
-        /// <summary>Counter ticks since the timer's start: instructions at the CPU's rate, as FastDWT
-        /// counts cycles - exact within a translated block - rebased when the MIPS change.</summary>
+        /// <summary>Counter ticks since the machine's start, on its virtual clock.</summary>
         private double Ticks()
         {
-            if(cpu == null)
-            {
-                cpu = machine.SystemBus.GetCPUs().OfType<BaseCPU>().First();
-            }
-            var executed = cpu.ExecutedInstructions;
-            if(cpu.PerformanceInMips != mips)
-            {
-                seconds += (executed - since) / (Math.Max(1U, mips) * 1e6);
-                since = executed;
-                mips = cpu.PerformanceInMips;
-            }
-            return (seconds + (executed - since) / (Math.Max(1U, mips) * 1e6)) * TickHz;
+            return VirtualClock.Of(machine).Seconds * TickHz;
         }
 
         /// <summary>Where the count is in its period, ticks from its start.</summary>
@@ -310,10 +299,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly ulong frequency;
         private readonly LimitTimer updates;
         private readonly uint[] registers = new uint[0x400 / 4];
-        private BaseCPU cpu;
-        private uint mips;
-        private ulong since;
-        private double seconds;
         private double startTicks;
         private uint frozen;
         private long cleared;

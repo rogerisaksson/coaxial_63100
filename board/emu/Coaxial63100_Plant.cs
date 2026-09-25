@@ -4,6 +4,9 @@
 // One world a Renode process: a limb's boards share it. While TIM1 counts it is TRGO2 too, the
 // ADCs' injected trigger, once a period - and with IdleMips set the core runs BusyMips only while
 // an ADC waits on it: the drive's ISR needs the part's speed, the rest runs faster at Renode's.
+// With LoopSlice set, main() runs that long short of each timer event while one waits, the rest
+// skipped: the handlers whole, the polling loop throttled - 16.5 -> 2.5 wall s a virtual s under
+// the drive at 0.5 us, 50 000 updates a virtual second kept (2026-09-25).
 // The period is the PWM's while the stage is driven or an ADC waits, 1 kHz while the world only
 // coasts. The board's heat is one lumped node on its measured 8.33 K/W and 49 J/K
 // (coaxial.model.thermal), fed a quiescent 1.2 W - the model's 10 K calibration rise - and the
@@ -19,7 +22,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Sensors;
-using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 
@@ -75,6 +77,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public void Reset()
         {
+            depth = 0;
         }
 
         public void OnGPIO(int number, bool value)
@@ -130,6 +133,10 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         /// <summary>The core's MIPS while one does: the part's own.</summary>
         public uint BusyMips { get; set; } = 475;
+
+        /// <summary>While one does, main()'s time between the handlers, us: the rest to the next
+        /// timer event skipped, time passing with nothing run. 0 runs it all.</summary>
+        public double LoopSlice { get; set; }
 
         /// <summary>Whether the board's heat drives the NTC and the MCU die.</summary>
         public bool Thermal { get; set; } = true;
@@ -190,11 +197,66 @@ namespace Antmicro.Renode.Peripherals.Analog
                 timer.Frequency = hz;
                 period = 1.0f / hz;
             }
+            busy = waits;
             if(IdleMips > 0)
             {
-                var cpu = machine.SystemBus.GetCPUs().OfType<BaseCPU>().First();
-                cpu.PerformanceInMips = waits ? BusyMips : IdleMips;
+                if(cpu == null)
+                {
+                    cpu = machine.SystemBus.GetCPUs().OfType<TranslationCPU>().First();
+                }
+                if(busy && LoopSlice > 0 && !paced)
+                {
+                    // The outermost handler's exit: a nested one returns to a handler.
+                    cpu.AddHookAtInterruptBegin(_ =>
+                    {
+                        depth++;
+                    });
+                    cpu.AddHookAtInterruptEnd(_ =>
+                    {
+                        if(depth > 0 && --depth == 0 && busy)
+                        {
+                            Skip();
+                        }
+                    });
+                    paced = true;
+                }
+                Pace();
             }
+        }
+
+        /// <summary>BusyMips while an ADC waits on TRGO2, IdleMips else.</summary>
+        private void Pace()
+        {
+            var mips = busy ? BusyMips : IdleMips;
+            if(IdleMips == 0 || cpu.PerformanceInMips == mips)
+            {
+                return;
+            }
+            cpu.PerformanceInMips = mips;
+        }
+
+        /// <summary>The core skipped to LoopSlice short of the next timer event, main() running
+        /// that last slice: in whole grains of the CPU's rate, which SkipTime takes exactly.</summary>
+        private void Skip()
+        {
+            cpu.SyncTime();
+            var gap = ((BaseClockSource)machine.ClockSource).NearestLimitIn.Ticks;
+            var slice = (ulong)(LoopSlice * 1e3);
+            if(gap <= slice)
+            {
+                return;
+            }
+            var grain = 1000UL / Gcd(cpu.PerformanceInMips, 1000U);
+            var skip = (gap - slice) / grain * grain;
+            if(skip > 0)
+            {
+                cpu.SkipTime(TimeInterval.FromTicks(skip));
+            }
+        }
+
+        private static uint Gcd(uint a, uint b)
+        {
+            return b == 0 ? a : Gcd(b, a % b);
         }
 
         private void Step()
@@ -309,6 +371,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         private uint cr2;
         private bool counting;
         private bool attached;
+        private bool busy;
+        private bool paced;
+        private int depth;
+        private TranslationCPU cpu;
 
         // TIM1 (RM0433): the base, CR1's CEN, CR2's MMS2, the auto-reload, the three compares, MOE
         // in BDTR.

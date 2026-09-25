@@ -22,6 +22,7 @@
 #include "stm32h7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "board.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -219,7 +220,10 @@ void OTG_FS_IRQHandler(void)
 void ADC3_IRQHandler(void)
 {
   /* USER CODE BEGIN ADC3_IRQn 0 */
-
+  if (Board_SyncIrq())
+  {
+    return;
+  }
   /* USER CODE END ADC3_IRQn 0 */
   HAL_ADC_IRQHandler(&hadc3);
   /* USER CODE BEGIN ADC3_IRQn 1 */

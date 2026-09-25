@@ -17,6 +17,7 @@ Renode: $RENODE, `renode` on PATH, or the newest portable build under
 %LOCALAPPDATA%/renode (setup: docs/ARCHITECTURE.md).
 """
 import argparse
+import ctypes
 import glob
 import os
 import re
@@ -82,6 +83,11 @@ IDLE_MIPS = 100
 #: these boundaries, so it stays under RTU's t1.5 of 750 us inside a frame: 1 ms broke every
 #: frame longer than a quantum's bytes.
 QUANTUM = '0.0005'
+
+#: main()'s time between the handlers while an ADC waits on TRGO2, us, the rest skipped
+#: (Coaxial63100_Plant.LoopSlice): under the drive 2.5 wall s a virtual s against 16.5 whole,
+#: 0.25 us 2.4, 1 us 5.3 (2026-09-25). Paced emulators only; the suites run main() whole.
+LOOP_SLICE_US = 0.5
 
 #: MPU_CTRL.ENABLE masked on the bus, the image's MPU off: tlib keeps no TLB entry for a page
 #: inside an enabled region's span whose subregion is disabled, and walks the MPU on every
@@ -172,7 +178,8 @@ class Emulator:
         if self.idle_mips and not self.boot:
             return ['cpu PerformanceInMips %d' % self.idle_mips,
                     'sysbus.gpioPortE.plant BusyMips %d' % self.mips,
-                    'sysbus.gpioPortE.plant IdleMips %d' % self.idle_mips]
+                    'sysbus.gpioPortE.plant IdleMips %d' % self.idle_mips,
+                    'sysbus.gpioPortE.plant LoopSlice %g' % LOOP_SLICE_US]
         return ['cpu PerformanceInMips %d' % self.mips]
 
     def planted(self, node):
@@ -206,6 +213,7 @@ class Emulator:
             [renode, '--disable-gui', '--plain', '--config', config, '-P', str(self.monitor),
              '-e', 'include @%s' % composed.replace(os.sep, '/')],
             cwd=REPO, stdout=sink, stderr=subprocess.STDOUT, creationflags=PRIORITY)
+        self._job = _tied(self.process)
         self._ready(self.process)
         self.awake_scale = self.awake()
         return self
@@ -230,6 +238,7 @@ class Emulator:
         the translations holding it are cleared."""
         self._each_cpu('cpu WfiAsNop true; cpu ClearTranslationCache')
         try:
+            time.sleep(seconds)                 # the image translated afresh first
             return self.measure(seconds)
         finally:
             self._each_cpu('cpu WfiAsNop false; cpu ClearTranslationCache')
@@ -400,6 +409,32 @@ class Body:
 
     def __exit__(self, *exc):
         self.stop()
+
+
+class _Limits(ctypes.Structure if os.name == 'nt' else object):
+    """JOBOBJECT_EXTENDED_LIMIT_INFORMATION, its basic limits and I/O counters inline."""
+    if os.name == 'nt':
+        _fields_ = [('per_process_time', ctypes.c_int64), ('per_job_time', ctypes.c_int64),
+                    ('flags', ctypes.c_uint32), ('min_ws', ctypes.c_size_t),
+                    ('max_ws', ctypes.c_size_t), ('processes', ctypes.c_uint32),
+                    ('affinity', ctypes.c_size_t), ('priority', ctypes.c_uint32),
+                    ('scheduling', ctypes.c_uint32), ('io', ctypes.c_uint64 * 6),
+                    ('process_memory', ctypes.c_size_t), ('job_memory', ctypes.c_size_t),
+                    ('peak_process', ctypes.c_size_t), ('peak_job', ctypes.c_size_t)]
+
+
+def _tied(process):
+    """On Windows, a job that ends `process` when this one ends, killed or not - a script
+    killed mid-run left its Renode running for hours (2026-09-25). Its handle, kept."""
+    if os.name != 'nt':
+        return None
+    kernel = ctypes.windll.kernel32
+    job = kernel.CreateJobObjectW(None, None)
+    limits = _Limits()
+    limits.flags = 0x2000                                  # KILL_ON_JOB_CLOSE
+    kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
+    kernel.AssignProcessToJobObject(job, ctypes.c_void_p(int(process._handle)))
+    return job
 
 
 def _answers(port):

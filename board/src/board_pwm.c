@@ -40,6 +40,10 @@ static struct
   /** Set by Board_PwmEnable, cleared by Board_PwmDisable and by a break. */
   bool armed;
 
+  /** TIM1's ARR once it is clocked and counting: CubeMX's init sets both and
+      nothing here changes either, so a period's calls read it here. */
+  uint32_t arr;
+
   /** The drive's next triple, left by ADC3's interrupt and committed by
       TIM1's update at the underflow. */
   uint16_t next[BOARD_PWM_PHASES];
@@ -65,16 +69,20 @@ static void update_irq(bool wanted)
 bool Board_PwmReady(void)
 {
   /* Clocked, and counting over a period somebody chose. */
-  if ((RCC->APB2ENR & RCC_APB2ENR_TIM1EN) == 0U)
+  if (s.arr == 0U)
   {
-    return false;
+    if (((RCC->APB2ENR & RCC_APB2ENR_TIM1EN) == 0U) || (TIM1->ARR == 0U))
+    {
+      return false;
+    }
+    s.arr = TIM1->ARR;
   }
-  return (TIM1->ARR != 0U);
+  return true;
 }
 
 uint32_t Board_PwmPeriod(void)
 {
-  return Board_PwmReady() ? (TIM1->ARR + 1U) : 0U;
+  return Board_PwmReady() ? (s.arr + 1U) : 0U;
 }
 
 bool Board_PwmFault(void)
@@ -482,7 +490,7 @@ void Board_PwmSetNext(const uint16_t *ticks)
 {
   /* From ADC3's interrupt, above TIM1_UP's, so these stores are never split
      by the reader - it copies under PRIMASK. */
-  const uint32_t arr = TIM1->ARR;
+  const uint32_t arr = s.arr;
 
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
