@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "board/sync.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -198,6 +198,27 @@ def test_acquisition_answers_or_refuses(report, rig):
     swept(report, 'acquisition, link, angle and boot answer or refuse', calls)
 
 
+def test_the_acquisition_records_decode(report, rig):
+    """board_daq.c on the fake's clock: a software-clocked task's records decode to the
+    layout it answered, in time order."""
+    b, q = rig.board, rig.board.daq
+    layout = q.configure(['Phase U', 'DC bus'], sample_rate=1000)
+    b.afe.on()
+    q.start()
+    records = []
+    for _ in range(40):
+        records += q.acquire()
+        if len(records) >= 4:
+            break
+    q.stop()
+    b.afe.off()
+    names = {f['signal'] for f in layout['fields']}
+    report.check('a software-clocked task\'s records decode to its layout, in time order',
+                 len(records) >= 4 and all(names <= set(r) for r in records)
+                 and all(x['at'] < y['at'] for x, y in zip(records, records[1:])),
+                 '%d records, first %s' % (len(records), records[:1]))
+
+
 def test_the_record_survives_a_save(report, rig):
     """An edit is volatile until saved; a load reads back what was saved."""
     cal = rig.board.calibration
@@ -235,7 +256,8 @@ def main():
         for test in (test_the_rig_opens_on_the_firmware, test_every_read_decodes,
                      test_settings_are_taken, test_the_wire_refuses,
                      test_every_verb_answers_or_refuses,
-                     test_acquisition_answers_or_refuses, test_the_record_survives_a_save,
+                     test_acquisition_answers_or_refuses,
+                     test_the_acquisition_records_decode, test_the_record_survives_a_save,
                      test_the_bench_conformance_holds):
             print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
             test(report, rig)

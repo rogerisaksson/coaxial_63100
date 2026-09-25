@@ -3,6 +3,8 @@
 /* Bytes in from the host at 115200's pace, a frame out to it, a clock of one tick a
    microsecond that the exchange steps. */
 #include "board/cal.h"
+#include "board/clock.h"
+#include "board/daq.h"
 #include "board/thermal.h"
 #include "board_hw.h"
 #include "dev_serial.h"
@@ -71,11 +73,18 @@ uint32_t HAL_GetTick(void)
   return s_clock / 1000U;
 }
 
+/* The cycle counter: SYSCLK's cycles on the microsecond clock, wrapping as DWT does. */
+uint32_t Board_Cycles(void)
+{
+  return s_clock * (SystemCoreClock / 1000000U);
+}
+
 /* One pass of main()'s loop, as far as the fake builds it. */
 static void fake_loop(void)
 {
   if (!link_busy())
   {
+    Board_DaqPoll();
     Board_ThermalPoll();
   }
   link_poll();

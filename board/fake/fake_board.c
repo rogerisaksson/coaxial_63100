@@ -5,7 +5,7 @@
    (tools/cores/fakeboard.py). Generated once from the prototypes; what a check needs is
    answered by hand here - the AFE rail, the PWM, the channel table, the raw codes and
    the clocks. The record is board/src/board_cal.c over fake_flash.c, the thermal observer
-   board/src/board_thermal.c. */
+   board/src/board_thermal.c, the acquisition board/src/board_daq.c. */
 #include "board/adc.h"
 #include "board/angle.h"
 #include "board/cal.h"
@@ -22,6 +22,7 @@
 #include "board/sync.h"
 #include "board/thermal.h"
 #include "board_drive.h"
+#include "board_hw.h"
 #include "board_power.h"
 #include "testrig.h"
 
@@ -65,6 +66,8 @@ static int32_t fake_code(void)
 /* The board's facts, as board/src/board_adc.c's table and the clock tree have them: the
    channels in the table's order, SYSCLK 475 MHz with HCLK half of it. */
 #define FAKE_SYSCLK_HZ 475000000U
+
+uint32_t SystemCoreClock = FAKE_SYSCLK_HZ;
 
 static const board_chan_t s_chan[] =
 {
@@ -290,110 +293,6 @@ const char * Board_CtrlWire(uint8_t measured, uint8_t command, uint16_t hz)
   (void)command;
   (void)hz;
   return NULL;
-}
-
-uint32_t Board_Cycles(void)
-{
-  return (uint32_t)0;
-}
-
-uint32_t Board_DaqAvailable(void)
-{
-  return (uint32_t)0;
-}
-
-const char * Board_DaqConfigure(const board_daq_config_t *cfg)
-{
-  (void)cfg;
-  return NULL;
-}
-
-bool Board_DaqField(uint8_t field, uint8_t *channel)
-{
-  (void)field;
-  if (channel != NULL)
-  {
-    memset(channel, 0, sizeof *channel);
-  }
-  return true;
-}
-
-bool Board_DaqRateIsAuto(void)
-{
-  return false;
-}
-
-const char * Board_DaqSetFilter(const void *sections, uint8_t count, uint16_t decimate)
-{
-  (void)sections;
-  (void)count;
-  (void)decimate;
-  return NULL;
-}
-
-void Board_DaqSetInterval(uint32_t interval_us)
-{
-  (void)interval_us;
-}
-
-const char * Board_DaqSetRung(uint8_t rung, uint16_t boxcar, const void *sections, uint8_t count, uint16_t decimate)
-{
-  (void)rung;
-  (void)boxcar;
-  (void)sections;
-  (void)count;
-  (void)decimate;
-  return NULL;
-}
-
-const char * Board_DaqSetTone(uint32_t hz, uint32_t rate_hz, int32_t amplitude, int32_t offset, uint8_t kind)
-{
-  (void)hz;
-  (void)rate_hz;
-  (void)amplitude;
-  (void)offset;
-  (void)kind;
-  return NULL;
-}
-
-const char * Board_DaqStart(void)
-{
-  return NULL;
-}
-
-void Board_DaqState(board_daq_state_t *out)
-{
-  if (out != NULL)
-  {
-    memset(out, 0, sizeof *out);
-  }
-}
-
-void Board_DaqStop(void)
-{
-}
-
-uint16_t Board_DaqTake(uint8_t *out, uint16_t max_records)
-{
-  (void)max_records;
-  if (out != NULL)
-  {
-    memset(out, 0, sizeof *out);
-  }
-  return (uint16_t)0;
-}
-
-void Board_DaqTakeLive(board_daq_live_t *out)
-{
-  if (out != NULL)
-  {
-    memset(out, 0, sizeof *out);
-  }
-}
-
-uint32_t Board_DaqTriggersPerRecord(void)
-{
-  return (uint32_t)0;
 }
 
 bool Board_DcBus(int32_t *raw, int32_t *millivolts)
@@ -1114,6 +1013,31 @@ void Board_DriveDerate(float factor)
 float Board_DriveDerating(void)
 {
   return s.derated ? s.derate : 1.0f;
+}
+
+/* What board_daq.c reads besides: no timer, so no injected sequence; the H7's eight
+   sampling times; no drivable pin. */
+bool Board_AdcInjected(uint8_t index)
+{
+  (void)index;
+  return false;
+}
+
+int32_t Board_AdcInjectedSlot(uint8_t index, const board_sync_sample_t *sample)
+{
+  (void)index;
+  (void)sample;
+  return 0;
+}
+
+bool Board_AdcSetSampleTime(uint8_t index)
+{
+  return index < 8U;
+}
+
+uint32_t Board_DigitalMask(void)
+{
+  return 0U;
 }
 
 /* Zero and span are board_adc.c's: they read the ADC. Zero takes the code as the offset;
