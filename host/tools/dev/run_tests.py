@@ -19,6 +19,10 @@ import argparse
 import os
 import sys
 
+# The stand-in where no board answers, not an emulator a suite: the emulator's own suite names
+# its URLs.
+os.environ.setdefault('COAXIAL_FALLBACK', 'simulated')
+
 from tools.dev import counts
 from tools.dev.runner import _results
 from tools.dev.scope import _plan, hold_model, release_model

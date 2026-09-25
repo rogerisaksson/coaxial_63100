@@ -24,7 +24,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - Emulated: the image on Renode's STM32H753 (`board/emu`, `host/tools/emu`),
   its front end from the schematic and LTspice (`electronic_simulations`,
   `afe_spice.py`), the A1335 and BNO085 modelled, 475 MIPS: conformance
-  110/110; a limb of N boards on one RS485 bus.
+  110/110; a limb of N boards on one RS485 bus; `emulator://?body=humanoid` the
+  stand-in's fleet. Where no board answers: the emulator, else the stand-in
+  (`COAXIAL_FALLBACK=simulated` skips it; the offline gate sets it).
 
 | Read | Before |
 | --- | --- |

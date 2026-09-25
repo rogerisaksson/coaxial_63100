@@ -1,0 +1,11 @@
+{
+  "name": "humanoid_axis",
+  "note": "A scenario, not a measurement: the trunk's axis on a fixed stand, pelvis, waist, neck and head through 36:1 gears, upright at the start. Masses, arms and inertias are assumptions of an adult-sized trunk.",
+  "body": {"kind": "ground"},
+  "nodes": [
+    {"name": "pelvis", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.4, "mass": 12.0, "arm": 0.10, "damping": 0.8}},
+    {"name": "waist", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.3, "mass": 10.0, "arm": 0.25, "damping": 0.6}},
+    {"name": "neck", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.02, "mass": 1.5, "arm": 0.08, "damping": 0.1}},
+    {"name": "head", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.015, "mass": 4.5, "arm": 0.10, "damping": 0.1}}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "humanoid_arm",
+  "note": "A scenario, not a measurement: an arm on a fixed shoulder girdle, shoulder, elbow, wrist and gripper through 36:1 gears, hanging straight at the start. Link masses, arms and inertias are assumptions of an adult-sized arm.",
+  "body": {"kind": "ground"},
+  "nodes": [
+    {"name": "shoulder", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.06, "mass": 3.5, "arm": 0.15, "damping": 0.3}},
+    {"name": "elbow", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.02, "mass": 1.8, "arm": 0.13, "damping": 0.2}},
+    {"name": "wrist", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.002, "mass": 0.6, "arm": 0.05, "damping": 0.05}},
+    {"name": "gripper", "motor": "outrunner_63100_14p", "load": {"kind": "joint", "gear": 36, "inertia": 0.0005, "mass": 0.3, "arm": 0.03, "damping": 0.02}}
+  ]
+}

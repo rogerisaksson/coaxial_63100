@@ -1,4 +1,5 @@
 """Modbus RTU over a serial port: framing, addressing, checksum."""
+import importlib
 import struct
 import threading
 import time
@@ -21,6 +22,16 @@ EXCEPTION = 0x80
 #: URL schemes this checkout's tools serve, by the package pyserial finds their handler in:
 #: the firmware's comms/ built for this host, and the image on an emulated MCU.
 URL_PACKAGES = {'fakeboard': 'tools.cores', 'emulator': 'tools.emu'}
+
+
+def url_buses(port):
+    """The segments a URL's handler names - its module's `buses(url)` - or None."""
+    scheme = str(port).split('://')[0] if '://' in str(port) else None
+    if scheme not in URL_PACKAGES:
+        return None
+    named = getattr(importlib.import_module('%s.protocol_%s' % (URL_PACKAGES[scheme], scheme)),
+                    'buses', None)
+    return named(port) if named else None
 
 
 def hand_to_binary(transport, settle=0.5):

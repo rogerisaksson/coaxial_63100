@@ -223,7 +223,9 @@ def _open_one(spec, transports, verify):
     if fresh:
         transports[key] = _reach(unit_port, unit_baud)
     board = Board(transports[key], unit)
-    if fresh and not transports[key].address:
+    # The console hands over; a bus - an emulated limb's says so - is binary already.
+    console = getattr(getattr(transports[key], 'serial', None), 'console', True)
+    if fresh and not transports[key].address and console:
         board.open_binary()
     if not verify:
         return board

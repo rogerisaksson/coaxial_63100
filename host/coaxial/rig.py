@@ -10,6 +10,7 @@ from coaxial.acquire.clock import NTP_SERVER
 from coaxial.acquire.stream import TaskStream
 from coaxial.acquire.task import Task
 from coaxial.comm import broker, session as sessionmod
+from coaxial.comm.session import EMULATOR_URL
 from coaxial.comm.transport import Transport
 from coaxial.control.motion import Motion
 from coaxial.devices import boot as bootmod
@@ -26,9 +27,8 @@ def _subsystem_names():
     return frozenset(Board.parts()) | {'gates', 'daq'}
 
 
-#: Where EMULATED runs when no emulator URL is named: one board, this host's image on
-#: Renode (tools.emu).
-EMULATOR_URL = 'emulator://'
+#: Where a machine discovered EMULATED runs: the stand-in's fleet emulated.
+EMULATOR_BODY_URL = 'emulator://?body=humanoid'
 
 
 class Later:
@@ -124,8 +124,9 @@ class Coaxial63100(Task, TaskStream, Acquisition):
                  execution_mode=HARDWARE, power_afe=False, own_image=True):
         """Say where the board runs: HARDWARE on `port`, SIMULATED the stand-in, EMULATED
         this host's image on an emulated MCU (`port` if it is an emulator:// URL, else
-        EMULATOR_URL). With `fallback`, the stand-in where no board answers or no emulator runs
-        (no Renode, no image) - CI's host job, a bare machine. Nothing is opened until
+        EMULATOR_URL). With `fallback`, where no board answers the emulator, and the stand-in
+        where no emulator runs (no Renode, no image, COAXIAL_FALLBACK=simulated) - CI's host
+        job, a bare machine. Nothing is opened until
         `open()`, which makes a real board run this host's own build (`own_image`) - loaded
         into it when it waits blank in its bootloader."""
         self.execution_mode = ExecutionMode(execution_mode)
@@ -188,7 +189,8 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             loaded = self.own_image and simulated is not True and self._load_blank()
             if loaded:
                 self._connect(simulated)
-            elif self._fallback and self.execution_mode is EMULATED:
+            elif self._fallback and (self.execution_mode is EMULATED
+                                     or getattr(self._origin, 'kind', None) == 'emulator'):
                 self._connect(True, 'Simulated - no emulator here: %s' % exc)
             else:
                 raise

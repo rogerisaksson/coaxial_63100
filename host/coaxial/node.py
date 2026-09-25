@@ -13,7 +13,7 @@ import time
 from coaxial.errors import RigError
 from machine.controller import Feedback
 from machine.machine import Actuator
-from machine.modes import HARDWARE
+from machine.modes import EMULATED, HARDWARE, SIMULATED
 from machine.nodes import Module, Node
 from machine.parts import AngleHold, Direct, Gain, Slew, SpeedPI, Wrap
 from motor.pmsm import RAD_S_PER_RPM
@@ -33,13 +33,19 @@ def _arming(rig, arming):
 
 
 def discover(port='COM4', execution_mode=HARDWARE, units=range(1, 17), **kw):
-    """Every Coaxial answering on every bus this host reaches, each opened as a node."""
+    """Every Coaxial answering on every bus this host reaches, each opened as a node: EMULATED,
+    the stand-in's fleet emulated, a Renode a limb."""
     from coaxial import Coaxial63100
+    from coaxial.rig import EMULATOR_BODY_URL
+    if execution_mode is EMULATED and '://' not in str(port):
+        port = EMULATOR_BODY_URL
     first = Coaxial63100(port=port, execution_mode=execution_mode, **kw).open()
     found = [(bus, unit) for bus, _ in first.session.buses()
              for unit, _ in first.session.scan(units, bus)]
+    # Where the first fell back to the stand-in, so does every node.
+    mode = SIMULATED if first.simulated else execution_mode
     first.close()
-    return [Coaxial(Coaxial63100(port=bus, unit=unit, execution_mode=execution_mode, **kw).open())
+    return [Coaxial(Coaxial63100(port=bus, unit=unit, execution_mode=mode, **kw).open())
             for bus, unit in found]
 
 

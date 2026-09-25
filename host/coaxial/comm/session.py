@@ -3,8 +3,10 @@
 The rig, the MCP server and the model runner all open it.
 """
 import collections
+import os
 
 from coaxial.comm import broker, ports, protocol
+from coaxial.comm.transport import url_buses
 from coaxial.devices.board import connect, disconnect, scan
 from coaxial.errors import RigError
 from coaxial.simulated import SimulatedSession
@@ -17,6 +19,25 @@ INTERFACE = {'probe': 'debug probe', 'serial': 'RS485', 'url': 'url', 'emulator'
 
 #: URL schemes that name an emulated MCU (tools.emu): the firmware real, the board not.
 EMULATED = ('emulator',)
+
+#: One board, this host's image on Renode (tools.emu): where EMULATED runs when no emulator URL
+#: is named, and where nothing answers a board's port.
+EMULATOR_URL = 'emulator://'
+
+#: What stands in where nothing answers: `emulated` - the emulator where it runs here, else the
+#: stand-in - or `simulated`, the stand-in at once (the offline gate's).
+FALLBACK = os.environ.get('COAXIAL_FALLBACK', 'emulated')
+
+
+def emulator_here():
+    """Whether this host runs its image emulated: Renode and the build (tools.emu)."""
+    if FALLBACK != 'emulated':
+        return False
+    try:
+        from tools.emu.emulator import ELF, find_renode
+    except ImportError:
+        return False
+    return find_renode() is not None and os.path.exists(ELF)
 
 Origin = collections.namedtuple(
     'Origin', 'real port baud kind label interface unit')
@@ -132,6 +153,12 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
         found, kind = ports.discover(port, baud, unit, only=only)
         simulated = found is None
         fell_back = simulated
+        # Nothing answered: this host's image on the emulator, where one runs here.
+        if fell_back and emulator_here():
+            return (Session(EMULATOR_URL, baud, unit),
+                    Origin(True, EMULATOR_URL, baud, 'emulator',
+                           'Emulated MCU - nothing answered on %s' % port,
+                           INTERFACE['emulator'], unit))
         port = port if found is None else found
     elif not simulated:
         kind = ports.kind_of(port)
@@ -198,8 +225,9 @@ class Session:
         return self._info
 
     def buses(self):
-        """[(label, what it serves)] - the segments this host can reach."""
-        return [(self.port, 'the attached bus')]
+        """[(label, what it serves)] - the segments this host can reach: those a URL's
+        handler names (an emulated body's limbs), else the attached one."""
+        return url_buses(self.port) or [(self.port, 'the attached bus')]
 
     def scan(self, units=range(1, 17), bus=None):
         """[(unit, version)] for every device answering on this bus."""

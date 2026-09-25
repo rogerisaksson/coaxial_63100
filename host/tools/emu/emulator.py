@@ -301,9 +301,10 @@ class Body:
     board's work (2026-09-25). Each limb is its own RS485 segment, as on the machine:
     `urls[name]` is its bus. `limbs` {name: boards}, `worlds` {name: a world's name}."""
 
-    def __init__(self, limbs, elf=ELF, worlds=None):
+    def __init__(self, limbs, elf=ELF, worlds=None, mips: int | None = FAITHFUL_MIPS):
         worlds = worlds or {}
-        self.limbs = {name: Limb(n, elf, world=worlds.get(name)) for name, n in limbs.items()}
+        self.limbs = {name: Limb(n, elf, world=worlds.get(name), mips=mips)
+                      for name, n in limbs.items()}
         self.urls = {name: limb.url for name, limb in self.limbs.items()}
 
     def start(self):
