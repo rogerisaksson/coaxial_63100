@@ -347,7 +347,7 @@ def test_ack_skips_the_quiet_time(report):
         return body + crc16(body).to_bytes(2, 'little')
 
     real = tmod.serial
-    tmod.serial = types.SimpleNamespace(Serial=_StubSerial,
+    tmod.serial = types.SimpleNamespace(Serial=_StubSerial, serial_for_url=_StubSerial,
                                         SerialException=Exception)
     try:
         port = tmod.Transport('STUB', 115200)

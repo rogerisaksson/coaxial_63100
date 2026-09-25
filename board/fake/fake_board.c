@@ -3,7 +3,7 @@
 /* No part fitted, nothing read, every out-parameter zeroed, every setting taken (a NULL
    refusal): so the offline suites drive comms/ through its own wire
    (tools/cores/fakeboard.py). Generated once from the prototypes; what a check needs is
-   answered by hand here. */
+   answered by hand here - the AFE rail and the PWM below. */
 #include "board/adc.h"
 #include "board/angle.h"
 #include "board/cal.h"
@@ -25,6 +25,17 @@
 
 #include <stddef.h>
 #include <string.h>
+
+/* Answered by hand, and remembered: the AFE rail - who holds it - and the PWM's enable,
+   so a host that switches either reads back what it asked for. 50 kHz centre-aligned at
+   475 MHz is ARR 4750. */
+#define FAKE_PWM_PERIOD 4750U
+
+static struct
+{
+  uint8_t users;
+  bool    pwm_enabled;
+} s;
 
 bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us, board_burst_t *out, uint8_t *count, uint32_t *elapsed_us)
 {
@@ -118,7 +129,7 @@ uint8_t Board_AdcSampleTime(void)
 
 bool Board_AfeOn(void)
 {
-  return false;
+  return s.users != 0U;
 }
 
 void Board_AngleClock(uint32_t *kernel_hz, uint32_t *bitrate_hz)
@@ -800,28 +811,41 @@ bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w)
 
 bool Board_PowerAcquire(board_rail_t rail, board_user_t user)
 {
-  (void)rail;
-  (void)user;
-  return false;
+  if ((rail >= BOARD_RAIL_COUNT) || (user >= BOARD_USER_COUNT))
+  {
+    return false;
+  }
+  s.users |= (uint8_t)(1U << user);
+  return true;
 }
 
 bool Board_PowerRelease(board_rail_t rail, board_user_t user)
 {
-  (void)rail;
-  (void)user;
-  return false;
+  if ((rail >= BOARD_RAIL_COUNT) || (user >= BOARD_USER_COUNT))
+  {
+    return false;
+  }
+  s.users &= (uint8_t)~(1U << user);
+  return true;
 }
 
 void Board_PowerReleaseAll(void)
 {
+  s.users = 0U;
 }
 
 bool Board_PowerState(board_rail_t rail, board_rail_state_t *out)
 {
-  (void)rail;
-  if (out != NULL)
+  if ((rail >= BOARD_RAIL_COUNT) || (out == NULL))
   {
-    memset(out, 0, sizeof *out);
+    return false;
+  }
+  memset(out, 0, sizeof *out);
+  out->on    = s.users != 0U;
+  out->users = s.users;
+  for (uint8_t bits = s.users; bits != 0U; bits &= (uint8_t)(bits - 1U))
+  {
+    out->count++;
   }
   return true;
 }
@@ -848,6 +872,7 @@ int8_t Board_PwmDeadTimeSkew(void)
 
 void Board_PwmDisable(void)
 {
+  s.pwm_enabled = false;
 }
 
 void Board_PwmDutyRequested(uint32_t *ticks_q16)
@@ -860,7 +885,8 @@ void Board_PwmDutyRequested(uint32_t *ticks_q16)
 
 bool Board_PwmEnable(void)
 {
-  return false;
+  s.pwm_enabled = true;
+  return true;
 }
 
 uint8_t Board_PwmGateShorts(void)
@@ -870,7 +896,7 @@ uint8_t Board_PwmGateShorts(void)
 
 bool Board_PwmIsEnabled(void)
 {
-  return false;
+  return s.pwm_enabled;
 }
 
 uint32_t Board_PwmPeriodsLeft(void)
@@ -918,10 +944,14 @@ const char * Board_PwmSetDeadTimeSkew(int8_t counts)
 
 void Board_PwmState(board_pwm_state_t *out)
 {
-  if (out != NULL)
+  if (out == NULL)
   {
-    memset(out, 0, sizeof *out);
+    return;
   }
+  memset(out, 0, sizeof *out);
+  out->ready   = true;
+  out->enabled = s.pwm_enabled;
+  out->period  = FAKE_PWM_PERIOD;
 }
 
 void Board_RequestConsoleMode(void)
@@ -944,10 +974,12 @@ void Board_StoKeepaliveReset(void)
 
 void Board_StoState(board_sto_state_t *out)
 {
-  if (out != NULL)
+  if (out == NULL)
   {
-    memset(out, 0, sizeof *out);
+    return;
   }
+  memset(out, 0, sizeof *out);
+  out->afe_on = s.users != 0U;
 }
 
 const char * Board_SyncArm(void)
