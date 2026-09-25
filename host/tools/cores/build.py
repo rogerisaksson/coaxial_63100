@@ -30,8 +30,9 @@ def find_cc():
     return None
 
 
-def build(cc, sources, includes, name):
-    """(path, warnings) for a shared library, built fresh every run."""
+def build(cc, sources, includes, name, extra=()):
+    """(path, warnings) for a shared library, built fresh every run; `extra` flags after the
+    firmware's."""
     os.makedirs(OUT, exist_ok=True)
     lib = os.path.join(OUT, name + ('.dll' if os.name == 'nt' else '.so'))
     flags = [] if os.name == 'nt' else ['-fPIC']    # a .so on Linux; mingw warns on it
@@ -39,7 +40,7 @@ def build(cc, sources, includes, name):
         flags += ['-I', path]
     if os.environ.get('COAXIAL_GCOV'):
         flags += GCOV
-    done = subprocess.run([cc, '-shared', '-o', lib] + FLAGS +
+    done = subprocess.run([cc, '-shared', '-o', lib] + FLAGS + list(extra) +
                           sources + flags,
                           capture_output=True, text=True, encoding='utf-8',
                           errors='replace')

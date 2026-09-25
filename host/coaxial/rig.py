@@ -123,14 +123,14 @@ class Coaxial63100(Task, TaskStream, Acquisition):
     def __init__(self, port='COM4', baud=115200, unit=1, fallback=True,
                  execution_mode=HARDWARE, power_afe=False, own_image=True):
         """Say where the board runs: HARDWARE on `port`, SIMULATED the stand-in, EMULATED
-        this host's image on an emulated MCU (`port` if it is an emulator:// URL, else
-        EMULATOR_URL). With `fallback`, where no board answers the emulator, and the stand-in
+        this host's image on an emulated MCU (`port` if it is an emulator:// or native:// URL,
+        else EMULATOR_URL). With `fallback`, where no board answers the emulator, and the stand-in
         where no emulator runs (no Renode, no image, COAXIAL_FALLBACK=simulated) - CI's host
         job, a bare machine. Nothing is opened until
         `open()`, which makes a real board run this host's own build (`own_image`) - loaded
         into it when it waits blank in its bootloader."""
         self.execution_mode = ExecutionMode(execution_mode)
-        if self.execution_mode is EMULATED and not str(port).startswith(EMULATOR_URL):
+        if self.execution_mode is EMULATED and sessionmod.url_kind(str(port)) != 'emulator':
             port = EMULATOR_URL
         self.port = port
         self.baud = baud

@@ -36,10 +36,11 @@ Open work. Measured results are in FINDINGS.
 
 ## Host
 
-- native://: the A1335 and BNO085 are the fake's (the angle and IMU pages see
-  nothing turn); one board, no limb or body; the AFE and the heat repeat
-  board/emu's C# - one source for both; not yet the fallback where nothing
-  answers (Renode is).
+- native://: a limb's world stands on a fixed mount, as board/emu's: the
+  body's balance and gait come from the SIL (`Limb.imu`, the world's
+  `emu_world_motor`); the AFE, heat, A1335 and BNO085 repeat board/emu's C#,
+  one source for both wanted; one Transport a rig on a URL bus, the limb keeping
+  t3.5 for them; not yet the fallback where nothing answers (Renode is).
 - Debug is `-O0`; `-Og` is a measurement away (LOOP counters, keepalive gap).
 - `intent.py` has no thermal kind: warmth questions become an NTC read.
   Measure against the live model before landing.

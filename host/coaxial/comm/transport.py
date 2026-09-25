@@ -123,8 +123,9 @@ class Transport:
         #: makes the next transmit purge whatever is left over.
         self._clean = False
         #: Whether the previous request was one the length oracle proves -
-        #: with `proven_dispatch`, the next transmit owes no gap for it.
+        #: with `proven_dispatch`, the next transmit to the same unit owes no gap for it.
         self._last_proven = False
+        self._last_unit = None
 
     def __repr__(self):
         return '<Transport %s@%d>' % (self.port, self.baud)
@@ -225,12 +226,15 @@ class Transport:
         frame = bytes([unit, function]) + payload
         frame += struct.pack('<H', crc16(frame))    # low byte first, unlike every
                                                     # other field in the frame
-        # t3.5 is silence on the bus, not a sleep to perform.
-        if not (self.proven_dispatch and self._last_proven):
+        # t3.5 is silence on the bus, not a sleep to perform. Owed on a change of unit: only
+        # the addressed server closes a proven frame on its CRC, every other one on the
+        # silence - skipped, a limb's next unit heard its frame run into the last and dropped it.
+        if not (self.proven_dispatch and self._last_proven and unit == self._last_unit):
             self._pay_gap()
         pdu_len = len(frame) - 3
         self._last_proven = (request_length(frame[1:-2]) == pdu_len
                              and pdu_len > 0)
+        self._last_unit = unit
         with self._link_errors('transmitting'):
             # Only when the last exchange did not end cleanly.
             if not self._clean:

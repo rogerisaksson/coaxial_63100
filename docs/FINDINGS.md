@@ -268,6 +268,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   whole each wake.
   The host's `-Wconversion` found three narrowings in board_pwm.c and
   board_sync.c the target's flags pass (2026-09-26).
+- native:// with the whole board layer (power, STO, A1335 by DMA, BNO085 over
+  SHTP, the drive): 1 virtual s in 0.055 wall s a board. The humanoid, 20
+  boards on 5 buses, every drive holding: each limb 1.0000 virtual s a wall
+  s, 50 000 triples a virtual s a board, no overrun, 2.05-2.28 of 16 cores
+  (2026-09-26).
+- With `proven_dispatch` the host skipped t3.5 after any proven request: the
+  addressed board closes a frame on its CRC, the rest of a limb on the
+  silence, so a frame for another unit ran into the last and went unanswered.
+  The gap is skipped for the same unit only. Rigs on one URL bus each hold a
+  Transport, none owing another's gap: the native limb keeps t3.5 as the
+  bus's adapter (2026-09-26).
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
 - Ollama answered 500 from 2026-09-03 to 09-12: the runner failed to start.
 - Front page model drawn at inner height - 2 and inside a 1-column padding:

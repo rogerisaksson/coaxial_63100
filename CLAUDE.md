@@ -28,9 +28,10 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   stand-in's fleet. Where no board answers: the emulator, else the stand-in
   (`COAXIAL_FALLBACK=simulated` skips it; the offline gate sets it).
   `native://`, for real-time SIL/HIL (the robot that balances and walks):
-  board/src's stage, triple, meter and drive built for this host over
-  `board/native`'s TIM1, ADCs and front end, 21x headroom with the drive on.
-  Validating the firmware against sensors and timers stays on Renode.
+  board/src's board layer built for this host over `board/native`'s chip -
+  TIM1, ADCs, SPI and DMA, the front end, A1335, BNO085 - 18x headroom a
+  board with the drive on; `?body=humanoid` its 20 boards on 5 buses, a
+  thread a limb, 2.2 cores. Validating the firmware stays on Renode.
 
 | Read | Before |
 | --- | --- |

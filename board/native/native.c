@@ -1,33 +1,41 @@
-/** native.c - The board's silicon on this host: TIM1, ADC1-3, the front end. */
+/** native.c - The board's silicon on this host: the clock, TIM1, ADC1-3, the front end. */
 
-/* Over the world core's plant. board/src/board_pwm.c, board_sync.c, board_adc.c and
-   board_drive.c run on it as built for the part. TIM1 counts centre-aligned on SYSCLK's
-   cycles, its compares preloaded and landed at the updates its repetition counter lets
-   through, its update interrupt run there; OC5REF's edge on the down-count converts the
-   injected groups and runs ADC3's interrupt; a meter read converts its channel. The plant
-   (world/) steps between edges on the compares in force. The front end is
+/* Over the world core's plant, a board a node of it (native_world). board/src's files run
+   on it as built for the part, main()'s loop as main.c's USER CODE has it. TIM1 counts
+   centre-aligned on SYSCLK's cycles, its compares preloaded and landed at the updates its
+   repetition counter lets through, its update interrupt run there; OC5REF's edge on the
+   down-count converts the injected groups and runs ADC3's interrupt; a meter read converts
+   its channel. The plant steps between edges on the compares in force. The front end is
    board/emu/Coaxial63100_AFE.cs's - the schematic's networks, LTspice's phase transfer, the
    board's spread from its seed, the converter's noise - and the heat
-   Coaxial63100_Plant.cs's. The rest of the board API is the fake board's, weak there. A
-   read of the cycle counter moves the clock, so a spin ends, and runs the interrupts due
-   unless PRIMASK holds them. Driven by tools/cores/native.py. */
+   Coaxial63100_Plant.cs's; the A1335 reads the plant's shaft, the BNO085 ticks each
+   millisecond (native_a1335.c, native_bno085.c, their pins and buses native_io.c's). The
+   rest of the board API is the fake board's, weak there. A read of the cycle counter or the
+   tick moves the clock, so a spin ends, and runs the interrupts due unless PRIMASK holds
+   them. Driven by tools/cores/native.py. */
 #include "board.h"
 #include "board_drive.h"
 #include "board_hw.h"
 #include "board_irq.h"
+#include "board_power.h"
+#include "link.h"
+#include "modbus_map.h"
+#include "native.h"
 
 #include <math.h>
 #include <string.h>
 
-/* The world core's flat bridge (world/src/world_emu.c). */
-void emu_plant_step(int i, float d0, float d1, float d2, int driven, float ts, float *out);
+/* The world core's flat bridge (world/src/world_emu.c), in a library of its own that a
+   limb's boards share. */
+typedef void (*native_step_t)(int node, float d0, float d1, float d2, int driven, float ts,
+                              float *out);
+typedef void (*native_shaft_t)(int node, float *out);
 
 /* TIM1's update interrupt (board/src/board_pwm.c). */
 void TIM1_UP_IRQHandler(void);
 
 /* The fake board's stack (board/fake/fake_uart.c). */
 void fake_open(void);
-void fake_loop(void);
 void fake_clock_step(uint32_t us);
 
 /* CubeMX's MX_TIM1_Init: ARR 2375, RCR 1, DTG 19, the break on and active low. */
@@ -40,7 +48,10 @@ void fake_clock_step(uint32_t us);
 #define NATIVE_READ_CYCLES 8U
 /* main()'s loop: a pass at least this often, us. */
 #define NATIVE_LOOP_US     20U
-#define NATIVE_NODE        0
+/* The A1335's invented turn with no world: one every two virtual seconds, as Renode's. */
+#define NATIVE_TURN_S      2.0
+#define NATIVE_RAD_TO_DEG  57.29577951308232
+#define NATIVE_PI          3.141592653589793
 #define NATIVE_ADCS        3U
 #define NATIVE_RANKS       2U
 #define NATIVE_FULL_CODE   65535.0
@@ -56,7 +67,6 @@ void fake_clock_step(uint32_t us);
 #define HEAT_DIE_RISE_K    8.0
 
 TIM_TypeDef  native_tim1;
-GPIO_TypeDef native_gpioe;
 RCC_TypeDef  native_rcc;
 ADC_TypeDef  native_adc3;
 static ADC_TypeDef native_adc1;
@@ -82,8 +92,10 @@ static struct
   uint64_t told_us;               /* how far the fake's microsecond clock has been told */
   bool     in_isr;
 
+  uint64_t irqs;                  /* the NVIC's enables, a bit an IRQn */
+  uint64_t tick_at;               /* the next millisecond: SysTick's, the BNO085's */
+  uint64_t end;                   /* where the host's step ends: WFI sleeps no further */
   uint32_t sr;                    /* TIM1's SR, its flags rc_w0 */
-  bool     up_irq;                /* TIM1_UP enabled in the NVIC */
   uint32_t rep;                   /* the repetition counter */
   uint32_t active[BOARD_PWM_PHASES];  /* the compares' shadows */
   native_edge_t edge;             /* the next edge, and when */
@@ -104,6 +116,20 @@ static struct
   uint64_t heat_at;
   double   board_c;
 } n;
+
+/* This board's node in its world, and its shaft unwrapped: the electrical angle over the
+   pole pairs, as Coaxial63100_Plant.cs turns the A1335. */
+static struct
+{
+  native_step_t  step;
+  native_shaft_t shaft;
+  int      node;
+  double   pole_pairs;
+  double   electrical;
+  double   mechanical;
+  bool     set;
+  double   degrees;
+} w;
 
 /* The front end: board/emu/Coaxial63100_AFE.cs's networks, inputs and errors. */
 static struct
@@ -279,11 +305,21 @@ static void native_plant_to(uint64_t at)
   }
   const float ts = (float)(at - n.plant_at) / (float)SystemCoreClock;
   const float arr = (float)((TIM1->ARR != 0U) ? TIM1->ARR : 1U);
-  float got[4];
+  float got[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-  emu_plant_step(NATIVE_NODE, (float)n.active[0] / arr, (float)n.active[1] / arr,
-                 (float)n.active[2] / arr, ((TIM1->BDTR & TIM_BDTR_MOE) != 0U) ? 1 : 0,
-                 ts, got);
+  if (w.step != NULL)
+  {
+    float shaft[3];
+
+    w.step(w.node, (float)n.active[0] / arr, (float)n.active[1] / arr,
+           (float)n.active[2] / arr, ((TIM1->BDTR & TIM_BDTR_MOE) != 0U) ? 1 : 0, ts, got);
+    w.shaft(w.node, shaft);
+    double turned = (double)shaft[0] - w.electrical;
+
+    turned -= 2.0 * NATIVE_PI * floor(turned / (2.0 * NATIVE_PI) + 0.5);
+    w.electrical = (double)shaft[0];
+    w.mechanical += turned / w.pole_pairs;
+  }
   for (uint8_t leg = 0U; leg < BOARD_PWM_PHASES; leg++)
   {
     afe.amps[leg] = got[leg];
@@ -324,10 +360,9 @@ static void native_update(bool overflow)
   native_reconcile();
   n.sr |= TIM_SR_UIF;
   TIM1->SR = n.sr;
-  if (((TIM1->DIER & TIM_DIER_UIE) != 0U) && n.up_irq)
+  if ((TIM1->DIER & TIM_DIER_UIE) != 0U)
   {
-    TIM1_UP_IRQHandler();
-    native_reconcile();
+    native_irq(TIM1_UP_IRQn, TIM1_UP_IRQHandler);
   }
 }
 
@@ -403,39 +438,135 @@ static void native_edge(void)
   native_schedule(edge, at);
 }
 
-/* The clock on to `target`, the edges before it run. */
+static uint64_t native_cycles_per_ms(void)
+{
+  return SystemCoreClock / 1000U;
+}
+
+/* The clock on to `target`: the timer's edges and the parts' milliseconds before it run. */
 static void native_until(uint64_t target)
 {
-  while (((TIM1->CR1 & TIM_CR1_CEN) != 0U) && (n.edge_at <= target))
+  for (;;)
   {
-    native_clock_to(n.edge_at);
-    native_edge();
+    const uint64_t edge = ((TIM1->CR1 & TIM_CR1_CEN) != 0U) ? n.edge_at : UINT64_MAX;
+    const uint64_t next = (edge < n.tick_at) ? edge : n.tick_at;
+
+    if (next > target)
+    {
+      break;
+    }
+    native_clock_to(next);
+    if (next == n.tick_at)
+    {
+      n.tick_at += native_cycles_per_ms();
+      bno085_tick();
+    }
+    else
+    {
+      native_edge();
+    }
   }
   native_clock_to(target);
 }
 
-/* ---- what the board layer calls ----------------------------------------------------- */
+/* ---- what the parts and the board layer call ---------------------------------------- */
 
-uint32_t Board_Cycles(void)
+uint64_t native_now(void)
 {
-  const uint64_t at = n.cycles + NATIVE_READ_CYCLES;
+  return n.cycles;
+}
+
+void native_wait(uint64_t cycles)
+{
+  const uint64_t at = n.cycles + cycles;
 
   native_reconcile();
   if (n.in_isr || (native_primask != 0U))
   {
     native_clock_to(at);
+    return;
   }
-  else
+  native_until(at);
+  native_io_poll();
+}
+
+bool native_irq_enabled(int irq)
+{
+  return (irq >= 0) && (irq < 64) && (((n.irqs >> (unsigned)irq) & 1U) != 0U);
+}
+
+void native_irq(int irq, void (*handler)(void))
+{
+  if (!native_irq_enabled(irq))
   {
-    native_until(at);
+    return;
   }
+  const bool was = n.in_isr;
+
+  n.in_isr = true;
+  handler();
+  n.in_isr = was;
+  native_reconcile();
+}
+
+bool native_powered(void)
+{
+  return Board_AfeOn();
+}
+
+double native_ntc_celsius(void)
+{
+  return afe.ntc_c;
+}
+
+/* The magnet's mechanical angle, degrees: the plant's, or as set, or an invented turn. */
+double native_shaft_degrees(void)
+{
+  if (w.set)
+  {
+    return w.degrees;
+  }
+  if (w.step != NULL)
+  {
+    return w.mechanical * NATIVE_RAD_TO_DEG;
+  }
+  return 360.0 * ((double)n.cycles / (double)SystemCoreClock) / NATIVE_TURN_S;
+}
+
+uint32_t Board_Cycles(void)
+{
+  native_wait(NATIVE_READ_CYCLES);
   return (uint32_t)n.cycles;
 }
 
-void HAL_GPIO_Init(GPIO_TypeDef *port, const GPIO_InitTypeDef *init)
+/* Asleep until an interrupt: SysTick's millisecond, or the timer's edge when one of its
+   interrupts is on - no further than the host's step. The interrupt runs as PRIMASK lets it. */
+void native_wfi(void)
 {
-  (void)port;
-  (void)init;
+  uint64_t at = n.tick_at;
+  const bool timer = (((TIM1->DIER & TIM_DIER_UIE) != 0U) && native_irq_enabled(TIM1_UP_IRQn))
+                     || (n.adc[2].injected && n.adc[2].it);
+
+  if (timer && (n.edge_at < at))
+  {
+    at = n.edge_at;
+  }
+  if (n.end < at)
+  {
+    at = n.end;
+  }
+  native_clock_to(at);
+}
+
+uint32_t HAL_GetTick(void)
+{
+  native_wait(NATIVE_READ_CYCLES);
+  return (uint32_t)(n.cycles / native_cycles_per_ms());
+}
+
+void HAL_Delay(uint32_t ms)
+{
+  native_wait((uint64_t)ms * native_cycles_per_ms());
 }
 
 void HAL_NVIC_SetPriority(IRQn_Type irq, uint32_t preempt, uint32_t sub)
@@ -447,12 +578,12 @@ void HAL_NVIC_SetPriority(IRQn_Type irq, uint32_t preempt, uint32_t sub)
 
 void HAL_NVIC_EnableIRQ(IRQn_Type irq)
 {
-  n.up_irq = n.up_irq || (irq == TIM1_UP_IRQn);
+  n.irqs |= (uint64_t)1U << (unsigned)irq;
 }
 
 void HAL_NVIC_DisableIRQ(IRQn_Type irq)
 {
-  n.up_irq = n.up_irq && (irq != TIM1_UP_IRQn);
+  n.irqs &= ~((uint64_t)1U << (unsigned)irq);
 }
 
 static uint8_t native_adc(const ADC_HandleTypeDef *hadc)
@@ -536,19 +667,40 @@ HAL_StatusTypeDef HAL_ADCEx_InjectedStop_IT(ADC_HandleTypeDef *hadc)
   return HAL_OK;
 }
 
+/* One pass of main()'s loop, as main.c's USER CODE runs it. */
+static void native_loop(void)
+{
+  Board_StoKeepalive();
+  Board_PowerPoll();
+  if (!link_busy())
+  {
+    Board_ImuPoll();
+    Board_AnglePoll();
+    Board_DaqPoll();
+    Board_ThermalPoll();
+  }
+  link_poll();
+  if (!link_busy())
+  {
+    Board_StoIdle();
+  }
+  native_io_poll();
+  native_reconcile();
+}
+
 /* The exchange's clock `us` on: the edges in it run, and a pass of main()'s loop at least
    every NATIVE_LOOP_US. */
 void fake_advance(uint32_t us)
 {
   const uint64_t end = n.cycles + (uint64_t)us * native_cycles_per_us();
 
+  n.end = end;
   do
   {
     const uint64_t pass = n.cycles + (uint64_t)NATIVE_LOOP_US * native_cycles_per_us();
 
     native_until((pass < end) ? pass : end);
-    fake_loop();
-    native_reconcile();
+    native_loop();
   } while (n.cycles < end);
 }
 
@@ -573,13 +725,76 @@ void native_afe(double volts_per_amp, double zero_volts, double gain_sigma, doub
   afe.bus_err = afe_gauss() * bus_sigma;
 }
 
+/** This board a node of a world (world/src/world_emu.c's step and shaft), its motor's pole
+    pairs to turn the shaft's electrical angle mechanical. */
+void native_world(void *step, void *shaft, int node, double pole_pairs)
+{
+  w.step = (native_step_t)step;
+  w.shaft = (native_shaft_t)shaft;
+  w.node = node;
+  w.pole_pairs = (pole_pairs > 0.0) ? pole_pairs : 1.0;
+  w.electrical = 0.0;
+  w.mechanical = 0.0;
+}
+
+/** The magnet's angle as the host puts it, degrees, the plant's no longer. */
+void native_angle(double degrees)
+{
+  w.degrees = degrees;
+  w.set = true;
+}
+
+/* The handover slot a bootloader leaves (boot_hand_t), native_hand's; board_boot.c's reading
+   of it below, which cannot build here - its image header takes the linker's addresses. */
+static struct
+{
+  bool    assigned;
+  uint8_t unit;
+  uint8_t position;
+  uint8_t flags;
+} h;
+
+/** What a bootloader leaves this board in the slot, before native_open: its unit, its
+    position down the limb, its flags (BOOT_FLAG_TERMINATE). */
+void native_hand(uint8_t unit, uint8_t position, uint8_t flags)
+{
+  h.assigned = true;
+  h.unit = unit;
+  h.position = position;
+  h.flags = flags;
+}
+
+void Board_BootInit(void)
+{
+  if (!h.assigned)
+  {
+    return;                          /* no bootloader assigned anything */
+  }
+  (void)modbus_map_set_unit_id(h.unit);
+  Board_SetTermination((h.flags & BOOT_FLAG_TERMINATE) != 0U);
+}
+
+board_identity_t Board_Identity(void)
+{
+  board_identity_t id;
+
+  memset(&id, 0, sizeof id);
+  id.assigned = h.assigned;
+  id.type = BOARD_BOOT_TYPE;
+  id.unit = modbus_map_unit_id();
+  id.position = h.assigned ? h.position : 0U;
+  id.flags = h.assigned ? h.flags : 0U;
+  return id;
+}
+
 /** Power on: the fake board's stack, TIM1 as CubeMX leaves it and the update its UG makes,
-    then the board's own init of the stage, the triple and the drive. */
+    then the board's own init in main()'s order - the stage, the record, its dead time, the
+    triple and the drive. */
 void native_open(void)
 {
   memset(&n, 0, sizeof n);
+  memset(&w, 0, sizeof w);
   memset(&native_tim1, 0, sizeof native_tim1);
-  memset(&native_gpioe, 0, sizeof native_gpioe);
   memset(&native_rcc, 0, sizeof native_rcc);
   memset(&native_adc1, 0, sizeof native_adc1);
   memset(&native_adc2, 0, sizeof native_adc2);
@@ -592,6 +807,10 @@ void native_open(void)
   n.board_c = HEAT_AMBIENT_C;
   native_ts_cal[0] = (uint16_t)lround(afe_die(30.0) / afe.ref * NATIVE_FULL_CODE);
   native_ts_cal[1] = (uint16_t)lround(afe_die(110.0) / afe.ref * NATIVE_FULL_CODE);
+  n.tick_at = native_cycles_per_ms();
+  native_io_open();
+  a1335_open();
+  bno085_open();
 
   fake_open();
   RCC->APB2ENR = RCC_APB2ENR_TIM1EN;
@@ -604,6 +823,8 @@ void native_open(void)
   native_reconcile();
   n.edge = EDGE_OVERFLOW;
   n.edge_at = (uint64_t)NATIVE_ARR * NATIVE_TICK_CYCLES;
+  (void)Board_PwmSetDeadTime(Board_Cal()->deadtime_ns);
+  (void)Board_PwmSetDeadTimeSkew((int8_t)Board_Cal()->deadtime_skew);
   Board_SyncDisarm();
   Board_DriveInit();
 }
@@ -612,6 +833,19 @@ void native_open(void)
 void native_run(uint32_t us)
 {
   fake_advance(us);
+}
+
+/** The board's clock on to `us` since native_open, if it stands short of it: a limb's boards
+    run to one time, none drifting by what its own reads added. */
+void native_run_to(uint64_t us)
+{
+  const uint64_t at = us * native_cycles_per_us();
+
+  if (at > n.cycles)
+  {
+    fake_advance((uint32_t)((at - n.cycles + native_cycles_per_us() - 1U)
+                            / native_cycles_per_us()));
+  }
 }
 
 /** The board's clock since native_open, s. */

@@ -452,6 +452,10 @@ FAKE_WEAK uint32_t Board_HclkHz(void)
   return FAKE_SYSCLK_HZ / 2U;
 }
 
+FAKE_WEAK void Board_BootInit(void)
+{
+}
+
 FAKE_WEAK board_identity_t Board_Identity(void)
 {
   static const board_identity_t none;
@@ -897,7 +901,7 @@ FAKE_WEAK void Board_Uid(uint8_t *out)
 {
   if (out != NULL)
   {
-    memset(out, 0, sizeof *out);
+    memset(out, 0, 12U);         /* three words off UID_BASE */
   }
 }
 

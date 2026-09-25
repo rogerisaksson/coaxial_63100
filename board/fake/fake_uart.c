@@ -5,6 +5,7 @@
 #include "board/cal.h"
 #include "board/clock.h"
 #include "board/daq.h"
+#include "board/handover.h"
 #include "board/thermal.h"
 #include "board_hw.h"
 #include "dev_serial.h"
@@ -68,7 +69,8 @@ static uint32_t ticks(void *ctx)
   return s_clock;
 }
 
-uint32_t HAL_GetTick(void)
+/* Milliseconds. Weak: board/native's moves its clock. */
+__attribute__((weak)) uint32_t HAL_GetTick(void)
 {
   return s_clock / 1000U;
 }
@@ -179,11 +181,41 @@ uint32_t dev_uart_port_baud(uint8_t index)
 void fake_open(void)
 {
   Board_CalInit();
+  Board_BootInit();              /* main()'s order: the handover before link_init */
   memset(s_port, 0, sizeof s_port);
   s_clock = 0U;
   link_init();
   Board_ThermalInit();
   link_open();
+}
+
+/** A byte in on `port` at the line's pace, the stack pumped as it lands: a bus's share of a
+    frame, each board on it hearing it. */
+void fake_hear(uint8_t port, uint8_t byte)
+{
+  if (port >= DEV_UART_COUNT)
+  {
+    return;
+  }
+  fake_advance(FAKE_CHAR_US);
+  s_port[port].in[s_port[port].head] = byte;
+  s_port[port].at[s_port[port].head] = s_clock;
+  s_port[port].head = (uint16_t)((s_port[port].head + 1U) % FAKE_BYTES);
+  fake_advance(0U);
+}
+
+/** What `port` sent since the last call, into `out`; its length. */
+uint16_t fake_said(uint8_t port, uint8_t *out, uint16_t cap)
+{
+  if (port >= DEV_UART_COUNT)
+  {
+    return 0U;
+  }
+  const uint16_t n = (s_port[port].out_len < cap) ? s_port[port].out_len : cap;
+
+  memcpy(out, s_port[port].out, n);
+  s_port[port].out_len = 0U;
+  return n;
 }
 
 /** `req` in on the console port at the line's pace, the stack pumped until its answer
@@ -193,18 +225,12 @@ uint16_t fake_exchange(const uint8_t *req, uint16_t len, uint8_t *out, uint16_t 
   s_port[LINK_CONSOLE].out_len = 0U;
   for (uint16_t k = 0U; k < len; k++)
   {
-    fake_advance(FAKE_CHAR_US);
-    s_port[LINK_CONSOLE].in[s_port[LINK_CONSOLE].head] = req[k];
-    s_port[LINK_CONSOLE].at[s_port[LINK_CONSOLE].head] = s_clock;
-    s_port[LINK_CONSOLE].head = (uint16_t)((s_port[LINK_CONSOLE].head + 1U) % FAKE_BYTES);
-    fake_advance(0U);
+    fake_hear(LINK_CONSOLE, req[k]);
   }
   for (uint32_t waited = 0U; waited < FAKE_WAIT_US && s_port[LINK_CONSOLE].out_len == 0U;
        waited += 100U)
   {
     fake_advance(100U);
   }
-  uint16_t n = s_port[LINK_CONSOLE].out_len < cap ? s_port[LINK_CONSOLE].out_len : cap;
-  memcpy(out, s_port[LINK_CONSOLE].out, n);
-  return n;
+  return fake_said(LINK_CONSOLE, out, cap);
 }
