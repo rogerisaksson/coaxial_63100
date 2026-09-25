@@ -111,6 +111,61 @@ def test_the_wire_refuses(report, rig):
                  not wrong, str(wrong) if wrong else '')
 
 
+def test_every_verb_answers_or_refuses(report, rig):
+    """Invariant 8 across the wire: each verb a result or a raise from coaxial.errors, never
+    a decode's KeyError or struct.error."""
+    from coaxial.errors import RigError
+    b = rig.board
+    a, d, t, i, g, p = b.analog, b.drive, b.thermal, b.imu, b.gate_drivers, b.gpio
+    calls = [('afe.on', b.afe.on), ('analog.scaling', a.scaling), ('analog.names', a.names),
+             ('analog.index_of', lambda: a.index_of('Phase U')),
+             ('analog.burst', lambda: a.burst(a.mask_all(), 8)),
+             ('analog.read', lambda: a.read(samples=8)),
+             ('analog.noise', lambda: a.noise(0, samples=16)),
+             ('analog.ntc_temperature', a.ntc_temperature),
+             ('analog.dcbus_voltage', a.dcbus_voltage),
+             ('analog.phase_current', a.phase_current), ('analog.scan', a.scan),
+             ('afe.off', b.afe.off),
+             ('drive.model.state', d.model.state),
+             ('drive.model.configure', lambda: d.model.configure(r=0.05)),
+             ('drive.model.reset', d.model.reset), ('drive.observers.read', d.observers.read),
+             ('drive.moments.read', lambda: d.moments.read(count=4, timeout=0.3, poll=0.05)),
+             ('drive.configure source', lambda: d.configure(source='model')),
+             ('drive.configure profile', lambda: d.configure(profile='outrunner_63100_14p')),
+             ('drive.write', lambda: d.write(id_ref=0.0, theta=0.25)), ('drive.read', d.read),
+             ('drive.reload', d.reload), ('drive.reset_cycles', d.reset_cycles),
+             ('drive.on', lambda: d.on('volt')), ('drive.hold', d.hold), ('drive.off', d.off),
+             ('thermal.network', t.network), ('thermal.reset', t.reset),
+             ('thermal.configure', lambda: t.configure(sample_every_s=5.0)),
+             ('thermal.read', t.read), ('thermal.situation', lambda: t.situation('box')),
+             ('thermal.load_cycle', t.load_cycle),
+             ('thermal.fast_forward', lambda: t.fast_forward(1.0)), ('thermal.truth', t.truth),
+             ('imu.product_id', lambda: i.product_id), ('imu.peek', i.peek),
+             ('imu.hold', i.hold), ('imu.resume', i.resume), ('imu.reset', i.reset),
+             ('imu.wake_test', lambda: i.wake_test(10)), ('imu.pins', i.pins),
+             ('imu.probe', i.probe), ('imu.poke', lambda: i.poke(0, b'\x00')),
+             ('gate_drivers.on', g.on), ('gate_drivers.clear', g.clear),
+             ('gate_drivers.off', g.off),
+             ('gpio.on', p.on), ('gpio.configure', lambda: p.configure('B', 7, 'output')),
+             ('gpio.write', lambda: p.write('B', 7, 1)), ('gpio.read', lambda: p.read('B', 7)),
+             ('gpio.port_write', lambda: p.port_write('B', 1, 1)), ('gpio.off', p.off),
+             ('board.probe', b.probe)]
+    refused, wrong = {}, {}
+    for name, call in calls:
+        try:
+            call()
+        except RigError as exc:
+            refused[name] = type(exc).__name__
+        except Exception as exc:          # anything else is the finding
+            wrong[name] = '%s: %s' % (type(exc).__name__, exc)
+    for name, kind in sorted(refused.items()):
+        print('        refused  %-28s %s' % (name, kind))
+    report.check('every verb answers or refuses as the library\'s own',
+                 not wrong, '%d answered, %d refused%s' % (
+                     len(calls) - len(refused) - len(wrong), len(refused),
+                     '; ' + str(wrong) if wrong else ''))
+
+
 def test_the_record_survives_a_save(report, rig):
     """An edit is volatile until saved; a load reads back what was saved."""
     cal = rig.board.calibration
@@ -147,7 +202,8 @@ def main():
     try:
         for test in (test_the_rig_opens_on_the_firmware, test_every_read_decodes,
                      test_settings_are_taken, test_the_wire_refuses,
-                     test_the_record_survives_a_save, test_the_bench_conformance_holds):
+                     test_every_verb_answers_or_refuses, test_the_record_survives_a_save,
+                     test_the_bench_conformance_holds):
             print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
             test(report, rig)
     finally:

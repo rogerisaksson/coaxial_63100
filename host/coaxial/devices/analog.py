@@ -5,7 +5,7 @@ from coaxial.comm.wire import Reader, pack
 from coaxial.devices import scaling
 from coaxial.devices.afe import powered
 from coaxial.devices.subsystem import Subsystem, remembered
-from coaxial.errors import DeviceStateError
+from coaxial.errors import DeviceStateError, PayloadError
 from machine.roles import Input
 
 
@@ -120,6 +120,9 @@ class Analog(Subsystem, Input):
     def _one(self, index, samples, sample_rate):
         """Burst a single channel and return just its statistics."""
         result = self.burst(1 << index, samples, sample_rate)
+        if index not in result['channels']:
+            raise PayloadError('the burst answered channels %s, not %d'
+                               % (sorted(result['channels']), index))
         stats = dict(result['channels'][index])
         stats['samples'] = result['samples']
         stats['rate_hz'] = result['rate_hz']
@@ -138,6 +141,9 @@ class Analog(Subsystem, Input):
 
         rows = []
         for index, stats in sorted(result['channels'].items()):
+            if index >= len(table):
+                raise PayloadError('the burst answered channel %d of a %d-channel table'
+                                   % (index, len(table)))
             channel = table[index]
             convert = (scaling.differential_volts if channel['differential']
                        else scaling.single_ended_volts)

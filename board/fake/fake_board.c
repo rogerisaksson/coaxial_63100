@@ -43,6 +43,9 @@ static struct
    exact mid-scale; on, 1..8 codes of noise above it. */
 #define FAKE_MID_CODE 32768
 
+/* A burst's pass at full speed, as the real scan of the table takes it. */
+#define FAKE_PASS_US 20U
+
 static int32_t fake_code(void)
 {
   if (s.users == 0U)
@@ -73,22 +76,29 @@ static const board_chan_t s_chan[] =
 
 bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us, board_burst_t *out, uint8_t *count, uint32_t *elapsed_us)
 {
-  (void)mask;
-  (void)samples;
-  (void)interval_us;
-  if (out != NULL)
+  uint8_t n = 0U;
+
+  if ((out == NULL) || (count == NULL) || (elapsed_us == NULL) || (samples == 0U))
   {
-    memset(out, 0, sizeof *out);
+    return false;
   }
-  if (count != NULL)
+  for (uint8_t index = 0U; index < Board_AdcCount(); index++)
   {
-    memset(count, 0, sizeof *count);
+    if ((mask & (1U << index)) != 0U)
+    {
+      const int32_t code = fake_code();
+
+      out[n].index         = index;
+      out[n].mean_milliraw = code * 1000;
+      out[n].min_raw       = code;
+      out[n].max_raw       = code;
+      out[n].sd_milliraw   = 0U;
+      n++;
+    }
   }
-  if (elapsed_us != NULL)
-  {
-    memset(elapsed_us, 0, sizeof *elapsed_us);
-  }
-  return true;
+  *count = n;
+  *elapsed_us = (uint32_t)samples * ((interval_us != 0U) ? interval_us : FAKE_PASS_US);
+  return n != 0U;
 }
 
 bool Board_AdcChan(uint8_t index, board_chan_t *info)
