@@ -1,5 +1,5 @@
-// coaxial_63100_adc.repl - The three ADCs as STM32H7_ADC20 (twenty inputs), in place of
-// Renode's (coaxial_63100.resc unregisters them). ADC1 and ADC2 apart: Renode's model answers
+// coaxial_63100_board.repl - The board's models in place of Renode's (coaxial_63100.resc
+// unregisters those): the three ADCs as STM32H7_ADC20 (twenty inputs), the DWT as FastDWT. ADC1 and ADC2 apart: Renode's model answers
 // ADC1 and the common block and drops ADC2's registers at +0x100 (2026-09-25).
 adc1: Analog.STM32H7_ADC20 @ sysbus <0x40022000, +0x100>
     referenceVoltage: 3.3
@@ -90,3 +90,7 @@ transceiverB: UART.RS485_Transceiver @ gpioPortC 8
 // The console's wire (UART_Line.cs) on USART3's RX pin, PB11.
 consoleLine: UART.UART_Line @ gpioPortB 11
     uart: usart3
+
+// The cycle counter without a time sync a read (FastDWT.cs).
+dwt: Miscellaneous.FastDWT @ sysbus 0xE0001000
+    frequency: 475000000
