@@ -178,9 +178,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   in 2 s, no overrun. At Renode's 100 MIPS the drive's ISR outran its period;
   the emulator runs the part's 475 (2026-09-25).
 - The gynoid's walk (`machine.gait`) at 0.85 strides/s: every joint's jerk
-  under 4.6 times its rms, the knee's peak 409 deg/s, the head 3.7 mm up and
+  under 4.2 times its rms, the knee's peak 375 deg/s, the head 3.5 mm up and
   down, 5 mm sideways, the pelvis 8 degrees each way. Past 1.0 strides/s the
   legs reach full length early in the swing and the knee snaps (2026-09-25).
+- Toe-off with the heel's rise eased to a stop there: the foot stood still,
+  the knee went -180 -> +409 deg/s. Rising through it (420 deg/stride) into a
+  septic swing: the foot never under 0.93 m/s, the knee flexing throughout,
+  the toes 0-3 mm over the floor early in the swing, 23 at mid (2026-09-25).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

@@ -48,11 +48,18 @@ CADENCE, PACE_POWER, PACE_STEP = 0.85, 0.6, 0.05
 KNEE_SOFT_DEG, KNEE_POWER = 6.0, 1.5
 
 #: The foot lands on its ball, heel up (`pitch_of`), and pivots there all stance: the heel comes
-#: down to the floor (REST_DEG) by SETTLE, mid-step, and rises to PUSH_DEG from HEEL_OFF to
-#: toe-off at TOE_OFF. Landed flat on a heel, the step came down as a slap; held up, she tripped
-#: along on her toes (2026-09-25).
-REST_DEG, PUSH_DEG = 0.0, 50.0
+#: down to the floor by SETTLE, mid-step, rises from HEEL_OFF and leaves it at toe-off, TOE_OFF.
+#: Landed flat on a heel, the step came down as a slap; held up, she tripped along on her toes
+#: (2026-09-25).
 SETTLE, HEEL_OFF, TOE_OFF = 0.25, 0.40, 0.62
+
+#: The foot's pitch toes-up at its knots: (phase, degrees, a stride, a stride squared), a quintic
+#: between. The heel rises fastest at toe-off and on to 73 degrees in the air: eased to a stop
+#: there, the whole foot stood still, the knee straightened -180 deg/s and then bent +409
+#: (2026-09-25). The landing's the heel still coming down.
+PITCH_KNOTS = ((SETTLE, 0.0, 0.0, 0.0), (HEEL_OFF, 0.0, 0.0, 0.0),
+               (TOE_OFF, -45.0, -420.0, 1000.0), (1.0, -15.6, 136.0, -373.0),
+               (1.0 + SETTLE, 0.0, 0.0, 0.0))
 
 #: The middle of a leg's single support: from the other's toe-off to its own landing.
 MID_STANCE = 0.5 * TOE_OFF
@@ -102,17 +109,17 @@ def _pivot(x, y, dx, dy, pitch):
 
 
 def pitch_of(q):
-    """The foot's pitch toes-up, degrees, at this leg's phase `q`: flat from SETTLE, the heel
-    rising to toe-off, then one ease from there round through the swing and the landing down to
-    flat again - the landing a moment in it, the heel still coming down (about 17 degrees up):
-    eased to a stop at the landing and started again, the foot moved in steps."""
-    q %= 1.0
-    if SETTLE <= q < HEEL_OFF:
-        return -REST_DEG
-    if HEEL_OFF <= q < TOE_OFF:
-        return -REST_DEG - (PUSH_DEG - REST_DEG) * eased((q - HEEL_OFF) / (TOE_OFF - HEEL_OFF))
-    return -PUSH_DEG + (PUSH_DEG - REST_DEG) * eased(((q - TOE_OFF) % 1.0)
-                                                     / (1.0 + SETTLE - TOE_OFF))
+    """The foot's pitch toes-up, degrees, at this leg's phase `q`, through PITCH_KNOTS: flat
+    from SETTLE, the heel rising through toe-off, round through the swing and the landing down
+    to flat again - eased to a stop at the landing, the foot moved in steps."""
+    q = q % 1.0 + (1.0 if q % 1.0 < SETTLE else 0.0)
+    for (q0, *start), (q1, *end) in zip(PITCH_KNOTS, PITCH_KNOTS[1:]):
+        if q < q1:
+            span = q1 - q0
+            scale = (1.0, span, span * span)
+            return _hermite([v * s for v, s in zip(start, scale)],
+                            [v * s for v, s in zip(end, scale)], (q - q0) / span)
+    return 0.0
 
 
 def planted(q, stride=1.0):
@@ -257,46 +264,56 @@ def _ik(x, y, hip, ahead):
     return math.degrees(math.atan2(dx, -dy) + bend), math.degrees(knee)
 
 
-#: The swing ankle's lift over the path between toe-off and the landing, metres at mid-swing.
-LIFT_M = 0.07
+#: The swing ankle's lift over the path between toe-off and the landing, metres at mid-swing:
+#: at 0.07, the foot pitched on past toe-off, the toes dragged 10 mm into the floor.
+LIFT_M = 0.09
 
 #: The step the swing's end conditions are differenced over, of a stride.
 DIFF = 1e-4
 
 
-def _quintic(p0, v0, a0, p1, v1, a1, u):
-    """The quintic Hermite from (p0, v0, a0) at u 0 to (p1, v1, a1) at u 1."""
-    u2, u3 = u * u, u * u * u
-    u4, u5 = u3 * u, u3 * u2
-    return (p0 * (1.0 - 10.0 * u3 + 15.0 * u4 - 6.0 * u5) + v0 * (u - 6.0 * u3 + 8.0 * u4 - 3.0 * u5)
-            + a0 * (0.5 * u2 - 1.5 * u3 + 1.5 * u4 - 0.5 * u5) + a1 * (0.5 * u3 - u4 + 0.5 * u5)
-            + v1 * (-4.0 * u3 + 7.0 * u4 - 3.0 * u5) + p1 * (10.0 * u3 - 15.0 * u4 + 6.0 * u5))
+#: Hermite bases, u^0..u^7 coefficients per end condition in order (value, rate, acceleration,
+#: jerk) at u 0 then at u 1: the quintic from three, the septic from four.
+_BASES = {3: ((1, 0, 0, -10, 15, -6), (0, 1, 0, -6, 8, -3), (0, 0, 0.5, -1.5, 1.5, -0.5),
+              (0, 0, 0, 10, -15, 6), (0, 0, 0, -4, 7, -3), (0, 0, 0, 0.5, -1, 0.5)),
+          4: ((1, 0, 0, 0, -35, 84, -70, 20), (0, 1, 0, 0, -20, 45, -36, 10),
+              (0, 0, 0.5, 0, -5, 10, -7.5, 2), (0, 0, 0, 1 / 6, -2 / 3, 1, -2 / 3, 1 / 6),
+              (0, 0, 0, 0, 35, -84, 70, -20), (0, 0, 0, 0, -15, 39, -34, 10),
+              (0, 0, 0, 0, 2.5, -7, 6.5, -2), (0, 0, 0, 0, -1 / 6, 0.5, -0.5, 1 / 6))}
+
+
+def _hermite(start, end, u):
+    """The polynomial from `start` at u 0 to `end` at u 1, each (value, rate, acceleration[,
+    jerk]) over u."""
+    powers = [u ** k for k in range(2 * len(start))]
+    return sum(w * sum(c * p for c, p in zip(basis, powers))
+               for w, basis in zip(list(start) + list(end), _BASES[len(start)]))
+
+
+def _ends(f, q, h, span):
+    """Per coordinate of f at q: (value, rate, acceleration, jerk) over `span`, differenced one
+    side, steps of `h` (negative, behind)."""
+    return [(a, (4.0 * b - 3.0 * a - c) / (2.0 * h) * span, (a - 2.0 * b + c) / h ** 2 * span ** 2,
+             (3.0 * (b - c) + d - a) / h ** 3 * span ** 3)
+            for a, b, c, d in zip(*(f(q + k * h) for k in range(4)))]
 
 
 def swung(q, stride=1.0):
     """(ankle ahead of the hip, ankle over the floor) of a swinging foot at its leg's phase `q`:
-    in the floor's frame a quintic Hermite from toe-off to the next landing, meeting the planted
-    foot's place, speed and acceleration at both ends, lifted LIFT_M at mid-swing by a bump
+    in the floor's frame a septic Hermite from toe-off to the next landing, meeting the planted
+    foot's place, speed, acceleration and jerk at both ends, lifted LIFT_M at mid-swing by a bump
     nothing at either end to its second derivative. Swung in the joints instead, the path knew
-    no floor: the foot went under it and the knee, bent to lift it, snapped straight to land."""
-    length, span, h = STRIDE_M * stride, 1.0 - TOE_OFF, DIFF
+    no floor: the foot went under it and the knee, bent to lift it, snapped straight to land;
+    quintic, the jerk jumped 3 rms at toe-off (2026-09-25)."""
+    length, span = STRIDE_M * stride, 1.0 - TOE_OFF
 
     def floor(p):
         x, y, _pitch = planted(p, stride)
         return x + length * p, y
 
-    off = [floor(TOE_OFF - k * h) for k in (0, 1, 2)]
-    on = [floor(1.0 + k * h) for k in (0, 1, 2)]
     u = (q % 1.0 - TOE_OFF) / span
-    out = []
-    for j in (0, 1):
-        a, b, c = (s[j] for s in off)
-        d, e, g = (s[j] for s in on)
-        out.append(_quintic(a, (3.0 * a - 4.0 * b + c) / (2.0 * h) * span,
-                            (a - 2.0 * b + c) / (h * h) * span * span,
-                            d, (-3.0 * d + 4.0 * e - g) / (2.0 * h) * span,
-                            (d - 2.0 * e + g) / (h * h) * span * span, u))
-    x, y = out
+    x, y = (_hermite(a, b, u) for a, b in zip(_ends(floor, TOE_OFF, -DIFF, span),
+                                               _ends(floor, 1.0, DIFF, span)))
     return x - length * (q % 1.0), y + LIFT_M * 64.0 * u ** 3 * (1.0 - u) ** 3
 
 
