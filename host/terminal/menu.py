@@ -52,7 +52,8 @@ ENTRIES, SUB, OPEN, _PICKS = loader.listing()
 TURN_DPS = 30.0
 
 #: What the masthead knows. `held` is how many sessions have the port,
-#: `board` whether one answers anywhere at all - None until asked;
+#: `board` whether one answers anywhere at all - None until asked, 'emulated' where none does
+#: and the pages open the emulator;
 #: `identity` what the readout prints, off the bus once it is known.
 _BROKER: dict = {'held': None, 'board': None, 'identity': None,
                  'said': None}
@@ -97,15 +98,17 @@ def _watch_broker():
 
 
 def _watch_link(port):
-    """Whether a board answers anywhere, on its own slow clock."""
-    from coaxial.comm.session import board_answers
+    """Whether a board answers anywhere, on its own slow clock; where none does, whether the
+    pages open the emulator (coaxial.comm.session.emulator_here)."""
+    from coaxial.comm.session import board_answers, emulator_here
     from coaxial.errors import LINK_FAULTS
 
     while True:
         try:
-            _BROKER['board'] = board_answers(port)
+            answered = board_answers(port)
         except LINK_FAULTS:
-            _BROKER['board'] = False
+            answered = False
+        _BROKER['board'] = answered or ('emulated' if emulator_here() else False)
         # The readout follows the link: the board's own identity once one
         # answers, the stand-in's until then, and again if it moves.
         known = _BROKER.get('identity')
@@ -121,7 +124,7 @@ def masthead(port):
     held, board = _BROKER['held'], _BROKER['board']
     if board is False:
         tag = Text(' SIMULATED ', style='chip.sim')
-    elif board and url_kind(port) == 'emulator':
+    elif board == 'emulated' or (board and url_kind(port) == 'emulator'):
         tag = EMULATOR_CHIP
     elif board is None or held is None:
         tag = Text('LINK: PROBING', style='bar.dim')
