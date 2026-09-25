@@ -80,6 +80,36 @@ generated, and `board/` and `comms/`, which run on the target: the bench's
 conformance suite is theirs.
 
 <!-- coverage -->
+| Product | Lines | Covered |
+| --- | ---: | ---: |
+| **Python** | 23417 | **83.0 %** |
+| coaxial | 12947 | 83.5 % |
+| coaxial_mcp | 817 | 89.6 % |
+| coaxial_ollama | 2809 | 81.1 % |
+| machine | 1755 | 94.4 % |
+| motor | 132 | 93.9 % |
+| terminal | 4814 | 78.2 % |
+| testline | 143 | 44.8 % |
+| **C, portable cores** | 3705 | **92.5 %** |
+| boot | 453 | 94.3 % |
+| ctrl | 189 | 92.1 % |
+| daq | 506 | 97.4 % |
+| drive | 829 | 96.6 % |
+| filter | 105 | 80.0 % |
+| modbus | 468 | 89.5 % |
+| shtp | 102 | 95.1 % |
+| thermal | 1053 | 88.5 % |
+
+| Tools | Lines | Offline | Run by |
+| --- | ---: | ---: | --- |
+| tools/bench | 970 | 3.7 % | a board |
+| tools/cores | 373 | 97.9 % | the core suites |
+| tools/dev | 1127 | 35.5 % | the gate and by hand |
+| tools/notebooks | 219 | 51.6 % | the papers, as notebooks |
+| tools/render | 756 | 16.0 % | by hand |
+| tools/sim | 319 | 51.1 % | by hand |
+| tools/target | 378 | 31.2 % | a board |
+| tools/thermal | 424 | 0.0 % | a board |
 <!-- /coverage -->
 
 ## Docs
