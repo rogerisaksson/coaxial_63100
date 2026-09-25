@@ -38,8 +38,11 @@
 static struct
 {
   bool ready;
+  bool dma;                 /* the streams pointed at SPI4 */
   uint32_t kernel_hz;
   uint32_t bitrate_hz;
+  uint32_t cr1;             /* CR1 and CFG1 as HAL_SPI_Init left them */
+  uint32_t cfg1;
 
   /* The loop's own record. */
   board_angle_state_t state;
@@ -67,11 +70,247 @@ static void settle(void)
   board_spin_us(ANGLE_SETTLE_US);
 }
 
+/* One packet in, one packet out, chip select down across both. */
+#define ANGLE_WORDS 4U          /* 4 x 5 bits = the 20-bit packet */
+#define ANGLE_WORD_BITS 5U
+#define ANGLE_WORD_MASK 0x1FU
+
+/* SPI4's words by DMA1: stream 0 receives, stream 1 sends (DMAMUX1 channels
+   0 and 1), in AXI SRAM - DMA1 reaches it, not DTCM. The receiver's end
+   interrupts: main() starts a packet and finds it in later. */
+#define ANGLE_DMA_RX    DMA1_Stream0
+#define ANGLE_DMA_TX    DMA1_Stream1
+#define ANGLE_DMA_IRQ   DMA1_Stream0_IRQn
+#define ANGLE_DMA_PRIO  6U
+#define ANGLE_DMA_FLAGS (DMA_LIFCR_CTCIF0 | DMA_LIFCR_CHTIF0 | DMA_LIFCR_CTEIF0 \
+                         | DMA_LIFCR_CDMEIF0 | DMA_LIFCR_CFEIF0 | DMA_LIFCR_CTCIF1 \
+                         | DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTEIF1 | DMA_LIFCR_CDMEIF1 \
+                         | DMA_LIFCR_CFEIF1)
+/* Bytes, the memory side stepping: in (DIR 00) and out (DIR 01). */
+#define ANGLE_DMA_CR_RX (DMA_SxCR_MINC | DMA_SxCR_TCIE)
+#define ANGLE_DMA_CR_TX (DMA_SxCR_MINC | DMA_SxCR_DIR_0)
+
+static uint8_t s_tx[ANGLE_WORDS] __attribute__((section(".buffers")));
+static uint8_t s_rx[ANGLE_WORDS] __attribute__((section(".buffers")));
+static volatile bool s_done;
+
+void DMA1_Stream0_IRQHandler(void)
+{
+  DMA1->LIFCR = DMA_LIFCR_CTCIF0;
+  s_done = true;
+}
+
+static void dma_init(void)
+{
+  __HAL_RCC_DMA1_CLK_ENABLE();
+  ANGLE_DMA_RX->CR = 0U;
+  ANGLE_DMA_TX->CR = 0U;
+  DMAMUX1_Channel0->CCR = DMA_REQUEST_SPI4_RX;
+  DMAMUX1_Channel1->CCR = DMA_REQUEST_SPI4_TX;
+  ANGLE_DMA_RX->PAR  = (uint32_t)&SPI4->RXDR;
+  ANGLE_DMA_RX->M0AR = (uint32_t)s_rx;
+  ANGLE_DMA_TX->PAR  = (uint32_t)&SPI4->TXDR;
+  ANGLE_DMA_TX->M0AR = (uint32_t)s_tx;
+  /* Written back each packet rather than read: a register read is cheap on
+     the part and costly in the emulator. */
+  s.cr1  = SPI4->CR1;
+  s.cfg1 = SPI4->CFG1;
+  HAL_NVIC_SetPriority(ANGLE_DMA_IRQ, ANGLE_DMA_PRIO, 0U);
+  HAL_NVIC_EnableIRQ(ANGLE_DMA_IRQ);
+  s.dma = true;
+}
+
+/* One packet started, RM0433's order for SPI with DMA: the receiver's
+   requests, both streams, the transmitter's, SPE, CSTART. s_done when in. */
+static void xfer_start(uint32_t out)
+{
+  /* Most significant five bits first, right-aligned in each byte: below
+     eight bits the peripheral takes the low bits of the buffer element. */
+  for (uint8_t i = 0U; i < ANGLE_WORDS; i++)
+  {
+    s_tx[i] = (uint8_t)((out >> (ANGLE_WORD_BITS * (ANGLE_WORDS - 1U - i))) & ANGLE_WORD_MASK);
+  }
+  s_done = false;
+  DMA1->LIFCR = ANGLE_DMA_FLAGS;
+  SPI4->CR2 = ANGLE_WORDS;                             /* TSIZE */
+  SPI4->CFG1 = s.cfg1 | SPI_CFG1_RXDMAEN;
+  ANGLE_DMA_RX->NDTR = ANGLE_WORDS;
+  ANGLE_DMA_RX->CR = ANGLE_DMA_CR_RX | DMA_SxCR_EN;
+  ANGLE_DMA_TX->NDTR = ANGLE_WORDS;
+  ANGLE_DMA_TX->CR = ANGLE_DMA_CR_TX | DMA_SxCR_EN;
+  SPI4->CFG1 = s.cfg1 | SPI_CFG1_RXDMAEN | SPI_CFG1_TXDMAEN;
+  SPI4->CR1 = s.cr1 | SPI_CR1_SPE;
+  SPI4->CR1 = s.cr1 | SPI_CR1_SPE | SPI_CR1_CSTART;
+}
+
+/* The packet's end: EOT cleared, SPE and the requests down. */
+static void xfer_close(void)
+{
+  SPI4->IFCR = SPI_IFCR_EOTC | SPI_IFCR_TXTFC;
+  SPI4->CR1 = s.cr1;
+  SPI4->CFG1 = s.cfg1;
+}
+
+/* A packet given up: the streams stopped, then the end. */
+static void xfer_abort(void)
+{
+  if (!s.dma)
+  {
+    return;
+  }
+  ANGLE_DMA_RX->CR = 0U;
+  ANGLE_DMA_TX->CR = 0U;
+  xfer_close();
+  s_done = false;
+}
+
+static uint32_t timeout_cycles(void)
+{
+  return ANGLE_SPI_TIMEOUT_MS * (SystemCoreClock / MS_PER_S);
+}
+
+static uint32_t settle_cycles(void)
+{
+  return ANGLE_SETTLE_US * (SystemCoreClock / US_PER_S);
+}
+
+/* The 20 bits the last packet brought back. */
+static uint32_t word_in(void)
+{
+  uint32_t got = 0U;
+
+  for (uint8_t i = 0U; i < ANGLE_WORDS; i++)
+  {
+    got = (got << ANGLE_WORD_BITS) | (uint32_t)(s_rx[i] & ANGLE_WORD_MASK);
+  }
+  return got;
+}
+
+/* A read's frame: SYNC, bit 19, is 0. */
+static uint32_t read_frame(uint8_t reg)
+{
+  return ((uint32_t)ANGLE_RW_READ << ANGLE_RW_SHIFT)
+       | (((uint32_t)reg & ANGLE_REG_MASK) << ANGLE_ADDR_SHIFT);
+}
+
+/* The poll's read, stepped from main(): two packets, each chip select down,
+   a settle, the transfer, a settle, chip select up, and a settle up before
+   the second - nothing waited for in place. */
+typedef enum
+{
+  STEP_IDLE = 0,
+  STEP_SETUP,     /* chip select down, settling */
+  STEP_XFER,      /* the transfer in flight */
+  STEP_HOLD,      /* in, settling before chip select goes up */
+  STEP_GAP        /* chip select up between the two packets */
+} angle_step_t;
+
+static struct
+{
+  angle_step_t step;
+  uint8_t  packet;
+  uint8_t  reg;
+  uint32_t at;
+} r;
+
+static bool waited(uint32_t cycles)
+{
+  return (uint32_t)(Board_Cycles() - r.at) >= cycles;
+}
+
+/* The poll's read given up where it stands: the bus back, chip select up. */
+static void read_abort(void)
+{
+  if (r.step != STEP_IDLE)
+  {
+    xfer_abort();
+    cs(false);
+    r.step = STEP_IDLE;
+  }
+}
+
+/* The read as far as it goes without waiting: true with the reply's 20 bits
+   once both packets are in; *failed if a transfer never finished. */
+static bool read_step(uint32_t *got, bool *failed)
+{
+  *failed = false;
+  for (;;)
+  {
+    switch (r.step)
+    {
+    case STEP_IDLE:
+      r.reg = s.poll_reg;
+      r.packet = 0U;
+      cs(true);
+      r.at = Board_Cycles();
+      r.step = STEP_SETUP;
+      break;
+
+    case STEP_SETUP:
+      if (!waited(settle_cycles()))
+      {
+        return false;
+      }
+      xfer_start(read_frame(r.reg));
+      r.at = Board_Cycles();
+      r.step = STEP_XFER;
+      break;
+
+    case STEP_XFER:
+      if (!s_done)
+      {
+        if (waited(timeout_cycles()))
+        {
+          read_abort();
+          *failed = true;
+        }
+        return false;
+      }
+      xfer_close();
+      r.at = Board_Cycles();
+      r.step = STEP_HOLD;
+      break;
+
+    case STEP_HOLD:
+      if (!waited(settle_cycles()))
+      {
+        return false;
+      }
+      cs(false);
+      if (r.packet == 0U)
+      {
+        r.packet = 1U;            /* the reply comes back on the second */
+        r.at = Board_Cycles();
+        r.step = STEP_GAP;
+        break;
+      }
+      *got = word_in();
+      r.step = STEP_IDLE;
+      return true;
+
+    case STEP_GAP:
+      if (!waited(settle_cycles()))
+      {
+        return false;
+      }
+      cs(true);
+      r.at = Board_Cycles();
+      r.step = STEP_SETUP;
+      break;
+
+    default:
+      r.step = STEP_IDLE;
+      return false;
+    }
+  }
+}
+
 bool Board_AngleInit(void)
 {
   GPIO_InitTypeDef gpio = {0};
 
   __HAL_RCC_GPIOE_CLK_ENABLE();
+  read_abort();
 
   /* Re-init rather than patch: HAL latches the mode into CFG1/CFG2 at
      HAL_SPI_Init, so changing the struct alone would configure nothing. */
@@ -96,6 +335,7 @@ bool Board_AngleInit(void)
   {
     return false;
   }
+  dma_init();
 
   gpio.Pin = ANGLE_CS_PIN;
   gpio.Mode = GPIO_MODE_OUTPUT_PP;
@@ -129,58 +369,48 @@ void Board_AngleClock(uint32_t *kernel_hz, uint32_t *bitrate_hz)
   if (bitrate_hz != NULL) { *bitrate_hz = s.bitrate_hz; }
 }
 
-/* One packet in, one packet out, chip select down across both. */
-#define ANGLE_WORDS 4U          /* 4 x 5 bits = the 20-bit packet */
-#define ANGLE_WORD_BITS 5U
-#define ANGLE_WORD_MASK 0x1FU
-
+/* One packet, waited for: the host's reads and writes. A poll's read in
+   flight gives the bus up first. */
 static bool packet(uint32_t out, uint32_t *in)
 {
-  uint8_t tx[ANGLE_WORDS];
-  uint8_t rx[ANGLE_WORDS] = {0};
-
   if (!s.ready)
   {
     return false;
   }
-
-  /* Most significant five bits first, right-aligned in each byte: below
-     eight bits the peripheral takes the low bits of the buffer element. */
-  for (uint8_t i = 0U; i < ANGLE_WORDS; i++)
-  {
-    tx[i] = (uint8_t)((out >> (ANGLE_WORD_BITS * (ANGLE_WORDS - 1U - i))) & ANGLE_WORD_MASK);
-  }
+  read_abort();
 
   cs(true);
   settle();
+  xfer_start(out);
 
-  const bool ok = HAL_SPI_TransmitReceive(&hspi4, tx, rx, ANGLE_WORDS,
-                                          ANGLE_SPI_TIMEOUT_MS) == HAL_OK;
+  const uint32_t t0 = Board_Cycles();
+  while (!s_done)
+  {
+    if ((uint32_t)(Board_Cycles() - t0) >= timeout_cycles())
+    {
+      xfer_abort();
+      cs(false);
+      return false;
+    }
+    Board_StoKeepalive();
+  }
+  xfer_close();
 
   settle();
   cs(false);
 
-  if (ok && (in != NULL))
+  if (in != NULL)
   {
-    uint32_t got = 0U;
-
-    for (uint8_t i = 0U; i < ANGLE_WORDS; i++)
-    {
-      got = (got << ANGLE_WORD_BITS) | (uint32_t)(rx[i] & ANGLE_WORD_MASK);
-    }
-    *in = got;
+    *in = word_in();
   }
-
-  return ok;
+  return true;
 }
 
 bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc)
 {
   uint32_t got = 0U;
 
-  /* SYNC is bit 19 and must be 0. */
-  const uint32_t frame = ((uint32_t)ANGLE_RW_READ << ANGLE_RW_SHIFT)
-                       | (((uint32_t)reg & ANGLE_REG_MASK) << ANGLE_ADDR_SHIFT);
+  const uint32_t frame = read_frame(reg);
 
   /* Two frames, not one. */
   if (!packet(frame, NULL) || !packet(frame, &got))
@@ -246,6 +476,7 @@ static void power_lost(void)
   {
     return;
   }
+  read_abort();
   s.state.loop = BOARD_ANGLE_LOOP_OFF;
   s.state.have = false;
   s.ready = false;
@@ -254,8 +485,8 @@ static void power_lost(void)
 
 void Board_AnglePoll(void)
 {
-  uint16_t value = 0U;
-  uint8_t  crc = 0U;
+  uint32_t got = 0U;
+  bool failed = false;
 
   /* AFE_ON powers this part too, the same way it powers the BNO08X. */
   if (!Board_AfeOn())
@@ -266,12 +497,14 @@ void Board_AnglePoll(void)
 
   if (s.state.loop == BOARD_ANGLE_LOOP_HELD)
   {
+    read_abort();
     return;                        /* the host is configuring it */
   }
 
   /* Not during the observer's borrow. */
   if (Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
   {
+    read_abort();
     return;
   }
 
@@ -287,11 +520,17 @@ void Board_AnglePoll(void)
     return;
   }
 
-  if (!Board_AngleRead(s.poll_reg, &value, &crc))
+  if (!read_step(&got, &failed))
   {
-    note(BOARD_ANGLE_ERR_READ);
+    if (failed)
+    {
+      note(BOARD_ANGLE_ERR_READ);
+    }
     return;
   }
+
+  const uint16_t value = (uint16_t)((got >> ANGLE_DATA_SHIFT) & 0xFFFFU);
+  const uint8_t  crc = (uint8_t)(got & ANGLE_CRC_MASK);
 
   /* All ones is what an absent or unpowered part clocks out, and it is not a
      reading: the low twelve bits would be a plausible angle. */
@@ -302,14 +541,14 @@ void Board_AnglePoll(void)
     return;
   }
 
-  s.state.reg   = s.poll_reg;
+  s.state.reg   = r.reg;
   s.state.value = value;
   s.state.crc   = crc;
   s.state.have  = true;
   s.state.updates++;
 
   const int16_t logged[3] = { (int16_t)value, (int16_t)crc,
-                              (int16_t)s.poll_reg };
+                              (int16_t)r.reg };
   Board_LogPush(BOARD_LOG_SOURCE_ANGLE, logged, 3U);
   note(BOARD_ANGLE_ERR_NONE);
 }
@@ -325,6 +564,7 @@ void Board_AngleState(board_angle_state_t *out)
 void Board_AngleHold(void)
 {
   s.state.loop = BOARD_ANGLE_LOOP_HELD;
+  read_abort();
 
   /* A hold hands the host a part that is up, the way the IMU's does: one
      that lands before the bus is configured leaves every later command

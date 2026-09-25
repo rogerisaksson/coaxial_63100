@@ -141,6 +141,10 @@ class Emulator:
         #: it (coaxial.comm.transport). The image sets it - at 475 MIPS the app 5, 18-22
         #: under the drive, its bootloader 9 (2026-09-25).
         self.time_scale = 1.0
+        #: The same with the core kept awake, WFI a no-op: a request's pace, which an idle
+        #: core's load understates - asleep it keeps real time, and replies came after the
+        #: host had given up (2026-09-25). The least the host waits by.
+        self.awake_scale = 1.0
         self.url = 'socket://127.0.0.1:%d' % self.port
         self.consoles = [self.port]
         #: The units its images answer to: the app's 1, none while blank in the bootloader.
@@ -203,7 +207,7 @@ class Emulator:
              '-e', 'include @%s' % composed.replace(os.sep, '/')],
             cwd=REPO, stdout=sink, stderr=subprocess.STDOUT, creationflags=PRIORITY)
         self._ready(self.process)
-        self.measure()
+        self.awake_scale = self.awake()
         return self
 
     def virtual_seconds(self):
@@ -219,7 +223,21 @@ class Emulator:
         """Renode's Current load - wall seconds a virtual second, lately - at least 1: the
         Transport's time scale, asked each transaction."""
         said = re.search(r'Current load: (\S+)', self.command('emulation GetTimeSourceInfo'))
-        return max(1.0, float(said.group(1))) if said else self.time_scale
+        return max(self.awake_scale, float(said.group(1))) if said else self.time_scale
+
+    def awake(self, seconds=SCALE_S):
+        """`time_scale` over `seconds` with every core kept awake: WFI a no-op, taken up once
+        the translations holding it are cleared."""
+        self._each_cpu('cpu WfiAsNop true; cpu ClearTranslationCache')
+        try:
+            return self.measure(seconds)
+        finally:
+            self._each_cpu('cpu WfiAsNop false; cpu ClearTranslationCache')
+
+    def _each_cpu(self, text):
+        """Monitor commands, `;` between them, on the machine's CPU."""
+        for part in text.split('; '):
+            self.command(part)
 
     def measure(self, seconds=SCALE_S):
         """`time_scale` over `seconds` of wall time, at least 1."""
@@ -330,6 +348,15 @@ class Limb(Emulator):
                 'emulation CreateServerSocketTerminal %d "limb-host" false' % self.port,
                 'connector Connect sysbus.gpioPortK.adapterHost limb-host', 'start']
         return out
+
+
+    def _each_cpu(self, text):
+        """A monitor command on every node's CPU, node1 the machine after."""
+        for unit in range(1, self.nodes + 1):
+            self.command('mach set "node%d"' % unit)
+            for part in text.split('; '):
+                self.command(part)
+        self.command('mach set "node1"')
 
 
 class Body:

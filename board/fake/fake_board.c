@@ -827,6 +827,10 @@ void Board_StoKeepaliveReset(void)
 {
 }
 
+void Board_StoIdle(void)
+{
+}
+
 void Board_StoState(board_sto_state_t *out)
 {
   if (out == NULL)

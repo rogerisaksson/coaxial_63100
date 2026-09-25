@@ -222,6 +222,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   body's five processes, each asked its load every 0.5 s, collided, and a limb
   exited on an IOException. Each process has its own `--config` and history;
   the humanoid idle, 20 boards: 2.4-2.6 wall s a virtual s (2026-09-25).
+- The A1335 by DMA, its read stepped from main() without a spin: the emulated
+  drive 20 -> 17 wall s a virtual s (the angle loop 9 -> 6). main() in WFI with
+  AFE_ON low and MOE clear: idle at 475 MIPS 5.2 -> 1.0, real time. Renode
+  takes `WfiAsNop` only after `ClearTranslationCache`, and restarts
+  `ExecutedInstructions` on a reset; FastDWT anchors on the CPU's TimeHandle at
+  the first read after a wake. Asleep, Renode's load reads 1: the host waits
+  by the awake scale, and a socket:// rig without it gave up on replies
+  (2026-09-25).
+- The thermal observer's borrow of AFE_ON (0.5 s every 30 s) took test_wire's
+  AFE-off scan once the idle board kept real time: the test holds sampling
+  off (2026-09-25).
 - An armed sync stays armed past drive.off: the meter is the injected group's
   until gate drivers op 3 gives it back (the emulated wire sweep, 2026-09-25).
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
