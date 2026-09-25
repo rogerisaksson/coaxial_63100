@@ -180,6 +180,18 @@ class BootControl(ABC):
 class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
     """The real one: each op one 0x6E frame on this unit's link."""
 
+    def _data(self, op, payload=b'', fits=len, **kwargs):
+        """A bootloader op's data, where it `fits` its shape. The application refuses the
+        op in words (`u8 took` 0, a string - MINOR 18): raised in them; any other misfit is
+        a PayloadError."""
+        reply = self._op(op, payload, **kwargs)
+        if fits(reply):
+            return Reader(reply)
+        if reply[:1] == b'\x00' and len(reply) > 1 and len(reply) == 2 + reply[1]:
+            raise errors.DeviceStateError(Reader(reply[1:]).string())
+        raise errors.PayloadError('boot op %d answered %d bytes it cannot be: %s'
+                                  % (op, len(reply), reply[:16].hex(' ')))
+
     def state(self):
         r = Reader(self._op(BootOp.STATE))
         state, type_, unit, position = r.u8(), r.u8(), r.u8(), r.u8()
@@ -200,7 +212,8 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
 
     def who(self, bits=0, prefix=b''):
         try:
-            r = Reader(self._op(BootOp.WHO, bytes([bits]) + bytes(prefix)))
+            r = self._data(BootOp.WHO, bytes([bits]) + bytes(prefix),
+                           fits=lambda reply: len(reply) == UID_BYTES + 3)
         except errors.NoReplyError:
             return None                     # no node's uid begins so
         uid = r.take(UID_BYTES).hex()
@@ -220,13 +233,14 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
                         settle=CHUNK_S)
 
     def missing(self):
-        r = Reader(self._op(BootOp.MISSING))
+        r = self._data(BootOp.MISSING, fits=lambda reply: len(reply) >= 4 and len(reply) >= (
+            4 + (int.from_bytes(reply[2:4], 'big') + 7) // 8))
         first, count = r.u16(), r.u16()
         bitmap = r.take(r.remaining)
         return [i for i in range(first, count) if not bitmap[i // 8] >> (i % 8) & 1]
 
     def verify(self):
-        r = Reader(self._op(BootOp.VERIFY, timeout=VERIFY_S))
+        r = self._data(BootOp.VERIFY, fits=lambda reply: len(reply) == 5, timeout=VERIFY_S)
         return bool(r.u8()), r.u32()
 
     def record(self, offset, data):
@@ -241,7 +255,8 @@ class Boot(Device, BootControl, device=protocol.DEVICE_BOOT):
         self._broadcast(BootOp.GO, struct.pack('>I', session))
 
     def dump(self, offset):
-        r = Reader(self._op(BootOp.DUMP, struct.pack('>H', offset)))
+        r = self._data(BootOp.DUMP, struct.pack('>H', offset),
+                       fits=lambda reply: reply[:2] == struct.pack('>H', offset))
         return r.u16(), r.take(r.remaining)
 
 

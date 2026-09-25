@@ -77,9 +77,9 @@ Lines of the hand-written code the offline suites run
 (`python host/tools/dev/cover.py --readme` writes this table). Not counted: the
 CubeMX code - `core/`, `startup_*.s`, `cmake/stm32cubemx/`, the HAL - which is
 generated, and `board/`, which runs on the target: the bench's conformance
-suite is its. `comms/` and the calibration record (`board_cal.c`) are counted:
-they run here over a fake board (`tests/test_wire.py`), the conformance suite
-with them.
+suite is its. `comms/`, the calibration record and the thermal observer
+(`board_cal.c`, `board_thermal.c`) are counted: they run here over a fake
+board (`tests/test_wire.py`), the conformance suite with them.
 
 <!-- coverage -->
 | Product | Lines | Covered |

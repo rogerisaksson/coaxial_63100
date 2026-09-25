@@ -3,6 +3,8 @@
 /* Bytes in from the host at 115200's pace, a frame out to it, a clock of one tick a
    microsecond that the exchange steps. */
 #include "board/cal.h"
+#include "board/thermal.h"
+#include "board_hw.h"
 #include "dev_serial.h"
 #include "link.h"
 
@@ -62,6 +64,21 @@ static uint32_t ticks(void *ctx)
 {
   (void)ctx;
   return s_clock;
+}
+
+uint32_t HAL_GetTick(void)
+{
+  return s_clock / 1000U;
+}
+
+/* One pass of main()'s loop, as far as the fake builds it. */
+static void fake_loop(void)
+{
+  if (!link_busy())
+  {
+    Board_ThermalPoll();
+  }
+  link_poll();
 }
 
 static uint32_t ticks_per_us(void *ctx)
@@ -141,6 +158,7 @@ void fake_open(void)
   memset(s_port, 0, sizeof s_port);
   s_clock = 0U;
   link_init();
+  Board_ThermalInit();
   link_open();
 }
 
@@ -155,13 +173,13 @@ uint16_t fake_exchange(const uint8_t *req, uint16_t len, uint8_t *out, uint16_t 
     s_port[LINK_CONSOLE].in[s_port[LINK_CONSOLE].head] = req[k];
     s_port[LINK_CONSOLE].at[s_port[LINK_CONSOLE].head] = s_clock;
     s_port[LINK_CONSOLE].head = (uint16_t)((s_port[LINK_CONSOLE].head + 1U) % FAKE_BYTES);
-    link_poll();
+    fake_loop();
   }
   for (uint32_t waited = 0U; waited < FAKE_WAIT_US && s_port[LINK_CONSOLE].out_len == 0U;
        waited += 100U)
   {
     s_clock += 100U;
-    link_poll();
+    fake_loop();
   }
   uint16_t n = s_port[LINK_CONSOLE].out_len < cap ? s_port[LINK_CONSOLE].out_len : cap;
   memcpy(out, s_port[LINK_CONSOLE].out, n);

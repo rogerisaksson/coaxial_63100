@@ -4,7 +4,8 @@
    refusal): so the offline suites drive comms/ through its own wire
    (tools/cores/fakeboard.py). Generated once from the prototypes; what a check needs is
    answered by hand here - the AFE rail, the PWM, the channel table, the raw codes and
-   the clocks. The record is board/src/board_cal.c over fake_flash.c. */
+   the clocks. The record is board/src/board_cal.c over fake_flash.c, the thermal observer
+   board/src/board_thermal.c. */
 #include "board/adc.h"
 #include "board/angle.h"
 #include "board/cal.h"
@@ -37,7 +38,12 @@ static struct
   uint8_t  users;
   bool     pwm_enabled;
   uint32_t noise;
+  bool     derated;
+  float    derate;
 } s;
+
+/* What a temperature reads: the room, 25.00 C, the label an unpowered AFE gives the NTC. */
+#define FAKE_ROOM_CENTI 2500
 
 /* A raw code as the rail leaves it: the AFE off, the reference unpowered and every code
    exact mid-scale; on, 1..8 codes of noise above it. */
@@ -713,14 +719,12 @@ uint32_t Board_LogThinned(void)
 
 bool Board_Ntc(int32_t *raw, int32_t *centidegc)
 {
-  if (raw != NULL)
+  if ((raw == NULL) || (centidegc == NULL))
   {
-    memset(raw, 0, sizeof *raw);
+    return false;
   }
-  if (centidegc != NULL)
-  {
-    memset(centidegc, 0, sizeof *centidegc);
-  }
+  *raw = fake_code();
+  *centidegc = FAKE_ROOM_CENTI;
   return true;
 }
 
@@ -977,145 +981,6 @@ uint8_t Board_SysClkSource(void)
   return (uint8_t)0;
 }
 
-bool Board_ThermalBudget(board_budget_t *out)
-{
-  if (out != NULL)
-  {
-    memset(out, 0, sizeof *out);
-  }
-  return true;
-}
-
-bool Board_ThermalEdge(uint8_t edge, uint8_t *a, uint8_t *b, float *k_per_w)
-{
-  (void)edge;
-  if (a != NULL)
-  {
-    memset(a, 0, sizeof *a);
-  }
-  if (b != NULL)
-  {
-    memset(b, 0, sizeof *b);
-  }
-  if (k_per_w != NULL)
-  {
-    memset(k_per_w, 0, sizeof *k_per_w);
-  }
-  return true;
-}
-
-bool Board_ThermalIdent(board_thermal_ident_t *out)
-{
-  if (out != NULL)
-  {
-    memset(out, 0, sizeof *out);
-  }
-  return true;
-}
-
-bool Board_ThermalIdentReset(void)
-{
-  return false;
-}
-
-bool Board_ThermalNodeCfg(uint8_t node, float *capacity, float *to_ambient, float *area_share, float *rth_die, float *forced)
-{
-  (void)node;
-  if (capacity != NULL)
-  {
-    memset(capacity, 0, sizeof *capacity);
-  }
-  if (to_ambient != NULL)
-  {
-    memset(to_ambient, 0, sizeof *to_ambient);
-  }
-  if (area_share != NULL)
-  {
-    memset(area_share, 0, sizeof *area_share);
-  }
-  if (rth_die != NULL)
-  {
-    memset(rth_die, 0, sizeof *rth_die);
-  }
-  if (forced != NULL)
-  {
-    memset(forced, 0, sizeof *forced);
-  }
-  return true;
-}
-
-void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms)
-{
-  if (every_ms != NULL)
-  {
-    memset(every_ms, 0, sizeof *every_ms);
-  }
-  if (settle_ms != NULL)
-  {
-    memset(settle_ms, 0, sizeof *settle_ms);
-  }
-}
-
-bool Board_ThermalSetBoard(float to_ambient, float capacity)
-{
-  (void)to_ambient;
-  (void)capacity;
-  return false;
-}
-
-bool Board_ThermalSetEdge(uint8_t edge, float k_per_w)
-{
-  (void)edge;
-  (void)k_per_w;
-  return false;
-}
-
-bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at)
-{
-  (void)node;
-  (void)limit_c;
-  (void)throttle_at;
-  return false;
-}
-
-bool Board_ThermalSetMarginFloor(float floor)
-{
-  (void)floor;
-  return false;
-}
-
-bool Board_ThermalSetNode(uint8_t node, float to_board, float capacity)
-{
-  (void)node;
-  (void)to_board;
-  (void)capacity;
-  return false;
-}
-
-bool Board_ThermalSetSample(uint32_t every_ms, uint32_t settle_ms)
-{
-  (void)every_ms;
-  (void)settle_ms;
-  return false;
-}
-
-bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k)
-{
-  (void)limit_c;
-  (void)k_per_w;
-  (void)j_per_k;
-  return false;
-}
-
-bool Board_ThermalState(board_thermal_t *out)
-{
-  if (out != NULL)
-  {
-    memset(out, 0, sizeof *out);
-  }
-  return true;
-}
-
 void Board_Uid(uint8_t *out)
 {
   if (out != NULL)
@@ -1187,6 +1052,68 @@ bool testrig_port_write(char port, uint16_t mask, uint16_t value)
   (void)mask;
   (void)value;
   return false;
+}
+
+/* What board_thermal.c reads besides: the MCU die at room, no angle sensor fitted, no
+   current, the PWM idle at its period, no synchronous sample, the drive's derating as set. */
+bool Board_McuDie(int32_t *raw, int32_t *centidegc)
+{
+  if ((raw == NULL) || (centidegc == NULL))
+  {
+    return false;
+  }
+  *raw = fake_code();
+  *centidegc = FAKE_ROOM_CENTI;
+  return true;
+}
+
+bool Board_AngleDie(int32_t *centidegc)
+{
+  (void)centidegc;
+  return false;
+}
+
+float Board_PhaseAmps(uint8_t leg, int32_t centred)
+{
+  (void)leg;
+  (void)centred;
+  return 0.0f;
+}
+
+uint32_t Board_PwmPeriod(void)
+{
+  return FAKE_PWM_PERIOD;
+}
+
+uint16_t Board_PwmGetDuty(uint8_t phase)
+{
+  (void)phase;
+  return 0U;
+}
+
+void Board_SyncLatest(board_sync_sample_t *out)
+{
+  if (out != NULL)
+  {
+    memset(out, 0, sizeof *out);
+  }
+}
+
+bool Board_SyncMeanSquare(float *out)
+{
+  (void)out;
+  return false;
+}
+
+void Board_DriveDerate(float factor)
+{
+  s.derate = factor;
+  s.derated = true;
+}
+
+float Board_DriveDerating(void)
+{
+  return s.derated ? s.derate : 1.0f;
 }
 
 /* Zero and span are board_adc.c's: they read the ADC. Zero takes the code as the offset;

@@ -6,7 +6,7 @@
 What answers is the firmware's own wire - the Modbus RTU slave, the command tables, every
 handler - built with the host's compiler; under it the board API answers neutrally
 (board/fake/fake_board.c), the calibration record is the board's own over a RAM sector
-(board_cal.c, board/fake/fake_flash.c), the ports are a byte ring and a clock the
+(board_cal.c, board/fake/fake_flash.c), the thermal observer too (board_thermal.c), the ports are a byte ring and a clock the
 exchange steps (board/fake/fake_uart.c). One fake board a process.
 """
 import ctypes
@@ -26,13 +26,13 @@ SOURCES = sorted(p for p in glob.glob(os.path.join(REPO, 'comms', 'src', '*.c'))
     p for core in ('modbus', 'drive', 'thermal', 'daq', 'ctrl', 'filter', 'shtp')
     for p in sorted(glob.glob(os.path.join(REPO, core, 'src', '*.c')))] + sorted(
     glob.glob(os.path.join(REPO, 'board', 'fake', '*.c'))) + [
-    os.path.join(REPO, 'board', 'src', 'board_cal.c')]
+    os.path.join(REPO, 'board', 'src', name) for name in ('board_cal.c', 'board_thermal.c')]
 
 #: The cores' headers first: comms/inc/board has same-named ones for the board's API,
-#: which comms/ includes as "board/<x>.h".
+#: which comms/ includes as "board/<x>.h"; board/fake before board/inc, for its board_hw.h.
 INCLUDES = [os.path.join(REPO, part) for part in (
     'ctrl/inc', 'drive/inc', 'thermal/inc', 'daq/inc', 'filter/inc', 'shtp/inc', 'boot/inc',
-    'modbus/inc', 'comms/inc', 'comms/inc/board', 'board/inc')]
+    'modbus/inc', 'comms/inc', 'comms/inc/board', 'board/fake', 'board/inc')]
 
 #: The longest answer an exchange takes back.
 ANSWER = 4096

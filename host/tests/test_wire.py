@@ -111,10 +111,26 @@ def test_the_wire_refuses(report, rig):
                  not wrong, str(wrong) if wrong else '')
 
 
-def test_every_verb_answers_or_refuses(report, rig):
-    """Invariant 8 across the wire: each verb a result or a raise from coaxial.errors, never
-    a decode's KeyError or struct.error."""
+def swept(report, title, calls):
+    """Invariant 8 across the wire: each call a result or a raise from coaxial.errors, never
+    a decode's KeyError or struct.error. The refusals are printed, by class."""
     from coaxial.errors import RigError
+    refused, wrong = {}, {}
+    for name, call in calls:
+        try:
+            call()
+        except RigError as exc:
+            refused[name] = type(exc).__name__
+        except Exception as exc:          # anything else is the finding
+            wrong[name] = '%s: %s' % (type(exc).__name__, exc)
+    for name, kind in sorted(refused.items()):
+        print('        refused  %-28s %s' % (name, kind))
+    report.check(title, not wrong, '%d answered, %d refused%s' % (
+        len(calls) - len(refused) - len(wrong), len(refused),
+        '; ' + str(wrong) if wrong else ''))
+
+
+def test_every_verb_answers_or_refuses(report, rig):
     b = rig.board
     a, d, t, i, g, p = b.analog, b.drive, b.thermal, b.imu, b.gate_drivers, b.gpio
     calls = [('afe.on', b.afe.on), ('analog.scaling', a.scaling), ('analog.names', a.names),
@@ -150,20 +166,36 @@ def test_every_verb_answers_or_refuses(report, rig):
              ('gpio.write', lambda: p.write('B', 7, 1)), ('gpio.read', lambda: p.read('B', 7)),
              ('gpio.port_write', lambda: p.port_write('B', 1, 1)), ('gpio.off', p.off),
              ('board.probe', b.probe)]
-    refused, wrong = {}, {}
-    for name, call in calls:
-        try:
-            call()
-        except RigError as exc:
-            refused[name] = type(exc).__name__
-        except Exception as exc:          # anything else is the finding
-            wrong[name] = '%s: %s' % (type(exc).__name__, exc)
-    for name, kind in sorted(refused.items()):
-        print('        refused  %-28s %s' % (name, kind))
-    report.check('every verb answers or refuses as the library\'s own',
-                 not wrong, '%d answered, %d refused%s' % (
-                     len(calls) - len(refused) - len(wrong), len(refused),
-                     '; ' + str(wrong) if wrong else ''))
+    swept(report, 'every verb answers or refuses as the library\'s own', calls)
+
+
+def test_acquisition_answers_or_refuses(report, rig):
+    """The data paths, the link's diagnostics, the angle sensor, the bootloader's reads -
+    erase, seal and go left out."""
+    from coaxial.comm import protocol
+    b = rig.board
+    q, c, k, n, g, o = b.daq, b.capture, b.clock, b.link, b.angle, b.boot
+    calls = [('daq.state', q.state), ('daq.layout', q.layout),
+             ('daq.configure', lambda: q.configure(['Phase U', 'DC bus'], sample_rate=1000)),
+             ('daq.shape', q.shape), ('daq.ladder', lambda: q.ladder([])),
+             ('daq.tone', lambda: q.tone(hz=100, rate_hz=1000)), ('daq.start', q.start),
+             ('daq.acquire', q.acquire), ('daq.latest', lambda: q.latest(block=False)),
+             ('daq.tone off', q.tone), ('daq.stop', q.stop),
+             ('capture.state', c.state), ('capture.start', c.start), ('capture.take', c.take),
+             ('capture.read', c.read), ('capture.stop', c.stop),
+             ('clock.trigger', k.trigger), ('clock.read', k.read),
+             ('clock.probe', lambda: k.probe(rounds=2)),
+             ('link.echo', lambda: n.echo(b'coaxial')),
+             ('link.loopback', lambda: n.loopback(sorted(protocol.PORTS)[-1])),
+             ('link.state', n.state),
+             ('angle.state', g.state), ('angle.peek', lambda: g.peek(0)),
+             ('angle.poke', lambda: g.poke(0, 0)), ('angle.clock', g.clock),
+             ('angle.hold', g.hold), ('angle.resume', g.resume),
+             ('angle.configure', lambda: g.configure(0)),
+             ('boot.state', o.state), ('boot.stay', o.stay), ('boot.who', o.who),
+             ('boot.missing', o.missing), ('boot.verify', o.verify),
+             ('boot.dump', lambda: o.dump(0))]
+    swept(report, 'acquisition, link, angle and boot answer or refuse', calls)
 
 
 def test_the_record_survives_a_save(report, rig):
@@ -202,7 +234,8 @@ def main():
     try:
         for test in (test_the_rig_opens_on_the_firmware, test_every_read_decodes,
                      test_settings_are_taken, test_the_wire_refuses,
-                     test_every_verb_answers_or_refuses, test_the_record_survives_a_save,
+                     test_every_verb_answers_or_refuses,
+                     test_acquisition_answers_or_refuses, test_the_record_survives_a_save,
                      test_the_bench_conformance_holds):
             print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
             test(report, rig)
