@@ -3,7 +3,7 @@ from coaxial.comm import protocol
 from coaxial.comm.protocol import LinkOp
 from coaxial.comm.wire import Reader, pack
 from coaxial.devices.subsystem import Device
-from coaxial.errors import FrameError
+from coaxial.errors import DeviceStateError, FrameError
 from machine.roles import Endpoint
 
 #: Every loopback pattern returned, one bit each.
@@ -39,7 +39,11 @@ class Link(Device, Endpoint, device=protocol.DEVICE_LINK):
     def loopback(self, port):
         """Have the board send four patterns on `port` and say what returned.
         """
-        r = Reader(self._op(LinkOp.ECHO, pack(('u8', _port(port)))))
+        reply = self._op(LinkOp.ECHO, pack(('u8', _port(port))))
+        # MINOR 21: the port carrying the request refused in words.
+        if reply[:1] == b'\x00' and len(reply) > 1 and len(reply) == 2 + reply[1]:
+            raise DeviceStateError(Reader(reply[1:]).string())
+        r = Reader(reply)
         index, rs485, matched, seen = r.u8(), bool(r.u8()), r.u8(), r.u8()
 
         return {

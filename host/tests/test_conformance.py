@@ -325,11 +325,13 @@ def rs485_tests(run):
                   'matched 0x%02X, %d bytes back' % (body[2], body[3]))
 
     # The port carrying the request cannot test itself: its own patterns land
-    # in front of the reply.
+    # in front of the reply. Refused in words, `u8 0, str` (MINOR 21).
     refused = parse(b.request(bytes([0x6E, 2, 0, 0])))
-    run.check('the port carrying the conversation refuses its own loopback',
-              refused is not None and (refused[1] & 0x80) != 0,
-              'no reply' if refused is None else 'fc 0x%02X' % refused[1])
+    run.check('the port carrying the conversation refuses its own loopback in words',
+              refused is not None and refused[1] == 0x6E and refused[2][:1] == b'\x00'
+              and len(refused[2]) == 2 + refused[2][1],
+              'no reply' if refused is None
+              else 'fc 0x%02X %s' % (refused[1], refused[2][:8].hex(' ')))
 
     for port, name in ((0, 'USART3'), (1, 'USART2'), (2, 'UART5')):
         parsed = parse(b.request(bytes([0x6E, 2, 1, port])))

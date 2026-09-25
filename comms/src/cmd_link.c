@@ -19,10 +19,12 @@ static cmd_status_t h_link_echo(rd_t *in, wr_t *out)
     return CMD_ERR_VALUE;
   }
 
-  /* Not the port this request came in on. */
+  /* Not the port this request came in on: its patterns would land in front of the reply. */
   if (index == link_current())
   {
-    return CMD_ERR_VALUE;
+    wr_took(out, "this port carries the request - its own patterns would land in front of "
+                 "the reply; ask on another");
+    return CMD_OK;
   }
 
   const uint8_t matched = dev_uart_echo(index, &seen);

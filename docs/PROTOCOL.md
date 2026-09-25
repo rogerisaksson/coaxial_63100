@@ -244,8 +244,8 @@ The serial links, by index. Ops:
 | 0 echo | `u8 port` | `u8 port, u8 rs485, u8 matched, u8 seen, str name` |
 | 1 stats | `u8 port` | `u8 port, u8 unit_id, u8 rs485, u8 open, u32 baud, u32 t15_ticks, u32 t35_ticks, u32 bus_message, u32 bus_comm_error, u32 server_message, u32 server_exception, u32 server_no_response, u32 char_overrun, u32 dropped, str name` |
 
-Op 0 `matched`: one bit per pattern 00 FF 5A A5; refused on the port
-carrying the request.
+Op 0 `matched`: one bit per pattern 00 FF 5A A5; on the port carrying the
+request refused in words, `u8 0, str` (MINOR 21).
 
 ### 3 CAL, `cmd_cal.c`
 
@@ -542,6 +542,7 @@ MINOR appends; MAJOR breaks a codec.
 | 18 | device 11 BOOT as the application serves it: op 10 `state`, op 12 `stay`; the rest refused in words. The image sits at 0x08020000 with its header, and a bootloader's assignment reaches it through the handover slot (BOOT.md) |
 | 19 | device 11 `state` appends `u32 image_bytes, u32 image_crc, u8 flags` - the image the bootloader verified and ran, and assign's flags; `seal` takes `[u8 flags]`. The application runs from D2 SRAM at 0x30000000; flash at 0x08020000 keeps a sealed copy (BOOT.md) |
 | 20 | device 12 CTRL, the board's loop: slots, a wire, rows streamed and held; the `dec` wire type |
+| 21 | link op 0 on the port carrying the request refused in words, `u8 0, str`, where it answered ILLEGAL DATA VALUE |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

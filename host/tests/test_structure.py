@@ -753,6 +753,7 @@ _C_TOKENS = re.compile(
     r'(?P<open>\{)|(?P<close>\})'
     r'|(?P<leave>\b(?:return|continue)\b[^;]*;)'
     r'|for\s*\([^;]*;[^<]*<=?\s*(?:\([^)]*\)\s*)?(?P<bound>\w+)[^)]*\)'
+    r'|(?P<refuse>\bwr_took\s*\(\s*out\s*,\s*")'
     r'|\b(?P<callee>\w+)\s*\(\s*out\b')
 #: The command files whose helpers any handler may call - `wr_took` in
 #: the wire writes the byte every acknowledging op answers with.
@@ -793,9 +794,10 @@ def _c_function(text, name):
 
 
 def _c_writes_in(text, body, defines, depth_limit=4):
-    """The widths a body writes, in order."""
+    """The widths a body writes, in order. A block that refuses in words and leaves is a
+    refusal, not the reply: a data op's own (MINOR 21)."""
     stack = [[[], None, False]]      # [writes, repeat-or-'*'-or-None, ends-in-leave]
-    depth, bound = 0, None
+    depth, bound, refusing = 0, None, None
     for m in _C_TOKENS.finditer(body):
         if m.group('open'):
             depth += 1
@@ -822,6 +824,9 @@ def _c_writes_in(text, body, defines, depth_limit=4):
             stack[-1][2] = False
             continue
         if m.group('leave'):
+            if refusing == depth:
+                stack[-1][0], stack[-1][2], refusing = [], True, None
+                continue
             if depth > 1 and stack[-1][0] and re.search(r'\breturn\b(?![^;]*CMD_ERR)', m.group('leave')):
                 return [w for level in stack for w in level[0]]
             stack[-1][2] = True
@@ -829,6 +834,12 @@ def _c_writes_in(text, body, defines, depth_limit=4):
         stack[-1][2] = False
         if m.group('bound'):
             bound = m.group('bound')
+            continue
+        if m.group('refuse'):
+            if depth > 1:
+                refusing = depth
+            else:
+                stack[-1][0].append('u8')
             continue
         callee = m.group('callee')
         w = re.fullmatch(r'wr_(u8|i8|u16|i16|u32|i32|str|bytes)', callee)
