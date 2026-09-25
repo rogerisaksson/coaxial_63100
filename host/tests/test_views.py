@@ -1207,8 +1207,6 @@ def test_the_demo_actually_loads_the_motor(report):
     import re
 
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
-    # No `-P`: it arrived in Python 3.11, and on the 3.10 runner CI declares as
-    # its floor it is "unknown option", exit 2.
     done = subprocess.run(
         [sys.executable, '-X', 'utf8',
          os.path.join('terminal', 'views', 'show_rotor_observer.py'),

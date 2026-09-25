@@ -145,6 +145,6 @@ tests/              suites, .counts.json (measured sizes)
 - Tiers: `run_tests.ps1` sells checks by percentage; suites join by
   seconds per check. `TOUCHES` maps a changed path to its suites; `CHEAP`
   ones settle without asking the model.
-- CI: `host.yml` runs `--offline` on Python 3.10 and 3.12; `firmware.yml`
+- CI: `host.yml` runs `--offline` on Python 3.12 and 3.14; `firmware.yml`
   builds both images in Debug and Release, fails on any warning, keeps the
   ELFs.

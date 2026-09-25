@@ -298,7 +298,7 @@ function Test-PythonRuns {
                             and the report pointed at none of them.
           an old one Anaconda's 3.8 and Visual Studio's 3.6 were both on
                             that machine.
-                            requires-python >= 3.10.
+                            requires-python >= 3.12.
         So run it and read the version back.
         worth its 40 ms here: everything after this point assumes it works.
 #>
@@ -321,7 +321,7 @@ function Test-PythonRuns {
     $major = [int]$Matches[1]
     $minor = [int]$Matches[2]
     if ($major -gt 3) { return $true }
-    return (($major -eq 3) -and ($minor -ge 10))   # host/pyproject.toml
+    return (($major -eq 3) -and ($minor -ge 12))   # host/pyproject.toml
 }
 
 function Get-CodeVersion {
