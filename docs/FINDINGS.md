@@ -208,11 +208,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   virtual s at 100 MIPS; board/emu's counts lazily (9.4 -> 5.9) at the tree's
   237.5 MHz where Renode's ran 250. The core runs 100 MIPS until an ADC waits on
   TRGO2, then the part's 475 (2026-09-25).
-- The emulated board under the drive, MPU on: 43-62 wall s a virtual s at 475 MIPS, the
-  plant's step 4.5 us of it; TIM1's compares written every period were rescheduling
-  its timer (64-76 before). A page reading in its draw waited a round trip a frame:
-  on a Feed the attitude page draws 10 fps (5.6), the rotor observer 7.7 (0.3),
-  capture 120 frames in 35 s (536) (2026-09-25).
+- The emulated board under the drive, MPU on: 43-62 wall s a virtual s at 475
+  MIPS, the plant's step 4.5 us of it; TIM1's compares written every period
+  were rescheduling its timer (64-76 before). A page reading in its draw waited
+  a round trip a frame: on a Feed the attitude page draws 10 fps (5.6), the
+  rotor observer 7.7 (0.3), capture 120 frames in 35 s (536) (2026-09-25).
 - The firmware's hold turns its vector at `accel` toward `omega_target` and stands
   still at none; the stand-in's turns at once. AFE_ON is refused under an armed
   stage, taken before it (2026-09-25).
