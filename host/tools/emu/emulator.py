@@ -190,10 +190,17 @@ class Emulator:
         composed = os.path.join(WORK, 'run_%d.resc' % self.port)
         with open(composed, 'w', encoding='utf-8') as f:
             f.write('\n'.join(self.script()) + '\n')
+        # Its own config and monitor history: Renode rewrites the history after every command,
+        # and a body's limbs sharing %APPDATA%'s collided - an IOException, the limb gone
+        # (2026-09-25).
+        config = os.path.join(WORK, 'renode_%d.config' % self.port)
+        with open(config, 'w', encoding='utf-8') as f:
+            f.write('[general]\nhistory-path = %s\n'
+                    % os.path.join(WORK, 'history_%d' % self.port))
         sink = open(self.log, 'w', encoding='utf-8') if self.log else subprocess.DEVNULL
         self.process = subprocess.Popen(
-            [renode, '--disable-gui', '--plain', '-P', str(self.monitor), '-e',
-             'include @%s' % composed.replace(os.sep, '/')],
+            [renode, '--disable-gui', '--plain', '--config', config, '-P', str(self.monitor),
+             '-e', 'include @%s' % composed.replace(os.sep, '/')],
             cwd=REPO, stdout=sink, stderr=subprocess.STDOUT, creationflags=PRIORITY)
         self._ready(self.process)
         self.measure()

@@ -214,6 +214,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   stage, taken before it (2026-09-25).
 - The monitor's tokenizer takes no exponent: `2e-05` in a world's line and
   Renode exited (2026-09-25).
+- Renode rewrites `%APPDATA%\renode\history` after every monitor command: a
+  body's five processes, each asked its load every 0.5 s, collided, and a limb
+  exited on an IOException. Each process has its own `--config` and history;
+  the humanoid idle, 20 boards: 2.4-2.6 wall s a virtual s (2026-09-25).
 - An armed sync stays armed past drive.off: the meter is the injected group's
   until gate drivers op 3 gives it back (the emulated wire sweep, 2026-09-25).
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
