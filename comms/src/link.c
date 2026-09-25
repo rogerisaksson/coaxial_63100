@@ -162,13 +162,12 @@ uint32_t link_ticks_per_us(void)
   return l->dev->ticks_per_us(l->dev->ctx);
 }
 
-/* One port's pump. Four steps, no nesting beyond a guard each. */
-
 uint32_t link_rx_count(void)
 {
   return s.rx_count;
 }
 
+/* One port's pump. Four steps, no nesting beyond a guard each. */
 static void pump(link_port_t *l)
 {
   if (!l->open)

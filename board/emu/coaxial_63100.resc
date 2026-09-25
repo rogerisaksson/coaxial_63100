@@ -4,11 +4,13 @@
 $name?="coaxial_63100"
 $elf?=@build/Debug/coaxial_63100.elf
 $port?=3456
+$console?="console"
 
 include @board/emu/STM32H7_ADC20.cs
 include @board/emu/Coaxial63100_AFE.cs
 include @board/emu/RS485_Transceiver.cs
 include @board/emu/UART_Line.cs
+include @board/emu/RS485_Adapter.cs
 using sysbus
 mach create $name
 machine LoadPlatformDescription @board/emu/coaxial_63100.repl
@@ -17,8 +19,8 @@ machine UnregisterFromParent sysbus.adc3
 machine LoadPlatformDescription @board/emu/coaxial_63100_adc.repl
 machine LoadPlatformDescription @board/emu/coaxial_63100_afe.repl
 
-emulation CreateServerSocketTerminal $port "console" false
-connector Connect sysbus.gpioPortB.consoleLine console
+emulation CreateServerSocketTerminal $port $console false
+connector Connect sysbus.gpioPortB.consoleLine $console
 
 macro reset
 """

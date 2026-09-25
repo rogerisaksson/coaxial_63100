@@ -206,10 +206,13 @@ int main(void)
       Board_ThermalPoll();
     }
 
+    /* Every open port's Modbus: the RS485 pair's from boot, the console's once the
+       host sent 'm'. */
+    link_poll();
+
     if (link_active())
     {
       /* Modbus owns USART3. */
-      link_poll();
       continue;
     }
 

@@ -1,0 +1,6 @@
+// coaxial_63100_limb.repl - The host's USB-RS485 adapter on a limb (RS485_Adapter.cs), loaded
+// into the first node for a name: hung on port K, which the VIT6's 100 pins do not carry.
+adapterBus: UART.RS485_AdapterBus @ gpioPortK 0
+
+adapterHost: UART.RS485_AdapterHost @ gpioPortK 1
+    bus: adapterBus
