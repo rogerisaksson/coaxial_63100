@@ -32,6 +32,11 @@ void Board_StoKeepalive(void);
 /** Forget the worst gap seen so far, so a run can be measured on its own. */
 void Board_StoKeepaliveReset(void);
 
+/** The core asleep until the next interrupt, if the STO chain can spare the
+    keepalive: AFE_ON low (the interlock reads nothing) and MOE clear. main()
+    calls it with its own work done. */
+void Board_StoIdle(void);
+
 #ifdef __cplusplus
 }
 #endif

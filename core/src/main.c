@@ -210,6 +210,13 @@ int main(void)
        host sent 'm'. */
     link_poll();
 
+    /* Nothing mid-frame: asleep until the next interrupt where the STO chain
+       can spare the keepalive. */
+    if (!link_busy())
+    {
+      Board_StoIdle();
+    }
+
     if (link_active())
     {
       /* Modbus owns USART3. */

@@ -96,6 +96,19 @@ void Board_StoKeepaliveReset(void)
   s.worst_gap = 0U;
 }
 
+void Board_StoIdle(void)
+{
+  /* Masked across the test and the WFI: an interrupt landing between them
+     still wakes it, and is taken once unmasked. */
+  __disable_irq();
+  if (!Board_AfeOn() && !Board_PwmIsEnabled())
+  {
+    __DSB();
+    __WFI();
+  }
+  __enable_irq();
+}
+
 void Board_StoState(board_sto_state_t *out)
 {
   if (out == NULL)

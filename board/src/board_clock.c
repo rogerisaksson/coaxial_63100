@@ -71,6 +71,9 @@ bool Board_SysClkOnCrystal(void)
 /* Enables the Cortex-M7 cycle counter. */
 void Board_TimebaseInit(void)
 {
+  /* CSleep gates the core's clock and CYCCNT with it; DBGSLEEP_D1 keeps it
+     running through main()'s WFI (RM0433 DBGMCU_CR). */
+  DBGMCU->CR |= DBGMCU_CR_DBG_SLEEPD1;
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
   DWT->CYCCNT = 0;
   DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
