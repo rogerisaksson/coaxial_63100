@@ -42,6 +42,24 @@ jobs:
           path: |
             build/${{ matrix.preset }}/coaxial_63100.elf
             build/${{ matrix.preset }}/coaxial_63100_boot.elf
+      # The image itself on Renode's STM32H753 (board/emu): the conformance suite and the
+      # wire sweeps against the ELF, CubeMX's code and the HAL included.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: host/requirements.txt
+      - run: pip install -r host/requirements.txt && pip install --no-deps -e host
+      - run: |
+          curl -sL https://github.com/renode/renode/releases/download/v1.17.0/renode-1.17.0.linux-portable.tar.gz | tar xz
+          echo "RENODE=$PWD/$(ls -d renode_*/ | head -1)renode" >> "$GITHUB_ENV"
+        shell: bash
+      - run: python -X utf8 tests/test_emulator.py 2>&1 | tee -a ../build.log; exit ${PIPESTATUS[0]}
+        shell: bash
+        working-directory: host
+        env:
+          COAXIAL_ELF: ../build/${{ matrix.preset }}/coaxial_63100.elf
+          COAXIAL_EMULATOR: required
       # A red run must be readable without the Actions UI, like the host's.
       - if: failure()
         env:

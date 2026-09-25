@@ -115,6 +115,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 - DC link spanned vs DMM 2026-08-30: 31.04 read, 30.05 true, -32 418 ppm ch 5.
 - Phase gain from the schematic (2026-08-26), not spanned.
+- LTspice's AFE (amplifiers.asc 6bc736b, nominal, 33 samples to 106 A):
+  10.24 mV/A, zero 8.7 mV at the ADC's differential input. The record's shunt x
+  THS4551 gain is 15.9 mV/A, the schematic's own note 9.2 mV/A and 110 mV:
+  unspanned, a phase reads 0.64 of its current (2026-09-25).
 - An id added without moving `BOARD_CAL_PARAM_COUNT` is held but never reported.
 - Replies past 253 B page (ADC table, pins, parts).
 - `BOARD_CAL_PARAM_COUNT` stayed 46 after the winding's ids 46-48
@@ -148,6 +152,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   four at a time: 142 s.
 - numpy's OpenBLAS pool costs ~499 MB commit per process; this laptop has no
   page file. Capped in `coaxial.model.blocks`.
+- Renode 1.17.0's STM32H7_ADC has 19 inputs (a conversion on 19, Vgate, throws
+  inside Renode) and drops ADC2's registers at +0x100; its terminal hands a TCP
+  chunk over at once, so a 257 B ADU overran the 256 B ring. board/emu replaces
+  the ADCs and paces the console at its baud: the image passes conformance
+  110/110, 420 MB, 47 s (2026-09-25).
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
 - Ollama answered 500 from 2026-09-03 to 09-12: the runner failed to start.
 - Front page model drawn at inner height - 2 and inside a 1-column padding:

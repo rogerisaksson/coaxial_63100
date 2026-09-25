@@ -1,0 +1,34 @@
+:name: Coaxial 63100
+:description: The application image on an emulated STM32H753, its console on a TCP port.
+
+$name?="coaxial_63100"
+$elf?=@build/Debug/coaxial_63100.elf
+$port?=3456
+
+include @board/emu/STM32H7_ADC20.cs
+include @board/emu/Coaxial63100_AFE.cs
+include @board/emu/RS485_Transceiver.cs
+include @board/emu/UART_Line.cs
+using sysbus
+mach create $name
+machine LoadPlatformDescription @board/emu/coaxial_63100.repl
+machine UnregisterFromParent sysbus.adcM1S2
+machine UnregisterFromParent sysbus.adc3
+machine LoadPlatformDescription @board/emu/coaxial_63100_adc.repl
+machine LoadPlatformDescription @board/emu/coaxial_63100_afe.repl
+
+emulation CreateServerSocketTerminal $port "console" false
+connector Connect sysbus.gpioPortB.consoleLine console
+emulation CreateUARTHub "rs485a"
+connector Connect usart2 rs485a
+connector Connect sysbus.gpioPortA.transceiverA rs485a
+emulation CreateUARTHub "rs485b"
+connector Connect uart5 rs485b
+connector Connect sysbus.gpioPortC.transceiverB rs485b
+
+macro reset
+"""
+    sysbus LoadELF $elf
+    cpu VectorTableOffset 0x30000000
+"""
+runMacro $reset

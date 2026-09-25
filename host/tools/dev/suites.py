@@ -41,6 +41,10 @@ CTRL_CORE = 'test_ctrl_core.py'
 #: fake board (tools.cores.fakeboard): a disagreement between the two sides fails here.
 WIRE = 'test_wire.py'
 
+#: The firmware's own image on an emulated MCU (tools/emu, board/emu): the conformance suite
+#: and test_wire's sweeps against the ELF, CubeMX's code and the HAL included.
+EMULATOR = 'test_emulator.py'
+
 SENSORLESS = 'test_sensorless.py'
 
 #: The subjects a change can be about: pick_tests.py asks the model to choose
@@ -84,7 +88,7 @@ CONTROLLER = 'test_controller.py'
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
-                   CTRL_CORE, WIRE,
+                   CTRL_CORE, WIRE, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, BOOT, VIEWS,
                    RENDER) + OLLAMA
@@ -127,6 +131,8 @@ JOINS = (
     (20, WIRE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
+    # Renode and the image: 47 s, 420 MB (2026-09-25).
+    (40, EMULATOR),
     (45, 'test_mcp.py'),
     (65, CONFORMANCE),
 
@@ -167,7 +173,7 @@ NEEDS_BOARD = (CONFORMANCE,)
 #: Each wants the host to itself - the bench suite measures the link's
 #: own rates, conformance its frame gaps - so they run one at a time after
 #: the rest. Every other suite opens the stand-in or nothing at all.
-ALONE = ('test_mcp.py', 'test_parity.py', BENCH, CONFORMANCE, LIVE)
+ALONE = ('test_mcp.py', 'test_parity.py', BENCH, CONFORMANCE, LIVE, EMULATOR)
 
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
@@ -257,10 +263,12 @@ TOUCHES = (
     ('host/tools/sim/montecarlo.py',           (STRUCTURE, DRIVE)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
-    ('comms/',                                 (WIRE, CONFORMANCE, 'test_mcp.py', BENCH)),
-    ('board/',                                 (WIRE, CONFORMANCE, 'test_mcp.py',
+    ('comms/',                                 (WIRE, EMULATOR, CONFORMANCE, 'test_mcp.py',
+                                                BENCH)),
+    ('board/',                                 (WIRE, EMULATOR, CONFORMANCE, 'test_mcp.py',
                                                 'test_parity.py', BENCH)),
-    ('core/',                                  (CONFORMANCE, BENCH)),
+    ('core/',                                  (EMULATOR, CONFORMANCE, BENCH)),
+    ('host/tools/emu/',                        (EMULATOR,)),
     # The observer and its envelope are hardware-free like the filter, so the
     # host build is what covers them; the board glue that acts on the budget
     # lives in board/ and is the bench's.

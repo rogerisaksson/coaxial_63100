@@ -519,7 +519,7 @@ def map_tests(run):
 
     b.request(pdu_w_single_coil(0x0000, True))
     time.sleep(0.4)
-    on_code = ntc_raw()
+    on_codes = [ntc_raw() for _ in range(4)]
     on_coil = read_bit(0x01)
 
     sampling(5000, 500)
@@ -528,9 +528,9 @@ def map_tests(run):
               off_coil is False and on_coil is True,
               'off->%s on->%s' % (off_coil, on_coil))
     run.check('the rail is a physical fact: raw NTC frozen off, moved on',
-              None not in off_codes and on_code is not None
-              and len(set(off_codes)) == 1 and on_code != off_codes[0],
-              'off -> %s, on -> %s' % (off_codes, on_code))
+              None not in off_codes + on_codes and len(set(off_codes)) == 1
+              and set(on_codes) != set(off_codes),
+              'off -> %s, on -> %s' % (off_codes, on_codes))
 
     print('\n-- scaled physical quantities (AFE on) --')
     p = parse(b.request(pdu_read(0x04, 0x0010, 2)))

@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""The firmware's own image on an emulated MCU, its front end fed from the electronics.
+
+The whole of it - CubeMX's code, the HAL, the board layer, comms/, the cores - on Renode's
+STM32H753 (tools/emu, board/emu), the front end from the LTspice fit
+(board/emu/coaxial_63100_afe.repl).
+
+The bench's conformance suite runs first, alone on the console Renode serves one client at a
+time; then a rig on the same port through test_wire's sweeps, and the front end's inputs
+through the monitor. Skips without Renode or a built image, unless COAXIAL_EMULATOR is
+`required` (CI).
+"""
+import os
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import test_wire as wire  # noqa: E402
+from coaxial import Coaxial63100  # noqa: E402
+from tools.emu.emulator import ELF, Emulator, find_renode  # noqa: E402
+
+AFE = 'sysbus.gpioPortB.afe'
+
+
+def test_the_bench_conformance_holds(report, emu):
+    done = subprocess.run([sys.executable, '-X', 'utf8', wire.CONFORMANCE, '--port', emu.url],
+                          capture_output=True, text=True, encoding='utf-8',
+                          timeout=wire.CONFORMANCE_S)
+    lines = done.stdout.strip().splitlines() or ['no output: ' + done.stderr.strip()[-200:]]
+    failed = [line.strip() for line in lines if line.strip().startswith('FAIL')]
+    report.check('the bench conformance suite holds on the emulated MCU',
+                 done.returncode == 0, '; '.join([lines[-1]] + failed[:3]))
+
+
+def test_the_front_end_feeds_the_image(report, rig, emu):
+    """The DC link fed through the front end, read back through the image's own scan: the
+    reading follows what is fed. Recorded, not judged against a number."""
+    b = rig.board
+    b.afe.on()
+    got = []
+    for volts in (12.0, 24.0, 48.0):
+        emu.command('%s DcBusVolts %s' % (AFE, volts))
+        got.append((volts, b.analog.scan()['dcbus_mv']))
+    emu.command('%s DcBusVolts 0' % AFE)
+    b.afe.off()
+    readings = [mv for _, mv in got]
+    report.check('the DC link the image reads follows the one fed',
+                 readings == sorted(readings) and len(set(readings)) == len(readings),
+                 ', '.join('%g V -> %d mV' % pair for pair in got))
+
+
+def main():
+    report = wire.Report()
+    if find_renode() is None or not os.path.exists(ELF):
+        print('no Renode or no image (%s): the emulator needs both' % ELF)
+        required = os.environ.get('COAXIAL_EMULATOR') == 'required'
+        print('\n0 passed, %d failed' % required)
+        return int(required)
+    with Emulator(monitor=True) as emu:
+        print('\n-- the bench conformance holds --')
+        test_the_bench_conformance_holds(report, emu)
+        rig = Coaxial63100(port=emu.url, own_image=False).open()
+        try:
+            for test in (wire.test_every_read_decodes, wire.test_settings_are_taken,
+                         wire.test_the_wire_refuses, wire.test_every_verb_answers_or_refuses,
+                         wire.test_acquisition_answers_or_refuses,
+                         wire.test_the_acquisition_records_decode,
+                         wire.test_the_record_survives_a_save):
+                print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
+                test(report, rig)
+            print('\n-- the front end feeds the image --')
+            test_the_front_end_feeds_the_image(report, rig, emu)
+        finally:
+            rig.close()
+    print('\n%d passed, %d failed' % (report.passed, report.failed))
+    return 1 if report.failed else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

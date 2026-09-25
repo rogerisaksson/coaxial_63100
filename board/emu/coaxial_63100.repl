@@ -1,0 +1,11 @@
+// coaxial_63100.repl - The board's MCU as Renode models it: an STM32H753 at 475 MHz.
+using "platforms/cpus/stm32h753.repl"
+
+nvic:
+    systickFrequency: 475000000
+
+dwt:
+    frequency: 475000000
+
+// SPI2: Renode registers SPI4 alone; the board has both.
+spi2: SPI.STM32H7_SPI @ sysbus 0x40003800

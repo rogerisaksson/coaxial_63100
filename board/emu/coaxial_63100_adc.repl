@@ -1,0 +1,83 @@
+// coaxial_63100_adc.repl - The three ADCs as STM32H7_ADC20 (twenty inputs), in place of
+// Renode's (coaxial_63100.resc unregisters them). ADC1 and ADC2 apart: Renode's model answers
+// ADC1 and the common block and drops ADC2's registers at +0x100 (2026-09-25).
+adc1: Analog.STM32H7_ADC20 @ sysbus <0x40022000, +0x100>
+    referenceVoltage: 3.3
+    externalEventFrequency: 1000
+    dmaPeripheral: dmamux1
+    dmaChannel: 9
+    -> nvic@18
+
+adc2: Analog.STM32H7_ADC20 @ sysbus <0x40022100, +0x100>
+    referenceVoltage: 3.3
+    externalEventFrequency: 1000
+    dmaPeripheral: dmamux1
+    dmaChannel: 10
+    -> nvic@18
+
+adc12Common: Memory.ArrayMemory @ sysbus 0x40022300
+    size: 0x100
+
+adc3: Analog.STM32H7_ADC20 @ sysbus 0x58026000
+    referenceVoltage: 3.3
+    externalEventFrequency: 1000
+    dmaPeripheral: dmamux1
+    dmaChannel: 115
+    -> exti@75
+
+// The front end (Coaxial63100_AFE.cs) on AFE_ON, PB2, and the pins it drives, as board_adc.c's
+// table wires them; its phase transfer is coaxial_63100_afe.repl's, from LTspice.
+afe: Analog.Coaxial63100_AFE @ gpioPortB 2
+
+gpioPortB:
+    2 -> afe@0
+
+phaseU: Analog.Coaxial63100_AFEChannel @ adc3 1
+    afe: afe
+    signal: "Phase U"
+
+phaseV: Analog.Coaxial63100_AFEChannel @ adc1 3
+    afe: afe
+    signal: "Phase V"
+
+phaseW: Analog.Coaxial63100_AFEChannel @ adc2 4
+    afe: afe
+    signal: "Phase W"
+
+clevel: Analog.Coaxial63100_AFEChannel @ adc2 5
+    afe: afe
+    signal: "Clevel"
+
+ntc: Analog.Coaxial63100_AFEChannel @ adc1 9
+    afe: afe
+    signal: "NTC"
+
+dcBus: Analog.Coaxial63100_AFEChannel @ adc3 10
+    afe: afe
+    signal: "DC bus"
+
+cinj: Analog.Coaxial63100_AFEChannel @ adc3 11
+    afe: afe
+    signal: "Cinj"
+
+rail5: Analog.Coaxial63100_AFEChannel @ adc1 18
+    afe: afe
+    signal: "+5V"
+
+vgate: Analog.Coaxial63100_AFEChannel @ adc1 19
+    afe: afe
+    signal: "Vgate"
+
+die: Analog.Coaxial63100_AFEChannel @ adc3 18
+    afe: afe
+    signal: "MCU die"
+
+// USART2 and UART5 on their RS485 transceivers (RS485_Transceiver.cs), each on its DE pin (PA1,
+// PC8) and joined to its UART by a hub in coaxial_63100.resc.
+transceiverA: UART.RS485_Transceiver @ gpioPortA 1
+
+transceiverB: UART.RS485_Transceiver @ gpioPortC 8
+
+// The console's wire (UART_Line.cs) on USART3's RX pin, PB11.
+consoleLine: UART.UART_Line @ gpioPortB 11
+    uart: usart3

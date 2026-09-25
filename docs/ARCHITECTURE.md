@@ -12,6 +12,9 @@ board/    this hardware; API in comms/inc/board.h -> comms/inc/board/<x>.h
           board_cal.c and board_thermal.c for the offline suites
           (tools/cores/fakeboard.py, tests/test_wire.py, the conformance
           suite through it)
+          board/emu/: the board on Renode's STM32H753 for the image itself -
+          twenty-input ADCs, the AFE from the electronics and LTspice, the
+          RS485 echo, the console's wire (tools/emu, tests/test_emulator.py)
 comms/    cmd.c tables -> cmd_<device>.c handlers (rd_t in, wr_t out, wire.c)
           link.c: which port, console or Modbus; dev_uart.c: the only USART code
           cmd_length.c: request-length oracle for modbus_rtu.c
@@ -105,6 +108,10 @@ tools/cores/        build: the portable cores' gcc build;
                     fakeboard: comms/, the record and the observer over
                     board/fake as
                     fakeboard://
+tools/emu/          emulator: Renode running the image, its console as socket://
+                    (Renode: RENODE, PATH, or the portable build unpacked under
+                    %LOCALAPPDATA%/renode); afe_spice: the AFE's transfer from
+                    LTspice (electronic_simulations, a submodule)
 tools/notebooks/    the paper builder and make_notebooks
 tests/              suites, .counts.json (measured sizes)
 ```
