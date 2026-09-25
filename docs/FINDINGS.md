@@ -181,13 +181,18 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   109 at 200, 107 at 475. The three after the 257 B ADU go unanswered: the
   master's waits are wall seconds, unscaled by the port's `time_scale`
   (2026-09-25).
-- Emulator speed: Renode runs this image at ~16 M instructions a wall second,
-  its register accesses not the cost (1 M GPIOB reads a virtual second mirrored
-  away: 29.2 -> 28.6). Renode's TIM1 was: an event every update, 3.5 wall s a
+- Emulator speed: the image's MPU. tlib keeps no TLB entry for a page inside an
+  enabled region whose subregion is disabled, and walks the MPU on every access
+  there; CubeMX's 4 GB region (SRD 0x87) spans ITCM, DTCM and D2 SRAM. Its enable
+  masked on the bus: idle 8.2 -> 1.4 wall s a virtual s at 100 MIPS, 23 -> 5.2
+  at 475; the drive 43-62 -> 18-22. On in the suites only. Renode's own speed on
+  this laptop: 1 200 M ALU instructions a wall second, a GPIO read 0.66 us, a
+  BSRR write 1.4 us, a DWT read 1.3 us (0.56 board/emu's). Renode's TIM1 was: an
+  event every update, 3.5 wall s a
   virtual s at 100 MIPS; board/emu's counts lazily (9.4 -> 5.9) at the tree's
   237.5 MHz where Renode's ran 250. The core runs 100 MIPS until an ADC waits on
   TRGO2, then the part's 475 (2026-09-25).
-- The emulated board under the drive: 43-62 wall s a virtual s at 475 MIPS, the
+- The emulated board under the drive, MPU on: 43-62 wall s a virtual s at 475 MIPS, the
   plant's step 4.5 us of it; TIM1's compares written every period were rescheduling
   its timer (64-76 before). A page reading in its draw waited a round trip a frame:
   on a Feed the attitude page draws 10 fps (5.6), the rotor observer 7.7 (0.3),

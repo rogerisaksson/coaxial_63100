@@ -66,14 +66,14 @@ FLAG_TERMINATE = 0x01
 #: The 96-bit unique id (UID_BASE): its first word told apart per node.
 UID_AT = 0x1FF1E800
 
-#: The core's instructions a virtual second, the default: the part's 475 M. Renode's own 100 M
-#: runs 4.75 times the wall speed, and neither a 10 Mbit bus nor the drive's 20 us period holds
-#: at it: a 240 B echo blast at 10 Mbit lost 12 of 200, and the drive's ISR (2 922 cycles)
+#: The core's instructions a virtual second, the default: the part's 475 M. Neither a 10 Mbit
+#: bus nor the drive's 20 us period holds at Renode's own 100 M: a 240 B echo blast at 10 Mbit lost 12 of 200, and the drive's ISR (2 922 cycles)
 #: outran its period and starved the link (2026-09-25).
 FAITHFUL_MIPS = 475
 
 #: The core's speed while no ADC waits on TRGO2 - no drive runs to the part's budget -
-#: Renode's own: 3.4 times the wall speed of 475 (2026-09-25). The plant switches between them.
+#: Renode's own: 1.4 wall s a virtual s against 475's 5.2 (2026-09-25). The plant switches
+#: between them.
 IDLE_MIPS = 100
 
 #: How far a limb's boards run apart before they wait for each other, s: 100 us held 8 boards
@@ -81,6 +81,12 @@ IDLE_MIPS = 100
 #: these boundaries, so it stays under RTU's t1.5 of 750 us inside a frame: 1 ms broke every
 #: frame longer than a quantum's bytes.
 QUANTUM = '0.0005'
+
+#: MPU_CTRL.ENABLE masked on the bus, the image's MPU off: tlib keeps no TLB entry for a page
+#: inside an enabled region's span whose subregion is disabled, and walks the MPU on every
+#: access there - CubeMX's 4 GB region, SRD 0x87, spans ITCM, DTCM and D2 SRAM. Idle at
+#: 100 MIPS 8.2 -> 1.4 wall s a virtual s (2026-09-25). The suites run it on (`mpu`).
+MPU_OFF = 'sysbus SetHookBeforePeripheralWrite sysbus.nvic "value = value & ~1" <0xD94, 0xD97>'
 
 #: Wall time over which the emulation's speed is taken once it is up, s.
 SCALE_S = 1.0
@@ -112,14 +118,16 @@ class Emulator:
 
     def __init__(self, elf=ELF, port=None, log=None, monitor=None, world=None,
                  mips: int | None = FAITHFUL_MIPS, boot=False,
-                 idle_mips: int | None = IDLE_MIPS):
+                 idle_mips: int | None = IDLE_MIPS, mpu=False):
         """`monitor`: a TCP port for Renode's monitor, a free one if None or True;
         `world`: a world's name (board/emu/worlds), its first node this board; `mips`: the
         core's instructions a virtual second, millions, the part's own by default - None for
         Renode's 100 - while an ADC waits on TRGO2, `idle_mips` else (None: `mips` throughout);
         `boot`: the bootloader from flash, blank, waiting for the host to load the image
-        over Modbus (docs/BOOT.md) - host and target then run one build."""
+        over Modbus (docs/BOOT.md) - host and target then run one build; `mpu`: the image's
+        MPU on, as on the part, at a seventh of the speed (MPU_OFF)."""
         self.boot = boot
+        self.mpu = mpu
         self.elf = os.path.abspath(BOOT_ELF if boot and elf == ELF else elf)
         self.mips = mips
         self.idle_mips = idle_mips
@@ -129,8 +137,8 @@ class Emulator:
         self.monitor_socket = None
         self._monitor_lock = threading.Lock()
         #: Wall seconds a virtual second, as last measured: the host's waits are stretched by
-        #: it (coaxial.comm.transport). The image sets it - at 475 MIPS the app 25, its
-        #: bootloader 9 (2026-09-25).
+        #: it (coaxial.comm.transport). The image sets it - at 475 MIPS the app 5, 18-22
+        #: under the drive, its bootloader 9 (2026-09-25).
         self.time_scale = 1.0
         self.url = 'socket://127.0.0.1:%d' % self.port
         self.consoles = [self.port]
@@ -143,7 +151,12 @@ class Emulator:
         """The monitor's commands that build and start the emulation."""
         return (['$port=%d' % self.port, '$elf=@%s' % self.elf.replace(os.sep, '/')]
                 + (['$vtor=0x%08X' % BOOT_VTOR] if self.boot else [])
-                + ['include @%s' % SCRIPT] + self.planted(0) + self.paced() + ['start'])
+                + ['include @%s' % SCRIPT] + self.planted(0) + self.guarded() + self.paced()
+                + ['start'])
+
+    def guarded(self):
+        """The MPU masked off for the machine last created, unless `mpu`."""
+        return [] if self.mpu else [MPU_OFF]
 
     def paced(self):
         """The core's speed, if not Renode's own, for the machine last created: IDLE_MIPS until
@@ -265,11 +278,11 @@ class Limb(Emulator):
 
     def __init__(self, nodes, elf=ELF, log=None, monitor=None, world=None,
                  mips: int | None = FAITHFUL_MIPS,
-                 baud=None, boot=False, idle_mips: int | None = IDLE_MIPS):
+                 baud=None, boot=False, idle_mips: int | None = IDLE_MIPS, mpu=False):
         """`baud`: the bus's rate, bits a second - the app starts at the record's, 115 200, the
         bootloader (`boot`, each node blank until the host loads it) at BOOT_BAUD."""
         super().__init__(elf, log=log, monitor=monitor, world=world, mips=mips, boot=boot,
-                         idle_mips=idle_mips)
+                         idle_mips=idle_mips, mpu=mpu)
         self.baud = baud or (BOOT_BAUD if boot else None)
         self.nodes = nodes
         self.units = () if boot else tuple(range(1, nodes + 1))
@@ -287,7 +300,7 @@ class Limb(Emulator):
             out += [line.replace('$name', '"node%d"' % unit).replace('$port', str(port))
                     .replace('$console', '"node%d-console"' % unit).replace('$vtor', vtor)
                     for line in board]
-            out += self.planted(unit - 1) + self.paced()
+            out += self.planted(unit - 1) + self.guarded() + self.paced()
             if not self.boot:
                 # As a bootloader leaves it; a node in boot mode is blank, the host assigns it.
                 out += ['sysbus WriteDoubleWord 0x%08X 0x%08X' % (HAND_AT, HAND_MAGIC),
@@ -317,9 +330,10 @@ class Body:
     board's work (2026-09-25). Each limb is its own RS485 segment, as on the machine:
     `urls[name]` is its bus. `limbs` {name: boards}, `worlds` {name: a world's name}."""
 
-    def __init__(self, limbs, elf=ELF, worlds=None, mips: int | None = FAITHFUL_MIPS):
+    def __init__(self, limbs, elf=ELF, worlds=None, mips: int | None = FAITHFUL_MIPS,
+                 mpu=False):
         worlds = worlds or {}
-        self.limbs = {name: Limb(n, elf, world=worlds.get(name), mips=mips)
+        self.limbs = {name: Limb(n, elf, world=worlds.get(name), mips=mips, mpu=mpu)
                       for name, n in limbs.items()}
         self.urls = {name: limb.url for name, limb in self.limbs.items()}
 

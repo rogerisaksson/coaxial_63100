@@ -5,6 +5,7 @@
     Coaxial63100(port='emulator://?world=quad&nodes=4').open()  # on the quad's rotors
     Coaxial63100(port='emulator://?nodes=2&baud=10000000', unit=2).open()  # 10 Mbit
     Coaxial63100(port='emulator://?mips=475').open()         # the part's speed throughout
+    Coaxial63100(port='emulator://?mpu=1').open()            # the image's MPU on, a 7th the speed
     Coaxial63100(port='emulator://?body=humanoid&bus=LL', unit=2).open()  # the left knee
     Coaxial63100(port='emulator://?nodes=1&boot=1').open()   # blank: the host loads its build
     .\\coaxial_tty.ps1 -Port emulator://
@@ -53,11 +54,15 @@ def _body(url, query):
     if key not in _RUNNING:
         mips = int(query['mips'][0]) if 'mips' in query else FAITHFUL_MIPS
         body = Body({name: len(bus_nodes(name)) for name in BODIES[kind]}, worlds=BODIES[kind],
-                    mips=mips).start()
+                    mips=mips, mpu=_mpu(query)).start()
         atexit.register(body.stop)
         _RUNNING[key] = body
     body = _RUNNING[key]
     return body.limbs[query.get('bus', [sorted(body.limbs)[0]])[0]]
+
+
+def _mpu(query):
+    return query.get('mpu', ['0'])[0] not in ('0', '')
 
 
 def release(url):
@@ -82,8 +87,8 @@ def emulator_for(url):
         pace = {'mips': fixed or FAITHFUL_MIPS, 'idle_mips': None if fixed else IDLE_MIPS}
         baud = int(query['baud'][0]) if 'baud' in query else None
         boot = query.get('boot', ['0'])[0] not in ('0', '')
-        emu = (Limb(nodes, world=world, baud=baud, boot=boot, **pace) if nodes
-               else Emulator(world=world, boot=boot, **pace)).start()
+        emu = (Limb(nodes, world=world, baud=baud, boot=boot, mpu=_mpu(query), **pace) if nodes
+               else Emulator(world=world, boot=boot, mpu=_mpu(query), **pace)).start()
         atexit.register(emu.stop)
         _RUNNING[url] = emu
     return _RUNNING[url]

@@ -140,7 +140,7 @@ def test_ten_megabit_on_the_bus(report):
     """A limb's bus at the bootloader's 10 Mbit/s, the core at the part's own speed: every echo
     comes back byte for byte, and the node counts no framing error past the host's handover
     byte and drops nothing from its ring."""
-    with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, baud=10_000_000) as limb:
+    with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, baud=10_000_000, mpu=True) as limb:
         rig = Coaxial63100(port=limb.url, unit=1, own_image=False).open()
         try:
             link = rig.board.link
@@ -164,7 +164,7 @@ def test_a_blank_node_takes_the_host_build(report):
     """A node blank in its bootloader on a 10 Mbit limb, the core at the part's own speed:
     open() finds nothing at the unit, loads this host's build through the bootloader at 247
     over Modbus, and the application answers naming it - host and target on one build."""
-    url = 'emulator://?nodes=1&boot=1&mips=%d' % FAITHFUL_MIPS
+    url = 'emulator://?nodes=1&boot=1&mpu=1&mips=%d' % FAITHFUL_MIPS
     path, image = boot.host_image() or (None, b'')
     want = (len(image), zlib.crc32(image))
     rig = Coaxial63100(port=url, unit=1, execution_mode=EMULATED, fallback=False)
@@ -204,7 +204,7 @@ def main():
         print('\n%d passed, %d failed' % (report.passed, report.failed + required))
         return int(required or report.failed)
     # Renode's own 100 MIPS: nothing here runs to the part's cycle budget.
-    with Emulator(monitor=True, mips=None) as emu:
+    with Emulator(monitor=True, mips=None, mpu=True) as emu:
         print('\n-- the bench conformance holds --')
         test_the_bench_conformance_holds(report, emu)
         rig = Coaxial63100(port=emu.url, own_image=False).open()
