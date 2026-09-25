@@ -1,9 +1,9 @@
 """The rig's task: channels by name, the configuration, the outputs, frames and columns."""
 import re
-import time
 from typing import Any
 
 from coaxial.acquire.record import Record
+from coaxial.comm.hostclock import clock_of
 from coaxial.devices import angle as angle_scaling
 from coaxial.errors import RigError
 
@@ -164,9 +164,10 @@ class Task:
 
         deep = max(float(buffer or window), float(window))
         self._history = []
-        began = time.time()
+        clock = clock_of(self)
+        began = clock.now()
         kw.setdefault('index', 'since')
-        while seconds is None or time.time() - began < seconds:
+        while seconds is None or clock.now() - began < seconds:
             got = self.read(-1)
             if not got and self.state().get('done'):
                 return

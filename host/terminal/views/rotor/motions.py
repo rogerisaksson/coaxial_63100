@@ -1,6 +1,5 @@
 """The demo's own drive: bursts, the sweep, the load, the rock between."""
 import math
-import time
 
 
 #: The demo cycle's period, seconds.
@@ -58,7 +57,7 @@ def heavy_start(rig, view):
     """A second at the clamp, then the burn."""
     drive = rig.board.drive
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
-    left = view['burst_until'] - time.time()
+    left = view['burst_until'] - view['clock'].now()
     if left > BURST_HOLD_S:
         # Breaking away: everything the clamp allows, at the top of the speed
         # range, and no load in the way of it.
@@ -79,9 +78,9 @@ def turn_the_handle(rig, view):
     """Whichever of the three is driving this frame, and only one of them."""
     if view['state']['mode'] == 'off':
         return
-    now = time.time()
+    now = view['clock'].now()
     # The burst is part of the sequence, not only a key.
-    if (view['simulated'] and view['spin']
+    if (view['demo'] and view['spin']
             and now - view['burst_at'] > BURST_EVERY_S):
         view['burst_at'] = now
         view['burst_until'] = now + BURST_S + BURST_HOLD_S
@@ -104,7 +103,7 @@ def load_loop(rig, view):
     """D current up and back down, continuously, the shape the speed loop
     has.
     """
-    now = time.time()
+    now = view['clock'].now()
     phase = ((now - view['load_at']) % LOAD_PERIOD_S) / LOAD_PERIOD_S
     ramp = 2.0 * phase if phase < 0.5 else 2.0 * (1.0 - phase)
     view['load_amps'] = LOAD_PEAK_A * ramp
@@ -133,7 +132,7 @@ BRAKE_FULL_RAD_S = 700.0
 
 def cycle_phase(view):
     """Where in the demo cycle we are, and how far into that phase."""
-    turn = ((time.time() - view['spin_at']) % SWEEP_S) / SWEEP_S
+    turn = ((view['clock'].now() - view['spin_at']) % SWEEP_S) / SWEEP_S
     if turn < CYCLE_HOLD:
         return 'hold', turn / CYCLE_HOLD
     if turn < CYCLE_ROCK:
@@ -182,7 +181,7 @@ def sweep(rig, view):
 
 def _toward(view, rpm, clamp):
     """The speed loop's integrator, one frame."""
-    now = time.time()
+    now = view['clock'].now()
     dt = min(0.5, max(0.0, now - view['sweep_at']))
     view['sweep_at'] = now
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)

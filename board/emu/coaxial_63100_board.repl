@@ -106,6 +106,13 @@ transceiverB: UART.RS485_Transceiver @ gpioPortC 8
 consoleLine: UART.UART_Line @ gpioPortB 11
     uart: usart3
 
+// TIM1 counted lazily, at the firmware's 237.5 MHz (Coaxial63100_TIM1.cs): the gate pins on
+// GPIOE read off it.
+timer1: Timers.Coaxial63100_TIM1 @ sysbus <0x40010000, +0x400>
+    gpio: gpioPortE
+    frequency: 237500000
+    UpdateInterrupt -> nvic@25
+
 // The cycle counter without a time sync a read, at the core's clock as the RCC sets it
 // (FastDWT.cs).
 dwt: Miscellaneous.FastDWT @ sysbus 0xE0001000

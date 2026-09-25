@@ -64,6 +64,13 @@ def library():
     return build(find_cc(), SOURCES, INCLUDES, 'world_emu_%d' % os.getpid())[0]
 
 
+def _decimal(value):
+    """A number as the monitor reads one: no exponent - `2e-05` overflowed its
+    integer tokenizer and Renode exited (2026-09-25)."""
+    text = ('%.12f' % value).rstrip('0')
+    return text + '0' if text.endswith('.') else text
+
+
 def _values(given, table):
     out = []
     for key, default in table:
@@ -87,12 +94,12 @@ def commands(world, node, lib, first):
         body = world.get('body', {})
         out += ['%s World "%s" %d' % (PLANT, lib.replace(os.sep, '/'), len(nodes)),
                 '%s Body %d %s' % (PLANT, BODIES[body.get('kind', 'ground')],
-                                   ' '.join('%r' % v for v in _values(body, BODY)))]
+                                   ' '.join(_decimal(v) for v in _values(body, BODY)))]
     if node >= len(nodes):
         return out
     load_ = nodes[node].get('load', {})
     out += ['%s Node %d' % (PLANT, node),
             '%s Load %d %s' % (PLANT, LOADS[load_.get('kind', 'free')],
-                               ' '.join('%r' % v for v in _values(load_, LOAD))),
-            '%s Motor %s' % (PLANT, ' '.join('%r' % v for v in _motor(nodes[node]['motor'])))]
+                               ' '.join(_decimal(v) for v in _values(load_, LOAD))),
+            '%s Motor %s' % (PLANT, ' '.join(_decimal(v) for v in _motor(nodes[node]['motor'])))]
     return out

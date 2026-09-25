@@ -9,6 +9,7 @@ from typing import Any
 import serial
 
 from coaxial.comm.crc import crc16
+from coaxial.comm.hostclock import HostClock
 from coaxial.comm.protocol import BROADCAST, MAX_PAYLOAD, request_length
 from coaxial.errors import ConnectError, CrcError, FrameError, ModbusException, NoReplyError
 
@@ -34,10 +35,16 @@ def url_buses(port):
     return named(port) if named else None
 
 
+#: The least a handover waits for the console's last line, s of the board's.
+HANDOVER_LEAST = 0.05
+
+
 def hand_to_binary(transport, settle=0.5):
-    """Hand USART3 from the text console to the binary protocol."""
+    """Hand USART3 from the text console to the binary protocol: 'm', then what the console
+    still says drained until the line is quiet - HANDOVER_LEAST to `settle` of the board's. A
+    fixed 0.5 s was 14 s of wall on the emulator."""
     transport.write_text('m')
-    transport.sleep(settle)
+    transport.drain_quiet(HANDOVER_LEAST, settle)
     transport.discard_input()
 
 
@@ -103,6 +110,9 @@ class Transport:
         self.time_scale = getattr(self.serial, 'time_scale', 1.0)
         #: What says the time scale now, asked each transaction: an emulator's load.
         self.time_scale_source = getattr(self.serial, 'time_scale_source', None)
+        #: The board's time here: the PC's, or an emulator's virtual seconds.
+        self.clock = HostClock(getattr(self.serial, 'virtual_seconds', None),
+                               lambda: self._time_scale)
         # One transaction at a time on the wire.
         self._wire = threading.RLock()
         #: When the line last went quiet, so t3.5 is only slept for what is
@@ -173,6 +183,17 @@ class Transport:
             self.serial.reset_input_buffer()
             self.serial.write(text.encode())
             self.serial.flush()
+
+    def drain_quiet(self, least, most):
+        """Read and drop until the line is quiet a read's timeout, after `least` and before
+        `most`, both of the board's seconds."""
+        begun = time.monotonic()
+        with self._link_errors('draining the console'):
+            while True:
+                taken = self.serial.read(256)
+                gone = (time.monotonic() - begun) / self._time_scale
+                if gone >= most or (not taken and gone >= least):
+                    return
 
     def read_text(self, seconds=1.0):
         """Collect whatever the console prints. For banners and diagnostics."""

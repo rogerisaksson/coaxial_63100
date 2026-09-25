@@ -1,0 +1,8 @@
+{
+  "name": "bench",
+  "note": "The stand-in's bench: its motor (outrunner_14p, 7 pole pairs, the catalog's BENCH_MOTOR) on a free rotor of the stand-in's 2e-5 kg m^2, on the profile's 24 V link. What a single emulated board turns unless another world is named.",
+  "body": {"kind": "ground"},
+  "nodes": [
+    {"name": "rotor", "motor": "outrunner_14p", "load": {"kind": "free", "inertia": 2e-5}}
+  ]
+}

@@ -13,6 +13,7 @@ from typing import Any
 from coaxial import errors
 from coaxial.acquire.fanout import Fanout
 from coaxial.comm import ports, protocol
+from coaxial.comm.hostclock import WALL
 from coaxial.comm.transport import Transport, hand_to_binary
 from coaxial.errors import NoReplyError, RigError
 
@@ -69,6 +70,7 @@ class BrokerTransport:
     proven_dispatch = False
     #: A URL opens its own Transport (devices/board.py): a broker holds a real wire.
     time_scale = 1.0
+    clock = WALL
 
     @staticmethod
     def sleep(seconds):

@@ -5,7 +5,11 @@
 // Product ID (0xF9, four 0xF8s) and Get Feature (0xFE); Set Feature (0xFD) answers 0xFC and
 // starts that report on channel 3 at its interval in virtual time, behind a timebase
 // reference: accelerometer Q8 m/s^2, gyroscope Q9 rad/s, magnetic field Q4 uT, rotation
-// vectors Q14. The readings are properties the monitor or a world sets. AFE_ON powers it.
+// vectors Q14. It moves: the stand-in's tumble in virtual time, q = q_y(pitch) q_x(roll)
+// q_z(yaw), a turn of roll and two of pitch in 2.56 s - and the gyroscope, the body rate each
+// tick's turn gives, gravity and the field read in the body frame off that one attitude. A reading set through the monitor
+// (AccelX .. QuatReal) pipes the values given instead; the rates at zero hold it still. AFE_ON
+// powers it.
 
 using System;
 using System.Collections.Generic;
@@ -32,19 +36,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
         /// <summary>H_INTN, active low: connected to PD8.</summary>
         public GPIO Interrupt { get; }
 
-        public double AccelX { get; set; }
-        public double AccelY { get; set; }
-        public double AccelZ { get; set; } = 9.80665;
-        public double GyroX { get; set; }
-        public double GyroY { get; set; }
-        public double GyroZ { get; set; }
-        public double MagX { get; set; } = 20.0;
-        public double MagY { get; set; }
-        public double MagZ { get; set; } = -40.0;
-        public double QuatI { get; set; }
-        public double QuatJ { get; set; }
-        public double QuatK { get; set; }
-        public double QuatReal { get; set; } = 1.0;
+        /// <summary>The tumble's angle rates, rad/s: roll about x, pitch about y, yaw about z.</summary>
+        public double RollRate { get; set; } = 2.0 * Math.PI / 2.56;
+        public double PitchRate { get; set; } = 4.0 * Math.PI / 2.56;
+        public double YawRate { get; set; }
+
+        /// <summary>Whether the readings are piped - set through the monitor - not moved.</summary>
+        public bool Piped { get; set; }
+
+        public double AccelX { get { return Read(0); } set { Pipe(0, value); } }
+        public double AccelY { get { return Read(1); } set { Pipe(1, value); } }
+        public double AccelZ { get { return Read(2); } set { Pipe(2, value); } }
+        public double GyroX { get { return Read(3); } set { Pipe(3, value); } }
+        public double GyroY { get { return Read(4); } set { Pipe(4, value); } }
+        public double GyroZ { get { return Read(5); } set { Pipe(5, value); } }
+        public double MagX { get { return Read(6); } set { Pipe(6, value); } }
+        public double MagY { get { return Read(7); } set { Pipe(7, value); } }
+        public double MagZ { get { return Read(8); } set { Pipe(8, value); } }
+        public double QuatI { get { return Read(9); } set { Pipe(9, value); } }
+        public double QuatJ { get { return Read(10); } set { Pipe(10, value); } }
+        public double QuatK { get { return Read(11); } set { Pipe(11, value); } }
+        public double QuatReal { get { return Read(12); } set { Pipe(12, value); } }
 
         public void Reset()
         {
@@ -212,6 +224,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 Reset();                    // its supply gone, what it was told is gone
                 return;
             }
+            Turn(1.0 / TickHz);
             var reports = new List<byte> { Timebase, 0, 0, 0, 0 };
             foreach(var pair in features)
             {
@@ -253,6 +266,90 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 default:
                     return Vector(head, 0.0, 0.0, 0.0, 1.0);
             }
+        }
+
+        /// <summary>The attitude a tick on, and the body rate that turn was: 2 vec(q* q') / dt.</summary>
+        private void Turn(double dt)
+        {
+            elapsed += dt;
+            var was = (double[])attitude.Clone();
+            var now = Times(Axis(2, PitchRate * elapsed),
+                            Times(Axis(1, RollRate * elapsed), Axis(3, YawRate * elapsed)));
+            Array.Copy(now, attitude, 4);
+            var turn = Times(new[] { was[0], -was[1], -was[2], -was[3] }, now);
+            var sign = turn[0] < 0.0 ? -1.0 : 1.0;
+            for(var i = 0; i < 3; i++)
+            {
+                body[i] = 2.0 * sign * turn[i + 1] / dt;
+            }
+        }
+
+        /// <summary>A rotation of `angle` about axis 1 x, 2 y, 3 z, as (w, x, y, z).</summary>
+        private static double[] Axis(int axis, double angle)
+        {
+            var q = new double[4];
+            q[0] = Math.Cos(angle / 2.0);
+            q[axis] = Math.Sin(angle / 2.0);
+            return q;
+        }
+
+        private static double[] Times(double[] a, double[] b)
+        {
+            return new[]
+            {
+                a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3],
+                a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+                a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1],
+                a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0],
+            };
+        }
+
+        /// <summary>An earth-frame vector in the body frame: R(q) transposed.</summary>
+        private double[] ToBody(double ex, double ey, double ez)
+        {
+            double w = attitude[0], x = attitude[1], y = attitude[2], z = attitude[3];
+            return new[]
+            {
+                (1 - 2 * (y * y + z * z)) * ex + 2 * (x * y + w * z) * ey + 2 * (x * z - w * y) * ez,
+                2 * (x * y - w * z) * ex + (1 - 2 * (x * x + z * z)) * ey + 2 * (y * z + w * x) * ez,
+                2 * (x * z + w * y) * ex + 2 * (y * z - w * x) * ey + (1 - 2 * (x * x + y * y)) * ez,
+            };
+        }
+
+        /// <summary>Reading `index` - accel xyz, gyro xyz, mag xyz, quaternion i j k real - moved
+        /// off the attitude, or as piped.</summary>
+        private double Read(int index)
+        {
+            if(Piped)
+            {
+                return piped[index];
+            }
+            if(index < 3)
+            {
+                return ToBody(0.0, 0.0, Gravity)[index];
+            }
+            if(index < 6)
+            {
+                return body[index - 3];
+            }
+            if(index < 9)
+            {
+                return ToBody(Field[0], Field[1], Field[2])[index - 6];
+            }
+            return index == 12 ? attitude[0] : attitude[index - 8];
+        }
+
+        private void Pipe(int index, double value)
+        {
+            if(!Piped)
+            {
+                for(var i = 0; i < piped.Length; i++)
+                {
+                    piped[i] = Read(i);
+                }
+                Piped = true;
+            }
+            piped[index] = value;
         }
 
         private static byte[] Vector(List<byte> head, double x, double y, double z, double scale)
@@ -321,6 +418,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private readonly Coaxial63100_AFE afe;
         private readonly LimitTimer ticker;
+        private readonly double[] attitude = { 1.0, 0.0, 0.0, 0.0 };
+        private readonly double[] body = new double[3];
+        private double elapsed;
+        private readonly double[] piped = new double[13];
+
+        private const double Gravity = 9.80665;
+        /// <summary>The earth's field where the stand-in's is, uT.</summary>
+        private static readonly double[] Field = { 22.0, -3.0, 41.0 };
         private readonly Queue<byte[]> pending = new Queue<byte[]>();
         private readonly Dictionary<byte, Feature> features = new Dictionary<byte, Feature>();
         private readonly List<byte> incoming = new List<byte>();

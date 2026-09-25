@@ -181,6 +181,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   109 at 200, 107 at 475. The three after the 257 B ADU go unanswered: the
   master's waits are wall seconds, unscaled by the port's `time_scale`
   (2026-09-25).
+- Emulator speed: Renode runs this image at ~16 M instructions a wall second,
+  its register accesses not the cost (1 M GPIOB reads a virtual second mirrored
+  away: 29.2 -> 28.6). Renode's TIM1 was: an event every update, 3.5 wall s a
+  virtual s at 100 MIPS; board/emu's counts lazily (9.4 -> 5.9) at the tree's
+  237.5 MHz where Renode's ran 250. The core runs 100 MIPS until an ADC waits on
+  TRGO2, then the part's 475 (2026-09-25).
+- The monitor's tokenizer takes no exponent: `2e-05` in a world's line and
+  Renode exited (2026-09-25).
 - An armed sync stays armed past drive.off: the meter is the injected group's
   until gate drivers op 3 gives it back (the emulated wire sweep, 2026-09-25).
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.

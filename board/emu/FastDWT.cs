@@ -4,8 +4,10 @@
 // emulator's bottleneck (2026-09-25). It counts at `clock`'s frequency, the core's as the RCC
 // sets it - the bootloader's 160 MHz, the app's 475 - taken up on the first read after a
 // change: at a fixed 475 the bootloader's t1.5 was 253 us, and a frame split across a quantum
-// was lost (2026-09-25). CYCCNTENA and CYCCNT only; the rest reads zero.
+// was lost (2026-09-25). A change of the CPU's MIPS rebases it too. CYCCNTENA and CYCCNT only;
+// the rest reads zero.
 
+using System;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
@@ -75,24 +77,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 cpu = machine.SystemBus.GetCPUs().OfType<BaseCPU>().First();
             }
             var executed = cpu.ExecutedInstructions;
-            if(clock.Frequency != rate)
+            if(clock.Frequency != rate || cpu.PerformanceInMips != mips)
             {
                 cycles += Cycles(executed);
                 since = executed;
                 rate = clock.Frequency;
+                mips = cpu.PerformanceInMips;
             }
             return (uint)(cycles + Cycles(executed));
         }
 
         private ulong Cycles(ulong executed)
         {
-            return (ulong)((double)(executed - since) * rate / (cpu.PerformanceInMips * 1e6));
+            return (ulong)((double)(executed - since) * rate / (Math.Max(1U, mips) * 1e6));
         }
 
         private readonly IMachine machine;
         private readonly IHasFrequency clock;
         private BaseCPU cpu;
         private ulong rate;
+        private uint mips;
         private ulong cycles;
         private ulong since;
         private uint control;

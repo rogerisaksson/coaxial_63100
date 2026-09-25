@@ -4,6 +4,7 @@ import struct
 import time
 
 from coaxial.comm import protocol
+from coaxial.comm.hostclock import clock_of
 from coaxial.comm.protocol import TimeOp
 from coaxial.comm.wire import Reader
 from coaxial.devices.subsystem import Device
@@ -100,20 +101,22 @@ class Timebase(Input):
         raise NotImplementedError
 
     def _bracket(self):
-        """One latch, bracketed by this host's clock."""
-        before = time.perf_counter()
+        """One latch, bracketed by this host's clock - the board's time here."""
+        clock = clock_of(self)
+        before = clock.perf()
         self.trigger(settle=0)
-        after = time.perf_counter()
-        time.sleep(0.02)
+        after = clock.perf()
+        clock.sleep(0.02)
         return (before + after) / 2.0, after - before
 
     def probe(self, rounds=16):
         """Best-of-N round trips: the board's counter against this clock."""
         best = None
+        clock = clock_of(self)
         for _ in range(rounds):
-            t1 = time.perf_counter()
+            t1 = clock.perf()
             got = self.read()
-            t4 = time.perf_counter()
+            t4 = clock.perf()
             trip = t4 - t1
             if best is None or trip < best[2]:
                 best = (got['now'], (t1 + t4) / 2.0, trip)
@@ -125,6 +128,9 @@ class Timebase(Input):
         """Measure where the counter is and how fast it actually runs."""
         nominal = self.read()['sysclk_hz']
         step = WRAP / nominal / 2.0                  # 4.52 s at 475 MHz
+        clock = clock_of(self)
+        if clock.virtual:
+            reference = 'emulator'                   # its virtual time; UTC has no say
 
         first_offset, reference, note = _ntp_or_pc(
             ntp_server, reference, 'NTP did not answer')
@@ -133,7 +139,7 @@ class Timebase(Input):
         elapsed = marks[-1][1] - marks[0][1]
         hz = (cycles[-1] - cycles[0]) / elapsed
         # One tie to the wall clock, taken once.
-        at_host = marks[-1][1] + (time.time() - time.perf_counter())
+        at_host = marks[-1][1] + (clock.now() - clock.perf())
         floor = max(m[2] for m in (marks[0], marks[-1])) / elapsed * 1e6
 
         last_offset, reference, said = _ntp_or_pc(
@@ -180,7 +186,7 @@ def _marks(clock, seconds, rounds, step):
         left = seconds - (marks[-1][1] - marks[0][1])
         if left <= 0:
             return marks
-        time.sleep(min(step, left))
+        clock_of(clock).sleep(min(step, left))
         marks.append(_best_bracket(clock, rounds if left <= step else 1))
 
 def _ntp_or_pc(ntp_server, reference, when):

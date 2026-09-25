@@ -3,6 +3,7 @@ import collections
 import threading
 import time
 
+from coaxial.comm.hostclock import WALL
 from coaxial.errors import CrcError, NoReplyError, RigError
 
 #: Blocks the host keeps between the reader and the consumer. Past this
@@ -35,8 +36,10 @@ class BufferedReader:
     """Drains the board into a host-side deque on its own thread."""
 
     def __init__(self, acquire, backlog=None, idle=0.005, batch=1,
-                 max_wait=0.06):
+                 max_wait=0.06, clock=WALL):
         self._acquire, self._backlog_of = acquire, backlog
+        #: The board's time: the rate is records a board second, the wait for them its.
+        self._clock = clock
         self._idle = idle
         #: Records a reply can carry. A transaction costs the same whether
         #: it brings one record or a full reply, so reading the instant a
@@ -145,7 +148,7 @@ class BufferedReader:
         short = self._batch - (self._backlog or 0)
         if short <= 0 or self._rate <= 0.0:
             return
-        time.sleep(min(short / self._rate, self._max_wait))
+        self._clock.sleep(min(short / self._rate, self._max_wait))
 
     def _keep(self, block):
         if len(self._blocks) >= HOST_BLOCKS:
@@ -159,18 +162,18 @@ class BufferedReader:
         time.
         """
         self.records += len(block)
-        span = time.time() - self._since
+        span = self._clock.now() - self._since
         if span <= RATE_WINDOW:
             return
         seen = self.records / span
         self._rate = seen if not self._rate else (
             RATE_MEMORY * self._rate + (1.0 - RATE_MEMORY) * seen)
-        self.records, self._since = 0, time.time()
+        self.records, self._since = 0, self._clock.now()
         self._total += int(seen * span)
 
     def _run(self):
         misses = 0
-        self._since = time.time()
+        self._since = self._clock.now()
         while not self._stop.is_set():
             # A transaction costs the same whatever it carries, and on this
             # board it costs the acquisition loop as well: the sampling and

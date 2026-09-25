@@ -425,7 +425,12 @@ def main():
                                    off_s=PAGE_CYCLE_OFF_S)
         say('ok' if origin.real else 'warn', 'link',
             '%s - %s' % (origin.label, standing(origin)))
-        say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
+        if origin.real and _screen.demo(origin):
+            # The emulated MCU: its thermometers read with the AFE on, and nothing to gate.
+            rig.board.afe.on()
+            say('ok', 'AFE_ON', 'on - the emulated board, its thermometers read')
+        else:
+            say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
         say('wait', 'drawing', 'Q closes it, ESC goes back to the menu')
 
         load = None

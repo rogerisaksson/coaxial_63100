@@ -18,6 +18,7 @@ import os
 import sys
 import time
 
+from coaxial.comm.hostclock import clock_of
 from coaxial.comm.session import standing
 from coaxial.draw import desk
 from coaxial.errors import RigError
@@ -93,9 +94,10 @@ def main(argv=None):
     return watch(rig, args, layout, chain, params)
 
 
-#: The stand-in's motor, for the meters to show. Simulated only: the
-#: stand-in's phases carry the motor's current (values.py), so with the
-#: stage down they read three offsets and their noise, as a bench does.
+#: The motor, for the meters to show, on a board that is not a real one: the
+#: stand-in's phases carry its motor's current (values.py), the emulated MCU's
+#: the plant's (board/emu, source adc) - with the stage down three offsets and
+#: their noise, as a bench does.
 #: The drive holds a current vector turning at DEMO_HZ electrical (one
 #: revolution in ~7 s) and runs it from 0 to DEMO_AMPS and back over
 #: DEMO_S. On a board nothing here touches the stage; the view shows
@@ -106,25 +108,29 @@ DEMO_S = 45.0
 
 
 def demo_motor(rig, origin):
-    """Turn the stand-in's motor; the per-frame step that runs it up
-    and down, or None on a board."""
+    """Turn the stand-in's or the emulated board's motor; the per-frame step
+    that runs it up and down, on the board's clock, or None on a real board."""
 
-    if origin.real:
+    if not _screen.demo(origin):
         return None
     rig.board.gate_drivers.configure(bypass_break=True)
     rig.board.gate_drivers.on()
     drive = rig.drive
-    drive.configure(source='model')
+    if origin.real:
+        # The emulated MCU senses through its converter, AFE_ON its reference.
+        rig.board.afe.on()
+    drive.configure(source='adc' if origin.real else 'model')
     # The stand-in's record clamps the current at 5 A; the meters are 100 A
     # wide.
     drive.configure(drv_i_max=DEMO_AMPS)
     drive.write(id_ref=0.0, iq_ref=0.0, theta=0.0,
                 omega_target=2.0 * math.pi * DEMO_HZ)
     drive.hold()
-    began = time.time()
+    clock = clock_of(rig)
+    began = clock.now()
 
-    def step(now):
-        phase = (now - began) / DEMO_S
+    def step(_now):
+        phase = (clock.now() - began) / DEMO_S
         drive.write(id_ref=DEMO_AMPS * 0.5
                     * (1.0 - math.cos(2.0 * math.pi * phase)))
     return step

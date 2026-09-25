@@ -140,7 +140,7 @@ def status_rows(view):
                                         ('load', view['load'])) if on])
     if view['spin'] and view['stage']:
         loops = '%s: %s' % (view['stage'].upper(), loops)
-    if time.time() < view['burst_until']:
+    if view['clock'].now() < view['burst_until']:
         loops = 'BURST' + (' + ' + loops if loops else '')
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     speed = (view.get('chain') or {}).get('omega') or 0.0

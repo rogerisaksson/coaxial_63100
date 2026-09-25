@@ -14,6 +14,7 @@ include @board/emu/UART_Line.cs
 include @board/emu/RS485_Adapter.cs
 include @board/emu/Coaxial63100_A1335.cs
 include @board/emu/Coaxial63100_BNO085.cs
+include @board/emu/Coaxial63100_TIM1.cs
 include @board/emu/Coaxial63100_Plant.cs
 include @board/emu/FastDWT.cs
 using sysbus
@@ -22,6 +23,7 @@ machine LoadPlatformDescription @board/emu/coaxial_63100.repl
 machine UnregisterFromParent sysbus.adcM1S2
 machine UnregisterFromParent sysbus.adc3
 machine UnregisterFromParent sysbus.dwt
+machine UnregisterFromParent sysbus.timer1
 machine LoadPlatformDescription @board/emu/coaxial_63100_board.repl
 machine LoadPlatformDescription @board/emu/coaxial_63100_afe.repl
 

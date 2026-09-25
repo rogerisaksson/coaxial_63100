@@ -72,6 +72,10 @@ UID_AT = 0x1FF1E800
 #: outran its period and starved the link (2026-09-25).
 FAITHFUL_MIPS = 475
 
+#: The core's speed while no ADC waits on TRGO2 - no drive runs to the part's budget -
+#: Renode's own: 3.4 times the wall speed of 475 (2026-09-25). The plant switches between them.
+IDLE_MIPS = 100
+
 #: How far a limb's boards run apart before they wait for each other, s: 100 us held 8 boards
 #: to 37 M instructions a second in all, 1 ms to 49 M (2026-09-25). The bus's bytes cross at
 #: these boundaries, so it stays under RTU's t1.5 of 750 us inside a frame: 1 ms broke every
@@ -107,16 +111,18 @@ class Emulator:
     """One Renode process running `elf`, its console at `url` once `start()` returns."""
 
     def __init__(self, elf=ELF, port=None, log=None, monitor=None, world=None,
-                 mips: int | None = FAITHFUL_MIPS, boot=False):
+                 mips: int | None = FAITHFUL_MIPS, boot=False,
+                 idle_mips: int | None = IDLE_MIPS):
         """`monitor`: a TCP port for Renode's monitor, a free one if None or True;
         `world`: a world's name (board/emu/worlds), its first node this board; `mips`: the
         core's instructions a virtual second, millions, the part's own by default - None for
-        Renode's 100;
+        Renode's 100 - while an ADC waits on TRGO2, `idle_mips` else (None: `mips` throughout);
         `boot`: the bootloader from flash, blank, waiting for the host to load the image
         over Modbus (docs/BOOT.md) - host and target then run one build."""
         self.boot = boot
         self.elf = os.path.abspath(BOOT_ELF if boot and elf == ELF else elf)
         self.mips = mips
+        self.idle_mips = idle_mips
         self.world = worlds.load(world) if world else None
         self.port = port or free_port()
         self.monitor = free_port() if monitor in (None, True) else monitor
@@ -140,8 +146,16 @@ class Emulator:
                 + ['include @%s' % SCRIPT] + self.planted(0) + self.paced() + ['start'])
 
     def paced(self):
-        """The core's speed, if not Renode's own: for the machine last created."""
-        return ['cpu PerformanceInMips %d' % self.mips] if self.mips else []
+        """The core's speed, if not Renode's own, for the machine last created: IDLE_MIPS until
+        an ADC waits on TRGO2 and `mips` while one does, or `mips` throughout where `idle_mips`
+        is None or the bootloader runs."""
+        if not self.mips:
+            return []
+        if self.idle_mips and not self.boot:
+            return ['cpu PerformanceInMips %d' % self.idle_mips,
+                    'sysbus.gpioPortE.plant BusyMips %d' % self.mips,
+                    'sysbus.gpioPortE.plant IdleMips %d' % self.idle_mips]
+        return ['cpu PerformanceInMips %d' % self.mips]
 
     def planted(self, node):
         """The world's commands for the board at `node`, none without a world."""
@@ -171,6 +185,15 @@ class Emulator:
         self.measure()
         return self
 
+    def virtual_seconds(self):
+        """The emulation's elapsed virtual time, s: the board's clock on the host."""
+        info = self.command('emulation GetTimeSourceInfo')
+        said = re.search(r'Elapsed Virtual Time: (\S+)', info)
+        if said is None:
+            raise RuntimeError('Renode gave no virtual time: %r' % info[:200])
+        h, m, s = said.group(1).split(':')
+        return (int(h) * 60 + int(m)) * 60 + float(s)
+
     def load(self):
         """Renode's Current load - wall seconds a virtual second, lately - at least 1: the
         Transport's time scale, asked each transaction."""
@@ -179,17 +202,9 @@ class Emulator:
 
     def measure(self, seconds=SCALE_S):
         """`time_scale` over `seconds` of wall time, at least 1."""
-        def now():
-            info = self.command('emulation GetTimeSourceInfo')
-            said = re.search(r'Elapsed Virtual Time: (\S+)', info)
-            if said is None:
-                raise RuntimeError('Renode gave no virtual time: %r' % info[:200])
-            h, m, s = said.group(1).split(':')
-            return (int(h) * 60 + int(m)) * 60 + float(s), time.monotonic()
-
-        virtual, wall = now()
+        virtual, wall = self.virtual_seconds(), time.monotonic()
         time.sleep(seconds)
-        virtual2, wall2 = now()
+        virtual2, wall2 = self.virtual_seconds(), time.monotonic()
         self.time_scale = max(1.0, (wall2 - wall) / max(virtual2 - virtual, 1e-9))
         return self.time_scale
 
@@ -250,10 +265,11 @@ class Limb(Emulator):
 
     def __init__(self, nodes, elf=ELF, log=None, monitor=None, world=None,
                  mips: int | None = FAITHFUL_MIPS,
-                 baud=None, boot=False):
+                 baud=None, boot=False, idle_mips: int | None = IDLE_MIPS):
         """`baud`: the bus's rate, bits a second - the app starts at the record's, 115 200, the
         bootloader (`boot`, each node blank until the host loads it) at BOOT_BAUD."""
-        super().__init__(elf, log=log, monitor=monitor, world=world, mips=mips, boot=boot)
+        super().__init__(elf, log=log, monitor=monitor, world=world, mips=mips, boot=boot,
+                         idle_mips=idle_mips)
         self.baud = baud or (BOOT_BAUD if boot else None)
         self.nodes = nodes
         self.units = () if boot else tuple(range(1, nodes + 1))

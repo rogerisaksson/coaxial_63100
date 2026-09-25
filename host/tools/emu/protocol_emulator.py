@@ -4,7 +4,7 @@
     Coaxial63100(port='emulator://?nodes=4', unit=3).open()  # a limb: the bus, a unit on it
     Coaxial63100(port='emulator://?world=quad&nodes=4').open()  # on the quad's rotors
     Coaxial63100(port='emulator://?nodes=2&baud=10000000', unit=2).open()  # 10 Mbit
-    Coaxial63100(port='emulator://?mips=100').open()         # Renode's own speed, 4.75 x faster
+    Coaxial63100(port='emulator://?mips=475').open()         # the part's speed throughout
     Coaxial63100(port='emulator://?body=humanoid&bus=LL', unit=2).open()  # the left knee
     Coaxial63100(port='emulator://?nodes=1&boot=1').open()   # blank: the host loads its build
     .\\coaxial_tty.ps1 -Port emulator://
@@ -19,7 +19,7 @@ import urllib.parse
 import serial
 from serial.serialutil import SerialBase
 
-from tools.emu.emulator import FAITHFUL_MIPS, Body, Emulator, Limb
+from tools.emu.emulator import FAITHFUL_MIPS, IDLE_MIPS, Body, Emulator, Limb
 
 _RUNNING = {}
 
@@ -74,12 +74,16 @@ def emulator_for(url):
         return _body(url, query)
     if url not in _RUNNING:
         nodes = int(query.get('nodes', ['0'])[0])
-        world = query.get('world', [None])[0]
-        mips = int(query['mips'][0]) if 'mips' in query else FAITHFUL_MIPS
+        # One board turns the bench unless a world is named - `world=none` for none.
+        world = query.get('world', [None if nodes else 'bench'])[0]
+        world = None if world == 'none' else world
+        # A speed named is the core's throughout; else it follows the drive.
+        fixed = int(query['mips'][0]) if 'mips' in query else None
+        pace = {'mips': fixed or FAITHFUL_MIPS, 'idle_mips': None if fixed else IDLE_MIPS}
         baud = int(query['baud'][0]) if 'baud' in query else None
         boot = query.get('boot', ['0'])[0] not in ('0', '')
-        emu = (Limb(nodes, world=world, mips=mips, baud=baud, boot=boot) if nodes
-               else Emulator(world=world, mips=mips, boot=boot)).start()
+        emu = (Limb(nodes, world=world, baud=baud, boot=boot, **pace) if nodes
+               else Emulator(world=world, boot=boot, **pace)).start()
         atexit.register(emu.stop)
         _RUNNING[url] = emu
     return _RUNNING[url]
@@ -98,6 +102,7 @@ class Serial(SerialBase):
         self._inner = serial.serial_for_url(emu.url, self.baudrate, timeout=self.timeout)
         self.time_scale = emu.measure()
         self.time_scale_source = emu.load
+        self.virtual_seconds = emu.virtual_seconds
         self.units = emu.units
         self.console = not isinstance(emu, Limb)
         self.is_open = True

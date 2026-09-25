@@ -9,6 +9,7 @@ import threading
 import time
 
 from coaxial import Coaxial63100
+from coaxial.comm.session import standing
 from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.draw import cross_section, gauges
 from coaxial.errors import DeviceStateError, NoReplyError, RigError
@@ -182,6 +183,12 @@ class Feed:
         if self._thread is not None:
             self._thread.join(wait)
         return self
+
+
+def demo(origin):
+    """Whether a page may drive the board to show itself: the stand-in's or the emulated MCU's,
+    never a real one."""
+    return standing(origin) != 'live'
 
 
 def mode_of(args):

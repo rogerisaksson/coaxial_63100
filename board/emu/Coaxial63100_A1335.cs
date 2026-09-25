@@ -1,9 +1,11 @@
 // Coaxial63100_A1335.cs - The Allegro A1335 angle sensor on SPI4, its chip select PE4: 20-bit
 // packets as board_angle.c sends them, four 5-bit words, MSB first. A read is answered in the
 // next packet - the register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG is the
-// shaft's mechanical angle in twelve bits, from the plant or `Degrees`; TSEN the board's
-// temperature in eighths of a kelvin; FIELD `Gauss`; the rest reads zero. Unpowered - AFE_ON
-// low - it clocks out all ones, as an absent part does.
+// shaft's mechanical angle in twelve bits: the plant's once a world turns it, `Degrees` once the
+// monitor sets it, else an invented turn every `TurnSeconds` of virtual time, as the stand-in's -
+// one angle for ever looks like a dead link. TSEN the board's temperature in eighths of a
+// kelvin; FIELD `Gauss`; the rest reads zero. Unpowered - AFE_ON low - it clocks out all ones,
+// as an absent part does.
 
 using System;
 using Antmicro.Renode.Core;
@@ -14,8 +16,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class Coaxial63100_A1335 : ISPIPeripheral, IGPIOReceiver
     {
-        public Coaxial63100_A1335(Coaxial63100_AFE afe)
+        public Coaxial63100_A1335(IMachine machine, Coaxial63100_AFE afe)
         {
+            this.machine = machine;
             this.afe = afe;
             Reset();
         }
@@ -27,11 +30,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
             reply = AllOnes;
         }
 
-        /// <summary>The magnet's mechanical angle, degrees: the plant writes it each period.</summary>
-        public double Degrees { get; set; }
+        /// <summary>The magnet's mechanical angle, degrees: the plant writes it each period, and
+        /// once written it stays where it is put.</summary>
+        public double Degrees
+        {
+            get
+            {
+                return set ? degrees
+                           : 360.0 * machine.LocalTimeSource.ElapsedVirtualTime.TotalSeconds / TurnSeconds;
+            }
+            set
+            {
+                degrees = value;
+                set = true;
+            }
+        }
 
-        /// <summary>The field the part reads, gauss.</summary>
-        public double Gauss { get; set; } = 500.0;
+        /// <summary>The invented turn's period, s of virtual time, while nothing sets the angle.</summary>
+        public double TurnSeconds { get; set; } = 2.0;
+
+        /// <summary>The field the part reads, gauss: the stand-in's magnet.</summary>
+        public double Gauss { get; set; } = 380.0;
 
         /// <summary>Chip select, PE4: low selects; rising ends the packet.</summary>
         public void OnGPIO(int number, bool value)
@@ -103,7 +122,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return crc;
         }
 
+        private readonly IMachine machine;
         private readonly Coaxial63100_AFE afe;
+        private double degrees;
+        private bool set;
         private int words;
         private uint command;
         private uint reply;

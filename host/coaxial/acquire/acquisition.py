@@ -2,6 +2,7 @@
 import time
 from abc import ABC, abstractmethod
 
+from coaxial.comm.hostclock import clock_of
 from machine.roles import Stream
 
 
@@ -45,11 +46,12 @@ class Acquisition(Stream, ABC):
         """Sweeps a second the poll loop manages over `channels`: a finite burst, timed."""
         self.shape()
         self.configure(channels, accumulate=1, digital=True, records=records, interval_us=0)
-        began = time.time()
+        clock = clock_of(self)
+        began = clock.now()
         self.start()
-        while time.time() - began < timeout and not self.state()['done']:
+        while clock.now() - began < timeout and not self.state()['done']:
             time.sleep(0.005)
-        span = time.time() - began
+        span = clock.now() - began
         state = self.state()
         self.stop()
         return (state['produced'] + state['dropped']) / max(span, 1e-6)

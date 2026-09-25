@@ -1,6 +1,5 @@
 """The rotor observer's keys: one handler per key, the table, the dispatch."""
 import math
-import time
 
 from coaxial.errors import RigError
 from terminal.views.rotor.motions import BURST_A, BURST_HOLD_S, BURST_S
@@ -86,7 +85,7 @@ def _key_omega(rig, d, key, view):
 
 
 def _key_burst(rig, d, key, view):
-    view['burst_at'] = time.time()
+    view['burst_at'] = view['clock'].now()
     view['burst_until'] = view['burst_at'] + BURST_S + BURST_HOLD_S
     return ('heavy start - %.0f A for %.1f s, then %.0f s at half '
             'speed' % (BURST_A, BURST_S, BURST_HOLD_S))
@@ -94,7 +93,7 @@ def _key_burst(rig, d, key, view):
 
 def _key_spin(rig, d, key, view):
     view['spin'] = not view['spin']
-    view['spin_at'] = time.time()
+    view['spin_at'] = view['clock'].now()
     if not view['spin']:
         d.write(omega_target=0.0)
     return ('speed loop running - down through the floor and back'
@@ -103,7 +102,7 @@ def _key_spin(rig, d, key, view):
 
 def _key_load(rig, d, key, view):
     view['load'] = not view['load']
-    view['load_at'] = time.time()
+    view['load_at'] = view['clock'].now()
     view['load_amps'] = view['load_written'] = 0.0
     if not view['load']:
         d.write(id_ref=0.0)

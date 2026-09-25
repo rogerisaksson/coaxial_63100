@@ -41,6 +41,7 @@ from contextlib import suppress
 
 from rich.text import Text
 
+from coaxial.comm.hostclock import clock_of
 from coaxial.comm.session import standing
 from coaxial.draw import cross_section
 from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share
@@ -187,7 +188,7 @@ def compose(rig, origin, console, view):
             # The word stays and the colour changes: a chip that appeared and
             # vanished moved every key after it.
             ('B', Text('START', style='alarm')
-             if time.time() < view['burst_until'] else 'START'),
+             if view['clock'].now() < view['burst_until'] else 'START'),
             ('E', Text('SPEED', style='chip.live') if view['spin']
              else 'SPEED'),
             ('W', Text('LOAD', style='chip.live') if view['load']
@@ -410,19 +411,20 @@ def main(argv=None):
     # change under a running view.
     aspect, aspect_how = aspect_of(args)
     fit(aspect)
+    clock = clock_of(rig)
     view = {'source': args.source, 'mode': args.mode, 'iq': args.iq,
             'id': args.id, 'omega': args.omega, 'accel': args.accel,
             'vd': args.vd, 'v_inj': args.v_inj, 'inject': True,
             'inj_periods': int(params.get('drv_inj_periods') or 1),
             'step': view_step, 'slots': args.slots, 'switch': args.switch,
             'aspect': aspect, 'aspect_how': aspect_how,
-            'spin': not origin.real, 'spin_at': time.time(),
-            'simulated': not origin.real,
-            'tare': 0.0, 'sweep_at': time.time(),
+            'spin': _screen.demo(origin), 'spin_at': clock.now(),
+            'simulated': not origin.real, 'demo': _screen.demo(origin), 'clock': clock,
+            'tare': 0.0, 'sweep_at': clock.now(),
             'travel': 0.0, 'travel_at': None, 'leaning': False,
             'winding': _thermal.AMBIENT, 'winding_at': None,
             'burst_until': 0.0, 'bursting': False, 'stage': None,
-            'burst_at': time.time(),
+            'burst_at': clock.now(),
             'load': False, 'load_at': 0.0, 'load_rising': True,
             'load_amps': 0.0, 'load_written': 0.0,
             'interlock': args.interlock,
@@ -431,7 +433,8 @@ def main(argv=None):
             'chain': board.drive.observers.read(),
             'gate': board.gate_drivers.state(), 'model': None,
             'thermal': None, 'budget': None, 'ident': None}
-    if args.start:
+    # The emulated MCU's drive starts off, the stand-in's running: a demo starts it.
+    if args.start or (view['demo'] and origin.real):
         view['said'] = act(rig, 's', view)
 
     board_view = _console_for(args)

@@ -140,7 +140,7 @@ def test_ten_megabit_on_the_bus(report):
     """A limb's bus at the bootloader's 10 Mbit/s, the core at the part's own speed: every echo
     comes back byte for byte, and the node counts no framing error past the host's handover
     byte and drops nothing from its ring."""
-    with Limb(1, mips=FAITHFUL_MIPS, baud=10_000_000) as limb:
+    with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, baud=10_000_000) as limb:
         rig = Coaxial63100(port=limb.url, unit=1, own_image=False).open()
         try:
             link = rig.board.link

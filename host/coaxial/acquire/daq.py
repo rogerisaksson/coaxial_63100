@@ -6,6 +6,7 @@ from typing import Any
 
 from coaxial.acquire.acquisition import Acquisition
 from coaxial.comm import protocol
+from coaxial.comm.hostclock import clock_of
 from coaxial.comm.protocol import DaqOp
 from coaxial.comm.wire import BYTE_FRACTION, Reader, pack
 from coaxial.devices.subsystem import Device
@@ -258,7 +259,8 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         """The live accumulator, taken and reset. Cannot overflow."""
         layout = layout or self.layout()
         fields, pins = layout['fields'], layout.get('pins') or []
-        deadline = time.time() + timeout
+        clock = clock_of(self)
+        deadline = clock.now() + timeout
 
         while True:
             r = Reader(self._op(DaqOp.LIVE))
@@ -266,7 +268,7 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
                 break
             if not block:
                 return None
-            if time.time() > deadline:
+            if clock.now() > deadline:
                 raise RigError('no sample in %.1f s - is the task running? %s'
                                % (timeout, self.state()))
             time.sleep(poll)

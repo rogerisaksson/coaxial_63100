@@ -6,6 +6,7 @@ from coaxial.acquire.clock import WRAP
 from coaxial.acquire.daq import REPLY_ROOM
 from coaxial.acquire.reader import BufferedReader
 from coaxial.acquire.record import build
+from coaxial.comm.hostclock import clock_of
 from coaxial.errors import CrcError, NoReplyError, RigError
 
 
@@ -75,10 +76,11 @@ class TaskStream:
         got = []
         try:
             # To exhaustion, not `read(-1)`.
-            deadline = time.time() + timeout
+            clock = clock_of(self)
+            deadline = clock.now() + timeout
             for block in self.read_buffer(-1):
                 got.extend(block)
-                if time.time() > deadline:
+                if clock.now() > deadline:
                     break
         finally:
             self.stop()
@@ -103,7 +105,7 @@ class TaskStream:
             acquire=take or (lambda: self._timed(
                 self.board.daq.acquire(layout=self.layout))),
             backlog=lambda: self.board.daq.backlog,
-            batch=(REPLY_ROOM // stride) if stride else 1).start()
+            batch=(REPLY_ROOM // stride) if stride else 1, clock=clock_of(self)).start()
         return self
 
     def _from_broker(self, stride):
@@ -215,8 +217,9 @@ class TaskStream:
                            'what it has collected')
         seen = 0
         self._done_seen = 0
-        until = None if timeout is None else time.time() + timeout
-        while (count < 0 or seen < count) and (until is None or time.time() < until):
+        clock = clock_of(self)
+        until = None if timeout is None else clock.now() + timeout
+        while (count < 0 or seen < count) and (until is None or clock.now() < until):
             self._reader.raise_if_failed()
             block = self._reader.take()
             if block:
@@ -297,7 +300,7 @@ class TaskStream:
         """
         if self._last_raw is None:
             expected = (sync.at_cycles
-                        + (time.time() - sync.at_host) * sync.hz)
+                        + (clock_of(self).now() - sync.at_host) * sync.hz)
             return int(round((expected - raw) / WRAP)) * WRAP
         if raw < self._last_raw:
             return self._epoch + WRAP
