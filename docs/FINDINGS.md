@@ -185,7 +185,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   enabled region whose subregion is disabled, and walks the MPU on every access
   there; CubeMX's 4 GB region (SRD 0x87) spans ITCM, DTCM and D2 SRAM. Its enable
   masked on the bus: idle 8.2 -> 1.4 wall s a virtual s at 100 MIPS, 23 -> 5.2
-  at 475; the drive 43-62 -> 18-22. On in the suites only. Renode's own speed on
+  at 475; the drive 43-62 -> 18-22; 8 idle boards in one Renode 37-49 -> 390 M
+  instructions a wall second. On in the suites only. Under the drive half is the
+  A1335 loop (20 -> 10.7 held): 128 k packets a virtual second, ~45 register
+  accesses each, its 1 us settles spinning on CYCCNT; the quantum no factor
+  there. Renode's own speed on
   this laptop: 1 200 M ALU instructions a wall second, a GPIO read 0.66 us, a
   BSRR write 1.4 us, a DWT read 1.3 us (0.56 board/emu's). Renode's TIM1 was: an
   event every update, 3.5 wall s a

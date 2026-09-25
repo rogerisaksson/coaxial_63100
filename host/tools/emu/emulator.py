@@ -76,8 +76,9 @@ FAITHFUL_MIPS = 475
 #: between them.
 IDLE_MIPS = 100
 
-#: How far a limb's boards run apart before they wait for each other, s: 100 us held 8 boards
-#: to 37 M instructions a second in all, 1 ms to 49 M (2026-09-25). The bus's bytes cross at
+#: How far a limb's boards run apart before they wait for each other, s: 8 idle boards run
+#: 390 M instructions a wall second in all at 500 us, 387 M at 100 us, 367 M at 1 ms (MPU off,
+#: 2026-09-25). The bus's bytes cross at
 #: these boundaries, so it stays under RTU's t1.5 of 750 us inside a frame: 1 ms broke every
 #: frame longer than a quantum's bytes.
 QUANTUM = '0.0005'
@@ -326,7 +327,7 @@ class Limb(Emulator):
 
 class Body:
     """A machine's limbs, a Renode process each so they run on the host's cores side by side -
-    one process's machines wait for each other every quantum, eight boards in one doing 3.4 a
+    one process's machines wait for each other every quantum, eight boards in one doing 5 a
     board's work (2026-09-25). Each limb is its own RS485 segment, as on the machine:
     `urls[name]` is its bus. `limbs` {name: boards}, `worlds` {name: a world's name}."""
 
