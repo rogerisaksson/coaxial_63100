@@ -230,9 +230,10 @@ PATCH_BLEND_MM = 14.0
 
 
 def laminate_at(x_mm, y_mm, nodes, board_c):
-    """The laminate under a point: the patches' temperatures blended by
-    distance where the observer reports patches, the bulk `board_c`
-    where an older firmware reports none."""
+    """The laminate under points (numpy arrays): the patches' temperatures
+    blended by distance where the observer reports patches, the bulk
+    `board_c` where an older firmware reports none."""
+    from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
     weight, total = 0.0, 0.0
     two_sigma_sq = 2.0 * PATCH_BLEND_MM * PATCH_BLEND_MM
     for name, (cx, cy) in PATCH_CENTRE.items():
@@ -240,16 +241,17 @@ def laminate_at(x_mm, y_mm, nodes, board_c):
         if value is None:
             continue
         d2 = (x_mm - cx) ** 2 + (y_mm - cy) ** 2
-        w = math.exp(-d2 / two_sigma_sq)
-        weight += w
-        total += w * value
-    return total / weight if weight > 1e-9 else board_c
+        w = np.exp(-d2 / two_sigma_sq)
+        weight = weight + w
+        total = total + w * value
+    return np.where(np.greater(weight, 1e-9), total / np.maximum(weight, 1e-300), board_c)
 
 
 def field(x_mm, y_mm, board_c, nodes, layout=None):
-    """Temperature at one point: the laminate under it plus every source's
-    contribution.
+    """Temperature at points (numpy arrays): the laminate under each plus
+    every source's contribution.
     """
+    from coaxial.model.blocks import numpy as np
     layout = LAYOUT if layout is None else layout
     got = laminate_at(x_mm, y_mm, nodes, board_c)
     for name, spots in layout.items():
@@ -259,19 +261,18 @@ def field(x_mm, y_mm, board_c, nodes, layout=None):
         # A source's rise is over the laminate it sits on - its patch where
         # there is one - not over the bulk.
         over = value - got
-        if abs(over) < 1e-6:
-            continue
         # The strongest point in the zone, not the sum of them.
         near = 0.0
         for sx, sy, sigma in spots:
             d2 = (x_mm - sx) ** 2 + (y_mm - sy) ** 2
-            near = max(near, math.exp(-d2 / (2.0 * sigma * sigma)))
-        got += over * near
+            near = np.maximum(near, np.exp(-d2 / (2.0 * sigma * sigma)))
+        got = np.where(abs(over) < 1e-6, got, got + over * near)
     return got
 
 
 def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     """(rows of temperature-or-None, lo, hi). None is off the board."""
+    from coaxial.model.blocks import numpy as np
     per_cell = 2.0 * OUTER_MM / cells
     bore = max(BORE_MM, BORE_MIN_CELLS * per_cell)
 
@@ -279,22 +280,18 @@ def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     down = max(4, int(round(cells / aspect)) // 2 * 2)
     per_row = 2.0 * OUTER_MM / down
 
-    rows, lo, hi = [], None, None
-    for row in range(down):
-        line = []
-        for col in range(cells):
-            x = (col - (cells - 1) / 2.0) * per_cell
-            y = ((down - 1) / 2.0 - row) * per_row
-            r = math.hypot(x, y)
-            if r > OUTER_MM or r < bore:
-                line.append(None)
-                continue
-            t = field(x, y, board_c, nodes, layout)
-            line.append(t)
-            lo = t if lo is None else min(lo, t)
-            hi = t if hi is None else max(hi, t)
-        rows.append(line)
-    return rows, lo, hi
+    # The field over every cell at once: a cell at a time was 270 ms a frame
+    # at 200x60 (2026-09-25).
+    x, y = np.meshgrid((np.arange(cells) - (cells - 1) / 2.0) * per_cell,
+                       ((down - 1) / 2.0 - np.arange(down)) * per_row)
+    r = np.hypot(x, y)
+    on = (r <= OUTER_MM) & (r >= bore)
+    temps = np.broadcast_to(field(x, y, board_c, nodes, layout), x.shape)
+    rows = [[t if o else None for t, o in zip(line, keep)]
+            for line, keep in zip(temps.tolist(), on.tolist())]
+    if not on.any():
+        return rows, None, None
+    return rows, float(temps[on].min()), float(temps[on].max())
 
 
 def _fit(colour, reserve, margin=0):

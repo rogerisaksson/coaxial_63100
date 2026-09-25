@@ -242,6 +242,72 @@ def _sampled(width, height, aspect):
     return made
 
 
+#: `_samples` as numpy arrays by the same key: what a frame classifies at once.
+_ARRAYS = {}
+
+
+def _arrays(width, height, aspect):
+    """The face's samples as arrays, one entry a sample - `dot` its dot's index,
+    `dx dy phi`, `base` what it is past the needle and the sweep (-1 air),
+    `needle` whether the needle may take it, `sweep` in the band, `seg` its
+    sub-dial segment (which * SEGMENTS + k, else -1) - and one a dot: `cell`
+    (-1 off the frame) and `bit`."""
+    return table(_ARRAYS, (width, height, aspect), lambda: _arrayed(width, height, aspect))
+
+
+def _arrayed(width, height, aspect):
+    from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
+    cols = {k: [] for k in ('dot', 'dx', 'dy', 'phi', 'base', 'needle', 'sweep', 'seg', 'cell', 'bit')}
+    for i, (x, y, samples) in enumerate(_samples(width, height, aspect)):
+        col, row = x // DOTS_X, y // DOTS_Y
+        cols['cell'].append(row * width + col if 0 <= row < height and 0 <= col < width else -1)
+        cols['bit'].append(BRAILLE_BITS[x % DOTS_X][y % DOTS_Y])
+        for dx, dy, _radius, phi, fixed in samples:
+            seg = fixed[1] * SEGMENTS + fixed[2] if isinstance(fixed, tuple) else -1
+            plain = not (seg >= 0 or fixed is _UNDER or fixed is _SWEEP_BAND or fixed is None)
+            for key, value in (('dot', i), ('dx', dx), ('dy', dy), ('phi', phi), ('seg', seg),
+                               ('base', fixed if plain else -1),
+                               ('needle', seg < 0 and fixed is not _UNDER
+                                and fixed not in (HUB, NOTCH_MARK)),
+                               ('sweep', fixed is _SWEEP_BAND)):
+                cols[key].append(value)
+    return {k: np.array(v) for k, v in cols.items()}
+
+
+def _classes(a, geom, span, needle, lit):
+    """What is at every sample this reading, a class each, -1 for air; `lit` each
+    sub-dial's segments lit and their classes, or None where it has no reading.
+    The hub, a notch and a sub-dial's disc outrank the needle; the needle the
+    sweep."""
+    from coaxial.model.blocks import numpy as np
+    cls = a['base'].copy()
+    hit = np.zeros(len(cls), bool)
+    if needle is not None:
+        # On the needle's tapered shaft: `along` how far out, `across` how far
+        # off the line, the half width a function of the first.
+        c, s, _tip_x, _tip_y = needle
+        along = a['dx'] * c + a['dy'] * s
+        across = abs(-a['dx'] * s + a['dy'] * c)
+        share = along / max(1e-6, geom.needle)
+        hit = (a['needle'] & (0.0 <= along) & (along <= geom.needle)
+               & (across <= NEEDLE_ROOT + (NEEDLE_TIP - NEEDLE_ROOT) * share))
+        cls[hit] = NEEDLE
+    if span is not None:
+        # Zero to the reading, the way the angles run: SWEEP_FADE of it, to black.
+        phi = a['phi']
+        tail = a['sweep'] & ~hit & (0.0 < phi) & (phi <= span) & (span - phi < SWEEP_FADE)
+        behind = (span - phi[tail]) / SWEEP_FADE
+        cls[tail] = np.array(SWEEP)[((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5).astype(int)]
+    segs = a['seg'] >= 0
+    if segs.any():
+        flat = []
+        for which in range(len(geom.subs)):
+            on = lit[which] if which < len(lit) else None
+            flat += [on[k] if on and k < len(on) else SEG_OFF for k in range(SEGMENTS)]
+        cls[segs] = np.array(flat)[a['seg'][segs]]
+    return cls
+
+
 def _needle(geom, at):
     """The needle at `at` radians, laid out once a frame: its direction
     as a cosine and a sine, and its tip, where the bead sits."""
@@ -249,48 +315,8 @@ def _needle(geom, at):
     return c, s, geom.needle * c, geom.needle * s
 
 
-def _classify(sample, geom, span, needle, lit=()):
-    """What is at a sample this reading, or None for air; `lit` each sub-dial's
-    segments lit and their classes, or None where it has no reading."""
-    dx, dy, _radius, phi, fixed = sample
-    if fixed == HUB:
-        return HUB
-    if fixed is _UNDER:
-        return None
-    if isinstance(fixed, tuple):
-        on = lit[fixed[1]] if fixed[1] < len(lit) else None
-        return on[fixed[2]] if on and fixed[2] < len(on) else SEG_OFF
-    if fixed == NOTCH_MARK:
-        return fixed
-    if needle is not None and _on_needle(dx, dy, geom, needle):
-        return NEEDLE
-    if fixed is not _SWEEP_BAND:
-        return fixed
-
-    # Zero to the reading, the way the angles run: SWEEP_FADE of it, to black.
-    if span is not None and 0.0 < phi <= span and span - phi < SWEEP_FADE:
-        behind = (span - phi) / SWEEP_FADE
-        return SWEEP[int((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5)]
-    return None
-
-
-def _on_needle(dx, dy, geom, needle):
-    """On the needle's tapered shaft, measured along the needle and across
-    it: `along` is how far out the point is and `across` how far off the
-    line, so the half width can be a function of the first."""
-    c, s, _tip_x, _tip_y = needle
-    along = dx * c + dy * s
-    across = abs(-dx * s + dy * c)
-    if not 0.0 <= along <= geom.needle:
-        return False
-    share = along / max(1e-6, geom.needle)
-    return across <= NEEDLE_ROOT + (NEEDLE_TIP - NEEDLE_ROOT) * share
-
-
 def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None):
     """Dots, their owners, the label overlay and its inks, one entry per cell."""
-    dots = [[0] * width for _ in range(height)]
-    owner = [[-1] * width for _ in range(height)]
     text = [[None] * width for _ in range(height)]
     inks = {}
     geom = _Geometry(width, height)
@@ -302,17 +328,21 @@ def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None):
            for (_oy, _r, scale_span, band, _ticks), value in readings]
 
     stretch = aspect / DOTS_Y * DOTS_X
-    for x, y, samples in _samples(width, height, aspect):
-        seen = [at for at in (_classify(sample, geom, span, needle, lit)
-                              for sample in samples) if at is not None]
-        # A dot lights when half its samples or more hit (`covered`).
-        if not seen or not covered(len(seen), len(SUBDOT)):
-            continue
-        col, row = x // DOTS_X, y // DOTS_Y
-        if not (0 <= row < height and 0 <= col < width):
-            continue
-        dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
-        owner[row][col] = max(owner[row][col], max(seen))
+    # Every sample at once: a sample at a time was 370 ms a frame at 200x60
+    # (2026-09-25).
+    from coaxial.model.blocks import numpy as np
+    a = _arrays(width, height, aspect)
+    cls = _classes(a, geom, span, needle, lit)
+    count = np.bincount(a['dot'], weights=cls >= 0, minlength=len(a['cell']))
+    top = np.full(len(a['cell']), -1)
+    np.maximum.at(top, a['dot'], cls)
+    # A dot lights when half its samples or more hit (`covered`).
+    light = covered(count, len(SUBDOT)) & (count > 0) & (a['cell'] >= 0)
+    bits, owners = np.zeros(width * height, int), np.full(width * height, -1)
+    np.bitwise_or.at(bits, a['cell'][light], a['bit'][light])
+    np.maximum.at(owners, a['cell'][light], top[light])
+    dots = bits.reshape(height, width).tolist()
+    owner = owners.reshape(height, width).tolist()
 
     # The numbers last, and only onto cells no dot reached.
     for mark in range(0, 360, 30):

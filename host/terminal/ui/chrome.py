@@ -95,17 +95,23 @@ def _cells(line):
     for seg in line:
         if seg.control:
             continue
-        for ch in seg.text:
-            out.append([ch, seg.style])
+        text, style = seg.text, seg.style
+        if cell_len(text) == len(text):             # a cell a char: one cell_len a segment
+            out += [[ch, style] for ch in text]
+            continue
+        for ch in text:
+            out.append([ch, style])
             if cell_len(ch) == 2:
-                out.append(['', seg.style])
+                out.append(['', style])
     return out
 
 
 def _segments(row):
+    # By identity: Style.__ne__ a cell was 1.4 s of 8 over 60 frames at 200x60
+    # (2026-09-25); a run's cells share their segment's style object.
     run, style = [], None
     for ch, st in row:
-        if st != style and run:
+        if st is not style and run:
             yield Segment(''.join(run), style)
             run = []
         style = st

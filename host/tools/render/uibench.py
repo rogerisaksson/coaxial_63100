@@ -33,7 +33,8 @@ def timed(fn, seconds=1.0):
 
 
 def surface_menu():
-    return lambda: menu.compose('COM4', 1, time.perf_counter())
+    view = {}
+    return lambda: menu.compose('COM4', 1, view)
 
 
 def surface_attitude():

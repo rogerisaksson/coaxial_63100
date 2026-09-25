@@ -204,47 +204,6 @@ class _Radii:
         return 0.0 if edge <= 0.0 else (1.0 if edge >= 1.0 else edge)
 
 
-def _magnet_class(radius, phi, rotor, poles, r):
-    """North solid, south a thin arc, or None between them."""
-    place = ((phi - rotor) % math.tau) / (math.tau / poles)
-    index, into = int(place), place - int(place)
-    if into < 0.1 or into > 0.9:            # the break between magnets
-        return None, 0.0
-    if index % 2 == 0:
-        return NORTH, 1.0
-    cover = r.ring(radius, (r.magnet_in + r.magnet_out) / 2.0)
-    return (SOUTH, cover) if cover else (None, 0.0)
-
-
-def _stubbed(radius, r, share):
-    """Whether a sample lies past the length a tooth is drawn to under
-    `share` of the drive: from the inside out for a positive share, from
-    the outside in for a negative one."""
-    span = (r.tooth_out - r.tooth_in) * (TOOTH_STUB + (1.0 - TOOTH_STUB)
-                                         * abs(share))
-    if share >= 0.0:
-        return radius > r.tooth_in + span
-    return radius < r.tooth_out - span
-
-
-def _tooth_class(radius, phi, slots, r, drive):
-    """The phase of the tooth at `phi`, `TRACK` for the length its phase is
-    not driven to (left empty, 16 teeth floated loose at a can of 95,
-    2026-09-23), or None for the slot beside it."""
-    if not r.tooth_in <= radius <= r.tooth_out:
-        return None, 0.0
-    place = (phi % math.tau) / (math.tau / slots)
-    if place - int(place) > TOOTH_FILL:
-        return None, 0.0
-    phase = int(place) % 3
-    if drive is not None and _stubbed(radius, r, drive[phase]):
-        return TRACK, 1.0
-    # A tooth is a filled area, so what bounds it is its angle and its length,
-    # not a stroke: a sample is inside it or it is not, and the supersampling
-    # in `_body` is what softens those edges.
-    return PHASE_CLASS[phase], 1.0
-
-
 #: What a sample in a seat's table is: a vote a ring casts with its
 #: coverage, a tooth-band sample the drive decides, a magnet-band sample
 #: the rotor decides.
@@ -557,32 +516,107 @@ class Seat:
                    + self.radii.can / self.stretch)
 
 
-def _body(frame, seat, rotor_deg, slots, poles, drive):
-    """The motor itself, dot by dot."""
-    rotor = math.radians(rotor_deg)
+#: `_samples` as numpy arrays by the same key: what a frame votes at once.
+_SEAT_ARRAYS = {}
+
+
+def _seat_arrays(frame, seat):
+    """The seat's samples as arrays, a row a dot and a column a sample in
+    `_samples`' order, padded to SUBDOT's four: `kind` (-1 none), `a` and `b`
+    as `_samples` has them; and each dot's `x` and `y`."""
     r = seat.radii
+    key = (frame.width, frame.height, seat.cx, seat.cy, seat.stretch, r.can, r.line)
+    return table(_SEAT_ARRAYS, key, lambda: _seat_arrayed(frame, seat))
+
+
+def _seat_arrayed(frame, seat):
+    from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
+    made = _samples(frame, seat)
+    kind = np.full((len(made), len(SUBDOT)), -1)
+    a, b = np.zeros(kind.shape), np.zeros(kind.shape)
+    for i, (_x, _y, samples) in enumerate(made):
+        for j, (k, sa, sb) in enumerate(samples):
+            kind[i, j], a[i, j], b[i, j] = k, sa, sb
+    return {'kind': kind, 'a': a, 'b': b,
+            'x': [x for x, _y, _s in made], 'y': [y for _x, y, _s in made]}
+
+
+def _votes(s, r, rotor, slots, poles, drive):
+    """Every sample's class (-1 none) and share this frame: the fixed votes; a
+    tooth's phase, `TRACK` for the length its phase is not driven to (left
+    empty, 16 teeth floated loose at a can of 95, 2026-09-23) - from the inside
+    out for a positive share, the outside in for a negative - or none in the
+    slot beside it; a north magnet solid, a south a thin arc, none between."""
+    from coaxial.model.blocks import numpy as np
+    kind, a, b = s['kind'], s['a'], s['b']
+    fixed = kind == _FIXED
+    cls = np.where(fixed, a, -1.0).astype(int)
+    share = np.where(fixed, b, 0.0)
+
+    # A tooth is a filled area, so what bounds it is its angle and its length,
+    # not a stroke: a sample is inside it or it is not, and the supersampling
+    # in `_body` is what softens those edges.
+    tooth = kind == _TOOTH
+    radius, place = a[tooth], (b[tooth] % math.tau) / (math.tau / slots)
+    whole = np.floor(place)
+    inside = ((r.tooth_in <= radius) & (radius <= r.tooth_out)
+              & ~(place - whole > TOOTH_FILL))
+    phase = whole.astype(int) % 3
+    got = np.array(PHASE_CLASS)[phase]
+    if drive is not None:
+        driven = np.array(drive, float)[phase]
+        span = (r.tooth_out - r.tooth_in) * (TOOTH_STUB + (1.0 - TOOTH_STUB) * abs(driven))
+        stub = np.where(driven >= 0.0, radius > r.tooth_in + span, radius < r.tooth_out - span)
+        got = np.where(stub, TRACK, got)
+    cls[tooth] = np.where(inside, got, -1)
+    share[tooth] = np.where(inside, 1.0, 0.0)
+
+    magnet = kind == _MAGNET
+    radius, place = a[magnet], ((b[magnet] - rotor) % math.tau) / (math.tau / poles)
+    whole = np.floor(place)
+    gap = (place - whole < 0.1) | (place - whole > 0.9)      # the break between magnets
+    north = whole.astype(int) % 2 == 0
+    cover = np.clip(r.line * 1.0 + 0.5 - abs(radius - (r.magnet_in + r.magnet_out) / 2.0),
+                    0.0, 1.0)
+    south = ~gap & ~north & (cover != 0.0)
+    cls[magnet] = np.where(gap, -1, np.where(north, NORTH, np.where(south, SOUTH, -1)))
+    share[magnet] = np.where(gap, 0.0, np.where(north, 1.0, np.where(south, cover, 0.0)))
+    return cls, share
+
+
+def _body(frame, seat, rotor_deg, slots, poles, drive):
+    """The motor itself, every dot at once: a dot at a time was 195 ms a frame at
+    200x60 (2026-09-25)."""
+    from coaxial.model.blocks import numpy as np
+    s = _seat_arrays(frame, seat)
+    cls, share = _votes(s, seat.radii, math.radians(rotor_deg), slots, poles, drive)
+    # Each sample votes with its coverage, and the dot goes to the class that
+    # covers most of it: summed a class at a time in the order the classes are
+    # first met, as a dict of votes adds them.
+    n, lanes = cls.shape
+    total = np.zeros(n)
+    best, owner = np.full(n, -np.inf), np.full(n, -1)
+    for j in range(lanes):
+        first = cls[:, j] >= 0
+        mine = share[:, j].copy()
+        for k in range(lanes):
+            if k < j:
+                first &= cls[:, k] != cls[:, j]
+            elif k > j:
+                mine = mine + np.where(cls[:, k] == cls[:, j], share[:, k], 0.0)
+        total = total + np.where(first, mine, 0.0)
+        wins = first & ((mine > best) | ((mine == best) & (cls[:, j] > owner)))
+        best, owner = np.where(wins, mine, best), np.where(wins, cls[:, j], owner)
+    lit = np.flatnonzero((owner >= 0) & covered(total, len(SUBDOT)))
     track, north = [], set()
-    for x, y, samples in _samples(frame, seat):
-        # Each sample votes with its coverage, and the dot goes to the class
-        # that covers most of it.
-        votes = {}
-        for kind, a, b in samples:
-            if kind == _FIXED:
-                at, share = a, b
-            elif kind == _TOOTH:
-                at, share = _tooth_class(a, b, slots, r, drive)
-            else:
-                at, share = _magnet_class(a, b, rotor, poles, r)
-            if at is not None:
-                votes[at] = votes.get(at, 0.0) + share
-        if votes and covered(sum(votes.values()), len(SUBDOT)):
-            cls = max(votes, key=lambda c: (votes[c], c))
-            if cls == TRACK:
-                track.append((x, y))
-            elif cls == NORTH:
-                north.add((x, y))
-            else:
-                frame.put(x, y, cls)
+    for i, c in zip(lit.tolist(), owner[lit].tolist()):
+        x, y = s['x'][i], s['y'][i]
+        if c == TRACK:
+            track.append((x, y))
+        elif c == NORTH:
+            north.add((x, y))
+        else:
+            frame.put(x, y, c)
     for x, y in north:
         if any((x + dx, y + dy) not in north for dx, dy in HOLLOW):
             frame.put(x, y, NORTH)
