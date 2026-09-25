@@ -7,12 +7,15 @@ local-model runner. Open work: [docs/TODO.md](docs/TODO.md).
 ## Start
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
-python -m pip install -e host/                                # once: every script imports it
-. .\env.ps1                                                   # PATH + aliases
+powershell -ExecutionPolicy Bypass -File .\setup.ps1   # pull, check, install, build, emulate
+. .\env.ps1                                           # each shell: PATH + aliases
 .\coaxial_tty.ps1                                             # terminal front page
 .\coaxial_tty.ps1 adc -Simulated                              # one view, no cable
 ```
+
+`setup.ps1` checks every dependency before it fetches any, asks once for the
+plan (`-Yes`: not at all), builds both images and runs the Debug one on
+Renode; `-Check` only reports. Its stages and areas are `setup/*.ps1`.
 
 Views (`host/terminal/pages/`, one module each): session, imu (attitude),
 angle, adc (meter bridge), gate_drivers (the one that switches), rotor

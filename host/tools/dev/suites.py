@@ -303,6 +303,7 @@ TOUCHES = (
     ('env.ps1',                                (STRUCTURE,)),
     ('host/run_tests.ps1',                     (STRUCTURE,)),
     ('setup.ps1',                              (STRUCTURE,)),
+    ('setup/',                                 (STRUCTURE,)),
     # Neither the CAD export nor the schematic is read by a suite.
     ('render/',                                ()),
     ('electronics/',                           ()),

@@ -511,6 +511,27 @@ def _heard(s, seconds):
     return got
 
 
+def check(emu):
+    """The image up on Renode and answering the library: its version in one line and 0, or the
+    reason and 1 - setup.ps1's last stage."""
+    from coaxial import Coaxial63100
+
+    try:
+        with emu:
+            rig = Coaxial63100(port=emu.url, own_image=False).open()
+            try:
+                v = rig.board.version_info
+            finally:
+                rig.close()
+            print('firmware %s, protocol %d.%d, built %s; awake %.1f wall s a virtual s'
+                  % (v.get('firmware'), v.get('proto_major', 0), v.get('proto_minor', 0),
+                     v.get('build', '?'), emu.awake_scale), flush=True)
+        return 0
+    except Exception as exc:              # the reason is the answer
+        print('%s: %s' % (type(exc).__name__, exc), flush=True)
+        return 1
+
+
 def main():
     parser = argparse.ArgumentParser(description='The board\'s MCU emulated on Renode.')
     parser.add_argument('--elf', default=ELF, help='the application image (default: Debug)')
@@ -521,11 +542,15 @@ def main():
                         help='the bootloader, blank, waiting for the host to load the image')
     parser.add_argument('--log', help='Renode\'s output into this file')
     parser.add_argument('--monitor', type=int, help='Renode\'s monitor on this TCP port')
+    parser.add_argument('--check', action='store_true',
+                        help='up, the image\'s version read through the library, down: one line')
     args = parser.parse_args()
     emu = (Limb(args.nodes, args.elf, args.log, args.monitor, args.world, boot=args.boot)
            if args.nodes
            else Emulator(args.elf, args.port, args.log, args.monitor, args.world,
                          boot=args.boot))
+    if args.check:
+        return check(emu)
     with emu:
         print('%s, %.1f wall s a virtual s' % (emu.url, emu.time_scale), flush=True)
         if args.nodes:
