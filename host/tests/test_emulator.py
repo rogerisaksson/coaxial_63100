@@ -142,6 +142,9 @@ def test_ten_megabit_on_the_bus(report):
     byte and drops nothing from its ring."""
     with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, baud=10_000_000, mpu=True) as limb:
         rig = Coaxial63100(port=limb.url, unit=1, own_image=False).open()
+        # Its waits on the limb's pace, as emulator:// gives them: the node asleep keeps real
+        # time, awake it replied after a scale-1 wait had given up (2026-09-25).
+        rig.board.transport.time_scale_source = limb.load
         try:
             link = rig.board.link
             wrong = 0

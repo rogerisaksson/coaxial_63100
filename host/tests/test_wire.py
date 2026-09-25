@@ -90,23 +90,34 @@ def test_settings_are_taken(report, rig):
 
 
 def test_the_wire_refuses(report, rig):
-    """What the firmware refuses, refused through the wire as the client says it."""
+    """What the firmware refuses, refused through the wire as the client says it - the thermal
+    observer's sampling held off: its borrow of AFE_ON takes a cooked scan."""
     from coaxial.errors import DeviceStateError, ModbusException
     b = rig.board
     wrong = {}
-    for name, call, kind in (
-            ('analog.scan with the AFE off (invariant 9)', b.analog.scan, DeviceStateError),
-            ('gpio.write with the test rig shut', lambda: b.gpio.write('B', 7, 1),
-             ModbusException),
-            ('gpio.port_write with the test rig shut', lambda: b.gpio.port_write('B', 1, 1),
-             ModbusException)):
-        try:
-            call()
-            wrong[name] = 'taken'
-        except kind:
-            pass
-        except Exception as exc:          # the wrong refusal is as much a finding
-            wrong[name] = '%s: %s' % (type(exc).__name__, exc)
+    sampling = b.thermal.state()
+    b.thermal.configure(sample_every_s=0)
+    try:
+        for _ in range(20):               # a borrow under way ends after its settle
+            if not b.afe.is_on():
+                break
+            b.transport.sleep(0.1)
+        for name, call, kind in (
+                ('analog.scan with the AFE off (invariant 9)', b.analog.scan, DeviceStateError),
+                ('gpio.write with the test rig shut', lambda: b.gpio.write('B', 7, 1),
+                 ModbusException),
+                ('gpio.port_write with the test rig shut', lambda: b.gpio.port_write('B', 1, 1),
+                 ModbusException)):
+            try:
+                call()
+                wrong[name] = 'taken'
+            except kind:
+                pass
+            except Exception as exc:      # the wrong refusal is as much a finding
+                wrong[name] = '%s: %s' % (type(exc).__name__, exc)
+    finally:
+        b.thermal.configure(sample_every_s=sampling['sample_every_s'],
+                            sample_settle_s=sampling['sample_settle_s'])
     report.check('the AFE off refuses a cooked scan, a shut test rig its writes',
                  not wrong, str(wrong) if wrong else '')
 

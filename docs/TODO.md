@@ -20,6 +20,9 @@ Open work. Measured results are in FINDINGS.
 - **STO chain**: circuit change, pilot tone sent on RS485, Cinj/Clevel with and
   without it, interlock thresholds from those readings, one arm with neither
   bypass (`tools/bench/sto_probe.py`).
+- **DMA and WFI** (branch `dma-wfi`): the A1335's reads by DMA against the old
+  poll, CYCCNT through WFI with DBGSLEEP_D1 (`clock.probe`), the gate supply
+  back after an idle's paused keepalive before MOE.
 - **Scope**: counted hold (MINOR 8), dead-time skew (record holds 0),
   `Q_RING` in `inverter.py`.
 - **Thermal**: camera under load (`board_to_ambient` at high dT, per-leg

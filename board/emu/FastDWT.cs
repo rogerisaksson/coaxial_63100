@@ -4,9 +4,10 @@
 // emulator's bottleneck (2026-09-25). It counts at `clock`'s frequency, the core's as the RCC
 // sets it - the bootloader's 160 MHz, the app's 475 - taken up on the first read after a
 // change: at a fixed 475 the bootloader's t1.5 was 253 us, and a frame split across a quantum
-// was lost (2026-09-25). A change of the CPU's MIPS rebases it too, and each wake from WFI:
-// the sleep executed nothing and took time, which the CPU's TimeHandle has. CYCCNTENA and
-// CYCCNT only; the rest reads zero.
+// was lost (2026-09-25). A change of the CPU's MIPS rebases it too, and the first read after
+// a WFI: the sleep executed nothing and took time, which the CPU's TimeHandle has - read in
+// the hook, the waking handler's stamp came first and RTU frames split (2026-09-25). CYCCNTENA
+// and CYCCNT only; the rest reads zero.
 
 using System;
 using System.Linq;
@@ -31,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             control = 0;
             held = 0;
+            anchored = false;
         }
 
         public uint ReadDoubleWord(long offset)
@@ -77,16 +79,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(cpu == null)
             {
                 cpu = machine.SystemBus.GetCPUs().OfType<TranslationCPU>().First();
-                cpu.AddHookAtWfiStateChange(inWfi =>
-                {
-                    if(!inWfi)
-                    {
-                        Anchor();
-                    }
-                });
+                cpu.AddHookAtWfiStateChange(_ => slept = true);
+            }
+            // A reset starts the CPU's count again: anchored afresh, nothing carried.
+            if(!anchored || cpu.ExecutedInstructions < since)
+            {
+                anchored = false;
                 Anchor();
             }
-            if(clock.Frequency != rate || cpu.PerformanceInMips != mips)
+            if(slept || clock.Frequency != rate || cpu.PerformanceInMips != mips)
             {
                 Anchor();
             }
@@ -109,11 +110,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 // Ticks are nanoseconds. Rounding leaves virtual time a few instructions either
                 // side of the count; a shortfall is carried, never counted back.
-                var slept = (double)(now - at) - (executed - since) * 1e3 / Math.Max(1U, mips) - owed;
-                owed = Math.Max(0.0, -slept);
-                cycles += Ran(executed - since) + Math.Max(0.0, slept) * rate / 1e9;
+                var asleep = (double)(now - at) - (executed - since) * 1e3 / Math.Max(1U, mips) - owed;
+                owed = Math.Max(0.0, -asleep);
+                cycles += Ran(executed - since) + Math.Max(0.0, asleep) * rate / 1e9;
             }
             anchored = true;
+            slept = false;
             at = now;
             since = executed;
             rate = clock.Frequency;
@@ -124,6 +126,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IHasFrequency clock;
         private TranslationCPU cpu;
         private bool anchored;
+        private volatile bool slept;
         private ulong at;
         private double owed;
         private ulong rate;

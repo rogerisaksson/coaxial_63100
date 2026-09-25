@@ -62,6 +62,9 @@ hold 3 s leases.
 
 PA10 KEEPALIVE toggles at 200 kHz (a 100 kHz square wave) -> R72 330 /
 C71 100 nF -> charge pump; the chain also wants the RS485 pilot tone.
+main() sleeps in WFI with AFE_ON low and MOE clear: the keepalive then pauses
+up to a SysTick (1 ms), past the latch's hold. AFE_ON (the interlock's read) or
+MOE keeps it pumping.
 Cinj (PC1) = recovered pilot, Clevel (PB1) = integrator.
 `GateStage.interlock()` wants >= 3.0 V each; the unmodified board reads
 0.77 / 0.06 V (2026-08-27), so sessions arm with
@@ -73,7 +76,8 @@ Cinj (PC1) = recovered pilot, Clevel (PB1) = integrator.
   Advertisement 276 B (`IMU_BUF` 320). NRSTN/BOOTN active low. H_INTN read
   before every transfer; WAKE (PS0) required for writes. Reports: 0x01 accel
   Q8, 0x02 gyro Q9, 0x03 mag Q4, 0x05 rotation vector Q14.
-- A1335 (SPI4, /64 = 1.86 MHz, CS PE4). 20-bit packet, two frames per read. ANG
+- A1335 (SPI4, /64 = 1.86 MHz, CS PE4; DMA1 streams 0/1, buffers in AXI SRAM).
+  20-bit packet, two frames per read, stepped from main(). ANG
   12 bits x 360/4096; TSEN 1/8 K; FIELD gauss. Register map from a reference
   implementation.
 
