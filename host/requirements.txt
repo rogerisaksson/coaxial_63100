@@ -56,7 +56,9 @@ ipykernel>=6.0
 ipywidgets>=8.0      # the controller panel: a dropdown per port
 
 # Only for the 3D pages' raster on a GPU, any backend (Vulkan, D3D12, Metal):
-# py3-none wheels, so any CPython. Imported where it is called: without it, or
-# without a card, the pages draw on the CPU crew. 100 ms -> 2.1 ms a 392x224
-# raster on a GTX 1080 Ti (2026-09-25).
-wgpu>=0.32
+# py3-none wheels; 0.32 wants CPython 3.11, so 3.10 takes 0.31 (CI's 3.10 job
+# failed to install). Imported where it is called: without it, or without a card,
+# the pages draw on the CPU crew. 100 ms -> 2.1 ms a 392x224 raster on a GTX 1080 Ti
+# (2026-09-25).
+wgpu>=0.32; python_version >= "3.11"
+wgpu>=0.31; python_version < "3.11"
