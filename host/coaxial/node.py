@@ -238,8 +238,12 @@ class Coaxial(Node):
             drive.write(theta=theta0 + math.radians(step_deg))
             start, t0, rows = angle.state()['degrees'], time.perf_counter(), []
             while time.perf_counter() - t0 < window:
-                rows.append((time.perf_counter() - t0,
-                             (angle.state()['degrees'] - start + 180.0) % 360.0 - 180.0))
+                asked = time.perf_counter()
+                degrees = angle.state()['degrees']
+                # The sample falls between the ask and the answer: a stamp at either end moved
+                # by a stall under load, and two joints ringing 1 Hz apart swapped.
+                rows.append(((asked + time.perf_counter()) / 2.0 - t0,
+                             (degrees - start + 180.0) % 360.0 - 180.0))
         finally:
             drive.off()
             rig.gates.off()

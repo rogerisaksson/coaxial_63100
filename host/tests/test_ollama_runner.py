@@ -442,7 +442,7 @@ def test_smart_selection(report):
                                   table.SENSORLESS, table.DAQ_API,
                                   table.CONTROLLER, table.BOOT,
                                   'test_parity.py', 'test_mcp.py', table.EMULATOR,
-                                  table.CONFORMANCE, table.BENCH}
+                                  table.NATIVE, table.CONFORMANCE, table.BENCH}
                              | set(table.OLLAMA))):
         suites, _ = table.plan_for(percent)
         report.check('%d %% is what it always was' % percent,

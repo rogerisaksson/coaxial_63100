@@ -233,6 +233,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - The thermal observer's borrow of AFE_ON (0.5 s every 30 s) took test_wire's
   AFE-off scan once the idle board kept real time: the test holds sampling
   off (2026-09-25).
+- The A1335 and the BNO085 paused for that borrow with the host holding
+  AFE_ON beside it: the host's angle and IMU dropped 0.5 s every 30 s
+  (test_emulator's angle read, None). They pause when the observer holds the
+  rail alone, `Board_PowerAlone` (2026-09-26).
+- The ring test stamped each angle read before its ask: a stall under the
+  gate's load swapped neck and head (1 Hz apart). Stamped mid-read
+  (2026-09-26).
 - The emulated drive, 50 kHz, costs a period 3 interrupts (Renode: 3.7 us an
   entry and exit, 4.8 with FPU state), ~30 register accesses (0.9 us each on
   board/emu's models) and ~2 950 instructions at -O0. Floor with the handlers
@@ -253,6 +260,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   (2026-09-25).
 - An armed sync stays armed past drive.off: the meter is the injected group's
   until gate drivers op 3 gives it back (the emulated wire sweep, 2026-09-25).
+- native://: board_pwm.c, board_sync.c, board_adc.c and board_drive.c built for
+  this host over board/native's TIM1, ADCs and AFE. The drive 1 virtual s in
+  0.048 wall s flat out; paced, 1.000, 50 000 updates a wall second, no
+  overrun; the conformance suite 96/96 over it. The pacer at Windows' 15.6 ms
+  timer and 5 ms a wake ran a third of real time: timeBeginPeriod(1), caught up
+  whole each wake.
+  The host's `-Wconversion` found three narrowings in board_pwm.c and
+  board_sync.c the target's flags pass (2026-09-26).
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
 - Ollama answered 500 from 2026-09-03 to 09-12: the runner failed to start.
 - Front page model drawn at inner height - 2 and inside a 1-column padding:

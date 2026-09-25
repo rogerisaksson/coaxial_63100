@@ -44,6 +44,10 @@ WORLD_CORE = 'test_world_core.py'
 #: fake board (tools.cores.fakeboard): a disagreement between the two sides fails here.
 WIRE = 'test_wire.py'
 
+#: The real-time engine for SIL and HIL (tools.cores.native): the board layer's drive path on
+#: this host keeps the wall's time. Not the firmware's validation: that is EMULATOR's, on Renode.
+NATIVE = 'test_native.py'
+
 #: The firmware's own image on an emulated MCU (tools/emu, board/emu): the conformance suite
 #: and test_wire's sweeps against the ELF, CubeMX's code and the HAL included.
 EMULATOR = 'test_emulator.py'
@@ -91,7 +95,7 @@ CONTROLLER = 'test_controller.py'
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
-                   CTRL_CORE, WORLD_CORE, WIRE, EMULATOR,
+                   CTRL_CORE, WORLD_CORE, WIRE, NATIVE, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, BOOT, VIEWS,
                    RENDER) + OLLAMA
@@ -137,6 +141,8 @@ JOINS = (
     (35, 'test_parity.py'),
     # Renode and the image: 47 s, 420 MB (2026-09-25).
     (40, EMULATOR),
+    # The SIL/HIL engine, not a validation: a compiler and two seconds of real time.
+    (40, NATIVE),
     (45, 'test_mcp.py'),
     (65, CONFORMANCE),
 
@@ -177,7 +183,7 @@ NEEDS_BOARD = (CONFORMANCE,)
 #: Each wants the host to itself - the bench suite measures the link's
 #: own rates, conformance its frame gaps - so they run one at a time after
 #: the rest. Every other suite opens the stand-in or nothing at all.
-ALONE = ('test_mcp.py', 'test_parity.py', BENCH, CONFORMANCE, LIVE, EMULATOR)
+ALONE = ('test_mcp.py', 'test_parity.py', BENCH, CONFORMANCE, LIVE, EMULATOR, NATIVE)
 
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
@@ -235,6 +241,7 @@ TOUCHES = (
                                                 BOOT_CORE, CTRL_CORE)),
     ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, SENSORLESS)),
     ('host/tools/cores/thermal.py',            (THERMAL,)),
+    ('host/tools/cores/',                      (WIRE, NATIVE)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
     ('host/tests/',                            ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the
@@ -248,7 +255,7 @@ TOUCHES = (
     # on the host beside it.
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
-    ('world/',                                 (WORLD_CORE, EMULATOR)),
+    ('world/',                                 (WORLD_CORE, NATIVE, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer, and its suite
     # closes the loop through a motor model - the only check on it that needs
@@ -268,9 +275,9 @@ TOUCHES = (
     ('host/tools/sim/montecarlo.py',           (STRUCTURE, DRIVE)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
-    ('comms/',                                 (WIRE, EMULATOR, CONFORMANCE, 'test_mcp.py',
+    ('comms/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',
                                                 BENCH)),
-    ('board/',                                 (WIRE, EMULATOR, CONFORMANCE, 'test_mcp.py',
+    ('board/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',
                                                 'test_parity.py', BENCH)),
     ('core/',                                  (EMULATOR, CONFORMANCE, BENCH)),
     ('host/tools/emu/',                        (EMULATOR,)),

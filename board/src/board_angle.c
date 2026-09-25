@@ -501,8 +501,9 @@ void Board_AnglePoll(void)
     return;                        /* the host is configuring it */
   }
 
-  /* Not during the observer's borrow. */
-  if (Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
+  /* Not during the observer's borrow: the part goes with it. A host's hold beside it keeps
+     the part up, and the reads on. */
+  if (Board_PowerAlone(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
   {
     read_abort();
     return;

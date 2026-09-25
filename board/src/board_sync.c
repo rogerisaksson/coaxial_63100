@@ -199,7 +199,7 @@ void Board_SyncOnInjected(const void *hadc)
       s.sum[leg] += c;
     }
     s.squares++;
-    s.latest.at = TIM1->CNT;
+    s.latest.at = (uint16_t)TIM1->CNT;
     s.latest.dcbus = hadc3.Instance->JDR2;
     s.latest.ntc = hadc1.Instance->JDR2;
     s.updates++;

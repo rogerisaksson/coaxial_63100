@@ -73,14 +73,15 @@ uint32_t HAL_GetTick(void)
   return s_clock / 1000U;
 }
 
-/* The cycle counter: SYSCLK's cycles on the microsecond clock, wrapping as DWT does. */
-uint32_t Board_Cycles(void)
+/* The cycle counter: SYSCLK's cycles on the microsecond clock, wrapping as DWT does. Weak:
+   board/native's moves its clock. */
+__attribute__((weak)) uint32_t Board_Cycles(void)
 {
   return s_clock * (SystemCoreClock / 1000000U);
 }
 
 /* One pass of main()'s loop, as far as the fake builds it. */
-static void fake_loop(void)
+void fake_loop(void)
 {
   if (!link_busy())
   {
@@ -88,6 +89,20 @@ static void fake_loop(void)
     Board_ThermalPoll();
   }
   link_poll();
+}
+
+/** The exchange's clock `us` on, a pass of main()'s loop after: weak, board/native
+    runs the timer's edges that fall in the step. */
+__attribute__((weak)) void fake_advance(uint32_t us)
+{
+  s_clock += us;
+  fake_loop();
+}
+
+/** The clock alone `us` on: board/native's, whose own clock this follows. */
+void fake_clock_step(uint32_t us)
+{
+  s_clock += us;
 }
 
 static uint32_t ticks_per_us(void *ctx)
@@ -178,17 +193,16 @@ uint16_t fake_exchange(const uint8_t *req, uint16_t len, uint8_t *out, uint16_t 
   s_port[LINK_CONSOLE].out_len = 0U;
   for (uint16_t k = 0U; k < len; k++)
   {
-    s_clock += FAKE_CHAR_US;
+    fake_advance(FAKE_CHAR_US);
     s_port[LINK_CONSOLE].in[s_port[LINK_CONSOLE].head] = req[k];
     s_port[LINK_CONSOLE].at[s_port[LINK_CONSOLE].head] = s_clock;
     s_port[LINK_CONSOLE].head = (uint16_t)((s_port[LINK_CONSOLE].head + 1U) % FAKE_BYTES);
-    fake_loop();
+    fake_advance(0U);
   }
   for (uint32_t waited = 0U; waited < FAKE_WAIT_US && s_port[LINK_CONSOLE].out_len == 0U;
        waited += 100U)
   {
-    s_clock += 100U;
-    fake_loop();
+    fake_advance(100U);
   }
   uint16_t n = s_port[LINK_CONSOLE].out_len < cap ? s_port[LINK_CONSOLE].out_len : cap;
   memcpy(out, s_port[LINK_CONSOLE].out, n);

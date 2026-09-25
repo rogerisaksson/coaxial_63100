@@ -36,6 +36,10 @@ Open work. Measured results are in FINDINGS.
 
 ## Host
 
+- native://: the A1335 and BNO085 are the fake's (the angle and IMU pages see
+  nothing turn); one board, no limb or body; the AFE and the heat repeat
+  board/emu's C# - one source for both; not yet the fallback where nothing
+  answers (Renode is).
 - Debug is `-O0`; `-Og` is a measurement away (LOOP counters, keepalive gap).
 - `intent.py` has no thermal kind: warmth questions become an NTC read.
   Measure against the live model before landing.

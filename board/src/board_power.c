@@ -98,6 +98,15 @@ bool Board_PowerHolds(board_rail_t rail, board_user_t user)
   return (s_users[rail] & bit_of(user)) != 0U;
 }
 
+bool Board_PowerAlone(board_rail_t rail, board_user_t user)
+{
+  if ((rail >= BOARD_RAIL_COUNT) || (user >= BOARD_USER_COUNT))
+  {
+    return false;
+  }
+  return s_users[rail] == bit_of(user);
+}
+
 bool Board_PowerState(board_rail_t rail, board_rail_state_t *out)
 {
   if ((rail >= BOARD_RAIL_COUNT) || (out == NULL))

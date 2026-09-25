@@ -594,7 +594,7 @@ static uint32_t dts_ps(void)
   /* Picoseconds per DTG count, so the ns arithmetic stays integer. */
   const uint32_t hz = Board_SysClkHz() / 2UL;   /* TIM1 kernel, 237.5 MHz */
 
-  return (hz != 0UL) ? (PS_PER_S / hz) : 0UL;
+  return (hz != 0UL) ? (uint32_t)(PS_PER_S / hz) : 0UL;
 }
 
 uint8_t Board_PwmDeadTimeFloor(void)
@@ -691,7 +691,7 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
   /* Rounded up, like the floor above and for the same reason: a dead time
      that rounded down is under what was asked for, and the direction that is
      wrong is the one that shortens it. */
-  uint32_t counts = (((uint64_t)ns * PS_PER_NS) + ps - 1ULL) / ps;
+  uint32_t counts = (uint32_t)((((uint64_t)ns * PS_PER_NS) + ps - 1ULL) / ps);
   const uint8_t floor_counts = Board_PwmDeadTimeFloor();
 
   if (counts < floor_counts)

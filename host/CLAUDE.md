@@ -13,8 +13,8 @@
   `device.daq`, `.imu`, `.angle`, `.thermal`, `.gates`, `.drive`, `.motion`,
   `board.boot`. `execution_mode=` HARDWARE (the board on `port`), SIMULATED
   (the stand-in), EMULATED (this host's image on Renode, `emulator://`);
-  the last two need no cable. Any URL port (`fakeboard://`, `emulator://`,
-  `socket://`) is this process's own: no broker. `Machine.discover(type,
+  the last two need no cable. Any URL port (`fakeboard://`, `native://`,
+  `emulator://`, `socket://`) is this process's own: no broker. `Machine.discover(type,
   execution_mode=VIRTUAL)`: no board, each joint where it is told
   (`machine.virtual`); the HUMANOID page drives one.
 - 3D pages raster on the GPU (`coaxial.graphics.gpu`, wgpu) where a card

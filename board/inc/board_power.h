@@ -56,6 +56,9 @@ bool Board_PowerRelease(board_rail_t rail, board_user_t user);
 /** Whether @p user currently holds @p rail. */
 bool Board_PowerHolds(board_rail_t rail, board_user_t user);
 
+/** Whether @p user alone holds @p rail: the rail goes when it lets go. */
+bool Board_PowerAlone(board_rail_t rail, board_user_t user);
+
 /** Fill @p out with what the rail is doing. False if @p rail is not one. */
 bool Board_PowerState(board_rail_t rail, board_rail_state_t *out);
 

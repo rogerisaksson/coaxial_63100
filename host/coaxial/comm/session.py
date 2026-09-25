@@ -17,8 +17,9 @@ from coaxial.simulated import SimulatedSession
 INTERFACE = {'probe': 'debug probe', 'serial': 'RS485', 'url': 'url', 'emulator': 'emulated MCU',
              None: 'simulated'}
 
-#: URL schemes that name an emulated MCU (tools.emu): the firmware real, the board not.
-EMULATED = ('emulator',)
+#: URL schemes that name an emulated board, the firmware real and the board not: the image on
+#: Renode (tools.emu), its C on this host (tools.cores.native).
+EMULATED = ('emulator', 'native')
 
 #: One board, this host's image on Renode (tools.emu): where EMULATED runs when no emulator URL
 #: is named, and where nothing answers a board's port.

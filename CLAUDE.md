@@ -27,6 +27,10 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   110/110; a limb of N boards on one RS485 bus; `emulator://?body=humanoid` the
   stand-in's fleet. Where no board answers: the emulator, else the stand-in
   (`COAXIAL_FALLBACK=simulated` skips it; the offline gate sets it).
+  `native://`, for real-time SIL/HIL (the robot that balances and walks):
+  board/src's stage, triple, meter and drive built for this host over
+  `board/native`'s TIM1, ADCs and front end, 21x headroom with the drive on.
+  Validating the firmware against sensors and timers stays on Renode.
 
 | Read | Before |
 | --- | --- |
@@ -120,6 +124,9 @@ one question) and stop. Design questions are yours.
 10. No limits or expected values in firmware or tests, except `self_test`
     and the thermal envelope (drops MOE at the record's ceiling).
 11. DC link divider 49.9k/2.2k = 78.15 V FS: headroom on purpose.
+12. Emulation is transparent: the target builds nothing of `board/fake`,
+    `board/native`, `board/emu`; no firmware source asks where it runs
+    (`test_structure`). CubeMX regenerates and the bench flashes as before.
 
 ## Traps
 

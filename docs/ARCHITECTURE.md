@@ -12,6 +12,10 @@ board/    this hardware; API in comms/inc/board.h -> comms/inc/board/<x>.h
           board_cal.c and board_thermal.c for the offline suites
           (tools/cores/fakeboard.py, tests/test_wire.py, the conformance
           suite through it)
+          board/native/: TIM1, ADC1-3 and the AFE in C under board_pwm.c,
+          board_sync.c, board_adc.c and board_drive.c, over board/fake:
+          native:// in real time, for SIL/HIL; validation is board/emu's
+          (tools/cores/native.py, tests/test_native.py)
           board/emu/: the board on Renode's STM32H753 for the image itself -
           the ADCs (injected on TIM1's TRGO2), the AFE from the electronics and
           LTspice, the A1335, the BNO085, the plant, the RS485 echo, the
@@ -111,7 +115,9 @@ tools/cores/        build: the portable cores' gcc build;
                     drive, thermal: their ctypes harnesses;
                     fakeboard: comms/, the record and the observer over
                     board/fake as
-                    fakeboard://
+                    fakeboard://; native: the same with the board layer's
+                    drive path on board/native, paced to the wall, as
+                    native://
 tools/emu/          emulator: Renode running the image, its console as socket://
                     (Renode: RENODE, PATH, or the portable build unpacked under
                     %LOCALAPPDATA%/renode); afe_spice: the AFE's transfer from

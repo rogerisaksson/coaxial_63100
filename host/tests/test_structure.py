@@ -426,6 +426,36 @@ def test_target_briefs(r):
             not bad, '; '.join(bad[:4]))
 
 
+#: What only this host builds: the fake board, its silicon (native://), Renode's models.
+HOST_ONLY = ('board/fake', 'board/native', 'board/emu')
+
+#: A firmware source asking where it runs.
+HOST_CONDITION = re.compile(
+    r'^\s*#\s*(if|ifdef|ifndef|elif)\b.*\b(NATIVE|FAKE\w*|EMU\w*|RENODE|_WIN32|__linux__|'
+    r'__x86_64__|__APPLE__)\b', re.M)
+
+
+def test_emulation_is_transparent(r):
+    """fakeboard://, native:// and emulator:// run the firmware's source as the part does: the
+    target builds none of theirs, and no source of its - CubeMX's included - asks where it
+    runs."""
+    from tools.dev import target_map
+    cmake = io.open(os.path.join(REPO, 'CMakeLists.txt'), encoding='utf-8').read()
+    reached = [d for d in HOST_ONLY if d in cmake]
+    r.check('the target builds nothing of %s' % ', '.join(HOST_ONLY),
+            not reached, ', '.join(reached))
+    asks = []
+    for d in target_map.DIRS + ('core',):
+        for path in glob.glob(os.path.join(REPO, d, '**', '*.[chs]'), recursive=True):
+            rel = os.path.relpath(path, REPO).replace(os.sep, '/')
+            if rel.startswith(HOST_ONLY) or '/test/' in rel:
+                continue
+            if HOST_CONDITION.search(io.open(path, encoding='utf-8', errors='replace').read()):
+                asks.append(rel)
+    r.check('no firmware source asks whether it runs on this host or an emulator',
+            not asks, '; '.join(asks[:4]))
+
+
 def test_no_escaping_scars(r):
     """chr(10) and chr(92) where a literal belongs."""
     for path, text, tree in sources():
@@ -1437,7 +1467,7 @@ ROSTER = (test_imports, test_no_undefined_names, test_no_cycles, test_stand_ins_
           test_no_duplicate_definitions, test_no_unused_imports,
           test_numpy_enters_behind_the_thread_cap, test_machine_imports_no_board,
           test_motor_imports_no_board,
-          test_shape, test_documented, test_target_briefs,
+          test_shape, test_documented, test_target_briefs, test_emulation_is_transparent,
           test_no_escaping_scars,
           test_counts_are_measured, test_subsystem_calls_resolve,
           test_limits_live_in_one_file, test_mirrors_agree,

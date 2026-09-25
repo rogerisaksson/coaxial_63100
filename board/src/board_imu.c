@@ -722,9 +722,9 @@ void Board_ImuPoll(void)
   }
 
   /* Not while the host is configuring it, and not during the observer's
-     borrow. */
+     borrow, the rail up for it alone. */
   if ((s.state.loop == BOARD_IMU_LOOP_HELD)
-      || Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
+      || Board_PowerAlone(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
   {
     return;
   }
