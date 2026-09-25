@@ -4,10 +4,12 @@
     Coaxial63100(port='emulator://?nodes=4', unit=3).open()  # a limb: the bus, a unit on it
     Coaxial63100(port='emulator://?world=quad&nodes=4').open()  # on the quad's rotors
     Coaxial63100(port='emulator://?nodes=2&mips=475&baud=10000000', unit=2).open()  # 10 Mbit
+    Coaxial63100(port='emulator://?nodes=1&boot=1').open()   # blank: the host loads its build
     .\\coaxial_tty.ps1 -Port emulator://
 
 One emulator per URL a process (tools.emu.emulator); every open of the URL is a connection
-to it. COAXIAL_ELF picks the image.
+to it, its `time_scale` measured on the open and the Transport's. COAXIAL_ELF picks the
+image.
 """
 import atexit
 import urllib.parse
@@ -20,6 +22,13 @@ from tools.emu.emulator import Emulator, Limb
 _RUNNING = {}
 
 
+def release(url):
+    """The URL's emulator stopped, if one runs."""
+    emu = _RUNNING.pop(url, None)
+    if emu is not None:
+        emu.stop()
+
+
 def emulator_for(url):
     """The running emulator a URL names, started if it is not yet."""
     if url not in _RUNNING:
@@ -28,8 +37,9 @@ def emulator_for(url):
         world = query.get('world', [None])[0]
         mips = int(query['mips'][0]) if 'mips' in query else None
         baud = int(query['baud'][0]) if 'baud' in query else None
-        emu = (Limb(nodes, world=world, mips=mips, baud=baud) if nodes
-               else Emulator(world=world, mips=mips)).start()
+        boot = query.get('boot', ['0'])[0] not in ('0', '')
+        emu = (Limb(nodes, world=world, mips=mips, baud=baud, boot=boot) if nodes
+               else Emulator(world=world, mips=mips, boot=boot)).start()
         atexit.register(emu.stop)
         _RUNNING[url] = emu
     return _RUNNING[url]
@@ -46,6 +56,7 @@ class Serial(SerialBase):
         except RuntimeError as exc:           # no Renode, no image: said as a port that fails
             raise serial.SerialException(str(exc)) from exc
         self._inner = serial.serial_for_url(emu.url, self.baudrate, timeout=self.timeout)
+        self.time_scale = emu.measure()
         self.is_open = True
 
     def close(self):

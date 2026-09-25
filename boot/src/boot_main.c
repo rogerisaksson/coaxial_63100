@@ -289,6 +289,17 @@ static void usart_send(USART_TypeDef *u, const uint8_t *data, size_t n)
   while ((u->ISR & USART_ISR_TC) == 0U) {}
 }
 
+/** The RS485 pair hears itself - RE tied low, as the application's dev_uart.c has it: what
+    just went out came back in, and is no request. Its last byte is in before TC. */
+static void usart_drop_echo(USART_TypeDef *u)
+{
+  u->ICR = USART_ICR_ORECF | USART_ICR_FECF | USART_ICR_NECF;
+  while ((u->ISR & USART_ISR_RXNE_RXFNE) != 0U)
+  {
+    (void)u->RDR;
+  }
+}
+
 /* -- the console ----------------------------------------------------------- */
 
 /** The ST-Link's port carries Modbus, so a line of text would land inside a
@@ -535,6 +546,10 @@ static void rtu_poll(uint32_t i)
   if (n != 0U)
   {
     usart_send(u, reply, n);
+    if (i < 2U)
+    {
+      usart_drop_echo(u);
+    }
   }
 }
 

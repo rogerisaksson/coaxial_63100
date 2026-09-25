@@ -100,6 +100,8 @@ happens once per build; the ST-Link's port costs ~22 s. Exceptions:
 - Image (0, 0), meaning a debugger started the app: left alone.
 - The board shared with other sessions: refused in words, not reset.
 - `own_image=False` turns the step off.
+- Nothing at the unit and a node waiting blank at 247: loaded as the unit, at
+  position = unit (the emulator's `emulator://?nodes=1&boot=1`).
 
 ## Application side
 

@@ -1,10 +1,13 @@
 // RS485_Adapter.cs - The host's USB-RS485 adapter on an emulated limb: its host face on a socket
 // terminal, its bus face on the limb's hub. The host's bytes reach the bus one character time
 // apart at the bus's baud in virtual time, as UART_Line paces a console; the bus's reach the
-// host as they come. A new frame waits for the bus to have been quiet RTU's t3.5 in virtual
-// time: the host keeps that gap on its own clock, and at a fraction of real time it is a far
-// shorter one on the bus's - a node still purging its own echo lost the next request's first
-// bytes at 10 Mbit (2026-09-25). Renode joins a terminal to a UART only, hence two faces.
+// host as they come. A frame starts where the host's bytes arrive RTU's t1.5 apart in virtual
+// time - they cross at quantum boundaries, a write sometimes split across two - and waits for
+// the bus to have been quiet t3.5 and the master's 0.25 ms to act on the last, either way. The
+// host keeps those gaps on its own clock; at a fraction of real time, and quantized, they are
+// shorter on the bus's - a node still purging its own echo lost the next request's first
+// bytes, and broadcast chunks queued t3.5 apart were lost, at 10 Mbit (2026-09-25). Renode
+// joins a terminal to a UART only, hence two faces.
 
 using System;
 using System.Collections.Generic;
@@ -68,13 +71,13 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(queue)
             {
-                queue.Enqueue(value);
+                var at = Now();
+                queue.Enqueue(new Pending { Value = value, Starts = at - lastHost > Interchar });
+                lastHost = at;
                 if(!timer.Enabled)
                 {
-                    // The first character after the bus's t3.5 of quiet, then one a character time.
-                    var owed = Math.Max(0.0, Turnaround - (Now() - lastBus));
                     timer.Frequency = BaudRate;
-                    timer.Limit = BitsPerCharacter + (ulong)(owed * BaudRate);
+                    timer.Limit = BitsPerCharacter + Owed(queue.Peek().Starts);
                     timer.Value = timer.Limit;
                     timer.Enabled = true;
                 }
@@ -86,18 +89,37 @@ namespace Antmicro.Renode.Peripherals.UART
             byte value;
             lock(queue)
             {
-                // Back to a character time from here: the limit, and the count the timer
-                // reloaded from the turnaround's before this ran.
-                timer.Limit = BitsPerCharacter;
-                timer.Value = BitsPerCharacter;
-                value = queue.Dequeue();
+                value = queue.Dequeue().Value;
+                lastSent = Now();
                 if(queue.Count == 0)
                 {
                     timer.Enabled = false;
                 }
+                else
+                {
+                    // The limit, and the count the timer reloaded from the last one's before
+                    // this ran.
+                    timer.Limit = BitsPerCharacter + Owed(queue.Peek().Starts);
+                    timer.Value = timer.Limit;
+                }
             }
             CharReceived?.Invoke(value);
         }
+
+        /// <summary>Bit times a frame's first character waits past its own: what is left of
+        /// t3.5 and Act since the bus last carried a byte, either way.</summary>
+        private ulong Owed(bool starts)
+        {
+            if(!starts)
+            {
+                return 0;
+            }
+            var quiet = Now() - Math.Max(lastBus, lastSent);
+            return (ulong)(Math.Max(0.0, Turnaround + Act - quiet) * BaudRate);
+        }
+
+        /// <summary>RTU's t1.5, s: 1.5 characters, and 750 us above 19 200 baud.</summary>
+        private double Interchar => BaudRate > 19200 ? 0.00075 : 1.5 * BitsPerCharacter / BaudRate;
 
         /// <summary>RTU's t3.5, s: 3.5 characters, and 1.75 ms above 19 200 baud.</summary>
         private double Turnaround => BaudRate > 19200 ? 0.00175 : 3.5 * BitsPerCharacter / BaudRate;
@@ -109,8 +131,20 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly IMachine machine;
         private readonly LimitTimer timer;
-        private readonly Queue<byte> queue = new Queue<byte>();
+        private readonly Queue<Pending> queue = new Queue<Pending>();
         private double lastBus = double.MinValue / 2;
+        private double lastSent = double.MinValue / 2;
+        private double lastHost = double.MinValue / 2;
+
+        /// <summary>What a node is given past t3.5 to act on a frame, s: the boot master's
+        /// CHUNK_S of 2 ms less t3.5.</summary>
+        private const double Act = 0.00025;
+
+        private struct Pending
+        {
+            public byte Value;
+            public bool Starts;
+        }
 
         // 8N1: a start bit, eight data bits, a stop bit.
         private const ulong BitsPerCharacter = 10;

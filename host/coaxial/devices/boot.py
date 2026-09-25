@@ -392,25 +392,34 @@ def load(board, image, persist=True, session=0x10AD):
     unit, position and flags given back - then `go`, and the application
     polled until it names the image. With `persist` the store keeps it for a
     power-up with no host. Returns the application's state."""
-    from coaxial.devices.board import Board
     was = board.boot.state()
     board.boot.stay()
-    time.sleep(STAY_S)
-    blank = Board(board.transport, unit=BLANK_UNIT).boot
+    board.transport.sleep(STAY_S)
+    return from_bootloader(board.transport, image, was['unit'], was['position'],
+                           was.get('flags') or 0, persist=persist, session=session)
+
+
+def from_bootloader(transport, image, unit=1, position=1, flags=0, persist=True,
+                    session=0x10AD):
+    """The node in its bootloader on `transport` - after a `stay`, or blank from power-up -
+    onto `image`: held, found by its uid, assigned `unit` and `position` (flags bit 0 closes
+    the termination), flashed as the type it names, sent `go`, and its application polled
+    until it names the image. Returns the application's state."""
+    from coaxial.devices.board import Board
+    blank = Board(transport, unit=BLANK_UNIT).boot
     blank.hold(session)
     node = blank.who()
     if node is None:
-        raise errors.NoReplyError('unit %d sent stay, and no bootloader answered at unit %d'
-                                  % (board.unit, BLANK_UNIT))
-    blank.assign(node['uid'], was['unit'], was['position'],
-                 terminate=bool((was.get('flags') or 0) & 1))
-    Board(board.transport, unit=was['unit']).boot.flash(was['type'], image, persist=persist)
+        raise errors.NoReplyError('no bootloader answered at unit %d' % BLANK_UNIT)
+    blank.assign(node['uid'], unit, position, terminate=bool(flags & 1))
+    Board(transport, unit=unit).boot.flash(node['type'], image, persist=persist)
     blank.go(session)
+    app = Board(transport, unit=unit).boot
     want = (len(image), zlib.crc32(image))
-    until = time.monotonic() + GO_S
+    until = time.monotonic() + GO_S * transport.time_scale
     while True:
         try:
-            state = board.boot.state()
+            state = app.state()
             if state['image'] == want:
                 return state
         except errors.RigError:
@@ -418,8 +427,8 @@ def load(board, image, persist=True, session=0x10AD):
         if time.monotonic() > until:
             raise errors.DeviceStateError(
                 'unit %d took the image (%d B, crc %08x) and did not come back running it '
-                'within %.0f s' % (board.unit, want[0], want[1], GO_S))
-        time.sleep(0.1)
+                'within %.0f s' % (unit, want[0], want[1], GO_S))
+        transport.sleep(0.1)
 
 
 def stale(board, image):

@@ -26,7 +26,7 @@ URL_PACKAGES = {'fakeboard': 'tools.cores', 'emulator': 'tools.emu'}
 def hand_to_binary(transport, settle=0.5):
     """Hand USART3 from the text console to the binary protocol."""
     transport.write_text('m')
-    time.sleep(settle)
+    transport.sleep(settle)
     transport.discard_input()
 
 
@@ -69,6 +69,8 @@ class Transport:
 
     DEFAULT_TIMEOUT = 0.5
 
+    _time_scale = 1.0
+
     MAX_FRAME = HEAD_BYTES + MAX_PAYLOAD + CRC_BYTES
     """Unit id, function code, the largest payload and the CRC. Nothing longer
     can be a frame, so a reader holding this many bytes need not wait for a gap
@@ -87,6 +89,7 @@ class Transport:
         except (serial.SerialException, ValueError, OSError) as exc:
             raise ConnectError('cannot open %s at %d baud: %s'
                                % (port, baud, exc)) from exc
+        self.time_scale = getattr(self.serial, 'time_scale', 1.0)
         # One transaction at a time on the wire.
         self._wire = threading.RLock()
         #: When the line last went quiet, so t3.5 is only slept for what is
@@ -101,6 +104,21 @@ class Transport:
 
     def __repr__(self):
         return '<Transport %s@%d>' % (self.port, self.baud)
+
+    @property
+    def time_scale(self):
+        """Wall seconds a second of the board's: 1 on a real one, what an emulator measures of
+        its own (tools/emu). Every wait on the wire is stretched by it."""
+        return self._time_scale
+
+    @time_scale.setter
+    def time_scale(self, scale):
+        self._time_scale = scale
+        self.serial.timeout = self.QUIET_TIME * scale
+
+    def sleep(self, seconds):
+        """`seconds` of the board's."""
+        time.sleep(seconds * self._time_scale)
 
     # -- pyserial failures, translated ------------------------------------
 
@@ -138,7 +156,7 @@ class Transport:
 
     def read_text(self, seconds=1.0):
         """Collect whatever the console prints. For banners and diagnostics."""
-        deadline = time.time() + seconds
+        deadline = time.time() + seconds * self._time_scale
         chunks = []
         with self._link_errors('reading the console'):
             while time.time() < deadline:
@@ -151,7 +169,7 @@ class Transport:
 
     def _pay_gap(self):
         """What is left of t3.5 since the line went quiet, slept."""
-        owed = self.interframe_gap - (time.monotonic() - self._quiet_since)
+        owed = self.interframe_gap * self._time_scale - (time.monotonic() - self._quiet_since)
         if owed > 0:
             time.sleep(owed)
 
@@ -174,7 +192,7 @@ class Transport:
             self.serial.flush()
 
     def receive(self, exact_payload=None, timeout=None, reply_shape=None):
-        budget = self.DEFAULT_TIMEOUT if timeout is None else timeout
+        budget = (self.DEFAULT_TIMEOUT if timeout is None else timeout) * self._time_scale
         with self._link_errors('reading a reply'):
             if exact_payload is not None:
                 return self._read_exactly(4 + exact_payload, budget)
@@ -242,7 +260,7 @@ class Transport:
         """Acted on by every slave, answered by none. Nothing to return."""
         self.transmit(BROADCAST, function, payload)
         if settle:
-            time.sleep(settle)
+            self.sleep(settle)
 
 
 #: The shape of every `u8 took` reply: one byte on success, the

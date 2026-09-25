@@ -148,6 +148,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   bootloader echoed device and op in front of every 0x6E reply, where the
   application sends the fields alone; `missing`, `dump` called the
   `remaining` property (2026-09-23).
+- Run on the emulator: a blank node on a 10 Mbit limb takes this host's build
+  through `Coaxial63100.open()`, 139 K in 17 s at 475 MIPS. It answered its
+  own RS485 echo (RE tied low) until the echo was drained after each reply
+  (2026-09-25).
 
 ## Host and tooling
 
@@ -162,6 +166,12 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   chunk over at once, so a 257 B ADU overran the 256 B ring. board/emu replaces
   the ADCs and paces the console at its baud: the image passes conformance
   110/110, 420 MB, 47 s (2026-09-25).
+- Renode's H7 RCC assumes an 8 MHz HSE (the board's is 25): SysTick ran at
+  0.32 of the clock set. The DWT counted a fixed 475 MHz, so the bootloader's
+  (160 MHz) t1.5 was 253 us, and a chunk split across a 0.5 ms quantum was
+  lost: 47 % of the stream. The DWT counts the core's clock now, and the
+  adapter keeps t3.5 + 0.25 ms between the host's frames: none lost. Wall s a
+  virtual s at 475 MIPS: app 28, bootloader 10 (2026-09-25).
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
 - Ollama answered 500 from 2026-09-03 to 09-12: the runner failed to start.
 - Front page model drawn at inner height - 2 and inside a 1-column padding:

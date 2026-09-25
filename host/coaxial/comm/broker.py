@@ -67,6 +67,12 @@ class BrokerTransport:
     #: Set by `Board.probe` like the UART's; nothing here reads it - the
     #: gap is the broker's, on the wire it holds.
     proven_dispatch = False
+    #: A URL opens its own Transport (devices/board.py): a broker holds a real wire.
+    time_scale = 1.0
+
+    @staticmethod
+    def sleep(seconds):
+        time.sleep(seconds)
 
     def __init__(self, address=(HOST, PORT), timeout=10.0):
         self.address = address

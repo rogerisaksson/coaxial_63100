@@ -4,6 +4,11 @@ using "platforms/cpus/stm32h753.repl"
 nvic:
     systickFrequency: 475000000
 
+// The board's 25 MHz crystal: the model assumes 8, and the core it works out from the PLL
+// then runs at 0.32 of what the firmware set (2026-09-25).
+rcc:
+    hseFrequency: 25000000
+
 dwt:
     frequency: 475000000
 

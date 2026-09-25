@@ -91,6 +91,7 @@ transceiverB: UART.RS485_Transceiver @ gpioPortC 8
 consoleLine: UART.UART_Line @ gpioPortB 11
     uart: usart3
 
-// The cycle counter without a time sync a read (FastDWT.cs).
+// The cycle counter without a time sync a read, at the core's clock as the RCC sets it
+// (FastDWT.cs).
 dwt: Miscellaneous.FastDWT @ sysbus 0xE0001000
-    frequency: 475000000
+    clock: nvic

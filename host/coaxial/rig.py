@@ -10,6 +10,7 @@ from coaxial.acquire.clock import NTP_SERVER
 from coaxial.acquire.stream import TaskStream
 from coaxial.acquire.task import Task
 from coaxial.comm import broker, session as sessionmod
+from coaxial.comm.transport import Transport
 from coaxial.control.motion import Motion
 from coaxial.devices import boot as bootmod
 from coaxial.devices.board import Board
@@ -125,7 +126,8 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         this host's image on an emulated MCU (`port` if it is an emulator:// URL, else
         EMULATOR_URL). With `fallback`, the stand-in where no board answers or no emulator runs
         (no Renode, no image) - CI's host job, a bare machine. Nothing is opened until
-        `open()`, which makes a real board run this host's own build (`own_image`)."""
+        `open()`, which makes a real board run this host's own build (`own_image`) - loaded
+        into it when it waits blank in its bootloader."""
         self.execution_mode = ExecutionMode(execution_mode)
         if self.execution_mode is EMULATED and not str(port).startswith(EMULATOR_URL):
             port = EMULATOR_URL
@@ -179,17 +181,22 @@ class Coaxial63100(Task, TaskStream, Acquisition):
 
         simulated = (True if self.execution_mode is SIMULATED
                      else None if self._fallback and self.execution_mode is HARDWARE else False)
+        loaded = False
         try:
             self._connect(simulated)
         except ConnectError as exc:
-            if not (self._fallback and self.execution_mode is EMULATED):
+            loaded = self.own_image and simulated is not True and self._load_blank()
+            if loaded:
+                self._connect(simulated)
+            elif self._fallback and self.execution_mode is EMULATED:
+                self._connect(True, 'Simulated - no emulator here: %s' % exc)
+            else:
                 raise
-            self._connect(True, 'Simulated - no emulator here: %s' % exc)
         self.gates = GateStage(self.board)
         # The board's way back to its rig.
         self.board.rig = self
         self.simulated = not self.origin.real
-        if self.own_image and not self.simulated:
+        if self.own_image and not self.simulated and not loaded:
             self._own_image()
 
         if self.power_afe:
@@ -203,6 +210,31 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             self.port, baud=self.baud, unit=self.unit, simulated=simulated)
         self._origin = origin._replace(label=why) if why else origin
         self._board = self.session.board
+
+    def _load_blank(self):
+        """A node waiting blank in its bootloader on the port (docs/BOOT.md) onto this host's
+        build as `unit`, at position `unit`. Whether one was."""
+        found = bootmod.host_image()
+        if found is None or self.port is None:
+            return False
+        try:
+            transport = Transport(self.port, self.baud)
+        except ConnectError:
+            return False
+        try:
+            try:
+                Board(transport, unit=bootmod.BLANK_UNIT).boot.state()
+            except RigError:
+                return False
+            path, image = found
+            print('coaxial: a blank node on %s; loading this host\'s build %s (%d B, crc %08x) '
+                  'as unit %d' % (self.port, path, len(image), zlib.crc32(image), self.unit),
+                  file=sys.stderr)
+            bootmod.from_bootloader(transport, image, self.unit, self.unit)
+        finally:
+            transport.close()
+        self.image_loaded = (path, True)
+        return True
 
     def _own_image(self):
         """This host's own build on the board (docs/BOOT.md): a board running

@@ -13,13 +13,18 @@ through the monitor. Skips without Renode or a built image, unless COAXIAL_EMULA
 import os
 import subprocess
 import sys
+import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import test_wire as wire  # noqa: E402
-from coaxial import Coaxial63100  # noqa: E402
-from tools.emu.emulator import ELF, FAITHFUL_MIPS, Emulator, Limb, find_renode  # noqa: E402
+from coaxial import EMULATED, Coaxial63100  # noqa: E402
+from coaxial.devices import boot  # noqa: E402
+from coaxial.errors import RigError  # noqa: E402
+from tools.emu import protocol_emulator  # noqa: E402
+from tools.emu.emulator import (BOOT_ELF, ELF, FAITHFUL_MIPS, Emulator, Limb,  # noqa: E402
+                                find_renode)
 
 AFE = 'sysbus.gpioPortB.afe'
 
@@ -89,6 +94,28 @@ def test_ten_megabit_on_the_bus(report):
                  % (wrong, BLAST, port['bus_comm_error'], port['ring_dropped']))
 
 
+def test_a_blank_node_takes_the_host_build(report):
+    """A node blank in its bootloader on a 10 Mbit limb, the core at the part's own speed:
+    open() finds nothing at the unit, loads this host's build through the bootloader at 247
+    over Modbus, and the application answers naming it - host and target on one build."""
+    url = 'emulator://?nodes=1&boot=1&mips=%d' % FAITHFUL_MIPS
+    path, image = boot.host_image() or (None, b'')
+    want = (len(image), zlib.crc32(image))
+    rig = Coaxial63100(port=url, unit=1, execution_mode=EMULATED, fallback=False)
+    try:
+        rig.open()
+        named = rig.board.boot.state()['image']
+        runs = rig.board.version_info is not None
+        said = 'the application names %s against %s' % (named, want)
+    except RigError as exc:
+        named, runs, said = None, False, '%s: %s' % (type(exc).__name__, exc)
+    finally:
+        rig.close()
+        protocol_emulator.release(url)
+    report.check('a blank node takes this host\'s build over Modbus, and runs it',
+                 rig.image_loaded == (path, True) and named == want and runs, said)
+
+
 def test_emulated_falls_back_where_none_runs(report):
     """EMULATED on a machine with no Renode - CI's host job, a bare checkout - opens the
     stand-in and says why, as HARDWARE does where no board answers."""
@@ -105,8 +132,8 @@ def main():
     report = wire.Report()
     print('\n-- emulated falls back where none runs --')
     test_emulated_falls_back_where_none_runs(report)
-    if find_renode() is None or not os.path.exists(ELF):
-        print('no Renode or no image (%s): the emulator needs both' % ELF)
+    if find_renode() is None or not (os.path.exists(ELF) and os.path.exists(BOOT_ELF)):
+        print('no Renode or no images (%s, %s): the emulator needs all three' % (ELF, BOOT_ELF))
         required = os.environ.get('COAXIAL_EMULATOR') == 'required'
         print('\n%d passed, %d failed' % (report.passed, report.failed + required))
         return int(required or report.failed)
@@ -117,17 +144,21 @@ def main():
         try:
             for test in (wire.test_every_read_decodes, wire.test_settings_are_taken,
                          wire.test_the_wire_refuses, wire.test_every_verb_answers_or_refuses,
-                         wire.test_acquisition_answers_or_refuses,
                          wire.test_the_acquisition_records_decode,
                          wire.test_the_record_survives_a_save):
                 print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
                 test(report, rig)
             print('\n-- the front end feeds the image --')
             test_the_front_end_feeds_the_image(report, rig, emu)
+            # Last: its boot.stay resets the board 50 ms on.
+            print('\n-- acquisition answers or refuses --')
+            wire.test_acquisition_answers_or_refuses(report, rig)
         finally:
             rig.close()
     print('\n-- ten megabit on the bus --')
     test_ten_megabit_on_the_bus(report)
+    print('\n-- a blank node takes the host build --')
+    test_a_blank_node_takes_the_host_build(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

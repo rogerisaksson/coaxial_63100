@@ -4,6 +4,7 @@ import ctypes
 import os
 import struct
 import sys
+import time
 import zlib
 
 from tools.cores.build import build, find_cc
@@ -467,7 +468,7 @@ class Bench:
     (device 11 state and stay) until stay, then the C bootloader, and after
     go the application again, running what the bootloader verified."""
 
-    port, baud = 'bench', 115200
+    port, baud, time_scale = 'bench', 115200, 1.0
 
     def __init__(self, lib, unit, running):
         self.lib, self.unit, self.running = lib, unit, running
@@ -511,6 +512,10 @@ class Bench:
                 got = (ctypes.c_uint32 * 2)()
                 self.lib.boot_h_image(got)
                 self.running, self.in_app = tuple(got), True
+
+    @staticmethod
+    def sleep(seconds):
+        time.sleep(seconds)
 
 
 def test_the_host_loads_its_image(report, node):

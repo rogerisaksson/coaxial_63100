@@ -5,6 +5,7 @@ $name?="coaxial_63100"
 $elf?=@build/Debug/coaxial_63100.elf
 $port?=3456
 $console?="console"
+$vtor?=0x30000000
 
 include @board/emu/STM32H7_ADC20.cs
 include @board/emu/Coaxial63100_AFE.cs
@@ -28,6 +29,6 @@ connector Connect sysbus.gpioPortB.consoleLine $console
 macro reset
 """
     sysbus LoadELF $elf
-    cpu VectorTableOffset 0x30000000
+    cpu VectorTableOffset $vtor
 """
 runMacro $reset

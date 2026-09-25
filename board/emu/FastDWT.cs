@@ -1,10 +1,14 @@
 // FastDWT.cs - The Cortex-M DWT's cycle counter off the instructions the CPU has executed, at the
 // CPU's own rate, so it runs with virtual time without syncing it: Renode's DWT syncs virtual
 // time on every CYCCNT read, and the firmware reads it three times a main-loop pass - the
-// emulator's bottleneck (2026-09-25). CYCCNTENA and CYCCNT only; the rest reads zero.
+// emulator's bottleneck (2026-09-25). It counts at `clock`'s frequency, the core's as the RCC
+// sets it - the bootloader's 160 MHz, the app's 475 - taken up on the first read after a
+// change: at a fixed 475 the bootloader's t1.5 was 253 us, and a frame split across a quantum
+// was lost (2026-09-25). CYCCNTENA and CYCCNT only; the rest reads zero.
 
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 
@@ -12,10 +16,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class FastDWT : IDoubleWordPeripheral, IKnownSize
     {
-        public FastDWT(IMachine machine, ulong frequency)
+        public FastDWT(IMachine machine, IHasFrequency clock)
         {
             this.machine = machine;
-            this.frequency = frequency;
+            this.clock = clock;
         }
 
         public long Size => 0x1000;
@@ -63,19 +67,34 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             shift = value - Raw();
         }
 
-        /// <summary>Cycles since reset: instructions at the CPU's rate, `frequency` a second.</summary>
+        /// <summary>Cycles since reset: instructions at the CPU's rate, `clock`'s a second.</summary>
         private uint Raw()
         {
             if(cpu == null)
             {
                 cpu = machine.SystemBus.GetCPUs().OfType<BaseCPU>().First();
             }
-            return (uint)(cpu.ExecutedInstructions * frequency / (cpu.PerformanceInMips * 1000000UL));
+            var executed = cpu.ExecutedInstructions;
+            if(clock.Frequency != rate)
+            {
+                cycles += Cycles(executed);
+                since = executed;
+                rate = clock.Frequency;
+            }
+            return (uint)(cycles + Cycles(executed));
+        }
+
+        private ulong Cycles(ulong executed)
+        {
+            return (ulong)((double)(executed - since) * rate / (cpu.PerformanceInMips * 1e6));
         }
 
         private readonly IMachine machine;
-        private readonly ulong frequency;
+        private readonly IHasFrequency clock;
         private BaseCPU cpu;
+        private ulong rate;
+        private ulong cycles;
+        private ulong since;
         private uint control;
         private uint held;
         private uint shift;
