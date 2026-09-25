@@ -81,9 +81,9 @@ def main():
     record = '--record' in sys.argv
 
     _session, origin = open_session()
-    if not origin.real:
-        print('no board answered - a benchmark against the stand-in measures '
-              'this PC, so there is nothing to say')
+    if not origin.real or origin.kind == 'emulator':
+        print('no board answered - a benchmark against the stand-in or the emulator '
+              'measures this PC, so there is nothing to say')
         print('0 passed, 0 failed')
         return 0
 

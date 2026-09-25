@@ -228,8 +228,14 @@ def build(preset, path):
         print('BUILD  FAIL  cube-cmake not found (VS Code extension '
               'stmicroelectronics.stm32cube-ide-build-cmake not installed - see setup.ps1)')
         return False
-    code, output, elapsed = run([cube_cmake, '--build', '--preset', preset],
-                                cwd=str(ROOT), path=path)
+    # A preset never configured on this machine has no build tree to build.
+    code, output, elapsed = 0, '', 0.0
+    if not (ROOT / 'build' / preset / 'CMakeCache.txt').exists():
+        code, output, elapsed = run([cube_cmake, '--preset', preset], cwd=str(ROOT), path=path)
+    if code == 0:
+        code, built, spent = run([cube_cmake, '--build', '--preset', preset],
+                                 cwd=str(ROOT), path=path)
+        output, elapsed = output + built, elapsed + spent
     warnings = len(WARNING_RE.findall(output))
     if code != 0:
         print('BUILD  FAIL  exit=%d  %.1fs' % (code, elapsed))

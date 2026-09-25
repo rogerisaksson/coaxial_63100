@@ -692,10 +692,28 @@ try:
 except Exception:
     print('')
 '@
-    if (-not [string]::IsNullOrWhiteSpace($installed)) {
+    # An editable install maps the packages pyproject listed when it ran: one
+    # added since (machine, motor, terminal, tools on 2026-09-24) needs it again.
+    $stale = Invoke-Python -Python $Python -Code @'
+import fnmatch, importlib.util as util, pathlib, re
+host = pathlib.Path(r'HOST_PATH').resolve()
+text = (host / 'pyproject.toml').read_text(encoding='utf-8')
+include = re.findall(r'"([^"]+)"', re.search(r'^include\s*=\s*\[([^\]]*)\]', text, re.M).group(1))
+stale = []
+for d in sorted(p for p in host.iterdir() if p.is_dir() and any(p.glob('*.py'))):
+    if any(fnmatch.fnmatch(d.name, p) for p in include):
+        spec = util.find_spec(d.name)
+        where = [pathlib.Path(p).resolve() for p in (spec.submodule_search_locations or [])] if spec else []
+        if d not in where:
+            stale.append(d.name)
+print(','.join(stale))
+'@.Replace('HOST_PATH', $Host_)
+    if ((-not [string]::IsNullOrWhiteSpace($installed)) -and [string]::IsNullOrWhiteSpace($stale)) {
         Write-Item 'pip install -e host/' 'ok' ('coaxial63100 ' + $installed)
     } else {
-        Write-Item 'pip install -e host/' 'missing' 'required: scripts, tests and views import it'
+        $why = 'required: scripts, tests and views import it'
+        if (-not [string]::IsNullOrWhiteSpace($installed)) { $why = 'stale: ' + $stale + ' not on the path' }
+        Write-Item 'pip install -e host/' 'missing' $why
         if (Confirm-Step 'pip install -e host/ ?  (editable: the checkout stays the source)') {
             & $Python -m pip install --disable-pip-version-check -e $Host_
             if ($LASTEXITCODE -eq 0) {
@@ -1502,7 +1520,7 @@ function Resolve-Model {
         Write-Item 'model choice' 'missing' 'capability.py said something unreadable - falling back'
         return 'gemma4:12b'
     }
-    $machine = $picked.machine
+    $machine = $picked.host
     Write-Item 'this machine' 'ok' ('{0} cores / {1} threads, {2:n0} GB RAM, {3:n0} GB VRAM' `
         -f $machine.cores, $machine.threads, $machine.ram_gb, $machine.vram_gb)
     Write-Item 'model choice' 'ok' ('{0}  ({1})' -f $picked.model, $picked.why)
