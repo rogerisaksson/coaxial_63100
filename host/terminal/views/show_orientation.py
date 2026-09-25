@@ -24,7 +24,7 @@ from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui import console as _console, screen as _screen
 from terminal.ui.console import WHEEL_STEP
-from terminal.ui.screen import Freshness, closing, mode_of, open_rig, run_view, say
+from terminal.ui.screen import Feed, Freshness, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import boot, frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -427,10 +427,13 @@ def main(argv=None):
     state = {'tare': None, 'flip': [False, False, False],
              'frame_on': True, 'persist': {}, 't0': time.monotonic()}
     tally = Freshness()
+    # The board read on its own thread: a frame draws at the screen's pace, not the link's - an
+    # emulated board's link is several times slower than a real one's.
+    feed = Feed(lambda: latest(board), period=0.005).start()
 
     def draw():
         wide, tall = canvas(args)
-        record = latest(board)
+        record = feed.latest
         fresh = record['quaternion'] if record else None
         if record is not None and fresh is not None \
                 and record['updates'] != tally.seen:
@@ -461,6 +464,7 @@ def main(argv=None):
         leaving = run_view(board_view, terminal, period, args.frames, draw,
                            on_input, mouse=True)
     finally:
+        feed.stop()
         sys.stdout.write('\n')
         if shop:
             shop.close()

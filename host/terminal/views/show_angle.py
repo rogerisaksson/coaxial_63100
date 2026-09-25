@@ -25,7 +25,8 @@ from coaxial.errors import RigError
 from machine import ansi
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
-from terminal.ui.screen import Freshness, closing, mode_of, open_rig, run_view, say, steady
+from terminal.ui.demo import stop_motor, turn_motor
+from terminal.ui.screen import Feed, Freshness, closing, mode_of, open_rig, run_view, say, steady
 from terminal.ui.stage import frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -261,17 +262,29 @@ def main(argv=None):
         else 'off - the face alone at %d, %d columns leave no room'
         % (width, columns))
     side = {'at': time.time(), 'field': field, 'kelvin': kelvin}
+    # On an emulated board the shaft is the plant's: the demo motor turns it, as the stand-in's
+    # invents a turn - one angle for ever looks like a dead link.
+    motor = turn_motor(rig, origin) if origin.real else None
+
+    def sample():
+        """The board's side of a frame, on the feed's thread: the link need not hold a frame."""
+        if side.get('scales', True) and time.time() - side['at'] >= SIDE_EVERY:
+            side['field'], side['kelvin'] = reread(board, side['field'],
+                                                   side['kelvin'])
+            side['at'] = time.time()
+        if motor is not None:
+            motor()
+        return steady(board.angle.state)
+
+    feed = Feed(sample, period=0.005).start()
 
     def draw():
-        state = steady(board.angle.state)
+        state = feed.latest
         tally.take(state['updates'] if state is not None else None)
         size = board_view.size if terminal else None
         scales, width, tall = fit(size.width if size else 0, size.height if size else 0,
                                   forced)
-        if scales and time.time() - side['at'] >= SIDE_EVERY:
-            side['field'], side['kelvin'] = reread(board, side['field'],
-                                                   side['kelvin'])
-            side['at'] = time.time()
+        side['scales'] = scales
         return compose(origin, board_view, part, state, side['field'],
                        side['kelvin'], tally.rate, tally.note, aspect,
                        scales=scales, width=width, height=tall)
@@ -279,8 +292,11 @@ def main(argv=None):
     try:
         leaving = run_view(board_view, terminal, period, args.frames, draw)
     finally:
+        feed.stop()
         done = [('poll loop', 'running, as the board left it'),
                 ('registers', 'untouched - this view only reads')]
+        if motor is not None:
+            done += stop_motor(rig)
         rig.close()
         done.append((part['power'] or 'supply', 'back the way it was found'))
         sys.stdout.write('\n')

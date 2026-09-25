@@ -10,7 +10,7 @@
     .\\coaxial_tty.ps1 -Port emulator://
 
 One emulator per URL a process (tools.emu.emulator); every open of the URL is a connection
-to it, its `time_scale` measured on the open and the Transport's, its `units` what a scan
+to it, its `time_scale` Renode's load on the open and the Transport's, its `units` what a scan
 probes, `console` False on a limb's bus. COAXIAL_ELF picks the image.
 """
 import atexit
@@ -100,7 +100,7 @@ class Serial(SerialBase):
         except RuntimeError as exc:           # no Renode, no image: said as a port that fails
             raise serial.SerialException(str(exc)) from exc
         self._inner = serial.serial_for_url(emu.url, self.baudrate, timeout=self.timeout)
-        self.time_scale = emu.measure()
+        self.time_scale = emu.load()
         self.time_scale_source = emu.load
         self.virtual_seconds = emu.virtual_seconds
         self.units = emu.units

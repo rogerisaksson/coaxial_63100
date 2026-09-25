@@ -49,7 +49,7 @@ from coaxial.errors import RigError
 from coaxial.model import thermal as _thermal
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, console as _console, screen as _screen
-from terminal.ui.screen import closing, mode_of, open_rig, run_view, say
+from terminal.ui.screen import Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, hud, stage
 from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
@@ -446,7 +446,9 @@ def main(argv=None):
     # Thermal observer read period, s.
     thermal_every = 2.0 if origin.real else 0.25
 
-    def draw():
+    def sample():
+        """The board's side of a frame, on the feed's thread: an emulated board's link is
+        several times slower than a real one's, and the frame need not wait for it."""
         with suppress(RigError):
             view['state'] = board.drive.state()
             view['gate'] = board.gate_drivers.state()
@@ -466,6 +468,11 @@ def main(argv=None):
                 view['ident'] = board.thermal.identification()
                 thermal_at[0] = time.time()
                 rearm_after_trip(rig, origin, view)
+
+    sample()
+    feed = Feed(sample, period=0.005).start()
+
+    def draw():
         # The console itself: `frame_of` pages on its scroll state and size.
         fit(view['aspect'], _sized(args, board_view))
         return compose(rig, origin, board_view, view)
@@ -478,6 +485,7 @@ def main(argv=None):
         leaving = run_view(board_view, console, 1.0 / max(args.hz, 0.5),
                            args.frames, draw, on_input, mouse=True)
     finally:
+        feed.stop()
         done = []
         try:
             board.drive.off()

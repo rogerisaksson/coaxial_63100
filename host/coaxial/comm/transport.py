@@ -143,9 +143,15 @@ class Transport:
         """`seconds` of the board's."""
         time.sleep(seconds * self._time_scale)
 
+    #: How often the source is asked, wall s: an emulator's answer is a monitor round trip.
+    RESCALE_S = 0.5
+
+    _rescaled = 0.0
+
     def _rescale(self):
         """The time scale as its source has it now, where one does."""
-        if self.time_scale_source is not None:
+        if self.time_scale_source is not None and time.monotonic() - self._rescaled > self.RESCALE_S:
+            self._rescaled = time.monotonic()
             scale = self.time_scale_source()
             if abs(scale - self._time_scale) > 0.1 * self._time_scale:
                 self.time_scale = scale

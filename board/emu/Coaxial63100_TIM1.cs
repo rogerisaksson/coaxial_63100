@@ -120,8 +120,22 @@ namespace Antmicro.Renode.Peripherals.Timers
                     }
                     break;
             }
-            Schedule();
-            Signal();
+            switch(offset)
+            {
+                case Cr1:
+                case Dier:
+                case Egr:
+                case Cnt:
+                case Psc:
+                case Arr:
+                case Rcr:
+                    Schedule();
+                    Signal();
+                    break;
+                case Sr:
+                    Signal();
+                    break;
+            }
             Written?.Invoke(offset, value);
         }
 
@@ -212,7 +226,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             var wanted = Counting && (registers[Dier / 4] & UieBit) != 0;
             if(!wanted)
             {
-                updates.Enabled = false;
+                if(updates.Enabled)
+                {
+                    updates.Enabled = false;
+                }
                 return;
             }
             var step = (Centred ? (double)Top : Top + 1.0) * Repetitions;

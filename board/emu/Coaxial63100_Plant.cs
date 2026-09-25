@@ -215,8 +215,14 @@ namespace Antmicro.Renode.Peripherals.Analog
                 periods++;
                 if(angle != null)
                 {
+                    // The electrical angle unwrapped, then over the pole pairs: wrapped first, the
+                    // shaft turned through 360 / pp degrees and back.
                     plantState(Node, shaft);
-                    angle.Degrees = shaft[0] / polePairs * 180.0 / Math.PI;
+                    var turned = shaft[0] - electrical;
+                    turned -= 2.0 * Math.PI * Math.Round(turned / (2.0 * Math.PI));
+                    electrical = shaft[0];
+                    mechanical += turned / polePairs;
+                    angle.Degrees = mechanical * 180.0 / Math.PI;
                 }
             }
             // TRGO2 off OC5REF: the injected sequences, on this period's currents.
@@ -297,6 +303,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly Coaxial63100_A1335 angle;
         private readonly float[] shaft = new float[3];
         private float polePairs = 1.0f;
+        private double electrical;
+        private double mechanical;
         private uint bdtr;
         private uint cr2;
         private bool counting;

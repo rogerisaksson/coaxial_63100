@@ -27,7 +27,7 @@ from coaxial.devices import scaling
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui.console import Keys
-from terminal.ui.screen import closing, mode_of, open_rig, panel_width, say
+from terminal.ui.screen import Feed, closing, mode_of, open_rig, panel_width, say
 from terminal.ui.stage import curtain, hud, panels_of, stage
 
 ROTATION_VECTOR = 0x05
@@ -285,14 +285,21 @@ def main(argv=None):
     board_view = stage()
     terminal = board_view.is_terminal
     leaving, frame = None, 0
+    task = {'layout': layout}
+
+    def take():
+        """Both buffers drained and the task adapted, on the feed's thread: an emulated
+        board's link is several times slower than a real one's, and a frame need not wait."""
+        drain(rig, task['layout'], view)
+        task['layout'] = adapt(rig, task['layout'], args, view)
+
+    feed = Feed(take, period=0.005).start()
 
     try:
         with curtain(board_view) as show, Keys(terminal) as keys:
             while True:
                 width = panel_width()
-                drain(rig, layout, view)
-                layout = adapt(rig, layout, args, view)
-                show.update(compose(origin, board_view, layout, view, width),
+                show.update(compose(origin, board_view, task['layout'], view, width),
                             refresh=True)
                 frame += 1
                 if args.frames and frame >= args.frames:
@@ -304,6 +311,7 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
+        feed.stop()
         done = put_back(board)
         rig.close()
         done.append(('AFE_ON', 'back the way it was found'))
