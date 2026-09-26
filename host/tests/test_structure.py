@@ -282,7 +282,8 @@ def _caps_openblas(node):
 
 def test_numpy_enters_behind_the_thread_cap(r):
     """numpy is imported at module level by the modules that step arrays - blocks.py,
-    machine/cyclic.py - each capping OpenBLAS's thread pool before importing it.
+    machine/capture.py, machine/cyclic.py - each capping OpenBLAS's thread pool before
+    importing it.
     """
     importers, uncapped = [], []
     for path, _text, tree in sources(beside=False):
@@ -294,8 +295,9 @@ def test_numpy_enters_behind_the_thread_cap(r):
                 if not any(_caps_openblas(n) for n in tree.body[:i]):
                     uncapped.append(path)
                 break
-    r.check('numpy enters the packages at module level in blocks.py and cyclic.py alone',
+    r.check('numpy enters the packages at module level in blocks.py, capture.py and cyclic.py alone',
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py'),
+                                         os.path.join('machine', 'capture.py'),
                                          os.path.join('machine', 'cyclic.py')]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,

@@ -40,7 +40,7 @@ SETTLE_S, PUSH_AT_S, PUSH_N, PUSH_S = 4.0, 5.0, 120.0, 0.12
 #: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir.
 LOST, FALLEN_STIR = 30.0, 10.0
 
-MODULES = ('walker', 'gait', 'arrival', 'director')
+MODULES = ('walker', 'gait', 'arrival', 'director', 'capture')
 
 
 def _set(values):

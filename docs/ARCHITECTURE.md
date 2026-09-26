@@ -105,12 +105,13 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     type's joints where told, no board), gait (a walk's angles),
                     figure (the gynoid's segments, masses, leg IK), physics
                     (DYNAMIC: the figure in MuJoCo, a drive a joint), walker
-                    (her setpoints each ms: plan, IK, balance), arrival
-                    (keyframes, the CoM fed back: the squat, the rise, the
-                    first step, the settling), director (which move has her,
-                    catches, falls), pendulum (virtual, between her ears: how
-                    smoothly she goes, one number), running (her own process,
-                    paced to the clock)
+                    (her setpoints each ms: plan, IK, balance), capture (where
+                    a swinging foot lands across: on the capture point, or a
+                    side step), arrival (keyframes, the CoM fed back: the
+                    squat, the rise, the first step, the settling), director
+                    (which move has her, catches, falls), pendulum (virtual,
+                    between her ears: how smoothly she goes, one number),
+                    running (her own process, paced to the clock)
 coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory;
                     node (the family for machine: Coaxial node, joint, surface,
                     rotor, torque); profiles/ (a motor's drive record and

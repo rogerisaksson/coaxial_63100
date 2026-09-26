@@ -238,6 +238,32 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   on the plan's reference fells her walking: the plan's sway is not the
   pendulum's - the DCM error in a steady walk 93 mm rms at liftoff
   (2026-09-26).
+- The capture point from the pelvis's sideways speed, not the centre of
+  mass's (the swing leg's speed is in that: a wide step put it 6 cm out past
+  where it went); its course 0 -> 51 mm out over the swing at 0.65, 0.85 and
+  0.9 strides/s; the ankle holds what the course leaves of the sole (at 0.65,
+  25 mm off at 0.7 of the swing doubled); the foot 1.1 of what is off further
+  out - at 1.3 the step back grew 1.35 a step (`machine.capture`,
+  2026-09-26).
+- Landings: the height's target from where the body is (from the plan's, 3 cm
+  up, both legs threw her 5 cm into the air); the forward target moved no
+  faster than 0.3 m/s (a foot 5 cm short snapped the knee straight); the phase
+  at most twice its pace (it raced to 3.5 strides/s). The side step: the
+  swapped foot down over 0.1 s ahead of the pelvis, the other out over 0.15 s
+  to the capture point foreseen once, set down by a sine squared, eased on
+  from where it stood; over once it bears her; the walk begun again on it at
+  the speed she has, the other to step in beside. The first steps narrow over
+  0.6 s: over 2.5 s the third lifted with the capture point 8 cm inside the
+  standing foot. Twelve trials: held 73 % - the rises, the walks at 0.85 and
+  0.9, the shoves along the line; the side shoves still fell her (the side
+  step ends with the capture point 27 cm ahead and no foot there), and the
+  walk at 0.65 from its own start pose drifts 7 cm across in its first second
+  (2026-09-26).
+- What does not help: a toe-off gate on the capture point (the legs driven
+  3.5 cm across moved the pelvis 3 mm in 0.2 s; walking on, the frozen plan
+  sank her 17 cm); the pelvis driven by the capture point's error (the foot
+  slid 20 cm) or by the course's deviation alone (down in 1.4 s): the plan's
+  sway servo stays (2026-09-26).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

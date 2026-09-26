@@ -42,13 +42,15 @@ Open work. Measured results are in FINDINGS.
   heat is world_heat.c's), one source for both wanted; one Transport a rig on
   a URL bus, the limb keeping t3.5 for them; not yet the fallback where
   nothing answers (Renode is).
-- Gynoid (`machine.walker`): balance is feedback patched onto a kinematic
-  plan the pendulum does not follow, the rise chaotic, every side shove
-  fatal. A reference that is the pendulum's: the CoM from the footsteps by
-  the divergent component of motion (Englsberger's DCM walking), stance and
-  swing switched on touchdown, the steps adjusted by the DCM; then the
-  torso's counter and the damping (off: stir 4.3 -> 1.7 mm). Scored by
-  `tools/sim/gait_montecarlo.py`: held 85 %, stir 4.1 mm to beat.
+- Gynoid (`machine.walker`): the swing foot lands on the capture point
+  (`machine.capture`), a swap is a side step, the walk begun again after
+  it. The rises, the walks at 0.85 and 0.9 and the shoves along the line
+  hold; the side shoves and the walk at 0.65 from its own start pose do
+  not: the side step ends with the capture point 27 cm ahead and no foot
+  there (a forward step folded into it), the 0.65 start drifts 7 cm across
+  in its first second. Then the torso's counter and the damping (off: stir
+  4.3 -> 1.7 mm). Scored by `tools/sim/gait_montecarlo.py`: held 73 %, stir
+  4.6 mm at 0.85 to beat.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample, the phases could join them; a software sweep over a
   channel the drive locks out waits without a word.

@@ -6,9 +6,9 @@
     director.halt(); director.rise()             # down into the squat, up again
 
 The arrival (`machine.arrival`) takes her from the squat to her first step and hands her to the
-walker (`machine.walker`), which sets every step as it comes. A shove or a stumble - her pelvis
-thrown sideways or tipped past CATCH - makes the walker put the swinging foot where she is
-falling, sooner (`catch`); a stance foot that slides is held where it slid to. Halted, her stride
+walker (`machine.walker`), which sets every step as it comes. Shoved, the walker lands the
+swinging foot on the capture point, swapping feet when that would cross them (`catch`); a stance
+foot that slides is held where it slid to. Halted, her stride
 shortened to her first's, she settles at a landing: onto the front foot, the rear beside it, down
 into the squat (`rest`); risen, she walks on. `walk_s` and `rest_s` run that round by
 themselves. Fallen, she curls up into the squat's joints over CURL_S and stays down: `begin`
@@ -21,11 +21,6 @@ from machine import arrival, figure, gait, walker
 #: Fallen: the pelvis under FALLEN_M or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in
 #: the arrival's moves; curled up into the squat's joints over CURL_S.
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M, CURL_S = 0.55, 35.0, 0.3, 1.5
-
-#: A catch: the pelvis's sideways speed past CATCH_M_S or its attitude CATCH_DEG off the plan's
-#: (`walker.Walker.tilt_deg`); for CATCH_S
-#: the swinging foot goes CATCH_STEP further the way she moves, the phase CATCH_PACE faster.
-CATCH_M_S, CATCH_DEG, CATCH_S, CATCH_STEP, CATCH_PACE = 0.25, 8.0, 0.6, 0.25, 0.4
 
 #: A stance foot bearing `walker.BEARS_N` slid past SLIP_M of where it landed is held where it
 #: is; one lifting is not sliding.
@@ -50,7 +45,7 @@ class Director:
         self.arrival = arrival.Arrival(machine, gait.CADENCE)
         self.walker = walker.Walker(machine, gait.CADENCE)
         self.walk_s, self.rest_s = walk_s, rest_s
-        self.stage, self.fallen_at, self.caught, self.slips = 'squat', None, 0.0, 0
+        self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
         self.curl_from = None
         self.curled = arrival.angles_of(arrival.keyframes(gait.CADENCE)[0][2])
@@ -73,7 +68,7 @@ class Director:
     def begin(self):
         """Landed in the squat, the arrival to take her up."""
         self.arrival.land()
-        self.stage, self.fallen_at, self.caught, self.since = self.arrival.stage, None, 0.0, 0.0
+        self.stage, self.fallen_at, self.since = self.arrival.stage, None, 0.0
         self.walker.last, self.blend, self.curl_from = None, None, None
         self.walker.pendulum = type(self.walker.pendulum)()
         self.walker.cadence = gait.CADENCE
@@ -125,7 +120,7 @@ class Director:
                 self.rise()
             self.walker.last = out
             return out
-        self._watch(bus, dt)
+        self._watch(bus)
         if self.walker.held is None:
             step = PACE_RATE * dt
             self.walker.cadence += max(-step, min(step, self.asked - self.walker.cadence))
@@ -184,19 +179,10 @@ class Director:
             frame[side] = self._foot(bus, side, sign)
         return frame
 
-    def _watch(self, bus, dt):
-        """A catch when she is thrown; a slid foot held where it went."""
-        tilt = self.walker.tilt_deg()
-        # Not while the walk starts: the stand's pose is off the plan's by its turn, and every
-        # start was a catch that threw her sideways (2026-09-26).
-        if self.walker.held is None and (abs(self.walker.v_side) > CATCH_M_S
-                                         or tilt > CATCH_DEG):
-            self.caught = CATCH_S
-        self.caught = max(0.0, self.caught - dt)
-        self.walker.catch = CATCH_STEP if self.caught > 0.0 else 0.0
-        self.walker.hurry = CATCH_PACE if self.caught > 0.0 else 0.0
+    def _watch(self, bus):
+        """The stage as the walker has her; a slid foot held where it went."""
         if self.stage != 'halt':
-            self.stage = 'catch' if self.caught > 0.0 else 'walk'
+            self.stage = 'catch' if self.walker.catching else 'walk'
         for side, ball in self.walker.balls.items():
             held = self.walker.anchor.get(side)
             if held is None or bus['pelvis.pose.%s_load' % side] < walker.BEARS_N:
