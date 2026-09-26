@@ -221,6 +221,15 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   and 0.9 she falls within 2.5 s. Stopping: a stride shortened at the pace
   kept threw her off the floor; carried in phase, slowed, she settles onto
   the front foot and runs on over its ball (2026-09-26).
+- The virtual pendulum between her ears (`machine.pendulum`: 1.13 m, her
+  weight, a spring of no length of its own): stir 3.2, 4.3, 4.9 mm at 0.65,
+  0.85, 0.9 strides/s, 78 % of it on - the head's surge - peaking at each
+  landing (2026-09-26).
+- 26 knobs +-20 %: all but four within 0.25 mm of 4.2. The torso countering
+  the surge twice a stride, 2.5 degrees at 0.125: 2.2 mm; with the head moved
+  toward the bob (`SWAY_K` 1): 1.7; by its drift too, down in 2 s. The rise
+  flips on 0.5 % of any knob, the committed gait's as much (10 of 24 held):
+  one run a candidate scores chance (2026-09-26).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

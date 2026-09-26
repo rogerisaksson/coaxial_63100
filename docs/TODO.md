@@ -42,11 +42,11 @@ Open work. Measured results are in FINDINGS.
   heat is world_heat.c's), one source for both wanted; one Transport a rig on
   a URL bus, the limb keeping t3.5 for them; not yet the fallback where
   nothing answers (Renode is).
-- Gynoid (`machine.director`): the start from standing holds at 0.85
-  strides/s only, the stop falls on over the front foot. A pendulum observer,
-  the capture point (the CoM plus its speed times sqrt(h/g)), to say when to
-  lift a foot, where to set it and when she is still; STEP_D is 0.057 of its
-  0.29 s.
+- Gynoid (`machine.director`): the rise flips on 0.5 % of a knob and the
+  stop falls on over the front foot. A search scoring each candidate over
+  disturbances - paces, pushes, start phases - by the share she survives and
+  the pendulum's stir; then the torso's counter and the damping (off: stir
+  4.3 -> 1.7 mm, but three rises in four fell).
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample, the phases could join them; a software sweep over a
   channel the drive locks out waits without a word.

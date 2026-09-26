@@ -15,6 +15,7 @@ inverted pendulum on them: without the feedback she fell in two seconds (2026-09
 import math
 
 from machine import figure, gait
+from machine.pendulum import SPINE_TO_EARS_M, Pendulum
 from machine.figure import LEG, SOLE_BALL, SOLE_HEEL, add, apply, mul, rx, ry, rz, sub, t
 
 #: The phase pulled to the body, strides a second per stride of error.
@@ -39,6 +40,14 @@ ACCEPT, UNLOAD = 0.04, 0.06
 #: How much of the pelvis's pitch the spine takes back out: riding the pelvis, the torso
 #: pitched 8 degrees a step and the head bobbed 9 cm (2026-09-25).
 PLUMB = 1.0
+
+#: The torso counters her surge, twice a stride: the spine SURGE_DEG back at SURGE_AT of the left
+#: leg's stride and each half stride on, as far forward between, less on a shorter stride - her
+#: head carried on at an even speed, the pendulum between her ears still (`machine.pendulum`).
+#: At 2 degrees, SWAY_K 1: the pendulum's stir over 30 s at 0.85 and 0.9 strides/s 4.3, 4.9 ->
+#: 1.7, 1.9 mm, but rising and gliding to another pace she fell three times in four; off until a
+#: search over disturbances finds a pair that holds (2026-09-26).
+SURGE_DEG, SURGE_AT = 0.0, 0.125
 
 #: A catwalk: the feet planted TRACK_M off the line, swung WIDEN_M further out round the standing
 #: one; the pelvis turned TURN_GAIN of the walk's turn, the torso turning it back.
@@ -71,6 +80,12 @@ HALT, HALT_S, HALT_PACE = 0.6, 1.5, 0.7
 #: them. Only the swinging foot spread, the plan put her pelvis over the spread stance foot, and
 #: she swayed off it (2026-09-26).
 STAND_WIDE_M = 0.06
+
+#: The pendulum between her ears damped as a crane damps its load: her head moved toward the bob
+#: by SWAY_K of its offset, on and across, through the spine's pitch and roll
+#: (`machine.pendulum`). Moved by its drift too, the landings' jolts shook her down in 2 s
+#: (2026-09-26).
+SWAY_K = 0.0
 
 #: A sole bearing this much has landed, N; bearing BEARS_N it is all stance, up to BEARS_UNTIL
 #: of a stride past its toe-off.
@@ -188,6 +203,8 @@ class Walker:
         self.catch, self.hurry = 0.0, 0.0
         #: Seconds since `halt`, None walking on; the stride's length last pass, m.
         self.halting, self.halt_from, self.length_was = None, 1.0, None
+        #: The pendulum between her ears, read each pass (`machine.pendulum`).
+        self.pendulum = Pendulum()
 
     def halt(self):
         """To a stop over HALT_S: the stride down to HALT of its own; `halted` from then."""
@@ -312,7 +329,11 @@ class Walker:
         # The plumb line: the spine takes the pelvis's pitch back out, the torso upright; the neck
         # what the torso still leans, the head level.
         pitch = math.degrees(math.atan2(turn_now[2][1], turn_now[1][1]))
-        out['spine'] = -PLUMB * pitch
+        self.pendulum.read(bus, dt)
+        toward = [math.degrees(SWAY_K * o / SPINE_TO_EARS_M) for o in self.pendulum.off]
+        out['spine'] = (-PLUMB * pitch - SURGE_DEG * min(1.0, self.scale)
+                        * math.cos(4.0 * math.pi * (self.phase - SURGE_AT)) + toward[0])
+        out['spine_roll'] = out['spine_roll'] - toward[1]
         out['neck'] = out['neck'] - (pitch + bus.get('spine.deg', 0.0))
         for (side, sign), q, (ankle, _tw, _pi, toes), foot in zip(SIDES, qs, legs, feet):
             b = carried(q)

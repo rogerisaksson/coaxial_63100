@@ -108,8 +108,9 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     (her setpoints each ms: plan, IK, balance), arrival
                     (keyframes, the CoM fed back: the squat, the rise, the
                     first step, the settling), director (which move has her,
-                    catches, falls), running (her own process, paced to the
-                    clock)
+                    catches, falls), pendulum (virtual, between her ears: how
+                    smoothly she goes, one number), running (her own process,
+                    paced to the clock)
 coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory;
                     node (the family for machine: Coaxial node, joint, surface,
                     rotor, torque); profiles/ (a motor's drive record and

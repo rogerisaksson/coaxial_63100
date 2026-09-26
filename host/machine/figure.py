@@ -168,7 +168,7 @@ def ball(sign, pelvis, turn, angles):
     return add(heel, apply(ry(math.atan2(foot[0][2], foot[2][2])), sub(SOLE_BALL, SOLE_HEEL)))
 
 
-_AXES = {'x': rx, 'y': ry, 'z': rz}
+AXES = {'x': rx, 'y': ry, 'z': rz}
 
 
 def frames(degrees, pelvis, turn):
@@ -183,7 +183,7 @@ def frames(degrees, pelvis, turn):
             at = add(where, apply(above, offset))
             here = mul(above, rz(math.radians(rest))) if rest else above
         for joint, axis, sign in joints:
-            here = mul(here, _AXES[axis](sign * math.radians(degrees.get(joint, 0.0))))
+            here = mul(here, AXES[axis](sign * math.radians(degrees.get(joint, 0.0))))
         out[name] = (at, here)
     return out
 

@@ -90,6 +90,8 @@ def _run(commands, states, cadence):
                      'speed': bus['pelvis.pose.vz'], 'phase': director.walker.phase,
                      'cadence': director.cadence, 'stage': director.stage,
                      'fallen': director.stage == 'fallen', 'slips': director.slips,
+                     'stir': director.pendulum.stir, 'stirs': director.pendulum.stirs,
+                     'swing': director.pendulum.swing,
                      'loads': (bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load']),
                      'ratio': min(ratio, 99.0)}
             try:

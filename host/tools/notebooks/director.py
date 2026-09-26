@@ -25,7 +25,9 @@ ansi.image(blocks([
     ([('Pose', 'node', ['the pelvis placed and turned', 'the centre of mass',
                         "each sole's load", 'every joint read back']),
       ('Director', 'a move a pass', ['squat, rise, first step', 'walk, catch, halt, settle',
-                                     'fallen: curled up, down'])],
+                                     'fallen: curled up, down']),
+      ('Pendulum', 'observer', ['hung between her ears', 'a bob of her weight, virtual',
+                                'stirred: how rough she goes'])],
      'one move sets all 27 joints, every ms'),
     ([('Arrival', 'keyframes', ['the squat to the first step', 'the settling to the squat',
                                 'the CoM fed back by the pelvis']),
@@ -65,6 +67,9 @@ while bus['t'] < 14.0:
                     for i, j in enumerate(JOINTS)})
         row.update({side + axis: ball[k] for side, ball in director.walker.balls.items()
                     for axis, k in (('_x', 0), ('_z', 2))})
+        pend = director.pendulum
+        row.update(swing_on=pend.swing[0], swing_across=pend.swing[1], felt=pend.felt,
+                   stir=pend.stir, energy=pend.energy)
         rows.append(row)
 run = pandas.DataFrame(rows).set_index('t')
 began = run['stage'][run['stage'] != run['stage'].shift()]
@@ -127,31 +132,26 @@ bottom.legend(loc='lower left')
 show(fig)'''),
     ),
     section(
-        'The pendulum',
-        md('Seen from above, her centre of mass is a pendulum\'s bob, hung from the head '
-           'through the crotch: in the walk it swings from foot to foot and seldom far from '
-           'the line between them. Where it would come to rest - the capture point, the bob '
-           'plus its speed times sqrt(h/g) - is where a foot must stand to stop her: ahead of '
-           'the bob, and each landing near it.'),
+        'The pendulum between her ears',
+        md('How smoothly she goes, as one number: a virtual pendulum pivoted between her inner '
+           'ears, a bob of her weight hung to her knees, moved by her head '
+           '(`machine.pendulum`). Carried evenly it hangs still; her surge, sway and bob stir '
+           'it. `stir` is its energy, as the height it would lift her.'),
         code('''walking = run[run['stage'].isin(['walk', 'catch'])]
-g = 9.81
-dt = np.gradient(walking.index.values)
-vx = np.gradient(walking['com_x'].values) / dt
-vz = np.gradient(walking['com_z'].values) / dt
-k = np.sqrt(walking['com_y'].values / g)
-fig, (top,) = figure(rows=1)
-top.plot(walking['com_z'], walking['com_x'], label='the bob: centre of mass')
-top.plot(walking['com_z'] + vz * k, walking['com_x'] + vx * k, alpha=0.6,
-         label='where it comes to rest: the capture point')
-for side, mark in (('left', 'C2'), ('right', 'C3')):
-    down = walking[walking[side] > 60.0]
-    top.plot(down[side + '_z'], down[side + '_x'], '.', color=mark, markersize=3,
-             label=side + ' ball, bearing')
-top.set_xlabel('on, m')
-top.set_ylabel('across, m')
-top.set_ylim(-0.25, 0.25)
-top.legend(loc='upper left', fontsize=8)
-show(fig)'''),
+steady = walking[walking.index > walking.index[0] + 3.0]
+fig, (top, bottom) = figure(rows=2, sharex=True)
+top.plot(steady.index, steady['swing_on'], label='swing on')
+top.plot(steady.index, steady['swing_across'], label='swing across')
+top.set_ylabel('deg')
+top.legend(loc='upper left')
+bottom.plot(steady.index, steady['energy'], alpha=0.5, label='stirred, this pass')
+bottom.plot(steady.index, steady['stir'], label='stir, meaned over 2 s')
+bottom.set_ylabel('mm')
+bottom.set_xlabel('s')
+bottom.legend(loc='upper left')
+show(fig)
+print('walking steadily: stir %.2f mm, the string pulling %.3f..%.3f of her weight'
+      % (steady['energy'].mean(), steady['felt'].min(), steady['felt'].max()))'''),
     ),
     section(
         'The walk, animated',
@@ -162,7 +162,7 @@ from matplotlib import animation, pyplot
 from coaxial.graphics import gynoid
 from machine.figure import quat
 
-frames = []
+frames, follow = [], gynoid.Follow()
 until = bus['t'] + 2.0
 while bus['t'] < until:
     body.loop.write(**director.step(0.001))
@@ -171,9 +171,11 @@ while bus['t'] < until:
         angles = {j: bus[j + '.deg'] for j in JOINTS}
         turn = quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                     bus['pelvis.pose.qz'])
-        lines = gynoid.render(angles, 56, 24, yaw=60.0, colour=False,
-                              travel=bus['pelvis.pose.z'],
-                              root=((bus['pelvis.pose.x'], bus['pelvis.pose.y'], 0.0), turn))
+        z = bus['pelvis.pose.z']
+        camera = follow(z, bus['pelvis.pose.vz'], bus['t'])
+        lines = gynoid.render(angles, 56, 24, yaw=60.0, colour=False, travel=camera,
+                              root=((bus['pelvis.pose.x'], bus['pelvis.pose.y'], z - camera),
+                                    turn))
         frames.append(np.asarray(ansi.image('\\n'.join(lines), cell=(6, 12))))
 fig, (axis,) = figure(rows=1)
 axis.axis('off')
@@ -192,7 +194,7 @@ HTML(film.to_jshtml(default_mode='loop'))'''),
 from IPython.display import display
 from machine.running import Running
 
-live = Running(cadence=0.85)
+live, follow = Running(cadence=0.85), gynoid.Follow()
 view = display(None, display_id=True)
 until = time.time() + 12.0
 try:
@@ -200,8 +202,9 @@ try:
         now = live.latest()
         if now is not None:
             x, y, z = now['where']
-            lines = gynoid.render(now['angles'], 56, 24, yaw=60.0, travel=z,
-                                  root=((x, y, 0.0), quat(*now['turn'])))
+            camera = follow(z, now['speed'], now['t'])
+            lines = gynoid.render(now['angles'], 56, 24, yaw=60.0, travel=camera,
+                                  root=((x, y, z - camera), quat(*now['turn'])))
             view.update(ansi.image('\\n'.join(lines), cell=(6, 12)))
         time.sleep(0.1)
 finally:

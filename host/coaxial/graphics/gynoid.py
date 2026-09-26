@@ -542,6 +542,28 @@ def body():
     return got
 
 
+class Follow:
+
+    """A camera's place along her walk: on at her mean speed, meaned over `seconds`, and toward
+    her place four times slower - her surge shows, and a head carried evenly stands still. Tied to
+    her pelvis, the pelvis stood still and an even head swung (2026-09-26)."""
+
+    def __init__(self, seconds=1.0):
+        self.seconds, self.at = seconds, None
+
+    def __call__(self, place, speed, t):
+        """The camera's place for her at `place` going `speed`, m and m/s, at `t`, s."""
+        if self.at is None or abs(place - self.at[0]) > 1.0 or t <= self.at[2]:
+            self.at = (place, speed, t)
+            return place
+        at, mean, then = self.at
+        dt = t - then
+        mean += (speed - mean) * min(1.0, dt / self.seconds)
+        at += mean * dt + (place - at) * min(1.0, dt / (4.0 * self.seconds))
+        self.at = (at, mean, t)
+        return at
+
+
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=0.0,
            lit=None, root=None, labels=None):
     """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x

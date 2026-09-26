@@ -686,6 +686,33 @@ def test_a_body_with_mass_walks(report):
     body.disarm()
 
 
+def test_the_pendulum_between_her_ears(report):
+    """The virtual pendulum hears the head alike every way: still at an even speed, stirred only
+    along the way the head is shaken."""
+    import math
+    from machine.pendulum import Pendulum
+
+    def shaken(axis, amount):
+        pendulum = Pendulum()
+        for k in range(6000):
+            t = k / 1000.0
+            at = [0.0, 1.5, 0.9 * t]
+            if t > 3.0:
+                at[axis] += amount * math.sin(2.0 * math.pi * 1.7 * t)
+            pendulum.step(tuple(at), 0.001)
+        return pendulum
+    even = shaken(0, 0.0)
+    report.check('at an even 0.9 m/s it hangs still, pulling her weight',
+                 even.stir < 1e-9 and abs(even.felt - 1.0) < 1e-9,
+                 '%.2g mm, felt %.9f' % (even.stir, even.felt))
+    for name, axis, part in (('surged', 2, 0), ('swayed', 0, 1), ('bobbed', 1, 2)):
+        stirs = shaken(axis, 0.01).stirs
+        report.check('%s 1 cm at 1.7 Hz, it stirs that way alone' % name,
+                     stirs[part] > 0.0 and all(stirs[k] < 1e-9 * stirs[part]
+                                              for k in range(3) if k != part),
+                     'on %.3g across %.3g up %.3g mm' % stirs)
+
+
 def test_she_rises_and_walks(report):
     """The director: landed in the squat, she rises, steps off on her standing stance and walks
     on into the catwalk, the moves handing one to the next."""
@@ -976,7 +1003,7 @@ def main():
                  test_nodes_offer_then_configure, test_fitment_by_measurement,
                  test_the_body_runs_a_program, test_a_virtual_body_walks,
                  test_a_leg_by_its_foot, test_a_body_with_mass_walks,
-                 test_she_rises_and_walks,
+                 test_the_pendulum_between_her_ears, test_she_rises_and_walks,
                  test_a_model_writes_lines, test_machine_types_and_routines,
                  test_live_from_a_stream, test_a_model_streams_and_is_woken,
                  test_the_board_loops_a_joint, test_the_body_loops_on_its_boards):

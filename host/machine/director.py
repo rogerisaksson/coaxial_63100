@@ -56,6 +56,12 @@ class Director:
         self.curled = arrival.angles_of(arrival.keyframes(gait.CADENCE)[0][2])
 
     @property
+    def pendulum(self):
+        """The pendulum between her ears: how smoothly she goes (`machine.pendulum`); the
+        walker's, read by it walking and here otherwise."""
+        return self.walker.pendulum
+
+    @property
     def cadence(self):
         """The cadence asked, strides/s; `walker.cadence` is the one she walks at."""
         return self.asked
@@ -69,6 +75,7 @@ class Director:
         self.arrival.land()
         self.stage, self.fallen_at, self.caught, self.since = self.arrival.stage, None, 0.0, 0.0
         self.walker.last, self.blend, self.curl_from = None, None, None
+        self.walker.pendulum = type(self.walker.pendulum)()
         self.walker.cadence = gait.CADENCE
 
     def halt(self):
@@ -88,6 +95,8 @@ class Director:
     def step(self, dt):
         """{joint: degrees}: what whichever move has her sets now."""
         bus = self.machine.loop.bus
+        if self.stage in arrival.STAGES or self.stage == 'fallen':
+            self.pendulum.read(bus, dt)
         if self.fallen_at is None and self._fallen(bus):
             self.fallen_at, self.stage = bus['t'], 'fallen'
             self.curl_from = {j: bus.get(j + '.deg', 0.0) for j in self.curled}

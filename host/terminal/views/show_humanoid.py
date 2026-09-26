@@ -98,13 +98,15 @@ def boxes(state, now, name):
     """The side column: the body, then each limb's joints as they read back."""
     angles = now['angles'] if now else {}
     out = [hud('BODY', [
-        ('state', 'starting' if now is None else 'fallen - up again in 2 s' if now['fallen']
+        ('state', 'starting' if now is None else 'fallen - A lands her again' if now['fallen']
          else now['stage']),
         ('cadence', '%.2f strides/s' % state['cadence']),
         ('speed', '%.2f m/s' % (now['speed'] if now else 0.0)),
         ('phase', '%.2f of a stride' % (now['phase'] if now else 0.0)),
         ('soles', '%3.0f %3.0f N' % (now['loads'] if now else (0.0, 0.0))),
         ('slips', '%d' % (now['slips'] if now else 0)),
+        ('pendulum', '%.2f mm' % now['stir'] if now else '-'),
+        ('its parts', 'on %.2f  x %.2f  up %.2f' % now['stirs'] if now else '-'),
         ('physics', 'x%.1f real time' % now['ratio'] if now else '-'),
         ('drawn by', name)])]
     for subsystem in TYPES['gynoid'].body:
@@ -179,7 +181,7 @@ def main(argv=None):
     board_view = stage()
     terminal = board_view.is_terminal
     state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
-             'side': 1.0, 'last_t': None, 'called': 'strong'}
+             'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow()}
 
     def draw():
         now = body.latest()
@@ -192,9 +194,11 @@ def main(argv=None):
             art = '\n'.join(' ' * width for _ in range(height))
         else:
             x, y, z = now['where']
+            camera = state['follow'](z, now['speed'], now['t'])
             art = '\n'.join(gynoid.render(now['angles'], width, height, yaw=state['yaw'],
-                                          zoom=state['zoom'], colour=terminal, travel=z,
-                                          lit=lit, root=((x, y, 0.0), quat(*now['turn'])),
+                                          zoom=state['zoom'], colour=terminal, travel=camera,
+                                          lit=lit, root=((x, y, z - camera),
+                                                         quat(*now['turn'])),
                                           labels=labels(now, state['called'])))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name),
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('A', 'AGAIN'), ('L', 'LABELS'),
