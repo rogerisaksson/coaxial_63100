@@ -19,7 +19,7 @@ jobs:
       matrix:
         preset: [Debug, Release]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: carlosperate/arm-none-eabi-gcc-action@v1
         with:
           release: '14.2.Rel1'
@@ -36,7 +36,7 @@ jobs:
       # Both images: the application, and the bootloader it arrives through
       # (docs/BOOT.md) - each sized, both kept.
       - run: arm-none-eabi-size build/${{ matrix.preset }}/coaxial_63100.elf build/${{ matrix.preset }}/coaxial_63100_boot.elf
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coaxial_63100-${{ matrix.preset }}-elf
           path: |
@@ -44,7 +44,7 @@ jobs:
             build/${{ matrix.preset }}/coaxial_63100_boot.elf
       # The image itself on Renode's STM32H753 (board/emu): the conformance suite and the
       # wire sweeps against the ELF, CubeMX's code and the HAL included.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
