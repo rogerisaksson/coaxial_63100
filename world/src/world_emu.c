@@ -4,6 +4,7 @@
    each emulated board steps its own plant on it, so a limb's boards share one body. Scalars
    in, scalars out: nothing for P/Invoke to marshal but floats. */
 #include "world.h"
+#include "world_heat.h"
 
 #include <string.h>
 
@@ -13,6 +14,7 @@ static struct
   world_plant_t plant[WORLD_MOTORS];
   double        t[WORLD_MOTORS];     /* each plant's own time, s */
   bool          attached[WORLD_MOTORS];
+  world_heat_t  heat[WORLD_MOTORS];
 } s;
 
 /** A fresh world of `motors` loads, all free, on the ground. */
@@ -136,4 +138,42 @@ void emu_world_state(float *out)
   out[2] = s.world.velocity;
   out[3] = s.world.distance;
   out[4] = (float)s.world.t;
+}
+
+/** Board `i`'s heat, every node at `ambient`, C. */
+void emu_heat_reset(int i, float ambient)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  world_heat_init(&s.heat[i], ambient);
+}
+
+/** Board `i`'s heat on `dt` s. in: AFE_ON, MOE, the three duties, the legs' mean squares (A^2),
+    the link (V), the shaft (rpm); out: the NTC's element, the MCU's die, the A1335's die (C). */
+void emu_heat_step(int i, float dt, const float *in, float *out)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  thermal_load_t load;
+  thermal_sense_t seen;
+
+  memset(&load, 0, sizeof(load));
+  load.afe_on = in[0] != 0.0f;
+  load.switching = in[1] != 0.0f;
+  for (int k = 0; k < 3; k++)
+  {
+    load.duty[k] = in[2 + k];
+    load.phase_sq[k] = in[5 + k];
+  }
+  load.link_volts = in[8];
+  load.link_amps = -1.0f;
+  load.speed_rpm = in[9];
+  world_heat_step(&s.heat[i], &load, dt, &seen);
+  out[0] = seen.ntc_c;
+  out[1] = seen.mcu_c;
+  out[2] = seen.afe_c;
 }

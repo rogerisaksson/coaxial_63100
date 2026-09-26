@@ -43,6 +43,7 @@ from rich.text import Text
 
 from coaxial.comm.hostclock import clock_of
 from coaxial.comm.session import standing
+from coaxial.control.commission import Commissioning
 from coaxial.draw import cross_section
 from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share
 from coaxial.errors import RigError
@@ -253,8 +254,10 @@ def parse_args(argv):
     return p.parse_args(argv)
 
 
-def preflight(rig, args):
-    """Profile, parameters, source - every one checked, then written."""
+def preflight(rig, args, demo=False):
+    """Profile, parameters, source - every one checked, then written. A demo board's gains are
+    commissioning's arithmetic on its record's motor: the record's placeholders (l1 0.1, l2 100)
+    lost the rotor from standstill in 27 ms on the drive core."""
     d = rig.board.drive
     d.off()
     if args.motor:
@@ -265,12 +268,17 @@ def preflight(rig, args):
         d.configure(**drive_params)
     if model_params:
         d.model.configure(**model_params)
+    if demo:
+        written = Commissioning(rig).gains()['written']
+        args.v_inj = written.get('drv_inj_volts', args.v_inj)
+        if drive_params:
+            d.configure(**drive_params)
+    else:
+        # Injection on from the start: at standstill it is the only innovation
+        # (without it the estimate ran 71 degrees from the model's rotor).
+        d.configure(drv_inj_volts=args.v_inj,
+                    drv_eps_gain=eps_gain(d.params(), args.v_inj, d.state()['ts'] or 20e-6))
     params = d.params()
-    ts = d.state()['ts'] or 20e-6
-    # Injection on from the start: at standstill it is the only innovation
-    # (without it the estimate ran 71 degrees from the model's rotor).
-    d.configure(drv_inj_volts=args.v_inj,
-                drv_eps_gain=eps_gain(params, args.v_inj, ts))
     d.configure(source=args.source)
     say('ok', 'source', '%s%s' % (args.source, ' - the board integrates its own '
                                   'rotor' if args.source == 'model' else ''))
@@ -335,8 +343,9 @@ def _model_defaults(args):
 
 
 def demo_defaults(args, origin):
-    """What the stand-in comes up doing, and the iq step to walk it."""
-    if origin.real:
+    """What a demo board comes up doing, and the iq step to walk it: the stand-in's and the
+    emulated MCU's model carry the demo's rotor, not the record's 2e-5 placeholder."""
+    if not _screen.demo(origin):
         return BOARD_STEP
     args.start = True
     if args.hz == DEFAULT_HZ:
@@ -371,7 +380,7 @@ def _link(args):
     view_step = demo_defaults(args, origin)
     demo_stage(rig, origin)
     try:
-        return rig, preflight(rig, args), was_on, view_step
+        return rig, preflight(rig, args, _screen.demo(origin)), was_on, view_step
     except RigError as exc:
         say('fail', 'drive', str(exc))
         rig.close()

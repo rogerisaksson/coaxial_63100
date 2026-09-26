@@ -2,7 +2,7 @@
 
 /* 20-bit packets as board_angle.c sends them, four 5-bit words, MSB first. A read is answered
    in the next packet - the register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG
-   is the shaft's mechanical angle in twelve bits (native.c's), TSEN the board's temperature in
+   is the shaft's mechanical angle in twelve bits (native.c's), TSEN its die's temperature in
    eighths of a kelvin, FIELD the stand-in's magnet; the rest reads zero. Unpowered - AFE_ON
    low - it clocks out all ones, as an absent part does. */
 #include "native.h"
@@ -48,7 +48,7 @@ static uint16_t a1335_register(uint32_t reg)
     }
     case A1335_TSEN:
     {
-      const double eighths = floor((native_ntc_celsius() + 273.15) * 8.0 + 0.5);
+      const double eighths = floor((native_angle_celsius() + 273.15) * 8.0 + 0.5);
 
       return (uint16_t)((eighths < 0.0) ? 0.0 : (eighths > 4095.0) ? 4095.0 : eighths);
     }

@@ -21,6 +21,7 @@
 #include "link.h"
 #include "modbus_map.h"
 #include "native.h"
+#include "world_heat.h"
 
 #include <math.h>
 #include <string.h>
@@ -56,15 +57,10 @@ void fake_clock_step(uint32_t us);
 #define NATIVE_RANKS       2U
 #define NATIVE_FULL_CODE   65535.0
 
-/* The heat, Coaxial63100_Plant.cs's: ten steps a second, the board's lumped mass. */
+/* The heat, Coaxial63100_Plant.cs's: ten steps a second of thermal.c's network as the truth
+   (world_heat.c), in a room at 25 C. */
 #define HEAT_HZ            10U
-#define HEAT_AMBIENT_C     25.0
-#define HEAT_K_PER_W       8.33
-#define HEAT_J_PER_K       49.0
-#define HEAT_QUIESCENT_W   1.2
-#define HEAT_ON_OHMS       0.0021
-#define HEAT_NTC_TAU_S     215.0
-#define HEAT_DIE_RISE_K    8.0
+#define HEAT_AMBIENT_C     25.0f
 
 TIM_TypeDef  native_tim1;
 RCC_TypeDef  native_rcc;
@@ -112,9 +108,10 @@ static struct
     bool     it;
   } adc[NATIVE_ADCS];
 
-  double   squares;               /* A^2 s over the heat's step */
+  double   squares[BOARD_PWM_PHASES]; /* A^2 s a leg over the heat's step */
   uint64_t heat_at;
-  double   board_c;
+  world_heat_t heat;
+  thermal_sense_t seen;
 } n;
 
 /* This board's node in its world, and its shaft unwrapped: the electrical angle over the
@@ -127,6 +124,7 @@ static struct
   double   pole_pairs;
   double   electrical;
   double   mechanical;
+  double   speed;          /* rad/s mechanical */
   bool     set;
   double   degrees;
 } w;
@@ -284,16 +282,29 @@ static void native_clock_to(uint64_t at)
   }
 }
 
-/* The heat's step: conduction off the mean square, the NTC behind the board. */
+/* The heat's step on the duties, MOE, the legs' mean squares, the link and the shaft: the
+   NTC's element and the two dies read off the network. */
 static void native_heat(void)
 {
-  const double dt = 1.0 / (double)HEAT_HZ;
-  const double watts = HEAT_QUIESCENT_W + n.squares / dt * HEAT_ON_OHMS;
+  const float dt = 1.0f / (float)HEAT_HZ;
+  const float arr = (float)((TIM1->ARR != 0U) ? TIM1->ARR : 1U);
+  thermal_load_t load;
 
-  n.squares = 0.0;
-  n.board_c += dt * (watts - (n.board_c - HEAT_AMBIENT_C) / HEAT_K_PER_W) / HEAT_J_PER_K;
-  afe.ntc_c += dt / HEAT_NTC_TAU_S * (n.board_c - afe.ntc_c);
-  afe.die_c = n.board_c + HEAT_DIE_RISE_K;
+  memset(&load, 0, sizeof load);
+  load.afe_on = native_powered();
+  load.switching = (TIM1->BDTR & TIM_BDTR_MOE) != 0U;
+  for (uint8_t leg = 0U; leg < BOARD_PWM_PHASES; leg++)
+  {
+    load.duty[leg] = (float)n.active[leg] / arr;
+    load.phase_sq[leg] = (float)(n.squares[leg] / (double)dt);
+    n.squares[leg] = 0.0;
+  }
+  load.link_volts = (float)afe.dc;
+  load.link_amps = -1.0f;
+  load.speed_rpm = (float)(fabs(w.speed) * 60.0 / (2.0 * NATIVE_PI));
+  world_heat_step(&n.heat, &load, dt, &n.seen);
+  afe.ntc_c = n.seen.ntc_c;
+  afe.die_c = n.seen.mcu_c;
 }
 
 /* The plant on to `at` on the compares in force, the front end's inputs after it. */
@@ -319,11 +330,12 @@ static void native_plant_to(uint64_t at)
     turned -= 2.0 * NATIVE_PI * floor(turned / (2.0 * NATIVE_PI) + 0.5);
     w.electrical = (double)shaft[0];
     w.mechanical += turned / w.pole_pairs;
+    w.speed = (double)shaft[1];
   }
   for (uint8_t leg = 0U; leg < BOARD_PWM_PHASES; leg++)
   {
     afe.amps[leg] = got[leg];
-    n.squares += (double)got[leg] * (double)got[leg] * (double)ts;
+    n.squares[leg] += (double)got[leg] * (double)got[leg] * (double)ts;
   }
   afe.dc = got[3];
   n.plant_at = at;
@@ -514,9 +526,9 @@ bool native_powered(void)
   return Board_AfeOn();
 }
 
-double native_ntc_celsius(void)
+double native_angle_celsius(void)
 {
-  return afe.ntc_c;
+  return n.seen.afe_c;
 }
 
 /* The magnet's mechanical angle, degrees: the plant's, or as set, or an invented turn. */
@@ -802,9 +814,9 @@ void native_open(void)
   native_primask = 0U;
   memset(afe.amps, 0, sizeof afe.amps);
   afe.dc = 0.0;
-  afe.ntc_c = HEAT_AMBIENT_C;
-  afe.die_c = HEAT_AMBIENT_C + HEAT_DIE_RISE_K;
-  n.board_c = HEAT_AMBIENT_C;
+  world_heat_init(&n.heat, HEAT_AMBIENT_C);
+  n.seen.ntc_c = n.seen.mcu_c = n.seen.afe_c = HEAT_AMBIENT_C;
+  afe.ntc_c = afe.die_c = HEAT_AMBIENT_C;
   native_ts_cal[0] = (uint16_t)lround(afe_die(30.0) / afe.ref * NATIVE_FULL_CODE);
   native_ts_cal[1] = (uint16_t)lround(afe_die(110.0) / afe.ref * NATIVE_FULL_CODE);
   n.tick_at = native_cycles_per_ms();

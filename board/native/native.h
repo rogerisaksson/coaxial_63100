@@ -12,9 +12,9 @@ void native_wait(uint64_t cycles);
 void native_irq(int irq, void (*handler)(void));
 bool native_irq_enabled(int irq);
 
-/* native.c: what the parts sense - AFE_ON, the board's temperature, the shaft. */
+/* native.c: what the parts sense - AFE_ON, the A1335's die, the shaft. */
 bool native_powered(void);
-double native_ntc_celsius(void);
+double native_angle_celsius(void);
 double native_shaft_degrees(void);
 
 /* native_io.c: the pins and the SPI buses. */

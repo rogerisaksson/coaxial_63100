@@ -8,15 +8,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.cores.build import build, find_cc  # noqa: E402
+from tools.emu.world import INCLUDES, SOURCES  # noqa: E402
 
 from test_modbus_core import Report  # noqa: E402
-
-HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(os.path.dirname(HERE))
-SOURCES = [os.path.join(REPO, 'world', 'src', name) for name in ('world.c', 'world_emu.c')] + [
-    os.path.join(REPO, 'drive', 'src', name)
-    for name in ('drive.c', 'drive_math.c', 'drive_model.c', 'drive_observer.c')]
-INCLUDES = [os.path.join(REPO, 'world', 'inc'), os.path.join(REPO, 'drive', 'inc')]
 
 JOINT, ROTOR, WHEEL = 1, 2, 3
 GROUND, LIFT, VEHICLE = 0, 1, 2
@@ -38,6 +32,8 @@ def library():
     lib.emu_world_state.argtypes = [ctypes.POINTER(f)]
     lib.emu_world_motor.argtypes = [i, f, f]
     lib.emu_world_advance.argtypes = [d]
+    lib.emu_heat_reset.argtypes = [i, f]
+    lib.emu_heat_step.argtypes = [i, f, ctypes.POINTER(f), ctypes.POINTER(f)]
     return lib
 
 
@@ -114,6 +110,25 @@ def test_a_lift_climbs_on_its_thrust(report, lib):
                  'ground %.3f m; %.3f m after 1 s, the closed form %.3f' % (grounded, body[0], 0.5 * G))
 
 
+def test_the_heat_reads_as_its_observer_models_it(report, lib):
+    """A board's heat, thermal.c's network: from the room, each die over its node by its
+    watts through R_th,JC at once - 0.666 W through 40.5 K/W, 0.13 W through 3.8 with AFE_ON."""
+    load, seen = (ctypes.c_float * 10)(), (ctypes.c_float * 3)()
+    load[0] = 1.0
+    lib.emu_heat_reset(0, 25.0)
+    lib.emu_heat_step(0, 0.1, load, seen)
+    ntc, mcu, a1335 = seen
+    report.check('the NTC starts at the room, the dies over it by their junctions',
+                 abs(ntc - 25.0) < 0.01 and abs(mcu - ntc - 0.666 * 40.5) < 0.1
+                 and abs(a1335 - ntc - 0.13 * 3.8) < 0.1,
+                 'NTC %.2f, MCU %.2f, A1335 %.2f C' % (ntc, mcu, a1335))
+    for _ in range(1200):
+        lib.emu_heat_step(0, 0.1, load, seen)
+    report.check("two minutes on, the MCU's package has risen over its patch",
+                 seen[1] - seen[0] > 0.666 * 40.5 + 10.0,
+                 'MCU %.2f over the NTC' % (seen[1] - seen[0]))
+
+
 def main():
     report = Report()
     if find_cc() is None:
@@ -122,7 +137,7 @@ def main():
         return 0
     lib = library()
     for test in (test_a_joint_swings_as_a_pendulum, test_a_vehicle_rolls_back_down_its_slope,
-                 test_a_lift_climbs_on_its_thrust):
+                 test_a_lift_climbs_on_its_thrust, test_the_heat_reads_as_its_observer_models_it):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, lib)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

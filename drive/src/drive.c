@@ -11,6 +11,8 @@
 #define TWO_PI_F  6.2831853f
 #define INV_SQRT3 0.57735027f
 
+static float bemf_weight(const drive_t *d, float speed);
+
 void drive_defaults(drive_params_t *p)
 {
   /* Placeholders. */
@@ -125,6 +127,15 @@ const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
     d->pol_step = 0U;
     d->pol_pos = 0.0f;
     d->pol_neg = 0.0f;
+  }
+  /* Out of a command frame with neither it nor the estimate above the
+     back-EMF's speed: the rotor observer had nothing to correct on, and the
+     frame the rotor was held in is the estimate. */
+  if ((mode == DRIVE_SENSORLESS) && ((d->mode == DRIVE_HOLD) || (d->mode == DRIVE_VOLT))
+      && (bemf_weight(d, d->omega_cmd) <= 0.0f) && (bemf_weight(d, d->omega_hat) <= 0.0f))
+  {
+    d->theta_hat = d->theta_cmd;
+    d->omega_hat = d->omega_cmd;
   }
   d->mode = mode;
   /* The chain cannot acquire a speed from nothing, so it takes the estimate

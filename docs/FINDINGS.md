@@ -369,6 +369,27 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   The squat's down ends on arrival in 0.6-0.7 s of its 2; the scan's timeouts are
   answers, not alarms (it branches). The humanoid prompt: 1 434 characters
   (2026-09-24).
+- An armed sync leaves the meter the NTC and the DC link (`read_index`): a
+  software-clocked sweep waited on phase U for ever, and METER BRIDGE's demo
+  motor froze all ten meters on the emulator. The page runs no motor
+  (2026-09-26).
+- The rotor observer's demo on an emulated board ran the record's placeholders
+  (J 2e-5, l1 0.1, l2 100): sensorless from standstill lost the rotor in 27 ms
+  on the drive core, and the hold's hand-over started on a free-running
+  estimate (-38 rad/s) and tripped at 70 A. Commissioning's arithmetic
+  (l1 0.025, l2 7.9, 0.16 V at fs/2, crossover 180 rad/s) and the held frame as
+  the estimate: 1 600-2 000 frames, no trip, native and emulator (2026-09-26).
+- The emulated heat was one lumped node, the MCU die 8 K over it; the
+  observer's model puts 0.666 W through 22.5 + 40.5 K/W, 42 K. Both dies read
+  colder than modelled and the NTC's inversion (x12 at 30 s, x27 at 2 s)
+  threw the V patch to 5 C. The plant runs thermal.c's network as truth
+  (world_heat.c): the NTC within 0.25 K under the demo's 30 A, driver U 26-100 C,
+  CONVERGING in 4 min on native (2026-09-26).
+- The attitude's tumble turned 140 and 280 deg/s on the emulator and native
+  (2.56 s); the stand-in stepped it a read, a turn in 1.28 s at 200 reads/s.
+  25.6 s on the clock: 31 deg/s (2026-09-26).
+- Renode prints a peripheral's C# compile error on its console only: the
+  emulator "did not answer" and the rig fell back to the stand-in (2026-09-26).
 
 ## Local model
 

@@ -38,14 +38,18 @@ Open work. Measured results are in FINDINGS.
 
 - native://: a limb's world stands on a fixed mount, as board/emu's: the
   body's balance and gait come from the SIL (`Limb.imu`, the world's
-  `emu_world_motor`); the AFE, heat, A1335 and BNO085 repeat board/emu's C#,
-  one source for both wanted; one Transport a rig on a URL bus, the limb keeping
-  t3.5 for them; not yet the fallback where nothing answers (Renode is).
+  `emu_world_motor`); the AFE, A1335 and BNO085 repeat board/emu's C# (the
+  heat is world_heat.c's), one source for both wanted; one Transport a rig on
+  a URL bus, the limb keeping t3.5 for them; not yet the fallback where
+  nothing answers (Renode is).
 - Gynoid (`machine.director`): the start from standing holds at 0.85
   strides/s only, the stop falls on over the front foot. A pendulum observer,
   the capture point (the CoM plus its speed times sqrt(h/g)), to say when to
   lift a foot, where to set it and when she is still; STEP_D is 0.057 of its
   0.29 s.
+- The meter under the drive: `read_index` serves the NTC and the DC link
+  from the latched sample, the phases could join them; a software sweep over a
+  channel the drive locks out waits without a word.
 - Debug is `-O0`; `-Og` is a measurement away (LOOP counters, keepalive gap).
 - `intent.py` has no thermal kind: warmth questions become an NTC read.
   Measure against the live model before landing.

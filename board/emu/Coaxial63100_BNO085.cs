@@ -6,7 +6,7 @@
 // starts that report on channel 3 at its interval in virtual time, behind a timebase
 // reference: accelerometer Q8 m/s^2, gyroscope Q9 rad/s, magnetic field Q4 uT, rotation
 // vectors Q14. It moves: the stand-in's tumble in virtual time, q = q_y(pitch) q_x(roll)
-// q_z(yaw), a turn of roll and two of pitch in 2.56 s - and the gyroscope, the body rate each
+// q_z(yaw), a turn of roll and two of pitch in 25.6 s - and the gyroscope, the body rate each
 // tick's turn gives, gravity and the field read in the body frame off that one attitude. A reading set through the monitor
 // (AccelX .. QuatReal) pipes the values given instead; the rates at zero hold it still. AFE_ON
 // powers it.
@@ -37,8 +37,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public GPIO Interrupt { get; }
 
         /// <summary>The tumble's angle rates, rad/s: roll about x, pitch about y, yaw about z.</summary>
-        public double RollRate { get; set; } = 2.0 * Math.PI / 2.56;
-        public double PitchRate { get; set; } = 4.0 * Math.PI / 2.56;
+        public double RollRate { get; set; } = 2.0 * Math.PI / 25.6;
+        public double PitchRate { get; set; } = 4.0 * Math.PI / 25.6;
         public double YawRate { get; set; }
 
         /// <summary>Whether the readings are piped - set through the monitor - not moved.</summary>

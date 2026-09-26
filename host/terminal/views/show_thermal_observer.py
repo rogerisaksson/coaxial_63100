@@ -23,6 +23,7 @@ from coaxial.kalman import thermal_ident
 from coaxial.model.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
+from terminal.ui.demo import stop_motor, turn_motor
 from terminal.ui.screen import Feed, closing, mode_of, run_view, say, stamp_crosses, visible
 from terminal.ui.stage import boot, frame_of, hud, stage
 
@@ -425,12 +426,17 @@ def main():
                                    off_s=PAGE_CYCLE_OFF_S)
         say('ok' if origin.real else 'warn', 'link',
             '%s - %s' % (origin.label, standing(origin)))
+        motor = None
         if origin.real and _screen.demo(origin):
             # The emulated MCU: its thermometers read with the AFE on, and nothing to gate.
             rig.board.afe.on()
             # A sample every 2 s of its time: its 30 s are minutes of the wall's.
             rig.board.thermal.configure(sample_every_s=2.0)
             say('ok', 'AFE_ON', 'on - the emulated board, its thermometers read')
+            # The stand-in's load cycle on the emulated board: the demo motor's current through
+            # the legs, its heat thermal.c's network (world_heat.c).
+            motor = turn_motor(rig, origin)
+            say('ok', 'load', 'the demo motor, 0 to 30 A and back')
         else:
             say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
         say('wait', 'drawing', 'Q closes it, ESC goes back to the menu')
@@ -466,6 +472,8 @@ def main():
             # board each time made the view unreadable. On the feed's thread:
             # the link need not hold a frame.
             with suppress(NoReplyError, RigError):
+                if motor is not None:
+                    motor()
                 got = rig.board.thermal.state()
                 # The identification moves once a sample, every thirty seconds
                 # on the board: one round trip every few seconds is plenty, and
@@ -501,7 +509,7 @@ def main():
             leaving = run_view(board_view, console, period, a.frames, draw)
         finally:
             feed.stop()
-            done = put_back(rig, load)
+            done = put_back(rig, load) + (stop_motor(rig) if motor is not None else [])
             sys.stdout.write('\n')
             closing(done, console, 0)
 

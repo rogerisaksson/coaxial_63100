@@ -9,7 +9,8 @@ the loop, the screen and the cable. Nothing here judges a reading: the face
 is the converter's own scale (invariant 10).
 
 AFE_ON is on for the run (invariant 9) and put back the way it was found on
-the way out.
+the way out. No demo motor: the drive's injected group locks the meter out of
+eight of the ten channels, and the sweep waited on phase U for ever (2026-09-26).
 """
 import argparse
 import collections
@@ -22,7 +23,6 @@ from coaxial.draw import desk
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.demo import stop_motor, turn_motor
 from terminal.ui.screen import Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, stage
 from terminal.views.desk.boxes import (buffer_box, chain_box, digital_box, legend,
@@ -96,7 +96,6 @@ def main(argv=None):
 def watch(rig, args, layout, chain, params):
     """Draw it until Q, ESC or the frame count runs out."""
     origin = rig.origin
-    demo = turn_motor(rig, origin)
     # The bar fills the window: at 38 columns the face floated in the frame.
     try:
         columns = os.get_terminal_size().columns
@@ -125,8 +124,6 @@ def watch(rig, args, layout, chain, params):
 
     def read():
         now = time.time()
-        if demo is not None:
-            demo(now)
         if clock['state'] is None or now - clock['at'] > 0.5:
             # The buffer gauge moves slowly by construction, and this is a
             # whole round trip spent on it.
@@ -184,8 +181,6 @@ def watch(rig, args, layout, chain, params):
         # one serial transport.
         feed.stop()
         done = [('acquisition', 'task stopped')]
-        if demo is not None:
-            done += stop_motor(rig)
         rig.close()
         done.append(('AFE_ON', 'back the way it was found'))
         sys.stdout.write('\n')

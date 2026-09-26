@@ -142,9 +142,8 @@ def _spread(meta, mean, powered, extra=0.0):
     return {'mean_raw': mean, 'min_raw': int(low), 'max_raw': int(high)}
 
 
-#: Turns per 256 reads about the board's own X and Y. Whole numbers on
-#: purpose: the sequence byte wraps at 256, and a rate that did not finish a
-#: turn there would snap the board back to level once a cycle.
+#: Turns per TUMBLE_S about the board's own X and Y. Whole numbers on
+#: purpose: the attitude comes back where it started once a period.
 #:
 #: About X and Y rather than Z, which is what this used to do. A rotation
 #: about Z is the board spinning in its own plane - roll and pitch stay at
@@ -154,11 +153,16 @@ def _spread(meta, mean, powered, extra=0.0):
 ROLL_TURNS = 1.0
 PITCH_TURNS = 2.0
 
+#: The tumble's period, s, the emulator's and native's too: at 2.56 s the attitude page
+#: turned 140 and 280 deg/s, and stepped a read the stand-in turned once in 1.28 s at the
+#: page's 200 reads a second (2026-09-26).
+TUMBLE_S = 25.6
 
-def _tumble(seq, unit):
-    """(i, j, k, real) counts for the stand-in's attitude, at this sequence."""
-    roll = seq * ROLL_TURNS * 2.0 * math.pi / 256.0
-    pitch = seq * PITCH_TURNS * 2.0 * math.pi / 256.0
+
+def _tumble(seconds, unit):
+    """(i, j, k, real) counts for the stand-in's attitude, `seconds` into its tumble."""
+    roll = seconds * ROLL_TURNS * 2.0 * math.pi / TUMBLE_S
+    pitch = seconds * PITCH_TURNS * 2.0 * math.pi / TUMBLE_S
     sin_r, cos_r = math.sin(roll / 2.0), math.cos(roll / 2.0)
     sin_p, cos_p = math.sin(pitch / 2.0), math.cos(pitch / 2.0)
 

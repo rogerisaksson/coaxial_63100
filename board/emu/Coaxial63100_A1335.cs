@@ -3,7 +3,7 @@
 // next packet - the register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG is the
 // shaft's mechanical angle in twelve bits: the plant's once a world turns it, `Degrees` once the
 // monitor sets it, else an invented turn every `TurnSeconds` of virtual time, as the stand-in's -
-// one angle for ever looks like a dead link. TSEN the board's temperature in eighths of a
+// one angle for ever looks like a dead link. TSEN its die's temperature in eighths of a
 // kelvin; FIELD `Gauss`; the rest reads zero. Unpowered - AFE_ON low - it clocks out all ones,
 // as an absent part does.
 
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     var turns = Degrees / 360.0;
                     return (ushort)((int)Math.Floor((turns - Math.Floor(turns)) * Counts) & (Counts - 1));
                 case Tsen:
-                    return (ushort)Math.Max(0, Math.Min(0x0FFF, Math.Round((afe.NtcCelsius + 273.15) * 8.0)));
+                    return (ushort)Math.Max(0, Math.Min(0x0FFF, Math.Round((afe.AngleCelsius + 273.15) * 8.0)));
                 case Field:
                     return (ushort)Math.Max(0, Math.Min(0x0FFF, Math.Round(Gauss)));
                 default:

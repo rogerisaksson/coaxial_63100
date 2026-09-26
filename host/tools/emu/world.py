@@ -22,10 +22,12 @@ PROFILES = os.path.join(REPO, 'host', 'coaxial', 'profiles')
 #: Where the plant hangs: TIM1_CH1, PE9.
 PLANT = 'sysbus.gpioPortE.plant'
 
-SOURCES = [os.path.join(REPO, 'world', 'src', name) for name in ('world.c', 'world_emu.c')] + [
+SOURCES = [os.path.join(REPO, 'world', 'src', name)
+           for name in ('world.c', 'world_emu.c', 'world_heat.c')] + [
     os.path.join(REPO, 'drive', 'src', name)
-    for name in ('drive.c', 'drive_math.c', 'drive_model.c', 'drive_observer.c')]
-INCLUDES = [os.path.join(REPO, 'world', 'inc'), os.path.join(REPO, 'drive', 'inc')]
+    for name in ('drive.c', 'drive_math.c', 'drive_model.c', 'drive_observer.c')] + [
+    os.path.join(REPO, 'thermal', 'src', 'thermal.c')]
+INCLUDES = [os.path.join(REPO, part) for part in ('world/inc', 'drive/inc', 'thermal/inc')]
 
 #: world.h's enums by the names the files use.
 BODIES = {'ground': 0, 'lift': 1, 'vehicle': 2}

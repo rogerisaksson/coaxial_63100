@@ -7,7 +7,7 @@
    Set Feature (0xFD) answers 0xFC and starts that report on channel 3 at its interval, behind
    a timebase reference: accelerometer Q8 m/s^2, gyroscope Q9 rad/s, magnetic field Q4 uT,
    rotation vectors Q14. It moves: the stand-in's tumble in virtual time, a turn of roll and
-   two of pitch in 2.56 s, gravity and the field in the body frame off that attitude; readings
+   two of pitch in 25.6 s, gravity and the field in the body frame off that attitude; readings
    piped from the host (native_imu) are given instead. AFE_ON powers it. */
 #include "native.h"
 
@@ -92,8 +92,8 @@ void bno085_open(void)
 {
   memset(&b, 0, sizeof b);
   b.attitude[0] = 1.0;
-  b.roll_rate = BNO_TWO_PI / 2.56;
-  b.pitch_rate = 2.0 * BNO_TWO_PI / 2.56;
+  b.roll_rate = BNO_TWO_PI / 25.6;
+  b.pitch_rate = 2.0 * BNO_TWO_PI / 25.6;
 }
 
 static void bno_send(uint8_t channel, const uint8_t *cargo, uint32_t n)

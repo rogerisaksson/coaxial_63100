@@ -767,12 +767,14 @@ def test_tumble(report):
     view running without a board."""
     from coaxial.draw import orientation as o
     from coaxial.simulated import _tumble
+    from coaxial.simulated.values import TUMBLE_S
 
-    def angles(seq):
-        return o.euler_degrees(tuple(c / 16384.0 for c in _tumble(seq, 16384)))
+    def angles(step):
+        return o.euler_degrees(tuple(c / 16384.0 for c in _tumble(step * TUMBLE_S / 256.0,
+                                                                   16384)))
 
-    unit = [abs(sum((c / 16384.0) ** 2 for c in _tumble(seq, 16384)) - 1.0)
-            for seq in range(0, 256, 8)]
+    unit = [abs(sum((c / 16384.0) ** 2 for c in _tumble(t, 16384)) - 1.0)
+            for t in (TUMBLE_S * k / 32.0 for k in range(32))]
     report.check('every attitude it invents is a unit quaternion',
                  max(unit) < 1e-3, '%.2e worst' % max(unit))
 
@@ -783,9 +785,8 @@ def test_tumble(report):
                  all(span > 90.0 for span in travel),
                  'roll %.0f, pitch %.0f, yaw %.0f' % tuple(travel))
 
-    # The sequence byte wraps at 256.
     ends = [abs(a - b) for a, b in zip(angles(255), angles(0))]
-    report.check('and it comes back where it started, so the wrap is smooth',
+    report.check('and it comes back where it started once a period',
                  all(gap < 5.0 or gap > 355.0 for gap in ends),
                  '%.1f, %.1f, %.1f apart' % tuple(ends))
 

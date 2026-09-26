@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             PhaseUAmps = PhaseVAmps = PhaseWAmps = 0.0;
             DcBusVolts = GateVolts = 0.0;
             Rail5Volts = 5.0;
-            NtcCelsius = DieCelsius = 25.0;
+            NtcCelsius = DieCelsius = AngleCelsius = 25.0;
             Draw();
             // The die sensor's factory points, where __LL_ADC_CALC_TEMPERATURE reads them.
             machine.SystemBus.WriteWord(TsCal1Address, (ushort)DieCode(30.0));
@@ -58,6 +58,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         public double Rail5Volts { get; set; }
         public double GateVolts { get; set; }
         public double DieCelsius { get; set; }
+        /// <summary>The A1335's die, C: its TSEN.</summary>
+        public double AngleCelsius { get; set; }
 
         // The networks: the schematic's values (board_cal.c's defaults trace them).
         public double ReferenceVolts { get; set; } = 3.3;

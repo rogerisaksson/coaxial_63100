@@ -490,6 +490,33 @@ def test_virtual_sensorless(r, lib):
         d.close()
 
 
+def test_hold_handover(r, lib):
+    """Hold to sensorless at standstill: the estimate starts on the held frame,
+    not where it free-ran - the rotor observer page's demo tripped there."""
+    d = Drive(lib)
+    v_inj = 2.0
+    try:
+        d.model_params(theta0=1.0, b=5e-4)
+        d.source(True)
+        d.params(inj_volts=v_inj, inj_periods=1, w_lo=150.0, w_hi=300.0,
+                 eps_gain=eps_gain(v_inj, 20e-6, 25e-6),
+                 **loop_gains(0.05, 20e-6, 500.0), **pll_gains(60.0, 2 * TS))
+        d.set_theta(3.0)
+        d.setpoints(id_ref=5.0, iq_ref=0.0, theta=1.0, omega_target=0.0)
+        d.mode(HOLD)
+        for _ in range(int(0.05 / TS)):
+            d.step_virtual()
+        d.setpoints(id_ref=0.0)
+        d.mode(SENSORLESS)
+        r.check('the estimate starts on the frame the rotor was held in',
+                abs(wrap_pi(d.state()['theta_hat'] - 1.0)) < 1e-3, d.state()['theta_hat'])
+        tripped = any(d.step_virtual()[0] for _ in range(int(0.2 / TS)))
+        err = wrap_pi(d.state()['theta_hat'] - d.model_state()['theta'])
+        r.check('and stays on the rotor', not tripped and abs(err) < 0.1, (tripped, err))
+    finally:
+        d.close()
+
+
 def test_observer_chain(r, lib):
     """The firmware's observer chain against the Python it was ported from."""
     from coaxial.model.blocks import CurrentLoop, Plant, Signals
@@ -619,7 +646,8 @@ ROSTER = (test_math, test_mode_refusals, test_current_loop,
           test_trip_and_stage, test_if_spin, test_injection_map,
           test_saturation_map, test_observer_standstill, test_polarity,
           test_deadtime, test_sensorless_run, test_moments,
-          test_model_agrees, test_virtual_sensorless, test_montecarlo)
+          test_model_agrees, test_virtual_sensorless, test_hold_handover,
+          test_montecarlo)
 
 
 def main():

@@ -41,12 +41,13 @@ SOURCES = fakeboard.SOURCES + [
                  'board_sto.c', 'board_angle.c', 'board_imu.c', 'board_drive.c', 'board_ctrl.c',
                  'board_log.c')] + [
     os.path.join(REPO, 'board', 'native', name)
-    for name in ('native.c', 'native_io.c', 'native_a1335.c', 'native_bno085.c')]
+    for name in ('native.c', 'native_io.c', 'native_a1335.c', 'native_bno085.c')] + [
+    os.path.join(REPO, 'world', 'src', 'world_heat.c')]
 
 #: board/native first - its stm32h7xx.h, main.h and board_irq.h stand in for the part's - then
 #: board/inc, whose board_hw.h the board layer takes over board/fake's.
 INCLUDES = ([os.path.join(REPO, 'board', 'native'), os.path.join(REPO, 'board', 'inc')]
-            + fakeboard.INCLUDES)
+            + fakeboard.INCLUDES + [os.path.join(REPO, 'world', 'inc')])
 
 #: A DMA stream holds a buffer's low 32 bits (board_angle.c): native_io.c restores the rest.
 EXTRA = ('-Wno-pointer-to-int-cast',)

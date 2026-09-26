@@ -8,11 +8,10 @@
 // skipped: the handlers whole, the polling loop throttled - 16.5 -> 2.5 wall s a virtual s under
 // the drive at 0.5 us, 50 000 updates a virtual second kept (2026-09-25).
 // The period is the PWM's while the stage is driven or an ADC waits, 1 kHz while the world only
-// coasts. The board's heat is one lumped node on its measured 8.33 K/W and 49 J/K
-// (coaxial.model.thermal), fed a quiescent 1.2 W - the model's 10 K calibration rise - and the
-// FETs' conduction the periods saw; the NTC follows it at its 215 s lag and the MCU die sits over
-// it, written into the front end ten times a virtual second. `Thermal` false leaves the two to
-// the monitor. It hangs on TIM1_CH1, PE9, and follows TIM1 (Coaxial63100_TIM1.cs) through what
+// coasts. The board's heat is thermal.c's network in the world library (world_heat.c), the truth
+// its observer is judged by: the duties, MOE, the legs' mean squares, the link and the shaft ten
+// times a virtual second, the NTC's element and the two dies written into the front end.
+// `Thermal` false leaves the three to the monitor. It hangs on TIM1_CH1, PE9, and follows TIM1 (Coaxial63100_TIM1.cs) through what
 // is written to it.
 
 using System;
@@ -71,7 +70,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             heat = new LimitTimer(machine.ClockSource, HeatHz, this, "heat", limit: 1,
                                   workMode: WorkMode.Periodic, eventEnabled: true);
             heat.LimitReached += Heat;
-            board = ntc = Ambient;
             heat.Enabled = true;
         }
 
@@ -99,6 +97,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             plantStep = Export<PlantStep>("emu_plant_step");
             plantState = Export<PlantState>("emu_plant_state");
             worldState = Export<WorldState>("emu_world_state");
+            heatReset = Export<HeatReset>("emu_heat_reset");
+            heatStep = Export<HeatStep>("emu_heat_step");
         }
 
         public void World(string library, int motors)
@@ -138,23 +138,14 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// timer event skipped, time passing with nothing run. 0 runs it all.</summary>
         public double LoopSlice { get; set; }
 
-        /// <summary>Whether the board's heat drives the NTC and the MCU die.</summary>
+        /// <summary>Whether the board's heat drives the NTC and the two dies.</summary>
         public bool Thermal { get; set; } = true;
 
         /// <summary>The room, C.</summary>
         public double Ambient { get; set; } = 25.0;
 
-        public double BoardKPerW { get; set; } = 8.33;
-        public double BoardJPerK { get; set; } = 49.0;
-        public double QuiescentWatts { get; set; } = 1.2;
-        /// <summary>A leg's conduction resistance, ohm: its FET on (IAUCN10S7N021, 2.1 mOhm).</summary>
-        public double OnOhms { get; set; } = 0.0021;
-        public double NtcTauSeconds { get; set; } = 215.0;
-        /// <summary>The MCU die over the board, K.</summary>
-        public double DieRiseK { get; set; } = 8.0;
-
-        /// <summary>The board node and the NTC, C.</summary>
-        public string Temperatures => string.Format("{0:F3} {1:F3}", board, ntc);
+        /// <summary>The NTC's element, the MCU's die and the A1335's, C.</summary>
+        public string Temperatures => string.Format("{0:F3} {1:F3} {2:F3}", seen[0], seen[1], seen[2]);
 
         /// <summary>This board's place in the world: its motor's index.</summary>
         public int Node { get; set; }
@@ -273,7 +264,10 @@ namespace Antmicro.Renode.Peripherals.Analog
                 afe.PhaseVAmps = got[1];
                 afe.PhaseWAmps = got[2];
                 afe.DcBusVolts = got[3];
-                squares += got[0] * got[0] + got[1] * got[1] + got[2] * got[2];
+                for(var k = 0; k < 3; k++)
+                {
+                    squares[k] += got[k] * got[k];
+                }
                 periods++;
                 if(angle != null)
                 {
@@ -300,17 +294,34 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// <summary>A tenth of a virtual second of the board's heat.</summary>
         private void Heat()
         {
-            var dt = 1.0 / HeatHz;
-            var conduction = periods > 0 ? squares / periods * OnOhms : 0.0;
-            squares = 0.0;
-            periods = 0;
-            board += dt * (QuiescentWatts + conduction - (board - Ambient) / BoardKPerW) / BoardJPerK;
-            ntc += dt / NtcTauSeconds * (board - ntc);
-            if(Thermal)
+            var n = Math.Max(1L, periods);
+            var arr = (float)Math.Max(1U, tim1.ReadDoubleWord(Arr));
+            load[0] = afe.Powered ? 1f : 0f;
+            load[1] = (bdtr & MoeBit) != 0 ? 1f : 0f;
+            load[2] = tim1.ReadDoubleWord(Ccr1) / arr;
+            load[3] = tim1.ReadDoubleWord(Ccr2) / arr;
+            load[4] = tim1.ReadDoubleWord(Ccr3) / arr;
+            for(var k = 0; k < 3; k++)
             {
-                afe.NtcCelsius = ntc;
-                afe.DieCelsius = board + DieRiseK;
+                load[5 + k] = (float)(squares[k] / n);
+                squares[k] = 0.0;
             }
+            periods = 0;
+            load[8] = (float)afe.DcBusVolts;
+            load[9] = Math.Abs(shaft[1]) * 60f / (2f * (float)Math.PI);
+            if(native == IntPtr.Zero || !Thermal)
+            {
+                return;
+            }
+            if(!heated)
+            {
+                heatReset(Node, (float)Ambient);
+                heated = true;
+            }
+            heatStep(Node, 1f / HeatHz, load, seen);
+            afe.NtcCelsius = seen[0];
+            afe.DieCelsius = seen[1];
+            afe.AngleCelsius = seen[2];
         }
 
         private static T Export<T>(string name) where T : Delegate
@@ -336,6 +347,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         private delegate void PlantState(int i, [Out] float[] got);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void WorldState([Out] float[] got);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void HeatReset(int i, float ambient);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void HeatStep(int i, float dt, float[] load, [Out] float[] seen);
 
         private static IntPtr native;
         private static WorldReset worldReset;
@@ -345,15 +360,19 @@ namespace Antmicro.Renode.Peripherals.Analog
         private static PlantStep plantStep;
         private static PlantState plantState;
         private static WorldState worldState;
+        private static HeatReset heatReset;
+        private static HeatStep heatStep;
 
         private readonly IMachine machine;
         private readonly Coaxial63100_AFE afe;
         private readonly LimitTimer timer;
         private readonly LimitTimer heat;
-        private double board;
-        private double ntc;
-        private double squares;
+        private readonly double[] squares = new double[3];
         private long periods;
+        // AFE_ON, MOE, the duties, the legs' mean squares, the link, the shaft's rpm: emu_heat_step's.
+        private readonly float[] load = new float[10];
+        private readonly float[] seen = { 25f, 25f, 25f };
+        private bool heated;
 
         private const uint HeatHz = 10;
         /// <summary>The world's step while nothing drives it, Hz.</summary>

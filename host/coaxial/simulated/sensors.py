@@ -26,7 +26,7 @@ class SimulatedImu(ImuSensor):
         self._seq = 0
         self._enabled = {}
         self._updates = 0.0
-        self._at = time.monotonic()
+        self._at = self._born = time.monotonic()
         #: The last Set Feature that took, zero before one: the board's record.
         self._asked = (0, 0)
         self._held = False
@@ -67,7 +67,7 @@ class SimulatedImu(ImuSensor):
 
         if 0x05 in wanted:
             cargo += bytes([0x05, self._seq, 0x03, 0])
-            for value in _tumble(self._seq, self.UNIT) + (0,):
+            for value in _tumble(time.monotonic() - self._born, self.UNIT) + (0,):
                 cargo += int(value).to_bytes(2, 'little', signed=True)
 
         return {'channel': 3, 'channel_name': CHANNELS[3],
