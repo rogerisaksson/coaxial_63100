@@ -1,5 +1,29 @@
 # Architecture
 
+## Data-oriented design
+
+One shape on both sides: data in, a step, data out; memory laid once; the
+order a table; the hardware at one edge.
+
+| | Target, C11 | Host, Python |
+| --- | --- | --- |
+| Data | naked structs: a state, an input, an output | `dataclass(slots=True)`, or a numpy structured array: a field a register or channel, a row a board |
+| Logic | `void x_step(x_t *s, const x_in_t *in, x_out_t *out)`, its arguments only | `def step(s, u) -> NDArray`, its rows and inputs only, every row at once |
+| Memory | static; no heap | laid before the loop: frame, log, buffers |
+| Flow | tables of function pointers, walked in order | the cycle: poll, payload into memory, steps in table order, memory out and written |
+| I/O | the board layer fills buffers (the sync's latch, DMA, the IMU's record); the cores read them | one edge, `poll` and `push` over `Transport` (framing, CRC, turnaround): a lost frame leaves its row, counted, never raised into a step |
+
+- Target: the cores (`drive thermal ctrl daq filter`) are portable C11, built
+  and tested on this host; `drive_step(d, in, stage, out)` is one PWM
+  period; `ctrl.c` steps a part through `FILTERS`, `ESTIMATORS`,
+  `REGULATORS`, tables by kind.
+- Host: `machine/cyclic.py` - `frame`, `state`, the parts as steps
+  (`STEPS`, `machine.parts` step for step), `edge`, `poll`, `push`, `cycle`,
+  `run`. `machine.Loop` is the same pass over a dict of channels, for the
+  panel and the sequencer.
+- Notebooks: the paper's loop in four cells - memory, steps, table, cycle
+  (`notebook_examples/cycle.ipynb`).
+
 ## Firmware
 
 ```text
@@ -67,9 +91,11 @@ motor/              pmsm (Motor, Parameters, TWO_PI, RAD_S_PER_RPM), catalog
 machine/            any board family, no import of one: roles (Input, Stream,
                     Output, Controller; Part: Filter, Estimator, Regulator),
                     errors, controller (Loop of Feedbacks over float channels),
-                    parts, panel, wiring, ansi (palette), sequencer (lines or
-                    tables: a step waits for its targets or tests, its time a
-                    timeout; jumps, routines; check, summary), alarms (L H
+                    cyclic (that pass data-oriented: a frame, the parts as
+                    steps over rows, one edge), parts, panel, wiring, ansi
+                    (palette), sequencer (lines or tables: a step waits for
+                    its targets or tests, its time a timeout; jumps,
+                    routines; check, summary), alarms (L H
                     logged, LL HH and stop() trip, the sequencer's hooks), nodes
                     (Node, Nodes, FAMILIES), machine (Machine, Actuator, fit;
                     node_hz: a feedback its node runs, the host forwarding),

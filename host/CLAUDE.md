@@ -19,6 +19,9 @@
   (`machine.virtual`); `DYNAMIC`: the gynoid's figure in MuJoCo, each
   joint a drive (`machine.physics`), set every ms by `machine.walker`; the
   HUMANOID page runs her in her own process (`machine.running`).
+- A loop data-oriented: `machine.cyclic` - `frame` (a structured array, a row
+  a board), the parts as steps over rows (`STEPS`, held to `machine.parts` by
+  test_cyclic), `edge`/`poll`/`push` the only board access, `run` the cycle.
 - 3D pages raster on the GPU (`coaxial.graphics.gpu`, wgpu) where a card
   answers, else the process crew; `COAXIAL_GPU=0` forces the CPU.
 - Interfaces `Acquisition`, `PolledSensor`, `GateControl`, `BootControl`:

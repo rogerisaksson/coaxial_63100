@@ -43,40 +43,39 @@ void ctrl_part_reset(ctrl_part_t *part)
   part->primed = false;
 }
 
-float ctrl_filter(ctrl_part_t *part, float dt, float x)
+/* ---- the steps: one a kind, its part's own state and nothing else ---------------------- */
+
+static float gain(ctrl_part_t *part, float dt, float x)
 {
-  const float *p = part->p;
-
-  switch (part->kind)
-  {
-  case CTRL_GAIN:
-    return p[0] * x;
-  case CTRL_SLEW:
-    part->y += clamp(x - part->y, p[0] * dt);
-    return part->y;
-  case CTRL_WRAP:
-  {
-    float m = fmodf(x - p[0] + 180.0f, 360.0f);
-
-    return ((m < 0.0f) ? m + 360.0f : m) - 180.0f;
-  }
-  case CTRL_LOW_PASS:
-    part->y += dt / (p[0] + dt) * (x - part->y);
-    return part->y;
-  default:
-    return x;
-  }
+  (void)dt;
+  return part->p[0] * x;
 }
 
-float ctrl_estimate(ctrl_part_t *part, float dt, float measured, float command)
+static float slew(ctrl_part_t *part, float dt, float x)
+{
+  part->y += clamp(x - part->y, part->p[0] * dt);
+  return part->y;
+}
+
+static float wrap(ctrl_part_t *part, float dt, float x)
+{
+  float m = fmodf(x - part->p[0] + 180.0f, 360.0f);
+
+  (void)dt;
+  return ((m < 0.0f) ? m + 360.0f : m) - 180.0f;
+}
+
+static float low_pass(ctrl_part_t *part, float dt, float x)
+{
+  part->y += dt / (part->p[0] + dt) * (x - part->y);
+  return part->y;
+}
+
+static float speed_kalman(ctrl_part_t *part, float dt, float measured, float command)
 {
   const float *p = part->p;     /* kt j b q r */
-  float gain;
+  float gain_k;
 
-  if (part->kind != (uint8_t)CTRL_SPEED_KALMAN)
-  {
-    return measured;
-  }
   if (!part->primed)
   {
     part->primed = true;
@@ -85,10 +84,49 @@ float ctrl_estimate(ctrl_part_t *part, float dt, float measured, float command)
   }
   part->y += dt * (p[0] * command - p[2] * part->y) / p[1];
   part->was += p[3] * dt;
-  gain = part->was / (part->was + p[4]);
-  part->y += gain * (measured - part->y);
-  part->was *= 1.0f - gain;
+  gain_k = part->was / (part->was + p[4]);
+  part->y += gain_k * (measured - part->y);
+  part->was *= 1.0f - gain_k;
   return part->y;
+}
+
+static float pi(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
+                bool held)
+{
+  const float *p = part->p;     /* kp ki limit */
+  const float e = setpoint - measured;
+  const float raw = p[0] * e + part->x;
+  const float u = clamp(raw, p[2]);
+
+  (void)accel;
+  (void)held;
+  if (u == raw)
+  {
+    part->x += p[1] * e * dt;
+  }
+  return u;
+}
+
+static float angle_hold(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
+                        bool held)
+{
+  const float *p = part->p;     /* poles theta0 ki trim most */
+
+  (void)accel;
+  (void)held;
+  part->x = clamp(part->x + p[2] * (setpoint - measured) * dt, p[3]);
+  part->at += clamp(setpoint + part->x - part->at, p[4]);
+  return p[1] + part->at * CTRL_RAD_DEG * p[0];
+}
+
+static float direct(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
+                    bool held)
+{
+  (void)dt;
+  (void)measured;
+  (void)accel;
+  (void)held;
+  return clamp(setpoint, part->p[0]);
 }
 
 static float speed_pi(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
@@ -121,36 +159,48 @@ static float speed_pi(ctrl_part_t *part, float dt, float setpoint, float measure
   return u;
 }
 
+/* ---- the tables: a slot's step by kind, NULL where the kind passes its input through ------ */
+
+typedef float (*ctrl_filter_fn)(ctrl_part_t *part, float dt, float x);
+typedef float (*ctrl_estimate_fn)(ctrl_part_t *part, float dt, float measured, float command);
+typedef float (*ctrl_regulate_fn)(ctrl_part_t *part, float dt, float setpoint, float measured,
+                                  float accel, bool held);
+
+static const ctrl_filter_fn FILTERS[CTRL_KINDS] = {
+  [CTRL_GAIN] = gain, [CTRL_SLEW] = slew, [CTRL_WRAP] = wrap, [CTRL_LOW_PASS] = low_pass
+};
+
+static const ctrl_estimate_fn ESTIMATORS[CTRL_KINDS] = {
+  [CTRL_SPEED_KALMAN] = speed_kalman
+};
+
+static const ctrl_regulate_fn REGULATORS[CTRL_KINDS] = {
+  [CTRL_PI] = pi, [CTRL_ANGLE_HOLD] = angle_hold, [CTRL_DIRECT] = direct,
+  [CTRL_SPEED_PI] = speed_pi
+};
+
+float ctrl_filter(ctrl_part_t *part, float dt, float x)
+{
+  const ctrl_filter_fn step = (part->kind < (uint8_t)CTRL_KINDS) ? FILTERS[part->kind] : NULL;
+
+  return (step != NULL) ? step(part, dt, x) : x;
+}
+
+float ctrl_estimate(ctrl_part_t *part, float dt, float measured, float command)
+{
+  const ctrl_estimate_fn step = (part->kind < (uint8_t)CTRL_KINDS) ? ESTIMATORS[part->kind]
+                                                                  : NULL;
+
+  return (step != NULL) ? step(part, dt, measured, command) : measured;
+}
+
 float ctrl_regulate(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
                     bool held)
 {
-  const float *p = part->p;
+  const ctrl_regulate_fn step = (part->kind < (uint8_t)CTRL_KINDS) ? REGULATORS[part->kind]
+                                                                  : NULL;
 
-  switch (part->kind)
-  {
-  case CTRL_PI:                 /* kp ki limit */
-  {
-    float e = setpoint - measured;
-    float raw = p[0] * e + part->x;
-    float u = clamp(raw, p[2]);
-
-    if (u == raw)
-    {
-      part->x += p[1] * e * dt;
-    }
-    return u;
-  }
-  case CTRL_ANGLE_HOLD:         /* poles theta0 ki trim most */
-    part->x = clamp(part->x + p[2] * (setpoint - measured) * dt, p[3]);
-    part->at += clamp(setpoint + part->x - part->at, p[4]);
-    return p[1] + part->at * CTRL_RAD_DEG * p[0];
-  case CTRL_DIRECT:
-    return clamp(setpoint, p[0]);
-  case CTRL_SPEED_PI:
-    return speed_pi(part, dt, setpoint, measured, accel, held);
-  default:
-    return setpoint;
-  }
+  return (step != NULL) ? step(part, dt, setpoint, measured, accel, held) : setpoint;
 }
 
 void ctrl_feedback_reset(ctrl_feedback_t *f)

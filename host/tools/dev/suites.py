@@ -92,12 +92,15 @@ VIEWS = 'test_views.py'
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
 
+#: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
+CYCLIC = 'test_cyclic.py'
+
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, BOOT, VIEWS,
+                   BROKER, DAQ_API, CONTROLLER, CYCLIC, BOOT, VIEWS,
                    RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -120,6 +123,7 @@ JOINS = (
     (10, 'test_simulated.py'),
     (12, DAQ_API),
     (12, CONTROLLER),
+    (12, CYCLIC),
     (12, BOOT),
     (15, CORE),
     (20, SHTP),
@@ -224,8 +228,10 @@ TOUCHES = (
     ('host/coaxial/draw/dial.py',              ('test_simulated.py',)),
     ('host/coaxial/graphics/mesh.py',          ('test_simulated.py',)),
     ('host/machine/ansi.py',                   ('test_simulated.py', CONTROLLER)),
-    ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE)),
-    ('host/machine/',                          (CONTROLLER, 'test_simulated.py', 'test_mcp.py')),
+    ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE, CYCLIC)),
+    ('host/machine/cyclic.py',                 (CYCLIC,)),
+    ('host/machine/',                          (CONTROLLER, CYCLIC, 'test_simulated.py',
+                                                'test_mcp.py')),
     ('host/coaxial/node.py',                   (CONTROLLER, 'test_mcp.py')),
     ('host/coaxial/devices/ctrl.py',           (CONTROLLER, STRUCTURE)),
     ('host/coaxial/simulated/ctrl.py',         (CONTROLLER, STRUCTURE)),

@@ -281,23 +281,25 @@ def _caps_openblas(node):
 
 
 def test_numpy_enters_behind_the_thread_cap(r):
-    """numpy is imported at module level in one package module, blocks.py, and
-    that module caps OpenBLAS's thread pool before importing it.
+    """numpy is imported at module level by the modules that step arrays - blocks.py,
+    machine/cyclic.py - each capping OpenBLAS's thread pool before importing it.
     """
-    importers, capped = [], False
+    importers, uncapped = [], []
     for path, _text, tree in sources(beside=False):
         if not path.startswith(PACKAGES):
             continue
         for i, node in enumerate(tree.body):
             if 'numpy' in _names_imported(node):
                 importers.append(path)
-                capped = any(_caps_openblas(n) for n in tree.body[:i])
+                if not any(_caps_openblas(n) for n in tree.body[:i]):
+                    uncapped.append(path)
                 break
-    r.check('numpy enters the packages at module level in blocks.py alone',
-            importers == [os.path.join('coaxial', 'model', 'blocks.py')],
+    r.check('numpy enters the packages at module level in blocks.py and cyclic.py alone',
+            sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py'),
+                                         os.path.join('machine', 'cyclic.py')]),
             ', '.join(importers) or 'nowhere')
-    r.check('and blocks.py sets OPENBLAS_NUM_THREADS before importing it',
-            capped)
+    r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
+            ', '.join(uncapped))
 
 
 def test_machine_imports_no_board(r):

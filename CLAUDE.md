@@ -73,6 +73,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   the date; one definition per thing; no narrative (git holds it). Prose
   at a minimum, technical and terse: no markers (capitals, labels, asides,
   remarks on progress) and no filler. A change is a cut, not a rewrite.
+- **Data-oriented**, target and host (docs/ARCHITECTURE.md): structs or
+  structured arrays; `step(state, in) -> out` touching its arguments only;
+  memory laid once; tables of steps; the hardware at one edge.
 - **Local first.** Scripts, lint, suites on this host before agents or
   workflows, ultracode or not; agents only for what cannot run here. Two
   swarms (2026-09-24) burned tokens and ran slower than local work.

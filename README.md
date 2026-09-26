@@ -60,9 +60,9 @@ humanoid.run('0 run=squat times=2\n0 run=walk stride=15')
 
 ## Notebooks
 
-Thirteen executed papers in `notebook_examples/` (acquisition, link, sensors,
-power_stage, thermal, drive, controller, sequencer, machines, director, motion,
-applications, commissioning), generated from `host/tools/notebooks/`:
+Fourteen executed papers in `notebook_examples/` (acquisition, link, sensors,
+power_stage, thermal, drive, controller, cycle, sequencer, machines, director,
+motion, applications, commissioning), generated from `host/tools/notebooks/`:
 
 ```powershell
 python tools/notebooks/make_notebooks.py --execute [area ...]
