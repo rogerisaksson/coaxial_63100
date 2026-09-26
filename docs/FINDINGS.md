@@ -230,6 +230,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   toward the bob (`SWAY_K` 1): 1.7; by its drift too, down in 2 s. The rise
   flips on 0.5 % of any knob, the committed gait's as much (10 of 24 held):
   one run a candidate scores chance (2026-09-26).
+- Twelve trials a candidate (`tools/sim/gait_montecarlo.py`: three rises,
+  three walks, six shoves of 14 N s), 19 s on 16 cores: she holds 85 % of the
+  time, every side shove fells her. Shoved toward the standing foot, the catch
+  steps the other across it; held off, she falls 1 s later; the standing foot
+  lifts on the clock while the other still reaches. The capture point's law
+  on the plan's reference fells her walking: the plan's sway is not the
+  pendulum's - the DCM error in a steady walk 93 mm rms at liftoff
+  (2026-09-26).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

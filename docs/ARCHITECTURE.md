@@ -145,7 +145,8 @@ tools/thermal/      calibrate, identify, validate, trace
 tools/render/       renderer checks against the exporter; ansi2png; attitude (the
                     view at a pose and a moment, to a PNG - no window); page (any
                     page's last frame, simulated, to a PNG)
-tools/sim/          the drive core on this host: montecarlo, observer_run
+tools/sim/          the drive core on this host: montecarlo, observer_run;
+                    gait_montecarlo (the gynoid through fixed trials)
 tools/cores/        build: the portable cores' gcc build;
                     drive, thermal: their ctypes harnesses;
                     fakeboard: comms/, the record and the observer over
