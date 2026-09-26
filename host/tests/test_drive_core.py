@@ -517,6 +517,45 @@ def test_hold_handover(r, lib):
         d.close()
 
 
+def test_down_through_if(r, lib):
+    """Sensorless at speed into hold: the command frame starts on the estimate and its ramp
+    carries the rotor to rest - a jump to the setpoint's angle at speed slipped poles."""
+    d = Drive(lib)
+    v_inj = 2.0
+    try:
+        d.model_params(theta0=1.0, b=5e-4, j=8e-3)
+        d.source(True)
+        d.params(inj_volts=v_inj, inj_periods=1, w_lo=150.0, w_hi=300.0, i_max=30.0, i_trip=60.0,
+                 eps_gain=eps_gain(v_inj, 20e-6, 25e-6),
+                 **loop_gains(0.05, 20e-6, 500.0), **pll_gains(60.0, 2 * TS))
+        d.set_theta(1.0)
+        d.setpoints(id_ref=0.0, iq_ref=20.0)
+        d.mode(SENSORLESS)
+        for _ in range(int(2.0 / TS)):
+            d.step_virtual()
+            if d.model_state()['omega'] > 1000.0:
+                break
+        s = d.state()
+        # 500 rad/s^2 on 8e-3 kg m^2 asks 0.57 N m of the 1.05 20 A holds.
+        d.setpoints(id_ref=20.0, iq_ref=0.0, theta=0.0, omega_target=0.0, accel=500.0)
+        d.mode(HOLD)
+        c = d.state()
+        r.check('the command frame starts on the estimate, turning with it',
+                abs(wrap_pi(c['theta_cmd'] - s['theta_hat'])) < 1e-3
+                and abs(c['omega_cmd'] - s['omega_hat']) < 1e-3,
+                (c['theta_cmd'], s['theta_hat'], c['omega_cmd']))
+        tripped, lag = False, 0.0
+        for k in range(int(2.5 / TS)):
+            tripped = tripped or d.step_virtual()[0]
+            if k % 10 == 0:
+                lag = max(lag, abs(wrap_pi(d.model_state()['theta'] - d.state()['theta_cmd'])))
+        r.check('and its ramp carries the rotor down, never a pole behind',
+                not tripped and lag < math.pi / 2.0 and d.state()['omega_cmd'] == 0.0,
+                (tripped, lag, d.model_state()['omega']))
+    finally:
+        d.close()
+
+
 def test_observer_chain(r, lib):
     """The firmware's observer chain against the Python it was ported from."""
     from coaxial.model.blocks import CurrentLoop, Plant, Signals
@@ -647,7 +686,7 @@ ROSTER = (test_math, test_mode_refusals, test_current_loop,
           test_saturation_map, test_observer_standstill, test_polarity,
           test_deadtime, test_sensorless_run, test_moments,
           test_model_agrees, test_virtual_sensorless, test_hold_handover,
-          test_montecarlo)
+          test_down_through_if, test_montecarlo)
 
 
 def main():

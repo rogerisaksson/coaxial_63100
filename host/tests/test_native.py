@@ -9,6 +9,7 @@ and its BNO085 reading what a SIL pipes; the humanoid's twenty boards on five bu
 wall with every drive running. The firmware against its sensors and timers is
 test_emulator's, on Renode.
 """
+import math
 import os
 import sys
 import time
@@ -97,6 +98,9 @@ def test_the_parts_answer(report, rig):
     b.afe.on()
     try:
         b.transport.sleep(0.05)
+        # Read between two looks at the shaft: the bench's flywheel coasts on after a drive.
+        with limb.lock:
+            before = limb.boards[0].lib.native_shaft_degrees() % 360.0
         read = b.angle.state().get('degrees')
         with limb.lock:
             shaft = limb.boards[0].lib.native_shaft_degrees() % 360.0
@@ -111,9 +115,11 @@ def test_the_parts_answer(report, rig):
         accel = (b.imu.state().get('accelerometer') or {}).get('value') or {}
     finally:
         b.afe.off()
+    span = (shaft - before + 180.0) % 360.0 - 180.0
+    into = (read - before + 180.0) % 360.0 - 180.0 if read is not None else math.inf
     report.check('the A1335 reads the shaft the plant turned, to a count',
-                 read is not None and abs((read - shaft + 180.0) % 360.0 - 180.0) <= ANGLE_COUNT,
-                 '%s read, %.3f the shaft' % (read, shaft))
+                 min(0.0, span) - ANGLE_COUNT <= into <= max(0.0, span) + ANGLE_COUNT,
+                 '%s read, the shaft %.3f to %.3f' % (read, before, shaft))
     report.check('and the angle put, to a count',
                  degrees is not None and abs(degrees - 250.0) <= ANGLE_COUNT, str(degrees))
     report.check('the BNO085 answers its product id', bool(ident.get('sw_version')), str(ident))

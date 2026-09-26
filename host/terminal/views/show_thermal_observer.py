@@ -23,7 +23,7 @@ from coaxial.kalman import thermal_ident
 from coaxial.model.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
-from terminal.ui.demo import stop_motor, turn_motor
+from terminal.ui.demo import cycle_motor, stop_motor
 from terminal.ui.screen import Feed, closing, mode_of, run_view, say, stamp_crosses, visible
 from terminal.ui.stage import boot, frame_of, hud, stage
 
@@ -52,6 +52,10 @@ GAUGE_CELLS = 20
 #: 71-109 C, CONVERGING by minute 4, margin 0.98 by 18; STABLE wants the
 #: walk's longer cooldowns.
 PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
+
+#: The emulated board's load cycle, its own seconds, unhasted: the demo motor a minute on and
+#: a minute off - the drive's sync holds the meter, and the MCU's die reads in the off minute.
+EMULATED_ON_S, EMULATED_OFF_S = 60.0, 60.0
 
 #: The room hint above the board, on the estimated ambient (op 10): cold
 #: under 5 C, hot from 35, 'unsure' while the filtered innovation is 0.3 K or
@@ -435,8 +439,8 @@ def main():
             say('ok', 'AFE_ON', 'on - the emulated board, its thermometers read')
             # The stand-in's load cycle on the emulated board: the demo motor's current through
             # the legs, its heat thermal.c's network (world_heat.c).
-            motor = turn_motor(rig, origin)
-            say('ok', 'load', 'the demo motor, 0 to 30 A and back')
+            motor = cycle_motor(rig, origin, EMULATED_ON_S, EMULATED_OFF_S)
+            say('ok', 'load', 'the demo motor, %.0f s on, %.0f s off' % (EMULATED_ON_S, EMULATED_OFF_S))
         else:
             say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
         say('wait', 'drawing', 'Q closes it, ESC goes back to the menu')

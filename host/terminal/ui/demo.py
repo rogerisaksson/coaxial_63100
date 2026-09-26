@@ -12,6 +12,7 @@ import math
 import time
 from contextlib import suppress
 
+from coaxial.comm.hostclock import clock_of
 from coaxial.errors import RigError
 from terminal.ui.screen import demo
 
@@ -65,3 +66,25 @@ def stop_motor(rig):
         rig.board.gate_drivers.configure(sync=False)
         return [('demo motor', 'drive off, stage down, converters back')]
     return [('demo motor', 'could not be stopped')]
+
+
+def cycle_motor(rig, origin, on_s, off_s):
+    """turn_motor for `on_s` of the board's seconds, stopped for `off_s`, round again: the
+    per-frame step, or None on a real board. Stopped, the drive's sync lets the meter go - the
+    MCU's die reads again."""
+    if not demo(origin):
+        return None
+    clock = clock_of(rig)
+    began = clock.now()
+    held: dict = {'step': None}
+
+    def step(_now=None):
+        on = (clock.now() - began) % (on_s + off_s) < on_s
+        if on and held['step'] is None:
+            held['step'] = turn_motor(rig, origin)
+        elif not on and held['step'] is not None:
+            stop_motor(rig)
+            held['step'] = None
+        if held['step'] is not None:
+            held['step']()
+    return step

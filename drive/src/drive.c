@@ -119,23 +119,19 @@ const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
   d->fault = DRIVE_FAULT_NONE;
   if ((mode == DRIVE_HOLD) || (mode == DRIVE_VOLT))
   {
-    d->theta_cmd = drive_wrap(d->sp.theta);
-    d->omega_cmd = 0.0f;
+    /* Out of the rotor observer's frame above the back-EMF's speed: the command
+       frame starts on the rotor, and its ramp carries it; else at the setpoint's
+       angle, standing. */
+    const bool turning = (d->mode == DRIVE_SENSORLESS) && (bemf_weight(d, d->omega_hat) > 0.0f);
+
+    d->theta_cmd = turning ? d->theta_hat : drive_wrap(d->sp.theta);
+    d->omega_cmd = turning ? d->omega_hat : 0.0f;
   }
   if (mode == DRIVE_POLARITY)
   {
     d->pol_step = 0U;
     d->pol_pos = 0.0f;
     d->pol_neg = 0.0f;
-  }
-  /* Out of a command frame with neither it nor the estimate above the
-     back-EMF's speed: the rotor observer had nothing to correct on, and the
-     frame the rotor was held in is the estimate. */
-  if ((mode == DRIVE_SENSORLESS) && ((d->mode == DRIVE_HOLD) || (d->mode == DRIVE_VOLT))
-      && (bemf_weight(d, d->omega_cmd) <= 0.0f) && (bemf_weight(d, d->omega_hat) <= 0.0f))
-  {
-    d->theta_hat = d->theta_cmd;
-    d->omega_hat = d->omega_cmd;
   }
   d->mode = mode;
   /* The chain cannot acquire a speed from nothing, so it takes the estimate
@@ -377,6 +373,14 @@ static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
     d->omega_hat += d->p.l2 * e;
     d->eps = e;
     window_innovation(&d->win, e);
+  }
+  else if ((d->mode == DRIVE_HOLD) || (d->mode == DRIVE_VOLT))
+  {
+    /* A command frame below the back-EMF's speed: nothing to correct on, and the
+       frame the rotor is held in is the estimate. */
+    d->theta_hat = d->theta_cmd;
+    d->omega_hat = d->omega_cmd;
+    return;
   }
   d->theta_hat = drive_wrap(d->theta_hat + d->omega_hat * d->ts);
 }

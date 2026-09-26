@@ -1,8 +1,8 @@
 {
   "name": "bench",
-  "note": "The stand-in's bench: its motor (outrunner_14p, 7 pole pairs, the catalog's BENCH_MOTOR) on a free rotor of the stand-in's 2e-5 kg m^2, on the profile's 24 V link. What a single emulated board turns unless another world is named.",
+  "note": "The stand-in's bench: its motor (outrunner_14p, 7 pole pairs, the catalog's BENCH_MOTOR) on the rotor observer's demo flywheel, a drag-free rotor load of 8e-3 kg m^2 (DEMO_J: 2e-5 bare reached 3000 rpm inside a frame; a free load carries no inertia), on the profile's 24 V link. What a single emulated board turns unless another world is named.",
   "body": {"kind": "ground"},
   "nodes": [
-    {"name": "rotor", "motor": "outrunner_14p", "load": {"kind": "free", "inertia": 2e-5}}
+    {"name": "rotor", "motor": "outrunner_14p", "load": {"kind": "rotor", "inertia": 8e-3}}
   ]
 }

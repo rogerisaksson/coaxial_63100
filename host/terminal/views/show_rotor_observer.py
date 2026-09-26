@@ -25,8 +25,10 @@ the interrupt's cost.
 An ellipse is the terminal's font: `--cell-aspect` (round at 2.0, measured
 25.16 cell-widths each way; 2.4 rounds it at this size).
 
-The speed loop (iq, the shaft) and the load loop (id) are independent. The
-stand-in starts the speed loop on its own; a board starts neither unasked.
+The speed loop (iq, the shaft) and the load loop (id) are independent. A demo
+board starts the speed loop on its own - the stand-in on its model, the emulated
+MCU on its plant through the converters, on commissioning's gains; a bench board
+starts neither unasked.
 
 Every drive parameter is a switch, checked before it is written (`sane`):
 trip <= the FETs' rating, clamp <= trip, injection <= a fifth of the link's
@@ -221,7 +223,10 @@ def parse_args(argv):
     # (`tools/render/ansi2png.py` rasters it).
     p.add_argument('--width', type=int, default=None)
     p.add_argument('--height', type=int, default=None)
-    p.add_argument('--source', choices=('model', 'adc'), default='model')
+    p.add_argument('--source', choices=('model', 'adc'), default=None,
+                   help="the drive's samples: the model, or the converters. Default: the "
+                        'converters on an emulated board - its plant is its motor - the '
+                        'model elsewhere')
     p.add_argument('--motor', help='a profile, a file or a name in coaxial/profiles/, written first')
     p.add_argument('--cell-aspect', type=float, default=None,
                    help='what makes the can round on this terminal. The '
@@ -288,8 +293,8 @@ def preflight(rig, args, demo=False):
 
 
 def demo_stage(rig, origin):
-    """Give the stand-in a bridge to switch."""
-    if origin.real:
+    """Give a demo board a bridge to switch: the stand-in's, the emulated MCU's."""
+    if not _screen.demo(origin):
         return
     rig.board.gate_drivers.configure(bypass_break=True)
     rig.board.gate_drivers.on()
@@ -328,18 +333,14 @@ BOARD_STEP = 0.1
 
 
 def _model_defaults(args):
-    """The stand-in's motor on the model: the damping, the inertia, the
-    torque current and the clamps above, where the caller left them."""
+    """The demo's motor on the model: the damping, the inertia and the torque current
+    above, where the caller left them."""
     if args.b is None:
         args.b = DEMO_B
     if args.j is None:
         args.j = DEMO_J
     if not args.iq:
         args.iq = DEMO_IQ
-    if args.i_max is None:
-        args.i_max = DEMO_I_MAX
-    if args.i_trip is None:
-        args.i_trip = DEMO_I_TRIP
 
 
 def demo_defaults(args, origin):
@@ -350,6 +351,10 @@ def demo_defaults(args, origin):
     args.start = True
     if args.hz == DEFAULT_HZ:
         args.hz = DEMO_HZ
+    if args.i_max is None:
+        args.i_max = DEMO_I_MAX
+    if args.i_trip is None:
+        args.i_trip = DEMO_I_TRIP
     if args.source != 'model':
         return BOARD_STEP
     _model_defaults(args)
@@ -369,6 +374,10 @@ def _link(args):
         # The stand-in tours its rooms as the identification earns them: TH OBS
         # walks UNCR, CONV, STABLE on the foot (bench 2026-09-06).
         rig.thermal.situation('tour')
+    if args.source is None:
+        # An emulated board's plant is its motor (board/emu/worlds/bench.json, the demo's
+        # flywheel): driven, its currents heat the board and its NTC reads them.
+        args.source = 'adc' if origin.real and _screen.demo(origin) else 'model'
     was_on = board.afe.is_on()
     want_afe = args.afe or args.source == 'adc'
     if want_afe != was_on:
@@ -457,18 +466,20 @@ def main(argv=None):
 
     def sample():
         """The board's side of a frame, on the feed's thread: an emulated board's link is
-        several times slower than a real one's, and the frame need not wait for it."""
+        several times slower than a real one's, and the frame need not wait for it. The replies
+        land in the view together: a frame drawn between them paired the new estimate with the
+        last model's error."""
         with suppress(RigError):
-            view['state'] = board.drive.state()
-            view['gate'] = board.gate_drivers.state()
-            view['model'] = (board.drive.model.read()
-                             if view['source'] == 'model' else None)
+            state = board.drive.state()
+            gate = board.gate_drivers.state()
+            model = board.drive.model.read() if view['source'] == 'model' else None
             # One reply for the dial and the mark.
-            if view['model']:
-                view['state']['theta_hat'] = view['model']['theta_hat']
-                view['state']['omega_hat'] = view['model']['omega_hat']
+            if model:
+                state['theta_hat'] = model['theta_hat']
+                state['omega_hat'] = model['omega_hat']
             # The chain: a second answer to the angle, no shaft sensor behind it.
-            view['chain'] = board.drive.observers.read()
+            chain = board.drive.observers.read()
+            view.update(state=state, gate=gate, model=model, chain=chain)
             travel(view)
             turn_the_handle(rig, view)
             if time.time() - thermal_at[0] > thermal_every:

@@ -407,6 +407,26 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   25.6 s on the clock: 31 deg/s (2026-09-26).
 - Renode prints a peripheral's C# compile error on its console only: the
   emulator "did not answer" and the rig fell back to the stand-in (2026-09-26).
+- The emulated bench's rotor: a `free` load carries no inertia, so the 2e-5
+  kg m^2 motor alone reached no-load in 0.2 s; the demo's 8e-3 flywheel is a
+  drag-free `rotor` load (2026-09-26).
+- ROTOR OBSERVER on the emulated MCU drives its plant through the converters
+  (heat, NTC, SOA as on the stand-in). Sensorless held a 10 A reversal through
+  zero; the clamp through zero ran the estimate to 1e5 rad/s, and the observer
+  chain lost lock at the clamp's acceleration (0 at 2 500). I/f cannot carry
+  the flywheel: on its current spring zeta is ~0.001, it rings and slips. The
+  demo: aligned once, then sensorless, zero crossed at 10 A, the clamp above
+  1.5 w_hi, the brake proportional: 224 s native, 1 700 frames on the
+  emulator, no trip (2026-09-26).
+- drive.c: in a command frame below the back-EMF's speed the estimate is the
+  frame; into hold from sensorless above it, the frame starts on the estimate
+  (a jump to the setpoint's angle at speed slipped poles) (2026-09-26).
+- The observer box's error beside a newer estimate: the page's sample replaced
+  the state, then the model, a request apart; one update now (2026-09-26).
+- THERMAL OBSERVER on the emulated MCU: the demo motor a minute on, a minute
+  off; the drive's sync holds the meter, the MCU's die reads in the off
+  minute. The stand-in's thermal runs hasted (1 745 model s a wall minute);
+  the emulated board's is its own time (2026-09-26).
 
 ## Local model
 

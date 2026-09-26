@@ -14,7 +14,6 @@ ITEMS = ('which half', (
 def run(args, name):
     if name == 'rotor_observer':
         from terminal.views import show_rotor_observer
-        return call(show_rotor_observer.main,
-                    common(args, hz=8.0) + ['--source', 'model'])
+        return call(show_rotor_observer.main, common(args, hz=8.0))
     from terminal.views import show_gate_drivers
     return call(show_gate_drivers.main, common(args, hz=8.0))

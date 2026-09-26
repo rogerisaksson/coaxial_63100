@@ -7,6 +7,7 @@ from rich.text import Text
 from coaxial.draw import cross_section
 from motor import pmsm
 from terminal.ui.screen import ASH, SODIUM, tint
+from terminal.views.rotor import motions
 from terminal.views.rotor.layout import BAR_CELLS, BAR_GLYPH
 from terminal.views.rotor.thermal import envelope_acting
 
@@ -72,8 +73,7 @@ def pointer_rate(view):
     speed over the pole pairs - the one number `travel` integrates and
     the drawing trails the bead by, so the wake and the travel agree."""
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
-    speed = (view.get('chain') or {}).get('omega') or 0.0
-    return math.degrees(speed / pairs)
+    return math.degrees(motions.speed(view) / pairs)
 
 
 def phase_amps(view):
@@ -134,7 +134,6 @@ def torque(view):
 
 def status_rows(view):
     """Two rows, and neither of them is anywhere else on the page."""
-    o = view.get('chain') or {}
     gone = view['travel'] - view['tare']
     loops = ' + '.join([n for n, on in (('speed', view['spin']),
                                         ('load', view['load'])) if on])
@@ -143,7 +142,7 @@ def status_rows(view):
     if view['clock'].now() < view['burst_until']:
         loops = 'BURST' + (' + ' + loops if loops else '')
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
-    speed = (view.get('chain') or {}).get('omega') or 0.0
+    speed = motions.speed(view)
     return [('motor', identity(view)),
             ('shaft', '%8.0f rpm %8.3f N.m'
              % (speed / pairs * 60.0 / math.tau, torque(view))),
@@ -151,7 +150,7 @@ def status_rows(view):
             ('loops', loops or 'none - the drive is on its own'),
             ('travel', '%9.1f deg %7.2f turns %s'
              % (gone, gone / 360.0,
-                'cw' if (o.get('omega') or 0.0) >= 0.0 else 'ccw')),
+                'cw' if speed >= 0.0 else 'ccw')),
             # The cell's shape, and where the number came from.
             ('cell', '%.2f tall %s' % (view.get('aspect', cross_section.CELL_ASPECT),
                                        view.get('aspect_how', 'assumed')))]

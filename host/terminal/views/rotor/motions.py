@@ -5,10 +5,6 @@ import math
 #: The demo cycle's period, seconds.
 SWEEP_S = 16.0
 
-#: The demo's speed-loop gain, A per rpm of error per second: stepped per
-#: frame it wound up to 475 rpm at 20 Hz.
-ROCK_GAIN = 0.01
-
 #: The heavy start (B, and every BURST_EVERY_S on the stand-in): 43 A for
 #: 1 s, bounded by heat, not the clamp. Measured on the stand-in 2026-09-06:
 #: 0.57 of the span on a cold board at the 80 % floor, 0.82 warm and stable;
@@ -80,7 +76,8 @@ def turn_the_handle(rig, view):
         return
     now = view['clock'].now()
     # The burst is part of the sequence, not only a key.
-    if (view['demo'] and view['spin']
+    # On the model only: the burst's load is the model's, and its clamp from any speed.
+    if (view['demo'] and view['spin'] and view['source'] == 'model'
             and now - view['burst_at'] > BURST_EVERY_S):
         view['burst_at'] = now
         view['burst_until'] = now + BURST_S + BURST_HOLD_S
@@ -117,17 +114,52 @@ def load_loop(rig, view):
 
 #: The demo cycle as fractions of SWEEP_S: hold, rock, send at the clamp,
 #: brake. The send heats the legs so the margins move; the brake gets as
-#: long as the send (at 0.82 the rotor still turned 1100 rpm at the hold).
+#: long as the send.
 CYCLE_HOLD, CYCLE_ROCK, CYCLE_SEND = 0.14, 0.46, 0.73
 
-#: What the rock peaks at, and what the hold holds with.
+#: What the rock peaks at, and what the first hold aligns with.
 ROCK_RPM = 200.0
 
 HOLD_A = 12.0
 
+#: The rock's current, A: through zero speed the estimate rides the injection alone, and it
+#: held a 5 A reversal; the clamp reversed through zero ran it to 1e5 rad/s on the emulated
+#: flywheel.
+ROCK_A = 5.0
+
+#: The rock's speed-loop gain, A per rpm of error per second.
+ROCK_GAIN = 0.01
+
+#: Where the send takes the clamp, times the back-EMF's w_hi, and its current below: a 10 A
+#: reversal through zero held on the emulated flywheel.
+SEND_FROM = 1.5
+
+SPIN_A = 10.0
+
+#: An estimate past this share of the no-load speed is lost: the link cannot spin the motor
+#: there.
+LOST = 1.5
+
 #: The brake pulls the whole clamp above this and proportionally less below,
 #: so the rotor lands on zero: a quarter of the electrical no-load speed.
 BRAKE_FULL_RAD_S = 700.0
+
+#: Below this share of the clamp the brake lets go: the rotor has landed.
+BRAKE_LANDED = 0.03
+
+
+def speed(view):
+    """The drive's own estimate, rad/s electrical: what it steers by. The chain beside it lost
+    lock at the clamp's acceleration on the emulated flywheel and read 0 at 2 500."""
+    return (view.get('state') or {}).get('omega_hat') or 0.0
+
+
+def braking(view, clamp):
+    """The clamp against the turning, proportionally less below BRAKE_FULL_RAD_S; none once
+    landed."""
+    turning = speed(view)
+    share = min(1.0, abs(turning) / BRAKE_FULL_RAD_S)
+    return -math.copysign(clamp * share, turning) if share > BRAKE_LANDED else 0.0
 
 
 def cycle_phase(view):
@@ -143,39 +175,57 @@ def cycle_phase(view):
 
 
 def sweep(rig, view):
-    """The demo cycle: hold, rock, send, brake, and round again."""
+    """The demo cycle: hold, rock, send, brake, and round again. The first hold pulls the rotor
+    onto the frame at 0, so the estimate starts on its polarity; after it the drive stays
+    sensorless and no full current crosses zero speed."""
     drive = rig.board.drive
     stage, into = cycle_phase(view)
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     clamp = view['params'].get('drv_i_max') or 5.0
+    lost = LOST * no_load_rpm(view) / 60.0 * math.tau * pairs
+    if view.get('aligned') and 0.0 < lost < abs(speed(view)):
+        # The demo's operator: the estimate lost, the rotor pulled onto the frame at 0 again,
+        # to the stage's end.
+        view['aligned'] = False
+        view['said'] = 'estimate lost at %.0f rad/s - aligned again' % speed(view)
+        drive.hold()
     if stage != view['stage']:
+        # A stage held through is an aligned rotor.
+        view['aligned'] = view['stage'] is not None
         view['stage'] = stage
         view['leaning'] = False
         drive.model.configure(load=0.0)
-        drive.hold() if stage == 'hold' else drive.on('sensorless')
-    if stage == 'hold':
-        drive.write(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0,
-                    theta=0.0)
+        drive.on('sensorless') if view['aligned'] else drive.hold()
+    if not view['aligned']:
+        drive.write(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0, theta=0.0)
         view['iq'] = 0.0
+        return
+    if stage == 'hold':
+        view['iq'] = braking(view, ROCK_A)
+        drive.write(id_ref=0.0, iq_ref=view['iq'])
         return
     if stage == 'rock':
         # One swing each way: two in five seconds gave the integrator 2.8 s a
         # side and it never left 25 rpm.
         target = ROCK_RPM * math.sin(math.tau * into)
-        view['iq'] = _toward(view, target, clamp)
+        view['iq'] = _toward(view, target, ROCK_A)
         drive.write(id_ref=0.0, iq_ref=view['iq'],
                     omega_target=abs(target) / 60.0 * math.tau * pairs)
         return
     if stage == 'send':
+        # Through zero on SPIN_A; the clamp above the back-EMF's speed, where the estimate is
+        # the back-EMF's.
+        if speed(view) < SEND_FROM * (view['params'].get('drv_w_hi') or 0.0):
+            view['iq'] = SPIN_A
+            drive.write(id_ref=0.0, iq_ref=SPIN_A)
+            return
         drive.write(id_ref=0.0, iq_ref=clamp, accel=BURST_ACCEL,
                     omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
         view['iq'] = clamp
         return
     # The brake: the same current the other way until the rotor stops, then
     # none.
-    turning = (view.get('chain') or {}).get('omega') or 0.0
-    share = min(1.0, abs(turning) / BRAKE_FULL_RAD_S)
-    view['iq'] = -math.copysign(clamp * share, turning) if share > 0.03 else 0.0
+    view['iq'] = braking(view, clamp)
     drive.write(id_ref=0.0, iq_ref=view['iq'], omega_target=0.0)
 
 
@@ -185,7 +235,6 @@ def _toward(view, rpm, clamp):
     dt = min(0.5, max(0.0, now - view['sweep_at']))
     view['sweep_at'] = now
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
-    turning = ((view.get('chain') or {}).get('omega') or 0.0) \
-        / pairs * 60.0 / math.tau
+    turning = speed(view) / pairs * 60.0 / math.tau
     return max(-clamp, min(clamp,
                            view['iq'] + ROCK_GAIN * (rpm - turning) * dt))
