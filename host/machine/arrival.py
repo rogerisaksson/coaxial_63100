@@ -45,19 +45,18 @@ FEET_Z = (gait.BALL - gait.HEEL) / 2.0
 #: on to the left sole's outer edge, and she fell off it at the first step (2026-09-26).
 SHIFT_IN, LIFT_IN = 0.035, 0.015
 
-#: Her first stride, of the walk's (`gait.pace`'s at the walker's cadence x this), and the walk's
-#: phase her first step lands at - the right foot's landing - on her standing stance
-#: (`walker.STAND_WIDE_M`): on the walk's line she stood on 7 cm across and tipped off it
-#: (2026-09-25).
-FIRST, READY_AT = 0.6, 0.5
+#: Before the right foot lifts her weight is brought LEAN_M ahead of the ankles over LEAN_S s -
+#: she leans forward, then steps - and LIFT_ON_M further as the foot lifts LIFT_UP_M over
+#: LIFT_S: falling on over the left foot's ball as the walk takes her. Brought forward as the
+#: foot lifted, the pelvis tipped back 2 degrees first and then 5 forward as the walk took her;
+#: handed on still, 2 cm further, she hung back behind the landed foot and tipped over
+#: backwards; landed on her standing stance, 16 cm out, the pelvis could not get over the foot
+#: and the next went 20 cm out to catch her (2026-09-27).
+LEAN_M, LEAN_S, LIFT_ON_M, LIFT_UP_M, LIFT_S = 0.07, 0.6, 0.05, 0.06, 0.3
 
-#: Her first step lands with the pelvis FIRST_DOWN under the walk's, m: at the walk's, both legs
-#: straight and the rear heel rising, she hopped off the landing (2026-09-26).
-FIRST_DOWN = 0.025
-
-#: Her weight FIRST_ONTO of the way across from the left foot to the right as it lands: left over
-#: the left, she had no way across to the right and fell off it as the left lifted (2026-09-26).
-FIRST_ONTO = 0.8
+#: Her first stride, of the walk's (`gait.pace`'s at the walker's cadence x this), landed on
+#: the walk's own track, 4 cm from the standing foot.
+FIRST = 0.6
 
 
 def _squat(height=0.44, tilt=25.0, spine=45.0, shoulder=60.0, elbow=30.0) -> dict[str, Any]:
@@ -111,29 +110,9 @@ def _mix(a, b, k) -> Any:
     return a + (b - a) * k
 
 
-def paused(stride, ball, wide=0.0, at=None, on='left') -> dict[str, Any]:
-    """The walk's own pose at its phase `at` (READY_AT), at `stride`, its feet `wide` further out a
-    side: the ball of the foot `on` on the floor at `ball`, the pelvis and the other foot where the
-    walk puts them from there."""
-    lateral, height, _yaw, legs, upper, _roll = walker.plan(READY_AT if at is None else at, stride)
-    out, pelvis = {}, None
-    feet = {side: ((a[0] + sign * wide, a[1], a[2]), pitch, toes)
-            for (side, sign), (a, _twist, pitch, toes) in zip(walker.SIDES, legs)}
-    ankle, pitch, _toes = feet[on]
-    rel = add(ankle, figure.apply(rx(-pitch), figure.SOLE_BALL))
-    pelvis = (ball[0] - rel[0], height, ball[2] - rel[2])
-    for side, (ankle, pitch, toes) in feet.items():
-        out[side] = ((pelvis[0] + ankle[0], ankle[1], pelvis[2] + ankle[2]), math.degrees(-pitch))
-        out[side + '_toes'] = toes
-    joints = dict(zip(walker.UPPER, upper), spine=0.0, spine_roll=0.0,
-                  left_foot=out['left_toes'], right_foot=out['right_toes'])
-    return {'pelvis': pelvis, 'tilt': 0.0, 'left': out['left'], 'right': out['right'],
-            'joints': joints}
-
-
 def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
     """[(stage, seconds to reach it, keyframe)]: the squat, the head up, the hand off the floor,
-    rising, standing, onto the left foot, the right swung ahead and landing - `ready`."""
+    rising, standing, onto the left foot, leaning on, the right lifted - `ready`."""
     squat = _squat()
     look = dict(squat, joints=dict(squat['joints'], neck=-30.0))
     push = over(dict(squat, tilt=15.0, joints=dict(
@@ -145,22 +124,19 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
                                  left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
                 0.0, FEET_Z)
     shift = over(rise, FEET_X - SHIFT_IN, FEET_Z)
-    # The right foot swung to where the walk lands it, a step wider, while her weight falls
-    # forward over the left foot's ball; it lands as the walk lands it, on its ball, the left heel
-    # rising, and the walker takes her on there. Stopped flat-footed in the walk's pose, the front
-    # leg could not reach and she fell back; landed flat, the walk tipped both feet at once and
-    # she hopped (2026-09-25).
-    stride = FIRST * gait.pace(cadence)
-    placed = paused(stride, (FEET_X, 0.0, gait.BALL), walker.STAND_WIDE_M)
-    front = placed['right'][0]
-    placed = dict(placed, pelvis=add(placed['pelvis'], (0.0, -FIRST_DOWN, 0.0)))
-    toward = placed['left'][0][0] + FIRST_ONTO * (front[0] - placed['left'][0][0])
-    placed = over(placed, toward, com_of(placed)[2])
-    lifted = over(dict(shift, right=((front[0], gait.ANKLE_H + 0.06, 0.5 * front[2]), 0.0)),
-                  FEET_X - LIFT_IN, gait.BALL - 0.04)
+    lean = over(shift, FEET_X - SHIFT_IN, LEAN_M)
+    # The right foot lifted and swung half a step while her weight goes on over the left foot's
+    # ball; the walker takes her on from there, mid-swing, at the phase her lean says
+    # (`Walker.begin`), and lands the foot as the walk lands it. Set down first in the walk's
+    # landing pose, stopped, the front leg could not reach and she fell back; landed flat, the
+    # walk tipped both feet at once and she hopped (2026-09-25); set down from a lean, she hopped
+    # off the left leg (2026-09-27).
+    half = 0.5 * gait.STRIDE_M * FIRST * gait.pace(cadence) * gait.STANCE_AT
+    lifted = over(dict(lean, right=((-FEET_X, gait.ANKLE_H + LIFT_UP_M, half), 0.0)),
+                  FEET_X - LIFT_IN, LEAN_M + LIFT_ON_M)
     return [('squat', 0.0, squat), ('squat', 1.5, squat), ('look', 0.8, look),
             ('push', 1.0, push), ('rise', 2.0, rise), ('stand', 1.0, rise), ('shift', 1.2, shift),
-            ('step', 0.35, lifted), ('step', 0.3, placed), ('ready', 1e9, placed)]
+            ('lean', LEAN_S, lean), ('step', LIFT_S, lifted), ('ready', 1e9, lifted)]
 
 
 def moved(frame, dx, dz) -> dict[str, Any]:
@@ -198,8 +174,8 @@ def settling(now, front, cadence=gait.CADENCE) -> list[tuple[str, float, dict[st
 
 
 #: The arrival's stages, in order - the walker has her after `ready` - and the settling's.
-STAGES = ('squat', 'look', 'push', 'rise', 'stand', 'shift', 'step', 'ready', 'settle', 'lower',
-          'rest')
+STAGES = ('squat', 'look', 'push', 'rise', 'stand', 'shift', 'lean', 'step', 'ready', 'settle',
+          'lower', 'rest')
 
 
 class Arrival:

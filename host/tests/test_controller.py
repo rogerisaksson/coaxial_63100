@@ -732,7 +732,8 @@ def test_she_rises_and_walks(report):
             stages.append(director.stage)
     bus = body.loop.bus
     report.check('the squat to the walk, move by move, and walking at 13 s',
-                 stages == ['squat', 'look', 'push', 'rise', 'stand', 'shift', 'step', 'walk'],
+                 stages == ['squat', 'look', 'push', 'rise', 'stand', 'shift', 'lean', 'step',
+                            'walk'],
                  ' '.join(stages))
     report.check('walked on over 2.5 m', bus['pelvis.pose.z'] > 2.5, '%.2f m' % bus['pelvis.pose.z'])
     body.disarm()

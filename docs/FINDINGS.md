@@ -347,6 +347,19 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   she toppled sideways. MuJoCo's soft contact is a poor foam: its
   softness is a time constant on the whole body's mass, its damping acts on
   every corner's motion (2026-09-27).
+- The walk begun from a lean (`machine.arrival`): shifted onto the left
+  foot, her weight goes 7 cm ahead of the ankles over 0.6 s on both feet,
+  then 5 cm further as the right foot lifts 6 cm over 0.3 s, and the walker
+  takes her mid-swing at the phase where the plan has the pelvis where it
+  stands over the left ball (`Walker.begin`, as after a side step), the
+  foot landing on the walk's own track 4 cm from the standing one. Set down
+  first in the walk's landing pose, still, the pelvis tipped back 2 degrees
+  as the foot lifted and 5 forward as the walk took her. Handed on still,
+  she hung back behind the landed foot and tipped over backwards (the phase
+  pulled to a body standing still stands with it); landed on her standing
+  stance, 16 cm out, the pelvis could not get over the foot and the next
+  went 20 cm out to catch her; leant 10 cm in 0.5 s she was thrown off the
+  left foot. The scoreboard as before, the rises held (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

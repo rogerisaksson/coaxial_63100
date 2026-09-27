@@ -384,19 +384,35 @@ class Walker:
         self.rate, self.waited, self.lurch = self.cadence, 0.0, None
         return angles
 
-    def begin(self, held, wide=0.0, scale=None, phase=None, blend_s=BLEND_S):
+    def begin(self, held, wide=0.0, scale=None, phase=None, blend_s=BLEND_S, ball_ahead=None,
+              on='left'):
         """Walking from where she stands on her left foot, the right lifted: {joint: deg}
         `held` the stand's setpoints, eased out of over `blend_s`; the first steps `wide` m
-        further out than the walk's, narrowing over WIDE_S."""
+        further out than the walk's, narrowing over WIDE_S; at `phase`, or where the plan has
+        the pelvis `ball_ahead` m behind the ball of the foot `on`, HEEL_OFF at most."""
         self.blend_s = blend_s
-        self.phase, self.anchor, self.was_q = BEGIN_AT if phase is None else phase, {}, {}
+        self.anchor, self.was_q = {}, {}
         self.stood, self.x_was, self.v_side = {}, None, 0.0
-        self.scale, self.age, self.held, self.wide = BEGIN, 0.0, dict(held), float(wide)
+        self.age, self.held, self.wide = 0.0, dict(held), float(wide)
         self.first = BEGIN if scale is None else float(scale)
         self.scale = self.first
+        if ball_ahead is not None:
+            phase = min(gait.HEEL_OFF, gait.STANCE_AT
+                        + (gait.BALL - ball_ahead) / (gait.STRIDE_M * self.stride))
+            phase = phase if on == 'left' else (phase + 0.5) % 1.0
+        self.phase = BEGIN_AT if phase is None else phase
         self.lift, self.halting, self.length_was = None, None, None
         self.capture, self.side, self.resume, self.hurry = capture.state(), None, None, 0.0
         self.rate, self.waited, self.lurch = self.cadence, 0.0, None
+
+    def ball_ahead(self, side):
+        """How far the ball of this foot stands ahead of the pelvis, m, as the loop read it."""
+        bus = self.machine.loop.bus
+        pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
+        turn = figure.quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
+                           bus['pelvis.pose.qz'])
+        angles = tuple(math.radians(bus.get(side + k + '.deg', 0.0)) for k in LEG)
+        return figure.ball(1.0 if side == 'left' else -1.0, pel, turn, angles)[2] - pel[2]
 
     def step(self, dt):
         """{joint: degrees}: where every drive should be now."""
@@ -526,14 +542,12 @@ class Walker:
         plan's height 3 cm above a body sunk over the leaning leg, both legs threw her 6 cm into
         the air, and the other foot was yanked into mid-swing; begun wide, the midline between
         the feet drew her off the standing one (2026-09-26)."""
-        on, ball = self.resume, balls[self.resume]
+        on = 'left' if self.resume == 'left' else 'right'
+        ball = balls[on]
         sign = 1.0 if on == 'left' else -1.0
         full = self.cadence * gait.STRIDE_M * gait.pace(self.cadence)
-        scale = max(RESUME, min(1.0, self.v_on / full))
-        length = gait.STRIDE_M * max(gait.PACE_STEP, gait.pace(self.cadence) * scale)
-        q = min(gait.HEEL_OFF, gait.STANCE_AT + (gait.BALL - (ball[2] - pel[2])) / length)
-        self.begin(self.last, phase=q if on == 'left' else (q + 0.5) % 1.0, scale=scale,
-                   blend_s=RESUME_BLEND_S)
+        self.begin(self.last, scale=max(RESUME, min(1.0, self.v_on / full)),
+                   blend_s=RESUME_BLEND_S, ball_ahead=ball[2] - pel[2], on=on)
         self.stood['right' if on == 'left' else 'left'] = ball[0] - sign * 2.0 * TRACK_M
 
     def _anchor(self, bus, qs, balls, height, pel):

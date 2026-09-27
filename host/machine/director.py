@@ -114,8 +114,8 @@ class Director:
                 if self.age >= BLEND_S:
                     self.blend = None
             if self.stage == 'ready':
-                self.walker.begin(out, scale=arrival.FIRST, phase=arrival.READY_AT,
-                                  wide=walker.STAND_WIDE_M)
+                self.walker.begin(out, scale=arrival.FIRST,
+                                  ball_ahead=self.walker.ball_ahead('left'))
                 self.stage, self.since = 'walk', 0.0
             elif self.stage == 'rest' and self.rest_s is not None and self.since > self.rest_s:
                 self.rise()

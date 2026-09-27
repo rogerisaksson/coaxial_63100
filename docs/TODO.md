@@ -53,10 +53,10 @@ Open work. Measured results are in FINDINGS.
   as the capture point runs on). The torso's counter is on at 3.9 degrees,
   the damping off (with the counter, 0.55 fells the walk at 0.9). Scored by
   `tools/sim/gait_montecarlo.py`, the shove at phase 0.30: held 84 %, stir
-  1.4 mm to beat, the soles light sneakers. The first stride from standing
-  is what any softer sole fells (the stance foot unloaded, the swing foot
-  down early): make it as sure as the strides after, then a compressible
-  sole layer for more give than a contact's.
+  1.4 mm to beat, the soles light sneakers. The walk begins from a lean,
+  the walker taking her mid-swing; the softer soles that felled the old
+  first stride are untried on it, then a compressible sole layer for more
+  give than a contact's.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel
