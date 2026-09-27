@@ -1067,14 +1067,15 @@ def test_the_thermal_page_shows_its_evidence(report):
 
 
 def test_the_attitude_caps_its_frame_rate(report):
-    """BOARD ATTITUDE draws at most HZ_CAP frames a second whatever
-    `--hz` asks - the bench's word, so the laptop's fans stay down -
-    and never slower than one every two seconds."""
+    """Every view draws at most FPS_CAP frames a second whatever `--hz` asks - the bench's
+    word, so the laptop's fans stay down - BOARD ATTITUDE never slower than one every two
+    seconds."""
+    from terminal.ui.screen import FPS_CAP
     from terminal.views import show_orientation as view
 
-    report.check('the cap is thirty', view.HZ_CAP == 30.0, str(view.HZ_CAP))
-    report.check('--hz 60 draws at thirty',
-                 abs(view.period_of(60.0) - 1.0 / 30.0) < 1e-9,
+    report.check('the cap is twenty', FPS_CAP == 20.0, str(FPS_CAP))
+    report.check('--hz 60 draws at twenty',
+                 abs(view.period_of(60.0) - 1.0 / 20.0) < 1e-9,
                  '%.4f s' % view.period_of(60.0))
     report.check('--hz 20, the default, is honoured',
                  abs(view.period_of(20.0) - 0.05) < 1e-9
@@ -1203,8 +1204,8 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
 
 
 def test_the_demo_actually_loads_the_motor(report):
-    """Two hundred frames of the stand-in warm the winding and spend the
-    switches' margin - the demo puts a load on, and it stays on.
+    """Seventeen seconds of the stand-in - 340 frames at the 20 fps cap - warm the winding and
+    spend the switches' margin: the demo puts a load on, and it stays on.
     """
     import re
 
@@ -1212,13 +1213,13 @@ def test_the_demo_actually_loads_the_motor(report):
     done = subprocess.run(
         [sys.executable, '-X', 'utf8',
          os.path.join('terminal', 'views', 'show_rotor_observer.py'),
-         '--simulated', '--frames', '200'],
+         '--simulated', '--frames', '340'],
         cwd=HOST, env=env, capture_output=True, text=True,
         encoding='utf-8', errors='replace', timeout=300)
     out = done.stdout + done.stderr
     winding = re.search(r'WINDING +([0-9.]+)', out)   # %5.1f: a space at two digits
     soa = re.search(r'SWITCH SOA ([0-9.]+) %', out)
-    report.check('the view ran two hundred frames simulated',
+    report.check('the view ran 340 frames simulated',
                  done.returncode == 0 and winding and soa,
                  'exit %d' % done.returncode)
     if winding and soa:

@@ -26,7 +26,8 @@ from machine import ansi
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import stop_motor, turn_motor
-from terminal.ui.screen import Feed, Freshness, closing, mode_of, open_rig, run_view, say, steady
+from terminal.ui.screen import (FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
+                                say, steady)
 from terminal.ui.stage import frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -156,8 +157,12 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
             width=ART_WIDTH, height=ART_HEIGHT):
     """One frame on the stage: the dial left, the target's numbers right."""
 
-    if state is None:
-        art, side = 'no reading', []
+    if state is None or state.get('value') is None:
+        # No reply, or one without a reading - the loop starting, or off without AFE_ON: its
+        # own word, not a crash.
+        art = ('no reading' if state is None else 'no reading - the loop %s, %s'
+               % (state.get('loop', '?'), state.get('error') or 'none yet'))
+        side = []
     else:
         counts = angle.counts(state['value'])
         degrees = state.get('degrees', counts * 360.0 / 4096.0)
@@ -191,8 +196,8 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='emulator://')
-    parser.add_argument('--hz', type=float, default=20.0,
-                        help='screen refreshes per second')
+    parser.add_argument('--hz', type=float, default=FPS_CAP,
+                        help='screen refreshes per second, at most %.0f' % FPS_CAP)
     parser.add_argument('--simulated', action='store_true',
                         help='the stand-in, without probing for a board')
     parser.add_argument('--frames', type=int, default=0,
@@ -276,7 +281,7 @@ def main(argv=None):
             motor()
         return steady(board.angle.state)
 
-    feed = Feed(sample, period=0.005).start()
+    feed = Feed(sample, period=1.0 / FPS_CAP).start()
 
     def draw():
         state = feed.latest

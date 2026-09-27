@@ -24,7 +24,8 @@ from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui import console as _console, screen as _screen
 from terminal.ui.console import WHEEL_STEP
-from terminal.ui.screen import Feed, Freshness, closing, mode_of, open_rig, run_view, say
+from terminal.ui.screen import (FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
+                                say)
 from terminal.ui.stage import boot, frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -304,28 +305,20 @@ def compose(origin, args, view, colour, console):
         dressed=False)
 
 
-#: The most frames a second this view will draw, whatever `--hz` asks,
-#: for the fans: a frame that costs more than its period never sleeps,
-#: and at 20 Hz a 52 ms frame (eight workers rastering, the parent
-#: shading) held a core and most of the others for as long as the view
-#: was open. Thirty is past what a hand's turn needs and past what the
-#: terminal repaints; the default is 20, and a resting board costs almost
-#: nothing: its face is held (`wireframe.FACE_SETTLE`).
-HZ_CAP = 30.0
-
-
 def period_of(hz):
-    """Seconds a frame, from the refresh asked for: clamped to HZ_CAP
-    above and to one every two seconds below."""
-    return 1.0 / max(0.5, min(float(hz), HZ_CAP))
+    """Seconds a frame, from the refresh asked for: FPS_CAP's at the least - a frame that costs
+    more than its period never sleeps, and at 20 Hz a 52 ms frame held a core and most of the
+    others - and one every two seconds at the most; a resting board costs almost nothing, its
+    face held (`wireframe.FACE_SETTLE`)."""
+    return 1.0 / max(0.5, min(float(hz), FPS_CAP))
 
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='emulator://')
-    parser.add_argument('--hz', type=float, default=20.0,
+    parser.add_argument('--hz', type=float, default=FPS_CAP,
                         help='screen refreshes per second, at most %.0f'
-                             % HZ_CAP)
+                             % FPS_CAP)
     parser.add_argument('--interval-us', type=int, default=10000,
                         help='what to ask the IMU for, in microseconds')
     parser.add_argument('--width', type=int, default=0,
@@ -430,7 +423,7 @@ def main(argv=None):
     tally = Freshness()
     # The board read on its own thread: a frame draws at the screen's pace, not the link's - an
     # emulated board's link is several times slower than a real one's.
-    feed = Feed(lambda: latest(board), period=0.005).start()
+    feed = Feed(lambda: latest(board), period=1.0 / FPS_CAP).start()
 
     def draw():
         wide, tall = canvas(args)

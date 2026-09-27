@@ -26,7 +26,8 @@ from coaxial.model.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import cycle_motor, stop_motor
-from terminal.ui.screen import Feed, closing, mode_of, run_view, say, stamp_crosses, visible
+from terminal.ui.screen import (FPS_CAP, Feed, closing, mode_of, run_view, say, stamp_crosses,
+                                visible)
 from terminal.ui.stage import boot, frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -398,7 +399,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='emulator://')
     p.add_argument('--simulated', action='store_true')
-    p.add_argument('--hz', type=float, default=2.0)
+    p.add_argument('--hz', type=float, default=FPS_CAP)
     p.add_argument('--frames', type=int, default=0,
                    help='stop after this many; 0 = until Q, ESC or Ctrl+C')
     p.add_argument('--switch', type=float, metavar='DUTY',
@@ -493,7 +494,7 @@ def main():
                 last['body'] = picture(got, console, reserve,
                                        aspect[0] / 2.0)
 
-        feed = Feed(sample, period=0.005).start()
+        feed = Feed(sample, period=1.0 / FPS_CAP).start()
 
         def draw():
             # Three cells of pad and eight of field: six and twelve read as

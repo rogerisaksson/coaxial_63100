@@ -26,9 +26,9 @@ from coaxial.comm.session import standing
 from coaxial.devices import scaling
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
-from terminal.ui.console import Keys
-from terminal.ui.screen import Feed, closing, mode_of, open_rig, panel_width, say
-from terminal.ui.stage import curtain, hud, panels_of, stage
+from terminal.ui.screen import (FPS_CAP, Feed, closing, mode_of, open_rig, panel_width, run_view,
+                                say)
+from terminal.ui.stage import hud, panels_of, stage
 
 ROTATION_VECTOR = 0x05
 
@@ -240,7 +240,7 @@ def put_back(board):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='emulator://')
-    parser.add_argument('--hz', type=float, default=10.0)
+    parser.add_argument('--hz', type=float, default=FPS_CAP)
     parser.add_argument('--clock', default='software', choices=('software',))
     parser.add_argument('--sample-time', type=int, default=0)
     parser.add_argument('--decimate', type=int, default=1)
@@ -284,7 +284,7 @@ def main(argv=None):
 
     board_view = stage()
     terminal = board_view.is_terminal
-    leaving, frame = None, 0
+    leaving = None
     task = {'layout': layout}
 
     def take():
@@ -293,23 +293,12 @@ def main(argv=None):
         drain(rig, task['layout'], view)
         task['layout'] = adapt(rig, task['layout'], args, view)
 
-    feed = Feed(take, period=0.005).start()
+    feed = Feed(take, period=1.0 / FPS_CAP).start()
 
     try:
-        with curtain(board_view) as show, Keys(terminal) as keys:
-            while True:
-                width = panel_width()
-                show.update(compose(origin, board_view, task['layout'], view, width),
-                            refresh=True)
-                frame += 1
-                if args.frames and frame >= args.frames:
-                    break
-                leaving, _ = keys.poll()
-                if leaving:
-                    break
-                time.sleep(1.0 / max(args.hz, 0.5))
-    except KeyboardInterrupt:
-        pass
+        leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames,
+                           lambda: compose(origin, board_view, task['layout'], view,
+                                           panel_width()))
     finally:
         feed.stop()
         done = put_back(board)

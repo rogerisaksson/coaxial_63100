@@ -52,7 +52,7 @@ from coaxial.errors import RigError
 from coaxial.model import thermal as _thermal
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, console as _console, screen as _screen
-from terminal.ui.screen import Feed, closing, mode_of, open_rig, run_view, say
+from terminal.ui.screen import FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, hud, stage
 from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
@@ -218,7 +218,7 @@ def parse_args(argv):
     p.add_argument('--port', default='emulator://')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--frames', type=int, default=0)
-    p.add_argument('--hz', type=float, default=DEFAULT_HZ)
+    p.add_argument('--hz', type=float, default=FPS_CAP)
     # A terminal size to fit to: a piped run draws as that terminal would
     # (`tools/render/ansi2png.py` rasters it).
     p.add_argument('--width', type=int, default=None)
@@ -300,12 +300,6 @@ def demo_stage(rig, origin):
     rig.board.gate_drivers.on()
 
 
-#: The page's frame rate unless asked for: a page of numbers.
-DEFAULT_HZ = 8.0
-
-#: On the stand-in's model: a moving rotor wants more frames.
-DEMO_HZ = 12.0
-
 #: The demo's damping: 5e-4 puts 0.1 A at 100 rpm, the range that decides
 #: this drive (the chain stops at 27 rpm, 20 rad/s electrical). The
 #: placeholder 1e-5 put 0.08 A at 3900 rpm.
@@ -349,8 +343,6 @@ def demo_defaults(args, origin):
     if not _screen.demo(origin):
         return BOARD_STEP
     args.start = True
-    if args.hz == DEFAULT_HZ:
-        args.hz = DEMO_HZ
     if args.i_max is None:
         args.i_max = DEMO_I_MAX
     if args.i_trip is None:
@@ -492,7 +484,7 @@ def main(argv=None):
                 rearm_after_trip(rig, origin, view)
 
     sample()
-    feed = Feed(sample, period=0.005).start()
+    feed = Feed(sample, period=1.0 / FPS_CAP).start()
 
     def draw():
         # The console itself: `frame_of` pages on its scroll state and size.

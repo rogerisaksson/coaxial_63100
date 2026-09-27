@@ -23,7 +23,7 @@ from coaxial.draw import desk
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import Feed, closing, mode_of, open_rig, run_view, say
+from terminal.ui.screen import FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, stage
 from terminal.views.desk.boxes import (buffer_box, chain_box, digital_box, legend,
                                        scale)
@@ -39,8 +39,8 @@ VALUE = '[38;5;214m'       # the theme's `value`, the light source
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='emulator://')
-    parser.add_argument('--hz', type=float, default=8.0,
-                        help='screen refreshes per second')
+    parser.add_argument('--hz', type=float, default=FPS_CAP,
+                        help='screen refreshes per second, at most %.0f' % FPS_CAP)
     parser.add_argument('--rate', type=float, default=0.0,
                         help='records a second the board produces. Default 0 '
                              'follows --hz, which is what a meter wants: one '
@@ -143,7 +143,7 @@ def watch(rig, args, layout, chain, params):
         return clock['state']
 
     # Not tied to the frame rate.
-    feed = Feed(read, period=0.01).start()
+    feed = Feed(read, period=1.0 / FPS_CAP).start()
 
     def draw():
         # Re-fitted every frame: the bars shrink with the tty instead of

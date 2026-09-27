@@ -26,7 +26,7 @@ import time
 from coaxial import Coaxial63100
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import Feed, mode_of, run_view, say, steady
+from terminal.ui.screen import FPS_CAP, Feed, mode_of, run_view, say, steady
 from terminal.ui.stage import boot, stage
 from terminal.views.session.blocks import frame, snapshot
 from terminal.views.session.run import (Plan, act_on, leave, start_activities,
@@ -58,7 +58,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='emulator://')
     p.add_argument('--simulated', action='store_true')
-    p.add_argument('--hz', type=float, default=2.0)
+    p.add_argument('--hz', type=float, default=FPS_CAP)
     p.add_argument('--frames', type=int, default=0)
     p.add_argument('--sample-every', type=float, default=SAMPLE_EVERY_S,
                    metavar='S',
@@ -122,7 +122,7 @@ def main():
 
         # The round of reads on its own thread: a frame draws at the screen's pace, not the
         # link's - an emulated board's is several times slower than a real one's.
-        feed = Feed(lambda: snapshot(session), period=0.005).start()
+        feed = Feed(lambda: snapshot(session), period=1.0 / FPS_CAP).start()
 
         def draw():
             return frame(session, dashboard, session.note, feed.latest)

@@ -25,7 +25,7 @@ from machine.routines import TYPES
 from machine.running import Running
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import closing, run_view, say
+from terminal.ui.screen import FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import frame_of, hud, stage
 
@@ -158,7 +158,7 @@ def act_on(typed, state):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='emulator://', help='accepted with every page; no board here')
-    parser.add_argument('--hz', type=float, default=30.0, help='frames per second, at most')
+    parser.add_argument('--hz', type=float, default=FPS_CAP, help='frames per second, at most')
     parser.add_argument('--simulated', action='store_true',
                         help='accepted for the view suite; the physics runs either way')
     parser.add_argument('--frames', type=int, default=0,
@@ -213,7 +213,7 @@ def main(argv=None):
                 if body.latest() is not None:
                     break
                 time.sleep(0.01)
-        leaving = run_view(board_view, terminal, 1.0 / max(1.0, min(args.hz, 60.0)),
+        leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz),
                            args.frames, draw, on_input=lambda typed, _moved: act_on(typed, state))
     finally:
         body.close()

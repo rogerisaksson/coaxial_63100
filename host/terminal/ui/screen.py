@@ -140,6 +140,11 @@ def gauge(fraction, width, hot=THROTTLE_AT):
                         else cross_section.SOA_OK)
 
 
+#: Frames a second, at most, on every view, and its feed's reads: smooth against a stand-in or an
+#: emulator, no dearer in CPU (2026-09-27). A feed at 5 ms held an emulated board's link.
+FPS_CAP = 20.0
+
+
 class Feed:
 
     """The board read on its own thread, so a frame draws at the screen's
@@ -172,7 +177,10 @@ class Feed:
                 self.error = exc
             else:
                 self.error = None
-                self.latest = got
+                # None is the link's silence (`steady`): the last reading stands, stale, rather
+                # than the frame going blank.
+                if got is not None:
+                    self.latest = got
                 self.reads += 1
             if self.period:
                 time.sleep(self.period)
@@ -224,11 +232,12 @@ UI_HZ = 15.0
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False, on_click=None, on_drag=None,
              scroll_keys=True):
-    """The loop every view runs: draw, pace, take keys - until Q, ESC,
-    Ctrl+C or `frames` frames. Between draws the frame is shown again at UI_HZ;
+    """The loop every view runs: draw, pace - `period`, FPS_CAP's at the least - take keys,
+    until Q, ESC, Ctrl+C or `frames` frames. Between draws the frame is shown again at UI_HZ;
     a key cuts the wait and draws at once.
     """
 
+    period = max(period, 1.0 / FPS_CAP)
     click, drag = on_click or _ignore, on_drag or _ignore
     count = 0
     try:

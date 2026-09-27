@@ -44,9 +44,10 @@ def flag(state):
         return 'STO ON', ''
     if not afe:
         return 'STO OFF', 'AFE off'
-    if state['pilot_microvolts'] < want['Cinj'] * 1e6:
+    # The pins are unread while the drive holds the converters: judged only where read.
+    if state.get('pilot_ok') and state['pilot_microvolts'] < want['Cinj'] * 1e6:
         return 'STO OFF', 'no pilot'
-    if state['level_microvolts'] < want['Clevel'] * 1e6:
+    if state.get('level_ok') and state['level_microvolts'] < want['Clevel'] * 1e6:
         return 'STO OFF', 'no keepalive'
     return 'STO OFF', 'PGD' if not state['nfault'] else 'no supply'
 

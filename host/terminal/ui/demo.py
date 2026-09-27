@@ -21,6 +21,9 @@ DEMO_HZ = 0.14
 DEMO_AMPS = 30.0
 DEMO_S = 45.0
 
+#: The demo's setpoint written at most this often, s.
+STEP_S = 0.1
+
 #: How fast the held vector's speed ramps to its target, rad/s^2: the firmware's hold climbs at
 #: `accel` and stands still at none - the stand-in's turns at once.
 DEMO_ACCEL = 200.0
@@ -49,9 +52,16 @@ def turn_motor(rig, origin, amps=None):
                 omega_target=2.0 * math.pi * DEMO_HZ * _scale(rig))
     drive.hold()
     began = time.monotonic()
+    wrote = {'at': 0.0}
 
     def step(_now=None):
-        phase = (time.monotonic() - began) / DEMO_S
+        # A ramp over DEMO_S: a write every STEP_S, not every frame - a feed's every sample held
+        # an emulated board's link.
+        now = time.monotonic()
+        if now - wrote['at'] < STEP_S:
+            return
+        wrote['at'] = now
+        phase = (now - began) / DEMO_S
         held = DEMO_AMPS * 0.5 * (1.0 - math.cos(2.0 * math.pi * phase)) if amps is None else amps
         drive.write(id_ref=held, omega_target=2.0 * math.pi * DEMO_HZ * _scale(rig))
     return step

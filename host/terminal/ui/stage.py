@@ -385,7 +385,8 @@ def panels_of(console, origin, title, groups, keys):
     # The grid sits in the same heavy frame the drawing views give their
     # viewport, so a table page owns its region the way they do; without it
     # the session read as loose boxes on the bare screen.
-    framed = Panel(Chrome(body, title, lock=False), title=Text(' %s ' % title, style='name'),
+    framed = Panel(Corner(Chrome(body, title, lock=False), rate_of(console).label()),
+                   title=Text(' %s ' % title, style='name'),
                    title_align='left', box=box.HEAVY, border_style='frame',
                    padding=0, expand=True)
 

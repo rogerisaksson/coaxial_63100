@@ -39,7 +39,7 @@ from coaxial.errors import RigError
 from coaxial.simulated.sto import PILOT_VOLTS
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import (ASH, LABEL, SODIUM, closing, demo, open_rig, panel_width,
+from terminal.ui.screen import (ASH, FPS_CAP, LABEL, SODIUM, closing, demo, open_rig, panel_width,
                                 run_view, say, tint, mode_of)
 from terminal.ui.stage import hud, panels_of, stage
 
@@ -344,7 +344,7 @@ def compose(rig, origin, console, view, layout, width):
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='emulator://')
-    parser.add_argument('--hz', type=float, default=8.0)
+    parser.add_argument('--hz', type=float, default=FPS_CAP)
     parser.add_argument('--accumulate', type=int, default=8,
                         help='samples summed per record')
     parser.add_argument('--afe', choices=('on', 'off'), default=None,
