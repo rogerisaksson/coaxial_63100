@@ -1,139 +1,375 @@
-"""Her boards on their buses, simulated. A thread a limb, its boards' loops at their own pace on
-the shared world, the host's frames on the wire between them at the link's rate.
+"""Her boards on their buses: a limb's boards a process, the host's Modbus RTU frames real bytes.
 
-    bus = Bus(world, link, indices)          # a limb's boards, by joint index (`figure.JOINTS`)
-    bus.send(at, {index: degrees})           # the host's setpoints, one broadcast, at `at` s
-    bus.poll(at)                             # and its polls, a reply a board, landing in turn
-    bus.tick(now)                            # a lockstep: frames landed applied, each board's
-                                             # PD to the world's ctrl, replies out (`World`)
-    bus.reading(index)                       # (degrees, rate, stamp) as the host last heard
+    block = Block(joints, buses); buses = Buses(block, limbs)   # World.wire: the processes up
+    bus.send(at, now, {index: degrees})     # a pass: the setpoints broadcast, every board polled
+    buses.step()                            # a step: every process ticks its boards, in lockstep
+    buses.drain(); bus.reading(index)       # the replies read; (degrees, deg/s) as last heard
+    python -m machine.buses NAME J B BAUD TURN_S K=i,i..    # a process: `serve`
 
-The link is Modbus RTU on RS485 at 10 Mbit. The host writes every board's setpoint in one
-broadcast a pass (0x10 to address 0: 9 bytes and an i32 a setpoint) and polls each board after
-it (0x03, 8 bytes; the reply 13: its angle and rate as i32); a frame lands at the boards its
-bytes later at BAUD, 8N1, a reply as many after the poll and the board's turn (TURN_S) - a frame
-of known shape dispatches on its CRC, not t3.5 (docs/PROTOCOL.md). Each board runs its PD (`physics.SERVO`) every LOCKSTEP_S on the setpoint
-it has, carried on at the rate the last two came at. The threads hold the world's clock in
-lockstep, a barrier a step: the emulated boards take the same place later. The host sends
-nothing on a bus still busy a pass on: queued without end, the frames fell ever further behind
-at 1 Mbit and she fell in 2 s. At 10 Mbit a leg's seven boards hear a pass's setpoints 37 us
-after it and the host their state 0.4 ms on: the walk holds as without the wire, the pendulum's
-stir 2.8 -> 3.5 mm for the millisecond's lag; at 1 Mbit a leg's polls take 1.7 ms and she falls
-within a second. The threads are Python's, the GIL between them: they carry the wire's timing,
-not parallel work - a limb a process over a virtual port is the next step (2026-09-27).
+The wire is Modbus RTU (`machine.rtu`) on RS485 at BAUD, USART2/UART5's rate (the .ioc), over a
+TCP socket a bus - `socket://`, as an emulated limb's port. A pass the host writes one broadcast
+of the bus's setpoints and a poll a board, their stamps in the block; a frame lands at the
+boards its bytes after its stamp, or after the wire frees, 8N1; a poll is answered TURN_S after
+it lands with the board's state then, the reply's bytes on the wire behind it. Nothing goes on a
+bus still busy a pass on. A board holds its setpoint by PD (`gains`) every step, carried on at
+the rate its last two frames came at.
+
+The block (`Block`, FIELDS): the world writes time, q, qd and limit, bumps seq and sends a byte
+to each process's stdin; a process takes each bus's new bytes (written - received), ticks its
+boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
+epoch and hold: a reset, every board holding `hold`. An emulated limb takes a process's place on
+the same port and block. A limb a process where the machine has THREADS_A_LIMB hardware threads
+a limb, else the limbs shared out by their boards (`share`).
 """
 import collections
 import math
-import threading
+import os
+import socket
+import subprocess
+import sys
+import time
+from multiprocessing import shared_memory
+from typing import Any
 
-#: The link's rate, bits/s, and a board's turn from a poll to its reply, s.
-BAUD, TURN_S = 10e6, 30e-6
+from machine import rtu
+from machine.errors import MachineError
 
-#: A broadcast's bytes over its setpoints (address, function, start, count, byte count, CRC),
-#: a setpoint's (i32), a poll's, a reply's (address, function, byte count, angle and rate as
-#: i32, CRC).
-FRAME_B, SETPOINT_B, POLL_B, REPLY_B = 9, 4, 8, 13
+#: The link's rate, bits/s (USART2 and UART5, coaxial_63100.ioc), and a board's turn from a poll
+#: landing to its reply, s.
+BAUD, TURN_S = 9_216_000, 30e-6
 
 #: The boards' pace and the world's step, s.
 LOCKSTEP_S = 0.001
 
+#: How long the host spins for the boards' step before yielding, and how long a step may take, s.
+SPIN_S, STALL_S = 0.002, 60.0
 
-def wire(count):
+#: A limb a process where the machine has this many hardware threads a limb.
+THREADS_A_LIMB = 2
+
+#: The block's fields: name, struct format, count - a number, or per joint (J) or bus (B).
+FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B'),
+          ('written', 'q', 'B'), ('sent', 'q', 'B'), ('free_at', 'd', 'B'), ('at', 'd', '2B'),
+          ('q', 'd', 'J'), ('qd', 'd', 'J'), ('limit', 'd', 'J'), ('ctrl', 'd', 'J'),
+          ('hold', 'd', 'J'), ('gains', 'd', '2J'))
+
+HOST = '127.0.0.1'
+
+
+def wire(count, baud=None):
     """Seconds `count` bytes take on the wire, 8N1."""
-    return count * 10.0 / BAUD
+    return count * 10.0 / (baud or BAUD)
 
 
-class Bus(threading.Thread):
+def _count(spec, joints, buses):
+    if isinstance(spec, int):
+        return spec
+    return int(spec[:-1] or 1) * (joints if spec[-1] == 'J' else buses)
 
-    """One limb's RS485 bus: its boards (joint indices), the frames in flight to and from them,
-    and their loops, run a lockstep at a time as the world lets it (`tick`)."""
 
-    def __init__(self, world, link, indices):
-        super().__init__(name='bus %d' % link, daemon=True)
-        self.world, self.link, self.indices = world, link, list(indices)
+def _exactly(sock, count):
+    """`count` bytes from the socket."""
+    chunks, got = [], 0
+    while got < count:
+        chunk = sock.recv(count - got)
+        if not chunk:
+            raise MachineError('the bus closed')
+        chunks.append(chunk)
+        got += len(chunk)
+    return b''.join(chunks)
+
+
+class Block:
+
+    """The shared block, a memoryview a field: made by the world, opened by name in a process."""
+
+    time: Any
+    seq: Any
+    epoch: Any
+    done: Any
+    written: Any
+    sent: Any
+    free_at: Any
+    at: Any
+    q: Any
+    qd: Any
+    limit: Any
+    ctrl: Any
+    hold: Any
+    gains: Any
+
+    def __init__(self, joints, buses, name=None):
+        size = 8 * sum(_count(c, joints, buses) for _, _, c in FIELDS)
+        if name is None:
+            self.shm = shared_memory.SharedMemory(create=True, size=size)
+        else:
+            try:
+                self.shm = shared_memory.SharedMemory(name=name, track=False)
+            except TypeError:                 # before 3.13: tracked, and warned of at exit
+                self.shm = shared_memory.SharedMemory(name=name)
+        buf: Any = self.shm.buf
+        if name is None:
+            buf[:size] = bytes(size)
+        self.name, self.owner = self.shm.name, name is None
+        self.joints, self.buses, self.views = joints, buses, []
+        at = 0
+        for field, fmt, spec in FIELDS:
+            n = 8 * _count(spec, joints, buses)
+            view = buf[at:at + n].cast(fmt)
+            setattr(self, field, view)
+            self.views.append(view)
+            at += n
+
+    def close(self):
+        for view in self.views:
+            view.release()
+        self.views = []
+        self.shm.close()
+        if self.owner:
+            self.shm.unlink()
+
+
+# -- the process ---------------------------------------------------------------------------
+
+class Segment:
+
+    """One bus in its process: its socket, the frames in flight, its boards' loops."""
+
+    def __init__(self, block, link, indices, baud, turn):
+        self.block, self.link, self.indices = block, link, list(indices)
+        self.baud, self.turn = baud, turn
+        n = len(self.indices)
         #: Per board: the setpoint held (rad), its rate (rad/s), when it was set (s), and
-        #: whether a frame set it - the rate is read between two frames, never from a hold:
-        #: from the hold at a reset to the first frame 37 us later it came to 150 rad/s and
-        #: every drive slammed to its peak (2026-09-27).
-        self.target = {i: 0.0 for i in self.indices}
-        self.rate = {i: 0.0 for i in self.indices}
-        self.set_at = {i: 0.0 for i in self.indices}
-        self.framed = {i: False for i in self.indices}
-        #: The host's frames landing: (at, {index: rad}); the replies landing: (at, index,
-        #: degrees, rate); what the host has heard: {index: (degrees, rate, at)}.
-        self.inbox = collections.deque()
-        self.mail = collections.deque()
-        self.heard = {i: (0.0, 0.0, 0.0) for i in self.indices}
-        #: When the bus is free again, s.
-        self.free_at = 0.0
-        self.now, self.stop = 0.0, False
+        #: whether a frame set it - the rate is read between two frames, never from a hold.
+        self.target, self.rate, self.set_at = [0.0] * n, [0.0] * n, [0.0] * n
+        self.framed = [False] * n
+        #: Frames landing: (at, {unit: mdeg}); polls to answer: (at, unit).
+        self.inbox, self.mail = collections.deque(), collections.deque()
+        self.free_at, self.received, self.bad = 0.0, 0, 0
+        self.epoch = block.epoch[0]
+        self.server = socket.socket()
+        self.server.bind((HOST, 0))
+        self.server.listen(1)
+        self.port = self.server.getsockname()[1]
+        self.sock: Any = None
 
-    # -- the host's side -----------------------------------------------------------------
+    def accept(self):
+        self.sock, _ = self.server.accept()
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.server.close()
 
-    def send(self, at, degrees):
-        """The host's setpoints {index: degrees} broadcast at `at` s: they land when the frame
-        has gone over the wire, behind the polls out on it; a bus still busy a pass on gets
-        nothing (dropped behind the pass's own polls, no setpoint ever reached a board)."""
-        if self.free_at > at + LOCKSTEP_S:
+    def hold(self, now):
+        """Every board holding its `hold`, nothing in flight: a reset."""
+        b = self.block
+        for k, i in enumerate(self.indices):
+            self.target[k], self.rate[k], self.set_at[k] = b.hold[i], 0.0, now
+            self.framed[k] = False
+        self.inbox.clear()
+        self.mail.clear()
+        self.free_at = now
+
+    def hear(self):
+        """The host's new bytes: each frame onto the wire at its stamp, or when the wire frees."""
+        b, link = self.block, self.link
+        want = b.written[link] - self.received
+        if want <= 0:
             return
-        self.free_at = max(at, self.free_at) + wire(FRAME_B + SETPOINT_B * len(degrees))
-        self.inbox.append((self.free_at, {i: math.radians(v) for i, v in degrees.items()}))
-
-    def poll(self, at):
-        """The host's poll of every board at `at` s, in turn, after the broadcast: each reply
-        lands when it has come back over the wire; a bus still busy gets none."""
-        if self.free_at > at + LOCKSTEP_S:
-            return
-        start = max(at, self.free_at)
-        for i in self.indices:
-            start += wire(POLL_B) + TURN_S
-            self.mail.append((start, i))
-            start += wire(REPLY_B)
-        self.free_at = start
-
-    def reading(self, index):
-        """(degrees, rate deg/s, when) of a board as the host last heard it."""
-        return self.heard[index]
-
-    # -- the boards' side ----------------------------------------------------------------
+        data = _exactly(self.sock, want)
+        self.received += want
+        stamps = (b.at[2 * link], b.at[2 * link + 1])
+        frames, bad = rtu.requests(data)
+        self.bad += bad
+        for unit, fc, body in frames:
+            if fc == rtu.WRITE and unit == rtu.BROADCAST:
+                self.free_at = max(stamps[0], self.free_at) + wire(len(body) + 4, self.baud)
+                self.inbox.append((self.free_at, rtu.setpoints(body)))
+            elif fc == rtu.READ and 1 <= unit <= len(self.indices):
+                start = max(stamps[1], self.free_at) + wire(rtu.POLL_B, self.baud) + self.turn
+                self.mail.append((start, unit))
+                self.free_at = start + wire(rtu.REPLY_B, self.baud)
 
     def tick(self, now):
-        """A lockstep at `now` s: the frames landed by now set the boards' targets, each
-        board's PD writes its torque, the polls landed by now are answered with the board's
-        state now."""
-        self.now = now
+        """A step at `now`: frames landed set the boards' targets, each board's PD writes its
+        torque, polls landed are answered with the board's state now."""
+        b = self.block
+        if b.epoch[0] != self.epoch:
+            self.epoch = b.epoch[0]
+            self.hold(now)
+        self.hear()
         while self.inbox and self.inbox[0][0] <= now:
-            at, targets = self.inbox.popleft()
-            for i, v in targets.items():
-                span = at - self.set_at[i]
-                self.rate[i] = ((v - self.target[i]) / span
-                                if self.framed[i] and 1e-9 < span < 0.1 else 0.0)
-                self.target[i], self.set_at[i], self.framed[i] = v, at, True
-        w = self.world
-        for i in self.indices:
-            ref = self.target[i] + self.rate[i] * (now - self.set_at[i])
-            tau = w.gains[i, 0] * (ref - w.q[i]) + w.gains[i, 1] * (self.rate[i] - w.qd[i])
-            w.ctrl[i] = max(-w.limit[i], min(w.limit[i], tau))
+            at, setpoints = self.inbox.popleft()
+            for unit, mdeg in setpoints.items():
+                k = unit - 1
+                if not 0 <= k < len(self.indices):
+                    continue
+                v, span = math.radians(mdeg / 1000.0), at - self.set_at[k]
+                self.rate[k] = ((v - self.target[k]) / span
+                                if self.framed[k] and 1e-9 < span < 0.1 else 0.0)
+                self.target[k], self.set_at[k], self.framed[k] = v, at, True
+        for k, i in enumerate(self.indices):
+            ref = self.target[k] + self.rate[k] * (now - self.set_at[k])
+            tau = b.gains[2 * i] * (ref - b.q[i]) + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i])
+            b.ctrl[i] = max(-b.limit[i], min(b.limit[i], tau))
+        out = b''
         while self.mail and self.mail[0][0] <= now:
-            at, i = self.mail.popleft()
-            self.heard[i] = (math.degrees(w.q[i]), math.degrees(w.qd[i]), at)
+            unit = self.mail.popleft()[1]
+            i = self.indices[unit - 1]
+            out += rtu.reply(unit, round(math.degrees(b.q[i]) * 1000.0),
+                             round(math.degrees(b.qd[i]) * 1000.0))
+        if out:
+            self.sock.sendall(out)
+            b.sent[self.link] += len(out)
+        b.free_at[self.link] = self.free_at
 
-    def hold(self, index, radians):
-        """A board holding `radians` still, as at a reset."""
-        self.target[index], self.rate[index], self.set_at[index] = radians, 0.0, self.now
-        self.framed[index] = False
-        self.heard[index] = (math.degrees(radians), 0.0, self.now)
 
-    # -- the thread ----------------------------------------------------------------------
+def serve(argv):
+    """A process's buses, `python -m machine.buses NAME J B BAUD TURN_S K=i,i..`: the ports said
+    on stdout, a step a byte on stdin, over when stdin closes."""
+    block = Block(int(argv[2]), int(argv[3]), argv[1])
+    baud, turn = float(argv[4]), float(argv[5])
+    segments = [Segment(block, int(k), [int(i) for i in spec.split(',')], baud, turn)
+                for k, _, spec in (arg.partition('=') for arg in argv[6:])]
+    sys.stdout.write(' '.join('%d:%d' % (s.link, s.port) for s in segments) + '\n')
+    sys.stdout.flush()
+    for segment in segments:
+        segment.accept()
+    while os.read(0, 1):
+        now, seq = block.time[0], block.seq[0]
+        for segment in segments:
+            segment.tick(now)
+        for segment in segments:
+            block.done[segment.link] = seq
+    block.close()
 
-    def run(self):
-        """Lockstep with the world: released a step at a time (`World.advance`), the barriers
-        broken when the world stops."""
-        w = self.world
-        try:
-            while not self.stop:
-                w.begun.wait()
-                self.tick(w.data.time)
-                w.ended.wait()
-        except threading.BrokenBarrierError:
-            pass
+
+# -- the host ------------------------------------------------------------------------------
+
+class Bus:
+
+    """One bus as the host has it: its socket, the pass's frames out, the replies in."""
+
+    def __init__(self, block, link, indices, port):
+        self.block, self.link, self.indices = block, link, list(indices)
+        self.sock = socket.create_connection((HOST, port))
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.polls = b''.join(rtu.poll(unit) for unit in range(1, len(self.indices) + 1))
+        self.heard = {i: (0.0, 0.0) for i in self.indices}
+        self.received, self.bad = 0, 0
+
+    def send(self, at, now, degrees):
+        """The pass: the bus's setpoints {index: degrees} - every board's, none for the polls
+        alone - broadcast at `at` s, then every board polled at `now`; a bus still busy a pass
+        on gets nothing."""
+        b, link = self.block, self.link
+        if b.free_at[link] > (at if degrees else now) + LOCKSTEP_S:
+            return
+        frames = self.polls
+        if degrees:
+            frames = rtu.broadcast(1, [round(degrees[i] * 1000.0) for i in self.indices]) + frames
+        b.at[2 * link], b.at[2 * link + 1] = at, now
+        self.sock.sendall(frames)
+        b.written[link] += len(frames)
+
+    def hold(self, index, degrees):
+        """A board holding `degrees` still, as at a reset: what the host has of it."""
+        self.heard[index] = (degrees, 0.0)
+
+    def drain(self):
+        """The replies the boards have sent, read: what the host last heard of each."""
+        want = self.block.sent[self.link] - self.received
+        if want <= 0:
+            return
+        data = _exactly(self.sock, want)
+        self.received += want
+        frames, bad = rtu.replies(data)
+        self.bad += bad
+        for unit, fc, body in frames:
+            if fc == rtu.READ and 1 <= unit <= len(self.indices):
+                angle, rate = rtu.state(body)
+                self.heard[self.indices[unit - 1]] = (angle / 1000.0, rate / 1000.0)
+
+    def reading(self, index):
+        """(degrees, deg/s) of a board as the host last heard it."""
+        return self.heard[index]
+
+
+def share(limbs, threads=None):
+    """[[bus, ..], ..]: the limbs by process - one each with THREADS_A_LIMB hardware threads a
+    limb, else shared out by their boards, the heaviest first onto the lightest."""
+    threads = (os.cpu_count() or 1) if threads is None else threads
+    count = max(1, min(len(limbs), threads // THREADS_A_LIMB))
+    groups = [[0, []] for _ in range(count)]
+    for k in sorted(range(len(limbs)), key=lambda k: -len(limbs[k])):
+        lightest = min(groups, key=lambda g: g[0])
+        lightest[0] += len(limbs[k])
+        lightest[1].append(k)
+    return [sorted(g[1]) for g in groups]
+
+
+class Buses:
+
+    """A world's buses: their processes up and connected, a Bus each - `each` in bus order, `of`
+    by joint index."""
+
+    def __init__(self, block, limbs, baud=None, turn=None):
+        self.block, self.processes, self.seq = block, [], 0
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for group in share(limbs):
+            args = [sys.executable, '-m', 'machine.buses', block.name, str(block.joints),
+                    str(block.buses), repr(baud or BAUD), repr(turn or TURN_S)]
+            args += ['%d=%s' % (k, ','.join(map(str, limbs[k]))) for k in group]
+            self.processes.append(subprocess.Popen(args, cwd=root, stdin=subprocess.PIPE,
+                                                   stdout=subprocess.PIPE, bufsize=0))
+        ports = {}
+        for process in self.processes:
+            line = process.stdout.readline().decode()
+            if not line:
+                raise MachineError('a bus process ended before it served')
+            ports.update((int(k), int(p)) for k, _, p in (w.partition(':') for w in line.split()))
+        self.each = [Bus(block, k, indices, ports[k]) for k, indices in enumerate(limbs)]
+        self.of = {i: bus for bus in self.each for i in bus.indices}
+
+    def step(self):
+        """One lockstep: every process told, every bus done."""
+        b = self.block
+        self.seq += 1
+        b.seq[0] = self.seq
+        for process in self.processes:
+            process.stdin.write(b'\0')
+        began = time.perf_counter()
+        while min(b.done) < self.seq:
+            if time.perf_counter() - began > SPIN_S:
+                self._alive(began)
+                time.sleep(0)
+
+    def _alive(self, began):
+        for k, process in enumerate(self.processes):
+            if process.poll() is not None:
+                raise MachineError('bus process %d ended (%s)' % (k, process.returncode))
+        if time.perf_counter() - began > STALL_S:
+            raise MachineError('the buses stalled %.0f s' % STALL_S)
+
+    def drain(self):
+        for bus in self.each:
+            bus.drain()
+
+    def close(self):
+        """The processes over: their stdin closed, then waited for."""
+        for process in self.processes:
+            for pipe in (process.stdin, process.stdout):
+                try:
+                    pipe.close()
+                except OSError:
+                    pass
+        for bus in self.each:
+            bus.sock.close()
+        for process in self.processes:
+            try:
+                process.wait(2.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+        self.processes, self.each, self.of = [], [], {}
+
+
+if __name__ == '__main__':
+    serve(sys.argv)

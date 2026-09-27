@@ -96,14 +96,11 @@ Open work. Measured results are in FINDINGS.
   sign and the gain against the bob's 2 s period to be worked out). The
   feet are 27 cm, outsize on 1.60 m: a 23-25 cm foot wants the walk
   retuned (the toe-off's lever, the reach at the landing). Her boards run
-  on their buses, a thread a limb (`machine.buses`) - Python's threads, the
-  wire's timing only: next a limb a process, its boards' loops on the
-  world's state through shared memory in lockstep, the RTU bytes real on a
-  virtual port (`socket://`, as the emulator's consoles) so the emulated
-  boards take a bus's place unchanged when the emulation is ready; limbs
-  share a process where the cores are few (the count from the machine),
-  the threads the fallback; the IMU's reading is the world's own still,
-  not a frame on the axis bus. The
+  on their buses, a process a limb (`machine.buses`): an emulated limb takes
+  a process's place on its port and block when the emulation is ready, and
+  the firmware's map wants the walk's registers (`machine.rtu`: SETPOINT_REG,
+  STATE_REG); the IMU's reading is the world's own still, not a frame on
+  the axis bus. The
   walk begins from a lean, the walker taking
   her mid-swing; the softer soles that felled the old first stride are
   untried on it, then a compressible sole layer for more give than a

@@ -479,24 +479,28 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   its straightest, 15-20 through mid-stance from the latch's 10-12 mm; at
   4 the walk at 0.9 fell in 0.6 s (2026-09-27).
 - Her boards on their buses, simulated (`machine.buses`): a bus a limb (the
-  type's subsystems - the axis, each arm, each leg), a thread each holding
-  the world's clock in lockstep, a barrier a step, its boards' PD loops
-  its own; the host's setpoints one broadcast a bus a pass and a poll of
-  every board after it, the frames landing their bytes later at the link's
-  rate (8N1, Modbus RTU: a 0x10 broadcast of 9 bytes and an i32 a
-  setpoint, 0x03 polls of 8, replies of 13), a reply its bytes and the
-  board's 30 us turn after the poll; the host sends nothing on a bus still
-  busy a pass on (queued without end, she fell in 2 s at 1 Mbit). At 10
-  Mbit a leg's seven boards hear a pass's setpoints 37 us on and the host
-  their state 0.4 ms on: held 90 % as without the wire, the stir 2.8 -> 3.5
-  mm for the millisecond's lag; at 1 Mbit (a leg's polls 1.7 ms) and at
-  115 200 she falls within a second - the walk wants its joints read every
-  millisecond. The setpoint's rate a board carries on at is read between
-  two frames, never from a hold: from the reset's hold to the first frame
-  37 us on it came to 150 rad/s and every drive slammed to its peak. The
-  threads are Python's, the GIL between them: the wire's timing, not
-  parallel work. A world with no buses runs the drives itself
-  (`tools/sim/getup_lab.py`) (2026-09-27).
+  type's subsystems - the axis, each arm, each leg), a process each with its
+  boards' PD loops, in lockstep with the world a step at a time over a
+  shared block (q, qd, limit in; ctrl out; a byte on stdin a step), the
+  host's frames real bytes on a TCP socket a bus (`socket://`, an emulated
+  limb's port). Modbus RTU (`machine.rtu`): a pass one 0x10 broadcast of
+  the bus's setpoints (9 bytes and an i32 mdeg a unit, SETPOINT_REG) and a
+  0x03 poll a board (8 bytes; the reply 13: angle and rate, i32 mdeg,
+  mdeg/s, STATE_REG), a frame landing its bytes after its stamp at 9 216 000
+  baud (USART2/UART5's rate in the .ioc; 115 200 is the debug VCP's alone),
+  8N1, a reply the board's 30 us turn after the poll; nothing on a bus
+  still busy a pass on. A leg's seven boards hear a pass's setpoints 40 us
+  on and the host their state 0.4 ms on: held 89.8 %, stir 3.55 mm, as the
+  threads had it (89.8 %, 3.53). A lockstep of five processes: 19 us a step
+  spinning on the block, 37 spinning then a semaphore, 46 the semaphore
+  alone; the walk's step 1 431 us wall against the threads' 1 710 (the GIL
+  hand-offs), the buses' share ~350 us a pass (a sendall 21 us a bus, a
+  pipe byte 10 a process, CRC and parsing ~115); 0 bad frames in 10 000
+  replies. The setpoint's rate a board carries on at is read between two
+  frames, never from a hold: from the reset's hold to the first frame 37 us
+  on it came to 150 rad/s and every drive slammed to its peak. A world
+  with no buses runs the drives itself (`tools/sim/getup_lab.py`)
+  (2026-09-27).
 - The feet: 27 cm with the toes, outsize on 1.60 m, but the walk is tuned
   to them - at 23 the walk at 0.85 fell in 0.5 s from mid-stride (a catch
   at 0.2 s, both feet off the floor), at 25 the rises fell at 10.9 s, the

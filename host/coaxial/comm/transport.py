@@ -8,7 +8,7 @@ from typing import Any
 
 import serial
 
-from coaxial.comm.crc import crc16
+from machine.rtu import crc16
 from coaxial.comm.hostclock import HostClock
 from coaxial.comm.protocol import BROADCAST, MAX_PAYLOAD, request_length
 from coaxial.errors import ConnectError, CrcError, FrameError, ModbusException, NoReplyError

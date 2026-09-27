@@ -106,9 +106,10 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     failsafe), simulated (pack, camera), virtual (VIRTUAL: a
                     type's joints where told, no board), gait (a walk's angles),
                     figure (the gynoid's segments, masses, leg IK), physics
-                    (DYNAMIC: the figure in MuJoCo, a drive a joint), buses
-                    (its boards on a bus a limb, a thread each in lockstep
-                    with the world, the host's frames timed on the wire), walker
+                    (DYNAMIC: the figure in MuJoCo, a drive a joint), rtu
+                    (Modbus RTU: CRC-16, a pass's frames), buses (its boards on
+                    a bus a limb, a process each in lockstep with the world over
+                    a shared block, the host's frames bytes on a socket a bus), walker
                     (her setpoints each ms: plan, IK, balance), capture (where
                     a swinging foot lands across: on the capture point, or a
                     side step), arrival (keyframes, the CoM fed back: the
@@ -120,7 +121,7 @@ coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory;
                     node (the family for machine: Coaxial node, joint, surface,
                     rotor, torque); profiles/ (a motor's drive record and
                     stand-in model, JSON)
-coaxial/comm/       the wire: transport, crc, codecs, protocol, broker, sessions
+coaxial/comm/       the wire: transport, codecs, protocol, broker, sessions
 coaxial/devices/    one subsystem per functional area: board, afe, gates, boot..
 coaxial/acquire/    the rig's task and stream (its mixins), records, reader,
                     clock, filter

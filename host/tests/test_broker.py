@@ -276,7 +276,7 @@ def test_a_stale_address_is_not_a_broker(report):
 
 def test_frame_length(report):
     """The reply shapes that stop a read on its last byte."""
-    from coaxial.comm.crc import crc16
+    from machine.rtu import crc16
     from coaxial.comm.transport import ACK, frame_length
 
     def framed(payload, unit=1, fc=0x6E):
@@ -309,7 +309,7 @@ def test_ack_skips_the_quiet_time(report):
     import types
 
     from coaxial.comm import transport as tmod
-    from coaxial.comm.crc import crc16
+    from machine.rtu import crc16
 
     class _StubSerial:
         """A slave in four methods: the scripted `reply` arrives when

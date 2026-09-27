@@ -4,19 +4,20 @@
     machine.loop.write(left_knee=20.0); machine.loop.step(0.001)    # the world moves to the loop's time
 
 A drive holds its setpoint by PD at the world's step, 1 ms, carrying it on at the rate it last
-moved - on its board, on its limb's bus (`machine.buses`), a thread a limb in lockstep with the
-world, the host's setpoints and its readings crossing the wire at the link's rate; a world with
+moved - on its board, on its limb's bus (`machine.buses`), a process a limb in lockstep with the
+world, the host's setpoints and its readings Modbus RTU frames on a socket a bus; a world with
 no buses runs the drives itself. The world advances when the loop reads it, to the loop's time,
 on the setpoints written the pass before. The floor is y 0, a slab over a plane a hole deep, its
 events parked out of the way until placed (`World.terrain`); only the soles, the toes, the knees
 and the knuckles touch it.
 """
+import atexit
 import importlib
 import math
 import os
-import threading
+from typing import Any
 
-from machine.buses import Bus
+from machine.buses import Block, Buses
 from machine.controller import Feedback
 from machine.errors import MachineError
 from machine.figure import CONTACTS, JOINTS, MASS_KG, SEGMENTS
@@ -167,14 +168,13 @@ class World:
         self.target = np.zeros(len(JOINTS))
         self.rate = np.zeros(len(JOINTS))
         self.was, self.stamp = self.target.copy(), 0.0
-        #: The buses (`buses`), the bus of each joint; the joints' state and the torque limit
-        #: the boards read a step, the torques they write; the host's setpoints pending a
-        #: broadcast and when they were written; the lockstep's barriers.
-        self.buses, self.bus_of = [], {}
-        self.q, self.qd = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
-        self.limit, self.ctrl = self.peak.copy(), np.zeros(len(JOINTS))
-        self.pending, self.pending_at, self.stop = {}, 0.0, False
-        self.begun = self.ended = None
+        #: The buses and their block (`machine.buses`), the bus of each joint; the torque limit
+        #: a step; the host's setpoints pending a broadcast and when they were written.
+        self.buses: Any = None
+        self.block: Any = None
+        self.bus_of = {}
+        self.limit = self.peak.copy()
+        self.pending, self.pending_at = {}, 0.0
         self.pelvis = m.body('pelvis').id
         self.torso = m.body('torso').id
         self.soles = {side: {m.body(side + part).id for part in ('_foot', '_toes')}
@@ -185,27 +185,27 @@ class World:
         #: The drives' energy since the reset: work done and work braked (J), heat (J), and
         #: torque held (N m s) - what a muscle would pay for.
         self.work = self.brake = self.heat = self.effort = 0.0
+        #: Where the world has stepped to, s: `advance` returns on it without touching MjData.
+        self.at = 0.0
         self.clock = lambda: self.data.time
         self._park()
 
     def wire(self, limbs):
-        """The boards on their buses: a bus a limb, `limbs` [[joint index, ..], ..], each a
-        thread in lockstep with the world."""
-        n = len(limbs)
-        self.begun, self.ended = threading.Barrier(n + 1), threading.Barrier(n + 1)
-        self.buses = [Bus(self, link, indices) for link, indices in enumerate(limbs, 1)]
-        self.bus_of = {i: bus for bus in self.buses for i in bus.indices}
-        for bus in self.buses:
-            bus.start()
+        """The boards on their buses: a bus a limb, `limbs` [[joint index, ..], ..], their
+        processes in lockstep with the world over the block."""
+        self.block = Block(len(JOINTS), len(limbs))
+        self.block.gains[:] = self.gains.ravel()
+        self.block.limit[:] = self.limit
+        self.buses = Buses(self.block, limbs)
+        self.bus_of = self.buses.of
+        atexit.register(self.close)
 
     def close(self):
-        """The buses' threads let go."""
-        self.stop = True
-        for bus in self.buses:
-            bus.stop = True
-        if self.begun is not None:
-            self.begun.abort()
-            self.ended.abort()
+        """The buses' processes over, the block released."""
+        if self.buses is not None:
+            self.buses.close()
+            self.block.close()
+            self.buses, self.block, self.bus_of = None, None, {}
 
     def _slab(self, a_to, b_from):
         """The slab's halves: from SLAB_FROM_M to `a_to` and from `b_from` to SLAB_TO_M, m."""
@@ -265,13 +265,14 @@ class World:
         self.target[:] = d.qpos[self.qadr]
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
-        self.stamp, self.glitch_at, self.pending = d.time, None, {}
-        for bus in self.buses:
-            bus.inbox.clear()
-            bus.mail.clear()
-            bus.free_at, bus.now = d.time, d.time
-            for i in bus.indices:
-                bus.hold(i, float(self.target[i]))
+        self.stamp, self.at, self.glitch_at, self.pending = d.time, d.time, None, {}
+        if self.buses is not None:
+            self.buses.drain()
+            self.block.hold[:] = self.target
+            self.block.epoch[0] += 1
+            for bus in self.buses.each:
+                for i in bus.indices:
+                    bus.hold(i, math.degrees(self.target[i]))
 
     def write(self, index, degrees):
         """A setpoint: to its board over the bus, with the pass's others (`advance`)."""
@@ -281,16 +282,17 @@ class World:
     def advance(self):
         """On to the clock, a step at a time: the pass's setpoints broadcast on each bus and
         every board polled, the boards' loops a lockstep, the world stepped on their torques."""
-        now, d = self.clock(), self.data
-        if now <= d.time + 1e-9:
+        now = self.clock()
+        if now <= self.at + 1e-9:
             return
+        d = self.data
         np = self._np
-        if self.buses:
-            for bus in self.buses:
-                mine = {i: self.pending[i] for i in bus.indices if i in self.pending}
-                if mine:
-                    bus.send(self.pending_at, mine)
-                bus.poll(now)
+        if self.buses is not None:
+            for bus in self.buses.each:
+                mine = ({i: self.pending.get(i, math.degrees(self.target[i]))
+                         for i in bus.indices}
+                        if any(i in self.pending for i in bus.indices) else {})
+                bus.send(self.pending_at, now, mine)
             self.pending = {}
         else:
             span = now - self.stamp
@@ -305,11 +307,12 @@ class World:
                     self.limit[self.glitch_at] *= self.glitch_of
                 else:
                     self.glitch_at = None
-            if self.buses:
-                self.q[:], self.qd[:] = d.qpos[self.qadr], d.qvel[self.vadr]
-                self.begun.wait()
-                self.ended.wait()
-                d.ctrl[:] = self.ctrl
+            if self.buses is not None:
+                b = self.block
+                b.time[0] = d.time
+                b.q[:], b.qd[:], b.limit[:] = d.qpos[self.qadr], d.qvel[self.vadr], self.limit
+                self.buses.step()
+                d.ctrl[:] = b.ctrl
             else:
                 ref = self.target + self.rate * (d.time - start)
                 tau = (self.gains[:, 0] * (ref - d.qpos[self.qadr])
@@ -322,6 +325,9 @@ class World:
             self.effort += float(np.abs(d.ctrl).sum()) * STEP_S
             d.xfrc_applied[self.torso, 0:3] = self.push_n if d.time < self.push_until else 0.0
             self._mj.mj_step(self.model, d)
+        self.at = d.time
+        if self.buses is not None:
+            self.buses.drain()
 
     def push(self, force, seconds):
         """A shove on the torso, world newtons, for `seconds`."""
@@ -339,7 +345,7 @@ class World:
         with no bus."""
         self.advance()
         if index in self.bus_of:
-            return self.bus_of[index].reading(index)[:2]
+            return self.bus_of[index].reading(index)
         d = self.data
         return math.degrees(d.qpos[self.qadr[index]]), math.degrees(d.qvel[self.vadr[index]])
 
