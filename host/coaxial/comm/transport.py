@@ -112,8 +112,8 @@ class Transport:
         #: What says the time scale now, asked each transaction: an emulator's load.
         self.time_scale_source = getattr(self.serial, 'time_scale_source', None)
         #: The board's time here: the PC's, or an emulator's virtual seconds.
-        self.clock = HostClock(getattr(self.serial, 'virtual_seconds', None),
-                               lambda: self._time_scale)
+        self.host_clock = HostClock(getattr(self.serial, 'virtual_seconds', None),
+                                    lambda: self._time_scale)
         # One transaction at a time on the wire.
         self._wire = threading.RLock()
         #: When the line last went quiet, so t3.5 is only slept for what is
@@ -143,7 +143,7 @@ class Transport:
 
     def sleep(self, seconds):
         """`seconds` of the board's."""
-        time.sleep(seconds * self._time_scale)
+        self.host_clock.sleep(seconds)
 
     #: How often the source is asked, wall s: an emulator's answer is a monitor round trip.
     RESCALE_S = 0.5

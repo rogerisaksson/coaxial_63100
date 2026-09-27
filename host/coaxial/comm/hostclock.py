@@ -46,7 +46,19 @@ class HostClock:
         return time.perf_counter() if self._virtual is None else self._perf_at + self._board()
 
     def sleep(self, seconds):
-        time.sleep(seconds * self._scale())
+        """`seconds` of the board's: the PC's at the scale; an emulated board's read as it
+        goes, its pace between two reads being a guess - CI's runner fell behind the scale
+        and a chain's settle was cut short (2026-09-27)."""
+        virtual = self._virtual
+        if virtual is None:
+            time.sleep(seconds * self._scale())
+            return
+        until = virtual() + seconds
+        while True:
+            left = until - virtual()
+            if left <= 0.0:
+                return
+            time.sleep(min(left * self._scale(), self.READ_S))
 
 
 #: The PC's own.
@@ -57,4 +69,4 @@ def clock_of(owner):
     """The clock of whatever `owner` - a rig, a board, a device - talks through; the PC's where
     it names none (the stand-in, a broker)."""
     board = getattr(owner, 'board', owner)
-    return getattr(getattr(board, 'transport', None), 'clock', None) or WALL
+    return getattr(getattr(board, 'transport', None), 'host_clock', None) or WALL

@@ -160,6 +160,7 @@ class Emulator:
         #: The units its images answer to: the app's 1, none while blank in the bootloader.
         self.units = () if boot else (1,)
         self.log = log
+        self._sink = None
         self.process = None
 
     def script(self):
@@ -214,11 +215,14 @@ class Emulator:
         with open(config, 'w', encoding='utf-8') as f:
             f.write('[general]\nhistory-path = %s\n'
                     % os.path.join(WORK, 'history_%d' % self.port))
-        sink = open(self.log, 'w', encoding='utf-8') if self.log else subprocess.DEVNULL
+        # Its log kept beside them: what Renode said before it went, where it goes (CI's
+        # Release runs, 2026-09-27).
+        self.log = self.log or os.path.join(WORK, 'renode_%d.log' % self.port)
+        self._sink = open(self.log, 'w', encoding='utf-8')
         self.process = subprocess.Popen(
             [renode, '--disable-gui', '--plain', '--config', config, '-P', str(self.monitor),
              '-e', 'include @%s' % composed.replace(os.sep, '/')],
-            cwd=REPO, stdout=sink, stderr=subprocess.STDOUT, creationflags=PRIORITY)
+            cwd=REPO, stdout=self._sink, stderr=subprocess.STDOUT, creationflags=PRIORITY)
         self._job = _tied(self.process)
         self._ready(self.process)
         self.awake_scale = self.awake()
@@ -281,11 +285,24 @@ class Emulator:
         for port in self.consoles:
             while not (_boot_answers(port) if self.boot else _answers(port)):
                 if process.poll() is not None:
-                    raise RuntimeError('Renode exited with %d' % process.returncode)
+                    raise RuntimeError('Renode exited with %d%s' % (process.returncode, self.said()))
                 if time.time() > deadline:
                     self.stop()
-                    raise RuntimeError('the emulated board on %d did not answer' % port)
+                    raise RuntimeError('the emulated board on %d did not answer%s'
+                                       % (port, self.said()))
                 time.sleep(0.5)
+
+    def said(self):
+        """Renode's errors from its log, the last eight, as a message's tail."""
+        if not self.log:
+            return ''
+        try:
+            with open(self.log, encoding='utf-8', errors='replace') as f:
+                lines = [line.strip() for line in f
+                         if 'ERROR' in line or 'xception' in line or 'abort' in line.lower()]
+        except OSError:
+            return ''
+        return (':\n  ' + '\n  '.join(lines[-8:])) if lines else ''
 
     def command(self, text):
         """One monitor command's answer (`afe DcBusVolts 24`). One connection for the
@@ -316,6 +333,9 @@ class Emulator:
         if self.process and self.process.poll() is None:
             self.process.kill()
             self.process.wait()
+        if self._sink is not None:
+            self._sink.close()
+            self._sink = None
 
     def __enter__(self):
         return self.start()

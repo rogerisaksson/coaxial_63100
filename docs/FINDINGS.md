@@ -727,6 +727,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   195 -> 40 ms a virtual s, the drive 3.1 -> 2.65. Nothing from
   SyncPCEveryInstructionDisabled or -O2 on the sample path's board files
   (2026-09-27).
+- CI's runner ran the emulated board slower than the scale the host slept
+  by: the STO test's 0.05 board s settle ended before the chain had let go,
+  BIF stayed latched through the clear, and the Release image's board group
+  ran past 240 s. An emulated board's sleep reads its virtual clock as it
+  goes; a group has 480 s (2026-09-27).
 
 ## Local model
 

@@ -309,8 +309,9 @@ def blank(report, _names=()):
 GROUPS = {'board': board, 'blank': blank, 'conformance': conformance, 'bus': bus,
           'fallback': fallback}
 
-#: A group's time, s: the rig's took 150 of the suite's 211 one after another (2026-09-27).
-GROUP_S = 240
+#: A group's time, s: the rig's took 150 of the suite's 211 one after another here, and CI's
+#: runner ran the Release image's past 240 (2026-09-27).
+GROUP_S = 480
 
 
 def main(argv=None):
