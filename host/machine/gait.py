@@ -44,8 +44,11 @@ STRIDE_M = 1.0
 CADENCE, PACE_POWER, PACE_STEP = 0.85, 0.6, 0.05
 
 #: The stance knee's bend at its straightest, degrees, at a stride of 1: soft, the hip and the
-#: ball of the foot carry the glide; a longer stride bends it as the stride to KNEE_POWER.
-KNEE_SOFT_DEG, KNEE_POWER = 4.7, 1.5
+#: ball of the foot carry the glide; a longer stride bends it as the stride to KNEE_POWER. At 4.7
+#: the leg landed bent 23 degrees and straightened to 7 within 0.16 of a stride, the pelvis up
+#: 26 mm at 0.29 m/s and stopped dead at the top, 6 m/s2 either way at her ears: the pendulum's
+#: stir 2.4 mm; at 8, 12, 16, 20, 25: 2.2, 2.0, 2.0, 1.8, 1.8 mm, at 30 she fell (2026-09-27).
+KNEE_SOFT_DEG, KNEE_POWER = 16.0, 1.5
 
 #: Never straighter than KNEE_MIN_DEG, whatever the stride: at a short first stride the soft
 #: knee came to 1 degree, the IK out of reach, and the front foot hung over the floor (2026-09-26).
@@ -170,8 +173,10 @@ def _limit(p, stride):
 #: SOFT_MIN_M soft - to round each double support's dip, blurred over BLUR of a stride, and run
 #: through by a Catmull-Rom curve. Fitted by three harmonics it overshot the dips and came down
 #: 3 cm to clear them, the knees bent 30 degrees; eroded alone, the rise as the other foot left
-#: the floor was a step, a jerk 156 times the median.
-SAMPLES, ERODE, SOFT_MIN_M, BLUR = 240, 0.027, 0.002, 0.030
+#: the floor was a step, a jerk 156 times the median. Eroded over 0.027 the plan dipped 17 mm
+#: where the body dipped 27, and the stance leg lifted her back to it in a rush: over 0.05 the
+#: stir 2.0 -> 1.7 mm, over 0.08 1.5, the held share sliding (2026-09-27).
+SAMPLES, ERODE, SOFT_MIN_M, BLUR = 240, 0.05, 0.002, 0.030
 
 
 def _eroded(limits):

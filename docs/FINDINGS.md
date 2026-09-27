@@ -324,6 +324,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   0.30 the shove toward the swinging foot fells her as it is: the landing
   latched at 0.7 of the swing with the capture point 9 cm out, it ran to 23
   and she toppled over the foot (2026-09-27).
+- The pendulum between her ears, read by stride phase at 0.85 strides/s
+  (fore, across and up alike, 0.8-0.9 mm each): nearly all of it goes in
+  at touchdown. The pelvis fell into it at 0.15 m/s, 11 mm under the plan,
+  the landing leg came down bent 23 degrees (the IK's own setpoint) and
+  straightened to 7 within 0.16 of a stride, lifting her 26 mm at 0.29 m/s
+  to a dead stop at the top: 6 m/s2 up then down at her ears, 3.5 aft as
+  the front foot braked her, 4 across, the sole's peak 1.4 kN. A stance
+  knee 16 degrees soft at its straightest leaves the leg room: 2.4 -> 2.0
+  mm, and the plan's dip eroded over 0.05 of a stride (17 -> 20 mm, nearer
+  the body's) 1.7; the peaks 3.7 and 2.5 m/s2. Left: 12 mm of sag at
+  touchdown and a sole peak of 1.9 kN - the soles are rigid (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
