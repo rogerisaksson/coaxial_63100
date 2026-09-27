@@ -106,6 +106,10 @@
 /** The most catch-up one poll will integrate, milliseconds. */
 #define THERMAL_CATCHUP_MS 2000U
 
+/** The fastest thermal clock op 13 takes, thermal ms per wall ms: a poll's
+    span stays inside a u32. */
+#define THERMAL_HASTE_MAX 1000U
+
 /** How often the rail is borrowed for a sample, by default. */
 #define THERMAL_SAMPLE_EVERY_MS 30000U
 

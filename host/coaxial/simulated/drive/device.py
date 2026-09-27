@@ -143,6 +143,15 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         self._rng = random.Random(self.NOISE_SEED)
 
     @_rotor_locked
+    def _rpm(self):
+        """The rotor, rpm mechanical, off the tracker as board_thermal.c's speed_now takes it
+        off the observer; none while off."""
+        if self._mode == 'off':
+            return 0.0
+        omega = self._omega_hat if self._mode == 'sensorless' and self._source == 'model' \
+            else self._omega()
+        return abs(omega) / self.POLES * 60.0 / (2.0 * math.pi)
+
     def state(self):
         if self._source == 'model':
             self._read_model()                   # the rotor up to now, first

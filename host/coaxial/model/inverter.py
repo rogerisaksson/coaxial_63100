@@ -103,3 +103,16 @@ def dt_table(vdc, t_dead=T_DEAD, points=8):
     step = knee_amps(vdc, t_dead) / 2.0
     v = dead_time_volts(vdc, t_dead)
     return step, [v * math.tanh(0.5 * k) for k in range(points)]
+
+
+def svm(valpha, vbeta, vdc):
+    """`drive_svm`: the three duties, the phase voltages min-max centred in the link, the vector
+    scaled into it where it does not fit."""
+    if vdc <= 0.0:
+        return (0.0, 0.0, 0.0)
+    v = (valpha, -0.5 * valpha + math.sqrt(3.0) / 2.0 * vbeta,
+         -0.5 * valpha - math.sqrt(3.0) / 2.0 * vbeta)
+    scale = min(1.0, vdc / (max(v) - min(v))) if max(v) > min(v) else 1.0
+    v = tuple(x * scale for x in v)
+    zero = -0.5 * (max(v) + min(v))
+    return tuple(min(1.0, max(0.0, 0.5 + (x + zero) / vdc)) for x in v)

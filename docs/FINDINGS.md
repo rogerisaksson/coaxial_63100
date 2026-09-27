@@ -14,6 +14,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   path clears it (invariant 6).
 - Phase noise floor, AFE on: 0.35-0.41 A rms per phase.
 - A suite borrowing the AFE rail flips another suite's AFE row (~1 run in 3).
+- The MCU die through `__LL_ADC_CALC_TEMPERATURE` read whole degrees under an
+  identification with a 0.1 K floor; the factory points in float, 0.01 K
+  (2026-09-26).
 
 ## Link
 
@@ -97,8 +100,22 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   Rds(on) 1.8 typ / 2.1 max mOhm (model books typ, -17 % worst case).
 - The envelope must step and evaluate per 100 ms slice: a 1 s step let the
   driver node reach 178 C before the clamp saw it. Catch-up capped 2 s.
+- A rail another had just raised was read without the settle a borrow gets,
+  and a reading without the reference is mid-scale: a 25.00 C thermistor and
+  a 545 C die, which the anchor took. Read after the settle now, never
+  without the reference (2026-09-26).
 - Squaring one synced sample per step aliased; `Board_SyncMeanSquare`
-  accumulates per leg in counts.
+  accumulates per leg in counts. Its slope was taken over one code, where the
+  record's integer gain trim truncates to nothing: the observer's I^2 never
+  saw a channel's gain. Over 32 768 codes (2026-09-26).
+- The stand-in's losses were `phase_power`'s (no duty, link, dead time,
+  tempco); now `thermal_power_estimate`'s, mirrored in `coaxial.model.thermal`
+  and held to the C. Its held vector turned the current's size, not the
+  phases: one leg heated (2026-09-26).
+- With the tempco a leg has no equilibrium past 28 K/W x P x 0.78 %/K = 1:
+  60 A rms held ran one away before the winding warmed. The stand-in's
+  setters wrote its live network and the identification's next update undid
+  them; they write the base, the scales re-applied (2026-09-26).
 - Steady state at 5.30 mOhm: continuous 19.1 A vs a 105 C laminate, 22.0 A vs
   a 125 C junction. Throttle at 90 % of span (2026-09-05).
 - Model above ~40 C board is extrapolation. Settles it: a camera run under
@@ -124,6 +141,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   10.24 mV/A, zero 8.7 mV at the ADC's differential input. The record's shunt x
   THS4551 gain is 15.9 mV/A, the schematic's own note 9.2 mV/A and 110 mV:
   unspanned, a phase reads 0.64 of its current (2026-09-25).
+- Unspanned, an emulated drive put 1.55 times its command through the plant:
+  the world's legs 170-300 C under an observer's 100; unzeroed, the 8.7 mV
+  zero is 0.85 A. An emulated MCU is spanned on the repl's 10.238 mV/A and
+  zeroed at open: the world carries the regulated current within 0.2 %
+  (2026-09-26).
 - An id added without moving `BOARD_CAL_PARAM_COUNT` is held but never reported.
 - Replies past 253 B page (ADC table, pins, parts).
 - `BOARD_CAL_PARAM_COUNT` stayed 46 after the winding's ids 46-48
@@ -474,10 +496,22 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   (a jump to the setpoint's angle at speed slipped poles) (2026-09-26).
 - The observer box's error beside a newer estimate: the page's sample replaced
   the state, then the model, a request apart; one update now (2026-09-26).
-- THERMAL OBSERVER on the emulated MCU: the demo motor a minute on, a minute
-  off; the drive's sync holds the meter, the MCU's die reads in the off
-  minute. The stand-in's thermal runs hasted (1 745 model s a wall minute);
-  the emulated board's is its own time (2026-09-26).
+- One heat clock for every world but the bench: `coaxial.model.thermal.HASTE`
+  10 on the stand-in, the plant and the emulated observer (thermal op 13), a
+  step 0.1 thermal s at any clock. On a 100 ms wall poll the clamp lagged a
+  leg's 1.4 s and the derate cycled 0.12-0.9. A plant hasted from power-on
+  ran the MCU's node a kelvin ahead of an observer set at the open, and the
+  dies' anchor dragged the legs 1-6 K: the rig sets both at once. THERMAL
+  OBSERVER's load is the demo motor's 30 A rms on both, 12 s on, 24 off; the
+  MCU's die reads in the off phase. `tools/dev/ab.py`, the page's reads over
+  the same board seconds: 67 faults against the stand-in to 3 on native
+  (2026-09-26).
+- native:// had no console: after 0x48 gave the line back a board went
+  silent for every later session in the process, the tty's next page on the
+  stand-in. The fake board takes 'm' again (2026-09-26).
+- The emulated A1335s answered bare twelve bits and Clevel/Cinj read 0: the
+  part's register identifiers (ANG 5, TSEN F, FIELD E, the stand-in's from
+  the bench) and the unmodified board's 0.06 / 0.77 V now (2026-09-26).
 
 ## Local model
 

@@ -34,6 +34,25 @@ ACCEL_COUNT = 1.0 / 256
 #: The humanoid's fleet on native://, a limb a bus.
 BODY = 'native://?body=humanoid'
 
+#: What each thermometer resolves, K: the NTC's 30 mK and the converter's noise, the MCU's die
+#: through its factory points, the A1335's eighths.
+THERMOMETER_K = {'ntc': 0.1, 'mcu': 0.2, 'afe': 0.2}
+
+#: The demo's held vector for the current's check, A, and how near the world's mean square
+#: over a second comes to the regulated current's: the ripple, ten reads of the regulated.
+HELD_A = 10.0
+SQUARE_SHARE = 0.03
+
+#: How near the observer's legs keep to the world's, K: 0.3 alone, 1.2 under the offline
+#: gate's load; a garbage sample or a plant hasted before its observer put them 5-6 K apart
+#: (FINDINGS 2026-09-26).
+LEG_K = 2.0
+
+#: thermal.h's node order, as the world gives them (Board.nodes).
+NODES = ('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v', 'phase_w', 'mcu',
+         'regulators', 'afe', 'board', 'hotswap', 'patch_u', 'patch_v', 'patch_w',
+         'patch_left', 'patch_bottom', 'patch_right', 'winding', 'stator', 'rotor')
+
 
 class Report:
     def __init__(self):
@@ -127,6 +146,69 @@ def test_the_parts_answer(report, rig):
                  abs(accel.get('z', 0.0) - 3.5) <= ACCEL_COUNT, str(accel))
 
 
+def test_the_thermometers_read_the_world(report, rig):
+    """The NTC, the MCU's die and the A1335's, a sample a thermal second with the rail held,
+    each between two looks at the world's and within what it resolves."""
+    b, limb = rig.board, native.limb_for(rig.port)
+    b.afe.on()
+    b.thermal.configure(sample_every_s=1.0)
+    try:
+        b.transport.sleep(3.0)
+        with limb.lock:
+            before = limb.boards[0].temperatures()
+        got = b.thermal.state()
+        b.transport.sleep(0.2)
+        with limb.lock:
+            after = limb.boards[0].temperatures()
+    finally:
+        b.thermal.configure(sample_every_s=30.0)
+        b.afe.off()
+    for index, name in enumerate(('ntc', 'mcu', 'afe')):
+        low = min(before[index], after[index]) - THERMOMETER_K[name]
+        high = max(before[index], after[index]) + THERMOMETER_K[name]
+        report.check('the board\'s %s reads the world\'s, within what it resolves' % name,
+                     got.get(name) is not None and low <= got[name] <= high,
+                     '%s read, the world %.3f to %.3f' % (got.get(name), before[index],
+                                                          after[index]))
+
+
+def test_the_current_is_the_worlds(report, rig):
+    """A held vector over a second: the world's three mean squares are 1.5 |i|^2 of what the
+    drive regulates - the phases spanned and zeroed on the world's front end
+    (Coaxial63100._in_its_world) - and the observer's legs the world's."""
+    b, limb = rig.board, native.limb_for(rig.port)
+    step = turn_motor(rig, rig.origin, HELD_A)
+    if step is None:
+        report.check('the demo drives native://', False, 'it took the board for a real one')
+        return
+    regulated = []
+    try:
+        step()
+        b.transport.sleep(0.5)
+        with limb.lock:
+            limb.boards[0].squares()                  # the window opens
+        for _ in range(10):
+            d = b.drive.state()
+            regulated.append(1.5 * (d['id'] ** 2 + d['iq'] ** 2))
+            b.transport.sleep(0.1)
+        with limb.lock:
+            world = sum(limb.boards[0].squares())
+            truth = dict(zip(NODES, limb.boards[0].nodes()))
+        seen = b.thermal.state()['nodes']
+    finally:
+        stop_motor(rig)
+    mean = sum(regulated) / len(regulated)
+    report.check('the world carries the current the drive regulates, its mean squares 1.5 '
+                 '|i|^2 within SQUARE_SHARE',
+                 abs(world - mean) <= SQUARE_SHARE * mean,
+                 '%.1f A^2 in the world, %.1f regulated' % (world, mean))
+    apart = max(abs(seen[leg] - truth[leg]) for leg in NODES[:3])
+    report.check('and the observer\'s legs are the world\'s, within LEG_K', apart <= LEG_K,
+                 'observer %s, world %s' % (
+                     ['%.1f' % seen[leg] for leg in NODES[:3]],
+                     ['%.1f' % truth[leg] for leg in NODES[:3]]))
+
+
 def test_the_body_keeps_the_wall(report):
     """The humanoid's twenty boards on five buses, every drive holding: each limb's clock on
     the wall's, each board a triple every period."""
@@ -175,6 +257,10 @@ def main():
             test(report, rig)
         print('\n-- the parts answer --')
         test_the_parts_answer(report, rig)
+        print('\n-- the thermometers read the world --')
+        test_the_thermometers_read_the_world(report, rig)
+        print('\n-- the current is the world\'s --')
+        test_the_current_is_the_worlds(report, rig)
     finally:
         rig.close()
     print('\n-- the body keeps the wall --')

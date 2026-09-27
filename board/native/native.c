@@ -38,6 +38,7 @@ void TIM1_UP_IRQHandler(void);
 /* The fake board's stack (board/fake/fake_uart.c). */
 void fake_open(void);
 void fake_clock_step(uint32_t us);
+void fake_console_poll(void);
 
 /* CubeMX's MX_TIM1_Init: ARR 2375, RCR 1, DTG 19, the break on and active low. */
 #define NATIVE_ARR         2375U
@@ -57,8 +58,8 @@ void fake_clock_step(uint32_t us);
 #define NATIVE_RANKS       2U
 #define NATIVE_FULL_CODE   65535.0
 
-/* The heat, Coaxial63100_Plant.cs's: ten steps a second of thermal.c's network as the truth
-   (world_heat.c), in a room at 25 C. */
+/* The heat, Coaxial63100_Plant.cs's: thermal.c's network as the truth (world_heat.c), a step
+   a tenth of a thermal second, in a room at 25 C. */
 #define HEAT_HZ            10U
 #define HEAT_AMBIENT_C     25.0f
 
@@ -108,9 +109,13 @@ static struct
     bool     it;
   } adc[NATIVE_ADCS];
 
-  double   squares[BOARD_PWM_PHASES]; /* A^2 s a leg over the heat's step */
+  double   squares[BOARD_PWM_PHASES]; /* A^2 s a leg since the heat's last step */
+  double   squared_s;                  /* the seconds they cover */
+  float    mean_sq[BOARD_PWM_PHASES];  /* A^2 a leg, the last step's */
+  double   window[BOARD_PWM_PHASES + 1U]; /* A^2 s a leg and the seconds, since the host looked */
   uint64_t heat_at;
   world_heat_t heat;
+  float haste;                        /* the heat's clock, thermal s per virtual s */
   thermal_sense_t seen;
 } n;
 
@@ -140,6 +145,7 @@ static struct
   double v_per_a, zero_v;         /* LTspice's (coaxial_63100_afe.repl) */
   double gain_sigma, zero_sigma, bus_sigma;
   double die_at30, die_per_k;
+  double clevel, cinj;            /* the STO chain's integrator and pilot, unmodified board */
   double noise;
 
   double amps[BOARD_PWM_PHASES], dc, ntc_c, die_c, rail5, gate;
@@ -153,6 +159,7 @@ static struct
   .r5_top = 10000.0, .r5_bottom = 10000.0,
   .gate_top = 57000.0, .gate_bottom = 10000.0,
   .die_at30 = 0.62, .die_per_k = 0.002,
+  .clevel = 0.06, .cinj = 0.77,   /* FINDINGS 2026-08-27 */
   .noise = 0.0001,
   .rng = 0x63100001U,
 };
@@ -161,7 +168,8 @@ static struct
 
 typedef enum
 {
-  PIN_NONE, PIN_U, PIN_V, PIN_W, PIN_DCBUS, PIN_NTC, PIN_RAIL5, PIN_VGATE, PIN_DIE
+  PIN_NONE, PIN_U, PIN_V, PIN_W, PIN_DCBUS, PIN_NTC, PIN_RAIL5, PIN_VGATE, PIN_DIE,
+  PIN_CLEVEL, PIN_CINJ
 } native_pin_t;
 
 /* The wiring, ADC1 = 0: board_adc.c's table as the schematic has it. */
@@ -176,6 +184,7 @@ static const struct
   { 1U, ADC_CHANNEL_4,  PIN_W },     { 2U, ADC_CHANNEL_10, PIN_DCBUS },
   { 0U, ADC_CHANNEL_9,  PIN_NTC },   { 0U, ADC_CHANNEL_18, PIN_RAIL5 },
   { 0U, ADC_CHANNEL_19, PIN_VGATE }, { 2U, ADC_CHANNEL_TEMPSENSOR, PIN_DIE },
+  { 1U, ADC_CHANNEL_5,  PIN_CLEVEL }, { 2U, ADC_CHANNEL_11, PIN_CINJ },
 };
 
 /* xorshift64*, uniform on (0, 1]. */
@@ -232,7 +241,9 @@ static double afe_nominal(native_pin_t pin)
     case PIN_RAIL5: return afe.rail5 * afe.r5_bottom / (afe.r5_top + afe.r5_bottom);
     case PIN_VGATE: return afe.gate * afe.gate_bottom / (afe.gate_top + afe.gate_bottom);
     case PIN_DIE:   return afe_die(afe.die_c);
-    default:        return 0.0;   /* Clevel, Cinj: not modelled */
+    case PIN_CLEVEL: return afe.clevel;
+    case PIN_CINJ:  return afe.cinj;
+    default:        return 0.0;
   }
 }
 
@@ -296,9 +307,16 @@ static void native_heat(void)
   for (uint8_t leg = 0U; leg < BOARD_PWM_PHASES; leg++)
   {
     load.duty[leg] = (float)n.active[leg] / arr;
-    load.phase_sq[leg] = (float)(n.squares[leg] / (double)dt);
+    /* Over the seconds the squares cover: a plant step across several heat steps gives its
+       mean to each, not all of it to the first and none to the rest. */
+    if (n.squared_s > 0.0)
+    {
+      n.mean_sq[leg] = (float)(n.squares[leg] / n.squared_s);
+    }
+    load.phase_sq[leg] = n.mean_sq[leg];
     n.squares[leg] = 0.0;
   }
+  n.squared_s = 0.0;
   load.link_volts = (float)afe.dc;
   load.link_amps = -1.0f;
   load.speed_rpm = (float)(fabs(w.speed) * 60.0 / (2.0 * NATIVE_PI));
@@ -337,11 +355,19 @@ static void native_plant_to(uint64_t at)
     afe.amps[leg] = got[leg];
     n.squares[leg] += (double)got[leg] * (double)got[leg] * (double)ts;
   }
+  n.squared_s += (double)ts;
+  for (uint8_t leg = 0U; leg < BOARD_PWM_PHASES; leg++)
+  {
+    n.window[leg] += (double)got[leg] * (double)got[leg] * (double)ts;
+  }
+  n.window[BOARD_PWM_PHASES] += (double)ts;
   afe.dc = got[3];
   n.plant_at = at;
-  while ((n.plant_at - n.heat_at) >= (SystemCoreClock / HEAT_HZ))
+  const uint64_t step = (uint64_t)((double)SystemCoreClock / ((double)HEAT_HZ * n.haste));
+
+  while ((n.plant_at - n.heat_at) >= step)
   {
-    n.heat_at += SystemCoreClock / HEAT_HZ;
+    n.heat_at += step;
     native_heat();
   }
 }
@@ -696,6 +722,7 @@ static void native_loop(void)
   {
     Board_StoIdle();
   }
+  fake_console_poll();
   native_io_poll();
   native_reconcile();
 }
@@ -747,6 +774,42 @@ void native_world(void *step, void *shaft, int node, double pole_pairs)
   w.pole_pairs = (pole_pairs > 0.0) ? pole_pairs : 1.0;
   w.electrical = 0.0;
   w.mechanical = 0.0;
+}
+
+/** What the three thermometers sit at in the world, C: the NTC's element, the MCU's die, the
+    A1335's - the truth a board's readings are held to. */
+void native_temperatures(double *out)
+{
+  out[0] = (double)n.seen.ntc_c;
+  out[1] = (double)n.seen.mcu_c;
+  out[2] = (double)n.seen.afe_c;
+}
+
+/** The world's A^2 s a leg and the seconds they cover since the last call: a window's mean
+    square the host divides out. */
+void native_squares(double *out)
+{
+  for (uint8_t k = 0U; k <= BOARD_PWM_PHASES; k++)
+  {
+    out[k] = n.window[k];
+    n.window[k] = 0.0;
+  }
+}
+
+/** The world's nodes, C, thermal.h's order: the truth an observer is held to. */
+void native_nodes(double *out)
+{
+  for (int i = 0; i < (int)THERMAL_NODES; i++)
+  {
+    out[i] = (double)n.heat.th.t[i];
+  }
+}
+
+/** The heat's clock, thermal s per virtual s: 1 until the rig sets the world's
+    (coaxial.model.thermal.HASTE) with the board's observer's (thermal op 13). */
+void native_haste(double haste)
+{
+  n.haste = (haste > 0.0) ? (float)haste : 1.0f;
 }
 
 /** The magnet's angle as the host puts it, degrees, the plant's no longer. */
@@ -815,6 +878,7 @@ void native_open(void)
   memset(afe.amps, 0, sizeof afe.amps);
   afe.dc = 0.0;
   world_heat_init(&n.heat, HEAT_AMBIENT_C);
+  n.haste = 1.0f;
   n.seen.ntc_c = n.seen.mcu_c = n.seen.afe_c = HEAT_AMBIENT_C;
   afe.ntc_c = afe.die_c = HEAT_AMBIENT_C;
   native_ts_cal[0] = (uint16_t)lround(afe_die(30.0) / afe.ref * NATIVE_FULL_CODE);

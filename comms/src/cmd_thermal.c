@@ -393,6 +393,24 @@ static cmd_status_t h_thermal_set_margin(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+static cmd_status_t h_thermal_set_clock(rd_t *in, wr_t *out)
+{
+  const uint32_t haste = rd_u32(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if (!Board_ThermalSetClock(haste))
+  {
+    wr_took(out, "the clock is thermal ms per wall ms, 1 .. 1000 - 1 on a bench, "
+                  "a world's rate emulated - and the observer starts with the board");
+    return CMD_OK;
+  }
+  wr_took(out, NULL);
+  return CMD_OK;
+}
+
 cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
@@ -410,6 +428,7 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
     case THERMAL_OP_IDENT:       return h_thermal_ident(out);
     case THERMAL_OP_IDENT_RESET: return h_thermal_ident_reset(out);
     case THERMAL_OP_SET_MARGIN:  return h_thermal_set_margin(in, out);
+    case THERMAL_OP_SET_CLOCK:   return h_thermal_set_clock(in, out);
     default:             return CMD_ERR_VALUE;
   }
 }

@@ -17,6 +17,7 @@ from coaxial.devices import boot as bootmod
 from coaxial.devices.board import Board
 from coaxial.devices.gates import GateStage
 from coaxial.errors import LINK_FAULTS, ConnectError, RigError
+from coaxial.model import thermal
 from machine.modes import EMULATED, HARDWARE, SIMULATED, ExecutionMode
 
 
@@ -200,6 +201,8 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         self.simulated = not self.origin.real
         if self.own_image and not self.simulated and not loaded:
             self._own_image()
+        if sessionmod.standing(self.origin) == 'emulated':
+            self._in_its_world()
 
         if self.power_afe:
             self._take_afe()
@@ -212,6 +215,36 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             self.port, baud=self.baud, unit=self.unit, simulated=simulated)
         self._origin = origin._replace(label=why) if why else origin
         self._board = self.session.board
+
+    def _in_its_world(self):
+        """An emulated MCU as its world has it: the heat on the world's clock, the stand-in's,
+        and each phase spanned on the world's front end (coaxial_63100_afe.repl) as a bench
+        spans it on its instrument, then zeroed with no current in it - unspanned, a phase reads
+        0.64 of its current; unzeroed, its 8.7 mV zero is 0.85 A (FINDINGS 2026-09-25,
+        2026-09-26)."""
+        from tools.cores.native import afe_values     # the emulator's front end, where one runs
+        board = self.board
+        # The observer's clock and the plant's at once: a plant hasted from power-on ran the
+        # MCU's node a kelvin ahead of the observer by the open (FINDINGS 2026-09-26).
+        board.thermal.configure(clock=thermal.HASTE)
+        heat = getattr(getattr(board.transport, 'serial', None), 'heat_clock', None)
+        if heat is not None:
+            heat(thermal.HASTE)
+        cal = board.calibration.read()
+        told = cal['params']['shunt_uohm'] * cal['params']['amp_gain_ppm'] * 1e-12
+        ppm = int(round((told / afe_values()[0] - 1.0) * 1e6))
+        for leg in range(3):
+            board.calibration.set_channel(leg, cal['channels'][leg]['offset_raw'], ppm)
+        # The zero against the reference: with it down every channel reads mid-scale.
+        was = board.afe.is_on()
+        board.afe.on()
+        try:
+            board.transport.sleep(self.AFE_SETTLE)
+            for leg in range(3):
+                board.calibration.zero(leg)
+        finally:
+            if not was:
+                board.afe.off()
 
     def _load_blank(self):
         """A node waiting blank in its bootloader on the port (docs/BOOT.md) onto this host's

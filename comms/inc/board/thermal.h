@@ -157,6 +157,11 @@ bool Board_ThermalSetSample(uint32_t every_ms, uint32_t settle_ms);
 /** What the sampling is set to now. */
 void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms);
 
+/** The observer's clock, thermal ms per wall ms: 1 on a bench, a world's rate
+    emulated (coaxial.model.thermal.HASTE). Sampling, derate recovery and the
+    trip cap run on it; the settle on the wall. 1 .. THERMAL_HASTE_MAX. */
+bool Board_ThermalSetClock(uint32_t haste);
+
 #ifdef __cplusplus
 }
 #endif

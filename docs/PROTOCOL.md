@@ -1,7 +1,7 @@
 # Protocol
 
 Host mirror: `host/coaxial/comm/protocol.py`, `wire.py`, `transport.py`. Version
-in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.18); firmware version in
+in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.22); firmware version in
 `version.h`. A host picks its codec on MAJOR only (invariant 4).
 
 ## Framing
@@ -374,6 +374,7 @@ Ops:
 | 10 ident | - | below |
 | 11 ident reset | - | `u8 took`; scales to one, UNCERTAIN, the margin at the floor - nothing is written, so nothing is refused for (MINOR 14) |
 | 12 set margin | `i32 floor_ppm` | `u8 took`; the floor into the record's RAM copy, cal op 2 persists it - refused outside 1 .. 1 000 000 in the board's words, zero would put every ceiling at 25 C the moment it booted (MINOR 16) |
+| 13 set clock | `u32 haste` | `u8 took`; the observer's clock, thermal s a wall s: sampling, derate recovery and the trip cap on it, the settle on the wall; 1 on a bench, `coaxial.model.thermal.HASTE` on an emulated MCU with its plant - refused outside 1 .. 1000 (MINOR 22) |
 
 Op 0: `u8 ntc_measured, i32 ntc_centi, u8 count`, per node `i32 centi`,
 `i32 ambient_centi, i32 expected_ntc_centi, u32 seconds, u8 settled`;
@@ -543,6 +544,7 @@ MINOR appends; MAJOR breaks a codec.
 | 19 | device 11 `state` appends `u32 image_bytes, u32 image_crc, u8 flags` - the image the bootloader verified and ran, and assign's flags; `seal` takes `[u8 flags]`. The application runs from D2 SRAM at 0x30000000; flash at 0x08020000 keeps a sealed copy (BOOT.md) |
 | 20 | device 12 CTRL, the board's loop: slots, a wire, rows streamed and held; the `dec` wire type |
 | 21 | link op 0 on the port carrying the request refused in words, `u8 0, str`, where it answered ILLEGAL DATA VALUE |
+| 22 | thermal op 13 sets the observer's clock; the state's `seconds` and `seen_ms_ago` on it |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

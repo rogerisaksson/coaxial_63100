@@ -108,6 +108,7 @@ class Serial(SerialBase):
         self.time_scale = emu.load()
         self.time_scale_source = emu.load
         self.virtual_seconds = emu.virtual_seconds
+        self.heat_clock = emu.heat_clock
         self.units = emu.units
         self.console = not isinstance(emu, Limb)
         self.is_open = True

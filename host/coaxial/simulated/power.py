@@ -63,7 +63,7 @@ class SimulatedGateDrivers(GateControl):
             'sync_ready': True, 'sync_armed': self._armed, 'afe_on': True,
             'pilot_ok': True, 'level_ok': True,
             'period': self.PERIOD, 'deadtime': self.DEADTIME,
-            'duty': self._compares, 'trigger': self._at_trigger,
+            'duty': self._duty_ticks(), 'trigger': self._at_trigger,
             'phase': (1433, -8136, 390), 'at': 1385,
             'updates': self._updates, 'overruns': 0,
             'keepalive': self._keepalive,
@@ -86,6 +86,14 @@ class SimulatedGateDrivers(GateControl):
             'dcbus_raw': int(NOMINAL[5]),
             'ntc_raw': int(NOMINAL[4] + _sweep(4)),
         }
+
+    def _duty_ticks(self):
+        """What the compares hold, ticks: the drive's modulator while it owns them, as TIM1's
+        CCRs on the board."""
+        drive = self._drive
+        if drive is not None and drive._mode != 'off':
+            return tuple(int(round(d * self.PERIOD)) for d in drive._duty())
+        return self._compares
 
     #: DTG counts for 20 ns at 237.5 MHz, rounded up - the same floor the
     #: board computes, because the 2EDL8034 has no interlock either way.

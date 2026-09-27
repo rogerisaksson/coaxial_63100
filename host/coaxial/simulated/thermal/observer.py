@@ -3,6 +3,7 @@ import random
 from typing import Callable, Optional
 
 from coaxial.devices.thermal import ThermalControl
+from coaxial.errors import RigError
 from coaxial.kalman import thermal_ident
 from coaxial.model import thermal
 from coaxial.simulated.thermal.envelope import ThermalEnvelope
@@ -25,10 +26,9 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
     #: on, the motor's three at the winding's.
     LIMIT = dict(thermal.CEILING_C)
 
-    #: The stand-in's clock runs this much faster than the wall: the board's
-    #: ~7 min constant shows a load step in half a minute. Only the clock - the
-    #: network, capacities and ceilings are `coaxial.model.thermal`'s.
-    HASTE = 10.0
+    #: The clock, thermal s per wall s (`configure(clock=)`, op 13 on a board). Only the
+    #: clock - the network, capacities and ceilings are `coaxial.model.thermal`'s.
+    HASTE = thermal.HASTE
 
     WINDING_K_PER_W = pmsm.WINDING_K_PER_W
     WINDING_J_PER_K = pmsm.WINDING_J_PER_K
@@ -42,18 +42,21 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
     MARGIN_FLOOR = thermal.IDENT_MARGIN_FLOOR
 
     def __init__(self, sample=None, situation='bench', seed=7):
-        self._seconds = 0
         #: The board's cadence, 30 s (THERMAL_SAMPLE_EVERY_MS). At 5 s a late
         #: cooldown moved under the still rule's 0.3 K and the room never separated
         #: from the air path.
         self._every_s = 30.0
-        self._settle_s = 0.3
+        self._settle_s = 0.5                    # THERMAL_SAMPLE_SETTLE_MS
         #: The sampler: phase currents and whether the bridge switches - what the
         #: board has - and no temperatures.
         self._sample = sample or (lambda: {'amps': (0.0, 0.0, 0.0),
                                            'switching': False})
-        #: An rms per phase, tracked across samples.
-        self._rms = 0.0
+        #: Each leg's mean square, tracked across samples.
+        self._squares = [0.0, 0.0, 0.0]
+        #: thermal_losses with the record's phase resistance, as the board lays them.
+        self._losses = dict(thermal.LOSSES, r_phase=self.WINDING_R)
+        #: Whether the AFE rail is up: its chain's watts. The board wires its AFE.
+        self._afe_on = lambda: False
         #: What drops the stage at a ceiling: the board wires the gate drivers.
         self._gate: Optional[Callable[[], bool]] = None
         self._trips = 0
@@ -98,6 +101,10 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         self._since_seen_s = 0.0
         self._seen = {}
         self._settled = False
+        #: Integration steps, for a rate.
+        self._steps = 0
+        #: The truth's watts a node, its last step.
+        self._truth_power = None
         self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K,
                                                thermal.AMBIENT)
         # The class default: nothing carries between runs.
@@ -118,7 +125,6 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         self._start_in_room()
 
     def state(self):
-        self._seconds += 1
         self._advance()
         centre = self._node['board']
         power = self._last_power or {}
@@ -132,14 +138,14 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
             'nodes': dict(self._node),
             'ambient': self._ambient,          # estimated, as the board's
             'expected_ntc': self._ntc,
-            'seconds': self._seconds,
+            'seconds': int(self._model_s),
             'settled': self._settled or not seen,
             'sample_every_s': self._every_s,
             'sample_settle_s': self._settle_s,
-            'afe': seen.get('afe', self._node['afe']),
-            'mcu': seen.get('mcu', self._node['mcu']),
+            'afe': seen.get('afe'),
+            'mcu': seen.get('mcu'),
             'seen_s_ago': (self._model_s - self._sampled_s) if seen else 0.4,
-            'steps': 1200,
+            'steps': self._steps,
             'error': self._ntc - ntc,
             # MINOR 13: each leg's FET junction over its node - half the node's
             # watts through R_th,JC - and the speed the air saw.
@@ -151,5 +157,12 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
 
     def _set_sample(self, every_s, settle_s=0.3):
         self._every_s, self._settle_s = every_s, settle_s
+        return True
+
+    def _set_clock(self, haste):
+        if haste != int(haste) or not 1 <= haste <= 1000:
+            raise RigError('the thermal clock is whole thermal seconds a second, 1 .. 1000, '
+                           'not %r' % haste)
+        self.HASTE = float(haste)
         return True
 

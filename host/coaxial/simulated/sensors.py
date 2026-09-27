@@ -192,11 +192,10 @@ class SimulatedAngle(AngleSensor):
         if register == angle.ANG:
             return 0x5000 | self._turn()
         if register == angle.TSEN:
-            # The die sits on the board: its temperature is the thermal
-            # stand-in's board node when the board wired one, else a room's 296
-            # K.
+            # Its die in the thermal stand-in's truth, live, when the board wired
+            # one, else a room's 296 K.
             thermal = self.thermal
-            kelvin = (KELVIN_AT_ZERO_C + thermal.state()['nodes']['board']
+            kelvin = (KELVIN_AT_ZERO_C + thermal.die('afe')
                       if thermal is not None else 296.0)
             return 0xF000 | (int(kelvin * 8.0) & 0x0FFF)
         if register == angle.FIELD:
@@ -212,7 +211,7 @@ class SimulatedAngle(AngleSensor):
             'register': self._reg,
             'register_name': angle.REGISTERS.get(self._reg,
                                                  '0x%02X' % self._reg),
-            'value': value, 'crc': 0,
+            'value': value, 'crc': angle.crc4(value),
         }
         if self._reg == angle.ANG:
             got['degrees'] = angle.degrees(value)
@@ -228,7 +227,7 @@ class SimulatedAngle(AngleSensor):
         return {'register': register,
                 'register_name': angle.REGISTERS.get(register,
                                                      '0x%02X' % register),
-                'value': self._value(register), 'crc': 0}
+                'value': self._value(register), 'crc': angle.crc4(self._value(register))}
 
     def poke(self, register, value):
         if not 0 <= register <= 0x3F:

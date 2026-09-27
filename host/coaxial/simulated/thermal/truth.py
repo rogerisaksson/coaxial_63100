@@ -1,6 +1,5 @@
 """The stand-in's ground truth: the network integrated, the rooms laid on, the tour, the load."""
 import copy
-import math
 import time
 from typing import Any
 
@@ -24,12 +23,18 @@ class ThermalTruth:
     _envelope: Any
     _every_s: Any
     _random: Any
+    _afe_on: Any
+    _duty: Any
+    _losses: Any
     _sample: Any
     _speed_of: Any
+    _squares: Any
+    _steps: Any
+    _truth_power: Any
     _tripped: Any
 
-    #: The tracked rms's time constant, s: one sample (a vector, not an
-    #: amplitude) cannot move it; a load step shows within a second.
+    #: Each leg's mean square follows its square at this constant, s: the board's sync window
+    #: (Board_SyncMeanSquare); a load step shows within a second.
     RMS_TAU = 0.5
 
     #: The longest slice, model s (`THERMAL_STEP_MS`): the envelope runs once a
@@ -43,12 +48,6 @@ class ThermalTruth:
     #: firmware splits it: a quarter of the K/W from the copper into the
     #: iron, the rest the iron's air path.
     WINDING_R = catalog.BENCH_MOTOR.r
-
-    #: The hot swap's two pass FETs in series - the bridge's own part,
-    #: `thermal_losses` says 3.6 mOhm - and the link current they see is
-    #: the phases' at the duty, estimated as half the rms here since the
-    #: stand-in's sampler has no duty to weigh by.
-    HOTSWAP_R = 3.6e-3
 
     #: The ground truth's situations: scales on its air path and laminate
     #: capacity, and its room. The observer is not told the room and reads it
@@ -165,12 +164,17 @@ class ThermalTruth:
         the same arithmetic `thermal.c` steps, so the stand-in's
         temperatures are that model integrated rather than a second one.
         """
-        power = self._power(dt, seen)
-        self._last_power = power
+        self._steps += 1
         self._speed_rpm = float(self._speed_of() or 0.0)
+        load = self._load(dt, seen)
+        # The truth's FETs at its own legs, the observer's at its estimate, as the plant and the
+        # board each have them (world_heat.c, board_thermal.c).
+        truth_power = self._truth_power = self._power(load, self._truth)
+        power = self._power(load, self._node)
+        self._last_power = power
         # The truth first, on its own network, its thermistor by the same rule
         # as the observer's below.
-        net = thermal.net_flows(self._truth, power, self._truth_cfg,
+        net = thermal.net_flows(self._truth, truth_power, self._truth_cfg,
                                 self._truth_ambient, self._speed_rpm)
         truth_cfg = self._laid()
         for name in self.NODES:
@@ -197,7 +201,7 @@ class ThermalTruth:
         if self._every_s > 0.0 \
                 and self._model_s - self._sampled_s >= self._every_s:
             self._sampled_s = self._model_s
-            sample = self._read_truth(power)
+            sample = self._read_truth(truth_power)
             self._seen = dict(sample)
             self._ntc, self._settled = thermal_ident.anchor(
                 self._node, self._ntc, self._cfg, power, sample,
@@ -231,6 +235,13 @@ class ThermalTruth:
             out[die] = noisy(self._truth[die] + power.get(die, 0.0)
                              * self._laid()['rth_die'].get(die, 0.0))
         return out
+
+    def die(self, name):
+        """A die in the truth now, C: its node plus its watts through R_th,JC - what the part
+        on it reads live (the A1335's TSEN)."""
+        self._advance()
+        watts = (self._truth_power or {}).get(name, 0.0)
+        return self._truth[name] + watts * self._laid()['rth_die'].get(name, 0.0)
 
     def _laid(self):
         """The truth's configuration for the situation laid on, which every
@@ -312,7 +323,7 @@ class ThermalTruth:
         hour of idling: where a test starts that asks what idling
         teaches.
         """
-        power = self._power(1.0, seen or self._sample())
+        power = self._power(self._load(1.0, seen or self._sample()), self._node)
         # An hour of idling has told the identification the room as well.
         self._ident.scale[thermal_ident.AMBIENT] = self._truth_ambient
         self._ambient = self._truth_ambient
@@ -379,19 +390,23 @@ class ThermalTruth:
             self._cycle_trip = index
             return idle
         amps *= self._derate_held
-        return {'amps': (amps, amps, amps), 'switching': True}
+        return {'amps': (amps, amps, amps), 'switching': True, 'duty': (0.5, 0.5, 0.5)}
 
-    def _power(self, dt, seen):
-        """Watts per node, worked out from the sample. The observer's job."""
-
+    def _load(self, dt, seen):
+        """`thermal_load_t` off the sample, as board_thermal.c's load_now: each leg's mean
+        square, the compares' duty, the link, the rotor, the record's dead time."""
         amps = seen.get('amps') or (0.0, 0.0, 0.0)
-        now = math.sqrt(sum(a * a for a in amps) / 3.0)
-        self._rms += (now - self._rms) * min(1.0, dt / self.RMS_TAU)
-        if not seen.get('switching'):
-            self._rms *= max(0.0, 1.0 - dt / self.RMS_TAU)
-        watt = thermal.phase_power(self._rms,
-                                   inverter.RDS_ON + inverter.SHUNT,
-                                   switching=bool(seen.get('switching')))
-        watt['hotswap'] = (0.5 * self._rms) ** 2 * self.HOTSWAP_R
-        watt['winding'] = 3.0 * self._rms * self._rms * self.WINDING_R
-        return watt
+        switching = bool(seen.get('switching'))
+        follow = min(1.0, dt / self.RMS_TAU)
+        self._squares = [sq + ((a * a if switching else 0.0) - sq) * follow
+                         for sq, a in zip(self._squares, amps)]
+        return {'phase_amps': amps, 'phase_sq': self._squares,
+                'duty': seen.get('duty') or self._duty(), 'switching': switching,
+                'link_volts': seen.get('link') or 0.0, 'link_amps': -1.0,
+                'afe_on': self._afe_on(), 'speed_rpm': self._speed_rpm,
+                't_dead_s': inverter.T_DEAD}
+
+    def _power(self, load, temps):
+        """W per node for `load`, the FETs at `temps`' driver nodes: thermal.c's losses."""
+        return thermal.power_estimate(load, [temps[name] for name in thermal.DRIVERS],
+                                      self._losses)

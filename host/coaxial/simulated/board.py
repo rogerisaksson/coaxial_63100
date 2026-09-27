@@ -93,8 +93,10 @@ class SimulatedBoard:
         self.drive = SimulatedDrive()
         # The load where it sits (LOAD_J): measured by a machine, never sent.
         self.drive._set_model(j=load_j(self.version_info['where']))
-        # What the thermal model samples: the drive.
+        # What the thermal model samples: the drive, its rotor, the AFE rail.
         self.thermal._sample = self.drive.sample
+        self.thermal._speed_of = self.drive._rpm
+        self.thermal._afe_on = lambda: self.afe.state()['on']
         # And what it drops at a ceiling: the stage.
         self.thermal._gate = self._drop_stage
         # And what the drive reports as switching: the bridge, so a dropped
@@ -140,7 +142,7 @@ class SimulatedBoard:
         if not isinstance(gates, SimulatedGateDrivers) or not gates._enabled:
             return (0.0, 0.0, 0.0)
         period = float(gates.PERIOD or 1)
-        return tuple(t / period for t in gates._compares)
+        return tuple(t / period for t in gates._duty_ticks())
 
     def _drop_stage(self):
         """Drop the gates for the thermal envelope. True if it did."""

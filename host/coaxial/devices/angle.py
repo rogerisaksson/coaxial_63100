@@ -58,6 +58,15 @@ def counts(value):
     return value & (COUNTS - 1)
 
 
+def crc4(value):
+    """The CRC a reply ends with: x^4 + x + 1, seed 0xF, over the 16 data bits MSB first."""
+    crc = 0xF
+    for bit in range(15, -1, -1):
+        top = ((crc >> 3) & 1) ^ ((value >> bit) & 1)
+        crc = ((crc << 1) & 0xF) ^ (0x3 if top else 0)
+    return crc
+
+
 def gauss(value):
     """FIELD's low twelve bits. The count IS the gauss."""
     return counts(value)

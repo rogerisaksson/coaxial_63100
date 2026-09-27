@@ -48,13 +48,18 @@ static struct
   uint32_t last_ms;
   bool holding;                   /**< the thermal observer holds the AFE rail */
   uint32_t held_ms;               /**< when it took it */
+  bool afe_was;                   /**< the rail at the last poll */
+  uint32_t afe_up_ms;             /**< when the rail was last seen coming up */
   uint32_t sampled_ms;            /**< when the last sample finished */
   thermal_sense_t last_seen;
   uint32_t seen_ms;               /**< when s.last_seen was taken */
   bool seen;                      /**< whether anything has answered */
   uint32_t every_ms;
   uint32_t settle_ms;
+  /** The observer's clock, ms since init: the wall's times `haste`. The
+      sampling, the trip cap and `seen_ms` run on it. */
   uint32_t millis;
+  uint32_t haste;
   uint32_t steps;                 /**< model integrations, for a rate */
   float speed_rpm;                /**< the rotor at the last step */
 
@@ -74,7 +79,7 @@ static struct
   .link_volts = -1.0f, .winding_derate = 1.0f,
   .last_seen = { NAN, NAN, NAN }, .every_ms = THERMAL_SAMPLE_EVERY_MS,
   .settle_ms = THERMAL_SAMPLE_SETTLE_MS, .margin = 1.0f,
-  .trip_cap = 1.0f
+  .trip_cap = 1.0f, .haste = 1U
 };
 
 /* THERMAL_IDENT_NOISE_K, THERMAL_MARGIN_REF_C and THERMAL_MARGIN_STEP - the
@@ -98,7 +103,7 @@ static float trip_cap_now(void)
   {
     return 1.0f;
   }
-  const float back = (float)(HAL_GetTick() - s.trip_ms) / MILLI_PER_UNIT
+  const float back = (float)(s.millis - s.trip_ms) / MILLI_PER_UNIT
                      * THERMAL_TRIP_RECOVER_PER_S;
   const float cap = s.trip_cap + back;
 
@@ -291,15 +296,15 @@ void Board_ThermalInit(void)
 {
   thermal_cfg_t cfg;
 
-  /* Start on the NTC if there is one, otherwise somewhere plausible. */
+  /* Start on the NTC where its reference is up, otherwise somewhere plausible: down, it
+     reads mid-scale (invariant 9). */
   int32_t raw = 0, centi = 0;
-  const bool have = Board_Ntc(&raw, &centi);
+  const bool have = Board_AfeOn() && Board_Ntc(&raw, &centi);
   const float start_c = have ? ((float)centi / CENTI_PER_UNIT) : 25.0f;
 
   network_from_cal(&s.base);
   losses_from_cal();
-  /* Fresh every boot: scales at one, the room at the thermistor, doubted
-     whole. */
+  /* Fresh every boot: scales at one, the room at the start, doubted whole. */
   thermal_ident_init(&s.ident, start_c, THERMAL_IDENT_NOISE_K);
   thermal_ident_apply(&s.ident, &s.base, &cfg);
   /* The envelope comes from the calibration record, not from this file. */
@@ -309,9 +314,11 @@ void Board_ThermalInit(void)
   memset(&s.power, 0, sizeof(s.power));
   s.winding_derate = 1.0f;
   s.last_ms = HAL_GetTick();
-  s.sampled_ms = s.last_ms;
+  s.sampled_ms = 0U;
   s.held_ms = s.last_ms;
   s.holding = false;
+  s.afe_was = Board_AfeOn();
+  s.afe_up_ms = s.last_ms;
   s.millis = 0U;
   s.steps = 0U;
   s.speed_rpm = 0.0f;
@@ -353,6 +360,12 @@ static void sense_read(thermal_sense_t *out)
 {
   int32_t raw = 0, centi = 0;
 
+  /* The three need the AFE's reference: without it the thermistor reads mid-scale, 25.00 C,
+     and the MCU's die 545 C (FINDINGS 2026-09-26). */
+  if (!Board_AfeOn())
+  {
+    return;
+  }
   out->ntc_c = Board_Ntc(&raw, &centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
   out->mcu_c = Board_McuDie(&raw, &centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
 
@@ -361,7 +374,9 @@ static void sense_read(thermal_sense_t *out)
   out->afe_c = Board_AngleDie(&centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
 }
 
-static void sense_sample(uint32_t now, thermal_sense_t *out)
+/** A sample when one is due on the observer's clock, `clock`; the reference
+    settles on the wall's, `now`. */
+static void sense_sample(uint32_t now, uint32_t clock, thermal_sense_t *out)
 {
   out->ntc_c = NAN;
   out->afe_c = NAN;
@@ -369,23 +384,27 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
 
   /* Zero is off: the period test is unsigned, so a zero period would borrow
      the rail on every poll instead of never, and pin PE15 low. */
-  const bool due = (s.every_ms != 0U) && ((now - s.sampled_ms) >= s.every_ms);
+  const bool due = (s.every_ms != 0U) && ((clock - s.sampled_ms) >= s.every_ms);
 
   if (!s.holding && !due)
   {
     return;
   }
-  /* Somebody else already has the rail up - read it and borrow nothing. */
+  /* Somebody else already has the rail up - read it and borrow nothing, once its reference
+     has had the settle a borrow gets. */
   if (!s.holding && Board_AfeOn())
   {
-    sense_read(out);
-    s.sampled_ms = now;
+    if ((now - s.afe_up_ms) >= s.settle_ms)
+    {
+      sense_read(out);
+      s.sampled_ms = clock;
+    }
     return;
   }
   if (!s.holding && !Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
   {
     /* Armed. Back off a whole interval rather than retrying at 10 Hz. */
-    s.sampled_ms = now;
+    s.sampled_ms = clock;
     return;
   }
   if (!s.holding)
@@ -404,7 +423,7 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
 
   (void)Board_PowerRelease(BOARD_RAIL_AFE, BOARD_USER_THERMAL);
   s.holding = false;
-  s.sampled_ms = now;
+  s.sampled_ms = clock;
 }
 
 /** The rotor's mechanical speed, rpm, off the drive's observer: its
@@ -510,8 +529,9 @@ static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
                                          THERMAL_WINDING);
 }
 
-/** The one place this file acts rather than reports, and it acts twice. */
-static void hold_envelope(uint32_t slice, uint32_t now)
+/** The one place this file acts rather than reports, and it acts twice;
+    `clock` the observer's. */
+static void hold_envelope(uint32_t slice, uint32_t clock)
 {
   Board_DriveDerate(derate_applied(s.budget.derate, slice));
 
@@ -524,7 +544,7 @@ static void hold_envelope(uint32_t slice, uint32_t now)
   /* The envelope shrinks to the trip cap, recovering from now at a percent a
      minute (board_limits.h). */
   s.trip_cap = THERMAL_TRIP_MARGIN;
-  s.trip_ms = now;
+  s.trip_ms = clock;
   soa_from_cal();
 }
 
@@ -538,11 +558,17 @@ void Board_ThermalPoll(void)
   const uint32_t now = HAL_GetTick();
   const uint32_t since = now - s.last_ms;      /* unsigned: the wrap is free */
 
-  if (since < THERMAL_STEP_MS)
+  /* A step of the observer's clock, not the wall's: the envelope acts as often on a hasted
+     world as on a bench, or the clamp lags a leg's constant (FINDINGS 2026-09-26). */
+  if ((since * s.haste) < THERMAL_STEP_MS)
   {
     return;
   }
   s.last_ms = now;
+  /* The observer's clock: the wall's, or a world's hasted (op 13). */
+  const uint32_t span = since * s.haste;
+
+  s.millis += span;
 
   thermal_load_t load;
 
@@ -553,19 +579,26 @@ void Board_ThermalPoll(void)
   s.speed_rpm = load.speed_rpm;
 
   thermal_sense_t seen;
+  const bool afe = Board_AfeOn();
 
-  sense_sample(now, &seen);
+  if (afe && !s.afe_was)
+  {
+    s.afe_up_ms = now;
+  }
+  s.afe_was = afe;
+  sense_sample(now, s.millis, &seen);
 
   /* Keep whatever answered. */
   if (!isnan(seen.ntc_c) || !isnan(seen.afe_c) || !isnan(seen.mcu_c))
   {
     s.last_seen = seen;
-    s.seen_ms = now;
+    s.seen_ms = s.millis;
     s.seen = true;
   }
 
   /* In slices, and the envelope on every one. */
-  uint32_t left = (since > THERMAL_CATCHUP_MS) ? THERMAL_CATCHUP_MS : since;
+  const uint32_t most = THERMAL_CATCHUP_MS * s.haste;
+  uint32_t left = (span > most) ? most : span;
 
   while (left > 0U)
   {
@@ -573,12 +606,9 @@ void Board_ThermalPoll(void)
 
     left -= slice;
     step_slice(&load, &seen, slice);
-    hold_envelope(slice, now);
+    hold_envelope(slice, s.millis);
     s.steps++;
   }
-
-  /* Milliseconds, divided only on the way out. */
-  s.millis += since;
 
   margin_follow();
 }
@@ -599,10 +629,10 @@ bool Board_ThermalState(board_thermal_t *out)
   out->mcu_measured = !isnan(s.last_seen.mcu_c);
   out->mcu_centidegc = out->mcu_measured
                        ? (int32_t)(s.last_seen.mcu_c * CENTI_PER_UNIT) : 0;
-  /* A flag, not `s.seen_ms != 0`: HAL_GetTick() is 0 at boot and again every
-     49.7 days, and a sample taken on that tick would read "just now" for as
-     long as the board stayed up. */
-  out->seen_ms_ago = s.seen ? (HAL_GetTick() - s.seen_ms) : 0U;
+  /* A flag, not `s.seen_ms != 0`: the clock is 0 at init and again at its
+     wrap, and a sample taken on that tick would read "just now" for as long
+     as the board stayed up. */
+  out->seen_ms_ago = s.seen ? (s.millis - s.seen_ms) : 0U;
 
   for (int i = 0; i < THERMAL_NODES; i++)
   {
@@ -806,6 +836,16 @@ void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms)
 {
   *every_ms = s.every_ms;
   *settle_ms = s.settle_ms;
+}
+
+bool Board_ThermalSetClock(uint32_t haste)
+{
+  if (!s.ready || (haste == 0U) || (haste > THERMAL_HASTE_MAX))
+  {
+    return false;
+  }
+  s.haste = haste;
+  return true;
 }
 
 bool Board_ThermalSetBoard(float to_ambient, float capacity)

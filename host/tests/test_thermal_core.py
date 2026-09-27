@@ -3,6 +3,7 @@ import ctypes
 import math
 import os
 import sys
+from typing import Any, Dict, Tuple
 
 from tools.cores.build import build, find_cc
 from tools.cores.thermal import (AMBIENT, BOARD_LIMIT_C, LAMINATE, LIMIT_C,
@@ -216,6 +217,36 @@ def test_the_mirror_walks_with_the_c(report, lib):
                  'kelvin on the thermistor, the MCU and the centre',
                  all(w < 0.1 for w in worst[5:]),
                  'ntc %.3f mcu %.3f board %.3f' % tuple(worst[5:]))
+
+
+def test_the_stand_ins_losses_are_the_cs(report, lib):
+    """The stand-in's loss model (`coaxial.model.thermal.power_estimate`) is
+    `thermal_power_estimate`: the same numbers, the same watts on the same loads."""
+    from coaxial.model import thermal
+
+    c_loss = losses(lib)
+    off = sorted(set(c_loss) ^ set(thermal.LOSSES)) + [
+        k for k, v in c_loss.items()
+        if k in thermal.LOSSES and not math.isclose(v, thermal.LOSSES[k], rel_tol=1e-6)]
+    report.check("the mirror's losses are thermal_losses's, by name and value", not off,
+                 ', '.join(off))
+    loads: Tuple[Tuple[Dict[str, Any], Any], ...] = (
+        (dict(phase_amps=(30.0, -15.0, -15.0), duty=(0.6, 0.4, 0.5), link_volts=24.0,
+              link_amps=-1.0, switching=True, afe_on=True, t_dead_s=33.7e-9),
+         (80.0, 60.0, 25.0)),
+        (dict(phase_sq=(900.0, 450.0, 200.0), duty=(0.5, 0.5, 0.5), link_volts=48.0,
+              link_amps=-1.0, switching=True, afe_on=False, speed_rpm=2000.0, t_dead_s=65e-9),
+         None),
+        (dict(phase_amps=(5.0, 0.0, -5.0), link_volts=0.0, link_amps=12.0, switching=False,
+              afe_on=True), None),
+    )
+    worst = 0.0
+    for load, phase_c in loads:
+        c = power(lib, phase_c=phase_c, r_phase=thermal.LOSSES['r_phase'], **load)
+        py = thermal.power_estimate(load, phase_c)
+        worst = max([worst] + [abs(c[n] - py[n]) / max(1e-3, abs(c[n])) for n in NODES])
+    report.check('three loads, every node: the mirror within 1e-4 of the C', worst < 1e-4,
+                 'worst %.2e' % worst)
 
 
 def test_the_room_is_identified(report, lib):
@@ -1347,6 +1378,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_room_is_identified,
           test_the_mirror_carries_the_cs_numbers,
           test_the_mirror_walks_with_the_c,
+          test_the_stand_ins_losses_are_the_cs,
           test_the_lookahead_catches_a_ramp,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,

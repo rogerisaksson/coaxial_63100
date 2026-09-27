@@ -135,6 +135,22 @@ static float NTC_VoltsToCelsius(float v_node)
   return (1.0f / inv_T) - KELVIN_AT_ZERO_C;
 }
 
+/** The die, C, off its factory points (TS_CAL1, TS_CAL2 at 3.3 V): the LL macro's
+    arithmetic in float - its whole degrees put 0.5 K steps under a reading the thermal
+    identification anchors on. */
+static float die_celsius(int32_t raw)
+{
+  const float c1 = (float)*TEMPSENSOR_CAL1_ADDR;
+  const float c2 = (float)*TEMPSENSOR_CAL2_ADDR;
+  const float code = (float)raw * cal_vref() * (float)MILLI_PER_UNIT
+                     / (float)TEMPSENSOR_CAL_VREFANALOG;
+
+  return (c2 > c1)
+         ? ((float)TEMPSENSOR_CAL1_TEMP
+            + (code - c1) * (float)(TEMPSENSOR_CAL2_TEMP - TEMPSENSOR_CAL1_TEMP) / (c2 - c1))
+         : NAN;
+}
+
 /* PC0/IN10 is fed through an external 49.9k/2.2k resistor divider (R12/R11,
    top/bottom to GND), so the pin voltage is only 2.2/(49.9+2.2) of the real
    DC bus voltage. */
@@ -411,9 +427,9 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
   if (d->unit == ADC_UNIT_DIE)
   {
     /* The die's own factory calibration, read from system memory. */
-    *scaled = (int32_t)(__LL_ADC_CALC_TEMPERATURE(
-                            Board_Cal()->vref_uv / MICRO_PER_MILLI,
-                            (uint32_t)*raw, LL_ADC_RESOLUTION_16B) * 100);
+    const float c = die_celsius(*raw);
+
+    *scaled = isnan(c) ? 0 : (int32_t)(c * CENTI_PER_UNIT);
   }
 
   /* The two rails behind a divider: the record's resistors, and no reading

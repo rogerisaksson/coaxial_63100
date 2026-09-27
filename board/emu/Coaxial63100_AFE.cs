@@ -89,6 +89,12 @@ namespace Antmicro.Renode.Peripherals.Analog
         public double PhaseGainPerKelvin { get; set; }
         public double PhaseZeroVoltsPerKelvin { get; set; }
 
+        /// <summary>The STO chain's integrator and recovered pilot, V: the unmodified board's
+        /// (FINDINGS 2026-08-27).</summary>
+        public double ClevelVolts { get; set; } = 0.06;
+
+        public double CinjVolts { get; set; } = 0.77;
+
         // One sigma at the pin: the converter's own noise.
         public double NoiseVolts { get; set; } = 0.0001;
 
@@ -116,7 +122,9 @@ namespace Antmicro.Renode.Peripherals.Analog
                 case "+5V":     return Rail5Volts * Rail5BottomOhms / (Rail5TopOhms + Rail5BottomOhms);
                 case "Vgate":   return GateVolts * GateBottomOhms / (GateTopOhms + GateBottomOhms);
                 case "MCU die": return DieVoltsAt30 + (DieCelsius - 30.0) * DieVoltsPerKelvin;
-                default:        return 0.0;          // Clevel, Cinj: not modelled
+                case "Clevel":  return ClevelVolts;
+                case "Cinj":    return CinjVolts;
+                default:        return 0.0;
             }
         }
 

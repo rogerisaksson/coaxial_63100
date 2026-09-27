@@ -3,8 +3,9 @@
 /* 20-bit packets as board_angle.c sends them, four 5-bit words, MSB first. A read is answered
    in the next packet - the register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG
    is the shaft's mechanical angle in twelve bits (native.c's), TSEN its die's temperature in
-   eighths of a kelvin, FIELD the stand-in's magnet; the rest reads zero. Unpowered - AFE_ON
-   low - it clocks out all ones, as an absent part does. */
+   eighths of a kelvin, FIELD the stand-in's magnet; the high four bits each register's
+   identifier, the stand-in's (5, F, E); the rest reads zero. Unpowered - AFE_ON low - it
+   clocks out all ones, as an absent part does. */
 #include "native.h"
 
 #include <math.h>
@@ -21,6 +22,9 @@
 #define A1335_TSEN          0x28U
 #define A1335_FIELD         0x2AU
 #define A1335_GAUSS         380.0
+#define A1335_ANG_ID        0x5000U
+#define A1335_TSEN_ID       0xF000U
+#define A1335_FIELD_ID      0xE000U
 
 static struct
 {
@@ -44,16 +48,19 @@ static uint16_t a1335_register(uint32_t reg)
     {
       const double turns = native_shaft_degrees() / 360.0;
 
-      return (uint16_t)((int)floor((turns - floor(turns)) * A1335_COUNTS) & (A1335_COUNTS - 1));
+      return (uint16_t)(A1335_ANG_ID
+                        | ((unsigned)floor((turns - floor(turns)) * A1335_COUNTS)
+                           & (A1335_COUNTS - 1U)));
     }
     case A1335_TSEN:
     {
       const double eighths = floor((native_angle_celsius() + 273.15) * 8.0 + 0.5);
 
-      return (uint16_t)((eighths < 0.0) ? 0.0 : (eighths > 4095.0) ? 4095.0 : eighths);
+      return (uint16_t)(A1335_TSEN_ID
+                        | (unsigned)((eighths < 0.0) ? 0.0 : (eighths > 4095.0) ? 4095.0 : eighths));
     }
     case A1335_FIELD:
-      return (uint16_t)A1335_GAUSS;
+      return (uint16_t)(A1335_FIELD_ID | (unsigned)A1335_GAUSS);
     default:
       return 0U;
   }

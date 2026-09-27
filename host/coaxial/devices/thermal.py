@@ -60,6 +60,7 @@ class ThermalControl(Input):
     reset()     forget what was identified: scales to one, UNCERTAIN, the margin at the floor
     configure(**settings)   the record's thermal fields in SI; what each took:
         sample_every_s, sample_settle_s                   how often the NTC borrows AFE_ON
+        clock                                             thermal s per wall s, whole
         margin_floor                                      (0, 1] of every span
         board_to_ambient, board_capacity                  the bulk: K/W, J/K
         winding_limit_c, winding_k_per_w, winding_j_per_k  0 C disables it
@@ -76,6 +77,7 @@ class ThermalControl(Input):
         'sample': (('sample_every_s', 'sample_settle_s'), '_set_sample',
                    {'sample_settle_s': 0.3}),
         'margin_floor': (('margin_floor',), '_set_margin_floor', {}),
+        'clock': (('clock',), '_set_clock', {}),
         'board': (('board_to_ambient', 'board_capacity'), '_set_board', {}),
         'winding': (('winding_limit_c', 'winding_k_per_w', 'winding_j_per_k'), '_set_winding',
                     {}),
@@ -295,6 +297,11 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
         return self._ack(ThermalOp.SET_LIMIT, pack(
             ('u8', _index(node)), ('i32', milli(limit_c)),
             ('i32', micro(throttle_at))))
+
+    def _set_clock(self, haste):
+        if haste != int(haste):
+            raise RigError('the thermal clock is whole thermal seconds a second, not %r' % haste)
+        return self._ack(ThermalOp.SET_CLOCK, pack(('u32', int(haste))))
 
     def _set_sample(self, every_s, settle_s=0.3):
         return self._ack(ThermalOp.SET_SAMPLE, pack(

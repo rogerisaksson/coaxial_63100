@@ -13,6 +13,11 @@ WINDING_INTO_IRON = 0.25
 #: The board cannot read it itself; the stand-in starts every node here.
 AMBIENT = 25.0
 
+#: Thermal seconds per wall second in every world but the bench's: the stand-in's clock, the
+#: emulated plant's heat and the emulated board's observer (thermal op 13). The ~7 min board
+#: constant shows a load step in half a minute.
+HASTE = 10.0
+
 #: The two camera states the NTC compensation is derived from.
 MEASURED = {
     'passive': {'ntc': 36.0, 'board': 30.0},
@@ -398,6 +403,75 @@ def tau_minutes(cfg=CFG):
 def settled_fraction(minutes, cfg=CFG):
     """How far toward equilibrium a run of that length gets, 0..1."""
     return 1.0 - math.exp(-minutes / tau_minutes(cfg))
+
+
+#: `thermal_losses`: what `thermal_power_estimate` runs on, the board's before its record.
+LOSSES = {
+    'rds_on': inverter.RDS_ON, 'rds_alpha': 7.8e-3, 'r_shunt': inverter.SHUNT,
+    'r_hotswap': 3.6e-3, 'switching_watt': 1.20, 'switch_volts': 24.6, 'driver_share': 0.50,
+    'mcu_watt': 0.666, 'ldo_watt': 0.534, 'afe_watt': 0.13, 'f_sw': inverter.FSW,
+    'coss_cjo': 15.6e-9, 'coss_m': 0.45, 'coss_vj': 0.7, 't_switch_s': 14.0e-9, 'v_sd': 0.85,
+    'q_g': 81.0e-9, 'v_drive': 12.0, 'buck_eff': 0.85, 'r_phase': 0.05, 'k_iron': 0.0,
+}
+
+
+def coss_energy(volts, loss=None):
+    """`thermal_coss_energy`: J a transition at `volts`, the integral of v C(v)."""
+    loss = loss or LOSSES
+    cjo, vj, m = loss['coss_cjo'], loss['coss_vj'], loss['coss_m']
+    if not (volts > 0.0 and cjo > 0.0 and vj > 0.0 and m < 1.0):
+        return 0.0
+    u = 1.0 + volts / vj
+    e = cjo * vj * vj * ((u ** (2.0 - m) - 1.0) / (2.0 - m) - (u ** (1.0 - m) - 1.0) / (1.0 - m))
+    return max(e, 0.0)
+
+
+def power_estimate(load, phase_c=None, loss=None):
+    """`thermal_power_estimate`: W per node for `load`, `thermal_load_t`'s fields by name
+    (phase_amps, phase_sq, duty, link_volts, link_amps, switching, afe_on, speed_rpm, t_dead_s;
+    absent is zero, link_amps -1), the FETs at `phase_c`'s three driver nodes."""
+    loss = loss or LOSSES
+    out = dict.fromkeys(ALL_NODES, 0.0)
+    amps = load.get('phase_amps') or (0.0, 0.0, 0.0)
+    squares = load.get('phase_sq') or (0.0, 0.0, 0.0)
+    duty = load.get('duty') or (0.0, 0.0, 0.0)
+    link = load.get('link_volts') or 0.0
+    link = link if link > 0.0 else loss['switch_volts']
+    e_cal = coss_energy(loss['switch_volts'], loss)
+    scale = (coss_energy(link, loss) / e_cal if e_cal > 0.0
+             else link / loss['switch_volts'] if loss['switch_volts'] > 0.0 else 1.0)
+    per_leg = loss['switching_watt'] / 3.0 * scale
+    from_phases = total = 0.0
+    for leg, (driver, phase) in enumerate(zip(DRIVERS, PHASES)):
+        rds = loss['rds_on']
+        if phase_c is not None and not math.isnan(phase_c[leg]):
+            rds *= max(0.5, 1.0 + loss['rds_alpha'] * (phase_c[leg] - 25.0))
+        sq = squares[leg] if squares[leg] > 0.0 else amps[leg] * amps[leg]
+        irms = math.sqrt(sq)
+        out[driver] += sq * rds
+        out[phase] = sq * loss['r_shunt']
+        from_phases += duty[leg] * amps[leg]
+        total += sq
+        if load.get('switching') and duty[leg] > 0.0:
+            out[driver] += per_leg * loss['driver_share']
+            out['regulators'] += per_leg * (1.0 - loss['driver_share'])
+            gate = 2.0 * loss['q_g'] * loss['v_drive'] * loss['f_sw']
+            out[driver] += (link * irms * loss['t_switch_s'] * loss['f_sw']
+                            + 2.0 * loss['v_sd'] * 0.9 * irms * (load.get('t_dead_s') or 0.0)
+                            * loss['f_sw'] + gate)
+            if loss['buck_eff'] > 0.0:
+                out['regulators'] += gate * (1.0 / loss['buck_eff'] - 1.0)
+    link_amps = load.get('link_amps', -1.0)
+    link_amps = link_amps if link_amps >= 0.0 else from_phases
+    out['hotswap'] += link_amps * link_amps * loss['r_hotswap']
+    out['winding'] += total * loss['r_phase']
+    rpm = load.get('speed_rpm') or 0.0
+    if loss['k_iron'] > 0.0 and rpm > 0.0:
+        out['stator'] += loss['k_iron'] * (rpm / 1000.0) ** 2
+    out['mcu'] += loss['mcu_watt']
+    out['regulators'] += loss['ldo_watt']
+    out['afe'] += loss['afe_watt'] if load.get('afe_on') else 0.0
+    return out
 
 
 #: The FET's share of the conduction path: Rds(on) 1.8 against the 3.5 mOhm

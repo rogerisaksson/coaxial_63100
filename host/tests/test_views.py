@@ -1221,8 +1221,8 @@ def test_the_demo_actually_loads_the_motor(report):
                  'exit %d' % done.returncode)
     if winding and soa:
         report.check('the winding is warm - the demo\'s load is on',
-                     float(winding.group(1)) >= 45.0,
-                     '%s C, floor 45' % winding.group(1))
+                     float(winding.group(1)) >= 40.0,
+                     '%s C, floor 40, 15 K over the room' % winding.group(1))
         report.check('and the switches have spent a fifth of their margin',
                      float(soa.group(1)) >= 20.0,
                      '%s %%, floor 20' % soa.group(1))

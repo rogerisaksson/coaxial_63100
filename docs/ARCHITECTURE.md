@@ -139,7 +139,8 @@ terminal/views/     the live views (show_*.py), each runnable on its own
 terminal/ui/        what they draw with: stage, chrome (the house HUD: CRT snow, lock,
                     clock, kana tags), screen, console, scroll, ..
 tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
-                    warm_model, lint (markdownlint + pyright, the hooks)
+                    warm_model, lint (markdownlint + pyright, the hooks), ab (every
+                    page's reads, emulated against the stand-in and the physics)
 tools/target/       build_and_flash, find_board, flash_nodes, session
 tools/bench/        one question to the board per script: pulse, switch, ..
 tools/thermal/      calibrate, identify, validate, trace
@@ -188,6 +189,11 @@ tests/              suites, .counts.json (measured sizes)
   mirrors of firmware constants vs the C.
 - Suites that touch only the stand-in run four at a time (offline gate
   ~142 s); mcp, parity, bench, conformance, live run alone after.
+- The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
+  page on both, a process a page, and marks a read missing, a range apart
+  over the board seconds both cover, or a number the physics rules out;
+  `test_native` holds the board's thermometers, current and legs to the
+  world's.
 - Tiers: `run_tests.ps1` sells checks by percentage; suites join by
   seconds per check. `TOUCHES` maps a changed path to its suites; `CHEAP`
   ones settle without asking the model.

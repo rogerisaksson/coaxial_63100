@@ -17,6 +17,8 @@ class ThermalRecord:
     _advance: Any
     _ambient: Any
     _base: Any
+    _cfg: Any
+    _ident: Any
     _margin: Any
     _trip_cap_now: Any
     truth: Any
@@ -46,11 +48,16 @@ class ThermalRecord:
         self.LIMIT = dict(self.LIMIT, winding=float(limit_c))
         self.WINDING_K_PER_W = float(k_per_w)
         self.WINDING_J_PER_K = float(j_per_k)
-        self._cfg['capacity']['winding'] = float(j_per_k)
-        self._cfg['edges'][thermal.EDGE_WINDING_STATOR] = \
+        self._base['capacity']['winding'] = float(j_per_k)
+        self._base['edges'][thermal.EDGE_WINDING_STATOR] = \
             thermal.WINDING_INTO_IRON * float(k_per_w)
-        self._cfg['to_ambient']['stator'] = \
+        self._base['to_ambient']['stator'] = \
             (1.0 - thermal.WINDING_INTO_IRON) * float(k_per_w)
+        return self._refresh()
+
+    def _refresh(self):
+        """The base the setters write, with the identified scales on it: network_refresh."""
+        self._cfg = self._ident.apply(self._base)
         return True
 
     def _set_node(self, node, to_board, capacity):
@@ -61,29 +68,29 @@ class ThermalRecord:
             raise RigError('a K/W and a heat capacity are both positive')
         edge = thermal.sink_edge(node)
         if edge is not None:
-            self._cfg['edges'][edge] = float(to_board)
+            self._base['edges'][edge] = float(to_board)
         else:
-            self._cfg['to_ambient'][node] = float(to_board)
-        self._cfg['capacity'][node] = float(capacity)
-        return True
+            self._base['to_ambient'][node] = float(to_board)
+        self._base['capacity'][node] = float(capacity)
+        return self._refresh()
 
     def _set_edge(self, edge, k_per_w):
         """One edge's K/W by index; None opens it."""
-        self._cfg['edges'][int(edge)] = 0.0 if k_per_w is None \
+        self._base['edges'][int(edge)] = 0.0 if k_per_w is None \
             else float(k_per_w)
-        return True
+        return self._refresh()
 
     def _set_board(self, to_ambient, capacity):
         """The bulk's two numbers, shared out by area as the core does."""
         if to_ambient <= 0.0 or capacity <= 0.0:
             raise RigError('both are positive')
-        self._cfg['board_to_ambient'] = float(to_ambient)
-        self._cfg['board_capacity'] = float(capacity)
+        self._base['board_to_ambient'] = float(to_ambient)
+        self._base['board_capacity'] = float(capacity)
         for name in thermal.LAMINATE:
-            share = self._cfg['area_share'][name]
-            self._cfg['to_ambient'][name] = float(to_ambient) / share
-            self._cfg['capacity'][name] = float(capacity) * share
-        return True
+            share = self._base['area_share'][name]
+            self._base['to_ambient'][name] = float(to_ambient) / share
+            self._base['capacity'][name] = float(capacity) * share
+        return self._refresh()
 
     def identification(self):
         """The identification in the wire's shape (`Thermal.identification`),

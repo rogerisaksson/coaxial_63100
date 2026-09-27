@@ -4,6 +4,7 @@ import time
 from typing import Any
 
 from coaxial.devices.drive import MODEL_IDS
+from coaxial.model import inverter
 from coaxial.simulated.drive.locked import _rotor_locked
 from motor.pmsm import TORQUE_FACTOR, Motor
 
@@ -87,19 +88,31 @@ class DrivePlant:
     def _omega(self):
         return self._sp['omega_target'] if self._mode == 'hold' else 0.0
 
-    def _carrying(self):
-        """(amps, electrical angle) the stator carries right now: the dq
-        solution's magnitude, at the command's angle in HOLD and the
-        tracked rotor's otherwise.
-        """
-        iid, iq, _vd, _vq = self._dq()
-        amps = math.hypot(iid, iq)
+    def _frame(self):
+        """The electrical angle the loop's dq frame sits at: the command's, turning at its
+        speed, in HOLD; the tracked rotor's otherwise."""
         if self._mode == 'hold':
             theta = (self._sp['theta']
                      + self._omega() * (time.time() - self._mode_at))
         else:
             theta = self._theta_hat
-        return amps, theta % (2.0 * math.pi)
+        return theta % (2.0 * math.pi)
+
+    def _carrying(self):
+        """(amps, electrical angle) the stator carries right now: the dq
+        solution's magnitude, at the loop's frame.
+        """
+        iid, iq, _vd, _vq = self._dq()
+        return math.hypot(iid, iq), self._frame()
+
+    def _duty(self):
+        """What the modulator puts on the compares: drive_svm of the loop's volts at its
+        frame; none while off."""
+        if self._mode == 'off':
+            return (0.0, 0.0, 0.0)
+        _iid, _iq, vd, vq = self._dq()
+        cos, sin = math.cos(self._frame()), math.sin(self._frame())
+        return inverter.svm(vd * cos - vq * sin, vd * sin + vq * cos, self._model['vdc'])
 
     def _dq(self):
         """The loop's dq means for the mode it is in."""
@@ -127,7 +140,7 @@ class DrivePlant:
     def sample(self):
         """What a sampler in the control interrupt would see, this period."""
         iid, iq, _, _ = self._dq()
-        theta = self._sp['theta'] if self._mode == 'hold' else self._theta_hat
+        theta = self._frame()
         cos, sin = math.cos(theta), math.sin(theta)
         alpha = iid * cos - iq * sin
         beta = iid * sin + iq * cos
@@ -136,7 +149,7 @@ class DrivePlant:
         on = self._switching() if self._switching else self._mode != 'off'
         amps = ((alpha, -0.5 * alpha + root3 * beta,
                  -0.5 * alpha - root3 * beta) if on else (0.0, 0.0, 0.0))
-        return {'amps': self._noisy(*amps), 'switching': bool(on)}
+        return {'amps': self._noisy(*amps), 'switching': bool(on), 'link': self._model['vdc']}
 
     def _ih(self):
         """The demodulated HF current step: V.T over the inductance along
@@ -146,8 +159,7 @@ class DrivePlant:
         v_inj = self._p('drv_inj_volts', 0.0)
         if not v_inj or self._mode not in ('hold', 'sensorless'):
             return 0.0, 0.0
-        frame = self._sp['theta'] if self._mode == 'hold' else self._theta_hat
-        phi = frame + self._p('drv_inj_phase', 0.0)
+        phi = self._frame() + self._p('drv_inj_phase', 0.0)
         iid = self._sp['id_ref'] if self._mode == 'hold' else 0.0
         ld = self._ld(iid)
         l_sum, l_del = (ld + self._lq) / 2.0, (ld - self._lq) / 2.0

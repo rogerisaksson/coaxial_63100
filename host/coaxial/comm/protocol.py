@@ -146,6 +146,7 @@ class ThermalOp(IntEnum):
     IDENT = 10
     IDENT_RESET = 11
     SET_MARGIN = 12
+    SET_CLOCK = 13
 
 
 class PowerOp(IntEnum):

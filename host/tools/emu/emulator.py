@@ -248,6 +248,11 @@ class Emulator:
         for part in text.split('; '):
             self.command(part)
 
+    def heat_clock(self, haste):
+        """Every plant's heat on `haste` thermal s a virtual s, as the rig sets its boards'
+        observers (Coaxial63100._in_its_world)."""
+        self._each_cpu('%s Haste %s' % (worlds.PLANT, worlds._decimal(haste)))
+
     def measure(self, seconds=SCALE_S):
         """`time_scale` over `seconds` of wall time, at least 1."""
         virtual, wall = self.virtual_seconds(), time.monotonic()

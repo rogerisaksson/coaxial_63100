@@ -30,9 +30,9 @@ def _scale(rig):
     return getattr(getattr(rig.board, 'transport', None), 'time_scale', 1.0) or 1.0
 
 
-def turn_motor(rig, origin):
-    """The per-frame step that runs the motor up and down for the watcher - or None on a real
-    board."""
+def turn_motor(rig, origin, amps=None):
+    """The per-frame step that runs the motor up and down for the watcher, or holds `amps` of
+    vector - or None on a real board."""
     if not demo(origin):
         return None
     if origin.real:
@@ -43,7 +43,7 @@ def turn_motor(rig, origin):
     drive = rig.drive
     drive.configure(source='adc' if origin.real else 'model')
     # The stand-in's record clamps the current at 5 A; the meters are 100 A wide.
-    drive.configure(drv_i_max=DEMO_AMPS)
+    drive.configure(drv_i_max=max(DEMO_AMPS, amps or 0.0))
     drive.write(id_ref=0.0, iq_ref=0.0, theta=0.0, accel=DEMO_ACCEL,
                 omega_target=2.0 * math.pi * DEMO_HZ * _scale(rig))
     drive.hold()
@@ -51,8 +51,8 @@ def turn_motor(rig, origin):
 
     def step(_now=None):
         phase = (time.monotonic() - began) / DEMO_S
-        drive.write(id_ref=DEMO_AMPS * 0.5 * (1.0 - math.cos(2.0 * math.pi * phase)),
-                    omega_target=2.0 * math.pi * DEMO_HZ * _scale(rig))
+        held = DEMO_AMPS * 0.5 * (1.0 - math.cos(2.0 * math.pi * phase)) if amps is None else amps
+        drive.write(id_ref=held, omega_target=2.0 * math.pi * DEMO_HZ * _scale(rig))
     return step
 
 
@@ -68,7 +68,7 @@ def stop_motor(rig):
     return [('demo motor', 'could not be stopped')]
 
 
-def cycle_motor(rig, origin, on_s, off_s):
+def cycle_motor(rig, origin, on_s, off_s, amps=None):
     """turn_motor for `on_s` of the board's seconds, stopped for `off_s`, round again: the
     per-frame step, or None on a real board. Stopped, the drive's sync lets the meter go - the
     MCU's die reads again."""
@@ -81,7 +81,7 @@ def cycle_motor(rig, origin, on_s, off_s):
     def step(_now=None):
         on = (clock.now() - began) % (on_s + off_s) < on_s
         if on and held['step'] is None:
-            held['step'] = turn_motor(rig, origin)
+            held['step'] = turn_motor(rig, origin, amps)
         elif not on and held['step'] is not None:
             stop_motor(rig)
             held['step'] = None

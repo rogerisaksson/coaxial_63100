@@ -8,6 +8,7 @@ port is exclusive, so `switch.py` cannot run beside it - and the gates go down
 in the same `finally` that restores the screen.
 """
 import argparse
+import math
 import sys
 import time
 from contextlib import suppress
@@ -20,6 +21,7 @@ from coaxial.draw import cross_section, gauges
 from coaxial.draw.thermalmap import CELL_ASPECT, MARKS, SCALE_LINES, render
 from coaxial.errors import NoReplyError, RigError
 from coaxial.kalman import thermal_ident
+from coaxial.model import thermal
 from coaxial.model.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
@@ -47,15 +49,13 @@ GAUGE_LINES = 2
 GAUGE_CELLS = 20
 
 
-#: The page's load cycle, model s: 2 min at 30 A, 4 idle - 36 wall s at HASTE
+#: The page's load cycle, thermal s: 2 min at 30 A a phase rms, 4 idle - 36 wall s at HASTE
 #: (bench 2026-09-06: "pulse a bit faster"). Measured in a box: driver U
 #: 71-109 C, CONVERGING by minute 4, margin 0.98 by 18; STABLE wants the
-#: walk's longer cooldowns.
+#: walk's longer cooldowns. The demo motor's held vector carries it, on the stand-in and on an
+#: emulated board alike.
 PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
-
-#: The emulated board's load cycle, its own seconds, unhasted: the demo motor a minute on and
-#: a minute off - the drive's sync holds the meter, and the MCU's die reads in the off minute.
-EMULATED_ON_S, EMULATED_OFF_S = 60.0, 60.0
+PAGE_CYCLE_AMPS = 30.0 * math.sqrt(2.0)
 
 #: The room hint above the board, on the estimated ambient (op 10): cold
 #: under 5 C, hot from 35, 'unsure' while the filtered innovation is 0.3 K or
@@ -423,24 +423,20 @@ def main():
             # moved on once the identification has earned the room: the
             # innovation swings and settles before it matters on a board.
             rig.thermal.situation('tour')
-            # A load on it, two model minutes at 30 A and four cooling: the
-            # regions pulse on the map and the bar under the board has
-            # cooldowns to rise on.
-            rig.thermal.load_cycle(on_s=PAGE_CYCLE_ON_S,
-                                   off_s=PAGE_CYCLE_OFF_S)
         say('ok' if origin.real else 'warn', 'link',
             '%s - %s' % (origin.label, standing(origin)))
         motor = None
-        if origin.real and _screen.demo(origin):
-            # The emulated MCU: its thermometers read with the AFE on, and nothing to gate.
-            rig.board.afe.on()
-            # A sample every 2 s of its time: its 30 s are minutes of the wall's.
-            rig.board.thermal.configure(sample_every_s=2.0)
-            say('ok', 'AFE_ON', 'on - the emulated board, its thermometers read')
-            # The stand-in's load cycle on the emulated board: the demo motor's current through
-            # the legs, its heat thermal.c's network (world_heat.c).
-            motor = cycle_motor(rig, origin, EMULATED_ON_S, EMULATED_OFF_S)
-            say('ok', 'load', 'the demo motor, %.0f s on, %.0f s off' % (EMULATED_ON_S, EMULATED_OFF_S))
+        if _screen.demo(origin):
+            if origin.real:
+                # The emulated MCU: its thermometers read with the AFE on, and nothing to gate.
+                rig.board.afe.on()
+                say('ok', 'AFE_ON', 'on - the emulated board, its thermometers read')
+            # The load: the demo motor's current through the legs, the regions pulsing on the
+            # map and the bar under the board with cooldowns to rise on.
+            on_s, off_s = PAGE_CYCLE_ON_S / thermal.HASTE, PAGE_CYCLE_OFF_S / thermal.HASTE
+            motor = cycle_motor(rig, origin, on_s, off_s, PAGE_CYCLE_AMPS)
+            say('ok', 'load', 'the demo motor, %.0f A for %.0f s, %.0f s off'
+                % (PAGE_CYCLE_AMPS, on_s, off_s))
         else:
             say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
         say('wait', 'drawing', 'Q closes it, ESC goes back to the menu')

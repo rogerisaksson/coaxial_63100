@@ -144,6 +144,19 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// <summary>The room, C.</summary>
         public double Ambient { get; set; } = 25.0;
 
+        /// <summary>The heat's clock, thermal s per virtual s: 1 until the rig sets the world's
+        /// (coaxial.model.thermal.HASTE) with the board's observer's (thermal op 13). A step is
+        /// a tenth of a thermal second at any clock.</summary>
+        public double Haste
+        {
+            get => haste;
+            set
+            {
+                haste = Math.Max(1.0, value);
+                heat.Frequency = (ulong)Math.Round(HeatHz * haste);
+            }
+        }
+
         /// <summary>The NTC's element, the MCU's die and the A1335's, C.</summary>
         public string Temperatures => string.Format("{0:F3} {1:F3} {2:F3}", seen[0], seen[1], seen[2]);
 
@@ -291,7 +304,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
-        /// <summary>A tenth of a virtual second of the board's heat.</summary>
+        /// <summary>A tenth of a thermal second of the board's heat.</summary>
         private void Heat()
         {
             var n = Math.Max(1L, periods);
@@ -373,6 +386,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly float[] load = new float[10];
         private readonly float[] seen = { 25f, 25f, 25f };
         private bool heated;
+        private double haste = 1.0;
 
         private const uint HeatHz = 10;
         /// <summary>The world's step while nothing drives it, Hz.</summary>

@@ -391,17 +391,12 @@ HAL_StatusTypeDef HAL_ADCEx_InjectedStop_IT(ADC_HandleTypeDef *hadc);
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc);
 void HAL_ADCEx_InjectedQueueOverflowCallback(ADC_HandleTypeDef *hadc);
 
-/* The die sensor's factory points, native.c's; stm32h7xx_ll_adc.h's arithmetic. */
+/* The die sensor's factory points, native.c's, where stm32h7xx_ll_adc.h has system memory. */
 extern uint16_t native_ts_cal[2];
-#define LL_ADC_RESOLUTION_16B      0U
+#define TEMPSENSOR_CAL1_ADDR       (&native_ts_cal[0])
+#define TEMPSENSOR_CAL2_ADDR       (&native_ts_cal[1])
 #define TEMPSENSOR_CAL1_TEMP       30L
 #define TEMPSENSOR_CAL2_TEMP       110L
 #define TEMPSENSOR_CAL_VREFANALOG  3300UL
-#define __LL_ADC_CALC_TEMPERATURE(vref_mv, data, resolution)                        \
-  (((((int32_t)(((data) * (vref_mv)) / TEMPSENSOR_CAL_VREFANALOG)                   \
-      - (int32_t)native_ts_cal[0])                                                  \
-     * (int32_t)(TEMPSENSOR_CAL2_TEMP - TEMPSENSOR_CAL1_TEMP))                      \
-    / (int32_t)((int32_t)native_ts_cal[1] - (int32_t)native_ts_cal[0]))             \
-   + TEMPSENSOR_CAL1_TEMP)
 
 #endif /* STM32H7XX_H */

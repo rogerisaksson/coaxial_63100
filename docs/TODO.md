@@ -52,8 +52,9 @@ Open work. Measured results are in FINDINGS.
   stir 4.3 -> 1.7 mm). Scored by `tools/sim/gait_montecarlo.py`: held 87 %,
   stir 4.6 mm at 0.85 to beat.
 - The meter under the drive: `read_index` serves the NTC and the DC link
-  from the latched sample, the phases could join them; a software sweep over a
-  channel the drive locks out waits without a word.
+  from the latched sample; the MCU's die (an identification anchor, unread
+  under load) and the phases could join them; a software sweep over a channel
+  the drive locks out waits without a word.
 - Debug is `-O0`; `-Og` is a measurement away (LOOP counters, keepalive gap).
 - `intent.py` has no thermal kind: warmth questions become an NTC read.
   Measure against the live model before landing.

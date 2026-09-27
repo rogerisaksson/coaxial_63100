@@ -114,8 +114,8 @@ def _copy(path):
     return ctypes.CDLL(copy)
 
 
-def _afe_values():
-    """The front end's transfer and spread from the repl the emulator loads."""
+def afe_values():
+    """The front end's transfer and spread from the repl the emulator loads: AFE_KEYS' order."""
     with open(AFE_REPL, encoding='utf-8') as f:
         text = f.read()
     values = []
@@ -176,7 +176,7 @@ class Board:
         if hand is not None:
             lib.native_hand(unit, *hand)
         lib.native_open()
-        lib.native_afe(*_afe_values(), SEED | unit)
+        lib.native_afe(*afe_values(), SEED | unit)
         if world is not None and node < len(world.spec['nodes']):
             lib.native_world(world.step, world.shaft, node, world.pole_pairs(node))
         self.unit = unit
@@ -189,6 +189,24 @@ class Board:
 
     def seconds(self):
         return self.lib.native_seconds()
+
+    def temperatures(self):
+        """The world's NTC element, MCU die and A1335 die under this board, C."""
+        out = (ctypes.c_double * 3)()
+        self.lib.native_temperatures(out)
+        return tuple(out)
+
+    def nodes(self):
+        """The world's thermal nodes under this board, C, thermal.h's order."""
+        out = (ctypes.c_double * 20)()
+        self.lib.native_nodes(out)
+        return tuple(out)
+
+    def squares(self):
+        """Each leg's mean square in the world since the last call, A^2."""
+        out = (ctypes.c_double * 4)()
+        self.lib.native_squares(out)
+        return tuple(sq / out[3] for sq in out[:3]) if out[3] > 0.0 else (0.0, 0.0, 0.0)
 
 
 class Limb:
@@ -215,6 +233,13 @@ class Limb:
     def seconds(self):
         """The limb's clock, s."""
         return self.boards[0].seconds()
+
+    def heat_clock(self, haste):
+        """Every board's heat on `haste` thermal s a virtual s, as the rig sets their
+        observers (Coaxial63100._in_its_world)."""
+        with self.lock:
+            for board in self.boards:
+                board.lib.native_haste(ctypes.c_double(haste))
 
     def _run_to(self, us):
         for board in self.boards:
@@ -316,6 +341,7 @@ class Serial(SerialBase):
             self._limb = limb_for(self.portstr or 'native://')
         except RuntimeError as exc:           # no compiler: said as a port that fails
             raise serial.SerialException(str(exc)) from exc
+        self.heat_clock = self._limb.heat_clock
         #: The units a scan probes, and whether the port is a board's console.
         self.units = self._limb.units
         self.console = self._limb.console

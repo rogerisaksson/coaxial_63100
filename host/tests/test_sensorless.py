@@ -684,14 +684,20 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
 
     model = SimulatedThermal()
     # The board's ceilings lifted out of the way; the winding, a node of the
-    # same graph, keeps its own: the record's 120.
+    # same graph, keeps its own: the record's 120, on a winding ten times the
+    # bench's resistance, whose own heat outruns the legs'.
     model.LIMIT, model.DEFAULT_LIMIT = {'winding': 120.0}, 1e4
+    model._losses = dict(model._losses, r_phase=10.0 * model.WINDING_R)
     got, gate = [], []
     model._derate_to = got.append
     model._gate = lambda: gate.append(True) or True
-    # One instant of a balanced 60 A rms three-phase current: the peak on one
-    # leg and half of it back on the other two.
-    peak = 60.0 * math.sqrt(2.0)
+    # The loop below is the clock: the wall's, with the stand-in's idle sampler, would cut in.
+    model._driven = True
+    # One instant of a balanced 20 A rms three-phase current: the peak on one
+    # leg and half of it back on the other two. At the bench's winding it took
+    # 60 A, and the leg ran away on its FETs' tempco first (28 K/W x 13 W x
+    # 0.78 %/K > 1).
+    peak = 20.0 * math.sqrt(2.0)
     seen = {'amps': (peak, -peak / 2.0, -peak / 2.0), 'switching': True}
     cold = model.budget()
     r.check('the budget carries the winding: at rest it is at ambient with '
@@ -714,7 +720,7 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
     board_only = (max(v for n, v in throttled_at['used'].items()
                       if n not in thermal_mirror.MOTOR)
                   if throttled_at else None)
-    r.check('60 A warms the winding and the board\'s nodes stay clear',
+    r.check('20 A warms the winding and the board\'s nodes stay clear',
             throttled_at is not None and board_only is not None
             and board_only < THROTTLE_AT,
             str(throttled_at and (throttled_at['winding_c'], board_only)))

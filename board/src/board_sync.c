@@ -111,6 +111,9 @@ bool Board_SyncReady(void)
   return Board_PwmReady();
 }
 
+/** The codes a phase's slope is taken over: half the span. */
+#define SLOPE_CODES 32768
+
 bool Board_SyncMeanSquare(float *out)
 {
   int64_t sq[3], sum[3];
@@ -141,11 +144,13 @@ bool Board_SyncMeanSquare(float *out)
     return false;
   }
 
-  /* The affine conversion undone once, not per sample. */
+  /* The affine conversion undone once, not per sample; its slope over half the span, where
+     the record's integer gain trim is whole - over one code it truncated to nothing and the
+     trim never reached the mean square (FINDINGS 2026-09-26). */
   for (uint8_t leg = 0U; leg < 3U; leg++)
   {
     const float k = Board_PhaseAmps(leg, 0);
-    const float g = Board_PhaseAmps(leg, 1) - k;
+    const float g = (Board_PhaseAmps(leg, SLOPE_CODES) - k) / (float)SLOPE_CODES;
     const float mean_sq = (float)((double)sq[leg] / (double)n);
     const float mean_c = (float)((double)sum[leg] / (double)n);
 

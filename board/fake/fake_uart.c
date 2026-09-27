@@ -82,6 +82,25 @@ __attribute__((weak)) uint32_t Board_Cycles(void)
   return s_clock * (SystemCoreClock / 1000000U);
 }
 
+/** console.c's one key without its printf, the host's stdout here: 'm' hands the console's
+    line to the binary link again after the host gave it back (0x48) - without it a released
+    board went silent for every later session in the process (2026-09-26). */
+void fake_console_poll(void)
+{
+  const dev_serial_t *dev = dev_uart(0);
+  uint8_t rx;
+  uint32_t tick = 0U;
+
+  if (link_active() || !dev->get(dev->ctx, &rx, &tick))
+  {
+    return;
+  }
+  if ((rx == 'm') || (rx == 'M'))
+  {
+    link_open();
+  }
+}
+
 /* One pass of main()'s loop, as far as the fake builds it. */
 void fake_loop(void)
 {
@@ -91,6 +110,7 @@ void fake_loop(void)
     Board_ThermalPoll();
   }
   link_poll();
+  fake_console_poll();
 }
 
 /** The exchange's clock `us` on, a pass of main()'s loop after: weak, board/native

@@ -9,7 +9,6 @@ from coaxial.draw import cross_section
 from coaxial.draw.gauges import (margin_class as soa_class, temp_share,
                                  thermometer_class as ntc_class)
 from coaxial.model import thermal as _thermal
-from coaxial.simulated.thermal.observer import SimulatedThermal
 from motor import pmsm
 from terminal.views.rotor.layout import BAR_CELLS, BAR_GLYPH, BOARD_NODES, SOA_NODES
 from terminal.views.rotor.motions import LOAD_PEAK_A
@@ -88,9 +87,8 @@ def winding(view):
     if was is None:
         view['winding'] = _thermal.AMBIENT
         return view['winding']
-    # The stand-in's haste, and only there: the real constant is ~7 min.
-    tau = max(1e-3, k * heat) / (SimulatedThermal.HASTE
-                                if view['simulated'] else 1.0)
+    # The worlds' haste, a real board's constant ~7 min.
+    tau = max(1e-3, k * heat) / (_thermal.HASTE if view.get('demo', view['simulated']) else 1.0)
     view['winding'] += (target - view['winding']) * min(1.0, (now - was) / tau)
     return view['winding']
 
