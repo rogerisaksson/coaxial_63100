@@ -40,10 +40,10 @@ SIDE_K, SIDE_D, TURN_K = 0.235, 0.069, 1.42
 #: A swap is a side step outside the plan's phase: the swinging foot is put down where it is,
 #: flat, lowered over DOWN_S, and once it bears BEARS_N for DWELL_S the standing one steps out to
 #: where the capture point will be when it lands, foreseen with no ankle to help, SIDE_AHEAD_M
-#: ahead of the pelvis - put 5 cm behind, the walk began again on it in its push-off and the
-#: heel's rise threw her 3 cm up; 5 cm ahead, the leg reaching for it sank her onto the bent
-#: rear leg and she pitched over it (2026-09-26) - lifted SIDE_LIFT_M at the middle of SIDE_S
-#: seconds and set down as softly
+#: ahead of where the pelvis will be, and there it stays - put 5 cm behind, the walk began again
+#: on it in its push-off and the heel's rise threw her 3 cm up; moved on with the pelvis once
+#: down, the leg could not reach it and lifted it, and the weight came over 0.3 s late
+#: (2026-09-26) - lifted SIDE_LIFT_M at the middle of SIDE_S seconds and set down as softly
 #: as lifted - an arc of sine struck at 0.9 m/s, 2100 N, and the leg threw her 18 cm up
 #: (2026-09-26); the phase SIDE_HURRY faster meanwhile. Left to the plan, the swapped foot landed
 #: 0.24 s after the shove and the other lifted 0.12 s later still, the capture point 20 cm out by
@@ -591,7 +591,7 @@ class Walker:
                 # (2026-09-26).
                 at = (step['x_from'] + (step['x_out'] - step['x_from']) * gait.eased(u),
                       gait.ANKLE_H + SIDE_LIFT_M * math.sin(math.pi * u) ** 2,
-                      step['z_from'] + (pel[2] + SIDE_AHEAD_M - step['z_from']) * gait.eased(u))
+                      step['z_from'] + (step['z_land'] - step['z_from']) * gait.eased(u))
                 at, short = _reach(figure.hip(sign, pel, turn_now), at, SWING_REACH * gait.REACH)
                 out[side], lower = at, max(lower, short)
                 feet_x[side] = self.stood.get(side, balls[side][0])
@@ -635,6 +635,7 @@ class Walker:
                 self.side['stage'], self.side['since'], self.side['borne'] = 'out', 0.0, 0.0
                 self.side['x_from'] = balls[self.side['out']][0]
                 self.side['z_from'] = balls[self.side['out']][2] - gait.BALL
+                self.side['z_land'] = pel[2] + self.v_on * SIDE_S + SIDE_AHEAD_M
         else:
             self.side['since'] += dt
             out, down = self.side['out'], self.side['down']

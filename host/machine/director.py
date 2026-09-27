@@ -23,8 +23,9 @@ from machine import arrival, figure, gait, walker
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M, CURL_S = 0.55, 35.0, 0.3, 1.5
 
 #: A stance foot bearing `walker.BEARS_N` slid past SLIP_M of where it landed is held where it
-#: is; one lifting is not sliding.
-SLIP_M = 0.02
+#: is; one lifting is not sliding. At 2 cm, the feet's slides under the ankle's drive at 0.65
+#: strides/s re-anchored the plan eight times in two seconds and she fell (2026-09-26).
+SLIP_M = 0.04
 
 #: From the walk into the settling, the setpoints ease over BLEND_S: the settling's first
 #: keyframe is her pose with the pelvis unrolled and unturned.

@@ -264,6 +264,16 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   sank her 17 cm); the pelvis driven by the capture point's error (the foot
   slid 20 cm) or by the course's deviation alone (down in 1.4 s): the plan's
   sway servo stays (2026-09-26).
+- The director's slip re-anchoring at 4 cm (at 2 cm the feet's slides under
+  the ankle's drive at 0.65 re-anchored eight times in 2 s and she fell) and
+  the side step's out foot set where the pelvis will be, kept there: twelve
+  trials held 87 % - the walk at 0.65 and the shove toward the swinging foot
+  at 0.85 hold too. Still felled: the shove toward the standing foot (the side
+  step ends with the sagittal capture point 27 cm ahead and no foot there)
+  and the shove at 0.9 as the swinging foot lands. Hurrying the phase on a
+  catch latched the landing early and 9 cm short; a swinging foot held as
+  landed once it bore mid-swing reset the phase at every touch: both out
+  again (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

@@ -44,13 +44,13 @@ Open work. Measured results are in FINDINGS.
   nothing answers (Renode is).
 - Gynoid (`machine.walker`): the swing foot lands on the capture point
   (`machine.capture`), a swap is a side step, the walk begun again after
-  it. The rises, the walks at 0.85 and 0.9 and the shoves along the line
-  hold; the side shoves and the walk at 0.65 from its own start pose do
-  not: the side step ends with the capture point 27 cm ahead and no foot
-  there (a forward step folded into it), the 0.65 start drifts 7 cm across
-  in its first second. Then the torso's counter and the damping (off: stir
-  4.3 -> 1.7 mm). Scored by `tools/sim/gait_montecarlo.py`: held 73 %, stir
-  4.6 mm at 0.85 to beat.
+  it. The rises, the walks and the shoves along the line hold, and the
+  shove toward the swinging foot; toward the standing foot the side step
+  ends with the capture point 27 cm ahead and no foot there (a forward step
+  folded into it), and shoved as the swinging foot lands at 0.9 she falls
+  before the swap is done. Then the torso's counter and the damping (off:
+  stir 4.3 -> 1.7 mm). Scored by `tools/sim/gait_montecarlo.py`: held 87 %,
+  stir 4.6 mm at 0.85 to beat.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample, the phases could join them; a software sweep over a
   channel the drive locks out waits without a word.
