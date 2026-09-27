@@ -76,6 +76,13 @@ SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.62, 15.0, -75.0
 #: (2026-09-25).
 TOE_DEG, TOE_RATE, TOE_ACC = -50.0, -300.0, 4000.0
 
+#: The body's lean ahead of the plumb line before the first step, deg - the pelvis tipped in
+#: the lean's frame, the torso with it - and how long the walk takes to let it out, s: pushed
+#: on with the torso plumb she read as leaning back before she stepped; a lean kept through
+#: the walk, 2 to 4 deg, had her fall to the slip and the hot knee, held 76 % against 90
+#: (2026-09-27).
+LEAN_DEG, LEAN_OUT_S = 4.0, 2.0
+
 
 def _knots(stride):
     """The foot's pitch toes-up at its knots: (phase, degrees, a stride, a stride squared), a

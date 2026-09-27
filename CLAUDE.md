@@ -90,6 +90,10 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   init order (MSP callbacks reset pins), widths and byte order, worst-case
   buffer; verify the fix ran. BNO085: 6 firmware bugs, 0 hardware.
 - A measurement taken while something else drives the bench is not one.
+- **Simulated before emulated.** *Emulated* is the image on Renode: SIL.
+  *Simulated* is a pure software model claiming no hardware, real or
+  emulated. Nothing goes on the emulator until a plausible simulated model
+  of it exists; the gynoid stays in the simulated world (2026-09-27).
 
 ## Routine, per item
 

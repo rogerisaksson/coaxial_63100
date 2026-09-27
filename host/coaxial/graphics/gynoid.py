@@ -2,7 +2,7 @@
 
     lines = render(angles, 96, 40, yaw=30, lit=gpu.LitRaster())   # the GPU's lit raster
     lines = render(angles, 96, 40, root=(where, turn))             # the pelvis placed, world
-    lines = render(angles, 96, 40, labels={'left_knee': (boxes, number)})   # called out
+    lines = render(angles, 96, 40, labels={'left_knee': cells})   # called out at the edge
 
 A part is a closed loft or ellipsoid in its own frame, hung off its parent at the figure's offset
 and turned by its joints - the figure's names and signs. Without `root`, the lowest point of the
@@ -386,9 +386,8 @@ def _mask(height, width):
     return np.tile(noise, reps)[:height, :width]
 
 
-#: A callout's leader ink, and how far either side of her middle the callouts stand, metres
-#: across the view: clear of her widest stride and arm.
-LEADER_INK, CALLOUT_M = (96, 110, 124), 0.42
+#: A callout's leader ink.
+LEADER_INK = (96, 110, 124)
 
 
 def _line(dots, a, b):
@@ -409,26 +408,25 @@ def _packed(fg, bg=None):
     return key if bg is None else key | (((bg[0] << 16) | (bg[1] << 8) | bg[2]) + 1) << 24
 
 
-def callouts(labels, anchors, places, columns, width, height):
-    """({(row, col): (codepoint, key)}, leader dots) for `labels` {joint: (inner, outer)}, each
-    [(char, fg, bg)], inks (r, g, b) or None: outside `columns` (left, right) dots, a side's
-    joints on its side and the rest on the side they stand, each on the row its joint has at rest
-    (`places` {joint: (x, y)}, dots) or the next free one down, the inner end toward her, a space
-    between, and a leader from it to the joint's pivot as it is (`anchors`, dots). The callouts
-    stand still; the leaders follow."""
+def callouts(labels, anchors, places, width, height):
+    """({(row, col): (codepoint, key)}, leader dots) for `labels` {joint: [(char, fg, bg)]},
+    inks (r, g, b) or None: docked at the drawing's edges, a side's joints on its side and the
+    rest on the side they stand, each on the row its joint has at rest (`places` {joint: (x,
+    y)}, dots) or the next free one down, and a leader from its inner end to the joint's pivot
+    as it is (`anchors`, dots). The callouts stand still; the leaders follow."""
     np = _np()
     dots = np.zeros((height * DOTS_Y, width * DOTS_X), bool)
-    mid = (columns[0] + columns[1]) / 2.0
+    mid = width * DOTS_X / 2.0
     xs = {side: [x for j, (x, _y) in places.items() if j.startswith(side)]
           for side in ('left_', 'right_')}
     flip = bool(xs['left_'] and xs['right_']) and np.mean(xs['left_']) > np.mean(xs['right_'])
     sides = {True: [], False: []}
-    for joint, (inner, outer) in labels.items():
+    for joint, cells in labels.items():
         if joint in anchors and joint in places:
             side = places[joint][0] < mid
             if joint.startswith(('left_', 'right_')):
                 side = joint.startswith('left_') != flip
-            sides[side].append((places[joint][1], joint, inner, outer))
+            sides[side].append((places[joint][1], joint, cells))
     overlay = {}
     for left, items in sides.items():
         items.sort(key=lambda item: item[:2])
@@ -438,11 +436,8 @@ def callouts(labels, anchors, places, columns, width, height):
             rows.append(last)
         over = (rows[-1] - (height - 1)) if rows else 0
         rows = [max(0, r - max(0, over)) for r in rows]
-        for row, (_y, joint, inner, outer) in zip(rows, items):
-            gap = [(' ', None, None)]
-            cells = outer + gap + inner if left else inner + gap + outer
-            start = (int(columns[0] // DOTS_X) - len(cells) if left
-                     else int(columns[1] // DOTS_X) + 1)
+        for row, (_y, joint, cells) in zip(rows, items):
+            start = 0 if left else width - len(cells)
             for k, (char, fg, bg) in enumerate(cells):
                 if 0 <= start + k < width:
                     overlay[(row, start + k)] = (ord(char), _packed(fg, bg))
@@ -568,7 +563,7 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
            lit=None, root=None, labels=None):
     """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
     `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
-    {joint: (inner, outer)} called out either side of her (`callouts`)."""
+    {joint: [(char, fg, bg)]} called out at the edges, a leader to each joint (`callouts`)."""
     np = _np()
     who = body()
     m = view(yaw, pitch)
@@ -589,10 +584,8 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
         def dots_of(points):
             sx, sy, _w = _project(points, m, fine, centre)
             return list(zip(sx.tolist(), sy.tolist()))
-        across = np.asarray(m).reshape(3, 3)[0] * CALLOUT_M
-        (x0, _y0), (x1, _y1) = dots_of([centre - across, centre + across])
         overlay, leaders = callouts(labels, dict(zip(names, dots_of([pivots[j] for j in names]))),
                                     dict(zip(names, dots_of([rest[j] for j in names]))),
-                                    (min(x0, x1), max(x0, x1)), width, height)
+                                    width, height)
     return braille(depth, rgb, _floor(m, fine, centre, travel), width, height, colour, overlay,
                    leaders)

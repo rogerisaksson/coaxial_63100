@@ -9,8 +9,8 @@ joints a drive holding its setpoint (`machine.physics`); every millisecond her d
 she is and sets them all (`machine.director`): landed in a squat, she rises, steps off and walks,
 catching herself when shoved. She runs in a process of her own paced to the wall clock
 (`machine.running`); what is drawn is her joints' read-back and her pelvis as it stands, lit on the
-GPU where a card answers (`coaxial.graphics.gynoid`), each drive called out beside her with its
-torque, a bar and a number, and its power, a bar.
+GPU where a card answers (`coaxial.graphics.gynoid`), each drive called out at the viewport's
+edge with a leader to its joint: its angle, its torque as a bar and a number, its power as a bar.
 """
 import argparse
 import math
@@ -19,7 +19,6 @@ import time
 
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
-from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS
 from machine.figure import JOINTS, quat
 from machine.routines import TYPES
 from machine.running import Running
@@ -47,23 +46,26 @@ YAW, TURN_DEG, ORBIT_DEG_S, ZOOM = 60.0, 10.0, 12.0, (0.6, 2.5)
 #: A shove from her side, newtons for seconds.
 PUSH_N, PUSH_S = 120.0, 0.12
 
-#: A callout's inks: its boxes' ground, the torque's bar, the power's driving and braking, the
-#: number.
-BOX_GROUND, TORQUE_INK, DRIVE_INK, BRAKE_INK, NUMBER_INK = (
-    (38, 46, 58), (255, 184, 80), (96, 214, 255), (255, 96, 128), (214, 220, 228))
+#: A callout's inks: the joint's name, its boxes' ground, the torque's bar, the power's driving
+#: and braking, the numbers; the bars' cells.
+LABEL_INK, BOX_GROUND, TORQUE_INK, DRIVE_INK, BRAKE_INK, NUMBER_INK = (
+    (128, 140, 152), (38, 46, 58), (255, 184, 80), (96, 214, 255), (255, 96, 128),
+    (214, 220, 228))
+BAR_CELLS = 5
 
 #: The bars' full scale: the drive's peak torque, and its power at that torque and RAD_S; both
 #: drawn through a square root, so a light load shows.
 RAD_S = 4.0
 
+#: A cell filled from its left in eighths.
+EIGHTHS = ' ▏▎▍▌▋▊▉'
 
-def bar(fraction):
-    """A braille cell filled from its foot in 8 steps, `fraction` 0 to 1 through a square root."""
-    level = int(round(8.0 * math.sqrt(max(0.0, min(1.0, fraction)))))
-    bits = 0
-    for k in range(level):
-        bits |= BRAILLE_BITS[k % 2][3 - k // 2]
-    return chr(BRAILLE + bits)
+
+def bar(fraction, cells=BAR_CELLS):
+    """`cells` cells filled from the left, `fraction` 0 to 1 through a square root."""
+    eighths = int(round(8.0 * cells * math.sqrt(max(0.0, min(1.0, fraction)))))
+    full, part = divmod(min(eighths, 8 * cells), 8)
+    return ('█' * full + EIGHTHS[part].strip()).ljust(cells)
 
 
 #: The drives called out: the strong ones - the legs' and the spine's - or all, or none; L
@@ -74,15 +76,20 @@ CALLING = ('strong', 'all', 'none')
 
 
 def labels(now, called):
-    """{joint: (inner, outer)} for `gynoid.render`, each of `called`: the torque's bar and the
-    power's, each in a box of its own, and the torque, N m."""
+    """{joint: cells} for `gynoid.render`, each of `called`: its name, its angle, the torque's
+    bar and the power's, each in a box of its own, and the torque, N m."""
     out = {}
     for joint in CALLED[called]:
         torque, power, peak = now['torque'][joint], now['power'][joint], now['peak'][joint]
-        inner = [(bar(abs(torque) / peak), TORQUE_INK, BOX_GROUND), (' ', None, None),
-                 (bar(abs(power) / (peak * RAD_S)), DRIVE_INK if power >= 0.0 else BRAKE_INK,
-                  BOX_GROUND)]
-        out[joint] = (inner, [(c, NUMBER_INK, None) for c in '%d' % round(abs(torque))])
+        name = joint.split('_', 1)[-1] if joint.startswith(('left_', 'right_')) else joint
+        cells = [(c, LABEL_INK, None) for c in '%10s ' % name]
+        cells += [(c, NUMBER_INK, None) for c in '%6.1f° ' % now['angles'].get(joint, 0.0)]
+        cells += [(c, TORQUE_INK, BOX_GROUND) for c in bar(abs(torque) / peak)]
+        cells += [(' ', None, None)]
+        cells += [(c, DRIVE_INK if power >= 0.0 else BRAKE_INK, BOX_GROUND)
+                  for c in bar(abs(power) / (peak * RAD_S))]
+        cells += [(c, NUMBER_INK, None) for c in ' %3d' % round(abs(torque))]
+        out[joint] = cells
     return out
 
 

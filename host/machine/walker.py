@@ -339,6 +339,8 @@ class Walker:
         self.anchor, self.was_q = {}, {}
         self.x_was, self.v_side, self.z_was, self.v_on = None, 0.0, None, 0.0
         self.scale, self.age, self.held, self.wide, self.first = 1.0, 0.0, None, 0.0, 1.0
+        #: The lean she began from, deg ahead of the plumb line, let out over gait.LEAN_OUT_S.
+        self.lean = 0.0
         self.lift = None
         #: The last setpoints; each ball where it stands; where each foot last stood, x; the
         #: pelvis as planned and as targeted.
@@ -396,16 +398,17 @@ class Walker:
         self.x_was, self.v_side, self.z_was, self.v_on = None, 0.0, None, 0.0
         self.scale, self.held, self.halting, self.length_was = 1.0, None, None, None
         self.capture, self.side, self.resume, self.hurry = capture.state(), None, None, 0.0
-        self.rate, self.waited, self.lurch = self.cadence, 0.0, None
+        self.rate, self.waited, self.lurch, self.lean = self.cadence, 0.0, None, 0.0
         return angles
 
     def begin(self, held, wide=0.0, scale=None, phase=None, blend_s=BLEND_S, ball_ahead=None,
-              on='left'):
+              on='left', lean=0.0):
         """Walking from where she stands on her left foot, the right lifted: {joint: deg}
         `held` the stand's setpoints, eased out of over `blend_s`; the first steps `wide` m
         further out than the walk's, narrowing over WIDE_S; at `phase`, or where the plan has
-        the pelvis `ball_ahead` m behind the ball of the foot `on`, HEEL_OFF at most."""
-        self.blend_s = blend_s
+        the pelvis `ball_ahead` m behind the ball of the foot `on`, HEEL_OFF at most; the torso
+        `lean` deg ahead of the plumb line, let out over gait.LEAN_OUT_S."""
+        self.blend_s, self.lean = blend_s, float(lean)
         self.anchor, self.was_q = {}, {}
         self.stood, self.x_was, self.v_side = {}, None, 0.0
         self.age, self.held, self.wide = 0.0, dict(held), float(wide)
@@ -551,7 +554,8 @@ class Walker:
         pitch = math.degrees(math.atan2(turn_now[2][1], turn_now[1][1]))
         self.pendulum.read(bus, dt)
         toward = [math.degrees(SWAY_K * o / SPINE_TO_EARS_M) for o in self.pendulum.off]
-        out['spine'] = (-PLUMB * pitch - SURGE_DEG * min(1.0, self.scale)
+        lean = self.lean * (1.0 - gait.eased(self.age / gait.LEAN_OUT_S))
+        out['spine'] = (-PLUMB * pitch + lean - SURGE_DEG * min(1.0, self.scale)
                         * math.cos(4.0 * math.pi * (self.phase - SURGE_AT)) + toward[0])
         out['spine_roll'] = out['spine_roll'] - toward[1]
         out['neck'] = out['neck'] - (pitch + bus.get('spine.deg', 0.0))

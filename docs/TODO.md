@@ -100,11 +100,10 @@ Open work. Measured results are in FINDINGS.
   a process's place on its port and block when the emulation is ready, and
   the firmware's map wants the walk's registers (`machine.rtu`: SETPOINT_REG,
   STATE_REG); the IMU's reading is the world's own still, not a frame on
-  the axis bus. The
-  walk begins from a lean, the walker taking
-  her mid-swing; the softer soles that felled the old first stride are
-  untried on it, then a compressible sole layer for more give than a
-  contact's.
+  the axis bus. The walk begins from a lean, the body 4 degrees ahead of
+  plumb, the walker taking her mid-swing and letting the lean out over 2 s;
+  the softer soles that felled the old first stride are untried on it, then
+  a compressible sole layer for more give than a contact's.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

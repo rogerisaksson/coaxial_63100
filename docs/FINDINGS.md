@@ -478,6 +478,24 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   (`PEND_K` 1.5: fell in a second). The stance knee, 6 degrees soft: 4-7 at
   its straightest, 15-20 through mid-stance from the latch's 10-12 mm; at
   4 the walk at 0.9 fell in 0.6 s (2026-09-27).
+- The lean before the first step is the body's, not the pelvis's: pushed
+  7 cm ahead with the torso plumb (`PLUMB` 1.0) the pelvis went out under a
+  vertical trunk and the trunk pitched back half a degree at the push - she
+  read as leaning back before she stepped. Now the lean's frame tips the
+  pelvis LEAN_DEG 4 forward and the torso with it, the neck keeping the
+  head level; the walker takes the lean over at the hand-off and lets it
+  out over LEAN_OUT_S 2 s. A lean kept through the walk, 2, 3 or 4 degrees,
+  had her fall to the slip and the hot knee and the walk at 0.9: held 76,
+  76 and 66 % against 90; let out, held 89.8 %. A stiffer spine steadies
+  the torso, not the head: kp 800 -> 1600 -> 2400 N m/rad took the torso's
+  pitch 2.1 -> 1.2 -> 0.8 degrees a stride and the ears' fore-and-aft
+  58 -> 68 -> 63 mm, the pelvis's surge 24 -> 39 -> 33 - the spine's give
+  is the filter between the hips' pulses and the head (2026-09-27).
+- The drives' callouts (HUMANOID page): docked at the viewport's edges, a
+  side's joints on its side, each a row - the joint, its angle, its torque
+  as a five-cell bar and a number, its power as a bar, driving or braking -
+  with a leader to the joint's pivot as it moves; beside her at 0.42 m they
+  were three cells and crossed her stride (2026-09-27).
 - Her boards on their buses, simulated (`machine.buses`): a bus a limb (the
   type's subsystems - the axis, each arm, each leg), a process each with its
   boards' PD loops, in lockstep with the world a step at a time over a

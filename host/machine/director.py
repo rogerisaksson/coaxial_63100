@@ -135,7 +135,7 @@ class Director:
                     self.blend = None
             if self.stage == 'ready':
                 self.walker.begin(out, scale=arrival.FIRST,
-                                  ball_ahead=self.walker.ball_ahead('left'))
+                                  ball_ahead=self.walker.ball_ahead('left'), lean=gait.LEAN_DEG)
                 self.stage, self.since = 'walk', 0.0
             elif self.stage == 'rest' and self.rest_s is not None and self.since > self.rest_s:
                 self.rise()

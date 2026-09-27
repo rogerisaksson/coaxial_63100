@@ -129,7 +129,9 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
                                  left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
                 0.0, FEET_Z)
     shift = over(rise, FEET_X - SHIFT_IN, FEET_Z)
-    lean = over(shift, FEET_X - SHIFT_IN, LEAN_M)
+    lean = over(dict(shift, tilt=gait.LEAN_DEG,
+                     joints=dict(shift['joints'], neck=shift['joints']['neck'] - gait.LEAN_DEG)),
+                FEET_X - SHIFT_IN, LEAN_M)
     # The right foot lifted and swung half a step while her weight goes on over the left foot's
     # ball; the walker takes her on from there, mid-swing, at the phase her lean says
     # (`Walker.begin`), and lands the foot as the walk lands it. Set down first in the walk's
