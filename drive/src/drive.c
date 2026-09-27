@@ -350,7 +350,7 @@ static float bemf_error(drive_t *d, float alpha, float beta, float w,
   {
     return 0.0f;
   }
-  return atan2f(-ed * sg, eq * sg);
+  return drive_atan2(-ed * sg, eq * sg);
 }
 
 static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,

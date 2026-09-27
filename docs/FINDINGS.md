@@ -732,6 +732,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   BIF stayed latched through the clear, and the Release image's board group
   ran past 240 s. An emulated board's sleep reads its virtual clock as it
   goes; a group has 480 s (2026-09-27).
+- The drive's ISR called newlib's cosf and sinf ten times and atan2f four
+  times a period (the observer: the PLL's angle twice over, the lead, the
+  blend's two angles) and lrintf seven: drive_sincos, an atan2 polynomial
+  (1.7e-6 rad) and an add-and-truncate put the emulated core's ISR at
+  1 445 cycles a period from 1 876, 123 -> 99 M instructions a virtual s.
+  The wall barely moved, 3.0 -> 2.95: a period's 57 us are its 17 register
+  accesses (~1.3 us each on Renode's IO path), the exception (4.5), the
+  plant's step and the conversions (3.5) and the instructions (~10); the
+  skip 0.6, no translation flushes (~1 000 blocks a virtual s). Real time
+  under the drive is out of the emulator's reach as the firmware stands:
+  every access is the ISR's own (2026-09-27).
 
 ## Local model
 

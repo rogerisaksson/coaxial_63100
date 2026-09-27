@@ -369,6 +369,13 @@ static void own_pwm(void)
     stage is down, the next triple while a mode runs on an armed stage, and
     one zero triple when a mode has just ended - polarity finishing, a stage
     drop, the host asking for OFF - before the compares are let go. */
+/* Half away from zero: lrintf is a library call from ITCM, seven a period
+   (2026-09-27). */
+static inline int32_t rounded(float x)
+{
+  return (int32_t)((x < 0.0f) ? (x - 0.5f) : (x + 0.5f));
+}
+
 static void commit_duties(const drive_out_t *out, bool enabled, bool running)
 {
   if (enabled && (s.drive.mode != DRIVE_OFF))
@@ -378,7 +385,7 @@ static void commit_duties(const drive_out_t *out, bool enabled, bool running)
 
     for (uint8_t k = 0U; k < BOARD_PWM_PHASES; k++)
     {
-      ticks[k] = (uint16_t)lrintf(out->duty[k] * arr);
+      ticks[k] = (uint16_t)rounded(out->duty[k] * arr);
     }
     own_pwm();
     Board_PwmSetNext(ticks);
@@ -447,10 +454,10 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   if ((Board_LogSources() & (1U << BOARD_LOG_SOURCE_DRIVE)) != 0U)
   {
     const int16_t logged[4] = {
-      (int16_t)lrintf(s.drive.id * CENTI_PER_UNIT),
-      (int16_t)lrintf(s.drive.iq * CENTI_PER_UNIT),
-      (int16_t)(uint16_t)lrintf(s.drive.theta_hat / TWO_PI_F * CODES_PER_TURN),
-      (int16_t)lrintf(s.drive.eps * LOG_EPS_SCALE),
+      (int16_t)rounded(s.drive.id * CENTI_PER_UNIT),
+      (int16_t)rounded(s.drive.iq * CENTI_PER_UNIT),
+      (int16_t)(uint16_t)rounded(s.drive.theta_hat / TWO_PI_F * CODES_PER_TURN),
+      (int16_t)rounded(s.drive.eps * LOG_EPS_SCALE),
     };
 
     Board_LogPush(BOARD_LOG_SOURCE_DRIVE, logged, 4U);

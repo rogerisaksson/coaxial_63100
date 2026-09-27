@@ -63,6 +63,35 @@ void drive_sincos(float theta, float *s, float *c)
              + c2 * (-1.9841270e-4f + c2 * 2.7557319e-6f))));
 }
 
+float drive_atan2(float y, float x)
+{
+  /* An eleventh-order odd polynomial on [0, 1] after folding into the octant,
+     1.7e-6 at the worst point: the library's was called four times a period
+     (2026-09-27). */
+  const float ay = fabsf(y);
+  const float ax = fabsf(x);
+
+  if ((ax == 0.0f) && (ay == 0.0f))
+  {
+    return 0.0f;
+  }
+
+  const float t = (ay > ax) ? (ax / ay) : (ay / ax);
+  const float t2 = t * t;
+  float r = t * (9.9997726e-1f + t2 * (-3.3262347e-1f + t2 * (1.9354346e-1f
+            + t2 * (-1.1643287e-1f + t2 * (5.265332e-2f + t2 * -1.172120e-2f)))));
+
+  if (ay > ax)
+  {
+    r = HALF_PI - r;
+  }
+  if (x < 0.0f)
+  {
+    r = PI - r;
+  }
+  return (y < 0.0f) ? -r : r;
+}
+
 void drive_park(float alpha, float beta, float theta, float *d, float *q)
 {
   float s, c;

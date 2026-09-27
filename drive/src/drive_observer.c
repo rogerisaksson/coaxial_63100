@@ -74,9 +74,11 @@ void drive_observer_sync(drive_obs_t *o, const drive_params_t *p,
   if (p != NULL)
   {
     const float lam = (p->lambda > 0.0f) ? p->lambda : 1e-6f;
+    float sn, cs;
 
-    o->psi_a = lam * cosf(theta);
-    o->psi_b = lam * sinf(theta);
+    drive_sincos(theta, &sn, &cs);
+    o->psi_a = lam * cs;
+    o->psi_b = lam * sn;
     o->lambda_hat = lam;
   }
 }
@@ -86,8 +88,12 @@ void drive_observer_sync(drive_obs_t *o, const drive_params_t *p,
 static void step_dual(drive_obs_t *o, const drive_params_t *p,
                       float va, float vb, float ia, float ib, float ts)
 {
-  const float model_a = p->ld * ia + p->lambda * cosf(o->pll_theta);
-  const float model_b = p->ld * ib + p->lambda * sinf(o->pll_theta);
+  float sp, cp;
+
+  drive_sincos(o->pll_theta, &sp, &cp);
+
+  const float model_a = p->ld * ia + p->lambda * cp;
+  const float model_b = p->ld * ib + p->lambda * sp;
 
   o->psi_a += ts * (va - p->r * ia + o->cross * (model_a - o->psi_a));
   o->psi_b += ts * (vb - p->r * ib + o->cross * (model_b - o->psi_b));
@@ -102,8 +108,7 @@ static void step_dual(drive_obs_t *o, const drive_params_t *p,
   }
   /* The PLL's error is the rotor flux across the angle it holds, which is
      sin(difference) and wants no atan2. */
-  const float eps = (rotor_b * cosf(o->pll_theta)
-                     - rotor_a * sinf(o->pll_theta)) / size;
+  const float eps = (rotor_b * cp - rotor_a * sp) / size;
 
   o->pll_omega += o->pll_ki * eps * ts;
   o->pll_theta = wrap(o->pll_theta + (o->pll_omega + o->pll_kp * eps) * ts);
@@ -128,18 +133,19 @@ static void step_flux(drive_obs_t *o, const drive_params_t *p,
     const float ratio = o->wc / w;
 
     gain = sqrtf(1.0f + ratio * ratio);
-    lead = atan2f(o->wc, w) * ((speed >= 0.0f) ? 1.0f : -1.0f);
+    lead = drive_atan2(o->wc, w) * ((speed >= 0.0f) ? 1.0f : -1.0f);
   }
 
-  const float cl = cosf(lead);
-  const float sl = sinf(lead);
+  float sl, cl;
+
+  drive_sincos(lead, &sl, &cl);
   const float psi_a = gain * (o->leak_a * cl - o->leak_b * sl);
   const float psi_b = gain * (o->leak_a * sl + o->leak_b * cl);
   const float rotor_a = psi_a - p->ld * ia;
   const float rotor_b = psi_b - p->ld * ib;
   const float was = o->flux_theta;
 
-  o->flux_theta = atan2f(rotor_b, rotor_a);
+  o->flux_theta = drive_atan2(rotor_b, rotor_a);
   o->flux_only = o->flux_theta;
   /* The magnitude is lambda, and it is the one thing on this board that can
      see the magnets - the NTC is on the PCB and the rotor is across an air
@@ -175,10 +181,15 @@ void drive_observer_step(drive_obs_t *o, const drive_params_t *p,
   g = (g < 0.0f) ? 0.0f : ((g > 1.0f) ? 1.0f : g);
   o->blend = g;
 
-  const float x = (1.0f - g) * cosf(o->dual_theta) + g * cosf(o->flux_only);
-  const float y = (1.0f - g) * sinf(o->dual_theta) + g * sinf(o->flux_only);
+  float sd, cd, sf, cf;
 
-  o->theta = atan2f(y, x);
+  drive_sincos(o->dual_theta, &sd, &cd);
+  drive_sincos(o->flux_only, &sf, &cf);
+
+  const float x = (1.0f - g) * cd + g * cf;
+  const float y = (1.0f - g) * sd + g * sf;
+
+  o->theta = drive_atan2(y, x);
   o->omega = (1.0f - g) * o->pll_omega + g * o->flux_omega;
   /* Below the leak's own corner neither model has a back-EMF to work with,
      whatever either of them is reporting. */

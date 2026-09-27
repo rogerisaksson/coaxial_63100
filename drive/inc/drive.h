@@ -345,6 +345,9 @@ float drive_wrap(float theta);
 /** sin and cos together, a polynomial: 3e-6 worst, no library call. */
 void drive_sincos(float theta, float *s, float *c);
 
+/** atan2, a polynomial: 1.7e-6 worst, no library call. */
+float drive_atan2(float y, float x);
+
 /** The dead-time table at `amps`, odd in the current. */
 float drive_dt_volts(const drive_params_t *p, float amps);
 
