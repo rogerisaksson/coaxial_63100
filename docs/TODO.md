@@ -83,13 +83,18 @@ Open work. Measured results are in FINDINGS.
   stride the landing latched at 0.7 of the swing sits 14 cm inside the
   capture point. The torso's counter and the damping are off (the counter
   nods the torso, the damping fells the walk at 0.9); the soles light
-  sneakers. The look: the pelvis surges 65 mm fore-aft and bobs 18 mm a
-  stride - the collision at touchdown; push off before the landing (the
-  trailing heel up as the other foot strikes) with the landing come as the
-  body falls, not on the phase's clock; the stance knee 18-21 degrees at
-  mid-stance from the height target latched 10 mm low at each landing (the
-  trailing ankle's 2-degree droop under the push-off: a feedforward, or a
-  dead band on the latch). The walk begins from a lean, the walker taking
+  sneakers. The look: the ears bob 12 mm a stride and go 62 mm fore and
+  aft - the pelvis 30 (the vault of a 1 m stride) doubled by the torso's 2
+  degrees of pitch; the stance knee 15-20 degrees through mid-stance from
+  the height latched 10-12 mm low at each landing (the sole's and the
+  joints' give under the strike). Left to try: a stiffer spine drive or a
+  rightly signed lead on the gyro for the torso; a shorter stride at a
+  higher cadence for the same speed; a landing that does not sag; and the
+  pendulum between the ears as the observer whose swing places the next
+  step - a trip swings the bob ahead, the step goes out under it, a stomp
+  or two, then the walk again (asked 2026-09-27; PEND_K fell at 1.5 - the
+  sign and the gain against the bob's 2 s period to be worked out). The
+  walk begins from a lean, the walker taking
   her mid-swing; the softer soles that felled the old first stride are
   untried on it, then a compressible sole layer for more give than a
   contact's.

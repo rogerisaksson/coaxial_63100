@@ -236,7 +236,7 @@ def _sample(p, stride):
     legs = []
     for q, track, twist in ((p, left, twist_l), ((p + 0.5) % 1.0, right, twist_r)):
         x, y = gait.planted(q, stride)[:2] if q < gait.TOE_OFF else gait.swung(q, stride)
-        pitch = gait.pitch_of(q)
+        pitch = gait.pitch_of(q, stride)
         legs.append(((track - lateral, y, x), math.radians(twist), math.radians(pitch),
                      gait.toes_of(q, pitch)))
     angles['spine_roll'] = -roll
@@ -594,7 +594,8 @@ class Walker:
                 self.anchor[side] = balls[side]
                 # The height's target starts from where the body is, up again at RAISE_M_S:
                 # landed with the body 3 cm low over the leaning leg, both legs pushed to the
-                # plan's height and threw her 5 cm into the air (2026-09-26).
+                # plan's height and threw her 5 cm into the air (2026-09-26); let go of the first
+                # 15 mm, the walk's first landing hopped off the front foot (2026-09-27).
                 self.lowered = max(self.lowered, min(LOWER_M, height - pel[1]))
             self.was_q[side] = q
 

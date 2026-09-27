@@ -50,8 +50,10 @@ CADENCE, PACE_POWER, PACE_STEP = 0.85, 0.6, 0.05
 #: stir 2.4 mm; at 8, 12, 16, 20, 25: 2.2, 2.0, 2.0, 1.8, 1.8 mm, at 30 she fell. Back to 8
 #: with the heel strike at 15 degrees and the height's recovery at 0.03 m/s (`walker.RAISE_M_S`):
 #: the knee 9-29 degrees through stance for 16-29, the stir 1.4 -> 1.2 mm, the shoves as before;
-#: at 10 alone the walk begun from the lean fell 2.7 s in (2026-09-27).
-KNEE_SOFT_DEG, KNEE_POWER = 8.0, 1.5
+#: at 10 alone the walk begun from the lean fell 2.7 s in. With the heel rising to 50 degrees at
+#: toe-off, 6: the walks and the floor's events as at 8; at 4 the walk at 0.9 strides/s fell in
+#: 0.6 s, its front foot short of its landing (2026-09-27).
+KNEE_SOFT_DEG, KNEE_POWER = 6.0, 1.5
 
 #: Never straighter than KNEE_MIN_DEG, whatever the stride: at a short first stride the soft
 #: knee came to 1 degree, the IK out of reach, and the front foot hung over the floor (2026-09-26).
@@ -69,13 +71,16 @@ SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.62, 15.0, -75.0
 #: and a stride squared: the heel rises fastest at toe-off and on into the air. Eased to a stop
 #: there, the whole foot stood still, the knee straightened -180 deg/s and then bent +409
 #: (2026-09-25).
-TOE_DEG, TOE_RATE, TOE_ACC = -37.0, -400.0, -200.0
+TOE_DEG, TOE_RATE, TOE_ACC = -50.0, -300.0, 4000.0
 
 
-def _knots():
+def _knots(stride):
     """The foot's pitch toes-up at its knots: (phase, degrees, a stride, a stride squared), a
-    quintic between; the landing's the toes already coming down."""
-    return ((SETTLE, 0.0, 0.0, 0.0), (HEEL_OFF, 0.0, 0.0, 0.0), (TOE_OFF, TOE_DEG, TOE_RATE, TOE_ACC),
+    quintic between; the landing's the toes already coming down. The heel rises as the stride:
+    to the full 50 degrees on the walk's first short strides, the push-off hopped her off the
+    front foot and she zigzagged over (2026-09-27)."""
+    return ((SETTLE, 0.0, 0.0, 0.0), (HEEL_OFF, 0.0, 0.0, 0.0),
+            (TOE_OFF, TOE_DEG * stride, TOE_RATE * stride, TOE_ACC * stride),
             (1.0, LAND_DEG, LAND_RATE, 0.0), (1.0 + SETTLE, 0.0, 0.0, 0.0))
 
 #: The middle of a leg's single support: from the other's toe-off to its own landing.
@@ -125,12 +130,12 @@ def _pivot(x, y, dx, dy, pitch):
     return x + dx * c - dy * s, y + dx * s + dy * c
 
 
-def pitch_of(q):
-    """The foot's pitch toes-up, degrees, at this leg's phase `q`, through `_knots`: flat from
-    SETTLE, the heel rising through toe-off, round through the swing and the landing down to
-    flat again - eased to a stop at the landing, the foot moved in steps."""
+def pitch_of(q, stride=1.0):
+    """The foot's pitch toes-up, degrees, at this leg's phase `q` and `stride`, through `_knots`:
+    flat from SETTLE, the heel rising through toe-off, round through the swing and the landing
+    down to flat again - eased to a stop at the landing, the foot moved in steps."""
     q = q % 1.0 + (1.0 if q % 1.0 < SETTLE else 0.0)
-    knots = _knots()
+    knots = _knots(stride)
     for (q0, *start), (q1, *end) in zip(knots, knots[1:]):
         if q < q1:
             span = q1 - q0
@@ -146,7 +151,7 @@ def planted(q, stride=1.0):
     ball, the hip moving on at a stride a cycle. The stance's; the swing is `swung`."""
     length = STRIDE_M * stride
     q %= 1.0
-    pitch = pitch_of(q)
+    pitch = pitch_of(q, stride)
     if pitch > 0.0:
         x, y = _pivot(length * STANCE_AT - HEEL, 0.0, HEEL, ANKLE_H, pitch)
     else:
@@ -346,7 +351,7 @@ def leg(q, where, stride=1.0):
     the ankle, planted (`planted`) or swinging (`swung`); the ankle and the toes from how the
     foot is pitched (`pitch_of`)."""
     q %= 1.0
-    pitch = pitch_of(q)
+    pitch = pitch_of(q, stride)
     x, y = planted(q, stride)[:2] if q < TOE_OFF else swung(q, stride)
     thigh, knee = _ik(x, y, *where(q))
     return -thigh, knee, thigh - knee - pitch, toes_of(q, pitch)
@@ -355,7 +360,9 @@ def leg(q, where, stride=1.0):
 def toes_of(q, pitch):
     """The toes' bend, degrees, at the leg's phase `q` and the foot's `pitch`: flat on the floor
     while the heel is up over them; in the air they point with the foot, and flatten again to take
-    the floor; lined up with it toes up."""
+    the floor; lined up with it toes up. Curled up 20 degrees as the foot left the floor they
+    touched it still (the drive at 40 N m/rad follows nothing in 0.05 s) and a slip fell
+    (2026-09-27)."""
     u = max(0.0, (q % 1.0 - TOE_OFF) / (1.0 - TOE_OFF))
     return min(0.0, pitch) * (1.0 - 64.0 * u ** 3 * (1.0 - u) ** 3)
 

@@ -455,6 +455,29 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   the walks' stir 3.70 -> 3.52 mm and 3 % further, the rises held; slowed
   to a stop by the folding knee, the foot had come down where the plan
   had it, ahead of a body going nowhere (2026-09-27).
+- The calf: the heel to 50 degrees at toe-off (`gait.TOE_DEG`, rate -300
+  a stride, turning back at 4000 a stride squared), the rise scaled by the
+  stride. With the foot landed on the capture point along the walk it
+  holds: the walks' stir 3.35 -> 2.80 mm, the ears' up-and-down 18 -> 12 mm
+  a stride, the plan's landing knee 29 -> 14 degrees, the hot knee walked
+  out (tipped 12), held 90 %. Unscaled, the first short strides' push-off
+  hopped her off the front foot (the rises fell); 55 and 60 degrees, an
+  earlier heel-off and a slower rise all lose trials. After toe-off the
+  toes' tips skim the floor (the sole's peak 1.4-1.9 kN there): curled up
+  20 degrees they touched it still, the toe drive too slow (2026-09-27).
+- The head's fore-and-aft, 61 mm a stride at the ears: the pelvis surges
+  30 (its speed 0.76-0.99 m/s over a 1 m stride, the vault's exchange plus
+  the stance leg braking it 2 m/s2 through half the stance and pushing 3-5
+  before the landing) and the torso's pitch, 2.2 degrees the spine's
+  counter does not take out, doubles it up there. Tried and out: the phase
+  run as a pendulum (58-65), a lead on the pitch's rate for the spine (fell
+  in 4 s at 0.05-0.15 s either sign), a shorter stride (0.9: the pelvis 38
+  at 0.82 m/s), a planned landing dip (the body sags under any plan, the
+  knees bent the same and the bob 19-24), the height latch let go of its
+  first 15 mm (the first landing hopped), the bob's swing on the landing
+  (`PEND_K` 1.5: fell in a second). The stance knee, 6 degrees soft: 4-7 at
+  its straightest, 15-20 through mid-stance from the latch's 10-12 mm; at
+  4 the walk at 0.9 fell in 0.6 s (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
