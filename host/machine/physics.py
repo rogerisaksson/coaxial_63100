@@ -42,6 +42,15 @@ LOSS_W = 0.01
 #: on its ball's edge the stance foot spun under the swinging leg (2026-09-25).
 FRICTION, TORSION_M = 1.0, 0.08
 
+#: The soles' give, MuJoCo's solref and solimp: a contact settles over SOLE_S s at SOLE_DAMP of
+#: critical, its impedance SOLE_SOFT at a touch rising to 0.95 over SOLE_WIDTH_M of give - light
+#: sneakers on her 1.60 m, 27 cm soles. Rigid (0.02, 1, 0.9, 0.001) a touchdown peaked at 1.9
+#: kN, 3.5 times her weight; the give over 5 mm and the damping 1.5: 1.5 kN and the pendulum's
+#: stir 1.7 -> 1.4 mm. Softer felled her first stride from standing every way: settling over
+#: 0.035 s the body pitched on twice as fast (the sole a lag in the ankle's hold), damped 1.75
+#: the stance foot's load flickered to 70 N as the other swung (2026-09-27).
+SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
+
 
 def kind(joint):
     """A joint's kind: its name after the side."""
@@ -73,10 +82,12 @@ def mjcf():
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
         for part, shape, size, at in CONTACTS:
             if name.endswith('_' + part):
+                give = (' solref="%g %g" solimp="%g 0.95 %g"' % (
+                    SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M)) if part in ('foot', 'toes') else ''
                 out.append('<geom type="%s" size="%s" pos="%g %g %g" contype="2" conaffinity="1" '
-                           'condim="4" friction="%g %g 0.001"/>' % (
+                           'condim="4" friction="%g %g 0.001"%s/>' % (
                                (shape, ' '.join('%g' % v for v in size)) + tuple(at)
-                               + (FRICTION, TORSION_M)))
+                               + (FRICTION, TORSION_M, give)))
         for kid in kids.get(name, []):
             out += body(kid)
         return out + ['</body>']

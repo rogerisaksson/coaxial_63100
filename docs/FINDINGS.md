@@ -335,6 +335,18 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   mm, and the plan's dip eroded over 0.05 of a stride (17 -> 20 mm, nearer
   the body's) 1.7; the peaks 3.7 and 2.5 m/s2. Left: 12 mm of sag at
   touchdown and a sole peak of 1.9 kN - the soles are rigid (2026-09-27).
+- The soles given a little, as light sneakers (`machine.physics` SOLE_*):
+  the contact's damping 1.5 of critical and its impedance easing in over 5
+  mm take a touchdown's peak 1.9 -> 1.5 kN and the stir 1.7 -> 1.4 mm, a
+  shove's parry 1.5 -> 1.1 kN. Every softer sole felled the first stride
+  from standing, the walks and the shoves unharmed: settling over 0.035 s
+  instead of 0.02 the body pitched on twice as fast in the first single
+  support (the sole is a lag in the ankle's hold) and the foot landed 0.24
+  s early; damped 1.75 or more the stance foot's load flickered to 70 N
+  under the rolling foot (a damped contact kicks at its corners' speed) and
+  she toppled sideways. MuJoCo's soft contact is a poor foam: its
+  softness is a time constant on the whole body's mass, its damping acts on
+  every corner's motion (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
