@@ -107,11 +107,21 @@
 /* The hold: a regime's outputs averaged over HOLD_WINDOW s agreeing with the last window's to
    HOLD_V (Cinj, Clevel: the keepalive's ripple sampled at the steps' ends parts two windows by
    1.3 mV) and HOLD_GATE (+15V7), the keepalive's every gap within HOLD_GAP s (5 to 25 us moves
-   Clevel 2.86 to 2.72 V) - or the chain tripped, which a pump slower still keeps down. */
+   Clevel 2.86 to 2.72 V) - or the chain tripped, which a pump slower still keeps down. A longer
+   gap in a held pumped regime - the thermal observer's slice holds main() 129 us at 10 Hz, 190
+   under the drive's interrupts - is run from the state, held or settling, and the hold
+   resumes once the pump is back HOLD_RECOVER s (Clevel's dip decays at R98 C106, 185 us) and
+   a HOLD_CHECK s window of Clevel agrees with the means to HOLD_CHECK_V (the pilot's 5 kHz
+   ripple on Clevel is 40 mV, and the window holds a part of a period) and +15V7 to HOLD_GATE,
+   the settling goes on with the gap left out; a gap that goes on is a loss. Taken as a change
+   of regime, the slices kept the emulated chain from ever holding (2026-09-27). */
 #define HOLD_WINDOW 5e-3
 #define HOLD_V      5e-3
 #define HOLD_GATE   10e-3
 #define HOLD_GAP    25e-6
+#define HOLD_RECOVER 1e-3
+#define HOLD_CHECK  1e-3
+#define HOLD_CHECK_V 25e-3
 
 /* Newton: iterations at most, the settled step (V, A). */
 #define NEWTON      40
@@ -536,6 +546,7 @@ void world_sto_init(world_sto_t *s)
   s->c_high = true;
   s->cmp1 = -CMP_RAIL;
   s->cmp2 = -CMP_RAIL;
+  s->disturbed = -1.0;
 }
 
 /** Whether the keepalive's every gap in the step, from the last edge before it, is within
@@ -564,11 +575,56 @@ static bool holdable(const world_sto_t *s, const world_sto_regime_t *now)
   return now->pumping || (s->fault <= 0.0);
 }
 
-static bool same(const world_sto_regime_t *a, const world_sto_regime_t *b)
+/** The same regime but for the pump. */
+static bool alike(const world_sto_regime_t *a, const world_sto_regime_t *b)
 {
   return (a->pilot_volts == b->pilot_volts) && (a->pilot_hz == b->pilot_hz)
-         && (a->noise_volts == b->noise_volts) && (a->pumping == b->pumping)
-         && (a->rail5 == b->rail5) && (a->pgood == b->pgood);
+         && (a->noise_volts == b->noise_volts) && (a->rail5 == b->rail5)
+         && (a->pgood == b->pgood);
+}
+
+static bool same(const world_sto_regime_t *a, const world_sto_regime_t *b)
+{
+  return alike(a, b) && (a->pumping == b->pumping);
+}
+
+/** The step's substeps, PA10's edges at their instants. */
+static void run(world_sto_t *s, const world_sto_in_t *in, float dt)
+{
+  const double span = dt + s->owed;
+  const uint32_t n = (span > 0.0) ? (uint32_t)(span / WORLD_STO_DT) : 0U;
+  uint32_t edge = 0U;
+
+  s->owed = span - (double)n * WORLD_STO_DT;
+  s->pin = in->keepalive;
+  for (uint32_t k = 0U; k < n; k++)
+  {
+    const double t = (double)k * WORLD_STO_DT;
+
+    while ((edge < in->edges)
+           && (((in->at != NULL) ? in->at[edge]
+                                 : ((double)edge + 0.5) * dt / (double)in->edges) <= t))
+    {
+      s->pin = !s->pin;
+      edge++;
+    }
+    substep(s, in);
+  }
+  if (((in->edges - edge) & 1U) != 0U)
+  {
+    s->pin = !s->pin;
+  }
+}
+
+/** The regime taken up: its windows from here. */
+static void adopt(world_sto_t *s, const world_sto_regime_t *now)
+{
+  memset(s->sums, 0, sizeof(s->sums));
+  s->window = 0.0;
+  s->settled = false;
+  s->held = false;
+  s->disturbed = -1.0;
+  s->regime = *now;
 }
 
 void world_sto_step(world_sto_t *s, const world_sto_in_t *in, float dt, world_sto_out_t *out)
@@ -581,44 +637,68 @@ void world_sto_step(world_sto_t *s, const world_sto_in_t *in, float dt, world_st
   };
   const bool kept = same(&now, &s->regime);
 
+  /* A longer gap in a pumped regime, held or settling: run from the state, the windows kept. */
+  if (!kept && alike(&now, &s->regime) && s->regime.pumping && (s->disturbed < 0.0))
+  {
+    s->held = false;
+    s->disturbed = 0.0;
+    memset(s->check, 0, sizeof(s->check));
+  }
+  if ((s->disturbed >= 0.0) && !alike(&now, &s->regime))
+  {
+    adopt(s, &now);
+  }
   s->held = s->held && kept && holdable(s, &now);
   if (s->held)
   {
     s->pin = ((in->edges & 1U) != 0U) ? !in->keepalive : in->keepalive;
   }
+  else if (s->disturbed >= 0.0)
+  {
+    run(s, in, dt);
+    s->disturbed += dt;
+    if (!now.pumping)
+    {
+      if (s->disturbed > HOLD_RECOVER + HOLD_CHECK)
+      {
+        adopt(s, &now);                       /* the gap goes on: a loss */
+      }
+    }
+    else if (s->disturbed >= HOLD_RECOVER)
+    {
+      if (!s->settled)
+      {
+        s->disturbed = -1.0;                  /* the settling goes on, the gap left out */
+      }
+      else
+      {
+        s->check[0] += s->clevel * dt;
+        s->check[1] += s->gate * dt;
+        s->check[2] += dt;
+        if (s->check[2] >= HOLD_CHECK)
+        {
+          if ((fabs(s->check[0] / s->check[2] - s->means[1]) < HOLD_CHECK_V)
+              && (fabs(s->check[1] / s->check[2] - s->means[2]) < HOLD_GATE))
+          {
+            s->held = true;
+            s->disturbed = -1.0;
+          }
+          else
+          {
+            adopt(s, &now);
+          }
+        }
+      }
+    }
+  }
   else
   {
-    const double span = dt + s->owed;
-    const uint32_t n = (span > 0.0) ? (uint32_t)(span / WORLD_STO_DT) : 0U;
-    uint32_t edge = 0U;
-
-    s->owed = span - (double)n * WORLD_STO_DT;
-    s->pin = in->keepalive;
-    for (uint32_t k = 0U; k < n; k++)
-    {
-      const double t = (double)k * WORLD_STO_DT;
-
-      while ((edge < in->edges)
-             && (((in->at != NULL) ? in->at[edge]
-                                   : ((double)edge + 0.5) * dt / (double)in->edges) <= t))
-      {
-        s->pin = !s->pin;
-        edge++;
-      }
-      substep(s, in);
-    }
-    if (((in->edges - edge) & 1U) != 0U)
-    {
-      s->pin = !s->pin;
-    }
+    run(s, in, dt);
 
     /* The windows: a regime's outputs averaged over HOLD_WINDOW; two in a row agreeing, held. */
     if (!kept)
     {
-      memset(s->sums, 0, sizeof(s->sums));
-      s->window = 0.0;
-      s->settled = false;
-      s->regime = now;
+      adopt(s, &now);
     }
     s->sums[0] += s->cinj * dt;
     s->sums[1] += s->clevel * dt;

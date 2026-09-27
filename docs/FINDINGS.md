@@ -712,6 +712,21 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   (545 C) and its MCU die under the drive, gave the triple's codes and the
   trigger unarmed and the STO pilot with the AFE off; native read its 5 V
   rail at 0 V. Each now as the board reads it (2026-09-27).
+- The emulator's cost is its register accesses and interrupts, not its
+  models: 1.24 M accesses a virtual second idle at 0.9 us each, 17 a period
+  under the drive at Renode's floor. Cut a pass: HAL_RCC_GetSysClockFreq's
+  7 RCC reads (the IMU's poll), AFE_ON's 3 IDR reads (a shadow); the idle
+  core at 50 MIPS, the quantum 0.5 ms. Idle with the AFE on 2.8 -> 1.0 wall
+  s a virtual s, real time. The STO chain: a step an edge cost 3.4 us,
+  50 000 a virtual second, now batched at 1 kHz with the edges' instants;
+  the drive's ISR counted as the chain's time put the keepalive 46 us apart
+  and the observer's slice 850 us (the part: 9 and 190), so the chain's
+  clock is main()'s instructions stretched by the interrupts' share; the
+  slice broke the hold's regime every 100 ms and the chain never held, so a
+  longer gap in a held regime runs from the held state and the hold resumes:
+  195 -> 40 ms a virtual s, the drive 3.1 -> 2.65. Nothing from
+  SyncPCEveryInstructionDisabled or -O2 on the sample path's board files
+  (2026-09-27).
 
 ## Local model
 

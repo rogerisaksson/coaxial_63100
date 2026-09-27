@@ -73,16 +73,19 @@ UID_AT = 0x1FF1E800
 #: outran its period and starved the link (2026-09-25).
 FAITHFUL_MIPS = 475
 
-#: The core's speed while no ADC waits on TRGO2 - no drive runs to the part's budget -
-#: Renode's own: 1.4 wall s a virtual s against 475's 5.2 (2026-09-25). The plant switches
+#: The core's speed while no ADC waits on TRGO2 - no drive runs to the part's budget. The
+#: polls' register accesses, 17 a pass, cost the same at any rate: idle with the AFE on 2.0
+#: wall s a virtual s at 100, 1.2 at 50, 1.4 at 25 (the quantum's round trips left), 475's
+#: 5.2 (2026-09-27). The link's ring holds a frame at any pass rate. The plant switches
 #: between them.
-IDLE_MIPS = 100
+IDLE_MIPS = 50
 
 #: How far a limb's boards run apart before they wait for each other, s: 8 idle boards run
 #: 390 M instructions a wall second in all at 500 us, 387 M at 100 us, 367 M at 1 ms (MPU off,
 #: 2026-09-25). The bus's bytes cross at
 #: these boundaries, so it stays under RTU's t1.5 of 750 us inside a frame: 1 ms broke every
-#: frame longer than a quantum's bytes.
+#: frame longer than a quantum's bytes. One board's too: Renode's 100 us cost it 0.13 wall s
+#: a virtual s idle (2026-09-27).
 QUANTUM = '0.0005'
 
 #: main()'s time between the handlers while an ADC waits on TRGO2, us, the rest skipped
@@ -164,7 +167,7 @@ class Emulator:
         return (['$port=%d' % self.port, '$elf=@%s' % self.elf.replace(os.sep, '/')]
                 + (['$vtor=0x%08X' % BOOT_VTOR] if self.boot else [])
                 + ['include @%s' % SCRIPT] + self.planted(0) + self.guarded() + self.paced()
-                + ['start'])
+                + ['emulation SetGlobalQuantum "%s"' % QUANTUM, 'start'])
 
     def guarded(self):
         """The MPU masked off for the machine last created, unless `mpu`."""

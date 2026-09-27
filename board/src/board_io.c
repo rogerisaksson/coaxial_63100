@@ -232,13 +232,18 @@ bool Board_PinUsable(char port, uint8_t pin)
   return true;
 }
 
+/* PB2 as last written, MX_GPIO_Init's low first: the polls ask three times
+   a pass, and a register read is costly in the emulator. */
+static bool s_afe_on;
+
 bool Board_AfeOn(void)
 {
-  return (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET);
+  return s_afe_on;
 }
 
 void Board_SetAfeOn(bool on)
 {
+  s_afe_on = on;
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, on ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 

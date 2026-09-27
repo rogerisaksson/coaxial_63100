@@ -105,7 +105,7 @@ static bool poll_due(void)
 {
   static uint32_t last;
   const uint32_t now = Board_Cycles();
-  const uint32_t gap = Board_SysClkHz() / IMU_POLL_HZ;
+  const uint32_t gap = SystemCoreClock / IMU_POLL_HZ;   /* CYCCNT's rate, no RCC read */
 
   if ((now - last) < gap)
   {

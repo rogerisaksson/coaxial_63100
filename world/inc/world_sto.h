@@ -81,6 +81,8 @@ typedef struct
   double sums[3], means[3]; /**< Cinj, Clevel, +15V7: the window's integrals, the last one's means */
   bool   settled;           /**< a window has closed in this regime */
   bool   held;
+  double disturbed;         /**< s into a longer gap run from the state held or settling, -1 none */
+  double check[3];          /**< its Clevel and +15V7 integrals, the window's s */
 } world_sto_t;
 
 /** A board powered with its bus: every node at rest, the master's coupling caps charged. */
