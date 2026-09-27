@@ -60,13 +60,18 @@ KNEE_MIN_DEG = 4.0
 #: (2026-09-26).
 SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.62, 9.3, -75.0
 
-#: The foot's pitch toes-up at its knots: (phase, degrees, a stride, a stride squared), a quintic
-#: between. The heel rises fastest at toe-off and on to 73 degrees in the air: eased to a stop
+#: The foot's pitch at toe-off, degrees toes-up, and its rate and acceleration there, a stride
+#: and a stride squared: the heel rises fastest at toe-off and on into the air. Eased to a stop
 #: there, the whole foot stood still, the knee straightened -180 deg/s and then bent +409
-#: (2026-09-25). The landing's the toes already coming down.
-PITCH_KNOTS = ((SETTLE, 0.0, 0.0, 0.0), (HEEL_OFF, 0.0, 0.0, 0.0),
-               (TOE_OFF, -37.0, -400.0, -200.0), (1.0, LAND_DEG, LAND_RATE, 0.0),
-               (1.0 + SETTLE, 0.0, 0.0, 0.0))
+#: (2026-09-25).
+TOE_DEG, TOE_RATE, TOE_ACC = -37.0, -400.0, -200.0
+
+
+def _knots():
+    """The foot's pitch toes-up at its knots: (phase, degrees, a stride, a stride squared), a
+    quintic between; the landing's the toes already coming down."""
+    return ((SETTLE, 0.0, 0.0, 0.0), (HEEL_OFF, 0.0, 0.0, 0.0), (TOE_OFF, TOE_DEG, TOE_RATE, TOE_ACC),
+            (1.0, LAND_DEG, LAND_RATE, 0.0), (1.0 + SETTLE, 0.0, 0.0, 0.0))
 
 #: The middle of a leg's single support: from the other's toe-off to its own landing.
 MID_STANCE = 0.5 * TOE_OFF
@@ -116,11 +121,12 @@ def _pivot(x, y, dx, dy, pitch):
 
 
 def pitch_of(q):
-    """The foot's pitch toes-up, degrees, at this leg's phase `q`, through PITCH_KNOTS: flat
-    from SETTLE, the heel rising through toe-off, round through the swing and the landing down
-    to flat again - eased to a stop at the landing, the foot moved in steps."""
+    """The foot's pitch toes-up, degrees, at this leg's phase `q`, through `_knots`: flat from
+    SETTLE, the heel rising through toe-off, round through the swing and the landing down to
+    flat again - eased to a stop at the landing, the foot moved in steps."""
     q = q % 1.0 + (1.0 if q % 1.0 < SETTLE else 0.0)
-    for (q0, *start), (q1, *end) in zip(PITCH_KNOTS, PITCH_KNOTS[1:]):
+    knots = _knots()
+    for (q0, *start), (q1, *end) in zip(knots, knots[1:]):
         if q < q1:
             span = q1 - q0
             scale = (1.0, span, span * span)
