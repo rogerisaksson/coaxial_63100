@@ -1,7 +1,7 @@
 """Commissioning a motor on this board: the twelve steps, against a rig."""
 import math
-import time
 
+from coaxial.comm.hostclock import clock_of
 from coaxial.model import sensorless
 from coaxial.errors import RigError
 
@@ -71,6 +71,8 @@ class Commissioning:
     def __init__(self, rig, arm=None, log=None, i_h_max=1.0, f_min_hz=0.0,
                  bw_est_hz=50.0, accel_sd=2000.0, rated_rpm=3000.0):
         self.rig = rig
+        #: The board's clock: every wait here is the motor's, in its seconds.
+        self._clock = clock_of(rig)
         self.arm = arm
         self.log = log or (lambda line: None)
         self.i_h_max = i_h_max
@@ -102,12 +104,16 @@ class Commissioning:
         return {'volts': volts, 'powered': volts is not None and volts > GATE_UVLO_V}
 
     def _stage(self):
+        """The stage armed as `arm` allows, AFE_ON up first: the converters' reference the
+        steps measure through, and +5 for the STO chain's pilot detector on the schematic's
+        board - the drivers' supply."""
         if self.rig.gates.is_on():
             return
         if self.arm is None:
             raise RigError('this step switches the stage and arming was not '
                            'authorised - pass arm=dict(bypass_sto=..., '
                            'ignore_interlock=...) to Commissioning')
+        self.rig.board.afe.on()
         self.rig.gates.on(**self.arm)
 
     def __enter__(self):
@@ -125,9 +131,9 @@ class Commissioning:
 
     def _window(self, settle, seconds):
         """A window over `seconds`, after `settle` seconds discarded."""
-        time.sleep(settle)
+        self._clock.sleep(settle)
         self.drive.read()
-        time.sleep(seconds)
+        self._clock.sleep(seconds)
         return self.drive.read()
 
     def _hold(self, settle=0.05, seconds=0.1, **setpoints):
@@ -153,7 +159,7 @@ class Commissioning:
         with the stage armed - the difference is switch pickup.
         """
         self.rig.board.afe.on()
-        time.sleep(0.3)
+        self._clock.sleep(0.3)
         gd = self.rig.board.gate_drivers
         gd.configure(sync=True)
         off = self._noise_rows(self.drive.moments.read(periods))
@@ -163,7 +169,7 @@ class Commissioning:
             self._stage()
             half = (gd.state()['period'] - 1) // 2
             gd.write((half, half, half))
-            time.sleep(0.05)
+            self._clock.sleep(0.05)
             zv = self._noise_rows(self.drive.moments.read(periods))
             gd.write((0, 0, 0))
             self.rig.gates.off()
@@ -206,7 +212,7 @@ class Commissioning:
         self._stage()
         half = (period - 1) // 2
         gd.write((half, half, half))
-        time.sleep(0.05)
+        self._clock.sleep(0.05)
         table = []
         for t in ticks:
             gd.configure(trigger=t)
@@ -254,7 +260,7 @@ class Commissioning:
         for k in range(3):
             self.drive.write(id_ref=amps, iq_ref=0.0, theta=k * TWO_PI / 3.0)
             self.drive.hold()
-            time.sleep(0.05)
+            self._clock.sleep(0.05)
             m = self.drive.moments.read(periods)
             rows.append([m['channels'][n]['mean']
                          - (zero[n]['offset_raw'] if n in zero
@@ -495,7 +501,7 @@ class Commissioning:
         self.drive.write(pol_volts=volts, pol_periods=periods, pol_gap=gap)
         before = self.drive.state()['theta_hat']
         self.drive.on('polarity')
-        time.sleep((2 * periods + 2 * gap + 8) / self.fs + 0.02)
+        self._clock.sleep((2 * periods + 2 * gap + 8) / self.fs + 0.02)
         s = self.drive.state()
         flipped = s['pol_neg'] > s['pol_pos']
         if flipped:
@@ -514,7 +520,7 @@ class Commissioning:
         if d['method'] == 'injection':
             self.drive.write(id_ref=0.0, iq_ref=0.0)
             self.drive.on('sensorless')
-            time.sleep(lock)
+            self._clock.sleep(lock)
             self.polarity()
             self.drive.on('sensorless')
         else:
@@ -523,7 +529,7 @@ class Commissioning:
                              omega_target=1.5 * cross['omega_e'],
                              accel=cross['omega_e'] * 2.0, theta=0.0)
             self.drive.hold()
-            time.sleep(0.75 + lock)
+            self._clock.sleep(0.75 + lock)
             self.drive.on('sensorless')
         self.drive.write(iq_ref=iq)
         w = self._window(seconds / 2.0, seconds / 2.0)

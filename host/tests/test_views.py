@@ -567,13 +567,15 @@ def test_both_gutters_run_on_one_scale(report):
 
 
 def test_a_power_node_never_reads_below_the_copper(report):
-    """It sheds into the board, so it cannot be colder than the board."""
+    """It sheds into the board, so it cannot be colder than the board - switching: AFE_ON up,
+    the STO chain's pilot detector on +5, the drivers on the chain's supply."""
     from coaxial import SIMULATED, Coaxial63100
     from terminal.views.rotor import layout, legend
 
     rig = Coaxial63100(execution_mode=SIMULATED)
     rig.open()
     try:
+        rig.board.afe.on()
         rig.board.gate_drivers.configure(bypass_break=True)
         rig.board.gate_drivers.on()
         rig.drive.hold()

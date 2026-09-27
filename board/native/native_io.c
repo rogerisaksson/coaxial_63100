@@ -1,9 +1,9 @@
 /** native_io.c - The chip's pins, SPI2 and SPI4 with DMA1, natively: the parts on them. */
 
-/* A pin reads what drives it: H_INTN (PD8) the BNO085, BKIN (PE15) the drivers' nFAULT high,
+/* A pin reads what drives it: H_INTN (PD8) the BNO085, BKIN (PE15) the STO chain's FAULTOUT,
    one configured an input its pull, any other its ODR - CubeMX's MX_GPIO_Init sets the
    outputs, and does not run here. A write reaches the part on the pin: the A1335's
-   chip select PE4, the BNO085's PB12, WAKE PD9 and NRSTN PD10. SPI2 exchanges bytes with the
+   chip select PE4, the BNO085's PB12, WAKE PD9 and NRSTN PD10, the chain's KEEPALIVE PA10. SPI2 exchanges bytes with the
    BNO085 in HAL_SPI_TransmitReceive, main() waiting their time on the line; SPI4's DMA packet
    runs once CSTART is set with both streams enabled, and the receiver's stream interrupts. A
    stream's address register holds the low 32 bits of a buffer in this image: the image's own
@@ -13,6 +13,7 @@
 
 #include <string.h>
 
+#define PORT_A   0U
 #define PORT_B   1U
 #define PORT_D   3U
 #define PORT_E   4U
@@ -60,7 +61,7 @@ static uint32_t io_levels(uint8_t k)
   }
   if (k == PORT_E)
   {
-    v |= GPIO_PIN_15;
+    v = native_faultout() ? (v | GPIO_PIN_15) : (v & ~(uint32_t)GPIO_PIN_15);
   }
   return v;
 }
@@ -132,6 +133,10 @@ void HAL_GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
   if (k == PORT_D && pin == GPIO_PIN_10)
   {
     bno085_pin(2U, level);
+  }
+  if ((k == PORT_A) && (pin == GPIO_PIN_10))
+  {
+    native_keepalive(level);
   }
   port->IDR = io_levels(k);
 }

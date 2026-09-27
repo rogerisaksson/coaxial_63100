@@ -419,7 +419,7 @@ def _claude_chat(a, script, state):
 
 def main():
     p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    p.add_argument('--port', default='COM4')
+    p.add_argument('--port', default='emulator://')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--claude', action='store_true',
                    help='claude -p per turn instead of the local model, '

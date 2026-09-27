@@ -8,8 +8,9 @@ A joint (deg, the drive holding an angle), a surface (a joint of narrow span), a
 ('LL_2'); what it drives, a machine measures (`Coaxial.identify`).
 """
 import math
-import time
 
+from coaxial.comm.hostclock import clock_of
+from coaxial.comm.session import standing
 from coaxial.errors import RigError
 from machine.controller import Feedback
 from machine.machine import Actuator
@@ -58,8 +59,17 @@ class _OnDrive(Actuator):
     LOOPS = 'ctrl'
     MEASURES, COMMANDS = 'omega_hat', 'iq_ref'
 
+    def rest(self, seconds):
+        """`seconds` of the board's."""
+        clock_of(self.node.rig).sleep(seconds)
+
     def _gates(self, arming):
-        self.node.rig.gates.on(**_arming(self.node.rig, arming))
+        rig = self.node.rig
+        if standing(rig.origin) != 'live':
+            # The schematic's board: +5 for the STO chain's pilot detector, the drivers' supply;
+            # the unmodified bench board's drivers have theirs with AFE_ON down.
+            rig.board.afe.on()
+        rig.gates.on(**_arming(rig, arming))
 
     def hand_over(self, f, hz):
         ctrl = self.node.rig.ctrl
@@ -227,6 +237,7 @@ class Coaxial(Node):
         if self._carried is not None and not again:
             return self._carried
         rig, drive, angle = self.rig, self.rig.drive, self.rig.board.angle
+        clock = clock_of(rig)                   # the ring's own seconds, the board's
         if rig.simulated:
             drive.configure(source='model')
         rig.gates.on(**_arming(rig, arming))
@@ -234,15 +245,15 @@ class Coaxial(Node):
             theta0 = drive.state()['theta_hat']
             drive.write(id_ref=amps, iq_ref=0.0, theta=theta0, omega_target=0.0)
             drive.hold()
-            time.sleep(settle)
+            clock.sleep(settle)
             drive.write(theta=theta0 + math.radians(step_deg))
-            start, t0, rows = angle.state()['degrees'], time.perf_counter(), []
-            while time.perf_counter() - t0 < window:
-                asked = time.perf_counter()
+            start, t0, rows = angle.state()['degrees'], clock.perf(), []
+            while clock.perf() - t0 < window:
+                asked = clock.perf()
                 degrees = angle.state()['degrees']
                 # The sample falls between the ask and the answer: a stamp at either end moved
                 # by a stall under load, and two joints ringing 1 Hz apart swapped.
-                rows.append(((asked + time.perf_counter()) / 2.0 - t0,
+                rows.append(((asked + clock.perf()) / 2.0 - t0,
                              (degrees - start + 180.0) % 360.0 - 180.0))
         finally:
             drive.off()

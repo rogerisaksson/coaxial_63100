@@ -4,12 +4,13 @@
     python tools/dev/ab.py                                  # every page but SKIPPED
     python tools/dev/ab.py thermal_observer --port native://?world=bench
 
-Each page's own main runs headless (tools/render/page.frame), SIMULATED then `--port`. Every
-device read either side takes - a method of a board device or of the stand-in's for it - is
-recorded by what it is (`thermal.state`, `analog.read(3)`), a field at a time, on the board's
-clock. The report, per page: a read or a field the emulated side never gave or gave as None;
-each shared number whose range over the board seconds both runs cover parts from the stand-in's
-by more than `--apart`; each number outside what the physics allows, on either side.
+Pages on the relay, the longest first, a process and an emulator each (tools.dev.focus,
+`--jobs`), each killed at PAGE_S. Each page's own main runs headless (tools/render/page.frame), SIMULATED then `--port`. Every
+device read either side takes, at any depth - a method of a board device or of the stand-in's
+for it - is recorded by what it is (`thermal.state`, `analog.read(3)`), a field at a time, on
+the board's clock. The report, per page: a read of the board's own the emulated side never gave
+or gave as None; each shared number whose range over the board seconds both runs cover parts
+from the stand-in's by more than `--apart`; each number outside what the physics allows.
 """
 import argparse
 import importlib
@@ -19,9 +20,7 @@ import numbers
 import pkgutil
 import os
 import re
-import subprocess
 import sys
-import threading
 
 import coaxial.acquire
 import coaxial.devices
@@ -31,7 +30,7 @@ from coaxial.comm.session import standing
 from coaxial.devices.subsystem import Subsystem
 from coaxial.rig import Coaxial63100
 from machine.roles import Input
-from tools import REPO
+from tools.dev.focus import WORKER_GB, Job, relay
 from tools.render import page as pages
 
 #: humanoid is the stand-in's alone; chat is the local model's; render has no board.
@@ -39,7 +38,10 @@ SKIPPED = ('humanoid', 'chat', 'render')
 
 #: Frames for a board window that holds the page's slowest cycle: the tumble's 25.6 s, the
 #: thermal page's 36 s load, the rotor's 16 s demo.
-FRAMES = {'orientation': 450, 'thermal_observer': 200, 'rotor_observer': 420}
+FRAMES = {'orientation': 600, 'thermal_observer': 200, 'rotor_observer': 420}
+
+#: A page's time, both sides, s.
+PAGE_S = 600
 
 #: Methods that act, not read.
 WRITES = frozenset(('configure', 'write', 'on', 'off', 'hold', 'reset', 'trigger', 'load_cycle',
@@ -54,7 +56,7 @@ IGNORED = re.compile(r'thermal\.(identification\.)?truth\..*|imu\.product_id\..*
 #: Counts and clocks from boot: a side that counts where the other stands still is a fault,
 #: their values are not compared.
 COUNTERS = re.compile(r'.*\.(updates|steps|cycles|periods|trips|errors|now|seconds|cargoes|'
-                      r'isr_cycles_last|isr_cycles_max|exit_ticks_max)')
+                      r'keepalive|isr_cycles_last|isr_cycles_max|exit_ticks_max)')
 
 #: The DC link's full scale, V (invariant 11).
 LINK_FS = 78.15
@@ -122,6 +124,27 @@ def number(value):
     return isinstance(value, numbers.Real) and not isinstance(value, bool)
 
 
+#: A quaternion's four, as the IMU's reads carry them.
+QUATERNION = frozenset(('i', 'j', 'k', 'real'))
+
+
+def hemisphere(value):
+    """`value` with every quaternion on the real >= 0 side: q and -q are one attitude, and
+    a range over either sign says nothing."""
+    if isinstance(value, dict):
+        if set(value) == QUATERNION and number(value['real']) and value['real'] < 0:
+            return {key: -item for key, item in value.items()}
+        return {key: hemisphere(item) for key, item in value.items()}
+    return value
+
+
+def argument(value):
+    """A call's argument as its read's name carries it: a scalar itself, anything else its
+    type - a layout dict differs a field between the sides and would part every read."""
+    return repr(value) if isinstance(value, (numbers.Number, str, type(None))) \
+        else type(value).__name__
+
+
 class Tape:
     """What a run's reads gave: {read: [(board s, {field: value})]}."""
 
@@ -129,8 +152,6 @@ class Tape:
         self.reads = {}
         self.stamp = WALL
         self.began = None
-        #: Calls in progress on this thread: only the page's own, the outermost, are its reads.
-        self.inside = threading.local()
         #: What each rig the page opened talks to: live, emulated or simulated.
         self.standing = []
         #: The page's own exit, where it took one.
@@ -143,7 +164,8 @@ class Tape:
         now = self.stamp.now()
         if self.began is None:
             self.began = now
-        fields = flat(reply) if isinstance(reply, (dict, list, tuple)) else {'': reply}
+        fields = flat(hemisphere(reply)) if isinstance(reply, (dict, list, tuple)) \
+            else {'': reply}
         self.reads.setdefault(read, []).append((now - self.began, fields))
 
     def span(self):
@@ -196,6 +218,16 @@ def _devices():
     return out
 
 
+def board_reads():
+    """{(device, method)}: what the board's own classes answer - a read only the stand-in has
+    is its own working, not a read the emulated side left out."""
+    board = set()
+    for cls, device in _devices().items():
+        if cls.__module__.startswith(('coaxial.devices', 'coaxial.acquire')):
+            board |= {(device, name) for name in dir(cls) if not name.startswith('_')}
+    return board
+
+
 def recorded(tape):
     """Every read wrapped to write to `tape`; the originals, to put back."""
     originals = []
@@ -208,16 +240,15 @@ def recorded(tape):
             originals.append((cls, name, device, method, name in vars(cls)))
     for cls, name, device, method, own in originals:
         def wrapper(self, *args, _original=method, _read='%s.%s' % (device, name), **kwargs):
-            depth = getattr(tape.inside, 'depth', 0)
-            tape.inside.depth = depth + 1
-            try:
-                reply = _original(self, *args, **kwargs)
-            finally:
-                tape.inside.depth = depth
-            if depth == 0 and (isinstance(reply, dict) or number(reply)):
-                said = ','.join([repr(a) for a in args]
-                                + ['%s=%r' % item for item in sorted(kwargs.items())])
-                tape.take(_read + ('(%s)' % said if said else ''), self, reply)
+            reply = _original(self, *args, **kwargs)
+            # A block of records is a row a record: the desk's meters are the DAQ's.
+            rows = ([reply] if isinstance(reply, dict) or number(reply) else
+                    [r for r in reply if isinstance(r, dict)]
+                    if isinstance(reply, (list, tuple)) else [])
+            said = ','.join([argument(a) for a in args]
+                            + ['%s=%s' % (k, argument(v)) for k, v in sorted(kwargs.items())])
+            for row in rows:
+                tape.take(_read + ('(%s)' % said if said else ''), self, row)
             return reply
         setattr(cls, name, wrapper)
     return [(cls, name, method if own else None) for cls, name, _, method, own in originals]
@@ -290,10 +321,13 @@ def report(truth, other, share):
     if other.standing and set(other.standing) != {'emulated'}:
         lines.append('FELLBACK the emulated side ran %s' % ', '.join(sorted(set(other.standing))))
         faults += 1
+    board = board_reads()
     for key in sorted(a):
         if key not in b:
-            lines.append('MISSING  %s (stand-in %r)' % (key, a[key][0]))
-            faults += 1
+            read = re.match(r'(\w+)\.(\w+)', key)
+            if read and (read.group(1), read.group(2)) in board:
+                lines.append('MISSING  %s (stand-in %r)' % (key, a[key][0]))
+                faults += 1
         elif b[key][0] is None and a[key][0] is not None:
             lines.append('NONE     %s (stand-in %r)' % (key, a[key][0]))
             faults += 1
@@ -339,6 +373,7 @@ def main(argv=None):
     parser.add_argument('--apart', type=float, default=0.3,
                         help='a number marked when its range parts by more than this share')
     parser.add_argument('--all', action='store_true', help='the extras too')
+    parser.add_argument('--jobs', type=int, help='batons: pages at once, the physical cores')
     args = parser.parse_args(argv)
     unknown = sorted(set(args.page) - set(pages.PAGES))
     if unknown:
@@ -348,9 +383,18 @@ def main(argv=None):
         return 1 if compare(chosen[0], args) else 0
     # A process a page: a fresh stand-in and a fresh board each, a page's exit its own.
     rest = [a for a in (sys.argv[1:] if argv is None else argv) if a not in chosen]
-    failed = [page for page in chosen
-              if subprocess.run([sys.executable, '-X', 'utf8', os.path.abspath(__file__), page]
-                                + rest, cwd=os.path.join(REPO, 'host'), check=False).returncode]
+    failed = []
+    jobs = [Job(page, [sys.executable, '-X', 'utf8', os.path.abspath(__file__), page] + rest,
+                WORKER_GB, PAGE_S)
+            for page in sorted(chosen, key=lambda p: -FRAMES.get(p, 150))]
+    for job, out, code, took in relay(jobs, args.jobs):
+        page = job.name
+        sys.stdout.write(out)
+        if code is None:
+            print('%s: out of time at %.0f s\n' % (page, PAGE_S))
+        if code != 0:
+            failed.append(page)
+        sys.stdout.flush()
     print('%d of %d pages part from the stand-in or the physics: %s'
           % (len(failed), len(chosen), ', '.join(failed) or 'none'))
     return 1 if failed else 0

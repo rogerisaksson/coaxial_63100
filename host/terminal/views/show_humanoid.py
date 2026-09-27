@@ -157,7 +157,7 @@ def act_on(typed, state):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='COM4', help='accepted with every page; no board here')
+    parser.add_argument('--port', default='emulator://', help='accepted with every page; no board here')
     parser.add_argument('--hz', type=float, default=30.0, help='frames per second, at most')
     parser.add_argument('--simulated', action='store_true',
                         help='accepted for the view suite; the physics runs either way')

@@ -38,7 +38,7 @@ VALUE = '[38;5;214m'       # the theme's `value`, the light source
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='COM4')
+    parser.add_argument('--port', default='emulator://')
     parser.add_argument('--hz', type=float, default=8.0,
                         help='screen refreshes per second')
     parser.add_argument('--rate', type=float, default=0.0,

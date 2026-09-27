@@ -43,8 +43,10 @@ board/    this hardware; API in comms/inc/board.h -> comms/inc/board/<x>.h
           (tools/cores/native.py, tests/test_native.py)
           board/emu/: the board on Renode's STM32H753 for the image itself -
           the ADCs (injected on TIM1's TRGO2), the AFE from the electronics and
-          LTspice, the A1335, the BNO085, the plant, the RS485 echo, the
-          console's wire (tools/emu, tests/test_emulator.py)
+          LTspice, the A1335, the BNO085, the plant, the STO chain
+          (world/src/world_sto.c on PA10's edges, the master's pilot, PE15
+          and TIM1's break), the RS485 echo, the console's wire (tools/emu,
+          tests/test_emulator.py)
 comms/    cmd.c tables -> cmd_<device>.c handlers (rd_t in, wr_t out, wire.c)
           link.c: which port, console or Modbus; dev_uart.c: the only USART code
           cmd_length.c: request-length oracle for modbus_rtu.c
@@ -140,7 +142,10 @@ terminal/ui/        what they draw with: stage, chrome (the house HUD: CRT snow,
                     clock, kana tags), screen, console, scroll, ..
 tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
                     warm_model, lint (markdownlint + pyright, the hooks), ab (every
-                    page's reads, emulated against the stand-in and the physics)
+                    page's reads, emulated against the stand-in and the physics),
+                    focus (a suite's tests by name, its watchdog, the relay: a
+                    baton a physical core, a queue longest first, as the free
+                    commit holds)
 tools/target/       build_and_flash, find_board, flash_nodes, session
 tools/bench/        one question to the board per script: pulse, switch, ..
 tools/thermal/      calibrate, identify, validate, trace
@@ -175,7 +180,7 @@ tests/              suites, .counts.json (measured sizes)
   `broker.py`: one port, many sessions (loopback 8763), answers the
   deadman every 3 s.
 - Stand-in: five buses (AX, LL, RL, LA, RA), four nodes each; reports
-  proto 2.8, firmware "simulated". `test_parity.py` holds it to the board.
+  proto 2.23, firmware "simulated". `test_parity.py` holds it to the board.
 
 ## Tests
 

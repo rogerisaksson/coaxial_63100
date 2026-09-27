@@ -14,6 +14,7 @@ from coaxial.simulated.ctrl import SimulatedCtrl
 from coaxial.simulated.drive.device import SimulatedDrive
 from coaxial.simulated.link import (DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink,
                                     _BroadcastRefuses, bus_nodes, load_j)
+from coaxial.simulated import sto
 from coaxial.simulated.power import SimulatedGateDrivers, SimulatedPower
 from coaxial.simulated.sensors import SimulatedAngle, SimulatedImu
 from coaxial.simulated.system import SimulatedGpio, SimulatedSystem
@@ -44,7 +45,7 @@ class SimulatedBoard:
             # fields in records (7) and the counted duty (8) - so a host gating
             # a feature on the version exercises the same gate here that it
             # will at the bench.
-            'proto_major': 2, 'proto_minor': 8, 'firmware': 'simulated',
+            'proto_major': 2, 'proto_minor': 23, 'firmware': 'simulated',
             'device': name, 'mcu': 'STM32H753 (simulated)',
             'build': 'simulated', 'commands': 21, 'type': kind,
             # Says what it is and that it is invented, in the same line, so a
@@ -97,11 +98,25 @@ class SimulatedBoard:
         self.thermal._sample = self.drive.sample
         self.thermal._speed_of = self.drive._rpm
         self.thermal._afe_on = lambda: self.afe.state()['on']
+        self.thermal._meter_locked = lambda: self.gate_drivers._armed
+        # The drive's triple is the gate drivers', armed at a mode; the AFE the board's.
+        self.drive._arm_sync = lambda: self.gate_drivers._sync(True)
+        self.drive._sync_armed = lambda: self.gate_drivers._armed
+        self.drive._afe_on = self.thermal._afe_on
+        self.gate_drivers._afe_on = self.thermal._afe_on
+        # The STO chain: +5 the AFE's switch, the pump main() awake, FAULTOUT onto PE15, its
+        # nodes on three channels.
+        self.gate_drivers._sto.rail5 = lambda: self.afe._on
+        self.gate_drivers._sto.pumping = lambda: self.afe._on or self.gate_drivers._enabled
+        gates = self.gate_drivers
+        self.afe._pe15 = lambda: gates._chain().faultout
+        self.analog.sto = self.daq.sto = self.gate_drivers._sto
+        self.gate_drivers._thermal = self.daq.thermal = self.thermal
         # And what it drops at a ceiling: the stage.
         self.thermal._gate = self._drop_stage
-        # And what the drive reports as switching: the bridge, so a dropped
-        # stage stops making current in the model too.
-        self.drive._switching = lambda: self.gate_drivers._enabled
+        # And what the drive reports as switching: the bridge, supplied, so a dropped
+        # stage or a tripped STO chain stops making current in the model too.
+        self.drive._switching = self.gate_drivers._driving
         # And the throttle: the drive's clamp and the compares' duty.
         self.thermal._derate_to = self._derate_drive
         self.thermal._duty = self._effective_duty
@@ -113,6 +128,7 @@ class SimulatedBoard:
         # And the analog reads see the same current on the phases, so a tare
         # through them zeroes the records (values.py).
         self.analog.drive = self.drive
+        self.analog.thermal = self.thermal
         # The shaft sensor reads the same rotor: a servo closed over the A1335
         # moves what the drive torques, or the loop it closes is between two
         # inventions.
@@ -124,11 +140,17 @@ class SimulatedBoard:
         self.angle.thermal = self.thermal
         self.daq.angle = self.angle
         self.daq.imu = self.imu
-        # `zero()` reads a channel, so it needs the board that has them.
+        # `zero()` reads a channel, so it needs the board that has them; the scaling is its record.
         self.calibration.board = self
+        self.analog.calibration = self.daq.calibration = self.calibration
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'
+
+    def pilot(self, volts, hz=sto.PILOT_HZ, noise=0.0):
+        """The master's common-mode pilot on the bus: amplitude V (0 none), Hz; the far end's
+        100 kHz common mode, V, which the reduced chain does not model."""
+        self.gate_drivers._sto.set_pilot(volts, hz, noise)
 
     def _derate_drive(self, factor):
         """Scale the drive's current clamp. `Board_DriveDerate`'s twin."""

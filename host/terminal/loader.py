@@ -221,7 +221,7 @@ def main(argv=None):
         description='the terminal: the front page and the live views')
     parser.add_argument('name', nargs='?', choices=names(),
                         help='straight to this page or item')
-    parser.add_argument('--port', default='COM4')
+    parser.add_argument('--port', default='emulator://')
     parser.add_argument('--simulated', action='store_true',
                         help='no cable: every value invented, and said so')
     parser.add_argument('--frames', type=int, default=0,

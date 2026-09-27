@@ -20,6 +20,9 @@ typedef struct
   int32_t level_raw;          /**< integrator level - the margin left */
   int32_t level_microvolts;
   bool    stopped;            /**< TIM1 break latched: nFAULT on PE15 */
+  bool    nfault;             /**< PE15 now: U11's FAULTOUT, high while the chain releases */
+  bool    supply_ok;          /**< the Vgate channel answered */
+  int32_t supply_millivolts;  /**< +15V7, the gate drivers' supply, through the record's divider */
   uint32_t keepalive;         /**< edges pumped since boot - the loop rate */
   uint32_t worst_gap;         /**< longest gap between edges, CYCCNT ticks */
 } board_sto_state_t;

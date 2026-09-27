@@ -17,4 +17,4 @@ from coaxial.simulated.system import (DIGITAL, PARTS, RESERVED, SUBSYSTEMS, Simu
                                       SimulatedSystem, UNITS)
 from coaxial.simulated.thermal.observer import SimulatedThermal
 from coaxial.simulated.values import (CHANNELS, DCBUS_V, DRIFT, GUST, GUST_CHANCE, NOMINAL,
-                                      PITCH_TURNS, RIPPLE, ROLL_TURNS, SWEEP_HZ, SWING, _tumble)
+                                      PITCH_TURNS, RIPPLE, ROLL_TURNS, _tumble)

@@ -10,14 +10,17 @@ from typing import Any, cast
 
 from coaxial import simulated
 from coaxial.devices import scaling
+from coaxial.devices.gates import GateStage
 from coaxial.draw import ascii3d, desk, orientation
 from coaxial.errors import DeviceStateError
 from coaxial.graphics import raster
 from coaxial.simulated import CHANNELS, SimulatedSession
+from coaxial.simulated.sto import PILOT_VOLTS
 from coaxial_mcp import bus as busmod
 from coaxial_mcp import tools as toolmod
 from machine import ansi
 from machine.modes import SIMULATED
+from tools.dev.focus import pick, watchdog
 
 REPO = os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
@@ -1081,17 +1084,25 @@ def test_gate_driver_arming(report):
                      refused and 'gates.on()' in refused, refused)
 
         # The schematic wants the charge pump up and the level detector tripped
-        # first.
+        # first: the master's pilot gone, the chain is down.
+        rig.pilot(0.0)
+        time.sleep(0.01)
         try:
             rig.gates.on(bypass_sto=True)
             held = None
         except RigError as exc:
             held = str(exc)
-        report.check('the interlock refuses before the charge pump is up',
+        report.check('the interlock refuses while the charge pump is down',
                      held is not None, held)
         report.check('and the refusal carries the volts it read, not just '
                      'the fact that it refused',
                      held and 'Cinj' in held and 'V' in held, held)
+        rig.pilot(PILOT_VOLTS)
+        time.sleep(0.01)
+        rig.gates.on(bypass_sto=True)
+        report.check('the pilot back, the interlock passes and the stage arms',
+                     rig.gates.is_on(), rig.gates.interlock())
+        rig.gates.off()
 
         rig.gates.on(bypass_sto=True, ignore_interlock=True)
         report.check('after gates.on(), MOE is set', rig.gates.is_on(), True)
@@ -1330,9 +1341,10 @@ def test_sto_probe(report):
         second = sto_probe.probe(rig, first)
     finally:
         rig.close()
+    want = dict(GateStage.INTERLOCK)
     report.check("the probe reads Cinj and Clevel beside the interlock's want",
                  all(name in first['channels'] for name in ('Cinj', 'Clevel'))
-                 and all(first['channels'][name][1] == 3.0
+                 and all(first['channels'][name][1] == want[name]
                          for name in ('Cinj', 'Clevel')),
                  first['channels'])
     report.check("and the pump's pulses a second come off the keepalive "
@@ -1348,20 +1360,26 @@ def test_sto_probe(report):
                  and row.count(chr(10)) == 1, row[:80])
 
 
-def main():
+#: The suite's time, s: 70 on the laptop (2026-09-27).
+SUITE_S = 180
+
+
+def main(argv=None):
+    """Every test, or those with the command line's words in their names (tools.dev.focus)."""
     report = Report()
-    for test in (test_session, test_board_info, test_analog_read,
-                 test_self_test_and_link, test_gpio_gate,
-                 test_channel_table, test_imu, test_subsystems,
-                 test_orientation, test_scaling, test_desk,
-                 test_tumble, test_peak_hold, test_ascii3d,
-                 test_clock_reference, test_link_bench,
-                 test_gate_driver_arming, test_gate_snapshot,
-                 test_closing_leaves_another_session_armed,
-                 test_dead_time, test_views, test_virtual_rotor,
-                 test_thermal_identification,
-                 test_a_ceiling_pulled_in_under_a_node_closes_the_clamp,
-                 test_sto_probe):
+    watchdog(SUITE_S)
+    for test in pick((test_session, test_board_info, test_analog_read,
+                      test_self_test_and_link, test_gpio_gate,
+                      test_channel_table, test_imu, test_subsystems,
+                      test_orientation, test_scaling, test_desk,
+                      test_tumble, test_peak_hold, test_ascii3d,
+                      test_clock_reference, test_link_bench,
+                      test_gate_driver_arming, test_gate_snapshot,
+                      test_closing_leaves_another_session_armed,
+                      test_dead_time, test_views, test_virtual_rotor,
+                      test_thermal_identification,
+                      test_a_ceiling_pulled_in_under_a_node_closes_the_clamp,
+                      test_sto_probe), sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

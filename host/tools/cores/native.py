@@ -29,6 +29,7 @@ import urllib.parse
 import serial
 from serial.serialutil import SerialBase
 
+from coaxial.simulated.sto import PILOT_HZ
 from tools import REPO
 from tools.cores import fakeboard
 from tools.cores.build import OUT, build, find_cc
@@ -42,7 +43,7 @@ SOURCES = fakeboard.SOURCES + [
                  'board_log.c')] + [
     os.path.join(REPO, 'board', 'native', name)
     for name in ('native.c', 'native_io.c', 'native_a1335.c', 'native_bno085.c')] + [
-    os.path.join(REPO, 'world', 'src', 'world_heat.c')]
+    os.path.join(REPO, 'world', 'src', name) for name in ('world_heat.c', 'world_sto.c')]
 
 #: board/native first - its stm32h7xx.h, main.h and board_irq.h stand in for the part's - then
 #: board/inc, whose board_hw.h the board layer takes over board/fake's.
@@ -173,10 +174,13 @@ class Board:
         lib.native_hand.argtypes = [ctypes.c_uint8] * 3
         lib.native_angle.argtypes = [ctypes.c_double]
         lib.native_imu.argtypes = [ctypes.POINTER(ctypes.c_double)]
+        lib.native_pilot.argtypes = [ctypes.c_double] * 3
+        lib.native_link.argtypes = [ctypes.c_double]
         if hand is not None:
             lib.native_hand(unit, *hand)
         lib.native_open()
         lib.native_afe(*afe_values(), SEED | unit)
+        lib.native_link(worlds.LINK_VOLTS)
         if world is not None and node < len(world.spec['nodes']):
             lib.native_world(world.step, world.shaft, node, world.pole_pairs(node))
         self.unit = unit
@@ -240,6 +244,13 @@ class Limb:
         with self.lock:
             for board in self.boards:
                 board.lib.native_haste(ctypes.c_double(haste))
+
+    def pilot(self, volts, hz=PILOT_HZ, noise=0.0):
+        """The master's common-mode pilot on the bus, every board's STO chain on it: its
+        amplifier's amplitude, V (0 none), and Hz; the far end's 100 kHz common mode, V."""
+        with self.lock:
+            for board in self.boards:
+                board.lib.native_pilot(volts, hz, noise)
 
     def _run_to(self, us):
         for board in self.boards:
@@ -342,6 +353,7 @@ class Serial(SerialBase):
         except RuntimeError as exc:           # no compiler: said as a port that fails
             raise serial.SerialException(str(exc)) from exc
         self.heat_clock = self._limb.heat_clock
+        self.pilot = self._limb.pilot
         #: The units a scan probes, and whether the port is a board's console.
         self.units = self._limb.units
         self.console = self._limb.console

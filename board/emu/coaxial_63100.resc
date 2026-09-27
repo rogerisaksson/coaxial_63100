@@ -17,6 +17,7 @@ include @board/emu/Coaxial63100_A1335.cs
 include @board/emu/Coaxial63100_BNO085.cs
 include @board/emu/Coaxial63100_TIM1.cs
 include @board/emu/Coaxial63100_Plant.cs
+include @board/emu/Coaxial63100_STO.cs
 include @board/emu/FastDWT.cs
 using sysbus
 mach create $name

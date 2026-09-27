@@ -322,7 +322,7 @@ def period_of(hz):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='COM4')
+    parser.add_argument('--port', default='emulator://')
     parser.add_argument('--hz', type=float, default=20.0,
                         help='screen refreshes per second, at most %.0f'
                              % HZ_CAP)

@@ -14,8 +14,11 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - TIM1 50 kHz centre-aligned, break PE15. `Board_PwmInit`: MOE clear, CCxE
   set. Only gate op 1 (`rig.gates.on()`) sets MOE; DTG 0 refused (2EDL8034
   has no interlock). Host silent 10 s -> stage and rail claims dropped.
-- Gate supply comes from the STO chain, not the MCU. AFE_ON high unpowers
-  the drivers: no current is measured while switching here.
+- Gate supply comes from the STO chain, not the MCU: the master's pilot on
+  A1/B1, PA10's keepalive, FAULTOUT on PE15 (docs/HARDWARE.md). The bench
+  board is unmodified (R93 on +5): AFE_ON high unpowers its drivers, and no
+  current is measured while switching there. Emulated and simulated boards
+  follow the schematic: the pilot heard with AFE_ON up supplies them.
 - Measured: duty 1-100 % dry; 26 pulse runs into 8 ohm at 25/31 V,
   3.1-3.75 A. Drive: 2 922 cycles/period, drivers off. Bootloader run on
   the emulator only: the app runs from D2 SRAM, and `Coaxial63100.open()`
@@ -23,10 +26,12 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   (docs/BOOT.md). Open work: docs/TODO.md.
 - Emulated: the image on Renode's STM32H753 (`board/emu`, `host/tools/emu`),
   its front end from the schematic and LTspice (`electronic_simulations`,
-  `afe_spice.py`), the A1335 and BNO085 modelled, 475 MIPS: conformance
-  110/110; a limb of N boards on one RS485 bus; `emulator://?body=humanoid` the
-  stand-in's fleet. Where no board answers: the emulator, else the stand-in
-  (`COAXIAL_FALLBACK=simulated` skips it; the offline gate sets it).
+  `afe_spice.py`), the A1335, the BNO085 and the STO chain on the master's
+  pilot (`world/src/world_sto.c`, `sto.asc`'s circuit) modelled, 475 MIPS:
+  conformance 110/110; a limb of N boards on one RS485 bus;
+  `emulator://?body=humanoid` the stand-in's fleet. Where no board answers:
+  the emulator, else the stand-in (`COAXIAL_FALLBACK=simulated` skips it;
+  the offline gate sets it).
   `native://`, for real-time SIL/HIL (the robot that balances and walks):
   board/src's board layer built for this host over `board/native`'s chip -
   TIM1, ADCs, SPI and DMA, the front end, A1335, BNO085 - 18x headroom a

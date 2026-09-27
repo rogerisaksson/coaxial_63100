@@ -14,6 +14,7 @@ import json
 import math
 import os
 
+from coaxial.simulated.values import DCBUS_V
 from tools import REPO
 from tools.cores.build import build, find_cc
 
@@ -21,9 +22,15 @@ WORLDS = os.path.join(REPO, 'board', 'emu', 'worlds')
 PROFILES = os.path.join(REPO, 'host', 'coaxial', 'profiles')
 #: Where the plant hangs: TIM1_CH1, PE9.
 PLANT = 'sysbus.gpioPortE.plant'
+#: Where the STO chain hangs: KEEPALIVE, PA10.
+STO = 'sysbus.gpioPortA.sto'
+#: Where the front end hangs: AFE_ON, PB2.
+AFE = 'sysbus.gpioPortB.afe'
+#: The link a board without a world sits on, V: the stand-in's. A world's plant sets its own.
+LINK_VOLTS = DCBUS_V
 
 SOURCES = [os.path.join(REPO, 'world', 'src', name)
-           for name in ('world.c', 'world_emu.c', 'world_heat.c')] + [
+           for name in ('world.c', 'world_emu.c', 'world_heat.c', 'world_sto.c')] + [
     os.path.join(REPO, 'drive', 'src', name)
     for name in ('drive.c', 'drive_math.c', 'drive_model.c', 'drive_observer.c')] + [
     os.path.join(REPO, 'thermal', 'src', 'thermal.c')]
@@ -56,14 +63,20 @@ def load(name):
 
 
 def library():
-    """The world core built for this host, a name a process: a Renode holding one build's
-    library keeps it locked."""
+    """The world core built for this host, once a process under a name of its own: a Renode
+    holding one build's library keeps it locked, and a body's limbs load the one."""
+    if _BUILT:
+        return _BUILT[0]
     for stale in glob.glob(os.path.join(REPO, 'build', 'hosttest', 'world_emu_*')):
         try:
             os.remove(stale)
         except OSError:
             pass                     # held by a Renode still running
-    return build(find_cc(), SOURCES, INCLUDES, 'world_emu_%d' % os.getpid())[0]
+    _BUILT.append(build(find_cc(), SOURCES, INCLUDES, 'world_emu_%d' % os.getpid())[0])
+    return _BUILT[0]
+
+
+_BUILT = []
 
 
 def _decimal(value):

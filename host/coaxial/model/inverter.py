@@ -8,6 +8,7 @@ T_DEAD = 33.7e-9              #: DTG 8, bench-trimmed against the supply's OCP
 T_DEAD_SIM = 65.4e-9          #: the simulation's worst corner - the tension
                               #: between the two is stated in HARDWARE.md
 T_MIN_PULSE = 76e-9           #: 18 ticks: TPW 40 ns + DTG 8 -> 0.38 % duty
+GATE_UVLO_V = 7.5             #: the 2EDL8034's (motor_inverters/half_bridge/2EDL8034F5.lib)
 V_FRAC = 0.95                 #: of the link the modulator may use
 
 # IAUCN10S7N021, from the vendor VDMOS model in half_bridge.asc.

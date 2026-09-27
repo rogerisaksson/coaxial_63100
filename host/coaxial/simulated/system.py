@@ -148,7 +148,7 @@ class SimulatedGpio(Input, Output):
 
     # PB2 is the AFE switch, not just a pin.
     AFE_PORT, AFE_PIN = 'B', 2
-    # PE15 follows AFE_ON inversely - HARDWARE.md, Discrete I/O.
+    # PE15 is the STO chain's FAULTOUT, as the AFE reports it.
     PE15_PORT, PE15_PIN = 'E', 15
 
     def __init__(self, afe=None):
@@ -194,12 +194,15 @@ class SimulatedGpio(Input, Output):
 
     def _afe_on(self):
         return self.afe is not None and bool(self.afe.state()['on'])
+    def _pe15(self):
+        return self.afe is not None and bool(self.afe.state()['pe15'])
+
     def _witnesses(self):
-        """The two pins the front end's switch decides: PB2 is the switch, PE15
-        follows it inversely on the assembled board.
+        """The two pins the board decides: PB2 is the front end's switch, PE15 the STO
+        chain's FAULTOUT.
         """
         return {(self.AFE_PORT, self.AFE_PIN): self._afe_on,
-                (self.PE15_PORT, self.PE15_PIN): lambda: not self._afe_on()}
+                (self.PE15_PORT, self.PE15_PIN): self._pe15}
 
     def read(self, port, pin):
         self._guard(port, pin)
@@ -224,6 +227,9 @@ class SimulatedGpio(Input, Output):
         if self.afe is not None and letter == self.AFE_PORT:
             bit = 1 << self.AFE_PIN
             value = value | bit if self._afe_on() else value & ~bit
+        if self.afe is not None and letter == self.PE15_PORT:
+            bit = 1 << self.PE15_PIN
+            value = value | bit if self._pe15() else value & ~bit
         return value
 
     def port_write(self, port, mask, value):

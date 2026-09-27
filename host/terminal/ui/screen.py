@@ -18,6 +18,7 @@ from machine import ansi
 from terminal.ui.console import Keys, _ignore
 from terminal.ui.rate import rate_of
 from terminal.ui.scroll import scroll_by, scroll_click, scroll_drag
+from terminal.ui import sto
 from terminal.ui.stage import boot, curtain
 
 ansi.utf8_stdout()          # every view draws outside ASCII
@@ -201,7 +202,10 @@ def open_rig(banner, **kwargs):
 
     try:
         with boot(banner):
-            return Coaxial63100(**kwargs).open()
+            rig = Coaxial63100(**kwargs).open()
+        # The top row's STO chip, read beside the view's own requests.
+        sto.watch(rig)
+        return rig
     except (RigError, OSError) as exc:
         # OSError as well: a port another process holds, and a broker socket
         # that times out, both arrive here as something other than a RigError

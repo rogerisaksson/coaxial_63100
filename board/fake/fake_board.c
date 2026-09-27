@@ -831,6 +831,10 @@ FAKE_WEAK uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity)
   return (uint8_t)0;
 }
 
+FAKE_WEAK void Board_StoKeepalive(void)
+{
+}
+
 FAKE_WEAK void Board_StoKeepaliveReset(void)
 {
 }

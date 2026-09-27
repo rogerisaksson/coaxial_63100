@@ -22,6 +22,7 @@
 #include "modbus_map.h"
 #include "native.h"
 #include "world_heat.h"
+#include "world_sto.h"
 
 #include <math.h>
 #include <string.h>
@@ -62,6 +63,12 @@ void fake_console_poll(void);
    a tenth of a thermal second, in a room at 25 C. */
 #define HEAT_HZ            10U
 #define HEAT_AMBIENT_C     25.0f
+
+/* The STO chain, Coaxial63100_STO.cs's (world_sto.c): the master's pilot on A1/B1, sto.asc's
+   PAM8406 at 1.5 V and 5 kHz until the host sets another; PE15 high over FAULTOUT_V. */
+#define PILOT_V            1.5f
+#define PILOT_HZ           5000.0f
+#define FAULTOUT_V         1.65f
 
 TIM_TypeDef  native_tim1;
 RCC_TypeDef  native_rcc;
@@ -117,6 +124,12 @@ static struct
   world_heat_t heat;
   float haste;                        /* the heat's clock, thermal s per virtual s */
   thermal_sense_t seen;
+
+  world_sto_t sto;
+  uint64_t sto_at;                    /* where the chain stands, cycles */
+  float    pilot[3];                  /* the master's amplitude V and Hz, the far end's noise V */
+  bool     keepalive;                 /* PA10 */
+  bool     faultout;                  /* U11's Y: PE15, BKIN */
 } n;
 
 /* This board's node in its world, and its shaft unwrapped: the electrical angle over the
@@ -145,7 +158,7 @@ static struct
   double v_per_a, zero_v;         /* LTspice's (coaxial_63100_afe.repl) */
   double gain_sigma, zero_sigma, bus_sigma;
   double die_at30, die_per_k;
-  double clevel, cinj;            /* the STO chain's integrator and pilot, unmodified board */
+  double clevel, cinj;            /* the STO chain's integrator and recovered pilot */
   double noise;
 
   double amps[BOARD_PWM_PHASES], dc, ntc_c, die_c, rail5, gate;
@@ -159,7 +172,7 @@ static struct
   .r5_top = 10000.0, .r5_bottom = 10000.0,
   .gate_top = 57000.0, .gate_bottom = 10000.0,
   .die_at30 = 0.62, .die_per_k = 0.002,
-  .clevel = 0.06, .cinj = 0.77,   /* FINDINGS 2026-08-27 */
+  .rail5 = 5.0,
   .noise = 0.0001,
   .rng = 0x63100001U,
 };
@@ -293,6 +306,65 @@ static void native_clock_to(uint64_t at)
   }
 }
 
+/* MOE set and the drivers supplied: the 2EDL8034's outputs follow TIM1. */
+static bool native_driven(void)
+{
+  return ((TIM1->BDTR & TIM_BDTR_MOE) != 0U) && (afe.gate >= WORLD_STO_UVLO);
+}
+
+/* TIM1's break: BKIN (PE15) active at BKP with BKE set sets BIF and holds MOE clear, AOE off;
+   BIF clears only once BKIN has let go. */
+static void native_break(void)
+{
+  const bool active = n.faultout == ((TIM1->BDTR & TIM_BDTR_BKP) != 0U);
+
+  if (((TIM1->BDTR & TIM_BDTR_BKE) == 0U) || !active)
+  {
+    return;
+  }
+  n.sr |= TIM_SR_BIF;
+  TIM1->SR = n.sr;
+  TIM1->BDTR &= ~TIM_BDTR_MOE;
+}
+
+/* The chain on to the clock, PA10 as it stands: Cinj, Clevel and +15V7 into the front end,
+   FAULTOUT onto PE15 and the break. */
+static void native_sto_to(void)
+{
+  if (n.cycles <= n.sto_at)
+  {
+    return;
+  }
+  const world_sto_in_t in =
+  {
+    n.pilot[0], n.pilot[1], n.pilot[2], (float)afe.dc, native_powered(), n.keepalive, 0U, NULL
+  };
+  world_sto_out_t out;
+
+  world_sto_step(&n.sto, &in, (float)((double)(n.cycles - n.sto_at) / (double)SystemCoreClock),
+                 &out);
+  n.sto_at = n.cycles;
+  afe.cinj = out.cinj;
+  afe.clevel = out.clevel;
+  afe.gate = out.vgate;
+  n.faultout = out.faultout > FAULTOUT_V;
+  native_break();
+}
+
+void native_keepalive(bool level)
+{
+  if (level != n.keepalive)
+  {
+    native_sto_to();
+    n.keepalive = level;
+  }
+}
+
+bool native_faultout(void)
+{
+  return n.faultout;
+}
+
 /* The heat's step on the duties, MOE, the legs' mean squares, the link and the shaft: the
    NTC's element and the two dies read off the network. */
 static void native_heat(void)
@@ -303,7 +375,7 @@ static void native_heat(void)
 
   memset(&load, 0, sizeof load);
   load.afe_on = native_powered();
-  load.switching = (TIM1->BDTR & TIM_BDTR_MOE) != 0U;
+  load.switching = native_driven();
   for (uint8_t leg = 0U; leg < BOARD_PWM_PHASES; leg++)
   {
     load.duty[leg] = (float)n.active[leg] / arr;
@@ -341,7 +413,7 @@ static void native_plant_to(uint64_t at)
     float shaft[3];
 
     w.step(w.node, (float)n.active[0] / arr, (float)n.active[1] / arr,
-           (float)n.active[2] / arr, ((TIM1->BDTR & TIM_BDTR_MOE) != 0U) ? 1 : 0, ts, got);
+           (float)n.active[2] / arr, native_driven() ? 1 : 0, ts, got);
     w.shaft(w.node, shaft);
     double turned = (double)shaft[0] - w.electrical;
 
@@ -361,7 +433,10 @@ static void native_plant_to(uint64_t at)
     n.window[leg] += (double)got[leg] * (double)got[leg] * (double)ts;
   }
   n.window[BOARD_PWM_PHASES] += (double)ts;
-  afe.dc = got[3];
+  if (w.step != NULL)
+  {
+    afe.dc = got[3];
+  }
   n.plant_at = at;
   const uint64_t step = (uint64_t)((double)SystemCoreClock / ((double)HEAT_HZ * n.haste));
 
@@ -374,11 +449,13 @@ static void native_plant_to(uint64_t at)
 
 /* ---- TIM1 and the injected groups --------------------------------------------------- */
 
-/* SR's flags are rc_w0: a write of 0 clears one, of 1 leaves it - `SR = ~UIF` clears UIF. */
+/* SR's flags are rc_w0: a write of 0 clears one, of 1 leaves it - `SR = ~UIF` clears UIF;
+   the break then as BKIN stands. */
 static void native_reconcile(void)
 {
   n.sr &= TIM1->SR;
   TIM1->SR = n.sr;
+  native_break();
 }
 
 /* An overflow or an underflow: DIR turns, and the update if the repetition counter is out. */
@@ -708,6 +785,7 @@ HAL_StatusTypeDef HAL_ADCEx_InjectedStop_IT(ADC_HandleTypeDef *hadc)
 /* One pass of main()'s loop, as main.c's USER CODE runs it. */
 static void native_loop(void)
 {
+  native_sto_to();
   Board_StoKeepalive();
   Board_PowerPoll();
   if (!link_busy())
@@ -812,6 +890,22 @@ void native_haste(double haste)
   n.haste = (haste > 0.0) ? (float)haste : 1.0f;
 }
 
+/** The master's common-mode pilot on the bus: its amplifier's amplitude, V (0 none), and Hz;
+    the far end's 100 kHz common mode, V. */
+void native_pilot(double volts, double hz, double noise)
+{
+  native_sto_to();
+  n.pilot[0] = (float)volts;
+  n.pilot[1] = (float)hz;
+  n.pilot[2] = (float)noise;
+}
+
+/** The link a board without a world sits on, V: a world's plant sets its own. */
+void native_link(double volts)
+{
+  afe.dc = volts;
+}
+
 /** The magnet's angle as the host puts it, degrees, the plant's no longer. */
 void native_angle(double degrees)
 {
@@ -877,7 +971,11 @@ void native_open(void)
   native_primask = 0U;
   memset(afe.amps, 0, sizeof afe.amps);
   afe.dc = 0.0;
+  afe.cinj = afe.clevel = afe.gate = 0.0;
   world_heat_init(&n.heat, HEAT_AMBIENT_C);
+  world_sto_init(&n.sto);
+  n.pilot[0] = PILOT_V;
+  n.pilot[1] = PILOT_HZ;
   n.haste = 1.0f;
   n.seen.ntc_c = n.seen.mcu_c = n.seen.afe_c = HEAT_AMBIENT_C;
   afe.ntc_c = afe.die_c = HEAT_AMBIENT_C;

@@ -22,7 +22,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             Powered = false;
             PhaseUAmps = PhaseVAmps = PhaseWAmps = 0.0;
-            DcBusVolts = GateVolts = 0.0;
+            DcBusVolts = 0.0;
+            GateVolts = 0.0;
             Rail5Volts = 5.0;
             NtcCelsius = DieCelsius = AngleCelsius = 25.0;
             Draw();
@@ -89,11 +90,11 @@ namespace Antmicro.Renode.Peripherals.Analog
         public double PhaseGainPerKelvin { get; set; }
         public double PhaseZeroVoltsPerKelvin { get; set; }
 
-        /// <summary>The STO chain's integrator and recovered pilot, V: the unmodified board's
-        /// (FINDINGS 2026-08-27).</summary>
-        public double ClevelVolts { get; set; } = 0.06;
+        /// <summary>The STO chain's integrator and recovered pilot, V: its model's
+        /// (Coaxial63100_STO.cs).</summary>
+        public double ClevelVolts { get; set; }
 
-        public double CinjVolts { get; set; } = 0.77;
+        public double CinjVolts { get; set; }
 
         // One sigma at the pin: the converter's own noise.
         public double NoiseVolts { get; set; } = 0.0001;

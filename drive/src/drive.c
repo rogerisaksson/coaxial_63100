@@ -78,6 +78,15 @@ void drive_set_theta(drive_t *d, float theta)
   d->theta_cmd = d->theta_hat;
 }
 
+void drive_set_theta_setpoint(drive_t *d, float theta)
+{
+  if ((d->mode == DRIVE_HOLD) || (d->mode == DRIVE_VOLT))
+  {
+    d->theta_cmd = drive_wrap(d->theta_cmd + (theta - d->sp.theta));
+  }
+  d->sp.theta = theta;
+}
+
 const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
                            bool powered)
 {

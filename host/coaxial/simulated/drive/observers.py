@@ -103,9 +103,9 @@ class DriveObservers:
                 'omega': ((1.0 - blend) * dual.omega
                           + blend * self._obs_flux_omega),
                 'blend': blend,
-                'dual_theta': dual.theta % (2.0 * math.pi),
+                'dual_theta': math.atan2(math.sin(dual.theta), math.cos(dual.theta)),
                 'dual_omega': dual.omega,
-                'flux_theta': flux.theta % (2.0 * math.pi),
+                'flux_theta': math.atan2(math.sin(flux.theta), math.cos(flux.theta)),
                 'flux_omega': self._obs_flux_omega,
                 'lambda_hat': flux.lam_hat,
                 'theta_hat': self._theta_hat, 'omega_hat': self._omega_hat,
@@ -161,4 +161,4 @@ class DriveObservers:
         blend = min(1.0, max(0.0, (w - lo) / (hi - lo)))
         x = (1.0 - blend) * math.cos(dual.theta) + blend * math.cos(flux.theta)
         y = (1.0 - blend) * math.sin(dual.theta) + blend * math.sin(flux.theta)
-        return w, lo, hi, blend, math.atan2(y, x) % (2.0 * math.pi)
+        return w, lo, hi, blend, math.atan2(y, x)

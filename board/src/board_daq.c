@@ -481,9 +481,12 @@ void Board_DaqOnInjected(const board_sync_sample_t *sample)
   const uint32_t at = Board_Cycles();
   const uint32_t digital = digital_now();
 
+  /* Through the record, as the software clock's conversions are (read_index). */
   for (uint8_t f = 0U; f < d->task.fields; f++)
   {
-    values[f] = Board_AdcInjectedSlot(d->task.order[f], sample);
+    const uint8_t index = d->task.order[f];
+
+    values[f] = Board_CalApply(index, Board_AdcInjectedSlot(index, sample));
     daq_live_insert(d, f, values[f], at, digital);
   }
   daq_feed(d, values, at, digital);

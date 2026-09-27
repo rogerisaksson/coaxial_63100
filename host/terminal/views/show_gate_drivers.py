@@ -13,13 +13,16 @@ channel, so ripple is measured rather than inferred.
     A       arm / disarm the stage       B       BKIN override
     I       interlock override           R       run and capture
     P       one pulse, U against V low   1 2 3 4 run length 1/10/100/1000 ms
-    Q / ESC close / menu
+    L       the master's pilot on / off  Q / ESC close / menu
 
 Arming arms a power stage, and TIM1's 80 ns dead time is the only thing
 between the two FETs of a leg: the 2EDL8034 has no interlock of its own.
-On this bench board AFE_ON is inverted, so the drivers have supply while it
-is off, and with it off the board refuses to convert: switching and
-measuring are mutually exclusive here. `--afe` runs it the other way.
+The drivers' supply is the STO chain's. On the schematic's board - emulated
+or simulated - the master's pilot heard with AFE_ON up releases it, and the
+interlock is enforced; L cuts the pilot. The bench board is unmodified (R93
+on +5): it supplies them with AFE_ON off, when the board refuses to convert,
+so there switching and measuring are mutually exclusive and the interlock is
+overridden. `--afe on|off` and `--interlock` override the board's way.
 
 Nothing here judges a reading.
 """
@@ -33,9 +36,10 @@ from rich.text import Text
 from coaxial.comm.session import standing
 from coaxial.devices import scaling
 from coaxial.errors import RigError
+from coaxial.simulated.sto import PILOT_VOLTS
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import (ASH, LABEL, SODIUM, closing, open_rig, panel_width,
+from terminal.ui.screen import (ASH, LABEL, SODIUM, closing, demo, open_rig, panel_width,
                                 run_view, say, tint, mode_of)
 from terminal.ui.stage import hud, panels_of, stage
 
@@ -81,23 +85,19 @@ def gate_rows(state, width):
     return out
 
 
-def analog_rows(live, layout, powered, refused, width, params=None):
+def analog_rows(live, layout, powered, refused, width, params=None, bench=False):
     """Mean and ripple per channel, converted, from the live accumulator."""
     if refused:
+        why = (['  AFE_ON powers the converter reference, and on this bench',
+                '  board the same pin gated the other way is what gives the',
+                '  gate drivers their supply. Switching and measuring are',
+                '  mutually exclusive here until that is patched. --afe on',
+                '  runs it the other way: real currents, unpowered drivers.'] if bench
+               else ['  AFE_ON powers the converter reference, and +5 with it: the',
+                     '  STO chain\'s pilot detector, so the drivers are unpowered too.'])
         return [line[:width] for line in [
             '  no currents and no DC link: the board refused the task -',
-            '  "%s"' % refused,
-            '',
-            tint('  AFE_ON powers the converter reference, and on this '
-                 'bench', LABEL),
-            tint('  board the same pin gated the other way is what gives '
-                 'the', LABEL),
-            tint('  gate drivers their supply. Switching and measuring are',
-                 LABEL),
-            tint('  mutually exclusive here until that is patched. --afe '
-                 'runs it', LABEL),
-            tint('  the other way: real currents, unpowered drivers.',
-                 LABEL)]]
+            '  "%s"' % refused, ''] + [tint(line, LABEL) for line in why]]
 
     if not live or not live.get('mean'):
         return ['  no samples yet'[:width]]
@@ -117,9 +117,25 @@ def analog_rows(live, layout, powered, refused, width, params=None):
     if not powered:
         out.append('  AFE_ON is off: it powers the ADC reference, so every')
         out.append('  channel above reads mid-scale and none of it is a')
-        out.append('  measurement. It is also what gives the drivers supply')
-        out.append('  on this bench board.')
+        out.append('  measurement. It is also what gives the drivers supply'
+                   if bench else '  measurement, and +5 with it: the STO chain is down.')
+        if bench:
+            out.append('  on this bench board.')
     return [line[:width] for line in out]
+
+
+def sto_rows(state):
+    """The STO chain as the board reads it: the recovered pilot and the pump's level against
+    the interlock's, PE15, the drivers' supply."""
+    rows = [('pilot', '%.2f V' % (state['pilot_microvolts'] / 1e6)),
+            ('level', '%.2f V' % (state['level_microvolts'] / 1e6))]
+    if state.get('nfault') is not None:
+        rows += [('FAULTOUT', Text.from_ansi(tint('high', SODIUM) if state['nfault']
+                                             else tint('low', ASH))),
+                 ('+15V7', 'unread - AFE_ON off' if not state['afe_on']
+                  else 'unread - the drive holds the converters' if state['vgate_mv'] is None
+                  else '%.1f V' % (state['vgate_mv'] / 1e3))]
+    return rows
 
 
 def capture(rig, seconds, view):
@@ -230,6 +246,17 @@ def _interlock(view):
             if view['override'] else 'interlock back on')
 
 
+def _pilot(rig, view):
+    """The master's pilot cut or restored: an emulated or simulated bus's; a live one's is its
+    master's own."""
+    if not demo(rig.origin):
+        return 'the pilot is the bus master\'s: nothing here sends one'
+    view['pilot'] = not view['pilot']
+    rig.pilot(PILOT_VOLTS if view['pilot'] else 0.0)
+    return ('the master\'s pilot on - the STO chain releases in ~2 ms' if view['pilot']
+            else 'the master\'s pilot cut - the STO chain trips, the break latches')
+
+
 def _pulse(rig, view):
     """U at PULSE against V low, W low, for two writes, then every leg back
     to the common duty.
@@ -271,6 +298,8 @@ def act(rig, key, view):
             return _interlock(view)
         if key in ('p', 'P'):
             return _pulse(rig, view)
+        if key in ('l', 'L'):
+            return _pilot(rig, view)
         if key in RUNS:
             view['seconds'] = RUNS[key]
             return 'run length %.0f ms' % (view['seconds'] * 1e3)
@@ -295,17 +324,17 @@ def compose(rig, origin, console, view, layout, width):
         ('dead time', '%d = %.1f ns' % (state['deadtime'],
                                         view['deadtime_ns'])),
         ('duty', '%.1f %%   step %.1f %%'
-         % (view['duty'] * 100.0, view['step'] * 100.0))])
+         % (view['duty'] * 100.0, view['step'] * 100.0))] + sto_rows(state))
     gates_box = hud('GATES', gate_rows(state, width))
     currents = hud('CURRENTS',
                    analog_rows(view.get('live'), layout, state['afe_on'],
-                               view.get('refused'), width, view['scaling']))
+                               view.get('refused'), width, view['scaling'], view['bench']))
     run_box = hud('RUN', run_rows(view, width))
 
     keys = [('+ -', 'DUTY'), ('[ ]', 'STEP'), ('A', 'ARM'), ('B', 'BKIN'),
             ('I', 'INTERLOCK %s' % ('OFF' if view['override'] else 'ON')),
-            ('P', 'PULSE U-V'), ('1-4', 'MS'), ('R', 'RUN'), ('Q', 'EXIT'),
-            ('ESC', 'MENU')]
+            ('P', 'PULSE U-V'), ('L', 'PILOT %s' % ('ON' if view['pilot'] else 'OFF')),
+            ('1-4', 'MS'), ('R', 'RUN'), ('Q', 'EXIT'), ('ESC', 'MENU')]
     if view.get('said'):
         keys.append(('', view['said']))
     return panels_of(console, origin, 'GATE DRIVERS',
@@ -314,21 +343,19 @@ def compose(rig, origin, console, view, layout, width):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='COM4')
+    parser.add_argument('--port', default='emulator://')
     parser.add_argument('--hz', type=float, default=8.0)
     parser.add_argument('--accumulate', type=int, default=8,
                         help='samples summed per record')
-    parser.add_argument('--afe', action='store_true',
-                        help='switch AFE_ON on, which makes the currents real '
-                             'and - on this bench board, whose gate is '
-                             'inverted - takes the supply off the drivers. '
-                             'Without it AFE_ON goes off, the drivers have '
-                             'power, and the currents are not measurements')
+    parser.add_argument('--afe', choices=('on', 'off'), default=None,
+                        help='AFE_ON, the board\'s way by default: on where the board '
+                             'follows the schematic (emulated, simulated) - the STO '
+                             'chain\'s pilot detector runs off it; off on the bench, '
+                             'whose unmodified gate supplies the drivers only then')
     parser.add_argument('--interlock', action='store_true',
-                        help='enforce the arming interlock. Off by default '
-                             'because this bench board is unmodified: Cinj '
-                             'reads 0.77 V and Clevel 0.06 V against the 3 V '
-                             'each wants. I toggles it in the view')
+                        help='enforce the arming interlock on the bench too, whose '
+                             'unmodified chain reads Cinj 0.77 V and Clevel 0.06 V; '
+                             'enforced by default elsewhere. I toggles it in the view')
     parser.add_argument('--simulated', action='store_true')
     parser.add_argument('--frames', type=int, default=0)
     return parser.parse_args(argv)
@@ -345,14 +372,19 @@ def main(argv=None):
     if rig is None:
         return 1
     origin, board = rig.origin, rig.board
+    # The bench board is unmodified (R93 on +5); an emulated or simulated one is the schematic's.
+    bench = not demo(origin)
+    afe = (args.afe == 'on') if args.afe is not None else not bench
     was_on = board.afe.is_on()
-    if args.afe != was_on:
-        board.afe.write(args.afe)
+    if afe != was_on:
+        board.afe.write(afe)
         time.sleep(0.3)
     say('ok', 'AFE_ON', '%s - %s'
-        % ('on' if args.afe else 'off',
-           'currents are real, drivers unpowered' if args.afe
-           else 'drivers have supply, currents are not measurements'))
+        % ('on' if afe else 'off',
+           ('currents are real, drivers unpowered' if afe
+            else 'drivers have supply, currents are not measurements') if bench
+           else ('the STO chain\'s pilot detector up, currents real' if afe
+                 else 'the STO chain down: drivers unpowered, currents not measurements')))
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, standing(origin)))
 
@@ -379,7 +411,8 @@ def main(argv=None):
 
     view = {'duty': 0.0, 'step': 0.01, 'seconds': RUNS['3'], 'said': '',
             'gate_drivers': board.gate_drivers.state(), 'live': None, 'refused': refused,
-            'layout': layout, 'override': not args.interlock,
+            'layout': layout, 'override': bench and not args.interlock,
+            'bench': bench, 'pilot': True,
             'deadtime_ns': state['deadtime'] * 1e9
                            / (2.0 * (state['period'] - 1) * 50000.0),
             'scaling': board.analog.scaling()}
@@ -412,6 +445,9 @@ def main(argv=None):
             rig.gates.off()
             done.append(('gate stage', 'disarmed, MOE clear'))
             done.append(('BKIN', 'back in circuit'))
+            if not view['pilot']:
+                rig.pilot(PILOT_VOLTS)
+                done.append(('pilot', 'the master\'s back on'))
             if board.afe.is_on() != was_on:
                 board.afe.write(was_on)
             done.append(('AFE_ON', 'back the way it was found'))

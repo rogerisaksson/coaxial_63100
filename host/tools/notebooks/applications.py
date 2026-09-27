@@ -8,11 +8,13 @@ SECTIONS = [
     section(
         'The stage, armed',
     md("The drive on the stand-in's rotor (`configure(source='model')`), J and b at "
-       "`velocity`'s own defaults, the stage armed once. The two flags are for a bench "
-       'without STO or interlock.'),
+       "`velocity`'s own defaults, the stage armed once, AFE_ON up first (`daq.enable()`: the "
+       "A1335 and the STO chain's pilot detector). The two flags are for a bench without STO "
+       'or interlock.'),
     code('''drive = device.drive
 drive.configure(source='model')
 print(drive.model.configure(j=2e-5, b=1e-5, load=0.0))
+device.daq.enable()
 print('armed:', device.gates.on(bypass_sto=True, ignore_interlock=True)['pwm_enabled'])'''),
     ),
     section(
@@ -116,6 +118,7 @@ draw(cruise_log, 'the cruise, drag x %.1f from %.1f to %.1f s' % (GUST, GUST_FRO
 elbow = Coaxial63100(port=PORT, unit=2, execution_mode=MODE).open()
 elbow.drive.configure(source='model')
 elbow.drive.model.configure(j=2e-5, b=1e-5, load=0.01)
+elbow.daq.enable()
 elbow.gates.on(bypass_sto=True, ignore_interlock=True)
 for name, joint in (('shoulder', shoulder), ('elbow', elbow)):
     print('%-9s unit %d  %s  armed %s' % (name, joint.origin.unit, joint, joint.gates.is_on()))'''),

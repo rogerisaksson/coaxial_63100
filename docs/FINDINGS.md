@@ -51,6 +51,24 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - Alternate (op 10) proven 2026-08-30: 12 mid-run reads, both triples, scope.
 - STO interlock: Cinj 0.77 V, Clevel 0.06 V against 3 V (2026-08-27). The
   keepalive latch holds a few hundred microseconds.
+- The STO chain modelled from `sto.asc` (`world_sto.c`): on the nominal
+  pilot Clevel settles at 2.86 V, under the interlock's 3.0 V - D10 clamps
+  the pump at RESET's 0.8 Cinj; it wants 2.0 V now, Q10A releasing at
+  1.55 V. Cinj's 3.70 V is over VDDA on PC1 and reads full scale. On a clean
+  bus it releases from ~0.9 V at 5 kHz (`sto.asc`'s note: 0.7) and TP67 tops
+  at 0.52 V against U16B's 0.543, so no high cutoff (the note: off from 2.2
+  V); with its 1.8 V CMNOISE TP67 reaches 0.547 V at 2.2 V for ~1 us, under
+  the TLV3492's slew (2026-09-27).
+- The keepalive starved whenever main() blocked past ~120 us: an ADC burst
+  1.4-6.9 ms, the gate probe's settles 348 us, a thermal slice at -O0 236 us.
+  Pumped at each conversion, settle and thermal step now, the thermal core
+  at -O2 as the drive's; the identification's shadow step still holds it
+  130 us every few hundred ms, a FAULTOUT glitch the break latches when armed
+  with neither bypass (2026-09-27).
+- Renode's pacing (the idle core at 100 MIPS, main() skipped under the drive)
+  stretched the keepalive's gaps in virtual time: the emulated chain runs on
+  the part's time, its instructions at 475 MIPS and its sleeps whole
+  (2026-09-27).
 
 ## CPU and memory
 
@@ -620,6 +638,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - drive.c: in a command frame below the back-EMF's speed the estimate is the
   frame; into hold from sensorless above it, the frame starts on the estimate
   (a jump to the setpoint's angle at speed slipped poles) (2026-09-26).
+- drive.c read the theta setpoint only as HOLD began: commissioning's three
+  angles, the machine's ring test and the stepper and servo, all writing it
+  mid-hold, held one angle on the firmware while the stand-in's frame
+  followed. The frame moves by the setpoint's change now, the ramp's travel
+  kept. The motion verbs waited on the wall's clock: at a 20th of real time
+  the emulated flywheel was read mid-swing; the board's now - the servo lands
+  30, 60, 0 deg within 0.2 on the emulator (2026-09-27).
 - The observer box's error beside a newer estimate: the page's sample replaced
   the state, then the model, a request apart; one update now (2026-09-26).
 - One heat clock for every world but the bench: `coaxial.model.thermal.HASTE`
@@ -632,12 +657,38 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   MCU's die reads in the off phase. `tools/dev/ab.py`, the page's reads over
   the same board seconds: 67 faults against the stand-in to 3 on native
   (2026-09-26).
+- The papers on the stand-in against the emulator (`make_notebooks.py
+  --compare`, 2026-09-27): a software-clocked task gave no record while a
+  drive held the converters - the meter reads the latched triple's phases
+  now, as it did the link and the NTC; a record's codes were trimmed on the
+  board and again on the host - a phase at rest read -8.8 A - once now, at
+  the source, the TIM1 clock's too; the host's tare wrote a trimmed burst's
+  mean as the whole offset, a second tare undoing the first (-51 A after
+  one on the stand-in's offsets) - folded into the offset now; the host dropped
+  MINOR 7's sensor rows from the layout; commissioning, the ring test and
+  the machine's arming waited on the wall's clock, the emulated flux spin
+  never reached 300 rad/s (lambda 0.00069 against 0.00546 V.s); the
+  stand-in's link gave t1.5/t3.5 as 1750/4083, not the part's cycles, and the
+  console's frames on all three ports.
+- The thermal observer's NTC anchor inverts the whole miss through the
+  element's lag (215 s) at every sample, a miss standing from sample to
+  sample included: at the design's 30 s a standing miss moves the leg
+  patches 11.9 times itself, at 1 s 26.7 times. On native a sample a
+  thermal second left the legs 2-10 K under the world's, HEAD's firmware
+  too. Inverting only the miss grown since the last sample moved the
+  identification's air scale off its tuning (0.90 against 0.5 after four
+  cycles). A sample was also folded in on every slice of a poll: once now
+  (2026-09-27).
 - native:// had no console: after 0x48 gave the line back a board went
   silent for every later session in the process, the tty's next page on the
   stand-in. The fake board takes 'm' again (2026-09-26).
 - The emulated A1335s answered bare twelve bits and Clevel/Cinj read 0: the
   part's register identifiers (ANG 5, TSEN F, FIELD E, the stand-in's from
   the bench) and the unmodified board's 0.06 / 0.77 V now (2026-09-26).
+- The stand-in wrote CubeMX's DTG 19, read its die channel at mid-scale
+  (545 C) and its MCU die under the drive, gave the triple's codes and the
+  trigger unarmed and the STO pilot with the AFE off; native read its 5 V
+  rail at 0 V. Each now as the board reads it (2026-09-27).
 
 ## Local model
 

@@ -5,7 +5,12 @@ from typing import Any
 from coaxial.devices.gates import GateControl
 from coaxial.devices.power import named
 from coaxial.errors import RigError
-from coaxial.simulated.values import NOMINAL, _sweep
+from coaxial.model import inverter
+from coaxial.model.inverter import GATE_UVLO_V
+from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
+from coaxial.simulated import sto
+from coaxial.simulated.values import (DCBUS_V, NOMINAL, VGATE_PIN_RATIO, phase_codes,
+                                      quiet_code)
 from machine.roles import Output
 
 
@@ -26,18 +31,29 @@ class SimulatedPower(Output):
 
 
 class SimulatedGateDrivers(GateControl):
-    """TIM1, the injected triple and the STO chain, without any of them."""
+    """TIM1, the injected triple and the STO chain (coaxial.simulated.sto): BKIN its
+    FAULTOUT, BIF latched while it is low and the break enabled, MOE cleared by it."""
 
     PERIOD = 2376
-    DEADTIME = 19
+    #: DTG's step at 237.5 MHz, ps.
+    DTS_PS = 4210
+    #: The record's dead time as Board_PwmInit writes it: DTG 8, 33.7 ns (inverter.T_DEAD);
+    #: CubeMX's 19 lasts until then.
+    DEADTIME = round(inverter.T_DEAD * 1e12 / DTS_PS)
     TRIGGER = 2360
     #: The update rate the counted hold and the update counter run at.
     PWM_HZ = 50000
+    #: The keepalive's edges a second, measured idle.
+    KEEPALIVE_HZ = 214000
+
+    #: The keepalive's worst gap, cycles: with AFE_ON low and MOE clear main() sleeps in WFI
+    #: and the toggle waits up to a SysTick, 1 ms at 475 MHz; awake, the measured 52 us.
+    GAP_ASLEEP, GAP_AWAKE = 475000, 24700
 
     def __init__(self):
         self._deadtime = self.DEADTIME
         self._at = 0                    # where in the period the counter is
-        self._deadtime_ns = self.DEADTIME * 4210 // 1000
+        self._deadtime_ns = self.DEADTIME * self.DTS_PS // 1000
         self._skew = 0
         #: The drive whose sample point this register moves; the board
         #: wires it.
@@ -46,30 +62,70 @@ class SimulatedGateDrivers(GateControl):
         self._enabled = False
         self._compares = (0, 0, 0)
         self._hold_until = None
-        self._at_trigger = self.TRIGGER
+        #: CCR5, written at the first arming (Board_SyncTrigger reads 0 until then).
+        self._at_trigger = 0
+        #: Whether the AFE's reference is up, and the thermal stand-in the NTC follows; the
+        #: board wires both.
+        self._afe_on = lambda: True
+        self._thermal: Any = None
         self._updates = 0
         self._keepalive = 0
+        self._counted_at = time.monotonic()
         self._bypassed = False
+        #: The chain; the board wires its +5 and pump.
+        self._sto = sto.SimulatedSto(DCBUS_V)
+        #: BIF: the chain is down from power-on, the break enabled.
+        self._fault = True
+
+    def _chain(self):
+        """The chain on to now, and the break as its FAULTOUT stands: BIF latched while it is
+        low and the break enabled, MOE cleared."""
+        self._sto.advance()
+        if not self._sto.faultout and not self._bypassed:
+            self._fault = True
+            self._enabled = False
+        return self._sto
+
+    def _driving(self):
+        """MOE set and the drivers supplied: the 2EDL8034's outputs follow TIM1."""
+        chain = self._chain()
+        return self._enabled and chain.vgate >= GATE_UVLO_V
+
+    @staticmethod
+    def _pin(volts):
+        """A single-ended pin's code and microvolts, the converter's range clipping it."""
+        code = int(round(max(0.0, min(ADC_CODES, volts / 3.3 * ADC_CODES))))
+        return code, int(round(code / ADC_CODES * 3.3e6))
 
     def state(self):
-        self._keepalive += 214000        # the measured idle toggle rate
+        # The keepalive's edges at the measured idle rate and the triple's updates at the PWM's,
+        # over the wall's time since the last look.
+        now = time.monotonic()
+        span, self._counted_at = now - self._counted_at, now
+        self._keepalive += int(self.KEEPALIVE_HZ * span)
         if self._armed:
-            self._updates += self.PWM_HZ
+            self._updates += int(self.PWM_HZ * span)
+        chain = self._chain()
         left = self._periods_left()
         at = self._cnt()
+        phase, dcbus, ntc = self._latched()
+        afe = self._afe_on()
+        pilot, level = ((self._pin(chain.cinj), self._pin(chain.clevel)) if afe
+                        else ((int(ADC_HALF_CODES), 1650000),) * 2)
         return {
             'pwm_ready': True, 'pwm_enabled': self._enabled,
-            'fault': not self._bypassed,
-            'sync_ready': True, 'sync_armed': self._armed, 'afe_on': True,
+            'fault': self._fault,
+            'sync_ready': True, 'sync_armed': self._armed, 'afe_on': afe,
             'pilot_ok': True, 'level_ok': True,
-            'period': self.PERIOD, 'deadtime': self.DEADTIME,
+            'period': self.PERIOD, 'deadtime': self._deadtime,
             'duty': self._duty_ticks(), 'trigger': self._at_trigger,
-            'phase': (1433, -8136, 390), 'at': 1385,
+            'phase': phase, 'at': at if (self._armed or self._enabled) else 0,
             'updates': self._updates, 'overruns': 0,
             'keepalive': self._keepalive,
-            'worst_gap_cycles': 24700,
-            'pilot_raw': 15149, 'pilot_microvolts': 763000,
-            'level_raw': 1305, 'level_microvolts': 65000,
+            'worst_gap_cycles': (self.GAP_AWAKE if (afe or self._enabled)
+                                 else self.GAP_ASLEEP),
+            'pilot_raw': pilot[0], 'pilot_microvolts': pilot[1],
+            'level_raw': level[0], 'level_microvolts': level[1],
             'break_bypassed': self._bypassed,
             # TICKS, like the board: it sends Q16.16 of a CCR count and the
             # host divides that back.
@@ -81,11 +137,27 @@ class SimulatedGateDrivers(GateControl):
             'periods_left': left,
             'deadtime_floor': self.DEADTIME_FLOOR,
             'gate_shorts': (),
-            # The injected sequence's DC link and NTC (MINOR 2): the link the
-            # drive runs on (DCBUS_V), the NTC where the analog reads it.
-            'dcbus_raw': int(NOMINAL[5]),
-            'ntc_raw': int(NOMINAL[4] + _sweep(4)),
+            # The injected sequence's DC link and NTC (MINOR 2).
+            'dcbus_raw': dcbus,
+            'ntc_raw': ntc,
+            # PE15 and +15V7 (MINOR 23): the supply through Vgate's pin, mid-scale's with the
+            # reference down.
+            'nfault': chain.faultout,
+            'vgate_mv': None if self._armed else int(round(
+                (min(chain.vgate * VGATE_PIN_RATIO, 3.3) if afe else 1.65)
+                / VGATE_PIN_RATIO * 1000.0)),
         }
+
+    def _latched(self):
+        """The injected triple's last codes, as Board_SyncLatest holds them: the phases on the
+        drive's current, the DC link and the NTC at rank 2 - none until the sync is armed."""
+        if not self._armed:
+            return (0, 0, 0), 0, 0
+        amps, theta = (self._drive._carrying() if self._drive is not None
+                       else (0.0, 0.0))
+        phase = tuple(int(NOMINAL[leg] + phase_codes(signal, amps, theta))
+                      for leg, signal in enumerate(('Phase U', 'Phase V', 'Phase W')))
+        return phase, int(NOMINAL[5]), int(quiet_code(4, self._thermal))
 
     def _duty_ticks(self):
         """What the compares hold, ticks: the drive's modulator while it owns them, as TIM1's
@@ -99,7 +171,6 @@ class SimulatedGateDrivers(GateControl):
     #: board computes, because the 2EDL8034 has no interlock either way.
     DEADTIME_FLOOR = 5
     DTG_MAX = 127
-    DTS_PS = 4210
 
     def _dead_time(self, nanoseconds, skew):
         counts = max(self.DEADTIME_FLOOR,
@@ -138,7 +209,10 @@ class SimulatedGateDrivers(GateControl):
         return True
 
     def _bypass(self, on):
+        self._chain()
         self._bypassed = bool(on)
+        if self._bypassed:
+            self._fault = False          # BKE and BIF cleared together
         return True
 
     def _periods_left(self):
@@ -156,9 +230,10 @@ class SimulatedGateDrivers(GateControl):
 
     def on(self):
         # Refuses for the reason the real board refuses: the break is latched
-        # because nFAULT is low, and clearing the latch does not help while it
+        # because nFAULT went low, and clearing the latch does not help while it
         # stays low.
-        if not self._bypassed:
+        self._chain()
+        if self._fault and not self._bypassed:
             raise RigError('the board refused to enable the gate drivers - check '
                            'fault, and whether the STO chain has released '
                            '(simulated)')
@@ -211,6 +286,8 @@ class SimulatedGateDrivers(GateControl):
 
     def _sync(self, on):
         self._armed = bool(on)
+        if self._armed and not self._at_trigger:
+            self._at_trigger = self.TRIGGER
         return True
 
     def _trigger(self, ticks):
@@ -220,4 +297,8 @@ class SimulatedGateDrivers(GateControl):
         return self._at_trigger
 
     def clear(self):
+        """BIF cleared, if BKIN has let go."""
+        chain = self._chain()
+        if chain.faultout or self._bypassed:
+            self._fault = False
         return True

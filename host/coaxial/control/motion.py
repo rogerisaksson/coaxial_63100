@@ -1,7 +1,7 @@
 """Motion on top of the drive: stepper, servo, velocity - and the price."""
 import math
-import time
 
+from coaxial.comm.hostclock import clock_of
 from coaxial.errors import RigError
 from machine.controller import Feedback, Loop, Polled
 from machine.errors import MachineError
@@ -32,6 +32,8 @@ class _Mode:
 
     def __init__(self, device):
         self.device = device
+        #: The board's clock: every wait here is the rotor's, in its seconds.
+        self._clock = clock_of(device)
         self.drive = device.drive
         p = self.drive.params()
         self.poles = int(p['motor_pole_pairs'] or 1)
@@ -64,7 +66,7 @@ class _Mode:
             self._check()
             self._theta_e += math.copysign(step, theta_e - self._theta_e)
             self.drive.write(theta=self._theta_e)
-            time.sleep(pause)
+            self._clock.sleep(pause)
         self._theta_e = theta_e
         self.drive.write(theta=self._theta_e)
 
@@ -75,10 +77,10 @@ class _Mode:
                          theta=self._theta_e, omega_target=0.0)
         self.drive.hold()
         for k in range(2, steps + 1):
-            time.sleep(settle)
+            self._clock.sleep(settle)
             self._check()              # a trip mid-ramp must not be
             self.drive.write(id_ref=amps * k / steps)   # stepped past
-        time.sleep(2.0 * settle)
+        self._clock.sleep(2.0 * settle)
 
 
 class Stepper(_Mode):
@@ -174,7 +176,7 @@ class Servo(_Mode):
 
     def _measure(self):
         """The shaft as a MEAN over its ring, never a read of it."""
-        began = time.monotonic()
+        began = self._clock.perf()
         deadline = began + self.SPAN
         total, count = 0.0, 0
         low = high = None
@@ -186,9 +188,9 @@ class Servo(_Mode):
             high = got if high is None else max(high, got)
             if high - low > self.RING:
                 deadline = began + self.RING_SPAN
-            if time.monotonic() >= deadline:
+            if self._clock.perf() >= deadline:
                 break
-            time.sleep(self.READ_GAP)
+            self._clock.sleep(self.READ_GAP)
         self._swing = high - low
         return total / count
 
@@ -198,7 +200,7 @@ class Servo(_Mode):
         self._error = degrees - got
         if abs(self._error) > tol:
             return False
-        time.sleep(self.settle)
+        self._clock.sleep(self.settle)
         again = self._measure()
         self._error = degrees - again
         return abs(self._error) <= tol
@@ -210,7 +212,7 @@ class Servo(_Mode):
             if self._arrived(degrees, tol):
                 return degrees - self._error
             self._slew(self._error)
-            time.sleep(self.settle)
+            self._clock.sleep(self.settle)
         self._check()
         if self._arrived(degrees, tol):
             return degrees - self._error
@@ -251,7 +253,7 @@ class Velocity(_Mode):
     def _start(self):
         self.drive.write(id_ref=0.0, iq_ref=0.0)
         self.drive.on('sensorless')
-        time.sleep(0.2)                        # the injection lock
+        self._clock.sleep(0.2)                  # the injection lock
 
     @property
     def rpm_now(self):

@@ -17,9 +17,22 @@ Open work. Measured results are in FINDINGS.
 - **SOA path** on target: dry `budget()` over the wire, gate proof with a
   lowered ceiling, a load run. `Board_SyncMeanSquare` ISR cost
   unmeasured.
-- **STO chain**: circuit change, pilot tone sent on RS485, Cinj/Clevel with and
-  without it, interlock thresholds from those readings, one arm with neither
-  bypass (`tools/bench/sto_probe.py`).
+- **Motion papers on the emulator**: `motion` and `applications` set their
+  rotor's J and load through `drive.model`, which an emulated drive keeps to
+  itself; the world's flywheel needs a load the host sets. They run on the
+  stand-in until then (their `MODE`).
+- **Thermal observer at short sample periods**: the NTC anchor re-inverts a
+  standing miss through the lag every sample (FINDINGS 2026-09-27); under
+  30 s it winds the leg patches away (`tools/bench/power_check.py` samples
+  at 1-5 s). A derivation that inverts only the unexplained growth, net of
+  the model's own response to the last push, and the identification
+  retuned on it; or a floor on the period.
+- **STO chain**: circuit change (R93 to 3V3D), a master sending the pilot on
+  RS485, Cinj/Clevel with and without it, one arm with neither bypass
+  (`tools/bench/sto_probe.py`) - on the emulator since 2026-09-27. The
+  keepalive from a timer interrupt: the thermal identification's shadow
+  step holds main() 130 us. One LTspice transient of `sto.asc` at 0.7 and
+  2.2 V against the model's windows.
 - **DMA and WFI**: the A1335's reads by DMA against the old poll, CYCCNT
   through WFI with DBGSLEEP_D1 (`clock.probe`), the gate supply back after an
   idle's paused keepalive before MOE; ADC3's injected end off HAL's handler

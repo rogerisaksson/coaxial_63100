@@ -25,6 +25,7 @@ class ThermalTruth:
     _random: Any
     _afe_on: Any
     _duty: Any
+    _meter_locked: Any
     _losses: Any
     _sample: Any
     _speed_of: Any
@@ -232,11 +233,19 @@ class ThermalTruth:
 
         out = {'ntc': noisy(self._truth_ntc)}
         for die in thermal_ident.DIES:
+            # The injected group owns ADC3's PCSEL under the drive: the MCU's die is not read.
+            if die == 'mcu' and self._meter_locked():
+                continue
             out[die] = noisy(self._truth[die] + power.get(die, 0.0)
                              * self._laid()['rth_die'].get(die, 0.0))
         return out
 
-    def die(self, name):
+    def _thermistor(self):
+        """The NTC's element in the truth now, C: what the channel reads."""
+        self._advance()
+        return self._truth_ntc
+
+    def _die(self, name):
         """A die in the truth now, C: its node plus its watts through R_th,JC - what the part
         on it reads live (the A1335's TSEN)."""
         self._advance()

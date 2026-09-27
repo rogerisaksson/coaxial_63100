@@ -6,7 +6,9 @@
 // or edge-aligned; the update every RCR+1 over- or underflows, the first at the overflow, as
 // RM0433 has it for an RCR written before the counter starts. The gate pins, PE8..PE13, read at
 // the instant GPIOE's IDR is read: OCxREF of PWM mode 1 or 2 against CNT, CCxE/CCxNE, the
-// polarities, MOE; dead time is not drawn. The rest of the registers are kept as written.
+// polarities, MOE; dead time is not drawn. The break: BKIN (PE15, Coaxial63100_STO.cs) active at
+// BKP with BKE set sets BIF and holds MOE clear, AOE off; BIF clears only once BKIN has let go.
+// The rest of the registers are kept as written.
 
 using System;
 using System.Linq;
@@ -35,8 +37,16 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO UpdateInterrupt { get; }
 
-        /// <summary>A register written: its offset and the value, after it took.</summary>
+        /// <summary>A register written: its offset and the value, after it took; BDTR too when
+        /// the break clears MOE.</summary>
         public event Action<long, uint> Written;
+
+        /// <summary>BKIN's level: nFAULT, the STO chain's U11.</summary>
+        public void BreakInput(bool high)
+        {
+            breakHigh = high;
+            Break();
+        }
 
         public long Size => 0x400;
 
@@ -50,6 +60,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             flagged = false;
             updates.Enabled = false;
             UpdateInterrupt.Unset();
+            Break();
         }
 
         public uint ReadDoubleWord(long offset)
@@ -134,10 +145,30 @@ namespace Antmicro.Renode.Peripherals.Timers
                     Signal();
                     break;
                 case Sr:
+                    Break();
                     Signal();
                     break;
+                case Bdtr:
+                    Break();
+                    break;
             }
-            Written?.Invoke(offset, value);
+            Written?.Invoke(offset, offset == Bdtr ? registers[Bdtr / 4] : value);
+        }
+
+        /// <summary>BKIN active with BKE set: BIF set, MOE cleared.</summary>
+        private void Break()
+        {
+            var bdtr = registers[Bdtr / 4];
+            if((bdtr & BkeBit) == 0 || breakHigh != ((bdtr & BkpBit) != 0))
+            {
+                return;
+            }
+            registers[Sr / 4] |= BifBit;
+            if((bdtr & MoeBit) != 0)
+            {
+                registers[Bdtr / 4] = bdtr & ~MoeBit;
+                Written?.Invoke(Bdtr, registers[Bdtr / 4]);
+            }
         }
 
         private bool Counting => (registers[Cr1 / 4] & CenBit) != 0;
@@ -303,6 +334,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint frozen;
         private long cleared;
         private bool flagged;
+        private bool breakHigh;
 
         // RM0433, TIM1.
         private const long Cr1 = 0x00;
@@ -326,5 +358,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const uint UifBit = 1U;
         private const uint UgBit = 1U;
         private const uint MoeBit = 1U << 15;
+        private const uint BkeBit = 1U << 12;
+        private const uint BkpBit = 1U << 13;
+        private const uint BifBit = 1U << 7;
     }
 }

@@ -77,6 +77,17 @@ plant: Analog.Coaxial63100_Plant @ gpioPortE 9
     adc3: adc3
     angle: angle
 
+// The STO chain (Coaxial63100_STO.cs) on KEEPALIVE, PA10: the master's pilot on A1/B1, FAULTOUT
+// onto PE15 and TIM1's break, Cinj, Clevel and +15V7 into the front end; idle until the world
+// library is given it (host/tools/emu/world.py).
+sto: Analog.Coaxial63100_STO @ gpioPortA 10
+    afe: afe
+    tim1: timer1
+    Faultout -> gpioPortE@15
+
+gpioPortA:
+    10 -> sto@0
+
 // The A1335 on SPI4, its chip select PE4 (Coaxial63100_A1335.cs): the plant's shaft.
 angle: Sensors.Coaxial63100_A1335 @ spi4
     afe: afe

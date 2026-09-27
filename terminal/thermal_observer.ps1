@@ -14,7 +14,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $Port = 'COM4',
+    [string] $Port = 'emulator://',
     [switch] $Simulated,
     [double] $Hz = 2.0,
     [int]    $Frames = 0,

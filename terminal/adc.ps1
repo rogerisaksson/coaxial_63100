@@ -6,7 +6,7 @@
     table - a board that grows a channel grows a strip and nothing here
     needs telling.
 .PARAMETER Port
-    The board's VCP.
+    The board: emulator://, this host's image in Renode, unless a VCP is named.
 .PARAMETER Simulated
     No cable.
 .PARAMETER Hz
@@ -19,7 +19,7 @@
     .\terminal\adc.ps1
 #>
 param(
-    [string]$Port = 'COM4',
+    [string]$Port = 'emulator://',
     [switch]$Simulated,
     [double]$Hz = 8.0,
     [double]$Rate = 0,

@@ -12,8 +12,13 @@ from coaxial.devices import angle, imu
 from coaxial.errors import RigError
 from coaxial.simulated.system import UNITS
 from coaxial.simulated.values import (ACCUMULATE_MAX, AMPS_PER_CODE, CHANNELS, DCBUS_V, MASK32,
-                                      NOMINAL, PHASE_LEG, RING_BYTES, TICKS_PER_US, PHASE_STEP,
-                                      _sweep, phase_codes)
+                                      PHASE_LEG, RING_BYTES, TICKS_PER_US, PHASE_STEP,
+                                      phase_codes, quiet_code)
+
+#: What the injected group converts, by channel: the triple, the NTC, the DC link
+#: (Board_AdcInjected's CH_*). Under the drive's sync a software-clocked field outside it is
+#: never read, and no record closes (Board_DaqPoll through read_index).
+INJECTED = frozenset((0, 1, 2, 4, 5))
 
 #: The share of the line rate the stand-in quotes as its ceiling.
 LINE_SHARE_PERCENT = 75
@@ -60,9 +65,6 @@ class SimulatedDaq(Acquisition):
                           c['differential'])
              for c in CHANNELS}
     PHASES = tuple(c['index'] for c in CHANNELS if c['differential'])
-    #: The quiet points, one per channel: the analog path's own, or a tare
-    #: never zeroes a record (Phase U sat at 1400 here and 900 there).
-    CENTRE = NOMINAL
 
     def __init__(self):
         self._cfg = None
@@ -71,6 +73,11 @@ class SimulatedDaq(Acquisition):
         #: the gates follow; the sensors the snapshot fields read.
         self.clock: Any = None
         self.drive: Any = None
+        #: The thermal stand-in and the STO chain the quiet channels read (`quiet_code`), and
+        #: the calibration record a polled record goes through.
+        self.thermal: Any = None
+        self.sto: Any = None
+        self.calibration: Any = None
         self.angle: Any = None
         self.imu: Any = None
         #: The noise pool, drawn on first use, and where in it we are;
@@ -473,6 +480,10 @@ class SimulatedDaq(Acquisition):
         room = max(1, REPLY_ROOM // stride)
         n = min(int(want) or room, room)
         cfg = self._configured()
+        drive = self.drive
+        if (cfg.get('clock') == 'software' and drive is not None and drive._sync_armed()
+                and any(f['channel'] not in INJECTED for f in fields)):
+            return []
         left = cfg['records'] - self._produced if cfg['records'] else n
         n = max(0, min(n, left))
         # The stamps track the wall clock.
@@ -488,19 +499,13 @@ class SimulatedDaq(Acquisition):
             self._last_spin = self._spin(step_us * 1e-6)
             theta, amps, _index, _delta = self._last_spin
             for f in fields:
-                index = f['channel']
-                centre = self.CENTRE[index]
-                leg = self.PHASE_LEG.get(f['signal'])
-                if leg is not None and amps:
-                    # Balanced three-phase, in codes: the dq solution the drive
-                    # settled at, put back into the stator frame through the
-                    # stand-in's own amps-per-code.
-                    offset = took * phase_codes(f['signal'], amps, theta)
-                else:
-                    # One source for a quiet channel.
-                    offset = took * _sweep(index)
-                rec[f['signal']] = (centre * took + int(offset)
-                                    + int(spread * self._noise()))
+                # Balanced three-phase on the phases, in codes: the dq solution the drive
+                # settled at, put back into the stator frame through the stand-in's own
+                # amps-per-code; the quiet channels the analog's own.
+                level = self._trimmed(f['channel'], quiet_code(f['channel'], self.thermal,
+                                                               self.sto)
+                                      + phase_codes(f['signal'], amps, theta))
+                rec[f['signal']] = int(level * took) + int(spread * self._noise())
             if (layout or self.layout()).get('pins'):
                 # A duty like the board's, not a level: 0.0 to 1.0 of the
                 # window the record covers.
@@ -521,6 +526,12 @@ class SimulatedDaq(Acquisition):
         self._charge_line(len(out))
         return out
 
+    def _trimmed(self, index, code):
+        """A polled record's code through the record, as Board_AdcRead gives it - off the
+        latest injected triple while the sync holds the converters, trimmed all the same."""
+        record = self.calibration
+        return code if record is None else record.apply(index, code)
+
     def decode(self, blob, layout=None):
         """Records out of raw record bytes, as the board's decoder does."""
         layout = layout or self.layout()
@@ -538,15 +549,16 @@ class SimulatedDaq(Acquisition):
         self._at = (self._at + base * 9500) & MASK32
         out = {'first': self._at, 'last': self._at, 'sum': {}, 'count': {},
                'lowest': {}, 'highest': {}}
+        drive = self.drive
+        amps, theta = drive._carrying() if drive is not None else (0.0, 0.0)
         for f in layout['fields']:
             # A channel or two behind the rest, the way the real poll leaves
             # them: it reads one per turn and a take lands mid-sweep.
             n = base - random.randint(0, 1)
-            out['sum'][f['signal']] = sum(
-                self.CENTRE[f['channel']] + random.randint(-60, 60)
-                for _ in range(n))
+            centre = self._trimmed(f['channel'], quiet_code(f['channel'], self.thermal, self.sto)
+                                   + phase_codes(f['signal'], amps, theta))
+            out['sum'][f['signal']] = sum(centre + random.randint(-60, 60) for _ in range(n))
             out['count'][f['signal']] = n
-            centre = self.CENTRE[f['channel']]
             out['lowest'][f['signal']] = centre - 60
             out['highest'][f['signal']] = centre + 60
         out['mean'] = {k: (v / out['count'][k] if out['count'][k] else None)

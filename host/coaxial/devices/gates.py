@@ -107,8 +107,11 @@ class GateStage(Output):
     #:
     #: Volts and not codes: a threshold in codes stops meaning anything the
     #: moment a divider changes, and the divider is the board's, not this
-    #: file's (invariant 7).
-    INTERLOCK = (('Cinj', 3.0), ('Clevel', 3.0))
+    #: file's (invariant 7). Cinj at U4's VIT-; Clevel between Q10A's release
+    #: of FAULTOUT, 1.55 V, and its pumped level, 2.86 V with the keepalive
+    #: every 5 us and 2.49 V every 50 us - D10 clamps the pump at 0.8 Cinj
+    #: (world_sto.c, 2026-09-27).
+    INTERLOCK = (('Cinj', 3.0), ('Clevel', 2.0))
 
     def __init__(self, board):
         self._board = board
@@ -181,10 +184,13 @@ class GateStage(Output):
         return self.control.dead_time()
 
     def on(self, bypass_sto=False, ignore_interlock=False):
-        """Set MOE. Nothing switches before this and everything can after."""
+        """Set MOE. Nothing switches before this and everything can after. The interlock
+        passed, a break the STO chain latched while it was down is cleared: its reason has
+        gone, and a line still low latches it again at once."""
         self.check()
         if not ignore_interlock:
             self._require_interlock()
+            self.control.clear()
         if bypass_sto:
             self.control.configure(bypass_break=True)
         self.control.on()

@@ -5,7 +5,7 @@
     Reads the board's own parts list first (command 0x6D kind 4) and looks
     for an angle sensor in it.
 .PARAMETER Port
-    The board's VCP.
+    The board: emulator://, this host's image in Renode, unless a VCP is named.
 .PARAMETER Simulated
     No cable: the stand-in turns once every twelve seconds so the picture
     has something to show.
@@ -17,7 +17,7 @@
     .\terminal\angle.ps1
 #>
 param(
-    [string]$Port = 'COM4',
+    [string]$Port = 'emulator://',
     [switch]$Simulated,
     [double]$Hz = 20.0,
     [int]$Frames = 0

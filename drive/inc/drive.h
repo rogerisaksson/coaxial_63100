@@ -285,6 +285,10 @@ void drive_init(drive_t *d, float ts);
 /** Put both frames at `theta`: the polarity flip, or a known start. */
 void drive_set_theta(drive_t *d, float theta);
 
+/** The theta setpoint, rad: where HOLD and VOLT start, and in them the command frame moved by
+    its change, the ramp's travel kept. */
+void drive_set_theta_setpoint(drive_t *d, float theta);
+
 /** Change mode. */
 const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
                            bool powered);

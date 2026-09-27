@@ -40,8 +40,10 @@ tabled here. Nothing is measured against an instrument unless it says so.
 ## Reference and AFE_ON
 
 VREFBUF off; U2 REF2033 makes `+3V3_ref` and `+1V65_bias` (they track).
-PB2 AFE_ON powers AFE, reference, NTC divider, A1335, BNO085, and removes
-the gate drivers' supply via the STO chain; PE15 follows it inversely. Off:
+PB2 AFE_ON powers AFE, reference, NTC divider, A1335, BNO085 and +5, the STO
+chain's pilot detector (U16): off, the chain is down. The bench board is
+unmodified (R93 on +5, not 3V3D): there AFE_ON removes the gate drivers'
+supply and PE15 follows it inversely. Off:
 mid-scale everywhere, NTC 25.00 C (invariant 9). The rail is reference
 counted (`board_power.c`): host claim dropped after 10 s silence, others
 hold 3 s leases.
@@ -62,14 +64,25 @@ hold 3 s leases.
 
 ## STO chain
 
-PA10 KEEPALIVE toggles at 200 kHz (a 100 kHz square wave) -> R72 330 /
-C71 100 nF -> charge pump; the chain also wants the RS485 pilot tone.
+The master (the host's end of A1/B1, UART5's pair) drives a common-mode
+pilot, 1.5 V at 5 kHz from its amplifier (`sto.asc`'s PAM8406). U16C squares
+it at the zero cross (49.5 mV) and pumps Cinj through C101; U16B dumps Cinj
+past TP67's 543 mV. U4 (TPS3840, VIT- 3.0 / VIT+ 3.1 V) on Cinj lets RESET go
+216 us after VIT+. PA10 KEEPALIVE toggles at 200 kHz (a 100 kHz square wave)
+-> R72 330 / C71 100 nF -> charge pump into Clevel, clamped by D10 at RESET's
+0.8 Cinj; Q10A on Clevel releases U11 (FAULTOUT = PGD) at 1.55 V, trips at
+1.52 V; FAULTOUT is PE15 (BKIN) and U9's enable for +15V7.
 main() sleeps in WFI with AFE_ON low and MOE clear: the keepalive then pauses
 up to a SysTick (1 ms), past the latch's hold. AFE_ON (the interlock's read) or
-MOE keeps it pumping.
-Cinj (PC1) = recovered pilot, Clevel (PB1) = integrator.
-`GateStage.interlock()` wants >= 3.0 V each; the unmodified board reads
-0.77 / 0.06 V (2026-08-27), so sessions arm with
+MOE keeps it pumping; a gap over ~120 us drops Clevel with PA10 held low.
+Cinj (PC1) = recovered pilot, Clevel (PB1) = integrator, both straight to the
+pin: Cinj's 3.70 V is over VDDA and reads full scale.
+The model (`world/src/world_sto.c`, 2026-09-27): released 1.54 ms after the
+pilot, Cinj 3.70 V, Clevel 2.86 V (keepalive every 5 us; 2.49 V every 50 us),
++15V7 14.9 V; the pilot lost trips it in 0.8 ms, +5 in 0.1, the keepalive in
+0.13, PGD at once. `rig.pilot(volts, hz)` sets an emulated or simulated
+master's. `GateStage.interlock()` wants Cinj >= 3.0 V, Clevel >= 2.0 V; the
+unmodified board reads 0.77 / 0.06 V (2026-08-27), so its sessions arm with
 `ignore_interlock=True, bypass_sto=True`. `tools/bench/sto_probe.py` reads it.
 
 ## SPI sensors

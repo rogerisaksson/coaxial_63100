@@ -38,6 +38,7 @@ from rich.theme import Theme
 from coaxial.comm import broker
 from terminal.ui.chrome import KANA, Chrome, Crt, clock
 from terminal.ui.marquee import Marquee
+from terminal.ui.sto import chip as sto_chip
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.scroll import DOWN, HUD_WIDTH, UP, _fills, _rows_of, paged, scroll_state
 
@@ -61,6 +62,8 @@ THEME = Theme({
     'chip.emu':   'black on #3cafb9',
     'chip.virtual': 'black on #a58cff',
     'chip.dynamic': 'black on #ff9f5a',
+    'chip.sto':   'black on color(214)',         # the drivers supplied: the light source
+    'chip.sto.off': 'color(66) on color(23)',   # the safe state, the band's own
     'alarm':      'bold black on red3',
 })
 
@@ -236,10 +239,12 @@ class _Ticking(Text):
 
 
 def header(title, origin):
-    """A view's band: its name, the port, the meaning chip right."""
+    """A view's band: its name, the port, the STO chain's chip and the meaning chip right."""
     where = ("PORT: %s" % origin.port if origin.real
              else "" if origin.label == "Simulated" else origin.label)
-    return band_of(title, where, chip(origin))
+    tag = chip(origin)
+    sto = sto_chip()
+    return band_of(title, where, Text.assemble(sto, ' ', tag) if sto is not None else tag)
 
 
 #: Cells the title band is set in from the left edge: at 0 it stood out

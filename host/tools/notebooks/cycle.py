@@ -41,6 +41,7 @@ for leg in legs:
     rig.drive.configure(source='model')
     rig.drive.model.configure(j=8e-3, b=5e-4, load=0.0)
     Commissioning(rig).gains()
+    rig.board.afe.on()                  # +5 for the STO chain: the drivers' supply
     rig.gates.on(bypass_sto=True, ignore_interlock=True)
     rig.drive.write(id_ref=0.0, iq_ref=0.0)
     rig.drive.on('sensorless')

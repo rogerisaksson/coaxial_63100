@@ -1,10 +1,9 @@
-"""Invented readings: the channel table, nominals, drift, sweep and tumble every device draws from.
+"""Invented readings: the channel table, nominals, drift and tumble every device draws from.
 """
 import math
 import random
-import time
 
-from coaxial.devices.scaling import ADC_CODES
+from coaxial.devices.scaling import ADC_CODES, KELVIN_AT_ZERO_C, NTC_ONBOARD
 
 #: The stand-in's clock, as the board reports it: 475 MHz, the cycle
 #: counter at that rate, HCLK at half.
@@ -43,9 +42,10 @@ CHANNELS = [
      'differential': False, 'signal': 'MCU die'},
 ]
 
-# Roughly what a live board reads with the front end on, AFE gain and all - not
-# a calibrated value, just something to drift around so a repeated read does
-# not look frozen.
+# What a live board reads with the front end on and nothing moving, AFE gain and all: the
+# phases' offsets off a bench boot, the link and the rails where they sit; the NTC and the die
+# follow the thermal stand-in, Cinj, Clevel and Vgate the STO chain, where the board wires them
+# (`quiet_code`).
 NOMINAL = {0: 1400.0, 1: -8030.0, 2: 360.0, 3: 1010.0, 4: 41000.0,
           5: 20775.0, 6: 16500.0, 7: 50700.0, 8: 1030.0,
           9: 33000.0}
@@ -56,26 +56,54 @@ NOMINAL = {0: 1400.0, 1: -8030.0, 2: 360.0, 3: 1010.0, 4: 41000.0,
 #: the DC bus channel read 24.8, and an identification off a recorded
 #: frame folded the disagreement into every constant it recovered.
 DCBUS_V = NOMINAL[5] * 78.15 / ADC_CODES
-DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0,
-         7: 30.0, 8: 20.0, 9: 60.0}
+#: Vgate's pin over the gate drivers' supply: 10k under 57k (HARDWARE.md).
+VGATE_PIN_RATIO = 10.0 / 67.0
+#: The MCU's temperature sensor at 30 C and a kelvin, V (the part's typicals, native.c's and
+#: Coaxial63100_AFE.cs's): the die channel reads its die, not mid-scale's 545 C.
+DIE_V_AT_30, DIE_V_PER_K = 0.62, 0.002
 
-#: The pace the wandering channels wander at: slow enough to watch a
-#: meter follow it, fast enough that a still frame is rarely the same
-#: twice. It was the phases' one electrical revolution every seven
-#: seconds; the bridge's demo motor turns at the same rate now
-#: (`show_desk.DEMO_HZ`), on the drive rather than on an invention.
-SWEEP_HZ = 0.14
 
-#: How far each channel wanders, in codes. NOT THE PHASES: they carry the
-#: motor's current, `phase_codes`, and nothing else - they swept +-9000
-#: codes at 0.14 Hz so the meters had something to show, and a tare
-#: through the analog path then stored the sweep's value of that moment
-#: as the zero, which a record through the DAQ's path could never agree
-#: with (+-57 A of "current" on a stage that was down, 2026-09-07). The
-#: meters have a motor to show instead: the bridge page turns the
-#: stand-in's drive.
-SWING = {3: 300.0, 4: 6000.0, 5: 4000.0, 6: 3000.0, 7: 200.0, 8: 100.0,
-         9: 300.0}
+def die_code(celsius):
+    """The die channel's code at `celsius`."""
+    return (DIE_V_AT_30 + (celsius - 30.0) * DIE_V_PER_K) / 3.3 * ADC_CODES
+
+
+def ntc_code(celsius):
+    """The NTC channel's code at `celsius`: the element on the board's divider
+    (`scaling.NTC_ONBOARD`), high side as it sits."""
+    ntc = NTC_ONBOARD
+    ohms = ntc.r25 * math.exp(ntc.beta * (1.0 / (celsius + KELVIN_AT_ZERO_C)
+                                          - 1.0 / ntc.t25_kelvin))
+    share = (ntc.r_fixed / (ohms + ntc.r_fixed) if ntc.high_side
+             else ohms / (ohms + ntc.r_fixed))
+    return share * ADC_CODES
+
+
+def pin_code(volts):
+    """A single-ended pin's code at `volts`, the converter's range clipping it."""
+    return max(0.0, min(ADC_CODES, volts / 3.3 * ADC_CODES))
+
+
+def quiet_code(index, thermal=None, sto=None):
+    """A channel's code with no current on it: the NTC's element and the MCU's die off the
+    thermal stand-in, Cinj, Clevel and Vgate off the STO chain, where the board wired them; the
+    rest where it sits."""
+    signal = CHANNELS[index]['signal']
+    if thermal is not None and signal == 'NTC':
+        return ntc_code(thermal._thermistor())
+    if thermal is not None and signal == 'MCU die':
+        return die_code(thermal._die('mcu'))
+    if sto is not None and signal in ('Cinj', 'Clevel', 'Vgate'):
+        sto.advance()
+        return pin_code({'Cinj': sto.cinj, 'Clevel': sto.clevel,
+                         'Vgate': sto.vgate * VGATE_PIN_RATIO}[signal])
+    return NOMINAL[index]
+
+
+#: How far a channel moves between reads, codes: the phases' measured 0.35-0.41 A floor, the
+#: quiet ones the converter's few codes - an NTC does not jump 2.5 K a read.
+DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 5.0, 5: 20.0, 6: 20.0,
+         7: 30.0, 8: 20.0, 9: 20.0}
 
 #: How far a channel moves WITHIN one burst - a different quantity from how
 #: far it wanders between them. A flat +/-5 codes for everything is 0.015 %
@@ -90,14 +118,6 @@ RIPPLE = {0: 60.0, 1: 60.0, 2: 60.0, 3: 40.0, 4: 150.0, 5: 700.0,
 #: which reads as decoration rather than as memory.
 GUST_CHANCE = 0.14
 GUST = 2.8
-
-
-def _sweep(index):
-    """Where a simulated channel sits right now."""
-    if index not in SWING:
-        return 0.0
-    turn = time.time() * SWEEP_HZ * 2.0 * math.pi
-    return SWING[index] * math.sin(turn * 0.31 + index)
 
 
 #: Radians a phase lags the one before it.

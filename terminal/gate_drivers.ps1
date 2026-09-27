@@ -5,7 +5,7 @@
     What the gate drivers are doing, from three sources that mislead
     separately.
 .PARAMETER Port
-    The board's VCP.
+    The board: emulator://, this host's image in Renode, unless a VCP is named.
 .PARAMETER Afe
     AFE_ON on: currents are real and the drivers have no supply.
 .PARAMETER Simulated
@@ -18,7 +18,7 @@
     .\terminal\gate_drivers.ps1
 #>
 param(
-    [string]$Port = 'COM4',
+    [string]$Port = 'emulator://',
     [switch]$Afe,
     [switch]$Simulated,
     [double]$Hz = 8.0,

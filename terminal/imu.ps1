@@ -6,7 +6,7 @@
     for an IMU in it, then prints a preflight line per step the way
     board_chat.ps1 does - ok, warn or fail, with what it found beside it.
 .PARAMETER Port
-    The board's VCP.
+    The board: emulator://, this host's image in Renode, unless a VCP is named.
 .PARAMETER Simulated
     No cable: the stand-in turns slowly about Z so the picture has something
     to show.
@@ -21,7 +21,7 @@
     .\terminal\imu.ps1
 #>
 param(
-    [string]$Port = 'COM4',
+    [string]$Port = 'emulator://',
     [switch]$Simulated,
     [double]$Hz = 20.0,
     [int]$Frames = 0,

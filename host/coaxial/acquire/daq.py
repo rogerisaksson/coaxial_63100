@@ -102,7 +102,9 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         pins = []
         if r.remaining and r.u8():
             pins = [self._pin(r) for _ in range(r.u8())]
-        return {'stride': stride, 'fields': out, 'pins': pins}
+        # Appended, MINOR 7: the sensor rows, in bit order.
+        sensors = [self._sensor(r) for _ in range(r.u8())] if r.remaining else []
+        return {'stride': stride, 'fields': out, 'pins': pins, 'sensors': sensors}
 
     @staticmethod
     def _field(r):
@@ -111,6 +113,12 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         differential = bool(r.u8())
         return {'channel': index, 'unit': protocol.CHANNEL_UNITS.get(unit, unit),
                 'differential': differential, 'signal': r.string()}
+
+    @staticmethod
+    def _sensor(r):
+        bit = r.u8()
+        words = r.u8()
+        return {'bit': bit, 'words': words, 'signal': r.string()}
 
     @staticmethod
     def _pin(r):

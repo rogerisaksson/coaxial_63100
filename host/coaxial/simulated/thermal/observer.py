@@ -57,6 +57,8 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         self._losses = dict(thermal.LOSSES, r_phase=self.WINDING_R)
         #: Whether the AFE rail is up: its chain's watts. The board wires its AFE.
         self._afe_on = lambda: False
+        #: Whether the drive's triple holds the meter: no MCU die then. The board wires it.
+        self._meter_locked = lambda: False
         #: What drops the stage at a ceiling: the board wires the gate drivers.
         self._gate: Optional[Callable[[], bool]] = None
         self._trips = 0

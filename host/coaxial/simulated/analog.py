@@ -3,7 +3,7 @@
 import math
 import random
 import time
-from typing import Any
+from typing import Any, Callable
 
 from coaxial.comm import protocol
 from coaxial.devices import scaling
@@ -12,19 +12,20 @@ from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
 from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.errors import DeviceStateError
 from coaxial.simulated.system import UNITS
-from coaxial.simulated.values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread, _sweep,
-                                      phase_codes)
+from coaxial.simulated.values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread,
+                                      phase_codes, quiet_code)
 from machine.roles import Input, Output
 
 
 class SimulatedAfe(Output):
-    """The stand-in AFE; PE15 follows AFE_ON inversely, as measured on the board."""
+    """The stand-in AFE; PE15 the STO chain's FAULTOUT, which the board wires."""
 
     def __init__(self):
         self._on = False
+        self._pe15: Callable[[], bool] = lambda: False
 
     def state(self):
-        return {'on': self._on, 'pe15': not self._on, 'users': ['host'] if self._on else []}
+        return {'on': self._on, 'pe15': self._pe15(), 'users': ['host'] if self._on else []}
 
     def require(self):
         if not self._on:
@@ -53,11 +54,17 @@ class SimulatedAnalog(Input):
         self._afe = afe
         #: The drive whose current the phases carry - the board wires it.
         self.drive: Any = None
+        #: The thermal stand-in whose MCU die the die channel reads - the board wires it.
+        self.thermal: Any = None
+        #: The STO chain whose Cinj, Clevel and +15V7 three channels read, and the calibration
+        #: record the scaling is - the board wires both.
+        self.sto: Any = None
+        self.calibration: Any = None
 
     def scaling(self, refresh=False):
-        """The same shape the board's own record produces."""
+        """What the board's own record produces: the stand-in's record, once the board wired it."""
         del refresh
-        return scaling.from_calibration({})
+        return scaling.from_calibration(self.calibration.read() if self.calibration else {})
 
     def channels(self, refresh=False):
         return CHANNELS
@@ -74,7 +81,9 @@ class SimulatedAnalog(Input):
         raise KeyError('no channel carries signal %r; the board reports %r'
                        % (signal, named))
 
-    def burst(self, mask, samples, rate=None):
+    def burst(self, mask, samples, rate=None, trimmed=True):
+        """The firmware's burst: each channel through the record (Board_CalApply), `trimmed`
+        False the uncorrected read a zero takes."""
         chosen = {}
         # The motor's current on the phases, the same one a record carries:
         # what the drive holds, at the angle it holds it.
@@ -83,14 +92,18 @@ class SimulatedAnalog(Input):
         omega = drive._omega() if drive is not None else 0.0
         window = samples / float(rate or 2000.0)
         swing = amps * min(2.0, abs(omega) * window) / AMPS_PER_CODE / 2.0
+        thermal = self.thermal
         for meta in CHANNELS:
             index = meta['index']
             if not (mask >> index & 1):
                 continue
             if self._afe._on:
-                mean = (NOMINAL[index] + _sweep(index)
+                mean = (quiet_code(index, thermal, self.sto)
                         + phase_codes(meta['signal'], amps, theta)
                         + random.uniform(-DRIFT[index], DRIFT[index]))
+                record = self.calibration
+                if trimmed and record is not None:
+                    mean = record.apply(index, mean)
             else:
                 # Invariant 9: with the reference unpowered, a differential
                 # input sits at 0 and a single-ended one at mid-scale, as
@@ -172,7 +185,7 @@ class SimulatedAnalog(Input):
             'ntc_centidegc': int(params['ntc'].celsius(
                 max(1, raw.get('NTC', 1))) * 100.0),
             'afe_on': True,
-            'pe15': not self._afe.is_on(),
+            'pe15': self._afe.state()['pe15'],
         }
 
     def state(self):
@@ -209,7 +222,9 @@ class SimulatedCalibration(CalibrationOps):
     board: Any = None
     def __init__(self):
         self._params = {}
-        self._channels = [{'index': i, 'offset_raw': 0, 'gain_ppm': 0}
+        # A zeroed board's record: each phase's zero its rest offset, what a tare stores.
+        self._channels = [{'index': i, 'gain_ppm': 0,
+                           'offset_raw': int(NOMINAL[i]) if CHANNELS[i]['differential'] else 0}
                           for i in range(self.CHANNELS)]
 
     def read(self):
@@ -231,13 +246,18 @@ class SimulatedCalibration(CalibrationOps):
                                  'gain_ppm': int(gain_ppm)}
 
     def zero(self, index):
-        """Measure the channel now and keep the reading as its offset."""
-        rows = (self.board.analog.read()['channels']
-                if self.board is not None else ())
-        code = next((int(row['mean_raw']) for row in rows
-                     if row['index'] == index), 0)
+        """Board_CalZero's: the channel's uncorrected reading now kept as its offset."""
+        taken = (self.board.analog.burst(1 << index, 64, trimmed=False)['channels']
+                 if self.board is not None else {})
+        code = int(taken[index]['mean_raw']) if index in taken else 0
         self.set_channel(index, code, self._channels[index]['gain_ppm'])
         return code
+
+    def apply(self, index, code):
+        """Board_CalApply's: `code` less the channel's zero, times its gain."""
+        channel = self._channels[index]
+        corrected = code - channel['offset_raw']
+        return corrected + corrected * channel['gain_ppm'] / 1e6
 
     def span(self, index, reference):
         raise DeviceStateError('the stand-in has no instrument to span '

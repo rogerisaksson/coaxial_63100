@@ -24,18 +24,18 @@ import sys
 os.environ.setdefault('COAXIAL_FALLBACK', 'simulated')
 
 from tools.dev import counts
+from tools.dev.focus import physical_cores
 from tools.dev.runner import _results
 from tools.dev.scope import _plan, hold_model, release_model
 from tools.dev.suites import (ALL_SUITES, ALONE, CONFORMANCE, DEFAULT_SUITES,
                               FULL_EVERY, LIVE, NEEDS_BOARD, ROOT, STRUCTURE, TIERS)
 from tools.target import find_board
 
-#: Suites run side by side: their wall time is mostly the stand-ins' sleep
-#: (2026-09-21: sensorless 24 s of CPU in 151 s, the DAQ front door 0.9 in
-#: 72, the broker 2.2 in 31); one after another was a 400 s gate. Half the
-#: cores, at most four: no page file here, and one views page is 14
-#: processes.
-JOBS = max(1, min(4, (os.cpu_count() or 2) // 2))
+#: Suites on the relay (tools.dev.focus), a baton a physical core, the longest first, as the
+#: free commit holds: their wall time is mostly the stand-ins' sleep (2026-09-21: sensorless 24 s
+#: of CPU in 151 s, the DAQ front door 0.9 in 72, the broker 2.2 in 31); one after another was a
+#: 400 s gate.
+BATONS = physical_cores()
 
 
 def board_note():
@@ -103,12 +103,12 @@ def _options(argv):
                              'board (%s). The default set runs either way - '
                              'it falls back to the simulated board and says '
                              'so.' % ', '.join(NEEDS_BOARD))
-    parser.add_argument('--jobs', type=int, default=JOBS,
-                        help='how many suites run side by side, %d here; 1 '
-                             'is one after another. The suites that may '
-                             'reach a board or hold the model (%s) run '
-                             'alone whatever this says.'
-                             % (JOBS, ', '.join(ALONE)))
+    parser.add_argument('--jobs', type=int, default=BATONS,
+                        help='batons on the relay: suites at once, the physical '
+                             'cores (%d here) as the free commit holds; 1 is '
+                             'one after another. The suites that may reach a '
+                             'board or hold the model (%s) run alone whatever '
+                             'this says.' % (BATONS, ', '.join(ALONE)))
     return parser.parse_args(argv)
 
 

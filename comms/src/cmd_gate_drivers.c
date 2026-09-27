@@ -74,6 +74,11 @@ static cmd_status_t h_gate_drivers_state(wr_t *out)
   /* Periods left of a counted hold - appended at MINOR 8. */
   wr_u32(out, Board_PwmPeriodsLeft());
 
+  /* PE15, the STO chain's FAULTOUT, and +15V7, the drivers' supply - appended at MINOR 23;
+     INT32_MIN unread, the current loop holding the converters. */
+  wr_u8(out, sto.nfault ? 0x01U : 0x00U);
+  wr_i32(out, sto.supply_ok ? sto.supply_millivolts : INT32_MIN);
+
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 

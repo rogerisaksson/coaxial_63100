@@ -5,6 +5,7 @@
    in, scalars out: nothing for P/Invoke to marshal but floats. */
 #include "world.h"
 #include "world_heat.h"
+#include "world_sto.h"
 
 #include <string.h>
 
@@ -15,6 +16,7 @@ static struct
   double        t[WORLD_MOTORS];     /* each plant's own time, s */
   bool          attached[WORLD_MOTORS];
   world_heat_t  heat[WORLD_MOTORS];
+  world_sto_t   sto[WORLD_MOTORS];
 } s;
 
 /** A fresh world of `motors` loads, all free, on the ground. */
@@ -176,4 +178,39 @@ void emu_heat_step(int i, float dt, const float *in, float *out)
   out[0] = seen.ntc_c;
   out[1] = seen.mcu_c;
   out[2] = seen.afe_c;
+}
+
+/** Board `i`'s STO chain at rest: its bus just powered, the master's coupling caps charged. */
+void emu_sto_reset(int i)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  world_sto_init(&s.sto[i]);
+}
+
+/** Board `i`'s STO chain on `dt` s. in: the master's pilot, amplitude V and Hz, the far end's
+    100 kHz common mode (V), the link (V), +5 (AFE_ON), PA10 at the step's start; `edges` PA10's
+    edges within the step at `at`, s from its start (NULL: spread); out: Cinj, Clevel, RESET,
+    FAULTOUT, +15V7 (V). */
+void emu_sto_step(int i, float dt, const float *in, int edges, const float *at, float *out)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  const world_sto_in_t chain =
+  {
+    in[0], in[1], in[2], in[3], in[4] != 0.0f, in[5] != 0.0f,
+    (edges > 0) ? (uint32_t)edges : 0U, at
+  };
+  world_sto_out_t pins;
+
+  world_sto_step(&s.sto[i], &chain, dt, &pins);
+  out[0] = pins.cinj;
+  out[1] = pins.clevel;
+  out[2] = pins.reset;
+  out[3] = pins.faultout;
+  out[4] = pins.vgate;
 }

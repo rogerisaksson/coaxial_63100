@@ -79,6 +79,10 @@ def _learn(port, simulated):
 #: way up and sparingly after.
 PROBE_EVERY = 30.0
 
+#: The most a smoke run waits for a port's first identity, s: the probe's 8.4 s, and native's
+#: build before its first answer.
+FIRST_IDENTITY_S = 60.0
+
 
 def _watch_broker():
     """Keep the masthead's broker status fresh, off the frame loop."""
@@ -414,7 +418,7 @@ def main(argv=None, preload=None):
     exit code as a script.
     """
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='COM4')
+    parser.add_argument('--port', default='emulator://')
     parser.add_argument('--frames', type=int, default=0,
                         help='draw this many and exit 0 - the smoke test')
     parser.add_argument('--simulated', action='store_true',
@@ -468,6 +472,12 @@ def main(argv=None, preload=None):
         warm.join()      # the smoke test draws the board, not the wait
         if learn is not None:
             learn.join()     # and the readout with something to print
+        else:
+            # A port's readout comes off the link watcher's first probe.
+            until = time.monotonic() + FIRST_IDENTITY_S
+            while (_BROKER['identity'] is None and _BROKER['said'] is None
+                   and time.monotonic() < until):
+                time.sleep(0.05)
     hotkeys = {key.lower(): i for i, (key, _n, _w) in enumerate(ENTRIES)}
 
     with curtain(page) as live, Keys(console, mouse=True) as keys:

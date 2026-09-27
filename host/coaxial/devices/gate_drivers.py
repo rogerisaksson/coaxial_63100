@@ -14,6 +14,9 @@ FLAGS = ('pwm_ready', 'pwm_enabled', 'fault', 'sync_ready', 'sync_armed',
 
 PHASES = 3
 
+#: MINOR 23's +15V7 unread: the current loop holds the converters.
+UNREAD = -2 ** 31
+
 #: The legs, in the order the gate-short mask names them.
 LEGS = ('U', 'V', 'W')
 
@@ -94,6 +97,11 @@ class GateDrivers(Device, GateControl, device=protocol.DEVICE_GATE_DRIVERS):
         out['ntc_raw'] = r.maybe('u32')
         # Periods left of a counted hold, MINOR 8. Zero when free-running.
         out['periods_left'] = r.maybe('u32')
+        # PE15, the STO chain's FAULTOUT, and +15V7 through its divider, MINOR 23.
+        nfault = r.maybe('u8')
+        out['nfault'] = None if nfault is None else bool(nfault & 0x01)
+        vgate = r.maybe('i32')
+        out['vgate_mv'] = None if vgate in (None, UNREAD) else vgate
         return out
 
     def on(self):

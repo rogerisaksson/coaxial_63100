@@ -215,7 +215,7 @@ def aspect_of(args):
 
 def parse_args(argv):
     p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    p.add_argument('--port', default='COM4')
+    p.add_argument('--port', default='emulator://')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--frames', type=int, default=0)
     p.add_argument('--hz', type=float, default=DEFAULT_HZ)
@@ -379,7 +379,9 @@ def _link(args):
         # flywheel): driven, its currents heat the board and its NTC reads them.
         args.source = 'adc' if origin.real and _screen.demo(origin) else 'model'
     was_on = board.afe.is_on()
-    want_afe = args.afe or args.source == 'adc'
+    # An emulated or simulated board follows the schematic: its stage's supply is the STO
+    # chain's, whose pilot detector runs off AFE_ON.
+    want_afe = args.afe or args.source == 'adc' or _screen.demo(origin)
     if want_afe != was_on:
         board.afe.write(want_afe)
         time.sleep(0.3)
@@ -511,9 +513,8 @@ def main(argv=None):
             board.drive.off()
             done.append(('drive', 'off, the compares released'))
             board.drive.configure(source='adc')
-            if rig.gates.is_on():
-                rig.gates.off()
-                done.append(('gate stage', 'disarmed, MOE clear'))
+            rig.gates.off()
+            done.append(('gate stage', 'disarmed, MOE clear, the break back'))
             board.gate_drivers.configure(sync=False)
             if board.afe.is_on() != was_on:
                 board.afe.write(was_on)

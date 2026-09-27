@@ -8,6 +8,7 @@
     which ADC and which pin each one is on. */
 #define STO_PILOT  "Cinj"
 #define STO_LEVEL  "Clevel"
+#define STO_SUPPLY "Vgate"
 
 static bool STO_Find(const char *signal, uint8_t *index)
 {
@@ -26,17 +27,17 @@ static bool STO_Find(const char *signal, uint8_t *index)
   return false;
 }
 
-static bool STO_ReadOne(const char *signal, int32_t *raw, int32_t *microvolts)
+/* Board_AdcRead refuses a NULL, and passing one here made pilot_ok and level_ok read false for
+   every call ever made. */
+static bool STO_ReadOne(const char *signal, int32_t *raw, int32_t *microvolts, int32_t *scaled)
 {
   uint8_t index;
-  int32_t scaled;               /* Board_AdcRead refuses a NULL, and passing one here made pilot_ok and
-     level_ok read false for every call ever made. */
 
   if (!STO_Find(signal, &index))
   {
     return false;
   }
-  return Board_AdcRead(index, raw, microvolts, &scaled);
+  return Board_AdcRead(index, raw, microvolts, scaled);
 }
 
 /** The STO chain's state: the keepalive's edges, the worst gap, and the last
@@ -120,14 +121,21 @@ void Board_StoState(board_sto_state_t *out)
 
   /* Both channels come through the AFE's reference, so with AFE_ON low they
      read exact mid-scale and mean nothing - invariant 9. */
+  int32_t raw;
+  int32_t microvolts;
+  int32_t scaled;
+
   out->afe_on = Board_AfeOn();
   out->pilot_ok = STO_ReadOne(STO_PILOT, &out->pilot_raw,
-                              &out->pilot_microvolts);
+                              &out->pilot_microvolts, &scaled);
   out->level_ok = STO_ReadOne(STO_LEVEL, &out->level_raw,
-                              &out->level_microvolts);
+                              &out->level_microvolts, &scaled);
+  out->supply_ok = STO_ReadOne(STO_SUPPLY, &raw, &microvolts,
+                               &out->supply_millivolts);
 
-  /* The one thing the hardware settles by itself. */
+  /* The one thing the hardware settles by itself, and the line it latched off. */
   out->stopped = Board_PwmFault();
+  out->nfault = Board_Pe15();
 
   /* Reported, not judged: how fast the loop is turning is a fact, and
      whether it is fast enough belongs where the thresholds are. */

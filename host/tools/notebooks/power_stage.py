@@ -31,16 +31,25 @@ print('the stage reads DTG %d = %d ns, %.1fx the record\\'s 33.7 ns'
         ),
     section(
         'Arming, and what refuses first',
-        md('Three refusals before the FETs: MOE (`on()` sets it), the interlock (Cinj and '
-           'Clevel want 3 V; the bench board reads 0.77 and 0.06 V, 2026-08-27: '
-           '`ignore_interlock=True`), the break on PE15 (`bypass_sto=True`). The interlock '
-           'reads through AFE_ON, which `daq.enable()` holds.'),
+        md('Three refusals before the FETs: MOE (`on()` sets it), the interlock (Cinj >= 3.0 V, '
+           'Clevel >= 2.0 V through AFE_ON, `daq.enable()`), the break on PE15 '
+           "(`bypass_sto=True`). `device.pilot(0.0)` silences an emulated or simulated master: "
+           'the STO chain trips. The bench board reads 0.77 and 0.06 V (R93 unmodified, '
+           '2026-08-27): `ignore_interlock=True`.'),
         code('''import textwrap
 
+from coaxial.comm.hostclock import clock_of
 from coaxial.errors import RigError
+from coaxial.simulated.sto import PILOT_VOLTS
 
 daq = device.daq
 daq.enable()
+try:
+    device.pilot(0.0)                     # the master silent: the chain trips, the break latches
+    silenced = True
+except RigError:
+    silenced = False                      # a live bus: its pilot is its master's
+clock_of(device).sleep(0.05)
 for name, volts, ok, want in stage.interlock():
     print('%-8s %-8s ok=%-5s want=%s' % (name, '-' if volts is None else '%.2f V' % volts, ok, want))
 gd = device.gate_drivers
@@ -56,7 +65,15 @@ for what, call in (('a duty before arm', lambda: gd.write((10, 0, 0))),
         refused.append(what)
         print(textwrap.fill('%s REFUSED: %s' % (what, e), width=96,
                             subsequent_indent='    '))
+back = []
+if silenced:
+    device.pilot(PILOT_VOLTS)
+    clock_of(device).sleep(0.05)
+    back = [(name, volts) for name, volts, _, _ in stage.interlock()[1:]]
+    print()
+    print('the pilot back:', ', '.join('%s %.2f V' % row for row in back))
 armed = stage.on(bypass_sto=True, ignore_interlock=True)
+gd.reset_worst_gap()                      # the keepalive's gaps from here, not since boot
 print()
 print('armed: pwm_enabled %s  fault %s  break_bypassed %s  duty %s'
       % (armed['pwm_enabled'], armed['fault'], armed['break_bypassed'], armed['duty']))'''),
@@ -246,8 +263,9 @@ print('   dead time    the stage read DTG %d = %d ns; floor DTG %d = %.1f ns; '
       'the record trims to DTG 8 = %.1f ns'
       % (check['deadtime'], check['deadtime_ns'], check['deadtime_floor'],
          check['deadtime_floor'] * DTS_NS, inverter.T_DEAD * 1e9))
-print('2. arming       %d refusals before MOE, in the board\\'s words; armed with the break '
-      'bypassed and the interlock ignored' % len(refused))
+print('2. arming       %d refusals before MOE, in the board\\'s words; the pilot back %s; '
+      'armed with the break bypassed and the interlock ignored'
+      % (len(refused), ', '.join('%s %.2f V' % row for row in back) or 'the bus master\\'s'))
 print('3. counted hold %d of %d ticks = %.1f %%, 500 periods = %.3f ms; periods_left %d then %d, '
       'compares %s' % (tenth, snap['period'] - 1, 100.0 * tenth / (snap['period'] - 1),
                        500.0 / 50e3 * 1e3, snap['periods_left'], after['periods_left'],
@@ -256,7 +274,7 @@ print('4. snapshots    %d reads, CNT %d to %d of %d; both FETs on in %d of %d le
       'gate shorts %s; overruns %d' % (len(snapshots), walked[0], walked[-1], snap['period'],
                                         both_on, 3 * len(snapshots),
                                         snap['gate_shorts'] or 'none', snap['overruns']))
-print('5. keepalive    %d edges, worst gap %d cycles = %.1f us'
+print('5. keepalive    %d edges, worst gap since arming %d cycles = %.1f us'
       % (snap['keepalive'], snap['worst_gap_cycles'], snap['worst_gap_cycles'] / 475.0))
 print('6. burst        %d records, dropped %d, %.3f s; %d current columns, %d gate columns; '
       'noise %.2f to %.2f A rms against %s measured'

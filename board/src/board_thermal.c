@@ -450,7 +450,10 @@ static void load_now(thermal_load_t *load)
   const uint32_t period = Board_PwmPeriod();
 
   load->afe_on = Board_AfeOn();
-  load->switching = Board_PwmIsEnabled();
+  /* The drivers switch on their supply alone: FAULTOUT (PE15) enables U9's +15V7 on the
+     schematic's board, and on the unmodified bench board follows AFE_ON inversely, high while
+     its drivers are supplied. */
+  load->switching = Board_PwmIsEnabled() && Board_Pe15();
   for (uint8_t i = 0U; i < 3U; i++)
   {
     load->duty[i] = (period > 0U)
@@ -512,6 +515,8 @@ static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
 
   thermal_power_estimate(&s.power, load, &s.loss, phase_c);
   thermal_step(&s.th, &s.power, seen, load, dt);
+  /* The STO chain's pump fed between the steps: a slice at -O0 is 140 000 instructions. */
+  Board_StoKeepalive();
   /* The identification, beside it: the shadow and its sensitivities step
      with the same power and the same slice; when a sample moves the scales
      the observer's network takes them at once. */
@@ -519,10 +524,12 @@ static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
   {
     thermal_ident_apply(&s.ident, &s.base, &s.th.cfg);
   }
+  Board_StoKeepalive();
   /* The room is the identification's: the board has no ambient sensor, and
      the observer's rise is against what the identification says the room is. */
   s.th.ambient = thermal_ident_ambient(&s.ident);
   thermal_budget(&s.th, &s.power, &s.soa, &s.budget);
+  Board_StoKeepalive();
   /* The winding's own factor, so a host can say which envelope holds the
      stage back; the whole's already includes it. */
   s.winding_derate = thermal_node_derate(&s.th, &s.power, &s.soa,
@@ -596,7 +603,7 @@ void Board_ThermalPoll(void)
     s.seen = true;
   }
 
-  /* In slices, and the envelope on every one. */
+  /* In slices, the envelope on every one and the STO chain's pump fed between them. */
   const uint32_t most = THERMAL_CATCHUP_MS * s.haste;
   uint32_t left = (span > most) ? most : span;
 
@@ -606,8 +613,11 @@ void Board_ThermalPoll(void)
 
     left -= slice;
     step_slice(&load, &seen, slice);
+    /* A sample is folded in once, on the first slice. */
+    seen.ntc_c = seen.afe_c = seen.mcu_c = NAN;
     hold_envelope(slice, s.millis);
     s.steps++;
+    Board_StoKeepalive();
   }
 
   margin_follow();

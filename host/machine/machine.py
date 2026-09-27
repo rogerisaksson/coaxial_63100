@@ -64,6 +64,10 @@ class Actuator:
     def ramp(self, k, steps):
         pass
 
+    def rest(self, seconds):
+        """`seconds` of the node's time: the wall's, unless the node keeps its own."""
+        time.sleep(seconds)
+
     def align(self, f):
         pass
 
@@ -176,19 +180,20 @@ class Machine:
         for name, actuator in self.actuators.items():
             actuator.arm(self.loop.feedbacks[name], self.arming)
         if aligns:
+            rest = next(iter(aligns.values())).rest       # the rotors' time, not the wall's
             for k in range(2, steps + 1):
-                time.sleep(settle)
+                rest(settle)
                 for actuator in aligns.values():
                     actuator.ramp(k, steps)
-            time.sleep(2.0 * settle)
+            rest(2.0 * settle)
             for name, actuator in aligns.items():
                 actuator.align(self.loop.feedbacks[name])
-            time.sleep(4.0 * settle)
+            rest(4.0 * settle)
             zeros = {name: [] for name in aligns}
             for _ in range(reads):
                 for name, actuator in aligns.items():
                     zeros[name].append(actuator.zero())
-                time.sleep(settle / 2.0)
+                rest(settle / 2.0)
             for name in aligns:
                 self.loop.feedbacks[name].measure.configure(zero=_mean_angle(zeros[name]))
         for name in self.actuators:

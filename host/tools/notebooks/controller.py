@@ -37,6 +37,7 @@ at = node.name + '.drive'
 drive, gates = node.rig.drive, node.rig.gates
 drive.configure(source='model')
 drive.model.configure(j=J, b=B, load=0.0, noise=0.05)
+node.rig.board.afe.on()                 # +5 for the STO chain: the drivers' supply
 gates.on(bypass_sto=True, ignore_interlock=True)
 drive.write(id_ref=0.0, iq_ref=0.0)
 drive.on('sensorless')

@@ -239,7 +239,7 @@ def put_back(board):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='COM4')
+    parser.add_argument('--port', default='emulator://')
     parser.add_argument('--hz', type=float, default=10.0)
     parser.add_argument('--clock', default='software', choices=('software',))
     parser.add_argument('--sample-time', type=int, default=0)

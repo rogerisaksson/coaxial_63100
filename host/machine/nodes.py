@@ -17,7 +17,7 @@ from collections import namedtuple
 
 from machine.controller import Loop, Polled, flat
 from machine.errors import MachineError
-from machine.modes import HARDWARE, SIMULATED
+from machine.modes import HARDWARE
 from machine.roles import Endpoint
 
 #: One channel a node offers: its name ('<node>.<module>.<key>'), 'in' or 'out', its unit,
@@ -116,14 +116,15 @@ class Nodes:
     def discover(cls, port='COM4', execution_mode=HARDWARE, units=range(1, 17), peripherals=None,
                  families=FAMILIES, **kw):
         """Every board of every installed family on every bus this host reaches, and the
-        robot's other boards: `peripherals`, or on the stand-in its pack and camera."""
+        robot's other boards: `peripherals`, or off the bench the stand-in's pack and camera -
+        an emulator runs the coaxial boards alone."""
         found = []
         for family in families:
             if importlib.util.find_spec(family.partition('.')[0]) is None:
                 continue
             found += importlib.import_module(family).discover(
                 port=port, execution_mode=execution_mode, units=units, **kw)
-        if peripherals is None and execution_mode is SIMULATED:
+        if peripherals is None and execution_mode is not HARDWARE:
             from machine.simulated import SimulatedBms, SimulatedCamera
             peripherals = [SimulatedBms(), SimulatedCamera()]
         return cls(found + list(peripherals or ()))

@@ -56,7 +56,7 @@ SAMPLE_EVERY_S = 30.0
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--port', default='COM4')
+    p.add_argument('--port', default='emulator://')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=2.0)
     p.add_argument('--frames', type=int, default=0)

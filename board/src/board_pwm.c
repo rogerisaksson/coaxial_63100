@@ -182,6 +182,8 @@ bool Board_PwmClearFault(void)
     only a path well below its pull-down lifts it. */
 static bool leg_follows(uint32_t drv, uint32_t obs)
 {
+  /* The STO chain's pump fed at each settle: six of them held a state read 348 us. */
+  Board_StoKeepalive();
   GPIOE->BSRR = 1UL << (drv + GPIO_BSRR_BR0_Pos);
   for (volatile uint32_t d = 0U; d < PROBE_SETTLE_SPINS; d++) { }
   if (((GPIOE->IDR >> obs) & 1UL) != 0U)
@@ -189,6 +191,7 @@ static bool leg_follows(uint32_t drv, uint32_t obs)
     return false;              /* high with the driver low: no path */
   }
 
+  Board_StoKeepalive();
   GPIOE->BSRR = 1UL << drv;
   for (volatile uint32_t d = 0U; d < PROBE_SETTLE_SPINS; d++) { }
   return ((GPIOE->IDR >> obs) & 1UL) != 0U;

@@ -195,7 +195,7 @@ class SimulatedAngle(AngleSensor):
             # Its die in the thermal stand-in's truth, live, when the board wired
             # one, else a room's 296 K.
             thermal = self.thermal
-            kelvin = (KELVIN_AT_ZERO_C + thermal.die('afe')
+            kelvin = (KELVIN_AT_ZERO_C + thermal._die('afe')
                       if thermal is not None else 296.0)
             return 0xF000 | (int(kelvin * 8.0) & 0x0FFF)
         if register == angle.FIELD:

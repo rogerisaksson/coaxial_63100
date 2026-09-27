@@ -2,6 +2,7 @@
 """The board, its channels, its pins, the AFE."""
 import io
 import sys
+import time
 
 from ollama_support import (Scope, ScriptedModel, SimulatedSession, call,
                             run_file, toolmod)
@@ -68,11 +69,16 @@ def test_digital_read(report):
     # than digital I/O and driving it would disconnect the break (board_io.c).
     report.check('nFAULT is not a channel a fixture may drive',
                  'PE15' not in hot and 'PE15' not in cold)
-    report.check('and it still reads back inversely, through afe_power',
-                 'pe15=0' in mcp.HANDLERS['afe_power'](session, action='on')
-                 and 'pe15=1' in mcp.HANDLERS['afe_power'](session,
-                                                           action='off'),
-                 mcp.HANDLERS['afe_power'](session, action='read'))
+    # The STO chain releases 1.5 ms after the rail and trips 0.1 ms after it: read a settle on.
+    mcp.HANDLERS['afe_power'](session, action='on')
+    time.sleep(0.05)
+    up = mcp.HANDLERS['afe_power'](session, action='read')
+    mcp.HANDLERS['afe_power'](session, action='off')
+    time.sleep(0.05)
+    down = mcp.HANDLERS['afe_power'](session, action='read')
+    report.check('and it reads back through afe_power: high with the rail and the pilot, '
+                 'low without - the STO chain as the schematic draws it',
+                 'pe15=1' in up and 'pe15=0' in down, '%s | %s' % (up, down))
     report.check('every pin the map calls digital I/O is read, and only those',
                  len(hot.splitlines()) == 2 + len(
                      Sim().board.system.channel_map()['digital']),

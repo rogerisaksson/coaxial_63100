@@ -128,10 +128,8 @@ class Task:
         pick = {'centi-degC': ('ntc', 'celsius', 'C'),
                 'mA': ('phase', 'amps', 'A'),
                 'mV': ('dcbus', 'volts', 'V')}
-        # The channel's own zero and gain, from the calibration record: what
-        # `tare()` wrote.
-        trim = {c['index']: c for c in
-                self.board.calibration.read()['channels']}
+        # The codes come through the calibration record already - the board trims every
+        # record at the source (Board_CalApply), on either clock.
         out = {}
         # The sensor snapshots' real units, the same one-place scalings the
         # subsystems use: the shaft through coaxial.devices.angle, the quaternion out
@@ -151,11 +149,7 @@ class Task:
                 continue
             part, method, short = got
             convert = getattr(scale[part], method)
-            fix = trim.get(field['channel'], {})
-            offset = fix.get('offset_raw') or 0
-            gain = 1.0 + (fix.get('gain_ppm') or 0) / 1e6
-            out['%s (%s)' % (field['signal'], short)] = [
-                convert((v - offset) * gain) for v in cols[field['signal']]]
+            out['%s (%s)' % (field['signal'], short)] = [convert(v) for v in cols[field['signal']]]
         return out
 
     def frames(self, window=2.0, buffer=None, seconds=None, scaled=False,

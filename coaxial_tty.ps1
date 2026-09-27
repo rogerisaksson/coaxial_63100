@@ -11,24 +11,23 @@
     session, imu, angle, adc, gate_drivers, rotor_observer,
     thermal_observer, chat, claude.
 .PARAMETER Port
-    The board's VCP.
+    The board: emulator://, this host's image on an emulated MCU (Renode, host/tools/emu),
+    unless a VCP is named - COM4 the bench's.
 .PARAMETER Simulated
     No cable: the stand-in.
-.PARAMETER Emulated
-    No cable: this host's image on an emulated MCU (Renode, host/tools/emu), the port
-    emulator://.
 .PARAMETER Frames
     Stop after this many rather than running until closed - the smoke.
 .EXAMPLE
     .\coaxial_tty.ps1
+.EXAMPLE
+    .\coaxial_tty.ps1 -Port COM4
 #>
 param(
     [ValidateSet('session', 'imu', 'angle', 'adc', 'gate_drivers',
                  'rotor_observer', 'thermal_observer', 'chat', 'claude')]
     [string]$Name,
-    [string]$Port = 'COM4',
+    [string]$Port = 'emulator://',
     [switch]$Simulated,
-    [switch]$Emulated,
     [int]$Frames = 0
 )
 
@@ -44,7 +43,6 @@ $ErrorActionPreference = 'Continue'
 
 $argv = @('-X', 'utf8', '-m', 'terminal')
 if ($Name) { $argv += $Name }
-if ($Emulated) { $Port = 'emulator://' }
 $argv += @('--port', $Port)
 if ($Simulated) { $argv += '--simulated' }
 if ($Frames -gt 0) { $argv += @('--frames', [string]$Frames) }

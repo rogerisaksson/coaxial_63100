@@ -31,7 +31,12 @@
 - Suites: `python -X utf8 tests/<suite>.py`; `.\run_tests.ps1` (~25 %,
   `-All`, `-Structure`, `-Scope X.py`); offline gate
   `python tools/dev/run_tests.py --offline` (~2.5 min). Sizes live in
-  `tests/.counts.json`; no document quotes them.
+  `tests/.counts.json`; no document quotes them. Narrow first:
+  `test_simulated`, `test_native` (`body` the humanoid's) take words of
+  test names; `test_emulator`'s groups, the gate's suites, `ab.py`'s pages
+  and `make_notebooks.py --execute|--compare` run on the relay
+  (`tools/dev/focus.py`): a baton a physical core, a queue longest first, a
+  job ending hands its baton on, as the free commit holds.
 - A missing cable is not a failing suite (`open_session()` falls back to the
   stand-in). `tests/test_emulator.py` runs the image on Renode (skips without
   it; `setup.ps1` installs it); `tools/emu/emulator.py --nodes N` a limb.
@@ -58,9 +63,10 @@
   cost in ms (`rate.Corner`, `rate.rate_of(console)`), no box of its
   own; `run_view` ticks it, a page with its own loop (`menu.py`,
   `show_render.py`) ticks it after each update.
-- `coaxial_tty.ps1 -Emulated` runs the terminal on the emulated image (chip
-  EMULATOR); `python tools/render/page.py PAGE --port emulator:// --png f.png`
-  renders a page's last frame on it.
+- `coaxial_tty.ps1` runs the terminal on the emulated image (chip
+  EMULATOR), `-Port COM4` on the bench, `-Simulated` on the stand-in;
+  `python tools/render/page.py PAGE --port emulator:// --png f.png` renders a
+  page's last frame.
 - Braille is judged in a raster, then by the bench: `COLUMNS=200 LINES=60
   python terminal/views/show_X.py --simulated --frames 1 > f.txt` (the rotor
   observer and BOARD ATTITUDE take `--width --height`), then

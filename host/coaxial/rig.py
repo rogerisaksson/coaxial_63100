@@ -1,6 +1,5 @@
 """One board behind one class: connect, configure, trigger, read."""
 import sys
-import time
 import zlib
 from contextlib import suppress
 from typing import Any
@@ -8,6 +7,7 @@ from typing import Any
 from coaxial.acquire.acquisition import Acquisition
 from coaxial.acquire.clock import NTP_SERVER
 from coaxial.acquire.stream import TaskStream
+from coaxial.comm.hostclock import clock_of
 from coaxial.acquire.task import Task
 from coaxial.comm import broker, session as sessionmod
 from coaxial.comm.session import EMULATOR_URL
@@ -246,6 +246,21 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             if not was:
                 board.afe.off()
 
+    def pilot(self, volts, hz=None, noise=0.0):
+        """The master's common-mode pilot on this board's bus, the STO chain's
+        (electronic_simulations/sto): its amplifier's amplitude, V (0 none), and Hz; the far
+        end's 100 kHz common mode, V. An emulated bus's master or the stand-in's; a live bus's
+        master is its own."""
+        from coaxial.simulated.sto import PILOT_HZ
+        hz = PILOT_HZ if hz is None else hz
+        board = self.board
+        master = (getattr(getattr(board.transport, 'serial', None), 'pilot', None)
+                  or getattr(board, 'pilot', None))
+        if master is None:
+            raise RigError('no master to set a pilot on: %s is a live bus, and its pilot is '
+                           'what its master sends' % self.origin.label)
+        master(volts, hz, noise)
+
     def _load_blank(self):
         """A node waiting blank in its bootloader on the port (docs/BOOT.md) onto this host's
         build as `unit`, at position `unit`. Whether one was."""
@@ -311,7 +326,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         self.board.afe.on()
         self._afe_held = True
         if not already:
-            time.sleep(self.AFE_SETTLE)
+            clock_of(self).sleep(self.AFE_SETTLE)
 
     def __getattr__(self, name):
         """`device.imu` is `device.board.imu`, and it can be named early."""

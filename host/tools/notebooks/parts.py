@@ -1,9 +1,12 @@
 """The cells every notebook shares, and the one shape they are laid out in."""
-#: The knob flipped at the bench.
+#: The knob flipped at the bench: the mode, and why it is that one.
 KNOB = """from coaxial import ExecutionMode
 
-MODE = ExecutionMode.EMULATED   # the image on Renode, the stand-in where none runs; .HARDWARE and PORT at the bench
+MODE = ExecutionMode.%s   # %s; .HARDWARE and PORT at the bench
 PORT = 'COM4'"""
+
+#: A paper's mode unless it names its own (`MODE` in its module).
+EMULATED = ('EMULATED', 'the image on Renode, the stand-in where none runs')
 
 OPEN = """from coaxial import Coaxial63100
 
@@ -26,10 +29,11 @@ def section(heading, *cells):
     return (heading, list(cells))
 
 
-def paper(title, summary, sections, results, bench, references, device=True):
+def paper(title, summary, sections, results, bench, references, device=True, mode=EMULATED):
     """# title, summary; 1 Setup; the sections; close; Results; Bench; References.
-    `device`: the paper opens a Coaxial63100 as `device` and closes it; else only the knob."""
-    cells = [md('# %s\n\n%s' % (title, summary)), md('## 1 Setup'), code(KNOB)]
+    `device`: the paper opens a Coaxial63100 as `device` and closes it; else only the knob.
+    `mode`: (the ExecutionMode's name, why)."""
+    cells = [md('# %s\n\n%s' % (title, summary)), md('## 1 Setup'), code(KNOB % mode)]
     if device:
         cells.append(code(OPEN))
     for number, (heading, body) in enumerate(sections, start=2):

@@ -396,7 +396,7 @@ def put_back(rig, load):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--port', default='COM4')
+    p.add_argument('--port', default='emulator://')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=2.0)
     p.add_argument('--frames', type=int, default=0,
@@ -444,13 +444,16 @@ def main():
         load = None
         if a.switch is not None:
             legs = [x.strip().upper() for x in a.phases.split(',')]
-            # AFE off first, then arm.
-            rig.board.afe.off()
+            # The bench board's drivers have supply with AFE_ON off (R93 unmodified): off first,
+            # then arm. The schematic's - emulated, simulated - have it off the STO chain, whose
+            # pilot detector runs off AFE_ON: on.
+            bench = not _screen.demo(origin)
+            rig.board.afe.write(not bench)
             rig.gates.on(bypass_sto=True, ignore_interlock=True)
             load = {'Phase ' + leg: a.switch for leg in legs}
             rig.write(analog=load)
-            say('warn', 'switching', '%s at %.0f %% - AFE off, STO bypassed'
-                % ('+'.join(legs), a.switch * 100))
+            say('warn', 'switching', '%s at %.0f %% - AFE %s, STO bypassed'
+                % ('+'.join(legs), a.switch * 100, 'off' if bench else 'on'))
 
         board_view = stage()
         console = board_view.is_terminal

@@ -5,9 +5,13 @@ A rig on `native://` (tools.cores.native), the real-time engine for SIL and HIL:
 board/src's board layer built for this host over board/native's chip, the world's plant under
 it, a thread holding the board's clock to the wall's. It stands as an emulated board, keeps
 real time, turns the demo motor on every period of the timer, its A1335 on the plant's shaft
-and its BNO085 reading what a SIL pipes; the humanoid's twenty boards on five buses keep the
-wall with every drive running. The firmware against its sensors and timers is
-test_emulator's, on Renode.
+and its BNO085 reading what a SIL pipes. Named, the humanoid's twenty boards on five buses keep
+the wall with every drive running - the humanoid is the stand-in's for now (2026-09-27). The
+firmware against its sensors and timers is test_emulator's, on Renode.
+
+    python -X utf8 tests/test_native.py                 # the rig's tests
+    python -X utf8 tests/test_native.py sto current     # those
+    python -X utf8 tests/test_native.py body            # the humanoid's fleet
 """
 import math
 import os
@@ -20,9 +24,12 @@ from coaxial import EMULATED, Coaxial63100  # noqa: E402
 from coaxial.comm.session import standing  # noqa: E402
 from coaxial.devices.imu import ACCELEROMETER  # noqa: E402
 from coaxial.node import discover  # noqa: E402
+from coaxial.model.inverter import GATE_UVLO_V  # noqa: E402
+from coaxial.simulated.sto import PILOT_VOLTS  # noqa: E402
 from terminal.ui.demo import stop_motor, turn_motor  # noqa: E402
 from tools.cores import native  # noqa: E402
 from tools.cores.build import find_cc  # noqa: E402
+from tools.dev.focus import pick, watchdog  # noqa: E402
 
 #: The wall seconds each window runs.
 WINDOW_S = 1.0
@@ -47,6 +54,10 @@ SQUARE_SHARE = 0.03
 #: gate's load; a garbage sample or a plant hasted before its observer put them 5-6 K apart
 #: (FINDINGS 2026-09-26).
 LEG_K = 2.0
+
+#: The STO chain: its time to release or trip from any input and settle, board s (1.5 ms at
+#: the circuit's, world_sto.c).
+STO_SETTLE_S = 0.05
 
 #: thermal.h's node order, as the world gives them (Board.nodes).
 NODES = ('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v', 'phase_w', 'mcu',
@@ -243,28 +254,88 @@ def test_the_body_keeps_the_wall(report):
             n.close()
 
 
-def main():
+def test_the_sto_chain_follows_the_pilot(report, rig):
+    """The master's pilot on the bus and the AFE up: the chain releases - PE15 high, Clevel
+    and Cinj over the interlock's, +15V7 over the drivers' UVLO - and the break latch clears;
+    the pilot gone, PE15 falls and BIF latches; back, the stage arms on the interlock with
+    neither bypass, and the pilot gone again drops MOE through the break."""
+    b = rig.board
+    b.afe.on()
+    try:
+        b.transport.sleep(STO_SETTLE_S)
+        b.gate_drivers.clear()
+        up = sto_seen(b)
+        rig.pilot(0.0)
+        b.transport.sleep(STO_SETTLE_S)
+        down = sto_seen(b)
+        rig.pilot(PILOT_VOLTS)
+        b.transport.sleep(STO_SETTLE_S)
+        rig.gates.on()
+        armed = b.gate_drivers.state()
+        rig.pilot(0.0)
+        b.transport.sleep(STO_SETTLE_S)
+        broken = b.gate_drivers.state()
+    finally:
+        rig.pilot(PILOT_VOLTS)
+        rig.gates.off()
+        b.afe.off()
+    report.check('released on the pilot: PE15 high, the latch cleared, the pins over the interlock',
+                 up['pe15'] and not up['fault'] and up['Clevel'] >= 2.0 and up['Cinj'] >= 3.0
+                 and up['vgate'] >= GATE_UVLO_V,
+                 'Cinj %.2f, Clevel %.2f V, +15V7 %.1f V' % (up['Cinj'], up['Clevel'], up['vgate']))
+    report.check('the pilot gone: PE15 low, BIF latched, +15V7 under UVLO',
+                 not down['pe15'] and down['fault'] and down['vgate'] < GATE_UVLO_V,
+                 'Cinj %.2f, Clevel %.2f V, +15V7 %.1f V' % (down['Cinj'], down['Clevel'],
+                                                           down['vgate']))
+    report.check('armed on the interlock with neither bypass, the break drops MOE',
+                 armed['pwm_enabled'] and not armed['break_bypassed']
+                 and not broken['pwm_enabled'] and broken['fault'],
+                 'MOE %s then %s' % (armed['pwm_enabled'], broken['pwm_enabled']))
+
+
+def sto_seen(board):
+    """PE15, BIF and the chain's three pins: Cinj and Clevel at the pin, +15V7 as the gate
+    drivers' state reads it through the record's divider."""
+    pins = {c['signal']: c['volts_at_pin'] for c in board.analog.read(samples=4)['channels']}
+    state = board.gate_drivers.state()
+    return {'pe15': board.analog.scan()['pe15'], 'fault': state['fault'],
+            'Cinj': pins['Cinj'], 'Clevel': pins['Clevel'], 'vgate': state['vgate_mv'] / 1e3}
+
+
+#: The rig's tests in their order; the thermometers last: their sample a thermal second winds
+#: the observer's leg patches off the world's (the NTC anchor inverts a standing miss through
+#: its lag at every sample, docs/TODO.md).
+RIG = (test_it_stands_as_an_emulated_board, test_the_clock_keeps_the_wall,
+       test_the_demo_motor_turns_in_real_time, test_the_parts_answer,
+       test_the_current_is_the_worlds, test_the_sto_chain_follows_the_pilot,
+       test_the_thermometers_read_the_world)
+
+#: The suite's time, s: the rig's tests ran 20 s (2026-09-27); the humanoid's fleet its own.
+RIG_S, BODY_S = 120, 300
+
+
+def main(argv=None):
+    names = list(sys.argv[1:] if argv is None else argv)
+    body = 'body' in names
+    names = [name for name in names if name != 'body']
     report = Report()
     if find_cc() is None:
         print('no C compiler: the board layer cannot be built for this host')
         print('\n0 passed, 0 failed')
         return 0
-    rig = Coaxial63100(port='native://').open()
-    try:
-        for test in (test_it_stands_as_an_emulated_board, test_the_clock_keeps_the_wall,
-                     test_the_demo_motor_turns_in_real_time):
-            print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
-            test(report, rig)
-        print('\n-- the parts answer --')
-        test_the_parts_answer(report, rig)
-        print('\n-- the thermometers read the world --')
-        test_the_thermometers_read_the_world(report, rig)
-        print('\n-- the current is the world\'s --')
-        test_the_current_is_the_worlds(report, rig)
-    finally:
-        rig.close()
-    print('\n-- the body keeps the wall --')
-    test_the_body_keeps_the_wall(report)
+    tests = pick(RIG, names) if names or not body else []
+    watchdog((RIG_S if tests else 0) + (BODY_S if body else 0))
+    if tests:
+        rig = Coaxial63100(port='native://').open()
+        try:
+            for test in tests:
+                print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
+                test(report, rig)
+        finally:
+            rig.close()
+    if body:
+        print('\n-- the body keeps the wall --')
+        test_the_body_keeps_the_wall(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

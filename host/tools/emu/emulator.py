@@ -31,6 +31,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO  # noqa: E402
+from coaxial.simulated.sto import PILOT_HZ  # noqa: E402
 from tools.emu import world as worlds  # noqa: E402
 
 SCRIPT = 'board/emu/coaxial_63100.resc'
@@ -183,12 +184,14 @@ class Emulator:
         return ['cpu PerformanceInMips %d' % self.mips]
 
     def planted(self, node):
-        """The world's commands for the board at `node`, none without a world."""
+        """The board at `node`'s STO chain on the world library, and its world's commands if it
+        has a world."""
+        library = worlds.library()
+        chain = ['%s Library "%s"' % (worlds.STO, library.replace(os.sep, '/')),
+                 '%s Node %d' % (worlds.STO, node)]
         if self.world is None:
-            return []
-        if not hasattr(self, '_library'):
-            self._library = worlds.library()
-        return worlds.commands(self.world, node, self._library, first=node == 0)
+            return chain + ['%s DcBusVolts %s' % (worlds.AFE, worlds._decimal(worlds.LINK_VOLTS))]
+        return chain + worlds.commands(self.world, node, library, first=node == 0)
 
     def start(self):
         renode = find_renode()
@@ -252,6 +255,13 @@ class Emulator:
         """Every plant's heat on `haste` thermal s a virtual s, as the rig sets its boards'
         observers (Coaxial63100._in_its_world)."""
         self._each_cpu('%s Haste %s' % (worlds.PLANT, worlds._decimal(haste)))
+
+    def pilot(self, volts, hz=PILOT_HZ, noise=0.0):
+        """The master's common-mode pilot on the bus, every board's STO chain on it: its
+        amplifier's amplitude, V (0 none), and Hz; the far end's 100 kHz common mode, V."""
+        self._each_cpu('%s PilotVolts %s; %s PilotHz %s; %s NoiseVolts %s'
+                       % (worlds.STO, worlds._decimal(volts), worlds.STO, worlds._decimal(hz),
+                          worlds.STO, worlds._decimal(noise)))
 
     def measure(self, seconds=SCALE_S):
         """`time_scale` over `seconds` of wall time, at least 1."""
@@ -349,7 +359,7 @@ class Limb(Emulator):
             out += ['sysbus WriteDoubleWord 0x%08X 0x%08X' % (UID_AT, 0x63100000 | unit),
                     # Its own board within the tolerances: the front end's errors drawn from
                     # its UID.
-                    'sysbus.gpioPortB.afe NoiseSeed %d' % (0x63100000 | unit)]
+                    '%s NoiseSeed %d' % (worlds.AFE, 0x63100000 | unit)]
         out += ['emulation CreateUARTHub "limb"']
         for unit in range(1, self.nodes + 1):
             out += ['mach set "node%d"' % unit,

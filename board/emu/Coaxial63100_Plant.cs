@@ -11,8 +11,9 @@
 // coasts. The board's heat is thermal.c's network in the world library (world_heat.c), the truth
 // its observer is judged by: the duties, MOE, the legs' mean squares, the link and the shaft ten
 // times a virtual second, the NTC's element and the two dies written into the front end.
-// `Thermal` false leaves the three to the monitor. It hangs on TIM1_CH1, PE9, and follows TIM1 (Coaxial63100_TIM1.cs) through what
-// is written to it.
+// `Thermal` false leaves the three to the monitor. The stage is driven while MOE is set and the
+// gate drivers' supply, the STO chain's +15V7 (Coaxial63100_STO.cs), stands over their UVLO. It
+// hangs on TIM1_CH1, PE9, and follows TIM1 (Coaxial63100_TIM1.cs) through what is written to it.
 
 using System;
 using System.Linq;
@@ -268,11 +269,10 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(attached)
             {
                 var arr = (float)Math.Max(1U, tim1.ReadDoubleWord(Arr));
-                var moe = (bdtr & MoeBit) != 0;
                 var got = new float[4];
 
                 plantStep(Node, tim1.ReadDoubleWord(Ccr1) / arr, tim1.ReadDoubleWord(Ccr2) / arr,
-                          tim1.ReadDoubleWord(Ccr3) / arr, moe ? 1 : 0, period, got);
+                          tim1.ReadDoubleWord(Ccr3) / arr, Driven ? 1 : 0, period, got);
                 afe.PhaseUAmps = got[0];
                 afe.PhaseVAmps = got[1];
                 afe.PhaseWAmps = got[2];
@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             var n = Math.Max(1L, periods);
             var arr = (float)Math.Max(1U, tim1.ReadDoubleWord(Arr));
             load[0] = afe.Powered ? 1f : 0f;
-            load[1] = (bdtr & MoeBit) != 0 ? 1f : 0f;
+            load[1] = Driven ? 1f : 0f;
             load[2] = tim1.ReadDoubleWord(Ccr1) / arr;
             load[3] = tim1.ReadDoubleWord(Ccr2) / arr;
             load[4] = tim1.ReadDoubleWord(Ccr3) / arr;
@@ -336,6 +336,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             afe.DieCelsius = seen[1];
             afe.AngleCelsius = seen[2];
         }
+
+        /// <summary>MOE set and the drivers supplied: the 2EDL8034's outputs follow TIM1.</summary>
+        private bool Driven => (bdtr & MoeBit) != 0 && afe.GateVolts >= GateUvloVolts;
 
         private static T Export<T>(string name) where T : Delegate
         {
@@ -389,6 +392,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private double haste = 1.0;
 
         private const uint HeatHz = 10;
+        /// <summary>The 2EDL8034's UVLO, V (motor_inverters/half_bridge/2EDL8034F5.lib).</summary>
+        private const double GateUvloVolts = 7.5;
         /// <summary>The world's step while nothing drives it, Hz.</summary>
         private const uint CoastHz = 1000;
         private readonly uint pwmHz;

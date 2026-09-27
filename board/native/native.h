@@ -12,10 +12,13 @@ void native_wait(uint64_t cycles);
 void native_irq(int irq, void (*handler)(void));
 bool native_irq_enabled(int irq);
 
-/* native.c: what the parts sense - AFE_ON, the A1335's die, the shaft. */
+/* native.c: what the parts sense - AFE_ON, the A1335's die, the shaft; the STO chain's
+   KEEPALIVE (PA10) written and its FAULTOUT (PE15). */
 bool native_powered(void);
 double native_angle_celsius(void);
 double native_shaft_degrees(void);
+void native_keepalive(bool level);
+bool native_faultout(void);
 
 /* native_io.c: the pins and the SPI buses. */
 void native_io_open(void);

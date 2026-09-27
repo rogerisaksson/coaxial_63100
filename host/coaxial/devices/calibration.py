@@ -70,8 +70,12 @@ class CalibrationOps(Input, Output):
         return got
 
     def _tare_here(self, name):
-        """A burst's mean, measured on this side and written as the offset."""
-        code = self._burst_mean(name)
+        """A burst's mean, measured on this side, folded into the offset: the board reads
+        through the record, so what is left is added to the offset it already applies - written
+        alone, a second tare undid the first (Board_CalZero reads uncorrected for this)."""
+        was = {c['index']: c for c in self.read()['channels']}.get(self._index_of(name), {})
+        gain = 1.0 + (was.get('gain_ppm') or 0) / 1e6
+        code = int(round((was.get('offset_raw') or 0) + self._burst_mean(name) / gain))
         self.compensate(name, offset=code, save=False)
         return code
 

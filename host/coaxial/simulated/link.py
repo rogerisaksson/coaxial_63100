@@ -4,6 +4,10 @@ from coaxial.comm import protocol
 from coaxial.errors import DeviceStateError
 from machine.roles import Endpoint
 
+#: RTU's silences above 19 200 baud in the part's raw DWT cycles at 475 MHz (invariant 2):
+#: t1.5 750 us, t3.5 1750 us.
+T15_TICKS, T35_TICKS = 356250, 831250
+
 
 class SimulatedLink(Endpoint):
     """A stand-in link."""
@@ -35,10 +39,12 @@ class SimulatedLink(Endpoint):
         if port not in protocol.PORTS:
             raise ValueError('port %r is not one of the three' % (port,))
         rs485 = port != 0
+        # The console carries the conversation; the two RS485 pairs see no frame.
+        seen = 0 if rs485 else 42
         return {'port': port, 'name': protocol.PORTS[port], 'rs485': rs485,
                 'open': True, 'baud': 115200, 'unit_id': 1,
-                't15_ticks': 1750, 't35_ticks': 4083,
-                'bus_message': 42, 'bus_comm_error': 0, 'server_message': 42,
+                't15_ticks': T15_TICKS, 't35_ticks': T35_TICKS,
+                'bus_message': seen, 'bus_comm_error': 0, 'server_message': seen,
                 'server_exception': 0, 'server_no_response': 0,
                 'char_overrun': 0, 'ring_dropped': 0, 'for_others': 0}
 

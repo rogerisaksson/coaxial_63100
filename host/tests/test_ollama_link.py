@@ -381,8 +381,9 @@ def test_fallback(report):
     session.board.gpio.port_write('B', 0xFFFF, 0)
     report.check('clearing PB2 on the stand-in turns its AFE off',
                  not session.board.afe.state()['on'])
-    report.check('and PE15 follows it inversely, as the real one does',
-                 session.board.gpio.read('E', 15) is True)
+    report.check('and PE15 falls with it: the STO chain is down without +5 (the board as '
+                 'the schematic draws it; the unmodified bench follows AFE_ON inversely)',
+                 session.board.gpio.read('E', 15) is False)
     session.board.gpio.write('B', 2, True)
     report.check('setting PB2 turns it back on',
                  session.board.afe.state()['on']

@@ -33,6 +33,7 @@ node = nodes.of_type('bldc_inverter')[0]
 drive, gates = node.rig.drive, node.rig.gates
 drive.configure(source='model')
 drive.model.configure(j=2e-5, b=1e-5, load=0.0, noise=0.05)
+node.rig.board.afe.on()                 # +5 for the STO chain: the drivers' supply
 gates.on(bypass_sto=True, ignore_interlock=True)
 print(Nodes([node]).card('drive', 'angle', keys=('omega_hat', 'iq', 'degrees', 'iq_ref', 'theta')))
 print('%d channels on %d nodes, each over %s'

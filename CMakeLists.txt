@@ -186,6 +186,11 @@ set_source_files_properties(
 set_source_files_properties(
     board/src/board_drive.c board/src/board_ctrl.c board/src/board_sync.c board/src/board_daq.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow")
+# The thermal observer, in main() between the STO keepalive's edges: at -O0 a slice of its
+# identification held main() 236 us, past what the chain's pump carries (2026-09-27).
+set_source_files_properties(
+    thermal/src/thermal.c thermal/src/thermal_ident.c
+    PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 # And the HAL in front of it: HAL_ADC_IRQHandler is every flag check in the
 # peripheral before the callback runs, fifty thousand times a second.
 set_source_files_properties(

@@ -5,7 +5,7 @@
 .DESCRIPTION
     The drive - 0x6E device 10 - runs on the board at the PWM rate.
 .PARAMETER Port
-    The board's VCP.
+    The board: emulator://, this host's image in Renode, unless a VCP is named.
 .PARAMETER Source
     model (default) or adc.
 .PARAMETER Motor
@@ -28,7 +28,7 @@
     .\terminal\rotor_observer.ps1 -Simulated
 #>
 param(
-    [string]$Port = 'COM4',
+    [string]$Port = 'emulator://',
     [ValidateSet('model', 'adc')][string]$Source = 'model',
     [string]$Motor,
     [switch]$Switch,

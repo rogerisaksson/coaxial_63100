@@ -5,10 +5,14 @@ The whole of it - CubeMX's code, the HAL, the board layer, comms/, the cores - o
 STM32H753 (tools/emu, board/emu), the front end from the LTspice fit
 (board/emu/coaxial_63100_afe.repl).
 
-The bench's conformance suite runs first, alone on the console Renode serves one client at a
-time; then a rig on the same port through test_wire's sweeps, and the front end's inputs
-through the monitor. Skips without Renode or a built image, unless COAXIAL_EMULATOR is
-`required` (CI).
+In groups on the relay, a process and a Renode each (tools.dev.focus): the bench's conformance
+suite on a console of its own; a rig through test_wire's sweeps and the front end's inputs
+through the monitor; a limb at 10 Mbit; a blank node loaded. Skips without Renode or a built
+image, unless COAXIAL_EMULATOR is `required` (CI).
+
+    python -X utf8 tests/test_emulator.py                   # every group
+    python -X utf8 tests/test_emulator.py bus blank         # those
+    python -X utf8 tests/test_emulator.py board sto imu     # the rig's tests with those words
 """
 import os
 import subprocess
@@ -22,11 +26,15 @@ import test_wire as wire  # noqa: E402
 from coaxial import EMULATED, Coaxial63100  # noqa: E402
 from coaxial.devices import boot  # noqa: E402
 from coaxial.errors import RigError  # noqa: E402
+from coaxial.model.inverter import GATE_UVLO_V  # noqa: E402
+from coaxial.simulated.sto import PILOT_VOLTS  # noqa: E402
+from tools.dev.focus import pick, run_groups, watchdog  # noqa: E402
 from tools.emu import protocol_emulator  # noqa: E402
+from tools.emu import world as worlds  # noqa: E402
 from tools.emu.emulator import (BOOT_ELF, ELF, FAITHFUL_MIPS, Emulator, Limb,  # noqa: E402
                                 find_renode)
 
-AFE = 'sysbus.gpioPortB.afe'
+AFE = worlds.AFE
 ANGLE = 'sysbus.spi4.angle'
 IMU = 'sysbus.spi2.imu'
 
@@ -50,7 +58,7 @@ def test_the_front_end_feeds_the_image(report, rig, emu):
     for volts in (12.0, 24.0, 48.0):
         emu.command('%s DcBusVolts %s' % (AFE, volts))
         got.append((volts, b.analog.scan()['dcbus_mv']))
-    emu.command('%s DcBusVolts 0' % AFE)
+    emu.command('%s DcBusVolts %s' % (AFE, worlds._decimal(worlds.LINK_VOLTS)))
     b.afe.off()
     readings = [mv for _, mv in got]
     report.check('the DC link the image reads follows the one fed',
@@ -82,7 +90,7 @@ def test_the_injected_triple_runs(report, rig, emu):
             seen.append(b.gate_drivers.state())
     finally:
         b.gate_drivers.configure(sync=False)
-        emu.command('%s DcBusVolts 0' % AFE)
+        emu.command('%s DcBusVolts %s' % (AFE, worlds._decimal(worlds.LINK_VOLTS)))
         b.afe.off()
     first, last = seen
     report.check('the injected triple counts on TRGO2 while the sync is armed',
@@ -197,43 +205,132 @@ def test_emulated_falls_back_where_none_runs(report):
                  said[:100] or done.stderr.strip()[-200:])
 
 
-def main():
-    report = wire.Report()
-    print('\n-- emulated falls back where none runs --')
-    test_emulated_falls_back_where_none_runs(report)
+#: The STO chain: its time to release or trip from any input and settle, board s (1.5 ms at
+#: the circuit's, world_sto.c).
+STO_SETTLE_S = 0.05
+
+
+def test_the_sto_chain_follows_the_pilot(report, rig, emu):
+    """The master's pilot on the bus and the AFE up: the chain releases - PE15 high, Clevel
+    and Cinj over the interlock's, +15V7 over the drivers' UVLO - and the break latch clears;
+    the pilot gone, PE15 falls and BIF latches; back, the stage arms on the interlock with
+    neither bypass, and the pilot gone again drops MOE through the break."""
+    b = rig.board
+    b.afe.on()
+    try:
+        b.transport.sleep(STO_SETTLE_S)
+        b.gate_drivers.clear()
+        up = sto_seen(b)
+        emu.pilot(0.0)
+        b.transport.sleep(STO_SETTLE_S)
+        down = sto_seen(b)
+        emu.pilot(PILOT_VOLTS)
+        b.transport.sleep(STO_SETTLE_S)
+        rig.gates.on()
+        armed = b.gate_drivers.state()
+        emu.pilot(0.0)
+        b.transport.sleep(STO_SETTLE_S)
+        broken = b.gate_drivers.state()
+    finally:
+        emu.pilot(PILOT_VOLTS)
+        rig.gates.off()
+        b.afe.off()
+    report.check('released on the pilot: PE15 high, the latch cleared, the pins over the interlock',
+                 up['pe15'] and not up['fault'] and up['Clevel'] >= 2.0 and up['Cinj'] >= 3.0
+                 and up['vgate'] >= GATE_UVLO_V,
+                 'Cinj %.2f, Clevel %.2f V, +15V7 %.1f V' % (up['Cinj'], up['Clevel'], up['vgate']))
+    report.check('the pilot gone: PE15 low, BIF latched, +15V7 under UVLO',
+                 not down['pe15'] and down['fault'] and down['vgate'] < GATE_UVLO_V,
+                 'Cinj %.2f, Clevel %.2f V, +15V7 %.1f V' % (down['Cinj'], down['Clevel'],
+                                                           down['vgate']))
+    report.check('armed on the interlock with neither bypass, the break drops MOE',
+                 armed['pwm_enabled'] and not armed['break_bypassed']
+                 and not broken['pwm_enabled'] and broken['fault'],
+                 'MOE %s then %s' % (armed['pwm_enabled'], broken['pwm_enabled']))
+
+
+def sto_seen(board):
+    """PE15, BIF and the chain's three pins: Cinj and Clevel at the pin, +15V7 as the gate
+    drivers' state reads it through the record's divider."""
+    pins = {c['signal']: c['volts_at_pin'] for c in board.analog.read(samples=4)['channels']}
+    state = board.gate_drivers.state()
+    return {'pe15': board.analog.scan()['pe15'], 'fault': state['fault'],
+            'Cinj': pins['Cinj'], 'Clevel': pins['Clevel'], 'vgate': state['vgate_mv'] / 1e3}
+
+
+#: The rig's tests in their order: test_wire's sweeps take the rig, this file's the emulator
+#: too; the acquisition's last - its boot.stay resets the board 50 ms on.
+BOARD = (wire.test_every_read_decodes, wire.test_settings_are_taken, wire.test_the_wire_refuses,
+         wire.test_every_verb_answers_or_refuses, wire.test_the_acquisition_records_decode,
+         wire.test_the_record_survives_a_save, test_the_front_end_feeds_the_image,
+         test_the_injected_triple_runs, test_the_angle_sensor_reads, test_the_imu_answers,
+         test_the_sto_chain_follows_the_pilot, wire.test_acquisition_answers_or_refuses)
+
+
+def run(report, tests):
+    """`tests` in order, their names first."""
+    for test, *given in tests:
+        print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
+        test(report, *given)
+
+
+def board(report, names=()):
+    """A rig on an emulator of its own through BOARD, or those of it `names` picks. Renode's own
+    100 MIPS: nothing here runs to the part's cycle budget."""
+    with Emulator(monitor=True, mips=None, mpu=True) as emu:
+        rig = Coaxial63100(port=emu.url, own_image=False).open()
+        rig.board.transport.time_scale_source = emu.load
+        try:
+            run(report, [(test, rig) + ((emu,) if test.__module__ == __name__ else ())
+                         for test in pick(BOARD, names)])
+        finally:
+            rig.close()
+
+
+def conformance(report, _names=()):
+    with Emulator(monitor=True, mips=None, mpu=True) as emu:
+        run(report, [(test_the_bench_conformance_holds, emu)])
+
+
+def fallback(report, _names=()):
+    run(report, [(test_emulated_falls_back_where_none_runs,)])
+
+
+def bus(report, _names=()):
+    run(report, [(test_ten_megabit_on_the_bus,)])
+
+
+def blank(report, _names=()):
+    run(report, [(test_a_blank_node_takes_the_host_build,)])
+
+
+#: Each a process and a Renode of its own on the relay, the longest first (2026-09-27: the rig
+#: 84 s, the blank node 71, conformance 44, the bus 43).
+GROUPS = {'board': board, 'blank': blank, 'conformance': conformance, 'bus': bus,
+          'fallback': fallback}
+
+#: A group's time, s: the rig's took 150 of the suite's 211 one after another (2026-09-27).
+GROUP_S = 240
+
+
+def main(argv=None):
+    names = list(sys.argv[1:] if argv is None else argv)
+    groups, tests = (['board'], names[1:]) if names[:1] == ['board'] else (names or list(GROUPS), [])
+    unknown = [g for g in groups if g not in GROUPS]
+    if unknown:
+        sys.exit('no group %s: %s' % (', '.join(unknown), ', '.join(GROUPS)))
     if find_renode() is None or not (os.path.exists(ELF) and os.path.exists(BOOT_ELF)):
+        report = wire.Report()
+        GROUPS['fallback'](report)
         print('no Renode or no images (%s, %s): the emulator needs all three' % (ELF, BOOT_ELF))
         required = os.environ.get('COAXIAL_EMULATOR') == 'required'
         print('\n%d passed, %d failed' % (report.passed, report.failed + required))
         return int(required or report.failed)
-    # Renode's own 100 MIPS: nothing here runs to the part's cycle budget.
-    with Emulator(monitor=True, mips=None, mpu=True) as emu:
-        print('\n-- the bench conformance holds --')
-        test_the_bench_conformance_holds(report, emu)
-        rig = Coaxial63100(port=emu.url, own_image=False).open()
-        rig.board.transport.time_scale_source = emu.load
-        try:
-            for test in (wire.test_every_read_decodes, wire.test_settings_are_taken,
-                         wire.test_the_wire_refuses, wire.test_every_verb_answers_or_refuses,
-                         wire.test_the_acquisition_records_decode,
-                         wire.test_the_record_survives_a_save):
-                print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
-                test(report, rig)
-            print('\n-- the front end feeds the image --')
-            test_the_front_end_feeds_the_image(report, rig, emu)
-            for test in (test_the_injected_triple_runs, test_the_angle_sensor_reads,
-                         test_the_imu_answers):
-                print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
-                test(report, rig, emu)
-            # Last: its boot.stay resets the board 50 ms on.
-            print('\n-- acquisition answers or refuses --')
-            wire.test_acquisition_answers_or_refuses(report, rig)
-        finally:
-            rig.close()
-    print('\n-- ten megabit on the bus --')
-    test_ten_megabit_on_the_bus(report)
-    print('\n-- a blank node takes the host build --')
-    test_a_blank_node_takes_the_host_build(report)
+    if len(groups) > 1:
+        return run_groups(__file__, groups, GROUP_S)
+    watchdog(GROUP_S)
+    report = wire.Report()
+    GROUPS[groups[0]](report, tests)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

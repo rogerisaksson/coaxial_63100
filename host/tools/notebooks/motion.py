@@ -8,7 +8,8 @@ SECTIONS = [
     section(
         'The stage, armed',
     md("`device.gates.on()` arms; the drive on the `model` source turns the stand-in's "
-       'rotor and its shaft sensor. `Kt = 1.5 P lambda` from the record.'),
+       'rotor and its shaft sensor. AFE_ON up first (`daq.enable()`): the A1335 and the STO '
+       "chain's pilot detector run off it. `Kt = 1.5 P lambda` from the record."),
     code('''import math
 import time
 
@@ -16,6 +17,7 @@ drive = device.drive
 drive.configure(source='model')
 J, B = 2e-5, 1e-5
 drive.model.configure(j=J, b=B, load=0.0)
+device.daq.enable()
 stage = device.gates.on(bypass_sto=True, ignore_interlock=True)
 params = drive.params()
 poles = int(params['motor_pole_pairs'])

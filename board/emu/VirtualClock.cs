@@ -52,6 +52,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        /// <summary>Virtual seconds, the CPU synced first: exact where no instruction has run
+        /// since, a sleep's edges or a timer's event.</summary>
+        public double Synced
+        {
+            get
+            {
+                stale = true;
+                return Seconds;
+            }
+        }
+
         private VirtualClock(IMachine machine)
         {
             this.machine = machine;

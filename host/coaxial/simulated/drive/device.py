@@ -13,6 +13,7 @@ from coaxial.simulated.drive.observers import DriveObservers
 from coaxial.simulated.drive.plant import DrivePlant
 from coaxial.simulated.values import DCBUS_V
 from motor.catalog import BENCH_MOTOR
+from motor.pmsm import WINDING_J_PER_K, WINDING_K_PER_W
 
 
 class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
@@ -132,6 +133,11 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         self._switching: Optional[Callable[[], Any]] = None
         #: What the thermal envelope is scaling the clamp by, 1 to 0.
         self._derate = 1.0
+        #: The board's triple and AFE, which the board wires: armed at a mode, as
+        #: Board_DriveSetMode arms it.
+        self._arm_sync: Optional[Callable[[], Any]] = None
+        self._sync_armed: Callable[[], bool] = lambda: True
+        self._afe_on: Callable[[], bool] = lambda: True
         self._omega_hat = 0.0
         self._model = {'r': self.R, 'ld': self.LD, 'lq': self.LQ,
                        'lambda': self.LAMBDA, 'pole_pairs': float(self.POLES),
@@ -141,6 +147,14 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
                        'theta0': 0.0, 'sub': 4.0}
         #: What the model's current noise is drawn from.
         self._rng = random.Random(self.NOISE_SEED)
+
+    def _bemf_error(self, rotor):
+        """drive.c's e_bemf: the back-EMF's angle in the estimate's frame - the estimate's
+        error off the rotor - where the back-EMF has weight, above drv_w_lo; none below."""
+        if rotor is None or abs(self._omega_hat) <= self._p('drv_w_lo', 0.0):
+            return 0.0
+        return math.atan2(math.sin(rotor['theta'] - self._theta_hat),
+                          math.cos(rotor['theta'] - self._theta_hat))
 
     @_rotor_locked
     def _rpm(self):
@@ -153,8 +167,8 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         return abs(omega) / self.POLES * 60.0 / (2.0 * math.pi)
 
     def state(self):
-        if self._source == 'model':
-            self._read_model()                   # the rotor up to now, first
+        # The rotor up to now, first.
+        rotor = self._read_model() if self._source == 'model' else None
         self._converge()
         iid, iq, vd, vq = self._dq()
         iid, iq = self._noisy(iid, iq, share=self.CLARKE_NOISE)
@@ -168,9 +182,9 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
             # The bridge's state, not the mode's.
             'stage_enabled': bool(self._switching()) if self._switching
                              else self._mode != 'off',
-            'afe_on': True,
+            'afe_on': self._afe_on(),
             'injecting': bool(self._p('drv_inj_volts', 0.0)) and self._mode in ('hold', 'sensorless'),
-            'owns_compares': self._mode != 'off', 'sync_armed': True,
+            'owns_compares': self._mode != 'off', 'sync_armed': self._sync_armed(),
             # On the model source the observer is the tracker that follows the
             # virtual rotor - a speed loop over omega_hat read 0.0 for ever
             # while the rotor did 8600 rad/s.
@@ -182,13 +196,13 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
             'omega_cmd': self._omega(),
             'id': iid, 'iq': iq, 'vd': vd, 'vq': vq, 'vdc': DCBUS_V,
             'eps': (eps_amps / gain) if gain else 0.0, 'eps_amps': eps_amps,
-            'ih': ih, 'e_bemf': 0.0, 'periods': periods,
+            'ih': ih, 'e_bemf': self._bemf_error(rotor), 'periods': periods,
             # isr_cycles_last, isr_cycles_max (1620 its floor), exit_ticks_max
             # (op 0's MINOR 2) and cycles are the stand-in's constants, not
             # measurements.
             'isr_cycles_last': 1450, 'isr_cycles_max': max(self._cycles_max, 1620),
             'pol_pos': self._pol[0], 'pol_neg': self._pol[1],
-            'trigger': self._trigger, 'ts': self.TS,
+            'trigger': self._trigger if self._sync_armed() else 0, 'ts': self.TS,
             'exit_ticks_max': 2921,
             'cycles': {'sample': 610, 'step': 1690, 'advance': 620},
         }
@@ -206,6 +220,9 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         self._mode = name
         self._fault = None
         self._mode_at = time.time()
+        # Board_DriveSetMode arms the triple for any mode but off.
+        if name != 'off' and self._arm_sync is not None:
+            self._arm_sync()
         if name != 'off':
             self._pol = (0.0, 0.0)
         return True
@@ -251,6 +268,9 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         'drv_i_trip': 100.0, 'drv_v_frac': 0.95, 'drv_sign': 1.0,
         'drv_w_lo': 60.0, 'drv_w_hi': 120.0,
         'drv_dt_step': 1.0, 'drv_sigma_i': 0.0, 'drv_trigger_ticks': 0.0,
+        # The record's winding, CAL_VERSION 12's defaults (board_cal.c).
+        'winding_k_per_w': WINDING_K_PER_W, 'winding_j_per_k': WINDING_J_PER_K,
+        'winding_limit_c': 120.0,
     }
 
     def params(self):

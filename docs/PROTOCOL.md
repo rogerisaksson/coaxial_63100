@@ -1,7 +1,7 @@
 # Protocol
 
 Host mirror: `host/coaxial/comm/protocol.py`, `wire.py`, `transport.py`. Version
-in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.22); firmware version in
+in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.23); firmware version in
 `version.h`. A host picks its codec on MAJOR only (invariant 4).
 
 ## Framing
@@ -290,7 +290,9 @@ i32 pilot_uv, i32 level_raw, i32 level_uv`; appended in this order:
 `u8 bypassed`, `u32 requested x3` (Q16.16), `u8 pins, u16 pins_at` (the
 six gate lines in one instant), `u32 deadtime_ns, i8 skew, u8 floor`,
 `u8 gate_shorts` (bit 0 U, 1 V, 2 W; 0 while armed), `u32 dcbus_raw,
-u32 ntc_raw` (MINOR 2), `u32 periods_left` (MINOR 8).
+u32 ntc_raw` (MINOR 2), `u32 periods_left` (MINOR 8), `u8 nfault, i32 vgate_mv`
+(MINOR 23: PE15, the STO chain's FAULTOUT; +15V7 through the record's divider,
+INT32_MIN unread while the current loop holds the converters).
 
 Duty before op 1 is refused. Op 2's count: 500 periods = 10.000 ms.
 
@@ -343,6 +345,7 @@ orientation, acceleration, rotation rate, magnetic field, shaft angle.
 
 A record: `u32 stamp`, 4 B SUM per analog field, 1 B duty per digital pin,
 4x i16 snapshot per sensor, `u16 count`. Use op 5's stride; never recompute.
+Its codes come through the calibration record, on either clock.
 
 ### 7 TIME, `cmd_time.c`
 
@@ -545,6 +548,7 @@ MINOR appends; MAJOR breaks a codec.
 | 20 | device 12 CTRL, the board's loop: slots, a wire, rows streamed and held; the `dec` wire type |
 | 21 | link op 0 on the port carrying the request refused in words, `u8 0, str`, where it answered ILLEGAL DATA VALUE |
 | 22 | thermal op 13 sets the observer's clock; the state's `seconds` and `seen_ms_ago` on it |
+| 23 | gate drivers op 0 appends `u8 nfault, i32 vgate_mv`: the STO chain's FAULTOUT on PE15 and the drivers' supply |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

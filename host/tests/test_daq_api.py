@@ -395,6 +395,8 @@ def test_compensate_and_tare(report):
 
 
 def test_scaled_columns_use_the_record(report):
+    """The board trims a record at the source: its codes are through the record as it stood
+    when it was taken - an offset moved moves the records after it, not the ones before."""
     with opened() as device:
         daq = device.daq
         cal = device.board.calibration
@@ -408,15 +410,18 @@ def test_scaled_columns_use_the_record(report):
                          'pandas' in str(exc), str(exc)[:50])
             return
 
-        cal.compensate('phaseU', offset=1000, save=False)
-        shifted = daq.frame(values, scaled=True)
+        was = cal.compensate('phaseU', save=False)['offset_raw']
+        cal.compensate('phaseU', offset=was + 1000, save=False)
+        with daq:
+            later = daq.frame(daq.read(20), scaled=True)
+        again = daq.frame(values, scaled=True)
 
-    report.check('a scaled column moves when the offset does',
-                 plain['Phase U (A)'].iloc[0] != shifted['Phase U (A)'].iloc[0],
-                 '%.3f -> %.3f' % (plain['Phase U (A)'].iloc[0],
-                                   shifted['Phase U (A)'].iloc[0]))
-    report.check('the codes stay under their own name',
-                 plain['Phase U'].iloc[0] == shifted['Phase U'].iloc[0])
+    report.check('a record keeps the reading it was taken with when the offset moves',
+                 plain['Phase U (A)'].iloc[0] == again['Phase U (A)'].iloc[0],
+                 '%.3f -> %.3f' % (plain['Phase U (A)'].iloc[0], again['Phase U (A)'].iloc[0]))
+    shift = later['Phase U'].mean() - plain['Phase U'].mean()
+    report.check('and the records after it carry the offset: 1000 codes lower, within 100',
+                 abs(shift + 1000.0) < 100.0, '%.0f codes' % shift)
     report.check('and the index is time',
                  plain.index.name == 'time', plain.index.name)
 

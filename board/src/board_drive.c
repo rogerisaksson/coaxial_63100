@@ -185,7 +185,15 @@ const char *Board_DriveSetpoint(uint8_t id, int32_t value)
   {
     case 0U: sp->id_ref = f / MILLI_PER_UNIT; break;
     case 1U: sp->iq_ref = f / MILLI_PER_UNIT; break;
-    case 2U: sp->theta = f / MILLI_PER_UNIT; break;
+    case 2U:
+    {
+      /* In a command frame the frame moves with it, against the ISR's own step. */
+      const uint32_t masked = Board_IrqHold();
+
+      drive_set_theta_setpoint(&s.drive, f / MILLI_PER_UNIT);
+      Board_IrqRelease(masked);
+      break;
+    }
     case 3U: sp->omega_target = f / MILLI_PER_UNIT; break;
     case 4U: sp->accel = f / MILLI_PER_UNIT; break;
     case 5U: sp->vd = f / MILLI_PER_UNIT; break;

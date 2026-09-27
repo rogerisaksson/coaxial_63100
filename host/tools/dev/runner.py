@@ -1,18 +1,14 @@
-"""One suite in its own process: run, time out, kill the tree, read the tally."""
+"""One suite in its own process: run, time out, kill the tree, read the tally - on the relay."""
 import os
 import re
-import signal
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
-from contextlib import suppress
 
 from tools.dev import counts
+from tools.dev.focus import TALLY_RE, Job, kill_tree, relay
 from tools.dev.suites import ALONE, LIVE, OLLAMA, ROOT
 
-
-TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
 
 # The whole line after FAIL, detail included: a check's detail is the compiler
 # warning, the wrong value, the reason - and on a runner the summary (relayed
@@ -22,15 +18,10 @@ FAIL_RE = re.compile(r'^\s{1,8}FAIL\s+(\S.*?)\s*$')
 # The ollama suites under --tags say what they left out.
 GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
 
-
-def kill_tree(pid):
-    """The process and every descendant, gone."""
-    if os.name == 'nt':
-        subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)],
-                       capture_output=True)
-        return
-    with suppress(OSError):
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
+#: A suite's commit on the relay, GB: the stand-in's own process; the views suite starts a
+#: page's processes by the dozen.
+SUITE_GB = 0.3
+HEAVY_GB = {'test_views.py': 2.0}
 
 
 def run_captured(argv, timeout, cwd=None):
@@ -51,17 +42,12 @@ def run_captured(argv, timeout, cwd=None):
     return subprocess.CompletedProcess(argv, proc.returncode, out, err)
 
 
-def run_one(path, timeout=300, extra=()):
-    """(tally, code, failing, elapsed, crash-or-None, groups-line-or-None)."""
-    started = time.monotonic()
-    done = run_captured([sys.executable, str(path)] + list(extra), timeout,
-                        cwd=str(ROOT))
-    if done is None:
-        return (None, None, [], time.monotonic() - started,
-                'TIMEOUT after %ss' % timeout, None)
-
-    elapsed = time.monotonic() - started
-    lines = (done.stdout or '').splitlines()
+def _parse(out, code, elapsed, timeout):
+    """(tally, code, failing, elapsed, crash-or-None, groups-line-or-None) out of a suite's
+    output; `code` None is out of time."""
+    if code is None:
+        return None, None, [], elapsed, 'TIMEOUT after %ss' % timeout, None
+    lines = (out or '').splitlines()
     tally = None
     for line in reversed(lines):
         m = TALLY_RE.match(line.strip())
@@ -72,13 +58,22 @@ def run_one(path, timeout=300, extra=()):
     failing = [m.group(1).strip() for m in (FAIL_RE.match(l) for l in lines) if m]
     groups = next((l.strip() for l in reversed(lines)
                    if GROUPS_RE.match(l.strip())), None)
-
     if tally is None:
         # The suite crashed before printing its own tally - a traceback, an
         # import error.
-        detail = (done.stderr or done.stdout or '').strip()
-        return None, done.returncode, failing, elapsed, detail[-1500:], groups
-    return tally, done.returncode, failing, elapsed, None, groups
+        return None, code, failing, elapsed, (out or '').strip()[-1500:], groups
+    return tally, code, failing, elapsed, None, groups
+
+
+def run_one(path, timeout=300, extra=()):
+    """(tally, code, failing, elapsed, crash-or-None, groups-line-or-None)."""
+    started = time.monotonic()
+    done = run_captured([sys.executable, str(path)] + list(extra), timeout,
+                        cwd=str(ROOT))
+    if done is None:
+        return _parse('', None, time.monotonic() - started, timeout)
+    return _parse((done.stdout or '') + (done.stderr or ''), done.returncode,
+                  time.monotonic() - started, timeout)
 
 
 def _extra_for(name, args, tags, live_sections):
@@ -102,31 +97,35 @@ def _extra_for(name, args, tags, live_sections):
     return extra
 
 
+def _timeout(name):
+    return 1200 if name == LIVE else 300
+
+
 def _job(name, args, tags, live_sections):
     """One suite run - `run_one`'s tuple, or None where the file is not."""
     path = ROOT / 'tests' / name
     if not path.exists():
         return None
-    return run_one(path, timeout=1200 if name == LIVE else 300,
+    return run_one(path, timeout=_timeout(name),
                    extra=_extra_for(name, args, tags, live_sections))
 
 
 def _results(suites, args, tags, live_sections):
-    """(suite, its result) in the order the report lists them: the suites
-    that share the host, in the plan's order, then the ones that want
-    it alone.
+    """(suite, its result) in the order the report lists them: the suites that share the host
+    on the relay - the longest first, a baton a physical core - then the ones that want it
+    alone, one after another.
     """
     took = counts.load().get('seconds') or {}
     sharing = [name for name in suites if name not in ALONE]
-    pool = ThreadPoolExecutor(max_workers=max(1, args.jobs))
-    try:
-        started = {name: pool.submit(_job, name, args, tags, live_sections)
-                   for name in sorted(
-                       sharing, key=lambda n: -took.get(n, float('inf')))}
-        for name in sharing:
-            yield name, started[name].result()
-    finally:
-        pool.shutdown(wait=True, cancel_futures=True)
+    jobs = [Job(name, [sys.executable, str(ROOT / 'tests' / name)]
+                + _extra_for(name, args, tags, live_sections),
+                HEAVY_GB.get(name, SUITE_GB), _timeout(name))
+            for name in sorted(sharing, key=lambda n: -took.get(n, float('inf')))
+            if (ROOT / 'tests' / name).exists()]
+    got = {job.name: _parse(out, code, seconds, job.timeout)
+           for job, out, code, seconds in relay(jobs, args.jobs)}
+    for name in sharing:
+        yield name, got.get(name)
     for name in suites:
         if name in ALONE:
             yield name, _job(name, args, tags, live_sections)

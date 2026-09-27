@@ -139,7 +139,7 @@ function Write-Summary {
     Write-Host '    dbg "why is the NTC 25.00?" ask the local model, cheaply'
     Write-Host '    board_chat                  a prompt with the model and the board in it'
     Write-Host '    cubemx                      open the .ioc in STM32CubeMX'
-    Write-Host '    .\coaxial_tty.ps1 -Emulated  the terminal on the image in Renode, no board'
+    Write-Host '    .\coaxial_tty.ps1           the terminal on the image in Renode; -Port COM4 the board'
     Write-Host '    python host/tools/emu/emulator.py [--nodes N]   the emulator alone, its URL printed'
     Write-Host ''
     if ($Check) {
