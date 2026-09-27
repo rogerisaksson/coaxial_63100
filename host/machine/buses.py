@@ -28,7 +28,7 @@ import socket
 import subprocess
 import sys
 import time
-from multiprocessing import shared_memory
+from multiprocessing import resource_tracker, shared_memory
 from typing import Any
 
 from machine import rtu
@@ -105,8 +105,10 @@ class Block:
         else:
             try:
                 self.shm = shared_memory.SharedMemory(name=name, track=False)
-            except TypeError:                 # before 3.13: tracked, and warned of at exit
-                self.shm = shared_memory.SharedMemory(name=name)
+            except TypeError:                 # before 3.13: unregistered by hand, or the
+                self.shm = shared_memory.SharedMemory(name=name)   # tracker unlinks at exit
+                if os.name != 'nt':
+                    resource_tracker.unregister(self.shm._name, 'shared_memory')
         buf: Any = self.shm.buf
         if name is None:
             buf[:size] = bytes(size)
