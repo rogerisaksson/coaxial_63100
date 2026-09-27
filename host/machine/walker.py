@@ -406,8 +406,8 @@ class Walker:
         """Walking from where she stands on her left foot, the right lifted: {joint: deg}
         `held` the stand's setpoints, eased out of over `blend_s`; the first steps `wide` m
         further out than the walk's, narrowing over WIDE_S; at `phase`, or where the plan has
-        the pelvis `ball_ahead` m behind the ball of the foot `on`, HEEL_OFF at most; the torso
-        `lean` deg ahead of the plumb line, let out over gait.LEAN_OUT_S."""
+        the pelvis `ball_ahead` m behind the ball of the foot `on`, HEEL_OFF at most; the pelvis
+        and the torso `lean` deg ahead of the plumb line, let out over gait.LEAN_OUT_S."""
         self.blend_s, self.lean = blend_s, float(lean)
         self.anchor, self.was_q = {}, {}
         self.stood, self.x_was, self.v_side = {}, None, 0.0
@@ -541,7 +541,8 @@ class Walker:
         across = (hold * (planned_x - SIDE_K * (pel[0] - planned_x) - pel[0])
                   - SIDE_D * (v_side - v_ref))
         target = (pel[0] + max(-SOLE_M, min(SOLE_M, across)), height - self.lowered, planned_z)
-        turn = mul(ry(yaw), rz(roll))
+        lean = self.lean * (1.0 - gait.eased(self.age / gait.LEAN_OUT_S))
+        turn = mul(mul(ry(yaw), rx(math.radians(lean))), rz(roll))
         off = [TURN_K * c for c in _vee(mul(turn, t(turn_now)))]
         if self.side is not None:
             off = [max(-SIDE_TURN_RAD, min(SIDE_TURN_RAD, c)) for c in off]
@@ -554,7 +555,6 @@ class Walker:
         pitch = math.degrees(math.atan2(turn_now[2][1], turn_now[1][1]))
         self.pendulum.read(bus, dt)
         toward = [math.degrees(SWAY_K * o / SPINE_TO_EARS_M) for o in self.pendulum.off]
-        lean = self.lean * (1.0 - gait.eased(self.age / gait.LEAN_OUT_S))
         out['spine'] = (-PLUMB * pitch + lean - SURGE_DEG * min(1.0, self.scale)
                         * math.cos(4.0 * math.pi * (self.phase - SURGE_AT)) + toward[0])
         out['spine_roll'] = out['spine_roll'] - toward[1]

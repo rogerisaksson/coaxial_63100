@@ -97,9 +97,9 @@ Open work. Measured results are in FINDINGS.
   stride the landing latched at 0.7 of the swing sits 14 cm inside the
   capture point. The torso's counter and the damping are off (the counter
   nods the torso, the damping fells the walk at 0.9); the soles light
-  sneakers. The look: the ears bob 12 mm a stride and go 62 mm fore and
-  aft - the pelvis 30 (the vault of a 1 m stride) doubled by the torso's 2
-  degrees of pitch; the stance knee 15-20 degrees through mid-stance from
+  sneakers. The look: the ears bob 11 mm a stride and go 56 mm fore and
+  aft, the head nodding 2.2 degrees - the pelvis 30 (the vault of a 1 m
+  stride) doubled by the torso's 3 degrees of pitch; the stance knee 15-20 degrees through mid-stance from
   the height latched 10-12 mm low at each landing (the sole's and the
   joints' give under the strike). Left to try: a stiffer spine drive or a
   rightly signed lead on the gyro for the torso; a shorter stride at a
@@ -114,10 +114,14 @@ Open work. Measured results are in FINDINGS.
   a process's place on its port and block when the emulation is ready, and
   the firmware's map wants the walk's registers (`machine.rtu`: SETPOINT_REG,
   STATE_REG); the IMU's reading is the world's own still, not a frame on
-  the axis bus. The walk begins from a lean, the body 4 degrees ahead of
-  plumb, the walker taking her mid-swing and letting the lean out over 2 s;
-  the softer soles that felled the old first stride are untried on it, then
-  a compressible sole layer for more give than a contact's.
+  the axis bus. The walk begins from a lean, the body 8 degrees ahead of
+  plumb, the walker taking her mid-swing and letting the lean out over 2 s,
+  the pelvis with the torso; the weight goes 6 cm onto the left foot before
+  the right lifts, the stance hip rolled -4 to -8 degrees: a shift that
+  lifts on the capture point over the left sole, not the centre of mass,
+  wants trying. The softer soles that felled the old first stride are
+  untried on it, then a compressible sole layer for more give than a
+  contact's.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

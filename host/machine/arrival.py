@@ -45,6 +45,10 @@ FEET_Z = (gait.BALL - gait.HEEL) / 2.0
 #: on to the left sole's outer edge, and she fell off it at the first step (2026-09-26).
 SHIFT_IN, LIFT_IN = 0.035, 0.015
 
+#: Risen, the knees soft as the stand's (`gait.STAND_KNEE`); the pelvis SINK_M lower as her weight
+#: goes onto the left foot, its hip out over the ankle and the leg reaching the further.
+SINK_M = 0.004
+
 #: Before the right foot lifts her weight is brought LEAN_M ahead of the ankles over LEAN_S s -
 #: she leans forward, then steps - and LIFT_ON_M further as the foot lifts LIFT_UP_M over
 #: LIFT_S: falling on over the left foot's ball as the walk takes her. Brought forward as the
@@ -123,12 +127,13 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
     push = over(dict(squat, tilt=15.0, joints=dict(
         squat['joints'], spine=30.0, neck=-15.0, right_shoulder=25.0, right_elbow=25.0,
         right_gripper=30.0)), 0.0, FEET_Z)
-    rise = over(dict(push, tilt=0.0, pelvis=(0.0, gait.standing()[2] - 0.01, push['pelvis'][2]),
+    rise = over(dict(push, tilt=0.0, pelvis=(0.0, gait.standing()[2], push['pelvis'][2]),
                      joints=dict(push['joints'], spine=0.0, neck=3.0, right_shoulder=0.0,
                                  right_elbow=10.0, right_gripper=18.0, left_shoulder=0.0,
                                  left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
                 0.0, FEET_Z)
-    shift = over(rise, FEET_X - SHIFT_IN, FEET_Z)
+    shift = over(dict(rise, pelvis=add(rise['pelvis'], (0.0, -SINK_M, 0.0))),
+                 FEET_X - SHIFT_IN, FEET_Z)
     lean = over(dict(shift, tilt=gait.LEAN_DEG,
                      joints=dict(shift['joints'], neck=shift['joints']['neck'] - gait.LEAN_DEG)),
                 FEET_X - SHIFT_IN, LEAN_M)

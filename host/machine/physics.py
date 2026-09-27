@@ -27,10 +27,12 @@ from machine.parts import Direct, Gain
 from machine.routines import TYPES
 
 #: A drive by its joint's kind: (peak N m, kp N m/rad, kd N m s/rad, armature kg m^2). The ankles
-#: stiffer than the body leaning on them (m g h, 490 N m/rad).
+#: stiffer than the body leaning on them (m g h, 490 N m/rad). The neck under a 3.3 kg head
+#: 0.18 m up (0.13 kg m^2), damped at half critical: at 60 N m/rad it nodded 6.1 degrees a step
+#: to her surge; 150, 300, 600: 3.0, 2.2, 1.7 (2026-09-28).
 SERVO = {'spine': (150.0, 800.0, 30.0, 0.05), 'spine_roll': (150.0, 800.0, 30.0, 0.05),
          'waist': (80.0, 400.0, 20.0, 0.02),
-         'neck': (15.0, 60.0, 2.0, 0.02), 'head': (8.0, 30.0, 1.0, 0.02),
+         'neck': (15.0, 300.0, 6.0, 0.02), 'head': (8.0, 30.0, 1.0, 0.02),
          'shoulder': (40.0, 150.0, 6.0, 0.02), 'elbow': (25.0, 80.0, 3.0, 0.02),
          'wrist': (30.0, 150.0, 5.0, 0.02), 'gripper': (10.0, 40.0, 1.0, 0.02),
          'hip_yaw': (80.0, 300.0, 10.0, 0.05), 'hip_roll': (250.0, 900.0, 40.0, 0.05),

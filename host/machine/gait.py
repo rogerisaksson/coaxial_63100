@@ -80,8 +80,10 @@ TOE_DEG, TOE_RATE, TOE_ACC = -50.0, -300.0, 4000.0
 #: the lean's frame, the torso with it - and how long the walk takes to let it out, s: pushed
 #: on with the torso plumb she read as leaning back before she stepped; a lean kept through
 #: the walk, 2 to 4 deg, had her fall to the slip and the hot knee, held 76 % against 90
-#: (2026-09-27).
-LEAN_DEG, LEAN_OUT_S = 4.0, 2.0
+#: (2026-09-27). At 4 the walker's plan stood the pelvis up as it took her, 7 degrees back in
+#: 0.2 s, the stance heel rising: on her toes and leaning back; the plan tips it as the lean
+#: now, and 8 reads as a lean to the eye, the rises held at 4, 6 and 8 (2026-09-28).
+LEAN_DEG, LEAN_OUT_S = 8.0, 2.0
 
 
 def _knots(stride):

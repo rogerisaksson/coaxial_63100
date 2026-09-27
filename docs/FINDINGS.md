@@ -523,6 +523,18 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   to them - at 23 the walk at 0.85 fell in 0.5 s from mid-stride (a catch
   at 0.2 s, both feet off the floor), at 25 the rises fell at 10.9 s, the
   walk at 0.9 in 0.4 s and the hot knee at 8.8 (2026-09-27).
+- The start as the eye has it: taking her from the lean, the walker's plan
+  stood the pelvis up, 7 degrees back in 0.2 s, the stance heel rising - on
+  her toes and leaning back; the plan tips it as the lean now, LEAN_DEG 4 ->
+  8 to read as one. Risen 1 cm under the stand, she stood on 20-degree knees
+  with the hips behind them: risen to the stand's soft knee (4) and sunk 4
+  mm as her weight goes left (`arrival.SINK_M`; unsunk the stance knee
+  locked at -3), 7-10 through the step. The weight's 6 cm onto the left
+  foot rolls the stance hip -4.4 degrees (-7.7 as the right lifts): a lift
+  from standing needs her centre of mass over the left sole, and from the
+  page's 60 degrees the column's lean reads as leaning back. The head
+  nodded 6.1 degrees a step on the neck's 60 N m/rad; 300 at half critical:
+  2.2, the pendulum's stir 3.55 -> 3.00 mm, held 89.7 % (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
