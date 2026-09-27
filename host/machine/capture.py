@@ -33,7 +33,9 @@ from machine.gait import TOE_OFF  # noqa: E402
 U_NOM = (0.0, 0.14, 0.28, 0.41, 0.54, 0.67, 0.80, 0.93, 1.0)
 XI_NOM = (0.000, 0.006, 0.013, 0.026, 0.033, 0.034, 0.042, 0.050, 0.051)
 
-#: The row: its parameters, then its memory - the lateral latched and whether, the swap asked.
+#: The row: its parameters, then its memory - the lateral latched and whether - and whether a
+#: swap is asked this pass: latched, one asked as the capture point left was done 0.2 s later,
+#: the capture point back on the other side (2026-09-27).
 PARAMS = ('margin', 'gain', 'dead', 'cross', 'swap', 'from_u', 'latch_u', 'catch')
 CAPTURE = np.dtype([(n, 'f8') for n in PARAMS + ('x', 'latched', 'swapping')])
 
@@ -68,9 +70,8 @@ def landing(s: NDArray, u) -> tuple:
     held = np.clip(e, -(s['margin'] + nom), np.maximum(0.0, s['margin'] - nom))
     across = sep + s['gain'] * (held + (e - held) * np.exp(omega * tau))
     fresh = prog < s['latch_u']
-    s['swapping'] = np.where(prog < s['from_u'], 0.0, s['swapping'])
     ask = (across < -s['swap']) & swinging & (prog >= s['from_u']) & (prog < 1.0 - s['from_u'])
-    s['swapping'] = np.where(ask, 1.0, s['swapping'])
+    s['swapping'] = np.where(ask, 1.0, 0.0)
     across = np.maximum(across, s['cross'])
     keep = (s['latched'] == 1.0) & ~fresh
     s['x'] = np.where(keep, s['x'], standing + sign * across)

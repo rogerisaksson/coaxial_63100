@@ -50,17 +50,36 @@ SIDE_K, SIDE_D, TURN_K = 0.235, 0.069, 1.42
 #: then; dropped at once it struck 1200 N and bounced; the other lifted on 60 N of one pass and
 #: she hung in the air; the step out sized once, with the ankle's help, was 11 cm of the 20
 #: needed (2026-09-26).
-DOWN_S, DWELL_S, SIDE_AHEAD_M, SIDE_LIFT_M, SIDE_S, SIDE_HURRY = 0.1, 0.02, 0.1, 0.06, 0.15, 0.3
+DOWN_S, DWELL_S, SIDE_AHEAD_M, SIDE_LIFT_M, SIDE_S, SIDE_HURRY = 0.1, 0.02, 0.1, 0.06, 0.2, 0.3
 
 #: The swapped foot is put down DOWN_AHEAD_M ahead of the pelvis, m: where it was, the body walked
-#: on past it, the leg could not reach back, and the foot left the floor (2026-09-26).
-DOWN_AHEAD_M = 0.15
+#: on past it, the leg could not reach back, and the foot left the floor (2026-09-26). One behind
+#: the pelvis is put down where it is, DOWN_BEHIND_M behind at most: sent 15 cm ahead from 30
+#: behind, it never came down (2026-09-27).
+DOWN_AHEAD_M, DOWN_BEHIND_M = 0.15, 0.25
 
-#: The side step is over once the stepped-out foot bears BEARS_N and more than the other; if the
-#: other still bears her SIDE_GIVE_S on, she has come back to it, and the walk begins again on
-#: that one. Ended as the stepped-out foot touched, the plan lifted the one that bore her
-#: (2026-09-26).
-SIDE_GIVE_S = 0.4
+#: No side step in the first SIDE_AGAIN_S of a walk begun again: none until its blend was done,
+#: one asked in it went the way the capture point had left (2026-09-27).
+SIDE_AGAIN_S = 0.15
+
+#: The side step is over once the stepped-out foot, within DOWN_M of the floor, bears BEARS_N
+#: and more than the other; if the other still bears her SIDE_GIVE_S on, she has come back to
+#: it, and the walk begins again on that one. Ended as the stepped-out foot touched, the plan
+#: lifted the one that bore her; struck by the other leg 4 cm up, 2400 N ended the step with the
+#: foot in the air (2026-09-26). The stepped-out foot goes out first and on from SIDE_OUT_FIRST
+#: of the step: on at once, its shank struck the other leg's (2026-09-27).
+SIDE_GIVE_S, DOWN_M, SIDE_OUT_FIRST = 0.4, 0.01, 0.25
+
+#: The swapped foot is put down SIDE_CLEAR_M across from the other's line at least: put down
+#: where it was, 3 cm across, the other's toes struck its heel going by, 1800 N (2026-09-27).
+SIDE_CLEAR_M = 0.12
+
+#: A catch the leg cannot reach standing is a stomp: the swinging foot put down at once on the
+#: capture point and STOMP_PAST_M past it, flat, the pelvis lowered to reach, the walk begun
+#: again on it once it bears - as a swap's foot is put down.
+#: Left to the plan, the foot touched at its reach, lifted again, and chased the capture point
+#: to 66 cm out (2026-09-27).
+STOMP_PAST_M = 0.05
 
 #: The pelvis's forward target within LURCH_M of the pelvis, m, and moved from it no faster
 #: than LURCH_M_S: a foot put down short of the plan's spot had the phase race to catch up and
@@ -94,8 +113,11 @@ SIDE_TURN_RAD = 0.035
 LAND_WAIT_S, PIN = 0.3, 1e-3
 
 #: A side step ends in the walk begun again (`begin`) at the stride her speed says, RESUME of the
-#: walk's at least, her speed on filtered over ON_S, s.
-RESUME, ON_S = 0.3, 0.05
+#: walk's at least, her speed on filtered over ON_S, s, the setpoints blended from the step's
+#: over RESUME_BLEND_S: over the start's 0.3 s the trailing foot stayed down, bearing 250 N, and
+#: the centre of pressure between the feet drove the capture point on past the standing foot
+#: (2026-09-27).
+RESUME, ON_S, RESUME_BLEND_S = 0.3, 0.05, 0.1
 
 
 #: The pelvis's sideways speed is filtered over SPEED_S, s: raw, every landing's jolt went straight
@@ -268,6 +290,13 @@ def _turned(v):
 FLAT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 
+def _put_down(ball_z, pel_z):
+    """Where a foot is put down on: DOWN_AHEAD_M ahead of the pelvis, or further if it is; where
+    it is behind, DOWN_BEHIND_M behind at most."""
+    z = ball_z - gait.BALL
+    return max(z, pel_z + DOWN_AHEAD_M) if z > pel_z else max(z, pel_z - DOWN_BEHIND_M)
+
+
 def _reach(hip, at, reach):
     """`at`, an ankle's target, within `reach` of the hip: its step shortened first, then the
     ankle held up; (the target, how far the pelvis must come down for it to reach as asked)."""
@@ -306,8 +335,9 @@ class Walker:
         #: how far the pelvis's target is lowered, m: for a swinging foot to reach, from a
         #: landing.
         self.rate, self.waited, self.lowered = float(cadence), 0.0, 0.0
-        #: The forward target's offset from the pelvis last pass, m; None to begin with.
-        self.lurch = None
+        #: The forward target's offset from the pelvis last pass, m; None to begin with; the
+        #: seconds a begun walk blends in over.
+        self.lurch, self.blend_s = None, BLEND_S
         #: Seconds since `halt`, None walking on; the stride's length last pass, m.
         self.halting, self.halt_from, self.length_was = None, 1.0, None
         #: The pendulum between her ears, read each pass (`machine.pendulum`).
@@ -352,10 +382,11 @@ class Walker:
         self.rate, self.waited, self.lurch = self.cadence, 0.0, None
         return angles
 
-    def begin(self, held, wide=0.0, scale=None, phase=None):
+    def begin(self, held, wide=0.0, scale=None, phase=None, blend_s=BLEND_S):
         """Walking from where she stands on her left foot, the right lifted: {joint: deg}
-        `held` the stand's setpoints, eased out of over BLEND_S; the first steps `wide` m further
-        out than the walk's, narrowing over WIDE_S."""
+        `held` the stand's setpoints, eased out of over `blend_s`; the first steps `wide` m
+        further out than the walk's, narrowing over WIDE_S."""
+        self.blend_s = blend_s
         self.phase, self.anchor, self.was_q = BEGIN_AT if phase is None else phase, {}, {}
         self.stood, self.x_was, self.v_side = {}, None, 0.0
         self.scale, self.age, self.held, self.wide = BEGIN, 0.0, dict(held), float(wide)
@@ -385,11 +416,12 @@ class Walker:
             self.scale = self.halt_from + (HALT - self.halt_from) * gait.eased(self.halting / HALT_S)
         stride = self.stride
         length = gait.STRIDE_M * stride
-        balls = {}
+        balls, ankles = {}, {}
         for side, sign in SIDES:
             angles = tuple(math.radians(bus.get(side + k + '.deg', 0.0)) for k in LEG)
             at = figure.ball(sign, pel, turn_now, angles)
             balls[side] = (at[0], 0.0, at[2])
+            ankles[side] = figure.foot_of(sign, pel, turn_now, angles)[0]
         self.balls = balls
         if self.resume is not None:
             self._restart(balls, pel)
@@ -430,7 +462,7 @@ class Walker:
         self.lurch = lurch
         planned_z = pel[2] + lurch
         swings, lower, feet_x, _off = self._landings(dt, bus, qs, legs, balls, pel, turn_now,
-                                                     planned_z, spread, length, xi, omega)
+                                                     planned_z, spread, length, xi, omega, ankles)
         # The pelvis across: the walk's sway about the feet's line - each foot's, where it stands
         # or last stood, TRACK_M in, weighed as the plan has it carry: between them on both, over
         # the standing one as the other lifts. About the midline alone, the wide first steps left
@@ -447,8 +479,10 @@ class Walker:
         self.lowered += max(-RAISE_M_S * dt, min(LOWER_M_S * dt, min(LOWER_M, lower) - self.lowered))
         if self.side is not None and self.side['stage'] == 'out' and self.side['since'] == 0.0:
             # The foot put down takes the pelvis from where it is, as a landing does: from the
-            # plan's height, 9 mm up, its leg hopped her off the floor (2026-09-26).
-            self.lowered = max(self.lowered, min(LOWER_M, height - pel[1]))
+            # plan's height, 9 mm up, its leg hopped her off the floor; from a height still
+            # lowered for a catch, 3 cm down, its leg lifted it and she dropped onto it, 2100 N
+            # (2026-09-26).
+            self.lowered = min(LOWER_M, height - pel[1])
         stands = [self.anchor[s][0] for s, _sign in SIDES if s in self.anchor] or [pel[0]]
         out_by = max(0.0, min(stands) - HOLD_M - xi, xi - max(stands) - HOLD_M)
         hold = max(0.0, 1.0 - out_by / SOLE_M)
@@ -476,7 +510,7 @@ class Walker:
         if self.held is not None:
             self.age += dt
             self.scale = self.first + (1.0 - self.first) * gait.eased(self.age / RAMP_S)
-            k = gait.eased(self.age / BLEND_S)
+            k = gait.eased(self.age / self.blend_s)
             out = {j: self.held.get(j, v) + (v - self.held.get(j, v)) * k for j, v in out.items()}
             if self.age >= RAMP_S:
                 self.held = None
@@ -496,7 +530,8 @@ class Walker:
         scale = max(RESUME, min(1.0, self.v_on / full))
         length = gait.STRIDE_M * max(gait.PACE_STEP, gait.pace(self.cadence) * scale)
         q = min(gait.HEEL_OFF, gait.STANCE_AT + (gait.BALL - (ball[2] - pel[2])) / length)
-        self.begin(self.last, phase=q if on == 'left' else (q + 0.5) % 1.0, scale=scale)
+        self.begin(self.last, phase=q if on == 'left' else (q + 0.5) % 1.0, scale=scale,
+                   blend_s=RESUME_BLEND_S)
         self.stood['right' if on == 'left' else 'left'] = ball[0] - sign * 2.0 * TRACK_M
 
     def _anchor(self, bus, qs, balls, height, pel):
@@ -547,7 +582,7 @@ class Walker:
             out[side + '_foot'] = toes
 
     def _landings(self, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, length, xi,
-                  omega):
+                  omega, ankles):
         """({side: its ankle's target} for each foot not held, how far the pelvis must come down
         for them to reach, {side: x, where it stands or last stood}, what the capture point is
         off the walk's course a row): across on the capture point (`machine.capture`), round the
@@ -559,7 +594,7 @@ class Walker:
             qs, (1.0, -1.0), (xi, xi), standing, (sep, sep), (self.rate, self.rate),
             (omega, omega)))
         loads = {side: bus['pelvis.pose.%s_load' % side] for side, _sign in SIDES}
-        self._sidestep(dt, swapping, loads, balls, legs, pel, length)
+        self._sidestep(dt, swapping, loads, balls, legs, pel, ankles)
         if self.side is not None:
             self.capture['swapping'][:] = 0.0
         self.hurry = SIDE_HURRY if self.side is not None else 0.0
@@ -589,9 +624,10 @@ class Walker:
                 # Eased on from where it stood: sent SIDE_AHEAD_M ahead at once while it bore
                 # 1400 N, it dragged and threw her 1.5 cm up, the other foot off the floor
                 # (2026-09-26).
+                on = gait.eased(max(0.0, (u - SIDE_OUT_FIRST) / (1.0 - SIDE_OUT_FIRST)))
                 at = (step['x_from'] + (step['x_out'] - step['x_from']) * gait.eased(u),
                       gait.ANKLE_H + SIDE_LIFT_M * math.sin(math.pi * u) ** 2,
-                      step['z_from'] + (step['z_land'] - step['z_from']) * gait.eased(u))
+                      step['z_from'] + (step['z_land'] - step['z_from']) * on)
                 at, short = _reach(figure.hip(sign, pel, turn_now), at, SWING_REACH * gait.REACH)
                 out[side], lower = at, max(lower, short)
                 feet_x[side] = self.stood.get(side, balls[side][0])
@@ -603,35 +639,57 @@ class Walker:
             u = (q - gait.TOE_OFF) / (1.0 - gait.TOE_OFF) if q >= gait.TOE_OFF else 0.0
             at = (float(x[i]) + sign * WIDEN_M * math.sin(math.pi * u) ** 2, ankle[1],
                   planned_z + ankle[2])
-            at, short = _reach(figure.hip(sign, pel, turn_now), at, SWING_REACH * gait.REACH)
+            hip = figure.hip(sign, pel, turn_now)
+            at, short = _reach(hip, at, SWING_REACH * gait.REACH)
+            if (self.side is None and catch[i] and short > 0.0 and u >= capture.FROM_U
+                    and (self.held is None or self.age >= SIDE_AGAIN_S)):
+                # Where the capture point will be as the foot comes down, DOWN_S on, no ankle to
+                # help: put down past where it was, the foot came in under her as it ran on.
+                xs, _swap, _catch, _off = capture.landing(
+                    capture.state(1, margin=0.0, gain=1.0),
+                    ((1.0 - DOWN_S * self.rate,), (sign,), (xi,), (standing[i],), (sep,),
+                     (self.rate,), (omega,)))
+                self.side = {'down': side, 'out': 'right' if side == 'left' else 'left',
+                             'stage': 'down', 'since': 0.0, 'stomp': True,
+                             'at': (float(xs[0]) + sign * STOMP_PAST_M, ankle[1],
+                                    _put_down(balls[side][2], pel[2])),
+                             'x_out': None, 'borne': 0.0, 'down_s': 0.0}
+                self.hurry, self.catching = SIDE_HURRY, True
             out[side], lower = at, max(lower, short)
         return out, lower, feet_x, off
 
-    def _sidestep(self, dt, swapping, loads, balls, legs, pel, length):
+    def _sidestep(self, dt, swapping, loads, balls, legs, pel, ankles):
         """The side step's stages: begun on a swap the law asks while the other foot bears -
-        `down`, the swinging foot put down flat where it is, no nearer across than the law's
-        `cross`; `out` once it bears BEARS_N for DWELL_S, the other foot stepping; over when that
-        one bears her, or the first still does SIDE_GIVE_S on - the walk begun again on
-        whichever (`step`), and none begun while that blends in. Resumed at the phase left, the
+        `down`, the swinging foot put down flat where it is, SIDE_CLEAR_M across at least;
+        `out` once it bears BEARS_N for DWELL_S, the other foot stepping; over when that one
+        bears her, or the first still does SIDE_GIVE_S on - the walk begun again on whichever
+        (`step`), and none begun while that blends in. A stomp (`_landings`) is the `down`
+        alone, the walk begun again on that foot. Resumed at the phase left, the
         plan lifted the foot she had just caught herself on; asked as the blend began, a second
         side step put the foot down in the air (2026-09-26)."""
-        if self.side is None and (self.held is None or self.age >= BLEND_S):
+        if self.side is None and (self.held is None or self.age >= SIDE_AGAIN_S):
             for i, ((side, sign), (ankle, _tw, _pi, _to)) in enumerate(zip(SIDES, legs)):
                 other = 'right' if side == 'left' else 'left'
                 if swapping[i] and loads[other] > LANDED_N and side not in self.anchor:
                     ball, there = balls[side], balls[other][0]
-                    across = max(sign * (ball[0] - there), float(self.capture['cross'][i]))
+                    across = max(sign * (ball[0] - there), SIDE_CLEAR_M)
                     self.side = {'down': side, 'out': other, 'stage': 'down', 'since': 0.0,
+                                 'stomp': False,
                                  'at': (there + sign * across, ankle[1],
-                                        max(ball[2] - gait.BALL, pel[2] + DOWN_AHEAD_M)),
+                                        _put_down(ball[2], pel[2])),
                                  'x_out': None, 'borne': 0.0, 'down_s': 0.0}
                     break
         if self.side is None:
             return
         if self.side['stage'] == 'down':
-            self.side['borne'] = (self.side['borne'] + dt
-                                  if loads[self.side['down']] > BEARS_N else 0.0)
-            if self.side['borne'] >= DWELL_S:
+            # Borne only with the ankle near the floor: pitched from its swing, the foot's toes
+            # took 1000 N 9 cm up and the walk began again on them (2026-09-27).
+            down = self.side['down']
+            took = loads[down] > BEARS_N and ankles[down][1] < gait.ANKLE_H + DOWN_M
+            self.side['borne'] = self.side['borne'] + dt if took else 0.0
+            if self.side['borne'] >= DWELL_S and self.side['stomp']:
+                self.resume = self.side['down']
+            elif self.side['borne'] >= DWELL_S:
                 self.side['stage'], self.side['since'], self.side['borne'] = 'out', 0.0, 0.0
                 self.side['x_from'] = balls[self.side['out']][0]
                 self.side['z_from'] = balls[self.side['out']][2] - gait.BALL
@@ -639,7 +697,8 @@ class Walker:
         else:
             self.side['since'] += dt
             out, down = self.side['out'], self.side['down']
-            took = loads[out] > max(BEARS_N, loads[down])
+            took = (loads[out] > max(BEARS_N, loads[down])
+                    and ankles[out][1] < gait.ANKLE_H + DOWN_M)
             self.side['borne'] = self.side['borne'] + dt if took else 0.0
             # The step stays this pass, the walk begun again at the next (`step`): let go at
             # once, the plan's stale phase swung the foot she stood on 0.8 m out for a pass, and

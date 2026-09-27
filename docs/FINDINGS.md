@@ -274,6 +274,21 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   catch latched the landing early and 9 cm short; a swinging foot held as
   landed once it bore mid-swing reset the phase at every touch: both out
   again (2026-09-27).
+- The side step's foot–foot strikes: the stepping foot's toes struck the
+  put-down foot's heel going by (5 cm between 10 cm wide feet, 1800 N), so
+  that foot is put down 12 cm across at least and the other goes out before
+  on; pitched from its swing, a put-down foot's toes took 1000 N 9 cm up, so
+  borne means the ankle within 1 cm of the floor; a height still lowered for
+  a catch shortened the trailing leg 3 cm as the step out began, so that leg
+  takes the height from the body. A swap asked is a fresh judgement each
+  pass (latched, one was done 0.2 s later on the wrong side), none in the
+  first 0.15 s of a walk begun again, which blends in over 0.1 s (over 0.3
+  the trailing foot stayed down and its share of the load drove the capture
+  point on past the standing foot). A catch out of reach is a stomp: the
+  foot put down at once where the capture point will be 0.1 s on. Still 87 %:
+  the left shove at 0.85 zigzags into a second and third side step; slewing
+  the attitude's correction at 0.5 rad/s let the roll grow through the step
+  (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
