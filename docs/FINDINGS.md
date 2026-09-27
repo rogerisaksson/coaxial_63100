@@ -360,6 +360,23 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   stance, 16 cm out, the pelvis could not get over the foot and the next
   went 20 cm out to catch her; leant 10 cm in 0.5 s she was thrown off the
   left foot. The scoreboard as before, the rises held (2026-09-27).
+- The look of the walk at 0.85 strides/s, by the trace: the stance knee
+  16-29 degrees (the plan's own 16-24: the pelvis rides 10 mm under the
+  plan, latched there at each landing as the trailing leg sags 9 mm into
+  it, its ankle drooping 2 degrees under the push-off's torque, and raised
+  at 0.1 m/s - a rush of 0.22 m/s to a dead stop); the ears 19 mm up and
+  down a stride and 33 fore-aft, the torso nodding 7.6 degrees (the
+  counter), 66 fore-aft with the torso still: the pelvis's own surge, the
+  collision at every touchdown (-0.25 m/s over 0.13 s, +0.2 back before the
+  next). The stance knee 8 degrees soft, the heel strike 15 degrees toes
+  up (its peak 1.55 -> 1.1 kN), the recovery 0.03 m/s: the knee 9-29, the
+  stir 1.4 -> 1.2 mm, held 86 %. The counter off for the eye: 3.5 mm.
+  Straighter legs at the strike need the trailing heel up before it (the
+  plan's height there is that leg's, flat, 22 cm behind): a heel rising
+  in single support ran her ahead of the plan and she sank 35 mm before a
+  landing 0.1 stride late (the phase, pulled to the body at 5 a stride,
+  lags it); the heel to 50-55 degrees at toe-off felled the walks alike
+  (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

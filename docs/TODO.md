@@ -50,13 +50,20 @@ Open work. Measured results are in FINDINGS.
   folded into it), and shoved as the swinging foot lands at 0.9 she falls
   before the swap is done; shoved at 0.30 of the stride the landing latched
   at 0.7 of the swing sits 14 cm inside the capture point (release the latch
-  as the capture point runs on). The torso's counter is on at 3.9 degrees,
-  the damping off (with the counter, 0.55 fells the walk at 0.9). Scored by
-  `tools/sim/gait_montecarlo.py`, the shove at phase 0.30: held 84 %, stir
-  1.4 mm to beat, the soles light sneakers. The walk begins from a lean,
-  the walker taking her mid-swing; the softer soles that felled the old
-  first stride are untried on it, then a compressible sole layer for more
-  give than a contact's.
+  as the capture point runs on). The torso's counter and the damping are
+  off (the counter nods the torso, the damping fells the walk at 0.9).
+  Scored by `tools/sim/gait_montecarlo.py`, the shove at phase 0.30: held
+  85 %, stir 3.5 mm (1.2 with the counter at 3.9), the soles light
+  sneakers. The look: the pelvis surges 65 mm fore-aft and bobs 18 mm a
+  stride - the collision at touchdown; push off before the landing (the
+  trailing heel up as the other foot strikes) with the landing come as the
+  body falls, not on the phase's clock; the stance knee 18-21 degrees at
+  mid-stance from the height target latched 10 mm low at each landing (the
+  trailing ankle's 2-degree droop under the push-off: a feedforward, or a
+  dead band on the latch). The walk begins from a lean, the walker taking
+  her mid-swing; the softer soles that felled the old first stride are
+  untried on it, then a compressible sole layer for more give than a
+  contact's.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

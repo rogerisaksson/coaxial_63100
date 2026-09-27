@@ -47,8 +47,11 @@ CADENCE, PACE_POWER, PACE_STEP = 0.85, 0.6, 0.05
 #: ball of the foot carry the glide; a longer stride bends it as the stride to KNEE_POWER. At 4.7
 #: the leg landed bent 23 degrees and straightened to 7 within 0.16 of a stride, the pelvis up
 #: 26 mm at 0.29 m/s and stopped dead at the top, 6 m/s2 either way at her ears: the pendulum's
-#: stir 2.4 mm; at 8, 12, 16, 20, 25: 2.2, 2.0, 2.0, 1.8, 1.8 mm, at 30 she fell (2026-09-27).
-KNEE_SOFT_DEG, KNEE_POWER = 16.0, 1.5
+#: stir 2.4 mm; at 8, 12, 16, 20, 25: 2.2, 2.0, 2.0, 1.8, 1.8 mm, at 30 she fell. Back to 8
+#: with the heel strike at 15 degrees and the height's recovery at 0.03 m/s (`walker.RAISE_M_S`):
+#: the knee 9-29 degrees through stance for 16-29, the stir 1.4 -> 1.2 mm, the shoves as before;
+#: at 10 alone the walk begun from the lean fell 2.7 s in (2026-09-27).
+KNEE_SOFT_DEG, KNEE_POWER = 8.0, 1.5
 
 #: Never straighter than KNEE_MIN_DEG, whatever the stride: at a short first stride the soft
 #: knee came to 1 degree, the IK out of reach, and the front foot hung over the floor (2026-09-26).
@@ -57,8 +60,10 @@ KNEE_MIN_DEG = 4.0
 #: The foot lands on its heel, toes up LAND_DEG (`pitch_of`), and rolls about it flat by SETTLE;
 #: its heel rises from HEEL_OFF about the ball and leaves the floor at toe-off, TOE_OFF. Landed on
 #: the ball, heel up, the landing knee stood at 42 degrees and the step struck 3.3 body weights
-#: (2026-09-26).
-SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.62, 9.3, -75.0
+#: (2026-09-26). Toes up 15 for 9.3, the heel strike's peak 1.55 -> 1.1 kN, 20 alike; the
+#: front leg's reach at the strike grows with it but the plan's height is the trailing leg's,
+#: flat and 22 cm behind, so the landing knee bends the more (2026-09-27).
+SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.62, 15.0, -75.0
 
 #: The foot's pitch at toe-off, degrees toes-up, and its rate and acceleration there, a stride
 #: and a stride squared: the heel rises fastest at toe-off and on into the air. Eased to a stop

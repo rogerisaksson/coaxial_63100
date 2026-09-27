@@ -100,7 +100,11 @@ LURCH_M, LURCH_M_S = 0.15, 0.3
 #: is shortened first and the pelvis lowered the rest, LOWER_M at most, LOWER_M_S a second down
 #: and RAISE_M_S up - lowered at once, the standing knee bent before the body had sunk and the
 #: foot left the floor; raised as fast, the leg threw her 13 cm into the air (2026-09-26).
-SWING_REACH, LOWER_M, LOWER_M_S, RAISE_M_S = 0.985, 0.12, 0.4, 0.1
+#: Latched 10 mm low at every landing - the trailing leg sags 9 mm into it, its ankle 2 degrees
+#: under the push-off's torque - and raised at 0.1 m/s, the pelvis rushed up at 0.22 m/s to a
+#: dead stop, 4.6 then -3.8 m/s2 at her ears; at 0.03 the rise 0.15 m/s, the stop -1 m/s2, the
+#: stir 1.37 -> 1.28 mm (2026-09-27).
+SWING_REACH, LOWER_M, LOWER_M_S, RAISE_M_S = 0.985, 0.12, 0.4, 0.03
 
 #: In a side step the attitude is turned back past its error by no more than SIDE_TURN_RAD: the
 #: legs are solved for the turned pelvis, and 8 degrees of it dragged the planted foot 12 cm
@@ -148,8 +152,11 @@ PLUMB = 1.0
 #: At 2 degrees, SWAY_K 1: the pendulum's stir over 30 s at 0.85 and 0.9 strides/s 4.3, 4.9 ->
 #: 1.7, 1.9 mm, but rising and gliding to another pace she fell three times in four
 #: (2026-09-26). 3.9 from a search over the scoreboard's twelve trials: the walks' stir 4.4 ->
-#: 2.4 mm, the rises and the shoves held as before, 3.5-4.5 alike (2026-09-27).
-SURGE_DEG, SURGE_AT = 3.9, 0.125
+#: 2.4 mm, the rises and the shoves held as before, 3.5-4.5 alike. Off: at 3.9 the torso
+#: nodded 7.6 degrees a stride to hold the head's fore-aft to 24 mm where the pelvis surges 65
+#: (the collision at every touchdown, -0.25 m/s), a head out of step with the body to the eye;
+#: the pendulum, which cannot tell a nod from a smooth ride, 1.2 -> 3.5 mm (2026-09-27).
+SURGE_DEG, SURGE_AT = 0.0, 0.125
 
 #: A catwalk: the feet planted TRACK_M off the line, swung WIDEN_M further out round the standing
 #: one; the pelvis turned TURN_GAIN of the walk's turn, the torso turning it back.
