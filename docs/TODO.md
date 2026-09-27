@@ -48,9 +48,12 @@ Open work. Measured results are in FINDINGS.
   shove toward the swinging foot; toward the standing foot the side step
   ends with the capture point 27 cm ahead and no foot there (a forward step
   folded into it), and shoved as the swinging foot lands at 0.9 she falls
-  before the swap is done. Then the torso's counter and the damping (off:
-  stir 4.3 -> 1.7 mm). Scored by `tools/sim/gait_montecarlo.py`: held 87 %,
-  stir 4.6 mm at 0.85 to beat.
+  before the swap is done; shoved at 0.30 of the stride the landing latched
+  at 0.7 of the swing sits 14 cm inside the capture point (release the latch
+  as the capture point runs on). The torso's counter is on at 3.9 degrees,
+  the damping off (with the counter, 0.55 fells the walk at 0.9). Scored by
+  `tools/sim/gait_montecarlo.py`, the shove at phase 0.30: held 86 %, stir
+  2.4 mm to beat.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

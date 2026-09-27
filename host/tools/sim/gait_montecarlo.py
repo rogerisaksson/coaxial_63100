@@ -32,10 +32,14 @@ TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
           ('push', 0.85, (1.0, 0.0)), ('push', 0.85, (-1.0, 0.0)), ('push', 0.85, (0.0, 1.0)),
           ('push', 0.85, (0.0, -1.0)), ('push', 0.65, (1.0, 0.0)), ('push', 0.9, (-1.0, 0.0)))
 
-#: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; a push lands at PUSH_AT_S,
-#: PUSH_N for PUSH_S - the terminal page's shove.
+#: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; a push lands as the stride's
+#: phase first crosses PUSH_AT_U after PUSH_AT_S, PUSH_N for PUSH_S - the terminal page's shove.
+#: Landed at 5 s, it met whatever phase a candidate's pace had brought her to - 0.25 at 0.85
+#: strides/s, 0.48 at 0.65 and 0.9, 0.07 less with the torso's counter at 4 degrees, on which
+#: the capture point ran 48 cm out instead of 25 - and a 0.1 % change of any knob flipped a
+#: shove (2026-09-27).
 SECONDS = {'rise': 20.0, 'walk': 14.0, 'push': 12.0}
-SETTLE_S, PUSH_AT_S, PUSH_N, PUSH_S = 4.0, 5.0, 120.0, 0.12
+SETTLE_S, PUSH_AT_S, PUSH_AT_U, PUSH_N, PUSH_S = 4.0, 5.0, 0.30, 120.0, 0.12
 
 #: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir.
 LOST, FALLEN_STIR = 30.0, 10.0
@@ -77,15 +81,17 @@ def trial(job):
     body.loop.step(0.0)
     bus, world = body.loop.bus, body.nodes['pelvis'].world
     seconds = SECONDS[kind]
-    stirred, passes, pushed = 0.0, 0, False
+    stirred, passes, pushed, was = 0.0, 0, False, 0.0
     while bus['t'] < seconds:
         body.loop.write(**director.step(0.001))
         body.loop.step(0.001)
         if director.stage == 'fallen':
             return bus['t'] / seconds, None, 'fell at %.1f s' % bus['t']
-        if kind == 'push' and not pushed and bus['t'] >= PUSH_AT_S:
+        if (kind == 'push' and not pushed and bus['t'] >= PUSH_AT_S
+                and was < PUSH_AT_U <= director.walker.phase):
             world.push((shove[0] * PUSH_N, 0.0, shove[1] * PUSH_N), PUSH_S)
             pushed = True
+        was = director.walker.phase
         if kind == 'walk' and bus['t'] >= SETTLE_S:
             stirred += director.pendulum.energy
             passes += 1

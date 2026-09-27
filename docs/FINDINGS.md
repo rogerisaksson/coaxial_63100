@@ -311,6 +311,19 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   the left shove at 0.85 zigzags into a second and third side step; slewing
   the attitude's correction at 0.5 rad/s let the roll grow through the step
   (2026-09-27).
+- A search (CMA-ES, 144 candidates) over the torso's counter, the crane
+  damping and the capture law's margin and gain: cost 8.2 -> 5.9 (stir 4.4
+  -> 1.8 mm), but re-scored with the damping 0.556 -> 0.55 the walk at 0.9
+  fell in 4 s, and a 0.1 % change of any knob flipped a shove: landed at 5 s,
+  the shove met whatever stride phase the pace had brought her to (0.25 at
+  0.85 strides/s, 0.48 at 0.65 and 0.9, 0.07 less with the counter). The
+  shove now lands as the phase first crosses 0.30 after 5 s. There the
+  counter alone, 3.9 degrees, takes the stir to 2.4 mm, held 86 % against
+  84 (3.5-4.5 alike, one corner of margin and gain felled a walk); margin
+  43 mm and gain 1.1-1.27 add 0.1 mm and noise; the damping stays off. At
+  0.30 the shove toward the swinging foot fells her as it is: the landing
+  latched at 0.7 of the swing with the capture point 9 cm out, it ran to 23
+  and she toppled over the foot (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

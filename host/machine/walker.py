@@ -146,9 +146,10 @@ PLUMB = 1.0
 #: leg's stride and each half stride on, as far forward between, less on a shorter stride - her
 #: head carried on at an even speed, the pendulum between her ears still (`machine.pendulum`).
 #: At 2 degrees, SWAY_K 1: the pendulum's stir over 30 s at 0.85 and 0.9 strides/s 4.3, 4.9 ->
-#: 1.7, 1.9 mm, but rising and gliding to another pace she fell three times in four; off until a
-#: search over disturbances finds a pair that holds (2026-09-26).
-SURGE_DEG, SURGE_AT = 0.0, 0.125
+#: 1.7, 1.9 mm, but rising and gliding to another pace she fell three times in four
+#: (2026-09-26). 3.9 from a search over the scoreboard's twelve trials: the walks' stir 4.4 ->
+#: 2.4 mm, the rises and the shoves held as before, 3.5-4.5 alike (2026-09-27).
+SURGE_DEG, SURGE_AT = 3.9, 0.125
 
 #: A catwalk: the feet planted TRACK_M off the line, swung WIDEN_M further out round the standing
 #: one; the pelvis turned TURN_GAIN of the walk's turn, the torso turning it back.
@@ -188,7 +189,8 @@ STAND_WIDE_M, WIDE_S = 0.06, 0.6
 #: The pendulum between her ears damped as a crane damps its load: her head moved toward the bob
 #: by SWAY_K of its offset, on and across, through the spine's pitch and roll
 #: (`machine.pendulum`). Moved by its drift too, the landings' jolts shook her down in 2 s
-#: (2026-09-26).
+#: (2026-09-26). With the torso's counter, 0.556 took the stir to 1.8 mm and 0.55 felled the walk
+#: at 0.9 in 4 s: off (2026-09-27).
 SWAY_K = 0.0
 
 #: A sole bearing this much has landed, N; bearing BEARS_N it is all stance, up to BEARS_UNTIL
