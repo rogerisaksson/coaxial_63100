@@ -101,7 +101,7 @@ def mjcf():
         out.append('<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
         for part, shape, size, at in CONTACTS:
-            if name.endswith('_' + part):
+            if name == part or name.endswith('_' + part):
                 out.append('<geom type="%s" size="%s" pos="%g %g %g" contype="2" conaffinity="1" '
                            'condim="4" friction="%g %g 0.001"%s/>' % (
                                (shape, ' '.join('%g' % v for v in size)) + tuple(at)

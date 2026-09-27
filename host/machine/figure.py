@@ -59,11 +59,20 @@ SEGMENTS = tuple([
      (0.075, 0.07, 0.075))] + _sides())
 
 #: What touches the floor: (segment, shape, size, centre) in the segment's frame - the soles and
-#: toes on their undersides, the knee's front to kneel on, the knuckles to lean on.
+#: toes on their undersides, the knee's front to kneel on, the knuckles to lean on; the seat, the
+#: back and the chest, the skull, the arms and the thighs to fall on. Without them she lay with
+#: her torso through the floor (2026-09-27).
 CONTACTS = (('foot', 'box', (0.035, 0.01, (BALL + HEEL) / 2.0), (0.0, -ANKLE_H + 0.01, (BALL - HEEL) / 2.0)),
             ('toes', 'box', (0.035, 0.007, 0.0325), (0.0, -0.007, 0.0325)),
             ('shank', 'sphere', (0.035,), (0.0, -0.06, 0.03)),
-            ('hand', 'sphere', (0.03,), (0.0, -0.07, 0.01)))
+            ('hand', 'sphere', (0.03,), (0.0, -0.07, 0.01)),
+            ('pelvis', 'sphere', (0.10,), (0.0, 0.0, -0.02)),
+            ('torso', 'sphere', (0.10,), (0.0, 0.10, -0.02)),
+            ('torso', 'sphere', (0.11,), (0.0, 0.28, 0.0)),
+            ('head', 'sphere', (0.085,), (0.0, 0.095, 0.012)),
+            ('upper_arm', 'sphere', (0.045,), (0.0, -0.13, 0.0)),
+            ('forearm', 'sphere', (0.04,), (0.0, -0.12, 0.0)),
+            ('thigh', 'sphere', (0.07,), (0.0, -0.19, 0.0)))
 
 #: Every joint, in the order the segments carry them.
 JOINTS = tuple(j for seg in SEGMENTS for j, _axis, _sign in seg[2])

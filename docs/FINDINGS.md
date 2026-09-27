@@ -396,6 +396,20 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   broadphase (the rug fell through a slab grown 27 m, a box through a sill
   moved 1 m): the slabs are compiled over their whole span and cut, the
   sill and the patch are mocap bodies. Held 93 % (2026-09-27).
+- A fall seen early (`machine.director`): the pelvis tipped past 12
+  degrees and tipping on faster than 60 a second, or under 0.65 m, is past
+  the walker's recovery; she curls into the squat's joints over 0.4 s with
+  the arms out toward the fall (ahead: the hands out in front, the head up;
+  behind: the arms down behind her, the chin tucked) and lies as she
+  landed. Her seat, back, chest, skull, arms and thighs are contacts now
+  (`figure.CONTACTS`): curled only at 35 degrees over 1.5 s, the legs
+  walked on through the fall and she lay with her torso through the floor.
+  Into the hole she goes at 13.7 degrees and 300 a second, 0.16 s before
+  she is down at 40, the hands take the floor 0.12 s before the head
+  touches once, and she lies still on her left side and seat from 7.4 s
+  (0.7 s after); off the rug she sits down backwards onto her feet (1.5 kN
+  each) and rolls onto her back. The walking stumbles tip her 6-8 degrees,
+  under the trigger (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

@@ -11,16 +11,29 @@ swinging foot on the capture point, swapping feet when that would cross them (`c
 foot that slides is held where it slid to. Halted, her stride
 shortened to her first's, she settles at a landing: onto the front foot, the rear beside it, down
 into the squat (`rest`); risen, she walks on. `walk_s` and `rest_s` run that round by
-themselves. Fallen, she curls up into the squat's joints over CURL_S and stays down: `begin`
-lands her again.
+themselves. Falling past recovery, she curls up into the squat's joints over CURL_S, the arms
+out toward the fall, and lies as she landed: `begin` lands her again.
 """
 import math
 
 from machine import arrival, figure, gait, walker
 
-#: Fallen: the pelvis under FALLEN_M or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in
-#: the arrival's moves; curled up into the squat's joints over CURL_S.
-FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M, CURL_S = 0.55, 35.0, 0.3, 1.5
+#: Falling, past the walker's recovery: the pelvis tipped past FALLING_DEG and tipping on faster
+#: than FALLING_DEG_S (the head's gyro), or under FALLING_M, walking. She curls into the squat's
+#: joints over CURL_S with the arms out toward the fall (CATCH) and lies as she landed. Fallen -
+#: under FALLEN_M or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves
+#: - is down. Curled at 35 degrees over 1.5 s, the legs walked on through the fall and she lay
+#: with her torso through the floor (2026-09-27).
+FALLING_DEG, FALLING_DEG_S, FALLING_M, CURL_S = 12.0, 60.0, 0.65, 0.4
+FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
+
+#: The arms out toward the fall, on the squat's joints: ahead, the hands out in front (a shoulder
+#: positive forward) and the head up; behind, the arms down behind her and the chin tucked.
+CATCH = {'ahead': {'left_shoulder': 100.0, 'right_shoulder': 100.0, 'left_elbow': 25.0,
+                   'right_elbow': 25.0, 'left_wrist': 0.0, 'right_wrist': 0.0,
+                   'left_gripper': 0.0, 'right_gripper': 0.0, 'neck': -20.0},
+         'behind': {'left_shoulder': -45.0, 'right_shoulder': -45.0, 'left_elbow': 20.0,
+                    'right_elbow': 20.0, 'neck': 45.0}}
 
 #: A stance foot bearing `walker.BEARS_N` slid past SLIP_M of where it landed is held where it
 #: is; one lifting is not sliding. At 2 cm, the feet's slides under the ankle's drive at 0.65
@@ -48,7 +61,8 @@ class Director:
         self.walk_s, self.rest_s = walk_s, rest_s
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
-        self.curl_from = None
+        #: Since when she curls and from and to what; the tilt last pass, (deg, s).
+        self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
         self.curled = arrival.angles_of(arrival.keyframes(gait.CADENCE)[0][2])
 
     @property
@@ -70,7 +84,8 @@ class Director:
         """Landed in the squat, the arrival to take her up."""
         self.arrival.land()
         self.stage, self.fallen_at, self.since = self.arrival.stage, None, 0.0
-        self.walker.last, self.blend, self.curl_from = None, None, None
+        self.walker.last, self.blend, self.curl_from = None, None, {}
+        self.falling_at, self.curl_to, self.tilt_was = None, {}, None
         self.walker.pendulum = type(self.walker.pendulum)()
         self.walker.cadence = gait.CADENCE
 
@@ -91,15 +106,18 @@ class Director:
     def step(self, dt):
         """{joint: degrees}: what whichever move has her sets now."""
         bus = self.machine.loop.bus
-        if self.stage in arrival.STAGES or self.stage == 'fallen':
+        if self.stage in arrival.STAGES or self.stage in ('falling', 'fallen'):
             self.pendulum.read(bus, dt)
+        if self.falling_at is None and (self._falling(bus) or self._fallen(bus)):
+            self.falling_at, self.stage = bus['t'], 'falling'
+            self.curl_to = dict(self.curled, **CATCH[self._fall_way(bus)])
+            self.curl_from = {j: bus.get(j + '.deg', 0.0) for j in self.curl_to}
         if self.fallen_at is None and self._fallen(bus):
             self.fallen_at, self.stage = bus['t'], 'fallen'
-            self.curl_from = {j: bus.get(j + '.deg', 0.0) for j in self.curled}
-        if self.fallen_at is not None:
-            k = gait.eased((bus['t'] - self.fallen_at) / CURL_S)
-            was = self.curl_from or self.curled
-            return {j: was[j] + (v - was[j]) * k for j, v in self.curled.items()}
+        if self.falling_at is not None:
+            k = gait.eased((bus['t'] - self.falling_at) / CURL_S)
+            return {j: self.curl_from[j] + (v - self.curl_from[j]) * k
+                    for j, v in self.curl_to.items()}
         self.since += dt
         if self.stage in arrival.STAGES:
             out = self.arrival.step(dt)
@@ -138,14 +156,34 @@ class Director:
         self.walker.last = out
         return out
 
+    def _tilt(self, bus):
+        """The pelvis's tilt from upright, degrees."""
+        up = self._pelvis(bus)[1][1][1]
+        return math.degrees(math.acos(max(-1.0, min(1.0, up))))
+
+    def _falling(self, bus):
+        """Past recovery, walking: tipped past FALLING_DEG and tipping on faster than
+        FALLING_DEG_S, or the pelvis under FALLING_M."""
+        if self.stage in arrival.STAGES:
+            self.tilt_was = None
+            return False
+        tilt, t = self._tilt(bus), bus['t']
+        rate = 0.0 if self.tilt_was is None else (
+            (tilt - self.tilt_was[0]) / max(1e-6, t - self.tilt_was[1]))
+        self.tilt_was = (tilt, t)
+        return bus['pelvis.pose.y'] < FALLING_M or (tilt > FALLING_DEG and rate > FALLING_DEG_S)
+
+    def _fall_way(self, bus):
+        """'ahead' or 'behind': which way the pelvis tips, along its own forward."""
+        turn = self._pelvis(bus)[1]
+        return 'ahead' if turn[0][1] * turn[0][2] + turn[2][1] * turn[2][2] > 0.0 else 'behind'
+
     def _fallen(self, bus):
         """Down: the pelvis under its floor for what she does, or tipped past FALLEN_DEG
         walking."""
         if self.stage in arrival.STAGES:
             return bus['pelvis.pose.y'] < SQUAT_FALLEN_M
-        up = self._pelvis(bus)[1][1][1]
-        return (bus['pelvis.pose.y'] < FALLEN_M
-                or math.degrees(math.acos(max(-1.0, min(1.0, up)))) > FALLEN_DEG)
+        return bus['pelvis.pose.y'] < FALLEN_M or self._tilt(bus) > FALLEN_DEG
 
     def _foot(self, bus, side, sign):
         """(ankle, the foot's pitch toes-up deg) of a leg as the loop read it, world."""
