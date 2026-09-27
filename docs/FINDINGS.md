@@ -377,6 +377,25 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   landing 0.1 stride late (the phase, pulled to the body at 5 a stride,
   lags it); the heel to 50-55 degrees at toe-off felled the walks alike
   (2026-09-27).
+- The floor's events (`physics.World.terrain`) in the shoves' place on the
+  scoreboard, a shove hardly ever happening to a walker: a hole 3 cm deep
+  and 40 cm long under the left foot's next landing (the floor a slab over
+  a plane that deep, cut in two), a sill 4 cm high 15 cm ahead of its toes
+  as it lifts, a patch at 0.06 under the landing, a loose rug (0.1 on the
+  floor, the sole's own grip on it) its front edge 15 cm short of the
+  landing. Her toes skim at 3 cm through the first 0.16 s of a swing: a 2
+  cm sill they shoved at with 200 N and went over, at 4 with 350 N, the
+  pelvis tipping 8 degrees, and the swing carries them over. The patch at
+  0.15 let the stance foot creep 3 mm (the walk asks 0.17 of the floor), at
+  0.06 it slides 10 cm back under the push-off and she walks on, tipped 6.
+  The rug at 0.3 lay still (the sole's shear 100 N, its hold 165), at 0.1 it
+  goes with the push-off and she falls at 7.7 s. The hole fells her at 6.6
+  s: the foot finds no floor where the plan lands it, the leg holds it 3 cm
+  short, the body falls 14 mm and runs on, a catch lifts the wrong foot. A
+  geom moved or grown past its compiled bounds is missed by MuJoCo's
+  broadphase (the rug fell through a slab grown 27 m, a box through a sill
+  moved 1 m): the slabs are compiled over their whole span and cut, the
+  sill and the patch are mocap bodies. Held 93 % (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

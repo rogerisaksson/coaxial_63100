@@ -44,16 +44,22 @@ Open work. Measured results are in FINDINGS.
   nothing answers (Renode is).
 - Gynoid (`machine.walker`): the swing foot lands on the capture point
   (`machine.capture`), a swap is a side step, the walk begun again after
-  it. The rises, the walks and the shoves along the line hold, and the
-  shove toward the swinging foot; toward the standing foot the side step
-  ends with the capture point 27 cm ahead and no foot there (a forward step
-  folded into it), and shoved as the swinging foot lands at 0.9 she falls
-  before the swap is done; shoved at 0.30 of the stride the landing latched
-  at 0.7 of the swing sits 14 cm inside the capture point (release the latch
-  as the capture point runs on). The torso's counter and the damping are
-  off (the counter nods the torso, the damping fells the walk at 0.9).
-  Scored by `tools/sim/gait_montecarlo.py`, the shove at phase 0.30: held
-  85 %, stir 3.5 mm (1.2 with the counter at 3.9), the soles light
+  it. The rises and the walks hold. Scored by `tools/sim/gait_montecarlo.py`
+  on the floor's events (`physics.World.terrain`): the hole and the loose
+  rug fell her, the sill and the slip patch tip her 6-8 degrees: held 93 %,
+  stir 3.5 mm. Reflexes, on the head's and the strong joints' inertial
+  measurements: a foot that finds no floor reaches down and the floor is
+  where it found it (the anchor's y is 0 now); a stubbed toe lifts higher
+  and the body's fall is caught by the next step; a sliding foot
+  re-anchored at once, the other foot down early. A fall seen early - the
+  tilt past 20 degrees and growing, the pelvis dropping - curls her into
+  the squat's joints with the arms out toward the fall, and she gets up
+  from the floor (the director curls her at 35 degrees and leaves her). The
+  shoves' findings stand: toward the standing foot the side step ends with
+  the capture point 27 cm ahead and no foot there; shoved at 0.30 of the
+  stride the landing latched at 0.7 of the swing sits 14 cm inside the
+  capture point. The torso's counter and the damping are off (the counter
+  nods the torso, the damping fells the walk at 0.9); the soles light
   sneakers. The look: the pelvis surges 65 mm fore-aft and bobs 18 mm a
   stride - the collision at touchdown; push off before the landing (the
   trailing heel up as the other foot strikes) with the landing come as the

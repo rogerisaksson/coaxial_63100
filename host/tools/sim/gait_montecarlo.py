@@ -7,7 +7,8 @@ terminal page runs her:
 
 - rise: landed in the squat, up and walking to a pace asked of her,
 - walk: from mid-stride at a pace, the pendulum between her ears read (`machine.pendulum`),
-- push: from mid-stride, shoved from one side, before or behind.
+- event: from mid-stride, the floor's event under her next left step (`physics.World.terrain`):
+  a hole, a sill, a slip patch, a loose rug.
 
 Two numbers: `held`, the share of the trials' time she stood, and `stir`, the pendulum's mean
 over the walks, mm. Its cost is one: `stir + LOST (1 - held)`. A single run a candidate scores
@@ -26,20 +27,21 @@ import multiprocessing
 import sys
 import time
 
-#: (kind, pace, shove): the trials. A shove is (across, on) N, her left and ahead positive.
+#: (kind, pace, event): the trials. The floor's events took the shoves' place (a shove hardly
+#: ever happens to a walker; a hole, a sill, a rug and a slippery patch do), each laid as the
+#: left leg's phase first crosses its toe-off after EVENT_AT_S: a hole, a slip patch and a rug's
+#: heel-end under where the walk lands that foot, a sill SILL_AHEAD_M ahead of its toes as it
+#: lifts. Laid on the clock the event met whatever phase a candidate's pace had brought her to,
+#: and a 0.1 % change of any knob flipped a shove (2026-09-27).
 TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
           ('walk', 0.65, None), ('walk', 0.85, None), ('walk', 0.9, None),
-          ('push', 0.85, (1.0, 0.0)), ('push', 0.85, (-1.0, 0.0)), ('push', 0.85, (0.0, 1.0)),
-          ('push', 0.85, (0.0, -1.0)), ('push', 0.65, (1.0, 0.0)), ('push', 0.9, (-1.0, 0.0)))
+          ('event', 0.85, 'hole'), ('event', 0.85, 'sill'), ('event', 0.85, 'slip'),
+          ('event', 0.85, 'rug'), ('event', 0.65, 'sill'), ('event', 0.9, 'slip'))
 
-#: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; a push lands as the stride's
-#: phase first crosses PUSH_AT_U after PUSH_AT_S, PUSH_N for PUSH_S - the terminal page's shove.
-#: Landed at 5 s, it met whatever phase a candidate's pace had brought her to - 0.25 at 0.85
-#: strides/s, 0.48 at 0.65 and 0.9, 0.07 less with the torso's counter at 4 degrees, on which
-#: the capture point ran 48 cm out instead of 25 - and a 0.1 % change of any knob flipped a
-#: shove (2026-09-27).
-SECONDS = {'rise': 20.0, 'walk': 14.0, 'push': 12.0}
-SETTLE_S, PUSH_AT_S, PUSH_AT_U, PUSH_N, PUSH_S = 4.0, 5.0, 0.30, 120.0, 0.12
+#: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; where the rug's front edge
+#: goes, m short of the landing.
+SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 12.0}
+SETTLE_S, EVENT_AT_S, SILL_AHEAD_M, RUG_HEEL_M = 4.0, 5.0, 0.15, 0.15
 
 #: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir.
 LOST, FALLEN_STIR = 30.0, 10.0
@@ -63,9 +65,9 @@ def _set(values):
 
 def trial(job):
     """(held, stir or None, what happened) for one candidate's one trial."""
-    values, (kind, pace, shove) = job
+    values, (kind, pace, event) = job
     _set(values)
-    from machine import Machine
+    from machine import Machine, figure, gait
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -81,21 +83,32 @@ def trial(job):
     body.loop.step(0.0)
     bus, world = body.loop.bus, body.nodes['pelvis'].world
     seconds = SECONDS[kind]
-    stirred, passes, pushed, was = 0.0, 0, False, 0.0
+    stirred, passes, laid, was, tilt = 0.0, 0, False, 0.0, 0.0
     while bus['t'] < seconds:
         body.loop.write(**director.step(0.001))
         body.loop.step(0.001)
         if director.stage == 'fallen':
             return bus['t'] / seconds, None, 'fell at %.1f s' % bus['t']
-        if (kind == 'push' and not pushed and bus['t'] >= PUSH_AT_S
-                and was < PUSH_AT_U <= director.walker.phase):
-            world.push((shove[0] * PUSH_N, 0.0, shove[1] * PUSH_N), PUSH_S)
-            pushed = True
+        if (kind == 'event' and not laid and bus['t'] >= EVENT_AT_S
+                and was < gait.TOE_OFF <= director.walker.phase):
+            walker = director.walker
+            landing = (bus['pelvis.pose.z'] + (1.0 - gait.TOE_OFF) * gait.STRIDE_M * walker.stride
+                       + gait.planted(0.0, walker.stride)[0])
+            world.terrain(event, {
+                'hole': landing + (gait.BALL - gait.HEEL) / 2.0, 'slip': landing,
+                'rug': landing - RUG_HEEL_M,
+                'sill': walker.balls['left'][2] + 2.0 * figure.CONTACTS[1][2][2] + SILL_AHEAD_M,
+            }[event])
+            laid = True
         was = director.walker.phase
+        if laid:
+            tilt = max(tilt, math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * (
+                bus['pelvis.pose.qx'] ** 2 + bus['pelvis.pose.qz'] ** 2))))))
         if kind == 'walk' and bus['t'] >= SETTLE_S:
             stirred += director.pendulum.energy
             passes += 1
-    return 1.0, (stirred / passes if passes else None), '%.1f m' % bus['pelvis.pose.z']
+    return 1.0, (stirred / passes if passes else None), '%.1f m%s' % (
+        bus['pelvis.pose.z'], ', tipped %.0f deg' % tilt if laid else '')
 
 
 def score(results):
@@ -121,10 +134,9 @@ def run(pool, candidates):
 def _show(values, cost, held, stir, results=()):
     print('%-40s cost %6.2f  held %5.1f %%  stir %5.2f mm' % (
         ' '.join('%s=%g' % kv for kv in values.items()) or 'as it is', cost, 100 * held, stir))
-    for (kind, pace, shove), (h, s, what) in zip(TRIALS, results):
-        print('    %-4s %.2f %-12s %5.1f %%  %s%s' % (
-            kind, pace, '' if shove is None else 'shove %+.0f %+.0f' % shove, 100 * h,
-            what, '' if s is None else '  stir %.2f mm' % s))
+    for (kind, pace, event), (h, s, what) in zip(TRIALS, results):
+        print('    %-5s %.2f %-5s %5.1f %%  %s%s' % (
+            kind, pace, event or '', 100 * h, what, '' if s is None else '  stir %.2f mm' % s))
 
 
 def search(pool, spans, generations, lam, log):
