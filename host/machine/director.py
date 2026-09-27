@@ -35,6 +35,7 @@ CATCH = {'ahead': {'left_shoulder': 100.0, 'right_shoulder': 100.0, 'left_elbow'
          'behind': {'left_shoulder': -45.0, 'right_shoulder': -45.0, 'left_elbow': 20.0,
                     'right_elbow': 20.0, 'neck': 45.0}}
 
+
 #: A stance foot bearing `walker.BEARS_N` slid past SLIP_M of where it landed is held where it
 #: is; one lifting is not sliding. At 2 cm, the feet's slides under the ankle's drive at 0.65
 #: strides/s re-anchored the plan eight times in two seconds and she fell (2026-09-26).
@@ -86,6 +87,7 @@ class Director:
         self.stage, self.fallen_at, self.since = self.arrival.stage, None, 0.0
         self.walker.last, self.blend, self.curl_from = None, None, {}
         self.falling_at, self.curl_to, self.tilt_was = None, {}, None
+        self.walker.heading = 0.0
         self.walker.pendulum = type(self.walker.pendulum)()
         self.walker.cadence = gait.CADENCE
 

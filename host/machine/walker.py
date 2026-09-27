@@ -327,6 +327,8 @@ class Walker:
     def __init__(self, machine, cadence=gait.CADENCE):
         self.machine, self.cadence = machine, float(cadence)
         self.world = machine.nodes['pelvis'].world
+        #: The walk's line, radians from the world's z about the vertical (`_view`).
+        self.heading = 0.0
         self.phase = 0.0
         self.anchor, self.was_q = {}, {}
         self.x_was, self.v_side, self.z_was, self.v_on = None, 0.0, None, 0.0
@@ -412,9 +414,25 @@ class Walker:
         self.capture, self.side, self.resume, self.hurry = capture.state(), None, None, 0.0
         self.rate, self.waited, self.lurch = self.cadence, 0.0, None
 
+    def _view(self, bus):
+        """The bus as the walk sees it: the pelvis's place, turn and centre of mass turned about
+        the vertical so the walk's line (`heading`) lies along z."""
+        h = self.heading
+        if h == 0.0:
+            return bus
+        c, s = math.cos(h), math.sin(h)
+        out = dict(bus)
+        for x, z in (('pelvis.pose.x', 'pelvis.pose.z'), ('pelvis.pose.com_x', 'pelvis.pose.com_z')):
+            out[x], out[z] = bus[x] * c - bus[z] * s, bus[x] * s + bus[z] * c
+        w, x, y, z = (bus['pelvis.pose.q' + k] for k in 'wxyz')
+        hc, hs = math.cos(h / 2.0), -math.sin(h / 2.0)
+        out['pelvis.pose.qw'], out['pelvis.pose.qx'] = hc * w - hs * y, hc * x + hs * z
+        out['pelvis.pose.qy'], out['pelvis.pose.qz'] = hc * y + hs * w, hc * z - hs * x
+        return out
+
     def ball_ahead(self, side):
         """How far the ball of this foot stands ahead of the pelvis, m, as the loop read it."""
-        bus = self.machine.loop.bus
+        bus = self._view(self.machine.loop.bus)
         pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
         turn = figure.quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                            bus['pelvis.pose.qz'])
@@ -423,7 +441,7 @@ class Walker:
 
     def step(self, dt):
         """{joint: degrees}: where every drive should be now."""
-        bus = self.machine.loop.bus
+        bus = self._view(self.machine.loop.bus)
         pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
         turn_now = figure.quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                          bus['pelvis.pose.qz'])

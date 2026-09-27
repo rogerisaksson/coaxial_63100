@@ -40,7 +40,7 @@ TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
 
 #: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; where the rug's front edge
 #: goes, m short of the landing.
-SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 12.0}
+SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0}
 SETTLE_S, EVENT_AT_S, SILL_AHEAD_M, RUG_HEEL_M = 4.0, 5.0, 0.15, 0.15
 
 #: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir.
@@ -84,11 +84,16 @@ def trial(job):
     bus, world = body.loop.bus, body.nodes['pelvis'].world
     seconds = SECONDS[kind]
     stirred, passes, laid, was, tilt = 0.0, 0, False, 0.0, 0.0
+    fell, up, down = None, None, 0.0
     while bus['t'] < seconds:
         body.loop.write(**director.step(0.001))
         body.loop.step(0.001)
-        if director.stage == 'fallen':
-            return bus['t'] / seconds, None, 'fell at %.1f s' % bus['t']
+        if director.stage in ('falling', 'fallen') and fell is None:
+            fell, up = bus['t'], None
+        if fell is not None and up is None:
+            down += 0.001
+            if director.stage == 'walk':
+                up = bus['t']
         if (kind == 'event' and not laid and bus['t'] >= EVENT_AT_S
                 and was < gait.TOE_OFF <= director.walker.phase):
             walker = director.walker
@@ -107,8 +112,10 @@ def trial(job):
         if kind == 'walk' and bus['t'] >= SETTLE_S:
             stirred += director.pendulum.energy
             passes += 1
-    return 1.0, (stirred / passes if passes else None), '%.1f m%s' % (
-        bus['pelvis.pose.z'], ', tipped %.0f deg' % tilt if laid else '')
+    what = '%.1f m' % bus['pelvis.pose.z'] + (', tipped %.0f deg' % tilt if laid else '')
+    if fell is not None:
+        what = 'fell at %.1f s' % fell + (', up at %.1f s' % up if up else ', down') + ', ' + what
+    return 1.0 - down / seconds, (stirred / passes if passes else None), what
 
 
 def score(results):

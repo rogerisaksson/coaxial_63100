@@ -52,10 +52,15 @@ Open work. Measured results are in FINDINGS.
   where it found it (the anchor's y is 0 now); a stubbed toe lifts higher
   and the body's fall is caught by the next step; a sliding foot
   re-anchored at once, the other foot down early. Fallen, she lies curled
-  as she landed: get up - on the hands and knees, the feet under her, into
-  the squat, and the arrival takes her up as it does now. The arms take a
-  forward fall late (the head touches once): the elbows to yield under the
-  shoulders instead of the shoulders folding. The
+  as she landed: get up - onto her front (a roll, `tools/sim/getup_lab.py`
+  has the moves that roll her), the push-up onto hands and knees, and from
+  the kneel into the squat with the feet brought under her one at a time
+  on a hand's support, the centre of mass placed over what bears her at
+  each move (`arrival.over`), then the arrival's rise facing as she lay
+  (its yaw and the walker's heading are ready). The scoreboard counts the
+  time down. The arms take a forward fall late (the head touches once):
+  the elbows to yield under the shoulders instead of the shoulders folding.
+  The
   shoves' findings stand: toward the standing foot the side step ends with
   the capture point 27 cm ahead and no foot there; shoved at 0.30 of the
   stride the landing latched at 0.7 of the swing sits 14 cm inside the

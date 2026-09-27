@@ -410,6 +410,16 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   (0.7 s after); off the rug she sits down backwards onto her feet (1.5 kN
   each) and rolls onto her back. The walking stumbles tip her 6-8 degrees,
   under the trigger (2026-09-27).
+- Getting up, tried in the joints alone (`tools/sim/getup_lab.py`): from
+  her side, straightening out rolls her onto her back; from her back a leg
+  crossed over, either way, or the right arm and leg swung up roll her onto
+  her right side; from her front the push-up onto hands and knees and on
+  into the dog (the pelvis 0.48 m up on hands and toes) work, but the
+  squat's joints from there put the knees down with the torso on the
+  floor, and a lunge with the right foot tips her onto her left side. Sat
+  up from her back, she rolled onto her side. The arrival's rise takes a
+  yaw now and the walker a heading (`Walker.heading`, the bus turned about
+  the vertical), for a get-up facing as she lay (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

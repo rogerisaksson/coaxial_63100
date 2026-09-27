@@ -16,7 +16,7 @@ import math
 from typing import Any
 
 from machine import figure, gait, walker
-from machine.figure import LEG, add, rx
+from machine.figure import LEG, add, mul, rx, ry
 
 #: Her feet in the squat and standing: the ankles FEET_X either side of the line, at z 0.
 FEET_X = 0.08
@@ -73,10 +73,15 @@ def _squat(height=0.44, tilt=25.0, spine=45.0, shoulder=60.0, elbow=30.0) -> dic
                             'left_gripper': 30.0}}, 0.0, FEET_Z)
 
 
+def _turn(frame):
+    """A keyframe's pelvis turn: facing `yaw` degrees from the walk's line, tipped `tilt`."""
+    return mul(ry(math.radians(frame.get('yaw', 0.0))), rx(math.radians(frame['tilt'])))
+
+
 def angles_of(frame, turn=None):
-    """{joint: deg} for a keyframe: its joints, the legs by IK from its pelvis, tipped as it says
-    or turned `turn`, to its ankles."""
-    turn = turn or rx(math.radians(frame['tilt']))
+    """{joint: deg} for a keyframe: its joints, the legs by IK from its pelvis, turned as it says
+    or `turn`, to its ankles."""
+    turn = turn or _turn(frame)
     out = {j: 0.0 for j in figure.JOINTS}
     out.update(frame['joints'])
     for side, sign in (('left', 1.0), ('right', -1.0)):
@@ -89,7 +94,7 @@ def angles_of(frame, turn=None):
 
 def com_of(frame):
     """A keyframe's centre of mass, world."""
-    return figure.com(angles_of(frame), frame['pelvis'], rx(math.radians(frame['tilt'])))
+    return figure.com(angles_of(frame), frame['pelvis'], _turn(frame))
 
 
 def over(frame, x, z, rounds=6) -> dict[str, Any]:
@@ -139,11 +144,14 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
             ('lean', LEAN_S, lean), ('step', LIFT_S, lifted), ('ready', 1e9, lifted)]
 
 
-def moved(frame, dx, dz) -> dict[str, Any]:
-    """`frame` moved `dx` sideways and `dz` on along the floor."""
-    return dict(frame, pelvis=add(frame['pelvis'], (dx, 0.0, dz)),
-                left=(add(frame['left'][0], (dx, 0.0, dz)), frame['left'][1]),
-                right=(add(frame['right'][0], (dx, 0.0, dz)), frame['right'][1]))
+def moved(frame, dx, dz, yaw=0.0) -> dict[str, Any]:
+    """`frame` turned `yaw` degrees about the walk's line and moved `dx` sideways and `dz` on
+    along the floor."""
+    def put(p):
+        return add(figure.apply(ry(math.radians(yaw)), p), (dx, 0.0, dz))
+    return dict(frame, pelvis=put(frame['pelvis']), yaw=yaw,
+                left=(put(frame['left'][0]), frame['left'][1]),
+                right=(put(frame['right'][0]), frame['right'][1]))
 
 
 def settling(now, front, cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
@@ -209,9 +217,10 @@ class Arrival:
         self.world.reset(angles_of(frame), where=add(frame['pelvis'], (0.0, 0.002, 0.0)),
                          turn=(math.cos(h), math.sin(h), 0.0, 0.0))
 
-    def rise(self, dx, dz):
-        """Up again from the squat `dx` sideways and `dz` on of where she landed."""
-        self.play([(stage, s, moved(frame, dx, dz))
+    def rise(self, dx, dz, yaw=0.0):
+        """Up again from the squat `dx` sideways and `dz` on of where she landed, facing `yaw`
+        degrees from the walk's line."""
+        self.play([(stage, s, moved(frame, dx, dz, yaw))
                    for stage, s, frame in keyframes(self.cadence)])
 
     def settle(self, now, front, speed):
@@ -252,7 +261,7 @@ class Arrival:
             p[2] - COM_K * (com[1] - want[2]) - COM_D * (self.v[1] - v_want[1])))
         # The pelvis's attitude turned back past its error, as the walker turns it: held by the
         # legs' servos alone, it tipped back as she rolled onto the stepping foot.
-        turn = rx(math.radians(frame['tilt']))
+        turn = _turn(frame)
         now = figure.quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                            bus['pelvis.pose.qz'])
         err = walker._vee(figure.mul(turn, figure.t(now)))
