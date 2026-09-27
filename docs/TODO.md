@@ -17,6 +17,20 @@ Open work. Measured results are in FINDINGS.
 - **SOA path** on target: dry `budget()` over the wire, gate proof with a
   lowered ceiling, a load run. `Board_SyncMeanSquare` ISR cost
   unmeasured.
+- **Sensorless below w_lo**: the injection's estimate does not converge on
+  a physical plant, native or Renode (FINDINGS 2026-09-27); the stand-in's
+  sensorless mode is a stub, so it never showed. To decide: (1) the front
+  end's response at 12.5 and 25 kHz - one AC run of
+  electronic_simulations/afe/amplifiers.asc on the phase input, the
+  transfer is static so far; (2) the injection: `drv_inj_periods` >= 2 with
+  `demod_gain` carrying the top-sampled (n - 1) / n and the current loop
+  under f_inj / 8 (`current_loop`'s max_frac 0.05 -> 0.03), `drv_sigma_i`
+  measured in `budget()` instead of assumed, the 0.005 A demod offset at
+  zero error run down - or an I/f start and no injection; (3) the stand-in's
+  drive on the C core the world library already builds, so the reference is
+  one. The instrument: on Renode with the emulation paused, `theta_hat` read
+  out of RAM against `plant Shaft` through the demo's rock, under 0.3 rad -
+  the drive's `eps` alone says it now, 0.7-1.1 rad on either emulator.
 - **Motion papers on the emulator**: `motion` and `applications` set their
   rotor's J and load through `drive.model`, which an emulated drive keeps to
   itself; the world's flywheel needs a load the host sets. They run on the

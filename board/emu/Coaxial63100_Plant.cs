@@ -64,8 +64,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 }
             };
             this.pwmHz = pwmHz;
-            period = 1.0f / pwmHz;
-            timer = new LimitTimer(machine.ClockSource, pwmHz, this, "period", limit: 1,
+            period = 0.5f / pwmHz;
+            timer = new LimitTimer(machine.ClockSource, 2 * pwmHz, this, "period", limit: 1,
                                    workMode: WorkMode.Periodic, eventEnabled: true);
             timer.LimitReached += Step;
             heat = new LimitTimer(machine.ClockSource, HeatHz, this, "heat", limit: 1,
@@ -77,6 +77,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         public void Reset()
         {
             depth = 0;
+            trigger = false;
         }
 
         public void OnGPIO(int number, bool value)
@@ -186,8 +187,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
-        /// <summary>The period's timer: while a world turns, or while TIM1 counts and an ADC waits
-        /// on TRGO2 - a 50 kHz event from boot made the idle image 2.9 times slower (2026-09-25).</summary>
+        /// <summary>The period's timer, two events a period: while a world turns, or while TIM1
+        /// counts and an ADC waits on TRGO2 - a 50 kHz event from boot made the idle image 2.9
+        /// times slower (2026-09-25).</summary>
         private void Run()
         {
             var waits = false;
@@ -197,10 +199,10 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
             timer.Enabled = attached || (counting && waits);
             var hz = (waits && counting) || (bdtr & MoeBit) != 0 ? pwmHz : CoastHz;
-            if(timer.Frequency != hz)
+            if(timer.Frequency != 2 * hz)
             {
-                timer.Frequency = hz;
-                period = 1.0f / hz;
+                timer.Frequency = 2 * hz;           // the update and the trigger, half a period apart
+                period = 0.5f / hz;
             }
             busy = waits;
             if(IdleMips > 0)
@@ -264,15 +266,22 @@ namespace Antmicro.Renode.Peripherals.Analog
             return b == 0 ? a : Gcd(b, a % b);
         }
 
+        /// <summary>Half a period of the stage and the world, at the underflow and at the top: as
+        /// the part has it, the compares written since the last update land at the underflow
+        /// (OCxPE) for the period to come, and the injected sequences sample at the top, TRGO2
+        /// 15 ticks under it (board_sync.c), where the low switches are on and the shunts read.
+        /// A duty asked in the handler at the top lands at the next underflow and shows whole
+        /// in the sample after next (drive.c's PIPELINE). One step a period, the compares read
+        /// at its start, showed them a period early and the injection's fs/2 demodulator read
+        /// their sign turned; sampled at the period's end they showed the injection's peaks,
+        /// which the part's samples at the top do not (2026-09-27).</summary>
         private void Step()
         {
             if(attached)
             {
-                var arr = (float)Math.Max(1U, tim1.ReadDoubleWord(Arr));
                 var got = new float[4];
 
-                plantStep(Node, tim1.ReadDoubleWord(Ccr1) / arr, tim1.ReadDoubleWord(Ccr2) / arr,
-                          tim1.ReadDoubleWord(Ccr3) / arr, Driven ? 1 : 0, period, got);
+                plantStep(Node, duty[0], duty[1], duty[2], Driven ? 1 : 0, period, got);
                 afe.PhaseUAmps = got[0];
                 afe.PhaseVAmps = got[1];
                 afe.PhaseWAmps = got[2];
@@ -294,14 +303,31 @@ namespace Antmicro.Renode.Peripherals.Analog
                     angle.Degrees = mechanical * 180.0 / Math.PI;
                 }
             }
-            // TRGO2 off OC5REF: the injected sequences, on this period's currents.
-            if(counting && (cr2 & Mms2Mask) == Mms2Oc5Ref)
+            if(trigger)
             {
-                foreach(var adc in adcs)
+                // TRGO2 off OC5REF: the injected sequences, on the currents at the top.
+                if(counting && (cr2 & Mms2Mask) == Mms2Oc5Ref)
                 {
-                    adc?.OnTrgo2();
+                    foreach(var adc in adcs)
+                    {
+                        adc?.OnTrgo2();
+                    }
                 }
             }
+            else
+            {
+                var arr = (float)Math.Max(1U, tim1.ReadDoubleWord(Arr));
+                for(var k = 0; k < 3; k++)
+                {
+                    duty[k] = tim1.ReadDoubleWord(Ccr1 + 4 * k) / arr;
+                }
+                // main()'s slice before the trigger as well as before the update.
+                if(busy && paced)
+                {
+                    Skip();
+                }
+            }
+            trigger = !trigger;
         }
 
         /// <summary>A tenth of a thermal second of the board's heat.</summary>
@@ -402,6 +428,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly Coaxial63100_TIM1 tim1;
         private readonly Coaxial63100_A1335 angle;
         private readonly float[] shaft = new float[3];
+        // The three compares as the last update loaded them, of ARR.
+        private readonly float[] duty = new float[3];
         private float polePairs = 1.0f;
         private double electrical;
         private double mechanical;
@@ -411,6 +439,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private bool attached;
         private bool busy;
         private bool paced;
+        private bool trigger;
         private int depth;
         private TranslationCPU cpu;
 

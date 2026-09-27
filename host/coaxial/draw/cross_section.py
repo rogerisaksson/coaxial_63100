@@ -541,7 +541,7 @@ def _seat_arrayed(frame, seat):
             'x': [x for x, _y, _s in made], 'y': [y for _x, y, _s in made]}
 
 
-def _votes(s, r, rotor, slots, poles, drive):
+def _votes(s, r, rotor, slots, poles, drive, smear=False):
     """Every sample's class (-1 none) and share this frame: the fixed votes; a
     tooth's phase, `TRACK` for the length its phase is not driven to (left
     empty, 16 teeth floated loose at a can of 95, 2026-09-23) - from the inside
@@ -579,17 +579,22 @@ def _votes(s, r, rotor, slots, poles, drive):
     cover = np.clip(r.line * 1.0 + 0.5 - abs(radius - (r.magnet_in + r.magnet_out) / 2.0),
                     0.0, 1.0)
     south = ~gap & ~north & (cover != 0.0)
+    if smear:
+        # Turning too fast for the frame rate: the magnets as one ring, the south line's.
+        cls[magnet] = np.where(cover != 0.0, SOUTH, -1)
+        share[magnet] = cover
+        return cls, share
     cls[magnet] = np.where(gap, -1, np.where(north, NORTH, np.where(south, SOUTH, -1)))
     share[magnet] = np.where(gap, 0.0, np.where(north, 1.0, np.where(south, cover, 0.0)))
     return cls, share
 
 
-def _body(frame, seat, rotor_deg, slots, poles, drive):
+def _body(frame, seat, rotor_deg, slots, poles, drive, smear=False):
     """The motor itself, every dot at once: a dot at a time was 195 ms a frame at
     200x60 (2026-09-25)."""
     from coaxial.model.blocks import numpy as np
     s = _seat_arrays(frame, seat)
-    cls, share = _votes(s, seat.radii, math.radians(rotor_deg), slots, poles, drive)
+    cls, share = _votes(s, seat.radii, math.radians(rotor_deg), slots, poles, drive, smear)
     # Each sample votes with its coverage, and the dot goes to the class that
     # covers most of it: summed a class at a time in the order the classes are
     # first met, as a dict of votes adds them.
@@ -696,11 +701,11 @@ def _truth(frame, seat, truth_deg):
 
 
 def _motor(frame, seat, rotor_deg, slots, poles, drive,
-             truth_deg=None, pointer_deg=None, bead=None, pointer_rate=None):
+             truth_deg=None, pointer_deg=None, bead=None, pointer_rate=None, smear=False):
     """The motor and nothing else: the cross-section, the bench's mark on
-    the rim, and the tick a shaft sensor claims.
+    the rim, and the tick a shaft sensor claims; `smear` the magnets as one ring.
     """
-    _body(frame, seat, rotor_deg, slots, poles, drive)
+    _body(frame, seat, rotor_deg, slots, poles, drive, smear)
     if truth_deg is not None:
         _truth(frame, seat, truth_deg)
     if pointer_deg is not None:
@@ -738,7 +743,7 @@ def motor(rotor_deg, slots=24, poles=28, width=40, height=22, drive=None,
 
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             pointer_deg, left, right, top, bottom, aspect, labels=None,
-            leaders=None, rules=None, bead=None, pointer_rate=None):
+            leaders=None, rules=None, bead=None, pointer_rate=None, smear=False):
     """The whole page: the motor, its instruments, and the legend over
     both.
     """
@@ -747,7 +752,7 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
                 aspect)
     _motor(frame, seat, rotor_deg, slots, poles, drive,
              truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead,
-             pointer_rate=pointer_rate)
+             pointer_rate=pointer_rate, smear=smear)
     _instruments(frame, seat, left, right, top, bottom)
     lit = _overlay(frame.dots, frame.text, width, height, labels, leaders,
                    rules)
@@ -759,15 +764,16 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            truth_deg=None, amps=None, full=None, pointer_deg=None,
            left=None, right=None, top=None, bottom=None,
            aspect=CELL_ASPECT, colour=False, labels=None, leaders=None,
-           rules=None, bead=None, pointer_rate=None):
-    """The cross-section, `rotor_deg` being how far the can has turned."""
+           rules=None, bead=None, pointer_rate=None, smear=False):
+    """The cross-section, `rotor_deg` being how far the can has turned; `smear` the
+    magnets as one ring, a can turning past half a pitch a frame."""
     poles = max(2, int(poles) - int(poles) % 2)
     slots = max(3, int(slots))
     drive = _drive(amps, full)
     frame, lit = _raster(rotor_deg, slots, poles, width, height,
                          truth_deg, drive, pointer_deg, left, right,
                          top, bottom, aspect, labels, leaders, rules,
-                         bead, pointer_rate)
+                         bead, pointer_rate, smear)
     # The only thing left here is who gets which colour.
     at = {}
     for row, col, said, said_ink in list(labels or []):

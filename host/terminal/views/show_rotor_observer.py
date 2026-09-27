@@ -73,6 +73,10 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 #: for every thermometer and the winding), not a limit (invariant 10).
 NTC_COLD_C, NTC_HOT_C = TEMP_FLOOR_C, TEMP_SCALE_C
 
+#: The bead's longest drawn step a frame, degrees: 2.5 turns a second at FPS_CAP, eight frames
+#: a turn - a direction the eye follows where the true step is a turn and more.
+BEAD_STEP_DEG = 45.0
+
 
 def sane(args):
     """Refuse a run outside LIMITS, and the two relations between them."""
@@ -148,14 +152,29 @@ def compose(rig, origin, console, view):
     caption = list(heads[:CAPTION_ROWS])
     foot = list(heads[CAPTION_ROWS:])          # FOOT_ROWS of them
     turned = math.degrees(s['theta_hat']) / pole_pairs
+    # A can turning past half a magnet pitch a frame strobes at FPS_CAP - stands, or runs
+    # backwards, as a wheel on film (43 rpm at 14 poles) - so the magnets blur into a band; the
+    # bead keeps the true direction at BEAD_STEP_DEG a frame and takes the true phase, the short
+    # way, once the can is slow enough to show it. `travel` itself stays exact.
+    a_frame = math.degrees(abs(s['omega_hat'])) / pole_pairs / FPS_CAP
+    smear = a_frame > 90.0 / pole_pairs
+    step = view['travel'] - view.get('bead_travel', view['travel'])
+    view['bead_travel'] = view['travel']
+    bead = view.get('bead', view['travel'])
+    if abs(step) > BEAD_STEP_DEG:
+        bead += math.copysign(BEAD_STEP_DEG, step)
+    else:
+        short = (view['travel'] - bead + 180.0) % 360.0 - 180.0
+        bead += max(-BEAD_STEP_DEG, min(BEAD_STEP_DEG, short))
+    view['bead'] = bead
     # The can and the pointer are different quantities.
     art = cross_section.render(turned, view['slots'], 2 * pole_pairs,
                          BOX.width, BOX.rows,
                          # The sensor's own stroke is not drawn.
                          truth_deg=None,
                          amps=amps, full=full, aspect=view['aspect'],
-                         pointer_deg=view['travel'] - view['tare'],
-                         pointer_rate=pointer_rate(view),
+                         pointer_deg=bead - view['tare'],
+                         pointer_rate=pointer_rate(view), smear=smear,
                          left=(soa_bars(view, SOA_NODES)
                                + [None] * NTC_GAP + ntc_bar(view)),
                          right=(soa_bars(view, BOARD_NODES)

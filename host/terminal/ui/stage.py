@@ -290,20 +290,26 @@ def footer(pairs):
 
 
 def hud(title, rows):
-    """One instrument: labels recede, values glow, rounded frame."""
-    grid = Table.grid(padding=(0, 1))
-    grid.add_column(style='label', justify='right', no_wrap=True)
-    grid.add_column(style='value', no_wrap=True)
-    for row in rows:
+    """One instrument: labels recede, values glow, rounded frame. Lines of one Text, not a
+    grid: seven grids measured their columns every frame, a third of the rotor page's
+    (2026-09-27)."""
+    width = max((len(str(row[0])) for row in rows if isinstance(row, tuple)), default=0)
+    body = Text(no_wrap=True, overflow='ellipsis')
+    for i, row in enumerate(rows):
+        if i:
+            body.append('\n')
         if isinstance(row, tuple):
+            body.append('%*s ' % (width, row[0]), style='label')
             value = row[1]
-            grid.add_row(str(row[0]),
-                         value if isinstance(value, Text) else str(value))
-        elif isinstance(row, Text):
-            grid.add_row('', row)
         else:
-            grid.add_row('', Text.from_ansi(str(row)))
-    return Panel(grid, title=Text(title, style='name'), title_align='left',
+            body.append(' ' * (width + 1))
+            value = row
+        if not isinstance(value, Text):
+            value = Text.from_ansi(str(value)) if isinstance(row, str) else Text(str(value))
+        value = value.copy()
+        value.style = value.style or 'value'
+        body.append_text(value)
+    return Panel(body, title=Text(title, style='name'), title_align='left',
                  box=box.ROUNDED, border_style='frame.hud',
                  padding=(0, 1), expand=True)
 

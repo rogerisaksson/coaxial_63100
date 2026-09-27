@@ -788,6 +788,29 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   skip 0.6, no translation flushes (~1 000 blocks a virtual s). Real time
   under the drive is out of the emulator's reach as the firmware stands:
   every access is the ISR's own (2026-09-27).
+- ROTOR OBSERVER on an emulated board, A/B'd against the stand-in over the
+  demo (tools/dev/ab.py, then the drive's state every 50 board ms through a
+  cycle on all three): the can's wobble is the low-speed estimate. The
+  innovation |eps| over the rock is 0.72 on native, 0.78 on Renode, 0.05 on
+  the stand-in - whose sensorless mode is a stub (simulated/drive/plant.py:
+  `_converge` pulls theta_hat onto the rotor, `_ih` a closed form) - and
+  0.2 on all three at speed, where the back-EMF observer holds. The part
+  samples at the counter's top (CCR5 = ARR - 15, the low switches on for
+  the shunts); an fs/2 injection sampled there sits on its triangle's
+  midpoints, and the demodulator's gain is (n - 1) / n of the model's:
+  none at `drv_inj_periods` 1, which choose_injection picks (n >= 2 fails
+  its f_inj >= 8 x the 2 500 Hz current loop). The rotor held on the d-axis
+  and the injection frame turned +0.3 rad, eps_amps reads -0.003 on native
+  at n 1, -0.012 at n 2, -0.013 on Renode, a frame ahead negative as the
+  physics has it with Ld < Lq; the stand-in's form says +0.009, and both
+  emulators carry an offset of 0.005 A at zero error (0.15-0.4 rad).
+  The noise: the bench's phases 0.35-0.41 A rms, the world's 0.02 A, the
+  commissioning's assumed `drv_sigma_i` 0.05. n 2 with the loop at
+  1.5 kHz alone did not bring the rock's |eps| down on native (1.07). The
+  Renode plant read the compares at its one step a period and showed them a
+  period early, the demodulator's sign turned: it now steps half a period,
+  the compares landing at the underflow and TRGO2 at the top, as
+  board/native has it (2026-09-27).
 
 ## Local model
 

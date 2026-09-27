@@ -319,10 +319,12 @@ def test_ack_skips_the_quiet_time(report):
         def __init__(self, *args, **kwargs):
             self.stream = b''
             self.reply = b''
-            self.hungry = 0            # reads that returned nothing
+            self.hungry = 0            # reads and looks that found nothing
 
         @property
         def in_waiting(self):
+            if not self.stream:
+                self.hungry += 1       # the quiet wait looks here (transport._arrives)
             return len(self.stream)
 
         def read(self, n=1):
@@ -354,7 +356,7 @@ def test_ack_skips_the_quiet_time(report):
         port.serial.reply = framed(b'\x01')
         got = port.request(1, 0x6E, b'', reply_shape=tmod.ACK)
         report.check('a shaped ack returns its payload', got == b'\x01', got)
-        report.check('without one hungry read - no quiet time paid',
+        report.check('without one hungry look - no quiet time paid',
                      port.serial.hungry == 0, port.serial.hungry)
 
         port.serial.reply = framed(b'\x01')

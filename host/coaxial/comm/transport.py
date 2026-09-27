@@ -287,13 +287,23 @@ class Transport:
             if sized:
                 want = min(sized, self.MAX_FRAME)
                 continue
-            waiting = self.serial.in_waiting
-            chunk = self.serial.read(min(waiting, want - len(buffer))
-                                     if waiting else 1)
-            if not chunk:
+            waiting = self.serial.in_waiting or (self._arrives() and self.serial.in_waiting)
+            if not waiting:
                 break
-            buffer += chunk
+            buffer += self.serial.read(min(waiting, want - len(buffer)))
         return buffer
+
+    def _arrives(self):
+        """Whether a byte comes within the port's quiet time - its own `quiet_time`, else
+        QUIET_TIME, at the board's pace - spun on `in_waiting`: a read's timeout and a sleep
+        are the OS's tick, 15.6 ms on Windows, and an unsized reply paid it every time, 28 ms
+        of an emulated board's 31 ms round trip (2026-09-27)."""
+        quiet = getattr(self.serial, 'quiet_time', self.QUIET_TIME) * self._time_scale
+        deadline = time.perf_counter() + quiet
+        while time.perf_counter() < deadline:
+            if self.serial.in_waiting:
+                return True
+        return False
 
     # -- one transaction ---------------------------------------------------
 

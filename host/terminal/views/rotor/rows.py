@@ -150,7 +150,9 @@ def status_rows(view):
             ('loops', loops or 'none - the drive is on its own'),
             ('travel', '%9.1f deg %7.2f turns %s'
              % (gone, gone / 360.0,
-                'cw' if speed >= 0.0 else 'ccw')),
+                # As the can and the bead turn on the page: positive is counter-clockwise,
+                # SHAFT ANGLE's dial's way (2026-09-27).
+                'ccw' if speed >= 0.0 else 'cw')),
             # The cell's shape, and where the number came from.
             ('cell', '%.2f tall %s' % (view.get('aspect', cross_section.CELL_ASPECT),
                                        view.get('aspect_how', 'assumed')))]
