@@ -52,7 +52,7 @@ GLITCH_AT, CUT_S, HOT_S, HOT_OF = 0.25, 0.15, 2.0, 0.1
 #: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir.
 LOST, FALLEN_STIR = 30.0, 10.0
 
-MODULES = ('walker', 'gait', 'arrival', 'director', 'capture', 'physics')
+MODULES = ('walker', 'gait', 'arrival', 'director', 'capture', 'physics', 'buses')
 
 
 def _set(values):

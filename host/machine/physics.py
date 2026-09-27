@@ -4,14 +4,19 @@
     machine.loop.write(left_knee=20.0); machine.loop.step(0.001)    # the world moves to the loop's time
 
 A drive holds its setpoint by PD at the world's step, 1 ms, carrying it on at the rate it last
-moved. The world advances when the loop reads it, to the loop's time, on the setpoints written the
-pass before. The floor is y 0, a slab over a plane a hole deep, its events parked out of the
-way until placed (`World.terrain`); only the soles, the toes, the knees and the knuckles touch it.
+moved - on its board, on its limb's bus (`machine.buses`), a thread a limb in lockstep with the
+world, the host's setpoints and its readings crossing the wire at the link's rate; a world with
+no buses runs the drives itself. The world advances when the loop reads it, to the loop's time,
+on the setpoints written the pass before. The floor is y 0, a slab over a plane a hole deep, its
+events parked out of the way until placed (`World.terrain`); only the soles, the toes, the knees
+and the knuckles touch it.
 """
 import importlib
 import math
 import os
+import threading
 
+from machine.buses import Bus
 from machine.controller import Feedback
 from machine.errors import MachineError
 from machine.figure import CONTACTS, JOINTS, MASS_KG, SEGMENTS
@@ -162,6 +167,14 @@ class World:
         self.target = np.zeros(len(JOINTS))
         self.rate = np.zeros(len(JOINTS))
         self.was, self.stamp = self.target.copy(), 0.0
+        #: The buses (`buses`), the bus of each joint; the joints' state and the torque limit
+        #: the boards read a step, the torques they write; the host's setpoints pending a
+        #: broadcast and when they were written; the lockstep's barriers.
+        self.buses, self.bus_of = [], {}
+        self.q, self.qd = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
+        self.limit, self.ctrl = self.peak.copy(), np.zeros(len(JOINTS))
+        self.pending, self.pending_at, self.stop = {}, 0.0, False
+        self.begun = self.ended = None
         self.pelvis = m.body('pelvis').id
         self.torso = m.body('torso').id
         self.soles = {side: {m.body(side + part).id for part in ('_foot', '_toes')}
@@ -174,6 +187,25 @@ class World:
         self.work = self.brake = self.heat = self.effort = 0.0
         self.clock = lambda: self.data.time
         self._park()
+
+    def wire(self, limbs):
+        """The boards on their buses: a bus a limb, `limbs` [[joint index, ..], ..], each a
+        thread in lockstep with the world."""
+        n = len(limbs)
+        self.begun, self.ended = threading.Barrier(n + 1), threading.Barrier(n + 1)
+        self.buses = [Bus(self, link, indices) for link, indices in enumerate(limbs, 1)]
+        self.bus_of = {i: bus for bus in self.buses for i in bus.indices}
+        for bus in self.buses:
+            bus.start()
+
+    def close(self):
+        """The buses' threads let go."""
+        self.stop = True
+        for bus in self.buses:
+            bus.stop = True
+        if self.begun is not None:
+            self.begun.abort()
+            self.ended.abort()
 
     def _slab(self, a_to, b_from):
         """The slab's halves: from SLAB_FROM_M to `a_to` and from `b_from` to SLAB_TO_M, m."""
@@ -233,33 +265,56 @@ class World:
         self.target[:] = d.qpos[self.qadr]
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
-        self.stamp, self.glitch_at = d.time, None
+        self.stamp, self.glitch_at, self.pending = d.time, None, {}
+        for bus in self.buses:
+            bus.inbox.clear()
+            bus.mail.clear()
+            bus.free_at, bus.now = d.time, d.time
+            for i in bus.indices:
+                bus.hold(i, float(self.target[i]))
 
     def write(self, index, degrees):
+        """A setpoint: to its board over the bus, with the pass's others (`advance`)."""
         self.target[index] = math.radians(degrees)
+        self.pending[index], self.pending_at = degrees, self.clock()
 
     def advance(self):
-        """On to the clock: every drive's PD each step, its setpoint carried on at its rate."""
+        """On to the clock, a step at a time: the pass's setpoints broadcast on each bus and
+        every board polled, the boards' loops a lockstep, the world stepped on their torques."""
         now, d = self.clock(), self.data
         if now <= d.time + 1e-9:
             return
-        np, span = self._np, now - self.stamp
-        if span > 1e-9:
-            self.rate = (self.target - self.was) / span
-        self.was, self.stamp = self.target.copy(), now
+        np = self._np
+        if self.buses:
+            for bus in self.buses:
+                mine = {i: self.pending[i] for i in bus.indices if i in self.pending}
+                if mine:
+                    bus.send(self.pending_at, mine)
+                bus.poll(now)
+            self.pending = {}
+        else:
+            span = now - self.stamp
+            if span > 1e-9:
+                self.rate = (self.target - self.was) / span
+            self.was, self.stamp = self.target.copy(), now
         start = d.time
         while d.time < now - 1e-9:
-            ref = self.target + self.rate * (d.time - start)
-            tau = (self.gains[:, 0] * (ref - d.qpos[self.qadr])
-                   + self.gains[:, 1] * (self.rate - d.qvel[self.vadr]))
-            peak = self.peak
+            self.limit[:] = self.peak
             if self.glitch_at is not None:
                 if d.time < self.glitch_until:
-                    peak = peak.copy()
-                    peak[self.glitch_at] *= self.glitch_of
+                    self.limit[self.glitch_at] *= self.glitch_of
                 else:
                     self.glitch_at = None
-            d.ctrl[:] = np.clip(tau, -peak, peak)
+            if self.buses:
+                self.q[:], self.qd[:] = d.qpos[self.qadr], d.qvel[self.vadr]
+                self.begun.wait()
+                self.ended.wait()
+                d.ctrl[:] = self.ctrl
+            else:
+                ref = self.target + self.rate * (d.time - start)
+                tau = (self.gains[:, 0] * (ref - d.qpos[self.qadr])
+                       + self.gains[:, 1] * (self.rate - d.qvel[self.vadr]))
+                d.ctrl[:] = np.clip(tau, -self.limit, self.limit)
             power = d.ctrl * d.qvel[self.vadr]
             self.work += float(power[power > 0.0].sum()) * STEP_S
             self.brake -= float(power[power < 0.0].sum()) * STEP_S
@@ -280,7 +335,11 @@ class World:
         self.glitch_until, self.glitch_of = self.data.time + seconds, float(share)
 
     def angle(self, index):
+        """(degrees, deg/s) of a joint as its board last answered the host - the world's own
+        with no bus."""
         self.advance()
+        if index in self.bus_of:
+            return self.bus_of[index].reading(index)[:2]
         d = self.data
         return math.degrees(d.qpos[self.qadr[index]]), math.degrees(d.qvel[self.vadr[index]])
 
@@ -387,6 +446,9 @@ class PoseNode(Node):
         """The world runs on the loop's clock."""
         self.world.clock = lambda: machine.loop.bus.get('t', 0.0)
 
+    def close(self):
+        self.world.close()
+
 
 def body(type):
     """[DriveNode .., PoseNode] for machine type `type`: a drive a joint, bus i subsystem i, all
@@ -399,6 +461,8 @@ def body(type):
         raise MachineError('%s has no figure for %s: a body with mass is the gynoid\'s'
                            % (type, ', '.join(missing)))
     world = World()
+    world.wire([[JOINTS.index(joint) for joint in subsystem.actuators]
+                for subsystem in TYPES[type].body])
     nodes = [DriveNode(world, JOINTS.index(joint), link, unit)
              for link, subsystem in enumerate(TYPES[type].body, 1)
              for unit, joint in enumerate(subsystem.actuators, 1)]

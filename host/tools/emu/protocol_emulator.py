@@ -116,7 +116,10 @@ class Serial(SerialBase):
 
     def close(self):
         if self.is_open:
-            self._inner.close()
+            try:
+                self._inner.close()
+            except OSError:   # finalized with the interpreter, the socket's grace sleep has no handle
+                pass
         self.is_open = False
 
     def _reconfigure_port(self, force_update=False):

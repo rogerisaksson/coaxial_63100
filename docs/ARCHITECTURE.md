@@ -106,7 +106,9 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     failsafe), simulated (pack, camera), virtual (VIRTUAL: a
                     type's joints where told, no board), gait (a walk's angles),
                     figure (the gynoid's segments, masses, leg IK), physics
-                    (DYNAMIC: the figure in MuJoCo, a drive a joint), walker
+                    (DYNAMIC: the figure in MuJoCo, a drive a joint), buses
+                    (its boards on a bus a limb, a thread each in lockstep
+                    with the world, the host's frames timed on the wire), walker
                     (her setpoints each ms: plan, IK, balance), capture (where
                     a swinging foot lands across: on the capture point, or a
                     side step), arrival (keyframes, the CoM fed back: the
