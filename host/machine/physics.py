@@ -167,6 +167,8 @@ class World:
         self.soles = {side: {m.body(side + part).id for part in ('_foot', '_toes')}
                       for side in ('left', 'right')}
         self.push_n, self.push_until = np.zeros(3), -1.0
+        #: A drive glitched (`glitch`): its index, until when, and the share of its peak it has.
+        self.glitch_at, self.glitch_until, self.glitch_of = None, -1.0, 1.0
         #: The drives' energy since the reset: work done and work braked (J), heat (J), and
         #: torque held (N m s) - what a muscle would pay for.
         self.work = self.brake = self.heat = self.effort = 0.0
@@ -231,7 +233,7 @@ class World:
         self.target[:] = d.qpos[self.qadr]
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
-        self.stamp = d.time
+        self.stamp, self.glitch_at = d.time, None
 
     def write(self, index, degrees):
         self.target[index] = math.radians(degrees)
@@ -250,7 +252,14 @@ class World:
             ref = self.target + self.rate * (d.time - start)
             tau = (self.gains[:, 0] * (ref - d.qpos[self.qadr])
                    + self.gains[:, 1] * (self.rate - d.qvel[self.vadr]))
-            d.ctrl[:] = np.clip(tau, -self.peak, self.peak)
+            peak = self.peak
+            if self.glitch_at is not None:
+                if d.time < self.glitch_until:
+                    peak = peak.copy()
+                    peak[self.glitch_at] *= self.glitch_of
+                else:
+                    self.glitch_at = None
+            d.ctrl[:] = np.clip(tau, -peak, peak)
             power = d.ctrl * d.qvel[self.vadr]
             self.work += float(power[power > 0.0].sum()) * STEP_S
             self.brake -= float(power[power < 0.0].sum()) * STEP_S
@@ -263,6 +272,12 @@ class World:
         """A shove on the torso, world newtons, for `seconds`."""
         self.push_n = self._np.array(force, float)
         self.push_until = self.data.time + seconds
+
+    def glitch(self, joint, seconds, share=0.0):
+        """Drive `joint` down to `share` of its peak torque for `seconds`: its gate dropped (0),
+        or derated at its thermal ceiling (a share)."""
+        self.glitch_at = JOINTS.index(joint)
+        self.glitch_until, self.glitch_of = self.data.time + seconds, float(share)
 
     def angle(self, index):
         self.advance()

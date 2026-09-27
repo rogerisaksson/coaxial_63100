@@ -51,7 +51,11 @@ Open work. Measured results are in FINDINGS.
   measurements: a foot that finds no floor reaches down and the floor is
   where it found it (the anchor's y is 0 now); a stubbed toe lifts higher
   and the body's fall is caught by the next step; a sliding foot
-  re-anchored at once, the other foot down early. Fallen, she lies curled
+  re-anchored at once, the other foot down early. A knee folding under
+  her (a drive derated hot): sink onto the strong leg and kneel on the
+  weak one - a bent knee on the floor asks its drive nothing - and rise on
+  the strong leg when it holds again; the cut knee she rides out. Fallen,
+  she lies curled
   as she landed: get up - onto her front (a roll, `tools/sim/getup_lab.py`
   has the moves that roll her), the push-up onto hands and knees, and from
   the kneel into the squat with the feet brought under her one at a time

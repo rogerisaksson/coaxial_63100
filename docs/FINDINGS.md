@@ -420,6 +420,23 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   up from her back, she rolled onto her side. The arrival's rise takes a
   yaw now and the walker a heading (`Walker.heading`, the bus turned about
   the vertical), for a get-up facing as she lay (2026-09-27).
+- A drive's glitch (`physics.World.glitch`, the peak torque cut to a share
+  for a while) on the scoreboard: the left knee's gate dropped for 0.15 s
+  at mid-stance ('cut') gives 19 degrees under 500 N, the pelvis 16 mm,
+  and takes her weight again, tipped 4; the knee derated to a tenth for 2
+  s ('hot', 25 N m) folds 18 -> 64 degrees in 0.3 s and the pelvis sinks
+  20 cm, past the height latch's 12: the other leg, reaching from a target
+  the body is no longer at, holds its foot in the air and she falls
+  backwards at 5.7 s. Walked on straight (the pelvis at the weak leg's
+  reach, its step 8 cm short) it fell sooner: a knee already folded cannot
+  straighten under her, and the raised target hung the other foot; the cut
+  knee, straightened the same way, fell too. The hip held to a quarter for
+  a second changed nothing (a stance hip asks under 60 N m). The swinging
+  foot lands on the capture point along the walk now as across it (the
+  body's speed over the plan's, over omega, 25 cm at most, `walker.FORE_K`):
+  the walks' stir 3.70 -> 3.52 mm and 3 % further, the rises held; slowed
+  to a stop by the folding knee, the foot had come down where the plan
+  had it, ahead of a body going nowhere (2026-09-27).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

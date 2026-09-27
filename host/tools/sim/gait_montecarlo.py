@@ -8,7 +8,8 @@ terminal page runs her:
 - rise: landed in the squat, up and walking to a pace asked of her,
 - walk: from mid-stride at a pace, the pendulum between her ears read (`machine.pendulum`),
 - event: from mid-stride, the floor's event under her next left step (`physics.World.terrain`):
-  a hole, a sill, a slip patch, a loose rug.
+  a hole, a sill, a slip patch, a loose rug; or the left knee's drive glitched in its stance
+  (`physics.World.glitch`): its gate dropped for a moment, or derated hot for seconds.
 
 Two numbers: `held`, the share of the trials' time she stood, and `stir`, the pendulum's mean
 over the walks, mm. Its cost is one: `stir + LOST (1 - held)`. A single run a candidate scores
@@ -28,20 +29,25 @@ import sys
 import time
 
 #: (kind, pace, event): the trials. The floor's events took the shoves' place (a shove hardly
-#: ever happens to a walker; a hole, a sill, a rug and a slippery patch do), each laid as the
-#: left leg's phase first crosses its toe-off after EVENT_AT_S: a hole, a slip patch and a rug's
-#: heel-end under where the walk lands that foot, a sill SILL_AHEAD_M ahead of its toes as it
-#: lifts. Laid on the clock the event met whatever phase a candidate's pace had brought her to,
-#: and a 0.1 % change of any knob flipped a shove (2026-09-27).
+#: ever happens to a walker; a hole, a sill, a rug, a slippery patch and a drive's glitch do),
+#: each as the left leg's phase first crosses EVENT_AT[event] after EVENT_AT_S: at its toe-off a
+#: hole, a slip patch and a rug's heel-end under where the walk lands that foot, a sill
+#: SILL_AHEAD_M ahead of its toes as it lifts; at GLITCH_AT of its stance the knee's drive cut
+#: for CUT_S ('cut') or held to HOT_OF of its peak for HOT_S ('hot'). Laid on the clock the
+#: event met whatever phase a candidate's pace had brought her to, and a 0.1 % change of any
+#: knob flipped a shove. The hip held to a quarter for a second changed nothing: a stance hip
+#: asks under 60 N m (2026-09-27).
 TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
           ('walk', 0.65, None), ('walk', 0.85, None), ('walk', 0.9, None),
           ('event', 0.85, 'hole'), ('event', 0.85, 'sill'), ('event', 0.85, 'slip'),
-          ('event', 0.85, 'rug'), ('event', 0.65, 'sill'), ('event', 0.9, 'slip'))
+          ('event', 0.85, 'rug'), ('event', 0.65, 'sill'), ('event', 0.9, 'slip'),
+          ('event', 0.85, 'cut'), ('event', 0.85, 'hot'))
 
 #: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; where the rug's front edge
 #: goes, m short of the landing.
 SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0}
 SETTLE_S, EVENT_AT_S, SILL_AHEAD_M, RUG_HEEL_M = 4.0, 5.0, 0.15, 0.15
+GLITCH_AT, CUT_S, HOT_S, HOT_OF = 0.25, 0.15, 2.0, 0.1
 
 #: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir.
 LOST, FALLEN_STIR = 30.0, 10.0
@@ -68,6 +74,8 @@ def trial(job):
     values, (kind, pace, event) = job
     _set(values)
     from machine import Machine, figure, gait
+    EVENT_AT = {'hole': gait.TOE_OFF, 'sill': gait.TOE_OFF, 'slip': gait.TOE_OFF,
+                'rug': gait.TOE_OFF, 'cut': GLITCH_AT, 'hot': GLITCH_AT}
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -95,15 +103,20 @@ def trial(job):
             if director.stage == 'walk':
                 up = bus['t']
         if (kind == 'event' and not laid and bus['t'] >= EVENT_AT_S
-                and was < gait.TOE_OFF <= director.walker.phase):
+                and was < EVENT_AT[event] <= director.walker.phase):
             walker = director.walker
             landing = (bus['pelvis.pose.z'] + (1.0 - gait.TOE_OFF) * gait.STRIDE_M * walker.stride
                        + gait.planted(0.0, walker.stride)[0])
-            world.terrain(event, {
-                'hole': landing + (gait.BALL - gait.HEEL) / 2.0, 'slip': landing,
-                'rug': landing - RUG_HEEL_M,
-                'sill': walker.balls['left'][2] + 2.0 * figure.CONTACTS[1][2][2] + SILL_AHEAD_M,
-            }[event])
+            if event == 'cut':
+                world.glitch('left_knee', CUT_S)
+            elif event == 'hot':
+                world.glitch('left_knee', HOT_S, HOT_OF)
+            else:
+                world.terrain(event, {
+                    'hole': landing + (gait.BALL - gait.HEEL) / 2.0, 'slip': landing,
+                    'rug': landing - RUG_HEEL_M,
+                    'sill': walker.balls['left'][2] + 2.0 * figure.CONTACTS[1][2][2] + SILL_AHEAD_M,
+                }[event])
             laid = True
         was = director.walker.phase
         if laid:

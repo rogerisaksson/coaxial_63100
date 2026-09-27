@@ -204,6 +204,12 @@ SWAY_K = 0.0
 #: of a stride past its toe-off.
 LANDED_N, BEARS_N, BEARS_UNTIL = 60.0, 250.0, 0.06
 
+#: A swinging foot lands on the capture point along the walk as it does across it: FORE_K of the
+#: body's speed over the plan's, over omega, FORE_M at most, on from the plan's spot. Slowed to a
+#: stop by a knee folding under her, the next foot came down where the plan had it, ahead of a
+#: body going nowhere, and she fell backwards (2026-09-27).
+FORE_K, FORE_M = 1.0, 0.25
+
 #: The table's phases a stride.
 SAMPLES = 240
 
@@ -642,6 +648,7 @@ class Walker:
         # No catch in the first strides: their landings are off the walk's own by design.
         self.catching = self.side is not None or (self.held is None and bool(catch.any()))
         out, lower, feet_x = {}, 0.0, {}
+        fore = max(-FORE_M, min(FORE_M, FORE_K * (self.v_on - length * self.rate) / omega))
         for i, ((side, sign), q, (ankle, _tw, _pi, _to)) in enumerate(zip(SIDES, qs, legs)):
             step = self.side
             if step is not None and side == step['down'] and q >= gait.TOE_OFF:
@@ -679,7 +686,7 @@ class Walker:
             feet_x[side] = self.stood.get(side, balls[side][0])
             u = (q - gait.TOE_OFF) / (1.0 - gait.TOE_OFF) if q >= gait.TOE_OFF else 0.0
             at = (float(x[i]) + sign * WIDEN_M * math.sin(math.pi * u) ** 2, ankle[1],
-                  planned_z + ankle[2])
+                  planned_z + ankle[2] + fore)
             hip = figure.hip(sign, pel, turn_now)
             at, short = _reach(hip, at, SWING_REACH * gait.REACH)
             if (self.side is None and catch[i] and short > 0.0 and u >= capture.FROM_U
