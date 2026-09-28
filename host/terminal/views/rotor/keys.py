@@ -112,8 +112,10 @@ def _key_load(rig, d, key, view):
 
 
 def _key_tare(rig, d, key, view):
-    """TARE: the pointer's zero, not the board's."""
+    """TARE: the pointer's zero, not the board's - the mark where the rotor stands now."""
     view['tare'] = view['travel']
+    pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
+    view['tare_turned'] = math.degrees(view['state']['theta_hat']) / pairs
     return 'tared - the pointer reads travel from here'
 
 

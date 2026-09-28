@@ -281,6 +281,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   after: its regime came off the step `travel` made since the last draw, none
   between feed samples. Off the rotor's speed now, in proportion to it above 30
   rpm: 0 (2026-09-28).
+- The rotor page, the bench's word: the magnets blurred through a 1/80 s
+  shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
+  0.29), the windings whole at their current's brightness and gone on a
+  coast (0 cells), the mark at the magnets' angle (0.0 off in 770 frames)
+  (2026-09-28).
 - A file read whole past 6 k tokens costs a tenth of a window: 38 of ours,
   test_views 32 k, test_structure 17 k. Split by subject (split_suite.py), the
   rest capped; test_structure and the pre-commit hook hold it (2026-09-28).

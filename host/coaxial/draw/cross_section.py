@@ -1,7 +1,7 @@
 """The motor in cross-section: stator teeth inside, magnets outside."""
 import math
 
-from coaxial.draw import braille
+from coaxial.draw import braille, shutter
 from coaxial.draw.ascii3d import CELL_ASPECT
 from coaxial.graphics.raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT, table,
                      covered)
@@ -37,11 +37,6 @@ F_LINE = 0.032
 #: a 200x60 terminal's can of 95, every ring a band; 0.8 broke into dots
 #: (2026-09-23).
 LINE_MAX = 1.0
-
-#: The shortest a tooth is drawn, a share of its length: an idle phase is
-#: still a tooth. The annulus is a third of the radius, so half against full
-#: drive is five dots (a sixth made it two).
-TOOTH_STUB = 0.22
 
 #: Rows between the frame and the top gauge, and the bottom one: none - the
 #: caller's labels sit on the rows beside them, and a blank row divorced a
@@ -135,7 +130,6 @@ INK.update(dict(zip(NTC_RAMP, (33, 45, 41, 178, 196))))
 MARK = NTC_RAMP[-1] + 1
 INK[MARK] = ansi.AMBER
 
-#: The bead's wake, nearest first: speed and direction, fading from the
 #: The bead's wake, nearest first: the can wall behind it glowing, TRAIL_STEPS
 #: steps from the bead's amber to the can's teal (2026-09-24: trail dots coloured
 #: whole ring cells orange here and there - a broken, jagged tail).
@@ -541,12 +535,16 @@ def _seat_arrayed(frame, seat):
             'x': [x for x, _y, _s in made], 'y': [y for _x, y, _s in made]}
 
 
-def _votes(s, r, rotor, slots, poles, drive, smear=False):
+#: Under this share of full scale on every phase the bridge carries nothing: the windings go.
+WINDINGS_OFF = 0.02
+
+
+def _votes(s, r, rotor, slots, poles, drive, blur=0.0):
     """Every sample's class (-1 none) and share this frame: the fixed votes; a
-    tooth's phase, `TRACK` for the length its phase is not driven to (left
-    empty, 16 teeth floated loose at a can of 95, 2026-09-23) - from the inside
-    out for a positive share, the outside in for a negative - or none in the
-    slot beside it; a north magnet solid, a south a thin arc, none between."""
+    tooth whole in its phase - its current its brightness (`phase_ink`) - or
+    none where the bridge carries no current, or in the slot beside it; a north
+    magnet solid, a south a thin arc, none between - each blurred over the
+    `blur` pitches the can turns in the exposure."""
     from coaxial.model.blocks import numpy as np
     kind, a, b = s['kind'], s['a'], s['b']
     fixed = kind == _FIXED
@@ -563,38 +561,35 @@ def _votes(s, r, rotor, slots, poles, drive, smear=False):
               & ~(place - whole > TOOTH_FILL))
     phase = whole.astype(int) % 3
     got = np.array(PHASE_CLASS)[phase]
-    if drive is not None:
-        driven = np.array(drive, float)[phase]
-        span = (r.tooth_out - r.tooth_in) * (TOOTH_STUB + (1.0 - TOOTH_STUB) * abs(driven))
-        stub = np.where(driven >= 0.0, radius > r.tooth_in + span, radius < r.tooth_out - span)
-        got = np.where(stub, TRACK, got)
+    if drive is not None and max(abs(d) for d in drive) < WINDINGS_OFF:
+        # The bridge cut, a coast: the windings gone whole, not left as tracks (2026-09-28).
+        inside = inside & False
     cls[tooth] = np.where(inside, got, -1)
     share[tooth] = np.where(inside, 1.0, 0.0)
 
     magnet = kind == _MAGNET
     radius, place = a[magnet], ((b[magnet] - rotor) % math.tau) / (math.tau / poles)
-    whole = np.floor(place)
-    gap = (place - whole < 0.1) | (place - whole > 0.9)      # the break between magnets
-    north = whole.astype(int) % 2 == 0
+    # Each dot's threshold, the same for its samples: at no blur every share is 0 or 1, and the
+    # magnets are as sharp as they stand. Past a pitch a frame they are one band, even - the
+    # south line's ring alone read as the magnets gone (2026-09-28).
+    x = np.broadcast_to(np.asarray(s['x'], int)[:, None], kind.shape)[magnet]
+    y = np.broadcast_to(np.asarray(s['y'], int)[:, None], kind.shape)[magnet]
+    threshold = shutter.threshold(x, y)
+    north = shutter.exposed(place, blur, 0) > threshold
     cover = np.clip(r.line * 1.0 + 0.5 - abs(radius - (r.magnet_in + r.magnet_out) / 2.0),
                     0.0, 1.0)
-    south = ~gap & ~north & (cover != 0.0)
-    if smear:
-        # Turning too fast for the frame rate: the magnets as one ring, the south line's.
-        cls[magnet] = np.where(cover != 0.0, SOUTH, -1)
-        share[magnet] = cover
-        return cls, share
-    cls[magnet] = np.where(gap, -1, np.where(north, NORTH, np.where(south, SOUTH, -1)))
-    share[magnet] = np.where(gap, 0.0, np.where(north, 1.0, np.where(south, cover, 0.0)))
+    south = ~north & (cover != 0.0) & (shutter.exposed(place, blur, 1) > threshold)
+    cls[magnet] = np.where(north, NORTH, np.where(south, SOUTH, -1))
+    share[magnet] = np.where(north, 1.0, np.where(south, cover, 0.0))
     return cls, share
 
 
-def _body(frame, seat, rotor_deg, slots, poles, drive, smear=False):
+def _body(frame, seat, rotor_deg, slots, poles, drive, blur=0.0):
     """The motor itself, every dot at once: a dot at a time was 195 ms a frame at
     200x60 (2026-09-25)."""
     from coaxial.model.blocks import numpy as np
     s = _seat_arrays(frame, seat)
-    cls, share = _votes(s, seat.radii, math.radians(rotor_deg), slots, poles, drive, smear)
+    cls, share = _votes(s, seat.radii, math.radians(rotor_deg), slots, poles, drive, blur)
     # Each sample votes with its coverage, and the dot goes to the class that
     # covers most of it: summed a class at a time in the order the classes are
     # first met, as a dict of votes adds them.
@@ -633,8 +628,9 @@ def _body(frame, seat, rotor_deg, slots, poles, drive, smear=False):
             frame.put(x, y, TRACK)
 
 
-def _bead(frame, seat, pointer_deg, glyph=None, rate=None):
-    """The bench's own zero, riding the can's rim."""
+def _bead(frame, seat, pointer_deg, glyph=None, sweep=0.0):
+    """The mark on the rotor, riding the can's rim: its glyph where the shutter's `sweep`,
+    degrees, leaves it one, and its streak through the sweep."""
     phi = math.radians(pointer_deg)
     # In the wall, between the can's two edges, so the rings stay whole and the
     # bead runs in the race between them.
@@ -644,29 +640,31 @@ def _bead(frame, seat, pointer_deg, glyph=None, rate=None):
     # The nearest cell, measured from its centre.
     col = int(math.floor((at_x - (DOTS_X - 1) / 2.0) / DOTS_X + 0.5))
     row = int(math.floor((at_y - (DOTS_Y - 1) / 2.0) / DOTS_Y + 0.5))
-    frame.claim(row, col, POINTER, glyph or POINTER_GLYPH)
-    if rate:
-        _wake(frame, seat, phi, seat_r, rate, (row, col))
+    if abs(sweep) < GLYPH_SWEEP_DEG:
+        frame.claim(row, col, POINTER, glyph or POINTER_GLYPH)
+    if sweep:
+        _wake(frame, seat, phi, seat_r, sweep, (row, col))
 
 
-#: The wake's shutter, seconds of travel shown (25 degrees at 60 rpm), capped
-#: so a fast can shows direction, not a ring; dots a dot apart. 0.1 and 120
-#: were "a shade narrower and shorter" from the bench.
-TRAIL_S = 0.07
-TRAIL_MAX_DEG = 90.0
+#: The sweep past which the mark is its streak alone, degrees: a glyph drawn further on would
+#: jump about the can a frame at a time. The streak's dots a dot apart, and the sweep its shade
+#: dims from: a mark the length of its streak lights it as much as it lit its own place.
+GLYPH_SWEEP_DEG = 30.0
 TRAIL_PITCH = 1.0
+STREAK_FULL_DEG = 10.0
 
 
-def _wake(frame, seat, phi, seat_r, rate, bead_cell):
-    """The wake behind the bead, TRAIL_S of travel long at `rate` degrees a
-    second, on the side the bead came from: dots along the race, and every
-    cell of the can wall in that span glowing through `TRAIL` by its angle
-    back from the bead - the whole wall, so no ring cell is left out of it.
+def _wake(frame, seat, phi, seat_r, sweep, bead_cell):
+    """The mark's streak: the `sweep`, degrees, it made in the exposure, on the side it came
+    from, a turn at most - dots along the race, and every cell of the can wall in that span in
+    one shade of `TRAIL`, dimmer the longer the streak, as a mark smeared over it is.
     """
-    length = math.radians(min(TRAIL_MAX_DEG, abs(rate) * TRAIL_S))
+    length = math.radians(min(360.0, abs(sweep)))
     if length <= 0.0:
         return
-    back = -1.0 if rate > 0.0 else 1.0
+    back = -1.0 if sweep > 0.0 else 1.0
+    lit = min(1.0, STREAK_FULL_DEG / abs(sweep))
+    shade = TRAIL[min(len(TRAIL) - 1, int((1.0 - lit) * len(TRAIL)))]
     steps = max(2, int(seat_r * length / TRAIL_PITCH) + 1)
     for i in range(1, steps + 1):
         a = phi + back * length * i / float(steps)
@@ -684,8 +682,7 @@ def _wake(frame, seat, phi, seat_r, rate, bead_cell):
                 continue
             behind = ((phi - math.atan2(dy, dx)) * -back) % math.tau
             if 0.0 < behind <= length:
-                frame.claim(row, col, TRAIL[min(len(TRAIL) - 1,
-                                                int(behind / length * len(TRAIL)))])
+                frame.claim(row, col, shade)
 
 
 def _truth(frame, seat, truth_deg):
@@ -701,15 +698,16 @@ def _truth(frame, seat, truth_deg):
 
 
 def _motor(frame, seat, rotor_deg, slots, poles, drive,
-             truth_deg=None, pointer_deg=None, bead=None, pointer_rate=None, smear=False):
+             truth_deg=None, pointer_deg=None, bead=None, sweep=0.0, blur=0.0):
     """The motor and nothing else: the cross-section, the bench's mark on
-    the rim, and the tick a shaft sensor claims; `smear` the magnets as one ring.
+    the rim, and the tick a shaft sensor claims; `blur` the pitches the can
+    turns in the exposure.
     """
-    _body(frame, seat, rotor_deg, slots, poles, drive, smear)
+    _body(frame, seat, rotor_deg, slots, poles, drive, blur)
     if truth_deg is not None:
         _truth(frame, seat, truth_deg)
     if pointer_deg is not None:
-        _bead(frame, seat, pointer_deg, bead, pointer_rate)
+        _bead(frame, seat, pointer_deg, bead, sweep)
 
 
 def _instruments(frame, seat, left, right, top, bottom):
@@ -731,19 +729,19 @@ def _instruments(frame, seat, left, right, top, bottom):
 
 def motor(rotor_deg, slots=24, poles=28, width=40, height=22, drive=None,
           truth_deg=None, pointer_deg=None, aspect=CELL_ASPECT,
-          colour=False, bead=None, pointer_rate=None):
+          colour=False, bead=None, sweep=0.0):
     """The motor alone, as text rows - no gutters, no gauges, no legend."""
     frame = Frame(width, height)
     seat = Seat(width, height, None, None, None, None, None, None, aspect)
     _motor(frame, seat, rotor_deg, slots, poles, drive,
              truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead,
-             pointer_rate=pointer_rate)
+             sweep=sweep)
     return frame.lines(phase_ink(drive), colour=colour)
 
 
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             pointer_deg, left, right, top, bottom, aspect, labels=None,
-            leaders=None, rules=None, bead=None, pointer_rate=None, smear=False):
+            leaders=None, rules=None, bead=None, sweep=0.0, blur=0.0):
     """The whole page: the motor, its instruments, and the legend over
     both.
     """
@@ -752,7 +750,7 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
                 aspect)
     _motor(frame, seat, rotor_deg, slots, poles, drive,
              truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead,
-             pointer_rate=pointer_rate, smear=smear)
+             sweep=sweep, blur=blur)
     _instruments(frame, seat, left, right, top, bottom)
     lit = _overlay(frame.dots, frame.text, width, height, labels, leaders,
                    rules)
@@ -764,16 +762,16 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            truth_deg=None, amps=None, full=None, pointer_deg=None,
            left=None, right=None, top=None, bottom=None,
            aspect=CELL_ASPECT, colour=False, labels=None, leaders=None,
-           rules=None, bead=None, pointer_rate=None, smear=False):
-    """The cross-section, `rotor_deg` being how far the can has turned; `smear` the
-    magnets as one ring, a can turning past half a pitch a frame."""
+           rules=None, bead=None, sweep=0.0, blur=0.0):
+    """The cross-section, `rotor_deg` being how far the can has turned; `blur` the
+    magnet pitches it turns in the exposure, signed: sharp at 0, a band past one."""
     poles = max(2, int(poles) - int(poles) % 2)
     slots = max(3, int(slots))
     drive = _drive(amps, full)
     frame, lit = _raster(rotor_deg, slots, poles, width, height,
                          truth_deg, drive, pointer_deg, left, right,
                          top, bottom, aspect, labels, leaders, rules,
-                         bead, pointer_rate, smear)
+                         bead, sweep, blur)
     # The only thing left here is who gets which colour.
     at = {}
     for row, col, said, said_ink in list(labels or []):

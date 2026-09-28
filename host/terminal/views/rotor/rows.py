@@ -82,15 +82,15 @@ def travel(view):
 
 
 def pointer_rate(view):
-    """How fast the bead travels, degrees a second, signed: the loop's
-    speed over the pole pairs - the one number `travel` integrates and
-    the drawing trails the bead by, so the wake and the travel agree."""
+    """How fast the rotor turns, degrees a second, signed: the loop's speed over the pole
+    pairs - the one number `travel` integrates and the mark's streak is swept by."""
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     return math.degrees(motions.speed(view) / pairs)
 
 
 def phase_amps(view):
-    """The three phase currents, and what to call full scale."""
+    """The three phase currents, and full scale: the drive's clamp. The vector's own size drew a
+    coast's 0.02 A of noise as the clamp's 50 (2026-09-28)."""
     s = view['state']
     theta = s['theta_hat']
     cos, sin = math.cos(theta), math.sin(theta)
@@ -98,8 +98,7 @@ def phase_amps(view):
     beta = s['id'] * sin + s['iq'] * cos
     root3 = math.sqrt(3.0) / 2.0
     amps = (alpha, -0.5 * alpha + root3 * beta, -0.5 * alpha - root3 * beta)
-    # Full scale is the vector, not the trip.
-    return amps, math.hypot(s['id'], s['iq'])
+    return amps, view.get('i_max') or view['params'].get('drv_i_max') or 1.0
 
 
 def phase_rows(view):

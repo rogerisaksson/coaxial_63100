@@ -108,6 +108,7 @@ def load_loop(rig, view):
 #: against a 105 C laminate and 22.0 A against a 125 C junction (FINDINGS, 2026-09-05).
 LOAD_A = 20.0
 
+
 #: The demo, the bench's word (2026-09-28): up clockwise, let go, brake, the same the other way,
 #: then a load held at speed. A stage: its name, seconds, the speed it ramps to, rpm (None: no
 #: current, the rotor on its own drag) and the load on the stand-in's shaft, q amps. On the
@@ -130,9 +131,6 @@ CYCLE = (
 #: cycle's top. At the 24.8 V link vq tops out at vdc/sqrt 3 = 14.3 V, so a kilowatt is ~48 A
 #: at the ceiling, 3 300 rpm: 0.8 kW on the shaft there, ~1 kW in.
 PROP_KW = 0.8
-
-#: The fastest the cycle turns, rpm: the bead's BEAD_STEP_DEG a frame.
-TOP_SHOWN_RPM = max(abs(stage[2] or 0.0) for stage in CYCLE)
 
 #: A ramp takes this share of its stage, and the speed holds for the rest.
 RAMP_SHARE = 0.67
@@ -217,7 +215,7 @@ def sweep(rig, view):
     if index != view.get('stage_index'):
         view['stage_index'], view['stage'] = index, name
         view['leaning'] = False
-        view['stage_load'] = load * kt
+        view['stage_load'], view['load_full'] = 0.0, load * kt
         if name == 'align':
             drive.hold()
         elif view.get('stage_mode') != 'sensorless':
@@ -233,6 +231,12 @@ def sweep(rig, view):
         view['speed_at'] = now
     dt = min(0.25, max(0.0, now - view.get('speed_at', now)))
     view['speed_at'] = now
+    if rpm:
+        # The stage's load grows with the rotor's speed to its stage's, a dynamometer's: laid on
+        # whole at the stage's start, a rotor the up left under the clamp's step - 10 A through
+        # zero - lost to it and ran backwards, -635 rpm on a loaded host (2026-09-28).
+        view['stage_load'] = view.get('load_full', 0.0) * min(
+            1.0, abs(w_hat) / (abs(rpm) * RAD_S_PER_RPM))
     if view['source'] == 'model':
         # The propeller at the shaft's own speed, and the stage's load on top: the model's
         # load opposes positive turning, so the propeller's sign is the speed's.

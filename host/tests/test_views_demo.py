@@ -14,6 +14,7 @@ def test_the_demo_actually_loads_the_motor(report):
     k w|w| - the bead never turns back against the rotor and speeds and slows with it, and
     the load warms the winding and spends the switches' margin (2026-09-28).
     """
+    import collections
     import math
     import re
     from coaxial.draw import cross_section
@@ -28,19 +29,28 @@ def test_the_demo_actually_loads_the_motor(report):
         seconds += stage_s
         if name == 'load':
             break
-    rows, beads, rates = [], [], []
-    real, real_bead, real_at = view.compose, cross_section._bead, view.bead_at
+    rows, beads, drawn, owned = [], [], [], []
+    real, real_bead, real_render = view.compose, cross_section._bead, cross_section.render
+    real_lines = cross_section.Frame.lines
 
-    def bead(frame, seat, pointer_deg, glyph=None, rate=None):
+    def lines(frame, ink, colour=False, tint=None):
+        # What each cell of the motor went to this frame.
+        owned.append(collections.Counter(c for row in frame.owner for c in row))
+        return real_lines(frame, ink, colour, tint)
+
+    def bead(frame, seat, pointer_deg, glyph=None, sweep=0.0):
         beads.append(pointer_deg)
-        return real_bead(frame, seat, pointer_deg, glyph, rate)
+        return real_bead(frame, seat, pointer_deg, glyph, sweep)
 
-    def bead_at(bead, true, rate, top, dt):
-        rates.append((rate, dt))
-        return real_at(bead, true, rate, top, dt)
+    def render(rotor_deg, slots=24, poles=28, *a, **k):
+        # The can, the mark and both shutters as one call drew them: the feed's thread
+        # replaces the state while compose draws.
+        drawn.append((rotor_deg, k.get('pointer_deg'), k.get('sweep', 0.0), k.get('blur', 0.0),
+                      poles))
+        return real_render(rotor_deg, slots, poles, *a, **k)
 
     def compose(rig, origin, console, v):
-        n, m = len(beads), len(rates)
+        n, k = len(beads), len(owned)
         out = real(rig, origin, console, v)
         pairs = max(1.0, v['params'].get('motor_pole_pairs') or 1.0)
         st = v['state'] or {}
@@ -50,18 +60,18 @@ def test_the_demo_actually_loads_the_motor(report):
                      (v['j'], v['b'], motions.prop_k()),
                      1.5 * (st.get('vd', 0.0) * st.get('id', 0.0)
                             + st.get('vq', 0.0) * st.get('iq', 0.0)),
-                     # The rpm the bead moved at and over what dt: the feed's thread replaces
-                     # the state while compose draws, and one read after it, across a
-                     # reversal, called a step back on CI (8e14db8).
-                     rates[-1][0] / 6.0 if len(rates) > m else None,
-                     rates[-1][1] if len(rates) > m else None))
+                     None, None,
+                     owned[-1] if len(owned) > k else None,
+                     math.hypot(st.get('id', 0.0), st.get('iq', 0.0)), v.get('i_max') or 0.0))
         return out
 
-    view.compose, cross_section._bead, view.bead_at = compose, bead, bead_at
+    view.compose, cross_section._bead, cross_section.render = compose, bead, render
+    cross_section.Frame.lines = lines
     try:
         art = page.frame('rotor_observer', 150, 44, frames=int(seconds * FPS_CAP))
     finally:
-        view.compose, cross_section._bead, view.bead_at = real, real_bead, real_at
+        view.compose, cross_section._bead, cross_section.render = real, real_bead, real_render
+        cross_section.Frame.lines = real_lines
     stages = []
     for row in rows:
         if not stages or stages[-1][0] != row[1]:
@@ -111,6 +121,30 @@ def test_the_demo_actually_loads_the_motor(report):
             report.check('the brake lands, under 5 % of where it began',
                          abs(st[-1][2]) <= 0.05 * abs(st[0][2]),
                          '%.0f -> %.0f rpm' % (st[0][2], st[-1][2]))
+    # What is drawn, frame by frame: the magnets through a shutter - sharp at rest, streaks,
+    # a band - never thinned to a ring nor flipping at a threshold (it flipped 7 times in a
+    # ramp), and the windings lit by the current against the clamp, gone on a coast's none:
+    # against the vector's own size 0.02 A lit them as 50 did (2026-09-28).
+    counted = [(name, row) for name, st in stages for row in st if row[9] is not None]
+    magnets = [row[9][cross_section.NORTH] + row[9][cross_section.SOUTH] for _, row in counted]
+    steps = [abs(b - a) / max(1, a) for a, b in zip(magnets, magnets[1:])]
+    report.check('the magnets drawn in every frame, turning or not: none under half the most, '
+                 'none a quarter off the frame before',
+                 bool(steps) and min(magnets) >= 0.5 * max(magnets) and max(steps) <= 0.25,
+                 '%d to %d cells, the largest step %.2f' % (min(magnets), max(magnets),
+                                                            max(steps, default=0.0))
+                 if magnets else 'none')
+
+    def windings(row):
+        return sum(row[9][c] for c in cross_section.PHASE_CLASS)
+    dark = [windings(row) for name, row in counted
+            if name == 'coast' and row[11] and row[10] < 0.02 * row[11]]
+    lit = [windings(row) for _, row in counted if row[10] >= 10.0]
+    report.check('the windings gone while it coasts, whole on the current - its brightness',
+                 bool(dark) and max(dark) == 0 and bool(lit) and min(lit) >= 0.9 * max(lit),
+                 'coasting %d frames, at most %d cells lit; driven %d frames, %d to %d'
+                 % (len(dark), max(dark, default=-1), len(lit), min(lit, default=-1),
+                    max(lit, default=-1)))
     loads = [(index, st) for index, (name, st) in enumerate(stages) if name == 'load']
     # The load starts where the brake and the up before it left the rotor: starved there, it
     # starts off - CI's runner held -711 rpm on 10 A (2c15fe4).
@@ -123,33 +157,16 @@ def test_the_demo_actually_loads_the_motor(report):
                      and abs(loads[-1][1][-1][3]) >= 5.0,
                      '%.0f rpm on %.1f A' % (loads[-1][1][-1][2], loads[-1][1][-1][3])
                      if loads else 'none')
-    back, xs, ys = 0, [], []
-    for was, row in zip(rows, rows[1:]):
-        if was[4] is None or row[4] is None or row[7] is None:
-            continue
-        step, rpm, dt = row[4] - was[4], row[7], row[8]
-        # Its speed on the screen, deg/s: its own step over its own dt. Over the rows' clock a
-        # frame stalled inside compose put the stall in the next frame's step and not in its
-        # time - 0.80 under a 0.4 s stall every tenth frame. At its clamp (bead_at's 0.25 s) a
-        # step is the clamp's, not the rule's.
-        if abs(rpm) > 30.0 and 0.0 < dt < CATCH_UP_S:
-            back += step * rpm < 0.0
-            xs.append(abs(rpm))
-            ys.append(abs(step) / dt)
-
-    def ranks(v):
-        order = sorted(range(len(v)), key=lambda k: v[k])
-        out = [0.0] * len(v)
-        for rank, k in enumerate(order):
-            out[k] = float(rank)
-        return out
-    rx, ry = ranks(xs), ranks(ys)
-    mx, my = sum(rx) / len(rx), sum(ry) / len(ry)
-    rho = (sum((a - mx) * (b - my) for a, b in zip(rx, ry))
-           / math.sqrt(sum((a - mx) ** 2 for a in rx) * sum((b - my) ** 2 for b in ry)))
-    report.check('the bead never turns back against the rotor', back == 0, '%d times' % back)
-    report.check('and speeds and slows with it, rank correlation 0.9 or more', rho >= 0.9,
-                 '%.2f' % rho)
+    # The mark is on the rotor: at the magnets' angle every frame, the demo never tared, and
+    # streaked through their shutter - on a pace of its own it drifted off them (2026-09-28).
+    off = max((abs((mark - can + 180.0) % 360.0 - 180.0) for can, mark, _s, _b, _p in drawn
+               if mark is not None), default=None)
+    apart = max((abs(sweep - blur * 360.0 / poles) for _c, _m, sweep, blur, poles in drawn),
+                default=None)
+    report.check('the mark rides the rotor at its magnets\' angle, through their shutter',
+                 off is not None and off < 1e-9 and apart < 1e-9,
+                 '%d frames: %.1e degrees off the can, the sweeps %.1e degrees apart'
+                 % (len(drawn), off or 0.0, apart or 0.0))
     text = re.sub(r'\x1b\[[0-9;]*m', '', art)
     winding = re.search(r'WINDING +([0-9.]+)', text)   # %5.1f: a space at two digits
     soa = re.search(r'SWITCH SOA ([0-9.]+) %', text)
@@ -234,9 +251,9 @@ def test_the_bead_trails_its_speed(report):
 
     inks = {ansi.code(cross_section.INK[c]) for c in cross_section.TRAIL}
 
-    def wake(rate):
+    def wake(sweep):
         lines = cross_section.motor(0.0, width=60, height=30, pointer_deg=0.0,
-                              pointer_rate=rate, colour=True)
+                                    sweep=sweep, colour=True)
         rows = []
         for row, line in enumerate(lines):
             for hit in re.finditer('(' + chr(27) + r'\[38;[25];[\d;]+m)([^' + chr(27)
@@ -248,13 +265,13 @@ def test_the_bead_trails_its_speed(report):
         return rows, bead
 
     still, _ = wake(0.0)
-    slow, bead = wake(360.0)
-    fast, _ = wake(1200.0)
-    back, _ = wake(-360.0)
+    slow, bead = wake(5.0)
+    fast, _ = wake(25.0)
+    back, _ = wake(-5.0)
     report.check('no wake at rest', not still, '%d cells' % len(still))
-    report.check('and a longer one the faster the can turns',
+    report.check('and a longer one the further the can turns in the shutter',
                  0 < len(slow) < len(fast),
-                 '%d cells at 360, %d at 1200' % (len(slow), len(fast)))
+                 '%d cells over 5 degrees, %d over 25' % (len(slow), len(fast)))
     report.check('behind the bead: at three o\'clock, below it turning '
                  'counter-clockwise and above it turning clockwise',
                  bool(slow and back)

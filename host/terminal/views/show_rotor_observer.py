@@ -59,7 +59,7 @@ from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
                                          HEADROOM_GAP, LEFT_COLUMNS, NTC_GAP, RIGHT_COLUMNS,
                                          SOA_NODES, fit)
 from terminal.views.rotor.legend import foot_furniture, gutter_caption, legend_drops
-from terminal.views.rotor.motions import TOP_SHOWN_RPM, turn_the_handle
+from terminal.views.rotor.motions import turn_the_handle
 from terminal.views.rotor.rows import (chain_rows, drive_rows, loop_rows,
                                        observer_rows, phase_amps, phase_rows, pointer_rate,
                                        status_rows, travel)
@@ -72,21 +72,6 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 #: The thermistor's colour ramp, C: the page's scale (`coaxial.draw.gauges`, one
 #: for every thermometer and the winding), not a limit (invariant 10).
 NTC_COLD_C, NTC_HOT_C = TEMP_FLOOR_C, TEMP_SCALE_C
-
-#: The bead's longest drawn step a frame, degrees: 2.5 turns a second at FPS_CAP, eight frames
-#: a turn - a direction the eye follows where the true step is a turn and more.
-BEAD_STEP_DEG = 45.0
-
-#: Under this a frame the bead is the rotor, phase and speed (30 rpm at FPS_CAP); above it,
-#: in proportion to the rotor's speed, BEAD_STEP_DEG a frame at the demo's top - so spinning
-#: up, coasting and braking read as the bead speeding and slowing. Pinned at BEAD_STEP_DEG,
-#: 589 and 2 965 rpm drew the same; on a log of the speed, a coast from 1 500 to 1 100 rpm
-#: slowed the bead 5 % (2026-09-28).
-SHOW_DEG = 9.0
-
-#: How soon the bead closes on the true phase where it can show it, s.
-LOCK_S = 0.2
-
 
 def sane(args):
     """Refuse a run outside LIMITS, and the two relations between them."""
@@ -148,42 +133,6 @@ def rearm_after_trip(rig, origin, view):
                        int(round(100.0 * policy_margin(view)))))
 
 
-def travelled(view, rate, now):
-    """`travel` carried from its last sample to `now` at `rate`: the feed samples it, and a
-    draw between two samples read the last one again."""
-    was, at = view.get('travel_mark', (view['travel'], now))
-    return was + rate * min(0.5, max(0.0, now - at))
-
-
-def shown_rate(rate, top):
-    """The bead's rate for the rotor's `rate`, deg/s: the rotor's under SHOW_DEG a frame, then in
-    proportion to it up to BEAD_STEP_DEG a frame at `top`, deg/s, and on its log past that - so
-    a rotor past the demo's top still turns the bead faster, never pinned."""
-    show, most = SHOW_DEG * FPS_CAP, BEAD_STEP_DEG * FPS_CAP
-    a = abs(rate)
-    if a <= show:
-        return rate
-    top = max(top, 2.0 * show)
-    if a <= top:
-        return math.copysign(show + (most - show) * (a - show) / (top - show), rate)
-    return math.copysign(most * (1.0 + math.log(a / top)), rate)
-
-
-def bead_at(bead, true, rate, top, dt):
-    """The bead's next angle: on at `shown_rate`, and where the rotor is slow enough for a frame
-    to show its phase, drawn onto `true` within LOCK_S. A regime judged off the step `travel`
-    made since the last draw took a fast can's phase the short way whenever a draw fell between
-    two feed samples: backwards,
-    47 times in 420 frames before the emulator and 16 in 200 after (2026-09-28)."""
-    if bead is None:
-        return true
-    if abs(rate) <= SHOW_DEG * FPS_CAP:
-        # Slow: onto `true`, the travel off the angle estimate, within LOCK_S - not the speed
-        # estimate's step on top, whose sign near standstill is the observer's noise.
-        return bead + ((true - bead + 180.0) % 360.0 - 180.0) * min(1.0, dt / LOCK_S)
-    return bead + shown_rate(rate, top) * dt
-
-
 def compose(rig, origin, console, view):
 
     s = view['state']
@@ -199,29 +148,19 @@ def compose(rig, origin, console, view):
     foot = list(heads[CAPTION_ROWS:])          # FOOT_ROWS of them
     turned = math.degrees(s['theta_hat']) / pole_pairs
     # A can turning past half a magnet pitch a frame strobes at FPS_CAP - stands, or runs
-    # backwards, as a wheel on film (43 rpm at 14 poles) - so the magnets blur into a band; the
-    # bead keeps the true direction at BEAD_STEP_DEG a frame and takes the true phase, the short
-    # way, once the can is slow enough to show it. `travel` itself stays exact.
-    a_frame = math.degrees(abs(s['omega_hat'])) / pole_pairs / FPS_CAP
-    # With hysteresis: the rotor crosses the threshold once, a low-speed estimate's noise many
-    # times - the can flipped between band and magnets 7 times in one ramp (2026-09-28).
-    smear = a_frame > (0.7 if view.get('smeared') else 1.0) * 90.0 / pole_pairs
-    view['smeared'] = smear
-    rate = pointer_rate(view)
-    now = time.monotonic()
-    dt = min(0.25, max(0.0, now - view.get('bead_at', now)))
-    view['bead_at'] = now
-    top = 6.0 * TOP_SHOWN_RPM
-    view['bead'] = bead_at(view.get('bead'), travelled(view, rate, now), rate, top, dt)
-    bead = view['bead']
-    # The can and the pointer are different quantities.
+    # backwards, as a wheel on film (43 rpm at 14 poles) - so the magnets blur with the turn
+    # through a shutter, as far as they go in it: sharp at rest, streaks, a band. No threshold
+    # to flip at - one flipped 7 times in a ramp - and no thin ring for magnets gone
+    # (2026-09-28). The mark is on the rotor: the magnets' angle from where the tare left it,
+    # streaked through the same shutter - on a pace of its own it drifted off them (2026-09-28).
+    blur = s['omega_hat'] * SHUTTER_S / math.pi          # a pitch is pi electrical
+    mark = turned - view.get('tare_turned', 0.0)
     art = cross_section.render(turned, view['slots'], 2 * pole_pairs,
                          BOX.width, BOX.rows,
                          # The sensor's own stroke is not drawn.
                          truth_deg=None,
                          amps=amps, full=full, aspect=view['aspect'],
-                         pointer_deg=bead - view['tare'],
-                         pointer_rate=shown_rate(rate, top), smear=smear,
+                         pointer_deg=mark, sweep=pointer_rate(view) * SHUTTER_S, blur=blur,
                          left=(soa_bars(view, SOA_NODES)
                                + [None] * NTC_GAP + ntc_bar(view)),
                          right=(soa_bars(view, BOARD_NODES)
@@ -375,6 +314,10 @@ DEMO_B = 5e-4
 #: the placeholder 2e-5 reached 3000 rpm inside one frame. A stand-in's
 #: number: a bench writes its own (--j, a motor profile).
 DEMO_J = 8e-3
+
+#: The exposure the magnets are drawn over, s: 1/80 s streaks them past ~100 rpm and makes
+#: them a band well before the demo's top.
+SHUTTER_S = 1.0 / 80.0
 
 #: The torque current it comes up with, and the step `+` and `-` walk it
 #: by on the model.
