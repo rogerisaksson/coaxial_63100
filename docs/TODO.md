@@ -99,7 +99,8 @@ Open work. Measured results are in FINDINGS.
   nods the torso, the damping fells the walk at 0.9); the soles light
   sneakers. The look: the ears bob 11 mm a stride and go 56 mm fore and
   aft, the head nodding 2.2 degrees - the pelvis 30 (the vault of a 1 m
-  stride) doubled by the torso's 3 degrees of pitch; the stance knee 15-20 degrees through mid-stance from
+  stride) doubled by the torso's 3 degrees of pitch; the stance knee 15-20
+  degrees through mid-stance from
   the height latched 10-12 mm low at each landing (the sole's and the
   joints' give under the strike). Left to try: a stiffer spine drive or a
   rightly signed lead on the gyro for the torso; a shorter stride at a
@@ -113,13 +114,19 @@ Open work. Measured results are in FINDINGS.
   on their buses, a process a limb (`machine.buses`): an emulated limb takes
   a process's place on its port and block when the emulation is ready, and
   the firmware's map wants the walk's registers (`machine.rtu`: SETPOINT_REG,
-  STATE_REG); the IMU's reading is the world's own still, not a frame on
-  the axis bus. The walk begins from a lean, the body 8 degrees ahead of
+  STATE_REG, GATE_REG); the IMU's reading is the world's own still, not a
+  frame on the axis bus. Each board keeps its heat and says it (`machine.heat`,
+  one drive for every joint until the drives are sized); the director eases
+  the pace on it and arms a dropped board again. The halt falls in its
+  settle wherever tried: her centre of mass stands off the feet's line as
+  it takes over - stopped by the walker's own capture of it, a stop to cool
+  a drive could stand. The walk begins from a lean, the body 8 degrees ahead of
   plumb, the walker taking her mid-swing and letting the lean out over 2 s,
   the pelvis with the torso; the weight goes 3 cm onto the left foot before
   the right lifts and the rest as it lifts, the stance hip rolled -2.5
   standing: a lift on the capture point (her centre of mass still moving
-  left) failed past 6.5 cm, the first steps falling. The softer soles that felled the old first stride are
+  left) failed past 6.5 cm, the first steps falling. The softer soles that
+  felled the old first stride are
   untried on it, then a compressible sole layer for more give than a
   contact's. The scoreboard's spread leaves 0.5 of cost to chance; the arms
   from the forearm cost 1.0 more, on the slip at 0.9 strides/s.

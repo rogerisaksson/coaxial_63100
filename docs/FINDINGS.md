@@ -688,6 +688,23 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   stiffer (44.9, the strike 1410 N; 2 and 3 fell), the phase pulled less
   (3: 57.6; 2 fell; 1: 46.3, 1628 N); the shoulders over the line (0.5:
   26.7 mm to the hips' 44.9) cost the walk at 0.65 (2026-09-28).
+- Her buses: five processes (the axis's 5 boards, each arm's 4, each leg's
+  7), 0 bad frames; with the heat in each reply (21 bytes) a leg's wire is
+  busy 430 us of a 1 ms pass. The loop runs 0.63-0.7 of real time here,
+  the director's Python most of it, the lockstep 8 %. Each board keeps its
+  heat (`machine.heat`: thermal.c's envelope on three lumped nodes, the
+  5230SL through a 1:64 cycloid, heat 10 times the clock): walked at 0.85
+  strides/s the hips' laminate spent 0.95 at 60 s and derated to 0.5; at
+  0.75 and 0.65 it held 0.76 and 0.74. The director eases the pace from
+  0.7 spent: 0.79 over 110 s, never derated. A knee warmed to 100 C (0.93,
+  derated 0.73) walked on, 0.98 2.5 s later; in its SOA (on-resistance 50
+  times) it dropped its gates under 107 N m, armed again 54 ms later, its
+  derate back to 1 in 2.8 s, walking on. Held 88.1 % (the SOA and the hot
+  knee 100 %). A halt's settle fell at 15, 15.3, 15.6 and 16 s, and at 15
+  and 16 s at every commit back to the director's first (898e224): as it
+  takes over, her centre of mass stands 91 mm outside the line between the
+  feet; with the weight shifted before the lift, and the rear foot kept on
+  its ball, as well (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

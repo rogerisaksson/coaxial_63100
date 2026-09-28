@@ -109,7 +109,9 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     (DYNAMIC: the figure in MuJoCo, a drive a joint), rtu
                     (Modbus RTU: CRC-16, a pass's frames), buses (its boards on
                     a bus a limb, a process each in lockstep with the world over
-                    a shared block, the host's frames bytes on a socket a bus), walker
+                    a shared block, the host's frames bytes on a socket a bus),
+                    heat (a drive's board's heat: three nodes, the envelope's
+                    derate and trip, said in its reply), walker
                     (her setpoints each ms: plan, IK, balance), capture (where
                     a swinging foot lands across: on the capture point, or a
                     side step), arrival (keyframes, the CoM fed back: the

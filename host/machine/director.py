@@ -13,10 +13,13 @@ shortened to her first's, she settles at a landing: onto the front foot, the rea
 into the squat (`rest`); risen, she walks on. `walk_s` and `rest_s` run that round by
 themselves. Falling past recovery, she curls up into the squat's joints over CURL_S, the arms
 out toward the fall, and lies as she landed: `begin` lands her again.
+
+Her drives' boards report their heat on the bus (`machine.heat`): warming, her legs ease the
+pace. A board whose gates dropped is armed again.
 """
 import math
 
-from machine import arrival, figure, gait, walker
+from machine import arrival, figure, gait, heat, walker
 
 #: Falling, past the walker's recovery: the pelvis tipped past FALLING_DEG and tipping on faster
 #: than FALLING_DEG_S (the head's gyro), or under FALLING_M, walking. She curls into the squat's
@@ -50,6 +53,19 @@ BLEND_S = 0.3
 #: second.
 PACE_RATE = 0.1
 
+#: The legs' drives' heat as their boards report it: `spent` of a drive's envelope, 1 at its
+#: ceiling, the board derating past `heat.THROTTLE_AT`. Walking, the most spent past EASE_AT
+#: eases the pace, to EASE_FLOOR strides/s at EASE_FULL. Walked 60 s at 0.85 strides/s the hips'
+#: laminate spent 0.95 and derated to 0.5; at 0.75 and 0.65 it held 0.76 and 0.74; eased, 0.79
+#: over 110 s. A knee warmed to 100 C (0.93, derated 0.73) walked on, derated 0.98 2.5 s later;
+#: stopped to cool, she fell in the settle as a plain halt does (2026-09-28).
+EASE_AT, EASE_FULL, EASE_FLOOR = 0.7, 0.88, 0.65
+
+#: A drive heard with its gates dropped is armed again REARM_S after, the wait doubled up to
+#: REARM_MAX_S when it drops within REARM_BACKOFF_S of its last arming; an arming is heard back
+#: ARM_LAG_S later.
+REARM_S, REARM_BACKOFF_S, REARM_MAX_S, ARM_LAG_S = 0.05, 1.0, 1.6, 0.005
+
 #: Her moments numbered from 1, on the page and in tools/sim/look.py alike, so a seam is named by
 #: its two numbers: the squat to the walk, then what the walk may turn to.
 MOMENTS = ('squat', 'look', 'push', 'rise', 'stand', 'shift', 'lean', 'step', 'walk', 'catch',
@@ -75,6 +91,14 @@ class Director:
         #: Since when she curls and from and to what; the tilt last pass, (deg, s).
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
         self.curled = arrival.angles_of(arrival.keyframes(gait.CADENCE)[0][2])
+        #: Each joint's drive by its node's channels, the legs'; a dropped drive's (heard at,
+        #: wait) and when each was last armed.
+        self.world = machine.nodes['pelvis'].world
+        self.drives = {figure.JOINTS[n.index]: n.name + '.angle.' for n in machine.nodes
+                       if hasattr(n, 'index')}
+        self.legs = [side + k for side, _sign in walker.SIDES for k in figure.LEG + ('_foot',)
+                     if side + k in self.drives]
+        self.dropped, self.armed = {}, {}
 
     @property
     def pendulum(self):
@@ -100,12 +124,18 @@ class Director:
         self.walker.heading = 0.0
         self.walker.pendulum = type(self.walker.pendulum)()
         self.walker.cadence = gait.CADENCE
+        self.dropped, self.armed = {}, {}
 
     def halt(self):
         """Walking, to a stop and down into the squat."""
         if self.stage in ('walk', 'catch'):
             self.walker.halt()
             self.stage = 'halt'
+
+    def spent(self, joints=None):
+        """The most spent of `joints`' drives (the legs'), as their boards last said."""
+        bus = self.machine.loop.bus
+        return max(bus.get(self.drives[j] + 'spent', 0.0) for j in (joints or self.legs))
 
     def rise(self):
         """Resting in the squat, up and walking again."""
@@ -118,6 +148,7 @@ class Director:
     def step(self, dt):
         """{joint: degrees}: what whichever move has her sets now."""
         bus = self.machine.loop.bus
+        self._arm(bus)
         if self.stage in arrival.STAGES or self.stage in ('falling', 'fallen'):
             self.pendulum.read(bus, dt)
         if self.falling_at is None and (self._falling(bus) or self._fallen(bus)):
@@ -152,9 +183,12 @@ class Director:
             self.walker.last = out
             return out
         self._watch(bus)
+        hot = self.spent()
         if self.walker.held is None:
             step = PACE_RATE * dt
-            self.walker.cadence += max(-step, min(step, self.asked - self.walker.cadence))
+            pace = self.asked - max(0.0, self.asked - EASE_FLOOR) * min(1.0, max(
+                0.0, (hot - EASE_AT) / (EASE_FULL - EASE_AT)))
+            self.walker.cadence += max(-step, min(step, pace - self.walker.cadence))
         out = self.walker.step(dt)
         if self.stage == 'halt':
             if self.walker.halted and min(bus['pelvis.pose.left_load'],
@@ -167,6 +201,21 @@ class Director:
             self.halt()
         self.walker.last = out
         return out
+
+    def _arm(self, bus):
+        """Each drive heard with its gates dropped armed again when its wait is out."""
+        t = bus['t']
+        for joint, name in self.drives.items():
+            if int(bus.get(name + 'status', 1)) & heat.GATES_ON or (
+                    t - self.armed.get(joint, (-1e9, 0.0))[0] < ARM_LAG_S):
+                continue
+            if joint not in self.dropped:
+                at, wait = self.armed.get(joint, (-1e9, REARM_S / 2.0))
+                wait = min(REARM_MAX_S, 2.0 * wait) if t - at < REARM_BACKOFF_S else REARM_S
+                self.dropped[joint] = (t, wait)
+            elif t - self.dropped[joint][0] >= self.dropped[joint][1]:
+                self.world.arm(figure.JOINTS.index(joint))
+                self.armed[joint] = (t, self.dropped.pop(joint)[1])
 
     def _tilt(self, bus):
         """The pelvis's tilt from upright, degrees."""

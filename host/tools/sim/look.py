@@ -8,6 +8,7 @@ either way (`show_humanoid.row`).
     python tools/sim/look.py --last                 # the newest recording
     python tools/sim/look.py --csv build/recordings/humanoid_20260928_070724.csv
     python tools/sim/look.py SOFT_KNEE=6            # a knob moved (tools/sim/gait_montecarlo)
+    python tools/sim/look.py --to 24 --halt 15      # halted at 15 s: 11 halt, 12 settle, ..
 
 A row a stage (the walk's first second apart): the pelvis and the head under the stand (the
 dip), the torso ahead of plumb, the torso against the left shin (under 0 it leans back over bent
@@ -36,9 +37,9 @@ RATE_HZ, FIRST_S = 60.0, 1.0
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 
 
-def simulated(to_s, values, cadence=0.85):
-    """The rows from the squat, `to_s` seconds, the director as the page runs her; LEG_GAIN among
-    `values` stiffens the legs' drives (`physics.SERVO`)."""
+def simulated(to_s, values, cadence=0.85, halt_s=None):
+    """The rows from the squat, `to_s` seconds, the director as the page runs her - halted at
+    `halt_s`; LEG_GAIN among `values` stiffens the legs' drives (`physics.SERVO`)."""
     from machine import physics
     from tools.sim.gait_montecarlo import _set
     values = dict(values)
@@ -59,6 +60,8 @@ def simulated(to_s, values, cadence=0.85):
     body.loop.step(0.0)
     bus, out, said = body.loop.bus, [], -1.0
     while bus['t'] < to_s and director.stage != 'fallen':
+        if halt_s is not None and halt_s <= bus['t'] < halt_s + 0.001:
+            director.halt()
         asked = director.step(0.001)
         body.loop.write(**asked)
         body.loop.step(0.001)
@@ -151,12 +154,13 @@ def main(argv=None):
     parser.add_argument('--last', action='store_true', help='the newest recording')
     parser.add_argument('--to', type=float, default=16.0, help='seconds simulated from the squat')
     parser.add_argument('--cadence', type=float, default=0.85, help='strides a second asked')
+    parser.add_argument('--halt', type=float, help='halted at this second, into the squat')
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     path = args.csv or (max(glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')),
                             key=os.path.getmtime) if args.last else None)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
-    rows = recorded(path) if path else simulated(args.to, values, args.cadence)
+    rows = recorded(path) if path else simulated(args.to, values, args.cadence, args.halt)
     print(path or 'simulated from the squat, %.1f s %s' % (
         args.to, ' '.join(args.knobs)))
     groups, ref = staged(rows)

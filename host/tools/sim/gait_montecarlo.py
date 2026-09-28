@@ -33,8 +33,9 @@ import time
 #: ever happens to a walker; a hole, a sill, a rug, a slippery patch and a drive's glitch do),
 #: each as the left leg's phase first crosses EVENT_AT[event] after EVENT_AT_S: at its toe-off a
 #: hole, a slip patch and a rug's heel-end under where the walk lands that foot, a sill
-#: SILL_AHEAD_M ahead of its toes as it lifts; at GLITCH_AT of its stance the knee's drive cut
-#: for CUT_S ('cut') or held to HOT_OF of its peak for HOT_S ('hot'). Laid on the clock the
+#: SILL_AHEAD_M ahead of its toes as it lifts; at GLITCH_AT of its stance the knee's board in
+#: its SOA for SOA_S ('soa': its gates drop under load, the director arms them again) or warmed
+#: to `physics.WARM_C` ('hot': derated as its envelope says, `machine.heat`). Laid on the clock the
 #: event met whatever phase a candidate's pace had brought her to, and a 0.1 % change of any
 #: knob flipped a shove. The hip held to a quarter for a second changed nothing: a stance hip
 #: asks under 60 N m (2026-09-27).
@@ -42,7 +43,7 @@ TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
           ('walk', 0.65, None), ('walk', 0.85, None), ('walk', 0.9, None),
           ('event', 0.85, 'hole'), ('event', 0.85, 'sill'), ('event', 0.85, 'slip'),
           ('event', 0.85, 'rug'), ('event', 0.65, 'sill'), ('event', 0.9, 'slip'),
-          ('event', 0.85, 'cut'), ('event', 0.85, 'hot'))
+          ('event', 0.85, 'soa'), ('event', 0.85, 'hot'))
 
 #: Each event laid at SPREAD steps: its place moved EVENT_STEP_M along the walk a step, a
 #: glitch's GLITCH_STEP of the stride. Laid at one place, 2 % of an arm's swing flipped a slip or
@@ -56,7 +57,7 @@ JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] == 'event' else (0,))]
 #: goes, m short of the landing.
 SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0}
 SETTLE_S, EVENT_AT_S, SILL_AHEAD_M, RUG_HEEL_M = 4.0, 5.0, 0.15, 0.15
-GLITCH_AT, CUT_S, HOT_S, HOT_OF = 0.25, 0.15, 2.0, 0.1
+GLITCH_AT, SOA_S = 0.25, 0.5
 
 #: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir.
 LOST, FALLEN_STIR = 30.0, 10.0
@@ -85,7 +86,7 @@ def trial(job):
     from machine import Machine, figure, gait
     glitch_at = GLITCH_AT + k * GLITCH_STEP
     EVENT_AT = {'hole': gait.TOE_OFF, 'sill': gait.TOE_OFF, 'slip': gait.TOE_OFF,
-                'rug': gait.TOE_OFF, 'cut': glitch_at, 'hot': glitch_at}
+                'rug': gait.TOE_OFF, 'soa': glitch_at, 'hot': glitch_at}
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -117,10 +118,8 @@ def trial(job):
             walker = director.walker
             landing = (bus['pelvis.pose.z'] + (1.0 - gait.TOE_OFF) * gait.STRIDE_M * walker.stride
                        + gait.planted(0.0, walker.stride)[0] + k * EVENT_STEP_M)
-            if event == 'cut':
-                world.glitch('left_knee', CUT_S)
-            elif event == 'hot':
-                world.glitch('left_knee', HOT_S, HOT_OF)
+            if event in ('soa', 'hot'):
+                world.glitch('left_knee', event, SOA_S)
             else:
                 world.terrain(event, {
                     'hole': landing + (gait.BALL - gait.HEEL) / 2.0, 'slip': landing,
@@ -176,7 +175,8 @@ def run(pool, candidates):
 def _show(values, cost, held, stir, results: list | tuple = ()):
     print('%-40s cost %6.2f  held %5.1f %%  stir %5.2f mm' % (
         ' '.join('%s=%g' % kv for kv in values.items()) or 'as it is', cost, 100 * held, stir))
-    for (kind, pace, event), (h, s, whats) in zip(TRIALS, by_trial(results) if results else ()):
+    trials = by_trial(results) if results else []
+    for (kind, pace, event), (h, s, whats) in zip(TRIALS, trials):
         print('    %-5s %.2f %-5s %5.1f %%  %s%s' % (
             kind, pace, event or '', 100 * h, ' | '.join(whats),
             '' if s is None else '  stir %.2f mm' % s))

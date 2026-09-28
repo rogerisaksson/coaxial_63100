@@ -17,7 +17,8 @@ import math
 import os
 from typing import Any
 
-from machine.buses import Block, Buses
+from machine import heat
+from machine.buses import QUIET, Block, Buses
 from machine.controller import Feedback
 from machine.errors import MachineError
 from machine.figure import CONTACTS, JOINTS, MASS_KG, SEGMENTS
@@ -43,9 +44,14 @@ SERVO = {'spine': (150.0, 800.0, 30.0, 0.05), 'spine_roll': (150.0, 800.0, 30.0,
 #: The world's step, s.
 STEP_S = 0.001
 
-#: A drive's copper loss per torque squared, W/(N m)^2: R/kt^2 of a geared joint motor. The work
-#: it does is metered only where positive - a drive does not charge its battery braking.
-LOSS_W = 0.01
+#: A drive's copper loss per torque squared, W/(N m)^2: R/kt^2 of its motor through its gear
+#: (`machine.heat`). The work it does is metered only where positive - a drive does not charge
+#: its battery braking.
+LOSS_W = heat.R_OHM / heat.KT_NM_A ** 2
+
+#: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times - a gate drive
+#: sagging, the FETs half on, in their SOA; or its nodes at WARM_C - run hard, hot.
+SOA_RDS, WARM_C = 50.0, 100.0
 
 #: The soles' friction: sliding, and turning in place (m) - a point of contact turns freely, and
 #: on its ball's edge the stance foot spun under the swinging leg (2026-09-25).
@@ -182,8 +188,8 @@ class World:
         self.soles = {side: {m.body(side + part).id for part in ('_foot', '_toes')}
                       for side in ('left', 'right')}
         self.push_n, self.push_until = np.zeros(3), -1.0
-        #: A drive glitched (`glitch`): its index, until when, and the share of its peak it has.
-        self.glitch_at, self.glitch_until, self.glitch_of = None, -1.0, 1.0
+        #: A board glitched in its SOA (`glitch`): its index and until when.
+        self.glitch_at, self.glitch_until = None, -1.0
         #: The drives' energy since the reset: work done and work braked (J), heat (J), and
         #: torque held (N m s) - what a muscle would pay for.
         self.work = self.brake = self.heat = self.effort = 0.0
@@ -198,6 +204,7 @@ class World:
         self.block = Block(len(JOINTS), len(limbs))
         self.block.gains[:] = self.gains.ravel()
         self.block.limit[:] = self.limit
+        self.block.air[:] = self.block.rds[:] = self._np.ones(len(JOINTS))
         self.buses = Buses(self.block, limbs)
         self.bus_of = self.buses.of
         atexit.register(self.close)
@@ -271,6 +278,8 @@ class World:
         if self.buses is not None:
             self.buses.drain()
             self.block.hold[:] = self.target
+            self.block.air[:] = self.block.rds[:] = self._np.ones(len(JOINTS))
+            self.block.warm[:] = self._np.zeros(len(JOINTS))
             self.block.epoch[0] += 1
             for bus in self.buses.each:
                 for i in bus.indices:
@@ -303,16 +312,12 @@ class World:
             self.was, self.stamp = self.target.copy(), now
         start = d.time
         while d.time < now - 1e-9:
-            self.limit[:] = self.peak
-            if self.glitch_at is not None:
-                if d.time < self.glitch_until:
-                    self.limit[self.glitch_at] *= self.glitch_of
-                else:
-                    self.glitch_at = None
             if self.buses is not None:
                 b = self.block
+                if self.glitch_at is not None and d.time >= self.glitch_until:
+                    b.rds[self.glitch_at], self.glitch_at = 1.0, None
                 b.time[0] = d.time
-                b.q[:], b.qd[:], b.limit[:] = d.qpos[self.qadr], d.qvel[self.vadr], self.limit
+                b.q[:], b.qd[:] = d.qpos[self.qadr], d.qvel[self.vadr]
                 self.buses.step()
                 d.ctrl[:] = b.ctrl
             else:
@@ -336,20 +341,41 @@ class World:
         self.push_n = self._np.array(force, float)
         self.push_until = self.data.time + seconds
 
-    def glitch(self, joint, seconds, share=0.0):
-        """Drive `joint` down to `share` of its peak torque for `seconds`: its gate dropped (0),
-        or derated at its thermal ceiling (a share)."""
-        self.glitch_at = JOINTS.index(joint)
-        self.glitch_until, self.glitch_of = self.data.time + seconds, float(share)
+    def glitch(self, joint, kind, seconds=0.0):
+        """Drive `joint`'s board glitched: 'soa' its switches SOA_RDS times their on-resistance
+        for `seconds`, 'hot' its nodes at WARM_C at once. What it does of it, and says of it,
+        is its own (`machine.heat`)."""
+        if self.buses is None:
+            raise MachineError('a glitch is a board\'s: this world has no buses')
+        i = JOINTS.index(joint)
+        if kind == 'soa':
+            if self.glitch_at is not None:
+                self.block.rds[self.glitch_at] = 1.0
+            self.block.rds[i], self.glitch_at = SOA_RDS, i
+            self.glitch_until = self.data.time + seconds
+        elif kind == 'hot':
+            self.block.warm[i] = WARM_C
+        else:
+            raise MachineError('no glitch %r: soa or hot' % kind)
 
-    def angle(self, index):
-        """(degrees, deg/s) of a joint as its board last answered the host - the world's own
-        with no bus."""
+    def arm(self, index):
+        """A joint's board's gates on again: the host's gate write, with the next pass."""
+        if index in self.bus_of:
+            self.bus_of[index].arm(index)
+
+    def reading(self, index):
+        """(degrees, deg/s, C, spent, derate, status) of a joint's drive as its board last
+        answered the host (`machine.buses`) - with no bus the world's own angle, cool."""
         self.advance()
         if index in self.bus_of:
             return self.bus_of[index].reading(index)
         d = self.data
-        return math.degrees(d.qpos[self.qadr[index]]), math.degrees(d.qvel[self.vadr[index]])
+        return ((math.degrees(d.qpos[self.qadr[index]]), math.degrees(d.qvel[self.vadr[index]]))
+                + QUIET[2:])
+
+    def angle(self, index):
+        """(degrees, deg/s) of a joint as its board last answered the host."""
+        return self.reading(index)[:2]
 
     def pose(self):
         """The pelvis and the body: place, turn (quaternion), speeds (world), the centre of mass,
@@ -432,8 +458,9 @@ class DriveNode(Node):
         self.index = index
 
     def _read(self):
-        degrees, rate = self.world.angle(self.index)
-        return {'degrees': degrees, 'rate': rate}
+        degrees, rate, celsius, spent, derate, status = self.world.reading(self.index)
+        return {'degrees': degrees, 'rate': rate, 'celsius': celsius, 'spent': spent,
+                'derate': derate, 'status': status}
 
     def identify(self, arming=None, again=False):
         """Outward along its bus in unit order: {'hz': unit}."""

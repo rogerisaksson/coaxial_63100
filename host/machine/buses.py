@@ -1,23 +1,27 @@
 """Her boards on their buses: a limb's boards a process, the host's Modbus RTU frames real bytes.
 
     block = Block(joints, buses); buses = Buses(block, limbs)   # World.wire: the processes up
+    bus.arm(index)                          # its gates on again, written with the next pass
     bus.send(at, now, {index: degrees})     # a pass: the setpoints broadcast, every board polled
     buses.step()                            # a step: every process ticks its boards, in lockstep
-    buses.drain(); bus.reading(index)       # the replies read; (degrees, deg/s) as last heard
+    buses.drain(); bus.reading(index)       # the replies read; the board as last heard
     python -m machine.buses NAME J B BAUD TURN_S K=i,i..    # a process: `serve`
 
 The wire is Modbus RTU (`machine.rtu`) on RS485 at BAUD, USART2/UART5's rate (the .ioc), over a
 TCP socket a bus - `socket://`, as an emulated limb's port. A pass the host writes one broadcast
 of the bus's setpoints and a poll a board, their stamps in the block; a frame lands at the
 boards its bytes after its stamp, or after the wire frees, 8N1; a poll is answered TURN_S after
-it lands with the board's state then, the reply's bytes on the wire behind it. Nothing goes on a
-bus still busy a pass on. A board holds its setpoint by PD (`gains`) every step, carried on at
-the rate its last two frames came at.
+it lands with the board's state then, the reply's bytes on the wire behind it, a gate write with
+its echo. Nothing goes on a bus still busy a pass on. A board holds its setpoint by PD (`gains`)
+every step, carried on at the rate its last two frames came at, within its clamp (`limit`) as
+its envelope derates it and nothing with its gates dropped; its heat (`machine.heat`) steps
+every THERMAL_S on the currents it gave.
 
 The block (`Block`, FIELDS): the world writes time, q, qd and limit, bumps seq and sends a byte
 to each process's stdin; a process takes each bus's new bytes (written - received), ticks its
 boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
-epoch and hold: a reset, every board holding `hold`. An emulated limb takes a process's place on
+epoch and hold: a reset, every board holding `hold`, its heat at the room's; air, rds and warm:
+a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken). An emulated limb takes a process's place on
 the same port and block. A limb a process where the machine has THREADS_A_LIMB hardware threads
 a limb, else the limbs shared out by their boards (`share`).
 """
@@ -31,15 +35,15 @@ import time
 from multiprocessing import resource_tracker, shared_memory
 from typing import Any
 
-from machine import rtu
+from machine import heat, rtu
 from machine.errors import MachineError
 
 #: The link's rate, bits/s (USART2 and UART5, coaxial_63100.ioc), and a board's turn from a poll
 #: landing to its reply, s.
 BAUD, TURN_S = 9_216_000, 30e-6
 
-#: The boards' pace and the world's step, s.
-LOCKSTEP_S = 0.001
+#: The boards' pace and the world's step, s; a board's heat steps every THERMAL_S.
+LOCKSTEP_S, THERMAL_S = 0.001, 0.01
 
 #: How long the host spins for the boards' step before yielding, and how long a step may take, s.
 SPIN_S, STALL_S = 0.002, 60.0
@@ -51,9 +55,13 @@ THREADS_A_LIMB = 2
 FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B'),
           ('written', 'q', 'B'), ('sent', 'q', 'B'), ('free_at', 'd', 'B'), ('at', 'd', '2B'),
           ('q', 'd', 'J'), ('qd', 'd', 'J'), ('limit', 'd', 'J'), ('ctrl', 'd', 'J'),
-          ('hold', 'd', 'J'), ('gains', 'd', '2J'))
+          ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
+          ('warm', 'd', 'J'))
 
 HOST = '127.0.0.1'
+
+#: A board's reading before its first reply: still, at the room's, nothing spent, gates on.
+QUIET = (0.0, 0.0, heat.AMBIENT_C, 0.0, 1.0, heat.GATES_ON)
 
 
 def wire(count, baud=None):
@@ -145,8 +153,10 @@ class Segment:
         #: whether a frame set it - the rate is read between two frames, never from a hold.
         self.target, self.rate, self.set_at = [0.0] * n, [0.0] * n, [0.0] * n
         self.framed = [False] * n
-        #: Frames landing: (at, {unit: mdeg}); polls to answer: (at, unit).
+        #: Frames landing: (at, {unit: mdeg}); requests to answer: (at, unit, a gate write's
+        #: frame or None for a poll).
         self.inbox, self.mail = collections.deque(), collections.deque()
+        self.heat, self.heat_at = heat.Heat(n), 0.0
         self.free_at, self.received, self.bad = 0.0, 0, 0
         self.epoch = block.epoch[0]
         self.server = socket.socket()
@@ -169,6 +179,7 @@ class Segment:
         self.inbox.clear()
         self.mail.clear()
         self.free_at = now
+        self.heat, self.heat_at = heat.Heat(len(self.indices)), now
 
     def hear(self):
         """The host's new bytes: each frame onto the wire at its stamp, or when the wire frees."""
@@ -185,15 +196,17 @@ class Segment:
             if fc == rtu.WRITE and unit == rtu.BROADCAST:
                 self.free_at = max(stamps[0], self.free_at) + wire(len(body) + 4, self.baud)
                 self.inbox.append((self.free_at, rtu.setpoints(body)))
-            elif fc == rtu.READ and 1 <= unit <= len(self.indices):
+            elif fc in (rtu.READ, rtu.WRITE_ONE) and 1 <= unit <= len(self.indices):
+                gate = rtu.framed(bytes((unit, fc)) + body) if fc == rtu.WRITE_ONE else None
                 start = max(stamps[1], self.free_at) + wire(rtu.POLL_B, self.baud) + self.turn
-                self.mail.append((start, unit))
-                self.free_at = start + wire(rtu.REPLY_B, self.baud)
+                self.mail.append((start, unit, gate))
+                self.free_at = start + wire(rtu.GATE_B if gate else rtu.REPLY_B, self.baud)
 
     def tick(self, now):
         """A step at `now`: frames landed set the boards' targets, each board's PD writes its
-        torque, polls landed are answered with the board's state now."""
-        b = self.block
+        torque within its clamp, its heat steps, polls landed are answered with the board's
+        state now and gate writes with their echoes."""
+        b, h = self.block, self.heat
         if b.epoch[0] != self.epoch:
             self.epoch = b.epoch[0]
             self.hold(now)
@@ -211,13 +224,28 @@ class Segment:
         for k, i in enumerate(self.indices):
             ref = self.target[k] + self.rate[k] * (now - self.set_at[k])
             tau = b.gains[2 * i] * (ref - b.q[i]) + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i])
-            b.ctrl[i] = max(-b.limit[i], min(b.limit[i], tau))
+            top = b.limit[i] * h.derate[k] if h.gates[k] else 0.0
+            b.ctrl[i] = tau = max(-top, min(top, tau))
+            h.load(k, tau / heat.KT_NM_A)
+            if b.warm[i] > 0.0:
+                h.warm(k, b.warm[i])
+                b.warm[i] = 0.0
+        if now - self.heat_at >= THERMAL_S - 1e-9:
+            h.step(now - self.heat_at, [b.air[i] for i in self.indices],
+                   [b.rds[i] for i in self.indices])
+            self.heat_at = now
         out = b''
         while self.mail and self.mail[0][0] <= now:
-            unit = self.mail.popleft()[1]
-            i = self.indices[unit - 1]
+            _, unit, gate = self.mail.popleft()
+            i, k = self.indices[unit - 1], unit - 1
+            if gate:
+                h.arm(k)
+                out += rtu.echo(gate)
+                continue
+            celsius, spent, derate, status = h.report(k)
             out += rtu.reply(unit, round(math.degrees(b.q[i]) * 1000.0),
-                             round(math.degrees(b.qd[i]) * 1000.0))
+                             round(math.degrees(b.qd[i]) * 1000.0), round(celsius * 100.0),
+                             round(spent * 1e4), round(derate * 1e4), status)
         if out:
             self.sock.sendall(out)
             b.sent[self.link] += len(out)
@@ -255,8 +283,8 @@ class Bus:
         self.sock = socket.create_connection((HOST, port))
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.polls = b''.join(rtu.poll(unit) for unit in range(1, len(self.indices) + 1))
-        self.heard = {i: (0.0, 0.0) for i in self.indices}
-        self.received, self.bad = 0, 0
+        self.heard: dict[int, tuple] = {i: QUIET for i in self.indices}
+        self.received, self.bad, self.arming = 0, 0, []
 
     def send(self, at, now, degrees):
         """The pass: the bus's setpoints {index: degrees} - every board's, none for the polls
@@ -265,7 +293,8 @@ class Bus:
         b, link = self.block, self.link
         if b.free_at[link] > (at if degrees else now) + LOCKSTEP_S:
             return
-        frames = self.polls
+        frames = b''.join(rtu.gate(self.indices.index(i) + 1) for i in self.arming) + self.polls
+        self.arming = []
         if degrees:
             frames = rtu.broadcast(1, [round(degrees[i] * 1000.0) for i in self.indices]) + frames
         b.at[2 * link], b.at[2 * link + 1] = at, now
@@ -274,7 +303,13 @@ class Bus:
 
     def hold(self, index, degrees):
         """A board holding `degrees` still, as at a reset: what the host has of it."""
-        self.heard[index] = (degrees, 0.0)
+        self.heard[index] = (degrees,) + QUIET[1:]
+        self.arming = []
+
+    def arm(self, index):
+        """Its board's gates on again, written with the next pass."""
+        if index not in self.arming:
+            self.arming.append(index)
 
     def drain(self):
         """The replies the boards have sent, read: what the host last heard of each."""
@@ -287,11 +322,13 @@ class Bus:
         self.bad += bad
         for unit, fc, body in frames:
             if fc == rtu.READ and 1 <= unit <= len(self.indices):
-                angle, rate = rtu.state(body)
-                self.heard[self.indices[unit - 1]] = (angle / 1000.0, rate / 1000.0)
+                angle, rate, centi_c, spent, derate, status = rtu.state(body)
+                self.heard[self.indices[unit - 1]] = (angle / 1000.0, rate / 1000.0,
+                                                      centi_c / 100.0, spent / 1e4, derate / 1e4,
+                                                      status)
 
     def reading(self, index):
-        """(degrees, deg/s) of a board as the host last heard it."""
+        """(degrees, deg/s, C, spent, derate, status) of a board as the host last heard it."""
         return self.heard[index]
 
 

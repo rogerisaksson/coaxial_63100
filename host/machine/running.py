@@ -2,6 +2,7 @@
 
     body = Running(cadence=0.85)         # a DYNAMIC gynoid landed in the squat, her director
     body.send(cadence=1.0); body.send(push=(0.0, 0.0, 120.0))
+    body.send(glitch=('left_knee', 'soa', 0.5))   # a board glitched (`World.glitch`)
     now = body.latest()                  # {'angles', 'where', 'turn', 'stage', ..}, or None yet
     body.close()
 
@@ -31,6 +32,7 @@ def _run(commands, states, cadence):
     from machine import Machine
     from machine.director import Director
     from machine.figure import JOINTS
+    from machine.heat import GATES_ON
     from machine.modes import DYNAMIC
     machine = Machine.discover('gynoid', execution_mode=DYNAMIC)
     machine.arm()
@@ -58,6 +60,8 @@ def _run(commands, states, cadence):
                     director.cadence = float(command['cadence'])
                 if 'push' in command:
                     world.push(command['push'], command.get('seconds', 0.1))
+                if 'glitch' in command:
+                    world.glitch(*command['glitch'])
                 if command.get('restart'):
                     begin()
                     wall0, sim0 = time.perf_counter(), bus['t']
@@ -95,6 +99,9 @@ def _run(commands, states, cadence):
                      'stir': director.pendulum.stir, 'stirs': director.pendulum.stirs,
                      'swing': director.pendulum.swing,
                      'loads': (bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load']),
+                     'heat': {j: (bus[n + 'celsius'], bus[n + 'spent'], bus[n + 'derate'],
+                                  int(bus[n + 'status']) & GATES_ON)
+                              for j, n in director.drives.items()},
                      'ratio': min(ratio, 99.0)}
             try:
                 states.put_nowait(state)
@@ -118,8 +125,8 @@ class Running:
         self._last = None
 
     def send(self, **command):
-        """{'cadence': strides/s} | {'push': (x, y, z) N, 'seconds': s} | {'restart': True}:
-        landed in the squat again."""
+        """{'cadence': strides/s} | {'push': (x, y, z) N, 'seconds': s} | {'glitch': (joint,
+        kind, s)} | {'restart': True}: landed in the squat again."""
         self._commands.put(command)
 
     def latest(self, into=None):

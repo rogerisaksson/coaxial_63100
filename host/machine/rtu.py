@@ -1,12 +1,15 @@
 """Modbus RTU as her buses speak it: CRC-16, the frames a pass sends and a board answers.
 
     crc16(b'123456789') == CHECK_VALUE
-    broadcast(1, [mdeg, ..]); poll(unit); reply(unit, mdeg, mdeg_s)    # the bytes
+    broadcast(1, [mdeg, ..]); poll(unit); gate(unit)     # the host's bytes
+    reply(unit, mdeg, mdeg_s, centi_c, spent, derate, status); echo(frame)   # a board's
     requests(data), replies(data) -> [(unit, fc, body)], bytes not a frame
 
 Holding registers: SETPOINT_REG unit 1's setpoint (i32 mdeg), two registers a unit up the bus -
-one broadcast 0x10 sets every board's; STATE_REG a board's angle and rate (i32 mdeg, mdeg/s),
-read by 0x03. A register's words come high first, a frame's CRC low byte first.
+one broadcast 0x10 sets every board's; STATE_REG a board's state, read by 0x03: angle and rate
+(i32 mdeg, mdeg/s), its heat (`machine.heat`: the worst node, i16 0.01 C; the envelope spent and
+the derate, u16 1/10000; the status word); GATE_REG 1 by 0x06 its gates on again, echoed. A
+register's words come high first, a frame's CRC low byte first.
 """
 import struct
 
@@ -34,11 +37,16 @@ if crc16(b'123456789') != CHECK_VALUE:
     raise RuntimeError('CRC-16/MODBUS implementation is broken: %#06x for the catalogue check, '
                        'not %#06x' % (crc16(b'123456789'), CHECK_VALUE))
 
-READ, WRITE, BROADCAST = 0x03, 0x10, 0
-SETPOINT_REG, STATE_REG = 0x0100, 0x0200
+READ, WRITE, WRITE_ONE, BROADCAST = 0x03, 0x10, 0x06, 0
+SETPOINT_REG, STATE_REG, GATE_REG = 0x0100, 0x0200, 0x0300
 
-#: A poll's bytes and its reply's; a broadcast's around its setpoints, and a setpoint's.
-POLL_B, REPLY_B, FRAME_B, SETPOINT_B = 8, 13, 9, 4
+#: A state's registers and bytes: angle, rate, heat.
+STATE_FORMAT = '>iihHHH'
+STATE_BYTES = struct.calcsize(STATE_FORMAT)
+
+#: A poll's bytes and its reply's; a broadcast's around its setpoints, and a setpoint's; a gate
+#: write's, and its echo's.
+POLL_B, REPLY_B, FRAME_B, SETPOINT_B, GATE_B = 8, 5 + STATE_BYTES, 9, 4, 8
 
 
 def framed(pdu):
@@ -53,11 +61,25 @@ def broadcast(first, values):
 
 
 def poll(unit):
-    return framed(struct.pack('>BBHH', unit, READ, STATE_REG, 4))
+    return framed(struct.pack('>BBHH', unit, READ, STATE_REG, STATE_BYTES // 2))
 
 
-def reply(unit, angle, rate):
-    return framed(struct.pack('>BBBii', unit, READ, 8, angle, rate))
+def gate(unit):
+    """`unit`'s gates on again: 0x06 GATE_REG 1."""
+    return framed(struct.pack('>BBHH', unit, WRITE_ONE, GATE_REG, 1))
+
+
+def reply(unit, angle, rate, centi_c, spent, derate, status):
+    """A board's state: mdeg, mdeg/s, its worst node 0.01 C, its envelope spent and derate
+    1/10000, its status word - each clamped to its register."""
+    return framed(struct.pack('>BBB', unit, READ, STATE_BYTES) + struct.pack(
+        STATE_FORMAT, angle, rate, max(-32768, min(32767, centi_c)),
+        max(0, min(65535, spent)), max(0, min(65535, derate)), status & 0xFFFF))
+
+
+def echo(frame):
+    """A write's answer: its own bytes."""
+    return bytes(frame)
 
 
 def setpoints(body):
@@ -69,8 +91,8 @@ def setpoints(body):
 
 
 def state(body):
-    """(angle, rate) a reply's body carries, mdeg and mdeg/s."""
-    return struct.unpack_from('>ii', body, 1)
+    """(angle, rate, centi_c, spent, derate, status) a reply's body carries."""
+    return struct.unpack_from(STATE_FORMAT, body, 1)
 
 
 def _frames(data, length):
@@ -92,7 +114,7 @@ def _frames(data, length):
 
 
 def _request_length(data, at):
-    if data[at + 1] == READ:
+    if data[at + 1] in (READ, WRITE_ONE):
         return POLL_B
     if data[at + 1] == WRITE and at + 7 <= len(data):
         return FRAME_B + data[at + 6]
@@ -100,6 +122,8 @@ def _request_length(data, at):
 
 
 def _reply_length(data, at):
+    if data[at + 1] == WRITE_ONE:
+        return GATE_B
     return 5 + data[at + 2] if data[at + 1] == READ else 0
 
 

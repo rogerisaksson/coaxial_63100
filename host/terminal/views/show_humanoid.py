@@ -11,6 +11,8 @@ catching herself when shoved. She runs in a process of her own paced to the wall
 (`machine.running`); what is drawn is her joints' read-back and her pelvis as it stands, lit on the
 GPU where a card answers (`coaxial.graphics.gynoid`), each drive called out at the viewport's
 edge with a leader to its joint: its angle, its torque as a bar and a number, its power as a bar.
+G runs a leg's board into its SOA, H warms one, in turn (`GLITCHED`); the hottest board says
+its heat as it reports it on the bus (`machine.heat`).
 """
 import argparse
 import csv
@@ -49,6 +51,9 @@ YAW, TURN_DEG, ORBIT_DEG_S, ZOOM = 60.0, 10.0, 12.0, (0.6, 2.5)
 
 #: A shove from her side, newtons for seconds.
 PUSH_N, PUSH_S = 120.0, 0.12
+
+#: The boards G and H glitch, in turn, and how long G's SOA lasts, s.
+GLITCHED, SOA_S = ('left_knee', 'right_knee', 'left_hip', 'right_hip'), 0.5
 
 #: Where R's recordings go, a CSV from a press to the next: every state the page hears from her
 #: (a slice's, 10-20 a second of her time) - the page's yaw, her state, each joint, each
@@ -128,6 +133,8 @@ def boxes(state, now, name):
         ('pendulum', '%.2f mm' % now['stir'] if now else '-'),
         ('its parts', 'on %.2f  x %.2f  up %.2f' % now['stirs'] if now else '-'),
         ('physics', 'x%.1f real time' % now['ratio'] if now else '-'),
+        ('hottest', _hottest(now) if now else '-'),
+        ('glitched', '%s %s' % state['glitched'] if state['glitched'] else 'G soa, H hot'),
         ('record', 'R starts' if state['recording'] is None and not state['recorded']
          else 'on, %.1f s - R saves' % (len(state['recording']) / 60.0)
          if state['recording'] is not None else os.path.basename(state['recorded'])),
@@ -137,6 +144,22 @@ def boxes(state, now, name):
             (joint.split('_', 1)[-1] if subsystem.name != 'axis' else joint,
              '%7.1f deg' % angles.get(joint, 0.0)) for joint in subsystem.actuators]))
     return out
+
+
+def _hottest(now):
+    """The most spent board as it reports: its joint, worst node, envelope spent, derate."""
+    joint = max(now['heat'], key=lambda j: now['heat'][j][1])
+    celsius, spent, derate, gates = now['heat'][joint]
+    return '%s %.0f C %.2f%s' % (joint, celsius, spent, ' x%.2f' % derate if gates else ' off')
+
+
+def _glitched(kind):
+    def glitch(state):
+        joint = GLITCHED[state['glitches'] % len(GLITCHED)]
+        state['glitches'] += 1
+        state['glitched'] = (joint, kind)
+        state['body'].send(glitch=(joint, kind, SOA_S))
+    return glitch
 
 
 def _turned(step):
@@ -191,6 +214,7 @@ KEYS = dict(
     [('left', _turned(-TURN_DEG)), ('right', _turned(TURN_DEG)),
      ('[', _paced(-CADENCE_STEP)), (']', _paced(CADENCE_STEP))]
     + [(k, _pushed) for k in 'pP']
+    + [(k, _glitched('soa')) for k in 'gG'] + [(k, _glitched('hot')) for k in 'hH']
     + [(k, lambda state: state['body'].send(restart=True)) for k in 'aA']
     + [(k, lambda state: state.update(orbit=not state['orbit'])) for k in 'oO']
     + [(k, lambda state: state.update(called=CALLING[(CALLING.index(state['called']) + 1)
@@ -233,7 +257,7 @@ def main(argv=None):
     terminal = board_view.is_terminal
     state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
-             'recording': None, 'recorded': None}
+             'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None}
 
     def draw():
         said = []
@@ -256,7 +280,8 @@ def main(argv=None):
                                                          quat(*now['turn'])),
                                           labels=labels(now, state['called'])))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name),
-                        (('[ ]', 'PACE'), ('P', 'PUSH'), ('A', 'AGAIN'), ('L', 'LABELS'),
+                        (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
+                         ('A', 'AGAIN'), ('L', 'LABELS'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
                          ('V', 'VIEW'),
                          ('Q', 'EXIT'), ('ESC', 'MENU')))
