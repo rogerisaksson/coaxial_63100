@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""The offline suites' checks and the line coverage of the hand-written code, off one run.
+"""The offline suites' checks and the line coverage, host and target, off one run.
 
     python tools/dev/cover.py              # run, then the tables
     python tools/dev/cover.py --files      # and every file under 100 %
     python tools/dev/cover.py --report     # the last run's tables, no run
     python tools/dev/cover.py --readme     # and the tables into README.md's section
 
-The host's Python under coverage.py, followed into every suite's process
-(`[tool.coverage.run]`); the firmware's C under gcov, built with COAXIAL_GCOV by
-`tools.cores.build`: the portable cores, comms/ and board/src as native:// and the fake board
-build them for this host. Not counted: the CubeMX code - core/, startup_*.s,
-cmake/stm32cubemx/, the HAL - which is generated. The firmware's files no host build compiles
-run on the target only, the bench's conformance suite theirs, and are named. The emulation's
-own C - the world, the chip native:// runs over, the fake board - and tools/ are shown apart,
-each with what runs it, and left out of the totals: the product is the rest.
+Two totals. The host: host/'s Python under coverage.py, followed into every suite's process
+(`[tool.coverage.run]`), and the emulation's own C - the world, the chip native:// runs over,
+the fake board. The target: the firmware's hand-written C - the portable cores, comms/ and
+board/src - under gcov, built with COAXIAL_GCOV by `tools.cores.build` as native:// and the fake
+board build it for this host; the files no host build compiles counted too, their executable
+lines as the ARM toolchain's gcov counts them, none covered here (the bench's conformance suite
+is theirs). Not counted: ST's generated code - core/, startup_*.s, cmake/stm32cubemx/, the HAL.
 """
 import argparse
 import ast
@@ -22,8 +21,11 @@ import glob
 import json
 import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 
 from tools import REPO
@@ -84,8 +86,10 @@ def run():
                    check=True)
     subprocess.run([sys.executable, '-m', 'coverage', 'json', '-q', '-o', PY_JSON],
                    cwd=ROOT, env=env, check=True)
+    c = c_lines()
+    c.update(target_only(c))
     with open(C_JSON, 'w', encoding='utf-8') as f:
-        json.dump(c_lines(), f)
+        json.dump(c, f)
     commit = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], cwd=REPO,
                             capture_output=True, text=True).stdout.strip()
     with open(RUN_JSON, 'w', encoding='utf-8') as f:
@@ -100,39 +104,90 @@ def _area(source):
     return '/'.join(bits[:2]) if bits[0] == 'board' else bits[0]
 
 
+def _gcov_json(gcov, notes, cwd):
+    """[(source, {line: count})] out of gcov's JSON for `notes` (a .gcda or .gcno)."""
+    got = subprocess.run([gcov, '--json-format', '--stdout', notes], cwd=cwd,
+                         capture_output=True, text=True, encoding='utf-8', errors='replace')
+    out = []
+    for line in got.stdout.splitlines():
+        if line.startswith('{'):
+            for record in json.loads(line)['files']:
+                source = os.path.relpath(os.path.join(cwd, record['file']), REPO)
+                out.append((source.replace('\\', '/'),
+                            {entry['line_number']: entry['count'] for entry in record['lines']}))
+    return out
+
+
 def c_lines():
     """{source: [lines, covered, missing lines]} for every hand-written source a suite built,
     the union over the libraries that compiled it."""
     hit = {}
     for gcda in glob.glob(os.path.join(OUT, '*.gcda')):
-        got = subprocess.run(['gcov', '--json-format', '--stdout', os.path.basename(gcda)],
-                             cwd=OUT, capture_output=True, text=True, encoding='utf-8',
-                             errors='replace')
-        for line in got.stdout.splitlines():
-            if not line.startswith('{'):
+        for source, counts in _gcov_json('gcov', os.path.basename(gcda), OUT):
+            if _area(source) not in FIRMWARE + EMULATION:
                 continue
-            for record in json.loads(line)['files']:
-                source = os.path.relpath(os.path.join(REPO, record['file']),
-                                         REPO).replace('\\', '/')
-                if _area(source) not in FIRMWARE + EMULATION:
-                    continue
-                seen = hit.setdefault(source, {})
-                for entry in record['lines']:
-                    at = entry['line_number']
-                    seen[at] = seen.get(at, 0) + entry['count']
+            seen = hit.setdefault(source, {})
+            for at, n in counts.items():
+                seen[at] = seen.get(at, 0) + n
     return {source: [len(lines), sum(1 for n in lines.values() if n),
                      sorted(at for at, n in lines.items() if not n)]
             for source, lines in hit.items()}
 
 
+def _arm_gcc():
+    """arm-none-eabi-gcc: on PATH, or the STM32Cube bundle's; None without one."""
+    found = shutil.which('arm-none-eabi-gcc')
+    if found:
+        return found
+    bundles = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'stm32cube', 'bundles')
+    built = sorted(glob.glob(os.path.join(bundles, 'gnu-tools-for-stm32', '*', 'bin',
+                                          'arm-none-eabi-gcc*')))
+    return built[-1] if built else None
+
+
 def target_only(c):
-    """The firmware's C files no host build compiled: the target's alone."""
+    """{source: [lines, 0, every line]} for the firmware's files no host build compiled: each
+    compiled as the Debug build compiles it with -ftest-coverage by the ARM toolchain, its
+    lines as that toolchain's gcov counts them - none executed here. {} without the toolchain
+    or the build."""
     every = []
     for area in FIRMWARE:
-        every += glob.glob(os.path.join(REPO, *area.split('/'), 'src', '*.c')
-                           if '/' not in area else os.path.join(REPO, *area.split('/'), '*.c'))
-    names = sorted(os.path.relpath(p, REPO).replace('\\', '/') for p in every)
-    return [name for name in names if name not in c]
+        where = (os.path.join(REPO, *area.split('/'), '*.c') if '/' in area
+                 else os.path.join(REPO, area, 'src', '*.c'))
+        every += [os.path.relpath(p, REPO).replace('\\', '/') for p in glob.glob(where)]
+    alone = sorted(name for name in every if name not in c)
+    gcc = _arm_gcc()
+    database = os.path.join(REPO, 'build', 'Debug', 'compile_commands.json')
+    if not alone or gcc is None or not os.path.exists(database):
+        return {}
+    gcov = re.sub(r'gcc(\.exe)?$', r'gcov\1', gcc)
+    with open(database, encoding='utf-8') as f:
+        entries = {os.path.relpath(e['file'], REPO).replace('\\', '/'): e for e in json.load(f)}
+    out = {}
+    with tempfile.TemporaryDirectory() as work:
+        for name in alone:
+            entry = entries.get(name)
+            if entry is None:
+                continue
+            argv = entry.get('arguments') or shlex.split(entry['command'], posix=False)
+            keep, skip = [], False
+            for arg in argv[1:]:
+                if skip or arg == '-o':
+                    skip = not skip
+                    continue
+                if arg == '-c' or arg.startswith('-O'):
+                    continue
+                keep.append(arg)
+            obj = os.path.join(work, os.path.basename(name) + '.o')
+            done = subprocess.run([gcc] + keep + ['-c', '-O0', '-ftest-coverage',
+                                                  '-fprofile-arcs', '-o', obj],
+                                  cwd=entry['directory'], capture_output=True, text=True)
+            if done.returncode:
+                continue
+            for source, counts in _gcov_json(gcov, obj[:-2] + '.gcno', work):
+                if source.endswith(os.path.basename(name)):
+                    out[name] = [len(counts), 0, sorted(counts)]
+    return out
 
 
 def python_lines():
@@ -145,26 +200,35 @@ def python_lines():
 
 
 def parts():
-    """[(kind, part, lines, covered)], each file under its part - a top package, a folder of
-    tools, a directory of C; kind 'python', 'c' (the firmware) or 'emulation'."""
+    """[(side, kind, part, lines, covered)]: each file under its part - a top package, a folder
+    of tools, a directory of C - on the host's side or the target's."""
     with open(C_JSON, encoding='utf-8') as f:
         c = json.load(f)
     groups = {}
-    for kind, files in (('python', python_lines()), ('c', c)):
-        for name, (lines, covered, *_missing) in files.items():
-            bits = name.split('/')
-            if kind == 'c':
-                part = _area(name)
-                kind_of = 'emulation' if part in EMULATION else 'c'
-            else:
-                part = '/'.join(bits[:2]) if bits[0] == 'tools' and len(bits) > 2 else bits[0]
-                part = 'tools/dev' if part == 'tools' else part
-                kind_of = kind
-            got = groups.setdefault((kind_of, part), [0, 0])
-            got[0] += lines
-            got[1] += covered
-    return [(kind, part, lines, covered) for (kind, part), (lines, covered)
-            in sorted(groups.items())]
+    for name, (lines, covered, *_missing) in python_lines().items():
+        bits = name.split('/')
+        part = '/'.join(bits[:2]) if bits[0] == 'tools' and len(bits) > 2 else bits[0]
+        part = 'tools/dev' if part == 'tools' else part
+        key = ('host', 'tools' if part.startswith('tools/') else 'python', part)
+        got = groups.setdefault(key, [0, 0])
+        got[0] += lines
+        got[1] += covered
+    for name, (lines, covered, *_missing) in c.items():
+        part = _area(name)
+        key = ('host', 'emulation', part) if part in EMULATION else ('target', 'c', part)
+        got = groups.setdefault(key, [0, 0])
+        got[0] += lines
+        got[1] += covered
+    return [key + tuple(value) for key, value in sorted(groups.items())]
+
+
+def totals(rows):
+    """{'host': (lines, covered), 'target': (lines, covered)}."""
+    out = {}
+    for side in ('host', 'target'):
+        mine = [r for r in rows if r[0] == side]
+        out[side] = (sum(r[3] for r in mine), sum(r[4] for r in mine))
+    return out
 
 
 def _share(lines, covered):
@@ -181,10 +245,6 @@ def _ranges(lines):
             out.append(str(start) if start == at else '%d-%d' % (start, at))
             start = None
     return ', '.join(out)
-
-
-def _tool(part):
-    return part.startswith('tools/')
 
 
 def _runner(part):
@@ -209,29 +269,24 @@ def _run():
 
 
 def table(files=False):
-    """The report: each suite's tally, then each part, its lines and the share covered, the
-    emulation and tools/ apart; with `files`, every file under 100 %, least covered first."""
+    """The report: the two totals, each suite's tally, then each part; with `files`, every file
+    under 100 %, least covered first."""
     ran = _run()
+    rows = parts()
+    for side, (lines, covered) in totals(rows).items():
+        print('%-7s %6d lines %6.1f %%' % (side, lines, _share(lines, covered)))
+    print()
     for suite, passed, failed, seconds in ran['suites']:
         print('%-26s %s' % (suite, 'CRASHED' if passed is None
                             else '%5d passed %3d failed %6.1f s' % (passed, failed, seconds)))
-    rows = parts()
-    print('\n%-10s %-16s %7s %7s %7s' % ('', 'part', 'lines', 'covered', 'share'))
-    for kind, part, lines, covered in rows:
-        print('%-10s %-16s %7d %7d %6.1f%%%s' % (kind, part, lines, covered,
-                                                 _share(lines, covered),
-                                                 '  (%s)' % _runner(part)
-                                                 if _tool(part) else ''))
-    for kind in ('python', 'c'):
-        mine = [r for r in rows if r[0] == kind and not _tool(r[1])]
-        lines, covered = sum(r[2] for r in mine), sum(r[3] for r in mine)
-        print('%-10s %-16s %7d %7d %6.1f%%' % (kind, 'all', lines, covered,
-                                               _share(lines, covered)))
-    with open(C_JSON, encoding='utf-8') as f:
-        c = json.load(f)
-    print('\ntarget only:', ', '.join(target_only(c)) or 'none')
+    print('\n%-7s %-10s %-16s %7s %7s %7s' % ('', '', 'part', 'lines', 'covered', 'share'))
+    for side, kind, part, lines, covered in rows:
+        print('%-7s %-10s %-16s %7d %7d %6.1f%%%s'
+              % (side, kind, part, lines, covered, _share(lines, covered),
+                 '  (%s)' % _runner(part) if kind == 'tools' else ''))
     if files:
-        every = list(python_lines().items()) + list(c.items())
+        with open(C_JSON, encoding='utf-8') as f:
+            every = list(python_lines().items()) + list(json.load(f).items())
         print()
         for share, name, lines, covered, missing in sorted(
                 (row[1] / max(1, row[0]), name, row[0], row[1], row[2] if len(row) > 2 else [])
@@ -241,46 +296,54 @@ def table(files=False):
 
 
 def markdown():
-    """The section as the README shows it: the suites and their checks, the product's code
-    with its totals, the firmware's target-only files, then the emulation's C and tools/."""
+    """The section as the README shows it: the two totals and the checks, then each suite and
+    each part folded under them."""
     ran = _run()
+    rows = parts()
+    both = totals(rows)
     out = textwrap.wrap('Generated %s at `%s` by `python host/tools/dev/cover.py --readme`: one '
                         'offline run (`host/tools/dev/run_tests.py --offline`), the Python under '
-                        'coverage.py, the C under gcov.' % (ran['date'], ran['commit']), 80)
-    out += ['', '| Suite | What it holds | Checks | Failed | s |',
-           '| --- | --- | ---: | ---: | ---: |']
+                        'coverage.py, the C under gcov. ST\'s generated code - CubeMX\'s core/, '
+                        'startup and cmake/stm32cubemx/, the HAL - is not counted.'
+                        % (ran['date'], ran['commit']), 80)
+    out += ['', '| Code | Lines | Covered |', '| --- | ---: | ---: |',
+            '| **Host**: host/\'s Python, the emulation\'s C | %d | **%.1f %%** |'
+            % (both['host'][0], _share(*both['host'])),
+            '| **Target**: the firmware\'s C, the target-only files uncovered | %d | **%.1f %%** |'
+            % (both['target'][0], _share(*both['target']))]
+    if ran['total']:
+        _all, passed, skipped, failed = ran['total']
+        suites = sum(1 for row in ran['suites'] if row[1] is None or row[1] or row[2])
+        out += [''] + textwrap.wrap('%d checks in %d suites: %d passed, %d failed; %d skipped, '
+                                    'a board\'s.' % (passed + failed, suites, passed, failed,
+                                                     skipped), 80)
+    out += ['', '<details><summary>Each suite, each part</summary>', '',
+            '| Suite | What it holds | Checks | Failed | s |',
+            '| --- | --- | ---: | ---: | ---: |']
     for suite, passed, failed, seconds in ran['suites']:
         if passed is None:
             out.append('| %s | %s | crashed | | |' % (suite, _brief(suite)))
         elif passed or failed:
             out.append('| %s | %s | %d | %d | %.0f |' % (suite, _brief(suite), passed, failed,
                                                          seconds))
-    if ran['total']:
-        _all, passed, skipped, failed = ran['total']
-        out.append('| **all** | skipped here: %d, a board\'s | **%d** | **%d** | |'
-                   % (skipped, passed, failed))
-    rows = parts()
-    out += ['', '| Product | Lines | Covered |', '| --- | ---: | ---: |']
-    for kind, label in (('python', 'Python'),
-                        ('c', 'C, the firmware (CubeMX and the HAL not counted)')):
-        mine = [r for r in rows if r[0] == kind and not _tool(r[1])]
-        lines, covered = sum(r[2] for r in mine), sum(r[3] for r in mine)
-        out.append('| **%s** | %d | **%.1f %%** |' % (label, lines, _share(lines, covered)))
-        out += ['| %s | %d | %.1f %% |' % (part, lines, _share(lines, covered))
-                for k, part, lines, covered in mine if k == kind]
+    out += ['', '| Host | Lines | Covered | Run by |', '| --- | ---: | ---: | --- |']
+    out += ['| %s | %d | %.1f %% | %s |'
+            % (part, lines, _share(lines, covered),
+               _runner(part) if kind == 'tools' else 'the suites' if kind == 'python'
+               else 'the emulation')
+            for side, kind, part, lines, covered in rows if side == 'host']
+    out += ['', '| Target | Lines | Covered |', '| --- | ---: | ---: |']
+    out += ['| %s | %d | %.1f %% |' % (part, lines, _share(lines, covered))
+            for side, _kind, part, lines, covered in rows if side == 'target']
     with open(C_JSON, encoding='utf-8') as f:
         c = json.load(f)
-    alone = target_only(c)
+    alone = sorted(name for name, (lines, covered, *_m) in c.items()
+                   if _area(name) in FIRMWARE and covered == 0 and lines)
     if alone:
-        out += [''] + textwrap.wrap('The target only, the bench\'s conformance suite theirs: '
-                                    '%s.' % ', '.join('`%s`' % name for name in alone), 80)
-    out += ['', '| Emulation, C | Lines | Covered |', '| --- | ---: | ---: |']
-    out += ['| %s | %d | %.1f %% |' % (part, lines, _share(lines, covered))
-            for kind, part, lines, covered in rows if kind == 'emulation']
-    out += ['', '| Tools | Lines | Offline | Run by |', '| --- | ---: | ---: | --- |']
-    out += ['| %s | %d | %.1f %% | %s |' % (part, lines, _share(lines, covered), _runner(part))
-            for _k, part, lines, covered in rows if _tool(part)]
-    return out
+        out += [''] + textwrap.wrap('Built for the target only, none of their lines run here '
+                                    '(the bench\'s conformance suite is theirs): %s.'
+                                    % ', '.join('`%s`' % name for name in alone), 80)
+    return out + ['', '</details>']
 
 
 def readme():

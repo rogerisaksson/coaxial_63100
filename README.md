@@ -154,7 +154,17 @@ every push.
 <!-- coverage -->
 Generated 2026-09-28 at `647aea1` by `python host/tools/dev/cover.py --readme`:
 one offline run (`host/tools/dev/run_tests.py --offline`), the Python under
-coverage.py, the C under gcov.
+coverage.py, the C under gcov. ST's generated code - CubeMX's core/, startup and
+cmake/stm32cubemx/, the HAL - is not counted.
+
+| Code | Lines | Covered |
+| --- | ---: | ---: |
+| **Host**: host/'s Python, the emulation's C | 36162 | **76.5 %** |
+| **Target**: the firmware's C, the target-only files uncovered | 9618 | **72.5 %** |
+
+3866 checks in 32 suites: 3866 passed, 0 failed; 323 skipped, a board's.
+
+<details><summary>Each suite, each part</summary>
 
 | Suite | What it holds | Checks | Failed | s |
 | --- | --- | ---: | ---: | ---: |
@@ -190,43 +200,19 @@ coverage.py, the C under gcov.
 | test_native.py | The board layer's drive path on this host, in real time: `native://`. | 16 | 0 | 18 |
 | test_emulator.py | The firmware's own image on an emulated MCU, its front end fed from the electronics. | 21 | 0 | 177 |
 | test_mcp.py | End-to-end test of the MCP server, plus a token accounting. | 59 | 0 | 29 |
-| **all** | skipped here: 323, a board's | **3866** | **0** | |
 
-| Product | Lines | Covered |
-| --- | ---: | ---: |
-| **Python** | 27576 | **86.2 %** |
-| coaxial | 14330 | 88.8 % |
-| coaxial_mcp | 817 | 89.6 % |
-| coaxial_ollama | 2809 | 81.1 % |
-| machine | 3991 | 90.9 % |
-| motor | 132 | 93.9 % |
-| terminal | 5354 | 78.4 % |
-| testline | 143 | 44.8 % |
-| **C, the firmware (CubeMX and the HAL not counted)** | 8953 | **77.9 %** |
-| board/src | 2996 | 63.1 % |
-| boot | 453 | 94.3 % |
-| comms | 2212 | 72.1 % |
-| ctrl | 188 | 92.0 % |
-| daq | 506 | 97.4 % |
-| drive | 870 | 96.8 % |
-| filter | 105 | 80.0 % |
-| modbus | 468 | 93.4 % |
-| shtp | 102 | 95.1 % |
-| thermal | 1053 | 88.8 % |
-
-The target only, the bench's conformance suite theirs: `board/src/board_boot.c`,
-`board/src/board_clock.c`, `board/src/board_flash.c`,
-`board/src/board_selftest.c`, `boot/src/boot_main.c`, `comms/src/console.c`,
-`comms/src/dev_uart.c`, `comms/src/testrig.c`.
-
-| Emulation, C | Lines | Covered |
-| --- | ---: | ---: |
-| board/fake | 546 | 70.7 % |
-| board/native | 849 | 90.2 % |
-| world | 604 | 95.4 % |
-
-| Tools | Lines | Offline | Run by |
+| Host | Lines | Covered | Run by |
 | --- | ---: | ---: | --- |
+| board/fake | 546 | 70.7 % | the emulation |
+| board/native | 849 | 90.2 % | the emulation |
+| world | 604 | 95.4 % | the emulation |
+| coaxial | 14330 | 88.8 % | the suites |
+| coaxial_mcp | 817 | 89.6 % | the suites |
+| coaxial_ollama | 2809 | 81.1 % | the suites |
+| machine | 3991 | 90.9 % | the suites |
+| motor | 132 | 93.9 % | the suites |
+| terminal | 5354 | 78.4 % | the suites |
+| testline | 143 | 44.8 % | the suites |
 | tools/bench | 972 | 3.8 % | a board |
 | tools/cores | 687 | 95.9 % | the core suites |
 | tools/dev | 1595 | 31.3 % | the gate and by hand |
@@ -236,6 +222,27 @@ The target only, the bench's conformance suite theirs: `board/src/board_boot.c`,
 | tools/sim | 786 | 20.7 % | by hand |
 | tools/target | 383 | 30.8 % | a board |
 | tools/thermal | 424 | 0.0 % | a board |
+
+| Target | Lines | Covered |
+| --- | ---: | ---: |
+| board/src | 3136 | 60.3 % |
+| boot | 725 | 58.9 % |
+| comms | 2465 | 64.7 % |
+| ctrl | 188 | 92.0 % |
+| daq | 506 | 97.4 % |
+| drive | 870 | 96.8 % |
+| filter | 105 | 80.0 % |
+| modbus | 468 | 93.4 % |
+| shtp | 102 | 95.1 % |
+| thermal | 1053 | 88.8 % |
+
+Built for the target only, none of their lines run here (the bench's conformance
+suite is theirs): `board/src/board_boot.c`, `board/src/board_clock.c`,
+`board/src/board_flash.c`, `board/src/board_selftest.c`, `boot/src/boot_main.c`,
+`comms/src/console.c`, `comms/src/dev_uart.c`, `comms/src/link_report.c`,
+`comms/src/testrig.c`.
+
+</details>
 <!-- /coverage -->
 
 ## Docs

@@ -8,6 +8,9 @@ from coaxial.model import inverter
 from coaxial.simulated.drive.locked import _rotor_locked
 from motor.pmsm import TORQUE_FACTOR, Motor
 
+#: The most the rotor is turned on at one request, s: a stall past it is time it never turns.
+CATCH_UP_S = 0.25
+
 
 class DrivePlant:
 
@@ -262,7 +265,7 @@ class DrivePlant:
         """Turn the virtual rotor by the torque the dq solution makes."""
         motor = self._motor_model()
         now = time.time()
-        dt = min(now - self._motor_at, 0.25)     # bounded catch-up
+        dt = min(now - self._motor_at, CATCH_UP_S)
         self._motor_at = now
         if dt <= 0.0:
             return motor
