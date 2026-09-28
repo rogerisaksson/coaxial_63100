@@ -29,6 +29,7 @@ from coaxial.node import discover  # noqa: E402
 from coaxial.model.inverter import GATE_UVLO_V  # noqa: E402
 from coaxial.simulated.sto import PILOT_VOLTS  # noqa: E402
 from terminal.ui.demo import stop_motor, turn_motor  # noqa: E402
+from terminal.ui.screen import FPS_CAP  # noqa: E402
 from tools.cores import native  # noqa: E402
 from tools.cores.build import find_cc  # noqa: E402
 from tools.dev.focus import pick, watchdog  # noqa: E402
@@ -323,9 +324,18 @@ def test_a_page_drawing_leaves_the_board_its_time(report, _rig):
     changes = [t for (t, q), (_, was) in zip(drawn[1:], drawn) if q != was]
     marks = [drawn[0][0]] + changes + [drawn[-1][0]]
     stood = max(b - a for a, b in zip(marks, marks[1:]))
-    report.check('and the page\'s attitude moves with the part: none stands 2 s',
-                 stood < 2.0, '%d attitudes in %d frames, the longest standing %.2f s'
-                 % (len({q for _, q in drawn}), len(drawn), stood))
+    said = ('%d attitudes in %d frames over %.1f s, the longest standing %.2f s'
+            % (len({q for _, q in drawn}), len(drawn), drawn[-1][0] - drawn[0][0], stood))
+    # Judged where the host let the page keep a third of its rate: squeezed to two cores
+    # beside four busy loops it drew 80 frames in 31 s, reading slower with them - 1.86 s
+    # standing, the board at 100 % - and CI's runner stood it 4.7-6.1 s (78a1038). Both
+    # freezes drew at the full rate standing still.
+    if (len(drawn) - 1) / max(1e-9, drawn[-1][0] - drawn[0][0]) < FPS_CAP / 3.0:
+        report.skip('the page\'s attitude moving with the part',
+                    'the host held the page under a third of its rate: ' + said)
+    else:
+        report.check('and the page\'s attitude moves with the part: none stands 2 s',
+                     stood < 2.0, said)
 
 
 def test_the_body_keeps_the_wall(report):
