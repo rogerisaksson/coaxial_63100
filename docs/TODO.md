@@ -116,10 +116,10 @@ Open work. Measured results are in FINDINGS.
   STATE_REG); the IMU's reading is the world's own still, not a frame on
   the axis bus. The walk begins from a lean, the body 8 degrees ahead of
   plumb, the walker taking her mid-swing and letting the lean out over 2 s,
-  the pelvis with the torso; the weight goes 6 cm onto the left foot before
-  the right lifts, the stance hip rolled -4 to -8 degrees: a shift that
-  lifts on the capture point over the left sole, not the centre of mass,
-  wants trying. The softer soles that felled the old first stride are
+  the pelvis with the torso; the weight goes 3 cm onto the left foot before
+  the right lifts and the rest as it lifts, the stance hip rolled -2.5
+  standing: a lift on the capture point (her centre of mass still moving
+  left) failed past 6.5 cm, the first steps falling. The softer soles that felled the old first stride are
   untried on it, then a compressible sole layer for more give than a
   contact's. The scoreboard scores chance on the slips and the hot knee (2
   % of an arm's swing flips them, 75-90 % held): each event from a spread

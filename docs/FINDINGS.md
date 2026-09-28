@@ -546,6 +546,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   arms moved 2 % (the shoulder 16.3, the elbow's swing 9.2) held 80 and
   75 %, the slips and the hot knee flipping; every arm tried held 84.7-85.5
   %, the tilt alone 89.5 (2026-09-28).
+- The weight onto the left foot before the first step, partly as the
+  right lifts (`arrival.SHIFT_IN` 3.5 -> 5.5 cm inside the left ankle):
+  standing, the stance hip rolls -2.5 degrees, not -4.4, the pelvis 33 mm
+  across, not 61, her centre of mass 30 mm left at the lift, not 52; -7.8
+  through the step as before. Ten and sixteen perturbed starts (timings,
+  gains, the lean's and the lift's reach): 3.5 held 10 and 15, 5.5 and 6
+  held 10 and 14, 6.5 held 6 of 10 and 7.5 one, the first steps falling at
+  9-11 s (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

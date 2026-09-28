@@ -42,8 +42,11 @@ FEET_Z = (gait.BALL - gait.HEEL) / 2.0
 
 #: Onto the left foot, her weight is brought SHIFT_IN inside its ankle, then LIFT_IN as the right
 #: lifts: brought 1.5 cm inside at once, it came on at 0.15 m/s as the right foot left the floor,
-#: on to the left sole's outer edge, and she fell off it at the first step (2026-09-26).
-SHIFT_IN, LIFT_IN = 0.035, 0.015
+#: on to the left sole's outer edge, and she fell off it at the first step (2026-09-26). At 3.5 cm
+#: she stood 1.8 s a column leaning left, the stance hip rolled -4.4 degrees - leaning back from
+#: the page's 60; at 5.5 -2.5, the rest as the right lifts; perturbed starts held 15, 14 of 16,
+#: at 6.5 6 of 10, at 7.5 1 (2026-09-28).
+SHIFT_IN, LIFT_IN = 0.055, 0.015
 
 #: Risen, the knees soft as the stand's (`gait.STAND_KNEE`); the pelvis SINK_M lower as her weight
 #: goes onto the left foot, its hip out over the ankle and the leg reaching the further.
