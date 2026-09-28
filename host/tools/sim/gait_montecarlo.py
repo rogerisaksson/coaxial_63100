@@ -49,11 +49,15 @@ TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
 #: (2026-09-28).
 SPREAD = (-1, 0, 1)
 
+#: Each walk run at SPREAD steps of WALK_SPREAD of its pace, its costs meaned: one run a candidate
+#: scored chance - 15.85 in a search, 38.97 run again rounded to four figures (2026-09-28).
+WALK_SPREAD = 0.02
+
 #: The suites: which kinds of trial each runs.
 SUITES = {'all': ('rise', 'walk', 'event'), 'look': ('rise', 'walk'), 'faults': ('event',)}
 
 #: (trial, spread step): every run a candidate makes (`suite` narrows them).
-JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] == 'event' else (0,))]
+JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] in ('event', 'walk') else (0,))]
 
 #: The look's cost, a walk's: the thigh's reach ahead of upright at the landing past its reach
 #: behind at the lift by more than BALANCE_DEG, BALANCE_K a degree; the head fore and aft past
@@ -97,8 +101,10 @@ def look_of(looks):
 SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0}
 SETTLE_S, EVENT_AT_S = 4.0, 5.0
 
-#: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir.
-LOST, FALLEN_STIR = 30.0, 10.0
+#: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir
+#: and this look: fallen, its measures empty, it counted none, and the best of a search fell at
+#: 0.65 in 1.3 s (2026-09-28).
+LOST, FALLEN_STIR, FALLEN_LOOK = 30.0, 10.0, 20.0
 
 MODULES = ('walker', 'gait', 'arrival', 'director', 'capture', 'physics', 'buses', 'events',
            'drives')
@@ -133,8 +139,7 @@ def trial(job):
     if kind == 'rise':
         director.begin()
     else:
-        director.cadence = pace
-        director.walker.cadence = pace
+        director.cadence = director.walker.cadence = pace * (1.0 + WALK_SPREAD * k)
         director.walker.start()
         director.stage = 'walk'
     body.loop.step(0.0)
@@ -191,13 +196,18 @@ def trial(job):
 
 
 def by_trial(results):
-    """[(held, stir or None, [what], {look: value})] a trial each, in TRIALS' order, from its
-    runs' results in JOBS' order: the held share its spread's mean."""
+    """[(held, stir, [what], {look: value}, look's cost)] a trial each, in TRIALS' order, from
+    its runs' results in JOBS' order: each its spread's mean, a run fallen counting FALLEN_STIR
+    and FALLEN_LOOK; the measures shown the first run's."""
     out = []
     for t in TRIALS:
         mine = [r for (u, _k), r in zip(JOBS, results) if u == t]
-        out.append((sum(r[0] for r in mine) / len(mine), mine[0][1], [r[2] for r in mine],
-                    mine[0][3]))
+        stood = [r[0] >= 1.0 and r[1] is not None for r in mine]
+        out.append((sum(r[0] for r in mine) / len(mine),
+                    sum(r[1] if ok else FALLEN_STIR for r, ok in zip(mine, stood)) / len(mine),
+                    [r[2] for r in mine], mine[0][3],
+                    sum(look_of(r[3]) if ok else FALLEN_LOOK for r, ok in zip(mine, stood))
+                    / len(mine)))
     return out
 
 
@@ -206,9 +216,8 @@ def score(results):
     trials = by_trial(results)
     held = sum(t[0] for t in trials) / len(trials)
     walks = [t for (kind, _p, _e), t in zip(TRIALS, trials) if kind == 'walk']
-    stir = (sum((t[1] if t[1] is not None else FALLEN_STIR) for t in walks) / len(walks)
-            if walks else 0.0)
-    looked = sum(look_of(t[3]) for t in walks) / len(walks) if walks else 0.0
+    stir = sum(t[1] for t in walks) / len(walks) if walks else 0.0
+    looked = sum(t[4] for t in walks) / len(walks) if walks else 0.0
     return stir + LOST * (1.0 - held) + looked, held, stir
 
 
@@ -227,10 +236,10 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
     print('%-40s cost %6.2f  held %5.1f %%  stir %5.2f mm' % (
         ' '.join('%s=%g' % kv for kv in values.items()) or 'as it is', cost, 100 * held, stir))
     trials = by_trial(results) if results else []
-    for (kind, pace, event), (h, s, whats, looks) in zip(TRIALS, trials):
+    for (kind, pace, event), (h, s, whats, looks, _c) in zip(TRIALS, trials):
         print('    %-5s %.2f %-5s %5.1f %%  %s%s%s' % (
             kind, pace, event or '', 100 * h, ' | '.join(whats),
-            '' if s is None else '  stir %.2f mm' % s,
+            '' if kind != 'walk' else '  stir %.2f mm' % s,
             '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, impact %.0f N, touch %.2f'
             ' m/s' % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if looks else ''))
 
