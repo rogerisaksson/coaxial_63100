@@ -13,6 +13,7 @@ import glob
 import json
 import math
 import os
+import sys
 
 from coaxial.simulated.values import DCBUS_V
 from tools import REPO
@@ -67,13 +68,44 @@ def library():
     holding one build's library keeps it locked, and a body's limbs load the one."""
     if _BUILT:
         return _BUILT[0]
-    for stale in glob.glob(os.path.join(REPO, 'build', 'hosttest', 'world_emu_*')):
-        try:
-            os.remove(stale)
-        except OSError:
-            pass                     # held by a Renode still running
+    sweep()
     _BUILT.append(build(find_cc(), SOURCES, INCLUDES, 'world_emu_%d' % os.getpid())[0])
     return _BUILT[0]
+
+
+def sweep():
+    """The world libraries of processes that have ended, removed. Every one not locked was: Linux
+    locks none, and a test group's sweep unlinked another's before its Renode loaded it - the
+    Renode exited on a DllNotFoundException (CI, 2026-09-27 and 28)."""
+    for path in glob.glob(os.path.join(REPO, 'build', 'hosttest', 'world_emu_*')):
+        pid = os.path.splitext(os.path.basename(path))[0].rsplit('_', 1)[-1]
+        if pid.isdigit() and not _running(int(pid)):
+            try:
+                os.remove(path)
+            except OSError:
+                pass                     # held by its Renode, still running
+
+
+def _running(pid):
+    """Whether process `pid` still runs: on Windows by its handle's exit code - os.kill there
+    ends it - elsewhere by signal 0."""
+    if sys.platform == 'win32':
+        import ctypes
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        handle = kernel.OpenProcess(0x1000, False, pid)     # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return ctypes.get_last_error() == 5             # ERROR_ACCESS_DENIED: another's
+        code = ctypes.c_ulong()
+        known = kernel.GetExitCodeProcess(handle, ctypes.byref(code))
+        kernel.CloseHandle(handle)
+        return not known or code.value == 259               # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 
 
 _BUILT = []

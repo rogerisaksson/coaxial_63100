@@ -257,6 +257,28 @@ def test_the_sto_chain_holds_settled(report, lib):
                  '%.1f ms, FAULTOUT %.2f V' % (idle * 1e3, chain.pins[3]))
 
 
+def test_a_library_outlives_only_its_process(report, _lib):
+    """The emulator's sweep (tools.emu.world): another process's world library stays while that
+    process runs, an ended one's goes."""
+    import subprocess
+    from tools.cores.build import OUT
+    from tools.emu import world
+    ended = subprocess.Popen([sys.executable, '-c', 'pass'])
+    ended.wait()
+    running = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])
+    ext = '.dll' if os.name == 'nt' else '.so'
+    paths = [os.path.join(OUT, 'world_emu_%d%s' % (p.pid, ext)) for p in (running, ended)]
+    for path in paths:
+        open(path, 'wb').close()
+    world.sweep()
+    kept = [os.path.exists(path) for path in paths]
+    running.kill()
+    running.wait()
+    world.sweep()
+    report.check("a running process's library kept, an ended one's removed, then the other's",
+                 kept == [True, False] and not os.path.exists(paths[0]), kept)
+
+
 def main():
     report = Report()
     if find_cc() is None:
@@ -267,7 +289,8 @@ def main():
     for test in (test_a_joint_swings_as_a_pendulum, test_a_vehicle_rolls_back_down_its_slope,
                  test_a_lift_climbs_on_its_thrust, test_the_heat_reads_as_its_observer_models_it,
                  test_the_pilot_releases_the_sto_chain, test_each_loss_trips_the_sto_chain,
-                 test_the_pilot_window, test_the_sto_chain_holds_settled):
+                 test_the_pilot_window, test_the_sto_chain_holds_settled,
+                 test_a_library_outlives_only_its_process):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, lib)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

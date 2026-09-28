@@ -833,6 +833,15 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   BIF stayed latched through the clear, and the Release image's board group
   ran past 240 s. An emulated board's sleep reads its virtual clock as it
   goes; a group has 480 s (2026-09-27).
+- CI's firmware job red on and off since 2026-09-27, red four times from
+  8112407: conformance's Renode exited on a DllNotFoundException for its
+  world library (build/hosttest/world_emu_<pid>.so). Each test group's
+  process swept every world library not locked before building its own;
+  Windows locks a loaded one, Linux locks none, and a group's sweep
+  unlinked another's before its Renode loaded it. The sweep removes only
+  libraries whose process has ended (`tools.emu.world.sweep`); the log's
+  tail is on the commit as a comment, readable without a login
+  (2026-09-28).
 - The drive's ISR called newlib's cosf and sinf ten times and atan2f four
   times a period (the observer: the PLL's angle twice over, the lead, the
   blend's two angles) and lrintf seven: drive_sincos, an atan2 polynomial
