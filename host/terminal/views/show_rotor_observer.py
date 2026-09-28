@@ -54,6 +54,7 @@ from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, console as _console, screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, hud, stage
+from terminal.ui.stage import mode_of as port_mode
 from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
                                          HEADROOM_GAP, LEFT_COLUMNS, NTC_GAP, RIGHT_COLUMNS,
@@ -133,6 +134,10 @@ def rearm_after_trip(rig, origin, view):
                     % (budget['trips'],
                        int(round(100.0 * policy_margin(view)))))
 
+
+#: How often the feed reads the gate drivers and the observers' chain, and the identification,
+#: s: panels, where the drive's state is the loop's input and read every pass.
+PANELS_S, IDENT_S = 0.5, 1.0
 
 def compose(rig, origin, console, view):
 
@@ -390,6 +395,10 @@ def _link(args):
     if want_afe != was_on:
         board.afe.write(want_afe)
         time.sleep(0.3)
+    if origin.real and _screen.demo(origin):
+        # An emulated board's NTC every 2 s of its time, as the thermal page takes it: at the
+        # record's 30 the identification moved a step every 3 wall s at the pages' haste.
+        board.thermal.configure(sample_every_s=2.0)
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, standing(origin)))
     # The demo's defaults first: `preflight` hands `args` to the model.
@@ -474,32 +483,40 @@ def main(argv=None):
     # `console` is the flag the keys and the closing want; `compose` gets the
     # console itself.
     leaving = None
-    thermal_at = [0.0]
-    # Thermal observer read period, s: the stand-in answers out of memory, a link
-    # does not. The three reads cost 18 ms of a 50 ms tick on the emulator, where
-    # the four every tick already cost 23 ms - asked four times a second they blew
-    # the frame and the page froze and raced (2026-09-28).
-    thermal_every = 0.25 if standing(origin) == 'simulated' else 2.0
+    thermal_at, panels_at, ident_at = [0.0], [0.0], [0.0]
+    # Thermal observer read period, s: the stand-in and native answer out of memory - read every
+    # 2 s native's looked slow beside the rotor, 0.47 a second (bench, 2026-09-28) - a link does
+    # not. The three reads cost 18 ms of a 50 ms tick on the emulator, where the four every tick
+    # already cost 23 ms - asked four times a second they blew the frame and the page froze and
+    # raced (2026-09-28).
+    quick = standing(origin) == 'simulated' or port_mode(args.port) == 'NAT'
+    thermal_every = 0.25 if quick else 2.0
 
     def sample():
-        """The board's side of a frame, on the feed's thread: an emulated board's link is
-        several times slower than a real one's, and the frame need not wait for it. The replies
-        land in the view together: a frame drawn between them paired the new estimate with the
-        last model's error."""
+        """The board's side of a frame, on the feed's thread, the frame not waiting for it: the
+        drive's state every pass, the loop's input, and the model's beside it - a frame drawn
+        between the two paired the new estimate with the last model's error; the gate drivers
+        and the observers' chain, panels, twice a second; the thermal observer at its period,
+        its identification once a second. A read costs 9-18 ms of native's line: all of them a
+        pass, the loop stepped 8.8 times a second of its 20 (2026-09-28)."""
         with suppress(RigError):
+            now = time.time()
             state = board.drive.state()
-            gate = board.gate_drivers.state()
             model = board.drive.model.read() if view['source'] == 'model' else None
-            # The chain: a second answer to the angle, no shaft sensor behind it.
-            chain = board.drive.observers.read()
+            if now - panels_at[0] > PANELS_S:
+                # The chain: a second answer to the angle, no shaft sensor behind it.
+                view.update(gate=board.gate_drivers.state(), chain=board.drive.observers.read())
+                panels_at[0] = now
             travel(view, state)
-            view.update(state=state, gate=gate, model=model, chain=chain)
+            view.update(state=state, model=model)
             turn_the_handle(rig, view)
-            if time.time() - thermal_at[0] > thermal_every:
+            if now - thermal_at[0] > thermal_every:
                 view['thermal'] = board.thermal.state()
                 view['budget'] = board.thermal.budget()
-                view['ident'] = board.thermal.identification()
-                thermal_at[0] = time.time()
+                if now - ident_at[0] > IDENT_S:
+                    view['ident'] = board.thermal.identification()
+                    ident_at[0] = now
+                thermal_at[0] = now
                 rearm_after_trip(rig, origin, view)
 
     sample()

@@ -110,6 +110,7 @@ def test_stepper_steps_its_way(report):
 
 def test_fixed_wing_climbs_blips_and_glides(report):
     """FIXED WING: a slow climb against the propeller, cruise, a blip over it, a glide."""
+    from terminal.views.rotor import motions
     stages, kept, rate = run('FIXED WING')
     if not paced(report, 'the fixed wing\'s flight', kept, rate):
         return
@@ -118,6 +119,7 @@ def test_fixed_wing_climbs_blips_and_glides(report):
         by.setdefault(name, []).append(st)
     climb, glide = by.get('climb', [[]])[0], by.get('glide', [[]])[0]
     cruise_rpm = abs(climb[-1][3]) if climb else 0.0
+    cruise = next(s[3] for s in motions.CYCLE if s[0] == 'FIXED WING' and s[1] == 'cruise') or 0.0
     # Each blip from where it began: the envelope throttling the cruise, it sags under the
     # climb's top, and a blip judged against that top read as none (2 419 of 2 740).
     # A blip the envelope held - the clamp throttled to the cruise's own current - lifts
@@ -127,7 +129,7 @@ def test_fixed_wing_climbs_blips_and_glides(report):
     held = [any(r[6] for r in st) for st in blips]
     report.check('the climb comes to 85 % of cruise, and each blip lifts it past where it '
                  'was unless the envelope holds the clamp',
-                 cruise_rpm >= 0.85 * 2800.0 and bool(lifts)
+                 cruise_rpm >= 0.85 * cruise and bool(lifts)
                  and all(lift > 0.0 or throttled for lift, throttled in zip(lifts, held)),
                  'climbed to %.0f rpm, the blips %s' % (cruise_rpm, ', '.join(
                      '%+.0f rpm%s' % (lift, ' throttled' if throttled else '')

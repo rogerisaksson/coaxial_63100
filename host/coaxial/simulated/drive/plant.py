@@ -295,6 +295,12 @@ class DrivePlant:
         alpha = (motor.omega - self._omega_hat) / dt if dt > 0.0 else 0.0
         self._omega_hat = motor.omega
         self._estimate(motor.theta + alpha / (wn * wn), ran=(self._mech - mech) * motor.p)
+        cmd, w_cmd = self._cmd_at(now)
+        if self._mode == 'hold' and abs(w_cmd) <= self._p('drv_w_lo', 0.0):
+            # drive.c's command frame below the back-EMF's speed: the frame the rotor is held in
+            # is the estimate, not the rotor ringing in it - a stepper's mark shivered 11 degrees
+            # a frame on the tracker (2026-09-28).
+            self._estimate(cmd)
         return motor
 
     def _spin(self, motor, dt, now):

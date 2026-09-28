@@ -242,10 +242,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - Near standstill the firmware's estimate swings 100-150 rpm a sample, on native
   and Renode alike: the estimator, not the emulator (2026-09-28).
 - The rotor page's mark, the angle over the pole pairs, skipped a pitch (51.4
-  deg) each electrical turn; counted at 20 frames a second it rode a speed that
-  overshot at a hold's handover, 68.8 deg at rest. The drive counts theta_hat's
-  turns (op 0, MINOR 24): STEPPER +57.8/-53.7 of 60, 3.2 a frame at most
-  (2026-09-28).
+  deg) each electrical turn. The drive counts theta_hat's turns (op 0, MINOR
+  24): STEPPER +57.8/-53.7 of 60, 3.2 a frame at most (2026-09-28).
 - Renode under the drive: 3.8-4.5 wall s a board s, 110 M guest instructions a
   board s at ~33 ns each; Debug and Release alike. The CPU thread's RIP sampled:
   translated code 41 %, coreclr's crossings 17 %, the FPU's lazy state saved at
@@ -287,9 +285,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - The demo's STEPPER at 15 mechanical degrees a step - 105 electrical -
   lost its rotor (180 asked, 580 turned); 45 electrical, eased: 63 of 60
   (2026-09-28).
-- The demo's speed changes spool, waiting on the rotor: a spin-up's first half
-  second 164 rpm/s of a 1 366 peak; a constant rate stepped 552 on, then 2 110
-  (2026-09-28).
+- The demo's loaded speed changes spool, waiting on the rotor, 800 rpm/s at most:
+  164 rpm/s the first half second where a constant rate stepped 552 on. QUAD's
+  0.4 s stabs made 49 changes a minute and a 48 A step; 16 and 22 now. The
+  feed reads the drive every pass: 16.2 states a second of 8.8 (2026-09-28).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

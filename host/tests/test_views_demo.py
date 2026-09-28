@@ -60,12 +60,13 @@ def test_the_demo_actually_loads_the_motor(report):
         rows.append((time.perf_counter(), v.get('stage'),
                      st.get('omega_hat', 0.0) / pairs * 60.0 / math.tau,
                      v.get('iq') or 0.0, beads[-1] if len(beads) > n else None,
-                     (v['j'], v['b'], motions.prop_k()),
+                     (v['j'], v['b'], v.get('drag', motions.prop_k())),
                      1.5 * (st.get('vd', 0.0) * st.get('id', 0.0)
                             + st.get('vq', 0.0) * st.get('iq', 0.0)),
                      None, None,
                      owned[-1] if len(owned) > k else None,
-                     max((abs(a) for a in amps), default=0.0), full))
+                     max((abs(a) for a in amps), default=0.0), full,
+                     bool((v.get('budget') or {}).get('throttling'))))
         return out
 
     view.compose, cross_section._bead, cross_section.render = compose, bead, render
@@ -80,24 +81,31 @@ def test_the_demo_actually_loads_the_motor(report):
         if not stages or stages[-1][0] != row[1]:
             stages.append((row[1], []))
         stages[-1][1].append(row)
-    # The cycle's two: a slow runner draws into the next one, its up judged at 37 A (8e513c2).
-    ups = [st for name, st in stages if name == 'up' and abs(st[-1][2]) > 2000.0][:2]
-    report.check('up past 2 000 rpm each way against the propeller, on the clamp',
+    # SPIN, the special case: the unloaded rotor spooled at the clamp, each way, its top held on
+    # little current - a slow runner draws into the next up, judged at 37 A (8e513c2).
+    top = max(abs(stage[3] or 0.0) for stage in motions.CYCLE if stage[5] == 'free')
+    ups = [st for name, st in stages if name == 'up' and abs(st[-1][2]) > 0.6 * top][:2]
+    report.check('the unloaded spin spools to 90 %% of %.0f rpm each way on the clamp, its top '
+                 'on little current' % top,
                  len(ups) >= 2 and ups[0][-1][2] > 0.0 > ups[1][-1][2]
-                 and all(abs(st[-1][3]) >= 40.0 for st in ups),
-                 ', '.join('%.0f rpm on %.0f A' % (st[-1][2], st[-1][3]) for st in ups))
-    report.check('and near a kilowatt into the motor at the top',
+                 and all(max(abs(r[3]) for r in st) >= 40.0 and abs(st[-1][2]) >= 0.9 * top
+                         and abs(st[-1][3]) < 10.0 for st in ups),
+                 ', '.join('%.0f rpm, %.0f A at most, %.0f A at the top' % (
+                     st[-1][2], max(abs(r[3]) for r in st), st[-1][3]) for st in ups))
+    report.check('and near a kilowatt into the motor as it spools',
                  bool(ups) and max(r[6] for r in ups[0]) >= 800.0,
                  '%.0f W' % max(r[6] for r in ups[0]) if ups else 'none')
-    # The spin-up spools, slow and then faster and faster: at a constant rate its first half
-    # second ran 552 rpm/s against a peak of 1 619, the current stepped on and off (2026-09-28).
-    if ups:
-        up, t0 = ups[0], ups[0][0][0]
-        early = next((r[2] for r in up if r[0] - t0 >= 0.5), up[-1][2]) / 0.5
-        windows = [(b[2] - a[2]) / (b[0] - a[0]) for a, b in zip(up, up[5:]) if b[0] > a[0]]
+    # A loaded spin-up spools, slow and then faster and faster: at a constant rate its first
+    # half second ran 552 rpm/s against a peak of 1 619, the current stepped on and off
+    # (2026-09-28).
+    spools = [st for name, st in stages if name == 'spool']
+    if spools:
+        up, t0 = spools[0], spools[0][0][0]
+        early = abs(next((r[2] for r in up if r[0] - t0 >= 0.5), up[-1][2]) - up[0][2]) / 0.5
+        windows = [abs(b[2] - a[2]) / (b[0] - a[0]) for a, b in zip(up, up[5:]) if b[0] > a[0]]
         peak = max(windows, default=0.0)
-        report.check('the spin-up starts slow: its first half second under a quarter of its '
-                     'peak acceleration',
+        report.check('a loaded spin-up starts slow: its first half second under a quarter of '
+                     'its peak acceleration',
                      peak > 0.0 and early < 0.25 * peak,
                      '%.0f rpm/s, the peak %.0f' % (early, peak))
     def starved(index):
@@ -166,11 +174,18 @@ def test_the_demo_actually_loads_the_motor(report):
                                                        loads[-1][0] + 1)):
         report.skip('the load\'s physics', 'the page stalled past the plant\'s catch-up')
     else:
-        report.check('the load holds 1 000 rpm to 90 %, on its current',
-                     bool(loads) and abs(loads[-1][1][-1][2]) >= 900.0
-                     and abs(loads[-1][1][-1][3]) >= 5.0,
-                     '%.0f rpm on %.1f A' % (loads[-1][1][-1][2], loads[-1][1][-1][3])
-                     if loads else 'none')
+        # Unless the envelope holds it back: the dyno runs the switches into their SOA, and a
+        # throttled clamp let 1 500 rpm sag to 1 299 on its 50 A (2026-09-28).
+        held = next(stage[3] for stage in motions.CYCLE if stage[1] == 'load') or 0.0
+        load = loads[-1][1] if loads else []
+        throttled = any(r[12] for r in load)
+        report.check('the load holds %.0f rpm to 90 %%, on its current, unless the envelope '
+                     'throttles it' % held,
+                     bool(load) and abs(load[-1][3]) >= 5.0
+                     and (abs(load[-1][2]) >= 0.9 * held or throttled),
+                     '%.0f rpm on %.1f A%s' % (load[-1][2], load[-1][3],
+                                               ', throttled' if throttled else '')
+                     if load else 'none')
     # The mark is on the rotor: one place among the magnets every frame, streaked through
     # their shutter - on a pace of its own it drifted off them - and at a crawl never 0.4 of a
     # pitch at once: the angle over the pole pairs skipped one each electrical turn, the

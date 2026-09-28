@@ -52,23 +52,24 @@ def no_load_rpm(view):
 
 
 def lay(rig, view, torque):
-    """`torque` against the shaft, N m: the stand-in's model's load, or on an emulated board's
-    world the stage's beside the propeller its drag (`world_drag`)."""
+    """`torque` against the shaft, N m, and nothing else on it: the stand-in's model's load, or
+    an emulated board's world's (`world_load`)."""
     if view['source'] == 'model':
         rig.board.drive.model.configure(load=torque)
     else:
-        world_load(view, torque)
+        world_load(view, torque, 0.0)
 
 
-def world_load(view, torque):
+def world_load(view, torque, drag):
     """The demo's loads on an emulated board's world, as the stand-in's model takes them off the
-    page: the propeller its drag on the world's own shaft, the stage's torque laid when it moves
-    a grain. Without them native's demo drew the flywheel's current alone."""
+    page: the propeller its `drag` on the world's own shaft, the stage's torque laid when either
+    moves a grain. Without them native's demo drew the flywheel's current alone."""
     laid = view.get('world_drag')
-    if laid is None or abs(torque - view.get('world_torque', math.inf)) < WORLD_GRAIN_NM:
+    was_torque, was_drag = view.get('world_laid', (math.inf, math.inf))
+    if laid is None or (abs(torque - was_torque) < WORLD_GRAIN_NM and drag == was_drag):
         return
-    laid(prop_k(), torque)
-    view['world_torque'] = torque
+    laid(drag, torque)
+    view['world_laid'] = (torque, drag)
 
 
 def heavy_start(rig, view):
@@ -131,55 +132,52 @@ def load_loop(rig, view):
 #: against a 105 C laminate and 22.0 A against a 125 C junction (FINDINGS, 2026-09-05).
 LOAD_A = 20.0
 
-#: A joint's load held on the vector, q amps: gravity at the end of a limb, the rotor a few
-#: degrees off its angle under HOLD_A.
-JOINT_LOAD_A = 6.0
+#: A joint's load held on the vector, q amps - gravity at the end of a limb, the rotor a few
+#: degrees off its angle under HOLD_A - and a servo's as it moves, its mass and friction: some
+#: current through the phases for the thermal observer to follow (bench, 2026-09-28).
+JOINT_LOAD_A = 8.0
+SERVO_LOAD_A = 8.0
 
 
 #: The demo in segments, the bench's words (2026-09-28): an application each, its stages
 #: driven by the speed loop, a held vector or one stepped. A stage: its segment, its name,
 #: seconds, the speed it ramps to - rpm, None: no current, the rotor on its drag - the load on
-#: the stand-in's shaft in q amps, and how. On the demo's flywheel (J 8e-3, b 5e-4): up at 52
-#: rad/s^2 on ~9 A, a coast of J/b = 16 s taking 1 500 rpm to ~1 100 in 5 s, the brake back to
-#: rest in 2 s; a climb against the propeller 40 A at its top, the joint's vector 12 A all the
-#: while.
+#: the stand-in's shaft in q amps, and how: 'free' the unloaded rotor spooled at the clamp, no
+#: propeller - SPIN, the special case - 'speed' the loop against the propeller and the load,
+#: spooled at SPOOL_RPM_S at most, 'hold' a held vector, 'step' one stepped. On the demo's
+#: flywheel (J 8e-3, b 5e-4) a coast of J/b = 16 s. The stages were 0.4 s at their shortest,
+#: QUAD's stabs, 49 changes a minute and the current 48 A apart between two frames there; a
+#: second and more now, 20 a minute at most.
 CYCLE = (
     ('SPIN', 'align', 1.5, 0.0, 0.0, 'hold'),
-    ('SPIN', 'up', 6.0, 3300.0, 0.0, 'speed'),
-    ('SPIN', 'coast', 5.0, None, 0.0, 'speed'),
-    ('SPIN', 'brake', 3.0, 0.0, 0.0, 'speed'),
-    ('SPIN', 'up', 6.0, -3300.0, 0.0, 'speed'),
-    ('SPIN', 'coast', 5.0, None, 0.0, 'speed'),
-    ('SPIN', 'brake', 3.0, 0.0, 0.0, 'speed'),
-    ('SPIN', 'up', 3.0, 1000.0, 0.0, 'speed'),
-    ('SPIN', 'load', 6.0, 1000.0, LOAD_A, 'speed'),
-    ('SPIN', 'brake', 3.0, 0.0, 0.0, 'speed'),
-    ('SERVO', 'move', 1.5, 900.0, 0.0, 'speed'),
-    ('SERVO', 'stop', 1.8, 0.0, 0.0, 'speed'),
-    ('SERVO', 'move', 1.5, -900.0, 0.0, 'speed'),
-    ('SERVO', 'stop', 1.8, 0.0, 0.0, 'speed'),
-    ('SERVO', 'move', 1.5, 900.0, 0.0, 'speed'),
-    ('SERVO', 'stop', 1.8, 0.0, 0.0, 'speed'),
+    ('SPIN', 'up', 3.5, 3300.0, 0.0, 'free'),
+    ('SPIN', 'coast', 4.0, None, 0.0, 'free'),
+    ('SPIN', 'brake', 3.0, 0.0, 0.0, 'free'),
+    ('SPIN', 'up', 3.5, -3300.0, 0.0, 'free'),
+    ('SPIN', 'coast', 4.0, None, 0.0, 'free'),
+    ('SPIN', 'brake', 3.0, 0.0, 0.0, 'free'),
+    ('DYNO', 'spool', 5.0, 1500.0, 0.0, 'speed'),
+    ('DYNO', 'load', 12.0, 1500.0, LOAD_A, 'speed'),
+    ('DYNO', 'release', 5.0, 0.0, 0.0, 'speed'),
+    ('SERVO', 'move', 3.0, 900.0, SERVO_LOAD_A, 'speed'),
+    ('SERVO', 'stop', 3.0, 0.0, 0.0, 'speed'),
+    ('SERVO', 'move', 3.0, -900.0, SERVO_LOAD_A, 'speed'),
+    ('SERVO', 'stop', 3.0, 0.0, 0.0, 'speed'),
     ('STEPPER', 'hold', 1.0, 0.0, 0.0, 'hold'),
     ('STEPPER', 'steps', 5.0, 2.0, 0.0, 'step'),
     ('STEPPER', 'back', 5.0, -2.0, 0.0, 'step'),
-    ('FIXED WING', 'climb', 10.0, 2800.0, 0.0, 'speed'),
-    ('FIXED WING', 'cruise', 3.0, 2800.0, 0.0, 'speed'),
-    ('FIXED WING', 'blip', 0.5, 3300.0, 0.0, 'speed'),
-    ('FIXED WING', 'cruise', 2.0, 2800.0, 0.0, 'speed'),
-    ('FIXED WING', 'blip', 0.5, 3300.0, 0.0, 'speed'),
+    ('FIXED WING', 'climb', 10.0, 2200.0, 0.0, 'speed'),
+    ('FIXED WING', 'cruise', 4.0, 2200.0, 0.0, 'speed'),
+    ('FIXED WING', 'blip', 1.5, 2700.0, 0.0, 'speed'),
+    ('FIXED WING', 'cruise', 3.0, 2200.0, 0.0, 'speed'),
     ('FIXED WING', 'glide', 4.0, None, 0.0, 'speed'),
-    ('FIXED WING', 'land', 3.0, 0.0, 0.0, 'speed'),
-    ('QUAD', 'spool', 3.0, 2000.0, 0.0, 'speed'),
-    ('QUAD', 'stab', 0.4, 2600.0, 0.0, 'speed'),
-    ('QUAD', 'hover', 0.8, 2000.0, 0.0, 'speed'),
-    ('QUAD', 'stab', 0.4, 1400.0, 0.0, 'speed'),
-    ('QUAD', 'hover', 0.8, 2000.0, 0.0, 'speed'),
-    ('QUAD', 'stab', 0.4, 2600.0, 0.0, 'speed'),
-    ('QUAD', 'hover', 0.8, 2000.0, 0.0, 'speed'),
-    ('QUAD', 'stab', 0.4, 1400.0, 0.0, 'speed'),
-    ('QUAD', 'hover', 1.0, 2000.0, 0.0, 'speed'),
-    ('QUAD', 'land', 3.0, 0.0, 0.0, 'speed'),
+    ('FIXED WING', 'land', 4.0, 0.0, 0.0, 'speed'),
+    ('QUAD', 'spool', 5.0, 2000.0, 0.0, 'speed'),
+    ('QUAD', 'stab', 1.5, 2400.0, 0.0, 'speed'),
+    ('QUAD', 'hover', 3.0, 2000.0, 0.0, 'speed'),
+    ('QUAD', 'stab', 1.5, 1400.0, 0.0, 'speed'),
+    ('QUAD', 'hover', 3.0, 2000.0, 0.0, 'speed'),
+    ('QUAD', 'land', 5.0, 0.0, 0.0, 'speed'),
     ('JOINT', 'hold', 8.0, 0.0, JOINT_LOAD_A, 'hold'),
 )
 
@@ -190,16 +188,16 @@ START_AT = None
 #: current it is held on, A. 15 mechanical degrees - 105 electrical, past the 90 where the held
 #: vector's torque turns - lost the rotor: 180 asked, 580 turned, and the way back went on
 #: forward; the stand-in's rotor damps at 0.002 of critical, so a step set down whole rings on
-#: (2026-09-28). A servo's stop is 1.8 s: 858 rpm through the 10 A clamp at zero takes 1.4,
-#: and at 1.0 s the first stop ended at 167 rpm.
+#: (2026-09-28). A servo's stop takes 858 rpm through the 10 A clamp at zero in 1.4 s: at 1.0 s
+#: the first ended at 167 rpm.
 STEP_E_DEG = 45.0
 STEP_EASE = 0.3
-STEP_A = 8.0
+STEP_A = 12.0
 
-#: A propeller on the stand-in's shaft through the cycle, torque k w|w|: the kilowatt at the
-#: cycle's top. At the 24.8 V link vq tops out at vdc/sqrt 3 = 14.3 V, so a kilowatt is ~48 A
-#: at the ceiling, 3 300 rpm: 0.8 kW on the shaft there, ~1 kW in.
-PROP_KW = 0.8
+#: A propeller on the shaft through the loaded stages, torque k w|w|: this at the cycle's top,
+#: 3 300 rpm. At the 24.8 V link vq tops out at vdc/sqrt 3 = 14.3 V, so a kilowatt is ~48 A at
+#: the ceiling; 0.8 left the scenarios light (bench, 2026-09-28).
+PROP_KW = 1.2
 
 #: A ramp takes this share of its stage, and the speed holds for the rest.
 RAMP_SHARE = 0.67
@@ -210,6 +208,13 @@ RAMP_SHARE = 0.67
 #: clamp through zero caught up at 1 379 rpm/s where it opened, and the top stopped dead: on
 #: and off (bench, 2026-09-28).
 SPOOL_RISE, SPOOL_LAND = 0.5, 0.15
+SPOOL_PEAK = 1.0 / (1.0 - 0.5 * (SPOOL_RISE + SPOOL_LAND))
+
+#: A loaded spool's peak acceleration, rpm/s - its ramp stretched past the stage's share to keep
+#: under it: QUAD's 0.4 s stabs ran 2 413 rpm/s and swung the feed-forward 48 A a frame - and
+#: the unloaded spin's ramp, s, SPIN's: shorter than the clamp can follow, spooled at the clamp.
+SPOOL_RPM_S = 800.0
+FREE_RAMP_S = 1.0
 
 #: The no-load speed where the record gives none to work it out from, rpm.
 TOP_RPM = 3800.0
@@ -268,8 +273,7 @@ def prop_k():
 def spool(x):
     """The share of a ramp's speed change made `x` of the way through it: its acceleration up
     from none over SPOOL_RISE, held, and eased off over SPOOL_LAND."""
-    x, rise, land = min(1.0, max(0.0, x)), SPOOL_RISE, SPOOL_LAND
-    peak = 1.0 / (1.0 - 0.5 * (rise + land))
+    x, rise, land, peak = min(1.0, max(0.0, x)), SPOOL_RISE, SPOOL_LAND, SPOOL_PEAK
     if x < rise:
         return peak * x * x / (2.0 * rise)
     if x < 1.0 - land:
@@ -305,7 +309,7 @@ def sweep(rig, view):
     kt = 1.5 * pairs * (p.get('motor_lambda') or 0.005)
     through = SEND_FROM * (p.get('drv_w_hi') or 0.0) / pairs
     pi.limit = SPIN_A if abs(w_hat) < through else max(SPIN_A, p.get('drv_i_max') or SPIN_A)
-    if abs(w_hat) > LOST * top and how == 'speed':
+    if abs(w_hat) > LOST * top and how in ('speed', 'free'):
         # The demo's operator: the estimate lost, the cycle again from the pull onto the frame.
         view['said'] = 'estimate lost at %.0f rpm - aligned again' % (w_hat / RAD_S_PER_RPM)
         view['spin_at'], view['stage_index'] = now + start_of(START_AT), None
@@ -313,8 +317,9 @@ def sweep(rig, view):
     if index != view.get('stage_index'):
         view['stage_index'], view['stage'], view['segment'] = index, name, segment
         view['stage_load'], view['load_full'] = 0.0, load * kt
-        mode = 'sensorless' if how == 'speed' else 'hold'
-        if mode != view.get('stage_mode'):
+        mode = 'sensorless' if how in ('speed', 'free') else 'hold'
+        moved = mode != view.get('stage_mode')
+        if moved:
             if mode == 'hold':
                 drive.hold()
             else:
@@ -324,11 +329,14 @@ def sweep(rig, view):
         # the frame at 0, the estimate starting on its polarity.
         view['held_theta'] = (0.0 if index == 0
                               else (view.get('state') or {}).get('theta_hat') or 0.0)
-        # From where the rotor is: the spool from its speed, its clock at 0, the PI with no
-        # history.
+        # From where the rotor is: the spool from its speed, its clock at 0. The PI keeps its
+        # integrator from a stage it ran in - reset at each stage, the current it carried
+        # dropped at every change - and starts afresh after a hold or a coast.
         view['spool_from'], view['spool_x'] = w_hat, 0.0
-        pi.reset()
-        pi.was = w_hat
+        if moved or not view.get('looped'):
+            pi.reset()
+            pi.was = w_hat
+        view['looped'] = False
         view['speed_at'] = now
     dt = min(0.25, max(0.0, now - view.get('speed_at', now)))
     view['speed_at'] = now
@@ -340,13 +348,17 @@ def sweep(rig, view):
         # zero - lost to it and ran backwards, -635 rpm on a loaded host (2026-09-28).
         view['stage_load'] = view.get('load_full', 0.0) * min(
             1.0, abs(w_hat) / (abs(rpm) * RAD_S_PER_RPM))
+    # The propeller on the loaded stages, fed forward in the loop as well; SPIN's rotor free.
+    drag = 0.0 if how == 'free' else prop_k()
+    pi.load_k = drag
     if view['source'] == 'model':
         # The propeller at the shaft's own speed, and the stage's load on top: the model's
         # load opposes positive turning, so the propeller's sign is the speed's.
         w = drive.model.read()['omega'] / pairs
-        drive.model.configure(load=prop_k() * w * abs(w) + view.get('stage_load', 0.0))
+        drive.model.configure(load=drag * w * abs(w) + view.get('stage_load', 0.0))
     else:
-        world_load(view, view.get('stage_load', 0.0))
+        world_load(view, view.get('stage_load', 0.0), drag)
+    view['drag'] = drag
     if how == 'hold':
         drive.write(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0, theta=view['held_theta'])
         view['iq'] = 0.0
@@ -372,13 +384,18 @@ def sweep(rig, view):
         view['spool_from'] = pi.was = w_hat
         drive.write(id_ref=0.0, iq_ref=0.0)
         view['iq'] = 0.0
+        view['looped'] = False
         return
     # The spool's clock waits for the rotor: on while the reference leads the estimate by less
     # than the error that alone commands the loop's reach. On regardless, the lag held under the
     # 10 A through zero came back at 2 110 rpm/s where the clamp opened (2026-09-28).
     w0, x = view.get('spool_from', w_hat), view.get('spool_x', 0.0)
-    w_ref = w0 + (rpm * RAD_S_PER_RPM - w0) * spool(x)
+    w1 = rpm * RAD_S_PER_RPM
+    ramp = (FREE_RAMP_S if how == 'free' else
+            max(RAMP_SHARE * seconds, SPOOL_PEAK * abs(w1 - w0) / (SPOOL_RPM_S * RAD_S_PER_RPM)))
+    w_ref = w0 + (w1 - w0) * spool(x)
     if abs(w_ref - w_hat) < pi.limit * kt / (math.tau * SPEED_HZ * view['j']):
-        view['spool_x'] = x + dt / max(0.1, RAMP_SHARE * seconds)
+        view['spool_x'] = x + dt / ramp
     view['iq'] = pi.step(dt, setpoint=w_ref, measured=w_hat)['command'] if dt else view['iq']
+    view['looped'] = True
     drive.write(id_ref=0.0, iq_ref=view['iq'])

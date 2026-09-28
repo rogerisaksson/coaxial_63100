@@ -41,11 +41,12 @@ FIRST_S, MOVE_S, LOSE_S, FIND_S = 9000, 600, 600, 4000
 #: at 2 929 observer s and its 300 s ran out before STABLE came back (3fe01e9).
 WALL_S, READ_S = 400, 0.5
 
-#: The rotor page's haste and its wall s: at 30 the envelope throttled 6.0 s into the first
-#: spin-up, the worst node 0.93 of its span and 0.945 at most; at 100 the observer's steps
-#: starved the board's loop and nothing drove (2026-09-28). Its own board: the tour's room and
+#: The rotor page's haste and its wall s, from DYNO, the first loaded segment - SPIN's rotor is
+#: unloaded: at 30 the envelope throttled 6.0 s into the first spin-up then, the worst node
+#: 0.93 of its span and 0.945 at most; at 100 the page drove nothing, the board holding real
+#: time at 1 002 observer steps a second (2026-09-28). Its own board: the tour's room and
 #: haste stay on theirs.
-SOA_HASTE, SOA_S, SOA_PORT = 30, 20.0, 'native://?world=bench'
+SOA_HASTE, SOA_S, SOA_PORT, SOA_FROM = 30, 25.0, 'native://?world=bench', 'DYNO'
 
 
 def test_the_tour_loses_and_finds_the_room(report):
@@ -129,9 +130,10 @@ def test_the_demo_takes_the_switches_into_their_soa(report):
     from coaxial.model import thermal
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import motions
     from tools.render import page
 
-    rows, real, was = [], view.compose, thermal.HASTE
+    rows, real, was, began = [], view.compose, thermal.HASTE, motions.START_AT
 
     def compose(rig, origin, console, v):
         out = real(rig, origin, console, v)
@@ -140,14 +142,14 @@ def test_the_demo_takes_the_switches_into_their_soa(report):
             rows.append((v.get('stage'), budget.get('worst') or 0.0,
                          bool(budget.get('throttling')), bool(budget.get('tripped'))))
         return out
-    view.compose, thermal.HASTE = compose, SOA_HASTE
+    view.compose, thermal.HASTE, motions.START_AT = compose, SOA_HASTE, SOA_FROM
     try:
         page.frame('rotor_observer', 150, 44, frames=int(SOA_S * FPS_CAP), port=SOA_PORT)
     finally:
-        view.compose, thermal.HASTE = real, was
+        view.compose, thermal.HASTE, motions.START_AT = real, was, began
     first = next((r for r in rows if r[2]), None)
     worst = max((r[1] for r in rows), default=0.0)
-    report.check('the envelope throttles the switches in the first spin-up, past 0.9 of their '
+    report.check('the envelope throttles the switches in the dyno\'s run, past 0.9 of their '
                  'span',
                  first is not None and first[1] >= 0.9,
                  'first at %s, %.2f of the span' % (first[0], first[1]) if first
