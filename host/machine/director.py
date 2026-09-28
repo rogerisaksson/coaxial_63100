@@ -48,6 +48,15 @@ CATCH = {'ahead': {'left_hip': -90.0, 'right_hip': -90.0, 'left_knee': 90.0, 'ri
          'behind': {'left_shoulder': -45.0, 'right_shoulder': -45.0, 'left_elbow': 20.0,
                     'right_elbow': 20.0, 'neck': 45.0}}
 
+#: Her hands on the floor (TOUCH_M), her arms give under her over YIELD_S into her forearms, the
+#: hands by her face (YIELD) - the catch a spring, not a post: held out straight she caught
+#: herself and toppled over them sideways. Down on a lace, the head 71 mm off the floor at the
+#: least, as it came 132 on straight arms; bent to 70 and the hands brought over the head, it
+#: met the floor at 1.3 m/s (2026-09-28).
+YIELD = {'left_elbow': 90.0, 'right_elbow': 90.0, 'left_shoulder': 110.0, 'right_shoulder': 110.0}
+YIELD_S, TOUCH_M = 0.6, 0.01
+HANDS = ('left_hand', 'left_fingers', 'right_hand', 'right_fingers')
+
 #: Tipping more than BEHIND_DEG from her forward she sits down (`CATCH['behind']`); less, the
 #: waist turns her toward the way she tips as it turns, TWIST_DEG at most, the arms reaching
 #: that way. Five falls (a lace at 300, 400 and 600 N, the hole, the rug), the head's speed at
@@ -106,8 +115,10 @@ class Director:
         self.walk_s, self.rest_s = walk_s, rest_s
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
-        #: Since when she curls and from and to what; the tilt last pass, (deg, s).
+        #: Since when she curls and from and to what; the tilt last pass, (deg, s); when her
+        #: hands met the floor.
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
+        self.touched_at = None
         self.curled = arrival.angles_of(arrival.keyframes(gait.CADENCE)[0][2])
         #: Each joint's drive by its node's channels, the legs'; a dropped drive's (heard at,
         #: wait) and when each was last armed.
@@ -140,7 +151,7 @@ class Director:
         self.walker.cadence = gait.CADENCE
         self.walker.reset()
         self.blend, self.curl_from = None, {}
-        self.falling_at, self.curl_to, self.tilt_was = None, {}, None
+        self.falling_at, self.curl_to, self.tilt_was, self.touched_at = None, {}, None, None
         self.dropped, self.armed = {}, {}
 
     def halt(self):
@@ -181,8 +192,13 @@ class Director:
             if abs(way) <= BEHIND_DEG and TWIST_DEG > 0.0:
                 self.curl_to['waist'] = max(-TWIST_DEG, min(TWIST_DEG, way))
             k = gait.eased((bus['t'] - self.falling_at) / CURL_S)
-            return {j: self.curl_from[j] + (v - self.curl_from[j]) * k
-                    for j, v in self.curl_to.items()}
+            out = {j: self.curl_from[j] + (v - self.curl_from[j]) * k
+                   for j, v in self.curl_to.items()}
+            if self.touched_at is None and self.world.lifted(HANDS) < TOUCH_M:
+                self.touched_at = bus['t']
+            if self.touched_at is not None:
+                out = gait.blend(out, dict(out, **YIELD), (bus['t'] - self.touched_at) / YIELD_S)
+            return out
         self.since += dt
         if self.stage in arrival.STAGES:
             out = self.arrival.step(dt)

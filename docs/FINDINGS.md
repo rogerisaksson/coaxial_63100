@@ -702,6 +702,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - A 5-step stair, 8 cm steps, blind: the floor read where each foot bears
   and the same step expected again, she walks up all five; finding the
   landing a step lower than expected she pitches over (2026-09-28).
+- Caught on straight arms she toppled over them sideways. Her hands
+  down, the arms give over 0.6 s into her forearms, the hands by her face
+  (`director.YIELD`): the head 71 mm off the floor at the least, 132 on
+  straight arms; the hands brought over the head, it met the floor at
+  1.3 m/s (2026-09-28).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The
