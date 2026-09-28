@@ -9,7 +9,8 @@ terminal page runs her:
 - walk: from mid-stride at a pace, the pendulum between her ears read (`machine.pendulum`),
 - event: from mid-stride, the floor's event under her next left step (`physics.World.terrain`):
   a hole, a sill, a slip patch, a loose rug; or the left knee's drive glitched in its stance
-  (`physics.World.glitch`): its gate dropped for a moment, or derated hot for seconds.
+  (`physics.World.glitch`): its gate dropped for a moment, or derated hot for seconds; each
+  laid at a spread of places (SPREAD), the trial held their mean.
 
 Two numbers: `held`, the share of the trials' time she stood, and `stir`, the pendulum's mean
 over the walks, mm. Its cost is one: `stir + LOST (1 - held)`. A single run a candidate scores
@@ -43,6 +44,14 @@ TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
           ('event', 0.85, 'rug'), ('event', 0.65, 'sill'), ('event', 0.9, 'slip'),
           ('event', 0.85, 'cut'), ('event', 0.85, 'hot'))
 
+#: Each event laid at SPREAD steps: its place moved EVENT_STEP_M along the walk a step, a
+#: glitch's GLITCH_STEP of the stride. Laid at one place, 2 % of an arm's swing flipped a slip or
+#: the hot knee and the held share ran 75-90 % (2026-09-28).
+SPREAD, EVENT_STEP_M, GLITCH_STEP = (-1, 0, 1), 0.03, 0.05
+
+#: (trial, spread step): every run a candidate makes.
+JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] == 'event' else (0,))]
+
 #: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; where the rug's front edge
 #: goes, m short of the landing.
 SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0}
@@ -70,12 +79,13 @@ def _set(values):
 
 
 def trial(job):
-    """(held, stir or None, what happened) for one candidate's one trial."""
-    values, (kind, pace, event) = job
+    """(held, stir or None, what happened) for one candidate's one run (`JOBS`)."""
+    values, ((kind, pace, event), k) = job
     _set(values)
     from machine import Machine, figure, gait
+    glitch_at = GLITCH_AT + k * GLITCH_STEP
     EVENT_AT = {'hole': gait.TOE_OFF, 'sill': gait.TOE_OFF, 'slip': gait.TOE_OFF,
-                'rug': gait.TOE_OFF, 'cut': GLITCH_AT, 'hot': GLITCH_AT}
+                'rug': gait.TOE_OFF, 'cut': glitch_at, 'hot': glitch_at}
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -106,7 +116,7 @@ def trial(job):
                 and was < EVENT_AT[event] <= director.walker.phase):
             walker = director.walker
             landing = (bus['pelvis.pose.z'] + (1.0 - gait.TOE_OFF) * gait.STRIDE_M * walker.stride
-                       + gait.planted(0.0, walker.stride)[0])
+                       + gait.planted(0.0, walker.stride)[0] + k * EVENT_STEP_M)
             if event == 'cut':
                 world.glitch('left_knee', CUT_S)
             elif event == 'hot':
@@ -115,7 +125,8 @@ def trial(job):
                 world.terrain(event, {
                     'hole': landing + (gait.BALL - gait.HEEL) / 2.0, 'slip': landing,
                     'rug': landing - RUG_HEEL_M,
-                    'sill': walker.balls['left'][2] + 2.0 * figure.CONTACTS[1][2][2] + SILL_AHEAD_M,
+                    'sill': (walker.balls['left'][2] + 2.0 * figure.CONTACTS[1][2][2]
+                             + SILL_AHEAD_M + k * EVENT_STEP_M),
                 }[event])
             laid = True
         was = director.walker.phase
@@ -131,32 +142,44 @@ def trial(job):
     return 1.0 - down / seconds, (stirred / passes if passes else None), what
 
 
+def by_trial(results):
+    """[(held, stir or None, [what])] a trial each, in TRIALS' order, from its runs' results
+    in JOBS' order: the held share its spread's mean."""
+    out = []
+    for t in TRIALS:
+        mine = [r for (u, _k), r in zip(JOBS, results) if u == t]
+        out.append((sum(h for h, _s, _w in mine) / len(mine), mine[0][1], [w for _h, _s, w in mine]))
+    return out
+
+
 def score(results):
-    """(cost, held, stir) of one candidate's trial results, in TRIALS' order."""
-    held = sum(h for h, _s, _w in results) / len(results)
-    walks = [(s if s is not None else FALLEN_STIR) for (kind, _p, _sh), (_h, s, _w)
-             in zip(TRIALS, results) if kind == 'walk']
+    """(cost, held, stir) of one candidate's run results, in JOBS' order."""
+    trials = by_trial(results)
+    held = sum(h for h, _s, _w in trials) / len(trials)
+    walks = [(s if s is not None else FALLEN_STIR) for (kind, _p, _e), (_h, s, _w)
+             in zip(TRIALS, trials) if kind == 'walk']
     stir = sum(walks) / len(walks)
     return stir + LOST * (1.0 - held), held, stir
 
 
 def run(pool, candidates):
-    """[(cost, held, stir, results)] for `candidates`, every trial of each in one pool."""
-    jobs = [(values, t) for values in candidates for t in TRIALS]
+    """[(cost, held, stir, results)] for `candidates`, every run of each in one pool."""
+    jobs = [(values, j) for values in candidates for j in JOBS]
     got = pool.map(trial, jobs, chunksize=1)
     out = []
     for k in range(len(candidates)):
-        results = got[k * len(TRIALS):(k + 1) * len(TRIALS)]
+        results = got[k * len(JOBS):(k + 1) * len(JOBS)]
         out.append(score(results) + (results,))
     return out
 
 
-def _show(values, cost, held, stir, results=()):
+def _show(values, cost, held, stir, results: list | tuple = ()):
     print('%-40s cost %6.2f  held %5.1f %%  stir %5.2f mm' % (
         ' '.join('%s=%g' % kv for kv in values.items()) or 'as it is', cost, 100 * held, stir))
-    for (kind, pace, event), (h, s, what) in zip(TRIALS, results):
+    for (kind, pace, event), (h, s, whats) in zip(TRIALS, by_trial(results) if results else ()):
         print('    %-5s %.2f %-5s %5.1f %%  %s%s' % (
-            kind, pace, event or '', 100 * h, what, '' if s is None else '  stir %.2f mm' % s))
+            kind, pace, event or '', 100 * h, ' | '.join(whats),
+            '' if s is None else '  stir %.2f mm' % s))
 
 
 def search(pool, spans, generations, lam, log):
@@ -245,8 +268,8 @@ def main(argv=None):
         ranked = sorted(zip(cands, got), key=lambda cg: cg[1][0])
         for values, (cost, held, stir, results) in ranked:
             _show(values, cost, held, stir, results if len(ranked) == 1 else ())
-    print('%d candidates, %d trials, %.0f s' % (len(cands), len(cands) * len(TRIALS),
-                                                time.time() - began))
+    print('%d candidates, %d runs, %.0f s' % (len(cands), len(cands) * len(JOBS),
+                                              time.time() - began))
     return 0
 
 

@@ -121,9 +121,8 @@ Open work. Measured results are in FINDINGS.
   standing: a lift on the capture point (her centre of mass still moving
   left) failed past 6.5 cm, the first steps falling. The softer soles that felled the old first stride are
   untried on it, then a compressible sole layer for more give than a
-  contact's. The scoreboard scores chance on the slips and the hot knee (2
-  % of an arm's swing flips them, 75-90 % held): each event from a spread
-  of phases, before it judges a look.
+  contact's. The scoreboard's spread leaves 0.5 of cost to chance; the arms
+  from the forearm cost 1.0 more, on the slip at 0.9 strides/s.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

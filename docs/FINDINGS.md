@@ -593,6 +593,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   (`walker.PLUMBED` not eased in): the torso 8.7-9.8 through it, the
   largest swing back in 0.3 s -6.6 -> -3.0. Held 89.7 %, 15 of 16
   perturbed starts (2026-09-28).
+- The scoreboard's events each laid at three places (`gait_montecarlo`
+  SPREAD: 3 cm along the walk, a glitch 0.05 of the stride), a trial its
+  spread's mean, 30 runs a candidate: the committed arms and the same moved
+  2 % cost 7.63 and 7.10 where one run a trial gave 6.08 and 8.84; the arms
+  from the forearm 8.61, the slip at 0.9 strides/s held 55 % (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
