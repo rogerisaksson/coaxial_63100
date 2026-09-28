@@ -9,12 +9,20 @@ import json
 import re
 import sys
 
-#: Words of her movement, Swedish and English, matched at a word's start.
-WORDS = ('lut', 'nig', 'bakåt', 'framåt', 'knä', 'höft', 'huvud', 'gång', 'går ', 'gick', 'steg',
-         'reser', 'rest ', 'står', 'stå ', 'tå', 'gynoid', 'svaj', 'bugar', 'sjunk', 'hopp',
-         'vingl', 'skarv', 'catwalk', 'feminin', 'bål', 'överkropp', 'axl', 'arm', 'fot', 'fött',
-         'lean', 'knee', 'walk', 'step', 'hip', 'head', 'bob', 'nod', 'dip', 'curts', 'sway',
-         'torso', 'gait')
+#: Words of her movement that say so alone, Swedish and English, matched at a word's start.
+MOVES = ('lut', 'nig', 'knä', 'höft', 'svaj', 'bugar', 'vingl', 'catwalk', 'feminin', 'bål',
+         'överkropp', 'axl', 'fött', 'gynoid', 'lean', 'knee', 'hip', 'torso', 'gait', 'sway',
+         'curts')
+
+#: Words that are her movement only beside a word naming her: alone they are "varje gång", "går
+#: igenom", "det står", "nästa steg", "nodes", "arm the stage" - the hook fired on all of them
+#: (2026-09-28).
+PLAIN = ('bakåt', 'framåt', 'huvud', 'gång', 'går ', 'gick', 'steg', 'reser', 'rest ', 'står',
+         'stå ', 'tå', 'sjunk', 'hopp', 'skarv', 'arm', 'fot', 'walk', 'step', 'head', 'bob',
+         'nod', 'dip')
+
+#: Words naming her.
+HER = ('hon', 'henne', 'hennes', 'gynoid', 'humanoid', 'she', 'her', 'kroppen', 'benen')
 
 CONTEXT = (
     "The user describes how the gynoid moves. What they see is so (CLAUDE.md). Before any "
@@ -31,7 +39,11 @@ def main():
     except (ValueError, AttributeError):
         return 0
     text = ' ' + prompt.lower() + ' '
-    if any(re.search(r'(?<![a-zåäö])' + re.escape(w), text) for w in WORDS):
+
+    def said(words, whole=False):
+        tail = r'(?![a-zåäö])' if whole else ''
+        return any(re.search(r'(?<![a-zåäö])' + re.escape(w) + tail, text) for w in words)
+    if said(MOVES) or (said(PLAIN) and said(HER, whole=True)):
         print(json.dumps({'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit',
                                                  'additionalContext': CONTEXT}}))
     return 0
