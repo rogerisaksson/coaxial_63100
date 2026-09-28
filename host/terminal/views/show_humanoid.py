@@ -71,12 +71,12 @@ HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
           + ['set_' + j for j in JOINTS])
 
-#: A callout's inks: its boxes' ground, the torque's bar, the power's driving and braking, the
-#: numbers, a name on a dark patch and on a light; the bars' cells.
+#: A callout's inks: its bars' ground, the torque's bar, the power's driving and braking, the
+#: numbers, a name on a dark patch and on a light; its width inside its frame, cells.
 BOX_GROUND, TORQUE_INK, DRIVE_INK, BRAKE_INK, NUMBER_INK, DARK_INK, LIGHT_INK = (
     (38, 46, 58), (255, 184, 80), (96, 214, 255), (255, 96, 128), (214, 220, 228),
     (16, 18, 22), (236, 240, 244))
-BAR_CELLS = 3
+CALLOUT_W = 6
 
 #: A joint's name in a callout, four letters by its kind.
 SHORT = {'spine': 'spin', 'spine_roll': 'spnR', 'waist': 'wais', 'neck': 'neck', 'head': 'head',
@@ -88,15 +88,13 @@ SHORT = {'spine': 'spin', 'spine_roll': 'spnR', 'waist': 'wais', 'neck': 'neck',
 #: drawn through a square root, so a light load shows.
 RAD_S = 4.0
 
-#: A cell filled from its left in eighths.
-EIGHTHS = ' ▏▎▍▌▋▊▉'
+#: A cell filled from its foot in eighths.
+RISING = ' ▁▂▃▄▅▆▇█'
 
 
-def bar(fraction, cells=BAR_CELLS):
-    """`cells` cells filled from the left, `fraction` 0 to 1 through a square root."""
-    eighths = int(round(8.0 * cells * math.sqrt(max(0.0, min(1.0, fraction)))))
-    full, part = divmod(min(eighths, 8 * cells), 8)
-    return ('█' * full + EIGHTHS[part].strip()).ljust(cells)
+def bar(fraction):
+    """A cell filled from its foot, `fraction` 0 to 1 through a square root."""
+    return RISING[int(round(8.0 * math.sqrt(max(0.0, min(1.0, fraction)))))]
 
 
 #: The drives called out: the strong ones - the legs' and the spine's - or all, or none; L
@@ -107,22 +105,23 @@ CALLING = ('strong', 'all', 'none')
 
 
 def labels(now, called):
-    """{joint: cells} for `gynoid.render`, each of `called`: its name on a patch the colour of
-    its drive's heat (the thermal observer's scale), its angle, the torque's bar and the
-    power's, and the torque, N m."""
+    """{joint: rows} for `gynoid.render`, each of `called` a column CALLOUT_W wide: its name on
+    a patch the colour of its drive's heat (the thermal observer's scale), its angle, the
+    torque's bar and the power's, and the torque, N m."""
     out = {}
     for joint in CALLED[called]:
         torque, power, peak = now['torque'][joint], now['power'][joint], now['peak'][joint]
         patch = ansi.thermal_rgb(now['heat'][joint][0]) if 'heat' in now else BOX_GROUND
         ink = DARK_INK if 0.3 * patch[0] + 0.59 * patch[1] + 0.11 * patch[2] > 128 else LIGHT_INK
-        cells = [(c, ink, patch) for c in '%-4s' % SHORT[kind(joint)]]
-        cells += [(c, NUMBER_INK, None) for c in '%5.0f° ' % now['angles'].get(joint, 0.0)]
-        cells += [(c, TORQUE_INK, BOX_GROUND) for c in bar(abs(torque) / peak)]
-        cells += [(' ', None, None)]
-        cells += [(c, DRIVE_INK if power >= 0.0 else BRAKE_INK, BOX_GROUND)
-                  for c in bar(abs(power) / (peak * RAD_S))]
-        cells += [(c, NUMBER_INK, None) for c in ' %3d' % round(abs(torque))]
-        out[joint] = cells
+        out[joint] = [
+            [(c, ink, patch) for c in (' ' + SHORT[kind(joint)]).ljust(CALLOUT_W)],
+            [(c, NUMBER_INK, None) for c in ('%.0f°' % now['angles'].get(joint, 0.0)).rjust(
+                CALLOUT_W - 1) + ' '],
+            [(bar(abs(torque) / peak), TORQUE_INK, BOX_GROUND),
+             (bar(abs(power) / (peak * RAD_S)), DRIVE_INK if power >= 0.0 else BRAKE_INK,
+              BOX_GROUND)]
+            + [(c, NUMBER_INK, None) for c in ('%d' % round(abs(torque))).rjust(CALLOUT_W - 3)
+               + ' ']]
     return out
 
 
@@ -222,6 +221,60 @@ def _paced(step):
     return pace
 
 
+#: The page plays her back LAG_S of her time behind the newest state said, its clock's pace her
+#: process's ratio to real time and CATCH_UP of the lag's error a second, eased over PACE_S; a
+#: buffer of KEEP_S. Drawn as each state
+#: came, a frame at 15 a second showed the same state again 65 times in 235 and the rest 0.036 s
+#: of her time apart with 0.022 of spread: her process runs 0.7 of real time in slices of 0.05 s
+#: (2026-09-28).
+LAG_S, CATCH_UP, PACE_S, KEEP_S = 0.2, 1.0, 0.5, 1.0
+
+
+class Playback:
+
+    """Her states said, played back on a clock of their own at an even pace, the frame's state
+    blended between the two it falls between: `push(states)`, `at(wall)`."""
+
+    def __init__(self):
+        self.states, self.shown, self.wall, self.pace = [], None, None, 1.0
+
+    def push(self, states):
+        self.states += states
+        if self.states:
+            newest = self.states[-1]['t']
+            self.states = [s for s in self.states if s['t'] >= newest - KEEP_S]
+
+    def at(self, wall):
+        """The state to draw at `wall` seconds, or None before the first."""
+        if not self.states:
+            return None
+        newest = self.states[-1]['t']
+        if self.shown is None or self.shown > newest or self.shown < self.states[0]['t']:
+            self.shown, self.wall = newest - LAG_S, wall
+        dt = max(0.0, wall - self.wall)
+        self.wall = wall
+        ratio = min(1.0, self.states[-1].get('ratio', 1.0))
+        want = ratio + CATCH_UP * ((newest - LAG_S) - self.shown)
+        self.pace += (want - self.pace) * min(1.0, dt / PACE_S)
+        self.shown = min(newest, self.shown + max(0.0, self.pace) * dt)
+        after = next((i for i, s in enumerate(self.states) if s['t'] >= self.shown),
+                     len(self.states) - 1)
+        b = self.states[after]
+        a = self.states[max(0, after - 1)]
+        span = b['t'] - a['t']
+        k = 0.0 if span <= 1e-9 else max(0.0, min(1.0, (self.shown - a['t']) / span))
+        return dict(b, t=self.shown, **_blended(a, b, k))
+
+
+def _blended(a, b, k):
+    """The joints, the pelvis's place, turn and speed k of the way from state a to b."""
+    turn = [x + (y - x) * k for x, y in zip(a['turn'], b['turn'])]
+    norm = math.sqrt(sum(c * c for c in turn)) or 1.0
+    return {'angles': {j: v + (b['angles'].get(j, v) - v) * k for j, v in a['angles'].items()},
+            'where': tuple(x + (y - x) * k for x, y in zip(a['where'], b['where'])),
+            'turn': tuple(c / norm for c in turn), 'speed': a['speed'] + (b['speed'] - a['speed']) * k}
+
+
 def row(now, yaw):
     """A recording's row (HEADER): her state at the page's `yaw`, each joint, each segment's
     place, and each joint as the director asked it."""
@@ -304,13 +357,15 @@ def main(argv=None):
     state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
-             'tripped': None}
+             'tripped': None, 'playback': Playback()}
 
     def draw():
         said = []
-        now = body.latest(into=said)
+        body.latest(into=said)
         if state['recording'] is not None:
             state['recording'] += [row(s, state['yaw']) for s in said]
+        state['playback'].push(said)
+        now = state['playback'].at(time.perf_counter())
         if state['orbit'] and now is not None:
             if state['last_t'] is not None:
                 state['yaw'] += ORBIT_DEG_S * max(0.0, now['t'] - state['last_t'])

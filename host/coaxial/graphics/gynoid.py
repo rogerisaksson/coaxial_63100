@@ -465,18 +465,33 @@ def _packed(fg, bg=None):
     return key if bg is None else key | (((bg[0] << 16) | (bg[1] << 8) | bg[2]) + 1) << 24
 
 
-#: A callouts' frame, as the tty's instruments have theirs (`frame.hud`, rounded): its ink and
-#: corners; callouts within FRAME_JOIN rows of the last share its frame.
-FRAME_INK, FRAME_CORNERS, FRAME_JOIN = (95, 135, 135), '╭╮╰╯', 3
+#: A callout's frame, as the tty's instruments have theirs (`frame.hud`, rounded): its ink and
+#: corners.
+FRAME_INK, FRAME_CORNERS = (95, 135, 135), '╭╮╰╯'
+
+
+def _framed(overlay, top, left, rows, ink):
+    """`rows` [[(char, fg, bg)], ..] in a rounded frame, its top-left corner at (`top`, `left`):
+    into `overlay`."""
+    wide = max(len(r) for r in rows) + 2
+    for col in range(left, left + wide):
+        edge = col in (left, left + wide - 1)
+        for row, corner in ((top, 0), (top + len(rows) + 1, 2)):
+            overlay[(row, col)] = (ord(FRAME_CORNERS[corner + (col != left)] if edge else '─'),
+                                   ink)
+    for k, cells in enumerate(rows):
+        overlay[(top + 1 + k, left)] = overlay[(top + 1 + k, left + wide - 1)] = (ord('│'), ink)
+        for c, (char, fg, bg) in enumerate(cells):
+            overlay[(top + 1 + k, left + 1 + c)] = (ord(char), _packed(fg, bg))
 
 
 def callouts(labels, anchors, places, width, height):
-    """({(row, col): (codepoint, key)}, leader dots) for `labels` {joint: [(char, fg, bg)]},
-    inks (r, g, b) or None: docked at the drawing's edges, a side's joints on its side and the
-    rest on the side they stand, each on the row its joint has at rest (`places` {joint: (x,
-    y)}, dots) or the next free one down - those near the last sharing its frame, a rounded one
-    a cell out round them - and a leader from its frame's inner edge to the joint's pivot as it
-    is (`anchors`, dots). The callouts stand still; the leaders follow."""
+    """({(row, col): (codepoint, key)}, leader dots) for `labels` {joint: [row, ..]}, a row
+    [(char, fg, bg)], inks (r, g, b) or None: each a narrow framed column docked at the drawing's
+    edge - a side's joints on its side and the rest on the side they stand - at the height its
+    joint has at rest (`places` {joint: (x, y)}, dots), stacked down the edge as they meet and a
+    column further in when the edge is full; a leader from its inner edge to the joint's pivot as
+    it is (`anchors`, dots). The callouts stand still; the leaders follow."""
     np = _np()
     dots = np.zeros((height * DOTS_Y, width * DOTS_X), bool)
     mid = width * DOTS_X / 2.0
@@ -484,45 +499,27 @@ def callouts(labels, anchors, places, width, height):
           for side in ('left_', 'right_')}
     flip = bool(xs['left_'] and xs['right_']) and np.mean(xs['left_']) > np.mean(xs['right_'])
     sides = {True: [], False: []}
-    for joint, cells in labels.items():
+    for joint, rows in labels.items():
         if joint in anchors and joint in places:
             side = places[joint][0] < mid
             if joint.startswith(('left_', 'right_')):
                 side = joint.startswith('left_') != flip
-            sides[side].append((places[joint][1], joint, cells))
+            sides[side].append((places[joint][1], joint, rows))
     overlay = {}
     ink = _packed(FRAME_INK, None)
     for left, items in sides.items():
         items.sort(key=lambda item: item[:2])
-        rows, last = [], -FRAME_JOIN - 1
-        for y, *_rest in items:
-            want = max(int(y // DOTS_Y), 1)
-            last = last + 1 if want - last <= FRAME_JOIN else want
-            rows.append(last)
-        over = (rows[-1] - (height - 2)) if rows else 0
-        rows = [max(1, r - max(0, over)) for r in rows]
-        wide = max((len(cells) for *_r, cells in items), default=0) + 4
-        start = 0 if left else width - wide
-        blocks = []
-        for row in rows:
-            if blocks and row == blocks[-1][1] + 1:
-                blocks[-1][1] = row
-            else:
-                blocks.append([row, row])
-        for top, bottom in blocks:
-            for col in range(start, start + wide):
-                edge = col in (start, start + wide - 1)
-                for row, corner in ((top - 1, 0), (bottom + 1, 2)):
-                    char = FRAME_CORNERS[corner + (col != start)] if edge else '─'
-                    overlay[(row, col)] = (ord(char), ink)
-            for row in range(top, bottom + 1):
-                overlay[(row, start)] = overlay[(row, start + wide - 1)] = (ord('│'), ink)
-        for row, (_y, joint, cells) in zip(rows, items):
-            for k, (char, fg, bg) in enumerate(cells):
-                if 0 <= start + 2 + k < width:
-                    overlay[(row, start + 2 + k)] = (ord(char), _packed(fg, bg))
-            end = (start + wide) * DOTS_X if left else start * DOTS_X - 1
-            _line(dots, (end, row * DOTS_Y + DOTS_Y // 2), anchors[joint])
+        column, below = 0, 0
+        for y, joint, rows in items:
+            tall, wide = len(rows) + 2, max(len(r) for r in rows) + 2
+            top = max(int(y // DOTS_Y) - 1, below)
+            if top + tall > height:
+                column, top = column + 1, max(0, int(y // DOTS_Y) - 1)
+            below = top + tall
+            at = column * wide if left else width - (column + 1) * wide
+            _framed(overlay, top, at, rows, ink)
+            end = (at + wide) * DOTS_X if left else at * DOTS_X - 1
+            _line(dots, (end, (top + 1) * DOTS_Y + DOTS_Y // 2), anchors[joint])
     return overlay, dots
 
 

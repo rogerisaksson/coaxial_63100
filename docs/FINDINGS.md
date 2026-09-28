@@ -768,7 +768,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   glitch counted down. The frames the page draws at 15 a second showed the
   same state again 65 times in 235 and the rest 0.036 s of her time apart
   on the mean with 0.022 of spread: her process runs 0.7 of real time in
-  slices of 0.05 s (2026-09-28).
+  slices of 0.05 s. Played back 0.2 s behind the newest state on a clock
+  of its own, its pace eased over 0.5 s, the states between blended: the
+  same state again once in 234, her time a wall second 0.22 of spread
+  where it was 0.62. The callouts stand as columns 8 cells wide down the
+  edges, the name's patch over the angle over two rising bars and the
+  torque. The drives' six-field readings had cost the loop's `flat` twice
+  its time: a float taken as it is, 0.53 -> 0.64 of real time
+  (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

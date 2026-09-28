@@ -41,8 +41,10 @@ def flat(reading, prefix=''):
     items = reading.items() if isinstance(reading, dict) else enumerate(reading)
     out = {}
     for key, value in items:
-        name = '%s%s' % (prefix, key)
-        if isinstance(value, (dict, list, tuple)):
+        name = prefix + str(key)
+        if value.__class__ is float:
+            out[name] = value
+        elif isinstance(value, (dict, list, tuple)):
             out.update(flat(value, name + '.'))
         else:
             f = _float(value)
