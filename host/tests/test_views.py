@@ -1229,15 +1229,19 @@ def test_the_demo_actually_loads_the_motor(report):
         seconds += stage_s
         if name == 'load':
             break
-    rows, beads = [], []
-    real, real_bead = view.compose, cross_section._bead
+    rows, beads, rates = [], [], []
+    real, real_bead, real_at = view.compose, cross_section._bead, view.bead_at
 
     def bead(frame, seat, pointer_deg, glyph=None, rate=None):
         beads.append(pointer_deg)
         return real_bead(frame, seat, pointer_deg, glyph, rate)
 
+    def bead_at(bead, true, rate, top, dt):
+        rates.append(rate)
+        return real_at(bead, true, rate, top, dt)
+
     def compose(rig, origin, console, v):
-        n = len(beads)
+        n, m = len(beads), len(rates)
         out = real(rig, origin, console, v)
         pairs = max(1.0, v['params'].get('motor_pole_pairs') or 1.0)
         st = v['state'] or {}
@@ -1246,14 +1250,18 @@ def test_the_demo_actually_loads_the_motor(report):
                      v.get('iq') or 0.0, beads[-1] if len(beads) > n else None,
                      (v['j'], v['b'], motions.prop_k()),
                      1.5 * (st.get('vd', 0.0) * st.get('id', 0.0)
-                            + st.get('vq', 0.0) * st.get('iq', 0.0))))
+                            + st.get('vq', 0.0) * st.get('iq', 0.0)),
+                     # The rpm the bead moved at: the feed's thread replaces the state while
+                     # compose draws, and one read after it, across a reversal, called a
+                     # step back on CI (8e14db8).
+                     rates[-1] / 6.0 if len(rates) > m else None))
         return out
 
-    view.compose, cross_section._bead = compose, bead
+    view.compose, cross_section._bead, view.bead_at = compose, bead, bead_at
     try:
         art = page.frame('rotor_observer', 150, 44, frames=int(seconds * FPS_CAP))
     finally:
-        view.compose, cross_section._bead = real, real_bead
+        view.compose, cross_section._bead, view.bead_at = real, real_bead, real_at
     stages = []
     for row in rows:
         if not stages or stages[-1][0] != row[1]:
@@ -1286,10 +1294,10 @@ def test_the_demo_actually_loads_the_motor(report):
     report.check('the load holds 1 000 rpm to 90 %, on its current',
                  bool(loads) and abs(loads[-1][-1][2]) >= 900.0 and abs(loads[-1][-1][3]) >= 5.0,
                  '%.0f rpm on %.1f A' % (loads[-1][-1][2], loads[-1][-1][3]) if loads else 'none')
-    drawn = [r for r in rows if r[4] is not None]
+    drawn = [r for r in rows if r[4] is not None and r[7] is not None]
     back, xs, ys = 0, [], []
     for i in range(1, len(drawn)):
-        step, rpm = drawn[i][4] - drawn[i - 1][4], drawn[i][2]
+        step, rpm = drawn[i][4] - drawn[i - 1][4], drawn[i][7]
         took = drawn[i][0] - drawn[i - 1][0]
         if abs(rpm) > 30.0 and took > 0.0:
             back += step * rpm < 0.0
