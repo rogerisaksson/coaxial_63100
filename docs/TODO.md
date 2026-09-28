@@ -120,7 +120,11 @@ Open work. Measured results are in FINDINGS.
   the pace on it and arms a dropped board again. The halt falls in its
   settle wherever tried: her centre of mass stands off the feet's line as
   it takes over - stopped by the walker's own capture of it, a stop to cool
-  a drive could stand. The walk begins from a lean, the body 8 degrees ahead of
+  a drive could stand. A lace past 250 N for 0.2 s fells her: her fall is
+  declared on the pelvis's tilt before the foot is free, no step tried
+  (`machine.events`, `look.py --event lace`); fallen on all fours, she
+  lies there - the get-up from there to the arrival's squat is next. The
+  walk begins from a lean, the body 8 degrees ahead of
   plumb, the walker taking her mid-swing and letting the lean out over 2 s,
   the pelvis with the torso; the weight goes 3 cm onto the left foot before
   the right lifts and the rest as it lifts, the stance hip rolled -2.5

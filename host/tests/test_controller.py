@@ -764,6 +764,45 @@ def test_a_drive_in_its_soa(report):
     body.disarm()
 
 
+def test_a_trip_lands_on_her_hands(report):
+    """A lace caught (`machine.events`) trips her past recovery: she goes down onto all fours,
+    her hands the first of her on the floor and her head clear of it."""
+    from machine import Machine, events, figure
+    from machine.director import Director
+    from machine.modes import DYNAMIC
+    body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+    body.arm()
+    director = Director(body, 0.85)
+    director.walker.start()
+    director.stage = 'walk'
+    body.loop.step(0.0)
+    world, bus = body.nodes['pelvis'].world, body.loop.bus
+    ours = {world.model.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
+    laid, was, first, head, stages = None, 0.0, None, False, []
+    while bus['t'] < 4.5:
+        if laid is None and bus['t'] >= 1.0 and was < events.at('lace') <= director.walker.phase:
+            events.lay('lace', director, world)
+            laid = bus['t']
+        was = director.walker.phase
+        body.loop.write(**director.step(0.001))
+        body.loop.step(0.001)
+        if not stages or stages[-1] != director.stage:
+            stages.append(director.stage)
+        d, m = world.data, world.model
+        for i in range(d.ncon):
+            a, b = (m.geom_bodyid[g] for g in (d.contact[i].geom1, d.contact[i].geom2))
+            for mine, other in ((a, b), (b, a)):
+                name = ours.get(mine, '')
+                if name and other not in ours and not name.endswith(('foot', 'toes')):
+                    first = first or name
+                    head = head or name == 'head'
+    report.check('the lace tripped her past recovery: falling, then down',
+                 laid is not None and stages[-2:] == ['falling', 'fallen'], ' '.join(stages))
+    report.check('her hands first on the floor, her head never', first is not None
+                 and first.endswith('hand') and not head, 'first %s, head %s' % (first, head))
+    body.disarm()
+
+
 def test_the_pendulum_between_her_ears(report):
     """The virtual pendulum hears the head alike every way: still at an even speed, stirred only
     along the way the head is shaken."""
@@ -1083,6 +1122,7 @@ def main():
                  test_the_body_runs_a_program, test_a_virtual_body_walks,
                  test_a_leg_by_its_foot, test_a_body_with_mass_walks,
                  test_a_drive_keeps_its_heat, test_a_drive_in_its_soa,
+                 test_a_trip_lands_on_her_hands,
                  test_the_pendulum_between_her_ears, test_she_rises_and_walks,
                  test_a_model_writes_lines, test_machine_types_and_routines,
                  test_live_from_a_stream, test_a_model_streams_and_is_woken,

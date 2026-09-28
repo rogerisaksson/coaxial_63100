@@ -705,6 +705,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   takes over, her centre of mass stands 91 mm outside the line between the
   feet; with the weight shifted before the lift, and the rear foot kept on
   its ball, as well (2026-09-28).
+- What she trips on (`machine.events`, laid from the page by Ctrl and a
+  letter, measured by `tools/sim/look.py --event`): the 4 cm sill tips her
+  6 degrees and she walks on; a lace pulling the lifting foot back 120 N
+  for 0.15 s, 7; 250 N for 0.2 s and past it she falls, the director's
+  fall declared 0.15 s after it, before the foot is free, the standing
+  foot off the floor as she curled. Curled into the squat, the arms out,
+  the head met the floor at 0.35, 0.10 and 3.05 m/s after laces of 300,
+  400 and 600 N, 1.71 in the hole, 0.32 on the rug; onto all fours, the
+  waist turned toward the way she tips as it turns, once in the five, at
+  0.5-0.69 m/s, the hands first but for the rug (a hip, falling ahead and
+  aside, roll 0.6 -> 36 degrees as she went) (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

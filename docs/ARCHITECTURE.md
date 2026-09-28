@@ -111,7 +111,8 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     a bus a limb, a process each in lockstep with the world over
                     a shared block, the host's frames bytes on a socket a bus),
                     heat (a drive's board's heat: three nodes, the envelope's
-                    derate and trip, said in its reply), walker
+                    derate and trip, said in its reply), events (what she
+                    trips on, laid where her walk meets it), walker
                     (her setpoints each ms: plan, IK, balance), capture (where
                     a swinging foot lands across: on the capture point, or a
                     side step), arrival (keyframes, the CoM fed back: the

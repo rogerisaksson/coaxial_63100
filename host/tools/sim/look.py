@@ -9,6 +9,7 @@ either way (`show_humanoid.row`).
     python tools/sim/look.py --csv build/recordings/humanoid_20260928_070724.csv
     python tools/sim/look.py SOFT_KNEE=6            # a knob moved (tools/sim/gait_montecarlo)
     python tools/sim/look.py --to 24 --halt 15      # halted at 15 s: 11 halt, 12 settle, ..
+    python tools/sim/look.py --to 20 --event lace   # a floor event laid at 12 s, the fall's look
 
 A row a stage (the walk's first second apart): the pelvis and the head under the stand (the
 dip), the torso ahead of plumb, the torso against the left shin (under 0 it leans back over bent
@@ -29,17 +30,21 @@ from tools import REPO  # noqa: E402
 #: The head's rest pitch in the neck's offset (`figure.SEGMENTS`: 0.09 up, 0.012 on), deg.
 HEAD_REST = math.degrees(math.atan2(0.012, 0.09))
 
-#: The rows' rate simulated, Hz, as the page hears her; the walk's first seconds apart.
-RATE_HZ, FIRST_S = 60.0, 1.0
+#: The rows' rate simulated, Hz, as the page hears her; the walk's first seconds apart; when a
+#: floor event is laid from, s.
+RATE_HZ, FIRST_S, EVENT_S = 60.0, 1.0, 12.0
 
 
 #: The drives a LEG_GAIN knob stiffens: kp times it, kd times its root (the damping ratio kept).
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 
 
-def simulated(to_s, values, cadence=0.85, halt_s=None):
+def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT_S):
     """The rows from the squat, `to_s` seconds, the director as the page runs her - halted at
-    `halt_s`; LEG_GAIN among `values` stiffens the legs' drives (`physics.SERVO`)."""
+    `halt_s`, an `event` laid from `event_s` (`machine.events`); LEG_GAIN among `values`
+    stiffens the legs' drives
+    (`physics.SERVO`). A simulated row says what of her touches the floor (`down`) and when
+    the event was laid (`laid`)."""
     from machine import physics
     from tools.sim.gait_montecarlo import _set
     values = dict(values)
@@ -48,9 +53,9 @@ def simulated(to_s, values, cadence=0.85, halt_s=None):
         peak, kp, kd, armature = physics.SERVO[kind]
         physics.SERVO[kind] = (peak, kp * gain, kd * math.sqrt(gain), armature)
     _set(values)
-    from machine import Machine
+    from machine import Machine, events
     from machine.director import Director
-    from machine.figure import JOINTS
+    from machine.figure import JOINTS, SEGMENTS
     from machine.modes import DYNAMIC
     from terminal.views.show_humanoid import HEADER, row
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -59,7 +64,15 @@ def simulated(to_s, values, cadence=0.85, halt_s=None):
     director.begin()
     body.loop.step(0.0)
     bus, out, said = body.loop.bus, [], -1.0
-    while bus['t'] < to_s and director.stage != 'fallen':
+    world = body.nodes['pelvis'].world
+    ours = {world.model.body(seg[0]).id: seg[0] for seg in SEGMENTS}
+    laid, was = None, 0.0
+    while bus['t'] < to_s and (event or director.stage != 'fallen'):
+        if (event and laid is None and bus['t'] >= event_s
+                and was < events.at(event) <= director.walker.phase):
+            events.lay(event, director, world)
+            laid = bus['t']
+        was = director.walker.phase
         if halt_s is not None and halt_s <= bus['t'] < halt_s + 0.001:
             director.halt()
         asked = director.step(0.001)
@@ -73,9 +86,21 @@ def simulated(to_s, values, cadence=0.85, halt_s=None):
                    'where': (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z']),
                    'turn': tuple(bus['pelvis.pose.q' + k] for k in 'wxyz'),
                    'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked}
-            out.append(dict(zip(HEADER, row(now, 60.0))))
+            out.append(dict(zip(HEADER, row(now, 60.0)), down=_down(world, ours), laid=laid))
     body.disarm()
     return out
+
+
+def _down(world, ours):
+    """Her segments touching anything not hers but the soles, by name."""
+    d, m = world.data, world.model
+    out = set()
+    for i in range(d.ncon):
+        a, b = (m.geom_bodyid[g] for g in (d.contact[i].geom1, d.contact[i].geom2))
+        for mine, other in ((a, b), (b, a)):
+            if mine in ours and other not in ours and not ours[mine].endswith(('foot', 'toes')):
+                out.add(ours[mine])
+    return ' '.join(sorted(out))
 
 
 def recorded(path):
@@ -155,12 +180,15 @@ def main(argv=None):
     parser.add_argument('--to', type=float, default=16.0, help='seconds simulated from the squat')
     parser.add_argument('--cadence', type=float, default=0.85, help='strides a second asked')
     parser.add_argument('--halt', type=float, help='halted at this second, into the squat')
+    parser.add_argument('--event', help='a floor event laid: hole, sill, slip, rug, lace, soa, hot')
+    parser.add_argument('--event-at', type=float, default=EVENT_S, help='laid from this second')
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     path = args.csv or (max(glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')),
                             key=os.path.getmtime) if args.last else None)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
-    rows = recorded(path) if path else simulated(args.to, values, args.cadence, args.halt)
+    rows = recorded(path) if path else simulated(args.to, values, args.cadence, args.halt,
+                                                 args.event, args.event_at)
     print(path or 'simulated from the squat, %.1f s %s' % (
         args.to, ' '.join(args.knobs)))
     groups, ref = staged(rows)
@@ -174,6 +202,7 @@ def main(argv=None):
         print('%-14s %6.2f | %s' % (stage, float(mine[0]['t']), ' | '.join(cells)))
     seams(rows, groups, ref)
     walked(rows)
+    fell(rows)
     return 0
 
 
@@ -245,6 +274,41 @@ def walked(rows):
         return
     print('\n9 walk from %.2f s to %.2f s' % (from_t, float(steady[-1]['t'])))
     print('  ' + ' | '.join('%s %.1f %s' % (name, f(steady), unit) for name, unit, f in WALK))
+
+
+#: The joints whose speed is her flailing: the limbs'.
+LIMBS = tuple(side + k for side in ('left_', 'right_') for k in (
+    'shoulder', 'elbow', 'wrist', 'hip', 'knee', 'ankle'))
+
+
+def fell(rows):
+    """From a floor event on: how far she tipped, her limbs' fastest joint (the flail), what of
+    her touched the floor first and when, and the head's speed as it came down."""
+    laid = next((float(r['laid']) for r in rows if r.get('laid') is not None), None)
+    if laid is None:
+        return
+    after = [r for r in rows if float(r['t']) >= laid]
+    tipped = max(math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * (
+        float(r['qx']) ** 2 + float(r['qz']) ** 2))))) for r in after)
+    flail, fastest = 0.0, ''
+    for a, b in zip(after, after[1:]):
+        dt = max(1e-6, float(b['t']) - float(a['t']))
+        for j in LIMBS:
+            v = abs(float(b[j]) - float(a[j])) / dt
+            if v > flail:
+                flail, fastest = v, '%s at %.2f s' % (j, float(b['t']))
+    first = next(((float(r['t']), r['down']) for r in after if r['down']), None)
+    head = next((r for r in after if 'head' in r['down'].split()), None)
+    hit = ''
+    if head is not None:
+        k = rows.index(head)
+        a, b = rows[k - 1], head
+        hit = ', the head down at %.2f s at %.2f m/s' % (float(b['t']), (
+            _p(a, 'head')[1] - _p(b, 'head')[1]) / max(1e-6, float(b['t']) - float(a['t'])))
+    print('\nthe event at %.2f s: tipped %.0f deg, stages %s' % (
+        laid, tipped, ' '.join(dict.fromkeys(r['stage'] for r in after))))
+    print('  flail %.0f deg/s (%s); first down: %s%s' % (
+        flail, fastest, '%s at %.2f s' % (first[1], first[0]) if first else 'nothing', hit))
 
 
 def seams(rows, groups, ref):

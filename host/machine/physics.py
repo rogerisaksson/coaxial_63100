@@ -188,6 +188,8 @@ class World:
         self.soles = {side: {m.body(side + part).id for part in ('_foot', '_toes')}
                       for side in ('left', 'right')}
         self.push_n, self.push_until = np.zeros(3), -1.0
+        #: Tugs on segments (`tug`): (body id, world newtons, until when).
+        self.tugs = []
         #: A board glitched in its SOA (`glitch`): its index and until when.
         self.glitch_at, self.glitch_until = None, -1.0
         #: The drives' energy since the reset: work done and work braked (J), heat (J), and
@@ -275,6 +277,7 @@ class World:
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
         self.stamp, self.at, self.glitch_at, self.pending = d.time, d.time, None, {}
+        self.push_until, self.tugs = -1.0, []
         if self.buses is not None:
             self.buses.drain()
             self.block.hold[:] = self.target
@@ -330,7 +333,11 @@ class World:
             self.brake -= float(power[power < 0.0].sum()) * STEP_S
             self.heat += LOSS_W * float(d.ctrl @ d.ctrl) * STEP_S
             self.effort += float(np.abs(d.ctrl).sum()) * STEP_S
+            d.xfrc_applied[:, 0:3] = 0.0
             d.xfrc_applied[self.torso, 0:3] = self.push_n if d.time < self.push_until else 0.0
+            for body, force, until in self.tugs:
+                if d.time < until:
+                    d.xfrc_applied[body, 0:3] += force
             self._mj.mj_step(self.model, d)
         self.at = d.time
         if self.buses is not None:
@@ -340,6 +347,12 @@ class World:
         """A shove on the torso, world newtons, for `seconds`."""
         self.push_n = self._np.array(force, float)
         self.push_until = self.data.time + seconds
+
+    def tug(self, segment, force, seconds):
+        """A pull on `segment` at its origin, world newtons, for `seconds`: a lace caught."""
+        self.tugs = [t for t in self.tugs if t[2] > self.data.time] + [
+            (self.model.body(segment).id, self._np.array(force, float),
+             self.data.time + seconds)]
 
     def glitch(self, joint, kind, seconds=0.0):
         """Drive `joint`'s board glitched: 'soa' its switches SOA_RDS times their on-resistance

@@ -3,6 +3,7 @@
     body = Running(cadence=0.85)         # a DYNAMIC gynoid landed in the squat, her director
     body.send(cadence=1.0); body.send(push=(0.0, 0.0, 120.0))
     body.send(glitch=('left_knee', 'soa', 0.5))   # a board glitched (`World.glitch`)
+    body.send(event='sill')              # laid where her walk meets it (`machine.events`)
     now = body.latest()                  # {'angles', 'where', 'turn', 'stage', ..}, or None yet
     body.close()
 
@@ -29,7 +30,7 @@ def _run(commands, states, cadence):
     """The worker: the machine, the director, the loop paced to the clock."""
     import numpy as np
 
-    from machine import Machine
+    from machine import Machine, events
     from machine.director import Director
     from machine.figure import JOINTS
     from machine.heat import GATES_ON
@@ -50,6 +51,8 @@ def _run(commands, states, cadence):
     bus = machine.loop.bus
     wall0, sim0 = time.perf_counter(), bus['t']
     said, ratio, spent, ran, asked = 0.0, 1.0, 0.0, 0.0, {}
+    #: An event asked, laid as the left leg's phase next crosses its `events.at` walking.
+    event, was = None, 0.0
     while True:
         try:
             while True:
@@ -62,6 +65,8 @@ def _run(commands, states, cadence):
                     world.push(command['push'], command.get('seconds', 0.1))
                 if 'glitch' in command:
                     world.glitch(*command['glitch'])
+                if 'event' in command:
+                    event = command['event']
                 if command.get('restart'):
                     begin()
                     wall0, sim0 = time.perf_counter(), bus['t']
@@ -74,6 +79,11 @@ def _run(commands, states, cadence):
             wall0, sim0 = began, due
         from_t = bus['t']
         while bus['t'] < due - 1e-9:
+            if (event and director.stage == 'walk'
+                    and was < events.at(event) <= director.walker.phase):
+                events.lay(event, director, world)
+                event = None
+            was = director.walker.phase
             asked = director.step(dt)
             machine.loop.write(**asked)
             machine.loop.step(dt)
@@ -126,7 +136,8 @@ class Running:
 
     def send(self, **command):
         """{'cadence': strides/s} | {'push': (x, y, z) N, 'seconds': s} | {'glitch': (joint,
-        kind, s)} | {'restart': True}: landed in the squat again."""
+        kind, s)} | {'event': one of `events.EVENTS`, laid where her walk meets it} |
+        {'restart': True}: landed in the squat again."""
         self._commands.put(command)
 
     def latest(self, into=None):

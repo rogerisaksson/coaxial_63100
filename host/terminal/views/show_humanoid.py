@@ -12,7 +12,8 @@ catching herself when shoved. She runs in a process of her own paced to the wall
 GPU where a card answers (`coaxial.graphics.gynoid`), each drive called out at the viewport's
 edge with a leader to its joint: its angle, its torque as a bar and a number, its power as a bar.
 G runs a leg's board into its SOA, H warms one, in turn (`GLITCHED`); the hottest board says
-its heat as it reports it on the bus (`machine.heat`).
+its heat as it reports it on the bus (`machine.heat`). Ctrl and a letter lays what she trips on
+where her walk meets it (`TRIPS`, `machine.events`).
 """
 import argparse
 import csv
@@ -54,6 +55,10 @@ PUSH_N, PUSH_S = 120.0, 0.12
 
 #: The boards G and H glitch, in turn, and how long G's SOA lasts, s.
 GLITCHED, SOA_S = ('left_knee', 'right_knee', 'left_hip', 'right_hip'), 0.5
+
+#: What she trips on, by the Ctrl key that lays it: a hole, a rug, a threshold (tröskel), a
+#: slippery patch, a lace.
+TRIPS = {'\x08': 'hole', '\x12': 'rug', '\x14': 'sill', '\x13': 'slip', '\x0c': 'lace'}
 
 #: Where R's recordings go, a CSV from a press to the next: every state the page hears from her
 #: (a slice's, 10-20 a second of her time) - the page's yaw, her state, each joint, each
@@ -135,6 +140,7 @@ def boxes(state, now, name):
         ('physics', 'x%.1f real time' % now['ratio'] if now else '-'),
         ('hottest', _hottest(now) if now else '-'),
         ('glitched', '%s %s' % state['glitched'] if state['glitched'] else 'G soa, H hot'),
+        ('tripped', state['tripped'] or 'Ctrl H R T S L'),
         ('record', 'R starts' if state['recording'] is None and not state['recorded']
          else 'on, %.1f s - R saves' % (len(state['recording']) / 60.0)
          if state['recording'] is not None else os.path.basename(state['recorded'])),
@@ -151,6 +157,13 @@ def _hottest(now):
     joint = max(now['heat'], key=lambda j: now['heat'][j][1])
     celsius, spent, derate, gates = now['heat'][joint]
     return '%s %.0f C %.2f%s' % (joint, celsius, spent, ' x%.2f' % derate if gates else ' off')
+
+
+def _tripped(event):
+    def trip(state):
+        state['tripped'] = event
+        state['body'].send(event=event)
+    return trip
 
 
 def _glitched(kind):
@@ -215,6 +228,7 @@ KEYS = dict(
      ('[', _paced(-CADENCE_STEP)), (']', _paced(CADENCE_STEP))]
     + [(k, _pushed) for k in 'pP']
     + [(k, _glitched('soa')) for k in 'gG'] + [(k, _glitched('hot')) for k in 'hH']
+    + [(k, _tripped(event)) for k, event in TRIPS.items()]
     + [(k, lambda state: state['body'].send(restart=True)) for k in 'aA']
     + [(k, lambda state: state.update(orbit=not state['orbit'])) for k in 'oO']
     + [(k, lambda state: state.update(called=CALLING[(CALLING.index(state['called']) + 1)
@@ -257,7 +271,8 @@ def main(argv=None):
     terminal = board_view.is_terminal
     state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
-             'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None}
+             'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
+             'tripped': None}
 
     def draw():
         said = []
@@ -281,6 +296,7 @@ def main(argv=None):
                                           labels=labels(now, state['called'])))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name),
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
+                         ('^H ^R ^T ^S ^L', 'HOLE RUG SILL SLIP LACE'),
                          ('A', 'AGAIN'), ('L', 'LABELS'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
                          ('V', 'VIEW'),
