@@ -698,6 +698,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   forearms, the head down sooner. The head held up, the neck back 20, 40 or
   60 (director.HEAD_UP_DEG): the chest and the hips take the floor, the
   head never (2026-09-28).
+- The scoreboard's pool leaked a world's five bus processes a run: 865
+  piled up and the host ran out of memory. A run closes its world
+  (2026-09-28).
 - The humanoid page threw at a zoom of 1.1^3: a callout placed at its
   joint's height at rest, the joint past the drawing's edge, was written
   past the last row (2026-09-28).

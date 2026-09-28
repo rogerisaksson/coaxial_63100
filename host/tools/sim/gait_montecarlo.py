@@ -178,6 +178,9 @@ def trial(job):
                 touches.append(max(0.0, -float(moving[4])))
                 window = IMPACT_S
             quiet = quiet + 0.001 if load < TOUCH_N else 0.0
+    # A pool's worker lives on: its world's buses and block closed here, not at its exit - left,
+    # five bus processes a run piled up to 865 and the host ran out of memory (2026-09-28).
+    body.close()
     what = '%.1f m' % bus['pelvis.pose.z'] + (', tipped %.0f deg' % tilt if laid else '')
     if fell is not None:
         what = 'fell at %.1f s' % fell + (', up at %.1f s' % up if up else ', down') + ', ' + what
