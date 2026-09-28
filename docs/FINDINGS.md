@@ -661,12 +661,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   kN (2026-09-28).
 - Her hair on two hinges under her crown, 0.06 kg at 1.8 Hz: 17 degrees
   fore and aft and 6 aside as she walks (2026-09-28).
-- After 100 s of walking she sank into a crouch, the pelvis 24 -> 172 mm
-  under the stand, the stance knees 17 -> 67 degrees, the boards' derate
-  1.00 throughout: at 80 m she stepped off the floor's slab, 3 cm down, and
-  each landing latched the height lower than the 0.03 m/s rise gave back.
-  The slab runs 10 km; the rise adds the lowered height over 2 s
-  (2026-09-28).
+- After 100 s of walking she sank into a crouch, the pelvis 172 mm down:
+  at 80 m she stepped off the floor's slab, 3 cm, each landing latching
+  the height lower. The slab runs 10 km; the rise adds the lowered height
+  over 2 s (2026-09-28).
 - Her limbs collide (`physics.ME`): floor alone, her sneakers passed 22 mm
   into each other. A swinging foot is kept off the other where their soles
   overlap (`landing.clear`); the thighs' spheres pressed 2 kN apart at
@@ -701,6 +699,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   swinging foot bearing 80 N is lifted 8 cm more (`landing.tripped`):
   each foot in turn stumbles over it, the pelvis pitching 4.4 and 6.5
   degrees, and she walks on (2026-09-28).
+- A 5-step stair, 8 cm steps, blind: the floor read where each foot bears
+  and the same step expected again, she walks up all five; finding the
+  landing a step lower than expected she pitches over (2026-09-28).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The
