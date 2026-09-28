@@ -26,7 +26,6 @@ from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
 from machine import ansi
 from machine.director import moment
-from machine.drives import kind
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from machine.routines import TYPES
 from machine.running import Running
@@ -71,30 +70,61 @@ HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
           + ['set_' + j for j in JOINTS])
 
-#: A callout's inks: its bars' ground, the torque's bar, the power's driving and braking, the
-#: numbers, a name on a dark patch and on a light; its width inside its frame, cells.
+#: A callout's inks: its ground, the torque's, the power's driving and braking, the legend's
+#: words, a number on a dark patch and on a light; its width inside its frame, cells.
 BOX_GROUND, TORQUE_INK, DRIVE_INK, BRAKE_INK, NUMBER_INK, DARK_INK, LIGHT_INK = (
     (38, 46, 58), (255, 184, 80), (96, 214, 255), (255, 96, 128), (214, 220, 228),
     (16, 18, 22), (236, 240, 244))
-CALLOUT_W = 6
+CALLOUT_W = 4
 
-#: A joint's name in a callout, four letters by its kind.
-SHORT = {'spine': 'spin', 'spine_roll': 'spnR', 'waist': 'wais', 'neck': 'neck', 'head': 'head',
-         'shoulder': 'shld', 'elbow': 'elbw', 'wrist': 'wrst', 'gripper': 'grip',
-         'hip_yaw': 'hipY', 'hip_roll': 'hipR', 'hip': 'hip', 'knee': 'knee', 'ankle': 'ankl',
-         'ankle_roll': 'ankR', 'foot': 'toes'}
+#: What the callouts show, T stepping through: each drive's torque, its heat (its worst node as
+#: its board says it, the thermal observer's scale), its power; the legend's words and the heat's
+#: span, C.
+SHOWN = ('torque', 'heat', 'power')
+SAYS = {'torque': 'TORQUE N m, of its peak', 'heat': 'HEAT C', 'power': 'POWER W, driving | braking'}
+HEAT_SPAN = (25.0, 100.0)
 
 #: The bars' full scale: the drive's peak torque, and its power at that torque and RAD_S; both
 #: drawn through a square root, so a light load shows.
 RAD_S = 4.0
 
-#: A cell filled from its foot in eighths.
-RISING = ' ▁▂▃▄▅▆▇█'
+def _mixed(a, b, k):
+    return tuple(int(x + (y - x) * max(0.0, min(1.0, k))) for x, y in zip(a, b))
 
 
-def bar(fraction):
-    """A cell filled from its foot, `fraction` 0 to 1 through a square root."""
-    return RISING[int(round(8.0 * math.sqrt(max(0.0, min(1.0, fraction)))))]
+def _patch(now, joint, shown):
+    """(text, ground) of a joint's callout: the number `shown` and the colour it stands on."""
+    torque, power, peak = now['torque'][joint], now['power'][joint], now['peak'][joint]
+    if shown == 'heat':
+        celsius = now['heat'][joint][0] if 'heat' in now else HEAT_SPAN[0]
+        return '%.0f' % celsius, ansi.thermal_rgb(celsius)
+    if shown == 'power':
+        ink = DRIVE_INK if power >= 0.0 else BRAKE_INK
+        return '%.0f' % abs(power), _mixed(BOX_GROUND, ink, math.sqrt(abs(power) / (peak * RAD_S)))
+    return '%.0f' % abs(torque), _mixed(BOX_GROUND, TORQUE_INK, math.sqrt(abs(torque) / peak))
+
+
+def _ink_on(ground):
+    return DARK_INK if 0.3 * ground[0] + 0.59 * ground[1] + 0.11 * ground[2] > 128 else LIGHT_INK
+
+
+def legend(shown, width):
+    """The viewport's last row: what the callouts show, its key, and its colours."""
+    words = ' T: %s ' % SAYS[shown]
+    cells = [(c, NUMBER_INK, None) for c in words]
+    if shown == 'heat':
+        lo, hi = HEAT_SPAN
+        steps = [lo + (hi - lo) * k / 7.0 for k in range(8)]
+        cells += [(c, NUMBER_INK, None) for c in '%.0f ' % lo]
+        cells += [(' ', NUMBER_INK, ansi.thermal_rgb(c)) for c in steps]
+        cells += [(c, NUMBER_INK, None) for c in ' %.0f' % hi]
+    elif shown == 'power':
+        cells += [(' ', NUMBER_INK, _mixed(BOX_GROUND, DRIVE_INK, k / 3.0)) for k in range(4)]
+        cells += [(' ', None, None)]
+        cells += [(' ', NUMBER_INK, _mixed(BOX_GROUND, BRAKE_INK, k / 3.0)) for k in range(4)]
+    else:
+        cells += [(' ', NUMBER_INK, _mixed(BOX_GROUND, TORQUE_INK, k / 7.0)) for k in range(8)]
+    return cells[:width]
 
 
 #: The drives called out: the strong ones - the legs' and the spine's - or all, or none; L
@@ -104,24 +134,13 @@ CALLED = {'strong': tuple(j for j in JOINTS if j == 'spine' or j.endswith(
 CALLING = ('strong', 'all', 'none')
 
 
-def labels(now, called):
-    """{joint: rows} for `gynoid.render`, each of `called` a column CALLOUT_W wide: its name on
-    a patch the colour of its drive's heat (the thermal observer's scale), its angle, the
-    torque's bar and the power's, and the torque, N m."""
+def labels(now, called, shown='torque'):
+    """{joint: rows} for `gynoid.render`, each of `called` one row CALLOUT_W wide: the number
+    `shown` (SHOWN) on a patch its size colours - the legend says what it is."""
     out = {}
     for joint in CALLED[called]:
-        torque, power, peak = now['torque'][joint], now['power'][joint], now['peak'][joint]
-        patch = ansi.thermal_rgb(now['heat'][joint][0]) if 'heat' in now else BOX_GROUND
-        ink = DARK_INK if 0.3 * patch[0] + 0.59 * patch[1] + 0.11 * patch[2] > 128 else LIGHT_INK
-        out[joint] = [
-            [(c, ink, patch) for c in (' ' + SHORT[kind(joint)]).ljust(CALLOUT_W)],
-            [(c, NUMBER_INK, None) for c in ('%.0f°' % now['angles'].get(joint, 0.0)).rjust(
-                CALLOUT_W - 1) + ' '],
-            [(bar(abs(torque) / peak), TORQUE_INK, BOX_GROUND),
-             (bar(abs(power) / (peak * RAD_S)), DRIVE_INK if power >= 0.0 else BRAKE_INK,
-              BOX_GROUND)]
-            + [(c, NUMBER_INK, None) for c in ('%d' % round(abs(torque))).rjust(CALLOUT_W - 3)
-               + ' ']]
+        text, ground = _patch(now, joint, shown)
+        out[joint] = [[(c, _ink_on(ground), ground) for c in text.rjust(CALLOUT_W)[-CALLOUT_W:]]]
     return out
 
 
@@ -137,8 +156,7 @@ def boxes(state, now, name):
     """The side column: the body, then each limb's joints as they read back."""
     angles = now['angles'] if now else {}
     out = [hud('BODY', [
-        ('state', 'starting' if now is None else 'fallen - A lands her again' if now['fallen']
-         else moment(now['stage'])),
+        ('status', _status(now)),
         ('cadence', '%.2f strides/s' % state['cadence']),
         ('speed', '%.2f m/s' % (now['speed'] if now else 0.0)),
         ('phase', '%.2f of a stride' % (now['phase'] if now else 0.0)),
@@ -147,6 +165,7 @@ def boxes(state, now, name):
         ('pendulum', '%.2f mm' % now['stir'] if now else '-'),
         ('its parts', 'on %.2f  x %.2f  up %.2f' % now['stirs'] if now else '-'),
         ('physics', 'x%.1f real time' % now['ratio'] if now else '-'),
+        ('drawing', '%.0f W' % now['watts'] if now and 'watts' in now else '-'),
         ('hottest', _hottest(now) if now else '-'),
         ('glitched', '%s %s' % state['glitched'] if state['glitched'] else 'G soa, H hot'),
         ('ahead', _ahead(now) if now else 'Ctrl H R T S L'),
@@ -159,6 +178,26 @@ def boxes(state, now, name):
             (joint.split('_', 1)[-1] if subsystem.name != 'axis' else joint,
              '%7.1f deg' % angles.get(joint, 0.0)) for joint in subsystem.actuators]))
     return out
+
+
+#: Her status in a word by the director's stage - for the eye, nothing to the director.
+STATUS = {'squat': 'CROUCH', 'look': 'CROUCH', 'push': 'RISE', 'rise': 'RISE', 'stand': 'STAND',
+          'shift': 'STAND', 'lean': 'STAND', 'step': 'WALK', 'walk': 'WALK', 'catch': 'CATCH',
+          'halt': 'STOP', 'settle': 'STOP', 'lower': 'CROUCH', 'rest': 'REST', 'falling': 'FALL',
+          'fallen': 'RECOVER'}
+
+
+def _status(now):
+    """BODY's status: her stage in a word and by its moment; tripped on a lace, TRIP; fallen,
+    RECOVER counting down to her landing again."""
+    if now is None:
+        return 'STARTING'
+    word = STATUS.get(now['stage'], now['stage'].upper())
+    if any(p[0] == 'lace' for p in now.get('props', ())):
+        word = 'TRIP'
+    if now['stage'] == 'fallen' and now.get('recover') is not None:
+        return '%s in %.0f s' % (word, max(0.0, now['recover']))
+    return '%s  %s' % (word, moment(now['stage']))
 
 
 def _hottest(now):
@@ -319,6 +358,8 @@ KEYS = dict(
     + [(k, lambda state: state.update(called=CALLING[(CALLING.index(state['called']) + 1)
                                                      % len(CALLING)])) for k in 'lL']
     + [(k, _recorded) for k in 'rR']
+    + [(k, lambda state: state.update(shown=SHOWN[(SHOWN.index(state['shown']) + 1)
+                                                  % len(SHOWN)])) for k in 'tT']
     + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'vV']
     + [(k, _zoomed(1.1)) for k in '+='] + [(k, _zoomed(1.0 / 1.1)) for k in '-_'])
 
@@ -357,7 +398,7 @@ def main(argv=None):
     state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
-             'tripped': None, 'playback': Playback()}
+             'tripped': None, 'playback': Playback(), 'shown': 'torque'}
 
     def draw():
         said = []
@@ -380,13 +421,15 @@ def main(argv=None):
                                           zoom=state['zoom'], colour=terminal, travel=camera,
                                           lit=lit, root=((x, y, z - camera),
                                                          quat(*now['turn'])),
-                                          labels=labels(now, state['called']),
+                                          labels=labels(now, state['called'], state['shown']),
                                           heat={j: h[0] for j, h in now['heat'].items()},
-                                          props=now.get('props')))
+                                          props=now.get('props'),
+                                          legend=(legend(state['shown'], width)
+                                                  if state['called'] != 'none' else None)))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name),
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
                          ('^H ^R ^T ^S ^L', 'HOLE RUG SILL SLIP LACE'),
-                         ('A', 'AGAIN'), ('L', 'LABELS'),
+                         ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
                          ('V', 'VIEW'),
                          ('Q', 'EXIT'), ('ESC', 'MENU')))

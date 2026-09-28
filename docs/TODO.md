@@ -128,7 +128,8 @@ Open work. Measured results are in FINDINGS.
   the dog leave the head and the torso on the floor, the arms too weak to
   lift them (`tools/sim/getup_lab.py` heels, bearwalk) - the drives now
   sized give the shoulder 101 N m and the elbow 30 against the model's 40
-  and 25. The model carries a tenth of the rotors the cycloids show
+  and 25; till she has one, the page lands her again 3 s after she is down
+  (`running.RECOVER_S`). The model carries a tenth of the rotors the cycloids show
   (`physics.REFLECTED`): the walk to be tuned on them; M's and S's motors
   are estimates. The walk begins from a lean, the body 8 degrees ahead of
   plumb, the walker taking her mid-swing and letting the lean out over 2 s,

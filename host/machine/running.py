@@ -29,6 +29,10 @@ AVERAGE_S = 0.05
 #: her where she is counted down a stride at a time - seen coming.
 LEAD = 1
 
+#: Fallen, she is landed in the squat again RECOVER_S later, and rises: she has no get-up of her
+#: own yet (docs/TODO.md).
+RECOVER_S = 3.0
+
 
 def _run(commands, states, cadence):
     """The worker: the machine, the director, the loop paced to the clock."""
@@ -37,6 +41,7 @@ def _run(commands, states, cadence):
     from machine import Machine, events
     from machine.director import Director
     from machine.figure import JOINTS
+    from machine import heat
     from machine.heat import GATES_ON
     from machine.modes import DYNAMIC
     machine = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -46,6 +51,9 @@ def _run(commands, states, cadence):
     dt = 1.0 / RATE_HZ
     k = dt / AVERAGE_S
     torque, power = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
+    #: What her drives draw, W: the work they do, their copper's heat, their boards' own
+    #: (`machine.heat`: switching and housekeeping) - braking gives nothing back.
+    boards, watts = len(JOINTS) * (heat.SWITCHING_W + heat.HOUSEKEEPING_W), 0.0
     peak = dict(zip(JOINTS, world.peak.tolist()))
 
     def begin():
@@ -83,6 +91,9 @@ def _run(commands, states, cadence):
             due = bus['t'] + SLICE_S                     # behind: a slice, and the clock let go
             wall0, sim0 = began, due
         from_t = bus['t']
+        if director.stage == 'fallen' and bus['t'] - director.fallen_at >= RECOVER_S:
+            begin()
+            wall0, sim0 = time.perf_counter(), bus['t']
         while bus['t'] < due - 1e-9:
             if (event and director.stage == 'walk'
                     and was < events.at(event[0]) <= director.walker.phase):
@@ -101,6 +112,9 @@ def _run(commands, states, cadence):
             tau = world.data.ctrl
             torque += k * (tau - torque)
             power += k * (tau * world.data.qvel[world.vadr] - power)
+            drawn = (np.maximum(tau * world.data.qvel[world.vadr], 0.0).sum()
+                     + world.loss @ (tau * tau) + boards)
+            watts += k * (drawn - watts)
         spent += time.perf_counter() - began
         ran += bus['t'] - from_t
         if bus['t'] - said >= SAY_S:
@@ -111,6 +125,7 @@ def _run(commands, states, cadence):
                      'set': dict(asked),
                      'torque': dict(zip(JOINTS, torque.tolist())),
                      'power': dict(zip(JOINTS, power.tolist())), 'peak': peak,
+                     'watts': float(watts),
                      'where': (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z']),
                      'turn': (bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                               bus['pelvis.pose.qz']),
@@ -124,6 +139,8 @@ def _run(commands, states, cadence):
                                   int(bus[n + 'status']) & GATES_ON)
                               for j, n in director.drives.items()},
                      'props': world.props(), 'armed': tuple(event) if event else None,
+                     'recover': (RECOVER_S - (bus['t'] - director.fallen_at)
+                                 if director.fallen_at is not None else None),
                      'ratio': min(ratio, 99.0)}
             try:
                 states.put_nowait(state)

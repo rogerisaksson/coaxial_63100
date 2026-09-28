@@ -485,13 +485,15 @@ def _framed(overlay, top, left, rows, ink):
             overlay[(top + 1 + k, left + 1 + c)] = (ord(char), _packed(fg, bg))
 
 
-def callouts(labels, anchors, places, width, height):
+def callouts(labels, anchors, places, width, height, room=None):
     """({(row, col): (codepoint, key)}, leader dots) for `labels` {joint: [row, ..]}, a row
     [(char, fg, bg)], inks (r, g, b) or None: each a narrow framed column docked at the drawing's
     edge - a side's joints on its side and the rest on the side they stand - at the height its
     joint has at rest (`places` {joint: (x, y)}, dots), stacked down the edge as they meet and a
-    column further in when the edge is full; a leader from its inner edge to the joint's pivot as
-    it is (`anchors`, dots). The callouts stand still; the leaders follow."""
+    column further in when the edge is full, within the first `room` rows (all of them); a leader
+    from its inner edge to the joint's pivot as it is (`anchors`, dots). The callouts stand
+    still; the leaders follow."""
+    room = height if room is None else room
     np = _np()
     dots = np.zeros((height * DOTS_Y, width * DOTS_X), bool)
     mid = width * DOTS_X / 2.0
@@ -513,7 +515,7 @@ def callouts(labels, anchors, places, width, height):
         for y, joint, rows in items:
             tall, wide = len(rows) + 2, max(len(r) for r in rows) + 2
             top = max(int(y // DOTS_Y) - 1, below)
-            if top + tall > height:
+            if top + tall > room:
                 column, top = column + 1, max(0, int(y // DOTS_Y) - 1)
             below = top + tall
             at = column * wide if left else width - (column + 1) * wide
@@ -673,12 +675,13 @@ def _props(props, m, cam, centre, travel):
 
 
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=0.0,
-           lit=None, root=None, labels=None, heat=None, props=None):
+           lit=None, root=None, labels=None, heat=None, props=None, legend=None):
     """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
     `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
-    {joint: [(char, fg, bg)]} called out at the edges, a leader to each joint (`callouts`);
-    `heat` {joint: C} each drive's drum painted its temperature's colour (`ansi.thermal_rgb`);
-    `props` what she trips on, world (`World.props`), drawn as edges `travel` m back."""
+    {joint: [row, ..]} called out at the edges, a leader to each joint (`callouts`); `heat`
+    {joint: C} each drive's drum painted its temperature's colour (`ansi.thermal_rgb`); `props`
+    what she trips on, world (`World.props`), drawn as edges `travel` m back; `legend` a row
+    [(char, fg, bg)] on the last line, the callouts kept above it."""
     np = _np()
     who = body()
     m = view(yaw, pitch)
@@ -710,6 +713,10 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
             return list(zip(sx.tolist(), sy.tolist()))
         overlay, leaders = callouts(labels, dict(zip(names, dots_of([pivots[j] for j in names]))),
                                     dict(zip(names, dots_of([rest[j] for j in names]))),
-                                    width, height)
+                                    width, height, height - (1 if legend else 0))
+    if legend:
+        overlay = dict(overlay or {})
+        for col, (char, fg, bg) in enumerate(legend[:width]):
+            overlay[(height - 1, col)] = (ord(char), _packed(fg, bg))
     return braille(depth, rgb, _floor(m, fine, centre, travel), width, height, colour, overlay,
                    leaders, _props(props or (), m, fine, centre, travel))
