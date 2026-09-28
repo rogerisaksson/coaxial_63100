@@ -92,6 +92,10 @@ VIEWS = 'test_views.py'
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
 
+#: The gynoid on fantasy boards, their SOA never binding: her walk, her clothes, her look; and on
+#: her boards as built: the envelope derating and tripping them, glitches, a lace caught.
+GYNOID, GYNOID_FAULTS = 'test_gynoid.py', 'test_gynoid_faults.py'
+
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
 
@@ -100,7 +104,7 @@ RENDER = 'test_render.py'
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, CYCLIC, BOOT, VIEWS,
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC, BOOT, VIEWS,
                    RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -123,6 +127,8 @@ JOINS = (
     (10, 'test_simulated.py'),
     (12, DAQ_API),
     (12, CONTROLLER),
+    (12, GYNOID),
+    (12, GYNOID_FAULTS),
     (12, CYCLIC),
     (12, BOOT),
     (15, CORE),
@@ -230,8 +236,9 @@ TOUCHES = (
     ('host/machine/ansi.py',                   ('test_simulated.py', CONTROLLER)),
     ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE, CYCLIC)),
     ('host/machine/cyclic.py',                 (CYCLIC,)),
-    ('host/machine/',                          (CONTROLLER, CYCLIC, 'test_simulated.py',
-                                                'test_mcp.py')),
+    ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC,
+                                                'test_simulated.py', 'test_mcp.py')),
+    ('host/coaxial/graphics/gynoid.py',        (RENDER, VIEWS, GYNOID)),
     ('host/coaxial/node.py',                   (CONTROLLER, 'test_mcp.py')),
     ('host/coaxial/devices/ctrl.py',           (CONTROLLER, STRUCTURE)),
     ('host/coaxial/simulated/ctrl.py',         (CONTROLLER, STRUCTURE)),

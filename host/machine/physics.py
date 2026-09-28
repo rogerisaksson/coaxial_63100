@@ -22,7 +22,7 @@ from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Feedback
 from machine.errors import MachineError
-from machine.figure import CONTACTS, HEM_AT, JOINTS, MASS_KG, SEGMENTS
+from machine.figure import CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
 from machine.machine import Actuator
 from machine.nodes import Module, Node
 from machine.parts import Direct, Gain
@@ -50,6 +50,11 @@ STEP_S = 0.001
 #: less (`drives.peak`), 0 or 1.
 REFLECTED, CLAMPED = 0.0, 0.0
 
+#: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
+#: never binds, the heat counted - the walk, the clothes and the look are tuned on those
+#: (`tests/test_gynoid.py`), the faults run on the built ones (`tests/test_gynoid_faults.py`).
+ENVELOPE = 1.0
+
 #: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times - a gate drive
 #: sagging, the FETs half on, in their SOA; or its nodes at WARM_C - run hard, hot.
 SOA_RDS, WARM_C = 50.0, 100.0
@@ -67,13 +72,24 @@ CLOTH_GIVE_M = 0.004
 HEM_M, HEM_KG, HEM_K, HEM_D, HEM_DEG = 0.2, 0.12, 0.6, 0.045, 14.0
 HEMS = tuple('%s_hem_%s' % (side, axis) for side in ('left', 'right') for axis in 'xz')
 
+#: Her hair's fall hangs from `figure.HAIR_AT`, HAIR_KG HAIR_M under it, on two hinges - fore and
+#: aft, and aside - held by HAIR_K N m/rad and damped by HAIR_D N m s/rad: with gravity's 0.041 it
+#: swings at 1.8 Hz, a third of critical. Stopped HAIR_DEG back, HAIR_IN_DEG forward and
+#: HAIR_SIDE_DEG aside, where it meets her nape and her throat. It touches nothing.
+HAIR_M, HAIR_KG, HAIR_K, HAIR_D = 0.07, 0.06, 0.016, 0.0035
+HAIR_DEG, HAIR_IN_DEG, HAIR_SIDE_DEG = 20.0, 4.0, 8.0
+HAIRS = ('hair_x', 'hair_z')
+
+#: What hangs loose on her: the hinges `World.loose` reads.
+LOOSE = HEMS + HAIRS
+
 #: The soles' friction: sliding, and turning in place (m) - a point of contact turns freely, and
 #: on its ball's edge the stance foot spun under the swinging leg (2026-09-25).
 FRICTION, TORSION_M = 1.0, 0.08
 
 #: The soles' give, MuJoCo's solref and solimp: a contact settles over SOLE_S s at SOLE_DAMP of
 #: critical, its impedance SOLE_SOFT at a touch rising to 0.95 over SOLE_WIDTH_M of give - light
-#: sneakers on her 1.60 m, 27 cm soles. Rigid (0.02, 1, 0.9, 0.001) a touchdown peaked at 1.9
+#: sneakers. On 27 cm soles, rigid (0.02, 1, 0.9, 0.001) a touchdown peaked at 1.9
 #: kN, 3.5 times her weight; the give over 5 mm and the damping 1.5: 1.5 kN and the pendulum's
 #: stir 1.7 -> 1.4 mm. Softer felled her first stride from standing every way: settling over
 #: 0.035 s the body pitched on twice as fast (the sole a lag in the ankle's hold), damped 1.75
@@ -84,7 +100,9 @@ SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
 #: HOLE_LONG_M long - the slab in two, the plane below showing through the gap; a sill SILL_M
 #: high and SILL_LONG_M long; a patch SLIP_LONG_M long at SLIP_FRICTION; a loose rug RUG_LONG_M
 #: long, RUG_M thick and RUG_KG, gripping the sole as the floor does and sliding on the floor at
-#: RUG_FRICTION. Whole, the slab's halves meet at SEAM_M, past any walk. The halves are
+#: RUG_FRICTION. Whole, the slab's halves meet at SEAM_M; it ends at SLAB_TO_M, past any walk -
+#: at 80 m a walk stepped off it 100 s in, 3 cm down, and fell or sank into a crouch
+#: (2026-09-28). The halves are
 #: compiled over the whole span and cut to size, the sill and the patch are mocap bodies: a
 #: geom moved or grown past its compiled bounds is missed by the broadphase (the rug fell
 #: through a slab grown 27 m, a box through a sill moved 1 m). Her toes skim at 3 cm through
@@ -95,7 +113,7 @@ SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
 HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.03, 0.40, 0.04, 0.04
 SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
 RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.1
-SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 80.0, -50.0
+SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
 
 
 def mjcf():
@@ -139,6 +157,16 @@ def mjcf():
                     for axis, direction in (('x', '1 0 0'), ('z', '0 0 1'))]
             out += ['<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
                 -HEM_M, HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG), '</body>']
+        if name == 'head':
+            out += ['<body name="hair" pos="%g %g %g">' % HAIR_AT]
+            out += ['<joint name="hair_%s" axis="%s" stiffness="%g" damping="%g" armature="0" '
+                    'limited="true" range="%g %g"/>' % (axis, direction, HAIR_K, HAIR_D, low, high)
+                    for axis, direction, low, high in (
+                        ('x', '1 0 0', -HAIR_IN_DEG, HAIR_DEG),
+                        ('z', '0 0 1', -HAIR_SIDE_DEG, HAIR_SIDE_DEG))]
+            out += ['<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
+                -HAIR_M, HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG),
+                '</body>']
         for kid in kids.get(name, []):
             out += body(kid)
         return out + ['</body>']
@@ -190,7 +218,7 @@ class World:
         self.data = mujoco.MjData(self.model)
         m = self.model
         self.qadr = np.array([m.jnt_qposadr[m.joint(j).id] for j in JOINTS])
-        self.hems = np.array([m.jnt_qposadr[m.joint(j).id] for j in HEMS])
+        self.loose_at = np.array([m.jnt_qposadr[m.joint(j).id] for j in LOOSE])
         self.vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
         self.gains = np.array([SERVO[kind(j)][1:3] for j in JOINTS])
         self.peak = np.array([min(SERVO[kind(j)][0], drives.peak(j)) if CLAMPED
@@ -233,6 +261,7 @@ class World:
         self.block.gains[:] = self.gains.ravel()
         self.block.limit[:] = self.limit
         self.block.air[:] = self.block.rds[:] = self._np.ones(len(JOINTS))
+        self.block.envelope[0] = ENVELOPE
         self.block.drive[:] = self._np.array([drives.heat(j) for j in JOINTS]).ravel()
         self.buses = Buses(self.block, limbs)
         self.bus_of = self.buses.of
@@ -444,9 +473,10 @@ class World:
         """(degrees, deg/s) of a joint as its board last answered the host."""
         return self.reading(index)[:2]
 
-    def cloth(self):
-        """{hinge: degrees} of the jeans' legs hanging from her shins (`HEMS`)."""
-        return dict(zip(HEMS, map(math.degrees, self.data.qpos[self.hems])))
+    def loose(self):
+        """{hinge: degrees} of what hangs loose on her (`LOOSE`): the jeans' legs from her
+        shins, her hair from her head."""
+        return dict(zip(LOOSE, map(math.degrees, self.data.qpos[self.loose_at])))
 
     def pose(self):
         """The pelvis and the body: place, turn (quaternion), speeds (world), the centre of mass,

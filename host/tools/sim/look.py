@@ -87,7 +87,7 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
                    'turn': tuple(bus['pelvis.pose.q' + k] for k in 'wxyz'),
                    'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked}
             out.append(dict(zip(HEADER, row(now, 60.0)), down=_down(world, ours), laid=laid,
-                            cloth=world.cloth()))
+                            loose=world.loose()))
     body.disarm()
     return out
 
@@ -237,6 +237,8 @@ WALK = (
         _lean(_p(a, 'left_shank'), _p(a, 'left_thigh')) for a, b in _lifts(rs))),
     ('thigh ahead at landing', 'deg', lambda rs: _mean(
         -_lean(_p(b, 'left_shank'), _p(b, 'left_thigh')) for a, b in _landings(rs))),
+    ('hair fore-aft', 'deg', lambda rs: _ptp(r.get('loose', {}).get('hair_x', 0.0) for r in rs)),
+    ('hair aside', 'deg', lambda rs: _ptp(r.get('loose', {}).get('hair_z', 0.0) for r in rs)),
 )
 
 #: A sole bears past BEARS_N: its landing and its lift are the rows either side of it, the one

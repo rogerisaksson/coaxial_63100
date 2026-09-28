@@ -122,7 +122,7 @@ def _run(commands, states, cadence):
             spent = ran = 0.0
             said = bus['t']
             state = {'t': bus['t'], 'angles': dict({j: bus.get(j + '.deg', 0.0) for j in JOINTS},
-                                                   **world.cloth()),
+                                                   **world.loose()),
                      'set': dict(asked),
                      'torque': dict(zip(JOINTS, torque.tolist())),
                      'power': dict(zip(JOINTS, power.tolist())), 'peak': peak,

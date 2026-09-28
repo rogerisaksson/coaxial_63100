@@ -635,6 +635,24 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   to them - at 23 the walk at 0.85 fell in 0.5 s from mid-stride (a catch
   at 0.2 s, both feet off the floor), at 25 the rises fell at 10.9 s, the
   walk at 0.9 in 0.4 s and the hot knee at 8.8 (2026-09-27).
+- The feet at 24.5 cm, a sneaker in size 37-38 - 27 cm read as boats: the
+  scoreboard 7.62 -> 6.80, held 81.8 -> 85.3 % (the sill at 0.85 52 -> 100
+  %, at 0.65 50 -> 77, the slip at 0.9 100 -> 76); the walk's stir 2.25 ->
+  2.42 mm at 0.85, the thigh 29.5 -> 27.5 degrees ahead at the landing and
+  6.6 -> 8.7 behind at the lift, the strike 1.1 -> 1.4-1.6 kN
+  (2026-09-28).
+- Her hair on two hinges under her crown, 0.06 kg at 1.8 Hz: 17 degrees
+  fore and aft and 6 aside as she walks (2026-09-28).
+- After 100 s of walking she sank into a crouch, the pelvis 24 -> 172 mm
+  under the stand, the stance knees 17 -> 67 degrees, the boards' derate
+  1.00 throughout: at 80 m she stepped off the floor's slab, 3 cm down, and
+  each landing latched the height lower than the 0.03 m/s rise gave back.
+  The slab runs 10 km; the rise adds the lowered height over 2 s. The
+  scoreboard, with the 24 cm sneakers: 6.35, held 86.9 %, the walk's stir
+  2.46 mm at 0.85 (2026-09-28).
+- The humanoid page threw at a zoom of 1.1^3: a callout placed at its
+  joint's height at rest, the joint past the drawing's edge, was written
+  past the last row (2026-09-28).
 - The start as the eye has it: taking her from the lean, the walker's plan
   stood the pelvis up, 7 degrees back in 0.2 s, the stance heel rising - on
   her toes and leaning back; the plan tips it as the lean now, LEAN_DEG 4 ->

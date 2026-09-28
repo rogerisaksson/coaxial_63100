@@ -103,8 +103,11 @@ LURCH_M, LURCH_M_S = 0.15, 0.3
 #: Latched 10 mm low at every landing - the trailing leg sags 9 mm into it, its ankle 2 degrees
 #: under the push-off's torque - and raised at 0.1 m/s, the pelvis rushed up at 0.22 m/s to a
 #: dead stop, 4.6 then -3.8 m/s2 at her ears; at 0.03 the rise 0.15 m/s, the stop -1 m/s2, the
-#: stir 1.37 -> 1.28 mm (2026-09-27).
-SWING_REACH, LOWER_M, LOWER_M_S, RAISE_M_S = 0.985, 0.12, 0.4, 0.03
+#: stir 1.37 -> 1.28 mm (2026-09-27). Raised at RAISE_M_S alone, a landing that sank her more
+#: than a step raises latched the next one lower: 100 s into a walk the pelvis went from 24 to
+#: 172 mm under the stand, the stance knees 17 -> 67 degrees, and stayed; RAISE_S lifts the rest
+#: in proportion (2026-09-28).
+SWING_REACH, LOWER_M, LOWER_M_S, RAISE_M_S, RAISE_S = 0.985, 0.12, 0.4, 0.03, 2.0
 
 #: In a side step the attitude is turned back past its error by no more than SIDE_TURN_RAD: the
 #: legs are solved for the turned pelvis, and 8 degrees of it dragged the planted foot 12 cm
@@ -541,7 +544,8 @@ class Walker:
         planned_x = line / weight + lateral
         v_ref = (plan(self.phase + 1e-3, stride)[0] - lateral) * 1e3 * self.rate
         planned = (planned_x, height, planned_z)
-        self.lowered += max(-RAISE_M_S * dt, min(LOWER_M_S * dt, min(LOWER_M, lower) - self.lowered))
+        self.lowered += max(-(RAISE_M_S + self.lowered / RAISE_S) * dt,
+                            min(LOWER_M_S * dt, min(LOWER_M, lower) - self.lowered))
         if self.side is not None and self.side['stage'] == 'out' and self.side['since'] == 0.0:
             # The foot put down takes the pelvis from where it is, as a landing does: from the
             # plan's height, 9 mm up, its leg hopped her off the floor; from a height still
@@ -611,7 +615,7 @@ class Walker:
             elif side not in self.anchor and (bus['pelvis.pose.%s_load' % side] > LANDED_N
                                               or q >= ACCEPT):
                 self.anchor[side] = balls[side]
-                # The height's target starts from where the body is, up again at RAISE_M_S:
+                # The height's target starts from where the body is, up again (RAISE_M_S):
                 # landed with the body 3 cm low over the leaning leg, both legs pushed to the
                 # plan's height and threw her 5 cm into the air (2026-09-26); let go of the first
                 # 15 mm, the walk's first landing hopped off the front foot (2026-09-27).

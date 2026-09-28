@@ -109,8 +109,9 @@ Open work. Measured results are in FINDINGS.
   step - a trip swings the bob ahead, the step goes out under it, a stomp
   or two, then the walk again (asked 2026-09-27; PEND_K fell at 1.5 - the
   sign and the gain against the bob's 2 s period to be worked out). The
-  feet are 27 cm, outsize on 1.60 m: a 23-25 cm foot wants the walk
-  retuned (the toe-off's lever, the reach at the landing). Her boards run
+  scoreboard's trials split as the suites are (`test_gynoid.py` on fantasy
+  boards, `test_gynoid_faults.py`), the look's measures in its cost. Her
+  boards run
   on their buses, a process a limb (`machine.buses`): an emulated limb takes
   a process's place on its port and block when the emulation is ready, and
   the firmware's map wants the walk's registers (`machine.rtu`: SETPOINT_REG,

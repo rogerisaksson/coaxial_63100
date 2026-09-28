@@ -19,6 +19,9 @@ TOE_RY = 0.014
 
 #: Her jeans' wide legs hang from HEM_AT under the knees, metres (`physics.HEMS`).
 HEM_AT = 0.12
+#: Her hair's fall hangs from HAIR_AT on her head, its frame, metres (`physics.HAIRS`): at the
+#: back of her skull, level with her ears.
+HAIR_AT = (0.0, 0.075, -0.02)
 
 
 def _sides():
@@ -66,7 +69,7 @@ SEGMENTS = tuple([
 #: back and the chest, the skull, the arms and the thighs to fall on. Without them she lay with
 #: her torso through the floor (2026-09-27).
 CONTACTS = (('foot', 'box', (0.035, 0.01, (BALL + HEEL) / 2.0), (0.0, -ANKLE_H + 0.01, (BALL - HEEL) / 2.0)),
-            ('toes', 'box', (0.035, 0.007, 0.0325), (0.0, -0.007, 0.0325)),
+            ('toes', 'box', (0.035, 0.007, 0.03), (0.0, -0.007, 0.03)),
             ('shank', 'sphere', (0.035,), (0.0, -0.06, 0.03)),
             ('hand', 'sphere', (0.03,), (0.0, -0.07, 0.01)),
             ('pelvis', 'sphere', (0.10,), (0.0, 0.0, -0.02)),

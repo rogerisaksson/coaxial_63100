@@ -361,6 +361,7 @@ KEYS = dict(
     + [(k, lambda state: state.update(shown=SHOWN[(SHOWN.index(state['shown']) + 1)
                                                   % len(SHOWN)])) for k in 'tT']
     + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'vV']
+    + [(k, lambda state: state.update(dressed=not state['dressed'])) for k in 'cC']
     + [(k, _zoomed(1.1)) for k in '+='] + [(k, _zoomed(1.0 / 1.1)) for k in '-_'])
 
 
@@ -391,14 +392,14 @@ def main(argv=None):
     lit = gpu.LitRaster(found=card) if card is not None else None
     name = lit.name if lit is not None else 'this process, dots'
     say('ok', 'drawing', name)
-    gynoid.body()
+    gynoid.body(), gynoid.body(dressed=False)
 
     board_view = stage()
     terminal = board_view.is_terminal
     state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
-             'tripped': None, 'playback': Playback(), 'shown': 'torque'}
+             'tripped': None, 'playback': Playback(), 'shown': 'torque', 'dressed': True}
 
     def draw():
         said = []
@@ -425,13 +426,14 @@ def main(argv=None):
                                           heat={j: h[0] for j, h in now['heat'].items()},
                                           props=now.get('props'),
                                           legend=(legend(state['shown'], width)
-                                                  if state['called'] != 'none' else None)))
+                                                  if state['called'] != 'none' else None),
+                                          dressed=state['dressed']))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name),
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
                          ('^H ^R ^T ^S ^L', 'HOLE RUG SILL SLIP LACE'),
                          ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
-                         ('V', 'VIEW'),
+                         ('V', 'VIEW'), ('C', 'CLOTHES'),
                          ('Q', 'EXIT'), ('ESC', 'MENU')))
 
     leaving = None

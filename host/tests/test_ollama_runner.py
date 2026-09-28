@@ -433,14 +433,16 @@ def test_smart_selection(report):
                                   table.DRIVE, table.FILTER,
                                   table.THERMAL, table.BOOT_CORE, table.CTRL_CORE, table.WORLD_CORE, table.WIRE,
                                   table.SENSORLESS, table.DAQ_API,
-                                  table.CONTROLLER, table.CYCLIC, table.BOOT,
+                                  table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS,
+                                  table.CYCLIC, table.BOOT,
                                   } | set(table.OLLAMA)),
                             (75, {table.STRUCTURE, table.CORE,
                                   table.SHTP, 'test_simulated.py',
                                   table.DRIVE, table.FILTER,
                                   table.THERMAL, table.BOOT_CORE, table.CTRL_CORE, table.WORLD_CORE, table.WIRE,
                                   table.SENSORLESS, table.DAQ_API,
-                                  table.CONTROLLER, table.CYCLIC, table.BOOT,
+                                  table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS,
+                                  table.CYCLIC, table.BOOT,
                                   'test_parity.py', 'test_mcp.py', table.EMULATOR,
                                   table.NATIVE, table.CONFORMANCE, table.BENCH}
                              | set(table.OLLAMA))):

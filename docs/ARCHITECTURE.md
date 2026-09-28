@@ -205,6 +205,10 @@ tests/              suites, .counts.json (measured sizes)
   mirrors of firmware constants vs the C.
 - Suites that touch only the stand-in run four at a time (offline gate
   ~142 s); mcp, parity, bench, conformance, live run alone after.
+- The gynoid: `test_gynoid.py` on fantasy boards (`physics.ENVELOPE` 0,
+  their SOA never binding) - her walk, her clothes, her look;
+  `test_gynoid_faults.py` on her boards as built - the envelope derating and
+  tripping them, glitches, a lace caught.
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
   page on both, a process a page, and marks a read missing, a range apart
   over the board seconds both cover, or a number the physics rules out;

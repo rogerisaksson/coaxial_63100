@@ -21,8 +21,9 @@ The block (`Block`, FIELDS): the world writes time, q, qd and limit, bumps seq a
 to each process's stdin; a process takes each bus's new bytes (written - received), ticks its
 boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
 epoch and hold: a reset, every board holding `hold`, its heat at the room's; air, rds and warm:
-a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); drive: what
-its heat is kept by (`drives.heat`), written before the processes start. An emulated limb takes a process's place on
+a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); envelope: 0
+fantasy boards (`heat.Heat.envelope`); drive: what its heat is kept by (`drives.heat`), written
+before the processes start. An emulated limb takes a process's place on
 the same port and block. A limb a process where the machine has THREADS_A_LIMB hardware threads
 a limb, else the limbs shared out by their boards (`share`).
 """
@@ -57,7 +58,7 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('written', 'q', 'B'), ('sent', 'q', 'B'), ('free_at', 'd', 'B'), ('at', 'd', '2B'),
           ('q', 'd', 'J'), ('qd', 'd', 'J'), ('limit', 'd', 'J'), ('ctrl', 'd', 'J'),
           ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
-          ('warm', 'd', 'J'), ('drive', 'd', '6J'))
+          ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'))
 
 HOST = '127.0.0.1'
 
@@ -233,6 +234,7 @@ class Segment:
                 h.warm(k, b.warm[i])
                 b.warm[i] = 0.0
         if now - self.heat_at >= THERMAL_S - 1e-9:
+            h.envelope = b.envelope[0] > 0.0
             h.step(now - self.heat_at, [b.air[i] for i in self.indices],
                    [b.rds[i] for i in self.indices])
             self.heat_at = now

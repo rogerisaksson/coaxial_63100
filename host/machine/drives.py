@@ -66,7 +66,7 @@ JOINTS = {
     'hip_yaw': ('M', None), 'hip_roll': ('L', None), 'hip': ('L', None), 'knee': ('L', None),
     'ankle': ('L', ('shank', (0.0, -0.10, -0.008))),
     'ankle_roll': ('M', ('shank', (0.0, -0.19, 0.0))),
-    'foot': ('S', ('foot', (0.0, -0.035, 0.07))),
+    'foot': ('S', ('foot', (0.0, -0.04, 0.045))),
 }
 
 

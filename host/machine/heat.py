@@ -9,6 +9,7 @@ and trip on them.
     heat.derate[k], heat.gates[k]       # the share of its clamp drive k gives, if anything
     heat.arm(k); heat.warm(k, celsius)  # the gates on again; its nodes warmed to at least
     heat.report(k)                      # (celsius, spent, derate, status): its reply's
+    heat.envelope = False               # a fantasy board: its envelope counted, never binding
 
 A drive is a board behind its outrunner and a cycloid (`machine.drives`): its torque an amp,
 its winding, its board's losses as the 63 V 100 A board's at its current scaled to that board's,
@@ -66,6 +67,8 @@ class Heat:
         self.spent, self.worst, self.die = [0.0] * n, [0] * n, [AMBIENT_C] * n
         #: The trip cap and the heat second it was set at.
         self.cap, self.cap_at, self.at = [1.0] * n, [0.0] * n, 0.0
+        #: Whether the envelope derates and trips the drives, or only counts what they spend.
+        self.envelope = True
 
     def load(self, k, torque):
         amps = torque / self.kt[k]
@@ -113,6 +116,8 @@ class Heat:
             if used > spent:
                 spent, worst = used, i
         self.spent[k], self.worst[k] = spent, worst
+        if not self.envelope:
+            return
         want = 1.0 if spent <= THROTTLE_AT else max(0.0, (1.0 - spent) / (1.0 - THROTTLE_AT))
         self.derate[k] = min(want, self.derate[k] + RECOVER_PER_S * h)
         if self.gates[k] and (self.die[k] >= TJ_MAX_C
