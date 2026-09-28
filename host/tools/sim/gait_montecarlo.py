@@ -263,12 +263,22 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
             if looks else ''))
 
 
-def search(pool, spans, generations, lam, log):
-    """CMA-ES over `spans` {name: (low, high)}, each scaled to its span, from its middle."""
+def _now(name):
+    """A constant's value where it lives (`_set`'s modules)."""
+    import importlib
+    mods = [importlib.import_module('machine.' + m) for m in MODULES]
+    return float(getattr(next(m for m in mods if hasattr(m, name)), name))
+
+
+def search(pool, spans, generations, lam, log, sigma=0.08):
+    """CMA-ES over `spans` {name: (low, high)}, each scaled to its span, from the walk as it is,
+    `sigma` of a span its first step: a walk that looks right is refined, not searched away -
+    begun from the spans' middles at a quarter, the searches found tiptoeing (2026-09-28)."""
     import numpy as np
     names = list(spans)
     dim = len(names)
-    mean, sigma = np.full(dim, 0.5), 0.25
+    mean = np.array([min(1.0, max(0.0, (_now(n) - spans[n][0]) / (spans[n][1] - spans[n][0])))
+                     for n in names])
     mu = lam // 2
     weights = math.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
     weights /= weights.sum()
@@ -325,6 +335,7 @@ def main(argv=None):
                         help='CMA-ES over these spans')
     parser.add_argument('--generations', type=int, default=12)
     parser.add_argument('--population', type=int, default=12)
+    parser.add_argument('--sigma', type=float, default=0.08, help="the first step, of a span")
     parser.add_argument('--log', default='gait_montecarlo.jsonl', help='every candidate, a line')
     parser.add_argument('--workers', type=int, default=16)
     parser.add_argument('--suite', choices=sorted(SUITES), default='all',
@@ -339,7 +350,8 @@ def main(argv=None):
         if args.search:
             spans = {k: tuple(float(x) for x in v.split(':'))
                      for k, v in (a.split('=') for a in args.search)}
-            cost, values = search(pool, spans, args.generations, args.population, log)
+            cost, values = search(pool, spans, args.generations, args.population, log,
+                                  args.sigma)
             print('BEST %.2f %s' % (cost, json.dumps(values)))
             cands = [dict(fixed, **(values or {}))]
         elif args.grid:
