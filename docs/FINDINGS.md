@@ -655,12 +655,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   on it came to 150 rad/s and every drive slammed to its peak. A world
   with no buses runs the drives itself (`tools/sim/getup_lab.py`)
   (2026-09-27).
-- The feet at 24.5 cm, a sneaker in size 37-38 - 27 cm read as boats: the
-  scoreboard 7.62 -> 6.80, held 81.8 -> 85.3 % (the sill at 0.85 52 -> 100
-  %, at 0.65 50 -> 77, the slip at 0.9 100 -> 76); the walk's stir 2.25 ->
-  2.42 mm at 0.85, the thigh 29.5 -> 27.5 degrees ahead at the landing and
-  6.6 -> 8.7 behind at the lift, the strike 1.1 -> 1.4-1.6 kN
-  (2026-09-28).
+- The feet 27 -> 24.5 cm: held 81.8 -> 85.3 %, the thigh 6.6 -> 8.7
+  degrees behind at the lift, the strike 1.1 -> 1.4-1.6 kN (2026-09-28).
 - Her hair on two hinges under her crown, 0.06 kg at 1.8 Hz: 17 degrees
   fore and aft and 6 aside as she walks (2026-09-28).
 - After 100 s of walking she sank into a crouch, the pelvis 24 -> 172 mm
@@ -673,19 +669,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - Her limbs collide (`physics.ME`): floor alone, her sneakers passed 22 mm
   into each other as she walked. Colliding at the catwalk's tracks they
   bumped and the thigh left the floor 1.6 degrees ahead of upright; at 30
-  and 35 mm (walkplan.TRACK_M, WIDEN_M) they pass 10 mm apart, and a swinging
-  foot is kept 90 mm off the other wherever their soles overlap
-  (`landing.clear`) - at the old 20 and 23 mm, 10 mm apart too. The thighs'
+  and 35 mm (walkplan.TRACK_M, WIDEN_M) they pass 10 mm apart, a swinging
+  foot kept off the other where their soles overlap (`landing.clear`). The thighs'
   spheres pressed up to 2 kN apart at every passing: that pair is left out
   (`physics.APART`) (2026-09-28).
-- The heel struck at 0.75 m/s, 1.5 kN in 2 ms: the swing lifted the ankle
-  to 200 mm, the toes down to half the swing, and fell at up to 0.9 m/s
-  late; the swinging hip ran 5 degrees behind its setpoint and caught up
-  into the floor. The foot levelled at 0.4 of the swing (gait.SWING_AT) and
-  the swinging leg's plan led 20 ms (landing.SWING_LEAD_S): the strike's
-  spike gone, the stance's peak 1084 N at 160 ms. On the ball (LAND_DEG -3)
-  as the walk is tuned, she caught herself from 11 s and fell at 15
-  (2026-09-28).
+- The swinging hip ran 5 degrees behind its setpoint and caught up into the
+  floor, 1.5 kN in 2 ms: the swinging leg's plan leads 20 ms
+  (landing.SWING_LEAD_S) (2026-09-28).
 - The feet rolled 2 or 3 degrees onto their outer edges took the ankle's
   roll to 3.2 and 2.0 and she caught herself from 10 s (2026-09-28).
 - The lace fall's head: the lace held her trailing foot, she dove onto her
@@ -699,6 +689,16 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   12 cm, and her speed read from 3.7 m back: 8-10 cm crouched, a sole at
   16 kN. Reset on landing (`Walker.reset`): 0.866 and 0.882 m after the
   restarts, 958 N at most (2026-09-28).
+- The swing skims (gait.LIFT_M): the foot's least height 25 mm over the
+  floor through mid-swing, 42 at most, where a bump lifted it 130 mm and
+  the knee 75 degrees - she trod the air; levelled at 0.6 of the swing the
+  knee bends once, to 55. The heel up 10 degrees as the other foot lands
+  (gait.RISE_DEG): the knee lands at 13 degrees where 33, the head's bob
+  23 -> 13 mm, the thigh 21 ahead and 11 behind where 28 and 6. The
+  pelvis turned 6: 26 degrees where 39. The landings harder: the look
+  suite's impact 1046, 1296, 1599 N at 0.65, 0.85, 0.9 strides/s against
+  228, 972, 1358, the ankle falling 1.0 m/s where 0.4 as the heel meets
+  the floor (2026-09-28).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The

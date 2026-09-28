@@ -261,6 +261,8 @@ WALK = (
                                          default=math.nan) * 1e3),
     ('swing height', 'mm', lambda rs: max((r['lifted'] for r in _mid_swings(rs)),
                                           default=math.nan) * 1e3),
+    ('knee swinging', 'deg', lambda rs: max((float(r['left_knee']) for r in _mid_swings(rs)),
+                                            default=math.nan)),
     ('knee at landing', 'deg', lambda rs: _mean(float(b['left_knee']) for a, b in _landings(rs))),
     ('toe out', 'deg', lambda rs: _mean(_foot(r)[0] for r in _alone(rs))),
     ('foot roll', 'deg', lambda rs: _mean(_foot(r)[1] for r in _alone(rs))),

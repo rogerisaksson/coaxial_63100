@@ -88,11 +88,14 @@ def put_down(ball_z, pel_z):
     return max(z, pel_z + DOWN_AHEAD_M) if z > pel_z else max(z, pel_z - DOWN_BEHIND_M)
 
 
-#: A swinging foot is kept CLEAR_M off the other, centre to centre, wherever their soles overlap
-#: along the walk, and eased in over OVERLAP_M of them coming to: pushed out on its own side, by
-#: the walker's own kinematics; a catch, a side step, a turn may pass nearer than the walk's path
-#: (2026-09-28).
-CLEAR_M, OVERLAP_M = 0.09, 0.03
+#: A swinging foot's sole is kept GAP_M off the other's, edge to edge across the walk, the other
+#: along its own heading, wherever they overlap along the walk, eased in over OVERLAP_M of them
+#: coming to: pushed out on its own side, by the walker's own kinematics; a catch, a side step, a
+#: turn may pass nearer than the walk's path. Kept 90 mm off the other's ball, centre to centre,
+#: the foot skimming 25 mm over the floor met the other's heel, 24 mm nearer toed out 8 degrees:
+#: -8 mm, 340 N. Eased in over 30 mm, 10-15 ms at the swing's speed, the toes met the other's
+#: heel's corner: over 100 mm they pass 12 mm apart (2026-09-28).
+GAP_M, OVERLAP_M = 0.01, 0.1
 
 
 #: A leg's plan led SWING_LEAD_S through its swing and its landing's roll: a drive lags a
@@ -105,13 +108,22 @@ def led(q):
     return q % 1.0 >= gait.TOE_OFF or q % 1.0 < gait.SETTLE
 
 
-def clear(at, sign, other):
-    """`at`, a swinging ankle's target (world), on side `sign`, clear of the other foot, its
-    ball at `other`: the soles' overlap along the walk from the other's heel to its toes."""
-    lo, hi = other[2] - gait.BALL - gait.HEEL, other[2] + figure.TOE_M
-    overlap = min(hi, at[2] + gait.BALL + figure.TOE_M) - max(lo, at[2] - gait.HEEL)
-    near = max(0.0, min(1.0, (overlap + OVERLAP_M) / OVERLAP_M))
-    short = CLEAR_M - sign * (at[0] - other[0])
+def clear(at, sign, other, ankle):
+    """`at`, a swinging ankle's target (world), on side `sign`, clear of the other foot, its ball
+    at `other` and its ankle at `ankle`: the soles' overlap along the walk from the other's heel
+    to its toes."""
+    dx, dz = other[0] - ankle[0], other[2] - ankle[2]
+    norm = math.hypot(dx, dz) or 1.0
+    dx, dz = dx / norm, dz / norm
+    nx, nz = (dz, -dx) if sign * dz > 0.0 else (-dz, dx)
+    w = figure.SOLE_HALF
+    lo = (ankle[0] - gait.HEEL * dx + w * nx, ankle[2] - gait.HEEL * dz + w * nz)
+    hi = (other[0] + figure.TOE_M * dx + w * nx, other[2] + figure.TOE_M * dz + w * nz)
+    z0, z1 = max(lo[1], at[2] - gait.HEEL), min(hi[1], at[2] + gait.BALL + figure.TOE_M)
+    near = max(0.0, min(1.0, (z1 - z0 + OVERLAP_M) / OVERLAP_M))
+    span = hi[1] - lo[1] or 1.0
+    edges = (lo[0] + (hi[0] - lo[0]) * max(0.0, min(1.0, (z - lo[1]) / span)) for z in (z0, z1))
+    short = max(sign * (e - at[0]) for e in edges) + w + GAP_M
     if short <= 0.0 or near <= 0.0:
         return at
     return (at[0] + sign * short * near, at[1], at[2])
@@ -158,7 +170,7 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
             step['down_s'] = min(DOWN_S, step['down_s'] + dt)
             x0, y0, z0 = step['at']
             at = (x0, y0 + (gait.ANKLE_H - y0) * gait.eased(step['down_s'] / DOWN_S), z0)
-            at = clear(at, sign, balls[walkplan._OTHER[side]])
+            at = clear(at, sign, balls[walkplan._OTHER[side]], ankles[walkplan._OTHER[side]])
             at, short = reach(figure.hip(sign, pel, turn_now), at, stance.SWING_REACH * gait.REACH)
             out[side], lower = at, max(lower, short)
             w.stood[side] = feet_x[side] = x0
@@ -180,7 +192,7 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
             at = (step['x_from'] + (step['x_out'] - step['x_from']) * gait.eased(u),
                   gait.ANKLE_H + SIDE_LIFT_M * math.sin(math.pi * u) ** 2,
                   step['z_from'] + (step['z_land'] - step['z_from']) * on)
-            at = clear(at, sign, balls[walkplan._OTHER[side]])
+            at = clear(at, sign, balls[walkplan._OTHER[side]], ankles[walkplan._OTHER[side]])
             at, short = reach(figure.hip(sign, pel, turn_now), at, stance.SWING_REACH * gait.REACH)
             out[side], lower = at, max(lower, short)
             feet_x[side] = w.stood.get(side, balls[side][0])
@@ -194,7 +206,7 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
         at = (float(x[i]) + sign * (walkplan.WIDEN_M * math.sin(math.pi * u) ** 2 - gait.BALL
                                     * math.sin(math.radians(gait.TOE_OUT_DEG))), ankle[1],
               planned_z + ankle[2] + fore)
-        at = clear(at, sign, balls[walkplan._OTHER[side]])
+        at = clear(at, sign, balls[walkplan._OTHER[side]], ankles[walkplan._OTHER[side]])
         hip = figure.hip(sign, pel, turn_now)
         at, short = reach(hip, at, stance.SWING_REACH * gait.REACH)
         if (w.side is None and catch[i] and short > 0.0 and u >= capture.FROM_U

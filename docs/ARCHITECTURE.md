@@ -104,7 +104,8 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     routines (types: a body of subsystems, a bus each), live
                     (fed a line at a time, a buffer, woken with a line, a
                     failsafe), simulated (pack, camera), virtual (VIRTUAL: a
-                    type's joints where told, no board), gait (a walk's angles),
+                    type's joints where told, no board), gait (a walk's angles)
+                    over curves (an ease, Hermite, Catmull-Rom: pure),
                     figure (the gynoid's segments, masses, leg IK), physics
                     (DYNAMIC: the figure in MuJoCo, a drive a joint), rtu
                     (Modbus RTU: CRC-16, a pass's frames), buses (its boards on

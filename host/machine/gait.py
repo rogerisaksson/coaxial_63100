@@ -17,6 +17,8 @@ negative toes-up, a shoulder positive forward.
 """
 import math
 
+from machine.curves import eased, ends, hermite, pivot, septic, through
+
 #: The humanoid's joints, as its body names them (`machine.routines.TYPES['humanoid']`).
 JOINTS = ('pelvis', 'waist', 'neck', 'head',
           'left_shoulder', 'left_elbow', 'left_wrist', 'left_gripper',
@@ -31,6 +33,8 @@ HIP_HALF, HIP_DROP, THIGH, SHANK = 0.082, 0.055, 0.39, 0.38
 #: A 23 cm sole with the toes (`figure.CONTACTS`), a sneaker in size 36-37: 27 cm read as boats,
 #: 24 still big (2026-09-28).
 ANKLE_H, BALL, HEEL = 0.075, 0.117, 0.055
+#: The toes' joint over the sole, and the toes' length from it.
+TOE_RY, TOE_M = 0.014, 0.058
 
 #: The feet walk a beam: each planted TRACK_M off the line, swung WIDEN_M further out round the
 #: standing foot at mid-swing, the stand's STAND_M apart (half).
@@ -80,11 +84,17 @@ SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.66, 15.0, -75.0
 #: (2026-09-25).
 TOE_DEG, TOE_RATE, TOE_ACC = -50.0, -300.0, 4000.0
 
+#: The heel up RISE_DEG toes-down as the other foot lands (RISE_AT), turning RISE_RATE a stride:
+#: up 4 there, the trailing leg held the hips at 822 mm where the landing leg needed 841 to land
+#: straight, its knee at 31 degrees; at 10, 13, the hips' rise and fall 15 -> 7 mm, held 100 %;
+#: at 15 she fell at 0.9 strides/s (2026-09-28).
+RISE_AT, RISE_DEG, RISE_RATE = 0.5, -10.0, -180.0
+
 #: The foot levels in the swing: SWING_DEG toes up at SWING_AT of the way from toe-off to the
-#: landing, turning SWING_RATE a stride, so its toes clear the floor on a low swing (LIFT_M).
-#: Pitched toes-down to half the swing, the toes needed 82 mm of lift, and from 200 mm the foot
-#: came down at 0.9 m/s - lagging, it struck at 0.75, 1.5 kN in 2 ms (2026-09-28).
-SWING_AT, SWING_DEG, SWING_RATE = 0.4, 0.0, 60.0
+#: landing, turning SWING_RATE a stride, hanging toes-down from the ankle until it passes under
+#: the hip. Level at 0.4 over the skim (LIFT_M), the foot trailed flat and the knee bent twice,
+#: 45, 31, 46 degrees: she pedalled; at 0.6 once, to 55 (2026-09-28).
+SWING_AT, SWING_DEG, SWING_RATE = 0.6, 0.0, 60.0
 
 #: The body's lean ahead of the plumb line before the first step, deg - the pelvis tipped in
 #: the lean's frame, the torso with it - and how long the walk takes to let it out, s: pushed
@@ -103,8 +113,10 @@ def _knots(stride):
     front foot and she zigzagged over (2026-09-27)."""
     swing = (((TOE_OFF + SWING_AT * (1.0 - TOE_OFF), SWING_DEG, SWING_RATE, 0.0),)
              if 0.0 < SWING_AT < 1.0 else ())
-    return ((SETTLE, 0.0, 0.0, 0.0), (HEEL_OFF, 0.0, 0.0, 0.0),
-            (TOE_OFF, TOE_DEG * stride, TOE_RATE * stride, TOE_ACC * stride)) + swing + (
+    rise = (((RISE_AT, RISE_DEG * stride, RISE_RATE * stride, 0.0),)
+            if HEEL_OFF < RISE_AT < TOE_OFF else ())
+    return ((SETTLE, 0.0, 0.0, 0.0), (HEEL_OFF, 0.0, 0.0, 0.0)) + rise + (
+            (TOE_OFF, TOE_DEG * stride, TOE_RATE * stride, TOE_ACC * stride),) + swing + (
             (1.0, LAND_DEG, LAND_RATE, 0.0), (1.0 + SETTLE, 0.0, 0.0, 0.0))
 
 #: The middle of a leg's single support: from the other's toe-off to its own landing.
@@ -125,8 +137,9 @@ STANCE_AT = 0.24
 #: The pelvis alone moves: over the stance leg (metres; at 3 cm both legs leaned together, a
 #: parallelogram), dropping on the swing side (degrees,
 #: its obliquity) and turning about the spine (degrees, its rotation); the torso turns all of it
-#: back (COUNTER 1), so the shoulders and the head go straight.
-SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.010, 4.0, 12.0, 1.0
+#: back (COUNTER 1), so the shoulders and the head go straight. Turned 12, the pelvis swung 39
+#: degrees, the hips wagging past the catwalk's sway; at 6, 26 (2026-09-28).
+SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.010, 4.0, 6.0, 1.0
 
 #: How far each arm joint trails the one above it, radians of the stride.
 TRAIL = 0.55
@@ -151,19 +164,6 @@ def _within(d):
     return REACH - SOFT_REACH_M * (math.log1p(math.exp(over)) if over < 30.0 else over)
 
 
-def eased(x):
-    """0 to 1 over 0 to 1 with no jerk at either end (smootherstep)."""
-    x = min(1.0, max(0.0, x))
-    return x * x * x * (x * (6.0 * x - 15.0) + 10.0)
-
-
-def _pivot(x, y, dx, dy, pitch):
-    """The ankle, from a point (x, y) on the foot and the ankle's offset (dx, dy) from it on a flat
-    foot, the foot pitched `pitch` degrees toes-up about that point."""
-    c, s = math.cos(math.radians(pitch)), math.sin(math.radians(pitch))
-    return x + dx * c - dy * s, y + dx * s + dy * c
-
-
 def pitch_of(q, stride=1.0):
     """The foot's pitch toes-up, degrees, at this leg's phase `q` and `stride`, through `_knots`:
     flat from SETTLE, the heel rising through toe-off, round through the swing and the landing
@@ -174,7 +174,7 @@ def pitch_of(q, stride=1.0):
         if q < q1:
             span = q1 - q0
             scale = (1.0, span, span * span)
-            return _hermite([v * s for v, s in zip(start, scale)],
+            return hermite([v * s for v, s in zip(start, scale)],
                             [v * s for v, s in zip(end, scale)], (q - q0) / span)
     return 0.0
 
@@ -187,9 +187,9 @@ def planted(q, stride=1.0):
     q %= 1.0
     pitch = pitch_of(q, stride)
     if pitch > 0.0:
-        x, y = _pivot(length * STANCE_AT - HEEL, 0.0, HEEL, ANKLE_H, pitch)
+        x, y = pivot(length * STANCE_AT - HEEL, 0.0, HEEL, ANKLE_H, pitch)
     else:
-        x, y = _pivot(length * STANCE_AT + BALL, 0.0, -BALL, ANKLE_H, pitch)
+        x, y = pivot(length * STANCE_AT + BALL, 0.0, -BALL, ANKLE_H, pitch)
     return x - length * q, y, pitch
 
 
@@ -255,22 +255,12 @@ def _blurred(values):
             for i in range(n)]
 
 
-def _through(samples, p):
-    """The periodic Catmull-Rom curve through `samples` (a stride's) at phase `p`."""
-    n = len(samples)
-    x = (p % 1.0) * n
-    i, u = int(x), x - int(x)
-    a, b, c, d = (samples[(i + k) % n] for k in (-1, 0, 1, 2))
-    return 0.5 * (2.0 * b + (c - a) * u + (2.0 * a - 5.0 * b + 4.0 * c - d) * u * u
-                  + (3.0 * (b - c) + d - a) * u * u * u)
-
-
 def _fit(stride):
     """The hips' height at SAMPLES phases: the eroded limit, lowered until the curve through it
     is under the limit everywhere, and then as far again as a soft knee takes a leg's length."""
     limits = [_limit(k / SAMPLES, stride) for k in range(SAMPLES)]
     smooth = _blurred(_eroded(limits))
-    over = max(_through(smooth, k / (4.0 * SAMPLES)) - _limit(k / (4.0 * SAMPLES), stride)
+    over = max(through(smooth, k / (4.0 * SAMPLES)) - _limit(k / (4.0 * SAMPLES), stride)
                for k in range(4 * SAMPLES))
     knee = math.radians(max(KNEE_MIN_DEG, KNEE_SOFT_DEG * stride ** KNEE_POWER))
     soft = REACH - math.sqrt(THIGH ** 2 + SHANK ** 2 + 2.0 * THIGH * SHANK * math.cos(knee))
@@ -297,8 +287,8 @@ def _hips(p, stride):
     stance legs reach; between two fitted strides, both weighed, so a pace changes smoothly."""
     low = math.floor(stride / PACE_STEP) * PACE_STEP
     w = (stride - low) / PACE_STEP
-    below = _through(_FITS[round(low, 6)], p)
-    return below if w < 1e-9 else (1.0 - w) * below + w * _through(
+    below = through(_FITS[round(low, 6)], p)
+    return below if w < 1e-9 else (1.0 - w) * below + w * through(
         _FITS[round(low + PACE_STEP, 6)], p)
 
 
@@ -326,45 +316,33 @@ def _ik(x, y, hip, ahead):
     return math.degrees(math.atan2(dx, -dy) + bend), math.degrees(knee)
 
 
-#: The swing ankle's lift over the path between toe-off and the landing, metres at mid-swing:
-#: at 0.07, the foot pitched on past toe-off, the toes dragged 10 mm into the floor.
-LIFT_M = 0.082
+#: The swinging foot skims the floor: its heel's, ball's and toes' least height over it
+#: (`_least`, soft within LIFT_SOFT_M) LIFT_M, taken from the planted foot's pivot over
+#: LIFT_RISE of the swing and handed to the landing's over LIFT_FALL. Lifted by a bump over a
+#: path, the foot went 135 mm up and the knee to 75 degrees: she trod the air (2026-09-28).
+LIFT_M, LIFT_RISE, LIFT_FALL, LIFT_SOFT_M = 0.025, 0.25, 0.4, 0.003
 
 #: The step the swing's end conditions are differenced over, of a stride.
 DIFF = 1e-4
 
 
-#: Hermite bases, u^0..u^7 coefficients per end condition in order (value, rate, acceleration,
-#: jerk) at u 0 then at u 1: the quintic from three, the septic from four.
-_BASES = {3: ((1, 0, 0, -10, 15, -6), (0, 1, 0, -6, 8, -3), (0, 0, 0.5, -1.5, 1.5, -0.5),
-              (0, 0, 0, 10, -15, 6), (0, 0, 0, -4, 7, -3), (0, 0, 0, 0.5, -1, 0.5)),
-          4: ((1, 0, 0, 0, -35, 84, -70, 20), (0, 1, 0, 0, -20, 45, -36, 10),
-              (0, 0, 0.5, 0, -5, 10, -7.5, 2), (0, 0, 0, 1 / 6, -2 / 3, 1, -2 / 3, 1 / 6),
-              (0, 0, 0, 0, 35, -84, 70, -20), (0, 0, 0, 0, -15, 39, -34, 10),
-              (0, 0, 0, 0, 2.5, -7, 6.5, -2), (0, 0, 0, 0, -1 / 6, 0.5, -0.5, 1 / 6))}
-
-
-def _hermite(start, end, u):
-    """The polynomial from `start` at u 0 to `end` at u 1, each (value, rate, acceleration[,
-    jerk]) over u."""
-    powers = [u ** k for k in range(2 * len(start))]
-    return sum(w * sum(c * p for c, p in zip(basis, powers))
-               for w, basis in zip(list(start) + list(end), _BASES[len(start)]))
-
-
-def _ends(f, q, h, span):
-    """Per coordinate of f at q: (value, rate, acceleration, jerk) over `span`, differenced one
-    side, steps of `h` (negative, behind)."""
-    return [(a, (4.0 * b - 3.0 * a - c) / (2.0 * h) * span, (a - 2.0 * b + c) / h ** 2 * span ** 2,
-             (3.0 * (b - c) + d - a) / h ** 3 * span ** 3)
-            for a, b, c, d in zip(*(f(q + k * h) for k in range(4)))]
+def _least(q, stride):
+    """The foot's least height under its ankle at the leg's phase `q`, metres: the heel's, the
+    ball's and the toes' tip's, soft within LIFT_SOFT_M, pitched and bent as planned."""
+    pitch = pitch_of(q, stride)
+    a, b = math.radians(pitch), math.radians(pitch - toes_of(q, pitch))
+    ball = BALL * math.sin(a) - ANKLE_H * math.cos(a)
+    heights = (-HEEL * math.sin(a) - ANKLE_H * math.cos(a), ball,
+               ball + TOE_RY * (math.cos(a) - math.cos(b)) + TOE_M * math.sin(b))
+    low = min(heights)
+    return low - LIFT_SOFT_M * math.log(sum(math.exp((low - h) / LIFT_SOFT_M) for h in heights))
 
 
 def swung(q, stride=1.0):
     """(ankle ahead of the hip, ankle over the floor) of a swinging foot at its leg's phase `q`:
-    in the floor's frame a septic Hermite from toe-off to the next landing, meeting the planted
-    foot's place, speed, acceleration and jerk at both ends, lifted LIFT_M at mid-swing by a bump
-    nothing at either end to its second derivative. Swung in the joints instead, the path knew
+    ahead, in the floor's frame a septic Hermite from toe-off to the next landing, meeting the
+    planted foot's place, speed, acceleration and jerk at both ends; over the floor, the planted
+    foot's pivot handed to the skim (LIFT_M) and back. Swung in the joints instead, the path knew
     no floor: the foot went under it and the knee, bent to lift it, snapped straight to land;
     quintic, the jerk jumped 3 rms at toe-off (2026-09-25)."""
     length, span = STRIDE_M * stride, 1.0 - TOE_OFF
@@ -374,9 +352,11 @@ def swung(q, stride=1.0):
         return x + length * p, y
 
     u = (q % 1.0 - TOE_OFF) / span
-    x, y = (_hermite(a, b, u) for a, b in zip(_ends(floor, TOE_OFF, -DIFF, span),
-                                               _ends(floor, 1.0, DIFF, span)))
-    return x - length * (q % 1.0), y + LIFT_M * 64.0 * u ** 3 * (1.0 - u) ** 3
+    (x0, _y0), (x1, _y1) = ends(floor, TOE_OFF, -DIFF, span), ends(floor, 1.0, DIFF, span)
+    pivot = planted(q, stride)[1]
+    skim = septic(u / LIFT_RISE) * septic((1.0 - u) / LIFT_FALL)
+    return (hermite(x0, x1, u) - length * (q % 1.0),
+            pivot + skim * (LIFT_M - _least(q, stride) - pivot))
 
 
 def leg(q, where, stride=1.0):

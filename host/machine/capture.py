@@ -42,7 +42,8 @@ CAPTURE = np.dtype([(n, 'f8') for n in PARAMS + ('x', 'latched', 'swapping')])
 #: The sole's half width the ankle holds within, m; the landing's gain on what is off; the dead
 #: band, m; the nearest across, the crossing that swaps, the swing's progress a swap is asked
 #: within; the progress the lateral is latched from; a landing this far off the walk's is a
-#: catch: `state`'s defaults, in PARAMS' order.
+#: catch - a swinging leg's: the standing leg's row, read against the swinging foot kept out
+#: round it, flagged one every stride (2026-09-28): `state`'s defaults, in PARAMS' order.
 MARGIN, GAIN, DEAD, CROSS, SWAP, FROM_U, LATCH_U, CATCH = (0.035, 1.1, 0.01, 0.02, 0.03, 0.12,
                                                             0.7, 0.04)
 
@@ -76,5 +77,5 @@ def landing(s: NDArray, u) -> tuple:
     keep = (s['latched'] == 1.0) & ~fresh
     s['x'] = np.where(keep, s['x'], standing + sign * across)
     s['latched'] = np.where(fresh, 0.0, 1.0)
-    catch = (s['swapping'] == 1.0) | (np.abs(across - sep) > s['catch'])
+    catch = (s['swapping'] == 1.0) | ((np.abs(across - sep) > s['catch']) & swinging)
     return s['x'].copy(), s['swapping'] == 1.0, catch, off
