@@ -16,7 +16,7 @@ import math
 from typing import Any
 
 from machine import figure, gait, walker
-from machine.figure import LEG, add, mul, rx, ry
+from machine.figure import LEG, add, mul, rx, ry, sub
 
 #: Her feet in the squat and standing: the ankles FEET_X either side of the line, at z 0.
 FEET_X = 0.08
@@ -55,6 +55,9 @@ SHIFT_IN, LIFT_IN = 0.055, 0.015
 #: shins: leaning back before the first step; at 1 and 1.5 mm the first steps fell, unsunk the
 #: stance knee locked at -2; the lean's 8 from here on read as unnatural (2026-09-28).
 SINK_M = 0.002
+
+#: The standing knee's bend as her weight goes on over it into the first step, deg: the shift's.
+SOFT_KNEE = 8.0
 
 #: Rising, the hips lift first, the torso leaning on with the shins, and then both straighten:
 #: at RISE_MID of the way up, RISE_MID_S in, the torso as far ahead of plumb as the shins. Risen
@@ -136,6 +139,22 @@ def with_shins(frame, x, z) -> dict[str, Any]:
     return frame
 
 
+def soft(frame, side, knee, x, z) -> dict[str, Any]:
+    """`frame` with its pelvis as low as lets the `side` knee bend `knee` degrees, its centre of
+    mass over (x, z). Moved on 5-9 cm at the shift's height the leg could not reach, its knee
+    straight in the keyframe and bent back 1.8 degrees under her (2026-09-28)."""
+    reach = math.sqrt(gait.THIGH ** 2 + gait.SHANK ** 2
+                      + 2.0 * gait.THIGH * gait.SHANK * math.cos(math.radians(knee)))
+    sign = 1.0 if side == 'left' else -1.0
+    for _ in range(4):
+        hip = figure.hip(sign, frame['pelvis'], _turn(frame))
+        d = sub(hip, frame[side][0])
+        up = math.sqrt(max(0.0, reach * reach - d[0] * d[0] - d[2] * d[2]))
+        frame = over(dict(frame, pelvis=add(frame['pelvis'], (0.0, min(0.0, up - d[1]), 0.0))),
+                     x, z)
+    return frame
+
+
 def _mix(a, b, k) -> Any:
     if isinstance(a, dict):
         return {key: _mix(a.get(key, 0.0), b.get(key, 0.0), k) for key in set(a) | set(b)}
@@ -164,7 +183,7 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
     shift = over(dict(rise, pelvis=add(rise['pelvis'], (0.0, -SINK_M, 0.0)), tilt=gait.LEAN_DEG,
                       joints=dict(rise['joints'], neck=rise['joints']['neck'] - gait.LEAN_DEG)),
                  FEET_X - SHIFT_IN, FEET_Z)
-    lean = over(shift, FEET_X - SHIFT_IN, LEAN_M)
+    lean = soft(shift, 'left', SOFT_KNEE, FEET_X - SHIFT_IN, LEAN_M)
     # The right foot lifted and swung half a step while her weight goes on over the left foot's
     # ball; the walker takes her on from there, mid-swing, at the phase her lean says
     # (`Walker.begin`), and lands the foot as the walk lands it. Set down first in the walk's
@@ -172,8 +191,8 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
     # walk tipped both feet at once and she hopped (2026-09-25); set down from a lean, she hopped
     # off the left leg (2026-09-27).
     half = 0.5 * gait.STRIDE_M * FIRST * gait.pace(cadence) * gait.STANCE_AT
-    lifted = over(dict(lean, right=((-FEET_X, gait.ANKLE_H + LIFT_UP_M, half), 0.0)),
-                  FEET_X - LIFT_IN, LEAN_M + LIFT_ON_M)
+    lifted = soft(dict(lean, right=((-FEET_X, gait.ANKLE_H + LIFT_UP_M, half), 0.0)), 'left',
+                  SOFT_KNEE, FEET_X - LIFT_IN, LEAN_M + LIFT_ON_M)
     return [('squat', 0.0, squat), ('squat', 1.5, squat), ('look', 0.8, look),
             ('push', 1.0, push), ('rise', RISE_MID_S, rising), ('rise', 2.0 - RISE_MID_S, rise),
             ('stand', 1.0, rise), ('shift', 1.2, shift),

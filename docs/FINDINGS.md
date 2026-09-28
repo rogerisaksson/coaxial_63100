@@ -600,6 +600,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   spread's mean, 30 runs a candidate: the committed arms and the same moved
   2 % cost 7.63 and 7.10 where one run a trial gave 6.08 and 8.84; the arms
   from the forearm 8.61, the slip at 0.9 strides/s held 55 % (2026-09-28).
+- The seam's odd lean, by the page's recording: the lean and the step's
+  keyframes moved the pelvis 5-9 cm on at the shift's height, so the
+  standing knee was planned straight and bent back 1.8 degrees under her
+  for 0.35 s while she tipped on over it like a plank (the ankle-shoulders
+  line +5 -> +9). Lowered till that knee bends as in the shift
+  (`arrival.soft`, SOFT_KNEE 8): at least +6.9 through the seam, bending on
+  7 -> 19 as she goes over it; 15 of 16 perturbed starts (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
