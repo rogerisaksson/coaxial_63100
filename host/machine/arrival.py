@@ -130,16 +130,14 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
     push = over(dict(squat, tilt=15.0, joints=dict(
         squat['joints'], spine=30.0, neck=-15.0, right_shoulder=25.0, right_elbow=25.0,
         right_gripper=30.0)), 0.0, FEET_Z)
-    rise = over(dict(push, tilt=gait.TILT_DEG,
-                     pelvis=(0.0, gait.standing()[2], push['pelvis'][2]),
-                     joints=dict(push['joints'], spine=-gait.TILT_DEG, neck=3.0,
-                                 right_shoulder=0.0,
+    rise = over(dict(push, tilt=0.0, pelvis=(0.0, gait.standing()[2], push['pelvis'][2]),
+                     joints=dict(push['joints'], spine=0.0, neck=3.0, right_shoulder=0.0,
                                  right_elbow=10.0, right_gripper=18.0, left_shoulder=0.0,
                                  left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
                 0.0, FEET_Z)
     shift = over(dict(rise, pelvis=add(rise['pelvis'], (0.0, -SINK_M, 0.0))),
                  FEET_X - SHIFT_IN, FEET_Z)
-    lean = over(dict(shift, tilt=gait.LEAN_DEG + gait.TILT_DEG,
+    lean = over(dict(shift, tilt=gait.LEAN_DEG,
                      joints=dict(shift['joints'], neck=shift['joints']['neck'] - gait.LEAN_DEG)),
                 FEET_X - SHIFT_IN, LEAN_M)
     # The right foot lifted and swung half a step while her weight goes on over the left foot's
@@ -179,7 +177,7 @@ def settling(now, front, cadence=gait.CADENCE) -> list[tuple[str, float, dict[st
     sign = 1.0 if ahead == 'left' else -1.0
     x, z = front[0] - sign * FEET_X, front[2]
     beside = (x - sign * FEET_X, gait.ANKLE_H, z)
-    lifted = over(dict(now, joints=rise['joints'], tilt=gait.TILT_DEG,
+    lifted = over(dict(now, joints=rise['joints'], tilt=0.0,
                        **{ahead: (front, 0.0), behind: ((beside[0], gait.ANKLE_H + 0.05,
                                                          (now[behind][0][2] + z) / 2.0), 0.0)}),
                   front[0] - sign * 0.015, z + STOP_M)

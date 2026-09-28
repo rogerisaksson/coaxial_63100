@@ -85,10 +85,6 @@ TOE_DEG, TOE_RATE, TOE_ACC = -50.0, -300.0, 4000.0
 #: now, and 8 reads as a lean to the eye, the rises held at 4, 6 and 8 (2026-09-28).
 LEAN_DEG, LEAN_OUT_S = 8.0, 2.0
 
-#: Her pelvis tipped TILT_DEG forward under the torso, standing and walking, the spine taking it
-#: back out: the small of the back hollowed, the seat back.
-TILT_DEG = 6.0
-
 
 def _knots(stride):
     """The foot's pitch toes-up at its knots: (phase, degrees, a stride, a stride squared), a

@@ -159,8 +159,8 @@ class Director:
         return out
 
     def _tilt(self, bus):
-        """The pelvis's tilt from her upright (tipped `gait.TILT_DEG`), degrees."""
-        up = figure.mul(self._pelvis(bus)[1], figure.rx(-math.radians(gait.TILT_DEG)))[1][1]
+        """The pelvis's tilt from upright, degrees."""
+        up = self._pelvis(bus)[1][1][1]
         return math.degrees(math.acos(max(-1.0, min(1.0, up))))
 
     def _falling(self, bus):

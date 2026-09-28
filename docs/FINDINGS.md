@@ -560,17 +560,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   page's 60 degrees the column's lean reads as leaning back. The head
   nodded 6.1 degrees a step on the neck's 60 N m/rad; 300 at half critical:
   2.2, the pendulum's stir 3.55 -> 3.00 mm, held 89.7 % (2026-09-28).
-- Her walk made hers: the pelvis tipped 6 degrees under an upright torso,
-  standing and walking, the spine taking it back out (`gait.TILT_DEG`, the
-  fall's watch measuring from it); the arms swung from the forearm, near
-  the body (`gait.ARM`: the shoulder 12 degrees a side, the elbow 24 +- 11,
-  the wrist 10 +- 7). The hips already swayed 35 mm to the shoulders' 23,
-  the pelvis rolling 10 and turning 39 degrees a stride; a deeper hip drop
+- Her walk made hers: the arms swung from the forearm, near the body
+  (`gait.ARM`: the shoulder 12 degrees a side, the elbow 24 +- 11, the
+  wrist 10 +- 7). The hips already swayed 35 mm to the shoulders' 23, the
+  pelvis rolling 10 and turning 39 degrees a stride; a deeper hip drop
   (ROLL_DEG 6, 8) swayed the shoulders 28 and 33 mm and nodded the head
-  2.9 and 3.6 degrees. The scoreboard cannot judge a look: the committed
-  arms moved 2 % (the shoulder 16.3, the elbow's swing 9.2) held 80 and
-  75 %, the slips and the hot knee flipping; every arm tried held 84.7-85.5
-  %, the tilt alone 89.5 (2026-09-28).
+  2.9 and 3.6 degrees. The pelvis tipped 6 degrees under an upright torso
+  read as leaning back from the rise on: the page's spine at -5.9, the
+  torso bent back over the hips; out again. The scoreboard cannot judge a
+  look: the committed arms moved 2 % (the shoulder 16.3, the elbow's swing
+  9.2) held 80 and 75 %, the slips and the hot knee flipping; every arm
+  tried held 84.7-85.5 %, the chosen ones 89.7 (2026-09-28).
 - The weight onto the left foot before the first step, partly as the
   right lifts (`arrival.SHIFT_IN` 3.5 -> 5.5 cm inside the left ankle):
   standing, the stance hip rolls -2.5 degrees, not -4.4, the pelvis 33 mm
