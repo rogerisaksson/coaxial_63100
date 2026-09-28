@@ -1316,7 +1316,10 @@ def test_the_demo_actually_loads_the_motor(report):
                          abs(st[-1][2]) <= 0.05 * abs(st[0][2]),
                          '%.0f -> %.0f rpm' % (st[0][2], st[-1][2]))
     loads = [(index, st) for index, (name, st) in enumerate(stages) if name == 'load']
-    if loads and starved(loads[-1][0]):
+    # The load starts where the brake and the up before it left the rotor: starved there, it
+    # starts off - CI's runner held -711 rpm on 10 A (2c15fe4).
+    if loads and any(starved(index) for index in range(max(0, loads[-1][0] - 2),
+                                                       loads[-1][0] + 1)):
         report.skip('the load\'s physics', 'the page stalled past the plant\'s catch-up')
     else:
         report.check('the load holds 1 000 rpm to 90 %, on its current',

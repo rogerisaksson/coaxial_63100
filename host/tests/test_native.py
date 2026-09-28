@@ -291,7 +291,7 @@ def test_a_page_drawing_leaves_the_board_its_time(report, _rig):
     drawn, clock, real = [], [], view.boxes
 
     def boxes(part, pid, record, q, rate):
-        drawn.append(tuple(round(x, 4) for x in q))
+        drawn.append((time.monotonic(), tuple(round(x, 4) for x in q)))
         clock.append((time.monotonic(), native.limb_for(port).seconds()))
         return real(part, pid, record, q, rate)
 
@@ -304,9 +304,15 @@ def test_a_page_drawing_leaves_the_board_its_time(report, _rig):
     share = (b1 - b0) / max(1e-9, w1 - w0)
     report.check('a page drawing beside it, the board keeps the wall\'s time: 90 % or more',
                  share >= 0.9, '%.2f board s in %.2f wall s' % (b1 - b0, w1 - w0))
-    report.check('and the page\'s attitude moves with the part: a new one in half the frames',
-                 len(set(drawn)) >= len(drawn) // 2,
-                 '%d attitudes in %d frames' % (len(set(drawn)), len(drawn)))
+    # A freeze is an attitude drawn on while the part moves: the longest it stood, wall s. Not
+    # a count a frame - on CI's two batons, beside the other suites, the feed read slower and
+    # 8 attitudes in 80 frames moved throughout (b75844a); frozen, 3 stood 5 s.
+    changes = [t for (t, q), (_, was) in zip(drawn[1:], drawn) if q != was]
+    marks = [drawn[0][0]] + changes + [drawn[-1][0]]
+    stood = max(b - a for a, b in zip(marks, marks[1:]))
+    report.check('and the page\'s attitude moves with the part: none stands 2 s',
+                 stood < 2.0, '%d attitudes in %d frames, the longest standing %.2f s'
+                 % (len({q for _, q in drawn}), len(drawn), stood))
 
 
 def test_the_body_keeps_the_wall(report):
