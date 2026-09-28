@@ -13,13 +13,15 @@ GPU where a card answers (`coaxial.graphics.gynoid`), each drive called out at t
 edge with a leader to its joint: its angle, its torque as a bar and a number, its power as a bar.
 """
 import argparse
+import csv
 import math
+import os
 import sys
 import time
 
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
-from machine.figure import JOINTS, quat
+from machine.figure import JOINTS, SEGMENTS, frames, quat
 from machine.routines import TYPES
 from machine.running import Running
 from terminal.loader import TO_MENU
@@ -27,6 +29,7 @@ from terminal.ui import screen as _screen
 from terminal.ui.screen import FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import frame_of, hud, stage
+from tools import REPO
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -45,6 +48,14 @@ YAW, TURN_DEG, ORBIT_DEG_S, ZOOM = 60.0, 10.0, 12.0, (0.6, 2.5)
 
 #: A shove from her side, newtons for seconds.
 PUSH_N, PUSH_S = 120.0, 0.12
+
+#: Where R's recordings go, a CSV from a press to the next: every state the page hears from her
+#: (a slice's, 10-20 a second of her time) - the page's yaw, her state, each joint, each
+#: segment's place in the world.
+RECORDINGS = os.path.join(REPO, 'build', 'recordings')
+HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
+           'x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'] + list(JOINTS)
+          + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz'])
 
 #: A callout's inks: the joint's name, its boxes' ground, the torque's bar, the power's driving
 #: and braking, the numbers; the bars' cells.
@@ -115,6 +126,9 @@ def boxes(state, now, name):
         ('pendulum', '%.2f mm' % now['stir'] if now else '-'),
         ('its parts', 'on %.2f  x %.2f  up %.2f' % now['stirs'] if now else '-'),
         ('physics', 'x%.1f real time' % now['ratio'] if now else '-'),
+        ('record', 'R starts' if state['recording'] is None and not state['recorded']
+         else 'on, %.1f s - R saves' % (len(state['recording']) / 60.0)
+         if state['recording'] is not None else os.path.basename(state['recorded'])),
         ('drawn by', name)])]
     for subsystem in TYPES['gynoid'].body:
         out.append(hud(subsystem.name.replace('_', ' ').upper(), [
@@ -138,6 +152,31 @@ def _paced(step):
     return pace
 
 
+def row(now, yaw):
+    """A recording's row (HEADER): her state at the page's `yaw`, each joint, each segment's
+    place."""
+    placed = frames(now['angles'], now['where'], quat(*now['turn']))
+    return ([round(now['t'], 4), now['stage'], yaw, now['speed'], now['phase']]
+            + list(now['loads']) + list(now['where']) + list(now['turn'])
+            + [now['angles'].get(j, 0.0) for j in JOINTS]
+            + [v for seg in SEGMENTS for v in placed[seg[0]][0]])
+
+
+def _recorded(state):
+    """R: recording from now; R again: written to RECORDINGS, its name on the page."""
+    if state['recording'] is None:
+        state['recording'], state['recorded'] = [], None
+        return
+    rows, state['recording'] = state['recording'], None
+    os.makedirs(RECORDINGS, exist_ok=True)
+    path = os.path.join(RECORDINGS, time.strftime('humanoid_%Y%m%d_%H%M%S.csv'))
+    with open(path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(HEADER)
+        writer.writerows(rows)
+    state['recorded'] = path
+
+
 def _pushed(state):
     state['side'] = -state['side']
     state['body'].send(push=(state['side'] * PUSH_N, 0.0, 0.0), seconds=PUSH_S)
@@ -152,7 +191,8 @@ KEYS = dict(
     + [(k, lambda state: state.update(orbit=not state['orbit'])) for k in 'oO']
     + [(k, lambda state: state.update(called=CALLING[(CALLING.index(state['called']) + 1)
                                                      % len(CALLING)])) for k in 'lL']
-    + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'rR']
+    + [(k, _recorded) for k in 'rR']
+    + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'vV']
     + [(k, _zoomed(1.1)) for k in '+='] + [(k, _zoomed(1.0 / 1.1)) for k in '-_'])
 
 
@@ -188,10 +228,14 @@ def main(argv=None):
     board_view = stage()
     terminal = board_view.is_terminal
     state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
-             'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow()}
+             'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
+             'recording': None, 'recorded': None}
 
     def draw():
-        now = body.latest()
+        said = []
+        now = body.latest(into=said)
+        if state['recording'] is not None:
+            state['recording'] += [row(s, state['yaw']) for s in said]
         if state['orbit'] and now is not None:
             if state['last_t'] is not None:
                 state['yaw'] += ORBIT_DEG_S * max(0.0, now['t'] - state['last_t'])
@@ -209,7 +253,8 @@ def main(argv=None):
                                           labels=labels(now, state['called'])))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name),
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('A', 'AGAIN'), ('L', 'LABELS'),
-                         ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RESET'),
+                         ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
+                         ('V', 'VIEW'),
                          ('Q', 'EXIT'), ('ESC', 'MENU')))
 
     leaving = None

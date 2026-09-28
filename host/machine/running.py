@@ -120,11 +120,14 @@ class Running:
         landed in the squat again."""
         self._commands.put(command)
 
-    def latest(self):
-        """The newest state the worker has said, or the last one if nothing new."""
+    def latest(self, into=None):
+        """The newest state the worker has said, or the last one if nothing new; every one said
+        since appended to `into` if given."""
         try:
             while True:
                 self._last = self._states.get_nowait()
+                if into is not None:
+                    into.append(self._last)
         except queue.Empty:
             pass
         return self._last
