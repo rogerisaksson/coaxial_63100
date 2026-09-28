@@ -692,13 +692,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   spike gone, the stance's peak 1084 N at 160 ms. On the ball (LAND_DEG -3)
   as the walk is tuned, she caught herself from 11 s and fell at 15
   (2026-09-28).
-- Her toes out 0.6 degrees in stance, turned in 11 through the swing: 5 out
-  (gait.TOE_OUT_DEG) takes 6.0 in stance and the thigh 24.6 ahead at the
-  landing where it stood 27.8; at 9 out, or the swing's turn at 4, she fell.
-  The ankle rolls 4.6 degrees under a flat foot; the tracks 30-40 mm and the
-  pelvis's roll at 3 left it at 4.4-4.9; the feet rolled 2 or 3 degrees onto
-  their outer edges took it to 3.2 and 2.0 and she caught herself from 10 s
-  (2026-09-28).
+- The feet rolled 2 or 3 degrees onto their outer edges took the ankle's
+  roll to 3.2 and 2.0 and she caught herself from 10 s (2026-09-28).
 - The lace fall's head: the lace held her trailing foot, she dove onto her
   hands with her legs straight behind, her arms gave, and with the chin
   down 40 degrees her head met the floor at 0.85 m/s. The waist's turn at 0,
@@ -706,6 +701,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   forearms, the head down sooner. The head held up, the neck back 20, 40 or
   60 (director.HEAD_UP_DEG): the chest and the hips take the floor, the
   head never (2026-09-28).
+- Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
+  swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
+  Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The
+  ankle rolls 5.5-5.9 through the loading, the foot flat: tracks at 40-50
+  mm take it to 4.8-3.6 but she cannot balance on them (2026-09-28).
 - The scoreboard's pool leaked a world's five bus processes a run: 865
   piled up and the host ran out of memory. A run closes its world
   (2026-09-28).

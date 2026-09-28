@@ -335,14 +335,13 @@ def _put_down(ball_z, pel_z):
 #: A swinging foot is kept CLEAR_M off the other, centre to centre, wherever their soles overlap
 #: along the walk, and eased in over OVERLAP_M of them coming to: pushed out on its own side, by
 #: the walker's own kinematics. The walk's path passes 95 mm apart (TRACK_M, WIDEN_M); a catch, a
-#: side step, a turn may not, and colliding (`physics.ME`) the feet struck and she stamped
+#: side step, a turn may not, and colliding (`physics.ME`) the feet struck
 #: (2026-09-28).
 CLEAR_M, OVERLAP_M = 0.09, 0.03
 
 
 #: A leg's plan led SWING_LEAD_S through its swing and its landing's roll: a drive lags a
-#: setpoint on the move, and the swinging hip ran 5 degrees behind and caught up into the floor,
-#: the ankle falling 0.75 m/s as the heel struck, 1.5 kN in 2 ms (2026-09-28).
+#: setpoint on the move; its hip 5 degrees behind caught up into the floor (2026-09-28).
 SWING_LEAD_S = 0.02
 
 
@@ -750,7 +749,9 @@ class Walker:
                 continue
             feet_x[side] = self.stood.get(side, balls[side][0])
             u = (q - gait.TOE_OFF) / (1.0 - gait.TOE_OFF) if q >= gait.TOE_OFF else 0.0
-            at = (float(x[i]) + sign * WIDEN_M * math.sin(math.pi * u) ** 2, ankle[1],
+            # Aimed at its ball: toed out, the ball is off the ankle's line, 12 mm at 6 degrees.
+            at = (float(x[i]) + sign * (WIDEN_M * math.sin(math.pi * u) ** 2 - gait.BALL
+                                        * math.sin(math.radians(gait.TOE_OUT_DEG))), ankle[1],
                   planned_z + ankle[2] + fore)
             at = _clear(at, sign, balls[_OTHER[side]])
             hip = figure.hip(sign, pel, turn_now)

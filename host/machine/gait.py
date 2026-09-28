@@ -445,10 +445,9 @@ def sway(t, cadence=CADENCE, stride=None, phase=None):
 
 #: A swinging leg turns in at the hip, TWIST_DEG at mid-swing: its knee comes in toward the line,
 #: left and right mirrored - wax on, wax off. The turn is nothing at toe-off and at the landing,
-#: to its second derivative. Each foot's toes out TOE_OUT_DEG throughout: at 11 in and none out
-#: her feet pointed 0.6 degrees out in stance and turned in through the swing, pigeon-toed
-#: (2026-09-28).
-TWIST_DEG, TOE_OUT_DEG = 11.0, 5.0
+#: to its second derivative. Each foot's toes out TOE_OUT_DEG throughout: at 11 in and none out,
+#: pigeon-toed; at 6 and 8, 7.4 out in stance and 2.5 swinging (2026-09-28).
+TWIST_DEG, TOE_OUT_DEG = 6.0, 8.0
 
 
 def tracks(t, cadence=CADENCE, phase=None, track=TRACK_M, widen=WIDEN_M):
