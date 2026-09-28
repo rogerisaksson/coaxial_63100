@@ -60,6 +60,7 @@ THEME = Theme({
     'chip.live':  'black on green3',
     'chip.sim':   'black on yellow3',
     'chip.emu':   'black on #3cafb9',
+    'chip.nat':   'black on #6ea0ff',
     'chip.virtual': 'black on #a58cff',
     'chip.dynamic': 'black on #ff9f5a',
     'chip.sto':   'black on color(214)',         # the drivers supplied: the light source
@@ -189,21 +190,35 @@ def live(count):
 
 
 def chip(origin):
-    """The meaning tag. Green LIVE / teal EMULATOR / yellow SIMULATED / violet VIRTUAL / amber
-    DYNAMIC, never restyled."""
+    """The meaning tag: green LIVE on a board; EMU SIM NAT with the page's own lit - teal the
+    image on Renode, yellow the stand-in, blue the board layer native; violet VIRTUAL and
+    amber DYNAMIC for machines. Never restyled."""
     if origin.kind == 'emulator':
-        return EMULATOR_CHIP
+        return modes(mode_of(origin.port))
     if origin.kind == 'virtual':
         return VIRTUAL_CHIP
     if origin.kind == 'dynamic':
         return DYNAMIC_CHIP
     if origin.real:
         return live(broker.clients() or 0)
-    return Text(' SIMULATED ', style='chip.sim')
+    return modes('SIM')
 
 
-#: The emulated MCU's chip (tools.emu): the firmware real, the board not.
-EMULATOR_CHIP = Text(' EMULATOR ', style='chip.emu')
+#: The execution modes the band names, the page's own in its chip's colours (the bench's
+#: word, 2026-09-28): the firmware's image on Renode, the stand-in, the board layer built for
+#: this host.
+MODES = (('EMU', 'chip.emu'), ('SIM', 'chip.sim'), ('NAT', 'chip.nat'))
+
+
+def modes(lit):
+    """EMU SIM NAT, `lit` in its chip's colours and the others the band's dim."""
+    return Text.assemble(*[(' %s ' % name, style if name == lit else 'bar.dim')
+                           for name, style in MODES])
+
+
+def mode_of(port):
+    """The mode an emulated board's port runs it in: NAT on native://, else EMU."""
+    return 'NAT' if str(port).startswith('native://') else 'EMU'
 
 #: Virtual actuators' chip (machine.virtual): no board, nothing simulated.
 VIRTUAL_CHIP = Text(' VIRTUAL ', style='chip.virtual')

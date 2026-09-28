@@ -361,15 +361,23 @@ def test_the_view_loop_and_its_helpers(report):
     try:
         chips = [stage.live(1).plain, stage.live(0).plain,
                  stage.chip(Origin(True, 'COM4', 115200, 'serial', 'RS485 at COM4', 'RS485',
-                                   1)).plain,
-                 stage.chip(Origin(True, 'emulator://', 115200, 'emulator', 'Emulated MCU',
-                                   'emulated MCU', 1)).plain]
+                                   1)).plain]
+
+        def lit(port, kind, real):
+            # The band's modes, and the one in its chip's colours.
+            tag = stage.chip(Origin(real, port, 115200, kind, 'x', 'x', 1))
+            return tag.plain, [tag.plain[s.start:s.end].strip() for s in tag.spans
+                               if s.style != 'bar.dim']
+        modes = [lit('emulator://', 'emulator', True), lit('native://', 'emulator', True),
+                 lit('Simulated', 'simulated', False)]
     finally:
         stage.broker.clients = real_clients
-    report.check('the band: LIVE with the sessions on the port, EMULATOR on an emulated MCU, '
-                 'a Live passes the rest on',
-                 chips == [' LIVE 1 SESSION ', ' LIVE ', ' LIVE 2 SESSIONS ', ' EMULATOR ']
+    report.check('the band: LIVE with the sessions on the port, a Live passes the rest on',
+                 chips == [' LIVE 1 SESSION ', ' LIVE ', ' LIVE 2 SESSIONS ']
                  and live.console == 'the console', str(chips))
+    report.check('and EMU SIM NAT, the page\'s own lit: EMU on Renode, NAT native, SIM the '
+                 'stand-in', modes == [(' EMU  SIM  NAT ', ['EMU']), (' EMU  SIM  NAT ', ['NAT']),
+                                       (' EMU  SIM  NAT ', ['SIM'])], str(modes))
 
     blank = types.ModuleType('blank_page')
     setattr(blank, 'main', lambda argv: 0)

@@ -35,7 +35,7 @@ from terminal.ui.marquee import Marquee
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.screen import PORT, ENTER_KEYS, paced
 from terminal.ui.chrome import KANA, Chrome
-from terminal.ui.stage import EMULATOR_CHIP, band_of, curtain, footer, live, stage
+from terminal.ui.stage import band_of, curtain, footer, live, mode_of, modes, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -132,9 +132,9 @@ def masthead(port):
 
     held, board = _BROKER['held'], _BROKER['board']
     if board is False:
-        tag = Text(' SIMULATED ', style='chip.sim')
+        tag = modes('SIM')
     elif board == 'emulated' or (board and url_kind(port) == 'emulator'):
-        tag = EMULATOR_CHIP
+        tag = modes('EMU' if board == 'emulated' else mode_of(port))
     elif board is None or held is None:
         tag = Text('LINK: PROBING', style='bar.dim')
     else:
