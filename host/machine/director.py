@@ -137,11 +137,10 @@ class Director:
         """Landed in the squat, the arrival to take her up."""
         self.arrival.land()
         self.stage, self.fallen_at, self.since = self.arrival.stage, None, 0.0
-        self.walker.last, self.blend, self.curl_from = None, None, {}
-        self.falling_at, self.curl_to, self.tilt_was = None, {}, None
-        self.walker.heading = 0.0
-        self.walker.pendulum = type(self.walker.pendulum)()
         self.walker.cadence = gait.CADENCE
+        self.walker.reset()
+        self.blend, self.curl_from = None, {}
+        self.falling_at, self.curl_to, self.tilt_was = None, {}, None
         self.dropped, self.armed = {}, {}
 
     def halt(self):

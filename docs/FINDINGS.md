@@ -654,10 +654,6 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   on it came to 150 rad/s and every drive slammed to its peak. A world
   with no buses runs the drives itself (`tools/sim/getup_lab.py`)
   (2026-09-27).
-- The feet: 27 cm with the toes, outsize on 1.60 m, but the walk is tuned
-  to them - at 23 the walk at 0.85 fell in 0.5 s from mid-stride (a catch
-  at 0.2 s, both feet off the floor), at 25 the rises fell at 10.9 s, the
-  walk at 0.9 in 0.4 s and the hot knee at 8.8 (2026-09-27).
 - The feet at 24.5 cm, a sneaker in size 37-38 - 27 cm read as boats: the
   scoreboard 7.62 -> 6.80, held 81.8 -> 85.3 % (the sill at 0.85 52 -> 100
   %, at 0.65 50 -> 77, the slip at 0.9 100 -> 76); the walk's stir 2.25 ->
@@ -698,6 +694,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   forearms, the head down sooner. The head held up, the neck back 20, 40 or
   60 (director.HEAD_UP_DEG): the chest and the hips take the floor, the
   head never (2026-09-28).
+- After a fall the walk began again with the pelvis lowered as she fell,
+  12 cm, and her speed read from 3.7 m back: 8-10 cm crouched, a sole at
+  16 kN. Reset on landing (`Walker.reset`): 0.866 and 0.882 m after the
+  restarts, 958 N at most (2026-09-28).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The

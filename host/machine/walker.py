@@ -131,6 +131,12 @@ class Walker:
     def __init__(self, machine, cadence=gait.CADENCE):
         self.machine, self.cadence = machine, float(cadence)
         self.world = machine.nodes['pelvis'].world
+        self.reset()
+
+    def reset(self):
+        """Every state of a walk as before the first, landed anew (`Director.begin`): kept from
+        a fall, the pelvis lowered 12 cm and the speed read from 3.7 m back, the walk after a
+        restart ran 8-10 cm crouched and a sole bore 16 kN (2026-09-28)."""
         #: The walk's line, radians from the world's z about the vertical (`_view`).
         self.heading = 0.0
         self.phase = 0.0
@@ -151,7 +157,7 @@ class Walker:
         #: The phase's rate, strides/s; how long a standing foot has waited for the other to bear;
         #: how far the pelvis's target is lowered, m: for a swinging foot to reach, from a
         #: landing.
-        self.rate, self.waited, self.lowered = float(cadence), 0.0, 0.0
+        self.rate, self.waited, self.lowered = self.cadence, 0.0, 0.0
         #: The forward target's offset from the pelvis last pass, m; None to begin with; the
         #: seconds a begun walk blends in over.
         self.lurch, self.blend_s = None, stance.BLEND_S
@@ -192,11 +198,7 @@ class Walker:
         self.world.reset(angles, where=pelvis, turn=(c * cr, s * sr, s * cr, c * sr),
                          rates={j: (later[j] - angles[j]) / dt for j in angles},
                          speed=tuple((b - a) / dt for a, b in zip(pelvis, ahead)))
-        self.phase, self.anchor, self.was_q, self.stood = 0.0, {}, {}, {}
-        self.x_was, self.v_side, self.z_was, self.v_on = None, 0.0, None, 0.0
-        self.scale, self.held, self.halting, self.length_was = 1.0, None, None, None
-        self.capture, self.side, self.resume, self.hurry = capture.state(), None, None, 0.0
-        self.rate, self.waited, self.lurch, self.lean = self.cadence, 0.0, None, 0.0
+        self.reset()
         return angles
 
     def begin(self, held, wide=0.0, scale=None, phase=None, blend_s=stance.BLEND_S, ball_ahead=None,
