@@ -21,6 +21,7 @@ from machine import drives
 from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Feedback
+from machine import floor
 from machine.errors import MachineError
 from machine.figure import CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
 from machine.machine import Actuator
@@ -105,24 +106,7 @@ FRICTION, TORSION_M = 1.0, 0.08
 #: the stance foot's load flickered to 70 N as the other swung (2026-09-27).
 SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
 
-#: The floor's events, placed on the walk's line by `World.terrain`: a hole HOLE_M deep and
-#: HOLE_LONG_M long - the slab in two, the plane below showing through the gap; a sill SILL_M
-#: high and SILL_LONG_M long; a patch SLIP_LONG_M long at SLIP_FRICTION; a loose rug RUG_LONG_M
-#: long, RUG_M thick and RUG_KG, gripping the sole as the floor does and sliding on the floor at
-#: RUG_FRICTION. Whole, the slab's halves meet at SEAM_M; it ends at SLAB_TO_M, past any walk -
-#: at 80 m a walk stepped off it 100 s in, 3 cm down, and fell or sank into a crouch
-#: (2026-09-28). The halves are
-#: compiled over the whole span and cut to size, the sill and the patch are mocap bodies: a
-#: geom moved or grown past its compiled bounds is missed by the broadphase (the rug fell
-#: through a slab grown 27 m, a box through a sill moved 1 m). At 0.15 the patch let the stance
-#: foot creep 3 mm (the walk asks 0.17), at 0.06 it slid 10 cm back under the push-off; the rug
-#: at 0.3 lay still under a landing and a push-off (the sole's shear 100 N, the rug's hold 165)
-#: (2026-09-27). The skimming toes brushed a 4 cm sill, 350 N for 20 ms, unseen; 6 cm caught
-#: them for 0.11 s and she fell, or stumbled over it lifted (`landing.tripped`) (2026-09-28).
-HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.03, 0.40, 0.06, 0.04
-SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
-RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.1
-SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
+
 
 
 def mjcf():
@@ -133,7 +117,7 @@ def mjcf():
     axes = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1)}
     give = ' solref="%g %g" solimp="%g 0.95 %g"' % (SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M)
     cloth = ' solref="%g %g" solimp="%g 0.95 %g"' % (SOLE_S, SOLE_DAMP, SOLE_SOFT, CLOTH_GIVE_M)
-    floor = ' contype="1" conaffinity="2"'
+    contacts = ' contype="1" conaffinity="2"'
 
     def body(seg):
         name, _parent, joints, offset, rest, share, com, gyr = seg
@@ -185,29 +169,10 @@ def mjcf():
          '<option timestep="%g" gravity="0 -9.81 0" integrator="implicitfast"/>' % STEP_S,
          '<default><joint damping="0.3"/><geom contype="0" conaffinity="0"/></default>',
          '<worldbody>',
-         '<geom name="floor" type="plane" size="100 100 0.1" pos="0 %g 0" '
-         'quat="0.7071068 -0.7071068 0 0"%s/>' % (-HOLE_M, floor),
-         '<geom name="slab_a" type="box" size="50 %g %g" pos="0 %g %g"%s/>' % (
-             HOLE_M / 2.0, (SLAB_TO_M - SLAB_FROM_M) / 2.0, -HOLE_M / 2.0,
-             (SLAB_FROM_M + SLAB_TO_M) / 2.0, floor),
-         '<geom name="slab_b" type="box" size="50 %g %g" pos="0 %g %g"%s/>' % (
-             HOLE_M / 2.0, (SLAB_TO_M - SLAB_FROM_M) / 2.0, -HOLE_M / 2.0,
-             (SLAB_FROM_M + SLAB_TO_M) / 2.0, floor),
-         '<body name="sill" mocap="true" pos="0 -1 0"><geom type="box" size="0.5 %g %g"%s/>'
-         '</body>' % (SILL_M / 2.0, SILL_LONG_M / 2.0, floor),
-         '<body name="slip" mocap="true" pos="0 -1 0"><geom type="box" size="0.5 0.0005 %g" '
-         'priority="1" condim="4" friction="%g %g 0.001"%s%s/></body>' % (
-             SLIP_LONG_M / 2.0, SLIP_FRICTION, TORSION_M, give, floor)]
+         ] + floor.ground(contacts, give, TORSION_M)
         + body(SEGMENTS[0])
-        + ['<body name="rug" pos="0 0.1 %g"><freejoint name="rug"/>' % PARKED_M,
-           '<geom name="rug_under" type="box" size="0.3 %g %g" pos="0 %g 0" mass="%g" '
-           'priority="1" friction="%g 0.005 0.0001" contype="3" conaffinity="3"/>' % (
-               RUG_M / 4.0, RUG_LONG_M / 2.0, -RUG_M / 4.0, RUG_KG / 2.0, RUG_FRICTION),
-           '<geom name="rug_top" type="box" size="0.3 %g %g" pos="0 %g 0" mass="%g" '
-           'priority="2" condim="4" friction="%g %g 0.001" contype="3" conaffinity="3"%s/>' % (
-               RUG_M / 4.0, RUG_LONG_M / 2.0, RUG_M / 4.0, RUG_KG / 2.0, FRICTION, TORSION_M,
-               give),
-           '</body>', '</worldbody>', '<contact>']
+        + floor.rug(give, FRICTION, TORSION_M)
+        + ['</worldbody>', '<contact>']
         + ['<exclude body1="%s" body2="%s"/>' % pair for pair in APART]
         + ['</contact>', '<actuator>']
         + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
@@ -285,48 +250,13 @@ class World:
             self.block.close()
             self.buses, self.block, self.bus_of = None, None, {}
 
-    def _slab(self, a_to, b_from):
-        """The slab's halves: from SLAB_FROM_M to `a_to` and from `b_from` to SLAB_TO_M, m."""
-        m = self.model
-        for name, z0, z1 in (('slab_a', SLAB_FROM_M, a_to), ('slab_b', b_from, SLAB_TO_M)):
-            g = m.geom(name).id
-            m.geom_size[g][2], m.geom_pos[g][2] = (z1 - z0) / 2.0, (z0 + z1) / 2.0
-
     def _park(self):
-        """The floor whole, its events out of the way: the sill and the patch under the plane,
-        the rug on the floor PARKED_M back."""
-        self._slab(SEAM_M, SEAM_M)
-        for name in ('sill', 'slip'):
-            self._mocap(name, (0.0, -1.0, 0.0))
-        self._rug(PARKED_M)
-
-    def _mocap(self, name, at):
-        m = self.model
-        self.data.mocap_pos[m.body_mocapid[m.body(name).id]] = at
-
-    def _rug(self, z):
-        """The rug laid still on the floor, its front edge at `z`."""
-        m, d = self.model, self.data
-        joint = m.joint('rug').id
-        adr, dof = m.jnt_qposadr[joint], m.jnt_dofadr[joint]
-        d.qpos[adr:adr + 7] = (0.0, RUG_M / 2.0 + 0.001, z + RUG_LONG_M / 2.0, 1.0, 0.0, 0.0, 0.0)
-        d.qvel[dof:dof + 6] = 0.0
+        floor.park(self)
 
     def terrain(self, kind, z):
-        """The floor's event `kind` on the walk's line: a 'hole', a 'sill' or a 'slip' patch
-        centred at world `z`, a 'rug' with its front edge there."""
-        m, d = self.model, self.data
-        if kind == 'hole':
-            self._slab(z - HOLE_LONG_M / 2.0, z + HOLE_LONG_M / 2.0)
-        elif kind == 'sill':
-            self._mocap('sill', (0.0, SILL_M / 2.0, z))
-        elif kind == 'slip':
-            self._mocap('slip', (0.0, 0.0005, z))
-        elif kind == 'rug':
-            self._rug(z)
-        else:
-            raise MachineError('no floor event %r: hole, sill, slip or rug' % kind)
-        self._mj.mj_forward(m, d)
+        """The floor's event `kind` on the walk's line (`floor.place`)."""
+        floor.place(self, kind, z)
+        self._mj.mj_forward(self.model, self.data)
 
     def reset(self, degrees, where=(0.0, 1.0, 0.0), turn=(1.0, 0.0, 0.0, 0.0), rates=None,
               speed=(0.0, 0.0, 0.0)):
@@ -411,27 +341,10 @@ class World:
             self.buses.drain()
 
     def props(self):
-        """What lies on the floor, and a lace caught: [(kind, centre, half sizes, turn 3x3)]
-        world, a box each - the hole's gap, a sill, a slip patch, the rug - and ('lace', from,
-        to) from the pulled foot to the other while the tug holds it."""
+        """What lies on the floor (`floor.props`), and a lace caught: ('lace', from, to) from the
+        pulled foot to the other while the tug holds it."""
         m, d = self.model, self.data
-        out = []
-        a = m.geom('slab_a').id
-        gap = (m.geom_pos[a][2] + m.geom_size[a][2], m.geom_pos[m.geom('slab_b').id][2]
-               - m.geom_size[m.geom('slab_b').id][2])
-        if gap[1] - gap[0] > 1e-6:
-            out.append(('hole', (0.0, -HOLE_M / 2.0, sum(gap) / 2.0),
-                        (0.5, HOLE_M / 2.0, (gap[1] - gap[0]) / 2.0), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
-        for name in ('sill', 'slip'):
-            body = m.body(name).id
-            at = d.xpos[body]
-            if at[1] > -0.5:
-                g = m.body_geomadr[body]
-                out.append((name, tuple(at), tuple(m.geom_size[g]), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
-        rug = m.body('rug').id
-        if d.xpos[rug][2] > PARKED_M + 1.0:
-            out.append(('rug', tuple(d.xpos[rug]), (0.3, RUG_M / 2.0, RUG_LONG_M / 2.0),
-                        tuple(map(tuple, d.xmat[rug].reshape(3, 3)))))
+        out = floor.props(self)
         if any(until > d.time for _b, _f, until in self.tugs):
             out.append(('lace', tuple(d.xpos[m.body('left_toes').id]),
                         tuple(d.xpos[m.body('right_foot').id])))

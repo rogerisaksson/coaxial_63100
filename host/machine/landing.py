@@ -101,21 +101,39 @@ GAP_M, OVERLAP_M = 0.01, 0.1
 #: A swinging foot that bears TRIP_N between TRIP_FROM and TRIP_UNTIL of its swing has met
 #: something: it is lifted TRIP_LIFT_M more, over TRIP_S, and let down again from TRIP_UNTIL to its
 #: landing - the elevating strategy. Its toes caught on a 6 cm sill 15 cm ahead as it lifted,
-#: the pelvis pitched 10 degrees in 0.11 s and she fell (2026-09-28).
-TRIP_N, TRIP_FROM, TRIP_UNTIL, TRIP_LIFT_M, TRIP_S = 80.0, 0.1, 0.75, 0.08, 0.05
+#: the pelvis pitched 10 degrees in 0.11 s and she fell (2026-09-28). Met past TRIP_LATE, the
+#: foot is put down short where it is instead, the other to step over - the lowering strategy:
+#: lifted at 0.79 of its swing onto a stair's first riser, it came down on the edge (2026-09-28).
+TRIP_N, TRIP_FROM, TRIP_UNTIL, TRIP_LIFT_M, TRIP_S, TRIP_LATE = 80.0, 0.1, 0.75, 0.08, 0.05, 0.55
+
+
+#: A swinging foot is carried from the floor it left to the one it expects - the other's, a step
+#: on by the last landing's rise: up by FLOOR_U of its swing, or down over its last FLOOR_U.
+FLOOR_U = 0.35
+
+
+def carried(w, side, u):
+    """The floor a swinging foot at `u` of its swing is carried over, m."""
+    lift = w.floor.get(side, 0.0)
+    land = w.floor.get(walkplan._OTHER[side], 0.0) + w.rise
+    k = u / FLOOR_U if land >= lift else (u - 1.0 + FLOOR_U) / FLOOR_U
+    return lift + (land - lift) * gait.eased(k)
 
 
 def tripped(w, dt, side, u, load):
-    """How far a swinging foot at `u` of its swing is lifted over what it met, m."""
-    since = w.trip.get(side)
-    if since is None and TRIP_FROM <= u < TRIP_UNTIL and load > TRIP_N:
-        since = 0.0
-    if since is None or u <= 0.0:
+    """(how far a swinging foot at `u` of its swing is lifted over what it met, m; whether it
+    is put down short instead)."""
+    met = w.trip.get(side)
+    if met is None and TRIP_FROM <= u < TRIP_UNTIL and load > TRIP_N:
+        met = w.trip[side] = [0.0, u]
+    if met is None or u <= 0.0:
         w.trip.pop(side, None)
-        return 0.0
-    w.trip[side] = since + dt
+        return 0.0, False
+    met[0] += dt
+    if met[1] >= TRIP_LATE:
+        return 0.0, True
     down = max(0.0, (u - TRIP_UNTIL) / (1.0 - TRIP_UNTIL))
-    return TRIP_LIFT_M * gait.eased(since / TRIP_S) * (1.0 - gait.eased(down))
+    return TRIP_LIFT_M * gait.eased(met[0] / TRIP_S) * (1.0 - gait.eased(down)), False
 
 
 #: A leg's plan led SWING_LEAD_S through its swing and its landing's roll: a drive lags a
@@ -223,9 +241,16 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
         feet_x[side] = w.stood.get(side, balls[side][0])
         u = (q - gait.TOE_OFF) / (1.0 - gait.TOE_OFF) if q >= gait.TOE_OFF else 0.0
         # Aimed at its ball: toed out, the ball is off the ankle's line, 12 mm at 6 degrees.
+        lift, short = tripped(w, dt, side, u, loads[side])
         at = (float(x[i]) + sign * (walkplan.WIDEN_M * math.sin(math.pi * u) ** 2 - gait.BALL
                                     * math.sin(math.radians(gait.TOE_OUT_DEG))),
-              ankle[1] + tripped(w, dt, side, u, loads[side]), planned_z + ankle[2] + fore)
+              ankle[1] + carried(w, side, u) + lift, planned_z + ankle[2] + fore)
+        if short:
+            # Down on its heel, or its ball, as it is pitched: flat, the heel went 1 cm into the
+            # floor and the leg threw her up (2026-09-28).
+            pivot = gait.HEEL * math.sin(_pi) if _pi > 0.0 else -gait.BALL * math.sin(_pi)
+            at = (ankles[side][0], w.floor.get(side, 0.0) + pivot + gait.ANKLE_H * math.cos(_pi),
+                  ankles[side][2])
         at = clear(at, sign, balls[walkplan._OTHER[side]], ankles[walkplan._OTHER[side]])
         hip = figure.hip(sign, pel, turn_now)
         at, short = reach(hip, at, stance.SWING_REACH * gait.REACH)

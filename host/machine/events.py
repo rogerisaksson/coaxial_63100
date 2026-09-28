@@ -12,12 +12,12 @@ of its stance the knee's board in its SOA for SOA_S, or warmed. A spread step `k
 event STEP_M along the walk and a glitch GLITCH_STEP of the stride; `strides` on lays a floor
 event that many strides further, met at the same phase.
 """
-from machine import figure, gait
+from machine import figure, floor, gait
 
-EVENTS = ('hole', 'sill', 'slip', 'rug', 'lace', 'soa', 'hot')
+EVENTS = ('hole', 'sill', 'slip', 'rug', 'stairs', 'lace', 'soa', 'hot')
 
 #: The events laid on the floor, and those that befall her where she is.
-FLOOR, NOW = ('hole', 'sill', 'slip', 'rug'), ('lace', 'soa', 'hot')
+FLOOR, NOW = ('hole', 'sill', 'slip', 'rug', 'stairs'), ('lace', 'soa', 'hot')
 
 SILL_AHEAD_M, RUG_HEEL_M, STEP_M = 0.15, 0.15, 0.03
 GLITCH_AT, GLITCH_STEP, SOA_S = 0.25, 0.05, 0.5
@@ -48,6 +48,7 @@ def lay(event, director, world, k=0, strides=0):
     else:
         world.terrain(event, {
             'hole': landing + (gait.BALL - gait.HEEL) / 2.0, 'slip': landing,
+            'stairs': landing + (gait.BALL - gait.HEEL) / 2.0 - floor.RUN_M / 2.0,
             'rug': landing - RUG_HEEL_M,
             'sill': (walker.balls['left'][2] + 2.0 * figure.CONTACTS[1][2][2]
                      + SILL_AHEAD_M + k * STEP_M + on),

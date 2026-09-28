@@ -58,8 +58,9 @@ PUSH_N, PUSH_S = 120.0, 0.12
 GLITCHED, SOA_S = ('left_knee', 'right_knee', 'left_hip', 'right_hip'), 0.5
 
 #: What she trips on, by the Ctrl key that lays it: a hole, a rug, a threshold (tröskel), a
-#: slippery patch, a lace.
-TRIPS = {'\x08': 'hole', '\x12': 'rug', '\x14': 'sill', '\x13': 'slip', '\x0c': 'lace'}
+#: slippery patch, a lace, a stair (upp).
+TRIPS = {'\x08': 'hole', '\x12': 'rug', '\x14': 'sill', '\x13': 'slip', '\x0c': 'lace',
+         '\x15': 'stairs'}
 
 #: Where R's recordings go, a CSV from a press to the next: every state the page hears from her
 #: (a slice's, 10-20 a second of her time) - the page's yaw, her state, each joint, each
@@ -168,7 +169,7 @@ def boxes(state, now, name):
         ('drawing', '%.0f W' % now['watts'] if now and 'watts' in now else '-'),
         ('hottest', _hottest(now) if now else '-'),
         ('glitched', '%s %s' % state['glitched'] if state['glitched'] else 'G soa, H hot'),
-        ('ahead', _ahead(now) if now else 'Ctrl H R T S L'),
+        ('ahead', _ahead(now) if now else 'Ctrl H R T S L U'),
         ('record', 'R starts' if state['recording'] is None and not state['recorded']
          else 'on, %.1f s - R saves' % (len(state['recording']) / 60.0)
          if state['recording'] is not None else os.path.basename(state['recorded'])),
@@ -226,7 +227,7 @@ def _ahead(now):
     if now.get('armed'):
         kind, left = now['armed']
         return '%s in %d strides' % (kind, left + 1)
-    return 'Ctrl H R T S L'
+    return 'Ctrl H R T S L U'
 
 
 def _tripped(event):
@@ -430,7 +431,7 @@ def main(argv=None):
                                           dressed=state['dressed']))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name),
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
-                         ('^H ^R ^T ^S ^L', 'HOLE RUG SILL SLIP LACE'),
+                         ('^H ^R ^T ^S ^L ^U', 'HOLE RUG SILL SLIP LACE STAIRS'),
                          ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
                          ('V', 'VIEW'), ('C', 'CLOTHES'),

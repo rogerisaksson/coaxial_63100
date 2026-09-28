@@ -40,11 +40,11 @@ def test_dressed_or_bare(report):
 def test_the_floor_outlasts_a_walk(report):
     """The floor's slab ends past an hour's walk at her fastest pace: at 80 m she stepped off it
     100 s in (2026-09-28)."""
-    from machine import gait
+    from machine import floor, gait
     from terminal.views.show_humanoid import CADENCE
     fastest = CADENCE[1] * gait.STRIDE_M * gait.pace(CADENCE[1])
     report.check('the slab past an hour at %.2f m/s' % fastest,
-                 physics.SLAB_TO_M > 3600.0 * fastest, '%.0f m' % physics.SLAB_TO_M)
+                 floor.SLAB_TO_M > 3600.0 * fastest, "%.0f m" % floor.SLAB_TO_M)
 
 
 def test_a_virtual_body_walks(report):

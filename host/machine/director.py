@@ -313,5 +313,5 @@ class Director:
             if held is None or bus['pelvis.pose.%s_load' % side] < stance.BEARS_N:
                 continue
             if (ball[0] - held[0]) ** 2 + (ball[2] - held[2]) ** 2 > SLIP_M ** 2:
-                self.walker.anchor[side] = ball
+                self.walker.anchor[side] = (ball[0], held[1], ball[2])
                 self.slips += 1

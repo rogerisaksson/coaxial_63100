@@ -165,8 +165,14 @@ class Walker:
         self.halting, self.halt_from, self.length_was = None, 1.0, None
         #: The pendulum between her ears, read each pass (`machine.pendulum`).
         self.pendulum = Pendulum()
-        #: {side: seconds since its swinging foot met something} (`landing.tripped`).
+        #: {side: [seconds since its swinging foot met something, where in its swing]}
+        #: (`landing.tripped`).
         self.trip = {}
+        #: {side: the floor's height under that foot where it last bore}; the step up from the
+        #: other's at the last landing; the feet borne since they landed (`stance.anchor`).
+        self.floor, self.rise, self.borne = {}, 0.0, set()
+        #: The floor under her, m, as the pelvis follows it (`stance.UNDER_M_S`).
+        self.under = 0.0
 
     def halt(self):
         """To a stop over HALT_S: the stride down to HALT of its own; `halted` from then."""
@@ -270,11 +276,11 @@ class Walker:
             self.scale = self.halt_from + (stance.HALT - self.halt_from) * gait.eased(self.halting / stance.HALT_S)
         stride = self.stride
         length = gait.STRIDE_M * stride
-        balls, ankles = {}, {}
+        balls, ankles, soles = {}, {}, {}
         for side, sign in walkplan.SIDES:
             angles = tuple(math.radians(bus.get(side + k + '.deg', 0.0)) for k in LEG)
             at = figure.ball(sign, pel, turn_now, angles)
-            balls[side] = (at[0], 0.0, at[2])
+            balls[side], soles[side] = (at[0], 0.0, at[2]), at[1]
             ankles[side] = figure.foot_of(sign, pel, turn_now, angles)[0]
         self.balls = balls
         if self.resume is not None:
@@ -299,7 +305,8 @@ class Walker:
                 self.lift = pel[1] - height
             height += self.lift * (1.0 - gait.eased(self.age / stance.RAMP_S))
         qs = (self.phase, (self.phase + 0.5) % 1.0)
-        stance.anchor(self, bus, qs, balls, height, pel)
+        stance.anchor(self, dt, bus, qs, balls, soles, height, pel)
+        under = stance.under(self, dt, qs)
         feet = [mul(ry(twist), rx(-pitch)) for _ankle, twist, pitch, _toes in legs]
         # A stance ankle where its foot, rolling on its heel or its ball, keeps that on the floor
         # where the anchor says.
@@ -333,7 +340,7 @@ class Walker:
             line, weight = line + b * (feet_x[side] - sign * walkplan.TRACK_M * (1.0 - CG_OVER)), weight + b
         planned_x = line / weight + lateral
         v_ref = (walkplan.plan(self.phase + 1e-3, stride)[0] - lateral) * 1e3 * self.rate
-        planned = (planned_x, height, planned_z)
+        planned = (planned_x, height + under, planned_z)
         self.lowered += max(-(stance.RAISE_M_S + self.lowered / stance.RAISE_S) * dt,
                             min(stance.LOWER_M_S * dt, min(stance.LOWER_M, lower) - self.lowered))
         if self.side is not None and self.side['stage'] == 'out' and self.side['since'] == 0.0:
@@ -347,7 +354,8 @@ class Walker:
         hold = max(0.0, 1.0 - out_by / SOLE_M)
         across = (hold * (planned_x - SIDE_K * (pel[0] - planned_x) - pel[0])
                   - SIDE_D * (v_side - v_ref))
-        target = (pel[0] + max(-SOLE_M, min(SOLE_M, across)), height - self.lowered, planned_z)
+        target = (pel[0] + max(-SOLE_M, min(SOLE_M, across)), height + under - self.lowered,
+                  planned_z)
         lean = self.lean * (1.0 - gait.eased(self.age / gait.LEAN_OUT_S))
         turn = mul(mul(ry(yaw), rx(math.radians(lean))), rz(roll))
         off = [TURN_K * c for c in walkplan.vee(mul(turn, t(turn_now)))]

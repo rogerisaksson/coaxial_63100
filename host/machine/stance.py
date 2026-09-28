@@ -68,23 +68,64 @@ LANDED_N, BEARS_N, BEARS_UNTIL = 60.0, 250.0, 0.06
 FLAT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 
-def anchor(w, bus, qs, balls, height, pel):
+#: The floor is where a foot finds it: a sole landing FLOOR_DEAD_M or more off the floor it
+#: left stands on another, and the next swing expects the same step again (`landing.carried`);
+#: a foot held without bearing reaches on down REACH_DOWN_M_S, REACH_DOWN_M at most, until it
+#: bears.
+#: The floor under her is followed at UNDER_M_S: taken at once, a step's 8 cm threw her up. A
+#: swinging foot bearing past EARLY_U of its swing, FLOOR_DEAD_M over the floor it left, has
+#: landed early - on a step: held to its swing, the leg pushed her 10 cm off it (2026-09-28).
+FLOOR_DEAD_M, REACH_DOWN_M_S, REACH_DOWN_M, UNDER_M_S, EARLY_U = 0.02, 0.3, 0.15, 0.25, 0.75
+
+
+def anchor(w, dt, bus, qs, balls, soles, height, pel):
     """A foot is held where it landed until it leaves: landed once its sole bears, or ACCEPT
     into its stance whatever it bears. Held from the phase alone, a foot still in the air
-    was taken to bear her, and she fell when the other left (2026-09-25)."""
+    was taken to bear her, and she fell when the other left (2026-09-25). Held so and not
+    yet borne, it reaches on down for the floor; borne, its floor is where it stands."""
     for (side, _sign), q in zip(walkplan.SIDES, qs):
-        if q >= gait.TOE_OFF or (w.side is not None and side == w.side['out']
-                                 and w.side['stage'] == 'out'):
+        load = bus['pelvis.pose.%s_load' % side]
+        early = (q >= gait.TOE_OFF + EARLY_U * (1.0 - gait.TOE_OFF) and w.side is None
+                 and (side in w.anchor or (load > LANDED_N and soles[side]
+                                           >= w.floor.get(side, 0.0) + FLOOR_DEAD_M)))
+        if (q >= gait.TOE_OFF and not early) or (w.side is not None and side == w.side['out']
+                                                 and w.side['stage'] == 'out'):
             w.anchor.pop(side, None)
-        elif side not in w.anchor and (bus['pelvis.pose.%s_load' % side] > LANDED_N
-                                          or q >= walkplan.ACCEPT):
-            w.anchor[side] = balls[side]
+            w.borne.discard(side)
+        elif side not in w.anchor and (load > LANDED_N or q >= walkplan.ACCEPT):
+            w.anchor[side] = (balls[side][0], w.floor.get(side, 0.0), balls[side][2])
+            w.trip.pop(side, None)
             # The height's target starts from where the body is, up again (RAISE_M_S):
             # landed with the body 3 cm low over the leaning leg, both legs pushed to the
             # plan's height and threw her 5 cm into the air (2026-09-26); let go of the first
             # 15 mm, the walk's first landing hopped off the front foot (2026-09-27).
             w.lowered = max(w.lowered, min(LOWER_M, height - pel[1]))
+        if side in w.anchor and side not in w.borne:
+            x, y, z = w.anchor[side]
+            if load > LANDED_N:
+                # The floor read as the foot comes to bear, once: read on as the sole stood, it
+                # rose with her push-off, the pelvis's target with it, and she hopped (2026-09-28).
+                w.borne.add(side)
+                if abs(soles[side] - w.floor.get(side, 0.0)) >= FLOOR_DEAD_M:
+                    w.floor[side] = soles[side]
+                    w.rise = soles[side] - w.floor.get(walkplan._OTHER[side], 0.0)
+                w.anchor[side] = (x, w.floor.get(side, 0.0), z)
+            else:
+                w.anchor[side] = (x, max(w.floor.get(side, 0.0) - REACH_DOWN_M,
+                                         y - REACH_DOWN_M_S * dt), z)
         w.was_q[side] = q
+
+
+def under(w, dt, qs):
+    """The floor under her, m: each stance foot's, weighed as the plan has it carry, followed
+    at UNDER_M_S."""
+    total = weight = 0.0
+    for (side, _sign), q in zip(walkplan.SIDES, qs):
+        b = walkplan.carried(q)
+        total, weight = total + b * w.floor.get(side, 0.0), weight + b
+    goal = total / weight if weight else w.under
+    w.under += max(-UNDER_M_S * dt, min(UNDER_M_S * dt, goal - w.under))
+    return w.under
 
 
 def legs(w, out, bus, qs, legs, feet, held, swings, target, turn, turn_now, pel):
