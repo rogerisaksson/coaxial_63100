@@ -174,9 +174,11 @@ def relay(jobs, batons=None):
 def run_groups(path, groups, timeout, batons=None):
     """A suite's `groups` on the relay, `python path group` each, the longest first as given:
     each group's lines as it ends, and one tally over them, a group out of time or ending
-    without a tally one failure. The exit code."""
+    without a tally one failure. `timeout`, s: one for all, or a group's own by name. The exit
+    code."""
     passed = failed = 0
-    jobs = [Job(group, [sys.executable, '-X', 'utf8', str(path), group], WORKER_GB, timeout)
+    jobs = [Job(group, [sys.executable, '-X', 'utf8', str(path), group], WORKER_GB,
+                timeout[group] if isinstance(timeout, dict) else timeout)
             for group in groups]
     for job, out, code, took in relay(jobs, batons):
         lines = out.splitlines()
@@ -186,8 +188,8 @@ def run_groups(path, groups, timeout, batons=None):
         print('\n'.join(line for line in lines if not TALLY_RE.match(line.strip())))
         if code is None or tally is None:
             failed += 1
-            print('  FAIL  %s: %s' % (job.name, 'out of time at %.0f s' % timeout if code is None
-                                      else 'ended without a tally'))
+            print('  FAIL  %s: %s' % (job.name, 'out of time at %.0f s' % job.timeout
+                                      if code is None else 'ended without a tally'))
         else:
             passed += int(tally.group(1))
             failed += int(tally.group(2))

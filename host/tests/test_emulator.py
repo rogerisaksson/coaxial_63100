@@ -335,8 +335,9 @@ GROUPS = {'board': board, 'blank': blank, 'conformance': conformance, 'bus': bus
           'fallback': fallback}
 
 #: A group's time, s: the rig's took 150 of the suite's 211 one after another here, and CI's
-#: runner ran the Release image's past 240 (2026-09-27).
-GROUP_S = 480
+#: runner ran the Release image's past 240 (2026-09-27). The blank node's, its image streamed at
+#: the emulator's pace, 157 to past 480 on CI's runner against 133 here (2026-09-28).
+GROUP_S = {'board': 480, 'blank': 900, 'conformance': 480, 'bus': 480, 'fallback': 480}
 
 
 def main(argv=None):
@@ -354,7 +355,7 @@ def main(argv=None):
         return int(required or report.failed)
     if len(groups) > 1:
         return run_groups(__file__, groups, GROUP_S)
-    watchdog(GROUP_S)
+    watchdog(GROUP_S[groups[0]])
     report = wire.Report()
     GROUPS[groups[0]](report, tests)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
