@@ -12,5 +12,17 @@ rcc:
 dwt:
     frequency: 475000000
 
+// The USARTs' kernel clock, PCLK1 at 118.75 MHz (coaxial_63100.ioc): the model's 125 MHz ran
+// USART3's BRR 1031 at 121 241 baud against the part's 115 179. Its OVER8 reads BRR raw, the
+// RS485 ports 0.34 % fast still (2026-09-28).
+usart2:
+    frequency: 118750000
+
+usart3:
+    frequency: 118750000
+
+uart5:
+    frequency: 118750000
+
 // SPI2: Renode registers SPI4 alone; the board has both.
 spi2: SPI.STM32H7_SPI @ sysbus 0x40003800

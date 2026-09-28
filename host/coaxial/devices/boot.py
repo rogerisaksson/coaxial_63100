@@ -386,6 +386,21 @@ def host_image():
     return (built[-1], image_of(built[-1])) if built else None
 
 
+def on_bus(transport):
+    """Whether `transport` is on an RS485 bus, where the bootloader listens at BOOT_BAUD, rather
+    than a console, where it keeps the application's rate: what the port says, a console where
+    it says nothing."""
+    return getattr(transport.serial, 'console', True) is False
+
+
+def to_bootloader(transport):
+    """`transport` onto the bootloader's rate; the rate it left, the application's."""
+    was = transport.baud
+    if on_bus(transport) and was != BOOT_BAUD:
+        transport.set_baud(BOOT_BAUD)
+    return was
+
+
 def load(board, image, persist=True, session=0x10AD):
     """The node behind `board` onto `image` through its bootloader: `stay`,
     then the master's sequence on this one node at the blank unit - its
@@ -395,16 +410,18 @@ def load(board, image, persist=True, session=0x10AD):
     was = board.boot.state()
     board.boot.stay()
     board.transport.sleep(STAY_S)
+    app_baud = to_bootloader(board.transport)
     return from_bootloader(board.transport, image, was['unit'], was['position'],
-                           was.get('flags') or 0, persist=persist, session=session)
+                           was.get('flags') or 0, persist=persist, session=session,
+                           app_baud=app_baud)
 
 
 def from_bootloader(transport, image, unit=1, position=1, flags=0, persist=True,
-                    session=0x10AD):
+                    session=0x10AD, app_baud=None):
     """The node in its bootloader on `transport` - after a `stay`, or blank from power-up -
     onto `image`: held, found by its uid, assigned `unit` and `position` (flags bit 0 closes
     the termination), flashed as the type it names, sent `go`, and its application polled
-    until it names the image. Returns the application's state."""
+    at `app_baud` until it names the image. Returns the application's state."""
     from coaxial.devices.board import Board
     blank = Board(transport, unit=BLANK_UNIT).boot
     blank.hold(session)
@@ -414,6 +431,8 @@ def from_bootloader(transport, image, unit=1, position=1, flags=0, persist=True,
     blank.assign(node['uid'], unit, position, terminate=bool(flags & 1))
     Board(transport, unit=unit).boot.flash(node['type'], image, persist=persist)
     blank.go(session)
+    if app_baud is not None and app_baud != transport.baud:
+        transport.set_baud(app_baud)
     app = Board(transport, unit=unit).boot
     want = (len(image), zlib.crc32(image))
     until = time.monotonic() + GO_S * transport.time_scale

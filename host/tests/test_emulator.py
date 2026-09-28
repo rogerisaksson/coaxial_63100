@@ -7,7 +7,7 @@ STM32H753 (tools/emu, board/emu), the front end from the LTspice fit
 
 In groups on the relay, a process and a Renode each (tools.dev.focus): the bench's conformance
 suite on a console of its own; a rig through test_wire's sweeps and the front end's inputs
-through the monitor; a limb at 10 Mbit; a blank node loaded. Skips without Renode or a built
+through the monitor; a limb at its record's rate; a blank node loaded at 10 Mbit. Skips without Renode or a built
 image, unless COAXIAL_EMULATOR is `required` (CI).
 
     python -X utf8 tests/test_emulator.py                   # every group
@@ -144,11 +144,13 @@ def test_the_imu_answers(report, rig, emu):
 BLAST, BLAST_BYTES = 50, 240
 
 
-def test_ten_megabit_on_the_bus(report):
-    """A limb's bus at the bootloader's 10 Mbit/s, the core at the part's own speed: every echo
-    comes back byte for byte, and the node counts no framing error past the host's handover
-    byte and drops nothing from its ring."""
-    with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, baud=10_000_000, mpu=True) as limb:
+def test_echoes_on_the_bus(report):
+    """A limb's bus at the rate the app's record gives its port, the core at the part's own
+    speed: every echo comes back byte for byte, and the node counts no framing error past the
+    host's handover byte and drops nothing from its ring. The app refuses a `link_baud` past
+    921 600; at 10 Mbit it had answered only because Renode's UARTs ignored the rates, which the
+    transceivers now decode by (2026-09-28)."""
+    with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, mpu=True) as limb:
         rig = Coaxial63100(port=limb.url, unit=1, own_image=False).open()
         # Its waits on the limb's pace, as emulator:// gives them: the node asleep keeps real
         # time, awake it replied after a scale-1 wait had given up (2026-09-25).
@@ -165,10 +167,26 @@ def test_ten_megabit_on_the_bus(report):
             port = link.state(port=1)
         finally:
             rig.close()
-    report.check('10 Mbit/s on the bus: every echo back, nothing dropped, framing clean',
+    report.check('the bus at the record\'s rate: every echo back, nothing dropped, framing clean',
                  wrong == 0 and port['ring_dropped'] == 0 and port['bus_comm_error'] <= 1,
                  '%d of %d echoes wrong, %d framing errors, %d dropped'
                  % (wrong, BLAST, port['bus_comm_error'], port['ring_dropped']))
+
+
+def test_a_bus_off_the_nodes_rate_carries_nothing(report):
+    """The host's adapter at 10 Mbit, the app's port at its record's 115 200: nothing crosses, as
+    on the part; Renode's UARTs had passed every byte whatever the rates (2026-09-28)."""
+    with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, baud=10_000_000, mpu=True) as limb:
+        try:
+            Coaxial63100(port=limb.url, unit=1, own_image=False).open().close()
+            said = 'answered'
+        except RigError as exc:
+            said = type(exc).__name__
+        with open(limb.log or os.devnull, encoding='utf-8', errors='replace') as f:
+            garbles = [line.strip() for line in f if 'garbles' in line]
+    report.check('a bus off the node\'s rate carries nothing: the open fails, the node garbles',
+                 said != 'answered' and bool(garbles),
+                 '%s; %s' % (said, garbles[0][-60:] if garbles else 'no garble logged'))
 
 
 def test_a_blank_node_takes_the_host_build(report):
@@ -297,7 +315,7 @@ def fallback(report, _names=()):
 
 
 def bus(report, _names=()):
-    run(report, [(test_ten_megabit_on_the_bus,)])
+    run(report, [(test_echoes_on_the_bus,), (test_a_bus_off_the_nodes_rate_carries_nothing,)])
 
 
 def blank(report, _names=()):

@@ -145,6 +145,13 @@ class Transport:
         """`seconds` of the board's."""
         self.host_clock.sleep(seconds)
 
+    def set_baud(self, baud):
+        """The port at `baud`: on a bus the bootloader listens at 10 Mbit, the application at
+        its record's `link_baud` (docs/BOOT.md)."""
+        with self._wire:
+            self.serial.baudrate = baud
+            self.baud = baud
+
     #: How often the source is asked, wall s: an emulator's answer is a monitor round trip.
     RESCALE_S = 0.5
 

@@ -270,6 +270,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             transport = Transport(self.port, self.baud)
         except ConnectError:
             return False
+        app_baud = bootmod.to_bootloader(transport)
         try:
             try:
                 Board(transport, unit=bootmod.BLANK_UNIT).boot.state()
@@ -279,8 +280,10 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             print('coaxial: a blank node on %s; loading this host\'s build %s (%d B, crc %08x) '
                   'as unit %d' % (self.port, path, len(image), zlib.crc32(image), self.unit),
                   file=sys.stderr)
-            bootmod.from_bootloader(transport, image, self.unit, self.unit)
+            bootmod.from_bootloader(transport, image, self.unit, self.unit, app_baud=app_baud)
         finally:
+            # The port back at the application's rate: a bus's adapter is the rig's too.
+            transport.set_baud(app_baud)
             transport.close()
         self.image_loaded = (path, True)
         return True

@@ -397,6 +397,13 @@ class Limb(Emulator):
         return out
 
 
+    def bus_rate(self, baud):
+        """The host's adapter at `baud`, bits a second, as its port sets it."""
+        if baud and baud != self.baud:
+            self.command('mach set "node1"')
+            self.command('sysbus.gpioPortK.adapterBus BaudRate %d' % baud)
+            self.baud = baud
+
     def _each_cpu(self, text):
         """A monitor command on every node's CPU, node1 the machine after."""
         for unit in range(1, self.nodes + 1):

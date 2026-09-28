@@ -45,8 +45,8 @@ board/    this hardware; API in comms/inc/board.h -> comms/inc/board/<x>.h
           the ADCs (injected on TIM1's TRGO2), the AFE from the electronics and
           LTspice, the A1335, the BNO085, the plant, the STO chain
           (world/src/world_sto.c on PA10's edges, the master's pilot, PE15
-          and TIM1's break), the RS485 echo, the console's wire (tools/emu,
-          tests/test_emulator.py)
+          and TIM1's break), the RS485 echo, the console's wire, each UART at
+          the rate its RCC and BRR give it (tools/emu, tests/test_emulator.py)
 comms/    cmd.c tables -> cmd_<device>.c handlers (rd_t in, wr_t out, wire.c)
           link.c: which port, console or Modbus; dev_uart.c: the only USART code
           cmd_length.c: request-length oracle for modbus_rtu.c

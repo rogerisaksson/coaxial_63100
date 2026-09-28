@@ -7,16 +7,22 @@
 using System;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     public class RS485_Transceiver : IUART, IGPIOReceiver
     {
-        public RS485_Transceiver(IUART uart)
+        public RS485_Transceiver(IMachine machine, IUART uart)
         {
+            this.machine = machine;
             this.uart = uart;
             uart.CharReceived += Transmitted;
         }
+
+        /// <summary>The bus's rate, bits a second: the host adapter's (RS485_Adapter.cs), 0 with
+        /// none.</summary>
+        public static uint BusRate { get; set; }
 
         public void Reset()
         {
@@ -29,7 +35,10 @@ namespace Antmicro.Renode.Peripherals.UART
         /// <summary>A byte off the bus, into the UART.</summary>
         public void WriteChar(byte value)
         {
-            uart.WriteChar(value);
+            if(Decodes())
+            {
+                uart.WriteChar(value);
+            }
         }
 
         [field: Transient]
@@ -44,9 +53,36 @@ namespace Antmicro.Renode.Peripherals.UART
         private void Transmitted(byte value)
         {
             uart.WriteChar(value);
-            CharReceived?.Invoke(value);
+            if(Decodes())
+            {
+                CharReceived?.Invoke(value);
+            }
         }
 
+        /// <summary>Whether a character crosses between the UART and the bus: its stop bit,
+        /// sampled 9.5 bits past the start edge, inside half a bit less the majority vote's two
+        /// samples - 2.6 % at OVER8, 3.9 % at OVER16. Renode's UARTs pass a byte whatever the
+        /// rates: the app's 115 200 answered a 10 Mbit adapter (2026-09-28).</summary>
+        private bool Decodes()
+        {
+            var rate = UART_Rate.Of(machine, uart);
+            if(BusRate == 0 || rate == 0)
+            {
+                return true;
+            }
+            var ok = Math.Abs(rate / BusRate - 1.0)
+                     < (0.5 - 2.0 / UART_Rate.Oversampling(uart)) / 9.5;
+            if(ok != decodes)
+            {
+                decodes = ok;
+                this.Log(ok ? LogLevel.Info : LogLevel.Warning, "{0:F0} bit/s on a {1} bit/s bus: {2}",
+                         rate, BusRate, ok ? "decodes" : "garbles");
+            }
+            return ok;
+        }
+
+        private readonly IMachine machine;
         private readonly IUART uart;
+        private bool decodes = true;
     }
 }

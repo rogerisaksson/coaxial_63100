@@ -37,9 +37,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   (2026-08-29): the broker exists for this (open 0.05 s vs 5.85 s).
 - RS485 was never pumped unless the console was in binary mode: main() polled
   the link only then (found on the emulated limb, 2026-09-25).
-- 10 Mbit on RS485, emulated: one byte a pass lost to a byte a microsecond.
-  The link drains up to LINK_TAKE_MAX a pass, a frame closed at its silence,
-  one clock read a pass; 200 echoes of 240 B, none lost (2026-09-25).
+- A byte a microsecond on RS485, emulated (a 10 Mbit adapter onto the app's
+  115 200, which Renode passed until 2026-09-28): one byte a pass lost. The
+  link drains up to LINK_TAKE_MAX a pass, a frame closed at its silence, one
+  clock read a pass; 200 echoes of 240 B, none lost (2026-09-25).
 
 ## Gate stage
 
@@ -199,6 +200,12 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   through `Coaxial63100.open()`, 139 K in 17 s at 475 MIPS. It answered its
   own RS485 echo (RE tied low) until the echo was drained after each reply
   (2026-09-25).
+- On a bus the host looked for a blank node, and polled the application after
+  `go`, at one rate: the bootloader listens at 10 Mbit, the application at its
+  record's `link_baud`. Renode's rate-blind lines and a limb adapter set apart
+  from the host's port hid it. The port moves to 10 Mbit for the bootloader
+  and back for the application; the emulated adapter follows the port
+  (2026-09-28).
 
 ## Host and tooling
 
@@ -239,10 +246,23 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - emulator:// loads build/Debug: a Debug image older than the host's last
   firmware commit answered with checksum failures. Rebuild after pulling
   (2026-09-28).
-- CI's 10 Mbit echo on Release: 1 of 50 wrong and 3 framing errors on 60e27bd,
-  clean on dfa3194; here 3 of 3 clean, under load too, one framing error each -
-  the handover's. Unconfirmed: a host stall splits a frame past t1.5 of virtual
-  time (2026-09-28).
+- CI's FC05 after the 257-byte ADU: the console's line queued the host's next
+  frame behind the ADU's tail. After the burst Renode ran at 0.1 of real time -
+  0.18 s wall, 18 ms virtual, the ADU 21 ms on the wire - and FC05 joined it:
+  counters +2 messages, 1 error, no exception. The line starts a host frame
+  t3.5 and 0.25 ms after the last byte, as the limb's adapter did (HostLine):
+  answered 1.4 ms virtual behind the ADU (2026-09-28).
+- Renode's USARTs ran on a fixed 125 MHz: USART3's BRR 1031 at 121 241 baud
+  against the part's 115 179 (PCLK1 118.75 MHz, coaxial_63100.ioc). The
+  bootloader's PCLK1 is 80 MHz, and Renode reads an OVER8 BRR raw: its 0x10 at
+  14.8 Mbit against 10. The models take the rate from the RCC and BRR
+  (UART_Rate.cs) (2026-09-28).
+- The 10 Mbit bus echo ran the app's port at its record's 115 200 - the
+  firmware refuses a `link_baud` past 921 600 - behind a 10 Mbit adapter, and
+  Renode passed every byte. The transceivers decode by rate now, 2.6 % at
+  OVER8: that pairing opens nothing and logs `garbles`; the test runs the
+  record's rate. CI's 1 of 50 wrong on it was never reproduced here
+  (2026-09-28).
 - The bead ran backwards 47 times in 420 frames before the emulator, 16 in 200
   after: its regime came off the step `travel` made since the last draw, none
   between feed samples. Off the rotor's speed now, in proportion to it above 30

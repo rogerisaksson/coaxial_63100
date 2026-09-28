@@ -3,7 +3,6 @@
     Coaxial63100(port='emulator://').open()                  # one board, its console
     Coaxial63100(port='emulator://?nodes=4', unit=3).open()  # a limb: the bus, a unit on it
     Coaxial63100(port='emulator://?world=quad&nodes=4').open()  # on the quad's rotors
-    Coaxial63100(port='emulator://?nodes=2&baud=10000000', unit=2).open()  # 10 Mbit
     Coaxial63100(port='emulator://?mips=475').open()         # the part's speed throughout
     Coaxial63100(port='emulator://?mpu=1').open()            # the image's MPU on, a 7th the speed
     Coaxial63100(port='emulator://?body=humanoid&bus=LL', unit=2).open()  # the left knee
@@ -115,7 +114,9 @@ class Serial(SerialBase):
         self.pilot = emu.pilot
         self.units = emu.units
         self.console = not isinstance(emu, Limb)
+        self._emu = emu
         self.is_open = True
+        self._rate()
 
     def close(self):
         if self.is_open:
@@ -128,6 +129,13 @@ class Serial(SerialBase):
     def _reconfigure_port(self, force_update=False):
         if self.is_open:
             self._inner.timeout = self.timeout
+            self._rate()
+
+    def _rate(self):
+        """A limb's adapter at this port's rate, as a USB-RS485 adapter takes its port's: the
+        transceivers decode by it."""
+        if isinstance(self._emu, Limb):
+            self._emu.bus_rate(self.baudrate)
 
     def from_url(self, url):
         return url

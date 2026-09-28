@@ -10,6 +10,7 @@ $vtor?=0x30000000
 include @board/emu/VirtualClock.cs
 include @board/emu/Coaxial63100_ADC.cs
 include @board/emu/Coaxial63100_AFE.cs
+include @board/emu/UART_Rate.cs
 include @board/emu/RS485_Transceiver.cs
 include @board/emu/UART_Line.cs
 include @board/emu/RS485_Adapter.cs
