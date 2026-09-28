@@ -294,6 +294,8 @@ class Drive(Device, DriveControl, device=protocol.DEVICE_DRIVE):
         if r.remaining >= 12:
             out['cycles'] = {'sample': r.u32(), 'step': r.u32(),
                              'advance': r.u32()}
+        # MINOR 24: theta_hat's whole turns, counted every step.
+        out['turns'] = r.maybe('i32')
         return out
 
     def _set_mode(self, name):

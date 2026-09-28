@@ -58,6 +58,8 @@ static cmd_status_t h_drive_state(wr_t *out)
   wr_u32(out, d->cyc_sample);
   wr_u32(out, d->cyc_step);
   wr_u32(out, d->cyc_advance);
+  /* MINOR 24: the estimate's whole turns, counted at every step. */
+  wr_i32(out, (int32_t)d->turns);
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 

@@ -20,6 +20,7 @@ class DrivePlant:
     FS: Any
     TS: Any
     _derate: Any
+    _hat_path: Any
     _mode_at: Any
     _model: Any
     _params: Any
@@ -198,6 +199,15 @@ class DrivePlant:
         eps = v_inj * self.TS * l_del * math.sin(2.0 * phi) / (ld * self._lq)
         return ih, -eps
 
+    def _estimate(self, theta, ran=None):
+        """theta_hat to `theta`, its whole turns counted as drive.c counts them: `ran`, rad, how
+        far it went where the rotor says - a read turns it many times - else the nearer way."""
+        gap = (theta - self._theta_hat + math.pi) % (2 * math.pi) - math.pi
+        if ran is not None:
+            gap += 2 * math.pi * round((ran - gap) / (2 * math.pi))
+        self._hat_path += gap
+        self._theta_hat = theta % (2 * math.pi)
+
     def _converge(self):
         """SENSORLESS pulls theta_hat onto the rotor (0) or pi off it."""
         if self._mode != 'sensorless' or not self._p('drv_inj_volts', 0.0):
@@ -206,7 +216,7 @@ class DrivePlant:
         self._theta_hat_at = time.time()
         target = 0.0 if math.cos(self._theta_hat) >= 0.0 else math.pi
         err = (self._theta_hat - target + math.pi) % (2 * math.pi) - math.pi
-        self._theta_hat = (target + err * math.exp(-dt * 60.0)) % (2 * math.pi)
+        self._estimate(target + err * math.exp(-dt * 60.0))
 
     def _settle_polarity(self, periods):
         """The polarity pulse ends itself once its two pulses and two gaps have
@@ -271,12 +281,13 @@ class DrivePlant:
             return motor
         # Off too: the bridge open, no current, the rotor on its drag and load - world.c's
         # coast(). Skipped, the shaft stood at 2 451 rpm for 18 s with the stage off (2026-09-28).
+        mech = self._mech
         self._spin(motor, dt, now)
         # The tracker: its PLL's lag in closed form, not integrated.
         wn = 2.0 * math.pi * self._pll_hz()
         alpha = (motor.omega - self._omega_hat) / dt if dt > 0.0 else 0.0
         self._omega_hat = motor.omega
-        self._theta_hat = (motor.theta + alpha / (wn * wn)) % (2.0 * math.pi)
+        self._estimate(motor.theta + alpha / (wn * wn), ran=(self._mech - mech) * motor.p)
         return motor
 
     def _spin(self, motor, dt, now):
@@ -362,5 +373,5 @@ class DrivePlant:
         self._omega_hat = 0.0
         self._obs = None
         self._rng.seed(self.NOISE_SEED)
-        self._theta_hat = self._model['theta0']
+        self._estimate(self._model['theta0'])
         return True

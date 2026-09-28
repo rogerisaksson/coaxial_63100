@@ -16,12 +16,16 @@ from machine.modes import SIMULATED
 
 class Report:
     def __init__(self):
-        self.passed = self.failed = 0
+        self.passed = self.failed = self.skipped = 0
 
     def check(self, name, ok, detail=''):
         self.passed += bool(ok)
         self.failed += (not ok)
         print('  %s  %-58s %s' % ('PASS' if ok else 'FAIL', name, detail))
+
+    def skip(self, name, why):
+        self.skipped += 1
+        print('  SKIP  %-58s %s' % (name, why))
 
 
 @contextlib.contextmanager
@@ -444,6 +448,12 @@ def test_frames_rolls_a_window(report):
                 return
             deep = daq.history()
 
+    # The stream is paced on the wall: beside the relay's whole gate a starved host fed 4 ms
+    # of its 1.2 s, and a window's rolling is not to be judged on less than one (2026-09-28).
+    depth = deep.index[-1] - deep.index[0] if len(deep.index) else 0.0
+    if depth < 0.2:
+        report.skip('frames() rolling its window', 'the stream ran %.3f s of 1.2' % depth)
+        return
     report.check('frames() yields more than once', len(widths) > 2, len(widths))
     report.check('the window stops growing at what was asked',
                  max(widths) <= 0.21, '%.3f s' % max(widths))
@@ -541,7 +551,7 @@ def main(argv=None):
     for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
-    print('\n%d passed, %d failed' % (report.passed, report.failed))
+    print('\n%d passed, %d failed, %d skipped' % (report.passed, report.failed, report.skipped))
     return 1 if report.failed else 0
 
 

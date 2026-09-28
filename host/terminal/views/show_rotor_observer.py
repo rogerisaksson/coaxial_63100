@@ -152,10 +152,11 @@ def compose(rig, origin, console, view):
     # backwards, as a wheel on film (43 rpm at 14 poles) - so the magnets blur with the turn
     # through a shutter, as far as they go in it: sharp at rest, streaks, a band. No threshold
     # to flip at - one flipped 7 times in a ramp - and no thin ring for magnets gone
-    # (2026-09-28). The mark is on the rotor: the magnets' angle from where the tare left it,
-    # streaked through the same shutter - on a pace of its own it drifted off them (2026-09-28).
+    # (2026-09-28). The mark is on the rotor: the magnets' travel since the tare, streaked
+    # through the same shutter - on a pace of its own it drifted off them, and at the angle
+    # over the pole pairs it skipped a pitch each electrical turn, 51.4 degrees (2026-09-28).
     blur = s['omega_hat'] * SHUTTER_S / math.pi          # a pitch is pi electrical
-    mark = turned - view.get('tare_turned', 0.0)
+    mark = s.get('travel', view['travel']) - view['tare']
     art = cross_section.render(turned, view['slots'], 2 * pole_pairs,
                          BOX.width, BOX.rows,
                          # The sensor's own stroke is not drawn.
@@ -450,7 +451,7 @@ def main(argv=None):
             # The rotor the demo's speed loop is designed on: the model's where the page
             # set one, else the demo's flywheel, which an emulated board's world carries.
             'j': args.j or DEMO_J, 'b': args.b or DEMO_B,
-            'travel': 0.0, 'travel_at': None, 'leaning': False,
+            'travel': 0.0, 'leaning': False,
             'winding': _thermal.AMBIENT, 'winding_at': None,
             'burst_until': 0.0, 'bursting': False, 'stage': None,
             'burst_at': clock.now(),
@@ -487,14 +488,10 @@ def main(argv=None):
             state = board.drive.state()
             gate = board.gate_drivers.state()
             model = board.drive.model.read() if view['source'] == 'model' else None
-            # One reply for the dial and the mark.
-            if model:
-                state['theta_hat'] = model['theta_hat']
-                state['omega_hat'] = model['omega_hat']
             # The chain: a second answer to the angle, no shaft sensor behind it.
             chain = board.drive.observers.read()
+            travel(view, state)
             view.update(state=state, gate=gate, model=model, chain=chain)
-            travel(view)
             turn_the_handle(rig, view)
             if time.time() - thermal_at[0] > thermal_every:
                 view['thermal'] = board.thermal.state()

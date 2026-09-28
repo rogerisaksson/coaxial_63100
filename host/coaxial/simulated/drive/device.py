@@ -105,6 +105,8 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
                     'pol_volts': 0.0, 'pol_periods': 0, 'pol_gap': 0}
         self._params = {}
         self._theta_hat = 0.7
+        #: The estimate unwrapped: theta_hat and its whole turns, as drive.c counts them.
+        self._hat_path = 0.7
         self._theta_hat_at = time.time()
         self._trigger = 2360
         self._mode_at = time.time()
@@ -207,6 +209,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
             'trigger': self._trigger if self._sync_armed() else 0, 'ts': self.TS,
             'exit_ticks_max': 2921,
             'cycles': {'sample': 610, 'step': 1690, 'advance': 620},
+            'turns': round((self._hat_path - self._theta_hat) / (2 * math.pi)),
         }
 
     @_rotor_locked
@@ -258,7 +261,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
 
     @_rotor_locked
     def set_theta(self, radians):
-        self._theta_hat = radians % (2 * math.pi)
+        self._estimate(radians)
         self._theta_hat_at = time.time()
         return True
 

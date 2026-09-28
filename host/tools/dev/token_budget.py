@@ -33,7 +33,6 @@ HEAVY = {
     'host/tests/test_controller.py': 10300,
     'host/tools/notebooks/drive.py': 10000,
     'host/tests/test_ollama_link.py': 9900,
-    'host/tests/test_drive_core.py': 9400,
     'host/tests/test_ollama_prompt.py': 9400,
     'host/tests/test_sensorless.py': 9100,
     'host/coaxial/draw/cross_section.py': 8700,

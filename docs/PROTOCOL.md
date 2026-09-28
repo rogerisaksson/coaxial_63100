@@ -1,7 +1,7 @@
 # Protocol
 
 Host mirror: `host/coaxial/comm/protocol.py`, `wire.py`, `transport.py`. Version
-in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.23); firmware version in
+in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.24); firmware version in
 `version.h`. A host picks its codec on MAJOR only (invariant 4).
 
 ## Framing
@@ -452,7 +452,8 @@ Op 0: `u8 mode, u8 fault, u8 flags` (0x01 MOE, 0x02 afe_on,
 i32 iq, i32 vd, i32 vq, i32 vdc, i32 eps, i32 eps_amps, i32 ih,
 i32 e_bemf, u32 periods, u32 cycles_last, u32 cycles_max, i32 pol_pos,
 i32 pol_neg, u16 trigger, u32 ts_ns, u16 exit_ticks, u32 cyc_sample,
-u32 cyc_step, u32 cyc_advance`. The window's seven fields are id, iq,
+u32 cyc_step, u32 cyc_advance, i32 turns` - theta_hat's whole turns, counted
+every step, modulo 2^32. The window's seven fields are id, iq,
 vd, vq, eps, ih, vdc; the moments' four channels are U, V, W and the
 DC bus in milli-codes.
 
@@ -549,6 +550,7 @@ MINOR appends; MAJOR breaks a codec.
 | 21 | link op 0 on the port carrying the request refused in words, `u8 0, str`, where it answered ILLEGAL DATA VALUE |
 | 22 | thermal op 13 sets the observer's clock; the state's `seconds` and `seen_ms_ago` on it |
 | 23 | gate drivers op 0 appends `u8 nfault, i32 vgate_mv`: the STO chain's FAULTOUT on PE15 and the drivers' supply |
+| 24 | drive op 0 appends `i32 turns`: the estimate unwrapped, theta_hat + 2 pi turns |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

@@ -430,7 +430,7 @@ def test_smart_selection(report):
     # The four named switches are what everybody types.
     for percent, expect in ((25, {*table.STRUCTURES, table.CORE,
                                   table.SHTP, 'test_simulated.py',
-                                  table.DRIVE, table.FILTER,
+                                  table.DRIVE, table.DRIVE_OBSERVER, table.FILTER,
                                   table.THERMAL, table.BOOT_CORE, table.CTRL_CORE, table.WORLD_CORE, table.WIRE,
                                   table.SENSORLESS, table.DAQ_API,
                                   table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS,
@@ -438,7 +438,7 @@ def test_smart_selection(report):
                                   } | set(table.OLLAMA)),
                             (75, {*table.STRUCTURES, table.CORE,
                                   table.SHTP, 'test_simulated.py',
-                                  table.DRIVE, table.FILTER,
+                                  table.DRIVE, table.DRIVE_OBSERVER, table.FILTER,
                                   table.THERMAL, table.BOOT_CORE, table.CTRL_CORE, table.WORLD_CORE, table.WIRE,
                                   table.SENSORLESS, table.DAQ_API,
                                   table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS,

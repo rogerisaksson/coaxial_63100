@@ -18,6 +18,7 @@ CORE = 'test_modbus_core.py'
 SHTP = 'test_shtp_core.py'
 
 DRIVE = 'test_drive_core.py'
+DRIVE_OBSERVER = 'test_drive_observer.py'
 
 FILTER = 'test_filter_core.py'
 
@@ -110,7 +111,8 @@ CYCLIC = 'test_cyclic.py'
 
 RENDER = 'test_render.py'
 
-DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
+DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, DAQ_CORE,
+                                BOOT_CORE,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC, BOOT) + VIEWS
@@ -145,6 +147,7 @@ JOINS = (
     # The control law against a motor model, and the commissioning against the
     # stand-in: a compiler and a few seconds, no cable.
     (20, DRIVE),
+    (20, DRIVE_OBSERVER),
     # The anti-alias chain against the transfer function it was designed from,
     # and a tone fed through it: a compiler and a second.
     (20, FILTER),
@@ -278,9 +281,9 @@ TOUCHES = (
                                                 'test_simulated.py')),
     ('host/terminal/ui/',                      (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
-    ('host/tools/cores/build.py',              (CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE,
-                                                BOOT_CORE, CTRL_CORE)),
-    ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, SENSORLESS)),
+    ('host/tools/cores/build.py',              (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER,
+                                                THERMAL, DAQ_CORE, BOOT_CORE, CTRL_CORE)),
+    ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, DRIVE_OBSERVER, SENSORLESS)),
     ('host/tools/cores/thermal.py',            (THERMAL,)),
     ('host/tools/cores/',                      (WIRE, NATIVE)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
@@ -301,11 +304,12 @@ TOUCHES = (
     # The control law is hardware-free like the SHTP layer, and its suite
     # closes the loop through a motor model - the only check on it that needs
     # no motor.
-    ('drive/',                                 (DRIVE, WORLD_CORE)),
+    ('drive/',                                 (DRIVE, DRIVE_OBSERVER, WORLD_CORE)),
     ('host/coaxial/devices/drive.py',          (SENSORLESS, 'test_simulated.py',
                                                 'test_parity.py')),
     ('host/coaxial/model/sensorless.py',       (SENSORLESS,)),
-    ('host/motor/',                            (SENSORLESS, DRIVE, CONTROLLER)),
+    ('host/motor/',                            (SENSORLESS, DRIVE, DRIVE_OBSERVER,
+                                                CONTROLLER)),
     ('host/coaxial/control/commission.py',     (SENSORLESS,)),
     ('host/tools/bench/commission.py',         (STRUCTURE, SENSORLESS)),
     # The stage constants and the host control loops are design arithmetic with
@@ -375,5 +379,5 @@ FULL_EVERY = 10
 #: six together, so asking the model costs a 7.6 GB load longer than the
 #: run. Where the map has an explicit rule it is also the better answer,
 #: written by someone reading the imports.
-CHEAP = frozenset({*STRUCTURES, CORE, SHTP, DRIVE, SENSORLESS,
+CHEAP = frozenset({*STRUCTURES, CORE, SHTP, DRIVE, DRIVE_OBSERVER, SENSORLESS,
                    'test_simulated.py', *VIEWS, RENDER})

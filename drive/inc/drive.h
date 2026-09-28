@@ -237,6 +237,7 @@ typedef struct
   float ih;                          /**< last HF current amplitude, A */
   float e_bemf;                      /**< last back-EMF angle error, rad */
   float bemf_speed;                  /**< |back-EMF| / lambda, filtered: the rotor's speed as its voltage says it, rad/s */
+  uint32_t turns;                    /**< theta_hat's whole turns, modulo 2^32: theta_hat + 2 pi turns runs on through its wraps */
 
   /* the back-EMF observer chain, beside it */
   drive_obs_t obs;

@@ -157,16 +157,23 @@ def test_the_demo_actually_loads_the_motor(report):
                      and abs(loads[-1][1][-1][3]) >= 5.0,
                      '%.0f rpm on %.1f A' % (loads[-1][1][-1][2], loads[-1][1][-1][3])
                      if loads else 'none')
-    # The mark is on the rotor: at the magnets' angle every frame, the demo never tared, and
-    # streaked through their shutter - on a pace of its own it drifted off them (2026-09-28).
-    off = max((abs((mark - can + 180.0) % 360.0 - 180.0) for can, mark, _s, _b, _p in drawn
-               if mark is not None), default=None)
+    # The mark is on the rotor: one place among the magnets every frame, streaked through
+    # their shutter - on a pace of its own it drifted off them - and never a pitch at once at
+    # a crawl: the angle over the pole pairs skipped one each electrical turn (2026-09-28).
+    pitch = 720.0 / drawn[0][4] if drawn else 360.0
+    places = [((mark - can) % pitch, mark, sweep) for can, mark, sweep, _b, _p in drawn
+              if mark is not None]
+    off = max((abs((p - places[0][0] + pitch / 2.0) % pitch - pitch / 2.0)
+               for p, _m, _s in places), default=None) if places else None
     apart = max((abs(sweep - blur * 360.0 / poles) for _c, _m, sweep, blur, poles in drawn),
                 default=None)
-    report.check('the mark rides the rotor at its magnets\' angle, through their shutter',
-                 off is not None and off < 1e-9 and apart < 1e-9,
-                 '%d frames: %.1e degrees off the can, the sweeps %.1e degrees apart'
-                 % (len(drawn), off or 0.0, apart or 0.0))
+    crawl = max((abs(b[1] - a[1]) for a, b in zip(places, places[1:])
+                 if abs(a[2]) < 1.0 and abs(b[2]) < 1.0), default=0.0)
+    report.check('the mark rides the rotor among its magnets, through their shutter, and '
+                 'at a crawl never skips a pitch',
+                 off is not None and off < 1e-6 and apart < 1e-9 and crawl < pitch / 4.0,
+                 '%d frames: %.1e degrees off its place, the sweeps %.1e apart, the largest '
+                 'step at a crawl %.1f' % (len(drawn), off or 0.0, apart or 0.0, crawl))
     text = re.sub(r'\x1b\[[0-9;]*m', '', art)
     winding = re.search(r'WINDING +([0-9.]+)', text)   # %5.1f: a space at two digits
     soa = re.search(r'SWITCH SOA ([0-9.]+) %', text)

@@ -236,9 +236,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   coasts at iq 0 with the bridge on. The stand-in's tracker follows the model
   off: a gap (2026-09-28).
 - Near standstill the firmware's estimate swings 100-150 rpm a sample, on native
-  and Renode alike: the estimator, not the emulator. theta_hat steps 12.3 deg a
-  sample against the speed's integral's 41.6; travel follows theta_hat there
-  (2026-09-28).
+  and Renode alike: the estimator, not the emulator (2026-09-28).
+- The rotor page's mark, drawn at the angle over the pole pairs, skipped a pitch
+  (51.4 deg) each electrical turn: STEPPER's 2 rpm showed it. Counted at 20
+  frames a second past 43 rpm it rode the speed, which overshot at a hold's
+  handover: 68.8 deg with the rotor at rest. The drive counts theta_hat's turns
+  (op 0, MINOR 24): STEPPER +57.8/-53.7 of 60, 3.2 a frame at most; the climb
+  36-86 a frame against the shaft's 40-84 (2026-09-28).
 - Renode under the drive: 3.8-4.5 wall s a board s, 110 M guest instructions a
   board s at ~33 ns each; Debug and Release alike. The CPU thread's RIP sampled:
   translated code 41 %, coreclr's crossings 17 %, the FPU's lazy state saved at
@@ -277,18 +281,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   broadcast chunks come 2 ms apart: no threshold between. The sockets take a
   write as a frame, its length ahead of it (`frames://`), put on the line
   whole once all of it has come (2026-09-28).
-- The bead ran backwards 47 times in 420 frames before the emulator, 16 in 200
-  after: its regime came off the step `travel` made since the last draw, none
-  between feed samples. Off the rotor's speed now, in proportion to it above 30
-  rpm: 0 (2026-09-28).
 - The demo's STEPPER at 15 mechanical degrees a step - 105 electrical -
   lost its rotor (180 asked, 580 turned); 45 electrical, eased: 63 of 60
   (2026-09-28).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a
-  coast (0 cells), the mark at the magnets' angle (0.0 off in 770 frames)
-  (2026-09-28).
+  coast (0 cells), the mark one place among them (2026-09-28).
 - A file read whole past 6 k tokens costs a tenth of a window: 38 of ours,
   test_views 32 k, test_structure 17 k. Split by subject (split_suite.py), the
   rest capped; test_structure and the pre-commit hook hold it (2026-09-28).
@@ -303,9 +302,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   held the board to 21 %. One call a burst (native_lockstep): 100 %, 72
   attitudes in 80 frames (2026-09-28).
 - A FAIL behind a page's leftover footer or screen clear went unnamed: the
-  runner takes a line's first marker now, escapes stripped. The bead's rank
-  correlation read 0.80 under stalls over the rows' clock; over its own dt
-  1.00 (2026-09-28).
+  runner takes a line's first marker now, escapes stripped (2026-09-28).
 - A `Feed` slept its period after the read: a 20 ms read at 50 ms fed 14
   readings a second to a 20 fps page. Start to start now (2026-09-28).
 - Entering `coaxial` through `coaxial.comm.session` broke the package's own
@@ -1043,8 +1040,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   observer's model puts 0.666 W through 22.5 + 40.5 K/W, 42 K. Both dies read
   colder than modelled and the NTC's inversion (x12 at 30 s, x27 at 2 s)
   threw the V patch to 5 C. The plant runs thermal.c's network as truth
-  (world_heat.c): the NTC within 0.25 K under the demo's 30 A, driver U 26-100 C,
-  CONVERGING in 4 min on native (2026-09-26).
+  (world_heat.c): the NTC within 0.25 K under the demo's 30 A, driver U 26-100 C
+  (2026-09-26). The rotor page on native: STABLE at 311 s, the laminate's
+  capacity the last doubt - TH OBS 95 % at its sigma 0.125, 100 % at 0.10, 289
+  s; the air path's by 62 s (2026-09-28).
 - The attitude's tumble turned 140 and 280 deg/s on the emulator and native
   (2.56 s); the stand-in stepped it a read, a turn in 1.28 s at 200 reads/s.
   25.6 s on the clock: 31 deg/s (2026-09-26).

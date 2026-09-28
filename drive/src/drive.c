@@ -678,8 +678,19 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   d->id = id;
   d->iq = iq;
 
+  const float was = d->theta_hat;
+
   rotor_observer(d, alpha, beta, injecting, cycle_done, w,
                  cmd_frame ? NAN : c, cmd_frame ? NAN : s);
+  /* A step moves the estimate a fraction of a turn: a gap past half of one is its wrap. */
+  if (d->theta_hat - was < -PI_F)
+  {
+    d->turns += 1U;
+  }
+  else if (d->theta_hat - was > PI_F)
+  {
+    d->turns -= 1U;
+  }
   command_frame(d);
 
   /* the fundamental */

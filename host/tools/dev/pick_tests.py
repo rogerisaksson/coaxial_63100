@@ -57,6 +57,8 @@ SUITES = {
     'test_live_model.py': 'the real local model choosing real tools. Minutes.',
     'test_drive_core.py': 'the control law against a motor model, through '
                           'the host gcc',
+    'test_drive_observer.py': 'the rotor observer against a motor model, through '
+                              'the host gcc',
     'test_sensorless.py': 'the design arithmetic and the commissioning '
                           'against the stand-in',
 }

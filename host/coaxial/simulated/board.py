@@ -45,7 +45,7 @@ class SimulatedBoard:
             # fields in records (7) and the counted duty (8) - so a host gating
             # a feature on the version exercises the same gate here that it
             # will at the bench.
-            'proto_major': 2, 'proto_minor': 23, 'firmware': 'simulated',
+            'proto_major': 2, 'proto_minor': 24, 'firmware': 'simulated',
             'device': name, 'mcu': 'STM32H753 (simulated)',
             'build': 'simulated', 'commands': 21, 'type': kind,
             # Says what it is and that it is invented, in the same line, so a

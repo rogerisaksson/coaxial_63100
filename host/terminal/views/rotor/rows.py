@@ -1,6 +1,5 @@
 """The rotor observer's text rows: drive, observer, phases, status, chain, loop."""
 import math
-import time
 
 from rich.text import Text
 
@@ -57,33 +56,21 @@ def observer_rows(view):
             ('bemf', '%+7.3f rad' % s['e_bemf'])]
 
 
-def travel(view):
-    """How far the rotor has actually turned, in mechanical degrees - and, as one
-    pair a draw on the other thread reads whole, that and when it was so."""
-
-    now = time.monotonic()
-    was = view.get('travel_at')
-    view['travel_at'] = now
-    s = view['state']
-    theta, before = s['theta_hat'], view.get('theta_was')
-    view['theta_was'] = theta
-    if was is not None:
-        dt = min(0.5, now - was)
-        if before is not None and abs(s['omega_hat'] * dt) < 0.5 * math.pi:
-            # Slow enough to unwrap: the angle estimate's own step. Near standstill the
-            # speed's integral jittered 41.6 degrees a sample and the angle's 12.3 on native
-            # (2026-09-28) - the injection estimates the angle, the speed is its derivative.
-            pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
-            step = (theta - before + math.pi) % (2.0 * math.pi) - math.pi
-            view['travel'] += math.degrees(step) / pairs
-        else:
-            view['travel'] += pointer_rate(view) * dt
-    view['travel_mark'] = (view['travel'], now)
+def travel(view, s):
+    """How far the rotor has turned since the page began, mechanical degrees, into `s` - the
+    sample the feed is about to publish, so a draw reads the angle and its travel together:
+    the estimate and the whole electrical turns the drive counted to it (op 0, MINOR 24).
+    Counted here at 20 frames a second, a turn was lost past 43 rpm, and the speed that told
+    them overshot at a hold's handover: the mark leapt 68.8 degrees at rest (2026-09-28)."""
+    pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
+    at = math.degrees(s['theta_hat'] + math.tau * (s.get('turns') or 0)) / pairs
+    view['travel'] = at - view.setdefault('travel_from', at)
+    s['travel'] = view['travel']
 
 
 def pointer_rate(view):
     """How fast the rotor turns, degrees a second, signed: the loop's speed over the pole
-    pairs - the one number `travel` integrates and the mark's streak is swept by."""
+    pairs, the mark's streak swept by it."""
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     return math.degrees(motions.speed(view) / pairs)
 

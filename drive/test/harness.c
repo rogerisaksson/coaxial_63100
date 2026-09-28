@@ -24,7 +24,7 @@
 /* STATE_ORDER: theta_hat, omega_hat, theta_cmd, omega_cmd, id, iq, vd, vq,
    eps, eps_amps, ih, mode, fault, pol_pos, pol_neg, periods, demod_d,
    demod_q, vdc, e_bemf, xd, xq */
-#define STATES 22
+#define STATES 23
 
 API drive_t *drv_new(float ts)
 {
@@ -156,6 +156,7 @@ API void drv_state(const drive_t *d, float *v, int n)
   v[15] = (float)d->periods;
   v[16] = d->demod_d;  v[17] = d->demod_q;  v[18] = d->vdc;
   v[19] = d->e_bemf;  v[20] = d->xd;  v[21] = d->xq;
+  v[22] = (float)(int32_t)d->turns;
 }
 
 /* WINDOW_ORDER: n, then per field (n, sum, sumsq) for id, iq, vd, vq, eps,

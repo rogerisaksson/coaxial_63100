@@ -26,7 +26,7 @@ SETPOINTS = ('id_ref', 'iq_ref', 'theta', 'omega_target', 'accel', 'vd', 'vq',
 STATES = ('theta_hat', 'omega_hat', 'theta_cmd', 'omega_cmd', 'id', 'iq',
           'vd', 'vq', 'eps', 'eps_amps', 'ih', 'mode', 'fault', 'pol_pos',
           'pol_neg', 'periods', 'demod_d', 'demod_q', 'vdc', 'e_bemf',
-          'xd', 'xq')
+          'xd', 'xq', 'turns')
 FIELDS = ('id', 'iq', 'vd', 'vq', 'eps', 'ih', 'vdc')
 MODEL = ('r', 'ld', 'lq', 'lambda', 'pole_pairs', 'sat', 'i_sat', 'j', 'b',
          'load', 'v_dt', 'i_knee', 'vdc', 'noise', 'theta0', 'sub')
