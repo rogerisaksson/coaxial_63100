@@ -50,9 +50,10 @@ SHIFT_IN, LIFT_IN = 0.055, 0.015
 
 #: Risen, the knees soft as the stand's (`gait.STAND_KNEE`); the pelvis SINK_M lower as her weight
 #: goes onto the left foot, its hip out over the ankle and the leg reaching the further - and the
-#: body leaning on as it goes, the torso with the shins. Sunk 4 mm with the torso plumb, the knees
-#: bent 4 -> 12 degrees, the hips 26 mm behind them and the torso 7.2 behind the shins: leaning
-#: back before the first step; unsunk the stance knee locked at -2 (2026-09-28).
+#: torso leaning on as far as the shins do, the lean's (`gait.LEAN_DEG`). Sunk 4 mm with the torso
+#: plumb, the knees bent 4 -> 12 degrees, the hips 26 mm behind them and the torso 7.2 behind the
+#: shins: leaning back before the first step; at 1 and 1.5 mm the first steps fell, unsunk the
+#: stance knee locked at -2; the lean's 8 from here on read as unnatural (2026-09-28).
 SINK_M = 0.002
 
 #: Rising, the hips lift first, the torso leaning on with the shins, and then both straighten:
@@ -125,9 +126,8 @@ def over(frame, x, z, rounds=6) -> dict[str, Any]:
 
 def with_shins(frame, x, z) -> dict[str, Any]:
     """`frame` with its torso ahead of plumb as far as its shins - the pelvis a third, the spine
-    the rest, the head pitched its neck's degrees - its centre of mass over (x, z). Plumb over knees bent
-    by the stand's give she leant back: the torso 3.3 degrees behind the shins standing, 18.6
-    rising (2026-09-28)."""
+    the rest, the head pitched its neck's degrees - its centre of mass over (x, z): rising, plumb
+    over bent knees she leant back, the torso 18.6 degrees behind the shins (2026-09-28)."""
     lean, neck = 0.0, frame['joints']['neck']
     for _ in range(4):
         frame = over(dict(frame, tilt=lean / 3.0, joints=dict(
@@ -156,13 +156,13 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
           push['pelvis'][2])
     rising = with_shins(dict(push, pelvis=up, joints=dict(push['joints'], neck=12.0)),
                         0.0, FEET_Z)
-    rise = with_shins(dict(push, pelvis=(0.0, gait.standing()[2], push['pelvis'][2]),
-                           joints=dict(push['joints'], neck=3.0, right_shoulder=0.0,
-                                       right_elbow=10.0, right_gripper=18.0, left_shoulder=0.0,
-                                       left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
-                      0.0, FEET_Z)
+    rise = over(dict(push, tilt=0.0, pelvis=(0.0, gait.standing()[2], push['pelvis'][2]),
+                     joints=dict(push['joints'], spine=0.0, neck=3.0, right_shoulder=0.0,
+                                 right_elbow=10.0, right_gripper=18.0, left_shoulder=0.0,
+                                 left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
+                0.0, FEET_Z)
     shift = over(dict(rise, pelvis=add(rise['pelvis'], (0.0, -SINK_M, 0.0)), tilt=gait.LEAN_DEG,
-                      joints=dict(rise['joints'], spine=0.0, neck=3.0 - gait.LEAN_DEG)),
+                      joints=dict(rise['joints'], neck=rise['joints']['neck'] - gait.LEAN_DEG)),
                  FEET_X - SHIFT_IN, FEET_Z)
     lean = over(shift, FEET_X - SHIFT_IN, LEAN_M)
     # The right foot lifted and swung half a step while her weight goes on over the left foot's

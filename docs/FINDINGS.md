@@ -583,10 +583,12 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   pelvis sunk for the weight's shift bent the knees 4 -> 12 degrees under a
   plumb torso - the hips 26 mm behind the knees, the hips-to-shoulders line
   -0.5 degrees, the torso 7.2 behind the shins; rising, the torso came up
-  first, 18.6 behind them. Now the torso leans as far as the shins
-  (`arrival.with_shins`), rising through a keyframe at 80 % of the height,
-  +5.7 standing, and the lean's 8 from the shift on: the hips-to-shoulders
-  line +3 standing, +8 shifting, the sink 2 mm. The seam to the walk: the
+  first, 18.6 behind them. Now the torso leans as far as the shins rising
+  (`arrival.with_shins`, a keyframe at 80 % of the height), stands plumb,
+  and leans on the lean's 4 from the shift on as the knees bend 4 -> 8, the
+  sink 2 mm (1 and 1.5 mm fell): the hips-to-shoulders line -0.4 standing,
+  +3.8 shifting, the torso at most 5.7 (8 from the shift on read as
+  unnatural). The seam to the walk: the
   arrival rode the torso on the pelvis and the walker eased its spine in
   from the hand-off's, so the torso swung 10.8 -> 14.0 -> 7.5 degrees as
   the pelvis tipped; both now take the pelvis's tip back out of the spine
