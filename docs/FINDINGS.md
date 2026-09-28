@@ -656,24 +656,20 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   on it came to 150 rad/s and every drive slammed to its peak. A world
   with no buses runs the drives itself (`tools/sim/getup_lab.py`)
   (2026-09-27).
-- The feet 27 -> 24.5 cm: held 81.8 -> 85.3 %, the thigh 6.6 -> 8.7
-  degrees behind at the lift, the strike 1.1 -> 1.4-1.6 kN (2026-09-28).
+- The feet 27 -> 24.5 cm: held 81.8 -> 85.3 %, the strike 1.1 -> 1.4-1.6
+  kN (2026-09-28).
 - Her hair on two hinges under her crown, 0.06 kg at 1.8 Hz: 17 degrees
   fore and aft and 6 aside as she walks (2026-09-28).
 - After 100 s of walking she sank into a crouch, the pelvis 24 -> 172 mm
   under the stand, the stance knees 17 -> 67 degrees, the boards' derate
   1.00 throughout: at 80 m she stepped off the floor's slab, 3 cm down, and
   each landing latched the height lower than the 0.03 m/s rise gave back.
-  The slab runs 10 km; the rise adds the lowered height over 2 s. The
-  scoreboard, with the 24 cm sneakers: 6.35, held 86.9 %, the walk's stir
-  2.46 mm at 0.85 (2026-09-28).
+  The slab runs 10 km; the rise adds the lowered height over 2 s
+  (2026-09-28).
 - Her limbs collide (`physics.ME`): floor alone, her sneakers passed 22 mm
-  into each other as she walked. Colliding at the catwalk's tracks they
-  bumped and the thigh left the floor 1.6 degrees ahead of upright; at 30
-  and 35 mm (walkplan.TRACK_M, WIDEN_M) they pass 10 mm apart, a swinging
-  foot kept off the other where their soles overlap (`landing.clear`). The thighs'
-  spheres pressed up to 2 kN apart at every passing: that pair is left out
-  (`physics.APART`) (2026-09-28).
+  into each other. A swinging foot is kept off the other where their soles
+  overlap (`landing.clear`); the thighs' spheres pressed 2 kN apart at
+  every passing: that pair is left out (`physics.APART`) (2026-09-28).
 - The swinging hip ran 5 degrees behind its setpoint and caught up into the
   floor, 1.5 kN in 2 ms: the swinging leg's plan leads 20 ms
   (landing.SWING_LEAD_S) (2026-09-28).
@@ -700,6 +696,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - Turned 6 degrees her hips swayed with her shoulders, 60 and 41 mm
   across; turned 9, dropped 6, the spine taking 0.3 of the hips' offset
   back at the shoulders: 72 under 25 (2026-09-28).
+- A 6 cm sill caught the skimming toes for 0.11 s and she fell; a
+  swinging foot bearing 80 N is lifted 8 cm more (`landing.tripped`):
+  each foot in turn stumbles over it, the pelvis pitching 4.4 and 6.5
+  degrees, and she walks on (2026-09-28).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The

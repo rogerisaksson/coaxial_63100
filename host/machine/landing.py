@@ -98,6 +98,26 @@ def put_down(ball_z, pel_z):
 GAP_M, OVERLAP_M = 0.01, 0.1
 
 
+#: A swinging foot that bears TRIP_N between TRIP_FROM and TRIP_UNTIL of its swing has met
+#: something: it is lifted TRIP_LIFT_M more, over TRIP_S, and let down again from TRIP_UNTIL to its
+#: landing - the elevating strategy. Its toes caught on a 6 cm sill 15 cm ahead as it lifted,
+#: the pelvis pitched 10 degrees in 0.11 s and she fell (2026-09-28).
+TRIP_N, TRIP_FROM, TRIP_UNTIL, TRIP_LIFT_M, TRIP_S = 80.0, 0.1, 0.75, 0.08, 0.05
+
+
+def tripped(w, dt, side, u, load):
+    """How far a swinging foot at `u` of its swing is lifted over what it met, m."""
+    since = w.trip.get(side)
+    if since is None and TRIP_FROM <= u < TRIP_UNTIL and load > TRIP_N:
+        since = 0.0
+    if since is None or u <= 0.0:
+        w.trip.pop(side, None)
+        return 0.0
+    w.trip[side] = since + dt
+    down = max(0.0, (u - TRIP_UNTIL) / (1.0 - TRIP_UNTIL))
+    return TRIP_LIFT_M * gait.eased(since / TRIP_S) * (1.0 - gait.eased(down))
+
+
 #: A leg's plan led SWING_LEAD_S through its swing and its landing's roll: a drive lags a
 #: setpoint on the move; its hip 5 degrees behind caught up into the floor (2026-09-28).
 SWING_LEAD_S = 0.02
@@ -204,8 +224,8 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
         u = (q - gait.TOE_OFF) / (1.0 - gait.TOE_OFF) if q >= gait.TOE_OFF else 0.0
         # Aimed at its ball: toed out, the ball is off the ankle's line, 12 mm at 6 degrees.
         at = (float(x[i]) + sign * (walkplan.WIDEN_M * math.sin(math.pi * u) ** 2 - gait.BALL
-                                    * math.sin(math.radians(gait.TOE_OUT_DEG))), ankle[1],
-              planned_z + ankle[2] + fore)
+                                    * math.sin(math.radians(gait.TOE_OUT_DEG))),
+              ankle[1] + tripped(w, dt, side, u, loads[side]), planned_z + ankle[2] + fore)
         at = clear(at, sign, balls[walkplan._OTHER[side]], ankles[walkplan._OTHER[side]])
         hip = figure.hip(sign, pel, turn_now)
         at, short = reach(hip, at, stance.SWING_REACH * gait.REACH)

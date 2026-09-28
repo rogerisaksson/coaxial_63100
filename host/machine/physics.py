@@ -114,12 +114,12 @@ SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
 #: (2026-09-28). The halves are
 #: compiled over the whole span and cut to size, the sill and the patch are mocap bodies: a
 #: geom moved or grown past its compiled bounds is missed by the broadphase (the rug fell
-#: through a slab grown 27 m, a box through a sill moved 1 m). Her toes skim at 3 cm through
-#: the first 0.16 s of a swing, 0.5 m: a 2 cm sill they shoved at with 200 N and went over, 4
-#: catches them; at 0.15 the patch let the stance foot creep 3 mm (the walk asks 0.17), at 0.06
-#: it slid 10 cm back under the push-off; the rug at 0.3 lay still under a landing and a
-#: push-off (the sole's shear 100 N, the rug's hold 165) (2026-09-27).
-HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.03, 0.40, 0.04, 0.04
+#: through a slab grown 27 m, a box through a sill moved 1 m). At 0.15 the patch let the stance
+#: foot creep 3 mm (the walk asks 0.17), at 0.06 it slid 10 cm back under the push-off; the rug
+#: at 0.3 lay still under a landing and a push-off (the sole's shear 100 N, the rug's hold 165)
+#: (2026-09-27). The skimming toes brushed a 4 cm sill, 350 N for 20 ms, unseen; 6 cm caught
+#: them for 0.11 s and she fell, or stumbled over it lifted (`landing.tripped`) (2026-09-28).
+HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.03, 0.40, 0.06, 0.04
 SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
 RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.1
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0

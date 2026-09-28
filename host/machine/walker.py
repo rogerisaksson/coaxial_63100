@@ -165,6 +165,8 @@ class Walker:
         self.halting, self.halt_from, self.length_was = None, 1.0, None
         #: The pendulum between her ears, read each pass (`machine.pendulum`).
         self.pendulum = Pendulum()
+        #: {side: seconds since its swinging foot met something} (`landing.tripped`).
+        self.trip = {}
 
     def halt(self):
         """To a stop over HALT_S: the stride down to HALT of its own; `halted` from then."""
