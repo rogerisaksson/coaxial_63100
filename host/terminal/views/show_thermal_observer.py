@@ -458,13 +458,11 @@ def main():
           Coaxial63100(port=a.port, execution_mode=mode_of(a), power_afe=False) as rig):
         ready()
         origin = rig.origin
-        # On the stand-in, however reached: `--simulated`, or a bench with no
-        # cable where the rig falls back to it. Keyed on the flag, the page ran
-        # without its load (bench 2026-09-06).
-        if not origin.real:
-            # Ground truth on the tour (temperate, cold, toasty, repeating),
-            # moved on once the identification has earned the room: the
-            # innovation swings and settles before it matters on a board.
+        # On a demo board, however reached: the stand-in or an emulated board's world. Keyed
+        # on the flag, the page ran without its load (bench 2026-09-06).
+        if _screen.demo(origin):
+            # The tour (temperate, cold, toasty, repeating), moved on once the identification
+            # has earned the room.
             rig.thermal.situation('tour')
         say('ok' if origin.real else 'warn', 'link',
             '%s - %s' % (origin.label, standing(origin)))

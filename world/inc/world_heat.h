@@ -18,6 +18,10 @@ typedef struct
 /** The board at `ambient`, C, every node there: thermal.c's defaults and loss table. */
 void world_heat_init(world_heat_t *h, float ambient);
 
+/** The board's room: `ambient`, C, and its air path and laminate capacity scaled as a
+    situation lays them on - thermal_ident's rule, the one the observer finds them by. */
+void world_heat_room(world_heat_t *h, float ambient, float air, float capacity);
+
 /** `dt` s on `load`; what the three thermometers read into `seen`: the NTC's element, each die
     its node plus its watts through R_th,JC. */
 void world_heat_step(world_heat_t *h, const thermal_load_t *load, float dt,

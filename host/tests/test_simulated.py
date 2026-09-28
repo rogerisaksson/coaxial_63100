@@ -1688,6 +1688,7 @@ def test_thermal_identification(report):
     # moved on when the identification has earned the room - STABLE held a
     # hundred model seconds, ten of wall time, five minutes after the move at
     # the least - or after fifty minutes regardless.
+    from coaxial.model.rooms import TOUR_MAX_S
     tour = SimulatedThermal(situation='tour')
     tour.load_cycle(on_s=120.0, off_s=240.0)
     report.check('a tour starts in the temperate room and says it is one',
@@ -1706,7 +1707,7 @@ def test_thermal_identification(report):
         if len(rooms) == 4:
             break
     legs = [b - a for a, b in zip([0] + moved_at, moved_at)]
-    cap = SimulatedThermal.TOUR_MAX_S / 60.0
+    cap = TOUR_MAX_S / 60.0
     report.check('and goes cold, toasty, temperate in order, each leg '
                  'standing at least five model minutes and no more than '
                  'the cap, and STABLE the minute before every move that '

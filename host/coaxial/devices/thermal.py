@@ -1,11 +1,13 @@
 """The board's thermal observer, behind `0x6E` device 8."""
-from typing import Any
+import random
+from typing import Any, Optional
 
 from coaxial.comm import protocol
 from coaxial.comm.protocol import ThermalOp
 from coaxial.comm.wire import Reader, label, micro, milli, pack, pages
 from coaxial.devices.subsystem import Device
 from coaxial.errors import RigError
+from coaxial.model import rooms
 from coaxial.model.thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES, PHASES
 from machine.roles import Input
 
@@ -118,6 +120,9 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
 
     """What each region of the board is at: one measurement, the rest model."""
 
+    #: The room an emulated board's world is laid in and its tour, None until one is.
+    _room: Optional[dict] = None
+
     def state(self):
         """The thermal observer's state."""
         r = Reader(self._op(ThermalOp.STATE))
@@ -140,9 +145,6 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
             got[name] = _thermometer(r)
 
         got['seen_s_ago'] = r.milli('u32')
-
-        # `seconds` is wall clock and its rate is 1.0 whatever the thermal
-        # observer does.
         got['steps'] = r.u32()
         got['error'] = ((got['expected_ntc'] - ntc)
                         if ntc is not None else None)
@@ -231,6 +233,8 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
         # MINOR 17: the trip cap as it stands, one with no trip in hand.
         if r.remaining >= 4:
             got['trip_cap'] = r.micro()
+        if self._room is not None:
+            got['truth'] = self._toured(self._room, got['state'] == 'STABLE')
         return got
 
     def _reset_identification(self):
@@ -239,15 +243,57 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
     def _set_margin_floor(self, floor):
         return self._ack(ThermalOp.SET_MARGIN, pack(('i32', micro(floor))))
 
+    def _world(self):
+        """The room hook of the world under an emulated board - native's, Renode's - or None."""
+        return getattr(getattr(self.board.transport, 'serial', None), 'room', None)
+
     def situation(self, name=None, switching=None):
-        """A board has no ground truth to put in a situation: that is the
-        stand-in's (`SimulatedThermal.situation`), where a box, a fan or
-        a heat sink is laid over a hypothetical board for the
-        identification to find.
-        """
-        raise RigError('a board has no ground truth to put in a situation - '
-                       'the stand-in has (simulated=True): box, fan, '
-                       'heatsink, stuffy, bench, or random')
+        """An emulated board's world laid in a room - `rooms.SITUATIONS` by name, 'random' for
+        another, 'tour' for `rooms.TOUR`, moved on by the identification's own STABLE - as the
+        stand-in lays its truth (`SimulatedThermal.situation`). A board has no truth to lay."""
+        if self._world() is None or switching:
+            raise RigError('a board has no ground truth to put in a situation - the stand-in '
+                           '(simulated=True) and an emulated board\'s world have: %s, random, '
+                           'or tour' % ', '.join(rooms.SITUATIONS))
+        if name is not None:
+            self._lay(name)
+        return self.truth()
+
+    def _lay(self, name):
+        """The world into `name`'s room, the tour's next for 'tour', stood from now on the
+        observer's clock: the room laid."""
+        world, was = self._world(), self._room or {}
+        if world is None:
+            raise RigError('a board has no world to lay a room in')
+        if name == 'tour':
+            stop = rooms.next_stop(was.get('situation'))
+        elif name == 'random':
+            stop = random.choice([n for n in rooms.SITUATIONS if n != was.get('situation')])
+        elif name in rooms.SITUATIONS:
+            stop = name
+        else:
+            raise RigError('a situation is one of %s, random, or tour'
+                           % ', '.join(rooms.SITUATIONS))
+        laid = rooms.SITUATIONS[stop]
+        world(laid['ambient'], laid['air'], laid['capacity'])
+        now = self.state()['seconds']
+        self._room = {'situation': stop, 'tour': name == 'tour', 'earned_s': 0.0,
+                      'since_s': now, 'read_s': now, 'switches': was.get('switches', -1) + 1}
+        return self._room
+
+    def _toured(self, room, stable):
+        """`room`'s truth, the tour stepped on the observer's clock since the last read: the gap
+        STABLE when both its reads were - the one before the first counted whole, the room moved
+        61 s after STABLE where it is earned at 100 (2026-09-28)."""
+        now = self.state()['seconds']
+        if room['tour']:
+            room['earned_s'], stop = rooms.step(
+                room['earned_s'], stable and room.get('stable', False), now - room['read_s'],
+                now - room['since_s'], room['situation'])
+            if stop:
+                room = self._lay('tour')
+        room['read_s'], room['stable'] = now, stable
+        return self.truth()
 
     def load_cycle(self, amps=None, on_s=None, off_s=None):
         """A board's load is the drive's and the bench's to put through it -
@@ -268,25 +314,35 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
                        'the stand-in (simulated=True) can')
 
     def truth(self):
-        """A board has no ground truth beside its estimate: that is the
-        stand-in's (`SimulatedThermal.truth`).
-        """
-        raise RigError('a board has no ground truth to tell - state() is its '
-                       'estimate; the stand-in (simulated=True) has one')
+        """The room an emulated board's world was laid in, as the stand-in tells its truth
+        (`SimulatedThermal.truth`); a board has none beside its estimate."""
+        room = self._room
+        if room is None:
+            raise RigError('a board has no ground truth to tell - state() is its estimate; '
+                           'the stand-in (simulated=True) has one, and an emulated board\'s '
+                           'world once situation() lays its room')
+        laid = rooms.SITUATIONS[room['situation']]
+        return {'situation': room['situation'], 'air': laid['air'],
+                'capacity': laid['capacity'], 'ambient': laid['ambient'],
+                'switches': room['switches'], 'since_s': room['read_s'] - room['since_s'],
+                'switching': False, 'tour': room['tour'], 'load_a': None}
 
     @property
     def SITUATIONS(self):
-        """The stand-in's rooms (`SimulatedThermal.SITUATIONS`); a board is
-        in the one it is in.
-        """
-        raise RigError('a board has no situations to name - it is in the room '
-                       'it is in; the stand-in (simulated=True) has them')
+        """The rooms an emulated board's world takes (coaxial.model.rooms); a board is in the
+        one it is in."""
+        if self._world() is None:
+            raise RigError('a board has no situations to name - it is in the room it is in; '
+                           'the stand-in (simulated=True) and an emulated board have them')
+        return rooms.SITUATIONS
 
     @property
     def TOUR(self):
-        """The stand-in's round of rooms (`SimulatedThermal.TOUR`)."""
-        raise RigError('a board takes no tour of rooms - the stand-in '
-                       '(simulated=True) does')
+        """The round of rooms an emulated board's world takes (coaxial.model.rooms)."""
+        if self._world() is None:
+            raise RigError('a board takes no tour of rooms - the stand-in (simulated=True) and '
+                           'an emulated board do')
+        return rooms.TOUR
 
     def _set_winding(self, limit_c, k_per_w, j_per_k):
         return self._ack(ThermalOp.SET_WINDING, pack(

@@ -180,6 +180,7 @@ class Board:
         lib.native_imu.argtypes = [ctypes.POINTER(ctypes.c_double)]
         lib.native_pilot.argtypes = [ctypes.c_double] * 3
         lib.native_link.argtypes = [ctypes.c_double]
+        lib.native_room.argtypes = [ctypes.c_double] * 3
         if hand is not None:
             lib.native_hand(unit, *hand)
         lib.native_open()
@@ -250,6 +251,13 @@ class Limb:
         with self.lock:
             for board in self.boards:
                 board.lib.native_haste(ctypes.c_double(haste))
+
+    def room(self, ambient, air=1.0, capacity=1.0):
+        """Every board's world in a room: its ambient, C, and its air path and capacity scaled,
+        a situation's (coaxial.model.rooms)."""
+        with self.lock:
+            for board in self.boards:
+                board.lib.native_room(ambient, air, capacity)
 
     def pilot(self, volts, hz=PILOT_HZ, noise=0.0):
         """The master's common-mode pilot on the bus, every board's STO chain on it: its
@@ -358,6 +366,7 @@ class Serial(SerialBase):
         except RuntimeError as exc:           # no compiler: said as a port that fails
             raise serial.SerialException(str(exc)) from exc
         self.heat_clock = self._limb.heat_clock
+        self.room = self._limb.room
         self.pilot = self._limb.pilot
         #: The units a scan probes, and whether the port is a board's console.
         self.units = self._limb.units

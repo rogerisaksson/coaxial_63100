@@ -117,10 +117,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## Thermal
 
-- The stand-in's heat walked U, V, W: 569ae47 swapped its balanced `load_cycle`
-  for the demo motor's vector, 0.14 Hz, 70 thermal s a leg at HASTE 10; the
-  hottest leg changed 9 times in 16 s, 0 before and after. The emulated board's
-  2 s sample went with it: 30 s open loop. Both back (2026-09-28).
+- The stand-in's load is its balanced `load_cycle`: 569ae47's turning vector
+  walked the heat U, V, W, the hottest leg 9 times in 16 s (2026-09-28).
+- The tour on an emulated board's world (coaxial.model.rooms): the thermal
+  page on native STABLE at 244 s temperate, the room on at 254, UNCERTAIN 259,
+  STABLE cold 351, toasty 432 (2026-09-28).
 - The network against the camera states, stand-in truth: worst miss 9.0 K now,
   20.1 K before the emulator (regulators +28 for +8, AFE on read as passive).
   Left: regulators 3-9 K hot, bridge 4-6 K cool (2026-09-28).
@@ -242,7 +243,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   frames a second past 43 rpm it rode the speed, which overshot at a hold's
   handover: 68.8 deg with the rotor at rest. The drive counts theta_hat's turns
   (op 0, MINOR 24): STEPPER +57.8/-53.7 of 60, 3.2 a frame at most; the climb
-  36-86 a frame against the shaft's 40-84 (2026-09-28).
+  36-86 a frame against the shaft's 40-84. The stand-in's injection pulled to
+  an absolute 0 or pi, half a pitch flipped at rest: onto the rotor (2026-09-28).
 - Renode under the drive: 3.8-4.5 wall s a board s, 110 M guest instructions a
   board s at ~33 ns each; Debug and Release alike. The CPU thread's RIP sampled:
   translated code 41 %, coreclr's crossings 17 %, the FPU's lazy state saved at
@@ -294,13 +296,12 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - The offline gate: 544 s at 17 % busy, a job a suite, three suites alone at
   its end. One relay, shards past half its work over the batons, the
   emulator's groups a job each: 224 s at 31 % (2026-09-28).
-- The attitude page stood 5 s at a time in the terminal: the front page's
-  link watcher, alive in the same process, opened a session on native:// every
-  30 s between a request and its reply. Asked once now (2026-09-28).
+- The attitude page stood 5 s at a time: the front page's link watcher, alive
+  in the same process, opened a session on native:// every 30 s mid-request.
+  Asked once now (2026-09-28).
 - The attitude page froze on native://, 3 reads in 80 frames: a ctypes call a
-  millisecond of board time, each waiting on the drawing for the interpreter,
-  held the board to 21 %. One call a burst (native_lockstep): 100 %, 72
-  attitudes in 80 frames (2026-09-28).
+  board millisecond, each waiting on the drawing for the interpreter, held the
+  board to 21 %; one call a burst (native_lockstep): 100 %, 72 (2026-09-28).
 - A FAIL behind a page's leftover footer or screen clear went unnamed: the
   runner takes a line's first marker now, escapes stripped (2026-09-28).
 - A `Feed` slept its period after the read: a 20 ms read at 50 ms fed 14
@@ -1041,9 +1042,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   colder than modelled and the NTC's inversion (x12 at 30 s, x27 at 2 s)
   threw the V patch to 5 C. The plant runs thermal.c's network as truth
   (world_heat.c): the NTC within 0.25 K under the demo's 30 A, driver U 26-100 C
-  (2026-09-26). The rotor page on native: STABLE at 311 s, the laminate's
-  capacity the last doubt - TH OBS 95 % at its sigma 0.125, 100 % at 0.10, 289
-  s; the air path's by 62 s (2026-09-28).
+  (2026-09-26). The rotor page on native: STABLE at 311 s; TH OBS 95 % is the
+  laminate's capacity, sigma 0.125 of its 0.10 (2026-09-28).
 - The attitude's tumble turned 140 and 280 deg/s on the emulator and native
   (2.56 s); the stand-in stepped it a read, a turn in 1.28 s at 200 reads/s.
   25.6 s on the clock: 31 deg/s (2026-09-26).

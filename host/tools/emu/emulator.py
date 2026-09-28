@@ -19,7 +19,6 @@ Renode: $RENODE, `renode` on PATH, or the newest portable build under
 %LOCALAPPDATA%/renode (setup: docs/ARCHITECTURE.md).
 """
 import argparse
-import ctypes
 import glob
 import os
 import re
@@ -37,7 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from tools import REPO  # noqa: E402
 from coaxial.simulated.sto import PILOT_HZ  # noqa: E402
 from tools.emu import world as worlds  # noqa: E402
-from tools.emu.protocol_frames import frame  # noqa: E402
+from tools.emu.probes import ANSI, answers, boot_answers, heard_quiet, heard_until, tied  # noqa: E402
 
 # frames://, the URL every emulator here hands out.
 if 'tools.emu' not in serial.protocol_handler_packages:
@@ -55,18 +54,13 @@ BOOT_VTOR = 0x08000000
 IMAGE_VTOR = 0x30000000
 #: The bootloader's RS485 rate (docs/BOOT.md).
 BOOT_BAUD = 10_000_000
-#: What a blank node answers to, and device 11's state op (boot/inc/boot.h).
-BLANK_UNIT = 247
-BOOT_DEVICE, BOOT_STATE = 11, 10
 
 #: Renode's start, the ADC class compiled, the image booted: 5.6 s measured on the laptop
 #: (2026-09-25); the wait allows ten times that, and as long again a node.
 READY_S = 60.0
 
-#: The monitor's prompt, `(machine)` after a line's end - Renode ends lines \n\r or \r\r\n -
-#: and the colour codes around it.
+#: The monitor's prompt, `(machine)` after a line's end - Renode ends lines \n\r or \r\r\n.
 PROMPT = re.compile(r'[\r\n]\([^)\r\n]*\)\s*$')
-ANSI = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]')
 
 #: The handover slot a bootloader leaves (boot/inc/boot.h boot_hand_t, the top 32 B of DTCM):
 #: magic, stay, then unit | position << 8 | flags << 16, the image's size and CRC - zero, as
@@ -232,7 +226,7 @@ class Emulator:
             [renode, '--disable-gui', '--plain', '--config', config, '-P', str(self.monitor),
              '-e', 'include @%s' % composed.replace(os.sep, '/')],
             cwd=REPO, stdout=self._sink, stderr=subprocess.STDOUT, creationflags=PRIORITY)
-        self._job = _tied(self.process)
+        self._job = tied(self.process)
         self._ready(self.process)
         self.awake_scale = self.awake()
         return self
@@ -267,17 +261,25 @@ class Emulator:
         for part in text.split('; '):
             self.command(part)
 
+    def _set(self, device, **values):
+        """A world device's properties on every machine, as the monitor reads numbers."""
+        self._each_cpu('; '.join('%s %s %s' % (device, name, worlds._decimal(value))
+                                 for name, value in values.items()))
+
     def heat_clock(self, haste):
         """Every plant's heat on `haste` thermal s a virtual s, as the rig sets its boards'
         observers (Coaxial63100._in_its_world)."""
-        self._each_cpu('%s Haste %s' % (worlds.PLANT, worlds._decimal(haste)))
+        self._set(worlds.PLANT, Haste=haste)
+
+    def room(self, ambient, air=1.0, capacity=1.0):
+        """Every plant's world in a room (coaxial.model.rooms): ambient, C, air path and
+        capacity scaled."""
+        self._set(worlds.PLANT, Ambient=ambient, Air=air, Capacity=capacity)
 
     def pilot(self, volts, hz=PILOT_HZ, noise=0.0):
         """The master's common-mode pilot on the bus, every board's STO chain on it: its
         amplifier's amplitude, V (0 none), and Hz; the far end's 100 kHz common mode, V."""
-        self._each_cpu('%s PilotVolts %s; %s PilotHz %s; %s NoiseVolts %s'
-                       % (worlds.STO, worlds._decimal(volts), worlds.STO, worlds._decimal(hz),
-                          worlds.STO, worlds._decimal(noise)))
+        self._set(worlds.STO, PilotVolts=volts, PilotHz=hz, NoiseVolts=noise)
 
     def measure(self, seconds=SCALE_S):
         """`time_scale` over `seconds` of wall time, at least 1."""
@@ -292,7 +294,7 @@ class Emulator:
         init and polling its console."""
         deadline = time.time() + READY_S * len(self.consoles)
         for port in self.consoles:
-            while not (_boot_answers(port) if self.boot else _answers(port)):
+            while not (boot_answers(port) if self.boot else answers(port)):
                 if process.poll() is not None:
                     raise RuntimeError('Renode exited with %d%s' % (process.returncode, self.said()))
                 if time.time() > deadline:
@@ -324,9 +326,9 @@ class Emulator:
             self.monitor_socket = socket.create_connection(('127.0.0.1', self.monitor),
                                                            timeout=2.0)
             self.monitor_socket.settimeout(0.1)
-            _heard_quiet(self.monitor_socket, 0.5, 10.0)
+            heard_quiet(self.monitor_socket, 0.5, 10.0)
         self.monitor_socket.sendall(text.encode() + b'\n')
-        said = _heard_until(self.monitor_socket, PROMPT, 30.0).decode('utf-8', 'replace')
+        said = heard_until(self.monitor_socket, PROMPT, 30.0).decode('utf-8', 'replace')
         lines = [line.strip() for line in ANSI.sub('', said).splitlines()]
         return '\n'.join(line for line in lines[1:-1] if line)
 
@@ -463,106 +465,6 @@ class Body:
 
     def __exit__(self, *exc):
         self.stop()
-
-
-class _Limits(ctypes.Structure if os.name == 'nt' else object):
-    """JOBOBJECT_EXTENDED_LIMIT_INFORMATION, its basic limits and I/O counters inline."""
-    if os.name == 'nt':
-        _fields_ = [('per_process_time', ctypes.c_int64), ('per_job_time', ctypes.c_int64),
-                    ('flags', ctypes.c_uint32), ('min_ws', ctypes.c_size_t),
-                    ('max_ws', ctypes.c_size_t), ('processes', ctypes.c_uint32),
-                    ('affinity', ctypes.c_size_t), ('priority', ctypes.c_uint32),
-                    ('scheduling', ctypes.c_uint32), ('io', ctypes.c_uint64 * 6),
-                    ('process_memory', ctypes.c_size_t), ('job_memory', ctypes.c_size_t),
-                    ('peak_process', ctypes.c_size_t), ('peak_job', ctypes.c_size_t)]
-
-
-def _tied(process):
-    """On Windows, a job that ends `process` when this one ends, killed or not - a script
-    killed mid-run left its Renode running for hours (2026-09-25). Its handle, kept."""
-    if os.name != 'nt':
-        return None
-    kernel = ctypes.windll.kernel32
-    job = kernel.CreateJobObjectW(None, None)
-    limits = _Limits()
-    limits.flags = 0x2000                                  # KILL_ON_JOB_CLOSE
-    kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
-    kernel.AssignProcessToJobObject(job, ctypes.c_void_p(int(process._handle)))
-    return job
-
-
-def _answers(port):
-    """Whether the console on `port` answers its help key."""
-    try:
-        with socket.create_connection(('127.0.0.1', port), timeout=1.0) as s:
-            s.settimeout(0.5)
-            for _ in range(10):
-                s.sendall(frame(b'?'))
-                if b'commands:' in _heard(s, 0.5):
-                    return True
-    except OSError:
-        pass
-    return False
-
-
-def _boot_answers(port):
-    """Whether a bootloader on `port` answers device 11's state as a blank node."""
-    from machine.rtu import crc16
-
-    body = bytes([BLANK_UNIT, 0x6E, BOOT_DEVICE, BOOT_STATE])
-    try:
-        with socket.create_connection(('127.0.0.1', port), timeout=1.0) as s:
-            s.settimeout(0.5)
-            s.sendall(frame(body + crc16(body).to_bytes(2, 'little')))
-            return _heard(s, 2.0)[:2] == body[:2]
-    except OSError:
-        return False
-
-
-def _heard_until(s, pattern, seconds):
-    """Bytes until `pattern` matches the tail, or `seconds` pass."""
-    got = b''
-    end = time.time() + seconds
-    while time.time() < end and not pattern.search(ANSI.sub('', got.decode('utf-8', 'replace'))):
-        try:
-            chunk = s.recv(65536)
-        except socket.timeout:
-            continue
-        if not chunk:
-            break
-        got += chunk
-    return got
-
-
-def _heard_quiet(s, quiet, seconds):
-    """Bytes until none arrive for `quiet` seconds after the first, or `seconds` pass."""
-    got = b''
-    end = time.time() + seconds
-    last = end
-    while time.time() < end and not (got and time.time() - last > quiet):
-        try:
-            chunk = s.recv(65536)
-        except socket.timeout:
-            continue
-        if not chunk:
-            break
-        got += chunk
-        last = time.time()
-    return got
-
-
-def _heard(s, seconds):
-    got = b''
-    end = time.time() + seconds
-    while time.time() < end:
-        try:
-            chunk = s.recv(4096)
-        except socket.timeout:
-            continue
-        if not chunk:
-            break
-        got += chunk
-    return got
 
 
 def check(emu):

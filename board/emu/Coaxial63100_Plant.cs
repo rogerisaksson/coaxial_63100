@@ -104,6 +104,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             worldState = Export<WorldState>("emu_world_state");
             heatReset = Export<HeatReset>("emu_heat_reset");
             heatStep = Export<HeatStep>("emu_heat_step");
+            heatRoom = Export<HeatRoom>("emu_heat_room");
         }
 
         public void World(string library, int motors)
@@ -146,8 +147,13 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// <summary>Whether the board's heat drives the NTC and the two dies.</summary>
         public bool Thermal { get; set; } = true;
 
-        /// <summary>The room, C.</summary>
-        public double Ambient { get; set; } = 25.0;
+        /// <summary>The room, C, and its air path and the laminate's capacity scaled on the
+        /// board's - a situation's (coaxial.model.rooms) - laid at the next heat step.</summary>
+        public double Ambient { get => ambient; set { ambient = value; roomLaid = false; } }
+
+        public double Air { get => air; set { air = value; roomLaid = false; } }
+
+        public double Capacity { get => capacity; set { capacity = value; roomLaid = false; } }
 
         /// <summary>The heat's clock, thermal s per virtual s: 1 until the rig sets the world's
         /// (coaxial.model.thermal.HASTE) with the board's observer's (thermal op 13). A step is
@@ -357,8 +363,13 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
             if(!heated)
             {
-                heatReset(Node, (float)Ambient);
+                heatReset(Node, (float)ambient);
                 heated = true;
+            }
+            if(!roomLaid)
+            {
+                heatRoom(Node, (float)ambient, (float)air, (float)capacity);
+                roomLaid = true;
             }
             heatStep(Node, 1f / HeatHz, load, seen);
             afe.NtcCelsius = seen[0];
@@ -399,6 +410,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private delegate void HeatReset(int i, float ambient);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void HeatStep(int i, float dt, float[] load, [Out] float[] seen);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void HeatRoom(int i, float ambient, float air, float capacity);
 
         private static IntPtr native;
         private static WorldReset worldReset;
@@ -410,6 +423,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private static WorldState worldState;
         private static HeatReset heatReset;
         private static HeatStep heatStep;
+        private static HeatRoom heatRoom;
 
         private readonly IMachine machine;
         private readonly Coaxial63100_AFE afe;
@@ -422,6 +436,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly float[] seen = { 25f, 25f, 25f };
         private bool heated;
         private double haste = 1.0;
+        private double ambient = 25.0;
+        private double air = 1.0;
+        private double capacity = 1.0;
+        private bool roomLaid = true;
 
         private const uint HeatHz = 10;
         /// <summary>The 2EDL8034's UVLO, V (motor_inverters/half_bridge/2EDL8034F5.lib).</summary>

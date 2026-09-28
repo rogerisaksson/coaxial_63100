@@ -152,6 +152,17 @@ void emu_heat_reset(int i, float ambient)
   world_heat_init(&s.heat[i], ambient);
 }
 
+/** Board `i`'s room: `ambient`, C, its air path and laminate capacity scaled - a situation's
+    (world_heat_room). */
+void emu_heat_room(int i, float ambient, float air, float capacity)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  world_heat_room(&s.heat[i], ambient, air, capacity);
+}
+
 /** Board `i`'s heat on `dt` s. in: AFE_ON, MOE, the three duties, the legs' mean squares (A^2),
     the link (V), the shaft (rpm); out: the NTC's element, the MCU's die, the A1335's die (C). */
 void emu_heat_step(int i, float dt, const float *in, float *out)

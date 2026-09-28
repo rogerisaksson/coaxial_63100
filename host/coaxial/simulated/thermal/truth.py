@@ -5,7 +5,7 @@ from typing import Any
 
 from coaxial.errors import RigError
 from coaxial.kalman import thermal_ident
-from coaxial.model import inverter, thermal
+from coaxial.model import inverter, rooms, thermal
 from motor import catalog
 
 
@@ -50,37 +50,13 @@ class ThermalTruth:
     #: iron, the rest the iron's air path.
     WINDING_R = catalog.BENCH_MOTOR.r
 
-    #: The ground truth's situations: scales on its air path and laminate
-    #: capacity, and its room. The observer is not told the room and reads it
-    #: from its own losses, as the board does.
-    SITUATIONS = {'bench': {'air': 1.0, 'capacity': 1.0, 'ambient': 25.0},
-                  'box': {'air': 2.0, 'capacity': 1.0, 'ambient': 25.0},
-                  'fan': {'air': 0.5, 'capacity': 1.0, 'ambient': 25.0},
-                  'heatsink': {'air': 0.35, 'capacity': 1.6, 'ambient': 25.0},
-                  'stuffy': {'air': 1.5, 'capacity': 1.0, 'ambient': 25.0},
-                  'outdoors': {'air': 0.8, 'capacity': 1.0, 'ambient': -20.0},
-                  # The bench's robot's rooms, named for their temperature
-                  # (2026-09-06).
-                  'temperate': {'air': 1.0, 'capacity': 1.0, 'ambient': 20.0},
-                  'cold': {'air': 0.9, 'capacity': 1.0, 'ambient': -25.0},
-                  'toasty': {'air': 1.2, 'capacity': 1.0, 'ambient': 45.0}}
+    #: The ground truth's situations and their tour (coaxial.model.rooms).
+    SITUATIONS = rooms.SITUATIONS
+    TOUR = rooms.TOUR
 
     #: Wall seconds between switches when they are on: long enough for
     #: STABLE to be reached between them at HASTE, short enough to watch.
     SWITCH_EVERY_S = (180.0, 360.0)
-
-    #: The tour: temperate 20 C, cold -25, toasty 45, round again. It moves on
-    #: when the room is earned - STABLE held TOUR_STABLE_S (10 wall s at HASTE),
-    #: no sooner than TOUR_MIN_S - or at TOUR_MAX_S. Measured under the page's
-    #: cycle: STABLE at minute 10 temperate, 23-25 cold, 38-48 toasty, so the cap
-    #: is 50 min (at 45 toasty sometimes hit it; CI, 2026-09-06).
-    TOUR = ('temperate', 'cold', 'toasty')
-
-    TOUR_STABLE_S = 100.0
-
-    TOUR_MIN_S = 300.0
-
-    TOUR_MAX_S = 3000.0
 
     #: The thermometers' own noise, ±kelvin, and their floor as the
     #: identifier is told it - the board's 30 mK NTC and 125 mK dies.
@@ -282,7 +258,7 @@ class ThermalTruth:
         not the present one for 'random', or a raise naming them all.
         """
         if name == 'tour':
-            return self._next_stop()
+            return rooms.next_stop(self._situation)
         if name == 'random':
             return self._random.choice(
                 [n for n in self.SITUATIONS if n != self._situation])
@@ -305,26 +281,13 @@ class ThermalTruth:
             self._switch_at = time.time() + self._random.uniform(
                 *self.SWITCH_EVERY_S)
 
-    def _next_stop(self):
-        """The tour's next room: the one after the present, the first from
-        anywhere off the tour.
-        """
-        at = self.TOUR.index(self._situation) if self._situation in self.TOUR \
-            else -1
-        return self.TOUR[(at + 1) % len(self.TOUR)]
-
     def _tour_step(self, dt):
-        """Move the tour on once the room is earned - STABLE held for
-        TOUR_STABLE_S, no sooner than TOUR_MIN_S after the last move - or
-        after TOUR_MAX_S whatever the state did.
-        """
-        stable = self._ident.state == thermal_ident.STABLE
-        self._earned_s = (self._earned_s + dt) if stable else 0.0
-        stood = self._model_s - self._switched_s
-        if ((self._earned_s >= self.TOUR_STABLE_S and stood >= self.TOUR_MIN_S)
-                or stood >= self.TOUR_MAX_S):
-            self._lay(self._next_stop())
-            self._earned_s = 0.0
+        """The tour `dt` model s on (coaxial.model.rooms.step)."""
+        self._earned_s, stop = rooms.step(
+            self._earned_s, self._ident.state == thermal_ident.STABLE, dt,
+            self._model_s - self._switched_s, self._situation)
+        if stop:
+            self._lay(stop)
 
     def settle(self, seen=None):
         """Both boards at their equilibria for `seen`'s power - the truth on

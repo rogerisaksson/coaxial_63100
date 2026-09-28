@@ -451,7 +451,7 @@ def main(argv=None):
             # The rotor the demo's speed loop is designed on: the model's where the page
             # set one, else the demo's flywheel, which an emulated board's world carries.
             'j': args.j or DEMO_J, 'b': args.b or DEMO_B,
-            'travel': 0.0, 'leaning': False,
+            'travel': 0.0,
             'winding': _thermal.AMBIENT, 'winding_at': None,
             'burst_until': 0.0, 'bursting': False, 'stage': None,
             'burst_at': clock.now(),

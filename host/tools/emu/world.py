@@ -34,7 +34,7 @@ SOURCES = [os.path.join(REPO, 'world', 'src', name)
            for name in ('world.c', 'world_emu.c', 'world_heat.c', 'world_sto.c')] + [
     os.path.join(REPO, 'drive', 'src', name)
     for name in ('drive.c', 'drive_math.c', 'drive_model.c', 'drive_observer.c')] + [
-    os.path.join(REPO, 'thermal', 'src', 'thermal.c')]
+    os.path.join(REPO, 'thermal', 'src', name) for name in ('thermal.c', 'thermal_ident.c')]
 INCLUDES = [os.path.join(REPO, part) for part in ('world/inc', 'drive/inc', 'thermal/inc')]
 
 #: world.h's enums by the names the files use.

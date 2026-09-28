@@ -53,6 +53,7 @@ WIRE = 'test_wire.py'
 #: The real-time engine for SIL and HIL (tools.cores.native): the board layer's drive path on
 #: this host keeps the wall's time. Not the firmware's validation: that is EMULATOR's, on Renode.
 NATIVE = 'test_native.py'
+NATIVE_ROOMS = 'test_native_rooms.py'
 
 #: The firmware's own image on an emulated MCU (tools/emu, board/emu): the conformance suite
 #: and test_wire's sweeps against the ELF, CubeMX's code and the HAL included.
@@ -113,7 +114,7 @@ RENDER = 'test_render.py'
 
 DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, DAQ_CORE,
                                 BOOT_CORE,
-                   CTRL_CORE, WORLD_CORE, WIRE, NATIVE, EMULATOR,
+                   CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_ROOMS, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC, BOOT) + VIEWS
                   + (RENDER,) + OLLAMA
@@ -165,6 +166,7 @@ JOINS = (
     (40, EMULATOR),
     # The SIL/HIL engine, not a validation: a compiler and two seconds of real time.
     (40, NATIVE),
+    (40, NATIVE_ROOMS),
     (45, 'test_mcp.py'),
     (65, CONFORMANCE),
 
@@ -208,7 +210,7 @@ ALONE = (BENCH, CONFORMANCE, LIVE)
 #: Suites that hold a board to the wall's time, a page drawing beside it: alone where the host
 #: has four batons or fewer - CI's runner stood native's attitude page 4.7-8.3 s beside the
 #: others while it drew on (2026-09-28).
-REAL_TIME = (NATIVE,)
+REAL_TIME = (NATIVE, NATIVE_ROOMS)
 
 #: Suites that may reach the board's port: one at a time, beside the rest.
 PORT = ('test_mcp.py', 'test_parity.py')
@@ -285,7 +287,7 @@ TOUCHES = (
                                                 THERMAL, DAQ_CORE, BOOT_CORE, CTRL_CORE)),
     ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, DRIVE_OBSERVER, SENSORLESS)),
     ('host/tools/cores/thermal.py',            (THERMAL,)),
-    ('host/tools/cores/',                      (WIRE, NATIVE)),
+    ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_ROOMS)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
     ('host/tests/',                            ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the
@@ -299,7 +301,7 @@ TOUCHES = (
     # on the host beside it.
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
-    ('world/',                                 (WORLD_CORE, NATIVE, EMULATOR)),
+    ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_ROOMS, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer, and its suite
     # closes the loop through a motor model - the only check on it that needs
@@ -329,7 +331,7 @@ TOUCHES = (
     # The observer and its envelope are hardware-free like the filter, so the
     # host build is what covers them; the board glue that acts on the budget
     # lives in board/ and is the bench's.
-    ('thermal/',                               (THERMAL, CONFORMANCE, BENCH)),
+    ('thermal/',                               (THERMAL, NATIVE_ROOMS, CONFORMANCE, BENCH)),
     # The acquisition engine is hardware-free like the observer, so the host
     # build covers it; the glue that reads the converter is board_daq.c and the
     # bench's, and the record's bytes cross the wire.
@@ -367,6 +369,9 @@ TOUCHES = (
     ('host/coaxial/simulated',                 ('test_simulated.py',
                                                 'test_parity.py') + OLLAMA),
     ('host/coaxial/control/',                  (CONTROLLER, SENSORLESS, 'test_simulated.py')),
+    ('host/coaxial/devices/thermal.py',        (NATIVE_ROOMS, 'test_simulated.py',
+                                                'test_parity.py', 'test_mcp.py')),
+    ('host/coaxial/model/rooms.py',            (NATIVE_ROOMS, 'test_simulated.py')),
     ('host/coaxial/',                          ('test_simulated.py', 'test_parity.py',
                                                 'test_mcp.py')),
     ('host/tools/',                            OLLAMA),

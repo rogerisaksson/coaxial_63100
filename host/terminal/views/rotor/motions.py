@@ -79,7 +79,6 @@ def turn_the_handle(rig, view):
         return
     if view['bursting']:
         view['bursting'] = False
-        view['leaning'] = False
         rig.board.drive.model.configure(load=0.0)
         rig.board.drive.write(id_ref=0.0, iq_ref=view['iq'])
     if view['load']:
@@ -270,7 +269,6 @@ def sweep(rig, view):
         index, segment, name, into, seconds, rpm, load, how = stage_at(view, now)
     if index != view.get('stage_index'):
         view['stage_index'], view['stage'], view['segment'] = index, name, segment
-        view['leaning'] = False
         view['stage_load'], view['load_full'] = 0.0, load * kt
         mode = 'sensorless' if how == 'speed' else 'hold'
         if mode != view.get('stage_mode'):

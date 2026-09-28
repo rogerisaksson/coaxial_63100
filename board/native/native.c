@@ -890,6 +890,13 @@ void native_nodes(double *out)
 
 /** The heat's clock, thermal s per virtual s: 1 until the rig sets the world's
     (coaxial.model.thermal.HASTE) with the board's observer's (thermal op 13). */
+/** The world's room under this board: its ambient, C, air path and capacity scaled - a
+    situation, laid on as the stand-in lays its own. */
+void native_room(double ambient, double air, double capacity)
+{
+  world_heat_room(&n.heat, (float)ambient, (float)air, (float)capacity);
+}
+
 void native_haste(double haste)
 {
   n.haste = (haste > 0.0) ? (float)haste : 1.0f;

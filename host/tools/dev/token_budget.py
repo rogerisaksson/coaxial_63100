@@ -42,7 +42,7 @@ HEAVY = {
     'host/tests/test_conformance.py': 7400,
     'host/tests/test_modbus_core.py': 7300,
     'board/src/board_thermal.c': 7200,
-    'host/tools/emu/emulator.py': 7100,
+    'host/tools/emu/emulator.py': 6300,
     'docs/PROTOCOL.md': 7000,
     'host/terminal/views/show_rotor_observer.py': 7000,
     'host/coaxial/draw/dial.py': 6900,
