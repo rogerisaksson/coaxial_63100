@@ -407,6 +407,36 @@ def put_back(rig, load):
     return done
 
 
+def demo_load(rig, origin):
+    """The page's load, laid on a demo board: the stand-in's own, the emulated MCU's
+    demo motor; the per-frame step to run, or None."""
+    motor = None
+    if _screen.demo(origin) and not origin.real:
+        # The stand-in: its own load, two model minutes at 30 A on all three legs and
+        # four cooling - a turning motor's. The demo motor's held vector in its place
+        # (569ae47) carried the current one leg at a time, 70 thermal s each at
+        # 0.14 Hz, and the heat walked U, V, W round the board (2026-09-28).
+        rig.thermal.load_cycle(on_s=PAGE_CYCLE_ON_S, off_s=PAGE_CYCLE_OFF_S)
+        say('ok', 'load', '30 A a phase for %.0f s, %.0f s off'
+            % (PAGE_CYCLE_ON_S / thermal.HASTE, PAGE_CYCLE_OFF_S / thermal.HASTE))
+    elif _screen.demo(origin):
+        # The emulated MCU: its thermometers read with the AFE on, and nothing to gate.
+        rig.board.afe.on()
+        say('ok', 'AFE_ON', 'on - the emulated board, its thermometers read')
+        # A sample every 2 s of its time: at 30 the first came half a minute in, the
+        # observer open loop till then (2026-09-28).
+        rig.board.thermal.configure(sample_every_s=2.0)
+        # The load: the demo motor's current through the legs, the regions pulsing on the
+        # map and the bar under the board with cooldowns to rise on.
+        on_s, off_s = PAGE_CYCLE_ON_S / thermal.HASTE, PAGE_CYCLE_OFF_S / thermal.HASTE
+        motor = cycle_motor(rig, origin, on_s, off_s, PAGE_CYCLE_AMPS)
+        say('ok', 'load', 'the demo motor, %.0f A for %.0f s, %.0f s off'
+            % (PAGE_CYCLE_AMPS, on_s, off_s))
+    else:
+        say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
+    return motor
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='emulator://')
@@ -438,20 +468,7 @@ def main():
             rig.thermal.situation('tour')
         say('ok' if origin.real else 'warn', 'link',
             '%s - %s' % (origin.label, standing(origin)))
-        motor = None
-        if _screen.demo(origin):
-            if origin.real:
-                # The emulated MCU: its thermometers read with the AFE on, and nothing to gate.
-                rig.board.afe.on()
-                say('ok', 'AFE_ON', 'on - the emulated board, its thermometers read')
-            # The load: the demo motor's current through the legs, the regions pulsing on the
-            # map and the bar under the board with cooldowns to rise on.
-            on_s, off_s = PAGE_CYCLE_ON_S / thermal.HASTE, PAGE_CYCLE_OFF_S / thermal.HASTE
-            motor = cycle_motor(rig, origin, on_s, off_s, PAGE_CYCLE_AMPS)
-            say('ok', 'load', 'the demo motor, %.0f A for %.0f s, %.0f s off'
-                % (PAGE_CYCLE_AMPS, on_s, off_s))
-        else:
-            say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
+        motor = demo_load(rig, origin)
         say('wait', 'drawing', 'Q closes it, ESC goes back to the menu')
 
         load = None

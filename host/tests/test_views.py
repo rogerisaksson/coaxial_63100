@@ -1210,31 +1210,151 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
 
 
 def test_the_demo_actually_loads_the_motor(report):
-    """Seventeen seconds of the stand-in - 340 frames at the 20 fps cap - warm the winding and
-    spend the switches' margin: the demo puts a load on, and it stays on.
+    """The stand-in's rotor demo to the end of its load stage, as the bench asked for it: up
+    clockwise against a propeller to near a kilowatt, coast, brake, the same the other way, a
+    load held at speed. Each stage does what its physics says - the coast on J dw/dt = -b w -
+    k w|w| - the bead never turns back against the rotor and speeds and slows with it, and
+    the load warms the winding and spends the switches' margin (2026-09-28).
     """
+    import math
     import re
+    from coaxial.draw import cross_section
+    from terminal.ui.screen import FPS_CAP
+    from terminal.views import show_rotor_observer as view
+    from terminal.views.rotor import motions
+    from tools.render import page
 
-    env = dict(os.environ, PYTHONIOENCODING='utf-8')
-    done = subprocess.run(
-        [sys.executable, '-X', 'utf8',
-         os.path.join('terminal', 'views', 'show_rotor_observer.py'),
-         '--simulated', '--frames', '340'],
-        cwd=HOST, env=env, capture_output=True, text=True,
-        encoding='utf-8', errors='replace', timeout=300)
-    out = done.stdout + done.stderr
-    winding = re.search(r'WINDING +([0-9.]+)', out)   # %5.1f: a space at two digits
-    soa = re.search(r'SWITCH SOA ([0-9.]+) %', out)
-    report.check('the view ran 340 frames simulated',
-                 done.returncode == 0 and winding and soa,
-                 'exit %d' % done.returncode)
-    if winding and soa:
-        report.check('the winding is warm - the demo\'s load is on',
-                     float(winding.group(1)) >= 40.0,
-                     '%s C, floor 40, 15 K over the room' % winding.group(1))
-        report.check('and the switches have spent a fifth of their margin',
-                     float(soa.group(1)) >= 20.0,
-                     '%s %%, floor 20' % soa.group(1))
+    seconds = 0.0
+    for name, stage_s, _rpm, _load in motions.CYCLE:
+        seconds += stage_s
+        if name == 'load':
+            break
+    rows, beads = [], []
+    real, real_bead = view.compose, cross_section._bead
+
+    def bead(frame, seat, pointer_deg, glyph=None, rate=None):
+        beads.append(pointer_deg)
+        return real_bead(frame, seat, pointer_deg, glyph, rate)
+
+    def compose(rig, origin, console, v):
+        n = len(beads)
+        out = real(rig, origin, console, v)
+        pairs = max(1.0, v['params'].get('motor_pole_pairs') or 1.0)
+        st = v['state'] or {}
+        rows.append((time.perf_counter(), v.get('stage'),
+                     st.get('omega_hat', 0.0) / pairs * 60.0 / math.tau,
+                     v.get('iq') or 0.0, beads[-1] if len(beads) > n else None,
+                     (v['j'], v['b'], motions.prop_k()),
+                     1.5 * (st.get('vd', 0.0) * st.get('id', 0.0)
+                            + st.get('vq', 0.0) * st.get('iq', 0.0))))
+        return out
+
+    view.compose, cross_section._bead = compose, bead
+    try:
+        art = page.frame('rotor_observer', 150, 44, frames=int(seconds * FPS_CAP))
+    finally:
+        view.compose, cross_section._bead = real, real_bead
+    stages = []
+    for row in rows:
+        if not stages or stages[-1][0] != row[1]:
+            stages.append((row[1], []))
+        stages[-1][1].append(row)
+    ups = [st for name, st in stages if name == 'up' and abs(st[-1][2]) > 2000.0]
+    report.check('up past 2 000 rpm each way against the propeller, on the clamp',
+                 len(ups) >= 2 and ups[0][-1][2] > 0.0 > ups[1][-1][2]
+                 and all(abs(st[-1][3]) >= 40.0 for st in ups),
+                 ', '.join('%.0f rpm on %.0f A' % (st[-1][2], st[-1][3]) for st in ups))
+    report.check('and near a kilowatt into the motor at the top',
+                 bool(ups) and max(r[6] for r in ups[0]) >= 800.0,
+                 '%.0f W' % max(r[6] for r in ups[0]) if ups else 'none')
+    for name, st in stages:
+        if name == 'coast' and abs(st[0][2]) > 500.0:
+            # J dw/dt = -b w - k w|w|, closed form, from where the coast began.
+            j, b, k = st[0][5]
+            w0 = abs(st[0][2]) * math.tau / 60.0
+            t = st[-1][0] - st[0][0]
+            want = b * w0 / ((b + k * w0) * math.exp(b * t / j) - k * w0) / w0
+            got = st[-1][2] / st[0][2]
+            report.check('the coast is the drag and the propeller, within a quarter of its drop',
+                         abs((1.0 - got) - (1.0 - want)) <= 0.25 * (1.0 - want),
+                         '%.0f -> %.0f rpm: x%.2f, want x%.2f' % (st[0][2], st[-1][2], got, want))
+        if name == 'brake' and abs(st[0][2]) > 100.0:
+            report.check('the brake lands, under 5 % of where it began',
+                         abs(st[-1][2]) <= 0.05 * abs(st[0][2]),
+                         '%.0f -> %.0f rpm' % (st[0][2], st[-1][2]))
+    loads = [st for name, st in stages if name == 'load']
+    report.check('the load holds 1 000 rpm to 90 %, on its current',
+                 bool(loads) and abs(loads[-1][-1][2]) >= 900.0 and abs(loads[-1][-1][3]) >= 5.0,
+                 '%.0f rpm on %.1f A' % (loads[-1][-1][2], loads[-1][-1][3]) if loads else 'none')
+    drawn = [r for r in rows if r[4] is not None]
+    back, xs, ys = 0, [], []
+    for i in range(1, len(drawn)):
+        step, rpm = drawn[i][4] - drawn[i - 1][4], drawn[i][2]
+        if abs(rpm) > 30.0:
+            back += step * rpm < 0.0
+            xs.append(abs(rpm))
+            ys.append(abs(step))
+
+    def ranks(v):
+        order = sorted(range(len(v)), key=lambda k: v[k])
+        out = [0.0] * len(v)
+        for rank, k in enumerate(order):
+            out[k] = float(rank)
+        return out
+    rx, ry = ranks(xs), ranks(ys)
+    mx, my = sum(rx) / len(rx), sum(ry) / len(ry)
+    rho = (sum((a - mx) * (b - my) for a, b in zip(rx, ry))
+           / math.sqrt(sum((a - mx) ** 2 for a in rx) * sum((b - my) ** 2 for b in ry)))
+    report.check('the bead never turns back against the rotor', back == 0, '%d times' % back)
+    report.check('and speeds and slows with it, rank correlation 0.9 or more', rho >= 0.9,
+                 '%.2f' % rho)
+    text = re.sub(r'\x1b\[[0-9;]*m', '', art)
+    winding = re.search(r'WINDING +([0-9.]+)', text)   # %5.1f: a space at two digits
+    soa = re.search(r'SWITCH SOA ([0-9.]+) %', text)
+    report.check('the winding is warm at the load\'s end',
+                 winding is not None and float(winding.group(1)) >= 35.0,
+                 '%s C, floor 35, 10 K over the room' % (winding.group(1) if winding else '-'))
+    report.check('and the switches have spent a fifth of their margin',
+                 soa is not None and float(soa.group(1)) >= 20.0,
+                 '%s %%, floor 20' % (soa.group(1) if soa else '-'))
+
+
+def test_the_thermal_load_heats_the_legs_together(report):
+    """THERMAL OBSERVER on the stand-in: the page's load is 30 A a phase on all three legs, as a
+    turning motor's is - the legs rise and cool together. The demo motor's held vector put in
+    its place (569ae47) carried the current a leg at a time, and the hottest leg changed 9
+    times in 16 s (2026-09-28).
+    """
+    from terminal.views import show_thermal_observer as view
+    from tools.render import page
+
+    legs = ('driver_u', 'driver_v', 'driver_w')
+    seen, real = [], view.status_boxes
+
+    def boxes(state, *a, **k):
+        nodes = state.get('nodes') or {}
+        if all(nodes.get(n) is not None for n in legs):
+            seen.append([nodes[n] for n in legs])
+        return real(state, *a, **k)
+
+    view.status_boxes = boxes
+    try:
+        page.frame('thermal_observer', 150, 44, frames=300)
+    finally:
+        view.status_boxes = real
+    lead, changes, spread = None, 0, 0.0
+    for temps in seen:
+        hot = temps.index(max(temps))
+        if lead is not None and hot != lead and max(temps) - sorted(temps)[1] > 0.5:
+            changes += 1
+        lead = hot
+        rise = [t - t0 for t, t0 in zip(temps, seen[0])]
+        if max(rise) > 5.0:
+            spread = max(spread, (max(rise) - min(rise)) / max(rise))
+    report.check('the legs heat together: the hottest never changes', seen and changes == 0,
+                 '%d changes in %d frames' % (changes, len(seen)))
+    report.check('and stay within a fifth of their rise of each other', spread <= 0.20,
+                 '%.0f %%' % (100.0 * spread))
 
 
 def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
@@ -2390,6 +2510,7 @@ def main():
     test_the_flat_drawings_spend_the_block(report)
     test_every_gauge_shows_its_own_scale(report)
     test_the_demo_actually_loads_the_motor(report)
+    test_the_thermal_load_heats_the_legs_together(report)
     test_the_power_face_has_its_middle_at_half_a_kilowatt(report)
     test_the_level_is_drawn_at_the_dot(report)
     test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most(

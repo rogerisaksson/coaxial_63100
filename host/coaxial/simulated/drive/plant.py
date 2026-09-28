@@ -86,14 +86,28 @@ class DrivePlant:
         return int((time.time() - at) * self.FS)
 
     def _omega(self):
-        return self._sp['omega_target'] if self._mode == 'hold' else 0.0
+        return self._cmd_at(time.time())[1] if self._mode == 'hold' else 0.0
+
+    def _cmd_at(self, t):
+        """(theta, omega) of HOLD's command at `t`, drive.c's command_frame in closed form: omega
+        ramped at `accel` toward `omega_target`, standing still at none, and theta its integral.
+        As theta_setpoint + omega_target x t the vector jumped when the target moved - 1 rad
+        from 1 to 2 rad/s a second in (2026-09-28)."""
+        theta, omega, at = self._cmd
+        dt = max(0.0, t - at)
+        target, accel = self._sp['omega_target'], abs(self._sp['accel'])
+        gap = target - omega
+        ramp = abs(gap) / accel if accel > 0.0 else (0.0 if gap == 0.0 else float('inf'))
+        a = math.copysign(accel, gap)
+        if dt <= ramp:
+            return theta + omega * dt + 0.5 * a * dt * dt, omega + a * dt
+        return theta + omega * ramp + 0.5 * a * ramp * ramp + target * (dt - ramp), target
 
     def _frame(self):
         """The electrical angle the loop's dq frame sits at: the command's, turning at its
         speed, in HOLD; the tracked rotor's otherwise."""
         if self._mode == 'hold':
-            theta = (self._sp['theta']
-                     + self._omega() * (time.time() - self._mode_at))
+            theta = self._cmd_at(time.time())[0]
         else:
             theta = self._theta_hat
         return theta % (2.0 * math.pi)
@@ -132,9 +146,22 @@ class DrivePlant:
         omega = self._omega()
         if self._mode == 'sensorless' and self._source == 'model':
             omega = self._omega_hat
-        vd = self._r * iid + (2.0 / 3.0) * (self._dt(iid) + self._dt(iid / 2.0)) \
-            - omega * self._lq * iq
-        vq = self._r * iq + omega * self._ld(iid) * iid + omega * self._lam
+        a = self._r * iid + (2.0 / 3.0) * (self._dt(iid) + self._dt(iid / 2.0))
+        c = omega * self._ld(iid) * iid + omega * self._lam
+        # The link holds the current only while its volts reach, |v| <= vdc / sqrt 3: past
+        # that the loop saturates and the current it gets is the asked one scaled toward zero,
+        # none once the back-EMF alone is the link's - the world core's drive_model is driven
+        # by volts. A torque faded linearly with speed gave half of kt I at half the no-load
+        # speed; iq moved to meet the limit either way ran a fixed wing to -29 000 rpm on
+        # braking current (2026-09-28).
+        vmax = self._model['vdc'] / math.sqrt(3.0)
+        a0 = a * a + c * c - vmax * vmax
+        a2 = iq * iq * ((omega * self._lq) ** 2 + self._r ** 2)
+        a1 = 2.0 * iq * (self._r * c - a * omega * self._lq)
+        if a2 + a1 + a0 > 0.0:                   # the asked current is past the link
+            iq = 0.0 if a0 >= 0.0 else iq * (-a1 + math.sqrt(a1 * a1 - 4.0 * a2 * a0)) / (2.0 * a2)
+        vd = a - omega * self._lq * iq
+        vq = self._r * iq + c
         return iid, iq, vd, vq
 
     def sample(self):
@@ -239,8 +266,9 @@ class DrivePlant:
         self._motor_at = now
         if dt <= 0.0:
             return motor
-        if self._mode != 'off':
-            self._spin(motor, dt, now)
+        # Off too: the bridge open, no current, the rotor on its drag and load - world.c's
+        # coast(). Skipped, the shaft stood at 2 451 rpm for 18 s with the stage off (2026-09-28).
+        self._spin(motor, dt, now)
         # The tracker: its PLL's lag in closed form, not integrated.
         wn = 2.0 * math.pi * self._pll_hz()
         alpha = (motor.omega - self._omega_hat) / dt if dt > 0.0 else 0.0
@@ -262,9 +290,8 @@ class DrivePlant:
             torque = TORQUE_FACTOR * motor.p * (motor.lam * iq
                                       + (ld - motor.lq) * iid * iq)
         acc = self._motor_acc + dt
-        cmd = (self._sp['theta']
-               + self._omega() * (now - acc - self._mode_at))
-        w_cmd = self._omega()
+        cmd, w_cmd = self._cmd_at(now - acc) if hold else (0.0, 0.0)
+        target, accel = self._sp['omega_target'], abs(self._sp['accel'])
         wm = motor.omega / motor.p
         # Sub-stepped, symplectic.
         step = min(0.002, 0.1 * motor.j / max(motor.b, 1e-12))
@@ -276,16 +303,14 @@ class DrivePlant:
         n = int(acc // h)
         self._motor_acc = acc - n * h
         theta = motor.theta
-        # The link runs out: torque fades to none where lambda omega
-        # reaches vdc / sqrt 3.
-        ceiling = (self._model['vdc'] / (math.sqrt(3.0) * motor.lam)
-                   if motor.lam > 0.0 else float('inf'))
         for _ in range(n):
             if hold:
+                # command_frame, a sub-step at a time.
+                gap = target - w_cmd
+                w_cmd = target if abs(gap) <= accel * h else w_cmd + math.copysign(accel * h, gap)
                 cmd += w_cmd * h
                 torque = k_t * i_mag * math.sin(cmd - theta)
-            fade = max(0.0, 1.0 - abs(wm * motor.p) / ceiling)
-            wm += (torque * fade - motor.b * wm - motor.load)                     / motor.j * h
+            wm += (torque - motor.b * wm - motor.load)                     / motor.j * h
             theta += wm * motor.p * h
         # The shaft, accumulated: electrical theta wraps at 2 pi and a shaft
         # sensor reads the mechanical angle, which is 1/p of the whole
@@ -293,6 +318,8 @@ class DrivePlant:
         self._mech += (theta - motor.theta) / motor.p
         motor.omega = wm * motor.p
         motor.theta = theta % (2.0 * math.pi)
+        if hold:
+            self._cmd = [cmd, w_cmd, now - self._motor_acc]
 
     def _motor_model(self):
         if self._motor is None:

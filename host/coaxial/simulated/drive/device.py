@@ -108,6 +108,8 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         self._theta_hat_at = time.time()
         self._trigger = 2360
         self._mode_at = time.time()
+        #: HOLD's command, [theta, omega, when]: stepped as drive.c's command_frame.
+        self._cmd = [0.0, 0.0, self._mode_at]
         self._window_at = time.time()
         self._mom = None
         self._pol = (0.0, 0.0)
@@ -191,8 +193,8 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
             'theta_hat': self._theta_hat,
             'omega_hat': (self._omega_hat if self._source == 'model'
                           else 0.0),
-            'theta_cmd': (self._sp['theta']
-                          + self._omega() * (time.time() - self._mode_at)) % (2 * math.pi),
+            'theta_cmd': (self._cmd_at(time.time())[0] if self._mode == 'hold'
+                          else self._sp['theta']) % (2 * math.pi),
             'omega_cmd': self._omega(),
             'id': iid, 'iq': iq, 'vd': vd, 'vq': vq, 'vdc': DCBUS_V,
             'eps': (eps_amps / gain) if gain else 0.0, 'eps_amps': eps_amps,
@@ -217,6 +219,12 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         # Integrate the old mode's time, then change.
         if self._source == 'model':
             self._read_model()
+        if name == 'hold':
+            # drive_set_mode: out of a turning sensorless frame onto the rotor, else standing
+            # at the setpoint's angle.
+            turning = self._mode == 'sensorless' and abs(self._omega_hat) > self._p('drv_w_lo', 0.0)
+            self._cmd = ([self._theta_hat, self._omega_hat, time.time()] if turning
+                         else [self._sp['theta'], 0.0, time.time()])
         self._mode = name
         self._fault = None
         self._mode_at = time.time()
@@ -234,6 +242,14 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
                 raise ValueError('%r is not a setpoint; they are %s' % (name, ', '.join(self._sp)))
         if self._source == 'model':
             self._read_model()                       # the old command's time, first
+        if self._mode == 'hold':
+            # The command to now on the old setpoints; a new theta shifts it (drive.c's
+            # drive_set_theta_setpoint).
+            now = time.time()
+            theta, omega = self._cmd_at(now)
+            if 'theta' in values:
+                theta += float(values['theta']) - self._sp['theta']
+            self._cmd = [theta, omega, now]
         self._sp.update({k: float(v) for k, v in values.items()})
         return dict(values)
 

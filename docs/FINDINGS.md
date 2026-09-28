@@ -108,6 +108,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## Thermal
 
+- The stand-in's heat walked U, V, W: 569ae47 swapped its balanced `load_cycle`
+  for the demo motor's vector, 0.14 Hz, 70 thermal s a leg at HASTE 10; the
+  hottest leg changed 9 times in 16 s, 0 before and after. The emulated board's
+  2 s sample went with it: 30 s open loop. Both back (2026-09-28).
+- The network against the camera states, stand-in truth: worst miss 9.0 K now,
+  20.1 K before the emulator (regulators +28 for +8, AFE on read as passive).
+  Left: regulators 3-9 K hot, bridge 4-6 K cool (2026-09-28).
 - Camera 2026-08-28, 20 C room, four states x 25 min (tau 6.8 min): board and
   rises (MCU/regulators/bridge/AFE) passive 30.0 / +15.0 / +8.0 / +1.0 /
   +1.0. NTC - TSEN: -0.74 C idle, +10.94 C switching.
@@ -195,6 +202,34 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## Host and tooling
 
+- ROTOR OBSERVER's rotor is the flywheel (J 8e-3, b 5e-4), not the bare 2e-5,
+  and the demo's loop is designed on it. The cycle, the bench's word: up each
+  way against a propeller on the clamp, 0 -> 2 771 rpm at 50 A and 0.85 kW; a
+  coast at iq 0 on the drag and the propeller; a brake; a load at the continuous
+  rating held at 993 of 1 000 rpm on 25 A (2026-09-28).
+- The stand-in's hold turned its vector at theta_sp + omega_target t: a new rate
+  jumped it 1.001 rad. drive.c's command_frame now, ramped and integrated:
+  0.0001. The angle page's stepped command kicked the held rotor, +-0.9 deg at 8
+  Hz, 832 turnings in 65 s; a turning vector, 0 (2026-09-28).
+- The stand-in faded torque linearly with speed, half of kt I at half the
+  no-load speed and the rest in no account; its current is held by the link now,
+  |v| <= vdc / sqrt 3, as the world core's: 1 771 -> 2 771 rpm, 0.61 -> 0.85 kW
+  at 50 A. With the stage off its rotor stood (2 451 rpm for 18 s); it coasts
+  (2026-09-28).
+- With the stage off the firmware's observer lost the rotor on the emulator: 3
+  308 -> 238 rpm while the flywheel turned on, stuck through the brake. The demo
+  coasts at iq 0 with the bridge on. The stand-in's tracker follows the model
+  off: a gap (2026-09-28).
+- Near standstill the firmware's estimate swings 100-150 rpm a sample, on native
+  and Renode alike: the estimator, not the emulator. theta_hat steps 12.3 deg a
+  sample against the speed's integral's 41.6; travel follows theta_hat there
+  (2026-09-28).
+- The bead ran backwards 47 times in 420 frames before the emulator, 16 in 200
+  after: its regime came off the step `travel` made since the last draw, none
+  between feed samples. Off the rotor's speed now, in proportion to it above 30
+  rpm: 0 (2026-09-28).
+- A `Feed` slept its period after the read: a 20 ms read at 50 ms fed 14
+  readings a second to a 20 fps page. Start to start now (2026-09-28).
 - Entering `coaxial` through `coaxial.comm.session` broke the package's own
   import cycle: `rig` took `EMULATOR_URL` off a half-built session, and six
   pages threw on the emulator while the suite, which enters elsewhere, stayed

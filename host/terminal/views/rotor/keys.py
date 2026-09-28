@@ -94,9 +94,10 @@ def _key_burst(rig, d, key, view):
 def _key_spin(rig, d, key, view):
     view['spin'] = not view['spin']
     view['spin_at'] = view['clock'].now()
+    view['stage_index'] = None
     if not view['spin']:
-        d.write(omega_target=0.0)
-    return ('speed loop running - down through the floor and back'
+        d.write(omega_target=0.0, iq_ref=0.0)
+    return ('the demo: up, coast and brake each way, then a load'
             if view['spin'] else 'speed loop off')
 
 

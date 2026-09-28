@@ -145,6 +145,10 @@ def gauge(fraction, width, hot=THROTTLE_AT):
 FPS_CAP = 20.0
 
 
+#: The least a feed waits between two reads, s.
+FEED_GAP_S = 0.005
+
+
 class Feed:
 
     """The board read on its own thread, so a frame draws at the screen's
@@ -168,6 +172,7 @@ class Feed:
     def _run(self):
 
         while not self._stop.is_set():
+            began = time.monotonic()
             try:
                 got = self.read()
             except Exception as exc:
@@ -183,7 +188,11 @@ class Feed:
                     self.latest = got
                 self.reads += 1
             if self.period:
-                time.sleep(self.period)
+                # Start to start: the read's own time is inside the period, not added to it
+                # - added, a 20 ms read at 50 ms fed a 20 fps view 14 readings a second, and
+                # a frame in four drew the last one again (2026-09-28). FEED_GAP_S even after
+                # a read longer than the period, so the link is left to the keys.
+                time.sleep(max(FEED_GAP_S, self.period - (time.monotonic() - began)))
 
     def stop(self, wait=1.0):
         """Ask it to stop and wait, so nothing touches the link after the

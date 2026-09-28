@@ -58,14 +58,27 @@ def observer_rows(view):
 
 
 def travel(view):
-    """How far the rotor has actually turned, in mechanical degrees."""
+    """How far the rotor has actually turned, in mechanical degrees - and, as one
+    pair a draw on the other thread reads whole, that and when it was so."""
 
     now = time.monotonic()
     was = view.get('travel_at')
     view['travel_at'] = now
-    if was is None:
-        return
-    view['travel'] += pointer_rate(view) * min(0.5, now - was)
+    s = view['state']
+    theta, before = s['theta_hat'], view.get('theta_was')
+    view['theta_was'] = theta
+    if was is not None:
+        dt = min(0.5, now - was)
+        if before is not None and abs(s['omega_hat'] * dt) < 0.5 * math.pi:
+            # Slow enough to unwrap: the angle estimate's own step. Near standstill the
+            # speed's integral jittered 41.6 degrees a sample and the angle's 12.3 on native
+            # (2026-09-28) - the injection estimates the angle, the speed is its derivative.
+            pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
+            step = (theta - before + math.pi) % (2.0 * math.pi) - math.pi
+            view['travel'] += math.degrees(step) / pairs
+        else:
+            view['travel'] += pointer_rate(view) * dt
+    view['travel_mark'] = (view['travel'], now)
 
 
 def pointer_rate(view):

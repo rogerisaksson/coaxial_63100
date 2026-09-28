@@ -1,9 +1,9 @@
-"""The demo's own drive: bursts, the sweep, the load, the rock between."""
+"""The demo's own drive: its cycle on the speed loop, the burst, the load."""
 import math
 
+from machine.parts import Slew, SpeedPI
+from motor.pmsm import RAD_S_PER_RPM
 
-#: The demo cycle's period, seconds.
-SWEEP_S = 16.0
 
 #: The heavy start (B, and every BURST_EVERY_S on the stand-in): 43 A for
 #: 1 s, bounded by heat, not the clamp. Measured on the stand-in 2026-09-06:
@@ -16,10 +16,8 @@ BURST_S = 1.0
 
 BURST_ACCEL = 12000.0
 
-#: A burst every 45 s on the stand-in, long against the loops' 20 and 40 s;
-#: then the burn: 3 s at 20 A against BURST_LOAD_NM at half the no-load
-#: speed, where back-EMF times current reaches the kW bar.
-BURST_EVERY_S = 45.0
+#: After the heavy start, the burn: 3 s at 20 A against BURST_LOAD_NM at half the
+#: no-load speed, where back-EMF times current reaches the kW bar.
 
 BURST_HOLD_S = 3.0
 
@@ -75,12 +73,6 @@ def turn_the_handle(rig, view):
     if view['state']['mode'] == 'off':
         return
     now = view['clock'].now()
-    # The burst is part of the sequence, not only a key.
-    # On the model only: the burst's load is the model's, and its clamp from any speed.
-    if (view['demo'] and view['spin'] and view['source'] == 'model'
-            and now - view['burst_at'] > BURST_EVERY_S):
-        view['burst_at'] = now
-        view['burst_until'] = now + BURST_S + BURST_HOLD_S
     if now < view['burst_until']:
         heavy_start(rig, view)
         view['bursting'] = True
@@ -112,40 +104,56 @@ def load_loop(rig, view):
         rig.board.drive.write(id_ref=view['load_amps'])
 
 
-#: The demo cycle as fractions of SWEEP_S: hold, rock, send at the clamp,
-#: brake. The send heats the legs so the margins move; the brake gets as
-#: long as the send.
-CYCLE_HOLD, CYCLE_ROCK, CYCLE_SEND = 0.14, 0.46, 0.73
+#: The load stage's torque as the q amps it takes: the board's continuous rating, 19.1 A
+#: against a 105 C laminate and 22.0 A against a 125 C junction (FINDINGS, 2026-09-05).
+LOAD_A = 20.0
 
-#: What the rock peaks at, and what the first hold aligns with.
-ROCK_RPM = 200.0
+#: The demo, the bench's word (2026-09-28): up clockwise, let go, brake, the same the other way,
+#: then a load held at speed. A stage: its name, seconds, the speed it ramps to, rpm (None: no
+#: current, the rotor on its own drag) and the load on the stand-in's shaft, q amps. On the
+#: demo's flywheel (J 8e-3, b 5e-4): up at 52 rad/s^2 on ~9 A, a coast of J/b = 16 s taking
+#: 1 500 rpm to ~1 100 in 5 s, the brake back to rest in 2 s.
+CYCLE = (
+    ('align', 1.5, 0.0, 0.0),
+    ('up', 6.0, 3300.0, 0.0),
+    ('coast', 5.0, None, 0.0),
+    ('brake', 3.0, 0.0, 0.0),
+    ('up', 6.0, -3300.0, 0.0),
+    ('coast', 5.0, None, 0.0),
+    ('brake', 3.0, 0.0, 0.0),
+    ('up', 3.0, 1000.0, 0.0),
+    ('load', 6.0, 1000.0, LOAD_A),
+    ('brake', 3.0, 0.0, 0.0),
+)
 
+#: A propeller on the stand-in's shaft through the cycle, torque k w|w|: the kilowatt at the
+#: cycle's top. At the 24.8 V link vq tops out at vdc/sqrt 3 = 14.3 V, so a kilowatt is ~48 A
+#: at the ceiling, 3 300 rpm: 0.8 kW on the shaft there, ~1 kW in.
+PROP_KW = 0.8
+
+#: The fastest the cycle turns, rpm: the bead's BEAD_STEP_DEG a frame.
+TOP_SHOWN_RPM = max(abs(stage[2] or 0.0) for stage in CYCLE)
+
+#: A ramp takes this share of its stage, and the speed holds for the rest.
+RAMP_SHARE = 0.67
+
+#: The no-load speed where the record gives none to work it out from, rpm.
+TOP_RPM = 3800.0
+
+#: The first stage's pull onto the frame at 0, A: the estimate starts on its polarity.
 HOLD_A = 12.0
 
-#: The rock's current, A: through zero speed the estimate rides the injection alone, and it
-#: held a 5 A reversal; the clamp reversed through zero ran it to 1e5 rad/s on the emulated
-#: flywheel.
-ROCK_A = 5.0
-
-#: The rock's speed-loop gain, A per rpm of error per second.
-ROCK_GAIN = 0.01
-
-#: Where the send takes the clamp, times the back-EMF's w_hi, and its current below: a 10 A
-#: reversal through zero held on the emulated flywheel.
-SEND_FROM = 1.5
-
+#: The speed loop's bandwidth, Hz - a third of a feed pass's phase at 20 a second, where 3 Hz
+#: was one - and its current through zero speed, A: a 10 A reversal held on the emulated
+#: flywheel, the clamp through zero ran it to 1e5 rad/s. The drive's clamp past SEND_FROM
+#: times the back-EMF's w_hi, where the estimate is the back-EMF's.
+SPEED_HZ = 1.0
 SPIN_A = 10.0
+SEND_FROM = 1.5
 
 #: An estimate past this share of the no-load speed is lost: the link cannot spin the motor
 #: there.
 LOST = 1.5
-
-#: The brake pulls the whole clamp above this and proportionally less below,
-#: so the rotor lands on zero: a quarter of the electrical no-load speed.
-BRAKE_FULL_RAD_S = 700.0
-
-#: Below this share of the clamp the brake lets go: the rotor has landed.
-BRAKE_LANDED = 0.03
 
 
 def speed(view):
@@ -154,87 +162,95 @@ def speed(view):
     return (view.get('state') or {}).get('omega_hat') or 0.0
 
 
-def braking(view, clamp):
-    """The clamp against the turning, proportionally less below BRAKE_FULL_RAD_S; none once
-    landed."""
-    turning = speed(view)
-    share = min(1.0, abs(turning) / BRAKE_FULL_RAD_S)
-    return -math.copysign(clamp * share, turning) if share > BRAKE_LANDED else 0.0
+def stage_at(view, now):
+    """The stage `now` is in: its index, name, seconds into it, its length, the speed it ramps
+    to (a share of the no-load speed, or None) and its load."""
+    total = sum(stage[1] for stage in CYCLE)
+    into = (now - view['spin_at']) % total
+    for index, (name, seconds, rpm, load) in enumerate(CYCLE):
+        if into < seconds:
+            return index, name, into, seconds, rpm, load
+        into -= seconds
+    name, seconds, rpm, load = CYCLE[-1]
+    return len(CYCLE) - 1, name, seconds, seconds, rpm, load
 
 
-def cycle_phase(view):
-    """Where in the demo cycle we are, and how far into that phase."""
-    turn = ((view['clock'].now() - view['spin_at']) % SWEEP_S) / SWEEP_S
-    if turn < CYCLE_HOLD:
-        return 'hold', turn / CYCLE_HOLD
-    if turn < CYCLE_ROCK:
-        return 'rock', (turn - CYCLE_HOLD) / (CYCLE_ROCK - CYCLE_HOLD)
-    if turn < CYCLE_SEND:
-        return 'send', (turn - CYCLE_ROCK) / (CYCLE_SEND - CYCLE_ROCK)
-    return 'brake', (turn - CYCLE_SEND) / (1.0 - CYCLE_SEND)
+def prop_k():
+    """The propeller's k, N m per (rad/s)^2: PROP_KW at the cycle's top."""
+    top = max(abs(stage[2] or 0.0) for stage in CYCLE) * RAD_S_PER_RPM
+    return PROP_KW * 1e3 / top ** 3
+
+
+def _loop(view):
+    """The speed loop the demo steps: the reference's ramp and the PI on the estimate, mechanical
+    rad/s in, q amps out - designed on the rotor the demo turns (`view['j']`, `view['b']`), the
+    propeller fed forward where the stand-in carries one."""
+    p = view['params']
+    kt = 1.5 * max(1.0, p.get('motor_pole_pairs') or 1.0) * (p.get('motor_lambda') or 0.005)
+    return {'ramp': Slew(rate=0.0),
+            'pi': SpeedPI(SPEED_HZ, SPIN_A, kt, view['j'], view['b'],
+                          prop_k() if view['source'] == 'model' else 0.0)}
 
 
 def sweep(rig, view):
-    """The demo cycle: hold, rock, send, brake, and round again. The first hold pulls the rotor
-    onto the frame at 0, so the estimate starts on its polarity; after it the drive stays
-    sensorless and no full current crosses zero speed."""
+    """The demo, a stage at a time: the reference ramped to the stage's speed and the loop's q
+    current after it, no current while the rotor coasts, and the stage's load on the stand-in's
+    shaft. The first stage holds the rotor onto the frame at 0; after it the drive is
+    sensorless."""
     drive = rig.board.drive
-    stage, into = cycle_phase(view)
+    now = view['clock'].now()
+    index, name, into, seconds, rpm, load = stage_at(view, now)
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
-    clamp = view['params'].get('drv_i_max') or 5.0
-    lost = LOST * no_load_rpm(view) / 60.0 * math.tau * pairs
-    if view.get('aligned') and 0.0 < lost < abs(speed(view)):
-        # The demo's operator: the estimate lost, the rotor pulled onto the frame at 0 again,
-        # to the stage's end.
-        view['aligned'] = False
-        view['said'] = 'estimate lost at %.0f rad/s - aligned again' % speed(view)
-        drive.hold()
-    if stage != view['stage']:
-        # A stage held through is an aligned rotor.
-        view['aligned'] = view['stage'] is not None
-        view['stage'] = stage
+    top = (no_load_rpm(view) or TOP_RPM) * RAD_S_PER_RPM
+    w_hat = speed(view) / pairs
+    loop = view.get('speed_loop') or view.setdefault('speed_loop', _loop(view))
+    ramp, pi = loop['ramp'], loop['pi']
+    p = view['params']
+    kt = 1.5 * pairs * (p.get('motor_lambda') or 0.005)
+    through = SEND_FROM * (p.get('drv_w_hi') or 0.0) / pairs
+    pi.limit = SPIN_A if abs(w_hat) < through else max(SPIN_A, p.get('drv_i_max') or SPIN_A)
+    if abs(w_hat) > LOST * top and name != 'align':
+        # The demo's operator: the estimate lost, the cycle again from the pull onto the frame.
+        view['said'] = 'estimate lost at %.0f rpm - aligned again' % (w_hat / RAD_S_PER_RPM)
+        view['spin_at'], view['stage_index'] = now, None
+        index, name, into, seconds, rpm, load = stage_at(view, now)
+    if index != view.get('stage_index'):
+        view['stage_index'], view['stage'] = index, name
         view['leaning'] = False
-        drive.model.configure(load=0.0)
-        drive.on('sensorless') if view['aligned'] else drive.hold()
-    if not view['aligned']:
+        view['stage_load'] = load * kt
+        if name == 'align':
+            drive.hold()
+        elif view.get('stage_mode') != 'sensorless':
+            drive.on('sensorless')
+        view['stage_mode'] = 'hold' if name == 'align' else 'sensorless'
+        # From where the rotor is: the ramp starts at its speed, the PI with no history.
+        ramp.y = w_hat
+        pi.reset()
+        pi.was = w_hat
+        if rpm is not None:
+            ramp.configure(rate=abs(rpm * RAD_S_PER_RPM - w_hat)
+                           / max(0.1, RAMP_SHARE * seconds))
+        view['speed_at'] = now
+    dt = min(0.25, max(0.0, now - view.get('speed_at', now)))
+    view['speed_at'] = now
+    if view['source'] == 'model':
+        # The propeller at the shaft's own speed, and the stage's load on top: the model's
+        # load opposes positive turning, so the propeller's sign is the speed's.
+        w = drive.model.read()['omega'] / pairs
+        drive.model.configure(load=prop_k() * w * abs(w) + view.get('stage_load', 0.0))
+    if name == 'align':
         drive.write(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0, theta=0.0)
         view['iq'] = 0.0
         return
-    if stage == 'hold':
-        view['iq'] = braking(view, ROCK_A)
-        drive.write(id_ref=0.0, iq_ref=view['iq'])
+    if rpm is None:
+        # Let go: no torque, the bridge still switching - the rotor on its drag and the
+        # propeller, the observer on the back-EMF. With the stage off the emulated board's
+        # estimate fell from 3 308 to 238 rpm while the flywheel turned on, and stuck there
+        # through the brake (2026-09-28). The ramp rides the estimate for the brake.
+        ramp.y = pi.was = w_hat
+        drive.write(id_ref=0.0, iq_ref=0.0)
+        view['iq'] = 0.0
         return
-    if stage == 'rock':
-        # One swing each way: two in five seconds gave the integrator 2.8 s a
-        # side and it never left 25 rpm.
-        target = ROCK_RPM * math.sin(math.tau * into)
-        view['iq'] = _toward(view, target, ROCK_A)
-        drive.write(id_ref=0.0, iq_ref=view['iq'],
-                    omega_target=abs(target) / 60.0 * math.tau * pairs)
-        return
-    if stage == 'send':
-        # Through zero on SPIN_A; the clamp above the back-EMF's speed, where the estimate is
-        # the back-EMF's.
-        if speed(view) < SEND_FROM * (view['params'].get('drv_w_hi') or 0.0):
-            view['iq'] = SPIN_A
-            drive.write(id_ref=0.0, iq_ref=SPIN_A)
-            return
-        drive.write(id_ref=0.0, iq_ref=clamp, accel=BURST_ACCEL,
-                    omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
-        view['iq'] = clamp
-        return
-    # The brake: the same current the other way until the rotor stops, then
-    # none.
-    view['iq'] = braking(view, clamp)
-    drive.write(id_ref=0.0, iq_ref=view['iq'], omega_target=0.0)
-
-
-def _toward(view, rpm, clamp):
-    """The speed loop's integrator, one frame."""
-    now = view['clock'].now()
-    dt = min(0.5, max(0.0, now - view['sweep_at']))
-    view['sweep_at'] = now
-    pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
-    turning = speed(view) / pairs * 60.0 / math.tau
-    return max(-clamp, min(clamp,
-                           view['iq'] + ROCK_GAIN * (rpm - turning) * dt))
+    w_ref = ramp.step(dt, x=rpm * RAD_S_PER_RPM)['y'] if dt else ramp.y
+    view['iq'] = pi.step(dt, setpoint=w_ref, measured=w_hat)['command'] if dt else view['iq']
+    drive.write(id_ref=0.0, iq_ref=view['iq'])
