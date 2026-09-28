@@ -8,7 +8,7 @@ within the stance legs' reach. `w` is the `walker.Walker`.
 import math
 
 from machine import figure, gait, walkplan
-from machine.figure import LEG, mul, t
+from machine.figure import LEG, SOLE_BALL, SOLE_HEEL, add, apply, mul, rx, ry, sub, t
 
 
 #: A swinging foot is reached for no further than SWING_REACH of a leg's: asked further, its step
@@ -143,7 +143,7 @@ def legs(w, out, bus, qs, legs, feet, held, swings, target, turn, turn_now, pel)
     for (side, sign), q, (_ankle, _tw, _pi, toes), foot in zip(walkplan.SIDES, qs, legs, feet):
         b = walkplan.carried(q)
         at = held[side] if side in held else swings[side]
-        if w.side is not None and (side == w.side['out'] or q >= gait.TOE_OFF):
+        if flat(w, side, q):
             foot, toes = FLAT, 0.0
         if q < gait.TOE_OFF + BEARS_UNTIL and bus['pelvis.pose.%s_load' % side] > LANDED_N:
             b = max(b, min(1.0, bus['pelvis.pose.%s_load' % side] / BEARS_N))
@@ -157,6 +157,24 @@ def legs(w, out, bus, qs, legs, feet, held, swings, target, turn, turn_now, pel)
         for k, v in zip(LEG, figure.leg(sign, hip_from, reach, at, foot)):
             out[side + k] = math.degrees(v)
         out[side + '_foot'] = toes
+
+
+def held(w, qs, legs):
+    """([each foot's turn], {side: a stance ankle where its foot, rolling on its heel or its
+    ball, keeps that on the floor where the anchor says; flat, its ball})."""
+    feet = [FLAT if flat(w, side, q) else mul(ry(twist), rx(-pitch))
+            for (side, _sign), q, (_ankle, twist, pitch, _toes) in zip(walkplan.SIDES, qs, legs)]
+    return feet, {side: sub(add(w.anchor[side], apply(ry(twist), sub(p, SOLE_BALL))), apply(foot, p))
+                  for (side, _sign), (_an, twist, pitch, _to), foot in zip(walkplan.SIDES, legs, feet)
+                  if side in w.anchor
+                  for p in ((SOLE_HEEL if pitch > 0.0 and foot is not FLAT else SOLE_BALL),)}
+
+
+def flat(w, side, q):
+    """Whether a foot is laid flat: in a side step, the one stepping out or not standing. Its
+    ankle held where the plan's pitched foot kept its ball down, the flat foot hung 2 cm over
+    the floor at 10 degrees heel up, bore nothing, and she fell over the other (2026-09-28)."""
+    return w.side is not None and (side == w.side['out'] or q >= gait.TOE_OFF)
 
 
 def advance(w, dt, length, balls, pel, bus):

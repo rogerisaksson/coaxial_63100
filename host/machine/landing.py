@@ -99,12 +99,19 @@ GAP_M, OVERLAP_M = 0.01, 0.1
 
 
 #: A swinging foot that bears TRIP_N between TRIP_FROM and TRIP_UNTIL of its swing has met
-#: something: it is lifted TRIP_LIFT_M more, over TRIP_S, and let down again from TRIP_UNTIL to its
-#: landing - the elevating strategy. Its toes caught on a 6 cm sill 15 cm ahead as it lifted,
-#: the pelvis pitched 10 degrees in 0.11 s and she fell (2026-09-28). Met past TRIP_LATE, the
-#: foot is put down short where it is instead, the other to step over - the lowering strategy:
-#: lifted at 0.79 of its swing onto a stair's first riser, it came down on the edge (2026-09-28).
-TRIP_N, TRIP_FROM, TRIP_UNTIL, TRIP_LIFT_M, TRIP_S, TRIP_LATE = 80.0, 0.1, 0.75, 0.08, 0.05, 0.55
+#: something, remembered where a heel clears it, TRIP_PAST_M past its toes (`w.over`), until both
+#: feet are past it. Each foot crossing it is lifted TRIP_LIFT_M more - the one that met it over
+#: TRIP_S and until TRIP_UNTIL of its swing too, another over OVER_U of its swing - until its heel
+#: clears it, let down over TRIP_DOWN_M on: the elevating strategy. Met past TRIP_LATE, the foot is
+#: put down short where it is, the other to step over: the lowering strategy. Its toes caught on a
+#: 6 cm sill 15 cm ahead as it lifted, the pelvis pitched 10 degrees in 0.11 s and she fell
+#: (2026-09-28). Let down by its swing's phase alone, on a sill laid a stride on, 13 places 3 cm
+#: apart, she walked on at 2; held up until its heel cleared it, at 4. Met later she falls: put
+#: down short, the pelvis ran 17 cm past the foot before the other lifted; lifted, with its
+#: landing moved past, the phase held or slowed for it, or the other stepping out over it, it
+#: came down on the sill or the standing leg ran out (2026-09-28).
+TRIP_N, TRIP_FROM, TRIP_UNTIL, TRIP_LIFT_M, TRIP_S = 80.0, 0.1, 0.75, 0.08, 0.05
+TRIP_PAST_M, TRIP_DOWN_M, OVER_U, TRIP_LATE = 0.05, 0.08, 0.2, 0.55
 
 
 #: A swinging foot is carried from the floor it left to the one it expects - the other's, a step
@@ -120,20 +127,30 @@ def carried(w, side, u):
     return lift + (land - lift) * gait.eased(k)
 
 
-def tripped(w, dt, side, u, load):
-    """(how far a swinging foot at `u` of its swing is lifted over what it met, m; whether it
-    is put down short instead)."""
+def tripped(w, dt, side, u, load, ankle):
+    """Whether a swinging foot at `u` of its swing, its `ankle` there, met something late and
+    is put down short."""
     met = w.trip.get(side)
     if met is None and TRIP_FROM <= u < TRIP_UNTIL and load > TRIP_N:
+        past = ankle[2] + gait.BALL + figure.TOE_M + TRIP_PAST_M + gait.HEEL
+        w.over = past if w.over is None else max(w.over, past)
         met = w.trip[side] = [0.0, u]
     if met is None or u <= 0.0:
         w.trip.pop(side, None)
-        return 0.0, False
+        return False
     met[0] += dt
-    if met[1] >= TRIP_LATE:
-        return 0.0, True
-    down = max(0.0, (u - TRIP_UNTIL) / (1.0 - TRIP_UNTIL))
-    return TRIP_LIFT_M * gait.eased(met[0] / TRIP_S) * (1.0 - gait.eased(down)), False
+    return met[1] >= TRIP_LATE
+
+
+def over(w, ankle_z, rise, u=1.0):
+    """How far a swinging foot at `u` of its swing, its ankle at `ankle_z` along the walk, is
+    lifted over what was met, m, `rise` of it eased in: until its heel clears it and its swing is
+    TRIP_UNTIL through."""
+    if w.over is None:
+        return 0.0
+    down = min(max(0.0, ankle_z - w.over) / TRIP_DOWN_M,
+               max(0.0, (u - TRIP_UNTIL) / (1.0 - TRIP_UNTIL)))
+    return TRIP_LIFT_M * rise * (1.0 - gait.eased(down))
 
 
 #: A leg's plan led SWING_LEAD_S through its swing and its landing's roll: a drive lags a
@@ -201,13 +218,16 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
     # No catch in the first strides: their landings are off the walk's own by design.
     w.catching = w.side is not None or (w.held is None and bool(catch.any()))
     out, lower, feet_x = {}, 0.0, {}
+    if w.over is not None and min(a[2] for a in ankles.values()) >= w.over:
+        w.over = None
     fore = max(-FORE_M, min(FORE_M, FORE_K * (w.v_on - length * w.rate) / omega))
     for i, ((side, sign), q, (ankle, _tw, _pi, _to)) in enumerate(zip(walkplan.SIDES, qs, legs)):
         step = w.side
         if step is not None and side == step['down'] and q >= gait.TOE_OFF:
             step['down_s'] = min(DOWN_S, step['down_s'] + dt)
             x0, y0, z0 = step['at']
-            at = (x0, y0 + (gait.ANKLE_H - y0) * gait.eased(step['down_s'] / DOWN_S), z0)
+            y1 = w.floor.get(side, 0.0) + gait.ANKLE_H
+            at = (x0, y0 + (y1 - y0) * gait.eased(step['down_s'] / DOWN_S), z0)
             at = clear(at, sign, balls[walkplan._OTHER[side]], ankles[walkplan._OTHER[side]])
             at, short = reach(figure.hip(sign, pel, turn_now), at, stance.SWING_REACH * gait.REACH)
             out[side], lower = at, max(lower, short)
@@ -228,7 +248,8 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
             # (2026-09-26).
             on = gait.eased(max(0.0, (u - SIDE_OUT_FIRST) / (1.0 - SIDE_OUT_FIRST)))
             at = (step['x_from'] + (step['x_out'] - step['x_from']) * gait.eased(u),
-                  gait.ANKLE_H + SIDE_LIFT_M * math.sin(math.pi * u) ** 2,
+                  gait.ANKLE_H + SIDE_LIFT_M * math.sin(math.pi * u) ** 2
+                  + over(w, ankles[side][2], gait.eased(u / OVER_U)),
                   step['z_from'] + (step['z_land'] - step['z_from']) * on)
             at = clear(at, sign, balls[walkplan._OTHER[side]], ankles[walkplan._OTHER[side]])
             at, short = reach(figure.hip(sign, pel, turn_now), at, stance.SWING_REACH * gait.REACH)
@@ -241,10 +262,14 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
         feet_x[side] = w.stood.get(side, balls[side][0])
         u = (q - gait.TOE_OFF) / (1.0 - gait.TOE_OFF) if q >= gait.TOE_OFF else 0.0
         # Aimed at its ball: toed out, the ball is off the ankle's line, 12 mm at 6 degrees.
-        lift, short = tripped(w, dt, side, u, loads[side])
+        short = tripped(w, dt, side, u, loads[side], ankles[side])
+        met = w.trip.get(side)
         at = (float(x[i]) + sign * (walkplan.WIDEN_M * math.sin(math.pi * u) ** 2 - gait.BALL
                                     * math.sin(math.radians(gait.TOE_OUT_DEG))),
-              ankle[1] + carried(w, side, u) + lift, planned_z + ankle[2] + fore)
+              ankle[1] + carried(w, side, u) + (
+                  over(w, ankles[side][2], gait.eased(met[0] / TRIP_S), u) if met
+                  else over(w, ankles[side][2], gait.eased(u / OVER_U))),
+              planned_z + ankle[2] + fore)
         if short:
             # Down on its heel, or its ball, as it is pitched: flat, the heel went 1 cm into the
             # floor and the leg threw her up (2026-09-28).
@@ -299,7 +324,8 @@ def sidestep(w, dt, swapping, loads, balls, legs, pel, ankles):
         # Borne only with the ankle near the floor: pitched from its swing, the foot's toes
         # took 1000 N 9 cm up and the walk began again on them (2026-09-27).
         down = w.side['down']
-        took = loads[down] > stance.BEARS_N and ankles[down][1] < gait.ANKLE_H + DOWN_M
+        took = (loads[down] > stance.BEARS_N
+                and ankles[down][1] < w.floor.get(down, 0.0) + gait.ANKLE_H + DOWN_M)
         w.side['borne'] = w.side['borne'] + dt if took else 0.0
         if w.side['borne'] >= DWELL_S and w.side['stomp']:
             w.resume = w.side['down']
@@ -307,7 +333,8 @@ def sidestep(w, dt, swapping, loads, balls, legs, pel, ankles):
             w.side['stage'], w.side['since'], w.side['borne'] = 'out', 0.0, 0.0
             w.side['x_from'] = balls[w.side['out']][0]
             w.side['z_from'] = balls[w.side['out']][2] - gait.BALL
-            w.side['z_land'] = pel[2] + w.v_on * SIDE_S + SIDE_AHEAD_M
+            w.side['z_land'] = max(pel[2] + w.v_on * SIDE_S + SIDE_AHEAD_M,
+                                   -math.inf if w.over is None else w.over + TRIP_DOWN_M)
     else:
         w.side['since'] += dt
         out, down = w.side['out'], w.side['down']

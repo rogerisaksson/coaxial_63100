@@ -689,18 +689,18 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   33, the head's bob 23 -> 13 mm, the thigh 21 ahead and 11 behind where
   28 and 6. The landings harder: the look suite's impact 1046-1599 N at
   0.65-0.9 strides/s where 228-1358 (2026-09-28).
-- Turned 6 degrees her hips swayed with her shoulders, 60 and 41 mm
-  across; turned 9, dropped 6, the spine taking 0.3 of the hips' offset
-  back at the shoulders: 72 under 25 (2026-09-28).
+- Turned 9 degrees, dropped 6, the spine taking 0.3 of the hips' offset
+  back: hips 72 mm across, shoulders 25 (2026-09-28).
 - A 6 cm sill caught the skimming toes and she fell; a swinging foot
-  bearing 80 N is lifted 8 cm more (`landing.tripped`): each foot stumbles
-  over it and she walks on (2026-09-28).
-- A 5-step stair, 8 cm steps, blind: the floor read where each foot bears
-  and the same step expected again, she walks up all five; finding the
-  landing a step lower than expected she pitches over (2026-09-28).
-- Her arms give over 0.6 s into her forearms, the hands by her face
-  (`director.YIELD`): the head 71 mm off the floor, 132 on straight arms;
-  the hands over the head, it met the floor at 1.3 m/s (2026-09-28).
+  bearing 80 N is lifted 8 cm more until its heel clears it, the other
+  too (`landing.over`): the page's sill, 13 places 3 cm apart, she walks
+  on at 4 where 2; the stair, 3 steps where 4 (2026-09-28).
+- A 5-step stair of 8 cm, blind, the floor read where each foot bears and
+  the step expected again: she walks up all five, and pitches over at a
+  landing a step lower (2026-09-28).
+- Her arms give over 0.6 s, the hands by her face (`director.YIELD`): the
+  head 71 mm off the floor, 132 on straight arms; hands over the head, it
+  met the floor at 1.3 m/s (2026-09-28).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The

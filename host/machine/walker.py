@@ -17,7 +17,7 @@ import math
 
 from machine import capture, figure, gait, landing, stance, walkplan
 from machine.pendulum import SPINE_TO_EARS_M, Pendulum
-from machine.figure import LEG, SOLE_BALL, SOLE_HEEL, add, apply, mul, rx, ry, rz, sub, t
+from machine.figure import LEG, add, mul, rx, ry, rz, t
 
 
 #: The pelvis's sideways error and its speed fed back, 1 and s; its attitude turned back past
@@ -165,9 +165,9 @@ class Walker:
         self.halting, self.halt_from, self.length_was = None, 1.0, None
         #: The pendulum between her ears, read each pass (`machine.pendulum`).
         self.pendulum = Pendulum()
-        #: {side: [seconds since its swinging foot met something, where in its swing]}
-        #: (`landing.tripped`).
-        self.trip = {}
+        #: {side: [seconds since its swinging foot met something, where in its swing, how far on
+        #: it lands]}; where a heel clears what was met, along the walk, or None (`landing.over`).
+        self.trip, self.over = {}, None
         #: {side: the floor's height under that foot where it last bore}; the step up from the
         #: other's at the last landing; the feet borne since they landed (`stance.anchor`).
         self.floor, self.rise, self.borne = {}, 0.0, set()
@@ -307,14 +307,7 @@ class Walker:
         qs = (self.phase, (self.phase + 0.5) % 1.0)
         stance.anchor(self, dt, bus, qs, balls, soles, height, pel)
         under = stance.under(self, dt, qs)
-        feet = [mul(ry(twist), rx(-pitch)) for _ankle, twist, pitch, _toes in legs]
-        # A stance ankle where its foot, rolling on its heel or its ball, keeps that on the floor
-        # where the anchor says.
-        held = {side: sub(add(self.anchor[side], apply(ry(twist), sub(p, SOLE_BALL))),
-                          apply(foot, p))
-                for (side, _sign), (_an, twist, pitch, _to), foot in zip(walkplan.SIDES, legs, feet)
-                if side in self.anchor
-                for p in ((SOLE_HEEL if pitch > 0.0 else SOLE_BALL),)}
+        feet, held = stance.held(self, qs, legs)
         # The pelvis on: where the stance feet say, weighed.
         on, weight = 0.0, 0.0
         for (side, _sign), q, (ankle, _tw, _pi, _to) in zip(walkplan.SIDES, qs, legs):
