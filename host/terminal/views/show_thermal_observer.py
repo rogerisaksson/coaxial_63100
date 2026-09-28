@@ -255,10 +255,14 @@ def map_rows():
     return rows
 
 
-def status_boxes(state, budget, aspect=None, ident=None, hint=None):
+def status_boxes(state, budget, aspect=None, ident=None, hint=None, afe=None):
     """The thermal observer's numbers as instrument boxes, every one the
     board's - and, given `(aspect, how)`, the one number that is the
     terminal's: how tall its cell was measured, or assumed, to be.
+
+    `afe` is whether AFE_ON stands, where the page has read it: with no
+    reading yet the box said the AFE was off while it was on, the observer
+    simply not having reached its first sample 30 s in (2026-09-28).
     """
 
     age = state.get('seen_s_ago')
@@ -267,7 +271,15 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None):
         age is None or every <= 0.0 or age <= 2.0 * every)
 
     if state['ntc'] is None:
-        sense: list = [Text('AFE off - open loop', style='value')]
+        waiting = every > 0.0 and (state.get('seconds') or 0) < every
+        if afe is False:
+            why = 'AFE off - open loop'
+        elif waiting:
+            why = 'first sample in %d s - open loop' % (
+                every - (state.get('seconds') or 0))
+        else:
+            why = 'no reading - open loop'
+        sense: list = [Text(why, style='value')]
     elif not fresh:
         sense = [('NTC', '%.1f C' % state['ntc']),
                  Text('%.0f s old - open loop' % age, style='value')]
@@ -484,13 +496,15 @@ def main():
                 # one a frame was a fifth of the frame.
                 if time.time() - last['ident_at'] > IDENT_EVERY_S:
                     last['ident'] = rig.board.thermal.identification()
+                    last['afe'] = rig.board.afe.state()['on']
                     last['ident_at'] = time.time()
                     # The hint with its hysteresis: what was shown stands until
                     # the room is well past a threshold.
                     last['hint'] = room_hint(last['ident'], last['hint'])
                 last['boxes'] = status_boxes(got, rig.board.thermal.budget(),
                                              aspect, ident=last['ident'],
-                                             hint=last['hint'])
+                                             hint=last['hint'],
+                                             afe=last.get('afe'))
                 last['body'] = picture(got, console, reserve,
                                        aspect[0] / 2.0)
 

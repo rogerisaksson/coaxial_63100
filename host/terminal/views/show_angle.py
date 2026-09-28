@@ -25,7 +25,7 @@ from coaxial.errors import RigError
 from machine import ansi
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
-from terminal.ui.demo import stop_motor, turn_motor
+from terminal.ui.demo import stop_motor, sweep_motor
 from terminal.ui.screen import (FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say, steady)
 from terminal.ui.stage import frame_of, hud, stage
@@ -141,20 +141,22 @@ def _foot(colour, degrees, field, width=ART_WIDTH):
     return ansi.paint(line, dial.INK[dial.NEEDLE]) if colour else line
 
 
-def _face(degrees, field, kelvin, width, height, aspect, colour, scales):
+def _face(degrees, field, kelvin, width, height, aspect, colour, scales,
+          trail=None):
     """The dial between its two scales, or alone with its caption
-    under it."""
+    under it. `trail` is the phosphor the frame loop keeps."""
     if scales:
         return dial.instrument(degrees, field, kelvin, width, height,
-                               aspect, colour=colour)
+                               aspect, colour=colour, trail=trail)
     return '\n'.join([dial.render(degrees, width, height, field,
-                                  aspect=aspect, colour=colour, kelvin=kelvin),
+                                  aspect=aspect, colour=colour, kelvin=kelvin,
+                                  trail=trail),
                       _foot(colour, degrees, field, width)])
 
 
 def compose(origin, console, part, state, field, kelvin, rate, note,
             aspect=(dial.CELL_ASPECT, 'assumed'), scales=False,
-            width=ART_WIDTH, height=ART_HEIGHT):
+            width=ART_WIDTH, height=ART_HEIGHT, trail=None):
     """One frame on the stage: the dial left, the target's numbers right."""
 
     if state is None or state.get('value') is None:
@@ -172,7 +174,7 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
         # from up to eight places and its glyph does not say which, so there is
         # nothing for a `colourise(text)` to key on.
         art = _face(degrees, field, kelvin, width, height, aspect[0],
-                    console.is_terminal, scales)
+                    console.is_terminal, scales, trail)
 
         side = [hud(part['name'], [
                     ('angle', '--   (no magnet)' if weak
@@ -247,6 +249,8 @@ def main(argv=None):
 
     period = 1.0 / max(args.hz, 0.5)
     tally = Freshness()
+    # Where the needle has been, decaying: one phosphor for the run.
+    trail = dial.trail()
 
     board_view = stage()
     terminal = board_view.is_terminal
@@ -267,9 +271,9 @@ def main(argv=None):
         else 'off - the face alone at %d, %d columns leave no room'
         % (width, columns))
     side = {'at': time.time(), 'field': field, 'kelvin': kelvin}
-    # On an emulated board the shaft is the plant's: the demo motor turns it, as the stand-in's
-    # invents a turn - one angle for ever looks like a dead link.
-    motor = turn_motor(rig, origin) if origin.real else None
+    # The shaft swept two turns each way, the stand-in's rotor and the emulated plant on the
+    # same vector - one angle for ever looks like a dead link. None on a real board.
+    motor = sweep_motor(rig, origin)
 
     def sample():
         """The board's side of a frame, on the feed's thread: the link need not hold a frame."""
@@ -292,7 +296,7 @@ def main(argv=None):
         side['scales'] = scales
         return compose(origin, board_view, part, state, side['field'],
                        side['kelvin'], tally.rate, tally.note, aspect,
-                       scales=scales, width=width, height=tall)
+                       scales=scales, width=width, height=tall, trail=trail)
 
     try:
         leaving = run_view(board_view, terminal, period, args.frames, draw)

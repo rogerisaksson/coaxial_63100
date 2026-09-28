@@ -291,7 +291,8 @@ def compose(origin, args, view, colour, console):
                   for l in art if l.strip()), default=0)
     art = [l[margin:] for l in art]
 
-    note = (('stale %d frames' % view['stale']) if view['stale'] else 'live')
+    # The tally's own words: the rule for what is stale lives in Freshness.
+    note = view['note']
     return frame_of(
         console, origin, 'BOARD ATTITUDE', '\n'.join(art),
         boxes(view['part'], view['pid'], view['record'], q, view['rate']),
@@ -437,7 +438,7 @@ def main(argv=None):
         view['frame'] += 1
         shown = dict(state, part=part, pid=pid, record=record,
                      quaternion=view['quaternion'], rate=tally.rate,
-                     stale=tally.stale, frame=view['frame'],
+                     stale=tally.stale, note=tally.note, frame=view['frame'],
                      zoom=view['zoom'], shop=shop, crew=pool,
                      wide=wide, tall=tall,
                      scroll=time.monotonic() - state['t0'])

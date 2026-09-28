@@ -7,4 +7,4 @@ ORDER, NAME = 20, 'imu'
 
 def run(args, name):
     from terminal.views import show_orientation
-    return call(show_orientation.main, common(args, hz=20.0))
+    return call(show_orientation.main, common(args))

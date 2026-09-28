@@ -195,6 +195,31 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## Host and tooling
 
+- Entering `coaxial` through `coaxial.comm.session` broke the package's own
+  import cycle: `rig` took `EMULATOR_URL` off a half-built session, and six
+  pages threw on the emulator while the suite, which enters elsewhere, stayed
+  green. `sessionmod.EMULATOR_URL` at call time (2026-09-28).
+- A view drawing faster than the board answers repeats a reading: 24 of 60
+  frames on the emulator, and the freshness note flickered live/stale every
+  other frame. Staleness is elapsed stillness now, not one repeated frame
+  (2026-09-28).
+- SHAFT ANGLE's bob was not aliasing - 8 deg a frame at most, against a 180 deg
+  fold - but the rotor hunting about a free-running vector: 3 deg at 1.2 Hz,
+  46 reversals in 20 s. The vector's angle is commanded now, off a raised
+  cosine: one turn each way, tracked to 0.6 deg (2026-09-28).
+- The stand-in's plant pulls out and runs away held at 30 A, at every rate
+  from 0.02 to 0.25 rev/s; at 5 A it follows the commanded angle (2026-09-28).
+- ROTOR OBSERVER polled the thermals every 0.25 s on an emulated board and
+  every 2 s on a real one - the slowest link took the most traffic. The three
+  reads cost 18 ms of a 50 ms tick, over the 23 ms the other four already
+  take, and the page froze and raced. Paced by the link (2026-09-28).
+- What is left of that page's jitter is the draw, not the link - the same
+  130 ms p99 on the stand-in. `cross_section.put` runs 3 800 times a frame and
+  re-ranks the cell's owner at each dot; settling it once a frame is held up by
+  `gauges` writing `frame.owner` from outside the class (2026-09-28).
+- THERMAL OBSERVER said `AFE off` with AFE_ON high: it had no reading because
+  the first sample is 30 s after opening. It says which now (2026-09-28).
+
 - Model weights (7.6 GB) reloaded per suite were most of a run: loaded once,
   released once. A run killed from outside leaves 8.4 GB on the card.
 - The offline gate was 400 s of sleeping on the stand-in's clock; suites run

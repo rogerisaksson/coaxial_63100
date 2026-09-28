@@ -10,7 +10,6 @@ from coaxial.acquire.stream import TaskStream
 from coaxial.comm.hostclock import clock_of
 from coaxial.acquire.task import Task
 from coaxial.comm import broker, session as sessionmod
-from coaxial.comm.session import EMULATOR_URL
 from coaxial.comm.transport import Transport
 from coaxial.control.motion import Motion
 from coaxial.devices import boot as bootmod
@@ -132,7 +131,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         into it when it waits blank in its bootloader."""
         self.execution_mode = ExecutionMode(execution_mode)
         if self.execution_mode is EMULATED and sessionmod.url_kind(str(port)) != 'emulator':
-            port = EMULATOR_URL
+            port = sessionmod.EMULATOR_URL
         self.port = port
         self.baud = baud
         self.unit = unit

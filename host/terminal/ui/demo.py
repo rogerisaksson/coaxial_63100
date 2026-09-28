@@ -67,6 +67,54 @@ def turn_motor(rig, origin, amps=None):
     return step
 
 
+#: The shaft's sweep for a page that shows the angle: turns each way, the wall seconds a
+#: there-and-back takes, and the current the vector is held at. Measured on the stand-in's
+#: plant (2026-09-28): held at 5 A the shaft tracks the commanded angle to 0.6 degrees, and at
+#: 30 A it pulls out and runs away at every rate tried, 0.02 to 0.25 rev/s.
+SWEEP_TURNS, SWEEP_S, SWEEP_AMPS = 1.0, 63.0, 5.0
+
+
+def sweep_motor(rig, origin, turns=SWEEP_TURNS, over=SWEEP_S):
+    """The per-frame step that sweeps the shaft `turns` turns forward and the same back, round
+    again - or None on a real board.
+
+    The vector's angle is commanded, not its rate: the shaft is where the sweep says, rather
+    than wherever a free-running vector has dragged it. A raised cosine, so it stands still at
+    both ends and the reversal does not kick the rotor - held on a rotating vector alone it
+    hunts, and the drawn angle swung 3 degrees at 1.2 Hz, 46 reversals in 20 s on the emulator
+    (2026-09-27). The stand-in's rotor and the emulated plant follow the same command.
+    """
+    if not demo(origin):
+        return None
+    # First: the board refuses AFE_ON under an armed stage. And it is +5 for the STO chain's
+    # pilot detector: without it the stage has no supply.
+    rig.board.afe.on()
+    rig.board.gate_drivers.configure(bypass_break=True)
+    rig.board.gate_drivers.on()
+    drive = rig.drive
+    drive.configure(source='adc' if origin.real else 'model')
+    drive.configure(drv_i_max=max(SWEEP_AMPS, 10.0))
+    poles = int(drive.params()['motor_pole_pairs'] or 1)
+    drive.write(id_ref=SWEEP_AMPS, iq_ref=0.0, theta=0.0, accel=DEMO_ACCEL, omega_target=0.0)
+    drive.hold()
+    began = time.monotonic()
+    wrote = {'at': 0.0}
+
+    def step(_now=None):
+        # A write every STEP_S, not every frame - a feed's every sample held an emulated
+        # board's link.
+        now = time.monotonic()
+        if now - wrote['at'] < STEP_S:
+            return
+        wrote['at'] = now
+        at = turns * 0.5 * (1.0 - math.cos(2.0 * math.pi * ((now - began) % over) / over))
+        # The electrical angle the shaft's turns ask for, kept inside one revolution: the same
+        # place on the circle, and successive writes stay a degree or two apart.
+        theta = (2.0 * math.pi * poles * at) % (2.0 * math.pi)
+        drive.write(id_ref=SWEEP_AMPS, theta=theta, omega_target=0.0)
+    return step
+
+
 def stop_motor(rig):
     """The drive off, the stage down, the break and the converters given back after a demo: the
     next page on the same board finds it still, and an emulated one idles again. What it did,

@@ -303,17 +303,23 @@ def test_the_view_loop_and_its_helpers(report):
         fresh = screen.Freshness()
         fresh.take(5)
         fresh.take(5)
-        stale = fresh.stale
+        repeated = (fresh.stale, fresh.note)
         clock[0] += 2.0
         fresh.take(25)
         clock[0] += 2.0
         fresh.take(45)
         fresh.take(None)
+        held = fresh.note
+        clock[0] += screen.Freshness.STILL_S
+        gone = fresh.note
     finally:
         screen.time.time = real_time
-    report.check('freshness: a counter that does not move is stale, and its rate is read',
-                 stale == 1 and fresh.rate == 10.0 and fresh.stale == 1 and fresh.note != 'live',
-                 '%d %.1f %s' % (stale, fresh.rate, fresh.note))
+    report.check('freshness: a draw that outruns the readings repeats one and stays live, '
+                 'and the rate is read',
+                 repeated == (1, 'live') and fresh.rate == 10.0 and held == 'live',
+                 '%s %.1f %s' % (repeated, fresh.rate, held))
+    report.check('freshness: a counter still for STILL_S is stale, in seconds',
+                 gone.startswith('stale') and gone.endswith('s') and fresh.stale == 1, gone)
 
     class Tty(io.StringIO):
         def isatty(self):
@@ -1735,6 +1741,70 @@ def test_the_dial_is_round_on_this_terminal(report):
                  % (rows_of(2.3), rows_of(2.0)))
 
 
+def test_the_sweep_decays_behind_the_needle(report):
+    """The sweep is where the needle has been, not an arc hung off the reading:
+    a phosphor lit by the needle passing and decaying everywhere else, so it
+    trails whichever way the dial turns. Drawn off the reading alone it sat
+    ahead of a needle running counter-clockwise (2026-09-28).
+    """
+    import math
+    from coaxial.draw import dial
+
+    def sides(way):
+        """Lit bins behind the needle against ahead of it, sweeping `way`."""
+        trail = dial.trail()
+        clock, real = [0.0], dial.time.monotonic
+        dial.time.monotonic = lambda: clock[0]
+        try:
+            behind = ahead = 0
+            for i in range(40):
+                clock[0] = i * 0.05
+                span = math.radians((180.0 + way * 3.0 * i) % 360.0)
+                glow = dial._glow(trail, span, clock[0])
+                at = int(span / (2.0 * math.pi) * dial.TRAIL_BINS) % dial.TRAIL_BINS
+                if i < 5:
+                    continue
+                for b in range(dial.TRAIL_BINS):
+                    if glow[b] <= 0.02:
+                        continue
+                    off = ((b - at + dial.TRAIL_BINS // 2) % dial.TRAIL_BINS
+                           - dial.TRAIL_BINS // 2)
+                    if off:
+                        behind, ahead = ((behind + 1, ahead) if off * way < 0
+                                         else (behind, ahead + 1))
+        finally:
+            dial.time.monotonic = real
+        return behind, ahead
+
+    for way, name in ((1, 'clockwise'), (-1, 'counter-clockwise')):
+        behind, ahead = sides(way)
+        report.check('the sweep trails a needle running %s' % name,
+                     behind > 20 * ahead and behind > 100,
+                     '%d behind, %d ahead' % (behind, ahead))
+
+    # And it fades: the oldest lit bin is dimmer than the newest.
+    trail = dial.trail()
+    clock, real = [0.0], dial.time.monotonic
+    dial.time.monotonic = lambda: clock[0]
+    try:
+        for i in range(10):
+            clock[0] = i * 0.05
+            dial._glow(trail, math.radians(180.0 + 3.0 * i), clock[0])
+        glow = trail['glow']
+    finally:
+        dial.time.monotonic = real
+    first = int(math.radians(180.0) / (2.0 * math.pi) * dial.TRAIL_BINS)
+    last = int(math.radians(180.0 + 27.0) / (2.0 * math.pi) * dial.TRAIL_BINS)
+    report.check('and the bin it left first is the dimmer',
+                 glow[first] < glow[last] and glow[last] > 0.9,
+                 '%.3f then %.3f' % (glow[first], glow[last]))
+
+    # A still has no history: it still shows a sweep, so a notebook's frame reads.
+    art = dial.render(137.0, 60, 20)
+    report.check('a still with no phosphor still draws a face',
+                 any(0x2800 < ord(c) <= 0x28FF for c in art), art[:40])
+
+
 def test_the_face_wears_its_two_scales(report):
     """SHAFT ANGLE's die temperature and field stand either side of the face
     as tubes on their own ranges - the scales beside it the bench asked
@@ -2329,6 +2399,7 @@ def main():
     test_the_bead_is_round_at_every_angle(report)
     test_the_bead_trails_its_speed(report)
     test_the_dial_is_round_on_this_terminal(report)
+    test_the_sweep_decays_behind_the_needle(report)
     test_the_face_wears_its_two_scales(report)
     test_every_page_scrolls_its_boxes(report)
     test_the_terminal_is_asked_how_tall_a_cell_is(report)

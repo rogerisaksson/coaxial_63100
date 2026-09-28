@@ -285,21 +285,31 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
 
 
 class Freshness:
-    """Whether the board's counter moved since the last frame, and how fast."""
+    """Whether the board's counter moved, and how fast.
+
+    A draw faster than the board's readings repeats one, which is not a dead
+    link: the reading is called stale only once it has stood still for
+    STILL_S. The emulated board repeated 24 of 60 frames at 20 fps, and the
+    note flickered live/stale every other frame (2026-09-27).
+    """
+
+    #: How long the counter stands still before the reading is stale, s.
+    STILL_S = 0.75
 
     def __init__(self):
         self.seen, self.stale = -1, 0
         self.rate, self._rate_seen, self._rate_at = 0.0, None, time.time()
+        self._moved_at = time.time()
 
     def take(self, updates):
         """One frame's counter, or None for no reading."""
+        now = time.time()
         if updates is None or updates == self.seen:
             self.stale += 1
         else:
-            self.seen, self.stale = updates, 0
+            self.seen, self.stale, self._moved_at = updates, 0, now
         if updates is None:
             return
-        now = time.time()
         if now - self._rate_at < 1.0:
             return
         if self._rate_seen is not None:
@@ -307,8 +317,14 @@ class Freshness:
         self._rate_seen, self._rate_at = updates, now
 
     @property
+    def still(self):
+        """Seconds the counter has stood still."""
+        return time.time() - self._moved_at if self.stale else 0.0
+
+    @property
     def note(self):
-        return ('stale %d frames' % self.stale) if self.stale else 'live'
+        still = self.still
+        return ('stale %.1f s' % still) if still >= self.STILL_S else 'live'
 
 
 def say(state, text, detail=''):

@@ -474,8 +474,11 @@ def main(argv=None):
     # console itself.
     leaving = None
     thermal_at = [0.0]
-    # Thermal observer read period, s.
-    thermal_every = 2.0 if origin.real else 0.25
+    # Thermal observer read period, s: the stand-in answers out of memory, a link
+    # does not. The three reads cost 18 ms of a 50 ms tick on the emulator, where
+    # the four every tick already cost 23 ms - asked four times a second they blew
+    # the frame and the page froze and raced (2026-09-28).
+    thermal_every = 0.25 if standing(origin) == 'simulated' else 2.0
 
     def sample():
         """The board's side of a frame, on the feed's thread: an emulated board's link is

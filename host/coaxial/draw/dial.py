@@ -1,5 +1,6 @@
 """The shaft angle, drawn as a protractor in the dot matrix."""
 import math
+import time
 
 from coaxial.devices import angle
 from coaxial.devices.scaling import KELVIN_AT_ZERO_C
@@ -52,10 +53,19 @@ MAJOR_WIDE = 1.2
 SWEEP_OUT, SWEEP_IN = 9.0, 11.0
 
 #: The sweep fades behind the needle - bright where it has just been, to black
-#: SWEEP_FADE back (2026-09-24: "tonas till svärta", not grey); at one weight
-#: it outshouted the needle. In SWEEP_STEPS steps.
+#: (2026-09-24: "tonas till svärta", not grey); at one weight it outshouted the
+#: needle. In SWEEP_STEPS steps. SWEEP_FADE is how far back a still shows it,
+#: having no history to decay.
 SWEEP_FADE = math.radians(70.0)
 SWEEP_STEPS = 8
+
+#: The phosphor: where the needle has been, decaying wherever it is not. Bins
+#: round the dial, and the seconds brightness takes to halve. A tail drawn off
+#: the reading alone sat ahead of a needle running counter-clockwise and rode
+#: along with it (2026-09-28); this is lit by the needle passing and by nothing
+#: else, so it decays behind it whichever way it turns.
+TRAIL_BINS = 720
+TRAIL_HALF_S = 0.55
 
 #: The needle: its stop short of the graduations and its half width at hub
 #: and tip - a crisp line, tapering to the reading end.
@@ -274,11 +284,44 @@ def _arrayed(width, height, aspect):
     return {k: np.array(v) for k, v in cols.items()}
 
 
-def _classes(a, geom, span, needle, lit):
+def trail():
+    """A phosphor for the sweep, stepped once a frame by the view that owns it."""
+    from coaxial.model.blocks import numpy as np
+    return {'glow': np.zeros(TRAIL_BINS), 'span': None, 'at': None}
+
+
+def _glow(state, span, now):
+    """The phosphor stepped to `now`: decayed by its half-life, then the arc the
+    needle swept since the last frame lit - the short way round, so a sweep that
+    crosses zero leaves no gap and a jump does not paint the whole dial."""
+    from coaxial.model.blocks import numpy as np
+    was, then = state['span'], state['at']
+    if then is not None and now > then:
+        state['glow'] *= 0.5 ** ((now - then) / TRAIL_HALF_S)
+    if span is None:
+        state['span'], state['at'] = None, now
+        return state['glow']
+    here = int(span / (2.0 * math.pi) * TRAIL_BINS) % TRAIL_BINS
+    if was is None:
+        state['glow'][here] = 1.0
+    else:
+        # The bins between the two readings, the way the needle actually went.
+        step = (span - was + math.pi) % (2.0 * math.pi) - math.pi
+        crossed = int(abs(step) / (2.0 * math.pi) * TRAIL_BINS) + 1
+        first = int(was / (2.0 * math.pi) * TRAIL_BINS) % TRAIL_BINS
+        way = 1 if step >= 0 else -1
+        state['glow'][(first + way * np.arange(crossed + 1)) % TRAIL_BINS] = 1.0
+    state['span'], state['at'] = span, now
+    return state['glow']
+
+
+def _classes(a, geom, span, needle, lit, glow=None):
     """What is at every sample this reading, a class each, -1 for air; `lit` each
     sub-dial's segments lit and their classes, or None where it has no reading.
     The hub, a notch and a sub-dial's disc outrank the needle; the needle the
-    sweep."""
+    sweep. `glow` is the phosphor's brightness per bin where a view keeps one;
+    a still has no history, and shows the sweep SWEEP_FADE back from the
+    reading instead."""
     from coaxial.model.blocks import numpy as np
     cls = a['base'].copy()
     hit = np.zeros(len(cls), bool)
@@ -293,11 +336,18 @@ def _classes(a, geom, span, needle, lit):
                & (across <= NEEDLE_ROOT + (NEEDLE_TIP - NEEDLE_ROOT) * share))
         cls[hit] = NEEDLE
     if span is not None:
-        # Zero to the reading, the way the angles run: SWEEP_FADE of it, to black.
         phi = a['phi']
-        tail = a['sweep'] & ~hit & (0.0 < phi) & (phi <= span) & (span - phi < SWEEP_FADE)
-        behind = (span - phi[tail]) / SWEEP_FADE
-        cls[tail] = np.array(SWEEP)[((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5).astype(int)]
+        if glow is None:
+            # A still: the reading's own arc, SWEEP_FADE back from it, to black.
+            tail = a['sweep'] & ~hit & (0.0 < phi) & (phi <= span) & (span - phi < SWEEP_FADE)
+            behind = (span - phi[tail]) / SWEEP_FADE
+            bright = 1.0 - behind
+        else:
+            # The phosphor: each sample as bright as its bin, wherever the needle has been.
+            at = glow[(phi / (2.0 * math.pi) * TRAIL_BINS).astype(int) % TRAIL_BINS]
+            tail = a['sweep'] & ~hit & (at > 0.0)
+            bright = at[tail]
+        cls[tail] = np.array(SWEEP)[(bright * (SWEEP_STEPS - 1) + 0.5).astype(int)]
     segs = a['seg'] >= 0
     if segs.any():
         flat = []
@@ -315,7 +365,8 @@ def _needle(geom, at):
     return c, s, geom.needle * c, geom.needle * s
 
 
-def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None):
+def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None,
+            trail=None):
     """Dots, their owners, the label overlay and its inks, one entry per cell."""
     text = [[None] * width for _ in range(height)]
     inks = {}
@@ -332,7 +383,8 @@ def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None):
     # (2026-09-25).
     from coaxial.model.blocks import numpy as np
     a = _arrays(width, height, aspect)
-    cls = _classes(a, geom, span, needle, lit)
+    glow = None if trail is None else _glow(trail, span, time.monotonic())
+    cls = _classes(a, geom, span, needle, lit, glow)
     count = np.bincount(a['dot'], weights=cls >= 0, minlength=len(a['cell']))
     top = np.full(len(a['cell']), -1)
     np.maximum.at(top, a['dot'], cls)
@@ -384,12 +436,14 @@ def _segments(value, span, band):
 
 
 def render(degrees, width=64, height=23, field=None, aspect=CELL_ASPECT,
-           colour=False, kelvin=None):
-    """The face at `degrees`, with the reading swept from zero; the field and
-    the die (`kelvin`) on their sub-dials when there is room."""
+           colour=False, kelvin=None, trail=None):
+    """The face at `degrees`, with the sweep behind the needle; the field and
+    the die (`kelvin`) on their sub-dials when there is room. `trail` is the
+    phosphor a live view keeps (`dial.trail()`); without one the sweep is
+    drawn from the reading alone, which is all a still can show."""
     weak = field is not None and field < WEAK_GAUSS
     dots, owner, text, _, inks = _raster(degrees, width, height, weak, aspect, field,
-                                         kelvin)
+                                         kelvin, trail)
     lines = []
     for row in range(height):
         cells = [(text[row][col] or chr(BRAILLE + dots[row][col]),
@@ -507,7 +561,7 @@ def beside(face, left, right):
 
 
 def instrument(degrees, field, kelvin, width=58, height=21,
-               aspect=CELL_ASPECT, colour=False):
+               aspect=CELL_ASPECT, colour=False, trail=None):
     """The face with its caption, between the die's temperature and the
     field: what SHAFT ANGLE draws with its scales, and what a notebook
     shows.
@@ -515,7 +569,7 @@ def instrument(degrees, field, kelvin, width=58, height=21,
     text = caption(degrees, field, gauss=False)
     foot = (' ' * max(0, (width - len(text)) // 2) + text).ljust(width)
     face = '\n'.join([render(degrees, width, height, field, aspect=aspect,
-                             colour=colour, kelvin=kelvin),
+                             colour=colour, kelvin=kelvin, trail=trail),
                       ansi.paint(foot, INK[NEEDLE]) if colour else foot])
     celsius = (kelvin or KELVIN_AT_ZERO_C) - KELVIN_AT_ZERO_C
     left = scale(celsius, DIE_RANGE, height, DIE_TICKS, 'DIE',

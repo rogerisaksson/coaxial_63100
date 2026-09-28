@@ -83,12 +83,10 @@ def call(main, argv):
         sys.argv = saved
 
 
-def common(args, hz=None):
-    """The flags every view takes, off the loader's own: --port,
-    --simulated, --frames, and the page's --hz."""
+def common(args):
+    """The flags every view takes, off the loader's own: --port, --simulated,
+    --frames. No page sets --hz: every view draws at FPS_CAP (2026-09-28)."""
     argv = ['--port', args.port]
-    if hz is not None:
-        argv += ['--hz', str(hz)]
     if args.simulated:
         argv.append('--simulated')
     if args.frames:

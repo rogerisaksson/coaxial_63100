@@ -7,4 +7,4 @@ ORDER, NAME = 40, 'adc'
 
 def run(args, name):
     from terminal.views import show_desk
-    return call(show_desk.main, common(args, hz=8.0))
+    return call(show_desk.main, common(args))
