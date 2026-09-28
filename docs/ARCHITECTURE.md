@@ -144,7 +144,8 @@ coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
                     gpu (the raster and a lit mesh on a card, wgpu; the crew
                     where none), gynoid (the figure's body, posed and lit),
                     shapes and lit (a lit mesh's parts, its light and its
-                    braille), callouts (framed rows, leaders)
+                    braille), callouts (framed rows, leaders), quadcopter
+                    (the quad of machine.quad, drawn)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c),
                     observer
 coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/

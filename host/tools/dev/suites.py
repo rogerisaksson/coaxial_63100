@@ -98,7 +98,8 @@ BOOT = 'test_boot.py'
 #: budget (tools/dev/token_budget.py); one 32 k-token file before (2026-09-28).
 VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
          'test_views_drawing.py', 'test_views_gauges.py', 'test_views_thermal.py',
-         'test_views_demo.py', 'test_views_segments.py')
+         'test_views_demo.py', 'test_views_segments.py',
+         'test_views_quad.py')
 
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
@@ -269,6 +270,8 @@ TOUCHES = (
     ('host/machine/ansi.py',                   ('test_simulated.py', CONTROLLER)),
     ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE, CYCLIC)),
     ('host/machine/cyclic.py',                 (CYCLIC,)),
+    ('host/machine/quad.py',                   ('test_views_quad.py', STRUCTURE)),
+    ('host/coaxial/graphics/quadcopter.py',    ('test_views_quad.py', RENDER)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),

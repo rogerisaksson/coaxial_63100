@@ -34,6 +34,7 @@ PAGES = {
     'gate_drivers': 'terminal.views.show_gate_drivers',
     'humanoid': 'terminal.views.show_humanoid',
     'orientation': 'terminal.views.show_orientation',
+    'quad': 'terminal.views.show_quad',
     'render': 'terminal.views.show_render',
     'rotor_observer': 'terminal.views.show_rotor_observer',
     'session': 'terminal.views.show_session',
