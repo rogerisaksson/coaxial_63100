@@ -12,6 +12,7 @@ counted.
     python tools/dev/run_tests.py --conformance    # + test_conformance.py (needs a real board)
     python tools/dev/run_tests.py --live           # + test_live_model.py (board AND ollama)
     python tools/dev/run_tests.py --file test_mcp.py
+    python tools/dev/run_tests.py --file test_native.py:sto,lets --file test_views.py
 
 Exit code is 0 only if every requested suite ran and nothing in it failed.
 """
@@ -82,7 +83,8 @@ def _options(argv):
                              'seconds')
     parser.add_argument('--file', action='append', default=[],
                         help='run only this test file (repeatable), instead '
-                             'of the default set')
+                             'of the default set; test_x.py:word,word runs its '
+                             'tests with those words in their names')
     parser.add_argument('--coverage', type=int, choices=TIERS,
                         help='run about this percentage of every check there '
                              'is, cheapest-per-check first. Implies --smart.')
@@ -104,12 +106,17 @@ def _options(argv):
                              'it falls back to the simulated board and says '
                              'so.' % ', '.join(NEEDS_BOARD))
     parser.add_argument('--jobs', type=int, default=BATONS,
-                        help='batons on the relay: suites at once, the physical '
+                        help='batons on the relay: jobs at once, the physical '
                              'cores (%d here) as the free commit holds; 1 is '
-                             'one after another. The suites that may reach a '
-                             'board or hold the model (%s) run alone whatever '
-                             'this says.' % (BATONS, ', '.join(ALONE)))
-    return parser.parse_args(argv)
+                             'one after another. The suites that time the link '
+                             'or hold the model (%s) run alone whatever this '
+                             'says.' % (BATONS, ', '.join(ALONE)))
+    args = parser.parse_args(argv)
+    # test_x.py:word,word - the suite, and the words its tests are picked by.
+    args.words = {name: tuple(filter(None, words.split(',')))
+                  for name, _, words in (f.partition(':') for f in args.file)}
+    args.file = list(args.words)
+    return args
 
 
 def _run(args, tags, live_sections):

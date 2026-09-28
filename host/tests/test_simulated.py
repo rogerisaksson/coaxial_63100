@@ -20,7 +20,7 @@ from coaxial_mcp import bus as busmod
 from coaxial_mcp import tools as toolmod
 from machine import ansi
 from machine.modes import SIMULATED
-from tools.dev.focus import pick, watchdog
+from tools.dev.focus import chosen, watchdog
 
 REPO = os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
@@ -1368,7 +1368,7 @@ def main(argv=None):
     """Every test, or those with the command line's words in their names (tools.dev.focus)."""
     report = Report()
     watchdog(SUITE_S)
-    for test in pick((test_session, test_board_info, test_analog_read,
+    for test in chosen((test_session, test_board_info, test_analog_read,
                       test_self_test_and_link, test_gpio_gate,
                       test_channel_table, test_imu, test_subsystems,
                       test_orientation, test_scaling, test_desk,

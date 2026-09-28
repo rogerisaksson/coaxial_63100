@@ -189,11 +189,24 @@ def plan_for(percent):
 # probes and falls back to the stand-in, and says which it got.
 NEEDS_BOARD = (CONFORMANCE,)
 
-#: Suites that may reach the board's port, or hold the model on the card.
-#: Each wants the host to itself - the bench suite measures the link's
-#: own rates, conformance its frame gaps - so they run one at a time after
-#: the rest. Every other suite opens the stand-in or nothing at all.
-ALONE = ('test_mcp.py', 'test_parity.py', BENCH, CONFORMANCE, LIVE, EMULATOR, NATIVE)
+#: Suites that time the link or hold the model on the card: the host to themselves - the bench
+#: suite measures the link's own rates, conformance its frame gaps.
+ALONE = (BENCH, CONFORMANCE, LIVE)
+
+#: Suites that may reach the board's port: one at a time, beside the rest.
+PORT = ('test_mcp.py', 'test_parity.py')
+
+#: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
+#: on as shards side by side.
+SHARDED = (SENSORLESS, 'test_controller.py', 'test_views.py', 'test_simulated.py',
+           'test_daq_api.py')
+
+#: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
+#: suite's 211 one after another here, and CI's runner ran the Release image's past 240
+#: (2026-09-27). The blank node's, its image streamed at the emulator's pace, 157 to past 480
+#: on CI's runner against 133 here (2026-09-28).
+EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'conformance': 480, 'bus': 480,
+                   'fallback': 480}
 
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (

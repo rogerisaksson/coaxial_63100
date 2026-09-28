@@ -5,6 +5,8 @@ stand-in.
 import io
 import math
 import sys
+
+from tools.dev.focus import chosen
 import time
 
 from coaxial import Coaxial63100
@@ -754,9 +756,10 @@ ROSTER = (test_inverter, test_the_placements_behind_the_thermal_model,
           test_commissioning_recovers_the_stand_in)
 
 
-def main():
+def main(argv=None):
+    """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
     report = Report()
-    for test in ROSTER:
+    for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

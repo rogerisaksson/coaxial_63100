@@ -54,11 +54,12 @@ INCLUDES = ([os.path.join(REPO, 'board', 'native'), os.path.join(REPO, 'board', 
 EXTRA = ('-Wno-pointer-to-int-cast',)
 
 #: How often a limb's thread brings its boards' clocks up to the wall's, and the most it runs
-#: under one hold of the lock an exchange waits behind, s. A virtual second of one board runs
-#: in 48 ms with the drive on: the default 15.6 ms timer and one 5 ms run a wake held it to a
-#: third of real time (2026-09-25).
+#: under one hold of the lock an exchange waits behind, s: one C call, the interpreter let go.
+#: A virtual second of one board runs in 48 ms with the drive on: the default 15.6 ms timer and
+#: one 5 ms run a wake held it to a third of real time (2026-09-25); a call a millisecond, each
+#: waiting on a page's drawing for the interpreter, to 21 % (2026-09-28).
 PACE_S = 0.001
-BURST_S = 0.005
+BURST_S = 0.05
 
 #: How far the board's clock stands from the wall's with a core for its limb: a wake, a burst,
 #: a scheduler's slice (Windows' 15.6 ms), s.
@@ -166,6 +167,9 @@ class Board:
         lib.fake_said.argtypes = [ctypes.c_uint8, ctypes.POINTER(ctypes.c_uint8), ctypes.c_uint16]
         lib.native_run.argtypes = [ctypes.c_uint32]
         lib.native_run_to.argtypes = [ctypes.c_uint64]
+        lib.native_lockstep.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_int,
+                                        ctypes.c_uint64, ctypes.c_uint64, ctypes.c_uint64]
+        lib.native_lockstep.restype = None
         lib.native_seconds.restype = ctypes.c_double
         lib.native_shaft_degrees.restype = ctypes.c_double
         lib.native_afe.argtypes = [ctypes.c_double] * 5 + [ctypes.c_uint32]
@@ -184,6 +188,7 @@ class Board:
         if world is not None and node < len(world.spec['nodes']):
             lib.native_world(world.step, world.shaft, node, world.pole_pairs(node))
         self.unit = unit
+        self.run_to = ctypes.cast(lib.native_run_to, ctypes.c_void_p).value
         self._out = (ctypes.c_uint8 * fakeboard.ANSWER)()
 
     def said(self, port):
@@ -226,6 +231,7 @@ class Limb:
                        for unit in range(1, max(1, nodes) + 1)]
         self.port = CONSOLE_PORT if self.console else BUS_PORT
         self.units = tuple(board.unit for board in self.boards)
+        self._steps = (ctypes.c_void_p * len(self.boards))(*[b.run_to for b in self.boards])
         self.lock = threading.Lock()
         self._us = 0
         self._line = 0                 # the line's last activity, us of the limb's clock
@@ -253,9 +259,11 @@ class Limb:
                 board.lib.native_pilot(volts, hz, noise)
 
     def _run_to(self, us):
-        for board in self.boards:
-            board.lib.native_run_to(us)
-        self._us = us
+        """The boards on to `us` in lockstep, in one call."""
+        if us > self._us:
+            self.boards[0].lib.native_lockstep(self._steps, len(self.boards), self._us, us,
+                                               LOCKSTEP_US)
+            self._us = us
 
     def _pace(self):
         """The boards' clocks held to the wall's, a lockstep at a time."""
@@ -269,9 +277,7 @@ class Limb:
                         wall = int((time.monotonic() - self._start) * 1e6)
                         if wall - self._us < PACE_S * 1e6:
                             break
-                        target = min(wall, self._us + int(BURST_S * 1e6))
-                        while self._us < target:
-                            self._run_to(min(target, self._us + LOCKSTEP_US))
+                        self._run_to(min(wall, self._us + int(BURST_S * 1e6)))
         finally:
             if timer is not None:
                 timer.winmm.timeEndPeriod(1)
@@ -285,8 +291,7 @@ class Limb:
         1's ran into it and went unanswered (2026-09-26)."""
         with self.lock:
             start = max(int((time.monotonic() - self._start) * 1e6), self._line + T35_US)
-            while self._us < start:
-                self._run_to(min(start, self._us + LOCKSTEP_US))
+            self._run_to(start)
             for byte in data:
                 for board in self.boards:
                     board.lib.fake_hear(self.port, byte)

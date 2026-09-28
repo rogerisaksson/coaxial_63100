@@ -279,6 +279,36 @@ def test_the_drive_lets_the_rotor_go(report, rig):
                  % (was, now, math.sqrt(left), 'armed' if armed else 'down', state['fault']))
 
 
+def test_a_page_drawing_leaves_the_board_its_time(report, _rig):
+    """The attitude page on native:// for 80 frames, the board beside its drawing: the board
+    keeps the wall's time and the page's feed reads the BNO085 on. A ctypes call a millisecond
+    of the board's time, each waiting on the drawing for the interpreter, held the board to
+    21 % of real time: 3 reads in 80 frames, the attitude frozen (2026-09-28)."""
+    from terminal.views import show_orientation as view
+    from tools.render import page
+
+    port = 'native://?world=none&page=attitude'
+    drawn, clock, real = [], [], view.boxes
+
+    def boxes(part, pid, record, q, rate):
+        drawn.append(tuple(round(x, 4) for x in q))
+        clock.append((time.monotonic(), native.limb_for(port).seconds()))
+        return real(part, pid, record, q, rate)
+
+    view.boxes = boxes
+    try:
+        page.frame('orientation', 150, 44, frames=80, port=port)
+    finally:
+        view.boxes = real
+    (w0, b0), (w1, b1) = clock[0], clock[-1]
+    share = (b1 - b0) / max(1e-9, w1 - w0)
+    report.check('a page drawing beside it, the board keeps the wall\'s time: 90 % or more',
+                 share >= 0.9, '%.2f board s in %.2f wall s' % (b1 - b0, w1 - w0))
+    report.check('and the page\'s attitude moves with the part: a new one in half the frames',
+                 len(set(drawn)) >= len(drawn) // 2,
+                 '%d attitudes in %d frames' % (len(set(drawn)), len(drawn)))
+
+
 def test_the_body_keeps_the_wall(report):
     """The humanoid's twenty boards on five buses, every drive holding: each limb's clock on
     the wall's, each board a triple every period."""
@@ -371,7 +401,7 @@ def sto_seen(board):
 RIG = (test_it_stands_as_an_emulated_board, test_the_clock_keeps_the_wall,
        test_the_demo_motor_turns_in_real_time, test_the_parts_answer,
        test_the_current_is_the_worlds, test_the_drive_lets_the_rotor_go,
-       test_the_sto_chain_follows_the_pilot,
+       test_the_sto_chain_follows_the_pilot, test_a_page_drawing_leaves_the_board_its_time,
        test_the_thermometers_read_the_world)
 
 #: The suite's time, s: the rig's tests ran 20 s (2026-09-27); the humanoid's fleet its own.

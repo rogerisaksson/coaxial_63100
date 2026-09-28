@@ -1,4 +1,8 @@
-"""One suite in its own process: run, time out, kill the tree, read the tally - on the relay."""
+"""The suites as jobs on one relay, their tallies read and merged a suite each.
+
+The long ones as shards and the emulator's groups a job each: run, timed out, their trees
+killed."""
+import math
 import os
 import re
 import subprocess
@@ -6,8 +10,9 @@ import sys
 import time
 
 from tools.dev import counts
-from tools.dev.focus import TALLY_RE, Job, kill_tree, relay
-from tools.dev.suites import ALONE, LIVE, OLLAMA, ROOT
+from tools.dev.focus import TALLY_RE, WORKER_GB, Job, kill_tree, relay
+from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, OLLAMA, PORT, ROOT,
+                              SHARDED)
 
 
 # The whole line after FAIL, detail included: a check's detail is the compiler
@@ -26,6 +31,14 @@ GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
 #: page's processes by the dozen.
 SUITE_GB = 0.3
 HEAVY_GB = {'test_views.py': 2.0}
+
+#: A job's share of a run is the run's work over the batons, no less than SLICE_S s: a suite
+#: past it goes on as shards side by side, at most MAX_SHARDS - few on the laptop's 8 cores,
+#: many on 32. One job a suite, the offline gate's three longest - 99 to 137 s - left it on
+#: 13 % of the cores for its last minute and a half, and the suites kept alone ran one after
+#: another behind them (2026-09-28).
+SLICE_S = 10.0
+MAX_SHARDS = 16
 
 
 def run_captured(argv, timeout, cwd=None):
@@ -106,31 +119,70 @@ def _timeout(name):
     return 1200 if name == LIVE else 300
 
 
-def _job(name, args, tags, live_sections):
-    """One suite run - `run_one`'s tuple, or None where the file is not."""
-    path = ROOT / 'tests' / name
-    if not path.exists():
-        return None
-    return run_one(path, timeout=_timeout(name),
-                   extra=_extra_for(name, args, tags, live_sections))
+def _emulated_here():
+    """Whether the emulator's groups run here: Renode and both images, as the suite asks."""
+    from tools.emu.emulator import BOOT_ELF, ELF, find_renode
+    return find_renode() is not None and os.path.exists(ELF) and os.path.exists(BOOT_ELF)
+
+
+def _lock(name):
+    """A suite's lock on the relay: the host alone, the board's port, or none."""
+    return 'alone' if name in ALONE else 'port' if name in PORT else None
+
+
+def _jobs(name, args, tags, live_sections, took, share, words=()):
+    """The jobs one suite runs as: its words' alone, the emulator's groups where it runs here,
+    shards past `share` s, else the suite whole."""
+    argv = ([sys.executable, str(ROOT / 'tests' / name)]
+            + _extra_for(name, args, tags, live_sections))
+    gb, lock, timeout = HEAVY_GB.get(name, SUITE_GB), _lock(name), _timeout(name)
+    if words:
+        return [Job(name, argv + list(words), gb, timeout, lock)]
+    if name == EMULATOR and _emulated_here():
+        return [Job('%s %s' % (name, group), argv + [group], WORKER_GB, seconds, lock)
+                for group, seconds in EMULATOR_GROUPS.items()]
+    shards = min(MAX_SHARDS, math.ceil(took.get(name, 0.0) / share)) if name in SHARDED else 1
+    if shards <= 1:
+        return [Job(name, argv, gb, timeout, lock)]
+    return [Job('%s %d/%d' % (name, k, shards), argv + ['--shard', '%d/%d' % (k, shards)], gb,
+                timeout, lock) for k in range(1, shards + 1)]
+
+
+def _merged(parts):
+    """One suite's result out of its jobs': the tallies summed, the failing lines in order, the
+    seconds summed - its work, which the next run's shards are planned on. A job with no tally
+    is the suite's crash."""
+    crash = next((p for p in parts if p[0] is None), None)
+    code = next((p[1] for p in parts if p[1]), parts[0][1])
+    failing = [line for p in parts for line in p[2]]
+    elapsed = sum(p[3] for p in parts)
+    groups = next((p[5] for p in parts if p[5]), None)
+    if crash is not None:
+        return None, crash[1], failing, elapsed, crash[4], groups
+    tally = tuple(sum(p[0][k] for p in parts) for k in range(3)) + (any(p[0][3] for p in parts),)
+    return tally, code, failing, elapsed, None, groups
 
 
 def _results(suites, args, tags, live_sections):
-    """(suite, its result) in the order the report lists them: the suites that share the host
-    on the relay - the longest first, a baton a physical core - then the ones that want it
-    alone, one after another.
+    """(suite, its result) in the order the report lists them, once every job has ended: all of
+    them on one relay, the longest expected first, a baton a physical core - the port's suites
+    one at a time beside the rest, the quiet ones with the host to themselves.
     """
-    took = counts.load().get('seconds') or {}
-    sharing = [name for name in suites if name not in ALONE]
-    jobs = [Job(name, [sys.executable, str(ROOT / 'tests' / name)]
-                + _extra_for(name, args, tags, live_sections),
-                HEAVY_GB.get(name, SUITE_GB), _timeout(name))
-            for name in sorted(sharing, key=lambda n: -took.get(n, float('inf')))
-            if (ROOT / 'tests' / name).exists()]
-    got = {job.name: _parse(out, code, seconds, job.timeout)
-           for job, out, code, seconds in relay(jobs, args.jobs)}
-    for name in sharing:
-        yield name, got.get(name)
+    known = counts.load()
+    took, jobs_took = known.get('seconds') or {}, known.get('jobs') or {}
+    words = getattr(args, 'words', None) or {}
+    share = max(SLICE_S, sum(took.get(name, SLICE_S) for name in suites) / max(1, args.jobs))
+    plan = {name: _jobs(name, args, tags, live_sections, took, share, words.get(name, ()))
+            for name in suites if (ROOT / 'tests' / name).exists()}
+
+    def expected(job):
+        suite = job.name.split()[0]
+        return jobs_took.get(job.name, took.get(suite, float('inf')) / len(plan[suite]))
+    queue = sorted((job for jobs in plan.values() for job in jobs), key=lambda j: -expected(j))
+    got, seconds = {}, {}
+    for job, out, code, took_s in relay(queue, args.jobs):
+        got[job.name] = _parse(out, code, took_s, job.timeout)
+        seconds[job.name] = round(took_s, 1)
+    counts.record('jobs', seconds)
     for name in suites:
-        if name in ALONE:
-            yield name, _job(name, args, tags, live_sections)
+        yield name, (_merged([got[job.name] for job in plan[name]]) if name in plan else None)

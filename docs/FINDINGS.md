@@ -281,6 +281,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   after: its regime came off the step `travel` made since the last draw, none
   between feed samples. Off the rotor's speed now, in proportion to it above 30
   rpm: 0 (2026-09-28).
+- The attitude page froze on native://: 3 reads of the BNO085 in 80 frames.
+  The limb ran its boards a ctypes call a millisecond of their time, each
+  waiting on the page's drawing for the interpreter: 1.20 board s in 5.60
+  wall s, and every write first ran the board up to the wall. One call a
+  burst now (native_lockstep), 50 ms the most: 7.02 in 7.02, 72 attitudes in
+  80 frames. emulator:// kept its 35 reads: Renode is a process of its own
+  (2026-09-28).
 - CI's 3.12 counted a FAIL in the views on 332a3fc and named none: a page drawn
   in-process leaves its footer or a screen clear on the line the next report
   lands on, 4 of 273 lines, and the runner matched FAIL at a line's start. The

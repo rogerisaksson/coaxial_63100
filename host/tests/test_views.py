@@ -3,6 +3,8 @@ import math
 import os
 import subprocess
 import sys
+
+from tools.dev.focus import chosen
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -2529,60 +2531,43 @@ def test_the_readout_prints_what_the_bus_said(report):
                  repr(typing[-40:]))
 
 
-def main():
+ROSTER = (test_each_view_draws_two_frames, test_the_loader_reads_the_pages,
+          test_the_instruments_stand_clear_of_the_motor, test_each_gutter_says_its_hottest_node,
+          test_both_gutters_run_on_one_scale, test_a_power_node_never_reads_below_the_copper,
+          test_the_ntc_is_shown_as_the_one_measurement, test_two_headrooms_named_apart,
+          test_the_foot_carries_the_policy, test_the_foot_says_trip_while_the_cap_holds,
+          test_every_frame_corner_on_the_map_is_a_right_angle,
+          test_the_soa_legend_reads_the_whole_soa,
+          test_the_soa_gauge_pulses_only_when_the_board_acts,
+          test_the_mode_says_whether_the_board_holds_it_back,
+          test_switch_soa_is_the_switches_and_motor_soa_the_winding,
+          test_the_flat_drawings_spend_the_block, test_every_gauge_shows_its_own_scale,
+          test_the_demo_actually_loads_the_motor, test_the_thermal_load_heats_the_legs_together,
+          test_the_power_face_has_its_middle_at_half_a_kilowatt,
+          test_the_level_is_drawn_at_the_dot,
+          test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most,
+          test_a_line_keeps_the_cell_it_shares_with_an_area,
+          test_nothing_in_the_drawing_can_be_sheared, test_the_bead_is_round_at_every_angle,
+          test_the_bead_trails_its_speed, test_the_dial_is_round_on_this_terminal,
+          test_the_sweep_decays_behind_the_needle, test_the_face_wears_its_two_scales,
+          test_every_page_scrolls_its_boxes, test_the_terminal_is_asked_how_tall_a_cell_is,
+          test_the_thermal_map_is_a_halftone_with_its_parts_marked,
+          test_the_attitude_caps_its_frame_rate, test_the_marquee_decodes_the_art_itself,
+          test_the_readout_prints_what_the_bus_said, test_the_preload_is_the_first_inquiry,
+          test_the_headroom_box_carries_a_solid_bar_with_a_tip,
+          test_the_thermal_page_shows_its_evidence,
+          test_a_frame_rasterises_as_the_terminal_draws_it, test_the_crt_draws_on_the_terminal,
+          test_the_chrome_at_its_edges, test_each_page_draws_on_a_terminal,
+          test_the_console_it_draws_on, test_the_view_loop_and_its_helpers,
+          test_the_screen_keeps_its_own_rate)
+
+
+def main(argv=None):
+    """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
     report = Report()
-    print('\n-- every view, two frames, no board --')
-    test_each_view_draws_two_frames(report)
-    test_the_loader_reads_the_pages(report)
-    print('\n-- the rotor observer\'s geometry --')
-    test_the_instruments_stand_clear_of_the_motor(report)
-    test_each_gutter_says_its_hottest_node(report)
-    test_both_gutters_run_on_one_scale(report)
-    test_a_power_node_never_reads_below_the_copper(report)
-    test_the_ntc_is_shown_as_the_one_measurement(report)
-    test_two_headrooms_named_apart(report)
-    test_the_foot_carries_the_policy(report)
-    test_the_foot_says_trip_while_the_cap_holds(report)
-    test_every_frame_corner_on_the_map_is_a_right_angle(report)
-    test_the_soa_legend_reads_the_whole_soa(report)
-    test_the_soa_gauge_pulses_only_when_the_board_acts(report)
-    test_the_mode_says_whether_the_board_holds_it_back(report)
-    test_switch_soa_is_the_switches_and_motor_soa_the_winding(report)
-    test_the_flat_drawings_spend_the_block(report)
-    test_every_gauge_shows_its_own_scale(report)
-    test_the_demo_actually_loads_the_motor(report)
-    test_the_thermal_load_heats_the_legs_together(report)
-    test_the_power_face_has_its_middle_at_half_a_kilowatt(report)
-    test_the_level_is_drawn_at_the_dot(report)
-    test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most(
-        report)
-    test_a_line_keeps_the_cell_it_shares_with_an_area(report)
-    test_nothing_in_the_drawing_can_be_sheared(report)
-    test_the_bead_is_round_at_every_angle(report)
-    test_the_bead_trails_its_speed(report)
-    test_the_dial_is_round_on_this_terminal(report)
-    test_the_sweep_decays_behind_the_needle(report)
-    test_the_face_wears_its_two_scales(report)
-    test_every_page_scrolls_its_boxes(report)
-    test_the_terminal_is_asked_how_tall_a_cell_is(report)
-    print('\n-- the thermal observer\'s board --')
-    test_the_thermal_map_is_a_halftone_with_its_parts_marked(report)
-    print('\n-- the attitude\'s frame rate --')
-    test_the_attitude_caps_its_frame_rate(report)
-    test_the_marquee_decodes_the_art_itself(report)
-    print('\n-- the front page\'s readout --')
-    test_the_readout_prints_what_the_bus_said(report)
-    test_the_preload_is_the_first_inquiry(report)
-    print('\n-- the thermal observer\'s headroom --')
-    test_the_headroom_box_carries_a_solid_bar_with_a_tip(report)
-    test_the_thermal_page_shows_its_evidence(report)
-    test_a_frame_rasterises_as_the_terminal_draws_it(report)
-    test_the_crt_draws_on_the_terminal(report)
-    test_the_chrome_at_its_edges(report)
-    test_each_page_draws_on_a_terminal(report)
-    test_the_console_it_draws_on(report)
-    test_the_view_loop_and_its_helpers(report)
-    test_the_screen_keeps_its_own_rate(report)
+    for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
+        print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
+        test(report)
     print('\n%d passed, %d failed, %d skipped' % (report.passed, report.failed, report.skipped))
     return 1 if report.failed else 0
 

@@ -1027,6 +1027,25 @@ void native_run_to(uint64_t us)
   }
 }
 
+/** A limb's boards - each its own copy of this library, `run_to` their native_run_to - on
+    from `from` to `to` us together, `step` us at a time: one call from the host, which lets its
+    interpreter go for all of it. A call a step, the page drawing beside it, held a board to
+    21 % of real time and its reads for seconds (2026-09-28). */
+void native_lockstep(void (*const *run_to)(uint64_t), int boards, uint64_t from, uint64_t to,
+                     uint64_t step)
+{
+  uint64_t at = from;
+
+  while (at < to)
+  {
+    at = ((to - at) > step) ? (at + step) : to;
+    for (int k = 0; k < boards; k++)
+    {
+      run_to[k](at);
+    }
+  }
+}
+
 /** The board's clock since native_open, s. */
 double native_seconds(void)
 {

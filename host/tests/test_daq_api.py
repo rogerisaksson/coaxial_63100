@@ -2,6 +2,8 @@
 """The acquisition front door: picking channels, reading them, shaping them."""
 import contextlib
 import sys
+
+from tools.dev.focus import chosen
 import threading
 import time
 
@@ -521,24 +523,22 @@ def test_sensor_fields_ride_the_record(report):
                          'torn' in str(exc), exc)
 
 
-def main():
+ROSTER = (test_catalogue, test_pick, test_configure_takes_names_or_a_list,
+          test_read_stops_at_its_timeout, test_collect_is_one_run,
+          test_sweep_rate_on_every_acquisition, test_configure_takes_a_designed_chain,
+          test_read_of_a_finite_run, test_read_of_a_running_task, test_capture_is_a_single_shot,
+          test_the_task_brackets_itself, test_record_shape, test_series_and_columns,
+          test_configure_buffer, test_fanout_ring, test_enable_is_session_scoped,
+          test_close_stops_the_reader, test_compensate_and_tare,
+          test_scaled_columns_use_the_record, test_frames_rolls_a_window,
+          test_open_is_idempotent, test_records_track_the_wall,
+          test_sensor_fields_ride_the_record)
+
+
+def main(argv=None):
+    """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
     report = Report()
-    for test in (test_catalogue, test_pick,
-                 test_configure_takes_names_or_a_list,
-                 test_read_stops_at_its_timeout, test_collect_is_one_run,
-                 test_sweep_rate_on_every_acquisition,
-                 test_configure_takes_a_designed_chain,
-                 test_read_of_a_finite_run, test_read_of_a_running_task,
-                 test_capture_is_a_single_shot,
-                 test_the_task_brackets_itself,
-                 test_record_shape, test_series_and_columns,
-                 test_configure_buffer, test_fanout_ring,
-                 test_enable_is_session_scoped, test_close_stops_the_reader,
-                 test_compensate_and_tare,
-                 test_scaled_columns_use_the_record,
-                 test_frames_rolls_a_window,
-                 test_open_is_idempotent, test_records_track_the_wall,
-                 test_sensor_fields_ride_the_record):
+    for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

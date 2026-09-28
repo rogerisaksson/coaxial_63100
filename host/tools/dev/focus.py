@@ -5,9 +5,10 @@
     python -X utf8 tests/test_emulator.py board sto     # one group, one test of it
 
 The relay: a baton a physical core and a queue of jobs, the longest first. A baton takes the
-next job whose commit fits what is left and runs it in a process of its own; a job ending hands
-its baton on at once, so no core idles while a job waits, whatever each takes. `emulator://`
-starts one Renode a process: jobs side by side are emulators side by side.
+next job whose commit fits what is left and whose lock is free, and runs it in a process of its
+own; a job ending hands its baton on at once, so no core idles while a job waits, whatever each
+takes. `emulator://` starts one Renode a process: jobs side by side are emulators side by side.
+A suite past a slice of the run goes on as shards (`--shard k/n`, `chosen`), side by side.
 """
 import collections
 import ctypes
@@ -33,8 +34,13 @@ TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
 #: of 23.7 GB with no page file, the desktop holding 17.9 (2026-09-27).
 WORKER_GB, RESERVE_GB = 0.9, 2.5
 
-#: One job on the relay: its name, its command, its commit (GB), its time (s).
-Job = collections.namedtuple('Job', 'name argv gb timeout', defaults=(WORKER_GB, 600.0))
+#: One job on the relay: its name, its command, its commit (GB), its time (s), and its lock -
+#: jobs holding the same one never run together (a board's port), 'alone' none beside it.
+Job = collections.namedtuple('Job', 'name argv gb timeout lock',
+                             defaults=(WORKER_GB, 600.0, None))
+
+#: The shard a suite's command line asks for: the k-th of every n of its tests, from 1.
+SHARD_RE = re.compile(r'^(\d+)/(\d+)$')
 
 
 def kill_tree(pid):
@@ -93,6 +99,26 @@ def pick(tests, names):
     return [test for test in tests if any(name in words[test] for name in names)]
 
 
+def chosen(tests, argv):
+    """The `tests` a suite's command line asks for, in the suite's order: those its words name
+    (`pick`), and of them the share `--shard k/n` gives - every n-th from the k-th, so n shards
+    side by side run each test once."""
+    words, shard, args = [], None, list(argv)
+    while args:
+        arg = args.pop(0)
+        if arg == '--shard' and args:
+            arg = '--shard=' + args.pop(0)
+        if arg.startswith('--shard='):
+            m = SHARD_RE.match(arg.split('=', 1)[1])
+            if not m or not 1 <= int(m.group(1)) <= int(m.group(2)):
+                sys.exit('--shard k/n, 1 <= k <= n: %s' % arg)
+            shard = (int(m.group(1)), int(m.group(2)))
+        else:
+            words.append(arg)
+    tests = pick(tests, words)
+    return tests[shard[0] - 1::shard[1]] if shard else tests
+
+
 def watchdog(seconds):
     """Every thread's stack printed and the process gone `seconds` on: a hung suite says where,
     and its emulators go with it (tools.emu.emulator's job object)."""
@@ -126,24 +152,35 @@ def relay(jobs, batons=None):
     waiting = collections.deque(jobs)
     count = len(waiting)
     free = free_commit_gb()
-    held = {'gb': 0.0, 'running': 0,
+    held = {'gb': 0.0, 'running': 0, 'locks': set(),
             'budget': float('inf') if free is None else free - RESERVE_GB}
     turn = threading.Condition()
     ended = queue.Queue()
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
     env.setdefault('OPENBLAS_NUM_THREADS', '1')
 
+    def fits(job):
+        """Its commit within the budget - anything fits an idle host - and its lock free: an
+        'alone' job waits for the host to empty, and holds it."""
+        if 'alone' in held['locks']:
+            return False
+        if job.lock == 'alone':
+            return not held['running']
+        if job.lock is not None and job.lock in held['locks']:
+            return False
+        return not held['running'] or held['gb'] + job.gb <= held['budget']
+
     def take():
         """The next job that fits; None once none is left. Waits while those left do not."""
         with turn:
             while waiting:
-                job = next((j for j in waiting
-                            if not held['running'] or held['gb'] + j.gb <= held['budget']),
-                           None)
+                job = next((j for j in waiting if fits(j)), None)
                 if job is not None:
                     waiting.remove(job)
                     held['gb'] += job.gb
                     held['running'] += 1
+                    if job.lock is not None:
+                        held['locks'].add(job.lock)
                     return job
                 turn.wait()
             return None
@@ -158,6 +195,7 @@ def relay(jobs, batons=None):
                 with turn:
                     held['gb'] -= job.gb
                     held['running'] -= 1
+                    held['locks'].discard(job.lock)
                     # The host's own share moves too: what is free now, and what the jobs
                     # still running hold of it.
                     free = free_commit_gb()
