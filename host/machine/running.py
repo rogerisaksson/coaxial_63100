@@ -25,6 +25,10 @@ SLICE_S, SAY_S = 0.05, 1.0 / 60.0
 #: Each drive's torque and power as said: meaned over AVERAGE_S, s.
 AVERAGE_S = 0.05
 
+#: An event asked is met LEAD strides on: one on the floor laid that far ahead, one that befalls
+#: her where she is counted down a stride at a time - seen coming.
+LEAD = 1
+
 
 def _run(commands, states, cadence):
     """The worker: the machine, the director, the loop paced to the clock."""
@@ -51,7 +55,8 @@ def _run(commands, states, cadence):
     bus = machine.loop.bus
     wall0, sim0 = time.perf_counter(), bus['t']
     said, ratio, spent, ran, asked = 0.0, 1.0, 0.0, 0.0, {}
-    #: An event asked, laid as the left leg's phase next crosses its `events.at` walking.
+    #: An event asked and the strides before it is met (`LEAD`), laid as the left leg's phase
+    #: crosses its `events.at` walking.
     event, was = None, 0.0
     while True:
         try:
@@ -66,7 +71,7 @@ def _run(commands, states, cadence):
                 if 'glitch' in command:
                     world.glitch(*command['glitch'])
                 if 'event' in command:
-                    event = command['event']
+                    event = [command['event'], LEAD]
                 if command.get('restart'):
                     begin()
                     wall0, sim0 = time.perf_counter(), bus['t']
@@ -80,9 +85,15 @@ def _run(commands, states, cadence):
         from_t = bus['t']
         while bus['t'] < due - 1e-9:
             if (event and director.stage == 'walk'
-                    and was < events.at(event) <= director.walker.phase):
-                events.lay(event, director, world)
-                event = None
+                    and was < events.at(event[0]) <= director.walker.phase):
+                if event[0] in events.FLOOR:
+                    events.lay(event[0], director, world, strides=event[1])
+                    event[1] = 0
+                event[1] -= 1
+                if event[1] < 0 and event[0] in events.NOW:
+                    events.lay(event[0], director, world)
+                if event[1] < 0:
+                    event = None
             was = director.walker.phase
             asked = director.step(dt)
             machine.loop.write(**asked)
@@ -112,6 +123,7 @@ def _run(commands, states, cadence):
                      'heat': {j: (bus[n + 'celsius'], bus[n + 'spent'], bus[n + 'derate'],
                                   int(bus[n + 'status']) & GATES_ON)
                               for j, n in director.drives.items()},
+                     'props': world.props(), 'armed': tuple(event) if event else None,
                      'ratio': min(ratio, 99.0)}
             try:
                 states.put_nowait(state)

@@ -212,7 +212,8 @@ class GpuRaster:
 
 #: A lit mesh: world positions, smooth normals, a (u, v) and a material a corner, seen through the
 #: engine's own projection about `centre`. A pixel's colour is its material's, lit by a key and a
-#: fill, a rim where the surface turns away and a highlight; MESH wears a lattice in (u, v).
+#: fill, a rim where the surface turns away and a highlight; MESH wears a lattice in (u, v); a
+#: material past 2^24 is painted, its low 24 bits the colour (`gynoid.paint`).
 LIT_WGSL = """
 struct U {
     m0: vec4<f32>, m1: vec4<f32>, m2: vec4<f32>,    // the view, row by row
@@ -271,6 +272,11 @@ fn fs(i: VOut) -> FOut {
     let spec = pow(max(dot(n, normalize(u.key.xyz + vec3<f32>(0.0, 0.0, 1.0))), 0.0), 40.0);
     var base = palette[min(i.material, 3u)];
     var shine = 0.55;
+    if (i.material >= 16777216u) {
+        let c = i.material & 16777215u;
+        base = vec3<f32>(f32((c >> 16u) & 255u), f32((c >> 8u) & 255u), f32(c & 255u)) / 255.0;
+        shine = 0.3;
+    }
     if (i.material == 0u) {
         let g = abs(fract(i.uv * vec2<f32>(22.0, 30.0)) - 0.5);
         base = base * (1.0 - 0.5 * smoothstep(0.36, 0.46, max(g.x, g.y)));

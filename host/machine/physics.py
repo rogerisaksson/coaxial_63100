@@ -345,6 +345,33 @@ class World:
         if self.buses is not None:
             self.buses.drain()
 
+    def props(self):
+        """What lies on the floor, and a lace caught: [(kind, centre, half sizes, turn 3x3)]
+        world, a box each - the hole's gap, a sill, a slip patch, the rug - and ('lace', from,
+        to) from the pulled foot to the other while the tug holds it."""
+        m, d = self.model, self.data
+        out = []
+        a = m.geom('slab_a').id
+        gap = (m.geom_pos[a][2] + m.geom_size[a][2], m.geom_pos[m.geom('slab_b').id][2]
+               - m.geom_size[m.geom('slab_b').id][2])
+        if gap[1] - gap[0] > 1e-6:
+            out.append(('hole', (0.0, -HOLE_M / 2.0, sum(gap) / 2.0),
+                        (0.5, HOLE_M / 2.0, (gap[1] - gap[0]) / 2.0), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
+        for name in ('sill', 'slip'):
+            body = m.body(name).id
+            at = d.xpos[body]
+            if at[1] > -0.5:
+                g = m.body_geomadr[body]
+                out.append((name, tuple(at), tuple(m.geom_size[g]), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
+        rug = m.body('rug').id
+        if d.xpos[rug][2] > PARKED_M + 1.0:
+            out.append(('rug', tuple(d.xpos[rug]), (0.3, RUG_M / 2.0, RUG_LONG_M / 2.0),
+                        tuple(map(tuple, d.xmat[rug].reshape(3, 3)))))
+        if any(until > d.time for _b, _f, until in self.tugs):
+            out.append(('lace', tuple(d.xpos[m.body('left_toes').id]),
+                        tuple(d.xpos[m.body('right_foot').id])))
+        return out
+
     def push(self, force, seconds):
         """A shove on the torso, world newtons, for `seconds`."""
         self.push_n = self._np.array(force, float)

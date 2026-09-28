@@ -9,11 +9,15 @@ caught under the other foot (`World.tug`), a knee's board run into its SOA or wa
 the slip patch and the rug's heel-end under where the walk lands that foot, the sill SILL_AHEAD_M
 ahead of its toes as it lifts, the lace pulling that foot back LACE_N for LACE_S; at GLITCH_AT
 of its stance the knee's board in its SOA for SOA_S, or warmed. A spread step `k` moves a floor
-event STEP_M along the walk and a glitch GLITCH_STEP of the stride.
+event STEP_M along the walk and a glitch GLITCH_STEP of the stride; `strides` on lays a floor
+event that many strides further, met at the same phase.
 """
 from machine import figure, gait
 
 EVENTS = ('hole', 'sill', 'slip', 'rug', 'lace', 'soa', 'hot')
+
+#: The events laid on the floor, and those that befall her where she is.
+FLOOR, NOW = ('hole', 'sill', 'slip', 'rug'), ('lace', 'soa', 'hot')
 
 SILL_AHEAD_M, RUG_HEEL_M, STEP_M = 0.15, 0.15, 0.03
 GLITCH_AT, GLITCH_STEP, SOA_S = 0.25, 0.05, 0.5
@@ -30,11 +34,13 @@ def at(event, k=0):
     return gait.TOE_OFF
 
 
-def lay(event, director, world, k=0):
-    """`event` laid where the walk will meet it, the left leg's phase crossing `at` now."""
+def lay(event, director, world, k=0, strides=0):
+    """`event` laid where the walk will meet it, the left leg's phase crossing `at` now - a
+    floor event `strides` strides on."""
     bus, walker = director.machine.loop.bus, director.walker
+    on = strides * gait.STRIDE_M * walker.stride
     landing = (bus['pelvis.pose.z'] + (1.0 - gait.TOE_OFF) * gait.STRIDE_M * walker.stride
-               + gait.planted(0.0, walker.stride)[0] + k * STEP_M)
+               + gait.planted(0.0, walker.stride)[0] + k * STEP_M + on)
     if event in ('soa', 'hot'):
         world.glitch('left_knee', event, SOA_S)
     elif event == 'lace':
@@ -44,5 +50,5 @@ def lay(event, director, world, k=0):
             'hole': landing + (gait.BALL - gait.HEEL) / 2.0, 'slip': landing,
             'rug': landing - RUG_HEEL_M,
             'sill': (walker.balls['left'][2] + 2.0 * figure.CONTACTS[1][2][2]
-                     + SILL_AHEAD_M + k * STEP_M),
+                     + SILL_AHEAD_M + k * STEP_M + on),
         }[event])

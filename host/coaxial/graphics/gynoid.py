@@ -18,8 +18,15 @@ from machine import ansi, drives, figure
 from machine.figure import TOE_RY
 from machine.gait import ANKLE_H, BALL, SHANK, THIGH
 
-#: A corner's material, as `gpu.LIT_WGSL` colours it.
+#: A corner's material, as `gpu.LIT_WGSL` colours it; past PAINTED the colour it wears.
 MESH, SKIN, PLATE, CORE = 0, 1, 2, 3
+PAINTED = 1 << 24
+
+
+def paint(rgb):
+    """The material that wears `rgb`, 0..255 each."""
+    r, g, b = (int(c) & 255 for c in rgb)
+    return PAINTED | r << 16 | g << 8 | b
 
 #: Corners round a ring.
 AROUND = 20
@@ -227,9 +234,11 @@ class Body:
         self.uv, self.materials = np.vstack(uv), np.concatenate(materials).astype(np.uint32)
         self.spans = spans
         self.normals = _normals(self.corners, self.index, spans)
-        #: The parts whose lowest corner is the sole.
+        #: The parts whose lowest corner is the sole; each drive's drum's, by its joint.
         self.soles = [i for i, part in enumerate(self.parts)
                       if part[0].endswith(('_foot', '_toes'))]
+        self.drums = {part[0][len('drive_'):]: i for i, part in enumerate(self.parts)
+                      if part[0].startswith('drive_')}
         #: Every triangle sampled DENSE_M apart, for the dots drawn without a card: (points,
         #: normals, uv, materials) in their parts' frames, and each part's span of them.
         self.dense, self.dense_spans = _sampled(self, np.concatenate(faces))
@@ -369,6 +378,8 @@ def _lit_here(normals, materials, uv):
     half = (key + (0.0, 0.0, 1.0)) / np.linalg.norm(key + (0.0, 0.0, 1.0))
     spec = np.clip(n @ half, 0.0, None) ** 40
     base = np.asarray(PALETTE)[np.minimum(materials, 3)]
+    worn = np.stack([(materials >> 16) & 255, (materials >> 8) & 255, materials & 255], 1)
+    base = np.where((materials >= PAINTED)[:, None], worn / 255.0, base)
     g = np.abs(np.modf(uv * (22.0, 30.0))[0] - 0.5).max(axis=1)
     base = np.where((materials == MESH)[:, None] & (g > 0.4)[:, None], base * 0.5, base)
     shine = np.where(materials == SKIN, 0.12, 0.55)
@@ -454,12 +465,18 @@ def _packed(fg, bg=None):
     return key if bg is None else key | (((bg[0] << 16) | (bg[1] << 8) | bg[2]) + 1) << 24
 
 
+#: A callouts' frame, as the tty's instruments have theirs (`frame.hud`, rounded): its ink and
+#: corners; callouts within FRAME_JOIN rows of the last share its frame.
+FRAME_INK, FRAME_CORNERS, FRAME_JOIN = (95, 135, 135), '╭╮╰╯', 3
+
+
 def callouts(labels, anchors, places, width, height):
     """({(row, col): (codepoint, key)}, leader dots) for `labels` {joint: [(char, fg, bg)]},
     inks (r, g, b) or None: docked at the drawing's edges, a side's joints on its side and the
     rest on the side they stand, each on the row its joint has at rest (`places` {joint: (x,
-    y)}, dots) or the next free one down, and a leader from its inner end to the joint's pivot
-    as it is (`anchors`, dots). The callouts stand still; the leaders follow."""
+    y)}, dots) or the next free one down - those near the last sharing its frame, a rounded one
+    a cell out round them - and a leader from its frame's inner edge to the joint's pivot as it
+    is (`anchors`, dots). The callouts stand still; the leaders follow."""
     np = _np()
     dots = np.zeros((height * DOTS_Y, width * DOTS_X), bool)
     mid = width * DOTS_X / 2.0
@@ -474,31 +491,51 @@ def callouts(labels, anchors, places, width, height):
                 side = joint.startswith('left_') != flip
             sides[side].append((places[joint][1], joint, cells))
     overlay = {}
+    ink = _packed(FRAME_INK, None)
     for left, items in sides.items():
         items.sort(key=lambda item: item[:2])
-        rows, last = [], -1
+        rows, last = [], -FRAME_JOIN - 1
         for y, *_rest in items:
-            last = max(int(y // DOTS_Y), last + 1)
+            want = max(int(y // DOTS_Y), 1)
+            last = last + 1 if want - last <= FRAME_JOIN else want
             rows.append(last)
-        over = (rows[-1] - (height - 1)) if rows else 0
-        rows = [max(0, r - max(0, over)) for r in rows]
+        over = (rows[-1] - (height - 2)) if rows else 0
+        rows = [max(1, r - max(0, over)) for r in rows]
+        wide = max((len(cells) for *_r, cells in items), default=0) + 4
+        start = 0 if left else width - wide
+        blocks = []
+        for row in rows:
+            if blocks and row == blocks[-1][1] + 1:
+                blocks[-1][1] = row
+            else:
+                blocks.append([row, row])
+        for top, bottom in blocks:
+            for col in range(start, start + wide):
+                edge = col in (start, start + wide - 1)
+                for row, corner in ((top - 1, 0), (bottom + 1, 2)):
+                    char = FRAME_CORNERS[corner + (col != start)] if edge else '─'
+                    overlay[(row, col)] = (ord(char), ink)
+            for row in range(top, bottom + 1):
+                overlay[(row, start)] = overlay[(row, start + wide - 1)] = (ord('│'), ink)
         for row, (_y, joint, cells) in zip(rows, items):
-            start = 0 if left else width - len(cells)
             for k, (char, fg, bg) in enumerate(cells):
-                if 0 <= start + k < width:
-                    overlay[(row, start + k)] = (ord(char), _packed(fg, bg))
-            end = (start + len(cells)) * DOTS_X if left else start * DOTS_X - 1
+                if 0 <= start + 2 + k < width:
+                    overlay[(row, start + 2 + k)] = (ord(char), _packed(fg, bg))
+            end = (start + wide) * DOTS_X if left else start * DOTS_X - 1
             _line(dots, (end, row * DOTS_Y + DOTS_Y // 2), anchors[joint])
     return overlay, dots
 
 
-def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders=None):
+def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders=None,
+            props=()):
     """Dot rasters down to cells: a dot where the light clears the blue noise, the silhouette and
-    every depth step always; the floor's dots where she is not, and the `leaders`' dots; the
-    `overlay`'s cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where
-    `colour`."""
+    every depth step always; the floor's dots where she is not, the `leaders`' dots and the
+    `props`' [(dots, ink)] in their inks; the `overlay`'s cells {(row, col): (codepoint, key)}
+    over all (`callouts`). Lines, ANSI where `colour`."""
     np = _np()
     covered = depth > 0.0
+    for dots, _ink in props:
+        leaders = dots if leaders is None else (leaders | dots)
     lum = rgb.astype(float) @ (0.2126, 0.7152, 0.0722) / 255.0
     pad = np.pad(depth, 1)
     steps = [pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]]
@@ -525,6 +562,9 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     ink = np.where((hits > 0)[..., None], body, np.asarray(FLOOR_INK) * shine[..., None])
     led = lead.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3)) & (hits == 0)
     ink = np.where(led[..., None], np.asarray(LEADER_INK, float), ink)
+    for dots, prop_ink in props:
+        on = (dots & ~covered).reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3))
+        ink = np.where((on & (hits == 0))[..., None], np.asarray(prop_ink, float), ink)
     ink = (ink.astype(int) // INK_STEP) * INK_STEP
     key = np.where(cells > 0, (ink[..., 0] << 16) | (ink[..., 1] << 8) | ink[..., 2], -1)
     for (row, col), (_char, packed) in (overlay or {}).items():
@@ -605,23 +645,64 @@ class Follow:
         return at
 
 
+#: What she trips on, its ink by kind (`World.props`).
+PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 255),
+            'rug': (200, 160, 110), 'lace': (230, 90, 230)}
+
+
+def _props(props, m, cam, centre, travel):
+    """[(dots, ink)]: each prop's edges - a box's twelve, a lace's line - in the fine camera's
+    dots, the floor `travel` m on."""
+    np = _np()
+    out = []
+    for kind, *shape in props:
+        if kind == 'lace':
+            corners = np.asarray(shape, float)
+            edges = ((0, 1),)
+        else:
+            (cx, cy, cz), half, turn = shape
+            signs = np.array([(i, j, k) for i in (-1, 1) for j in (-1, 1) for k in (-1, 1)], float)
+            corners = (signs * np.asarray(half)) @ np.asarray(turn, float).T + (cx, cy, cz)
+            edges = [(a, b) for a in range(8) for b in range(a + 1, 8)
+                     if bin(a ^ b).count('1') == 1]
+        corners[:, 2] -= travel
+        sx, sy, w = _project(corners, m, cam, centre)
+        dots = np.zeros((cam['height'], cam['width']), bool)
+        for a, b in edges:
+            if w[a] > 0.0 and w[b] > 0.0:
+                _line(dots, (sx[a], sy[a]), (sx[b], sy[b]))
+        out.append((dots, PROP_INK.get(kind, (200, 200, 200))))
+    return out
+
+
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=0.0,
-           lit=None, root=None, labels=None):
+           lit=None, root=None, labels=None, heat=None, props=None):
     """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
     `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
-    {joint: [(char, fg, bg)]} called out at the edges, a leader to each joint (`callouts`)."""
+    {joint: [(char, fg, bg)]} called out at the edges, a leader to each joint (`callouts`);
+    `heat` {joint: C} each drive's drum painted its temperature's colour (`ansi.thermal_rgb`);
+    `props` what she trips on, world (`World.props`), drawn as edges `travel` m back."""
     np = _np()
     who = body()
     m = view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, REACH, distance=DISTANCE, zoom=zoom))
     centre = np.asarray(CENTRE)
+    materials, dense = who.materials, who.dense[3]
+    if heat:
+        materials, dense = materials.copy(), dense.copy()
+        for joint, celsius in heat.items():
+            if joint in who.drums:
+                worn = paint(ansi.thermal_rgb(celsius))
+                i = who.drums[joint]
+                materials[slice(*who.spans[i])] = worn
+                dense[slice(*who.dense_spans[i])] = worn
     if lit is not None:
         positions, normals = who.pose(angles, root=root)
-        depth, rgb = lit.raster(positions, normals, who.uv, who.materials, who.index, m, fine,
+        depth, rgb = lit.raster(positions, normals, who.uv, materials, who.index, m, fine,
                                 CENTRE, REACH * 1.4)
     else:
         positions, normals = who.pose(angles, dense=True, root=root)
-        depth, rgb = _splat((positions, normals, who.dense[3], who.dense[2]), m, fine, centre)
+        depth, rgb = _splat((positions, normals, dense, who.dense[2]), m, fine, centre)
     overlay = leaders = None
     if labels:
         pivots, rest = who.pivots(angles, root=root), who.pivots({})
@@ -634,4 +715,4 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
                                     dict(zip(names, dots_of([rest[j] for j in names]))),
                                     width, height)
     return braille(depth, rgb, _floor(m, fine, centre, travel), width, height, colour, overlay,
-                   leaders)
+                   leaders, _props(props or (), m, fine, centre, travel))

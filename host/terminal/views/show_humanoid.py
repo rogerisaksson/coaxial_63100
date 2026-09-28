@@ -24,7 +24,9 @@ import time
 
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
+from machine import ansi
 from machine.director import moment
+from machine.drives import kind
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from machine.routines import TYPES
 from machine.running import Running
@@ -69,12 +71,18 @@ HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
           + ['set_' + j for j in JOINTS])
 
-#: A callout's inks: the joint's name, its boxes' ground, the torque's bar, the power's driving
-#: and braking, the numbers; the bars' cells.
-LABEL_INK, BOX_GROUND, TORQUE_INK, DRIVE_INK, BRAKE_INK, NUMBER_INK = (
-    (128, 140, 152), (38, 46, 58), (255, 184, 80), (96, 214, 255), (255, 96, 128),
-    (214, 220, 228))
-BAR_CELLS = 5
+#: A callout's inks: its boxes' ground, the torque's bar, the power's driving and braking, the
+#: numbers, a name on a dark patch and on a light; the bars' cells.
+BOX_GROUND, TORQUE_INK, DRIVE_INK, BRAKE_INK, NUMBER_INK, DARK_INK, LIGHT_INK = (
+    (38, 46, 58), (255, 184, 80), (96, 214, 255), (255, 96, 128), (214, 220, 228),
+    (16, 18, 22), (236, 240, 244))
+BAR_CELLS = 3
+
+#: A joint's name in a callout, four letters by its kind.
+SHORT = {'spine': 'spin', 'spine_roll': 'spnR', 'waist': 'wais', 'neck': 'neck', 'head': 'head',
+         'shoulder': 'shld', 'elbow': 'elbw', 'wrist': 'wrst', 'gripper': 'grip',
+         'hip_yaw': 'hipY', 'hip_roll': 'hipR', 'hip': 'hip', 'knee': 'knee', 'ankle': 'ankl',
+         'ankle_roll': 'ankR', 'foot': 'toes'}
 
 #: The bars' full scale: the drive's peak torque, and its power at that torque and RAD_S; both
 #: drawn through a square root, so a light load shows.
@@ -99,14 +107,16 @@ CALLING = ('strong', 'all', 'none')
 
 
 def labels(now, called):
-    """{joint: cells} for `gynoid.render`, each of `called`: its name, its angle, the torque's
-    bar and the power's, each in a box of its own, and the torque, N m."""
+    """{joint: cells} for `gynoid.render`, each of `called`: its name on a patch the colour of
+    its drive's heat (the thermal observer's scale), its angle, the torque's bar and the
+    power's, and the torque, N m."""
     out = {}
     for joint in CALLED[called]:
         torque, power, peak = now['torque'][joint], now['power'][joint], now['peak'][joint]
-        name = joint.split('_', 1)[-1] if joint.startswith(('left_', 'right_')) else joint
-        cells = [(c, LABEL_INK, None) for c in '%10s ' % name]
-        cells += [(c, NUMBER_INK, None) for c in '%6.1f° ' % now['angles'].get(joint, 0.0)]
+        patch = ansi.thermal_rgb(now['heat'][joint][0]) if 'heat' in now else BOX_GROUND
+        ink = DARK_INK if 0.3 * patch[0] + 0.59 * patch[1] + 0.11 * patch[2] > 128 else LIGHT_INK
+        cells = [(c, ink, patch) for c in '%-4s' % SHORT[kind(joint)]]
+        cells += [(c, NUMBER_INK, None) for c in '%5.0f° ' % now['angles'].get(joint, 0.0)]
         cells += [(c, TORQUE_INK, BOX_GROUND) for c in bar(abs(torque) / peak)]
         cells += [(' ', None, None)]
         cells += [(c, DRIVE_INK if power >= 0.0 else BRAKE_INK, BOX_GROUND)
@@ -140,7 +150,7 @@ def boxes(state, now, name):
         ('physics', 'x%.1f real time' % now['ratio'] if now else '-'),
         ('hottest', _hottest(now) if now else '-'),
         ('glitched', '%s %s' % state['glitched'] if state['glitched'] else 'G soa, H hot'),
-        ('tripped', state['tripped'] or 'Ctrl H R T S L'),
+        ('ahead', _ahead(now) if now else 'Ctrl H R T S L'),
         ('record', 'R starts' if state['recording'] is None and not state['recorded']
          else 'on, %.1f s - R saves' % (len(state['recording']) / 60.0)
          if state['recording'] is not None else os.path.basename(state['recorded'])),
@@ -157,6 +167,28 @@ def _hottest(now):
     joint = max(now['heat'], key=lambda j: now['heat'][j][1])
     celsius, spent, derate, gates = now['heat'][joint]
     return '%s %.0f C %.2f%s' % (joint, celsius, spent, ' x%.2f' % derate if gates else ' off')
+
+
+#: Within NEAR_M of her pelvis a prop is under her; past AWAY_M behind, left behind.
+NEAR_M, AWAY_M = 0.3, 1.0
+
+
+def _ahead(now):
+    """What she is about to trip on: a lace holding her foot, the nearest prop on the floor and
+    how far ahead of her pelvis, or one asked and the strides before it befalls her."""
+    props = now.get('props', ())
+    if any(p[0] == 'lace' for p in props):
+        return 'lace caught'
+    near = [(p[1][2] - now['where'][2], p[0]) for p in props
+            if p[0] != 'lace' and p[1][2] - now['where'][2] > -AWAY_M]
+    if near:
+        metres, kind = min(near)
+        return '%s under her' % kind if abs(metres) <= NEAR_M else (
+            '%s %.1f m ahead' % (kind, metres) if metres > 0.0 else '%s behind' % kind)
+    if now.get('armed'):
+        kind, left = now['armed']
+        return '%s in %d strides' % (kind, left + 1)
+    return 'Ctrl H R T S L'
 
 
 def _tripped(event):
@@ -293,7 +325,9 @@ def main(argv=None):
                                           zoom=state['zoom'], colour=terminal, travel=camera,
                                           lit=lit, root=((x, y, z - camera),
                                                          quat(*now['turn'])),
-                                          labels=labels(now, state['called'])))
+                                          labels=labels(now, state['called']),
+                                          heat={j: h[0] for j, h in now['heat'].items()},
+                                          props=now.get('props')))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name),
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
                          ('^H ^R ^T ^S ^L', 'HOLE RUG SILL SLIP LACE'),

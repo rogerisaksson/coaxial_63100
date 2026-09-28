@@ -756,6 +756,19 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   at 1:36. Drawn, the ankle's drum on the calf's back stood 3 cm proud;
   inside a calf 112 mm round only its ends show, as the knee's and the
   elbow's do (2026-09-28).
+- The page's callouts: 34 cells a joint (the name in 10, the angle in 8, two
+  bars of 5 in boxes, the torque) -> 20 in the tty's rounded frame, those
+  a few rows apart sharing one: the name in four letters on a patch the
+  colour of its drive's heat (`ansi.thermal_rgb`, the thermal observer's),
+  the angle in whole degrees, bars of 3 cells. The drums in her joints are
+  painted the same (a material past 2^24 wears its colour). What she trips
+  on is drawn as its edges in its own ink and said in BODY: laid under the
+  lifting foot it showed 0.1 s before she met it; on the page it is laid a
+  stride on at the same phase, 1.3 m ahead of her pelvis, a lace or a
+  glitch counted down. The frames the page draws at 15 a second showed the
+  same state again 65 times in 235 and the rest 0.036 s of her time apart
+  on the mean with 0.022 of spread: her process runs 0.7 of real time in
+  slices of 0.05 s (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
