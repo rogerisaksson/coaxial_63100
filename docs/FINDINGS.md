@@ -281,6 +281,12 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   after: its regime came off the step `travel` made since the last draw, none
   between feed samples. Off the rotor's speed now, in proportion to it above 30
   rpm: 0 (2026-09-28).
+- The offline gate ran 544 s with the cores 17 % busy: a job a suite, the
+  three longest 99-137 s at its end, native, the emulator and mcp alone one
+  after another behind them. One relay now - the long suites as shards past
+  half the run's work over the batons, the emulator's groups a job each, the
+  port's suites one at a time under a lock - 224 s, 31 %, the same 3 876
+  checks (2026-09-28).
 - The attitude page froze on native://: 3 reads of the BNO085 in 80 frames.
   The limb ran its boards a ctypes call a millisecond of their time, each
   waiting on the page's drawing for the interpreter: 1.20 board s in 5.60

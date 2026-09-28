@@ -198,8 +198,8 @@ PORT = ('test_mcp.py', 'test_parity.py')
 
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
-SHARDED = (SENSORLESS, 'test_controller.py', 'test_views.py', 'test_simulated.py',
-           'test_daq_api.py')
+SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, VIEWS, 'test_simulated.py',
+           DAQ_API)
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240

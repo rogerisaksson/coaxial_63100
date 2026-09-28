@@ -4,6 +4,8 @@ failed into its SOA, a lace caught - and fantasy boards, whose envelope never bi
 (`physics.ENVELOPE`). Her walk and her look are test_gynoid.py's."""
 import sys
 
+from tools.dev.focus import chosen
+
 class Report:
     def __init__(self):
         self.passed = self.failed = 0
@@ -185,12 +187,14 @@ def test_a_trip_lands_on_her_hands(report):
     body.disarm()
 
 
-def main():
+ROSTER = (test_a_drive_keeps_its_heat, test_a_drive_in_its_soa, test_a_trip_lands_on_her_hands,
+          test_fantasy_boards_never_bind)
+
+
+def main(argv=None):
+    """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
     report = Report()
-    for test in (test_a_drive_keeps_its_heat,
-                 test_a_drive_in_its_soa,
-                 test_a_trip_lands_on_her_hands,
-                 test_fantasy_boards_never_bind):
+    for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

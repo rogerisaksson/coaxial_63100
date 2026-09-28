@@ -32,11 +32,12 @@ GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
 SUITE_GB = 0.3
 HEAVY_GB = {'test_views.py': 2.0}
 
-#: A job's share of a run is the run's work over the batons, no less than SLICE_S s: a suite
-#: past it goes on as shards side by side, at most MAX_SHARDS - few on the laptop's 8 cores,
-#: many on 32. One job a suite, the offline gate's three longest - 99 to 137 s - left it on
-#: 13 % of the cores for its last minute and a half, and the suites kept alone ran one after
-#: another behind them (2026-09-28).
+#: A job's share of a run is half the run's work over the batons, no less than SLICE_S s: a
+#: suite past it goes on as shards side by side, at most MAX_SHARDS - few on the laptop's 8
+#: cores, many on 32. One job a suite, the offline gate's three longest - 99 to 137 s - left it
+#: on 13 % of the cores for its last minute and a half, the suites kept alone one after another
+#: behind them: 544 s. Shards at the whole work over the batons, 246 s, the views whole the
+#: last two minutes of it (2026-09-28).
 SLICE_S = 10.0
 MAX_SHARDS = 16
 
@@ -171,7 +172,8 @@ def _results(suites, args, tags, live_sections):
     known = counts.load()
     took, jobs_took = known.get('seconds') or {}, known.get('jobs') or {}
     words = getattr(args, 'words', None) or {}
-    share = max(SLICE_S, sum(took.get(name, SLICE_S) for name in suites) / max(1, args.jobs))
+    share = max(SLICE_S, sum(took.get(name, SLICE_S) for name in suites)
+                / (2.0 * max(1, args.jobs)))
     plan = {name: _jobs(name, args, tags, live_sections, took, share, words.get(name, ()))
             for name in suites if (ROOT / 'tests' / name).exists()}
 

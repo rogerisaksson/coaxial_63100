@@ -3,6 +3,8 @@
 clothes and her look. Her faults on the boards as built are test_gynoid_faults.py's."""
 import sys
 
+from tools.dev.focus import chosen
+
 from machine import physics
 
 physics.ENVELOPE = 0.0
@@ -194,15 +196,15 @@ def test_she_rises_and_walks(report):
     body.disarm()
 
 
-def main():
+ROSTER = (test_a_virtual_body_walks, test_a_leg_by_its_foot, test_a_body_with_mass_walks,
+          test_the_pendulum_between_her_ears, test_she_rises_and_walks, test_dressed_or_bare,
+          test_the_floor_outlasts_a_walk)
+
+
+def main(argv=None):
+    """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
     report = Report()
-    for test in (test_a_virtual_body_walks,
-                 test_a_leg_by_its_foot,
-                 test_a_body_with_mass_walks,
-                 test_the_pendulum_between_her_ears,
-                 test_she_rises_and_walks,
-                 test_dressed_or_bare,
-                 test_the_floor_outlasts_a_walk):
+    for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

@@ -4,6 +4,8 @@ import importlib.util
 import os
 import random
 import sys
+
+from tools.dev.focus import chosen
 import tempfile
 import time
 
@@ -845,20 +847,23 @@ def test_the_board_loops_a_joint(report):
         rig.close()
 
 
-def main():
+ROSTER = (test_a_feedback_holds_a_speed, test_every_channel_is_a_float,
+          test_parts_swap_in_place, test_the_estimator_is_quieter, test_filters,
+          test_a_table_or_a_planner, test_the_sequencer, test_a_program_as_data,
+          test_the_alarm_handler, test_the_table_refuses, test_save_and_load,
+          test_a_fault_ends_the_loop, test_a_paced_part_keeps_its_own_rate,
+          test_the_pictures_and_the_panel, test_velocity_is_a_feedback,
+          test_nodes_offer_then_configure, test_fitment_by_measurement,
+          test_the_body_runs_a_program, test_a_model_writes_lines,
+          test_machine_types_and_routines, test_live_from_a_stream,
+          test_a_model_streams_and_is_woken, test_the_board_loops_a_joint,
+          test_the_body_loops_on_its_boards)
+
+
+def main(argv=None):
+    """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
     report = Report()
-    for test in (test_a_feedback_holds_a_speed, test_every_channel_is_a_float,
-                 test_parts_swap_in_place, test_the_estimator_is_quieter, test_filters,
-                 test_a_table_or_a_planner, test_the_sequencer, test_a_program_as_data,
-                 test_the_alarm_handler, test_the_table_refuses,
-                 test_save_and_load,
-                 test_a_fault_ends_the_loop, test_a_paced_part_keeps_its_own_rate,
-                 test_the_pictures_and_the_panel, test_velocity_is_a_feedback,
-                 test_nodes_offer_then_configure, test_fitment_by_measurement,
-                 test_the_body_runs_a_program,
-                 test_a_model_writes_lines, test_machine_types_and_routines,
-                 test_live_from_a_stream, test_a_model_streams_and_is_woken,
-                 test_the_board_loops_a_joint, test_the_body_loops_on_its_boards):
+    for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
