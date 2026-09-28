@@ -365,10 +365,6 @@ static void own_pwm(void)
   s.owned = true;
 }
 
-/** What the law's duties do to the compares this period: nothing while the
-    stage is down, the next triple while a mode runs on an armed stage, and
-    one zero triple when a mode has just ended - polarity finishing, a stage
-    drop, the host asking for OFF - before the compares are let go. */
 /* Half away from zero: lrintf is a library call from ITCM, seven a period
    (2026-09-27). */
 static inline int32_t rounded(float x)
@@ -376,9 +372,13 @@ static inline int32_t rounded(float x)
   return (int32_t)((x < 0.0f) ? (x - 0.5f) : (x + 0.5f));
 }
 
-static void commit_duties(const drive_out_t *out, bool enabled, bool running)
+/** What the law's duties do to the compares this period: nothing while the
+    stage is down, the next triple while the law drives an armed stage, and
+    the bridge let go, open, once it stops - polarity finishing, a stage
+    drop, the host asking for OFF. */
+static void commit_duties(const drive_out_t *out, bool enabled)
 {
-  if (enabled && (s.drive.mode != DRIVE_OFF))
+  if (enabled && out->driven)
   {
     uint16_t ticks[BOARD_PWM_PHASES];
     const float arr = (float)(Board_PwmPeriod() - 1U);
@@ -391,16 +391,11 @@ static void commit_duties(const drive_out_t *out, bool enabled, bool running)
     Board_PwmSetNext(ticks);
     return;
   }
-  if (!(running || s.owned) || !s.owned)
+  if (s.owned)
   {
-    return;
+    Board_PwmDriveOwn(false);
+    s.owned = false;
   }
-
-  const uint16_t zeros[BOARD_PWM_PHASES] = { 0U, 0U, 0U };
-
-  Board_PwmSetNext(zeros);
-  Board_PwmDriveOwn(false);
-  s.owned = false;
 }
 
 void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
@@ -429,7 +424,6 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   drive_moments_feed(&s.drive, codes);
 
   const bool enabled = Board_PwmIsEnabled();
-  const bool running = (s.drive.mode != DRIVE_OFF);
   /* The model as the source: the law runs on its currents whether or not a
      stage is armed, and the duties below reach the gates only if one is -
      which is how the rotor observer is watched on this bench, where the
@@ -446,7 +440,7 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   }
   else
   {
-    commit_duties(&out, enabled, running);
+    commit_duties(&out, enabled);
   }
 
   /* The ring, when armed for this source: dq current, the rotor observer's

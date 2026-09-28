@@ -376,6 +376,45 @@ def test_handover_under_d_current(r, lib):
         d.close()
 
 
+def test_off_lets_the_rotor_go(r, lib):
+    """OFF at speed: the bridge open, no current, the rotor on its drag, J dw/dt = -b w. The
+    zero triple the drive let go with shorted the windings: this model's flywheel from 2 171 to
+    255 rpm in 0.5 s, native's from 865 rpm to rest in a second (2026-09-28)."""
+    d = Drive(lib)
+    v_inj, j, b = 0.585, 8e-3, 5e-4
+    try:
+        d.model_params(theta0=0.0, j=j, b=b, noise=0.0)
+        d.source(True)
+        d.params(inj_volts=v_inj, inj_periods=1, w_lo=180.0, w_hi=360.0, i_max=40.0,
+                 i_trip=70.0, eps_gain=eps_gain(v_inj, 20e-6, 25e-6), r=0.05, ld=20e-6,
+                 lq=25e-6, **{'lambda': 0.005}, **loop_gains(0.05, 20e-6, 0.05 / TS),
+                 l1=0.043, l2=23.6)
+        d.setpoints(id_ref=12.0, iq_ref=0.0, theta=0.0, omega_target=0.0)
+        d.mode(HOLD, enabled=False, powered=False)
+        for _ in range(int(0.2 / TS)):
+            d.step_virtual()
+        d.setpoints(id_ref=0.0, iq_ref=10.0)
+        d.mode(SENSORLESS, enabled=False, powered=False)
+        for _ in range(int(1.0 / TS)):
+            d.step_virtual()
+        w0 = d.model_state()['omega']
+        d.mode(OFF, enabled=False, powered=False)
+        amps = 0.0
+        for k in range(int(0.5 / TS)):
+            d.step_virtual()
+            if k >= 2:                    # the pipeline: the period asked for before OFF
+                m = d.model_state()
+                amps = max(amps, math.hypot(m['id'], m['iq']))
+        w1 = d.model_state()['omega']
+        want = w0 * math.exp(-b / j * 0.5)
+        r.check('off at speed: the bridge open, no current, the rotor on its drag alone',
+                amps == 0.0 and abs(w1 - want) <= 0.001 * abs(w0),
+                '%.0f -> %.0f rpm, the drag %.0f; %.2f A'
+                % tuple([w * 60.0 / math.tau / 7.0 for w in (w0, w1, want)] + [amps]))
+    finally:
+        d.close()
+
+
 def test_polarity(r, lib):
     """Two voltage pulses along theta_hat: the one that adds to the magnet
     saturates and peaks higher."""
@@ -776,7 +815,7 @@ ROSTER = (test_math, test_mode_refusals, test_current_loop,
           test_trip_and_stage, test_if_spin, test_injection_map,
           test_saturation_map, test_observer_standstill,
           test_observer_standstill_wide, test_handover_weighs_the_back_emf,
-          test_handover_under_d_current, test_polarity,
+          test_handover_under_d_current, test_off_lets_the_rotor_go, test_polarity,
           test_deadtime, test_sensorless_run, test_moments,
           test_model_agrees, test_virtual_sensorless, test_hold_handover,
           test_down_through_if, test_montecarlo)

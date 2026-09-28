@@ -13,6 +13,7 @@ firmware against its sensors and timers is test_emulator's, on Renode.
     python -X utf8 tests/test_native.py sto current     # those
     python -X utf8 tests/test_native.py body            # the humanoid's fleet
 """
+import ctypes
 import math
 import os
 import sys
@@ -21,6 +22,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import EMULATED, Coaxial63100  # noqa: E402
+from coaxial.control.commission import Commissioning  # noqa: E402
 from coaxial.comm.session import standing  # noqa: E402
 from coaxial.devices.imu import ACCELEROMETER  # noqa: E402
 from coaxial.node import discover  # noqa: E402
@@ -232,6 +234,51 @@ def test_the_current_is_the_worlds(report, rig):
                      ['%.1f' % truth[leg] for leg in NODES[:3]]))
 
 
+def shaft_rpm(limb):
+    """The world's shaft under the limb's first board, rpm."""
+    out = (ctypes.c_float * 3)()
+    with limb.lock:
+        limb.world.lib.emu_plant_state(0, out)
+    return out[1] * 60.0 / (2.0 * math.pi)
+
+
+def test_the_drive_lets_the_rotor_go(report, rig):
+    """Sensorless up on commissioning's gains, the stage armed on the pilot, then the drive off
+    with the stage still armed: the bridge open, no current in the world, the flywheel turning
+    on. Let go on a zero triple the three low sides shorted it - 31 A rms, 865 rpm to rest in a
+    second, and from 1 979 rpm the short's first peak tripped the drive (2026-09-28)."""
+    b, limb = rig.board, native.limb_for(rig.port)
+    b.afe.on()
+    try:
+        rig.pilot(PILOT_VOLTS)
+        b.transport.sleep(STO_SETTLE_S)
+        b.gate_drivers.clear()
+        rig.gates.on()
+        Commissioning(rig).gains()
+        rig.drive.write(id_ref=0.0, iq_ref=5.0)
+        rig.drive.on('sensorless')
+        b.transport.sleep(2.0)
+        was = shaft_rpm(limb)
+        rig.drive.off()
+        b.transport.sleep(0.05)                   # the current out through the diodes
+        with limb.lock:
+            limb.boards[0].squares()              # the window opens
+        b.transport.sleep(0.3)
+        with limb.lock:
+            left = max(limb.boards[0].squares())
+        now, state = shaft_rpm(limb), b.drive.state()
+        armed = b.gate_drivers.state()['pwm_enabled']
+    finally:
+        stop_motor(rig)                           # the sync too: the next analog read's
+        b.afe.off()
+    # Shorted, 230 rpm would fall to ~47 in the 0.35 s: tau J R / (1.5 p^2 lambda^2), 0.22 s.
+    report.check('the drive off on an armed stage: no current, the flywheel turning on',
+                 armed and state['fault'] is None and left < 0.01 and abs(was) > 100.0
+                 and now / was > 0.95,
+                 '%.0f -> %.0f rpm in 0.35 s, %.3f A rms, stage %s, fault %s'
+                 % (was, now, math.sqrt(left), 'armed' if armed else 'down', state['fault']))
+
+
 def test_the_body_keeps_the_wall(report):
     """The humanoid's twenty boards on five buses, every drive holding: each limb's clock on
     the wall's, each board a triple every period."""
@@ -323,7 +370,8 @@ def sto_seen(board):
 #: its lag at every sample, docs/TODO.md).
 RIG = (test_it_stands_as_an_emulated_board, test_the_clock_keeps_the_wall,
        test_the_demo_motor_turns_in_real_time, test_the_parts_answer,
-       test_the_current_is_the_worlds, test_the_sto_chain_follows_the_pilot,
+       test_the_current_is_the_worlds, test_the_drive_lets_the_rotor_go,
+       test_the_sto_chain_follows_the_pilot,
        test_the_thermometers_read_the_world)
 
 #: The suite's time, s: the rig's tests ran 20 s (2026-09-27); the humanoid's fleet its own.

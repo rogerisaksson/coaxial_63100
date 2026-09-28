@@ -9,6 +9,10 @@
 /* The gate-short probe's settle after driving a pin: the neighbour follows a
    real short within 76 ns, measured; this is a few microseconds. */
 #define PROBE_SETTLE_SPINS 4000U
+/* The six outputs' enables: clear, OSSR holds each output at its inactive
+   level - both switches of every leg off, the bridge open. */
+#define CCER_OUTPUTS (TIM_CCER_CC1E | TIM_CCER_CC1NE | TIM_CCER_CC2E \
+                      | TIM_CCER_CC2NE | TIM_CCER_CC3E | TIM_CCER_CC3NE)
 
 /** The stage's state: the compares as mirrored, the fine duty and its
     residue, the alternating triples, the dead-time skew, the counted hold,
@@ -50,6 +54,11 @@ static struct
   volatile bool next_pending;
   volatile bool drive_owns;
 
+  /** The bridge open since the drive let go, and whether the drive's first
+      triple since has landed - in force from the overflow after it. */
+  volatile bool open;
+  volatile bool landed;
+
   /** The drive's triples straight into the compares: RCR 1, the update at
       each overflow alone and its interrupt off - a write after one transfers
       whole at the next. Entered by the update at an underflow (to_direct),
@@ -79,6 +88,16 @@ static void update_irq(bool wanted)
   {
     TIM1->DIER &= ~TIM_DIER_UIE;
     HAL_NVIC_DisableIRQ(TIM1_UP_IRQn);
+  }
+}
+
+/* The outputs on the compares again, the bridge switching. */
+static void follow_compares(void)
+{
+  if (s.open)
+  {
+    TIM1->CCER |= CCER_OUTPUTS;
+    s.open = false;
   }
 }
 
@@ -255,6 +274,7 @@ bool Board_PwmEnable(void)
     s.duty[phase] = 0U;
   }
 
+  follow_compares();
   TIM1->BDTR |= TIM_BDTR_MOE;
   s.armed = true;
   return true;
@@ -355,6 +375,7 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
      whole one. */
   TIM1->SR = ~TIM_SR_UIF;
   update_irq(true);
+  follow_compares();
   return NULL;
 }
 
@@ -416,6 +437,7 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
   {
     s.duty[phase] = ticks[phase];
   }
+  follow_compares();
   return NULL;
 }
 
@@ -485,6 +507,7 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
 
   TIM1->SR = ~TIM_SR_UIF;
   update_irq(true);
+  follow_compares();
   return NULL;
 }
 
@@ -496,6 +519,7 @@ void Board_PwmDriveOwn(bool on)
     s.alternate = false;
     s.countdown = 0U;
     s.next_pending = false;
+    s.landed = false;
     s.drive_owns = true;
     /* Landed by the update until one at an underflow switches to direct -
        this runs in ADC3's interrupt, on the down-count, where RCR written
@@ -505,20 +529,23 @@ void Board_PwmDriveOwn(bool on)
     update_irq(true);
     return;
   }
-  /* A triple still to land - the zeros the drive lets go with - goes in now,
-     not dropped with the landing. */
-  if (s.next_pending)
+  /* Let go with the bridge open, the compares at zero behind it: a zero
+     triple alone is the three low sides on, a short across a turning rotor -
+     31 A rms stopped the flywheel from 865 rpm in a second, and from 1 979
+     rpm tripped the drive (native, 2026-09-28). */
+  TIM1->CCER &= ~CCER_OUTPUTS;
+  s.open = true;
+  TIM1->CCR1 = 0U;
+  TIM1->CCR2 = 0U;
+  TIM1->CCR3 = 0U;
+  for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
-    TIM1->CCR1 = s.next[0];
-    TIM1->CCR2 = s.next[1];
-    TIM1->CCR3 = s.next[2];
-    s.duty[0] = s.next[0];
-    s.duty[1] = s.next[1];
-    s.duty[2] = s.next[2];
+    s.duty[phase] = 0U;
   }
   leave_direct();
   s.drive_owns = false;
   s.next_pending = false;
+  s.landed = false;
   update_irq((s.skew != 0U) || s.dither);
 }
 
@@ -528,6 +555,13 @@ void Board_PwmSetNext(const uint16_t *ticks)
      by the reader - it copies under PRIMASK. */
   const uint32_t arr = s.arr;
 
+  /* The bridge the drive let go of switches again on its first triple
+     since: landed at an underflow, in force from the overflow this
+     interrupt follows. */
+  if (s.landed)
+  {
+    follow_compares();
+  }
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
     s.next[phase] = (ticks[phase] > arr) ? (uint16_t)arr : ticks[phase];
@@ -656,9 +690,7 @@ bool Board_PwmInit(void)
     HAL_GPIO_Init(GPIOE, &gate);
   }
 
-  TIM1->CCER |= TIM_CCER_CC1E | TIM_CCER_CC1NE
-              | TIM_CCER_CC2E | TIM_CCER_CC2NE
-              | TIM_CCER_CC3E | TIM_CCER_CC3NE;
+  TIM1->CCER |= CCER_OUTPUTS;
 
   /* RCR 0, so the update lands at every overflow and every underflow - twice
      a PWM period. */
@@ -818,6 +850,7 @@ static void land_next_triple(void)
   s.duty[1] = s.next[1];
   s.duty[2] = s.next[2];
   s.next_pending = false;
+  s.landed = true;
   __enable_irq();
 }
 

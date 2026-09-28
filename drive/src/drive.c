@@ -637,6 +637,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
     i[k] = in->i[k] * d->p.sign;
     out->duty[k] = 0.0f;
   }
+  out->driven = false;
 
   if (tripped(d, i, stage_enabled))
   {
@@ -719,6 +720,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   if (stage_enabled && (d->mode != DRIVE_OFF))
   {
     (void)drive_svm(va, vb, in->vdc, out->duty);
+    out->driven = true;
   }
   else
   {

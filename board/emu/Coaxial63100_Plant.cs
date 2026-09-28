@@ -54,6 +54,9 @@ namespace Antmicro.Renode.Peripherals.Analog
                         bdtr = value;
                         Run();
                         break;
+                    case Ccer:
+                        ccer = value;
+                        break;
                     case Cr2:
                         cr2 = value;
                         break;
@@ -363,8 +366,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             afe.AngleCelsius = seen[2];
         }
 
-        /// <summary>MOE set and the drivers supplied: the 2EDL8034's outputs follow TIM1.</summary>
-        private bool Driven => (bdtr & MoeBit) != 0 && afe.GateVolts >= GateUvloVolts;
+        /// <summary>MOE set, the six outputs enabled and the drivers supplied: the 2EDL8034's
+        /// outputs follow TIM1. The firmware enables the six together: one leg open alone is not
+        /// modelled.</summary>
+        private bool Driven => (bdtr & MoeBit) != 0 && (ccer & Outputs) == Outputs
+                               && afe.GateVolts >= GateUvloVolts;
 
         private static T Export<T>(string name) where T : Delegate
         {
@@ -434,6 +440,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private double electrical;
         private double mechanical;
         private uint bdtr;
+        private uint ccer;
         private uint cr2;
         private bool counting;
         private bool attached;
@@ -443,13 +450,15 @@ namespace Antmicro.Renode.Peripherals.Analog
         private int depth;
         private TranslationCPU cpu;
 
-        // TIM1 (RM0433): the base, CR1's CEN, CR2's MMS2, the auto-reload, the three compares, MOE
-        // in BDTR.
+        // TIM1 (RM0433): the base, CR1's CEN, CR2's MMS2, the six outputs' enables in CCER, the
+        // auto-reload, the three compares, MOE in BDTR.
         private const long Cr1 = 0x00;
         private const long Cr2 = 0x04;
         private const uint CounterEnable = 1U;
         private const uint Mms2Mask = 0xFU << 20;
         private const uint Mms2Oc5Ref = 0x8U << 20;        // TIM_TRGO2_OC5REF, MMS2 1000
+        private const long Ccer = 0x20;
+        private const uint Outputs = 0x555U;                // CC1E CC1NE CC2E CC2NE CC3E CC3NE
         private const long Arr = 0x2C;
         private const long Ccr1 = 0x34;
         private const long Ccr2 = 0x38;

@@ -44,6 +44,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## Gate stage
 
+- The drive let go on a zero triple with MOE up: the three low sides on, a
+  short across the windings. On native 865 rpm stopped in a second at 31 A rms,
+  and from 1 979 rpm the short's first peak tripped the drive; the core's
+  model 606 -> 60 rpm in 0.5 s at 43 A. It lets go with CCER's six enables
+  clear now, OSSR holding each output inactive - the bridge open - and closes
+  on its first triple in force: 607 -> 589 rpm on the drag's 589, 0 A. The
+  model summed omega in float, 2.6 ulp a sub-step at the flywheel's drag, and
+  took 4.2 % more off a coast; compensated now (2026-09-28).
 - 30 ns dead time truncated to 29.5 ns (7 DTG) tripped the supply's OCP
   (2026-08-29). Rounding is up: 8 counts = 33.7 ns.
 - Two gate stages 15 C hotter than the third: gate pins at CubeMX LOW speed.

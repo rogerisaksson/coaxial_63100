@@ -44,10 +44,12 @@ void drive_model_init(drive_model_t *m)
 {
   m->theta = drive_wrap(m->p.theta0);
   m->omega = 0.0f;
+  m->omega_lo = 0.0f;
   m->id = 0.0f;
   m->iq = 0.0f;
   m->rng = MODEL_SEED;
   memset(m->duty_prev, 0, sizeof(m->duty_prev));
+  m->driven_prev = false;
   m->c = 1.0f;
   m->s = 0.0f;
   memset(m->i_abc, 0, sizeof(m->i_abc));
@@ -69,6 +71,18 @@ static float model_noise(drive_model_t *m, float sd)
     sum += (float)(m->rng >> LCG_TOP_BITS) / LCG_TOP_ONE - 0.5f;
   }
   return sum * 2.0f * sd;                 /* three uniforms: sd is 0.5 */
+}
+
+/* omega plus `d`, the low bits a float sum drops carried to the next: a
+   sub-step at the flywheel's drag changes it by 2.6 of its ulp, and a plain
+   sum took 4.2 % more off a coast than J dw/dt = -b w (2026-09-28). */
+static void omega_add(drive_model_t *m, float d)
+{
+  const float y = d - m->omega_lo;
+  const float t = m->omega + y;
+
+  m->omega_lo = (t - m->omega) - y;
+  m->omega = t;
 }
 
 static float model_ld(const drive_model_t *m)
@@ -136,10 +150,27 @@ void drive_model_advance(drive_model_t *m, const float *duty, float ts)
 
     const float torque = 1.5f * m->p.pole_pairs
                          * (m->p.lambda * m->iq + (ld - m->p.lq) * m->id * m->iq);
-    float wm = m->omega / m->p.pole_pairs;
+    const float wm = m->omega / m->p.pole_pairs;
 
-    wm += (torque - m->p.b * wm - m->p.load) / m->p.j * dt;
-    m->omega = wm * m->p.pole_pairs;
+    omega_add(m, (torque - m->p.b * wm - m->p.load) / m->p.j * dt * m->p.pole_pairs);
+    m->theta += m->omega * dt;
+  }
+  m->theta = drive_wrap(m->theta);
+}
+
+void drive_model_coast(drive_model_t *m, float ts)
+{
+  /* The diodes conduct only past the link's volts, beyond the no-load
+     speed: not modelled. */
+  const uint8_t sub = (m->p.sub == 0U) ? 1U : m->p.sub;
+  const float dt = ts / (float)sub;
+
+  m->id = m->iq = 0.0f;
+  for (uint8_t k = 0U; k < sub; k++)
+  {
+    const float wm = m->omega / m->p.pole_pairs;
+
+    omega_add(m, (-m->p.b * wm - m->p.load) / m->p.j * dt * m->p.pole_pairs);
     m->theta += m->omega * dt;
   }
   m->theta = drive_wrap(m->theta);
@@ -159,8 +190,16 @@ bool drive_step_virtual(drive_t *d, drive_out_t *out)
   const bool trip = drive_step(d, &in, true, out);
   const uint32_t t2 = d->cycles ? d->cycles() : 0U;
 
-  drive_model_advance(&d->model, d->model.duty_prev, d->ts);
+  if (d->model.driven_prev)
+  {
+    drive_model_advance(&d->model, d->model.duty_prev, d->ts);
+  }
+  else
+  {
+    drive_model_coast(&d->model, d->ts);
+  }
   memcpy(d->model.duty_prev, out->duty, sizeof(d->model.duty_prev));
+  d->model.driven_prev = out->driven;
   if (d->cycles)
   {
     /* Where the period goes, so an interrupt that outgrew it can be read

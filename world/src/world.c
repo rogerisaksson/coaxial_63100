@@ -218,24 +218,6 @@ void world_plant_init(world_plant_t *p, world_t *w, uint8_t index,
   }
 }
 
-/* The gates off: the bridge open, no current, the rotor turning on under its load. */
-static void coast(drive_model_t *m, float ts)
-{
-  const uint8_t sub = (m->p.sub == 0U) ? 1U : m->p.sub;
-  const float dt = ts / (float)sub;
-
-  m->id = m->iq = 0.0f;
-  for (uint8_t k = 0U; k < sub; k++)
-  {
-    float wm = m->omega / m->p.pole_pairs;
-
-    wm += (-m->p.b * wm - m->p.load) / m->p.j * dt;
-    m->omega = wm * m->p.pole_pairs;
-    m->theta += m->omega * dt;
-  }
-  m->theta = drive_wrap(m->theta);
-}
-
 void world_plant_step(world_plant_t *p, const float *duty, bool driven, float ts,
                       drive_sample_t *out)
 {
@@ -254,7 +236,7 @@ void world_plant_step(world_plant_t *p, const float *duty, bool driven, float ts
   }
   else
   {
-    coast(&p->motor, ts);
+    drive_model_coast(&p->motor, ts);
   }
 
   p->shaft += moved(p->motor.theta, p->theta_was) / p->motor.p.pole_pairs;

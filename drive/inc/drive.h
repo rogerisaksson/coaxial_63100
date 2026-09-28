@@ -90,6 +90,7 @@ typedef struct
 typedef struct
 {
   float duty[DRIVE_PHASES];   /**< 0..1 per leg */
+  bool driven;                /**< the legs switch at `duty`; false: the bridge open */
 } drive_out_t;
 
 /** Feedback ring: one injection cycle of dq samples. */
@@ -162,8 +163,10 @@ typedef struct
   drive_model_params_t p;
   float theta;         /**< electrical, the truth the rotor observer is judged by */
   float omega;         /**< electrical */
+  float omega_lo;      /**< the low bits omega's sum drops */
   float id, iq;        /**< in the rotor's own frame */
   float duty_prev[DRIVE_PHASES]; /**< the pipeline: last step's duties */
+  bool driven_prev;              /**< and whether its bridge switched */
   float c, s;                    /**< cos/sin of theta at the sample */
   float i_abc[DRIVE_PHASES];     /**< the sample's currents, noise-free */
   uint32_t rng;
@@ -316,6 +319,10 @@ void drive_model_sample(drive_model_t *m, drive_sample_t *out);
 
 /** One period at these duties. */
 void drive_model_advance(drive_model_t *m, const float *duty, float ts);
+
+/** One period with the bridge open: no current, the rotor on its drag and
+    load. */
+void drive_model_coast(drive_model_t *m, float ts);
 
 /** One period with the model as the source: sample, step, advance with the
     step before's duties - the pipeline the stage has. */

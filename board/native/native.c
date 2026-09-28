@@ -306,10 +306,15 @@ static void native_clock_to(uint64_t at)
   }
 }
 
-/* MOE set and the drivers supplied: the 2EDL8034's outputs follow TIM1. */
+/* MOE set, the six outputs enabled and the drivers supplied: the 2EDL8034's outputs follow
+   TIM1. The firmware enables the six together: one leg open alone is not modelled. */
 static bool native_driven(void)
 {
-  return ((TIM1->BDTR & TIM_BDTR_MOE) != 0U) && (afe.gate >= WORLD_STO_UVLO);
+  const uint32_t outputs = TIM_CCER_CC1E | TIM_CCER_CC1NE | TIM_CCER_CC2E | TIM_CCER_CC2NE
+                         | TIM_CCER_CC3E | TIM_CCER_CC3NE;
+
+  return ((TIM1->BDTR & TIM_BDTR_MOE) != 0U) && ((TIM1->CCER & outputs) == outputs)
+         && (afe.gate >= WORLD_STO_UVLO);
 }
 
 /* TIM1's break: BKIN (PE15) active at BKP with BKE set sets BIF and holds MOE clear, AOE off;
