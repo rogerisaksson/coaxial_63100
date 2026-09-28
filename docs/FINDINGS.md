@@ -224,6 +224,25 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   and Renode alike: the estimator, not the emulator. theta_hat steps 12.3 deg a
   sample against the speed's integral's 41.6; travel follows theta_hat there
   (2026-09-28).
+- Renode under the drive: 3.8-4.5 wall s a board s, 110 M guest instructions a
+  board s at ~33 ns each; Debug and Release alike. The CPU thread's RIP sampled:
+  translated code 41 %, coreclr's crossings 17 %, the FPU's lazy state saved at
+  each interrupt 9 %, dispatch 7.5 %, softfloat 5 %, the plant 3 %; our models'
+  pacing a fifth at most. The M7 runs translate-arm-experimental, 1.17.0 the
+  latest release: the tty defaults to native://, Renode stays the proof
+  (2026-09-28).
+- The thermal page's load on a board was the demo vector at the watcher's 0.14
+  Hz: on native the current sat in a leg for seconds, the hottest leg changed 9
+  times in 20 s, 91 % apart. At 50 Hz of the board's time the legs rise
+  together, U and W within 1 K and V 4-5 K under, as on the stand-in
+  (2026-09-28).
+- emulator:// loads build/Debug: a Debug image older than the host's last
+  firmware commit answered with checksum failures. Rebuild after pulling
+  (2026-09-28).
+- CI's 10 Mbit echo on Release: 1 of 50 wrong and 3 framing errors on 60e27bd,
+  clean on dfa3194; here 3 of 3 clean, under load too, one framing error each -
+  the handover's. Unconfirmed: a host stall splits a frame past t1.5 of virtual
+  time (2026-09-28).
 - The bead ran backwards 47 times in 420 frames before the emulator, 16 in 200
   after: its regime came off the step `travel` made since the last draw, none
   between feed samples. Off the rotor's speed now, in proportion to it above 30

@@ -26,7 +26,7 @@ from coaxial.comm.session import standing
 from coaxial.devices import scaling
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
-from terminal.ui.screen import (FPS_CAP, Feed, closing, mode_of, open_rig, panel_width, run_view,
+from terminal.ui.screen import (PORT, FPS_CAP, Feed, closing, mode_of, open_rig, panel_width, run_view,
                                 say)
 from terminal.ui.stage import hud, panels_of, stage
 
@@ -239,7 +239,7 @@ def put_back(board):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='emulator://')
+    parser.add_argument('--port', default=PORT)
     parser.add_argument('--hz', type=float, default=FPS_CAP)
     parser.add_argument('--clock', default='software', choices=('software',))
     parser.add_argument('--sample-time', type=int, default=0)

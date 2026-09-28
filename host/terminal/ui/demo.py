@@ -21,6 +21,12 @@ DEMO_HZ = 0.14
 DEMO_AMPS = 30.0
 DEMO_S = 45.0
 
+#: A load's vector, electrical Hz of the board's time: a turning motor's, so each leg carries
+#: the current in turn many times over a thermal node's constant. At the watcher's 0.14 Hz the
+#: current sat in one leg 70 thermal s at a time and the heat walked U, V, W on native: the
+#: hottest leg changed 9 times in 20 s (2026-09-28).
+LOAD_HZ = 50.0
+
 #: The demo's setpoint written at most this often, s.
 STEP_S = 0.1
 
@@ -34,9 +40,10 @@ def _scale(rig):
     return getattr(getattr(rig.board, 'transport', None), 'time_scale', 1.0) or 1.0
 
 
-def turn_motor(rig, origin, amps=None):
+def turn_motor(rig, origin, amps=None, hz=None):
     """The per-frame step that runs the motor up and down for the watcher, or holds `amps` of
-    vector - or None on a real board."""
+    vector - or None on a real board. `hz`: the vector's electrical rate in the board's own
+    seconds, a load's, where the watcher's DEMO_HZ on the wall's clock is not wanted."""
     if not demo(origin):
         return None
     # First: the board refuses AFE_ON under an armed stage. And it is +5 for the STO chain's
@@ -48,8 +55,8 @@ def turn_motor(rig, origin, amps=None):
     drive.configure(source='adc' if origin.real else 'model')
     # The stand-in's record clamps the current at 5 A; the meters are 100 A wide.
     drive.configure(drv_i_max=max(DEMO_AMPS, amps or 0.0))
-    drive.write(id_ref=0.0, iq_ref=0.0, theta=0.0, accel=DEMO_ACCEL,
-                omega_target=2.0 * math.pi * DEMO_HZ * _scale(rig))
+    omega = 2.0 * math.pi * (hz if hz else DEMO_HZ * _scale(rig))
+    drive.write(id_ref=0.0, iq_ref=0.0, theta=0.0, accel=DEMO_ACCEL, omega_target=omega)
     drive.hold()
     began = time.monotonic()
     wrote = {'at': 0.0}
@@ -63,7 +70,7 @@ def turn_motor(rig, origin, amps=None):
         wrote['at'] = now
         phase = (now - began) / DEMO_S
         held = DEMO_AMPS * 0.5 * (1.0 - math.cos(2.0 * math.pi * phase)) if amps is None else amps
-        drive.write(id_ref=held, omega_target=2.0 * math.pi * DEMO_HZ * _scale(rig))
+        drive.write(id_ref=held, omega_target=omega)
     return step
 
 
@@ -143,7 +150,7 @@ def cycle_motor(rig, origin, on_s, off_s, amps=None):
     def step(_now=None):
         on = (clock.now() - began) % (on_s + off_s) < on_s
         if on and held['step'] is None:
-            held['step'] = turn_motor(rig, origin, amps)
+            held['step'] = turn_motor(rig, origin, amps, LOAD_HZ)
         elif not on and held['step'] is not None:
             stop_motor(rig)
             held['step'] = None

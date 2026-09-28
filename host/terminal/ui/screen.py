@@ -144,6 +144,13 @@ def gauge(fraction, width, hot=THROTTLE_AT):
 #: emulator, no dearer in CPU (2026-09-27). A feed at 5 ms held an emulated board's link.
 FPS_CAP = 20.0
 
+#: The board a page draws when none is named: this host's build of the board layer and
+#: the firmware's cores (tools.cores.native), in real time. The image on Renode ran 3.8 to
+#: 4.5 wall s a board s under the drive - its translator's code, the .NET crossings and the
+#: FPU's state saved at each interrupt, ours a fifth of it - and stays the firmware's proof
+#: (emulator://). Renode 1.17.0, the latest (2026-09-28).
+PORT = 'native://'
+
 
 #: The least a feed waits between two reads, s.
 FEED_GAP_S = 0.005

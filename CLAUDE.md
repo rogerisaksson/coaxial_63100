@@ -36,7 +36,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   board/src's board layer built for this host over `board/native`'s chip -
   TIM1, ADCs, SPI and DMA, the front end, A1335, BNO085 - 18x headroom a
   board with the drive on; `?body=humanoid` its 20 boards on 5 buses, a
-  thread a limb, 2.2 cores. Validating the firmware stays on Renode.
+  thread a limb, 2.2 cores. Validating the firmware stays on Renode; the
+  tty's pages default to `native://` (`screen.PORT`): Renode runs 3.8-4.5
+  wall s a board s under the drive, its translator's cost, not ours.
 
 | Read | Before |
 | --- | --- |

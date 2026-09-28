@@ -27,7 +27,7 @@ from machine.routines import TYPES
 from machine.running import Running
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import FPS_CAP, closing, run_view, say
+from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import frame_of, hud, stage
 from tools import REPO
@@ -208,7 +208,7 @@ def act_on(typed, state):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='emulator://', help='accepted with every page; no board here')
+    parser.add_argument('--port', default=PORT, help='accepted with every page; no board here')
     parser.add_argument('--hz', type=float, default=FPS_CAP, help='frames per second, at most')
     parser.add_argument('--simulated', action='store_true',
                         help='accepted for the view suite; the physics runs either way')

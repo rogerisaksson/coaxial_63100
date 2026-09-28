@@ -26,7 +26,7 @@ import time
 from coaxial import Coaxial63100
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import FPS_CAP, Feed, mode_of, run_view, say, steady
+from terminal.ui.screen import PORT, FPS_CAP, Feed, mode_of, run_view, say, steady
 from terminal.ui.stage import boot, stage
 from terminal.views.session.blocks import frame, snapshot
 from terminal.views.session.run import (Plan, act_on, leave, start_activities,
@@ -56,7 +56,7 @@ SAMPLE_EVERY_S = 30.0
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--port', default='emulator://')
+    p.add_argument('--port', default=PORT)
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=FPS_CAP)
     p.add_argument('--frames', type=int, default=0)

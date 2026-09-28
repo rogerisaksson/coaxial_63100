@@ -33,7 +33,7 @@ from terminal.ui import screen as _screen
 from terminal.ui.console import Keys
 from terminal.ui.marquee import Marquee
 from terminal.ui.rate import Corner, rate_of
-from terminal.ui.screen import ENTER_KEYS, paced
+from terminal.ui.screen import PORT, ENTER_KEYS, paced
 from terminal.ui.chrome import KANA, Chrome
 from terminal.ui.stage import EMULATOR_CHIP, band_of, curtain, footer, live, stage
 
@@ -418,7 +418,7 @@ def main(argv=None, preload=None):
     exit code as a script.
     """
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='emulator://')
+    parser.add_argument('--port', default=PORT)
     parser.add_argument('--frames', type=int, default=0,
                         help='draw this many and exit 0 - the smoke test')
     parser.add_argument('--simulated', action='store_true',

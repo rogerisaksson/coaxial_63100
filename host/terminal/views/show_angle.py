@@ -26,7 +26,7 @@ from machine import ansi
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import stop_motor, sweep_motor
-from terminal.ui.screen import (FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
+from terminal.ui.screen import (PORT, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say, steady)
 from terminal.ui.stage import frame_of, hud, stage
 
@@ -197,7 +197,7 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--port', default='emulator://')
+    parser.add_argument('--port', default=PORT)
     parser.add_argument('--hz', type=float, default=FPS_CAP,
                         help='screen refreshes per second, at most %.0f' % FPS_CAP)
     parser.add_argument('--simulated', action='store_true',

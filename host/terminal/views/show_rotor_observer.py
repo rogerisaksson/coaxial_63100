@@ -52,7 +52,7 @@ from coaxial.errors import RigError
 from coaxial.model import thermal as _thermal
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, console as _console, screen as _screen
-from terminal.ui.screen import FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
+from terminal.ui.screen import PORT, FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, hud, stage
 from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
@@ -281,7 +281,7 @@ def aspect_of(args):
 
 def parse_args(argv):
     p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    p.add_argument('--port', default='emulator://')
+    p.add_argument('--port', default=PORT)
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--frames', type=int, default=0)
     p.add_argument('--hz', type=float, default=FPS_CAP)

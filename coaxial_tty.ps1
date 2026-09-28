@@ -9,10 +9,10 @@
 .PARAMETER Name
     Skip the front page and go straight to a page or an item by name:
     session, imu, angle, adc, gate_drivers, rotor_observer,
-    thermal_observer, chat, claude.
+    thermal_observer, humanoid, chat, claude.
 .PARAMETER Port
-    The board: emulator://, this host's image on an emulated MCU (Renode, host/tools/emu),
-    unless a VCP is named - COM4 the bench's.
+    The board: native://, the firmware's cores built for this host, in real time; emulator://
+    the image on Renode (host/tools/emu), a VCP the bench's - COM4.
 .PARAMETER Simulated
     No cable: the stand-in.
 .PARAMETER Frames
@@ -24,9 +24,9 @@
 #>
 param(
     [ValidateSet('session', 'imu', 'angle', 'adc', 'gate_drivers',
-                 'rotor_observer', 'thermal_observer', 'chat', 'claude')]
+                 'rotor_observer', 'thermal_observer', 'humanoid', 'chat', 'claude')]
     [string]$Name,
-    [string]$Port = 'emulator://',
+    [string]$Port = 'native://',
     [switch]$Simulated,
     [int]$Frames = 0
 )
@@ -48,6 +48,8 @@ if ($Simulated) { $argv += '--simulated' }
 if ($Frames -gt 0) { $argv += @('--frames', [string]$Frames) }
 
 Push-Location (Join-Path $PSScriptRoot 'host')
+# A python that never started leaves no exit code: that is a failure, not 0.
+$code = 1
 try {
     & python @argv
     $code = $LASTEXITCODE

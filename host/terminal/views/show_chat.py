@@ -29,7 +29,7 @@ from coaxial_ollama import cli, language, pull as pulling
 from coaxial_ollama.client import OllamaError
 from terminal.loader import TO_MENU
 from terminal.ui.console import Keys
-from terminal.ui.screen import ENTER_KEYS, paced
+from terminal.ui.screen import PORT, ENTER_KEYS, paced
 from terminal.ui.chrome import Chrome
 from terminal.ui.stage import boot, curtain, footer, header, hud, stage
 
@@ -419,7 +419,7 @@ def _claude_chat(a, script, state):
 
 def main():
     p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    p.add_argument('--port', default='emulator://')
+    p.add_argument('--port', default=PORT)
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--claude', action='store_true',
                    help='claude -p per turn instead of the local model, '

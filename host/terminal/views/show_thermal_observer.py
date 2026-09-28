@@ -26,7 +26,7 @@ from coaxial.model.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import cycle_motor, stop_motor
-from terminal.ui.screen import (FPS_CAP, Feed, closing, mode_of, run_view, say, stamp_crosses,
+from terminal.ui.screen import (PORT, FPS_CAP, Feed, closing, mode_of, run_view, say, stamp_crosses,
                                 visible)
 from terminal.ui.stage import boot, frame_of, hud, stage
 
@@ -439,7 +439,7 @@ def demo_load(rig, origin):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--port', default='emulator://')
+    p.add_argument('--port', default=PORT)
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=FPS_CAP)
     p.add_argument('--frames', type=int, default=0,
