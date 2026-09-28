@@ -15,7 +15,7 @@ knee, four points on the floor fought the feedback and threw her; from a squat h
 import math
 from typing import Any
 
-from machine import figure, gait, walker
+from machine import figure, gait, walker, walkplan, stance
 from machine.figure import LEG, add, mul, rx, ry, sub
 
 #: Her feet in the squat and standing: the ankles FEET_X either side of the line, at z 0.
@@ -326,8 +326,8 @@ class Arrival:
         turn = _turn(frame)
         now = figure.quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                            bus['pelvis.pose.qz'])
-        err = walker._vee(figure.mul(turn, figure.t(now)))
-        turn = figure.mul(walker._turned(tuple(walker.TURN_K * c for c in err)), turn)
+        err = walkplan.vee(figure.mul(turn, figure.t(now)))
+        turn = figure.mul(walkplan.turned(tuple(walker.TURN_K * c for c in err)), turn)
         out = angles_of(frame, turn)
         # The torso held in space as the walker holds it (`walker.PLUMB`): the spine takes back out
         # what the pelvis is tipped past the keyframe's tilt. Riding the pelvis, the torso swung
@@ -335,16 +335,16 @@ class Arrival:
         local = mul(ry(-math.radians(frame.get('yaw', 0.0))), now)
         out['spine'] += walker.PLUMB * (frame['tilt']
                                         - math.degrees(math.atan2(local[2][1], local[1][1])))
-        # A leg bearing under `walker.LANDED_N` reaches from where the pelvis is, as the walker's
+        # A leg bearing under `stance.LANDED_N` reaches from where the pelvis is, as the walker's
         # swinging leg: reached from the pelvis's target, moved by the feedback, the stepping foot
         # landed 8 cm off its mark (2026-09-26).
         pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
-        for side, sign in walker.SIDES:
-            b = min(1.0, bus['pelvis.pose.%s_load' % side] / walker.LANDED_N)
+        for side, sign in walkplan.SIDES:
+            b = min(1.0, bus['pelvis.pose.%s_load' % side] / stance.LANDED_N)
             if b < 1.0:
                 ankle, pitch = frame[side]
                 hip_from = tuple(b * a + (1.0 - b) * c for a, c in zip(frame['pelvis'], pel))
-                reach = figure.mul(walker._turned(tuple(b * c for c in walker._vee(
+                reach = figure.mul(walkplan.turned(tuple(b * c for c in walkplan.vee(
                     figure.mul(turn, figure.t(now))))), now)
                 for k, v in zip(LEG, figure.leg(sign, hip_from, reach, ankle,
                                                   rx(math.radians(pitch)))):

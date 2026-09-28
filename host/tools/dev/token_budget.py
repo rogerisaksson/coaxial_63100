@@ -28,7 +28,6 @@ HEAVY = {
     'host/tests/test_render.py': 18100,
     'host/tests/test_thermal_core.py': 17300,
     'host/tests/test_ollama_runner.py': 13600,
-    'host/machine/walker.py': 13200,
     'host/coaxial/graphics/gynoid.py': 11800,
     'host/tests/test_controller.py': 10300,
     'host/tools/notebooks/drive.py': 10000,

@@ -133,8 +133,8 @@ SETTLE_S, EVENT_AT_S = 4.0, 5.0
 #: A walk's run is judged on the strides it walked: its reach behind and its landing measured.
 JUDGED = ('thigh behind at lift', 'impact')
 
-MODULES = ('walker', 'gait', 'arrival', 'director', 'capture', 'physics', 'buses', 'events',
-           'drives')
+MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'capture',
+           'physics', 'buses', 'events', 'drives')
 
 
 def _set(values):
@@ -146,9 +146,9 @@ def _set(values):
         if owner is None:
             raise KeyError('no %s in machine.%s' % (name, ', machine.'.join(MODULES)))
         setattr(owner, name, value)
-    gait, walker = mods[1], mods[0]
+    gait, walkplan = mods[1], mods[2]
     gait._FITS.clear()
-    walker._TABLES.clear()
+    walkplan._TABLES.clear()
 
 
 def trial(job):

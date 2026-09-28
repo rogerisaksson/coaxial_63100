@@ -19,7 +19,7 @@ pace. A board whose gates dropped is armed again.
 """
 import math
 
-from machine import arrival, figure, gait, heat, walker
+from machine import arrival, figure, gait, heat, walker, walkplan, stance
 
 #: Falling, past the walker's recovery: the pelvis tipped past FALLING_DEG and tipping on faster
 #: than FALLING_DEG_S (the head's gyro), or under FALLING_M, walking. She curls into the squat's
@@ -57,7 +57,7 @@ CATCH = {'ahead': {'left_hip': -90.0, 'right_hip': -90.0, 'left_knee': 90.0, 'ri
 BEHIND_DEG, TWIST_DEG = 120.0, 60.0
 
 
-#: A stance foot bearing `walker.BEARS_N` slid past SLIP_M of where it landed is held where it
+#: A stance foot bearing `stance.BEARS_N` slid past SLIP_M of where it landed is held where it
 #: is; one lifting is not sliding. At 2 cm, the feet's slides under the ankle's drive at 0.65
 #: strides/s re-anchored the plan eight times in two seconds and she fell (2026-09-26).
 SLIP_M = 0.04
@@ -114,7 +114,7 @@ class Director:
         self.world = machine.nodes['pelvis'].world
         self.drives = {figure.JOINTS[n.index]: n.name + '.angle.' for n in machine.nodes
                        if hasattr(n, 'index')}
-        self.legs = [side + k for side, _sign in walker.SIDES for k in figure.LEG + ('_foot',)
+        self.legs = [side + k for side, _sign in walkplan.SIDES for k in figure.LEG + ('_foot',)
                      if side + k in self.drives]
         self.dropped, self.armed = {}, {}
 
@@ -159,7 +159,7 @@ class Director:
         """Resting in the squat, up and walking again."""
         if self.stage == 'rest':
             bus = self.machine.loop.bus
-            feet = [self._foot(bus, side, sign)[0] for side, sign in walker.SIDES]
+            feet = [self._foot(bus, side, sign)[0] for side, sign in walkplan.SIDES]
             self.arrival.rise(sum(f[0] for f in feet) / 2.0, sum(f[2] for f in feet) / 2.0)
             self.stage, self.since = self.arrival.stage, 0.0
 
@@ -215,7 +215,7 @@ class Director:
         out = self.walker.step(dt)
         if self.stage == 'halt':
             if self.walker.halted and min(bus['pelvis.pose.left_load'],
-                                          bus['pelvis.pose.right_load']) > walker.LANDED_N:
+                                          bus['pelvis.pose.right_load']) > stance.LANDED_N:
                 now = self._now(bus, out)
                 ahead = 'left' if now['left'][0][2] >= now['right'][0][2] else 'right'
                 self.arrival.settle(now, self._flat(bus, ahead), bus['pelvis.pose.vz'])
@@ -300,8 +300,8 @@ class Director:
         turned, the feet where they stand, the upper body as last set."""
         pel, turn = self._pelvis(bus)
         frame = {'pelvis': pel, 'tilt': math.degrees(math.atan2(turn[2][1], turn[1][1])),
-                 'joints': {j: out[j] for j in walker.UPPER if j in out}}
-        for side, sign in walker.SIDES:
+                 'joints': {j: out[j] for j in walkplan.UPPER if j in out}}
+        for side, sign in walkplan.SIDES:
             frame[side] = self._foot(bus, side, sign)
         return frame
 
@@ -311,7 +311,7 @@ class Director:
             self.stage = 'catch' if self.walker.catching else 'walk'
         for side, ball in self.walker.balls.items():
             held = self.walker.anchor.get(side)
-            if held is None or bus['pelvis.pose.%s_load' % side] < walker.BEARS_N:
+            if held is None or bus['pelvis.pose.%s_load' % side] < stance.BEARS_N:
                 continue
             if (ball[0] - held[0]) ** 2 + (ball[2] - held[2]) ** 2 > SLIP_M ** 2:
                 self.walker.anchor[side] = ball

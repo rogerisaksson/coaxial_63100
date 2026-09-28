@@ -586,7 +586,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   knee, straightened the same way, fell too. The hip held to a quarter for
   a second changed nothing (a stance hip asks under 60 N m). The swinging
   foot lands on the capture point along the walk now as across it (the
-  body's speed over the plan's, over omega, 25 cm at most, `walker.FORE_K`):
+  body's speed over the plan's, over omega, 25 cm at most, `landing.FORE_K`):
   the walks' stir 3.70 -> 3.52 mm and 3 % further, the rises held; slowed
   to a stop by the folding knee, the foot had come down where the plan
   had it, ahead of a body going nowhere (2026-09-27).
@@ -676,16 +676,16 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - Her limbs collide (`physics.ME`): floor alone, her sneakers passed 22 mm
   into each other as she walked. Colliding at the catwalk's tracks they
   bumped and the thigh left the floor 1.6 degrees ahead of upright; at 30
-  and 35 mm (walker.TRACK_M, WIDEN_M) they pass 10 mm apart, and a swinging
+  and 35 mm (walkplan.TRACK_M, WIDEN_M) they pass 10 mm apart, and a swinging
   foot is kept 90 mm off the other wherever their soles overlap
-  (`walker._clear`) - at the old 20 and 23 mm, 10 mm apart too. The thighs'
+  (`landing.clear`) - at the old 20 and 23 mm, 10 mm apart too. The thighs'
   spheres pressed up to 2 kN apart at every passing: that pair is left out
   (`physics.APART`) (2026-09-28).
 - The heel struck at 0.75 m/s, 1.5 kN in 2 ms: the swing lifted the ankle
   to 200 mm, the toes down to half the swing, and fell at up to 0.9 m/s
   late; the swinging hip ran 5 degrees behind its setpoint and caught up
   into the floor. The foot levelled at 0.4 of the swing (gait.SWING_AT) and
-  the swinging leg's plan led 20 ms (walker.SWING_LEAD_S): the strike's
+  the swinging leg's plan led 20 ms (landing.SWING_LEAD_S): the strike's
   spike gone, the stance's peak 1084 N at 160 ms. On the ball (LAND_DEG -3)
   as the walk is tuned, she caught herself from 11 s and fell at 15
   (2026-09-28).

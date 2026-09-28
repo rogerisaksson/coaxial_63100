@@ -52,7 +52,7 @@ CADENCE, PACE_POWER, PACE_STEP = 0.85, 0.6, 0.05
 #: the leg landed bent 23 degrees and straightened to 7 within 0.16 of a stride, the pelvis up
 #: 26 mm at 0.29 m/s and stopped dead at the top, 6 m/s2 either way at her ears: the pendulum's
 #: stir 2.4 mm; at 8, 12, 16, 20, 25: 2.2, 2.0, 2.0, 1.8, 1.8 mm, at 30 she fell. Back to 8
-#: with the heel strike at 15 degrees and the height's recovery at 0.03 m/s (`walker.RAISE_M_S`):
+#: with the heel strike at 15 degrees and the height's recovery at 0.03 m/s (`stance.RAISE_M_S`):
 #: the knee 9-29 degrees through stance for 16-29, the stir 1.4 -> 1.2 mm, the shoves as before;
 #: at 10 alone the walk begun from the lean fell 2.7 s in. With the heel rising to 50 degrees at
 #: toe-off, 6: the walks and the floor's events as at 8; at 4 the walk at 0.9 strides/s fell in

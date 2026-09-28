@@ -115,7 +115,11 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     board, outrunner and cycloid; a joint's, where it sits),
                     events (what she
                     trips on, laid where her walk meets it), walker
-                    (her setpoints each ms: plan, IK, balance), capture (where
+                    (her setpoints each ms: the pass, balance) over walkplan
+                    (the plan's tables by phase), landing (where a swinging
+                    foot goes: the plan's, a catch, a side step) and stance
+                    (the standing feet, their legs' joints, the phase's
+                    pace), capture (where
                     a swinging foot lands across: on the capture point, or a
                     side step), arrival (keyframes, the CoM fed back: the
                     squat, the rise, the first step, the settling), director
