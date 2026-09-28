@@ -1,7 +1,7 @@
 """The demo's own drive: its cycle on the speed loop, the burst, the load."""
 import math
 
-from machine.parts import Slew, SpeedPI
+from machine.parts import SpeedPI
 from motor.pmsm import RAD_S_PER_RPM
 
 
@@ -180,6 +180,13 @@ PROP_KW = 0.8
 #: A ramp takes this share of its stage, and the speed holds for the rest.
 RAMP_SHARE = 0.67
 
+#: How a ramp spools, shares of it: its acceleration up from none over SPOOL_RISE - slow, then
+#: faster and faster - held, and eased off over SPOOL_LAND onto its speed. At a constant rate
+#: the current stepped on at the first frame (488 rpm/s at 0.25 s), the lag held under the 10 A
+#: clamp through zero caught up at 1 379 rpm/s where it opened, and the top stopped dead: on
+#: and off (bench, 2026-09-28).
+SPOOL_RISE, SPOOL_LAND = 0.5, 0.15
+
 #: The no-load speed where the record gives none to work it out from, rpm.
 TOP_RPM = 3800.0
 
@@ -234,14 +241,25 @@ def prop_k():
     return PROP_KW * 1e3 / top ** 3
 
 
+def spool(x):
+    """The share of a ramp's speed change made `x` of the way through it: its acceleration up
+    from none over SPOOL_RISE, held, and eased off over SPOOL_LAND."""
+    x, rise, land = min(1.0, max(0.0, x)), SPOOL_RISE, SPOOL_LAND
+    peak = 1.0 / (1.0 - 0.5 * (rise + land))
+    if x < rise:
+        return peak * x * x / (2.0 * rise)
+    if x < 1.0 - land:
+        return peak * (0.5 * rise + x - rise)
+    return 1.0 - peak * (1.0 - x) ** 2 / (2.0 * land)
+
+
 def _loop(view):
-    """The speed loop the demo steps: the reference's ramp and the PI on the estimate, mechanical
-    rad/s in, q amps out - designed on the rotor the demo turns (`view['j']`, `view['b']`), the
-    propeller fed forward where the stand-in carries one."""
+    """The speed loop the demo steps: the PI on the estimate after the spooled reference,
+    mechanical rad/s in, q amps out - designed on the rotor the demo turns (`view['j']`,
+    `view['b']`), the propeller fed forward where the stand-in carries one."""
     p = view['params']
     kt = 1.5 * max(1.0, p.get('motor_pole_pairs') or 1.0) * (p.get('motor_lambda') or 0.005)
-    return {'ramp': Slew(rate=0.0),
-            'pi': SpeedPI(SPEED_HZ, SPIN_A, kt, view['j'], view['b'],
+    return {'pi': SpeedPI(SPEED_HZ, SPIN_A, kt, view['j'], view['b'],
                           prop_k() if view['source'] == 'model' else 0.0)}
 
 
@@ -257,7 +275,7 @@ def sweep(rig, view):
     top = (no_load_rpm(view) or TOP_RPM) * RAD_S_PER_RPM
     w_hat = speed(view) / pairs
     loop = view.get('speed_loop') or view.setdefault('speed_loop', _loop(view))
-    ramp, pi = loop['ramp'], loop['pi']
+    pi = loop['pi']
     p = view['params']
     kt = 1.5 * pairs * (p.get('motor_lambda') or 0.005)
     through = SEND_FROM * (p.get('drv_w_hi') or 0.0) / pairs
@@ -281,13 +299,11 @@ def sweep(rig, view):
         # the frame at 0, the estimate starting on its polarity.
         view['held_theta'] = (0.0 if index == 0
                               else (view.get('state') or {}).get('theta_hat') or 0.0)
-        # From where the rotor is: the ramp starts at its speed, the PI with no history.
-        ramp.y = w_hat
+        # From where the rotor is: the spool from its speed, its clock at 0, the PI with no
+        # history.
+        view['spool_from'], view['spool_x'] = w_hat, 0.0
         pi.reset()
         pi.was = w_hat
-        if rpm is not None:
-            ramp.configure(rate=abs(rpm * RAD_S_PER_RPM - w_hat)
-                           / max(0.1, RAMP_SHARE * seconds))
         view['speed_at'] = now
     dt = min(0.25, max(0.0, now - view.get('speed_at', now)))
     view['speed_at'] = now
@@ -311,24 +327,31 @@ def sweep(rig, view):
     if how == 'step':
         # A step a time: the vector eased over STEP_EASE of its interval, then held - a
         # stepper's staircase, microstepped at the page's rate.
-        every = STEP_E_DEG / max(1e-6, abs(rpm) * 6.0 * pairs)
+        turn = rpm or 0.0
+        every = STEP_E_DEG / max(1e-6, abs(turn) * 6.0 * pairs)
         k, part = divmod(into / every, 1.0)
         eased = min(1.0, part / STEP_EASE)
         steps = k + eased * eased * (3.0 - 2.0 * eased)
         drive.write(id_ref=STEP_A, iq_ref=0.0, omega_target=0.0,
                     theta=view['held_theta'] + math.copysign(
-                        math.radians(STEP_E_DEG) * steps, rpm))
+                        math.radians(STEP_E_DEG) * steps, turn))
         view['iq'] = 0.0
         return
     if rpm is None:
         # Let go: no torque, the bridge still switching - the rotor on its drag and the
         # propeller, the observer on the back-EMF. With the stage off the emulated board's
         # estimate fell from 3 308 to 238 rpm while the flywheel turned on, and stuck there
-        # through the brake (2026-09-28). The ramp rides the estimate for the brake.
-        ramp.y = pi.was = w_hat
+        # through the brake (2026-09-28). The spool and the PI ride the estimate to the brake.
+        view['spool_from'] = pi.was = w_hat
         drive.write(id_ref=0.0, iq_ref=0.0)
         view['iq'] = 0.0
         return
-    w_ref = ramp.step(dt, x=rpm * RAD_S_PER_RPM)['y'] if dt else ramp.y
+    # The spool's clock waits for the rotor: on while the reference leads the estimate by less
+    # than the error that alone commands the loop's reach. On regardless, the lag held under the
+    # 10 A through zero came back at 2 110 rpm/s where the clamp opened (2026-09-28).
+    w0, x = view.get('spool_from', w_hat), view.get('spool_x', 0.0)
+    w_ref = w0 + (rpm * RAD_S_PER_RPM - w0) * spool(x)
+    if abs(w_ref - w_hat) < pi.limit * kt / (math.tau * SPEED_HZ * view['j']):
+        view['spool_x'] = x + dt / max(0.1, RAMP_SHARE * seconds)
     view['iq'] = pi.step(dt, setpoint=w_ref, measured=w_hat)['command'] if dt else view['iq']
     drive.write(id_ref=0.0, iq_ref=view['iq'])

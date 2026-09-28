@@ -33,10 +33,10 @@ def test_the_demo_actually_loads_the_motor(report):
     real, real_bead, real_render = view.compose, cross_section._bead, cross_section.render
     real_lines = cross_section.Frame.lines
 
-    def lines(frame, ink, colour=False, tint=None):
+    def lines(self, ink, colour=False, tint=None):
         # What each cell of the motor went to this frame.
-        owned.append(collections.Counter(c for row in frame.owner for c in row))
-        return real_lines(frame, ink, colour, tint)
+        owned.append(collections.Counter(c for row in self.owner for c in row))
+        return real_lines(self, ink, colour, tint)
 
     def bead(frame, seat, pointer_deg, glyph=None, sweep=0.0):
         beads.append(pointer_deg)
@@ -89,6 +89,17 @@ def test_the_demo_actually_loads_the_motor(report):
     report.check('and near a kilowatt into the motor at the top',
                  bool(ups) and max(r[6] for r in ups[0]) >= 800.0,
                  '%.0f W' % max(r[6] for r in ups[0]) if ups else 'none')
+    # The spin-up spools, slow and then faster and faster: at a constant rate its first half
+    # second ran 552 rpm/s against a peak of 1 619, the current stepped on and off (2026-09-28).
+    if ups:
+        up, t0 = ups[0], ups[0][0][0]
+        early = next((r[2] for r in up if r[0] - t0 >= 0.5), up[-1][2]) / 0.5
+        windows = [(b[2] - a[2]) / (b[0] - a[0]) for a, b in zip(up, up[5:]) if b[0] > a[0]]
+        peak = max(windows, default=0.0)
+        report.check('the spin-up starts slow: its first half second under a quarter of its '
+                     'peak acceleration',
+                     peak > 0.0 and early < 0.25 * peak,
+                     '%.0f rpm/s, the peak %.0f' % (early, peak))
     def starved(index):
         """Whether the page stalled through stage `index` and into the next: the time between
         frames past the stand-in plant's catch-up - and motions.sweep's step, clamped alike - is
@@ -171,14 +182,14 @@ def test_the_demo_actually_loads_the_motor(report):
     off = max((abs((p - places[0][0] + pitch / 2.0) % pitch - pitch / 2.0)
                for p, _m, _s in places), default=None) if places else None
     apart = max((abs(sweep - blur * 360.0 / poles) for _c, _m, sweep, blur, poles, *_ in drawn),
-                default=None)
+                default=0.0)
     crawl = max((abs(b[1] - a[1]) for a, b in zip(places, places[1:])
                  if abs(a[2]) < 1.0 and abs(b[2]) < 1.0), default=0.0)
     report.check('the mark rides the rotor among its magnets, through their shutter, and '
                  'at a crawl never skips a pitch',
                  off is not None and off < 1e-6 and apart < 1e-9 and crawl < 0.4 * pitch,
                  '%d frames: %.1e degrees off its place, the sweeps %.1e apart, the largest '
-                 'step at a crawl %.1f' % (len(drawn), off or 0.0, apart or 0.0, crawl))
+                 'step at a crawl %.1f' % (len(drawn), off or 0.0, apart, crawl))
     text = re.sub(r'\x1b\[[0-9;]*m', '', art)
     winding = re.search(r'WINDING +([0-9.]+)', text)   # %5.1f: a space at two digits
     soa = re.search(r'SWITCH SOA ([0-9.]+) %', text)

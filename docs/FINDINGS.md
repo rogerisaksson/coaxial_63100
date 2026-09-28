@@ -238,13 +238,12 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   off: a gap (2026-09-28).
 - Near standstill the firmware's estimate swings 100-150 rpm a sample, on native
   and Renode alike: the estimator, not the emulator (2026-09-28).
-- The rotor page's mark, drawn at the angle over the pole pairs, skipped a pitch
-  (51.4 deg) each electrical turn: STEPPER's 2 rpm showed it. Counted at 20
-  frames a second past 43 rpm it rode the speed, which overshot at a hold's
-  handover: 68.8 deg with the rotor at rest. The drive counts theta_hat's turns
-  (op 0, MINOR 24): STEPPER +57.8/-53.7 of 60, 3.2 a frame at most; the climb
-  36-86 a frame against the shaft's 40-84. The stand-in's injection pulled to
-  an absolute 0 or pi, half a pitch flipped at rest: onto the rotor (2026-09-28).
+- The rotor page's mark, the angle over the pole pairs, skipped a pitch (51.4
+  deg) each electrical turn; counted at 20 frames a second it rode a speed that
+  overshot at a hold's handover, 68.8 deg at rest. The drive counts theta_hat's
+  turns (op 0, MINOR 24): STEPPER +57.8/-53.7 of 60, 3.2 a frame at most. The
+  stand-in's injection pulled to 0 or pi, half a pitch flipped at rest: onto the
+  rotor now (2026-09-28).
 - Renode under the drive: 3.8-4.5 wall s a board s, 110 M guest instructions a
   board s at ~33 ns each; Debug and Release alike. The CPU thread's RIP sampled:
   translated code 41 %, coreclr's crossings 17 %, the FPU's lazy state saved at
@@ -286,6 +285,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - The demo's STEPPER at 15 mechanical degrees a step - 105 electrical -
   lost its rotor (180 asked, 580 turned); 45 electrical, eased: 63 of 60
   (2026-09-28).
+- The demo's speed changes spool, waiting on the rotor: a spin-up's first half
+  second 164 rpm/s of a 1 366 peak; a constant rate stepped 552 on, then 2 110
+  (2026-09-28).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a
@@ -293,9 +295,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - A file read whole past 6 k tokens costs a tenth of a window: 38 of ours,
   test_views 32 k, test_structure 17 k. Split by subject (split_suite.py), the
   rest capped; test_structure and the pre-commit hook hold it (2026-09-28).
-- The offline gate: 544 s at 17 % busy, a job a suite, three suites alone at
-  its end. One relay, shards past half its work over the batons, the
-  emulator's groups a job each: 224 s at 31 % (2026-09-28).
+- The offline gate: 544 s at 17 % busy, a job a suite; one relay, shards past
+  half its work over the batons: 224 s at 31 % (2026-09-28).
 - The attitude page stood 5 s at a time: the front page's link watcher, alive
   in the same process, opened a session on native:// every 30 s mid-request.
   Asked once now (2026-09-28).
