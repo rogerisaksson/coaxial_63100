@@ -287,6 +287,12 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   half the run's work over the batons, the emulator's groups a job each, the
   port's suites one at a time under a lock - 224 s, 31 %, the same 3 876
   checks (2026-09-28).
+- The attitude page stood still 5 s at a time after a while in the terminal:
+  the front page's link watcher, alive beside every page in the one process,
+  opened a session on native:// every 30 s - its hand-off into binary between
+  the page's request and its reply. Every 0.5 s the page never opened. A
+  board on an emulated URL is the process's own: asked once now
+  (2026-09-28).
 - The attitude page froze on native://: 3 reads of the BNO085 in 80 frames.
   The limb ran its boards a ctypes call a millisecond of their time, each
   waiting on the page's drawing for the interpreter: 1.20 board s in 5.60

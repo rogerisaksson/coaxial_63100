@@ -280,14 +280,26 @@ def test_the_drive_lets_the_rotor_go(report, rig):
 
 
 def test_a_page_drawing_leaves_the_board_its_time(report, _rig):
-    """The attitude page on native:// for 80 frames, the board beside its drawing: the board
+    """The attitude page on native:// for 80 frames, the board beside its drawing and the front
+    page's link probe beside the page, as the terminal runs them in one process: the board
     keeps the wall's time and the page's feed reads the BNO085 on. A ctypes call a millisecond
     of the board's time, each waiting on the drawing for the interpreter, held the board to
-    21 % of real time: 3 reads in 80 frames, the attitude frozen (2026-09-28)."""
+    21 % of real time: 3 reads in 80 frames, the attitude frozen; the probe's session and the
+    page's took each other's replies, and it stood 5 s at a time (2026-09-28)."""
+    import threading
+    from terminal import menu
     from terminal.views import show_orientation as view
     from tools.render import page
 
     port = 'native://?world=none&page=attitude'
+    # The front page's watcher, asking every 0.5 s rather than 30, its first answer in before
+    # the page opens - as the terminal has it by the time a page is picked.
+    was, menu.PROBE_EVERY = menu.PROBE_EVERY, 0.5
+    menu._BROKER.pop('identity', None)
+    threading.Thread(target=menu._watch_link, args=(port,), daemon=True).start()
+    began = time.monotonic()
+    while menu._BROKER.get('identity') is None and time.monotonic() - began < 30.0:
+        time.sleep(0.1)
     drawn, clock, real = [], [], view.boxes
 
     def boxes(part, pid, record, q, rate):
@@ -300,6 +312,7 @@ def test_a_page_drawing_leaves_the_board_its_time(report, _rig):
         page.frame('orientation', 150, 44, frames=80, port=port)
     finally:
         view.boxes = real
+        menu.PROBE_EVERY = was
     (w0, b0), (w1, b1) = clock[0], clock[-1]
     share = (b1 - b0) / max(1e-9, w1 - w0)
     report.check('a page drawing beside it, the board keeps the wall\'s time: 90 % or more',

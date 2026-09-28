@@ -103,8 +103,11 @@ def _watch_broker():
 
 def _watch_link(port):
     """Whether a board answers anywhere, on its own slow clock; where none does, whether the
-    pages open the emulator (coaxial.comm.session.emulator_here)."""
-    from coaxial.comm.session import board_answers, emulator_here
+    pages open the emulator (coaxial.comm.session.emulator_here). A board on an emulated URL is
+    this process's own and never goes: asked once. Asked on, its session shared the line with
+    the page's - a hand-off into binary between a page's request and its reply - and the
+    attitude page stood still 5 s at a time (2026-09-28)."""
+    from coaxial.comm.session import board_answers, emulator_here, url_kind
     from coaxial.errors import LINK_FAULTS
 
     while True:
@@ -118,6 +121,8 @@ def _watch_link(port):
         known = _BROKER.get('identity')
         if known is None or known['real'] != bool(_BROKER['board']):
             _learn(port, not _BROKER['board'])
+        if url_kind(str(port)) == 'emulator':
+            return
         time.sleep(PROBE_EVERY)
 
 
