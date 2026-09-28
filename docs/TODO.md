@@ -122,9 +122,12 @@ Open work. Measured results are in FINDINGS.
   it takes over - stopped by the walker's own capture of it, a stop to cool
   a drive could stand. A lace past 250 N for 0.2 s fells her: her fall is
   declared on the pelvis's tilt before the foot is free, no step tried
-  (`machine.events`, `look.py --event lace`); fallen on all fours, she
-  lies there - the get-up from there to the arrival's squat is next. The
-  walk begins from a lean, the body 8 degrees ahead of
+  (`machine.events`, `look.py --event lace`); declared later (20, 30
+  degrees) she falls all the same, the standing foot off the floor while
+  the other is held. Fallen on all fours, she lies there: the push-up and
+  the dog leave the head and the torso on the floor, the arms too weak to
+  lift them (`tools/sim/getup_lab.py` heels, bearwalk) - the get-up waits
+  for the drives' sizes. The walk begins from a lean, the body 8 degrees ahead of
   plumb, the walker taking her mid-swing and letting the lean out over 2 s,
   the pelvis with the torso; the weight goes 3 cm onto the left foot before
   the right lifts and the rest as it lifts, the stance hip rolled -2.5

@@ -14,7 +14,11 @@ hands and toes) work, but the squat's joints from there put the knees down and t
 floor, and a lunge with the right foot tips her onto her left side. Sequences in the joints alone
 do not stand her up: the moves with the feet down want the centre of mass placed over them, as
 the arrival's keyframes are (`arrival.over`), and the kneel to the squat a step with a hand's
-support.
+support. From the front (2026-09-28): the push-up leaves the head and the torso on the floor
+(`heels`: onto the shins, the toes tucked, back on the heels, the soles never bearing; the pelvis
+0.40 m); in the dog the pelvis is 0.48 m up with the head and the forearms down, the feet walked
+in one at a time and the hips lowered over them bore 1-110 N (`bearwalk`) - the arms (40 and
+25 N m at the shoulder and the elbow) do not lift her torso off the floor.
 """
 import math
 import sys
@@ -51,6 +55,19 @@ SEQS = {
                ('dog', 1.2, pose(-100.0, 30.0, -30.0, 10.0, -30.0, 130.0, 5.0)),
                ('crouch', 1.0, pose(-125.0, 110.0, -30.0, 45.0, -20.0, 60.0, 30.0)),
                ('squat', 1.0, None)),
+    'heels': (('hands', 0.8, pose(-30.0, 30.0, 20.0, 0.0, -30.0, 60.0, 130.0)),
+              ('push', 1.0, pose(-90.0, 90.0, 20.0, 0.0, -40.0, 90.0, 10.0)),
+              ('tuck', 0.6, pose(-90.0, 100.0, -35.0, 0.0, -40.0, 90.0, 10.0)),
+              ('sit', 1.2, pose(-125.0, 140.0, -35.0, 10.0, -10.0, 20.0, 30.0)),
+              ('squat', 1.0, None)),
+    'bearwalk': (('hands', 0.8, pose(-30.0, 30.0, 20.0, 0.0, -30.0, 60.0, 130.0)),
+                 ('push', 1.0, pose(-90.0, 90.0, 20.0, 0.0, -40.0, 90.0, 10.0)),
+                 ('dog', 1.2, pose(-100.0, 30.0, -30.0, 10.0, -30.0, 130.0, 5.0)),
+                 ('lstep', 0.8, dict(pose(-100.0, 30.0, -30.0, 10.0, -30.0, 130.0, 5.0),
+                                     left_hip=-140.0, left_knee=100.0, left_ankle=-35.0)),
+                 ('rstep', 0.8, dict(pose(-140.0, 100.0, -35.0, 10.0, -30.0, 130.0, 5.0))),
+                 ('frog', 1.0, pose(-125.0, 115.0, -35.0, 45.0, -20.0, 90.0, 10.0)),
+                 ('squat', 1.0, None)),
     'halfkneel': (('hands', 0.8, pose(-30.0, 30.0, 20.0, 0.0, -30.0, 60.0, 130.0)),
                   ('push', 1.0, pose(-90.0, 90.0, 20.0, 0.0, -40.0, 90.0, 10.0)),
                   ('child', 1.0, pose(-130.0, 140.0, 30.0, 20.0, -20.0, 120.0, 5.0)),
