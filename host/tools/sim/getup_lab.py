@@ -18,7 +18,14 @@ support. From the front (2026-09-28): the push-up leaves the head and the torso 
 (`heels`: onto the shins, the toes tucked, back on the heels, the soles never bearing; the pelvis
 0.40 m); in the dog the pelvis is 0.48 m up with the head and the forearms down, the feet walked
 in one at a time and the hips lowered over them bore 1-110 N (`bearwalk`) - the arms (40 and
-25 N m at the shoulder and the elbow) do not lift her torso off the floor.
+25 N m at the shoulder and the elbow) do not lift her torso off the floor. From the back
+(2026-09-28): the spine and the hips sit her up (`situp`, the pelvis upright), but folded over
+drawn-in feet her centre of mass stays behind the heels, the pelvis rolled back 45 degrees; the
+heels drawn to the buttocks (`tuck`) or a rock back and a throw forward (`rock`), the light legs
+swing up and she rolls back over her shoulders. From the knees, the hips straightened with the
+chest on the floor slid the knees back and laid her flat (`tallkneel`). On 80 and 60 N m arms,
+twice hers, the dog stood 0.57 m up and still on its forearms and head, the feet 50-100 N, and
+stepped in she tipped onto her side: the joints alone do not balance her on hands and feet.
 """
 import math
 import sys
@@ -68,6 +75,22 @@ SEQS = {
                  ('rstep', 0.8, dict(pose(-140.0, 100.0, -35.0, 10.0, -30.0, 130.0, 5.0))),
                  ('frog', 1.0, pose(-125.0, 115.0, -35.0, 45.0, -20.0, 90.0, 10.0)),
                  ('squat', 1.0, None)),
+    'situp': (('crunch', 0.8, pose(0.0, 30.0, 0.0, 60.0, 40.0, 60.0, 10.0)),
+              ('sit', 1.2, pose(-80.0, 30.0, 0.0, 40.0, 20.0, 60.0, 10.0)),
+              ('knees', 1.2, pose(-110.0, 130.0, -30.0, 45.0, 10.0, 90.0, 10.0)),
+              ('fold', 1.0, pose(-135.0, 145.0, -38.0, 60.0, 0.0, 100.0, 10.0))),
+    'tuck': (('crunch', 0.8, pose(0.0, 30.0, 0.0, 60.0, 40.0, 60.0, 10.0)),
+             ('sit', 1.2, pose(-80.0, 30.0, 0.0, 40.0, 20.0, 60.0, 10.0)),
+             ('heels', 2.2, pose(-100.0, 165.0, -45.0, 40.0, 10.0, 100.0, 10.0)),
+             ('lean', 2.0, pose(-125.0, 165.0, -45.0, 75.0, -10.0, 110.0, 10.0))),
+    'rock': (('crunch', 0.8, pose(0.0, 30.0, 0.0, 60.0, 40.0, 60.0, 10.0)),
+             ('sit', 1.2, pose(-80.0, 30.0, 0.0, 40.0, 20.0, 60.0, 10.0)),
+             ('knees', 1.0, pose(-110.0, 140.0, -30.0, 45.0, 10.0, 90.0, 10.0)),
+             ('back', 0.4, pose(-120.0, 150.0, -20.0, 20.0, 30.0, 30.0, 40.0)),
+             ('swing', 0.3, pose(-140.0, 150.0, -40.0, 70.0, -10.0, 150.0, 0.0))),
+    'tallkneel': (('hands', 0.8, pose(-30.0, 30.0, 20.0, 0.0, -30.0, 60.0, 130.0)),
+                  ('push', 1.0, pose(-90.0, 90.0, 20.0, 0.0, -40.0, 90.0, 10.0)),
+                  ('kneel', 1.5, pose(0.0, 90.0, 20.0, 0.0, 0.0, 0.0, 10.0))),
     'halfkneel': (('hands', 0.8, pose(-30.0, 30.0, 20.0, 0.0, -30.0, 60.0, 130.0)),
                   ('push', 1.0, pose(-90.0, 90.0, 20.0, 0.0, -40.0, 90.0, 10.0)),
                   ('child', 1.0, pose(-130.0, 140.0, 30.0, 20.0, -20.0, 120.0, 5.0)),
