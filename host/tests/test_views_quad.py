@@ -41,6 +41,10 @@ def test_the_flight_stops_at_its_mark(report):
                      apex, low, min(settled or [math.nan]), max(settled or [math.nan]), tilt))
 
 
+#: The page's flight drawn this long at most, s.
+LANDED_S = 90.0
+
+
 def test_the_page_flies_four_boards(report):
     """The page on its four stand-in boards for a flight: the quad drawn in the viewport, full
     tilt only once every board's thermal observer has left UNCERTAIN and then past 20 m, the fall
@@ -52,6 +56,9 @@ def test_the_page_flies_four_boards(report):
 
     rows, real = [], view.compose
 
+    class Landed(Exception):
+        """The hold over: the flight is landing."""
+
     def compose(console, origin, rotors, frame, route, trace, now, apex, ready, art):
         out = real(console, origin, rotors, frame, route, trace, now, apex, ready, art)
         rows.append((time.monotonic(), quad.STAGES[route['stage']][0], frame['h'],
@@ -59,10 +66,16 @@ def test_the_page_flies_four_boards(report):
                      max((r['budget'] or {}).get('worst') or 0.0 for r in rotors),
                      [(r['ident'] or {}).get('state') for r in rotors],
                      sum(0x2800 < ord(c) <= 0x28FF for c in art)))
+        if rows[-1][1] == 'land':
+            raise Landed
         return out
     view.compose = compose
+    # Drawn until it lands, LANDED_S at most: drawn 48 s, on CI's host, its boards' observers
+    # slower, the hold was still coming down, 0.39 m, as the frames ran out (2026-09-28).
     try:
-        page.frame('quad', 150, 44, frames=int(48.0 * FPS_CAP))
+        page.frame('quad', 150, 44, frames=int(LANDED_S * FPS_CAP))
+    except Landed:
+        pass
     finally:
         view.compose = real
     rate = (len(rows) - 1) / max(1e-9, rows[-1][0] - rows[0][0]) if len(rows) > 1 else 0.0
