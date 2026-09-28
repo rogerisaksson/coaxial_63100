@@ -65,9 +65,18 @@ NODES = ('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v', 'phase_w', 'm
          'patch_left', 'patch_bottom', 'patch_right', 'winding', 'stator', 'rotor')
 
 
+#: Built for gcov (tools/dev/cover.py) the C runs unoptimised and counted: its pace is not the
+#: board's - 0.77 virtual s a wall s (2026-09-28) - so the checks on it stand aside.
+GCOV = bool(os.environ.get('COAXIAL_GCOV'))
+
+
 class Report:
     def __init__(self):
-        self.passed = self.failed = 0
+        self.passed = self.failed = self.skipped = 0
+
+    def skip(self, name, why):
+        self.skipped += 1
+        print('  SKIP  %-60s %s' % (name, why))
 
     def check(self, name, ok, detail=''):
         if ok:
@@ -86,6 +95,9 @@ def test_it_stands_as_an_emulated_board(report, rig):
 
 
 def test_the_clock_keeps_the_wall(report, rig):
+    if GCOV:
+        return report.skip('the board\'s clock keeps the wall\'s, within TRAIL_S',
+                           'built for gcov, unoptimised')
     serial = rig.board.transport.serial
     v0, w0 = serial.virtual_seconds(), time.monotonic()
     time.sleep(WINDOW_S)
@@ -243,9 +255,13 @@ def test_the_body_keeps_the_wall(report):
             for n in nodes:
                 stop_motor(n.rig)
         off = {k: (v1[k] - v0[k]) - (w1 - w0) for k in v1}
-        report.check('each limb\'s clock keeps the wall\'s, within TRAIL_S',
-                     all(abs(e) <= native.TRAIL_S for e in off.values()),
-                     ' '.join('%s %+.4f' % kv for kv in sorted(off.items())))
+        if GCOV:
+            report.skip('each limb\'s clock keeps the wall\'s, within TRAIL_S',
+                        'built for gcov, unoptimised')
+        else:
+            report.check('each limb\'s clock keeps the wall\'s, within TRAIL_S',
+                         all(abs(e) <= native.TRAIL_S for e in off.values()),
+                         ' '.join('%s %+.4f' % kv for kv in sorted(off.items())))
         short = [(n.name, g['updates'] - u) for n, g, u in zip(nodes, g1, u0)
                  if (g['updates'] - u) * ts < WINDOW_S - native.TRAIL_S or g['overruns']]
         report.check('every board a triple every period, none overrun', not short, str(short[:4]))
@@ -336,7 +352,7 @@ def main(argv=None):
     if body:
         print('\n-- the body keeps the wall --')
         test_the_body_keeps_the_wall(report)
-    print('\n%d passed, %d failed' % (report.passed, report.failed))
+    print('\n%d passed, %d failed, %d skipped' % (report.passed, report.failed, report.skipped))
     return 1 if report.failed else 0
 
 
