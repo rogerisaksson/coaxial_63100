@@ -38,8 +38,10 @@ ANKLE_H, BALL, HEEL = 0.075, 0.135, 0.07
 TRACK_M, WIDEN_M, STAND_M = 0.03, 0.01, HIP_HALF
 
 #: The walk: metres a stride (two steps) at `stride` 1 - 1.15 was more than her 0.77 m legs
-#: reach behind at toe-off, and the hips sank to let them.
-STRIDE_M = 1.0
+#: reach behind at toe-off, and the hips sank to let them. At 1.0 (the toe-off at 0.66) the
+#: pelvis dipped 49 mm under the stand and the head went 56 mm fore and aft; at 0.85, 34 and 35,
+#: the scoreboard's cost 7.74 -> 7.18, held 83.7 %, the stir 3.4 -> 2.3 mm (2026-09-28).
+STRIDE_M = 0.85
 
 #: The cadence a stride of 1 goes with, strides a second; faster, the steps lengthen as the
 #: cadence to PACE_POWER (`pace`); the hips are fitted every PACE_STEP of stride and weighed
@@ -67,8 +69,11 @@ KNEE_MIN_DEG = 4.0
 #: the ball, heel up, the landing knee stood at 42 degrees and the step struck 3.3 body weights
 #: (2026-09-26). Toes up 15 for 9.3, the heel strike's peak 1.55 -> 1.1 kN, 20 alike; the
 #: front leg's reach at the strike grows with it but the plan's height is the trailing leg's,
-#: flat and 22 cm behind, so the landing knee bends the more (2026-09-27).
-SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.62, 15.0, -75.0
+#: flat and 22 cm behind, so the landing knee bends the more (2026-09-27). Off at 0.62 the thigh
+#: still stood 1 degree ahead of upright as the toes left the floor, 196 mm behind the hip -
+#: her feet in front (`STANCE_AT`); at 0.66, 8.5 behind, 235 mm; 0.68, 11.7 and the head's bob
+#: 31 mm; 0.7, 22.9 and her head 140 mm fore and aft (2026-09-28).
+SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.66, 15.0, -75.0
 
 #: The foot's pitch at toe-off, degrees toes-up, and its rate and acceleration there, a stride
 #: and a stride squared: the heel rises fastest at toe-off and on into the air. Eased to a stop
@@ -99,8 +104,12 @@ def _knots(stride):
 MID_STANCE = 0.5 * TOE_OFF
 
 #: Where the ball is planted: the ankle over it at STANCE_AT, early, so the leg's reach is
-#: behind her; centred, the thigh never passed upright and her feet were always in front.
-STANCE_AT = 0.26
+#: behind her; centred, the thigh never passed upright and her feet were always in front. At
+#: 0.24 with the toe-off at 0.66 the thigh leaves 12.2 degrees behind upright, the toes 297 mm
+#: behind the hip, the strike 1550 -> 1108 N, the head's bob 11 -> 28 mm and its surge 45 -> 54;
+#: held 83.8 -> 85.6 %, the stir 2.6 -> 3.6 mm; at 0.2 alone the surge doubled, 0.14 fell
+#: (2026-09-28).
+STANCE_AT = 0.24
 
 #: The hips ride as high as a stance leg reaches (REACH), smoothed: held level, the knees stood
 #: at 33-40 degrees, a crouch. Swept (2026-09-25): stance knee at most 16 degrees, the thigh 20

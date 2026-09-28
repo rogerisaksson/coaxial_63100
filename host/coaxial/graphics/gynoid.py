@@ -8,7 +8,9 @@ A part is a closed loft or ellipsoid in its own frame, hung off its parent at th
 and turned by its joints - the figure's names and signs. Without `root`, the lowest point of the
 feet stands on the floor. 1.69 m tall; the lattice, the glowing core and the plates are the
 materials `gpu.LIT_WGSL` lights. The floor scrolls under her by `travel` metres. Each drive's
-assembly (`machine.drives`) is a drum on its joint's axis, or where it is mounted.
+assembly (`machine.drives`) is a drum on its joint's axis, or where it is mounted. She wears a
+tee, jeans and sneakers (`_wear`), loose over her; a drum under the cloth shows as a patch sewn
+on it at the drum's ends.
 """
 import math
 
@@ -111,6 +113,11 @@ DRUM_AT = {'hip': (0.02, 0.0, 0.0), 'hip_roll': (0.0, 0.035, 0.0), 'spine_roll':
 DRUM_ON_PELVIS = {'hip_yaw': 0.09}
 
 
+#: Each drum's axis (unit, its part's frame) and half its length, m, by its joint - filled as the
+#: drums are built.
+DRUM_AXES = {}
+
+
 def _drums():
     """[(name, parent, offset, mesh)]: each joint's drive's drum."""
     carries = {j: seg for seg in figure.SEGMENTS for j, _axis, _sign in seg[2]}
@@ -129,7 +136,65 @@ def _drums():
             ox, oy, oz = hx * x, hy + DRUM_ON_PELVIS[kind], hz
         else:
             parent, (ox, oy, oz) = seg[0], DRUM_AT.get(kind, (0.0, 0.0, 0.0))
+        DRUM_AXES[joint] = ({'x': (1.0, 0.0, 0.0), 'y': (0.0, 1.0, 0.0),
+                             'z': (0.0, 0.0, 1.0)}[axes[joint]], size.length / 2.0)
         out.append(('drive_' + joint, parent, (ox * x, oy, oz), mesh))
+    return out
+
+
+#: Her clothes' colours, and how far out of her they hang, m: jeans a mid-blue wash, a white tee,
+#: white sneakers; a patch reaches PATCH_M round a drum's end.
+DENIM, TEE, SNEAKER = (66, 98, 150), (226, 226, 222), (236, 236, 232)
+LOOSE_M, PATCH_M = 0.012, 0.034
+
+
+def _wear():
+    """[(name, parent, offset, mesh)]: the tee over the torso, its sleeves to mid upper arm, the
+    jeans over the pelvis, the thighs and the shanks to above the ankle - each a shell LOOSE_M
+    out of her, the tee's front full over the bust."""
+    tee, denim = paint(TEE), paint(DENIM)
+    out = [('cloth_tee', 'torso', (0.0, 0.0, 0.0), _loft(
+        [(-0.03, 0.104, 0.077), (0.047, 0.108, 0.080), (0.093, 0.117, 0.087, 0.002),
+         (0.149, 0.130, 0.093, 0.004), (0.205, 0.138, 0.098, 0.004), (0.26, 0.142, 0.092, 0.002),
+         (0.307, 0.150, 0.082), (0.344, 0.152, 0.074), (0.366, 0.112, 0.064)], tee,
+        poles=(-0.036, 0.378))),
+           ('cloth_seat', 'pelvis', (0.0, 0.0, 0.0), _loft(
+               [(-0.10, 0.066, 0.059), (-0.07, 0.126, 0.091, -0.006), (-0.03, 0.161, 0.106, -0.014),
+                (0.02, 0.159, 0.101, -0.008), (0.07, 0.133, 0.089)], denim,
+               poles=(-0.115, 0.082)))]
+    for side in ('left', 'right'):
+        out += [('cloth_%s_sleeve' % side, side + '_upper_arm', (0.0, 0.0, 0.0), _loft(
+            [(0.03, 0.03, 0.03), (0.0, 0.046, 0.044), (-0.06, 0.044, 0.042),
+             (-0.12, 0.042, 0.040)], tee, poles=(0.04, -0.125))),
+                ('cloth_%s_thigh' % side, side + '_thigh', (0.0, 0.0, 0.0),
+                 _limb(THIGH, 0.064 + LOOSE_M, 0.055 + LOOSE_M, 0.05 + LOOSE_M, denim,
+                       bulge_at=0.22)),
+                ('cloth_%s_shank' % side, side + '_shank', (0.0, 0.0, 0.0),
+                 _limb(SHANK - 0.045, 0.05 + LOOSE_M, 0.056 + LOOSE_M, 0.042, denim,
+                       bulge_at=0.3))]
+    return out
+
+
+def _patches(parts):
+    """{joint: [(part index, corner indices)]}: each drum under the cloth, the cloth's corners
+    within PATCH_M of the drum's ends, on a cloth riding the drum's own segment."""
+    np = _np()
+    out = {}
+    for joint, (axis, half) in DRUM_AXES.items():
+        drum = next((p for p in parts if p[0] == 'drive_' + joint), None)
+        if drum is None:
+            continue
+        centre = np.asarray(drum[3], float)
+        ends = [centre + np.asarray(axis) * half, centre - np.asarray(axis) * half]
+        for i, (name, parent, _j, offset, _r, mesh) in enumerate(parts):
+            if not name.startswith('cloth_') or parent != drum[1]:
+                continue
+            corners = mesh[0] + np.asarray(offset, float)
+            near = np.zeros(len(corners), bool)
+            for end in ends:
+                near |= np.linalg.norm(corners - end, axis=1) < PATCH_M
+            if near.any():
+                out.setdefault(joint, []).append((i, np.flatnonzero(near)))
     return out
 
 
@@ -191,10 +256,11 @@ def _meshes():
             side + '_fingers': _ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
             side + '_thigh': _limb(THIGH, 0.064, 0.055, 0.05, MESH, bulge_at=0.22),
             side + '_shank': _limb(SHANK, 0.05, 0.056, 0.025, PLATE, bulge_at=0.3),
-            side + '_foot': _loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SOLE], PLATE,
-                                  poles=(-0.07, BALL + 0.01), along='z'),
-            side + '_toes': _ellipsoid((0.0, 0.0, 0.03), (0.04, TOE_RY, 0.035), PLATE, rows=6)})
-    return meshes, extra + _drums()
+            side + '_foot': _loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SOLE],
+                                  paint(SNEAKER), poles=(-0.07, BALL + 0.01), along='z'),
+            side + '_toes': _ellipsoid((0.0, 0.0, 0.03), (0.04, TOE_RY, 0.035), paint(SNEAKER),
+                                       rows=6)})
+    return meshes, extra + _drums() + _wear()
 
 
 def _parts():
@@ -239,9 +305,22 @@ class Body:
                       if part[0].endswith(('_foot', '_toes'))]
         self.drums = {part[0][len('drive_'):]: i for i, part in enumerate(self.parts)
                       if part[0].startswith('drive_')}
+        #: Each drum's patches on the cloth over it: [(part, its corners')] by joint.
+        self.patches = _patches(self.parts)
         #: Every triangle sampled DENSE_M apart, for the dots drawn without a card: (points,
         #: normals, uv, materials) in their parts' frames, and each part's span of them.
         self.dense, self.dense_spans = _sampled(self, np.concatenate(faces))
+        #: The same patches among the dots drawn without a card: {joint: {part: mask}}.
+        self.dense_near = {}
+        for joint, patched in self.patches.items():
+            axis, half = DRUM_AXES[joint]
+            centre = np.asarray(self.parts[self.drums[joint]][3], float)
+            ends = (centre + np.asarray(axis) * half, centre - np.asarray(axis) * half)
+            for part, _corners in patched:
+                lo, hi = self.dense_spans[part]
+                points = self.dense[0][lo:hi] + np.asarray(self.parts[part][3], float)
+                self.dense_near.setdefault(joint, {})[part] = np.min(
+                    [np.linalg.norm(points - end, axis=1) for end in ends], axis=0) < PATCH_M
 
     def _frames(self, angles, root=None):
         """Each part's (turn, spot) in the world for {joint: degrees}; `root` the pelvis's (place,
@@ -696,6 +775,10 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
                 i = who.drums[joint]
                 materials[slice(*who.spans[i])] = worn
                 dense[slice(*who.dense_spans[i])] = worn
+                for part, corners in who.patches.get(joint, ()):
+                    materials[who.spans[part][0] + corners] = worn
+                    lo, hi = who.dense_spans[part]
+                    dense[lo:hi][who.dense_near[joint][part]] = worn
     if lit is not None:
         positions, normals = who.pose(angles, root=root)
         depth, rgb = lit.raster(positions, normals, who.uv, materials, who.index, m, fine,

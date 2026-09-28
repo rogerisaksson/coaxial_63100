@@ -54,6 +54,12 @@ REFLECTED, CLAMPED = 0.0, 0.0
 #: sagging, the FETs half on, in their SOA; or its nodes at WARM_C - run hard, hot.
 SOA_RDS, WARM_C = 50.0, 100.0
 
+#: What her clothes cover and what the cloth grips with, sliding: jeans over the pelvis, the
+#: thighs and the knees, denim; a tee over the torso and the upper arms, cotton - the rest bare,
+#: the soles the sneakers'. The cloth gives CLOTH_GIVE_M over its padding before it bears.
+CLOTH = {'pelvis': 0.55, 'thigh': 0.55, 'shank': 0.55, 'torso': 0.45, 'upper_arm': 0.45}
+CLOTH_GIVE_M = 0.004
+
 #: The soles' friction: sliding, and turning in place (m) - a point of contact turns freely, and
 #: on its ball's edge the stance foot spun under the swinging leg (2026-09-25).
 FRICTION, TORSION_M = 1.0, 0.08
@@ -92,6 +98,7 @@ def mjcf():
         kids.setdefault(seg[1], []).append(seg)
     axes = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1)}
     give = ' solref="%g %g" solimp="%g 0.95 %g"' % (SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M)
+    cloth = ' solref="%g %g" solimp="%g 0.95 %g"' % (SOLE_S, SOLE_DAMP, SOLE_SOFT, CLOTH_GIVE_M)
     floor = ' contype="1" conaffinity="2"'
 
     def body(seg):
@@ -111,10 +118,11 @@ def mjcf():
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
         for part, shape, size, at in CONTACTS:
             if name == part or name.endswith('_' + part):
+                felt = (give if part in ('foot', 'toes') else cloth if part in CLOTH else '')
                 out.append('<geom type="%s" size="%s" pos="%g %g %g" contype="2" conaffinity="1" '
                            'condim="4" friction="%g %g 0.001"%s/>' % (
                                (shape, ' '.join('%g' % v for v in size)) + tuple(at)
-                               + (FRICTION, TORSION_M, give if part in ('foot', 'toes') else '')))
+                               + (CLOTH.get(part, FRICTION), TORSION_M, felt)))
         for kid in kids.get(name, []):
             out += body(kid)
         return out + ['</body>']

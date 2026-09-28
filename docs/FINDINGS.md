@@ -782,6 +782,21 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   torque. The drives' six-field readings had cost the loop's `flat` twice
   its time: a float taken as it is, 0.53 -> 0.64 of real time
   (2026-09-28).
+- Her stance leg (`tools/sim/look.py`: the ankle ahead of the hip at the
+  landing, the toes behind it and the thigh's angle at the lift, a load held
+  0.1 s): as she walked, the thigh left the floor 1.1 degrees ahead of
+  upright, the toes 196 mm behind the hip - her feet in front. The toe-off
+  at 0.66 and the ball planted at 0.24: 12.2 behind, 297 mm; the stride
+  0.85 m: the pelvis's dip 49 -> 34 mm and the head's surge 56 -> 35 mm,
+  the thigh 29 ahead at the landing and 6 behind at the lift, held 83.7 %,
+  the stir 2.3 mm, the scoreboard's cheapest yet (7.18). Ahead stays ~20
+  degrees more than behind whatever the knobs (the stride, the toe-off, the
+  stance, the heel's rise, the knee's softness): the landing knee bends
+  ~30, the hips held down by the trailing leg in the double support. She
+  wears a tee, jeans and sneakers - drawn loose over her, the drums under
+  the cloth patched on it in their heat's colour - and the cloth is felt
+  in MuJoCo: denim (0.55) on the seat, the thighs and the knees, cotton
+  (0.45) on the torso and the upper arms, 4 mm of give (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

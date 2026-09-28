@@ -228,7 +228,35 @@ WALK = (
     ('feet apart', 'mm', lambda rs: _mean(abs(_p(r, 'left_foot')[0] - _p(r, 'right_foot')[0])
                                           for r in rs if float(r['left_load']) > 60.0
                                           and float(r['right_load']) > 60.0) * 1e3),
+    ('ankle ahead at landing', 'mm', lambda rs: _mean(
+        _p(b, 'left_foot')[2] - _p(b, 'left_thigh')[2] for a, b in _landings(rs)) * 1e3),
+    ('toes behind at lift', 'mm', lambda rs: _mean(
+        _p(a, 'left_thigh')[2] - _p(a, 'left_toes')[2] for a, b in _lifts(rs)) * 1e3),
+    ('thigh behind at lift', 'deg', lambda rs: _mean(
+        _lean(_p(a, 'left_shank'), _p(a, 'left_thigh')) for a, b in _lifts(rs))),
+    ('thigh ahead at landing', 'deg', lambda rs: _mean(
+        -_lean(_p(b, 'left_shank'), _p(b, 'left_thigh')) for a, b in _landings(rs))),
 )
+
+#: A sole bears past BEARS_N: its landing and its lift are the rows either side of it, the one
+#: after holding HELD_S - the load flickers under it late in the stance.
+BEARS_N, HELD_S = 60.0, 0.1
+
+
+def _held(rs, k, bears):
+    t = float(rs[k]['t'])
+    return all((float(r['left_load']) > BEARS_N) == bears for r in rs[k:]
+               if float(r['t']) - t < HELD_S)
+
+
+def _landings(rs):
+    return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
+            if float(a['left_load']) <= BEARS_N < float(b['left_load']) and _held(rs, k, True)]
+
+
+def _lifts(rs):
+    return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
+            if float(a['left_load']) > BEARS_N >= float(b['left_load']) and _held(rs, k, False)]
 
 
 def _ptp(values):
