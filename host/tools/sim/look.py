@@ -102,13 +102,15 @@ MEASURES = (
     ('hips>shoulders', 'deg', lambda r, ref: _lean(_mid(_p(r, 'left_thigh'), _p(r, 'right_thigh')),
                                                    _mid(_p(r, 'left_upper_arm'),
                                                         _p(r, 'right_upper_arm')))),
+    ('bow', 'deg', lambda r, ref: _lean(_p(r, 'torso'), _p(r, 'neck'))
+     - _lean(_p(r, 'left_foot'), _p(r, 'left_thigh'))),
     ('knee L', 'deg', lambda r, ref: float(r['left_knee'])),
     ('head pitch', 'deg', lambda r, ref: _lean(_p(r, 'neck'), _p(r, 'head')) - HEAD_REST),
     ('hip roll L', 'deg', lambda r, ref: float(r['left_hip_roll'])),
 )
 
 #: A seam's measures, by name, and the director's ask beside them; the times read about it, s.
-SEAM = ('pelvis dy', 'head dy', 'hip L dy', 'hip R dy', 'pelvis roll', 'torso', 'knee L')
+SEAM = ('pelvis dy', 'head dy', 'pelvis roll', 'torso', 'bow', 'knee L')
 SEAM_AT = (-0.3, -0.1, 0.0, 0.1, 0.3)
 
 
