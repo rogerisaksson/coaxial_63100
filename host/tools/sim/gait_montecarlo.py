@@ -14,11 +14,12 @@ terminal page runs her:
 
 Two suites (`--suite`): the look - the rises and the walks on fantasy boards, whose SOA never
 binds (`physics.ENVELOPE` 0) - and the faults - the events on the boards as built. Three
-numbers: `held`, the share of the trials' time she stood; `stir`, the pendulum's mean over the
-walks, mm; `look`, the walks' look (`look_of`): the thigh ahead at the landing past its reach
-behind at the lift, the head's surge, the feet passing near. Its cost is one:
-`stir + LOST (1 - held) + look`. A single run a candidate scores chance - the rise flips on
-0.5 % of any knob (docs/FINDINGS.md, 2026-09-26) - a spread of them scores the walk.
+numbers: `held`, the share of the trials' time she stood, shown; `stir`, the pendulum's mean
+over the walks, mm; `look`, the walks' look (`look_of`). Its cost is one, `stir + look` over the
+walking each walk did: a fall costs nothing - it is done, and her parrying is what is corrected
+(the bench's word, 2026-09-28) - and a candidate with no walking to judge ranks last. A single
+run a candidate scores chance - the rise flips on 0.5 % of any knob (docs/FINDINGS.md,
+2026-09-26) - a spread of them scores the walk.
 
     python tools/sim/gait_montecarlo.py                                  # the walk as it is
     python tools/sim/gait_montecarlo.py --grid SURGE_DEG=0,1,2 SWAY_K=0,0.5,1
@@ -56,7 +57,8 @@ SPREAD = (-1, 0, 1)
 WALK_SPREAD = 0.02
 
 #: The suites: which kinds of trial each runs.
-SUITES = {'all': ('rise', 'walk', 'event'), 'look': ('rise', 'walk'), 'faults': ('event',)}
+SUITES = {'all': ('rise', 'walk', 'event'), 'look': ('rise', 'walk'), 'walk': ('walk',),
+          'faults': ('event',)}
 
 #: (trial, spread step): every run a candidate makes (`suite` narrows them).
 JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] in ('event', 'walk') else (0,))]
@@ -128,10 +130,8 @@ def look_of(looks):
 SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0}
 SETTLE_S, EVENT_AT_S = 4.0, 5.0
 
-#: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir
-#: and this look. A fall costs moderately: she gets up and walks on, and the walk counts more
-#: than a stumble (2026-09-28).
-LOST, FALLEN_STIR, FALLEN_LOOK = 10.0, 5.0, 5.0
+#: A walk's run is judged on the strides it walked: its reach behind and its landing measured.
+JUDGED = ('thigh behind at lift', 'impact')
 
 MODULES = ('walker', 'gait', 'arrival', 'director', 'capture', 'physics', 'buses', 'events',
            'drives')
@@ -227,17 +227,16 @@ def trial(job):
 
 def by_trial(results):
     """[(held, stir, [what], {look: value}, look's cost)] a trial each, in TRIALS' order, from
-    its runs' results in JOBS' order: each its spread's mean, a run fallen counting FALLEN_STIR
-    and FALLEN_LOOK; the measures shown the first run's."""
+    its runs' results in JOBS' order: the held share its spread's mean, the stir and the look's
+    cost its judged runs' (`JUDGED`), nan with none; the measures shown the first run's."""
     out = []
     for t in TRIALS:
         mine = [r for (u, _k), r in zip(JOBS, results) if u == t]
-        stood = [r[0] >= 1.0 and r[1] is not None for r in mine]
-        out.append((sum(r[0] for r in mine) / len(mine),
-                    sum(r[1] if ok else FALLEN_STIR for r, ok in zip(mine, stood)) / len(mine),
-                    [r[2] for r in mine], mine[0][3],
-                    sum(look_of(r[3]) if ok else FALLEN_LOOK for r, ok in zip(mine, stood))
-                    / len(mine)))
+        judged = [r for r in mine if r[1] is not None
+                  and all(r[3].get(n, math.nan) == r[3].get(n, math.nan) for n in JUDGED)]
+        mean = (lambda xs: sum(xs) / len(xs)) if judged else (lambda xs: math.nan)
+        out.append((sum(r[0] for r in mine) / len(mine), mean([r[1] for r in judged]),
+                    [r[2] for r in mine], mine[0][3], mean([look_of(r[3]) for r in judged])))
     return out
 
 
@@ -246,9 +245,11 @@ def score(results):
     trials = by_trial(results)
     held = sum(t[0] for t in trials) / len(trials)
     walks = [t for (kind, _p, _e), t in zip(TRIALS, trials) if kind == 'walk']
-    stir = sum(t[1] for t in walks) / len(walks) if walks else 0.0
-    looked = sum(t[4] for t in walks) / len(walks) if walks else 0.0
-    return stir + LOST * (1.0 - held) + looked, held, stir
+    walked = [t for t in walks if t[1] == t[1]]
+    if not walked:
+        return math.inf, held, math.nan
+    stir = sum(t[1] for t in walked) / len(walked)
+    return stir + sum(t[4] for t in walked) / len(walked), held, stir
 
 
 def run(pool, candidates):
