@@ -262,6 +262,8 @@ WALK = (
     ('toe out', 'deg', lambda rs: _mean(_foot(r)[0] for r in _alone(rs))),
     ('foot roll', 'deg', lambda rs: _mean(_foot(r)[1] for r in _alone(rs))),
     ('ankle roll', 'deg', lambda rs: _mean(float(r['left_ankle_roll']) for r in _alone(rs))),
+    ('toe out swinging', 'deg', lambda rs: min((_foot(r)[0] for r in _mid_swings(rs)),
+                                               default=math.nan)),
     ('hair fore-aft', 'deg', lambda rs: _ptp(r.get('loose', {}).get('hair_x', 0.0) for r in rs)),
     ('hair aside', 'deg', lambda rs: _ptp(r.get('loose', {}).get('hair_z', 0.0) for r in rs)),
 )

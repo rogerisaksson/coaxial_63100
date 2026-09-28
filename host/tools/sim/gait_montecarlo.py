@@ -71,7 +71,14 @@ BALANCE_DEG, BALANCE_K = 10.0, 0.2
 #: the heaviest of the look - weighed light, the searches came to tiptoeing, the legs always in
 #: front, the easiest balance (2026-09-28).
 REACH_DEG, REACH_K = 10.0, 1.0
-SURGE_MM, SURGE_K = 30.0, 0.05
+SURGE_MM, SURGE_K = 30.0, 0.15
+
+#: The upper body's bob: the torso pitching past TORSO_DEG, TORSO_K a degree. The feet: the
+#: stance's toes out of TOE_OUT degrees or the swinging foot's turned in, TOE_K a degree; the
+#: ankle rolled past PRONATE_DEG under the shin, PRONATE_K a degree - pigeon-toed, the swinging
+#: foot in 6.5, and overpronated at 4.9, to the eye (2026-09-28).
+TORSO_DEG, TORSO_K = 2.0, 1.0
+TOE_OUT, TOE_K, PRONATE_DEG, PRONATE_K = (5.0, 15.0), 0.5, 3.0, 0.5
 CLEAR_MM, CLEAR_K = 5.0, 0.2
 LOOK_HZ = 50.0
 
@@ -89,7 +96,8 @@ RATE_KN_S, RATE_K = 20.0, 0.02
 TOUCH_N, QUIET_S = 30.0, 0.1
 
 #: The look's measures, by `look.WALK`'s names, and the landing's.
-LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear')
+LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear',
+         'torso pitch', 'toe out', 'toe out swinging', 'ankle roll')
 LANDS = ('impact', 'touch', 'rate')
 
 
@@ -102,11 +110,15 @@ def suite(name):
 
 def look_of(looks):
     """The look's cost of a walk's measures {name: value} (`LOOKS`)."""
-    ahead, behind, surge, clear, impact, touch, rate = (looks.get(n, math.nan)
-                                                        for n in LOOKS + LANDS)
+    (ahead, behind, surge, clear, torso, out, swinging, roll, impact, touch,
+     rate) = (looks.get(n, math.nan) for n in LOOKS + LANDS)
     terms = (BALANCE_K * max(0.0, ahead - behind - BALANCE_DEG),
              REACH_K * max(0.0, REACH_DEG - behind),
              SURGE_K * max(0.0, surge - SURGE_MM), CLEAR_K * max(0.0, CLEAR_MM - clear),
+             TORSO_K * max(0.0, torso - TORSO_DEG),
+             TOE_K * (max(0.0, TOE_OUT[0] - out) + max(0.0, out - TOE_OUT[1])
+                      + max(0.0, -swinging)),
+             PRONATE_K * max(0.0, roll - PRONATE_DEG),
              IMPACT_K * max(0.0, impact - IMPACT_N), TOUCH_K * max(0.0, touch - TOUCH_MS),
              RATE_K * max(0.0, rate - RATE_KN_S))
     return sum(t for t in terms if t == t)
@@ -258,9 +270,9 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
         print('    %-5s %.2f %-5s %5.1f %%  %s%s%s' % (
             kind, pace, event or '', 100 * h, ' | '.join(whats),
             '' if kind != 'walk' else '  stir %.2f mm' % s,
-            '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, impact %.0f N, touch %.2f'
-            ' m/s, rate %.0f kN/s' % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS)
-            if looks else ''))
+            '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, torso %.1f, toes %.1f'
+            ' swinging %.1f, roll %.1f deg, impact %.0f N, touch %.2f m/s, rate %.0f kN/s'
+            % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if looks else ''))
 
 
 def _now(name):
