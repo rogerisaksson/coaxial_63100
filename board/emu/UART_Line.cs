@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 
@@ -25,6 +26,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public HostLine(IMachine machine, IPeripheral owner, Func<uint> baud, Action<byte> deliver)
         {
             this.machine = machine;
+            this.owner = owner;
             this.baud = baud;
             this.deliver = deliver;
             // Built with room for the longest turnaround: a LimitTimer's Value is held to the
@@ -50,7 +52,14 @@ namespace Antmicro.Renode.Peripherals.UART
             lock(queue)
             {
                 var at = Now();
-                queue.Enqueue(new Pending { Value = value, Starts = at - lastHost > Interchar });
+                var starts = at - lastHost > Interchar;
+                if(starts && at - lastHost < Split)
+                {
+                    // A frame this soon after the host's last byte: a write split on its way in?
+                    owner.Log(LogLevel.Warning, "host frame {0:F3} ms after the host's last byte",
+                              (at - lastHost) * 1e3);
+                }
+                queue.Enqueue(new Pending { Value = value, Starts = starts });
                 lastHost = at;
                 if(!timer.Enabled)
                 {
@@ -120,6 +129,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         private readonly IMachine machine;
+        private readonly IPeripheral owner;
         private readonly Func<uint> baud;
         private readonly Action<byte> deliver;
         private readonly LimitTimer timer;
@@ -131,6 +141,10 @@ namespace Antmicro.Renode.Peripherals.UART
         /// <summary>What a node is given past t3.5 to act on a frame, s: the boot master's
         /// CHUNK_S of 2 ms less t3.5.</summary>
         private const double Act = 0.00025;
+
+        /// <summary>Under this after the host's last byte a frame is suspect, s: a request comes after
+        /// its predecessor's reply, milliseconds on at any rate here.</summary>
+        private const double Split = 0.005;
 
         private struct Pending
         {

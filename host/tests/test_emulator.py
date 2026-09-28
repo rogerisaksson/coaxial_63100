@@ -157,20 +157,31 @@ def test_echoes_on_the_bus(report):
         rig.board.transport.time_scale_source = limb.load
         try:
             link = rig.board.link
-            wrong = 0
+            wrong, lost = 0, []
+            opened = link.state(port=1)['bus_comm_error']
             for k in range(BLAST):
                 data = bytes((k * 31 + n * 7) % 256 for n in range(BLAST_BYTES))
                 try:
                     link.echo(data)
-                except Exception:          # a lost echo is the finding, counted
+                except Exception as exc:   # a lost echo is the finding, counted and named
                     wrong += 1
+                    lost.append('echo %d %s: %s' % (k, type(exc).__name__, str(exc)[:90]))
             port = link.state(port=1)
+            scale = rig.board.transport.time_scale
         finally:
             rig.close()
+        with open(limb.log or os.devnull, encoding='utf-8', errors='replace') as f:
+            suspect = [line.strip()[-48:] for line in f if 'after the host\'s last byte' in line]
+    # Which echo, what the host raised, the framing errors the open counted beside the echoes',
+    # and the adapter's frames that came suspiciously soon - CI's runner loses one of 50 with 3
+    # framing errors, never this host (2026-09-28).
     report.check('the bus at the record\'s rate: every echo back, nothing dropped, framing clean',
                  wrong == 0 and port['ring_dropped'] == 0 and port['bus_comm_error'] <= 1,
-                 '%d of %d echoes wrong, %d framing errors, %d dropped'
-                 % (wrong, BLAST, port['bus_comm_error'], port['ring_dropped']))
+                 '%d of %d echoes wrong, %d framing errors (%d at the open), %d dropped, pace %.0f'
+                 '%s; %d suspect frames%s'
+                 % (wrong, BLAST, port['bus_comm_error'], opened, port['ring_dropped'], scale,
+                    ''.join('; ' + row for row in lost[:2]), len(suspect),
+                    ''.join('; ' + row for row in suspect[-3:])))
 
 
 def test_a_bus_off_the_nodes_rate_carries_nothing(report):
