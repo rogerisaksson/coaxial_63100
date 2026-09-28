@@ -681,10 +681,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   forearms, the head down sooner. The head held up, the neck back 20, 40 or
   60 (director.HEAD_UP_DEG): the chest and the hips take the floor, the
   head never (2026-09-28).
-- After a fall the walk began again with the pelvis lowered as she fell,
-  12 cm, and her speed read from 3.7 m back: 8-10 cm crouched, a sole at
-  16 kN. Reset on landing (`Walker.reset`): 0.866 and 0.882 m after the
-  restarts, 958 N at most (2026-09-28).
+- After a fall the walk began with the pelvis still lowered, 12 cm, 8-10
+  cm crouched: `Walker.reset` on landing (2026-09-28).
 - The swing skims (gait.LIFT_M) 25 mm over the floor, 42 at most, where a
   bump lifted the foot 130 mm, the knee 75 degrees: she trod the air;
   levelled at 0.6 of the swing the knee bends once, to 55. The heel up 10
@@ -695,18 +693,15 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - Turned 6 degrees her hips swayed with her shoulders, 60 and 41 mm
   across; turned 9, dropped 6, the spine taking 0.3 of the hips' offset
   back at the shoulders: 72 under 25 (2026-09-28).
-- A 6 cm sill caught the skimming toes for 0.11 s and she fell; a
-  swinging foot bearing 80 N is lifted 8 cm more (`landing.tripped`):
-  each foot in turn stumbles over it, the pelvis pitching 4.4 and 6.5
-  degrees, and she walks on (2026-09-28).
+- A 6 cm sill caught the skimming toes and she fell; a swinging foot
+  bearing 80 N is lifted 8 cm more (`landing.tripped`): each foot stumbles
+  over it and she walks on (2026-09-28).
 - A 5-step stair, 8 cm steps, blind: the floor read where each foot bears
   and the same step expected again, she walks up all five; finding the
   landing a step lower than expected she pitches over (2026-09-28).
-- Caught on straight arms she toppled over them sideways. Her hands
-  down, the arms give over 0.6 s into her forearms, the hands by her face
-  (`director.YIELD`): the head 71 mm off the floor at the least, 132 on
-  straight arms; the hands brought over the head, it met the floor at
-  1.3 m/s (2026-09-28).
+- Her arms give over 0.6 s into her forearms, the hands by her face
+  (`director.YIELD`): the head 71 mm off the floor, 132 on straight arms;
+  the hands over the head, it met the floor at 1.3 m/s (2026-09-28).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The
