@@ -144,7 +144,8 @@ terminal/views/     the live views (show_*.py), each runnable on its own
 terminal/ui/        what they draw with: stage, chrome (the house HUD: CRT snow, lock,
                     clock, kana tags), screen, console, scroll, ..
 tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
-                    warm_model, lint (markdownlint + pyright, the hooks), ab (every
+                    warm_model, lint (markdownlint + pyright, the hooks),
+                    measure_first (the prompt hook: her movement named, measure), ab (every
                     page's reads, emulated against the stand-in and the physics),
                     focus (a suite's tests by name, its watchdog, the relay: a
                     baton a physical core, a queue longest first, as the free
@@ -156,7 +157,8 @@ tools/render/       renderer checks against the exporter; ansi2png; attitude (th
                     view at a pose and a moment, to a PNG - no window); page (any
                     page's last frame, simulated, to a PNG)
 tools/sim/          the drive core on this host: montecarlo, observer_run;
-                    gait_montecarlo (the gynoid through fixed trials)
+                    gait_montecarlo (the gynoid through fixed trials); look
+                    (her start a stage a row, simulated or a recording)
 tools/cores/        build: the portable cores' gcc build;
                     drive, thermal: their ctypes harnesses;
                     fakeboard: comms/, the record and the observer over

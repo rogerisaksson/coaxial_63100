@@ -90,12 +90,14 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   init order (MSP callbacks reset pins), widths and byte order, worst-case
   buffer; verify the fix ran. BNO085: 6 firmware bugs, 0 hardware.
 - A measurement taken while something else drives the bench is not one.
-- **What the user sees is so.** Reproduce it before anything else: record
-  it (HUMANOID's R: build/recordings/*.csv; or the page itself, `python -m
-  terminal.views.show_humanoid --frames N`), find it in the vectors, fix,
-  record again; nothing is fixed until the second recording shows it gone.
-  Measure against the body, not the plumb line: a torso plumb over bent
-  knees leans back. A running page keeps the code it started with.
+- **What the user sees is so.** They point it out, you measure, the
+  numbers say what to change, you change it and measure again:
+  `host/tools/sim/look.py` (from the squat; `--last` their newest HUMANOID
+  recording, R), quoted before any explanation - a hook says so on every
+  such message (`tools/dev/measure_first.py`). Nothing is fixed until the
+  second measurement shows it gone. Measure against the body, not the
+  plumb line: a torso plumb over bent knees leans back. A running page
+  keeps the code it started with.
 - **Simulated before emulated.** *Emulated* is the image on Renode: SIL.
   *Simulated* is a pure software model claiming no hardware, real or
   emulated. Nothing goes on the emulator until a plausible simulated model

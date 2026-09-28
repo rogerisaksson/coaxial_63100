@@ -24,6 +24,18 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$CLAUDE_PROJECT_DIR/host/tools/dev/measure_first.py\"",
+            "timeout": 10,
+            "statusMessage": "Movement named: measure first"
+          }
+        ]
+      }
     ]
   }
 }

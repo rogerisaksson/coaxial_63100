@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""The gynoid as the eye sees her, measured a stage a row: simulated, or a HUMANOID recording.
+
+From the squat as the page runs her, or a recording (R, build/recordings/*.csv) - the same rows
+either way (`show_humanoid.row`).
+
+    python tools/sim/look.py                        # from the squat, 12 s
+    python tools/sim/look.py --last                 # the newest recording
+    python tools/sim/look.py --csv build/recordings/humanoid_20260928_070724.csv
+    python tools/sim/look.py SOFT_KNEE=6            # a knob moved (tools/sim/gait_montecarlo)
+
+A row a stage (the walk's first second apart): the pelvis and the head under the stand (the
+dip), the torso ahead of plumb, the torso against the left shin (under 0 it leans back over bent
+knees), the hips-to-shoulders line, the left knee (under 0 bent back), the head's pitch (its
+range the nod), the left hip's roll - least and most over the stage, deg and mm.
+"""
+import argparse
+import csv
+import glob
+import math
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from tools import REPO  # noqa: E402
+
+#: The head's rest pitch in the neck's offset (`figure.SEGMENTS`: 0.09 up, 0.012 on), deg.
+HEAD_REST = math.degrees(math.atan2(0.012, 0.09))
+
+#: The rows' rate simulated, Hz, as the page hears her; the walk's first seconds apart.
+RATE_HZ, FIRST_S = 60.0, 1.0
+
+
+def simulated(to_s, values):
+    """The rows from the squat, `to_s` seconds, the director as the page runs her."""
+    from tools.sim.gait_montecarlo import _set
+    _set(values)
+    from machine import Machine
+    from machine.director import Director
+    from machine.figure import JOINTS
+    from machine.modes import DYNAMIC
+    from terminal.views.show_humanoid import HEADER, row
+    body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+    body.arm()
+    director = Director(body, 0.85)
+    director.begin()
+    body.loop.step(0.0)
+    bus, out, said = body.loop.bus, [], -1.0
+    while bus['t'] < to_s and director.stage != 'fallen':
+        body.loop.write(**director.step(0.001))
+        body.loop.step(0.001)
+        if bus['t'] - said >= 1.0 / RATE_HZ:
+            said = bus['t']
+            now = {'t': bus['t'], 'stage': director.stage, 'speed': bus['pelvis.pose.vz'],
+                   'phase': director.walker.phase,
+                   'loads': (bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load']),
+                   'where': (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z']),
+                   'turn': tuple(bus['pelvis.pose.q' + k] for k in 'wxyz'),
+                   'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}}
+            out.append(dict(zip(HEADER, row(now, 60.0))))
+    body.disarm()
+    return out
+
+
+def recorded(path):
+    """The rows of a recording."""
+    with open(path, encoding='utf-8') as f:
+        return list(csv.DictReader(f))
+
+
+def _p(r, seg):
+    return tuple(float(r['%s_%s' % (seg, axis)]) for axis in 'xyz')
+
+
+def _mid(a, b):
+    return tuple((u + v) / 2.0 for u, v in zip(a, b))
+
+
+def _lean(a, b):
+    """The line a -> b, deg ahead of plumb (her forward z)."""
+    return math.degrees(math.atan2(b[2] - a[2], b[1] - a[1]))
+
+
+#: (name, unit, of a row and the stand's (pelvis y, head y)): what each column measures.
+MEASURES = (
+    ('pelvis dy', 'mm', lambda r, ref: (float(r['y']) - ref[0]) * 1e3),
+    ('head dy', 'mm', lambda r, ref: (_p(r, 'head')[1] - ref[1]) * 1e3),
+    ('torso', 'deg', lambda r, ref: _lean(_p(r, 'torso'), _p(r, 'neck'))),
+    ('torso-shin', 'deg', lambda r, ref: _lean(_p(r, 'torso'), _p(r, 'neck'))
+     - _lean(_p(r, 'left_foot'), _p(r, 'left_shank'))),
+    ('hips>shoulders', 'deg', lambda r, ref: _lean(_mid(_p(r, 'left_thigh'), _p(r, 'right_thigh')),
+                                                   _mid(_p(r, 'left_upper_arm'),
+                                                        _p(r, 'right_upper_arm')))),
+    ('knee L', 'deg', lambda r, ref: float(r['left_knee'])),
+    ('head pitch', 'deg', lambda r, ref: _lean(_p(r, 'neck'), _p(r, 'head')) - HEAD_REST),
+    ('hip roll L', 'deg', lambda r, ref: float(r['left_hip_roll'])),
+)
+
+
+def staged(rows):
+    """[(stage, rows)] in order: the walk's first FIRST_S apart; the stand's (pelvis y, head y)."""
+    stands = [r for r in rows if r['stage'] == 'stand'] or rows[:1]
+    mid = stands[len(stands) // 2]
+    ref = (float(mid['y']), _p(mid, 'head')[1])
+    walk_at, groups = None, []
+    for r in rows:
+        stage = r['stage']
+        if stage == 'walk':
+            walk_at = float(r['t']) if walk_at is None else walk_at
+            stage = 'walk, 1st s' if float(r['t']) - walk_at < FIRST_S else 'walk'
+        if not groups or groups[-1][0] != stage:
+            groups.append((stage, []))
+        groups[-1][1].append(r)
+    return groups, ref
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
+    parser.add_argument('--csv', help='a HUMANOID recording (R) to measure')
+    parser.add_argument('--last', action='store_true', help='the newest recording')
+    parser.add_argument('--to', type=float, default=12.0, help='seconds simulated from the squat')
+    parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
+    args = parser.parse_args(argv)
+    path = args.csv or (max(glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')),
+                            key=os.path.getmtime) if args.last else None)
+    values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
+    rows = recorded(path) if path else simulated(args.to, values)
+    print(path or 'simulated from the squat, %.1f s %s' % (
+        args.to, ' '.join(args.knobs)))
+    groups, ref = staged(rows)
+    print('%-12s %6s | %s' % ('stage', 'from s', ' | '.join(
+        '%-15s' % ('%s %s' % (name, unit)) for name, unit, _f in MEASURES)))
+    for stage, mine in groups:
+        cells = []
+        for _name, _unit, f in MEASURES:
+            v = [f(r, ref) for r in mine]
+            cells.append('%+6.1f..%+6.1f' % (min(v), max(v)))
+        print('%-12s %6.2f | %s' % (stage, float(mine[0]['t']), ' | '.join(cells)))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
