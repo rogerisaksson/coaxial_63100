@@ -48,19 +48,28 @@ class _Still(keys_module.Keys):
         super().__init__(False, *args, **kwargs)
 
 
+class _Nowhere(io.TextIOBase):
+    """A console's file that keeps nothing: the page's frames drawn and dropped."""
+
+    def write(self, text):
+        return len(text)
+
+
 def frame(name, width=150, height=44, frames=12, port=None):
-    """The page's last frame as ANSI text: simulated, or on `port`."""
+    """The page's last frame as ANSI text: simulated, or on `port`. Only the last is kept: every
+    frame and the console's whole output grew 0.5 MB a frame, and two six-minute pages ran this
+    laptop's commit out (2026-09-28)."""
     drawn = []
 
     def sized():
-        return Console(file=io.StringIO(), force_terminal=True, width=width, height=height,
+        return Console(file=_Nowhere(), force_terminal=True, width=width, height=height,
                        color_system='truecolor', theme=stage_module.THEME, highlight=False,
                        legacy_windows=False)
 
     update = Live.update
 
     def kept(self, renderable, *, refresh=False):
-        drawn.append(renderable)
+        drawn[:] = [renderable]
         return update(self, renderable, refresh=refresh)
 
     # A page that sizes itself off the terminal (the thermal map) is told this size too.

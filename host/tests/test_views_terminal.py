@@ -247,6 +247,28 @@ def test_every_page_scrolls_its_boxes(report):
                  refused)
 
 
+def test_the_page_tool_holds_one_frame(report):
+    """tools.render.page.frame draws a page as long as asked in the memory of one frame: every
+    frame and the console's whole output kept grew it 0.5 MB a frame, and two six-minute pages
+    ran this laptop's commit out (2026-09-28)."""
+    import tracemalloc
+    from tools.render import page
+
+    peaks = []
+    tracemalloc.start()
+    try:
+        for frames in (100, 300):
+            tracemalloc.reset_peak()
+            page.frame('thermal_observer', 150, 44, frames=frames)
+            peaks.append(tracemalloc.get_traced_memory()[1])
+    finally:
+        tracemalloc.stop()
+    per = (peaks[1] - peaks[0]) / 200.0
+    report.check('the page tool holds a frame, not all of them: under 20 kB a frame more',
+                 per < 20e3, '%.1f kB a frame, peaks %.0f and %.0f MB'
+                 % (per / 1e3, peaks[0] / 2 ** 20, peaks[1] / 2 ** 20))
+
+
 def test_a_frame_rasterises_as_the_terminal_draws_it(report):
     """`ansi.image` draws a coloured frame cell by cell, the way the bench's
     terminal shows it: the notebooks' pictures, and `tools/render/ansi2png.py`.
@@ -302,7 +324,8 @@ def test_the_attitude_caps_its_frame_rate(report):
                  view.period_of(0.0) == 2.0, '%.4f s' % view.period_of(0.0))
 
 
-ROSTER = (test_the_screen_keeps_its_own_rate, test_the_chrome_at_its_edges,
+ROSTER = (test_the_page_tool_holds_one_frame, test_the_screen_keeps_its_own_rate,
+          test_the_chrome_at_its_edges,
           test_each_page_draws_on_a_terminal, test_the_console_it_draws_on,
           test_the_crt_draws_on_the_terminal, test_the_terminal_is_asked_how_tall_a_cell_is,
           test_every_page_scrolls_its_boxes, test_a_frame_rasterises_as_the_terminal_draws_it,
