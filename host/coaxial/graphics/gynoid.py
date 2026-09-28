@@ -76,11 +76,15 @@ def _drums():
 
 #: Her clothes' colours, and how far out of her they hang, m: high-waisted jeans in a light wash,
 #: a white tee, white sneakers; the jeans LOOSE_M out over the seat and the thighs, the tee
-#: BAGGY_M; a patch reaches PATCH_M round a drum's end. The jeans' legs widen from under the knee
-#: to a hem HEM_R round a hand over the floor, hung from the hems' hinges (`physics.HEMS`) so they
-#: swing on their own.
+#: BAGGY_M; a patch reaches PATCH_M round a drum's end. The jeans' legs (`JEANS_LEG`) hang on
+#: their hems' hinges (`physics.HEMS`) straight to a hem HEM_R (half width, half depth, set back),
+#: HEM_UP up at its sides, leaning HEM_LEAN onto the sneaker's vamp: 88 mm across and level, the
+#: other foot passed 16 mm into it, the toe box 35 mm out of it (2026-09-28).
 DENIM, TEE, SNEAKER = (118, 150, 182), (230, 230, 226), (236, 236, 232)
-LOOSE_M, BAGGY_M, PATCH_M, HEM_R = 0.02, 0.02, 0.045, (0.088, 0.082)
+LOOSE_M, BAGGY_M, PATCH_M, HEM_R = 0.02, 0.02, 0.045, (0.074, 0.08, 0.004)
+HEM_UP, HEM_LEAN = 0.029, 0.26
+JEANS_LEG = ((0.01, 0.07, 0.068), (-0.1, 0.072, 0.072), (-0.2, 0.074, 0.076, -0.002),
+             (HEM_UP - SHANK - ANKLE_H + HEM_AT, HEM_R[0], HEM_R[1], -HEM_R[2], HEM_LEAN))
 
 
 #: The thighs' radii, m: at the hip, at their fullest and at the knee.
@@ -88,11 +92,9 @@ THIGH_R = (0.068, 0.06, 0.054)
 
 
 def _wear():
-    """[(name, parent, offset, mesh)] or with joints: the tee over the torso, full over the
-    bust, its sleeves loose to mid upper arm; the jeans from the waist over the seat and the
-    thighs, the shins to HEM_AT under the
-    knee, and each wide leg on its hem's hinges from there to over the floor - each a shell
-    LOOSE_M out of her."""
+    """[(name, parent, offset, mesh)] or with joints: the tee, full over the bust, its sleeves
+    to mid upper arm; the jeans over the seat, the thighs, the shins to HEM_AT under the knee,
+    each leg on its hem's hinges on down - shells LOOSE_M out of her."""
     tee, denim = paint(TEE), paint(DENIM)
     b = BAGGY_M - 0.012
     out = [('cloth_tee', 'torso', (0.0, 0.0, 0.0), loft(
@@ -106,7 +108,6 @@ def _wear():
         out += [('cloth_%s_bust' % side, 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2] + b),
                  ellipsoid((0.0, 0.0, 0.0), tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee,
                             rows=8))]
-    drop = SHANK + ANKLE_H - HEM_AT - 0.012
     for side in ('left', 'right'):
         out += [('cloth_%s_sleeve' % side, side + '_upper_arm', (0.0, 0.0, 0.0), loft(
             [(0.04, 0.042, 0.042), (0.0, 0.054, 0.05), (-0.07, 0.052, 0.048),
@@ -119,9 +120,8 @@ def _wear():
                      (-HEM_AT, 0.072, 0.07)], denim, poles=(0.045, -HEM_AT - 0.01))),
                 ('cloth_%s_leg' % side, side + '_shank', ((side + '_hem_x', 'x', 1),
                                                           (side + '_hem_z', 'z', 1)),
-                 (0.0, -HEM_AT, 0.0), loft(
-                     [(0.01, 0.07, 0.068), (-0.1, 0.075, 0.072), (-0.2, 0.08, 0.075),
-                      (-drop, HEM_R[0], HEM_R[1])], denim, poles=(0.02, -drop - 0.004)))]
+                 (0.0, -HEM_AT, 0.0), loft(JEANS_LEG, denim,
+                                           poles=(0.02, JEANS_LEG[-1][0] - 0.02)))]
     return out
 
 

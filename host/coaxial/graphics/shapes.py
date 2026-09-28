@@ -14,12 +14,13 @@ AROUND = 20
 
 
 def loft(rings, material, poles=None, along='y'):
-    """A closed body through elliptical rings (at, rx, rz[, dz]) up its axis, capped at `poles`
-    (default the first and last ring): (corners, triangles, uv, materials) in its part's frame.
-    `along` 'z' lays it forward, a ring's rz then its height and dz its drop."""
+    """A closed body through elliptical rings (at, rx, rz[, dz[, lean]]) up its axis, capped at
+    `poles` (default the first and last ring): (corners, triangles, uv, materials) in its part's
+    frame. `along` 'z' lays it forward, a ring's rz then its height and dz its drop; `lean`
+    raises a ring's front lean * rz and lowers its back as far."""
     from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
     k = np.arange(AROUND) * (2.0 * math.pi / AROUND)
-    rows = [np.stack([r[1] * np.cos(k), np.full(AROUND, float(r[0])),
+    rows = [np.stack([r[1] * np.cos(k), float(r[0]) + (r[4] if len(r) > 4 else 0.0) * r[2] * np.sin(k),
                       r[2] * np.sin(k) + (r[3] if len(r) > 3 else 0.0)], 1) for r in rings]
     low, high = poles or (rings[0][0], rings[-1][0])
     ends = [[0.0, low, rings[0][3] if len(rings[0]) > 3 else 0.0],

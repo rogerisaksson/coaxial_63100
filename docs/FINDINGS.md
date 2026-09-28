@@ -660,14 +660,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   kN (2026-09-28).
 - Her hair on two hinges under her crown, 0.06 kg at 1.8 Hz: 17 degrees
   fore and aft and 6 aside as she walks (2026-09-28).
-- After 100 s of walking she sank into a crouch, the pelvis 172 mm down:
-  at 80 m she stepped off the floor's slab, 3 cm, each landing latching
-  the height lower. The slab runs 10 km; the rise adds the lowered height
-  over 2 s (2026-09-28).
+- After 100 s she sank 172 mm into a crouch: at 80 m she stepped off the
+  floor's slab, each landing latching the height lower. The slab runs 10
+  km (2026-09-28).
 - Her limbs collide (`physics.ME`): floor alone, her sneakers passed 22 mm
-  into each other. A swinging foot is kept off the other where their soles
-  overlap (`landing.clear`); the thighs' spheres pressed 2 kN apart at
-  every passing: that pair is left out (`physics.APART`) (2026-09-28).
+  into each other; a swinging foot is kept off the other (`landing.clear`);
+  the thighs' spheres, 2 kN apart at every passing, are left out
+  (`physics.APART`) (2026-09-28).
 - The swinging hip ran 5 degrees behind its setpoint and caught up into the
   floor, 1.5 kN in 2 ms: the swinging leg's plan leads 20 ms
   (landing.SWING_LEAD_S) (2026-09-28).
@@ -683,12 +682,15 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - After a fall the walk began with the pelvis still lowered, 12 cm, 8-10
   cm crouched: `Walker.reset` on landing (2026-09-28).
 - The swing skims (gait.LIFT_M) 25 mm over the floor, 42 at most, where a
-  bump lifted the foot 130 mm, the knee 75 degrees: she trod the air;
-  levelled at 0.6 of the swing the knee bends once, to 55. The heel up 10
-  degrees as the other lands (gait.RISE_DEG): the knee lands at 13 where
-  33, the head's bob 23 -> 13 mm, the thigh 21 ahead and 11 behind where
-  28 and 6. The landings harder: the look suite's impact 1046-1599 N at
-  0.65-0.9 strides/s where 228-1358 (2026-09-28).
+  bump lifted the foot 130 mm and she trod the air; levelled at 0.6 of the
+  swing the knee bends once, to 55. The heel up 10 degrees as the other
+  lands (gait.RISE_DEG): the knee lands at 13 where 33, the head's bob 13
+  mm where 23; the look suite's impact 1046-1599 N where 228-1358
+  (2026-09-28).
+- The jeans' legs, softly stopped at 14 degrees, swung to 19, the shin 35
+  mm out through their sides, the sneaker 64; stopped stiffly at 5, 8, 3
+  (physics.HEM_*), a 74 mm hem on the vamp: the shin inside, the sneaker
+  5, the other foot 12 in where 16 (2026-09-28).
 - Turned 9 degrees, dropped 6, the spine taking 0.3 of the hips' offset
   back: hips 72 mm across, shoulders 25 (2026-09-28).
 - A 6 cm sill caught the skimming toes and she fell; a swinging foot

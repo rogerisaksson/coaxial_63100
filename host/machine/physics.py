@@ -66,11 +66,14 @@ SOA_RDS, WARM_C = 50.0, 100.0
 CLOTH = {'pelvis': 0.55, 'thigh': 0.55, 'shank': 0.55, 'torso': 0.45, 'upper_arm': 0.45}
 CLOTH_GIVE_M = 0.004
 
-#: A jeans' wide leg hangs `figure.HEM_AT` under the knee, HEM_KG HEM_M further down, on two
-#: hinges - fore and aft, and aside - held to the shin by HEM_K N m/rad, damped by HEM_D N m s/rad
-#: and stopped at HEM_DEG, where the cloth meets the shin. It touches nothing else. Free to 46
-#: degrees it swung the leg's end through the cloth (2026-09-28).
-HEM_M, HEM_KG, HEM_K, HEM_D, HEM_DEG = 0.2, 0.12, 0.6, 0.045, 14.0
+#: A jeans' leg hangs `figure.HEM_AT` under the knee, HEM_KG HEM_M further down, on two hinges -
+#: fore and aft, and aside - held to the shin by HEM_K N m/rad, damped by HEM_D N m s/rad and
+#: stopped within HEM_STOP_S where its cloth meets the leg or the sneaker: its end HEM_FORE_DEG
+#: forward (the heel), HEM_BACK_DEG back (the instep), HEM_SIDE_DEG aside (the ankle). It touches
+#: nothing else. Free to 46 degrees it swung the leg's end through the cloth; stopped at 14,
+#: softly, it swung to 19 and the shin stood 35 mm out of it aside, the sneaker 64 (2026-09-28).
+HEM_M, HEM_KG, HEM_K, HEM_D = 0.2, 0.12, 0.6, 0.045
+HEM_FORE_DEG, HEM_BACK_DEG, HEM_SIDE_DEG, HEM_STOP_S = 5.0, 8.0, 3.0, 0.005
 HEMS = tuple('%s_hem_%s' % (side, axis) for side in ('left', 'right') for axis in 'xz')
 
 #: Her hair's fall hangs from `figure.HAIR_AT`, HAIR_KG HAIR_M under it, on two hinges - fore and
@@ -145,9 +148,11 @@ def mjcf():
             side = name[:-len('_shank')]
             out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)]
             out += ['<joint name="%s_hem_%s" axis="%s" stiffness="%g" damping="%g" '
-                    'armature="0" limited="true" range="%g %g"/>' % (
-                        side, axis, direction, HEM_K, HEM_D, -HEM_DEG, HEM_DEG)
-                    for axis, direction in (('x', '1 0 0'), ('z', '0 0 1'))]
+                    'armature="0" limited="true" range="%g %g" solreflimit="%g 1"/>' % (
+                        side, axis, direction, HEM_K, HEM_D, low, high, HEM_STOP_S)
+                    for axis, direction, low, high in (
+                        ('x', '1 0 0', -HEM_FORE_DEG, HEM_BACK_DEG),
+                        ('z', '0 0 1', -HEM_SIDE_DEG, HEM_SIDE_DEG))]
             out += ['<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
                 -HEM_M, HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG), '</body>']
         if name == 'head':
