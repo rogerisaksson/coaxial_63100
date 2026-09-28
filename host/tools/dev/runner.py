@@ -11,8 +11,8 @@ import time
 
 from tools.dev import counts
 from tools.dev.focus import TALLY_RE, WORKER_GB, Job, kill_tree, relay
-from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, OLLAMA, PORT, ROOT,
-                              SHARDED)
+from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, OLLAMA, PORT, REAL_TIME,
+                              ROOT, SHARDED)
 
 
 # The whole line after FAIL, detail included: a check's detail is the compiler
@@ -27,10 +27,10 @@ ANSI_RE = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]')
 # The ollama suites under --tags say what they left out.
 GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
 
-#: A suite's commit on the relay, GB: the stand-in's own process; the views suite starts a
-#: page's processes by the dozen.
+#: A suite's commit on the relay, GB: the stand-in's own process; the front page's views
+#: suite starts a page's processes by the dozen.
 SUITE_GB = 0.3
-HEAVY_GB = {'test_views.py': 2.0}
+HEAVY_GB = {'test_views_front.py': 2.0}
 
 #: A job's share of a run is half the run's work over the batons, no less than SLICE_S s: a
 #: suite past it goes on as shards side by side, at most MAX_SHARDS - few on the laptop's 8
@@ -126,9 +126,11 @@ def _emulated_here():
     return find_renode() is not None and os.path.exists(ELF) and os.path.exists(BOOT_ELF)
 
 
-def _lock(name):
+def _lock(name, batons):
     """A suite's lock on the relay: the host alone, the board's port, or none."""
-    return 'alone' if name in ALONE else 'port' if name in PORT else None
+    if name in ALONE or (name in REAL_TIME and batons <= 4):
+        return 'alone'
+    return 'port' if name in PORT else None
 
 
 def _jobs(name, args, tags, live_sections, took, share, words=()):
@@ -136,7 +138,7 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
     shards past `share` s, else the suite whole."""
     argv = ([sys.executable, str(ROOT / 'tests' / name)]
             + _extra_for(name, args, tags, live_sections))
-    gb, lock, timeout = HEAVY_GB.get(name, SUITE_GB), _lock(name), _timeout(name)
+    gb, lock, timeout = HEAVY_GB.get(name, SUITE_GB), _lock(name, args.jobs), _timeout(name)
     if words:
         return [Job(name, argv + list(words), gb, timeout, lock)]
     if name == EMULATOR and _emulated_here():

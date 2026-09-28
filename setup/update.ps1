@@ -8,6 +8,11 @@ function Update-Checkout {
         Write-Item 'git pull' 'missing' 'no git - the machine check installs it'
         return
     }
+    # The repo's own hooks: a file grown past the token budget stops a commit (.githooks/).
+    if ((& $git -C $Root config --get core.hooksPath) -ne '.githooks') {
+        & $git -C $Root config core.hooksPath .githooks
+    }
+    Write-Item 'git hooks' 'ok' '.githooks - a file past the token budget stops a commit'
     $branch = (& $git -C $Root symbolic-ref --short -q HEAD)
     if ([string]::IsNullOrWhiteSpace($branch)) {
         Write-Item 'git pull' 'manual' 'detached HEAD - left as it is'

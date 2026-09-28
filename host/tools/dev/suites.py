@@ -8,6 +8,11 @@ ROOT = Path(__file__).resolve().parents[2]           # host/
 # second, and every behavioural suite below it assumes the answer is yes.
 STRUCTURE = 'test_structure.py'
 
+#: The structure family, first in every run: host/ holding together, the tree's shape, the
+#: firmware and the host agreeing - one 17 k-token file before (2026-09-28).
+STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.py',
+              'test_wire_requests.py', 'test_protocol_doc.py')
+
 CORE = 'test_modbus_core.py'
 
 SHTP = 'test_shtp_core.py'
@@ -87,7 +92,11 @@ DAQ_API = 'test_daq_api.py'
 #: node - no board, no compiler, a second (docs/BOOT.md).
 BOOT = 'test_boot.py'
 
-VIEWS = 'test_views.py'
+#: Every live view against the stand-in, by subject: a file a subject, each under the token
+#: budget (tools/dev/token_budget.py); one 32 k-token file before (2026-09-28).
+VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
+         'test_views_drawing.py', 'test_views_gauges.py', 'test_views_thermal.py',
+         'test_views_demo.py')
 
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
@@ -101,11 +110,11 @@ CYCLIC = 'test_cyclic.py'
 
 RENDER = 'test_render.py'
 
-DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
+DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE, BOOT_CORE,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC, BOOT, VIEWS,
-                   RENDER) + OLLAMA
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC, BOOT) + VIEWS
+                  + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
 
@@ -175,7 +184,7 @@ TIERS = tuple(range(STEP, 101, STEP))
 
 def plan_for(percent):
     """(suites, live sections) a percentage buys."""
-    suites = [STRUCTURE] + list(OLLAMA)
+    suites = list(STRUCTURES) + list(OLLAMA)
     suites += [name for at, name in JOINS if percent >= at]
 
     if percent >= LIVE_ALL_FROM:
@@ -193,12 +202,17 @@ NEEDS_BOARD = (CONFORMANCE,)
 #: suite measures the link's own rates, conformance its frame gaps.
 ALONE = (BENCH, CONFORMANCE, LIVE)
 
+#: Suites that hold a board to the wall's time, a page drawing beside it: alone where the host
+#: has four batons or fewer - CI's runner stood native's attitude page 4.7-8.3 s beside the
+#: others while it drew on (2026-09-28).
+REAL_TIME = (NATIVE,)
+
 #: Suites that may reach the board's port: one at a time, beside the rest.
 PORT = ('test_mcp.py', 'test_parity.py')
 
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
-SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, VIEWS, 'test_simulated.py',
+SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, 'test_simulated.py',
            DAQ_API)
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
@@ -227,7 +241,7 @@ TOUCHES = (
     ('host/coaxial/comm/ports.py',             (BROKER, 'test_mcp.py',
                                                 'test_ollama_link.py')),
     ('host/coaxial/rig.py',                    (DAQ_API, 'test_simulated.py',
-                                                VIEWS)),
+                                                *VIEWS)),
     ('host/coaxial/acquire/record.py',         (DAQ_API,)),
     ('host/coaxial/acquire/fanout.py',         (DAQ_API, BROKER)),
     ('host/coaxial/acquire/reader.py',         (DAQ_API,)),
@@ -240,8 +254,8 @@ TOUCHES = (
     # The pure character renderers: a reading in, text out.
     ('host/coaxial/draw/orientation.py',       ('test_simulated.py', 'test_mcp.py',
                                                 RENDER)),
-    ('host/coaxial/graphics/engine.py',        (RENDER, VIEWS)),
-    ('host/coaxial/graphics/wireframe.py',     (RENDER, VIEWS)),
+    ('host/coaxial/graphics/engine.py',        (RENDER, *VIEWS)),
+    ('host/coaxial/graphics/wireframe.py',     (RENDER, *VIEWS)),
     ('host/coaxial/draw/ascii3d.py',           ('test_simulated.py',)),
     ('host/coaxial/draw/desk.py',              ('test_simulated.py',)),
     ('host/coaxial/draw/dial.py',              ('test_simulated.py',)),
@@ -251,17 +265,17 @@ TOUCHES = (
     ('host/machine/cyclic.py',                 (CYCLIC,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py')),
-    ('host/coaxial/graphics/gynoid.py',        (RENDER, VIEWS, GYNOID)),
+    ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/node.py',                   (CONTROLLER, 'test_mcp.py')),
     ('host/coaxial/devices/ctrl.py',           (CONTROLLER, STRUCTURE)),
     ('host/coaxial/simulated/ctrl.py',         (CONTROLLER, STRUCTURE)),
-    ('host/terminal/views/show_session.py',    (VIEWS,) + OLLAMA),
-    ('host/terminal/views/session/',           (VIEWS,) + OLLAMA),
+    ('host/terminal/views/show_session.py',    VIEWS + OLLAMA),
+    ('host/terminal/views/session/',           VIEWS + OLLAMA),
     # A live view is a loop, a screen and a cable around a renderer that is
     # tested on its own.
-    ('host/terminal/views/',                   (STRUCTURE, VIEWS,
+    ('host/terminal/views/',                   (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
-    ('host/terminal/ui/',                      (STRUCTURE, VIEWS,
+    ('host/terminal/ui/',                      (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
     ('host/tools/cores/build.py',              (CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE,
                                                 BOOT_CORE, CTRL_CORE)),
@@ -360,5 +374,5 @@ FULL_EVERY = 10
 #: six together, so asking the model costs a 7.6 GB load longer than the
 #: run. Where the map has an explicit rule it is also the better answer,
 #: written by someone reading the imports.
-CHEAP = frozenset({STRUCTURE, CORE, SHTP, DRIVE, SENSORLESS,
-                   'test_simulated.py', VIEWS, RENDER})
+CHEAP = frozenset({*STRUCTURES, CORE, SHTP, DRIVE, SENSORLESS,
+                   'test_simulated.py', *VIEWS, RENDER})

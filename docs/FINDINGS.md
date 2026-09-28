@@ -281,32 +281,23 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   after: its regime came off the step `travel` made since the last draw, none
   between feed samples. Off the rotor's speed now, in proportion to it above 30
   rpm: 0 (2026-09-28).
-- The offline gate ran 544 s with the cores 17 % busy: a job a suite, the
-  three longest 99-137 s at its end, native, the emulator and mcp alone one
-  after another behind them. One relay now - the long suites as shards past
-  half the run's work over the batons, the emulator's groups a job each, the
-  port's suites one at a time under a lock - 224 s, 31 %, the same 3 876
-  checks (2026-09-28).
-- The attitude page stood still 5 s at a time after a while in the terminal:
-  the front page's link watcher, alive beside every page in the one process,
-  opened a session on native:// every 30 s - its hand-off into binary between
-  the page's request and its reply. Every 0.5 s the page never opened. A
-  board on an emulated URL is the process's own: asked once now
-  (2026-09-28).
-- The attitude page froze on native://: 3 reads of the BNO085 in 80 frames.
-  The limb ran its boards a ctypes call a millisecond of their time, each
-  waiting on the page's drawing for the interpreter: 1.20 board s in 5.60
-  wall s, and every write first ran the board up to the wall. One call a
-  burst now (native_lockstep), 50 ms the most: 7.02 in 7.02, 72 attitudes in
-  80 frames. emulator:// kept its 35 reads: Renode is a process of its own
-  (2026-09-28).
-- CI's 3.12 counted a FAIL in the views on 332a3fc and named none: a page drawn
-  in-process leaves its footer or a screen clear on the line the next report
-  lands on, 4 of 273 lines, and the runner matched FAIL at a line's start. The
-  line's first marker, escapes stripped, now. Under a 0.4 s stall every tenth
-  frame the bead's rank correlation read 0.80: its step over the rows' clock,
-  which a stall inside compose puts a frame apart from the page's. Over its own
-  dt: 1.00 stalled and not (2026-09-28).
+- A file read whole past 6 k tokens costs a tenth of a window: 38 of ours,
+  test_views 32 k, test_structure 17 k. Split by subject (split_suite.py), the
+  rest capped; test_structure and the pre-commit hook hold it (2026-09-28).
+- The offline gate: 544 s at 17 % busy, a job a suite, three suites alone at
+  its end. One relay, shards past half its work over the batons, the
+  emulator's groups a job each: 224 s at 31 % (2026-09-28).
+- The attitude page stood 5 s at a time in the terminal: the front page's
+  link watcher, alive in the same process, opened a session on native:// every
+  30 s between a request and its reply. Asked once now (2026-09-28).
+- The attitude page froze on native://, 3 reads in 80 frames: a ctypes call a
+  millisecond of board time, each waiting on the drawing for the interpreter,
+  held the board to 21 %. One call a burst (native_lockstep): 100 %, 72
+  attitudes in 80 frames (2026-09-28).
+- A FAIL behind a page's leftover footer or screen clear went unnamed: the
+  runner takes a line's first marker now, escapes stripped. The bead's rank
+  correlation read 0.80 under stalls over the rows' clock; over its own dt
+  1.00 (2026-09-28).
 - A `Feed` slept its period after the read: a 20 ms read at 50 ms fed 14
   readings a second to a 20 fps page. Start to start now (2026-09-28).
 - Entering `coaxial` through `coaxial.comm.session` broke the package's own

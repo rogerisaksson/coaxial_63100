@@ -1,0 +1,5 @@
+#!/bin/sh
+# The repo's pre-commit (setup.ps1 points git here): a staged file grown past the token budget
+# a model reads a file whole by stops the commit, named with the way to split it
+# (host/tools/dev/pre_commit.py).
+exec python -X utf8 host/tools/dev/pre_commit.py

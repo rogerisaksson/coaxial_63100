@@ -428,7 +428,7 @@ def test_smart_selection(report):
                  'joins at %d %%' % table.LIVE_FROM)
 
     # The four named switches are what everybody types.
-    for percent, expect in ((25, {table.STRUCTURE, table.CORE,
+    for percent, expect in ((25, {*table.STRUCTURES, table.CORE,
                                   table.SHTP, 'test_simulated.py',
                                   table.DRIVE, table.FILTER,
                                   table.THERMAL, table.BOOT_CORE, table.CTRL_CORE, table.WORLD_CORE, table.WIRE,
@@ -436,7 +436,7 @@ def test_smart_selection(report):
                                   table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS,
                                   table.CYCLIC, table.BOOT,
                                   } | set(table.OLLAMA)),
-                            (75, {table.STRUCTURE, table.CORE,
+                            (75, {*table.STRUCTURES, table.CORE,
                                   table.SHTP, 'test_simulated.py',
                                   table.DRIVE, table.FILTER,
                                   table.THERMAL, table.BOOT_CORE, table.CTRL_CORE, table.WORLD_CORE, table.WIRE,

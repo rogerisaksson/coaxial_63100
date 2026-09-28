@@ -5,7 +5,7 @@ from coaxial_ollama import client as clientmod
 from coaxial_ollama.capability import choose, probe
 from tools.dev import pick_tests
 from tools.dev.suites import (CHEAP, CONFORMANCE, DEFAULT_SUITES, FULL_EVERY, LIVE, OLLAMA, ROOT,
-                              STRUCTURE, TOUCHES, plan_for)
+                              STRUCTURES, TOUCHES, plan_for)
 
 
 # Every tag this run put on the card, so one `finally` can hand them back.
@@ -57,7 +57,7 @@ def _within_tier(args, live_sections):
         return live_sections
 
     allowed, sections = plan_for(args.coverage)
-    keep = set(allowed) | {STRUCTURE} | set(OLLAMA)
+    keep = set(allowed) | set(STRUCTURES) | set(OLLAMA)
     dropped = [name for name in args.file if name not in keep]
 
     args.file = [name for name in args.file if name in keep]
@@ -93,8 +93,8 @@ def _ask_model(args, live_sections):
         return None, live_sections
 
     # Structure is not the model's to drop.
-    args.file = [STRUCTURE] + [f for f in plan.suites
-                               if f not in (LIVE, STRUCTURE)]
+    args.file = list(STRUCTURES) + [f for f in plan.suites
+                                    if f not in (LIVE,) + STRUCTURES]
     tags = ','.join(plan.tags) or None
     live_sections = '' if plan.live == 'none' else plan.live
     args.live = bool(live_sections)
@@ -169,7 +169,7 @@ def _plan(args):
     live_sections = 'all'
     tags = args.tags
     if args.structure:
-        args.file, args.smart, args.live = [STRUCTURE], False, False
+        args.file, args.smart, args.live = list(STRUCTURES), False, False
     if args.match:
         # One live row and nothing else.
         args.file, args.smart, args.live = [LIVE], False, True

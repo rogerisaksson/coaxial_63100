@@ -12,7 +12,7 @@ counted.
     python tools/dev/run_tests.py --conformance    # + test_conformance.py (needs a real board)
     python tools/dev/run_tests.py --live           # + test_live_model.py (board AND ollama)
     python tools/dev/run_tests.py --file test_mcp.py
-    python tools/dev/run_tests.py --file test_native.py:sto,lets --file test_views.py
+    python tools/dev/run_tests.py --file test_native.py:sto,lets --file test_views_demo.py
 
 Exit code is 0 only if every requested suite ran and nothing in it failed.
 """
@@ -29,7 +29,7 @@ from tools.dev.focus import physical_cores
 from tools.dev.runner import _results
 from tools.dev.scope import _plan, hold_model, release_model
 from tools.dev.suites import (ALL_SUITES, ALONE, CONFORMANCE, DEFAULT_SUITES,
-                              FULL_EVERY, LIVE, NEEDS_BOARD, ROOT, STRUCTURE, TIERS)
+                              FULL_EVERY, LIVE, NEEDS_BOARD, ROOT, STRUCTURES, TIERS)
 from tools.target import find_board
 
 #: Suites on the relay (tools.dev.focus), a baton a physical core, the longest first, as the
@@ -129,8 +129,8 @@ def _run(args, tags, live_sections):
         suites.append(LIVE)
     if args.offline:
         suites = [name for name in suites if name not in NEEDS_BOARD]
-    if STRUCTURE not in suites and not args.match and not args.only:
-        suites.insert(0, STRUCTURE)
+    if not args.match and not args.only:
+        suites[:0] = [name for name in STRUCTURES if name not in suites]
 
     # The model is held here, released in the finally.
     holding = LIVE in suites
