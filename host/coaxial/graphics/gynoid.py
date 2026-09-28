@@ -13,11 +13,12 @@ tee, jeans and sneakers (`_wear`), loose over her; a drum under the cloth shows 
 on it at the drum's ends.
 """
 import math
+from typing import Any
 
 from coaxial.graphics import engine
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, NOISE
 from machine import ansi, drives, figure
-from machine.figure import TOE_RY
+from machine.figure import HEM_AT, TOE_RY
 from machine.gait import ANKLE_H, BALL, SHANK, THIGH
 
 #: A corner's material, as `gpu.LIT_WGSL` colours it; past PAINTED the colour it wears.
@@ -142,16 +143,19 @@ def _drums():
     return out
 
 
-#: Her clothes' colours, and how far out of her they hang, m: jeans a mid-blue wash, a white tee,
-#: white sneakers; a patch reaches PATCH_M round a drum's end.
-DENIM, TEE, SNEAKER = (66, 98, 150), (226, 226, 222), (236, 236, 232)
-LOOSE_M, PATCH_M = 0.012, 0.034
+#: Her clothes' colours, and how far out of her they hang, m: high-waisted jeans in a light wash,
+#: a white tank, white sneakers; a patch reaches PATCH_M round a drum's end. The jeans' legs
+#: widen from under the knee to a hem HEM_R round a hand over the floor, hung from the hems'
+#: hinges (`physics.HEMS`) so they swing on their own.
+DENIM, TEE, SNEAKER = (118, 150, 182), (230, 230, 226), (236, 236, 232)
+LOOSE_M, PATCH_M, HEM_R = 0.012, 0.04, (0.088, 0.082)
 
 
 def _wear():
-    """[(name, parent, offset, mesh)]: the tee over the torso, its sleeves to mid upper arm, the
-    jeans over the pelvis, the thighs and the shanks to above the ankle - each a shell LOOSE_M
-    out of her, the tee's front full over the bust."""
+    """[(name, parent, offset, mesh)] or with joints: the tank over the torso, full over the
+    bust; the jeans from the waist over the seat and the thighs, the shins to HEM_AT under the
+    knee, and each wide leg on its hem's hinges from there to over the floor - each a shell
+    LOOSE_M out of her."""
     tee, denim = paint(TEE), paint(DENIM)
     out = [('cloth_tee', 'torso', (0.0, 0.0, 0.0), _loft(
         [(-0.03, 0.104, 0.077), (0.047, 0.108, 0.080), (0.093, 0.117, 0.087, 0.002),
@@ -159,19 +163,22 @@ def _wear():
          (0.307, 0.150, 0.082), (0.344, 0.152, 0.074), (0.366, 0.112, 0.064)], tee,
         poles=(-0.036, 0.378))),
            ('cloth_seat', 'pelvis', (0.0, 0.0, 0.0), _loft(
-               [(-0.10, 0.066, 0.059), (-0.07, 0.126, 0.091, -0.006), (-0.03, 0.161, 0.106, -0.014),
-                (0.02, 0.159, 0.101, -0.008), (0.07, 0.133, 0.089)], denim,
-               poles=(-0.115, 0.082)))]
+               [(-0.10, 0.064, 0.057), (-0.07, 0.124, 0.089, -0.006), (-0.03, 0.159, 0.104, -0.014),
+                (0.02, 0.157, 0.099, -0.008), (0.07, 0.131, 0.087), (0.11, 0.108, 0.078)], denim,
+               poles=(-0.115, 0.118)))]
+    drop = SHANK + ANKLE_H - HEM_AT - 0.012
     for side in ('left', 'right'):
-        out += [('cloth_%s_sleeve' % side, side + '_upper_arm', (0.0, 0.0, 0.0), _loft(
-            [(0.03, 0.03, 0.03), (0.0, 0.046, 0.044), (-0.06, 0.044, 0.042),
-             (-0.12, 0.042, 0.040)], tee, poles=(0.04, -0.125))),
-                ('cloth_%s_thigh' % side, side + '_thigh', (0.0, 0.0, 0.0),
+        out += [('cloth_%s_thigh' % side, side + '_thigh', (0.0, 0.0, 0.0),
                  _limb(THIGH, 0.064 + LOOSE_M, 0.055 + LOOSE_M, 0.05 + LOOSE_M, denim,
                        bulge_at=0.22)),
-                ('cloth_%s_shank' % side, side + '_shank', (0.0, 0.0, 0.0),
-                 _limb(SHANK - 0.045, 0.05 + LOOSE_M, 0.056 + LOOSE_M, 0.042, denim,
-                       bulge_at=0.3))]
+                ('cloth_%s_shin' % side, side + '_shank', (0.0, 0.0, 0.0), _loft(
+                    [(0.03, 0.05, 0.05), (0.0, 0.062, 0.062), (-0.06, 0.066, 0.064),
+                     (-HEM_AT, 0.068, 0.066)], denim, poles=(0.045, -HEM_AT - 0.01))),
+                ('cloth_%s_leg' % side, side + '_shank', ((side + '_hem_x', 'x', 1),
+                                                          (side + '_hem_z', 'z', 1)),
+                 (0.0, -HEM_AT, 0.0), _loft(
+                     [(0.01, 0.066, 0.064), (-0.1, 0.072, 0.069), (-0.2, 0.08, 0.075),
+                      (-drop, HEM_R[0], HEM_R[1])], denim, poles=(0.02, -drop - 0.004)))]
     return out
 
 
@@ -265,10 +272,19 @@ def _meshes():
 
 def _parts():
     """(name, parent, joints ((joint, axis, sign), ..), offset, rest turn about z (deg), mesh):
-    the figure's segments, then the parts it carries without a joint; parents first."""
+    the figure's segments, then the parts it carries - on joints of their own, the jeans' legs on
+    their hems' - parents first."""
     meshes, extra = _meshes()
     out = [(seg[0], seg[1], seg[2], seg[3], seg[4], meshes[seg[0]]) for seg in figure.SEGMENTS]
-    return out + [(name, parent, (), offset, 0.0, mesh) for name, parent, offset, mesh in extra]
+    return out + [(name, parent, joints, offset, 0.0, mesh)
+                  for name, parent, *rest in extra for joints, offset, mesh in [_split(rest)]]
+
+
+def _split(rest) -> tuple[Any, Any, Any]:
+    """(joints, offset, mesh) of an extra part's (offset, mesh) or (joints, offset, mesh)."""
+    if len(rest) == 3:
+        return rest[0], rest[1], rest[2]
+    return (), rest[0], rest[1]
 
 
 #: The foot's rings forward of the ankle, (z, half width, half height): each hung so its

@@ -17,6 +17,9 @@ MASS_KG = 55.0
 #: The toes' joint over the sole, metres.
 TOE_RY = 0.014
 
+#: Her jeans' wide legs hang from HEM_AT under the knees, metres (`physics.HEMS`).
+HEM_AT = 0.12
+
 
 def _sides():
     out = []

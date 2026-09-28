@@ -22,7 +22,7 @@ from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Feedback
 from machine.errors import MachineError
-from machine.figure import CONTACTS, JOINTS, MASS_KG, SEGMENTS
+from machine.figure import CONTACTS, HEM_AT, JOINTS, MASS_KG, SEGMENTS
 from machine.machine import Actuator
 from machine.nodes import Module, Node
 from machine.parts import Direct, Gain
@@ -59,6 +59,12 @@ SOA_RDS, WARM_C = 50.0, 100.0
 #: the soles the sneakers'. The cloth gives CLOTH_GIVE_M over its padding before it bears.
 CLOTH = {'pelvis': 0.55, 'thigh': 0.55, 'shank': 0.55, 'torso': 0.45, 'upper_arm': 0.45}
 CLOTH_GIVE_M = 0.004
+
+#: A jeans' wide leg hangs `figure.HEM_AT` under the knee, HEM_KG HEM_M further down, on two
+#: hinges - fore and aft, and aside - held to the shin by HEM_K N m/rad and damped by HEM_D
+#: N m s/rad: with gravity's 0.24 it swings at 1.7 Hz, a quarter of critical. It touches nothing.
+HEM_M, HEM_KG, HEM_K, HEM_D = 0.2, 0.12, 0.3, 0.035
+HEMS = tuple('%s_hem_%s' % (side, axis) for side in ('left', 'right') for axis in 'xz')
 
 #: The soles' friction: sliding, and turning in place (m) - a point of contact turns freely, and
 #: on its ball's edge the stance foot spun under the swinging leg (2026-09-25).
@@ -123,6 +129,14 @@ def mjcf():
                            'condim="4" friction="%g %g 0.001"%s/>' % (
                                (shape, ' '.join('%g' % v for v in size)) + tuple(at)
                                + (CLOTH.get(part, FRICTION), TORSION_M, felt)))
+        if name.endswith('_shank'):
+            side = name[:-len('_shank')]
+            out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)]
+            out += ['<joint name="%s_hem_%s" axis="%s" stiffness="%g" damping="%g" '
+                    'armature="0"/>' % (side, axis, direction, HEM_K, HEM_D)
+                    for axis, direction in (('x', '1 0 0'), ('z', '0 0 1'))]
+            out += ['<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
+                -HEM_M, HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG), '</body>']
         for kid in kids.get(name, []):
             out += body(kid)
         return out + ['</body>']
@@ -174,6 +188,7 @@ class World:
         self.data = mujoco.MjData(self.model)
         m = self.model
         self.qadr = np.array([m.jnt_qposadr[m.joint(j).id] for j in JOINTS])
+        self.hems = np.array([m.jnt_qposadr[m.joint(j).id] for j in HEMS])
         self.vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
         self.gains = np.array([SERVO[kind(j)][1:3] for j in JOINTS])
         self.peak = np.array([min(SERVO[kind(j)][0], drives.peak(j)) if CLAMPED
@@ -426,6 +441,10 @@ class World:
     def angle(self, index):
         """(degrees, deg/s) of a joint as its board last answered the host."""
         return self.reading(index)[:2]
+
+    def cloth(self):
+        """{hinge: degrees} of the jeans' legs hanging from her shins (`HEMS`)."""
+        return dict(zip(HEMS, map(math.degrees, self.data.qpos[self.hems])))
 
     def pose(self):
         """The pelvis and the body: place, turn (quaternion), speeds (world), the centre of mass,

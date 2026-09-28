@@ -731,9 +731,12 @@ def test_a_drive_keeps_its_heat(report):
 
 
 def test_a_drive_in_its_soa(report):
-    """A knee's board run into its SOA (`World.glitch`): its gates drop under load, the director
-    hears it on the bus and arms it again, its derate given back as it cools, and she walks on."""
-    from machine import Machine, heat
+    """A knee's board run hard into its SOA as it takes her weight (its gate drive failed a
+    moment): its gates drop under load, the director hears it on the bus and arms it again, its
+    derate given back as it cools, and she walks on. At `physics.SOA_RDS` its envelope derates it
+    before its ceiling."""
+    from machine import Machine, heat, physics
+    physics.SOA_RDS, was_rds = FAILED_RDS, physics.SOA_RDS
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -744,24 +747,28 @@ def test_a_drive_in_its_soa(report):
     body.loop.step(0.0)
     world, bus = body.nodes['pelvis'].world, body.loop.bus
     knee = director.drives['left_knee']
-    dropped, armed, least, lowest = None, None, 1.0, 9.0
+    dropped, armed, least, lowest, laid, was = None, None, 1.0, 9.0, None, 0.0
     while bus['t'] < 4.0:
-        if 1.0 <= bus['t'] < 1.001:
-            world.glitch('left_knee', 'soa', 0.5)
+        if laid is None and bus['t'] >= 1.0 and was < FAILED_AT <= director.walker.phase:
+            world.glitch('left_knee', 'soa', FAILED_S)
+            laid = bus['t']
+        was = director.walker.phase
         body.loop.write(**director.step(0.001))
         body.loop.step(0.001)
         on = int(bus[knee + 'status']) & heat.GATES_ON
         dropped = bus['t'] if not on and dropped is None else dropped
         armed = bus['t'] if on and dropped is not None and armed is None else armed
         least, lowest = min(least, bus[knee + 'derate']), min(lowest, bus['pelvis.pose.y'])
-    report.check('in its SOA its gates dropped, heard, and armed again within 0.1 s',
-                 dropped is not None and 1.0 <= dropped < 1.5 and armed is not None
-                 and armed - dropped < 0.1, 'dropped %s, armed %s' % (dropped, armed))
+    report.check('in its SOA, laid in its stance, its gates dropped, heard, and armed again '
+                 'within 0.1 s', laid is not None and dropped is not None
+                 and laid <= dropped < laid + 0.5 and armed is not None and armed - dropped < 0.1,
+                 'laid %s, dropped %s, armed %s' % (laid, dropped, armed))
     report.check('derated to %.2f and given back to %.2f by 4 s, walking on over 2 m' % (
                      least, bus[knee + 'derate']),
                  least < 0.5 < bus[knee + 'derate'] and lowest > 0.7
                  and bus['pelvis.pose.z'] > 2.0, 'lowest %.2f m, %.2f m on' % (
                      lowest, bus['pelvis.pose.z']))
+    physics.SOA_RDS = was_rds
     body.disarm()
 
 
@@ -802,6 +809,12 @@ def test_a_trip_lands_on_her_hands(report):
     report.check('her hands first on the floor, her head never', first is not None
                  and first.endswith('hand') and not head, 'first %s, head %s' % (first, head))
     body.disarm()
+
+
+#: A gate drive failed low for FAILED_S from FAILED_AT of the left leg's stride - the knee taking
+#: her weight as it lands - its switches FAILED_RDS times their on-resistance. At mid-stance, 0.25,
+#: the knee straight, it asked too little of them to trip in 0.1 s (2026-09-28).
+FAILED_RDS, FAILED_S, FAILED_AT = 500.0, 0.15, 0.05
 
 
 def test_the_pendulum_between_her_ears(report):
