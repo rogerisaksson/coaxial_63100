@@ -697,7 +697,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   (gait.TOE_OUT_DEG) takes 6.0 in stance and the thigh 24.6 ahead at the
   landing where it stood 27.8; at 9 out, or the swing's turn at 4, she fell.
   The ankle rolls 4.6 degrees under a flat foot; the tracks 30-40 mm and the
-  pelvis's roll at 3 left it at 4.4-4.9 (2026-09-28).
+  pelvis's roll at 3 left it at 4.4-4.9; the feet rolled 2 or 3 degrees onto
+  their outer edges took it to 3.2 and 2.0 and she caught herself from 10 s
+  (2026-09-28).
 - The lace fall's head: the lace held her trailing foot, she dove onto her
   hands with her legs straight behind, her arms gave, and with the chin
   down 40 degrees her head met the floor at 0.85 m/s. The waist's turn at 0,

@@ -191,6 +191,8 @@ def main(argv=None):
     parser.add_argument('--halt', type=float, help='halted at this second, into the squat')
     parser.add_argument('--event', help='a floor event laid: hole, sill, slip, rug, lace, soa, hot')
     parser.add_argument('--event-at', type=float, default=EVENT_S, help='laid from this second')
+    parser.add_argument('--brief', action='store_true',
+                        help="the stages in a line and the walk's measures: no tables")
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     path = args.csv or (max(glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')),
@@ -201,6 +203,10 @@ def main(argv=None):
     print(path or 'simulated from the squat, %.1f s %s' % (
         args.to, ' '.join(args.knobs)))
     groups, ref = staged(rows)
+    if args.brief:
+        print(' '.join('%s@%.2f' % (stage, float(mine[0]['t'])) for stage, mine in groups))
+        walked(rows)
+        return 0
     print('%-14s %6s | %s' % ('moment', 'from s', ' | '.join(
         '%-15s' % ('%s %s' % (name, unit)) for name, unit, _f in MEASURES)))
     for stage, mine in groups:
