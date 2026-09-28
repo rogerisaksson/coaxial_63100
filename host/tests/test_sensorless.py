@@ -134,13 +134,16 @@ def test_budget(r):
     noisy = sensorless.choose_injection(20e-6, 30e-6, 0.3, 50000.0, 50.0,
                                         24.0, 10.0)
     quiet, capped, noisy = must(quiet), must(capped), must(noisy)
-    r.check('a quiet AFE gets fs/2 and a small amplitude at the target SNR',
-            quiet['periods'] == 1 and quiet['limited_by'] == 'target'
-            and abs(quiet['snr_db'] - 20.0) < 0.01 and quiet['v_inj'] < 0.5,
-            quiet)
-    r.check('under a current ceiling a noisy AFE still gets fs/2, backed '
-            'off to the target',
-            capped['periods'] == 1 and capped['v_inj'] < 2.0, capped)
+    r.check('a quiet AFE gets fs/2 and a small amplitude, backed off toward the target SNR '
+            'no further than keeps an update linear',
+            quiet['periods'] == 1 and quiet['limited_by'] == 'linearity'
+            and quiet['snr_db'] >= 20.0 and quiet['v_inj'] < 0.5
+            and abs(sensorless.update_noise(0.005, 1) / quiet['gain']
+                    - sensorless.UPDATE_SD_MAX) < 1e-9, quiet)
+    r.check('under a current ceiling a noisy AFE still gets fs/2, at the ceiling: backed '
+            'off, an update\'s noise would pass the wrap',
+            capped['periods'] == 1 and capped['limited_by'] == 'current'
+            and abs(capped['v_inj'] - 2.0) < 1e-9, capped)
     r.check('under the voltage headroom it gets more periods and a better '
             'SNR than fs/2 gave',
             noisy['periods'] > 1

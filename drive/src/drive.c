@@ -11,7 +11,12 @@
 #define TWO_PI_F  6.2831853f
 #define INV_SQRT3 0.57735027f
 
+/** The back-EMF's speed filter, s: thirty of the current loop's 64 us, so a torque step's
+    L di/dt, which the magnitude does not subtract, passes as a thirtieth of itself. */
+#define BEMF_TAU_S 0.002f
+
 static float bemf_weight(const drive_t *d, float speed);
+static float rotor_speed(const drive_t *d);
 
 void drive_defaults(drive_params_t *p)
 {
@@ -57,6 +62,8 @@ static void loop_reset(drive_t *d)
   d->ih = 0.0f;
   d->fb_fill = 0U;
   memset(d->sign_hist, 0, sizeof(d->sign_hist));
+  memset(d->cos_hist, 0, sizeof(d->cos_hist));
+  memset(d->sin_hist, 0, sizeof(d->sin_hist));
 }
 
 void drive_init(drive_t *d, float ts)
@@ -131,7 +138,7 @@ const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
     /* Out of the rotor observer's frame above the back-EMF's speed: the command
        frame starts on the rotor, and its ramp carries it; else at the setpoint's
        angle, standing. */
-    const bool turning = (d->mode == DRIVE_SENSORLESS) && (bemf_weight(d, d->omega_hat) > 0.0f);
+    const bool turning = (d->mode == DRIVE_SENSORLESS) && (bemf_weight(d, rotor_speed(d)) > 0.0f);
 
     d->theta_cmd = turning ? d->theta_hat : drive_wrap(d->sp.theta);
     d->omega_cmd = turning ? d->omega_hat : 0.0f;
@@ -233,6 +240,14 @@ static float bemf_weight(const drive_t *d, float speed)
   return clampf((w - d->p.w_lo) / (d->p.w_hi - d->p.w_lo), 0.0f, 1.0f);
 }
 
+/** The rotor's speed as its back-EMF says it, the estimate's where lambda is unknown. Weighed
+    by the estimate's own speed, noise at rest past w_hi handed over to a back-EMF of nothing,
+    which read back the drive's feed-forward and held the estimate there (2026-09-28). */
+static float rotor_speed(const drive_t *d)
+{
+  return (d->p.lambda > 0.0f) ? d->bemf_speed : d->omega_hat;
+}
+
 /** The feedback the loop acts on: the raw dq, or their mean over one
     injection cycle so the HF ripple does not reach the PI and come back out
     as an fs/2 voltage the demodulator would read as inductance. */
@@ -272,30 +287,31 @@ static void feedback(drive_t *d, float id_raw, float iq_raw, bool injecting,
 }
 
 /** The demodulator. */
-static bool demodulate(drive_t *d, float alpha, float beta, float th,
-                       float id_raw, float iq_raw, uint16_t n)
+static bool demodulate(drive_t *d, float alpha, float beta, uint16_t n)
 {
-  float idi = id_raw;
-  float iqi = iq_raw;
-
-  if (d->p.inj_phase != 0.0f)
-  {
-    drive_park(alpha, beta, th + d->p.inj_phase, &idi, &iqi);
-  }
-
-  const float s = d->sign_hist[(d->periods - PIPELINE) & 3U];
+  const uint32_t at = (d->periods - PIPELINE) & 3U;
+  const float s = d->sign_hist[at];
 
   /* Every difference counts and the cycles abut: 2n consecutive differences
      see n of each sign whatever the alignment, which is what cancels the
-     fundamental. */
+     fundamental. Each is taken stationary and read along the axis its step was
+     injected on: a difference of currents each rotated into its own frame read
+     the frame's turn under the fundamental as angle - at the demo's handover 12 A
+     of d current fed 4.4 of each correction back, the estimate a pole off
+     (2026-09-28). */
   if (d->have_prev)
   {
-    d->acc_q += s * (iqi - d->iq_prev);
-    d->acc_d += s * (idi - d->id_prev);
+    const float da = alpha - d->alpha_prev;
+    const float db = beta - d->beta_prev;
+    const float c = d->cos_hist[at];
+    const float sn = d->sin_hist[at];
+
+    d->acc_d += s * (da * c + db * sn);
+    d->acc_q += s * (db * c - da * sn);
     d->cyc_count++;
   }
-  d->iq_prev = iqi;
-  d->id_prev = idi;
+  d->alpha_prev = alpha;
+  d->beta_prev = beta;
   d->have_prev = true;
 
   if (d->cyc_count < (uint16_t)(2U * n))
@@ -353,14 +369,32 @@ static float bemf_error(drive_t *d, float alpha, float beta, float w,
   return drive_atan2(-ed * sg, eq * sg);
 }
 
+/** |back-EMF| in the loop's frame turning at `w_frame`, V: the fundamental the loop drove
+    less what R and the frame's turn take of its current, the injection's ripple averaged out
+    of both - through R the raw ripple read 10 rad/s at rest at 2 V. */
+static float bemf_magnitude(const drive_t *d, float w_frame)
+{
+  const float ed = d->vd - d->p.r * d->id + w_frame * d->p.lq * d->iq;
+  const float eq = d->vq - d->p.r * d->iq - w_frame * d->p.ld * d->id;
+
+  return sqrtf(ed * ed + eq * eq);
+}
+
 static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
                            bool cycle_done, float w, float c, float s)
 {
+  const bool cmd_frame = (d->mode == DRIVE_HOLD) || (d->mode == DRIVE_VOLT);
   const float e_b = bemf_error(d, alpha, beta, w, c, s);
   bool have = false;
   float e = 0.0f;
 
   d->e_bemf = e_b;
+  if (d->p.lambda > 0.0f)
+  {
+    const float mag = bemf_magnitude(d, cmd_frame ? d->omega_cmd : d->omega_hat);
+
+    d->bemf_speed += (mag / d->p.lambda - d->bemf_speed) * (d->ts / BEMF_TAU_S);
+  }
   if ((d->mode == DRIVE_SENSORLESS) && injecting)
   {
     if (cycle_done && (d->p.eps_gain != 0.0f))
@@ -369,8 +403,10 @@ static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
       have = true;
     }
   }
-  else if (w > 0.0f)
+  else if ((w > 0.0f) && (d->mode != DRIVE_OFF) && (d->mode != DRIVE_POLARITY))
   {
+    /* Past the injection, or a command frame past the back-EMF's speed: the estimate on
+       the back-EMF. Off or pulsing, nothing is driven to read it by. */
     e = e_b;
     have = true;
   }
@@ -520,8 +556,11 @@ static void injection_idle(drive_t *d)
   d->ih = 0.0f;
 }
 
-/* The fundamental's dq voltage for the mode. */
-static void fundamental(drive_t *d, float id, float iq, float id_raw, float vmax,
+/* The fundamental's dq voltage for the mode. Sensorless, the loop's speed is the estimate's
+   back-EMF share `w`: at rest the injection's estimate steps each update, and fed forward as
+   w lambda it moved the current the demodulator reads as angle - 2 306 rad/s from rest at a
+   400 Hz PLL, native's -8 000 with 16 A (2026-09-28). The PI carries the back-EMF below w_lo. */
+static void fundamental(drive_t *d, float id, float iq, float id_raw, float vmax, float w,
                         float *vd, float *vq)
 {
   switch (d->mode)
@@ -534,7 +573,7 @@ static void fundamental(drive_t *d, float id, float iq, float id_raw, float vmax
       current_loop(d, id, iq, vmax, d->omega_cmd, vd, vq);
       break;
     case DRIVE_SENSORLESS:
-      current_loop(d, id, iq, vmax, d->omega_hat, vd, vq);
+      current_loop(d, id, iq, vmax, w * d->omega_hat, vd, vq);
       break;
     case DRIVE_POLARITY:
       *vd = polarity(d, id_raw);
@@ -544,13 +583,15 @@ static void fundamental(drive_t *d, float id, float iq, float id_raw, float vmax
   }
 }
 
-/* The injection's square wave onto the stationary voltage, and its sign kept. */
+/* The injection's square wave onto the stationary voltage, its sign and axis kept. */
 static void inject(drive_t *d, bool injecting, float amp, uint16_t n, float th,
                    float c, float s, float *va, float *vb)
 {
+  const uint32_t at = d->periods & 3U;
+
   if (!injecting)
   {
-    d->sign_hist[d->periods & 3U] = 0.0f;
+    d->sign_hist[at] = 0.0f;
     return;
   }
   if (d->inj_count == 0U)
@@ -559,11 +600,13 @@ static void inject(drive_t *d, bool injecting, float amp, uint16_t n, float th,
     d->inj_count = n;
   }
   d->inj_count--;
-  d->sign_hist[d->periods & 3U] = d->inj_sign;
   if (d->p.inj_phase != 0.0f)
   {
     drive_sincos(th + d->p.inj_phase, &s, &c);
   }
+  d->sign_hist[at] = d->inj_sign;
+  d->cos_hist[at] = c;
+  d->sin_hist[at] = s;
   *va += amp * d->inj_sign * c;
   *vb += amp * d->inj_sign * s;
 }
@@ -604,7 +647,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
 
   const bool cmd_frame = (d->mode == DRIVE_HOLD) || (d->mode == DRIVE_VOLT);
   const float th = cmd_frame ? d->theta_cmd : d->theta_hat;
-  const float w = bemf_weight(d, cmd_frame ? d->omega_cmd : d->omega_hat);
+  const float w = bemf_weight(d, cmd_frame ? d->omega_cmd : rotor_speed(d));
   uint16_t n = d->p.inj_periods;
 
   n = (n == 0U) ? 1U : ((n > (DRIVE_FB_RING / 2U)) ? (DRIVE_FB_RING / 2U) : n);
@@ -624,7 +667,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
 
   if (injecting)
   {
-    cycle_done = demodulate(d, alpha, beta, th, id_raw, iq_raw, n);
+    cycle_done = demodulate(d, alpha, beta, n);
   }
   else
   {
@@ -644,7 +687,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   float vd = 0.0f;
   float vq = 0.0f;
 
-  fundamental(d, id, iq, id_raw, vmax, &vd, &vq);
+  fundamental(d, id, iq, id_raw, vmax, w, &vd, &vq);
   d->vd = vd;
   d->vq = vq;
 

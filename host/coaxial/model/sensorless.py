@@ -14,6 +14,11 @@ CHI2_05 = (3.841, 5.991, 7.815, 9.488, 11.070, 12.592, 14.067)
 #: budget found nothing on a stand-in whose ts was 2e-5.
 INJ_OVER_LOOP = 8.0
 
+#: The most noise one update's innovation carries, rad: six sigma inside the wrap at +-pi,
+#: where the estimator still averages it. Backed off to 20 dB after the filter, native's
+#: 0.057 V left 2.5 rad an update, noise wrapped flat with no angle in it (2026-09-28).
+UPDATE_SD_MAX = math.pi / 6.0
+
 
 def enob(sd_codes, bits=16):
     """Effective bits from the noise floor alone: log2(FS / (sd sqrt 12))."""
@@ -36,9 +41,16 @@ def hf_current(v_inj, ts, periods, l_axis):
     return periods * v_inj * ts / (2.0 * l_axis)
 
 
+def update_noise(sigma_i, periods):
+    """sd of one demodulated update, A: the cycle's 2n differences telescope to
+    (2 i_n - i_0 - i_2n) / 2n."""
+    return sigma_i * math.sqrt(6.0) / (2.0 * periods)
+
+
 def error_noise(sigma_i, periods, bw_hz, fs):
-    """sd of the demodulated error, A, after an estimator of `bw_hz`."""
-    return sigma_i * math.sqrt(4.0 * bw_hz / (periods * fs))
+    """sd of the demodulated error, A, after an estimator of `bw_hz`: an update's, over the
+    fs / (4 n bw) updates its band spans."""
+    return update_noise(sigma_i, periods) * math.sqrt(4.0 * periods * bw_hz / fs)
 
 
 def snr(v_inj, periods, ld, lq, sigma_i, bw_hz, fs, ts):
@@ -74,15 +86,22 @@ def choose_injection(ld, lq, sigma_i, fs, bw_hz, vdc, i_h_max, f_min_hz=0.0,
         if best is None or db > best['snr_db']:
             best = row
     if best is not None and best['snr_db'] > target_db:
-        # SNR is proportional to the volts: back off to the target.
-        scale = 10.0 ** ((target_db - best['snr_db']) / 20.0)
-        v_inj = best['v_inj'] * scale
+        # SNR is proportional to the volts: back off to the target, but no further than
+        # keeps an update's noise inside UPDATE_SD_MAX.
+        most = best['v_inj']
+        v_inj = most * 10.0 ** ((target_db - best['snr_db']) / 20.0)
+        linear = (update_noise(sigma_i, best['periods']) / UPDATE_SD_MAX
+                  / abs(demod_gain(1.0, ts, ld, lq)))
+        limited_by = 'target'
+        if v_inj < linear:
+            limited_by = 'linearity' if linear <= most else best['limited_by']
+            v_inj = min(most, linear)
         db, sigma_theta = snr(v_inj, best['periods'], ld, lq, sigma_i, bw_hz,
                               fs, ts)
         best.update(v_inj=v_inj, gain=demod_gain(v_inj, ts, ld, lq),
                     sigma_theta=sigma_theta, snr_db=db,
                     i_h_peak=hf_current(v_inj, ts, best['periods'], ld),
-                    limited_by='target')
+                    limited_by=limited_by)
     return best
 
 

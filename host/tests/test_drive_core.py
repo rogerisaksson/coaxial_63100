@@ -285,6 +285,97 @@ def test_observer_standstill(r, lib):
         d.close()
 
 
+def test_observer_standstill_wide(r, lib):
+    """SENSORLESS at zero speed on the loop a good injection earns - 400 Hz, the Kalman gains
+    2 V gives on native - no current asked, the drive knowing the motor's flux. The back-EMF
+    feed-forward off an estimate at rest stepped the voltage each update, the demodulator read
+    the current it drove as angle: on native the estimate ran to -8 000 rad/s with 16 A in the
+    windings inside 20 ms (2026-09-28)."""
+    d = Drive(lib)
+    v_inj = 2.0
+    try:
+        # Native's world: the core's own model, the demo's flywheel, the world's noise.
+        d.model_params(theta0=1.0, j=8e-3, b=5e-4, noise=0.02)
+        d.source(True)
+        d.params(inj_volts=v_inj, inj_periods=1, w_lo=150.0, w_hi=300.0,
+                 eps_gain=eps_gain(v_inj, 20e-6, 25e-6), r=0.05, ld=20e-6, lq=25e-6,
+                 **{'lambda': 0.005}, **loop_gains(0.05, 20e-6, 0.05 / TS),
+                 **pll_gains(400.0, 2 * TS))
+        d.setpoints(id_ref=0.0, iq_ref=0.0)
+        d.set_theta(1.0)
+        d.mode(SENSORLESS, enabled=False, powered=False)
+        worst = 0.0
+        for _ in range(int(0.2 / TS)):
+            d.step_virtual()
+            worst = max(worst, abs(d.state()['omega_hat']))
+        err = wrap_pi(d.state()['theta_hat'] - d.model_state()['theta'])
+        r.check('the speed estimate at rest stays under w_lo, the injection\'s range',
+                worst < 150.0, '%.0f rad/s at worst' % worst)
+        r.check('and theta_hat stays on the rotor within 0.05 rad', abs(err) < 0.05, err)
+    finally:
+        d.close()
+
+
+def test_handover_weighs_the_back_emf(r, lib):
+    """At rest with the crossover under the estimate's noise at 400 Hz (w_lo 20, w_hi 40 rad/s): the
+    handover weighs the back-EMF the rotor makes, not the speed the estimate says, so the
+    injection keeps the estimate on the rotor. Weighed by the estimate, noise past w_hi handed
+    over to a back-EMF of nothing, which read back the drive's own feed-forward (2026-09-28)."""
+    d = Drive(lib)
+    v_inj = 2.0
+    try:
+        d.model_params(theta0=1.0, j=8e-3, b=5e-4, noise=0.02)
+        d.source(True)
+        d.params(inj_volts=v_inj, inj_periods=1, w_lo=20.0, w_hi=40.0,
+                 eps_gain=eps_gain(v_inj, 20e-6, 25e-6), r=0.05, ld=20e-6, lq=25e-6,
+                 **{'lambda': 0.005}, **loop_gains(0.05, 20e-6, 0.05 / TS),
+                 **pll_gains(400.0, 2 * TS))
+        d.setpoints(id_ref=0.0, iq_ref=0.0)
+        d.set_theta(1.0)
+        d.mode(SENSORLESS, enabled=False, powered=False)
+        worst = 0.0
+        for _ in range(int(0.3 / TS)):
+            d.step_virtual()
+            worst = max(worst, abs(d.state()['omega_hat']))
+        err = wrap_pi(d.state()['theta_hat'] - d.model_state()['theta'])
+        r.check('noise past w_hi at rest hands nothing over: the estimate keeps to its own noise, '
+                'a seventh of the 2 243 rad/s it ran to handed over',
+                worst < 300.0, '%.0f rad/s at worst' % worst)
+        r.check('and on the rotor within 0.05 rad', abs(err) < 0.05, err)
+    finally:
+        d.close()
+
+
+def test_handover_under_d_current(r, lib):
+    """The demo's align into up: HOLD at 12 A of d current, then SENSORLESS with it still on.
+    The demodulator differences samples stationary: a difference of currents each rotated into
+    its own frame read the frame's turn under the 12 A as angle, 4.4 of each correction fed
+    back - the estimate ran a pole off and the demo started backwards (2026-09-28)."""
+    d = Drive(lib)
+    v_inj = 0.585
+    try:
+        d.model_params(theta0=0.0, j=8e-3, b=5e-4, noise=0.02)
+        d.source(True)
+        d.params(inj_volts=v_inj, inj_periods=1, w_lo=180.0, w_hi=360.0, i_max=40.0,
+                 i_trip=70.0, eps_gain=eps_gain(v_inj, 20e-6, 25e-6), r=0.05, ld=20e-6,
+                 lq=25e-6, **{'lambda': 0.005}, **loop_gains(0.05, 20e-6, 0.05 / TS),
+                 l1=0.043, l2=23.6)
+        d.setpoints(id_ref=12.0, iq_ref=0.0, theta=0.0, omega_target=0.0)
+        d.mode(HOLD, enabled=False, powered=False)
+        for _ in range(int(0.2 / TS)):
+            d.step_virtual()
+        d.mode(SENSORLESS, enabled=False, powered=False)
+        worst = 0.0
+        for _ in range(int(0.1 / TS)):
+            d.step_virtual()
+            worst = max(worst, abs(wrap_pi(d.state()['theta_hat'] - d.model_state()['theta'])))
+        r.check('with 12 A of d current on, the estimate stays on its pole: within 0.3 rad, '
+                "the torque 96 % of the current's",
+                worst < 0.3, '%.3f rad at worst' % worst)
+    finally:
+        d.close()
+
+
 def test_polarity(r, lib):
     """Two voltage pulses along theta_hat: the one that adds to the magnet
     saturates and peaks higher."""
@@ -683,7 +774,9 @@ def test_montecarlo(r, lib):
 ROSTER = (test_math, test_mode_refusals, test_current_loop,
           test_observer_chain, test_observer_needs_a_handover,
           test_trip_and_stage, test_if_spin, test_injection_map,
-          test_saturation_map, test_observer_standstill, test_polarity,
+          test_saturation_map, test_observer_standstill,
+          test_observer_standstill_wide, test_handover_weighs_the_back_emf,
+          test_handover_under_d_current, test_polarity,
           test_deadtime, test_sensorless_run, test_moments,
           test_model_agrees, test_virtual_sensorless, test_hold_handover,
           test_down_through_if, test_montecarlo)

@@ -959,6 +959,24 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   kept. The motion verbs waited on the wall's clock: at a 20th of real time
   the emulated flywheel was read mid-swing; the board's now - the servo lands
   30, 60, 0 deg within 0.2 on the emulator (2026-09-27).
+- At rest the injection's estimate ran away three ways, each measured on
+  native against the world's shaft (2026-09-28). The loop fed w lambda forward
+  off it: at 2 V and l2 261 the demodulator read the current it drove as
+  angle, -8 000 rad/s and 16 A inside 20 ms; the loop's speed is the back-EMF
+  weight's share of it now, held +-1.8 deg for 2 s. The weight came from the
+  estimate: noise past w_hi handed over to a back-EMF of nothing, which read
+  back the feed-forward; from the fundamental's |E| / lambda (2 ms) now, the
+  core's case 2 243 -> 130 rad/s. The demodulator differenced currents each
+  turned into its own frame: 12 A of the align's d current fed 4.4 of each
+  correction back, a pole off, the demo's first up backwards to -527 rpm;
+  stationary differences along the injection's axis, +-0.04 rad through it.
+- Commissioning backed the injection to 20 dB after the filter: native's
+  0.057 V left 2.5 rad an update, noise wrapped flat. It stops where an update
+  keeps pi/6 now: 0.585 V on the record's noise, 30 rpm sd at rest; the
+  demo's innovation near zero 1.08 -> 0.25 rad, its first up forward
+  (2026-09-28).
+- At no current the demo's flywheel swings +-20 deg mechanical over 10 s on
+  native: the stiffness of ~10 mA held by the loop, an offset's (2026-09-28).
 - The observer box's error beside a newer estimate: the page's sample replaced
   the state, then the model, a request apart; one update now (2026-09-26).
 - One heat clock for every world but the bench: `coaxial.model.thermal.HASTE`

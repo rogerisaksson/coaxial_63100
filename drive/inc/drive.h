@@ -233,6 +233,7 @@ typedef struct
   float eps_amps;                    /**< last demodulated error, A */
   float ih;                          /**< last HF current amplitude, A */
   float e_bemf;                      /**< last back-EMF angle error, rad */
+  float bemf_speed;                  /**< |back-EMF| / lambda, filtered: the rotor's speed as its voltage says it, rad/s */
 
   /* the back-EMF observer chain, beside it */
   drive_obs_t obs;
@@ -256,9 +257,11 @@ typedef struct
   float    inj_sign;                 /**< +1 or -1 this period */
   uint16_t inj_count;                /**< periods left at this sign */
   float    sign_hist[4];             /**< the sign each recent step wrote */
-  float    iq_prev;                  /**< in the injection frame */
-  float    id_prev;
-  bool     have_prev;                /**< iq_prev holds a sample */
+  float    cos_hist[4];              /**< and the axis it wrote it on */
+  float    sin_hist[4];
+  float    alpha_prev;               /**< the last sample, stationary */
+  float    beta_prev;
+  bool     have_prev;                /**< alpha_prev holds a sample */
   float    acc_q;                    /**< this cycle's demodulated sums */
   float    acc_d;
   uint16_t cyc_count;                /**< periods into this cycle */

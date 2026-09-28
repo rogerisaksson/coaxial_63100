@@ -470,7 +470,7 @@ class Commissioning:
         kal = None
         if c is not None:
             t_upd = 2.0 * c['periods'] / self.fs
-            sigma_upd = k['sigma_i'] / c['periods'] / abs(c['gain'])
+            sigma_upd = sensorless.update_noise(k['sigma_i'], c['periods']) / abs(c['gain'])
             kal = sensorless.kalman_gains(sigma_upd, t_upd, self.accel_sd)
             params.update({'drv_l1': kal['l1'], 'drv_l2': kal['l2'],
                            'drv_inj_volts': c['v_inj'],
