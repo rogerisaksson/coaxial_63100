@@ -30,6 +30,7 @@ from rich.text import Text
 from terminal import loader
 from terminal import readout
 from terminal.ui import screen as _screen
+from terminal.ui import glitch
 from terminal.ui.console import Keys
 from terminal.ui.marquee import Marquee
 from terminal.ui.rate import Corner, rate_of
@@ -262,13 +263,42 @@ def grab(view, keys, moved, now):
     carry(view, dx, dy)
 
 
+#: The stand shows the board BOARD_S, then her walking HER_S, in place as her plan has it
+#: (`machine.gait`), torn from one to the other over TORN_S (`terminal.ui.glitch`) - where a
+#: card lights her: on the CPU a frame of her took 280 ms, on the card 6 (2026-09-28).
+BOARD_S, HER_S, TORN_S = 14.0, 9.0, 0.5
+
+
 def turntable(view, width=52, height=18):
-    """The board on the stand, at the pose and zoom the view holds - lit as
-    the render demo lights it: camera straight down the axis, no horizon.
+    """The board on the stand, at the pose and zoom the view holds - lit as the render demo
+    lights it: camera straight down the axis, no horizon - and in turn her, walking.
     """
     if not _STAGE['ready']:
         return ''
-    return _draw(view, width, height)
+    elapsed = time.monotonic() - view['opened']
+    cycle, half = BOARD_S + HER_S, TORN_S / 2.0
+    c = elapsed % cycle
+    if _STAGE.get('lit') is None or elapsed < half or half <= c < BOARD_S - half:
+        return _draw(view, width, height)
+    if BOARD_S + half <= c < cycle - half:
+        return _her(view, width, height)
+    board, her = (_draw(view, width, height).split('\n'), _her(view, width, height).split('\n'))
+    if abs(c - BOARD_S) < half:
+        return '\n'.join(glitch.torn(board, her, (c - BOARD_S + half) / TORN_S, int(elapsed * 30)))
+    k = ((c + cycle if c < half else c) - (cycle - half)) / TORN_S
+    return '\n'.join(glitch.torn(her, board, k, int(elapsed * 30)))
+
+
+def _her(view, width, height):
+    """Her walking on the stand, in place, turning as the board turns."""
+    from coaxial.graphics import gynoid
+    from machine import gait
+    from machine.figure import rz
+    t = time.monotonic() - view['opened']
+    lateral, roll, rise, _level = gait.sway(t)
+    return '\n'.join(gynoid.render(gait.walk(t, glance=False), width, height,
+                                    yaw=(view['spun'] * TURN_DPS) % 360.0, lit=_STAGE['lit'],
+                                    root=((lateral, rise, 0.0), rz(math.radians(roll)))))
 
 
 def _draw(view, width, height):
@@ -291,6 +321,10 @@ def _warm():
         # On the card where one answers: 64 ms a frame at 52x18 on the CPU (2026-09-25).
         from coaxial.graphics import gpu, shading
         _STAGE['crew'] = gpu.card_crew(art=shading._face())
+        card = gpu.adapter()
+        if card is not None:
+            _STAGE['lit'] = gpu.LitRaster(found=card)
+            _her({'opened': time.monotonic(), 'spun': 0.0}, 8, 4)
     finally:
         _STAGE['ready'] = True
 
