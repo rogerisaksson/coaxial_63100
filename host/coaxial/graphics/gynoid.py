@@ -16,6 +16,7 @@ import math
 from typing import Any
 
 from coaxial.graphics import engine
+from coaxial.graphics.callouts import LEADER_INK, callouts, line, packed
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, NOISE
 from machine import ansi, drives, figure
 from machine.figure import HAIR_AT, HEM_AT, TOE_M, TOE_RY
@@ -468,14 +469,18 @@ class Body:
 
     def _frames(self, angles, root=None):
         """Each part's (turn, spot) in the world for {joint: degrees}; `root` the pelvis's (place,
-        turn 3x3), else at the origin, upright."""
+        turn 3x3), else at the origin, upright. `angles['arms_out']`, degrees, spreads the upper
+        arms out from their rest, drawn only - her shoulders have no such joint."""
         np = _np()
         where, turn = root if root is not None else ((0.0, 0.0, 0.0), np.eye(3))
+        spread = float(angles.get('arms_out', 0.0))
         placed, out = {}, []
         for name, parent, joints, offset, rest, _mesh in self.parts:
             if parent:
                 above, at = placed[parent]
                 spot = at + above @ np.asarray(offset, float)
+                if spread and name.endswith('_upper_arm'):
+                    rest = rest + math.copysign(spread, rest)
                 here = above @ _turn('z', rest) if rest else above
             else:
                 spot, here = np.asarray(where, float), np.asarray(turn, float)
@@ -666,91 +671,13 @@ def _mask(height, width):
     return np.tile(noise, reps)[:height, :width]
 
 
-#: A callout's leader ink.
-LEADER_INK = (96, 110, 124)
-
-
-def _line(dots, a, b):
-    """The dots from `a` to `b`, (x, y) dot coordinates, set in `dots`."""
+def _band(depth, width):
+    """(left, right) cells: where her drawing begins and ends across, a cell off her."""
     np = _np()
-    n = int(max(abs(b[0] - a[0]), abs(b[1] - a[1]))) + 1
-    x = np.rint(np.linspace(a[0], b[0], n)).astype(int)
-    y = np.rint(np.linspace(a[1], b[1], n)).astype(int)
-    keep = (x >= 0) & (x < dots.shape[1]) & (y >= 0) & (y < dots.shape[0])
-    dots[y[keep], x[keep]] = True
-
-
-def _packed(fg, bg=None):
-    """A cell's inks as one key: fg's 24 bits, bg's over them plus one, 0 for none; -1 no fg."""
-    if fg is None:
-        return -1
-    key = (fg[0] << 16) | (fg[1] << 8) | fg[2]
-    return key if bg is None else key | (((bg[0] << 16) | (bg[1] << 8) | bg[2]) + 1) << 24
-
-
-#: A callout's frame, as the tty's instruments have theirs (`frame.hud`, rounded): its ink and
-#: corners.
-FRAME_INK, FRAME_CORNERS = (95, 135, 135), '╭╮╰╯'
-
-
-def _framed(overlay, top, left, rows, ink):
-    """`rows` [[(char, fg, bg)], ..] in a rounded frame, its top-left corner at (`top`, `left`):
-    into `overlay`."""
-    wide = max(len(r) for r in rows) + 2
-    for col in range(left, left + wide):
-        edge = col in (left, left + wide - 1)
-        for row, corner in ((top, 0), (top + len(rows) + 1, 2)):
-            overlay[(row, col)] = (ord(FRAME_CORNERS[corner + (col != left)] if edge else '─'),
-                                   ink)
-    for k, cells in enumerate(rows):
-        overlay[(top + 1 + k, left)] = overlay[(top + 1 + k, left + wide - 1)] = (ord('│'), ink)
-        for c, (char, fg, bg) in enumerate(cells):
-            overlay[(top + 1 + k, left + 1 + c)] = (ord(char), _packed(fg, bg))
-
-
-def callouts(labels, anchors, places, width, height, room=None):
-    """({(row, col): (codepoint, key)}, leader dots) for `labels` {joint: [row, ..]}, a row
-    [(char, fg, bg)], inks (r, g, b) or None: each a narrow framed column docked at the drawing's
-    edge - a side's joints on its side and the rest on the side they stand - at the height its
-    joint has at rest (`places` {joint: (x, y)}, dots), stacked down the edge as they meet and a
-    column further in when the edge is full, within the first `room` rows (all of them); a leader
-    from its inner edge to the joint's pivot as it is (`anchors`, dots). The callouts stand
-    still; the leaders follow."""
-    room = height if room is None else room
-    np = _np()
-    dots = np.zeros((height * DOTS_Y, width * DOTS_X), bool)
-    mid = width * DOTS_X / 2.0
-    xs = {side: [x for j, (x, _y) in places.items() if j.startswith(side)]
-          for side in ('left_', 'right_')}
-    flip = bool(xs['left_'] and xs['right_']) and np.mean(xs['left_']) > np.mean(xs['right_'])
-    sides = {True: [], False: []}
-    for joint, rows in labels.items():
-        if joint in anchors and joint in places:
-            side = places[joint][0] < mid
-            if joint.startswith(('left_', 'right_')):
-                side = joint.startswith('left_') != flip
-            sides[side].append((places[joint][1], joint, rows))
-    overlay = {}
-    ink = _packed(FRAME_INK, None)
-    for left, items in sides.items():
-        items.sort(key=lambda item: item[:2])
-        column, below = 0, 0
-        for y, joint, rows in items:
-            tall, wide = len(rows) + 2, max(len(r) for r in rows) + 2
-            # Zoomed in, a joint at rest can stand past the drawing's edge: its column is kept
-            # within the room (off it, a zoom of 1.1^3 wrote past the last row and threw).
-            want = min(max(int(y // DOTS_Y) - 1, 0), max(0, room - tall))
-            top = max(want, below)
-            if top + tall > room:
-                column, top = column + 1, want
-            below = top + tall
-            at = column * wide if left else width - (column + 1) * wide
-            if top + tall > room or at < 0 or at + wide > width:
-                continue
-            _framed(overlay, top, at, rows, ink)
-            end = (at + wide) * DOTS_X if left else at * DOTS_X - 1
-            _line(dots, (end, (top + 1) * DOTS_Y + DOTS_Y // 2), anchors[joint])
-    return overlay, dots
+    across = np.nonzero((depth > 0.0).any(axis=0))[0]
+    if not len(across):
+        return None
+    return max(0, int(across[0]) // DOTS_X - 1), min(width, int(across[-1]) // DOTS_X + 2)
 
 
 def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders=None,
@@ -897,19 +824,21 @@ def _props(props, m, cam, centre, travel):
         dots = np.zeros((cam['height'], cam['width']), bool)
         for a, b in edges:
             if w[a] > 0.0 and w[b] > 0.0:
-                _line(dots, (sx[a], sy[a]), (sx[b], sy[b]))
+                line(dots, (sx[a], sy[a]), (sx[b], sy[b]))
         out.append((dots, PROP_INK.get(kind, (200, 200, 200))))
     return out
 
 
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=0.0,
-           lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True):
+           lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True,
+           around=False):
     """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
     `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
     {joint: [row, ..]} called out at the edges, a leader to each joint (`callouts`); `heat`
     {joint: C} each drive's drum painted its temperature's colour (`ansi.thermal_rgb`); `props`
     what she trips on, world (`World.props`), drawn as edges `travel` m back; `legend` a row
-    [(char, fg, bg)] on the last line, the callouts kept above it; `dressed` False her shell."""
+    [(char, fg, bg)] on the last line, the callouts kept above it; `dressed` False her shell;
+    `around` the callouts docked around her, not at the drawing's edges."""
     np = _np()
     who = body(dressed)
     m = view(yaw, pitch)
@@ -945,10 +874,11 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
             return list(zip(sx.tolist(), sy.tolist()))
         overlay, leaders = callouts(labels, dict(zip(names, dots_of([pivots[j] for j in names]))),
                                     dict(zip(names, dots_of([rest[j] for j in names]))),
-                                    width, height, height - (1 if legend else 0))
+                                    width, height, height - (1 if legend else 0),
+                                    _band(depth, width) if around else None)
     if legend:
         overlay = dict(overlay or {})
         for col, (char, fg, bg) in enumerate(legend[:width]):
-            overlay[(height - 1, col)] = (ord(char), _packed(fg, bg))
+            overlay[(height - 1, col)] = (ord(char), packed(fg, bg))
     return braille(depth, rgb, _floor(m, fine, centre, travel), width, height, colour, overlay,
                    leaders, _props(props or (), m, fine, centre, travel))

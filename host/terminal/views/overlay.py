@@ -14,16 +14,19 @@ BOX_GROUND, TORQUE_INK, DRIVE_INK, BRAKE_INK, NUMBER_INK, DARK_INK, LIGHT_INK = 
     (16, 18, 22), (236, 240, 244))
 CALLOUT_W = 4
 
-#: The data overlay (D): her standing, faced, each drive called out on its side, DATA_W cells a
-#: row - its name, angle deg, torque N m, heat C and state (ON, derated, OFF) - and each bus's
-#: traffic in the side column, its wire's share of BAUD both ways.
-DATA_W, BAUD = 21, 9216000
-SHORT = {'hip_yaw': 'HIP Y', 'hip_roll': 'HIP R', 'hip': 'HIP', 'knee': 'KNEE', 'ankle': 'ANKLE',
-         'ankle_roll': 'ANK R', 'foot': 'TOES', 'shoulder': 'SHLDR', 'elbow': 'ELBOW',
-         'wrist': 'WRIST', 'gripper': 'GRIP', 'spine': 'SPINE', 'spine_roll': 'SPN R',
-         'waist': 'WAIST', 'neck': 'NECK', 'head': 'HEAD'}
+#: The data overlay (D): her standing, faced, her arms out in a T, each drive called out on its
+#: side narrow and tall - its name in its frame, its angle deg and torque N m, its heat C and
+#: state (ON, derated, OFF) under - and each bus's traffic in the side column, its wire's share
+#: of BAUD both ways. A row across, 21 cells, the callouts covered her.
+DATA_W, BAUD = 7, 9216000
+#: Her drawing's share of the view's zoom under the callouts, docked around her.
+SMALL = 0.7
+SHORT = {'hip_yaw': 'HIPY', 'hip_roll': 'HIPR', 'hip': 'HIP', 'knee': 'KNEE', 'ankle': 'ANKL',
+         'ankle_roll': 'ANKR', 'foot': 'TOES', 'shoulder': 'SHLD', 'elbow': 'ELBW',
+         'wrist': 'WRST', 'gripper': 'GRIP', 'spine': 'SPIN', 'spine_roll': 'SPNR',
+         'waist': 'WAIS', 'neck': 'NECK', 'head': 'HEAD'}
 ON_INK, DERATED_INK, OFF_INK = (96, 220, 120), (255, 184, 80), (255, 96, 128)
-STAND, STANDING = gait.stand(), gait.standing()
+STAND, STANDING = dict(gait.stand(), arms_out=84.0, left_elbow=0.0, right_elbow=0.0), gait.standing()
 
 
 def data_labels(now):
@@ -31,18 +34,19 @@ def data_labels(now):
     out = {}
     for joint, (celsius, _spent, derate, on) in now['heat'].items():
         name = SHORT.get(joint.split('_', 1)[-1] if joint.startswith(('left_', 'right_')) else joint,
-                         joint[:5].upper())
-        text = '%-5s%5.0f%5.0f%4.0f ' % (name, now['angles'].get(joint, 0.0),
-                                         now['torque'][joint], celsius)
+                         joint[:4].upper())
         state = (OFF_INK, 'x') if not on else (DERATED_INK, '~') if derate < 0.99 else (ON_INK, '*')
-        row = [(c, NUMBER_INK, BOX_GROUND) for c in text[:DATA_W - 1]] + [(state[1], state[0], BOX_GROUND)]
-        out[joint] = [row]
+        top = '%3.0f %3.0f' % (now['angles'].get(joint, 0.0), now['torque'][joint])
+        under = '%3.0fC  ' % celsius
+        out[joint] = [name, [(c, NUMBER_INK, BOX_GROUND) for c in top[-DATA_W:]],
+                      [(c, NUMBER_INK, BOX_GROUND) for c in under[:DATA_W - 1]]
+                      + [(state[1], state[0], BOX_GROUND)]]
     return out
 
 
 def data_legend(width):
     """The data overlay's last row: its columns, and its states' marks in their inks."""
-    cells = [(c, NUMBER_INK, None) for c in ' D: DRIVE  DEG  N m  C   ']
+    cells = [(c, NUMBER_INK, None) for c in ' D: DEG N m | C  ']
     for ink, mark, word in ((ON_INK, '*', 'ON'), (DERATED_INK, '~', 'DERATED'),
                             (OFF_INK, 'x', 'GATES OFF')):
         cells += [(mark, ink, None)] + [(c, NUMBER_INK, None) for c in ' %s  ' % word]

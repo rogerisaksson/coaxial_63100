@@ -31,8 +31,8 @@ from machine.routines import TYPES
 from machine.running import Running
 from terminal.loader import TO_MENU
 from terminal.views.overlay import (BOX_GROUND, BRAKE_INK, CALLOUT_W, DARK_INK, DRIVE_INK, LIGHT_INK,
-                                    NUMBER_INK, STAND, STANDING, TORQUE_INK, data_labels, data_legend,
-                                    traffic)
+                                    NUMBER_INK, SMALL, STAND, STANDING, TORQUE_INK, data_labels,
+                                    data_legend, traffic)
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
@@ -60,10 +60,10 @@ PUSH_N, PUSH_S = 120.0, 0.12
 #: The boards G and H glitch, in turn, and how long G's SOA lasts, s.
 GLITCHED, SOA_S = ('left_knee', 'right_knee', 'left_hip', 'right_hip'), 0.5
 
-#: What she trips on, by the Ctrl key that lays it: a hole, a rug, a threshold (tröskel), a
-#: slippery patch, a lace, a stair (upp).
-TRIPS = {'\x08': 'hole', '\x12': 'rug', '\x14': 'sill', '\x13': 'slip', '\x0c': 'lace',
-         '\x15': 'stairs'}
+#: What she trips on, by the digit that lays it: a hole, a rug, a threshold (tröskel), a
+#: slippery patch, a lace, a stair. On Ctrl letters, Ctrl+S paused the terminal (XOFF) and Ctrl+H
+#: came as a backspace (2026-09-28).
+TRIPS = dict(zip('123456', ('hole', 'rug', 'sill', 'slip', 'lace', 'stairs')))
 
 #: Where R's recordings go, a CSV from a press to the next: every state the page hears from her
 #: (a slice's, 10-20 a second of her time) - the page's yaw, her state, each joint, each
@@ -165,7 +165,7 @@ def boxes(state, now, name):
         ('drawing', '%.0f W' % now['watts'] if now and 'watts' in now else '-'),
         ('hottest', _hottest(now) if now else '-'),
         ('glitched', '%s %s' % state['glitched'] if state['glitched'] else 'G soa, H hot'),
-        ('ahead', _ahead(now) if now else 'Ctrl H R T S L U'),
+        ('ahead', _ahead(now) if now else '1-6'),
         ('record', 'R starts' if state['recording'] is None and not state['recorded']
          else 'on, %.1f s - R saves' % (len(state['recording']) / 60.0)
          if state['recording'] is not None else os.path.basename(state['recorded'])),
@@ -223,7 +223,7 @@ def _ahead(now):
     if now.get('armed'):
         kind, left = now['armed']
         return '%s in %d strides' % (kind, left + 1)
-    return 'Ctrl H R T S L U'
+    return '1-6'
 
 
 def _tripped(event):
@@ -416,7 +416,8 @@ def main(argv=None):
             art = '\n'.join(' ' * width for _ in range(height))
         elif state['data']:
             _lateral, _roll, rise, _level = STANDING
-            art = '\n'.join(gynoid.render(STAND, width, height, yaw=0.0, zoom=state['zoom'],
+            art = '\n'.join(gynoid.render(STAND, width, height, yaw=0.0, zoom=SMALL * state['zoom'],
+                                          around=True,
                                           colour=terminal, lit=lit,
                                           root=((0.0, rise, 0.0), quat(1.0, 0.0, 0.0, 0.0)),
                                           labels=data_labels(now),
@@ -438,7 +439,7 @@ def main(argv=None):
         side = boxes(state, now, name) + ([traffic(state, now)] if state['data'] and now else [])
         return frame_of(board_view, ORIGIN, TITLE, art, side,
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
-                         ('^H ^R ^T ^S ^L ^U', 'HOLE RUG SILL SLIP LACE STAIRS'),
+                         ('1-6', 'HOLE RUG SILL SLIP LACE STAIRS'),
                          ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
                          ('V', 'VIEW'), ('C', 'CLOTHES'), ('D', 'DATA'),
