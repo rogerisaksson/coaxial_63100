@@ -24,7 +24,7 @@ import sys
 # its URLs.
 os.environ.setdefault('COAXIAL_FALLBACK', 'simulated')
 
-from tools.dev import counts
+from tools.dev import background, counts
 from tools.dev.focus import physical_cores
 from tools.dev.runner import _results
 from tools.dev.scope import _plan, hold_model, release_model
@@ -209,6 +209,7 @@ def main(argv=None):
         if reconfigure is not None:
             reconfigure(errors='replace')
     args = _options(argv)
+    background.lower()
     try:
         chosen = _plan(args)
         if chosen is None:

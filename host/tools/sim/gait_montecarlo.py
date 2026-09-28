@@ -32,6 +32,8 @@ import multiprocessing
 import sys
 import time
 
+from tools.dev import background
+
 #: (kind, pace, event): the trials. The floor's events took the shoves' place (a shove hardly
 #: ever happens to a walker; a hole, a sill, a rug, a slippery patch, a lace and a drive's
 #: glitch do), each laid as `machine.events` lays it the first time the left leg's phase
@@ -64,6 +66,11 @@ JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] in ('event', 'walk') els
 #: SURGE_MM, SURGE_K a mm; the feet nearer than CLEAR_MM as they pass, CLEAR_K a mm. A walk is
 #: looked at LOOK_HZ.
 BALANCE_DEG, BALANCE_K = 10.0, 0.2
+
+#: The step taken out: the thigh short of REACH_DEG behind upright at the lift, REACH_K a degree,
+#: the heaviest of the look - weighed light, the searches came to tiptoeing, the legs always in
+#: front, the easiest balance (2026-09-28).
+REACH_DEG, REACH_K = 10.0, 1.0
 SURGE_MM, SURGE_K = 30.0, 0.05
 CLEAR_MM, CLEAR_K = 5.0, 0.2
 LOOK_HZ = 50.0
@@ -74,11 +81,16 @@ LOOK_HZ = 50.0
 #: sole bearing TOUCH_N after QUIET_S of none, read every millisecond.
 IMPACT_S, IMPACT_N, IMPACT_K = 0.03, 700.0, 0.01
 TOUCH_MS, TOUCH_K = 0.15, 20.0
+
+#: The landing's loading rate, the clonk heard: the sole's steepest rise over a millisecond in
+#: the impact's window past RATE_KN_S kN/s, RATE_K a kN/s - she should be as quiet as a person,
+#: only her clothes heard against her (2026-09-28).
+RATE_KN_S, RATE_K = 20.0, 0.02
 TOUCH_N, QUIET_S = 30.0, 0.1
 
 #: The look's measures, by `look.WALK`'s names, and the landing's.
 LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear')
-LANDS = ('impact', 'touch')
+LANDS = ('impact', 'touch', 'rate')
 
 
 def suite(name):
@@ -90,10 +102,13 @@ def suite(name):
 
 def look_of(looks):
     """The look's cost of a walk's measures {name: value} (`LOOKS`)."""
-    ahead, behind, surge, clear, impact, touch = (looks.get(n, math.nan) for n in LOOKS + LANDS)
+    ahead, behind, surge, clear, impact, touch, rate = (looks.get(n, math.nan)
+                                                        for n in LOOKS + LANDS)
     terms = (BALANCE_K * max(0.0, ahead - behind - BALANCE_DEG),
+             REACH_K * max(0.0, REACH_DEG - behind),
              SURGE_K * max(0.0, surge - SURGE_MM), CLEAR_K * max(0.0, CLEAR_MM - clear),
-             IMPACT_K * max(0.0, impact - IMPACT_N), TOUCH_K * max(0.0, touch - TOUCH_MS))
+             IMPACT_K * max(0.0, impact - IMPACT_N), TOUCH_K * max(0.0, touch - TOUCH_MS),
+             RATE_K * max(0.0, rate - RATE_KN_S))
     return sum(t for t in terms if t == t)
 
 #: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; events laid from
@@ -102,9 +117,9 @@ SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0}
 SETTLE_S, EVENT_AT_S = 4.0, 5.0
 
 #: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir
-#: and this look: fallen, its measures empty, it counted none, and the best of a search fell at
-#: 0.65 in 1.3 s (2026-09-28).
-LOST, FALLEN_STIR, FALLEN_LOOK = 30.0, 10.0, 20.0
+#: and this look. A fall costs moderately: she gets up and walks on, and the walk counts more
+#: than a stumble (2026-09-28).
+LOST, FALLEN_STIR, FALLEN_LOOK = 10.0, 5.0, 5.0
 
 MODULES = ('walker', 'gait', 'arrival', 'director', 'capture', 'physics', 'buses', 'events',
            'drives')
@@ -147,7 +162,7 @@ def trial(job):
     seconds = SECONDS[kind]
     stirred, passes, laid, was, tilt = 0.0, 0, False, 0.0, 0.0
     fell, up, down, rows, looked = None, None, 0.0, [], -1.0
-    quiet, window, impacts, touches = 0.0, None, [], []
+    quiet, window, impacts, touches, rates, was_load = 0.0, None, [], [], [], 0.0
     foot, moving = world.model.body('left_foot').id, world._np.zeros(6)
     while bus['t'] < seconds:
         body.loop.write(**director.step(0.001))
@@ -175,14 +190,16 @@ def trial(job):
             load = bus['pelvis.pose.left_load']
             if window is not None:
                 impacts[-1] = max(impacts[-1], load)
+                rates[-1] = max(rates[-1], load - was_load)
                 window = window - 0.001 if window > 0.001 else None
             elif load >= TOUCH_N and quiet >= QUIET_S:
                 impacts.append(load)
+                rates.append(load - was_load)
                 world._mj.mj_objectVelocity(world.model, world.data, world._mj.mjtObj.mjOBJ_BODY,
                                             foot, moving, 0)
                 touches.append(max(0.0, -float(moving[4])))
                 window = IMPACT_S
-            quiet = quiet + 0.001 if load < TOUCH_N else 0.0
+            quiet, was_load = (quiet + 0.001 if load < TOUCH_N else 0.0), load
     # A pool's worker lives on: its world's buses and block closed here, not at its exit - left,
     # five bus processes a run piled up to 865 and the host ran out of memory (2026-09-28).
     body.close()
@@ -191,7 +208,8 @@ def trial(job):
         what = 'fell at %.1f s' % fell + (', up at %.1f s' % up if up else ', down') + ', ' + what
     walked = {name: f(rows) for name, _unit, f in look.WALK if name in LOOKS} if rows else {}
     if impacts:
-        walked.update(impact=sum(impacts) / len(impacts), touch=sum(touches) / len(touches))
+        walked.update(impact=sum(impacts) / len(impacts), touch=sum(touches) / len(touches),
+                      rate=sum(rates) / len(rates))
     return 1.0 - down / seconds, (stirred / passes if passes else None), what, walked
 
 
@@ -241,7 +259,8 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
             kind, pace, event or '', 100 * h, ' | '.join(whats),
             '' if kind != 'walk' else '  stir %.2f mm' % s,
             '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, impact %.0f N, touch %.2f'
-            ' m/s' % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if looks else ''))
+            ' m/s, rate %.0f kN/s' % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS)
+            if looks else ''))
 
 
 def search(pool, spans, generations, lam, log):
@@ -313,6 +332,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     suite(args.suite)
     fixed = {k: float(v) for k, v in (a.split('=') for a in args.set)}
+    background.lower()
     began = time.time()
     with multiprocessing.get_context('spawn').Pool(args.workers) as pool, \
             open(args.log, 'a') as log:
