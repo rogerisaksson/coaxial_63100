@@ -535,6 +535,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   page's 60 degrees the column's lean reads as leaning back. The head
   nodded 6.1 degrees a step on the neck's 60 N m/rad; 300 at half critical:
   2.2, the pendulum's stir 3.55 -> 3.00 mm, held 89.7 % (2026-09-28).
+- Her walk made hers: the pelvis tipped 6 degrees under an upright torso,
+  standing and walking, the spine taking it back out (`gait.TILT_DEG`, the
+  fall's watch measuring from it); the arms swung from the forearm, near
+  the body (`gait.ARM`: the shoulder 12 degrees a side, the elbow 24 +- 11,
+  the wrist 10 +- 7). The hips already swayed 35 mm to the shoulders' 23,
+  the pelvis rolling 10 and turning 39 degrees a stride; a deeper hip drop
+  (ROLL_DEG 6, 8) swayed the shoulders 28 and 33 mm and nodded the head
+  2.9 and 3.6 degrees. The scoreboard cannot judge a look: the committed
+  arms moved 2 % (the shoulder 16.3, the elbow's swing 9.2) held 80 and
+  75 %, the slips and the hot knee flipping; every arm tried held 84.7-85.5
+  %, the tilt alone 89.5 (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

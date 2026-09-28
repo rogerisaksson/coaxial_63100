@@ -121,7 +121,9 @@ Open work. Measured results are in FINDINGS.
   lifts on the capture point over the left sole, not the centre of mass,
   wants trying. The softer soles that felled the old first stride are
   untried on it, then a compressible sole layer for more give than a
-  contact's.
+  contact's. The scoreboard scores chance on the slips and the hot knee (2
+  % of an arm's swing flips them, 75-90 % held): each event from a spread
+  of phases, before it judges a look.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

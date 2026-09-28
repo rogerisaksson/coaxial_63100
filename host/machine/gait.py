@@ -85,6 +85,10 @@ TOE_DEG, TOE_RATE, TOE_ACC = -50.0, -300.0, 4000.0
 #: now, and 8 reads as a lean to the eye, the rises held at 4, 6 and 8 (2026-09-28).
 LEAN_DEG, LEAN_OUT_S = 8.0, 2.0
 
+#: Her pelvis tipped TILT_DEG forward under the torso, standing and walking, the spine taking it
+#: back out: the small of the back hollowed, the seat back.
+TILT_DEG = 6.0
+
 
 def _knots(stride):
     """The foot's pitch toes-up at its knots: (phase, degrees, a stride, a stride squared), a
@@ -114,6 +118,12 @@ SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.010, 4.0, 12.0, 1.0
 
 #: How far each arm joint trails the one above it, radians of the stride.
 TRAIL = 0.55
+
+#: An arm's swing, a joint a row from the shoulder down: (joint, mean deg, swing deg), the
+#: shoulder's swing a stride's; each joint TRAIL behind the one above. Hers: the upper arm near
+#: the body, the forearm carrying the swing, the hand soft.
+ARM = (('_shoulder', 0.0, 12.0), ('_elbow', 24.0, 11.0), ('_wrist', 10.0, 7.0),
+       ('_gripper', 22.0, 5.0))
 
 #: The longest a leg reaches, hip to ankle: its knee at 2 degrees - the hips' limit and the IK
 #: both. Past it the reach eases to it over SOFT_REACH_M: clamped, the knee stopped dead and
@@ -394,10 +404,9 @@ def walk(t, cadence=CADENCE, stride=None, glance=True, phase=None):
         # An arm swings with the other leg, forward as that leg reaches; the elbow, the wrist
         # and the fingers each a little later than the joint above.
         arm = 2.0 * math.pi * ((phase + 0.5) % 1.0)
-        out[side + '_shoulder'] = 16.0 * stride * math.cos(arm)
-        out[side + '_elbow'] = 20.0 + 9.0 * math.cos(arm - TRAIL)
-        out[side + '_wrist'] = 8.0 + 6.0 * math.cos(arm - 2.0 * TRAIL)
-        out[side + '_gripper'] = 20.0 + 5.0 * math.cos(arm - 3.0 * TRAIL)
+        for k, (joint, mean, swing) in enumerate(ARM):
+            out[side + joint] = mean + swing * (stride if k == 0 else 1.0) * math.cos(
+                arm - k * TRAIL)
     out['pelvis'] = math.degrees(yaw)
     out['waist'] = -COUNTER * math.degrees(yaw)
     # The head holds its heading: it turns back what the pelvis and the torso turned.

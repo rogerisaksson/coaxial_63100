@@ -376,22 +376,26 @@ class Walker:
 
     def start(self):
         """The body placed mid-stride at phase 0: the plan's pose, moving at its speed."""
-        stride, dt = self.stride, 1e-3
+        stride, dt, tilt = self.stride, 1e-3, math.radians(gait.TILT_DEG)
         poses = []
         for p in (0.0, dt * self.cadence):
             lateral, height, yaw, legs, upper, roll = plan(p, stride)
             pelvis = (lateral, height, p * gait.STRIDE_M * stride)
-            angles = dict(zip(UPPER, upper))
+            angles = dict(zip(UPPER, upper), spine=-gait.TILT_DEG)
+            turn = mul(mul(ry(yaw), rx(tilt)), rz(roll))
             for (side, sign), (ankle, twist, pitch, toes) in zip(SIDES, legs):
                 foot = mul(ry(twist), rx(-pitch))
                 at = add(pelvis, (ankle[0], ankle[1] - height, ankle[2]))
-                for k, v in zip(LEG, figure.leg(sign, pelvis, mul(ry(yaw), rz(roll)), at, foot)):
+                for k, v in zip(LEG, figure.leg(sign, pelvis, turn, at, foot)):
                     angles[side + k] = math.degrees(v)
                 angles[side + '_foot'] = toes
             poses.append((pelvis, yaw, roll, angles))
         (pelvis, yaw, roll, angles), (ahead, _yaw, _roll, later) = poses
         c, s, cr, sr = math.cos(yaw / 2), math.sin(yaw / 2), math.cos(roll / 2), math.sin(roll / 2)
-        self.world.reset(angles, where=pelvis, turn=(c * cr, s * sr, s * cr, c * sr),
+        ct, st = math.cos(tilt / 2), math.sin(tilt / 2)
+        self.world.reset(angles, where=pelvis, turn=(
+            c * ct * cr + s * st * sr, c * st * cr + s * ct * sr, s * ct * cr - c * st * sr,
+            c * ct * sr - s * st * cr),
                          rates={j: (later[j] - angles[j]) / dt for j in angles},
                          speed=tuple((b - a) / dt for a, b in zip(pelvis, ahead)))
         self.phase, self.anchor, self.was_q, self.stood = 0.0, {}, {}, {}
@@ -542,7 +546,7 @@ class Walker:
                   - SIDE_D * (v_side - v_ref))
         target = (pel[0] + max(-SOLE_M, min(SOLE_M, across)), height - self.lowered, planned_z)
         lean = self.lean * (1.0 - gait.eased(self.age / gait.LEAN_OUT_S))
-        turn = mul(mul(ry(yaw), rx(math.radians(lean))), rz(roll))
+        turn = mul(mul(ry(yaw), rx(math.radians(lean + gait.TILT_DEG))), rz(roll))
         off = [TURN_K * c for c in _vee(mul(turn, t(turn_now)))]
         if self.side is not None:
             off = [max(-SIDE_TURN_RAD, min(SIDE_TURN_RAD, c)) for c in off]
