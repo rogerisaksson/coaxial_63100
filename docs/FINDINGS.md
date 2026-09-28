@@ -606,7 +606,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   for 0.35 s while she tipped on over it like a plank (the ankle-shoulders
   line +5 -> +9). Lowered till that knee bends as in the shift
   (`arrival.soft`, SOFT_KNEE 8): at least +6.9 through the seam, bending on
-  7 -> 19 as she goes over it; 15 of 16 perturbed starts (2026-09-28).
+  7 -> 19 as she goes over it; 15 of 16 perturbed starts. Lowered in the
+  lean too, the head dipped 5.1 mm there, not 3.3 - the step's alone now.
+  The curtsy into the walk (tools/sim/look.py): the head 22 mm down in the
+  step and 31 at the first landing whatever the sink (0.5-2 mm) and the
+  lean (0-4 degrees; at 0 every start fell) - the walk rides 16-28 mm
+  under the stand and sags 7-10 mm under its own target at landings
+  (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
