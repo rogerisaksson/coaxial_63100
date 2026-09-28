@@ -112,6 +112,7 @@ class Serial(SerialBase):
         self.virtual_seconds = emu.virtual_seconds
         self.heat_clock = emu.heat_clock
         self.room = emu.room
+        self.drag = emu.drag
         self.pilot = emu.pilot
         self.units = emu.units
         self.console = not isinstance(emu, Limb)

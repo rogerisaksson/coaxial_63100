@@ -59,7 +59,8 @@ SUITES = {
                           'the host gcc',
     'test_drive_observer.py': 'the rotor observer against a motor model, through '
                               'the host gcc',
-    'test_native_rooms.py': 'an emulated board\'s world in rooms: the thermal tour on native',
+    'test_native_heat.py': 'the world\'s heat on native: the tour\'s rooms, the rotor demo\'s '
+                           'SOA',
     'test_sensorless.py': 'the design arithmetic and the commissioning '
                           'against the stand-in',
 }

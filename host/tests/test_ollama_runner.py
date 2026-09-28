@@ -444,7 +444,7 @@ def test_smart_selection(report):
                                   table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS,
                                   table.CYCLIC, table.BOOT,
                                   'test_parity.py', 'test_mcp.py', table.EMULATOR,
-                                  table.NATIVE, table.NATIVE_ROOMS, table.CONFORMANCE,
+                                  table.NATIVE, table.NATIVE_HEAT, table.CONFORMANCE,
                                   table.BENCH}
                              | set(table.OLLAMA))):
         suites, _ = table.plan_for(percent)

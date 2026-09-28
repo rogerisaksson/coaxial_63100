@@ -102,6 +102,7 @@ void world_load(const world_t *w, uint8_t i, float *torque, float *inertia)
     default:
       break;
   }
+  *torque += l->torque;
 }
 
 void world_motor(world_t *w, uint8_t i, float shaft, float speed)

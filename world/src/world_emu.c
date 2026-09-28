@@ -64,6 +64,19 @@ void emu_world_load(int i, int kind, float gear, float inertia, float mass, floa
   l->k_thrust = k_thrust;
   l->radius = radius;
   l->angle = angle;
+  l->torque = 0.0f;
+}
+
+/** Board `i`'s load laid live: its drag, N m per (rad/s)^2, and a torque against its turning,
+    N m - a page's propeller and its stage. */
+void emu_world_drag(int i, float k_drag, float torque)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  s.world.load[i].k_drag = k_drag;
+  s.world.load[i].torque = torque;
 }
 
 /** Board `i`'s motor, in drive_model's terms: its PMSM, the link it runs from. */

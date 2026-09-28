@@ -137,8 +137,10 @@ class World:
     def __init__(self, name):
         self.spec = worlds.load(name)
         lib = self.lib = _copy(_libraries()[1])
-        for call in ('emu_world_body', 'emu_world_load', 'emu_plant_attach', 'emu_world_motor'):
+        for call in ('emu_world_body', 'emu_world_load', 'emu_plant_attach', 'emu_world_motor',
+                     'emu_world_drag'):
             getattr(lib, call).restype = None
+        lib.emu_world_drag.argtypes = [ctypes.c_int, ctypes.c_float, ctypes.c_float]
         nodes = self.spec['nodes']
         body = self.spec.get('body', {})
         lib.emu_world_reset(len(nodes))
@@ -259,6 +261,13 @@ class Limb:
             for board in self.boards:
                 board.lib.native_room(ambient, air, capacity)
 
+    def drag(self, k_drag, torque, unit=1):
+        """The unit's load in its world laid live: its drag, N m per (rad/s)^2, and a torque
+        against its turning, N m - a page's propeller and its stage."""
+        if self.world is not None:
+            with self.lock:
+                self.world.lib.emu_world_drag(unit - 1, k_drag, torque)
+
     def pilot(self, volts, hz=PILOT_HZ, noise=0.0):
         """The master's common-mode pilot on the bus, every board's STO chain on it: its
         amplifier's amplitude, V (0 none), and Hz; the far end's 100 kHz common mode, V."""
@@ -367,6 +376,7 @@ class Serial(SerialBase):
             raise serial.SerialException(str(exc)) from exc
         self.heat_clock = self._limb.heat_clock
         self.room = self._limb.room
+        self.drag = self._limb.drag
         self.pilot = self._limb.pilot
         #: The units a scan probes, and whether the port is a board's console.
         self.units = self._limb.units

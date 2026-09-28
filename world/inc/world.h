@@ -37,6 +37,7 @@ typedef struct
   float k_thrust;     /**< rotor: N / (rad/s)^2 */
   float radius;       /**< wheel: m */
   float angle;        /**< joint: rad from hanging straight down, at the start */
+  float torque;       /**< N m at the motor against positive turning, laid live: a page's stage */
 } world_load_t;
 
 /** What the loads carry together. */

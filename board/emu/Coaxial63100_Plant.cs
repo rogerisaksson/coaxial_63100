@@ -105,6 +105,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             heatReset = Export<HeatReset>("emu_heat_reset");
             heatStep = Export<HeatStep>("emu_heat_step");
             heatRoom = Export<HeatRoom>("emu_heat_room");
+            worldDrag = Export<WorldDrag>("emu_world_drag");
         }
 
         public void World(string library, int motors)
@@ -123,6 +124,14 @@ namespace Antmicro.Renode.Peripherals.Analog
                          float kDrag, float kThrust, float radius, float angle)
         {
             worldLoad(Node, kind, gear, inertia, mass, arm, damping, kDrag, kThrust, radius, angle);
+        }
+
+        private void LayDrag()
+        {
+            if(native != IntPtr.Zero)
+            {
+                worldDrag(Node, (float)drag, (float)loadTorque);
+            }
         }
 
         public void Motor(float r, float ld, float lq, float lambda, float polePairs, float j, float b,
@@ -154,6 +163,12 @@ namespace Antmicro.Renode.Peripherals.Analog
         public double Air { get => air; set { air = value; roomLaid = false; } }
 
         public double Capacity { get => capacity; set { capacity = value; roomLaid = false; } }
+
+        /// <summary>The load's drag, N m per (rad/s)^2, and a torque against its turning, N m -
+        /// a page's propeller and its stage - laid live on the world.</summary>
+        public double Drag { get => drag; set { drag = value; LayDrag(); } }
+
+        public double LoadTorque { get => loadTorque; set { loadTorque = value; LayDrag(); } }
 
         /// <summary>The heat's clock, thermal s per virtual s: 1 until the rig sets the world's
         /// (coaxial.model.thermal.HASTE) with the board's observer's (thermal op 13). A step is
@@ -412,6 +427,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private delegate void HeatStep(int i, float dt, float[] load, [Out] float[] seen);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void HeatRoom(int i, float ambient, float air, float capacity);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void WorldDrag(int i, float kDrag, float torque);
 
         private static IntPtr native;
         private static WorldReset worldReset;
@@ -424,6 +441,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private static HeatReset heatReset;
         private static HeatStep heatStep;
         private static HeatRoom heatRoom;
+        private static WorldDrag worldDrag;
 
         private readonly IMachine machine;
         private readonly Coaxial63100_AFE afe;
@@ -440,6 +458,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private double air = 1.0;
         private double capacity = 1.0;
         private bool roomLaid = true;
+        private double drag;
+        private double loadTorque;
 
         private const uint HeatHz = 10;
         /// <summary>The 2EDL8034's UVLO, V (motor_inverters/half_bridge/2EDL8034F5.lib).</summary>

@@ -120,8 +120,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - The stand-in's load is its balanced `load_cycle`: 569ae47's turning vector
   walked the heat U, V, W, the hottest leg 9 times in 16 s (2026-09-28).
 - The tour on an emulated board's world (coaxial.model.rooms): the thermal
-  page on native STABLE at 244 s temperate, the room on at 254, UNCERTAIN 259,
-  STABLE cold 351, toasty 432 (2026-09-28).
+  page on native STABLE at 244 s, the room on at 254, UNCERTAIN 259, STABLE
+  again 351 (2026-09-28).
+- The rotor demo on native: 0.85 of the span, its loads on the stand-in's model
+  alone; on the world (emu_world_drag) 0.93-0.94, the clamp at 0.61-0.75, no trip
+  (2026-09-28).
 - The network against the camera states, stand-in truth: worst miss 9.0 K now,
   20.1 K before the emulator (regulators +28 for +8, AFE on read as passive).
   Left: regulators 3-9 K hot, bridge 4-6 K cool (2026-09-28).
@@ -241,9 +244,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - The rotor page's mark, the angle over the pole pairs, skipped a pitch (51.4
   deg) each electrical turn; counted at 20 frames a second it rode a speed that
   overshot at a hold's handover, 68.8 deg at rest. The drive counts theta_hat's
-  turns (op 0, MINOR 24): STEPPER +57.8/-53.7 of 60, 3.2 a frame at most. The
-  stand-in's injection pulled to 0 or pi, half a pitch flipped at rest: onto the
-  rotor now (2026-09-28).
+  turns (op 0, MINOR 24): STEPPER +57.8/-53.7 of 60, 3.2 a frame at most
+  (2026-09-28).
 - Renode under the drive: 3.8-4.5 wall s a board s, 110 M guest instructions a
   board s at ~33 ns each; Debug and Release alike. The CPU thread's RIP sampled:
   translated code 41 %, coreclr's crossings 17 %, the FPU's lazy state saved at
@@ -292,9 +294,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a
   coast (0 cells), the mark one place among them (2026-09-28).
-- A file read whole past 6 k tokens costs a tenth of a window: 38 of ours,
-  test_views 32 k, test_structure 17 k. Split by subject (split_suite.py), the
-  rest capped; test_structure and the pre-commit hook hold it (2026-09-28).
+- A file read whole past 6 k tokens costs a tenth of a window (38 of ours,
+  test_views 32 k): split by subject (split_suite.py), the rest capped, held by
+  test_structure and the pre-commit hook (2026-09-28).
 - The offline gate: 544 s at 17 % busy, a job a suite; one relay, shards past
   half its work over the batons: 224 s at 31 % (2026-09-28).
 - The attitude page stood 5 s at a time: the front page's link watcher, alive
@@ -303,14 +305,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - The attitude page froze on native://, 3 reads in 80 frames: a ctypes call a
   board millisecond, each waiting on the drawing for the interpreter, held the
   board to 21 %; one call a burst (native_lockstep): 100 %, 72 (2026-09-28).
-- A FAIL behind a page's leftover footer or screen clear went unnamed: the
-  runner takes a line's first marker now, escapes stripped (2026-09-28).
+- A FAIL behind a page's footer or screen clear went unnamed: the runner takes
+  a line's first marker, escapes stripped (2026-09-28).
 - A `Feed` slept its period after the read: a 20 ms read at 50 ms fed 14
   readings a second to a 20 fps page. Start to start now (2026-09-28).
-- Entering `coaxial` through `coaxial.comm.session` broke the package's own
-  import cycle: `rig` took `EMULATOR_URL` off a half-built session, and six
-  pages threw on the emulator while the suite, which enters elsewhere, stayed
-  green. `sessionmod.EMULATOR_URL` at call time (2026-09-28).
+- Entering `coaxial` through `coaxial.comm.session`, `rig` took `EMULATOR_URL`
+  off a half-built session: six pages threw on the emulator, the suite green.
+  `sessionmod.EMULATOR_URL` at call time (2026-09-28).
 - A view drawing faster than the board answers repeats a reading: 24 of 60
   frames on the emulator, and the freshness note flickered live/stale every
   other frame. Staleness is elapsed stillness now, not one repeated frame

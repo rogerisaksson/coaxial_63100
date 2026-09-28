@@ -35,6 +35,10 @@ LOAD_PERIOD_S = 40.0
 
 LOAD_GRAIN = 0.2
 
+#: An emulated board's world takes the stage's torque when it moves this far, N m: a monitor's
+#: round trip a frame on Renode.
+WORLD_GRAIN_NM = 0.01
+
 
 def no_load_rpm(view):
     """What the link will spin this motor to with nothing on the shaft."""
@@ -47,6 +51,26 @@ def no_load_rpm(view):
     return vdc / (math.sqrt(3.0) * lam) / pairs * 60.0 / math.tau
 
 
+def lay(rig, view, torque):
+    """`torque` against the shaft, N m: the stand-in's model's load, or on an emulated board's
+    world the stage's beside the propeller its drag (`world_drag`)."""
+    if view['source'] == 'model':
+        rig.board.drive.model.configure(load=torque)
+    else:
+        world_load(view, torque)
+
+
+def world_load(view, torque):
+    """The demo's loads on an emulated board's world, as the stand-in's model takes them off the
+    page: the propeller its drag on the world's own shaft, the stage's torque laid when it moves
+    a grain. Without them native's demo drew the flywheel's current alone."""
+    laid = view.get('world_drag')
+    if laid is None or abs(torque - view.get('world_torque', math.inf)) < WORLD_GRAIN_NM:
+        return
+    laid(prop_k(), torque)
+    view['world_torque'] = torque
+
+
 def heavy_start(rig, view):
     """A second at the clamp, then the burn."""
     drive = rig.board.drive
@@ -55,14 +79,14 @@ def heavy_start(rig, view):
     if left > BURST_HOLD_S:
         # Breaking away: everything the clamp allows, at the top of the speed
         # range, and no load in the way of it.
-        drive.model.configure(load=0.0)
+        lay(rig, view, 0.0)
         drive.write(id_ref=0.0, iq_ref=BURST_A, accel=BURST_ACCEL,
                     omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
         view['iq'] = BURST_A
         return
     # Burning: half the no-load speed, and a load to make the volts and the
     # amps happen at the same time.
-    drive.model.configure(load=BURST_LOAD_NM)
+    lay(rig, view, BURST_LOAD_NM)
     drive.write(id_ref=0.0, iq_ref=BURST_HOLD_A, accel=BURST_ACCEL,
                 omega_target=no_load_rpm(view) / 120.0 * math.tau * pairs)
     view['iq'] = BURST_HOLD_A
@@ -79,7 +103,7 @@ def turn_the_handle(rig, view):
         return
     if view['bursting']:
         view['bursting'] = False
-        rig.board.drive.model.configure(load=0.0)
+        lay(rig, view, 0.0)
         rig.board.drive.write(id_ref=0.0, iq_ref=view['iq'])
     if view['load']:
         load_loop(rig, view)
@@ -260,7 +284,8 @@ def _loop(view):
     p = view['params']
     kt = 1.5 * max(1.0, p.get('motor_pole_pairs') or 1.0) * (p.get('motor_lambda') or 0.005)
     return {'pi': SpeedPI(SPEED_HZ, SPIN_A, kt, view['j'], view['b'],
-                          prop_k() if view['source'] == 'model' else 0.0)}
+                          prop_k() if view['source'] == 'model' or view.get('world_drag')
+                          else 0.0)}
 
 
 def sweep(rig, view):
@@ -320,6 +345,8 @@ def sweep(rig, view):
         # load opposes positive turning, so the propeller's sign is the speed's.
         w = drive.model.read()['omega'] / pairs
         drive.model.configure(load=prop_k() * w * abs(w) + view.get('stage_load', 0.0))
+    else:
+        world_load(view, view.get('stage_load', 0.0))
     if how == 'hold':
         drive.write(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0, theta=view['held_theta'])
         view['iq'] = 0.0

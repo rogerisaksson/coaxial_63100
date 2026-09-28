@@ -452,6 +452,8 @@ def main(argv=None):
             # set one, else the demo's flywheel, which an emulated board's world carries.
             'j': args.j or DEMO_J, 'b': args.b or DEMO_B,
             'travel': 0.0,
+            # An emulated board's world takes the demo's loads (motions.world_load).
+            'world_drag': getattr(getattr(board.transport, 'serial', None), 'drag', None),
             'winding': _thermal.AMBIENT, 'winding_at': None,
             'burst_until': 0.0, 'bursting': False, 'stage': None,
             'burst_at': clock.now(),
@@ -519,6 +521,9 @@ def main(argv=None):
         feed.stop()
         done = []
         try:
+            if view.get('world_drag'):
+                view['world_drag'](0.0, 0.0)
+                done.append(('world', 'the demo\'s loads off its shaft'))
             board.drive.off()
             done.append(('drive', 'off, the compares released'))
             board.drive.configure(source='adc')

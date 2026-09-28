@@ -276,6 +276,10 @@ class Emulator:
         capacity scaled."""
         self._set(worlds.PLANT, Ambient=ambient, Air=air, Capacity=capacity)
 
+    def drag(self, k_drag, torque):
+        """Every plant's load laid live (native.Limb.drag): drag, N m per (rad/s)^2, torque."""
+        self._set(worlds.PLANT, Drag=k_drag, LoadTorque=torque)
+
     def pilot(self, volts, hz=PILOT_HZ, noise=0.0):
         """The master's common-mode pilot on the bus, every board's STO chain on it: its
         amplifier's amplitude, V (0 none), and Hz; the far end's 100 kHz common mode, V."""
