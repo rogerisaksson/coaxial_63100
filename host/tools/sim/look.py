@@ -254,6 +254,8 @@ WALK = (
         _lean(_p(a, 'left_shank'), _p(a, 'left_thigh')) for a, b in _lifts(rs))),
     ('thigh ahead at landing', 'deg', lambda rs: _mean(
         -_lean(_p(b, 'left_shank'), _p(b, 'left_thigh')) for a, b in _landings(rs))),
+    ('thigh most ahead', 'deg', lambda rs: _mean(max(
+        -_lean(_p(r, 'left_shank'), _p(r, 'left_thigh')) for r in s) for s in _swings(rs))),
     ('feet clear', 'mm', lambda rs: min((r.get('feet', math.nan) for r in rs),
                                         default=math.nan) * 1e3),
     ('touchdown', 'm/s', lambda rs: _touchdown(rs)),
@@ -319,17 +321,25 @@ def _touchdown(rs):
                  for k in range(2, len(rs)) if id(rs[k]) in lands)
 
 
-def _mid_swings(rs):
-    """The rows through the middle half of each of the left foot's swings."""
+def _swings(rs):
+    """Each of the left foot's swings, its rows from its lift to its landing."""
     lifts, lands = {id(b) for _a, b in _lifts(rs)}, {id(b) for _a, b in _landings(rs)}
     out, start = [], None
     for k, r in enumerate(rs):
         if id(r) in lifts:
             start = k
         elif id(r) in lands and start is not None:
-            span = k - start
-            out += [x for x in rs[start + span // 4:k - span // 4] if 'lifted' in x]
+            out.append(rs[start:k + 1])
             start = None
+    return out
+
+
+def _mid_swings(rs):
+    """The rows through the middle half of each of the left foot's swings."""
+    out = []
+    for s in _swings(rs):
+        span = len(s) - 1
+        out += [x for x in s[span // 4:span - span // 4] if 'lifted' in x]
     return out
 
 

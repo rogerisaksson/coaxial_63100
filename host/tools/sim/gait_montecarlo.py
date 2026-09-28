@@ -66,8 +66,11 @@ JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] in ('event', 'walk') els
 #: The look's cost, a walk's: the thigh's reach ahead of upright at the landing past its reach
 #: behind at the lift by more than BALANCE_DEG, BALANCE_K a degree; the head fore and aft past
 #: SURGE_MM, SURGE_K a mm; the feet nearer than CLEAR_MM as they pass, CLEAR_K a mm. A walk is
-#: looked at LOOK_HZ.
-BALANCE_DEG, BALANCE_K = 10.0, 0.2
+#: looked at LOOK_HZ. Her legs a little further back, straight, graceful - not the trudge, the
+#: feet far out in front and none behind (2026-09-28): the knee landing bent past KNEE_DEG, the
+#: thigh swung out past where it lands by more than OVER_DEG, KNEE_K and OVER_K a degree.
+BALANCE_DEG, BALANCE_K = 0.0, 0.2
+KNEE_DEG, KNEE_K, OVER_DEG, OVER_K = 10.0, 0.5, 3.0, 0.5
 
 #: The step taken out: the thigh short of REACH_DEG behind upright at the lift, REACH_K a degree,
 #: the heaviest of the look - weighed light, the searches came to tiptoeing, the legs always in
@@ -99,7 +102,8 @@ TOUCH_N, QUIET_S = 30.0, 0.1
 
 #: The look's measures, by `look.WALK`'s names, and the landing's.
 LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear',
-         'torso pitch', 'toe out', 'toe out swinging', 'ankle roll')
+         'torso pitch', 'toe out', 'toe out swinging', 'ankle roll', 'knee at landing',
+         'thigh most ahead')
 LANDS = ('impact', 'touch', 'rate')
 
 
@@ -112,7 +116,7 @@ def suite(name):
 
 def look_of(looks):
     """The look's cost of a walk's measures {name: value} (`LOOKS`)."""
-    (ahead, behind, surge, clear, torso, out, swinging, roll, impact, touch,
+    (ahead, behind, surge, clear, torso, out, swinging, roll, knee, most, impact, touch,
      rate) = (looks.get(n, math.nan) for n in LOOKS + LANDS)
     terms = (BALANCE_K * max(0.0, ahead - behind - BALANCE_DEG),
              REACH_K * max(0.0, REACH_DEG - behind),
@@ -120,7 +124,8 @@ def look_of(looks):
              TORSO_K * max(0.0, torso - TORSO_DEG),
              TOE_K * (max(0.0, TOE_OUT[0] - out) + max(0.0, out - TOE_OUT[1])
                       + max(0.0, -swinging)),
-             PRONATE_K * max(0.0, roll - PRONATE_DEG),
+             PRONATE_K * max(0.0, roll - PRONATE_DEG), KNEE_K * max(0.0, knee - KNEE_DEG),
+             OVER_K * max(0.0, most - ahead - OVER_DEG),
              IMPACT_K * max(0.0, impact - IMPACT_N), TOUCH_K * max(0.0, touch - TOUCH_MS),
              RATE_K * max(0.0, rate - RATE_KN_S))
     return sum(t for t in terms if t == t)
@@ -272,7 +277,8 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
             kind, pace, event or '', 100 * h, ' | '.join(whats),
             '' if kind != 'walk' else '  stir %.2f mm' % s,
             '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, torso %.1f, toes %.1f'
-            ' swinging %.1f, roll %.1f deg, impact %.0f N, touch %.2f m/s, rate %.0f kN/s'
+            ' swinging %.1f, roll %.1f, knee %.1f, most %.1f deg, impact %.0f N, touch %.2f m/s,'
+            ' rate %.0f kN/s'
             % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if looks else ''))
 
 
