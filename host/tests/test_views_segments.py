@@ -10,8 +10,8 @@ from views_kit import Report
 def run(segment, extra=2.0):
     """The rotor page from `segment` on, its length and `extra` seconds: a row a frame - the wall
     time, the segment, the stage, rpm, the current's size, the stand-in's true shaft, degrees
-    unwrapped, whether the envelope throttled and the mark as drawn - and whether the page kept
-    half its frame rate."""
+    unwrapped, whether the envelope throttled, the mark as drawn and the pole pairs - and
+    whether the page kept half its frame rate."""
     from coaxial.draw import cross_section
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_rotor_observer as view
@@ -37,7 +37,7 @@ def run(segment, extra=2.0):
                      st.get('omega_hat', 0.0) / pairs * 60.0 / math.tau,
                      math.hypot(st.get('id', 0.0), st.get('iq', 0.0)), shaft[0],
                      bool((v.get('budget') or {}).get('throttling')),
-                     marks[-1] if len(marks) > n else None))
+                     marks[-1] if len(marks) > n else None, pairs))
         return out
     seconds = sum(stage[2] for stage in motions.CYCLE if stage[0] == segment) + extra
     view.compose, motions.START_AT, cross_section.render = compose, segment, render
@@ -96,12 +96,13 @@ def test_stepper_steps_its_way(report):
                  'went %s of %s degrees' % (['%.0f' % g for g in went],
                                             ['%.0f' % a for a in asked]))
     # The mark after the vector, a step at a time: drawn off the angle over the pole pairs it
-    # skipped 51 degrees at each electrical turn, twice a run (2026-09-28).
+    # skipped a pitch, 51 degrees, at each electrical turn, twice a run (2026-09-28).
     drawn = [[r[7] for r in st if r[7] is not None] for st in runs]
     leaps = [max((abs(b - a) for a, b in zip(m, m[1:])), default=0.0) for m in drawn]
     turns = [m[-1] - m[0] if m else 0.0 for m in drawn]
-    report.check('and the mark goes with it, never a quarter pitch at once',
-                 len(turns) == len(asked) == 2 and max(leaps) < 90.0 / 7.0
+    pitch = 360.0 / (runs[0][0][8] if runs and runs[0] else 1.0)
+    report.check('and the mark goes with it, never 0.4 of a pitch at once',
+                 len(turns) == len(asked) == 2 and max(leaps) < 0.4 * pitch
                  and all(0.7 <= t / a <= 1.3 for t, a in zip(turns, asked) if a),
                  'the mark %s of %s degrees, its largest step %.1f' % (
                      ['%.0f' % t for t in turns], ['%.0f' % a for a in asked], max(leaps)))

@@ -43,15 +43,18 @@ def test_the_demo_actually_loads_the_motor(report):
         return real_bead(frame, seat, pointer_deg, glyph, sweep)
 
     def render(rotor_deg, slots=24, poles=28, *a, **k):
-        # The can, the mark and both shutters as one call drew them: the feed's thread
-        # replaces the state while compose draws.
+        # The can, the mark, both shutters and the phases as one call drew them: the feed's
+        # thread replaces the state while compose draws.
         drawn.append((rotor_deg, k.get('pointer_deg'), k.get('sweep', 0.0), k.get('blur', 0.0),
-                      poles))
+                      poles, k.get('amps') or (), k.get('full') or 0.0))
         return real_render(rotor_deg, slots, poles, *a, **k)
 
     def compose(rig, origin, console, v):
-        n, k = len(beads), len(owned)
+        n, k, d = len(beads), len(owned), len(drawn)
         out = real(rig, origin, console, v)
+        # The windings judged on the current the frame was drawn on: the state read after it
+        # was the feed's newer one on CI's runner, a coasting frame lit whole (4c55f7b).
+        amps, full = drawn[-1][5:7] if len(drawn) > d else ((), 0.0)
         pairs = max(1.0, v['params'].get('motor_pole_pairs') or 1.0)
         st = v['state'] or {}
         rows.append((time.perf_counter(), v.get('stage'),
@@ -62,7 +65,7 @@ def test_the_demo_actually_loads_the_motor(report):
                             + st.get('vq', 0.0) * st.get('iq', 0.0)),
                      None, None,
                      owned[-1] if len(owned) > k else None,
-                     math.hypot(st.get('id', 0.0), st.get('iq', 0.0)), v.get('i_max') or 0.0))
+                     max((abs(a) for a in amps), default=0.0), full))
         return out
 
     view.compose, cross_section._bead, cross_section.render = compose, bead, render
@@ -158,20 +161,22 @@ def test_the_demo_actually_loads_the_motor(report):
                      '%.0f rpm on %.1f A' % (loads[-1][1][-1][2], loads[-1][1][-1][3])
                      if loads else 'none')
     # The mark is on the rotor: one place among the magnets every frame, streaked through
-    # their shutter - on a pace of its own it drifted off them - and never a pitch at once at
-    # a crawl: the angle over the pole pairs skipped one each electrical turn (2026-09-28).
+    # their shutter - on a pace of its own it drifted off them - and at a crawl never 0.4 of a
+    # pitch at once: the angle over the pole pairs skipped one each electrical turn, the
+    # stand-in's injection flipped half of one at rest, a held rotor rang 12 degrees over a
+    # slow frame (2026-09-28).
     pitch = 720.0 / drawn[0][4] if drawn else 360.0
-    places = [((mark - can) % pitch, mark, sweep) for can, mark, sweep, _b, _p in drawn
+    places = [((mark - can) % pitch, mark, sweep) for can, mark, sweep, *_ in drawn
               if mark is not None]
     off = max((abs((p - places[0][0] + pitch / 2.0) % pitch - pitch / 2.0)
                for p, _m, _s in places), default=None) if places else None
-    apart = max((abs(sweep - blur * 360.0 / poles) for _c, _m, sweep, blur, poles in drawn),
+    apart = max((abs(sweep - blur * 360.0 / poles) for _c, _m, sweep, blur, poles, *_ in drawn),
                 default=None)
     crawl = max((abs(b[1] - a[1]) for a, b in zip(places, places[1:])
                  if abs(a[2]) < 1.0 and abs(b[2]) < 1.0), default=0.0)
     report.check('the mark rides the rotor among its magnets, through their shutter, and '
                  'at a crawl never skips a pitch',
-                 off is not None and off < 1e-6 and apart < 1e-9 and crawl < pitch / 4.0,
+                 off is not None and off < 1e-6 and apart < 1e-9 and crawl < 0.4 * pitch,
                  '%d frames: %.1e degrees off its place, the sweeps %.1e apart, the largest '
                  'step at a crawl %.1f' % (len(drawn), off or 0.0, apart or 0.0, crawl))
     text = re.sub(r'\x1b\[[0-9;]*m', '', art)

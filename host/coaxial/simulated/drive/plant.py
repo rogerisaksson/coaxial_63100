@@ -209,12 +209,19 @@ class DrivePlant:
         self._theta_hat = theta % (2 * math.pi)
 
     def _converge(self):
-        """SENSORLESS pulls theta_hat onto the rotor (0) or pi off it."""
+        """SENSORLESS pulls theta_hat onto the rotor or pi off it, the nearer - the injection's
+        two answers - while the back-EMF has no weight: the model's rotor, the ADC source's
+        standing at 0. Pulled to 0 or pi alone, a turning model's estimate flipped half a pitch
+        at rest (2026-09-28)."""
         if self._mode != 'sensorless' or not self._p('drv_inj_volts', 0.0):
             return
         dt = time.time() - self._theta_hat_at
         self._theta_hat_at = time.time()
-        target = 0.0 if math.cos(self._theta_hat) >= 0.0 else math.pi
+        motor = self._motor if self._source == 'model' else None
+        if motor is not None and abs(self._omega_hat) > self._p('drv_w_lo', 0.0):
+            return
+        rotor = motor.theta if motor is not None else 0.0
+        target = rotor if math.cos(self._theta_hat - rotor) >= 0.0 else rotor + math.pi
         err = (self._theta_hat - target + math.pi) % (2 * math.pi) - math.pi
         self._estimate(target + err * math.exp(-dt * 60.0))
 
