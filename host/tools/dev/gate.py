@@ -54,10 +54,11 @@ def main(argv=None):
                               stderr=subprocess.STDOUT)
     with open(log, encoding='utf-8') as f:
         lines = f.read().splitlines()
-    failed = [line for line in lines if line.startswith('  FAIL')]
-    total = [line for line in lines if line.startswith('Total:')]
+    total = [k for k, line in enumerate(lines) if line.startswith('Total:')]
+    # run_tests' failures, a line each under its tally.
+    failed = [line for line in lines[total[-1] + 1:] if line.startswith('  ')] if total else []
     print('%s %s: %s' % (sha[:7], 'cover' if args.cover else 'gate',
-                         total[-1] if total else 'no tally - see %s' % log))
+                         lines[total[-1]] if total else 'no tally - see %s' % log))
     for line in failed[:20]:
         print(line)
     return 0 if done.returncode == 0 and not failed else 1

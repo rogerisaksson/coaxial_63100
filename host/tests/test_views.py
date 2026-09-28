@@ -1242,7 +1242,7 @@ def test_the_demo_actually_loads_the_motor(report):
         return real_bead(frame, seat, pointer_deg, glyph, rate)
 
     def bead_at(bead, true, rate, top, dt):
-        rates.append(rate)
+        rates.append((rate, dt))
         return real_at(bead, true, rate, top, dt)
 
     def compose(rig, origin, console, v):
@@ -1256,10 +1256,11 @@ def test_the_demo_actually_loads_the_motor(report):
                      (v['j'], v['b'], motions.prop_k()),
                      1.5 * (st.get('vd', 0.0) * st.get('id', 0.0)
                             + st.get('vq', 0.0) * st.get('iq', 0.0)),
-                     # The rpm the bead moved at: the feed's thread replaces the state while
-                     # compose draws, and one read after it, across a reversal, called a
-                     # step back on CI (8e14db8).
-                     rates[-1] / 6.0 if len(rates) > m else None))
+                     # The rpm the bead moved at and over what dt: the feed's thread replaces
+                     # the state while compose draws, and one read after it, across a
+                     # reversal, called a step back on CI (8e14db8).
+                     rates[-1][0] / 6.0 if len(rates) > m else None,
+                     rates[-1][1] if len(rates) > m else None))
         return out
 
     view.compose, cross_section._bead, view.bead_at = compose, bead, bead_at
@@ -1321,18 +1322,19 @@ def test_the_demo_actually_loads_the_motor(report):
                      and abs(loads[-1][1][-1][3]) >= 5.0,
                      '%.0f rpm on %.1f A' % (loads[-1][1][-1][2], loads[-1][1][-1][3])
                      if loads else 'none')
-    drawn = [r for r in rows if r[4] is not None and r[7] is not None]
     back, xs, ys = 0, [], []
-    for i in range(1, len(drawn)):
-        step, rpm = drawn[i][4] - drawn[i - 1][4], drawn[i][7]
-        took = drawn[i][0] - drawn[i - 1][0]
-        # Past the bead's own clamp (bead_at's 0.25 s) a step is the clamp's, not the rule's.
-        if abs(rpm) > 30.0 and 0.0 < took <= CATCH_UP_S:
+    for was, row in zip(rows, rows[1:]):
+        if was[4] is None or row[4] is None or row[7] is None:
+            continue
+        step, rpm, dt = row[4] - was[4], row[7], row[8]
+        # Its speed on the screen, deg/s: its own step over its own dt. Over the rows' clock a
+        # frame stalled inside compose put the stall in the next frame's step and not in its
+        # time - 0.80 under a 0.4 s stall every tenth frame. At its clamp (bead_at's 0.25 s) a
+        # step is the clamp's, not the rule's.
+        if abs(rpm) > 30.0 and 0.0 < dt < CATCH_UP_S:
             back += step * rpm < 0.0
             xs.append(abs(rpm))
-            # Its speed on the screen, deg/s: a step a frame wanders with the frame's time on
-            # a loaded runner - 0.87 here under load, CI's red on dfa3194 (2026-09-28).
-            ys.append(abs(step) / took)
+            ys.append(abs(step) / dt)
 
     def ranks(v):
         order = sorted(range(len(v)), key=lambda k: v[k])

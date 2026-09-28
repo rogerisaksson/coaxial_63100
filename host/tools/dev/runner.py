@@ -12,8 +12,12 @@ from tools.dev.suites import ALONE, LIVE, OLLAMA, ROOT
 
 # The whole line after FAIL, detail included: a check's detail is the compiler
 # warning, the wrong value, the reason - and on a runner the summary (relayed
-# as a commit comment) is the only place it surfaces.
-FAIL_RE = re.compile(r'^\s{1,8}FAIL\s+(\S.*?)\s*$')
+# as a commit comment) is the only place it surfaces. The line's first marker,
+# escapes stripped: a page drawn in-process leaves its last write - a footer, a
+# screen clear - where the next PASS or FAIL lands (CI's 3.12 counted a FAIL on
+# 332a3fc and named none).
+MARK_RE = re.compile(r'(?:^|\s)(PASS|FAIL|SKIP)\s+(\S.*?)\s*$')
+ANSI_RE = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]')
 
 # The ollama suites under --tags say what they left out.
 GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
@@ -55,7 +59,8 @@ def _parse(out, code, elapsed, timeout):
             tally = (int(m.group(1)), int(m.group(2)),
                      int(m.group(3) or 0), '~' in line)
             break
-    failing = [m.group(1).strip() for m in (FAIL_RE.match(l) for l in lines) if m]
+    marks = (MARK_RE.search(ANSI_RE.sub('', line)) for line in lines)
+    failing = [m.group(2).strip() for m in marks if m and m.group(1) == 'FAIL']
     groups = next((l.strip() for l in reversed(lines)
                    if GROUPS_RE.match(l.strip())), None)
     if tally is None:

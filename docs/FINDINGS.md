@@ -273,6 +273,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   after: its regime came off the step `travel` made since the last draw, none
   between feed samples. Off the rotor's speed now, in proportion to it above 30
   rpm: 0 (2026-09-28).
+- CI's 3.12 counted a FAIL in the views on 332a3fc and named none: a page drawn
+  in-process leaves its footer or a screen clear on the line the next report
+  lands on, 4 of 273 lines, and the runner matched FAIL at a line's start. The
+  line's first marker, escapes stripped, now. Under a 0.4 s stall every tenth
+  frame the bead's rank correlation read 0.80: its step over the rows' clock,
+  which a stall inside compose puts a frame apart from the page's. Over its own
+  dt: 1.00 stalled and not (2026-09-28).
 - A `Feed` slept its period after the read: a 20 ms read at 50 ms fed 14
   readings a second to a 20 fps page. Start to start now (2026-09-28).
 - Entering `coaxial` through `coaxial.comm.session` broke the package's own
