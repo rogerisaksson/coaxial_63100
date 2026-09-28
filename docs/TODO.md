@@ -126,8 +126,11 @@ Open work. Measured results are in FINDINGS.
   degrees) she falls all the same, the standing foot off the floor while
   the other is held. Fallen on all fours, she lies there: the push-up and
   the dog leave the head and the torso on the floor, the arms too weak to
-  lift them (`tools/sim/getup_lab.py` heels, bearwalk) - the get-up waits
-  for the drives' sizes. The walk begins from a lean, the body 8 degrees ahead of
+  lift them (`tools/sim/getup_lab.py` heels, bearwalk) - the drives now
+  sized give the shoulder 101 N m and the elbow 30 against the model's 40
+  and 25. The model carries a tenth of the rotors the cycloids show
+  (`physics.REFLECTED`): the walk to be tuned on them; M's and S's motors
+  are estimates. The walk begins from a lean, the body 8 degrees ahead of
   plumb, the walker taking her mid-swing and letting the lean out over 2 s,
   the pelvis with the torso; the weight goes 3 cm onto the left foot before
   the right lifts and the rest as it lifts, the stance hip rolled -2.5

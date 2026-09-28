@@ -3,40 +3,32 @@
 The switches, the laminate under them and the winding, each a node lumped; the envelope's derate
 and trip on them.
 
-    heat = Heat(count)                  # `count` drives at AMBIENT_C, their gates on
-    heat.load(k, amps)                  # a tick's q current into drive k's mean square
+    heat = Heat([drives.heat(j), ..])   # the drives at AMBIENT_C, their gates on
+    heat.load(k, torque)                # a tick's torque, N m, into drive k's mean square
     heat.step(dt, air, rds)             # dt s on: the nodes on their losses, the envelope
     heat.derate[k], heat.gates[k]       # the share of its clamp drive k gives, if anything
     heat.arm(k); heat.warm(k, celsius)  # the gates on again; its nodes warmed to at least
     heat.report(k)                      # (celsius, spent, derate, status): its reply's
 
-A drive is the 63 V 100 A board behind its outrunner and a cycloidal gear. `air` scales the
-laminate's and the winding's paths to the air (1 as built; a blocked one runs hot), `rds` the
-switches' on-resistance (1 as built; a gate drive sagging runs the FETs in their SOA). Heat runs
-HASTE times the clock.
+A drive is a board behind its outrunner and a cycloid (`machine.drives`): its torque an amp,
+its winding, its board's losses as the 63 V 100 A board's at its current scaled to that board's,
+its laminate's path through the housing. `air` scales the laminate's and the winding's paths to
+the air (1 as built; a blocked one runs hot), `rds` the switches' on-resistance (1 as built; a
+gate drive sagging runs the FETs in their SOA). Heat runs HASTE times the clock.
 """
-from motor.catalog import PLATINUM_5230SL
-from motor.pmsm import TORQUE_FACTOR, WINDING_J_PER_K, WINDING_K_PER_W
-
-#: The drive: the 5230SL through a cycloidal GEAR:1 at EFFICIENCY - joint torque an amp of q
-#: current, KT_NM_A (the knee's 250 N m at the board's 100 A), and the winding's copper watts an
-#: amp squared, R_OHM (1.5 r).
-GEAR, EFFICIENCY = 64.0, 0.9
-KT_NM_A = TORQUE_FACTOR * PLATINUM_5230SL.poles * PLATINUM_5230SL.lam * GEAR * EFFICIENCY
-R_OHM = TORQUE_FACTOR * PLATINUM_5230SL.r
 
 #: The switches' on-resistance and the shunts', ohm (IAUCN10S7N021, two WSHM2818 in parallel);
 #: the switching's watts with the gates on, and the housekeeping's always (MCU, regulators,
 #: AFE): thermal.c's loss table.
 RDS_OHM, SHUNT_OHM, SWITCHING_W, HOUSEKEEPING_W = 1.8e-3, 3.5e-3, 1.2, 1.33
 
-#: The nodes: heat capacity, J/K, and the path on, K/W - the switches into the laminate, the
-#: laminate and the winding to the air. Lumped from the board's network (a leg's driver 0.117 J/K
-#: on 12 K/W into its patch; the three patches 16 J/K, 35 K over the room at 1 W a leg) and the
-#: outrunner's winding (`motor.pmsm`).
+#: The nodes: the switches, the laminate under them, the winding. The switches' and the
+#: laminate's heat capacity, J/K, and the switches' path into the laminate, K/W: lumped from the
+#: board's network (a leg's driver 0.117 J/K on 12 K/W into its patch; the three patches 16 J/K);
+#: bare in still air the laminate stands 35 K over the room at 1 W a leg, 11.7 K/W. The winding's
+#: and the laminate's path on to the air are the drive's (`drives.heat`).
 NODES = ('switch', 'laminate', 'winding')
-CAPACITY_J_K = (0.35, 16.0, WINDING_J_PER_K)
-PATH_K_W = (4.0, 11.7, WINDING_K_PER_W)
+SWITCH_J_K, LAMINATE_J_K, INTO_K_W = 0.35, 16.0, 4.0
 
 #: Each node's ceiling, C (the record's: the drivers' copper, the laminate, the winding), and
 #: the FETs' junction limit over the switches by RTH_JC K/W a FET's watts (the sheet's).
@@ -59,10 +51,15 @@ GATES_ON, WORST_SHIFT = 0x1, 4
 
 class Heat:
 
-    """`count` drives' heat and envelopes, a list a quantity, a drive an index."""
+    """Drives' heat and envelopes, a list a quantity, a drive an index."""
 
-    def __init__(self, count):
-        n = int(count)
+    def __init__(self, drives):
+        n = len(drives)
+        #: Each drive's torque an amp, winding ohm, board scale, winding J/K and K/W, laminate
+        #: K/W (`drives.heat`); the nodes' capacities.
+        self.kt, self.r, self.scale, self.winding_j_k, self.winding_k_w, self.laminate_k_w = (
+            [float(d[i]) for d in drives] for i in range(6))
+        self.capacity = [(SWITCH_J_K, LAMINATE_J_K, c) for c in self.winding_j_k]
         self.t = [[AMBIENT_C] * len(NODES) for _ in range(n)]
         self.sq, self.ticks = [0.0] * n, [0] * n
         self.derate, self.gates, self.trips = [1.0] * n, [True] * n, [0] * n
@@ -70,7 +67,8 @@ class Heat:
         #: The trip cap and the heat second it was set at.
         self.cap, self.cap_at, self.at = [1.0] * n, [0.0] * n, 0.0
 
-    def load(self, k, amps):
+    def load(self, k, torque):
+        amps = torque / self.kt[k]
         self.sq[k] += amps * amps
         self.ticks[k] += 1
 
@@ -90,14 +88,15 @@ class Heat:
         for k, t in enumerate(self.t):
             sq = self.sq[k] / self.ticks[k] if self.ticks[k] else 0.0
             self.sq[k], self.ticks[k] = 0.0, 0
-            fet = 0.5 * sq * RDS_OHM * rds[k]
+            board = sq * self.scale[k] ** 2
+            fet = 0.5 * board * RDS_OHM * rds[k]
             power = (3.0 * fet + (SWITCHING_W if self.gates[k] else 0.0),
-                     1.5 * sq * SHUNT_OHM + HOUSEKEEPING_W, R_OHM * sq)
-            into = (t[0] - t[1]) / PATH_K_W[0]
+                     1.5 * board * SHUNT_OHM + HOUSEKEEPING_W, self.r[k] * sq)
+            into = (t[0] - t[1]) / INTO_K_W
             net = (power[0] - into,
-                   power[1] + into - (t[1] - AMBIENT_C) * air[k] / PATH_K_W[1],
-                   power[2] - (t[2] - AMBIENT_C) * air[k] / PATH_K_W[2])
-            for i, c in enumerate(CAPACITY_J_K):
+                   power[1] + into - (t[1] - AMBIENT_C) * air[k] / self.laminate_k_w[k],
+                   power[2] - (t[2] - AMBIENT_C) * air[k] / self.winding_k_w[k])
+            for i, c in enumerate(self.capacity[k]):
                 t[i] += h * net[i] / c
             self.die[k] = t[0] + fet * RTH_JC
             self._envelope(k, t, net, h)
@@ -109,7 +108,7 @@ class Heat:
             limit = AMBIENT_C + cap * (top - AMBIENT_C)
             used = max(0.0, min(1.0, (t[i] - AMBIENT_C) / (limit - AMBIENT_C)))
             if net[i] > 0.0:
-                hold = max(0.0, (limit - t[i]) * CAPACITY_J_K[i] / net[i])
+                hold = max(0.0, (limit - t[i]) * self.capacity[k][i] / net[i])
                 used = max(used, min(1.0, 1.0 - hold / LOOKAHEAD_S))
             if used > spent:
                 spent, worst = used, i

@@ -57,7 +57,8 @@ SETTLE_S, EVENT_AT_S = 4.0, 5.0
 #: The cost of the trials' time lost, mm of stir for all of it; a walk fallen counts this stir.
 LOST, FALLEN_STIR = 30.0, 10.0
 
-MODULES = ('walker', 'gait', 'arrival', 'director', 'capture', 'physics', 'buses', 'events')
+MODULES = ('walker', 'gait', 'arrival', 'director', 'capture', 'physics', 'buses', 'events',
+           'drives')
 
 
 def _set(values):
@@ -248,7 +249,7 @@ def main(argv=None):
         got = run(pool, cands)
         ranked = sorted(zip(cands, got), key=lambda cg: cg[1][0])
         for values, (cost, held, stir, results) in ranked:
-            _show(values, cost, held, stir, results if len(ranked) == 1 else ())
+            _show(values, cost, held, stir, results)
     print('%d candidates, %d runs, %.0f s' % (len(cands), len(cands) * len(JOBS),
                                               time.time() - began))
     return 0

@@ -21,7 +21,8 @@ The block (`Block`, FIELDS): the world writes time, q, qd and limit, bumps seq a
 to each process's stdin; a process takes each bus's new bytes (written - received), ticks its
 boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
 epoch and hold: a reset, every board holding `hold`, its heat at the room's; air, rds and warm:
-a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken). An emulated limb takes a process's place on
+a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); drive: what
+its heat is kept by (`drives.heat`), written before the processes start. An emulated limb takes a process's place on
 the same port and block. A limb a process where the machine has THREADS_A_LIMB hardware threads
 a limb, else the limbs shared out by their boards (`share`).
 """
@@ -56,7 +57,7 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('written', 'q', 'B'), ('sent', 'q', 'B'), ('free_at', 'd', 'B'), ('at', 'd', '2B'),
           ('q', 'd', 'J'), ('qd', 'd', 'J'), ('limit', 'd', 'J'), ('ctrl', 'd', 'J'),
           ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
-          ('warm', 'd', 'J'))
+          ('warm', 'd', 'J'), ('drive', 'd', '6J'))
 
 HOST = '127.0.0.1'
 
@@ -156,7 +157,8 @@ class Segment:
         #: Frames landing: (at, {unit: mdeg}); requests to answer: (at, unit, a gate write's
         #: frame or None for a poll).
         self.inbox, self.mail = collections.deque(), collections.deque()
-        self.heat, self.heat_at = heat.Heat(n), 0.0
+        self.drives = [tuple(block.drive[6 * i:6 * i + 6]) for i in self.indices]
+        self.heat, self.heat_at = heat.Heat(self.drives), 0.0
         self.free_at, self.received, self.bad = 0.0, 0, 0
         self.epoch = block.epoch[0]
         self.server = socket.socket()
@@ -179,7 +181,7 @@ class Segment:
         self.inbox.clear()
         self.mail.clear()
         self.free_at = now
-        self.heat, self.heat_at = heat.Heat(len(self.indices)), now
+        self.heat, self.heat_at = heat.Heat(self.drives), now
 
     def hear(self):
         """The host's new bytes: each frame onto the wire at its stamp, or when the wire frees."""
@@ -226,7 +228,7 @@ class Segment:
             tau = b.gains[2 * i] * (ref - b.q[i]) + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i])
             top = b.limit[i] * h.derate[k] if h.gates[k] else 0.0
             b.ctrl[i] = tau = max(-top, min(top, tau))
-            h.load(k, tau / heat.KT_NM_A)
+            h.load(k, tau)
             if b.warm[i] > 0.0:
                 h.warm(k, b.warm[i])
                 b.warm[i] = 0.0

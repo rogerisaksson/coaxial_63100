@@ -7,13 +7,14 @@
 A part is a closed loft or ellipsoid in its own frame, hung off its parent at the figure's offset
 and turned by its joints - the figure's names and signs. Without `root`, the lowest point of the
 feet stands on the floor. 1.69 m tall; the lattice, the glowing core and the plates are the
-materials `gpu.LIT_WGSL` lights. The floor scrolls under her by `travel` metres.
+materials `gpu.LIT_WGSL` lights. The floor scrolls under her by `travel` metres. Each drive's
+assembly (`machine.drives`) is a drum on its joint's axis, or where it is mounted.
 """
 import math
 
 from coaxial.graphics import engine
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, NOISE
-from machine import ansi, figure
+from machine import ansi, drives, figure
 from machine.figure import TOE_RY
 from machine.gait import ANKLE_H, BALL, SHANK, THIGH
 
@@ -80,6 +81,51 @@ def _ellipsoid(centre, radii, material, rows=10):
     return body
 
 
+def _drum(radius, length, axis, material):
+    """A drum `radius` round and `length` long on its part's `axis` ('x', 'y' or 'z') through
+    the origin, its rims chamfered."""
+    np = _np()
+    half, lip = length / 2.0, min(0.004, 0.1 * radius)
+    rings = [(-half, radius - lip, radius - lip), (-half + lip, radius, radius),
+             (half - lip, radius, radius), (half, radius - lip, radius - lip)]
+    corners, triangles, uv, materials = _loft(rings, material)
+    turn = {'x': ((0.0, 1.0, 0.0), (-1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
+            'y': ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
+            'z': ((1.0, 0.0, 0.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0))}[axis]
+    return corners @ np.asarray(turn), triangles, uv, materials
+
+
+#: Where a drive's drum sits on its joint's segment when it is on the joint's axis, m, her left
+#: side's (the right's mirrored): the hip's out at the hip's side, its roll's up in the pelvis's
+#: socket; the yaw's rides the pelvis over the hip, the spine's pair and the waist's the torso's
+#: foot.
+DRUM_AT = {'hip': (0.02, 0.0, 0.0), 'hip_roll': (0.0, 0.035, 0.0), 'spine_roll': (0.0, 0.05, 0.0),
+           'waist': (0.0, 0.1, -0.01)}
+DRUM_ON_PELVIS = {'hip_yaw': 0.09}
+
+
+def _drums():
+    """[(name, parent, offset, mesh)]: each joint's drive's drum."""
+    carries = {j: seg for seg in figure.SEGMENTS for j, _axis, _sign in seg[2]}
+    axes = {j: axis for seg in figure.SEGMENTS for j, axis, _sign in seg[2]}
+    out = []
+    for joint, seg in carries.items():
+        size = drives.of(joint)[1]
+        mesh = _drum(size.diameter / 2.0, size.length, axes[joint], PLATE)
+        mounted = drives.mount(joint)
+        x = -1.0 if joint.startswith('right_') else 1.0
+        kind = drives.kind(joint)
+        if mounted is not None:
+            parent, (ox, oy, oz) = mounted
+        elif kind in DRUM_ON_PELVIS:
+            parent, (hx, hy, hz) = 'pelvis', seg[3]
+            ox, oy, oz = hx * x, hy + DRUM_ON_PELVIS[kind], hz
+        else:
+            parent, (ox, oy, oz) = seg[0], DRUM_AT.get(kind, (0.0, 0.0, 0.0))
+        out.append(('drive_' + joint, parent, (ox * x, oy, oz), mesh))
+    return out
+
+
 def _limb(length, top, middle, bottom, material, flat=1.0, bulge_at=0.3):
     """A tapered limb hanging from its joint down -y: `top` at the joint, `middle` at `bulge_at` of
     the way, `bottom` at the end, rounded; `flat` its depth over its width."""
@@ -132,16 +178,16 @@ def _meshes():
                   ('%s_cap' % side, 'torso', (0.135 * x, 0.335, -0.004),
                    _ellipsoid((0.0, 0.0, 0.0), (0.042, 0.036, 0.04), PLATE, rows=8))]
         meshes.update({
-            side + '_upper_arm': _limb(0.27, 0.031, 0.03, 0.023, MESH, flat=0.95),
-            side + '_forearm': _limb(0.24, 0.024, 0.023, 0.017, MESH, flat=0.85),
+            side + '_upper_arm': _limb(0.27, 0.031, 0.03, 0.024, MESH, flat=0.95),
+            side + '_forearm': _limb(0.24, 0.025, 0.025, 0.018, MESH, flat=0.9),
             side + '_hand': _ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
             side + '_fingers': _ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
-            side + '_thigh': _limb(THIGH, 0.064, 0.055, 0.039, MESH, bulge_at=0.22),
-            side + '_shank': _limb(SHANK, 0.04, 0.044, 0.024, PLATE, bulge_at=0.3),
+            side + '_thigh': _limb(THIGH, 0.064, 0.055, 0.05, MESH, bulge_at=0.22),
+            side + '_shank': _limb(SHANK, 0.05, 0.056, 0.025, PLATE, bulge_at=0.3),
             side + '_foot': _loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SOLE], PLATE,
                                   poles=(-0.07, BALL + 0.01), along='z'),
             side + '_toes': _ellipsoid((0.0, 0.0, 0.03), (0.04, TOE_RY, 0.035), PLATE, rows=6)})
-    return meshes, extra
+    return meshes, extra + _drums()
 
 
 def _parts():

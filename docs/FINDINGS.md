@@ -736,6 +736,26 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   waist turned toward the way she tips as it turns, once in the five, at
   0.5-0.69 m/s, the hands first but for the rug (a hip, falling ahead and
   aside, roll 0.6 -> 36 degrees as she went) (2026-09-28).
+- Her drives sized (`machine.drives`, `tools/sim/drive_sizes.py` against
+  the rise and 20 s of walk): three assemblies, a board behind an outrunner
+  on a cycloid, coaxial - L the 63100 board (its parts 92 x 93 mm, a 100 mm
+  disc) on the 5230SL at 1:64, 251 N m, 791 deg/s at 44.4 V, 1.5 kg, 100 x
+  95 mm, for the hips, the knees, the spine's pitch and roll and the ankles
+  (the latter inside the calf); M 50 A on a 43 mm stator at 1:76, 101 N m;
+  S 20 A on a 35 mm one at 1:101, 30 N m - M and S estimated from their
+  size classes. Every joint within its peak (the hips' 250 at 250.7), its
+  rms within what its envelope holds for ever (the hip 61 of 73.7 N m, the
+  board bolted to its housing), its speed within the unloaded (the knee 616
+  of 791 deg/s); the assemblies ride their segments within their masses,
+  the shank 2.15 of 2.65 kg. The cycloid shows the rotor 0.49 kg m^2 at an
+  L joint, the model carries 0.05: walked with it the head goes 44.9 ->
+  81.3 mm fore and aft, the strike 1550 -> 1031 N, held 83.8 -> 71.8 %,
+  whatever L's ratio (36, 48, 64: 73.9, 71.4, 71.8 %). The frame fixes the
+  product of that inertia and the copper's heat at a torque (J N^2 against
+  t^2 / Km^2 N^2): the hips' winding stands 83 C at 1:64, 129 at 1:48, 210
+  at 1:36. Drawn, the ankle's drum on the calf's back stood 3 cm proud;
+  inside a calf 112 mm round only its ends show, as the knee's and the
+  elbow's do (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

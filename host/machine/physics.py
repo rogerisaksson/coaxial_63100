@@ -17,7 +17,8 @@ import math
 import os
 from typing import Any
 
-from machine import heat
+from machine import drives
+from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Feedback
 from machine.errors import MachineError
@@ -44,10 +45,10 @@ SERVO = {'spine': (150.0, 800.0, 30.0, 0.05), 'spine_roll': (150.0, 800.0, 30.0,
 #: The world's step, s.
 STEP_S = 0.001
 
-#: A drive's copper loss per torque squared, W/(N m)^2: R/kt^2 of its motor through its gear
-#: (`machine.heat`). The work it does is metered only where positive - a drive does not charge
-#: its battery braking.
-LOSS_W = heat.R_OHM / heat.KT_NM_A ** 2
+#: How much of the drives' rotors seen through their cycloids (`drives.armature`) a joint carries
+#: in place of SERVO's armature, 0 to 1; whether a joint's clamp is its drive's peak where that is
+#: less (`drives.peak`), 0 or 1.
+REFLECTED, CLAMPED = 0.0, 0.0
 
 #: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times - a gate drive
 #: sagging, the FETs half on, in their SOA; or its nodes at WARM_C - run hard, hot.
@@ -84,14 +85,6 @@ RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.1
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 80.0, -50.0
 
 
-def kind(joint):
-    """A joint's kind: its name after the side."""
-    for k in ('hip_yaw', 'hip_roll', 'ankle_roll', 'spine_roll'):
-        if joint.endswith(k):
-            return k
-    return joint.rsplit('_', 1)[-1]
-
-
 def mjcf():
     """The figure as MuJoCo's XML: y up, a drive's motor on every joint, the floor's contacts."""
     kids = {}
@@ -110,7 +103,9 @@ def mjcf():
             out.append('<freejoint name="root"/>')
         for joint, axis, sign in joints:
             out.append('<joint name="%s" axis="%g %g %g" armature="%g"/>' % (
-                (joint,) + tuple(sign * v for v in axes[axis]) + (SERVO[kind(joint)][3],)))
+                (joint,) + tuple(sign * v for v in axes[axis]) + (
+                    SERVO[kind(joint)][3] + REFLECTED * (drives.armature(joint)
+                                                         - SERVO[kind(joint)][3]),)))
         mass = share * MASS_KG
         out.append('<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
@@ -152,7 +147,8 @@ def mjcf():
                RUG_M / 4.0, RUG_LONG_M / 2.0, RUG_M / 4.0, RUG_KG / 2.0, FRICTION, TORSION_M,
                give),
            '</body>', '</worldbody>', '<actuator>']
-        + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -SERVO[kind(j)][0], SERVO[kind(j)][0])
+        + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
+                                                      max(SERVO[kind(j)][0], drives.peak(j)))
            for j in JOINTS]
         + ['</actuator>', '</mujoco>'])
 
@@ -172,7 +168,12 @@ class World:
         self.qadr = np.array([m.jnt_qposadr[m.joint(j).id] for j in JOINTS])
         self.vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
         self.gains = np.array([SERVO[kind(j)][1:3] for j in JOINTS])
-        self.peak = np.array([SERVO[kind(j)][0] for j in JOINTS])
+        self.peak = np.array([min(SERVO[kind(j)][0], drives.peak(j)) if CLAMPED
+                              else SERVO[kind(j)][0] for j in JOINTS])
+        #: Each drive's copper loss a torque squared, W/(N m)^2: R/kt^2 of its motor through its
+        #: cycloid (`machine.drives`). The work it does is metered only where positive - a drive
+        #: does not charge its battery braking.
+        self.loss = np.array([drives.r_ohm(j) / drives.kt(j) ** 2 for j in JOINTS])
         self.target = np.zeros(len(JOINTS))
         self.rate = np.zeros(len(JOINTS))
         self.was, self.stamp = self.target.copy(), 0.0
@@ -207,6 +208,7 @@ class World:
         self.block.gains[:] = self.gains.ravel()
         self.block.limit[:] = self.limit
         self.block.air[:] = self.block.rds[:] = self._np.ones(len(JOINTS))
+        self.block.drive[:] = self._np.array([drives.heat(j) for j in JOINTS]).ravel()
         self.buses = Buses(self.block, limbs)
         self.bus_of = self.buses.of
         atexit.register(self.close)
@@ -331,7 +333,7 @@ class World:
             power = d.ctrl * d.qvel[self.vadr]
             self.work += float(power[power > 0.0].sum()) * STEP_S
             self.brake -= float(power[power < 0.0].sum()) * STEP_S
-            self.heat += LOSS_W * float(d.ctrl @ d.ctrl) * STEP_S
+            self.heat += float(self.loss @ (d.ctrl * d.ctrl)) * STEP_S
             self.effort += float(np.abs(d.ctrl).sum()) * STEP_S
             d.xfrc_applied[:, 0:3] = 0.0
             d.xfrc_applied[self.torso, 0:3] = self.push_n if d.time < self.push_until else 0.0

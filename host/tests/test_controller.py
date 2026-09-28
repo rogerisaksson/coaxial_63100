@@ -692,12 +692,13 @@ def test_a_drive_keeps_its_heat(report):
     """A drive's board keeps its heat (`machine.heat`): stalled at its board's 100 A it derates
     from THROTTLE_AT of its envelope and drops its gates at a ceiling; armed and idle it cools,
     its derate given back at RECOVER_PER_S; its report goes on the wire and back whole."""
-    from machine import heat, rtu
-    h = heat.Heat(1)
+    from machine import drives, heat, rtu
+    h = heat.Heat([drives.heat('left_knee')])
+    stall = drives.kt('left_knee') * drives.of('left_knee')[1].amps
     air, rds, derated_at, tripped_at = [1.0], [1.0], None, None
     for k in range(3000):
         for _ in range(10):
-            h.load(0, 100.0 if h.gates[0] else 0.0)
+            h.load(0, stall if h.gates[0] else 0.0)
         h.step(0.01, air, rds)
         if h.derate[0] < 1.0 and derated_at is None:
             derated_at = (k, h.spent[0])
