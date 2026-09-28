@@ -144,11 +144,12 @@ def _drums():
 
 
 #: Her clothes' colours, and how far out of her they hang, m: high-waisted jeans in a light wash,
-#: a white tank, white sneakers; a patch reaches PATCH_M round a drum's end. The jeans' legs
-#: widen from under the knee to a hem HEM_R round a hand over the floor, hung from the hems'
-#: hinges (`physics.HEMS`) so they swing on their own.
+#: a white tank, white sneakers; the jeans LOOSE_M out over the seat and the thighs, the tank
+#: BAGGY_M; a patch reaches PATCH_M round a drum's end. The jeans' legs widen from under the knee
+#: to a hem HEM_R round a hand over the floor, hung from the hems' hinges (`physics.HEMS`) so they
+#: swing on their own.
 DENIM, TEE, SNEAKER = (118, 150, 182), (230, 230, 226), (236, 236, 232)
-LOOSE_M, PATCH_M, HEM_R = 0.012, 0.04, (0.088, 0.082)
+LOOSE_M, BAGGY_M, PATCH_M, HEM_R = 0.02, 0.02, 0.045, (0.088, 0.082)
 
 
 def _wear():
@@ -157,15 +158,20 @@ def _wear():
     knee, and each wide leg on its hem's hinges from there to over the floor - each a shell
     LOOSE_M out of her."""
     tee, denim = paint(TEE), paint(DENIM)
+    b = BAGGY_M - 0.012
     out = [('cloth_tee', 'torso', (0.0, 0.0, 0.0), _loft(
-        [(-0.03, 0.104, 0.077), (0.047, 0.108, 0.080), (0.093, 0.117, 0.087, 0.002),
-         (0.149, 0.130, 0.093, 0.004), (0.205, 0.138, 0.098, 0.004), (0.26, 0.142, 0.092, 0.002),
-         (0.307, 0.150, 0.082), (0.344, 0.152, 0.074), (0.366, 0.112, 0.064)], tee,
-        poles=(-0.036, 0.378))),
+        [(-0.03, 0.104 + b, 0.077 + b), (0.047, 0.108 + b, 0.080 + b),
+         (0.093, 0.117 + b, 0.087 + b, 0.002), (0.149, 0.130 + b, 0.093 + b, 0.004),
+         (0.205, 0.138 + b, 0.098 + b, 0.004), (0.26, 0.142 + b, 0.092 + b, 0.002),
+         (0.307, 0.150 + b, 0.082 + b), (0.344, 0.152 + b, 0.074 + b), (0.366, 0.112, 0.064)],
+        tee, poles=(-0.036, 0.378))),
            ('cloth_seat', 'pelvis', (0.0, 0.0, 0.0), _loft(
-               [(-0.10, 0.064, 0.057), (-0.07, 0.124, 0.089, -0.006), (-0.03, 0.159, 0.104, -0.014),
-                (0.02, 0.157, 0.099, -0.008), (0.07, 0.131, 0.087), (0.11, 0.108, 0.078)], denim,
-               poles=(-0.115, 0.118)))]
+               [(-0.10, 0.072, 0.065), (-0.07, 0.132, 0.097, -0.006), (-0.03, 0.167, 0.112, -0.014),
+                (0.02, 0.165, 0.107, -0.008), (0.07, 0.137, 0.093), (0.11, 0.112, 0.082)], denim,
+               poles=(-0.12, 0.118)))]
+    for side, x in (('left', 1.0), ('right', -1.0)):
+        out += [('cloth_%s_bust' % side, 'torso', (0.054 * x, 0.212, 0.052 + b),
+                 _ellipsoid((0.0, 0.0, 0.0), (0.066, 0.058, 0.052), tee, rows=8))]
     drop = SHANK + ANKLE_H - HEM_AT - 0.012
     for side in ('left', 'right'):
         out += [('cloth_%s_thigh' % side, side + '_thigh', (0.0, 0.0, 0.0),
@@ -219,6 +225,35 @@ def _limb(length, top, middle, bottom, material, flat=1.0, bulge_at=0.3):
 HEAD_Y = 0.095
 
 
+#: Her hair, lips and eyes; how far the long hair falls behind her head, m.
+HAIR, LIPS, EYES, HAIR_FALLS_M = (214, 182, 122), (192, 112, 112), (46, 46, 58), 0.2
+
+
+def _features():
+    """[(name, parent, offset, mesh)] on her head: the nose, the ears, the eyes and the lips,
+    and long hair - a cap over the skull behind the face and a fall down to her shoulder
+    blades."""
+    hair = paint(HAIR)
+    out = [('nose', 'head', (0.0, 0.0, 0.0),
+            _ellipsoid((0.0, HEAD_Y - 0.004, 0.1), (0.011, 0.022, 0.016), SKIN, rows=6)),
+           ('lips', 'head', (0.0, 0.0, 0.0),
+            _ellipsoid((0.0, HEAD_Y - 0.048, 0.094), (0.02, 0.007, 0.01), paint(LIPS), rows=6)),
+           ('hair', 'head', (0.0, 0.0, 0.0),
+            _ellipsoid((0.0, HEAD_Y + 0.012, -0.02), (0.079, 0.112, 0.096), hair)),
+           ('hair_fall', 'head', (0.0, 0.0, 0.0), _loft(
+               [(HEAD_Y, 0.076, 0.05, -0.045), (0.0, 0.072, 0.036, -0.06),
+                (-0.1, 0.076, 0.03, -0.068), (-HAIR_FALLS_M, 0.08, 0.024, -0.075)], hair,
+               poles=(HEAD_Y + 0.05, -HAIR_FALLS_M - 0.02)))]
+    for side, x in (('left', 1.0), ('right', -1.0)):
+        out += [('%s_ear' % side, 'head', (0.0, 0.0, 0.0),
+                 _ellipsoid((0.071 * x, HEAD_Y - 0.004, 0.006), (0.009, 0.028, 0.018), SKIN,
+                            rows=6)),
+                ('%s_eye' % side, 'head', (0.0, 0.0, 0.0),
+                 _ellipsoid((0.029 * x, HEAD_Y + 0.016, 0.092), (0.013, 0.006, 0.006),
+                            paint(EYES), rows=6))]
+    return out
+
+
 def _face(corners):
     """The head's corners: skin on the face, the hood's mesh round the rest."""
     np = _np()
@@ -246,14 +281,14 @@ def _meshes():
                    (0.307, 0.138, 0.07), (0.344, 0.14, 0.062), (0.372, 0.1, 0.055),
                    (0.39, 0.05, 0.045)], _core, poles=(-0.055, 0.40))
     meshes = {'pelvis': pelvis, 'torso': torso,
-              'neck': _loft([(0.0, 0.031, 0.029), (0.05, 0.027, 0.026), (0.095, 0.026, 0.025)],
-                            MESH, poles=(-0.01, 0.10)),
-              'head': _ellipsoid((0.0, HEAD_Y, 0.012), (0.066, 0.1, 0.084), _face, rows=12)}
+              'neck': _loft([(0.0, 0.046, 0.043), (0.035, 0.040, 0.038), (0.07, 0.041, 0.039)],
+                            SKIN, poles=(-0.01, 0.075)),
+              'head': _ellipsoid((0.0, HEAD_Y, 0.012), (0.07, 0.104, 0.09), _face, rows=12)}
     extra = [('jaw', 'head', (0.0, 0.0, 0.0),
-              _ellipsoid((0.0, 0.042, 0.03), (0.045, 0.046, 0.054), SKIN))]
+              _ellipsoid((0.0, 0.042, 0.03), (0.047, 0.048, 0.056), SKIN))] + _features()
     for side, x in (('left', 1.0), ('right', -1.0)):
-        extra += [('%s_bust' % side, 'torso', (0.052 * x, 0.21, 0.05),
-                   _ellipsoid((0.0, 0.0, 0.0), (0.048, 0.044, 0.04), PLATE, rows=8)),
+        extra += [('%s_bust' % side, 'torso', (0.054 * x, 0.212, 0.052),
+                   _ellipsoid((0.0, 0.0, 0.0), (0.056, 0.05, 0.048), PLATE, rows=8)),
                   ('%s_cap' % side, 'torso', (0.135 * x, 0.335, -0.004),
                    _ellipsoid((0.0, 0.0, 0.0), (0.042, 0.036, 0.04), PLATE, rows=8))]
         meshes.update({

@@ -61,9 +61,10 @@ CLOTH = {'pelvis': 0.55, 'thigh': 0.55, 'shank': 0.55, 'torso': 0.45, 'upper_arm
 CLOTH_GIVE_M = 0.004
 
 #: A jeans' wide leg hangs `figure.HEM_AT` under the knee, HEM_KG HEM_M further down, on two
-#: hinges - fore and aft, and aside - held to the shin by HEM_K N m/rad and damped by HEM_D
-#: N m s/rad: with gravity's 0.24 it swings at 1.7 Hz, a quarter of critical. It touches nothing.
-HEM_M, HEM_KG, HEM_K, HEM_D = 0.2, 0.12, 0.3, 0.035
+#: hinges - fore and aft, and aside - held to the shin by HEM_K N m/rad, damped by HEM_D N m s/rad
+#: and stopped at HEM_DEG, where the cloth meets the shin. It touches nothing else. Free to 46
+#: degrees it swung the leg's end through the cloth (2026-09-28).
+HEM_M, HEM_KG, HEM_K, HEM_D, HEM_DEG = 0.2, 0.12, 0.6, 0.045, 14.0
 HEMS = tuple('%s_hem_%s' % (side, axis) for side in ('left', 'right') for axis in 'xz')
 
 #: The soles' friction: sliding, and turning in place (m) - a point of contact turns freely, and
@@ -133,7 +134,8 @@ def mjcf():
             side = name[:-len('_shank')]
             out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)]
             out += ['<joint name="%s_hem_%s" axis="%s" stiffness="%g" damping="%g" '
-                    'armature="0"/>' % (side, axis, direction, HEM_K, HEM_D)
+                    'armature="0" limited="true" range="%g %g"/>' % (
+                        side, axis, direction, HEM_K, HEM_D, -HEM_DEG, HEM_DEG)
                     for axis, direction in (('x', '1 0 0'), ('z', '0 0 1'))]
             out += ['<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
                 -HEM_M, HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG), '</body>']
