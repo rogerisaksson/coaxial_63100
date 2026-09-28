@@ -12,6 +12,7 @@ from typing import Any
 from coaxial.errors import RigError
 from coaxial.graphics import crew as crewmod
 from coaxial.graphics import engine
+from coaxial.graphics.lit import FILL, KEY
 
 #: The switch: 0 keeps the pages on the CPU crew.
 ENV = 'COAXIAL_GPU'
@@ -213,7 +214,7 @@ class GpuRaster:
 #: A lit mesh: world positions, smooth normals, a (u, v) and a material a corner, seen through the
 #: engine's own projection about `centre`. A pixel's colour is its material's, lit by a key and a
 #: fill, a rim where the surface turns away and a highlight; MESH wears a lattice in (u, v); a
-#: material past 2^24 is painted, its low 24 bits the colour (`gynoid.paint`).
+#: material past 2^24 is painted, its low 24 bits the colour (`lit.paint`).
 LIT_WGSL = """
 struct U {
     m0: vec4<f32>, m1: vec4<f32>, m2: vec4<f32>,    // the view, row by row
@@ -351,7 +352,7 @@ class LitRaster:
         return buffers, indices, count
 
     def raster(self, positions, normals, uv, material, index, m, cam, centre, reach,
-               key=(-0.45, 0.62, 0.64), fill=(0.7, 0.1, 0.7)):
+               key=KEY, fill=FILL):
         """(depth, colour): (height, width) f32 `ooz` (0 uncovered) and (height, width, 3) u8, the
         mesh `index` triangles over per-corner arrays, `m` the view about `centre`. The index is
         fixed for a mesh; the rest may change every frame."""

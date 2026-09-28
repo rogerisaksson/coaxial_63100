@@ -22,7 +22,7 @@ class Report:
 def test_dressed_or_bare(report):
     """Her clothes come off at a key (`gynoid.render`, dressed): the bare body is the dressed one
     without what she wears - her clothes, her hair, her soles - her feet plated."""
-    from coaxial.graphics import gynoid
+    from coaxial.graphics import gynoid, lit
     dressed, bare = gynoid.body(), gynoid.body(dressed=False)
     worn = [p[0] for p in dressed.parts if gynoid._worn(p[0])]
     report.check('bare, every worn part gone and nothing else',
@@ -32,9 +32,9 @@ def test_dressed_or_bare(report):
                       'left_sole'} <= set(worn), '%d of %d worn' % (len(worn), len(dressed.parts)))
     feet = [i for i, p in enumerate(bare.parts) if p[0].split('_', 1)[-1] in ('foot', 'toes')]
     report.check('her feet plated bare, sneakers dressed',
-                 all((bare.materials[slice(*bare.spans[i])] == gynoid.PLATE).all() for i in feet)
+                 all((bare.materials[slice(*bare.spans[i])] == lit.PLATE).all() for i in feet)
                  and all((dressed.materials[slice(*dressed.spans[i])]
-                          == gynoid.paint(gynoid.SNEAKER)).all() for i in feet))
+                          == lit.paint(gynoid.SNEAKER)).all() for i in feet))
 
 
 def test_the_floor_outlasts_a_walk(report):

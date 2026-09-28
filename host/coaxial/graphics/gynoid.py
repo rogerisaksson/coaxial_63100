@@ -16,94 +16,24 @@ import math
 from typing import Any
 
 from coaxial.graphics import engine
-from coaxial.graphics.callouts import LEADER_INK, callouts, line, packed
-from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, NOISE
+from coaxial.graphics.callouts import callouts, line, packed
+from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
+                                  project, splat)
+from coaxial.graphics.raster import DOTS_X
+from coaxial.graphics.shapes import (drum, ellipsoid, loft, moved, sampled, smooth, turn_about,
+                                     view)
 from machine import ansi, drives, figure
 from machine.figure import HAIR_AT, HEM_AT, TOE_M, TOE_RY
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
-
-#: A corner's material, as `gpu.LIT_WGSL` colours it; past PAINTED the colour it wears.
-MESH, SKIN, PLATE, CORE = 0, 1, 2, 3
-PAINTED = 1 << 24
-
-
-def paint(rgb):
-    """The material that wears `rgb`, 0..255 each."""
-    r, g, b = (int(c) & 255 for c in rgb)
-    return PAINTED | r << 16 | g << 8 | b
-
-#: Corners round a ring.
-AROUND = 20
 
 #: The camera: its distance in the engine's units, the point it turns about (her middle, metres
 #: over the floor), and how far out she reaches from it.
 DISTANCE, CENTRE, REACH = 3.2, (0.0, 0.84, 0.0), 0.92
 
-#: The floor's grid pitch, metres, and its half extent.
-FLOOR_PITCH, FLOOR_HALF = 0.3, 2.4
-
 
 def _np():
     from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
     return np
-
-
-def _loft(rings, material, poles=None, along='y'):
-    """A closed body through elliptical rings (at, rx, rz[, dz]) up its axis, capped at `poles`
-    (default the first and last ring): (corners, triangles, uv, materials) in its part's frame.
-    `along` 'z' lays it forward, a ring's rz then its height and dz its drop."""
-    np = _np()
-    k = np.arange(AROUND) * (2.0 * math.pi / AROUND)
-    rows = [np.stack([r[1] * np.cos(k), np.full(AROUND, float(r[0])),
-                      r[2] * np.sin(k) + (r[3] if len(r) > 3 else 0.0)], 1) for r in rings]
-    low, high = poles or (rings[0][0], rings[-1][0])
-    ends = [[0.0, low, rings[0][3] if len(rings[0]) > 3 else 0.0],
-            [0.0, high, rings[-1][3] if len(rings[-1]) > 3 else 0.0]]
-    corners = np.vstack(rows + [np.array(ends)])
-    n, j = len(rows), np.arange(AROUND)
-    a = (np.arange(n - 1)[:, None] * AROUND + j).ravel()
-    b = (np.arange(n - 1)[:, None] * AROUND + (j + 1) % AROUND).ravel()
-    c, d = a + AROUND, b + AROUND
-    bottom, top = n * AROUND, n * AROUND + 1
-    last = (n - 1) * AROUND
-    triangles = np.vstack([np.stack([a, c, b], 1), np.stack([c, d, b], 1),
-                           np.stack([np.full(AROUND, bottom), j, (j + 1) % AROUND], 1),
-                           np.stack([np.full(AROUND, top), last + (j + 1) % AROUND, last + j], 1)])
-    uv = np.stack([np.concatenate([np.tile(j / AROUND, n), [0.0, 0.0]]), corners[:, 1]], 1)
-    if along == 'z':                       # the axis forward: (x, y, z) -> (x, -z, y)
-        corners = np.stack([corners[:, 0], -corners[:, 2], corners[:, 1]], 1)
-    if callable(material):
-        materials = material(corners)
-    else:
-        materials = np.full(len(corners), material)
-    return corners, triangles, uv, materials
-
-
-def _ellipsoid(centre, radii, material, rows=10):
-    """An ellipsoid about `centre`, its poles on its y axis."""
-    np = _np()
-    cx, cy, cz = centre
-    rx, ry, rz = radii
-    phi = np.pi * np.arange(1, rows) / rows
-    body = _loft([(cy - ry * math.cos(p), rx * math.sin(p), rz * math.sin(p), cz) for p in phi],
-                 material, poles=(cy - ry, cy + ry))
-    corners = body[0]
-    corners[:, 0] += cx
-    return body
-
-
-def _drum(radius, length, axis, material):
-    """A drum `radius` round and `length` long on its part's `axis` ('x', 'y' or 'z') through
-    the origin, its rims chamfered."""
-    np = _np()
-    half, lip = length / 2.0, min(0.004, 0.1 * radius)
-    rings = [(-half, radius - lip, radius - lip), (-half + lip, radius, radius),
-             (half - lip, radius, radius), (half, radius - lip, radius - lip)]
-    corners, triangles, uv, materials = _loft(rings, material)
-    turn = {'x': ((0.0, 1.0, 0.0), (-1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
-            'y': ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
-            'z': ((1.0, 0.0, 0.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0))}[axis]
-    return corners @ np.asarray(turn), triangles, uv, materials
 
 
 #: Where a drive's drum sits on its joint's segment when it is on the joint's axis, m, her left
@@ -127,7 +57,7 @@ def _drums():
     out = []
     for joint, seg in carries.items():
         size = drives.of(joint)[1]
-        mesh = _drum(size.diameter / 2.0, size.length, axes[joint], PLATE)
+        mesh = drum(size.diameter / 2.0, size.length, axes[joint], PLATE)
         mounted = drives.mount(joint)
         x = -1.0 if joint.startswith('right_') else 1.0
         kind = drives.kind(joint)
@@ -165,31 +95,31 @@ def _wear():
     LOOSE_M out of her."""
     tee, denim = paint(TEE), paint(DENIM)
     b = BAGGY_M - 0.012
-    out = [('cloth_tee', 'torso', (0.0, 0.0, 0.0), _loft(
+    out = [('cloth_tee', 'torso', (0.0, 0.0, 0.0), loft(
         [_hung(y, rx + b, front, back + b) for y, rx, front, back in _TANK]
         + [(0.307, 0.150 + b, 0.082 + b), (0.344, 0.152 + b, 0.074 + b), (0.366, 0.112, 0.064)],
         tee, poles=(-0.036, 0.378))),
-           ('cloth_seat', 'pelvis', (0.0, 0.0, 0.0), _loft(
+           ('cloth_seat', 'pelvis', (0.0, 0.0, 0.0), loft(
                [(-0.10, 0.072, 0.065)] + [_hung(*ring) for ring in _SEAT]
                + [(0.11, 0.112, 0.082)], denim, poles=(-0.12, 0.118)))]
     for side, x in (('left', 1.0), ('right', -1.0)):
         out += [('cloth_%s_bust' % side, 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2] + b),
-                 _ellipsoid((0.0, 0.0, 0.0), tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee,
+                 ellipsoid((0.0, 0.0, 0.0), tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee,
                             rows=8))]
     drop = SHANK + ANKLE_H - HEM_AT - 0.012
     for side in ('left', 'right'):
-        out += [('cloth_%s_sleeve' % side, side + '_upper_arm', (0.0, 0.0, 0.0), _loft(
+        out += [('cloth_%s_sleeve' % side, side + '_upper_arm', (0.0, 0.0, 0.0), loft(
             [(0.04, 0.042, 0.042), (0.0, 0.054, 0.05), (-0.07, 0.052, 0.048),
              (-0.13, 0.05, 0.046)], tee, poles=(0.05, -0.133))),
                 ('cloth_%s_thigh' % side, side + '_thigh', (0.0, 0.0, 0.0),
                  _limb(THIGH, THIGH_R[0] + LOOSE_M, THIGH_R[1] + LOOSE_M, THIGH_R[2] + LOOSE_M,
                        denim, bulge_at=0.22)),
-                ('cloth_%s_shin' % side, side + '_shank', (0.0, 0.0, 0.0), _loft(
+                ('cloth_%s_shin' % side, side + '_shank', (0.0, 0.0, 0.0), loft(
                     [(0.03, 0.054, 0.054), (0.0, 0.066, 0.066), (-0.06, 0.07, 0.068),
                      (-HEM_AT, 0.072, 0.07)], denim, poles=(0.045, -HEM_AT - 0.01))),
                 ('cloth_%s_leg' % side, side + '_shank', ((side + '_hem_x', 'x', 1),
                                                           (side + '_hem_z', 'z', 1)),
-                 (0.0, -HEM_AT, 0.0), _loft(
+                 (0.0, -HEM_AT, 0.0), loft(
                      [(0.01, 0.07, 0.068), (-0.1, 0.075, 0.072), (-0.2, 0.08, 0.075),
                       (-drop, HEM_R[0], HEM_R[1])], denim, poles=(0.02, -drop - 0.004)))]
     return out
@@ -239,7 +169,7 @@ def _limb(length, top, middle, bottom, material, flat=1.0, bulge_at=0.3):
              (-length, bottom), (-length * (0.5 + 0.5 * bulge_at), 0.5 * (middle + bottom)),
              (-length * bulge_at, middle), (0.0, top), (0.3 * top, 0.88 * top),
              (0.55 * top, 0.5 * top)]
-    return _loft([(y, r, r * flat) for y, r in rings], material)
+    return loft([(y, r, r * flat) for y, r in rings], material)
 
 
 #: The head's centre over the head joint, metres.
@@ -271,19 +201,19 @@ def _features():
     and the lips, and her hair - a cap over the skull behind the face, parted aside, and a fall
     and two locks to her shoulders on the hair's hinges."""
     out = [('nose', 'head', (0.0, 0.0, 0.0),
-            _ellipsoid((0.0, HEAD_Y - 0.004, 0.1), (0.011, 0.022, 0.016), SKIN, rows=6)),
+            ellipsoid((0.0, HEAD_Y - 0.004, 0.1), (0.011, 0.022, 0.016), SKIN, rows=6)),
            ('lips', 'head', (0.0, 0.0, 0.0),
-            _ellipsoid((0.0, HEAD_Y - 0.048, 0.094), (0.02, 0.007, 0.01), paint(LIPS), rows=6)),
+            ellipsoid((0.0, HEAD_Y - 0.048, 0.094), (0.02, 0.007, 0.01), paint(LIPS), rows=6)),
            ('hair', 'head', (0.0, 0.0, 0.0),
-            _ellipsoid((-PART_M, HEAD_Y + 0.036, -0.018), (0.094, 0.11, 0.11), paint(HAIR))),
+            ellipsoid((-PART_M, HEAD_Y + 0.036, -0.018), (0.094, 0.11, 0.11), paint(HAIR))),
            ('hair_fall', 'head', HUNG, HAIR_AT, _hair(HAIR_FALL, 0.0, 0.03))]
     for side, x in (('left', 1.0), ('right', -1.0)):
         out += [('%s_lock' % side, 'head', HUNG, HAIR_AT, _hair(HAIR_LOCK, HAIR_LOCK_X * x, 0.01))]
         out += [('%s_ear' % side, 'head', (0.0, 0.0, 0.0),
-                 _ellipsoid((0.071 * x, HEAD_Y - 0.004, 0.006), (0.009, 0.028, 0.018), SKIN,
+                 ellipsoid((0.071 * x, HEAD_Y - 0.004, 0.006), (0.009, 0.028, 0.018), SKIN,
                             rows=6)),
                 ('%s_eye' % side, 'head', (0.0, 0.0, 0.0),
-                 _ellipsoid((0.029 * x, HEAD_Y + 0.016, 0.092), (0.013, 0.006, 0.006),
+                 ellipsoid((0.029 * x, HEAD_Y + 0.016, 0.092), (0.013, 0.006, 0.006),
                             paint(EYES), rows=6))]
     return out
 
@@ -297,7 +227,7 @@ def _hair(rings, x, crown):
     moved `x` aside, capped `crown` over its top ring, in the frame of its hinges at HAIR_AT."""
     ax, ay, az = HAIR_AT
     top, end = rings[0][0] - ay, rings[-1][0] - ay
-    corners, triangles, uv, materials = _loft(
+    corners, triangles, uv, materials = loft(
         [(y - ay, rx, rz, z - az) for y, rx, rz, z in rings], lambda c: _balayage(c, top, end),
         poles=(top + crown, end - 0.01))
     corners[:, 0] += x - ax
@@ -330,36 +260,36 @@ def _core(corners):
 def _meshes():
     """{segment: mesh} for the figure's segments, and the parts it has no joint for:
     [(name, parent, offset, mesh)]."""
-    pelvis = _loft([(-0.10, 0.055, 0.048), (-0.07, 0.115, 0.08, -0.006),
+    pelvis = loft([(-0.10, 0.055, 0.048), (-0.07, 0.115, 0.08, -0.006),
                     (-0.03, 0.15, 0.095, -0.014), (0.02, 0.148, 0.09, -0.008), (0.07, 0.122, 0.078),
                     (0.11, 0.1, 0.07), (0.13, 0.094, 0.066)], PLATE, poles=(-0.115, 0.14))
     # From 4.5 cm inside the pelvis, so the waist does not open as the spine bends.
-    torso = _loft([(-0.045, 0.09, 0.063), (0.0, 0.094, 0.066), (0.047, 0.096, 0.068),
+    torso = loft([(-0.045, 0.09, 0.063), (0.0, 0.094, 0.066), (0.047, 0.096, 0.068),
                    (0.093, 0.105, 0.074),
                    (0.149, 0.118, 0.08), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078),
                    (0.307, 0.138, 0.07), (0.344, 0.14, 0.062), (0.372, 0.1, 0.055),
                    (0.39, 0.05, 0.045)], _core, poles=(-0.055, 0.40))
     meshes = {'pelvis': pelvis, 'torso': torso,
-              'neck': _loft([(0.0, 0.046, 0.043), (0.035, 0.040, 0.038), (0.07, 0.041, 0.039)],
+              'neck': loft([(0.0, 0.046, 0.043), (0.035, 0.040, 0.038), (0.07, 0.041, 0.039)],
                             SKIN, poles=(-0.01, 0.075)),
-              'head': _ellipsoid((0.0, HEAD_Y, 0.012), (0.07, 0.104, 0.09), _face, rows=12)}
+              'head': ellipsoid((0.0, HEAD_Y, 0.012), (0.07, 0.104, 0.09), _face, rows=12)}
     extra = [('jaw', 'head', (0.0, 0.0, 0.0),
-              _ellipsoid((0.0, 0.042, 0.03), (0.047, 0.048, 0.056), SKIN))] + _features()
+              ellipsoid((0.0, 0.042, 0.03), (0.047, 0.048, 0.056), SKIN))] + _features()
     for side, x in (('left', 1.0), ('right', -1.0)):
         extra += [('%s_bust' % side, 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2]),
-                   _ellipsoid((0.0, 0.0, 0.0), BUST_R, PLATE, rows=8)),
+                   ellipsoid((0.0, 0.0, 0.0), BUST_R, PLATE, rows=8)),
                   ('%s_cap' % side, 'torso', (0.135 * x, 0.335, -0.004),
-                   _ellipsoid((0.0, 0.0, 0.0), (0.042, 0.036, 0.04), PLATE, rows=8))]
+                   ellipsoid((0.0, 0.0, 0.0), (0.042, 0.036, 0.04), PLATE, rows=8))]
         meshes.update({
             side + '_upper_arm': _limb(0.27, 0.031, 0.03, 0.024, MESH, flat=0.95),
             side + '_forearm': _limb(0.24, 0.025, 0.025, 0.018, MESH, flat=0.9),
-            side + '_hand': _ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
-            side + '_fingers': _ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
+            side + '_hand': ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
+            side + '_fingers': ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
             side + '_thigh': _limb(THIGH, THIGH_R[0], THIGH_R[1], THIGH_R[2], MESH, bulge_at=0.22),
             side + '_shank': _limb(SHANK, 0.052, 0.058, 0.032, PLATE, bulge_at=0.3),
-            side + '_foot': _loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SHOE],
+            side + '_foot': loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SHOE],
                                   paint(SNEAKER), poles=(-HEEL, BALL + 0.006), along='z'),
-            side + '_toes': _loft([(z, rx, rv, -(rv - TOE_RY + _spring(z)))
+            side + '_toes': loft([(z, rx, rv, -(rv - TOE_RY + _spring(z)))
                                    for z, rx, rv in _TOE_CAP],
                                   paint(SNEAKER), poles=(-0.006, TOE_M + 0.002), along='z')})
         extra += _soles(side)
@@ -414,10 +344,10 @@ def _soles(side):
     """[(name, parent, offset, mesh)]: the sneaker's gum sole under the shoe and under the toe
     cap, SOLE_M deep and SOLE_PROUD wider than the white above it."""
     gum, h = paint(GUM), SOLE_M / 2.0
-    return [(side + '_sole', side + '_foot', (0.0, 0.0, 0.0), _loft(
+    return [(side + '_sole', side + '_foot', (0.0, 0.0, 0.0), loft(
         [(z, rx + SOLE_PROUD, h, ANKLE_H - h) for z, rx, _rv in _SHOE], gum,
         poles=(-HEEL - SOLE_PROUD, BALL + 0.006), along='z')),
-            (side + '_toe_sole', side + '_toes', (0.0, 0.0, 0.0), _loft(
+            (side + '_toe_sole', side + '_toes', (0.0, 0.0, 0.0), loft(
                 [(z, rx + SOLE_PROUD, h, -(h - TOE_RY + _spring(z))) for z, rx, _rv in _TOE_CAP],
                 gum, poles=(-0.006, TOE_M + SOLE_PROUD), along='z'))]
 
@@ -444,7 +374,7 @@ class Body:
         self.index = np.vstack(triangles).astype(np.uint32)
         self.uv, self.materials = np.vstack(uv), np.concatenate(materials).astype(np.uint32)
         self.spans = spans
-        self.normals = _normals(self.corners, self.index, spans)
+        self.normals = smooth(self.corners, self.index)
         #: The parts whose lowest corner is the sole; each drive's drum's, by its joint.
         self.soles = [i for i, part in enumerate(self.parts)
                       if part[0].endswith(('_foot', '_toes'))]
@@ -454,7 +384,7 @@ class Body:
         self.patches = _patches(self.parts)
         #: Every triangle sampled DENSE_M apart, for the dots drawn without a card: (points,
         #: normals, uv, materials) in their parts' frames, and each part's span of them.
-        self.dense, self.dense_spans = _sampled(self, np.concatenate(faces))
+        self.dense, self.dense_spans = sampled(self, np.concatenate(faces))
         #: The same patches among the dots drawn without a card: {joint: {part: mask}}.
         self.dense_near = {}
         for joint, patched in self.patches.items():
@@ -481,11 +411,11 @@ class Body:
                 spot = at + above @ np.asarray(offset, float)
                 if spread and name.endswith('_upper_arm'):
                     rest = rest + math.copysign(spread, rest)
-                here = above @ _turn('z', rest) if rest else above
+                here = above @ turn_about('z', rest) if rest else above
             else:
                 spot, here = np.asarray(where, float), np.asarray(turn, float)
             for joint, axis, sign in joints:
-                here = here @ _turn(axis, sign * float(angles.get(joint, 0.0)))
+                here = here @ turn_about(axis, sign * float(angles.get(joint, 0.0)))
             placed[name] = (here, spot)
             out.append(placed[name])
         return out
@@ -496,7 +426,7 @@ class Body:
         frames = self._frames(angles, root)
         floor = np.zeros(3)
         if root is None:
-            positions, _normals = _placed(self.corners, self.normals, self.spans, frames)
+            positions, _normals = moved(self.corners, self.normals, self.spans, frames)
             floor[1] = min(positions[slice(*self.spans[i]), 1].min() for i in self.soles)
         return {joint: spot - floor for (_name, _parent, joints, *_rest), (_turn, spot)
                 in zip(self.parts, frames) for joint, _axis, _sign in joints}
@@ -506,169 +436,13 @@ class Body:
         pelvis's (place, turn), else the feet found and stood on the floor; `dense` the sampled
         points' instead of the corners'."""
         frames = self._frames(angles, root)
-        positions, normals = _placed(self.corners, self.normals, self.spans, frames)
+        positions, normals = moved(self.corners, self.normals, self.spans, frames)
         floor = 0.0 if root is not None else min(
             positions[slice(*self.spans[i]), 1].min() for i in self.soles)
         if dense:
-            positions, normals = _placed(self.dense[0], self.dense[1], self.dense_spans, frames)
+            positions, normals = moved(self.dense[0], self.dense[1], self.dense_spans, frames)
         positions[:, 1] -= floor
         return positions, normals
-
-
-def _placed(points, normals, spans, frames):
-    """Points and normals each moved into the body's frame by its part's (turn, spot)."""
-    np = _np()
-    out_p, out_n = np.empty_like(points), np.empty_like(normals)
-    for (lo, hi), (turn, spot) in zip(spans, frames):
-        out_p[lo:hi] = points[lo:hi] @ turn.T + spot
-        out_n[lo:hi] = normals[lo:hi] @ turn.T
-    return out_p, out_n
-
-
-#: How far apart the dots drawn without a card are sampled on the surface, metres: under two
-#: fine dots at 110 x 50 cells, so a 2x2 splat closes it; 7 mm was 278 000 points, 290 ms.
-DENSE_M = 0.012
-
-
-def _sampled(body, part_of):
-    """Every triangle sampled on a barycentric grid DENSE_M apart, grouped by part: ((points,
-    normals, uv, materials), [(lo, hi)] a part)."""
-    np = _np()
-    index = body.index.astype(int)
-    a, b, c = (body.corners[index[:, k]] for k in range(3))
-    edge = np.max([np.linalg.norm(b - a, axis=1), np.linalg.norm(c - b, axis=1),
-                   np.linalg.norm(a - c, axis=1)], axis=0)
-    steps = np.maximum(1, np.ceil(edge / DENSE_M)).astype(int)
-    fields = (body.corners, body.normals, body.uv)
-    chunks = [[] for _ in range(len(fields) + 1)]
-    parts = []
-    for n in np.unique(steps):
-        tris = np.flatnonzero(steps == n)
-        i, j = np.meshgrid(np.arange(n + 1), np.arange(n + 1))
-        keep = (i + j) <= n
-        weights = np.stack([n - i[keep] - j[keep], i[keep], j[keep]], 1) / float(n)
-        for out, field in zip(chunks, fields):
-            corners = np.stack([field[index[tris, k]] for k in range(3)], 1)
-            out.append(np.einsum('sk,tk...->ts...', weights, corners).reshape(
-                -1, *field.shape[1:]))
-        # A material is its nearest corner's: blended, a hood's edge came out skin.
-        chunks[3].append(body.materials[index[tris][:, weights.argmax(axis=1)]].ravel())
-        parts.append(np.repeat(part_of[tris], len(weights)))
-    order = np.argsort(np.concatenate(parts), kind='stable')
-    dense = [np.concatenate(out)[order] for out in chunks]
-    counts = np.bincount(np.concatenate(parts), minlength=len(body.parts))
-    ends = np.cumsum(counts)
-    return tuple(dense), list(zip((ends - counts).tolist(), ends.tolist()))
-
-
-def _normals(corners, index, spans):
-    """Smooth normals: each corner's faces' normals, area-weighted, within its own part."""
-    np = _np()
-    a, b, c = (corners[index[:, k]] for k in range(3))
-    faces = np.cross(b - a, c - a)
-    out = np.zeros_like(corners)
-    for k in range(3):
-        np.add.at(out, index[:, k], faces)
-    length = np.linalg.norm(out, axis=1, keepdims=True)
-    return out / np.where(length > 0.0, length, 1.0)
-
-
-def _turn(axis, degrees):
-    np = _np()
-    c, s = math.cos(math.radians(degrees)), math.sin(math.radians(degrees))
-    if axis == 'x':
-        return np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
-    if axis == 'y':
-        return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
-    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
-
-
-def view(yaw, pitch):
-    """The view as the engine's 3x3, row-major: turned `yaw` about her, tipped `pitch` down."""
-    return tuple((_turn('x', pitch) @ _turn('y', -yaw)).ravel().tolist())
-
-
-#: The palette `gpu.LIT_WGSL` lights, for the dots drawn without a card.
-PALETTE = ((0.58, 0.64, 0.72), (0.96, 0.79, 0.69), (0.80, 0.83, 0.88), (0.35, 0.85, 1.0))
-KEY, FILL = (-0.45, 0.62, 0.64), (0.7, 0.1, 0.7)
-
-
-def _lit_here(normals, materials, uv):
-    """`gpu.LIT_WGSL`'s light on corners in view space: (n, 3) RGB 0..255."""
-    np = _np()
-    key = np.asarray(KEY) / np.linalg.norm(KEY)
-    fill = np.asarray(FILL) / np.linalg.norm(FILL)
-    n = normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-9)
-    n = np.where(n[:, 2:3] < 0.0, -n, n)
-    lam = np.clip(n @ key, 0.0, None)
-    fil = 0.35 * np.clip(n @ fill, 0.0, None)
-    rim = (1.0 - np.clip(n[:, 2], 0.0, 1.0)) ** 3
-    half = (key + (0.0, 0.0, 1.0)) / np.linalg.norm(key + (0.0, 0.0, 1.0))
-    spec = np.clip(n @ half, 0.0, None) ** 40
-    base = np.asarray(PALETTE)[np.minimum(materials, 3)]
-    worn = np.stack([(materials >> 16) & 255, (materials >> 8) & 255, materials & 255], 1)
-    base = np.where((materials >= PAINTED)[:, None], worn / 255.0, base)
-    g = np.abs(np.modf(uv * (22.0, 30.0))[0] - 0.5).max(axis=1)
-    base = np.where((materials == MESH)[:, None] & (g > 0.4)[:, None], base * 0.5, base)
-    shine = np.where(materials == SKIN, 0.12, 0.55)
-    c = (base * (0.10 + 0.85 * lam + fil)[:, None] + (spec * shine)[:, None]
-         + np.outer(rim * 0.8, (0.55, 0.75, 1.0)))
-    c = np.where((materials == CORE)[:, None], base * (0.75 + 0.25 * lam)[:, None], c)
-    return (np.clip(c, 0.0, 1.0) * 255.0).astype(np.uint8)
-
-
-def _project(points, m, cam, centre):
-    """(sx, sy, w) of world points: engine.project, every point at once."""
-    np = _np()
-    q = (np.asarray(points) - centre) @ np.asarray(m).reshape(3, 3).T
-    w = 1.0 / (cam['distance'] - q[:, 2])
-    return (cam['cx'] + cam['scale'] * w * q[:, 0],
-            cam['cy'] - cam['scale'] * cam.get('aspect', 0.5) * w * q[:, 1], w)
-
-
-def _splat(body_arrays, m, cam, centre):
-    """(depth, colour) without a card: every corner a 2x2 dot splat, the nearest winning."""
-    np = _np()
-    positions, normals, materials, uv = body_arrays
-    height, width = cam['height'], cam['width']
-    sx, sy, w = _project(positions, m, cam, centre)
-    colour = _lit_here(normals @ np.asarray(m).reshape(3, 3).T, materials, uv)
-    depth = np.zeros((height, width), np.float32)
-    rgb = np.zeros((height, width, 3), np.uint8)
-    order = np.argsort(w)
-    ix, iy = np.rint(sx[order]).astype(int), np.rint(sy[order]).astype(int)
-    for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
-        x, y = ix + dx, iy + dy
-        keep = (x >= 0) & (x < width) & (y >= 0) & (y < height)
-        depth[y[keep], x[keep]] = w[order][keep]
-        rgb[y[keep], x[keep]] = colour[order][keep]
-    return depth, rgb
-
-
-def _floor(m, cam, centre, travel):
-    """The floor's grid points as a (height, width) brightness: 0 none, far dimmer."""
-    np = _np()
-    ticks = np.arange(-FLOOR_HALF, FLOOR_HALF + 1e-9, FLOOR_PITCH)
-    gx, gz = np.meshgrid(ticks, ticks - (travel % FLOOR_PITCH))
-    points = np.stack([gx.ravel(), np.zeros(gx.size), gz.ravel()], 1)
-    sx, sy, w = _project(points, m, cam, centre)
-    x, y = np.rint(sx).astype(int), np.rint(sy).astype(int)
-    keep = (w > 0.0) & (x >= 0) & (x < cam['width']) & (y >= 0) & (y < cam['height'])
-    out = np.zeros((cam['height'], cam['width']))
-    edge = np.clip(1.0 - np.hypot(gx.ravel(), gz.ravel()) / (FLOOR_HALF * 1.1), 0.0, 1.0)
-    out[y[keep], x[keep]] = 0.25 + 0.75 * edge[keep]
-    return out
-
-
-#: The floor's ink at full brightness: the house's teal.
-FLOOR_INK = (40, 130, 140)
-
-
-def _mask(height, width):
-    np = _np()
-    noise = np.asarray(NOISE, float) / 4096.0
-    reps = (height // len(noise) + 1, width // len(noise[0]) + 1)
-    return np.tile(noise, reps)[:height, :width]
 
 
 def _band(depth, width):
@@ -678,92 +452,6 @@ def _band(depth, width):
     if not len(across):
         return None
     return max(0, int(across[0]) // DOTS_X - 1), min(width, int(across[-1]) // DOTS_X + 2)
-
-
-def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders=None,
-            props=()):
-    """Dot rasters down to cells: a dot where the light clears the blue noise, the silhouette and
-    every depth step always; the floor's dots where she is not, the `leaders`' dots and the
-    `props`' [(dots, ink)] in their inks; the `overlay`'s cells {(row, col): (codepoint, key)}
-    over all (`callouts`). Lines, ANSI where `colour`."""
-    np = _np()
-    covered = depth > 0.0
-    for dots, _ink in props:
-        leaders = dots if leaders is None else (leaders | dots)
-    lum = rgb.astype(float) @ (0.2126, 0.7152, 0.0722) / 255.0
-    pad = np.pad(depth, 1)
-    steps = [pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]]
-    edge = covered & np.any([(s == 0.0) | (np.abs(s - depth) > 0.04 * depth) for s in steps], 0)
-    lit = (covered & (0.04 + 0.96 * np.clip(lum, 0.0, 1.0) ** 1.5 > _mask(*depth.shape))) | edge
-    ground = (floor > 0.0) & ~covered
-    lead = leaders & ~covered if leaders is not None else np.zeros_like(covered)
-    bits = np.array([[BRAILLE_BITS[lane][y] for lane in range(DOTS_X)] for y in range(DOTS_Y)])
-    cells = ((lit | ground | lead).reshape(height, DOTS_Y, width, DOTS_X)
-             * bits[None, :, None, :]).sum(axis=(1, 3))
-    hits = covered.reshape(height, DOTS_Y, width, DOTS_X).sum(axis=(1, 3))
-    body = ((rgb * covered[..., None]).reshape(height, DOTS_Y, width, DOTS_X, 3).sum(axis=(1, 3))
-            / np.maximum(hits, 1)[..., None])
-    body = np.clip(body * 1.2 + 18.0, 0.0, 255.0)
-    shine = floor.reshape(height, DOTS_Y, width, DOTS_X).max(axis=(1, 3))
-    text = np.where(cells > 0, BRAILLE + cells, ord(' ')).tolist()
-    for (row, col), (char, _ink) in (overlay or {}).items():
-        text[row][col] = char
-    if not colour:
-        return [''.join(map(chr, row)) for row in text]
-    # A cell's ink in steps of INK_STEP a channel, so runs of it share one escape; a blank cell
-    # takes its left neighbour's, so a gap does not break a run. Cell by cell: 11.7 ms a frame at
-    # 180 x 56, and rich parsed an escape a cell after it.
-    ink = np.where((hits > 0)[..., None], body, np.asarray(FLOOR_INK) * shine[..., None])
-    led = lead.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3)) & (hits == 0)
-    ink = np.where(led[..., None], np.asarray(LEADER_INK, float), ink)
-    for dots, prop_ink in props:
-        on = (dots & ~covered).reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3))
-        ink = np.where((on & (hits == 0))[..., None], np.asarray(prop_ink, float), ink)
-    ink = (ink.astype(int) // INK_STEP) * INK_STEP
-    key = np.where(cells > 0, (ink[..., 0] << 16) | (ink[..., 1] << 8) | ink[..., 2], -1)
-    for (row, col), (_char, packed) in (overlay or {}).items():
-        key[row, col] = packed
-    # A blank cell takes its left neighbour's ink, not its ground.
-    left = np.maximum.accumulate(np.where(key >= 0, np.arange(width), 0), axis=1)
-    carried = np.take_along_axis(key, left, axis=1)
-    key = np.where((key < 0) & (carried >= 0), carried & 0xFFFFFF, carried)
-    lines = []
-    for row, keys in zip(text, key.tolist()):
-        out, at, ground = [], 0, False
-        line = ''.join(map(chr, row))
-        for end in [i for i in range(1, width) if keys[i] != keys[i - 1]] + [width]:
-            if keys[at] >= 0:
-                out.append(_escape(keys[at]))
-                if ground and keys[at] < 1 << 24:
-                    out.append(NO_GROUND)
-                ground = keys[at] >= 1 << 24
-            out.append(line[at:end])
-            at = end
-        lines.append(''.join(out) + (ansi.RESET if max(keys) >= 0 else ''))
-    return lines
-
-
-#: A channel's step in the drawn ink.
-INK_STEP = 8
-
-#: Escapes by packed ink.
-_ESCAPES = {}
-
-
-#: The terminal's own ground again.
-NO_GROUND = '\033[49m'
-
-
-def _escape(packed):
-    got = _ESCAPES.get(packed)
-    if got is None:
-        fg = packed & 0xFFFFFF
-        got = ansi.code((fg >> 16, (fg >> 8) & 255, fg & 255))
-        if packed >= 1 << 24:
-            bg = (packed >> 24) - 1
-            got += ansi.back((bg >> 16, (bg >> 8) & 255, bg & 255))
-        _ESCAPES[packed] = got
-    return got
 
 
 #: The body, built on first use: 0.1 s of lofts.
@@ -820,7 +508,7 @@ def _props(props, m, cam, centre, travel):
             edges = [(a, b) for a in range(8) for b in range(a + 1, 8)
                      if bin(a ^ b).count('1') == 1]
         corners[:, 2] -= travel
-        sx, sy, w = _project(corners, m, cam, centre)
+        sx, sy, w = project(corners, m, cam, centre)
         dots = np.zeros((cam['height'], cam['width']), bool)
         for a, b in edges:
             if w[a] > 0.0 and w[b] > 0.0:
@@ -863,14 +551,14 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
                                 CENTRE, REACH * 1.4)
     else:
         positions, normals = who.pose(angles, dense=True, root=root)
-        depth, rgb = _splat((positions, normals, dense, who.dense[2]), m, fine, centre)
+        depth, rgb = splat((positions, normals, dense, who.dense[2]), m, fine, centre)
     overlay = leaders = None
     if labels:
         pivots, rest = who.pivots(angles, root=root), who.pivots({})
         names = [j for j in labels if j in pivots]
 
         def dots_of(points):
-            sx, sy, _w = _project(points, m, fine, centre)
+            sx, sy, _w = project(points, m, fine, centre)
             return list(zip(sx.tolist(), sy.tolist()))
         overlay, leaders = callouts(labels, dict(zip(names, dots_of([pivots[j] for j in names]))),
                                     dict(zip(names, dots_of([rest[j] for j in names]))),
@@ -880,5 +568,5 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
         overlay = dict(overlay or {})
         for col, (char, fg, bg) in enumerate(legend[:width]):
             overlay[(height - 1, col)] = (ord(char), packed(fg, bg))
-    return braille(depth, rgb, _floor(m, fine, centre, travel), width, height, colour, overlay,
+    return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
                    leaders, _props(props or (), m, fine, centre, travel))
