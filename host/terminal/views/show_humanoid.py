@@ -30,6 +30,9 @@ from machine.figure import JOINTS, SEGMENTS, frames, quat
 from machine.routines import TYPES
 from machine.running import Running
 from terminal.loader import TO_MENU
+from terminal.views.overlay import (BOX_GROUND, BRAKE_INK, CALLOUT_W, DARK_INK, DRIVE_INK, LIGHT_INK,
+                                    NUMBER_INK, STAND, STANDING, TORQUE_INK, data_labels, data_legend,
+                                    traffic)
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
@@ -70,13 +73,6 @@ HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
            'x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'] + list(JOINTS)
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
           + ['set_' + j for j in JOINTS])
-
-#: A callout's inks: its ground, the torque's, the power's driving and braking, the legend's
-#: words, a number on a dark patch and on a light; its width inside its frame, cells.
-BOX_GROUND, TORQUE_INK, DRIVE_INK, BRAKE_INK, NUMBER_INK, DARK_INK, LIGHT_INK = (
-    (38, 46, 58), (255, 184, 80), (96, 214, 255), (255, 96, 128), (214, 220, 228),
-    (16, 18, 22), (236, 240, 244))
-CALLOUT_W = 4
 
 #: What the callouts show, T stepping through: each drive's torque, its heat (its worst node as
 #: its board says it, the thermal observer's scale), its power; the legend's words and the heat's
@@ -363,6 +359,7 @@ KEYS = dict(
                                                   % len(SHOWN)])) for k in 'tT']
     + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'vV']
     + [(k, lambda state: state.update(dressed=not state['dressed'])) for k in 'cC']
+    + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD']
     + [(k, _zoomed(1.1)) for k in '+='] + [(k, _zoomed(1.0 / 1.1)) for k in '-_'])
 
 
@@ -400,7 +397,8 @@ def main(argv=None):
     state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
-             'tripped': None, 'playback': Playback(), 'shown': 'torque', 'dressed': True}
+             'tripped': None, 'playback': Playback(), 'shown': 'torque', 'dressed': True,
+             'data': False, 'traffic': None}
 
     def draw():
         said = []
@@ -416,6 +414,14 @@ def main(argv=None):
         width, height = size_of(board_view, args)
         if now is None:
             art = '\n'.join(' ' * width for _ in range(height))
+        elif state['data']:
+            _lateral, _roll, rise, _level = STANDING
+            art = '\n'.join(gynoid.render(STAND, width, height, yaw=0.0, zoom=state['zoom'],
+                                          colour=terminal, lit=lit,
+                                          root=((0.0, rise, 0.0), quat(1.0, 0.0, 0.0, 0.0)),
+                                          labels=data_labels(now),
+                                          heat={j: h[0] for j, h in now['heat'].items()},
+                                          legend=data_legend(width), dressed=state['dressed']))
         else:
             x, y, z = now['where']
             camera = state['follow'](z, now['speed'], now['t'])
@@ -429,12 +435,13 @@ def main(argv=None):
                                           legend=(legend(state['shown'], width)
                                                   if state['called'] != 'none' else None),
                                           dressed=state['dressed']))
-        return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name),
+        side = boxes(state, now, name) + ([traffic(state, now)] if state['data'] and now else [])
+        return frame_of(board_view, ORIGIN, TITLE, art, side,
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
                          ('^H ^R ^T ^S ^L ^U', 'HOLE RUG SILL SLIP LACE STAIRS'),
                          ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
-                         ('V', 'VIEW'), ('C', 'CLOTHES'),
+                         ('V', 'VIEW'), ('C', 'CLOTHES'), ('D', 'DATA'),
                          ('Q', 'EXIT'), ('ESC', 'MENU')))
 
     leaving = None

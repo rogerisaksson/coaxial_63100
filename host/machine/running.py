@@ -140,6 +140,9 @@ def _run(commands, states, cadence):
                                   int(bus[n + 'status']) & GATES_ON)
                               for j, n in director.drives.items()},
                      'props': world.props(), 'armed': tuple(event) if event else None,
+                     'buses': ([(tuple(JOINTS[i] for i in b.indices), int(world.block.written[b.link]),
+                                 int(world.block.sent[b.link]), b.bad) for b in world.buses.each]
+                               if world.buses is not None else []),
                      'recover': (RECOVER_S - (bus['t'] - director.fallen_at)
                                  if director.fallen_at is not None else None),
                      'ratio': min(ratio, 99.0)}
