@@ -108,10 +108,10 @@ Open work. Measured results are in FINDINGS.
   pendulum between the ears as the observer whose swing places the next
   step - a trip swings the bob ahead, the step goes out under it, a stomp
   or two, then the walk again (asked 2026-09-27; PEND_K fell at 1.5 - the
-  sign and the gain against the bob's 2 s period to be worked out). A fall
-  keeps her head off the floor: after the lace's catch she rolls over the
-  right arm, the head at 0.85 m/s (test_gynoid_faults, 2026-09-28). The walk
-  lands on the ball, softly: the scoreboard's landing cost (the impact over
+  sign and the gain against the bob's 2 s period to be worked out). A lace
+  holding her trailing foot, she dives onto her hands with her legs straight
+  behind: the knees under her before the hands, a catch on all fours. The
+  walk lands on the ball, softly: the scoreboard's landing cost (the impact over
   30 ms, the touchdown's speed) searched with LAND_DEG below 0. The
   scoreboard's trials split as the suites are (`test_gynoid.py` on fantasy
   boards, `test_gynoid_faults.py`), the look's measures in its cost. Her

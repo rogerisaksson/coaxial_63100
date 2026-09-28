@@ -698,10 +698,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   landing where it stood 27.8; at 9 out, or the swing's turn at 4, she fell.
   The ankle rolls 4.6 degrees under a flat foot; the tracks 30-40 mm and the
   pelvis's roll at 3 left it at 4.4-4.9 (2026-09-28).
-- The lace fall's head: after her hands she rolls over the right arm and
-  her head meets the floor at 0.85 m/s (test_gynoid_faults fails it). The
-  waist's turn at 0, 20, 35 degrees: 2.02, 1.41, 1.33 m/s; the arms straight
-  or on the forearms, the head down sooner (2026-09-28).
+- The lace fall's head: the lace held her trailing foot, she dove onto her
+  hands with her legs straight behind, her arms gave, and with the chin
+  down 40 degrees her head met the floor at 0.85 m/s. The waist's turn at 0,
+  20, 35 degrees: 2.02, 1.41, 1.33 m/s; the arms straight or on the
+  forearms, the head down sooner. The head held up, the neck back 20, 40 or
+  60 (director.HEAD_UP_DEG): the chest and the hips take the floor, the
+  head never (2026-09-28).
 - The humanoid page threw at a zoom of 1.1^3: a callout placed at its
   joint's height at rest, the joint past the drawing's edge, was written
   past the last row (2026-09-28).
