@@ -32,9 +32,20 @@ HEAD_REST = math.degrees(math.atan2(0.012, 0.09))
 RATE_HZ, FIRST_S = 60.0, 1.0
 
 
+#: The drives a LEG_GAIN knob stiffens: kp times it, kd times its root (the damping ratio kept).
+LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
+
+
 def simulated(to_s, values):
-    """The rows from the squat, `to_s` seconds, the director as the page runs her."""
+    """The rows from the squat, `to_s` seconds, the director as the page runs her; LEG_GAIN among
+    `values` stiffens the legs' drives (`physics.SERVO`)."""
+    from machine import physics
     from tools.sim.gait_montecarlo import _set
+    values = dict(values)
+    gain = values.pop('LEG_GAIN', 1.0)
+    for kind in LEG_KINDS:
+        peak, kp, kd, armature = physics.SERVO[kind]
+        physics.SERVO[kind] = (peak, kp * gain, kd * math.sqrt(gain), armature)
     _set(values)
     from machine import Machine
     from machine.director import Director
@@ -138,7 +149,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--csv', help='a HUMANOID recording (R) to measure')
     parser.add_argument('--last', action='store_true', help='the newest recording')
-    parser.add_argument('--to', type=float, default=12.0, help='seconds simulated from the squat')
+    parser.add_argument('--to', type=float, default=16.0, help='seconds simulated from the squat')
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     path = args.csv or (max(glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')),
@@ -157,7 +168,72 @@ def main(argv=None):
             cells.append('%+6.1f..%+6.1f' % (min(v), max(v)))
         print('%-14s %6.2f | %s' % (stage, float(mine[0]['t']), ' | '.join(cells)))
     seams(rows, groups, ref)
+    walked(rows)
     return 0
+
+
+#: The walk measured from WALK_FROM_S after it begins: its look, each (name, unit, of the rows).
+WALK_FROM_S = 2.0
+WALK = (
+    ('hips across', 'mm', lambda rs: _ptp(float(r['x']) for r in rs) * 1e3),
+    ('shoulders across', 'mm', lambda rs: _ptp(
+        _mid(_p(r, 'left_upper_arm'), _p(r, 'right_upper_arm'))[0] for r in rs) * 1e3),
+    ('pelvis roll', 'deg', lambda rs: _ptp(_roll(r) for r in rs)),
+    ('pelvis turn', 'deg', lambda rs: _ptp(_turn(r) for r in rs)),
+    ('head bob', 'mm', lambda rs: _ptp(_p(r, 'head')[1] for r in rs) * 1e3),
+    ('head fore-aft', 'mm', lambda rs: _ptp(_detrended([(float(r['t']), _p(r, 'head')[2])
+                                                         for r in rs])) * 1e3),
+    ('pelvis fore-aft', 'mm', lambda rs: _ptp(_detrended([(float(r['t']), float(r['z']))
+                                                           for r in rs])) * 1e3),
+    ('torso pitch', 'deg', lambda rs: _ptp(_lean(_p(r, 'torso'), _p(r, 'neck')) for r in rs)),
+    ('hip punch', 'cm/s', lambda rs: 100.0 * max(abs(float(b['x']) - float(a['x']))
+                                                 / max(1e-6, float(b['t']) - float(a['t']))
+                                                 for a, b in zip(rs, rs[1:]))),
+    ('head nod', 'deg', lambda rs: _ptp(_lean(_p(r, 'neck'), _p(r, 'head')) for r in rs)),
+    ('arm', 'deg', lambda rs: _ptp(float(r['left_shoulder']) for r in rs)),
+    ('elbow', 'deg', lambda rs: _ptp(float(r['left_elbow']) for r in rs)),
+    ('strike', 'N', lambda rs: max(max(float(r['left_load']), float(r['right_load'])) for r in rs)),
+    ('feet apart', 'mm', lambda rs: _mean(abs(_p(r, 'left_foot')[0] - _p(r, 'right_foot')[0])
+                                          for r in rs if float(r['left_load']) > 60.0
+                                          and float(r['right_load']) > 60.0) * 1e3),
+)
+
+
+def _ptp(values):
+    v = list(values)
+    return max(v) - min(v) if v else float('nan')
+
+
+def _mean(values):
+    v = list(values)
+    return sum(v) / len(v) if v else float('nan')
+
+
+def _detrended(tv):
+    """The values of (t, v) about their straight line through time: what her mean speed leaves."""
+    mt, mv = _mean(t for t, _v in tv), _mean(v for _t, v in tv)
+    slope = (sum((t - mt) * (v - mv) for t, v in tv)
+             / max(1e-12, sum((t - mt) ** 2 for t, _v in tv)))
+    return [v - mv - slope * (t - mt) for t, v in tv]
+
+
+def _turn(r):
+    """The pelvis's turn about the vertical, deg, + her left hip back."""
+    w, x, y, z = (float(r[k]) for k in ('qw', 'qx', 'qy', 'qz'))
+    return math.degrees(math.atan2(2.0 * (x * z + w * y), 1.0 - 2.0 * (x * x + y * y)))
+
+
+def walked(rows):
+    """The steady walk's look: WALK over the rows from WALK_FROM_S after the walk begins."""
+    walk = [r for r in rows if r['stage'] == 'walk']
+    if not walk:
+        return
+    from_t = float(walk[0]['t']) + WALK_FROM_S
+    steady = [r for r in walk if float(r['t']) >= from_t]
+    if len(steady) < 2:
+        return
+    print('\n9 walk from %.2f s to %.2f s' % (from_t, float(steady[-1]['t'])))
+    print('  ' + ' | '.join('%s %.1f %s' % (name, f(steady), unit) for name, unit, f in WALK))
 
 
 def seams(rows, groups, ref):

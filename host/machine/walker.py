@@ -202,8 +202,16 @@ STAND_WIDE_M, WIDE_S = 0.06, 0.6
 #: by SWAY_K of its offset, on and across, through the spine's pitch and roll
 #: (`machine.pendulum`). Moved by its drift too, the landings' jolts shook her down in 2 s
 #: (2026-09-26). With the torso's counter, 0.556 took the stir to 1.8 mm and 0.55 felled the walk
-#: at 0.9 in 4 s: off (2026-09-27).
-SWAY_K = 0.0
+#: at 0.9 in 4 s: off (2026-09-27). At 0.1 the head 53 -> 48.5 mm fore and aft a stride, the
+#: strike 1613 -> 1115 N, held 81.3 -> 87.9 %; 0.15 57 mm (2026-09-28).
+SWAY_K = 0.1
+
+#: Her shoulders kept over the walk's line while her hips sway: the spine rolls against the
+#: pelvis's offset from the feet's midline, SHOULDERS_BACK of it taken back at the shoulders,
+#: SHOULDERS_M up the torso. At 0.5 the shoulders 31.8 -> 26.7 mm across to the hips' 44.9, but
+#: held 79.5 %, with the pendulum 73.2 (the walk at 0.65 fell); 0.25 with it caught 13 times
+#: (2026-09-28).
+SHOULDERS_BACK, SHOULDERS_M = 0.0, 0.335
 
 #: A sole bearing this much has landed, N; bearing BEARS_N it is all stance, up to BEARS_UNTIL
 #: of a stride past its toe-off.
@@ -562,7 +570,8 @@ class Walker:
         toward = [math.degrees(SWAY_K * o / SPINE_TO_EARS_M) for o in self.pendulum.off]
         out['spine'] = (-PLUMB * pitch + lean - SURGE_DEG * min(1.0, self.scale)
                         * math.cos(4.0 * math.pi * (self.phase - SURGE_AT)) + toward[0])
-        out['spine_roll'] = out['spine_roll'] - toward[1]
+        out['spine_roll'] = (out['spine_roll'] - toward[1] + math.degrees(math.atan2(
+            SHOULDERS_BACK * (pel[0] - line / weight), SHOULDERS_M)))
         out['neck'] = out['neck'] - (pitch + bus.get('spine.deg', 0.0))
         self._legs(out, bus, qs, legs, feet, held, swings, target, turn, turn_now, pel)
         if self.held is not None:

@@ -670,19 +670,21 @@ def test_a_body_with_mass_walks(report):
     walker = Walker(body, 0.85)
     walker.start()
     body.loop.step(0.0)
-    lowest = 9.0
+    lowest, borne = 9.0, []
     while body.loop.bus['t'] < 3.0:
         body.loop.write(**walker.step(0.001))
         body.loop.step(0.001)
         lowest = min(lowest, body.loop.bus['pelvis.pose.y'])
+        if body.loop.bus['t'] >= 2.0:
+            borne.append(sum(body.loop.bus['pelvis.pose.%s_load' % s] for s in ('left', 'right')))
     bus = body.loop.bus
     report.check('3 s at 0.85 strides/s: on her feet, over 2 m on, within 0.2 m of the line',
                  lowest > 0.7 and bus['pelvis.pose.z'] > 2.0 and abs(bus['pelvis.pose.x']) < 0.2,
                  'lowest %.2f m, %.2f m on, %+.2f m off' % (lowest, bus['pelvis.pose.z'],
                                                            bus['pelvis.pose.x']))
-    report.check('her weight is on her soles: 539 N between them',
-                 abs(sum(bus['pelvis.pose.%s_load' % s] for s in ('left', 'right')) - 539.0) < 270.0,
-                 '%.0f N' % sum(bus['pelvis.pose.%s_load' % s] for s in ('left', 'right')))
+    mean = sum(borne) / len(borne)
+    report.check('her weight is on her soles: 539 N between them, meaned over her last second',
+                 abs(mean - 539.0) < 270.0, '%.0f N' % mean)
     body.disarm()
 
 

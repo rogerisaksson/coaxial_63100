@@ -660,6 +660,15 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   pelvis +4.2 then -5.8 mm with the lift, the walk's first second -21.5
   where it was -26 to -30. 15 of 16 perturbed starts, held 81.3 %
   (2026-09-28).
+- The head in the walk (tools/sim/look.py's walk line, from 2 s in): 53 mm
+  fore and aft a stride - the pelvis's surge 31-35 and the torso rocking
+  3.3 degrees at 0.6 m - 13 up and down. The ears' pendulum at 0.1: 48.5
+  mm, the strike 1613 -> 1115 N, held 87.9 % against 81.3. No better: the
+  torso's counter to the surge at any phase (1.5, 3 degrees: 53-74 mm,
+  some fell), the pendulum past 0.1 (0.15: 57), the legs' drives 1.5 times
+  stiffer (44.9, the strike 1410 N; 2 and 3 fell), the phase pulled less
+  (3: 57.6; 2 fell; 1: 46.3, 1628 N); the shoulders over the line (0.5:
+  26.7 mm to the hips' 44.9) cost the walk at 0.65 (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now
