@@ -579,6 +579,16 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   gains, the lean's and the lift's reach): 3.5 held 10 and 15, 5.5 and 6
   held 10 and 14, 6.5 held 6 of 10 and 7.5 one, the first steps falling at
   9-11 s (2026-09-28).
+- Leaning back before the first step, by the page's recordings (R): the
+  pelvis sunk for the weight's shift bent the knees 4 -> 12 degrees under a
+  plumb torso - the hips 26 mm behind the knees, the hips-to-shoulders line
+  -0.5 degrees, the torso 7.2 behind the shins; rising, the torso came up
+  first, 18.6 behind them. Now the torso leans as far as the shins
+  (`arrival.with_shins`), rising through a keyframe at 80 % of the height,
+  +5.7 standing, and the lean's 8 from the shift on: the hips-to-shoulders
+  line +3 standing, +8 shifting, the sink 2 mm. Held 89.7 %, 14 of 16
+  perturbed starts. Left: the first landing tips the torso back 6.5
+  degrees in 0.2 s (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

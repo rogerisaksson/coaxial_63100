@@ -49,8 +49,17 @@ FEET_Z = (gait.BALL - gait.HEEL) / 2.0
 SHIFT_IN, LIFT_IN = 0.055, 0.015
 
 #: Risen, the knees soft as the stand's (`gait.STAND_KNEE`); the pelvis SINK_M lower as her weight
-#: goes onto the left foot, its hip out over the ankle and the leg reaching the further.
-SINK_M = 0.004
+#: goes onto the left foot, its hip out over the ankle and the leg reaching the further - and the
+#: body leaning on as it goes, the torso with the shins. Sunk 4 mm with the torso plumb, the knees
+#: bent 4 -> 12 degrees, the hips 26 mm behind them and the torso 7.2 behind the shins: leaning
+#: back before the first step; unsunk the stance knee locked at -2 (2026-09-28).
+SINK_M = 0.002
+
+#: Rising, the hips lift first, the torso leaning on with the shins, and then both straighten:
+#: at RISE_MID of the way up, RISE_MID_S in, the torso as far ahead of plumb as the shins. Risen
+#: at once the torso came up first, 18.6 degrees behind the shins at 64 degrees of knee; with the
+#: hips half way up at 30 degrees, 14.4 as the knees straightened (2026-09-28).
+RISE_MID, RISE_MID_S = 0.8, 1.3
 
 #: Before the right foot lifts her weight is brought LEAN_M ahead of the ankles over LEAN_S s -
 #: she leans forward, then steps - and LIFT_ON_M further as the foot lifts LIFT_UP_M over
@@ -114,6 +123,19 @@ def over(frame, x, z, rounds=6) -> dict[str, Any]:
     return frame
 
 
+def with_shins(frame, x, z) -> dict[str, Any]:
+    """`frame` with its torso ahead of plumb as far as its shins - the pelvis a third, the spine
+    the rest, the head pitched its neck's degrees - its centre of mass over (x, z). Plumb over knees bent
+    by the stand's give she leant back: the torso 3.3 degrees behind the shins standing, 18.6
+    rising (2026-09-28)."""
+    lean, neck = 0.0, frame['joints']['neck']
+    for _ in range(4):
+        frame = over(dict(frame, tilt=lean / 3.0, joints=dict(
+            frame['joints'], spine=2.0 * lean / 3.0, neck=neck - lean)), x, z)
+        lean = -angles_of(frame)['left_ankle']
+    return frame
+
+
 def _mix(a, b, k) -> Any:
     if isinstance(a, dict):
         return {key: _mix(a.get(key, 0.0), b.get(key, 0.0), k) for key in set(a) | set(b)}
@@ -130,16 +152,19 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
     push = over(dict(squat, tilt=15.0, joints=dict(
         squat['joints'], spine=30.0, neck=-15.0, right_shoulder=25.0, right_elbow=25.0,
         right_gripper=30.0)), 0.0, FEET_Z)
-    rise = over(dict(push, tilt=0.0, pelvis=(0.0, gait.standing()[2], push['pelvis'][2]),
-                     joints=dict(push['joints'], spine=0.0, neck=3.0, right_shoulder=0.0,
-                                 right_elbow=10.0, right_gripper=18.0, left_shoulder=0.0,
-                                 left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
-                0.0, FEET_Z)
-    shift = over(dict(rise, pelvis=add(rise['pelvis'], (0.0, -SINK_M, 0.0))),
+    up = (0.0, push['pelvis'][1] + RISE_MID * (gait.standing()[2] - push['pelvis'][1]),
+          push['pelvis'][2])
+    rising = with_shins(dict(push, pelvis=up, joints=dict(push['joints'], neck=12.0)),
+                        0.0, FEET_Z)
+    rise = with_shins(dict(push, pelvis=(0.0, gait.standing()[2], push['pelvis'][2]),
+                           joints=dict(push['joints'], neck=3.0, right_shoulder=0.0,
+                                       right_elbow=10.0, right_gripper=18.0, left_shoulder=0.0,
+                                       left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
+                      0.0, FEET_Z)
+    shift = over(dict(rise, pelvis=add(rise['pelvis'], (0.0, -SINK_M, 0.0)), tilt=gait.LEAN_DEG,
+                      joints=dict(rise['joints'], spine=0.0, neck=3.0 - gait.LEAN_DEG)),
                  FEET_X - SHIFT_IN, FEET_Z)
-    lean = over(dict(shift, tilt=gait.LEAN_DEG,
-                     joints=dict(shift['joints'], neck=shift['joints']['neck'] - gait.LEAN_DEG)),
-                FEET_X - SHIFT_IN, LEAN_M)
+    lean = over(shift, FEET_X - SHIFT_IN, LEAN_M)
     # The right foot lifted and swung half a step while her weight goes on over the left foot's
     # ball; the walker takes her on from there, mid-swing, at the phase her lean says
     # (`Walker.begin`), and lands the foot as the walk lands it. Set down first in the walk's
@@ -150,7 +175,8 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
     lifted = over(dict(lean, right=((-FEET_X, gait.ANKLE_H + LIFT_UP_M, half), 0.0)),
                   FEET_X - LIFT_IN, LEAN_M + LIFT_ON_M)
     return [('squat', 0.0, squat), ('squat', 1.5, squat), ('look', 0.8, look),
-            ('push', 1.0, push), ('rise', 2.0, rise), ('stand', 1.0, rise), ('shift', 1.2, shift),
+            ('push', 1.0, push), ('rise', RISE_MID_S, rising), ('rise', 2.0 - RISE_MID_S, rise),
+            ('stand', 1.0, rise), ('shift', 1.2, shift),
             ('lean', LEAN_S, lean), ('step', LIFT_S, lifted), ('ready', 1e9, lifted)]
 
 
@@ -171,7 +197,7 @@ def settling(now, front, cadence=gait.CADENCE) -> list[tuple[str, float, dict[st
     squat's stance, her weight back between them, stood up, the arms down, crouched, squatted -
     `rest`. The arrival's own step, backwards."""
     frames = keyframes(cadence)
-    squat, push, rise = (frames[k][2] for k in (0, 3, 4))
+    squat, push, rise = (frames[k][2] for k in (0, 3, 5))
     ahead = 'left' if now['left'][0][2] >= now['right'][0][2] else 'right'
     behind = 'right' if ahead == 'left' else 'left'
     sign = 1.0 if ahead == 'left' else -1.0
