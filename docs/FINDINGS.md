@@ -648,6 +648,18 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   lean (0-4 degrees; at 0 every start fell) - the walk rides 16-28 mm
   under the stand and sags 7-10 mm under its own target at landings
   (2026-09-28).
+- Between the rise and the walk, moment by moment (the page and
+  tools/sim/look.py number them: 5 stand, 6 shift, 7 lean, 8 step, 9
+  walk; look.py prints each seam 0.3 s either side, the director's asks
+  beside): the knees bent 4 -> 9 in 6 and the torso bowed 1 -> 5.7 in 7, a
+  curtsy before the step; in 8 the pelvis's target lagged 13-46 mm behind
+  her and bent the standing knee 5 -> 16. Now she rises to the shift's
+  height (knees 9.4 standing), 6 and 7 still - the torso 1.0, the pelvis
+  -0.2 mm, the weight 3 cm on - and in 8 the target not pulled back
+  (`fall`), the lean's tilt and 9 cm more: the torso 0.9 -> 4.9 and the
+  pelvis +4.2 then -5.8 mm with the lift, the walk's first second -21.5
+  where it was -26 to -30. 15 of 16 perturbed starts, held 81.3 %
+  (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

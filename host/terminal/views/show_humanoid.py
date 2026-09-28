@@ -21,6 +21,7 @@ import time
 
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
+from machine.director import moment
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from machine.routines import TYPES
 from machine.running import Running
@@ -55,7 +56,8 @@ PUSH_N, PUSH_S = 120.0, 0.12
 RECORDINGS = os.path.join(REPO, 'build', 'recordings')
 HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
            'x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'] + list(JOINTS)
-          + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz'])
+          + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
+          + ['set_' + j for j in JOINTS])
 
 #: A callout's inks: the joint's name, its boxes' ground, the torque's bar, the power's driving
 #: and braking, the numbers; the bars' cells.
@@ -117,7 +119,7 @@ def boxes(state, now, name):
     angles = now['angles'] if now else {}
     out = [hud('BODY', [
         ('state', 'starting' if now is None else 'fallen - A lands her again' if now['fallen']
-         else now['stage']),
+         else moment(now['stage'])),
         ('cadence', '%.2f strides/s' % state['cadence']),
         ('speed', '%.2f m/s' % (now['speed'] if now else 0.0)),
         ('phase', '%.2f of a stride' % (now['phase'] if now else 0.0)),
@@ -154,12 +156,14 @@ def _paced(step):
 
 def row(now, yaw):
     """A recording's row (HEADER): her state at the page's `yaw`, each joint, each segment's
-    place."""
+    place, and each joint as the director asked it."""
     placed = frames(now['angles'], now['where'], quat(*now['turn']))
+    asked = now.get('set', {})
     return ([round(now['t'], 4), now['stage'], yaw, now['speed'], now['phase']]
             + list(now['loads']) + list(now['where']) + list(now['turn'])
             + [now['angles'].get(j, 0.0) for j in JOINTS]
-            + [v for seg in SEGMENTS for v in placed[seg[0]][0]])
+            + [v for seg in SEGMENTS for v in placed[seg[0]][0]]
+            + [asked.get(j, float('nan')) for j in JOINTS])
 
 
 def _recorded(state):

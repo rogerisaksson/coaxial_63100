@@ -50,6 +50,16 @@ BLEND_S = 0.3
 #: second.
 PACE_RATE = 0.1
 
+#: Her moments numbered from 1, on the page and in tools/sim/look.py alike, so a seam is named by
+#: its two numbers: the squat to the walk, then what the walk may turn to.
+MOMENTS = ('squat', 'look', 'push', 'rise', 'stand', 'shift', 'lean', 'step', 'walk', 'catch',
+           'halt', 'settle', 'lower', 'rest', 'falling', 'fallen')
+
+
+def moment(stage):
+    """A stage by its moment's number: '7 lean'; one not numbered as it is."""
+    return '%d %s' % (MOMENTS.index(stage) + 1, stage) if stage in MOMENTS else stage
+
 
 class Director:
 

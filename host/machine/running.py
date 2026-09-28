@@ -47,7 +47,7 @@ def _run(commands, states, cadence):
     begin()
     bus = machine.loop.bus
     wall0, sim0 = time.perf_counter(), bus['t']
-    said, ratio, spent, ran = 0.0, 1.0, 0.0, 0.0
+    said, ratio, spent, ran, asked = 0.0, 1.0, 0.0, 0.0, {}
     while True:
         try:
             while True:
@@ -70,7 +70,8 @@ def _run(commands, states, cadence):
             wall0, sim0 = began, due
         from_t = bus['t']
         while bus['t'] < due - 1e-9:
-            machine.loop.write(**director.step(dt))
+            asked = director.step(dt)
+            machine.loop.write(**asked)
             machine.loop.step(dt)
             tau = world.data.ctrl
             torque += k * (tau - torque)
@@ -82,6 +83,7 @@ def _run(commands, states, cadence):
             spent = ran = 0.0
             said = bus['t']
             state = {'t': bus['t'], 'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS},
+                     'set': dict(asked),
                      'torque': dict(zip(JOINTS, torque.tolist())),
                      'power': dict(zip(JOINTS, power.tolist())), 'peak': peak,
                      'where': (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z']),

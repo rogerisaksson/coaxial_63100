@@ -48,7 +48,8 @@ def simulated(to_s, values):
     body.loop.step(0.0)
     bus, out, said = body.loop.bus, [], -1.0
     while bus['t'] < to_s and director.stage != 'fallen':
-        body.loop.write(**director.step(0.001))
+        asked = director.step(0.001)
+        body.loop.write(**asked)
         body.loop.step(0.001)
         if bus['t'] - said >= 1.0 / RATE_HZ:
             said = bus['t']
@@ -57,7 +58,7 @@ def simulated(to_s, values):
                    'loads': (bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load']),
                    'where': (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z']),
                    'turn': tuple(bus['pelvis.pose.q' + k] for k in 'wxyz'),
-                   'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}}
+                   'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked}
             out.append(dict(zip(HEADER, row(now, 60.0))))
     body.disarm()
     return out
@@ -82,10 +83,19 @@ def _lean(a, b):
     return math.degrees(math.atan2(b[2] - a[2], b[1] - a[1]))
 
 
-#: (name, unit, of a row and the stand's (pelvis y, head y)): what each column measures.
+def _roll(r):
+    """The pelvis's roll, deg, + her left hip up."""
+    w, x, y, z = (float(r[k]) for k in ('qw', 'qx', 'qy', 'qz'))
+    return math.degrees(math.atan2(2.0 * (x * y + w * z), 1.0 - 2.0 * (x * x + z * z)))
+
+
+#: (name, unit, of a row and the stand's heights {pelvis, head, hip L, hip R}): each column.
 MEASURES = (
-    ('pelvis dy', 'mm', lambda r, ref: (float(r['y']) - ref[0]) * 1e3),
-    ('head dy', 'mm', lambda r, ref: (_p(r, 'head')[1] - ref[1]) * 1e3),
+    ('pelvis dy', 'mm', lambda r, ref: (float(r['y']) - ref['pelvis']) * 1e3),
+    ('head dy', 'mm', lambda r, ref: (_p(r, 'head')[1] - ref['head']) * 1e3),
+    ('hip L dy', 'mm', lambda r, ref: (_p(r, 'left_thigh')[1] - ref['hip L']) * 1e3),
+    ('hip R dy', 'mm', lambda r, ref: (_p(r, 'right_thigh')[1] - ref['hip R']) * 1e3),
+    ('pelvis roll', 'deg', lambda r, ref: _roll(r)),
     ('torso', 'deg', lambda r, ref: _lean(_p(r, 'torso'), _p(r, 'neck'))),
     ('torso-shin', 'deg', lambda r, ref: _lean(_p(r, 'torso'), _p(r, 'neck'))
      - _lean(_p(r, 'left_foot'), _p(r, 'left_shank'))),
@@ -97,18 +107,25 @@ MEASURES = (
     ('hip roll L', 'deg', lambda r, ref: float(r['left_hip_roll'])),
 )
 
+#: A seam's measures, by name, and the director's ask beside them; the times read about it, s.
+SEAM = ('pelvis dy', 'head dy', 'hip L dy', 'hip R dy', 'pelvis roll', 'torso', 'knee L')
+SEAM_AT = (-0.3, -0.1, 0.0, 0.1, 0.3)
+
 
 def staged(rows):
-    """[(stage, rows)] in order: the walk's first FIRST_S apart; the stand's (pelvis y, head y)."""
+    """[(moment, rows)] in order, numbered as the page numbers them (`director.moment`), the
+    walk's first FIRST_S apart; the stand's heights."""
+    from machine.director import moment
     stands = [r for r in rows if r['stage'] == 'stand'] or rows[:1]
     mid = stands[len(stands) // 2]
-    ref = (float(mid['y']), _p(mid, 'head')[1])
+    ref = {'pelvis': float(mid['y']), 'head': _p(mid, 'head')[1],
+           'hip L': _p(mid, 'left_thigh')[1], 'hip R': _p(mid, 'right_thigh')[1]}
     walk_at, groups = None, []
     for r in rows:
-        stage = r['stage']
-        if stage == 'walk':
+        stage = moment(r['stage'])
+        if r['stage'] == 'walk':
             walk_at = float(r['t']) if walk_at is None else walk_at
-            stage = 'walk, 1st s' if float(r['t']) - walk_at < FIRST_S else 'walk'
+            stage += ', 1st s' if float(r['t']) - walk_at < FIRST_S else ''
         if not groups or groups[-1][0] != stage:
             groups.append((stage, []))
         groups[-1][1].append(r)
@@ -129,15 +146,33 @@ def main(argv=None):
     print(path or 'simulated from the squat, %.1f s %s' % (
         args.to, ' '.join(args.knobs)))
     groups, ref = staged(rows)
-    print('%-12s %6s | %s' % ('stage', 'from s', ' | '.join(
+    print('%-14s %6s | %s' % ('moment', 'from s', ' | '.join(
         '%-15s' % ('%s %s' % (name, unit)) for name, unit, _f in MEASURES)))
     for stage, mine in groups:
         cells = []
         for _name, _unit, f in MEASURES:
             v = [f(r, ref) for r in mine]
             cells.append('%+6.1f..%+6.1f' % (min(v), max(v)))
-        print('%-12s %6.2f | %s' % (stage, float(mine[0]['t']), ' | '.join(cells)))
+        print('%-14s %6.2f | %s' % (stage, float(mine[0]['t']), ' | '.join(cells)))
+    seams(rows, groups, ref)
     return 0
+
+
+def seams(rows, groups, ref):
+    """Each hand-off between stages: the SEAM measures SEAM_AT seconds about it, the left knee
+    as the director asked it beside the knee as it is."""
+    f = {name: g for name, _u, g in MEASURES}
+    ts = [float(r['t']) for r in rows]
+    for (before, _mine), (after, theirs) in zip(groups, groups[1:]):
+        at = float(theirs[0]['t'])
+        print()
+        print('%s -> %s at %.2f s' % (before, after, at))
+        print('   dt s | %s | knee L asked' % ' | '.join('%14s' % n for n in SEAM))
+        for dt in SEAM_AT:
+            r = rows[min(range(len(ts)), key=lambda i: abs(ts[i] - at - dt))]
+            asked = r.get('set_left_knee', '')
+            print('  %+5.2f | %s | %s' % (dt, ' | '.join('%+14.1f' % f[n](r, ref) for n in SEAM),
+                                          '%12.1f' % float(asked) if asked else '           -'))
 
 
 if __name__ == '__main__':

@@ -71,8 +71,11 @@ RISE_MID, RISE_MID_S = 0.8, 1.3
 #: foot lifted, the pelvis tipped back 2 degrees first and then 5 forward as the walk took her;
 #: handed on still, 2 cm further, she hung back behind the landed foot and tipped over
 #: backwards; landed on her standing stance, 16 cm out, the pelvis could not get over the foot
-#: and the next went 20 cm out to catch her (2026-09-27).
-LEAN_M, LEAN_S, LIFT_ON_M, LIFT_UP_M, LIFT_S = 0.07, 0.6, 0.05, 0.06, 0.3
+#: and the next went 20 cm out to catch her (2026-09-27). The torso straight till the step and
+#: the lean's tilt in it (`lifted`): 7 cm before the lift locked the standing knee and rose her
+#: 3 mm; 3 cm, the rest as the foot lifts - the curtsy and the bow with the first step, the pelvis
+#: 5.8 mm down in it, not 13 (2026-09-28).
+LEAN_M, LEAN_S, LIFT_ON_M, LIFT_UP_M, LIFT_S = 0.03, 0.6, 0.09, 0.06, 0.3
 
 #: Her first stride, of the walk's (`gait.pace`'s at the walker's cadence x this), landed on
 #: the walk's own track, 4 cm from the standing foot.
@@ -175,14 +178,12 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
           push['pelvis'][2])
     rising = with_shins(dict(push, pelvis=up, joints=dict(push['joints'], neck=12.0)),
                         0.0, FEET_Z)
-    rise = over(dict(push, tilt=0.0, pelvis=(0.0, gait.standing()[2], push['pelvis'][2]),
+    rise = over(dict(push, tilt=0.0, pelvis=(0.0, gait.standing()[2] - SINK_M, push['pelvis'][2]),
                      joints=dict(push['joints'], spine=0.0, neck=3.0, right_shoulder=0.0,
                                  right_elbow=10.0, right_gripper=18.0, left_shoulder=0.0,
                                  left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
                 0.0, FEET_Z)
-    shift = over(dict(rise, pelvis=add(rise['pelvis'], (0.0, -SINK_M, 0.0)), tilt=gait.LEAN_DEG,
-                      joints=dict(rise['joints'], neck=rise['joints']['neck'] - gait.LEAN_DEG)),
-                 FEET_X - SHIFT_IN, FEET_Z)
+    shift = over(rise, FEET_X - SHIFT_IN, FEET_Z)
     lean = over(shift, FEET_X - SHIFT_IN, LEAN_M)
     # The right foot lifted and swung half a step while her weight goes on over the left foot's
     # ball; the walker takes her on from there, mid-swing, at the phase her lean says
@@ -191,8 +192,10 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
     # walk tipped both feet at once and she hopped (2026-09-25); set down from a lean, she hopped
     # off the left leg (2026-09-27).
     half = 0.5 * gait.STRIDE_M * FIRST * gait.pace(cadence) * gait.STANCE_AT
-    lifted = soft(dict(lean, right=((-FEET_X, gait.ANKLE_H + LIFT_UP_M, half), 0.0)), 'left',
-                  SOFT_KNEE, FEET_X - LIFT_IN, LEAN_M + LIFT_ON_M)
+    lifted = soft(dict(lean, right=((-FEET_X, gait.ANKLE_H + LIFT_UP_M, half), 0.0), fall=1.0,
+                       tilt=gait.LEAN_DEG,
+                       joints=dict(lean['joints'], neck=lean['joints']['neck'] - gait.LEAN_DEG)),
+                  'left', SOFT_KNEE, FEET_X - LIFT_IN, LEAN_M + LIFT_ON_M)
     return [('squat', 0.0, squat), ('squat', 1.5, squat), ('look', 0.8, look),
             ('push', 1.0, push), ('rise', RISE_MID_S, rising), ('rise', 2.0 - RISE_MID_S, rise),
             ('stand', 1.0, rise), ('shift', 1.2, shift),
@@ -311,9 +314,13 @@ class Arrival:
             (want[0] - self.want_was[0]) / dt, (want[2] - self.want_was[2]) / dt)
         self.want_was = want
         p = frame['pelvis']
+        on = p[2] - COM_K * (com[1] - want[2]) - COM_D * (self.v[1] - v_want[1])
+        # Falling on into the first step (a keyframe's `fall`, 0 to 1), the target is not pulled
+        # back behind her: pulled 13-46 mm back, the standing knee bent 5 -> 16 degrees under her
+        # and she curtsied 18 mm down before the walk (2026-09-28).
+        on += frame.get('fall', 0.0) * max(0.0, bus['pelvis.pose.z'] - on)
         frame = dict(frame, pelvis=(
-            p[0] - COM_K * (com[0] - want[0]) - COM_D * (self.v[0] - v_want[0]), p[1],
-            p[2] - COM_K * (com[1] - want[2]) - COM_D * (self.v[1] - v_want[1])))
+            p[0] - COM_K * (com[0] - want[0]) - COM_D * (self.v[0] - v_want[0]), p[1], on))
         # The pelvis's attitude turned back past its error, as the walker turns it: held by the
         # legs' servos alone, it tipped back as she rolled onto the stepping foot.
         turn = _turn(frame)
