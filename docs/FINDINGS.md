@@ -690,16 +690,16 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   12 cm, and her speed read from 3.7 m back: 8-10 cm crouched, a sole at
   16 kN. Reset on landing (`Walker.reset`): 0.866 and 0.882 m after the
   restarts, 958 N at most (2026-09-28).
-- The swing skims (gait.LIFT_M): the foot's least height 25 mm over the
-  floor through mid-swing, 42 at most, where a bump lifted it 130 mm and
-  the knee 75 degrees - she trod the air; levelled at 0.6 of the swing the
-  knee bends once, to 55. The heel up 10 degrees as the other foot lands
-  (gait.RISE_DEG): the knee lands at 13 degrees where 33, the head's bob
-  23 -> 13 mm, the thigh 21 ahead and 11 behind where 28 and 6. The
-  pelvis turned 6: 26 degrees where 39. The landings harder: the look
-  suite's impact 1046, 1296, 1599 N at 0.65, 0.85, 0.9 strides/s against
-  228, 972, 1358, the ankle falling 1.0 m/s where 0.4 as the heel meets
-  the floor (2026-09-28).
+- The swing skims (gait.LIFT_M) 25 mm over the floor, 42 at most, where a
+  bump lifted the foot 130 mm, the knee 75 degrees: she trod the air;
+  levelled at 0.6 of the swing the knee bends once, to 55. The heel up 10
+  degrees as the other lands (gait.RISE_DEG): the knee lands at 13 where
+  33, the head's bob 23 -> 13 mm, the thigh 21 ahead and 11 behind where
+  28 and 6. The landings harder: the look suite's impact 1046-1599 N at
+  0.65-0.9 strides/s where 228-1358 (2026-09-28).
+- Turned 6 degrees her hips swayed with her shoulders, 60 and 41 mm
+  across; turned 9, dropped 6, the spine taking 0.3 of the hips' offset
+  back at the shoulders: 72 under 25 (2026-09-28).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The
