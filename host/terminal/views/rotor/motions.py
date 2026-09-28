@@ -108,24 +108,70 @@ def load_loop(rig, view):
 #: against a 105 C laminate and 22.0 A against a 125 C junction (FINDINGS, 2026-09-05).
 LOAD_A = 20.0
 
+#: A joint's load held on the vector, q amps: gravity at the end of a limb, the rotor a few
+#: degrees off its angle under HOLD_A.
+JOINT_LOAD_A = 6.0
 
-#: The demo, the bench's word (2026-09-28): up clockwise, let go, brake, the same the other way,
-#: then a load held at speed. A stage: its name, seconds, the speed it ramps to, rpm (None: no
-#: current, the rotor on its own drag) and the load on the stand-in's shaft, q amps. On the
-#: demo's flywheel (J 8e-3, b 5e-4): up at 52 rad/s^2 on ~9 A, a coast of J/b = 16 s taking
-#: 1 500 rpm to ~1 100 in 5 s, the brake back to rest in 2 s.
+
+#: The demo in segments, the bench's words (2026-09-28): an application each, its stages
+#: driven by the speed loop, a held vector or one stepped. A stage: its segment, its name,
+#: seconds, the speed it ramps to - rpm, None: no current, the rotor on its drag - the load on
+#: the stand-in's shaft in q amps, and how. On the demo's flywheel (J 8e-3, b 5e-4): up at 52
+#: rad/s^2 on ~9 A, a coast of J/b = 16 s taking 1 500 rpm to ~1 100 in 5 s, the brake back to
+#: rest in 2 s; a climb against the propeller 40 A at its top, the joint's vector 12 A all the
+#: while.
 CYCLE = (
-    ('align', 1.5, 0.0, 0.0),
-    ('up', 6.0, 3300.0, 0.0),
-    ('coast', 5.0, None, 0.0),
-    ('brake', 3.0, 0.0, 0.0),
-    ('up', 6.0, -3300.0, 0.0),
-    ('coast', 5.0, None, 0.0),
-    ('brake', 3.0, 0.0, 0.0),
-    ('up', 3.0, 1000.0, 0.0),
-    ('load', 6.0, 1000.0, LOAD_A),
-    ('brake', 3.0, 0.0, 0.0),
+    ('SPIN', 'align', 1.5, 0.0, 0.0, 'hold'),
+    ('SPIN', 'up', 6.0, 3300.0, 0.0, 'speed'),
+    ('SPIN', 'coast', 5.0, None, 0.0, 'speed'),
+    ('SPIN', 'brake', 3.0, 0.0, 0.0, 'speed'),
+    ('SPIN', 'up', 6.0, -3300.0, 0.0, 'speed'),
+    ('SPIN', 'coast', 5.0, None, 0.0, 'speed'),
+    ('SPIN', 'brake', 3.0, 0.0, 0.0, 'speed'),
+    ('SPIN', 'up', 3.0, 1000.0, 0.0, 'speed'),
+    ('SPIN', 'load', 6.0, 1000.0, LOAD_A, 'speed'),
+    ('SPIN', 'brake', 3.0, 0.0, 0.0, 'speed'),
+    ('SERVO', 'move', 1.5, 900.0, 0.0, 'speed'),
+    ('SERVO', 'stop', 1.8, 0.0, 0.0, 'speed'),
+    ('SERVO', 'move', 1.5, -900.0, 0.0, 'speed'),
+    ('SERVO', 'stop', 1.8, 0.0, 0.0, 'speed'),
+    ('SERVO', 'move', 1.5, 900.0, 0.0, 'speed'),
+    ('SERVO', 'stop', 1.8, 0.0, 0.0, 'speed'),
+    ('STEPPER', 'hold', 1.0, 0.0, 0.0, 'hold'),
+    ('STEPPER', 'steps', 5.0, 2.0, 0.0, 'step'),
+    ('STEPPER', 'back', 5.0, -2.0, 0.0, 'step'),
+    ('FIXED WING', 'climb', 10.0, 2800.0, 0.0, 'speed'),
+    ('FIXED WING', 'cruise', 3.0, 2800.0, 0.0, 'speed'),
+    ('FIXED WING', 'blip', 0.5, 3300.0, 0.0, 'speed'),
+    ('FIXED WING', 'cruise', 2.0, 2800.0, 0.0, 'speed'),
+    ('FIXED WING', 'blip', 0.5, 3300.0, 0.0, 'speed'),
+    ('FIXED WING', 'glide', 4.0, None, 0.0, 'speed'),
+    ('FIXED WING', 'land', 3.0, 0.0, 0.0, 'speed'),
+    ('QUAD', 'spool', 3.0, 2000.0, 0.0, 'speed'),
+    ('QUAD', 'stab', 0.4, 2600.0, 0.0, 'speed'),
+    ('QUAD', 'hover', 0.8, 2000.0, 0.0, 'speed'),
+    ('QUAD', 'stab', 0.4, 1400.0, 0.0, 'speed'),
+    ('QUAD', 'hover', 0.8, 2000.0, 0.0, 'speed'),
+    ('QUAD', 'stab', 0.4, 2600.0, 0.0, 'speed'),
+    ('QUAD', 'hover', 0.8, 2000.0, 0.0, 'speed'),
+    ('QUAD', 'stab', 0.4, 1400.0, 0.0, 'speed'),
+    ('QUAD', 'hover', 1.0, 2000.0, 0.0, 'speed'),
+    ('QUAD', 'land', 3.0, 0.0, 0.0, 'speed'),
+    ('JOINT', 'hold', 8.0, 0.0, JOINT_LOAD_A, 'hold'),
 )
+
+#: Where the demo starts: a segment's name, or None for the cycle's first (`--segment`).
+START_AT = None
+
+#: A stepper's step, electrical degrees, the share of its interval the vector eases over and the
+#: current it is held on, A. 15 mechanical degrees - 105 electrical, past the 90 where the held
+#: vector's torque turns - lost the rotor: 180 asked, 580 turned, and the way back went on
+#: forward; the stand-in's rotor damps at 0.002 of critical, so a step set down whole rings on
+#: (2026-09-28). A servo's stop is 1.8 s: 858 rpm through the 10 A clamp at zero takes 1.4,
+#: and at 1.0 s the first stop ended at 167 rpm.
+STEP_E_DEG = 45.0
+STEP_EASE = 0.3
+STEP_A = 8.0
 
 #: A propeller on the stand-in's shaft through the cycle, torque k w|w|: the kilowatt at the
 #: cycle's top. At the 24.8 V link vq tops out at vdc/sqrt 3 = 14.3 V, so a kilowatt is ~48 A
@@ -160,22 +206,32 @@ def speed(view):
     return (view.get('state') or {}).get('omega_hat') or 0.0
 
 
+def start_of(segment):
+    """Seconds into the cycle a segment begins, 0 for None."""
+    at = 0.0
+    for stage in CYCLE:
+        if stage[0] == segment:
+            return at
+        at += stage[2]
+    return 0.0
+
+
 def stage_at(view, now):
-    """The stage `now` is in: its index, name, seconds into it, its length, the speed it ramps
-    to (a share of the no-load speed, or None) and its load."""
-    total = sum(stage[1] for stage in CYCLE)
-    into = (now - view['spin_at']) % total
-    for index, (name, seconds, rpm, load) in enumerate(CYCLE):
+    """The stage `now` is in: its index, segment, name, seconds into it, its length, the speed it
+    ramps to (rpm, or None), its load and how it is driven."""
+    total = sum(stage[2] for stage in CYCLE)
+    into = (now - view['spin_at'] + start_of(START_AT)) % total
+    for index, (segment, name, seconds, rpm, load, how) in enumerate(CYCLE):
         if into < seconds:
-            return index, name, into, seconds, rpm, load
+            return index, segment, name, into, seconds, rpm, load, how
         into -= seconds
-    name, seconds, rpm, load = CYCLE[-1]
-    return len(CYCLE) - 1, name, seconds, seconds, rpm, load
+    segment, name, seconds, rpm, load, how = CYCLE[-1]
+    return len(CYCLE) - 1, segment, name, seconds, seconds, rpm, load, how
 
 
 def prop_k():
     """The propeller's k, N m per (rad/s)^2: PROP_KW at the cycle's top."""
-    top = max(abs(stage[2] or 0.0) for stage in CYCLE) * RAD_S_PER_RPM
+    top = max(abs(stage[3] or 0.0) for stage in CYCLE) * RAD_S_PER_RPM
     return PROP_KW * 1e3 / top ** 3
 
 
@@ -197,7 +253,7 @@ def sweep(rig, view):
     sensorless."""
     drive = rig.board.drive
     now = view['clock'].now()
-    index, name, into, seconds, rpm, load = stage_at(view, now)
+    index, segment, name, into, seconds, rpm, load, how = stage_at(view, now)
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     top = (no_load_rpm(view) or TOP_RPM) * RAD_S_PER_RPM
     w_hat = speed(view) / pairs
@@ -207,20 +263,26 @@ def sweep(rig, view):
     kt = 1.5 * pairs * (p.get('motor_lambda') or 0.005)
     through = SEND_FROM * (p.get('drv_w_hi') or 0.0) / pairs
     pi.limit = SPIN_A if abs(w_hat) < through else max(SPIN_A, p.get('drv_i_max') or SPIN_A)
-    if abs(w_hat) > LOST * top and name != 'align':
+    if abs(w_hat) > LOST * top and how == 'speed':
         # The demo's operator: the estimate lost, the cycle again from the pull onto the frame.
         view['said'] = 'estimate lost at %.0f rpm - aligned again' % (w_hat / RAD_S_PER_RPM)
-        view['spin_at'], view['stage_index'] = now, None
-        index, name, into, seconds, rpm, load = stage_at(view, now)
+        view['spin_at'], view['stage_index'] = now + start_of(START_AT), None
+        index, segment, name, into, seconds, rpm, load, how = stage_at(view, now)
     if index != view.get('stage_index'):
-        view['stage_index'], view['stage'] = index, name
+        view['stage_index'], view['stage'], view['segment'] = index, name, segment
         view['leaning'] = False
         view['stage_load'], view['load_full'] = 0.0, load * kt
-        if name == 'align':
-            drive.hold()
-        elif view.get('stage_mode') != 'sensorless':
-            drive.on('sensorless')
-        view['stage_mode'] = 'hold' if name == 'align' else 'sensorless'
+        mode = 'sensorless' if how == 'speed' else 'hold'
+        if mode != view.get('stage_mode'):
+            if mode == 'hold':
+                drive.hold()
+            else:
+                drive.on('sensorless')
+        view['stage_mode'] = mode
+        # A vector held or stepped from where the rotor stands; the cycle's first pulls it onto
+        # the frame at 0, the estimate starting on its polarity.
+        view['held_theta'] = (0.0 if index == 0
+                              else (view.get('state') or {}).get('theta_hat') or 0.0)
         # From where the rotor is: the ramp starts at its speed, the PI with no history.
         ramp.y = w_hat
         pi.reset()
@@ -231,7 +293,9 @@ def sweep(rig, view):
         view['speed_at'] = now
     dt = min(0.25, max(0.0, now - view.get('speed_at', now)))
     view['speed_at'] = now
-    if rpm:
+    if how == 'hold':
+        view['stage_load'] = view.get('load_full', 0.0)       # gravity's: whatever the speed
+    elif rpm:
         # The stage's load grows with the rotor's speed to its stage's, a dynamometer's: laid on
         # whole at the stage's start, a rotor the up left under the clamp's step - 10 A through
         # zero - lost to it and ran backwards, -635 rpm on a loaded host (2026-09-28).
@@ -242,8 +306,20 @@ def sweep(rig, view):
         # load opposes positive turning, so the propeller's sign is the speed's.
         w = drive.model.read()['omega'] / pairs
         drive.model.configure(load=prop_k() * w * abs(w) + view.get('stage_load', 0.0))
-    if name == 'align':
-        drive.write(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0, theta=0.0)
+    if how == 'hold':
+        drive.write(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0, theta=view['held_theta'])
+        view['iq'] = 0.0
+        return
+    if how == 'step':
+        # A step a time: the vector eased over STEP_EASE of its interval, then held - a
+        # stepper's staircase, microstepped at the page's rate.
+        every = STEP_E_DEG / max(1e-6, abs(rpm) * 6.0 * pairs)
+        k, part = divmod(into / every, 1.0)
+        eased = min(1.0, part / STEP_EASE)
+        steps = k + eased * eased * (3.0 - 2.0 * eased)
+        drive.write(id_ref=STEP_A, iq_ref=0.0, omega_target=0.0,
+                    theta=view['held_theta'] + math.copysign(
+                        math.radians(STEP_E_DEG) * steps, rpm))
         view['iq'] = 0.0
         return
     if rpm is None:

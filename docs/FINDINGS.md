@@ -281,6 +281,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   after: its regime came off the step `travel` made since the last draw, none
   between feed samples. Off the rotor's speed now, in proportion to it above 30
   rpm: 0 (2026-09-28).
+- The demo's STEPPER at 15 mechanical degrees a step - 105 electrical -
+  lost its rotor (180 asked, 580 turned); 45 electrical, eased: 63 of 60
+  (2026-09-28).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

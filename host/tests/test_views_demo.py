@@ -25,7 +25,7 @@ def test_the_demo_actually_loads_the_motor(report):
     from tools.render import page
 
     seconds = 0.0
-    for name, stage_s, _rpm, _load in motions.CYCLE:
+    for _segment, name, stage_s, _rpm, _load, _how in motions.CYCLE:
         seconds += stage_s
         if name == 'load':
             break

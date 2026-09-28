@@ -59,6 +59,7 @@ from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
                                          HEADROOM_GAP, LEFT_COLUMNS, NTC_GAP, RIGHT_COLUMNS,
                                          SOA_NODES, fit)
 from terminal.views.rotor.legend import foot_furniture, gutter_caption, legend_drops
+from terminal.views.rotor import motions
 from terminal.views.rotor.motions import turn_the_handle
 from terminal.views.rotor.rows import (chain_rows, drive_rows, loop_rows,
                                        observer_rows, phase_amps, phase_rows, pointer_rate,
@@ -253,6 +254,8 @@ def parse_args(argv):
                    help='honour the arming interlock when A arms')
     p.add_argument('--afe', action='store_true', help='switch AFE_ON on')
     p.add_argument('--start', action='store_true', help='start at once')
+    p.add_argument('--segment', choices=sorted({stage[0] for stage in motions.CYCLE}),
+                   help="the demo from this segment on: SPIN, SERVO, STEPPER, FIXED WING, ...")
     for name, default in (('iq', 0.0), ('id', 0.0), ('omega', 300.0),
                           ('accel', 1500.0), ('v_inj', 1.0), ('vd', 0.5),
                           ('vdc', 24.0)):
@@ -420,6 +423,8 @@ def _console_for(args):
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.segment:
+        motions.START_AT = args.segment
     sane(args)
 
     linked = _link(args)

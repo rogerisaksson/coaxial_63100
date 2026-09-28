@@ -96,7 +96,7 @@ BOOT = 'test_boot.py'
 #: budget (tools/dev/token_budget.py); one 32 k-token file before (2026-09-28).
 VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
          'test_views_drawing.py', 'test_views_gauges.py', 'test_views_thermal.py',
-         'test_views_demo.py')
+         'test_views_demo.py', 'test_views_segments.py')
 
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
@@ -213,6 +213,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, 'test_simulated.py',
+           'test_views_segments.py',
            DAQ_API)
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
