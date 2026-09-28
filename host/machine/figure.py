@@ -14,8 +14,8 @@ from machine.gait import ANKLE_H, BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH
 #: Her weight, kg; each segment's share of it is de Leva's (1996) for a woman.
 MASS_KG = 55.0
 
-#: The toes' joint over the sole, metres.
-TOE_RY = 0.014
+#: The toes' joint over the sole, and the toes' length from it, metres.
+TOE_RY, TOE_M = 0.014, 0.058
 
 #: Her jeans' wide legs hang from HEM_AT under the knees, metres (`physics.HEMS`).
 HEM_AT = 0.12
@@ -68,8 +68,8 @@ SEGMENTS = tuple([
 #: toes on their undersides, the knee's front to kneel on, the knuckles to lean on; the seat, the
 #: back and the chest, the skull, the arms and the thighs to fall on. Without them she lay with
 #: her torso through the floor (2026-09-27).
-CONTACTS = (('foot', 'box', (0.035, 0.01, (BALL + HEEL) / 2.0), (0.0, -ANKLE_H + 0.01, (BALL - HEEL) / 2.0)),
-            ('toes', 'box', (0.035, 0.007, 0.03), (0.0, -0.007, 0.03)),
+CONTACTS = (('foot', 'box', (0.038, 0.03, (BALL + HEEL) / 2.0), (0.0, -ANKLE_H + 0.03, (BALL - HEEL) / 2.0)),
+            ('toes', 'box', (0.036, 0.015, TOE_M / 2.0), (0.0, 0.001, TOE_M / 2.0)),
             ('shank', 'sphere', (0.035,), (0.0, -0.06, 0.03)),
             ('hand', 'sphere', (0.03,), (0.0, -0.07, 0.01)),
             ('pelvis', 'sphere', (0.10,), (0.0, 0.0, -0.02)),

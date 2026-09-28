@@ -33,7 +33,12 @@ FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 #: Falling, the joints she goes to by the way she tips: ahead onto her knees and hands, all
 #: fours, the head up (`tools/sim/getup_lab.py`'s push-up); behind into the squat's, the arms
 #: down behind her and the chin tucked.
+#: Down on all fours her knees go apart, each hip KNEES_APART_DEG out: from the catwalk's in,
+#: her feet struck each other as the legs folded, 550 N, and her head met the floor (2026-09-28).
+KNEES_APART_DEG = 10.0
+
 CATCH = {'ahead': {'left_hip': -90.0, 'right_hip': -90.0, 'left_knee': 90.0, 'right_knee': 90.0,
+                   'left_hip_roll': KNEES_APART_DEG, 'right_hip_roll': KNEES_APART_DEG,
                    'left_ankle': 20.0, 'right_ankle': 20.0, 'spine': 0.0, 'neck': -40.0,
                    'left_shoulder': 90.0, 'right_shoulder': 90.0, 'left_elbow': 10.0,
                    'right_elbow': 10.0, 'left_wrist': 0.0, 'right_wrist': 0.0,

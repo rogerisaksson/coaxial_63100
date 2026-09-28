@@ -28,9 +28,9 @@ JOINTS = ('pelvis', 'waist', 'neck', 'head',
 #: below the pelvis's centre, thigh and shank, the ankle over the sole, the ball ahead of it
 #: (the toes' joint) and the heel behind; the tracks the feet walk on, either side of the line.
 HIP_HALF, HIP_DROP, THIGH, SHANK = 0.082, 0.055, 0.39, 0.38
-#: A 24 cm sole with the toes (`figure.CONTACTS`), a sneaker in size 37; 27 cm read as boats
-#: (2026-09-28).
-ANKLE_H, BALL, HEEL = 0.075, 0.122, 0.058
+#: A 23 cm sole with the toes (`figure.CONTACTS`), a sneaker in size 36-37: 27 cm read as boats,
+#: 24 still big (2026-09-28).
+ANKLE_H, BALL, HEEL = 0.075, 0.117, 0.055
 
 #: The feet walk a beam: each planted TRACK_M off the line, swung WIDEN_M further out round the
 #: standing foot at mid-swing, the stand's STAND_M apart (half).
@@ -80,6 +80,12 @@ SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.66, 15.0, -75.0
 #: (2026-09-25).
 TOE_DEG, TOE_RATE, TOE_ACC = -50.0, -300.0, 4000.0
 
+#: The foot levels in the swing: SWING_DEG toes up at SWING_AT of the way from toe-off to the
+#: landing, turning SWING_RATE a stride, so its toes clear the floor on a low swing (LIFT_M).
+#: Pitched toes-down to half the swing, the toes needed 82 mm of lift, and from 200 mm the foot
+#: came down at 0.9 m/s - lagging, it struck at 0.75, 1.5 kN in 2 ms (2026-09-28).
+SWING_AT, SWING_DEG, SWING_RATE = 0.4, 0.0, 60.0
+
 #: The body's lean ahead of the plumb line before the first step, deg - the pelvis tipped in
 #: the lean's frame, the torso with it - and how long the walk takes to let it out, s: pushed
 #: on with the torso plumb she read as leaning back before she stepped; a lean kept through
@@ -95,8 +101,10 @@ def _knots(stride):
     quintic between; the landing's the toes already coming down. The heel rises as the stride:
     to the full 50 degrees on the walk's first short strides, the push-off hopped her off the
     front foot and she zigzagged over (2026-09-27)."""
+    swing = (((TOE_OFF + SWING_AT * (1.0 - TOE_OFF), SWING_DEG, SWING_RATE, 0.0),)
+             if 0.0 < SWING_AT < 1.0 else ())
     return ((SETTLE, 0.0, 0.0, 0.0), (HEEL_OFF, 0.0, 0.0, 0.0),
-            (TOE_OFF, TOE_DEG * stride, TOE_RATE * stride, TOE_ACC * stride),
+            (TOE_OFF, TOE_DEG * stride, TOE_RATE * stride, TOE_ACC * stride)) + swing + (
             (1.0, LAND_DEG, LAND_RATE, 0.0), (1.0 + SETTLE, 0.0, 0.0, 0.0))
 
 #: The middle of a leg's single support: from the other's toe-off to its own landing.
@@ -435,10 +443,12 @@ def sway(t, cadence=CADENCE, stride=None, phase=None):
             _hips(p, stride) + HIP_DROP * math.cos(math.radians(roll)), level)
 
 
-#: A swinging leg turns in at the hip, TWIST_DEG at mid-swing: its knee comes in toward the line
-#: and its foot goes round the standing one, left and right mirrored - wax on, wax off. The
-#: turn is nothing at toe-off and at the landing, to its second derivative.
-TWIST_DEG = 11.0
+#: A swinging leg turns in at the hip, TWIST_DEG at mid-swing: its knee comes in toward the line,
+#: left and right mirrored - wax on, wax off. The turn is nothing at toe-off and at the landing,
+#: to its second derivative. Each foot's toes out TOE_OUT_DEG throughout: at 11 in and none out
+#: her feet pointed 0.6 degrees out in stance and turned in through the swing, pigeon-toed
+#: (2026-09-28).
+TWIST_DEG, TOE_OUT_DEG = 11.0, 5.0
 
 
 def tracks(t, cadence=CADENCE, phase=None, track=TRACK_M, widen=WIDEN_M):
@@ -451,7 +461,7 @@ def tracks(t, cadence=CADENCE, phase=None, track=TRACK_M, widen=WIDEN_M):
     for sign, q in ((1.0, p), (-1.0, (p + 0.5) % 1.0)):
         u = (q - TOE_OFF) / (1.0 - TOE_OFF) if q >= TOE_OFF else 0.0
         places.append(sign * (track + widen * math.sin(math.pi * u) ** 2))
-        turns.append(-sign * TWIST_DEG * 64.0 * u ** 3 * (1.0 - u) ** 3)
+        turns.append(sign * (TOE_OUT_DEG - TWIST_DEG * 64.0 * u ** 3 * (1.0 - u) ** 3))
     return tuple(places + turns)
 
 

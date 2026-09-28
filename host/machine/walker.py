@@ -167,8 +167,11 @@ PLUMBED = ('spine', 'neck')
 SURGE_DEG, SURGE_AT = 0.0, 0.125
 
 #: A catwalk: the feet planted TRACK_M off the line, swung WIDEN_M further out round the standing
-#: one; the pelvis turned TURN_GAIN of the walk's turn, the torso turning it back.
-TRACK_M, WIDEN_M, TURN_GAIN = 0.02, 0.023, 1.3
+#: one; the pelvis turned TURN_GAIN of the walk's turn, the torso turning it back. At 0.02 and
+#: 0.023 the sneakers passed 22 mm into each other; colliding (`physics.ME`), they bumped and the
+#: thigh left the floor 1.6 degrees ahead of upright where it had 9.4 behind. At 0.03 and 0.035
+#: they pass 5.8 mm apart (2026-09-28).
+TRACK_M, WIDEN_M, TURN_GAIN = 0.03, 0.035, 1.3
 
 #: From standing on the left foot: the stride grows from BEGIN of a stride's to all of it over
 #: RAMP_S, the setpoints ease from the stand's over BLEND_S; the phase starts at BEGIN_AT, the left
@@ -230,6 +233,7 @@ FORE_K, FORE_M = 1.0, 0.25
 SAMPLES = 240
 
 SIDES = (('left', 1.0), ('right', -1.0))
+_OTHER = {'left': 'right', 'right': 'left'}
 
 
 def carried(q):
@@ -326,6 +330,37 @@ def _put_down(ball_z, pel_z):
     it is behind, DOWN_BEHIND_M behind at most."""
     z = ball_z - gait.BALL
     return max(z, pel_z + DOWN_AHEAD_M) if z > pel_z else max(z, pel_z - DOWN_BEHIND_M)
+
+
+#: A swinging foot is kept CLEAR_M off the other, centre to centre, wherever their soles overlap
+#: along the walk, and eased in over OVERLAP_M of them coming to: pushed out on its own side, by
+#: the walker's own kinematics. The walk's path passes 95 mm apart (TRACK_M, WIDEN_M); a catch, a
+#: side step, a turn may not, and colliding (`physics.ME`) the feet struck and she stamped
+#: (2026-09-28).
+CLEAR_M, OVERLAP_M = 0.09, 0.03
+
+
+#: A leg's plan led SWING_LEAD_S through its swing and its landing's roll: a drive lags a
+#: setpoint on the move, and the swinging hip ran 5 degrees behind and caught up into the floor,
+#: the ankle falling 0.75 m/s as the heel struck, 1.5 kN in 2 ms (2026-09-28).
+SWING_LEAD_S = 0.02
+
+
+def _led(q):
+    """Whether a leg at phase `q` is swinging or landing, its plan led."""
+    return q % 1.0 >= gait.TOE_OFF or q % 1.0 < gait.SETTLE
+
+
+def _clear(at, sign, other):
+    """`at`, a swinging ankle's target (world), on side `sign`, clear of the other foot, its
+    ball at `other`: the soles' overlap along the walk from the other's heel to its toes."""
+    lo, hi = other[2] - gait.BALL - gait.HEEL, other[2] + figure.TOE_M
+    overlap = min(hi, at[2] + gait.BALL + figure.TOE_M) - max(lo, at[2] - gait.HEEL)
+    near = max(0.0, min(1.0, (overlap + OVERLAP_M) / OVERLAP_M))
+    short = CLEAR_M - sign * (at[0] - other[0])
+    if short <= 0.0 or near <= 0.0:
+        return at
+    return (at[0] + sign * short * near, at[1], at[2])
 
 
 def _reach(hip, at, reach):
@@ -496,6 +531,10 @@ class Walker:
             stride, length = self.stride, gait.STRIDE_M * self.stride
         self._advance(dt, length, balls, pel, bus)
         lateral, height, yaw, legs, upper, roll = plan(self.phase, stride)
+        if SWING_LEAD_S:
+            led = plan(self.phase + SWING_LEAD_S * self.rate, stride)[3]
+            legs = tuple(b if _led(q) else a
+                         for q, a, b in zip((self.phase, self.phase + 0.5), legs, led))
         spread = self.wide * (1.0 - gait.eased(self.age / WIDE_S))
         if self.halting is not None:
             spread += STAND_WIDE_M * gait.eased(self.halting / HALT_S)
@@ -679,6 +718,7 @@ class Walker:
                 step['down_s'] = min(DOWN_S, step['down_s'] + dt)
                 x0, y0, z0 = step['at']
                 at = (x0, y0 + (gait.ANKLE_H - y0) * gait.eased(step['down_s'] / DOWN_S), z0)
+                at = _clear(at, sign, balls[_OTHER[side]])
                 at, short = _reach(figure.hip(sign, pel, turn_now), at, SWING_REACH * gait.REACH)
                 out[side], lower = at, max(lower, short)
                 self.stood[side] = feet_x[side] = x0
@@ -700,6 +740,7 @@ class Walker:
                 at = (step['x_from'] + (step['x_out'] - step['x_from']) * gait.eased(u),
                       gait.ANKLE_H + SIDE_LIFT_M * math.sin(math.pi * u) ** 2,
                       step['z_from'] + (step['z_land'] - step['z_from']) * on)
+                at = _clear(at, sign, balls[_OTHER[side]])
                 at, short = _reach(figure.hip(sign, pel, turn_now), at, SWING_REACH * gait.REACH)
                 out[side], lower = at, max(lower, short)
                 feet_x[side] = self.stood.get(side, balls[side][0])
@@ -711,6 +752,7 @@ class Walker:
             u = (q - gait.TOE_OFF) / (1.0 - gait.TOE_OFF) if q >= gait.TOE_OFF else 0.0
             at = (float(x[i]) + sign * WIDEN_M * math.sin(math.pi * u) ** 2, ankle[1],
                   planned_z + ankle[2] + fore)
+            at = _clear(at, sign, balls[_OTHER[side]])
             hip = figure.hip(sign, pel, turn_now)
             at, short = _reach(hip, at, SWING_REACH * gait.REACH)
             if (self.side is None and catch[i] and short > 0.0 and u >= capture.FROM_U

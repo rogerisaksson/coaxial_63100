@@ -677,6 +677,31 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   The slab runs 10 km; the rise adds the lowered height over 2 s. The
   scoreboard, with the 24 cm sneakers: 6.35, held 86.9 %, the walk's stir
   2.46 mm at 0.85 (2026-09-28).
+- Her limbs collide (`physics.ME`): floor alone, her sneakers passed 22 mm
+  into each other as she walked. Colliding at the catwalk's tracks they
+  bumped and the thigh left the floor 1.6 degrees ahead of upright; at 30
+  and 35 mm (walker.TRACK_M, WIDEN_M) they pass 10 mm apart, and a swinging
+  foot is kept 90 mm off the other wherever their soles overlap
+  (`walker._clear`) - at the old 20 and 23 mm, 10 mm apart too. The thighs'
+  spheres pressed up to 2 kN apart at every passing: that pair is left out
+  (`physics.APART`) (2026-09-28).
+- The heel struck at 0.75 m/s, 1.5 kN in 2 ms: the swing lifted the ankle
+  to 200 mm, the toes down to half the swing, and fell at up to 0.9 m/s
+  late; the swinging hip ran 5 degrees behind its setpoint and caught up
+  into the floor. The foot levelled at 0.4 of the swing (gait.SWING_AT) and
+  the swinging leg's plan led 20 ms (walker.SWING_LEAD_S): the strike's
+  spike gone, the stance's peak 1084 N at 160 ms. On the ball (LAND_DEG -3)
+  as the walk is tuned, she caught herself from 11 s and fell at 15
+  (2026-09-28).
+- Her toes out 0.6 degrees in stance, turned in 11 through the swing: 5 out
+  (gait.TOE_OUT_DEG) takes 6.0 in stance and the thigh 24.6 ahead at the
+  landing where it stood 27.8; at 9 out, or the swing's turn at 4, she fell.
+  The ankle rolls 4.6 degrees under a flat foot; the tracks 30-40 mm and the
+  pelvis's roll at 3 left it at 4.4-4.9 (2026-09-28).
+- The lace fall's head: after her hands she rolls over the right arm and
+  her head meets the floor at 0.85 m/s (test_gynoid_faults fails it). The
+  waist's turn at 0, 20, 35 degrees: 2.02, 1.41, 1.33 m/s; the arms straight
+  or on the forearms, the head down sooner (2026-09-28).
 - The humanoid page threw at a zoom of 1.1^3: a callout placed at its
   joint's height at rest, the joint past the drawing's edge, was written
   past the last row (2026-09-28).

@@ -83,6 +83,15 @@ HAIRS = ('hair_x', 'hair_z')
 #: What hangs loose on her: the hinges `World.loose` reads.
 LOOSE = HEMS + HAIRS
 
+#: Her geoms' contact bits: 2 meets the floor's 1, 4 her own - a limb on a limb, MuJoCo leaving
+#: out a segment and its parent. Floor alone, her feet passed 22 mm into each other as she
+#: walked (2026-09-28).
+ME, MEETS = 2 | 4, 1 | 4
+
+#: Her segments that pass through each other: the thighs brush in her catwalk, and their spheres,
+#: cruder than her, pressed up to 2 kN apart at every passing (2026-09-28).
+APART = (('left_thigh', 'right_thigh'),)
+
 #: The soles' friction: sliding, and turning in place (m) - a point of contact turns freely, and
 #: on its ball's edge the stance foot spun under the swinging leg (2026-09-25).
 FRICTION, TORSION_M = 1.0, 0.08
@@ -144,10 +153,10 @@ def mjcf():
         for part, shape, size, at in CONTACTS:
             if name == part or name.endswith('_' + part):
                 felt = (give if part in ('foot', 'toes') else cloth if part in CLOTH else '')
-                out.append('<geom type="%s" size="%s" pos="%g %g %g" contype="2" conaffinity="1" '
-                           'condim="4" friction="%g %g 0.001"%s/>' % (
+                out.append('<geom type="%s" size="%s" pos="%g %g %g" contype="%d" '
+                           'conaffinity="%d" condim="4" friction="%g %g 0.001"%s/>' % (
                                (shape, ' '.join('%g' % v for v in size)) + tuple(at)
-                               + (CLOTH.get(part, FRICTION), TORSION_M, felt)))
+                               + (ME, MEETS, CLOTH.get(part, FRICTION), TORSION_M, felt)))
         if name.endswith('_shank'):
             side = name[:-len('_shank')]
             out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)]
@@ -198,7 +207,9 @@ def mjcf():
            'priority="2" condim="4" friction="%g %g 0.001" contype="3" conaffinity="3"%s/>' % (
                RUG_M / 4.0, RUG_LONG_M / 2.0, RUG_M / 4.0, RUG_KG / 2.0, FRICTION, TORSION_M,
                give),
-           '</body>', '</worldbody>', '<actuator>']
+           '</body>', '</worldbody>', '<contact>']
+        + ['<exclude body1="%s" body2="%s"/>' % pair for pair in APART]
+        + ['</contact>', '<actuator>']
         + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
                                                       max(SERVO[kind(j)][0], drives.peak(j)))
            for j in JOINTS]
@@ -472,6 +483,29 @@ class World:
     def angle(self, index):
         """(degrees, deg/s) of a joint as its board last answered the host."""
         return self.reading(index)[:2]
+
+    def gap(self, one, other, reach=0.3):
+        """The least distance, m, between the geoms of segments `one` and those of `other`
+        (negative: into each other), `reach` at most."""
+        m, mj = self.model, self._mj
+        of = self._geoms = getattr(self, '_geoms', {})
+        for names in (one, other):
+            if names not in of:
+                ids = {m.body(n).id for n in names}
+                of[names] = [g for g in range(m.ngeom) if m.geom_bodyid[g] in ids]
+        return min(mj.mj_geomDistance(m, self.data, a, b, reach, None)
+                   for a in of[one] for b in of[other])
+
+    def lifted(self, names):
+        """The least distance, m, from segments `names`' geoms to the floor's slab."""
+        m, mj = self.model, self._mj
+        of = self._geoms = getattr(self, '_geoms', {})
+        if names not in of:
+            ids = {m.body(n).id for n in names}
+            of[names] = [g for g in range(m.ngeom) if m.geom_bodyid[g] in ids]
+        slab = [m.geom(n).id for n in ('slab_a', 'slab_b')]
+        return min(mj.mj_geomDistance(m, self.data, a, b, 0.5, None)
+                   for a in of[names] for b in slab)
 
     def loose(self):
         """{hinge: degrees} of what hangs loose on her (`LOOSE`): the jeans' legs from her

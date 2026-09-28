@@ -12,10 +12,13 @@ terminal page runs her:
   (`physics.World.glitch`): its gate dropped for a moment, or derated hot for seconds; each
   laid at a spread of places (SPREAD), the trial held their mean.
 
-Two numbers: `held`, the share of the trials' time she stood, and `stir`, the pendulum's mean
-over the walks, mm. Its cost is one: `stir + LOST (1 - held)`. A single run a candidate scores
-chance - the rise flips on 0.5 % of any knob (docs/FINDINGS.md, 2026-09-26) - a spread of them
-scores the walk.
+Two suites (`--suite`): the look - the rises and the walks on fantasy boards, whose SOA never
+binds (`physics.ENVELOPE` 0) - and the faults - the events on the boards as built. Three
+numbers: `held`, the share of the trials' time she stood; `stir`, the pendulum's mean over the
+walks, mm; `look`, the walks' look (`look_of`): the thigh ahead at the landing past its reach
+behind at the lift, the head's surge, the feet passing near. Its cost is one:
+`stir + LOST (1 - held) + look`. A single run a candidate scores chance - the rise flips on
+0.5 % of any knob (docs/FINDINGS.md, 2026-09-26) - a spread of them scores the walk.
 
     python tools/sim/gait_montecarlo.py                                  # the walk as it is
     python tools/sim/gait_montecarlo.py --grid SURGE_DEG=0,1,2 SWAY_K=0,0.5,1
@@ -46,8 +49,48 @@ TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
 #: (2026-09-28).
 SPREAD = (-1, 0, 1)
 
-#: (trial, spread step): every run a candidate makes.
+#: The suites: which kinds of trial each runs.
+SUITES = {'all': ('rise', 'walk', 'event'), 'look': ('rise', 'walk'), 'faults': ('event',)}
+
+#: (trial, spread step): every run a candidate makes (`suite` narrows them).
 JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] == 'event' else (0,))]
+
+#: The look's cost, a walk's: the thigh's reach ahead of upright at the landing past its reach
+#: behind at the lift by more than BALANCE_DEG, BALANCE_K a degree; the head fore and aft past
+#: SURGE_MM, SURGE_K a mm; the feet nearer than CLEAR_MM as they pass, CLEAR_K a mm. A walk is
+#: looked at LOOK_HZ.
+BALANCE_DEG, BALANCE_K = 10.0, 0.2
+SURGE_MM, SURGE_K = 30.0, 0.05
+CLEAR_MM, CLEAR_K = 5.0, 0.2
+LOOK_HZ = 50.0
+
+#: The landing's cost, a walk's, heavy - a soft walk keeps the drives whole, copper lost before
+#: anything broken (2026-09-28): the sole's peak over IMPACT_S from its touch past IMPACT_N,
+#: IMPACT_K a newton; the ankle falling past TOUCH_MS as it touches, TOUCH_K a m/s. A touch: the
+#: sole bearing TOUCH_N after QUIET_S of none, read every millisecond.
+IMPACT_S, IMPACT_N, IMPACT_K = 0.03, 700.0, 0.01
+TOUCH_MS, TOUCH_K = 0.15, 20.0
+TOUCH_N, QUIET_S = 30.0, 0.1
+
+#: The look's measures, by `look.WALK`'s names, and the landing's.
+LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear')
+LANDS = ('impact', 'touch')
+
+
+def suite(name):
+    """TRIALS and JOBS narrowed to suite `name`'s kinds."""
+    global TRIALS, JOBS
+    TRIALS = tuple(t for t in TRIALS if t[0] in SUITES[name])
+    JOBS = [(t, k) for t, k in JOBS if t[0] in SUITES[name]]
+
+
+def look_of(looks):
+    """The look's cost of a walk's measures {name: value} (`LOOKS`)."""
+    ahead, behind, surge, clear, impact, touch = (looks.get(n, math.nan) for n in LOOKS + LANDS)
+    terms = (BALANCE_K * max(0.0, ahead - behind - BALANCE_DEG),
+             SURGE_K * max(0.0, surge - SURGE_MM), CLEAR_K * max(0.0, CLEAR_MM - clear),
+             IMPACT_K * max(0.0, impact - IMPACT_N), TOUCH_K * max(0.0, touch - TOUCH_MS))
+    return sum(t for t in terms if t == t)
 
 #: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; events laid from
 #: EVENT_AT_S.
@@ -76,9 +119,11 @@ def _set(values):
 
 
 def trial(job):
-    """(held, stir or None, what happened) for one candidate's one run (`JOBS`)."""
+    """(held, stir or None, what happened, {look: value}) for one candidate's one run
+    (`JOBS`): a rise or a walk on fantasy boards, an event on the boards as built."""
     values, ((kind, pace, event), k) = job
-    _set(values)
+    _set(dict(values, ENVELOPE=1.0 if kind == 'event' else 0.0))
+    from tools.sim import look
     from machine import Machine, events
     from machine.director import Director
     from machine.modes import DYNAMIC
@@ -96,7 +141,9 @@ def trial(job):
     bus, world = body.loop.bus, body.nodes['pelvis'].world
     seconds = SECONDS[kind]
     stirred, passes, laid, was, tilt = 0.0, 0, False, 0.0, 0.0
-    fell, up, down = None, None, 0.0
+    fell, up, down, rows, looked = None, None, 0.0, [], -1.0
+    quiet, window, impacts, touches = 0.0, None, [], []
+    foot, moving = world.model.body('left_foot').id, world._np.zeros(6)
     while bus['t'] < seconds:
         body.loop.write(**director.step(0.001))
         body.loop.step(0.001)
@@ -117,30 +164,49 @@ def trial(job):
         if kind == 'walk' and bus['t'] >= SETTLE_S:
             stirred += director.pendulum.energy
             passes += 1
+            if bus['t'] - looked >= 1.0 / LOOK_HZ:
+                looked = bus['t']
+                rows.append(look.sample(bus, director, world))
+            load = bus['pelvis.pose.left_load']
+            if window is not None:
+                impacts[-1] = max(impacts[-1], load)
+                window = window - 0.001 if window > 0.001 else None
+            elif load >= TOUCH_N and quiet >= QUIET_S:
+                impacts.append(load)
+                world._mj.mj_objectVelocity(world.model, world.data, world._mj.mjtObj.mjOBJ_BODY,
+                                            foot, moving, 0)
+                touches.append(max(0.0, -float(moving[4])))
+                window = IMPACT_S
+            quiet = quiet + 0.001 if load < TOUCH_N else 0.0
     what = '%.1f m' % bus['pelvis.pose.z'] + (', tipped %.0f deg' % tilt if laid else '')
     if fell is not None:
         what = 'fell at %.1f s' % fell + (', up at %.1f s' % up if up else ', down') + ', ' + what
-    return 1.0 - down / seconds, (stirred / passes if passes else None), what
+    walked = {name: f(rows) for name, _unit, f in look.WALK if name in LOOKS} if rows else {}
+    if impacts:
+        walked.update(impact=sum(impacts) / len(impacts), touch=sum(touches) / len(touches))
+    return 1.0 - down / seconds, (stirred / passes if passes else None), what, walked
 
 
 def by_trial(results):
-    """[(held, stir or None, [what])] a trial each, in TRIALS' order, from its runs' results
-    in JOBS' order: the held share its spread's mean."""
+    """[(held, stir or None, [what], {look: value})] a trial each, in TRIALS' order, from its
+    runs' results in JOBS' order: the held share its spread's mean."""
     out = []
     for t in TRIALS:
         mine = [r for (u, _k), r in zip(JOBS, results) if u == t]
-        out.append((sum(h for h, _s, _w in mine) / len(mine), mine[0][1], [w for _h, _s, w in mine]))
+        out.append((sum(r[0] for r in mine) / len(mine), mine[0][1], [r[2] for r in mine],
+                    mine[0][3]))
     return out
 
 
 def score(results):
     """(cost, held, stir) of one candidate's run results, in JOBS' order."""
     trials = by_trial(results)
-    held = sum(h for h, _s, _w in trials) / len(trials)
-    walks = [(s if s is not None else FALLEN_STIR) for (kind, _p, _e), (_h, s, _w)
-             in zip(TRIALS, trials) if kind == 'walk']
-    stir = sum(walks) / len(walks)
-    return stir + LOST * (1.0 - held), held, stir
+    held = sum(t[0] for t in trials) / len(trials)
+    walks = [t for (kind, _p, _e), t in zip(TRIALS, trials) if kind == 'walk']
+    stir = (sum((t[1] if t[1] is not None else FALLEN_STIR) for t in walks) / len(walks)
+            if walks else 0.0)
+    looked = sum(look_of(t[3]) for t in walks) / len(walks) if walks else 0.0
+    return stir + LOST * (1.0 - held) + looked, held, stir
 
 
 def run(pool, candidates):
@@ -158,10 +224,12 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
     print('%-40s cost %6.2f  held %5.1f %%  stir %5.2f mm' % (
         ' '.join('%s=%g' % kv for kv in values.items()) or 'as it is', cost, 100 * held, stir))
     trials = by_trial(results) if results else []
-    for (kind, pace, event), (h, s, whats) in zip(TRIALS, trials):
-        print('    %-5s %.2f %-5s %5.1f %%  %s%s' % (
+    for (kind, pace, event), (h, s, whats, looks) in zip(TRIALS, trials):
+        print('    %-5s %.2f %-5s %5.1f %%  %s%s%s' % (
             kind, pace, event or '', 100 * h, ' | '.join(whats),
-            '' if s is None else '  stir %.2f mm' % s))
+            '' if s is None else '  stir %.2f mm' % s,
+            '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, impact %.0f N, touch %.2f'
+            ' m/s' % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if looks else ''))
 
 
 def search(pool, spans, generations, lam, log):
@@ -228,7 +296,10 @@ def main(argv=None):
     parser.add_argument('--population', type=int, default=12)
     parser.add_argument('--log', default='gait_montecarlo.jsonl', help='every candidate, a line')
     parser.add_argument('--workers', type=int, default=16)
+    parser.add_argument('--suite', choices=sorted(SUITES), default='all',
+                        help='the look on fantasy boards, the faults on the boards as built')
     args = parser.parse_args(argv)
+    suite(args.suite)
     fixed = {k: float(v) for k, v in (a.split('=') for a in args.set)}
     began = time.time()
     with multiprocessing.get_context('spawn').Pool(args.workers) as pool, \

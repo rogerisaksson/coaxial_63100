@@ -18,7 +18,7 @@ from typing import Any
 from coaxial.graphics import engine
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, NOISE
 from machine import ansi, drives, figure
-from machine.figure import HAIR_AT, HEM_AT, TOE_RY
+from machine.figure import HAIR_AT, HEM_AT, TOE_M, TOE_RY
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
 #: A corner's material, as `gpu.LIT_WGSL` colours it; past PAINTED the colour it wears.
@@ -245,16 +245,21 @@ def _limb(length, top, middle, bottom, material, flat=1.0, bulge_at=0.3):
 HEAD_Y = 0.095
 
 
-#: Her hair, lips and eyes; her hair to mid neck, rings (y, half width, half depth, its centre's
-#: z) in her head's frame, hung from `figure.HAIR_AT` on the hair's hinges: the fall round the
-#: back of her head and neck, its front inside them, and a lock HAIR_LOCK_X either side over her
-#: cheek, clear of her jaw.
-HAIR, LIPS, EYES = (128, 84, 52), (192, 112, 112), (46, 46, 58)
-HAIR_FALL = ((0.10, 0.096, 0.072, -0.045), (0.05, 0.098, 0.07, -0.048),
-             (0.0, 0.1, 0.066, -0.052), (-0.035, 0.102, 0.06, -0.055))
-HAIR_LOCK = ((0.12, 0.018, 0.04, 0.022), (0.08, 0.02, 0.045, 0.027), (0.02, 0.021, 0.046, 0.024),
-             (-0.035, 0.022, 0.045, 0.02))
-HAIR_LOCK_X = 0.08
+#: Her hair, lips and eyes: a full wavy lob to just above her shoulders, parted aside PART_M,
+#: dark at the roots (HAIR) and caramel toward the ends (HAIR_ENDS). Rings (y, half width, half
+#: depth, its centre's z) in her head's frame, hung from `figure.HAIR_AT` on the hair's hinges:
+#: the fall round the back of her head and neck, its front inside them, and a lock HAIR_LOCK_X
+#: either side framing her face, clear of her jaw and her neck; each wider and narrower down its
+#: length, a wave.
+HAIR, HAIR_ENDS, LIPS, EYES = (118, 80, 52), (222, 168, 100), (192, 112, 112), (46, 46, 58)
+PART_M, BALAYAGE = 0.004, 1.2
+HAIR_FALL = ((0.10, 0.104, 0.08, -0.053), (0.06, 0.106, 0.079, -0.056),
+             (0.02, 0.111, 0.076, -0.06), (-0.01, 0.108, 0.073, -0.063),
+             (-0.045, 0.114, 0.068, -0.066))
+HAIR_LOCK = ((0.12, 0.022, 0.043, 0.022), (0.09, 0.025, 0.048, 0.027), (0.06, 0.023, 0.049, 0.026),
+             (0.03, 0.027, 0.049, 0.024), (0.0, 0.024, 0.048, 0.02), (-0.02, 0.028, 0.046, 0.016),
+             (-0.045, 0.026, 0.042, 0.012))
+HAIR_LOCK_X = 0.084
 
 #: The bust's centre (the left's) on the torso and its radii, m.
 BUST_AT, BUST_R = (0.056, 0.215, 0.06), (0.06, 0.056, 0.055)
@@ -262,15 +267,14 @@ BUST_AT, BUST_R = (0.056, 0.215, 0.06), (0.06, 0.056, 0.055)
 
 def _features():
     """[(name, parent, offset, mesh)] or with joints, on her head: the nose, the ears, the eyes
-    and the lips, and brown hair - a cap over the skull behind the face and a fall to mid neck
-    on the hair's hinges."""
-    hair = paint(HAIR)
+    and the lips, and her hair - a cap over the skull behind the face, parted aside, and a fall
+    and two locks to her shoulders on the hair's hinges."""
     out = [('nose', 'head', (0.0, 0.0, 0.0),
             _ellipsoid((0.0, HEAD_Y - 0.004, 0.1), (0.011, 0.022, 0.016), SKIN, rows=6)),
            ('lips', 'head', (0.0, 0.0, 0.0),
             _ellipsoid((0.0, HEAD_Y - 0.048, 0.094), (0.02, 0.007, 0.01), paint(LIPS), rows=6)),
            ('hair', 'head', (0.0, 0.0, 0.0),
-            _ellipsoid((0.0, HEAD_Y + 0.032, -0.012), (0.088, 0.106, 0.106), hair)),
+            _ellipsoid((-PART_M, HEAD_Y + 0.036, -0.018), (0.094, 0.11, 0.11), paint(HAIR))),
            ('hair_fall', 'head', HUNG, HAIR_AT, _hair(HAIR_FALL, 0.0, 0.03))]
     for side, x in (('left', 1.0), ('right', -1.0)):
         out += [('%s_lock' % side, 'head', HUNG, HAIR_AT, _hair(HAIR_LOCK, HAIR_LOCK_X * x, 0.01))]
@@ -291,11 +295,21 @@ def _hair(rings, x, crown):
     """A body of hair through `rings` (y, half width, half depth, centre's z; her head's frame)
     moved `x` aside, capped `crown` over its top ring, in the frame of its hinges at HAIR_AT."""
     ax, ay, az = HAIR_AT
+    top, end = rings[0][0] - ay, rings[-1][0] - ay
     corners, triangles, uv, materials = _loft(
-        [(y - ay, rx, rz, z - az) for y, rx, rz, z in rings], paint(HAIR),
-        poles=(rings[0][0] + crown - ay, rings[-1][0] - 0.01 - ay))
+        [(y - ay, rx, rz, z - az) for y, rx, rz, z in rings], lambda c: _balayage(c, top, end),
+        poles=(top + crown, end - 0.01))
     corners[:, 0] += x - ax
     return corners, triangles, uv, materials
+
+
+def _balayage(corners, top, end):
+    """The hair's paint by corner: HAIR at `top`, HAIR_ENDS at `end` and below, lighter down
+    its length as the way to BALAYAGE."""
+    np = _np()
+    u = np.clip((top - corners[:, 1]) / (top - end), 0.0, 1.0)[:, None] ** BALAYAGE
+    rgb = (np.asarray(HAIR) * (1.0 - u) + np.asarray(HAIR_ENDS) * u).astype(int)
+    return PAINTED | rgb[:, 0] << 16 | rgb[:, 1] << 8 | rgb[:, 2]
 
 
 def _face(corners):
@@ -381,12 +395,13 @@ def _split(rest) -> tuple[Any, Any, Any]:
 #: A sneaker, size 37-38: the shoe's rings forward of the ankle, (z, half width, half height),
 #: each hung so its bottom is the sole, flat ANKLE_H under the ankle, as the walk plants it - the
 #: collar round the ankle, the tongue over the instep, the laces down to the ball; the toe cap's
-#: from the ball, its sole sprung SPRING_M up at its tip TOE_M ahead. Its sole SOLE_M deep, gum.
-_SHOE = ((-0.052, 0.028, 0.034), (-0.03, 0.032, 0.033), (0.0, 0.035, 0.03),
-         (0.035, 0.037, 0.0325), (0.07, 0.04, 0.026), (0.1, 0.042, 0.02), (BALL, 0.042, 0.0175))
-_TOE_CAP = ((0.0, 0.042, 0.0175), (0.02, 0.041, 0.0165), (0.037, 0.037, 0.0145),
-            (0.051, 0.03, 0.012), (0.058, 0.019, 0.008))
-TOE_M, SPRING_M, SOLE_M, SOLE_PROUD, GUM = 0.06, 0.012, 0.02, 0.002, (196, 150, 100)
+#: from the ball, its sole sprung SPRING_M up at its tip `figure.TOE_M` ahead. Its sole SOLE_M
+#: deep, gum.
+_SHOE = ((-0.05, 0.027, 0.031), (-0.028, 0.03, 0.03), (0.0, 0.033, 0.029),
+         (0.033, 0.035, 0.031), (0.066, 0.038, 0.025), (0.095, 0.04, 0.02), (BALL, 0.04, 0.0175))
+_TOE_CAP = ((0.0, 0.04, 0.0175), (0.019, 0.039, 0.0165), (0.035, 0.035, 0.0145),
+            (0.049, 0.028, 0.012), (0.056, 0.018, 0.008))
+SPRING_M, SOLE_M, SOLE_PROUD, GUM = 0.012, 0.02, 0.002, (196, 150, 100)
 
 
 def _spring(z):

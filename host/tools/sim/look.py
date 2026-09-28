@@ -55,9 +55,8 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
     _set(values)
     from machine import Machine, events
     from machine.director import Director
-    from machine.figure import JOINTS, SEGMENTS
+    from machine.figure import SEGMENTS
     from machine.modes import DYNAMIC
-    from terminal.views.show_humanoid import HEADER, row
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     body.arm()
     director = Director(body, cadence)
@@ -80,16 +79,25 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
         body.loop.step(0.001)
         if bus['t'] - said >= 1.0 / RATE_HZ:
             said = bus['t']
-            now = {'t': bus['t'], 'stage': director.stage, 'speed': bus['pelvis.pose.vz'],
-                   'phase': director.walker.phase,
-                   'loads': (bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load']),
-                   'where': (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z']),
-                   'turn': tuple(bus['pelvis.pose.q' + k] for k in 'wxyz'),
-                   'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked}
-            out.append(dict(zip(HEADER, row(now, 60.0)), down=_down(world, ours), laid=laid,
-                            loose=world.loose()))
+            out.append(dict(sample(bus, director, world, asked), down=_down(world, ours),
+                            laid=laid))
     body.disarm()
     return out
+
+
+def sample(bus, director, world, asked=None):
+    """A row as the page records it (`show_humanoid.row`), from the loop's bus: the loose hinges
+    beside it, and how near her feet come."""
+    from machine.figure import JOINTS
+    from terminal.views.show_humanoid import HEADER, row
+    now = {'t': bus['t'], 'stage': director.stage, 'speed': bus['pelvis.pose.vz'],
+           'phase': director.walker.phase,
+           'loads': (bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load']),
+           'where': (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z']),
+           'turn': tuple(bus['pelvis.pose.q' + k] for k in 'wxyz'),
+           'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked or {}}
+    return dict(zip(HEADER, row(now, 60.0)), loose=world.loose(),
+                feet=world.gap(LEFT_FOOT, RIGHT_FOOT), lifted=world.lifted(LEFT_FOOT))
 
 
 def _down(world, ours):
@@ -207,6 +215,9 @@ def main(argv=None):
     return 0
 
 
+#: A foot and its toes, each side's: how near the feet come (`World.gap`).
+LEFT_FOOT, RIGHT_FOOT = ('left_foot', 'left_toes'), ('right_foot', 'right_toes')
+
 #: The walk measured from WALK_FROM_S after it begins: its look, each (name, unit, of the rows).
 WALK_FROM_S = 2.0
 WALK = (
@@ -237,6 +248,14 @@ WALK = (
         _lean(_p(a, 'left_shank'), _p(a, 'left_thigh')) for a, b in _lifts(rs))),
     ('thigh ahead at landing', 'deg', lambda rs: _mean(
         -_lean(_p(b, 'left_shank'), _p(b, 'left_thigh')) for a, b in _landings(rs))),
+    ('feet clear', 'mm', lambda rs: min((r.get('feet', math.nan) for r in rs),
+                                        default=math.nan) * 1e3),
+    ('touchdown', 'm/s', lambda rs: _touchdown(rs)),
+    ('swing clear', 'mm', lambda rs: min((r['lifted'] for r in _mid_swings(rs)),
+                                         default=math.nan) * 1e3),
+    ('toe out', 'deg', lambda rs: _mean(_foot(r)[0] for r in _alone(rs))),
+    ('foot roll', 'deg', lambda rs: _mean(_foot(r)[1] for r in _alone(rs))),
+    ('ankle roll', 'deg', lambda rs: _mean(float(r['left_ankle_roll']) for r in _alone(rs))),
     ('hair fore-aft', 'deg', lambda rs: _ptp(r.get('loose', {}).get('hair_x', 0.0) for r in rs)),
     ('hair aside', 'deg', lambda rs: _ptp(r.get('loose', {}).get('hair_z', 0.0) for r in rs)),
 )
@@ -260,6 +279,45 @@ def _landings(rs):
 def _lifts(rs):
     return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
             if float(a['left_load']) > BEARS_N >= float(b['left_load']) and _held(rs, k, False)]
+
+
+def _alone(rs):
+    """The rows the left foot bears her alone."""
+    return [r for r in rs if float(r['left_load']) > 250.0 and float(r['right_load']) < BEARS_N]
+
+
+def _foot(r):
+    """(toe-out, roll) of the left foot, degrees: its toes out of the walk's line, and its outer
+    edge up off the floor (everted, pronation)."""
+    from machine import figure
+    turn = figure.quat(*(float(r['q' + k]) for k in 'wxyz'))
+    _at, foot = figure.foot_of(1.0, (0.0, 0.0, 0.0), turn,
+                               [math.radians(float(r['left' + k])) for k in figure.LEG])
+    ahead, out = figure.apply(foot, (0.0, 0.0, 1.0)), figure.apply(foot, (1.0, 0.0, 0.0))
+    return (math.degrees(math.atan2(ahead[0], ahead[2])),
+            math.degrees(math.asin(max(-1.0, min(1.0, out[1])))))
+
+
+def _touchdown(rs):
+    """The left ankle's fall, m/s, over the two rows before each landing, meaned."""
+    lands = {id(b) for _a, b in _landings(rs)}
+    return _mean((_p(rs[k - 2], 'left_foot')[1] - _p(rs[k], 'left_foot')[1])
+                 / max(1e-6, float(rs[k]['t']) - float(rs[k - 2]['t']))
+                 for k in range(2, len(rs)) if id(rs[k]) in lands)
+
+
+def _mid_swings(rs):
+    """The rows through the middle half of each of the left foot's swings."""
+    lifts, lands = {id(b) for _a, b in _lifts(rs)}, {id(b) for _a, b in _landings(rs)}
+    out, start = [], None
+    for k, r in enumerate(rs):
+        if id(r) in lifts:
+            start = k
+        elif id(r) in lands and start is not None:
+            span = k - start
+            out += [x for x in rs[start + span // 4:k - span // 4] if 'lifted' in x]
+            start = None
+    return out
 
 
 def _ptp(values):
