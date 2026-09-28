@@ -1290,10 +1290,13 @@ def test_the_demo_actually_loads_the_motor(report):
     back, xs, ys = 0, [], []
     for i in range(1, len(drawn)):
         step, rpm = drawn[i][4] - drawn[i - 1][4], drawn[i][2]
-        if abs(rpm) > 30.0:
+        took = drawn[i][0] - drawn[i - 1][0]
+        if abs(rpm) > 30.0 and took > 0.0:
             back += step * rpm < 0.0
             xs.append(abs(rpm))
-            ys.append(abs(step))
+            # Its speed on the screen, deg/s: a step a frame wanders with the frame's time on
+            # a loaded runner - 0.87 here under load, CI's red on dfa3194 (2026-09-28).
+            ys.append(abs(step) / took)
 
     def ranks(v):
         order = sorted(range(len(v)), key=lambda k: v[k])
