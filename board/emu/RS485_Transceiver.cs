@@ -15,8 +15,8 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public RS485_Transceiver(IMachine machine, IUART uart)
         {
-            this.machine = machine;
             this.uart = uart;
+            rates = new UART_RateCache(machine, uart);
             uart.CharReceived += Transmitted;
         }
 
@@ -65,13 +65,13 @@ namespace Antmicro.Renode.Peripherals.UART
         /// rates: the app's 115 200 answered a 10 Mbit adapter (2026-09-28).</summary>
         private bool Decodes()
         {
-            var rate = UART_Rate.Of(machine, uart);
+            var rate = rates.Rate;
             if(BusRate == 0 || rate == 0)
             {
                 return true;
             }
             var ok = Math.Abs(rate / BusRate - 1.0)
-                     < (0.5 - 2.0 / UART_Rate.Oversampling(uart)) / 9.5;
+                     < (0.5 - 2.0 / rates.Oversampling) / 9.5;
             if(ok != decodes)
             {
                 decodes = ok;
@@ -81,8 +81,8 @@ namespace Antmicro.Renode.Peripherals.UART
             return ok;
         }
 
-        private readonly IMachine machine;
         private readonly IUART uart;
+        private readonly UART_RateCache rates;
         private bool decodes = true;
     }
 }

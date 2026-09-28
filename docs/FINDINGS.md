@@ -261,8 +261,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   firmware refuses a `link_baud` past 921 600 - behind a 10 Mbit adapter, and
   Renode passed every byte. The transceivers decode by rate now, 2.6 % at
   OVER8: that pairing opens nothing and logs `garbles`; the test runs the
-  record's rate. CI's 1 of 50 wrong on it was never reproduced here
-  (2026-09-28).
+  record's rate (2026-09-28).
+- CI's lost echo, 1 of 50 with two framing errors past the open's, at either
+  rate and never here: a write reached Renode in pieces 1.0 and 1.5 ms apart,
+  two and three quanta, and the adapter began the second as a frame. No
+  request comes that soon, waiting on its predecessor's reply, but the boot's
+  broadcast chunks come 2 ms apart: no threshold between. The sockets take a
+  write as a frame, its length ahead of it (`frames://`), put on the line
+  whole once all of it has come (2026-09-28).
 - The bead ran backwards 47 times in 420 frames before the emulator, 16 in 200
   after: its regime came off the step `travel` made since the last draw, none
   between feed samples. Off the rotor's speed now, in proportion to it above 30

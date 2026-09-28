@@ -51,10 +51,10 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public RS485_AdapterHost Host { get; set; }
 
-        /// <summary>A byte from the host, onto the bus at the bus's pace.</summary>
+        /// <summary>A byte of the host's framed stream, onto the bus at the bus's pace.</summary>
         public void Send(byte value)
         {
-            line.Send(value);
+            line.Receive(value);
         }
 
         private readonly HostLine line;

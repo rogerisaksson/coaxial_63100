@@ -170,18 +170,14 @@ def test_echoes_on_the_bus(report):
             scale = rig.board.transport.time_scale
         finally:
             rig.close()
-        with open(limb.log or os.devnull, encoding='utf-8', errors='replace') as f:
-            suspect = [line.strip()[-48:] for line in f if 'after the host\'s last byte' in line]
-    # Which echo, what the host raised, the framing errors the open counted beside the echoes',
-    # and the adapter's frames that came suspiciously soon - CI's runner loses one of 50 with 3
-    # framing errors, never this host (2026-09-28).
+    # Which echo, what the host raised, and the framing errors the open counted beside the
+    # echoes': a request split on its way into Renode lost one of 50 with two framing errors on
+    # CI's runner, never on this host (2026-09-28).
     report.check('the bus at the record\'s rate: every echo back, nothing dropped, framing clean',
                  wrong == 0 and port['ring_dropped'] == 0 and port['bus_comm_error'] <= 1,
-                 '%d of %d echoes wrong, %d framing errors (%d at the open), %d dropped, pace %.0f'
-                 '%s; %d suspect frames%s'
+                 '%d of %d echoes wrong, %d framing errors (%d at the open), %d dropped, pace %.0f%s'
                  % (wrong, BLAST, port['bus_comm_error'], opened, port['ring_dropped'], scale,
-                    ''.join('; ' + row for row in lost[:2]), len(suspect),
-                    ''.join('; ' + row for row in suspect[-3:])))
+                    ''.join('; ' + row for row in lost[:2])))
 
 
 def test_a_bus_off_the_nodes_rate_carries_nothing(report):

@@ -9,6 +9,57 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
+    /// <summary>A UART's rate and oversampling as UART_Rate reads them, read again a millisecond
+    /// of the machine's time on: the firmware sets a rate up once, and read a byte at a time the
+    /// registers behind it are ten bus reads a byte.</summary>
+    public sealed class UART_RateCache
+    {
+        public UART_RateCache(IMachine machine, IUART uart)
+        {
+            this.machine = machine;
+            this.uart = uart;
+        }
+
+        public double Rate
+        {
+            get
+            {
+                Refresh();
+                return rate;
+            }
+        }
+
+        public int Oversampling
+        {
+            get
+            {
+                Refresh();
+                return oversampling;
+            }
+        }
+
+        private void Refresh()
+        {
+            var now = machine.LocalTimeSource.ElapsedVirtualTime.TotalSeconds;
+            if(read && now - at < Stale)
+            {
+                return;
+            }
+            rate = UART_Rate.Of(machine, uart);
+            oversampling = UART_Rate.Oversampling(uart);
+            at = now;
+            read = true;
+        }
+
+        private const double Stale = 0.001;
+        private readonly IMachine machine;
+        private readonly IUART uart;
+        private double rate;
+        private int oversampling = 16;
+        private double at;
+        private bool read;
+    }
+
     public static class UART_Rate
     {
         /// <summary>`uart`'s rate, bits a second; 0 while BRR is unset or its kernel clock is not

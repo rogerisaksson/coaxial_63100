@@ -171,7 +171,8 @@ tools/cores/        build: the portable cores' gcc build;
                     fakeboard://; native: the same with the board layer on
                     board/native, a library copy a board, a limb's boards on
                     one world and one bus, a thread a limb, as native://
-tools/emu/          emulator: Renode running the image, its console as socket://
+tools/emu/          emulator: Renode running the image, its console as frames:// (each
+                    write a frame, its length ahead of it)
                     (Renode: RENODE, PATH, or the portable build unpacked under
                     %LOCALAPPDATA%/renode); afe_spice: the AFE's transfer from
                     LTspice (electronic_simulations, a submodule)

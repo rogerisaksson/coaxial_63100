@@ -667,6 +667,9 @@ if __name__ == '__main__':
         if PORT.startswith('fakeboard://'):
             sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             import tools.cores.fakeboard  # noqa: F401 - the scheme
+        if PORT.startswith('frames://'):
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            import tools.emu.emulator  # noqa: F401 - the scheme
     if not offline and not board_answers(PORT):
         offline = True
         print('no board on %s - the bus tests need firmware to conform to '

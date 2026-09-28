@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""The board's MCU emulated on Renode, its console a `socket://` port the library opens.
+"""The board's MCU emulated on Renode, its console a `frames://` port the library opens.
+
+Each write to it a frame, its length ahead of it (protocol_frames.py).
 
 The application's ELF on Renode's STM32H753 as board/emu describes the board; a limb is N of
 them on one RS485 bus, the host's adapter on it.
@@ -28,11 +30,18 @@ import sys
 import threading
 import time
 
+import serial
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO  # noqa: E402
 from coaxial.simulated.sto import PILOT_HZ  # noqa: E402
 from tools.emu import world as worlds  # noqa: E402
+from tools.emu.protocol_frames import frame  # noqa: E402
+
+# frames://, the URL every emulator here hands out.
+if 'tools.emu' not in serial.protocol_handler_packages:
+    serial.protocol_handler_packages.append('tools.emu')
 
 SCRIPT = 'board/emu/coaxial_63100.resc'
 LIMB_REPL = 'board/emu/coaxial_63100_limb.repl'
@@ -155,7 +164,7 @@ class Emulator:
         #: core's load understates - asleep it keeps real time, and replies came after the
         #: host had given up (2026-09-25). The least the host waits by.
         self.awake_scale = 1.0
-        self.url = 'socket://127.0.0.1:%d' % self.port
+        self.url = 'frames://127.0.0.1:%d' % self.port
         self.consoles = [self.port]
         #: The units its images answer to: the app's 1, none while blank in the bootloader.
         self.units = () if boot else (1,)
@@ -488,7 +497,7 @@ def _answers(port):
         with socket.create_connection(('127.0.0.1', port), timeout=1.0) as s:
             s.settimeout(0.5)
             for _ in range(10):
-                s.sendall(b'?')
+                s.sendall(frame(b'?'))
                 if b'commands:' in _heard(s, 0.5):
                     return True
     except OSError:
@@ -504,7 +513,7 @@ def _boot_answers(port):
     try:
         with socket.create_connection(('127.0.0.1', port), timeout=1.0) as s:
             s.settimeout(0.5)
-            s.sendall(body + crc16(body).to_bytes(2, 'little'))
+            s.sendall(frame(body + crc16(body).to_bytes(2, 'little')))
             return _heard(s, 2.0)[:2] == body[:2]
     except OSError:
         return False
@@ -600,7 +609,7 @@ def main():
         print('%s, %.1f wall s a virtual s' % (emu.url, emu.time_scale), flush=True)
         if args.nodes:
             for unit, port in enumerate(emu.consoles, 1):
-                print('node%d console socket://127.0.0.1:%d' % (unit, port), flush=True)
+                print('node%d console frames://127.0.0.1:%d' % (unit, port), flush=True)
         try:
             emu.wait()
         except KeyboardInterrupt:

@@ -23,7 +23,8 @@ EXCEPTION = 0x80
 #: URL schemes this checkout's tools serve, by the package pyserial finds their handler in:
 #: the firmware's comms/ built for this host, its drive too at the part's pace, and the
 #: image on an emulated MCU.
-URL_PACKAGES = {'fakeboard': 'tools.cores', 'native': 'tools.cores', 'emulator': 'tools.emu'}
+URL_PACKAGES = {'fakeboard': 'tools.cores', 'native': 'tools.cores', 'emulator': 'tools.emu',
+                'frames': 'tools.emu'}
 
 
 def url_buses(port):
