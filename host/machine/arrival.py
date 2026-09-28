@@ -303,6 +303,12 @@ class Arrival:
         err = walker._vee(figure.mul(turn, figure.t(now)))
         turn = figure.mul(walker._turned(tuple(walker.TURN_K * c for c in err)), turn)
         out = angles_of(frame, turn)
+        # The torso held in space as the walker holds it (`walker.PLUMB`): the spine takes back out
+        # what the pelvis is tipped past the keyframe's tilt. Riding the pelvis, the torso swung
+        # 14 -> 7.5 degrees in 0.2 s as the walker took her (2026-09-28).
+        local = mul(ry(-math.radians(frame.get('yaw', 0.0))), now)
+        out['spine'] += walker.PLUMB * (frame['tilt']
+                                        - math.degrees(math.atan2(local[2][1], local[1][1])))
         # A leg bearing under `walker.LANDED_N` reaches from where the pelvis is, as the walker's
         # swinging leg: reached from the pelvis's target, moved by the feedback, the stepping foot
         # landed 8 cm off its mark (2026-09-26).

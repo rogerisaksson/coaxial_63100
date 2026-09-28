@@ -586,9 +586,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   first, 18.6 behind them. Now the torso leans as far as the shins
   (`arrival.with_shins`), rising through a keyframe at 80 % of the height,
   +5.7 standing, and the lean's 8 from the shift on: the hips-to-shoulders
-  line +3 standing, +8 shifting, the sink 2 mm. Held 89.7 %, 14 of 16
-  perturbed starts. Left: the first landing tips the torso back 6.5
-  degrees in 0.2 s (2026-09-28).
+  line +3 standing, +8 shifting, the sink 2 mm. The seam to the walk: the
+  arrival rode the torso on the pelvis and the walker eased its spine in
+  from the hand-off's, so the torso swung 10.8 -> 14.0 -> 7.5 degrees as
+  the pelvis tipped; both now take the pelvis's tip back out of the spine
+  (`walker.PLUMBED` not eased in): the torso 8.7-9.8 through it, the
+  largest swing back in 0.3 s -6.6 -> -3.0. Held 89.7 %, 15 of 16
+  perturbed starts (2026-09-28).
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1 ms;
   the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms a
   frame at 200x60: its ground (32 ms) and paint (15) are the frame now

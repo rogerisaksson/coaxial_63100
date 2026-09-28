@@ -146,6 +146,11 @@ ACCEPT, UNLOAD = 0.04, 0.06
 #: pitched 8 degrees a step and the head bobbed 9 cm (2026-09-25).
 PLUMB = 1.0
 
+#: The joints that law sets, not eased in from what she was held at: the arrival holds her torso
+#: by it too, and eased in, the spine froze at the hand-off while the pelvis tipped 3 degrees on
+#: and the torso swung 9.4 -> 12.1 -> 8.3 (2026-09-28).
+PLUMBED = ('spine', 'neck')
+
 #: The torso counters her surge, twice a stride: the spine SURGE_DEG back at SURGE_AT of the left
 #: leg's stride and each half stride on, as far forward between, less on a shorter stride - her
 #: head carried on at an even speed, the pendulum between her ears still (`machine.pendulum`).
@@ -564,7 +569,8 @@ class Walker:
             self.age += dt
             self.scale = self.first + (1.0 - self.first) * gait.eased(self.age / RAMP_S)
             k = gait.eased(self.age / self.blend_s)
-            out = {j: self.held.get(j, v) + (v - self.held.get(j, v)) * k for j, v in out.items()}
+            out = {j: v if j in PLUMBED else self.held.get(j, v) + (v - self.held.get(j, v)) * k
+                   for j, v in out.items()}
             if self.age >= RAMP_S:
                 self.held = None
         self.last = out
