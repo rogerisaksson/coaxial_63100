@@ -390,7 +390,7 @@ def on_bus(transport):
     """Whether `transport` is on an RS485 bus, where the bootloader listens at BOOT_BAUD, rather
     than a console, where it keeps the application's rate: what the port says, a console where
     it says nothing."""
-    return getattr(transport.serial, 'console', True) is False
+    return getattr(getattr(transport, 'serial', None), 'console', True) is False
 
 
 def to_bootloader(transport):
