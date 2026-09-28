@@ -120,8 +120,8 @@ SWAY_K = 0.1
 #: pelvis's offset from the feet's midline, SHOULDERS_BACK of it taken back at the shoulders,
 #: SHOULDERS_M up the torso. At 0.5 the shoulders 31.8 -> 26.7 mm across to the hips' 44.9, but
 #: held 79.5 %, with the pendulum 73.2 (the walk at 0.65 fell); 0.25 with it caught 13 times
-#: (2026-09-28).
-SHOULDERS_BACK, SHOULDERS_M = 0.0, 0.335
+#: (2026-09-28). On the skimming swing 0.3 holds 100 %, the stir 2.11 -> 1.87 mm (2026-09-28).
+SHOULDERS_BACK, SHOULDERS_M = 0.3, 0.335
 
 
 class Walker:

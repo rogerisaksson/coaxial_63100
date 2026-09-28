@@ -138,8 +138,10 @@ STANCE_AT = 0.24
 #: parallelogram), dropping on the swing side (degrees,
 #: its obliquity) and turning about the spine (degrees, its rotation); the torso turns all of it
 #: back (COUNTER 1), so the shoulders and the head go straight. Turned 12, the pelvis swung 39
-#: degrees, the hips wagging past the catwalk's sway; at 6, 26 (2026-09-28).
-SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.010, 4.0, 6.0, 1.0
+#: degrees, the hips wagging past the catwalk's sway; at 6, 24, and from in front and behind her
+#: hips no longer swayed under her shoulders (60 and 41 mm across): at 9 and dropped 6, 34 and
+#: 12.5, the hips 72 mm across under shoulders at 25 (`walker.SHOULDERS_BACK`) (2026-09-28).
+SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.010, 6.0, 9.0, 1.0
 
 #: How far each arm joint trails the one above it, radians of the stride.
 TRAIL = 0.55
