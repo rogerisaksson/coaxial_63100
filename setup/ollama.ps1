@@ -146,11 +146,16 @@ function Resolve-Model {
     param([string]$Python)
 
     if ($Model) { return $Model }
-    if ($null -eq $Python) { return 'gemma4:12b' }
+    if (-not $Python) { return 'gemma4:12b' }   # [string] makes $null ''
+    # coaxial_ollama's __init__ imports yaml: on a new machine's python, a traceback.
+    if (-not $script:Packages) {
+        Write-Item 'model choice' 'missing' 'measured after the python packages - gemma4:12b till then'
+        return 'gemma4:12b'
+    }
 
     Push-Location $Host_
     try {
-        $json = (& $Python '-m' 'coaxial_ollama.capability' '--json' '--prefer' $Prefer) -join ''
+        $json = (& $Python '-m' 'coaxial_ollama.capability' '--json' '--prefer' $Prefer 2>$null) -join ''
     } catch {
         $json = ''
     } finally {

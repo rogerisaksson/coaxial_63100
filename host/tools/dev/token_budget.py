@@ -89,7 +89,11 @@ def over(budget=BUDGET):
 
 def breaches(budget=BUDGET):
     """(path, tokens, what it may hold) of every file past the budget and its cap."""
-    return [(p, t, HEAVY.get(p, budget)) for t, p in over(budget) if t > HEAVY.get(p, budget)]
+    # Case apart: a Windows checkout keeps a directory's case through a rename upstream, Thermal/
+    # for git's thermal/ on the bench (2026-09-29).
+    caps = {path.lower(): cap for path, cap in HEAVY.items()}
+    return [(p, t, caps.get(p.lower(), budget)) for t, p in over(budget)
+            if t > caps.get(p.lower(), budget)]
 
 
 def main(argv=None):

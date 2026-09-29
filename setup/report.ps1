@@ -174,6 +174,22 @@ function Invoke-Python {
     }
 }
 
+function Invoke-Host {
+    <#
+  python in host/, stderr folded in: its last line comes back, $LASTEXITCODE is the python's.
+        -m from host/ needs no `pip install -e host/`, and a traceback reaches the report as
+        its last line, not whole: two did on a machine without host/ installed (2026-09-29).
+#>
+    param([string]$Python, [string[]]$Arguments)
+    Push-Location $Host_
+    try {
+        return (& $Python @Arguments 2>&1 | ForEach-Object { "$_" } | Where-Object { $_.Trim() } |
+                Select-Object -Last 1)
+    } finally {
+        Pop-Location
+    }
+}
+
 function Install-WingetPackage {
     <#
   One winget install, with the three flags that make it non-interactive

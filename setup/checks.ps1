@@ -4,21 +4,18 @@
 function Test-Setup {
     param([string]$Python)
     Write-Head 'checks'
-    if ($null -eq $Python) { return }
 
-    Push-Location $Host_
-    try {
-        # Offline by design: no board, no ollama.
-        $output = (& $Python 'tests/test_ollama_tools.py')
-        $tail = ($output | Select-Object -Last 1)
+    # Offline by design: no board, no ollama. No python: no packages either.
+    if (-not $script:Packages) {
+        Write-Item 'host test suite' 'missing' 'after the python packages above'
+    } else {
+        $tail = Invoke-Host -Python $Python -Arguments @('tests/test_ollama_tools.py')
         if ($LASTEXITCODE -eq 0) {
             Write-Item 'host test suite' 'ok' $tail
         } else {
             Write-Item 'host test suite' 'failed' $tail
-            Add-Todo 'python tests/test_ollama_tools.py failed - run it and read the output'
+            Add-Todo 'python tests/test_ollama_tools.py failed - run it in host/ and read the output'
         }
-    } finally {
-        Pop-Location
     }
 
     $ports = @()

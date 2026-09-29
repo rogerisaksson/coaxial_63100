@@ -3,7 +3,8 @@
 function Install-PythonDeps {
     param([string]$Python)
     Write-Head 'python packages'
-    if ($null -eq $Python) { return }
+    $script:Packages = $false
+    if (-not $Python) { return }   # [string] makes $null ''
 
     $requirements = Join-Path $Host_ 'requirements.txt'
     if (-not (Test-Path $requirements)) {
@@ -31,7 +32,8 @@ for line in open(r'REQUIREMENTS_PATH', encoding='utf-8'):
 print(','.join(missing))
 '@.Replace('REQUIREMENTS_PATH', $requirements)
 
-    if ([string]::IsNullOrWhiteSpace($absent)) {
+    $present = [string]::IsNullOrWhiteSpace($absent)
+    if ($present) {
         Write-Item 'requirements' 'ok' 'all present'
     } else {
         Write-Item 'requirements' 'missing' $absent
@@ -39,6 +41,7 @@ print(','.join(missing))
             & $Python -m pip install --disable-pip-version-check -r $requirements
             if ($LASTEXITCODE -eq 0) {
                 Write-Item 'requirements' 'done' 'installed'
+                $present = $true
             } else {
                 Write-Item 'requirements' 'failed' "pip exit $LASTEXITCODE"
                 Add-Todo "pip install -r host/requirements.txt failed - read the output above"
@@ -74,7 +77,8 @@ for d in sorted(p for p in host.iterdir() if p.is_dir() and any(p.glob('*.py')))
             stale.append(d.name)
 print(','.join(stale))
 '@.Replace('HOST_PATH', $Host_)
-    if ((-not [string]::IsNullOrWhiteSpace($installed)) -and [string]::IsNullOrWhiteSpace($stale)) {
+    $editable = (-not [string]::IsNullOrWhiteSpace($installed)) -and [string]::IsNullOrWhiteSpace($stale)
+    if ($editable) {
         Write-Item 'pip install -e host/' 'ok' ('coaxial63100 ' + $installed)
     } else {
         $why = 'required: scripts, tests and views import it'
@@ -84,6 +88,7 @@ print(','.join(stale))
             & $Python -m pip install --disable-pip-version-check -e $Host_
             if ($LASTEXITCODE -eq 0) {
                 Write-Item 'pip install -e host/' 'done' 'installed'
+                $editable = $true
             } else {
                 Write-Item 'pip install -e host/' 'failed' "pip exit $LASTEXITCODE"
                 Add-Todo 'pip install -e host/ failed - read the output above'
@@ -92,26 +97,28 @@ print(','.join(stale))
             Add-Todo 'python -m pip install -e host/'
         }
     }
+    # The host suite and the model probe import host/'s packages: before them they wait.
+    $script:Packages = $present -and $editable
 
     # The notebooks name their kernel, `coaxial_63100`, registered on this
     # interpreter by make_notebooks.py, so an editor holding two CPythons of
     # the same version opens them on the one the packages are in.
-    $maker = Join-Path $Host_ 'tools\notebooks\make_notebooks.py'
-    $kernel = (& $Python $maker --kernel status) -join ' '
+    $maker = @('-m', 'tools.notebooks.make_notebooks', '--kernel')
+    $kernel = Invoke-Host -Python $Python -Arguments ($maker + 'status')
     if ($LASTEXITCODE -eq 0) {
         Write-Item 'notebook kernel' 'ok' $kernel
     } else {
         Write-Item 'notebook kernel' 'missing' $kernel
         if (Confirm-Step 'register the notebook kernel on this python ?  (one kernel.json under %APPDATA%\jupyter)') {
-            $kernel = (& $Python $maker --kernel install) -join ' '
+            $kernel = Invoke-Host -Python $Python -Arguments ($maker + 'install')
             if ($LASTEXITCODE -eq 0) {
                 Write-Item 'notebook kernel' 'done' $kernel
             } else {
                 Write-Item 'notebook kernel' 'failed' $kernel
-                Add-Todo 'python tools/notebooks/make_notebooks.py --kernel install failed - run it from host/ and read the output'
+                Add-Todo 'python -m tools.notebooks.make_notebooks --kernel install failed - run it in host/'
             }
         } else {
-            Add-Todo 'python tools/notebooks/make_notebooks.py --kernel install   (from host/)'
+            Add-Todo 'python -m tools.notebooks.make_notebooks --kernel install   (in host/)'
         }
     }
 }

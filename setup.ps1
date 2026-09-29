@@ -84,6 +84,7 @@ $Host_ = Join-Path $Root 'host'
 $script:Todo = @()
 $script:Optional = @()
 $script:Python = $null
+$script:Packages = $false
 $script:Argv = $PSBoundParameters
 
 foreach ($part in 'report', 'machine', 'python', 'toolchain', 'emulator', 'ollama', 'checks',

@@ -1,9 +1,21 @@
 # machine.ps1 - Windows, winget, python (found, or installed from python.org), git, gh,
 # a host gcc, the execution policy.
 
+function Get-PythonGate {
+    <#
+  The minors CI runs host/ on (.github/workflows/host.yml), oldest first: the floor, and last
+        the one it is developed on. Setup takes and installs only these: a newer python is one
+        no suite has run on.
+#>
+    # $script:, not $Root: Find-Python's own $root is the same name to PowerShell.
+    $ci = Get-Content (Join-Path $script:Root '.github\workflows\host.yml') -Raw -ErrorAction SilentlyContinue
+    $matrix = [regex]::Match([string]$ci, 'python:\s*\[([^\]]*)\]').Groups[1].Value
+    return @([regex]::Matches($matrix, '\d+\.\d+') | ForEach-Object { [version]$_.Value } | Sort-Object)
+}
+
 function Test-PythonRuns {
     <#
-  Does this python.exe start, and is it new enough to run host/ ?
+  Does this python.exe start, and is it a minor CI runs (Get-PythonGate) ?
         Answering to the name is not the same as being one, and this machine
         had both ways of failing at once (measured 2026-09-03):
           the Store alias %LOCALAPPDATA%\Microsoft\WindowsApps\python.exe is
@@ -43,10 +55,9 @@ function Test-PythonRuns {
     try { $line = (& $Exe --version 2>$null | Select-Object -First 1) } catch { return $false }
     if ($line -notmatch '^Python\s+(\d+)\.(\d+)') { return $false }
 
-    $major = [int]$Matches[1]
-    $minor = [int]$Matches[2]
-    if ($major -gt 3) { return $true }
-    return (($major -eq 3) -and ($minor -ge 12))   # host/pyproject.toml
+    $gate = Get-PythonGate
+    $minor = [version]"$($Matches[1]).$($Matches[2])"
+    return (($gate.Count -gt 0) -and ($minor -ge $gate[0]) -and ($minor -le $gate[-1]))
 }
 
 
@@ -108,8 +119,8 @@ function Find-Python {
 
 function Resolve-PythonVersion {
     <#
-  The newest CPython release that ships a windows amd64 installer, asked
-        of python.org's own ftp index rather than pinned as a constant here
+  The newest release of the minor CI develops on (Get-PythonGate) with a windows amd64
+        installer, asked of python.org's own ftp index rather than pinned as a constant here
         -
         the same reasoning as Resolve-Model: one source of truth, asked
         live,
@@ -121,15 +132,17 @@ function Resolve-PythonVersion {
 #>
 
     if ($PythonVersion) { return $PythonVersion }
+    $minor = (Get-PythonGate)[-1]
 
     try {
         $index = Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/' -UseBasicParsing -TimeoutSec 15
     } catch {
         Write-Item 'python.org index' 'failed' $_.Exception.Message
-        return '3.13.1'
+        return "$minor.0"
     }
     $versions = [regex]::Matches($index.Content, 'href="(3\.\d+\.\d+)/"') |
         ForEach-Object { $_.Groups[1].Value } |
+        Where-Object { $_ -like "$minor.*" } |
         Sort-Object -Property @{ Expression = { [version]$_ } } -Descending
 
     foreach ($v in $versions) {
@@ -141,7 +154,7 @@ function Resolve-PythonVersion {
             continue
         }
     }
-    return '3.13.1'
+    return "$minor.0"
 }
 
 function Install-PythonFromOrg {
@@ -218,8 +231,9 @@ function Test-Machine {
     $python = Find-Python
     if ($null -eq $python) {
         if ($Check) {
-            Write-Item 'python' 'missing' 'would install from python.org - see -PythonVersion'
-            Add-Todo 'run without -Check to install python from python.org, or install python 3.9+ by hand'
+            $gate = Get-PythonGate
+            Write-Item 'python' 'missing' ('none of {0}-{1}, what CI runs - would install python.org {1}' -f $gate[0], $gate[-1])
+            Add-Todo ('run without -Check to install python {0} from python.org, or install it by hand' -f $gate[-1])
             return $null
         }
         $python = Install-PythonFromOrg
