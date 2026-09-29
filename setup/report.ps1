@@ -214,9 +214,12 @@ function Install-WingetPackage {
         Add-Todo "winget install --id $Id --exact"
         return $false
     }
+    # Out-Host: winget's lines on the pipeline made the return an array, true on any failure.
     winget install --id $Id --exact --silent `
-                   --accept-package-agreements --accept-source-agreements
-    return ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq -1978335189)
+                   --accept-package-agreements --accept-source-agreements | Out-Host
+    if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq -1978335189) { return $true }
+    Add-Todo "winget install --id $Id --exact   (winget exit $LASTEXITCODE)"
+    return $false
 }
 
 function Update-WingetPackage {

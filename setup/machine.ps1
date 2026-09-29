@@ -7,10 +7,29 @@ function Get-PythonGate {
         the one it is developed on. Setup takes and installs only these: a newer python is one
         no suite has run on.
 #>
-    # $script:, not $Root: Find-Python's own $root is the same name to PowerShell.
+    # $script:, not $Root: Find-Python's own $root is the same name to PowerShell. The list
+    # flowed, python: ['3.12', '3.14'], or in a block, a - '3.12' line each.
     $ci = Get-Content (Join-Path $script:Root '.github\workflows\host.yml') -Raw -ErrorAction SilentlyContinue
-    $matrix = [regex]::Match([string]$ci, 'python:\s*\[([^\]]*)\]').Groups[1].Value
+    $matrix = [regex]::Match([string]$ci,
+                             'python:[ \t]*(\[[^\]]*\]|(\s*-[ \t]*[''"]?\d+\.\d+[''"]?)+)').Groups[1].Value
     return @([regex]::Matches($matrix, '\d+\.\d+') | ForEach-Object { [version]$_.Value } | Sort-Object)
+}
+
+function Get-ShellPython {
+    <#
+  The python a new shell finds first - the registry's PATH, the machine's then the user's, each
+        directory tried by PATHEXT - its path, '' for none. env.ps1, .mcp.json and the hooks run
+        it. Found, never run: pymanager's alias, finding no runtime, downloaded one (2026-09-29).
+#>
+    $dirs = ([Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+             [Environment]::GetEnvironmentVariable('Path', 'User')) -split ';' | Where-Object { $_ }
+    foreach ($dir in $dirs) {
+        foreach ($ext in ($env:PATHEXT -split ';' | Where-Object { $_ })) {
+            $exe = Join-Path ([Environment]::ExpandEnvironmentVariables($dir)) ('python' + $ext)
+            if (Test-Path $exe) { return $exe }
+        }
+    }
+    return ''
 }
 
 function Test-PythonRuns {
@@ -171,6 +190,13 @@ function Install-PythonFromOrg {
     $version = Resolve-PythonVersion
     $url = "https://www.python.org/ftp/python/$version/python-$version-amd64.exe"
     $installer = Join-Path $env:TEMP "python-$version-amd64.exe"
+    $gate = Get-PythonGate
+    $minor = [version](($version -split '\.')[0..1] -join '.')
+    if (($minor -lt $gate[0]) -or ($minor -gt $gate[-1])) {
+        Write-Item 'python' 'failed' ('-PythonVersion {0}: CI runs {1}-{2}, and setup takes no other' -f $version, $gate[0], $gate[-1])
+        Add-Todo ('setup.ps1 -PythonVersion {0}.x, or without it for the newest {0}' -f $gate[-1])
+        return $null
+    }
 
     Write-Item 'python' 'missing' "python.org $version"
     if (-not (Confirm-Step "download and run the python.org $version installer ?  (per-user, no admin)")) {
@@ -228,12 +254,18 @@ function Test-Machine {
         Write-Item 'winget' 'ok' ''
     }
 
+    $gate = Get-PythonGate
+    if ($gate.Count -eq 0) {
+        Write-Item 'python' 'failed' '.github/workflows/host.yml names no python matrix: no minor to take'
+        Add-Todo 'give .github/workflows/host.yml its python matrix back - setup takes the minors CI runs'
+        return $null
+    }
     $python = Find-Python
     if ($null -eq $python) {
         if ($Check) {
-            $gate = Get-PythonGate
-            Write-Item 'python' 'missing' ('none of {0}-{1}, what CI runs - would install python.org {1}' -f $gate[0], $gate[-1])
-            Add-Todo ('run without -Check to install python {0} from python.org, or install it by hand' -f $gate[-1])
+            $want = $(if ($PythonVersion) { $PythonVersion } else { [string]$gate[-1] })
+            Write-Item 'python' 'missing' ('none of {0}-{1}, what CI runs - would install python.org {2}' -f $gate[0], $gate[-1], $want)
+            Add-Todo ('run without -Check to install python {0} from python.org, or install it by hand' -f $want)
             return $null
         }
         $python = Install-PythonFromOrg
@@ -248,6 +280,31 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
                         sys.version_info[2], sys.executable))
 '@
     Write-Item 'python' 'ok' $version
+
+    # The one setup installs into must be the one a new shell runs: python.org's installer
+    # leaves PATH alone unless asked, and another python can stand ahead of it.
+    # pymanager's alias (WindowsApps) and its bin\ shims run its own runtimes.
+    $mine, $shell = ($version -split '  ', 2)[1], (Get-ShellPython)
+    $manager = Join-Path $env:LOCALAPPDATA 'Python'
+    $same = $shell -and (((Split-Path $shell) -eq (Split-Path $mine)) -or (($mine -like "$manager\*") -and
+            (($shell -like "$manager\bin\*") -or ($shell -like "$env:LOCALAPPDATA\Microsoft\WindowsApps\*"))))
+    if (-not $same) {
+        $dir = Split-Path $mine
+        $why = $(if ($shell) { "a new shell runs $shell" } else { 'a new shell finds none' })
+        Write-Item 'python on PATH' 'missing' "$why - env.ps1, .mcp.json and the hooks run it"
+        if (Confirm-Step "put $dir first on your user PATH ?") {
+            $user = [Environment]::GetEnvironmentVariable('Path', 'User')
+            [Environment]::SetEnvironmentVariable('Path', "$dir;$(Join-Path $dir 'Scripts');$user", 'User')
+            if ((Split-Path (Get-ShellPython)) -eq $dir) {
+                Write-Item 'python on PATH' 'done' "$dir - new shells"
+            } else {
+                Write-Item 'python on PATH' 'failed' 'the machine PATH finds another python first'
+                Add-Todo "take the other python off the machine PATH, or put $dir ahead of it"
+            }
+        } else {
+            Add-Todo "put $dir and its Scripts first on your user PATH - new shells run another python"
+        }
+    }
 
     $git = Get-Tool 'git'
     if ($null -eq $git) {
@@ -302,17 +359,37 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
         Write-Item 'host gcc' 'ok' $cc
     }
 
-    $policy = Get-ExecutionPolicy -Scope CurrentUser
-    if ($policy -eq 'Undefined' -or $policy -eq 'Restricted') {
-        Write-Item 'script execution' 'missing' "CurrentUser=$policy - env.ps1 will not load"
-        if ($AllowScripts -and -not $Check) {
+    # What a new shell obeys: the first scope that sets a policy, this run's own Process one
+    # (Bypass, from the command line) apart; none set is Restricted on Windows 11. The plan's
+    # yes sets CurrentUser: a new machine's env.ps1 would not load otherwise.
+    $policy, $where = Get-ShellPolicy
+    if ($policy -in 'Restricted', 'AllSigned') {
+        Write-Item 'script execution' 'missing' "$where=$policy - env.ps1 will not load"
+        if (($AllowScripts -or $script:OnlyChanges) -and -not $Check) {
             Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
-            Write-Item 'script execution' 'done' 'CurrentUser=RemoteSigned'
+            $policy, $where = Get-ShellPolicy
+            if ($policy -in 'Restricted', 'AllSigned') {
+                Write-Item 'script execution' 'failed' "$where=$policy outranks CurrentUser - a group policy"
+                Add-Todo "a group policy sets ${where}=${policy} - env.ps1 needs RemoteSigned"
+            } else {
+                Write-Item 'script execution' 'done' "$where=$policy"
+            }
         } else {
-            Add-Todo 'to dot-source env.ps1 in a normal shell: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned  (or re-run this script with -AllowScripts)'
+            Add-Todo 'Set-ExecutionPolicy -Scope CurrentUser RemoteSigned - env.ps1 loads in a normal shell (the plan''s yes sets it)'
         }
     } else {
-        Write-Item 'script execution' 'ok' "CurrentUser=$policy"
+        Write-Item 'script execution' 'ok' "$where=$policy"
     }
     return $python
+}
+
+function Get-ShellPolicy {
+    <#
+  (policy, scope) a new shell obeys: the first of MachinePolicy, UserPolicy, CurrentUser,
+        LocalMachine that sets one; ('Restricted', 'default') where none does.
+#>
+    $set = @(Get-ExecutionPolicy -List | Where-Object {
+        ($_.Scope -ne 'Process') -and ($_.ExecutionPolicy -ne 'Undefined') })
+    if ($set.Count -eq 0) { return @('Restricted', 'default') }
+    return @([string]$set[0].ExecutionPolicy, [string]$set[0].Scope)
 }

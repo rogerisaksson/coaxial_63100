@@ -46,7 +46,9 @@ function Install-OllamaBinary {
 
     if ($null -ne (Get-Tool 'winget')) {
         if (Confirm-Step 'winget install Ollama.Ollama ?') {
-            winget install --id Ollama.Ollama --exact --accept-package-agreements --accept-source-agreements
+            # Out-Host: winget's lines on the pipeline made this return an array, not the path.
+            winget install --id Ollama.Ollama --exact --accept-package-agreements --accept-source-agreements |
+                Out-Host
             $found = Find-Ollama
             if ($null -ne $found) { return $found }
             Write-Item 'ollama' 'note' 'winget did not produce an ollama on PATH'
@@ -57,7 +59,7 @@ function Install-OllamaBinary {
 
     if (Confirm-Step 'irm https://ollama.com/install.ps1 | iex   ?  (per-user, no admin)') {
         try {
-            Invoke-RestMethod -Uri 'https://ollama.com/install.ps1' | Invoke-Expression
+            Invoke-RestMethod -Uri 'https://ollama.com/install.ps1' | Invoke-Expression | Out-Host
         } catch {
             Write-Item 'ollama' 'failed' $_.Exception.Message
             return $null
@@ -147,12 +149,8 @@ function Resolve-Model {
 
     if ($Model) { return $Model }
     if (-not $Python) { return 'gemma4:12b' }   # [string] makes $null ''
-    # coaxial_ollama's __init__ imports yaml: on a new machine's python, a traceback.
-    if (-not $script:Packages) {
-        Write-Item 'model choice' 'missing' 'measured after the python packages - gemma4:12b till then'
-        return 'gemma4:12b'
-    }
 
+    # 2>$null: coaxial_ollama's __init__ imports yaml, a traceback on a new machine's python.
     Push-Location $Host_
     try {
         $json = (& $Python '-m' 'coaxial_ollama.capability' '--json' '--prefer' $Prefer 2>$null) -join ''
@@ -162,7 +160,12 @@ function Resolve-Model {
         Pop-Location
     }
     if ([string]::IsNullOrWhiteSpace($json)) {
-        Write-Item 'model choice' 'missing' 'could not measure this machine - falling back'
+        if ($script:Packages) {                                # it has what it imports: a fault
+            Write-Item 'model choice' 'failed' 'capability.py said nothing - gemma4:12b till it does'
+            Add-Todo 'python -m coaxial_ollama.capability --json failed - run it in host/'
+        } else {
+            Write-Item 'model choice' 'missing' 'measured after the python packages - gemma4:12b till then'
+        }
         return 'gemma4:12b'
     }
     try {
@@ -180,8 +183,8 @@ function Resolve-Model {
     }
     if ($null -ne $picked.options.num_gpu) {
         # A split model needs the layer count on every call, and only dbg.py
-        # and the runner can pass it.
-        Add-Todo ('this machine runs ' + $picked.model + ' split across GPU and CPU: ' +
+        # and the runner can pass it. Advice, not a step: required, no run ever ended at 0.
+        Add-Todo -Optional ('this machine runs ' + $picked.model + ' split across GPU and CPU: ' +
                   'use `dbg -m auto`, which passes num_gpu=' + $picked.options.num_gpu +
                   ', rather than a bare `ollama run`')
     }

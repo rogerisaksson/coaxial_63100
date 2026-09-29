@@ -107,6 +107,9 @@ print(','.join(stale))
     $kernel = Invoke-Host -Python $Python -Arguments ($maker + 'status')
     if ($LASTEXITCODE -eq 0) {
         Write-Item 'notebook kernel' 'ok' $kernel
+    } elseif ($script:Packages -and ($kernel -match '^\w+(Error|Exception)\b')) {
+        Write-Item 'notebook kernel' 'failed' $kernel                 # a crash, not a kernel missing
+        Add-Todo 'python -m tools.notebooks.make_notebooks --kernel status failed - run it in host/'
     } else {
         Write-Item 'notebook kernel' 'missing' $kernel
         if (Confirm-Step 'register the notebook kernel on this python ?  (one kernel.json under %APPDATA%\jupyter)') {
