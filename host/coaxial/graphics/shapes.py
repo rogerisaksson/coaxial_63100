@@ -14,13 +14,14 @@ AROUND = 20
 
 
 def loft(rings, material, poles=None, along='y'):
-    """A closed body through elliptical rings (at, rx, rz[, dz[, lean]]) up its axis, capped at
-    `poles` (default the first and last ring): (corners, triangles, uv, materials) in its part's
+    """A closed body through elliptical rings (at, rx, rz[, dz[, lean[, dx]]]) up its axis, capped
+    at `poles` (default the first and last ring): (corners, triangles, uv, materials) in its part's
     frame. `along` 'z' lays it forward, a ring's rz then its height and dz its drop; `lean`
-    raises a ring's front lean * rz and lowers its back as far."""
+    raises a ring's front lean * rz and lowers its back as far; `dx` moves a ring across."""
     from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
     k = np.arange(AROUND) * (2.0 * math.pi / AROUND)
-    rows = [np.stack([r[1] * np.cos(k), float(r[0]) + (r[4] if len(r) > 4 else 0.0) * r[2] * np.sin(k),
+    rows = [np.stack([r[1] * np.cos(k) + (r[5] if len(r) > 5 else 0.0),
+                      float(r[0]) + (r[4] if len(r) > 4 else 0.0) * r[2] * np.sin(k),
                       r[2] * np.sin(k) + (r[3] if len(r) > 3 else 0.0)], 1) for r in rings]
     low, high = poles or (rings[0][0], rings[-1][0])
     ends = [[0.0, low, rings[0][3] if len(rings[0]) > 3 else 0.0],
@@ -43,6 +44,18 @@ def loft(rings, material, poles=None, along='y'):
     else:
         materials = np.full(len(corners), material)
     return corners, triangles, uv, materials
+
+
+def limb(length, top, middle, bottom, material, flat=1.0, bulge_at=0.3, out=0.0):
+    """A tapered limb hanging from its joint down -y: `top` at the joint, `middle` at `bulge_at` of
+    the way, `bottom` at the end, rounded; `flat` its depth over its width; its middle rings `out`
+    across (+x), the ends where they are."""
+    rings = [(-length - 0.6 * bottom, 0.5 * bottom), (-length - 0.3 * bottom, 0.9 * bottom),
+             (-length, bottom), (-length * (0.5 + 0.5 * bulge_at), 0.5 * (middle + bottom)),
+             (-length * bulge_at, middle), (0.0, top), (0.3 * top, 0.88 * top),
+             (0.55 * top, 0.5 * top)]
+    return loft([(y, r, r * flat, 0.0, 0.0, out if i in (3, 4) else 0.0)
+                 for i, (y, r) in enumerate(rings)], material)
 
 
 def ellipsoid(centre, radii, material, rows=10):

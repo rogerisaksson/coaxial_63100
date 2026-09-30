@@ -141,8 +141,9 @@ def _roll(r):
 
 @functools.lru_cache(None)
 def _thigh(dressed):
-    """((depth under the hip joint, radius), ..) down a thigh as drawn, m, crotch to knee: the
-    crotch the pelvis's lowest point, or the jeans' seat's (`coaxial.graphics.gynoid`)."""
+    """((depth under the hip joint, reach toward the other thigh), ..) down the left thigh as drawn,
+    m, crotch to knee: the crotch the pelvis's lowest point, or the jeans' seat's
+    (`coaxial.graphics.gynoid`)."""
     from coaxial.graphics import gynoid
     from machine.gait import HIP_DROP, THIGH
     meshes, parts = gynoid._meshes()
@@ -150,8 +151,8 @@ def _thigh(dressed):
     thigh, seat = ((worn['cloth_left_thigh'], worn['cloth_seat']) if dressed
                    else (meshes['left_thigh'], meshes['pelvis']))
     rings = {}
-    for x, y, z in thigh[0]:
-        rings[-round(float(y), 5)] = max(rings.get(-round(float(y), 5), 0.0), math.hypot(x, z))
+    for x, y, _z in thigh[0]:
+        rings[-round(float(y), 5)] = max(rings.get(-round(float(y), 5), 0.0), -float(x))
     ring = sorted(rings.items())
     crotch = -float(min(seat[0][:, 1])) - HIP_DROP
     out = []

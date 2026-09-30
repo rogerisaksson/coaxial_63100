@@ -9,8 +9,7 @@ and turned by its joints - the figure's names and signs. Without `root`, the low
 feet stands on the floor. 1.69 m tall; the lattice, the glowing core and the plates are the
 materials `gpu.LIT_WGSL` lights. The floor scrolls under her by `travel` metres. Each drive's
 assembly (`machine.drives`) is a drum on its joint's axis, or where it is mounted. She wears a
-tee, jeans and sneakers (`_wear`), loose over her; a drum under the cloth shows as a patch sewn
-on it at the drum's ends.
+tee, jeans and sneakers (`_wear`); a drum under the cloth shows as a patch sewn on at its ends.
 """
 import math
 from typing import Any
@@ -20,8 +19,8 @@ from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
 from coaxial.graphics.raster import DOTS_X
-from coaxial.graphics.shapes import (drum, ellipsoid, loft, moved, sampled, smooth, turn_about,
-                                     view)
+from coaxial.graphics.shapes import (drum, ellipsoid, limb, loft, moved, sampled, smooth,
+                                     turn_about, view)
 from machine import ansi, drives, figure
 from machine.figure import HAIR_AT, HEM_AT, TOE_M, TOE_RY
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
@@ -87,8 +86,9 @@ JEANS_LEG = ((0.01, 0.07, 0.068), (-0.1, 0.072, 0.072), (-0.2, 0.074, 0.076, -0.
              (HEM_UP - SHANK - ANKLE_H + HEM_AT, HEM_R[0], HEM_R[1], -HEM_R[2], HEM_LEAN))
 
 
-#: The thighs' radii, m: at the hip, at their fullest and at the knee.
-THIGH_R = (0.068, 0.06, 0.054)
+#: The thighs' radii, m: at the hip, at their fullest and at the knee; their middle SCULPT_M out,
+#: the inside drawn in off the other's, the outside full.
+THIGH_R, SCULPT_M = (0.068, 0.06, 0.054), 0.008
 
 
 def _wear():
@@ -108,13 +108,13 @@ def _wear():
         out += [('cloth_%s_bust' % side, 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2] + b),
                  ellipsoid((0.0, 0.0, 0.0), tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee,
                             rows=8))]
-    for side in ('left', 'right'):
+    for side, x in (('left', 1.0), ('right', -1.0)):
         out += [('cloth_%s_sleeve' % side, side + '_upper_arm', (0.0, 0.0, 0.0), loft(
             [(0.04, 0.042, 0.042), (0.0, 0.054, 0.05), (-0.07, 0.052, 0.048),
              (-0.13, 0.05, 0.046)], tee, poles=(0.05, -0.133))),
                 ('cloth_%s_thigh' % side, side + '_thigh', (0.0, 0.0, 0.0),
-                 _limb(THIGH, THIGH_R[0] + FIT_M, THIGH_R[1] + FIT_M, THIGH_R[2] + LOOSE_M,
-                       denim, bulge_at=0.22)),
+                 limb(THIGH, THIGH_R[0] + FIT_M, THIGH_R[1] + FIT_M, THIGH_R[2] + LOOSE_M,
+                      denim, bulge_at=0.22, out=x * SCULPT_M)),
                 ('cloth_%s_shin' % side, side + '_shank', (0.0, 0.0, 0.0), loft(
                     [(0.03, 0.054, 0.054), (0.0, 0.066, 0.066), (-0.06, 0.07, 0.068),
                      (-HEM_AT, 0.072, 0.07)], denim, poles=(0.045, -HEM_AT - 0.01))),
@@ -160,16 +160,6 @@ def _patches(parts):
             if near.any():
                 out.setdefault(joint, []).append((i, np.flatnonzero(near)))
     return out
-
-
-def _limb(length, top, middle, bottom, material, flat=1.0, bulge_at=0.3):
-    """A tapered limb hanging from its joint down -y: `top` at the joint, `middle` at `bulge_at` of
-    the way, `bottom` at the end, rounded; `flat` its depth over its width."""
-    rings = [(-length - 0.6 * bottom, 0.5 * bottom), (-length - 0.3 * bottom, 0.9 * bottom),
-             (-length, bottom), (-length * (0.5 + 0.5 * bulge_at), 0.5 * (middle + bottom)),
-             (-length * bulge_at, middle), (0.0, top), (0.3 * top, 0.88 * top),
-             (0.55 * top, 0.5 * top)]
-    return loft([(y, r, r * flat) for y, r in rings], material)
 
 
 #: The head's centre over the head joint, metres.
@@ -281,12 +271,13 @@ def _meshes():
                   ('%s_cap' % side, 'torso', (0.135 * x, 0.335, -0.004),
                    ellipsoid((0.0, 0.0, 0.0), (0.042, 0.036, 0.04), PLATE, rows=8))]
         meshes.update({
-            side + '_upper_arm': _limb(0.27, 0.031, 0.03, 0.024, MESH, flat=0.95),
-            side + '_forearm': _limb(0.24, 0.025, 0.025, 0.018, MESH, flat=0.9),
+            side + '_upper_arm': limb(0.27, 0.031, 0.03, 0.024, MESH, flat=0.95),
+            side + '_forearm': limb(0.24, 0.025, 0.025, 0.018, MESH, flat=0.9),
             side + '_hand': ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
             side + '_fingers': ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
-            side + '_thigh': _limb(THIGH, THIGH_R[0], THIGH_R[1], THIGH_R[2], MESH, bulge_at=0.22),
-            side + '_shank': _limb(SHANK, 0.052, 0.058, 0.032, PLATE, bulge_at=0.3),
+            side + '_thigh': limb(THIGH, THIGH_R[0], THIGH_R[1], THIGH_R[2], MESH, bulge_at=0.22,
+                                  out=x * SCULPT_M),
+            side + '_shank': limb(SHANK, 0.052, 0.058, 0.032, PLATE, bulge_at=0.3),
             side + '_foot': loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SHOE],
                                   paint(SNEAKER), poles=(-HEEL, BALL + 0.006), along='z'),
             side + '_toes': loft([(z, rx, rv, -(rv - TOE_RY + _spring(z)))
