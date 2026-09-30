@@ -185,12 +185,13 @@ def boxes(state, now, name):
 STATUS = {'squat': 'CROUCH', 'look': 'CROUCH', 'push': 'RISE', 'rise': 'RISE', 'stand': 'STAND',
           'shift': 'STAND', 'lean': 'STAND', 'step': 'WALK', 'walk': 'WALK', 'catch': 'CATCH',
           'halt': 'STOP', 'settle': 'STOP', 'lower': 'CROUCH', 'rest': 'REST', 'falling': 'FALL',
-          'fallen': 'RECOVER'}
+          'fallen': 'DOWN', 'unfold': 'GET UP', 'prop': 'GET UP', 'sit': 'GET UP',
+          'fold': 'GET UP', 'lift': 'GET UP', 'crouch': 'GET UP'}
 
 
 def _status(now):
-    """BODY's status: her stage in a word and by its moment; tripped on a lace, TRIP; fallen,
-    RECOVER counting down to her landing again."""
+    """BODY's status: her stage in a word and by its moment; tripped on a lace, TRIP; down with
+    no get-up left, DOWN counting down to her landing again."""
     if now is None:
         return 'STARTING'
     word = STATUS.get(now['stage'], now['stage'].upper())

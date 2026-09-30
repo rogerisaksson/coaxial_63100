@@ -43,8 +43,17 @@ SERVO = {'spine': (150.0, 800.0, 30.0, 0.05), 'spine_roll': (150.0, 800.0, 30.0,
          'ankle': (140.0, 1500.0, 40.0, 0.05), 'ankle_roll': (100.0, 1500.0, 40.0, 0.05),
          'foot': (25.0, 40.0, 1.0, 0.02)}
 
+#: The joints with a mechanical stop, (low, high) deg: the elbow straight at -5, as an arm's is -
+#: without it the forearm folded back under her weight, -82 to -161 pushing up (2026-09-30).
+STOPS = {'elbow': (-5.0, 160.0)}
+
 #: The world's step, s.
 STEP_S = 0.001
+
+#: The contacts' friction cone: elliptic, the same grip every way, at IMPRATIO. On MuJoCo's
+#: pyramid she walked along the world's axes and fell 1.2 m on 45 degrees off them; elliptic at 1
+#: she fell every way at 1.18 m, at 3 and 10 walked 13 m every way (2026-09-30).
+CONE, IMPRATIO = 'elliptic', 10.0
 
 #: How much of the drives' rotors seen through their cycloids (`drives.armature`) a joint carries
 #: in place of SERVO's armature, 0 to 1; whether a joint's clamp is its drive's peak where that is
@@ -130,10 +139,12 @@ def mjcf():
         if seg[1] is None:
             out.append('<freejoint name="root"/>')
         for joint, axis, sign in joints:
-            out.append('<joint name="%s" axis="%g %g %g" armature="%g"/>' % (
+            stop = STOPS.get(kind(joint))
+            out.append('<joint name="%s" axis="%g %g %g" armature="%g"%s/>' % (
                 (joint,) + tuple(sign * v for v in axes[axis]) + (
                     SERVO[kind(joint)][3] + REFLECTED * (drives.armature(joint)
-                                                         - SERVO[kind(joint)][3]),)))
+                                                         - SERVO[kind(joint)][3]),
+                    ' limited="true" range="%g %g"' % stop if stop else '')))
         mass = share * MASS_KG
         out.append('<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
@@ -171,7 +182,8 @@ def mjcf():
 
     return '\n'.join(
         ['<mujoco model="gynoid">',
-         '<option timestep="%g" gravity="0 -9.81 0" integrator="implicitfast"/>' % STEP_S,
+         '<option timestep="%g" gravity="0 -9.81 0" integrator="implicitfast" cone="%s" '
+         'impratio="%g"/>' % (STEP_S, CONE, IMPRATIO),
          '<default><joint damping="0.3"/><geom contype="0" conaffinity="0"/></default>',
          '<worldbody>',
          ] + floor.ground(contacts, give, TORSION_M)

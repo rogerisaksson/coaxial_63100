@@ -12,15 +12,15 @@ foot that slides is held where it slid to. Halted, her stride
 shortened to her first's, she settles at a landing: onto the front foot, the rear beside it, down
 into the squat (`rest`); risen, she walks on. `walk_s` and `rest_s` run that round by
 themselves. Falling past recovery, her legs' and trunk's drives are shorted, dampers, while her
-arms reach toward the fall; down, every drive is, and she lies as she settled: `begin` lands
-her again.
+arms reach toward the fall; down and still, her drives armed, she gets up (`machine.getup`) into
+a crouch the arrival takes her up from.
 
 Her drives' boards report their heat on the bus (`machine.heat`): warming, her legs ease the
 pace. A board whose gates dropped is armed again.
 """
 import math
 
-from machine import arrival, drives, figure, gait, heat, walker, walkplan, stance
+from machine import arrival, drives, figure, gait, getup, heat, walker, walkplan, stance
 
 #: Falling, past the walker's recovery: the pelvis tipped past FALLING_DEG and tipping on faster
 #: than FALLING_DEG_S (the head's gyro), or under FALLING_M, walking. Fallen - under FALLEN_M or
@@ -30,7 +30,8 @@ FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
 #: Falling, the drives of SHORT_FALLING's kinds have their phases shorted through the low sides
 #: (`physics.World.short`), each joint giving kt^2/R of its speed back against it - a damper,
-#: not a pose held; the arms and the neck go to CATCH over CURL_S, and YIELD as the hands land.
+#: not a pose held; the arms and the neck go to CATCH over CURL_S, and softly on into YIELD as an
+#: arm lands.
 #: Five falls (the hole, the slip, the rug, the stairs, a lace): 2 lay prone on their forearms,
 #: 1 on her back and 2 on a side, the head at the floor once, at 0.11 m/s; every drive shorted
 #: once down, 4 prone and 1 on her back, the head 0.05-1.14 m/s four times; curled and held as
@@ -39,25 +40,36 @@ SHORT_FALLING = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll', 'f
                  'spine_roll', 'waist')
 CURL_S = 0.4
 
-#: Falling, the arms and the neck by the way she tips: ahead the hands out before her, the head
-#: up HEAD_UP_DEG - with the chin down 40 her head met the floor at 0.85 m/s, up 20, 40 or 60 the
-#: chest and the hips took it (2026-09-28); tipping more than BEHIND_DEG from her forward, the
-#: arms down behind her and the chin tucked.
-HEAD_UP_DEG, BEHIND_DEG = 40.0, 120.0
+#: Falling, the arms and the neck by the way she tips and how hard: tipping past GUARD_DEG_S as
+#: the fall is declared, the forearms before her face and the chin tucked (`guard`), no arm put
+#: out to break; slower, ahead the hands out before her, the elbows soft, the head up HEAD_UP_DEG
+#: - with the chin down 40 her head met the floor at 0.85 m/s, up 20, 40 or 60 the chest and the
+#: hips took it (2026-09-28); tipping more than BEHIND_DEG from her forward, the arms down behind
+#: her and the chin tucked. Declared at 18-341 deg/s: the hole, the lace, the stairs, the rug.
+HEAD_UP_DEG, BEHIND_DEG, GUARD_DEG_S = 40.0, 120.0, 150.0
 CATCH = {'ahead': {'neck': HEAD_UP_DEG, 'left_shoulder': 90.0, 'right_shoulder': 90.0,
-                   'left_elbow': 10.0, 'right_elbow': 10.0, 'left_wrist': 0.0, 'right_wrist': 0.0,
+                   'left_elbow': 30.0, 'right_elbow': 30.0, 'left_wrist': 0.0, 'right_wrist': 0.0,
                    'left_gripper': 0.0, 'right_gripper': 0.0},
          'behind': {'left_shoulder': -45.0, 'right_shoulder': -45.0, 'left_elbow': 20.0,
-                    'right_elbow': 20.0, 'neck': 45.0}}
+                    'right_elbow': 20.0, 'neck': 45.0},
+         'guard': {'neck': 45.0, 'left_shoulder': 115.0, 'right_shoulder': 115.0,
+                   'left_elbow': 125.0, 'right_elbow': 125.0, 'left_wrist': 0.0,
+                   'right_wrist': 0.0}}
 
-#: Her hands on the floor (TOUCH_M), her arms give under her over YIELD_S into her forearms, the
-#: hands by her face (YIELD), and hold it down, the neck too: the catch a spring, not a post -
-#: held out straight she caught herself and toppled over them sideways; down on a lace the head
-#: stayed 71 mm off the floor at the least where straight arms left 132; bent to 70 and the
-#: hands brought over the head, it met the floor at 1.3 m/s (2026-09-28).
+#: An arm at the floor (TOUCH_M), the arms go on into YIELD, the forearms by her face, soft: each
+#: asked at most SOFT_DEG past where it is, 13 N m a shoulder and 7 an elbow. Held to the catch
+#: they pinned their drives at their peaks in all four falls, the stairs' left straight out
+#: (2026-09-30); held out straight she caught herself and toppled over them sideways; down on a
+#: lace the head stayed 71 mm off the floor where straight arms left 132; bent to 70, the hands
+#: over the head, it met the floor at 1.3 m/s (2026-09-28).
 YIELD = {'left_elbow': 90.0, 'right_elbow': 90.0, 'left_shoulder': 110.0, 'right_shoulder': 110.0}
-YIELD_S, TOUCH_M = 0.6, 0.01
-HANDS = ('left_hand', 'left_fingers', 'right_hand', 'right_fingers')
+SOFT_DEG, TOUCH_M = 5.0, 0.01
+ARM_PARTS = tuple(side + part for side in ('left_', 'right_')
+                  for part in ('upper_arm', 'forearm', 'hand', 'fingers'))
+
+#: Down, and still STILL_S - the pelvis under STILL_M_S and turning under STILL_DEG_S - her
+#: drives are armed again and she gets up, GETUP_TRIES times at most between two landings.
+STILL_S, STILL_M_S, STILL_DEG_S, GETUP_TRIES = 1.0, 0.05, 10.0, 3
 
 
 #: A stance foot bearing `stance.BEARS_N` slid past SLIP_M of where it landed is held where it
@@ -90,7 +102,7 @@ REARM_S, REARM_BACKOFF_S, REARM_MAX_S, ARM_LAG_S = 0.05, 1.0, 1.6, 0.005
 #: Her moments numbered from 1, on the page and in tools/sim/look.py alike, so a seam is named by
 #: its two numbers: the squat to the walk, then what the walk may turn to.
 MOMENTS = ('squat', 'look', 'push', 'rise', 'stand', 'shift', 'lean', 'step', 'walk', 'catch',
-           'halt', 'settle', 'lower', 'rest', 'falling', 'fallen')
+           'halt', 'settle', 'lower', 'rest', 'falling', 'fallen') + getup.STAGES
 
 
 def moment(stage):
@@ -110,9 +122,11 @@ class Director:
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
         #: Since when she falls and her arms and neck from and to what (CATCH); the tilt last
-        #: pass, (deg, s); when her hands met the floor.
+        #: pass, (deg, s), and its rate, deg/s; when an arm met the floor.
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
-        self.touched_at = None
+        self.fall_rate, self.touched_at = 0.0, None
+        #: The get-up, how long she has lain still, and the get-ups since she landed.
+        self.getup, self.still, self.tries = getup.GetUp(machine), 0.0, 0
         #: Each joint's drive by its node's channels, the legs'; a dropped drive's (heard at,
         #: wait) and when each was last armed.
         self.world = machine.nodes['pelvis'].world
@@ -137,15 +151,21 @@ class Director:
     def cadence(self, value):
         self.asked = float(value)
 
+    @property
+    def given_up(self):
+        """Down with no get-up left: the stream gave up, or GETUP_TRIES of them failed."""
+        return self.stage == 'fallen' and (self.getup.gave_up or self.tries >= GETUP_TRIES)
+
     def begin(self):
         """Landed in the squat, the arrival to take her up."""
+        self.getup = getup.GetUp(self.machine)
         self.arrival.land()
         self.stage, self.fallen_at, self.since = self.arrival.stage, None, 0.0
         self.walker.cadence = gait.CADENCE
         self.walker.reset()
         self.blend, self.curl_from = None, {}
         self.falling_at, self.curl_to, self.tilt_was, self.touched_at = None, {}, None, None
-        self.dropped, self.armed = {}, {}
+        self.dropped, self.armed, self.still, self.tries = {}, {}, 0.0, 0
 
     def halt(self):
         """Walking, to a stop and down into the squat."""
@@ -163,18 +183,25 @@ class Director:
         if self.stage == 'rest':
             bus = self.machine.loop.bus
             feet = [self._foot(bus, side, sign)[0] for side, sign in walkplan.SIDES]
-            self.arrival.rise(sum(f[0] for f in feet) / 2.0, sum(f[2] for f in feet) / 2.0)
+            self.arrival.rise(sum(f[0] for f in feet) / 2.0, sum(f[2] for f in feet) / 2.0,
+                              math.degrees(self.walker.heading))
             self.stage, self.since = self.arrival.stage, 0.0
 
     def step(self, dt):
         """{joint: degrees}: what whichever move has her sets now."""
         bus = self.machine.loop.bus
         self._arm(bus)
-        if self.stage in arrival.STAGES or self.stage in ('falling', 'fallen'):
-            self.pendulum.read(bus, dt)
+        if (self.stage in arrival.STAGES or self.stage in getup.STAGES
+                or self.stage in ('falling', 'fallen')):
+            self.pendulum.read(self.walker.view(bus), dt)
+        if self.getup.gave_up:
+            self.stage, self.fallen_at = 'fallen', self.fallen_at or bus['t']
+            return self.getup.step(dt)
         if self.falling_at is None and (self._falling(bus) or self._fallen(bus)):
             self.falling_at, self.stage = bus['t'], 'falling'
-            self.curl_to = CATCH['behind' if abs(self._fall_way(bus)) > BEHIND_DEG else 'ahead']
+            way = ('guard' if self.fall_rate > GUARD_DEG_S else
+                   'behind' if abs(self._fall_way(bus)) > BEHIND_DEG else 'ahead')
+            self.curl_to = CATCH[way]
             self.curl_from = {j: bus.get(j + '.deg', 0.0) for j in self.curl_to}
             self._short(SHORT_FALLING)
         if self.fallen_at is None and self._fallen(bus):
@@ -183,12 +210,30 @@ class Director:
             k = gait.eased((bus['t'] - self.falling_at) / CURL_S)
             out = {j: self.curl_from[j] + (v - self.curl_from[j]) * k
                    for j, v in self.curl_to.items()}
-            if self.touched_at is None and self.world.lifted(HANDS) < TOUCH_M:
+            if self.touched_at is None and self.world.lifted(ARM_PARTS) < TOUCH_M:
                 self.touched_at = bus['t']
             if self.touched_at is not None:
-                out = gait.blend(out, dict(out, **YIELD), (bus['t'] - self.touched_at) / YIELD_S)
+                out = dict(out, **{j: bus[j + '.deg'] + max(-SOFT_DEG, min(SOFT_DEG, v - bus[j + '.deg']))
+                                   for j, v in YIELD.items()})
+            if self.stage == 'fallen' and self._still(bus, dt) and self.tries < GETUP_TRIES:
+                for i in range(len(figure.JOINTS)):
+                    self.world.arm(i)
+                self.getup.begin()
+                self.stage, self.falling_at, self.fallen_at = self.getup.stage, None, None
+                self.touched_at, self.tries = None, self.tries + 1
             return out
         self.since += dt
+        if self.stage in getup.STAGES:
+            out = self.getup.step(dt)
+            self.stage = self.getup.stage
+            if self.getup.done:
+                frames = self.getup.handed()
+                self.arrival.play(frames)
+                # on along the way she rose facing: up from a fall she faces where she lay
+                self.walker.face(math.radians(frames[0][2]['yaw']))
+                self.stage, self.blend, self.age, self.since = 'squat', out, 0.0, 0.0
+            self.walker.last = out
+            return out
         if self.stage in arrival.STAGES:
             out = self.arrival.step(dt)
             if self.arrival.stage != self.stage and self.arrival.stage == 'rest':
@@ -220,9 +265,12 @@ class Director:
         if self.stage == 'halt':
             if self.walker.halted and min(bus['pelvis.pose.left_load'],
                                           bus['pelvis.pose.right_load']) > stance.LANDED_N:
-                now = self._now(bus, out)
+                # settled as along the walk's line, turned back onto her heading
+                seen, h = self.walker.view(bus), self.walker.heading
+                now = self._now(seen, out)
                 ahead = 'left' if now['left'][0][2] >= now['right'][0][2] else 'right'
-                self.arrival.settle(now, self._flat(bus, ahead), bus['pelvis.pose.vz'])
+                speed = bus['pelvis.pose.vx'] * math.sin(h) + bus['pelvis.pose.vz'] * math.cos(h)
+                self.arrival.settle(now, self._flat(seen, ahead), speed, math.degrees(h))
                 self.stage, self.blend, self.age = self.arrival.stage, out, 0.0
         elif self.walk_s is not None and self.since > self.walk_s:
             self.halt()
@@ -250,6 +298,14 @@ class Director:
             if kinds is None or drives.kind(joint) in kinds:
                 self.world.short(i)
 
+    def _still(self, bus, dt):
+        """Lain still STILL_S: the pelvis moving under STILL_M_S and turning under
+        STILL_DEG_S."""
+        moving = math.sqrt(sum(bus['pelvis.pose.v' + a] ** 2 for a in 'xyz'))
+        turning = math.degrees(math.sqrt(sum(bus['pelvis.pose.w' + a] ** 2 for a in 'xyz')))
+        self.still = self.still + dt if moving < STILL_M_S and turning < STILL_DEG_S else 0.0
+        return self.still >= STILL_S
+
     def _tilt(self, bus):
         """The pelvis's tilt from upright, degrees."""
         up = self._pelvis(bus)[1][1][1]
@@ -258,14 +314,15 @@ class Director:
     def _falling(self, bus):
         """Past recovery, walking: tipped past FALLING_DEG and tipping on faster than
         FALLING_DEG_S, or the pelvis under FALLING_M."""
-        if self.stage in arrival.STAGES:
+        if self.stage in arrival.STAGES or self.stage in getup.STAGES:
             self.tilt_was = None
             return False
         tilt, t = self._tilt(bus), bus['t']
-        rate = 0.0 if self.tilt_was is None else (
+        self.fall_rate = 0.0 if self.tilt_was is None else (
             (tilt - self.tilt_was[0]) / max(1e-6, t - self.tilt_was[1]))
         self.tilt_was = (tilt, t)
-        return bus['pelvis.pose.y'] < FALLING_M or (tilt > FALLING_DEG and rate > FALLING_DEG_S)
+        return bus['pelvis.pose.y'] < FALLING_M or (tilt > FALLING_DEG
+                                                    and self.fall_rate > FALLING_DEG_S)
 
     def _fall_way(self, bus):
         """Which way the pelvis tips, deg about the vertical from its own forward, + to its
@@ -280,12 +337,16 @@ class Director:
         walking."""
         if self.stage in arrival.STAGES:
             return bus['pelvis.pose.y'] < SQUAT_FALLEN_M
+        if self.stage in getup.STAGES:
+            return False
         return bus['pelvis.pose.y'] < FALLEN_M or self._tilt(bus) > FALLEN_DEG
 
     def _foot(self, bus, side, sign):
         """(ankle, the foot's pitch toes-up deg) of a leg as the loop read it, world."""
         angles = tuple(math.radians(bus.get(side + k + '.deg', 0.0)) for k in figure.LEG)
-        ankle, foot = figure.foot_of(sign, *self._pelvis(bus), angles)
+        pel, turn = self._pelvis(bus)
+        ankle, foot = figure.foot_of(sign, pel, turn, angles)
+        foot = figure.mul(figure.ry(-math.atan2(turn[0][2], turn[2][2])), foot)
         return ankle, math.degrees(math.atan2(foot[2][1], foot[1][1]))
 
     def _flat(self, bus, side):
@@ -309,8 +370,10 @@ class Director:
         """Her pose as the loop read it, as a keyframe: the pelvis tipped but not rolled or
         turned, the feet where they stand, the upper body as last set."""
         pel, turn = self._pelvis(bus)
-        frame = {'pelvis': pel, 'tilt': math.degrees(math.atan2(turn[2][1], turn[1][1])),
-                 'joints': {j: out[j] for j in walkplan.UPPER if j in out}}
+        yaw = math.degrees(math.atan2(turn[0][2], turn[2][2]))
+        local = figure.mul(figure.ry(-math.radians(yaw)), turn)
+        frame = {'pelvis': pel, 'tilt': math.degrees(math.atan2(local[2][1], local[1][1])),
+                 'yaw': yaw, 'joints': {j: out[j] for j in walkplan.UPPER if j in out}}
         for side, sign in walkplan.SIDES:
             frame[side] = self._foot(bus, side, sign)
         return frame

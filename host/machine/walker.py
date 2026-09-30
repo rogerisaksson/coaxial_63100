@@ -137,7 +137,7 @@ class Walker:
         """Every state of a walk as before the first, landed anew (`Director.begin`): kept from
         a fall, the pelvis lowered 12 cm and the speed read from 3.7 m back, the walk after a
         restart ran 8-10 cm crouched and a sole bore 16 kN (2026-09-28)."""
-        #: The walk's line, radians from the world's z about the vertical (`_view`).
+        #: The walk's line, radians from the world's z about the vertical (`view`).
         self.heading = 0.0
         self.phase = 0.0
         self.anchor, self.was_q = {}, {}
@@ -231,7 +231,12 @@ class Walker:
         self.capture, self.side, self.resume, self.hurry = capture.state(), None, None, 0.0
         self.rate, self.waited, self.lurch = self.cadence, 0.0, None
 
-    def _view(self, bus):
+    def face(self, heading):
+        """The walk's line turned to `heading`, radians, the pendulum read anew along it: read
+        on across the turn, the ears' track jumped by it and the first steps fell (2026-09-30)."""
+        self.heading, self.pendulum = float(heading), Pendulum()
+
+    def view(self, bus):
         """The bus as the walk sees it: the pelvis's place, turn and centre of mass turned about
         the vertical so the walk's line (`heading`) lies along z."""
         h = self.heading
@@ -249,7 +254,7 @@ class Walker:
 
     def ball_ahead(self, side):
         """How far the ball of this foot stands ahead of the pelvis, m, as the loop read it."""
-        bus = self._view(self.machine.loop.bus)
+        bus = self.view(self.machine.loop.bus)
         pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
         turn = figure.quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                            bus['pelvis.pose.qz'])
@@ -259,7 +264,7 @@ class Walker:
     def step(self, dt):
         """{joint: degrees}: where every drive should be now."""
         walkplan.ease(dt)
-        bus = self._view(self.machine.loop.bus)
+        bus = self.view(self.machine.loop.bus)
         pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
         turn_now = figure.quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                          bus['pelvis.pose.qz'])

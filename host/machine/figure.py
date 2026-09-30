@@ -67,12 +67,15 @@ SOLE_HALF = 0.038
 #: What touches the floor: (segment, shape, size, centre) in the segment's frame - the soles and
 #: toes on their undersides, the knee's front to kneel on, the knuckles to lean on; the seat, the
 #: back and the chest, the skull, the arms and the thighs to fall on. Without them she lay with
-#: her torso through the floor (2026-09-27).
+#: her torso through the floor (2026-09-27). The seat is two buttocks, a capsule each along her
+#: way: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, she rolled onto her back
+#: (the torso's up 0.02); on these she sat (1.00) (2026-09-30).
 CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL) / 2.0), (0.0, -ANKLE_H + 0.03, (BALL - HEEL) / 2.0)),
             ('toes', 'box', (0.036, 0.015, TOE_M / 2.0), (0.0, 0.001, TOE_M / 2.0)),
             ('shank', 'sphere', (0.035,), (0.0, -0.06, 0.03)),
             ('hand', 'sphere', (0.03,), (0.0, -0.07, 0.01)),
-            ('pelvis', 'sphere', (0.10,), (0.0, 0.0, -0.02)),
+            ('pelvis', 'capsule', (0.06, 0.035), (0.055, -0.05, -0.025)),
+            ('pelvis', 'capsule', (0.06, 0.035), (-0.055, -0.05, -0.025)),
             ('torso', 'sphere', (0.10,), (0.0, 0.10, -0.02)),
             ('torso', 'sphere', (0.11,), (0.0, 0.28, 0.0)),
             ('head', 'sphere', (0.085,), (0.0, 0.095, 0.012)),
@@ -150,7 +153,9 @@ def leg(sign, pelvis, turn, ankle, foot):
     the ankle back to the hip (Kajita's order). Out of reach, the leg straightens toward it."""
     rf = mul(t(turn), foot)
     r = apply(t(foot), sub(hip(sign, pelvis, turn), ankle))
-    rho_a = math.atan2(r[0], r[1])
+    # Sat, the hip at or under the ankle: atan2's other root turned the leg 179 degrees about its
+    # yaw, the knee 0.24 m through the floor (2026-09-30).
+    rho_a = math.atan2(r[0], r[1]) if r[1] > 0.0 else math.atan2(-r[0], -r[1])
     u_y = math.sin(rho_a) * r[0] + math.cos(rho_a) * r[1]
     length = min(math.hypot(u_y, r[2]), THIGH + SHANK)
     kappa = math.acos(max(-1.0, min(1.0, (length * length - SHANK * SHANK - THIGH * THIGH)

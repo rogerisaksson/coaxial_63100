@@ -81,17 +81,15 @@ Open work. Measured results are in FINDINGS.
   re-anchored at once, the other foot down early. A knee folding under
   her (a drive derated hot): sink onto the strong leg and kneel on the
   weak one - a bent knee on the floor asks its drive nothing - and rise on
-  the strong leg when it holds again; the cut knee she rides out. Fallen,
-  her drives shorted, she lies where she settled, 4 of 5 prone: get up -
-  from a kneel on tucked toes, the hands 0.45 m ahead of the balls, the
-  knees up onto the toes and the heels down into the arrival's squat and
-  its rise, she stands (tried from that kneel); prone she cannot reach it -
-  the shoulder's one axis and 170 degrees of travel either way put the floor
-  in the arm's plane: the push with the arms along her pins the shoulder at
-  its 40 N m, at the sized 101 the elbow folds back (no stop), over the
-  back they reach ahead but cannot come down; on her back, sat up, a hand
-  beside the seat bears 80 % (tools/sim/c3d.py's takes). The scoreboard
-  counts the time down. The
+  the strong leg when it holds again; the cut knee she rides out. Fallen
+  on her back or a side she gets up (`machine.getup`), 25 s from the rug
+  and the lace to walking; face down (the hole) and across the stairs not
+  yet - the page lands her again (`running.RECOVER_S`). Face down, from a
+  kneel on tucked toes she stands (tried from that kneel) but cannot reach
+  it: the shoulder's one axis puts the floor in the arm's plane, the push
+  pins a woman's 40 N m. The get-up is a stream of steps (`getup.BACK`),
+  to be written for how she lies by a planner - a fast local model - not a
+  scenario each (asked 2026-09-30). The scoreboard counts the time down. The
   shoves' findings stand: toward the standing foot the side step ends with
   the capture point 27 cm ahead and no foot there; shoved at 0.30 of the
   stride the landing latched at 0.7 of the swing sits 14 cm inside the
@@ -131,10 +129,9 @@ Open work. Measured results are in FINDINGS.
   degrees) she falls all the same, the standing foot off the floor while
   the other is held. Prone, the push-up and
   the dog leave the head and the torso on the floor, the arms too weak to
-  lift them (`tools/sim/getup_lab.py` heels, bearwalk) - the drives now
-  sized give the shoulder 101 N m and the elbow 30 against the model's 40
-  and 25; till she has one, the page lands her again 3 s after she is down
-  (`running.RECOVER_S`). The model carries a tenth of the rotors the cycloids show
+  lift them (`tools/sim/getup_lab.py` heels, bearwalk): the model's 40 and
+  25 N m are a woman's, kept against the drives' 101 and 30 (the user,
+  2026-09-30). The model carries a tenth of the rotors the cycloids show
   (`physics.REFLECTED`): the walk to be tuned on them; M's and S's motors
   are estimates. The walk begins from a lean, the body 8 degrees ahead of
   plumb, the walker taking her mid-swing and letting the lean out over 2 s,

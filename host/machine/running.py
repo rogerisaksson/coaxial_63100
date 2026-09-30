@@ -11,7 +11,7 @@
 The loop runs at RATE_HZ on simulated time; each wall-clock slice it catches up to real time, at
 most SLICE_S of it at once, and says how much faster than real time it can run (`ratio`). What
 she does is the director's (`machine.director`): the arrival, the walk, a catch, fallen and up
-again.
+by herself.
 """
 import multiprocessing
 import queue
@@ -30,9 +30,9 @@ AVERAGE_S = 0.05
 #: her where she is counted down a stride at a time - seen coming.
 LEAD = 1
 
-#: Fallen, she is landed in the squat again RECOVER_S later, and rises: she has no get-up of her
-#: own yet (docs/TODO.md).
-RECOVER_S = 3.0
+#: Fallen, she gets up by herself (`machine.getup`); she is landed in the squat again RECOVER_S
+#: after it gives up (face down, or its tries spent), or once down LIE_MAX_S without lying still.
+RECOVER_S, LIE_MAX_S = 3.0, 15.0
 
 
 def _run(commands, states, cadence):
@@ -94,7 +94,8 @@ def _run(commands, states, cadence):
             due = bus['t'] + SLICE_S                     # behind: a slice, and the clock let go
             wall0, sim0 = began, due
         from_t = bus['t']
-        if director.stage == 'fallen' and bus['t'] - director.fallen_at >= RECOVER_S:
+        if director.stage == 'fallen' and bus['t'] - director.fallen_at >= (
+                RECOVER_S if director.given_up else LIE_MAX_S):
             begin()
             wall0, sim0 = time.perf_counter(), bus['t']
         while bus['t'] < due - 1e-9:
@@ -147,7 +148,7 @@ def _run(commands, states, cadence):
                                  int(world.block.sent[b.link]), b.bad) for b in world.buses.each]
                                if world.buses is not None else []),
                      'recover': (RECOVER_S - (bus['t'] - director.fallen_at)
-                                 if director.fallen_at is not None else None),
+                                 if director.given_up else None),
                      'style': style.state(), 'ratio': min(ratio, 99.0)}
             try:
                 states.put_nowait(state)

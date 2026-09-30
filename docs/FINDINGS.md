@@ -693,14 +693,16 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - A 5-step stair of 8 cm, blind, the floor read where each foot bears and
   the step expected again: she walks up all five, and pitches over at a
   landing a step lower (2026-09-28).
-- Her arms gave over 0.6 s, the hands by her face: the head 71 mm off the
-  floor, 132 on straight arms; hands over the head, it met the floor at 1.3
-  m/s (2026-09-28). Now the legs' and trunk's drives are shorted through
-  their low sides as she falls (`director.SHORT_FALLING`; kt^2/R: 140 N m
-  s/rad an L joint, 34 an M, 6.1 an S, held to the board's amps) and every
-  drive once down: of five falls 4 lay prone and 1 on her back, the head
-  at the floor 0.05-0.94 m/s, still 0.4-1.4 s after; curled and held, 3
-  on a side, the head 2.29; the waist left to turn her, 2 (2026-09-30).
+- Falling, the legs' and trunk's drives shorted (kt^2/R: 140 N m s/rad an
+  L joint, 34 an M, 6.1 an S, to the board's amps; `director.SHORT_FALLING`);
+  the arms held to the catch pinned their drives in all four falls, soft
+  (`director.SOFT_DEG`) 1-17 ms each. Up (`machine.getup`) on a woman's
+  40/25 N m arms: on one seat sphere she rolled back sat, on two buttocks she
+  sits; folded over the knees her centre of mass is over the heels, the
+  hands behind push her on. Up after the rug and the lace in 25 s. Risen
+  facing where she lay she fell 0.2-1 s into the walk: MuJoCo's pyramid
+  cone grips along the world's axes; elliptic at impratio 10 she walks 13 m
+  every way (2026-09-30).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The

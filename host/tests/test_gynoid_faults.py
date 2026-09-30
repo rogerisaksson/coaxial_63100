@@ -153,9 +153,9 @@ def test_a_drive_in_its_soa(report):
 
 def test_a_trip_lands_her_shorted(report):
     """A lace caught (`machine.events`) trips her past recovery: her head not the first of her
-    on the floor; down, her legs' and trunk's drives shorted, her arms and neck holding their
-    catch (`director.YIELD`) - she settles, not held stiff nor flailing."""
-    from machine import Machine, drives, events, figure, heat
+    on the floor; down, her legs' and trunk's drives shorted, her arms and neck not - she
+    settles, not held stiff nor flailing; lain still, she begins to get up (`machine.getup`)."""
+    from machine import Machine, drives, events, figure, getup, heat
     from machine.director import SHORT_FALLING, Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -166,8 +166,8 @@ def test_a_trip_lands_her_shorted(report):
     body.loop.step(0.0)
     world, bus = body.nodes['pelvis'].world, body.loop.bus
     ours = {world.model.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
-    laid, was, first, stages = None, 0.0, None, []
-    while bus['t'] < 4.5:
+    laid, was, first, stages, down, shorted = None, 0.0, None, [], None, None
+    while bus['t'] < 8.0 and director.stage not in getup.STAGES:
         if laid is None and bus['t'] >= 1.0 and was < events.at('lace') <= director.walker.phase:
             events.lay('lace', director, world)
             laid = bus['t']
@@ -183,15 +183,23 @@ def test_a_trip_lands_her_shorted(report):
                 name = ours.get(mine, '')
                 if name and other not in ours and not name.endswith(('foot', 'toes')):
                     first = first or name
+        if director.stage == 'fallen' and down is None:
+            down = bus['t']
+        if down is not None and shorted is None and bus['t'] > down + 0.2:
+            shorted = {j: bool(int(bus[name + 'status']) & heat.SHORTED)
+                       for j, name in director.drives.items()}
     report.check('the lace tripped her past recovery: falling, then down',
-                 laid is not None and stages[-2:] == ['falling', 'fallen'], ' '.join(stages))
+                 laid is not None and stages[1:3] == ['falling', 'fallen'], ' '.join(stages))
     report.check('her head not the first of her on the floor', first not in (None, 'head'),
                  'first %s' % first)
-    wrong = [j for j, name in director.drives.items()
-             if bool(int(bus[name + 'status']) & heat.SHORTED) != (drives.kind(j) in SHORT_FALLING)]
-    report.check('down, the legs\' and trunk\'s phases shorted, the arms and neck holding', not wrong,
+    wrong = [j for j, s in (shorted or {}).items() if s != (drives.kind(j) in SHORT_FALLING)]
+    report.check('down, the legs\' and trunk\'s phases shorted, the arms and neck not',
+                 shorted is not None and not wrong,
                  '%d of %d as asked, else: %s' % (len(director.drives) - len(wrong),
                                                   len(director.drives), ' '.join(wrong) or 'none'))
+    report.check('lain still, she begins to get up', director.stage in getup.STAGES,
+                 '%s at %.1f s, down at %s' % (director.stage, bus['t'],
+                                              '%.1f s' % down if down else '-'))
     body.disarm()
 
 

@@ -295,15 +295,17 @@ def _now(name):
     return float(getattr(next(m for m in mods if hasattr(m, name)), name))
 
 
-def search(pool, spans, generations, lam, log, sigma=0.08):
-    """CMA-ES over `spans` {name: (low, high)}, each scaled to its span, from the walk as it is,
-    `sigma` of a span its first step: a walk that looks right is refined, not searched away -
-    begun from the spans' middles at a quarter, the searches found tiptoeing (2026-09-28)."""
+def search(pool, spans, generations, lam, log, sigma=0.08, runs=None, start=None):
+    """CMA-ES over `spans` {name: (low, high)}, each scaled to its span, from the walk as it is
+    (or `start`, {name: value}), `sigma` of a span its first step: a walk that looks right is
+    refined, not searched away - begun from the spans' middles at a quarter, the searches found
+    tiptoeing (2026-09-28). `runs(pool, candidates)` scores them, `run`'s way, by default."""
     import numpy as np
+    runs, start = runs or run, start or {}
     names = list(spans)
     dim = len(names)
-    mean = np.array([min(1.0, max(0.0, (_now(n) - spans[n][0]) / (spans[n][1] - spans[n][0])))
-                     for n in names])
+    mean = np.array([min(1.0, max(0.0, ((start[n] if n in start else _now(n)) - spans[n][0])
+                                  / (spans[n][1] - spans[n][0]))) for n in names])
     mu = lam // 2
     weights = math.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
     weights /= weights.sum()
@@ -323,7 +325,7 @@ def search(pool, spans, generations, lam, log, sigma=0.08):
         xs = np.clip(mean + sigma * rng.standard_normal((lam, dim)) @ root.T, 0.0, 1.0)
         cands = [{n: float(spans[n][0] + x[i] * (spans[n][1] - spans[n][0]))
                   for i, n in enumerate(names)} for x in xs]
-        got = run(pool, cands)
+        got = runs(pool, cands)
         costs = np.array([g[0] for g in got])
         for values, (cost, held, stir, _r) in zip(cands, got):
             log.write(json.dumps({'gen': gen, 'values': values, 'cost': cost, 'held': held,

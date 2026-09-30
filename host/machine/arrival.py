@@ -109,10 +109,16 @@ def angles_of(frame, turn=None):
     out.update(frame['joints'])
     for side, sign in (('left', 1.0), ('right', -1.0)):
         ankle, pitch = frame[side]
-        for k, v in zip(LEG, figure.leg(sign, frame['pelvis'], turn, ankle,
-                                          rx(math.radians(pitch)))):
+        for k, v in zip(LEG, figure.leg(sign, frame['pelvis'], turn, ankle, _foot(frame, pitch))):
             out[side + k] = math.degrees(v)
     return out
+
+
+def _foot(frame, pitch):
+    """A keyframe's foot's turn: pitched toes-up `pitch` deg, facing its `yaw`. Unturned, a foot
+    faced the walk's line whichever way she faced - up from a fall facing back, the legs were
+    solved half a turn twisted and she sank out of the squat (2026-09-30)."""
+    return mul(ry(math.radians(frame.get('yaw', 0.0))), rx(math.radians(pitch)))
 
 
 def com_of(frame):
@@ -281,10 +287,11 @@ class Arrival:
         self.play([(stage, s, moved(frame, dx, dz, yaw))
                    for stage, s, frame in keyframes(self.cadence)])
 
-    def settle(self, now, front, speed):
+    def settle(self, now, front, speed, yaw=0.0):
         """Down into the squat from `now`, a keyframe of her mid-step moving on at `speed`, m/s
-        (`settling`)."""
-        self.play(settling(now, front, self.cadence), speed)
+        (`settling`), both as along the walk's line; turned `yaw` degrees onto her own."""
+        self.play([(s, t, moved(f, 0.0, 0.0, yaw)) for s, t, f in
+                   settling(now, front, self.cadence)], speed)
 
     def _at(self):
         """(stage, keyframe, its centre of mass) now: between two keyframes, eased - entered
@@ -314,13 +321,17 @@ class Arrival:
             (want[0] - self.want_was[0]) / dt, (want[2] - self.want_was[2]) / dt)
         self.want_was = want
         p = frame['pelvis']
-        on = p[2] - COM_K * (com[1] - want[2]) - COM_D * (self.v[1] - v_want[1])
+        x = p[0] - COM_K * (com[0] - want[0]) - COM_D * (self.v[0] - v_want[0])
+        z = p[2] - COM_K * (com[1] - want[2]) - COM_D * (self.v[1] - v_want[1])
         # Falling on into the first step (a keyframe's `fall`, 0 to 1), the target is not pulled
-        # back behind her: pulled 13-46 mm back, the standing knee bent 5 -> 16 degrees under her
-        # and she curtsied 18 mm down before the walk (2026-09-28).
-        on += frame.get('fall', 0.0) * max(0.0, bus['pelvis.pose.z'] - on)
-        frame = dict(frame, pelvis=(
-            p[0] - COM_K * (com[0] - want[0]) - COM_D * (self.v[0] - v_want[0]), p[1], on))
+        # back behind her along her way: pulled 13-46 mm back, the standing knee bent 5 -> 16
+        # degrees under her and she curtsied 18 mm down before the walk (2026-09-28); along the
+        # world's z, facing 90 degrees off it pushed her across her stance foot (2026-09-30).
+        yaw = math.radians(frame.get('yaw', 0.0))
+        way = (math.sin(yaw), math.cos(yaw))
+        on = frame.get('fall', 0.0) * max(0.0, (bus['pelvis.pose.x'] - x) * way[0]
+                                          + (bus['pelvis.pose.z'] - z) * way[1])
+        frame = dict(frame, pelvis=(x + on * way[0], p[1], z + on * way[1]))
         # The pelvis's attitude turned back past its error, as the walker turns it: held by the
         # legs' servos alone, it tipped back as she rolled onto the stepping foot.
         turn = _turn(frame)
@@ -337,16 +348,18 @@ class Arrival:
                                         - math.degrees(math.atan2(local[2][1], local[1][1])))
         # A leg bearing under `stance.LANDED_N` reaches from where the pelvis is, as the walker's
         # swinging leg: reached from the pelvis's target, moved by the feedback, the stepping foot
-        # landed 8 cm off its mark (2026-09-26).
+        # landed 8 cm off its mark (2026-09-26). A keyframe's `planted` feet are stance whatever
+        # they bear: crouched with her hands down, both read light and she was flung up.
         pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
         for side, sign in walkplan.SIDES:
-            b = min(1.0, bus['pelvis.pose.%s_load' % side] / stance.LANDED_N)
+            b = min(1.0, max(frame.get('planted', 0.0),
+                             bus['pelvis.pose.%s_load' % side] / stance.LANDED_N))
             if b < 1.0:
                 ankle, pitch = frame[side]
                 hip_from = tuple(b * a + (1.0 - b) * c for a, c in zip(frame['pelvis'], pel))
                 reach = figure.mul(walkplan.turned(tuple(b * c for c in walkplan.vee(
                     figure.mul(turn, figure.t(now))))), now)
                 for k, v in zip(LEG, figure.leg(sign, hip_from, reach, ankle,
-                                                  rx(math.radians(pitch)))):
+                                                  _foot(frame, pitch))):
                     out[side + k] = math.degrees(v)
         return out
