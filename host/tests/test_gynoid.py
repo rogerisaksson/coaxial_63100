@@ -196,9 +196,32 @@ def test_she_rises_and_walks(report):
     body.disarm()
 
 
+def test_a_style_eases_in(report):
+    """A style knob trimmed (`machine.style`): the walk's plan eases from the old tables to the
+    new over `walkplan.RETABLE_S`, never a jump; the knob within its bounds."""
+    from machine import style, walkplan
+    was = style.value('turn')
+    try:
+        old = walkplan.plan(0.3, 1.0)
+        style.trim('turn', 4)
+        at_once = walkplan.plan(0.3, 1.0)
+        walkplan.ease(walkplan.RETABLE_S / 2.0)
+        half = walkplan.plan(0.3, 1.0)
+        walkplan.ease(walkplan.RETABLE_S)
+        new = walkplan.plan(0.3, 1.0)
+        report.check('trimmed, the plan the old one at first, between halfway, the new at the end',
+                     at_once[2] == old[2] and min(old[2], new[2]) < half[2] < max(old[2], new[2])
+                     and new[2] != old[2], 'yaw %.4f %.4f %.4f rad' % (old[2], half[2], new[2]))
+        report.check('a knob kept within its bounds', style.set('turn', 99.0) == 12.0,
+                     '%.1f deg' % style.value('turn'))
+    finally:
+        style.set('turn', was)
+        walkplan.ease(walkplan.RETABLE_S)
+
+
 ROSTER = (test_a_virtual_body_walks, test_a_leg_by_its_foot, test_a_body_with_mass_walks,
           test_the_pendulum_between_her_ears, test_she_rises_and_walks, test_dressed_or_bare,
-          test_the_floor_outlasts_a_walk)
+          test_the_floor_outlasts_a_walk, test_a_style_eases_in)
 
 
 def main(argv=None):

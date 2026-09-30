@@ -267,11 +267,15 @@ LEFT_FOOT, RIGHT_FOOT = ('left_foot', 'left_toes'), ('right_foot', 'right_toes')
 #: The walk measured from WALK_FROM_S after it begins: its look, each (name, unit, of the rows).
 WALK_FROM_S = 2.0
 WALK = (
-    ('hips across', 'mm', lambda rs: _ptp(float(r['x']) for r in rs) * 1e3),
-    ('shoulders across', 'mm', lambda rs: _ptp(
-        _mid(_p(r, 'left_upper_arm'), _p(r, 'right_upper_arm'))[0] for r in rs) * 1e3),
     ('pelvis roll', 'deg', lambda rs: _ptp(_roll(r) for r in rs)),
     ('pelvis turn', 'deg', lambda rs: _ptp(_turn(r) for r in rs)),
+    # a stride's own: each row less its stride's mean, her path's drift out
+    ('hips wag', 'mm', lambda rs: _ptp(_surge(rs, lambda r: float(r['x']))) * 1e3),
+    ('shoulders wag', 'mm', lambda rs: _ptp(_surge(rs, lambda r: _mid(
+        _p(r, 'left_upper_arm'), _p(r, 'right_upper_arm'))[0])) * 1e3),
+    ('pelvis swing', 'deg', lambda rs: _ptp(_surge(rs, _turn))),
+    ('torso turn', 'deg', lambda rs: _ptp(_surge(rs, _shoulders_turn))),
+    ('torso roll', 'deg', lambda rs: _ptp(_shoulders_roll(r) for r in rs)),
     ('head bob', 'mm', lambda rs: _ptp(_p(r, 'head')[1] for r in rs) * 1e3),
     ('head fore-aft', 'mm', lambda rs: _ptp(_surge(rs, lambda r: _p(r, 'head')[2])) * 1e3),
     ('pelvis fore-aft', 'mm', lambda rs: _ptp(_surge(rs, lambda r: float(r['z']))) * 1e3),
@@ -409,6 +413,18 @@ def _surge(rs, along):
         if ts[0] <= t - STRIDE_S / 2.0 and t + STRIDE_S / 2.0 <= ts[-1]:
             out.append(v - sum(near) / len(near))
     return out
+
+
+def _shoulders_turn(r):
+    """The shoulders' line about the vertical, deg, + her left shoulder back."""
+    a, b = _p(r, 'left_upper_arm'), _p(r, 'right_upper_arm')
+    return math.degrees(math.atan2(a[2] - b[2], a[0] - b[0]))
+
+
+def _shoulders_roll(r):
+    """The shoulders' line from level, deg, + her left shoulder up."""
+    a, b = _p(r, 'left_upper_arm'), _p(r, 'right_upper_arm')
+    return math.degrees(math.atan2(a[1] - b[1], math.hypot(a[0] - b[0], a[2] - b[2])))
 
 
 def _turn(r):

@@ -61,7 +61,6 @@ RESUME, ON_S, RESUME_BLEND_S = 0.3, 0.05, 0.1
 #: into the feedback, and she fell in two seconds.
 SPEED_S = 0.005
 
-
 #: The pelvis is driven across no further than SOLE_M from where it is, m - what the ankle can do
 #: on the sole: asked 10 cm across after a side step, the ankle saturated, the foot tipped on its
 #: edge and threw her up (2026-09-26).
@@ -258,6 +257,7 @@ class Walker:
 
     def step(self, dt):
         """{joint: degrees}: where every drive should be now."""
+        walkplan.ease(dt)
         bus = self._view(self.machine.loop.bus)
         pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
         turn_now = figure.quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],

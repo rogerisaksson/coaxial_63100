@@ -226,8 +226,8 @@ def walked(times, joints):
     lean = np.degrees(np.arctan2((j['Neck'] - j['Spine']) @ ahead, (j['Neck'] - j['Spine']) @ up))
     return [('walked', t[-1] - t[0], 's'), ('speed', np.linalg.norm(travel) / (t[-1] - t[0]), 'm/s'),
             ('steps', 2.0 * stride, '/s'),
-            ('hips across', np.ptp(off(j['Hips'], left)) * 1e3, 'mm'),
-            ('shoulders across', np.ptp(off(shoulders, left)) * 1e3, 'mm'),
+            ('hips wag', np.ptp(off(j['Hips'], left)) * 1e3, 'mm'),
+            ('shoulders wag', np.ptp(off(shoulders, left)) * 1e3, 'mm'),
             ('pelvis roll', np.ptp(roll), 'deg'), ('pelvis turn', np.ptp(turn), 'deg'),
             ('head bob', np.ptp(j['Head'][:, 1]) * 1e3, 'mm'),
             ('pelvis fore-aft', np.ptp(off(j['Hips'], ahead)) * 1e3, 'mm'),

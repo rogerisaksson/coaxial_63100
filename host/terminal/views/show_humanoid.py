@@ -24,7 +24,7 @@ import time
 
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
-from machine import ansi
+from machine import ansi, style
 from machine.director import moment
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from machine.routines import TYPES
@@ -170,6 +170,10 @@ def boxes(state, now, name):
          else 'on, %.1f s - R saves' % (len(state['recording']) / 60.0)
          if state['recording'] is not None else os.path.basename(state['recorded'])),
         ('drawn by', name)])]
+    knobs = now.get('style', {}) if now else {}
+    out.append(hud('STYLE', [
+        (('> ' if name == state['knob'] else '  ') + name,
+         _knob(knobs[name], style.unit(name)) if name in knobs else '-') for name in style.NAMES]))
     for subsystem in TYPES['gynoid'].body:
         out.append(hud(subsystem.name.replace('_', ' ').upper(), [
             (joint.split('_', 1)[-1] if subsystem.name != 'axis' else joint,
@@ -255,6 +259,21 @@ def _paced(step):
         state['cadence'] = max(CADENCE[0], min(CADENCE[1], state['cadence'] + step))
         state['body'].send(cadence=state['cadence'])
     return pace
+
+
+def _knob(value, unit):
+    """A style knob's value as the STYLE box says it: metres in mm."""
+    return '%.0f mm' % (value * 1e3) if unit == 'm' else ('%.2f %s' % (value, unit)).rstrip()
+
+
+def _next_knob(state):
+    """K: the next style knob to trim."""
+    state['knob'] = style.NAMES[(style.NAMES.index(state['knob']) + 1) % len(style.NAMES)]
+
+
+def _trimmed(steps):
+    """, and .: the knob picked a step down or up, the walk eased over to it (`machine.style`)."""
+    return lambda state: state['body'].send(style=(state['knob'], steps))
 
 
 #: The page plays her back LAG_S of her time behind the newest state said, its clock's pace her
@@ -355,6 +374,7 @@ KEYS = dict(
     + [(k, lambda state: state.update(called=CALLING[(CALLING.index(state['called']) + 1)
                                                      % len(CALLING)])) for k in 'lL']
     + [(k, _recorded) for k in 'rR']
+    + [(k, _next_knob) for k in 'kK'] + [(',', _trimmed(-1)), ('.', _trimmed(1))]
     + [(k, lambda state: state.update(shown=SHOWN[(SHOWN.index(state['shown']) + 1)
                                                   % len(SHOWN)])) for k in 'tT']
     + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'vV']
@@ -398,7 +418,7 @@ def main(argv=None):
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
              'tripped': None, 'playback': Playback(), 'shown': 'torque', 'dressed': True,
-             'data': False, 'traffic': None}
+             'data': False, 'traffic': None, 'knob': style.NAMES[0]}
 
     def draw():
         said = []
@@ -440,7 +460,7 @@ def main(argv=None):
         return frame_of(board_view, ORIGIN, TITLE, art, side,
                         (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
                          ('1-6', 'HOLE RUG SILL SLIP LACE STAIRS'),
-                         ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
+                         ('K , .', 'STYLE'), ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
                          ('V', 'VIEW'), ('C', 'CLOTHES'), ('D', 'DATA'),
                          ('Q', 'EXIT'), ('ESC', 'MENU')))

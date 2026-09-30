@@ -74,6 +74,30 @@ class _Tables(dict):
 #: The plan by stride, every `gait.PACE_STEP`, tabled on first ask.
 _TABLES = _Tables()
 
+#: A style changed (`retable`), the plan eases from the tables before it to the new over
+#: RETABLE_S of the walker's clock (`ease`): the tables before, and how far on, 0 to 1. The turn
+#: trimmed 4 degrees up mid-walk, the pelvis turned at most 88.6 deg/s eased, 162.3 at once,
+#: against the walk's own 110.3 (2026-09-30).
+RETABLE_S = 0.5
+_BEFORE = {'tables': None, 'k': 1.0}
+
+
+def retable():
+    """The walk's constants moved: new tables from them - the hips' fits too - the plan eased
+    over from the old."""
+    global _TABLES
+    _BEFORE['tables'], _BEFORE['k'] = _TABLES, 0.0
+    _TABLES = _Tables()
+    gait._FITS.clear()
+
+
+def ease(dt):
+    """The plan `dt` s further from the tables before a style's change to the new."""
+    if _BEFORE['tables'] is not None:
+        _BEFORE['k'] = min(1.0, _BEFORE['k'] + dt / RETABLE_S)
+        if _BEFORE['k'] >= 1.0:
+            _BEFORE['tables'] = None
+
 
 def _mix(a, b, k):
     """`a` k of the way to `b`, element by element, through nested tuples."""
@@ -83,7 +107,16 @@ def _mix(a, b, k):
 
 
 def plan(p, stride) -> tuple:
-    """The walk at phase `p` and `stride`, as `_sample` answers, from the tables."""
+    """The walk at phase `p` and `stride`, as `_sample` answers, from the tables - eased from
+    the tables before a style's change while `ease` has not yet run them out."""
+    now = _planned(_TABLES, p, stride)
+    before = _BEFORE['tables']
+    if before is None:
+        return now
+    return _mix(_planned(before, p, stride), now, gait.eased(_BEFORE['k']))
+
+
+def _planned(tables, p, stride):
     low = math.floor(stride / gait.PACE_STEP) * gait.PACE_STEP
     w = (stride - low) / gait.PACE_STEP
     x = (p % 1.0) * SAMPLES
@@ -94,10 +127,10 @@ def plan(p, stride) -> tuple:
         if abs(b[2] - a[2]) > math.pi:
             b = (b[0], b[1], a[2]) + b[3:]
         return _mix(a, b, u)
-    below = at(_TABLES[round(max(low, gait.PACE_STEP), 6)])
+    below = at(tables[round(max(low, gait.PACE_STEP), 6)])
     if w < 1e-9:
         return below
-    return _mix(below, at(_TABLES[round(low + gait.PACE_STEP, 6)]), w)
+    return _mix(below, at(tables[round(low + gait.PACE_STEP, 6)]), w)
 
 
 def vee(r):

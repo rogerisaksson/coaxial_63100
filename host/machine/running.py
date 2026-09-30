@@ -4,6 +4,7 @@
     body.send(cadence=1.0); body.send(push=(0.0, 0.0, 120.0))
     body.send(glitch=('left_knee', 'soa', 0.5))   # a board glitched (`World.glitch`)
     body.send(event='sill')              # laid where her walk meets it (`machine.events`)
+    body.send(style=('turn', +1))        # a style knob a step up (`machine.style`), eased in
     now = body.latest()                  # {'angles', 'where', 'turn', 'stage', ..}, or None yet
     body.close()
 
@@ -38,7 +39,7 @@ def _run(commands, states, cadence):
     """The worker: the machine, the director, the loop paced to the clock."""
     import numpy as np
 
-    from machine import Machine, events
+    from machine import Machine, events, style
     from machine.director import Director
     from machine.figure import JOINTS
     from machine import heat
@@ -80,6 +81,8 @@ def _run(commands, states, cadence):
                     world.glitch(*command['glitch'])
                 if 'event' in command:
                     event = [command['event'], LEAD]
+                if 'style' in command:
+                    style.trim(*command['style'])
                 if command.get('restart'):
                     begin()
                     wall0, sim0 = time.perf_counter(), bus['t']
@@ -145,7 +148,7 @@ def _run(commands, states, cadence):
                                if world.buses is not None else []),
                      'recover': (RECOVER_S - (bus['t'] - director.fallen_at)
                                  if director.fallen_at is not None else None),
-                     'ratio': min(ratio, 99.0)}
+                     'style': style.state(), 'ratio': min(ratio, 99.0)}
             try:
                 states.put_nowait(state)
             except queue.Full:
@@ -170,6 +173,7 @@ class Running:
     def send(self, **command):
         """{'cadence': strides/s} | {'push': (x, y, z) N, 'seconds': s} | {'glitch': (joint,
         kind, s)} | {'event': one of `events.EVENTS`, laid where her walk meets it} |
+        {'style': (knob, steps)}: a knob of `machine.style` trimmed, the walk eased over to it |
         {'restart': True}: landed in the squat again."""
         self._commands.put(command)
 
