@@ -4,6 +4,8 @@ The model's bodies (`ground` before her figure, `rug` after it), each event plac
 walk's line (`place`) or parked out of her way (`park`), and drawn as boxes (`props`) -
 functions of the `physics.World`.
 """
+import math
+
 from machine.errors import MachineError
 
 #: The floor's events, placed on the walk's line by `World.terrain`: a hole HOLE_M deep and
@@ -89,37 +91,55 @@ def park(world):
         mocap(world, name, (0.0, -1.0, 0.0))
     for name, _half, _at in _steps():
         mocap(world, name, (0.0, -2.0, 0.0))
-    lay_rug(world, PARKED_M)
+    lay_rug(world, (0.0, PARKED_M))
 
 
-def mocap(world, name, at):
+def _turn(heading):
+    """The quaternion turning a box's z onto `heading`, radians from the world's z."""
+    return (math.cos(heading / 2.0), 0.0, math.sin(heading / 2.0), 0.0)
+
+
+def _on(at, heading, x, y, z):
+    """World (x, y, z) of a point (x, z) on from `at` (world x, z) in `heading`'s frame."""
+    c, s = math.cos(heading), math.sin(heading)
+    return (at[0] + x * c + z * s, y, at[1] - x * s + z * c)
+
+
+def mocap(world, name, at, heading=0.0):
     m = world.model
-    world.data.mocap_pos[m.body_mocapid[m.body(name).id]] = at
+    k = m.body_mocapid[m.body(name).id]
+    world.data.mocap_pos[k], world.data.mocap_quat[k] = at, _turn(heading)
 
 
-def lay_rug(world, z):
-    """The rug laid still on the floor, its front edge at `z`."""
+def lay_rug(world, at, heading=0.0):
+    """The rug laid still on the floor, its front edge at `at` (world x, z) across `heading`."""
     m, d = world.model, world.data
     joint = m.joint('rug').id
     adr, dof = m.jnt_qposadr[joint], m.jnt_dofadr[joint]
-    d.qpos[adr:adr + 7] = (0.0, RUG_M / 2.0 + 0.001, z + RUG_LONG_M / 2.0, 1.0, 0.0, 0.0, 0.0)
+    d.qpos[adr:adr + 7] = _on(at, heading, 0.0, RUG_M / 2.0 + 0.001, RUG_LONG_M / 2.0) + _turn(
+        heading)
     d.qvel[dof:dof + 6] = 0.0
 
 
-def place(world, kind, z):
-    """The floor's event `kind` on the walk's line: a 'hole', a 'sill' or a 'slip' patch
-    centred at world `z`, a 'rug' with its front edge there, 'stairs' their first riser."""
+def place(world, kind, z, x=0.0, heading=0.0):
+    """The floor's event `kind` on the walk's line, `heading` radians from the world's z, (x, z)
+    across and along it: a 'hole', a 'sill' or a 'slip' patch centred there, a 'rug' with its
+    front edge there, 'stairs' their first riser. The hole's gap crosses the world's z where
+    her way does: the slab's halves turned off their compiled bounds would be missed."""
+    c, s = math.cos(heading), math.sin(heading)
+    at = (x * c + z * s, -x * s + z * c)
     if kind == 'hole':
-        slab(world, z - HOLE_LONG_M / 2.0, z + HOLE_LONG_M / 2.0)
+        slab(world, at[1] - HOLE_LONG_M / 2.0, at[1] + HOLE_LONG_M / 2.0)
+        world.hole_x = at[0]
     elif kind == 'sill':
-        mocap(world, 'sill', (0.0, SILL_M / 2.0, z))
+        mocap(world, 'sill', (at[0], SILL_M / 2.0, at[1]), heading)
     elif kind == 'slip':
-        mocap(world, 'slip', (0.0, 0.0005, z))
+        mocap(world, 'slip', (at[0], 0.0005, at[1]), heading)
     elif kind == 'rug':
-        lay_rug(world, z)
+        lay_rug(world, at, heading)
     elif kind == 'stairs':
-        for name, _half, (x, y, dz) in _steps():
-            mocap(world, name, (x, y, z + dz))
+        for name, _half, (dx, y, dz) in _steps():
+            mocap(world, name, _on(at, heading, dx, y, dz), heading)
     else:
         raise MachineError('no floor event %r: hole, sill, slip, rug or stairs' % kind)
 
@@ -133,7 +153,7 @@ def props(world):
     gap = (m.geom_pos[a][2] + m.geom_size[a][2], m.geom_pos[m.geom('slab_b').id][2]
            - m.geom_size[m.geom('slab_b').id][2])
     if gap[1] - gap[0] > 1e-6:
-        out.append(('hole', (0.0, -HOLE_M / 2.0, sum(gap) / 2.0),
+        out.append(('hole', (getattr(world, 'hole_x', 0.0), -HOLE_M / 2.0, sum(gap) / 2.0),
                     (0.5, HOLE_M / 2.0, (gap[1] - gap[0]) / 2.0), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
     for name in ('sill', 'slip') + tuple(n for n, _h, _a in _steps()):
         body = m.body(name).id
@@ -141,7 +161,7 @@ def props(world):
         if at[1] > -0.5:
             g = m.body_geomadr[body]
             out.append(('stairs' if name.startswith('step') else name, tuple(at),
-                        tuple(m.geom_size[g]), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
+                        tuple(m.geom_size[g]), tuple(map(tuple, d.xmat[body].reshape(3, 3)))))
     rug = m.body('rug').id
     if d.xpos[rug][2] > PARKED_M + 1.0:
         out.append(('rug', tuple(d.xpos[rug]), (0.3, RUG_M / 2.0, RUG_LONG_M / 2.0),

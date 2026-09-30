@@ -12,6 +12,8 @@ of its stance the knee's board in its SOA for SOA_S, or warmed. A spread step `k
 event STEP_M along the walk and a glitch GLITCH_STEP of the stride; `strides` on lays a floor
 event that many strides further, met at the same phase.
 """
+import math
+
 from machine import figure, floor, gait
 
 EVENTS = ('hole', 'sill', 'slip', 'rug', 'stairs', 'lace', 'soa', 'hot')
@@ -37,14 +39,16 @@ def at(event, k=0):
 def lay(event, director, world, k=0, strides=0):
     """`event` laid where the walk will meet it, the left leg's phase crossing `at` now - a
     floor event `strides` strides on."""
-    bus, walker = director.machine.loop.bus, director.walker
+    walker = director.walker
+    bus = walker.view(director.machine.loop.bus)
+    h = walker.heading
     on = strides * gait.STRIDE_M * walker.stride
     landing = (bus['pelvis.pose.z'] + (1.0 - gait.TOE_OFF) * gait.STRIDE_M * walker.stride
                + gait.planted(0.0, walker.stride)[0] + k * STEP_M + on)
     if event in ('soa', 'hot'):
         world.glitch('left_knee', event, SOA_S)
     elif event == 'lace':
-        world.tug('left_foot', (0.0, 0.0, -LACE_N), LACE_S)
+        world.tug('left_foot', (-LACE_N * math.sin(h), 0.0, -LACE_N * math.cos(h)), LACE_S)
     else:
         world.terrain(event, {
             'hole': landing + (gait.BALL - gait.HEEL) / 2.0, 'slip': landing,
@@ -52,4 +56,4 @@ def lay(event, director, world, k=0, strides=0):
             'rug': landing - RUG_HEEL_M,
             'sill': (walker.balls['left'][2] + 2.0 * figure.CONTACTS[1][2][2]
                      + SILL_AHEAD_M + k * STEP_M + on),
-        }[event])
+        }[event], bus['pelvis.pose.x'], h)

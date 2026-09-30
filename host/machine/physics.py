@@ -287,9 +287,9 @@ class World:
     def _park(self):
         floor.park(self)
 
-    def terrain(self, kind, z):
+    def terrain(self, kind, z, x=0.0, heading=0.0):
         """The floor's event `kind` on the walk's line (`floor.place`)."""
-        floor.place(self, kind, z)
+        floor.place(self, kind, z, x, heading)
         self._mj.mj_forward(self.model, self.data)
 
     def reset(self, degrees, where=(0.0, 1.0, 0.0), turn=(1.0, 0.0, 0.0, 0.0), rates=None,

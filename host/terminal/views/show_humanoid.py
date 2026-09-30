@@ -258,8 +258,11 @@ def _ahead(now):
     props = now.get('props', ())
     if any(p[0] == 'lace' for p in props):
         return 'lace caught'
-    near = [(p[1][2] - now['where'][2], p[0]) for p in props
-            if p[0] != 'lace' and p[1][2] - now['where'][2] > -AWAY_M]
+    w, x, y, z = now['turn']
+    h = math.atan2(2.0 * (x * z + w * y), 1.0 - 2.0 * (x * x + y * y))
+    near = [(d, p[0]) for p in props if p[0] != 'lace' for d in [
+        (p[1][0] - now['where'][0]) * math.sin(h) + (p[1][2] - now['where'][2]) * math.cos(h)]
+        if d > -AWAY_M]
     if near:
         metres, kind = min(near)
         return '%s under her' % kind if abs(metres) <= NEAR_M else (
