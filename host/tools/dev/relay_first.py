@@ -9,8 +9,10 @@ import json
 import re
 import sys
 
-#: A test file an interpreter runs.
-SUITE_RE = re.compile(r'\bpy(?:thon[\d.]*)?(?:\.exe)?\b[^;&|\n]*?\btests[\\/]+test_\w+\.py')
+#: A test file an interpreter runs: the interpreter a command word, not a path's `.py` - `git add
+#: a.py tests/test_b.py` was denied as a suite run (2026-09-30).
+SUITE_RE = re.compile(
+    r'(?:^|[\s;&|(\\/])(?:py|python[\d.]*)(?:\.exe)?\s[^;&|\n]*?\btests[\\/]+test_\w+\.py')
 
 #: The tools that put suites on the relay themselves.
 RELAYED_RE = re.compile(r'\btools[\\/]+dev[\\/]+(?:run_tests|ab|gate|cover)\.py')

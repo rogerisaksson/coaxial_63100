@@ -86,6 +86,13 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - **Local first.** Scripts, lint, suites on this host before agents or
   workflows, ultracode or not; agents only for what cannot run here. Two
   swarms (2026-09-24) burned tokens and ran slower than local work.
+- **The relay maxes the host.** Suites only through the baton relay
+  (`tools/dev/focus.py`: a baton a physical core, the longest first, the
+  long ones as shards): `python tools/dev/run_tests.py --file test_a.py
+  --file test_b.py:word` (`--smart` what the diff reaches, `--offline` the
+  gate); Monte Carlos through `tools/sim/gait_montecarlo.py`. Never a
+  suite run straight nor a pool of one's own (`relay_first.py` denies the
+  first).
 - **Narrowest test first** while a bug is live. **Green before the next
   item**, pre-existing failures included.
 - **Suspect your own code before the hardware**: reference implementation,
@@ -107,7 +114,8 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 
 ## Routine, per item
 
-1. Narrow suite (`cd host; python -X utf8 tests/<suite>.py`); `-Structure`
+1. Narrow suites on the relay (`cd host; python tools/dev/run_tests.py --file
+   test_x.py[:word]`, every suite the item reaches in one call); `--structure`
    after host/ edits; offline gate (`python tools/dev/run_tests.py --offline`)
    before pushing `coaxial/` changes. Lint (`host/tools/dev/lint.py`:
    markdownlint, pyright basic) runs as a hook after every edit and at stop.

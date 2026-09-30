@@ -28,9 +28,10 @@
   real + simulated implementations; add a method to both or neither.
 - Refusals are the board's words (`u8 took` + text); the host validates only
   what stops a request being formed.
-- Suites: `python -X utf8 tests/<suite>.py`; `.\run_tests.ps1` (~25 %,
-  `-All`, `-Structure`, `-Scope X.py`); offline gate
-  `python tools/dev/run_tests.py --offline` (~2.5 min). Sizes live in
+- Suites on the relay: `python tools/dev/run_tests.py --file test_x.py[:w]`
+  (repeatable), `.\run_tests.ps1` (~25 %, `-All`, `-Structure`, `-Scope
+  X.py`); offline gate `python tools/dev/run_tests.py --offline` (~2.5
+  min). Sizes live in
   `tests/.counts.json`; no document quotes them. Narrow first:
   `test_simulated`, `test_native` (`body` the humanoid's) take words of
   test names; `test_emulator`'s groups, the gate's suites, `ab.py`'s pages
