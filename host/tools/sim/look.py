@@ -4,7 +4,7 @@
 From the squat as the page runs her, or a recording (R, build/recordings/*.csv) - the same rows
 either way (`show_humanoid.row`).
 
-    python tools/sim/look.py                        # from the squat, 12 s
+    python tools/sim/look.py                        # from the squat, 16 s
     python tools/sim/look.py --last                 # the newest recording
     python tools/sim/look.py --csv build/recordings/humanoid_20260928_070724.csv
     python tools/sim/look.py SOFT_KNEE=6            # a knob moved (tools/sim/gait_montecarlo)
@@ -15,11 +15,11 @@ A row a stage (the walk's first second apart): the pelvis and the head under the
 dip), the torso ahead of plumb, the torso against the left shin (under 0 it leans back over bent
 knees), the hips-to-shoulders line, the left knee (under 0 bent back), the head's pitch (its
 range the nod), the left hip's roll, the thighs' gap as drawn, bare and in the jeans (under 0
-they meet) - least and most over the stage, deg and mm.
+they meet), the trunk's and arms' to the legs (simulated), how far the pelvis's and the head's
+forward point above level (90 on her back) - least and most over the stage, deg and mm.
 """
 import argparse
 import csv
-import functools
 import glob
 import math
 import os
@@ -28,6 +28,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO  # noqa: E402
+from tools.sim.strides import _faces, _gap, _lean, _mid, _p, _roll, walked  # noqa: E402
 
 #: The head's rest pitch in the neck's offset (`figure.SEGMENTS`: 0.09 up, 0.012 on), deg.
 HEAD_REST = math.degrees(math.atan2(0.012, 0.09))
@@ -43,10 +44,9 @@ LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 
 def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT_S):
     """The rows from the squat, `to_s` seconds, the director as the page runs her - halted at
-    `halt_s`, an `event` laid from `event_s` (`machine.events`); LEG_GAIN among `values`
-    stiffens the legs' drives
-    (`physics.SERVO`). A simulated row says what of her touches the floor (`down`) and when
-    the event was laid (`laid`)."""
+    `halt_s`, an `event` laid from `event_s` (`machine.events`), LEG_GAIN among `values`
+    stiffening LEG_KINDS; a row what of her touches the floor (`down`), when the event was laid
+    (`laid`)."""
     from machine import physics
     from tools.sim.gait_montecarlo import _set
     values = dict(values)
@@ -90,7 +90,7 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
 def sample(bus, director, world, asked=None):
     """A row as the page records it (`show_humanoid.row`), from the loop's bus: the loose hinges
     beside it, and how near her feet come."""
-    from machine.figure import JOINTS
+    from machine.figure import JOINTS, UPPER
     from terminal.views.show_humanoid import HEADER, row
     now = {'t': bus['t'], 'stage': director.stage, 'speed': bus['pelvis.pose.vz'],
            'phase': director.walker.phase,
@@ -99,7 +99,8 @@ def sample(bus, director, world, asked=None):
            'turn': tuple(bus['pelvis.pose.q' + k] for k in 'wxyz'),
            'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked or {}}
     return dict(zip(HEADER, row(now, 60.0)), loose=world.loose(),
-                feet=world.gap(LEFT_FOOT, RIGHT_FOOT), lifted=world.lifted(LEFT_FOOT))
+                feet=world.gap(LEFT_FOOT, RIGHT_FOOT), lifted=world.lifted(LEFT_FOOT),
+                trunk=world.gap(UPPER, ('thigh', 'shank')))
 
 
 def _down(world, ours):
@@ -118,58 +119,6 @@ def recorded(path):
     """The rows of a recording."""
     with open(path, encoding='utf-8') as f:
         return list(csv.DictReader(f))
-
-
-def _p(r, seg):
-    return tuple(float(r['%s_%s' % (seg, axis)]) for axis in 'xyz')
-
-
-def _mid(a, b):
-    return tuple((u + v) / 2.0 for u, v in zip(a, b))
-
-
-def _lean(a, b):
-    """The line a -> b, deg ahead of plumb (her forward z)."""
-    return math.degrees(math.atan2(b[2] - a[2], b[1] - a[1]))
-
-
-def _roll(r):
-    """The pelvis's roll, deg, + her left hip up."""
-    w, x, y, z = (float(r[k]) for k in ('qw', 'qx', 'qy', 'qz'))
-    return math.degrees(math.atan2(2.0 * (x * y + w * z), 1.0 - 2.0 * (x * x + z * z)))
-
-
-@functools.lru_cache(None)
-def _thigh(dressed):
-    """((depth under the hip joint, reach toward the other thigh), ..) down the left thigh as drawn,
-    m, crotch to knee: the crotch the pelvis's lowest point, or the jeans' seat's
-    (`coaxial.graphics.gynoid`)."""
-    from coaxial.graphics import gynoid
-    from machine.gait import HIP_DROP, THIGH
-    meshes, parts = gynoid._meshes()
-    worn = {part[0]: part[-1] for part in parts}
-    thigh, seat = ((worn['cloth_left_thigh'], worn['cloth_seat']) if dressed
-                   else (meshes['left_thigh'], meshes['pelvis']))
-    rings = {}
-    for x, y, _z in thigh[0]:
-        rings[-round(float(y), 5)] = max(rings.get(-round(float(y), 5), 0.0), -float(x))
-    ring = sorted(rings.items())
-    crotch = -float(min(seat[0][:, 1])) - HIP_DROP
-    out = []
-    for d in (crotch + (THIGH - crotch) * i / 11.0 for i in range(12)):
-        (d0, r0), (d1, r1) = next(p for p in zip(ring, ring[1:]) if p[0][0] <= d <= p[1][0])
-        out.append((d, r0 + (r1 - r0) * (d - d0) / (d1 - d0)))
-    return tuple(out)
-
-
-def _gap(r, dressed):
-    """The least distance between the thighs' surfaces as drawn, crotch to knee, mm."""
-    def down(side):
-        hip, knee = _p(r, side + '_thigh'), _p(r, side + '_shank')
-        n = math.dist(hip, knee)
-        return [(tuple(h + (k - h) * d / n for h, k in zip(hip, knee)), rad)
-                for d, rad in _thigh(dressed)]
-    return 1e3 * min(math.dist(a, b) - ra - rb for a, ra in down('left') for b, rb in down('right'))
 
 
 #: (name, unit, of a row and the stand's heights {pelvis, head, hip L, hip R}): each column.
@@ -192,6 +141,9 @@ MEASURES = (
     ('hip roll L', 'deg', lambda r, ref: float(r['left_hip_roll'])),
     ('thigh gap', 'mm', lambda r, ref: _gap(r, False)),
     ('jeans gap', 'mm', lambda r, ref: _gap(r, True)),
+    ('trunk gap', 'mm', lambda r, ref: 1e3 * float(r.get('trunk', 'nan'))),
+    ('pelvis faces', 'deg', lambda r, ref: _faces(r, 'pelvis')),
+    ('head faces', 'deg', lambda r, ref: _faces(r, 'head')),
 )
 
 #: A seam's measures, by name, and the director's ask beside them; the times read about it, s.
@@ -263,188 +215,6 @@ def main(argv=None):
 
 #: A foot and its toes, each side's: how near the feet come (`World.gap`).
 LEFT_FOOT, RIGHT_FOOT = ('left_foot', 'left_toes'), ('right_foot', 'right_toes')
-
-#: The walk measured from WALK_FROM_S after it begins: its look, each (name, unit, of the rows).
-WALK_FROM_S = 2.0
-WALK = (
-    ('pelvis roll', 'deg', lambda rs: _ptp(_roll(r) for r in rs)),
-    ('pelvis turn', 'deg', lambda rs: _ptp(_turn(r) for r in rs)),
-    # a stride's own: each row less its stride's mean, her path's drift out
-    ('hips wag', 'mm', lambda rs: _ptp(_surge(rs, lambda r: float(r['x']))) * 1e3),
-    ('shoulders wag', 'mm', lambda rs: _ptp(_surge(rs, lambda r: _mid(
-        _p(r, 'left_upper_arm'), _p(r, 'right_upper_arm'))[0])) * 1e3),
-    ('pelvis swing', 'deg', lambda rs: _ptp(_surge(rs, _turn))),
-    ('torso turn', 'deg', lambda rs: _ptp(_surge(rs, _shoulders_turn))),
-    ('torso roll', 'deg', lambda rs: _ptp(_shoulders_roll(r) for r in rs)),
-    ('head bob', 'mm', lambda rs: _ptp(_p(r, 'head')[1] for r in rs) * 1e3),
-    ('head fore-aft', 'mm', lambda rs: _ptp(_surge(rs, lambda r: _p(r, 'head')[2])) * 1e3),
-    ('pelvis fore-aft', 'mm', lambda rs: _ptp(_surge(rs, lambda r: float(r['z']))) * 1e3),
-    ('torso pitch', 'deg', lambda rs: _ptp(_lean(_p(r, 'torso'), _p(r, 'neck')) for r in rs)),
-    ('hip punch', 'cm/s', lambda rs: 100.0 * max(abs(float(b['x']) - float(a['x']))
-                                                 / max(1e-6, float(b['t']) - float(a['t']))
-                                                 for a, b in zip(rs, rs[1:]))),
-    ('head nod', 'deg', lambda rs: _ptp(_lean(_p(r, 'neck'), _p(r, 'head')) for r in rs)),
-    ('arm', 'deg', lambda rs: _ptp(float(r['left_shoulder']) for r in rs)),
-    ('elbow', 'deg', lambda rs: _ptp(float(r['left_elbow']) for r in rs)),
-    ('strike', 'N', lambda rs: max(max(float(r['left_load']), float(r['right_load'])) for r in rs)),
-    ('feet apart', 'mm', lambda rs: _mean(abs(_p(r, 'left_foot')[0] - _p(r, 'right_foot')[0])
-                                          for r in rs if float(r['left_load']) > 60.0
-                                          and float(r['right_load']) > 60.0) * 1e3),
-    ('thigh gap', 'mm', lambda rs: min(_gap(r, False) for r in rs)),
-    ('jeans gap', 'mm', lambda rs: min(_gap(r, True) for r in rs)),
-    ('ankle ahead at landing', 'mm', lambda rs: _mean(
-        _p(b, 'left_foot')[2] - _p(b, 'left_thigh')[2] for a, b in _landings(rs)) * 1e3),
-    ('toes behind at lift', 'mm', lambda rs: _mean(
-        _p(a, 'left_thigh')[2] - _p(a, 'left_toes')[2] for a, b in _lifts(rs)) * 1e3),
-    ('thigh behind at lift', 'deg', lambda rs: _mean(
-        _lean(_p(a, 'left_shank'), _p(a, 'left_thigh')) for a, b in _lifts(rs))),
-    ('thigh ahead at landing', 'deg', lambda rs: _mean(
-        -_lean(_p(b, 'left_shank'), _p(b, 'left_thigh')) for a, b in _landings(rs))),
-    ('thigh most ahead', 'deg', lambda rs: _mean(max(
-        -_lean(_p(r, 'left_shank'), _p(r, 'left_thigh')) for r in s) for s in _swings(rs))),
-    ('feet clear', 'mm', lambda rs: min((r.get('feet', math.nan) for r in rs),
-                                        default=math.nan) * 1e3),
-    ('touchdown', 'm/s', lambda rs: _touchdown(rs)),
-    ('swing clear', 'mm', lambda rs: min((r['lifted'] for r in _mid_swings(rs)),
-                                         default=math.nan) * 1e3),
-    ('swing height', 'mm', lambda rs: max((r['lifted'] for r in _mid_swings(rs)),
-                                          default=math.nan) * 1e3),
-    ('knee swinging', 'deg', lambda rs: max((float(r['left_knee']) for r in _mid_swings(rs)),
-                                            default=math.nan)),
-    ('knee at landing', 'deg', lambda rs: _mean(float(b['left_knee']) for a, b in _landings(rs))),
-    ('toe out', 'deg', lambda rs: _mean(_foot(r)[0] for r in _alone(rs))),
-    ('foot roll', 'deg', lambda rs: _mean(_foot(r)[1] for r in _alone(rs))),
-    ('ankle roll', 'deg', lambda rs: _mean(float(r['left_ankle_roll']) for r in _alone(rs))),
-    ('toe out swinging', 'deg', lambda rs: min((_foot(r)[0] for r in _mid_swings(rs)),
-                                               default=math.nan)),
-    ('hair fore-aft', 'deg', lambda rs: _ptp(r.get('loose', {}).get('hair_x', 0.0) for r in rs)),
-    ('hair aside', 'deg', lambda rs: _ptp(r.get('loose', {}).get('hair_z', 0.0) for r in rs)),
-)
-
-#: A sole bears past BEARS_N: its landing and its lift are the rows either side of it, the one
-#: after holding HELD_S - the load flickers under it late in the stance.
-BEARS_N, HELD_S = 60.0, 0.1
-
-
-def _held(rs, k, bears):
-    t = float(rs[k]['t'])
-    return all((float(r['left_load']) > BEARS_N) == bears for r in rs[k:]
-               if float(r['t']) - t < HELD_S)
-
-
-def _landings(rs):
-    return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
-            if float(a['left_load']) <= BEARS_N < float(b['left_load']) and _held(rs, k, True)]
-
-
-def _lifts(rs):
-    return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
-            if float(a['left_load']) > BEARS_N >= float(b['left_load']) and _held(rs, k, False)]
-
-
-def _alone(rs):
-    """The rows the left foot bears her alone."""
-    return [r for r in rs if float(r['left_load']) > 250.0 and float(r['right_load']) < BEARS_N]
-
-
-def _foot(r):
-    """(toe-out, roll) of the left foot, degrees: its toes out of the walk's line, and its outer
-    edge up off the floor (everted, pronation)."""
-    from machine import figure
-    turn = figure.quat(*(float(r['q' + k]) for k in 'wxyz'))
-    _at, foot = figure.foot_of(1.0, (0.0, 0.0, 0.0), turn,
-                               [math.radians(float(r['left' + k])) for k in figure.LEG])
-    ahead, out = figure.apply(foot, (0.0, 0.0, 1.0)), figure.apply(foot, (1.0, 0.0, 0.0))
-    return (math.degrees(math.atan2(ahead[0], ahead[2])),
-            math.degrees(math.asin(max(-1.0, min(1.0, out[1])))))
-
-
-def _touchdown(rs):
-    """The left ankle's fall, m/s, over the two rows before each landing, meaned."""
-    lands = {id(b) for _a, b in _landings(rs)}
-    return _mean((_p(rs[k - 2], 'left_foot')[1] - _p(rs[k], 'left_foot')[1])
-                 / max(1e-6, float(rs[k]['t']) - float(rs[k - 2]['t']))
-                 for k in range(2, len(rs)) if id(rs[k]) in lands)
-
-
-def _swings(rs):
-    """Each of the left foot's swings, its rows from its lift to its landing."""
-    lifts, lands = {id(b) for _a, b in _lifts(rs)}, {id(b) for _a, b in _landings(rs)}
-    out, start = [], None
-    for k, r in enumerate(rs):
-        if id(r) in lifts:
-            start = k
-        elif id(r) in lands and start is not None:
-            out.append(rs[start:k + 1])
-            start = None
-    return out
-
-
-def _mid_swings(rs):
-    """The rows through the middle half of each of the left foot's swings."""
-    out = []
-    for s in _swings(rs):
-        span = len(s) - 1
-        out += [x for x in s[span // 4:span - span // 4] if 'lifted' in x]
-    return out
-
-
-def _ptp(values):
-    v = list(values)
-    return max(v) - min(v) if v else float('nan')
-
-
-def _mean(values):
-    v = list(values)
-    return sum(v) / len(v) if v else float('nan')
-
-
-#: A stride's seconds at the walk's cadence, the window her surge is read against.
-STRIDE_S = 1.0 / 0.85
-
-
-def _surge(rs, along):
-    """Each row's place along the walk less its mean over the stride about it: the surge alone,
-    whatever her pace does over seconds."""
-    ts, vs = [float(r['t']) for r in rs], [along(r) for r in rs]
-    out = []
-    for t, v in zip(ts, vs):
-        near = [u for s, u in zip(ts, vs) if abs(s - t) <= STRIDE_S / 2.0]
-        if ts[0] <= t - STRIDE_S / 2.0 and t + STRIDE_S / 2.0 <= ts[-1]:
-            out.append(v - sum(near) / len(near))
-    return out
-
-
-def _shoulders_turn(r):
-    """The shoulders' line about the vertical, deg, + her left shoulder back."""
-    a, b = _p(r, 'left_upper_arm'), _p(r, 'right_upper_arm')
-    return math.degrees(math.atan2(a[2] - b[2], a[0] - b[0]))
-
-
-def _shoulders_roll(r):
-    """The shoulders' line from level, deg, + her left shoulder up."""
-    a, b = _p(r, 'left_upper_arm'), _p(r, 'right_upper_arm')
-    return math.degrees(math.atan2(a[1] - b[1], math.hypot(a[0] - b[0], a[2] - b[2])))
-
-
-def _turn(r):
-    """The pelvis's turn about the vertical, deg, + her left hip back."""
-    w, x, y, z = (float(r[k]) for k in ('qw', 'qx', 'qy', 'qz'))
-    return math.degrees(math.atan2(2.0 * (x * z + w * y), 1.0 - 2.0 * (x * x + y * y)))
-
-
-def walked(rows):
-    """The steady walk's look: WALK over the rows from WALK_FROM_S after the walk begins."""
-    walk = [r for r in rows if r['stage'] == 'walk']
-    if not walk:
-        return
-    from_t = float(walk[0]['t']) + WALK_FROM_S
-    steady = [r for r in walk if float(r['t']) >= from_t]
-    if len(steady) < 2:
-        return
-    print('\n9 walk from %.2f s to %.2f s' % (from_t, float(steady[-1]['t'])))
-    print('  ' + ' | '.join('%s %.1f %s' % (name, f(steady), unit) for name, unit, f in WALK))
-
 
 #: The joints whose speed is her flailing: the limbs'.
 LIMBS = tuple(side + k for side in ('left_', 'right_') for k in (

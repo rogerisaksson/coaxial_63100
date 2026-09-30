@@ -141,14 +141,53 @@ def arms(k, d):
     return s, e
 
 
+def _about(axis, a):
+    """The turn `a` radians about the unit `axis`."""
+    x, y, z = axis
+    c, s, v = math.cos(a), math.sin(a), 1.0 - math.cos(a)
+    return ((c + x * x * v, x * y * v - z * s, x * z * v + y * s),
+            (y * x * v + z * s, c + y * y * v, y * z * v - x * s),
+            (z * x * v - y * s, z * y * v + x * s, c + z * z * v))
+
+
+def _swung(d, k):
+    """`d` with each leg turned `k['out']` degrees about its hip-ankle line, the knee outward, the
+    foot as it was. Sat, that line runs along the foot, and a foot turned out for the leg IK set
+    its knee 0.36 m aside, the ankle rolled 70 degrees (2026-09-30)."""
+    pelvis, turn = place(k)
+    placed = figure.frames(d, pelvis, turn)
+    for side, sign in (('left', 1.0), ('right', -1.0)):
+        hip, thigh = placed[side + '_thigh']
+        knee, shank = placed[side + '_shank']
+        ankle, foot = placed[side + '_foot']
+        line = figure.sub(hip, ankle)
+        n = math.sqrt(sum(c * c for c in line))
+        axis = tuple(c / n for c in line)
+        off = figure.sub(knee, ankle)
+        along = sum(a * b for a, b in zip(off, axis))
+        off = tuple(o - along * a for o, a in zip(off, axis))
+        outward = axis[1] * off[2] - axis[2] * off[1]
+        swing = _about(axis, math.radians(k['out']) * (1.0 if sign * outward > 0.0 else -1.0))
+        r = figure.mul(figure.t(turn), figure.mul(swing, thigh))
+        d[side + '_hip_roll'] = sign * math.degrees(math.asin(max(-1.0, min(1.0, r[1][0]))))
+        d[side + '_hip'] = math.degrees(math.atan2(-r[1][2], r[1][1]))
+        d[side + '_hip_yaw'] = sign * math.degrees(math.atan2(-r[2][0], r[0][0]))
+        r = figure.mul(figure.t(figure.mul(swing, shank)), foot)
+        d[side + '_ankle'] = math.degrees(math.atan2(-r[1][2], r[2][2]))
+        d[side + '_ankle_roll'] = sign * math.degrees(math.atan2(-r[0][1], r[0][0]))
+    return d
+
+
 def joints(k):
-    """{joint: deg} for keyframe `k`, both sides alike."""
+    """{joint: deg} for keyframe `k`, both sides alike; its knees swung `out` (`_swung`)."""
     d = dict({j: 0.0 for j in figure.JOINTS}, **HANDS)
     for side in ('left', 'right'):
         d[side + '_hip'] = k['thigh'] - k['tilt']
         d[side + '_knee'] = k['shank'] - k['thigh']
         d[side + '_ankle'] = k['phi'] - k['shank']
         d[side + '_foot'] = -k['phi']
+    if k.get('out'):
+        d = _swung(d, k)
     d['spine'], d['neck'] = k['spine'], k['neck']
     s, e = arms(k, d) if k.get('hand') is not None else (k['shoulder'], k['elbow'])
     for side in ('left', 'right'):
@@ -198,23 +237,31 @@ def _pose(hip, knee, ankle, spine, neck, shoulder, elbow):
     return dict(d, spine=spine, neck=neck)
 
 
+#: The knees swung apart folded between them (`_swung`), deg. A keyframe carries its `out`: one
+#: without it took the other's at once, and shut under her the knees crossed her feet.
+OPEN = 30.0
 #: Sat, the heels in, the pelvis rolled back on the buttocks and the spine on: her centre of mass
 #: 26 mm ahead of the seat, the hands behind on the floor.
 SIT = dict(phi=0.0, seat=True, shank=-12.0, thigh=-150.0, tilt=-25.0, spine=45.0, neck=10.0,
-           hand=-0.45)
-#: Folded over the knees, the hands on the floor ahead: her centre of mass over the heels, sat -
-#: sat with the trunk up it stays 0.13 m behind them, the hip past 130 degrees to get there.
+           hand=-0.45, out=0.0)
+#: Sat, the arms reaching forward over the knees.
+REACH = dict(SIT, hand=None, shoulder=90.0, elbow=20.0, spine=35.0, neck=20.0)
+#: Folded between the knees, the hands on the floor ahead: her centre of mass over the heels, sat
+#: - sat with the trunk up it stays 0.13 m behind them, the hip past 130 degrees to get there.
 FOLD = dict(phi=0.0, seat=True, shank=0.0, thigh=-150.0, tilt=-31.5, spine=92.0, neck=30.0,
-            hand=0.30)
-LIFT = dict(phi=0.0, shank=14.0, thigh=-140.0, tilt=-10.0, spine=84.0, neck=30.0, hand=0.35)
-CROUCH = dict(phi=0.0, shank=40.0, thigh=-95.0, tilt=25.0, spine=53.0, neck=10.0, hand=0.40)
+            hand=0.30, out=OPEN)
+LIFT = dict(phi=0.0, shank=14.0, thigh=-140.0, tilt=-10.0, spine=84.0, neck=30.0, hand=0.35,
+            out=OPEN)
+CROUCH = dict(phi=0.0, shank=40.0, thigh=-95.0, tilt=25.0, spine=53.0, neck=10.0, hand=0.40,
+              out=0.0)
 
 #: From her back or a side: straightened out she rolls onto her back (three falls of three,
-#: 2026-09-30); propped on her elbows, up onto her hands, sat; folded over and lifted on her
-#: hands, the hands behind her pushing - the planned arms reach on, the shoulders pinned at their
-#: 40 N m behind her - into the crouch. The folds, the lifts, the crouches and their times from a
-#: CMA-ES over four seats: its tenth generation's best and median stood from all four, the hips
-#: and knees past a woman's 150 N m 0.0-1.0 % of the time (2026-09-30).
+#: 2026-09-30); propped on her elbows, up onto her hands, sat; the arms brought forward, the
+#: knees opened; folded between them and lifted on her hands, the planned arms reaching on, the
+#: shoulders pinned at their 40 N m behind her, into the crouch, the knees closing. The folds,
+#: the lifts, the crouches and their times from a CMA-ES over four seats: its tenth generation's
+#: best and median stood from all four, the hips and knees past a woman's 150 N m 0.0-1.0 % of
+#: the time (2026-09-30). Folded over the knees together, her trunk went 42-45 mm into them.
 BACK = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
         ('ease', 'unfold', 0.6, {}),
         ('ease', 'prop', 0.8, _pose(0.0, 10.0, 0.0, 50.0, 40.0, -40.0, 90.0)),
@@ -223,19 +270,51 @@ BACK = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
         ('ease', 'sit', 1.0, joints(solved(SIT))),
         ('ease', 'sit', 1.0, {}),
         ('plan', 'sit', 0.0, SIT),
-        ('plan', 'fold', 0.6, dict(SIT, hand=None, shoulder=90.0, elbow=20.0, spine=70.0,
-                                   neck=20.0)),
+        ('plan', 'fold', 0.6, REACH),
+        ('plan', 'fold', 0.6, dict(REACH, out=OPEN)),
         ('plan', 'fold', 1.3, FOLD),
         ('plan', 'lift', 2.1, LIFT),
         ('plan', 'crouch', 2.8, CROUCH),
         ('plan', 'crouch', 0.8, CROUCH))
 
-#: The get-up's stages, in order.
-STAGES = ('unfold', 'prop', 'sit', 'fold', 'lift', 'crouch')
+#: Face down, onto her back first: laid flat, the left knee drawn up and the left arm reaching
+#: over her, the spine rolled and the head turned, then over, and flat. From a CMA-ES over the
+#: roll laid face down: 157 of its 224 ended on her back (2026-09-30).
+ROLL = (('ease', 'roll', 0.8, _pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0)),
+        ('ease', 'roll', 0.8, dict(_pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0), left_hip=-80.0,
+                                   left_hip_roll=6.0, left_hip_yaw=33.0, left_knee=80.0,
+                                   left_shoulder=117.0, left_elbow=58.0, right_shoulder=120.0,
+                                   waist=7.0, spine_roll=37.0, head=60.0)),
+        ('ease', 'roll', 1.2, dict(_pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0), left_hip=-38.0,
+                                   left_knee=2.0, left_shoulder=50.0, left_elbow=102.0)),
+        ('ease', 'roll', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)))
 
-#: Unfolded face down - the pelvis's forward FACE_DOWN of the way down - `BACK` gives up: it sits
-#: her up from her back only.
-FACE_DOWN = 0.5
+
+def _mirrored(pose):
+    """`pose` for the other side: left and right swapped, the trunk's and the head's turns back."""
+    out = {}
+    for j, v in pose.items():
+        side, _, rest = j.partition('_')
+        if side in ('left', 'right'):
+            out[('right_' if side == 'left' else 'left_') + rest] = v
+        else:
+            out[j] = -v if j in ('spine_roll', 'waist', 'head') else v
+    return out
+
+
+#: ROLL over her right side, lifting her left, and over her left: the one her head's IMU finds
+#: lifted (`GetUp._side`). One way only, lain on her left side she rolled onto her face three
+#: times and was sat up from there (the lace, 2026-09-30).
+ROLLS_BY = {1: ROLL, -1: tuple((v, s, t, _mirrored(p)) for v, s, t, p in ROLL)}
+
+#: The get-up's stages, in order.
+STAGES = ('unfold', 'roll', 'prop', 'sit', 'fold', 'lift', 'crouch')
+
+#: Unfolded, or rolled, and not on her back - her face under ON_BACK of the way up, as her head's
+#: IMU has it - she rolls (ROLLS_BY) before the rest, ROLLS times at most: from the lace's fall
+#: one roll left her at -0.65, and the back's stream run face down failed three tries in three
+#: (2026-09-30).
+ON_BACK, ROLLS = 0.5, 3
 
 
 class GetUp:
@@ -245,13 +324,12 @@ class GetUp:
     def __init__(self, machine):
         self.machine = machine
         self.world = machine.nodes['pelvis'].world
-        self.stream, self.i, self.t, self.done, self.gave_up = (), 0, 0.0, False, False
+        self.stream, self.i, self.t, self.done, self.rolls = (), 0, 0.0, False, 0
         self.stage, self.begun, self.samples, self.last = STAGES[0], {}, [], {}
 
     def begin(self, stream=BACK):
         """From her pose as the loop reads it, the stream's first step on."""
-        self.stream, self.i, self.t, self.done = tuple(stream), 0, 0.0, False
-        self.gave_up = False
+        self.stream, self.i, self.t, self.done, self.rolls = tuple(stream), 0, 0.0, False, 0
         self.stage = stream[0][1]
         self.begun = self._now()
         self.last, self.samples, self.plan_t = dict(self.begun), [], 0.0
@@ -261,15 +339,21 @@ class GetUp:
         bus = self.machine.loop.bus
         return {j: bus.get(j + '.deg', 0.0) for j in figure.JOINTS}
 
-    def _facing(self):
-        """The pelvis's forward's world-up part: +1 on her back, -1 face down."""
+    def _head(self):
+        """Her head's turn, as its IMU reads it."""
         bus = self.machine.loop.bus
-        return figure.quat(*(bus['pelvis.pose.q' + a] for a in 'wxyz'))[1][2]
+        return figure.quat(*(bus['pelvis.pose.head_q' + a] for a in 'wxyz'))
+
+    def _facing(self):
+        """Her face's world-up part: +1 on her back, -1 face down."""
+        return self._head()[1][2]
+
+    def _side(self):
+        """1 her left side the higher, else -1."""
+        return 1 if self._head()[1][0] >= 0.0 else -1
 
     def step(self, dt):
-        """{joint: degrees}: where every drive should be now; given up, where they are."""
-        if self.gave_up:
-            return dict(self.last)
+        """{joint: degrees}: where every drive should be now."""
         self.t += dt
         verb, stage, span, target = self.stream[self.i]
         while self.t >= span and not self.done:
@@ -285,8 +369,11 @@ class GetUp:
             verb, stage, span, target = self.stream[self.i]
             if verb == 'plan' and not self.samples:
                 self._plan()
-        if self.stage == 'unfold' and stage != 'unfold' and self._facing() < -FACE_DOWN:
-            self.gave_up = True
+        if (self.stage in ('unfold', 'roll') and stage not in ('unfold', 'roll')
+                and self._facing() < ON_BACK and self.rolls < ROLLS):
+            self.stream = self.stream[:self.i] + ROLLS_BY[self._side()] + self.stream[self.i:]
+            self.rolls += 1
+            verb, stage, span, target = self.stream[self.i]
         self.stage = stage
         if verb == 'ease':
             k = eased(self.t / span) if span > 0.0 else 1.0

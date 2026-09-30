@@ -563,11 +563,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   after); off the rug she sat down backwards onto her feet (1.5 kN each)
   and rolled onto her back. Walking stumbles tip her 6-8 degrees, under the
   trigger (2026-09-27).
-- Getting up, tried in the joints alone: what rolls her and what does not
-  is `tools/sim/getup_lab.py`'s; sat up from her back, she rolled onto her
-  side. The arrival's rise takes a yaw now and the walker a heading
-  (`Walker.heading`, the bus turned about the vertical), for a get-up
-  facing as she lay (2026-09-27).
+- Getting up in the joints alone (`tools/sim/getup_lab.py`): sat up from
+  her back, she rolled onto her side (2026-09-27).
 - A drive's glitch (`physics.World.glitch`, the peak torque cut to a share
   for a while) on the scoreboard: the left knee's gate dropped for 0.15 s
   at mid-stance ('cut') gives 19 degrees under 500 N, the pelvis 16 mm,
@@ -621,11 +618,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   pitch 2.1 -> 1.2 -> 0.8 degrees a stride and the ears' fore-and-aft
   58 -> 68 -> 63 mm, the pelvis's surge 24 -> 39 -> 33 - the spine's give
   is the filter between the hips' pulses and the head (2026-09-27).
-- The drives' callouts (HUMANOID page): docked at the viewport's edges, a
-  side's joints on its side, each a row - the joint, its angle, its torque
-  as a five-cell bar and a number, its power as a bar, driving or braking -
-  with a leader to the joint's pivot as it moves; beside her at 0.42 m they
-  were three cells and crossed her stride (2026-09-27).
+- The drives' callouts (HUMANOID page) dock at the viewport's edges, a
+  leader to each pivot: beside her at 0.42 m they were three cells and
+  crossed her stride (2026-09-27).
 - Her boards on their buses, simulated (`machine.buses`): a bus a limb (the
   type's subsystems - the axis, each arm, each leg), a process each with its
   boards' PD loops, in lockstep with the world a step at a time over a
@@ -703,6 +698,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   facing where she lay she fell 0.2-1 s into the walk: MuJoCo's pyramid
   cone grips along the world's axes; elliptic at impratio 10 she walks 13 m
   every way (2026-09-30).
+- Folded over her knees getting up her trunk went 42-45 mm into them, 33-37
+  squatting; on the legs' capsules (`physics.LEG`) the fold failed 3 tries of
+  3 until the knees opened 30 degrees (`getup._swung`): 7 mm in at most. Up,
+  the walk kept its catch and speed from before the fall and held 6 s 2 times
+  in 11; reset, 10 (`Walker.reset`). Rolled one way only, on her left side
+  she was sat up face down; her head's IMU picks the side. Walking back the
+  way she came, a joint came 2.38 m behind the lens (`gynoid.Follow`)
+  (2026-09-30).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The
@@ -848,24 +851,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   at 1:36. Drawn, the ankle's drum on the calf's back stood 3 cm proud;
   inside a calf 112 mm round only its ends show, as the knee's and the
   elbow's do (2026-09-28).
-- The page's callouts: 34 cells a joint (the name in 10, the angle in 8, two
-  bars of 5 in boxes, the torque) -> 20 in the tty's rounded frame, those
-  a few rows apart sharing one: the name in four letters on a patch the
-  colour of its drive's heat (`ansi.thermal_rgb`, the thermal observer's),
-  the angle in whole degrees, bars of 3 cells. The drums in her joints are
-  painted the same (a material past 2^24 wears its colour). What she trips
-  on is drawn as its edges in its own ink and said in BODY: laid under the
-  lifting foot it showed 0.1 s before she met it; on the page it is laid a
-  stride on at the same phase, 1.3 m ahead of her pelvis, a lace or a
-  glitch counted down. The frames the page draws at 15 a second showed the
+- The page's callouts: 34 cells a joint -> 20 in the tty's frame, the name
+  on a patch in its drive's heat colour (`ansi.thermal_rgb`). What she trips
+  on, drawn in its own ink: laid under the lifting foot it showed 0.1 s
+  before she met it; on the page it is laid a stride on at the same phase,
+  1.3 m ahead of her pelvis. The frames the page draws at 15 a second showed the
   same state again 65 times in 235 and the rest 0.036 s of her time apart
   on the mean with 0.022 of spread: her process runs 0.7 of real time in
   slices of 0.05 s. Played back 0.2 s behind the newest state on a clock
   of its own, its pace eased over 0.5 s, the states between blended: the
   same state again once in 234, her time a wall second 0.22 of spread
-  where it was 0.62. The callouts stand as columns 8 cells wide down the
-  edges, the name's patch over the angle over two rising bars and the
-  torque. The drives' six-field readings had cost the loop's `flat` twice
+  where it was 0.62. The drives' six-field readings had cost the loop's `flat` twice
   its time: a float taken as it is, 0.53 -> 0.64 of real time
   (2026-09-28).
 - Her stance leg (`tools/sim/look.py`: the ankle ahead of the hip at the

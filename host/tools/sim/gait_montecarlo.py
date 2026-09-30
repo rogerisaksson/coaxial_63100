@@ -42,7 +42,7 @@ from tools.dev import background
 #: candidate's pace had brought her to, and a 0.1 % change of any knob flipped a shove. The hip
 #: held to a quarter for a second changed nothing: a stance hip asks under 60 N m (2026-09-27).
 TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
-          ('walk', 0.65, None), ('walk', 0.85, None), ('walk', 0.9, None),
+          ('walk', 0.65, None), ('walk', 0.85, None), ('walk', 0.9, None), ('walk', 1.0, None),
           ('event', 0.85, 'hole'), ('event', 0.85, 'sill'), ('event', 0.85, 'slip'),
           ('event', 0.85, 'rug'), ('event', 0.65, 'sill'), ('event', 0.9, 'slip'),
           ('event', 0.85, 'soa'), ('event', 0.85, 'hot'), ('event', 0.85, 'lace'))
@@ -100,11 +100,16 @@ TOUCH_MS, TOUCH_K = 0.15, 20.0
 RATE_KN_S, RATE_K = 20.0, 0.02
 TOUCH_N, QUIET_S = 30.0, 0.1
 
-#: The look's measures, by `look.WALK`'s names, and the landing's.
+#: The drives' load: the share of drive-ms at a drive's peak past LOAD_PCT %, LOAD_K a percent -
+#: at 0.85 strides/s 0.47 % of all, the ankles 1.78, the knees 1.40, the hips 0.95: at each
+#: landing and as each leg is snapped into its swing (2026-09-30).
+LOAD_PCT, LOAD_K = 0.0, 4.0
+
+#: The look's measures, by `strides.WALK`'s names, and the landing's.
 LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear',
          'torso pitch', 'toe out', 'toe out swinging', 'ankle roll', 'knee at landing',
          'thigh most ahead')
-LANDS = ('impact', 'touch', 'rate')
+LANDS = ('impact', 'touch', 'rate', 'load')
 
 
 def suite(name):
@@ -117,7 +122,7 @@ def suite(name):
 def look_of(looks):
     """The look's cost of a walk's measures {name: value} (`LOOKS`)."""
     (ahead, behind, surge, clear, torso, out, swinging, roll, knee, most, impact, touch,
-     rate) = (looks.get(n, math.nan) for n in LOOKS + LANDS)
+     rate, load) = (looks.get(n, math.nan) for n in LOOKS + LANDS)
     terms = (BALANCE_K * max(0.0, ahead - behind - BALANCE_DEG),
              REACH_K * max(0.0, REACH_DEG - behind),
              SURGE_K * max(0.0, surge - SURGE_MM), CLEAR_K * max(0.0, CLEAR_MM - clear),
@@ -127,7 +132,7 @@ def look_of(looks):
              PRONATE_K * max(0.0, roll - PRONATE_DEG), KNEE_K * max(0.0, knee - KNEE_DEG),
              OVER_K * max(0.0, most - ahead - OVER_DEG),
              IMPACT_K * max(0.0, impact - IMPACT_N), TOUCH_K * max(0.0, touch - TOUCH_MS),
-             RATE_K * max(0.0, rate - RATE_KN_S))
+             RATE_K * max(0.0, rate - RATE_KN_S), LOAD_K * max(0.0, load - LOAD_PCT))
     return sum(t for t in terms if t == t)
 
 #: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; events laid from
@@ -135,8 +140,11 @@ def look_of(looks):
 SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0}
 SETTLE_S, EVENT_AT_S = 4.0, 5.0
 
-#: A walk's run is judged on the strides it walked: its reach behind and its landing measured.
+#: A walk's run is judged on the strides it walked: its reach behind and its landing measured. A
+#: walk trial none of whose runs walked costs LOST_K, its share of the walks: unjudged, falling at
+#: 1.0 strides/s ranked better than walking it (2026-09-30).
 JUDGED = ('thigh behind at lift', 'impact')
+LOST_K = 30.0
 
 MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'capture',
            'physics', 'buses', 'events', 'drives')
@@ -167,7 +175,7 @@ def trial(job):
     (`JOBS`): a rise or a walk on fantasy boards, an event on the boards as built."""
     values, ((kind, pace, event), k) = job
     _set(dict(values, ENVELOPE=1.0 if kind == 'event' else 0.0))
-    from tools.sim import look
+    from tools.sim import look, strides
     from machine import Machine, events
     from machine.director import Director
     from machine.modes import DYNAMIC
@@ -187,6 +195,7 @@ def trial(job):
     fell, up, down, rows, looked = None, None, 0.0, [], -1.0
     quiet, window, impacts, touches, rates, was_load = 0.0, None, [], [], [], 0.0
     foot, moving = world.model.body('left_foot').id, world._np.zeros(6)
+    pinned, drive_ms, peak = 0, 0, world.peak * 0.999
     while bus['t'] < seconds:
         body.loop.write(**director.step(0.001))
         body.loop.step(0.001)
@@ -207,6 +216,8 @@ def trial(job):
         if kind == 'walk' and bus['t'] >= SETTLE_S:
             stirred += director.pendulum.energy
             passes += 1
+            pinned += int((abs(world.data.ctrl) >= peak).sum())
+            drive_ms += len(peak)
             if bus['t'] - looked >= 1.0 / LOOK_HZ:
                 looked = bus['t']
                 rows.append(look.sample(bus, director, world))
@@ -229,10 +240,12 @@ def trial(job):
     what = '%.1f m' % bus['pelvis.pose.z'] + (', tipped %.0f deg' % tilt if laid else '')
     if fell is not None:
         what = 'fell at %.1f s' % fell + (', up at %.1f s' % up if up else ', down') + ', ' + what
-    walked = {name: f(rows) for name, _unit, f in look.WALK if name in LOOKS} if rows else {}
+    walked = {name: f(rows) for name, _unit, f in strides.WALK if name in LOOKS} if rows else {}
     if impacts:
         walked.update(impact=sum(impacts) / len(impacts), touch=sum(touches) / len(touches),
                       rate=sum(rates) / len(rates))
+    if drive_ms:
+        walked['load'] = 100.0 * pinned / drive_ms
     return 1.0 - down / seconds, (stirred / passes if passes else None), what, walked
 
 
@@ -260,7 +273,8 @@ def score(results):
     if not walked:
         return math.inf, held, math.nan
     stir = sum(t[1] for t in walked) / len(walked)
-    return stir + sum(t[4] for t in walked) / len(walked), held, stir
+    lost = LOST_K * (len(walks) - len(walked)) / len(walks)
+    return stir + sum(t[4] for t in walked) / len(walked) + lost, held, stir
 
 
 def run(pool, candidates):
@@ -284,7 +298,7 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
             '' if kind != 'walk' else '  stir %.2f mm' % s,
             '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, torso %.1f, toes %.1f'
             ' swinging %.1f, roll %.1f, knee %.1f, most %.1f deg, impact %.0f N, touch %.2f m/s,'
-            ' rate %.0f kN/s'
+            ' rate %.0f kN/s, load %.2f %%'
             % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if looks else ''))
 
 

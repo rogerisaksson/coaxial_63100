@@ -23,7 +23,8 @@ from machine.buses import QUIET, Block, Buses
 from machine.controller import Feedback
 from machine import floor
 from machine.errors import MachineError
-from machine.figure import CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
+from machine.figure import (ARMS, CONTACTS, HAIR_AT, HEM_AT, JOINTS, LIMBS, MASS_KG, SEGMENTS,
+                            UPPER)
 from machine.machine import Actuator
 from machine.nodes import Module, Node
 from machine.parts import Direct, Gain
@@ -100,6 +101,10 @@ LOOSE = HEMS + HAIRS
 #: out a segment and its parent. Floor alone, her feet passed 22 mm into each other as she
 #: walked (2026-09-28).
 ME, MEETS = 2 | 4, 1 | 4
+#: Her legs' capsules' bit (`figure.LIMBS`), and TRUNK what meets them (`figure.UPPER`,
+#: `figure.ARMS`): a leg's capsule meets neither the other leg nor the floor. Frictionless, it
+#: gives the cloth's CLOTH_GIVE_M.
+LEG, TRUNK = 8, 16
 
 #: Her segments that pass through each other: the thighs brush in her catwalk, and their spheres,
 #: cruder than her, pressed up to 2 kN apart at every passing (2026-09-28).
@@ -151,10 +156,18 @@ def mjcf():
         for part, shape, size, at in CONTACTS:
             if name == part or name.endswith('_' + part):
                 felt = (give if part in ('foot', 'toes') else cloth if part in CLOTH else '')
+                up = part in UPPER
                 out.append('<geom type="%s" size="%s" pos="%g %g %g" contype="%d" '
                            'conaffinity="%d" condim="4" friction="%g %g 0.001"%s/>' % (
                                (shape, ' '.join('%g' % v for v in size)) + tuple(at)
-                               + (ME, MEETS, CLOTH.get(part, FRICTION), TORSION_M, felt)))
+                               + (ME | TRUNK * up, MEETS | LEG * up, CLOTH.get(part, FRICTION),
+                                  TORSION_M, felt)))
+        for part, radius, top, end in LIMBS + ARMS:
+            if name.endswith('_' + part):
+                own, meets = (TRUNK, LEG) if part in UPPER else (LEG, TRUNK)
+                out.append('<geom type="capsule" size="%g" fromto="%s" contype="%d" '
+                           'conaffinity="%d" condim="1" priority="1"%s/>' % (
+                               radius, ' '.join('%g' % v for v in top + end), own, meets, cloth))
         if name.endswith('_shank'):
             side = name[:-len('_shank')]
             out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)]
@@ -429,28 +442,26 @@ class World:
         """(degrees, deg/s) of a joint as its board last answered the host."""
         return self.reading(index)[:2]
 
-    def gap(self, one, other, reach=0.3):
-        """The least distance, m, between the geoms of segments `one` and those of `other`
-        (negative: into each other), `reach` at most."""
-        m, mj = self.model, self._mj
-        of = self._geoms = getattr(self, '_geoms', {})
-        for names in (one, other):
-            if names not in of:
-                ids = {m.body(n).id for n in names}
-                of[names] = [g for g in range(m.ngeom) if m.geom_bodyid[g] in ids]
-        return min(mj.mj_geomDistance(m, self.data, a, b, reach, None)
-                   for a in of[one] for b in of[other])
-
-    def lifted(self, names):
-        """The least distance, m, from segments `names`' geoms to the floor's slab."""
-        m, mj = self.model, self._mj
+    def _of(self, names):
+        """The geoms of the segments whose names end in one of `names`."""
+        m = self.model
         of = self._geoms = getattr(self, '_geoms', {})
         if names not in of:
-            ids = {m.body(n).id for n in names}
-            of[names] = [g for g in range(m.ngeom) if m.geom_bodyid[g] in ids]
-        slab = [m.geom(n).id for n in ('slab_a', 'slab_b')]
-        return min(mj.mj_geomDistance(m, self.data, a, b, 0.5, None)
-                   for a in of[names] for b in slab)
+            of[names] = [g for g in range(m.ngeom)
+                         if m.body(m.geom_bodyid[g]).name.endswith(tuple(names))]
+        return of[names]
+
+    def gap(self, one, other, reach=0.3):
+        """The least distance, m, between the geoms of segments `one` and those of `other`
+        (`_of`; negative: into each other), `reach` at most."""
+        return min(self._mj.mj_geomDistance(self.model, self.data, a, b, reach, None)
+                   for a in self._of(one) for b in self._of(other))
+
+    def lifted(self, names):
+        """The least distance, m, from segments `names`' geoms (`_of`) to the floor's slab."""
+        slab = [self.model.geom(n).id for n in ('slab_a', 'slab_b')]
+        return min(self._mj.mj_geomDistance(self.model, self.data, a, b, 0.5, None)
+                   for a in self._of(names) for b in slab)
 
     def loose(self):
         """{hinge: degrees} of what hangs loose on her (`LOOSE`): the jeans' legs from her
@@ -459,8 +470,8 @@ class World:
 
     def pose(self):
         """The pelvis and the body: place, turn (quaternion), speeds (world), the centre of mass,
-        each sole's load (N), and since the reset the drives' work done and braked and their
-        heat (J), and the torque they held (N m s)."""
+        the head's turn (its IMU, head_q*), each sole's load (N), and since the reset the drives'
+        work done and braked and their heat (J), and the torque they held (N m s)."""
         self.advance()
         d, m = self.data, self.model
         omega = d.xmat[self.pelvis].reshape(3, 3) @ d.qvel[3:6]
@@ -475,6 +486,8 @@ class World:
                     loads[side] += force[0]
         com = d.subtree_com[self.pelvis]
         return dict(zip(('x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'), d.qpos[0:7].tolist()),
+                    **dict(zip(('head_qw', 'head_qx', 'head_qy', 'head_qz'),
+                               d.xquat[m.body('head').id].tolist())),
                     vx=d.qvel[0], vy=d.qvel[1], vz=d.qvel[2], wx=omega[0], wy=omega[1],
                     wz=omega[2], com_x=com[0], com_y=com[1], com_z=com[2],
                     left_load=loads['left'], right_load=loads['right'], t=d.time,

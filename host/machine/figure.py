@@ -83,6 +83,17 @@ CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL) / 2.0), (0.0, -ANKLE
             ('forearm', 'sphere', (0.04,), (0.0, -0.12, 0.0)),
             ('thigh', 'sphere', (0.07,), (0.0, -0.19, 0.0)))
 
+#: Her body against itself (`physics.LEG`): each leg's length a capsule (segment, radius, from,
+#: to, its frame), the render's skin, met by UPPER's contacts and the arms' capsules (ARMS). The
+#: contacts alone left a thigh bare but for its middle, and getting up her trunk went through
+#: them (the user, 2026-09-30).
+LIMBS = (('thigh', 0.058, (0.0, -0.03, 0.0), (0.0, -0.36, 0.0)),
+         ('shank', 0.05, (0.0, -0.04, 0.0), (0.0, -0.25, 0.0)))
+ARMS = (('upper_arm', 0.028, (0.0, -0.02, 0.0), (0.0, -0.25, 0.0)),
+        ('forearm', 0.022, (0.0, -0.02, 0.0), (0.0, -0.22, 0.0)))
+#: The contacts that meet the legs' capsules.
+UPPER = ('torso', 'head', 'upper_arm', 'forearm', 'hand')
+
 #: Every joint, in the order the segments carry them.
 JOINTS = tuple(j for seg in SEGMENTS for j, _axis, _sign in seg[2])
 

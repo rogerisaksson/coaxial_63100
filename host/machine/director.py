@@ -153,8 +153,8 @@ class Director:
 
     @property
     def given_up(self):
-        """Down with no get-up left: the stream gave up, or GETUP_TRIES of them failed."""
-        return self.stage == 'fallen' and (self.getup.gave_up or self.tries >= GETUP_TRIES)
+        """Down with no get-up left: GETUP_TRIES of them failed."""
+        return self.stage == 'fallen' and self.tries >= GETUP_TRIES
 
     def begin(self):
         """Landed in the squat, the arrival to take her up."""
@@ -194,9 +194,6 @@ class Director:
         if (self.stage in arrival.STAGES or self.stage in getup.STAGES
                 or self.stage in ('falling', 'fallen')):
             self.pendulum.read(self.walker.view(bus), dt)
-        if self.getup.gave_up:
-            self.stage, self.fallen_at = 'fallen', self.fallen_at or bus['t']
-            return self.getup.step(dt)
         if self.falling_at is None and (self._falling(bus) or self._fallen(bus)):
             self.falling_at, self.stage = bus['t'], 'falling'
             way = ('guard' if self.fall_rate > GUARD_DEG_S else
@@ -229,7 +226,10 @@ class Director:
             if self.getup.done:
                 frames = self.getup.handed()
                 self.arrival.play(frames)
-                # on along the way she rose facing: up from a fall she faces where she lay
+                # on along the way she rose facing: up from a fall she faces where she lay; the
+                # walk as before the first - kept from the fall, it began in its catch or read her
+                # speed from where she fell (`Walker.reset`)
+                self.walker.reset()
                 self.walker.face(math.radians(frames[0][2]['yaw']))
                 self.stage, self.blend, self.age, self.since = 'squat', out, 0.0, 0.0
             self.walker.last = out
