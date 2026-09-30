@@ -30,12 +30,11 @@ FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
 #: Falling, the drives of SHORT_FALLING's kinds have their phases shorted through the low sides
 #: (`physics.World.short`), each joint giving kt^2/R of its speed back against it - a damper,
-#: not a pose held; the arms and the neck go to CATCH over CURL_S; down, every drive is shorted.
-#: Five falls (the hole, the slip, the rug, the stairs, a lace): 4 lay prone and 1 on her back,
-#: the head at the floor 0.06, -, 1.14, 0.05, 0.05 m/s, her limbs still 0.4-1.4 s after she was
-#: down; curled into the squat's joints and held there, 3 on her left side, 1 on her right and 1
-#: prone, 2.29 and 0.25, still 1.3-1.9 s after or never; the waist left to turn her toward the
-#: fall, 2 on a side (2026-09-30).
+#: not a pose held; the arms and the neck go to CATCH over CURL_S, and YIELD as the hands land.
+#: Five falls (the hole, the slip, the rug, the stairs, a lace): 2 lay prone on their forearms,
+#: 1 on her back and 2 on a side, the head at the floor once, at 0.11 m/s; every drive shorted
+#: once down, 4 prone and 1 on her back, the head 0.05-1.14 m/s four times; curled and held as
+#: before, 3 on her left side, 1 on her right and 1 prone, 2.29 and 0.25 m/s (2026-09-30).
 SHORT_FALLING = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll', 'foot', 'spine',
                  'spine_roll', 'waist')
 CURL_S = 0.4
@@ -50,6 +49,15 @@ CATCH = {'ahead': {'neck': HEAD_UP_DEG, 'left_shoulder': 90.0, 'right_shoulder':
                    'left_gripper': 0.0, 'right_gripper': 0.0},
          'behind': {'left_shoulder': -45.0, 'right_shoulder': -45.0, 'left_elbow': 20.0,
                     'right_elbow': 20.0, 'neck': 45.0}}
+
+#: Her hands on the floor (TOUCH_M), her arms give under her over YIELD_S into her forearms, the
+#: hands by her face (YIELD), and hold it down, the neck too: the catch a spring, not a post -
+#: held out straight she caught herself and toppled over them sideways; down on a lace the head
+#: stayed 71 mm off the floor at the least where straight arms left 132; bent to 70 and the
+#: hands brought over the head, it met the floor at 1.3 m/s (2026-09-28).
+YIELD = {'left_elbow': 90.0, 'right_elbow': 90.0, 'left_shoulder': 110.0, 'right_shoulder': 110.0}
+YIELD_S, TOUCH_M = 0.6, 0.01
+HANDS = ('left_hand', 'left_fingers', 'right_hand', 'right_fingers')
 
 
 #: A stance foot bearing `stance.BEARS_N` slid past SLIP_M of where it landed is held where it
@@ -102,8 +110,9 @@ class Director:
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
         #: Since when she falls and her arms and neck from and to what (CATCH); the tilt last
-        #: pass, (deg, s).
+        #: pass, (deg, s); when her hands met the floor.
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
+        self.touched_at = None
         #: Each joint's drive by its node's channels, the legs'; a dropped drive's (heard at,
         #: wait) and when each was last armed.
         self.world = machine.nodes['pelvis'].world
@@ -135,7 +144,7 @@ class Director:
         self.walker.cadence = gait.CADENCE
         self.walker.reset()
         self.blend, self.curl_from = None, {}
-        self.falling_at, self.curl_to, self.tilt_was = None, {}, None
+        self.falling_at, self.curl_to, self.tilt_was, self.touched_at = None, {}, None, None
         self.dropped, self.armed = {}, {}
 
     def halt(self):
@@ -170,11 +179,15 @@ class Director:
             self._short(SHORT_FALLING)
         if self.fallen_at is None and self._fallen(bus):
             self.fallen_at, self.stage = bus['t'], 'fallen'
-            self._short(None)
         if self.falling_at is not None:
             k = gait.eased((bus['t'] - self.falling_at) / CURL_S)
-            return {j: self.curl_from[j] + (v - self.curl_from[j]) * k
-                    for j, v in self.curl_to.items()}
+            out = {j: self.curl_from[j] + (v - self.curl_from[j]) * k
+                   for j, v in self.curl_to.items()}
+            if self.touched_at is None and self.world.lifted(HANDS) < TOUCH_M:
+                self.touched_at = bus['t']
+            if self.touched_at is not None:
+                out = gait.blend(out, dict(out, **YIELD), (bus['t'] - self.touched_at) / YIELD_S)
+            return out
         self.since += dt
         if self.stage in arrival.STAGES:
             out = self.arrival.step(dt)

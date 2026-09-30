@@ -153,9 +153,10 @@ def test_a_drive_in_its_soa(report):
 
 def test_a_trip_lands_her_shorted(report):
     """A lace caught (`machine.events`) trips her past recovery: her head not the first of her
-    on the floor, and down, every drive's phases shorted - she settles, not held nor flailing."""
-    from machine import Machine, events, figure, heat
-    from machine.director import Director
+    on the floor; down, her legs' and trunk's drives shorted, her arms and neck holding their
+    catch (`director.YIELD`) - she settles, not held stiff nor flailing."""
+    from machine import Machine, drives, events, figure, heat
+    from machine.director import SHORT_FALLING, Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     body.arm()
@@ -186,11 +187,11 @@ def test_a_trip_lands_her_shorted(report):
                  laid is not None and stages[-2:] == ['falling', 'fallen'], ' '.join(stages))
     report.check('her head not the first of her on the floor', first not in (None, 'head'),
                  'first %s' % first)
-    open_ = [j for j, name in director.drives.items()
-             if not int(bus[name + 'status']) & heat.SHORTED]
-    report.check('down, every drive\'s phases shorted', not open_,
-                 '%d of %d, open: %s' % (len(director.drives) - len(open_), len(director.drives),
-                                         ' '.join(open_) or 'none'))
+    wrong = [j for j, name in director.drives.items()
+             if bool(int(bus[name + 'status']) & heat.SHORTED) != (drives.kind(j) in SHORT_FALLING)]
+    report.check('down, the legs\' and trunk\'s phases shorted, the arms and neck holding', not wrong,
+                 '%d of %d as asked, else: %s' % (len(director.drives) - len(wrong),
+                                                  len(director.drives), ' '.join(wrong) or 'none'))
     body.disarm()
 
 
