@@ -87,18 +87,17 @@ Open work. Measured results are in FINDINGS.
   not yet - the page lands her again (`running.RECOVER_S`). Face down, from
   a kneel on tucked toes she stands (tried from that kneel) but cannot reach
   it: the shoulder's one axis puts the floor in the arm's plane, the push
-  pins a woman's 40 N m. Next (asked 2026-09-30): not a trigger and a stream
-  each situation but a planner in the loop - an observer judging each step
-  as it goes (her head's IMU, her centre of mass over what bears her), a
-  local model writing the next stream from where she is, a server asked
-  only after it has failed a few times; the feet drawn under her on her
-  hands, not folded like a jackknife; the arms toward the way she falls,
-  the forearms and upper arms a little longer; every part of her body
-  colliding, the clothes not; what she trips on laid along her own way -
-  up from a fall she walks back the way she came, and it lands 0.23-0.29 m
-  behind her (`events.lay` along the world's z). The scoreboard counts the
-  time down. The shoves' findings stand: toward the standing foot the side
-  step ends with
+  pins a woman's 40 N m. The get-up is a plan the observer checks step by
+  step (`machine.observer`, `machine.planner`: a local model's, a server's
+  after LOCAL_TRIES, else its own): onto her front, the knees under, back
+  on her heels, onto her feet - knees together, her whole body colliding.
+  Each step tuned over the states real falls left her in, the chain stands
+  from 0 of 20 falls; the arrival rises from half the kneels' squats. The
+  local model's plans were not taken (130 s under a full relay, rejected).
+  Left: the arms toward the way she falls, the arms a little longer, pads
+  at the elbows, knees and hips (sprung, damped, 5 mm of gel in TPU). The
+  scoreboard counts the time down. The shoves' findings stand: toward the
+  standing foot the side step ends with
   the capture point 27 cm ahead and no foot there; shoved at 0.30 of the
   stride the landing latched at 0.7 of the swing sits 14 cm inside the
   capture point. The torso's counter and the damping are off (the counter

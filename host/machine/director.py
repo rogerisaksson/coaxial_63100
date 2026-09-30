@@ -19,8 +19,10 @@ Her drives' boards report their heat on the bus (`machine.heat`): warming, her l
 pace. A board whose gates dropped is armed again.
 """
 import math
+from concurrent.futures import ThreadPoolExecutor
 
-from machine import arrival, drives, figure, gait, getup, heat, walker, walkplan, stance
+from machine import (arrival, drives, figure, gait, getup, heat, observer, planner, walker,
+                     walkplan, stance)
 
 #: Falling, past the walker's recovery: the pelvis tipped past FALLING_DEG and tipping on faster
 #: than FALLING_DEG_S (the head's gyro), or under FALLING_M, walking. Fallen - under FALLEN_M or
@@ -105,6 +107,10 @@ MOMENTS = ('squat', 'look', 'push', 'rise', 'stand', 'shift', 'lean', 'step', 'w
            'halt', 'settle', 'lower', 'rest', 'falling', 'fallen') + getup.STAGES
 
 
+#: Where a model plans her get-up while she lies still, a thread: the loop goes on.
+_PLANNERS = ThreadPoolExecutor(1)
+
+
 def moment(stage):
     """A stage by its moment's number: '7 lean'; one not numbered as it is."""
     return '%d %s' % (MOMENTS.index(stage) + 1, stage) if stage in MOMENTS else stage
@@ -114,8 +120,12 @@ class Director:
 
     """The moves one after another, each pass's setpoints from whichever has her."""
 
-    def __init__(self, machine, cadence=gait.CADENCE, walk_s=None, rest_s=None):
+    def __init__(self, machine, cadence=gait.CADENCE, walk_s=None, rest_s=None, local=None,
+                 server=None):
         self.machine, self.asked = machine, float(cadence)
+        #: The models that plan her get-up (`machine.planner`): a local one, and a server's
+        #: asked once it has failed; neither, the planner's own.
+        self.local, self.server = local, server
         self.arrival = arrival.Arrival(machine, gait.CADENCE)
         self.walker = walker.Walker(machine, gait.CADENCE)
         self.walk_s, self.rest_s = walk_s, rest_s
@@ -125,8 +135,10 @@ class Director:
         #: pass, (deg, s), and its rate, deg/s; when an arm met the floor.
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
         self.fall_rate, self.touched_at = 0.0, None
-        #: The get-up, how long she has lain still, and the get-ups since she landed.
+        #: The get-up, how long she has lain still, and the get-ups since she landed; what felled
+        #: her, as the observer says it; the plans tried since, [(steps, why)], and one being made.
         self.getup, self.still, self.tries = getup.GetUp(machine), 0.0, 0
+        self.cause, self.tried, self.planning = '', [], None
         #: Each joint's drive by its node's channels, the legs'; a dropped drive's (heard at,
         #: wait) and when each was last armed.
         self.world = machine.nodes['pelvis'].world
@@ -166,12 +178,31 @@ class Director:
         self.blend, self.curl_from = None, {}
         self.falling_at, self.curl_to, self.tilt_was, self.touched_at = None, {}, None, None
         self.dropped, self.armed, self.still, self.tries = {}, {}, 0.0, 0
+        self.cause, self.tried, self.planning = '', [], None
 
     def halt(self):
         """Walking, to a stop and down into the squat."""
         if self.stage in ('walk', 'catch'):
             self.walker.halt()
             self.stage = 'halt'
+
+    def _planned(self, bus):
+        """The plan for her as she lies, None while a model is still making it."""
+        now = observer.status(bus, self.world, self)
+        if self.local is None and self.server is None:
+            return planner.plan(now, history=self.tried)[0]
+        if self.planning is None:
+            self.planning = _PLANNERS.submit(planner.plan, now, self.local, self.server,
+                                             list(self.tried))
+        if not self.planning.done():
+            return None
+        steps, self.planning = self.planning.result()[0], None
+        return steps
+
+    def _begin(self, steps, now):
+        """The get-up on `steps` from where she is, a try more."""
+        self.plan, self.tries = tuple(steps), self.tries + 1
+        self.getup.begin(*planner.stream(steps, now))
 
     def spent(self, joints=None):
         """The most spent of `joints`' drives (the legs'), as their boards last said."""
@@ -198,6 +229,11 @@ class Director:
             self.falling_at, self.stage = bus['t'], 'falling'
             way = ('guard' if self.fall_rate > GUARD_DEG_S else
                    'behind' if abs(self._fall_way(bus)) > BEHIND_DEG else 'ahead')
+            tip = self._fall_way(bus)
+            self.cause = 'tipped %s at %.0f deg/s%s' % (
+                'forward' if abs(tip) < 45.0 else 'back' if abs(tip) > 135.0 else
+                'to her left' if tip > 0.0 else 'to her right', self.fall_rate,
+                ' out of a stumble' if self.stage == 'catch' else '')
             self.curl_to = CATCH[way]
             self.curl_from = {j: bus.get(j + '.deg', 0.0) for j in self.curl_to}
             self._short(SHORT_FALLING)
@@ -213,16 +249,29 @@ class Director:
                 out = dict(out, **{j: bus[j + '.deg'] + max(-SOFT_DEG, min(SOFT_DEG, v - bus[j + '.deg']))
                                    for j, v in YIELD.items()})
             if self.stage == 'fallen' and self._still(bus, dt) and self.tries < GETUP_TRIES:
-                for i in range(len(figure.JOINTS)):
-                    self.world.arm(i)
-                self.getup.begin()
-                self.stage, self.falling_at, self.fallen_at = self.getup.stage, None, None
-                self.touched_at, self.tries = None, self.tries + 1
+                steps = self._planned(bus)
+                if steps is not None:
+                    for i in range(len(figure.JOINTS)):
+                        self.world.arm(i)
+                    self._begin(steps, observer.status(bus, self.world, self))
+                    self.stage, self.falling_at, self.fallen_at = self.getup.stage, None, None
+                    self.touched_at = None
             return out
         self.since += dt
         if self.stage in getup.STAGES:
             out = self.getup.step(dt)
             self.stage = self.getup.stage
+            ended = self.getup.ended()
+            if ended is not None:
+                now = observer.status(bus, self.world, self)
+                ok, why = observer.check(ended, now)
+                if not ok:
+                    self.tried.append((self.plan, why))
+                    if self.tries >= GETUP_TRIES:
+                        self.stage, self.fallen_at = 'fallen', bus['t']
+                        return out
+                    self._begin(planner.plan(now, self.local, self.server, self.tried)[0], now)
+                    return self.getup.step(0.0)
             if self.getup.done:
                 frames = self.getup.handed()
                 self.arrival.play(frames)

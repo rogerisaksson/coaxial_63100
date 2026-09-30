@@ -203,8 +203,46 @@ def test_a_trip_lands_her_shorted(report):
     body.disarm()
 
 
+def test_the_planner(report):
+    """Her get-up's plan (`machine.planner`): a model's answer read and checked, a server asked
+    once the local model has failed LOCAL_TRIES times, the house's own when neither answers."""
+    import json
+    from machine import planner
+
+    class Model:
+        def __init__(self, steps=None, fails=False):
+            self.steps, self.fails, self.asked = steps, fails, 0
+
+        def chat(self, messages, fmt=None):
+            self.asked += 1
+            if self.fails:
+                raise OSError('no daemon')
+            return {'content': json.dumps({'steps': self.steps, 'why': 'test'})}
+    now = {'lying': 'face down', 'left_up': 0.0}
+    up = ['knees under', 'sit back on heels', 'onto feet']
+    report.check("a local model's plan is hers", planner.plan(now, Model(up)) == (tuple(up), 'local'))
+    made_up = planner.plan(now, Model(['cartwheel', 'onto feet']))
+    report.check('a step the model made up falls to the default', made_up[1] == 'default',
+                 ' > '.join(made_up[0]))
+    report.check('a plan not ending on her feet falls to the default',
+                 planner.plan(now, Model(['knees under']))[1] == 'default')
+    report.check('a model that fails falls to the default',
+                 planner.plan(now, Model(fails=True))[1] == 'default')
+    server = Model(up)
+    tried = [(tuple(up), 'failed')] * planner.LOCAL_TRIES
+    report.check('the server is asked once the local model failed %d times' % planner.LOCAL_TRIES,
+                 planner.plan(now, Model(up), server, tried)[1] == 'server' and server.asked == 1)
+    lying = ('face down', 'on her back', 'on her left side', 'on her right side', 'sitting',
+             'kneeling')
+    report.check('every default plan ends on her feet',
+                 all(planner.plan({'lying': w})[0][-1] in planner.UP for w in lying))
+    stream, marks = planner.stream(planner.plan(now)[0], now)
+    report.check('its stream marks each step where it ends',
+                 [s for _i, s in marks] == list(planner.plan(now)[0]) and marks[-1][0] == len(stream))
+
+
 ROSTER = (test_a_drive_keeps_its_heat, test_a_drive_in_its_soa, test_a_trip_lands_her_shorted,
-          test_fantasy_boards_never_bind)
+          test_fantasy_boards_never_bind, test_the_planner)
 
 
 def main(argv=None):

@@ -706,6 +706,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   she was sat up face down; her head's IMU picks the side. Walking back the
   way she came, a joint came 2.38 m behind the lens (`gynoid.Follow`)
   (2026-09-30).
+- Her whole body collides (`figure.BODY`): lying, her arms went 40-43 mm
+  into the floor and her shins 100 through each other; now 2-9. On it the
+  knees-open fold stood 3 of 12. The get-up is a plan checked step by step
+  (`machine.observer`, `machine.planner`): the knees-together kneel stands
+  from half its kneels, from 0 of 20 falls end to end (2026-10-01).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The

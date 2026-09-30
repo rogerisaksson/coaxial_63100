@@ -16,7 +16,8 @@ dip), the torso ahead of plumb, the torso against the left shin (under 0 it lean
 knees), the hips-to-shoulders line, the left knee (under 0 bent back), the head's pitch (its
 range the nod), the left hip's roll, the thighs' gap as drawn, bare and in the jeans (under 0
 they meet), the trunk's and arms' to the legs (simulated), how far the pelvis's and the head's
-forward point above level (90 on her back) - least and most over the stage, deg and mm.
+forward point above level (90 on her back), falling her reach off the way she tips - least and
+most over the stage, deg and mm.
 """
 import argparse
 import csv
@@ -28,7 +29,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO  # noqa: E402
-from tools.sim.strides import _faces, _gap, _lean, _mid, _p, _roll, walked  # noqa: E402
+from tools.sim.strides import (_faces, _gap, _lean, _mid, _p, _reach_off, _roll,  # noqa: E402
+                               walked)
 
 #: The head's rest pitch in the neck's offset (`figure.SEGMENTS`: 0.09 up, 0.012 on), deg.
 HEAD_REST = math.degrees(math.atan2(0.012, 0.09))
@@ -90,7 +92,7 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
 def sample(bus, director, world, asked=None):
     """A row as the page records it (`show_humanoid.row`), from the loop's bus: the loose hinges
     beside it, and how near her feet come."""
-    from machine.figure import JOINTS, UPPER
+    from machine.figure import JOINTS
     from terminal.views.show_humanoid import HEADER, row
     now = {'t': bus['t'], 'stage': director.stage, 'speed': bus['pelvis.pose.vz'],
            'phase': director.walker.phase,
@@ -100,7 +102,8 @@ def sample(bus, director, world, asked=None):
            'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked or {}}
     return dict(zip(HEADER, row(now, 60.0)), loose=world.loose(),
                 feet=world.gap(LEFT_FOOT, RIGHT_FOOT), lifted=world.lifted(LEFT_FOOT),
-                trunk=world.gap(UPPER, ('thigh', 'shank')))
+                trunk=world.gap(('torso', 'head', 'upper_arm', 'forearm', 'hand'),
+                                ('thigh', 'shank')))
 
 
 def _down(world, ours):
@@ -144,6 +147,7 @@ MEASURES = (
     ('trunk gap', 'mm', lambda r, ref: 1e3 * float(r.get('trunk', 'nan'))),
     ('pelvis faces', 'deg', lambda r, ref: _faces(r, 'pelvis')),
     ('head faces', 'deg', lambda r, ref: _faces(r, 'head')),
+    ('reach off fall', 'deg', lambda r, ref: _reach_off(r)),
 )
 
 #: A seam's measures, by name, and the director's ask beside them; the times read about it, s.

@@ -15,6 +15,23 @@ def _faces(r, seg):
     return math.degrees(math.asin(max(-1.0, min(1.0, placed[seg][1][1][2]))))
 
 
+def _reach_off(r):
+    """Falling, how far her reach - the hands from the shoulders, across the floor - points off
+    the way she tips, deg; else nan."""
+    if r['stage'] != 'falling':
+        return math.nan
+    from machine import figure
+    turn = figure.quat(*(float(r['q' + k]) for k in 'wxyz'))
+    tip = (turn[0][1], turn[2][1])
+    hands = _mid(_p(r, 'left_hand'), _p(r, 'right_hand'))
+    shoulders = _mid(_p(r, 'left_upper_arm'), _p(r, 'right_upper_arm'))
+    reach = (hands[0] - shoulders[0], hands[2] - shoulders[2])
+    if math.hypot(*tip) < 0.1 or math.hypot(*reach) < 0.05:
+        return math.nan
+    a = math.atan2(reach[0], reach[1]) - math.atan2(tip[0], tip[1])
+    return abs(math.degrees(math.atan2(math.sin(a), math.cos(a))))
+
+
 def _mid(a, b):
     return tuple((u + v) / 2.0 for u, v in zip(a, b))
 

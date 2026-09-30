@@ -23,8 +23,7 @@ from machine.buses import QUIET, Block, Buses
 from machine.controller import Feedback
 from machine import floor
 from machine.errors import MachineError
-from machine.figure import (ARMS, CONTACTS, HAIR_AT, HEM_AT, JOINTS, LIMBS, MASS_KG, SEGMENTS,
-                            UPPER)
+from machine.figure import BODY, CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
 from machine.machine import Actuator
 from machine.nodes import Module, Node
 from machine.parts import Direct, Gain
@@ -97,18 +96,11 @@ HAIRS = ('hair_x', 'hair_z')
 #: What hangs loose on her: the hinges `World.loose` reads.
 LOOSE = HEMS + HAIRS
 
-#: Her geoms' contact bits: 2 meets the floor's 1, 4 her own - a limb on a limb, MuJoCo leaving
+#: Her geoms' contact bits: 2 meets the floor's 1, 4 her own - a part on a part, MuJoCo leaving
 #: out a segment and its parent. Floor alone, her feet passed 22 mm into each other as she
-#: walked (2026-09-28).
+#: walked (2026-09-28). Her thighs' spheres, cruder than her, pressed 2 kN apart at every passing
+#: in her catwalk (2026-09-28); drawn, they pass 20 mm apart.
 ME, MEETS = 2 | 4, 1 | 4
-#: Her legs' capsules' bit (`figure.LIMBS`), and TRUNK what meets them (`figure.UPPER`,
-#: `figure.ARMS`): a leg's capsule meets neither the other leg nor the floor. Frictionless, it
-#: gives the cloth's CLOTH_GIVE_M.
-LEG, TRUNK = 8, 16
-
-#: Her segments that pass through each other: the thighs brush in her catwalk, and their spheres,
-#: cruder than her, pressed up to 2 kN apart at every passing (2026-09-28).
-APART = (('left_thigh', 'right_thigh'),)
 
 #: The soles' friction: sliding, and turning in place (m) - a point of contact turns freely, and
 #: on its ball's edge the stance foot spun under the swinging leg (2026-09-25).
@@ -153,21 +145,20 @@ def mjcf():
         mass = share * MASS_KG
         out.append('<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
+        grip = ' contype="%d" conaffinity="%d" condim="4" friction="%%g %g 0.001"' % (
+            ME, MEETS, TORSION_M)
         for part, shape, size, at in CONTACTS:
+            if name.endswith(part):
+                out.append('<geom type="%s" size="%s" pos="%g %g %g"%s%s/>' % (
+                    (shape, ' '.join('%g' % v for v in size)) + tuple(at)
+                    + (grip % FRICTION, give)))
+        for part, radius, top, end in BODY:
             if name == part or name.endswith('_' + part):
-                felt = (give if part in ('foot', 'toes') else cloth if part in CLOTH else '')
-                up = part in UPPER
-                out.append('<geom type="%s" size="%s" pos="%g %g %g" contype="%d" '
-                           'conaffinity="%d" condim="4" friction="%g %g 0.001"%s/>' % (
-                               (shape, ' '.join('%g' % v for v in size)) + tuple(at)
-                               + (ME | TRUNK * up, MEETS | LEG * up, CLOTH.get(part, FRICTION),
-                                  TORSION_M, felt)))
-        for part, radius, top, end in LIMBS + ARMS:
-            if name.endswith('_' + part):
-                own, meets = (TRUNK, LEG) if part in UPPER else (LEG, TRUNK)
-                out.append('<geom type="capsule" size="%g" fromto="%s" contype="%d" '
-                           'conaffinity="%d" condim="1" priority="1"%s/>' % (
-                               radius, ' '.join('%g' % v for v in top + end), own, meets, cloth))
+                shape = ('type="sphere" size="%g" pos="%g %g %g"' % ((radius,) + top) if top == end
+                         else 'type="capsule" size="%g" fromto="%s"' % (
+                             radius, ' '.join('%g' % v for v in top + end)))
+                out.append('<geom %s%s%s/>' % (shape, grip % CLOTH.get(part, FRICTION),
+                                                cloth if part in CLOTH else ''))
         if name.endswith('_shank'):
             side = name[:-len('_shank')]
             out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)]
@@ -202,9 +193,7 @@ def mjcf():
          ] + floor.ground(contacts, give, TORSION_M)
         + body(SEGMENTS[0])
         + floor.rug(give, FRICTION, TORSION_M)
-        + ['</worldbody>', '<contact>']
-        + ['<exclude body1="%s" body2="%s"/>' % pair for pair in APART]
-        + ['</contact>', '<actuator>']
+        + ['</worldbody>', '<actuator>']
         + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
                                                       max(SERVO[kind(j)][0], drives.peak(j)))
            for j in JOINTS]

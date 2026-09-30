@@ -64,35 +64,40 @@ SEGMENTS = tuple([
 #: The sole's half-width, metres.
 SOLE_HALF = 0.038
 
-#: What touches the floor: (segment, shape, size, centre) in the segment's frame - the soles and
-#: toes on their undersides, the knee's front to kneel on, the knuckles to lean on; the seat, the
-#: back and the chest, the skull, the arms and the thighs to fall on. Without them she lay with
-#: her torso through the floor (2026-09-27). The seat is two buttocks, a capsule each along her
-#: way: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, she rolled onto her back
-#: (the torso's up 0.02); on these she sat (1.00) (2026-09-30).
+#: The soles and the toes, their undersides: (segment, 'box', half sizes, centre), its frame.
 CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL) / 2.0), (0.0, -ANKLE_H + 0.03, (BALL - HEEL) / 2.0)),
-            ('toes', 'box', (0.036, 0.015, TOE_M / 2.0), (0.0, 0.001, TOE_M / 2.0)),
-            ('shank', 'sphere', (0.035,), (0.0, -0.06, 0.03)),
-            ('hand', 'sphere', (0.03,), (0.0, -0.07, 0.01)),
-            ('pelvis', 'capsule', (0.06, 0.035), (0.055, -0.05, -0.025)),
-            ('pelvis', 'capsule', (0.06, 0.035), (-0.055, -0.05, -0.025)),
-            ('torso', 'sphere', (0.10,), (0.0, 0.10, -0.02)),
-            ('torso', 'sphere', (0.11,), (0.0, 0.28, 0.0)),
-            ('head', 'sphere', (0.085,), (0.0, 0.095, 0.012)),
-            ('upper_arm', 'sphere', (0.045,), (0.0, -0.13, 0.0)),
-            ('forearm', 'sphere', (0.04,), (0.0, -0.12, 0.0)),
-            ('thigh', 'sphere', (0.07,), (0.0, -0.19, 0.0)))
+            ('toes', 'box', (0.036, 0.015, TOE_M / 2.0), (0.0, 0.001, TOE_M / 2.0)))
 
-#: Her body against itself (`physics.LEG`): each leg's length a capsule (segment, radius, from,
-#: to, its frame), the render's skin, met by UPPER's contacts and the arms' capsules (ARMS). The
-#: contacts alone left a thigh bare but for its middle, and getting up her trunk went through
-#: them (the user, 2026-09-30).
-LIMBS = (('thigh', 0.058, (0.0, -0.03, 0.0), (0.0, -0.36, 0.0)),
-         ('shank', 0.05, (0.0, -0.04, 0.0), (0.0, -0.25, 0.0)))
-ARMS = (('upper_arm', 0.028, (0.0, -0.02, 0.0), (0.0, -0.25, 0.0)),
-        ('forearm', 0.022, (0.0, -0.02, 0.0), (0.0, -0.22, 0.0)))
-#: The contacts that meet the legs' capsules.
-UPPER = ('torso', 'head', 'upper_arm', 'forearm', 'hand')
+#: The seat's two buttocks, capsules along her way SEAT_R round at SEAT_Y from SEAT_Z to SEAT_Z:
+#: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, she rolled onto her back;
+#: on these she sat (2026-09-30). The fist, FIST_R at FIST_AT, the knuckles to lean on.
+SEAT_R, SEAT_X, SEAT_Y, SEAT_Z = 0.06, 0.055, -0.05, (-0.06, 0.01)
+FIST_R, FIST_AT = 0.03, (0.0, -0.07, 0.01)
+
+#: Her body, on the floor and on itself: (segment, radius, from, to), its frame - a capsule, a
+#: sphere where the ends meet - the drawn skin, the clothes not: the hips across, the waist, the
+#: ribs, the chest and the shoulders across, the bust, the neck, the skull and the jaw, every
+#: limb its length. A sphere or two a segment, lying her arms went 40-43 mm into the floor, her
+#: head 40, her shins 100 through each other and her hand 41 into its upper arm (2026-09-30).
+BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[1])),
+        ('pelvis', SEAT_R, (-SEAT_X, SEAT_Y, SEAT_Z[0]), (-SEAT_X, SEAT_Y, SEAT_Z[1])),
+        ('pelvis', 0.09, (-0.06, -0.01, -0.01), (0.06, -0.01, -0.01)),
+        ('torso', 0.066, (-0.03, 0.0, 0.0), (0.03, 0.0, 0.0)),
+        ('torso', 0.08, (-0.038, 0.15, 0.0), (0.038, 0.15, 0.0)),
+        ('torso', 0.078, (-0.052, 0.26, 0.0), (0.052, 0.26, 0.0)),
+        ('torso', 0.066, (-0.074, 0.33, 0.0), (0.074, 0.33, 0.0)),
+        ('torso', 0.045, (0.055, 0.208, 0.058), (0.055, 0.208, 0.058)),
+        ('torso', 0.045, (-0.055, 0.208, 0.058), (-0.055, 0.208, 0.058)),
+        ('neck', 0.04, (0.0, 0.0, 0.0), (0.0, 0.07, 0.0)),
+        ('head', 0.085, (0.0, 0.095, 0.012), (0.0, 0.095, 0.012)),
+        ('head', 0.045, (0.0, 0.042, 0.03), (0.0, 0.042, 0.03)),
+        ('upper_arm', 0.028, (0.0, -0.02, 0.0), (0.0, -0.25, 0.0)),
+        ('forearm', 0.022, (0.0, -0.02, 0.0), (0.0, -0.22, 0.0)),
+        ('hand', FIST_R, FIST_AT, FIST_AT),
+        ('fingers', 0.014, (0.0, -0.01, 0.0), (0.0, -0.06, 0.0)),
+        ('thigh', 0.058, (0.0, -0.03, 0.0), (0.0, -0.36, 0.0)),
+        ('shank', 0.05, (0.0, -0.04, 0.0), (0.0, -0.25, 0.0)),
+        ('shank', 0.036, (0.0, -0.25, 0.0), (0.0, -0.33, 0.0)))
 
 #: Every joint, in the order the segments carry them.
 JOINTS = tuple(j for seg in SEGMENTS for j, _axis, _sign in seg[2])
