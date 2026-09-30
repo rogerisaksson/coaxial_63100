@@ -83,11 +83,15 @@ Open work. Measured results are in FINDINGS.
   weak one - a bent knee on the floor asks its drive nothing - and rise on
   the strong leg when it holds again; the cut knee she rides out. Fallen,
   her drives shorted, she lies where she settled, 4 of 5 prone: get up -
-  the push-up onto her knees, on tucked toes, the hands 0.45 m ahead of the
-  balls, the knees up onto the toes, the heels down into the arrival's
-  squat and its rise facing as she lay (from that kneel she stands); on her
-  back, sat up with a hand behind as a person does, the hand bears 80 % -
-  roll her over first. The scoreboard counts the time down. The
+  from a kneel on tucked toes, the hands 0.45 m ahead of the balls, the
+  knees up onto the toes and the heels down into the arrival's squat and
+  its rise, she stands (tried from that kneel); prone she cannot reach it -
+  the shoulder's one axis and 170 degrees of travel either way put the floor
+  in the arm's plane: the push with the arms along her pins the shoulder at
+  its 40 N m, at the sized 101 the elbow folds back (no stop), over the
+  back they reach ahead but cannot come down; on her back, sat up, a hand
+  beside the seat bears 80 % (tools/sim/c3d.py's takes). The scoreboard
+  counts the time down. The
   shoves' findings stand: toward the standing foot the side step ends with
   the capture point 27 cm ahead and no foot there; shoved at 0.30 of the
   stride the landing latched at 0.7 of the swing sits 14 cm inside the
