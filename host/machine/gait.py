@@ -144,8 +144,9 @@ STANCE_AT = 0.24
 #: The bench saw her bottom swing, not her hips sway: at 3 and dropped 7 the pelvis turns 16.7
 #: and rolls 14.5, the hips 72 mm across under shoulders at 23, held 74 % of the Monte Carlo
 #: where 77; dropped 8, from mid-stride at 0.918 she fell in her first step. A woman's catwalk
-#: take turns 27 and rolls 27 (`tools/sim/mocap.py`) (2026-09-30).
-SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.010, 7.0, 3.0, 1.0
+#: take turns 27 and rolls 27 (`tools/sim/mocap.py`). Turned 4, dropped 6, the shoulders back
+#: 0.25: swing 19.2 where 16.0, hips wag 65.3 mm where 71.4, held 78.5 % where 74.0 (2026-09-30).
+SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.010, 6.0, 4.0, 1.0
 
 #: How far each arm joint trails the one above it, radians of the stride.
 TRAIL = 0.55
