@@ -21,6 +21,7 @@ import ctypes
 import re
 import threading
 import time
+import weakref
 from contextlib import contextmanager
 
 from rich import box
@@ -360,27 +361,43 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
     at, seen, total = scroll_state(console)['pages']
     if at or seen < total:
         keys = list(keys) + [(UP + ' ' + DOWN, 'SCROLL')]
-    body = Layout()
-    art_region = Layout(name='art')
+    whole = _laid(console, under is not None)
     page = title if dressed else None
+    drawn = viewport(art_title or title, art, rate, page)
     if under is None:
-        art_region.update(viewport(art_title or title, art, rate, page))
+        whole['art'].update(drawn)
     else:
         # `under` is a fixed height because the viewport takes the rest: a box
         # that grew with its content would push the bars off the bottom of a
         # short terminal instead of the other way round.
-        art_region.split_column(
-            Layout(viewport(art_title or title, art, rate, page), name='top'),
-            Layout(under, name='under', size=_rows_of(under) + 2))
-    body.split_row(art_region,
-                   Layout(Group(*boxes) if boxes else Text(''),
-                          name='hud', size=HUD_WIDTH))
-
-    whole = Layout()
-    whole.split_column(Layout(header(title, origin), size=1),
-                       Layout(body, name='body'),
-                       Layout(footer(keys), size=1))
+        whole['top'].update(drawn)
+        whole['under'].update(under)
+        whole['under'].size = _rows_of(under) + 2
+    whole['hud'].update(Group(*boxes) if boxes else Text(''))
+    whole['header'].update(header(title, origin))
+    whole['footer'].update(footer(keys))
     return whole
+
+
+#: Each console's layout, laid once and filled every frame: a rich Layout keys its render map by
+#: itself, so a tree laid a frame left every frame's drawing in a cycle - 117 066 objects over
+#: 40 frames of the thermal page, its peak up 34 kB a frame on 3.14's collector (2026-09-30).
+_LAID: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+
+
+def _laid(console, under):
+    """The console's layout, `under` the drawing or not, laid on first ask."""
+    have = _LAID.get(console)
+    if have is None or have[0] != under:
+        art = Layout(name='art')
+        if under:
+            art.split_column(Layout(name='top'), Layout(name='under'))
+        body = Layout(name='body')
+        body.split_row(art, Layout(name='hud', size=HUD_WIDTH))
+        whole = Layout()
+        whole.split_column(Layout(name='header', size=1), body, Layout(name='footer', size=1))
+        have = _LAID[console] = (under, whole)
+    return have[1]
 
 
 def panels_of(console, origin, title, groups, keys):
