@@ -14,10 +14,12 @@ either way (`show_humanoid.row`).
 A row a stage (the walk's first second apart): the pelvis and the head under the stand (the
 dip), the torso ahead of plumb, the torso against the left shin (under 0 it leans back over bent
 knees), the hips-to-shoulders line, the left knee (under 0 bent back), the head's pitch (its
-range the nod), the left hip's roll - least and most over the stage, deg and mm.
+range the nod), the left hip's roll, the thighs' gap as drawn, bare and in the jeans (under 0
+they meet) - least and most over the stage, deg and mm.
 """
 import argparse
 import csv
+import functools
 import glob
 import math
 import os
@@ -137,6 +139,38 @@ def _roll(r):
     return math.degrees(math.atan2(2.0 * (x * y + w * z), 1.0 - 2.0 * (x * x + z * z)))
 
 
+@functools.lru_cache(None)
+def _thigh(dressed):
+    """((depth under the hip joint, radius), ..) down a thigh as drawn, m, crotch to knee: the
+    crotch the pelvis's lowest point, or the jeans' seat's (`coaxial.graphics.gynoid`)."""
+    from coaxial.graphics import gynoid
+    from machine.gait import HIP_DROP, THIGH
+    meshes, parts = gynoid._meshes()
+    worn = {part[0]: part[-1] for part in parts}
+    thigh, seat = ((worn['cloth_left_thigh'], worn['cloth_seat']) if dressed
+                   else (meshes['left_thigh'], meshes['pelvis']))
+    rings = {}
+    for x, y, z in thigh[0]:
+        rings[-round(float(y), 5)] = max(rings.get(-round(float(y), 5), 0.0), math.hypot(x, z))
+    ring = sorted(rings.items())
+    crotch = -float(min(seat[0][:, 1])) - HIP_DROP
+    out = []
+    for d in (crotch + (THIGH - crotch) * i / 11.0 for i in range(12)):
+        (d0, r0), (d1, r1) = next(p for p in zip(ring, ring[1:]) if p[0][0] <= d <= p[1][0])
+        out.append((d, r0 + (r1 - r0) * (d - d0) / (d1 - d0)))
+    return tuple(out)
+
+
+def _gap(r, dressed):
+    """The least distance between the thighs' surfaces as drawn, crotch to knee, mm."""
+    def down(side):
+        hip, knee = _p(r, side + '_thigh'), _p(r, side + '_shank')
+        n = math.dist(hip, knee)
+        return [(tuple(h + (k - h) * d / n for h, k in zip(hip, knee)), rad)
+                for d, rad in _thigh(dressed)]
+    return 1e3 * min(math.dist(a, b) - ra - rb for a, ra in down('left') for b, rb in down('right'))
+
+
 #: (name, unit, of a row and the stand's heights {pelvis, head, hip L, hip R}): each column.
 MEASURES = (
     ('pelvis dy', 'mm', lambda r, ref: (float(r['y']) - ref['pelvis']) * 1e3),
@@ -155,6 +189,8 @@ MEASURES = (
     ('knee L', 'deg', lambda r, ref: float(r['left_knee'])),
     ('head pitch', 'deg', lambda r, ref: _lean(_p(r, 'neck'), _p(r, 'head')) - HEAD_REST),
     ('hip roll L', 'deg', lambda r, ref: float(r['left_hip_roll'])),
+    ('thigh gap', 'mm', lambda r, ref: _gap(r, False)),
+    ('jeans gap', 'mm', lambda r, ref: _gap(r, True)),
 )
 
 #: A seam's measures, by name, and the director's ask beside them; the times read about it, s.
@@ -195,8 +231,11 @@ def main(argv=None):
                         help="the stages in a line and the walk's measures: no tables")
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
-    path = args.csv or (max(glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')),
-                            key=os.path.getmtime) if args.last else None)
+    found = glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')) if args.last else []
+    if args.last and not found:
+        print('no recording in build/recordings: R on the HUMANOID page records one')
+        return 1
+    path = args.csv or (max(found, key=os.path.getmtime) if found else None)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
     rows = recorded(path) if path else simulated(args.to, values, args.cadence, args.halt,
                                                  args.event, args.event_at)
@@ -246,6 +285,8 @@ WALK = (
     ('feet apart', 'mm', lambda rs: _mean(abs(_p(r, 'left_foot')[0] - _p(r, 'right_foot')[0])
                                           for r in rs if float(r['left_load']) > 60.0
                                           and float(r['right_load']) > 60.0) * 1e3),
+    ('thigh gap', 'mm', lambda rs: min(_gap(r, False) for r in rs)),
+    ('jeans gap', 'mm', lambda rs: min(_gap(r, True) for r in rs)),
     ('ankle ahead at landing', 'mm', lambda rs: _mean(
         _p(b, 'left_foot')[2] - _p(b, 'left_thigh')[2] for a, b in _landings(rs)) * 1e3),
     ('toes behind at lift', 'mm', lambda rs: _mean(

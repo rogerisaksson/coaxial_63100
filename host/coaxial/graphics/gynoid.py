@@ -74,14 +74,14 @@ def _drums():
     return out
 
 
-#: Her clothes' colours, and how far out of her they hang, m: high-waisted jeans in a light wash,
-#: a white tee, white sneakers; the jeans LOOSE_M out over the seat and the thighs, the tee
+#: Her clothes' colours, and how far out of her they hang, m: high-waisted jeans,
+#: a white tee, white sneakers; the jeans LOOSE_M out over the seat, FIT_M the thighs, the tee
 #: BAGGY_M; a patch reaches PATCH_M round a drum's end. The jeans' legs (`JEANS_LEG`) hang on
 #: their hems' hinges (`physics.HEMS`) straight to a hem HEM_R (half width, half depth, set back),
 #: HEM_UP up at its sides, leaning HEM_LEAN onto the sneaker's vamp: 88 mm across and level, the
 #: other foot passed 16 mm into it, the toe box 35 mm out of it (2026-09-28).
 DENIM, TEE, SNEAKER = (118, 150, 182), (230, 230, 226), (236, 236, 232)
-LOOSE_M, BAGGY_M, PATCH_M, HEM_R = 0.02, 0.02, 0.045, (0.074, 0.08, 0.004)
+LOOSE_M, FIT_M, BAGGY_M, PATCH_M, HEM_R = 0.02, 0.008, 0.02, 0.045, (0.074, 0.08, 0.004)
 HEM_UP, HEM_LEAN = 0.029, 0.26
 JEANS_LEG = ((0.01, 0.07, 0.068), (-0.1, 0.072, 0.072), (-0.2, 0.074, 0.076, -0.002),
              (HEM_UP - SHANK - ANKLE_H + HEM_AT, HEM_R[0], HEM_R[1], -HEM_R[2], HEM_LEAN))
@@ -113,7 +113,7 @@ def _wear():
             [(0.04, 0.042, 0.042), (0.0, 0.054, 0.05), (-0.07, 0.052, 0.048),
              (-0.13, 0.05, 0.046)], tee, poles=(0.05, -0.133))),
                 ('cloth_%s_thigh' % side, side + '_thigh', (0.0, 0.0, 0.0),
-                 _limb(THIGH, THIGH_R[0] + LOOSE_M, THIGH_R[1] + LOOSE_M, THIGH_R[2] + LOOSE_M,
+                 _limb(THIGH, THIGH_R[0] + FIT_M, THIGH_R[1] + FIT_M, THIGH_R[2] + LOOSE_M,
                        denim, bulge_at=0.22)),
                 ('cloth_%s_shin' % side, side + '_shank', (0.0, 0.0, 0.0), loft(
                     [(0.03, 0.054, 0.054), (0.0, 0.066, 0.066), (-0.06, 0.07, 0.068),

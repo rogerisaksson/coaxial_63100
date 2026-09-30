@@ -143,11 +143,17 @@ MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'direct
 
 
 def _set(values):
-    """The constants set where they live, the plan's tables cleared."""
+    """The constants set where they live - the first of MODULES holding the name, or the one
+    named, walkplan.TRACK_M (gait has its own) - the plan's tables cleared."""
     import importlib
     mods = [importlib.import_module('machine.' + m) for m in MODULES]
     for name, value in values.items():
-        owner = next((m for m in mods if hasattr(m, name)), None)
+        if '.' in name:
+            module, name = name.split('.', 1)
+            mods_named = [m for m in mods if m.__name__ == 'machine.' + module]
+            owner = next((m for m in mods_named if hasattr(m, name)), None)
+        else:
+            owner = next((m for m in mods if hasattr(m, name)), None)
         if owner is None:
             raise KeyError('no %s in machine.%s' % (name, ', machine.'.join(MODULES)))
         setattr(owner, name, value)
