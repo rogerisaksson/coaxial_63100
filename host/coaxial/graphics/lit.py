@@ -73,9 +73,10 @@ def splat(arrays, m, cam, centre):
     rgb = np.zeros((height, width, 3), np.uint8)
     order = np.argsort(w)
     ix, iy = np.rint(sx[order]).astype(int), np.rint(sy[order]).astype(int)
+    ahead = w[order] > 0.0
     for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
         x, y = ix + dx, iy + dy
-        keep = (x >= 0) & (x < width) & (y >= 0) & (y < height)
+        keep = ahead & (x >= 0) & (x < width) & (y >= 0) & (y < height)
         depth[y[keep], x[keep]] = w[order][keep]
         rgb[y[keep], x[keep]] = colour[order][keep]
     return depth, rgb
@@ -88,12 +89,12 @@ FLOOR_PITCH, FLOOR_HALF = 0.3, 2.4
 FLOOR_INK = (40, 130, 140)
 
 
-def grid(m, cam, centre, travel=0.0, pitch=FLOOR_PITCH, half=FLOOR_HALF):
-    """The floor's grid points, `pitch` apart to `half` out and scrolled `travel` m on, as a
-    (height, width) brightness: 0 none, far dimmer."""
+def grid(m, cam, centre, travel=(0.0, 0.0), pitch=FLOOR_PITCH, half=FLOOR_HALF):
+    """The floor's grid points, `pitch` apart to `half` out and scrolled `travel` (x, z) m on, as
+    a (height, width) brightness: 0 none, far dimmer."""
     from coaxial.model.blocks import numpy as np
     ticks = np.arange(-half, half + 1e-9, pitch)
-    gx, gz = np.meshgrid(ticks, ticks - (travel % pitch))
+    gx, gz = np.meshgrid(ticks - (travel[0] % pitch), ticks - (travel[1] % pitch))
     points = np.stack([gx.ravel(), np.zeros(gx.size), gz.ravel()], 1)
     sx, sy, w = project(points, m, cam, centre)
     x, y = np.rint(sx).astype(int), np.rint(sy).astype(int)

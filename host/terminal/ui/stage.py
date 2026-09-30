@@ -228,13 +228,17 @@ VIRTUAL_CHIP = Text(' VIRTUAL ', style='chip.virtual')
 DYNAMIC_CHIP = Text(' DYNAMIC ', style='chip.dynamic')
 
 
-def band_of(name, extra='', tag=None):
-    """The band every page wears: `name` hard left, its kana and `extra` dim after it,
-    the clock and `tag` right with one cell of air before the band's end.
+def band_of(name, extra='', tag=None, gauges=None):
+    """The band every page wears: `name` hard left, its kana and `extra` dim after it, a
+    page's `gauges` (Text) after them, the clock and `tag` right with one cell of air before
+    the band's end.
     """
     kana = KANA[name][0] if name in KANA else ''
     left = Text.assemble((name, 'bar'), ('  ' + kana if kana else '', 'bar.dim'),
                          ('   ' + extra if extra else '', 'bar.dim'))
+    if gauges is not None:
+        left.append('   ')
+        left.append_text(gauges)
     return band(left, _Ticking(tag))
 
 
@@ -254,13 +258,15 @@ class _Ticking(Text):
         yield from self._now().__rich_console__(console, options)
 
 
-def header(title, origin):
-    """A view's band: its name, the port, the STO chain's chip and the meaning chip right."""
+def header(title, origin, gauges=None):
+    """A view's band: its name, the port, the view's `gauges`, the STO chain's chip and the
+    meaning chip right."""
     where = ("PORT: %s" % origin.port if origin.real
              else "" if origin.label == "Simulated" else origin.label)
     tag = chip(origin)
     sto = sto_chip()
-    return band_of(title, where, Text.assemble(sto, ' ', tag) if sto is not None else tag)
+    return band_of(title, where, Text.assemble(sto, ' ', tag) if sto is not None else tag,
+                   gauges)
 
 
 #: Cells the title band is set in from the left edge: at 0 it stood out
@@ -345,11 +351,11 @@ def viewport(title, art, corner='', page=None):
 
 
 def frame_of(console, origin, title, art, boxes, keys, art_title=None,
-             under=None, dressed=True):
-    """The template: title band, viewport left, instruments right, key bar;
-    `dressed` False for a drawing with a HUD of its own."""
+             under=None, dressed=True, gauges=None):
+    """The template: title band (its `gauges` a Text after the name), viewport left,
+    instruments right, key bar; `dressed` False for a drawing with a HUD of its own."""
     if not _fills(console):
-        return Group(header(title, origin),
+        return Group(header(title, origin, gauges),
                      viewport(art_title or title, art),
                      *([under] if under is not None else []),
                      *boxes, footer(keys))
@@ -374,7 +380,7 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
         whole['under'].update(under)
         whole['under'].size = _rows_of(under) + 2
     whole['hud'].update(Group(*boxes) if boxes else Text(''))
-    whole['header'].update(header(title, origin))
+    whole['header'].update(header(title, origin, gauges))
     whole['footer'].update(footer(keys))
     return whole
 

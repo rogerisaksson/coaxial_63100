@@ -171,11 +171,10 @@ while bus['t'] < until:
         angles = {j: bus[j + '.deg'] for j in JOINTS}
         turn = quat(bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                     bus['pelvis.pose.qz'])
-        z = bus['pelvis.pose.z']
-        camera = follow(z, bus['pelvis.pose.vz'], bus['t'])
+        x, z = bus['pelvis.pose.x'], bus['pelvis.pose.z']
+        camera = follow((x, z), (bus['pelvis.pose.vx'], bus['pelvis.pose.vz']), bus['t'])
         lines = gynoid.render(angles, 56, 24, yaw=60.0, colour=False, travel=camera,
-                              root=((bus['pelvis.pose.x'], bus['pelvis.pose.y'], z - camera),
-                                    turn))
+                              root=((x - camera[0], bus['pelvis.pose.y'], z - camera[1]), turn))
         frames.append(np.asarray(ansi.image('\\n'.join(lines), cell=(6, 12))))
 fig, (axis,) = figure(rows=1)
 axis.axis('off')
@@ -202,9 +201,9 @@ try:
         now = live.latest()
         if now is not None:
             x, y, z = now['where']
-            camera = follow(z, now['speed'], now['t'])
+            camera = follow((x, z), now['velocity'], now['t'])
             lines = gynoid.render(now['angles'], 56, 24, yaw=60.0, travel=camera,
-                                  root=((x, y, z - camera), quat(*now['turn'])))
+                                  root=((x - camera[0], y, z - camera[1]), quat(*now['turn'])))
             view.update(ansi.image('\\n'.join(lines), cell=(6, 12)))
         time.sleep(0.1)
 finally:

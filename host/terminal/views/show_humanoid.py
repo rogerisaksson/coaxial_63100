@@ -22,9 +22,11 @@ import os
 import sys
 import time
 
+from rich.text import Text
+
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
-from machine import ansi, style
+from machine import ansi, gait, style
 from machine.director import moment
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from machine.routines import TYPES
@@ -33,6 +35,7 @@ from terminal.loader import TO_MENU
 from terminal.views.overlay import (BOX_GROUND, BRAKE_INK, CALLOUT_W, DARK_INK, DRIVE_INK, LIGHT_INK,
                                     NUMBER_INK, SMALL, STAND, STANDING, TORQUE_INK, data_labels,
                                     data_legend, traffic)
+from terminal.views.playback import Playback
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
@@ -49,6 +52,42 @@ ORIGIN = Origin(False, 'dynamic', 0, 'dynamic', 'GRAVITY 9.81 - MUJOCO', 'dynami
 #: The cadence's bounds and a key's step, strides a second: under 0.6 she fell from her first
 #: stride, at 0.95 within two seconds (2026-09-25).
 CADENCE, CADENCE_STEP = (0.6, 0.9), 0.05
+
+#: The band's meters, METER cells each: her pace from still through her walk to a run
+#: (strides/s at each mark), and her walk on `style.SWAY`'s axis, Z and X a SWAY_STEP of it.
+PACES = ((0.0, 'still'), (gait.CADENCE, 'walk'), (1.6, 'run'))
+STYLES = ((-1.0, 'catwalk'), (0.0, 'normal'), (1.0, 'swagger'))
+METER, SWAY_STEP = 21, 0.25
+
+
+def meter(value, marks):
+    """A scale as the band draws it: its first mark's word, a line with the middle mark's word
+    where it falls and a dot at `value` - the word lit where the dot is on it - its last's."""
+    lo, hi = marks[0][0], marks[-1][0]
+
+    def cell(v):
+        return max(0, min(METER - 1, round((v - lo) / (hi - lo) * (METER - 1))))
+    word = marks[1][1]
+    start = max(0, min(METER - len(word), cell(marks[1][0]) - len(word) // 2))
+    dot = cell(value)
+    out = Text(marks[0][1] + ' ', style='bar.dim')
+    lit = start <= dot < start + len(word)
+    for i in range(METER):
+        if start <= i < start + len(word):
+            out.append(word[i - start], style='bar' if lit else 'bar.dim')
+        else:
+            out.append('●' if i == dot else '─', style='bar' if i == dot else 'bar.dim')
+    out.append(' ' + marks[-1][1], style='bar.dim')
+    return out
+
+
+def gauges(state):
+    """The band's PACE and STYLE meters from what the page asked of her."""
+    out = Text('PACE ', style='bar.dim')
+    out.append_text(meter(state['cadence'], PACES))
+    out.append('   STYLE ', style='bar.dim')
+    out.append_text(meter(state['sway'], STYLES))
+    return out
 
 #: The camera: where it starts, three quarters round so a stride shows; degrees a key turns
 #: it, the orbit's degrees a second, the zoom's bounds.
@@ -185,8 +224,8 @@ def boxes(state, now, name):
 STATUS = {'squat': 'CROUCH', 'look': 'CROUCH', 'push': 'RISE', 'rise': 'RISE', 'stand': 'STAND',
           'shift': 'STAND', 'lean': 'STAND', 'step': 'WALK', 'walk': 'WALK', 'catch': 'CATCH',
           'halt': 'STOP', 'settle': 'STOP', 'lower': 'CROUCH', 'rest': 'REST', 'falling': 'FALL',
-          'fallen': 'DOWN', 'unfold': 'GET UP', 'prop': 'GET UP', 'sit': 'GET UP',
-          'fold': 'GET UP', 'lift': 'GET UP', 'crouch': 'GET UP'}
+          'fallen': 'DOWN', 'unfold': 'GET UP', 'roll': 'GET UP', 'prop': 'GET UP',
+          'sit': 'GET UP', 'fold': 'GET UP', 'lift': 'GET UP', 'crouch': 'GET UP'}
 
 
 def _status(now):
@@ -277,58 +316,12 @@ def _trimmed(steps):
     return lambda state: state['body'].send(style=(state['knob'], steps))
 
 
-#: The page plays her back LAG_S of her time behind the newest state said, its clock's pace her
-#: process's ratio to real time and CATCH_UP of the lag's error a second, eased over PACE_S; a
-#: buffer of KEEP_S. Drawn as each state
-#: came, a frame at 15 a second showed the same state again 65 times in 235 and the rest 0.036 s
-#: of her time apart with 0.022 of spread: her process runs 0.7 of real time in slices of 0.05 s
-#: (2026-09-28).
-LAG_S, CATCH_UP, PACE_S, KEEP_S = 0.2, 1.0, 0.5, 1.0
-
-
-class Playback:
-
-    """Her states said, played back on a clock of their own at an even pace, the frame's state
-    blended between the two it falls between: `push(states)`, `at(wall)`."""
-
-    def __init__(self):
-        self.states, self.shown, self.wall, self.pace = [], None, None, 1.0
-
-    def push(self, states):
-        self.states += states
-        if self.states:
-            newest = self.states[-1]['t']
-            self.states = [s for s in self.states if s['t'] >= newest - KEEP_S]
-
-    def at(self, wall):
-        """The state to draw at `wall` seconds, or None before the first."""
-        if not self.states:
-            return None
-        newest = self.states[-1]['t']
-        if self.shown is None or self.shown > newest or self.shown < self.states[0]['t']:
-            self.shown, self.wall = newest - LAG_S, wall
-        dt = max(0.0, wall - self.wall)
-        self.wall = wall
-        ratio = min(1.0, self.states[-1].get('ratio', 1.0))
-        want = ratio + CATCH_UP * ((newest - LAG_S) - self.shown)
-        self.pace += (want - self.pace) * min(1.0, dt / PACE_S)
-        self.shown = min(newest, self.shown + max(0.0, self.pace) * dt)
-        after = next((i for i, s in enumerate(self.states) if s['t'] >= self.shown),
-                     len(self.states) - 1)
-        b = self.states[after]
-        a = self.states[max(0, after - 1)]
-        span = b['t'] - a['t']
-        k = 0.0 if span <= 1e-9 else max(0.0, min(1.0, (self.shown - a['t']) / span))
-        return dict(b, t=self.shown, **_blended(a, b, k))
-
-
-def _blended(a, b, k):
-    """The joints, the pelvis's place, turn and speed k of the way from state a to b."""
-    turn = [x + (y - x) * k for x, y in zip(a['turn'], b['turn'])]
-    norm = math.sqrt(sum(c * c for c in turn)) or 1.0
-    return {'angles': {j: v + (b['angles'].get(j, v) - v) * k for j, v in a['angles'].items()},
-            'where': tuple(x + (y - x) * k for x, y in zip(a['where'], b['where'])),
-            'turn': tuple(c / norm for c in turn), 'speed': a['speed'] + (b['speed'] - a['speed']) * k}
+def _swayed(step):
+    """Z and X: her walk a step toward the catwalk or the swagger, every knob eased over to it."""
+    def sway(state):
+        state['sway'] = max(-1.0, min(1.0, state['sway'] + step))
+        state['body'].send(sway=state['sway'])
+    return sway
 
 
 def row(now, yaw):
@@ -367,6 +360,7 @@ def _pushed(state):
 KEYS = dict(
     [('left', _turned(-TURN_DEG)), ('right', _turned(TURN_DEG)),
      ('[', _paced(-CADENCE_STEP)), (']', _paced(CADENCE_STEP))]
+    + [(k, _paced(-CADENCE_STEP)) for k in 'sS'] + [(k, _paced(CADENCE_STEP)) for k in 'fF']
     + [(k, _pushed) for k in 'pP']
     + [(k, _glitched('soa')) for k in 'gG'] + [(k, _glitched('hot')) for k in 'hH']
     + [(k, _tripped(event)) for k, event in TRIPS.items()]
@@ -376,6 +370,7 @@ KEYS = dict(
                                                      % len(CALLING)])) for k in 'lL']
     + [(k, _recorded) for k in 'rR']
     + [(k, _next_knob) for k in 'kK'] + [(',', _trimmed(-1)), ('.', _trimmed(1))]
+    + [(k, _swayed(-SWAY_STEP)) for k in 'zZ'] + [(k, _swayed(SWAY_STEP)) for k in 'xX']
     + [(k, lambda state: state.update(shown=SHOWN[(SHOWN.index(state['shown']) + 1)
                                                   % len(SHOWN)])) for k in 'tT']
     + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'vV']
@@ -419,7 +414,7 @@ def main(argv=None):
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
              'tripped': None, 'playback': Playback(), 'shown': 'torque', 'dressed': True,
-             'data': False, 'traffic': None, 'knob': style.NAMES[0]}
+             'data': False, 'traffic': None, 'knob': style.NAMES[0], 'sway': 0.0}
 
     def draw():
         said = []
@@ -446,10 +441,10 @@ def main(argv=None):
                                           legend=data_legend(width), dressed=state['dressed']))
         else:
             x, y, z = now['where']
-            camera = state['follow'](z, now['speed'], now['t'])
+            camera = state['follow']((x, z), now['velocity'], now['t'])
             art = '\n'.join(gynoid.render(now['angles'], width, height, yaw=state['yaw'],
                                           zoom=state['zoom'], colour=terminal, travel=camera,
-                                          lit=lit, root=((x, y, z - camera),
+                                          lit=lit, root=((x - camera[0], y, z - camera[1]),
                                                          quat(*now['turn'])),
                                           labels=labels(now, state['called'], state['shown']),
                                           heat={j: h[0] for j, h in now['heat'].items()},
@@ -459,12 +454,12 @@ def main(argv=None):
                                           dressed=state['dressed']))
         side = boxes(state, now, name) + ([traffic(state, now)] if state['data'] and now else [])
         return frame_of(board_view, ORIGIN, TITLE, art, side,
-                        (('[ ]', 'PACE'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
-                         ('1-6', 'HOLE RUG SILL SLIP LACE STAIRS'),
+                        (('S F', 'PACE'), ('Z X', 'CATWALK SWAGGER'), ('P', 'PUSH'), ('G', 'SOA'),
+                         ('H', 'HOT'), ('1-6', 'HOLE RUG SILL SLIP LACE STAIRS'),
                          ('K , .', 'STYLE'), ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
                          ('V', 'VIEW'), ('C', 'CLOTHES'), ('D', 'DATA'),
-                         ('Q', 'EXIT'), ('ESC', 'MENU')))
+                         ('Q', 'EXIT'), ('ESC', 'MENU')), gauges=gauges(state))
 
     leaving = None
     try:

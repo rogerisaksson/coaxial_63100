@@ -31,7 +31,7 @@ AVERAGE_S = 0.05
 LEAD = 1
 
 #: Fallen, she gets up by herself (`machine.getup`); she is landed in the squat again RECOVER_S
-#: after it gives up (face down, or its tries spent), or once down LIE_MAX_S without lying still.
+#: after its tries are spent (`director.GETUP_TRIES`), or once down LIE_MAX_S without lying still.
 RECOVER_S, LIE_MAX_S = 3.0, 15.0
 
 
@@ -83,6 +83,8 @@ def _run(commands, states, cadence):
                     event = [command['event'], LEAD]
                 if 'style' in command:
                     style.trim(*command['style'])
+                if 'sway' in command:
+                    style.sway(command['sway'])
                 if command.get('restart'):
                     begin()
                     wall0, sim0 = time.perf_counter(), bus['t']
@@ -135,6 +137,7 @@ def _run(commands, states, cadence):
                      'turn': (bus['pelvis.pose.qw'], bus['pelvis.pose.qx'], bus['pelvis.pose.qy'],
                               bus['pelvis.pose.qz']),
                      'speed': bus['pelvis.pose.vz'], 'phase': director.walker.phase,
+                     'velocity': (bus['pelvis.pose.vx'], bus['pelvis.pose.vz']),
                      'cadence': director.cadence, 'stage': director.stage,
                      'fallen': director.stage == 'fallen', 'slips': director.slips,
                      'stir': director.pendulum.stir, 'stirs': director.pendulum.stirs,
@@ -149,7 +152,7 @@ def _run(commands, states, cadence):
                                if world.buses is not None else []),
                      'recover': (RECOVER_S - (bus['t'] - director.fallen_at)
                                  if director.given_up else None),
-                     'style': style.state(), 'ratio': min(ratio, 99.0)}
+                     'style': style.state(), 'sway': style.AXIS, 'ratio': min(ratio, 99.0)}
             try:
                 states.put_nowait(state)
             except queue.Full:
@@ -175,6 +178,7 @@ class Running:
         """{'cadence': strides/s} | {'push': (x, y, z) N, 'seconds': s} | {'glitch': (joint,
         kind, s)} | {'event': one of `events.EVENTS`, laid where her walk meets it} |
         {'style': (knob, steps)}: a knob of `machine.style` trimmed, the walk eased over to it |
+        {'sway': s}: every knob at s on `style.SWAY`'s axis, -1 catwalk to 1 swagger |
         {'restart': True}: landed in the squat again."""
         self._commands.put(command)
 
