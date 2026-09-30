@@ -1,7 +1,7 @@
 """Her boards on their buses: a limb's boards a process, the host's Modbus RTU frames real bytes.
 
     block = Block(joints, buses); buses = Buses(block, limbs)   # World.wire: the processes up
-    bus.arm(index)                          # its gates on again, written with the next pass
+    bus.arm(index); bus.short(index)        # its gates on again; its phases shorted - the next pass
     bus.send(at, now, {index: degrees})     # a pass: the setpoints broadcast, every board polled
     buses.step()                            # a step: every process ticks its boards, in lockstep
     buses.drain(); bus.reading(index)       # the replies read; the board as last heard
@@ -14,8 +14,10 @@ boards its bytes after its stamp, or after the wire frees, 8N1; a poll is answer
 it lands with the board's state then, the reply's bytes on the wire behind it, a gate write with
 its echo. Nothing goes on a bus still busy a pass on. A board holds its setpoint by PD (`gains`)
 every step, carried on at the rate its last two frames came at, within its clamp (`limit`) as
-its envelope derates it and nothing with its gates dropped; its heat (`machine.heat`) steps
-every THERMAL_S on the currents it gave.
+its envelope derates it and nothing with its gates dropped; its phases shorted, it
+gives kt^2/R of the joint's speed back against it (`drives.heat`), within the same clamp - a
+short from 1 979 rpm tripped the bench's board (docs/FINDINGS.md), so its current is held to
+its amps; its heat (`machine.heat`) steps every THERMAL_S on the currents it gave.
 
 The block (`Block`, FIELDS): the world writes time, q, qd and limit, bumps seq and sends a byte
 to each process's stdin; a process takes each bus's new bytes (written - received), ticks its
@@ -159,6 +161,8 @@ class Segment:
         #: frame or None for a poll).
         self.inbox, self.mail = collections.deque(), collections.deque()
         self.drives = [tuple(block.drive[6 * i:6 * i + 6]) for i in self.indices]
+        #: The phases shorted, each joint's torque a rad/s of its speed: kt^2/R, N m s/rad.
+        self.damping = [d[0] * d[0] / d[1] for d in self.drives]
         self.heat, self.heat_at = heat.Heat(self.drives), 0.0
         self.free_at, self.received, self.bad = 0.0, 0, 0
         self.epoch = block.epoch[0]
@@ -225,8 +229,12 @@ class Segment:
                                 if self.framed[k] and 1e-9 < span < 0.1 else 0.0)
                 self.target[k], self.set_at[k], self.framed[k] = v, at, True
         for k, i in enumerate(self.indices):
-            ref = self.target[k] + self.rate[k] * (now - self.set_at[k])
-            tau = b.gains[2 * i] * (ref - b.q[i]) + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i])
+            if h.shorted[k]:
+                tau = -self.damping[k] * b.qd[i]
+            else:
+                ref = self.target[k] + self.rate[k] * (now - self.set_at[k])
+                tau = (b.gains[2 * i] * (ref - b.q[i])
+                       + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i]))
             top = b.limit[i] * h.derate[k] if h.gates[k] else 0.0
             b.ctrl[i] = tau = max(-top, min(top, tau))
             h.load(k, tau)
@@ -243,7 +251,10 @@ class Segment:
             _, unit, gate = self.mail.popleft()
             i, k = self.indices[unit - 1], unit - 1
             if gate:
-                h.arm(k)
+                if rtu.gate_op(gate) == rtu.GATE_SHORT:
+                    h.short(k)
+                else:
+                    h.arm(k)
                 out += rtu.echo(gate)
                 continue
             celsius, spent, derate, status = h.report(k)
@@ -288,7 +299,8 @@ class Bus:
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.polls = b''.join(rtu.poll(unit) for unit in range(1, len(self.indices) + 1))
         self.heard: dict[int, tuple] = {i: QUIET for i in self.indices}
-        self.received, self.bad, self.arming = 0, 0, []
+        #: The gate writes for the next pass, {index: rtu op}.
+        self.received, self.bad, self.gating = 0, 0, {}
 
     def send(self, at, now, degrees):
         """The pass: the bus's setpoints {index: degrees} - every board's, none for the polls
@@ -297,8 +309,9 @@ class Bus:
         b, link = self.block, self.link
         if b.free_at[link] > (at if degrees else now) + LOCKSTEP_S:
             return
-        frames = b''.join(rtu.gate(self.indices.index(i) + 1) for i in self.arming) + self.polls
-        self.arming = []
+        frames = b''.join(rtu.gate(self.indices.index(i) + 1, op)
+                          for i, op in self.gating.items()) + self.polls
+        self.gating = {}
         if degrees:
             frames = rtu.broadcast(1, [round(degrees[i] * 1000.0) for i in self.indices]) + frames
         b.at[2 * link], b.at[2 * link + 1] = at, now
@@ -308,12 +321,15 @@ class Bus:
     def hold(self, index, degrees):
         """A board holding `degrees` still, as at a reset: what the host has of it."""
         self.heard[index] = (degrees,) + QUIET[1:]
-        self.arming = []
+        self.gating = {}
 
     def arm(self, index):
         """Its board's gates on again, written with the next pass."""
-        if index not in self.arming:
-            self.arming.append(index)
+        self.gating[index] = rtu.GATE_ON
+
+    def short(self, index):
+        """Its board's phases shorted through the low sides, written with the next pass."""
+        self.gating[index] = rtu.GATE_SHORT
 
     def drain(self):
         """The replies the boards have sent, read: what the host last heard of each."""

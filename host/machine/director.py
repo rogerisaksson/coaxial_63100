@@ -11,59 +11,45 @@ swinging foot on the capture point, swapping feet when that would cross them (`c
 foot that slides is held where it slid to. Halted, her stride
 shortened to her first's, she settles at a landing: onto the front foot, the rear beside it, down
 into the squat (`rest`); risen, she walks on. `walk_s` and `rest_s` run that round by
-themselves. Falling past recovery, over CURL_S she goes onto all fours turned the way she
-tips, or sits down tipping back, and lies as she landed: `begin` lands her again.
+themselves. Falling past recovery, her legs' and trunk's drives are shorted, dampers, while her
+arms reach toward the fall; down, every drive is, and she lies as she settled: `begin` lands
+her again.
 
 Her drives' boards report their heat on the bus (`machine.heat`): warming, her legs ease the
 pace. A board whose gates dropped is armed again.
 """
 import math
 
-from machine import arrival, figure, gait, heat, walker, walkplan, stance
+from machine import arrival, drives, figure, gait, heat, walker, walkplan, stance
 
 #: Falling, past the walker's recovery: the pelvis tipped past FALLING_DEG and tipping on faster
-#: than FALLING_DEG_S (the head's gyro), or under FALLING_M, walking. She curls into the squat's
-#: joints over CURL_S with the arms out toward the fall (CATCH) and lies as she landed. Fallen -
-#: under FALLEN_M or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves
-#: - is down. Curled at 35 degrees over 1.5 s, the legs walked on through the fall and she lay
-#: with her torso through the floor (2026-09-27).
-FALLING_DEG, FALLING_DEG_S, FALLING_M, CURL_S = 12.0, 60.0, 0.65, 0.4
+#: than FALLING_DEG_S (the head's gyro), or under FALLING_M, walking. Fallen - under FALLEN_M or
+#: tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves - is down.
+FALLING_DEG, FALLING_DEG_S, FALLING_M = 12.0, 60.0, 0.65
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
-#: Falling, the joints she goes to by the way she tips: ahead onto her knees and hands, all
-#: fours, the head up (`tools/sim/getup_lab.py`'s push-up); behind into the squat's, the arms
-#: down behind her and the chin tucked.
-#: Down on all fours her knees go apart, each hip KNEES_APART_DEG out, and her head is held up,
-#: the neck back HEAD_UP_DEG: a lace held her trailing foot, she dove onto her hands with her
-#: legs straight behind, her arms gave, and with the chin down 40 her head met the floor at 0.85
-#: m/s; up 20, 40 or 60 the chest and the hips took it, her head never (2026-09-28).
-KNEES_APART_DEG, HEAD_UP_DEG = 10.0, 40.0
+#: Falling, the drives of SHORT_FALLING's kinds have their phases shorted through the low sides
+#: (`physics.World.short`), each joint giving kt^2/R of its speed back against it - a damper,
+#: not a pose held; the arms and the neck go to CATCH over CURL_S; down, every drive is shorted.
+#: Five falls (the hole, the slip, the rug, the stairs, a lace): 4 lay prone and 1 on her back,
+#: the head at the floor 0.06, -, 1.14, 0.05, 0.05 m/s, her limbs still 0.4-1.4 s after she was
+#: down; curled into the squat's joints and held there, 3 on her left side, 1 on her right and 1
+#: prone, 2.29 and 0.25, still 1.3-1.9 s after or never; the waist left to turn her toward the
+#: fall, 2 on a side (2026-09-30).
+SHORT_FALLING = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll', 'foot', 'spine',
+                 'spine_roll', 'waist')
+CURL_S = 0.4
 
-CATCH = {'ahead': {'left_hip': -90.0, 'right_hip': -90.0, 'left_knee': 90.0, 'right_knee': 90.0,
-                   'left_hip_roll': KNEES_APART_DEG, 'right_hip_roll': KNEES_APART_DEG,
-                   'left_ankle': 20.0, 'right_ankle': 20.0, 'spine': 0.0, 'neck': HEAD_UP_DEG,
-                   'left_shoulder': 90.0, 'right_shoulder': 90.0, 'left_elbow': 10.0,
-                   'right_elbow': 10.0, 'left_wrist': 0.0, 'right_wrist': 0.0,
+#: Falling, the arms and the neck by the way she tips: ahead the hands out before her, the head
+#: up HEAD_UP_DEG - with the chin down 40 her head met the floor at 0.85 m/s, up 20, 40 or 60 the
+#: chest and the hips took it (2026-09-28); tipping more than BEHIND_DEG from her forward, the
+#: arms down behind her and the chin tucked.
+HEAD_UP_DEG, BEHIND_DEG = 40.0, 120.0
+CATCH = {'ahead': {'neck': HEAD_UP_DEG, 'left_shoulder': 90.0, 'right_shoulder': 90.0,
+                   'left_elbow': 10.0, 'right_elbow': 10.0, 'left_wrist': 0.0, 'right_wrist': 0.0,
                    'left_gripper': 0.0, 'right_gripper': 0.0},
          'behind': {'left_shoulder': -45.0, 'right_shoulder': -45.0, 'left_elbow': 20.0,
                     'right_elbow': 20.0, 'neck': 45.0}}
-
-#: Her hands on the floor (TOUCH_M), her arms give under her over YIELD_S into her forearms, the
-#: hands by her face (YIELD) - the catch a spring, not a post: held out straight she caught
-#: herself and toppled over them sideways. Down on a lace, the head 71 mm off the floor at the
-#: least, as it came 132 on straight arms; bent to 70 and the hands brought over the head, it
-#: met the floor at 1.3 m/s (2026-09-28).
-YIELD = {'left_elbow': 90.0, 'right_elbow': 90.0, 'left_shoulder': 110.0, 'right_shoulder': 110.0}
-YIELD_S, TOUCH_M = 0.6, 0.01
-HANDS = ('left_hand', 'left_fingers', 'right_hand', 'right_fingers')
-
-#: Tipping more than BEHIND_DEG from her forward she sits down (`CATCH['behind']`); less, the
-#: waist turns her toward the way she tips as it turns, TWIST_DEG at most, the arms reaching
-#: that way. Five falls (a lace at 300, 400 and 600 N, the hole, the rug), the head's speed at
-#: the floor: curled into the squat, the arms out, 0.35 0.10 3.05 1.71 0.32 m/s, rolled over a
-#: hand; on all fours 1.02 0.13 0.69 0.58 4.78, the rug onto a hip; turned as she tips, the
-#: head down twice, 0.69 and 0.58, the hands first four times (2026-09-28).
-BEHIND_DEG, TWIST_DEG = 120.0, 60.0
 
 
 #: A stance foot bearing `stance.BEARS_N` slid past SLIP_M of where it landed is held where it
@@ -115,11 +101,9 @@ class Director:
         self.walk_s, self.rest_s = walk_s, rest_s
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
-        #: Since when she curls and from and to what; the tilt last pass, (deg, s); when her
-        #: hands met the floor.
+        #: Since when she falls and her arms and neck from and to what (CATCH); the tilt last
+        #: pass, (deg, s).
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
-        self.touched_at = None
-        self.curled = arrival.angles_of(arrival.keyframes(gait.CADENCE)[0][2])
         #: Each joint's drive by its node's channels, the legs'; a dropped drive's (heard at,
         #: wait) and when each was last armed.
         self.world = machine.nodes['pelvis'].world
@@ -151,7 +135,7 @@ class Director:
         self.walker.cadence = gait.CADENCE
         self.walker.reset()
         self.blend, self.curl_from = None, {}
-        self.falling_at, self.curl_to, self.tilt_was, self.touched_at = None, {}, None, None
+        self.falling_at, self.curl_to, self.tilt_was = None, {}, None
         self.dropped, self.armed = {}, {}
 
     def halt(self):
@@ -181,24 +165,16 @@ class Director:
             self.pendulum.read(bus, dt)
         if self.falling_at is None and (self._falling(bus) or self._fallen(bus)):
             self.falling_at, self.stage = bus['t'], 'falling'
-            way = self._fall_way(bus)
-            self.curl_to = dict(self.curled, **CATCH['behind' if abs(way) > BEHIND_DEG
-                                                     else 'ahead'])
+            self.curl_to = CATCH['behind' if abs(self._fall_way(bus)) > BEHIND_DEG else 'ahead']
             self.curl_from = {j: bus.get(j + '.deg', 0.0) for j in self.curl_to}
+            self._short(SHORT_FALLING)
         if self.fallen_at is None and self._fallen(bus):
             self.fallen_at, self.stage = bus['t'], 'fallen'
+            self._short(None)
         if self.falling_at is not None:
-            way = self._fall_way(bus)
-            if abs(way) <= BEHIND_DEG and TWIST_DEG > 0.0:
-                self.curl_to['waist'] = max(-TWIST_DEG, min(TWIST_DEG, way))
             k = gait.eased((bus['t'] - self.falling_at) / CURL_S)
-            out = {j: self.curl_from[j] + (v - self.curl_from[j]) * k
-                   for j, v in self.curl_to.items()}
-            if self.touched_at is None and self.world.lifted(HANDS) < TOUCH_M:
-                self.touched_at = bus['t']
-            if self.touched_at is not None:
-                out = gait.blend(out, dict(out, **YIELD), (bus['t'] - self.touched_at) / YIELD_S)
-            return out
+            return {j: self.curl_from[j] + (v - self.curl_from[j]) * k
+                    for j, v in self.curl_to.items()}
         self.since += dt
         if self.stage in arrival.STAGES:
             out = self.arrival.step(dt)
@@ -254,6 +230,12 @@ class Director:
             elif t - self.dropped[joint][0] >= self.dropped[joint][1]:
                 self.world.arm(figure.JOINTS.index(joint))
                 self.armed[joint] = (t, self.dropped.pop(joint)[1])
+
+    def _short(self, kinds):
+        """The drives of `kinds` (None: every one) shorted through their low sides."""
+        for i, joint in enumerate(figure.JOINTS):
+            if kinds is None or drives.kind(joint) in kinds:
+                self.world.short(i)
 
     def _tilt(self, bus):
         """The pelvis's tilt from upright, degrees."""

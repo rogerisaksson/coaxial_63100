@@ -8,6 +8,7 @@ and trip on them.
     heat.step(dt, air, rds)             # dt s on: the nodes on their losses, the envelope
     heat.derate[k], heat.gates[k]       # the share of its clamp drive k gives, if anything
     heat.arm(k); heat.warm(k, celsius)  # the gates on again; its nodes warmed to at least
+    heat.short(k); heat.shorted[k]      # its phases shorted through the low sides
     heat.report(k)                      # (celsius, spent, derate, status): its reply's
     heat.envelope = False               # a fantasy board: its envelope counted, never binding
 
@@ -46,8 +47,9 @@ AMBIENT_C, HASTE = 25.0, 10.0
 THROTTLE_AT, LOOKAHEAD_S, RECOVER_PER_S = 0.90, 2.0, 0.05
 TRIP_MARGIN, TRIP_RECOVER_PER_S = 0.70, 0.30 / 1800.0
 
-#: The status word: the gates on, and the worst node's index above WORST_SHIFT.
-GATES_ON, WORST_SHIFT = 0x1, 4
+#: The status word: the gates on, the phases shorted, and the worst node's index above
+#: WORST_SHIFT.
+GATES_ON, SHORTED, WORST_SHIFT = 0x1, 0x2, 4
 
 
 class Heat:
@@ -64,6 +66,7 @@ class Heat:
         self.t = [[AMBIENT_C] * len(NODES) for _ in range(n)]
         self.sq, self.ticks = [0.0] * n, [0] * n
         self.derate, self.gates, self.trips = [1.0] * n, [True] * n, [0] * n
+        self.shorted = [False] * n
         self.spent, self.worst, self.die = [0.0] * n, [0] * n, [AMBIENT_C] * n
         #: The trip cap and the heat second it was set at.
         self.cap, self.cap_at, self.at = [1.0] * n, [0.0] * n, 0.0
@@ -77,7 +80,12 @@ class Heat:
 
     def arm(self, k):
         """The gates on again: the host's ask; the envelope trips them again if still hot."""
-        self.gates[k] = True
+        self.gates[k], self.shorted[k] = True, False
+
+    def short(self, k):
+        """The phases shorted through the low sides: the host's ask; nothing with the gates
+        tripped."""
+        self.shorted[k] = True
 
     def warm(self, k, celsius):
         """Drive k's nodes at `celsius` at least: run hard before."""
@@ -128,6 +136,7 @@ class Heat:
 
     def report(self, k):
         """(celsius, spent, derate, status) of drive k: its worst node's temperature, how much
-        of its envelope is spent, its derate, the gates and the worst node's index."""
+        of its envelope is spent, its derate, the gates, the short and the worst node's index."""
         return (self.t[k][self.worst[k]], self.spent[k], self.derate[k],
-                (GATES_ON if self.gates[k] else 0) | self.worst[k] << WORST_SHIFT)
+                (GATES_ON if self.gates[k] else 0) | (SHORTED if self.shorted[k] else 0)
+                | self.worst[k] << WORST_SHIFT)

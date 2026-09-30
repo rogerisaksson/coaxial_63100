@@ -82,16 +82,12 @@ Open work. Measured results are in FINDINGS.
   her (a drive derated hot): sink onto the strong leg and kneel on the
   weak one - a bent knee on the floor asks its drive nothing - and rise on
   the strong leg when it holds again; the cut knee she rides out. Fallen,
-  she lies curled
-  as she landed: get up - onto her front (a roll, `tools/sim/getup_lab.py`
-  has the moves that roll her), the push-up onto hands and knees, and from
-  the kneel into the squat with the feet brought under her one at a time
-  on a hand's support, the centre of mass placed over what bears her at
-  each move (`arrival.over`), then the arrival's rise facing as she lay
-  (its yaw and the walker's heading are ready). The scoreboard counts the
-  time down. The arms take a forward fall late (the head touches once):
-  the elbows to yield under the shoulders instead of the shoulders folding.
-  The
+  her drives shorted, she lies where she settled, 4 of 5 prone: get up -
+  the push-up onto her knees, on tucked toes, the hands 0.45 m ahead of the
+  balls, the knees up onto the toes, the heels down into the arrival's
+  squat and its rise facing as she lay (from that kneel she stands); on her
+  back, sat up with a hand behind as a person does, the hand bears 80 % -
+  roll her over first. The scoreboard counts the time down. The
   shoves' findings stand: toward the standing foot the side step ends with
   the capture point 27 cm ahead and no foot there; shoved at 0.30 of the
   stride the landing latched at 0.7 of the swing sits 14 cm inside the
@@ -129,7 +125,7 @@ Open work. Measured results are in FINDINGS.
   declared on the pelvis's tilt before the foot is free, no step tried
   (`machine.events`, `look.py --event lace`); declared later (20, 30
   degrees) she falls all the same, the standing foot off the floor while
-  the other is held. Fallen on all fours, she lies there: the push-up and
+  the other is held. Prone, the push-up and
   the dog leave the head and the torso on the floor, the arms too weak to
   lift them (`tools/sim/getup_lab.py` heels, bearwalk) - the drives now
   sized give the shoulder 101 N m and the elbow 30 against the model's 40

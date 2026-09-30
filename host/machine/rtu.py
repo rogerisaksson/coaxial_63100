@@ -1,15 +1,16 @@
 """Modbus RTU as her buses speak it: CRC-16, the frames a pass sends and a board answers.
 
     crc16(b'123456789') == CHECK_VALUE
-    broadcast(1, [mdeg, ..]); poll(unit); gate(unit)     # the host's bytes
+    broadcast(1, [mdeg, ..]); poll(unit); gate(unit, op)     # the host's bytes
     reply(unit, mdeg, mdeg_s, centi_c, spent, derate, status); echo(frame)   # a board's
     requests(data), replies(data) -> [(unit, fc, body)], bytes not a frame
 
 Holding registers: SETPOINT_REG unit 1's setpoint (i32 mdeg), two registers a unit up the bus -
 one broadcast 0x10 sets every board's; STATE_REG a board's state, read by 0x03: angle and rate
 (i32 mdeg, mdeg/s), its heat (`machine.heat`: the worst node, i16 0.01 C; the envelope spent and
-the derate, u16 1/10000; the status word); GATE_REG 1 by 0x06 its gates on again, echoed. A
-register's words come high first, a frame's CRC low byte first.
+the derate, u16 1/10000; the status word); GATE_REG by 0x06, echoed: GATE_ON its gates on again,
+GATE_SHORT its phases shorted through the low sides. A register's words come high first, a
+frame's CRC low byte first.
 """
 import struct
 
@@ -39,6 +40,7 @@ if crc16(b'123456789') != CHECK_VALUE:
 
 READ, WRITE, WRITE_ONE, BROADCAST = 0x03, 0x10, 0x06, 0
 SETPOINT_REG, STATE_REG, GATE_REG = 0x0100, 0x0200, 0x0300
+GATE_ON, GATE_SHORT = 1, 2
 
 #: A state's registers and bytes: angle, rate, heat.
 STATE_FORMAT = '>iihHHH'
@@ -64,9 +66,14 @@ def poll(unit):
     return framed(struct.pack('>BBHH', unit, READ, STATE_REG, STATE_BYTES // 2))
 
 
-def gate(unit):
-    """`unit`'s gates on again: 0x06 GATE_REG 1."""
-    return framed(struct.pack('>BBHH', unit, WRITE_ONE, GATE_REG, 1))
+def gate(unit, op=GATE_ON):
+    """`unit`'s gates: 0x06 GATE_REG `op`."""
+    return framed(struct.pack('>BBHH', unit, WRITE_ONE, GATE_REG, op))
+
+
+def gate_op(frame):
+    """The op a gate write's frame carries."""
+    return struct.unpack_from('>H', frame, 4)[0]
 
 
 def reply(unit, angle, rate, centi_c, spent, derate, status):

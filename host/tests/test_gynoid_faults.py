@@ -104,6 +104,9 @@ def test_a_drive_keeps_its_heat(report):
     report.check('a gate write parsed as the host sends it and the board echoes it',
                  rtu.requests(rtu.gate(2))[0] == [(2, rtu.WRITE_ONE, rtu.gate(2)[2:-2])]
                  and rtu.replies(rtu.echo(rtu.gate(2)))[0][0][:2] == (2, rtu.WRITE_ONE))
+    report.check('its op read back: the gates on, the phases shorted',
+                 (rtu.gate_op(rtu.gate(2)), rtu.gate_op(rtu.gate(2, rtu.GATE_SHORT)))
+                 == (rtu.GATE_ON, rtu.GATE_SHORT))
 
 
 def test_a_drive_in_its_soa(report):
@@ -148,10 +151,10 @@ def test_a_drive_in_its_soa(report):
     body.disarm()
 
 
-def test_a_trip_lands_on_her_hands(report):
-    """A lace caught (`machine.events`) trips her past recovery: she goes down onto all fours,
-    her hands the first of her on the floor and her head clear of it."""
-    from machine import Machine, events, figure
+def test_a_trip_lands_her_shorted(report):
+    """A lace caught (`machine.events`) trips her past recovery: her head not the first of her
+    on the floor, and down, every drive's phases shorted - she settles, not held nor flailing."""
+    from machine import Machine, events, figure, heat
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -162,7 +165,7 @@ def test_a_trip_lands_on_her_hands(report):
     body.loop.step(0.0)
     world, bus = body.nodes['pelvis'].world, body.loop.bus
     ours = {world.model.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
-    laid, was, first, head, stages = None, 0.0, None, False, []
+    laid, was, first, stages = None, 0.0, None, []
     while bus['t'] < 4.5:
         if laid is None and bus['t'] >= 1.0 and was < events.at('lace') <= director.walker.phase:
             events.lay('lace', director, world)
@@ -179,15 +182,19 @@ def test_a_trip_lands_on_her_hands(report):
                 name = ours.get(mine, '')
                 if name and other not in ours and not name.endswith(('foot', 'toes')):
                     first = first or name
-                    head = head or name == 'head'
     report.check('the lace tripped her past recovery: falling, then down',
                  laid is not None and stages[-2:] == ['falling', 'fallen'], ' '.join(stages))
-    report.check('her hands first on the floor, her head never', first is not None
-                 and first.endswith('hand') and not head, 'first %s, head %s' % (first, head))
+    report.check('her head not the first of her on the floor', first not in (None, 'head'),
+                 'first %s' % first)
+    open_ = [j for j, name in director.drives.items()
+             if not int(bus[name + 'status']) & heat.SHORTED]
+    report.check('down, every drive\'s phases shorted', not open_,
+                 '%d of %d, open: %s' % (len(director.drives) - len(open_), len(director.drives),
+                                         ' '.join(open_) or 'none'))
     body.disarm()
 
 
-ROSTER = (test_a_drive_keeps_its_heat, test_a_drive_in_its_soa, test_a_trip_lands_on_her_hands,
+ROSTER = (test_a_drive_keeps_its_heat, test_a_drive_in_its_soa, test_a_trip_lands_her_shorted,
           test_fantasy_boards_never_bind)
 
 

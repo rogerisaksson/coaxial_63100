@@ -553,28 +553,21 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   sill and the patch are mocap bodies. Held 93 % (2026-09-27).
 - A fall seen early (`machine.director`): the pelvis tipped past 12
   degrees and tipping on faster than 60 a second, or under 0.65 m, is past
-  the walker's recovery; she curls into the squat's joints over 0.4 s with
-  the arms out toward the fall (ahead: the hands out in front, the head up;
-  behind: the arms down behind her, the chin tucked) and lies as she
-  landed. Her seat, back, chest, skull, arms and thighs are contacts now
-  (`figure.CONTACTS`): curled only at 35 degrees over 1.5 s, the legs
-  walked on through the fall and she lay with her torso through the floor.
-  Into the hole she goes at 13.7 degrees and 300 a second, 0.16 s before
-  she is down at 40, the hands take the floor 0.12 s before the head
-  touches once, and she lies still on her left side and seat from 7.4 s
-  (0.7 s after); off the rug she sits down backwards onto her feet (1.5 kN
-  each) and rolls onto her back. The walking stumbles tip her 6-8 degrees,
-  under the trigger (2026-09-27).
-- Getting up, tried in the joints alone (`tools/sim/getup_lab.py`): from
-  her side, straightening out rolls her onto her back; from her back a leg
-  crossed over, either way, or the right arm and leg swung up roll her onto
-  her right side; from her front the push-up onto hands and knees and on
-  into the dog (the pelvis 0.48 m up on hands and toes) work, but the
-  squat's joints from there put the knees down with the torso on the
-  floor, and a lunge with the right foot tips her onto her left side. Sat
-  up from her back, she rolled onto her side. The arrival's rise takes a
-  yaw now and the walker a heading (`Walker.heading`, the bus turned about
-  the vertical), for a get-up facing as she lay (2026-09-27).
+  the walker's recovery; curled into the squat's joints over 0.4 s, the
+  arms toward the fall, she lay as she landed. Her seat, back, chest,
+  skull, arms and thighs are contacts (`figure.CONTACTS`): curled only at
+  35 degrees over 1.5 s, the legs walked on and she lay with her torso
+  through the floor. Into the hole at 13.7 degrees and 300 a second, 0.16
+  s before she was down at 40, the hands took the floor 0.12 s before the
+  head touched once, still on her left side and seat from 7.4 s (0.7 s
+  after); off the rug she sat down backwards onto her feet (1.5 kN each)
+  and rolled onto her back. Walking stumbles tip her 6-8 degrees, under the
+  trigger (2026-09-27).
+- Getting up, tried in the joints alone: what rolls her and what does not
+  is `tools/sim/getup_lab.py`'s; sat up from her back, she rolled onto her
+  side. The arrival's rise takes a yaw now and the walker a heading
+  (`Walker.heading`, the bus turned about the vertical), for a get-up
+  facing as she lay (2026-09-27).
 - A drive's glitch (`physics.World.glitch`, the peak torque cut to a share
   for a while) on the scoreboard: the left knee's gate dropped for 0.15 s
   at mid-stance ('cut') gives 19 degrees under 500 N, the pelvis 16 mm,
@@ -700,9 +693,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - A 5-step stair of 8 cm, blind, the floor read where each foot bears and
   the step expected again: she walks up all five, and pitches over at a
   landing a step lower (2026-09-28).
-- Her arms give over 0.6 s, the hands by her face (`director.YIELD`): the
-  head 71 mm off the floor, 132 on straight arms; hands over the head, it
-  met the floor at 1.3 m/s (2026-09-28).
+- Her arms gave over 0.6 s, the hands by her face: the head 71 mm off the
+  floor, 132 on straight arms; hands over the head, it met the floor at 1.3
+  m/s (2026-09-28). Now the legs' and trunk's drives are shorted through
+  their low sides as she falls (`director.SHORT_FALLING`; kt^2/R: 140 N m
+  s/rad an L joint, 34 an M, 6.1 an S, held to the board's amps) and every
+  drive once down: of five falls 4 lay prone and 1 on her back, the head
+  at the floor 0.05-0.94 m/s, still 0.4-1.4 s after; curled and held, 3
+  on a side, the head 2.29; the waist left to turn her, 2 (2026-09-30).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The
