@@ -35,7 +35,7 @@ LEAD = 1
 RECOVER_S, LIE_MAX_S = 3.0, 15.0
 
 
-def _run(commands, states, cadence):
+def _run(commands, states, cadence, local):
     """The worker: the machine, the director, the loop paced to the clock."""
     import numpy as np
 
@@ -47,7 +47,7 @@ def _run(commands, states, cadence):
     from machine.modes import DYNAMIC
     machine = Machine.discover('gynoid', execution_mode=DYNAMIC)
     machine.arm()
-    director = Director(machine, cadence)
+    director = Director(machine, cadence, local=local)
     world = machine.nodes['pelvis'].world
     dt = 1.0 / RATE_HZ
     k = dt / AVERAGE_S
@@ -164,12 +164,13 @@ def _run(commands, states, cadence):
 
 class Running:
 
-    """The gynoid's worker process: `send` it commands, read its `latest` state."""
+    """The gynoid's worker process: `send` it commands, read its `latest` state; `local` the
+    model that plans her get-up (`machine.planner`), picklable."""
 
-    def __init__(self, cadence=0.85):
+    def __init__(self, cadence=0.85, local=None):
         context = multiprocessing.get_context('spawn')
         self._commands, self._states = context.Queue(), context.Queue(maxsize=8)
-        self._process = context.Process(target=_run, args=(self._commands, self._states, cadence),
+        self._process = context.Process(target=_run, args=(self._commands, self._states, cadence, local),
                                         daemon=True)
         self._process.start()
         self._last = None

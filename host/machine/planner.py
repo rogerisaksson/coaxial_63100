@@ -38,7 +38,8 @@ SCHEMA = {'type': 'object', 'required': ['steps', 'why'],
           'properties': {'steps': {'type': 'array', 'items': {'enum': list(STEPS)}},
                          'why': {'type': 'string'}}}
 
-#: Its failed plans before the server is asked.
+#: Its failed plans before the server is asked. Thinking, gemma4:12b answered nothing in 120 s;
+#: not, a plan in 3.4 (2026-10-01).
 LOCAL_TRIES = 2
 
 PROMPT = """You plan how a fallen humanoid robot gets up. She is a 55 kg woman's build with a
@@ -66,7 +67,7 @@ def _ask(model, now, history):
                     '- %s: %s' % kv for kv in STEPS.items()))},
                 {'role': 'user', 'content': 'now: %s%s' % (json.dumps(now), tried)}]
     try:
-        return _read(model.chat(messages, fmt=SCHEMA)['content'])
+        return _read(model.chat(messages, fmt=SCHEMA, think=False, num_predict=300)['content'])
     except Exception:  # noqa: BLE001 - a model failing must not take her down with it
         return None
 

@@ -344,3 +344,16 @@ class Ollama(Model):
         """Hand the model's VRAM back at once, whatever keep_alive was."""
         self._post('/api/chat', {'model': self.model, 'messages': [],
                                  'options': self.options, 'keep_alive': 0})
+
+
+class Chosen:
+    """An `Ollama` on the tag `capability.choose` picks for this host, built at its first
+    `chat`: picklable until then, so a process of its own can be handed one."""
+    def __init__(self, **options):
+        self.asked, self.client = options, None
+
+    def chat(self, messages, **options):
+        if self.client is None:
+            from coaxial_ollama import capability
+            self.client = Ollama(capability.choose(capability.probe()).tag, **self.asked)
+        return self.client.chat(messages, **options)

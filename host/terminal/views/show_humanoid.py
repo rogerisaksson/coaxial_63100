@@ -26,6 +26,7 @@ from rich.text import Text
 
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
+from coaxial_ollama.client import Chosen
 from machine import ansi, gait, style
 from machine.director import moment
 from machine.figure import JOINTS, SEGMENTS, frames, quat
@@ -402,7 +403,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     cadence = max(CADENCE[0], min(CADENCE[1], args.cadence))
-    body = Running(cadence)
+    body = Running(cadence, local=Chosen())
     say('ok', 'body', '55 kg, %d drives, MuJoCo at 1 kHz in its own process'
         % sum(len(s.actuators) for s in TYPES['gynoid'].body))
     card = gpu.adapter()

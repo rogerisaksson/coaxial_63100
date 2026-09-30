@@ -213,7 +213,7 @@ def test_the_planner(report):
         def __init__(self, steps=None, fails=False):
             self.steps, self.fails, self.asked = steps, fails, 0
 
-        def chat(self, messages, fmt=None):
+        def chat(self, messages, fmt=None, think=None, num_predict=None):
             self.asked += 1
             if self.fails:
                 raise OSError('no daemon')
