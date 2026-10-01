@@ -15,7 +15,7 @@ from machine import drives
 from machine.figure import BODY, CONTACTS, SEGMENTS
 
 #: Her body as made or as a woman's (de Leva's shares of `figure.MASS_KG`), 1 or 0.
-SHELLS = 0.0
+SHELLS = 1.0
 
 #: The laminate: carbon in epoxy, its wall, m, and density, kg/m^3.
 WALL_M, CF_KG_M3 = 0.002, 1600.0

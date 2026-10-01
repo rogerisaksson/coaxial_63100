@@ -22,9 +22,10 @@ EVENTS = ('hole', 'sill', 'slip', 'rug', 'stairs', 'lace', 'soa', 'hot', 'nudge'
 #: The events laid on the floor, and those that befall her where she is.
 FLOOR, NOW = ('hole', 'sill', 'slip', 'rug', 'stairs'), ('lace', 'soa', 'hot', 'nudge', 'shove')
 
-#: The shoves, newtons for SHOVE_S along her side: a nudge she parries, held 21 of 48; a shove past
-#: saving, the page's P (`terminal.views.show_humanoid`), held 0 of 48 (2026-10-01).
-SHOVES, SHOVE_S, SHOVE_AT = {'nudge': 60.0, 'shove': 120.0}, 0.12, 0.25
+#: The shoves, newtons for SHOVE_S along her side: a nudge she parries - 0.13 m/s, 60 N's on her
+#: 55 kg as a woman, 38 on her 35 as built: at 60 she held 0 of 16, at 38 9 (2026-10-01); a shove
+#: past saving, the page's P (`terminal.views.show_humanoid`), held 0 of 48 (2026-10-01).
+SHOVES, SHOVE_S, SHOVE_AT = {'nudge': 38.0, 'shove': 120.0}, 0.12, 0.25
 
 SILL_AHEAD_M, RUG_HEEL_M, STEP_M, LACE_AT = 0.15, 0.15, 0.03, 0.5
 GLITCH_AT, GLITCH_STEP, SOA_S = 0.25, 0.05, 0.5

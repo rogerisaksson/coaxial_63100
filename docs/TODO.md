@@ -108,7 +108,9 @@ Open work. Measured results are in FINDINGS.
     off the feet's line as it takes over.
   + Lying, her arms point straight out. A fall taken on the arms, legs,
     knees and seat to spread its blows, then the body drawn in so nothing
-    breaks if she tumbles on, down a slope.
+    breaks if she tumbles on, down a slope: the tuck (`falls.TUCK`) drawn in
+    0.2 s after she is down brought her head to the floor at 3.6 kN, at
+    1.0 s as without it; her head taps the floor at 0.72 m/s at worst.
   + No abrupt moves getting up: lifting onto her feet a hand 860 deg/s, the
     squat's shoulder 720, the fall's own elbow 711 and a foot 4.9 m/s.
   + The get-up faster: 20.9 s from the fall to walking, the roll 5.4 of it;
@@ -116,28 +118,18 @@ Open work. Measured results are in FINDINGS.
     and its get-up, 0.73 walking: the host spins 0.20 ms of a 1.22 ms pass
     on the boards' tick, the walker takes 0.46 ms of a walking pass.
   + Fewer drives, for weight and BOM: of the 27 on 5 buses (the axis 5, an
-    arm 4, a leg 7), 21.75 kg of her 55, which can go; three sizes S, M, L,
-    each a motor and its gearbox (`machine.drives`), dimensioned on what the
-    joints ask through the walk, the rise, the get-up and the falls - peak
-    and RMS torque, speed - for dynamics without fast motors behind heavy
-    reductions; whether the 63100 board behind its 5230SL is enough as L.
-    Fed 48-63 V (not 44.4), 100 A momentarily until the SOA derates. 64:1
-    puts 0.49 kg m^2 of rotor on a knee, and the model carries none of it
-    (`physics.REFLECTED` 0, the clamps SERVO's, `CLAMPED` 0): the rotors and
-    gearboxes into MuJoCo, the walk retuned on them. M's and S's motors are
-    estimates. The gearboxes sized as built: backdrivable, rated for the
-    blows a fall gives, in the model as bodies - their mass where they sit,
-    their inertia, their backdrive friction - and a fall scored on the
-    torque through each against its rating. The ankle's drive at the knee,
-    a rod from its output down to the heel's tuberosity (the Achilles'
-    line); the knee's in the thigh near the hip, a rod to the tibial
-    tuberosity (the patellar tendon's): the linkage's lever ratio added to
-    the gearbox's, the legs' mass carried higher. Her body and legs hollow
-    laminated carbon fibre, a prosthetic's shells: each segment's own mass
-    and inertia a thin wall over its shape and what it holds, not a
-    woman's (de Leva's). Every limb on a quick-release in a printed
-    polymer, pogo pins carrying its power and its bus: their mass in the
-    build, their give at the shoulders and hips.
+    arm 4, a leg 7): the head's turn held rigid changed nothing in 5
+    scenarios; the toes rigid, 3 more falls of 5; the hands undecided - a
+    spread wanted (`gait_montecarlo`). The elbow's M drive, 70 mm, stands
+    wider than her 56 mm arm: at the shoulder, a rod to the forearm. M's and
+    S's motors are estimates; the joints' speed is not limited by their
+    back-EMF; the rods' ratios are constant over their strokes; the
+    quick-releases' give at the shoulders and hips is not modelled. The
+    shoulder has no stop: the roll re-searched as built asks 219 degrees.
+    A touch of backlash in each gearbox. The rods rigid carbon tubes on rod
+    ends, a race car's links. High torque through a gearbox and a rod; the
+    rest direct drive where its torque stays reasonable - each joint sorted
+    by what it asks as built.
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the

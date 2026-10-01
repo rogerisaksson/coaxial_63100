@@ -87,21 +87,25 @@ def _mirrored(pose):
 #: face down at -0.99 and on her knees after (CMA-ESs from flat on her back and a real fall's
 #: start, the knees under after it in the cost, 2026-10-01). Ended prone flat, she rolled back.
 #: Searched over 7.1 s, run at 0.75 of it: at 0.6 the hip and knee 337 deg/s.
+#: As built, 35 kg, its rotors and gearboxes' drag on, she stopped on her side; re-searched over
+#: the push's times and the waist, shoulders, top leg and spine's roll: face down, 5.46 s against
+#: 5.11 (2026-10-01).
 _BASE = _pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0)
-TO_FRONT = (('ease', 'roll', 0.9, dict(_BASE, left_hip=-69.5, left_knee=130.0, left_hip_yaw=39.3,
-                                       left_shoulder=105.9, left_elbow=33.2, right_shoulder=178.7,
-                                       waist=-42.5)),
-            ('ease', 'roll', 0.75, dict(_BASE, left_hip=-70.1, left_knee=82.5, left_hip_yaw=39.3,
-                                       left_shoulder=105.5, left_elbow=33.2, right_shoulder=178.7,
-                                       waist=-36.2, spine_roll=-8.1)),
-            ('ease', 'roll', 0.83, dict(_BASE, left_hip=-60.0, left_knee=80.9, right_hip=-38.0,
-                                       left_shoulder=142.6, left_elbow=101.6, right_shoulder=147.9)),
-            ('ease', 'roll', 1.13, dict(_BASE, left_hip=-114.6, left_knee=131.4, right_hip=-80.0,
-                                       right_knee=53.4, left_shoulder=186.9, left_elbow=140.0,
-                                       right_shoulder=189.1, waist=50.0)),
-            ('ease', 'roll', 1.5, dict(_BASE, left_knee=56.4, right_hip=-9.6, right_knee=38.3,
+TO_FRONT = (('ease', 'roll', 1.03, dict(_BASE, left_hip=-55, left_knee=130.6, left_hip_yaw=39.3,
+                                       left_shoulder=104.9, left_elbow=33.2,
+                                       right_shoulder=218.7, waist=-55.7)),
+            ('ease', 'roll', 0.86, dict(_BASE, left_hip=-55.6, left_knee=83.1, left_hip_yaw=39.3,
+                                       left_shoulder=104.5, left_elbow=33.2,
+                                       right_shoulder=218.7, waist=-49.4, spine_roll=-28.1)),
+            ('ease', 'roll', 0.95, dict(_BASE, left_hip=-60, left_knee=80.9, right_hip=-38,
+                                       left_shoulder=141.6, left_elbow=101.6,
+                                       right_shoulder=187.9, waist=-13.2)),
+            ('ease', 'roll', 1.12, dict(_BASE, left_hip=-114.6, left_knee=131.4, right_hip=-80,
+                                       right_knee=53.4, left_shoulder=186.9, left_elbow=140,
+                                       right_shoulder=189.1, waist=67.9)),
+            ('ease', 'roll', 1.48, dict(_BASE, left_knee=56.4, right_hip=-9.6, right_knee=38.3,
                                        left_shoulder=156.9, left_elbow=18.3, right_shoulder=27.4,
-                                       right_elbow=140.0, waist=35.2)),
+                                       right_elbow=140, waist=53.1)),
             ('ease', 'roll', 0.3, {}))
 FRONTS_BY = {1: TO_FRONT, -1: tuple((v, s, t, _mirrored(p)) for v, s, t, p in TO_FRONT)}
 

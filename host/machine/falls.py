@@ -4,8 +4,11 @@ What `machine.director` sets her as she goes down.
 
     out = falls.reach(tip_deg, rate_deg_s)      # the arms, the neck, the waist's turn
     out = falls.yielded(out, bus)               # an arm at the floor: soft from there
+    out = falls.tucked(out, bus, k)             # down, drawn in by k of TUCK_S
 """
 import math
+
+from machine import gait
 
 #: Falling, the drives of SHORT_FALLING's kinds have their phases shorted through the low sides
 #: (`physics.World.short`), each joint giving kt^2/R of its speed back against it - a damper,
@@ -66,6 +69,23 @@ ARM_PARTS = tuple(side + part for side in ('left_', 'right_')
 
 
 
+#: Down, its blow past by TUCK_AFTER_S, she draws in over TUCK_S (TUCK): the forearms before her
+#: face, the hips and knees folded, the spine curled, the head level - each joint asked at most
+#: TUCK_SOFT_DEG past where it is, the floor never fought - so tumbling on, down a slope, nothing
+#: is caught out to break; her shorted drives armed again for it. Lying, her arms stood 686 mm
+#: out from her chest after the P shove, 505-522 walking (`look.py`'s hands out). Drawn in
+#: 0.2 s after she was down her head met the floor 7 times of 16, at up to 3.6 kN; 0.5, 5 and
+#: 0.8 kN; 1.0, 4 and 0.5 kN, as untucked; its chin in 45 degrees, lying on a side, rolled
+#: her head to the floor at 1.01 m/s, in 20 at 0.42, level at none past the landing's 0.72
+#: (2026-10-01).
+TUCKED, TUCK_AFTER_S, TUCK_S, TUCK_SOFT_DEG = 1.0, 1.0, 0.6, 3.0
+TUCK = dict({'neck': 0.0, 'spine': 30.0, 'spine_roll': 0.0, 'waist': 0.0},
+            **{side + j: v for side in ('left_', 'right_') for j, v in (
+                ('shoulder', 110.0), ('elbow', 125.0), ('wrist', 0.0), ('gripper', 20.0),
+                ('hip_yaw', 0.0), ('hip_roll', 0.0), ('hip', -80.0), ('knee', 110.0),
+                ('ankle', 20.0), ('ankle_roll', 0.0))})
+
+
 def reach(tip, rate):
     """{joint: deg} the arms, the neck and the waist go to, tipping `tip` deg off her forward (+
     to her left) at `rate` deg/s: CATCH's by the way, the waist turned toward it ahead - the
@@ -96,6 +116,18 @@ def cause(tip, rate, stumbled):
     return 'tipped %s at %.0f deg/s%s' % (
         'forward' if abs(tip) < 45.0 else 'back' if abs(tip) > 135.0 else
         'to her left' if tip > 0.0 else 'to her right', rate, ' out of a stumble' if stumbled else '')
+
+
+def tucked(out, bus, k):
+    """`out` drawn in toward TUCK by `k` of TUCK_S, eased, each joint at most TUCK_SOFT_DEG past
+    where it is."""
+    e = gait.eased(max(0.0, min(1.0, k)))
+    got = dict(out)
+    for j, v in TUCK.items():
+        now = bus.get(j + '.deg', 0.0)
+        aim = out.get(j, now) + (v - out.get(j, now)) * e
+        got[j] = now + max(-TUCK_SOFT_DEG, min(TUCK_SOFT_DEG, aim - now))
+    return got
 
 
 def yielded(out, bus):

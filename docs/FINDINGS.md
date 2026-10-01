@@ -687,8 +687,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - A 5-step stair of 8 cm, blind, the floor read where each foot bears and
   the step expected again: she walks up all five, and pitches over at a
   landing a step lower (2026-09-28).
-- Falling, the legs' and trunk's drives shorted (kt^2/R: 140 N m s/rad an
-  L joint, 34 an M, 6.1 an S, to the board's amps; `falls.SHORT_FALLING`).
+- Falling, the legs' and trunk's drives shorted (`falls.SHORT_FALLING`).
   Up on a woman's 40/25 N m arms, sat,
   folded over the knees, after the rug and the lace in 25 s. Risen
   facing where she lay she fell 0.2-1 s into the walk: MuJoCo's pyramid

@@ -103,7 +103,7 @@ class Director:
         #: Since when she falls and her arms and neck from and to what (`falls.reach`); the tilt last
         #: pass, (deg, s), and its rate, deg/s; when an arm met the floor.
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
-        self.fall_rate, self.touched_at = 0.0, None
+        self.fall_rate, self.touched_at, self.tucked_at = 0.0, None, None
         #: The get-up, how long she has lain still, and the get-ups since she landed; what felled
         #: her, as the observer says it; the plans tried since, [(steps, why)], and one being made.
         self.getup, self.still, self.tries = getup.GetUp(machine), 0.0, 0
@@ -146,6 +146,7 @@ class Director:
         self.walker.reset()
         self.blend, self.curl_from = None, {}
         self.falling_at, self.curl_to, self.tilt_was, self.touched_at = None, {}, None, None
+        self.tucked_at = None
         self.dropped, self.armed, self.still, self.tries = {}, {}, 0.0, 0
         self.cause, self.tried, self.planning = '', [], None
 
@@ -223,13 +224,20 @@ class Director:
                 self.touched_at = bus['t']
             if self.touched_at is not None:
                 out = falls.yielded(out, bus)
+            if (falls.TUCKED and self.fallen_at is not None
+                    and bus['t'] - self.fallen_at >= falls.TUCK_AFTER_S):
+                if self.tucked_at is None:
+                    self.tucked_at = bus['t']
+                    for i in range(len(figure.JOINTS)):
+                        self.world.arm(i)
+                out = falls.tucked(out, bus, (bus['t'] - self.tucked_at) / falls.TUCK_S)
             if self.stage == 'fallen' and self._still(bus, dt) and self.tries < GETUP_TRIES:
                 for i in range(len(figure.JOINTS)):
                     self.world.arm(i)
                 now = observer.status(bus, self.world, self)
                 self._begin(self._planned(now), now)
                 self.stage, self.falling_at, self.fallen_at = self.getup.stage, None, None
-                self.touched_at = None
+                self.touched_at = self.tucked_at = None
             return out
         self.since += dt
         if self.stage in getup.STAGES:

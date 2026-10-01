@@ -52,7 +52,7 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: joint's clamp is its drive's peak where that is less (`drives.peak`); whether the assemblies
 #: sit where they are, bodies of their own, their segments the lighter; how much of their
 #: gearboxes' drag the joints carry, Coulomb (`drives.backdrive`).
-REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE = 0.0, 1.0, 0.0, 0.0, 0.0
+REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE = 1.0, 1.0, 1.0, 1.0, 1.0
 
 #: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
 #: never binds, the heat counted - the walk, the clothes and the look are tuned on those

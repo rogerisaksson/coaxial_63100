@@ -46,7 +46,7 @@ class Size:
 #: (`physics.REFLECTED` ..) at 30, 40, 40 she walked 30 s from the squat on built boards, a hip
 #: derated to 0.63 from 9.3 s, the rest at most 103 C; the strike 996 N, 1231 at 64, 76, 101
 #: unbuilt; felled by the hole and a P shove, up and walking again (2026-10-01).
-RATIO_L, RATIO_M, RATIO_S = 64.0, 76.0, 101.0
+RATIO_L, RATIO_M, RATIO_S = 30.0, 40.0, 40.0
 GEAR_J = 0.05
 
 
