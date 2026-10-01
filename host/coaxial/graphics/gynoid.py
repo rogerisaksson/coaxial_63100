@@ -376,7 +376,8 @@ class Body:
         floor = np.zeros(3)
         if root is None:
             positions, _normals = moved(self.corners, self.normals, self.spans, frames)
-            floor[1] = min(positions[slice(*self.spans[i]), 1].min() for i in self.soles)
+            floor[1] = min((positions[slice(*self.spans[i]), 1].min() for i in self.soles
+                            if self.spans[i][1] > self.spans[i][0]), default=0.0)
         return {joint: spot - floor for (_name, _parent, joints, *_rest), (_turn, spot)
                 in zip(self.parts, frames) for joint, _axis, _sign in joints}
 
@@ -387,7 +388,8 @@ class Body:
         frames = self._frames(angles, root)
         positions, normals = moved(self.corners, self.normals, self.spans, frames)
         floor = 0.0 if root is not None else min(
-            positions[slice(*self.spans[i]), 1].min() for i in self.soles)
+            (positions[slice(*self.spans[i]), 1].min() for i in self.soles
+             if self.spans[i][1] > self.spans[i][0]), default=0.0)
         if dense:
             positions, normals = moved(self.dense[0], self.dense[1], self.dense_spans, frames)
         positions[:, 1] -= floor

@@ -145,8 +145,6 @@ Open work. Measured results are in FINDINGS.
   + Her carbon shells shaped over the structure as built, and clothes cut
     to fit them; her seat soft - a body with give, cloth over it - not two
     spheres a cheek.
-  + A view of nothing but the motors, gearboxes and linkages, no body at
-    all: kinematics alone.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

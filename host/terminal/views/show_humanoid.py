@@ -369,7 +369,7 @@ def _skinned(state):
 
 
 def _seen(state):
-    """What of her is drawn: her motors and linkages alone (M), else as C has her."""
+    """What of her is drawn: her motors, gearboxes and linkages alone (M), else as C has her."""
     return 'actuators' if state['bare'] else state['see']
 
 

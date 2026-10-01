@@ -1,7 +1,7 @@
 """Her mechanism without her shell: carbon tubes, drums, rods on ball joints, quick-releases.
 
     parts = mechanism.parts()               # [(name, parent, joints, offset, rest, mesh)]
-    parts = mechanism.parts(bare=True)      # the actuators alone: drums, cranks, rods, balls
+    parts = mechanism.parts(bare=True)      # motors, gearboxes, cranks, rods, balls: no body
     mechanism.posed(parts, placed, angles, frames)   # each crank's, pin's and rod's (turn, spot)
 
 The segments are their carbon tubes and plates (`machine.build`); each drive's drum where it sits
@@ -23,6 +23,10 @@ from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 #: polymer, and each drive's drum by its size (`drives.SIZES`).
 CARBON, ROD, STEEL, POLYMER = (92, 94, 106), (214, 214, 224), (246, 246, 246), (232, 122, 32)
 SIZED = {'L': (72, 140, 224), 'M': (60, 190, 170), 'S': (230, 190, 70)}
+
+#: Bare, a drive's drum drawn as its motor, MOTOR_SHARE of its length in its size's colour, and its
+#: gearbox beside it on the axis, GEAR_RADIUS of its radius, in the gearbox's steel grey.
+MOTOR_SHARE, GEAR_RADIUS, GEARBOX = 0.6, 0.8, (150, 152, 160)
 
 #: Each rod by its joint's kind: its crank's radius, m, which way it points at rest (its drive's
 #: segment's frame), and the ball joint it drives, on the next segment - the ankle's to the heel's
@@ -57,16 +61,28 @@ def _bones():
 def parts(bare=False):
     """[(name, parent, joints, offset, rest, mesh)]: the segments as their bones, the drums, the
     quick-releases, each rod's ball joint on the segment it turns, and each crank, pin and rod
-    posed each frame (parent '*'); `bare` the drums and the linkages alone, the segments drawn
-    as nothing but the soles that stand her on the floor."""
+    posed each frame (parent '*'); `bare` nothing of her body: each drive its motor and its
+    gearbox, and the linkages."""
     bones = _bones()
     if bare:
-        bones = {name: mesh if name.endswith(('_foot', '_toes')) else _nothing(mesh)
-                 for name, mesh in bones.items()}
+        bones = {name: _nothing(mesh) for name, mesh in bones.items()}
     out = [(s[0], s[1], s[2], s[3], s[4], bones[s[0]]) for s in figure.SEGMENTS]
     for name, parent, offset, (c, t, u, m) in drums.drums():
-        sized = paint(SIZED[drives.of(name[len('drive_'):])[0]])
-        out.append((name, parent, (), offset, 0.0, (c, t, u, m * 0 + sized)))
+        joint = name[len('drive_'):]
+        size = drives.of(joint)[1]
+        sized = paint(SIZED[drives.of(joint)[0]])
+        if not bare:
+            out.append((name, parent, (), offset, 0.0, (c, t, u, m * 0 + sized)))
+            continue
+        axis, half = drums.AXES[joint]
+        motor, gear = 2.0 * half * MOTOR_SHARE, 2.0 * half * (1.0 - MOTOR_SHARE)
+        letter = 'xyz'[axis.index(1.0)]
+        if letter == 'x' and joint.startswith('right_'):
+            axis = (-1.0, 0.0, 0.0)
+        out += [(name, parent, (), tuple(o - a * gear / 2.0 for o, a in zip(offset, axis)), 0.0,
+                 drum(size.diameter / 2.0, motor, letter, sized)),
+                ('gear_' + joint, parent, (), tuple(o + a * motor / 2.0 for o, a in zip(offset, axis)),
+                 0.0, drum(size.diameter / 2.0 * GEAR_RADIUS, gear, letter, paint(GEARBOX)))]
     poly, steel = paint(POLYMER), paint(STEEL)
     for side in ('left_', 'right_'):
         out += [] if bare else [
