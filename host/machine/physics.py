@@ -1,6 +1,6 @@
 """A body with mass under gravity: the figure in MuJoCo, each joint a drive with its own servo.
 
-    machine = Machine.discover('gynoid', execution_mode=DYNAMIC)   # a drive a joint, `pelvis` reads
+    machine = Machine.discover('gynoid', execution_mode=DYNAMIC)   # its nodes: `machine.dynamic`
     machine.loop.write(left_knee=20.0); machine.loop.step(0.001)    # the world moves to the loop's time
 
 A drive holds its setpoint by PD at the world's step, 1 ms, carrying it on at the rate it last
@@ -20,15 +20,11 @@ from typing import Any
 from machine import drives
 from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
-from machine.controller import Feedback
+from machine.controller import Batch
 from machine import floor
 from machine.errors import MachineError
 from machine import figure
 from machine.figure import BODY, CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
-from machine.machine import Actuator
-from machine.nodes import Module, Node
-from machine.parts import Direct, Gain
-from machine.routines import TYPES
 
 #: A drive by its joint's kind: (peak N m, kp N m/rad, kd N m s/rad, armature kg m^2). The ankles
 #: stiffer than the body leaning on them (m g h, 490 N m/rad). The neck under a 3.3 kg head
@@ -53,6 +49,9 @@ STOPS = {'elbow': (-5.0, 160.0), 'spine': (-30.0, 85.0), 'spine_roll': (-35.0, 3
 
 #: The world's step, s.
 STEP_S = 0.001
+
+#: A drive's reading, in `World.reading`'s order.
+READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 
 #: The contacts' friction cone: elliptic, the same grip every way, at IMPRATIO. On MuJoCo's
 #: pyramid she walked along the world's axes and fell 1.2 m on 45 degrees off them; elliptic at 1
@@ -279,8 +278,15 @@ class World:
         self.pending, self.pending_at = {}, 0.0
         self.pelvis = m.body('pelvis').id
         self.torso = m.body('torso').id
-        self.soles = {side: {m.body(side + part).id for part in ('_foot', '_toes')}
-                      for side in ('left', 'right')}
+        self.head = m.body('head').id
+        #: Each body's sole, a column a side (left, right): its contacts bear on that side.
+        self.soles = np.zeros((m.nbody, 2), bool)
+        for k, side in enumerate(('left', 'right')):
+            self.soles[[m.body(side + part).id for part in ('_foot', '_toes')], k] = True
+        #: The named drives' channels, '<node>.angle.<key>' (READING), and their joints: one
+        #: batch a pass (`drives`).
+        self.keys, self.named = [], []
+        self.batch = Batch(self.drives)
         self.push_n, self.push_until = np.zeros(3), -1.0
         #: The lace (`lace`), and whether it is snagged.
         self.lace_at, self.laced = m.tendon('lace').id, False
@@ -475,6 +481,19 @@ class World:
         """(degrees, deg/s, C, spent, derate, status) of a joint's drive as its board last
         answered the host (`machine.buses`) - with no bus the world's own angle, cool."""
         self.advance()
+        return self._reading(index)
+
+    def name(self, node, index):
+        """Drive `index`'s channels in the batch as node `node`'s angle."""
+        self.keys += ['%s.angle.%s' % (node, key) for key in READING]
+        self.named.append(index)
+
+    def drives(self):
+        """{'<node>.angle.<key>': float} of every named drive (`reading`), advanced once."""
+        self.advance()
+        return dict(zip(self.keys, [float(v) for i in self.named for v in self._reading(i)]))
+
+    def _reading(self, index):
         if index in self.bus_of:
             return self.bus_of[index].reading(index)
         d = self.data
@@ -516,125 +535,20 @@ class World:
         the head's turn (its IMU, head_q*), each sole's load (N), and since the reset the drives'
         work done and braked and their heat (J), and the torque they held (N m s)."""
         self.advance()
-        d, m = self.data, self.model
-        omega = d.xmat[self.pelvis].reshape(3, 3) @ d.qvel[3:6]
-        loads = {'left': 0.0, 'right': 0.0}
-        force = self._np.zeros(6)
-        for i in range(d.ncon):
-            c = d.contact[i]
-            bodies = (m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2])
-            for side, soles in self.soles.items():
-                if soles.intersection(bodies):
+        d, m, np = self.data, self.model, self._np
+        omega = (d.xmat[self.pelvis].reshape(3, 3) @ d.qvel[3:6]).tolist()
+        loads, force = [0.0, 0.0], np.zeros(6)
+        if d.ncon:
+            on = self.soles[m.geom_bodyid[d.contact.geom]].any(axis=1)
+            for side in (0, 1):
+                for i in np.flatnonzero(on[:, side]).tolist():
                     self._mj.mj_contactForce(m, d, i, force)
-                    loads[side] += force[0]
-        com = d.subtree_com[self.pelvis]
+                    loads[side] += float(force[0])
+        com, v = d.subtree_com[self.pelvis].tolist(), d.qvel[0:3].tolist()
         return dict(zip(('x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'), d.qpos[0:7].tolist()),
                     **dict(zip(('head_qw', 'head_qx', 'head_qy', 'head_qz'),
-                               d.xquat[m.body('head').id].tolist())),
-                    vx=d.qvel[0], vy=d.qvel[1], vz=d.qvel[2], wx=omega[0], wy=omega[1],
-                    wz=omega[2], com_x=com[0], com_y=com[1], com_z=com[2],
-                    left_load=loads['left'], right_load=loads['right'], t=d.time,
-                    work=self.work, brake=self.brake, heat=self.heat, effort=self.effort)
-
-
-class _Drive:
-
-    """A drive's setpoint as a loop's sink."""
-
-    def __init__(self, world, index):
-        self.world, self.index = world, index
-
-    def write(self, **values):
-        if 'degrees' in values:
-            self.world.write(self.index, float(values['degrees']))
-
-    def off(self):
-        return {'degrees': math.degrees(self.world.target[self.index])}
-
-
-class DriveJoint(Actuator):
-
-    """A joint on its drive: the setpoint passed through, within +/-`span` deg; the drive's own
-    PD holds it (`SERVO`)."""
-
-    UNIT, READS, DRIVES, BACK = 'deg', 'angle', 'drive', 'deg'
-
-    def __init__(self, node, span=170.0):
-        super().__init__(node)
-        self.half = float(span)
-
-    def span(self):
-        return (-self.half, self.half)
-
-    def feedback(self, name):
-        return Feedback(Direct(self.half), setpoint=name,
-                        measured=self.node.name + '.angle.degrees', command=name + '.command',
-                        sink='%s.drive.degrees' % self.node.name, measure=Gain(1.0),
-                        value=name + '.deg')
-
-    def arm(self, f, arming=None):
-        pass
-
-    def disarm(self):
-        pass
-
-
-class DriveNode(Node):
-
-    """One joint's drive on bus `link`, unit `unit`: its angle read, its setpoint written."""
-
-    ACTUATORS = {'joint': DriveJoint}
-
-    def __init__(self, world, index, link, unit):
-        self.world = world
-        super().__init__('D%d_%d' % (link, unit),
-                         {'type': 'joint_drive', 'device': 'mujoco', 'link': link, 'unit': unit},
-                         {'angle': Module(read=self._read),
-                          'drive': Module(writer=_Drive(world, index), writes=('degrees',))})
-        self.index = index
-
-    def _read(self):
-        degrees, rate, celsius, spent, derate, status = self.world.reading(self.index)
-        return {'degrees': degrees, 'rate': rate, 'celsius': celsius, 'spent': spent,
-                'derate': derate, 'status': status}
-
-    def identify(self, arming=None, again=False):
-        """Outward along its bus in unit order: {'hz': unit}."""
-        return {'hz': float(self.identity['unit'])}
-
-
-class PoseNode(Node):
-
-    """Where the body is: the pelvis's place and turn and speeds, the centre of mass, the soles'
-    loads - an IMU and its estimator, and the soles' load cells."""
-
-    def __init__(self, world):
-        self.world = world
-        super().__init__('pelvis', {'type': 'imu', 'device': 'mujoco', 'link': 'dynamic',
-                                    'unit': 0}, {'pose': Module(read=world.pose)})
-
-    def couple(self, machine):
-        """The world runs on the loop's clock."""
-        self.world.clock = lambda: machine.loop.bus.get('t', 0.0)
-
-    def close(self):
-        self.world.close()
-
-
-def body(type):
-    """[DriveNode .., PoseNode] for machine type `type`: a drive a joint, bus i subsystem i, all
-    on one World."""
-    if type not in TYPES:
-        raise MachineError('no machine type %r - there are %s' % (type, ', '.join(TYPES)))
-    wanted = [j for s in TYPES[type].body for j in s.actuators]
-    missing = [j for j in wanted if j not in JOINTS]
-    if missing:
-        raise MachineError('%s has no figure for %s: a body with mass is the gynoid\'s'
-                           % (type, ', '.join(missing)))
-    world = World()
-    world.wire([[JOINTS.index(joint) for joint in subsystem.actuators]
-                for subsystem in TYPES[type].body])
-    nodes = [DriveNode(world, JOINTS.index(joint), link, unit)
-             for link, subsystem in enumerate(TYPES[type].body, 1)
-             for unit, joint in enumerate(subsystem.actuators, 1)]
-    return nodes + [PoseNode(world)]
+                               d.xquat[self.head].tolist())),
+                    vx=v[0], vy=v[1], vz=v[2], wx=omega[0], wy=omega[1], wz=omega[2],
+                    com_x=com[0], com_y=com[1], com_z=com[2], left_load=loads[0],
+                    right_load=loads[1], t=d.time, work=self.work, brake=self.brake,
+                    heat=self.heat, effort=self.effort)

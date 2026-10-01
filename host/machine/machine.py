@@ -167,7 +167,7 @@ class Machine:
             from machine.virtual import body
             return cls(Nodes(body(type)), type=type, **kw)
         if execution_mode is DYNAMIC:
-            from machine.physics import body as physical
+            from machine.dynamic import body as physical
             return cls(Nodes(physical(type)), type=type, **kw)
         return cls(Nodes.discover(port=port, execution_mode=execution_mode), type=type, **kw)
 

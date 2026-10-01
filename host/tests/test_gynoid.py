@@ -112,7 +112,7 @@ def test_a_body_with_mass_walks(report):
     every millisecond from what the loop reads, and she walks on the line without falling."""
     from machine import Machine
     from machine.modes import DYNAMIC
-    from machine.physics import DriveJoint
+    from machine.dynamic import DriveJoint
     from machine.walker import Walker
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     report.check('27 drives fitted bus by bus, and her pose read beside them',

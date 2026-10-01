@@ -107,13 +107,22 @@ Open work. Measured results are in FINDINGS.
   + The halt falls in its settle wherever tried: her centre of mass stands
     off the feet's line as it takes over.
   + No abrupt moves getting up: lifting onto her feet a hand 860 deg/s, the
-    squat's shoulder 720, the fall's own elbow 711 and a foot 4.9 m/s; a
-    knee's setpoint 8 deg a pass at the first step.
-  + The get-up faster: 21.1 s from the fall to walking, the roll 5.1 of it;
-    the loop profiled and made data-oriented; the arrival's runaway guard.
-  + The model carries a tenth of the rotors the cycloids show
-    (`physics.REFLECTED`): the walk to be tuned on them; M's and S's motors
-    are estimates.
+    squat's shoulder 720, the fall's own elbow 711 and a foot 4.9 m/s.
+  + The get-up faster: 20.9 s from the fall to walking, the roll 5.4 of it;
+    the arrival's runaway guard. The loop at 0.82 x real time through a fall
+    and its get-up, 0.73 walking: the host spins 0.20 ms of a 1.22 ms pass
+    on the boards' tick, the walker takes 0.46 ms of a walking pass.
+  + Fewer drives, for weight and BOM: of the 27 on 5 buses (the axis 5, an
+    arm 4, a leg 7), 21.75 kg of her 55, which can go; three sizes S, M, L,
+    each a motor and its gearbox (`machine.drives`), dimensioned on what the
+    joints ask through the walk, the rise, the get-up and the falls - peak
+    and RMS torque, speed - for dynamics without fast motors behind heavy
+    reductions; whether the 63100 board behind its 5230SL is enough as L.
+    Fed 48-63 V (not 44.4), 100 A momentarily until the SOA derates. 64:1
+    puts 0.49 kg m^2 of rotor on a knee, and the model carries none of it
+    (`physics.REFLECTED` 0, the clamps SERVO's, `CLAMPED` 0): the rotors and
+    gearboxes into MuJoCo, the walk retuned on them. M's and S's motors are
+    estimates.
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the
