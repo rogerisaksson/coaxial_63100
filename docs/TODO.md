@@ -88,7 +88,14 @@ Open work. Measured results are in FINDINGS.
   knees under, back on her heels, onto her feet, knees together; 13 of 13
   falls walk again 20-25 s after, the stairs untried. Falling, the waist
   turns her arms toward the fall (`falls.turn`); pads at the elbows, hips
-  and knees (`figure.PADS`). The
+  and knees (`figure.PADS`). Kneeling over the hole's edge, one knee 3 cm
+  down, knees under and sitting back roll her 50-89 degrees, 5 tries of 5.
+  The stairs fell her at the first riser since 855c87c (the jeans' stiff
+  stops; ea813de climbed all five): each riser is met at 0.85-0.9 of a
+  swing, past TRIP_LATE, the foot put down short and the other stepping
+  over strikes the step at 1.4 kN; laid from her real step (0.485 m, the
+  plan's 0.425) it fails the same - a step up for a late stub of a low
+  riser is wanted. The
   scoreboard counts the time down. The shoves' findings stand: toward the
   standing foot the side step ends with
   the capture point 27 cm ahead and no foot there; shoved at 0.30 of the
