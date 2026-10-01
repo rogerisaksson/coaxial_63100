@@ -91,8 +91,6 @@ Open work. Measured results are in FINDINGS.
     striking the step at 1.4 kN; a step up for a late stub wanted; the get-up
     on the stairs untried. Kneeling over the hole's edge, one knee 3 cm down,
     knees under and sitting back roll her 50-89 degrees, 5 tries of 5.
-  + Lying fallen she draws 794 W, walking 482: each ankle 135 W of copper
-    at 135 N m, its peak, though `falls.SHORT_FALLING` shorts it.
   + A softer walk: fewer strikes (1272 N), less power (work 254 W, copper
     160 W of the 482 drawn). The ears bob 11 mm a stride and go 56 mm fore
     and aft, the pelvis's 30 doubled by the torso's 3 degrees of pitch; the

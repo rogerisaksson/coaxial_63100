@@ -230,14 +230,17 @@ class Segment:
                 self.target[k], self.set_at[k], self.framed[k] = v, at, True
         for k, i in enumerate(self.indices):
             if h.shorted[k]:
-                tau = -self.damping[k] * b.qd[i]
+                # Its braking the world's damping (`physics.World.short`); its windings heat.
+                b.ctrl[i] = 0.0
+                top = b.limit[i]
+                h.load(k, max(-top, min(top, -self.damping[k] * b.qd[i])))
             else:
                 ref = self.target[k] + self.rate[k] * (now - self.set_at[k])
                 tau = (b.gains[2 * i] * (ref - b.q[i])
                        + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i]))
-            top = b.limit[i] * h.derate[k] if h.gates[k] else 0.0
-            b.ctrl[i] = tau = max(-top, min(top, tau))
-            h.load(k, tau)
+                top = b.limit[i] * h.derate[k] if h.gates[k] else 0.0
+                b.ctrl[i] = tau = max(-top, min(top, tau))
+                h.load(k, tau)
             if b.warm[i] > 0.0:
                 h.warm(k, b.warm[i])
                 b.warm[i] = 0.0

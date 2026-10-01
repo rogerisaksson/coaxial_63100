@@ -713,9 +713,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   bare 6.0 (2026-10-01).
 - The lace a snag (`World.lace`): 6 of 9 went taut, 5 felled her
   (2026-10-01).
-- P's push (120 N, 0.12 s) felled her back to 279ba6f. Shoved 30, 60, 120
-  N 48 times, HEAD held 33, 10, 1, the parry 38, 21, 0
-  (`landing.PARRY_HURRY`, 2026-10-01).
+- P's 120 N felled her back to 279ba6f. Shoved 30, 60, 120 N 48 times, HEAD
+  held 33, 10, 1, the parry 38, 21, 0 (`landing.PARRY_HURRY`, 2026-10-01).
 - Down after a sill the spine bent back 98-101 degrees; stopped
   (`physics.STOPS`) 31-37 (2026-10-01).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the

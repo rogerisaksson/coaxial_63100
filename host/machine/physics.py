@@ -259,10 +259,14 @@ class World:
         #: cycloid (`machine.drives`). The work it does is metered only where positive - a drive
         #: does not charge its battery braking.
         self.loss = np.array([drives.r_ohm(j) / drives.kt(j) ** 2 for j in JOINTS])
-        #: With no buses, the drives whose phases are shorted (`short`), and kt^2/R each gives a
-        #: rad/s of its joint's speed against it, N m s/rad (`machine.buses`' boards alike).
+        #: The drives whose phases are shorted (`short`), and kt^2/R each gives a rad/s of its
+        #: joint's speed against it, N m s/rad: the joint's own damping while shorted, MuJoCo's,
+        #: integrated implicitly - as a torque each step against the speed, 140 N m s/rad on an
+        #: ankle's 0.05 kg m^2 flipped its speed each step, +-140 N m at 500 Hz, drawing 794 W
+        #: as she lay still (2026-10-01).
         self.shorted = np.zeros(len(JOINTS), bool)
         self.damping = 1.0 / self.loss
+        self.free = m.dof_damping[self.vadr].copy()
         self.target = np.zeros(len(JOINTS))
         self.rate = np.zeros(len(JOINTS))
         self.was, self.stamp = self.target.copy(), 0.0
@@ -331,6 +335,7 @@ class World:
         self._park()
         self._mj.mj_forward(self.model, d)
         self.shorted[:] = False
+        self.model.dof_damping[self.vadr] = self.free
         self.target[:] = d.qpos[self.qadr]
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
@@ -386,7 +391,7 @@ class World:
                 ref = self.target + self.rate * (d.time - start)
                 tau = (self.gains[:, 0] * (ref - d.qpos[self.qadr])
                        + self.gains[:, 1] * (self.rate - d.qvel[self.vadr]))
-                tau = np.where(self.shorted, -self.damping * d.qvel[self.vadr], tau)
+                tau = np.where(self.shorted, 0.0, tau)
                 d.ctrl[:] = np.clip(tau, -self.limit, self.limit)
             power = d.ctrl * d.qvel[self.vadr]
             self.work += float(power[power > 0.0].sum()) * STEP_S
@@ -454,16 +459,17 @@ class World:
     def arm(self, index):
         """A joint's board's gates on again: the host's gate write, with the next pass."""
         self.shorted[index] = False
+        self.model.dof_damping[self.vadr[index]] = self.free[index]
         if index in self.bus_of:
             self.bus_of[index].arm(index)
 
     def short(self, index):
         """A joint's board's phases shorted through the low sides: the host's gate write, with
         the next pass."""
+        self.shorted[index] = True
+        self.model.dof_damping[self.vadr[index]] = self.free[index] + self.damping[index]
         if index in self.bus_of:
             self.bus_of[index].short(index)
-        else:
-            self.shorted[index] = True
 
     def reading(self, index):
         """(degrees, deg/s, C, spent, derate, status) of a joint's drive as its board last
