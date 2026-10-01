@@ -291,22 +291,28 @@ def band(*cells):
     return bar
 
 
-def footer(pairs):
-    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style."""
-    line = Text('  ', style='keys')
+def footer(pairs, width=0):
+    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style - broken between pairs
+    onto a second row where `width` cells hold them not on one."""
+    rows = [Text('  ', style='keys')]
     for i, (key, what) in enumerate(pairs):
-        if i:
-            line.append('  |  ', style='keys')
+        pair = Text(style='keys')
         if key:
-            line.append(key, style='keys.key')
-            line.append(': ', style='keys')
+            pair.append(key, style='keys.key')
+            pair.append(': ', style='keys')
         if isinstance(what, Text):
-            line.append_text(what)
+            pair.append_text(what)
         else:
-            line.append(what, style='keys')
+            pair.append(what, style='keys')
+        if i and width and len(rows) < 2 and rows[-1].cell_len + 5 + pair.cell_len > width:
+            rows.append(Text('  ', style='keys'))
+        elif i:
+            rows[-1].append('  |  ', style='keys')
+        rows[-1].append_text(pair)
     bar = Table.grid(expand=True)
     bar.add_column(justify='left')
-    bar.add_row(line)
+    for row in rows:
+        bar.add_row(row)
     bar.style = 'keys'
     return bar
 
@@ -351,9 +357,10 @@ def viewport(title, art, corner='', page=None):
 
 
 def frame_of(console, origin, title, art, boxes, keys, art_title=None,
-             under=None, dressed=True, gauges=None):
+             under=None, dressed=True, gauges=None, wrap=False):
     """The template: title band (its `gauges` a Text after the name), viewport left,
-    instruments right, key bar; `dressed` False for a drawing with a HUD of its own."""
+    instruments right, key bar - on two rows `wrap`ped; `dressed` False for a drawing with a HUD
+    of its own."""
     if not _fills(console):
         return Group(header(title, origin, gauges),
                      viewport(art_title or title, art),
@@ -381,7 +388,9 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
         whole['under'].size = _rows_of(under) + 2
     whole['hud'].update(Group(*boxes) if boxes else Text(''))
     whole['header'].update(header(title, origin, gauges))
-    whole['footer'].update(footer(keys))
+    bar = footer(keys, console.width if wrap else 0)
+    whole['footer'].update(bar)
+    whole['footer'].size = bar.row_count
     return whole
 
 

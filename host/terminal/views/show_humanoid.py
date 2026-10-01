@@ -4,7 +4,7 @@
     python terminal/views/show_humanoid.py
     python terminal/views/show_humanoid.py --frames 30
 
-`Machine.discover('gynoid', execution_mode=DYNAMIC)`: her figure in MuJoCo, 55 kg, each of her 27
+`Machine.discover('gynoid', execution_mode=DYNAMIC)`: her figure in MuJoCo, each of her 27
 joints a drive holding its setpoint (`machine.physics`); every millisecond her director reads where
 she is and sets them all (`machine.director`): landed in a squat, she rises, steps off and walks,
 catching herself when shoved. She runs in a process of her own paced to the wall clock
@@ -12,8 +12,8 @@ catching herself when shoved. She runs in a process of her own paced to the wall
 GPU where a card answers (`coaxial.graphics.gynoid`), each drive called out at the viewport's
 edge with a leader to its joint: its angle, its torque as a bar and a number, its power as a bar.
 G runs a leg's board into its SOA, H warms one, in turn (`GLITCHED`); the hottest board says
-its heat as it reports it on the bus (`machine.heat`). Ctrl and a letter lays what she trips on
-where her walk meets it (`TRIPS`, `machine.events`).
+its heat as it reports it on the bus (`machine.heat`). A digit lays what she trips on where her
+walk meets it (`TRIPS`, `machine.events`).
 """
 import argparse
 import csv
@@ -41,7 +41,7 @@ from terminal.views.playback import Playback
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
-from terminal.ui.stage import frame_of, hud, stage
+from terminal.ui.stage import footer, frame_of, hud, stage
 from tools import REPO
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -182,11 +182,20 @@ def labels(now, called, shown='torque'):
     return out
 
 
+#: The key bar, on two rows where one is too narrow.
+HINTS = (('S F', 'PACE'), ('Z X', 'CATWALK SWAGGER'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
+         ('1-6', 'HOLE RUG SILL SLIP LACE STAIRS'), ('K , .', 'STYLE'), ('A', 'AGAIN'),
+         ('L', 'LABELS'), ('T', 'SHOWN'), ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'),
+         ('R', 'RECORD'), ('V', 'VIEW'), ('C', 'CLOTHES SHELL MECHANISM STICK'), ('D', 'DATA'),
+         ('Q', 'EXIT'), ('ESC', 'MENU'))
+
+
 def size_of(console, args):
     """Cells for the drawing: what the viewport leaves, or --width/--height."""
     size = console.size if console.is_terminal else None
     width = args.width or max(24, (size.width if size else 110) - HUD_WIDTH - 6)
-    height = args.height or max(12, (size.height if size else 44) - 6)
+    bar = footer(HINTS, size.width if size else 110).row_count
+    height = args.height or max(12, (size.height if size else 44) - 5 - bar)
     return width, height
 
 
@@ -361,16 +370,20 @@ def _pushed(state):
     state['body'].send(push=(state['side'] * PUSH_N, 0.0, 0.0), seconds=PUSH_S)
 
 
+#: What C steps her through, and round: dressed, her shell, her mechanism
+#: (`coaxial.graphics.mechanism`), her motors, gearboxes and linkages alone - the stick figure.
+SKINS = ('dressed', 'shell', 'mechanism', 'actuators')
+
+
 #: What each key does to the view's state.
 def _skinned(state):
-    """Dressed, her shell, her mechanism (`coaxial.graphics.mechanism`), and round."""
-    state.update(dressed=bool(state['see']),
-                 see='mechanism' if not state['dressed'] and not state['see'] else None)
+    """The next of SKINS."""
+    state['skin'] = SKINS[(SKINS.index(state['skin']) + 1) % len(SKINS)]
 
 
 def _seen(state):
-    """What of her is drawn: her motors, gearboxes and linkages alone (M), else as C has her."""
-    return 'actuators' if state['bare'] else state['see']
+    """`gynoid.render`'s `see` as C has her: None her skin."""
+    return state['skin'] if state['skin'] in ('mechanism', 'actuators') else None
 
 
 KEYS = dict(
@@ -391,7 +404,6 @@ KEYS = dict(
                                                   % len(SHOWN)])) for k in 'tT']
     + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'vV']
     + [(k, _skinned) for k in 'cC']
-    + [(k, lambda state: state.update(bare=not state['bare'])) for k in 'mM']
     + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD']
     + [(k, _zoomed(1.1)) for k in '+='] + [(k, _zoomed(1.0 / 1.1)) for k in '-_'])
 
@@ -431,8 +443,7 @@ def main(argv=None):
     state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
-             'tripped': None, 'playback': Playback(), 'shown': 'torque', 'dressed': True,
-             'see': None, 'bare': False,
+             'tripped': None, 'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
              'data': False, 'traffic': None, 'knob': style.NAMES[0], 'sway': 0.0}
 
     def draw():
@@ -457,7 +468,8 @@ def main(argv=None):
                                           root=((0.0, rise, 0.0), quat(1.0, 0.0, 0.0, 0.0)),
                                           labels=data_labels(now),
                                           heat={j: h[0] for j, h in now['heat'].items()},
-                                          legend=data_legend(width), dressed=state['dressed'],
+                                          legend=data_legend(width),
+                                          dressed=state['skin'] == 'dressed',
                                           see=_seen(state)))
         else:
             x, y, z = now['where']
@@ -471,16 +483,11 @@ def main(argv=None):
                                           props=now.get('props'),
                                           legend=(legend(state['shown'], width)
                                                   if state['called'] != 'none' else None),
-                                          dressed=state['dressed'], see=_seen(state)))
+                                          dressed=state['skin'] == 'dressed',
+                                          see=_seen(state)))
         side = boxes(state, now, name) + ([traffic(state, now)] if state['data'] and now else [])
-        return frame_of(board_view, ORIGIN, TITLE, art, side,
-                        (('S F', 'PACE'), ('Z X', 'CATWALK SWAGGER'), ('P', 'PUSH'), ('G', 'SOA'),
-                         ('H', 'HOT'), ('1-6', 'HOLE RUG SILL SLIP LACE STAIRS'),
-                         ('K , .', 'STYLE'), ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
-                         ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
-                         ('V', 'VIEW'), ('C', 'CLOTHES SHELL MECHANISM'), ('M', 'MOTORS'),
-                         ('D', 'DATA'),
-                         ('Q', 'EXIT'), ('ESC', 'MENU')), gauges=gauges(state))
+        return frame_of(board_view, ORIGIN, TITLE, art, side, HINTS, gauges=gauges(state),
+                        wrap=True)
 
     leaving = None
     try:
