@@ -196,9 +196,12 @@ class Director:
         if self.fallen_at is None and self._fallen(bus):
             self.fallen_at, self.stage = bus['t'], 'fallen'
         if self.falling_at is not None:
+            if self.touched_at is None and 'waist' in self.curl_to:
+                self.curl_to['waist'] = falls.turn(self._fall_way(bus))
             k = gait.eased((bus['t'] - self.falling_at) / falls.CURL_S)
             out = {j: self.curl_from[j] + (v - self.curl_from[j]) * k
                    for j, v in self.curl_to.items()}
+            out.update({j: self.curl_to[j] for j in falls.AT_ONCE if j in self.curl_to})
             if self.touched_at is None and self.world.lifted(falls.ARM_PARTS) < falls.TOUCH_M:
                 self.touched_at = bus['t']
             if self.touched_at is not None:

@@ -85,11 +85,10 @@ Open work. Measured results are in FINDINGS.
   she gets up (`machine.getup`) on a plan the observer checks step by step
   (`machine.observer`, `machine.planner`: a local model's, a server's after
   LOCAL_TRIES - no server client yet - else its own): onto her front, the
-  knees under, back on her heels, onto her feet, knees together; 12 of 13
-  falls walk again 20-33 s after, the stairs untried. Face down tilted, her
-  head's left side 0.45 down, the knees under roll her 28-37 degrees, three
-  tries of three (the rug at 0.9). Left: the arms toward the way she falls,
-  pads at the elbows, knees and hips (5 mm of gel in TPU). The
+  knees under, back on her heels, onto her feet, knees together; 13 of 13
+  falls walk again 20-25 s after, the stairs untried. Falling, the waist
+  turns her arms toward the fall (`falls.turn`). Left: pads at the elbows,
+  knees and hips (5 mm of gel in TPU). The
   scoreboard counts the time down. The shoves' findings stand: toward the
   standing foot the side step ends with
   the capture point 27 cm ahead and no foot there; shoved at 0.30 of the

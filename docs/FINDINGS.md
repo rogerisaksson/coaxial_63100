@@ -701,16 +701,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   and held 6 s 2 times in 11; reset, 10 (`Walker.reset`). Her head's IMU
   picks the side she rolls over. Walking back the way she came, a joint came
   2.38 m behind the lens (`gynoid.Follow`) (2026-09-30).
-- Her whole body collides (`figure.BODY`): lying, her arms went 40-43 mm
-  into the floor and her shins 100 through each other; now 2-9. On it the
-  knees-open fold stood 3 of 12. The get-up is a plan the observer checks
-  step by step (`machine.observer`, `machine.planner`). Back on her heels
-  passed with her head down, her centre of mass 0.53 m ahead of her toes;
-  asked that over her feet and the head up, 18 of 22 kneels sit back. Onto
-  her feet she stood still on them 2 s before its last keyframe and sat down
-  behind them; handed over pitched 22 degrees, the arrival threw her up: the
-  observer ends it crouched, still and flat. 12 of 13 falls walk again 20-33
-  s after (2026-10-01).
+- Her whole body collides (`figure.BODY`); on it the knees-open fold stood 3
+  of 12. The get-up is a plan the observer checks step by step
+  (`machine.observer`, `machine.planner`): back on her heels from 18 of 22
+  kneels (`observer.OVER_FEET_M`), onto her feet ended as the observer sees
+  her crouched (`observer.EARLY`), the floor's boxes deep (`floor.DEEP_M`):
+  13 of 13 falls walk again 20-25 s after (2026-10-01).
+- Falling, her reach pointed 45 degrees off the way she tipped (the hole),
+  never out on the rug: the waist turns her toward a tip past 20 degrees off
+  her front (`falls.turn`), 5 and 10 off. In 24 falls her head touched the
+  floor in 12, 688 N at most; unturned, waist shorted, in 10, 1170
+  (2026-10-01).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The

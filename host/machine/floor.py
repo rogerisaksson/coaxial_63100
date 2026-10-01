@@ -26,6 +26,10 @@ HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.03, 0.40, 0.06, 0.04
 SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
 RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.1
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
+#: The slab, the sill and the patch reach DEEP_M under the floor: the slab 3 cm deep, a landing
+#: arm passed its middle and was held inside, its underside pressing it onto the plane - 15 kN,
+#: 2 falls in 13 (2026-10-01). The patch stands SLIP_TOP_M proud.
+DEEP_M, SLIP_TOP_M = 0.2, 0.001
 
 #: A stair of STEPS steps, each RISE_M up and RUN_M on - a stride's step, as she has no eyes to
 #: fit her steps to it - and TOP_M of landing at the top: a box a step, mocap bodies too.
@@ -48,16 +52,18 @@ def ground(contacts, give, torsion):
         '<geom name="floor" type="plane" size="100 100 0.1" pos="0 %g 0" '
         'quat="0.7071068 -0.7071068 0 0"%s/>' % (-HOLE_M, contacts),
         '<geom name="slab_a" type="box" size="50 %g %g" pos="0 %g %g"%s/>' % (
-            HOLE_M / 2.0, (SLAB_TO_M - SLAB_FROM_M) / 2.0, -HOLE_M / 2.0,
+            DEEP_M / 2.0, (SLAB_TO_M - SLAB_FROM_M) / 2.0, -DEEP_M / 2.0,
             (SLAB_FROM_M + SLAB_TO_M) / 2.0, contacts),
         '<geom name="slab_b" type="box" size="50 %g %g" pos="0 %g %g"%s/>' % (
-            HOLE_M / 2.0, (SLAB_TO_M - SLAB_FROM_M) / 2.0, -HOLE_M / 2.0,
+            DEEP_M / 2.0, (SLAB_TO_M - SLAB_FROM_M) / 2.0, -DEEP_M / 2.0,
             (SLAB_FROM_M + SLAB_TO_M) / 2.0, contacts),
-        '<body name="sill" mocap="true" pos="0 -1 0"><geom type="box" size="0.5 %g %g"%s/>'
-        '</body>' % (SILL_M / 2.0, SILL_LONG_M / 2.0, contacts),
-        '<body name="slip" mocap="true" pos="0 -1 0"><geom type="box" size="0.5 0.0005 %g" '
-        'priority="1" condim="4" friction="%g %g 0.001"%s%s/></body>' % (
-            SLIP_LONG_M / 2.0, SLIP_FRICTION, torsion, give, contacts)] + [
+        '<body name="sill" mocap="true" pos="0 -1 0"><geom type="box" size="0.5 %g %g" '
+        'pos="0 %g 0"%s/></body>' % ((SILL_M + DEEP_M) / 2.0, SILL_LONG_M / 2.0,
+                                     (SILL_M - DEEP_M) / 2.0, contacts),
+        '<body name="slip" mocap="true" pos="0 -1 0"><geom type="box" size="0.5 %g %g" '
+        'pos="0 %g 0" priority="1" condim="4" friction="%g %g 0.001"%s%s/></body>' % (
+            (SLIP_TOP_M + DEEP_M) / 2.0, SLIP_LONG_M / 2.0, (SLIP_TOP_M - DEEP_M) / 2.0,
+            SLIP_FRICTION, torsion, give, contacts)] + [
         '<body name="%s" mocap="true" pos="0 -2 0"><geom type="box" size="%g %g %g"%s/></body>'
         % ((name,) + half + (contacts,)) for name, half, _at in _steps()]
 
@@ -132,9 +138,9 @@ def place(world, kind, z, x=0.0, heading=0.0):
         slab(world, at[1] - HOLE_LONG_M / 2.0, at[1] + HOLE_LONG_M / 2.0)
         world.hole_x = at[0]
     elif kind == 'sill':
-        mocap(world, 'sill', (at[0], SILL_M / 2.0, at[1]), heading)
+        mocap(world, 'sill', (at[0], 0.0, at[1]), heading)
     elif kind == 'slip':
-        mocap(world, 'slip', (at[0], 0.0005, at[1]), heading)
+        mocap(world, 'slip', (at[0], 0.0, at[1]), heading)
     elif kind == 'rug':
         lay_rug(world, at, heading)
     elif kind == 'stairs':
@@ -146,7 +152,8 @@ def place(world, kind, z, x=0.0, heading=0.0):
 
 def props(world):
     """What lies on the floor: [(kind, centre, half sizes, turn 3x3)] world, a box each - the
-    hole's gap, a sill, a slip patch, a stair's steps, the rug."""
+    hole's gap, a sill, a slip patch, a stair's steps, the rug - what of it stands above the
+    floor."""
     m, d = world.model, world.data
     out = []
     a = m.geom('slab_a').id
@@ -160,8 +167,11 @@ def props(world):
         at = d.xpos[body]
         if at[1] > -0.5:
             g = m.body_geomadr[body]
-            out.append(('stairs' if name.startswith('step') else name, tuple(at),
-                        tuple(m.geom_size[g]), tuple(map(tuple, d.xmat[body].reshape(3, 3)))))
+            c, half = d.geom_xpos[g], m.geom_size[g]
+            top, low = c[1] + half[1], max(0.0, c[1] - half[1])
+            out.append(('stairs' if name.startswith('step') else name,
+                        (c[0], (top + low) / 2.0, c[2]), (half[0], (top - low) / 2.0, half[2]),
+                        tuple(map(tuple, d.xmat[body].reshape(3, 3)))))
     rug = m.body('rug').id
     if d.xpos[rug][2] > PARKED_M + 1.0:
         out.append(('rug', tuple(d.xpos[rug]), (0.3, RUG_M / 2.0, RUG_LONG_M / 2.0),

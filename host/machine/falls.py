@@ -1,10 +1,12 @@
-"""Falling past recovery: her legs' and trunk's drives shorted, her arms out, the floor softly.
+"""Falling past recovery: her legs' and trunk's drives shorted, her arms out toward the fall.
 
 What `machine.director` sets her as she goes down.
 
-    out = falls.reach(tip_deg, rate_deg_s)      # the arms and the neck
+    out = falls.reach(tip_deg, rate_deg_s)      # the arms, the neck, the waist's turn
     out = falls.yielded(out, bus)               # an arm at the floor: soft from there
 """
+import math
+
 #: Falling, the drives of SHORT_FALLING's kinds have their phases shorted through the low sides
 #: (`physics.World.short`), each joint giving kt^2/R of its speed back against it - a damper,
 #: not a pose held; the arms and the neck go to CATCH over CURL_S, and softly on into YIELD as an
@@ -14,7 +16,7 @@ What `machine.director` sets her as she goes down.
 #: once down, 4 prone and 1 on her back, the head 0.05-1.14 m/s four times; curled and held as
 #: before, 3 on her left side, 1 on her right and 1 prone, 2.29 and 0.25 m/s (2026-09-30).
 SHORT_FALLING = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll', 'foot', 'spine',
-                 'spine_roll', 'waist')
+                 'spine_roll')
 CURL_S = 0.4
 
 #: Falling, the arms and the neck by the way she tips and how hard: tipping past GUARD_DEG_S as
@@ -24,6 +26,12 @@ CURL_S = 0.4
 #: hips took it (2026-09-28); tipping more than BEHIND_DEG from her forward, the arms down behind
 #: her and the chin tucked. Declared at 18-341 deg/s: the hole, the lace, the stairs, the rug.
 HEAD_UP_DEG, BEHIND_DEG, GUARD_DEG_S = 40.0, 120.0, 150.0
+#: Ahead or guarded, the waist turns her torso - the arms, a shoulder's one axis in its plane -
+#: toward the way she tips, from none AHEAD_DEG off her front to all of it SIDE_DEG off, WAIST_DEG
+#: at most, at once (AT_ONCE: its drive's peak the ease). Turned toward the lace's dive, 23
+#: degrees off, her head met the floor at 1.5-2.5 kN in 6 laces of 6, unturned in none
+#: (2026-10-01).
+AHEAD_DEG, SIDE_DEG, WAIST_DEG, AT_ONCE = 20.0, 35.0, 45.0, ('waist',)
 CATCH = {'ahead': {'neck': HEAD_UP_DEG, 'left_shoulder': 90.0, 'right_shoulder': 90.0,
                    'left_elbow': 30.0, 'right_elbow': 30.0, 'left_wrist': 0.0, 'right_wrist': 0.0,
                    'left_gripper': 0.0, 'right_gripper': 0.0},
@@ -47,10 +55,17 @@ ARM_PARTS = tuple(side + part for side in ('left_', 'right_')
 
 
 def reach(tip, rate):
-    """{joint: deg} the arms and the neck go to, tipping `tip` deg off her forward (+ to her
-    left) at `rate` deg/s: CATCH's by the way."""
-    return dict(CATCH['guard' if rate > GUARD_DEG_S else 'behind' if abs(tip) > BEHIND_DEG
-                      else 'ahead'])
+    """{joint: deg} the arms, the neck and the waist go to, tipping `tip` deg off her forward (+
+    to her left) at `rate` deg/s: CATCH's by the way, the waist turned toward it ahead - the
+    director turns it on as the tip moves, till an arm lands."""
+    way = 'guard' if rate > GUARD_DEG_S else 'behind' if abs(tip) > BEHIND_DEG else 'ahead'
+    return dict(CATCH[way]) if way == 'behind' else dict(CATCH[way], waist=turn(tip))
+
+
+def turn(tip):
+    """The waist's turn toward a tip `tip` deg off her forward, deg."""
+    k = max(0.0, min(1.0, (abs(tip) - AHEAD_DEG) / (SIDE_DEG - AHEAD_DEG)))
+    return math.copysign(min(WAIST_DEG, k * abs(tip)), tip)
 
 
 def cause(tip, rate, stumbled):

@@ -84,7 +84,8 @@ FIST_R, FIST_AT = 0.03, (0.0, -0.07, 0.01)
 #: sphere where the ends meet - the drawn skin, the clothes not: the hips across, the waist, the
 #: ribs, the chest and the shoulders across, the bust, the neck, the skull and the jaw, every
 #: limb its length. A sphere or two a segment, lying her arms went 40-43 mm into the floor, her
-#: head 40, her shins 100 through each other and her hand 41 into its upper arm (2026-09-30).
+#: head 40, her shins 100 through each other and her hand 41 into its upper arm; on these, 2-9
+#: (2026-09-30).
 BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[1])),
         ('pelvis', SEAT_R, (-SEAT_X, SEAT_Y, SEAT_Z[0]), (-SEAT_X, SEAT_Y, SEAT_Z[1])),
         ('pelvis', 0.09, (-0.06, -0.01, -0.01), (0.06, -0.01, -0.01)),

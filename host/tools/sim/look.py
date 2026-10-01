@@ -16,8 +16,8 @@ dip), the torso ahead of plumb, the torso against the left shin (under 0 it lean
 knees), the hips-to-shoulders line, the left knee (under 0 bent back), the head's pitch (its
 range the nod), the left hip's roll, the thighs' gap as drawn, bare and in the jeans (under 0
 they meet), the trunk's and arms' to the legs (simulated), how far the pelvis's and the head's
-forward point above level (90 on her back), falling her reach off the way she tips - least and
-most over the stage, deg and mm.
+forward point above level (90 on her back), falling until an arm lands her reach off the way she
+tips - least and most over the stage, deg and mm.
 """
 import argparse
 import csv
@@ -102,6 +102,7 @@ def sample(bus, director, world, asked=None):
            'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked or {}}
     return dict(zip(HEADER, row(now, 60.0)), loose=world.loose(),
                 feet=world.gap(LEFT_FOOT, RIGHT_FOOT), lifted=world.lifted(LEFT_FOOT),
+                landed=director.touched_at is not None,
                 trunk=world.gap(('torso', 'head', 'upper_arm', 'forearm', 'hand'),
                                 ('thigh', 'shank')))
 

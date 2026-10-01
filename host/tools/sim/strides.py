@@ -16,9 +16,11 @@ def _faces(r, seg):
 
 
 def _reach_off(r):
-    """Falling, how far her reach - the hands from the shoulders, across the floor - points off
-    the way she tips, deg; else nan."""
-    if r['stage'] != 'falling':
+    """Falling until an arm lands (a recording: falling), how far her reach - the hands from the
+    shoulders, across the floor - points off the way she tips, deg; else nan."""
+    landed = r.get('landed')
+    if (r['stage'] != 'falling' if landed is None
+            else r['stage'] not in ('falling', 'fallen') or landed):
         return math.nan
     from machine import figure
     turn = figure.quat(*(float(r['q' + k]) for k in 'wxyz'))
