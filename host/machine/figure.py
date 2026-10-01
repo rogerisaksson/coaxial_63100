@@ -14,9 +14,9 @@ from machine.gait import ANKLE_H, BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, 
 #: Her weight, kg; each segment's share of it is de Leva's (1996) for a woman.
 MASS_KG = 55.0
 
-#: Her jeans' wide legs hang from HEM_AT under the knees, metres (`physics.HEMS`).
+#: Her jeans' wide legs hang from HEM_AT under the knees, metres (`mjcf.HEMS`).
 HEM_AT = 0.12
-#: Her hair's fall hangs from HAIR_AT on her head, its frame, metres (`physics.HAIRS`): at the
+#: Her hair's fall hangs from HAIR_AT on her head, its frame, metres (`mjcf.HAIRS`): at the
 #: back of her skull, level with her ears.
 HAIR_AT = (0.0, 0.075, -0.02)
 
@@ -106,7 +106,7 @@ BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[
         ('shank', 0.05, (0.0, -0.04, 0.0), (0.0, -0.25, 0.0)),
         ('shank', 0.036, (0.0, -0.25, 0.0), (0.0, -0.33, 0.0)))
 
-#: Pads where her falls land, 5 mm of gel in TPU under her skin and clothes (`physics.PAD_*`):
+#: Pads where her falls land, 5 mm of gel in TPU under her skin and clothes (`mjcf.PAD_*`):
 #: (segment, the point of its capsule's axis under it, the capsule's radius, toward where the
 #: landings cluster, the pad's radius and half-width across), the left side's. Over 26 bare falls,
 #: each segment's first 0.2 s on the floor: the elbow's point 3068 N s, 7.2 kN at most; the hip's

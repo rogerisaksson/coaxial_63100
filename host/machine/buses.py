@@ -22,7 +22,8 @@ its amps; its heat (`machine.heat`) steps every THERMAL_S on the currents it gav
 The block (`Block`, FIELDS): the world writes time, q, qd and limit, bumps seq and sends a byte
 to each process's stdin; a process takes each bus's new bytes (written - received), ticks its
 boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
-epoch and hold: a reset, every board holding `hold`, its heat at the room's; air, rds and warm:
+epoch and hold: a reset, every board holding `hold`, its heat at the room's; rotor: the inertia a
+board feeds forward on its setpoint's acceleration, its own rotor's; air, rds and warm:
 a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); envelope: 0
 fantasy boards (`heat.Heat.envelope`); drive: what its heat is kept by (`drives.heat`), written
 before the processes start. An emulated limb takes a process's place on
@@ -60,7 +61,11 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('written', 'q', 'B'), ('sent', 'q', 'B'), ('free_at', 'd', 'B'), ('at', 'd', '2B'),
           ('q', 'd', 'J'), ('qd', 'd', 'J'), ('limit', 'd', 'J'), ('ctrl', 'd', 'J'),
           ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
-          ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'))
+          ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'), ('rotor', 'd', 'J'))
+
+#: A board's setpoint's acceleration, read between frames, filtered over ACCEL_S: mdeg frames a
+#: millisecond apart step it by 17 rad/s^2.
+ACCEL_S = 0.005
 
 HOST = '127.0.0.1'
 
@@ -156,7 +161,8 @@ class Segment:
         #: Per board: the setpoint held (rad), its rate (rad/s), when it was set (s), and
         #: whether a frame set it - the rate is read between two frames, never from a hold.
         self.target, self.rate, self.set_at = [0.0] * n, [0.0] * n, [0.0] * n
-        self.framed = [False] * n
+        self.framed, self.accel = [False] * n, [0.0] * n
+        self.rotor = [block.rotor[i] for i in self.indices]
         #: Frames landing: (at, {unit: mdeg}); requests to answer: (at, unit, a gate write's
         #: frame or None for a poll).
         self.inbox, self.mail = collections.deque(), collections.deque()
@@ -182,7 +188,7 @@ class Segment:
         b = self.block
         for k, i in enumerate(self.indices):
             self.target[k], self.rate[k], self.set_at[k] = b.hold[i], 0.0, now
-            self.framed[k] = False
+            self.framed[k], self.accel[k] = False, 0.0
         self.inbox.clear()
         self.mail.clear()
         self.free_at = now
@@ -225,8 +231,11 @@ class Segment:
                 if not 0 <= k < len(self.indices):
                     continue
                 v, span = math.radians(mdeg / 1000.0), at - self.set_at[k]
-                self.rate[k] = ((v - self.target[k]) / span
-                                if self.framed[k] and 1e-9 < span < 0.1 else 0.0)
+                two = self.framed[k] and 1e-9 < span < 0.1
+                rate = (v - self.target[k]) / span if two else 0.0
+                self.accel[k] = (self.accel[k] + ((rate - self.rate[k]) / span - self.accel[k])
+                                 * min(1.0, span / ACCEL_S)) if two else 0.0
+                self.rate[k] = rate
                 self.target[k], self.set_at[k], self.framed[k] = v, at, True
         for k, i in enumerate(self.indices):
             if h.shorted[k]:
@@ -237,7 +246,8 @@ class Segment:
             else:
                 ref = self.target[k] + self.rate[k] * (now - self.set_at[k])
                 tau = (b.gains[2 * i] * (ref - b.q[i])
-                       + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i]))
+                       + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i])
+                       + self.rotor[k] * self.accel[k])
                 top = b.limit[i] * h.derate[k] if h.gates[k] else 0.0
                 b.ctrl[i] = tau = max(-top, min(top, tau))
                 h.load(k, tau)

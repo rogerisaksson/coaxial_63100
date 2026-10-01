@@ -115,8 +115,9 @@ ENERGY_W, ENERGY_K = 300.0, 0.05
 
 #: An event's fall, FALL_K the share of its runs that fell: the heaviest - one more of 30 is 10. A
 #: fall past saving, its landing over LAND_S from the fall: LAND_K a kN of the peak her body bears
-#: on the floor, feet aside, HEAD_K a kN of her head's.
-FALL_K, LAND_S, LAND_K, HEAD_K = 300.0, 1.5, 2.0, 10.0
+#: on the floor, feet aside, HEAD_K a kN of her head's; GEAR_K a share past its rating of the
+#: worst gearbox's peak torque (`World.geared`, `drives.shock`) - broken.
+FALL_K, LAND_S, LAND_K, HEAD_K, GEAR_K = 300.0, 1.5, 2.0, 10.0, 100.0
 
 #: The look's measures, by `strides.WALK`'s names, and the landing's and the power's.
 LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear',
@@ -162,7 +163,7 @@ LOST_K = 30.0
 
 MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'falls', 'parry',
            'getup', 'observer',
-           'capture', 'physics', 'buses', 'events', 'drives')
+           'capture', 'physics', 'mjcf', 'buses', 'events', 'drives')
 
 
 def _set(values):
@@ -194,7 +195,7 @@ def trial(job):
     faulted = kind in ('event', 'fall')
     _set(dict(values, ENVELOPE=1.0 if faulted else 0.0))
     from tools.sim import look, strides
-    from machine import Machine, events, figure, heat
+    from machine import Machine, drives, events, figure, heat
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -282,7 +283,9 @@ def trial(job):
         walked['load'] = 100.0 * pinned / drive_ms
         walked['power'] = drawn / passes + len(peak) * (heat.SWITCHING_W + heat.HOUSEKEEPING_W)
     if faulted:
-        walked.update(fell=float(fell is not None), landing=landing, head=head)
+        walked.update(fell=float(fell is not None), landing=landing, head=head,
+                      gear=float(np.max(world.geared / np.array([drives.shock(j)
+                                                                  for j in figure.JOINTS]))))
     return 1.0 - down / seconds, (stirred / passes if passes else None), what, walked
 
 
@@ -315,7 +318,8 @@ def score(results):
             + LOST_K * (len(walks) - len(walked)) / len(walks)) if walked else 0.0
     runs = [(t[0], r[3]) for (t, _k), r in zip(JOBS, results)]
     fell = [w['fell'] for kind, w in runs if kind == 'event']
-    land = [LAND_K * w['landing'] + HEAD_K * w['head'] for kind, w in runs if kind == 'fall']
+    land = [LAND_K * w['landing'] + HEAD_K * w['head'] + GEAR_K * max(0.0, w['gear'] - 1.0)
+            for kind, w in runs if kind == 'fall']
     return (cost + (FALL_K * sum(fell) / len(fell) if fell else 0.0)
             + (sum(land) / len(land) if land else 0.0)), held, stir
 
@@ -380,8 +384,9 @@ def main(argv=None):
         if args.search:
             spans = {k: tuple(float(x) for x in v.split(':'))
                      for k, v in (a.split('=') for a in args.search)}
-            cost, values = cmaes.search(pool, spans, args.generations, args.population, log,
-                                        run, _now, args.sigma)
+            cost, values = cmaes.search(
+                pool, spans, args.generations, args.population, log,
+                lambda pool, cands: run(pool, [dict(fixed, **c) for c in cands]), _now, args.sigma)
             print('BEST %.2f %s' % (cost, json.dumps(values)))
             cands = [dict(fixed, **(values or {}))]
         elif args.grid:

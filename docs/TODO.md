@@ -125,7 +125,10 @@ Open work. Measured results are in FINDINGS.
     puts 0.49 kg m^2 of rotor on a knee, and the model carries none of it
     (`physics.REFLECTED` 0, the clamps SERVO's, `CLAMPED` 0): the rotors and
     gearboxes into MuJoCo, the walk retuned on them. M's and S's motors are
-    estimates.
+    estimates. The gearboxes sized as built: backdrivable, rated for the
+    blows a fall gives, in the model as bodies - their mass where they sit,
+    their inertia, their backdrive friction - and a fall scored on the
+    torque through each against its rating.
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the

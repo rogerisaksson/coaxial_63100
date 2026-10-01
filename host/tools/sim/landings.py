@@ -7,7 +7,7 @@
 FALLS walked into at 0.8 strides/s, each fall from its start to LANDED_S after she is down. A
 segment's landing is its first LANDING_S on the floor: its contacts' points in its frame (the
 right side mirrored onto the left) and their impulse, clustered within REACH_M - where the pads
-go (`figure.PADS`). A gel (`physics.PAD_*`) is judged on the padded segments' worst peak a fall:
+go (`figure.PADS`). A gel (`mjcf.PAD_*`) is judged on the padded segments' worst peak a fall:
 its median, its 90th percentile, its spread (90th less 10th) and the worst, the pads' deepest
 give, the head's peak. `--bare` takes the pads off.
 """

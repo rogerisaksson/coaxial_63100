@@ -1,16 +1,21 @@
-"""Her drives sized: three assemblies, each a board behind an outrunner on a cycloid, coaxial.
+"""Her drives sized: three assemblies, each a board behind an outrunner on its gearbox, coaxial.
 
     size = drives.of('left_knee')      # (name, Size)
     drives.kt('left_knee')             # N m of joint torque an amp of q current
     drives.peak('left_knee')           # N m at the board's amps
     drives.armature('left_knee')       # kg m^2, the rotor and the gearbox seen through it
     drives.speed('left_knee')          # deg/s at the supply's lowest, unloaded
+    drives.backdrive('left_knee')      # N m to turn it by its output, unpowered
+    drives.shock('left_knee')          # N m its gearbox takes momentarily, a fall's blow
 
 A size: the board (its amps; its heat as the 63 V 100 A board's scaled to them, its laminate
 bolted to the assembly's housing), the outrunner (Kt, the winding's resistance, KV, its rotor's
-inertia, the winding's heat), the cycloid's ratio (RATIO) and efficiency, the assembly's
-diameter and length and mass. Every joint has one (`JOINTS`), on its axis or, where one there
-would look odd, mounted on a segment and driving it through a rod.
+inertia, the winding's heat), the gearbox (its ratio, RATIO, its efficiency, the drag at its
+input and the torque it takes momentarily at its output), the assembly's diameter and length
+and mass. Every joint has one (`JOINTS`), on its axis or, where one there would look odd,
+mounted on a segment and driving it through a rod. The gearbox is a wave drive with rolling
+elements - a wave generator pushing rollers in a cage against a toothed ring, one stage to 1:60,
+rolling where a cycloid slides, many rollers sharing a blow - backdrivable at the ratios here.
 """
 from motor.catalog import PLATINUM_5230SL
 from motor.pmsm import TORQUE_FACTOR, WINDING_J_PER_K, WINDING_K_PER_W
@@ -21,51 +26,60 @@ PACK_V = 48.0
 
 class Size:
 
-    """One assembly: its board, its outrunner, its cycloid, its envelope."""
+    """One assembly: its board, its outrunner, its gearbox, its envelope."""
 
     __slots__ = ('amps', 'kt_motor', 'r', 'kv', 'rotor', 'winding', 'efficiency', 'housing_k_w',
-                 'diameter', 'length', 'mass', 'source')
+                 'diameter', 'length', 'mass', 'drag', 'shock', 'source')
 
     def __init__(self, amps, kt_motor, r, kv, rotor, winding, efficiency, housing_k_w,
-                 diameter, length, mass, source):
+                 diameter, length, mass, drag, shock, source):
         self.amps, self.kt_motor, self.r, self.kv, self.rotor = amps, kt_motor, r, kv, rotor
         self.winding, self.efficiency, self.housing_k_w = winding, efficiency, housing_k_w
         self.diameter, self.length, self.mass, self.source = diameter, length, mass, source
+        self.drag, self.shock = drag, shock
 
 
-#: Each size's cycloid, its ratio; its input side - the eccentric, the discs - seen at the motor
-#: as GEAR_J of the rotor's inertia (estimated). A size's copper watts go as 1/ratio^2, the
+#: Each size's gearbox, its ratio; its input side - the wave generator, the rollers - seen at the
+#: motor as GEAR_J of the rotor's inertia (estimated). A size's copper watts go as 1/ratio^2, the
 #: inertia it puts on its joint as ratio^2: with the rotors in the model (`physics.REFLECTED`)
 #: the walk fell at L 1:64 with no derate, at 1:36 walked 16 s, its hips derated from 9 s, on
 #: built boards (2026-10-01) - the walk asks 55 N m rms of a hip, 43 of a knee.
 RATIO_L, RATIO_M, RATIO_S = 64.0, 76.0, 101.0
-GEAR_J = 0.25
+GEAR_J = 0.05
 
 
 #: L: the 63 V 100 A board, its parts' centres 92 x 93 mm (the pick-and-place), a disc of 100 mm
-#: behind the 5230SL; M and S: that board scaled to 50 and 20 A behind a 43 and a 35 mm stator,
-#: estimated from their size classes (Kt 8.27/KV, R, rotor and mass by the class, the winding's
-#: heat by its copper's mass).
+#: behind the 5230SL; M and S: that board scaled to 25 and 6.8 A behind a 43 and a 35 mm stator
+#: wound for KV 140 and 160 - the burst torque and the copper a N m^2 of a KV 280 at 50 A and a
+#: KV 470 at 20 A, not 13 400 and 22 600 rpm at 48 V unloaded but 6 720 and 7 680 - estimated
+#: from their size classes (Kt 8.27/KV, R by the class times KV^2, rotor and mass by the class,
+#: the winding's heat by its copper's mass). Each gearbox's drag at its input, N m - its rollers'
+#: start and the motor's cogging - and the torque it takes momentarily at its output, N m, a
+#: rolling-element reducer's five times its rated (estimated).
 #: The laminate's path to the air through the housing it is bolted to, K/W: the housing's skin
 #: (0.03 m^2 for L) at 10 W/m^2 K still, the pad 0.3 - against the bare board's 11.7 in still air.
 SIZES = {
     'L': Size(100.0, TORQUE_FACTOR * PLATINUM_5230SL.poles * PLATINUM_5230SL.lam,
               PLATINUM_5230SL.r, 190.0, PLATINUM_5230SL.j, (WINDING_J_PER_K, WINDING_K_PER_W),
-              0.9, 3.6, 0.100, 0.095, 1.5, 'the 63100 board and its 5230SL'),
-    'M': Size(50.0, 8.27 / 280.0, 0.08, 280.0, 3.5e-5, (70.0, 4.0), 0.9, 6.5, 0.070, 0.068,
-              0.65, 'estimated: a 43 mm stator, KV 280'),
-    'S': Size(20.0, 8.27 / 470.0, 0.25, 470.0, 8.0e-6, (25.0, 7.0), 0.85, 16.0, 0.042, 0.048,
-              0.22, 'estimated: a 35 mm stator, KV 470'),
+              0.9, 3.6, 0.100, 0.095, 1.5, 0.08, 250.0, 'the 63100 board and its 5230SL'),
+    'M': Size(50.0 * 140.0 / 280.0, 8.27 / 140.0, 0.08 * (280.0 / 140.0) ** 2, 140.0, 3.5e-5,
+              (70.0, 4.0), 0.9, 6.5, 0.070, 0.068, 0.65, 0.02, 100.0,
+              'estimated: a 43 mm stator, KV 140'),
+    'S': Size(20.0 * 160.0 / 470.0, 8.27 / 160.0, 0.25 * (470.0 / 160.0) ** 2, 160.0, 8.0e-6,
+              (25.0, 7.0), 0.85, 16.0, 0.042, 0.048, 0.22, 0.0065, 30.0,
+              'estimated: a 35 mm stator, KV 160'),
 }
 
 #: Each joint's size, and where its assembly sits: None on the joint's own axis; else (segment,
 #: offset m in its frame) where it is mounted, a rod to the joint - the ankle's pair inside the
 #: calf under the knee; the wrist's and the fingers' in the forearm; the toes' in the foot. On the
-#: calf's back the ankle's stood 3 cm proud, a lump (2026-09-28).
+#: calf's back the ankle's stood 3 cm proud, a lump (2026-09-28). The elbow and the neck M: on S
+#: an elbow pushing her up from the floor asked 20 N m rms over 2 s, the neck holding her head
+#: 6, their copper past what an S's winding sheds (2026-10-01).
 JOINTS = {
     'spine': ('L', None), 'spine_roll': ('L', None), 'waist': ('M', None),
-    'neck': ('S', None), 'head': ('S', None),
-    'shoulder': ('M', None), 'elbow': ('S', None),
+    'neck': ('M', None), 'head': ('S', None),
+    'shoulder': ('M', None), 'elbow': ('M', None),
     'wrist': ('S', ('forearm', (0.0, -0.09, 0.0))),
     'gripper': ('S', ('forearm', (0.0, -0.165, 0.0))),
     'hip_yaw': ('M', None), 'hip_roll': ('L', None), 'hip': ('L', None), 'knee': ('L', None),
@@ -122,6 +136,17 @@ def peak(joint):
 def armature(joint):
     """The rotor's and the gearbox's inertia as the joint feels them, kg m^2."""
     return (1.0 + GEAR_J) * of(joint)[1].rotor * ratio(joint) ** 2
+
+
+def backdrive(joint):
+    """The torque that turns the joint by its output, unpowered: its gearbox's drag through its
+    ratio, N m."""
+    return of(joint)[1].drag * ratio(joint)
+
+
+def shock(joint):
+    """The torque its gearbox takes momentarily at its output, N m."""
+    return of(joint)[1].shock
 
 
 def speed(joint):

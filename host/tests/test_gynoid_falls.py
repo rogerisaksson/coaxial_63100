@@ -204,7 +204,7 @@ def test_a_fall_to_her_right_crouches(report):
 
 def test_her_pads(report):
     """Her pads (`figure.PADS`, where `tools/sim/landings.py where` finds her falls land), 5 mm of
-    gel (`physics.PAD_*`, its `gel` the spread of falls): dropped onto her knees she lands on them,
+    gel (`mjcf.PAD_*`, its `gel` the spread of falls): dropped onto her knees she lands on them,
     softer than bare, the gel giving no further than its own thickness past her bare skin."""
     from machine import Machine, figure
     from machine.modes import DYNAMIC

@@ -39,7 +39,7 @@ def _np():
 #: Her clothes' colours, and how far out of her they hang, m: high-waisted jeans,
 #: a white tee, white sneakers; the jeans LOOSE_M out over the seat, FIT_M the thighs, the tee
 #: BAGGY_M, patched over the drums (`drums.PATCH_M`). The jeans' legs (`JEANS_LEG`) hang on
-#: their hems' hinges (`physics.HEMS`) straight to a hem HEM_R (half width, half depth, set back),
+#: their hems' hinges (`mjcf.HEMS`) straight to a hem HEM_R (half width, half depth, set back),
 #: HEM_UP up at its sides, leaning HEM_LEAN onto the sneaker's vamp: 88 mm across and level, the
 #: other foot passed 16 mm into it, the toe box 35 mm out of it (2026-09-28).
 DENIM, TEE, SNEAKER = (118, 150, 182), (230, 230, 226), (236, 236, 232)
@@ -162,7 +162,7 @@ def _features():
     return out
 
 
-#: The hair's hinges (`physics.HAIRS`), as a part rides them.
+#: The hair's hinges (`mjcf.HAIRS`), as a part rides them.
 HUNG = (('hair_x', 'x', 1), ('hair_z', 'z', 1))
 
 
