@@ -24,12 +24,14 @@ from concurrent.futures import ThreadPoolExecutor
 from machine import (arrival, drives, falls, figure, gait, getup, heat, observer, planner,
                      walker, walkplan, stance)
 
-#: Falling, past the walker's recovery: the head (its IMU) tipped past FALLING_DEG and tipping on
-#: faster than FALLING_DEG_S, or the pelvis under FALLING_M, walking. Fallen - under FALLEN_M or
-#: the head tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves - is
-#: down. Read on the pelvis, a parry's step pitched it 9 degrees at 141 deg/s, the spine took it
-#: back out, the head stood at 4, and the fall called shorted her legs as the foot landed with the
-#: capture point on it; walking, the head peaks at 4.2 degrees and 21 deg/s (2026-10-01).
+#: Falling, past the walker's recovery: the trunk (`_trunk`) tipped past FALLING_DEG and tipping
+#: on faster than FALLING_DEG_S, or the pelvis under FALLING_M, walking. Fallen - under FALLEN_M
+#: or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves - is down. Read
+#: on the pelvis, a parry's step pitched it 9 degrees at 141 deg/s, the spine took it back out,
+#: the head stood at 4, and the fall called shorted her legs as the foot landed with the capture
+#: point on it; walking, the head peaks at 4.2 degrees and 21 deg/s (2026-10-01). Read on the
+#: head, its 0.77 kg whipped 5.4 m/s under P's shove, called her down 0.08 s into the fall and her
+#: head struck at 1.75 and 3.57 m/s; on the trunk in none of 16 (2026-10-02).
 FALLING_DEG, FALLING_DEG_S, FALLING_M = 12.0, 60.0, 0.65
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
@@ -350,13 +352,15 @@ class Director:
         return self.still >= STILL_S
 
     def _tilt(self, bus):
-        """The head's tilt from upright, degrees."""
-        up = self._head(bus)[1][1]
+        """The trunk's tilt from upright, degrees (`_trunk`)."""
+        up = self._trunk(bus)[1][1]
         return math.degrees(math.acos(max(-1.0, min(1.0, up))))
 
-    def _head(self, bus):
-        """The head's turn as its IMU read it."""
-        return figure.quat(*(bus['pelvis.pose.head_q' + a] for a in 'wxyz'))
+    def _trunk(self, bus):
+        """The torso's turn: the head's IMU's less the head's and the neck's joints as read."""
+        head = figure.quat(*(bus['pelvis.pose.head_q' + a] for a in 'wxyz'))
+        return figure.mul(figure.mul(head, figure.ry(-math.radians(bus['head.deg']))),
+                          figure.rx(-math.radians(bus['neck.deg'])))
 
     def _falling(self, bus):
         """Past recovery, walking: tipped past FALLING_DEG and tipping on faster than
@@ -372,9 +376,9 @@ class Director:
                                                     and self.fall_rate > FALLING_DEG_S)
 
     def _fall_way(self, bus):
-        """Which way the head tips, deg about the vertical from the pelvis's forward, + to its
+        """Which way the trunk tips, deg about the vertical from the pelvis's forward, + to its
         left."""
-        turn, head = self._pelvis(bus)[1], self._head(bus)
+        turn, head = self._pelvis(bus)[1], self._trunk(bus)
         up = (head[0][1], head[2][1])
         ahead, left = ((turn[0][k], turn[2][k]) for k in (2, 0))
         return math.degrees(math.atan2(up[0] * left[0] + up[1] * left[1],

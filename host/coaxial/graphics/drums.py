@@ -36,15 +36,16 @@ def drums():
         x = -1.0 if joint.startswith('right_') else 1.0
         kind = drives.kind(joint)
         if mounted is not None:
-            parent, (ox, oy, oz) = mounted
+            parent, at = mounted
         elif kind in DRUM_ON_PELVIS:
             parent, (hx, hy, hz) = 'pelvis', seg[3]
-            ox, oy, oz = hx * x, hy + DRUM_ON_PELVIS[kind], hz
+            at = (hx, hy + DRUM_ON_PELVIS[kind], hz)
         else:
             parent, (ox, oy, oz) = seg[0], DRUM_AT.get(kind, (0.0, 0.0, 0.0))
+            at = (ox * x, oy, oz)
         AXES[joint] = ({'x': (1.0, 0.0, 0.0), 'y': (0.0, 1.0, 0.0),
                         'z': (0.0, 0.0, 1.0)}[axes[joint]], size.length / 2.0)
-        out.append(('drive_' + joint, parent, (ox * x, oy, oz), mesh))
+        out.append(('drive_' + joint, parent, at, mesh))
     return out
 
 

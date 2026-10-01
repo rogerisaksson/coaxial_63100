@@ -110,7 +110,7 @@ Open work. Measured results are in FINDINGS.
     knees and seat to spread its blows, then the body drawn in so nothing
     breaks if she tumbles on, down a slope: the tuck (`falls.TUCK`) drawn in
     0.2 s after she is down brought her head to the floor at 3.6 kN, at
-    1.0 s as without it; her head taps the floor at 0.72 m/s at worst.
+    1.0 s as without it; lying, her hands' reach unmeasured since.
   + No abrupt moves getting up: lifting onto her feet a hand 860 deg/s, the
     squat's shoulder 720, the fall's own elbow 711 and a foot 4.9 m/s.
   + The get-up faster: 20.9 s from the fall to walking, the roll 5.4 of it;
@@ -122,15 +122,12 @@ Open work. Measured results are in FINDINGS.
     scenarios; the toes rigid, 3 more falls of 5; the hands undecided - a
     spread wanted (`gait_montecarlo`). The elbow's M drive, 70 mm, stands
     wider than her 56 mm arm: at the shoulder, a rod to the forearm. M's and
-    S's motors are estimates; the joints' speed is not limited by their
-    back-EMF; the rods' ratios are constant over their strokes; the
-    quick-releases' give at the shoulders and hips is not modelled. The
+    S's motors are estimates; the quick-releases' give at the shoulders and
+    hips is not modelled. The
     shoulder has no stop: the roll re-searched as built asks 219 degrees.
     High torque through a gearbox and a rod; the rest direct drive where its
     torque stays reasonable: as built only the head's turn asks little
-    enough (2.7 N m getting up). The knee's and the ankle's stroke curves
-    (`drives.STROKES`) a first cut from where they asked torque as built:
-    searched on the scoreboard, and each made a four-bar's geometry.
+    enough (2.7 N m getting up).
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the
@@ -138,8 +135,18 @@ Open work. Measured results are in FINDINGS.
   + The planner's server after LOCAL_TRIES local failures.
   + `machine/` in subpackages.
   + A fast walk, then running: no strikes, no blows, quiet and smooth.
-  + The hips' drives placed about the waist, the seat and the pelvis,
-    driving the thighs through rods; the pelvis built for them.
+  + The mechanism realizable: each rod's crank, length and horn giving its
+    stroke curve (`drives.STROKES`, a first cut from where the joints asked
+    torque) over the joint's range, and the drives, rods, bones and shells
+    clear of each other over every stroke - checked by geometry, not drawn.
+    Drawn, a crank turns by its joint's angle times a lever, the rod's
+    length free; the knee's rod to the tuberosity passes its dead point
+    near 47 degrees, the ankle's lever 9 mm at -50; the hip's pair on the
+    pelvis a spatial linkage, each crank by the yaw, roll and pitch; the
+    ankle's roll, the wrist's, the gripper's and the toes' drives off their
+    axes with nothing to them; the legs without stops; the toes' S gearbox
+    1.3-1.7 times its shock rating shoved past saving. The hip's roll 109.7
+    C after 30 s of walking, its throttle at 110.5.
   + Her carbon shells shaped over the structure as built, and clothes cut
     to fit them; her seat soft - a body with give, cloth over it - not two
     spheres a cheek.

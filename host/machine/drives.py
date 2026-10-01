@@ -77,9 +77,11 @@ SIZES = {
 }
 
 #: Each joint's size, and where its assembly sits: None on the joint's own axis; else (segment,
-#: offset m in its frame) where it is mounted, a rod to the joint - the ankle's at the knee, the
-#: knee's in the thigh under the hip (`LINKS`), the ankle's roll in the calf, the wrist's and the
-#: fingers' in the forearm, the toes' in the foot. The elbow and the neck M: on S
+#: offset m in its frame) where it is mounted, a rod to the joint - the hip's in the seat behind
+#: it and its roll's on the pelvis's side over it, the femur's ends theirs (`LINKS`), as the
+#: gluteals'; the ankle's at the knee, the knee's in the thigh under the hip; the ankle's roll in
+#: the calf, the wrist's and the fingers' in the forearm, the toes' in the foot. Off the thigh,
+#: the hip's pair took 3 kg out of its swing. The elbow and the neck M: on S
 #: an elbow pushing her up from the floor asked 20 N m rms over 2 s, the neck holding her head
 #: 6, their copper past what an S's winding sheds (2026-10-01).
 JOINTS = {
@@ -88,7 +90,8 @@ JOINTS = {
     'shoulder': ('M', None), 'elbow': ('M', None),
     'wrist': ('S', ('forearm', (0.0, -0.09, 0.0))),
     'gripper': ('S', ('forearm', (0.0, -0.165, 0.0))),
-    'hip_yaw': ('M', None), 'hip_roll': ('L', None), 'hip': ('L', None),
+    'hip_yaw': ('M', None), 'hip_roll': ('L', ('pelvis', (0.105, 0.05, 0.0))),
+    'hip': ('L', ('pelvis', (0.075, -0.03, -0.08))),
     'knee': ('L', ('thigh', (0.0, -0.10, 0.02))), 'ankle': ('L', ('shank', (0.0, -0.03, -0.035))),
     'ankle_roll': ('M', ('shank', (0.0, -0.19, 0.0))),
     'foot': ('S', ('foot', (0.0, -0.04, 0.045))),
@@ -100,9 +103,13 @@ JOINTS = {
 #: it asks speed. As built the knee asked 117 N m, its clamp, at 0-40 deg and 90-100, 41-81 at
 #: 40-90, and never more than 512 deg/s; the ankle its clamp at -20..-10 and 10..20 (2026-10-02):
 #: the knee 1:36 standing and folded, 1:28 swinging - at 1:22 shoved past saving her head met
-#: the floor at 2.93 m/s once in 16, at 28 1.0 at most, at 30 1.07, at 36 1.32.
+#: the floor at 2.93 m/s once in 16, at 28 1.0 at most, at 30 1.07, at 36 1.32. The hip's pair
+#: flat at 1:36: eased to 1:30 folded past -40 deg, the rise from the squat set her walk to
+#: fall at 5.6 s; flat, she walked 16 s (2026-10-02).
 STROKES = {'knee': ((-10.0, 36.0), (30.0, 36.0), (45.0, 28.0), (80.0, 28.0), (95.0, 36.0),
                     (170.0, 36.0)),
+           'hip': ((-150.0, 36.0), (40.0, 36.0)),
+           'hip_roll': ((-40.0, 36.0), (40.0, 36.0)),
            'ankle': ((-50.0, 30.0), (-25.0, 36.0), (25.0, 36.0), (35.0, 30.0))}
 
 #: A rod's lever ratio between a drive's output and its joint, by kind: the ankle's from a 30 mm
@@ -110,7 +117,7 @@ STROKES = {'knee': ((-10.0, 36.0), (30.0, 36.0), (45.0, 28.0), (80.0, 28.0), (95
 #: knee's from a 28 mm crank in the thigh to the tibial tuberosity 45 mm before the knee, the
 #: patellar tendon's - a joint's ratio (RATIO) the gearbox's times its rod's, constant over the
 #: stroke (estimated).
-LINKS = {'ankle': 50.0 / 30.0, 'knee': 45.0 / 28.0}
+LINKS = {'ankle': 50.0 / 30.0, 'knee': 45.0 / 28.0, 'hip': 1.6, 'hip_roll': 1.6}
 
 
 def kind(joint):
@@ -128,12 +135,15 @@ def of(joint):
 
 
 def mount(joint):
-    """Where a joint's assembly sits: None on its axis, else (segment, offset)."""
+    """Where a joint's assembly sits: None on its axis, else (segment, offset) - its own side's,
+    the right's x mirrored; the pelvis and the trunk have none."""
     where = JOINTS[kind(joint)][1]
     if where is None:
         return None
     side = joint[:-len(kind(joint))]
-    return side + where[0], where[1]
+    segment, (x, y, z) = where
+    unsided = segment in ('pelvis', 'torso', 'neck', 'head')
+    return (segment if unsided else side + segment), (-x if side == 'right_' else x, y, z)
 
 
 def ratio(joint, deg=None):

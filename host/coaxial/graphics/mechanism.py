@@ -38,7 +38,9 @@ BONE_INK, ROD_INK, BALL_INK, RIM = (200, 200, 206), (250, 150, 60), (255, 255, 2
 #: tuberosity behind and under the ankle, the knee's to the tibial tuberosity before and under the
 #: knee. The tube ROD_R round, a ball joint BALL_R.
 RODS = {'ankle': (0.030, (0.0, 0.0, -1.0), (0.0, -0.03, -0.05)),
-        'knee': (0.028, (0.0, 0.0, 1.0), (0.0, -0.045, 0.04))}
+        'knee': (0.028, (0.0, 0.0, 1.0), (0.0, -0.045, 0.04)),
+        'hip': (0.030, (0.0, -1.0, 0.0), (0.0, -0.09, -0.035)),
+        'hip_roll': (0.030, (0.0, -1.0, 0.0), (0.035, -0.06, 0.0))}
 ROD_R, BALL_R = 0.009, 0.013
 
 
@@ -99,12 +101,26 @@ def parts(bare=False):
             joint = side + kind
             turned = next(s[0] for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
             ball = ellipsoid((0.0, 0.0, 0.0), (BALL_R,) * 3, steel, rows=6)
-            out += [('end_' + joint, turned, (), end, 0.0, ball),
+            out += [('end_' + joint, turned, (), _sided(end, side), 0.0, ball),
                     ('crank_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
                      limb(1.0, 0.012, 0.012, 0.012, steel)),
                     ('pin_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0, ball),
                     ('rod_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
                      limb(1.0, ROD_R, ROD_R, ROD_R, paint(ROD)))]
+    return out
+
+
+def _sided(point, side):
+    """`point` on `side`: the right's x mirrored."""
+    return (-point[0] if side == 'right_' else point[0], point[1], point[2])
+
+
+def _turned(v, axis, a):
+    """`v` turned `a` rad about its frame's `axis` ('x', 'y' or 'z')."""
+    c, s = math.cos(a), math.sin(a)
+    i, j = {'x': (1, 2), 'y': (2, 0), 'z': (0, 1)}[axis]
+    out = v.copy()
+    out[i], out[j] = v[i] * c - v[j] * s, v[i] * s + v[j] * c
     return out
 
 
@@ -144,10 +160,10 @@ def posed(parts_, placed, angles, frames):
             joint = side + kind
             seat, centre = _mount(joint)
             turn, spot = placed[seat]
-            sign = next(s for seg in figure.SEGMENTS for j, _a, s in seg[2] if j == joint)
+            axis, sign = next((ax, s) for seg in figure.SEGMENTS for j, ax, s in seg[2]
+                              if j == joint)
             a = math.radians(sign * float(angles.get(joint, 0.0)) * drives.LINKS[kind])
-            pointing = np.array([rest[0], rest[1] * math.cos(a) - rest[2] * math.sin(a),
-                                 rest[1] * math.sin(a) + rest[2] * math.cos(a)])
+            pointing = _turned(np.asarray(_sided(rest, side), float), axis, a)
             hub = spot + turn @ np.asarray(centre, float)
             pin = hub + turn @ (crank * pointing)
             seg_turn, seg_spot = placed[parts_[at['end_' + joint]][1]]
