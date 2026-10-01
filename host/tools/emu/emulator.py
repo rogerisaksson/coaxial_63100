@@ -36,7 +36,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from tools import REPO  # noqa: E402
 from coaxial.simulated.sto import PILOT_HZ  # noqa: E402
 from tools.emu import world as worlds  # noqa: E402
-from tools.emu.probes import ANSI, answers, boot_answers, heard_quiet, heard_until, tied  # noqa: E402
+from tools.emu.probes import (ANSI, answers, boot_answers, heard_quiet, heard_until,  # noqa: E402
+                              own_temp, tied)
 
 # frames://, the URL every emulator here hands out.
 if 'tools.emu' not in serial.protocol_handler_packages:
@@ -55,7 +56,7 @@ IMAGE_VTOR = 0x30000000
 #: The bootloader's RS485 rate (docs/BOOT.md).
 BOOT_BAUD = 10_000_000
 
-#: Renode's start, the ADC class compiled, the image booted: 5.6 s measured on the laptop
+#: Renode's start, the ADC class compiled, the image booted: 5.6 s on the laptop
 #: (2026-09-25); the wait allows ten times that, and as long again a node.
 READY_S = 60.0
 
@@ -71,16 +72,15 @@ FLAG_TERMINATE = 0x01
 #: The 96-bit unique id (UID_BASE): its first word told apart per node.
 UID_AT = 0x1FF1E800
 
-#: The core's instructions a virtual second, the default: the part's 475 M. Neither a 10 Mbit
-#: bus nor the drive's 20 us period holds at Renode's own 100 M: a 240 B echo blast at 10 Mbit lost 12 of 200, and the drive's ISR (2 922 cycles)
-#: outran its period and starved the link (2026-09-25).
+#: The core's instructions a virtual second, the default: the part's 475 M. At Renode's own 100 M a
+#: 240 B echo blast at 10 Mbit lost 12 of 200, and the drive's ISR (2 922 cycles) outran its
+#: 20 us period and starved the link (2026-09-25).
 FAITHFUL_MIPS = 475
 
 #: The core's speed while no ADC waits on TRGO2 - no drive runs to the part's budget. The
 #: polls' register accesses, 17 a pass, cost the same at any rate: idle with the AFE on 2.0
 #: wall s a virtual s at 100, 1.2 at 50, 1.4 at 25 (the quantum's round trips left), 475's
-#: 5.2 (2026-09-27). The link's ring holds a frame at any pass rate. The plant switches
-#: between them.
+#: 5.2 (2026-09-27). The link's ring holds a frame at any pass rate.
 IDLE_MIPS = 50
 
 #: How far a limb's boards run apart before they wait for each other, s: 8 idle boards run
@@ -102,11 +102,11 @@ LOOP_SLICE_US = 0.5
 #: 100 MIPS 8.2 -> 1.4 wall s a virtual s (2026-09-25). The suites run it on (`mpu`).
 MPU_OFF = 'sysbus SetHookBeforePeripheralWrite sysbus.nvic "value = value & ~1" <0xD94, 0xD97>'
 
-#: Wall time over which the emulation's speed is taken once it is up, s.
+#: Wall s the emulation's speed is taken over once up.
 SCALE_S = 1.0
 
-#: Renode above the host's other apps on Windows: they stretched its pace between two
-#: measures of it. Not high: eight limbs' processes would starve the desktop.
+#: Renode above the host's other apps on Windows, which stretched its pace between two
+#: measures; not high: eight limbs' processes would starve the desktop.
 PRIORITY = getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS', 0)
 
 
@@ -225,7 +225,8 @@ class Emulator:
         self.process = subprocess.Popen(
             [renode, '--disable-gui', '--plain', '--config', config, '-P', str(self.monitor),
              '-e', 'include @%s' % composed.replace(os.sep, '/')],
-            cwd=REPO, stdout=self._sink, stderr=subprocess.STDOUT, creationflags=PRIORITY)
+            cwd=REPO, stdout=self._sink, stderr=subprocess.STDOUT, creationflags=PRIORITY,
+            env=own_temp(os.path.join(WORK, 'temp_%d' % self.port)))
         self._job = tied(self.process)
         self._ready(self.process)
         self.awake_scale = self.awake()

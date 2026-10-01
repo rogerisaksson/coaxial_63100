@@ -3,6 +3,8 @@
     lines = render(angles, 96, 40, yaw=30, lit=gpu.LitRaster())   # the GPU's lit raster
     lines = render(angles, 96, 40, root=(where, turn))             # the pelvis placed, world
     lines = render(angles, 96, 40, labels={'left_knee': cells})   # called out at the edge
+    lines = render(angles, 96, 40, see='mechanism')                # her mechanism, no shell
+    lines = render(angles, 96, 40, see='actuators')                # her motors and linkages
 
 A part is a closed loft or ellipsoid in its own frame, hung off its parent at the figure's offset
 and turned by its joints - the figure's names and signs. Without `root`, the lowest point of the
@@ -15,7 +17,7 @@ ends.
 import math
 from typing import Any
 
-from coaxial.graphics import drums, engine
+from coaxial.graphics import drums, engine, mechanism
 from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
@@ -305,9 +307,10 @@ class Body:
 
     """The parts' meshes laid end to end once, with their smooth normals; `pose(angles)` turns them."""
 
-    def __init__(self, dressed=True):
+    def __init__(self, dressed=True, see=None):
         np = _np()
-        self.parts = _parts(dressed)
+        self.parts = mechanism.parts(see == 'actuators') if see else _parts(dressed)
+        self.see = see
         corners, triangles, uv, materials, spans, faces = [], [], [], [], [], []
         base = 0
         for i, (*_head, mesh) in enumerate(self.parts):
@@ -347,6 +350,9 @@ class Body:
         spread = float(angles.get('arms_out', 0.0))
         placed, out = {}, []
         for name, parent, joints, offset, rest, _mesh in self.parts:
+            if parent == '*':
+                out.append(None)
+                continue
             if parent:
                 above, at = placed[parent]
                 spot = at + above @ np.asarray(offset, float)
@@ -359,6 +365,8 @@ class Body:
                 here = here @ turn_about(axis, sign * float(angles.get(joint, 0.0)))
             placed[name] = (here, spot)
             out.append(placed[name])
+        if self.see:
+            mechanism.posed(self.parts, placed, angles, out)
         return out
 
     def pivots(self, angles, root=None):
@@ -399,10 +407,10 @@ def _band(depth, width):
 _BODY = {}
 
 
-def body(dressed=True):
-    got = _BODY.get(dressed)
+def body(dressed=True, see=None):
+    got = _BODY.get((dressed, see))
     if got is None:
-        got = _BODY[dressed] = Body(dressed)
+        got = _BODY[(dressed, see)] = Body(dressed, see)
     return got
 
 
@@ -462,16 +470,17 @@ def _props(props, m, cam, centre, travel):
 
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True,
-           around=False):
+           around=False, see=None):
     """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
     `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
     {joint: [row, ..]} called out at the edges, a leader to each joint (`callouts`); `heat`
     {joint: C} each drive's drum painted its temperature's colour (`ansi.thermal_rgb`); `props`
     what she trips on, world (`World.props`), drawn as edges `travel` (x, z) m back; `legend` a row
     [(char, fg, bg)] on the last line, the callouts kept above it; `dressed` False her shell;
-    `around` the callouts docked around her, not at the drawing's edges."""
+    `around` the callouts docked around her, not at the drawing's edges; `see` 'mechanism' her
+    mechanism without her shell, 'actuators' her motors and linkages alone (`mechanism`)."""
     np = _np()
-    who = body(dressed)
+    who = body(dressed, see)
     m = view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, REACH, distance=DISTANCE, zoom=zoom))
     centre = np.asarray(CENTRE)

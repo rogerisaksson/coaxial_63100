@@ -126,10 +126,13 @@ Open work. Measured results are in FINDINGS.
     back-EMF; the rods' ratios are constant over their strokes; the
     quick-releases' give at the shoulders and hips is not modelled. The
     shoulder has no stop: the roll re-searched as built asks 219 degrees.
-    A touch of backlash in each gearbox. The rods rigid carbon tubes on rod
-    ends, a race car's links. High torque through a gearbox and a rod; the
-    rest direct drive where its torque stays reasonable - each joint sorted
-    by what it asks as built.
+    High torque through a gearbox and a rod; the rest direct drive where its
+    torque stays reasonable: as built only the head's turn asks little
+    enough (2.7 N m getting up). The rods' linkages kinematic and
+    nonlinear: each lever's ratio shaped over its joint's stroke, high
+    where the torque is asked, low where the speed is - a joint's clamp,
+    rotor seen and copper by its angle; its speed bound by its motor's
+    back-EMF at the supply's lowest.
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the
@@ -137,8 +140,13 @@ Open work. Measured results are in FINDINGS.
   + The planner's server after LOCAL_TRIES local failures.
   + `machine/` in subpackages.
   + A fast walk, then running: no strikes, no blows, quiet and smooth.
-  + A see-through mode on the HUMANOID page, in the tty: her shells
-    clear, the motors, gearboxes and rods seen working.
+  + The hips' drives placed about the waist, the seat and the pelvis,
+    driving the thighs through rods; the pelvis built for them.
+  + Her carbon shells shaped over the structure as built, and clothes cut
+    to fit them; her seat soft - a body with give, cloth over it - not two
+    spheres a cheek.
+  + A view of nothing but the motors, gearboxes and linkages, no body at
+    all: kinematics alone.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

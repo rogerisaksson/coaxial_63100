@@ -27,7 +27,7 @@ from rich.text import Text
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
 from coaxial_ollama.client import Chosen
-from machine import ansi, gait, style
+from machine import ansi, figure, gait, style
 from machine.director import moment
 from machine.events import SHOVE_S, SHOVES
 from machine.figure import JOINTS, SEGMENTS, frames, quat
@@ -362,6 +362,17 @@ def _pushed(state):
 
 
 #: What each key does to the view's state.
+def _skinned(state):
+    """Dressed, her shell, her mechanism (`coaxial.graphics.mechanism`), and round."""
+    state.update(dressed=bool(state['see']),
+                 see='mechanism' if not state['dressed'] and not state['see'] else None)
+
+
+def _seen(state):
+    """What of her is drawn: her motors and linkages alone (M), else as C has her."""
+    return 'actuators' if state['bare'] else state['see']
+
+
 KEYS = dict(
     [('left', _turned(-TURN_DEG)), ('right', _turned(TURN_DEG)),
      ('[', _paced(-CADENCE_STEP)), (']', _paced(CADENCE_STEP))]
@@ -379,7 +390,8 @@ KEYS = dict(
     + [(k, lambda state: state.update(shown=SHOWN[(SHOWN.index(state['shown']) + 1)
                                                   % len(SHOWN)])) for k in 'tT']
     + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'vV']
-    + [(k, lambda state: state.update(dressed=not state['dressed'])) for k in 'cC']
+    + [(k, _skinned) for k in 'cC']
+    + [(k, lambda state: state.update(bare=not state['bare'])) for k in 'mM']
     + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD']
     + [(k, _zoomed(1.1)) for k in '+='] + [(k, _zoomed(1.0 / 1.1)) for k in '-_'])
 
@@ -405,13 +417,14 @@ def main(argv=None):
 
     cadence = max(CADENCE[0], min(CADENCE[1], args.cadence))
     body = Running(cadence, local=Chosen())
-    say('ok', 'body', '55 kg, %d drives, MuJoCo at 1 kHz in its own process'
-        % sum(len(s.actuators) for s in TYPES['gynoid'].body))
+    say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
+        % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     name = lit.name if lit is not None else 'this process, dots'
     say('ok', 'drawing', name)
     gynoid.body(), gynoid.body(dressed=False)
+    gynoid.body(see='mechanism'), gynoid.body(see='actuators')
 
     board_view = stage()
     terminal = board_view.is_terminal
@@ -419,6 +432,7 @@ def main(argv=None):
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
              'tripped': None, 'playback': Playback(), 'shown': 'torque', 'dressed': True,
+             'see': None, 'bare': False,
              'data': False, 'traffic': None, 'knob': style.NAMES[0], 'sway': 0.0}
 
     def draw():
@@ -443,7 +457,8 @@ def main(argv=None):
                                           root=((0.0, rise, 0.0), quat(1.0, 0.0, 0.0, 0.0)),
                                           labels=data_labels(now),
                                           heat={j: h[0] for j, h in now['heat'].items()},
-                                          legend=data_legend(width), dressed=state['dressed']))
+                                          legend=data_legend(width), dressed=state['dressed'],
+                                          see=_seen(state)))
         else:
             x, y, z = now['where']
             camera = state['follow']((x, z), now['velocity'], now['t'])
@@ -456,14 +471,15 @@ def main(argv=None):
                                           props=now.get('props'),
                                           legend=(legend(state['shown'], width)
                                                   if state['called'] != 'none' else None),
-                                          dressed=state['dressed']))
+                                          dressed=state['dressed'], see=_seen(state)))
         side = boxes(state, now, name) + ([traffic(state, now)] if state['data'] and now else [])
         return frame_of(board_view, ORIGIN, TITLE, art, side,
                         (('S F', 'PACE'), ('Z X', 'CATWALK SWAGGER'), ('P', 'PUSH'), ('G', 'SOA'),
                          ('H', 'HOT'), ('1-6', 'HOLE RUG SILL SLIP LACE STAIRS'),
                          ('K , .', 'STYLE'), ('A', 'AGAIN'), ('L', 'LABELS'), ('T', 'SHOWN'),
                          ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'), ('R', 'RECORD'),
-                         ('V', 'VIEW'), ('C', 'CLOTHES'), ('D', 'DATA'),
+                         ('V', 'VIEW'), ('C', 'CLOTHES SHELL MECHANISM'), ('M', 'MOTORS'),
+                         ('D', 'DATA'),
                          ('Q', 'EXIT'), ('ESC', 'MENU')), gauges=gauges(state))
 
     leaving = None

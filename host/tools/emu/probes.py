@@ -6,6 +6,7 @@ process's life.
 import ctypes
 import os
 import re
+import shutil
 import socket
 import time
 
@@ -42,6 +43,15 @@ def tied(process):
     kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
     kernel.AssignProcessToJobObject(job, ctypes.c_void_p(int(process._handle)))
     return job
+
+
+def own_temp(path):
+    """`path` made an empty directory: a Renode's temp, TMP and TEMP for it. Compiling its first
+    plugin Renode sweeps the temp's renode-<pid> of runs gone, asking whether each pid lives - one
+    since a protected process's refused it, and Renode died (2026-10-02)."""
+    shutil.rmtree(path, ignore_errors=True)
+    os.makedirs(path)
+    return dict(os.environ, TMP=path, TEMP=path)
 
 
 def answers(port):
