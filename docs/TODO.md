@@ -119,8 +119,10 @@ Open work. Measured results are in FINDINGS.
     on the boards' tick, the walker takes 0.46 ms of a walking pass.
   + Fewer drives, for weight and BOM: of the 27 on 5 buses (the axis 5, an
     arm 4, a leg 7): the head's turn held rigid changed nothing in 5
-    scenarios; the toes rigid, 3 more falls of 5; the hands undecided - a
-    spread wanted (`gait_montecarlo`). The elbow's M drive, 70 mm, stands
+    scenarios. Her toes and fingers without drives to begin with: the toes
+    on a spring or rigid (rigid, 3 more falls of 5), the fingers a fixed
+    hand - measured on the scoreboard (`gait_montecarlo`). The elbow's M
+    drive, 70 mm, stands
     wider than her 56 mm arm: at the shoulder, a rod to the forearm. M's and
     S's motors are estimates; the quick-releases' give at the shoulders and
     hips is not modelled. The

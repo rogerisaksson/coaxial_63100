@@ -113,31 +113,28 @@ BOARD_RAMP = (22, 22, 28, 34, 40, 46, 47, 83, 119, 155, 191, 227, 231)
 
 
 #: Colour stops by DEGREES, not by fraction of a span: auto-ranging made a
-#: cool board look exactly like a hot one. A thermal camera's ironbow
-#: (2026-09-25; the rainbow before it read as mossy): blue at the floor - a
-#: colour, not black, "bottom-frozen" - violet where the board idles, magenta,
-#: red from 50, orange, yellow at 80, white-hot at 100. 5 K apart through
-#: 25-60, where this board works: coarser stops hid the hot swap.
+#: cool board look exactly like a hot one. An IR camera's: blue cold - a
+#: colour, not black, "bottom-frozen" - pale past 40, yellow-orange lukewarm
+#: at 55-65, bright red hottest from 100; 5 K apart through 25-60, where this
+#: board works: coarser stops hid the hot swap. The ironbow before it (violet
+#: at the room, red at 50, white-hot at 100) read odd, and the rainbow before
+#: that mossy (2026-10-02, 2026-09-25).
 THERMAL_STOPS = (
-    (-20.0, (0, 0, 160)),
-    (0.0, (30, 0, 175)),
-    (15.0, (70, 0, 180)),
-    (25.0, (110, 0, 176)),
-    (30.0, (145, 0, 162)),
-    (35.0, (175, 10, 140)),
-    (40.0, (200, 22, 112)),
-    (45.0, (220, 36, 82)),
-    (50.0, (235, 56, 52)),
-    (55.0, (245, 80, 30)),
-    (60.0, (250, 106, 14)),
-    (65.0, (255, 130, 4)),
-    (70.0, (255, 155, 0)),
-    (75.0, (255, 180, 0)),
-    (80.0, (255, 205, 20)),
-    (85.0, (255, 225, 62)),
-    (90.0, (255, 240, 122)),
-    (95.0, (255, 250, 186)),
-    (100.0, (255, 255, 240)),
+    (-20.0, (0, 0, 200)),
+    (20.0, (20, 70, 255)),
+    (25.0, (40, 110, 255)),
+    (30.0, (80, 160, 255)),
+    (35.0, (150, 210, 245)),
+    (40.0, (230, 235, 190)),
+    (45.0, (255, 225, 120)),
+    (50.0, (255, 200, 70)),
+    (55.0, (255, 180, 45)),
+    (60.0, (255, 160, 30)),
+    (70.0, (255, 130, 20)),
+    (80.0, (255, 100, 15)),
+    (90.0, (255, 70, 10)),
+    (100.0, (255, 40, 10)),
+    (120.0, (255, 0, 30)),
 )
 
 #: The ends of the scale. What a picture is drawn against, whatever is in it.
