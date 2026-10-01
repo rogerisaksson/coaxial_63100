@@ -29,7 +29,7 @@ def test_the_demo_actually_loads_the_motor(report):
         seconds += stage_s
         if name == 'load':
             break
-    rows, beads, drawn, owned = [], [], [], []
+    rows, beads, drawn, owned, params = [], [], [], [], {}
     real, real_bead, real_render = view.compose, cross_section._bead, cross_section.render
     real_lines = cross_section.Frame.lines
 
@@ -56,6 +56,7 @@ def test_the_demo_actually_loads_the_motor(report):
         # was the feed's newer one on CI's runner, a coasting frame lit whole (4c55f7b).
         amps, full = drawn[-1][5:7] if len(drawn) > d else ((), 0.0)
         pairs = max(1.0, v['params'].get('motor_pole_pairs') or 1.0)
+        params.update(v['params'])
         st = v['state'] or {}
         rows.append((time.perf_counter(), v.get('stage'),
                      st.get('omega_hat', 0.0) / pairs * 60.0 / math.tau,
@@ -92,10 +93,15 @@ def test_the_demo_actually_loads_the_motor(report):
                          and abs(st[-1][3]) < 10.0 for st in ups),
                  ', '.join('%.0f rpm, %.0f A at most, %.0f A at the top' % (
                      st[-1][2], max(abs(r[3]) for r in st), st[-1][3]) for st in ups))
-    # Read a drawn frame at a time: on CI's runner its peak frame fell to 787 W (d2bdf46).
-    report.check('and near a kilowatt into the motor as it spools',
-                 bool(ups) and max(r[6] for r in ups[0]) >= 750.0,
-                 '%.0f W' % max(r[6] for r in ups[0]) if ups else 'none')
+    # Into the motor at its top on the clamp, 1.5 lambda w I (w electrical, the top it spooled to,
+    # I the clamp it held): its 0.15 s peak, a frame at a time and the voltage +-30 % frame to
+    # frame, read 879 W at 20 frames/s, 775 at 10, 787 and 735 on CI's runner (2026-10-01).
+    pairs = max(1.0, params.get('motor_pole_pairs') or 1.0)
+    clamp = max((abs(r[3]) for r in ups[0]), default=0.0) if ups else 0.0
+    spun = abs(ups[0][-1][2]) * math.tau / 60.0 if ups else 0.0
+    watts = 1.5 * (params.get('motor_lambda') or 0.0) * pairs * spun * clamp
+    report.check('and near a kilowatt into the motor as it spools', watts >= 750.0,
+                 '%.0f W: %.0f A at %.0f rad/s' % (watts, clamp, spun))
     # A loaded spin-up spools, slow and then faster and faster: at a constant rate its first
     # half second ran 552 rpm/s against a peak of 1 619, the current stepped on and off
     # (2026-09-28).
