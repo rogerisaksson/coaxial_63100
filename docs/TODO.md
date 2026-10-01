@@ -106,6 +106,9 @@ Open work. Measured results are in FINDINGS.
     then brought her head down 2 times of 16 and a shank first 9, not 14.
   + The halt falls in its settle wherever tried: her centre of mass stands
     off the feet's line as it takes over.
+  + Lying, her arms point straight out. A fall taken on the arms, legs,
+    knees and seat to spread its blows, then the body drawn in so nothing
+    breaks if she tumbles on, down a slope.
   + No abrupt moves getting up: lifting onto her feet a hand 860 deg/s, the
     squat's shoulder 720, the fall's own elbow 711 and a foot 4.9 m/s.
   + The get-up faster: 20.9 s from the fall to walking, the roll 5.4 of it;
@@ -129,6 +132,7 @@ Open work. Measured results are in FINDINGS.
     world's own reading.
   + The planner's server after LOCAL_TRIES local failures.
   + `machine/` in subpackages.
+  + A fast walk, then running: no strikes, no blows, quiet and smooth.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

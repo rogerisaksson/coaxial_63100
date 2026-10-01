@@ -3,8 +3,8 @@
     size = drives.of('left_knee')      # (name, Size)
     drives.kt('left_knee')             # N m of joint torque an amp of q current
     drives.peak('left_knee')           # N m at the board's amps
-    drives.armature('left_knee')       # kg m^2, the rotor seen through the cycloid
-    drives.speed('left_knee')          # deg/s at the pack's volts, unloaded
+    drives.armature('left_knee')       # kg m^2, the rotor and the gearbox seen through it
+    drives.speed('left_knee')          # deg/s at the supply's lowest, unloaded
 
 A size: the board (its amps; its heat as the 63 V 100 A board's scaled to them, its laminate
 bolted to the assembly's housing), the outrunner (Kt, the winding's resistance, KV, its rotor's
@@ -15,8 +15,8 @@ would look odd, mounted on a segment and driving it through a rod.
 from motor.catalog import PLATINUM_5230SL
 from motor.pmsm import TORQUE_FACTOR, WINDING_J_PER_K, WINDING_K_PER_W
 
-#: The pack: 12S at its nominal 3.7 V a cell, V.
-PACK_V = 44.4
+#: The supply's lowest, V: 48-63, the boards' top 63.
+PACK_V = 48.0
 
 
 class Size:
@@ -33,8 +33,13 @@ class Size:
         self.diameter, self.length, self.mass, self.source = diameter, length, mass, source
 
 
-#: Each size's cycloid, its ratio.
+#: Each size's cycloid, its ratio; its input side - the eccentric, the discs - seen at the motor
+#: as GEAR_J of the rotor's inertia (estimated). A size's copper watts go as 1/ratio^2, the
+#: inertia it puts on its joint as ratio^2: with the rotors in the model (`physics.REFLECTED`)
+#: the walk fell at L 1:64 with no derate, at 1:36 walked 16 s, its hips derated from 9 s, on
+#: built boards (2026-10-01) - the walk asks 55 N m rms of a hip, 43 of a knee.
 RATIO_L, RATIO_M, RATIO_S = 64.0, 76.0, 101.0
+GEAR_J = 0.25
 
 
 #: L: the 63 V 100 A board, its parts' centres 92 x 93 mm (the pick-and-place), a disc of 100 mm
@@ -115,8 +120,8 @@ def peak(joint):
 
 
 def armature(joint):
-    """The rotor's inertia as the joint feels it through the cycloid, kg m^2."""
-    return of(joint)[1].rotor * ratio(joint) ** 2
+    """The rotor's and the gearbox's inertia as the joint feels them, kg m^2."""
+    return (1.0 + GEAR_J) * of(joint)[1].rotor * ratio(joint) ** 2
 
 
 def speed(joint):

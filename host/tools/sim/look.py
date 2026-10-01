@@ -155,6 +155,9 @@ MEASURES = (
     ('pelvis faces', 'deg', lambda r, ref: _faces(r, 'pelvis')),
     ('head faces', 'deg', lambda r, ref: _faces(r, 'head')),
     ('reach off fall', 'deg', lambda r, ref: _reach_off(r)),
+    ('hands out', 'mm', lambda r, ref: 1e3 * max(
+        math.dist(_p(r, side + '_fingers'), _mid(_p(r, 'torso'), _p(r, 'neck')))
+        for side in ('left', 'right'))),
 )
 
 #: A seam's measures, by name, and the director's ask beside them; the times read about it, s.
