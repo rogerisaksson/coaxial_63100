@@ -102,9 +102,6 @@ Open work. Measured results are in FINDINGS.
     ears placing the next step (PEND_K fell at 1.5, 2026-09-27).
   + The halt falls in its settle wherever tried: her centre of mass stands
     off the feet's line as it takes over.
-  + Her hands reach out ahead before she goes down on hands and knees (the
-    user, 2026-10-01): to be judged on a render of the roll's end and the
-    knees under, the shoulders 157 and 131-163 deg there.
   + No abrupt moves getting up: lifting onto her feet a hand 860 deg/s, the
     squat's shoulder 720, the fall's own elbow 711 and a foot 4.9 m/s; a
     knee's setpoint 8 deg a pass at the first step.
