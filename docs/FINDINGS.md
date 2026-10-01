@@ -652,9 +652,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   floor's slab, each landing latching the height lower. The slab runs 10
   km (2026-09-28).
 - Her limbs collide (`physics.ME`): floor alone, her sneakers passed 22 mm
-  into each other; a swinging foot is kept off the other (`landing.clear`);
-  the thighs' spheres, 2 kN apart at every passing, are left out
-  (`physics.APART`) (2026-09-28).
+  into each other; a swinging foot is kept off the other (`landing.clear`)
+  (2026-09-28).
 - The swinging hip ran 5 degrees behind its setpoint and caught up into the
   floor, 1.5 kN in 2 ms: the swinging leg's plan leads 20 ms
   (landing.SWING_LEAD_S) (2026-09-28).
@@ -665,7 +664,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   down 40 degrees her head met the floor at 0.85 m/s. The waist's turn at 0,
   20, 35 degrees: 2.02, 1.41, 1.33 m/s; the arms straight or on the
   forearms, the head down sooner. The head held up, the neck back 20, 40 or
-  60 (director.HEAD_UP_DEG): the chest and the hips take the floor, the
+  60 (falls.HEAD_UP_DEG): the chest and the hips take the floor, the
   head never (2026-09-28).
 - After a fall the walk began with the pelvis still lowered, 12 cm, 8-10
   cm crouched: `Walker.reset` on landing (2026-09-28).
@@ -689,28 +688,29 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   the step expected again: she walks up all five, and pitches over at a
   landing a step lower (2026-09-28).
 - Falling, the legs' and trunk's drives shorted (kt^2/R: 140 N m s/rad an
-  L joint, 34 an M, 6.1 an S, to the board's amps; `director.SHORT_FALLING`);
+  L joint, 34 an M, 6.1 an S, to the board's amps; `falls.SHORT_FALLING`);
   the arms held to the catch pinned their drives in all four falls, soft
-  (`director.SOFT_DEG`) 1-17 ms each. Up (`machine.getup`) on a woman's
-  40/25 N m arms: on one seat sphere she rolled back sat, on two buttocks she
-  sits; folded over the knees her centre of mass is over the heels, the
-  hands behind push her on. Up after the rug and the lace in 25 s. Risen
+  (`falls.SOFT_DEG`) 1-17 ms each. Up on a woman's 40/25 N m arms, sat,
+  folded over the knees, after the rug and the lace in 25 s. Risen
   facing where she lay she fell 0.2-1 s into the walk: MuJoCo's pyramid
   cone grips along the world's axes; elliptic at impratio 10 she walks 13 m
   every way (2026-09-30).
 - Folded over her knees getting up her trunk went 42-45 mm into them, 33-37
-  squatting; on the legs' capsules (`physics.LEG`) the fold failed 3 tries of
-  3 until the knees opened 30 degrees (`getup._swung`): 7 mm in at most. Up,
-  the walk kept its catch and speed from before the fall and held 6 s 2 times
-  in 11; reset, 10 (`Walker.reset`). Rolled one way only, on her left side
-  she was sat up face down; her head's IMU picks the side. Walking back the
-  way she came, a joint came 2.38 m behind the lens (`gynoid.Follow`)
-  (2026-09-30).
+  squatting; colliding, the fold failed 3 of 3 until the knees opened 30
+  degrees: 7 mm. Up, the walk kept its catch and speed from before the fall
+  and held 6 s 2 times in 11; reset, 10 (`Walker.reset`). Her head's IMU
+  picks the side she rolls over. Walking back the way she came, a joint came
+  2.38 m behind the lens (`gynoid.Follow`) (2026-09-30).
 - Her whole body collides (`figure.BODY`): lying, her arms went 40-43 mm
   into the floor and her shins 100 through each other; now 2-9. On it the
-  knees-open fold stood 3 of 12. The get-up is a plan checked step by step
-  (`machine.observer`, `machine.planner`): the knees-together kneel stands
-  from half its kneels, from 0 of 20 falls end to end (2026-10-01).
+  knees-open fold stood 3 of 12. The get-up is a plan the observer checks
+  step by step (`machine.observer`, `machine.planner`). Back on her heels
+  passed with her head down, her centre of mass 0.53 m ahead of her toes;
+  asked that over her feet and the head up, 18 of 22 kneels sit back. Onto
+  her feet she stood still on them 2 s before its last keyframe and sat down
+  behind them; handed over pitched 22 degrees, the arrival threw her up: the
+  observer ends it crouched, still and flat. 12 of 13 falls walk again 20-33
+  s after (2026-10-01).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The

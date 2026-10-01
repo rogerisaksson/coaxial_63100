@@ -82,20 +82,14 @@ Open work. Measured results are in FINDINGS.
   her (a drive derated hot): sink onto the strong leg and kneel on the
   weak one - a bent knee on the floor asks its drive nothing - and rise on
   the strong leg when it holds again; the cut knee she rides out. Fallen
-  she gets up (`machine.getup`), face down rolled onto her back first:
-  26-37 s from the rug, the lace and the hole to walking; across the stairs
-  not yet - the page lands her again (`running.RECOVER_S`). Face down, from
-  a kneel on tucked toes she stands (tried from that kneel) but cannot reach
-  it: the shoulder's one axis puts the floor in the arm's plane, the push
-  pins a woman's 40 N m. The get-up is a plan the observer checks step by
-  step (`machine.observer`, `machine.planner`: a local model's, a server's
-  after LOCAL_TRIES, else its own): onto her front, the knees under, back
-  on her heels, onto her feet - knees together, her whole body colliding.
-  Each step tuned over the states real falls left her in, the chain stands
-  from 0 of 20 falls; the arrival rises from half the kneels' squats. The
-  local model's plans were not taken (130 s under a full relay, rejected).
-  Left: the arms toward the way she falls, the arms a little longer, pads
-  at the elbows, knees and hips (sprung, damped, 5 mm of gel in TPU). The
+  she gets up (`machine.getup`) on a plan the observer checks step by step
+  (`machine.observer`, `machine.planner`: a local model's, a server's after
+  LOCAL_TRIES - no server client yet - else its own): onto her front, the
+  knees under, back on her heels, onto her feet, knees together; 12 of 13
+  falls walk again 20-33 s after, the stairs untried. Face down tilted, her
+  head's left side 0.45 down, the knees under roll her 28-37 degrees, three
+  tries of three (the rug at 0.9). Left: the arms toward the way she falls,
+  pads at the elbows, knees and hips (5 mm of gel in TPU). The
   scoreboard counts the time down. The shoves' findings stand: toward the
   standing foot the side step ends with
   the capture point 27 cm ahead and no foot there; shoved at 0.30 of the

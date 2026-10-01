@@ -146,8 +146,8 @@ SETTLE_S, EVENT_AT_S = 4.0, 5.0
 JUDGED = ('thigh behind at lift', 'impact')
 LOST_K = 30.0
 
-MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'capture',
-           'physics', 'buses', 'events', 'drives')
+MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'falls',
+           'capture', 'physics', 'buses', 'events', 'drives')
 
 
 def _set(values):

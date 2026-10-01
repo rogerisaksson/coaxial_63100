@@ -156,7 +156,8 @@ def test_a_trip_lands_her_shorted(report):
     on the floor; down, her legs' and trunk's drives shorted, her arms and neck not - she
     settles, not held stiff nor flailing; lain still, she begins to get up (`machine.getup`)."""
     from machine import Machine, drives, events, figure, getup, heat
-    from machine.director import SHORT_FALLING, Director
+    from machine.director import Director
+    from machine.falls import SHORT_FALLING
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     body.arm()
@@ -226,6 +227,8 @@ def test_the_planner(report):
                  ' > '.join(made_up[0]))
     report.check('a plan not ending on her feet falls to the default',
                  planner.plan(now, Model(['knees under']))[1] == 'default')
+    report.check('a step from where the one before does not leave her falls to the default',
+                 planner.plan(now, Model(['knees under', 'onto feet']))[1] == 'default')
     report.check('a model that fails falls to the default',
                  planner.plan(now, Model(fails=True))[1] == 'default')
     server = Model(up)
@@ -234,8 +237,9 @@ def test_the_planner(report):
                  planner.plan(now, Model(up), server, tried)[1] == 'server' and server.asked == 1)
     lying = ('face down', 'on her back', 'on her left side', 'on her right side', 'sitting',
              'kneeling')
-    report.check('every default plan ends on her feet',
-                 all(planner.plan({'lying': w})[0][-1] in planner.UP for w in lying))
+    report.check('every default plan ends on her feet, each step from where the last left her',
+                 all(planner.plan({'lying': w})[0][-1] in planner.UP
+                     and planner.chained(planner.plan({'lying': w})[0], w) for w in lying))
     stream, marks = planner.stream(planner.plan(now)[0], now)
     report.check('its stream marks each step where it ends',
                  [s for _i, s in marks] == list(planner.plan(now)[0]) and marks[-1][0] == len(stream))

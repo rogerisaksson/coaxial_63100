@@ -23,7 +23,7 @@ from coaxial.graphics.raster import DOTS_X
 from coaxial.graphics.shapes import (ellipsoid, limb, loft, moved, sampled, smooth, turn_about,
                                      view)
 from machine import ansi, figure
-from machine.figure import HAIR_AT, HEM_AT, TOE_M, TOE_RY
+from machine.figure import FOREARM, HAIR_AT, HEM_AT, TOE_M, TOE_RY, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
 #: The camera: its distance in the engine's units, the point it turns about (her middle, metres
@@ -226,8 +226,8 @@ def _meshes():
                   ('%s_cap' % side, 'torso', (0.135 * x, 0.335, -0.004),
                    ellipsoid((0.0, 0.0, 0.0), (0.042, 0.036, 0.04), PLATE, rows=8))]
         meshes.update({
-            side + '_upper_arm': limb(0.27, 0.031, 0.03, 0.024, MESH, flat=0.95),
-            side + '_forearm': limb(0.24, 0.025, 0.025, 0.018, MESH, flat=0.9),
+            side + '_upper_arm': limb(UPPER_ARM, 0.031, 0.03, 0.024, MESH, flat=0.95),
+            side + '_forearm': limb(FOREARM, 0.025, 0.025, 0.018, MESH, flat=0.9),
             side + '_hand': ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
             side + '_fingers': ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
             side + '_thigh': limb(THIGH, THIGH_R[0], THIGH_R[1], THIGH_R[2], MESH, bulge_at=0.22,

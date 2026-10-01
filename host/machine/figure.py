@@ -20,6 +20,10 @@ HEM_AT = 0.12
 #: back of her skull, level with her ears.
 HAIR_AT = (0.0, 0.075, -0.02)
 
+#: Her upper arm and forearm, shoulder to elbow and elbow to wrist, m: 0.27 and 0.24 until
+#: 2026-10-01, a little longer to push herself up by.
+UPPER_ARM, FOREARM = 0.28, 0.25
+
 
 def _sides():
     out = []
@@ -27,11 +31,13 @@ def _sides():
         s = int(x)
         out += [
             (side + '_upper_arm', 'torso', ((side + '_shoulder', 'x', -1),),
-             (0.148 * x, 0.325, -0.005), 6.0 * x, 0.0255, (0.0, -0.118, 0.0), (0.075, 0.035, 0.075)),
+             (0.148 * x, 0.325, -0.005), 6.0 * x, 0.0255, (0.0, -0.437 * UPPER_ARM, 0.0),
+             (0.075, 0.035, 0.075)),
             (side + '_forearm', side + '_upper_arm', ((side + '_elbow', 'x', -1),),
-             (0.0, -0.27, 0.0), 0.0, 0.0138, (0.0, -0.10, 0.0), (0.063, 0.025, 0.063)),
+             (0.0, -UPPER_ARM, 0.0), 0.0, 0.0138, (0.0, -0.417 * FOREARM, 0.0),
+             (0.063, 0.025, 0.063)),
             (side + '_hand', side + '_forearm', ((side + '_wrist', 'x', -1),),
-             (0.0, -0.24, 0.0), 0.0, 0.0036, (0.0, -0.043, 0.0), (0.03, 0.015, 0.03)),
+             (0.0, -FOREARM, 0.0), 0.0, 0.0036, (0.0, -0.043, 0.0), (0.03, 0.015, 0.03)),
             (side + '_fingers', side + '_hand', ((side + '_gripper', 'x', -1),),
              (0.0, -0.086, 0.004), 0.0, 0.002, (0.0, -0.035, 0.0), (0.02, 0.01, 0.02)),
             (side + '_thigh', 'pelvis', ((side + '_hip_yaw', 'y', s), (side + '_hip_roll', 'z', s),
@@ -91,8 +97,8 @@ BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[
         ('neck', 0.04, (0.0, 0.0, 0.0), (0.0, 0.07, 0.0)),
         ('head', 0.085, (0.0, 0.095, 0.012), (0.0, 0.095, 0.012)),
         ('head', 0.045, (0.0, 0.042, 0.03), (0.0, 0.042, 0.03)),
-        ('upper_arm', 0.028, (0.0, -0.02, 0.0), (0.0, -0.25, 0.0)),
-        ('forearm', 0.022, (0.0, -0.02, 0.0), (0.0, -0.22, 0.0)),
+        ('upper_arm', 0.028, (0.0, -0.02, 0.0), (0.0, 0.02 - UPPER_ARM, 0.0)),
+        ('forearm', 0.022, (0.0, -0.02, 0.0), (0.0, 0.02 - FOREARM, 0.0)),
         ('hand', FIST_R, FIST_AT, FIST_AT),
         ('fingers', 0.014, (0.0, -0.01, 0.0), (0.0, -0.06, 0.0)),
         ('thigh', 0.058, (0.0, -0.03, 0.0), (0.0, -0.36, 0.0)),
