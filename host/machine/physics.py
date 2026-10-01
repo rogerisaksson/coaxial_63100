@@ -45,8 +45,11 @@ SERVO = {'spine': (150.0, 800.0, 30.0, 0.05), 'spine_roll': (150.0, 800.0, 30.0,
          'foot': (25.0, 40.0, 1.0, 0.02)}
 
 #: The joints with a mechanical stop, (low, high) deg: the elbow straight at -5, as an arm's is -
-#: without it the forearm folded back under her weight, -82 to -161 pushing up (2026-09-30).
-STOPS = {'elbow': (-5.0, 160.0)}
+#: without it the forearm folded back under her weight, -82 to -161 pushing up (2026-09-30); the
+#: back as a woman's bends, the get-up asking -8 to 60 of the spine and the falls 45 of the waist -
+#: without, tripped on a sill and down, her spine folded back 98-101 degrees (2026-10-01).
+STOPS = {'elbow': (-5.0, 160.0), 'spine': (-30.0, 85.0), 'spine_roll': (-35.0, 35.0),
+         'waist': (-50.0, 50.0)}
 
 #: The world's step, s.
 STEP_S = 0.001

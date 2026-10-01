@@ -8,18 +8,20 @@ terminal page runs her:
 - rise: landed in the squat, up and walking to a pace asked of her,
 - walk: from mid-stride at a pace, the pendulum between her ears read (`machine.pendulum`),
 - event: from mid-stride, the floor's event under her next left step (`physics.World.terrain`):
-  a hole, a sill, a slip patch, a loose rug; or the left knee's drive glitched in its stance
-  (`physics.World.glitch`): its gate dropped for a moment, or derated hot for seconds; each
-  laid at a spread of places (SPREAD), the trial held their mean.
+  a hole, a sill, a slip patch, a loose rug; the left knee's drive glitched in its stance
+  (`physics.World.glitch`): its gate dropped for a moment, or derated hot for seconds; a nudge
+  from her side (`machine.events`); each laid at a spread of places (SPREAD), the trial held
+  their mean,
+- fall: a shove past saving, the page's P (`machine.events`).
 
 Two suites (`--suite`): the look - the rises and the walks on fantasy boards, whose SOA never
-binds (`physics.ENVELOPE` 0) - and the faults - the events on the boards as built. Three
-numbers: `held`, the share of the trials' time she stood, shown; `stir`, the pendulum's mean
-over the walks, mm; `look`, the walks' look (`look_of`). Its cost is one, `stir + look` over the
-walking each walk did: a fall costs nothing - it is done, and her parrying is what is corrected
-(the bench's word, 2026-09-28) - and a candidate with no walking to judge ranks last. A single
-run a candidate scores chance - the rise flips on 0.5 % of any knob (docs/FINDINGS.md,
-2026-09-26) - a spread of them scores the walk.
+binds (`physics.ENVELOPE` 0) - and the faults - the events and the falls on the boards as built.
+`held`, the share of the trials' time she stood, shown; `stir`, the pendulum's mean over the
+walks, mm. The cost in three, the bench's (2026-10-01): a walk on its look and its power
+(`look_of`, `stir` with it), a fall in it ignored; an event on its parry, a fall the heaviest,
+FALL_K the share fallen; a fall past saving on its landing's peak, her body's and her head's.
+A candidate with no walking to judge ranks last. A single run a candidate scores chance - the
+rise flips on 0.5 % of any knob (docs/FINDINGS.md, 2026-09-26) - a spread of them scores it.
 
     python tools/sim/gait_montecarlo.py                                  # the walk as it is
     python tools/sim/gait_montecarlo.py --grid SURGE_DEG=0,1,2 SWAY_K=0,0.5,1
@@ -34,6 +36,7 @@ import sys
 import time
 
 from tools.dev import background
+from tools.sim import cmaes
 
 #: (kind, pace, event): the trials. The floor's events took the shoves' place (a shove hardly
 #: ever happens to a walker; a hole, a sill, a rug, a slippery patch, a lace and a drive's
@@ -45,7 +48,8 @@ TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
           ('walk', 0.65, None), ('walk', 0.85, None), ('walk', 0.9, None), ('walk', 1.0, None),
           ('event', 0.85, 'hole'), ('event', 0.85, 'sill'), ('event', 0.85, 'slip'),
           ('event', 0.85, 'rug'), ('event', 0.65, 'sill'), ('event', 0.9, 'slip'),
-          ('event', 0.85, 'soa'), ('event', 0.85, 'hot'), ('event', 0.85, 'lace'))
+          ('event', 0.85, 'soa'), ('event', 0.85, 'hot'), ('event', 0.85, 'lace'),
+          ('event', 0.85, 'nudge'), ('fall', 0.85, 'shove'))
 
 #: Each event laid at SPREAD steps (`events.STEP_M`, `events.GLITCH_STEP`). Laid at one place,
 #: 2 % of an arm's swing flipped a slip or the hot knee and the held share ran 75-90 %
@@ -57,11 +61,11 @@ SPREAD = (-1, 0, 1)
 WALK_SPREAD = 0.02
 
 #: The suites: which kinds of trial each runs.
-SUITES = {'all': ('rise', 'walk', 'event'), 'look': ('rise', 'walk'), 'walk': ('walk',),
-          'faults': ('event',)}
+SUITES = {'all': ('rise', 'walk', 'event', 'fall'), 'look': ('rise', 'walk'), 'walk': ('walk',),
+          'faults': ('event', 'fall')}
 
 #: (trial, spread step): every run a candidate makes (`suite` narrows them).
-JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] in ('event', 'walk') else (0,))]
+JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] != 'rise' else (0,))]
 
 #: The look's cost, a walk's: the thigh's reach ahead of upright at the landing past its reach
 #: behind at the lift by more than BALANCE_DEG, BALANCE_K a degree; the head fore and aft past
@@ -105,11 +109,20 @@ TOUCH_N, QUIET_S = 30.0, 0.1
 #: landing and as each leg is snapped into its swing (2026-09-30).
 LOAD_PCT, LOAD_K = 0.0, 4.0
 
-#: The look's measures, by `strides.WALK`'s names, and the landing's.
+#: Her power walking, W - the page's sum (`machine.running`): the work done, the copper's heat,
+#: the boards' own - ENERGY_K a watt past ENERGY_W; 482 W at 0.85 strides/s (2026-10-01).
+ENERGY_W, ENERGY_K = 300.0, 0.05
+
+#: An event's fall, FALL_K the share of its runs that fell: the heaviest - one more of 30 is 10. A
+#: fall past saving, its landing over LAND_S from the fall: LAND_K a kN of the peak her body bears
+#: on the floor, feet aside, HEAD_K a kN of her head's.
+FALL_K, LAND_S, LAND_K, HEAD_K = 300.0, 1.5, 2.0, 10.0
+
+#: The look's measures, by `strides.WALK`'s names, and the landing's and the power's.
 LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear',
          'torso pitch', 'toe out', 'toe out swinging', 'ankle roll', 'knee at landing',
          'thigh most ahead')
-LANDS = ('impact', 'touch', 'rate', 'load')
+LANDS = ('impact', 'touch', 'rate', 'load', 'power')
 
 
 def suite(name):
@@ -122,7 +135,7 @@ def suite(name):
 def look_of(looks):
     """The look's cost of a walk's measures {name: value} (`LOOKS`)."""
     (ahead, behind, surge, clear, torso, out, swinging, roll, knee, most, impact, touch,
-     rate, load) = (looks.get(n, math.nan) for n in LOOKS + LANDS)
+     rate, load, power) = (looks.get(n, math.nan) for n in LOOKS + LANDS)
     terms = (BALANCE_K * max(0.0, ahead - behind - BALANCE_DEG),
              REACH_K * max(0.0, REACH_DEG - behind),
              SURGE_K * max(0.0, surge - SURGE_MM), CLEAR_K * max(0.0, CLEAR_MM - clear),
@@ -132,12 +145,13 @@ def look_of(looks):
              PRONATE_K * max(0.0, roll - PRONATE_DEG), KNEE_K * max(0.0, knee - KNEE_DEG),
              OVER_K * max(0.0, most - ahead - OVER_DEG),
              IMPACT_K * max(0.0, impact - IMPACT_N), TOUCH_K * max(0.0, touch - TOUCH_MS),
-             RATE_K * max(0.0, rate - RATE_KN_S), LOAD_K * max(0.0, load - LOAD_PCT))
+             RATE_K * max(0.0, rate - RATE_KN_S), LOAD_K * max(0.0, load - LOAD_PCT),
+             ENERGY_K * max(0.0, power - ENERGY_W))
     return sum(t for t in terms if t == t)
 
 #: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; events laid from
 #: EVENT_AT_S.
-SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0}
+SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0, 'fall': 24.0}
 SETTLE_S, EVENT_AT_S = 4.0, 5.0
 
 #: A walk's run is judged on the strides it walked: its reach behind and its landing measured. A
@@ -176,9 +190,10 @@ def trial(job):
     """(held, stir or None, what happened, {look: value}) for one candidate's one run
     (`JOBS`): a rise or a walk on fantasy boards, an event on the boards as built."""
     values, ((kind, pace, event), k) = job
-    _set(dict(values, ENVELOPE=1.0 if kind == 'event' else 0.0))
+    faulted = kind in ('event', 'fall')
+    _set(dict(values, ENVELOPE=1.0 if faulted else 0.0))
     from tools.sim import look, strides
-    from machine import Machine, events
+    from machine import Machine, events, figure, heat
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -198,6 +213,9 @@ def trial(job):
     quiet, window, impacts, touches, rates, was_load = 0.0, None, [], [], [], 0.0
     foot, moving = world.model.body('left_foot').id, world._np.zeros(6)
     pinned, drive_ms, peak = 0, 0, world.peak * 0.999
+    np, m, d = world._np, world.model, world.data
+    ours = {m.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
+    force, drawn, landing, head = np.zeros(6), 0.0, 0.0, 0.0
     while bus['t'] < seconds:
         body.loop.write(**director.step(0.001))
         body.loop.step(0.001)
@@ -207,7 +225,7 @@ def trial(job):
             down += 0.001
             if director.stage == 'walk':
                 up = bus['t']
-        if (kind == 'event' and not laid and bus['t'] >= EVENT_AT_S
+        if (faulted and not laid and bus['t'] >= EVENT_AT_S
                 and was < events.at(event, k) <= director.walker.phase):
             events.lay(event, director, world, k)
             laid = True
@@ -220,6 +238,9 @@ def trial(job):
             passes += 1
             pinned += int((abs(world.data.ctrl) >= peak).sum())
             drive_ms += len(peak)
+            tau = d.ctrl
+            drawn += float(np.maximum(tau * d.qvel[world.vadr], 0.0).sum()
+                           + world.loss @ (tau * tau))
             if bus['t'] - looked >= 1.0 / LOOK_HZ:
                 looked = bus['t']
                 rows.append(look.sample(bus, director, world))
@@ -236,6 +257,16 @@ def trial(job):
                 touches.append(max(0.0, -float(moving[4])))
                 window = IMPACT_S
             quiet, was_load = (quiet + 0.001 if load < TOUCH_N else 0.0), load
+        if kind == 'fall' and fell is not None and bus['t'] <= fell + LAND_S:
+            body_n = head_n = 0.0
+            for i in range(d.ncon):
+                mine = [b for b in (m.geom_bodyid[d.contact[i].geom1],
+                                    m.geom_bodyid[d.contact[i].geom2]) if b in ours]
+                if len(mine) == 1 and not ours[mine[0]].endswith(('foot', 'toes')):
+                    world._mj.mj_contactForce(m, d, i, force)
+                    body_n += abs(force[0])
+                    head_n += abs(force[0]) if ours[mine[0]] == 'head' else 0.0
+            landing, head = max(landing, body_n / 1e3), max(head, head_n / 1e3)
     # A pool's worker lives on: its world's buses and block closed here, not at its exit - left,
     # five bus processes a run piled up to 865 and the host ran out of memory (2026-09-28).
     body.close()
@@ -248,6 +279,9 @@ def trial(job):
                       rate=sum(rates) / len(rates))
     if drive_ms:
         walked['load'] = 100.0 * pinned / drive_ms
+        walked['power'] = drawn / passes + len(peak) * (heat.SWITCHING_W + heat.HOUSEKEEPING_W)
+    if faulted:
+        walked.update(fell=float(fell is not None), landing=landing, head=head)
     return 1.0 - down / seconds, (stirred / passes if passes else None), what, walked
 
 
@@ -267,16 +301,22 @@ def by_trial(results):
 
 
 def score(results):
-    """(cost, held, stir) of one candidate's run results, in JOBS' order."""
+    """(cost, held, stir) of one candidate's run results, in JOBS' order: the walks' look and
+    power, the events' falls, the landings past saving."""
     trials = by_trial(results)
     held = sum(t[0] for t in trials) / len(trials)
     walks = [t for (kind, _p, _e), t in zip(TRIALS, trials) if kind == 'walk']
     walked = [t for t in walks if t[1] == t[1]]
-    if not walked:
+    if walks and not walked:
         return math.inf, held, math.nan
-    stir = sum(t[1] for t in walked) / len(walked)
-    lost = LOST_K * (len(walks) - len(walked)) / len(walks)
-    return stir + sum(t[4] for t in walked) / len(walked) + lost, held, stir
+    stir = sum(t[1] for t in walked) / len(walked) if walked else math.nan
+    cost = (stir + sum(t[4] for t in walked) / len(walked)
+            + LOST_K * (len(walks) - len(walked)) / len(walks)) if walked else 0.0
+    runs = [(t[0], r[3]) for (t, _k), r in zip(JOBS, results)]
+    fell = [w['fell'] for kind, w in runs if kind == 'event']
+    land = [LAND_K * w['landing'] + HEAD_K * w['head'] for kind, w in runs if kind == 'fall']
+    return (cost + (FALL_K * sum(fell) / len(fell) if fell else 0.0)
+            + (sum(land) / len(land) if land else 0.0)), held, stir
 
 
 def run(pool, candidates):
@@ -300,8 +340,10 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
             '' if kind != 'walk' else '  stir %.2f mm' % s,
             '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, torso %.1f, toes %.1f'
             ' swinging %.1f, roll %.1f, knee %.1f, most %.1f deg, impact %.0f N, touch %.2f m/s,'
-            ' rate %.0f kN/s, load %.2f %%'
-            % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if looks else ''))
+            ' rate %.0f kN/s, load %.2f %%, power %.0f W'
+            % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if kind == 'walk' and looks
+            else '  landing %.1f kN, head %.2f' % (looks['landing'], looks['head'])
+            if kind == 'fall' else ''))
 
 
 def _now(name):
@@ -310,62 +352,6 @@ def _now(name):
     mods = [importlib.import_module('machine.' + m) for m in MODULES]
     return float(getattr(next(m for m in mods if hasattr(m, name)), name))
 
-
-def search(pool, spans, generations, lam, log, sigma=0.08, runs=None, start=None):
-    """CMA-ES over `spans` {name: (low, high)}, each scaled to its span, from the walk as it is
-    (or `start`, {name: value}), `sigma` of a span its first step: a walk that looks right is
-    refined, not searched away - begun from the spans' middles at a quarter, the searches found
-    tiptoeing (2026-09-28). `runs(pool, candidates)` scores them, `run`'s way, by default."""
-    import numpy as np
-    runs, start = runs or run, start or {}
-    names = list(spans)
-    dim = len(names)
-    mean = np.array([min(1.0, max(0.0, ((start[n] if n in start else _now(n)) - spans[n][0])
-                                  / (spans[n][1] - spans[n][0]))) for n in names])
-    mu = lam // 2
-    weights = math.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
-    weights /= weights.sum()
-    mueff = 1.0 / (weights ** 2).sum()
-    cc, cs = (4 + mueff / dim) / (dim + 4 + 2 * mueff / dim), (mueff + 2) / (dim + mueff + 5)
-    c1 = 2 / ((dim + 1.3) ** 2 + mueff)
-    cmu = min(1 - c1, 2 * (mueff - 2 + 1 / mueff) / ((dim + 2) ** 2 + mueff))
-    damps = 1 + 2 * max(0.0, math.sqrt((mueff - 1) / (dim + 1)) - 1) + cs
-    chi = math.sqrt(dim) * (1 - 1 / (4 * dim) + 1 / (21 * dim * dim))
-    pc, ps, cov = np.zeros(dim), np.zeros(dim), np.eye(dim)
-    rng = np.random.default_rng(7)
-    best = (math.inf, None)
-    for gen in range(generations):
-        began = time.time()
-        vals, vecs = np.linalg.eigh(cov)
-        root = vecs @ np.diag(np.sqrt(np.maximum(vals, 1e-20)))
-        xs = np.clip(mean + sigma * rng.standard_normal((lam, dim)) @ root.T, 0.0, 1.0)
-        cands = [{n: float(spans[n][0] + x[i] * (spans[n][1] - spans[n][0]))
-                  for i, n in enumerate(names)} for x in xs]
-        got = runs(pool, cands)
-        costs = np.array([g[0] for g in got])
-        for values, (cost, held, stir, _r) in zip(cands, got):
-            log.write(json.dumps({'gen': gen, 'values': values, 'cost': cost, 'held': held,
-                                  'stir': stir}) + '\n')
-            if cost < best[0]:
-                best = (cost, values)
-        log.flush()
-        order = np.argsort(costs)
-        old = mean
-        mean = weights @ xs[order[:mu]]
-        step = (mean - old) / sigma
-        inv = vecs @ np.diag(1 / np.sqrt(np.maximum(vals, 1e-20))) @ vecs.T
-        ps = (1 - cs) * ps + math.sqrt(cs * (2 - cs) * mueff) * inv @ step
-        hsig = (np.linalg.norm(ps) / math.sqrt(1 - (1 - cs) ** (2 * (gen + 1))) / chi
-                < 1.4 + 2 / (dim + 1))
-        pc = (1 - cc) * pc + hsig * math.sqrt(cc * (2 - cc) * mueff) * step
-        art = (xs[order[:mu]] - old) / sigma
-        cov = ((1 - c1 - cmu) * cov + c1 * (np.outer(pc, pc) + (1 - hsig) * cc * (2 - cc) * cov)
-               + cmu * art.T @ np.diag(weights) @ art)
-        sigma *= math.exp((cs / damps) * (np.linalg.norm(ps) / chi - 1))
-        print('gen %2d  best %.2f  median %.2f  sigma %.3f  %.0f s  | best so far %.2f %s' % (
-            gen, costs.min(), float(np.median(costs)), sigma, time.time() - began, best[0],
-            {k: round(v, 3) for k, v in (best[1] or {}).items()}), flush=True)
-    return best
 
 
 def main(argv=None):
@@ -393,8 +379,8 @@ def main(argv=None):
         if args.search:
             spans = {k: tuple(float(x) for x in v.split(':'))
                      for k, v in (a.split('=') for a in args.search)}
-            cost, values = search(pool, spans, args.generations, args.population, log,
-                                  args.sigma)
+            cost, values = cmaes.search(pool, spans, args.generations, args.population, log,
+                                        run, _now, args.sigma)
             print('BEST %.2f %s' % (cost, json.dumps(values)))
             cands = [dict(fixed, **(values or {}))]
         elif args.grid:

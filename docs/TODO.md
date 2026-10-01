@@ -70,16 +70,15 @@ Open work. Measured results are in FINDINGS.
   a URL bus, the limb keeping t3.5 for them; not yet the fallback where
   nothing answers (Renode is).
 - Gynoid, open (a line goes when done):
-  + The scoreboard in three: a walk scored on its smoothness and energy, a
-    fall ignored; a stumble, slip or push on the parry, its fall the
-    heaviest cost; a fall past saving on the landing's impulse.
   + Past saving - the page's P push, 120 N for 0.12 s, held 0 of 48 - a leg
     out and down into a superhero crouch, caught on a hand and a knee, not
     falling stiff; its landing in a suite test. A lace holding her trailing
     foot she dives onto her hands, legs straight: the knees under first.
-  + The scoreboard's events held: the hole 53 %, the rug 51 %, the lace 26 %
-    (82.5 % in all, HEAD 75.8; 2026-10-01). The walk at 1.0 strides/s falls
-    in 3 runs of 3 (HEAD 2 of 3).
+  + The scoreboard's events held: the hole 53 %, the rug 51 %, the lace 26 %,
+    the nudge 33 % (2026-10-01). The walk at 1.0 strides/s falls in 3 runs
+    of 3 (HEAD 2 of 3). A sill laid as the page lays it, a stride on, 3 cm
+    apart over 33 cm, fells her 12 times of 12; the scoreboard's three, 3 cm
+    either side of one place, hold: the spread too narrow.
   + The obstacles' contacts stiffer: toes 20 mm into the sill for 35 ms,
     fingers 26 mm into the floor (MuJoCo's 0.02 s give).
   + The stairs fell her at the first riser since 855c87c: each riser met at
