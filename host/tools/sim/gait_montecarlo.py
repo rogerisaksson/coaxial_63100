@@ -152,7 +152,9 @@ MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'direct
 
 def _set(values):
     """The constants set where they live - the first of MODULES holding the name, or the one
-    named, walkplan.TRACK_M (gait has its own) - the plan's tables cleared."""
+    named, walkplan.TRACK_M (gait has its own) - the plan's tables cleared. Unqualified, a name
+    two modules hold sets the first: TURN_DEG meant for the fall turned the walk's pelvis
+    (2026-10-01)."""
     import importlib
     mods = [importlib.import_module('machine.' + m) for m in MODULES]
     for name, value in values.items():

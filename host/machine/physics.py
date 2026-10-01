@@ -23,6 +23,7 @@ from machine.buses import QUIET, Block, Buses
 from machine.controller import Feedback
 from machine import floor
 from machine.errors import MachineError
+from machine import figure
 from machine.figure import BODY, CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
 from machine.machine import Actuator
 from machine.nodes import Module, Node
@@ -115,6 +116,13 @@ FRICTION, TORSION_M = 1.0, 0.08
 #: the stance foot's load flickered to 70 N as the other swung (2026-09-27).
 SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
 
+#: The pads' gel (`figure.PADS`), MuJoCo's solref and solimp over `figure.PAD_M`: a touch's
+#: impedance PAD_SOFT, rising to 0.95 as the gel is spent; settling over PAD_S s at PAD_DAMP of
+#: critical. Over 12 falls against none, the padded parts' landing peak 5.99 -> 5.32 kN at the
+#: median, its spread 3.00 -> 2.53; the pads as stiff as her cloth, the worst 8.4 -> 11.3, at
+#: 0.005 s 61 (`tools/sim/landings.py`, 2026-10-01).
+PAD_SOFT, PAD_S, PAD_DAMP = 0.5, 0.02, 1.5
+
 
 
 
@@ -159,6 +167,19 @@ def mjcf():
                              radius, ' '.join('%g' % v for v in top + end)))
                 out.append('<geom %s%s%s/>' % (shape, grip % CLOTH.get(part, FRICTION),
                                                 cloth if part in CLOTH else ''))
+        for k, (part, axis, radius, toward, size, wide) in enumerate(figure.PADS):
+            for x in ((1.0, -1.0) if name == part == 'pelvis' else
+                      ((1.0 if name.startswith('left') else -1.0),) if name.endswith('_' + part)
+                      else ()):
+                at = figure.pad(axis, radius, toward, size, x)
+                shape = ('type="capsule" size="%g" fromto="%g %g %g %g %g %g"' % (
+                    (size, at[0] - wide) + at[1:] + (at[0] + wide,) + at[1:]) if wide else
+                         'type="sphere" size="%g" pos="%g %g %g"' % ((size,) + at))
+                out.append('<geom name="%s_pad%d%s" %s%s priority="1" solref="%g %g" '
+                           'solimp="%g 0.95 %g"/>' % (
+                               name, k, '' if x > 0 else 'r', shape,
+                               grip % CLOTH.get(part, FRICTION), PAD_S, PAD_DAMP, PAD_SOFT,
+                               figure.PAD_M))
         if name.endswith('_shank'):
             side = name[:-len('_shank')]
             out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)]

@@ -106,6 +106,32 @@ BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[
         ('shank', 0.05, (0.0, -0.04, 0.0), (0.0, -0.25, 0.0)),
         ('shank', 0.036, (0.0, -0.25, 0.0), (0.0, -0.33, 0.0)))
 
+#: Pads where her falls land, 5 mm of gel in TPU under her skin and clothes (`physics.PAD_*`):
+#: (segment, the point of its capsule's axis under it, the capsule's radius, toward where the
+#: landings cluster, the pad's radius and half-width across), the left side's. Over 26 bare falls,
+#: each segment's first 0.2 s on the floor: the elbow's point 3068 N s, 7.2 kN at most; the hip's
+#: front and side 2800, 8.4; the knee 1300, 7.4; the rest of her under 240 N s (2026-10-01). The
+#: knee's across its front: on a sphere there, and one at the thigh's end, knees under rolled her
+#: 22-84 degrees, 5 of 12 falls up (2026-10-01).
+PADS = (('upper_arm', (0.0, 0.02 - UPPER_ARM, 0.0), 0.028, (0.01, -UPPER_ARM, -0.01), 0.023, 0.0),
+        ('forearm', (0.0, -0.02, 0.0), 0.022, (0.0, -0.01, -0.01), 0.017, 0.0),
+        ('pelvis', (0.06, -0.01, -0.01), 0.09, (0.07, -0.02, 0.07), 0.085, 0.0),
+        ('pelvis', (0.06, -0.01, -0.01), 0.09, (0.13, -0.03, 0.03), 0.085, 0.0),
+        ('thigh', (0.0, -0.03, 0.0), 0.058, (0.05, -0.03, 0.02), 0.053, 0.0),
+        ('shank', (0.0, -0.04, 0.0), 0.05, (0.0, -0.03, 0.04), 0.025, 0.025))
+#: A pad stands PAD_M proud of the skin.
+PAD_M = 0.005
+
+
+def pad(axis, radius, toward, size, x=1.0):
+    """A pad's centre: its face, `size` round, PAD_M proud of its capsule toward `toward`; `x` -1
+    the right side's."""
+    d = [t - a for t, a in zip(toward, axis)]
+    n = math.sqrt(sum(v * v for v in d)) or 1.0
+    c = [a + (radius + PAD_M - size) * v / n for a, v in zip(axis, d)]
+    return c[0] * x, c[1], c[2]
+
+
 #: Every joint, in the order the segments carry them.
 JOINTS = tuple(j for seg in SEGMENTS for j, _axis, _sign in seg[2])
 

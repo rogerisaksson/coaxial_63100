@@ -28,6 +28,8 @@ STEPS = {'straighten out': ('arms and legs straightened, flat',
          'onto feet': ('onto her feet on her hands, into a crouch', ('kneeling',), 'crouched')}
 #: Straightened out she lies as she did, sat on her back, kneeling face down.
 FLAT = {'sitting': 'on her back', 'kneeling': 'face down'}
+#: How the observer says she lies (`observer.lying`); the steps' other words are their own.
+SEEN = ('face down', 'on her back', 'on a side', 'sitting', 'kneeling', 'crouched', 'standing')
 #: The steps a plan ends on: her feet under her in the crouch the arrival rises from.
 UP = ('onto feet',)
 
@@ -74,6 +76,14 @@ def chained(steps, lying):
             return False
         at = leaves or FLAT.get(at, at)
     return True
+
+
+def fits(step, lying):
+    """Whether `step` may begin as the observer says she lies - one wanting only the steps' own
+    words (on her knees) left to the check of the step before. Straightened out face down she
+    lay on her back, and the plan's knees under rolled her on (2026-10-01)."""
+    wants = STEPS[step][1]
+    return ('on a side' if 'side' in lying else lying) in wants or not set(wants) & set(SEEN)
 
 
 def _lines():

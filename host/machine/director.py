@@ -226,6 +226,10 @@ class Director:
             if ended is not None:
                 now = observer.status(bus, self.world, self)
                 ok, why = observer.check(ended, now)
+                nxt = self.getup.marks[0][1] if self.getup.marks else None
+                if ok and nxt and not planner.fits(nxt, now['lying']):
+                    ok, why = False, '%s left her %s, where %s cannot begin' % (
+                        ended, now['lying'], nxt)
                 if not ok:
                     self.tried.append((self.plan, why))
                     if self.tries >= GETUP_TRIES:

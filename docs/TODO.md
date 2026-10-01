@@ -87,8 +87,8 @@ Open work. Measured results are in FINDINGS.
   LOCAL_TRIES - no server client yet - else its own): onto her front, the
   knees under, back on her heels, onto her feet, knees together; 13 of 13
   falls walk again 20-25 s after, the stairs untried. Falling, the waist
-  turns her arms toward the fall (`falls.turn`). Left: pads at the elbows,
-  knees and hips (5 mm of gel in TPU). The
+  turns her arms toward the fall (`falls.turn`); pads at the elbows, hips
+  and knees (`figure.PADS`). The
   scoreboard counts the time down. The shoves' findings stand: toward the
   standing foot the side step ends with
   the capture point 27 cm ahead and no foot there; shoved at 0.30 of the

@@ -47,20 +47,21 @@ UNFOLD = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
 #: up on the tucked toes, the heels down into a squat on straight arms, then the arrival's own -
 #: ended by the observer as she crouches still and flat-footed over her feet (`observer.EARLY`).
 #: From CMA-ESs over the states real falls left her in, scored by the observer through the
-#: arrival: back on her heels from 18 of 22 kneels, walking off from 11 of 12 (2026-10-01); lifted
+#: arrival: back on her heels from 18 of 22 kneels, walking off from 12 of 12 on her pads, 11 of
+#: 12 bare (2026-10-01); lifted
 #: by the floor-up plan instead she stood in none of 224, the knees never off the floor.
 KNEES_UNDER = (('ease', 'prop', 1.19, _pose(3.0, 52.5, 24.6, -7.9, -20.0, 131.1, 84.9)),
                ('ease', 'prop', 1.46, _pose(-87.8, 96.8, 14.8, 22.9, -20.0, 163.1, 114.4)))
 SIT_BACK = (('ease', 'sit', 0.3, _pose(-163.2, 158.2, 12.2, 60.0, -20.0, 54.3, 12.0)),
             ('ease', 'sit', 3.08, dict(_pose(-21.9, 160.0, -46.8, 30.9, -20.0, 72.7, 65.2),
                                        left_foot=54.5, right_foot=54.5)))
-ONTO_FEET = (('ease', 'lift', 0.47, dict(_pose(-24.2, 145.7, -58.3, 33.4, -20.0, 44.5, -5.0),
-                                         left_foot=60.6, right_foot=60.6)),
-             ('ease', 'lift', 0.49, dict(_pose(-144.3, 123.0, -47.9, 35.9, -20.0, 120.7, -5.0),
-                                         left_foot=51.0, right_foot=51.0)),
-             ('ease', 'crouch', 1.46, dict(_pose(-150.0, 133.6, -26.3, 41.2, -20.0, 76.6, -5.0),
-                                           left_foot=3.9, right_foot=3.9)),
-             ('ease', 'crouch', 2.05, arrival.angles_of(arrival._squat())),
+ONTO_FEET = (('ease', 'lift', 0.61, dict(_pose(-10.0, 140.2, -42.7, 32.5, -20.0, 71.6, -5.0),
+                                         left_foot=30.9, right_foot=30.9)),
+             ('ease', 'lift', 0.63, dict(_pose(-130.0, 125.2, -42.6, 39.8, -20.0, 144.0, -5.0),
+                                         left_foot=37.0, right_foot=37.0)),
+             ('ease', 'crouch', 1.75, dict(_pose(-138.7, 106.4, -33.6, 30.2, -20.0, 79.0, -5.0),
+                                           left_foot=3.0, right_foot=3.0)),
+             ('ease', 'crouch', 2.23, arrival.angles_of(arrival._squat())),
              ('ease', 'crouch', 1.0, {}))
 
 

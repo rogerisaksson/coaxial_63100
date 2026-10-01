@@ -229,6 +229,9 @@ def test_the_planner(report):
                  planner.plan(now, Model(['knees under']))[1] == 'default')
     report.check('a step from where the one before does not leave her falls to the default',
                  planner.plan(now, Model(['knees under', 'onto feet']))[1] == 'default')
+    report.check('a step cannot begin where the observer says she lies otherwise',
+                 not planner.fits('knees under', 'on her back')
+                 and planner.fits('knees under', 'face down'))
     report.check('a model that fails falls to the default',
                  planner.plan(now, Model(fails=True))[1] == 'default')
     server = Model(up)
@@ -245,8 +248,56 @@ def test_the_planner(report):
                  [s for _i, s in marks] == list(planner.plan(now)[0]) and marks[-1][0] == len(stream))
 
 
+def test_her_pads(report):
+    """Her pads (`figure.PADS`, where `tools/sim/landings.py where` finds her falls land), 5 mm of
+    gel (`physics.PAD_*`, its `gel` the spread of falls): dropped onto her knees she lands on them,
+    softer than bare, the gel giving no further than its own thickness past her bare skin."""
+    from machine import Machine, figure
+    from machine.modes import DYNAMIC
+
+    def drop():
+        body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+        body.arm()
+        world = body.nodes['pelvis'].world
+        m, d = world.model, world.data
+        angles = dict({j: 0.0 for j in figure.JOINTS}, left_knee=90.0, right_knee=90.0)
+        world.reset(angles, where=(0.0, 0.55, 0.0), turn=(1.0, 0.0, 0.0, 0.0))
+        body.loop.step(0.0)
+        shanks = {m.body(s + '_shank').id for s in ('left', 'right')}
+        peak, deep, padded, total, f = 0.0, 0.0, 0.0, 0.0, world._np.zeros(6)
+        for _ in range(300):
+            body.loop.write(**angles)
+            body.loop.step(0.001)
+            force = 0.0
+            for i in range(d.ncon):
+                c = d.contact[i]
+                for g in (c.geom1, c.geom2):
+                    if m.geom_bodyid[g] in shanks:
+                        world._mj.mj_contactForce(m, d, i, f)
+                        force += abs(f[0])
+                        deep = max(deep, -c.dist)
+                        padded += abs(f[0]) * ('_pad' in (m.geom(g).name or ''))
+            total += force
+            peak = max(peak, force / 2.0)
+        body.close()
+        return peak, deep, padded / max(total, 1e-9)
+    gel = drop()
+    pads, figure.PADS = figure.PADS, ()
+    try:
+        bare = drop()
+    finally:
+        figure.PADS = pads
+    report.check('dropped onto her knees, she lands on their pads', gel[2] > 0.5,
+                 '%.0f %% of the knees\' load through them' % (100 * gel[2]))
+    report.check('the gel lands softer than her bare skin', gel[0] < bare[0],
+                 '%.0f N a knee, bare %.0f' % (gel[0], bare[0]))
+    report.check('the gel gives no further than its %.0f mm past her bare skin'
+                 % (1e3 * figure.PAD_M), gel[1] - bare[1] <= figure.PAD_M,
+                 '%.1f mm, bare %.1f' % (1e3 * gel[1], 1e3 * bare[1]))
+
+
 ROSTER = (test_a_drive_keeps_its_heat, test_a_drive_in_its_soa, test_a_trip_lands_her_shorted,
-          test_fantasy_boards_never_bind, test_the_planner)
+          test_fantasy_boards_never_bind, test_the_planner, test_her_pads)
 
 
 def main(argv=None):
