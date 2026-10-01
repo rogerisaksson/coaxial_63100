@@ -73,9 +73,9 @@ SIZES = {
 }
 
 #: Each joint's size, and where its assembly sits: None on the joint's own axis; else (segment,
-#: offset m in its frame) where it is mounted, a rod to the joint - the ankle's pair inside the
-#: calf under the knee; the wrist's and the fingers' in the forearm; the toes' in the foot. On the
-#: calf's back the ankle's stood 3 cm proud, a lump (2026-09-28). The elbow and the neck M: on S
+#: offset m in its frame) where it is mounted, a rod to the joint - the ankle's at the knee, the
+#: knee's in the thigh under the hip (`LINKS`), the ankle's roll in the calf, the wrist's and the
+#: fingers' in the forearm, the toes' in the foot. The elbow and the neck M: on S
 #: an elbow pushing her up from the floor asked 20 N m rms over 2 s, the neck holding her head
 #: 6, their copper past what an S's winding sheds (2026-10-01).
 JOINTS = {
@@ -84,11 +84,19 @@ JOINTS = {
     'shoulder': ('M', None), 'elbow': ('M', None),
     'wrist': ('S', ('forearm', (0.0, -0.09, 0.0))),
     'gripper': ('S', ('forearm', (0.0, -0.165, 0.0))),
-    'hip_yaw': ('M', None), 'hip_roll': ('L', None), 'hip': ('L', None), 'knee': ('L', None),
-    'ankle': ('L', ('shank', (0.0, -0.10, -0.008))),
+    'hip_yaw': ('M', None), 'hip_roll': ('L', None), 'hip': ('L', None),
+    'knee': ('L', ('thigh', (0.0, -0.10, 0.02))), 'ankle': ('L', ('shank', (0.0, -0.03, -0.035))),
     'ankle_roll': ('M', ('shank', (0.0, -0.19, 0.0))),
     'foot': ('S', ('foot', (0.0, -0.04, 0.045))),
 }
+
+
+#: A rod's lever ratio between a drive's output and its joint, by kind: the ankle's from a 30 mm
+#: crank at the knee to the heel's tuberosity 50 mm behind the ankle, the Achilles' line; the
+#: knee's from a 28 mm crank in the thigh to the tibial tuberosity 45 mm before the knee, the
+#: patellar tendon's - a joint's ratio (RATIO) the gearbox's times its rod's, constant over the
+#: stroke (estimated).
+LINKS = {'ankle': 50.0 / 30.0, 'knee': 45.0 / 28.0}
 
 
 def kind(joint):
@@ -147,8 +155,8 @@ def backdrive(joint):
 
 
 def shock(joint):
-    """The torque its gearbox takes momentarily at its output, N m."""
-    return of(joint)[1].shock
+    """The torque its gearbox takes momentarily, at the joint through its rod (`LINKS`), N m."""
+    return of(joint)[1].shock * LINKS.get(kind(joint), 1.0)
 
 
 def speed(joint):

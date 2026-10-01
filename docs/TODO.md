@@ -135,7 +135,9 @@ Open work. Measured results are in FINDINGS.
     the gearbox's, the legs' mass carried higher. Her body and legs hollow
     laminated carbon fibre, a prosthetic's shells: each segment's own mass
     and inertia a thin wall over its shape and what it holds, not a
-    woman's (de Leva's).
+    woman's (de Leva's). Every limb on a quick-release in a printed
+    polymer, pogo pins carrying its power and its bus: their mass in the
+    build, their give at the shoulders and hips.
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the

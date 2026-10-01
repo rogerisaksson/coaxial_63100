@@ -21,7 +21,6 @@ SIDE_UP, UPRIGHT = 0.5, 0.5
 #: her toes carried 0.65 of her weight (2026-10-01).
 STANDS_M, CROUCHES_M, FEET_SHARE = 0.75, 0.25, 0.6
 #: Her weight, N.
-WEIGHT_N = figure.MASS_KG * 9.81
 #: Back on her heels, her centre of mass within OVER_FEET_M of her toes, her head upright: 0.53 m
 #: ahead, her head on the floor, passed the pelvis-and-shin check this replaced (2026-10-01).
 OVER_FEET_M = 0.15
@@ -104,7 +103,7 @@ def lying(bus, world, contacts=None):
     head = _head(bus)
     face_up, left_up = head[1][2], head[1][0]
     load, touched = contacts or _contacts(world)
-    feet = load / WEIGHT_N
+    feet = load / (figure.mass() * 9.81)
     y = bus['pelvis.pose.y']
     if feet > FEET_SHARE and y > CROUCHES_M and not {'shank', 'thigh'} & set(touched):
         return 'standing' if y > STANDS_M else 'crouched'
@@ -132,7 +131,7 @@ def status(bus, world, director):
             'pelvis_m': round(bus['pelvis.pose.y'], 2), 'com_ahead_m': round(com_ahead(world), 2),
             'roll_deg': round(roll(world)), 'feet_pitch_deg': round(feet_pitch(world)),
             'speed_m_s': round(math.hypot(bus['pelvis.pose.vx'], bus['pelvis.pose.vz']), 2),
-            'touching': touched, 'feet_share': round(feet / WEIGHT_N, 2),
+            'touching': touched, 'feet_share': round(feet / (figure.mass() * 9.81), 2),
             'derated': sorted(j for j, n in director.drives.items()
                               if bus.get(n + 'derate', 1.0) < 0.9),
             'tries': director.tries}

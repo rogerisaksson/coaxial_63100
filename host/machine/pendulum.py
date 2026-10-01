@@ -56,8 +56,8 @@ class Pendulum:
 
     """The pendulum, stepped each pass with its pivot where her ears are."""
 
-    def __init__(self, length=LENGTH_M, mass=figure.MASS_KG):
-        self.length, self.mass, self.w2 = length, mass, G / length
+    def __init__(self, length=LENGTH_M, mass=None):
+        self.length, self.mass, self.w2 = length, figure.mass() if mass is None else mass, G / length
         self.pivot = self.at = self.velocity = None
         self.swing, self.felt, self.stir, self.stirs = (0.0, 0.0), 1.0, 0.0, (0.0, 0.0, 0.0)
         self.energy = 0.0

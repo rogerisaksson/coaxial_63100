@@ -4,7 +4,7 @@ The world steps it (`machine.physics`).
 """
 import math
 
-from machine import drives, figure, floor
+from machine import build, drives, figure, floor
 from machine.drives import kind
 from machine.figure import BODY, CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
 
@@ -83,32 +83,11 @@ LACE_AT, LACE_M, LACE_S, LACE_HOLD_N = (0.0, -0.03, 0.07), 0.25, 0.03, 1000.0
 
 
 
-def _riders():
-    """{segment: [(joint, kg, where in its frame, its inertia's diagonal)]}: each drive's assembly
-    where it sits - mounted where `drives.mount` says, else on its joint's axis, a segment's first
-    joint's on the parent at the segment's place, a later one's at the segment's own - a cylinder
-    of its size's diameter and length about that axis."""
-    out = {}
-    for name, parent, joints, offset, *_ in SEGMENTS:
-        for k, (joint, axis, _sign) in enumerate(joints):
-            size, where = drives.of(joint)[1], drives.mount(joint)
-            if where is not None:
-                rides, at = where[0], tuple(where[1])
-            elif k == 0 and parent is not None:
-                rides, at = parent, tuple(offset)
-            else:
-                rides, at = name, (0.0, 0.0, 0.0)
-            about = size.mass * size.diameter ** 2 / 8.0
-            across = size.mass * (3.0 * size.diameter ** 2 / 4.0 + size.length ** 2) / 12.0
-            inertia = tuple(about if a == axis else across for a in 'xyz')
-            out.setdefault(rides, []).append((joint, size.mass, at, inertia))
-    return out
-
-
 def mjcf():
     """The figure as MuJoCo's XML: y up, a drive's motor on every joint, the floor's contacts."""
     from machine.physics import BACKDRIVE, PLACED, REFLECTED, SERVO, STEP_S
-    kids, riders = {}, _riders() if PLACED else {}
+    shells = build.segments() if build.SHELLS else {}
+    kids, riders = {}, build.riders() if PLACED and not shells else {}
     for seg in SEGMENTS:
         kids.setdefault(seg[1], []).append(seg)
     axes = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1)}
@@ -133,7 +112,9 @@ def mjcf():
                     ' frictionloss="%g"' % (BACKDRIVE * drives.backdrive(joint))
                     if BACKDRIVE else '')))
         mass = share * MASS_KG - sum(kg for _j, kg, _at, _i in riders.get(name, ()))
-        out.append('<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
+        out.append('<inertial pos="%g %g %g" mass="%g" fullinertia="%g %g %g %g %g %g"/>' % (
+            shells[name][1] + (shells[name][0],) + shells[name][2]) if shells else
+                   '<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
         out += ['<body name="%s_drive" pos="%g %g %g"><inertial pos="0 0 0" mass="%g" '
                 'diaginertia="%g %g %g"/></body>' % ((joint,) + at + (kg,) + inertia)

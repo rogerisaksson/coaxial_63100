@@ -261,8 +261,25 @@ def com(degrees, pelvis, turn):
     """Her centre of mass, world, for every joint at {joint: degrees} and the pelvis placed."""
     placed = frames(degrees, pelvis, turn)
     total = [0.0, 0.0, 0.0]
-    for name, _parent, _joints, _offset, _rest, share, centre, _gyr in SEGMENTS:
+    for name, (share, centre) in shares().items():
         at, here = placed[name]
         point = add(at, apply(here, centre))
         total = [s + share * c for s, c in zip(total, point)]
     return tuple(total)
+
+
+def shares():
+    """{segment: (share of her mass, centre in its frame)}: as built (`machine.build`) or a
+    woman's."""
+    from machine import build
+    if not build.SHELLS:
+        return {s[0]: (s[5], s[6]) for s in SEGMENTS}
+    built = build.segments()
+    total = sum(kg for kg, _c, _i in built.values())
+    return {name: (kg / total, centre) for name, (kg, centre, _i) in built.items()}
+
+
+def mass():
+    """Her weight, kg: as built (`machine.build`) or MASS_KG."""
+    from machine import build
+    return build.mass() if build.SHELLS else MASS_KG

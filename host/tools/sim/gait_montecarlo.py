@@ -163,7 +163,7 @@ LOST_K = 30.0
 
 MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'falls', 'parry',
            'getup', 'observer',
-           'capture', 'physics', 'mjcf', 'buses', 'events', 'drives')
+           'capture', 'physics', 'mjcf', 'build', 'buses', 'events', 'drives')
 
 
 def _set(values):
