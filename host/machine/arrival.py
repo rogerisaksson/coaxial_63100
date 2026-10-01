@@ -63,7 +63,13 @@ SOFT_KNEE = 8.0
 #: at RISE_MID of the way up, RISE_MID_S in, the torso as far ahead of plumb as the shins. Risen
 #: at once the torso came up first, 18.6 degrees behind the shins at 64 degrees of knee; with the
 #: hips half way up at 30 degrees, 14.4 as the knees straightened (2026-09-28).
-RISE_MID, RISE_MID_S = 0.8, 1.3
+RISE_MID, RISE_MID_S = 0.8, 0.85
+
+#: The squat held SQUAT_S, the look LOOK_S, pushed up PUSH_S, risen over RISE_S, stood STAND_S,
+#: shifted over SHIFT_S. At 1.5, 0.8, 1.0, 2.0, 1.0, 1.2, 8.4 s to her first step, the holds read
+#: as pauses (the user); the rises held at a quarter of the holds and two thirds of the moves,
+#: and at a tenth and two thirds, a quarter and a half - a tenth and a half held 23 % (2026-10-01).
+SQUAT_S, LOOK_S, PUSH_S, RISE_S, STAND_S, SHIFT_S = 0.4, 0.2, 0.65, 1.3, 0.25, 0.8
 
 #: Before the right foot lifts her weight is brought LEAN_M ahead of the ankles over LEAN_S s -
 #: she leans forward, then steps - and LIFT_ON_M further as the foot lifts LIFT_UP_M over
@@ -202,9 +208,9 @@ def keyframes(cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
                        tilt=gait.LEAN_DEG,
                        joints=dict(lean['joints'], neck=lean['joints']['neck'] - gait.LEAN_DEG)),
                   'left', SOFT_KNEE, FEET_X - LIFT_IN, LEAN_M + LIFT_ON_M)
-    return [('squat', 0.0, squat), ('squat', 1.5, squat), ('look', 0.8, look),
-            ('push', 1.0, push), ('rise', RISE_MID_S, rising), ('rise', 2.0 - RISE_MID_S, rise),
-            ('stand', 1.0, rise), ('shift', 1.2, shift),
+    return [('squat', 0.0, squat), ('squat', SQUAT_S, squat), ('look', LOOK_S, look),
+            ('push', PUSH_S, push), ('rise', RISE_MID_S, rising), ('rise', RISE_S - RISE_MID_S, rise),
+            ('stand', STAND_S, rise), ('shift', SHIFT_S, shift),
             ('lean', LEAN_S, lean), ('step', LIFT_S, lifted), ('ready', 1e9, lifted)]
 
 

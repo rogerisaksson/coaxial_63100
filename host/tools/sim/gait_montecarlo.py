@@ -62,7 +62,7 @@ WALK_SPREAD = 0.02
 
 #: The suites: which kinds of trial each runs.
 SUITES = {'all': ('rise', 'walk', 'event', 'fall'), 'look': ('rise', 'walk'), 'walk': ('walk',),
-          'faults': ('event', 'fall')}
+          'rise': ('rise',), 'faults': ('event', 'fall')}
 
 #: (trial, spread step): every run a candidate makes (`suite` narrows them).
 JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] != 'rise' else (0,))]
