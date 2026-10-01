@@ -169,3 +169,6 @@ one question) and stop. Design questions are yours.
   includes itself. In linker scripts `*dir/*.o` contains `/*`.
 - `UL` is 64-bit on Linux CI: use `U`.
 - PowerShell variables are case-insensitive.
+- The editable install resolves `machine`, `coaxial` to the main checkout:
+  a script in a git worktree runs its own code only with
+  `PYTHONPATH=<worktree>/host`.

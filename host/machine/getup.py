@@ -48,8 +48,8 @@ UNFOLD = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
 #: ended by the observer as she crouches still and flat-footed over her feet (`observer.EARLY`).
 #: From CMA-ESs over the states real falls left her in, scored by the observer through the
 #: arrival: back on her heels from 18 of 22 kneels, walking off from 12 of 12 on her pads, 11 of
-#: 12 bare (2026-10-01); lifted
-#: by the floor-up plan instead she stood in none of 224, the knees never off the floor.
+#: 12 bare (2026-10-01); lifted by the floor-up plan instead she stood in none of 224, the knees
+#: never off the floor.
 KNEES_UNDER = (('ease', 'prop', 1.19, _pose(3.0, 52.5, 24.6, -7.9, -20.0, 131.1, 84.9)),
                ('ease', 'prop', 1.46, _pose(-87.8, 96.8, 14.8, 22.9, -20.0, 163.1, 114.4)))
 SIT_BACK = (('ease', 'sit', 0.3, _pose(-163.2, 158.2, 12.2, 60.0, -20.0, 54.3, 12.0)),
@@ -93,7 +93,7 @@ TO_FRONT = (('ease', 'roll', 0.8, _pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0)),
 FRONTS_BY = {1: TO_FRONT, -1: tuple((v, s, t, _mirrored(p)) for v, s, t, p in TO_FRONT)}
 
 #: The get-up's stages, in order.
-STAGES = ('unfold', 'roll', 'prop', 'sit', 'fold', 'lift', 'crouch')
+STAGES = ('unfold', 'roll', 'prop', 'sit', 'lift', 'crouch')
 
 
 def fragment(step, now):

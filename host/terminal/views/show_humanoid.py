@@ -226,7 +226,7 @@ STATUS = {'squat': 'CROUCH', 'look': 'CROUCH', 'push': 'RISE', 'rise': 'RISE', '
           'shift': 'STAND', 'lean': 'STAND', 'step': 'WALK', 'walk': 'WALK', 'catch': 'CATCH',
           'halt': 'STOP', 'settle': 'STOP', 'lower': 'CROUCH', 'rest': 'REST', 'falling': 'FALL',
           'fallen': 'DOWN', 'unfold': 'GET UP', 'roll': 'GET UP', 'prop': 'GET UP',
-          'sit': 'GET UP', 'fold': 'GET UP', 'lift': 'GET UP', 'crouch': 'GET UP'}
+          'sit': 'GET UP', 'lift': 'GET UP', 'crouch': 'GET UP'}
 
 
 def _status(now):

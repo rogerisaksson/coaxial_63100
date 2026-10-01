@@ -40,18 +40,27 @@ def _head(bus):
     return figure.quat(*(bus['pelvis.pose.head_q' + a] for a in 'wxyz'))
 
 
-def on_feet(world):
-    """Her soles' load on the floor, N - not her own weight sat back on her heels."""
+def _contacts(world):
+    """(her soles' load on the floor, N - not her own weight sat back on her heels -, her
+    segments touching the floor or what lies on it, by name, sides merged), in one pass."""
     d, m = world.data, world.model
+    ours = {m.body(s[0]).id: s[0] for s in figure.SEGMENTS}
     soles = {m.body(side + part).id for side in ('left_', 'right_') for part in ('foot', 'toes')}
-    ours = {m.body(s[0]).id for s in figure.SEGMENTS}
-    force, out = world._np.zeros(6), 0.0
+    force, load, touched = world._np.zeros(6), 0.0, set()
     for i in range(d.ncon):
         a, b = (m.geom_bodyid[g] for g in (d.contact[i].geom1, d.contact[i].geom2))
-        if (a in soles and b not in ours) or (b in soles and a not in ours):
-            world._mj.mj_contactForce(m, d, i, force)
-            out += force[0]
-    return out
+        for mine, other in ((a, b), (b, a)):
+            if mine in ours and other not in ours:
+                touched.add(ours[mine].replace('left_', '').replace('right_', ''))
+                if mine in soles:
+                    world._mj.mj_contactForce(m, d, i, force)
+                    load += force[0]
+    return load, sorted(touched)
+
+
+def on_feet(world):
+    """Her soles' load on the floor, N (`_contacts`)."""
+    return _contacts(world)[0]
 
 
 def com_ahead(world):
@@ -90,13 +99,14 @@ def roll(world):
     return math.degrees(math.asin(max(-1.0, min(1.0, float(up)))))
 
 
-def lying(bus, world):
-    """How she lies or stands, a word or two."""
+def lying(bus, world, contacts=None):
+    """How she lies or stands, a word or two; `contacts` as `_contacts` read them, if read."""
     head = _head(bus)
     face_up, left_up = head[1][2], head[1][0]
-    feet = on_feet(world) / WEIGHT_N
+    load, touched = contacts or _contacts(world)
+    feet = load / WEIGHT_N
     y = bus['pelvis.pose.y']
-    if feet > FEET_SHARE and y > CROUCHES_M and not {'shank', 'thigh'} & set(touching(world)):
+    if feet > FEET_SHARE and y > CROUCHES_M and not {'shank', 'thigh'} & set(touched):
         return 'standing' if y > STANDS_M else 'crouched'
     if head[1][1] > UPRIGHT:
         return 'kneeling' if y > CROUCHES_M else 'sitting'
@@ -108,28 +118,21 @@ def lying(bus, world):
 
 
 def touching(world):
-    """Her segments touching the floor or what lies on it, by name, sides merged."""
-    d, m = world.data, world.model
-    ours = {m.body(s[0]).id: s[0] for s in figure.SEGMENTS}
-    out = set()
-    for i in range(d.ncon):
-        a, b = (m.geom_bodyid[g] for g in (d.contact[i].geom1, d.contact[i].geom2))
-        for mine, other in ((a, b), (b, a)):
-            if mine in ours and other not in ours:
-                out.add(ours[mine].replace('left_', '').replace('right_', ''))
-    return sorted(out)
+    """Her segments touching the floor or what lies on it (`_contacts`)."""
+    return _contacts(world)[1]
 
 
 def status(bus, world, director):
     """{name: value}: what felled her, how she lies, what she touches, the rest in numbers."""
     head = _head(bus)
-    feet = on_feet(world)
-    return {'cause': director.cause, 'lying': lying(bus, world), 'face_up': round(head[1][2], 2),
+    feet, touched = contacts = _contacts(world)
+    return {'cause': director.cause, 'lying': lying(bus, world, contacts),
+            'face_up': round(head[1][2], 2),
             'left_up': round(head[1][0], 2), 'head_up': round(head[1][1], 2),
             'pelvis_m': round(bus['pelvis.pose.y'], 2), 'com_ahead_m': round(com_ahead(world), 2),
             'roll_deg': round(roll(world)), 'feet_pitch_deg': round(feet_pitch(world)),
             'speed_m_s': round(math.hypot(bus['pelvis.pose.vx'], bus['pelvis.pose.vz']), 2),
-            'touching': touching(world), 'feet_share': round(feet / WEIGHT_N, 2),
+            'touching': touched, 'feet_share': round(feet / WEIGHT_N, 2),
             'derated': sorted(j for j, n in director.drives.items()
                               if bus.get(n + 'derate', 1.0) < 0.9),
             'tries': director.tries}
