@@ -7,7 +7,7 @@ within the stance legs' reach. `w` is the `walker.Walker`.
 """
 import math
 
-from machine import figure, gait, walkplan
+from machine import capture, figure, gait, walkplan
 from machine.figure import LEG, SOLE_BALL, SOLE_HEEL, add, apply, mul, rx, ry, sub, t
 
 
@@ -64,6 +64,12 @@ HALT, HALT_S, HALT_PACE = 0.6, 1.5, 0.7
 #: of a stride past its toe-off.
 LANDED_N, BEARS_N, BEARS_UNTIL = 60.0, 250.0, 0.06
 
+#: Both soles under LANDED_N FLIGHT_S on, she is in flight and no leg carries her (`legs`). Held by
+#: the phase in the air and solved from the pelvis's target, a foot rode the pelvis's error, 28 cm
+#: across in 0.14 s at 10-14 degrees of roll; at once, the plain walk's dips of 1-2 ms took her
+#: head bob 17 -> 36 mm; from 10 ms its strike 1272 -> 1552 N; from 30 ms, none (2026-10-01).
+FLIGHT_S = 0.03
+
 
 FLAT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
@@ -83,17 +89,26 @@ def anchor(w, dt, bus, qs, balls, soles, height, pel):
     into its stance whatever it bears. Held from the phase alone, a foot still in the air
     was taken to bear her, and she fell when the other left (2026-09-25). Held so and not
     yet borne, it reaches on down for the floor; borne, its floor is where it stands."""
-    for (side, _sign), q in zip(walkplan.SIDES, qs):
-        load = bus['pelvis.pose.%s_load' % side]
-        early = (q >= gait.TOE_OFF + EARLY_U * (1.0 - gait.TOE_OFF) and w.side is None
-                 and (side in w.anchor or (load > LANDED_N and soles[side]
-                                           >= w.floor.get(side, 0.0) + FLOOR_DEAD_M)))
+    loads = [bus['pelvis.pose.%s_load' % side] for side, _sign in walkplan.SIDES]
+    w.flight = w.flight + dt if max(loads) < LANDED_N else 0.0
+    for (side, _sign), q, load in zip(walkplan.SIDES, qs, loads):
+        caught = q >= gait.TOE_OFF + capture.FROM_U * (1.0 - gait.TOE_OFF)
+        stomped = w.side is None and caught and w.catching and load > BEARS_N
+        early = w.side is None and (
+            (caught and side in w.anchor) or stomped
+            or (q >= gait.TOE_OFF + EARLY_U * (1.0 - gait.TOE_OFF)
+                and load > LANDED_N and soles[side] >= w.floor.get(side, 0.0) + FLOOR_DEAD_M))
         if (q >= gait.TOE_OFF and not early) or (w.side is not None and side == w.side['out']
                                                  and w.side['stage'] == 'out'):
             w.anchor.pop(side, None)
             w.borne.discard(side)
         elif side not in w.anchor and (load > LANDED_N or q >= walkplan.ACCEPT):
             w.anchor[side] = (balls[side][0], w.floor.get(side, 0.0), balls[side][2])
+            if stomped:
+                # A catch down early is a stomp's: the walk begun again on it. Run on at its
+                # swing's phase or the phase jumped to its landing, the same 7 of 16 shoves held
+                # (2026-10-01).
+                w.resume = side
             w.trip.pop(side, None)
             # The height's target starts from where the body is, up again (RAISE_M_S):
             # landed with the body 3 cm low over the leaning leg, both legs pushed to the
@@ -145,8 +160,11 @@ def legs(w, out, bus, qs, legs, feet, held, swings, target, turn, turn_now, pel)
         at = held[side] if side in held else swings[side]
         if flat(w, side, q):
             foot, toes = FLAT, 0.0
-        if q < gait.TOE_OFF + BEARS_UNTIL and bus['pelvis.pose.%s_load' % side] > LANDED_N:
-            b = max(b, min(1.0, bus['pelvis.pose.%s_load' % side] / BEARS_N))
+        load = bus['pelvis.pose.%s_load' % side]
+        if q < gait.TOE_OFF + BEARS_UNTIL and load > LANDED_N:
+            b = max(b, min(1.0, load / BEARS_N))
+        elif w.flight >= FLIGHT_S:
+            b = 0.0
         if w.side is not None:
             bears = w.side['out'] if w.side['stage'] == 'down' else w.side['down']
             b = 1.0 if side == bears else 0.0

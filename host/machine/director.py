@@ -24,9 +24,12 @@ from concurrent.futures import ThreadPoolExecutor
 from machine import (arrival, drives, falls, figure, gait, getup, heat, observer, planner,
                      walker, walkplan, stance)
 
-#: Falling, past the walker's recovery: the pelvis tipped past FALLING_DEG and tipping on faster
-#: than FALLING_DEG_S (the head's gyro), or under FALLING_M, walking. Fallen - under FALLEN_M or
-#: tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves - is down.
+#: Falling, past the walker's recovery: the head (its IMU) tipped past FALLING_DEG and tipping on
+#: faster than FALLING_DEG_S, or the pelvis under FALLING_M, walking. Fallen - under FALLEN_M or
+#: the head tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves - is
+#: down. Read on the pelvis, a parry's step pitched it 9 degrees at 141 deg/s, the spine took it
+#: back out, the head stood at 4, and the fall called shorted her legs as the foot landed with the
+#: capture point on it; walking, the head peaks at 4.2 degrees and 21 deg/s (2026-10-01).
 FALLING_DEG, FALLING_DEG_S, FALLING_M = 12.0, 60.0, 0.65
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
@@ -321,9 +324,13 @@ class Director:
         return self.still >= STILL_S
 
     def _tilt(self, bus):
-        """The pelvis's tilt from upright, degrees."""
-        up = self._pelvis(bus)[1][1][1]
+        """The head's tilt from upright, degrees."""
+        up = self._head(bus)[1][1]
         return math.degrees(math.acos(max(-1.0, min(1.0, up))))
+
+    def _head(self, bus):
+        """The head's turn as its IMU read it."""
+        return figure.quat(*(bus['pelvis.pose.head_q' + a] for a in 'wxyz'))
 
     def _falling(self, bus):
         """Past recovery, walking: tipped past FALLING_DEG and tipping on faster than
@@ -339,10 +346,11 @@ class Director:
                                                     and self.fall_rate > FALLING_DEG_S)
 
     def _fall_way(self, bus):
-        """Which way the pelvis tips, deg about the vertical from its own forward, + to its
+        """Which way the head tips, deg about the vertical from the pelvis's forward, + to its
         left."""
-        turn = self._pelvis(bus)[1]
-        up, ahead, left = ((turn[0][k], turn[2][k]) for k in (1, 2, 0))
+        turn, head = self._pelvis(bus)[1], self._head(bus)
+        up = (head[0][1], head[2][1])
+        ahead, left = ((turn[0][k], turn[2][k]) for k in (2, 0))
         return math.degrees(math.atan2(up[0] * left[0] + up[1] * left[1],
                                        up[0] * ahead[0] + up[1] * ahead[1]))
 

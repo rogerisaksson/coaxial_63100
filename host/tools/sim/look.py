@@ -44,11 +44,13 @@ RATE_HZ, FIRST_S, EVENT_S = 60.0, 1.0, 12.0
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 
 
-def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT_S):
+def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT_S, pushes=()):
     """The rows from the squat, `to_s` seconds, the director as the page runs her - halted at
-    `halt_s`, an `event` laid from `event_s` (`machine.events`), LEG_GAIN among `values`
-    stiffening LEG_KINDS; a row what of her touches the floor (`down`), when the event was laid
-    (`laid`)."""
+    `halt_s`, an `event` laid from `event_s` (`machine.events`), pushed at each of `pushes` (s)
+    as the page's P pushes, its side swapped each time; LEG_GAIN among `values` stiffening
+    LEG_KINDS; a row what of her touches the floor (`down`), when the event was laid (`laid`)."""
+    from machine.events import SHOVE_S as PUSH_S, SHOVES
+    PUSH_N = SHOVES['shove']
     from machine import physics
     from tools.sim.gait_montecarlo import _set
     values = dict(values)
@@ -69,8 +71,12 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
     bus, out, said = body.loop.bus, [], -1.0
     world = body.nodes['pelvis'].world
     ours = {world.model.body(seg[0]).id: seg[0] for seg in SEGMENTS}
-    laid, was = None, 0.0
-    while bus['t'] < to_s and (event or director.stage != 'fallen'):
+    laid, was, side, due = None, 0.0, 1.0, sorted(pushes)
+    while bus['t'] < to_s and (event or pushes or director.stage != 'fallen'):
+        if due and bus['t'] >= due[0]:
+            due.pop(0)
+            side = -side
+            world.push((side * PUSH_N, 0.0, 0.0), PUSH_S)
         if (event and laid is None and bus['t'] >= event_s
                 and was < events.at(event) <= director.walker.phase):
             events.lay(event, director, world)
@@ -185,6 +191,8 @@ def main(argv=None):
     parser.add_argument('--halt', type=float, help='halted at this second, into the squat')
     parser.add_argument('--event', help='a floor event laid: hole, sill, slip, rug, lace, soa, hot')
     parser.add_argument('--event-at', type=float, default=EVENT_S, help='laid from this second')
+    parser.add_argument('--push', type=float, nargs='*', default=[], metavar='S',
+                        help="pushed at these seconds as the page's P pushes")
     parser.add_argument('--brief', action='store_true',
                         help="the stages in a line and the walk's measures: no tables")
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
@@ -196,7 +204,7 @@ def main(argv=None):
     path = args.csv or (max(found, key=os.path.getmtime) if found else None)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
     rows = recorded(path) if path else simulated(args.to, values, args.cadence, args.halt,
-                                                 args.event, args.event_at)
+                                                 args.event, args.event_at, args.push)
     print(path or 'simulated from the squat, %.1f s %s' % (
         args.to, ' '.join(args.knobs)))
     groups, ref = staged(rows)

@@ -29,6 +29,7 @@ from coaxial.graphics import gpu, gynoid
 from coaxial_ollama.client import Chosen
 from machine import ansi, gait, style
 from machine.director import moment
+from machine.events import SHOVE_S, SHOVES
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from machine.routines import TYPES
 from machine.running import Running
@@ -94,8 +95,8 @@ def gauges(state):
 #: it, the orbit's degrees a second, the zoom's bounds.
 YAW, TURN_DEG, ORBIT_DEG_S, ZOOM = 60.0, 10.0, 12.0, (0.6, 2.5)
 
-#: A shove from her side, newtons for seconds.
-PUSH_N, PUSH_S = 120.0, 0.12
+#: A shove from her side, newtons for seconds: `machine.events`' past saving.
+PUSH_N, PUSH_S = SHOVES['shove'], SHOVE_S
 
 #: The boards G and H glitch, in turn, and how long G's SOA lasts, s.
 GLITCHED, SOA_S = ('left_knee', 'right_knee', 'left_hip', 'right_hip'), 0.5

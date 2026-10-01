@@ -15,7 +15,7 @@ in two seconds (2026-09-25).
 """
 import math
 
-from machine import capture, figure, gait, landing, stance, walkplan
+from machine import capture, figure, gait, landing, parry, stance, walkplan
 from machine.pendulum import SPINE_TO_EARS_M, Pendulum
 from machine.figure import LEG, add, mul, rx, ry, rz, t
 
@@ -49,12 +49,8 @@ CG_OVER = 0.0
 SIDE_TURN_RAD = 0.035
 
 
-#: A side step ends in the walk begun again (`begin`) at the stride her speed says, RESUME of the
-#: walk's at least, her speed on filtered over ON_S, s, the setpoints blended from the step's
-#: over RESUME_BLEND_S: over the start's 0.3 s the trailing foot stayed down, bearing 250 N, and
-#: the centre of pressure between the feet drove the capture point on past the standing foot
-#: (2026-09-27).
-RESUME, ON_S, RESUME_BLEND_S = 0.3, 0.05, 0.1
+#: Her speed on, filtered over ON_S, s (`landing.restart` begins the walk again at its stride).
+ON_S = 0.05
 
 
 #: The pelvis's sideways speed is filtered over SPEED_S, s: raw, every landing's jolt went straight
@@ -153,6 +149,10 @@ class Walker:
         #: rows (`machine.capture`); the side step under way (`_sidestep`), None walking; the
         #: foot the walk begins again on after one.
         self.catching, self.hurry, self.capture = False, 0.0, capture.state()
+        #: Shoved: the capture point past the standing feet's outer edge (`landing.shoved`); the
+        #: parry's upper body, how far on and which way (`machine.parry`); how long neither sole
+        #: has borne her, s (`stance.FLIGHT_S`).
+        self.shoved, self.parry, self.flight, self.again = False, (0.0, 1.0), 0.0, False
         self.side, self.resume = None, None
         #: The phase's rate, strides/s; how long a standing foot has waited for the other to bear;
         #: how far the pelvis's target is lowered, m: for a swinging foot to reach, from a
@@ -210,12 +210,13 @@ class Walker:
         return angles
 
     def begin(self, held, wide=0.0, scale=None, phase=None, blend_s=stance.BLEND_S, ball_ahead=None,
-              on='left', lean=0.0):
+              on='left', lean=0.0, again=False):
         """Walking from where she stands on her left foot, the right lifted: {joint: deg}
         `held` the stand's setpoints, eased out of over `blend_s`; the first steps `wide` m
         further out than the walk's, narrowing over WIDE_S; at `phase`, or where the plan has
         the pelvis `ball_ahead` m behind the ball of the foot `on`, HEEL_OFF at most; the pelvis
-        and the torso `lean` deg ahead of the plumb line, let out over gait.LEAN_OUT_S."""
+        and the torso `lean` deg ahead of the plumb line, let out over gait.LEAN_OUT_S; `again`
+        after a catch, which may catch again (`landing.SIDE_AGAIN_S`)."""
         self.blend_s, self.lean = blend_s, float(lean)
         self.anchor, self.was_q = {}, {}
         self.stood, self.x_was, self.v_side = {}, None, 0.0
@@ -223,12 +224,17 @@ class Walker:
         self.first = stance.BEGIN if scale is None else float(scale)
         self.scale = self.first
         if ball_ahead is not None:
-            phase = min(gait.HEEL_OFF, gait.STANCE_AT
-                        + (gait.BALL - ball_ahead) / (gait.STRIDE_M * self.stride))
+            # No sooner than its heel strike: a catch landed further ahead came to -0.21, the
+            # phase wrapped into its swing and lifted the foot she was to stand on (2026-10-01).
+            phase = max(0.0, min(gait.HEEL_OFF, gait.STANCE_AT
+                                 + (gait.BALL - ball_ahead) / (gait.STRIDE_M * self.stride)))
             phase = phase if on == 'left' else (phase + 0.5) % 1.0
         self.phase = stance.BEGIN_AT if phase is None else phase
         self.lift, self.halting, self.length_was = None, None, None
         self.capture, self.side, self.resume, self.hurry = capture.state(), None, None, 0.0
+        # Read a pass stale, a catch had the other foot, bearing where the new phase swung it,
+        # begin the walk again on itself (2026-10-01).
+        self.catching, self.again = False, again
         self.rate, self.waited, self.lurch = self.cadence, 0.0, None
 
     def face(self, heading):
@@ -290,7 +296,7 @@ class Walker:
             ankles[side] = figure.foot_of(sign, pel, turn_now, angles)[0]
         self.balls = balls
         if self.resume is not None:
-            self._restart(balls, pel)
+            landing.restart(self, balls, pel)
             stride, length = self.stride, gait.STRIDE_M * self.stride
         stance.advance(self, dt, length, balls, pel, bus)
         lateral, height, yaw, legs, upper, roll = walkplan.plan(self.phase, stride)
@@ -375,6 +381,9 @@ class Walker:
             SHOULDERS_BACK * (pel[0] - line / weight), SHOULDERS_M)))
         out['neck'] = out['neck'] - (pitch + bus.get('spine.deg', 0.0))
         stance.legs(self, out, bus, qs, legs, feet, held, swings, target, turn, turn_now, pel)
+        self.parry = parry.ease(self.parry, self.catching or self.shoved,
+                                1.0 if v_side >= 0.0 else -1.0, dt)
+        out = parry.upper(out, *self.parry)
         if self.held is not None:
             self.age += dt
             self.scale = self.first + (1.0 - self.first) * gait.eased(self.age / stance.RAMP_S)
@@ -385,18 +394,3 @@ class Walker:
                 self.held = None
         self.last = out
         return out
-
-    def _restart(self, balls, pel):
-        """The walk begun again after a side step, as from standing (`begin`): on the foot that
-        bears her, at the phase its place says, the other to step in beside it, the midline the
-        walk's own from the standing foot, the stride her speed's. Resumed in one pass, the
-        plan's height 3 cm above a body sunk over the leaning leg, both legs threw her 6 cm into
-        the air, and the other foot was yanked into mid-swing; begun wide, the midline between
-        the feet drew her off the standing one (2026-09-26)."""
-        on = 'left' if self.resume == 'left' else 'right'
-        ball = balls[on]
-        sign = 1.0 if on == 'left' else -1.0
-        full = self.cadence * gait.STRIDE_M * gait.pace(self.cadence)
-        self.begin(self.last, scale=max(RESUME, min(1.0, self.v_on / full)),
-                   blend_s=RESUME_BLEND_S, ball_ahead=ball[2] - pel[2], on=on)
-        self.stood['right' if on == 'left' else 'left'] = ball[0] - sign * 2.0 * walkplan.TRACK_M

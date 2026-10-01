@@ -69,86 +69,52 @@ Open work. Measured results are in FINDINGS.
   heat is world_heat.c's), one source for both wanted; one Transport a rig on
   a URL bus, the limb keeping t3.5 for them; not yet the fallback where
   nothing answers (Renode is).
-- Gynoid (`machine.walker`): the swing foot lands on the capture point
-  (`machine.capture`), a swap is a side step, the walk begun again after
-  it. The rises and the walks hold. Scored by `tools/sim/gait_montecarlo.py`
-  on the floor's events (`physics.World.terrain`): the hole and the loose
-  rug fell her, the sill and the slip patch tip her 6-8 degrees: held 75.7 %
-  (75.6 at 742e90e, 2026-10-01; three spreads a trial are chance: over 18 a
-  slip holds 13 where 9). Reflexes, on the head's and the strong joints' inertial
-  measurements: a foot that finds no floor reaches down and the floor is
-  where it found it (the anchor's y is 0 now); a stubbed toe lifts higher
-  and the body's fall is caught by the next step; a sliding foot
-  re-anchored at once, the other foot down early. A knee folding under
-  her (a drive derated hot): sink onto the strong leg and kneel on the
-  weak one - a bent knee on the floor asks its drive nothing - and rise on
-  the strong leg when it holds again; the cut knee she rides out. Fallen
-  she gets up (`machine.getup`) on a plan the observer checks step by step
-  (`machine.observer`, `machine.planner`: a local model's, a server's after
-  LOCAL_TRIES - no server client yet - else its own): onto her front, the
-  knees under, back on her heels, onto her feet, knees together; 13 of 13
-  falls walk again 20-25 s after, the stairs untried. Falling, the waist
-  turns her arms toward the fall (`falls.turn`); pads at the elbows, hips
-  and knees (`figure.PADS`). Kneeling over the hole's edge, one knee 3 cm
-  down, knees under and sitting back roll her 50-89 degrees, 5 tries of 5.
-  The stairs fell her at the first riser since 855c87c (the jeans' stiff
-  stops; ea813de climbed all five): each riser is met at 0.85-0.9 of a
-  swing, past TRIP_LATE, the foot put down short and the other stepping
-  over strikes the step at 1.4 kN; laid from her real step (0.485 m, the
-  plan's 0.425) it fails the same - a step up for a late stub of a low
-  riser is wanted. The
-  scoreboard counts the time down. The shoves' findings stand: toward the
-  standing foot the side step ends with
-  the capture point 27 cm ahead and no foot there; shoved at 0.30 of the
-  stride the landing latched at 0.7 of the swing sits 14 cm inside the
-  capture point. The torso's counter and the damping are off (the counter
-  nods the torso, the damping fells the walk at 0.9); the soles light
-  sneakers. The look: the ears bob 11 mm a stride and go 56 mm fore and
-  aft, the head nodding 2.2 degrees - the pelvis 30 (the vault of a 1 m
-  stride) doubled by the torso's 3 degrees of pitch; the stance knee 15-20
-  degrees through mid-stance from
-  the height latched 10-12 mm low at each landing (the sole's and the
-  joints' give under the strike). Left to try: a stiffer spine drive or a
-  rightly signed lead on the gyro for the torso; a shorter stride at a
-  higher cadence for the same speed; a landing that does not sag; and the
-  pendulum between the ears as the observer whose swing places the next
-  step - a trip swings the bob ahead, the step goes out under it, a stomp
-  or two, then the walk again (asked 2026-09-27; PEND_K fell at 1.5 - the
-  sign and the gain against the bob's 2 s period to be worked out). A lace
-  holding her trailing foot, she dives onto her hands with her legs straight
-  behind: the knees under her before the hands, a catch on all fours. The
-  walk lands on the ball, softly: the scoreboard's landing cost (the impact over
-  30 ms, the touchdown's speed) searched with LAND_DEG below 0. The
-  scoreboard's trials split as the suites are (`test_gynoid.py` on fantasy
-  boards, `test_gynoid_faults.py`), the look's measures in its cost. Her
-  boards run
-  on their buses, a process a limb (`machine.buses`): an emulated limb takes
-  a process's place on its port and block when the emulation is ready, and
-  the firmware's map wants the walk's registers (`machine.rtu`: SETPOINT_REG,
-  STATE_REG, GATE_REG); the IMU's reading is the world's own still, not a
-  frame on the axis bus. Each board keeps its heat and says it (`machine.heat`,
-  one drive for every joint until the drives are sized); the director eases
-  the pace on it and arms a dropped board again. The halt falls in its
-  settle wherever tried: her centre of mass stands off the feet's line as
-  it takes over - stopped by the walker's own capture of it, a stop to cool
-  a drive could stand. A lace snagged shoe to shoe (`World.lace`) trips her,
-  a catch step tried and 5 of 6 taut ones fell her (`look.py --event lace`).
-  Prone, the push-up and
-  the dog leave the head and the torso on the floor, the arms too weak to
-  lift them (`tools/sim/getup_lab.py` heels, bearwalk): the model's 40 and
-  25 N m are a woman's, kept against the drives' 101 and 30 (the user,
-  2026-09-30). The model carries a tenth of the rotors the cycloids show
-  (`physics.REFLECTED`): the walk to be tuned on them; M's and S's motors
-  are estimates. The walk begins from a lean, the body 8 degrees ahead of
-  plumb, the walker taking her mid-swing and letting the lean out over 2 s,
-  the pelvis with the torso; the weight goes 3 cm onto the left foot before
-  the right lifts and the rest as it lifts, the stance hip rolled -2.5
-  standing: a lift on the capture point (her centre of mass still moving
-  left) failed past 6.5 cm, the first steps falling. The softer soles that
-  felled the old first stride are
-  untried on it, then a compressible sole layer for more give than a
-  contact's. The scoreboard's spread leaves 0.5 of cost to chance; the arms
-  from the forearm cost 1.0 more, on the slip at 0.9 strides/s.
+- Gynoid, open (a line goes when done):
+  + The scoreboard in three: a walk scored on its smoothness and energy, a
+    fall ignored; a stumble, slip or push on the parry, its fall the
+    heaviest cost; a fall past saving on the landing's impulse.
+  + Past saving - the page's P push, 120 N for 0.12 s, held 0 of 48 - a leg
+    out and down into a superhero crouch, caught on a hand and a knee, not
+    falling stiff; its landing in a suite test. A lace holding her trailing
+    foot she dives onto her hands, legs straight: the knees under first.
+  + The scoreboard's events held: the hole 53 %, the rug 51 %, the lace 26 %
+    (82.5 % in all, HEAD 75.8; 2026-10-01). The walk at 1.0 strides/s falls
+    in 3 runs of 3 (HEAD 2 of 3).
+  + The obstacles' contacts stiffer: toes 20 mm into the sill for 35 ms,
+    fingers 26 mm into the floor (MuJoCo's 0.02 s give).
+  + The stairs fell her at the first riser since 855c87c: each riser met at
+    0.85-0.9 of a swing, past TRIP_LATE, the foot put down short, the other
+    striking the step at 1.4 kN; a step up for a late stub wanted; the get-up
+    on the stairs untried. Kneeling over the hole's edge, one knee 3 cm down,
+    knees under and sitting back roll her 50-89 degrees, 5 tries of 5.
+  + Lying fallen she draws 794 W, walking 482: each ankle 135 W of copper
+    at 135 N m, its peak, though `falls.SHORT_FALLING` shorts it.
+  + A softer walk: fewer strikes (1272 N), less power (work 254 W, copper
+    160 W of the 482 drawn). The ears bob 11 mm a stride and go 56 mm fore
+    and aft, the pelvis's 30 doubled by the torso's 3 degrees of pitch; the
+    stance knee 15-20 degrees through mid-stance, latched 10-12 mm low at
+    each landing. To try: a stiffer spine drive or a rightly signed gyro lead
+    on the torso; a shorter stride at a higher cadence; a landing that does
+    not sag, on the ball (LAND_DEG below 0 under the landing's cost);
+    softer soles, then a compressible sole layer; the pendulum between the
+    ears placing the next step (PEND_K fell at 1.5, 2026-09-27).
+  + The halt falls in its settle wherever tried: her centre of mass stands
+    off the feet's line as it takes over.
+  + No abrupt moves getting up: the neck 921 deg/s sitting back and 823
+    lifting, a shoulder 577-622 rolling and in the squat; setpoints jump at
+    the hand-offs, the waist 1.5 deg a pass into the unfold, a knee 8 at the
+    first step.
+  + The get-up faster (21.5 s from the fall to walking); the loop
+    profiled and made data-oriented; the arrival's runaway guard.
+  + The model carries a tenth of the rotors the cycloids show
+    (`physics.REFLECTED`): the walk to be tuned on them; M's and S's motors
+    are estimates.
+  + Her boards on their buses (`machine.buses`): an emulated limb in a
+    process's place on its port and block; the firmware's map wanting the
+    walk's registers (`machine.rtu`); the IMU on the axis bus, not the
+    world's own reading.
+  + The planner's server after LOCAL_TRIES local failures.
+  + `machine/` in subpackages.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

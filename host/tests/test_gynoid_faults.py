@@ -191,7 +191,7 @@ def test_a_trip_lands_her_shorted(report):
             shorted = {j: bool(int(bus[name + 'status']) & heat.SHORTED)
                        for j, name in director.drives.items()}
     report.check('the lace tripped her past recovery: falling, then down',
-                 laid is not None and [s for s in stages[1:] if s != 'catch'][:2]
+                 laid is not None and [s for s in stages[1:] if s not in ('catch', 'walk')][:2]
                  == ['falling', 'fallen'], ' '.join(stages))
     report.check('her head not the first of her on the floor', first not in (None, 'head'),
                  'first %s' % first)
@@ -204,6 +204,58 @@ def test_a_trip_lands_her_shorted(report):
                  '%s at %.1f s, down at %s' % (director.stage, bus['t'],
                                               '%.1f s' % down if down else '-'))
     body.disarm()
+
+
+#: Shoves of SHOVE_N for SHOVE_S along her side after SHOVE_AFTER_S of walking, at 8 phases of
+#: the left leg's stride, to either side: each one caught within PARRY_SEEN_S, the arms raised,
+#: the feet never further apart than APART_M; HELD_OF_16 held. Measured: HEAD held 1 and caught
+#: 0.10-0.34 s on; the parry held 7, caught 0.07-0.25 s on, the feet 0.53 m apart at most
+#: (2026-10-01).
+SHOVE_N, SHOVE_S, SHOVE_AFTER_S, PARRY_SEEN_S, APART_M, HELD_OF_16 = 60.0, 0.12, 6.0, 0.25, 0.6, 5
+
+
+def test_a_shove_parried(report):
+    """Shoved sideways walking, she parries (`machine.landing`, `machine.parry`): the shove seen
+    as the capture point leaves her feet, a hurried step that may cross over toward it, the arms
+    raised - choreographed, her feet kept within a step - and held as often as measured."""
+    from machine import Machine
+    from machine.director import Director
+    from machine.modes import DYNAMIC
+    rows = []
+    for phase in [k / 8.0 + 0.01 for k in range(8)]:
+        for side in (1.0, -1.0):
+            body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+            body.arm()
+            director = Director(body, 0.85)
+            director.walker.start()
+            director.stage = 'walk'
+            body.loop.step(0.0)
+            bus, world = body.loop.bus, body.nodes['pelvis'].world
+            feet = [world.model.body(s + '_foot').id for s in ('left', 'right')]
+            pushed, was, fell, seen, apart, arms = None, 0.0, False, None, 0.0, 0.0
+            while bus['t'] < (pushed or 99.0) + 4.0 and not fell:
+                if pushed is None and bus['t'] >= SHOVE_AFTER_S and was < phase <= director.walker.phase:
+                    world.push((side * SHOVE_N, 0.0, 0.0), SHOVE_S)
+                    pushed = bus['t']
+                was = director.walker.phase
+                body.loop.write(**director.step(0.001))
+                body.loop.step(0.001)
+                fell = director.stage in ('falling', 'fallen')
+                if pushed is not None:
+                    seen = seen if seen is not None or director.stage != 'catch' else bus['t'] - pushed
+                    apart = max(apart, abs(world.data.xpos[feet[0]][0] - world.data.xpos[feet[1]][0]))
+                    arms = max(arms, min(bus.get(s + '_shoulder.deg', 0.0) for s in ('left', 'right')))
+            body.close()
+            rows.append((not fell, seen, apart, arms))
+    late = [r[1] for r in rows if r[1] is None or r[1] > PARRY_SEEN_S]
+    report.check('every shove caught within %.2f s' % PARRY_SEEN_S, not late,
+                 '%.2f-%.2f s' % (min(r[1] or 9.0 for r in rows), max(r[1] or 9.0 for r in rows)))
+    report.check('the arms raised in the parry', min(r[3] for r in rows) > 0.0,
+                 '%.0f-%.0f deg' % (min(r[3] for r in rows), max(r[3] for r in rows)))
+    report.check('her feet never more than %.1f m apart' % APART_M,
+                 max(r[2] for r in rows) <= APART_M, '%.2f m' % max(r[2] for r in rows))
+    report.check('%.0f N for %.2f s held %d of 16 at least' % (SHOVE_N, SHOVE_S, HELD_OF_16),
+                 sum(r[0] for r in rows) >= HELD_OF_16, '%d of 16' % sum(r[0] for r in rows))
 
 
 def test_the_planner(report):
@@ -299,7 +351,7 @@ def test_her_pads(report):
 
 
 ROSTER = (test_a_drive_keeps_its_heat, test_a_drive_in_its_soa, test_a_trip_lands_her_shorted,
-          test_fantasy_boards_never_bind, test_the_planner, test_her_pads)
+          test_fantasy_boards_never_bind, test_a_shove_parried, test_the_planner, test_her_pads)
 
 
 def main(argv=None):

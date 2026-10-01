@@ -38,7 +38,9 @@ DOWN_AHEAD_M, DOWN_BEHIND_M = 0.15, 0.25
 
 
 #: No side step in the first SIDE_AGAIN_S of a walk begun again: none until its blend was done,
-#: one asked in it went the way the capture point had left (2026-09-27).
+#: one asked in it went the way the capture point had left (2026-09-27). No catch either, and from
+#: then on one: held off for the ramp's 2.5 s, a shove caught by one step fell at the next
+#: (2026-10-01).
 SIDE_AGAIN_S = 0.15
 
 
@@ -54,6 +56,16 @@ SIDE_GIVE_S, DOWN_M, SIDE_OUT_FIRST = 0.4, 0.01, 0.25
 #: The swapped foot is put down SIDE_CLEAR_M across from the other's line at least: put down
 #: where it was, 3 cm across, the other's toes struck its heel going by, 1800 N (2026-09-27).
 SIDE_CLEAR_M = 0.12
+
+
+#: The parry: shoved - the capture point PARRY_M past the outer edge of the feet that stand and
+#: going on out - or catching, the phase runs PARRY_HURRY faster, the swing landing sooner and
+#: nearer: the capture point grows e^(omega tau), omega 3.3/s. Shoved 120 N for 0.12 s toward the
+#: standing foot, that foot lifted at its toe-off 0.15 s on with the capture point 9 cm past it,
+#: and the law sent its 0.4 s swing 44 cm out. Held of 48 shoves of 60 N: none 10, 0.15 10, 0.22 8,
+#: 0.3 16, 0.34 17, 0.45 2, 1.0 0; the catch held 0.1 or 0.2 s on past its last asking, 7 and 3
+#: (2026-10-01).
+PARRY_M, PARRY_HURRY = 0.02, 0.32
 
 
 #: A catch the leg cannot reach standing is a stomp: the swinging foot put down at once on the
@@ -214,9 +226,11 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
     sidestep(w, dt, swapping, loads, balls, legs, pel, ankles)
     if w.side is not None:
         w.capture['swapping'][:] = 0.0
-    w.hurry = SIDE_HURRY if w.side is not None else 0.0
     # No catch in the first strides: their landings are off the walk's own by design.
-    w.catching = w.side is not None or (w.held is None and bool(catch.any()))
+    w.shoved = shoved(w, xi)
+    ready = w.held is None or (w.again and w.age >= SIDE_AGAIN_S)
+    w.catching = w.side is not None or (ready and (bool(catch.any()) or w.shoved))
+    w.hurry = SIDE_HURRY if w.side is not None else PARRY_HURRY if w.catching else 0.0
     out, lower, feet_x = {}, 0.0, {}
     if w.over is not None and min(a[2] for a in ankles.values()) >= w.over:
         w.over = None
@@ -295,6 +309,39 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
             w.hurry, w.catching = SIDE_HURRY, True
         out[side], lower = at, max(lower, short)
     return out, lower, feet_x, off
+
+
+def shoved(w, xi):
+    """Whether the capture point `xi` is PARRY_M past a standing foot's outer edge, on that
+    foot's own side, going on out: toward a swinging foot it runs out by the walk's own course
+    (`capture.XI_NOM`) - counted on both sides, a plain walk was shoved 1.2 s in 20
+    (2026-10-01)."""
+    edge = figure.SOLE_HALF + PARRY_M
+    return any(side in w.anchor and sign * w.v_side > 0.0
+               and sign * (xi - w.anchor[side][0]) > edge for side, sign in walkplan.SIDES)
+
+
+#: A side step ends in the walk begun again (`restart`) at the stride her speed says, RESUME of
+#: the walk's at least, the setpoints blended from the step's over RESUME_BLEND_S: over the
+#: start's 0.3 s the trailing foot stayed down, bearing 250 N, and the centre of pressure between
+#: the feet drove the capture point on past the standing foot (2026-09-27).
+RESUME, RESUME_BLEND_S = 0.3, 0.1
+
+
+def restart(w, balls, pel):
+    """The walk begun again after a side step, as from standing (`begin`): on the foot that
+    bears her, at the phase its place says, the other to step in beside it, the midline the
+    walk's own from the standing foot, the stride her speed's. Resumed in one pass, the
+    plan's height 3 cm above a body sunk over the leaning leg, both legs threw her 6 cm into
+    the air, and the other foot was yanked into mid-swing; begun wide, the midline between
+    the feet drew her off the standing one (2026-09-26)."""
+    on = 'left' if w.resume == 'left' else 'right'
+    ball = balls[on]
+    sign = 1.0 if on == 'left' else -1.0
+    full = w.cadence * gait.STRIDE_M * gait.pace(w.cadence)
+    w.begin(w.last, scale=max(RESUME, min(1.0, w.v_on / full)),
+            blend_s=RESUME_BLEND_S, ball_ahead=ball[2] - pel[2], on=on, again=True)
+    w.stood['right' if on == 'left' else 'left'] = ball[0] - sign * 2.0 * walkplan.TRACK_M
 
 
 def sidestep(w, dt, swapping, loads, balls, legs, pel, ankles):

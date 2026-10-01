@@ -36,22 +36,29 @@ XI_NOM = (0.000, 0.006, 0.013, 0.026, 0.033, 0.034, 0.042, 0.050, 0.051)
 #: The row: its parameters, then its memory - the lateral latched and whether - and whether a
 #: swap is asked this pass: latched, one asked as the capture point left was done 0.2 s later,
 #: the capture point back on the other side (2026-09-27).
-PARAMS = ('margin', 'gain', 'dead', 'cross', 'swap', 'from_u', 'latch_u', 'catch')
-CAPTURE = np.dtype([(n, 'f8') for n in PARAMS + ('x', 'latched', 'swapping')])
+PARAMS = ('margin', 'gain', 'dead', 'cross', 'swap', 'from_u', 'latch_u', 'catch', 'wide')
+CAPTURE = np.dtype([(n, 'f8') for n in PARAMS + ('x', 'latched', 'swapping', 'need')])
 
 #: The sole's half width the ankle holds within, m; the landing's gain on what is off; the dead
 #: band, m; the nearest across, the crossing that swaps, the swing's progress a swap is asked
 #: within; the progress the lateral is latched from; a landing this far off the walk's is a
 #: catch - a swinging leg's: the standing leg's row, read against the swinging foot kept out
-#: round it, flagged one every stride (2026-09-28): `state`'s defaults, in PARAMS' order.
-MARGIN, GAIN, DEAD, CROSS, SWAP, FROM_U, LATCH_U, CATCH = (0.035, 1.1, 0.01, 0.02, 0.03, 0.12,
-                                                            0.7, 0.04)
+#: round it, flagged one every stride (2026-09-28); the widest across, a step the leg takes -
+#: unbounded, a side step was sent 0.62 m out, flew 0.5 m in 0.1 s and split her legs 0.86 m
+#: apart (2026-10-01): `state`'s defaults, in PARAMS' order. `need` is the across asked before
+#: WIDE bounds it. Shoved toward the standing foot the swinging one crosses over in front of it,
+#: CROSS: kept 2 cm on its own side, a swap put it down there, away from her fall, it bore under
+#: 150 N and the other stepped out on nothing; held of 48 shoves of 60 N: 0 then, crossing 10,
+#: 15 or 20 cm 21, 22, 21, swapping past 15 or 25 cm 18 and 21 (2026-10-01).
+MARGIN, GAIN, DEAD, CROSS, SWAP, FROM_U, LATCH_U, CATCH, WIDE = (0.035, 1.1, 0.01, -0.15, 0.25,
+                                                                  0.12, 0.7, 0.04, 0.3)
 
 
 def state(rows=2, **params) -> NDArray:
     """A row a leg, `params` over the defaults on every row, nothing latched."""
     s = np.zeros(rows, CAPTURE)
-    defaults = dict(zip(PARAMS, (MARGIN, GAIN, DEAD, CROSS, SWAP, FROM_U, LATCH_U, CATCH)))
+    defaults = dict(zip(PARAMS, (MARGIN, GAIN, DEAD, CROSS, SWAP, FROM_U, LATCH_U, CATCH,
+                                 WIDE)))
     for name, value in dict(defaults, **params).items():
         s[name] = value
     return s
@@ -73,7 +80,8 @@ def landing(s: NDArray, u) -> tuple:
     fresh = prog < s['latch_u']
     ask = (across < -s['swap']) & swinging & (prog >= s['from_u']) & (prog < 1.0 - s['from_u'])
     s['swapping'] = np.where(ask, 1.0, 0.0)
-    across = np.maximum(across, s['cross'])
+    s['need'] = across
+    across = np.clip(across, s['cross'], s['wide'])
     keep = (s['latched'] == 1.0) & ~fresh
     s['x'] = np.where(keep, s['x'], standing + sign * across)
     s['latched'] = np.where(fresh, 0.0, 1.0)

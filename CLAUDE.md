@@ -95,6 +95,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   first).
 - **Narrowest test first** while a bug is live. **Green before the next
   item**, pre-existing failures included.
+- **Work goes into docs/TODO.md** the moment it is asked or found, and its
+  line is deleted when done: the list, not the conversation, carries it.
+  Unclear or self-contradicting: ask.
 - **Suspect your own code before the hardware**: reference implementation,
   init order (MSP callbacks reset pins), widths and byte order, worst-case
   buffer; verify the fix ran. BNO085: 6 firmware bugs, 0 hardware.

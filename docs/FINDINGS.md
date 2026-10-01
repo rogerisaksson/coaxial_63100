@@ -688,9 +688,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   the step expected again: she walks up all five, and pitches over at a
   landing a step lower (2026-09-28).
 - Falling, the legs' and trunk's drives shorted (kt^2/R: 140 N m s/rad an
-  L joint, 34 an M, 6.1 an S, to the board's amps; `falls.SHORT_FALLING`);
-  the arms held to the catch pinned their drives in all four falls, soft
-  (`falls.SOFT_DEG`) 1-17 ms each. Up on a woman's 40/25 N m arms, sat,
+  L joint, 34 an M, 6.1 an S, to the board's amps; `falls.SHORT_FALLING`).
+  Up on a woman's 40/25 N m arms, sat,
   folded over the knees, after the rug and the lace in 25 s. Risen
   facing where she lay she fell 0.2-1 s into the walk: MuJoCo's pyramid
   cone grips along the world's axes; elliptic at impratio 10 she walks 13 m
@@ -714,14 +713,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   bare 6.0 (2026-10-01).
 - The lace a snag (`World.lace`): 6 of 9 went taut, 5 felled her
   (2026-10-01).
+- P's push (120 N, 0.12 s) felled her back to 279ba6f. Shoved 30, 60, 120
+  N, 48 times each, HEAD held 33, 10, 1, the parry 38, 21, 0
+  (`landing.PARRY_HURRY`); the scoreboard 75.8 -> 82.5 % (2026-10-01).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The
   ankle rolls 5.5-5.9 through the loading, the foot flat: tracks at 40-50
   mm take it to 4.8-3.6 but she cannot balance on them (2026-09-28).
-- The scoreboard's pool leaked a world's five bus processes a run: 865
-  piled up and the host ran out of memory. A run closes its world
-  (2026-09-28).
 - The humanoid page threw at a zoom of 1.1^3: a callout placed at its
   joint's height at rest, the joint past the drawing's edge, was written
   past the last row (2026-09-28).
