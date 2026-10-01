@@ -104,6 +104,9 @@ Open work. Measured results are in FINDINGS.
     ears placing the next step (PEND_K fell at 1.5, 2026-09-27).
   + The halt falls in its settle wherever tried: her centre of mass stands
     off the feet's line as it takes over.
+  + The rise from the squat faster (the user, 2026-10-01): 8.4 s to her first
+    step, pausing - the look 0.8 s, standing 1.0, the shift 1.2; small
+    balancing steps where she sways.
   + No abrupt moves getting up: sat back on her heels a knee 485 deg/s and a
     foot 4.2 m/s, the neck 732-827 sitting and lifting, a shoulder 627 in the
     squat; setpoints jump at the hand-offs, the left ankle 38 deg a pass into

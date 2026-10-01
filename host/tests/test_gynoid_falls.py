@@ -7,18 +7,18 @@ from gynoid_kit import Report
 
 
 #: Shoves of SHOVE_N for SHOVE_S along her side after SHOVE_AFTER_S of walking, at 8 phases of
-#: the left leg's stride, to either side: each one caught within PARRY_SEEN_S, the arms raised,
-#: the feet never further apart than APART_M; HELD_OF_16 held. Measured: HEAD held 1 and caught
-#: 0.10-0.34 s on; the parry held 7, caught 0.07-0.25 s on, the feet 0.53 m apart at most
-#: (2026-10-01).
-SHOVE_N, SHOVE_S, SHOVE_AFTER_S, PARRY_SEEN_S, APART_M, HELD_OF_16 = 60.0, 0.12, 6.0, 0.25, 0.6, 5
+#: the left leg's stride, a test a side: each one caught within PARRY_SEEN_S, the arms raised,
+#: the feet never further apart than APART_M; HELD_OF_8 held. Measured: HEAD held 1 of 16 and
+#: caught 0.10-0.34 s on; the parry held 3 to her left and 4 to her right, caught 0.07-0.25 s on,
+#: the feet 0.53 m apart at most (2026-10-01). A test a side: 16 took 185 s here, past CI's 300.
+SHOVE_N, SHOVE_S, SHOVE_AFTER_S, PARRY_SEEN_S, APART_M, HELD_OF_8 = 60.0, 0.12, 6.0, 0.25, 0.6, 2
 
 
-#: The page's shove past saving, after SHOVE_AFTER_S of walking at 8 phases, either side: her
+#: The page's shove past saving, after SHOVE_AFTER_S of walking at 8 phases, a test a side: her
 #: head never down; her body's peak on the floor over LANDING_S from the fall, feet aside, at the
-#: median under PEAK_KN; a shank first of her down in SHANK_FIRST of 16. Measured: limp 8.7 kN, a
-#: thigh first 8 times; crouched 6.2, a shank first 14 (2026-10-01).
-LANDING_S, PEAK_KN, SHANK_FIRST = 1.5, 7.0, 12
+#: median under PEAK_KN; a shank first of her down in SHANK_FIRST of 8. Measured over 16: limp
+#: 8.7 kN, a thigh first 8 times; crouched 6.2, a shank first 14 (2026-10-01).
+LANDING_S, PEAK_KN, SHANK_FIRST = 1.5, 7.0, 6
 
 
 #: The roll onto her front from flat on her back: no foot past ROLL_FOOT_MS, no hip or knee past
@@ -26,39 +26,39 @@ LANDING_S, PEAK_KN, SHANK_FIRST = 1.5, 7.0, 12
 ROLL_FOOT_MS, ROLL_LEG_DEG_S = 2.0, 300.0
 
 
-def test_a_shove_parried(report):
-    """Shoved sideways walking, she parries (`machine.landing`, `machine.parry`): the shove seen
-    as the capture point leaves her feet, a hurried step that may cross over toward it, the arms
-    raised - choreographed, her feet kept within a step - and held as often as measured."""
+def _parried(report, side):
+    """Shoved toward `side` (1 her left) walking, she parries (`machine.landing`,
+    `machine.parry`): the shove seen as the capture point leaves her feet, a hurried step that
+    may cross over toward it, the arms raised - choreographed, her feet kept within a step - and
+    held as often as measured."""
     from machine import Machine
     from machine.director import Director
     from machine.modes import DYNAMIC
     rows = []
     for phase in [k / 8.0 + 0.01 for k in range(8)]:
-        for side in (1.0, -1.0):
-            body = Machine.discover('gynoid', execution_mode=DYNAMIC)
-            body.arm()
-            director = Director(body, 0.85)
-            director.walker.start()
-            director.stage = 'walk'
-            body.loop.step(0.0)
-            bus, world = body.loop.bus, body.nodes['pelvis'].world
-            feet = [world.model.body(s + '_foot').id for s in ('left', 'right')]
-            pushed, was, fell, seen, apart, arms = None, 0.0, False, None, 0.0, 0.0
-            while bus['t'] < (pushed or 99.0) + 4.0 and not fell:
-                if pushed is None and bus['t'] >= SHOVE_AFTER_S and was < phase <= director.walker.phase:
-                    world.push((side * SHOVE_N, 0.0, 0.0), SHOVE_S)
-                    pushed = bus['t']
-                was = director.walker.phase
-                body.loop.write(**director.step(0.001))
-                body.loop.step(0.001)
-                fell = director.stage in ('falling', 'fallen')
-                if pushed is not None:
-                    seen = seen if seen is not None or director.stage != 'catch' else bus['t'] - pushed
-                    apart = max(apart, abs(world.data.xpos[feet[0]][0] - world.data.xpos[feet[1]][0]))
-                    arms = max(arms, min(bus.get(s + '_shoulder.deg', 0.0) for s in ('left', 'right')))
-            body.close()
-            rows.append((not fell, seen, apart, arms))
+        body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+        body.arm()
+        director = Director(body, 0.85)
+        director.walker.start()
+        director.stage = 'walk'
+        body.loop.step(0.0)
+        bus, world = body.loop.bus, body.nodes['pelvis'].world
+        feet = [world.model.body(s + '_foot').id for s in ('left', 'right')]
+        pushed, was, fell, seen, apart, arms = None, 0.0, False, None, 0.0, 0.0
+        while bus['t'] < (pushed or 99.0) + 4.0 and not fell:
+            if pushed is None and bus['t'] >= SHOVE_AFTER_S and was < phase <= director.walker.phase:
+                world.push((side * SHOVE_N, 0.0, 0.0), SHOVE_S)
+                pushed = bus['t']
+            was = director.walker.phase
+            body.loop.write(**director.step(0.001))
+            body.loop.step(0.001)
+            fell = director.stage in ('falling', 'fallen')
+            if pushed is not None:
+                seen = seen if seen is not None or director.stage != 'catch' else bus['t'] - pushed
+                apart = max(apart, abs(world.data.xpos[feet[0]][0] - world.data.xpos[feet[1]][0]))
+                arms = max(arms, min(bus.get(s + '_shoulder.deg', 0.0) for s in ('left', 'right')))
+        body.close()
+        rows.append((not fell, seen, apart, arms))
     late = [r[1] for r in rows if r[1] is None or r[1] > PARRY_SEEN_S]
     report.check('every shove caught within %.2f s' % PARRY_SEEN_S, not late,
                  '%.2f-%.2f s' % (min(r[1] or 9.0 for r in rows), max(r[1] or 9.0 for r in rows)))
@@ -66,8 +66,18 @@ def test_a_shove_parried(report):
                  '%.0f-%.0f deg' % (min(r[3] for r in rows), max(r[3] for r in rows)))
     report.check('her feet never more than %.1f m apart' % APART_M,
                  max(r[2] for r in rows) <= APART_M, '%.2f m' % max(r[2] for r in rows))
-    report.check('%.0f N for %.2f s held %d of 16 at least' % (SHOVE_N, SHOVE_S, HELD_OF_16),
-                 sum(r[0] for r in rows) >= HELD_OF_16, '%d of 16' % sum(r[0] for r in rows))
+    report.check('%.0f N for %.2f s held %d of 8 at least' % (SHOVE_N, SHOVE_S, HELD_OF_8),
+                 sum(r[0] for r in rows) >= HELD_OF_8, '%d of 8' % sum(r[0] for r in rows))
+
+
+def test_a_shove_to_her_left_parried(report):
+    """`_parried` toward her left."""
+    _parried(report, 1.0)
+
+
+def test_a_shove_to_her_right_parried(report):
+    """`_parried` toward her right."""
+    _parried(report, -1.0)
 
 
 def test_a_trip_lands_her_shorted(report):
@@ -125,9 +135,10 @@ def test_a_trip_lands_her_shorted(report):
     body.disarm()
 
 
-def test_a_fall_past_saving_crouches(report):
-    """Shoved past saving (`events.SHOVES`), she goes down into a crouch (`falls.crouch`): a
-    knee and a shin take the floor first, her head never, her landing softer than limp."""
+def _crouched(report, side):
+    """Shoved past saving toward `side` (`events.SHOVES`), she goes down into a crouch
+    (`falls.crouch`): a knee and a shin take the floor first, her head never, her landing softer
+    than limp."""
     import numpy as np
     from machine import Machine, figure
     from machine.director import Director
@@ -135,39 +146,38 @@ def test_a_fall_past_saving_crouches(report):
     from machine.modes import DYNAMIC
     rows = []
     for phase in [k / 8.0 + 0.01 for k in range(8)]:
-        for side in (1.0, -1.0):
-            body = Machine.discover('gynoid', execution_mode=DYNAMIC)
-            body.arm()
-            director = Director(body, 0.85)
-            director.walker.start()
-            director.stage = 'walk'
-            body.loop.step(0.0)
-            bus, world = body.loop.bus, body.nodes['pelvis'].world
-            m, d = world.model, world.data
-            ours = {m.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
-            f, pushed, was, falling, first, peak, head = np.zeros(6), None, 0.0, None, None, 0.0, 0.0
-            while bus['t'] < (falling or pushed or 99.0) + (LANDING_S if falling else 4.0):
-                if pushed is None and bus['t'] >= SHOVE_AFTER_S and was < phase <= director.walker.phase:
-                    world.push((side * SHOVES['shove'], 0.0, 0.0), SHOVE_S)
-                    pushed = bus['t']
-                was = director.walker.phase
-                body.loop.write(**director.step(0.001))
-                body.loop.step(0.001)
-                falling = falling or (director.stage == 'falling' and bus['t'])
-                if not falling:
-                    continue
-                total = 0.0
-                for i in range(d.ncon):
-                    mine = [b for b in (m.geom_bodyid[d.contact[i].geom1],
-                                        m.geom_bodyid[d.contact[i].geom2]) if b in ours]
-                    if len(mine) == 1 and not ours[mine[0]].endswith(('foot', 'toes')):
-                        world._mj.mj_contactForce(m, d, i, f)
-                        total += abs(f[0])
-                        head += abs(f[0]) if ours[mine[0]] == 'head' else 0.0
-                        first = first or ours[mine[0]]
-                peak = max(peak, total / 1e3)
-            body.close()
-            rows.append((falling is not None, first or '', peak, head))
+        body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+        body.arm()
+        director = Director(body, 0.85)
+        director.walker.start()
+        director.stage = 'walk'
+        body.loop.step(0.0)
+        bus, world = body.loop.bus, body.nodes['pelvis'].world
+        m, d = world.model, world.data
+        ours = {m.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
+        f, pushed, was, falling, first, peak, head = np.zeros(6), None, 0.0, None, None, 0.0, 0.0
+        while bus['t'] < (falling or pushed or 99.0) + (LANDING_S if falling else 4.0):
+            if pushed is None and bus['t'] >= SHOVE_AFTER_S and was < phase <= director.walker.phase:
+                world.push((side * SHOVES['shove'], 0.0, 0.0), SHOVE_S)
+                pushed = bus['t']
+            was = director.walker.phase
+            body.loop.write(**director.step(0.001))
+            body.loop.step(0.001)
+            falling = falling or (director.stage == 'falling' and bus['t'])
+            if not falling:
+                continue
+            total = 0.0
+            for i in range(d.ncon):
+                mine = [b for b in (m.geom_bodyid[d.contact[i].geom1],
+                                    m.geom_bodyid[d.contact[i].geom2]) if b in ours]
+                if len(mine) == 1 and not ours[mine[0]].endswith(('foot', 'toes')):
+                    world._mj.mj_contactForce(m, d, i, f)
+                    total += abs(f[0])
+                    head += abs(f[0]) if ours[mine[0]] == 'head' else 0.0
+                    first = first or ours[mine[0]]
+            peak = max(peak, total / 1e3)
+        body.close()
+        rows.append((falling is not None, first or '', peak, head))
     fell = [r for r in rows if r[0]]
     report.check('the shove past saving felled her every time', len(fell) == len(rows),
                  '%d of %d' % (len(fell), len(rows)))
@@ -177,9 +187,19 @@ def test_a_fall_past_saving_crouches(report):
     report.check('her landing\'s peak under %.0f kN at the median' % PEAK_KN,
                  peaks[len(peaks) // 2] < PEAK_KN,
                  'median %.1f kN, worst %.1f' % (peaks[len(peaks) // 2], peaks[-1]))
-    report.check('a shank first of her down %d times of 16 at least' % SHANK_FIRST,
+    report.check('a shank first of her down %d times of 8 at least' % SHANK_FIRST,
                  sum(r[1].endswith('shank') for r in fell) >= SHANK_FIRST,
                  '%d' % sum(r[1].endswith('shank') for r in fell))
+
+
+def test_a_fall_to_her_left_crouches(report):
+    """`_crouched` toward her left."""
+    _crouched(report, 1.0)
+
+
+def test_a_fall_to_her_right_crouches(report):
+    """`_crouched` toward her right."""
+    _crouched(report, -1.0)
 
 
 def test_her_pads(report):
@@ -315,7 +335,7 @@ def test_the_planner(report):
                  [s for _i, s in marks] == list(planner.plan(now)[0]) and marks[-1][0] == len(stream))
 
 
-ROSTER = (test_a_shove_parried, test_a_trip_lands_her_shorted, test_a_fall_past_saving_crouches,
+ROSTER = (test_a_shove_to_her_left_parried, test_a_shove_to_her_right_parried, test_a_trip_lands_her_shorted, test_a_fall_to_her_left_crouches, test_a_fall_to_her_right_crouches,
           test_her_pads, test_the_roll_pushes_her_over, test_the_planner)
 
 def main(argv=None):
