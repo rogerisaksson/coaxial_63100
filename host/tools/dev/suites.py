@@ -224,6 +224,10 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, 'test_si
            'test_views_segments.py',
            DAQ_API)
 
+#: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
+#: checkout ran test_gynoid_falls.py whole, 532 s here, and its 300 s cut it (2026-10-01).
+FRESH_S = {GYNOID_FALLS: 530.0}
+
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240
 #: (2026-09-27). The blank node's, its image streamed at the emulator's pace, 157 to past 480

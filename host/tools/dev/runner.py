@@ -12,7 +12,7 @@ import time
 from tools.dev import counts
 from tools.dev.focus import TALLY_RE, WORKER_GB, Job, kill_tree, relay
 from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, OLLAMA, PORT, REAL_TIME,
-                              ROOT, SHARDED)
+                              FRESH_S, ROOT, SHARDED)
 
 
 # The whole line after FAIL, detail included: a check's detail is the compiler
@@ -144,7 +144,8 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
     if name == EMULATOR and _emulated_here():
         return [Job('%s %s' % (name, group), argv + [group], WORKER_GB, seconds, lock)
                 for group, seconds in EMULATOR_GROUPS.items()]
-    shards = min(MAX_SHARDS, math.ceil(took.get(name, 0.0) / share)) if name in SHARDED else 1
+    shards = (min(MAX_SHARDS, math.ceil(took.get(name, FRESH_S.get(name, 0.0)) / share))
+              if name in SHARDED else 1)
     if shards <= 1:
         return [Job(name, argv, gb, timeout, lock)]
     return [Job('%s %d/%d' % (name, k, shards), argv + ['--shard', '%d/%d' % (k, shards)], gb,
