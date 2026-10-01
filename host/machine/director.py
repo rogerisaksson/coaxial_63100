@@ -90,6 +90,11 @@ class Director:
         #: The models that plan her get-up (`machine.planner`): a local one, and a server's
         #: asked once it has failed; neither, the planner's own.
         self.local, self.server = local, server
+        if local is not None:
+            # Warm from the start, the client the plans use: loaded at the first fall's
+            # ask, gemma4:12b took 4-9 s more (2026-10-01).
+            _PLANNERS.submit(local.chat, [{'role': 'user', 'content': 'ready'}], think=False,
+                             num_predict=1)
         self.arrival = arrival.Arrival(machine, gait.CADENCE)
         self.walker = walker.Walker(machine, gait.CADENCE)
         self.walk_s, self.rest_s = walk_s, rest_s

@@ -106,8 +106,6 @@ Open work. Measured results are in FINDINGS.
     her first step 10.5 near still (her joints' RMS under 28 deg/s), each
     keyframe eased to a stop - the roll 2.9 of its 5.4, the sit 1.5 of 2.9;
     her hands reached out ahead before she goes down on hands and knees.
-  + The planner's model warm from the page's start, the same client; a
-    faster planner, maybe none an LLM (the user: mine to choose).
   + No abrupt moves getting up: sat back on her heels a knee 485 deg/s and a
     foot 4.2 m/s, the neck 732-827 sitting and lifting, a shoulder 627 in the
     squat; setpoints jump at the hand-offs, the left ankle 38 deg a pass into
