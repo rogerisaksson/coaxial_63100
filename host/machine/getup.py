@@ -51,7 +51,9 @@ UNFOLD = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
 #: never off the floor.
 KNEES_UNDER = (('ease', 'prop', 1.19, _pose(3.0, 52.5, 24.6, -7.9, -20.0, 131.1, 84.9)),
                ('ease', 'prop', 1.46, _pose(-87.8, 96.8, 14.8, 22.9, -20.0, 163.1, 114.4)))
-SIT_BACK = (('ease', 'sit', 0.3, _pose(-163.2, 158.2, 12.2, 60.0, -20.0, 54.3, 12.0)),
+#: Sat back over 0.6 s, not the search's 0.3: her neck whipped 866 -> 520 deg/s, a foot 3.9 -> 2.8
+#: m/s, 16 falls of 16 up as before (2026-10-01).
+SIT_BACK = (('ease', 'sit', 0.6, _pose(-163.2, 158.2, 12.2, 60.0, -20.0, 54.3, 12.0)),
             ('ease', 'sit', 3.08, dict(_pose(-21.9, 160.0, -46.8, 30.9, -20.0, 72.7, 65.2),
                                        left_foot=54.5, right_foot=54.5)))
 ONTO_FEET = (('ease', 'lift', 0.61, dict(_pose(-10.0, 140.2, -42.7, 32.5, -20.0, 71.6, -5.0),
@@ -178,6 +180,13 @@ class GetUp:
         self.i, self.t = min(end, len(self.stream) - 1), 0.0
         self.done = end >= len(self.stream)
         self.begun = dict(self.last)
+        if not self.done:
+            # On from where the setpoints are, half the way's rate on: from the curve's own
+            # keyframe a hip jumped 15-21 deg a pass into the unfold and the sit (2026-10-01).
+            span = max(1e-6, self.stream[self.i][2])
+            self.knots[self.i] = dict(self.last)
+            self.slopes[self.i] = {j: 0.5 * (self.knots[self.i + 1][j] - v) / span
+                                   for j, v in self.last.items()}
         return step
 
     def step(self, dt):

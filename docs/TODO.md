@@ -102,16 +102,14 @@ Open work. Measured results are in FINDINGS.
     ears placing the next step (PEND_K fell at 1.5, 2026-09-27).
   + The halt falls in its settle wherever tried: her centre of mass stands
     off the feet's line as it takes over.
-  + Getting up a continuum (the user, 2026-10-01): of 20.8 s from the fall to
-    her first step 10.5 near still (her joints' RMS under 28 deg/s), each
-    keyframe eased to a stop - the roll 2.9 of its 5.4, the sit 1.5 of 2.9;
-    her hands reached out ahead before she goes down on hands and knees.
-  + No abrupt moves getting up: sat back on her heels a knee 485 deg/s and a
-    foot 4.2 m/s, the neck 732-827 sitting and lifting, a shoulder 627 in the
-    squat; setpoints jump at the hand-offs, the left ankle 38 deg a pass into
-    the unfold, a knee 8 at the first step.
-  + The get-up faster (21.5 s from the fall to walking); the loop
-    profiled and made data-oriented; the arrival's runaway guard.
+  + Her hands reach out ahead before she goes down on hands and knees (the
+    user, 2026-10-01): to be judged on a render of the roll's end and the
+    knees under, the shoulders 157 and 131-163 deg there.
+  + No abrupt moves getting up: lifting onto her feet a hand 860 deg/s, the
+    squat's shoulder 720, the fall's own elbow 711 and a foot 4.9 m/s; a
+    knee's setpoint 8 deg a pass at the first step.
+  + The get-up faster: 21.1 s from the fall to walking, the roll 5.1 of it;
+    the loop profiled and made data-oriented; the arrival's runaway guard.
   + The model carries a tenth of the rotors the cycloids show
     (`physics.REFLECTED`): the walk to be tuned on them; M's and S's motors
     are estimates.
