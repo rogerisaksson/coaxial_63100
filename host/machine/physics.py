@@ -123,6 +123,13 @@ SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
 #: 0.005 s 61 (`tools/sim/landings.py`, 2026-10-01).
 PAD_SOFT, PAD_S, PAD_DAMP = 0.5, 0.02, 1.5
 
+#: Her left shoe's lace snagged on the right shoe (`World.lace`): from LACE_AT on the one to LACE_AT
+#: on the other (their frames), LACE_M between - a tendon, its limit settling over LACE_S s - until
+#: LACE_HOLD_N pulls it off. Under the right sole, pinned as the left foot lifted, it went taut
+#: as that foot landed, its step as long, and she walked on; as a tug of 300 N for 0.2 s it
+#: felled her on nothing seen (2026-09-28, 2026-10-01).
+LACE_AT, LACE_M, LACE_S, LACE_HOLD_N = (0.0, -0.03, 0.07), 0.25, 0.03, 1000.0
+
 
 
 
@@ -160,6 +167,9 @@ def mjcf():
                 out.append('<geom type="%s" size="%s" pos="%g %g %g"%s%s/>' % (
                     (shape, ' '.join('%g' % v for v in size)) + tuple(at)
                     + (grip % FRICTION, give)))
+        if name in ('left_foot', 'right_foot'):
+            out.append('<site name="lace_%s" pos="%g %g %g" size="0.005"/>' % (
+                (name.split('_')[0],) + LACE_AT))
         for part, radius, top, end in BODY:
             if name == part or name.endswith('_' + part):
                 shape = ('type="sphere" size="%g" pos="%g %g %g"' % ((radius,) + top) if top == end
@@ -218,7 +228,10 @@ def mjcf():
         + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
                                                       max(SERVO[kind(j)][0], drives.peak(j)))
            for j in JOINTS]
-        + ['</actuator>', '</mujoco>'])
+        + ['</actuator>', '<tendon>',
+           '<spatial name="lace" limited="true" range="0 10" solreflimit="%g 1" width="0.002">'
+           '<site site="lace_left"/><site site="lace_right"/></spatial>' % LACE_S,
+           '</tendon>', '</mujoco>'])
 
 
 class World:
@@ -262,8 +275,8 @@ class World:
         self.soles = {side: {m.body(side + part).id for part in ('_foot', '_toes')}
                       for side in ('left', 'right')}
         self.push_n, self.push_until = np.zeros(3), -1.0
-        #: Tugs on segments (`tug`): (body id, world newtons, until when).
-        self.tugs = []
+        #: The lace (`lace`), and whether it is snagged.
+        self.lace_at, self.laced = m.tendon('lace').id, False
         #: A board glitched in its SOA (`glitch`): its index and until when.
         self.glitch_at, self.glitch_until = None, -1.0
         #: The drives' energy since the reset: work done and work braked (J), heat (J), and
@@ -319,7 +332,8 @@ class World:
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
         self.stamp, self.at, self.glitch_at, self.pending = d.time, d.time, None, {}
-        self.push_until, self.tugs = -1.0, []
+        self.push_until, self.laced = -1.0, False
+        self.model.tendon_range[self.lace_at] = (0.0, 10.0)
         if self.buses is not None:
             self.buses.drain()
             self.block.hold[:] = self.target
@@ -378,34 +392,44 @@ class World:
             self.effort += float(np.abs(d.ctrl).sum()) * STEP_S
             d.xfrc_applied[:, 0:3] = 0.0
             d.xfrc_applied[self.torso, 0:3] = self.push_n if d.time < self.push_until else 0.0
-            for body, force, until in self.tugs:
-                if d.time < until:
-                    d.xfrc_applied[body, 0:3] += force
             self._mj.mj_step(self.model, d)
+            if self.laced:
+                self._unlace()
         self.at = d.time
         if self.buses is not None:
             self.buses.drain()
 
     def props(self):
-        """What lies on the floor (`floor.props`), and a lace caught: ('lace', from, to) from the
-        pulled foot to the other while the tug holds it."""
+        """What lies on the floor (`floor.props`), and a lace snagged: ('lace', from, to), shoe
+        to shoe."""
         m, d = self.model, self.data
         out = floor.props(self)
-        if any(until > d.time for _b, _f, until in self.tugs):
-            out.append(('lace', tuple(d.xpos[m.body('left_toes').id]),
-                        tuple(d.xpos[m.body('right_foot').id])))
+        if self.laced:
+            out.append(('lace', tuple(d.site_xpos[m.site('lace_left').id]),
+                        tuple(d.site_xpos[m.site('lace_right').id])))
         return out
+
+    def lace(self):
+        """Her left shoe's lace snagged on her right shoe: LACE_M of it between them, or as far
+        apart as they are now."""
+        self.model.tendon_range[self.lace_at] = (
+            0.0, max(LACE_M, float(self.data.ten_length[self.lace_at])))
+        self.laced = True
+
+    def _unlace(self):
+        """The lace pulled off its snag: its tension LACE_HOLD_N."""
+        d = self.data
+        pull = sum(abs(d.efc_force[i]) for i in range(d.nefc)
+                   if d.efc_type[i] == self._mj.mjtConstraint.mjCNSTR_LIMIT_TENDON
+                   and d.efc_id[i] == self.lace_at)
+        if pull >= LACE_HOLD_N:
+            self.model.tendon_range[self.lace_at] = (0.0, 10.0)
+            self.laced = False
 
     def push(self, force, seconds):
         """A shove on the torso, world newtons, for `seconds`."""
         self.push_n = self._np.array(force, float)
         self.push_until = self.data.time + seconds
-
-    def tug(self, segment, force, seconds):
-        """A pull on `segment` at its origin, world newtons, for `seconds`: a lace caught."""
-        self.tugs = [t for t in self.tugs if t[2] > self.data.time] + [
-            (self.model.body(segment).id, self._np.array(force, float),
-             self.data.time + seconds)]
 
     def glitch(self, joint, kind, seconds=0.0):
         """Drive `joint`'s board glitched: 'soa' its switches SOA_RDS times their on-resistance

@@ -152,9 +152,10 @@ def test_a_drive_in_its_soa(report):
 
 
 def test_a_trip_lands_her_shorted(report):
-    """A lace caught (`machine.events`) trips her past recovery: her head not the first of her
-    on the floor; down, her legs' and trunk's drives shorted, her arms and neck not - she
-    settles, not held stiff nor flailing; lain still, she begins to get up (`machine.getup`)."""
+    """A lace snagged shoe to shoe (`machine.events`, `World.lace`) trips her past recovery, a
+    catch step tried or not: her head not the first of her on the floor; down, her legs' and
+    trunk's drives shorted, her arms and neck not - she settles, not held stiff nor flailing;
+    lain still, she begins to get up (`machine.getup`)."""
     from machine import Machine, drives, events, figure, getup, heat
     from machine.director import Director
     from machine.falls import SHORT_FALLING
@@ -190,7 +191,8 @@ def test_a_trip_lands_her_shorted(report):
             shorted = {j: bool(int(bus[name + 'status']) & heat.SHORTED)
                        for j, name in director.drives.items()}
     report.check('the lace tripped her past recovery: falling, then down',
-                 laid is not None and stages[1:3] == ['falling', 'fallen'], ' '.join(stages))
+                 laid is not None and [s for s in stages[1:] if s != 'catch'][:2]
+                 == ['falling', 'fallen'], ' '.join(stages))
     report.check('her head not the first of her on the floor', first not in (None, 'head'),
                  'first %s' % first)
     wrong = [j for j, s in (shorted or {}).items() if s != (drives.kind(j) in SHORT_FALLING)]

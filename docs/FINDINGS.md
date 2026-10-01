@@ -706,13 +706,14 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   (`observer.OVER_FEET_M`), onto her feet ended crouched (`observer.EARLY`),
   the floor's boxes deep (`floor.DEEP_M`): 13 of 13 falls walk again 20-25 s
   after, 12 padded (2026-10-01).
-- Falling, her reach pointed 45 degrees off the way she tipped (the hole);
-  turned at the waist past 20 degrees off her front (`falls.turn`), 5. In 24
-  falls her head touched in 12, 688 N at most; unturned, in 10, 1170
+- Falling, her reach pointed 45 degrees off her tip (the hole); turned at
+  the waist past 20 off her front (`falls.turn`), 5. In 24 falls her head
+  touched in 12, 688 N at most; unturned 10, 1170 (2026-10-01).
+- Pads where falls land, 5 mm of gel (`figure.PADS`,
+  `tools/sim/landings.py`): stiff, it bounced, the median landing 19.6 kN,
+  bare 6.0 (2026-10-01).
+- The lace a snag (`World.lace`): 6 of 9 went taut, 5 felled her
   (2026-10-01).
-- Pads where falls land, 5 mm of gel (`figure.PADS`, `physics.PAD_*`;
-  `tools/sim/landings.py`): a stiff gel bounced, the landing's median 19.6
-  kN, bare 6.0 (2026-10-01).
 - Toed out with a small swing turn she fell (5/4, 6/6, 8/8 degrees): the
   swing aimed its ankle, the landings recorded its ball, 12 mm wider at 6.
   Aimed at the ball, 8 out and 6 in: 7.4 in stance, 2.5 out swinging. The
@@ -827,8 +828,8 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   takes over, her centre of mass stands 91 mm outside the line between the
   feet; with the weight shifted before the lift, and the rear foot kept on
   its ball, as well (2026-09-28).
-- What she trips on (`machine.events`, laid from the page by Ctrl and a
-  letter, measured by `tools/sim/look.py --event`): the 4 cm sill tips her
+- What she trips on (`machine.events`, `tools/sim/look.py --event`): the
+  4 cm sill tips her
   6 degrees and she walks on; a lace pulling the lifting foot back 120 N
   for 0.15 s, 7; 250 N for 0.2 s and past it she falls, the director's
   fall declared 0.15 s after it, before the foot is free, the standing

@@ -123,11 +123,9 @@ Open work. Measured results are in FINDINGS.
   the pace on it and arms a dropped board again. The halt falls in its
   settle wherever tried: her centre of mass stands off the feet's line as
   it takes over - stopped by the walker's own capture of it, a stop to cool
-  a drive could stand. A lace past 250 N for 0.2 s fells her: her fall is
-  declared on the pelvis's tilt before the foot is free, no step tried
-  (`machine.events`, `look.py --event lace`); declared later (20, 30
-  degrees) she falls all the same, the standing foot off the floor while
-  the other is held. Prone, the push-up and
+  a drive could stand. A lace snagged shoe to shoe (`World.lace`) trips her,
+  a catch step tried and 5 of 6 taut ones fell her (`look.py --event lace`).
+  Prone, the push-up and
   the dog leave the head and the torso on the floor, the arms too weak to
   lift them (`tools/sim/getup_lab.py` heels, bearwalk): the model's 40 and
   25 N m are a woman's, kept against the drives' 101 and 30 (the user,
