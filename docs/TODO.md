@@ -128,7 +128,14 @@ Open work. Measured results are in FINDINGS.
     estimates. The gearboxes sized as built: backdrivable, rated for the
     blows a fall gives, in the model as bodies - their mass where they sit,
     their inertia, their backdrive friction - and a fall scored on the
-    torque through each against its rating.
+    torque through each against its rating. The ankle's drive at the knee,
+    a rod from its output down to the heel's tuberosity (the Achilles'
+    line); the knee's in the thigh near the hip, a rod to the tibial
+    tuberosity (the patellar tendon's): the linkage's lever ratio added to
+    the gearbox's, the legs' mass carried higher. Her body and legs hollow
+    laminated carbon fibre, a prosthetic's shells: each segment's own mass
+    and inertia a thin wall over its shape and what it holds, not a
+    woman's (de Leva's).
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the
@@ -136,6 +143,8 @@ Open work. Measured results are in FINDINGS.
   + The planner's server after LOCAL_TRIES local failures.
   + `machine/` in subpackages.
   + A fast walk, then running: no strikes, no blows, quiet and smooth.
+  + A see-through mode on the HUMANOID page, in the tty: her shells
+    clear, the motors, gearboxes and rods seen working.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

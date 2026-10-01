@@ -41,9 +41,11 @@ class Size:
 
 #: Each size's gearbox, its ratio; its input side - the wave generator, the rollers - seen at the
 #: motor as GEAR_J of the rotor's inertia (estimated). A size's copper watts go as 1/ratio^2, the
-#: inertia it puts on its joint as ratio^2: with the rotors in the model (`physics.REFLECTED`)
-#: the walk fell at L 1:64 with no derate, at 1:36 walked 16 s, its hips derated from 9 s, on
-#: built boards (2026-10-01) - the walk asks 55 N m rms of a hip, 43 of a knee.
+#: inertia it puts on its joint as ratio^2: with only the rotors in the model the walk fell at
+#: L 1:64 with no derate, its joints 6.5 deg off what they were asked. As built
+#: (`physics.REFLECTED` ..) at 30, 40, 40 she walked 30 s from the squat on built boards, a hip
+#: derated to 0.63 from 9.3 s, the rest at most 103 C; the strike 996 N, 1231 at 64, 76, 101
+#: unbuilt; felled by the hole and a P shove, up and walking again (2026-10-01).
 RATIO_L, RATIO_M, RATIO_S = 64.0, 76.0, 101.0
 GEAR_J = 0.05
 
