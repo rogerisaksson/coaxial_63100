@@ -3,6 +3,7 @@
     parts = mechanism.parts()               # [(name, parent, joints, offset, rest, mesh)]
     parts = mechanism.parts(bare=True)      # motors, gearboxes, cranks, rods, balls: no body
     mechanism.posed(parts, placed, angles, frames)   # each crank's, pin's and rod's (turn, spot)
+    layers = mechanism.wires(parts, frames)  # the kinematic stick figure: [(a, b, ink)], world
 
 The segments are their carbon tubes and plates (`machine.build`); each drive's drum where it sits
 (`drums`); a limb's quick-release a printed collar at its root; a rod from its drive's crank to a
@@ -27,6 +28,10 @@ SIZED = {'L': (72, 140, 224), 'M': (60, 190, 170), 'S': (230, 190, 70)}
 #: Bare, a drive's drum drawn as its motor, MOTOR_SHARE of its length in its size's colour, and its
 #: gearbox beside it on the axis, GEAR_RADIUS of its radius, in the gearbox's steel grey.
 MOTOR_SHARE, GEAR_RADIUS, GEARBOX = 0.6, 0.8, (150, 152, 160)
+
+#: The stick figure's inks: the skeleton's, the cranks' and rods', the ball joints'; a wire
+#: cylinder's rims RIM points round, a ball joint a cross BALL_R across.
+BONE_INK, ROD_INK, BALL_INK, RIM = (200, 200, 206), (250, 150, 60), (255, 255, 255), 10
 
 #: Each rod by its joint's kind: its crank's radius, m, which way it points at rest (its drive's
 #: segment's frame), and the ball joint it drives, on the next segment - the ankle's to the heel's
@@ -150,3 +155,59 @@ def posed(parts_, placed, angles, frames):
             frames[at['crank_' + joint]] = _along(np, hub, pin)
             frames[at['pin_' + joint]] = (np.eye(3), pin)
             frames[at['rod_' + joint]] = _along(np, pin, ball)
+
+
+def _rims(np, centre, axis, radius, half):
+    """A wire cylinder about `axis` through `centre`: its two rims and four sides, [(a, b)]."""
+    w = np.array([1.0, 0.0, 0.0]) if abs(axis[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+    u = np.cross(axis, w)
+    u /= np.linalg.norm(u)
+    v = np.cross(axis, u)
+    round_ = [radius * (np.cos(t) * u + np.sin(t) * v)
+              for t in np.linspace(0.0, 2.0 * np.pi, RIM, endpoint=False)]
+    ends = [centre - axis * half, centre + axis * half]
+    out = [(end + round_[k], end + round_[(k + 1) % RIM]) for end in ends for k in range(RIM)]
+    return out + [(ends[0] + round_[k], ends[1] + round_[k]) for k in range(0, RIM, RIM // 4)]
+
+
+def wires(parts_, frames):
+    """[(a (n, 3), b (n, 3), ink)]: the stick figure's segments, world, in layers drawn in order -
+    each bone from its parent's joint to its own, the shoulders off the torso's top, the head, the
+    fingers, the sole; each motor and gearbox a wire cylinder on its axis; each crank and rod; each
+    ball joint a cross."""
+    from coaxial.model.blocks import numpy as np
+    at = {p[0]: f for p, f in zip(parts_, frames)}
+    bones, rods, balls, drives_ = [], [], [], {}
+    for name, parent, *_rest in parts_[:len(figure.SEGMENTS)]:
+        if parent:
+            turn, spot = at[parent]
+            root = spot + turn @ np.array([0.0, 0.325, 0.0]) if name.endswith('upper_arm') else spot
+            bones.append((root, at[name][1]))
+    for name, tip in (('head', (0.0, 0.19, 0.0)), ('left_fingers', (0.0, -0.07, 0.0)),
+                      ('right_fingers', (0.0, -0.07, 0.0)), ('left_toes', (0.0, 0.0, 0.06)),
+                      ('right_toes', (0.0, 0.0, 0.06))):
+        turn, spot = at[name]
+        bones.append((spot, spot + turn @ np.array(tip)))
+    for side in ('left_', 'right_'):
+        turn, spot = at[side + 'foot']
+        heel, ball = (spot + turn @ np.array(p) for p in ((0.0, -ANKLE_H, -HEEL),
+                                                         (0.0, -ANKLE_H, BALL)))
+        bones += [(spot, heel), (heel, ball), (ball, spot)]
+    for (name, parent, *_rest), (turn, spot) in zip(parts_, frames):
+        if name.startswith(('drive_', 'gear_')):
+            joint = name.split('_', 1)[1]
+            size, (axis, half) = drives.of(joint), drums.AXES[joint]
+            share = MOTOR_SHARE if name.startswith('drive_') else 1.0 - MOTOR_SHARE
+            radius = size[1].diameter / 2.0 * (1.0 if name.startswith('drive_') else GEAR_RADIUS)
+            ink = SIZED[size[0]] if name.startswith('drive_') else GEARBOX
+            drives_.setdefault(ink, []).extend(
+                _rims(np, spot, turn @ np.asarray(axis, float), radius, half * share))
+        elif name.startswith(('crank_', 'rod_')):
+            rods.append((spot, spot + turn @ np.array([0.0, -1.0, 0.0])))
+        elif name.startswith(('pin_', 'end_')):
+            balls += [(spot - d, spot + d) for d in np.eye(3) * BALL_R]
+    layers = [(bones, BONE_INK)] + [(lines, ink) for ink, lines in drives_.items()]
+    layers += [(rods, ROD_INK), (balls, BALL_INK)]
+    return [(np.array([a for a, _ in lines]), np.array([b for _, b in lines]), ink)
+            for lines, ink in layers if lines]
+

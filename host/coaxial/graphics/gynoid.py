@@ -4,7 +4,7 @@
     lines = render(angles, 96, 40, root=(where, turn))             # the pelvis placed, world
     lines = render(angles, 96, 40, labels={'left_knee': cells})   # called out at the edge
     lines = render(angles, 96, 40, see='mechanism')                # her mechanism, no shell
-    lines = render(angles, 96, 40, see='actuators')                # her motors and linkages
+    lines = render(angles, 96, 40, see='actuators')                # her drivetrain, in wires
 
 A part is a closed loft or ellipsoid in its own frame, hung off its parent at the figure's offset
 and turned by its joints - the figure's names and signs. Without `root`, the lowest point of the
@@ -499,7 +499,22 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
                     materials[who.spans[part][0] + corners] = worn
                     lo, hi = who.dense_spans[part]
                     dense[lo:hi][who.dense_near[joint][part]] = worn
-    if lit is not None:
+    wired = []
+    if see == 'actuators':
+        depth = np.zeros((int(fine['height']), int(fine['width'])))
+        rgb = np.zeros(depth.shape + (3,))
+        layers = mechanism.wires(who.parts, who._frames(angles, root))
+        low = 0.0 if root is not None else min(min(a[:, 1].min(), b[:, 1].min())
+                                                for a, b, _ink in layers)
+        for a, b, ink in layers:
+            a, b = a - (0.0, low, 0.0), b - (0.0, low, 0.0)
+            ax, ay, aw = project(a, m, fine, centre)
+            bx, by, bw = project(b, m, fine, centre)
+            dots = np.zeros(depth.shape, bool)
+            for k in np.flatnonzero((aw > 0.0) & (bw > 0.0)):
+                line(dots, (ax[k], ay[k]), (bx[k], by[k]))
+            wired.append((dots, ink))
+    elif lit is not None:
         positions, normals = who.pose(angles, root=root)
         depth, rgb = lit.raster(positions, normals, who.uv, materials, who.index, m, fine,
                                 CENTRE, REACH * 1.4)
@@ -523,4 +538,4 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
         for col, (char, fg, bg) in enumerate(legend[:width]):
             overlay[(height - 1, col)] = (ord(char), packed(fg, bg))
     return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
-                   leaders, _props(props or (), m, fine, centre, travel))
+                   leaders, _props(props or (), m, fine, centre, travel) + wired)

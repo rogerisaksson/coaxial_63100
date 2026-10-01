@@ -128,11 +128,9 @@ Open work. Measured results are in FINDINGS.
     shoulder has no stop: the roll re-searched as built asks 219 degrees.
     High torque through a gearbox and a rod; the rest direct drive where its
     torque stays reasonable: as built only the head's turn asks little
-    enough (2.7 N m getting up). The rods' linkages kinematic and
-    nonlinear: each lever's ratio shaped over its joint's stroke, high
-    where the torque is asked, low where the speed is - a joint's clamp,
-    rotor seen and copper by its angle; its speed bound by its motor's
-    back-EMF at the supply's lowest.
+    enough (2.7 N m getting up). The knee's and the ankle's stroke curves
+    (`drives.STROKES`) a first cut from where they asked torque as built:
+    searched on the scoreboard, and each made a four-bar's geometry.
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the

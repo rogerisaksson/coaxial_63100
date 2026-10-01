@@ -91,6 +91,9 @@ class World:
         #: ankle's 0.05 kg m^2 flipped its speed each step, +-140 N m at 500 Hz, drawing 794 W
         #: as she lay still (2026-10-01).
         self.shorted = np.zeros(len(JOINTS), bool)
+        #: The joints on a stroke's curve: (index, joint, SERVO's armature, its own damping).
+        self.strokes = [(i, j, SERVO[kind(j)][3], float(m.dof_damping[self.vadr[i]]))
+                        for i, j in enumerate(JOINTS) if kind(j) in drives.STROKES]
         self.damping = 1.0 / self.loss
         self.free = m.dof_damping[self.vadr].copy()
         self.target = np.zeros(len(JOINTS))
@@ -143,6 +146,10 @@ class World:
         self.block.rotor[:] = self._np.array([REFLECTED * ROTOR_FF * drives.armature(j)
                                               for j in JOINTS])
         self.block.play[:] = self._np.full(len(JOINTS), math.radians(drives.BACKLASH_DEG) / 2.0)
+        self.block.scale[:] = self._np.ones(len(JOINTS))
+        self.block.emf[:] = self._np.array([drives.emf(j) for j in JOINTS])
+        self.block.ohm[:] = self._np.array([drives.of(j)[1].r for j in JOINTS])
+        self.block.volts[0] = drives.PACK_V / math.sqrt(3.0)
         self.buses = Buses(self.block, limbs)
         self.bus_of = self.buses.of
         atexit.register(self.close)
@@ -226,6 +233,7 @@ class World:
                     b.rds[self.glitch_at], self.glitch_at = 1.0, None
                 b.time[0] = d.time
                 b.q[:], b.qd[:] = d.qpos[self.qadr], d.qvel[self.vadr]
+                self._stroked()
                 self.buses.step()
                 d.ctrl[:] = b.ctrl
             else:
@@ -249,6 +257,21 @@ class World:
         self.at = d.time
         if self.buses is not None:
             self.buses.drain()
+
+    def _stroked(self):
+        """The joints on a stroke's curve (`drives.STROKES`) as their angles have them: the ratio
+        over their size's to their boards, the rotor seen to MuJoCo and their boards' feed, the
+        drag and a short's damping to MuJoCo."""
+        m, b = self.model, self.block
+        for i, joint, base, free in self.strokes:
+            s = drives.ratio(joint, math.degrees(self.data.qpos[self.qadr[i]])) / drives.ratio(joint)
+            b.scale[i] = s
+            seen = drives.armature(joint) * s * s
+            m.dof_armature[self.vadr[i]] = base + REFLECTED * (seen - base)
+            b.rotor[i] = REFLECTED * ROTOR_FF * seen
+            m.dof_frictionloss[self.vadr[i]] = BACKDRIVE * drives.backdrive(joint) * s
+            m.dof_damping[self.vadr[i]] = free + (self.damping[i] * s * s if self.shorted[i]
+                                                  else 0.0)
 
     def props(self):
         """What lies on the floor (`floor.props`), and a lace snagged: ('lace', from, to), shoe

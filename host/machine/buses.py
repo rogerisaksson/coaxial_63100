@@ -24,7 +24,10 @@ to each process's stdin; a process takes each bus's new bytes (written - receive
 boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
 epoch and hold: a reset, every board holding `hold`, its heat at the room's; rotor: the inertia a
 board feeds forward on its setpoint's acceleration, its own rotor's; play: half its gearbox's
-backlash, rad - its encoder on the motor, a board sees its joint held within it; air, rds, warm:
+backlash, rad - its encoder on the motor, a board sees its joint held within it; scale: its
+ratio now over its size's, a stroke's (`drives.STROKES`), its clamp and its amps a N m by it;
+emf, ohm, volts: its back-EMF a rad/s, its phase's resistance, the supply over sqrt 3 - its
+q current no more than they leave at its speed; air, rds, warm:
 a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); envelope: 0
 fantasy boards (`heat.Heat.envelope`); drive: what its heat is kept by (`drives.heat`), written
 before the processes start. An emulated limb takes a process's place on
@@ -63,7 +66,8 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('q', 'd', 'J'), ('qd', 'd', 'J'), ('limit', 'd', 'J'), ('ctrl', 'd', 'J'),
           ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
           ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'), ('rotor', 'd', 'J'),
-          ('play', 'd', 'J'))
+          ('play', 'd', 'J'), ('scale', 'd', 'J'), ('emf', 'd', 'J'), ('ohm', 'd', 'J'),
+          ('volts', 'd', 1))
 
 #: A board's setpoint's acceleration, read between frames, filtered over ACCEL_S: mdeg frames a
 #: millisecond apart step it by 17 rad/s^2.
@@ -164,7 +168,6 @@ class Segment:
         #: whether a frame set it - the rate is read between two frames, never from a hold.
         self.target, self.rate, self.set_at = [0.0] * n, [0.0] * n, [0.0] * n
         self.framed, self.accel = [False] * n, [0.0] * n
-        self.rotor = [block.rotor[i] for i in self.indices]
         #: The joint as its board sees it through the play, rad (`play`).
         self.play, self.seen = [block.play[i] for i in self.indices], [0.0] * n
         #: Frames landing: (at, {unit: mdeg}); requests to answer: (at, unit, a gate write's
@@ -243,19 +246,24 @@ class Segment:
                 self.target[k], self.set_at[k], self.framed[k] = v, at, True
         for k, i in enumerate(self.indices):
             self.seen[k] = min(max(self.seen[k], b.q[i] - self.play[k]), b.q[i] + self.play[k])
+            s = b.scale[i]
             if h.shorted[k]:
                 # Its braking the world's damping (`physics.World.short`); its windings heat.
                 b.ctrl[i] = 0.0
                 top = b.limit[i]
-                h.load(k, max(-top, min(top, -self.damping[k] * b.qd[i])))
+                h.load(k, max(-top, min(top, -self.damping[k] * s * b.qd[i])))
             else:
                 ref = self.target[k] + self.rate[k] * (now - self.set_at[k])
                 tau = (b.gains[2 * i] * (ref - self.seen[k])
                        + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i])
-                       + self.rotor[k] * self.accel[k])
-                top = b.limit[i] * h.derate[k] if h.gates[k] else 0.0
+                       + b.rotor[i] * self.accel[k])
+                # Motoring, the back-EMF takes from the supply; braking, it adds to it.
+                emf = abs(b.emf[i] * s * b.qd[i])
+                amps = (b.volts[0] + (-emf if tau * b.qd[i] > 0.0 else emf)) / b.ohm[i]
+                top = (s * min(b.limit[i], self.drives[k][0] * max(0.0, amps)) * h.derate[k]
+                       if h.gates[k] else 0.0)
                 b.ctrl[i] = tau = max(-top, min(top, tau))
-                h.load(k, tau)
+                h.load(k, tau / s)
             if b.warm[i] > 0.0:
                 h.warm(k, b.warm[i])
                 b.warm[i] = 0.0

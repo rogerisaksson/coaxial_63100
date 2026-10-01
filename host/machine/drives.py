@@ -95,6 +95,16 @@ JOINTS = {
 }
 
 
+#: A joint's total ratio over its stroke, by kind, (deg, ratio) knots between which it runs
+#: straight: a rod's linkage kinematic, nonlinear - high where the stroke asks torque, low where
+#: it asks speed. As built the knee asked 117 N m, its clamp, at 0-40 deg and 90-100, 41-81 at
+#: 40-90, and never more than 512 deg/s; the ankle its clamp at -20..-10 and 10..20 (2026-10-02):
+#: the knee 1:36 standing and folded, 1:28 swinging - at 1:22 shoved past saving her head met
+#: the floor at 2.93 m/s once in 16, at 28 1.0 at most, at 30 1.07, at 36 1.32.
+STROKES = {'knee': ((-10.0, 36.0), (30.0, 36.0), (45.0, 28.0), (80.0, 28.0), (95.0, 36.0),
+                    (170.0, 36.0)),
+           'ankle': ((-50.0, 30.0), (-25.0, 36.0), (25.0, 36.0), (35.0, 30.0))}
+
 #: A rod's lever ratio between a drive's output and its joint, by kind: the ankle's from a 30 mm
 #: crank at the knee to the heel's tuberosity 50 mm behind the ankle, the Achilles' line; the
 #: knee's from a 28 mm crank in the thigh to the tibial tuberosity 45 mm before the knee, the
@@ -126,9 +136,23 @@ def mount(joint):
     return side + where[0], where[1]
 
 
-def ratio(joint):
-    """The joint's cycloid's ratio."""
-    return {'L': RATIO_L, 'M': RATIO_M, 'S': RATIO_S}[of(joint)[0]]
+def ratio(joint, deg=None):
+    """The joint's total ratio: its size's, or at `deg` along its stroke (`STROKES`)."""
+    knots = STROKES.get(kind(joint))
+    if deg is None or knots is None:
+        return {'L': RATIO_L, 'M': RATIO_M, 'S': RATIO_S}[of(joint)[0]]
+    if deg <= knots[0][0]:
+        return knots[0][1]
+    for (a, ra), (b, rb) in zip(knots, knots[1:]):
+        if deg <= b:
+            return ra + (rb - ra) * (deg - a) / (b - a)
+    return knots[-1][1]
+
+
+def emf(joint):
+    """Its motor's back-EMF through its size's ratio, V a rad/s of the joint: p lambda N."""
+    s = of(joint)[1]
+    return s.kt_motor / TORQUE_FACTOR * ratio(joint)
 
 
 def kt(joint):
