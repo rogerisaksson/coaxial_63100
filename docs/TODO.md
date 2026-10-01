@@ -100,6 +100,10 @@ Open work. Measured results are in FINDINGS.
     not sag, on the ball (LAND_DEG below 0 under the landing's cost);
     softer soles, then a compressible sole layer; the pendulum between the
     ears placing the next step (PEND_K fell at 1.5, 2026-09-27).
+    The stance legs' weight by load flickers about LANDED_N, a hip's setpoint
+    2-5 deg a pass 4-10 times a second: rate-limited over 0.1 s the strike
+    1231 -> 1024 N and the jumps 109 -> 44 in 16 s, but shoves past saving
+    then brought her head down 2 times of 16 and a shank first 9, not 14.
   + The halt falls in its settle wherever tried: her centre of mass stands
     off the feet's line as it takes over.
   + No abrupt moves getting up: lifting onto her feet a hand 860 deg/s, the

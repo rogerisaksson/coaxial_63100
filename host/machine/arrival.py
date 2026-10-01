@@ -37,6 +37,12 @@ STOP_M = 0.05
 #: The speed's filter, s.
 SPEED_S = 0.01
 
+#: How far a leg is a stance leg, by what it bears, moves no faster than BEAR_S from none to all:
+#: taken at once, its load flickering about `stance.LANDED_N` as the foot lifted into the first
+#: step switched the leg between the pelvis's target and the pelvis, the knee 2-8 deg a pass
+#: (2026-10-01).
+BEAR_S = 0.05
+
 #: Over the feet: the centre of their soles, m ahead of the ankles.
 FEET_Z = (gait.BALL - gait.HEEL) / 2.0
 
@@ -279,7 +285,7 @@ class Arrival:
             span = 2.0 * abs(self.coms[1][2] - self.coms[0][2]) / speed
             self.frames[1] = (stage, min(ENTER_S[1], max(ENTER_S[0], span)), frame)
         self.t, self.stage, self.com_was, self.v = 0.0, frames[0][0], None, (0.0, speed)
-        self.want_was = None
+        self.want_was, self.borne = None, {}
 
     def land(self):
         """The body placed in the squat, still, a hair over the floor."""
@@ -362,6 +368,8 @@ class Arrival:
         for side, sign in walkplan.SIDES:
             b = min(1.0, max(frame.get('planted', 0.0),
                              bus['pelvis.pose.%s_load' % side] / stance.LANDED_N))
+            was = self.borne.get(side, b)
+            b = self.borne[side] = max(was - dt / BEAR_S, min(was + dt / BEAR_S, b))
             if b < 1.0:
                 ankle, pitch = frame[side]
                 hip_from = tuple(b * a + (1.0 - b) * c for a, c in zip(frame['pelvis'], pel))
