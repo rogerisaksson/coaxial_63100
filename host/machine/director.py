@@ -35,7 +35,7 @@ FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
 #: Down, and still STILL_S - the pelvis under STILL_M_S and turning under STILL_DEG_S - her
 #: drives are armed again and she gets up, GETUP_TRIES times at most between two landings.
-STILL_S, STILL_M_S, STILL_DEG_S, GETUP_TRIES = 1.0, 0.05, 10.0, 3
+STILL_S, STILL_M_S, STILL_DEG_S, GETUP_TRIES = 0.3, 0.05, 10.0, 3
 
 
 #: A stance foot bearing `stance.BEARS_N` slid past SLIP_M of where it landed is held where it
@@ -150,18 +150,23 @@ class Director:
             self.walker.halt()
             self.stage = 'halt'
 
-    def _planned(self, bus):
-        """The plan for her as she lies, None while a model is still making it."""
-        now = observer.status(bus, self.world, self)
-        if self.local is None and self.server is None:
-            return planner.plan(now, history=self.tried)[0]
-        if self.planning is None:
+    def _planned(self, now):
+        """The house's plan for her as `now` says, at once; a model, if any, asked meanwhile -
+        its plan taken at a step's end (`_asked`). Waited on, she lay still 4-9 s on the page,
+        and a failed step's plan stalled the loop as long; the chain leaves a model only whether
+        to straighten out first (`planner.chained`)."""
+        if self.local is not None or self.server is not None:
             self.planning = _PLANNERS.submit(planner.plan, now, self.local, self.server,
                                              list(self.tried))
-        if not self.planning.done():
+        return planner.plan(now, history=self.tried)[0]
+
+    def _asked(self, nxt):
+        """A model's plan once in, from `nxt` on, if that is not what runs; else None."""
+        if self.planning is None or not self.planning.done():
             return None
         steps, self.planning = self.planning.result()[0], None
-        return steps
+        rest = tuple(steps[steps.index(nxt):]) if nxt in steps else ()
+        return rest if rest and rest != tuple(m[1] for m in self.getup.marks) else None
 
     def _begin(self, steps, now):
         """The get-up on `steps` from where she is, a try more."""
@@ -214,13 +219,12 @@ class Director:
             if self.touched_at is not None:
                 out = falls.yielded(out, bus)
             if self.stage == 'fallen' and self._still(bus, dt) and self.tries < GETUP_TRIES:
-                steps = self._planned(bus)
-                if steps is not None:
-                    for i in range(len(figure.JOINTS)):
-                        self.world.arm(i)
-                    self._begin(steps, observer.status(bus, self.world, self))
-                    self.stage, self.falling_at, self.fallen_at = self.getup.stage, None, None
-                    self.touched_at = None
+                for i in range(len(figure.JOINTS)):
+                    self.world.arm(i)
+                now = observer.status(bus, self.world, self)
+                self._begin(self._planned(now), now)
+                self.stage, self.falling_at, self.fallen_at = self.getup.stage, None, None
+                self.touched_at = None
             return out
         self.since += dt
         if self.stage in getup.STAGES:
@@ -242,7 +246,12 @@ class Director:
                     if self.tries >= GETUP_TRIES:
                         self.stage, self.fallen_at = 'fallen', bus['t']
                         return out
-                    self._begin(planner.plan(now, self.local, self.server, self.tried)[0], now)
+                    self._begin(self._planned(now), now)
+                    return self.getup.step(0.0)
+                asked = self._asked(nxt) if nxt else None
+                if asked:
+                    self.plan = asked
+                    self.getup.begin(*planner.stream(asked, now))
                     return self.getup.step(0.0)
             if self.getup.done:
                 frames = self.getup.handed()

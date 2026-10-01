@@ -15,7 +15,6 @@ they are to {joint: deg}.
 import math
 
 from machine import arrival, figure, gait, walkplan
-from machine.curves import eased
 
 HANDS = {'left_wrist': 0.0, 'right_wrist': 0.0, 'left_gripper': 20.0, 'right_gripper': 20.0}
 
@@ -41,7 +40,7 @@ def _pose(hip, knee, ankle, spine, neck, shoulder, elbow):
 
 #: Straightened out.
 UNFOLD = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
-          ('ease', 'unfold', 0.6, {}))
+          ('ease', 'unfold', 0.2, {}))
 #: Face down, the kneel: the knees drawn under her hips, the chest down; sat back on her heels,
 #: upright over her toes; onto her feet - the arms thrown on and the trunk folded over the knees,
 #: up on the tucked toes, the heels down into a squat on straight arms, then the arrival's own -
@@ -62,7 +61,7 @@ ONTO_FEET = (('ease', 'lift', 0.61, dict(_pose(-10.0, 140.2, -42.7, 32.5, -20.0,
              ('ease', 'crouch', 1.75, dict(_pose(-138.7, 106.4, -33.6, 30.2, -20.0, 79.0, -5.0),
                                            left_foot=3.0, right_foot=3.0)),
              ('ease', 'crouch', 2.23, arrival.angles_of(arrival._squat())),
-             ('ease', 'crouch', 1.0, {}))
+             ('ease', 'crouch', 0.3, {}))
 
 
 def _mirrored(pose):
@@ -83,22 +82,23 @@ def _mirrored(pose):
 #: begins from. Thrown, a foot flew 4.9 m/s, the hip and knee 803 deg/s; pushed, 1.3 and 203,
 #: face down at -0.99 and on her knees after (CMA-ESs from flat on her back and a real fall's
 #: start, the knees under after it in the cost, 2026-10-01). Ended prone flat, she rolled back.
+#: Searched over 7.1 s, run at 0.75 of it: at 0.6 the hip and knee 337 deg/s.
 _BASE = _pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0)
-TO_FRONT = (('ease', 'roll', 1.2, dict(_BASE, left_hip=-69.5, left_knee=130.0, left_hip_yaw=39.3,
+TO_FRONT = (('ease', 'roll', 0.9, dict(_BASE, left_hip=-69.5, left_knee=130.0, left_hip_yaw=39.3,
                                        left_shoulder=105.9, left_elbow=33.2, right_shoulder=178.7,
                                        waist=-42.5)),
-            ('ease', 'roll', 1.0, dict(_BASE, left_hip=-70.1, left_knee=82.5, left_hip_yaw=39.3,
+            ('ease', 'roll', 0.75, dict(_BASE, left_hip=-70.1, left_knee=82.5, left_hip_yaw=39.3,
                                        left_shoulder=105.5, left_elbow=33.2, right_shoulder=178.7,
                                        waist=-36.2, spine_roll=-8.1)),
-            ('ease', 'roll', 1.1, dict(_BASE, left_hip=-60.0, left_knee=80.9, right_hip=-38.0,
+            ('ease', 'roll', 0.83, dict(_BASE, left_hip=-60.0, left_knee=80.9, right_hip=-38.0,
                                        left_shoulder=142.6, left_elbow=101.6, right_shoulder=147.9)),
-            ('ease', 'roll', 1.5, dict(_BASE, left_hip=-114.6, left_knee=131.4, right_hip=-80.0,
+            ('ease', 'roll', 1.13, dict(_BASE, left_hip=-114.6, left_knee=131.4, right_hip=-80.0,
                                        right_knee=53.4, left_shoulder=186.9, left_elbow=140.0,
                                        right_shoulder=189.1, waist=50.0)),
-            ('ease', 'roll', 2.0, dict(_BASE, left_knee=56.4, right_hip=-9.6, right_knee=38.3,
+            ('ease', 'roll', 1.5, dict(_BASE, left_knee=56.4, right_hip=-9.6, right_knee=38.3,
                                        left_shoulder=156.9, left_elbow=18.3, right_shoulder=27.4,
                                        right_elbow=140.0, waist=35.2)),
-            ('ease', 'roll', 1.0, {}))
+            ('ease', 'roll', 0.3, {}))
 FRONTS_BY = {1: TO_FRONT, -1: tuple((v, s, t, _mirrored(p)) for v, s, t, p in TO_FRONT)}
 
 #: The get-up's stages, in order.
@@ -112,6 +112,29 @@ def fragment(step, now):
     return {'straighten out': UNFOLD, 'knees under': KNEES_UNDER,
             'sit back on heels': SIT_BACK,
             'onto feet': ONTO_FEET}[step]
+
+
+def _curve(begun, stream):
+    """([pose a keyframe, `begun` first], [deg/s a keyframe]): a curve through the keyframes,
+    each one's rate its neighbours' (Fritsch-Carlson: none where a joint turns back, never
+    more than 3 of either side's) - at rest only where the stream begins and ends. Eased to a
+    stop at each, her setpoints stood 1.67 s from the unfold to the crouch, through it 0.59
+    (2026-10-01)."""
+    knots = [dict(begun)]
+    for _verb, _stage, _span, target in stream:
+        knots.append({j: target.get(j, v) for j, v in knots[-1].items()})
+    spans = [max(1e-6, step[2]) for step in stream]
+    slopes = [{j: 0.0 for j in begun}]
+    for k in range(1, len(knots) - 1):
+        rate = {}
+        for j in begun:
+            d0 = (knots[k][j] - knots[k - 1][j]) / spans[k - 1]
+            d1 = (knots[k + 1][j] - knots[k][j]) / spans[k]
+            rate[j] = (0.0 if d0 * d1 <= 0.0 else
+                       math.copysign(min(0.5 * abs(d0 + d1), 3.0 * min(abs(d0), abs(d1))), d0))
+        slopes.append(rate)
+    slopes.append({j: 0.0 for j in begun})
+    return knots, slopes
 
 
 class GetUp:
@@ -132,6 +155,7 @@ class GetUp:
         self.stage = stream[0][1]
         self.begun = self._now()
         self.last, self.holding = dict(self.begun), 0.0
+        self.knots, self.slopes = _curve(self.begun, self.stream)
 
     def _now(self):
         bus = self.machine.loop.bus
@@ -166,11 +190,18 @@ class GetUp:
                 self.done = True
                 break
             self.i += 1
-            self.begun = dict(self.last)
             _verb, stage, span, target = self.stream[self.i]
         self.stage = stage
-        k = eased(self.t / span) if span > 0.0 else 1.0
-        self.last = {j: v + (target.get(j, v) - v) * k for j, v in self.begun.items()}
+        if self.done:
+            self.last = dict(self.knots[-1])
+            return dict(self.last)
+        u = min(1.0, self.t / span) if span > 0.0 else 1.0
+        a, b, ma, mb = (self.knots[self.i], self.knots[self.i + 1], self.slopes[self.i],
+                        self.slopes[self.i + 1])
+        h00, h10, h01, h11 = (2 * u ** 3 - 3 * u ** 2 + 1, u ** 3 - 2 * u ** 2 + u,
+                              3 * u ** 2 - 2 * u ** 3, u ** 3 - u ** 2)
+        self.last = {j: h00 * a[j] + h10 * span * ma[j] + h01 * b[j] + h11 * span * mb[j]
+                     for j in a}
         return dict(self.last)
 
     def handed(self):

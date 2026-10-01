@@ -161,6 +161,7 @@ JUDGED = ('thigh behind at lift', 'impact')
 LOST_K = 30.0
 
 MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'falls', 'parry',
+           'getup', 'observer',
            'capture', 'physics', 'buses', 'events', 'drives')
 
 

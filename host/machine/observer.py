@@ -141,7 +141,7 @@ def status(bus, world, director):
 #: The steps the observer ends the pass their outcome holds, not at their last keyframe: on
 #: her feet, her centre of mass over her toes, the step ran on and sat her down behind them
 #: (2026-10-01).
-EARLY = ('onto feet',)
+EARLY = ('knees under', 'sit back on heels', 'onto feet')
 
 #: Each step's outcome as the observer judges it at its end: (what it wants, of a status).
 EXPECT = {'roll onto front': ('face down', lambda s: s['lying'] == 'face down'),
