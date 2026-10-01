@@ -142,6 +142,7 @@ class World:
         self.block.drive[:] = self._np.array([drives.heat(j) for j in JOINTS]).ravel()
         self.block.rotor[:] = self._np.array([REFLECTED * ROTOR_FF * drives.armature(j)
                                               for j in JOINTS])
+        self.block.play[:] = self._np.full(len(JOINTS), math.radians(drives.BACKLASH_DEG) / 2.0)
         self.buses = Buses(self.block, limbs)
         self.bus_of = self.buses.of
         atexit.register(self.close)

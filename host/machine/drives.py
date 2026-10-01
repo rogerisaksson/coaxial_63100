@@ -49,6 +49,10 @@ class Size:
 RATIO_L, RATIO_M, RATIO_S = 30.0, 40.0, 40.0
 GEAR_J = 0.05
 
+#: Each gearbox's play at its output, deg (estimated: a rolling-element wave drive's few arcmin,
+#: worn a little).
+BACKLASH_DEG = 0.1
+
 
 #: L: the 63 V 100 A board, its parts' centres 92 x 93 mm (the pick-and-place), a disc of 100 mm
 #: behind the 5230SL; M and S: that board scaled to 25 and 6.8 A behind a 43 and a 35 mm stator

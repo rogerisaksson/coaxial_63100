@@ -23,7 +23,8 @@ The block (`Block`, FIELDS): the world writes time, q, qd and limit, bumps seq a
 to each process's stdin; a process takes each bus's new bytes (written - received), ticks its
 boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
 epoch and hold: a reset, every board holding `hold`, its heat at the room's; rotor: the inertia a
-board feeds forward on its setpoint's acceleration, its own rotor's; air, rds and warm:
+board feeds forward on its setpoint's acceleration, its own rotor's; play: half its gearbox's
+backlash, rad - its encoder on the motor, a board sees its joint held within it; air, rds, warm:
 a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); envelope: 0
 fantasy boards (`heat.Heat.envelope`); drive: what its heat is kept by (`drives.heat`), written
 before the processes start. An emulated limb takes a process's place on
@@ -61,7 +62,8 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('written', 'q', 'B'), ('sent', 'q', 'B'), ('free_at', 'd', 'B'), ('at', 'd', '2B'),
           ('q', 'd', 'J'), ('qd', 'd', 'J'), ('limit', 'd', 'J'), ('ctrl', 'd', 'J'),
           ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
-          ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'), ('rotor', 'd', 'J'))
+          ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'), ('rotor', 'd', 'J'),
+          ('play', 'd', 'J'))
 
 #: A board's setpoint's acceleration, read between frames, filtered over ACCEL_S: mdeg frames a
 #: millisecond apart step it by 17 rad/s^2.
@@ -163,6 +165,8 @@ class Segment:
         self.target, self.rate, self.set_at = [0.0] * n, [0.0] * n, [0.0] * n
         self.framed, self.accel = [False] * n, [0.0] * n
         self.rotor = [block.rotor[i] for i in self.indices]
+        #: The joint as its board sees it through the play, rad (`play`).
+        self.play, self.seen = [block.play[i] for i in self.indices], [0.0] * n
         #: Frames landing: (at, {unit: mdeg}); requests to answer: (at, unit, a gate write's
         #: frame or None for a poll).
         self.inbox, self.mail = collections.deque(), collections.deque()
@@ -188,7 +192,7 @@ class Segment:
         b = self.block
         for k, i in enumerate(self.indices):
             self.target[k], self.rate[k], self.set_at[k] = b.hold[i], 0.0, now
-            self.framed[k], self.accel[k] = False, 0.0
+            self.framed[k], self.accel[k], self.seen[k] = False, 0.0, b.hold[i]
         self.inbox.clear()
         self.mail.clear()
         self.free_at = now
@@ -238,6 +242,7 @@ class Segment:
                 self.rate[k] = rate
                 self.target[k], self.set_at[k], self.framed[k] = v, at, True
         for k, i in enumerate(self.indices):
+            self.seen[k] = min(max(self.seen[k], b.q[i] - self.play[k]), b.q[i] + self.play[k])
             if h.shorted[k]:
                 # Its braking the world's damping (`physics.World.short`); its windings heat.
                 b.ctrl[i] = 0.0
@@ -245,7 +250,7 @@ class Segment:
                 h.load(k, max(-top, min(top, -self.damping[k] * b.qd[i])))
             else:
                 ref = self.target[k] + self.rate[k] * (now - self.set_at[k])
-                tau = (b.gains[2 * i] * (ref - b.q[i])
+                tau = (b.gains[2 * i] * (ref - self.seen[k])
                        + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i])
                        + self.rotor[k] * self.accel[k])
                 top = b.limit[i] * h.derate[k] if h.gates[k] else 0.0
@@ -271,7 +276,7 @@ class Segment:
                 out += rtu.echo(gate)
                 continue
             celsius, spent, derate, status = h.report(k)
-            out += rtu.reply(unit, round(math.degrees(b.q[i]) * 1000.0),
+            out += rtu.reply(unit, round(math.degrees(self.seen[k]) * 1000.0),
                              round(math.degrees(b.qd[i]) * 1000.0), round(celsius * 100.0),
                              round(spent * 1e4), round(derate * 1e4), status)
         if out:
