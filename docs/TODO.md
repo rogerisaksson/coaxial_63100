@@ -73,8 +73,9 @@ Open work. Measured results are in FINDINGS.
   (`machine.capture`), a swap is a side step, the walk begun again after
   it. The rises and the walks hold. Scored by `tools/sim/gait_montecarlo.py`
   on the floor's events (`physics.World.terrain`): the hole and the loose
-  rug fell her, the sill and the slip patch tip her 6-8 degrees: held 93 %,
-  stir 3.5 mm. Reflexes, on the head's and the strong joints' inertial
+  rug fell her, the sill and the slip patch tip her 6-8 degrees: held 75.7 %
+  (75.6 at 742e90e, 2026-10-01; three spreads a trial are chance: over 18 a
+  slip holds 13 where 9). Reflexes, on the head's and the strong joints' inertial
   measurements: a foot that finds no floor reaches down and the floor is
   where it found it (the anchor's y is 0 now); a stubbed toe lifts higher
   and the body's fall is caught by the next step; a sliding foot
