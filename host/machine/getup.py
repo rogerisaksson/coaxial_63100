@@ -77,19 +77,28 @@ def _mirrored(pose):
     return out
 
 
-#: From her back onto her front: the left knee drawn up and across, both arms up over her head,
-#: the waist turned back, then the knee down and the left arm reaching on. From a CMA-ES from her
-#: back scored by the observer: her face 0.75 down at its end (2026-09-30); the roll that had
-#: put her on her back, run from it, left her there, face up 0.98, 15 falls in 20.
-TO_FRONT = (('ease', 'roll', 0.8, _pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0)),
-            ('ease', 'roll', 0.5, dict(_pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0), left_hip=-117.4,
-                                       left_hip_roll=-1.0, left_hip_yaw=42.7, left_knee=87.5,
-                                       left_shoulder=120.1, left_elbow=101.2,
-                                       right_shoulder=116.5, waist=-30.9, spine_roll=-3.9,
-                                       head=-31.8)),
-            ('ease', 'roll', 0.5, dict(_pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0), left_hip=-4.6,
-                                       left_knee=39.6, left_shoulder=170.0, left_elbow=51.9)),
-            ('ease', 'roll', 0.9, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)))
+#: From her back onto her front pushed, no leg thrown: the top leg drawn up across, its foot
+#: planted, the arms over; the foot and the arms push her onto her side; the top knee down in front
+#: and the hand by her chest, the recovery position; on onto her front, into what the knees under
+#: begins from. Thrown, a foot flew 4.9 m/s, the hip and knee 803 deg/s; pushed, 1.3 and 203,
+#: face down at -0.99 and on her knees after (CMA-ESs from flat on her back and a real fall's
+#: start, the knees under after it in the cost, 2026-10-01). Ended prone flat, she rolled back.
+_BASE = _pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0)
+TO_FRONT = (('ease', 'roll', 1.2, dict(_BASE, left_hip=-69.5, left_knee=130.0, left_hip_yaw=39.3,
+                                       left_shoulder=105.9, left_elbow=33.2, right_shoulder=178.7,
+                                       waist=-42.5)),
+            ('ease', 'roll', 1.0, dict(_BASE, left_hip=-70.1, left_knee=82.5, left_hip_yaw=39.3,
+                                       left_shoulder=105.5, left_elbow=33.2, right_shoulder=178.7,
+                                       waist=-36.2, spine_roll=-8.1)),
+            ('ease', 'roll', 1.1, dict(_BASE, left_hip=-60.0, left_knee=80.9, right_hip=-38.0,
+                                       left_shoulder=142.6, left_elbow=101.6, right_shoulder=147.9)),
+            ('ease', 'roll', 1.5, dict(_BASE, left_hip=-114.6, left_knee=131.4, right_hip=-80.0,
+                                       right_knee=53.4, left_shoulder=186.9, left_elbow=140.0,
+                                       right_shoulder=189.1, waist=50.0)),
+            ('ease', 'roll', 2.0, dict(_BASE, left_knee=56.4, right_hip=-9.6, right_knee=38.3,
+                                       left_shoulder=156.9, left_elbow=18.3, right_shoulder=27.4,
+                                       right_elbow=140.0, waist=35.2)),
+            ('ease', 'roll', 1.0, {}))
 FRONTS_BY = {1: TO_FRONT, -1: tuple((v, s, t, _mirrored(p)) for v, s, t, p in TO_FRONT)}
 
 #: The get-up's stages, in order.

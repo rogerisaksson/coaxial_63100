@@ -104,9 +104,9 @@ VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
 
-#: The gynoid on fantasy boards, their SOA never binding: her walk, her clothes, her look; and on
-#: her boards as built: the envelope derating and tripping them, glitches, a lace caught.
-GYNOID, GYNOID_FAULTS = 'test_gynoid.py', 'test_gynoid_faults.py'
+#: The gynoid on fantasy boards, their SOA never binding: her walk, her clothes, her look; on her
+#: boards as built: the envelope derating and tripping them, glitches; shoved, tripped and down.
+GYNOID, GYNOID_FAULTS, GYNOID_FALLS = 'test_gynoid.py', 'test_gynoid_faults.py', 'test_gynoid_falls.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
@@ -117,7 +117,8 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                                 BOOT_CORE,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC, BOOT) + VIEWS
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, CYCLIC,
+                   BOOT) + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -142,6 +143,7 @@ JOINS = (
     (12, CONTROLLER),
     (12, GYNOID),
     (12, GYNOID_FAULTS),
+    (12, GYNOID_FALLS),
     (12, CYCLIC),
     (12, BOOT),
     (15, CORE),
@@ -218,7 +220,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
-SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, 'test_simulated.py',
+SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, 'test_simulated.py',
            'test_views_segments.py',
            DAQ_API)
 
@@ -272,8 +274,8 @@ TOUCHES = (
     ('host/machine/cyclic.py',                 (CYCLIC,)),
     ('host/machine/quad.py',                   ('test_views_quad.py', STRUCTURE)),
     ('host/coaxial/graphics/quadcopter.py',    ('test_views_quad.py', RENDER)),
-    ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, CYCLIC,
-                                                'test_simulated.py', 'test_mcp.py')),
+    ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
+                                                CYCLIC, 'test_simulated.py', 'test_mcp.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/graphics/shapes.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/graphics/lit.py',           (RENDER, *VIEWS, GYNOID)),

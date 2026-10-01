@@ -82,7 +82,10 @@ Open work. Measured results are in FINDINGS.
     apart over 33 cm, fells her 12 times of 12; the scoreboard's three, 3 cm
     either side of one place, hold: the spread too narrow.
   + The obstacles' contacts stiffer: toes 20 mm into the sill for 35 ms,
-    fingers 26 mm into the floor (MuJoCo's 0.02 s give).
+    fingers 26 mm into the floor (MuJoCo's 0.02 s give). Her body's set at
+    0.01 s, the head 28 -> 20 mm in and 3.8 -> 10.0 kN, the shoves' landing
+    6.2 -> 11.6 kN; at 0.005 10 mm and 16.8 kN: overlap or force, the
+    user's call (asked 2026-10-01).
   + The stairs fell her at the first riser since 855c87c: each riser met at
     0.85-0.9 of a swing, past TRIP_LATE, the foot put down short, the other
     striking the step at 1.4 kN; a step up for a late stub wanted; the get-up
@@ -101,10 +104,10 @@ Open work. Measured results are in FINDINGS.
     ears placing the next step (PEND_K fell at 1.5, 2026-09-27).
   + The halt falls in its settle wherever tried: her centre of mass stands
     off the feet's line as it takes over.
-  + No abrupt moves getting up: the neck 921 deg/s sitting back and 823
-    lifting, a shoulder 577-622 rolling and in the squat; setpoints jump at
-    the hand-offs, the waist 1.5 deg a pass into the unfold, a knee 8 at the
-    first step.
+  + No abrupt moves getting up: sat back on her heels a knee 485 deg/s and a
+    foot 4.2 m/s, the neck 732-827 sitting and lifting, a shoulder 627 in the
+    squat; setpoints jump at the hand-offs, the left ankle 38 deg a pass into
+    the unfold, a knee 8 at the first step.
   + The get-up faster (21.5 s from the fall to walking); the loop
     profiled and made data-oriented; the arrival's runaway guard.
   + The model carries a tenth of the rotors the cycloids show
