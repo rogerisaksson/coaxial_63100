@@ -193,11 +193,15 @@ class Director:
             tip = self._fall_way(bus)
             self.cause = falls.cause(tip, self.fall_rate, self.stage == 'catch')
             self.falling_at, self.stage = bus['t'], 'falling'
-            self.curl_to = falls.reach(tip, self.fall_rate)
+            self.curl_to = dict(falls.reach(tip, self.fall_rate),
+                                **(falls.crouch(tip) if falls.CROUCH else {}))
             self.curl_from = {j: bus.get(j + '.deg', 0.0) for j in self.curl_to}
-            self._short(falls.SHORT_FALLING)
+            if not falls.CROUCH:
+                self._short(falls.SHORT_FALLING)
         if self.fallen_at is None and self._fallen(bus):
             self.fallen_at, self.stage = bus['t'], 'fallen'
+            if falls.CROUCH:
+                self._short(falls.SHORT_FALLING)
         if self.falling_at is not None:
             if self.touched_at is None and 'waist' in self.curl_to:
                 self.curl_to['waist'] = falls.turn(self._fall_way(bus))

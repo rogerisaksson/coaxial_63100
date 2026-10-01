@@ -258,6 +258,70 @@ def test_a_shove_parried(report):
                  sum(r[0] for r in rows) >= HELD_OF_16, '%d of 16' % sum(r[0] for r in rows))
 
 
+#: The page's shove past saving, after SHOVE_AFTER_S of walking at 8 phases, either side: her
+#: head never down; her body's peak on the floor over LANDING_S from the fall, feet aside, at the
+#: median under PEAK_KN; a shank first of her down in SHANK_FIRST of 16. Measured: limp 8.7 kN, a
+#: thigh first 8 times; crouched 6.2, a shank first 14 (2026-10-01).
+LANDING_S, PEAK_KN, SHANK_FIRST = 1.5, 7.0, 12
+
+
+def test_a_fall_past_saving_crouches(report):
+    """Shoved past saving (`events.SHOVES`), she goes down into a crouch (`falls.crouch`): a
+    knee and a shin take the floor first, her head never, her landing softer than limp."""
+    import numpy as np
+    from machine import Machine, figure
+    from machine.director import Director
+    from machine.events import SHOVE_S, SHOVES
+    from machine.modes import DYNAMIC
+    rows = []
+    for phase in [k / 8.0 + 0.01 for k in range(8)]:
+        for side in (1.0, -1.0):
+            body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+            body.arm()
+            director = Director(body, 0.85)
+            director.walker.start()
+            director.stage = 'walk'
+            body.loop.step(0.0)
+            bus, world = body.loop.bus, body.nodes['pelvis'].world
+            m, d = world.model, world.data
+            ours = {m.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
+            f, pushed, was, falling, first, peak, head = np.zeros(6), None, 0.0, None, None, 0.0, 0.0
+            while bus['t'] < (falling or pushed or 99.0) + (LANDING_S if falling else 4.0):
+                if pushed is None and bus['t'] >= SHOVE_AFTER_S and was < phase <= director.walker.phase:
+                    world.push((side * SHOVES['shove'], 0.0, 0.0), SHOVE_S)
+                    pushed = bus['t']
+                was = director.walker.phase
+                body.loop.write(**director.step(0.001))
+                body.loop.step(0.001)
+                falling = falling or (director.stage == 'falling' and bus['t'])
+                if not falling:
+                    continue
+                total = 0.0
+                for i in range(d.ncon):
+                    mine = [b for b in (m.geom_bodyid[d.contact[i].geom1],
+                                        m.geom_bodyid[d.contact[i].geom2]) if b in ours]
+                    if len(mine) == 1 and not ours[mine[0]].endswith(('foot', 'toes')):
+                        world._mj.mj_contactForce(m, d, i, f)
+                        total += abs(f[0])
+                        head += abs(f[0]) if ours[mine[0]] == 'head' else 0.0
+                        first = first or ours[mine[0]]
+                peak = max(peak, total / 1e3)
+            body.close()
+            rows.append((falling is not None, first or '', peak, head))
+    fell = [r for r in rows if r[0]]
+    report.check('the shove past saving felled her every time', len(fell) == len(rows),
+                 '%d of %d' % (len(fell), len(rows)))
+    report.check('her head never on the floor', not any(r[3] for r in fell),
+                 '%d times' % sum(bool(r[3]) for r in fell))
+    peaks = sorted(r[2] for r in fell) or [0.0]
+    report.check('her landing\'s peak under %.0f kN at the median' % PEAK_KN,
+                 peaks[len(peaks) // 2] < PEAK_KN,
+                 'median %.1f kN, worst %.1f' % (peaks[len(peaks) // 2], peaks[-1]))
+    report.check('a shank first of her down %d times of 16 at least' % SHANK_FIRST,
+                 sum(r[1].endswith('shank') for r in fell) >= SHANK_FIRST,
+                 '%d' % sum(r[1].endswith('shank') for r in fell))
+
+
 def test_the_planner(report):
     """Her get-up's plan (`machine.planner`): a model's answer read and checked, a server asked
     once the local model has failed LOCAL_TRIES times, the house's own when neither answers."""
@@ -351,7 +415,8 @@ def test_her_pads(report):
 
 
 ROSTER = (test_a_drive_keeps_its_heat, test_a_drive_in_its_soa, test_a_trip_lands_her_shorted,
-          test_fantasy_boards_never_bind, test_a_shove_parried, test_the_planner, test_her_pads)
+          test_fantasy_boards_never_bind, test_a_shove_parried, test_a_fall_past_saving_crouches,
+          test_the_planner, test_her_pads)
 
 
 def main(argv=None):

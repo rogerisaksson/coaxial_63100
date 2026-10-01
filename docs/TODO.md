@@ -70,10 +70,12 @@ Open work. Measured results are in FINDINGS.
   a URL bus, the limb keeping t3.5 for them; not yet the fallback where
   nothing answers (Renode is).
 - Gynoid, open (a line goes when done):
-  + Past saving - the page's P push, 120 N for 0.12 s, held 0 of 48 - a leg
-    out and down into a superhero crouch, caught on a hand and a knee, not
-    falling stiff; its landing in a suite test. A lace holding her trailing
-    foot she dives onto her hands, legs straight: the knees under first.
+  + Past saving (P's 120 N, held 0 of 48) she crouches as she goes, a shank
+    first (`falls.crouch`), but ends on a side: the fall is called 0.06-0.25
+    s before the floor, too late for a hand and a knee to take her - an
+    earlier verdict wanted; the capture point past a step's reach comes
+    0-0.45 s sooner, `capture`'s `need` foretells nothing. A lace holding
+    her trailing foot she dives onto her hands, legs straight.
   + The scoreboard's events held: the hole 53 %, the rug 51 %, the lace 26 %,
     the nudge 33 % (2026-10-01). The walk at 1.0 strides/s falls in 3 runs
     of 3 (HEAD 2 of 3). A sill laid as the page lays it, a stride on, 3 cm

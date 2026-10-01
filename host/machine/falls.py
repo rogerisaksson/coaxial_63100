@@ -31,7 +31,9 @@ HEAD_UP_DEG, BEHIND_DEG, GUARD_DEG_S = 40.0, 120.0, 150.0
 #: at most, at once (AT_ONCE: its drive's peak the ease). Turned toward the lace's dive, 23
 #: degrees off, her head met the floor at 1.5-2.5 kN in 6 laces of 6, unturned in none
 #: (2026-10-01).
-AHEAD_DEG, SIDE_DEG, WAIST_DEG, AT_ONCE = 20.0, 35.0, 45.0, ('waist',)
+AHEAD_DEG, SIDE_DEG, WAIST_DEG = 20.0, 35.0, 45.0
+AT_ONCE = ('waist', 'spine', 'spine_roll') + tuple(side + j for side in ('left_', 'right_')
+                                                  for j in ('hip', 'knee', 'ankle', 'hip_roll'))
 CATCH = {'ahead': {'neck': HEAD_UP_DEG, 'left_shoulder': 90.0, 'right_shoulder': 90.0,
                    'left_elbow': 30.0, 'right_elbow': 30.0, 'left_wrist': 0.0, 'right_wrist': 0.0,
                    'left_gripper': 0.0, 'right_gripper': 0.0},
@@ -49,6 +51,16 @@ CATCH = {'ahead': {'neck': HEAD_UP_DEG, 'left_shoulder': 90.0, 'right_shoulder':
 #: over the head, it met the floor at 1.3 m/s (2026-09-28).
 YIELD = {'left_elbow': 90.0, 'right_elbow': 90.0, 'left_shoulder': 110.0, 'right_shoulder': 110.0}
 SOFT_DEG, TOUCH_M = 5.0, 0.01
+
+#: Past saving she goes down into a crouch, not limp (CROUCH): the leg on the side she tips to
+#: lunges, its hip rolled out by how far aside she tips, LUNGE's; the other kneels, KNEEL's; the
+#: spine CROUCH_SPINE forward - driven at once, shorted only once she is down (`machine.director`).
+#: Shoved past saving 16 times: limp, her peak on the floor 8.7 kN at the median, 11.0 the worst,
+#: a thigh first 8 times; crouched 6.2 and 10.0, a shank first 14; the crouch held on once down,
+#: soft, 6.7 and 12.0, her head down once (2026-10-01).
+CROUCH, CROUCH_SPINE = True, 25.0
+LUNGE = {'hip': -70.0, 'knee': 90.0, 'ankle': -20.0, 'hip_roll': 25.0}
+KNEEL = {'hip': -20.0, 'knee': 120.0, 'ankle': 30.0}
 ARM_PARTS = tuple(side + part for side in ('left_', 'right_')
                   for part in ('upper_arm', 'forearm', 'hand', 'fingers'))
 
@@ -60,6 +72,17 @@ def reach(tip, rate):
     director turns it on as the tip moves, till an arm lands."""
     way = 'guard' if rate > GUARD_DEG_S else 'behind' if abs(tip) > BEHIND_DEG else 'ahead'
     return dict(CATCH[way]) if way == 'behind' else dict(CATCH[way], waist=turn(tip))
+
+
+def crouch(tip):
+    """{joint: deg} her legs and trunk go to past saving, tipping `tip` deg off her forward (+ to
+    her left): the side she tips to lunges, out by how far aside, the other kneels."""
+    side, other = ('left_', 'right_') if tip > 0.0 else ('right_', 'left_')
+    aside = max(0.0, min(1.0, (abs(tip) - AHEAD_DEG) / (SIDE_DEG - AHEAD_DEG)))
+    out = {'spine': CROUCH_SPINE, 'spine_roll': 0.0}
+    out.update({side + j: v * (aside if j == 'hip_roll' else 1.0) for j, v in LUNGE.items()})
+    out.update({other + j: v for j, v in KNEEL.items()})
+    return out
 
 
 def turn(tip):
