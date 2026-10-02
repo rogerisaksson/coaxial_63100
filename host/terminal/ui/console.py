@@ -69,6 +69,11 @@ MOUSE_ON = '\033[?1002h\033[?1006h'
 
 MOUSE_OFF = '\033[?1006l\033[?1002l'
 
+#: Bracketed paste while a view holds the mouse, a paste dropped whole: VS Code's right click
+#: pastes with nothing selected (rightClickBehavior copyPaste, Windows' default), its A restarting
+#: the HUMANOID page's walk (the user, 2026-10-02).
+PASTE_ON, PASTE_OFF = '\033[?2004h', '\033[?2004l'
+
 #: A wheel notch, as a fraction of the distance to the model. 12 % a notch is
 #: about eight notches between filling the window and half of it, which is
 #: roughly what one flick of a hand expects to do.
@@ -143,6 +148,10 @@ class Keys:
     #: One SGR mouse report: ESC [ < button ; column ; row (M press, m release)
     MOUSE_RE = re.compile(r'\033\[<(\d+);(\d+);(\d+)([Mm])')
 
+    #: A paste, bracketed (PASTE_ON): dropped once its end has come, held till then.
+    PASTE_START = '\033[200~'
+    PASTE_RE = re.compile(r'\033\[200~.*?\033\[201~', re.S)
+
     #: Arrows start with ESC, and a lone ESC leaves the view - so pressing
     #: one closed whatever was being adjusted. Taken out before that test.
     ARROW_RE = re.compile(r'\033\[([ABCD])')
@@ -154,9 +163,10 @@ class Keys:
     #: drains, a report was eaten as typed keys.
     PARTIAL_RE = re.compile(r'\033(\[(<[\d;]*)?)?$')
 
-    def __init__(self, console, mouse=False, quits=QUIT_KEYS):
-        # `quits` is which letters leave.
-        self._quits = frozenset(quits)
+    def __init__(self, console, mouse=False, quits=QUIT_KEYS, select=SELECT_KEYS, pan=False):
+        # `quits` is which letters leave; `select` which lend the mouse, none: the view holds it
+        # throughout; `pan` a right drag moves (`panned`) instead of zooming.
+        self._quits, self._select, self._pan = frozenset(quits), frozenset(select), pan
         self.console = console
         self.mouse = mouse and console
         self.reports = 0            # SGR mouse reports parsed, for a view's HUD
@@ -167,6 +177,8 @@ class Keys:
         self._buffer = ''
         self._dragging = False
         self._last_row = None
+        self._pan_at = (0, 0)
+        self._panned = (0.0, 0.0)
         self._holding = False
         self._grip = None
         self._spun = (0.0, 0.0)
@@ -192,6 +204,8 @@ class Keys:
         # The terminal keeps the mouse until a view is asked to take it.
         if self.mouse:
             Keys.holder = self
+            if not self._select:
+                self.grab(True)
         return self
 
     def __exit__(self, *exc_info):
@@ -208,7 +222,10 @@ class Keys:
         if not self.console:
             return None, 0.0
 
-        self._buffer += ''.join(self._drain())
+        self._buffer = self.PASTE_RE.sub('', self._buffer + ''.join(self._drain()))
+        start = self._buffer.find(self.PASTE_START)
+        pasting = self._buffer[start:] if start >= 0 else ''
+        self._buffer = self._buffer[:start] if start >= 0 else self._buffer
         zoom = 0.0
 
         while True:
@@ -241,14 +258,14 @@ class Keys:
         self._pending = held
 
         leave, keys = None, self._buffer
-        self._buffer = held
+        self._buffer = held + pasting
 
         for key in keys:
             if leave is None and key in self._quits:
                 leave = 'quit'
             elif leave is None and key in MENU_KEYS:
                 leave = 'menu'
-            elif self.mouse and key in SELECT_KEYS:
+            elif self.mouse and key in self._select:
                 # Swallowed, not passed on: no view binds it, and one that did
                 # would fight the terminal for the same gesture.
                 self.grab(not self._grabbed)
@@ -268,9 +285,9 @@ class Keys:
         out = sys.__stdout__ or sys.stdout
         if on:
             self._was_mode = _set_console_mode()
-            out.write(MOUSE_ON)
+            out.write(MOUSE_ON + PASTE_ON)
         else:
-            out.write(MOUSE_OFF)
+            out.write(MOUSE_OFF + PASTE_OFF)
             _set_console_mode(self._was_mode)
         out.flush()
         sys.stdout.flush()
@@ -296,10 +313,15 @@ class Keys:
         # 2 is the right button; 32 is the drag bit the terminal sets while it
         # is held.
         if button == 2 and kind == 'M':
-            self._dragging, self._last_row = True, row
+            self._dragging, self._last_row, self._pan_at = True, row, (col, row)
             return 0.0
         if button == 2 and kind == 'm':
             self._dragging = False
+            return 0.0
+        if button == 34 and self._dragging and self._pan:
+            dx, dy = self._panned
+            self._panned = (dx + col - self._pan_at[0], dy + row - self._pan_at[1])
+            self._pan_at = (col, row)
             return 0.0
         if button == 34 and self._dragging:
             moved = row - (self._last_row if self._last_row is not None
@@ -328,6 +350,11 @@ class Keys:
     def dragged(self):
         """Left-drag cell deltas (dx, dy) since the last call, drained."""
         out, self._spun = self._spun, (0.0, 0.0)
+        return out
+
+    def panned(self):
+        """Right-drag cell deltas (dx, dy) since the last call, drained, `pan` set."""
+        out, self._panned = self._panned, (0.0, 0.0)
         return out
 
     def clicked(self):

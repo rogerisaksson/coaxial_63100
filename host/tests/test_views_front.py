@@ -77,8 +77,8 @@ def test_the_view_loop_and_its_helpers(report):
         """Keys that say what the test says, a frame at a time."""
         script, typed = [], []
 
-        def __init__(self, _console, mouse=False):
-            self.mouse = mouse
+        def __init__(self, _console, mouse=False, select=(), pan=False):
+            self.mouse, self.select, self.pan = mouse, select, pan
 
         def __enter__(self):
             return self
@@ -99,7 +99,10 @@ def test_the_view_loop_and_its_helpers(report):
         def dragged(self):
             return (1, 2)
 
-    seen = {'scroll': [], 'click': [], 'drag': [], 'input': []}
+        def panned(self):
+            return (5, 6)
+
+    seen = {'scroll': [], 'click': [], 'drag': [], 'input': [], 'pan': []}
     real = screen.Keys, screen.scroll_by, screen.scroll_click, screen.scroll_drag
     screen.Keys = Scripted
     screen.scroll_by = lambda _view, step: seen['scroll'].append(step)
@@ -110,7 +113,8 @@ def test_the_view_loop_and_its_helpers(report):
         Scripted.script, Scripted.typed = [(None, 0.5)], ['down', 'x']
         screen.run_view(court, False, 0.01, 2, lambda: Text('frame'), mouse=True,
                         on_input=lambda typed, moved: seen['input'].append((typed, moved)),
-                        on_click=lambda col, row: None, on_drag=lambda dx, dy: None)
+                        on_click=lambda col, row: None, on_drag=lambda dx, dy: None,
+                        on_pan=lambda dx, dy: seen['pan'].append((dx, dy)))
         Scripted.script = [('menu', 0.0)]
         left = screen.run_view(court, False, 0.01, 0, lambda: Text('frame'))
 
@@ -125,7 +129,7 @@ def test_the_view_loop_and_its_helpers(report):
                  'and leaves on the key that says so',
                  left == 'menu' and seen['scroll'] == [1]
                  and seen['input'][:1] == [(['x'], 0.5)] and (3, 4) in seen['click']
-                 and 2 in seen['drag'], '%s %s' % (left, seen))
+                 and 2 in seen['drag'] and (5, 6) in seen['pan'], '%s %s' % (left, seen))
     report.check('Ctrl+C and a view that says it is done both end it quietly',
                  stopped is None and ticked is None)
 

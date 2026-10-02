@@ -15,7 +15,7 @@ from coaxial.draw import cross_section, gauges
 from coaxial.errors import DeviceStateError, NoReplyError, RigError
 from machine.modes import HARDWARE, SIMULATED
 from machine import ansi
-from terminal.ui.console import Keys, _ignore
+from terminal.ui.console import SELECT_KEYS, Keys, _ignore
 from terminal.ui.rate import rate_of
 from terminal.ui.scroll import scroll_by, scroll_click, scroll_drag
 from terminal.ui import sto
@@ -247,17 +247,19 @@ UI_HZ = 15.0
 
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False, on_click=None, on_drag=None,
-             scroll_keys=True):
+             scroll_keys=True, on_pan=None, select=SELECT_KEYS):
     """The loop every view runs: draw, pace - `period`, FPS_CAP's at the least - take keys,
     until Q, ESC, Ctrl+C or `frames` frames. Between draws the frame is shown again at UI_HZ;
-    a key cuts the wait and draws at once.
+    a key cuts the wait and draws at once. `on_pan` takes a right drag's cells, `select` the
+    keys lending the mouse (`Keys`).
     """
 
     period = max(period, 1.0 / FPS_CAP)
     click, drag = on_click or _ignore, on_drag or _ignore
     count = 0
     try:
-        with curtain(board_view) as page, Keys(console, mouse=mouse) as keys:
+        with curtain(board_view) as page, Keys(console, mouse=mouse, select=select,
+                                               pan=on_pan is not None) as keys:
             while True:
                 count += 1
                 # The period is frame to frame, measured from this draw's
@@ -296,6 +298,9 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 if dx or dy:
                     scroll_drag(board_view, dy)
                     drag(dx, dy)
+                px, py = keys.panned()
+                if on_pan is not None and (px or py):
+                    on_pan(px, py)
     except KeyboardInterrupt:
         return None
 

@@ -324,12 +324,41 @@ def test_the_attitude_caps_its_frame_rate(report):
                  view.period_of(0.0) == 2.0, '%.4f s' % view.period_of(0.0))
 
 
+def test_the_humanoid_pages_mouse(report):
+    """The HUMANOID page holds the mouse, F its pace: a right drag moves the view by its cells
+    and zooms nothing, a left drag turns and tips it, the arrows lift it (`viewpoint`)."""
+    from terminal.ui import console
+    from terminal.views import viewpoint
+    keys = console.Keys(console=True, mouse=True, select=frozenset(), pan=True)
+    esc = chr(27)
+    keys._buffer = esc + '[<2;5;20M' + esc + '[<34;9;23M' + esc + '[<34;12;26M' + 'f'
+    leave, zoom = keys.poll()
+    report.check('a right drag moves by its cells, zooms nothing, F typed',
+                 leave is None and zoom == 0.0 and keys.panned() == (7, 6)
+                 and keys.taken() == ['f'])
+    keys._buffer = esc + '[<2;5;20M' + esc + '[200~qa'
+    first = keys.poll()
+    keys._buffer += 'A' + esc + '[201~' + 's'
+    report.check('a paste dropped whole, split over two reads, the key after it kept',
+                 first[0] is None and keys.poll()[0] is None and keys.taken() == ['s'])
+    state: dict = dict(viewpoint.HOME, orbit=False, last_t=None)
+    viewpoint.moved(state, 10, 0, 120, 50)
+    viewpoint.turned(state, 5, 2)
+    viewpoint.KEYS['up'](state)
+    report.check('the view moved against the drag, turned and tipped, lifted',
+                 state['pan'][0] < 0.0 and state['pan'][1] > 0.0
+                 and state['yaw'] > viewpoint.YAW and state['pitch'] > viewpoint.PITCH,
+                 '%s' % state)
+    viewpoint.KEYS['v'](state)
+    report.check('V home', all(state[k] == v for k, v in viewpoint.HOME.items()))
+
+
 ROSTER = (test_the_page_tool_holds_one_frame, test_the_screen_keeps_its_own_rate,
           test_the_chrome_at_its_edges,
           test_each_page_draws_on_a_terminal, test_the_console_it_draws_on,
           test_the_crt_draws_on_the_terminal, test_the_terminal_is_asked_how_tall_a_cell_is,
           test_every_page_scrolls_its_boxes, test_a_frame_rasterises_as_the_terminal_draws_it,
-          test_the_attitude_caps_its_frame_rate)
+          test_the_attitude_caps_its_frame_rate, test_the_humanoid_pages_mouse)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

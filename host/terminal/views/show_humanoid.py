@@ -37,6 +37,7 @@ from terminal.loader import TO_MENU
 from terminal.views.overlay import (BOX_GROUND, BRAKE_INK, CALLOUT_W, DARK_INK, DRIVE_INK, LIGHT_INK,
                                     NUMBER_INK, SMALL, STAND, STANDING, TORQUE_INK, data_labels,
                                     data_legend, traffic)
+from terminal.views import viewpoint
 from terminal.views.playback import Playback
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
@@ -90,10 +91,6 @@ def gauges(state):
     out.append('   STYLE ', style='bar.dim')
     out.append_text(meter(state['sway'], STYLES))
     return out
-
-#: The camera: where it starts, three quarters round so a stride shows; degrees a key turns
-#: it, the orbit's degrees a second, the zoom's bounds.
-YAW, TURN_DEG, ORBIT_DEG_S, ZOOM = 60.0, 10.0, 12.0, (0.6, 2.5)
 
 #: A shove from her side, newtons for seconds: `machine.events`' past saving.
 PUSH_N, PUSH_S = SHOVES['shove'], SHOVE_S
@@ -185,7 +182,8 @@ def labels(now, called, shown='torque'):
 #: The key bar, two rows where one is too narrow.
 HINTS = (('S F', 'PACE'), ('Z X', 'CATWALK SWAGGER'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
          ('1-6', 'HOLE RUG SILL SLIP LACE STAIRS'), ('K , .', 'STYLE'), ('A', 'AGAIN'),
-         ('L', 'LABELS'), ('T', 'SHOWN'), ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'),
+         ('L', 'LABELS'), ('T', 'SHOWN'), ('<- -> DRAG', 'TURN'), ('UP DOWN RIGHT DRAG', 'MOVE'),
+         ('WHEEL + -', 'ZOOM'), ('O', 'ORBIT'),
          ('R', 'RECORD'), ('V', 'VIEW'), ('C', 'CLOTHES SHELL MECHANISM STICK'), ('D', 'DATA'),
          ('Q', 'EXIT'), ('ESC', 'MENU'))
 
@@ -300,14 +298,6 @@ def _glitched(kind):
     return glitch
 
 
-def _turned(step):
-    return lambda state: state.update(yaw=state['yaw'] + step)
-
-
-def _zoomed(k):
-    return lambda state: state.update(zoom=max(ZOOM[0], min(ZOOM[1], state['zoom'] * k)))
-
-
 def _paced(step):
     def pace(state):
         state['cadence'] = max(CADENCE[0], min(CADENCE[1], state['cadence'] + step))
@@ -387,8 +377,7 @@ def _seen(state):
 
 
 KEYS = dict(
-    [('left', _turned(-TURN_DEG)), ('right', _turned(TURN_DEG)),
-     ('[', _paced(-CADENCE_STEP)), (']', _paced(CADENCE_STEP))]
+    list(viewpoint.KEYS.items()) + [('[', _paced(-CADENCE_STEP)), (']', _paced(CADENCE_STEP))]
     + [(k, _paced(-CADENCE_STEP)) for k in 'sS'] + [(k, _paced(CADENCE_STEP)) for k in 'fF']
     + [(k, _pushed) for k in 'pP']
     + [(k, _glitched('soa')) for k in 'gG'] + [(k, _glitched('hot')) for k in 'hH']
@@ -402,13 +391,13 @@ KEYS = dict(
     + [(k, _swayed(-SWAY_STEP)) for k in 'zZ'] + [(k, _swayed(SWAY_STEP)) for k in 'xX']
     + [(k, lambda state: state.update(shown=SHOWN[(SHOWN.index(state['shown']) + 1)
                                                   % len(SHOWN)])) for k in 'tT']
-    + [(k, lambda state: state.update(yaw=YAW, zoom=1.0)) for k in 'vV']
     + [(k, _skinned) for k in 'cC']
-    + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD']
-    + [(k, _zoomed(1.1)) for k in '+='] + [(k, _zoomed(1.0 / 1.1)) for k in '-_'])
+    + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD'])
 
 
-def act_on(typed, state):
+def act_on(typed, state, wheel=0.0):
+    if wheel:
+        viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
     for key in typed:
         if key in KEYS:
             KEYS[key](state)
@@ -440,7 +429,7 @@ def main(argv=None):
 
     board_view = stage()
     terminal = board_view.is_terminal
-    state = {'body': body, 'cadence': cadence, 'orbit': False, 'yaw': YAW, 'zoom': 1.0,
+    state = {'body': body, 'cadence': cadence, 'orbit': False, **viewpoint.HOME,
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
              'tripped': None, 'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
@@ -453,10 +442,8 @@ def main(argv=None):
             state['recording'] += [row(s, state['yaw']) for s in said]
         state['playback'].push(said)
         now = state['playback'].at(time.perf_counter())
-        if state['orbit'] and now is not None:
-            if state['last_t'] is not None:
-                state['yaw'] += ORBIT_DEG_S * max(0.0, now['t'] - state['last_t'])
-            state['last_t'] = now['t']
+        if now is not None:
+            viewpoint.orbited(state, now['t'])
         width, height = size_of(board_view, args)
         if now is None:
             art = '\n'.join(' ' * width for _ in range(height))
@@ -475,6 +462,7 @@ def main(argv=None):
             x, y, z = now['where']
             camera = state['follow']((x, z), now['velocity'], now['t'])
             art = '\n'.join(gynoid.render(now['angles'], width, height, yaw=state['yaw'],
+                                          pitch=state['pitch'], pan=state['pan'],
                                           zoom=state['zoom'], colour=terminal, travel=camera,
                                           lit=lit, root=((x - camera[0], y, z - camera[1]),
                                                          quat(*now['turn'])),
@@ -498,7 +486,8 @@ def main(argv=None):
                     break
                 time.sleep(0.01)
         leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz),
-                           args.frames, draw, on_input=lambda typed, _moved: act_on(typed, state))
+                           args.frames, draw, on_input=lambda typed, wheel: act_on(typed, state, wheel),
+                           **viewpoint.mouse(state, lambda: size_of(board_view, args)))
     finally:
         body.close()
         sys.stdout.write('\n')
