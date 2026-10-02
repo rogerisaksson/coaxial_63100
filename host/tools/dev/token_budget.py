@@ -23,7 +23,6 @@ BUDGET = 6000
 #: (2026-09-28). Tokens.
 HEAVY = {
     'host/tests/test_simulated.py': 22300,
-    'docs/FINDINGS.md': 20500,
     'host/tests/test_ollama_tools.py': 18600,
     'host/tests/test_render.py': 18100,
     'host/tests/test_thermal_core.py': 17300,

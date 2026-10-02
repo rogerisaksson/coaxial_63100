@@ -47,7 +47,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 | docs/BOOT.md | bootloader, flash map |
 | docs/HARDWARE.md | interpreting a measurement |
 | docs/MODELS.md | the local model |
-| docs/FINDINGS.md | **investigating anything** |
+| docs/FINDINGS.md | **investigating anything**: the board's, the rest by subject in docs/findings/ |
 | docs/TODO.md | picking up work |
 
 ## Target
@@ -123,7 +123,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
    before pushing `coaxial/` changes. Lint (`host/tools/dev/lint.py`:
    markdownlint, pyright basic) runs as a hook after every edit and at stop.
 2. Braille output: judge a PNG (`tools/render/ansi2png.py`), then the bench.
-3. One dated FINDINGS line if something was measured or settled;
+3. One dated line in its subject's findings if something was measured or settled;
    PROTOCOL for wire changes (MINOR per appended field).
 4. Commit, push, move on: do not wait for CI. Read it at the next push
    (`curl -s https://api.github.com/repos/rogerisaksson/coaxial_63100/actions/runs?per_page=3`);

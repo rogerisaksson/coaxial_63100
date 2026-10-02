@@ -55,7 +55,7 @@ SQUARE_SHARE = 0.03
 
 #: How near the observer's legs keep to the world's, K: 0.3 alone, 1.2 under the offline
 #: gate's load; a garbage sample or a plant hasted before its observer put them 5-6 K apart
-#: (FINDINGS 2026-09-26).
+#: (docs/findings/emulation.md, 2026-09-26).
 LEG_K = 2.0
 
 #: The STO chain: its time to release or trip from any input and settle, board s (1.5 ms at

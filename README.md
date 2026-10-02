@@ -399,6 +399,7 @@ duty 1-100 % dry; 26 pulse runs into 8 ohm at 25 and 31 V, 3.1-3.75 A.
 - [docs/HARDWARE.md](docs/HARDWARE.md) - the board, before a measurement
 - [docs/BOOT.md](docs/BOOT.md) - the bootloader and the flash map
 - [docs/MODELS.md](docs/MODELS.md) - the local model
-- [docs/FINDINGS.md](docs/FINDINGS.md) - what was measured and settled: read
-  it before investigating anything
+- [docs/FINDINGS.md](docs/FINDINGS.md) - what was measured and settled on the
+  board, and by subject in [docs/findings/](docs/findings/): read it before
+  investigating anything
 - [docs/TODO.md](docs/TODO.md) - open work

@@ -224,7 +224,8 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         from tools.cores.native import afe_values     # the emulator's front end, where one runs
         board = self.board
         # The observer's clock and the plant's at once: a plant hasted from power-on ran the
-        # MCU's node a kelvin ahead of the observer by the open (FINDINGS 2026-09-26).
+        # MCU's node a kelvin ahead of the observer by the open (findings/emulation.md,
+        # 2026-09-26).
         board.thermal.configure(clock=thermal.HASTE)
         heat = getattr(getattr(board.transport, 'serial', None), 'heat_clock', None)
         if heat is not None:
