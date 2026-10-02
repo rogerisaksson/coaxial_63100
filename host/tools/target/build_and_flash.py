@@ -23,6 +23,7 @@ import argparse
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import time
@@ -249,6 +250,26 @@ def build(preset, path):
     return True
 
 
+def _vectors(elf):
+    """The first two words an ELF loads at flash's start - its stack and its reset vector."""
+    data = Path(elf).read_bytes()
+    phoff = struct.unpack_from('<I', data, 0x1C)[0]
+    size, count = struct.unpack_from('<HH', data, 0x2A)
+    for i in range(count):
+        kind, offset, _vaddr, paddr, filesz = struct.unpack_from('<5I', data, phoff + i * size)
+        if kind == 1 and paddr == 0x08000000 and filesz >= 8:
+            return struct.unpack_from('<II', data, offset)
+    return None
+
+
+def _sector0(programmer, path):
+    """The board's first two flash words over SWD, no reset, or None."""
+    code, output, _elapsed = run([programmer, '-c', 'port=SWD', 'mode=HOTPLUG', '-r32',
+                                  '0x08000000', '0x8'], cwd=str(ROOT), path=path)
+    found = re.search(r'0x08000000 : ([0-9A-F]{8}) ([0-9A-F]{8})', output)
+    return (int(found.group(1), 16), int(found.group(2), 16)) if code == 0 and found else None
+
+
 def flash(elf, path):
     elf = Path(elf)
     if not elf.exists():
@@ -261,6 +282,13 @@ def flash(elf, path):
     # The application is linked for RAM: what flash takes is its sealed
     # copy at the store, which the bootloader verifies and copies at reset.
     target, sealed = [str(elf)], None
+    # The store only behind this build's bootloader: written behind the application of 2026-09-16,
+    # which ran from flash over sectors 0 and 1, it broke it - the board restarted in a loop, its
+    # 5 V and 15 V rails switching in turn (2026-10-02).
+    if elf.name == APP and _sector0(programmer, path) != _vectors(elf.with_name(BOOT)):
+        print('FLASH  FAIL  sector 0 holds no bootloader of this build: the store would land on '
+              'what runs from flash there - --boot flashes it first')
+        return False
     if elf.name == APP:
         from coaxial.devices.boot import STORE_BASE, image_of, store_of
         image = image_of(elf)
