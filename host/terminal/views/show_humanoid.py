@@ -113,7 +113,7 @@ RECORDINGS = os.path.join(REPO, 'build', 'recordings')
 HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
            'x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'] + list(JOINTS)
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
-          + ['set_' + j for j in JOINTS])
+          + ['set_' + j for j in JOINTS] + ['watts'])
 
 #: What the callouts show, T stepping through: each drive's torque, its heat (its worst node as
 #: its board says it, the thermal observer's scale), its power; the legend's words and the heat's
@@ -182,7 +182,7 @@ def labels(now, called, shown='torque'):
     return out
 
 
-#: The key bar, on two rows where one is too narrow.
+#: The key bar, two rows where one is too narrow.
 HINTS = (('S F', 'PACE'), ('Z X', 'CATWALK SWAGGER'), ('P', 'PUSH'), ('G', 'SOA'), ('H', 'HOT'),
          ('1-6', 'HOLE RUG SILL SLIP LACE STAIRS'), ('K , .', 'STYLE'), ('A', 'AGAIN'),
          ('L', 'LABELS'), ('T', 'SHOWN'), ('<- ->', 'TURN'), ('+ -', 'ZOOM'), ('O', 'ORBIT'),
@@ -191,7 +191,7 @@ HINTS = (('S F', 'PACE'), ('Z X', 'CATWALK SWAGGER'), ('P', 'PUSH'), ('G', 'SOA'
 
 
 def size_of(console, args):
-    """Cells for the drawing: what the viewport leaves, or --width/--height."""
+    """Cells for the drawing: the viewport's, or --width/--height."""
     size = console.size if console.is_terminal else None
     width = args.width or max(24, (size.width if size else 110) - HUD_WIDTH - 6)
     bar = footer(HINTS, size.width if size else 110).row_count
@@ -339,15 +339,15 @@ def _swayed(step):
 
 
 def row(now, yaw):
-    """A recording's row (HEADER): her state at the page's `yaw`, each joint, each segment's
-    place, and each joint as the director asked it."""
+    """A recording's row (HEADER): her state at the page's `yaw`, each joint, segment's place,
+    joint as asked, the watts."""
     placed = frames(now['angles'], now['where'], quat(*now['turn']))
     asked = now.get('set', {})
     return ([round(now['t'], 4), now['stage'], yaw, now['speed'], now['phase']]
             + list(now['loads']) + list(now['where']) + list(now['turn'])
             + [now['angles'].get(j, 0.0) for j in JOINTS]
             + [v for seg in SEGMENTS for v in placed[seg[0]][0]]
-            + [asked.get(j, float('nan')) for j in JOINTS])
+            + [asked.get(j, float('nan')) for j in JOINTS] + [now.get('watts', float('nan'))])
 
 
 def _recorded(state):

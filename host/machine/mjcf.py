@@ -19,6 +19,10 @@ STOPS = {'elbow': (-5.0, 160.0), 'spine': (-30.0, 85.0), 'spine_roll': (-35.0, 3
 #: its stops HELD_DEG either side of its rest.
 PASSIVE_J, HELD_DEG = 0.0005, 0.5
 
+#: The hips' yaw stopped HIP_YAW_DEG either side, 0 free (a trial: the roll's drum behind the hip
+#: swings with it into the other side's).
+HIP_YAW_DEG = 0.0
+
 #: The contacts' friction cone: elliptic, the same grip every way, at IMPRATIO. On MuJoCo's
 #: pyramid she walked along the world's axes and fell 1.2 m on 45 degrees off them; elliptic at 1
 #: she fell every way at 1.18 m, at 3 and 10 walked 13 m every way (2026-09-30).
@@ -108,6 +112,8 @@ def mjcf():
             out.append('<freejoint name="root"/>')
         for joint, axis, sign in joints:
             stop, spring = STOPS.get(kind(joint)), drives.passive(joint)
+            if kind(joint) == 'hip_yaw' and HIP_YAW_DEG:
+                stop = (-HIP_YAW_DEG, HIP_YAW_DEG)
             if spring:
                 stiffness, damp, rest = spring
                 stop = (rest - HELD_DEG, rest + HELD_DEG) if stiffness is None else stop

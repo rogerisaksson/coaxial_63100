@@ -47,13 +47,15 @@ CATCH = {'ahead': {'neck': HEAD_UP_DEG, 'left_shoulder': 90.0, 'right_shoulder':
                    'right_wrist': 0.0}}
 
 #: An arm at the floor (TOUCH_M), the arms go on into YIELD, the forearms by her face, soft: each
-#: asked at most SOFT_DEG past where it is, 13 N m a shoulder and 7 an elbow. Held to the catch
+#: asked at most SOFT_DEG past where it is, 26 N m a shoulder and 14 an elbow - at 5, 13 and 7,
+#: a shove's arms folded 30 -> 157 deg in 0.15 s and her head met the floor at 2.46 m/s, at 10
+#: and 15 in none of 16 (2026-10-02). Held to the catch
 #: they pinned their drives at their peaks in all four falls, the stairs' left straight out
 #: (2026-09-30); held out straight she caught herself and toppled over them sideways; down on a
 #: lace the head stayed 71 mm off the floor where straight arms left 132; bent to 70, the hands
 #: over the head, it met the floor at 1.3 m/s (2026-09-28).
 YIELD = {'left_elbow': 90.0, 'right_elbow': 90.0, 'left_shoulder': 110.0, 'right_shoulder': 110.0}
-SOFT_DEG, TOUCH_M = 5.0, 0.01
+SOFT_DEG, TOUCH_M = 10.0, 0.01
 
 #: Past saving she goes down into a crouch, not limp (CROUCH): the leg on the side she tips to
 #: lunges, its hip rolled out by how far aside she tips, LUNGE's; the other kneels, KNEEL's; the

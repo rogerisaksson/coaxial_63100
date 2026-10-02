@@ -42,7 +42,6 @@ def _run(commands, states, cadence, local):
     from machine import Machine, events, style
     from machine.director import Director
     from machine.figure import JOINTS
-    from machine import heat
     from machine.heat import GATES_ON
     from machine.modes import DYNAMIC
     machine = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -52,9 +51,7 @@ def _run(commands, states, cadence, local):
     dt = 1.0 / RATE_HZ
     k = dt / AVERAGE_S
     torque, power = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
-    #: What her drives draw, W: the work they do, their copper's heat, their boards' own
-    #: (`machine.heat`: switching and housekeeping) - braking gives nothing back.
-    boards, watts = len(JOINTS) * (heat.SWITCHING_W + heat.HOUSEKEEPING_W), 0.0
+    watts = 0.0
     peak = dict(zip(JOINTS, world.peak.tolist()))
 
     def begin():
@@ -118,9 +115,7 @@ def _run(commands, states, cadence, local):
             tau = world.data.ctrl
             torque += k * (tau - torque)
             power += k * (tau * world.data.qvel[world.vadr] - power)
-            drawn = (np.maximum(tau * world.data.qvel[world.vadr], 0.0).sum()
-                     + world.loss @ (tau * tau) + boards)
-            watts += k * (drawn - watts)
+            watts += k * (world.drawn() - watts)
         spent += time.perf_counter() - began
         ran += bus['t'] - from_t
         if bus['t'] - said >= SAY_S:

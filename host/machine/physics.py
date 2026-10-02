@@ -17,7 +17,7 @@ import math
 import os
 from typing import Any
 
-from machine import drives
+from machine import drives, heat
 from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Batch
@@ -336,6 +336,15 @@ class World:
         self.model.dof_damping[self.vadr[index]] = self.free[index] + self.damping[index]
         if index in self.bus_of:
             self.bus_of[index].short(index)
+
+    def drawn(self):
+        """What her drives draw now, W: the work they do - braking gives nothing back -, their
+        copper's heat and their boards' own, housekeeping each and switching unshorted."""
+        np, tau = self._np, self.data.ctrl
+        driven = np.array([not drives.passive(j) for j in JOINTS])
+        return (float(np.maximum(tau * self.data.qvel[self.vadr], 0.0).sum() + self.loss @ (tau * tau))
+                + heat.HOUSEKEEPING_W * int(driven.sum())
+                + heat.SWITCHING_W * int((driven & ~self.shorted).sum()))
 
     def reading(self, index):
         """(degrees, deg/s, C, spent, derate, status) of a joint's drive as its board last

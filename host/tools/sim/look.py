@@ -17,7 +17,7 @@ knees), the hips-to-shoulders line, the left knee (under 0 bent back), the head'
 range the nod), the left hip's roll, the thighs' gap as drawn, bare and in the jeans (under 0
 they meet), the trunk's and arms' to the legs (simulated), how far the pelvis's and the head's
 forward point above level (90 on her back), falling until an arm lands her reach off the way she
-tips, the seat's drives past her skin - least and most over the stage, deg and mm.
+tips, the seat's drives past her skin, what her drives draw - least and most over the stage.
 """
 import argparse
 import csv
@@ -106,6 +106,7 @@ def sample(bus, director, world, asked=None):
            'where': (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z']),
            'turn': tuple(bus['pelvis.pose.q' + k] for k in 'wxyz'),
            'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked or {}}
+    now['watts'] = world.drawn()
     return dict(zip(HEADER, row(now, 60.0)), loose=world.loose(),
                 feet=world.gap(LEFT_FOOT, RIGHT_FOOT), lifted=world.lifted(LEFT_FOOT),
                 landed=director.touched_at is not None,
@@ -159,6 +160,7 @@ MEASURES = (
         math.dist(_p(r, side + '_fingers'), _mid(_p(r, 'torso'), _p(r, 'neck')))
         for side in ('left', 'right'))),
     ('seat out', 'mm', lambda r, ref: _out(r, SEAT)),
+    ('drawing', 'W', lambda r, ref: float(r.get('watts') or 'nan')),
 )
 
 #: The seat's drives, `seat out` their worst reach past her skin.
