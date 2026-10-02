@@ -119,17 +119,17 @@ Open work. Measured results are in FINDINGS.
     on the boards' tick, the walker takes 0.46 ms of a walking pass.
   + Fewer drives, for weight and BOM: of the 27 on 5 buses (the axis 5, an
     arm 4, a leg 7): the head's turn held rigid changed nothing in 5
-    scenarios. Her toes and fingers without drives to begin with: the toes
-    on a spring or rigid (rigid, 3 more falls of 5), the fingers a fixed
-    hand - measured on the scoreboard (`gait_montecarlo`). The elbow's M
-    drive, 70 mm, stands
-    wider than her 56 mm arm: at the shoulder, a rod to the forearm. M's and
-    S's motors are estimates; the quick-releases' give at the shoulders and
-    hips is not modelled. The
-    shoulder has no stop: the roll re-searched as built asks 219 degrees.
-    High torque through a gearbox and a rod; the rest direct drive where its
-    torque stays reasonable: as built only the head's turn asks little
-    enough (2.7 N m getting up).
+    scenarios. The fingers a fist without drives (`drives.FINGERS`), their
+    boards still on the arms' buses, their limit 0. The toes on a spring
+    every walk falls within 0.8 s: the walker's push-off asks them and its
+    legs' reach counts on them - reworked for a passive toe. The elbow's M
+    drive, 70 mm, stands wider than her 56 mm arm: at the shoulder, a rod to
+    the forearm. M's and S's motors are estimates; the quick-releases' give
+    at the shoulders and hips is not modelled. The shoulder has no stop: the
+    roll re-searched as built asks 219 degrees. High torque through a
+    gearbox and a rod; the rest direct drive where its torque stays
+    reasonable: as built only the head's turn asks little enough (2.7 N m
+    getting up).
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the
@@ -137,6 +137,13 @@ Open work. Measured results are in FINDINGS.
   + The planner's server after LOCAL_TRIES local failures.
   + `machine/` in subpackages.
   + A fast walk, then running: no strikes, no blows, quiet and smooth.
+  + The seat's drives in closer to the pelvis, nothing standing out of her:
+    clothes bought off the rack fit her (the user, 2026-10-02); standing,
+    the hip's reaches 42 mm past her skin, its roll's 48, and the roll's
+    drum stands 44 mm into the yaw's. A gimbal hip - the pitch's L centred
+    on the hip carrying the roll's trunnions, the roll's M behind, the
+    yaw's M above - 12, 42 and 23 mm, nothing touching over 21 runs' yaws
+    and rolls. Her skin is an EU 32: hips 80.8 cm, bust 70.
   + The mechanism realizable: each rod's crank, length and horn giving its
     stroke curve (`drives.STROKES`, a first cut from where the joints asked
     torque) over the joint's range, and the drives, rods, bones and shells
@@ -148,7 +155,13 @@ Open work. Measured results are in FINDINGS.
     ankle's roll, the wrist's, the gripper's and the toes' drives off their
     axes with nothing to them; the legs without stops; the toes' S gearbox
     1.3-1.7 times its shock rating shoved past saving. The hip's roll 109.7
-    C after 30 s of walking, its throttle at 110.5.
+    C after 30 s of walking, its throttle at 110.5. A four-bar's best over
+    her ranges as 21 runs used them: the knee's -5..165 12 degrees at
+    worst, to 130 24 at a lever of 0.9; the hip's -145..35 only at the joint;
+    the ankle's 38 at 0.9, 27 at 1.2; the hip's roll 45 at 1.4 - the knee's
+    way (a rod to 130, on its axis, a belt from the thigh) the user's call
+    (asked 2026-10-02). Standing, 14 of her 16 kinds of drive reach 9-49 mm
+    past her skin.
   + Her carbon shells shaped over the structure as built, and clothes cut
     to fit them; her seat soft - a body with give, cloth over it - not two
     spheres a cheek.

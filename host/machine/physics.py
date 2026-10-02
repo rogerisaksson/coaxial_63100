@@ -79,8 +79,8 @@ class World:
         self.loose_at = np.array([m.jnt_qposadr[m.joint(j).id] for j in LOOSE])
         self.vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
         self.gains = np.array([SERVO[kind(j)][1:3] for j in JOINTS])
-        self.peak = np.array([min(SERVO[kind(j)][0], drives.peak(j)) if CLAMPED
-                              else SERVO[kind(j)][0] for j in JOINTS])
+        self.peak = np.array([0.0 if drives.passive(j) else min(SERVO[kind(j)][0], drives.peak(j))
+                              if CLAMPED else SERVO[kind(j)][0] for j in JOINTS])
         #: Each drive's copper loss a torque squared, W/(N m)^2: R/kt^2 of its motor through its
         #: cycloid (`machine.drives`). The work it does is metered only where positive - a drive
         #: does not charge its battery braking.
@@ -94,7 +94,7 @@ class World:
         #: The joints on a stroke's curve: (index, joint, SERVO's armature, its own damping).
         self.strokes = [(i, j, SERVO[kind(j)][3], float(m.dof_damping[self.vadr[i]]))
                         for i, j in enumerate(JOINTS) if kind(j) in drives.STROKES]
-        self.damping = 1.0 / self.loss
+        self.damping = 1.0 / self.loss * np.array([not drives.passive(j) for j in JOINTS])
         self.free = m.dof_damping[self.vadr].copy()
         self.target = np.zeros(len(JOINTS))
         self.rate = np.zeros(len(JOINTS))

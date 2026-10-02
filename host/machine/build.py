@@ -46,6 +46,8 @@ def riders():
     out = {}
     for name, parent, joints, offset, *_ in SEGMENTS:
         for k, (joint, axis, _sign) in enumerate(joints):
+            if drives.passive(joint):
+                continue
             size, where = drives.of(joint)[1], drives.mount(joint)
             if where is not None:
                 rides, at = where[0], tuple(where[1])
@@ -90,8 +92,9 @@ def _shells(part):
 
 def segments():
     """{segment: (kg, centre, (ixx, iyy, izz, ixy, ixz, iyz) about it)}, each in its own frame: its
-    shell, what it holds and the drives on it - laid once a wall (`figure.com` asks every pass)."""
-    key = (WALL_M, CF_KG_M3)
+    shell, what it holds and the drives on it - laid once a wall and a drives' layout
+    (`figure.com` asks every pass)."""
+    key = (WALL_M, CF_KG_M3, drives.TOES, drives.FINGERS, tuple(drives.JOINTS.items()))
     if key not in _LAID:
         _LAID[key] = _segments()
     return _LAID[key]

@@ -206,7 +206,7 @@ DENSITY_COLD, DENSITY_HOT = 0.40, 1.0
 #: How many ranks the mask has: a share of one clears every one of them.
 NOISE_LEVELS = NOISE_N * NOISE_N
 
-#: Rim, outlines and labels in the instrument's teal: off the ironbow's hues, so
+#: Rim, outlines and labels in the instrument's teal: off the palette's hues, so
 #: they hold over a hot leg (white shouted, 2026-09-25); the rail's numbers ash.
 MARK_INK = (60, 175, 185)
 RAIL_INK = ansi.ASH

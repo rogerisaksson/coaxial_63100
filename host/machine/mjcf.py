@@ -15,6 +15,10 @@ from machine.figure import BODY, CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEG
 STOPS = {'elbow': (-5.0, 160.0), 'spine': (-30.0, 85.0), 'spine_roll': (-35.0, 35.0),
          'waist': (-50.0, 50.0)}
 
+#: A joint with no drive (`drives.passive`): its armature, kg m^2 - nearly none, a spring's; held,
+#: its stops HELD_DEG either side of its rest.
+PASSIVE_J, HELD_DEG = 0.0005, 0.5
+
 #: The contacts' friction cone: elliptic, the same grip every way, at IMPRATIO. On MuJoCo's
 #: pyramid she walked along the world's axes and fell 1.2 m on 45 degrees off them; elliptic at 1
 #: she fell every way at 1.18 m, at 3 and 10 walked 13 m every way (2026-09-30).
@@ -103,14 +107,20 @@ def mjcf():
         if seg[1] is None:
             out.append('<freejoint name="root"/>')
         for joint, axis, sign in joints:
-            stop = STOPS.get(kind(joint))
+            stop, spring = STOPS.get(kind(joint)), drives.passive(joint)
+            if spring:
+                stiffness, damp, rest = spring
+                stop = (rest - HELD_DEG, rest + HELD_DEG) if stiffness is None else stop
             out.append('<joint name="%s" axis="%g %g %g" armature="%g"%s%s/>' % (
                 (joint,) + tuple(sign * v for v in axes[axis]) + (
+                    PASSIVE_J if spring else
                     SERVO[kind(joint)][3] + REFLECTED * (drives.armature(joint)
                                                          - SERVO[kind(joint)][3]),
                     ' limited="true" range="%g %g"' % stop if stop else '',
+                    ' stiffness="%g" springref="%g" damping="%g"' % (
+                        spring[0], spring[2], spring[1]) if spring and spring[0] else
                     ' frictionloss="%g"' % (BACKDRIVE * drives.backdrive(joint))
-                    if BACKDRIVE else '')))
+                    if BACKDRIVE and not spring else '')))
         mass = share * MASS_KG - sum(kg for _j, kg, _at, _i in riders.get(name, ()))
         out.append('<inertial pos="%g %g %g" mass="%g" fullinertia="%g %g %g %g %g %g"/>' % (
             shells[name][1] + (shells[name][0],) + shells[name][2]) if shells else

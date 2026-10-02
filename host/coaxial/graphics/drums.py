@@ -30,6 +30,8 @@ def drums():
     axes = {j: axis for seg in figure.SEGMENTS for j, axis, _sign in seg[2]}
     out = []
     for joint, seg in carries.items():
+        if drives.passive(joint):
+            continue
         size = drives.of(joint)[1]
         mesh = drum(size.diameter / 2.0, size.length, axes[joint], PLATE)
         mounted = drives.mount(joint)

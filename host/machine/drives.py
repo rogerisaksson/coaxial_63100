@@ -53,6 +53,15 @@ GEAR_J = 0.05
 #: worn a little).
 BACKLASH_DEG = 0.1
 
+#: Joints without a drive to begin with (the user, 2026-10-02): the toes (TOES) and the fingers
+#: (FINGERS) driven, 0; on a spring, 1 - PASSIVE's stiffness N m/rad and damping N m s/rad about
+#: its rest, deg; held at it, 2. On the scoreboard, their four drives' 0.88 kg gone: the fingers
+#: held open at 20 deg 212 -> 349, held 79.5 -> 68.0 %, every rise down at 7.1 s; held a fist,
+#: 238 and 81.0 %; the toes sprung, 622 and 11.4 %, every walk down within 0.8 s - the walker's
+#: push-off asks them and its legs' reach counts on them (2026-10-02).
+TOES, FINGERS = 0.0, 2.0
+PASSIVE = {'foot': (40.0, 1.0, 0.0), 'gripper': (40.0, 1.0, 80.0)}
+
 
 #: L: the 63 V 100 A board, its parts' centres 92 x 93 mm (the pick-and-place), a disc of 100 mm
 #: behind the 5230SL; M and S: that board scaled to 25 and 6.8 A behind a 43 and a 35 mm stator
@@ -181,15 +190,25 @@ def peak(joint):
     return kt(joint) * of(joint)[1].amps
 
 
+def passive(joint):
+    """(stiffness N m/rad - None held -, damping N m s/rad, rest deg) of a joint with no drive
+    (`PASSIVE`), else None."""
+    way = {'foot': TOES, 'gripper': FINGERS}.get(kind(joint), 0.0)
+    if not way:
+        return None
+    stiffness, damping, rest = PASSIVE[kind(joint)]
+    return (stiffness if way == 1.0 else None), damping, rest
+
+
 def armature(joint):
-    """The rotor's and the gearbox's inertia as the joint feels them, kg m^2."""
-    return (1.0 + GEAR_J) * of(joint)[1].rotor * ratio(joint) ** 2
+    """The rotor's and the gearbox's inertia as the joint feels them, kg m^2; none undriven."""
+    return 0.0 if passive(joint) else (1.0 + GEAR_J) * of(joint)[1].rotor * ratio(joint) ** 2
 
 
 def backdrive(joint):
     """The torque that turns the joint by its output, unpowered: its gearbox's drag through its
-    ratio, N m."""
-    return of(joint)[1].drag * ratio(joint)
+    ratio, N m; none undriven."""
+    return 0.0 if passive(joint) else of(joint)[1].drag * ratio(joint)
 
 
 def shock(joint):
