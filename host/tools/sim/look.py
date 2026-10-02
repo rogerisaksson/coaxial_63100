@@ -17,7 +17,7 @@ knees), the hips-to-shoulders line, the left knee (under 0 bent back), the head'
 range the nod), the left hip's roll, the thighs' gap as drawn, bare and in the jeans (under 0
 they meet), the trunk's and arms' to the legs (simulated), how far the pelvis's and the head's
 forward point above level (90 on her back), falling until an arm lands her reach off the way she
-tips - least and most over the stage, deg and mm.
+tips, the seat's drives past her skin - least and most over the stage, deg and mm.
 """
 import argparse
 import csv
@@ -29,8 +29,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO  # noqa: E402
-from tools.sim.strides import (_faces, _gap, _lean, _mid, _p, _reach_off, _roll,  # noqa: E402
-                               walked)
+from tools.sim.strides import (_faces, _gap, _lean, _mid, _out, _p, _reach_off,  # noqa: E402
+                               _roll, walked)
 
 #: The head's rest pitch in the neck's offset (`figure.SEGMENTS`: 0.09 up, 0.012 on), deg.
 HEAD_REST = math.degrees(math.atan2(0.012, 0.09))
@@ -158,7 +158,11 @@ MEASURES = (
     ('hands out', 'mm', lambda r, ref: 1e3 * max(
         math.dist(_p(r, side + '_fingers'), _mid(_p(r, 'torso'), _p(r, 'neck')))
         for side in ('left', 'right'))),
+    ('seat out', 'mm', lambda r, ref: _out(r, SEAT)),
 )
+
+#: The seat's drives, `seat out` their worst reach past her skin.
+SEAT = tuple(side + k for side in ('left_', 'right_') for k in ('hip', 'hip_roll', 'hip_yaw'))
 
 #: A seam's measures, by name, and the director's ask beside them; the times read about it, s.
 SEAM = ('pelvis dy', 'head dy', 'pelvis roll', 'torso', 'bow', 'knee L')

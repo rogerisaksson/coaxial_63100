@@ -38,6 +38,60 @@ def _mid(a, b):
     return tuple((u + v) / 2.0 for u, v in zip(a, b))
 
 
+def _out(r, joints):
+    """How far the drives of `joints` reach past her skin as `r` poses her, mm: the worst of their
+    drums' rims and faces (`drums`) outside every capsule of hers (`figure.BODY`)."""
+    from coaxial.model.blocks import numpy as np
+    from machine import figure
+    placed = figure.frames({j: float(r[j]) for j in figure.JOINTS}, (0.0, 0.0, 0.0),
+                           ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)))
+    turn = {k: (np.array(R), np.array(p)) for k, (p, R) in placed.items()}
+    ends = np.array([turn[seg][1] + turn[seg][0] @ np.array(e) for seg, _r, a, b in _skin()
+                     for e in (a, b)]).reshape(-1, 2, 3)
+    radii = np.array([radius for _seg, radius, _a, _b in _skin()])
+    worst = -np.inf
+    for joint in joints:
+        parent, dots = _drum(joint)
+        pts = turn[parent][1] + dots @ turn[parent][0].T
+        a, ab = ends[:, 0][None], (ends[:, 1] - ends[:, 0])[None]
+        t = np.clip(((pts[:, None] - a) * ab).sum(-1) / np.maximum((ab * ab).sum(-1), 1e-12),
+                    0.0, 1.0)
+        gap = np.linalg.norm(pts[:, None] - (a + t[..., None] * ab), axis=-1) - radii[None]
+        worst = max(worst, float(gap.min(axis=1).max()))
+    return 1e3 * worst
+
+
+@functools.lru_cache(None)
+def _skin():
+    """[(segment, radius, end, end)]: her capsules (`figure.BODY`), each segment's, its frame."""
+    from machine import figure
+    out = []
+    for seg in figure.SEGMENTS:
+        bare = seg[0].split('_', 1)[1] if seg[0].startswith(('left_', 'right_')) else seg[0]
+        x = -1.0 if seg[0].startswith('right_') else 1.0
+        out += [(seg[0], radius, (a[0] * x, a[1], a[2]), (b[0] * x, b[1], b[2]))
+                for part, radius, a, b in figure.BODY if part == bare]
+    return tuple(out)
+
+
+@functools.lru_cache(None)
+def _drum(joint):
+    """(part, dots (n, 3) in its frame): `joint`'s drum as drawn, its rims and faces."""
+    from coaxial.graphics import drums
+    from coaxial.model.blocks import numpy as np
+    from machine import drives
+    parent, at = next((p, o) for n, p, o, _m in drums.drums() if n == 'drive_' + joint)
+    axis, half = (np.array(v, float) if i == 0 else v for i, v in enumerate(drums.AXES[joint]))
+    w = np.array([1.0, 0.0, 0.0]) if abs(axis[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+    u = np.cross(axis, w)
+    u /= np.linalg.norm(u)
+    v = np.cross(axis, u)
+    t = np.linspace(0.0, 2.0 * np.pi, 36, endpoint=False)
+    rim = drives.of(joint)[1].diameter / 2.0 * (np.cos(t)[:, None] * u + np.sin(t)[:, None] * v)
+    return parent, np.concatenate([np.array(at) + s * half * axis + f * rim
+                                   for s in (-1.0, 0.0, 1.0) for f in (1.0, 0.5, 0.0)])
+
+
 def _lean(a, b):
     """The line a -> b, deg ahead of plumb (her forward z)."""
     return math.degrees(math.atan2(b[2] - a[2], b[1] - a[1]))
