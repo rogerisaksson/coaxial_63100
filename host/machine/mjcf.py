@@ -4,7 +4,7 @@ The world steps it (`machine.physics`).
 """
 import math
 
-from machine import build, drives, figure, floor
+from machine import build, drives, figure, floor, skeleton
 from machine.drives import kind
 from machine.figure import BODY, CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
 
@@ -95,7 +95,37 @@ LACE_AT, LACE_M, LACE_S, LACE_HOLD_N = (0.0, -0.03, 0.07), 0.25, 0.03, 1000.0
 
 
 def mjcf():
-    """The figure as MuJoCo's XML: y up, a drive's motor on every joint, the floor's contacts."""
+    """The figure as MuJoCo's XML: y up, a drive's motor on every joint, the floor's contacts,
+    her skeleton colliding with itself, the floor and her skins but its segment's neighbours' - in
+    the squat a hip's yaw stood 45 mm into the thigh's capsule, the boom 56 (`machine.skeleton`) -
+    MuJoCo's parent filter off, which takes a welded part for its segment, each segment kept from
+    its parent by name, what touches standing or in the squat she lands in too - there her arms
+    stood 3-8 mm in her knees' drums and boards, the kick felling her walk."""
+    from machine.physics import SKELETON
+    xml = _mjcf(SKELETON)
+    if not SKELETON:
+        return xml
+    kin = [(s[0], s[1]) for s in SEGMENTS if s[1]]
+    near = {s[0]: [s[1]] + [k[0] for k in SEGMENTS if k[1] == s[0]] for s in SEGMENTS}
+    kin += [(part, other) for part, rides, _g in skeleton.bodies() for other in near[rides] if other]
+    if xml not in _APART:
+        import importlib
+        from machine import arrival, gait
+        model = importlib.import_module('mujoco').MjModel.from_xml_string(_apart(xml, kin))
+        _APART[xml] = sorted(set(skeleton.overlapping(model, gait.stand()))
+                             | set(skeleton.overlapping(model, arrival.angles_of(arrival._squat()))))
+    return _apart(xml, kin + _APART[xml])
+
+
+_APART = {}
+
+
+def _apart(xml, pairs):
+    return xml.replace('<contact/>', '<contact>%s</contact>' % ''.join(
+        '<exclude body1="%s" body2="%s"/>' % pair for pair in pairs))
+
+
+def _mjcf(bones):
     from machine.physics import BACKDRIVE, PLACED, REFLECTED, SERVO, STEP_S
     shells = build.segments() if build.SHELLS else {}
     kids, riders = {}, build.riders() if PLACED and not shells else {}
@@ -105,6 +135,7 @@ def mjcf():
     give = ' solref="%g %g" solimp="%g 0.95 %g"' % (SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M)
     cloth = ' solref="%g %g" solimp="%g 0.95 %g"' % (SOLE_S, SOLE_DAMP, SOLE_SOFT, CLOTH_GIVE_M)
     contacts = ' contype="1" conaffinity="2"'
+    parts = skeleton.bodies() if bones else []
 
     def body(seg):
         name, _parent, joints, offset, rest, share, com, gyr = seg
@@ -189,6 +220,9 @@ def mjcf():
             out += ['<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
                 -HAIR_M, HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG),
                 '</body>']
+        out += ['<body name="%s"><inertial pos="0 0 0" mass="1e-6" diaginertia="1e-10 1e-10 '
+                '1e-10"/>%s</body>' % (part, ''.join(geoms)) for part, rides, geoms in parts
+                if rides == name]
         for kid in kids.get(name, []):
             out += body(kid)
         return out + ['</body>']
@@ -196,13 +230,14 @@ def mjcf():
     return '\n'.join(
         ['<mujoco model="gynoid">',
          '<option timestep="%g" gravity="0 -9.81 0" integrator="implicitfast" cone="%s" '
-         'impratio="%g"/>' % (STEP_S, CONE, IMPRATIO),
+         'impratio="%g"%s' % (STEP_S, CONE, IMPRATIO, '><flag filterparent="disable"/></option>'
+                              if bones else '/>'),
          '<default><joint damping="0.3"/><geom contype="0" conaffinity="0"/></default>',
          '<worldbody>',
          ] + floor.ground(contacts, give, TORSION_M)
         + body(SEGMENTS[0])
         + floor.rug(give, FRICTION, TORSION_M)
-        + ['</worldbody>', '<actuator>']
+        + ['</worldbody>', '<contact/>', '<actuator>']
         + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
                                                       max(SERVO[kind(j)][0], drives.peak(j)))
            for j in JOINTS]

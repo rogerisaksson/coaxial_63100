@@ -51,8 +51,10 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: of that its board feeds forward on its setpoint's acceleration (`buses.ACCEL_S`); whether a
 #: joint's clamp is its drive's peak where that is less (`drives.peak`); whether the assemblies
 #: sit where they are, bodies of their own, their segments the lighter; how much of their
-#: gearboxes' drag the joints carry, Coulomb (`drives.backdrive`).
-REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE = 1.0, 1.0, 1.0, 1.0, 1.0
+#: gearboxes' drag the joints carry, Coulomb (`drives.backdrive`); whether her skeleton collides,
+#: its drums, boards, bones, rods and belts (`machine.skeleton`) - off: walking, the ankles' cranks
+#: 50-60 mm inside her shins met each other 2-6 mm deep and she fell in 1-3 s.
+REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 1.0, 1.0, 1.0, 1.0, 0.0
 
 #: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
 #: never binds, the heat counted - the walk, the clothes and the look are tuned on those

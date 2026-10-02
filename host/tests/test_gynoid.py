@@ -223,9 +223,45 @@ def test_a_style_eases_in(report):
         walkplan.ease(walkplan.RETABLE_S)
 
 
+def test_her_skeleton_collides(report):
+    """Her skeleton switched on (`physics.SKELETON`, `machine.skeleton`): her model with it, the
+    same weight; standing and in the squat it touches nothing; the knee folded to 170 degrees the
+    calf's ankle drive meets the thigh's knee board, her skins next to each other still not."""
+    import importlib
+    import math
+    from machine import mjcf, physics, skeleton
+    mujoco = importlib.import_module('mujoco')
+    was = physics.SKELETON
+    try:
+        physics.SKELETON = 0.0
+        bare = mujoco.MjModel.from_xml_string(mjcf.mjcf())
+        physics.SKELETON = 1.0
+        model = mujoco.MjModel.from_xml_string(mjcf.mjcf())
+    finally:
+        physics.SKELETON = was
+    report.check('her skeleton is %d geoms more, her weight as it was' % (model.ngeom - bare.ngeom),
+                 model.ngeom > bare.ngeom
+                 and abs(sum(model.body_mass) - sum(bare.body_mass)) < 1e-3,
+                 '%.4f kg apart' % abs(sum(model.body_mass) - sum(bare.body_mass)))
+    from machine import arrival, gait
+    report.check('standing and in the squat it touches nothing',
+                 not skeleton.overlapping(model, gait.stand())
+                 and not skeleton.overlapping(model, arrival.angles_of(arrival._squat())))
+    d = mujoco.MjData(model)
+    d.qpos[1] = 2.0
+    d.qpos[model.joint('left_knee').qposadr[0]] = math.radians(170.0)
+    mujoco.mj_forward(model, d)
+    met = {tuple(sorted((model.body(model.geom_bodyid[d.contact[i].geom1]).name,
+                         model.body(model.geom_bodyid[d.contact[i].geom2]).name)))
+           for i in range(d.ncon)}
+    report.check("folded, the ankle's drive meets the knee's board, the skins not each other",
+                 ('left_ankle_drum', 'left_knee_board') in met
+                 and ('left_shank', 'left_thigh') not in met, '%s' % sorted(met)[:4])
+
+
 ROSTER = (test_a_virtual_body_walks, test_a_leg_by_its_foot, test_a_body_with_mass_walks,
           test_the_pendulum_between_her_ears, test_she_rises_and_walks, test_dressed_or_bare,
-          test_the_floor_outlasts_a_walk, test_a_style_eases_in)
+          test_the_floor_outlasts_a_walk, test_a_style_eases_in, test_her_skeleton_collides)
 
 
 def main(argv=None):
