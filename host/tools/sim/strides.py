@@ -80,7 +80,7 @@ def _drum(joint):
     from coaxial.graphics import drums
     from coaxial.model.blocks import numpy as np
     from machine import drives
-    parent, at = next((p, o) for n, p, o, _m in drums.drums() if n == 'drive_' + joint)
+    parent, at = next((p, o) for n, p, o, *_m in drums.drums() if n == 'drive_' + joint)
     axis, half = (np.array(v, float) if i == 0 else v for i, v in enumerate(drums.AXES[joint]))
     w = np.array([1.0, 0.0, 0.0]) if abs(axis[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
     u = np.cross(axis, w)
@@ -150,6 +150,7 @@ WALK = (
     ('torso roll', 'deg', lambda rs: _ptp(_shoulders_roll(r) for r in rs)),
     ('head bob', 'mm', lambda rs: _ptp(_p(r, 'head')[1] for r in rs) * 1e3),
     ('head fore-aft', 'mm', lambda rs: _ptp(_surge(rs, lambda r: _p(r, 'head')[2])) * 1e3),
+    ('head aside', 'mm', lambda rs: _ptp(_surge(rs, lambda r: _p(r, 'head')[0])) * 1e3),
     ('pelvis fore-aft', 'mm', lambda rs: _ptp(_surge(rs, lambda r: float(r['z']))) * 1e3),
     ('torso pitch', 'deg', lambda rs: _ptp(_lean(_p(r, 'torso'), _p(r, 'neck')) for r in rs)),
     ('hip punch', 'cm/s', lambda rs: 100.0 * max(abs(float(b['x']) - float(a['x']))

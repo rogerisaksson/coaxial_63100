@@ -31,7 +31,7 @@ from machine.gait import TOE_OFF  # noqa: E402
 #: +-0.016). Scaled to the feet's separation, the wide first steps were expected to sway 8-14 cm
 #: and the feet were put down crossed.
 U_NOM = (0.0, 0.14, 0.28, 0.41, 0.54, 0.67, 0.80, 0.93, 1.0)
-XI_NOM = (0.000, 0.006, 0.013, 0.026, 0.033, 0.034, 0.042, 0.050, 0.051)
+XI_NOM = (-0.016, -0.013, -0.011, 0.017, 0.033, 0.042, 0.047, 0.057, 0.063)
 
 #: The row: its parameters, then its memory - the lateral latched and whether - and whether a
 #: swap is asked this pass: latched, one asked as the capture point left was done 0.2 s later,

@@ -29,7 +29,7 @@ JOINTS = ('pelvis', 'waist', 'neck', 'head',
 #: The legs, metres (`coaxial.graphics.gynoid` is built on them): the hips apart (half) and
 #: below the pelvis's centre, thigh and shank, the ankle over the sole, the ball ahead of it
 #: (the toes' joint) and the heel behind; the tracks the feet walk on, either side of the line.
-HIP_HALF, HIP_DROP, THIGH, SHANK = 0.082, 0.055, 0.39, 0.38
+HIP_HALF, HIP_DROP, THIGH, SHANK = 0.095, 0.055, 0.39, 0.38
 #: A 23 cm sole with the toes (`figure.CONTACTS`), a sneaker in size 36-37: 27 cm read as boats,
 #: 24 still big (2026-09-28).
 ANKLE_H, BALL, HEEL = 0.075, 0.117, 0.055

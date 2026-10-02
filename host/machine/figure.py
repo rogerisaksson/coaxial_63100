@@ -24,6 +24,10 @@ HAIR_AT = (0.0, 0.075, -0.02)
 #: 2026-10-01, a little longer to push herself up by.
 UPPER_ARM, FOREARM = 0.28, 0.25
 
+#: Her forearm's carrying angle, deg: out from the upper arm's line straight, none bent 90, a
+#: woman's 10-16.
+CARRY_DEG = 12.0
+
 
 def _sides():
     out = []
@@ -34,7 +38,7 @@ def _sides():
              (0.148 * x, 0.325, -0.005), 6.0 * x, 0.0255, (0.0, -0.437 * UPPER_ARM, 0.0),
              (0.075, 0.035, 0.075)),
             (side + '_forearm', side + '_upper_arm', ((side + '_elbow', 'x', -1),),
-             (0.0, -UPPER_ARM, 0.0), 0.0, 0.0138, (0.0, -0.417 * FOREARM, 0.0),
+             (0.0, -UPPER_ARM, 0.0), CARRY_DEG * x, 0.0138, (0.0, -0.417 * FOREARM, 0.0),
              (0.063, 0.025, 0.063)),
             (side + '_hand', side + '_forearm', ((side + '_wrist', 'x', -1),),
              (0.0, -FOREARM, 0.0), 0.0, 0.0036, (0.0, -0.043, 0.0), (0.03, 0.015, 0.03)),
@@ -77,7 +81,7 @@ CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL) / 2.0), (0.0, -ANKLE
 #: The seat's two buttocks, capsules along her way SEAT_R round at SEAT_Y from SEAT_Z to SEAT_Z:
 #: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, she rolled onto her back;
 #: on these she sat (2026-09-30). The fist, FIST_R at FIST_AT, the knuckles to lean on.
-SEAT_R, SEAT_X, SEAT_Y, SEAT_Z = 0.06, 0.055, -0.05, (-0.06, 0.01)
+SEAT_R, SEAT_X, SEAT_Y, SEAT_Z = 0.07, 0.068, -0.058, (-0.078, 0.0)
 FIST_R, FIST_AT = 0.03, (0.0, -0.07, 0.01)
 
 #: Her body, on the floor and on itself: (segment, radius, from, to), its frame - a capsule, a
@@ -88,21 +92,22 @@ FIST_R, FIST_AT = 0.03, (0.0, -0.07, 0.01)
 #: (2026-09-30).
 BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[1])),
         ('pelvis', SEAT_R, (-SEAT_X, SEAT_Y, SEAT_Z[0]), (-SEAT_X, SEAT_Y, SEAT_Z[1])),
-        ('pelvis', 0.09, (-0.06, -0.01, -0.01), (0.06, -0.01, -0.01)),
-        ('torso', 0.066, (-0.03, 0.0, 0.0), (0.03, 0.0, 0.0)),
+        ('pelvis', 0.095, (-0.07, -0.012, -0.02), (0.07, -0.012, -0.02)),
+        ('torso', 0.07, (-0.032, 0.0, 0.0), (0.032, 0.0, 0.0)),
         ('torso', 0.08, (-0.038, 0.15, 0.0), (0.038, 0.15, 0.0)),
         ('torso', 0.078, (-0.052, 0.26, 0.0), (0.052, 0.26, 0.0)),
         ('torso', 0.066, (-0.074, 0.33, 0.0), (0.074, 0.33, 0.0)),
-        ('torso', 0.045, (0.055, 0.208, 0.058), (0.055, 0.208, 0.058)),
-        ('torso', 0.045, (-0.055, 0.208, 0.058), (-0.055, 0.208, 0.058)),
-        ('neck', 0.04, (0.0, 0.0, 0.0), (0.0, 0.07, 0.0)),
+        ('torso', 0.052, (0.056, 0.208, 0.062), (0.056, 0.208, 0.062)),
+        ('torso', 0.052, (-0.056, 0.208, 0.062), (-0.056, 0.208, 0.062)),
+        ('neck', 0.045, (0.0, 0.0, 0.0), (0.0, 0.07, 0.0)),
         ('head', 0.085, (0.0, 0.095, 0.012), (0.0, 0.095, 0.012)),
         ('head', 0.045, (0.0, 0.042, 0.03), (0.0, 0.042, 0.03)),
-        ('upper_arm', 0.028, (0.0, -0.02, 0.0), (0.0, 0.02 - UPPER_ARM, 0.0)),
-        ('forearm', 0.022, (0.0, -0.02, 0.0), (0.0, 0.02 - FOREARM, 0.0)),
+        ('upper_arm', 0.034, (0.0, -0.02, 0.0), (0.0, 0.02 - UPPER_ARM, 0.0)),
+        ('forearm', 0.025, (0.0, -0.02, 0.0), (0.0, 0.02 - FOREARM, 0.0)),
         ('hand', FIST_R, FIST_AT, FIST_AT),
         ('fingers', 0.014, (0.0, -0.01, 0.0), (0.0, -0.06, 0.0)),
-        ('thigh', 0.058, (0.0, -0.03, 0.0), (0.0, -0.36, 0.0)),
+        ('thigh', 0.072, (0.012, -0.04, 0.022), (0.012, -0.22, 0.022)),
+        ('thigh', 0.058, (0.006, -0.22, 0.012), (0.0, -0.36, 0.0)),
         ('shank', 0.05, (0.0, -0.04, 0.0), (0.0, -0.25, 0.0)),
         ('shank', 0.036, (0.0, -0.25, 0.0), (0.0, -0.33, 0.0)))
 
@@ -113,11 +118,11 @@ BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[
 #: front and side 2800, 8.4; the knee 1300, 7.4; the rest of her under 240 N s (2026-10-01). The
 #: knee's across its front: on a sphere there, and one at the thigh's end, knees under rolled her
 #: 22-84 degrees, 5 of 12 falls up (2026-10-01).
-PADS = (('upper_arm', (0.0, 0.02 - UPPER_ARM, 0.0), 0.028, (0.01, -UPPER_ARM, -0.01), 0.023, 0.0),
-        ('forearm', (0.0, -0.02, 0.0), 0.022, (0.0, -0.01, -0.01), 0.017, 0.0),
-        ('pelvis', (0.06, -0.01, -0.01), 0.09, (0.07, -0.02, 0.07), 0.085, 0.0),
-        ('pelvis', (0.06, -0.01, -0.01), 0.09, (0.13, -0.03, 0.03), 0.085, 0.0),
-        ('thigh', (0.0, -0.03, 0.0), 0.058, (0.05, -0.03, 0.02), 0.053, 0.0),
+PADS = (('upper_arm', (0.0, 0.02 - UPPER_ARM, 0.0), 0.034, (0.01, -UPPER_ARM, -0.01), 0.028, 0.0),
+        ('forearm', (0.0, -0.02, 0.0), 0.025, (0.0, -0.01, -0.01), 0.02, 0.0),
+        ('pelvis', (0.07, -0.012, -0.02), 0.095, (0.08, -0.022, 0.06), 0.09, 0.0),
+        ('pelvis', (0.07, -0.012, -0.02), 0.095, (0.14, -0.032, 0.02), 0.09, 0.0),
+        ('thigh', (0.012, -0.04, 0.022), 0.072, (0.062, -0.04, 0.042), 0.066, 0.0),
         ('shank', (0.0, -0.04, 0.0), 0.05, (0.0, -0.03, 0.04), 0.025, 0.025))
 #: A pad stands PAD_M proud of the skin.
 PAD_M = 0.005

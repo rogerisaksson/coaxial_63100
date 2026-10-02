@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+"""Her mechanism checked by geometry, nothing drawn.
+
+Each rod's transmission over its stroke, each drive's reach past her skin standing, and the least
+clearance between her drums, her boards, her ankles' rods and her bones over the poses she is put in - the walk's cycle, the squat, the get-up's keyframes,
+the fall's catch, crouch and tuck.
+
+    python tools/sim/fit.py
+    python tools/sim/fit.py --worst 20       # that many of the closest pairs
+
+A drum is her drive's assembly as drawn (`coaxial.graphics.drums`), a cylinder; the hip's turn with
+the yokes they ride - the pitch's with the yaw and the roll, the roll's with the yaw - about the
+hip. A bone is its carbon tube from its joint to the next; a rod its tube from its crank's pin to
+its ball (`machine.linkage`). Parts in segments neither the same nor neighbours are not a pair -
+their shells keep them apart, the physics colliding those - nor parts bolted together: a drum
+and its own segment's bone, a bone and its neighbour's at their joint, a rod within a ball of its
+ends.
+"""
+import argparse
+import math
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from coaxial.model.blocks import numpy as np  # noqa: E402
+
+#: Each segment's carbon tube's radius, m (`mechanism._bones`), and a rod's.
+TUBE_R = {'pelvis': 0.015, 'torso': 0.02, 'neck': 0.013, 'upper_arm': 0.012, 'forearm': 0.01,
+          'thigh': 0.016, 'shank': 0.014}
+ROD_R, END_KEEP_M = 0.009, 0.02
+
+#: The shoulders' girdle off the torso's top, m up it (`mechanism.wires`); the femur and the
+#: tibia through `mechanism.HUNG`'s points.
+GIRDLE_Y = 0.325
+
+#: The yokes a hip's drum rides, by its joint's kind: it turns with these about the hip.
+YOKES = {'hip': ('hip_yaw', 'hip_roll'), 'hip_roll': ('hip_yaw',)}
+
+
+def poses(csv=None, every=10):
+    """[(name, {joint: deg})]: where she is put - standing, the walk's cycle, the squat, the
+    get-up's keyframes, the fall's catch, crouch and tuck - or where a recording (`csv`, R's or
+    `look.py`'s rows) had her, every `every`th row: a keyframe is asked, not reached."""
+    from machine import arrival, falls, figure, gait, getup
+    if csv:
+        from tools.sim.look import recorded
+        rows = recorded(csv)[::every]
+        return [('%s %.2f s' % (r['stage'], float(r['t'])), {j: float(r[j]) for j in figure.JOINTS})
+                for r in rows]
+    out = [('stand', gait.stand())]
+    out += [('walk %.2f' % p, gait.walk(0.0, phase=p)) for p in np.arange(0.0, 1.0, 0.05)]
+    out.append(('squat', arrival.angles_of(arrival._squat())))
+    for table in ('UNFOLD', 'TO_FRONT', 'KNEES_UNDER', 'SIT_BACK', 'ONTO_FEET'):
+        out += [('%s %s' % (table.lower(), step[1]), step[3]) for step in getattr(getup, table)
+                if len(step) > 3 and isinstance(step[3], dict)]
+    stand = gait.stand()
+    out += [('catch ' + k, dict(stand, **v)) for k, v in falls.CATCH.items()]
+    out += [('crouch %+.0f' % tip, dict(stand, **falls.crouch(tip))) for tip in (-90.0, 0.0, 90.0)]
+    out.append(('tuck', dict(stand, **falls.TUCK)))
+    return out
+
+
+def rods():
+    """[(joint kind, stroke, worst transmission in and out deg, lever least and most)]."""
+    from machine import linkage
+    out = []
+    for kind, (rod, (lo, hi)) in linkage.RODS.items():
+        up, ahead, r, _t0, b, beta = rod
+        length, branch = linkage._laid(kind)
+        worst_in = worst_out = 90.0
+        levers = []
+        for d in np.arange(lo, hi + 0.5, 1.0):
+            q = math.radians(d)
+            t = linkage._root(rod, length, q, branch)
+            py, pz = up - r * math.cos(t), ahead + r * math.sin(t)
+            by0, bz0 = -b * math.cos(beta), b * math.sin(beta)
+            by, bz = by0 * math.cos(q) - bz0 * math.sin(q), by0 * math.sin(q) + bz0 * math.cos(q)
+            wy, wz = by - py, bz - pz
+            wl = math.hypot(wy, wz)
+            worst_in = min(worst_in, math.degrees(math.asin(min(1.0, abs(
+                (py - up) * wz - (pz - ahead) * wy) / (r * wl)))))
+            worst_out = min(worst_out, math.degrees(math.asin(min(1.0, abs(by * wz - bz * wy)
+                                                                   / (b * wl)))))
+            levers.append(linkage.lever('left_' + kind, float(d)))
+        out.append((kind, (lo, hi), worst_in, worst_out, min(levers), max(levers)))
+    return out
+
+
+def _frames(angles):
+    from machine import figure
+    return {k: (np.array(R), np.array(p)) for k, (p, R) in figure.frames(
+        angles, (0.0, 0.0, 0.0), ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))).items()}
+
+
+def _rot(axis, a):
+    c, s = math.cos(a), math.sin(a)
+    if axis == 'y':
+        return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
+    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+
+
+def parts(angles):
+    """{name: ('drum', centre, axis, radius, half) | ('tube', a, b, radius)}, world, and the
+    segment each rides."""
+    from coaxial.graphics import drums, mechanism
+    from machine import drives, figure, linkage
+    fr = _frames(angles)
+    out, rides = {}, {}
+    for name, parent, at, *_mesh in drums.drums():
+        joint = name[len('drive_'):]
+        axis, half = drums.AXES[joint]
+        R, p = fr[parent]
+        c, a = p + R @ np.array(at, float), R @ np.array(axis, float)
+        kind, side = drives.kind(joint), joint[:-len(drives.kind(joint))]
+        if kind in YOKES:
+            seg = next(s for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
+            hip = p + R @ np.array(seg[3], float)
+            turn = np.eye(3)
+            sign = {j: s for j, _ax, s in seg[2]}
+            for yoke in YOKES[kind]:
+                j = side + yoke
+                letter = next(ax for jj, ax, _s in seg[2] if jj == j)
+                turn = turn @ _rot(letter, sign[j] * math.radians(angles.get(j, 0.0)))
+            c, a = hip + R @ turn @ R.T @ (c - hip), R @ turn @ R.T @ a
+        out[name] = ('drum', c, a, drives.of(joint)[1].diameter / 2.0, half)
+        rides[name] = parent
+    for seg in figure.SEGMENTS:
+        if seg[1] is None:
+            continue
+        bare = seg[1].split('_', 1)[-1] if seg[1].startswith(('left_', 'right_')) else seg[1]
+        if bare in TUBE_R:
+            Rp, pp = fr[seg[1]]
+            if seg[0].endswith('upper_arm'):
+                pp = pp + Rp @ np.array([0.0, GIRDLE_Y, 0.0])
+            name = 'bone_%s>%s' % (seg[1], seg[0])
+            if bare in mechanism.HUNG:
+                s = 1.0 if seg[1].startswith('left_') else -1.0
+                at = [pp + Rp @ np.array((s * x, y, z)) for x, y, z in mechanism.HUNG[bare][0]]
+                for k, (a, b) in enumerate(zip(at, at[1:])):
+                    out[name + '+' * k] = ('tube', a, b, TUBE_R[bare])
+                    rides[name + '+' * k] = seg[1]
+            else:
+                out[name] = ('tube', pp, fr[seg[0]][1], TUBE_R[bare])
+                rides[name] = seg[1]
+    for side in ('left_', 'right_'):
+        for kind, (rod, _stroke) in linkage.RODS.items():
+            joint = side + kind
+            seg = next(s for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
+            up, ahead, r, t0, b, beta = rod
+            s = 1.0 if side == 'left_' else -1.0
+            Rp, pp = fr[seg[1]]
+            hub = pp + Rp @ (np.array(seg[3], float) + np.array([s * linkage.ROD_OUT, up, ahead]))
+            t = t0 + linkage.crank(joint, angles.get(joint, 0.0))
+            pin = hub + Rp @ np.array([0.0, -r * math.cos(t), r * math.sin(t)])
+            Rj, pj = fr[seg[0]]
+            ball = pj + Rj @ np.array([s * linkage.BALL_OUT, -b * math.cos(beta),
+                                       b * math.sin(beta)])
+            bend = np.array(linkage.bent(kind, pin, ball, s * Rp[:, 0], s))
+            out['rod_' + joint], out['rod_' + joint + '+'] = (('tube', pin, bend, ROD_R),
+                                                              ('tube', bend, ball, ROD_R))
+            rides['rod_' + joint] = rides['rod_' + joint + '+'] = seg[1]
+    for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
+        R, p = fr[seg]
+        out['board_' + joint] = ('drum', p + R @ np.array(at, float),
+                                 R @ np.eye(3)['xyz'.index(faces)], radius, 0.006)
+        rides['board_' + joint] = seg
+    return out, rides
+
+
+def _points(part, n=12):
+    """Points over a part's surface or axis, and the radius they stand for."""
+    if part[0] == 'tube':
+        _k, a, b, r = part
+        return a + np.linspace(0.0, 1.0, n)[:, None] * (b - a), r
+    _k, c, ax, r, half = part
+    w = np.array([1.0, 0.0, 0.0]) if abs(ax[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+    u = np.cross(ax, w)
+    u /= np.linalg.norm(u)
+    v = np.cross(ax, u)
+    t = np.linspace(0.0, 2.0 * np.pi, 16, endpoint=False)
+    ring = np.cos(t)[:, None] * u + np.sin(t)[:, None] * v
+    return np.concatenate([c + s * half * ax + f * r * ring for s in (-1.0, 0.0, 1.0)
+                           for f in (1.0, 0.5)]), 0.0
+
+
+def _gap(points, part):
+    """The least distance of `points` outside `part`, m: under 0 inside."""
+    if part[0] == 'tube':
+        _k, a, b, r = part
+        ab = b - a
+        t = np.clip(((points - a) @ ab) / max(ab @ ab, 1e-12), 0.0, 1.0)
+        return float((np.linalg.norm(points - (a + t[:, None] * ab), axis=1) - r).min())
+    _k, c, ax, r, half = part
+    d = points - c
+    along = d @ ax
+    radial = np.linalg.norm(d - along[:, None] * ax, axis=1)
+    out_a, out_r = np.abs(along) - half, radial - r
+    return float(np.where((out_a > 0) & (out_r > 0), np.hypot(out_a, out_r),
+                          np.maximum(out_a, out_r)).min())
+
+
+def _bolted(a, b, rides, parts_):
+    """Whether two parts are not a pair: in segments neither the same nor neighbours - their
+    shells keep them apart, and the physics collides those - unless one is a rod, which no shell
+    holds; a bone and a drum on its segment or on a joint at either of its ends, two bones meeting
+    at a joint."""
+    from machine import figure
+    joints = {s[0]: [j for j, *_ in s[2]] for s in figure.SEGMENTS}
+    parent = {s[0]: s[1] for s in figure.SEGMENTS}
+    sa, sb = rides[a], rides[b]
+    if a.startswith('rod_') and a.rstrip('+') == b.rstrip('+'):
+        return True
+    if (not (sa == sb or parent.get(sa) == sb or parent.get(sb) == sa)
+            and not a.startswith('rod_') and not b.startswith('rod_')):
+        return True
+    kinds = (a.split('_', 1)[0], b.split('_', 1)[0])
+    if 'bone' in kinds and 'drive' in kinds:
+        bone, drum = (a, b) if kinds[0] == 'bone' else (b, a)
+        root, tip = bone[len('bone_'):].rstrip('+').split('>')
+        return (rides[drum] == root or drum[len('drive_'):] in joints[root] + joints[tip])
+    if kinds == ('bone', 'bone'):
+        ends_a, ends_b = (set(x[len('bone_'):].rstrip('+').split('>')) for x in (a, b))
+        return bool(ends_a & ends_b)
+    return False
+
+
+def clearances(worst=10, csv=None):
+    """[(gap m, a, b, pose)]: each pair's least gap over the poses, closest first."""
+    best = {}
+    for name, angles in poses(csv):
+        parts_, rides = parts(angles)
+        names = sorted(parts_)
+        for i, a in enumerate(names):
+            pa, ra = _points(parts_[a])
+            if a.startswith('rod_'):
+                pa = pa[np.linalg.norm(pa - pa[-1 if a.endswith('+') else 0], axis=1)
+                        > END_KEEP_M]
+            for b in names[i + 1:]:
+                if _bolted(a, b, rides, parts_):
+                    continue
+                g = _gap(pa, parts_[b]) - ra
+                if (a, b) not in best or g < best[(a, b)][0]:
+                    best[(a, b)] = (g, name)
+    return sorted((g, a, b, pose) for (a, b), (g, pose) in best.items())[:worst]
+
+
+def _rings(mesh):
+    """[(y, cx, cz, rx, rz)] of a loft's rings, its part's frame (`shapes.loft`); None not one."""
+    from coaxial.graphics.shapes import AROUND
+    c = np.asarray(mesh[0])
+    n = (len(c) - 2) // AROUND
+    if n < 2 or n * AROUND + 2 != len(c):
+        return None
+    out = []
+    for k in range(n):
+        ring = c[k * AROUND:(k + 1) * AROUND]
+        lo, hi = ring.min(0), ring.max(0)
+        out.append((float(ring[:, 1].mean()), (lo[0] + hi[0]) / 2.0, (lo[2] + hi[2]) / 2.0,
+                    max((hi[0] - lo[0]) / 2.0, 1e-4), max((hi[2] - lo[2]) / 2.0, 1e-4)))
+    return sorted(out)
+
+
+def _excess(points, rings):
+    """Each point's reach past a loft's rings, m, by its ellipse at its height (inf past its ends)."""
+    ys = np.array([r[0] for r in rings])
+    out = np.full(len(points), np.inf)
+    inside = (points[:, 1] >= ys[0]) & (points[:, 1] <= ys[-1])
+    if not inside.any():
+        return out
+    q = points[inside]
+    cols = [np.interp(q[:, 1], ys, [r[i] for r in rings]) for i in range(1, 5)]
+    cx, cz, rx, rz = cols
+    norm = np.hypot((q[:, 0] - cx) / rx, (q[:, 2] - cz) / rz)
+    out[inside] = (norm - 1.0) * np.minimum(rx, rz)
+    return out
+
+
+def drawn(dressed):
+    """{joint: m}: each drum's, board's and rod's worst reach past her drawn shell (`dressed`
+    False) or past her clothes and her skin where they leave it bare, standing."""
+    from coaxial.graphics import gynoid
+    from machine import gait
+    stand = gait.stand()
+    body = gynoid.body(dressed=dressed)
+    frames = body._frames(stand)
+    worn = [(rings, turn, spot) for part, frame in zip(body.parts, frames) if frame is not None
+            for rings in [_rings(part[5])] if rings is not None for turn, spot in [frame]]
+    parts_, _rides = parts(stand)
+    out = {}
+    for name, part in parts_.items():
+        if not name.startswith(('drive_', 'board_', 'rod_')):
+            continue
+        points, radius = _points(part)
+        best = np.full(len(points), np.inf)
+        for rings, turn, spot in worn:
+            best = np.minimum(best, _excess((points - spot) @ turn, rings))
+        out[name.split('_', 1)[1] if name.startswith('drive_') else name] = float(best.max()
+                                                                                 + radius)
+    return out
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
+    parser.add_argument('--worst', type=int, default=12, help='the closest pairs shown')
+    parser.add_argument('--csv', help='poses from a recording (R, build/recordings/*.csv)')
+    args = parser.parse_args(argv)
+    from machine import drives, figure
+    from tools.sim.strides import _out
+    print('rods: stroke, transmission at worst in / out, lever')
+    for kind, (lo, hi), mi, mo, l0, l1 in rods():
+        print('  %-10s %+4.0f..%+3.0f deg  %4.1f / %4.1f deg  %.2f-%.2f' % (kind, lo, hi, mi, mo,
+                                                                         l0, l1))
+    stand = {j: v for j, v in __import__('machine.gait', fromlist=['stand']).stand().items()}
+    row = dict({j: stand.get(j, 0.0) for j in figure.JOINTS},
+               **{'%s_%s' % (s[0], a): 0.0 for s in figure.SEGMENTS for a in 'xyz'})
+    reach = sorted(((_out(row, [j]), drives.kind(j), drives.of(j)[0]) for j in figure.JOINTS
+                    if j.startswith(('left_', 'spine', 'waist', 'neck', 'head'))
+                    and not drives.passive(j)), reverse=True)
+    print('drives past her skin standing, mm: ' + ', '.join(
+        '%s %s %+.0f' % (k, s, r) for r, k, s in reach))
+    for dressed, what in ((False, 'her shell'), (True, 'her clothes')):
+        got = drawn(dressed)
+        print('drives past %s standing, mm: ' % what + ', '.join(
+            '%s %+.0f' % (j, v * 1e3) for j, v in sorted(got.items(), key=lambda kv: -kv[1])
+            if j.startswith(('left_', 'board_left', 'rod_left', 'spine', 'waist', 'neck', 'head'))
+            and v > -0.03))
+    print('closest pairs over %d poses, mm:' % len(poses(args.csv)))
+    for g, a, b, pose in clearances(args.worst, args.csv):
+        print('  %+6.0f  %-26s %-26s %s' % (g * 1e3, a, b, pose))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

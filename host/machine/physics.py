@@ -17,7 +17,7 @@ import math
 import os
 from typing import Any
 
-from machine import drives, heat
+from machine import drives, heat, linkage
 from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Batch
@@ -91,10 +91,16 @@ class World:
         #: ankle's 0.05 kg m^2 flipped its speed each step, +-140 N m at 500 Hz, drawing 794 W
         #: as she lay still (2026-10-01).
         self.shorted = np.zeros(len(JOINTS), bool)
+        #: The drives cut (`off`): gates off, no torque, nothing switched; a cut board's check
+        #: current (`test`), A, and its winding's copper an amp squared (1.5 r), ohm.
+        self.cut, self.testing = np.zeros(len(JOINTS), bool), np.zeros(len(JOINTS))
+        self.ohm = np.array([drives.r_ohm(j) for j in JOINTS])
         #: The joints on a stroke's curve: (index, joint, SERVO's armature, its own damping).
         self.strokes = [(i, j, SERVO[kind(j)][3], float(m.dof_damping[self.vadr[i]]))
-                        for i, j in enumerate(JOINTS) if kind(j) in drives.STROKES]
-        self.damping = 1.0 / self.loss * np.array([not drives.passive(j) for j in JOINTS])
+                        for i, j in enumerate(JOINTS) if kind(j) in linkage.RODS]
+        #: The joints a drive turns, not held or sprung (`drives.passive`).
+        self.driven = np.array([not drives.passive(j) for j in JOINTS])
+        self.damping = 1.0 / self.loss * self.driven
         self.free = m.dof_damping[self.vadr].copy()
         self.target = np.zeros(len(JOINTS))
         self.rate = np.zeros(len(JOINTS))
@@ -181,7 +187,8 @@ class World:
         d.qpos[0:3], d.qpos[3:7], d.qvel[0:3] = where, turn, speed
         self._park()
         self._mj.mj_forward(self.model, d)
-        self.shorted[:] = False
+        self.shorted[:] = self.cut[:] = False
+        self.testing[:] = 0.0
         self.model.dof_damping[self.vadr] = self.free
         self.target[:] = d.qpos[self.qadr]
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
@@ -240,7 +247,7 @@ class World:
                 ref = self.target + self.rate * (d.time - start)
                 tau = (self.gains[:, 0] * (ref - d.qpos[self.qadr])
                        + self.gains[:, 1] * (self.rate - d.qvel[self.vadr]))
-                tau = np.where(self.shorted, 0.0, tau)
+                tau = np.where(self.shorted | self.cut, 0.0, tau)
                 d.ctrl[:] = np.clip(tau, -self.limit, self.limit)
             power = d.ctrl * d.qvel[self.vadr]
             self.work += float(power[power > 0.0].sum()) * STEP_S
@@ -259,7 +266,7 @@ class World:
             self.buses.drain()
 
     def _stroked(self):
-        """The joints on a stroke's curve (`drives.STROKES`) as their angles have them: the ratio
+        """The joints a rod drives (`linkage.RODS`) as their angles have them: the ratio
         over their size's to their boards, the rotor seen to MuJoCo and their boards' feed, the
         drag and a short's damping to MuJoCo."""
         m, b = self.model, self.block
@@ -324,7 +331,7 @@ class World:
 
     def arm(self, index):
         """A joint's board's gates on again: the host's gate write, with the next pass."""
-        self.shorted[index] = False
+        self.shorted[index], self.cut[index], self.testing[index] = False, False, 0.0
         self.model.dof_damping[self.vadr[index]] = self.free[index]
         if index in self.bus_of:
             self.bus_of[index].arm(index)
@@ -332,19 +339,32 @@ class World:
     def short(self, index):
         """A joint's board's phases shorted through the low sides: the host's gate write, with
         the next pass."""
-        self.shorted[index] = True
+        self.shorted[index], self.cut[index], self.testing[index] = True, False, 0.0
         self.model.dof_damping[self.vadr[index]] = self.free[index] + self.damping[index]
         if index in self.bus_of:
             self.bus_of[index].short(index)
 
+    def off(self, index):
+        """A joint's board's gates off - no torque, nothing switched: the host's gate write, with
+        the next pass."""
+        self.shorted[index], self.cut[index], self.testing[index] = False, True, 0.0
+        self.model.dof_damping[self.vadr[index]] = self.free[index]
+        if index in self.bus_of:
+            self.bus_of[index].off(index)
+
+    def test(self, index, amps):
+        """A cut board checking itself on a d-axis current, `amps`: no torque, drawn."""
+        self.testing[index] = amps
+
     def drawn(self):
         """What her drives draw now, W: the work they do - braking gives nothing back -, their
-        copper's heat and their boards' own, housekeeping each and switching unshorted."""
+        copper's heat and their boards' own, housekeeping each, switching neither shorted nor
+        cut but checking (`test`), and that check's copper."""
         np, tau = self._np, self.data.ctrl
-        driven = np.array([not drives.passive(j) for j in JOINTS])
+        on = (self.driven & ~self.shorted & ~self.cut) | (self.testing > 0.0)
         return (float(np.maximum(tau * self.data.qvel[self.vadr], 0.0).sum() + self.loss @ (tau * tau))
-                + heat.HOUSEKEEPING_W * int(driven.sum())
-                + heat.SWITCHING_W * int((driven & ~self.shorted).sum()))
+                + heat.HOUSEKEEPING_W * int(self.driven.sum()) + heat.SWITCHING_W * int(on.sum())
+                + float(self.ohm @ (self.testing * self.testing)))
 
     def reading(self, index):
         """(degrees, deg/s, C, spent, derate, status) of a joint's drive as its board last

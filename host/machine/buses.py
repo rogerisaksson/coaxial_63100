@@ -2,6 +2,7 @@
 
     block = Block(joints, buses); buses = Buses(block, limbs)   # World.wire: the processes up
     bus.arm(index); bus.short(index)        # its gates on again; its phases shorted - the next pass
+    bus.off(index)                          # its gates off - the next pass
     bus.send(at, now, {index: degrees})     # a pass: the setpoints broadcast, every board polled
     buses.step()                            # a step: every process ticks its boards, in lockstep
     buses.drain(); bus.reading(index)       # the replies read; the board as last heard
@@ -25,7 +26,7 @@ boards (frames landed, PD to ctrl, polls answered and sent counted) and writes d
 epoch and hold: a reset, every board holding `hold`, its heat at the room's; rotor: the inertia a
 board feeds forward on its setpoint's acceleration, its own rotor's; play: half its gearbox's
 backlash, rad - its encoder on the motor, a board sees its joint held within it; scale: its
-ratio now over its size's, a stroke's (`drives.STROKES`), its clamp and its amps a N m by it;
+ratio now over its rest's along its rod (`machine.linkage`), its clamp and its amps a N m by it;
 emf, ohm, volts: its back-EMF a rad/s, its phase's resistance, the supply over sqrt 3 - its
 q current no more than they leave at its speed; air, rds, warm:
 a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); envelope: 0
@@ -277,10 +278,8 @@ class Segment:
             _, unit, gate = self.mail.popleft()
             i, k = self.indices[unit - 1], unit - 1
             if gate:
-                if rtu.gate_op(gate) == rtu.GATE_SHORT:
-                    h.short(k)
-                else:
-                    h.arm(k)
+                op = rtu.gate_op(gate)
+                (h.short if op == rtu.GATE_SHORT else h.off if op == rtu.GATE_OFF else h.arm)(k)
                 out += rtu.echo(gate)
                 continue
             celsius, spent, derate, status = h.report(k)
@@ -356,6 +355,10 @@ class Bus:
     def short(self, index):
         """Its board's phases shorted through the low sides, written with the next pass."""
         self.gating[index] = rtu.GATE_SHORT
+
+    def off(self, index):
+        """Its board's gates off - no torque, nothing switched -, written with the next pass."""
+        self.gating[index] = rtu.GATE_OFF
 
     def drain(self):
         """The replies the boards have sent, read: what the host last heard of each."""

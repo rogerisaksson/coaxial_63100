@@ -11,17 +11,20 @@ from machine.figure import BODY, CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEG
 #: The joints with a mechanical stop, (low, high) deg: the elbow straight at -5, as an arm's is -
 #: without it the forearm folded back under her weight, -82 to -161 pushing up (2026-09-30); the
 #: back as a woman's bends, the get-up asking -8 to 60 of the spine and the falls 45 of the waist -
-#: without, tripped on a sill and down, her spine folded back 98-101 degrees (2026-10-01).
+#: without, tripped on a sill and down, her spine folded back 98-101 degrees (2026-10-01). The
+#: knee stopped at -5: its drive on its axis, swinging, it snapped to -24 in the air, the walk
+#: hopped and she fell (the page's recording, 2026-10-02).
 STOPS = {'elbow': (-5.0, 160.0), 'spine': (-30.0, 85.0), 'spine_roll': (-35.0, 35.0),
-         'waist': (-50.0, 50.0)}
+         'waist': (-50.0, 50.0), 'knee': (-5.0, 165.0)}
 
 #: A joint with no drive (`drives.passive`): its armature, kg m^2 - nearly none, a spring's; held,
 #: its stops HELD_DEG either side of its rest.
 PASSIVE_J, HELD_DEG = 0.0005, 0.5
 
-#: The hips' yaw stopped HIP_YAW_DEG either side, 0 free (a trial: the roll's drum behind the hip
-#: swings with it into the other side's).
-HIP_YAW_DEG = 0.0
+#: The hips' yaw stopped HIP_YAW_DEG either side, 0 free: the gimbal's roll drum behind the hip
+#: swings with it toward the other's (`drives.JOINTS`). At 25 the scoreboard held 81.0 % as free and
+#: 3 get-ups of 3 (2026-10-02).
+HIP_YAW_DEG = 25.0
 
 #: The contacts' friction cone: elliptic, the same grip every way, at IMPRATIO. On MuJoCo's
 #: pyramid she walked along the world's axes and fell 1.2 m on 45 degrees off them; elliptic at 1

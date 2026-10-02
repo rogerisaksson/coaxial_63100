@@ -12,13 +12,13 @@ foot that slides is held where it slid to. Halted, her stride
 shortened to her first's, she settles at a landing: onto the front foot, the rear beside it, down
 into the squat (`rest`); risen, she walks on. `walk_s` and `rest_s` run that round by
 themselves. Falling past recovery, her legs' and trunk's drives are shorted, dampers, while her
-arms reach toward the fall; down and still, her drives armed, she gets up (`machine.getup`) into
-a crouch the arrival takes her up from - given up, she lies shorted, holding nothing.
+arms reach toward the fall; down and still, her drives cut and checked (`machine.down`), she gets
+up (`machine.getup`) into a crouch the arrival takes her up from - given up, she lies cut.
 """
 import math
 from concurrent.futures import ThreadPoolExecutor
 
-from machine import (arrival, drives, falls, figure, gait, getup, heat, observer, planner,
+from machine import (arrival, down, drives, falls, figure, gait, getup, heat, observer, planner,
                      walker, walkplan, stance)
 
 #: Falling, past the walker's recovery: the trunk (`_trunk`) tipped past FALLING_DEG and tipping
@@ -32,9 +32,8 @@ from machine import (arrival, drives, falls, figure, gait, getup, heat, observer
 FALLING_DEG, FALLING_DEG_S, FALLING_M = 12.0, 60.0, 0.65
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
-#: Down, and still STILL_S - the pelvis under STILL_M_S and turning under STILL_DEG_S - her
-#: drives are armed again and she gets up, GETUP_TRIES times at most between two landings.
-STILL_S, STILL_M_S, STILL_DEG_S, GETUP_TRIES = 0.3, 0.05, 10.0, 3
+#: Down and checked (`machine.down`), she gets up GETUP_TRIES times at most between two landings.
+GETUP_TRIES = 3
 
 
 #: A stance foot bearing `stance.BEARS_N` slid past SLIP_M of where it landed is held where it
@@ -67,7 +66,7 @@ REARM_S, REARM_BACKOFF_S, REARM_MAX_S, ARM_LAG_S = 0.05, 1.0, 1.6, 0.005
 #: Her moments numbered from 1, on the page and in tools/sim/look.py alike, so a seam is named by
 #: its two numbers: the squat to the walk, then what the walk may turn to.
 MOMENTS = ('squat', 'look', 'push', 'rise', 'stand', 'shift', 'lean', 'step', 'walk', 'catch',
-           'halt', 'settle', 'lower', 'rest', 'falling', 'fallen') + getup.STAGES
+           'halt', 'settle', 'lower', 'rest', 'falling', 'fallen') + getup.STAGES + ('check',)
 
 
 #: Where a model plans her get-up while she lies still, a thread: the loop goes on.
@@ -100,12 +99,12 @@ class Director:
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
         #: Since when she falls and her arms and neck from and to what (`falls.reach`); the tilt last
-        #: pass, (deg, s), and its rate, deg/s; when an arm met the floor.
+        #: pass, (deg, s), and its rate, deg/s; when an arm met the floor; her drives down.
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
-        self.fall_rate, self.touched_at, self.tucked_at, self.limp = 0.0, None, None, False
-        #: The get-up, how long she has lain still, and the get-ups since she landed; what felled
-        #: her, as the observer says it; the plans tried since, [(steps, why)], and one being made.
-        self.getup, self.still, self.tries = getup.GetUp(machine), 0.0, 0
+        self.fall_rate, self.touched_at, self.tucked_at, self.down = 0.0, None, None, None
+        #: The get-up and the get-ups since she landed; what felled her, as the observer says it;
+        #: the plans tried since, [(steps, why)], and one being made.
+        self.getup, self.tries = getup.GetUp(machine), 0
         self.cause, self.tried, self.planning = '', [], None
         #: Each joint's drive by its node's channels, the legs'; a dropped drive's (heard at,
         #: wait) and when each was last armed.
@@ -136,17 +135,17 @@ class Director:
         """Down with no get-up left: GETUP_TRIES of them failed."""
         return self.stage == 'fallen' and self.tries >= GETUP_TRIES
 
-    def begin(self):
-        """Landed in the squat, the arrival to take her up."""
+    def begin(self, drop=0.002):
+        """Landed in the squat from `drop` m, the arrival to take her up."""
         self.getup = getup.GetUp(self.machine)
-        self.arrival.land()
+        self.arrival.land(drop)
         self.stage, self.fallen_at, self.since = self.arrival.stage, None, 0.0
         self.walker.cadence = gait.CADENCE
         self.walker.reset()
         self.blend, self.curl_from = None, {}
         self.falling_at, self.curl_to, self.tilt_was, self.touched_at = None, {}, None, None
-        self.tucked_at, self.limp = None, False
-        self.dropped, self.armed, self.still, self.tries = {}, {}, 0.0, 0
+        self.tucked_at, self.down = None, None
+        self.dropped, self.armed, self.tries = {}, {}, 0
         self.cause, self.tried, self.planning = '', [], None
 
     def halt(self):
@@ -195,7 +194,8 @@ class Director:
     def step(self, dt):
         """{joint: degrees}: what whichever move has her sets now."""
         bus = self.machine.loop.bus
-        self._arm(bus)
+        if self.down is None:
+            self._arm(bus)
         if (self.stage in arrival.STAGES or self.stage in getup.STAGES
                 or self.stage in ('falling', 'fallen')):
             self.pendulum.read(self.walker.view(bus), dt)
@@ -209,7 +209,7 @@ class Director:
             if not falls.CROUCH:
                 self._short(falls.SHORT_FALLING)
         if self.fallen_at is None and self._fallen(bus):
-            self.fallen_at, self.stage = bus['t'], 'fallen'
+            self.fallen_at, self.stage, self.down = bus['t'], 'fallen', down.Down(self.world)
             if falls.CROUCH:
                 self._short(falls.SHORT_FALLING)
         if self.falling_at is not None:
@@ -223,15 +223,7 @@ class Director:
                 self.touched_at = bus['t']
             if self.touched_at is not None:
                 out = falls.yielded(out, bus)
-            if (falls.TUCKED and self.fallen_at is not None
-                    and bus['t'] - self.fallen_at >= falls.TUCK_AFTER_S):
-                if self.tucked_at is None:
-                    self.tucked_at = bus['t']
-                    for i in range(len(figure.JOINTS)):
-                        self.world.arm(i)
-                out = falls.tucked(out, bus, (bus['t'] - self.tucked_at) / falls.TUCK_S)
-            self._lain(bus, dt)
-            return out
+            return out if self.down is None else self._lain(bus, dt, out, self.down)
         self.since += dt
         if self.stage in getup.STAGES:
             out = self.getup.step(dt)
@@ -250,7 +242,8 @@ class Director:
                 if not ok:
                     self.tried.append((self.plan, why))
                     if self.tries >= GETUP_TRIES:
-                        self.stage, self.fallen_at = 'fallen', bus['t']
+                        self.stage, self.fallen_at, self.falling_at = 'fallen', bus['t'], bus['t']
+                        self.curl_to, self.down = {}, down.Down(self.world, check=False)
                         return out
                     self._begin(self._planned(now), now)
                     return self.getup.step(0.0)
@@ -328,33 +321,32 @@ class Director:
                 self.world.arm(figure.JOINTS.index(joint))
                 self.armed[joint] = (t, self.dropped.pop(joint)[1])
 
-    def _lain(self, bus, dt):
-        """Down and still: up again, or given up holding nothing - shorted - till she moves."""
-        still = self.stage == 'fallen' and self._still(bus, dt)
-        if still and self.tries < GETUP_TRIES:
+    def _lain(self, bus, dt, out, d):
+        """Down (`d`): braked - drawn in tumbling on (`falls.TUCKED`) -, cut, checked and up;
+        given up, cut. Cut, each setpoint where its joint is: armed again, none jumps."""
+        if d.step(dt, bus):
+            out = {j: bus.get(j + '.deg', 0.0) for j in figure.JOINTS}
+        elif falls.TUCKED and bus['t'] - self.fallen_at >= falls.TUCK_AFTER_S:
+            if self.tucked_at is None:
+                self.tucked_at = bus['t']
+                for i in range(len(figure.JOINTS)):
+                    self.world.arm(i)
+            out = falls.tucked(out, bus, (bus['t'] - self.tucked_at) / falls.TUCK_S)
+        self.stage = 'check' if d.mode == 'checking' else 'fallen'
+        if d.mode == 'checked' and self.tries < GETUP_TRIES:
             for i in range(len(figure.JOINTS)):
                 self.world.arm(i)
             now = observer.status(bus, self.world, self)
             self._begin(self._planned(now), now)
             self.stage, self.falling_at, self.fallen_at = self.getup.stage, None, None
-            self.touched_at = self.tucked_at = None
-        elif still != self.limp and self.tries >= GETUP_TRIES:
-            self.limp = still
-            for i in range(len(figure.JOINTS)):
-                (self.world.short if still else self.world.arm)(i)
+            self.touched_at = self.tucked_at = self.down = None
+        return out
 
     def _short(self, kinds):
         """The drives of `kinds` (None: every one) shorted through their low sides."""
         for i, joint in enumerate(figure.JOINTS):
             if kinds is None or drives.kind(joint) in kinds:
                 self.world.short(i)
-
-    def _still(self, bus, dt):
-        """Lain still STILL_S."""
-        moving = math.sqrt(sum(bus['pelvis.pose.v' + a] ** 2 for a in 'xyz'))
-        turning = math.degrees(math.sqrt(sum(bus['pelvis.pose.w' + a] ** 2 for a in 'xyz')))
-        self.still = self.still + dt if moving < STILL_M_S and turning < STILL_DEG_S else 0.0
-        return self.still >= STILL_S
 
     def _tilt(self, bus):
         """The trunk's tilt from upright, degrees (`_trunk`)."""

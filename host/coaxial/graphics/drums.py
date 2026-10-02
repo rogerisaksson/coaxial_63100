@@ -9,12 +9,8 @@ from coaxial.graphics.shapes import drum
 from machine import drives, figure
 
 #: Where a drive's drum sits on its joint's segment when it is on the joint's axis, m, her left
-#: side's (the right's mirrored): the hip's out at the hip's side, its roll's up in the pelvis's
-#: socket; the yaw's rides the pelvis over the hip, the spine's pair and the waist's the torso's
-#: foot.
-DRUM_AT = {'hip': (0.02, 0.0, 0.0), 'hip_roll': (0.0, 0.035, 0.0), 'spine_roll': (0.0, 0.05, 0.0),
-           'waist': (0.0, 0.1, -0.01)}
-DRUM_ON_PELVIS = {'hip_yaw': 0.09}
+#: side's (the right's mirrored): the spine's pair and the waist's the torso's foot.
+DRUM_AT = {'spine_roll': (0.0, 0.05, 0.0), 'waist': (0.0, 0.105, 0.0), 'shoulder': (-0.015, 0.0, 0.0)}
 
 #: Each drum's axis (unit, its part's frame) and half its length, m, by its joint - filled as the
 #: drums are built.
@@ -33,20 +29,21 @@ def drums():
         if drives.passive(joint):
             continue
         size = drives.of(joint)[1]
-        mesh = drum(size.diameter / 2.0, size.length, axes[joint], PLATE)
+        kind = drives.kind(joint)
+        letter = (drives.JOINTS[kind][1] or (None, None, axes[joint]))[2:3] or (axes[joint],)
+        mesh = drum(size.diameter / 2.0, drives.length(joint), letter[0], PLATE)
         mounted = drives.mount(joint)
         x = -1.0 if joint.startswith('right_') else 1.0
-        kind = drives.kind(joint)
+        ox, oy, oz = DRUM_AT.get(kind, (0.0, 0.0, 0.0))
         if mounted is not None:
             parent, at = mounted
-        elif kind in DRUM_ON_PELVIS:
-            parent, (hx, hy, hz) = 'pelvis', seg[3]
-            at = (hx, hy + DRUM_ON_PELVIS[kind], hz)
+        elif seg[1] is not None and seg[2][0][0] == joint:
+            # A segment's first joint's drive: its stator on the parent, where the segment hangs.
+            parent, at = seg[1], (seg[3][0] + ox * x, seg[3][1] + oy, seg[3][2] + oz)
         else:
-            parent, (ox, oy, oz) = seg[0], DRUM_AT.get(kind, (0.0, 0.0, 0.0))
-            at = (ox * x, oy, oz)
+            parent, at = seg[0], (ox * x, oy, oz)
         AXES[joint] = ({'x': (1.0, 0.0, 0.0), 'y': (0.0, 1.0, 0.0),
-                        'z': (0.0, 0.0, 1.0)}[axes[joint]], size.length / 2.0)
+                        'z': (0.0, 0.0, 1.0)}[letter[0]], drives.length(joint) / 2.0)
         out.append(('drive_' + joint, parent, at, mesh))
     return out
 

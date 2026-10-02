@@ -46,15 +46,19 @@ def loft(rings, material, poles=None, along='y'):
     return corners, triangles, uv, materials
 
 
-def limb(length, top, middle, bottom, material, flat=1.0, bulge_at=0.3, out=0.0):
+def limb(length, top, middle, bottom, material, flat=1.0, bulge_at=0.3, out=0.0, ahead=0.0,
+         behind=0.0):
     """A tapered limb hanging from its joint down -y: `top` at the joint, `middle` at `bulge_at` of
     the way, `bottom` at the end, rounded; `flat` its depth over its width; its middle rings `out`
-    across (+x), the ends where they are."""
+    across (+x), its upper rings `ahead` forward of its bone and `behind` deeper at its back - half
+    that half way down -, the ends where they are."""
     rings = [(-length - 0.6 * bottom, 0.5 * bottom), (-length - 0.3 * bottom, 0.9 * bottom),
              (-length, bottom), (-length * (0.5 + 0.5 * bulge_at), 0.5 * (middle + bottom)),
              (-length * bulge_at, middle), (0.0, top), (0.3 * top, 0.88 * top),
              (0.55 * top, 0.5 * top)]
-    return loft([(y, r, r * flat, 0.0, 0.0, out if i in (3, 4) else 0.0)
+    deep = {3: 0.25 * behind, 4: 0.5 * behind, 5: 0.5 * behind}
+    return loft([(y, r, r * flat + deep.get(i, 0.0), (ahead if i in (3, 4, 5) else 0.0)
+                  - deep.get(i, 0.0), 0.0, out if i in (3, 4) else 0.0)
                  for i, (y, r) in enumerate(rings)], material)
 
 

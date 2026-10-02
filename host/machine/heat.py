@@ -9,6 +9,7 @@ and trip on them.
     heat.derate[k], heat.gates[k]       # the share of its clamp drive k gives, if anything
     heat.arm(k); heat.warm(k, celsius)  # the gates on again; its nodes warmed to at least
     heat.short(k); heat.shorted[k]      # its phases shorted through the low sides
+    heat.off(k)                         # its gates off: nothing switched, nothing held
     heat.report(k)                      # (celsius, spent, derate, status): its reply's
     heat.envelope = False               # a fantasy board: its envelope counted, never binding
 
@@ -87,6 +88,10 @@ class Heat:
         """The phases shorted through the low sides: the host's ask; nothing with the gates
         tripped."""
         self.shorted[k] = True
+
+    def off(self, k):
+        """The gates off: the host's ask."""
+        self.gates[k], self.shorted[k] = False, False
 
     def warm(self, k, celsius):
         """Drive k's nodes at `celsius` at least: run hard before."""

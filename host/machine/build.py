@@ -21,21 +21,27 @@ SHELLS = 1.0
 WALL_M, CF_KG_M3 = 0.002, 1600.0
 
 #: What a segment holds besides its shell and its drives, (kg, where in its frame, m) - estimated:
-#: in the torso a 15S pack, 48-63 V, 540 Wh in thirty 21700 cells, its BMS and case, and the
-#: computer and the harness; the pelvis's power distribution; the head's cameras and IMU; a rod
-#: each down the thigh and the shin (`drives.LINKS`); her clothes and her sneakers.
-HOLDS = {'torso': ((2.6, (0.0, 0.17, -0.02)), (1.2, (0.0, 0.26, 0.02)), (0.1, (0.0, 0.2, 0.0))),
+#: in the torso two 15S2P packs of 21700 cells, 48-63 V, 540 Wh each with its BMS and case, one in
+#: each flank of her lower ribs (the user, 2026-10-02), and the computer and the harness; the
+#: pelvis's power distribution; the head's cameras and IMU; the ankle's rod down the shin
+#: (`linkage`); her clothes and her sneakers.
+HOLDS = {'torso': ((2.4, (0.065, 0.17, -0.005)), (2.4, (-0.065, 0.17, -0.005)),
+                   (1.2, (0.0, 0.26, 0.02)), (0.1, (0.0, 0.2, 0.0))),
          'pelvis': ((0.5, (0.0, 0.0, 0.0)), (0.2, (0.0, -0.02, 0.0))),
          'head': ((0.4, (0.0, 0.09, 0.03)),),
          'upper_arm': ((0.05, (0.0, -0.14, 0.0)),),
-         'thigh': ((0.06, (0.0, -0.2, 0.03)), (0.15, (0.0, -0.2, 0.0))),
+         'thigh': ((0.15, (0.0, -0.2, 0.0)),),
          'shank': ((0.06, (0.0, -0.2, -0.03)), (0.05, (0.0, -0.1, 0.0))),
          'foot': ((0.25, (0.0, -0.03, 0.03)),)}
+
+#: Walking she drew 691 W at 0.76 m/s (work 197, copper 424, her boards 70) and 439 at 0.48 (96,
+#: 273, 70): 253 Wh a km either way - on the two packs' 972 Wh used (90 %) 3.8 km, on one 1.9;
+#: lying limp her 25 boards' 35 W, 28 h (2026-10-02, the build before the gimbal hip).
 
 #: Each limb's quick-release, by its segment: a printed-polymer collar with pogo pins for its power
 #: and its bus at its root, clear of the drive above it - the arm's under the shoulder's 70 mm, the
 #: leg's under the hip's 100 - (its centre down the segment m, radius, length, kg).
-RELEASES = {'upper_arm': (-0.05, 0.03, 0.02, 0.12), 'thigh': (-0.065, 0.04, 0.022, 0.2)}
+RELEASES = {'upper_arm': (-0.05, 0.03, 0.02, 0.12), 'thigh': (-0.065, 0.04, 0.015, 0.2)}
 
 
 def _part(name):
@@ -46,7 +52,8 @@ def riders():
     """{segment: [(joint, kg, where in its frame, its inertia's diagonal)]}: each drive's assembly
     where it sits - mounted where `drives.mount` says, else on its joint's axis, a segment's first
     joint's on the parent at the segment's place, a later one's at the segment's own - a cylinder
-    of its size's diameter and length about that axis."""
+    of its size's diameter and length about that axis -, and its board (`drives.board`), a disc,
+    with it or apart."""
     out = {}
     for name, parent, joints, offset, *_ in SEGMENTS:
         for k, (joint, axis, _sign) in enumerate(joints):
@@ -59,10 +66,16 @@ def riders():
                 rides, at = parent, tuple(offset)
             else:
                 rides, at = name, (0.0, 0.0, 0.0)
-            about = size.mass * size.diameter ** 2 / 8.0
-            across = size.mass * (3.0 * size.diameter ** 2 / 4.0 + size.length ** 2) / 12.0
+            kg, long = drives.mass(joint), drives.length(joint)
+            about = kg * size.diameter ** 2 / 8.0
+            across = kg * (3.0 * size.diameter ** 2 / 4.0 + long ** 2) / 12.0
             inertia = tuple(about if a == axis else across for a in 'xyz')
-            out.setdefault(rides, []).append((joint, size.mass, at, inertia))
+            out.setdefault(rides, []).append((joint, kg, at, inertia))
+            board, place, b_kg, radius, faces = (drives.board(joint) or (rides, at) + drives.BOARD[
+                drives.of(joint)[0]] + (axis,))
+            flat = b_kg * radius ** 2 / 4.0
+            out.setdefault(board, []).append((joint + '_board', b_kg, place, tuple(
+                2.0 * flat if a == faces else flat for a in 'xyz')))
     return out
 
 

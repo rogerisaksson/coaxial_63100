@@ -5,7 +5,8 @@ A candidate is a few module constants of the walk (`machine.walker`, `machine.ga
 `machine.arrival`). Its trials, the same for every candidate, each run by the director as the
 terminal page runs her:
 
-- rise: landed in the squat, up and walking to a pace asked of her,
+- rise: landed in the squat from a spread of drops (RISE_DROP_M), up and walking to a pace
+  asked of her,
 - walk: from mid-stride at a pace, the pendulum between her ears read (`machine.pendulum`),
 - event: from mid-stride, the floor's event under her next left step (`physics.World.terrain`):
   a hole, a sill, a slip patch, a loose rug; the left knee's drive glitched in its stance
@@ -17,11 +18,13 @@ terminal page runs her:
 Two suites (`--suite`): the look - the rises and the walks on fantasy boards, whose SOA never
 binds (`physics.ENVELOPE` 0) - and the faults - the events and the falls on the boards as built.
 `held`, the share of the trials' time she stood, shown; `stir`, the pendulum's mean over the
-walks, mm. The cost in three, the bench's (2026-10-01): a walk on its look and its power
-(`look_of`, `stir` with it), a fall in it ignored; an event on its parry, a fall the heaviest,
-FALL_K the share fallen; a fall past saving on its landing's peak, her body's and her head's.
+walks, mm. The cost in four, the bench's (2026-10-01): a walk on its look and its power
+(`look_of`, `stir` with it), a fall in it ignored; an event on its parry and a rise on its start,
+a fall the heaviest, FALL_K the share fallen; a fall past saving on its landing's peak, her
+body's and her head's.
 A candidate with no walking to judge ranks last. A single run a candidate scores chance - the
-rise flips on 0.5 % of any knob (docs/FINDINGS.md, 2026-09-26) - a spread of them scores it.
+rise flips on 0.5 % of any knob (docs/findings/walk.md, 2026-09-26) - a spread of them scores
+it.
 
     python tools/sim/gait_montecarlo.py                                  # the walk as it is
     python tools/sim/gait_montecarlo.py --grid SURGE_DEG=0,1,2 SWAY_K=0,0.5,1
@@ -65,7 +68,12 @@ SUITES = {'all': ('rise', 'walk', 'event', 'fall'), 'look': ('rise', 'walk'), 'w
           'rise': ('rise',), 'faults': ('event', 'fall')}
 
 #: (trial, spread step): every run a candidate makes (`suite` narrows them).
-JOBS = [(t, k) for t in TRIALS for k in (SPREAD if t[0] != 'rise' else (0,))]
+JOBS = [(t, k) for t in TRIALS for k in SPREAD]
+
+#: Each rise landed in the squat from over its 2 mm, RISE_DROP_M more a SPREAD step and a third of
+#: it a rise: she starts at the walk's own cadence whatever is asked (`director.PACE_RATE`), and
+#: her three rises were one start - all three fell at 6.4 s (2026-10-02).
+RISE_DROP_M = 0.002
 
 #: The look's cost, a walk's: the thigh's reach ahead of upright at the landing past its reach
 #: behind at the lift by more than BALANCE_DEG, BALANCE_K a degree; the head fore and aft past
@@ -202,7 +210,8 @@ def trial(job):
     body.arm()
     director = Director(body, pace)
     if kind == 'rise':
-        director.begin()
+        nth = [t for t in TRIALS if t[0] == 'rise'].index((kind, pace, event))
+        director.begin(drop=0.002 + RISE_DROP_M * (k + 1 + nth / 3.0))
     else:
         director.cadence = director.walker.cadence = pace * (1.0 + WALK_SPREAD * k)
         director.walker.start()
@@ -214,7 +223,7 @@ def trial(job):
     fell, up, down, rows, looked = None, None, 0.0, [], -1.0
     quiet, window, impacts, touches, rates, was_load = 0.0, None, [], [], [], 0.0
     foot, moving = world.model.body('left_foot').id, world._np.zeros(6)
-    pinned, drive_ms, peak = 0, 0, world.peak * 0.999
+    pinned, drive_ms, peak = 0, 0, world.peak[world.driven] * 0.999
     np, m, d = world._np, world.model, world.data
     ours = {m.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
     force, drawn, landing, head = np.zeros(6), 0.0, 0.0, 0.0
@@ -238,11 +247,9 @@ def trial(job):
         if kind == 'walk' and bus['t'] >= SETTLE_S:
             stirred += director.pendulum.energy
             passes += 1
-            pinned += int((abs(world.data.ctrl) >= peak).sum())
+            pinned += int((abs(world.data.ctrl[world.driven]) >= peak).sum())
             drive_ms += len(peak)
-            tau = d.ctrl
-            drawn += float(np.maximum(tau * d.qvel[world.vadr], 0.0).sum()
-                           + world.loss @ (tau * tau))
+            drawn += world.drawn()
             if bus['t'] - looked >= 1.0 / LOOK_HZ:
                 looked = bus['t']
                 rows.append(look.sample(bus, director, world))
@@ -281,9 +288,10 @@ def trial(job):
                       rate=sum(rates) / len(rates))
     if drive_ms:
         walked['load'] = 100.0 * pinned / drive_ms
-        walked['power'] = drawn / passes + len(peak) * (heat.SWITCHING_W + heat.HOUSEKEEPING_W)
+        walked['power'] = drawn / passes
+    walked['fell'] = float(fell is not None)
     if faulted:
-        walked.update(fell=float(fell is not None), landing=landing, head=head,
+        walked.update(landing=landing, head=head,
                       gear=float(np.max(world.geared / np.array([drives.shock(j)
                                                                   for j in figure.JOINTS]))))
     return 1.0 - down / seconds, (stirred / passes if passes else None), what, walked
@@ -306,7 +314,7 @@ def by_trial(results):
 
 def score(results):
     """(cost, held, stir) of one candidate's run results, in JOBS' order: the walks' look and
-    power, the events' falls, the landings past saving."""
+    power, the events' and the rises' falls, the landings past saving."""
     trials = by_trial(results)
     held = sum(t[0] for t in trials) / len(trials)
     walks = [t for (kind, _p, _e), t in zip(TRIALS, trials) if kind == 'walk']
@@ -317,11 +325,11 @@ def score(results):
     cost = (stir + sum(t[4] for t in walked) / len(walked)
             + LOST_K * (len(walks) - len(walked)) / len(walks)) if walked else 0.0
     runs = [(t[0], r[3]) for (t, _k), r in zip(JOBS, results)]
-    fell = [w['fell'] for kind, w in runs if kind == 'event']
     land = [LAND_K * w['landing'] + HEAD_K * w['head'] + GEAR_K * max(0.0, w['gear'] - 1.0)
             for kind, w in runs if kind == 'fall']
-    return (cost + (FALL_K * sum(fell) / len(fell) if fell else 0.0)
-            + (sum(land) / len(land) if land else 0.0)), held, stir
+    for falls in ([w['fell'] for kind, w in runs if kind == which] for which in ('event', 'rise')):
+        cost += FALL_K * sum(falls) / len(falls) if falls else 0.0
+    return cost + (sum(land) / len(land) if land else 0.0), held, stir
 
 
 def run(pool, candidates):
@@ -352,10 +360,13 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
 
 
 def _now(name):
-    """A constant's value where it lives (`_set`'s modules)."""
+    """A constant's value where it lives (`_set`'s modules), its module named or not."""
     import importlib
     mods = [importlib.import_module('machine.' + m) for m in MODULES]
-    return float(getattr(next(m for m in mods if hasattr(m, name)), name))
+    module, _dot, bare = name.rpartition('.')
+    owner = next(m for m in mods if hasattr(m, bare)
+                 and (not module or m.__name__ == 'machine.' + module))
+    return float(getattr(owner, bare))
 
 
 

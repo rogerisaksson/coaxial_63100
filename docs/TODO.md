@@ -137,53 +137,64 @@ Open work. Measured results are in FINDINGS.
   + The planner's server after LOCAL_TRIES local failures.
   + `machine/` in subpackages.
   + A fast walk, then running: no strikes, no blows, quiet and smooth.
-  + Her a little sturdier, not as slight, every drive and rod hidden under
-    her carbon and her clothes, the clothes' size the give (the user,
-    2026-10-02): the hips a gimbal - the pitch's L centred on the hip, the
-    roll's L on its axis behind it, the yaw's M above -, the ankle's L
-    upright in the calf on a right-angle stage, the rest grown over. Her
-    joints over 21 runs: the hip, knee, ankle and hip roll at their L's
-    141 N m clamp, rms 50, 47, 40, 37; the waist's and the hip yaw's M at
-    53, rms 21.5 and 16.2 past an M's 15 shed for good.
-  + The leg's quick-release (`build.RELEASES`) stands 15 mm into the knee
-    drive's top: the drive 35 mm lower, 0.012 kg m^2 more on her swing, the
-    rise to the walk fell at 6.5 s - lowered with the hip's gimbal and the
-    walk retuned for her new build.
-  + Her drives running hot geared lower, a little larger (the user,
-    2026-10-02): copper goes as 1/ratio^2 - an M at 1:60 sheds 22.5 N m rms
-    for good, the waist's 21.5 and the hip yaw's 16.2 under it; the hip
-    roll's L at 1:45 0.64 of its copper - speed and reflected inertia the
-    price.
-  + The seat's drives in closer to the pelvis, nothing standing out of her:
-    clothes bought off the rack fit her (the user, 2026-10-02); standing,
-    the hip's reaches 42 mm past her skin, its roll's 48, and the roll's
-    drum stands 44 mm into the yaw's. A gimbal hip - the pitch's L centred
-    on the hip carrying the roll's trunnions, the roll's M behind, the
-    yaw's M above - 12, 42 and 23 mm, nothing touching over 21 runs' yaws
-    and rolls. Her skin is an EU 32: hips 80.8 cm, bust 70. Her roll asks
-    an L (rms 36.6, 141 peaks): behind the hip it swings with the yaw into
-    the other's past 28 degrees - the yaw stopped at 25 (`mjcf.HIP_YAW_DEG`)
-    held the scoreboard (248 against 238, held 81.0 %) and 3 get-ups of 3,
-    the L rolls then 9 mm into each other and 58 out of her seat. Roll,
-    pitch, yaw locks at 90 degrees of hip flexion: the order stays.
-  + The mechanism realizable: each rod's crank, length and horn giving its
-    stroke curve (`drives.STROKES`, a first cut from where the joints asked
-    torque) over the joint's range, and the drives, rods, bones and shells
-    clear of each other over every stroke - checked by geometry, not drawn.
-    Drawn, a crank turns by its joint's angle times a lever, the rod's
-    length free; the knee's rod to the tuberosity passes its dead point
-    near 47 degrees, the ankle's lever 9 mm at -50; the hip's pair on the
-    pelvis a spatial linkage, each crank by the yaw, roll and pitch; the
-    ankle's roll, the wrist's, the gripper's and the toes' drives off their
-    axes with nothing to them; the legs without stops; the toes' S gearbox
-    1.3-1.7 times its shock rating shoved past saving. The hip's roll 109.7
-    C after 30 s of walking, its throttle at 110.5. A four-bar's best over
-    her ranges as 21 runs used them: the knee's -5..165 12 degrees at
-    worst, to 130 24 at a lever of 0.9; the hip's -145..35 only at the joint;
-    the ankle's 38 at 0.9, 27 at 1.2; the hip's roll 45 at 1.4 - the knee's
-    way (a rod to 130, on its axis, a belt from the thigh) the user's call
-    (asked 2026-10-02). Standing, 14 of her 16 kinds of drive reach 9-49 mm
-    past her skin.
+  + The get-up on her build as made: the roll pushed by
+    the arms takes her face down and knelt from all ten starts; from the five
+    falls she reaches the squat and the rise and tips sideways there, 0 of 5
+    walking again (HEAD's build 13 of 13): 20 s after a fall the hips at
+    115-120 C, the right derated to 0.40 (`heat.HASTE` 10).
+  + The pelvis dropped about the stance hip, not its middle (a beam engine's
+    beam, the user, 2026-10-02): undone, its walk caught 5-9 times in its
+    first 3-5 s, the scoreboard 583, held 59.8 % where 535, 64.5
+    (docs/findings/walk.md); retuned with it in the walk's search.
+  + MuJoCo Warp on the RTX 4080 SUPER (the user, 2026-10-02): the Monte
+    Carlo's worlds batched on it, a fine cloth with them - its step against
+    the CPU's 0.31 ms measured first, each world's boards at 1 kHz beside it.
+  + Her jeans as a coarse MuJoCo cloth, a reference for her motion, not a
+    simulation of denim (the user, 2026-10-02): a tube of ~6 x 5 vertices a
+    leg pinned at its waist, its contacts her body's alone (contype 2,
+    conaffinity 0) - her 1 ms step 0.31 ms, with 48 such vertices 0.31, 100
+    0.47, 100 colliding with everything 1.06 - drawn from its vertices.
+  + Her walk retuned for her build as made - drives as
+    modules, an outrunner on a printable two-stage gearbox, their boards
+    apart, the knee's on its axis: 635 on the scoreboard, held 57.3 %
+    (HEAD's build 214, 82.0 %); the knee's drive 0.19 m up the thigh 472,
+    67.5 %. One scoreboard a build scores chance: undoing the second stage's
+    3 % of torque and 8 % of mass scored 788.
+  + Her gearboxes past their momentary ratings in six falls of six, by
+    their peaks (`World.geared` over `drives.shock`): an ankle 3.7, a knee
+    3.4, a hip roll 1.9, the toes 2.2 - each rotor's reflected inertia
+    stopped at the impact through a rigid gearbox. A gearbox's compliance K
+    caps it near the impact's speed times sqrt(K J): a knee at 10 rad/s, an
+    estimated 5000 N m/rad and 0.163 kg m^2, 285 N m. Each drive's
+    compliance modelled, a motor-side degree of freedom; torque limiters (a
+    motorcycle's slipper clutch, a ball-detent coupling) where it is not.
+  + Her gearboxes' ball stages laid out with the user's tools
+    (<https://mevirtuoso.com/wave-reducer-simulator/>,
+    <https://smorygo.com/wave_reducer>): lobes, eccentricity and cage for
+    `drives.BALLS`' 11 balls of 12 mm in L, 9 mm in M, 9 of 8 mm in S;
+    a printed prototype's torque measured.
+  + Her bare look printable panels over her skeleton - carbon tubes, rods,
+    drives, boards and generic parts between them -, ordinary clothes over
+    it (the user, 2026-10-02): the limbs' panels light, their joint ends, the
+    neck and the waist open (`coaxial.graphics.panels`); the seams between
+    panels want finer meshes than 20 corners a ring (`shapes.AROUND`).
+  + The rods asked: the spine roll's, from its M on the pelvis's top to the
+    roll's yoke over the spine's pitch, and the ankle roll's, from its M
+    before the tibia to the foot's side over the ankle's pitch.
+  + No belt where its give would show in her walk (the user, 2026-10-02):
+    the toes' S pulls its belt 1.2 kN at 12 N m on 10 mm pulleys - a rod;
+    the elbow's 1.4 kN and the wrist's 1.0 at their peaks.
+  + Her transmissions sourced as a bicycle's, a motorcycle's or a car's
+    maker would (the user, 2026-10-02): rod ends, cardan and Rzeppa joints,
+    gear pairs, belts and bearings off the shelf, a part list a joint.
+  + Her drives running hot geared lower, a little larger, the gearbox's
+    ratio traded against its transmission's to size and place it (the
+    user, 2026-10-02): copper goes as 1/ratio^2 - an M at 1:60 sheds 22.5
+    N m rms for good, the waist's 21.5 and the hip yaw's 16.2 under it.
+  + Past her clothes standing: the ankle roll's drum 2 mm through the
+    jeans' shin (`tools/sim/fit.py`); the spine roll's 3 mm past her skin.
+  + Her legs without stops; the toes' S gearbox 1.3-1.7 times its shock
+    rating shoved past saving.
   + Her carbon shells shaped over the structure as built, and clothes cut
     to fit them; her seat soft - a body with give, cloth over it - not two
     spheres a cheek.

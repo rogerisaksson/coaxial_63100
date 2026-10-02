@@ -87,7 +87,8 @@ def test_a_trip_lands_her_shorted(report):
     """A lace snagged shoe to shoe (`machine.events`, `World.lace`) trips her past recovery, a
     catch step tried or not: her head not the first of her on the floor; down, her legs' and
     trunk's drives shorted, her arms and neck not - she settles, not held stiff nor flailing;
-    lain still, she begins to get up (`machine.getup`)."""
+    lain still, every drive cut and checked (`machine.down`), she begins to get up
+    (`machine.getup`)."""
     from machine import Machine, drives, events, figure, getup, heat
     from machine.director import Director
     from machine.falls import SHORT_FALLING
@@ -100,8 +101,8 @@ def test_a_trip_lands_her_shorted(report):
     body.loop.step(0.0)
     world, bus = body.nodes['pelvis'].world, body.loop.bus
     ours = {world.model.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
-    laid, was, first, stages, down, shorted = None, 0.0, None, [], None, None
-    while bus['t'] < 8.0 and director.stage not in getup.STAGES:
+    laid, was, first, stages, down, shorted, cut = None, 0.0, None, [], None, None, None
+    while bus['t'] < 10.0 and director.stage not in getup.STAGES:
         if laid is None and bus['t'] >= 1.0 and was < events.at('lace') <= director.walker.phase:
             events.lay('lace', director, world)
             laid = bus['t']
@@ -122,6 +123,9 @@ def test_a_trip_lands_her_shorted(report):
         if down is not None and shorted is None and bus['t'] > down + 0.2:
             shorted = {j: bool(int(bus[name + 'status']) & heat.SHORTED)
                        for j, name in director.drives.items()}
+        if cut is None and director.down is not None and director.down.at > 0.1:
+            cut = [j for j, name in director.drives.items()
+                   if int(bus[name + 'status']) & (heat.GATES_ON | heat.SHORTED)]
     report.check('the lace tripped her past recovery: falling, then down',
                  laid is not None and [s for s in stages[1:] if s not in ('catch', 'walk')][:2]
                  == ['falling', 'fallen'], ' '.join(stages))
@@ -132,9 +136,52 @@ def test_a_trip_lands_her_shorted(report):
                  shorted is not None and not wrong,
                  '%d of %d as asked, else: %s' % (len(director.drives) - len(wrong),
                                                   len(director.drives), ' '.join(wrong) or 'none'))
+    report.check('lain still, every drive cut: its gates off, its phases open',
+                 cut == [], 'on or shorted: %s' % (' '.join(cut) if cut else 'none' if cut == []
+                                                   else 'never cut'))
+    report.check('cut, she is checked before she gets up', 'check' in stages, ' '.join(stages))
     report.check('lain still, she begins to get up', director.stage in getup.STAGES,
                  '%s at %.1f s, down at %s' % (director.stage, bus['t'],
                                               '%.1f s' % down if down else '-'))
+    body.disarm()
+
+
+def test_lying_still_she_holds_nothing(report):
+    """Shoved past saving with no get-up left (`director.GETUP_TRIES`), she brakes her fall and
+    lies cut: down, not still falling - the page lands her again (`running.RECOVER_S`) - every
+    drive's gates off and its phases open, drawing its board's own (`World.drawn`). Lying, the
+    page drew 120 W: her tuck held her curled, and given up she stayed falling (2026-10-02)."""
+    from machine import Machine, events, heat
+    from machine.director import GETUP_TRIES, Director
+    from machine.modes import DYNAMIC
+    body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+    body.arm()
+    director = Director(body, 0.85)
+    director.walker.start()
+    director.stage = 'walk'
+    director.tries = GETUP_TRIES
+    body.loop.step(0.0)
+    bus, world = body.loop.bus, body.nodes['pelvis'].world
+    laid, was, lain = False, 0.0, None
+    while bus['t'] < (lain or 20.0) + 0.5:
+        if not laid and bus['t'] >= 1.0 and was < events.at('shove') <= director.walker.phase:
+            events.lay('shove', director, world)
+            laid = True
+        was = director.walker.phase
+        body.loop.write(**director.step(0.001))
+        body.loop.step(0.001)
+        if lain is None and director.down is not None and director.down.mode == 'checked':
+            lain = bus['t']
+    on = [j for j, name in director.drives.items()
+          if int(bus[name + 'status']) & (heat.GATES_ON | heat.SHORTED)]
+    own = heat.HOUSEKEEPING_W * int(world.driven.sum())
+    report.check('shoved past saving, she lies down given up, not falling',
+                 lain is not None and director.stage == 'fallen' and director.given_up,
+                 '%s, given up %s' % (director.stage, director.given_up))
+    report.check('lying, every drive cut: its gates off, its phases open',
+                 lain is not None and not on, 'on or shorted: %s' % (' '.join(on) or 'none'))
+    report.check("lying, she draws her boards' own", abs(world.drawn() - own) < 1e-6,
+                 '%.1f W, her %d boards %.1f' % (world.drawn(), int(world.driven.sum()), own))
     body.disarm()
 
 
@@ -343,7 +390,9 @@ def test_the_planner(report):
                  [s for _i, s in marks] == list(planner.plan(now)[0]) and marks[-1][0] == len(stream))
 
 
-ROSTER = (test_a_shove_to_her_left_parried, test_a_shove_to_her_right_parried, test_a_trip_lands_her_shorted, test_a_fall_to_her_left_crouches, test_a_fall_to_her_right_crouches,
+ROSTER = (test_a_shove_to_her_left_parried, test_a_shove_to_her_right_parried,
+          test_a_trip_lands_her_shorted, test_lying_still_she_holds_nothing,
+          test_a_fall_to_her_left_crouches, test_a_fall_to_her_right_crouches,
           test_her_pads, test_the_roll_pushes_her_over, test_the_planner)
 
 def main(argv=None):

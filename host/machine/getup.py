@@ -80,30 +80,27 @@ def _mirrored(pose):
     return out
 
 
-#: From her back onto her front pushed, no leg thrown: the top leg drawn up across, its foot
-#: planted, the arms over; the foot and the arms push her onto her side; the top knee down in front
-#: and the hand by her chest, the recovery position; on onto her front, into what the knees under
-#: begins from. Thrown, a foot flew 4.9 m/s, the hip and knee 803 deg/s; pushed, 1.3 and 203,
-#: face down at -0.99 and on her knees after (CMA-ESs from flat on her back and a real fall's
-#: start, the knees under after it in the cost, 2026-10-01). Ended prone flat, she rolled back.
-#: Searched over 7.1 s, run at 0.75 of it: at 0.6 the hip and knee 337 deg/s.
-#: As built, 35 kg, its rotors and gearboxes' drag on, she stopped on her side; re-searched over
-#: the push's times and the waist, shoulders, top leg and spine's roll: face down, 5.46 s against
-#: 5.11 (2026-10-01).
+#: From her back onto her front, the arms pushing, the legs near straight (the user, 2026-10-02):
+#: the bottom arm overhead, the top arm bent by her side; the top arm pressed down and straightened,
+#: its knee 60 -> 13 deg, the trunk turning; the recovery position, the top knee down in front;
+#: into what the knees under begins from - ended prone flat, she rolled back. CMA-ES over its 30
+#: knobs from flat and two logged falls: from all ten face down at -0.98 to -1.00 and knelt, a
+#: foot at 1.3 m/s, the hip and knee 133 deg/s. The leg-pushed roll before it, searched on the
+#: 35 kg build, lay on her back on the modules', its planted foot never down; thrown, a foot flew
+#: 4.9 m/s, the hip and knee 803 deg/s (2026-10-01, 2026-10-02).
 _BASE = _pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0)
-TO_FRONT = (('ease', 'roll', 1.03, dict(_BASE, left_hip=-55, left_knee=130.6, left_hip_yaw=39.3,
-                                       left_shoulder=104.9, left_elbow=33.2,
-                                       right_shoulder=218.7, waist=-55.7)),
-            ('ease', 'roll', 0.86, dict(_BASE, left_hip=-55.6, left_knee=83.1, left_hip_yaw=39.3,
-                                       left_shoulder=104.5, left_elbow=33.2,
-                                       right_shoulder=218.7, waist=-49.4, spine_roll=-28.1)),
-            ('ease', 'roll', 0.95, dict(_BASE, left_hip=-60, left_knee=80.9, right_hip=-38,
-                                       left_shoulder=141.6, left_elbow=101.6,
-                                       right_shoulder=187.9, waist=-13.2)),
-            ('ease', 'roll', 1.12, dict(_BASE, left_hip=-114.6, left_knee=131.4, right_hip=-80,
-                                       right_knee=53.4, left_shoulder=186.9, left_elbow=140,
-                                       right_shoulder=189.1, waist=67.9)),
-            ('ease', 'roll', 1.48, dict(_BASE, left_knee=56.4, right_hip=-9.6, right_knee=38.3,
+TO_FRONT = (('ease', 'roll', 0.79, dict(_BASE, left_hip=-47.0, left_knee=60.0, left_hip_roll=30.0,
+                                       left_hip_yaw=17.8, left_shoulder=65.5, left_elbow=69.9,
+                                       right_shoulder=154.7, waist=43.9, spine_roll=-35.0,
+                                       head=-13.2)),
+            ('ease', 'roll', 0.54, dict(_BASE, left_hip=-50.8, left_knee=13.4, left_hip_roll=30.0,
+                                       left_hip_yaw=17.8, left_shoulder=-6.3, left_elbow=2.5,
+                                       right_shoulder=205.3, waist=-31.6, spine_roll=12.4,
+                                       head=-13.2)),
+            ('ease', 'roll', 1.16, dict(_BASE, left_hip=-75.1, left_knee=80.5, right_knee=56.0,
+                                       left_shoulder=116.6, left_elbow=139.1,
+                                       right_shoulder=223.5, waist=-1.2, head=-13.2)),
+            ('ease', 'roll', 1.12, dict(_BASE, left_knee=56.4, right_hip=-9.6, right_knee=38.3,
                                        left_shoulder=156.9, left_elbow=18.3, right_shoulder=27.4,
                                        right_elbow=140, waist=53.1)),
             ('ease', 'roll', 0.3, {}))

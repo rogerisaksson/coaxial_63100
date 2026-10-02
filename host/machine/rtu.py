@@ -8,8 +8,8 @@
 Holding registers: SETPOINT_REG unit 1's setpoint (i32 mdeg), two registers a unit up the bus -
 one broadcast 0x10 sets every board's; STATE_REG a board's state, read by 0x03: angle and rate
 (i32 mdeg, mdeg/s), its heat (`machine.heat`: the worst node, i16 0.01 C; the envelope spent and
-the derate, u16 1/10000; the status word); GATE_REG by 0x06, echoed: GATE_ON its gates on again,
-GATE_SHORT its phases shorted through the low sides. A register's words come high first, a
+the derate, u16 1/10000; the status word); GATE_REG by 0x06, echoed: GATE_OFF its gates off,
+GATE_ON on again, GATE_SHORT its phases shorted through the low sides. A register's words come high first, a
 frame's CRC low byte first.
 """
 import struct
@@ -40,7 +40,7 @@ if crc16(b'123456789') != CHECK_VALUE:
 
 READ, WRITE, WRITE_ONE, BROADCAST = 0x03, 0x10, 0x06, 0
 SETPOINT_REG, STATE_REG, GATE_REG = 0x0100, 0x0200, 0x0300
-GATE_ON, GATE_SHORT = 1, 2
+GATE_OFF, GATE_ON, GATE_SHORT = 0, 1, 2
 
 #: A state's registers and bytes: angle, rate, heat.
 STATE_FORMAT = '>iihHHH'

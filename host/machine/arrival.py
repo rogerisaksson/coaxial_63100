@@ -51,8 +51,9 @@ FEET_Z = (gait.BALL - gait.HEEL) / 2.0
 #: on to the left sole's outer edge, and she fell off it at the first step (2026-09-26). At 3.5 cm
 #: she stood 1.8 s a column leaning left, the stance hip rolled -4.4 degrees - leaning back from
 #: the page's 60; at 5.5 -2.5, the rest as the right lifts; perturbed starts held 15, 14 of 16,
-#: at 6.5 6 of 10, at 7.5 1 (2026-09-28).
-SHIFT_IN, LIFT_IN = 0.055, 0.015
+#: at 6.5 6 of 10, at 7.5 1 (2026-09-28). Her hips 190 mm apart and her shanks heavier, 5.5 and
+#: 1.5 held 3 of 9 drops into the squat, 4.5 and 2.5 8 (2026-10-02).
+SHIFT_IN, LIFT_IN = 0.045, 0.025
 
 #: Risen, the knees soft as the stand's (`gait.STAND_KNEE`); the pelvis SINK_M lower as her weight
 #: goes onto the left foot, its hip out over the ankle and the leg reaching the further - and the
@@ -287,12 +288,12 @@ class Arrival:
         self.t, self.stage, self.com_was, self.v = 0.0, frames[0][0], None, (0.0, speed)
         self.want_was, self.borne = None, {}
 
-    def land(self):
-        """The body placed in the squat, still, a hair over the floor."""
+    def land(self, drop=0.002):
+        """The body placed in the squat, still, `drop` m over the floor."""
         self.play(keyframes(self.cadence))
         frame = self.frames[0][2]
         h = math.radians(frame['tilt']) / 2.0
-        self.world.reset(angles_of(frame), where=add(frame['pelvis'], (0.0, 0.002, 0.0)),
+        self.world.reset(angles_of(frame), where=add(frame['pelvis'], (0.0, drop, 0.0)),
                          turn=(math.cos(h), math.sin(h), 0.0, 0.0))
 
     def rise(self, dx, dz, yaw=0.0):

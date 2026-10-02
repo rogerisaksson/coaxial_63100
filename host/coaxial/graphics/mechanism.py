@@ -6,23 +6,29 @@
     layers = mechanism.wires(parts, frames)  # the kinematic stick figure: [(a, b, ink)], world
 
 The segments are their carbon tubes and plates (`machine.build`); each drive's drum where it sits
-(`drums`); a limb's quick-release a printed collar at its root; a rod from its drive's crank to a
-ball joint on the segment it turns, the crank turned by its joint's angle times its lever ratio
-(`drives.LINKS`). A crank, a rod and the crank's pin are posed each frame, `posed`, their parent
-'*'.
+(`drums`); a limb's quick-release a printed collar at its root; the ankle's rod from its drive's
+crank to the heel's ball joint, the crank at its closure's angle (`linkage`); each belt over
+its two pulleys; each board apart from its drive (`drives.board`) a disc. A crank, a rod and the crank's pin are posed each frame, `posed`, their
+parent '*'.
 """
 import math
 
 from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
-from machine import build, drives, figure
+from machine import build, drives, figure, linkage
 from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
 #: The colours: the carbon's, the rods' and their ball joints' steel, the quick-releases' printed
-#: polymer, and each drive's drum by its size (`drives.SIZES`).
-CARBON, ROD, STEEL, POLYMER = (92, 94, 106), (214, 214, 224), (246, 246, 246), (232, 122, 32)
+#: polymer - violet, off the heat's ramp: orange read as a warm hip (the user, 2026-10-02) - and
+#: each drive's drum by its size (`drives.SIZES`).
+CARBON, ROD, STEEL, POLYMER = (92, 94, 106), (214, 214, 224), (246, 246, 246), (150, 100, 220)
+#: A spur pair's face width, m (`linkage.GEARS`): its pinion on its drive's output face, its wheel
+#: on the joint's axis, their pitch circles meeting.
+SPUR_T = 0.008
+#: A board apart from its drive: its laminate's green, BOARD_T thick with its parts, m.
+PCB, BOARD_T = (40, 120, 70), 0.012
 SIZED = {'L': (72, 140, 224), 'M': (60, 190, 170), 'S': (230, 190, 70)}
 
 #: Bare, a drive's drum drawn as its motor, MOTOR_SHARE of its length in its size's colour, and its
@@ -37,21 +43,54 @@ RELEASE_GAP = 0.006
 #: On her shell a quick-release's band stands RELEASE_PROUD_M proud of it (`bands`).
 RELEASE_PROUD_M = 0.001
 
-#: Each rod by its joint's kind: its crank's radius, m, which way it points at rest (its drive's
-#: segment's frame), and the ball joint it drives, on the next segment - the ankle's to the heel's
-#: tuberosity behind and under the ankle, the knee's to the tibial tuberosity before and under the
-#: knee. The tube ROD_R round, a ball joint BALL_R.
-RODS = {'ankle': (0.030, (0.0, 0.0, -1.0), (0.0, -0.03, -0.05)),
-        'knee': (0.028, (0.0, 0.0, 1.0), (0.0, -0.045, 0.04)),
-        'hip': (0.030, (0.0, -1.0, 0.0), (0.0, -0.09, -0.035)),
-        'hip_roll': (0.030, (0.0, -1.0, 0.0), (0.035, -0.06, 0.0))}
-ROD_R, BALL_R = 0.009, 0.013
+#: A rod's tube ROD_R round, a ball joint BALL_R (its plane `linkage.ROD_OUT`); a belt's pulleys
+#: BELT_W wide.
+ROD_R, BALL_R, BELT_W = 0.009, 0.013, 0.012
+
+
+#: The femur and the tibia, her left's, through these points of their segments' frames, m (the
+#: right's x mirrored), their tubes' radii: each from under its drive's gearbox to over the next's
+#: motor's middle, the femur toward the thigh's front over its last 25 cm, clear of the calf's
+#: drives and rod folded at 163 deg; from their drums' centres they ran 40 mm through the hip's motor and gearbox
+#: (the user, 2026-10-02). Each drum they hang from or reach clamped by a collar COLLAR_M proud:
+#: (joint, its gearbox or motor, y on the segment).
+HUNG = {'thigh': (((0.0285, -0.05, 0.0), (0.0, -0.14, 0.03), (0.0, 0.05 - THIGH, 0.0)), 0.016,
+                  (('hip', 'gear', 0.0), ('knee', 'motor', -THIGH))),
+        'shank': (((0.0285, -0.05, 0.0), (0.0, -SHANK, 0.0)), 0.014, (('knee', 'gear', 0.0),))}
+COLLAR_M = 0.004
+
+
+def _tube(a, b, radius, material):
+    """A tube from `a` to `b` in its segment's frame, its ends rounded."""
+    from coaxial.model.blocks import numpy as np
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    y = (a - b) / np.linalg.norm(a - b)
+    x = np.cross(y, (0.0, 0.0, 1.0))
+    x = x / np.linalg.norm(x)
+    c, t, u, m = limb(float(np.linalg.norm(b - a)), radius, radius, radius, material)
+    return c @ np.stack([x, y, np.cross(x, y)], 1).T + a, t, u, m
+
+
+def _hung(side, seg):
+    """[mesh]: `seg`'s tubes through HUNG's points and its collars, its frame."""
+    s, c = (1.0 if side == 'left_' else -1.0), paint(CARBON)
+    points, radius, collars = HUNG[seg]
+    points = [(s * x, y, z) for x, y, z in points]
+    out = [_tube(a, b, radius, c) for a, b in zip(points, points[1:])]
+    for joint, part, y in collars:
+        half, r = drives.length(side + joint) / 2.0, drives.of(side + joint)[1].diameter / 2.0
+        at, length = ((s * half * MOTOR_SHARE, 2.0 * half * (1.0 - MOTOR_SHARE)) if part == 'gear'
+                      else (-s * half * (1.0 - MOTOR_SHARE), 2.0 * half * MOTOR_SHARE))
+        corners, t, u, m = drum(r + COLLAR_M, length, 'x', c)
+        out.append((corners + (at, y, 0.0), t, u, m))
+    return out
 
 
 def _bones():
-    """{segment: mesh}: each segment as its carbon tubes and plates."""
+    """{segment: mesh}: each segment as its carbon tubes and plates, the legs' as parts
+    (`_hung`)."""
     c = paint(CARBON)
-    out = {'pelvis': drum(0.02, 0.2, 'x', c),
+    out = {'pelvis': drum(0.015, 0.2, 'x', c),
            'torso': loft([(0.0, 0.02, 0.02), (0.39, 0.02, 0.02)], c, poles=(-0.005, 0.395)),
            'neck': loft([(0.0, 0.013, 0.013), (0.065, 0.013, 0.013)], c, poles=(-0.003, 0.068)),
            'head': ellipsoid((0.0, 0.095, 0.012), (0.05, 0.06, 0.06), c, rows=8)}
@@ -61,8 +100,8 @@ def _bones():
                     side + 'hand': ellipsoid((0.0, -0.035, 0.0), (0.012, 0.035, 0.02), c, rows=6),
                     side + 'fingers': ellipsoid((0.0, -0.03, 0.0), (0.009, 0.03, 0.015), c,
                                                 rows=6),
-                    side + 'thigh': limb(THIGH, 0.016, 0.016, 0.016, c),
-                    side + 'shank': limb(SHANK, 0.014, 0.014, 0.014, c),
+                    side + 'thigh': _nothing(limb(THIGH, 0.016, 0.016, 0.016, c)),
+                    side + 'shank': _nothing(limb(SHANK, 0.014, 0.014, 0.014, c)),
                     side + 'foot': ellipsoid((0.0, 0.012 - ANKLE_H, (BALL - HEEL) / 2.0),
                                              (0.034, 0.01, (BALL + HEEL) / 2.0), c, rows=6),
                     side + 'toes': ellipsoid((0.0, 0.0, 0.03), (0.032, 0.008, 0.03), c, rows=6)})
@@ -95,19 +134,31 @@ def parts(bare=False):
                 ('gear_' + joint, parent, (), tuple(o + a * motor / 2.0 for o, a in zip(offset, axis)),
                  0.0, drum(size.diameter / 2.0 * GEAR_RADIUS, gear, letter, paint(GEARBOX)))]
     poly, steel = paint(POLYMER), paint(STEEL)
+    if not bare:
+        out += [('hung%d_%s%s' % (k, side, seg), side + seg, (), (0.0, 0.0, 0.0), 0.0, mesh)
+                for side in ('left_', 'right_') for seg in HUNG
+                for k, mesh in enumerate(_hung(side, seg))]
+    for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
+        out.append(('board_' + joint, seg, (), at, 0.0, drum(radius, BOARD_T, faces, paint(PCB))))
+    for joint in [side + kind for kind in linkage.GEARS for side in ('left_', 'right_')]:
+        seg, pinion, r, wheel, big = _spurs(joint)
+        out += [('pinion_' + joint, seg, (), pinion, 0.0, drum(r, SPUR_T, 'z', steel)),
+                ('spur_' + joint, seg, (), wheel, 0.0, drum(big, SPUR_T, 'z', steel))]
     for side in ('left_', 'right_'):
         out += [('release_' + side + seg, side + seg, (), (0.0, y, 0.0), 0.0,
                  drum(radius, length, 'y', poly)) for seg, (y, radius, length, _kg)
                 in build.RELEASES.items()]
-        for kind, (_crank, _rest, end) in RODS.items():
+        for kind in linkage.RODS:
             joint = side + kind
             turned = next(s[0] for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
             ball = ellipsoid((0.0, 0.0, 0.0), (BALL_R,) * 3, steel, rows=6)
-            out += [('end_' + joint, turned, (), _sided(end, side), 0.0, ball),
+            out += [('end_' + joint, turned, (), _ball(kind, side), 0.0, ball),
                     ('crank_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
                      limb(1.0, 0.012, 0.012, 0.012, steel)),
                     ('pin_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0, ball),
                     ('rod_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
+                     limb(1.0, ROD_R, ROD_R, ROD_R, paint(ROD))),
+                    ('rodb_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
                      limb(1.0, ROD_R, ROD_R, ROD_R, paint(ROD)))]
     return out
 
@@ -128,18 +179,62 @@ def bands(meshes):
     return out
 
 
-def _sided(point, side):
-    """`point` on `side`: the right's x mirrored."""
-    return (-point[0] if side == 'right_' else point[0], point[1], point[2])
+def _spurs(joint):
+    """(segment, pinion's centre, radius, wheel's centre, radius): a pair on a drive along z."""
+    seg, (x, y, z) = drives.mount(joint) or ('', (0.0, 0.0, 0.0))
+    pivot = next(s[3] for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
+    face = z + drums.AXES[joint][1] + SPUR_T / 2.0
+    apart = math.hypot(pivot[0] - x, pivot[1] - y)
+    r = apart / (1.0 + linkage.GEARS[drives.kind(joint)])
+    return seg, (x, y, face), r, (pivot[0], pivot[1], face), apart - r
 
 
-def _turned(v, axis, a):
-    """`v` turned `a` rad about its frame's `axis` ('x', 'y' or 'z')."""
-    c, s = math.cos(a), math.sin(a)
-    i, j = {'x': (1, 2), 'y': (2, 0), 'z': (0, 1)}[axis]
-    out = v.copy()
-    out[i], out[j] = v[i] * c - v[j] * s, v[i] * s + v[j] * c
+def _ball(kind, side):
+    """A rod's ball joint on the segment its joint turns, its frame (`linkage.RODS`)."""
+    _up, _ahead, _r, _t0, b, beta = linkage.RODS[kind][0]
+    out_x = linkage.BALL_OUT if side == 'left_' else -linkage.BALL_OUT
+    return (out_x, -b * math.cos(beta), b * math.sin(beta))
+
+
+def _hub(kind, side):
+    """(segment, point): a rod's crank's hub on its drive's segment, about the joint's place."""
+    up, ahead = linkage.RODS[kind][0][:2]
+    seg = next(s for s in figure.SEGMENTS if side + kind in [j for j, *_ in s[2]])
+    return seg[1], (seg[3][0], seg[3][1] + up, seg[3][2] + ahead)
+
+
+def belts(np, placed):
+    """[(a, b)]: each belt as drawn, world - its two pulleys' rims and its two runs, out to her
+    side, the drive's pulley on its axis, the joint's on the joint's."""
+    out = []
+    for side in ('left_', 'right_'):
+        for kind, (r1, r2, off) in linkage.BELTS.items():
+            joint, where = side + kind, drives.mount(side + kind)
+            if drives.passive(joint) or where is None:
+                continue
+            seat, (x, y, z) = where
+            turn, spot = placed[seat]
+            out_x = off if side == 'left_' else -off
+            seg = next(s for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
+            c1, c2 = np.array([y, z]), np.array(seg[3][1:])
+            d = c2 - c1
+            u = d / np.linalg.norm(d)
+            v = np.array([-u[1], u[0]])
+            g = (r2 - r1) / np.linalg.norm(d)
+            for s in (1.0, -1.0):
+                n = -g * u + s * math.sqrt(1.0 - g * g) * v
+                a, b = c1 + r1 * n, c2 + r2 * n
+                out.append((spot + turn @ np.array([out_x, a[0], a[1]]),
+                            spot + turn @ np.array([out_x, b[0], b[1]])))
+            axis = turn @ np.array([1.0, 0.0, 0.0])
+            for c, r in ((c1, r1), (c2, r2)):
+                out += _rims(np, spot + turn @ np.array([out_x, c[0], c[1]]), axis, r,
+                             BELT_W / 2.0)
     return out
+
+
+
+
 
 
 def _nothing(mesh):
@@ -148,12 +243,6 @@ def _nothing(mesh):
     return c[:0], t[:0], u[:0], m[:0]
 
 
-def _mount(joint):
-    """(segment, offset) its rod's drive sits at."""
-    where = drives.mount(joint)
-    if where is None:
-        raise ValueError('%s drives no rod: its drive sits on its axis' % joint)
-    return where
 
 
 def _along(np, a, b):
@@ -168,27 +257,29 @@ def _along(np, a, b):
 
 
 def posed(parts_, placed, angles, frames):
-    """Each '*' part's (turn, spot) into `frames` (a part an entry, theirs None): a crank turned
-    from its rest by its joint's angle times its lever, its pin at its end, its rod to its ball
-    joint - `placed` {segment: (turn, spot)}, world."""
+    """Each '*' part's (turn, spot) into `frames` (a part an entry, theirs None): a crank at its
+    closure's angle (`linkage.crank`), its pin at its end, its rod to its ball joint - `placed`
+    {segment: (turn, spot)}, world."""
     from coaxial.model.blocks import numpy as np
     at = {name: i for i, (name, *_rest) in enumerate(parts_)}
     for side in ('left_', 'right_'):
-        for kind, (crank, rest, end) in RODS.items():
+        for kind in linkage.RODS:
             joint = side + kind
-            seat, centre = _mount(joint)
+            seat, centre = _hub(kind, side)
             turn, spot = placed[seat]
-            axis, sign = next((ax, s) for seg in figure.SEGMENTS for j, ax, s in seg[2]
-                              if j == joint)
-            a = math.radians(sign * float(angles.get(joint, 0.0)) * drives.LINKS[kind])
-            pointing = _turned(np.asarray(_sided(rest, side), float), axis, a)
-            hub = spot + turn @ np.asarray(centre, float)
-            pin = hub + turn @ (crank * pointing)
+            r, t0 = linkage.RODS[kind][0][2:4]
+            t = t0 + linkage.crank(joint, float(angles.get(joint, 0.0)))
+            out_x = linkage.ROD_OUT if side == 'left_' else -linkage.ROD_OUT
+            hub = spot + turn @ (np.asarray(centre, float) + np.array([out_x, 0.0, 0.0]))
+            pin = hub + turn @ np.array([0.0, -r * math.cos(t), r * math.sin(t)])
             seg_turn, seg_spot = placed[parts_[at['end_' + joint]][1]]
-            ball = seg_spot + seg_turn @ np.asarray(end, float)
+            ball = seg_spot + seg_turn @ np.asarray(_ball(kind, side), float)
+            s = 1.0 if side == 'left_' else -1.0
+            bend = np.array(linkage.bent(kind, pin, ball, s * turn[:, 0], s))
             frames[at['crank_' + joint]] = _along(np, hub, pin)
             frames[at['pin_' + joint]] = (np.eye(3), pin)
-            frames[at['rod_' + joint]] = _along(np, pin, ball)
+            frames[at['rod_' + joint]] = _along(np, pin, bend)
+            frames[at['rodb_' + joint]] = _along(np, bend, ball)
 
 
 def _rims(np, centre, axis, radius, half):
@@ -244,15 +335,20 @@ def wires(parts_, frames):
             ink = SIZED[size[0]] if name.startswith('drive_') else GEARBOX
             drives_.setdefault(ink, []).extend(
                 _rims(np, spot, turn @ np.asarray(axis, float), radius, half * share))
-        elif name.startswith(('crank_', 'rod_')):
+        elif name.startswith(('crank_', 'rod_', 'rodb_')):
             rods.append((spot, spot + turn @ np.array([0.0, -1.0, 0.0])))
         elif name.startswith(('pin_', 'end_')):
             balls += [(spot - d, spot + d) for d in np.eye(3) * BALL_R]
+        elif name.startswith(('pinion_', 'spur_')):
+            _seg, _p, r, _w, big = _spurs(name.split('_', 1)[1])
+            rods += _rims(np, spot, turn @ np.array([0.0, 0.0, 1.0]),
+                          r if name.startswith('pinion_') else big, SPUR_T / 2.0)
         elif name.startswith('release_'):
             _y, radius, length, _kg = build.RELEASES[name.split('_', 2)[2]]
             releases += _rims(np, spot, turn @ np.array([0.0, 1.0, 0.0]), radius, length / 2.0)
+    placed = {p[0]: f for p, f in zip(parts_[:len(figure.SEGMENTS)], frames)}
     layers = [(bones, BONE_INK)] + [(lines, ink) for ink, lines in drives_.items()]
-    layers += [(rods, ROD_INK), (balls, BALL_INK), (releases, POLYMER)]
+    layers += [(rods + belts(np, placed), ROD_INK), (balls, BALL_INK), (releases, POLYMER)]
     return [(np.array([a for a, _ in lines]), np.array([b for _, b in lines]), ink)
             for lines, ink in layers if lines]
 
