@@ -154,12 +154,12 @@ Open work. Measured results are in FINDINGS.
     leg pinned at its waist, its contacts her body's alone (contype 2,
     conaffinity 0) - her 1 ms step 0.31 ms, with 48 such vertices 0.31, 100
     0.47, 100 colliding with everything 1.06 - drawn from its vertices.
-  + Her walk retuned for her build as made - drives as
-    modules, an outrunner on a printable two-stage gearbox, their boards
-    apart, the knee's on its axis: 635 on the scoreboard, held 57.3 %
-    (HEAD's build 214, 82.0 %); the knee's drive 0.19 m up the thigh 472,
-    67.5 %. One scoreboard a build scores chance: undoing the second stage's
-    3 % of torque and 8 % of mass scored 788.
+  + Her walk retuned for her build as made - drives as modules, L wound
+    1.25: 535 on the scoreboard, held 64.5 % (HEAD's build 214, 82.0 %;
+    before the rewind 635, 57.3); test_gynoid_falls' parry 1 of 8 where 2,
+    the offline gate red on it, unpushed. Searching the arrival's, the
+    capture's, the side step's and the parry's knobs (2026-10-02). One
+    scoreboard a build scores chance: near-identical builds 150 apart.
   + Her gearboxes past their momentary ratings in six falls of six, by
     their peaks (`World.geared` over `drives.shock`): an ankle 3.7, a knee
     3.4, a hip roll 1.9, the toes 2.2 - each rotor's reflected inertia
@@ -168,11 +168,10 @@ Open work. Measured results are in FINDINGS.
     estimated 5000 N m/rad and 0.163 kg m^2, 285 N m. Each drive's
     compliance modelled, a motor-side degree of freedom; torque limiters (a
     motorcycle's slipper clutch, a ball-detent coupling) where it is not.
-  + Her gearboxes' ball stages laid out with the user's tools
+  + Her gearboxes' ball stages exported from the user's tools
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
-    <https://smorygo.com/wave_reducer>): lobes, eccentricity and cage for
-    `drives.BALLS`' 11 balls of 12 mm in L, 9 mm in M, 9 of 8 mm in S;
-    a printed prototype's torque measured.
+    <https://smorygo.com/wave_reducer>) with docs/findings/body.md's
+    inputs, printed, a prototype's torque and backlash measured.
   + Her bare look printable panels over her skeleton - carbon tubes, rods,
     drives, boards and generic parts between them -, ordinary clothes over
     it (the user, 2026-10-02): the limbs' panels light, their joint ends, the

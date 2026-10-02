@@ -181,3 +181,16 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   Its arms at 33 and 34.5 mm, the hub kept, the walk from the squat fell at
   13 s; the drive 15 mm ahead, two falls put her head down at 1.6-1.9 m/s;
   its crank outside, the thigh's boards met it sat back, 15 mm (2026-10-02).
+- Her ball stages for the wave reducer tools: one eccentric, ring fixed, cage
+  out at lobes:1, the eccentric's race a stock bearing's outside, its
+  eccentricity 80 % of the largest whose ball path stays a ball round
+  plus 0.15 mm; pressure angle mean 13-15, at most 21-22 deg (2026-10-02):
+
+  | size | balls | race | ball circle | e | web | lobes | ring | housing |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | L | 11 x 12 mm | 6005 | 59 mm | 0.92 mm | 4.9 mm | 12 | 69.2-72.8 mm | 80 |
+  | M | 11 x 8 mm | 6805 | 45 mm | 0.77 mm | 4.9 mm | 12 | 51.5-54.5 mm | 60 |
+  | S | 9 x 7 mm | 6900 | 29 mm | 0.55 mm | 3.1 mm | 10 | 34.9-37.1 mm | 42 |
+
+  M's on 9 mm balls left its ring 1.75 mm of wall in 60, S's on 8 mm
+  0.4 in 42.

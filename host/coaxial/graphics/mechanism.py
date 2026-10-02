@@ -32,8 +32,9 @@ PCB, BOARD_T = (40, 120, 70), 0.012
 SIZED = {'L': (72, 140, 224), 'M': (60, 190, 170), 'S': (230, 190, 70)}
 
 #: Bare, a drive's drum drawn as its motor, MOTOR_SHARE of its length in its size's colour, and its
-#: gearbox beside it on the axis, GEAR_RADIUS of its radius, in the gearbox's steel grey.
-MOTOR_SHARE, GEAR_RADIUS, GEARBOX = 0.6, 0.8, (150, 152, 160)
+#: gearbox beside it on the axis, GEAR_RADIUS of its radius - its ball stage's ring as wide as the
+#: motor, L's lobes 72.8 mm round in 80 - in the gearbox's steel grey.
+MOTOR_SHARE, GEAR_RADIUS, GEARBOX = 0.6, 1.0, (150, 152, 160)
 
 #: The stick figure's inks: the skeleton's, the cranks' and rods', the ball joints'; a wire
 #: cylinder's rims RIM points round, a ball joint a cross BALL_R across; a bone broken RELEASE_GAP

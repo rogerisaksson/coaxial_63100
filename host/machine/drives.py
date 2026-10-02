@@ -52,8 +52,8 @@ RATIO_L, RATIO_M, RATIO_S = 30.0, 40.0, 40.0
 GEAR_J = 0.05
 
 #: A gearbox's last stage is a ball stage - one eccentric's balls in a cage against a lobed ring,
-#: its ratio balls + 1 - at most BALLS by size, its balls printable: L's 11 of 12 mm round a 61 mm
-#: pitch circle in its 80, M's of 9 mm round 46 in 60, S's 9 of 8 mm round 32 in 42, webs 2-5 mm.
+#: its ratio balls + 1 - at most BALLS by size, its balls printable: L's 11 of 12 mm on a 6005's
+#: race, M's 11 of 8 on a 6805's, S's 9 of 7 on a 6900's (docs/findings/body.md).
 #: Past that a printable planetary before it, STAGE_M longer, STAGE_KG of the drive's mass heavier,
 #: STAGE_EFF of the torque through it (estimated). One stage to 1:60 put 5 mm balls in L, 1-2.5 in
 #: M and under 1 in S (the user, 2026-10-02).
