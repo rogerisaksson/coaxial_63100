@@ -16,7 +16,7 @@ import math
 from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
-from machine import drives, figure
+from machine import build, drives, figure
 from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
@@ -30,8 +30,12 @@ SIZED = {'L': (72, 140, 224), 'M': (60, 190, 170), 'S': (230, 190, 70)}
 MOTOR_SHARE, GEAR_RADIUS, GEARBOX = 0.6, 0.8, (150, 152, 160)
 
 #: The stick figure's inks: the skeleton's, the cranks' and rods', the ball joints'; a wire
-#: cylinder's rims RIM points round, a ball joint a cross BALL_R across.
+#: cylinder's rims RIM points round, a ball joint a cross BALL_R across; a bone broken RELEASE_GAP
+#: clear either side of its quick-release, the collar in its polymer.
 BONE_INK, ROD_INK, BALL_INK, RIM = (200, 200, 206), (250, 150, 60), (255, 255, 255), 10
+RELEASE_GAP = 0.006
+#: On her shell a quick-release's band stands RELEASE_PROUD_M proud of it (`bands`).
+RELEASE_PROUD_M = 0.001
 
 #: Each rod by its joint's kind: its crank's radius, m, which way it points at rest (its drive's
 #: segment's frame), and the ball joint it drives, on the next segment - the ankle's to the heel's
@@ -92,11 +96,9 @@ def parts(bare=False):
                  0.0, drum(size.diameter / 2.0 * GEAR_RADIUS, gear, letter, paint(GEARBOX)))]
     poly, steel = paint(POLYMER), paint(STEEL)
     for side in ('left_', 'right_'):
-        out += [] if bare else [
-            ('release_' + side + 'arm', side + 'upper_arm', (), (0.0, -0.015, 0.0), 0.0,
-             drum(0.022, 0.018, 'y', poly)),
-            ('release_' + side + 'leg', side + 'thigh', (), (0.0, -0.02, 0.0), 0.0,
-             drum(0.03, 0.022, 'y', poly))]
+        out += [('release_' + side + seg, side + seg, (), (0.0, y, 0.0), 0.0,
+                 drum(radius, length, 'y', poly)) for seg, (y, radius, length, _kg)
+                in build.RELEASES.items()]
         for kind, (_crank, _rest, end) in RODS.items():
             joint = side + kind
             turned = next(s[0] for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
@@ -107,6 +109,22 @@ def parts(bare=False):
                     ('pin_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0, ball),
                     ('rod_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
                      limb(1.0, ROD_R, ROD_R, ROD_R, paint(ROD)))]
+    return out
+
+
+def bands(meshes):
+    """[(name, parent, offset, mesh)]: on her shell, `meshes` {segment: mesh}, each limb's
+    quick-release (`build.RELEASES`) a polymer band RELEASE_PROUD_M proud where the limb comes off."""
+    from coaxial.model.blocks import numpy as np
+    out = []
+    for side in ('left_', 'right_'):
+        for seg, (y, _r, length, _kg) in build.RELEASES.items():
+            c = meshes[side + seg][0]
+            rings = np.unique(np.round(c[:, 1], 5))
+            reach = float(np.interp(y, rings, [np.hypot(*c[np.round(c[:, 1], 5) == r][:, [0, 2]].T)
+                                               .max() for r in rings])) + RELEASE_PROUD_M
+            out.append(('release_' + side + seg, side + seg, (0.0, y, 0.0),
+                        drum(reach, length, 'y', paint(POLYMER))))
     return out
 
 
@@ -193,12 +211,20 @@ def wires(parts_, frames):
     ball joint a cross."""
     from coaxial.model.blocks import numpy as np
     at = {p[0]: f for p, f in zip(parts_, frames)}
-    bones, rods, balls, drives_ = [], [], [], {}
+    bones, rods, balls, drives_, releases = [], [], [], {}, []
     for name, parent, *_rest in parts_[:len(figure.SEGMENTS)]:
         if parent:
             turn, spot = at[parent]
             root = spot + turn @ np.array([0.0, 0.325, 0.0]) if name.endswith('upper_arm') else spot
-            bones.append((root, at[name][1]))
+            held = build.RELEASES.get(parent.split('_', 1)[-1])
+            if held is None:
+                bones.append((root, at[name][1]))
+                continue
+            y, _r, length, _kg = held
+            u = at[name][1] - root
+            u = u / np.linalg.norm(u)
+            bones += [(root, root + u * (-y - length / 2.0 - RELEASE_GAP)),
+                      (root + u * (-y + length / 2.0 + RELEASE_GAP), at[name][1])]
     for name, tip in (('head', (0.0, 0.19, 0.0)), ('left_fingers', (0.0, -0.07, 0.0)),
                       ('right_fingers', (0.0, -0.07, 0.0)), ('left_toes', (0.0, 0.0, 0.06)),
                       ('right_toes', (0.0, 0.0, 0.06))):
@@ -222,8 +248,11 @@ def wires(parts_, frames):
             rods.append((spot, spot + turn @ np.array([0.0, -1.0, 0.0])))
         elif name.startswith(('pin_', 'end_')):
             balls += [(spot - d, spot + d) for d in np.eye(3) * BALL_R]
+        elif name.startswith('release_'):
+            _y, radius, length, _kg = build.RELEASES[name.split('_', 2)[2]]
+            releases += _rims(np, spot, turn @ np.array([0.0, 1.0, 0.0]), radius, length / 2.0)
     layers = [(bones, BONE_INK)] + [(lines, ink) for ink, lines in drives_.items()]
-    layers += [(rods, ROD_INK), (balls, BALL_INK)]
+    layers += [(rods, ROD_INK), (balls, BALL_INK), (releases, POLYMER)]
     return [(np.array([a for a, _ in lines]), np.array([b for _, b in lines]), ink)
             for lines, ink in layers if lines]
 

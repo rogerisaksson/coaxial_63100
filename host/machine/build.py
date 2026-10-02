@@ -23,15 +23,19 @@ WALL_M, CF_KG_M3 = 0.002, 1600.0
 #: What a segment holds besides its shell and its drives, (kg, where in its frame, m) - estimated:
 #: in the torso a 15S pack, 48-63 V, 540 Wh in thirty 21700 cells, its BMS and case, and the
 #: computer and the harness; the pelvis's power distribution; the head's cameras and IMU; a rod
-#: each down the thigh and the shin (`drives.LINKS`); a limb's quick-release at its root, a
-#: printed polymer with pogo pins for its power and its bus; her clothes and her sneakers.
+#: each down the thigh and the shin (`drives.LINKS`); her clothes and her sneakers.
 HOLDS = {'torso': ((2.6, (0.0, 0.17, -0.02)), (1.2, (0.0, 0.26, 0.02)), (0.1, (0.0, 0.2, 0.0))),
          'pelvis': ((0.5, (0.0, 0.0, 0.0)), (0.2, (0.0, -0.02, 0.0))),
          'head': ((0.4, (0.0, 0.09, 0.03)),),
-         'upper_arm': ((0.05, (0.0, -0.14, 0.0)), (0.12, (0.0, -0.01, 0.0))),
-         'thigh': ((0.06, (0.0, -0.2, 0.03)), (0.15, (0.0, -0.2, 0.0)), (0.2, (0.0, -0.02, 0.0))),
+         'upper_arm': ((0.05, (0.0, -0.14, 0.0)),),
+         'thigh': ((0.06, (0.0, -0.2, 0.03)), (0.15, (0.0, -0.2, 0.0))),
          'shank': ((0.06, (0.0, -0.2, -0.03)), (0.05, (0.0, -0.1, 0.0))),
          'foot': ((0.25, (0.0, -0.03, 0.03)),)}
+
+#: Each limb's quick-release, by its segment: a printed-polymer collar with pogo pins for its power
+#: and its bus at its root, clear of the drive above it - the arm's under the shoulder's 70 mm, the
+#: leg's under the hip's 100 - (its centre down the segment m, radius, length, kg).
+RELEASES = {'upper_arm': (-0.05, 0.03, 0.02, 0.12), 'thigh': (-0.065, 0.04, 0.022, 0.2)}
 
 
 def _part(name):
@@ -110,6 +114,8 @@ def _segments():
         name = seg[0]
         pieces = _shells(_part(name))
         pieces += [(kg, at, [[0.0] * 3 for _ in range(3)]) for kg, at in HOLDS.get(_part(name), ())]
+        pieces += [(kg, (0.0, y, 0.0), [[0.0] * 3 for _ in range(3)])
+                   for y, _r, _l, kg in ([RELEASES[_part(name)]] if _part(name) in RELEASES else [])]
         pieces += [(kg, at, [[i[k] if k == j else 0.0 for j in range(3)] for k in range(3)])
                    for _joint, kg, at, i in on.get(name, ())]
         kg = sum(p[0] for p in pieces)

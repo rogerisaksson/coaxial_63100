@@ -137,13 +137,35 @@ Open work. Measured results are in FINDINGS.
   + The planner's server after LOCAL_TRIES local failures.
   + `machine/` in subpackages.
   + A fast walk, then running: no strikes, no blows, quiet and smooth.
+  + Her a little sturdier, not as slight, every drive and rod hidden under
+    her carbon and her clothes, the clothes' size the give (the user,
+    2026-10-02): the hips a gimbal - the pitch's L centred on the hip, the
+    roll's L on its axis behind it, the yaw's M above -, the ankle's L
+    upright in the calf on a right-angle stage, the rest grown over. Her
+    joints over 21 runs: the hip, knee, ankle and hip roll at their L's
+    141 N m clamp, rms 50, 47, 40, 37; the waist's and the hip yaw's M at
+    53, rms 21.5 and 16.2 past an M's 15 shed for good.
+  + The leg's quick-release (`build.RELEASES`) stands 15 mm into the knee
+    drive's top: the drive 35 mm lower, 0.012 kg m^2 more on her swing, the
+    rise to the walk fell at 6.5 s - lowered with the hip's gimbal and the
+    walk retuned for her new build.
+  + Her drives running hot geared lower, a little larger (the user,
+    2026-10-02): copper goes as 1/ratio^2 - an M at 1:60 sheds 22.5 N m rms
+    for good, the waist's 21.5 and the hip yaw's 16.2 under it; the hip
+    roll's L at 1:45 0.64 of its copper - speed and reflected inertia the
+    price.
   + The seat's drives in closer to the pelvis, nothing standing out of her:
     clothes bought off the rack fit her (the user, 2026-10-02); standing,
     the hip's reaches 42 mm past her skin, its roll's 48, and the roll's
     drum stands 44 mm into the yaw's. A gimbal hip - the pitch's L centred
     on the hip carrying the roll's trunnions, the roll's M behind, the
     yaw's M above - 12, 42 and 23 mm, nothing touching over 21 runs' yaws
-    and rolls. Her skin is an EU 32: hips 80.8 cm, bust 70.
+    and rolls. Her skin is an EU 32: hips 80.8 cm, bust 70. Her roll asks
+    an L (rms 36.6, 141 peaks): behind the hip it swings with the yaw into
+    the other's past 28 degrees - the yaw stopped at 25 (`mjcf.HIP_YAW_DEG`)
+    held the scoreboard (248 against 238, held 81.0 %) and 3 get-ups of 3,
+    the L rolls then 9 mm into each other and 58 out of her seat. Roll,
+    pitch, yaw locks at 90 degrees of hip flexion: the order stays.
   + The mechanism realizable: each rod's crank, length and horn giving its
     stroke curve (`drives.STROKES`, a first cut from where the joints asked
     torque) over the joint's range, and the drives, rods, bones and shells

@@ -21,15 +21,19 @@ class Report:
 
 def test_dressed_or_bare(report):
     """Her clothes come off at a key (`gynoid.render`, dressed): the bare body is the dressed one
-    without what she wears - her clothes, her hair, her soles - her feet plated."""
+    without what she wears - her clothes, her hair, her soles - her feet plated, her limbs' quick-
+    releases banded on her shell."""
     from coaxial.graphics import gynoid, lit
     dressed, bare = gynoid.body(), gynoid.body(dressed=False)
     worn = [p[0] for p in dressed.parts if gynoid._worn(p[0])]
-    report.check('bare, every worn part gone and nothing else',
-                 [p[0] for p in bare.parts] == [p[0] for p in dressed.parts
-                                                if not gynoid._worn(p[0])]
+    bands = [p[0] for p in bare.parts if p[0].startswith('release_')]
+    report.check('bare, every worn part gone, a band a quick-release and nothing else',
+                 [p[0] for p in bare.parts if not p[0].startswith('release_')]
+                 == [p[0] for p in dressed.parts if not gynoid._worn(p[0])]
+                 and len(bands) == 4
                  and {'cloth_tee', 'cloth_left_sleeve', 'hair_fall', 'left_lock',
-                      'left_sole'} <= set(worn), '%d of %d worn' % (len(worn), len(dressed.parts)))
+                      'left_sole'} <= set(worn),
+                 '%d of %d worn, %d bands' % (len(worn), len(dressed.parts), len(bands)))
     feet = [i for i, p in enumerate(bare.parts) if p[0].split('_', 1)[-1] in ('foot', 'toes')]
     report.check('her feet plated bare, sneakers dressed',
                  all((bare.materials[slice(*bare.spans[i])] == lit.PLATE).all() for i in feet)

@@ -258,7 +258,7 @@ def _parts(dressed=True):
     their hems' - parents first. Undressed, her shell: nothing worn, the feet plated."""
     meshes, extra = _meshes()
     if not dressed:
-        extra = [part for part in extra if not _worn(part[0])]
+        extra = [part for part in extra if not _worn(part[0])] + mechanism.bands(meshes)
         for name, (c, t, u, _m) in list(meshes.items()):
             if name.endswith(('_foot', '_toes')):
                 meshes[name] = (c, t, u, _np().full(len(c), PLATE))
