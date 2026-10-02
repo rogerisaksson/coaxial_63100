@@ -187,7 +187,8 @@ def _results(suites, args, tags, live_sections):
     got, seconds = {}, {}
     for job, out, code, took_s in relay(queue, args.jobs):
         got[job.name] = _parse(out, code, took_s, job.timeout)
-        seconds[job.name] = round(took_s, 1)
+        if job.name.split()[0] not in words:
+            seconds[job.name] = round(took_s, 1)
     counts.record('jobs', seconds)
     for name in suites:
         yield name, (_merged([got[job.name] for job in plan[name]]) if name in plan else None)

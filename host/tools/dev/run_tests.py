@@ -150,7 +150,10 @@ def _run(args, tags, live_sections):
                 ok = False
                 continue
             tally, code, failing, elapsed, crash, groups = result
-            seconds[name] = round(elapsed, 1)
+            # Some tests by their words time only those: kept as the suite's, they planned the
+            # falls suite whole into its 300 s cut (2026-10-02).
+            if name not in (getattr(args, 'words', None) or {}):
+                seconds[name] = round(elapsed, 1)
             if tally is None:
                 print('\n'.join(filter(None, [
                     '%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed),
