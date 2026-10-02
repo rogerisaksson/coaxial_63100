@@ -246,32 +246,41 @@ def clearances(worst=10, csv=None):
 
 
 def _rings(mesh):
-    """[(y, cx, cz, rx, rz)] of a loft's rings, its part's frame (`shapes.loft`); None not one."""
+    """(axis, [(at, cx, cc, rx, rc)]) of a loft's rings, its part's frame (`shapes.loft`): up
+    it (1) or forward (2, a shoe's), the other across its rings; None not one - forward the
+    sneaker's read as up, its toes' drive stood 119 mm out of it."""
     from coaxial.graphics.shapes import AROUND
     c = np.asarray(mesh[0])
     n = (len(c) - 2) // AROUND
     if n < 2 or n * AROUND + 2 != len(c):
         return None
+    rows = [c[k * AROUND:(k + 1) * AROUND] for k in range(n)]
+    means = np.array([r.mean(0) for r in rows])
+    axis = 1 if np.ptp(means[:, 1]) >= np.ptp(means[:, 2]) else 2
+    other = 3 - axis
     out = []
-    for k in range(n):
-        ring = c[k * AROUND:(k + 1) * AROUND]
+    for ring in rows:
         lo, hi = ring.min(0), ring.max(0)
-        out.append((float(ring[:, 1].mean()), (lo[0] + hi[0]) / 2.0, (lo[2] + hi[2]) / 2.0,
-                    max((hi[0] - lo[0]) / 2.0, 1e-4), max((hi[2] - lo[2]) / 2.0, 1e-4)))
-    return sorted(out)
+        out.append((float(ring[:, axis].mean()), (lo[0] + hi[0]) / 2.0,
+                    (lo[other] + hi[other]) / 2.0, max((hi[0] - lo[0]) / 2.0, 1e-4),
+                    max((hi[other] - lo[other]) / 2.0, 1e-4)))
+    return axis, sorted(out)
 
 
 def _excess(points, rings):
-    """Each point's reach past a loft's rings, m, by its ellipse at its height (inf past its ends)."""
+    """Each point's reach past a loft's rings (`_rings`), m, by its ellipse where it stands along
+    the loft (inf past its ends)."""
+    axis, rings = rings
+    other = 3 - axis
     ys = np.array([r[0] for r in rings])
     out = np.full(len(points), np.inf)
-    inside = (points[:, 1] >= ys[0]) & (points[:, 1] <= ys[-1])
+    inside = (points[:, axis] >= ys[0]) & (points[:, axis] <= ys[-1])
     if not inside.any():
         return out
     q = points[inside]
-    cols = [np.interp(q[:, 1], ys, [r[i] for r in rings]) for i in range(1, 5)]
+    cols = [np.interp(q[:, axis], ys, [r[i] for r in rings]) for i in range(1, 5)]
     cx, cz, rx, rz = cols
-    norm = np.hypot((q[:, 0] - cx) / rx, (q[:, 2] - cz) / rz)
+    norm = np.hypot((q[:, 0] - cx) / rx, (q[:, other] - cz) / rz)
     out[inside] = (norm - 1.0) * np.minimum(rx, rz)
     return out
 
@@ -318,7 +327,7 @@ def main(argv=None):
                     if j.startswith(('left_', 'spine', 'waist', 'neck', 'head'))
                     and not drives.passive(j)), reverse=True)
     print('drives past her skin standing, mm: ' + ', '.join(
-        '%s %s %+.0f' % (k, s, r) for r, k, s in reach))
+        '%s %s %+.0f' % (k, s, r) for r, k, s in reach if r > -1e9))
     for dressed, what in ((False, 'her shell'), (True, 'her clothes')):
         got = drawn(dressed)
         print('drives past %s standing, mm: ' % what + ', '.join(
