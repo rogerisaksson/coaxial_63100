@@ -277,3 +277,10 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   the median 468 -> 335. The board 578 -> 299, held 76.8 % against main's
   495; the same knobs to 17, 6 and 3 digits 263, 306 and 420 - its chance.
   `landing.PARRY_HURRY` 0.29 (2026-10-03).
+- Into her walk from the squat she staggered on the stacks (the user,
+  2026-10-03): their ankles' and hip rolls' rotors reflect half the inertia
+  the first step was tuned on (0.103 and 0.173 kg m^2 against 0.282 and
+  0.367; the hips' and knees' 0.158 against 0.163), and the pelvis went 51
+  mm down and 15 up in the walk's first second. `arrival.LIFT_UP_M` 0.06 ->
+  0.04: 18 down and 4; the Monte Carlo held 74.1 % with every rise 100 %,
+  `FIRST` 0.5 lost rises.

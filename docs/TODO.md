@@ -75,6 +75,15 @@ Open work. Measured results are in FINDINGS.
     2026-10-03): standing, past her skin the shoulder +22 mm, the hip yaw
     +20, the knee +14, the wrist +10, the ankle +8; past her shell the toes'
     stack +20, the hip yaw +6 (`tools/sim/fit.py`).
+  + Her kinematics for printing (the user, 2026-10-03): every holder and
+    lever a 2.5D print in PAHT-CF, the purchased parts few - standard carbon
+    tubes in as few sizes as her members allow (`tools/sim/members.py`), one
+    bearing size, one rod end -, her walk and get-up held or bettered on the
+    Monte Carlo, no flex past `members.py`'s 0.25 deg.
+  + R in the tty crashes it at once (the user, 2026-10-03): headless the
+    page takes R, the 22:36 recording saved 97 rows of 129 fields; a page
+    started before `buses.FIELDS` gained `flex` suspected - its traceback
+    wanted.
   + First the biped (the user, 2026-10-03): her gait and her bearing,
     parrying shoves, stumbles and slippery floors, getting up when she
     falls; the toes and the hands after.
@@ -306,6 +315,9 @@ Open work. Measured results are in FINDINGS.
   + Her carbon shells shaped over the structure as built, and clothes cut
     to fit them; her seat soft - a body with give, cloth over it - not two
     spheres a cheek.
+- `tools/sim/montecarlo.py` (the FOC loop's) still runs a pool of its own
+  (`concurrent.futures`): its jobs as shards on the relay (`focus.relay`),
+  the library loaded once a shard.
 - The meter under the drive: `read_index` serves the NTC and the DC link
   from the latched sample; the MCU's die (an identification anchor, unread
   under load) and the phases could join them; a software sweep over a channel

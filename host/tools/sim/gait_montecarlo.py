@@ -34,7 +34,7 @@ import argparse
 import itertools
 import json
 import math
-import multiprocessing
+import os
 import sys
 import time
 
@@ -136,9 +136,14 @@ LANDS = ('impact', 'touch', 'rate', 'load', 'power')
 
 def suite(name):
     """TRIALS and JOBS narrowed to suite `name`'s kinds."""
-    global TRIALS, JOBS
+    global TRIALS, JOBS, SUITE
+    SUITE = name
     TRIALS = tuple(t for t in TRIALS if t[0] in SUITES[name])
     JOBS = [(t, k) for t, k in JOBS if t[0] in SUITES[name]]
+
+
+#: The suite the runs are on; a run's commit on the relay, GB (a world and its five buses).
+SUITE, RUN_GB = 'all', 1.2
 
 
 def look_of(looks):
@@ -332,13 +337,22 @@ def score(results):
     return cost + (sum(land) / len(land) if land else 0.0), held, stir
 
 
-def run(pool, candidates):
-    """[(cost, held, stir, results)] for `candidates`, every run of each in one pool."""
-    jobs = [(values, j) for values in candidates for j in JOBS]
-    got = pool.map(trial, jobs, chunksize=1)
+def run(_pool, candidates):
+    """[(cost, held, stir, results)] for `candidates`, every run of each a job on the relay
+    (`focus.relay`: a baton a physical core, never a pool of its own - the user, 2026-10-03), its
+    result the JSON line it prints (`--one`); a run lost counts as fallen."""
+    from tools.dev import focus
+    jobs = [focus.Job('%d.%d' % (c, k), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),
+                                         '--suite', SUITE, '--one', json.dumps(values), str(k)],
+                      RUN_GB, 900.0)
+            for c, values in enumerate(candidates) for k in range(len(JOBS))]
+    got = {}
+    for job, text, _code, _s in focus.relay(jobs):
+        line = next((ln for ln in reversed(text.splitlines()) if ln.startswith('{')), None)
+        got[job.name] = json.loads(line)['result'] if line else [0.0, None, 'lost', {}]
     out = []
-    for k in range(len(candidates)):
-        results = got[k * len(JOBS):(k + 1) * len(JOBS)]
+    for c in range(len(candidates)):
+        results = [got['%d.%d' % (c, k)] for k in range(len(JOBS))]
         out.append(score(results) + (results,))
     return out
 
@@ -382,21 +396,24 @@ def main(argv=None):
     parser.add_argument('--population', type=int, default=12)
     parser.add_argument('--sigma', type=float, default=0.08, help="the first step, of a span")
     parser.add_argument('--log', default='gait_montecarlo.jsonl', help='every candidate, a line')
-    parser.add_argument('--workers', type=int, default=16)
     parser.add_argument('--suite', choices=sorted(SUITES), default='all',
                         help='the look on fantasy boards, the faults on the boards as built')
+    parser.add_argument('--one', nargs=2, metavar=('VALUES', 'K'),
+                        help="one run on the relay: a candidate's JSON and its job's index")
     args = parser.parse_args(argv)
     suite(args.suite)
-    fixed = {k: float(v) for k, v in (a.split('=') for a in args.set)}
     background.lower()
+    if args.one:
+        print(json.dumps({'result': trial((json.loads(args.one[0]), JOBS[int(args.one[1])]))}))
+        return 0
+    fixed = {k: float(v) for k, v in (a.split('=') for a in args.set)}
     began = time.time()
-    with multiprocessing.get_context('spawn').Pool(args.workers) as pool, \
-            open(args.log, 'a') as log:
+    with open(args.log, 'a') as log:
         if args.search:
             spans = {k: tuple(float(x) for x in v.split(':'))
                      for k, v in (a.split('=') for a in args.search)}
             cost, values = cmaes.search(
-                pool, spans, args.generations, args.population, log,
+                None, spans, args.generations, args.population, log,
                 lambda pool, cands: run(pool, [dict(fixed, **c) for c in cands]), _now, args.sigma)
             print('BEST %.2f %s' % (cost, json.dumps(values)))
             cands = [dict(fixed, **(values or {}))]
@@ -407,7 +424,7 @@ def main(argv=None):
                      for combo in itertools.product(*[v for _k, v in axes])]
         else:
             cands = [fixed]
-        got = run(pool, cands)
+        got = run(None, cands)
         ranked = sorted(zip(cands, got), key=lambda cg: cg[1][0])
         for values, (cost, held, stir, results) in ranked:
             _show(values, cost, held, stir, results)

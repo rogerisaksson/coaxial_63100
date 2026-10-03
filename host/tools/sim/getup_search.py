@@ -17,7 +17,6 @@ KEPT_K if she is not walking again by RUN_S, the seconds it took, TRY_K a try pa
 import argparse
 import json
 import math
-import multiprocessing
 import sys
 import time
 
@@ -130,16 +129,36 @@ def trial(job):
     return cost, walked, d.tries
 
 
-def runs(pool, candidates, starts):
-    """[(cost, share walking, nan, results)] a candidate, every start of each in one pool."""
-    jobs = [(c, s) for c in candidates for s in starts]
-    got = pool.map(trial, jobs, chunksize=1)
+def relayed(args):
+    """[the JSON each printed] of `args` lists run as jobs on the relay, this file's `--one`
+    modes (`focus.relay`: a baton a physical core, never a pool of its own - the user,
+    2026-10-03), in their order; a run lost None."""
+    import os
+    from tools.dev import focus
+    jobs = [focus.Job(str(k), [sys.executable, '-X', 'utf8', os.path.abspath(__file__)] + a,
+                      RUN_GB, 900.0) for k, a in enumerate(args)]
+    got = {}
+    for job, text, _code, _s in focus.relay(jobs):
+        line = next((ln for ln in reversed(text.splitlines()) if ln.startswith('{')), None)
+        got[job.name] = json.loads(line)['result'] if line else None
+    return [got[str(k)] for k in range(len(args))]
+
+
+def runs(_pool, candidates, starts, file='getup_starts.json'):
+    """[(cost, share walking, nan, results)] a candidate, every start of each a job on the
+    relay (`--one`, the starts from `file`)."""
+    got = relayed([['--file', file, '--one', json.dumps(c), str(s)]
+                   for c in candidates for s in range(len(starts))])
     out = []
     for k in range(len(candidates)):
-        mine = got[k * len(starts):(k + 1) * len(starts)]
+        mine = [r or (KEPT_K + RUN_S, None, 1) for r in got[k * len(starts):(k + 1) * len(starts)]]
         out.append((sum(r[0] for r in mine) / len(mine),
                     sum(r[1] is not None for r in mine) / len(mine), math.nan, mine))
     return out
+
+
+#: A run's commit on the relay, GB (a world and its five buses).
+RUN_GB = 1.2
 
 
 def main(argv=None):
@@ -151,35 +170,45 @@ def main(argv=None):
     parser.add_argument('--population', type=int, default=12)
     parser.add_argument('--sigma', type=float, default=0.15)
     parser.add_argument('--log', default='getup_search.jsonl')
-    parser.add_argument('--workers', type=int, default=16)
     parser.add_argument('--table', default='k', help='the tables searched: k, f or kf')
+    parser.add_argument('--one', nargs=2, metavar=('VALUES', 'K'),
+                        help="one run on the relay: a candidate's JSON and its start's index")
+    parser.add_argument('--one-start', nargs=2, metavar=('EVENT', 'K'),
+                        help='one fall on the relay: its event and spread step')
     args = parser.parse_args(argv)
     background.lower()
+    if args.one:
+        lying = json.load(open(args.file))[int(args.one[1])]
+        print(json.dumps({'result': trial((json.loads(args.one[0]), lying))}))
+        return 0
+    if args.one_start:
+        print(json.dumps({'result': start((args.one_start[0], int(args.one_start[1])))}))
+        return 0
     began = time.time()
-    with multiprocessing.get_context('spawn').Pool(args.workers) as pool:
-        if args.starts:
-            got = [s for s in pool.map(start, FALLS, chunksize=1) if s is not None]
-            json.dump(got, open(args.file, 'w'))
-            print('%d starts of %d falls in %s, %.0f s' % (len(got), len(FALLS), args.file,
-                                                           time.time() - began))
-            return 0
-        starts = json.load(open(args.file))
-        now = _now(args.table)
-        if args.search:
-            spans = {n: ((v - SPAN[n.split('.')[1]], v + SPAN[n.split('.')[1]])
-                         if not n.endswith('.s') else TABLES[n[0]][3]) for n, v in now.items()}
-            with open(args.log, 'a') as log:
-                cost, values = cmaes.search(pool, spans, args.generations, args.population, log,
-                                            lambda p, c: runs(p, c, starts), now.get, args.sigma)
-            now = values or now
-            print('BEST %.2f %s' % (cost, json.dumps({k: round(v, 2) for k, v in now.items()})))
-        cost, held, _nan, results = runs(pool, [now], starts)[0]
-        print('cost %.2f, walking again from %d of %d' % (cost, round(held * len(starts)),
-                                                          len(starts)))
-        for s, (c, walked, tries) in zip(starts, results):
-            print('  %-6s %+d  %s, %d tries' % (s['fall'][0], s['fall'][1],
-                                                'walking at %.1f s' % walked if walked else 'down',
-                                                tries))
+    if args.starts:
+        got = [s for s in relayed([['--one-start', e, str(k)] for e, k in FALLS]) if s]
+        json.dump(got, open(args.file, 'w'))
+        print('%d starts of %d falls in %s, %.0f s' % (len(got), len(FALLS), args.file,
+                                                       time.time() - began))
+        return 0
+    starts = json.load(open(args.file))
+    now = _now(args.table)
+    if args.search:
+        spans = {n: ((v - SPAN[n.split('.')[1]], v + SPAN[n.split('.')[1]])
+                     if not n.endswith('.s') else TABLES[n[0]][3]) for n, v in now.items()}
+        with open(args.log, 'a') as log:
+            cost, values = cmaes.search(None, spans, args.generations, args.population, log,
+                                        lambda p, c: runs(p, c, starts, args.file), now.get,
+                                        args.sigma)
+        now = values or now
+        print('BEST %.2f %s' % (cost, json.dumps({k: round(v, 2) for k, v in now.items()})))
+    cost, held, _nan, results = runs(None, [now], starts, args.file)[0]
+    print('cost %.2f, walking again from %d of %d' % (cost, round(held * len(starts)),
+                                                      len(starts)))
+    for s, (c, walked, tries) in zip(starts, results):
+        print('  %-6s %+d  %s, %d tries' % (s['fall'][0], s['fall'][1],
+                                            'walking at %.1f s' % walked if walked else 'down',
+                                            tries))
     print('%.0f s' % (time.time() - began))
     return 0
 

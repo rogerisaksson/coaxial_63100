@@ -90,7 +90,11 @@ SQUAT_S, LOOK_S, PUSH_S, RISE_S, STAND_S, SHIFT_S = 0.4, 0.2, 0.65, 1.3, 0.05, 0
 #: the lean's tilt in it (`lifted`): 7 cm before the lift locked the standing knee and rose her
 #: 3 mm; 3 cm, the rest as the foot lifts - the curtsy and the bow with the first step, the pelvis
 #: 5.8 mm down in it, not 13 (2026-09-28); retuned (`physics.STAGED`).
-LEAN_M, LEAN_S, LIFT_ON_M, LIFT_UP_M, LIFT_S = 0.0295604, 0.45, 0.09, 0.06, 0.3
+#: LIFT_UP_M 0.06 -> 0.04 on the stacks (2026-10-03): their ankles' and hip rolls' rotors
+#: reflect half the inertia the first step was tuned on, and she staggered into her walk -
+#: the pelvis 51 mm down and 15 up in its first second (the user); at 0.04 18 down, 4, every
+#: rise of the Monte Carlo's 100 %; the first stride at 0.5 of the walk's lost rises.
+LEAN_M, LEAN_S, LIFT_ON_M, LIFT_UP_M, LIFT_S = 0.0295604, 0.45, 0.09, 0.04, 0.3
 
 #: Her first stride, of the walk's (`gait.pace`'s at the walker's cadence x this), landed on
 #: the walk's own track, 4 cm from the standing foot.
