@@ -302,3 +302,10 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   rings printed axis up, tube sockets bore up, side holes a 45 deg roof;
   brackets plates printed flat, their loads in the layers' plane (PAHT-CF
   and PET-CF half as strong across them); seats 0.1 mm under, reamed.
+- Her trunk's roll on a four-bar (`linkage.PLANAR`, 2026-10-03): its 1:1
+  spur pair's 100 mm wheels stood in the pitch's bracket's sweep, and a
+  stage at 1:40 wants 1.5 after it. An 18 mm crank on the roll's M, a 24 mm
+  horn on its stage, crossed, in the 12 mm between the M's face and the
+  roll's bearing - the M 7 mm back: over +-35 deg its lever 1.33 at rest,
+  1.48-1.73 toward the ends, its transmission 53 deg at worst, 2.9-3.7 kN
+  in its rod; over spine -30..85 and roll +-35 the closest 1 mm.

@@ -5,11 +5,8 @@
     mechanism.posed(parts, placed, angles, frames)   # each crank's, pin's and rod's (turn, spot)
     layers = mechanism.wires(parts, frames)  # the kinematic stick figure: [(a, b, ink)], world
 
-The segments are their carbon tubes and plates (`machine.build`); each drive's drum where it sits
-(`drums`); a limb's quick-release a printed collar at its root; the ankle's rod from its drive's
-crank to the heel's ball joint, the crank at its closure's angle (`linkage`); each belt over
-its two pulleys; each board apart from its drive (`drives.board`) a disc. A crank, a rod and the crank's pin are posed each frame, `posed`, their
-parent '*'.
+Her skeleton's parts (`machine.skeleton`), each drive's drum (`drums`), each belt over its two
+pulleys; cranks, pins and rods posed each frame (`posed`), their parent '*'.
 """
 import math
 
@@ -17,7 +14,7 @@ from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
 from machine import build, drives, figure, linkage
-from machine.skeleton import BOOM, COLLAR_M, HUNG, gimbal, held, runs, trunk
+from machine.skeleton import BOOM, HUNG, MOTOR_SHARE, collars, gimbal, held, runs, trunk
 from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
@@ -32,10 +29,10 @@ SPUR_T = 0.008
 PCB, BOARD_T = (40, 120, 70), 0.012
 SIZED = {'L': (72, 140, 224), 'M': (60, 190, 170), 'S': (230, 190, 70)}
 
-#: Bare, a drive's drum drawn as its motor, MOTOR_SHARE of its length in its size's colour, and its
-#: gearbox beside it on the axis, GEAR_RADIUS of its radius - its ball stage's ring as wide as the
-#: motor, L's lobes 72.8 mm round in 80 - in the gearbox's steel grey.
-MOTOR_SHARE, GEAR_RADIUS, GEARBOX = 0.6, 1.0, (150, 152, 160)
+#: Bare, a drive's drum drawn as its motor, MOTOR_SHARE of its length (`skeleton`) in its size's
+#: colour, and its gearbox beside it on the axis, GEAR_RADIUS of its radius - its ball stage's ring
+#: as wide as the motor, L's lobes 72.8 mm round in 80 - in the gearbox's steel grey.
+GEAR_RADIUS, GEARBOX = 1.0, (150, 152, 160)
 
 #: The stick figure's inks: the skeleton's, the cranks' and rods', the ball joints'; a wire
 #: cylinder's rims RIM points round, a ball joint a cross BALL_R across; a bone broken RELEASE_GAP
@@ -80,20 +77,6 @@ def _gimbal(side, stage):
            for a, b, r in tubes]
     return out + [((s * c[0],) + c[1:], drum(r, 2.0 * half, axis, steel))
                   for c, axis, r, half in rings]
-
-
-def collars(side, seg):
-    """[(centre, radius, half)]: the collars `seg`'s bones (`skeleton.HUNG`) clamp round their
-    drums' motors or gearboxes, along x, its frame."""
-    s, out = (1.0 if side == 'left_' else -1.0), []
-    for joint, part, y in HUNG[seg][2]:
-        half, r = drives.length(side + joint) / 2.0, drives.of(side + joint)[1].diameter / 2.0
-        at, length = ((s * half * MOTOR_SHARE, 2.0 * half * (1.0 - MOTOR_SHARE)) if part == 'gear'
-                      else (-s * half * (1.0 - MOTOR_SHARE), 2.0 * half * MOTOR_SHARE))
-        # A collar a millimetre short of the motor's and gearbox's seam: the knee's two turn.
-        at += (0.0005 if at * s > 0.0 else -0.0005) * s
-        out.append(((at, y, 0.0), r + COLLAR_M, length / 2.0 - 0.0005))
-    return out
 
 
 def _hung(side, seg):
@@ -213,6 +196,16 @@ def parts(bare=False):
                      limb(1.0, linkage.ROD_R, linkage.ROD_R, linkage.ROD_R, paint(ROD))),
                     ('rodb_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
                      limb(1.0, linkage.ROD_R, linkage.ROD_R, linkage.ROD_R, paint(ROD)))]
+    ball = ellipsoid((0.0, 0.0, 0.0), (BALL_R,) * 3, steel, rows=6)
+    for joint in [j for kind in linkage.PLANAR for j in linkage.joints(kind)]:
+        out += [('crank_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
+                 limb(1.0, 0.008, 0.008, 0.008, steel)),
+                ('horn_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
+                 limb(1.0, 0.008, 0.008, 0.008, steel)),
+                ('pin_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0, ball),
+                ('end_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0, ball),
+                ('rod_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
+                 limb(1.0, linkage.ROD_R, linkage.ROD_R, linkage.ROD_R, paint(ROD)))]
     return out
 
 
@@ -346,6 +339,15 @@ def posed(parts_, placed, angles, frames):
             frames[at['pin_' + joint]] = (np.eye(3), pin)
             frames[at['rod_' + joint]] = _along(np, pin, bend)
             frames[at['rodb_' + joint]] = _along(np, bend, ball)
+    for joint in [j for kind in linkage.PLANAR for j in linkage.joints(kind)]:
+        crank, horn, pin, ball = (np.array(p) for p in linkage.four_bar(joint, angles))
+        turn, spot = placed[(drives.mount(joint) or ('pelvis',))[0]]
+        crank, horn, pin, ball = (spot + turn @ p for p in (crank, horn, pin, ball))
+        frames[at['crank_' + joint]] = _along(np, crank, pin)
+        frames[at['horn_' + joint]] = _along(np, horn, ball)
+        frames[at['pin_' + joint]] = (np.eye(3), pin)
+        frames[at['end_' + joint]] = (np.eye(3), ball)
+        frames[at['rod_' + joint]] = _along(np, pin, ball)
 
 
 def _rims(np, centre, axis, radius, half):

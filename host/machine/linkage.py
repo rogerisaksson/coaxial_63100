@@ -1,4 +1,4 @@
-"""Her transmissions off a joint's axis: the ankle's two rods, the hip roll's spur pair, the belts.
+"""Her transmissions off a joint's axis: the ankle's rods, the trunk roll's four-bar, spurs, belts.
 
 A rod a four-bar - a crank on its drive, a rigid carbon rod on two ball joints, the heel's horn
 -; the ankle a parallel pair (PAIRS), its two drives' rods turning its pitch together and its roll
@@ -59,10 +59,18 @@ BELTS = {'elbow': (0.018, 0.018, 0.034), 'wrist': (0.012, 0.012, 0.026),
 
 #: Each spur pair after its drive's gearbox, its ratio: the gearbox takes its joint's torque over
 #: it. The hip roll's M at 1:100 on two stages put its 126 N m peak through a box rated 100, and
-#: walking 133-139 (`World.geared`, 2026-10-02): one stage at 1:60 and 1.67 here. The trunk's
-#: roll's M 100 mm under its axis, 1:1, the wheel 7 mm before the pitch's L, 13 mm off it and the
-#: hips' yaw drums rolled 35 deg (2026-10-03).
-GEARS = {'hip_roll': 1.67, 'spine_roll': 1.0}
+#: walking 133-139 (`World.geared`, 2026-10-02): one stage at 1:60 and 1.67 here.
+GEARS = {'hip_roll': 1.67}
+
+#: Each four-bar turning about z in its drive's segment's x-y plane: its crank's centre and its
+#: horn's - the joint's axis - (x, y) m, the crank, its rest rad, the horn, its rest rad, the
+#: plane's z m, its stroke deg. The trunk's roll's M 100 mm under the roll's axis, an 18 mm crank
+#: on a 24 mm horn crossed: over +-35 deg its lever 1.31-1.66, its transmission 53 deg at worst,
+#: 24 mm off the fork's legs - its 1:1 spur pair's 100 mm wheels stood in the pitch's bracket's
+#: sweep, and a stage at 1:40 wants 1.5 after it. Between the M's face and the roll's bearing, its
+#: M 7 mm back: over spine -30..85 and roll +-35 the closest 1 mm (2026-10-03).
+PLANAR = {'spine_roll': ((0.0, 0.02), (0.0, 0.12), 0.018, math.radians(20.0), 0.024,
+                         math.radians(200.0), 0.047, (-35.0, 35.0))}
 
 #: Each bevel pair after its drive's gearbox, 1:1, its pitch radius, m: a right-angle stage, a
 #: motorcycle's shaft drive's, turning an output along its limb onto its joint's axis - across her
@@ -168,9 +176,49 @@ def turns(joint, angles):
     return angles.get(side + at, 0.0), angles.get(side + PAIRS[at], 0.0) if at in PAIRS else 0.0
 
 
+@functools.lru_cache(None)
+def _planar_laid(kind):
+    """(rod's length, branch) of a four-bar (`PLANAR`): its crank's root at rest on `branch`."""
+    a, b, r, t0, horn, b0 = PLANAR[kind][:6]
+    pin = (a[0] + r * math.cos(t0), a[1] + r * math.sin(t0))
+    ball = (b[0] + horn * math.cos(b0), b[1] + horn * math.sin(b0))
+    length = math.dist(pin, ball)
+    roots = [_planar_root(kind, length, 0.0, s) for s in (1.0, -1.0)]
+    return length, min((1.0, -1.0), key=lambda s: abs(math.remainder(roots[s < 0] - t0, math.tau)))
+
+
+def _planar_root(kind, length, q, branch):
+    a, b, r, _t0, horn, b0 = PLANAR[kind][:6]
+    bx, by = b[0] + horn * math.cos(b0 + q), b[1] + horn * math.sin(b0 + q)
+    dx, dy = bx - a[0], by - a[1]
+    h = math.hypot(dx, dy)
+    k = (r * r + h * h - length * length) / (2.0 * r * h)
+    return math.atan2(dy, dx) + branch * math.acos(max(-1.0, min(1.0, k)))
+
+
+def planar(kind, deg):
+    """(pin, ball, crank rad) of a four-bar (`PLANAR`), (x, y) in its plane, its joint at `deg`."""
+    a, b, r, _t0, horn, b0 = PLANAR[kind][:6]
+    length, branch = _planar_laid(kind)
+    q = math.radians(deg)
+    t = _planar_root(kind, length, q, branch)
+    return ((a[0] + r * math.cos(t), a[1] + r * math.sin(t)),
+            (b[0] + horn * math.cos(b0 + q), b[1] + horn * math.sin(b0 + q)), t)
+
+
+def four_bar(joint, angles):
+    """(crank's centre, horn's centre, pin, ball) of a four-bar (`PLANAR`), its drive's segment's
+    frame, its joint at {joint: deg}'s."""
+    kind = _kind(joint)
+    a, b, *_rest = PLANAR[kind]
+    z = PLANAR[kind][6]
+    pin, ball, _t = planar(kind, angles.get(joint, 0.0))
+    return (a[0], a[1], z), (b[0], b[1], z), (pin[0], pin[1], z), (ball[0], ball[1], z)
+
+
 def lever(joint, deg=0.0):
-    """d crank / d joint at `deg`: a rod's ratio there, a pair's its rods' mean, a belt's or a
-    spur pair's always, 1 on the joint's axis."""
+    """d crank / d joint at `deg`: a rod's ratio there, a pair's its rods' mean, a four-bar's, a
+    belt's or a spur pair's always, 1 on the joint's axis."""
     kind = _kind(joint)
     if kind in GEARS:
         return GEARS[kind]
@@ -188,6 +236,9 @@ def _table(kind):
 
 
 def _lever(kind, deg):
+    if kind in PLANAR:
+        return abs(math.remainder(planar(kind, deg + 0.05)[2] - planar(kind, deg - 0.05)[2],
+                                  math.tau)) / math.radians(0.1)
     rods = [r for r, (at, *_x) in ROD_AT.items() if kind in (at, PAIRS.get(at))]
     if not rods:
         return 1.0

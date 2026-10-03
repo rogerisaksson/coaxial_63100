@@ -128,7 +128,7 @@ SIZES = {
 #: the foot through its rod (`linkage.PAIRS`) - an L at the foot 15 mm ahead put her head down at
 #: 1.6 and 1.9 m/s in two falls of four, 10 ahead with the roll's 10 back a derated knee's walk
 #: fell -; the trunk's roll first (`figure.SEGMENTS`), its M on the pelvis's top between the
-#: hips' yaws on a spur pair into it, the pitch's L on its stage: on its axis the roll's M stood
+#: hips' yaws on a four-bar into it (`linkage.PLANAR`), the pitch's L on its stage: on its axis the roll's M stood
 #: 80 mm out of her back, 47 out of her shell beside the L; across the pitch a rod or a
 #: differential failed (docs/findings/body.md); the wrist's and the fingers' in the forearm, the
 #: toes' in the foot. Off the thigh, the hip's three took 3 kg out of its swing. The elbow and the neck M: on
@@ -138,7 +138,7 @@ SIZES = {
 #: and its bracket clears the roll's bearings to 85 deg; the shoulder's 15 mm in from its joint
 #: (`skeleton.TRUNK`, 2026-10-03).
 JOINTS = {
-    'spine': ('L', ('spine_roll', (0.0, 0.0, 0.0))), 'spine_roll': ('M', ('pelvis', (0.0, 0.02, 0.012))),
+    'spine': ('L', ('spine_roll', (0.0, 0.0, 0.0))), 'spine_roll': ('M', ('pelvis', (0.0, 0.02, 0.005))),
     'waist': ('M', ('torso', (0.0, 0.12, 0.0), '-y')),
     'neck': ('M', None), 'head': ('S', None),
     'shoulder': ('M', ('torso', (0.133, 0.325, -0.005))),
@@ -233,7 +233,7 @@ def ratio(joint, deg=None):
     k = kind(joint)
     total = (PAIRED * linkage.lever(joint) if motors(joint) == 2 else TOTALS.get(k)
              or {'L': RATIO_L, 'M': RATIO_M, 'S': RATIO_S}[of(joint)[0]])
-    if deg is None or k not in linkage.RODS:
+    if deg is None or (k not in linkage.RODS and k not in linkage.PLANAR):
         return total
     return total * linkage.lever(joint, deg) / linkage.lever(joint)
 

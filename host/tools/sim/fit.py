@@ -31,7 +31,7 @@ TUBE_R = {'pelvis': 0.015, 'torso': 0.02, 'neck': 0.013, 'upper_arm': 0.012, 'fo
 END_KEEP_M = 0.02
 
 #: The shoulders' girdle off the torso's top, m up it (`mechanism.wires`); the femur and the
-#: tibia through `mechanism.HUNG`'s points.
+#: tibia through `skeleton.HUNG`'s points.
 GIRDLE_Y = 0.325
 
 
@@ -107,8 +107,8 @@ def outputs():
             want, what = ('y' if letter == 'x' else letter), 'bevel'
         elif kind in linkage.BELTS:
             want, what, place = 'x', 'belt', linkage.BELTS[kind][2]
-        elif kind in linkage.GEARS:
-            want, what = 'z', 'pinion'
+        elif kind in linkage.GEARS or kind in linkage.PLANAR:
+            want, what = 'z', 'pinion' if kind in linkage.GEARS else 'crank'
         else:
             want, what = next(ax for j, ax, _s in seg[2] if j == joint), 'joint'
             pivot = seg[3] if parent == seg[1] else (0.0, 0.0, 0.0)
@@ -136,7 +136,7 @@ def _frames(angles):
 def parts(angles):
     """{name: ('drum', centre, axis, radius, half) | ('tube', a, b, radius)}, world, and the
     segment each rides."""
-    from coaxial.graphics import drums, mechanism
+    from coaxial.graphics import drums
     from machine import drives, figure, linkage, skeleton
     fr = _frames(angles)
     out, rides = {}, {}
@@ -204,6 +204,14 @@ def parts(angles):
         out['board_' + joint] = ('drum', p + R @ np.array(at, float),
                                  R @ np.eye(3)['xyz'.index(faces)], radius, 0.006)
         rides['board_' + joint] = seg
+    for joint in [j for kind in linkage.PLANAR for j in linkage.joints(kind)]:
+        R, p = fr[(drives.mount(joint) or ('pelvis',))[0]]
+        crank, horn, pin, ball = (p + R @ np.array(q) for q in linkage.four_bar(joint, angles))
+        out['rod_' + joint] = ('tube', pin, ball, linkage.ROD_R)
+        out['crank_' + joint] = ('tube', crank, pin, 0.008)
+        out['horn_' + joint] = ('tube', horn, ball, 0.008)
+        rides['rod_' + joint] = rides['crank_' + joint] = (drives.mount(joint) or ('pelvis',))[0]
+        rides['horn_' + joint] = joint
     for k, (frame, shape) in enumerate(skeleton.trunk()):
         R, p = fr[frame]
         key = 'frame_%s%s' % (frame, '+' * k)
@@ -221,7 +229,7 @@ def parts(angles):
             rides[key] = on
         for seg in skeleton.HUNG:
             R, p = fr[side + seg]
-            for k, (at, r, half) in enumerate(mechanism.collars(side, seg)):
+            for k, (at, r, half) in enumerate(skeleton.collars(side, seg)):
                 key = 'collar_%s%s%s' % (side, skeleton.HUNG[seg][2][k][0], '+' * k)
                 out[key] = ('drum', p + R @ np.array(at), R[:, 0], r, half)
                 rides[key] = side + seg
@@ -272,6 +280,13 @@ def _bolted(a, b, rides, parts_):
     stage = {j: s[0] for s in figure.SEGMENTS for j, *_ in s[2][:-1]}
     sa, sb = stage.get(rides[a], rides[a]), stage.get(rides[b], rides[b])
     if a.startswith('rod_') and a.rstrip('+') == b.rstrip('+'):
+        return True
+    if {a.split('_', 1)[0], b.split('_', 1)[0]} <= {'crank', 'horn', 'rod'} and (
+            a.split('_', 1)[1].rstrip('+') == b.split('_', 1)[1].rstrip('+')):
+        return True
+    link = [x for x in (a, b) if x.startswith(('crank_', 'horn_'))]
+    if link and (rides[a] == rides[b] or (b if link[0] == a else a)
+                 == 'drive_' + link[0].split('_', 1)[1]):
         return True
     held = [x for x in (a, b) if x.startswith(('held_', 'collar_', 'frame_'))]
     if held and (rides[a] == rides[b] or (b if held[0] == a else a)

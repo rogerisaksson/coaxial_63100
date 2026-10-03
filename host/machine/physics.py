@@ -131,7 +131,8 @@ class World:
         self.ohm = np.array([drives.r_ohm(j) for j in JOINTS])
         #: The joints on a stroke's curve: (index, joint, SERVO's armature, its own damping).
         self.strokes = [(i, j, SERVO[kind(j)][3], float(m.dof_damping[self.vadr[i]]))
-                        for i, j in enumerate(JOINTS) if kind(j) in linkage.RODS]
+                        for i, j in enumerate(JOINTS)
+                        if kind(j) in linkage.RODS or kind(j) in linkage.PLANAR]
         #: The joints a drive turns, not held or sprung (`drives.passive`).
         self.driven = np.array([not drives.passive(j) for j in JOINTS])
         self.damping = 1.0 / self.loss * self.driven

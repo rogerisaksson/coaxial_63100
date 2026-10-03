@@ -193,19 +193,28 @@ Open work. Measured results are in FINDINGS.
     alone she fell walking from the squat and never got up (board 538), at
     today's totals with the wrist, head and toes 1:29 the gynoid, falls and
     faults suites passed, board 313. Past a stage: the hip roll's spur pair
-    1.67 -> 2.5, the spine roll's 1:1 -> 1.5; the ankle's rods reach no
+    1.67 -> 2.5, the spine roll's four-bar 1.33-1.73; the ankle's rods reach no
     1.5 lever in her (searched 0.5-1.2): the pair on ball screws, an M
     motor turning each nut, rods to the heel. A Wolfrom with the outrunner
     in its hollow sun (the user's) gives 1:60 a stage but 105/87/72 mm
     round against 80/60/42 - too wide for her arms and feet.
+  + Her M and S motors lower KV, coaxial on their one stage (the user,
+    2026-10-03): Km sets a N m's heat, not KV - a winding trades amps for
+    volts; it pays where a board's amps bind. The L's 5230 at its class's
+    best (Km 0.205; MAD M6C12 0.212, ODrive D6374 0.228 at 890 g). The M a
+    MAD 5010 KV110 (56 x 32.7 mm, 162 g, Km 0.147 against the model's 0.085):
+    1.88 N m at its board's 25 A, 1.48 now. The S an MN3508 class (41.8 x
+    26.5 mm, 103 g, Km 0.056 against 0.029) wound near KV 120: 0.47 N m at
+    6.8 A, at 1:29 the S's 1:40 torque back. Into `drives.SIZES` with the
+    one-stage gearboxes, her walk and get-up measured again.
   + Her tubes and struts sized for stiffness, not to sway or flex (the user,
     2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
     PET-CF adapters and fittings between, printable flat without overhangs;
     each member's bending and twist under her joints' torques against its
     drive's own give, into `skeleton`'s radii. Done but the pitch's bracket
     (docs/findings/body.md): from the spine's L to the waist's M it twists
-    under 142 N m, a 30 mm tube holding it has no room in the roll's band's
-    sweep - the roll on a rod instead of its 100 mm spur pair frees it.
+    under 142 N m, a 30 mm tube holding it had no room in the roll's band's
+    sweep - the roll now on a four-bar, its spur pair's wheels gone.
   + Her gearboxes' ball stages exported from the user's tools
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
     <https://smorygo.com/wave_reducer>) with docs/findings/body.md's
