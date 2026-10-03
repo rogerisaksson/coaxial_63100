@@ -204,9 +204,12 @@ Open work. Measured results are in FINDINGS.
     1.05x and the hip roll's 1.17x - on crank-rockers, the crank turning
     360 deg, the limb reversing at its dead centres, a mean lever of
     180 deg over its stroke; the knee's 170 deg and the hip's from a
-    crank's 360 - a six-bar, a crank-slider on a rack; the stacks as
-    solids in her skeleton, colliding; the toes', wrist's and head's 70 mm
-    stacks 3-20 mm out of her shell (after the legs, the user).
+    crank's 360 - a six-bar met 170 deg at 36 deg transmission, its lever
+    0.5-0.8 mid-swing, 1.7-2.6 near its ends, a four-bar 107 at 30, a
+    crank-slider on a rack any swing at 60-76; the hip's 100 mm inverter
+    5 mm into the hip roll's gearbox standing, the head's 4 into the neck's
+    holder; the toes', wrist's and head's 70 mm stacks 3-20 mm out of her
+    shell (after the legs, the user).
   + Her tubes and struts sized for stiffness, not to sway or flex (the user,
     2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
     PET-CF adapters and fittings between, printable flat without overhangs;

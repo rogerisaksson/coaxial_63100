@@ -208,6 +208,13 @@ def output(joint):
     return where[2][-1], -1.0 if where[2].startswith('-') else 1.0
 
 
+def toward(joint, letter):
+    """+1 or -1 along `letter`, its drum's axis, toward its gearbox's end: `output`'s, the right
+    side's x mirrored."""
+    end = (output(joint) or (letter, 1.0))[1]
+    return -end if letter == 'x' and joint.startswith('right_') else end
+
+
 def outlet(joint):
     """(segment, point) its output turns about, as `mount`: its drum's centre, or past its
     gearbox's end, a pitch radius over its bevel pair (`linkage.BEVELS`)."""

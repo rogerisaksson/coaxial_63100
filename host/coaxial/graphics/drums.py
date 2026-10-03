@@ -25,7 +25,8 @@ def drums():
         if drives.passive(joint):
             continue
         size = drives.of(joint)[1]
-        letter, end = drives.output(joint) or (axes[joint], 1.0)
+        letter = (drives.output(joint) or (axes[joint],))[0]
+        end = drives.toward(joint, letter)
         mesh = drum(size.diameter / 2.0, drives.length(joint), letter, PLATE)
         mounted = drives.mount(joint)
         if mounted is not None:

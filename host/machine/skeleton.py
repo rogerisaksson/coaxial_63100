@@ -275,8 +275,11 @@ def bodies():
     """[(body, segment it rides, [geom xml])]: her skeleton's parts, each its own welded body."""
     out = []
     for joint, rides, at, axis in _drums():
-        half, r = drives.length(joint) / 2.0, drives.of(joint)[1].diameter / 2.0
-        out.append((joint + '_drum', rides, [_geom('cylinder', r, *_along(at, AXES[axis], half))]))
+        end = drives.toward(joint, axis)
+        out.append((joint + '_drum', rides, [
+            _geom('cylinder', r, *_along(tuple(p + end * a * c for p, a in zip(at, AXES[axis])),
+                                         AXES[axis], long / 2.0))
+            for _part, r, c, long in drives.along(joint)]))
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
         out.append((joint + '_board', seg, [_geom('cylinder', radius,
                                                   *_along(at, AXES[faces], BOARD_T / 2.0))]))

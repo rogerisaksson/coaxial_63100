@@ -41,12 +41,14 @@ def held_by(touch=0.001):
         if not name.startswith('drive_') or name.startswith('drive_right_'):
             continue
         joint = name[len('drive_'):]
-        pts = dense(part)
+        # Its stack's parts one drum (`drives.along`): its gearbox's and its inverter's with it.
+        stack = [parts_[k + joint] for k in ('drive_', 'gear_', 'inv_') if k + joint in parts_]
+        pts = np.concatenate([dense(q) for q in stack])
         mine = [h for h in parts_ if h.startswith('held_' + joint) and h[len('held_' + joint):]
                 .strip('+') == '']
         reach = [p for p in parts_ if structure(p) and fit._gap(pts, parts_[p]) <= touch]
         for h in mine:
-            if fit._gap(dense(parts_[h]), part) <= touch or any(
+            if any(fit._gap(dense(parts_[h]), q) <= touch for q in stack) or any(
                     fit._gap(dense(parts_[h]), parts_[g]) <= touch for g in mine if g != h):
                 reach += [p for p in parts_ if structure(p)
                           and fit._gap(dense(parts_[h]), parts_[p]) <= touch]

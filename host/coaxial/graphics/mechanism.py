@@ -153,8 +153,6 @@ def parts(bare=False):
             continue
         axis, _half = drums.AXES[joint]
         letter = 'xyz'[[abs(a) for a in axis].index(1.0)]
-        if letter == 'x' and joint.startswith('right_'):
-            axis = (-axis[0], 0.0, 0.0)
         ink = {'board': paint(PCB), 'motor': sized, 'gear': paint(GEARBOX)}
         out += [(PARTED[part] + joint, parent, (), tuple(o + a * at for o, a in zip(offset, axis)),
                  0.0, drum(radius, long, letter, ink[part]))

@@ -142,11 +142,14 @@ def parts(angles):
     out, rides = {}, {}
     for name, parent, at, *_mesh in drums.drums():
         joint = name[len('drive_'):]
-        axis, half = drums.AXES[joint]
+        axis, _half = drums.AXES[joint]
         R, p = fr[parent]
         c, a = p + R @ np.array(at, float), R @ np.array(axis, float)
-        out[name] = ('drum', c, a, drives.of(joint)[1].diameter / 2.0, half)
-        rides[name] = parent
+        # Its stack's parts, each its own drum (`drives.along`): the motor the drive's name.
+        for part, radius, along, long in drives.along(joint):
+            named = {'board': 'inv_', 'motor': 'drive_', 'gear': 'gear_'}[part] + joint
+            out[named] = ('drum', c + a * along, a, radius, long / 2.0)
+            rides[named] = parent
     R, p = fr['pelvis']
     boom = [p + R @ np.array(q, float) for q in skeleton.BOOM[1]]
     for k, (a, b) in enumerate(zip(boom, boom[1:])):
@@ -274,6 +277,9 @@ def _bolted(a, b, rides, parts_):
     holds; a bone and a drum on its segment or on a joint at either of its ends, two bones meeting
     at a joint."""
     from machine import figure, skeleton
+    if _stack(a) == _stack(b):
+        return True
+    a, b = _stack(a), _stack(b)
     joints = {s[0]: [j for j, *_ in s[2]] for s in figure.SEGMENTS}
     parent = {s[0]: s[1] for s in figure.SEGMENTS}
     # A stage is its segment's here; a gimbal's members and its hip's drums bolted together.
@@ -318,6 +324,12 @@ def _bolted(a, b, rides, parts_):
         ends_a, ends_b = (set(x[len('bone_'):].rstrip('+').split('>')) for x in (a, b))
         return bool(ends_a & ends_b)
     return False
+
+
+def _stack(name):
+    """A stack's part (`drives.along`) by its drive's name: its gearbox and its inverter its
+    motor's."""
+    return 'drive_' + name.split('_', 1)[1] if name.startswith(('gear_', 'inv_')) else name
 
 
 def drives_hip(name):
@@ -402,14 +414,15 @@ def drawn(dressed):
     parts_, _rides = parts(stand)
     out = {}
     for name, part in parts_.items():
-        if not name.startswith(('drive_', 'board_', 'rod_', 'gimbal_', 'frame_')):
+        if not name.startswith(('drive_', 'gear_', 'inv_', 'board_', 'rod_', 'gimbal_', 'frame_')):
             continue
+        name = _stack(name)
         points, radius = _points(part)
         best = np.full(len(points), np.inf)
         for rings, turn, spot in worn:
             best = np.minimum(best, _excess((points - spot) @ turn, rings))
-        out[name.split('_', 1)[1] if name.startswith('drive_') else name] = float(best.max()
-                                                                                 + radius)
+        key = name.split('_', 1)[1] if name.startswith('drive_') else name
+        out[key] = max(out.get(key, -1.0), float(best.max() + radius))
     return out
 
 
