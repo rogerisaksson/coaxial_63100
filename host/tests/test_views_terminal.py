@@ -351,6 +351,9 @@ def test_the_humanoid_pages_mouse(report):
                  '%s' % state)
     viewpoint.KEYS['v'](state)
     report.check('V home', all(state[k] == v for k, v in viewpoint.HOME.items()))
+    viewpoint.mouse(state, lambda: (120, 50))['on_drag'](5, 0)
+    report.check('a left drag to the right turns her the way the left arrow does (the user, '
+                 '2026-10-03)', state['yaw'] < viewpoint.YAW, '%s' % state)
 
 
 ROSTER = (test_the_page_tool_holds_one_frame, test_the_screen_keeps_its_own_rate,
