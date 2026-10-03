@@ -58,6 +58,13 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: the scoreboard 542 against 495 without, chance's 150, but shoved past saving into the crouch
 #: her head met the floor at 1.03-1.66 m/s in 3 of 64 falls, off at 0.66-0.81 in 2 (2026-10-03).
 REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 1.0, 1.0, 1.0, 1.0, 0.0
+#: How much of its gearbox's and its structure's wind-up (`drives.flex`) a board sees its joint
+#: moved by under its last torque - 1 its encoder on the motor, 0 on the joint. Measured on the
+#: members as sized (2026-10-03, the user's: the trunk's bob): at 1 her walk from the squat fell
+#: at 6.4 s, the structure's wind-up alone at 6.3, the gearboxes' alone at 6.6, the ankles'
+#: rigid 5.6, at 0.5 she walked 16 s - a loop on the motor takes no degree of series flex: the
+#: joint's own angle sensor, or the wind-up fed forward (`buses`).
+WOUND = 0.0
 
 #: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
 #: turning with the leg's yaw and roll, or the segment that stage hangs from - on them, 0.7 kg of
@@ -188,6 +195,7 @@ class World:
         self.block.rotor[:] = self._np.array([REFLECTED * ROTOR_FF * drives.armature(j)
                                               for j in JOINTS])
         self.block.play[:] = self._np.full(len(JOINTS), math.radians(drives.BACKLASH_DEG) / 2.0)
+        self.block.flex[:] = self._np.array([WOUND * drives.flex(j) for j in JOINTS])
         self.block.scale[:] = self._np.ones(len(JOINTS))
         self.block.emf[:] = self._np.array([drives.emf(j) for j in JOINTS])
         self.block.ohm[:] = self._np.array([drives.of(j)[1].r for j in JOINTS])

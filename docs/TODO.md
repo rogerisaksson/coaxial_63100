@@ -70,6 +70,11 @@ Open work. Measured results are in FINDINGS.
   a URL bus, the limb keeping t3.5 for them; not yet the fallback where
   nothing answers (Renode is).
 - Gynoid, open (a line goes when done):
+  + Her shell fitted to her skeleton as sized, and her jeans and tee on
+    over everything with nothing catching or chafing at a seam (the user,
+    2026-10-03): standing, past her skin the shoulder +22 mm, the hip yaw
+    +20, the knee +14, the wrist +10, the ankle +8; past her shell the toes'
+    stack +20, the hip yaw +6 (`tools/sim/fit.py`).
   + First the biped (the user, 2026-10-03): her gait and her bearing,
     parrying shoves, stumbles and slippery floors, getting up when she
     falls; the toes and the hands after.
@@ -258,14 +263,18 @@ Open work. Measured results are in FINDINGS.
     3.6 K/W; the stack's housing as its heatsink - the skin into the carbon
     tube, a pad - measured as K/W, or a lower RDS; the knee's P 1.31 and V
     1.07 still the inverter's amps and the pack's volts.
-  + Her tubes and struts sized for stiffness, not to sway or flex (the user,
-    2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
-    PET-CF adapters and fittings between, printable flat without overhangs;
-    each member's bending and twist under her joints' torques against its
-    drive's own give, into `skeleton`'s radii. Done but the pitch's bracket
-    (docs/findings/body.md): from the spine's L to the waist's M it twists
-    under 142 N m, a 30 mm tube holding it had no room in the roll's band's
-    sweep - the roll now on a four-bar, its spur pair's wheels gone.
+  + Her flex (the user, 2026-10-03, docs/findings/body.md): the joint's
+    own angle sensor on every drive, or the board feeding its wind-up
+    forward - a loop on the motor fell her walk at the sized members; the
+    gearboxes' stiffness measured on the prototype (`drives.BOX_K` guessed
+    20/9/3 kN m/rad) and the walk at `physics.WOUND` 1 with it; the ankles'
+    rods 16 mm (their stretch 2.6 deg at the clamp); the waist's 44 mm box
+    (1.6 deg). Left marginal (`tools/sim/members.py`): the tibia's lower run
+    0.31 deg - 40 mm took the ankle's rods -, the neck's bracket 0.28, the
+    roll's horn 0.26; in the roll onto her front the pelvis's back member 9
+    mm into the hip roll's holders, the knee's folded femur 6 into the
+    fork's arm. The foot: its 12 mm keel and cheeks carry the rods' 9 kN as
+    a frame; a printed core in a carbon shell, sized.
   + Her gearboxes' ball stages exported from the user's tools
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
     <https://smorygo.com/wave_reducer>) with docs/findings/drives.md's

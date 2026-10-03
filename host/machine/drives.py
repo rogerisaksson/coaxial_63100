@@ -67,6 +67,9 @@ FRAMES = {'A': (0.068, 0.030), 'B': (0.060, 0.016)}
 #: rated, 0.45 kg, its drag at its input - its rollers' start, the motor's cogging - 0.08 N m, all
 #: as D^3, and 0.28 D long (estimated).
 BOXES = {'A': 0.084, 'B': 0.064, 'C': 0.044}
+#: Each box's torsional stiffness at its output, N m/rad (estimated: a harmonic drive of 70 mm
+#: gives 16-25 kN m/rad; a roller stage on a lobed ring, no flexspline, the same order), as D^3.
+BOX_K = {'A': 2.0e4, 'B': 9.0e3, 'C': 3.0e3}
 
 #: The inverters by disc mm: (disc D m, amps, kg, its laminate's K/W to the air through the
 #: housing it is bolted to): the 63100's, parts' centres 92 x 93 mm, the housing's skin at
@@ -105,6 +108,21 @@ BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
 #: Each gearbox's play at its output, deg (estimated: a rolling-element wave drive's few arcmin,
 #: worn a little).
 BACKLASH_DEG = 0.1
+
+#: Each joint's structure between its gearbox and its limb wound up a N m, mrad, its members in
+#: series (`tools/sim/members.py`, 2026-10-03: the pitch's bracket at 12 mm gave the spine 3.3,
+#: 27 deg at its clamp; sized, 0.085). With the box's own (BOX_K) a board sees its joint wound by
+#: its last torque (`flex`, `physics.WOUND`).
+WIND = {'spine': 0.085, 'spine_roll': 0.148, 'waist': 0.035, 'neck': 0.239, 'head': 0.239,
+        'shoulder': 0.122, 'elbow': 0.128, 'wrist': 0.173, 'gripper': 0.173, 'hip_yaw': 0.116,
+        'hip_roll': 0.085, 'hip': 0.061, 'knee': 0.051, 'ankle': 0.218, 'ankle_roll': 0.032,
+        'foot': 0.155}
+
+
+def flex(joint):
+    """rad a N m its gearbox and the structure on to its limb wind up."""
+    k = kind(joint)
+    return 1.0 / BOX_K[STACKS[k][2]] + WIND[k] * 1e-3
 
 #: Joints without a drive to begin with (the user, 2026-10-02): the toes (TOES) and the fingers
 #: (FINGERS) driven, 0; on a spring, 1 - PASSIVE's stiffness N m/rad and damping N m s/rad about

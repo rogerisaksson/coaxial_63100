@@ -25,7 +25,9 @@ to each process's stdin; a process takes each bus's new bytes (written - receive
 boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
 epoch and hold: a reset, every board holding `hold`, its heat at the room's; rotor: the inertia a
 board feeds forward on its setpoint's acceleration, its own rotor's; play: half its gearbox's
-backlash, rad - its encoder on the motor, a board sees its joint held within it; scale: its
+backlash, rad - its encoder on the motor, a board sees its joint held within it; flex: rad a
+N m its gearbox and the structure between its output and the limb wind up, the board seeing
+its joint wound by its last torque (`drives.flex`, `physics.WOUND`); scale: its
 ratio now over its rest's along its rod (`machine.linkage`), its clamp and its amps a N m by it;
 emf, ohm, volts: its back-EMF a rad/s, its phase's resistance, the supply over sqrt 3 - its
 q current no more than they leave at its speed; air, rds, warm:
@@ -70,7 +72,7 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
           ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'), ('rotor', 'd', 'J'),
           ('play', 'd', 'J'), ('scale', 'd', 'J'), ('emf', 'd', 'J'), ('ohm', 'd', 'J'),
-          ('volts', 'd', 1), ('pair', 'd', 'J'))
+          ('volts', 'd', 1), ('pair', 'd', 'J'), ('flex', 'd', 'J'))
 
 #: A board's setpoint's acceleration, read between frames, filtered over ACCEL_S: mdeg frames a
 #: millisecond apart step it by 17 rad/s^2.
@@ -258,7 +260,10 @@ class Segment:
         ask: list[Any] = [None] * len(self.indices)
         emf = [0.0] * len(self.indices)
         for k, i in enumerate(self.indices):
-            self.seen[k] = min(max(self.seen[k], b.q[i] - self.play[k]), b.q[i] + self.play[k])
+            # The joint as the motor's encoder sees it: wound up by the last torque (`flex`),
+            # then held within the play.
+            wound = b.q[i] + b.flex[i] * b.ctrl[i]
+            self.seen[k] = min(max(self.seen[k], wound - self.play[k]), wound + self.play[k])
             s = b.scale[i]
             if h.shorted[k]:
                 # Its braking the world's damping (`physics.World.short`); its windings heat.

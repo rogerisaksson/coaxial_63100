@@ -32,7 +32,7 @@ from machine.gait import SHANK, THIGH
 #: foot a keel from the heel to the toes' axle, cheeks on the cross's roll pins, a bar for the rods'
 #: balls.
 HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
-                   ((0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012))), (0.018, 0.025),
+                   ((0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012))), (0.020, 0.025),
                   (('hip', 'gear', 0.0), ('knee', 'motor', -THIGH))),
         'shank': ((((0.0285, -0.045, -0.032), (0.0, -0.17, -0.05)),
                    ((0.0, -0.17, -0.05), (0.0, 0.06 - SHANK, -0.008), (0.0, 0.035 - SHANK, 0.014)),
@@ -40,18 +40,18 @@ HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
                     (-0.03, 0.02 - SHANK, 0.014)),
                    ((0.03, 0.02 - SHANK, 0.014), (0.03, -SHANK, 0.0)),
                    ((-0.03, 0.02 - SHANK, 0.014), (-0.03, -SHANK, 0.0))),
-                  (0.020, 0.015, 0.010, 0.010, 0.010),
+                  (0.020, 0.018, 0.010, 0.010, 0.010),
                   (('knee', 'gear', 0.0),)),
         'upper_arm': ((((0.032, -0.004, 0.0), (0.032, -0.05, 0.0), (0.0, -0.077, 0.0)),
                        ((-0.014, -0.145, -0.016), (-0.012, -0.19, -0.012), (-0.012, -0.25, -0.01),
                         (-0.024, -0.28, 0.0)),
                        ((-0.012, -0.25, -0.01), (0.018, -0.25, -0.012), (0.018, -0.28, 0.0))),
-                      (0.009, 0.010, 0.008), ()),
+                      (0.012, 0.012, 0.010), ()),
         'forearm': ((((-0.02, 0.0, 0.0), (0.014, 0.0, 0.0)), ((0.0, 0.0, 0.0), (0.0, -0.089, 0.0)),
                      ((0.0, -0.142, -0.015), (0.0, -0.18, -0.012), (0.0, -0.215, -0.008),
                       (-0.016, -0.235, 0.0), (-0.016, -0.25, 0.0)),
                      ((0.0, -0.215, -0.008), (0.013, -0.235, 0.0), (0.013, -0.25, 0.0))),
-                    (0.008, 0.008, 0.008, 0.007), ()),
+                    (0.011, 0.011, 0.010, 0.009), ()),
         'foot': ((((0.0, 0.0, -0.026), (0.0, -0.035, -0.032), (0.0, -0.066, -0.045),
                    (0.0, -0.066, 0.105), (0.0, -0.061, 0.117)),
                   ((0.0, 0.0, 0.026), (0.0, -0.03, 0.018), (0.0, -0.066, 0.015)),
@@ -82,8 +82,14 @@ BOOM = (0.025, ((0.066, 0.062, 0.0), (0.006, -0.03, 0.0), (-0.006, -0.03, 0.0), 
 #: all its skin and the roll's spur pair leave, its back one 30; the trunnions steel pins; the
 #: column 40, the girdle 30; the neck's bracket 10, the head's 0.77 kg on it, inside her neck - 25
 #: stood 15 mm out of it; the pitch's bracket thin, to come.
-TRUNK_R = {'pelvis': (0.012, 0.012, 0.015), 'spine_roll': (0.007, 0.007), 'spine': (0.006,),
-           'torso': (0.02, 0.015), 'neck': (0.005,)}
+#: Sized by `tools/sim/members.py` (2026-10-03): the pitch's bracket 40 mm - at 12 it took 8.1 of
+#: its allowable and wound the spine up 27 deg at its 142 N m, the bob the user saw -, the fork's
+#: legs 34 and its back member 40 as cantilevers under the pitch's couple on the bearings, the
+#: neck's bracket 16; each run a carbon tube cut to length in printed PAHT-CF holders, each
+#: holder an extrusion along its print axis - its bores along it, a side hole a 45 deg roof, a
+#: ring split - no overhang in any print pose (the user, 2026-10-03).
+TRUNK_R = {'pelvis': (0.015, 0.015, 0.020), 'spine_roll': (0.007, 0.007), 'spine': (0.018,),
+           'torso': (0.02, 0.015), 'neck': (0.009,)}
 TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0.066)),
                      ((-0.055, 0.045, 0.0), (-0.055, 0.045, 0.066), (0.0, 0.099, 0.066)),
                      ((0.0, -0.03, 0.0), (0.0, -0.03, -0.06), (0.0, 0.099, -0.066))),
@@ -92,10 +98,10 @@ TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0
          'spine_roll': ((((0.0, 0.0, 0.043), (0.0, 0.0, 0.052)),
                          ((0.0, 0.0, -0.043), (0.0, 0.0, -0.052))),
                         (((0.0, 0.0, 0.0), 'x', 0.043, 0.008),)),
-         'spine': ((((0.049, 0.0, 0.0), (0.054, 0.055, 0.0), (0.0, 0.078, 0.0)),), ()),
+         'spine': ((((0.049, 0.0, 0.0), (0.052, 0.048, 0.0), (0.0, 0.062, 0.0)),), ()),
          'torso': ((((0.0, 0.155, 0.0), (0.0, 0.352, 0.004)),
                     ((-0.105, 0.325, -0.005), (0.105, 0.325, -0.005))), ()),
-         'neck': ((((0.040, 0.0, 0.0), (0.040, 0.042, 0.0), (0.0, 0.042, 0.012)),), ())}
+         'neck': ((((0.047, 0.0, 0.0), (0.047, 0.042, 0.0), (0.0, 0.042, 0.012)),), ())}
 
 #: The hip's gimbal (`gimbal`): its tubes' radius; its roll bearings' radius and half length,
 #: 55 mm before and behind the hip's centre; its cradle's band's radius and half length round the
@@ -104,7 +110,10 @@ TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0
 #: deg: further the L meets the front leg, the femur's collar the crown's back leg (2026-10-03).
 #: Its legs 22 mm tubes, for the yaw's torque on them; its crown a carbon plate CROWN_R thick in
 #: the 25 mm between the yaw's drum and the pitch's L - a tube there met the femur's collar, 4 mm.
-FORK_R, CROWN_R, BEARING, BAND = 0.011, 0.005, (0.009, 0.007, 0.060), (0.043, 0.008)
+#: Its steerer STEERER_R round: the yaw's 77 N m in torsion stood 3.7 times a 10 mm tube's
+#: allowable; its bearing arms FORK_R, a 9 mm one 1.2 (`tools/sim/members.py`, 2026-10-03).
+FORK_R, CROWN_R, BEARING, BAND = 0.015, 0.005, (0.009, 0.007, 0.060), (0.043, 0.008)
+STEERER_R, ARM_R = 0.012, 0.011
 
 #: Each drive held by what carries it - the hip's roll drum, the ankles', the toes' and the boards
 #: held by nothing (the user, 2026-10-03): its collars, COLLAR_M proud of its drum, each (m from
@@ -184,10 +193,10 @@ def gimbal(stage):
         drives.length('left_hip_yaw') / 2.0)
     crown = top - 0.01
     legs = ((-0.02, z), (0.02, -z))
-    tubes = [((0.0, top, 0.0), (0.0, crown, 0.0), CROWN_R)]
+    tubes = [((0.0, top, 0.0), (0.0, crown, 0.0), STEERER_R)]
     for x, at in legs:
         tubes += [((0.0, crown, 0.0), (x, crown, at), CROWN_R), ((x, crown, at), (x, 0.0, at), FORK_R),
-                  ((x, 0.0, at), (0.0, 0.0, at), r)]
+                  ((x, 0.0, at), (0.0, 0.0, at), ARM_R)]
     return tubes, [((0.0, 0.0, at), 'z', r, half) for _x, at in legs]
 
 

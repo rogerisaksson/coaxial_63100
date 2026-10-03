@@ -251,6 +251,34 @@ her clothes; her drives in [drives](drives.md). The board's own are in
   rings printed axis up, tube sockets bore up, side holes a 45 deg roof;
   brackets plates printed flat, their loads in the layers' plane (PAHT-CF
   and PET-CF half as strong across them); seats 0.1 mm under, reamed.
+- Her members under their drives (`tools/sim/members.py`, 2026-10-03): each
+  tube, plate, rod and strut against its drive's deliverable peak or 1.5x
+  its clamp, the less; stress against the material and flex at 0.6 of it
+  against 0.25 deg. As they stood: the pitch's bracket (12 mm) 8.1x its
+  carbon's allowable, 22.7 deg - the spine wound up 27 deg at its 142 N m,
+  the bob the user saw -, the neck's bracket 1.3x and 3.2 deg, the hip
+  fork's 10 mm steerer 3.7x in the yaw's torsion, its crown's diagonals
+  7.1x, the shank's lower run 1.2 deg, the arms 0.75-1.2x. Sized: the
+  bracket 36 mm high-modulus (40 took 9 mm of the waist's holder), the
+  fork's legs 30 high-modulus and its back member 40, the neck 18 at 47 mm
+  out (20 took 6 mm of its collar), the steerer 24, the fork's legs 30 and
+  its arms 22, the femur's top 40, the tibia's lower run 36 (40 took 5 mm
+  of the ankle's rods), the arms 24 and 22: 3 of 63 left marginal - the
+  tibia's lower run 0.31 deg, the neck 0.28, the roll's horn 0.26. The
+  joints' wind-up at their clamps, structure and box: spine 1.1 deg,
+  waist 1.6 (its 44 mm box), hip and knee 1.1, hip roll 1.8, ankle 2.6
+  (the 12 mm rods' stretch over the horn). Carbon tubes cut to length,
+  epoxied into printed PAHT-CF holders - a socket one diameter deep at
+  15 MPa shear takes 500 N m on a 40 mm tube -, each holder an extrusion
+  along its print axis, no overhang in any print pose (the user).
+- Her flex in the world (`physics.WOUND`, `drives.flex`, 2026-10-03): a
+  board's encoder on the motor sees its joint wound up by its last torque
+  over its gearbox's stiffness (`drives.BOX_K`, estimated 20/9/3 kN m/rad)
+  and its structure's (`drives.WIND`). At the members as sized her walk from
+  the squat fell at 6.4 s; the structure's wind-up alone 6.3, the
+  gearboxes' alone 6.6, the ankles rigid 5.6; at half she walked 16 s. The
+  loop on the motor takes no degree of series flex: the joint's own angle
+  sensor (WOUND 0, the default) or the wind-up fed forward on the board.
 - Her trunk's roll on a four-bar (`linkage.PLANAR`, 2026-10-03): its 1:1
   spur pair's 100 mm wheels stood in the pitch's bracket's sweep, and a
   stage at 1:40 wants 1.5 after it. An 18 mm crank on the roll's M, a 24 mm
