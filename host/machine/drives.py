@@ -50,7 +50,7 @@ class Size:
 #: Monte Carlo's trials, 62.3 at 1:36, 74.6 on those drives' masses, 70.5 on those drives; on
 #: these at 1:36 73.7, but felled by P she stayed down both ways - their rotors seen 1.4-1.5 times
 #: those drives', the old seen up at 22.5 s -, at 1:30 up at 22.9 and 23.7 s, at 1:33 one way
-#: (docs/findings/body.md, 2026-10-03). On the 5230SL the knee at 1:22 shoved past saving her
+#: (docs/findings/drives.md, 2026-10-03). On the 5230SL the knee at 1:22 shoved past saving her
 #: head met the floor at 2.93 m/s once in 16, at 28 1.0 at most; the hips at 1:30 folded past
 #: -40 deg rising from the squat, her walk down at 5.6 s, at 36 she walked 16 s (2026-10-02).
 RATIO = 30.0
@@ -80,7 +80,7 @@ INVERTERS = {100: (0.100, 100.0, 0.2, 3.6), 70: (0.070, 50.0, 0.08, 6.5)}
 #: its first step's 144 N m at 704 deg/s, 2.0 kW, on 100 A at 48 V. The hip's and the knee's at
 #: KV 120, x1.09 over her clamp, 960 deg/s: at 90 and 70 she held 70.7 % of the gait Monte
 #: Carlo, its knee run into its SOA felled her 2 of 3; at 120 74.2 %, 1 of 3; at 125 71.8 %. The
-#: spine at KV 40 on 50 A, 360 deg/s, felled her in the knee's SOA (docs/findings/body.md,
+#: spine at KV 40 on 50 A, 360 deg/s, felled her in the knee's SOA (docs/findings/drives.md,
 #: 2026-10-03).
 STACKS = {'spine': ('A', 100.0, 'A', 100), 'spine_roll': ('B', 90.0, 'B', 70),
           'waist': ('B', 90.0, 'C', 70), 'neck': ('B', 90.0, 'C', 70),

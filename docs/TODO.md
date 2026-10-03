@@ -218,15 +218,18 @@ Open work. Measured results are in FINDINGS.
     motor turning each nut, rods to the heel. A Wolfrom with the outrunner
     in its hollow sun (the user's) gives 1:60 a stage but 105/87/72 mm
     round against 80/60/42 - too wide for her arms and feet.
-  + Her drives as stacks (`drives.STACKS`, docs/findings/body.md; the
+  + Her drives as stacks (`drives.STACKS`, docs/findings/drives.md; the
     user, 2026-10-03), open: the knee's and hip's 1.5x at their speed asks
     more inverter than 100 A at 48 V (x1.09 at KV 120); the ankles' copper
     1.05x and the hip roll's 1.17x - on crank-rockers, the crank turning
     360 deg, the limb reversing at its dead centres, a mean lever of
     180 deg over its stroke; the knee's 170 deg and the hip's from a
-    crank's 360 - a six-bar met 170 deg at 36 deg transmission, its lever
-    0.5-0.8 mid-swing, 1.7-2.6 near its ends, a four-bar 107 at 30, a
-    crank-slider on a rack any swing at 60-76; the hip's 100 mm inverter
+    crank's 360 - 43 six-bars met 165-175 deg at 33 deg transmission, the
+    best x1.09 on torque at speed against direct's x1.12, lever 0.63-0.89
+    where the knee works: no torque from it, the dead centres alone; a
+    four-bar 107 at 30, a crank-slider on a rack any swing at 60-76 - the
+    hip roll and the ankles on crank-rockers next, their T 1.57 and 0.94
+    (the hip roll's spur at 2.5 gives 0.70); the hip's 100 mm inverter
     5 mm into the hip roll's gearbox standing, the head's 4 into the neck's
     holder; the toes', wrist's and head's 70 mm stacks 3-20 mm out of her
     shell (after the legs, the user). The user's family: rotors 60-120 mm,
@@ -236,10 +239,11 @@ Open work. Measured results are in FINDINGS.
     torque, the arms shaped toward the ends (the user): the knee asks its
     171 N m and 1024 deg/s both at 0-60 deg. More ratio from link arms and
     rods judged by the room in her shell and the stroke (the user).
-  + Her drives sized as physics, not searched (the user, 2026-10-03):
-    `tools/sim/drive_sizes.py` reading each joint's power number, its
-    power-rate number and its inertia number (docs/findings/body.md) - the
-    inverter, the frame and the ratio read off them.
+  + The knee's continuous torque the 100 mm inverter's (`drive_sizes` T,
+    docs/findings/drives.md): its switches at 44 A through the housing's
+    3.6 K/W; the stack's housing as its heatsink - the skin into the carbon
+    tube, a pad - measured as K/W, or a lower RDS; the knee's P 1.31 and V
+    1.07 still the inverter's amps and the pack's volts.
   + Her tubes and struts sized for stiffness, not to sway or flex (the user,
     2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
     PET-CF adapters and fittings between, printable flat without overhangs;
@@ -250,7 +254,7 @@ Open work. Measured results are in FINDINGS.
     sweep - the roll now on a four-bar, its spur pair's wheels gone.
   + Her gearboxes' ball stages exported from the user's tools
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
-    <https://smorygo.com/wave_reducer>) with docs/findings/body.md's
+    <https://smorygo.com/wave_reducer>) with docs/findings/drives.md's
     inputs, printed, a prototype's torque and backlash measured - its races
     grooved or its balls rollers: on a stock race's cylinder L's ball takes
     7.46 GPa at peak, 4.6 at 40 N m (ISO 76 static 4.2).
