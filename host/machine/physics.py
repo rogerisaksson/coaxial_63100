@@ -59,10 +59,13 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 1.0, 1.0, 1.0, 1.0, 0.0
 
 #: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
-#: turning with the leg's yaw and roll, or the segment that stage hangs from, as before - on them,
-#: 0.7 kg of yaw's 8 % more inertia, her walk from the squat fell at 5.8 s, the scoreboard 578
-#: against 495, its rises the worse (2026-10-03): off until her walk is retuned for them.
-STAGED = 0.0
+#: turning with the leg's yaw and roll, or the segment that stage hangs from - on them, 0.7 kg of
+#: yaw's 8 % more inertia, her walk from the squat fell at 5.8 s, the scoreboard 578 against 495.
+#: Retuned with them and her trunk's roll first: arrival's SHIFT_IN, LIFT_IN, LEAN_M, capture's
+#: MARGIN, GAIN, walker's SIDE_K, SIDE_D, landing's PARRY_M, PARRY_HURRY, 5 generations of 8 -
+#: the scoreboard 299, held 76.8 %; its chance 263 to 420 for the same knobs to 17, 6 or 3 digits,
+#: the last generation's median 335 (2026-10-03).
+STAGED = 1.0
 
 #: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
 #: never binds, the heat counted - the walk, the clothes and the look are tuned on those

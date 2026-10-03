@@ -271,3 +271,9 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   0.32, 1 and 2; a catch 0.30, 2 and 1 - no order: its floor, HEAD's build's
   2 of 8 the test's. A knee derated to nothing walked on at 0.32 and fell at
   0.28 and 0.25. 0.32 kept, the parry to the walk's retune (2026-10-02).
+- Retuned for her trunk's roll first and the gimbal's drives on their stages
+  (`physics.STAGED`): 9 knobs - arrival's shift, lift and lean, capture's
+  margin and gain, the walker's side gains, the parry - 5 generations of 8,
+  the median 468 -> 335. The board 578 -> 299, held 76.8 % against main's
+  495; the same knobs to 17, 6 and 3 digits 263, 306 and 420 - its chance.
+  `landing.PARRY_HURRY` 0.29 (2026-10-03).

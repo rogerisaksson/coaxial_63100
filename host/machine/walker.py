@@ -27,8 +27,8 @@ from machine.figure import LEG, add, mul, rx, ry, rz, t
 #: 8.5 -> 6.0 cm, heat 0.47 -> 0.29 and work 0.60 -> 0.35 m g d (2026-09-26). Driven by the
 #: capture point's error from the plan's place and speed instead, 1.2 of it, the standing foot
 #: slid 20 cm after a shove; by what it is off the walk's course alone, she fell in 1.4 s
-#: (2026-09-26).
-SIDE_K, SIDE_D, TURN_K = 0.235, 0.069, 1.42
+#: (2026-09-26). SIDE_K and SIDE_D retuned (`physics.STAGED`).
+SIDE_K, SIDE_D, TURN_K = 0.218864, 0.0809803, 1.42
 
 
 #: The pelvis's forward target within LURCH_M of the pelvis, m, and moved from it no faster

@@ -52,8 +52,8 @@ FEET_Z = (gait.BALL - gait.HEEL) / 2.0
 #: she stood 1.8 s a column leaning left, the stance hip rolled -4.4 degrees - leaning back from
 #: the page's 60; at 5.5 -2.5, the rest as the right lifts; perturbed starts held 15, 14 of 16,
 #: at 6.5 6 of 10, at 7.5 1 (2026-09-28). Her hips 190 mm apart and her shanks heavier, 5.5 and
-#: 1.5 held 3 of 9 drops into the squat, 4.5 and 2.5 8 (2026-10-02).
-SHIFT_IN, LIFT_IN = 0.045, 0.025
+#: 1.5 held 3 of 9 drops into the squat, 4.5 and 2.5 8 (2026-10-02); retuned (`physics.STAGED`).
+SHIFT_IN, LIFT_IN = 0.0428292, 0.027228
 
 #: Risen, the knees soft as the stand's (`gait.STAND_KNEE`); the pelvis SINK_M lower as her weight
 #: goes onto the left foot, its hip out over the ankle and the leg reaching the further - and the
@@ -89,8 +89,8 @@ SQUAT_S, LOOK_S, PUSH_S, RISE_S, STAND_S, SHIFT_S = 0.4, 0.2, 0.65, 1.3, 0.05, 0
 #: and the next went 20 cm out to catch her (2026-09-27). The torso straight till the step and
 #: the lean's tilt in it (`lifted`): 7 cm before the lift locked the standing knee and rose her
 #: 3 mm; 3 cm, the rest as the foot lifts - the curtsy and the bow with the first step, the pelvis
-#: 5.8 mm down in it, not 13 (2026-09-28).
-LEAN_M, LEAN_S, LIFT_ON_M, LIFT_UP_M, LIFT_S = 0.03, 0.45, 0.09, 0.06, 0.3
+#: 5.8 mm down in it, not 13 (2026-09-28); retuned (`physics.STAGED`).
+LEAN_M, LEAN_S, LIFT_ON_M, LIFT_UP_M, LIFT_S = 0.0295604, 0.45, 0.09, 0.06, 0.3
 
 #: Her first stride, of the walk's (`gait.pace`'s at the walker's cadence x this), landed on
 #: the walk's own track, 4 cm from the standing foot.

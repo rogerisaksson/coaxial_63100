@@ -64,8 +64,8 @@ SIDE_CLEAR_M = 0.12
 #: standing foot, that foot lifted at its toe-off 0.15 s on with the capture point 9 cm past it,
 #: and the law sent its 0.4 s swing 44 cm out. Held of 48 shoves of 60 N: none 10, 0.15 10, 0.22 8,
 #: 0.3 16, 0.34 17, 0.45 2, 1.0 0; the catch held 0.1 or 0.2 s on past its last asking, 7 and 3
-#: (2026-10-01).
-PARRY_M, PARRY_HURRY = 0.02, 0.32
+#: (2026-10-01); retuned (`physics.STAGED`).
+PARRY_M, PARRY_HURRY = 0.0199259, 0.289983
 
 
 #: A catch the leg cannot reach standing is a stomp: the swinging foot put down at once on the
