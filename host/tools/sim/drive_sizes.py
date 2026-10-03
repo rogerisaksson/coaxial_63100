@@ -7,6 +7,7 @@
 A row a joint kind (the worse side), from the squat through the walk as the page runs her, the
 drive's numbers at MARGIN times what she asked, each 1 where its part binds (docs/findings/drives.md):
 
+    A  amps       M T_peak / T_at_I                       the inverter's amps at stall
     P  power      M max(tau w) / (eta sqrt3/2 V I)       the inverter - under 1 a winding exists
     T  heat       (M T_rms / T_held)^2                    the copper at this ratio (`held`)
     J  inertia    N^2 J_rotor / J_load                    the rotor felt through the ratio
@@ -101,14 +102,16 @@ def asked(to_s, values, cadence=0.85):
 
 
 def numbers(joint, peak, rms, speed, watts, load):
-    """(P, T, J, Q, S, V) of a joint's drive at MARGIN times its demand (the module's brief)."""
+    """(A, P, T, J, Q, S, V) of a joint's drive at MARGIN times its demand (the module's
+    brief)."""
     from machine import drives
     size = drives.of(joint)[1]
     p = MARGIN * watts / (drives.motors(joint) * size.efficiency * math.sqrt(3.0) / 2.0
                           * drives.PACK_V * size.amps)
     t = (MARGIN * rms / held(joint)[0]) ** 2
     j = drives.armature(joint) / max(load, 1e-9)
-    return p, t, j, t * j, MARGIN * peak / drives.shock(joint), speed / drives.speed(joint)
+    return (MARGIN * peak / drives.peak(joint), p, t, j, t * j,
+            MARGIN * peak / drives.shock(joint), speed / drives.speed(joint))
 
 
 def main(argv=None):
@@ -128,9 +131,9 @@ def main(argv=None):
         json.dump(got, open(CACHE, 'w'), indent=1)
     from machine import drives
     from machine.figure import JOINTS, MASS_KG
-    print('%-11s %-3s %-26s | %-11s %-10s %-10s | %5s %5s %5s %5s %5s %5s | %s' % (
-        'kind', 'frm', 'stack', 'peak/has', 'rms/holds', 'deg/s/has', 'P', 'T', 'J', 'Q', 'S',
-        'V', 'ratio window'))
+    print('%-11s %-3s %-26s | %-11s %-10s %-10s | %5s %5s %5s %5s %5s %5s %5s | %s' % (
+        'kind', 'frm', 'stack', 'peak/has', 'rms/holds', 'deg/s/has', 'A', 'P', 'T', 'J', 'Q',
+        'S', 'V', 'ratio window'))
     kinds = {}
     for joint, row in got.items():
         k = drives.kind(joint)
@@ -140,12 +143,12 @@ def main(argv=None):
         if drives.passive(joint):
             continue
         name, size = drives.of(joint)
-        p, t, j, q, s, v = numbers(joint, peak, rms, speed, watts, load)
+        a, p, t, j, q, s, v = numbers(joint, peak, rms, speed, watts, load)
         n, (holds, node) = drives.ratio(joint), held(joint)
         print('%-11s %-3s %-26s | %5.0f/%-5.0f %4.0f/%-4.0f%s %4.0f/%-5.0f | %5.2f %5.2f %5.2f '
-              '%5.2f %5.2f %5.2f | %.0f..%.0f' % (
+              '%5.2f %5.2f %5.2f %5.2f | %.0f..%.0f' % (
                   k, name, size.source.split(',')[0][6:], peak, drives.peak(joint), rms, holds,
-                  node[0], speed, drives.speed(joint), p, t, j, q, s, v, math.sqrt(t) * n,
+                  node[0], speed, drives.speed(joint), a, p, t, j, q, s, v, math.sqrt(t) * n,
                   n / math.sqrt(j)))
     stacks = [drives.STACKS[drives.kind(j)] for j in JOINTS if not drives.passive(j)]
     kg = sum(drives.mass(j) + drives.of(j)[1].board[0] for j in JOINTS if not drives.passive(j))
