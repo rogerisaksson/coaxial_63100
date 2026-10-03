@@ -1,8 +1,9 @@
 # Findings: her drives
 
-Her drives sized, wound and geared: the motors, the gearboxes, the inverters, the
-numbers that size them (`machine.drives`, `tools/sim/drive_sizes.py`). Her body's own
-are in [body](body.md), the board's in [FINDINGS](../FINDINGS.md).
+Her drives sized, wound and geared: the motors, the gearboxes, the
+inverters, the numbers that size them (`machine.drives`,
+`tools/sim/drive_sizes.py`). Her body's own are in [body](body.md), the
+board's in [FINDINGS](../FINDINGS.md).
 
 - Her drives sized (`machine.drives`, `tools/sim/drive_sizes.py` against
   the rise and 20 s of walk): three assemblies, a board behind an outrunner
