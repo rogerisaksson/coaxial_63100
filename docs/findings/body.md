@@ -321,3 +321,21 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   100 A. Km, R line to line halved: 5230SL 0.205 (582 g), Hobbywing M8108
   85KV 0.229 (270 g), M8110 95KV 0.276 (315 g), U12 II KV60 0.581 (803 g).
   The walk asks 3.1 N m/kg at the hip and knee, their drives' clip.
+- Her drives sized by two dimensionless numbers (2026-10-03, at the box's
+  output, 1.5x): the power number 1.5 max(tau w) / (eta sqrt3/2 V I) picks
+  the inverter - a KV exists under 1, its window 1/P wide - the knee 0.80
+  on 100 A, the hip 0.37, the rest under 0.4 on 25 A; the power-rate
+  number (1.5 T_rms)^2 J_rotor / ((eta T_cont)^2 J_load), the ratio gone,
+  picks the frame - the knee asks 36 kW/s of T_cont^2 / J_rotor, a 107 mm
+  U12 II gives 27, its rotor heavy, a 72 x 26 mm stator 40. One ratio
+  then lies between each joint's heat's least and inertia's most.
+- Her drives as coaxial stacks (`drives.STACKS`, 2026-10-03): frames
+  68 x 30 and 60 x 16 mm, boxes 84, 64 and 44 mm, inverters 100 mm 100 A
+  and 70 mm 50 A, 1:30. The gait Monte Carlo held 70.5 % on the drives as
+  they stood; 61.3 on 72 x 28 / 60 x 12 at 1:30 - 2.05 of her shank's
+  2.65 kg drives -, 74.6 on their old masses; 73.7 on these at 1:36, but
+  felled by P she stayed down both ways (rotors seen 1.4-1.5x), at 1:30 up
+  at 22.9 and 23.7 s; the knee and hip at KV 90 and 70 (1.5x torque)
+  70.7, at 120 (x1.09, 960 deg/s) 74.2 - parrying asks speed, and on
+  100 A at 48 V the knee has not both. Gynoid, falls and faults suites
+  passed.

@@ -53,9 +53,10 @@ BENDS = {'ankle': (0.045, 0.180, 0.0139), 'ankle_roll': (-0.047, 0.205, 0.0193)}
 #: theirs, constant - and how far out to her side of the limb's axis it runs. None where its give
 #: under her weight would show in her walk - the knee's 141 N m was a 3.4 kN pull (the user,
 #: 2026-10-02). The elbow's from its M under the arm's quick-release, its 165 degrees past a
-#: rod's; the wrist's and the toes' from their S.
+#: rod's; the wrist's and the toes' from their own, the toes' 36 mm out, past their stack's
+#: gearbox (`drives.STACKS`).
 BELTS = {'elbow': (0.018, 0.018, 0.034), 'wrist': (0.012, 0.012, 0.026),
-         'foot': (0.010, 0.010, 0.03)}
+         'foot': (0.010, 0.010, 0.036)}
 
 #: Each spur pair after its drive's gearbox, its ratio: the gearbox takes its joint's torque over
 #: it. The hip roll's M at 1:100 on two stages put its 126 N m peak through a box rated 100, and

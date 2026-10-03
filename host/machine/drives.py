@@ -1,6 +1,8 @@
-"""Her drives sized: three assemblies, each an outrunner on its two-stage gearbox, its board apart.
+"""Her drives: each a coaxial stack of an inverter disc, a pancake outrunner, a one-stage gearbox.
 
-    size = drives.of('left_knee')      # (name, Size)
+Two frames, three boxes and two inverters at one ratio, each winding picked per joint.
+
+    size = drives.of('left_knee')      # (frame, Size)
     drives.kt('left_knee')             # N m of joint torque an amp of q current
     drives.peak('left_knee')           # N m at the board's amps
     drives.armature('left_knee')       # kg m^2, the rotor and the gearbox seen through it
@@ -8,19 +10,18 @@
     drives.backdrive('left_knee')      # N m to turn it by its output, unpowered
     drives.shock('left_knee')          # N m its gearbox takes momentarily, a fall's blow
 
-A size: the board (its amps; its heat as the 63 V 100 A board's scaled to them, its laminate
-bolted to the assembly's housing), the outrunner (Kt, the winding's resistance, KV, its rotor's
-inertia, the winding's heat), the gearbox (its ratio, RATIO, its efficiency, the drag at its
-input and the torque it takes momentarily at its output), the assembly's diameter and length
-and mass. Every joint has one (`JOINTS`), on its axis or, where one there would look odd,
-mounted on a segment and driving it through a rod. The gearbox is a wave drive with rolling
-elements - a wave generator pushing rollers in a cage against a toothed ring, one stage to 1:60,
-rolling where a cycloid slides, many rollers sharing a blow - backdrivable at the ratios here.
+A size: the inverter (its amps; its heat as the 63 V 100 A board's scaled to them, its laminate
+bolted to the stack's housing), the outrunner (Kt, the winding's resistance, KV, its rotor's
+inertia, the winding's heat), the gearbox (RATIO, its efficiency, the drag at its input and the
+torque it takes momentarily at its output), the stack's parts, diameter, length and mass. Every
+joint has one (`STACKS`, `JOINTS`), on its axis or, where one there would look odd, mounted on a
+segment and driving it through a rod. The gearbox is a wave drive with rolling elements - a
+wave generator pushing rollers in a cage against a lobed ring, rolling where a cycloid slides,
+many rollers sharing a blow - backdrivable at the ratios here.
 """
 from machine import linkage
 from machine.gait import HIP_DROP, HIP_HALF
-from motor.catalog import PLATINUM_5230SL
-from motor.pmsm import TORQUE_FACTOR, WINDING_J_PER_K, WINDING_K_PER_W
+from motor.pmsm import TORQUE_FACTOR
 
 #: The supply's lowest, V: 48-63, the boards' top 63.
 PACK_V = 48.0
@@ -28,46 +29,78 @@ PACK_V = 48.0
 
 class Size:
 
-    """One assembly: its board, its outrunner, its gearbox, its envelope."""
+    """One stack: its inverter, its outrunner, its gearbox, its envelope; `parts` along its axis
+    from its input end, (part, radius m, length m)."""
 
     __slots__ = ('amps', 'kt_motor', 'r', 'kv', 'rotor', 'winding', 'efficiency', 'housing_k_w',
-                 'diameter', 'length', 'mass', 'drag', 'shock', 'source')
+                 'diameter', 'length', 'mass', 'drag', 'shock', 'board', 'parts', 'source')
 
     def __init__(self, amps, kt_motor, r, kv, rotor, winding, efficiency, housing_k_w,
-                 diameter, length, mass, drag, shock, source):
+                 diameter, length, mass, drag, shock, board, parts, source):
         self.amps, self.kt_motor, self.r, self.kv, self.rotor = amps, kt_motor, r, kv, rotor
         self.winding, self.efficiency, self.housing_k_w = winding, efficiency, housing_k_w
         self.diameter, self.length, self.mass, self.source = diameter, length, mass, source
-        self.drag, self.shock = drag, shock
+        self.drag, self.shock, self.board, self.parts = drag, shock, board, parts
 
 
-#: Each size's gearbox, its ratio; its input side - the wave generator, the rollers - seen at the
-#: motor as GEAR_J of the rotor's inertia (estimated). A size's copper watts go as 1/ratio^2, the
-#: inertia it puts on its joint as ratio^2: with only the rotors in the model the walk fell at
-#: L 1:64 with no derate, its joints 6.5 deg off what they were asked. As built
-#: (`physics.REFLECTED` ..) at 30, 40, 40 she walked 30 s from the squat on built boards, a hip
-#: derated to 0.63 from 9.3 s, the rest at most 103 C; the strike 996 N, 1231 at 64, 76, 101
-#: unbuilt; felled by the hole and a P shove, up and walking again (2026-10-01).
-RATIO_L, RATIO_M, RATIO_S = 30.0, 40.0, 40.0
+#: Every gearbox's ratio; its input side - the wave generator, the rollers - seen at the motor as
+#: GEAR_J of the rotor's inertia (estimated). Copper watts go as 1/ratio^2, the inertia a drive
+#: puts on its joint as ratio^2. At 1:30 on 72 x 28 mm and 60 x 12 frames, their ankles' and
+#: wrists' and toes' stacks 0.4-0.5 kg over the drives as they stood, she held 61.3 % of the gait
+#: Monte Carlo's trials, 62.3 at 1:36, 74.6 on those drives' masses, 70.5 on those drives; on
+#: these at 1:36 73.7, but felled by P she stayed down both ways - their rotors seen 1.4-1.5 times
+#: those drives', the old seen up at 22.5 s -, at 1:30 up at 22.9 and 23.7 s, at 1:33 one way
+#: (docs/findings/body.md, 2026-10-03). On the 5230SL the knee at 1:22 shoved past saving her
+#: head met the floor at 2.93 m/s once in 16, at 28 1.0 at most; the hips at 1:30 folded past
+#: -40 deg rising from the squat, her walk down at 5.6 s, at 36 she walked 16 s (2026-10-02).
+RATIO = 30.0
 GEAR_J = 0.05
 
-#: A gearbox's last stage is a ball stage - one eccentric's balls in a cage against a lobed ring,
-#: its ratio balls + 1 - at most BALLS by size, its balls printable: L's 11 of 12 mm on a 6005's
-#: race, M's 11 of 8 on a 6805's, S's 9 of 7 on a 6900's (docs/findings/body.md).
-#: Past that a printable planetary before it, STAGE_M longer, STAGE_KG of the drive's mass heavier,
-#: STAGE_EFF of the torque through it (estimated). One stage to 1:60 put 5 mm balls in L, 1-2.5 in
-#: M and under 1 in S (the user, 2026-10-02).
-BALLS = {'L': 12.0, 'M': 12.0, 'S': 10.0}
-STAGE_M, STAGE_KG, STAGE_EFF = 0.015, 0.08, 0.97
+#: The pancake frames, (rotor's D, stack) m. Their law fitted on the makers' pages (MN3508,
+#: MN5008, MN6007 II, M8108, M8110, U12 II; R line to line halved): Km 1.6e-5 Ds^1.8 L^0.8 (the
+#: stator Ds the rotor less 6 mm, mm), kg 2.52e-6 Ds^2 (L + 6) + 0.039, its peak 1.1e-4 Ds^2 L N m
+#: (2.5x its 180 s), the can L + 18.5 mm tall, 0.45 of the kg turning at its rotor's radius less
+#: 3 mm, the winding 310 J/K a kg and to the air the 5230SL's 2.2 K/W over 60 x 45 mm as 1/(D H).
+FRAMES = {'A': (0.068, 0.030), 'B': (0.060, 0.016)}
 
-#: The boards out of their drives' stacks - the 63100's 100 mm disc made L's 100 mm round -, each
-#: size's BOARD (kg, its disc's radius m, estimated): a joint's board where BOARDS says, (segment,
-#: offset m in its frame, the axis its disc faces), else with its drive. The knee's and the
-#: ankle's split (the user, 2026-10-02), two discs facing out on the femur's outer side: round the
-#: tibia under the knee the folded femur met them, 10-16 mm, round the femur over it the folded
-#: tibia, 13-14; facing forward 15 cm over the knee they stood 12 mm out of her (`tools/sim/fit.py`).
-BOARD = {'L': (0.2, 0.05), 'M': (0.08, 0.035), 'S': (0.03, 0.021)}
-BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'), 'ankle': ('thigh', (0.049, -0.18, 0.01), 'x')}
+#: The gearboxes' diameters, m: a rolling-element box's momentary 250 N m at 80 mm, five times its
+#: rated, 0.45 kg, its drag at its input - its rollers' start, the motor's cogging - 0.08 N m, all
+#: as D^3, and 0.28 D long (estimated).
+BOXES = {'A': 0.084, 'B': 0.064, 'C': 0.044}
+
+#: The inverters by disc mm: (disc D m, amps, kg, its laminate's K/W to the air through the
+#: housing it is bolted to): the 63100's, parts' centres 92 x 93 mm, the housing's skin at
+#: 10 W/m^2 K still and the pad 0.3; a 70 mm at 50 A (estimated).
+INVERTERS = {100: (0.100, 100.0, 0.2, 3.6), 70: (0.070, 50.0, 0.08, 6.5)}
+
+#: Each kind's stack: (frame, KV, box, inverter), each KV in its window of 1.5x on the walk's
+#: torque at its speed, each box's momentary 1.5x its peak and its rated over its rms. At 1:30
+#: frame B's windows met at KV 76-95 but the ankles' (x1.43-1.48), their copper 1.05x their rms
+#: and the hip roll's 1.17x; A's spine on 100 A to KV 104, hip 52-85, knee none - x1.41 at KV 90,
+#: its first step's 144 N m at 704 deg/s, 2.0 kW, on 100 A at 48 V. The hip's and the knee's at
+#: KV 120, x1.09 over her clamp, 960 deg/s: at 90 and 70 she held 70.7 % of the gait Monte
+#: Carlo, its knee run into its SOA felled her 2 of 3; at 120 74.2 %, 1 of 3; at 125 71.8 %. The
+#: spine at KV 40 on 50 A, 360 deg/s, felled her in the knee's SOA (docs/findings/body.md,
+#: 2026-10-03).
+STACKS = {'spine': ('A', 100.0, 'A', 100), 'spine_roll': ('B', 90.0, 'B', 70),
+          'waist': ('B', 90.0, 'C', 70), 'neck': ('B', 90.0, 'C', 70),
+          'head': ('B', 90.0, 'C', 70), 'shoulder': ('B', 90.0, 'C', 70),
+          'elbow': ('B', 90.0, 'C', 70), 'wrist': ('B', 90.0, 'C', 70),
+          'gripper': ('B', 90.0, 'C', 70), 'hip_yaw': ('B', 90.0, 'B', 70),
+          'hip_roll': ('B', 90.0, 'B', 70), 'hip': ('A', 120.0, 'A', 100),
+          'knee': ('A', 120.0, 'A', 100), 'ankle': ('B', 90.0, 'B', 70),
+          'ankle_roll': ('B', 90.0, 'B', 70), 'foot': ('B', 90.0, 'C', 70)}
+
+#: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
+#: else in its stack. The knee's and the ankle's split (the user, 2026-10-02), two discs facing
+#: out on the femur's outer side: round the tibia under the knee the folded femur met them,
+#: 10-16 mm, round the femur over it the folded tibia, 13-14; facing forward 15 cm over the knee
+#: they stood 12 mm out of her (`tools/sim/fit.py`). The spine's 100 mm on the torso's back; the
+#: hip's in its stack, 100 mm round - on the pelvis's or the torso's back it stood 14-35 mm out of
+#: her, beside the knee's 6, lower on the thigh 16 mm into the shank folded (2026-10-03).
+BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
+          'ankle': ('thigh', (0.049, -0.18, 0.01), 'x'),
+          'spine': ('torso', (0.0, 0.22, -0.066), 'z')}
 
 #: Each gearbox's play at its output, deg (estimated: a rolling-element wave drive's few arcmin,
 #: worn a little).
@@ -83,92 +116,73 @@ TOES, FINGERS = 0.0, 2.0
 PASSIVE = {'foot': (40.0, 1.0, 0.0), 'gripper': (40.0, 1.0, 80.0)}
 
 
-#: L: the 63 V 100 A board, its parts' centres 92 x 93 mm (the pick-and-place), a disc of 100 mm,
-#: driving the 5230SL, the drive 80 mm round; M and S: that board scaled to 25 and 6.8 A, a 43 and
-#: a 35 mm stator
-#: wound for KV 140 and 160 - the burst torque and the copper a N m^2 of a KV 280 at 50 A and a
-#: KV 470 at 20 A, not 13 400 and 22 600 rpm at 48 V unloaded but 6 720 and 7 680 - estimated
-#: from their size classes (Kt 8.27/KV, R by the class times KV^2, rotor and mass by the class,
-#: the winding's heat by its copper's mass). Each gearbox's drag at its input, N m - its rollers'
-#: start and the motor's cogging - and the torque it takes momentarily at its output, N m, a
-#: rolling-element reducer's five times its rated (estimated). A size's mass without its board.
-#: The laminate's path to the air through the housing it is bolted to, K/W: the housing's skin
-#: (0.03 m^2 for L) at 10 W/m^2 K still, the pad 0.3 - against the bare board's 11.7 in still air.
-#: L's 5230SL wound WIND_L its catalogue's turns: Kt that times, R its square, KV over it - the
-#: same copper a N m, 137 -> 171 N m at the board's 100 A. From the squat on the catalogue's she
-#: fell at 9.45 s, wound so she walked 30 s; the hip yaw at 1:60 beside it, 5.82 (2026-10-02).
-#: An M's amps scale with its winding: wound more it gains nothing.
-WIND_L = 1.25
-SIZES = {
-    'L': Size(100.0, TORQUE_FACTOR * PLATINUM_5230SL.poles * PLATINUM_5230SL.lam * WIND_L,
-              PLATINUM_5230SL.r * WIND_L ** 2, 190.0 / WIND_L, PLATINUM_5230SL.j,
-              (WINDING_J_PER_K, WINDING_K_PER_W),
-              0.9, 3.6, 0.080, 0.08, 1.3, 0.08, 250.0, 'the 63100 board and its 5230SL'),
-    'M': Size(50.0 * 140.0 / 280.0, 8.27 / 140.0, 0.08 * (280.0 / 140.0) ** 2, 140.0, 3.5e-5,
-              (70.0, 4.0), 0.9, 6.5, 0.060, 0.055, 0.57, 0.02, 100.0,
-              'estimated: a 43 mm stator, KV 140'),
-    'S': Size(20.0 * 160.0 / 470.0, 8.27 / 160.0, 0.25 * (470.0 / 160.0) ** 2, 160.0, 8.0e-6,
-              (25.0, 7.0), 0.85, 16.0, 0.042, 0.04, 0.19, 0.0065, 30.0,
-              'estimated: a 35 mm stator, KV 160'),
-}
+def _stack(kind):
+    """A kind's Size from its stack (`STACKS`): its frame's law, its winding, its box, its
+    inverter in it or apart (`BOARDS`)."""
+    frame, kv, box, inverter = STACKS[kind]
+    rotor, stack = FRAMES[frame]
+    ds, mm = (rotor - 0.006) * 1e3, stack * 1e3
+    km = 1.6e-5 * ds ** 1.8 * mm ** 0.8
+    kg = 2.52e-6 * ds * ds * (mm + 6.0) + 0.039
+    can = stack + 0.0185
+    kt = 8.27 / kv
+    disc, amps, b_kg, laminate = INVERTERS[inverter]
+    scale = (BOXES[box] / 0.08) ** 3
+    parts = ((() if kind in BOARDS else (('board', disc / 2.0, 0.010),))
+             + (('motor', rotor / 2.0 + 0.002, can),
+                ('gear', BOXES[box] / 2.0 + 0.002, 0.28 * BOXES[box] + 0.004)))
+    return Size(min(amps, 1.1e-4 * ds * ds * mm / kt), kt, (kt / km) ** 2 / TORQUE_FACTOR, kv,
+                0.45 * kg * (rotor / 2.0 - 0.003) ** 2,
+                (310.0 * kg, 2.2 * 0.060 * 0.045 / (rotor * can)), 0.9, laminate,
+                2.0 * max(r for _p, r, _l in parts), sum(l for _p, _r, l in parts),
+                1.1 * (kg + 0.45 * scale), 0.08 * scale, 250.0 * scale, (b_kg, disc / 2.0),
+                parts, 'frame %s %.0f x %.0f mm KV %.0f, box %.0f mm, %.0f A' % (
+                    frame, rotor * 1e3, stack * 1e3, kv, BOXES[box] * 1e3, amps))
 
-#: Each joint's size, and where its assembly sits: None on the joint's own axis; else (segment,
+
+SIZES = {k: _stack(k) for k in STACKS}
+
+#: Where each joint's stack sits: None on the joint's own axis; else (segment,
 #: offset m in its frame[, its axis, '-x' its gearbox's end toward -x]) - its output turns what it
 #: drives about that axis from that end, nothing radial off an axial drive's (the user,
 #: 2026-10-03: the ankle's L lay along the shin, its crank about the knee's axis). The hip a
 #: gimbal (`skeleton.gimbal`), each drive on the stage before its joint's - a segment's segment
-#: named for that joint, its frame the hip's centre: the yaw's M on the pelvis above, clear of the
-#: pitch's swing (69 mm), turning the fork; the roll's M on the fork behind at 1:100, up and in on
-#: a spur pair into the cradle, her seat's fullest - an L there stood 67 mm out of it -; the
-#: pitch's L in the cradle on the hip's centre; the knee's on its axis, 80 mm round inside it - a belt's give showed in her
+#: named for that joint, its frame the hip's centre: the yaw's on the pelvis above, clear of the
+#: pitch's swing (69 mm), turning the fork; the roll's on the fork behind, up and in on a spur
+#: pair into the cradle, her seat's fullest - an 80 mm drum there stood 67 mm out of it -; the
+#: pitch's in the cradle on the hip's centre; the knee's on its axis inside it - a belt's give showed in her
 #: walk (the user, 2026-10-02), no four-bar kept its 163 degrees over a 12 degree transmission,
 #: coupling rods stood as wide as her knee; 100 mm round there the capture law flagged 260
 #: catches walking in 6 s, 80 none -; the elbow's under the arm's quick-release, a belt to the
 #: joint; the ankle's pair under the knee, one over the other on the shin's axis, each turning
 #: the foot through its rod (`linkage.PAIRS`) - an L at the foot 15 mm ahead put her head down at
 #: 1.6 and 1.9 m/s in two falls of four, 10 ahead with the roll's 10 back a derated knee's walk
-#: fell -; the trunk's roll first (`figure.SEGMENTS`), its M on the pelvis's top between the
-#: hips' yaws on a four-bar into it (`linkage.PLANAR`), the pitch's L on its stage: on its axis the roll's M stood
-#: 80 mm out of her back, 47 out of her shell beside the L; across the pitch a rod or a
+#: fell -; the trunk's roll first (`figure.SEGMENTS`), its drive on the pelvis's top between the
+#: hips' yaws on a four-bar into it (`linkage.PLANAR`), the pitch's on its stage: on its axis the
+#: roll's 60 mm drum stood 80 mm out of her back, 47 out of her shell; across the pitch a rod or a
 #: differential failed (docs/findings/body.md); the wrist's and the fingers' in the forearm, the
-#: toes' in the foot. Off the thigh, the hip's three took 3 kg out of its swing. The elbow and the neck M: on
-#: S an elbow pushing her up from the floor asked 20 N m rms over 2 s, the neck holding her head
-#: 6, their copper past what an S's winding sheds (2026-10-01). The waist's M on its axis 120 mm
-#: up the torso, its gearbox down to the spine's bracket - at the torso's foot sits the pitch's L,
+#: toes' in the foot. Off the thigh, the hip's three took 3 kg out of its swing. An elbow pushing
+#: her up from the floor asked 20 N m rms over 2 s, the neck holding her head 6 (2026-10-01). The
+#: waist's on its axis 120 mm up the torso, its gearbox down to the spine's bracket - at the
+#: torso's foot sits the pitch's,
 #: and its bracket clears the roll's bearings to 85 deg; the shoulder's 15 mm in from its joint
 #: (`skeleton.TRUNK`, 2026-10-03).
 JOINTS = {
-    'spine': ('L', ('spine_roll', (0.0, 0.0, 0.0))), 'spine_roll': ('M', ('pelvis', (0.0, 0.02, 0.005))),
-    'waist': ('M', ('torso', (0.0, 0.12, 0.0), '-y')),
-    'neck': ('M', None), 'head': ('S', None),
-    'shoulder': ('M', ('torso', (0.133, 0.325, -0.005))),
-    'elbow': ('M', ('upper_arm', (0.0, -0.115, 0.0), '-y')),
-    'wrist': ('S', ('forearm', (0.0, -0.12, 0.0), '-y')),
-    'gripper': ('S', ('forearm', (0.0, -0.165, 0.0))),
-    'hip_yaw': ('M', ('pelvis', (HIP_HALF, 0.103 - HIP_DROP, 0.0), '-y')),
-    'hip_roll': ('M', ('hip_yaw', (-0.025, 0.035, -0.078))),
-    'hip': ('L', ('hip_roll', (0.0, 0.0, 0.0))),
-    'knee': ('L', None),
-    'ankle': ('M', ('shank', (0.002, -0.080, 0.015), 'x')),
-    'ankle_roll': ('M', ('shank', (-0.004, -0.150, 0.0), '-x')),
-    'foot': ('S', ('foot', (0.0, -0.04, 0.045))),
+    'spine': ('spine_roll', (0.0, 0.0, 0.0)), 'spine_roll': ('pelvis', (0.0, 0.02, 0.005)),
+    'waist': ('torso', (0.0, 0.12, 0.0), '-y'),
+    'neck': None, 'head': None,
+    'shoulder': ('torso', (0.133, 0.325, -0.005)),
+    'elbow': ('upper_arm', (0.0, -0.115, 0.0), '-y'),
+    'wrist': ('forearm', (0.0, -0.12, 0.0), '-y'),
+    'gripper': ('forearm', (0.0, -0.165, 0.0)),
+    'hip_yaw': ('pelvis', (HIP_HALF, 0.103 - HIP_DROP, 0.0), '-y'),
+    'hip_roll': ('hip_yaw', (-0.025, 0.035, -0.078)),
+    'hip': ('hip_roll', (0.0, 0.0, 0.0)),
+    'knee': None,
+    'ankle': ('shank', (0.002, -0.080, 0.015), 'x'),
+    'ankle_roll': ('shank', (-0.004, -0.150, 0.0), '-x'),
+    'foot': ('foot', (0.0, -0.04, 0.045)),
 }
-
-
-#: A joint's total ratio at rest, by kind, its size's (RATIO_L ..) elsewhere: its gearbox's times
-#: its transmission's (`linkage`) - the ankle's L on one rod at 1:36; the spine roll's and the waist's M at 1:60, past their 16.2 and 21.5 N m rms an M sheds at 1:40, 15, the
-#: hip roll's at 1:100 its 36.6 (2026-10-02). As built the knee asked 117 N m, its clamp, at 0-40
-#: deg and 90-100, 41-81 at 40-90, never more than 512 deg/s; at 1:22 mid-stroke shoved past
-#: saving her head met the floor at 2.93 m/s once in 16, at 28 1.0 at most (2026-10-02). The
-#: hip's pair at 1:30 folded past -40 deg, the rise from the squat set her walk to fall at 5.6 s;
-#: at 36, she walked 16 s.
-TOTALS = {'knee': 36.0, 'hip': 36.0, 'hip_roll': 100.0, 'spine_roll': 60.0, 'waist': 60.0}
-
-#: A parallel pair's (`linkage.PAIRS`) two drives' gearboxes, their rods' levers after them:
-#: two M at 1:68, the pitch's 1:60 through the rods' 0.88. At 1:60 on a roll lever of 0.64, from
-#: the squat walking each asked 111 N m at peak and 23 rms, past an M's 77 N m 3 % of the time and
-#: its 672 deg/s 0.36 %; two L were 2.8 kg against the L and the M's 2.02 (2026-10-02).
-PAIRED = 68.0
 
 
 def kind(joint):
@@ -180,15 +194,15 @@ def kind(joint):
 
 
 def of(joint):
-    """(size name, Size) of a joint's drive."""
-    name = JOINTS[kind(joint)][0]
-    return name, SIZES[name]
+    """(frame, Size) of a joint's drive."""
+    k = kind(joint)
+    return STACKS[k][0], SIZES[k]
 
 
 def output(joint):
     """(axis letter, end) where `JOINTS` lays its drum - its gearbox's end +1 or -1 along it -,
     else None: on its joint's own axis, the end toward +."""
-    where = JOINTS[kind(joint)][1]
+    where = JOINTS[kind(joint)]
     if where is None or len(where) < 3:
         return None
     return where[2][-1], -1.0 if where[2].startswith('-') else 1.0
@@ -219,7 +233,7 @@ def pivot(joint):
 def mount(joint):
     """Where a joint's assembly sits: None on its axis, else (segment, offset) - its own side's,
     the right's x mirrored; the pelvis and the trunk have none."""
-    where = JOINTS[kind(joint)][1]
+    where = JOINTS[kind(joint)]
     if where is None:
         return None
     side = joint[:-len(kind(joint))]
@@ -229,10 +243,10 @@ def mount(joint):
 
 
 def ratio(joint, deg=None):
-    """The joint's total ratio (`TOTALS`) at rest, or at `deg` along its rod's stroke."""
+    """The joint's total ratio at rest - its gearbox's (`RATIO`) through its transmission's
+    (`linkage`) -, or at `deg` along its rod's or four-bar's stroke."""
     k = kind(joint)
-    total = (PAIRED * linkage.lever(joint) if motors(joint) == 2 else TOTALS.get(k)
-             or {'L': RATIO_L, 'M': RATIO_M, 'S': RATIO_S}[of(joint)[0]])
+    total = RATIO * linkage.lever(joint)
     if deg is None or (k not in linkage.RODS and k not in linkage.PLANAR):
         return total
     return total * linkage.lever(joint, deg) / linkage.lever(joint)
@@ -255,23 +269,27 @@ def kt(joint):
     """Joint torque an amp of q current in each of its drives, N m/A."""
     s = of(joint)[1]
     return (motors(joint) * s.kt_motor * ratio(joint) * s.efficiency
-            * STAGE_EFF ** (stages(joint) - 1)
             * (linkage.BEVEL_EFF if kind(joint) in linkage.BEVELS else 1.0))
 
 
-def stages(joint):
-    """Its gearbox's stages: its ball stage to BALLS, a planetary before it past."""
-    return 1 if ratio(joint) / linkage.lever(joint) <= BALLS[of(joint)[0]] else 2
-
-
 def length(joint):
-    """Its assembly's length, m: its size's and a second stage's."""
-    return of(joint)[1].length + STAGE_M * (stages(joint) - 1)
+    """Its stack's length, m."""
+    return of(joint)[1].length
 
 
 def mass(joint):
-    """Its assembly's mass, kg: its size's and a second stage's, its board apart (`board`)."""
-    return of(joint)[1].mass * (1.0 + STAGE_KG * (stages(joint) - 1))
+    """Its stack's mass, kg, its inverter apart (`board`)."""
+    return of(joint)[1].mass
+
+
+def along(joint):
+    """[(part, radius m, centre m, length m)] of its stack, its centre along its axis from the
+    stack's middle toward its gearbox's end."""
+    s, at, out = of(joint)[1], -of(joint)[1].length / 2.0, []
+    for part, radius, long in s.parts:
+        out.append((part, radius, at + long / 2.0, long))
+        at += long
+    return out
 
 
 def board(joint):
@@ -282,8 +300,8 @@ def board(joint):
         return None
     side = joint[:-len(kind(joint))]
     x, y, z = where[1]
-    return (side + where[0], (-x if side == 'right_' else x, y, z)) + BOARD[of(joint)[0]] + (
-        where[2],)
+    seg = where[0] if where[0] in ('pelvis', 'torso', 'neck', 'head') else side + where[0]
+    return (seg, (-x if side == 'right_' else x, y, z)) + of(joint)[1].board + (where[2],)
 
 
 def boards():

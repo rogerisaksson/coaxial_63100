@@ -2,7 +2,7 @@
 """Her drives against what she asks of them: each joint's size, its peak, rms and speed asked.
 
     python tools/sim/drive_sizes.py              # the rise and 20 s of walk, simulated
-    python tools/sim/drive_sizes.py --to 60 RATIO_L=48
+    python tools/sim/drive_sizes.py --to 60 RATIO=36
 
 A row a joint kind (the worse side), from the squat through the walk as the page runs her: the
 peak torque and the walk's rms torque asked, N m, against the size's peak at its board's amps
@@ -109,10 +109,9 @@ def main(argv=None):
         '%s %.2f of %.2f' % (seg[0], carried[seg[0]], seg[5] * MASS_KG)
         for seg in SEGMENTS if seg[0] in carried and not seg[0].startswith('right_')))
     for name, s in drives.SIZES.items():
-        print('%s: %.0f A, Kt %.4f N m/A, R %.3f ohm, KV %.0f, 1:%.0f, %.0f x %.0f mm, %.2f kg - %s'
-              % (name, s.amps, s.kt_motor, s.r, s.kv,
-                 {'L': drives.RATIO_L, 'M': drives.RATIO_M, 'S': drives.RATIO_S}[name],
-                 s.diameter * 1e3, s.length * 1e3, s.mass, s.source))
+        print('%s: %.0f A, Kt %.4f N m/A, R %.3f ohm, 1:%.0f, %.0f x %.0f mm, %.2f kg - %s'
+              % (name, s.amps, s.kt_motor, s.r, drives.RATIO, s.diameter * 1e3, s.length * 1e3,
+                 s.mass, s.source))
     return 0
 
 

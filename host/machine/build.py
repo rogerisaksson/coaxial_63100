@@ -74,8 +74,8 @@ def riders():
             across = kg * (3.0 * size.diameter ** 2 / 4.0 + long ** 2) / 12.0
             inertia = tuple(about if a == axis else across for a in 'xyz')
             out.setdefault(rides, []).append((joint, kg, at, inertia))
-            board, place, b_kg, radius, faces = (drives.board(joint) or (rides, at) + drives.BOARD[
-                drives.of(joint)[0]] + (axis,))
+            board, place, b_kg, radius, faces = (drives.board(joint) or (rides, at) + size.board
+                                                 + (axis,))
             flat = b_kg * radius ** 2 / 4.0
             out.setdefault(board, []).append((joint + '_board', b_kg, place, tuple(
                 2.0 * flat if a == faces else flat for a in 'xyz')))

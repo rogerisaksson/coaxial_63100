@@ -198,13 +198,15 @@ Open work. Measured results are in FINDINGS.
     motor turning each nut, rods to the heel. A Wolfrom with the outrunner
     in its hollow sun (the user's) gives 1:60 a stage but 105/87/72 mm
     round against 80/60/42 - too wide for her arms and feet.
-  + Her outrunners picked per joint, KV the parameter, inside each box
-    (the user, 2026-10-03; one box for all fails, docs/findings/body.md):
-    at 1.5x the hip wants a U12 II class (107 x 48 mm, Km 0.58), 112 mm
-    round where 96 stood 4 mm out of her skin, the knee 10 % more than its
-    board's 100 A at 48 V gives; their walk's 3.1 N m/kg first. Into
-    `drives.SIZES` with the one-stage gearboxes, her walk and get-up
-    measured again.
+  + Her drives as stacks (`drives.STACKS`, docs/findings/body.md; the
+    user, 2026-10-03), open: the knee's and hip's 1.5x at their speed asks
+    more inverter than 100 A at 48 V (x1.09 at KV 120); the ankles' copper
+    1.05x and the hip roll's 1.17x - on crank-rockers, the crank turning
+    360 deg, the limb reversing at its dead centres, a mean lever of
+    180 deg over its stroke; the knee's 170 deg and the hip's from a
+    crank's 360 - a six-bar, a crank-slider on a rack; the stacks as
+    solids in her skeleton, colliding; the toes', wrist's and head's 70 mm
+    stacks 3-20 mm out of her shell (after the legs, the user).
   + Her tubes and struts sized for stiffness, not to sway or flex (the user,
     2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
     PET-CF adapters and fittings between, printable flat without overhangs;

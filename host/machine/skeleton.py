@@ -114,9 +114,6 @@ FORK_R, CROWN_R, BEARING, BAND = 0.011, 0.005, (0.009, 0.007, 0.055), (0.043, 0.
 #: leg or the tibia. The boards on POSTS into the femur; the ankle's CROSS (pins' radius, half length)
 #: on the stage between its pitch and its roll.
 COLLAR_M, STRUT_R, POST_R = 0.004, 0.010, 0.004
-
-#: A drive's motor's share of its drum's length, its gearbox the rest beside it on the axis.
-MOTOR_SHARE = 0.6
 HELD = {'hip_yaw': (((-0.014, 0.008),), ()),
         'hip_roll': (((0.018, 0.006), (-0.022, 0.006)),
                      (((0.02, 0.035, -0.055), (0.009, 0.035, -0.06)),
@@ -235,14 +232,12 @@ def trunk():
 
 def collars(side, seg):
     """[(centre, radius, half)]: the collars `seg`'s bones (`HUNG`) clamp round their drums' motors
-    or gearboxes, along x, its frame."""
+    or gearboxes (`drives.along`), along x, its frame."""
     s, out = (1.0 if side == 'left_' else -1.0), []
     for joint, part, y in HUNG[seg][2]:
-        half, r = drives.length(side + joint) / 2.0, drives.of(side + joint)[1].diameter / 2.0
-        at, length = ((s * half * MOTOR_SHARE, 2.0 * half * (1.0 - MOTOR_SHARE)) if part == 'gear'
-                      else (-s * half * (1.0 - MOTOR_SHARE), 2.0 * half * MOTOR_SHARE))
+        _p, r, at, length = next(row for row in drives.along(side + joint) if row[0] == part)
         # A collar a millimetre short of the motor's and gearbox's seam: the knee's two turn.
-        at += (0.0005 if at * s > 0.0 else -0.0005) * s
+        at = s * (at + (0.0005 if part == 'gear' else -0.0005))
         out.append(((at, y, 0.0), r + COLLAR_M, length / 2.0 - 0.0005))
     return out
 

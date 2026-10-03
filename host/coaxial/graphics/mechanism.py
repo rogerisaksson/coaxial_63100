@@ -14,25 +14,25 @@ from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
 from machine import build, drives, figure, linkage
-from machine.skeleton import BOOM, HUNG, MOTOR_SHARE, collars, gimbal, held, runs, trunk
+from machine.skeleton import BOOM, HUNG, collars, gimbal, held, runs, trunk
 from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
 #: The colours: the carbon's, the rods' and their ball joints' steel, the quick-releases' printed
 #: polymer - violet, off the heat's ramp: orange read as a warm hip (the user, 2026-10-02) - and
-#: each drive's drum by its size (`drives.SIZES`).
+#: each drive's drum by its frame (`drives.FRAMES`).
 CARBON, ROD, STEEL, POLYMER = (92, 94, 106), (214, 214, 224), (246, 246, 246), (150, 100, 220)
 #: A spur pair's face width, m (`linkage.GEARS`): its pinion on its drive's output face, its wheel
 #: on the joint's axis, their pitch circles meeting.
 SPUR_T = 0.008
 #: A board apart from its drive: its laminate's green, BOARD_T thick with its parts, m.
 PCB, BOARD_T = (40, 120, 70), 0.012
-SIZED = {'L': (72, 140, 224), 'M': (60, 190, 170), 'S': (230, 190, 70)}
+SIZED = {'A': (72, 140, 224), 'B': (60, 190, 170)}
 
-#: Bare, a drive's drum drawn as its motor, MOTOR_SHARE of its length (`skeleton`) in its size's
-#: colour, and its gearbox beside it on the axis, GEAR_RADIUS of its radius - its ball stage's ring
-#: as wide as the motor, L's lobes 72.8 mm round in 80 - in the gearbox's steel grey.
-GEAR_RADIUS, GEARBOX = 1.0, (150, 152, 160)
+#: Bare, a drive's stack drawn as its parts (`drives.along`): its inverter in the laminate's green,
+#: its motor in its frame's colour, its gearbox in the gearbox's steel grey.
+GEARBOX = (150, 152, 160)
+PARTED = {'board': 'inv_', 'motor': 'drive_', 'gear': 'gear_'}
 
 #: The stick figure's inks: the skeleton's, the cranks' and rods', the ball joints'; a wire
 #: cylinder's rims RIM points round, a ball joint a cross BALL_R across; a bone broken RELEASE_GAP
@@ -151,15 +151,14 @@ def parts(bare=False):
         if not bare:
             out.append((name, parent, (), offset, 0.0, (c, t, u, m * 0 + sized)))
             continue
-        axis, half = drums.AXES[joint]
-        motor, gear = 2.0 * half * MOTOR_SHARE, 2.0 * half * (1.0 - MOTOR_SHARE)
+        axis, _half = drums.AXES[joint]
         letter = 'xyz'[[abs(a) for a in axis].index(1.0)]
         if letter == 'x' and joint.startswith('right_'):
             axis = (-axis[0], 0.0, 0.0)
-        out += [(name, parent, (), tuple(o - a * gear / 2.0 for o, a in zip(offset, axis)), 0.0,
-                 drum(size.diameter / 2.0, motor, letter, sized)),
-                ('gear_' + joint, parent, (), tuple(o + a * motor / 2.0 for o, a in zip(offset, axis)),
-                 0.0, drum(size.diameter / 2.0 * GEAR_RADIUS, gear, letter, paint(GEARBOX)))]
+        ink = {'board': paint(PCB), 'motor': sized, 'gear': paint(GEARBOX)}
+        out += [(PARTED[part] + joint, parent, (), tuple(o + a * at for o, a in zip(offset, axis)),
+                 0.0, drum(radius, long, letter, ink[part]))
+                for part, radius, at, long in drives.along(joint)]
     poly, steel = paint(POLYMER), paint(STEEL)
     if not bare:
         out += [('hung%d_%s%s' % (k, side, seg), side + seg, (), (0.0, 0.0, 0.0), 0.0, mesh)
@@ -410,14 +409,14 @@ def wires(parts_, frames):
                                                          (0.0, -ANKLE_H, BALL)))
         bones += [(spot, heel), (heel, ball), (ball, spot)]
     for (name, parent, *_rest), (turn, spot) in zip(parts_, frames):
-        if name.startswith(('drive_', 'gear_')):
-            joint = name.split('_', 1)[1]
-            size, (axis, half) = drives.of(joint), drums.AXES[joint]
-            share = MOTOR_SHARE if name.startswith('drive_') else 1.0 - MOTOR_SHARE
-            radius = size[1].diameter / 2.0 * (1.0 if name.startswith('drive_') else GEAR_RADIUS)
-            ink = SIZED[size[0]] if name.startswith('drive_') else GEARBOX
+        if name.startswith(('drive_', 'gear_', 'inv_')):
+            prefix, joint = name.split('_', 1)
+            axis, _half = drums.AXES[joint]
+            part = {'drive': 'motor', 'gear': 'gear', 'inv': 'board'}[prefix]
+            _p, radius, _at, long = next(r for r in drives.along(joint) if r[0] == part)
+            ink = {'motor': SIZED[drives.of(joint)[0]], 'gear': GEARBOX, 'board': PCB}[part]
             drives_.setdefault(ink, []).extend(
-                _rims(np, spot, turn @ np.asarray(axis, float), radius, half * share))
+                _rims(np, spot, turn @ np.asarray(axis, float), radius, long / 2.0))
         elif name.startswith(('crank_', 'rod_', 'rodb_')):
             rods.append((spot, spot + turn @ np.array([0.0, -1.0, 0.0])))
         elif name.startswith(('pin_', 'end_')):
