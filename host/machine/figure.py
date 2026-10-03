@@ -140,6 +140,10 @@ def pad(axis, radius, toward, size, x=1.0):
 #: Every joint, in the order the segments carry them.
 JOINTS = tuple(j for seg in SEGMENTS for j, _axis, _sign in seg[2])
 
+#: Each segment's joints before its last, each a stage, the frame it turns (`frames`) - not the
+#: toes' joint, named for the foot.
+STAGES = tuple(j for seg in SEGMENTS for j, _axis, _sign in seg[2][:-1])
+
 #: A leg's joints after its side, the order `leg` answers them in.
 LEG = ('_hip_yaw', '_hip_roll', '_hip', '_knee', '_ankle', '_ankle_roll')
 
@@ -247,7 +251,8 @@ AXES = {'x': rx, 'y': ry, 'z': rz}
 
 def frames(degrees, pelvis, turn):
     """{segment: (place, turn)}, world, for every joint at {joint: degrees} and the pelvis at
-    `pelvis` turned `turn`."""
+    `pelvis` turned `turn` - and each stage, a segment's joint before its last by its name, the
+    frame that joint turns (a gimbal's, `drives.mount`)."""
     out = {}
     for name, parent, joints, offset, rest, *_mass in SEGMENTS:
         if parent is None:
@@ -256,8 +261,10 @@ def frames(degrees, pelvis, turn):
             above, where = out[parent][1], out[parent][0]
             at = add(where, apply(above, offset))
             here = mul(above, rz(math.radians(rest))) if rest else above
-        for joint, axis, sign in joints:
+        for k, (joint, axis, sign) in enumerate(joints):
             here = mul(here, AXES[axis](sign * math.radians(degrees.get(joint, 0.0))))
+            if k < len(joints) - 1:
+                out[joint] = (at, here)
         out[name] = (at, here)
     return out
 

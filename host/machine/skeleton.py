@@ -25,15 +25,25 @@ from machine.gait import SHANK, THIGH
 #: drives to the ankle, between their rods - two tubes 46 mm apart round one rod were wider than
 #: her calf with two. Each drum they hang from or reach clamped by a collar
 #: (`coaxial.graphics.mechanism`): (joint, its gearbox or motor, y on the segment).
-HUNG = {'thigh': ((((0.0285, -0.05, 0.0), (0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012)),), 0.016,
+HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012)),), 0.016,
                   (('hip', 'gear', 0.0), ('knee', 'motor', -THIGH))),
         'shank': ((((0.0285, -0.045, -0.032), (0.0, -0.17, -0.05), (0.0, 0.06 - SHANK, -0.008),
                     (0.0, -SHANK, 0.012)),), 0.012,
                   (('knee', 'gear', 0.0),))}
 
-#: A board's thickness with its parts, m; the pelvis's boom, its radius and length; a crank's
-#: radius (a rod's `linkage.ROD_R`).
-BOARD_T, BOOM, CRANK_R = 0.012, (0.015, 0.2), 0.012
+#: A board's thickness with its parts, m; a crank's radius (a rod's `linkage.ROD_R`).
+BOARD_T, CRANK_R = 0.012, 0.012
+
+#: The pelvis's boom, its radius and the points it runs through, m: its middle 60 mm long, an arm
+#: up to each hip's yaw drive - across, it lay on the hips' L, their inner corners 16 mm higher
+#: rolled 25 deg, and no fork's crown fitted between (2026-10-03).
+BOOM = (0.015, ((0.065, 0.05, 0.0), (0.03, 0.0, 0.0), (-0.03, 0.0, 0.0), (-0.065, 0.05, 0.0)))
+
+#: The hip's gimbal (`gimbal`): its tubes' radius; its roll bearings' radius and half length,
+#: 55 mm before and behind the hip's centre; its cradle's band's radius and half length round the
+#: pitch's L. Crown to L 7 mm rolled 25 deg; the back leg 20 mm out, 8 mm off the roll's M; the
+#: front 20 mm in, the femur's collar 3 mm off its bearing at 90 deg of flexion (2026-10-03).
+FORK_R, BEARING, BAND = 0.007, (0.009, 0.007, 0.055), (0.043, 0.008)
 
 #: Her skeleton's contacts: her skins and itself (`mjcf.ME`, `MEETS`), its own friction - never
 #: the floor: inside her shell, outside her skins' capsules, the toes' belt's pulley met it as
@@ -74,6 +84,28 @@ def _drums():
     return out
 
 
+def gimbal(stage):
+    """([(a, b, radius)], [(centre, axis, radius, half)]): the hip's gimbal on its `stage`, her
+    left's in its frame, the hip's centre the origin (the right's x mirrored) - 'hip_yaw' the
+    fork, from its drive's output down a steerer to a crown over the pitch's L and its legs to the
+    roll's bearings; 'hip_roll' the cradle, a band round the L, its trunnions in the bearings."""
+    r, half, z = BEARING
+    if stage == 'hip_roll':
+        return ([((0.0, 0.0, s * BAND[0]), (0.0, 0.0, s * (z + half)), r - 0.002)
+                 for s in (1.0, -1.0)], [((0.0, 0.0, 0.0), 'x', BAND[0], BAND[1])])
+    thigh = next(s for s in SEGMENTS if s[0] == 'left_thigh')
+    top = (drives.mount('left_hip_yaw') or ('', (0.0, 0.0, 0.0)))[1][1] - thigh[3][1] - (
+        drives.length('left_hip_yaw') / 2.0)
+    crown = top - 0.01
+    legs = ((-0.02, z), (0.02, -z))
+    tubes = [((0.0, top, 0.0), (0.0, crown, 0.0))]
+    for x, at in legs:
+        tubes += [((0.0, crown, 0.0), (x, crown, at)), ((x, crown, at), (x, 0.0, at)),
+                  ((x, 0.0, at), (0.0, 0.0, at))]
+    return ([(a, b, FORK_R) for a, b in tubes],
+            [((0.0, 0.0, at), 'z', r, half) for _x, at in legs])
+
+
 def _rod(side, kind):
     """A rod's crank's hub, pin, bend and ball at rest in its drive's segment's frame."""
     s = 1.0 if side == 'left_' else -1.0
@@ -95,10 +127,17 @@ def bodies():
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
         out.append((joint + '_board', seg, [_geom('cylinder', radius,
                                                   *_along(at, AXES[faces], BOARD_T / 2.0))]))
-    out.append(('pelvis_boom', 'pelvis', [_geom('cylinder', BOOM[0],
-                                                *_along((0.0, 0.0, 0.0), AXES['x'], BOOM[1] / 2))]))
+    out.append(('pelvis_boom', 'pelvis', [_geom('capsule', BOOM[0], a, b)
+                                          for a, b in zip(BOOM[1], BOOM[1][1:])]))
     for side in ('left_', 'right_'):
         s = 1.0 if side == 'left_' else -1.0
+        for stage in ('hip_yaw', 'hip_roll'):
+            tubes, rings = gimbal(stage)
+            out.append((side + stage + '_gimbal', side + stage, [
+                _geom('capsule', r, (s * a[0],) + a[1:], (s * b[0],) + b[1:])
+                for a, b, r in tubes] + [
+                _geom('cylinder', r, *_along((s * c[0],) + c[1:], AXES[axis], half))
+                for c, axis, r, half in rings]))
         for seg, (tubes, radius, _collars) in HUNG.items():
             ps = [[(s * x, y, z) for x, y, z in points] for points in tubes]
             out.append((side + seg + '_bone', side + seg, [_geom('capsule', radius, a, b)
@@ -112,7 +151,7 @@ def bodies():
         for kind, ratio in linkage.GEARS.items():
             joint = side + kind
             rides, (x, y, z) = drives.mount(joint) or ('', (0.0, 0.0, 0.0))
-            pivot = next(g[3] for g in SEGMENTS if joint in [j for j, *_ in g[2]])
+            pivot = drives.pivot(joint)
             face = z + drives.length(joint) / 2.0
             apart = math.hypot(pivot[0] - x, pivot[1] - y)
             r = apart / (1.0 + ratio)

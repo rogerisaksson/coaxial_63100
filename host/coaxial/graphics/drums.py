@@ -49,6 +49,39 @@ def drums():
     return out
 
 
+def stages():
+    """[(name, parent, joints, offset, mesh)]: each stage a drive rides (`drives.mount`), and
+    those before it - a segment's joint before its last, by its name, the frame it turns -, an
+    empty part its drums hang from."""
+    ridden = {where[0] for j in figure.JOINTS if not drives.passive(j)
+              for where in [drives.mount(j)] if where}
+    empty = _empty(drum(0.001, 0.001, 'x', PLATE))
+    out = []
+    for _name, parent, joints, offset, *_rest in figure.SEGMENTS:
+        if not any(j in ridden for j, _a, _s in joints[:-1]):
+            continue
+        for joint, axis, sign in joints[:-1]:
+            out.append((joint, parent, ((joint, axis, sign),), offset, empty))
+            parent, offset = joint, (0.0, 0.0, 0.0)
+    return out
+
+
+def _empty(mesh):
+    c, t, u, m = mesh
+    return c[:0], t[:0], u[:0], m[:0]
+
+
+def _at_rest(parts, part):
+    """(segment, offset): `part`'s place at rest on the segment its stages hang from."""
+    from coaxial.model.blocks import numpy as np
+    stage = {name: (up, offset) for name, up, _j, offset, *_r in parts if name in figure.STAGES}
+    parent, at = part[1], np.asarray(part[3], float)
+    while parent in stage:
+        up, offset = stage[parent]
+        at, parent = at + np.asarray(offset, float), up
+    return parent, at
+
+
 def patches(parts):
     """{joint: [(part index, corner indices)]}: each drum under the cloth, the cloth's corners
     within PATCH_M of the drum's ends, on a cloth riding the drum's own segment."""
@@ -58,10 +91,10 @@ def patches(parts):
         under = next((p for p in parts if p[0] == 'drive_' + joint), None)
         if under is None:
             continue
-        centre = np.asarray(under[3], float)
+        seat, centre = _at_rest(parts, under)
         ends = [centre + np.asarray(axis) * half, centre - np.asarray(axis) * half]
         for i, (name, parent, _j, offset, _r, mesh) in enumerate(parts):
-            if not name.startswith('cloth_') or parent != under[1]:
+            if not name.startswith('cloth_') or parent != seat:
                 continue
             corners = mesh[0] + np.asarray(offset, float)
             close = np.zeros(len(corners), bool)

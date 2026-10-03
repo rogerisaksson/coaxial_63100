@@ -12,7 +12,7 @@ A shell is a laminate WALL_M thick over her capsules (`figure.BODY`) and her sol
 import math
 
 from machine import drives
-from machine.figure import BODY, CONTACTS, SEGMENTS
+from machine.figure import BODY, CONTACTS, SEGMENTS, STAGES
 
 #: Her body as made or as a woman's (de Leva's shares of `figure.MASS_KG`), 1 or 0.
 SHELLS = 1.0
@@ -53,7 +53,7 @@ def riders():
     where it sits - mounted where `drives.mount` says, else on its joint's axis, a segment's first
     joint's on the parent at the segment's place, a later one's at the segment's own - a cylinder
     of its size's diameter and length about that axis -, and its board (`drives.board`), a disc,
-    with it or apart."""
+    with it or apart; one on a stage on what that hangs from unless `physics.STAGED`."""
     out = {}
     for name, parent, joints, offset, *_ in SEGMENTS:
         for k, (joint, axis, _sign) in enumerate(joints):
@@ -62,6 +62,9 @@ def riders():
             size, where = drives.of(joint)[1], drives.mount(joint)
             if where is not None:
                 rides, at = where[0], tuple(where[1])
+                if rides in STAGES and not _staged():
+                    hung = next(s for s in SEGMENTS if rides in [j for j, *_ in s[2]])
+                    rides, at = hung[1], tuple(a + o for a, o in zip(at, hung[3]))
             elif k == 0 and parent is not None:
                 rides, at = parent, tuple(offset)
             else:
@@ -77,6 +80,11 @@ def riders():
             out.setdefault(board, []).append((joint + '_board', b_kg, place, tuple(
                 2.0 * flat if a == faces else flat for a in 'xyz')))
     return out
+
+
+def _staged():
+    from machine.physics import STAGED
+    return STAGED
 
 
 def _shells(part):
@@ -109,9 +117,11 @@ def _shells(part):
 
 def segments():
     """{segment: (kg, centre, (ixx, iyy, izz, ixy, ixz, iyz) about it)}, each in its own frame: its
-    shell, what it holds and the drives on it - laid once a wall and a drives' layout
+    shell, what it holds and the drives on it, and each stage a drive rides - laid once a wall and
+    a drives' layout
     (`figure.com` asks every pass)."""
-    key = (WALL_M, CF_KG_M3, drives.TOES, drives.FINGERS, tuple(drives.JOINTS.items()))
+    key = (WALL_M, CF_KG_M3, drives.TOES, drives.FINGERS, tuple(drives.JOINTS.items()),
+           _staged())
     if key not in _LAID:
         _LAID[key] = _segments()
     return _LAID[key]
@@ -123,8 +133,9 @@ _LAID = {}
 def _segments():
     on = riders()
     out = {}
-    for seg in SEGMENTS:
-        name = seg[0]
+    names = [seg[0] for seg in SEGMENTS]
+    # A stage a drive rides (`drives.mount`) its drives' alone, in its own frame.
+    for name in names + [k for k in on if k not in names]:
         pieces = _shells(_part(name))
         pieces += [(kg, at, [[0.0] * 3 for _ in range(3)]) for kg, at in HOLDS.get(_part(name), ())]
         pieces += [(kg, (0.0, y, 0.0), [[0.0] * 3 for _ in range(3)])

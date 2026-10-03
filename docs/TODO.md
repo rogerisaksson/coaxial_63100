@@ -160,14 +160,15 @@ Open work. Measured results are in FINDINGS.
     the offline gate red on it, unpushed. The arrival's, the capture's, the
     side step's and the parry's knobs searched one generation, best 399
     against a median 586 (host/build/search3.jsonl),
-    stopped for the parallel ankle: searched again on it (2026-10-02). One
+    stopped for the parallel ankle: searched again on it (2026-10-02), its
+    hip's drives on their gimbal's stages (`physics.STAGED`) - there the
+    walk from the squat fell at 5.8 s, the scoreboard 578 against 495, the
+    stopped search's best 587 (2026-10-03). One
     scoreboard a build scores chance: near-identical builds 150 apart.
   + Her skeleton colliding (`physics.SKELETON`, the user, 2026-10-02): the
     crouch past saving reworked first - with it her head met the floor at
     1.03-1.66 m/s in 3 of 64 falls, the kneeling knee's drum on the lunging
     shin; that hip rolled out 8-15 deg cleared the falls to her right.
-  + Her hip by kinematic mechanisms - levers on bearings, ball and Rzeppa
-    joints - in place of its ideal axes (the user, 2026-10-02).
   + Her gearboxes past their momentary ratings in six falls of six, by
     their peaks (`World.geared` over `drives.shock`): an ankle 3.7, a knee
     3.4, a hip roll 1.9, the toes 2.2 - each rotor's reflected inertia

@@ -17,7 +17,7 @@ from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
 from machine import build, drives, figure, linkage
-from machine.skeleton import HUNG
+from machine.skeleton import BOOM, HUNG, gimbal
 from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
@@ -59,10 +59,30 @@ def _tube(a, b, radius, material):
     from coaxial.model.blocks import numpy as np
     a, b = np.asarray(a, float), np.asarray(b, float)
     y = (a - b) / np.linalg.norm(a - b)
-    x = np.cross(y, (0.0, 0.0, 1.0))
+    x = np.cross(y, (0.0, 0.0, 1.0) if abs(y[2]) < 0.9 else (1.0, 0.0, 0.0))
     x = x / np.linalg.norm(x)
     c, t, u, m = limb(float(np.linalg.norm(b - a)), radius, radius, radius, material)
     return c @ np.stack([x, y, np.cross(x, y)], 1).T + a, t, u, m
+
+
+def _join(meshes):
+    """One mesh of `meshes`."""
+    from coaxial.model.blocks import numpy as np
+    at = np.cumsum([0] + [len(c) for c, *_ in meshes[:-1]])
+    return (np.concatenate([c for c, *_ in meshes]),
+            np.concatenate([t + k for (_c, t, _u, _m), k in zip(meshes, at)]),
+            np.concatenate([u for _c, _t, u, _m in meshes]),
+            np.concatenate([m for *_, m in meshes]))
+
+
+def _gimbal(side, stage):
+    """[(offset, mesh)]: the hip's gimbal on `stage` (`skeleton.gimbal`), in its frame."""
+    s, steel = (1.0 if side == 'left_' else -1.0), paint(STEEL)
+    tubes, rings = gimbal(stage)
+    out = [((0.0, 0.0, 0.0), _tube((s * a[0],) + a[1:], (s * b[0],) + b[1:], r, steel))
+           for a, b, r in tubes]
+    return out + [((s * c[0],) + c[1:], drum(r, 2.0 * half, axis, steel))
+                  for c, axis, r, half in rings]
 
 
 def _hung(side, seg):
@@ -84,7 +104,7 @@ def _bones():
     """{segment: mesh}: each segment as its carbon tubes and plates, the legs' as parts
     (`_hung`)."""
     c = paint(CARBON)
-    out = {'pelvis': drum(0.015, 0.2, 'x', c),
+    out = {'pelvis': _join([_tube(a, b, BOOM[0], c) for a, b in zip(BOOM[1], BOOM[1][1:])]),
            'torso': loft([(0.0, 0.02, 0.02), (0.39, 0.02, 0.02)], c, poles=(-0.005, 0.395)),
            'neck': loft([(0.0, 0.013, 0.013), (0.065, 0.013, 0.013)], c, poles=(-0.003, 0.068)),
            'head': ellipsoid((0.0, 0.095, 0.012), (0.05, 0.06, 0.06), c, rows=8)}
@@ -111,6 +131,8 @@ def parts(bare=False):
     if bare:
         bones = {name: _nothing(mesh) for name, mesh in bones.items()}
     out = [(s[0], s[1], s[2], s[3], s[4], bones[s[0]]) for s in figure.SEGMENTS]
+    out += [(name, parent, joints, at, 0.0, mesh)
+            for name, parent, joints, at, mesh in drums.stages()]
     for name, parent, offset, (c, t, u, m) in drums.drums():
         joint = name[len('drive_'):]
         size = drives.of(joint)[1]
@@ -134,6 +156,9 @@ def parts(bare=False):
                 for k, mesh in enumerate(_hung(side, seg))]
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
         out.append(('board_' + joint, seg, (), at, 0.0, drum(radius, BOARD_T, faces, paint(PCB))))
+    out += [('gimbal%d_%s' % (k, side + stage), side + stage, (), at, 0.0, mesh)
+            for side in ('left_', 'right_') for stage in ('hip_yaw', 'hip_roll')
+            for k, (at, mesh) in enumerate(_gimbal(side, stage))]
     for joint in [side + kind for kind in linkage.GEARS for side in ('left_', 'right_')]:
         seg, pinion, r, wheel, big = _spurs(joint)
         out += [('pinion_' + joint, seg, (), pinion, 0.0, drum(r, SPUR_T, 'z', steel)),
@@ -180,7 +205,7 @@ def bands(meshes):
 def _spurs(joint):
     """(segment, pinion's centre, radius, wheel's centre, radius): a pair on a drive along z."""
     seg, (x, y, z) = drives.mount(joint) or ('', (0.0, 0.0, 0.0))
-    pivot = next(s[3] for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
+    pivot = drives.pivot(joint)
     face = z + drums.AXES[joint][1] + SPUR_T / 2.0
     apart = math.hypot(pivot[0] - x, pivot[1] - y)
     r = apart / (1.0 + linkage.GEARS[drives.kind(joint)])
@@ -314,7 +339,22 @@ def wires(parts_, frames):
     from coaxial.model.blocks import numpy as np
     at = {p[0]: f for p, f in zip(parts_, frames)}
     bones, rods, balls, drives_, releases = [], [], [], {}, []
+    turn, spot = at['pelvis']
+    boom = [spot + turn @ np.array(p) for p in BOOM[1]]
+    bones += list(zip(boom, boom[1:]))
+    for side in ('left_', 'right_'):
+        s = 1.0 if side == 'left_' else -1.0
+        for stage in ('hip_yaw', 'hip_roll'):
+            turn, spot = at[side + stage]
+            tubes, rings = gimbal(stage)
+            rods += [(spot + turn @ np.array((s * a[0],) + a[1:]),
+                      spot + turn @ np.array((s * b[0],) + b[1:])) for a, b, _r in tubes]
+            for c, axis, r, half in rings:
+                rods += _rims(np, spot + turn @ np.array((s * c[0],) + c[1:]),
+                              turn @ np.eye(3)['xyz'.index(axis)], r, half)
     for name, parent, *_rest in parts_[:len(figure.SEGMENTS)]:
+        if parent == 'pelvis' and name.endswith('_thigh'):
+            continue
         if parent:
             turn, spot = at[parent]
             root = spot + turn @ np.array([0.0, 0.325, 0.0]) if name.endswith('upper_arm') else spot

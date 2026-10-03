@@ -103,10 +103,11 @@ def mjcf():
     stood 3-8 mm in her knees' drums and boards, the kick felling her walk."""
     from machine.physics import SKELETON
     xml = _mjcf(SKELETON)
-    if not SKELETON:
-        return xml
     kin = [(s[0], s[1]) for s in SEGMENTS if s[1]]
+    if not SKELETON:
+        return _apart(xml, kin)
     near = {s[0]: [s[1]] + [k[0] for k in SEGMENTS if k[1] == s[0]] for s in SEGMENTS}
+    near.update({j: near[s[0]] + [s[0]] for s in SEGMENTS for j, _a, _s in s[2][:-1]})
     kin += [(part, other) for part, rides, _g in skeleton.bodies() for other in near[rides] if other]
     if xml not in _APART:
         import importlib
@@ -125,50 +126,77 @@ def _apart(xml, pairs):
         '<exclude body1="%s" body2="%s"/>' % pair for pair in pairs))
 
 
+def _joint(joint, axis, sign):
+    """A joint's element: its drive's armature, its stops, its spring or its gearbox's drag."""
+    from machine.physics import BACKDRIVE, REFLECTED, SERVO
+    stop, spring = STOPS.get(kind(joint)), drives.passive(joint)
+    if kind(joint) == 'hip_yaw' and HIP_YAW_DEG:
+        stop = (-HIP_YAW_DEG, HIP_YAW_DEG)
+    if spring:
+        stiffness, _damp, rest = spring
+        stop = (rest - HELD_DEG, rest + HELD_DEG) if stiffness is None else stop
+    axes = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1)}
+    return '<joint name="%s" axis="%g %g %g" armature="%g"%s%s/>' % (
+        (joint,) + tuple(sign * v for v in axes[axis]) + (
+            PASSIVE_J if spring else
+            SERVO[kind(joint)][3] + REFLECTED * (drives.armature(joint) - SERVO[kind(joint)][3]),
+            ' limited="true" range="%g %g"' % stop if stop else '',
+            ' stiffness="%g" springref="%g" damping="%g"' % (spring[0], spring[2], spring[1])
+            if spring and spring[0] else
+            ' frictionloss="%g"' % (BACKDRIVE * drives.backdrive(joint))
+            if BACKDRIVE and not spring else ''))
+
+
 def _mjcf(bones):
-    from machine.physics import BACKDRIVE, PLACED, REFLECTED, SERVO, STEP_S
+    from machine.physics import PLACED, SERVO, STEP_S
     shells = build.segments() if build.SHELLS else {}
     kids, riders = {}, build.riders() if PLACED and not shells else {}
     for seg in SEGMENTS:
         kids.setdefault(seg[1], []).append(seg)
-    axes = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1)}
     give = ' solref="%g %g" solimp="%g 0.95 %g"' % (SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M)
     cloth = ' solref="%g %g" solimp="%g 0.95 %g"' % (SOLE_S, SOLE_DAMP, SOLE_SOFT, CLOTH_GIVE_M)
     contacts = ' contype="1" conaffinity="2"'
     parts = skeleton.bodies() if bones else []
 
+    ridden = set(build.riders()) | {rides for _part, rides, _g in parts}
+    held = '<inertial pos="%g %g %g" mass="%g" fullinertia="%g %g %g %g %g %g"/>'
+
+    def carried(at):
+        """The drives' and her skeleton's bodies riding `at`, welded."""
+        out = ['<body name="%s_drive" pos="%g %g %g"><inertial pos="0 0 0" mass="%g" '
+               'diaginertia="%g %g %g"/></body>' % ((joint,) + where + (kg,) + inertia)
+               for joint, kg, where, inertia in riders.get(at, ())]
+        return out + ['<body name="%s"><inertial pos="0 0 0" mass="1e-6" diaginertia="1e-10 '
+                      '1e-10 1e-10"/>%s</body>' % (part, ''.join(geoms))
+                      for part, rides, geoms in parts if rides == at]
+
     def body(seg):
         name, _parent, joints, offset, rest, share, com, gyr = seg
         h = math.radians(rest) / 2.0
+        # A stage something rides, a body of its own: the joints before it on the one before.
+        stages = [j for j, _a, _s in joints[:-1] if j in ridden]
         out = ['<body name="%s" pos="%g %g %g" quat="%g 0 0 %g">' % (
-            (name,) + tuple(offset) + (math.cos(h), math.sin(h)))]
+            ((stages or [name])[0],) + tuple(offset) + (math.cos(h), math.sin(h)))]
         if seg[1] is None:
             out.append('<freejoint name="root"/>')
         for joint, axis, sign in joints:
-            stop, spring = STOPS.get(kind(joint)), drives.passive(joint)
-            if kind(joint) == 'hip_yaw' and HIP_YAW_DEG:
-                stop = (-HIP_YAW_DEG, HIP_YAW_DEG)
-            if spring:
-                stiffness, damp, rest = spring
-                stop = (rest - HELD_DEG, rest + HELD_DEG) if stiffness is None else stop
-            out.append('<joint name="%s" axis="%g %g %g" armature="%g"%s%s/>' % (
-                (joint,) + tuple(sign * v for v in axes[axis]) + (
-                    PASSIVE_J if spring else
-                    SERVO[kind(joint)][3] + REFLECTED * (drives.armature(joint)
-                                                         - SERVO[kind(joint)][3]),
-                    ' limited="true" range="%g %g"' % stop if stop else '',
-                    ' stiffness="%g" springref="%g" damping="%g"' % (
-                        spring[0], spring[2], spring[1]) if spring and spring[0] else
-                    ' frictionloss="%g"' % (BACKDRIVE * drives.backdrive(joint))
-                    if BACKDRIVE and not spring else '')))
-        mass = share * MASS_KG - sum(kg for _j, kg, _at, _i in riders.get(name, ()))
+            out.append(_joint(joint, axis, sign))
+            if joint in stages:
+                k = stages.index(joint) + 1
+                out += ([held % (shells[joint][1] + (shells[joint][0],) + shells[joint][2])
+                         if joint in shells else
+                         '<inertial pos="0 0 0" mass="1e-6" diaginertia="1e-10 1e-10 1e-10"/>']
+                        + carried(joint)
+                        + ['<body name="%s">' % (stages[k] if k < len(stages) else name)])
+        # A kid's stages' drives come out of this segment's share: they rode it unstaged.
+        staged = [j for kid in kids.get(name, []) for j, _a, _s in kid[2][:-1]]
+        mass = share * MASS_KG - sum(kg for at in [name] + staged
+                                     for _j, kg, _at, _i in riders.get(at, ()))
         out.append('<inertial pos="%g %g %g" mass="%g" fullinertia="%g %g %g %g %g %g"/>' % (
             shells[name][1] + (shells[name][0],) + shells[name][2]) if shells else
                    '<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
-        out += ['<body name="%s_drive" pos="%g %g %g"><inertial pos="0 0 0" mass="%g" '
-                'diaginertia="%g %g %g"/></body>' % ((joint,) + at + (kg,) + inertia)
-                for joint, kg, at, inertia in riders.get(name, ())]
+        out += carried(name)
         grip = ' contype="%d" conaffinity="%d" condim="4" friction="%%g %g 0.001"' % (
             ME, MEETS, TORSION_M)
         for part, shape, size, at in CONTACTS:
@@ -220,12 +248,9 @@ def _mjcf(bones):
             out += ['<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
                 -HAIR_M, HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG),
                 '</body>']
-        out += ['<body name="%s"><inertial pos="0 0 0" mass="1e-6" diaginertia="1e-10 1e-10 '
-                '1e-10"/>%s</body>' % (part, ''.join(geoms)) for part, rides, geoms in parts
-                if rides == name]
         for kid in kids.get(name, []):
             out += body(kid)
-        return out + ['</body>']
+        return out + ['</body>'] * (1 + len(stages))
 
     return '\n'.join(
         ['<mujoco model="gynoid">',

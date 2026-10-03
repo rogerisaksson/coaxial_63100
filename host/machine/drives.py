@@ -116,10 +116,11 @@ SIZES = {
 #: offset m in its frame[, its axis, '-x' its gearbox's end toward -x]) - its output turns what it
 #: drives about that axis from that end, nothing radial off an axial drive's (the user,
 #: 2026-10-03: the ankle's L lay along the shin, its crank about the knee's axis). The hip a
-#: gimbal on its axes: the pitch's L centred on the
-#: hip, the roll's M behind it at 1:100, up and in on a spur pair into her seat's fullest - an L
-#: there stood 67 mm out of it -, the yaw's M above, clear of the pitch's swing (69 mm), all three
-#: riding the pelvis; the knee's on its axis, 80 mm round inside it - a belt's give showed in her
+#: gimbal (`skeleton.gimbal`), each drive on the stage before its joint's - a segment's segment
+#: named for that joint, its frame the hip's centre: the yaw's M on the pelvis above, clear of the
+#: pitch's swing (69 mm), turning the fork; the roll's M on the fork behind at 1:100, up and in on
+#: a spur pair into the cradle, her seat's fullest - an L there stood 67 mm out of it -; the
+#: pitch's L in the cradle on the hip's centre; the knee's on its axis, 80 mm round inside it - a belt's give showed in her
 #: walk (the user, 2026-10-02), no four-bar kept its 163 degrees over a 12 degree transmission,
 #: coupling rods stood as wide as her knee; 100 mm round there the capture law flagged 260
 #: catches walking in 6 s, 80 none -; the elbow's under the arm's quick-release, a belt to the
@@ -138,8 +139,8 @@ JOINTS = {
     'wrist': ('S', ('forearm', (0.0, -0.12, 0.0), '-y')),
     'gripper': ('S', ('forearm', (0.0, -0.165, 0.0))),
     'hip_yaw': ('M', ('pelvis', (HIP_HALF, 0.103 - HIP_DROP, 0.0), '-y')),
-    'hip_roll': ('M', ('pelvis', (HIP_HALF - 0.025, 0.035 - HIP_DROP, -0.078))),
-    'hip': ('L', ('pelvis', (HIP_HALF, -HIP_DROP, 0.0))),
+    'hip_roll': ('M', ('hip_yaw', (-0.025, 0.035, -0.078))),
+    'hip': ('L', ('hip_roll', (0.0, 0.0, 0.0))),
     'knee': ('L', None),
     'ankle': ('M', ('shank', (0.002, -0.080, 0.015), 'x')),
     'ankle_roll': ('M', ('shank', (-0.004, -0.150, 0.0), '-x')),
@@ -196,6 +197,16 @@ def outlet(joint):
     i = 'xyz'.index(letter)
     reach = length(joint) / 2.0 + linkage.BEVEL_T / 2.0 + linkage.BEVELS[kind(joint)]
     return seg, tuple(v + end * reach if k == i else v for k, v in enumerate(at))
+
+
+def pivot(joint):
+    """Its joint's centre in the frame its drive rides (`mount`): its segment's place on its
+    parent, or a stage's origin."""
+    from machine.figure import SEGMENTS, STAGES
+    where = mount(joint)
+    if where is not None and where[0] in STAGES:
+        return (0.0, 0.0, 0.0)
+    return next(s[3] for s in SEGMENTS if joint in [j for j, *_ in s[2]])
 
 
 def mount(joint):

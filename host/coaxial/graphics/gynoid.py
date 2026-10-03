@@ -248,11 +248,11 @@ def _meshes():
                                    for z, rx, rv in _TOE_CAP],
                                   paint(SNEAKER), poles=(-0.006, TOE_M + 0.002), along='z')})
         extra += _soles(side)
-    return meshes, extra + drums.drums() + _wear()
+    return meshes, extra + drums.stages() + drums.drums() + _wear()
 
 
 def _worn(name):
-    """Whether a part is worn: her clothes, her hair and her sneakers' soles."""
+    """Whether a part is worn: her clothes, hair and sneakers' soles."""
     return name.startswith(('cloth_', 'hair')) or name.endswith(('_lock', '_sole'))
 
 
@@ -310,7 +310,7 @@ def _soles(side):
 
 class Body:
 
-    """The parts' meshes laid end to end once, with their smooth normals; `pose(angles)` turns them."""
+    """The parts' meshes laid end to end once, normals smoothed; `pose(angles)` turns them."""
 
     def __init__(self, dressed=True, see=None):
         np = _np()

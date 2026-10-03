@@ -206,6 +206,19 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   3-26 mm out of her shell, so a bevel pair at each gearbox's end
   (`linkage.BEVELS`); the spine roll's M 90 mm off its joint, nothing
   between.
+- The hip a gimbal of parts (`skeleton.gimbal`, the user, 2026-10-02): the
+  yaw's M on the pelvis turns a fork - a steerer, a crown over the pitch's
+  L, legs before it 20 mm in and behind it 20 out - to the roll's bearings
+  55 mm either side of the hip's centre; the roll's M rides the fork, its
+  spur pair into the cradle round the L. Each drive's stator on the stage
+  before its joint, a body of its own in MuJoCo (`figure.STAGES`), 4.6 kg
+  off the pelvis, her 35.95 kg kept - its walk from the squat fell at 5.8 s,
+  the scoreboard 578 against 495, the rises the worse, so their masses ride
+  the pelvis till the walk is retuned (`physics.STAGED`). The boom 60 mm across
+  and an arm up to each yaw drive: across, it lay on the L, their inner
+  corners 16 mm higher rolled 25 deg, no crown between. fit clean over its
+  45 poses once the femur left its collar 34 mm out, not 28.5 - knees under
+  her it met the fork's front bearing, 1 mm (2026-10-03).
 - Her ball stages for the wave reducer tools: one eccentric, ring fixed, cage
   out at lobes:1, the eccentric's race a stock bearing's outside, its
   eccentricity 80 % of the largest whose ball path stays a ball round

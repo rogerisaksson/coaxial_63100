@@ -58,6 +58,12 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: her head met the floor at 1.03-1.66 m/s in 3 of 64 falls, off at 0.66-0.81 in 2 (2026-10-03).
 REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 1.0, 1.0, 1.0, 1.0, 0.0
 
+#: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
+#: turning with the leg's yaw and roll, or the segment that stage hangs from, as before - on them,
+#: 0.7 kg of yaw's 8 % more inertia, her walk from the squat fell at 5.8 s, the scoreboard 578
+#: against 495, its rises the worse (2026-10-03): off until her walk is retuned for them.
+STAGED = 0.0
+
 #: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
 #: never binds, the heat counted - the walk, the clothes and the look are tuned on those
 #: (`tests/test_gynoid.py`), the faults run on the built ones (`tests/test_gynoid_faults.py`).

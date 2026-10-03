@@ -52,7 +52,7 @@ def _out(r, joints):
     worst = -np.inf
     for joint in joints:
         parent, dots = _drum(joint)
-        if not any(seg == parent for seg, *_rest in _skin()):
+        if parent not in figure.STAGES and not any(seg == parent for seg, *_rest in _skin()):
             continue                   # no capsule of hers: the shank's put the foot's 87 mm out
         pts = turn[parent][1] + dots @ turn[parent][0].T
         a, ab = ends[:, 0][None], (ends[:, 1] - ends[:, 0])[None]

@@ -34,9 +34,6 @@ END_KEEP_M = 0.02
 #: tibia through `mechanism.HUNG`'s points.
 GIRDLE_Y = 0.325
 
-#: The yokes a hip's drum rides, by its joint's kind: it turns with these about the hip.
-YOKES = {'hip': ('hip_yaw', 'hip_roll'), 'hip_roll': ('hip_yaw',)}
-
 
 def poses(csv=None, every=10):
     """[(name, {joint: deg})]: where she is put - standing, the walk's cycle, the squat, the
@@ -136,13 +133,6 @@ def _frames(angles):
         angles, (0.0, 0.0, 0.0), ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))).items()}
 
 
-def _rot(axis, a):
-    c, s = math.cos(a), math.sin(a)
-    if axis == 'y':
-        return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
-    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
-
-
 def parts(angles):
     """{name: ('drum', centre, axis, radius, half) | ('tube', a, b, radius)}, world, and the
     segment each rides."""
@@ -155,21 +145,27 @@ def parts(angles):
         axis, half = drums.AXES[joint]
         R, p = fr[parent]
         c, a = p + R @ np.array(at, float), R @ np.array(axis, float)
-        kind, side = drives.kind(joint), joint[:-len(drives.kind(joint))]
-        if kind in YOKES:
-            seg = next(s for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
-            hip = p + R @ np.array(seg[3], float)
-            turn = np.eye(3)
-            sign = {j: s for j, _ax, s in seg[2]}
-            for yoke in YOKES[kind]:
-                j = side + yoke
-                letter = next(ax for jj, ax, _s in seg[2] if jj == j)
-                turn = turn @ _rot(letter, sign[j] * math.radians(angles.get(j, 0.0)))
-            c, a = hip + R @ turn @ R.T @ (c - hip), R @ turn @ R.T @ a
         out[name] = ('drum', c, a, drives.of(joint)[1].diameter / 2.0, half)
         rides[name] = parent
+    R, p = fr['pelvis']
+    boom = [p + R @ np.array(q, float) for q in skeleton.BOOM[1]]
+    for k, (a, b) in enumerate(zip(boom, boom[1:])):
+        out['bone_pelvis>pelvis' + '+' * k] = ('tube', a, b, skeleton.BOOM[0])
+        rides['bone_pelvis>pelvis' + '+' * k] = 'pelvis'
+    for side in ('left_', 'right_'):
+        s = 1.0 if side == 'left_' else -1.0
+        for stage in ('hip_yaw', 'hip_roll'):
+            R, p = fr[side + stage]
+            tubes, rings = skeleton.gimbal(stage)
+            on = [('tube', p + R @ np.array((s * a[0],) + a[1:]), p + R @ np.array(
+                (s * b[0],) + b[1:]), r) for a, b, r in tubes] + [
+                ('drum', p + R @ np.array((s * c[0],) + c[1:]), R @ np.eye(3)['xyz'.index(axis)],
+                 r, half) for c, axis, r, half in rings]
+            for k, part in enumerate(on):
+                out['gimbal_' + side + stage + '+' * k] = part
+                rides['gimbal_' + side + stage + '+' * k] = side + stage
     for seg in figure.SEGMENTS:
-        if seg[1] is None:
+        if seg[1] is None or (seg[1] == 'pelvis' and seg[0].endswith('_thigh')):
             continue
         bare = seg[1].split('_', 1)[-1] if seg[1].startswith(('left_', 'right_')) else seg[1]
         if bare in TUBE_R:
@@ -255,8 +251,14 @@ def _bolted(a, b, rides, parts_):
     from machine import figure
     joints = {s[0]: [j for j, *_ in s[2]] for s in figure.SEGMENTS}
     parent = {s[0]: s[1] for s in figure.SEGMENTS}
-    sa, sb = rides[a], rides[b]
+    # A stage is its segment's here; a gimbal's members and its hip's drums bolted together.
+    stage = {j: s[0] for s in figure.SEGMENTS for j, *_ in s[2][:-1]}
+    sa, sb = stage.get(rides[a], rides[a]), stage.get(rides[b], rides[b])
     if a.startswith('rod_') and a.rstrip('+') == b.rstrip('+'):
+        return True
+    hip = [x for x in (a, b) if x.startswith('gimbal_')]
+    if hip and (a.startswith('gimbal_') == b.startswith('gimbal_') or any(
+            x.startswith('drive_') and drives_hip(x) for x in (a, b))) and sa == sb:
         return True
     if (not (sa == sb or parent.get(sa) == sb or parent.get(sb) == sa)
             and not a.startswith('rod_') and not b.startswith('rod_')):
@@ -270,6 +272,11 @@ def _bolted(a, b, rides, parts_):
         ends_a, ends_b = (set(x[len('bone_'):].rstrip('+').split('>')) for x in (a, b))
         return bool(ends_a & ends_b)
     return False
+
+
+def drives_hip(name):
+    """Whether a part is a hip's drive's drum, its gimbal's to carry."""
+    return name.startswith(('drive_left_hip', 'drive_right_hip'))
 
 
 def clearances(worst=10, csv=None):
@@ -345,7 +352,7 @@ def drawn(dressed):
     parts_, _rides = parts(stand)
     out = {}
     for name, part in parts_.items():
-        if not name.startswith(('drive_', 'board_', 'rod_')):
+        if not name.startswith(('drive_', 'board_', 'rod_', 'gimbal_')):
             continue
         points, radius = _points(part)
         best = np.full(len(points), np.inf)
