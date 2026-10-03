@@ -4,7 +4,7 @@ What `machine.director` sets her as she goes down.
 
     out = falls.reach(tip_deg, rate_deg_s)      # the arms, the neck, the waist's turn
     out = falls.yielded(out, bus)               # an arm at the floor: soft from there
-    out = falls.tucked(out, bus, k)             # down, drawn in by k of TUCK_S
+    out = falls.tucked(out, bus, k, lay)        # down, drawn in by k of TUCK_S from `lay`
 """
 import math
 
@@ -79,7 +79,8 @@ ARM_PARTS = tuple(side + part for side in ('left_', 'right_')
 #: 0.2 s after she was down her head met the floor 7 times of 16, at up to 3.6 kN; 0.5, 5 and
 #: 0.8 kN; 1.0, 4 and 0.5 kN, as untucked; its chin in 45 degrees, lying on a side, rolled
 #: her head to the floor at 1.01 m/s, in 20 at 0.42, level at none past the landing's 0.72
-#: (2026-10-01).
+#: (2026-10-01). Drawn from the crouch's asked pose, a hip the floor held at -29 went to -75 in
+#: 0.2 s and rolled her head to the floor at 1.39 m/s; from where she lay, 0.90 (2026-10-03).
 TUCKED, TUCK_AFTER_S, TUCK_S, TUCK_SOFT_DEG = 1.0, 1.0, 0.6, 3.0
 TUCK = dict({'neck': 0.0, 'spine': 30.0, 'spine_roll': 0.0, 'waist': 0.0},
             **{side + j: v for side in ('left_', 'right_') for j, v in (
@@ -120,14 +121,14 @@ def cause(tip, rate, stumbled):
         'to her left' if tip > 0.0 else 'to her right', rate, ' out of a stumble' if stumbled else '')
 
 
-def tucked(out, bus, k):
-    """`out` drawn in toward TUCK by `k` of TUCK_S, eased, each joint at most TUCK_SOFT_DEG past
-    where it is."""
+def tucked(out, bus, k, start):
+    """`out` drawn in toward TUCK by `k` of TUCK_S from `start` {joint: deg}, where she lay as it
+    began, eased, each joint at most TUCK_SOFT_DEG past where it is."""
     e = gait.eased(max(0.0, min(1.0, k)))
     got = dict(out)
     for j, v in TUCK.items():
         now = bus.get(j + '.deg', 0.0)
-        aim = out.get(j, now) + (v - out.get(j, now)) * e
+        aim = start.get(j, now) + (v - start.get(j, now)) * e
         got[j] = now + max(-TUCK_SOFT_DEG, min(TUCK_SOFT_DEG, aim - now))
     return got
 

@@ -99,9 +99,10 @@ class Director:
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
         #: Since when she falls and her arms and neck from and to what (`falls.reach`); the tilt last
-        #: pass, (deg, s), and its rate, deg/s; when an arm met the floor; her drives down.
+        #: pass, (deg, s), and its rate, deg/s; when an arm met the floor; since when she tucks and
+        #: from where, (s, {joint: deg}); her drives down.
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
-        self.fall_rate, self.touched_at, self.tucked_at, self.down = 0.0, None, None, None
+        self.fall_rate, self.touched_at, self.tucked, self.down = 0.0, None, None, None
         #: The get-up and the get-ups since she landed; what felled her, as the observer says it;
         #: the plans tried since, [(steps, why)], and one being made.
         self.getup, self.tries = getup.GetUp(machine), 0
@@ -144,7 +145,7 @@ class Director:
         self.walker.reset()
         self.blend, self.curl_from = None, {}
         self.falling_at, self.curl_to, self.tilt_was, self.touched_at = None, {}, None, None
-        self.tucked_at, self.down = None, None
+        self.tucked, self.down = None, None
         self.dropped, self.armed, self.tries = {}, {}, 0
         self.cause, self.tried, self.planning = '', [], None
 
@@ -327,11 +328,12 @@ class Director:
         if d.step(dt, bus):
             out = {j: bus.get(j + '.deg', 0.0) for j in figure.JOINTS}
         elif falls.TUCKED and bus['t'] - self.fallen_at >= falls.TUCK_AFTER_S:
-            if self.tucked_at is None:
-                self.tucked_at = bus['t']
+            if self.tucked is None:
+                self.tucked = (bus['t'], {j: bus.get(j + '.deg', 0.0) for j in falls.TUCK})
                 for i in range(len(figure.JOINTS)):
                     self.world.arm(i)
-            out = falls.tucked(out, bus, (bus['t'] - self.tucked_at) / falls.TUCK_S)
+            out = falls.tucked(out, bus, (bus['t'] - self.tucked[0]) / falls.TUCK_S,
+                               self.tucked[1])
         self.stage = 'check' if d.mode == 'checking' else 'fallen'
         if d.mode == 'checked' and self.tries < GETUP_TRIES:
             for i in range(len(figure.JOINTS)):
@@ -339,7 +341,7 @@ class Director:
             now = observer.status(bus, self.world, self)
             self._begin(self._planned(now), now)
             self.stage, self.falling_at, self.fallen_at = self.getup.stage, None, None
-            self.touched_at = self.tucked_at = self.down = None
+            self.touched_at = self.tucked = self.down = None
         return out
 
     def _short(self, kinds):
