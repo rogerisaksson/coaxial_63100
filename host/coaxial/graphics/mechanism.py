@@ -17,7 +17,7 @@ from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
 from machine import build, drives, figure, linkage
-from machine.skeleton import BOOM, COLLAR_M, HUNG, gimbal, held
+from machine.skeleton import BOOM, COLLAR_M, HUNG, gimbal, held, trunk
 from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
@@ -110,13 +110,15 @@ def _hung(side, seg):
 
 def _held(side):
     """[(name, rides, offset, mesh)]: `side`'s collars in the printed polymer, its struts, posts
-    and the ankle's cross in carbon and steel (`skeleton.held`)."""
+    and the ankle's cross in carbon and steel (`skeleton.held`), and with the left's the trunk's
+    frame (`skeleton.trunk`), its bearings and band steel."""
     out = []
-    for k, (name, rides, shape) in enumerate(held(side)):
+    framed = [(f + '_frame', f, sh) for f, sh in trunk()] if side == 'left_' else []
+    for k, (name, rides, shape) in enumerate(held(side) + framed):
         if shape[0] == 'ring':
             _kind, centre, axis, r, half = shape
             letter = 'xyz'[[abs(a) for a in axis].index(1.0)]
-            ink = paint(STEEL) if name.endswith('_cross') else paint(POLYMER)
+            ink = paint(STEEL) if name.endswith(('_cross', '_frame')) else paint(POLYMER)
             out.append(('held%d_%s' % (k, name), rides, centre, drum(r, 2.0 * half, letter, ink)))
         else:
             _kind, a, b, r = shape
@@ -126,12 +128,14 @@ def _held(side):
 
 
 def _bones():
-    """{segment: mesh}: each segment as its carbon tubes and plates, the limbs' and the feet's as
-    parts (`_hung`)."""
+    """{segment: mesh}: each segment as its carbon tubes and plates, the limbs', the feet's and
+    the trunk's as parts (`_hung`, `_held`)."""
     c = paint(CARBON)
     out = {'pelvis': _join([_tube(a, b, BOOM[0], c) for a, b in zip(BOOM[1], BOOM[1][1:])]),
-           'torso': loft([(0.0, 0.02, 0.02), (0.39, 0.02, 0.02)], c, poles=(-0.005, 0.395)),
-           'neck': loft([(0.0, 0.013, 0.013), (0.065, 0.013, 0.013)], c, poles=(-0.003, 0.068)),
+           'torso': _nothing(loft([(0.0, 0.02, 0.02), (0.39, 0.02, 0.02)], c,
+                                  poles=(-0.005, 0.395))),
+           'neck': _nothing(loft([(0.0, 0.013, 0.013), (0.065, 0.013, 0.013)], c,
+                                 poles=(-0.003, 0.068))),
            'head': ellipsoid((0.0, 0.095, 0.012), (0.05, 0.06, 0.06), c, rows=8)}
     for side in ('left_', 'right_'):
         out.update({side + 'upper_arm': _nothing(limb(UPPER_ARM, 0.012, 0.012, 0.012, c)),

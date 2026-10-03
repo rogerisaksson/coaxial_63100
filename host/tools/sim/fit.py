@@ -127,43 +127,6 @@ def outputs():
     return out
 
 
-def held_by(touch=0.001):
-    """{joint: [parts]}: standing, her left's and her trunk's drums and the structure holding
-    each - a bone, the gimbal, a bone's collar - touching it or through its own collars and struts
-    (`skeleton.HELD`), within `touch`; never a rod, a drum, a board, nor a wire through a
-    segment's middle (a straight bone where `skeleton.HUNG` has none)."""
-    from machine import gait, skeleton
-    parts_, _rides = parts(gait.stand())
-
-    def structure(name):
-        root = name[len('bone_'):].rstrip('+').split('>')[0]
-        return (name.startswith(('gimbal_', 'collar_', 'bone_pelvis>pelvis'))
-                or name.startswith('bone_') and root.split('_', 1)[-1] in skeleton.HUNG)
-
-    def dense(part):
-        if part[0] == 'tube':
-            return _points(part, 24)[0]
-        _k, c, ax, r, half = part
-        return np.concatenate([_points(('drum', c + t * half * ax, ax, r, 0.0))[0]
-                               for t in np.linspace(-1.0, 1.0, 15)])
-    out = {}
-    for name, part in parts_.items():
-        if not name.startswith('drive_') or name.startswith('drive_right_'):
-            continue
-        joint = name[len('drive_'):]
-        pts = dense(part)
-        mine = [h for h in parts_ if h.startswith('held_' + joint) and h[len('held_' + joint):]
-                .strip('+') == '']
-        reach = [p for p in parts_ if structure(p) and _gap(pts, parts_[p]) <= touch]
-        for h in mine:
-            if _gap(dense(parts_[h]), part) <= touch or any(
-                    _gap(dense(parts_[h]), parts_[g]) <= touch for g in mine if g != h):
-                reach += [p for p in parts_ if structure(p)
-                          and _gap(dense(parts_[h]), parts_[p]) <= touch]
-        out[joint] = sorted({p.rstrip('+') for p in reach})
-    return out
-
-
 def _frames(angles):
     from machine import figure
     return {k: (np.array(R), np.array(p)) for k, (p, R) in figure.frames(
@@ -202,7 +165,7 @@ def parts(angles):
                 out['gimbal_' + side + stage + '+' * k] = part
                 rides['gimbal_' + side + stage + '+' * k] = side + stage
     for seg in figure.SEGMENTS:
-        if seg[1] is None or (seg[1] == 'pelvis' and seg[0].endswith('_thigh')):
+        if seg[1] is None or seg[1] in skeleton.TRUNK:
             continue
         bare = seg[1].split('_', 1)[-1] if seg[1].startswith(('left_', 'right_')) else seg[1]
         if bare in TUBE_R:
@@ -245,6 +208,13 @@ def parts(angles):
         out['board_' + joint] = ('drum', p + R @ np.array(at, float),
                                  R @ np.eye(3)['xyz'.index(faces)], radius, 0.006)
         rides['board_' + joint] = seg
+    for k, (frame, shape) in enumerate(skeleton.trunk()):
+        R, p = fr[frame]
+        key = 'frame_%s%s' % (frame, '+' * k)
+        out[key] = (('drum', p + R @ np.array(shape[1]), R @ np.array(shape[2]), shape[3],
+                     shape[4]) if shape[0] == 'ring' else
+                    ('tube', p + R @ np.array(shape[1]), p + R @ np.array(shape[2]), shape[3]))
+        rides[key] = frame
     for side in ('left_', 'right_'):
         for k, (name, on, shape) in enumerate(skeleton.held(side)):
             R, p = fr[on]
@@ -307,7 +277,7 @@ def _bolted(a, b, rides, parts_):
     sa, sb = stage.get(rides[a], rides[a]), stage.get(rides[b], rides[b])
     if a.startswith('rod_') and a.rstrip('+') == b.rstrip('+'):
         return True
-    held = [x for x in (a, b) if x.startswith(('held_', 'collar_'))]
+    held = [x for x in (a, b) if x.startswith(('held_', 'collar_', 'frame_'))]
     if held and (rides[a] == rides[b] or (b if held[0] == a else a)
                  == 'drive_' + held[0].split('_', 1)[1].rstrip('+')):
         return True

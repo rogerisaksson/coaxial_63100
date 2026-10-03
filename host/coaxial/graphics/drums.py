@@ -8,10 +8,6 @@ from coaxial.graphics.lit import PLATE
 from coaxial.graphics.shapes import drum
 from machine import drives, figure, skeleton
 
-#: Where a drive's drum sits on its joint's segment when it is on the joint's axis, m, her left
-#: side's (the right's mirrored): the spine's pair and the waist's the torso's foot.
-DRUM_AT = {'spine_roll': (0.0, 0.05, 0.0), 'waist': (0.0, 0.105, 0.0), 'shoulder': (-0.015, 0.0, 0.0)}
-
 #: Each drum's axis (unit, its part's frame) and half its length, m, by its joint - filled as the
 #: drums are built.
 AXES = {}
@@ -29,19 +25,16 @@ def drums():
         if drives.passive(joint):
             continue
         size = drives.of(joint)[1]
-        kind = drives.kind(joint)
         letter, end = drives.output(joint) or (axes[joint], 1.0)
         mesh = drum(size.diameter / 2.0, drives.length(joint), letter, PLATE)
         mounted = drives.mount(joint)
-        x = -1.0 if joint.startswith('right_') else 1.0
-        ox, oy, oz = DRUM_AT.get(kind, (0.0, 0.0, 0.0))
         if mounted is not None:
             parent, at = mounted
         elif seg[1] is not None and seg[2][0][0] == joint:
             # A segment's first joint's drive: its stator on the parent, where the segment hangs.
-            parent, at = seg[1], (seg[3][0] + ox * x, seg[3][1] + oy, seg[3][2] + oz)
+            parent, at = seg[1], tuple(seg[3])
         else:
-            parent, at = seg[0], (ox * x, oy, oz)
+            parent, at = seg[0], (0.0, 0.0, 0.0)
         AXES[joint] = (tuple(end * v for v in {'x': (1.0, 0.0, 0.0), 'y': (0.0, 1.0, 0.0),
                                                'z': (0.0, 0.0, 1.0)}[letter]),
                        drives.length(joint) / 2.0)

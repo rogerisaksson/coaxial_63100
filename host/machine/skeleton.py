@@ -60,8 +60,33 @@ BOARD_T, CRANK_R = 0.012, 0.012
 
 #: The pelvis's boom, its radius and the points it runs through, m: its middle 60 mm long, an arm
 #: up to each hip's yaw drive - across, it lay on the hips' L, their inner corners 16 mm higher
-#: rolled 25 deg, and no fork's crown fitted between (2026-10-03).
-BOOM = (0.015, ((0.065, 0.05, 0.0), (0.03, 0.0, 0.0), (-0.03, 0.0, 0.0), (-0.065, 0.05, 0.0)))
+#: rolled 25 deg, and no fork's crown fitted between; its middle 28 mm down under the trunk's
+#: roll M it ran through, the M on it - 40 mm back, the hips' roll M yawed 18 deg met it, 17 mm
+#: (2026-10-03).
+BOOM = (0.015, ((0.065, 0.05, 0.0), (0.02, -0.028, 0.0), (-0.02, -0.028, 0.0), (-0.065, 0.05, 0.0)))
+
+#: Her trunk's frame, the wires through its drives gone (the user, 2026-10-03): per frame, tubes
+#: through these points, TRUNK_R round, and rings (centre, axis, radius, half), m in it - the
+#: pelvis's fork from the boom up to the roll's bearings 66 mm before and behind the spine's
+#: pivot, its front legs 55 mm out past the roll's 1:1 spur pair and in under the bearing - a
+#: bar across at its height met the pitch's bracket at 75 deg rolled 35, 11 mm -, its back one
+#: on her middle - 30 mm out, a hip's roll M yawed 18 deg met it; the roll's band round the
+#: pitch's L and its trunnions; the pitch's bracket from the L's output arched 52-85 mm over the
+#: band to the waist's M, clear of the bearings to 85 deg; the column from the waist's M to the
+#: neck's, the girdle to the shoulders'; the neck's bracket from its M's output to the head's S.
+TRUNK_R = 0.006
+TRUNK = {'pelvis': ((((0.055, 0.0327, 0.0), (0.055, 0.0327, 0.066), (0.0, 0.111, 0.066)),
+                     ((-0.055, 0.0327, 0.0), (-0.055, 0.0327, 0.066), (0.0, 0.111, 0.066)),
+                     ((0.0, -0.028, 0.0), (0.0, -0.028, -0.05), (0.0, 0.12, -0.066))),
+                    (((0.0, 0.12, 0.066), 'z', 0.009, 0.007),
+                     ((0.0, 0.12, -0.066), 'z', 0.009, 0.007))),
+         'spine_roll': ((((0.0, 0.0, 0.043), (0.0, 0.0, 0.052)),
+                         ((0.0, 0.0, -0.043), (0.0, 0.0, -0.052))),
+                        (((0.0, 0.0, 0.0), 'x', 0.043, 0.008),)),
+         'spine': ((((0.049, 0.0, 0.0), (0.054, 0.055, 0.0), (0.0, 0.078, 0.0)),), ()),
+         'torso': ((((0.0, 0.155, 0.0), (0.0, 0.352, 0.004)),
+                    ((-0.105, 0.325, -0.005), (0.105, 0.325, -0.005))), ()),
+         'neck': ((((0.042, 0.0, 0.0), (0.042, 0.042, 0.0), (0.0, 0.042, 0.012)),), ())}
 
 #: The hip's gimbal (`gimbal`): its tubes' radius; its roll bearings' radius and half length,
 #: 55 mm before and behind the hip's centre; its cradle's band's radius and half length round the
@@ -86,7 +111,10 @@ HELD = {'hip_yaw': (((-0.002, 0.008),), ()),
                        (((0.0046, -0.15, -0.034), (0.0046, -0.15, -0.047)),)),
         'elbow': (((-0.03, 0.005), (0.03, 0.005)), ()),
         'wrist': (((-0.022, 0.005), (0.022, 0.005)), ()),
-        'foot': (((0.0, 0.006),), ())}
+        'foot': (((0.0, 0.006),), ()),
+        'spine_roll': (((-0.025, 0.006),), ()),
+        'waist': (((0.025, 0.006), (-0.025, 0.006)), ()), 'neck': (((0.0, 0.006),), ()),
+        'head': (((0.0, 0.005),), ()), 'shoulder': (((-0.02, 0.006),), ())}
 POSTS = {'thigh': (((-0.0019, -0.16, 0.0282), (0.057, -0.16, 0.0282)),
                    ((-0.0057, -0.20, 0.0246), (0.057, -0.20, 0.0246)))}
 CROSS = ('ankle', 0.007, 0.026)
@@ -160,19 +188,34 @@ def held(side):
     placed = {j: (rides, at, letter) for j, rides, at, letter in _drums()}
     out = []
     for kind, (collars, struts) in HELD.items():
-        rides, at, letter = placed['left_' + kind]
-        end = (drives.output('left_' + kind) or (letter, 1.0))[1]
+        joint = kind if kind in placed else 'left_' + kind
+        if joint == kind and side != 'left_':
+            continue
+        rides, at, letter = placed[joint]
+        end = (drives.output(joint) or (letter, 1.0))[1]
         axis = tuple(end * v for v in AXES[letter])
-        r = drives.of('left_' + kind)[1].diameter / 2.0 + COLLAR_M
+        r = drives.of(joint)[1].diameter / 2.0 + COLLAR_M
         shapes = [('ring', tuple(p + a * along for p, a in zip(at, axis)), axis, r, half)
                   for along, half in collars] + [('tube', a, b, STRUT_R) for a, b in struts]
-        out += [(side + kind, rides.replace('left_', side), shape) for shape in shapes]
+        name = kind if joint == kind else side + kind
+        out += [(name, rides.replace('left_', side), shape) for shape in shapes]
     for seg, posts in POSTS.items():
         out += [(side + seg + '_posts', side + seg, ('tube', a, b, POST_R)) for a, b in posts]
     stage, r, half = CROSS
     out += [(side + stage + '_cross', side + stage, ('ring', (0.0, 0.0, 0.0), AXES[a], r, half))
             for a in 'xz']
     return [(name, rides, _mirror(shape, s)) for name, rides, shape in out]
+
+
+def trunk():
+    """[(frame, shape)]: her trunk's frame (`TRUNK`), each ('ring', centre, axis, radius, half)
+    or ('tube', a, b, radius) in its frame."""
+    out = []
+    for frame, (tubes, rings) in TRUNK.items():
+        out += [(frame, ('tube', a, b, TRUNK_R)) for points in tubes
+                for a, b in zip(points, points[1:])]
+        out += [(frame, ('ring', c, AXES[axis], r, half)) for c, axis, r, half in rings]
+    return out
 
 
 def _mirror(shape, s) -> Any:
@@ -229,7 +272,8 @@ def bodies():
             out.append((side + seg + '_bone', side + seg, [_geom('capsule', radius, a, b)
                                                             for p in ps for a, b in zip(p, p[1:])]))
         geoms = {}
-        for name, rides, shape in held(side):
+        for name, rides, shape in held(side) + ([(f + '_frame', f, sh) for f, sh in trunk()]
+                                                if side == 'left_' else []):
             g = (_geom('cylinder', shape[3], *_along(shape[1], shape[2], shape[4]))
                  if shape[0] == 'ring' else _geom('capsule', shape[3], shape[1], shape[2]))
             geoms.setdefault((name + '_held', rides), []).append(g)

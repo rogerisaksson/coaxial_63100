@@ -133,12 +133,16 @@ SIZES = {
 #: differential failed (docs/findings/body.md); the wrist's and the fingers' in the forearm, the
 #: toes' in the foot. Off the thigh, the hip's three took 3 kg out of its swing. The elbow and the neck M: on
 #: S an elbow pushing her up from the floor asked 20 N m rms over 2 s, the neck holding her head
-#: 6, their copper past what an S's winding sheds (2026-10-01).
+#: 6, their copper past what an S's winding sheds (2026-10-01). The waist's M on its axis 120 mm
+#: up the torso, its gearbox down to the spine's bracket - at the torso's foot sits the pitch's L,
+#: and its bracket clears the roll's bearings to 85 deg; the shoulder's 15 mm in from its joint
+#: (`skeleton.TRUNK`, 2026-10-03).
 JOINTS = {
     'spine': ('L', ('spine_roll', (0.0, 0.0, 0.0))), 'spine_roll': ('M', ('pelvis', (0.0, 0.02, 0.012))),
-    'waist': ('M', None),
+    'waist': ('M', ('torso', (0.0, 0.12, 0.0), '-y')),
     'neck': ('M', None), 'head': ('S', None),
-    'shoulder': ('M', None), 'elbow': ('M', ('upper_arm', (0.0, -0.115, 0.0), '-y')),
+    'shoulder': ('M', ('torso', (0.133, 0.325, -0.005))),
+    'elbow': ('M', ('upper_arm', (0.0, -0.115, 0.0), '-y')),
     'wrist': ('S', ('forearm', (0.0, -0.12, 0.0), '-y')),
     'gripper': ('S', ('forearm', (0.0, -0.165, 0.0))),
     'hip_yaw': ('M', ('pelvis', (HIP_HALF, 0.103 - HIP_DROP, 0.0), '-y')),

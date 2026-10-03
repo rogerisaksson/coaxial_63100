@@ -195,10 +195,6 @@ Open work. Measured results are in FINDINGS.
     it (the user, 2026-10-02): the limbs' panels light, their joint ends, the
     neck and the waist open (`coaxial.graphics.panels`); the seams between
     panels want finer meshes than 20 corners a ring (`shapes.AROUND`).
-  + Her trunk's skeleton (the user, 2026-10-03): the spine's L, the waist's,
-    the neck's and the shoulders' M and the head's S held by nothing but
-    wires through them (`fit.held_by`, `test_gynoid.TRUNK`) - a column, a
-    girdle and the pelvis's struts to the spine's L, with the roll first.
   + No belt where its give would show in her walk (the user, 2026-10-02):
     the toes' S pulls its belt 1.2 kN at 12 N m on 10 mm pulleys - a rod;
     the elbow's 1.4 kN and the wrist's 1.0 at their peaks.

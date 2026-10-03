@@ -268,3 +268,13 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   reaches -130 at most, her torso stopping her thigh - asked -130, 5 falls
   of 5 walking at 20.4-23.1 s. The gimbal rolls -35..+28, the roll onto her
   front asked 30, now 27: 5 of 5 at 20.4-23.3 s. The trunk's still wires.
+- Her trunk framed (`skeleton.TRUNK`, 2026-10-03): the boom ran through
+  the roll's M - its middle 28 mm down under it, the M on it; 40 mm back, a
+  hip's roll M yawed 18 deg met it, 17 mm. The pelvis's fork to the roll's
+  bearings 66 mm before and behind the pivot, its front legs 55 mm out past
+  the 1:1 spur pair and in under the bearing - a bar across met the pitch's
+  bracket at 75 deg rolled 35, 11 mm -, its back one on her middle. The
+  pitch's bracket arched 52-85 mm over the roll's band to the waist's M,
+  now 120 mm up the torso, its gearbox down - the mass model had it at the
+  pivot, inside the pitch's L. Over spine -30..85, roll +-35, waist +-50 the
+  closest 2 mm; every drive held (`fit.held_by`).
