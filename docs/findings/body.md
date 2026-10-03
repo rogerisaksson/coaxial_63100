@@ -219,6 +219,17 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   corners 16 mm higher rolled 25 deg, no crown between. fit clean over its
   45 poses once the femur left its collar 34 mm out, not 28.5 - knees under
   her it met the fork's front bearing, 1 mm (2026-10-03).
+- Her trunk's roll drive (2026-10-03): her shell at the spine's pivot 70 mm
+  ahead and behind, 102 to the sides. On its own axis a roll M stood 47 mm
+  out of it, 10 past her clothes ahead, 27 behind. A rod from the pelvis to
+  the roll's stage crosses the pitch: its ball on the pitch axis, rolled 10
+  deg and pitched 60 it read 10 of false roll, its slant took the roll's
+  lever through nought near 58 of pitch. A bevel differential across the
+  pivot fitted her, two M at x +-55 mm, but its bevels carry the drives'
+  87.5 N m each, 4.4 kN on a 20 mm radius: steel wants about 70 mm across,
+  the drums then past her shell; sat back on her heels, hips -163, her
+  femurs met its drums 3-6 mm wherever the knee's board left them room. The
+  roll's M on the pitch stage beside the pivot met the hip's yaw drum.
 - Her ball stages for the wave reducer tools: one eccentric, ring fixed, cage
   out at lobes:1, the eccentric's race a stock bearing's outside, its
   eccentricity 80 % of the largest whose ball path stays a ball round

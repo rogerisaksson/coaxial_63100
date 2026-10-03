@@ -186,9 +186,12 @@ Open work. Measured results are in FINDINGS.
     it (the user, 2026-10-02): the limbs' panels light, their joint ends, the
     neck and the waist open (`coaxial.graphics.panels`); the seams between
     panels want finer meshes than 20 corners a ring (`shapes.AROUND`).
-  + The spine roll's rod, from its M on the pelvis's top, 90 mm off its
-    joint with nothing between (`tools/sim/fit.py`'s outputs), to the
-    roll's yoke over the spine's pitch.
+  + Her trunk's roll drive, still 90 mm off its joint with nothing between
+    (`tools/sim/fit.py`'s outputs): a rod from the pelvis goes singular
+    near 58 deg of pitch, on its own axis it stands 47 mm out of her, a
+    bevel differential's bevels want 70 mm across (docs/findings/body.md)
+    - its reductions after the differential, or the trunk's gimbal roll
+    first, to weigh.
   + No belt where its give would show in her walk (the user, 2026-10-02):
     the toes' S pulls its belt 1.2 kN at 12 N m on 10 mm pulleys - a rod;
     the elbow's 1.4 kN and the wrist's 1.0 at their peaks.
