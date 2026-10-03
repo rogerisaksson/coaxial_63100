@@ -206,6 +206,15 @@ def bodies():
                                                   *_along(at, AXES[faces], BOARD_T / 2.0))]))
     out.append(('pelvis_boom', 'pelvis', [_geom('capsule', BOOM[0], a, b)
                                           for a, b in zip(BOOM[1], BOOM[1][1:])]))
+    for joint in [j for kind in linkage.GEARS for j in linkage.joints(kind)]:
+        rides, (x, y, z) = drives.mount(joint) or ('', (0.0, 0.0, 0.0))
+        pivot = drives.pivot(joint)
+        face = z + drives.length(joint) / 2.0
+        apart = math.hypot(pivot[0] - x, pivot[1] - y)
+        r = apart / (1.0 + linkage.GEARS[drives.kind(joint)])
+        out.append((joint + '_spurs', rides, [
+            _geom('cylinder', r, *_along((x, y, face), AXES['z'], 0.004)),
+            _geom('cylinder', apart - r, *_along((pivot[0], pivot[1], face), AXES['z'], 0.004))]))
     for side in ('left_', 'right_'):
         s = 1.0 if side == 'left_' else -1.0
         for stage in ('hip_yaw', 'hip_roll'):
@@ -231,17 +240,6 @@ def bodies():
                 _geom('capsule', CRANK_R, pin[:1] + hub[1:], pin),
                 _geom('capsule', linkage.ROD_R, pin, bend),
                 _geom('capsule', linkage.ROD_R, bend, ball)]))
-        for kind, ratio in linkage.GEARS.items():
-            joint = side + kind
-            rides, (x, y, z) = drives.mount(joint) or ('', (0.0, 0.0, 0.0))
-            pivot = drives.pivot(joint)
-            face = z + drives.length(joint) / 2.0
-            apart = math.hypot(pivot[0] - x, pivot[1] - y)
-            r = apart / (1.0 + ratio)
-            out.append((joint + '_spurs', rides, [
-                _geom('cylinder', r, *_along((x, y, face), AXES['z'], 0.004)),
-                _geom('cylinder', apart - r, *_along((pivot[0], pivot[1], face), AXES['z'],
-                                                     0.004))]))
         for kind, (drive_r, joint_r, out_m) in linkage.BELTS.items():
             joint = side + kind
             drum = next((d for d in _drums() if d[0] == joint), None)

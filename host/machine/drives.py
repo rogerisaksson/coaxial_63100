@@ -127,13 +127,16 @@ SIZES = {
 #: joint; the ankle's pair under the knee, one over the other on the shin's axis, each turning
 #: the foot through its rod (`linkage.PAIRS`) - an L at the foot 15 mm ahead put her head down at
 #: 1.6 and 1.9 m/s in two falls of four, 10 ahead with the roll's 10 back a derated knee's walk
-#: fell -; the spine roll's M on the pelvis's top between the hips' yaws - on its axis
-#: it stood 80 mm out of her back -, the wrist's and the fingers' in the forearm, the toes' in the
-#: foot. Off the thigh, the hip's three took 3 kg out of its swing. The elbow and the neck M: on
+#: fell -; the trunk's roll first (`figure.SEGMENTS`), its M on the pelvis's top between the
+#: hips' yaws on a spur pair into it, the pitch's L on its stage: on its axis the roll's M stood
+#: 80 mm out of her back, 47 out of her shell beside the L; across the pitch a rod or a
+#: differential failed (docs/findings/body.md); the wrist's and the fingers' in the forearm, the
+#: toes' in the foot. Off the thigh, the hip's three took 3 kg out of its swing. The elbow and the neck M: on
 #: S an elbow pushing her up from the floor asked 20 N m rms over 2 s, the neck holding her head
 #: 6, their copper past what an S's winding sheds (2026-10-01).
 JOINTS = {
-    'spine': ('L', None), 'spine_roll': ('M', ('pelvis', (0.0, 0.03, 0.012))), 'waist': ('M', None),
+    'spine': ('L', ('spine_roll', (0.0, 0.0, 0.0))), 'spine_roll': ('M', ('pelvis', (0.0, 0.02, 0.012))),
+    'waist': ('M', None),
     'neck': ('M', None), 'head': ('S', None),
     'shoulder': ('M', None), 'elbow': ('M', ('upper_arm', (0.0, -0.115, 0.0), '-y')),
     'wrist': ('S', ('forearm', (0.0, -0.12, 0.0), '-y')),

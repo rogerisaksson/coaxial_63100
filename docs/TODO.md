@@ -195,12 +195,6 @@ Open work. Measured results are in FINDINGS.
     it (the user, 2026-10-02): the limbs' panels light, their joint ends, the
     neck and the waist open (`coaxial.graphics.panels`); the seams between
     panels want finer meshes than 20 corners a ring (`shapes.AROUND`).
-  + Her trunk's roll drive, still 90 mm off its joint with nothing between
-    (`tools/sim/fit.py`'s outputs): a rod from the pelvis goes singular
-    near 58 deg of pitch, on its own axis it stands 47 mm out of her, a
-    bevel differential's bevels want 70 mm across (docs/findings/body.md)
-    - its reductions after the differential, or the trunk's gimbal roll
-    first, to weigh.
   + Her trunk's skeleton (the user, 2026-10-03): the spine's L, the waist's,
     the neck's and the shoulders' M and the head's S held by nothing but
     wires through them (`fit.held_by`, `test_gynoid.TRUNK`) - a column, a
@@ -215,7 +209,6 @@ Open work. Measured results are in FINDINGS.
     ratio traded against its transmission's to size and place it (the
     user, 2026-10-02): copper goes as 1/ratio^2 - an M at 1:60 sheds 22.5
     N m rms for good, the waist's 21.5 and the hip yaw's 16.2 under it.
-  + Past her skin standing: the spine roll's drum 3 mm (`tools/sim/fit.py`).
   + Her legs without stops; the toes' S gearbox 1.3-1.7 times its shock
     rating shoved past saving.
   + Her carbon shells shaped over the structure as built, and clothes cut

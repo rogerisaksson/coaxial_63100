@@ -59,8 +59,10 @@ BELTS = {'elbow': (0.018, 0.018, 0.034), 'wrist': (0.012, 0.012, 0.026),
 
 #: Each spur pair after its drive's gearbox, its ratio: the gearbox takes its joint's torque over
 #: it. The hip roll's M at 1:100 on two stages put its 126 N m peak through a box rated 100, and
-#: walking 133-139 (`World.geared`, 2026-10-02): one stage at 1:60 and 1.67 here.
-GEARS = {'hip_roll': 1.67}
+#: walking 133-139 (`World.geared`, 2026-10-02): one stage at 1:60 and 1.67 here. The trunk's
+#: roll's M 100 mm under its axis, 1:1, the wheel 7 mm before the pitch's L, 13 mm off it and the
+#: hips' yaw drums rolled 35 deg (2026-10-03).
+GEARS = {'hip_roll': 1.67, 'spine_roll': 1.0}
 
 #: Each bevel pair after its drive's gearbox, 1:1, its pitch radius, m: a right-angle stage, a
 #: motorcycle's shaft drive's, turning an output along its limb onto its joint's axis - across her
@@ -106,6 +108,12 @@ def bent(kind, pin, ball, across, side):
     frame = _frame(pin, ball, across, side)
     return tuple(p + sum(c * axis[i] for c, axis in zip(_bend(kind), frame))
                  for i, p in enumerate(pin))
+
+
+def joints(kind):
+    """The joints of a kind: her left's and her right's, or the trunk's one."""
+    from machine.figure import JOINTS
+    return [j for j in ('left_' + kind, 'right_' + kind, kind) if j in JOINTS]
 
 
 def _kind(joint):

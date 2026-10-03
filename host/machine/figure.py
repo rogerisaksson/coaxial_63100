@@ -59,11 +59,12 @@ def _sides():
 
 #: (segment, parent, joints ((joint, axis, sign), ..) applied in order, offset from the parent's
 #: frame, rest turn about z (deg), mass share, centre of mass, radii of gyration x y z (m)): parents
-#: first. The spine bends forward positive, its roll to her right; a hip's yaw and roll turn the
-#: leg out positive, an ankle's roll the sole out.
+#: first. The spine bends forward positive, its roll to her right, the roll first - its drive on
+#: the pelvis on a spur pair (`machine.drives`), she leans aside in her pelvis's frame, then bends;
+#: a hip's yaw and roll turn the leg out positive, an ankle's roll the sole out.
 SEGMENTS = tuple([
     ('pelvis', None, (), (0.0, 0.0, 0.0), 0.0, 0.1247, (0.0, 0.0, 0.0), (0.09, 0.07, 0.08)),
-    ('torso', 'pelvis', (('spine', 'x', 1), ('spine_roll', 'z', 1), ('waist', 'y', 1)),
+    ('torso', 'pelvis', (('spine_roll', 'z', 1), ('spine', 'x', 1), ('waist', 'y', 1)),
      (0.0, 0.12, 0.0), 0.0, 0.301,
      (0.0, 0.17, 0.0), (0.12, 0.09, 0.11)),
     ('neck', 'torso', (('neck', 'x', 1),), (0.0, 0.385, 0.006), 0.0, 0.006, (0.0, 0.05, 0.0),

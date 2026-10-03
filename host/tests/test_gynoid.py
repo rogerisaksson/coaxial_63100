@@ -264,9 +264,9 @@ def test_her_skeleton_collides(report):
 def test_each_drive_turns_from_its_gearbox(report):
     """Every drive's output turns what it drives about its drum's own axis from its gearbox's
     end (`tools.sim.fit.outputs`) - an axial drive with a radial output caught by eye (the user,
-    2026-10-03); the spine roll's rod still to come (docs/TODO.md)."""
+    2026-10-03)."""
     from tools.sim import fit
-    wrong = [(j, w) for j, _what, w in fit.outputs() if w and j != 'spine_roll']
+    wrong = [(j, w) for j, _what, w in fit.outputs() if w]
     report.check('every drive turns what it drives from its gearbox, on its axis', not wrong,
                  '%s' % wrong)
 

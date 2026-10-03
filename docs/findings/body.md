@@ -235,7 +235,11 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   87.5 N m each, 4.4 kN on a 20 mm radius: steel wants about 70 mm across,
   the drums then past her shell; sat back on her heels, hips -163, her
   femurs met its drums 3-6 mm wherever the knee's board left them room. The
-  roll's M on the pitch stage beside the pivot met the hip's yaw drum.
+  roll's M on the pitch stage beside the pivot met the hip's yaw drum. So the
+  roll first (`figure.SEGMENTS`, the user's leave: a replica, not an exact
+  copy): its M on the pelvis, 10 mm lower, on a 1:1 spur pair into it, the
+  pitch's L on its stage, 13 mm off the M and the hips' yaw drums rolled 35
+  deg; fit clean, the M 4 mm inside her skin; the scoreboard 582, held 64.0 %.
 - Her ball stages for the wave reducer tools: one eccentric, ring fixed, cage
   out at lobes:1, the eccentric's race a stock bearing's outside, its
   eccentricity 80 % of the largest whose ball path stays a ball round

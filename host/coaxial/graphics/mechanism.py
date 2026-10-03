@@ -187,7 +187,7 @@ def parts(bare=False):
     out += [('gimbal%d_%s' % (k, side + stage), side + stage, (), at, 0.0, mesh)
             for side in ('left_', 'right_') for stage in ('hip_yaw', 'hip_roll')
             for k, (at, mesh) in enumerate(_gimbal(side, stage))]
-    for joint in [side + kind for kind in linkage.GEARS for side in ('left_', 'right_')]:
+    for joint in [j for kind in linkage.GEARS for j in linkage.joints(kind)]:
         seg, pinion, r, wheel, big = _spurs(joint)
         out += [('pinion_' + joint, seg, (), pinion, 0.0, drum(r, SPUR_T, 'z', steel)),
                 ('spur_' + joint, seg, (), wheel, 0.0, drum(big, SPUR_T, 'z', steel))]
