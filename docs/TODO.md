@@ -202,8 +202,9 @@ Open work. Measured results are in FINDINGS.
     (the user, 2026-10-03; one box for all fails, docs/findings/body.md):
     at 1.5x the hip wants a U12 II class (107 x 48 mm, Km 0.58), 112 mm
     round where 96 stood 4 mm out of her skin, the knee 10 % more than its
-    board's 100 A at 48 V gives; their walk's 3.1 N m/kg first. Into `drives.SIZES` with the one-stage
-    gearboxes, her walk and get-up measured again.
+    board's 100 A at 48 V gives; their walk's 3.1 N m/kg first. Into
+    `drives.SIZES` with the one-stage gearboxes, her walk and get-up
+    measured again.
   + Her tubes and struts sized for stiffness, not to sway or flex (the user,
     2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
     PET-CF adapters and fittings between, printable flat without overhangs;
