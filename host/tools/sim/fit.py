@@ -27,7 +27,7 @@ from coaxial.model.blocks import numpy as np  # noqa: E402
 
 #: Each segment's carbon tube's radius, m (`mechanism._bones`; a rod's `linkage.ROD_R`).
 TUBE_R = {'pelvis': 0.015, 'torso': 0.02, 'neck': 0.013, 'upper_arm': 0.012, 'forearm': 0.01,
-          'thigh': 0.016, 'shank': 0.014}
+          'thigh': 0.016, 'shank': 0.014, 'foot': 0.006}
 END_KEEP_M = 0.02
 
 #: The shoulders' girdle off the torso's top, m up it (`mechanism.wires`); the femur and the
@@ -127,6 +127,43 @@ def outputs():
     return out
 
 
+def held_by(touch=0.001):
+    """{joint: [parts]}: standing, her left's and her trunk's drums and the structure holding
+    each - a bone, the gimbal, a bone's collar - touching it or through its own collars and struts
+    (`skeleton.HELD`), within `touch`; never a rod, a drum, a board, nor a wire through a
+    segment's middle (a straight bone where `skeleton.HUNG` has none)."""
+    from machine import gait, skeleton
+    parts_, _rides = parts(gait.stand())
+
+    def structure(name):
+        root = name[len('bone_'):].rstrip('+').split('>')[0]
+        return (name.startswith(('gimbal_', 'collar_', 'bone_pelvis>pelvis'))
+                or name.startswith('bone_') and root.split('_', 1)[-1] in skeleton.HUNG)
+
+    def dense(part):
+        if part[0] == 'tube':
+            return _points(part, 24)[0]
+        _k, c, ax, r, half = part
+        return np.concatenate([_points(('drum', c + t * half * ax, ax, r, 0.0))[0]
+                               for t in np.linspace(-1.0, 1.0, 15)])
+    out = {}
+    for name, part in parts_.items():
+        if not name.startswith('drive_') or name.startswith('drive_right_'):
+            continue
+        joint = name[len('drive_'):]
+        pts = dense(part)
+        mine = [h for h in parts_ if h.startswith('held_' + joint) and h[len('held_' + joint):]
+                .strip('+') == '']
+        reach = [p for p in parts_ if structure(p) and _gap(pts, parts_[p]) <= touch]
+        for h in mine:
+            if _gap(dense(parts_[h]), part) <= touch or any(
+                    _gap(dense(parts_[h]), parts_[g]) <= touch for g in mine if g != h):
+                reach += [p for p in parts_ if structure(p)
+                          and _gap(dense(parts_[h]), parts_[p]) <= touch]
+        out[joint] = sorted({p.rstrip('+') for p in reach})
+    return out
+
+
 def _frames(angles):
     from machine import figure
     return {k: (np.array(R), np.array(p)) for k, (p, R) in figure.frames(
@@ -136,7 +173,7 @@ def _frames(angles):
 def parts(angles):
     """{name: ('drum', centre, axis, radius, half) | ('tube', a, b, radius)}, world, and the
     segment each rides."""
-    from coaxial.graphics import drums
+    from coaxial.graphics import drums, mechanism
     from machine import drives, figure, linkage, skeleton
     fr = _frames(angles)
     out, rides = {}, {}
@@ -208,6 +245,20 @@ def parts(angles):
         out['board_' + joint] = ('drum', p + R @ np.array(at, float),
                                  R @ np.eye(3)['xyz'.index(faces)], radius, 0.006)
         rides['board_' + joint] = seg
+    for side in ('left_', 'right_'):
+        for k, (name, on, shape) in enumerate(skeleton.held(side)):
+            R, p = fr[on]
+            key = 'held_%s%s' % (name, '+' * k)
+            out[key] = (('drum', p + R @ np.array(shape[1]), R @ np.array(shape[2]), shape[3],
+                         shape[4]) if shape[0] == 'ring' else
+                        ('tube', p + R @ np.array(shape[1]), p + R @ np.array(shape[2]), shape[3]))
+            rides[key] = on
+        for seg in skeleton.HUNG:
+            R, p = fr[side + seg]
+            for k, (at, r, half) in enumerate(mechanism.collars(side, seg)):
+                key = 'collar_%s%s%s' % (side, skeleton.HUNG[seg][2][k][0], '+' * k)
+                out[key] = ('drum', p + R @ np.array(at), R[:, 0], r, half)
+                rides[key] = side + seg
     return out, rides
 
 
@@ -248,13 +299,17 @@ def _bolted(a, b, rides, parts_):
     shells keep them apart, and the physics collides those - unless one is a rod, which no shell
     holds; a bone and a drum on its segment or on a joint at either of its ends, two bones meeting
     at a joint."""
-    from machine import figure
+    from machine import figure, skeleton
     joints = {s[0]: [j for j, *_ in s[2]] for s in figure.SEGMENTS}
     parent = {s[0]: s[1] for s in figure.SEGMENTS}
     # A stage is its segment's here; a gimbal's members and its hip's drums bolted together.
     stage = {j: s[0] for s in figure.SEGMENTS for j, *_ in s[2][:-1]}
     sa, sb = stage.get(rides[a], rides[a]), stage.get(rides[b], rides[b])
     if a.startswith('rod_') and a.rstrip('+') == b.rstrip('+'):
+        return True
+    held = [x for x in (a, b) if x.startswith(('held_', 'collar_'))]
+    if held and (rides[a] == rides[b] or (b if held[0] == a else a)
+                 == 'drive_' + held[0].split('_', 1)[1].rstrip('+')):
         return True
     hip = [x for x in (a, b) if x.startswith('gimbal_')]
     if hip and (a.startswith('gimbal_') == b.startswith('gimbal_') or any(
@@ -267,7 +322,17 @@ def _bolted(a, b, rides, parts_):
     if 'bone' in kinds and 'drive' in kinds:
         bone, drum = (a, b) if kinds[0] == 'bone' else (b, a)
         root, tip = bone[len('bone_'):].rstrip('+').split('>')
+        bare = root.split('_', 1)[-1] if root.startswith(('left_', 'right_')) else root
+        if bare in skeleton.HUNG:
+            # Hung, a bone holds only the drums it clamps and those on its own segment.
+            side = root[:root.index('_') + 1]
+            return (rides[drum] == root or drum[len('drive_'):] in
+                    [side + j for j, _part, _y in skeleton.HUNG[bare][2]])
         return (rides[drum] == root or drum[len('drive_'):] in joints[root] + joints[tip])
+    cross = [x for x in (a, b) if x.startswith('held_') and x.rstrip('+').endswith('_cross')]
+    if cross and 'bone' in kinds:
+        # The ankle's cross: its pins in the tibia's clevis and the foot's cheeks.
+        return True
     if kinds == ('bone', 'bone'):
         ends_a, ends_b = (set(x[len('bone_'):].rstrip('+').split('>')) for x in (a, b))
         return bool(ends_a & ends_b)
@@ -293,7 +358,11 @@ def clearances(worst=10, csv=None):
             for b in names[i + 1:]:
                 if _bolted(a, b, rides, parts_):
                     continue
-                g = _gap(pa, parts_[b]) - ra
+                pb = pa
+                if b.startswith('rod_'):
+                    end = parts_[b][2 if b.endswith('+') else 1]
+                    pb = pa[np.linalg.norm(pa - end, axis=1) > END_KEEP_M]
+                g = _gap(pb, parts_[b]) - ra if len(pb) else 1.0
                 if (a, b) not in best or g < best[(a, b)][0]:
                     best[(a, b)] = (g, name)
     return sorted((g, a, b, pose) for (a, b), (g, pose) in best.items())[:worst]

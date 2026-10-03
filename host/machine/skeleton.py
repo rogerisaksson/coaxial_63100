@@ -12,6 +12,7 @@ A part a body of its own meets the segment its own hangs from - the folded femur
 which MuJoCo's parent and child never do; what touches standing is excluded (`machine.mjcf`).
 """
 import math
+from typing import Any
 
 from machine import drives, linkage
 from machine.figure import SEGMENTS
@@ -25,11 +26,34 @@ from machine.gait import SHANK, THIGH
 #: drives to the ankle, between their rods - two tubes 46 mm apart round one rod were wider than
 #: her calf with two. Each drum they hang from or reach clamped by a collar
 #: (`coaxial.graphics.mechanism`): (joint, its gearbox or motor, y on the segment).
+#: The tibia ends in a clevis round the ankle's cross; the humerus and the forearm, their drums
+#: filling them (M 30 mm round in 34, S 21 in 25), from a flange on the joint above to their drum's
+#: collars (`HELD`), on from under its bevel behind its belt to a clevis round the joint below; the
+#: foot a keel from the heel to the toes' axle, cheeks on the cross's roll pins, a bar for the rods'
+#: balls.
 HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012)),), 0.016,
                   (('hip', 'gear', 0.0), ('knee', 'motor', -THIGH))),
         'shank': ((((0.0285, -0.045, -0.032), (0.0, -0.17, -0.05), (0.0, 0.06 - SHANK, -0.008),
-                    (0.0, -SHANK, 0.012)),), 0.012,
-                  (('knee', 'gear', 0.0),))}
+                    (0.0, 0.035 - SHANK, 0.014)),
+                   ((0.03, 0.02 - SHANK, 0.014), (0.0, 0.035 - SHANK, 0.014),
+                    (-0.03, 0.02 - SHANK, 0.014)),
+                   ((0.03, 0.02 - SHANK, 0.014), (0.03, -SHANK, 0.0)),
+                   ((-0.03, 0.02 - SHANK, 0.014), (-0.03, -SHANK, 0.0))), 0.012,
+                  (('knee', 'gear', 0.0),)),
+        'upper_arm': ((((0.029, -0.004, 0.0), (0.029, -0.048, 0.0), (0.0, -0.077, 0.0)),
+                       ((-0.018, -0.145, -0.02), (-0.016, -0.19, -0.014), (-0.016, -0.25, -0.012),
+                        (-0.026, -0.28, 0.0)),
+                       ((-0.016, -0.25, -0.012), (0.02, -0.25, -0.012), (0.02, -0.28, 0.0))),
+                      0.006, ()),
+        'forearm': ((((-0.02, 0.0, 0.0), (0.014, 0.0, 0.0)), ((0.0, 0.0, 0.0), (0.0, -0.089, 0.0)),
+                     ((0.0, -0.142, -0.019), (0.0, -0.18, -0.012), (0.0, -0.215, -0.008),
+                      (-0.018, -0.235, 0.0), (-0.018, -0.25, 0.0)),
+                     ((0.0, -0.215, -0.008), (0.013, -0.235, 0.0), (0.013, -0.25, 0.0))), 0.006, ()),
+        'foot': ((((0.0, 0.0, -0.026), (0.0, -0.035, -0.032), (0.0, -0.066, -0.045),
+                   (0.0, -0.066, 0.105), (0.0, -0.061, 0.117)),
+                  ((0.0, 0.0, 0.026), (0.0, -0.03, 0.018), (0.0, -0.066, 0.015)),
+                  ((0.012, 0.0047, -0.0174), (0.0, 0.004, -0.024), (-0.016, 0.0057, -0.0213)),
+                  ((-0.03, -0.061, 0.117), (0.03, -0.061, 0.117))), 0.006, ())}
 
 #: A board's thickness with its parts, m; a crank's radius (a rod's `linkage.ROD_R`).
 BOARD_T, CRANK_R = 0.012, 0.012
@@ -42,8 +66,30 @@ BOOM = (0.015, ((0.065, 0.05, 0.0), (0.03, 0.0, 0.0), (-0.03, 0.0, 0.0), (-0.065
 #: The hip's gimbal (`gimbal`): its tubes' radius; its roll bearings' radius and half length,
 #: 55 mm before and behind the hip's centre; its cradle's band's radius and half length round the
 #: pitch's L. Crown to L 7 mm rolled 25 deg; the back leg 20 mm out, 8 mm off the roll's M; the
-#: front 20 mm in, the femur's collar 3 mm off its bearing at 90 deg of flexion (2026-10-03).
+#: front 20 mm in, the femur's collar 3 mm off its bearing at 90 deg of flexion. It rolls -35..+28
+#: deg: further the L meets the front leg, the femur's collar the crown's back leg (2026-10-03).
 FORK_R, BEARING, BAND = 0.007, (0.009, 0.007, 0.055), (0.043, 0.008)
+
+#: Each drive held by what carries it - the hip's roll drum, the ankles', the toes' and the boards
+#: held by nothing (the user, 2026-10-03): its collars, COLLAR_M proud of its drum, each (m from
+#: its middle toward its output, half width); its struts, STRUT_R round, (a, b) m in the frame
+#: its drum rides, her left's (the right's x mirrored), from a collar into the fork's back leg or
+#: the tibia. The boards on POSTS into the femur; the ankle's CROSS (pins' radius, half length)
+#: on the stage between its pitch and its roll.
+COLLAR_M, STRUT_R, POST_R = 0.004, 0.005, 0.004
+HELD = {'hip_yaw': (((-0.002, 0.008),), ()),
+        'hip_roll': (((0.018, 0.006), (-0.022, 0.006)),
+                     (((0.02, 0.035, -0.055), (0.009, 0.035, -0.06)),
+                      ((0.02, 0.058, -0.055), (-0.001, 0.059, -0.1)))),
+        'ankle': (((0.0185, 0.006),), (((0.0205, -0.08, -0.019), (0.0205, -0.08, -0.037)),)),
+        'ankle_roll': (((-0.0086, 0.006),),
+                       (((0.0046, -0.15, -0.034), (0.0046, -0.15, -0.047)),)),
+        'elbow': (((-0.03, 0.005), (0.03, 0.005)), ()),
+        'wrist': (((-0.022, 0.005), (0.022, 0.005)), ()),
+        'foot': (((0.0, 0.006),), ())}
+POSTS = {'thigh': (((-0.0019, -0.16, 0.0282), (0.057, -0.16, 0.0282)),
+                   ((-0.0057, -0.20, 0.0246), (0.057, -0.20, 0.0246)))}
+CROSS = ('ankle', 0.007, 0.026)
 
 #: Her skeleton's contacts: her skins and itself (`mjcf.ME`, `MEETS`), its own friction - never
 #: the floor: inside her shell, outside her skins' capsules, the toes' belt's pulley met it as
@@ -106,6 +152,37 @@ def gimbal(stage):
             [((0.0, 0.0, at), 'z', r, half) for _x, at in legs])
 
 
+def held(side):
+    """[(name, segment or stage it rides, shape)]: `side`'s collars, struts and posts (`HELD`,
+    `POSTS`) and its ankle's cross, each ('ring', centre, axis, radius, half) or ('tube', a, b,
+    radius) in the frame it rides."""
+    s = 1.0 if side == 'left_' else -1.0
+    placed = {j: (rides, at, letter) for j, rides, at, letter in _drums()}
+    out = []
+    for kind, (collars, struts) in HELD.items():
+        rides, at, letter = placed['left_' + kind]
+        end = (drives.output('left_' + kind) or (letter, 1.0))[1]
+        axis = tuple(end * v for v in AXES[letter])
+        r = drives.of('left_' + kind)[1].diameter / 2.0 + COLLAR_M
+        shapes = [('ring', tuple(p + a * along for p, a in zip(at, axis)), axis, r, half)
+                  for along, half in collars] + [('tube', a, b, STRUT_R) for a, b in struts]
+        out += [(side + kind, rides.replace('left_', side), shape) for shape in shapes]
+    for seg, posts in POSTS.items():
+        out += [(side + seg + '_posts', side + seg, ('tube', a, b, POST_R)) for a, b in posts]
+    stage, r, half = CROSS
+    out += [(side + stage + '_cross', side + stage, ('ring', (0.0, 0.0, 0.0), AXES[a], r, half))
+            for a in 'xz']
+    return [(name, rides, _mirror(shape, s)) for name, rides, shape in out]
+
+
+def _mirror(shape, s) -> Any:
+    def m(p):
+        return (s * p[0],) + tuple(p[1:])
+    if shape[0] == 'ring':
+        return ('ring', m(shape[1]), m(shape[2])) + shape[3:]
+    return ('tube', m(shape[1]), m(shape[2]), shape[3])
+
+
 def _rod(side, kind):
     """A rod's crank's hub, pin, bend and ball at rest in its drive's segment's frame."""
     s = 1.0 if side == 'left_' else -1.0
@@ -142,6 +219,12 @@ def bodies():
             ps = [[(s * x, y, z) for x, y, z in points] for points in tubes]
             out.append((side + seg + '_bone', side + seg, [_geom('capsule', radius, a, b)
                                                             for p in ps for a, b in zip(p, p[1:])]))
+        geoms = {}
+        for name, rides, shape in held(side):
+            g = (_geom('cylinder', shape[3], *_along(shape[1], shape[2], shape[4]))
+                 if shape[0] == 'ring' else _geom('capsule', shape[3], shape[1], shape[2]))
+            geoms.setdefault((name + '_held', rides), []).append(g)
+        out += [(name, rides, g) for (name, rides), g in geoms.items()]
         for kind in linkage.RODS:
             seg, hub, pin, bend, ball = _rod(side, kind)
             out.append((side + kind + '_rod', seg[1], [

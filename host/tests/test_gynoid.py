@@ -271,10 +271,23 @@ def test_each_drive_turns_from_its_gearbox(report):
                  '%s' % wrong)
 
 
+#: The trunk's drives, on wires through them till its column and girdle (docs/TODO.md).
+TRUNK = ('spine', 'spine_roll', 'waist', 'neck', 'head', 'left_shoulder')
+
+
+def test_each_drive_is_held(report):
+    """Every limb's drive held by a bone, the gimbal or the boom, touching it or through its own
+    collars and struts (`tools.sim.fit.held_by`) - the hip's roll drum, the ankles' and the toes'
+    held by nothing, caught by eye (the user, 2026-10-03)."""
+    from tools.sim import fit
+    loose = [j for j, by in fit.held_by().items() if not by and j not in TRUNK]
+    report.check("every limb's drive held", not loose, '%s held by nothing' % loose)
+
+
 ROSTER = (test_a_virtual_body_walks, test_a_leg_by_its_foot, test_a_body_with_mass_walks,
           test_the_pendulum_between_her_ears, test_she_rises_and_walks, test_dressed_or_bare,
           test_the_floor_outlasts_a_walk, test_a_style_eases_in, test_her_skeleton_collides,
-          test_each_drive_turns_from_its_gearbox)
+          test_each_drive_turns_from_its_gearbox, test_each_drive_is_held)
 
 
 def main(argv=None):

@@ -57,8 +57,10 @@ UNFOLD = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
 KNEES_UNDER = (('ease', 'prop', 1.19, _pose(3.0, 52.5, 24.6, -7.9, -20.0, 100.0, 84.9)),
                ('ease', 'prop', 1.46, _pose(-87.8, 96.8, 14.8, 22.9, -20.0, 100.0, 114.4)))
 #: Sat back over 0.6 s, not the search's 0.3: her neck whipped 866 -> 520 deg/s, a foot 3.9 -> 2.8
-#: m/s, 16 falls of 16 up as before (2026-10-01).
-SIT_BACK = (('ease', 'sit', 0.6, _pose(-163.2, 158.2, 12.2, 60.0, -20.0, 54.3, 12.0)),
+#: m/s, 16 falls of 16 up as before (2026-10-01). The hip -130, where her torso stops her thigh,
+#: not the search's -163.2 - past -142 her femur goes through her hip's yaw drum: 5 falls of 5
+#: walking at 20.4-23.1 s (2026-10-03).
+SIT_BACK = (('ease', 'sit', 0.6, _pose(-130.0, 158.2, 12.2, 60.0, -20.0, 54.3, 12.0)),
             ('ease', 'sit', 3.08, dict(_pose(-21.9, 160.0, -46.8, 30.9, -20.0, 72.7, 65.2),
                                        left_foot=54.5, right_foot=54.5)))
 ONTO_FEET = (('ease', 'lift', 1.11, dict(_pose(-14.9, 139.2, -33.3, 37.7, -20.0, 68.2, -8.9),
@@ -90,13 +92,14 @@ def _mirrored(pose):
 #: knobs from flat and two logged falls: from all ten face down at -0.98 to -1.00 and knelt, a
 #: foot at 1.3 m/s, the hip and knee 133 deg/s. The leg-pushed roll before it, searched on the
 #: 35 kg build, lay on her back on the modules', its planted foot never down; thrown, a foot flew
-#: 4.9 m/s, the hip and knee 803 deg/s (2026-10-01, 2026-10-02).
+#: 4.9 m/s, the hip and knee 803 deg/s (2026-10-01, 2026-10-02). Its hip roll 27, not the
+#: search's 30: the gimbal turns -35..+28 (`skeleton.FORK_R`) (2026-10-03).
 _BASE = _pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0)
-TO_FRONT = (('ease', 'roll', 0.79, dict(_BASE, left_hip=-47.0, left_knee=60.0, left_hip_roll=30.0,
+TO_FRONT = (('ease', 'roll', 0.79, dict(_BASE, left_hip=-47.0, left_knee=60.0, left_hip_roll=27.0,
                                        left_hip_yaw=17.8, left_shoulder=65.5, left_elbow=69.9,
                                        right_shoulder=154.7, waist=43.9, spine_roll=-35.0,
                                        head=-13.2)),
-            ('ease', 'roll', 0.54, dict(_BASE, left_hip=-50.8, left_knee=13.4, left_hip_roll=30.0,
+            ('ease', 'roll', 0.54, dict(_BASE, left_hip=-50.8, left_knee=13.4, left_hip_roll=27.0,
                                        left_hip_yaw=17.8, left_shoulder=-6.3, left_elbow=2.5,
                                        right_shoulder=205.3, waist=-31.6, spine_roll=12.4,
                                        head=-13.2)),

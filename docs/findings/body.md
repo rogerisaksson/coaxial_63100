@@ -249,3 +249,18 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
 
   M's on 9 mm balls left its ring 1.75 mm of wall in 60, S's on 8 mm
   0.4 in 42.
+  A ball on the 6005's cylindrical outside at L's 171 N m carries 4.66 kN,
+  p0 7.46 GPa against ISO 76's static 4.2; at 40 N m 4.6: a grooved race
+  or rollers in line contact (2026-10-03).
+- Her drives held (`fit.held_by`, `skeleton.HELD`, 2026-10-03): the hip's
+  roll M, the ankles' and the toes' held by nothing, the arms' and the
+  trunk's only by wires through them. Now the roll M on two collars and
+  struts into the fork's back leg, the yaw M's collar on the boom, the
+  ankles' M on struts into the tibia, the toes' S on the foot's keel, the
+  humerus and the forearm clamped to their drums' collars and on under the
+  bevel to a clevis, the tibia's clevis round the ankle's cross. A bone
+  checked against each drum it does not clamp: the femur went 30 mm through
+  the hip's yaw M at the sit back's asked -163 and meets it past -142; she
+  reaches -130 at most, her torso stopping her thigh - asked -130, 5 falls
+  of 5 walking at 20.4-23.1 s. The gimbal rolls -35..+28, the roll onto her
+  front asked 30, now 27: 5 of 5 at 20.4-23.3 s. The trunk's still wires.

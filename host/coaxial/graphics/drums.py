@@ -6,7 +6,7 @@
 """
 from coaxial.graphics.lit import PLATE
 from coaxial.graphics.shapes import drum
-from machine import drives, figure
+from machine import drives, figure, skeleton
 
 #: Where a drive's drum sits on its joint's segment when it is on the joint's axis, m, her left
 #: side's (the right's mirrored): the spine's pair and the waist's the torso's foot.
@@ -55,6 +55,7 @@ def stages():
     empty part its drums hang from."""
     ridden = {where[0] for j in figure.JOINTS if not drives.passive(j)
               for where in [drives.mount(j)] if where}
+    ridden |= {rides for side in ('left_', 'right_') for _n, rides, _s in skeleton.held(side)}
     empty = _empty(drum(0.001, 0.001, 'x', PLATE))
     out = []
     for _name, parent, joints, offset, *_rest in figure.SEGMENTS:

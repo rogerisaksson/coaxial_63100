@@ -17,7 +17,7 @@ from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
 from machine import build, drives, figure, linkage
-from machine.skeleton import BOOM, HUNG, gimbal
+from machine.skeleton import BOOM, COLLAR_M, HUNG, gimbal, held
 from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
@@ -49,9 +49,6 @@ RELEASE_PROUD_M = 0.001
 #: pulleys BELT_W wide.
 BALL_R, BELT_W = 0.009, 0.012
 
-
-#: A drum the bones (`skeleton.HUNG`) hang from or reach clamped by a collar COLLAR_M proud.
-COLLAR_M = 0.004
 
 
 def _tube(a, b, radius, material):
@@ -85,39 +82,68 @@ def _gimbal(side, stage):
                   for c, axis, r, half in rings]
 
 
-def _hung(side, seg):
-    """[mesh]: `seg`'s tubes through HUNG's points and its collars, its frame."""
-    s, c = (1.0 if side == 'left_' else -1.0), paint(CARBON)
-    tubes, radius, collars = HUNG[seg]
-    out = [_tube(a, b, radius, c) for points in tubes
-           for p in [[(s * x, y, z) for x, y, z in points]] for a, b in zip(p, p[1:])]
-    for joint, part, y in collars:
+def collars(side, seg):
+    """[(centre, radius, half)]: the collars `seg`'s bones (`skeleton.HUNG`) clamp round their
+    drums' motors or gearboxes, along x, its frame."""
+    s, out = (1.0 if side == 'left_' else -1.0), []
+    for joint, part, y in HUNG[seg][2]:
         half, r = drives.length(side + joint) / 2.0, drives.of(side + joint)[1].diameter / 2.0
         at, length = ((s * half * MOTOR_SHARE, 2.0 * half * (1.0 - MOTOR_SHARE)) if part == 'gear'
                       else (-s * half * (1.0 - MOTOR_SHARE), 2.0 * half * MOTOR_SHARE))
-        corners, t, u, m = drum(r + COLLAR_M, length, 'x', c)
-        out.append((corners + (at, y, 0.0), t, u, m))
+        # A collar a millimetre short of the motor's and gearbox's seam: the knee's two turn.
+        at += (0.0005 if at * s > 0.0 else -0.0005) * s
+        out.append(((at, y, 0.0), r + COLLAR_M, length / 2.0 - 0.0005))
+    return out
+
+
+def _hung(side, seg):
+    """[mesh]: `seg`'s tubes through HUNG's points and its collars, its frame."""
+    s, c = (1.0 if side == 'left_' else -1.0), paint(CARBON)
+    tubes, radius, _collars = HUNG[seg]
+    out = [_tube(a, b, radius, c) for points in tubes
+           for p in [[(s * x, y, z) for x, y, z in points]] for a, b in zip(p, p[1:])]
+    for at, r, half in collars(side, seg):
+        corners, t, u, m = drum(r, 2.0 * half, 'x', c)
+        out.append((corners + at, t, u, m))
+    return out
+
+
+def _held(side):
+    """[(name, rides, offset, mesh)]: `side`'s collars in the printed polymer, its struts, posts
+    and the ankle's cross in carbon and steel (`skeleton.held`)."""
+    out = []
+    for k, (name, rides, shape) in enumerate(held(side)):
+        if shape[0] == 'ring':
+            _kind, centre, axis, r, half = shape
+            letter = 'xyz'[[abs(a) for a in axis].index(1.0)]
+            ink = paint(STEEL) if name.endswith('_cross') else paint(POLYMER)
+            out.append(('held%d_%s' % (k, name), rides, centre, drum(r, 2.0 * half, letter, ink)))
+        else:
+            _kind, a, b, r = shape
+            out.append(('held%d_%s' % (k, name), rides, (0.0, 0.0, 0.0),
+                        _tube(a, b, r, paint(CARBON))))
     return out
 
 
 def _bones():
-    """{segment: mesh}: each segment as its carbon tubes and plates, the legs' as parts
-    (`_hung`)."""
+    """{segment: mesh}: each segment as its carbon tubes and plates, the limbs' and the feet's as
+    parts (`_hung`)."""
     c = paint(CARBON)
     out = {'pelvis': _join([_tube(a, b, BOOM[0], c) for a, b in zip(BOOM[1], BOOM[1][1:])]),
            'torso': loft([(0.0, 0.02, 0.02), (0.39, 0.02, 0.02)], c, poles=(-0.005, 0.395)),
            'neck': loft([(0.0, 0.013, 0.013), (0.065, 0.013, 0.013)], c, poles=(-0.003, 0.068)),
            'head': ellipsoid((0.0, 0.095, 0.012), (0.05, 0.06, 0.06), c, rows=8)}
     for side in ('left_', 'right_'):
-        out.update({side + 'upper_arm': limb(UPPER_ARM, 0.012, 0.012, 0.012, c),
-                    side + 'forearm': limb(FOREARM, 0.01, 0.01, 0.01, c),
+        out.update({side + 'upper_arm': _nothing(limb(UPPER_ARM, 0.012, 0.012, 0.012, c)),
+                    side + 'forearm': _nothing(limb(FOREARM, 0.01, 0.01, 0.01, c)),
                     side + 'hand': ellipsoid((0.0, -0.035, 0.0), (0.012, 0.035, 0.02), c, rows=6),
                     side + 'fingers': ellipsoid((0.0, -0.03, 0.0), (0.009, 0.03, 0.015), c,
                                                 rows=6),
                     side + 'thigh': _nothing(limb(THIGH, 0.016, 0.016, 0.016, c)),
                     side + 'shank': _nothing(limb(SHANK, 0.014, 0.014, 0.014, c)),
-                    side + 'foot': ellipsoid((0.0, 0.012 - ANKLE_H, (BALL - HEEL) / 2.0),
-                                             (0.034, 0.01, (BALL + HEEL) / 2.0), c, rows=6),
+                    side + 'foot': _nothing(ellipsoid(
+                        (0.0, 0.012 - ANKLE_H, (BALL - HEEL) / 2.0),
+                        (0.034, 0.01, (BALL + HEEL) / 2.0), c, rows=6)),
                     side + 'toes': ellipsoid((0.0, 0.0, 0.03), (0.032, 0.008, 0.03), c, rows=6)})
     return out
 
@@ -154,6 +180,8 @@ def parts(bare=False):
         out += [('hung%d_%s%s' % (k, side, seg), side + seg, (), (0.0, 0.0, 0.0), 0.0, mesh)
                 for side in ('left_', 'right_') for seg in HUNG
                 for k, mesh in enumerate(_hung(side, seg))]
+        out += [(name, rides, (), at, 0.0, mesh) for side in ('left_', 'right_')
+                for name, rides, at, mesh in _held(side)]
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
         out.append(('board_' + joint, seg, (), at, 0.0, drum(radius, BOARD_T, faces, paint(PCB))))
     out += [('gimbal%d_%s' % (k, side + stage), side + stage, (), at, 0.0, mesh)

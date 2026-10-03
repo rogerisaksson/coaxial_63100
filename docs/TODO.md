@@ -179,11 +179,17 @@ Open work. Measured results are in FINDINGS.
     good consumer printer's - its type found, sized for L, M and S, modelled.
     Limited-angle mechanisms packaged in a housing count too, no joint
     needing 360 deg; three standard sizes, fewer where they fit under her
-    shell and clothes unseen (the user, 2026-10-03).
+    shell and clothes unseen; backdriven, nothing frozen in a pose with the
+    power cut: a joint's breakaway under 10 N at its segment's end, under
+    its limb's weight where it can - estimated now, the elbow 0.80 N m
+    against its forearm's 0.6, the ankle 2.48 against its foot's 0.4 (the
+    user, 2026-10-03).
   + Her gearboxes' ball stages exported from the user's tools
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
     <https://smorygo.com/wave_reducer>) with docs/findings/body.md's
-    inputs, printed, a prototype's torque and backlash measured.
+    inputs, printed, a prototype's torque and backlash measured - its races
+    grooved or its balls rollers: on a stock race's cylinder L's ball takes
+    7.46 GPa at peak, 4.6 at 40 N m (ISO 76 static 4.2).
   + Her bare look printable panels over her skeleton - carbon tubes, rods,
     drives, boards and generic parts between them -, ordinary clothes over
     it (the user, 2026-10-02): the limbs' panels light, their joint ends, the
@@ -195,6 +201,10 @@ Open work. Measured results are in FINDINGS.
     bevel differential's bevels want 70 mm across (docs/findings/body.md)
     - its reductions after the differential, or the trunk's gimbal roll
     first, to weigh.
+  + Her trunk's skeleton (the user, 2026-10-03): the spine's L, the waist's,
+    the neck's and the shoulders' M and the head's S held by nothing but
+    wires through them (`fit.held_by`, `test_gynoid.TRUNK`) - a column, a
+    girdle and the pelvis's struts to the spine's L, with the roll first.
   + No belt where its give would show in her walk (the user, 2026-10-02):
     the toes' S pulls its belt 1.2 kN at 12 N m on 10 mm pulleys - a rod;
     the elbow's 1.4 kN and the wrist's 1.0 at their peaks.
