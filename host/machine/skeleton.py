@@ -104,7 +104,7 @@ TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0
 #: deg: further the L meets the front leg, the femur's collar the crown's back leg (2026-10-03).
 #: Its legs 22 mm tubes, for the yaw's torque on them; its crown a carbon plate CROWN_R thick in
 #: the 25 mm between the yaw's drum and the pitch's L - a tube there met the femur's collar, 4 mm.
-FORK_R, CROWN_R, BEARING, BAND = 0.011, 0.005, (0.009, 0.007, 0.055), (0.043, 0.008)
+FORK_R, CROWN_R, BEARING, BAND = 0.011, 0.005, (0.009, 0.007, 0.060), (0.043, 0.008)
 
 #: Each drive held by what carries it - the hip's roll drum, the ankles', the toes' and the boards
 #: held by nothing (the user, 2026-10-03): its collars, COLLAR_M proud of its drum, each (m from
@@ -236,8 +236,10 @@ def collars(side, seg):
     s, out = (1.0 if side == 'left_' else -1.0), []
     for joint, part, y in HUNG[seg][2]:
         _p, r, at, length = next(row for row in drives.along(side + joint) if row[0] == part)
-        # A collar a millimetre short of the motor's and gearbox's seam: the knee's two turn.
-        at = s * (at + (0.0005 if part == 'gear' else -0.0005))
+        # A collar a millimetre short of the motor's and gearbox's seam: the knee's two turn;
+        # a mounted drum where its mount puts it along the axis (the hip's 15 mm in).
+        where = drives.mount(side + joint)
+        at = s * (at + (0.0005 if part == 'gear' else -0.0005)) + (where[1][0] if where else 0.0)
         out.append(((at, y, 0.0), r + COLLAR_M, length / 2.0 - 0.0005))
     return out
 
@@ -286,14 +288,13 @@ def bodies():
     out.append(('pelvis_boom', 'pelvis', [_geom('capsule', BOOM[0], a, b)
                                           for a, b in zip(BOOM[1], BOOM[1][1:])]))
     for joint in [j for kind in linkage.PLANAR for j in linkage.joints(kind)]:
-        a, b, *_rest = linkage.PLANAR[drives.kind(joint)]
-        z = linkage.PLANAR[drives.kind(joint)][6]
-        pin, ball, _t = linkage.planar(drives.kind(joint), 0.0)
+        crank, horn, pin, ball = linkage.four_bar(joint, {})
         out.append((joint + '_rod', (drives.mount(joint) or ('pelvis',))[0], [
-            _geom('capsule', 0.008, (a[0], a[1], z), (pin[0], pin[1], z)),
-            _geom('capsule', linkage.ROD_R, (pin[0], pin[1], z), (ball[0], ball[1], z))]))
+            _geom('capsule', linkage.PLATE_R, crank, pin),
+            _geom('capsule', linkage.ROD_R, pin, ball)]))
         out.append((joint + '_horn', joint, [
-            _geom('capsule', 0.008, (0.0, 0.0, z), (ball[0] - b[0], ball[1] - b[1], z))]))
+            _geom('capsule', linkage.PLATE_R, (0.0, 0.0, horn[2]),
+                  (ball[0] - horn[0], ball[1] - horn[1], ball[2]))]))
     for joint in [j for kind in linkage.GEARS for j in linkage.joints(kind)]:
         rides, (x, y, z) = drives.mount(joint) or ('', (0.0, 0.0, 0.0))
         pivot = drives.pivot(joint)

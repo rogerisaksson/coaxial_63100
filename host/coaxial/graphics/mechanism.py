@@ -196,9 +196,9 @@ def parts(bare=False):
     ball = ellipsoid((0.0, 0.0, 0.0), (BALL_R,) * 3, steel, rows=6)
     for joint in [j for kind in linkage.PLANAR for j in linkage.joints(kind)]:
         out += [('crank_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
-                 limb(1.0, 0.008, 0.008, 0.008, steel)),
+                 limb(1.0, linkage.PLATE_R, linkage.PLATE_R, linkage.PLATE_R, steel)),
                 ('horn_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
-                 limb(1.0, 0.008, 0.008, 0.008, steel)),
+                 limb(1.0, linkage.PLATE_R, linkage.PLATE_R, linkage.PLATE_R, steel)),
                 ('pin_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0, ball),
                 ('end_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0, ball),
                 ('rod_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,

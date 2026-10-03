@@ -4,7 +4,7 @@ The world steps it (`machine.physics`).
 """
 import math
 
-from machine import build, drives, figure, floor, skeleton
+from machine import build, drives, figure, floor, linkage, skeleton
 from machine.drives import kind
 from machine.figure import BODY, CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
 
@@ -129,7 +129,9 @@ def _apart(xml, pairs):
 def _joint(joint, axis, sign):
     """A joint's element: its drive's armature, its stops, its spring or its gearbox's drag."""
     from machine.physics import BACKDRIVE, REFLECTED, SERVO
-    stop, spring = STOPS.get(kind(joint)), drives.passive(joint)
+    # A four-bar's dead centres stop its joint: past them the rod would have to stretch.
+    stop, spring = (STOPS.get(kind(joint)) or (linkage.PLANAR[kind(joint)][7] if kind(joint)
+                                                in linkage.PLANAR else None)), drives.passive(joint)
     if kind(joint) == 'hip_yaw' and HIP_YAW_DEG:
         stop = (-HIP_YAW_DEG, HIP_YAW_DEG)
     if spring:

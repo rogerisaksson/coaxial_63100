@@ -149,8 +149,10 @@ SIZES = {k: _stack(k) for k in STACKS}
 #: gimbal (`skeleton.gimbal`), each drive on the stage before its joint's - a segment's segment
 #: named for that joint, its frame the hip's centre: the yaw's on the pelvis above, clear of the
 #: pitch's swing (69 mm), turning the fork; the roll's on the fork behind, up and in on a spur
-#: pair into the cradle, her seat's fullest - an 80 mm drum there stood 67 mm out of it -; the
-#: pitch's in the cradle on the hip's centre; the knee's on its axis inside it - a belt's give showed in her
+#: pair into the cradle, her seat's fullest - an 80 mm drum there stood 67 mm out of it; its
+#: crank-rocker (docs/findings/drives.md, 2026-10-03) wanted the pitch's stack 20 mm in, where
+#: its inverter stood 16 mm into the pelvis boom squatting -; the pitch's in the cradle on the
+#: hip's centre; the knee's on its axis inside it - a belt's give showed in her
 #: walk (the user, 2026-10-02), no four-bar kept its 163 degrees over a 12 degree transmission,
 #: coupling rods stood as wide as her knee; 100 mm round there the capture law flagged 260
 #: catches walking in 6 s, 80 none -; the elbow's under the arm's quick-release, a belt to the

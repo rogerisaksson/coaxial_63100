@@ -228,10 +228,17 @@ Open work. Measured results are in FINDINGS.
     best x1.09 on torque at speed against direct's x1.12, lever 0.63-0.89
     where the knee works: no torque from it, the dead centres alone; a
     four-bar 107 at 30, a crank-slider on a rack any swing at 60-76 - the
-    hip roll and the ankles on crank-rockers next, their T 1.57 and 0.94
-    (the hip roll's spur at 2.5 gives 0.70); the hip's 100 mm inverter
-    5 mm into the hip roll's gearbox standing, the head's 4 into the neck's
-    holder; the toes', wrist's and head's 70 mm stacks 3-20 mm out of her
+    hip roll on one measured and not kept (docs/findings/drives.md): its
+    dead centres are stops to a fall (-22: her head on the floor at
+    4.5-6 m/s), placed past the falls (-28..+40) its stance lever drops
+    and she walks worse (67 % of 74) - it wants a hip roll with twice the
+    continuous torque; the ankles' next. Its hip stack 20 mm in on its
+    axis put the 100 mm inverter 16 mm into the pelvis boom in the squat:
+    two discs 44 mm apart, the boom's bottom 62 wide - a 100 A inverter on
+    a 70 mm disc, the boom as two struts outside the discs, or the inverter
+    apart (every place tried stood 6-35 mm out of her shell). The head's
+    inverter 4 mm into the neck's holder; the toes', wrist's and head's
+    70 mm stacks 3-20 mm out of her
     shell (after the legs, the user). The user's family: rotors 60-120 mm,
     two motor sizes, one gearbox, two inverters (100 and 70 mm) - the
     gearbox three, the hip and knee wanting 84 mm where the wrist and toes
@@ -239,6 +246,13 @@ Open work. Measured results are in FINDINGS.
     torque, the arms shaped toward the ends (the user): the knee asks its
     171 N m and 1024 deg/s both at 0-60 deg. More ratio from link arms and
     rods judged by the room in her shell and the stroke (the user).
+  + The margin's rule (the user's 1.5x, 2026-10-03): over the walk alone
+    the leg stacks hold it but the knee's inverter (P 1.31, V 1.07); with
+    the parries and P's shove in the demand every leg joint's copper is
+    1.4-1.7 over and its inverter 1.2-1.5 (docs/findings/drives.md) - 1.5x
+    on the walk and the get-up with 1.0x on parries and falls, or every leg
+    stack on 1.5x the continuous current (a bigger inverter, more copper,
+    the BOM and the size up): the user's call.
   + The knee's continuous torque the 100 mm inverter's (`drive_sizes` T,
     docs/findings/drives.md): its switches at 44 A through the housing's
     3.6 K/W; the stack's housing as its heatsink - the skin into the carbon

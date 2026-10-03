@@ -106,3 +106,37 @@ board's in [FINDINGS](../FINDINGS.md).
   15-45 deg where the knee asks its 171 N m and 1024 deg/s - no torque
   from it, only the dead centres. BOM: 2 frames, 3 boxes, 2 inverters, 3
   windings; the drives 15.2 kg of her 55; stacks 100/88/70/68 mm round.
+- The hip roll on a crank-rocker (`linkage.PLANAR`, 2026-10-03): the drive
+  on the fork behind, 48 mm from the roll axis, a 14 mm crank turning 360
+  deg, a 45 mm rod, a 25 mm horn, the dead centres at -28 and +40 deg;
+  lever 1.8 at 0, 2.2 at -14, 2.1 at +27, 3.8 at -24; transmission
+  49 deg; the rod 7.7 kN at 1.5x. On the walk its heat 1.57 -> 1.14, amps
+  0.93 -> 0.94, volts 0.31 -> 0.37. The linkage lives between the hip
+  stack's end and the fork's arm: the stack's 100 mm inverter rim cut
+  every rod at 34 mm from the pitch axis, so the stack went 20 mm in on
+  its axis (and 16 mm into the pelvis boom squatting), the roll's
+  bearings 5 mm out; in front the drum stood 68 mm out of her skin. The
+  stroke against the lever: dead centres at -22 and +44 (a 12 mm crank, a
+  22 mm horn) gave lever 2.0, 3.2 at -14, heat 0.86, the Monte Carlo
+  75.8 % (74.2 on the spur), the SOA fault 100 %, up after P at 23.0 and
+  23.5 s - but P's falls pin the adducting hip at -24 and swing the other
+  to +35, and on the -22 stop her head met the floor at 4.5 and 6.0 m/s
+  (`landings`: in 2 falls of 9 at 0.7 kN, 0 of 9 with the stop off, the
+  nudge parry 1 of 8); at -28 and +40, the falls off its dead centres, no
+  head landing, but the stance band's lever 2.2 for 3.2: the Monte Carlo
+  67.2 %, the slip at 0.9 34 % (79), the fixed walk from the squat down
+  at 13 s, the heat 3.11 with the parries; at -40 or -45 (the swing 84-94)
+  the lever falls to 1.3-1.5 and the heat to 2.3. Neither stroke kept:
+  the spur (1.67, no stops, 74.2 %, every suite) stays. A crank-rocker
+  there wants a hip roll with twice the continuous torque, or dead
+  centres a fall and a capture step never reach.
+- The demand over five scenes - the walk, a slip, a nudge, a hole, P's
+  shove - at 1.5x (`drive_sizes.SCENES`, 2026-10-03): one walk's knee asked
+  1231 deg/s with a catch in it and 561 without. With the parries in, on
+  the spur build: the hip T 1.94, P 1.33, V 1.06; the knee T 1.94, P 1.36,
+  V 1.13, its window 42..34 inverted; the hip roll T 2.92; the ankles T
+  1.4-1.5, V 1.15; the hip yaw T 1.01; the spine V 1.05. On the walk alone
+  every number but the knee's P and V stood under 1; the five scenes'
+  rms moves 20-30 % between runs of one build. A joint folded past a
+  four-bar's dead centre or a rod's stroke read the far branch's lever
+  (0.44 at the hip roll's -22, the demand 4.6x): clamped to the stroke.

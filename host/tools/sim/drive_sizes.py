@@ -35,6 +35,10 @@ from tools import REPO  # noqa: E402
 #: tuned at its limit (the user, 2026-10-03).
 MARGIN = 1.5
 CACHE = os.path.join(REPO, 'build', 'drive_demand.json')
+#: The demand's scenes, each from the squat: the walk alone, then a slip, a nudge, a hole and
+#: the page's shove laid at SCENE_S - her parries and falls ask the peaks (one walk's knee asked
+#: 1231 deg/s with a catch in it, 561 without, 2026-10-03).
+SCENES, SCENE_S = (None, 'slip', 'nudge', 'hole', 'shove'), 8.0
 
 
 def held(joint):
@@ -61,15 +65,16 @@ def held(joint):
     return lo, spent(hi)[1]
 
 
-def asked(to_s, values, cadence=0.85):
+def asked(to_s, values, scene=None, cadence=0.85):
     """{joint: (peak N m, the walk's rms N m, peak deg/s, peak W motoring, J_load kg m^2)} from
-    the squat, `to_s` seconds; the load's inertia the mass matrix's diagonal less the armature,
+    the squat, `to_s` seconds, a `scene` laid at SCENE_S - a floor event (`machine.events`) or
+    'shove', the page's P -; the load's inertia the mass matrix's diagonal less the armature,
     meaned every 0.1 s."""
     from tools.sim.gait_montecarlo import _set
     _set(values)
     mujoco = importlib.import_module('mujoco')
     from coaxial.model.blocks import numpy as np
-    from machine import Machine
+    from machine import Machine, drives, events, linkage
     from machine.director import Director
     from machine.figure import JOINTS
     from machine.modes import DYNAMIC
@@ -79,14 +84,30 @@ def asked(to_s, values, cadence=0.85):
     director.begin()
     body.loop.step(0.0)
     world, bus = body.nodes['pelvis'].world, body.loop.bus
+    laid, was = scene is None, 0.0
     m, d, v = world.model, world.data, np.array(world.vadr)
     full, n = np.zeros((m.nv, m.nv)), len(JOINTS)
     peak, speed, watts, square = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
     load, count, steps = np.zeros(n), 0, 0
-    while bus['t'] < to_s and director.stage != 'fallen':
+    # A joint on a rod or a four-bar: its torque and speed as its rest ratio sees them, the
+    # lever's change along the stroke taken out (`physics.World`'s s).
+    stroked = [(i, j) for i, j in enumerate(JOINTS)
+               if drives.kind(j) in linkage.RODS or drives.kind(j) in linkage.PLANAR]
+    while bus['t'] < to_s and (not laid or director.stage != 'fallen'):
+        if not laid and bus['t'] >= SCENE_S:
+            if scene == 'shove':
+                world.push((events.SHOVES['shove'], 0.0, 0.0), events.SHOVE_S)
+                laid = True
+            elif was < events.at(scene) <= director.walker.phase:
+                events.lay(scene, director, world)
+                laid = True
+            was = director.walker.phase
         body.loop.write(**director.step(0.001))
         body.loop.step(0.001)
         tau, w = np.array(d.ctrl[:n]), np.array(d.qvel[v])
+        for i, j in stroked:
+            s = drives.ratio(j, math.degrees(d.qpos[world.qadr[i]])) / drives.ratio(j)
+            tau[i], w[i] = tau[i] / s, w[i] * s
         peak, speed = np.maximum(peak, np.abs(tau)), np.maximum(speed, np.abs(w))
         watts = np.maximum(watts, tau * w)
         if director.stage in ('walk', 'catch'):
@@ -126,7 +147,11 @@ def main(argv=None):
         _set(values)
         got = json.load(open(CACHE))
     else:
-        got = asked(args.to, values)
+        # The scenes' demands folded: the peaks, the rms and the power their most, the load
+        # its mean.
+        runs = [asked(args.to, values, scene) for scene in SCENES]
+        got = {j: [max(r[j][i] for r in runs) if i != 4 else sum(r[j][4] for r in runs) / len(runs)
+                   for i in range(5)] for j in runs[0]}
         os.makedirs(os.path.dirname(CACHE), exist_ok=True)
         json.dump(got, open(CACHE, 'w'), indent=1)
     from machine import drives

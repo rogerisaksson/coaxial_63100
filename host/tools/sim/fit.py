@@ -211,8 +211,8 @@ def parts(angles):
         R, p = fr[(drives.mount(joint) or ('pelvis',))[0]]
         crank, horn, pin, ball = (p + R @ np.array(q) for q in linkage.four_bar(joint, angles))
         out['rod_' + joint] = ('tube', pin, ball, linkage.ROD_R)
-        out['crank_' + joint] = ('tube', crank, pin, 0.008)
-        out['horn_' + joint] = ('tube', horn, ball, 0.008)
+        out['crank_' + joint] = ('tube', crank, pin, linkage.PLATE_R)
+        out['horn_' + joint] = ('tube', horn, ball, linkage.PLATE_R)
         rides['rod_' + joint] = rides['crank_' + joint] = (drives.mount(joint) or ('pelvis',))[0]
         rides['horn_' + joint] = joint
     for k, (frame, shape) in enumerate(skeleton.trunk()):

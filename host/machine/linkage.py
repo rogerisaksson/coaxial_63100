@@ -60,7 +60,9 @@ BELTS = {'elbow': (0.018, 0.018, 0.034), 'wrist': (0.012, 0.012, 0.026),
 
 #: Each spur pair after its drive's gearbox, its ratio: the gearbox takes its joint's torque over
 #: it. The hip roll's M at 1:100 on two stages put its 126 N m peak through a box rated 100, and
-#: walking 133-139 (`World.geared`, 2026-10-02): one stage at 1:60 and 1.67 here.
+#: walking 133-139 (`World.geared`, 2026-10-02): one stage at 1:60 and 1.67 here. Its copper
+#: 1.57 at 1.5x the walk: a crank-rocker there was measured on two strokes and kept neither
+#: (docs/findings/drives.md, 2026-10-03).
 GEARS = {'hip_roll': 1.67}
 
 #: Each four-bar turning about z in its drive's segment's x-y plane: its crank's centre and its
@@ -69,7 +71,13 @@ GEARS = {'hip_roll': 1.67}
 #: on a 24 mm horn crossed: over +-35 deg its lever 1.31-1.66, its transmission 53 deg at worst,
 #: 24 mm off the fork's legs - its 1:1 spur pair's 100 mm wheels stood in the pitch's bracket's
 #: sweep, and a stage at 1:40 wants 1.5 after it. Between the M's face and the roll's bearing, its
-#: M 7 mm back: over spine -30..85 and roll +-35 the closest 1 mm (2026-10-03).
+#: M 7 mm back: over spine -30..85 and roll +-35 the closest 1 mm (2026-10-03). A crank-rocker
+#: (the user: the crank turns 360 deg, the limb reverses at the dead centres, never into a stop)
+#: was measured at the hip roll on two strokes and kept neither (docs/findings/drives.md): its
+#: dead centres are stops to a fall. The right's the left's mirrored in x (`four_bar`).
+#: A four-bar's crank and horn: steel plates 2 PLATE_R thick, drawn and collided as such (16 mm
+#: capsules before hid the hip roll's 10 mm pinch, 2026-10-03).
+PLATE_R = 0.004
 PLANAR = {'spine_roll': ((0.0, 0.02), (0.0, 0.12), 0.018, math.radians(20.0), 0.024,
                          math.radians(200.0), 0.047, (-35.0, 35.0))}
 
@@ -209,12 +217,14 @@ def planar(kind, deg):
 
 def four_bar(joint, angles):
     """(crank's centre, horn's centre, pin, ball) of a four-bar (`PLANAR`), its drive's segment's
-    frame, its joint at {joint: deg}'s."""
+    frame, its joint at {joint: deg}'s; a right side's x mirrored, its joint's axis reversed
+    (`figure.SEGMENTS`), the same deg its mirror image."""
     kind = _kind(joint)
     a, b, *_rest = PLANAR[kind]
-    z = PLANAR[kind][6]
+    z, s = PLANAR[kind][6], -1.0 if joint.startswith('right_') else 1.0
     pin, ball, _t = planar(kind, angles.get(joint, 0.0))
-    return (a[0], a[1], z), (b[0], b[1], z), (pin[0], pin[1], z), (ball[0], ball[1], z)
+    return ((s * a[0], a[1], z), (s * b[0], b[1], z), (s * pin[0], pin[1], z),
+            (s * ball[0], ball[1], z))
 
 
 def lever(joint, deg=0.0):
@@ -238,9 +248,16 @@ def _table(kind):
 
 def _lever(kind, deg):
     if kind in PLANAR:
+        # Past a dead centre the mechanism is locked: the lever there is the dead centre's own,
+        # not the far branch's (0.44 at the hip roll's -22, where a shove took it, 2026-10-03).
+        lo, hi = PLANAR[kind][7]
+        deg = min(max(deg, lo + 0.5), hi - 0.5)
         return abs(math.remainder(planar(kind, deg + 0.05)[2] - planar(kind, deg - 0.05)[2],
                                   math.tau)) / math.radians(0.1)
     rods = [r for r, (at, *_x) in ROD_AT.items() if kind in (at, PAIRS.get(at))]
+    if rods:
+        # Past a rod's stroke its lever is the stroke's end's: a fall folds the ankle past it.
+        deg = min(max(deg, max(RODS[r][1][0] for r in rods)), min(RODS[r][1][1] for r in rods))
     if not rods:
         return 1.0
     rolled, step = kind in PAIRS.values(), 0.05
