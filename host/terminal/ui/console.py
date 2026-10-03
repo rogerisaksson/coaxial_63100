@@ -3,6 +3,7 @@ import ctypes
 import re
 import select
 import sys
+import time
 
 
 #: Q closes, ESC goes back to the menu - picking the wrong view is the common
@@ -73,6 +74,11 @@ MOUSE_OFF = '\033[?1006l\033[?1002l'
 #: pastes with nothing selected (rightClickBehavior copyPaste, Windows' default), its A restarting
 #: the HUMANOID page's walk (the user, 2026-10-02).
 PASTE_ON, PASTE_OFF = '\033[?2004h', '\033[?2004l'
+
+#: Holding the mouse, a view says so again every HOLD_S: reporting went off under a running page -
+#: the terminal's or a process on the same console - and drag and pan died together (the user,
+#: 2026-10-03).
+HOLD_S = 1.0
 
 #: A wheel notch, as a fraction of the distance to the model. 12 % a notch is
 #: about eight notches between filling the window and half of it, which is
@@ -186,6 +192,7 @@ class Keys:
         self._buttons = 0
         self._typed = []
         self._grabbed = False
+        self._held_at = 0.0
 
     def __enter__(self):
         if not self.console:
@@ -221,6 +228,8 @@ class Keys:
         """(leave, zoom) for everything that arrived since the last frame."""
         if not self.console:
             return None, 0.0
+        if self._grabbed and time.monotonic() - self._held_at >= HOLD_S:
+            self._hold()
 
         self._buffer = self.PASTE_RE.sub('', self._buffer + ''.join(self._drain()))
         start = self._buffer.find(self.PASTE_START)
@@ -286,6 +295,7 @@ class Keys:
         if on:
             self._was_mode = _set_console_mode()
             out.write(MOUSE_ON + PASTE_ON)
+            self._held_at = time.monotonic()
         else:
             out.write(MOUSE_OFF + PASTE_OFF)
             _set_console_mode(self._was_mode)
@@ -293,6 +303,14 @@ class Keys:
         sys.stdout.flush()
         self._grabbed = on
         return self._grabbed
+
+    def _hold(self):
+        """The mouse's mode and reporting set again, the console's mode to restore kept."""
+        _set_console_mode()
+        out = sys.__stdout__ or sys.stdout
+        out.write(MOUSE_ON + PASTE_ON)
+        out.flush()
+        self._held_at = time.monotonic()
 
     def taken(self):
         """Characters typed since the last call, for a view with bindings."""
