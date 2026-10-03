@@ -197,7 +197,12 @@ Open work. Measured results are in FINDINGS.
     panels want finer meshes than 20 corners a ring (`shapes.AROUND`).
   + No belt where its give would show in her walk (the user, 2026-10-02):
     the toes' S pulls its belt 1.2 kN at 12 N m on 10 mm pulleys - a rod;
-    the elbow's 1.4 kN and the wrist's 1.0 at their peaks.
+    the elbow's 1.4 kN and the wrist's 1.0 at their peaks. A rod to the
+    toes, 16 mm crank and horn, lever 0.97-1.03, transmission 54 deg over
+    -10..60, stood 5 mm out of her shoe: beside the S the forefoot is 22 mm
+    tall, a horn under 8 mm pulls 1.5 kN (2026-10-03) - a smaller drive
+    there, or gears. The elbow and the wrist past 160 deg: coupling rods,
+    two cranks a shaft 90 deg apart, a locomotive's.
   + Her transmissions sourced as a bicycle's, a motorcycle's or a car's
     maker would (the user, 2026-10-02): rod ends, cardan and Rzeppa joints,
     gear pairs, belts and bearings off the shelf, a part list a joint.
