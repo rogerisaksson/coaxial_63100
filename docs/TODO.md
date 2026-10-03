@@ -184,6 +184,11 @@ Open work. Measured results are in FINDINGS.
     its limb's weight where it can - estimated now, the elbow 0.80 N m
     against its forearm's 0.6, the ankle 2.48 against its foot's 0.4 (the
     user, 2026-10-03).
+  + Her tubes and struts sized for stiffness, not to sway or flex (the user,
+    2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
+    PET-CF adapters and fittings between, printable flat without overhangs;
+    each member's bending and twist under her joints' torques against its
+    drive's own give, into `skeleton`'s radii.
   + Her gearboxes' ball stages exported from the user's tools
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
     <https://smorygo.com/wave_reducer>) with docs/findings/body.md's

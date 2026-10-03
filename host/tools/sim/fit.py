@@ -175,12 +175,8 @@ def parts(angles):
             name = 'bone_%s>%s' % (seg[1], seg[0])
             if bare in skeleton.HUNG:
                 s = 1.0 if seg[1].startswith('left_') else -1.0
-                tubes, radius, _collars = skeleton.HUNG[bare]
-                pairs = [(a, b) for points in tubes for at in [[pp + Rp @ np.array((s * x, y, z))
-                                                                for x, y, z in points]]
-                         for a, b in zip(at, at[1:])]
-                for k, (a, b) in enumerate(pairs):
-                    out[name + '+' * k] = ('tube', a, b, radius)
+                for k, (a, b, r) in enumerate(skeleton.runs(bare, s)):
+                    out[name + '+' * k] = ('tube', pp + Rp @ np.array(a), pp + Rp @ np.array(b), r)
                     rides[name + '+' * k] = seg[1]
             else:
                 out[name] = ('tube', pp, fr[seg[0]][1], TUBE_R[bare])

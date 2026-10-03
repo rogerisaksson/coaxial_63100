@@ -17,7 +17,7 @@ from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
 from machine import build, drives, figure, linkage
-from machine.skeleton import BOOM, COLLAR_M, HUNG, gimbal, held, trunk
+from machine.skeleton import BOOM, COLLAR_M, HUNG, gimbal, held, runs, trunk
 from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
@@ -99,9 +99,7 @@ def collars(side, seg):
 def _hung(side, seg):
     """[mesh]: `seg`'s tubes through HUNG's points and its collars, its frame."""
     s, c = (1.0 if side == 'left_' else -1.0), paint(CARBON)
-    tubes, radius, _collars = HUNG[seg]
-    out = [_tube(a, b, radius, c) for points in tubes
-           for p in [[(s * x, y, z) for x, y, z in points]] for a, b in zip(p, p[1:])]
+    out = [_tube(a, b, r, c) for a, b, r in runs(seg, s)]
     for at, r, half in collars(side, seg):
         corners, t, u, m = drum(r, 2.0 * half, 'x', c)
         out.append((corners + at, t, u, m))

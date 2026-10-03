@@ -31,14 +31,16 @@ from machine.gait import SHANK, THIGH
 #: collars (`HELD`), on from under its bevel behind its belt to a clevis round the joint below; the
 #: foot a keel from the heel to the toes' axle, cheeks on the cross's roll pins, a bar for the rods'
 #: balls.
-HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012)),), 0.016,
+HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
+                   ((0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012))), (0.018, 0.025),
                   (('hip', 'gear', 0.0), ('knee', 'motor', -THIGH))),
-        'shank': ((((0.0285, -0.045, -0.032), (0.0, -0.17, -0.05), (0.0, 0.06 - SHANK, -0.008),
-                    (0.0, 0.035 - SHANK, 0.014)),
+        'shank': ((((0.0285, -0.045, -0.032), (0.0, -0.17, -0.05)),
+                   ((0.0, -0.17, -0.05), (0.0, 0.06 - SHANK, -0.008), (0.0, 0.035 - SHANK, 0.014)),
                    ((0.03, 0.02 - SHANK, 0.014), (0.0, 0.035 - SHANK, 0.014),
                     (-0.03, 0.02 - SHANK, 0.014)),
                    ((0.03, 0.02 - SHANK, 0.014), (0.03, -SHANK, 0.0)),
-                   ((-0.03, 0.02 - SHANK, 0.014), (-0.03, -SHANK, 0.0))), 0.012,
+                   ((-0.03, 0.02 - SHANK, 0.014), (-0.03, -SHANK, 0.0))),
+                  (0.020, 0.015, 0.010, 0.010, 0.010),
                   (('knee', 'gear', 0.0),)),
         'upper_arm': ((((0.029, -0.004, 0.0), (0.029, -0.048, 0.0), (0.0, -0.077, 0.0)),
                        ((-0.018, -0.145, -0.02), (-0.016, -0.19, -0.014), (-0.016, -0.25, -0.012),
@@ -60,10 +62,11 @@ BOARD_T, CRANK_R = 0.012, 0.012
 
 #: The pelvis's boom, its radius and the points it runs through, m: its middle 60 mm long, an arm
 #: up to each hip's yaw drive - across, it lay on the hips' L, their inner corners 16 mm higher
-#: rolled 25 deg, and no fork's crown fitted between; its middle 28 mm down under the trunk's
-#: roll M it ran through, the M on it - 40 mm back, the hips' roll M yawed 18 deg met it, 17 mm
-#: (2026-10-03).
-BOOM = (0.015, ((0.065, 0.05, 0.0), (0.02, -0.028, 0.0), (-0.02, -0.028, 0.0), (-0.065, 0.05, 0.0)))
+#: rolled 25 deg, and no fork's crown fitted between; its middle 30 mm down under the trunk's
+#: roll M it ran through, the M on it - 40 mm back, the hips' roll M yawed 18 deg met it, 17 mm.
+#: 50 mm round for a hip's pitch twisting it (`docs/findings/body.md`), its arms steep to the yaw
+#: drives' tops: at 45 deg the hips' L met them, 8 mm (2026-10-03).
+BOOM = (0.025, ((0.066, 0.062, 0.0), (0.006, -0.03, 0.0), (-0.006, -0.03, 0.0), (-0.066, 0.062, 0.0)))
 
 #: Her trunk's frame, the wires through its drives gone (the user, 2026-10-03): per frame, tubes
 #: through these points, TRUNK_R round, and rings (centre, axis, radius, half), m in it - the
@@ -75,9 +78,9 @@ BOOM = (0.015, ((0.065, 0.05, 0.0), (0.02, -0.028, 0.0), (-0.02, -0.028, 0.0), (
 #: band to the waist's M, clear of the bearings to 85 deg; the column from the waist's M to the
 #: neck's, the girdle to the shoulders'; the neck's bracket from its M's output to the head's S.
 TRUNK_R = 0.006
-TRUNK = {'pelvis': ((((0.055, 0.0327, 0.0), (0.055, 0.0327, 0.066), (0.0, 0.111, 0.066)),
-                     ((-0.055, 0.0327, 0.0), (-0.055, 0.0327, 0.066), (0.0, 0.111, 0.066)),
-                     ((0.0, -0.028, 0.0), (0.0, -0.028, -0.05), (0.0, 0.12, -0.066))),
+TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.111, 0.066)),
+                     ((-0.055, 0.045, 0.0), (-0.055, 0.045, 0.066), (0.0, 0.111, 0.066)),
+                     ((0.0, -0.03, 0.0), (0.0, -0.03, -0.05), (0.0, 0.12, -0.066))),
                     (((0.0, 0.12, 0.066), 'z', 0.009, 0.007),
                      ((0.0, 0.12, -0.066), 'z', 0.009, 0.007))),
          'spine_roll': ((((0.0, 0.0, 0.043), (0.0, 0.0, 0.052)),
@@ -93,7 +96,9 @@ TRUNK = {'pelvis': ((((0.055, 0.0327, 0.0), (0.055, 0.0327, 0.066), (0.0, 0.111,
 #: pitch's L. Crown to L 7 mm rolled 25 deg; the back leg 20 mm out, 8 mm off the roll's M; the
 #: front 20 mm in, the femur's collar 3 mm off its bearing at 90 deg of flexion. It rolls -35..+28
 #: deg: further the L meets the front leg, the femur's collar the crown's back leg (2026-10-03).
-FORK_R, BEARING, BAND = 0.007, (0.009, 0.007, 0.055), (0.043, 0.008)
+#: Its legs 22 mm tubes, for the yaw's torque on them; its crown a carbon plate CROWN_R thick in
+#: the 25 mm between the yaw's drum and the pitch's L - a tube there met the femur's collar, 4 mm.
+FORK_R, CROWN_R, BEARING, BAND = 0.011, 0.005, (0.009, 0.007, 0.055), (0.043, 0.008)
 
 #: Each drive held by what carries it - the hip's roll drum, the ankles', the toes' and the boards
 #: held by nothing (the user, 2026-10-03): its collars, COLLAR_M proud of its drum, each (m from
@@ -102,7 +107,7 @@ FORK_R, BEARING, BAND = 0.007, (0.009, 0.007, 0.055), (0.043, 0.008)
 #: the tibia. The boards on POSTS into the femur; the ankle's CROSS (pins' radius, half length)
 #: on the stage between its pitch and its roll.
 COLLAR_M, STRUT_R, POST_R = 0.004, 0.005, 0.004
-HELD = {'hip_yaw': (((-0.002, 0.008),), ()),
+HELD = {'hip_yaw': (((-0.014, 0.008),), ()),
         'hip_roll': (((0.018, 0.006), (-0.022, 0.006)),
                      (((0.02, 0.035, -0.055), (0.009, 0.035, -0.06)),
                       ((0.02, 0.058, -0.055), (-0.001, 0.059, -0.1)))),
@@ -172,12 +177,11 @@ def gimbal(stage):
         drives.length('left_hip_yaw') / 2.0)
     crown = top - 0.01
     legs = ((-0.02, z), (0.02, -z))
-    tubes = [((0.0, top, 0.0), (0.0, crown, 0.0))]
+    tubes = [((0.0, top, 0.0), (0.0, crown, 0.0), CROWN_R)]
     for x, at in legs:
-        tubes += [((0.0, crown, 0.0), (x, crown, at)), ((x, crown, at), (x, 0.0, at)),
-                  ((x, 0.0, at), (0.0, 0.0, at))]
-    return ([(a, b, FORK_R) for a, b in tubes],
-            [((0.0, 0.0, at), 'z', r, half) for _x, at in legs])
+        tubes += [((0.0, crown, 0.0), (x, crown, at), CROWN_R), ((x, crown, at), (x, 0.0, at), FORK_R),
+                  ((x, 0.0, at), (0.0, 0.0, at), r)]
+    return tubes, [((0.0, 0.0, at), 'z', r, half) for _x, at in legs]
 
 
 def held(side):
@@ -216,6 +220,15 @@ def trunk():
                 for a, b in zip(points, points[1:])]
         out += [(frame, ('ring', c, AXES[axis], r, half)) for c, axis, r, half in rings]
     return out
+
+
+def runs(seg, s=1.0):
+    """[(a, b, radius)]: `seg`'s hung tubes (`HUNG`) segment by segment, a run's radius each (one
+    for all, or one a run), its frame with x times `s`."""
+    tubes, radius, _collars = HUNG[seg]
+    radii = radius if isinstance(radius, tuple) else (radius,) * len(tubes)
+    return [((s * a[0],) + tuple(a[1:]), (s * b[0],) + tuple(b[1:]), r)
+            for points, r in zip(tubes, radii) for a, b in zip(points, points[1:])]
 
 
 def _mirror(shape, s) -> Any:
@@ -267,10 +280,9 @@ def bodies():
                 for a, b, r in tubes] + [
                 _geom('cylinder', r, *_along((s * c[0],) + c[1:], AXES[axis], half))
                 for c, axis, r, half in rings]))
-        for seg, (tubes, radius, _collars) in HUNG.items():
-            ps = [[(s * x, y, z) for x, y, z in points] for points in tubes]
-            out.append((side + seg + '_bone', side + seg, [_geom('capsule', radius, a, b)
-                                                            for p in ps for a, b in zip(p, p[1:])]))
+        for seg in HUNG:
+            out.append((side + seg + '_bone', side + seg, [_geom('capsule', r, a, b)
+                                                            for a, b, r in runs(seg, s)]))
         geoms = {}
         for name, rides, shape in held(side) + ([(f + '_frame', f, sh) for f, sh in trunk()]
                                                 if side == 'left_' else []):
