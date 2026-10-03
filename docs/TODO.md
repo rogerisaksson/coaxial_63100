@@ -82,7 +82,12 @@ Open work. Measured results are in FINDINGS.
     117 C in the crouch; kneeling before she rises her arms down, her
     centre of mass lower, not held forward praying - sat back on her heels
     her hands 692 mm out (541 standing), `getup.SIT_BACK`'s shoulder 72.7
-    and elbow 65.2 deg; her feet a little apart fore and aft as she rolls
+    and elbow 65.2 deg: at 0 and 10 she stayed down felled to her right, 3
+    tries, up at 31.2 s to her left (2 tries); the arrival's squat with
+    both arms' knuckles down, no forearm on the knee, got up (23.1-23.6 s)
+    but rocked more restarting, split rms 0.46-0.71, 3 of 4 never walked
+    - the forearm on the knee steadies her there (2026-10-03); her feet a
+    little apart fore and aft as she rolls
     onto them, a minimal step, two legs bearing - now 174-186 mm across,
     -2..+22 fore and aft.
   + Past saving (P's 120 N, held 0 of 48) she crouches as she goes, a shank
