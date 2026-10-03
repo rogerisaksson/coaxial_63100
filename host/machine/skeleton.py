@@ -30,9 +30,15 @@ from machine.gait import SHANK, THIGH
 #: filling them (M 30 mm round in 34, S 21 in 25), from a flange on the joint above to their drum's
 #: collars (`HELD`), on from under its bevel behind its belt to a clevis round the joint below; the
 #: foot a keel from the heel to the toes' axle, cheeks on the cross's roll pins, a bar for the rods'
-#: balls.
+#: balls. Every tube one of seven stock sizes in one high-modulus carbon - 12x1, 20x1, 25x1,
+#: 30x2, 35x2, 40x2, 50x2 mm - the fewest passing every member (`tools/sim/members.py
+#: --family`, the user's fewest variants, 2026-10-03): the femur's lower run 50 -> 40 in the
+#: shanks' high-modulus grade (flex 0.25 deg), the boom 50 (0.30 at 40), the tibia's lower run
+#: 36 -> 35 (0.31; 40 met the ankle's rod by 6 mm in the crouch), the humerus and the forearm's
+#: upper run 24 and 22 -> 25, the forearm's lower runs 20 and 18 -> 20, the shank's yoke and
+#: cheeks kept 20 (12 passes the rods' pull at 0.88, no bending in it).
 HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
-                   ((0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012))), (0.020, 0.025),
+                   ((0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012))), (0.020, 0.020),
                   (('hip', 'gear', 0.0), ('knee', 'motor', -THIGH))),
         'shank': ((((0.0285, -0.045, -0.032), (0.0, -0.17, -0.05)),
                    ((0.0, -0.17, -0.05), (0.0, 0.06 - SHANK, -0.008), (0.0, 0.035 - SHANK, 0.014)),
@@ -40,18 +46,18 @@ HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
                     (-0.03, 0.02 - SHANK, 0.014)),
                    ((0.03, 0.02 - SHANK, 0.014), (0.03, -SHANK, 0.0)),
                    ((-0.03, 0.02 - SHANK, 0.014), (-0.03, -SHANK, 0.0))),
-                  (0.020, 0.018, 0.010, 0.010, 0.010),
+                  (0.020, 0.0175, 0.010, 0.010, 0.010),
                   (('knee', 'gear', 0.0),)),
         'upper_arm': ((((0.032, -0.004, 0.0), (0.032, -0.05, 0.0), (0.0, -0.077, 0.0)),
                        ((-0.014, -0.145, -0.016), (-0.012, -0.19, -0.012), (-0.012, -0.25, -0.01),
                         (-0.024, -0.28, 0.0)),
                        ((-0.012, -0.25, -0.01), (0.018, -0.25, -0.012), (0.018, -0.28, 0.0))),
-                      (0.012, 0.012, 0.010), ()),
+                      (0.0125, 0.0125, 0.010), ()),
         'forearm': ((((-0.02, 0.0, 0.0), (0.014, 0.0, 0.0)), ((0.0, 0.0, 0.0), (0.0, -0.089, 0.0)),
                      ((0.0, -0.142, -0.015), (0.0, -0.18, -0.012), (0.0, -0.215, -0.008),
                       (-0.016, -0.235, 0.0), (-0.016, -0.25, 0.0)),
                      ((0.0, -0.215, -0.008), (0.013, -0.235, 0.0), (0.013, -0.25, 0.0))),
-                    (0.011, 0.011, 0.010, 0.009), ()),
+                    (0.010, 0.0125, 0.010, 0.010), ()),
         'foot': ((((0.0, 0.0, -0.026), (0.0, -0.035, -0.032), (0.0, -0.066, -0.045),
                    (0.0, -0.066, 0.105), (0.0, -0.061, 0.117)),
                   ((0.0, 0.0, 0.026), (0.0, -0.03, 0.018), (0.0, -0.066, 0.015)),
@@ -66,7 +72,7 @@ BOARD_T, CRANK_R = 0.012, 0.012
 #: rolled 25 deg, and no fork's crown fitted between; its middle 30 mm down under the trunk's
 #: roll M it ran through, the M on it - 40 mm back, the hips' roll M yawed 18 deg met it, 17 mm.
 #: 50 mm round for a hip's pitch twisting it (`docs/findings/body.md`), its arms steep to the yaw
-#: drives' tops: at 45 deg the hips' L met them, 8 mm (2026-10-03).
+#: drives' tops: at 45 deg the hips' L met them, 8 mm (2026-10-03); 50x2 high-modulus (`HUNG`).
 BOOM = (0.025, ((0.066, 0.062, 0.0), (0.006, -0.03, 0.0), (-0.006, -0.03, 0.0), (-0.066, 0.062, 0.0)))
 
 #: Her trunk's frame, the wires through its drives gone (the user, 2026-10-03): per frame, tubes
@@ -87,9 +93,10 @@ BOOM = (0.025, ((0.066, 0.062, 0.0), (0.006, -0.03, 0.0), (-0.006, -0.03, 0.0), 
 #: legs 34 and its back member 40 as cantilevers under the pitch's couple on the bearings, the
 #: neck's bracket 16; each run a carbon tube cut to length in printed PAHT-CF holders, each
 #: holder an extrusion along its print axis - its bores along it, a side hole a 45 deg roof, a
-#: ring split - no overhang in any print pose (the user, 2026-10-03).
-TRUNK_R = {'pelvis': (0.015, 0.015, 0.020), 'spine_roll': (0.007, 0.007), 'spine': (0.018,),
-           'torso': (0.02, 0.015), 'neck': (0.009,)}
+#: ring split - no overhang in any print pose (the user, 2026-10-03). Stock sizes (`HUNG`): the
+#: pitch's bracket 36 -> 40, the neck's 18 -> 20 (its flex 0.28 deg).
+TRUNK_R = {'pelvis': (0.015, 0.015, 0.020), 'spine_roll': (0.007, 0.007), 'spine': (0.020,),
+           'torso': (0.02, 0.015), 'neck': (0.010,)}
 TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0.066)),
                      ((-0.055, 0.045, 0.0), (-0.055, 0.045, 0.066), (0.0, 0.099, 0.066)),
                      ((0.0, -0.03, 0.0), (0.0, -0.03, -0.06), (0.0, 0.099, -0.066))),
@@ -111,9 +118,11 @@ TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0
 #: Its legs 22 mm tubes, for the yaw's torque on them; its crown a carbon plate CROWN_R thick in
 #: the 25 mm between the yaw's drum and the pitch's L - a tube there met the femur's collar, 4 mm.
 #: Its steerer STEERER_R round: the yaw's 77 N m in torsion stood 3.7 times a 10 mm tube's
-#: allowable; its bearing arms FORK_R, a 9 mm one 1.2 (`tools/sim/members.py`, 2026-10-03).
+#: allowable; its bearing arms FORK_R, a 9 mm one 1.2 (`tools/sim/members.py`, 2026-10-03). Stock
+#: sizes (`HUNG`): the steerer and the arms 24 and 22 -> 25 (the arms 1.02 of their allowable at
+#: the hips' 203 N m peak).
 FORK_R, CROWN_R, BEARING, BAND = 0.015, 0.005, (0.009, 0.007, 0.060), (0.043, 0.008)
-STEERER_R, ARM_R = 0.012, 0.011
+STEERER_R, ARM_R = 0.0125, 0.0125
 
 #: Each drive held by what carries it - the hip's roll drum, the ankles', the toes' and the boards
 #: held by nothing (the user, 2026-10-03): its collars, COLLAR_M proud of its drum, each (m from
@@ -209,8 +218,8 @@ def held(side):
     out = []
     for kind, (collars, struts) in HELD.items():
         joint = kind if kind in placed else 'left_' + kind
-        if joint == kind and side != 'left_':
-            continue
+        if (joint == kind and side != 'left_') or joint not in placed:
+            continue                                   # the right's of a trunk's; no drum held
         rides, at, letter = placed[joint]
         end = (drives.output(joint) or (letter, 1.0))[1]
         axis = tuple(end * v for v in AXES[letter])

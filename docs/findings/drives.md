@@ -140,3 +140,31 @@ board's in [FINDINGS](../FINDINGS.md).
   rms moves 20-30 % between runs of one build. A joint folded past a
   four-bar's dead centre or a rod's stroke read the far branch's lever
   (0.44 at the hip roll's -22, the demand 4.6x): clamped to the stroke.
+- Each drive held rigid in turn on the scoreboard (`drives.WAYS`; the
+  fewest drives, the user, 2026-10-03), against 730 and 74.1 % driven: the
+  wrists 602 and 74.2, every rise and walk standing - held since, 23
+  drives; the head's turn 699 and 69.4 (a walk fell), the neck 628 and
+  71.2 (a rise), the waist 727 and 71.6 (a rise), the spine's roll 1293
+  and 23.0, the hips' yaw 1337 and 12.1. One KV a frame (the fewest
+  variants): A's spine 1.05 of its amps at KV 110, 1.15 at 120; its hips
+  and knees 1.26 (volts 1.15, 1.23) and 1.38 (1.06, 1.13). The waist's and
+  the shoulder's 44 mm boxes 2.79 and 1.44 times their momentary rating,
+  the 64 mm 0.91 and 0.47 - B, the shoulder's stack +23 mm past her skin
+  standing (+22 before). With the wrists held and the boxes B, A at KV
+  110 scored 623 and 72.7 %, at 120 763 and 72.9: 110 kept, two windings.
+- Restarting after a fall she spasms and falls (the user, 2026-10-03,
+  humanoid_20261003_231619, 232719): headless from the squat with P's
+  shove at 60 s (`look.py --push 60 --to 100`) she collapses in the
+  get-up's crouch at 76-80 s and again at 93-97 s, her right hip 117 C
+  and derated to 0.82 there - the bowed torso (80-98 deg) hangs on the
+  hips -; with the shove at 6 s the same restart stands. Her hottest
+  drives: a knee 64-81 C through the walk, the left hip 106-109 in the
+  catch, the spine 86-89 sat back on her heels. The test took her lying
+  pose into a cold world: now the fall after 60 s of walking and the
+  heat carried (`getup_search.SHOVE_S`, `World.glitch(celsius=)`). The
+  get-up is her heavy lift: sitting back from the kneel draws 1.5 kW at
+  its peak, lifting onto her feet 1.4, the crouch 0.1-0.5, and the hip
+  goes 82 -> 117 C through them - not derated until the crouch, so a rest
+  on her heels for a derated leg drive never fired, and was cut. The
+  onto-feet keyframes re-searched hot stand her up 5 of 5
+  (docs/findings/body.md).

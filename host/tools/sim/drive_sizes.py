@@ -177,11 +177,12 @@ def main(argv=None):
                   n / math.sqrt(j)))
     stacks = [drives.STACKS[drives.kind(j)] for j in JOINTS if not drives.passive(j)]
     kg = sum(drives.mass(j) + drives.of(j)[1].board[0] for j in JOINTS if not drives.passive(j))
-    print('BOM: %d frames, %d boxes, %d inverters, %d windings; drives %.1f kg of %.0f; stacks '
-          '%s mm round' % (len({s[0] for s in stacks}), len({s[2] for s in stacks}),
-                           len({s[3] for s in stacks}), len({s[:2] for s in stacks}), kg, MASS_KG,
-                           '/'.join('%.0f' % (1e3 * d) for d in sorted(
-                               {drives.SIZES[s].diameter for s in drives.STACKS}, reverse=True))))
+    print('BOM: %d drives - %d frames (a winding each), %d boxes, %d inverters; %.1f kg of %.0f; '
+          'stacks %s mm round' % (len(stacks), len({s[0] for s in stacks}),
+                                  len({s[1] for s in stacks}), len({s[2] for s in stacks}), kg,
+                                  MASS_KG, '/'.join('%.0f' % (1e3 * d) for d in sorted(
+                                      {drives.size(s).diameter for s in drives.STACKS},
+                                      reverse=True))))
     return 0
 
 

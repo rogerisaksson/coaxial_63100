@@ -107,7 +107,10 @@ def sample(bus, director, world, asked=None):
            'turn': tuple(bus['pelvis.pose.q' + k] for k in 'wxyz'),
            'angles': {j: bus.get(j + '.deg', 0.0) for j in JOINTS}, 'set': asked or {}}
     now['watts'] = world.drawn()
+    heat = [(bus[k], bus[k[:-7] + 'derate'], JOINTS[i]) for k, i in zip(
+        [k for k in world.keys if k.endswith('.celsius')], world.named)]
     return dict(zip(HEADER, row(now, 60.0)), loose=world.loose(),
+                hot=max(heat)[0], hot_joint=max(heat)[2], derate=min(d for _c, d, _j in heat),
                 feet=world.gap(LEFT_FOOT, RIGHT_FOOT), lifted=world.lifted(LEFT_FOOT),
                 landed=director.touched_at is not None,
                 trunk=world.gap(('torso', 'head', 'upper_arm', 'forearm', 'hand'),
@@ -161,6 +164,8 @@ MEASURES = (
         for side in ('left', 'right'))),
     ('seat out', 'mm', lambda r, ref: _out(r, SEAT)),
     ('drawing', 'W', lambda r, ref: float(r.get('watts') or 'nan')),
+    ('hottest drive', 'C', lambda r, ref: float(r.get('hot') or 'nan')),
+    ('derate', 'x', lambda r, ref: float(r.get('derate') or 'nan')),
 )
 
 #: The seat's drives, `seat out` their worst reach past her skin.
@@ -229,6 +234,10 @@ def main(argv=None):
             v = [f(r, ref) for r in mine]
             cells.append('%+6.1f..%+6.1f' % (min(v), max(v)))
         print('%-14s %6.2f | %s' % (stage, float(mine[0]['t']), ' | '.join(cells)))
+    if 'hot_joint' in rows[0]:
+        print('hottest drive a moment: ' + ', '.join(
+            '%s %s %.0f C x%.2f' % (stage, r['hot_joint'], r['hot'], min(x['derate'] for x in mine))
+            for stage, mine in groups for r in [max(mine, key=lambda x: x['hot'])]))
     seams(rows, groups, ref)
     walked(rows)
     fell(rows)

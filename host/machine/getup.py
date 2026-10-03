@@ -63,12 +63,19 @@ KNEES_UNDER = (('ease', 'prop', 1.19, _pose(3.0, 52.5, 24.6, -7.9, -20.0, 100.0,
 SIT_BACK = (('ease', 'sit', 0.6, _pose(-130.0, 158.2, 12.2, 60.0, -20.0, 54.3, 12.0)),
             ('ease', 'sit', 3.08, dict(_pose(-21.9, 160.0, -46.8, 30.9, -20.0, 72.7, 65.2),
                                        left_foot=54.5, right_foot=54.5)))
-ONTO_FEET = (('ease', 'lift', 1.11, dict(_pose(-14.9, 139.2, -33.3, 37.7, -20.0, 68.2, -8.9),
-                                         left_foot=28.6, right_foot=28.6)),
-             ('ease', 'lift', 0.48, dict(_pose(-134.5, 122.0, -40.0, 38.9, -20.0, 141.9, -16.7),
-                                         left_foot=36.9, right_foot=36.9)),
-             ('ease', 'crouch', 1.94, dict(_pose(-126.5, 113.3, -33.8, 35.2, -20.0, 75.4, 6.0),
-                                           left_foot=3.0, right_foot=3.0)),
+#: Re-searched hot - the falls after a minute's walk, her drives' heat carried, the look's cost
+#: on her hands out and her torso bowed (`getup_search`, 2026-10-04): as they were she walked
+#: again from 0 of 5, 3 tries each, hands out 18.8 s, bowed 9.3; these 5 of 5 at 22.8-23.4 s, 1
+#: try, 4.5 and 5.3 s - the arms thrown up to 151 deg for the lift's 0.5 s, as before (142).
+#: With the arms held low (the shoulders 30, the elbows straight; the user's wish is down) the
+#: best of 96 stood her up from none of 5, hot or cold (hands out 1.4 s, bowed 5.9): the throw
+#: is what lifts her off her heels.
+ONTO_FEET = (('ease', 'lift', 1.22, dict(_pose(-25.82, 140.36, -37.9, 34.86, -20.0, 62.41, -13.81),
+                                         left_foot=28.34, right_foot=28.34)),
+             ('ease', 'lift', 0.5, dict(_pose(-127.02, 139.07, -52.0, 44.91, -20.0, 150.72, -24.93),
+                                        left_foot=24.84, right_foot=24.84)),
+             ('ease', 'crouch', 2.03, dict(_pose(-131.71, 121.01, -33.48, 31.09, -20.0, 76.46, 2.98),
+                                           left_foot=1.55, right_foot=1.55)),
              ('ease', 'crouch', 2.23, arrival.angles_of(arrival._squat())),
              ('ease', 'crouch', 0.3, {}))
 

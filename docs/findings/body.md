@@ -227,6 +227,31 @@ her clothes; her drives in [drives](drives.md). The board's own are in
   now 120 mm up the torso, its gearbox down - the mass model had it at the
   pivot, inside the pitch's L. Over spine -30..85, roll +-35, waist +-50 the
   closest 2 mm; every drive held (`fit.held_by`).
+- Her get-up re-searched hot (the user, 2026-10-03: she spasms and falls
+  restarting after a shove, and prays to Mecca with her arms out on the
+  way up; `getup_search`, 2026-10-04): the starts her five falls after a
+  minute's walk with the drives' heat carried, walking again 3 s without
+  a fall, the look's cost 10 a second with her hands past 620 mm from her
+  chest or her torso past 70 deg from the sit on. As it was 0 of 5 walked
+  again (3 tries, hands out 18.8 s, bowed 9.3); the onto-feet keyframes'
+  best of 96 (8 x 12) 5 of 5 at 22.8-23.4 s, 1 try, 4.5 and 5.3 s - the
+  arms thrown up to 151 deg for the lift's 0.5 s, as before (142). With
+  the arms held low (the shoulders 30, the elbows straight) the best of
+  96 stood her up from none of 5, hot or cold (1.4 and 5.9 s): the throw
+  lifts her off her heels, not the hip. Kept with the throw; arms down
+  wants another way up (the user).
+- Her tubes cut from stock (`tools/sim/members.py --family`, the user's
+  fewest variants, 2026-10-03): of 13 stock sizes (1 mm walls to 25 mm
+  round, 2 from 30) the lightest family passing every member within 2.5
+  mm of its radius was six - 12x1, 20x1, 25x1, 30x2, 40x2, 50x2, 0.67 kg
+  of tube against 0.68 in nine sizes - and seven as built, 35x2 for the
+  tibia's lower run (40 met the ankle's rod by 6 mm in the crouch) and
+  every tube in the shanks' high-modulus grade: the femur's lower run 50
+  -> 40 (flex 0.25 deg), the boom kept 50 (0.30 at 40), the neck 18 -> 20
+  (0.28 -> 0.20), the hip fork's arms 22 -> 25 (1.02 of their allowable at
+  the hips' 203 N m peak at KV 110 -> 0.78), the humerus 24 -> 25, the
+  forearm 22 and 18 -> 25 and 20. Left marginal: the tibia's lower run
+  0.31, the femur's 0.25, the roll's horn 0.26.
 - Her members sized for stiffness (2026-10-03): at 0.6 of their drives'
   peaks, at most 0.25 deg each, roll-wrapped carbon E 70 GPa, G 20.
 

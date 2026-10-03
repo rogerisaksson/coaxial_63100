@@ -120,7 +120,7 @@ def segments():
     shell, what it holds and the drives on it, and each stage a drive rides - laid once a wall and
     a drives' layout
     (`figure.com` asks every pass)."""
-    key = (WALL_M, CF_KG_M3, drives.TOES, drives.FINGERS, tuple(drives.JOINTS.items()),
+    key = (WALL_M, CF_KG_M3, tuple(sorted(drives.WAYS.items())), tuple(drives.JOINTS.items()),
            _staged())
     if key not in _LAID:
         _LAID[key] = _segments()

@@ -181,21 +181,22 @@ MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'direct
 
 def _set(values):
     """The constants set where they live - the first of MODULES holding the name, or the one
-    named, walkplan.TRACK_M (gait has its own) - the plan's tables cleared. Unqualified, a name
-    two modules hold sets the first: TURN_DEG meant for the fall turned the walk's pelvis
-    (2026-10-01)."""
+    named, walkplan.TRACK_M (gait has its own); a table's entry as module.TABLE.key,
+    drives.WAYS.head - the plan's tables cleared. Unqualified, a name two modules hold sets the
+    first: TURN_DEG meant for the fall turned the walk's pelvis (2026-10-01)."""
     import importlib
     mods = [importlib.import_module('machine.' + m) for m in MODULES]
     for name, value in values.items():
-        if '.' in name:
-            module, name = name.split('.', 1)
-            mods_named = [m for m in mods if m.__name__ == 'machine.' + module]
-            owner = next((m for m in mods_named if hasattr(m, name)), None)
-        else:
-            owner = next((m for m in mods if hasattr(m, name)), None)
+        module, _dot, name = name.partition('.') if '.' in name else ('', '', name)
+        table, _dot, key = name.partition('.')
+        owner = next((m for m in mods if hasattr(m, table)
+                      and (not module or m.__name__ == 'machine.' + module)), None)
         if owner is None:
-            raise KeyError('no %s in machine.%s' % (name, ', machine.'.join(MODULES)))
-        setattr(owner, name, value)
+            raise KeyError('no %s in machine.%s' % (table, ', machine.'.join(MODULES)))
+        if key:
+            getattr(owner, table)[key] = value
+        else:
+            setattr(owner, table, value)
     gait, walkplan = mods[1], mods[2]
     gait._FITS.clear()
     walkplan._TABLES.clear()
@@ -374,13 +375,17 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
 
 
 def _now(name):
-    """A constant's value where it lives (`_set`'s modules), its module named or not."""
+    """A constant's value where it lives (`_set`'s modules), its module named or not; a table's
+    entry's as module.TABLE.key."""
     import importlib
     mods = [importlib.import_module('machine.' + m) for m in MODULES]
-    module, _dot, bare = name.rpartition('.')
+    parts = name.split('.')
+    key = parts.pop() if len(parts) > 2 else None
+    module, _dot, bare = '.'.join(parts).rpartition('.')
     owner = next(m for m in mods if hasattr(m, bare)
                  and (not module or m.__name__ == 'machine.' + module))
-    return float(getattr(owner, bare))
+    value = getattr(owner, bare)
+    return float(value[key] if key else value)
 
 
 

@@ -12,7 +12,8 @@ real falls leave her in.
 A start is one of the scoreboard's falls (`gait_montecarlo`'s events, P's shove at SPREAD's
 steps) run until her get-up begins: every joint, the pelvis's place and turn (STARTS). A run lays
 her there still and lets the director check her and get her up (`machine.down`); its cost:
-KEPT_K if she is not walking again by RUN_S, the seconds it took, TRY_K a try past the first.
+KEPT_K if she is not walking again by RUN_S, the seconds it took, TRY_K a try past the first,
+LOOK_K a second of her hands thrown out or her torso bowed (LOOKED).
 """
 import argparse
 import json
@@ -23,11 +24,22 @@ import time
 from tools.dev import background
 from tools.sim import cmaes
 
-#: The falls a start is taken from: (event, spread step).
+#: The falls a start is taken from: (event, spread step), laid after SHOVE_S of walking: her
+#: drives as hot as the page's after a minute - restarting at 74-77 s she fell in the rise (the
+#: user's recordings, 2026-10-03), headless too after 60 s of walking, standing after 5.
 FALLS = (('shove', -1), ('shove', 0), ('shove', 1), ('hole', 0), ('lace', 0))
+SHOVE_S = 60.0
 
-#: A run's seconds; not walking again by then KEPT_K, and TRY_K a try past the first.
-RUN_S, KEPT_K, TRY_K = 40.0, 60.0, 10.0
+#: A run's seconds; walking again once WALKED_S in her walk without falling (the user,
+#: 2026-10-03: the first 'walk' stage counted, the fall right after it never seen); not by RUN_S
+#: KEPT_K, and TRY_K a try past the first.
+RUN_S, WALKED_S, KEPT_K, TRY_K = 60.0, 3.0, 60.0, 10.0
+#: Her look getting up (the user, 2026-10-03: no praying, the arms down, not thrown out): from
+#: the sit on (LOOKED), the seconds her hands are past HANDS_M from her chest (544 mm hanging,
+#: 730 thrown on in the lift) and her torso past TORSO_DEG from upright (80-99 in the crouch),
+#: LOOK_K each.
+LOOKED = ('sit', 'lift', 'crouch', 'squat', 'look', 'push', 'rise')
+HANDS_M, TORSO_DEG, LOOK_K = 0.62, 70.0, 10.0
 
 #: The knobs, a table a letter: its keyframes from the first, how many, the fields of each pose,
 #: deg, both sides alike (`getup._pose`, the toes' `foot`), and its seconds' span; each field
@@ -81,10 +93,11 @@ def _body():
 
 
 def start(fall):
-    """(event, step) -> her lying state as her get-up begins: {joint: deg}, place, turn; None if
-    she never fell."""
+    """(event, step) -> her lying state as her get-up begins: {joint: deg}, place, turn, and her
+    drives' heat {joint: C}; None if she never fell."""
     from machine import events, getup
     from machine.figure import JOINTS
+    from machine.physics import READING
     event, k = fall
     body, d = _body()
     d.walker.start()
@@ -92,10 +105,10 @@ def start(fall):
     body.loop.step(0.0)
     bus, world = body.loop.bus, body.nodes['pelvis'].world
     laid, was, out = False, 0.0, None
-    while bus['t'] < 30.0 and out is None:
+    while bus['t'] < SHOVE_S + 25.0 and out is None:
         body.loop.write(**d.step(0.001))
         body.loop.step(0.001)
-        if not laid and bus['t'] >= 5.0 and was < events.at(event, k) <= d.walker.phase:
+        if not laid and bus['t'] >= SHOVE_S and was < events.at(event, k) <= d.walker.phase:
             events.lay(event, d, world, k)
             laid = True
         was = d.walker.phase
@@ -103,30 +116,50 @@ def start(fall):
             q = world.data.qpos
             out = {'fall': list(fall), 'deg': {j: math.degrees(q[world.qadr[i]])
                                                for i, j in enumerate(JOINTS)},
-                   'at': [float(v) for v in q[0:3]], 'turn': [float(v) for v in q[3:7]]}
+                   'at': [float(v) for v in q[0:3]], 'turn': [float(v) for v in q[3:7]],
+                   'hot': {JOINTS[i]: bus[world.keys[len(READING) * n + READING.index('celsius')]]
+                           for n, i in enumerate(world.named)}}
     body.close()
     return out
 
 
 def trial(job):
-    """(values, start) -> (cost, walked s or None, tries)."""
+    """(values, start) -> (cost, the second she was walking again from or None, tries, (s her
+    hands were out, s her torso was bowed))."""
     from machine import down
     values, lying = job
     _apply(values)
     body, d = _body()
     bus, world = body.loop.bus, body.nodes['pelvis'].world
     world.reset(lying['deg'], where=lying['at'], turn=lying['turn'])
+    for joint, celsius in lying.get('hot', {}).items():
+        world.glitch(joint, 'hot', celsius=celsius)
     body.loop.step(0.0)
     d.stage, d.falling_at, d.fallen_at, d.down = 'fallen', bus['t'], bus['t'], down.Down(world)
-    walked = None
+    walked = since = None
+    out_s = bowed_s = 0.0
+    m, dd = world.model, world.data
+    fingers = [m.body(s + '_fingers').id for s in ('left', 'right')]
+    torso, neck, tick = m.body('torso').id, m.body('neck').id, -1
     while bus['t'] < RUN_S and walked is None and not d.given_up:
         body.loop.write(**d.step(0.001))
         body.loop.step(0.001)
-        if d.stage == 'walk':
-            walked = bus['t']
+        if d.stage in ('walk', 'catch'):
+            since = bus['t'] if since is None else since
+            walked = since if bus['t'] - since >= WALKED_S else None
+        else:
+            since = None
+        if d.stage in LOOKED and int(bus['t'] * 100) != tick:
+            tick = int(bus['t'] * 100)
+            chest = (dd.xpos[torso] + dd.xpos[neck]) / 2.0
+            out_s += 0.01 * (max(math.dist(dd.xpos[f], chest) for f in fingers) > HANDS_M)
+            up = dd.xpos[neck] - dd.xpos[torso]
+            bowed_s += 0.01 * (math.degrees(math.atan2(math.hypot(up[0], up[2]), up[1]))
+                               > TORSO_DEG)
     body.close()
-    cost = (KEPT_K if walked is None else 0.0) + (walked or RUN_S) + TRY_K * max(0, d.tries - 1)
-    return cost, walked, d.tries
+    cost = ((KEPT_K if walked is None else 0.0) + (walked or RUN_S) + TRY_K * max(0, d.tries - 1)
+            + LOOK_K * (out_s + bowed_s))
+    return cost, walked, d.tries, (out_s, bowed_s)
 
 
 def relayed(args):
@@ -146,19 +179,20 @@ def relayed(args):
 
 def runs(_pool, candidates, starts, file='getup_starts.json'):
     """[(cost, share walking, nan, results)] a candidate, every start of each a job on the
-    relay (`--one`, the starts from `file`)."""
-    got = relayed([['--file', file, '--one', json.dumps(c), str(s)]
+    relay (`--one`, the starts from `file`, their heat unless COLD)."""
+    got = relayed([['--file', file, '--one', json.dumps(c), str(s)] + (['--cold'] if COLD else [])
                    for c in candidates for s in range(len(starts))])
     out = []
     for k in range(len(candidates)):
-        mine = [r or (KEPT_K + RUN_S, None, 1) for r in got[k * len(starts):(k + 1) * len(starts)]]
+        mine = [r or (KEPT_K + RUN_S, None, 1, (0.0, 0.0))
+                for r in got[k * len(starts):(k + 1) * len(starts)]]
         out.append((sum(r[0] for r in mine) / len(mine),
                     sum(r[1] is not None for r in mine) / len(mine), math.nan, mine))
     return out
 
 
-#: A run's commit on the relay, GB (a world and its five buses).
-RUN_GB = 1.2
+#: A run's commit on the relay, GB (a world and its five buses); the starts' heat left out.
+RUN_GB, COLD = 1.2, False
 
 
 def main(argv=None):
@@ -175,10 +209,15 @@ def main(argv=None):
                         help="one run on the relay: a candidate's JSON and its start's index")
     parser.add_argument('--one-start', nargs=2, metavar=('EVENT', 'K'),
                         help='one fall on the relay: its event and spread step')
+    parser.add_argument('--cold', action='store_true', help="the starts' heat left out")
     args = parser.parse_args(argv)
     background.lower()
+    global COLD
+    COLD = args.cold
     if args.one:
-        lying = json.load(open(args.file))[int(args.one[1])]
+        lying = dict(json.load(open(args.file))[int(args.one[1])])
+        if COLD:
+            lying.pop('hot', None)
         print(json.dumps({'result': trial((json.loads(args.one[0]), lying))}))
         return 0
     if args.one_start:
@@ -205,10 +244,10 @@ def main(argv=None):
     cost, held, _nan, results = runs(None, [now], starts, args.file)[0]
     print('cost %.2f, walking again from %d of %d' % (cost, round(held * len(starts)),
                                                       len(starts)))
-    for s, (c, walked, tries) in zip(starts, results):
-        print('  %-6s %+d  %s, %d tries' % (s['fall'][0], s['fall'][1],
-                                            'walking at %.1f s' % walked if walked else 'down',
-                                            tries))
+    for s, (c, walked, tries, (out_s, bowed_s)) in zip(starts, results):
+        print('  %-6s %+d  %s, %d tries, hands out %.1f s, bowed %.1f s' % (
+            s['fall'][0], s['fall'][1], 'walking at %.1f s' % walked if walked else 'down',
+            tries, out_s, bowed_s))
     print('%.0f s' % (time.time() - began))
     return 0
 

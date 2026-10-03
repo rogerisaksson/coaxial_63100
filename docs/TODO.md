@@ -76,10 +76,15 @@ Open work. Measured results are in FINDINGS.
     +20, the knee +14, the wrist +10, the ankle +8; past her shell the toes'
     stack +20, the hip yaw +6 (`tools/sim/fit.py`).
   + Her kinematics for printing (the user, 2026-10-03): every holder and
-    lever a 2.5D print in PAHT-CF, the purchased parts few - standard carbon
-    tubes in as few sizes as her members allow (`tools/sim/members.py`), one
-    bearing size, one rod end -, her walk and get-up held or bettered on the
-    Monte Carlo, no flex past `members.py`'s 0.25 deg.
+    lever a 2.5D print in PAHT-CF; the purchased parts few - the tubes
+    seven stock sizes in one grade (docs/findings/body.md), one bearing
+    size and one rod end to go; the fewest drives (the wrists went, 23;
+    the head's turn, the neck and the waist each lost a rise or a walk
+    held) in the fewest variants - two windings, three boxes (C while the
+    elbow and the toes are driven in her arm and foot), two inverters -
+    and the fewest special parts (the hip roll's spur pair, the foot's
+    belt, the ankles' ball screws); her walk and get-up held on the Monte
+    Carlo, no flex past `members.py`'s 0.25 deg.
   + R in the tty crashes it at once (the user, 2026-10-03): headless the
     page takes R, the 22:36 recording saved 97 rows of 129 fields; a page
     started before `buses.FIELDS` gained `flex` suspected - its traceback
@@ -87,6 +92,14 @@ Open work. Measured results are in FINDINGS.
   + First the biped (the user, 2026-10-03): her gait and her bearing,
     parrying shoves, stumbles and slippery floors, getting up when she
     falls; the toes and the hands after.
+  + Rising after P's shove she spasmed and fell, and prayed to Mecca with
+    her arms out (the user, 2026-10-03; docs/findings/body.md, drives.md):
+    hot after a minute's walk 0 of 5 walked again, her right hip 117 C in
+    the crouch; re-searched hot with the look's cost 5 of 5, hands out
+    18.8 -> 4.5 s, bowed 9.3 -> 5.3 - the arms thrown up for the lift's
+    0.5 s; held low, none of 5 hot or cold. Arms down wants another way
+    off her heels (the user's call): hands pushing on the knees, or the
+    hip's torque up (the margin's rule).
   + Her get-up's end (the user, 2026-10-03, humanoid_20261003_203813):
     restarting after a fall - on the stacks 3 of 5 restarts fell again
     within 1 s, 0 of 5 on the drives as they stood; rocking side to side up
@@ -153,7 +166,7 @@ Open work. Measured results are in FINDINGS.
     on the boards' tick, the walker takes 0.46 ms of a walking pass.
   + Fewer drives, for weight and BOM: of the 27 on 5 buses (the axis 5, an
     arm 4, a leg 7): the head's turn held rigid changed nothing in 5
-    scenarios. The fingers a fist without drives (`drives.FINGERS`), their
+    scenarios. The fingers a fist without drives (`drives.WAYS`), their
     boards still on the arms' buses, their limit 0. The toes on a spring
     every walk falls within 0.8 s: the walker's push-off asks them and its
     legs' reach counts on them - reworked for a passive toe. The elbow's M
@@ -266,7 +279,10 @@ Open work. Measured results are in FINDINGS.
     1.4-1.7 over and its inverter 1.2-1.5 (docs/findings/drives.md) - 1.5x
     on the walk and the get-up with 1.0x on parries and falls, or every leg
     stack on 1.5x the continuous current (a bigger inverter, more copper,
-    the BOM and the size up): the user's call.
+    the BOM and the size up): the user's call. The get-up is the heavy
+    lift (docs/findings/drives.md, 2026-10-03): a hip 82 -> 117 C and
+    derated to 0.82 through the sit, the lift and the crouch after a
+    minute's walk, and she collapses.
   + The knee's continuous torque the 100 mm inverter's (`drive_sizes` T,
     docs/findings/drives.md): its switches at 44 A through the housing's
     3.6 K/W; the stack's housing as its heatsink - the skin into the carbon
@@ -279,7 +295,7 @@ Open work. Measured results are in FINDINGS.
     20/9/3 kN m/rad) and the walk at `physics.WOUND` 1 with it; the ankles'
     rods 16 mm (their stretch 2.6 deg at the clamp); the waist's 44 mm box
     (1.6 deg). Left marginal (`tools/sim/members.py`): the tibia's lower run
-    0.31 deg - 40 mm took the ankle's rods -, the neck's bracket 0.28, the
+    0.31 deg - 40 mm took the ankle's rods -, the femur's 0.25 at 40, the
     roll's horn 0.26; in the roll onto her front the pelvis's back member 9
     mm into the hip roll's holders, the knee's folded femur 6 into the
     fork's arm. The foot: its 12 mm keel and cheeks carry the rods' 9 kN as

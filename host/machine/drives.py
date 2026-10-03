@@ -76,23 +76,26 @@ BOX_K = {'A': 2.0e4, 'B': 9.0e3, 'C': 3.0e3}
 #: 10 W/m^2 K still and the pad 0.3; a 70 mm at 50 A (estimated).
 INVERTERS = {100: (0.100, 100.0, 0.2, 3.6), 70: (0.070, 50.0, 0.08, 6.5)}
 
-#: Each kind's stack: (frame, KV, box, inverter), each KV in its window of 1.5x on the walk's
-#: torque at its speed, each box's momentary 1.5x its peak and its rated over its rms. At 1:30
-#: frame B's windows met at KV 76-95 but the ankles' (x1.43-1.48), their copper 1.05x their rms
-#: and the hip roll's 1.17x; A's spine on 100 A to KV 104, hip 52-85, knee none - x1.41 at KV 90,
-#: its first step's 144 N m at 704 deg/s, 2.0 kW, on 100 A at 48 V. The hip's and the knee's at
-#: KV 120, x1.09 over her clamp, 960 deg/s: at 90 and 70 she held 70.7 % of the gait Monte
-#: Carlo, its knee run into its SOA felled her 2 of 3; at 120 74.2 %, 1 of 3; at 125 71.8 %. The
-#: spine at KV 40 on 50 A, 360 deg/s, felled her in the knee's SOA (docs/findings/drives.md,
-#: 2026-10-03).
-STACKS = {'spine': ('A', 100.0, 'A', 100), 'spine_roll': ('B', 90.0, 'B', 70),
-          'waist': ('B', 90.0, 'C', 70), 'neck': ('B', 90.0, 'C', 70),
-          'head': ('B', 90.0, 'C', 70), 'shoulder': ('B', 90.0, 'C', 70),
-          'elbow': ('B', 90.0, 'C', 70), 'wrist': ('B', 90.0, 'C', 70),
-          'gripper': ('B', 90.0, 'C', 70), 'hip_yaw': ('B', 90.0, 'B', 70),
-          'hip_roll': ('B', 90.0, 'B', 70), 'hip': ('A', 120.0, 'A', 100),
-          'knee': ('A', 120.0, 'A', 100), 'ankle': ('B', 90.0, 'B', 70),
-          'ankle_roll': ('B', 90.0, 'B', 70), 'foot': ('B', 90.0, 'C', 70)}
+#: Each kind's stack: (frame, box, inverter), its winding its frame's one KV (the fewest
+#: variants, the user, 2026-10-03), each KV in its window of 1.5x on the walk's torque at its
+#: speed, each box's momentary 1.5x its peak and its rated over its rms. At 1:30 frame B's
+#: windows met at KV 76-95 but the ankles' (x1.43-1.48), their copper 1.05x their rms and the
+#: hip roll's 1.17x; A's spine on 100 A to KV 104, hip 52-85, knee none - x1.41 at KV 90, its
+#: first step's 144 N m at 704 deg/s, 2.0 kW, on 100 A at 48 V. The hip's and the knee's at KV
+#: 120, x1.09 over her clamp, 960 deg/s: at 90 and 70 she held 70.7 % of the gait Monte Carlo,
+#: its knee run into its SOA felled her 2 of 3; at 120 74.2 %, 1 of 3; at 125 71.8 %. The spine
+#: at KV 40 on 50 A, 360 deg/s, felled her in the knee's SOA (docs/findings/drives.md,
+#: 2026-10-03). One KV for A: the spine's amps at its clamp 1.05 at 110, 1.15 at 120; the hip's
+#: and the knee's 1.26 at 110 (volts 1.15 and 1.23), 1.38 at 120 (1.06, 1.13). The waist's and
+#: the shoulder's 44 mm boxes stood 2.79 and 1.44 times their momentary rating: the 64 mm 0.91
+#: and 0.47 (`tools/sim/drive_sizes.py`, 2026-10-03).
+KV = {'A': 110.0, 'B': 90.0}
+STACKS = {'spine': ('A', 'A', 100), 'spine_roll': ('B', 'B', 70), 'waist': ('B', 'B', 70),
+          'neck': ('B', 'C', 70), 'head': ('B', 'C', 70), 'shoulder': ('B', 'B', 70),
+          'elbow': ('B', 'C', 70), 'wrist': ('B', 'C', 70), 'gripper': ('B', 'C', 70),
+          'hip_yaw': ('B', 'B', 70), 'hip_roll': ('B', 'B', 70), 'hip': ('A', 'A', 100),
+          'knee': ('A', 'A', 100), 'ankle': ('B', 'B', 70), 'ankle_roll': ('B', 'B', 70),
+          'foot': ('B', 'C', 70)}
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
 #: else in its stack. The knee's and the ankle's split (the user, 2026-10-02), two discs facing
@@ -122,22 +125,28 @@ WIND = {'spine': 0.085, 'spine_roll': 0.148, 'waist': 0.035, 'neck': 0.239, 'hea
 def flex(joint):
     """rad a N m its gearbox and the structure on to its limb wind up."""
     k = kind(joint)
-    return 1.0 / BOX_K[STACKS[k][2]] + WIND[k] * 1e-3
+    return 1.0 / BOX_K[STACKS[k][1]] + WIND[k] * 1e-3
 
-#: Joints without a drive to begin with (the user, 2026-10-02): the toes (TOES) and the fingers
-#: (FINGERS) driven, 0; on a spring, 1 - PASSIVE's stiffness N m/rad and damping N m s/rad about
-#: its rest, deg; held at it, 2. On the scoreboard, their four drives' 0.88 kg gone: the fingers
-#: held open at 20 deg 212 -> 349, held 79.5 -> 68.0 %, every rise down at 7.1 s; held a fist,
-#: 238 and 81.0 %; the toes sprung, 622 and 11.4 %, every walk down within 0.8 s - the walker's
-#: push-off asks them and its legs' reach counts on them (2026-10-02).
-TOES, FINGERS = 0.0, 2.0
+#: Joints without a drive, a kind's way (WAYS): driven, 0; on a spring, 1 - PASSIVE's stiffness
+#: N m/rad and damping N m s/rad about its rest, deg, a kind not listed 40, 1 and 0 -; held at it,
+#: 2, between stops (`mjcf.HELD_DEG`). Any kind, for the fewest drives (the user, 2026-10-03);
+#: the toes and the fingers to begin with (the user, 2026-10-02): on the scoreboard, their four
+#: drives' 0.88 kg gone, the fingers held open at 20 deg 212 -> 349, held 79.5 -> 68.0 %, every
+#: rise down at 7.1 s; held a fist, 238 and 81.0 %; the toes sprung, 622 and 11.4 %, every walk
+#: down within 0.8 s - the walker's push-off asks them and its legs' reach counts on them. Each
+#: of the rest held in turn against 730 and 74.1 % (2026-10-03): the wrists 602 and 74.2, every
+#: rise and walk standing - held; the head's turn 699 and 69.4 (a walk fell), the neck 628 and
+#: 71.2 (a rise), the waist 727 and 71.6 (a rise), the spine's roll 1293 and 23.0, the hips' yaw
+#: 1337 and 12.1.
+WAYS = {'foot': 0.0, 'gripper': 2.0, 'wrist': 2.0}
 PASSIVE = {'foot': (40.0, 1.0, 0.0), 'gripper': (40.0, 1.0, 80.0)}
 
 
 def _stack(kind):
-    """A kind's Size from its stack (`STACKS`): its frame's law, its winding, its box, its
-    inverter in it or apart (`BOARDS`)."""
-    frame, kv, box, inverter = STACKS[kind]
+    """A kind's Size from its stack (`STACKS`): its frame's law, its winding (`KV`), its box,
+    its inverter in it or apart (`BOARDS`)."""
+    frame, box, inverter = STACKS[kind]
+    kv = KV[frame]
     rotor, stack = FRAMES[frame]
     ds, mm = (rotor - 0.006) * 1e3, stack * 1e3
     km = 1.6e-5 * ds ** 1.8 * mm ** 0.8
@@ -158,7 +167,15 @@ def _stack(kind):
                     frame, rotor * 1e3, stack * 1e3, kv, BOXES[box] * 1e3, amps))
 
 
-SIZES = {k: _stack(k) for k in STACKS}
+_SIZED = {}
+
+
+def size(kind):
+    """A kind's Size, laid once a stack and winding (`_stack`): STACKS and KV are knobs."""
+    key = (kind,) + STACKS[kind] + (KV[STACKS[kind][0]],)
+    if key not in _SIZED:
+        _SIZED[key] = _stack(kind)
+    return _SIZED[key]
 
 #: Where each joint's stack sits: None on the joint's own axis; else (segment,
 #: offset m in its frame[, its axis, '-x' its gearbox's end toward -x]) - its output turns what it
@@ -216,7 +233,7 @@ def kind(joint):
 def of(joint):
     """(frame, Size) of a joint's drive."""
     k = kind(joint)
-    return STACKS[k][0], SIZES[k]
+    return STACKS[k][0], size(k)
 
 
 def output(joint):
@@ -349,11 +366,11 @@ def peak(joint):
 
 def passive(joint):
     """(stiffness N m/rad - None held -, damping N m s/rad, rest deg) of a joint with no drive
-    (`PASSIVE`), else None."""
-    way = {'foot': TOES, 'gripper': FINGERS}.get(kind(joint), 0.0)
+    (`WAYS`), else None."""
+    way = WAYS.get(kind(joint), 0.0)
     if not way:
         return None
-    stiffness, damping, rest = PASSIVE[kind(joint)]
+    stiffness, damping, rest = PASSIVE.get(kind(joint), (40.0, 1.0, 0.0))
     return (stiffness if way == 1.0 else None), damping, rest
 
 

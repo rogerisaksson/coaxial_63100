@@ -2,6 +2,7 @@
 """Her members under their drives' peaks: each tube's, plate's and rod's stress and flex.
 
     python tools/sim/members.py             # every member, the ones past a limit starred
+    python tools/sim/members.py --family 3  # her tubes cut from three stock sizes
 
 A member is a run of her skeleton (`machine.skeleton`: the bones, the trunk's frame, the boom,
 the hip's gimbal, the holders' struts) or a linkage's part (`machine.linkage`: a crank, a horn, a
@@ -18,11 +19,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 #: Materials: E GPa, G GPa, allowable MPa. Roll-wrapped carbon tube (its ultimate ~600 in
-#: bending) and the high-modulus one (the trunk's frame, the shanks and the arms), pultruded
-#: carbon rod, printed PAHT-CF in its layers' plane (92 tensile, 44 across: parts loaded
-#: in-plane, printed flat, the user, 2026-10-03), steel plate. Printed parts hold and join:
-#: short and stout, every one an extrusion along its print axis (the user: 2.5D, no overhang
-#: in any print pose); the long members carbon tubes cut to length.
+#: bending) and the high-modulus one - every tube of hers since 2026-10-03, one grade: the
+#: femur 50 -> 40 mm in it -, pultruded carbon rod, printed PAHT-CF in its layers'
+#: plane (92 tensile, 44 across: parts loaded in-plane, printed flat, the user, 2026-10-03),
+#: steel plate. Printed parts hold and join: short and stout, every one an extrusion along its
+#: print axis (the user: 2.5D, no overhang in any print pose); the long members carbon tubes
+#: cut to length (TUBES).
 CARBON, HM_CARBON, ROD, PAHT_CF, STEEL = ((70.0, 20.0, 300.0), (130.0, 30.0, 300.0),
                                            (130.0, 5.0, 600.0), (4.5, 1.6, 50.0),
                                            (200.0, 80.0, 250.0))
@@ -32,6 +34,12 @@ WALL, FLEX_AT, FLEX_DEG, MARGIN = 0.1, 0.6, 0.25, 1.5
 #: A four-bar's plates: PLATE_R thick (`linkage`), this wide in their plane, printed PAHT-CF; the
 #: hip fork's crown a carbon plate CROWN_R thick (`skeleton`), this wide.
 PLATE_W, CROWN_W = 0.050, 0.040
+#: Stock roll-wrapped carbon tubes, (outer radius, wall) m: 1 mm walls to 25 mm round, 2 mm from
+#: 30 (the makers' lists); her tubes cut from as few of them as her members allow (the user,
+#: 2026-10-03: minimal variants), each within ROOM of its radius now, carbon CF_KG_M3.
+TUBES = tuple((d / 2e3, 0.001 if d < 30 else 0.002)
+              for d in (8, 10, 12, 14, 16, 18, 20, 22, 25, 30, 35, 40, 50))
+ROOM, CF_KG_M3 = 0.0025, 1550.0
 #: Each joint's wind-up: the members its torque passes on its way to the limb, their flex a
 #: N m summed in series (`wind`); a rod's its stretch over its horn.
 PATH = {'spine': ('spine frame 0', 'pelvis frame 0'), 'spine_roll': ('spine_roll crank',
@@ -46,11 +54,17 @@ PATH = {'spine': ('spine frame 0', 'pelvis frame 0'), 'spine_roll': ('spine_roll
         'ankle_roll': ('ankle_roll rod',), 'foot': ('foot run 2',)}
 
 
-def tube(r):
-    """(I, J, A) m^4, m^4, m^2 of a carbon tube r round, WALL of r thick (1 mm at least)."""
-    ri = r - max(WALL * r, 0.001)
+def _tube(r, t):
+    """(I, J, A) m^4, m^4, m^2 of a tube r round, t thick."""
+    ri = r - t
     return (math.pi * (r ** 4 - ri ** 4) / 4.0, math.pi * (r ** 4 - ri ** 4) / 2.0,
             math.pi * (r * r - ri * ri))
+
+
+def tube(r):
+    """(I, J, A) of a carbon tube r round: a stock size's wall (TUBES), else WALL of r (1 mm at
+    least)."""
+    return _tube(r, next((t for rr, t in TUBES if math.isclose(rr, r)), max(WALL * r, 0.001)))
 
 
 def plate(t, w):
@@ -82,7 +96,7 @@ def members():
                 out.append(('%s run %d' % (seg, k), 'pull', length, rods_n, tube(r), CARBON, r))
                 continue
             out.append(('%s run %d' % (seg, k), 'bend', length, max(peak[a], peak[b]), tube(r),
-                        CARBON if seg == 'thigh' else HM_CARBON, r))
+                        HM_CARBON, r))
     # The trunk's frame: the pitch's torque is a couple on the roll's bearings 66 mm out, each
     # fork leg a cantilever under its share of it (the front bearing's two legs, the back's one),
     # the roll's trunnions steel pins under it over their 9 mm; the pitch's bracket takes the
@@ -108,7 +122,7 @@ def members():
     # The boom twisted by a hip's pitch; the hip's gimbal: the steerer twisted by the yaw, the
     # legs bent by the pitch's couple on the roll's bearings, the arms by the roll's.
     r, pts = skeleton.BOOM
-    out.append(('boom', 'twist', math.dist(pts[0], pts[1]), peak['hip'], tube(r), CARBON, r))
+    out.append(('boom', 'twist', math.dist(pts[0], pts[1]), peak['hip'], tube(r), HM_CARBON, r))
     tubes, _rings = skeleton.gimbal('hip_yaw')
     for k, (a, b, r) in enumerate(tubes):
         mode, load_nm = ('twist', peak['hip_yaw']) if k == 0 else (
@@ -191,10 +205,75 @@ def wind(rows):
     return {kind: sum(by.get(n, 0.0) for n in names) for kind, names in PATH.items()}
 
 
-def main():
+def tubes(rows):
+    """The members that are carbon tubes (a round section, carbon), each (row, judged)."""
+    return [(m, j) for m, j in rows if m[5] in (CARBON, HM_CARBON)
+            and math.isclose(m[4][1], 2.0 * m[4][0])]
+
+
+def _passes(row, r, t):
+    name, kind, length, load, _s, material, _c = row
+    stress, flex = judge(name, kind, length, load, _tube(r, t), material, r)
+    return stress <= 1.0 and flex <= FLEX_DEG
+
+
+def spans(rows):
+    """[(name, length, (first, last) of TUBES passing it, or None)] a tube member: the stock sizes
+    passing `judge` no more than ROOM over its radius now - a bigger one passes too."""
+    out = []
+    for row, _j in tubes(rows):
+        ok = [k for k, (r, t) in enumerate(TUBES) if r <= row[6] + ROOM and _passes(row, r, t)]
+        out.append((row[0], row[2], (min(ok), max(ok)) if ok else None))
+    return out
+
+
+def families(served, most=6):
+    """[(TUBES' indices, kg)] the lightest family of 1..`most` stock sizes cutting every member
+    of `served` [(name, length, (first, last))] - the smallest of the family within its span -,
+    None where none can."""
+    import itertools
+    out = []
+    for n in range(1, most + 1):
+        best = None
+        for family in itertools.combinations(range(len(TUBES)), n):
+            kg = 0.0
+            for _name, length, (first, last) in served:
+                k = next((k for k in family if first <= k <= last), None)
+                if k is None:
+                    break
+                kg += CF_KG_M3 * _tube(*TUBES[k])[2] * length
+            else:
+                best = (family, kg) if best is None or kg < best[1] else best
+        out.append(best)
+    return out
+
+
+def main(argv=None):
+    import argparse
     from machine import drives
     from machine.physics import SERVO
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
+    parser.add_argument('--family', type=int, default=0, metavar='N',
+                        help='the tubes cut from the lightest family of N stock sizes')
+    args = parser.parse_args(argv)
     rows = [(m, judge(*m)) for m in members()]
+    if args.family:
+        served = [s for s in spans(rows) if s[2] is not None]
+        for name, _length, span in spans(rows):
+            if span is None:
+                print('%-20s no stock size within %.0f mm of its radius' % (name, 1e3 * ROOM))
+        now = sum(CF_KG_M3 * m[4][2] * m[2] for m, _j in tubes(rows))
+        print('%d tube members, %.2f kg as they are; the lightest family a count of sizes:'
+              % (len(served), now))
+        found = families(served, args.family)
+        for n, best in enumerate(found, 1):
+            print('  %d  %-32s %s' % (n, ' '.join('%gx%g' % (2e3 * r, 1e3 * t) for r, t in (
+                TUBES[k] for k in best[0])) if best else '-', '%.2f kg' % best[1] if best else ''))
+        if found[-1]:
+            for name, _length, (first, last) in served:
+                k = next(k for k in found[-1][0] if first <= k <= last)
+                print('  %-20s %gx%g' % (name, 2e3 * TUBES[k][0], 1e3 * TUBES[k][1]))
+        return 0
     print('%-22s %-6s %5s %7s %9s | %6s %6s' % ('member', 'load', 'mm', 'N m / N', 'section',
                                                  'stress', 'flex'))
     for (name, kind, length, load, section, material, c), (stress, flex) in rows:
@@ -207,7 +286,7 @@ def main():
         sum(s > 1.0 or f > FLEX_DEG for _m, (s, f) in rows), len(rows), FLEX_DEG, FLEX_AT))
     print('wind-up a joint, its structure then its gearbox, mrad a N m, and deg at its clamp:')
     for kind, w in wind(rows).items():
-        box = 1.0 / drives.BOX_K[drives.STACKS[kind][2]]
+        box = 1.0 / drives.BOX_K[drives.STACKS[kind][1]]
         clamp = min(drives.peak(kind if kind in ('spine', 'spine_roll', 'waist', 'neck', 'head')
                                 else 'left_' + kind), SERVO[kind][0])
         print('  %-11s %6.3f + %5.3f mrad/N m  %5.2f deg at %3.0f N m' % (

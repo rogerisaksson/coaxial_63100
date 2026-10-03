@@ -358,9 +358,9 @@ class World:
         self.push_n = self._np.array(force, float)
         self.push_until = self.data.time + seconds
 
-    def glitch(self, joint, kind, seconds=0.0):
+    def glitch(self, joint, kind, seconds=0.0, celsius=WARM_C):
         """Drive `joint`'s board glitched: 'soa' its switches SOA_RDS times their on-resistance
-        for `seconds`, 'hot' its nodes at WARM_C at once. What it does of it, and says of it,
+        for `seconds`, 'hot' its nodes at `celsius` at once. What it does of it, and says of it,
         is its own (`machine.heat`)."""
         if self.buses is None:
             raise MachineError('a glitch is a board\'s: this world has no buses')
@@ -371,7 +371,7 @@ class World:
             self.block.rds[i], self.glitch_at = SOA_RDS, i
             self.glitch_until = self.data.time + seconds
         elif kind == 'hot':
-            self.block.warm[i] = WARM_C
+            self.block.warm[i] = celsius
         else:
             raise MachineError('no glitch %r: soa or hot' % kind)
 
