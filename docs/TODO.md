@@ -70,6 +70,21 @@ Open work. Measured results are in FINDINGS.
   a URL bus, the limb keeping t3.5 for them; not yet the fallback where
   nothing answers (Renode is).
 - Gynoid, open (a line goes when done):
+  + First the biped (the user, 2026-10-03): her gait and her bearing,
+    parrying shoves, stumbles and slippery floors, getting up when she
+    falls; the toes and the hands after.
+  + Her get-up's end (the user, 2026-10-03, humanoid_20261003_203813):
+    restarting after a fall - on the stacks 3 of 5 restarts fell again
+    within 1 s, 0 of 5 on the drives as they stood; rocking side to side up
+    on her feet before she stands - each foot 85-246 N every 0.5 s in the
+    squat, the split's rms 0.44-0.67 against 0.21, cured only by the old
+    heat model and drive masses together, her right hip derated to 0.78 at
+    117 C in the crouch; kneeling before she rises her arms down, her
+    centre of mass lower, not held forward praying - sat back on her heels
+    her hands 692 mm out (541 standing), `getup.SIT_BACK`'s shoulder 72.7
+    and elbow 65.2 deg; her feet a little apart fore and aft as she rolls
+    onto them, a minimal step, two legs bearing - now 174-186 mm across,
+    -2..+22 fore and aft.
   + Past saving (P's 120 N, held 0 of 48) she crouches as she goes, a shank
     first (`falls.crouch`), but ends on a side: the fall is called 0.06-0.25
     s before the floor, too late for a hand and a knee to take her - an
@@ -209,7 +224,17 @@ Open work. Measured results are in FINDINGS.
     crank-slider on a rack any swing at 60-76; the hip's 100 mm inverter
     5 mm into the hip roll's gearbox standing, the head's 4 into the neck's
     holder; the toes', wrist's and head's 70 mm stacks 3-20 mm out of her
-    shell (after the legs, the user).
+    shell (after the legs, the user). The user's family: rotors 60-120 mm,
+    two motor sizes, one gearbox, two inverters (100 and 70 mm) - the
+    gearbox three, the hip and knee wanting 84 mm where the wrist and toes
+    have 42 of room. A lever's lambda(theta) placed where its joint asks
+    torque, the arms shaped toward the ends (the user): the knee asks its
+    171 N m and 1024 deg/s both at 0-60 deg. More ratio from link arms and
+    rods judged by the room in her shell and the stroke (the user).
+  + Her drives sized as physics, not searched (the user, 2026-10-03):
+    `tools/sim/drive_sizes.py` reading each joint's power number, its
+    power-rate number and its inertia number (docs/findings/body.md) - the
+    inverter, the frame and the ratio read off them.
   + Her tubes and struts sized for stiffness, not to sway or flex (the user,
     2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
     PET-CF adapters and fittings between, printable flat without overhangs;
