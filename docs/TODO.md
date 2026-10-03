@@ -157,9 +157,17 @@ Open work. Measured results are in FINDINGS.
   + Her walk retuned for her build as made - drives as modules, L wound
     1.25: 535 on the scoreboard, held 64.5 % (HEAD's build 214, 82.0 %;
     before the rewind 635, 57.3); test_gynoid_falls' parry 1 of 8 where 2,
-    the offline gate red on it, unpushed. Searching the arrival's, the
-    capture's, the side step's and the parry's knobs (2026-10-02). One
+    the offline gate red on it, unpushed. The arrival's, the capture's, the
+    side step's and the parry's knobs searched one generation, best 399
+    against a median 586 (host/build/search3.jsonl),
+    stopped for the parallel ankle: searched again on it (2026-10-02). One
     scoreboard a build scores chance: near-identical builds 150 apart.
+  + Her skeleton colliding (`physics.SKELETON`, the user, 2026-10-02): the
+    crouch past saving reworked first - with it her head met the floor at
+    1.03-1.66 m/s in 3 of 64 falls, the kneeling knee's drum on the lunging
+    shin; that hip rolled out 8-15 deg cleared the falls to her right.
+  + Her hip by kinematic mechanisms - levers on bearings, ball and Rzeppa
+    joints - in place of its ideal axes (the user, 2026-10-02).
   + Her gearboxes past their momentary ratings in six falls of six, by
     their peaks (`World.geared` over `drives.shock`): an ankle 3.7, a knee
     3.4, a hip roll 1.9, the toes 2.2 - each rotor's reflected inertia
@@ -177,9 +185,9 @@ Open work. Measured results are in FINDINGS.
     it (the user, 2026-10-02): the limbs' panels light, their joint ends, the
     neck and the waist open (`coaxial.graphics.panels`); the seams between
     panels want finer meshes than 20 corners a ring (`shapes.AROUND`).
-  + The rods asked: the spine roll's, from its M on the pelvis's top to the
-    roll's yoke over the spine's pitch, and the ankle roll's, from its M
-    before the tibia to the foot's side over the ankle's pitch.
+  + The spine roll's rod, from its M on the pelvis's top, 90 mm off its
+    joint with nothing between (`tools/sim/fit.py`'s outputs), to the
+    roll's yoke over the spine's pitch.
   + No belt where its give would show in her walk (the user, 2026-10-02):
     the toes' S pulls its belt 1.2 kN at 12 N m on 10 mm pulleys - a rod;
     the elbow's 1.4 kN and the wrist's 1.0 at their peaks.
@@ -190,8 +198,7 @@ Open work. Measured results are in FINDINGS.
     ratio traded against its transmission's to size and place it (the
     user, 2026-10-02): copper goes as 1/ratio^2 - an M at 1:60 sheds 22.5
     N m rms for good, the waist's 21.5 and the hip yaw's 16.2 under it.
-  + Past her clothes standing: the ankle roll's drum 2 mm through the
-    jeans' shin (`tools/sim/fit.py`); the spine roll's 3 mm past her skin.
+  + Past her skin standing: the spine roll's drum 3 mm (`tools/sim/fit.py`).
   + Her legs without stops; the toes' S gearbox 1.3-1.7 times its shock
     rating shoved past saving.
   + Her carbon shells shaped over the structure as built, and clothes cut

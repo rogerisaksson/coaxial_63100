@@ -29,7 +29,9 @@ backlash, rad - its encoder on the motor, a board sees its joint held within it;
 ratio now over its rest's along its rod (`machine.linkage`), its clamp and its amps a N m by it;
 emf, ohm, volts: its back-EMF a rad/s, its phase's resistance, the supply over sqrt 3 - its
 q current no more than they leave at its speed; air, rds, warm:
-a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); envelope: 0
+a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); pair: a
+parallel pair's other joint's index + 1, positive on its first, negative on its second, its two
+boards' currents each the first's share plus or less the second's (`physics.paired`); envelope: 0
 fantasy boards (`heat.Heat.envelope`); drive: what its heat is kept by (`drives.heat`), written
 before the processes start. An emulated limb takes a process's place on
 the same port and block. A limb a process where the machine has THREADS_A_LIMB hardware threads
@@ -68,7 +70,7 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
           ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'), ('rotor', 'd', 'J'),
           ('play', 'd', 'J'), ('scale', 'd', 'J'), ('emf', 'd', 'J'), ('ohm', 'd', 'J'),
-          ('volts', 'd', 1))
+          ('volts', 'd', 1), ('pair', 'd', 'J'))
 
 #: A board's setpoint's acceleration, read between frames, filtered over ACCEL_S: mdeg frames a
 #: millisecond apart step it by 17 rad/s^2.
@@ -175,8 +177,14 @@ class Segment:
         #: frame or None for a poll).
         self.inbox, self.mail = collections.deque(), collections.deque()
         self.drives = [tuple(block.drive[6 * i:6 * i + 6]) for i in self.indices]
-        #: The phases shorted, each joint's torque a rad/s of its speed: kt^2/R, N m s/rad.
-        self.damping = [d[0] * d[0] / d[1] for d in self.drives]
+        #: Each parallel pair's boards, (first's, second's) (`pair`).
+        at = {i: k for k, i in enumerate(self.indices)}
+        self.pairs = [(k, at[int(block.pair[i]) - 1]) for k, i in enumerate(self.indices)
+                      if block.pair[i] > 0]
+        #: The phases shorted, each joint's torque a rad/s of its speed: kt^2/R, N m s/rad - a
+        #: pair's kt its two drives'.
+        self.damping = [d[0] * d[0] / d[1] / (2.0 if block.pair[i] else 1.0)
+                        for d, i in zip(self.drives, self.indices)]
         self.heat, self.heat_at = heat.Heat(self.drives), 0.0
         self.free_at, self.received, self.bad = 0.0, 0, 0
         self.epoch = block.epoch[0]
@@ -245,6 +253,10 @@ class Segment:
                                  * min(1.0, span / ACCEL_S)) if two else 0.0
                 self.rate[k] = rate
                 self.target[k], self.set_at[k], self.framed[k] = v, at, True
+        # Each board's current asked, A, and its back-EMF, V: a pair's two drives each the
+        # first's share plus or less the second's.
+        ask: list[Any] = [None] * len(self.indices)
+        emf = [0.0] * len(self.indices)
         for k, i in enumerate(self.indices):
             self.seen[k] = min(max(self.seen[k], b.q[i] - self.play[k]), b.q[i] + self.play[k])
             s = b.scale[i]
@@ -258,16 +270,30 @@ class Segment:
                 tau = (b.gains[2 * i] * (ref - self.seen[k])
                        + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i])
                        + b.rotor[i] * self.accel[k])
-                # Motoring, the back-EMF takes from the supply; braking, it adds to it.
-                emf = abs(b.emf[i] * s * b.qd[i])
-                amps = (b.volts[0] + (-emf if tau * b.qd[i] > 0.0 else emf)) / b.ohm[i]
-                top = (s * min(b.limit[i], self.drives[k][0] * max(0.0, amps)) * h.derate[k]
-                       if h.gates[k] else 0.0)
-                b.ctrl[i] = tau = max(-top, min(top, tau))
-                h.load(k, tau / s)
+                ask[k], emf[k] = tau / (self.drives[k][0] * s), b.emf[i] * s * b.qd[i]
             if b.warm[i] > 0.0:
                 h.warm(k, b.warm[i])
                 b.warm[i] = 0.0
+        mixed = [(k, j) for k, j in self.pairs if ask[k] is not None and ask[j] is not None]
+        for k, j in mixed:
+            ask[k], ask[j], emf[k], emf[j] = (ask[k] + ask[j], ask[k] - ask[j], emf[k] + emf[j],
+                                              emf[k] - emf[j])
+        got = [0.0] * len(self.indices)
+        for k, i in enumerate(self.indices):
+            if ask[k] is None:
+                continue
+            # Motoring, the back-EMF takes from the supply; braking, it adds to it.
+            e = abs(emf[k])
+            amps = (b.volts[0] + (-e if ask[k] * emf[k] > 0.0 else e)) / b.ohm[i]
+            top = (min(b.limit[i] / self.drives[k][0], max(0.0, amps)) * h.derate[k]
+                   if h.gates[k] else 0.0)
+            got[k] = max(-top, min(top, ask[k]))
+            h.load(k, self.drives[k][0] * got[k])
+            b.ctrl[i] = self.drives[k][0] * b.scale[i] * got[k]
+        for k, j in mixed:
+            one, two = self.indices[k], self.indices[j]
+            b.ctrl[one] = self.drives[k][0] * b.scale[one] * (got[k] + got[j]) / 2.0
+            b.ctrl[two] = self.drives[j][0] * b.scale[two] * (got[k] - got[j]) / 2.0
         if now - self.heat_at >= THERMAL_S - 1e-9:
             h.envelope = b.envelope[0] > 0.0
             h.step(now - self.heat_at, [b.air[i] for i in self.indices],

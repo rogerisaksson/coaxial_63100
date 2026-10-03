@@ -226,7 +226,8 @@ def test_a_style_eases_in(report):
 def test_her_skeleton_collides(report):
     """Her skeleton switched on (`physics.SKELETON`, `machine.skeleton`): her model with it, the
     same weight; standing and in the squat it touches nothing; the knee folded to 170 degrees the
-    calf's ankle drive meets the thigh's knee board, her skins next to each other still not."""
+    calf's ankle drives meet the femur and the knee's board, her skins next to each other still
+    not."""
     import importlib
     import math
     from machine import mjcf, physics, skeleton
@@ -254,14 +255,26 @@ def test_her_skeleton_collides(report):
     met = {tuple(sorted((model.body(model.geom_bodyid[d.contact[i].geom1]).name,
                          model.body(model.geom_bodyid[d.contact[i].geom2]).name)))
            for i in range(d.ncon)}
-    report.check("folded, the ankle's drive meets the knee's board, the skins not each other",
-                 ('left_ankle_drum', 'left_knee_board') in met
+    report.check("folded, the ankle's drives meet the femur and the knee's board, the skins not "
+                 "each other", ('left_ankle_drum', 'left_thigh_bone') in met
+                 and ('left_ankle_roll_drum', 'left_knee_board') in met
                  and ('left_shank', 'left_thigh') not in met, '%s' % sorted(met)[:4])
+
+
+def test_each_drive_turns_from_its_gearbox(report):
+    """Every drive's output turns what it drives about its drum's own axis from its gearbox's
+    end (`tools.sim.fit.outputs`) - an axial drive with a radial output caught by eye (the user,
+    2026-10-03); the spine roll's rod still to come (docs/TODO.md)."""
+    from tools.sim import fit
+    wrong = [(j, w) for j, _what, w in fit.outputs() if w and j != 'spine_roll']
+    report.check('every drive turns what it drives from its gearbox, on its axis', not wrong,
+                 '%s' % wrong)
 
 
 ROSTER = (test_a_virtual_body_walks, test_a_leg_by_its_foot, test_a_body_with_mass_walks,
           test_the_pendulum_between_her_ears, test_she_rises_and_walks, test_dressed_or_bare,
-          test_the_floor_outlasts_a_walk, test_a_style_eases_in, test_her_skeleton_collides)
+          test_the_floor_outlasts_a_walk, test_a_style_eases_in, test_her_skeleton_collides,
+          test_each_drive_turns_from_its_gearbox)
 
 
 def main(argv=None):

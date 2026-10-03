@@ -181,6 +181,31 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   Its arms at 33 and 34.5 mm, the hub kept, the walk from the squat fell at
   13 s; the drive 15 mm ahead, two falls put her head down at 1.6-1.9 m/s;
   its crank outside, the thigh's boards met it sat back, 15 mm (2026-10-02).
+- The ankle a parallel pair (`linkage.PAIRS`, the user, 2026-10-02): two M
+  at 1:68, 80 and 150 mm under the knee, each a 12 mm carbon rod crossed
+  from a crank on its drum's gearbox end at the knee's front, bent down past
+  the drums, to a horn on the heel's back 12 mm out or 16 in. Her ankle's
+  shell 32-36 mm round leaves any rod's line within 25 mm of the axis: on
+  48 mm arms the balls stood 26-29 mm out. The pitch both together, lever
+  0.75-0.91, 160 N m, 652 deg/s; the roll one against the other, 0.60,
+  105 N m; each board's current the pitch's share plus or less the roll's,
+  within its 25 A (`buses`, `physics.paired`). Inside her shell and jeans
+  standing, fit clean over its 45 poses; the scoreboard 495, held 68.3 %
+  (the L and its rod's 535, 64.5); her skeleton colliding 542, 62.3 %,
+  never the floor: inside her shell, outside her skins' capsules, the toes'
+  belt sank to it with her sole and felled her, a knee's drum landed past
+  its gel, 935 N against 102 bare. Colliding, shoved past saving into the
+  crouch her head met the floor at 1.03-1.66 m/s in 3 of 64 falls, without
+  at 0.66-0.81 in 2; one of them with nothing of the skeleton touching -
+  chance (2026-10-03).
+- Every drive's output on its drum's axis from its gearbox's end
+  (`tools/sim/fit.py`'s outputs, the user, 2026-10-03): the ankle's L had
+  lain along the shin turning its crank about the knee's axis; the hip
+  yaw's gearbox faced up, away from the hip; the elbow's and the wrist's
+  belts turned about x off drums along the arm - across it the drums stood
+  3-26 mm out of her shell, so a bevel pair at each gearbox's end
+  (`linkage.BEVELS`); the spine roll's M 90 mm off its joint, nothing
+  between.
 - Her ball stages for the wave reducer tools: one eccentric, ring fixed, cage
   out at lobes:1, the eccentric's race a stock bearing's outside, its
   eccentricity 80 % of the largest whose ball path stays a ball round

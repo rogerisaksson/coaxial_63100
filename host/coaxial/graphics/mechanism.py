@@ -17,6 +17,7 @@ from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
 from machine import build, drives, figure, linkage
+from machine.skeleton import HUNG
 from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
@@ -44,20 +45,12 @@ RELEASE_GAP = 0.006
 #: On her shell a quick-release's band stands RELEASE_PROUD_M proud of it (`bands`).
 RELEASE_PROUD_M = 0.001
 
-#: A rod's tube ROD_R round, a ball joint BALL_R (its plane `linkage.ROD_OUT`); a belt's pulleys
-#: BELT_W wide.
-ROD_R, BALL_R, BELT_W = 0.009, 0.013, 0.012
+#: A ball joint BALL_R round (its rod `linkage.ROD_R`, its plane `linkage.ROD_AT`); a belt's
+#: pulleys BELT_W wide.
+BALL_R, BELT_W = 0.009, 0.012
 
 
-#: The femur and the tibia, her left's, through these points of their segments' frames, m (the
-#: right's x mirrored), their tubes' radii: each from under its drive's gearbox to over the next's
-#: motor's middle, the femur toward the thigh's front over its last 25 cm, clear of the calf's
-#: drives and rod folded at 163 deg; from their drums' centres they ran 40 mm through the hip's motor and gearbox
-#: (the user, 2026-10-02). Each drum they hang from or reach clamped by a collar COLLAR_M proud:
-#: (joint, its gearbox or motor, y on the segment).
-HUNG = {'thigh': (((0.0285, -0.05, 0.0), (0.0, -0.14, 0.03), (0.0, 0.05 - THIGH, 0.0)), 0.016,
-                  (('hip', 'gear', 0.0), ('knee', 'motor', -THIGH))),
-        'shank': (((0.0285, -0.05, 0.0), (0.0, -SHANK, 0.0)), 0.014, (('knee', 'gear', 0.0),))}
+#: A drum the bones (`skeleton.HUNG`) hang from or reach clamped by a collar COLLAR_M proud.
 COLLAR_M = 0.004
 
 
@@ -75,9 +68,9 @@ def _tube(a, b, radius, material):
 def _hung(side, seg):
     """[mesh]: `seg`'s tubes through HUNG's points and its collars, its frame."""
     s, c = (1.0 if side == 'left_' else -1.0), paint(CARBON)
-    points, radius, collars = HUNG[seg]
-    points = [(s * x, y, z) for x, y, z in points]
-    out = [_tube(a, b, radius, c) for a, b in zip(points, points[1:])]
+    tubes, radius, collars = HUNG[seg]
+    out = [_tube(a, b, radius, c) for points in tubes
+           for p in [[(s * x, y, z) for x, y, z in points]] for a, b in zip(p, p[1:])]
     for joint, part, y in collars:
         half, r = drives.length(side + joint) / 2.0, drives.of(side + joint)[1].diameter / 2.0
         at, length = ((s * half * MOTOR_SHARE, 2.0 * half * (1.0 - MOTOR_SHARE)) if part == 'gear'
@@ -127,9 +120,9 @@ def parts(bare=False):
             continue
         axis, half = drums.AXES[joint]
         motor, gear = 2.0 * half * MOTOR_SHARE, 2.0 * half * (1.0 - MOTOR_SHARE)
-        letter = 'xyz'[axis.index(1.0)]
+        letter = 'xyz'[[abs(a) for a in axis].index(1.0)]
         if letter == 'x' and joint.startswith('right_'):
-            axis = (-1.0, 0.0, 0.0)
+            axis = (-axis[0], 0.0, 0.0)
         out += [(name, parent, (), tuple(o - a * gear / 2.0 for o, a in zip(offset, axis)), 0.0,
                  drum(size.diameter / 2.0, motor, letter, sized)),
                 ('gear_' + joint, parent, (), tuple(o + a * motor / 2.0 for o, a in zip(offset, axis)),
@@ -145,22 +138,26 @@ def parts(bare=False):
         seg, pinion, r, wheel, big = _spurs(joint)
         out += [('pinion_' + joint, seg, (), pinion, 0.0, drum(r, SPUR_T, 'z', steel)),
                 ('spur_' + joint, seg, (), wheel, 0.0, drum(big, SPUR_T, 'z', steel))]
+    for joint in [side + kind for kind in linkage.BEVELS for side in ('left_', 'right_')]:
+        seg, drive, letter, driven, r = _bevel(joint)
+        out += [('bevel_' + joint, seg, (), drive, 0.0, drum(r, linkage.BEVEL_T, letter, steel)),
+                ('bevelo_' + joint, seg, (), driven, 0.0, drum(r, linkage.BEVEL_T, 'x', steel))]
     for side in ('left_', 'right_'):
         out += [('release_' + side + seg, side + seg, (), (0.0, y, 0.0), 0.0,
                  drum(radius, length, 'y', poly)) for seg, (y, radius, length, _kg)
                 in build.RELEASES.items()]
         for kind in linkage.RODS:
-            joint = side + kind
-            turned = next(s[0] for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
+            joint, rides = side + kind, side + linkage.ROD_AT[kind][0]
+            turned = next(s[0] for s in figure.SEGMENTS if rides in [j for j, *_ in s[2]])
             ball = ellipsoid((0.0, 0.0, 0.0), (BALL_R,) * 3, steel, rows=6)
             out += [('end_' + joint, turned, (), _ball(kind, side), 0.0, ball),
                     ('crank_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
                      limb(1.0, 0.012, 0.012, 0.012, steel)),
                     ('pin_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0, ball),
                     ('rod_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
-                     limb(1.0, ROD_R, ROD_R, ROD_R, paint(ROD))),
+                     limb(1.0, linkage.ROD_R, linkage.ROD_R, linkage.ROD_R, paint(ROD))),
                     ('rodb_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
-                     limb(1.0, ROD_R, ROD_R, ROD_R, paint(ROD)))]
+                     limb(1.0, linkage.ROD_R, linkage.ROD_R, linkage.ROD_R, paint(ROD)))]
     return out
 
 
@@ -190,17 +187,29 @@ def _spurs(joint):
     return seg, (x, y, face), r, (pivot[0], pivot[1], face), apart - r
 
 
+def _bevel(joint):
+    """(segment, the drive's gear's centre, its axis letter, the driven's centre, radius): a
+    bevel pair at its gearbox's end, the driven's axis x out to its side (`drives.outlet`)."""
+    letter, end = drives.output(joint) or ('y', 1.0)
+    seg, at = drives.mount(joint) or ('', (0.0, 0.0, 0.0))
+    r, i = linkage.BEVELS[drives.kind(joint)], 'xyz'.index(letter)
+    reach = drums.AXES[joint][1] + linkage.BEVEL_T / 2.0
+    drive = tuple(v + end * reach if k == i else v for k, v in enumerate(at))
+    o = (drives.outlet(joint) or (seg, at))[1]
+    return seg, drive, letter, (o[0] + (r if joint.startswith('left_') else -r),) + o[1:], r
+
+
 def _ball(kind, side):
     """A rod's ball joint on the segment its joint turns, its frame (`linkage.RODS`)."""
-    _up, _ahead, _r, _t0, b, beta = linkage.RODS[kind][0]
-    out_x = linkage.BALL_OUT if side == 'left_' else -linkage.BALL_OUT
-    return (out_x, -b * math.cos(beta), b * math.sin(beta))
+    x, y, z = linkage.ball(kind)
+    return (x if side == 'left_' else -x, y, z)
 
 
 def _hub(kind, side):
     """(segment, point): a rod's crank's hub on its drive's segment, about the joint's place."""
     up, ahead = linkage.RODS[kind][0][:2]
-    seg = next(s for s in figure.SEGMENTS if side + kind in [j for j, *_ in s[2]])
+    seg = next(s for s in figure.SEGMENTS if side + linkage.ROD_AT[kind][0]
+               in [j for j, *_ in s[2]])
     return seg[1], (seg[3][0], seg[3][1] + up, seg[3][2] + ahead)
 
 
@@ -213,6 +222,7 @@ def belts(np, placed):
             joint, where = side + kind, drives.mount(side + kind)
             if drives.passive(joint) or where is None:
                 continue
+            where = drives.outlet(joint) or where
             seat, (x, y, z) = where
             turn, spot = placed[seat]
             out_x = off if side == 'left_' else -off
@@ -259,8 +269,8 @@ def _along(np, a, b):
 
 def posed(parts_, placed, angles, frames):
     """Each '*' part's (turn, spot) into `frames` (a part an entry, theirs None): a crank at its
-    closure's angle (`linkage.crank`), its pin at its end, its rod to its ball joint - `placed`
-    {segment: (turn, spot)}, world."""
+    closure's angle (`linkage.crank`) in its plane (`linkage.ROD_AT`), its pin at its end, its
+    rod to its ball joint - `placed` {segment: (turn, spot)}, world."""
     from coaxial.model.blocks import numpy as np
     at = {name: i for i, (name, *_rest) in enumerate(parts_)}
     for side in ('left_', 'right_'):
@@ -269,13 +279,13 @@ def posed(parts_, placed, angles, frames):
             seat, centre = _hub(kind, side)
             turn, spot = placed[seat]
             r, t0 = linkage.RODS[kind][0][2:4]
-            t = t0 + linkage.crank(joint, float(angles.get(joint, 0.0)))
-            out_x = linkage.ROD_OUT if side == 'left_' else -linkage.ROD_OUT
-            hub = spot + turn @ (np.asarray(centre, float) + np.array([out_x, 0.0, 0.0]))
+            t = t0 + linkage.crank(joint, *linkage.turns(joint, angles))
+            s = 1.0 if side == 'left_' else -1.0
+            hub = spot + turn @ (np.asarray(centre, float)
+                                 + np.array([s * linkage.ROD_AT[kind][1], 0.0, 0.0]))
             pin = hub + turn @ np.array([0.0, -r * math.cos(t), r * math.sin(t)])
             seg_turn, seg_spot = placed[parts_[at['end_' + joint]][1]]
             ball = seg_spot + seg_turn @ np.asarray(_ball(kind, side), float)
-            s = 1.0 if side == 'left_' else -1.0
             bend = np.array(linkage.bent(kind, pin, ball, s * turn[:, 0], s))
             frames[at['crank_' + joint]] = _along(np, hub, pin)
             frames[at['pin_' + joint]] = (np.eye(3), pin)
@@ -340,6 +350,10 @@ def wires(parts_, frames):
             rods.append((spot, spot + turn @ np.array([0.0, -1.0, 0.0])))
         elif name.startswith(('pin_', 'end_')):
             balls += [(spot - d, spot + d) for d in np.eye(3) * BALL_R]
+        elif name.startswith(('bevel_', 'bevelo_')):
+            _seg, _d, letter, _o, r = _bevel(name.split('_', 1)[1])
+            axis = np.eye(3)['xyz'.index(letter if name.startswith('bevel_') else 'x')]
+            rods += _rims(np, spot, turn @ axis, r, linkage.BEVEL_T / 2.0)
         elif name.startswith(('pinion_', 'spur_')):
             _seg, _p, r, _w, big = _spurs(name.split('_', 1)[1])
             rods += _rims(np, spot, turn @ np.array([0.0, 0.0, 1.0]),

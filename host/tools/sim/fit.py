@@ -25,10 +25,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from coaxial.model.blocks import numpy as np  # noqa: E402
 
-#: Each segment's carbon tube's radius, m (`mechanism._bones`), and a rod's.
+#: Each segment's carbon tube's radius, m (`mechanism._bones`; a rod's `linkage.ROD_R`).
 TUBE_R = {'pelvis': 0.015, 'torso': 0.02, 'neck': 0.013, 'upper_arm': 0.012, 'forearm': 0.01,
           'thigh': 0.016, 'shank': 0.014}
-ROD_R, END_KEEP_M = 0.009, 0.02
+END_KEEP_M = 0.02
 
 #: The shoulders' girdle off the torso's top, m up it (`mechanism.wires`); the femur and the
 #: tibia through `mechanism.HUNG`'s points.
@@ -66,24 +66,67 @@ def rods():
     from machine import linkage
     out = []
     for kind, (rod, (lo, hi)) in linkage.RODS.items():
-        up, ahead, r, _t0, b, beta = rod
+        up, ahead, r, _t0, b, _beta = rod
         length, branch = linkage._laid(kind)
         worst_in = worst_out = 90.0
         levers = []
         for d in np.arange(lo, hi + 0.5, 1.0):
             q = math.radians(d)
-            t = linkage._root(rod, length, q, branch)
+            t = linkage._root(kind, length, q, 0.0, branch)
             py, pz = up - r * math.cos(t), ahead + r * math.sin(t)
-            by0, bz0 = -b * math.cos(beta), b * math.sin(beta)
-            by, bz = by0 * math.cos(q) - bz0 * math.sin(q), by0 * math.sin(q) + bz0 * math.cos(q)
+            _x, by, bz = linkage.ball(kind, q)
             wy, wz = by - py, bz - pz
             wl = math.hypot(wy, wz)
             worst_in = min(worst_in, math.degrees(math.asin(min(1.0, abs(
                 (py - up) * wz - (pz - ahead) * wy) / (r * wl)))))
             worst_out = min(worst_out, math.degrees(math.asin(min(1.0, abs(by * wz - bz * wy)
                                                                    / (b * wl)))))
-            levers.append(linkage.lever('left_' + kind, float(d)))
+            levers.append(linkage.lever('left_' + linkage.ROD_AT[kind][0], float(d)))
         out.append((kind, (lo, hi), worst_in, worst_out, min(levers), max(levers)))
+    return out
+
+
+def outputs():
+    """[(joint, what its output turns, [what is wrong])], her left's and her trunk's: each drum's
+    axis that of its joint, its rod's crank or its belt's pulley (x) - else across it a bevel
+    pair's (`linkage.BEVELS`) -, its spur pair's pinion (z);
+    a crank or a belt past its gearbox's end; on its joint's axis, the pivot on the drum's line
+    and, the drum along the segment it turns, its gearbox's end toward that."""
+    from coaxial.graphics import drums
+    from machine import drives, figure, linkage
+    placed = {name[len('drive_'):]: (parent, at) for name, parent, at, _m in drums.drums()}
+    segs = {j: seg for seg in figure.SEGMENTS for j, _ax, _s in seg[2]}
+    out = []
+    for joint, (parent, at) in placed.items():
+        if joint.startswith('right_'):
+            continue
+        kind, seg = drives.kind(joint), segs[joint]
+        axis, half = drums.AXES[joint]
+        k = [abs(a) for a in axis].index(1.0)
+        letter, end, place, wrong = 'xyz'[k], axis[k], None, []
+        if kind in linkage.RODS:
+            want, what, place = 'x', 'crank', linkage.ROD_AT[kind][1]
+        elif kind in linkage.BELTS and kind in linkage.BEVELS:
+            want, what = ('y' if letter == 'x' else letter), 'bevel'
+        elif kind in linkage.BELTS:
+            want, what, place = 'x', 'belt', linkage.BELTS[kind][2]
+        elif kind in linkage.GEARS:
+            want, what = 'z', 'pinion'
+        else:
+            want, what = next(ax for j, ax, _s in seg[2] if j == joint), 'joint'
+            pivot = seg[3] if parent == seg[1] else (0.0, 0.0, 0.0)
+            off = [p - a for p, a in zip(pivot, at)]
+            if math.hypot(*[off[i] for i in range(3) if i != k]) > 1e-6:
+                wrong.append('%.0f mm off its joint, nothing between' % (
+                    1e3 * math.hypot(*[off[i] for i in range(3) if i != k])))
+            elif letter == 'y' and parent == seg[1] and seg[6][1] * end < 0.0:
+                wrong.append("its gearbox's end away from the segment it turns")
+        if letter != want:
+            wrong.append('along %s, its %s about %s' % (letter, what, want))
+        if place is not None and letter == 'x' and (place - at[0]) * end < half:
+            wrong.append("its %s at x %+.3f, its gearbox's end at %+.3f" % (
+                what, place, at[0] + end * half))
+        out.append((joint, what, wrong))
     return out
 
 
@@ -103,8 +146,8 @@ def _rot(axis, a):
 def parts(angles):
     """{name: ('drum', centre, axis, radius, half) | ('tube', a, b, radius)}, world, and the
     segment each rides."""
-    from coaxial.graphics import drums, mechanism
-    from machine import drives, figure, linkage
+    from coaxial.graphics import drums
+    from machine import drives, figure, linkage, skeleton
     fr = _frames(angles)
     out, rides = {}, {}
     for name, parent, at, *_mesh in drums.drums():
@@ -134,11 +177,14 @@ def parts(angles):
             if seg[0].endswith('upper_arm'):
                 pp = pp + Rp @ np.array([0.0, GIRDLE_Y, 0.0])
             name = 'bone_%s>%s' % (seg[1], seg[0])
-            if bare in mechanism.HUNG:
+            if bare in skeleton.HUNG:
                 s = 1.0 if seg[1].startswith('left_') else -1.0
-                at = [pp + Rp @ np.array((s * x, y, z)) for x, y, z in mechanism.HUNG[bare][0]]
-                for k, (a, b) in enumerate(zip(at, at[1:])):
-                    out[name + '+' * k] = ('tube', a, b, TUBE_R[bare])
+                tubes, radius, _collars = skeleton.HUNG[bare]
+                pairs = [(a, b) for points in tubes for at in [[pp + Rp @ np.array((s * x, y, z))
+                                                                for x, y, z in points]]
+                         for a, b in zip(at, at[1:])]
+                for k, (a, b) in enumerate(pairs):
+                    out[name + '+' * k] = ('tube', a, b, radius)
                     rides[name + '+' * k] = seg[1]
             else:
                 out[name] = ('tube', pp, fr[seg[0]][1], TUBE_R[bare])
@@ -146,19 +192,20 @@ def parts(angles):
     for side in ('left_', 'right_'):
         for kind, (rod, _stroke) in linkage.RODS.items():
             joint = side + kind
-            seg = next(s for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
-            up, ahead, r, t0, b, beta = rod
-            s = 1.0 if side == 'left_' else -1.0
+            seg = next(s for s in figure.SEGMENTS
+                       if side + linkage.ROD_AT[kind][0] in [j for j, *_ in s[2]])
+            up, ahead, r, t0 = rod[:4]
+            s, (x, by, bz) = (1.0 if side == 'left_' else -1.0), linkage.ball(kind)
             Rp, pp = fr[seg[1]]
-            hub = pp + Rp @ (np.array(seg[3], float) + np.array([s * linkage.ROD_OUT, up, ahead]))
-            t = t0 + linkage.crank(joint, angles.get(joint, 0.0))
+            hub = pp + Rp @ (np.array(seg[3], float)
+                             + np.array([s * linkage.ROD_AT[kind][1], up, ahead]))
+            t = t0 + linkage.crank(joint, *linkage.turns(joint, angles))
             pin = hub + Rp @ np.array([0.0, -r * math.cos(t), r * math.sin(t)])
             Rj, pj = fr[seg[0]]
-            ball = pj + Rj @ np.array([s * linkage.BALL_OUT, -b * math.cos(beta),
-                                       b * math.sin(beta)])
+            ball = pj + Rj @ np.array([s * x, by, bz])
             bend = np.array(linkage.bent(kind, pin, ball, s * Rp[:, 0], s))
-            out['rod_' + joint], out['rod_' + joint + '+'] = (('tube', pin, bend, ROD_R),
-                                                              ('tube', bend, ball, ROD_R))
+            out['rod_' + joint], out['rod_' + joint + '+'] = (
+                ('tube', pin, bend, linkage.ROD_R), ('tube', bend, ball, linkage.ROD_R))
             rides['rod_' + joint] = rides['rod_' + joint + '+'] = seg[1]
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
         R, p = fr[seg]
@@ -316,6 +363,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     from machine import drives, figure
     from tools.sim.strides import _out
+    wrong = [(j, w) for j, _what, w in outputs() if w]
+    print('drives turning what they drive from their gearbox: %d wrong' % len(wrong))
+    for joint, w in wrong:
+        print('  %-16s %s' % (joint, '; '.join(w)))
     print('rods: stroke, transmission at worst in / out, lever')
     for kind, (lo, hi), mi, mo, l0, l1 in rods():
         print('  %-10s %+4.0f..%+3.0f deg  %4.1f / %4.1f deg  %.2f-%.2f' % (kind, lo, hi, mi, mo,

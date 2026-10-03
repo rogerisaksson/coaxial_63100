@@ -52,8 +52,10 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: joint's clamp is its drive's peak where that is less (`drives.peak`); whether the assemblies
 #: sit where they are, bodies of their own, their segments the lighter; how much of their
 #: gearboxes' drag the joints carry, Coulomb (`drives.backdrive`); whether her skeleton collides,
-#: its drums, boards, bones, rods and belts (`machine.skeleton`) - off: walking, the ankles' cranks
-#: 50-60 mm inside her shins met each other 2-6 mm deep and she fell in 1-3 s.
+#: its drums, boards, bones, rods and belts (`machine.skeleton`) - off: the ankle's one crank
+#: 50-60 mm inside her shins met the other's walking and she fell in 1-3 s; on the parallel pair
+#: the scoreboard 542 against 495 without, chance's 150, but shoved past saving into the crouch
+#: her head met the floor at 1.03-1.66 m/s in 3 of 64 falls, off at 0.66-0.81 in 2 (2026-10-03).
 REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 1.0, 1.0, 1.0, 1.0, 0.0
 
 #: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
@@ -64,6 +66,21 @@ ENVELOPE = 1.0
 #: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times - a gate drive
 #: sagging, the FETs half on, in their SOA; or its nodes at WARM_C - run hard, hot.
 SOA_RDS, WARM_C = 50.0, 100.0
+
+
+def paired(np, pairs, tau, top, kt):
+    """`tau` within `top` a joint, a parallel pair's (`pairs` [(joint, its roll)]) as its two
+    drives give it: each's current the first's share plus or less the second's, within its own
+    board's (top / kt), `kt` each joint's N m an amp in both."""
+    out = np.clip(tau, -top, top)
+    if len(pairs):
+        p, r = pairs[:, 0], pairs[:, 1]
+        a, b = tau[p] / kt[p], tau[r] / kt[r]
+        one = np.clip(a + b, -top[p] / kt[p], top[p] / kt[p])
+        two = np.clip(a - b, -top[r] / kt[r], top[r] / kt[r])
+        out[p], out[r] = kt[p] * (one + two) / 2.0, kt[r] * (one - two) / 2.0
+    return out
+
 
 class World:
 
@@ -84,9 +101,15 @@ class World:
         self.peak = np.array([0.0 if drives.passive(j) else min(SERVO[kind(j)][0], drives.peak(j))
                               if CLAMPED else SERVO[kind(j)][0] for j in JOINTS])
         #: Each drive's copper loss a torque squared, W/(N m)^2: R/kt^2 of its motor through its
-        #: cycloid (`machine.drives`). The work it does is metered only where positive - a drive
-        #: does not charge its battery braking.
-        self.loss = np.array([drives.r_ohm(j) / drives.kt(j) ** 2 for j in JOINTS])
+        #: cycloid (`machine.drives`), a pair's two. The work it does is metered only where
+        #: positive - a drive does not charge its battery braking.
+        self.loss = np.array([drives.motors(j) * drives.r_ohm(j) / drives.kt(j) ** 2
+                              for j in JOINTS])
+        #: Each joint's N m an amp (`drives.kt`); each parallel pair, (joint, its roll) (`paired`).
+        self.kt = np.array([drives.kt(j) for j in JOINTS])
+        self.pairs = np.array([(i, JOINTS.index(j[:-len(kind(j))] + linkage.PAIRS[kind(j)]))
+                               for i, j in enumerate(JOINTS) if kind(j) in linkage.PAIRS],
+                              int).reshape(-1, 2)
         #: The drives whose phases are shorted (`short`), and kt^2/R each gives a rad/s of its
         #: joint's speed against it, N m s/rad: the joint's own damping while shorted, MuJoCo's,
         #: integrated implicitly - as a torque each step against the speed, 140 N m s/rad on an
@@ -158,6 +181,8 @@ class World:
         self.block.emf[:] = self._np.array([drives.emf(j) for j in JOINTS])
         self.block.ohm[:] = self._np.array([drives.of(j)[1].r for j in JOINTS])
         self.block.volts[0] = drives.PACK_V / math.sqrt(3.0)
+        for i, r in self.pairs:
+            self.block.pair[i], self.block.pair[r] = r + 1, -(i + 1)
         self.buses = Buses(self.block, limbs)
         self.bus_of = self.buses.of
         atexit.register(self.close)
@@ -250,7 +275,7 @@ class World:
                 tau = (self.gains[:, 0] * (ref - d.qpos[self.qadr])
                        + self.gains[:, 1] * (self.rate - d.qvel[self.vadr]))
                 tau = np.where(self.shorted | self.cut, 0.0, tau)
-                d.ctrl[:] = np.clip(tau, -self.limit, self.limit)
+                d.ctrl[:] = paired(np, self.pairs, tau, self.limit, self.kt)
             power = d.ctrl * d.qvel[self.vadr]
             self.work += float(power[power > 0.0].sum()) * STEP_S
             self.brake -= float(power[power < 0.0].sum()) * STEP_S

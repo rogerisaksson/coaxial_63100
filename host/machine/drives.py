@@ -113,17 +113,20 @@ SIZES = {
 }
 
 #: Each joint's size, and where its assembly sits: None on the joint's own axis; else (segment,
-#: offset m in its frame[, its axis]) - the hip a gimbal on its axes: the pitch's L centred on the
+#: offset m in its frame[, its axis, '-x' its gearbox's end toward -x]) - its output turns what it
+#: drives about that axis from that end, nothing radial off an axial drive's (the user,
+#: 2026-10-03: the ankle's L lay along the shin, its crank about the knee's axis). The hip a
+#: gimbal on its axes: the pitch's L centred on the
 #: hip, the roll's M behind it at 1:100, up and in on a spur pair into her seat's fullest - an L
 #: there stood 67 mm out of it -, the yaw's M above, clear of the pitch's swing (69 mm), all three
 #: riding the pelvis; the knee's on its axis, 80 mm round inside it - a belt's give showed in her
 #: walk (the user, 2026-10-02), no four-bar kept its 163 degrees over a 12 degree transmission,
 #: coupling rods stood as wide as her knee; 100 mm round there the capture law flagged 260
 #: catches walking in 6 s, 80 none -; the elbow's under the arm's quick-release, a belt to the
-#: joint; the ankle's on the shin's axis at its foot under its rod's hub on a right-angle stage -
-#: 15 mm ahead, two falls of four put her head down at 1.6 and 1.9 m/s, and 10 ahead with the
-#: roll's 10 back a derated knee's walk fell -, its roll's before the tibia under the knee
-#: (`linkage`); the spine roll's M on the pelvis's top between the hips' yaws - on its axis
+#: joint; the ankle's pair under the knee, one over the other on the shin's axis, each turning
+#: the foot through its rod (`linkage.PAIRS`) - an L at the foot 15 mm ahead put her head down at
+#: 1.6 and 1.9 m/s in two falls of four, 10 ahead with the roll's 10 back a derated knee's walk
+#: fell -; the spine roll's M on the pelvis's top between the hips' yaws - on its axis
 #: it stood 80 mm out of her back -, the wrist's and the fingers' in the forearm, the toes' in the
 #: foot. Off the thigh, the hip's three took 3 kg out of its swing. The elbow and the neck M: on
 #: S an elbow pushing her up from the floor asked 20 N m rms over 2 s, the neck holding her head
@@ -131,29 +134,33 @@ SIZES = {
 JOINTS = {
     'spine': ('L', None), 'spine_roll': ('M', ('pelvis', (0.0, 0.03, 0.012))), 'waist': ('M', None),
     'neck': ('M', None), 'head': ('S', None),
-    'shoulder': ('M', None), 'elbow': ('M', ('upper_arm', (0.0, -0.115, 0.0), 'y')),
-    'wrist': ('S', ('forearm', (0.0, -0.12, 0.0), 'y')),
+    'shoulder': ('M', None), 'elbow': ('M', ('upper_arm', (0.0, -0.115, 0.0), '-y')),
+    'wrist': ('S', ('forearm', (0.0, -0.12, 0.0), '-y')),
     'gripper': ('S', ('forearm', (0.0, -0.165, 0.0))),
-    'hip_yaw': ('M', ('pelvis', (HIP_HALF, 0.103 - HIP_DROP, 0.0))),
+    'hip_yaw': ('M', ('pelvis', (HIP_HALF, 0.103 - HIP_DROP, 0.0), '-y')),
     'hip_roll': ('M', ('pelvis', (HIP_HALF - 0.025, 0.035 - HIP_DROP, -0.078))),
     'hip': ('L', ('pelvis', (HIP_HALF, -HIP_DROP, 0.0))),
     'knee': ('L', None),
-    'ankle': ('L', ('shank', (0.0, -0.2195, -0.004), 'y')),
-    'ankle_roll': ('M', ('shank', (0.0, -0.115, 0.03))),
+    'ankle': ('M', ('shank', (0.002, -0.080, 0.015), 'x')),
+    'ankle_roll': ('M', ('shank', (-0.004, -0.150, 0.0), '-x')),
     'foot': ('S', ('foot', (0.0, -0.04, 0.045))),
 }
 
 
 #: A joint's total ratio at rest, by kind, its size's (RATIO_L ..) elsewhere: its gearbox's times
-#: its transmission's (`linkage`) - the ankle's rod 1.05 at rest and 1.14 at 45 deg; the spine
-#: roll's and the waist's M at 1:60, past their 16.2 and 21.5 N m rms an M sheds at 1:40, 15, the
+#: its transmission's (`linkage`) - the ankle's L on one rod at 1:36; the spine roll's and the waist's M at 1:60, past their 16.2 and 21.5 N m rms an M sheds at 1:40, 15, the
 #: hip roll's at 1:100 its 36.6 (2026-10-02). As built the knee asked 117 N m, its clamp, at 0-40
 #: deg and 90-100, 41-81 at 40-90, never more than 512 deg/s; at 1:22 mid-stroke shoved past
 #: saving her head met the floor at 2.93 m/s once in 16, at 28 1.0 at most (2026-10-02). The
 #: hip's pair at 1:30 folded past -40 deg, the rise from the squat set her walk to fall at 5.6 s;
 #: at 36, she walked 16 s.
-TOTALS = {'knee': 36.0, 'ankle': 36.0, 'hip': 36.0, 'hip_roll': 100.0, 'spine_roll': 60.0,
-          'waist': 60.0}
+TOTALS = {'knee': 36.0, 'hip': 36.0, 'hip_roll': 100.0, 'spine_roll': 60.0, 'waist': 60.0}
+
+#: A parallel pair's (`linkage.PAIRS`) two drives' gearboxes, their rods' levers after them:
+#: two M at 1:68, the pitch's 1:60 through the rods' 0.88. At 1:60 on a roll lever of 0.64, from
+#: the squat walking each asked 111 N m at peak and 23 rms, past an M's 77 N m 3 % of the time and
+#: its 672 deg/s 0.36 %; two L were 2.8 kg against the L and the M's 2.02 (2026-10-02).
+PAIRED = 68.0
 
 
 def kind(joint):
@@ -168,6 +175,27 @@ def of(joint):
     """(size name, Size) of a joint's drive."""
     name = JOINTS[kind(joint)][0]
     return name, SIZES[name]
+
+
+def output(joint):
+    """(axis letter, end) where `JOINTS` lays its drum - its gearbox's end +1 or -1 along it -,
+    else None: on its joint's own axis, the end toward +."""
+    where = JOINTS[kind(joint)][1]
+    if where is None or len(where) < 3:
+        return None
+    return where[2][-1], -1.0 if where[2].startswith('-') else 1.0
+
+
+def outlet(joint):
+    """(segment, point) its output turns about, as `mount`: its drum's centre, or past its
+    gearbox's end, a pitch radius over its bevel pair (`linkage.BEVELS`)."""
+    where, laid = mount(joint), output(joint)
+    if where is None or laid is None or kind(joint) not in linkage.BEVELS:
+        return where
+    (seg, at), (letter, end) = where, laid
+    i = 'xyz'.index(letter)
+    reach = length(joint) / 2.0 + linkage.BEVEL_T / 2.0 + linkage.BEVELS[kind(joint)]
+    return seg, tuple(v + end * reach if k == i else v for k, v in enumerate(at))
 
 
 def mount(joint):
@@ -185,10 +213,18 @@ def mount(joint):
 def ratio(joint, deg=None):
     """The joint's total ratio (`TOTALS`) at rest, or at `deg` along its rod's stroke."""
     k = kind(joint)
-    total = TOTALS.get(k) or {'L': RATIO_L, 'M': RATIO_M, 'S': RATIO_S}[of(joint)[0]]
+    total = (PAIRED * linkage.lever(joint) if motors(joint) == 2 else TOTALS.get(k)
+             or {'L': RATIO_L, 'M': RATIO_M, 'S': RATIO_S}[of(joint)[0]])
     if deg is None or k not in linkage.RODS:
         return total
     return total * linkage.lever(joint, deg) / linkage.lever(joint)
+
+
+def motors(joint):
+    """The drives turning it: a parallel pair's joint 2 (`linkage.PAIRS`), each through its own
+    rod - its torque, the inertia and the drag it carries theirs together -, else 1."""
+    k = kind(joint)
+    return 2 if k in linkage.PAIRS or k in linkage.PAIRS.values() else 1
 
 
 def emf(joint):
@@ -198,9 +234,11 @@ def emf(joint):
 
 
 def kt(joint):
-    """Joint torque an amp of q current, N m/A."""
+    """Joint torque an amp of q current in each of its drives, N m/A."""
     s = of(joint)[1]
-    return s.kt_motor * ratio(joint) * s.efficiency * STAGE_EFF ** (stages(joint) - 1)
+    return (motors(joint) * s.kt_motor * ratio(joint) * s.efficiency
+            * STAGE_EFF ** (stages(joint) - 1)
+            * (linkage.BEVEL_EFF if kind(joint) in linkage.BEVELS else 1.0))
 
 
 def stages(joint):
@@ -258,18 +296,19 @@ def passive(joint):
 
 def armature(joint):
     """The rotor's and the gearbox's inertia as the joint feels them, kg m^2; none undriven."""
-    return 0.0 if passive(joint) else (1.0 + GEAR_J) * of(joint)[1].rotor * ratio(joint) ** 2
+    return 0.0 if passive(joint) else (motors(joint) * (1.0 + GEAR_J) * of(joint)[1].rotor
+                                       * ratio(joint) ** 2)
 
 
 def backdrive(joint):
     """The torque that turns the joint by its output, unpowered: its gearbox's drag through its
     ratio, N m; none undriven."""
-    return 0.0 if passive(joint) else of(joint)[1].drag * ratio(joint)
+    return 0.0 if passive(joint) else motors(joint) * of(joint)[1].drag * ratio(joint)
 
 
 def shock(joint):
     """The torque its gearbox takes momentarily, at the joint through its transmission, N m."""
-    return of(joint)[1].shock * linkage.lever(joint)
+    return motors(joint) * of(joint)[1].shock * linkage.lever(joint)
 
 
 def speed(joint):

@@ -30,8 +30,8 @@ def drums():
             continue
         size = drives.of(joint)[1]
         kind = drives.kind(joint)
-        letter = (drives.JOINTS[kind][1] or (None, None, axes[joint]))[2:3] or (axes[joint],)
-        mesh = drum(size.diameter / 2.0, drives.length(joint), letter[0], PLATE)
+        letter, end = drives.output(joint) or (axes[joint], 1.0)
+        mesh = drum(size.diameter / 2.0, drives.length(joint), letter, PLATE)
         mounted = drives.mount(joint)
         x = -1.0 if joint.startswith('right_') else 1.0
         ox, oy, oz = DRUM_AT.get(kind, (0.0, 0.0, 0.0))
@@ -42,8 +42,9 @@ def drums():
             parent, at = seg[1], (seg[3][0] + ox * x, seg[3][1] + oy, seg[3][2] + oz)
         else:
             parent, at = seg[0], (ox * x, oy, oz)
-        AXES[joint] = ({'x': (1.0, 0.0, 0.0), 'y': (0.0, 1.0, 0.0),
-                        'z': (0.0, 0.0, 1.0)}[letter[0]], drives.length(joint) / 2.0)
+        AXES[joint] = (tuple(end * v for v in {'x': (1.0, 0.0, 0.0), 'y': (0.0, 1.0, 0.0),
+                                               'z': (0.0, 0.0, 1.0)}[letter]),
+                       drives.length(joint) / 2.0)
         out.append(('drive_' + joint, parent, at, mesh))
     return out
 
