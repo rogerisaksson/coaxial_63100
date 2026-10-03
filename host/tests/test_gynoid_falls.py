@@ -420,11 +420,14 @@ def test_the_planner(report):
                  [s for _i, s in marks] == list(planner.plan(now)[0]) and marks[-1][0] == len(stream))
 
 
+#: The long six first: a shard takes every n-th (`tools.dev.focus.chosen`), so n of 6 or more
+#: puts one in each - on CI two of 126 and 127 s and a get-up's 38 ran past the 300 s cut
+#: (2026-10-03).
 ROSTER = (test_a_shove_to_her_left_parried, test_a_shove_to_her_right_parried,
-          test_a_trip_lands_her_shorted, test_lying_still_she_holds_nothing,
           test_a_fall_to_her_left_crouches, test_a_fall_to_her_right_crouches,
-          test_her_pads, test_the_roll_pushes_her_over, test_the_planner,
-          test_up_after_a_fall_to_her_left, test_up_after_a_fall_to_her_right)
+          test_up_after_a_fall_to_her_left, test_up_after_a_fall_to_her_right,
+          test_a_trip_lands_her_shorted, test_lying_still_she_holds_nothing,
+          test_her_pads, test_the_roll_pushes_her_over, test_the_planner)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
