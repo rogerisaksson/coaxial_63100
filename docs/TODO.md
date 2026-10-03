@@ -184,11 +184,29 @@ Open work. Measured results are in FINDINGS.
     its limb's weight where it can - estimated now, the elbow 0.80 N m
     against its forearm's 0.6, the ankle 2.48 against its foot's 0.4 (the
     user, 2026-10-03).
+  + Her gearboxes one stage (the user, 2026-10-03: else too complex): a
+    roller wave - catalogue needle rollers in a cage between an NA49/NA69
+    needle bearing on the eccentric and a CNC 7075 lobed ring - L 1:36-41
+    (Ø2.5 rollers), M 1:40-43 (Ø2), S 1:29 (Ø1.5), the worst roller under
+    7075's first yield at each size's peak; motor and stage stacked, its
+    middle hollow. Every joint's total kept, measured: at the stages' caps
+    alone she fell walking from the squat and never got up (board 538), at
+    today's totals with the wrist, head and toes 1:29 the gynoid, falls and
+    faults suites passed, board 313. Past a stage: the hip roll's spur pair
+    1.67 -> 2.5, the spine roll's 1:1 -> 1.5; the ankle's rods reach no
+    1.5 lever in her (searched 0.5-1.2): the pair on ball screws, an M
+    motor turning each nut, rods to the heel. A Wolfrom with the outrunner
+    in its hollow sun (the user's) gives 1:60 a stage but 105/87/72 mm
+    round against 80/60/42 - too wide for her arms and feet.
   + Her tubes and struts sized for stiffness, not to sway or flex (the user,
     2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
     PET-CF adapters and fittings between, printable flat without overhangs;
     each member's bending and twist under her joints' torques against its
-    drive's own give, into `skeleton`'s radii.
+    drive's own give, into `skeleton`'s radii. Legs and pelvis done
+    (docs/findings/body.md); the trunk's spine fork wants 30 mm legs where
+    its skin and the roll's 100 mm spur pair leave 24 - its roll on a rod
+    instead; the arms' bones below their drives printed boxes round their
+    belts; the collars and struts printed clamps for the rods' 3-4 kN.
   + Her gearboxes' ball stages exported from the user's tools
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
     <https://smorygo.com/wave_reducer>) with docs/findings/body.md's
