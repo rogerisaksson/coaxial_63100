@@ -198,15 +198,12 @@ Open work. Measured results are in FINDINGS.
     motor turning each nut, rods to the heel. A Wolfrom with the outrunner
     in its hollow sun (the user's) gives 1:60 a stage but 105/87/72 mm
     round against 80/60/42 - too wide for her arms and feet.
-  + Her M and S motors lower KV, coaxial on their one stage (the user,
-    2026-10-03): Km sets a N m's heat, not KV - a winding trades amps for
-    volts; it pays where a board's amps bind. The L's 5230 at its class's
-    best (Km 0.205; MAD M6C12 0.212, ODrive D6374 0.228 at 890 g). The M a
-    MAD 5010 KV110 (56 x 32.7 mm, 162 g, Km 0.147 against the model's 0.085):
-    1.88 N m at its board's 25 A, 1.48 now. The S an MN3508 class (41.8 x
-    26.5 mm, 103 g, Km 0.056 against 0.029) wound near KV 120: 0.47 N m at
-    6.8 A, at 1:29 the S's 1:40 torque back. Into `drives.SIZES` with the
-    one-stage gearboxes, her walk and get-up measured again.
+  + Her outrunners picked per joint, KV the parameter, inside each box
+    (the user, 2026-10-03; one box for all fails, docs/findings/body.md):
+    at 1.5x the hip wants a U12 II class (107 x 48 mm, Km 0.58), 112 mm
+    round where 96 stood 4 mm out of her skin, the knee 10 % more than its
+    board's 100 A at 48 V gives; their walk's 3.1 N m/kg first. Into `drives.SIZES` with the one-stage
+    gearboxes, her walk and get-up measured again.
   + Her tubes and struts sized for stiffness, not to sway or flex (the user,
     2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
     PET-CF adapters and fittings between, printable flat without overhangs;
@@ -253,6 +250,9 @@ Open work. Measured results are in FINDINGS.
 - Debug is `-O0`; `-Og` is a measurement away (LOOP counters, keepalive gap).
 - `intent.py` has no thermal kind: warmth questions become an NTC read.
   Measure against the live model before landing.
+- `test_native_heat`'s tour lost the cold room on CI 3.12 (925a173):
+  STABLE 2359, moved 2471, lost 2519 observer s, not STABLE again within
+  FIND_S 4000 - 850 measured at haste 100.
 - `test_sensorless` overpowered-servo check flakes ~1 in 4 inside the full
   gate only.
 - A1335 CRC polynomial unknown (CRC reported, not checked).

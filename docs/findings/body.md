@@ -309,3 +309,15 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   roll's bearing - the M 7 mm back: over +-35 deg its lever 1.33 at rest,
   1.48-1.73 toward the ends, its transmission 53 deg at worst, 2.9-3.7 kN
   in its rod; over spine -30..85 and roll +-35 the closest 1 mm.
+- One gearbox for all her drives, each outrunner and KV picked per joint
+  for 1.5x on the walk's torque at its speed and on its rms copper
+  (2026-10-03, 48 V): the hip and knee set the box - 257 N m momentary,
+  81 mm; their 51 N m rms at a fifth of it, 92 mm. 96 mm round, 12 drives
+  stood out of her skin (shoulder +36 mm, hip yaw +29, ankle and wrist +23,
+  knee +22), the ankle pair's drums 24 mm into each other. Inside one box
+  KV and frame met 1.5x from the wrist (MN3508 KV380) to the hip (U12 II
+  KV60 at 1:24, x1.74, rms x2.1) but the knee: x1.45 at best (U12 II wound
+  KV90, 1:30), its rise at 171 N m and first step 144 N m at 704 deg/s on
+  100 A. Km, R line to line halved: 5230SL 0.205 (582 g), Hobbywing M8108
+  85KV 0.229 (270 g), M8110 95KV 0.276 (315 g), U12 II KV60 0.581 (803 g).
+  The walk asks 3.1 N m/kg at the hip and knee, their drives' clip.
