@@ -287,11 +287,18 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   | tibia | 60 x 56 | 40 | 40 at its top, 30 past the rods, 20 its clevis |
   | boom | 50 x 47 | 60 | 50: a hip's pitch twisted the 30 mm one 1.3 deg |
   | hip fork | 22 x 20 | 24 | legs 22, bearing arms 18, crown a carbon plate |
-  | trunk column | 50 x 47 | 40 | high-modulus 40 |
-  | humerus below its drive | 35 x 32 | 20 | a printed box, 50 x 30 |
+  | spine fork legs | 35 x 32 | 24 | high-modulus 24 front, 30 behind |
+  | trunk column, girdle | 50, 35 | 40, 30 | high-modulus 40, 30 |
+  | humerus below its drive | 35 x 32 | 20 | high-modulus 20, 0.37 deg |
+  | forearm below its drive | 20 x 18 | 14 | high-modulus 16, 0.14 deg |
+  | drums' struts | - | - | printed 20 for the rods' 3-4 kN |
 
   The arms' 12 mm tubes bent 7.7 deg under the elbow's 50 N m; printed
   PAHT-CF takes a solid 30-80 mm round where carbon takes a 20-60 mm tube:
   printed parts short and stout. The boom steep to the yaw drives: at 45
   deg the hips' L met it, 8 mm. The fork's crown a tube met the femur's
-  collar, 4 mm.
+  collar, 4 mm. The neck's bracket 10 mm, the head's 0.77 kg on it - 25 stood
+  15 mm out of her neck. Printed parts without overhangs: collars split
+  rings printed axis up, tube sockets bore up, side holes a 45 deg roof;
+  brackets plates printed flat, their loads in the layers' plane (PAHT-CF
+  and PET-CF half as strong across them); seats 0.1 mm under, reamed.

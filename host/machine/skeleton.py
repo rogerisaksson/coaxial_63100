@@ -42,15 +42,16 @@ HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
                    ((-0.03, 0.02 - SHANK, 0.014), (-0.03, -SHANK, 0.0))),
                   (0.020, 0.015, 0.010, 0.010, 0.010),
                   (('knee', 'gear', 0.0),)),
-        'upper_arm': ((((0.029, -0.004, 0.0), (0.029, -0.048, 0.0), (0.0, -0.077, 0.0)),
-                       ((-0.018, -0.145, -0.02), (-0.016, -0.19, -0.014), (-0.016, -0.25, -0.012),
-                        (-0.026, -0.28, 0.0)),
-                       ((-0.016, -0.25, -0.012), (0.02, -0.25, -0.012), (0.02, -0.28, 0.0))),
-                      0.006, ()),
+        'upper_arm': ((((0.032, -0.004, 0.0), (0.032, -0.05, 0.0), (0.0, -0.077, 0.0)),
+                       ((-0.014, -0.145, -0.016), (-0.012, -0.19, -0.012), (-0.012, -0.25, -0.01),
+                        (-0.024, -0.28, 0.0)),
+                       ((-0.012, -0.25, -0.01), (0.018, -0.25, -0.012), (0.018, -0.28, 0.0))),
+                      (0.009, 0.010, 0.008), ()),
         'forearm': ((((-0.02, 0.0, 0.0), (0.014, 0.0, 0.0)), ((0.0, 0.0, 0.0), (0.0, -0.089, 0.0)),
-                     ((0.0, -0.142, -0.019), (0.0, -0.18, -0.012), (0.0, -0.215, -0.008),
-                      (-0.018, -0.235, 0.0), (-0.018, -0.25, 0.0)),
-                     ((0.0, -0.215, -0.008), (0.013, -0.235, 0.0), (0.013, -0.25, 0.0))), 0.006, ()),
+                     ((0.0, -0.142, -0.015), (0.0, -0.18, -0.012), (0.0, -0.215, -0.008),
+                      (-0.016, -0.235, 0.0), (-0.016, -0.25, 0.0)),
+                     ((0.0, -0.215, -0.008), (0.013, -0.235, 0.0), (0.013, -0.25, 0.0))),
+                    (0.008, 0.008, 0.008, 0.007), ()),
         'foot': ((((0.0, 0.0, -0.026), (0.0, -0.035, -0.032), (0.0, -0.066, -0.045),
                    (0.0, -0.066, 0.105), (0.0, -0.061, 0.117)),
                   ((0.0, 0.0, 0.026), (0.0, -0.03, 0.018), (0.0, -0.066, 0.015)),
@@ -77,10 +78,15 @@ BOOM = (0.025, ((0.066, 0.062, 0.0), (0.006, -0.03, 0.0), (-0.006, -0.03, 0.0), 
 #: pitch's L and its trunnions; the pitch's bracket from the L's output arched 52-85 mm over the
 #: band to the waist's M, clear of the bearings to 85 deg; the column from the waist's M to the
 #: neck's, the girdle to the shoulders'; the neck's bracket from its M's output to the head's S.
-TRUNK_R = 0.006
-TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.111, 0.066)),
-                     ((-0.055, 0.045, 0.0), (-0.055, 0.045, 0.066), (0.0, 0.111, 0.066)),
-                     ((0.0, -0.03, 0.0), (0.0, -0.03, -0.05), (0.0, 0.12, -0.066))),
+#: Each frame's runs' radii (`docs/findings/body.md`): the fork's front legs 24 mm high-modulus,
+#: all its skin and the roll's spur pair leave, its back one 30; the trunnions steel pins; the
+#: column 40, the girdle 30; the neck's bracket 10, the head's 0.77 kg on it, inside her neck - 25
+#: stood 15 mm out of it; the pitch's bracket thin, to come.
+TRUNK_R = {'pelvis': (0.012, 0.012, 0.015), 'spine_roll': (0.007, 0.007), 'spine': (0.006,),
+           'torso': (0.02, 0.015), 'neck': (0.005,)}
+TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0.066)),
+                     ((-0.055, 0.045, 0.0), (-0.055, 0.045, 0.066), (0.0, 0.099, 0.066)),
+                     ((0.0, -0.03, 0.0), (0.0, -0.03, -0.06), (0.0, 0.099, -0.066))),
                     (((0.0, 0.12, 0.066), 'z', 0.009, 0.007),
                      ((0.0, 0.12, -0.066), 'z', 0.009, 0.007))),
          'spine_roll': ((((0.0, 0.0, 0.043), (0.0, 0.0, 0.052)),
@@ -89,7 +95,7 @@ TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.111, 0
          'spine': ((((0.049, 0.0, 0.0), (0.054, 0.055, 0.0), (0.0, 0.078, 0.0)),), ()),
          'torso': ((((0.0, 0.155, 0.0), (0.0, 0.352, 0.004)),
                     ((-0.105, 0.325, -0.005), (0.105, 0.325, -0.005))), ()),
-         'neck': ((((0.042, 0.0, 0.0), (0.042, 0.042, 0.0), (0.0, 0.042, 0.012)),), ())}
+         'neck': ((((0.040, 0.0, 0.0), (0.040, 0.042, 0.0), (0.0, 0.042, 0.012)),), ())}
 
 #: The hip's gimbal (`gimbal`): its tubes' radius; its roll bearings' radius and half length,
 #: 55 mm before and behind the hip's centre; its cradle's band's radius and half length round the
@@ -102,18 +108,19 @@ FORK_R, CROWN_R, BEARING, BAND = 0.011, 0.005, (0.009, 0.007, 0.055), (0.043, 0.
 
 #: Each drive held by what carries it - the hip's roll drum, the ankles', the toes' and the boards
 #: held by nothing (the user, 2026-10-03): its collars, COLLAR_M proud of its drum, each (m from
-#: its middle toward its output, half width); its struts, STRUT_R round, (a, b) m in the frame
-#: its drum rides, her left's (the right's x mirrored), from a collar into the fork's back leg or
-#: the tibia. The boards on POSTS into the femur; the ankle's CROSS (pins' radius, half length)
+#: its middle toward its output, half width); its struts, STRUT_R round - 20 for the rods' 3-4 kN -
+#: unless a third says (the ankle roll's 14: a 20 met the folded femur, 3 mm), (a, b) m in the
+#: frame its drum rides, her left's (the right's x mirrored), from a collar into the fork's back
+#: leg or the tibia. The boards on POSTS into the femur; the ankle's CROSS (pins' radius, half length)
 #: on the stage between its pitch and its roll.
-COLLAR_M, STRUT_R, POST_R = 0.004, 0.005, 0.004
+COLLAR_M, STRUT_R, POST_R = 0.004, 0.010, 0.004
 HELD = {'hip_yaw': (((-0.014, 0.008),), ()),
         'hip_roll': (((0.018, 0.006), (-0.022, 0.006)),
                      (((0.02, 0.035, -0.055), (0.009, 0.035, -0.06)),
                       ((0.02, 0.058, -0.055), (-0.001, 0.059, -0.1)))),
         'ankle': (((0.0185, 0.006),), (((0.0205, -0.08, -0.019), (0.0205, -0.08, -0.037)),)),
         'ankle_roll': (((-0.0086, 0.006),),
-                       (((0.0046, -0.15, -0.034), (0.0046, -0.15, -0.047)),)),
+                       (((0.0046, -0.15, -0.034), (0.0046, -0.15, -0.047), 0.007),)),
         'elbow': (((-0.03, 0.005), (0.03, 0.005)), ()),
         'wrist': (((-0.022, 0.005), (0.022, 0.005)), ()),
         'foot': (((0.0, 0.006),), ()),
@@ -200,7 +207,8 @@ def held(side):
         axis = tuple(end * v for v in AXES[letter])
         r = drives.of(joint)[1].diameter / 2.0 + COLLAR_M
         shapes = [('ring', tuple(p + a * along for p, a in zip(at, axis)), axis, r, half)
-                  for along, half in collars] + [('tube', a, b, STRUT_R) for a, b in struts]
+                  for along, half in collars] + [('tube', st[0], st[1], st[2] if len(st) > 2
+                                                   else STRUT_R) for st in struts]
         name = kind if joint == kind else side + kind
         out += [(name, rides.replace('left_', side), shape) for shape in shapes]
     for seg, posts in POSTS.items():
@@ -216,7 +224,7 @@ def trunk():
     or ('tube', a, b, radius) in its frame."""
     out = []
     for frame, (tubes, rings) in TRUNK.items():
-        out += [(frame, ('tube', a, b, TRUNK_R)) for points in tubes
+        out += [(frame, ('tube', a, b, r)) for points, r in zip(tubes, TRUNK_R[frame])
                 for a, b in zip(points, points[1:])]
         out += [(frame, ('ring', c, AXES[axis], r, half)) for c, axis, r, half in rings]
     return out

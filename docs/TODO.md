@@ -202,11 +202,10 @@ Open work. Measured results are in FINDINGS.
     2026-10-03): carbon tubes where stock ones reach, printed PAHT-CF or
     PET-CF adapters and fittings between, printable flat without overhangs;
     each member's bending and twist under her joints' torques against its
-    drive's own give, into `skeleton`'s radii. Legs and pelvis done
-    (docs/findings/body.md); the trunk's spine fork wants 30 mm legs where
-    its skin and the roll's 100 mm spur pair leave 24 - its roll on a rod
-    instead; the arms' bones below their drives printed boxes round their
-    belts; the collars and struts printed clamps for the rods' 3-4 kN.
+    drive's own give, into `skeleton`'s radii. Done but the pitch's bracket
+    (docs/findings/body.md): from the spine's L to the waist's M it twists
+    under 142 N m, a 30 mm tube holding it has no room in the roll's band's
+    sweep - the roll on a rod instead of its 100 mm spur pair frees it.
   + Her gearboxes' ball stages exported from the user's tools
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
     <https://smorygo.com/wave_reducer>) with docs/findings/body.md's

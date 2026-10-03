@@ -387,7 +387,7 @@ def drawn(dressed):
     parts_, _rides = parts(stand)
     out = {}
     for name, part in parts_.items():
-        if not name.startswith(('drive_', 'board_', 'rod_', 'gimbal_')):
+        if not name.startswith(('drive_', 'board_', 'rod_', 'gimbal_', 'frame_')):
             continue
         points, radius = _points(part)
         best = np.full(len(points), np.inf)
