@@ -51,6 +51,9 @@ UNFOLD = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
 #: never off the floor.
 #: Her hands put down under her shoulders, 100 deg, not reached out ahead at the search's 131 and
 #: 163 (the user): 16 falls of 16 up as before (2026-10-01).
+#: The crouch's hip -126.5: her thighs as modules (r 58 -> 72 mm) meet her torso at -126, -140
+#: before; asked -138.7 the hip drove 100 N m into it, on her hands 0.17 m ahead of her feet, and
+#: none of 5 falls walked again; re-searched over the onto feet's three, 5 of 5 (2026-10-03).
 KNEES_UNDER = (('ease', 'prop', 1.19, _pose(3.0, 52.5, 24.6, -7.9, -20.0, 100.0, 84.9)),
                ('ease', 'prop', 1.46, _pose(-87.8, 96.8, 14.8, 22.9, -20.0, 100.0, 114.4)))
 #: Sat back over 0.6 s, not the search's 0.3: her neck whipped 866 -> 520 deg/s, a foot 3.9 -> 2.8
@@ -58,11 +61,11 @@ KNEES_UNDER = (('ease', 'prop', 1.19, _pose(3.0, 52.5, 24.6, -7.9, -20.0, 100.0,
 SIT_BACK = (('ease', 'sit', 0.6, _pose(-163.2, 158.2, 12.2, 60.0, -20.0, 54.3, 12.0)),
             ('ease', 'sit', 3.08, dict(_pose(-21.9, 160.0, -46.8, 30.9, -20.0, 72.7, 65.2),
                                        left_foot=54.5, right_foot=54.5)))
-ONTO_FEET = (('ease', 'lift', 0.61, dict(_pose(-10.0, 140.2, -42.7, 32.5, -20.0, 71.6, -5.0),
-                                         left_foot=30.9, right_foot=30.9)),
-             ('ease', 'lift', 0.63, dict(_pose(-130.0, 125.2, -42.6, 39.8, -20.0, 144.0, -5.0),
-                                         left_foot=37.0, right_foot=37.0)),
-             ('ease', 'crouch', 1.75, dict(_pose(-138.7, 106.4, -33.6, 30.2, -20.0, 79.0, -5.0),
+ONTO_FEET = (('ease', 'lift', 1.11, dict(_pose(-14.9, 139.2, -33.3, 37.7, -20.0, 68.2, -8.9),
+                                         left_foot=28.6, right_foot=28.6)),
+             ('ease', 'lift', 0.48, dict(_pose(-134.5, 122.0, -40.0, 38.9, -20.0, 141.9, -16.7),
+                                         left_foot=36.9, right_foot=36.9)),
+             ('ease', 'crouch', 1.94, dict(_pose(-126.5, 113.3, -33.8, 35.2, -20.0, 75.4, 6.0),
                                            left_foot=3.0, right_foot=3.0)),
              ('ease', 'crouch', 2.23, arrival.angles_of(arrival._squat())),
              ('ease', 'crouch', 0.3, {}))

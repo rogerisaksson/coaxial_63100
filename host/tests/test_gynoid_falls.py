@@ -1,5 +1,5 @@
 """The gynoid shoved, tripped and down: the parry, the fall past saving, the pads, the get-up's
-roll and its planner."""
+roll and its planner, and up and walking again after the page's P."""
 import sys
 
 from tools.dev.focus import chosen
@@ -22,6 +22,13 @@ SHOVE_N, SHOVE_S, SHOVE_AFTER_S, PARRY_SEEN_S, APART_M, HELD_OF_8 = 38.0, 0.12, 
 #: thigh first 8 times; crouched 6.2, a shank first 14. As built, 35 kg: 4.2 kN, a hand first 6
 #: times, a shank 10; her head down 3 times, two at rest, 0.09-0.12 m/s, one at 0.72 (2026-10-01).
 LANDING_S, PEAK_KN, HEAD_MS = 1.5, 7.0, 1.0
+
+
+#: Felled by the page's P walking (`tools.sim.getup_search`'s falls), she is up and walking again
+#: UP_S after she lay down, a test a side (the user, 2026-10-03: she must get up after a fall).
+#: Before the drives went to modules 5 falls of 5 walked at 20.5 s, after them none of 5 - the
+#: gate had nothing that walked her up from the floor (2026-10-03).
+UP_S = 40.0
 
 
 #: The roll onto her front from flat on her back: no foot past ROLL_FOOT_MS, no hip or knee past
@@ -346,6 +353,29 @@ def test_the_roll_pushes_her_over(report):
                  '%.0f deg/s' % spin)
 
 
+def _up(report, k):
+    """Felled by the page's P toward her left (`k` even) or right, she gets up and walks."""
+    from tools.sim import getup_search
+    lying = getup_search.start(('shove', k))
+    report.check("the page's P felled her", lying is not None, 'she stayed up')
+    if lying is None:
+        return
+    _cost, walked, tries = getup_search.trial(({}, lying))
+    report.check('up and walking again within %.0f s of lying down' % UP_S,
+                 walked is not None and walked <= UP_S,
+                 '%s, %d tries' % ('at %.1f s' % walked if walked else 'down', tries))
+
+
+def test_up_after_a_fall_to_her_left(report):
+    """Felled toward her left by the page's P, she gets up and walks on (`machine.getup`)."""
+    _up(report, 0)
+
+
+def test_up_after_a_fall_to_her_right(report):
+    """Felled toward her right by the page's P, she gets up and walks on (`machine.getup`)."""
+    _up(report, 1)
+
+
 def test_the_planner(report):
     """Her get-up's plan (`machine.planner`): a model's answer read and checked, a server asked
     once the local model has failed LOCAL_TRIES times, the house's own when neither answers."""
@@ -393,7 +423,8 @@ def test_the_planner(report):
 ROSTER = (test_a_shove_to_her_left_parried, test_a_shove_to_her_right_parried,
           test_a_trip_lands_her_shorted, test_lying_still_she_holds_nothing,
           test_a_fall_to_her_left_crouches, test_a_fall_to_her_right_crouches,
-          test_her_pads, test_the_roll_pushes_her_over, test_the_planner)
+          test_her_pads, test_the_roll_pushes_her_over, test_the_planner,
+          test_up_after_a_fall_to_her_left, test_up_after_a_fall_to_her_right)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

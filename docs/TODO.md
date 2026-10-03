@@ -137,11 +137,6 @@ Open work. Measured results are in FINDINGS.
   + The planner's server after LOCAL_TRIES local failures.
   + `machine/` in subpackages.
   + A fast walk, then running: no strikes, no blows, quiet and smooth.
-  + The get-up on her build as made: the roll pushed by
-    the arms takes her face down and knelt from all ten starts; from the five
-    falls she reaches the squat and the rise and tips sideways there, 0 of 5
-    walking again (HEAD's build 13 of 13): 20 s after a fall the hips at
-    115-120 C, the right derated to 0.40 (`heat.HASTE` 10).
   + The pelvis dropped about the stance hip, not its middle (a beam engine's
     beam, the user, 2026-10-02): undone, its walk caught 5-9 times in its
     first 3-5 s, the scoreboard 583, held 59.8 % where 535, 64.5
@@ -177,6 +172,14 @@ Open work. Measured results are in FINDINGS.
     estimated 5000 N m/rad and 0.163 kg m^2, 285 N m. Each drive's
     compliance modelled, a motor-side degree of freedom; torque limiters (a
     motorcycle's slipper clutch, a ball-detent coupling) where it is not.
+  + A hollow-shaft gearbox round her motor (the user, 2026-10-03): the
+    outrunner's or inrunner's rotor and stator inside the gearbox's bore, a
+    printable shell, standard rolling elements (rollers, pins, balls), its
+    gears aluminium, a stronger plastic or ceramic, its tolerances within a
+    good consumer printer's - its type found, sized for L, M and S, modelled.
+    Limited-angle mechanisms packaged in a housing count too, no joint
+    needing 360 deg; three standard sizes, fewer where they fit under her
+    shell and clothes unseen (the user, 2026-10-03).
   + Her gearboxes' ball stages exported from the user's tools
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
     <https://smorygo.com/wave_reducer>) with docs/findings/body.md's

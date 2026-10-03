@@ -80,6 +80,12 @@ drawing and her clothes. The board's own are in [FINDINGS](../FINDINGS.md).
   (`observer.OVER_FEET_M`), onto her feet ended crouched (`observer.EARLY`),
   the floor's boxes deep (`floor.DEEP_M`): 13 of 13 falls walk again 20-25 s
   after, 12 padded (2026-10-01).
+- From the modules (45cc518) none of 5 falls walked again, 5 of 5 before;
+  no test walked her up from the floor. Her thighs as modules, r 58 -> 72 mm
+  at the top, met her torso at hip -126, -140 before: the crouch asked
+  -138.7 and drove 100 N m into it, on her hands 0.17 m ahead of her feet.
+  Re-searched (`getup_search.py --table f`), the crouch's hip -126.5: 5 of 5
+  walking at 21.0-23.2 s, each first try (2026-10-03).
 - Falling, her reach pointed 45 degrees off her tip (the hole); turned at
   the waist past 20 off her front (`falls.turn`), 5. In 24 falls her head
   touched in 12, 688 N at most; unturned 10, 1170 (2026-10-01).

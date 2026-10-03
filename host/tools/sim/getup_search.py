@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Her get-up's knees under searched on her build as it is, scored on her walking again.
+"""Her get-up's keyframes searched on her build as it is, scored on her walking again.
 
-`getup.KNEES_UNDER`'s two keyframes, from the states real falls leave her in.
+`getup.KNEES_UNDER`'s two keyframes, or `getup.ONTO_FEET`'s first three (TABLES), from the states
+real falls leave her in.
 
     python tools/sim/getup_search.py --starts        # the falls run, her lying states kept
     python tools/sim/getup_search.py                 # the get-up as it is, from each
     python tools/sim/getup_search.py --search --generations 16
+    python tools/sim/getup_search.py --search --table f   # onto her feet's
 
 A start is one of the scoreboard's falls (`gait_montecarlo`'s events, P's shove at SPREAD's
 steps) run until her get-up begins: every joint, the pelvis's place and turn (STARTS). A run lays
@@ -28,35 +30,46 @@ FALLS = (('shove', -1), ('shove', 0), ('shove', 1), ('hole', 0), ('lace', 0))
 #: A run's seconds; not walking again by then KEPT_K, and TRY_K a try past the first.
 RUN_S, KEPT_K, TRY_K = 40.0, 60.0, 10.0
 
-#: The knobs: each of the knees under's two keyframes, its pose's angles, deg, both sides alike
-#: (`getup._pose`), and its seconds; searched SPAN either side of where they are.
-FIELDS = ('hip', 'knee', 'ankle', 'spine', 'shoulder', 'elbow')
-SPAN = {'hip': 35.0, 'knee': 35.0, 'ankle': 25.0, 'spine': 25.0, 'shoulder': 35.0, 'elbow': 35.0}
-SECONDS = (0.6, 2.2)
+#: The knobs, a table a letter: its keyframes from the first, how many, the fields of each pose,
+#: deg, both sides alike (`getup._pose`, the toes' `foot`), and its seconds' span; each field
+#: searched SPAN either side of where it is.
+TABLES = {'k': ('KNEES_UNDER', 2, ('hip', 'knee', 'ankle', 'spine', 'shoulder', 'elbow'),
+                (0.6, 2.2)),
+          'f': ('ONTO_FEET', 3, ('hip', 'knee', 'ankle', 'spine', 'shoulder', 'elbow', 'foot'),
+                (0.3, 2.5))}
+SPAN = {'hip': 35.0, 'knee': 35.0, 'ankle': 25.0, 'spine': 25.0, 'shoulder': 35.0, 'elbow': 35.0,
+        'foot': 30.0}
 
 
-def _now():
-    """{knob: value} of the knees under as it is."""
+def _key(field):
+    return field if field == 'spine' else 'left_' + field
+
+
+def _now(tables='k'):
+    """{knob: value} of `tables`' keyframes as they are."""
     from machine import getup
     out = {}
-    for k, (_verb, _stage, span, pose) in enumerate(getup.KNEES_UNDER):
-        out.update({'k%d.%s' % (k, f): pose[('left_' + f) if f not in ('spine',) else f]
-                    for f in FIELDS})
-        out['k%d.s' % k] = span
+    for t in tables:
+        name, n, fields, _s = TABLES[t]
+        for k, (_verb, _stage, span, pose) in enumerate(getattr(getup, name)[:n]):
+            out.update({'%s%d.%s' % (t, k, f): pose[_key(f)] for f in fields})
+            out['%s%d.s' % (t, k)] = span
     return out
 
 
 def _apply(values):
-    """The knees under set from {knob: value}, the neck as it was."""
+    """The tables' keyframes set from {knob: value}, the rest of each pose as it was."""
     from machine import getup
-    was = getup.KNEES_UNDER
-    out = []
-    for k, (verb, stage, span, pose) in enumerate(was):
-        a = [values.get('k%d.%s' % (k, f), pose[('left_' + f) if f != 'spine' else f])
-             for f in FIELDS]
-        out.append((verb, stage, values.get('k%d.s' % k, span),
-                    getup._pose(a[0], a[1], a[2], a[3], pose['neck'], a[4], a[5])))
-    getup.KNEES_UNDER = tuple(out)
+    for t, (name, n, fields, _s) in TABLES.items():
+        out = []
+        for k, (verb, stage, span, pose) in enumerate(getattr(getup, name)):
+            pose = dict(pose)
+            for f in fields if k < n else ():
+                v = values.get('%s%d.%s' % (t, k, f))
+                if v is not None:
+                    pose.update({f: v} if f == 'spine' else {'left_' + f: v, 'right_' + f: v})
+            out.append((verb, stage, values.get('%s%d.s' % (t, k), span), pose))
+        setattr(getup, name, tuple(out))
 
 
 def _body():
@@ -139,6 +152,7 @@ def main(argv=None):
     parser.add_argument('--sigma', type=float, default=0.15)
     parser.add_argument('--log', default='getup_search.jsonl')
     parser.add_argument('--workers', type=int, default=16)
+    parser.add_argument('--table', default='k', help='the tables searched: k, f or kf')
     args = parser.parse_args(argv)
     background.lower()
     began = time.time()
@@ -150,10 +164,10 @@ def main(argv=None):
                                                            time.time() - began))
             return 0
         starts = json.load(open(args.file))
-        now = _now()
+        now = _now(args.table)
         if args.search:
             spans = {n: ((v - SPAN[n.split('.')[1]], v + SPAN[n.split('.')[1]])
-                         if not n.endswith('.s') else SECONDS) for n, v in now.items()}
+                         if not n.endswith('.s') else TABLES[n[0]][3]) for n, v in now.items()}
             with open(args.log, 'a') as log:
                 cost, values = cmaes.search(pool, spans, args.generations, args.population, log,
                                             lambda p, c: runs(p, c, starts), now.get, args.sigma)
