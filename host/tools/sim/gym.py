@@ -85,8 +85,8 @@ Answer JSON: {"hypothesis": one sentence, what you expect and why; "knobs": {nam
 for 1 to 4 knobs from the list, spans inside the ones given; "suite": one of the suites;
 "generations": 2-6; "population": 4-12}. Each search costs generations x population x the
 suite's runs, %d at most. Prefer the suite whose numbers are worst, prefer knobs no search has
-moved yet, and do not repeat a hypothesis in the record. The stand.* knobs reach the stand suite
-alone, the walker's, gait's, capture's, landing's and arrival's the walks, the look and the faults,
+moved yet, and do not repeat a hypothesis in the record. The stand.*, dcm.* and bearing.* knobs
+reach the stand suite alone, the walker's, gait's, capture's, landing's and arrival's the walks, the look and the faults,
 the drives' every suite: a knob on a suite it does not reach scores nothing.
 
 Knobs (name: low..high, what it is):
@@ -113,18 +113,45 @@ def brief():
                               for n, (what, runs) in SUITES.items()))
 
 
+#: Standing's knobs reach the stand suite alone, the walk's every other; the drives' all.
+STANDING = ('stand.', 'dcm.', 'bearing.')
+
+
+def reaches(name, suite):
+    """Whether knob `name` moves anything suite `suite` scores."""
+    return name.startswith('drives.') or name.startswith(STANDING) == (suite == 'stand')
+
+
+def rows():
+    """The log's results, oldest first."""
+    if not os.path.exists(LOG):
+        return []
+    with open(LOG, encoding='utf-8') as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
 def record(n=12):
     """The log's last `n` results as the model reads them."""
-    rows = []
-    if os.path.exists(LOG):
-        with open(LOG, encoding='utf-8') as f:
-            rows = [json.loads(line) for line in f if line.strip()]
-    if not rows:
-        return 'no search yet'
     return '\n'.join('- %s on %s: cost %.1f held %.1f %% at %s' % (
         r['hypothesis'], r['suite'], r['cost'], 100 * r['held'],
         ', '.join('%s=%.4g' % kv for kv in r['values'].items()))
-        for r in rows[-n:])
+        for r in rows()[-n:]) or 'no search yet'
+
+
+def schema(suite=None):
+    """SCHEMA for a search on `suite`: its knobs those that reach it and no search on it has
+    moved - every one that reaches it once all have been - the first of them required. Left to
+    the brief, the model put a standing knob on the faults suite, which it does not reach, and
+    gave a hypothesis already in the record (2026-10-04)."""
+    if suite is None:
+        return SCHEMA
+    reach = [n for n in KNOBS if reaches(n, suite)]
+    moved = {n for r in rows() if r['suite'] == suite for n in r['knobs']}
+    names = [n for n in reach if n not in moved] or reach
+    span = {'type': 'array', 'items': {'type': 'number'}, 'minItems': 2, 'maxItems': 2}
+    return dict(SCHEMA, properties=dict(
+        SCHEMA['properties'], suite={'enum': [suite]},
+        knobs={'type': 'object', 'required': names[:1], 'properties': {n: span for n in names}}))
 
 
 def decided(suite=None):
@@ -149,7 +176,7 @@ def propose(model, suite=None):
         record(), 'score it on the %s suite.' % suite if suite else 'choose the suite.')
     messages = [{'role': 'system', 'content': brief()}, {'role': 'user', 'content': asked}]
     try:
-        reply = model.chat(messages, fmt=SCHEMA, think=False, num_predict=400)['content']
+        reply = model.chat(messages, fmt=schema(suite), think=False, num_predict=400)['content']
         got = json.loads(reply)
     except Exception:  # noqa: BLE001 - a model failing must not stop the grind
         return None
@@ -158,8 +185,8 @@ def propose(model, suite=None):
         if name in KNOBS and len(span) == 2:
             lo, hi = sorted(float(v) for v in span)
             knobs[name] = (max(KNOBS[name][0], lo), min(KNOBS[name][1], hi))
-    knobs = {n: s for n, s in knobs.items() if s[1] > s[0]}
     which = suite or got.get('suite')
+    knobs = {n: s for n, s in knobs.items() if s[1] > s[0] and reaches(n, which)}
     if not knobs or which not in SUITES:
         return None
     population = max(4, min(12, int(got.get('population', 8))))
