@@ -30,8 +30,8 @@ def one(event, k, values, bare):
     from machine import Machine, events, figure
     from machine.director import Director
     from machine.modes import DYNAMIC
-    from tools.sim import gait_montecarlo
-    gait_montecarlo._set(values)
+    from tools.sim import knobs
+    knobs.set_(values)
     if bare:
         figure.PADS = ()
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)

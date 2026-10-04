@@ -39,7 +39,7 @@ import sys
 import time
 
 from tools.dev import background
-from tools.sim import cmaes
+from tools.sim import cmaes, knobs
 
 #: (kind, pace, event): the trials. The floor's events took the shoves' place (a shove hardly
 #: ever happens to a walker; a hole, a sill, a rug, a slippery patch, a lace and a drive's
@@ -174,32 +174,6 @@ SETTLE_S, EVENT_AT_S = 4.0, 5.0
 JUDGED = ('thigh behind at lift', 'impact')
 LOST_K = 30.0
 
-MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'falls', 'parry',
-           'getup', 'observer',
-           'capture', 'physics', 'mjcf', 'build', 'buses', 'events', 'drives')
-
-
-def _set(values):
-    """The constants set where they live - the first of MODULES holding the name, or the one
-    named, walkplan.TRACK_M (gait has its own); a table's entry as module.TABLE.key,
-    drives.WAYS.head - the plan's tables cleared. Unqualified, a name two modules hold sets the
-    first: TURN_DEG meant for the fall turned the walk's pelvis (2026-10-01)."""
-    import importlib
-    mods = [importlib.import_module('machine.' + m) for m in MODULES]
-    for name, value in values.items():
-        module, _dot, name = name.partition('.') if '.' in name else ('', '', name)
-        table, _dot, key = name.partition('.')
-        owner = next((m for m in mods if hasattr(m, table)
-                      and (not module or m.__name__ == 'machine.' + module)), None)
-        if owner is None:
-            raise KeyError('no %s in machine.%s' % (table, ', machine.'.join(MODULES)))
-        if key:
-            getattr(owner, table)[key] = value
-        else:
-            setattr(owner, table, value)
-    gait, walkplan = mods[1], mods[2]
-    gait._FITS.clear()
-    walkplan._TABLES.clear()
 
 
 def trial(job):
@@ -207,9 +181,9 @@ def trial(job):
     (`JOBS`): a rise or a walk on fantasy boards, an event on the boards as built."""
     values, ((kind, pace, event), k) = job
     faulted = kind in ('event', 'fall')
-    _set(dict(values, ENVELOPE=1.0 if faulted else 0.0))
+    knobs.set_(dict(values, ENVELOPE=1.0 if faulted else 0.0))
     from tools.sim import look, strides
-    from machine import Machine, drives, events, figure, heat
+    from machine import Machine, drives, events, figure, heat, skeleton
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -232,7 +206,11 @@ def trial(job):
     pinned, drive_ms, peak = 0, 0, world.peak[world.driven] * 0.999
     np, m, d = world._np, world.model, world.data
     ours = {m.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
-    force, drawn, landing, head = np.zeros(6), 0.0, 0.0, 0.0
+    # Her skeleton's parts, welded bodies of their own where `physics.SKELETON` collides them:
+    # a drum, a board or a tube the floor meets is what a fall breaks (the armour, the user,
+    # 2026-10-04).
+    bare_parts = {i for i in skeleton.owners(m) if i not in ours}
+    force, drawn, landing, head, bare = np.zeros(6), 0.0, 0.0, 0.0, 0.0
     while bus['t'] < seconds:
         body.loop.write(**director.step(0.001))
         body.loop.step(0.001)
@@ -273,15 +251,19 @@ def trial(job):
                 window = IMPACT_S
             quiet, was_load = (quiet + 0.001 if load < TOUCH_N else 0.0), load
         if kind == 'fall' and fell is not None and bus['t'] <= fell + LAND_S:
-            body_n = head_n = 0.0
+            body_n = head_n = bare_n = 0.0
             for i in range(d.ncon):
-                mine = [b for b in (m.geom_bodyid[d.contact[i].geom1],
-                                    m.geom_bodyid[d.contact[i].geom2]) if b in ours]
+                pair = (m.geom_bodyid[d.contact[i].geom1], m.geom_bodyid[d.contact[i].geom2])
+                mine = [b for b in pair if b in ours]
                 if len(mine) == 1 and not ours[mine[0]].endswith(('foot', 'toes')):
                     world._mj.mj_contactForce(m, d, i, force)
                     body_n += abs(force[0])
                     head_n += abs(force[0]) if ours[mine[0]] == 'head' else 0.0
+                elif not mine and sum(b in bare_parts for b in pair) == 1:
+                    world._mj.mj_contactForce(m, d, i, force)
+                    bare_n += abs(force[0])
             landing, head = max(landing, body_n / 1e3), max(head, head_n / 1e3)
+            bare = max(bare, bare_n / 1e3)
     # A pool's worker lives on: its world's buses and block closed here, not at its exit - left,
     # five bus processes a run piled up to 865 and the host ran out of memory (2026-09-28).
     body.close()
@@ -297,7 +279,7 @@ def trial(job):
         walked['power'] = drawn / passes
     walked['fell'] = float(fell is not None)
     if faulted:
-        walked.update(landing=landing, head=head,
+        walked.update(landing=landing, head=head, bare=bare,
                       gear=float(np.max(world.geared / np.array([drives.shock(j)
                                                                   for j in figure.JOINTS]))))
     return 1.0 - down / seconds, (stirred / passes if passes else None), what, walked
@@ -370,22 +352,9 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
             ' swinging %.1f, roll %.1f, knee %.1f, most %.1f deg, impact %.0f N, touch %.2f m/s,'
             ' rate %.0f kN/s, load %.2f %%, power %.0f W'
             % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if kind == 'walk' and looks
-            else '  landing %.1f kN, head %.2f' % (looks['landing'], looks['head'])
+            else '  landing %.1f kN, head %.2f, bare %.2f' % (looks['landing'], looks['head'],
+                                                             looks.get('bare', math.nan))
             if kind == 'fall' else ''))
-
-
-def _now(name):
-    """A constant's value where it lives (`_set`'s modules), its module named or not; a table's
-    entry's as module.TABLE.key."""
-    import importlib
-    mods = [importlib.import_module('machine.' + m) for m in MODULES]
-    parts = name.split('.')
-    key = parts.pop() if len(parts) > 2 else None
-    module, _dot, bare = '.'.join(parts).rpartition('.')
-    owner = next(m for m in mods if hasattr(m, bare)
-                 and (not module or m.__name__ == 'machine.' + module))
-    value = getattr(owner, bare)
-    return float(value[key] if key else value)
 
 
 
@@ -419,7 +388,8 @@ def main(argv=None):
                      for k, v in (a.split('=') for a in args.search)}
             cost, values = cmaes.search(
                 None, spans, args.generations, args.population, log,
-                lambda pool, cands: run(pool, [dict(fixed, **c) for c in cands]), _now, args.sigma)
+                lambda pool, cands: run(pool, [dict(fixed, **c) for c in cands]), knobs.now,
+                args.sigma)
             print('BEST %.2f %s' % (cost, json.dumps(values)))
             cands = [dict(fixed, **(values or {}))]
         elif args.grid:

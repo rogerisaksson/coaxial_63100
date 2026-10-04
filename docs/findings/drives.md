@@ -161,6 +161,23 @@ board's in [FINDINGS](../FINDINGS.md).
   and inverter the ankle 0.80, 0.73, 0.56, 0.94, the ankle roll 0.59 and
   0.20, the hip roll 0.57 and 0.41: every leg joint on A is 3.9 kg more
   drive (14.2 -> 18.1 of 55).
+- Two frames, two boxes, two inverters (the aim, the user, 2026-10-04):
+  frame C and box C gone after a day, the elbow, the neck and the head on
+  B direct - the elbow's drum 72 mm across the elbow with its collars, the
+  shell there 80, +5 mm past it standing -; the ankles on A with its box
+  and inverter (on B 1.32 of its amps and 1.27 of its box for a run), the
+  stack 10 mm down the shank (its gearbox met the knee's by 7 mm with the
+  knee folded), +3 past the calf's shell; the hip yaw, the hip roll and
+  the ankle roll on B (on A the hip roll's stack stood 19 mm into the
+  pelvis frame, the hip yaw's inverter 15 into the spine's). Her
+  electronics in oil, each stator on its inverter through a thermal
+  interface (`drives.COOLING` 0.3 on the windings' and the laminates' K/W,
+  assumed): every heat number under 1 - the hips' and knees' 1.94 -> 0.64,
+  the hip roll's 2.92 -> 0.88, the ankle's 0.24 -, the switches binding
+  the A joints. Left over 1 at 1.5x the parries' peaks: the hips' and
+  knees' amps 1.26, power 1.33-1.36, volts 1.15-1.23 (at 1.0x 0.84, 0.89,
+  0.77-0.82), the spine's amps 1.05 - the margin's rule. Drives 17.3 kg
+  of 55; parts 25 types (`bom.py`).
 - A third frame, C, 40 mm round and 12 deep at KV 200, for the elbow, the
   neck, the head and the toes (the fewest parts, the user, 2026-10-04):
   on B the elbow's rotor reflected 4.2 times its load's inertia

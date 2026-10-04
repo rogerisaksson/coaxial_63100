@@ -91,8 +91,8 @@ def asked(to_s, values, scene=None, cadence=0.85):
     the squat, `to_s` seconds, a `scene` laid at SCENE_S - a floor event (`machine.events`) or
     'shove', the page's P -; the load's inertia the mass matrix's diagonal less the armature,
     meaned every 0.1 s."""
-    from tools.sim.gait_montecarlo import _set
-    _set(values)
+    from tools.sim import knobs
+    knobs.set_(values)
     mujoco = importlib.import_module('mujoco')
     from coaxial.model.blocks import numpy as np
     from machine import Machine, drives, events, linkage
@@ -165,8 +165,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
     if args.cached:
-        from tools.sim.gait_montecarlo import _set
-        _set(values)
+        from tools.sim import knobs
+        knobs.set_(values)
         got = json.load(open(CACHE))
         got = running(got) if args.run else got
     else:
