@@ -144,8 +144,11 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
     if name == EMULATOR and _emulated_here():
         return [Job('%s %s' % (name, group), argv + [group], WORKER_GB, seconds, lock)
                 for group, seconds in EMULATOR_GROUPS.items()]
-    shards = (min(MAX_SHARDS, math.ceil(took.get(name, FRESH_S.get(name, 0.0)) / share))
-              if name in SHARDED else 1)
+    expected = took.get(name, FRESH_S.get(name, 0.0))
+    shards = min(MAX_SHARDS, math.ceil(expected / share)) if name in SHARDED else 1
+    # A job's time twice its expected share at least: CI's two shards of the falls suite, 443 s
+    # each, were cut at 300 (2026-10-04).
+    timeout = max(timeout, 2.0 * expected / max(1, shards))
     if shards <= 1:
         return [Job(name, argv, gb, timeout, lock)]
     return [Job('%s %d/%d' % (name, k, shards), argv + ['--shard', '%d/%d' % (k, shards)], gb,

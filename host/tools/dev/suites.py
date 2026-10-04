@@ -226,8 +226,9 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, 'test_si
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
 #: checkout ran test_gynoid_falls.py whole, 532 s here, and its 300 s cut it (2026-10-01); with
-#: its get-ups after a fall 540 + 2 x 38 (2026-10-03).
-FRESH_S = {GYNOID_FALLS: 650.0}
+#: its get-ups after a fall 540 + 2 x 38 (2026-10-03); their starts hot after a minute's walk
+#: 822 here, 886 on CI's runner in two shards of 443, each cut at 300 (2026-10-04).
+FRESH_S = {GYNOID_FALLS: 850.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240
