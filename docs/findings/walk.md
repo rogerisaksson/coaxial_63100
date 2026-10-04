@@ -309,4 +309,4 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   Sprung so, the look suite held 35.9 % against 69.9 driven - the rises
   44, 57 and 38 %, the walks 91, 12, 5 and 4 at 0.65-1.0, every fast walk
   down within 0.8 s; the toes stay driven until the push-off is reworked
-  (TODO 5) (2026-10-04).
+  (TODO 4) (2026-10-04).
