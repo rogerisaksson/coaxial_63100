@@ -38,6 +38,7 @@ import os
 import sys
 import time
 
+from machine import events
 from tools.dev import background
 from tools.sim import cmaes, knobs
 
@@ -52,7 +53,8 @@ TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
           ('event', 0.85, 'hole'), ('event', 0.85, 'sill'), ('event', 0.85, 'slip'),
           ('event', 0.85, 'rug'), ('event', 0.65, 'sill'), ('event', 0.9, 'slip'),
           ('event', 0.85, 'soa'), ('event', 0.85, 'hot'), ('event', 0.85, 'lace'),
-          ('event', 0.85, 'nudge'), ('fall', 0.85, 'shove'))
+          ('event', 0.85, 'nudge'), ('fall', 0.85, 'shove')) + tuple(
+              ('stand', 0.85, e) for e in events.STANDING)
 
 #: Each event laid at SPREAD steps (`events.STEP_M`, `events.GLITCH_STEP`). Laid at one place,
 #: 2 % of an arm's swing flipped a slip or the hot knee and the held share ran 75-90 %
@@ -64,8 +66,8 @@ SPREAD = (-1, 0, 1)
 WALK_SPREAD = 0.02
 
 #: The suites: which kinds of trial each runs.
-SUITES = {'all': ('rise', 'walk', 'event', 'fall'), 'look': ('rise', 'walk'), 'walk': ('walk',),
-          'rise': ('rise',), 'faults': ('event', 'fall')}
+SUITES = {'all': ('rise', 'walk', 'event', 'fall', 'stand'), 'look': ('rise', 'walk'),
+          'walk': ('walk',), 'rise': ('rise',), 'faults': ('event', 'fall'), 'stand': ('stand',)}
 
 #: (trial, spread step): every run a candidate makes (`suite` narrows them).
 JOBS = [(t, k) for t in TRIALS for k in SPREAD]
@@ -127,6 +129,9 @@ ENERGY_W, ENERGY_K = 300.0, 0.05
 #: worst gearbox's peak torque (`World.geared`, `drives.shock`) - broken.
 FALL_K, LAND_S, LAND_K, HEAD_K, GEAR_K = 300.0, 1.5, 2.0, 10.0, 100.0
 
+#: A stand's cost: its stir, mm, from its event on, TREAD_K a step taken, a fall FALL_K.
+TREAD_K = 1.0
+
 #: The look's measures, by `strides.WALK`'s names, and the landing's and the power's.
 LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear',
          'torso pitch', 'toe out', 'toe out swinging', 'ankle roll', 'knee at landing',
@@ -165,7 +170,7 @@ def look_of(looks):
 
 #: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; events laid from
 #: EVENT_AT_S.
-SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0, 'fall': 24.0}
+SECONDS = {'rise': 20.0, 'walk': 14.0, 'event': 24.0, 'fall': 24.0, 'stand': 12.0}
 SETTLE_S, EVENT_AT_S = 4.0, 5.0
 
 #: A walk's run is judged on the strides it walked: its reach behind and its landing measured. A
@@ -180,7 +185,7 @@ def trial(job):
     """(held, stir or None, what happened, {look: value}) for one candidate's one run
     (`JOBS`): a rise or a walk on fantasy boards, an event on the boards as built."""
     values, ((kind, pace, event), k) = job
-    faulted = kind in ('event', 'fall')
+    faulted = kind in ('event', 'fall', 'stand')
     knobs.set_(dict(values, ENVELOPE=1.0 if faulted else 0.0))
     from tools.sim import look, strides
     from machine import Machine, drives, events, figure, heat, skeleton
@@ -188,10 +193,14 @@ def trial(job):
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     body.arm()
-    director = Director(body, pace)
+    director = Director(body, pace, stand_s=math.inf if kind == 'stand' else 0.0)
     if kind == 'rise':
         nth = [t for t in TRIALS if t[0] == 'rise'].index((kind, pace, event))
         director.begin(drop=0.002 + RISE_DROP_M * (k + 1 + nth / 3.0))
+    elif kind == 'stand':
+        up, stagger = events.rigged(event)
+        director.begin(drop=0.002 + RISE_DROP_M * (k + 1), up=up, stagger=stagger)
+        events.rig(event, director, body.nodes['pelvis'].world)
     else:
         director.cadence = director.walker.cadence = pace * (1.0 + WALK_SPREAD * k)
         director.walker.start()
@@ -220,14 +229,20 @@ def trial(job):
             down += 0.001
             if director.stage == 'walk':
                 up = bus['t']
-        if (faulted and not laid and bus['t'] >= EVENT_AT_S
-                and was < events.at(event, k) <= director.walker.phase):
+        if kind == 'stand' and not laid and bus['t'] >= EVENT_AT_S:
+            events.befall(event, director, world, k)
+            laid = True
+        elif (faulted and not laid and bus['t'] >= EVENT_AT_S
+              and was < events.at(event, k) <= director.walker.phase):
             events.lay(event, director, world, k)
             laid = True
         was = director.walker.phase
         if laid:
             tilt = max(tilt, math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * (
                 bus['pelvis.pose.qx'] ** 2 + bus['pelvis.pose.qz'] ** 2))))))
+        if kind == 'stand' and laid:
+            stirred += director.pendulum.energy
+            passes += 1
         if kind == 'walk' and bus['t'] >= SETTLE_S:
             stirred += director.pendulum.energy
             passes += 1
@@ -278,6 +293,9 @@ def trial(job):
         walked['load'] = 100.0 * pinned / drive_ms
         walked['power'] = drawn / passes
     walked['fell'] = float(fell is not None)
+    if kind == 'stand':
+        walked.update(treads=director.treads, stir=stirred / passes if passes else math.nan)
+        what += ', %d treads' % director.treads
     if faulted:
         walked.update(landing=landing, head=head, bare=bare,
                       gear=float(np.max(world.geared / np.array([drives.shock(j)
@@ -292,8 +310,8 @@ def by_trial(results):
     out = []
     for t in TRIALS:
         mine = [r for (u, _k), r in zip(JOBS, results) if u == t]
-        judged = [r for r in mine if r[1] is not None
-                  and all(r[3].get(n, math.nan) == r[3].get(n, math.nan) for n in JUDGED)]
+        judged = [r for r in mine if r[1] is not None and (t[0] != 'walk' or all(
+            r[3].get(n, math.nan) == r[3].get(n, math.nan) for n in JUDGED))]
         mean = (lambda xs: sum(xs) / len(xs)) if judged else (lambda xs: math.nan)
         out.append((sum(r[0] for r in mine) / len(mine), mean([r[1] for r in judged]),
                     [r[2] for r in mine], mine[0][3], mean([look_of(r[3]) for r in judged])))
@@ -302,7 +320,8 @@ def by_trial(results):
 
 def score(results):
     """(cost, held, stir) of one candidate's run results, in JOBS' order: the walks' look and
-    power, the events' and the rises' falls, the landings past saving."""
+    power, the events', the rises' and the stands' falls, the stands' stir and steps, the
+    landings past saving."""
     trials = by_trial(results)
     held = sum(t[0] for t in trials) / len(trials)
     walks = [t for (kind, _p, _e), t in zip(TRIALS, trials) if kind == 'walk']
@@ -313,10 +332,16 @@ def score(results):
     cost = (stir + sum(t[4] for t in walked) / len(walked)
             + LOST_K * (len(walks) - len(walked)) / len(walks)) if walked else 0.0
     runs = [(t[0], r[3]) for (t, _k), r in zip(JOBS, results)]
-    land = [LAND_K * w['landing'] + HEAD_K * w['head'] + GEAR_K * max(0.0, w['gear'] - 1.0)
+    # A run lost on the relay (`run`) scores as a fall with nothing else.
+    land = [LAND_K * w.get('landing', 0.0) + HEAD_K * w.get('head', 0.0)
+            + GEAR_K * max(0.0, w.get('gear', 1.0) - 1.0)
             for kind, w in runs if kind == 'fall']
-    for falls in ([w['fell'] for kind, w in runs if kind == which] for which in ('event', 'rise')):
+    for falls in ([w.get('fell', 1.0) for kind, w in runs if kind == which]
+                  for which in ('event', 'rise', 'stand')):
         cost += FALL_K * sum(falls) / len(falls) if falls else 0.0
+    stands = [w['stir'] + TREAD_K * w['treads'] for kind, w in runs
+              if kind == 'stand' and w.get('stir', math.nan) == w.get('stir', math.nan)]
+    cost += sum(stands) / len(stands) if stands else 0.0
     return cost + (sum(land) / len(land) if land else 0.0), held, stir
 
 
@@ -345,9 +370,10 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
         ' '.join('%s=%g' % kv for kv in values.items()) or 'as it is', cost, 100 * held, stir))
     trials = by_trial(results) if results else []
     for (kind, pace, event), (h, s, whats, looks, _c) in zip(TRIALS, trials):
-        print('    %-5s %.2f %-5s %5.1f %%  %s%s%s' % (
+        print('    %-5s %.2f %-9s %5.1f %%  %s%s%s' % (
             kind, pace, event or '', 100 * h, ' | '.join(whats),
-            '' if kind != 'walk' else '  stir %.2f mm' % s,
+            '  stir %.2f mm' % s if kind == 'walk' else
+            '  stir %.2f mm, %d treads' % (s, looks.get('treads', 0)) if kind == 'stand' else '',
             '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, torso %.1f, toes %.1f'
             ' swinging %.1f, roll %.1f, knee %.1f, most %.1f deg, impact %.0f N, touch %.2f m/s,'
             ' rate %.0f kN/s, load %.2f %%, power %.0f W'

@@ -277,6 +277,21 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   the median 468 -> 335. The board 578 -> 299, held 76.8 % against main's
   495; the same knobs to 17, 6 and 3 digits 263, 306 and 420 - its chance.
   `landing.PARRY_HURRY` 0.29 (2026-10-03).
+- The toes sprung, no motor (the user, 2026-10-04; `drives.WAYS` foot 1,
+  `drives.TOE_K`): as the walker was, at 40 N m/rad, the scoreboard held
+  15 % against 73.7 driven - every walk down at its first push-off
+  (0.5-0.8 s), every rise at its first steps -, the heel rise 50 -> 30
+  deg 33 %. The push-off's knobs searched on the look suite (8 x 12:
+  TOE_DEG, HEEL_OFF, RISE_DEG, LAND_DEG, TOE_RATE, the arrival's lift and
+  first stride): best 397 at TOE_DEG -28, HEEL_OFF 0.46, RISE_DEG -10,
+  LAND_DEG 9.4, TOE_RATE -363, LIFT_UP_M 0.054, FIRST 0.58 - the rises
+  45-79 %, the walks 82 and 89 at 0.65-0.85, 18 and 6 at 0.9-1.0, the
+  stir 24 mm against 1.7 driven; rerun with the knobs rounded 41-100 and
+  5-53 (chaos). Stiffer is worse: 100 N m/rad the rises 30-40 and the
+  walks 4-66, 200 and 400 under 35 and 16 - a stiff toe turns with the
+  foot at toe-off and stands her on the toe tips; a driven one
+  counter-turns to lie flat. From the squat at 0.85 she walks 10 s on
+  the found knobs with a catch at 6.5 s.
 - The parry's hurry 0.29 -> 0.25 with the elbow's stack on its axis
   (2026-10-04): the test's 38 N held, left and right of 8, 0.25 2 and 3,
   0.27 1 and 3, 0.29 2 and 1, 0.32 2 and 2; the faults scoreboard 428 and

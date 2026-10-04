@@ -415,7 +415,8 @@ class Follow:
 
 #: What she trips on, its ink by kind (`World.props`).
 PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 255),
-            'rug': (200, 160, 110), 'lace': (230, 90, 230), 'stairs': (220, 225, 235)}
+            'rug': (200, 160, 110), 'lace': (230, 90, 230), 'stairs': (220, 225, 235),
+            'brick': (205, 92, 70), 'board': (214, 178, 120)}
 
 
 def _props(props, m, cam, centre, travel):

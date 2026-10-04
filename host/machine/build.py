@@ -12,7 +12,7 @@ A shell is a laminate WALL_M thick over her capsules (`figure.BODY`) and her sol
 import math
 
 from machine import drives
-from machine.figure import BODY, CONTACTS, SEGMENTS, STAGES
+from machine.figure import BODY, SEGMENTS, STAGES, contacts as undersides
 
 #: Her body as made or as a woman's (de Leva's shares of `figure.MASS_KG`), 1 or 0.
 SHELLS = 1.0
@@ -105,7 +105,7 @@ def _shells(part):
         out.append((tube + caps, mid, [[across + (along - across) * axis[i] * axis[j]
                                         if i == j else (along - across) * axis[i] * axis[j]
                                         for j in range(3)] for i in range(3)]))
-    for p, shape, size, at in CONTACTS:
+    for p, shape, size, at in undersides():
         if p == part and shape == 'box':
             x, y, z = (2.0 * h for h in size)
             kg = 2.0 * (x * y + y * z + x * z) * WALL_M * CF_KG_M3

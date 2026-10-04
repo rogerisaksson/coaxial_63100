@@ -11,7 +11,8 @@ of its toes as it lifts; the lace at LACE_AT of its swing, passing the right foo
 its stance the knee's board in its SOA for SOA_S, or warmed; at SHOVE_AT of its stride a shove,
 toward her left on an even `k`. A spread step `k` moves a floor event STEP_M along the walk and a
 glitch or a shove GLITCH_STEP of the stride; `strides` on lays a floor event that
-many strides further, met at the same phase.
+many strides further, met at the same phase. STANDING befalls her as she stands (`rig`,
+`befall`).
 """
 import math
 
@@ -63,6 +64,55 @@ def lay(event, director, world, k=0, strides=0):
             'hole': landing + (gait.BALL - gait.HEEL) / 2.0, 'slip': landing,
             'stairs': landing + (gait.BALL - gait.HEEL) / 2.0 - floor.RUN_M / 2.0,
             'rug': landing - RUG_HEEL_M,
-            'sill': (walker.balls['left'][2] + 2.0 * figure.CONTACTS[1][2][2]
+            'sill': (walker.balls['left'][2] + figure.TOE_M
                      + SILL_AHEAD_M + k * STEP_M + on),
         }[event], bus['pelvis.pose.x'], h)
+
+
+#: Standing (the user, 2026-10-04): a nudge or a shove from her side ('nudge', 'shove') or
+#: along her way ('nudge_on', 'shove_on'); a brick taken from under a foot, the feet abreast
+#: ('brick') or the left BRICK_STAGGER_M ahead ('brick_on'); a nudge on a balance board, stiff
+#: ('board', rocking about her way; 'board_on', across it) or free ('rocker', 'rocker_on').
+#: Toward her left, from behind, the left brick, on an even `k`. `rigged` says how she lands
+#: for one, `rig` sets its floor under her landed, `befall` lays it.
+STANDING = ('nudge', 'nudge_on', 'shove', 'shove_on', 'brick', 'brick_on', 'board', 'board_on',
+            'rocker', 'rocker_on')
+BRICK_STAGGER_M = 0.1
+
+
+def rigged(event):
+    """(up, stagger) for `event`'s rig: how high above the floor she lands, m, and how far her
+    left foot is ahead of her right."""
+    return (2.0 * floor.BRICK[1] if event.startswith('brick') else 0.0,
+            BRICK_STAGGER_M if event == 'brick_on' else 0.0)
+
+
+def rig(event, director, world):
+    """`event`'s floor under her, landed: the bricks under her soles, the board under her
+    feet."""
+    frame = director.arrival.frames[0][2]
+    h = math.radians(frame.get('yaw', 0.0))
+    soles = [floor._on((frame[side][0][0], frame[side][0][2]), h, 0.0, 0.0,
+                       (gait.BALL - gait.HEEL) / 2.0) for side in ('left', 'right')]
+    if event.startswith('brick'):
+        floor.bricks(world, [(s[0], s[2]) for s in soles], h)
+    elif event.startswith(('board', 'rocker')):
+        x, z = ((soles[0][i] + soles[1][i]) / 2.0 for i in (0, 2))
+        g = h + (math.pi / 2.0 if event.endswith('_on') else 0.0)
+        world.terrain('board', x * math.sin(g) + z * math.cos(g), x * math.cos(g) - z * math.sin(g), g)
+        floor.board(world, floor.BOARD_K if event.startswith('board') else 0.0, floor.BOARD_C)
+
+
+def befall(event, director, world, k=0):
+    """`event` befalls her standing: a step `k` of its spread."""
+    turn = director._pelvis(director.machine.loop.bus)[1]
+    h = math.atan2(turn[0][2], turn[2][2])
+    sign = 1.0 if k % 2 == 0 else -1.0
+    if event.startswith('brick'):
+        floor.take(world, 'brick_left' if sign > 0.0 else 'brick_right')
+        return
+    n = sign * SHOVES['shove' if event.startswith('shove') else 'nudge']
+    if event.endswith('_on'):
+        world.push((n * math.sin(h), 0.0, n * math.cos(h)), SHOVE_S)
+    else:
+        world.push((n * math.cos(h), 0.0, -n * math.sin(h)), SHOVE_S)

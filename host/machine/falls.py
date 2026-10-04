@@ -17,7 +17,9 @@ from machine import gait
 #: Five falls (the hole, the slip, the rug, the stairs, a lace): 2 lay prone on their forearms,
 #: 1 on her back and 2 on a side, the head at the floor once, at 0.11 m/s; every drive shorted
 #: once down, 4 prone and 1 on her back, the head 0.05-1.14 m/s four times; curled and held as
-#: before, 3 on her left side, 1 on her right and 1 prone, 2.29 and 0.25 m/s (2026-09-30).
+#: before, 3 on her left side, 1 on her right and 1 prone, 2.29 and 0.25 m/s (2026-09-30). Over
+#: 0.4 s the arms were 65 % into their catch as the hands met the floor 0.27 s into P's shove at
+#: phase 0.14, the head at 1.74 m/s 0.2 s on; over 0.25, 3.22 (2026-10-04).
 SHORT_FALLING = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll', 'foot', 'spine',
                  'spine_roll')
 CURL_S = 0.4

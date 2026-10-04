@@ -44,10 +44,12 @@ RATE_HZ, FIRST_S, EVENT_S = 60.0, 1.0, 12.0
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 
 
-def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT_S, pushes=()):
+def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT_S, pushes=(),
+              stand=None):
     """The rows from the squat, `to_s` seconds, the director as the page runs her - halted at
     `halt_s`, an `event` laid from `event_s` (`machine.events`), pushed at each of `pushes` (s)
-    as the page's P pushes, its side swapped each time; LEG_GAIN among `values` stiffening
+    as the page's P pushes, its side swapped each time; standing on `stand`'s rig
+    (`events.STANDING`), it befalling her at `event_s`; LEG_GAIN among `values` stiffening
     LEG_KINDS; a row what of her touches the floor (`down`), when the event was laid (`laid`)."""
     from machine.events import SHOVE_S as PUSH_S, SHOVES
     PUSH_N = SHOVES['shove']
@@ -65,14 +67,19 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     body.arm()
-    director = Director(body, cadence)
-    director.begin()
+    world = body.nodes['pelvis'].world
+    director = Director(body, cadence, stand_s=math.inf if stand else 0.0)
+    director.begin(*((0.002,) + events.rigged(stand) if stand else ()))
+    if stand:
+        events.rig(stand, director, world)
     body.loop.step(0.0)
     bus, out, said = body.loop.bus, [], -1.0
-    world = body.nodes['pelvis'].world
     ours = {world.model.body(seg[0]).id: seg[0] for seg in SEGMENTS}
     laid, was, side, due = None, 0.0, 1.0, sorted(pushes)
-    while bus['t'] < to_s and (event or pushes or director.stage != 'fallen'):
+    while bus['t'] < to_s and (event or pushes or stand or director.stage != 'fallen'):
+        if stand and laid is None and bus['t'] >= event_s:
+            events.befall(stand, director, world)
+            laid = bus['t']
         if due and bus['t'] >= due[0]:
             due.pop(0)
             side = -side
@@ -205,6 +212,9 @@ def main(argv=None):
     parser.add_argument('--halt', type=float, help='halted at this second, into the squat')
     parser.add_argument('--event', help='a floor event laid: hole, sill, slip, rug, lace, soa, hot')
     parser.add_argument('--event-at', type=float, default=EVENT_S, help='laid from this second')
+    parser.add_argument('--stand', help='standing on a rig, it befalling her at --event-at: nudge, '
+                        'nudge_on, shove, shove_on, brick, brick_on, board, board_on, rocker, '
+                        'rocker_on')
     parser.add_argument('--push', type=float, nargs='*', default=[], metavar='S',
                         help="pushed at these seconds as the page's P pushes")
     parser.add_argument('--brief', action='store_true',
@@ -218,7 +228,7 @@ def main(argv=None):
     path = args.csv or (max(found, key=os.path.getmtime) if found else None)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
     rows = recorded(path) if path else simulated(args.to, values, args.cadence, args.halt,
-                                                 args.event, args.event_at, args.push)
+                                                 args.event, args.event_at, args.push, args.stand)
     print(path or 'simulated from the squat, %.1f s %s' % (
         args.to, ' '.join(args.knobs)))
     groups, ref = staged(rows)

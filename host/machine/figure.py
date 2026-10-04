@@ -75,15 +75,24 @@ SEGMENTS = tuple([
 #: The sole's half-width, metres.
 SOLE_HALF = 0.045
 
-#: The soles and the toes, their undersides: (segment, shape, sizes, centre), its frame - a
-#: sneaker's: the sole's box from HEEL_R ahead of the heel, the heel's edge two spheres HEEL_R
-#: round at its corners, so a strike rolls on, not on a box's edge (2026-10-04).
-HEEL_R = 0.012
-CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL - HEEL_R) / 2.0),
-             (0.0, -ANKLE_H + 0.03, (BALL - HEEL + HEEL_R) / 2.0)),
-            ('foot', 'sphere', (HEEL_R,), (0.03, -ANKLE_H + HEEL_R, -HEEL + HEEL_R)),
-            ('foot', 'sphere', (HEEL_R,), (-0.03, -ANKLE_H + HEEL_R, -HEEL + HEEL_R)),
+#: The soles and the toes, their undersides: (segment, shape, sizes, centre), its frame, a
+#: sneaker's 90 wide. Its heel's edge as two 12 mm spheres, to roll the strike, doubled it
+#: (1634 N against 1108) and the parry never caught: 797 and 49.8 % against 604 and 73.7
+#: (2026-10-04).
+CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL) / 2.0),
+             (0.0, -ANKLE_H + 0.03, (BALL - HEEL) / 2.0)),
             ('toes', 'box', (0.045, 0.015, TOE_M / 2.0), (0.0, 0.001, TOE_M / 2.0)))
+
+#: Her feet as point contacts, a sphere POINT_R under each sole's centre alone (`contacts`): the
+#: stilts her standing counts on (`machine.stand`; the user, 2026-10-04), 1 to build her so.
+POINT_FEET, POINT_R = 0.0, 0.01
+
+
+def contacts():
+    """The undersides as built: CONTACTS, or a point under each sole's centre (POINT_FEET)."""
+    if POINT_FEET:
+        return (('foot', 'sphere', (POINT_R,), (0.0, -ANKLE_H + POINT_R, (BALL - HEEL) / 2.0)),)
+    return CONTACTS
 
 #: The seat's two buttocks, capsules along her way SEAT_R round at SEAT_Y from SEAT_Z to SEAT_Z:
 #: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, she rolled onto her back;

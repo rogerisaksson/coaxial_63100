@@ -6,7 +6,7 @@ import math
 
 from machine import build, drives, figure, floor, linkage, skeleton
 from machine.drives import kind
-from machine.figure import BODY, CONTACTS, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS
+from machine.figure import BODY, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, contacts as undersides
 
 #: The joints with a mechanical stop, (low, high) deg: the elbow straight at -5, as an arm's is -
 #: without it the forearm folded back under her weight, -82 to -161 pushing up (2026-09-30); the
@@ -201,7 +201,7 @@ def _mjcf(bones):
         out += carried(name)
         grip = ' contype="%d" conaffinity="%d" condim="4" friction="%%g %g 0.001"' % (
             ME, MEETS, TORSION_M)
-        for part, shape, size, at in CONTACTS:
+        for part, shape, size, at in undersides():
             if name.endswith(part):
                 out.append('<geom type="%s" size="%s" pos="%g %g %g"%s%s/>' % (
                     (shape, ' '.join('%g' % v for v in size)) + tuple(at)

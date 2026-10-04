@@ -145,3 +145,40 @@ shoves, the scoreboard and its searches. The board's own are in
   waist turned toward the way she tips as it turns, once in the five, at
   0.5-0.69 m/s, the hands first but for the rug (a hip, falling ahead and
   aside, roll 0.6 -> 36 degrees as she went) (2026-09-28).
+- Standing (`machine.stand`, the user, 2026-10-04): the director holds the
+  arrival's stand `stand_s` (its keyframes lifted `up` onto two bricks, the
+  left `stagger` ahead), the floor rigged under her (`machine.floor`: two
+  bricks, a balance board hinged in the slab's gap, stiff at BOARD_K or
+  free), and what befalls her standing (`events.STANDING`, the scoreboard's
+  'stand' suite: a nudge or a shove from her side or along her way, a brick
+  taken away, the feet abreast or staggered, a nudge on the board stiff and
+  free). Standing on the box soles alone (no step), 12 s: the nudges 100 %,
+  the stiff board 100 %, the free rocker 65 and 100 % (rocking sideways,
+  ahead), the shoves 67 and 50, the bricks 50 and 41 (2026-10-04).
+- The arrival's pelvis target no further than `arrival.PULL_M` (5 cm) from
+  the pelvis: a get-up handed over with her centre of mass 12.7 cm ahead
+  of the squat's target sent it 19 cm off, the stance legs straightened
+  toward it and flung her to 1.04 m (both get-ups after P's shove down in
+  3 tries); clamped, both walk again at 21.8 and 22.2 s on the first try,
+  and the rises 70.5 -> 91.8 % (10 cm 81.9) (2026-10-04).
+- The standing step: out of the support - a point under each sole's centre,
+  one once a foot has hung unloaded 0.1 s - the lighter foot is put down
+  past the capture point as it will be at the landing, as the arrival's
+  keyframes (0.1 s up, 0.12 down, the swing foot never a stance leg and
+  pinned where it lands, the pelvis lowered to reach). Taken by load, a
+  shove's first 30 ms unloaded the far foot to 31 N and she stepped it to
+  its own side, a no-op; the walker begun from the stand instead marched
+  on at a 5 % stride and fell every time (391 and 48 %). A 120 N shove runs
+  the capture point 16 cm out in 0.25 s and the cross-over cannot reach;
+  the brick's step down lands (the left to 0.18 m, 191 N, the pelvis 6 cm
+  lower) and she leans back off both feet 1 s on. The scoreboard with the
+  step at 3 cm 58.5 % (the nudges along 51), without 64; the reflex stays
+  behind the sole's edge until it earns its place (2026-10-04).
+- P's shove to her left at phase 0.14 on the merged feet (the box sole, the
+  ankles on frame A): the catch overshoots to her right, the pelvis sinks
+  0.89 -> 0.62 m over 0.4 s before FALLING_M calls the fall, fallen 0.12 s
+  on, the hands down 0.27 s in with the arms 65 % into their catch, the
+  head at 1.74 m/s (test_gynoid_falls' crouch, 1 of 16; green before the
+  merge). Not the toes: driven, the same numbers. Called 0.14 s earlier on
+  a sink past 0.6 m/s, two falls struck, 1.68 and 3.41; the curl over 0.25
+  s, 3.22 (2026-10-04).

@@ -105,8 +105,10 @@ VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
 CONTROLLER = 'test_controller.py'
 
 #: The gynoid on fantasy boards, their SOA never binding: her walk, her clothes, her look; on her
-#: boards as built: the envelope derating and tripping them, glitches; shoved, tripped and down.
+#: boards as built: the envelope derating and tripping them, glitches; shoved, tripped and down;
+#: standing on the floor's rigs, nudged.
 GYNOID, GYNOID_FAULTS, GYNOID_FALLS = 'test_gynoid.py', 'test_gynoid_faults.py', 'test_gynoid_falls.py'
+GYNOID_STAND = 'test_gynoid_stand.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
@@ -117,8 +119,8 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                                 BOOT_CORE,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, CYCLIC,
-                   BOOT) + VIEWS
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
+                   GYNOID_STAND, CYCLIC, BOOT) + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -144,6 +146,7 @@ JOINS = (
     (12, GYNOID),
     (12, GYNOID_FAULTS),
     (12, GYNOID_FALLS),
+    (12, GYNOID_STAND),
     (12, CYCLIC),
     (12, BOOT),
     (15, CORE),
@@ -220,9 +223,8 @@ PORT = ('test_mcp.py', 'test_parity.py')
 
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
-SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, 'test_simulated.py',
-           'test_views_segments.py',
-           DAQ_API)
+SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_STAND,
+           'test_simulated.py', 'test_views_segments.py', DAQ_API)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
 #: checkout ran test_gynoid_falls.py whole, 532 s here, and its 300 s cut it (2026-10-01); with
@@ -281,7 +283,8 @@ TOUCHES = (
     ('host/machine/quad.py',                   ('test_views_quad.py', STRUCTURE)),
     ('host/coaxial/graphics/quadcopter.py',    ('test_views_quad.py', RENDER)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                                                CYCLIC, 'test_simulated.py', 'test_mcp.py')),
+                                                GYNOID_STAND, CYCLIC, 'test_simulated.py',
+                                                'test_mcp.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/graphics/shapes.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/graphics/lit.py',           (RENDER, *VIEWS, GYNOID)),

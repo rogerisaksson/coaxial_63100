@@ -124,7 +124,9 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     pace), capture (where
                     a swinging foot lands across: on the capture point, or a
                     side step), arrival (keyframes, the CoM fed back: the
-                    squat, the rise, the first step, the settling), director
+                    squat, the rise, the first step, the settling), stand
+                    (standing: the soles' points her support, a step toward
+                    the capture point out of it), director
                     (which move has her, catches, falls), pendulum (virtual,
                     between her ears: how smoothly she goes, one number),
                     running (her own process, paced to the clock)

@@ -6,75 +6,71 @@
     director.halt(); director.rise()             # down into the squat, up again
 
 The arrival (`machine.arrival`) takes her from the squat to her first step and hands her to the
-walker (`machine.walker`), which sets every step as it comes. Shoved, the walker lands the
-swinging foot on the capture point, swapping feet when that would cross them (`catch`); a stance
-foot that slides is held where it slid to. Halted, her stride
-shortened to her first's, she settles at a landing: onto the front foot, the rear beside it, down
-into the squat (`rest`); risen, she walks on. `walk_s` and `rest_s` run that round by
-themselves. Falling past recovery, her legs' and trunk's drives are shorted, dampers, while her
-arms reach toward the fall; down and still, her drives cut and checked (`machine.down`), she gets
-up (`machine.getup`) into a crouch the arrival takes her up from - given up, she lies cut.
+walker (`machine.walker`), which sets every step as it comes. Shoved, the walker catches
+(`machine.landing`); a sliding stance foot is held where it slid. Halted, she settles at a
+landing into the squat (`rest`); risen, she walks on. `walk_s` and `rest_s` run that round by
+themselves; risen, she stands `stand_s` first, stepping to keep her feet (`machine.stand`).
+Falling past recovery, her legs' and trunk's drives are shorted, dampers, while her arms reach
+toward the fall; down and still, her drives cut and checked (`machine.down`), she gets up
+(`machine.getup`) into a crouch the arrival takes her up from - given up, she lies cut.
 """
 import math
 from concurrent.futures import ThreadPoolExecutor
 
 from machine import (arrival, down, drives, falls, figure, gait, getup, heat, observer, planner,
-                     walker, walkplan, stance)
+                     stance, stand, walker, walkplan)
 
 #: Falling, past the walker's recovery: the trunk (`_trunk`) tipped past FALLING_DEG and tipping
 #: on faster than FALLING_DEG_S, or the pelvis under FALLING_M, walking. Fallen - under FALLEN_M
 #: or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves - is down. Read
-#: on the pelvis, a parry's step pitched it 9 degrees at 141 deg/s, the spine took it back out,
-#: the head stood at 4, and the fall called shorted her legs as the foot landed with the capture
-#: point on it; walking, the head peaks at 4.2 degrees and 21 deg/s (2026-10-01). Read on the
-#: head, its 0.77 kg whipped 5.4 m/s under P's shove, called her down 0.08 s into the fall and her
-#: head struck at 1.75 and 3.57 m/s; on the trunk in none of 16 (2026-10-02).
+#: on the pelvis, a parry's step pitched it 9 degrees at 141 deg/s and the fall called shorted
+#: her legs as the foot landed on the capture point (2026-10-01); on the head, 0.77 kg whipped
+#: 5.4 m/s under P's shove called her down 0.08 s in and it struck at 1.75 and 3.57 m/s; on the
+#: trunk in none of 16 (2026-10-02).
 FALLING_DEG, FALLING_DEG_S, FALLING_M = 12.0, 60.0, 0.65
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
-#: Down and checked (`machine.down`), she gets up GETUP_TRIES times at most between two landings.
+#: Down and checked, she gets up GETUP_TRIES times at most between two landings.
 GETUP_TRIES = 3
 
+#: Standing and stepping (`machine.stand`): watched for a fall as walking, a step's lunge
+#: past TREAD_DEG (the brick's step down read as a fall at 12.3 degrees, 2026-10-04).
+STANDING, TREAD_DEG = ('stand', 'tread'), 25.0
 
-#: A stance foot bearing `stance.BEARS_N` slid past SLIP_M of where it landed is held where it
-#: is; one lifting is not sliding. At 2 cm, the feet's slides under the ankle's drive at 0.65
-#: strides/s re-anchored the plan eight times in two seconds and she fell (2026-09-26).
+
+#: A stance foot bearing `stance.BEARS_N` slid past SLIP_M is held where it is: at 2 cm the
+#: plan re-anchored eight times in two seconds and she fell (2026-09-26).
 SLIP_M = 0.04
 
-#: From the walk into the settling, the setpoints ease over BLEND_S: the settling's first
-#: keyframe is her pose with the pelvis unrolled and unturned.
+#: From the walk into the settling the setpoints ease over BLEND_S from her pose, the pelvis
+#: unrolled and unturned.
 BLEND_S = 0.3
 
-#: She rises and starts at the walk's own cadence (`gait.CADENCE`) whatever is asked - the start
-#: holds there only (2026-09-26) - and walking goes to the asked one at PACE_RATE strides/s a
-#: second.
+#: She rises and starts at `gait.CADENCE` whatever is asked; walking goes to the asked
+#: cadence at PACE_RATE strides/s a second.
 PACE_RATE = 0.1
 
 #: The legs' drives' heat as their boards report it: `spent` of a drive's envelope, 1 at its
-#: ceiling, the board derating past `heat.THROTTLE_AT`. Walking, the most spent past EASE_AT
-#: eases the pace, to EASE_FLOOR strides/s at EASE_FULL. Walked 60 s at 0.85 strides/s the hips'
-#: laminate spent 0.95 and derated to 0.5; at 0.75 and 0.65 it held 0.76 and 0.74; eased, 0.79
-#: over 110 s. A knee warmed to 100 C (0.93, derated 0.73) walked on, derated 0.98 2.5 s later;
-#: stopped to cool, she fell in the settle as a plain halt does (2026-09-28).
+#: ceiling, derating past `heat.THROTTLE_AT`. Walking, the most spent past EASE_AT eases the
+#: pace, to EASE_FLOOR strides/s at EASE_FULL: 60 s at 0.85 strides/s the hips' laminate spent
+#: 0.95 and derated to 0.5; at 0.75 and 0.65, 0.76 and 0.74; eased, 0.79 over 110 s (2026-09-28).
 EASE_AT, EASE_FULL, EASE_FLOOR = 0.7, 0.88, 0.65
 
 #: A drive heard with its gates dropped is armed again REARM_S after, the wait doubled up to
-#: REARM_MAX_S when it drops within REARM_BACKOFF_S of its last arming; an arming is heard back
-#: ARM_LAG_S later.
+#: REARM_MAX_S when it drops within REARM_BACKOFF_S of its last arming, heard back ARM_LAG_S on.
 REARM_S, REARM_BACKOFF_S, REARM_MAX_S, ARM_LAG_S = 0.05, 1.0, 1.6, 0.005
 
-#: Her moments numbered from 1, on the page and in tools/sim/look.py alike, so a seam is named by
-#: its two numbers: the squat to the walk, then what the walk may turn to.
+#: Her moments numbered from 1, on the page and in look.py alike.
 MOMENTS = ('squat', 'look', 'push', 'rise', 'stand', 'shift', 'lean', 'step', 'walk', 'catch',
-           'halt', 'settle', 'lower', 'rest', 'falling', 'fallen') + getup.STAGES + ('check',)
+           'halt', 'settle', 'lower', 'rest', 'falling', 'fallen') + getup.STAGES + ('check', 'tread')
 
 
-#: Where a model plans her get-up while she lies still, a thread: the loop goes on.
+#: A thread for a model's get-up plan: the loop goes on.
 _PLANNERS = ThreadPoolExecutor(1)
 
 
 def moment(stage):
-    """A stage by its moment's number: '7 lean'; one not numbered as it is."""
+    """A stage by its moment's number: '7 lean'; unnumbered, as it is."""
     return '%d %s' % (MOMENTS.index(stage) + 1, stage) if stage in MOMENTS else stage
 
 
@@ -83,17 +79,16 @@ class Director:
     """The moves one after another, each pass's setpoints from whichever has her."""
 
     def __init__(self, machine, cadence=gait.CADENCE, walk_s=None, rest_s=None, local=None,
-                 server=None):
+                 server=None, stand_s=0.0):
         self.machine, self.asked = machine, float(cadence)
         #: The models that plan her get-up (`machine.planner`): a local one, and a server's
         #: asked once it has failed; neither, the planner's own.
         self.local, self.server = local, server
         if local is not None:
-            # Warm from the start, the client the plans use: loaded at the first fall's
-            # ask, gemma4:12b took 4-9 s more (2026-10-01).
+            # Warmed now: loaded at the first fall's ask, gemma4:12b took 4-9 s more.
             _PLANNERS.submit(local.chat, [{'role': 'user', 'content': 'ready'}], think=False,
                              num_predict=1)
-        self.arrival = arrival.Arrival(machine, gait.CADENCE)
+        self.arrival = arrival.Arrival(machine, gait.CADENCE, stand_s)
         self.walker = walker.Walker(machine, gait.CADENCE)
         self.walk_s, self.rest_s = walk_s, rest_s
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
@@ -107,6 +102,8 @@ class Director:
         #: the plans tried since, [(steps, why)], and one being made.
         self.getup, self.tries = getup.GetUp(machine), 0
         self.cause, self.tried, self.planning = '', [], None
+        #: Standing: the steps since she landed, seconds since the last, each foot's hang.
+        self.treads, self.calm, self.hang = 0, 0.0, {}
         #: Each joint's drive by its node's channels, the legs'; a dropped drive's (heard at,
         #: wait) and when each was last armed.
         self.world = machine.nodes['pelvis'].world
@@ -118,13 +115,13 @@ class Director:
 
     @property
     def pendulum(self):
-        """The pendulum between her ears: how smoothly she goes (`machine.pendulum`); the
-        walker's, read by it walking and here otherwise."""
+        """The pendulum between her ears (`machine.pendulum`): the walker's, read here when it
+        does not walk."""
         return self.walker.pendulum
 
     @property
     def cadence(self):
-        """The cadence asked, strides/s; `walker.cadence` is the one she walks at."""
+        """The cadence asked; `walker.cadence` is the one she walks at."""
         return self.asked
 
     @cadence.setter
@@ -136,10 +133,11 @@ class Director:
         """Down with no get-up left: GETUP_TRIES of them failed."""
         return self.stage == 'fallen' and self.tries >= GETUP_TRIES
 
-    def begin(self, drop=0.002):
-        """Landed in the squat from `drop` m, the arrival to take her up."""
+    def begin(self, drop=0.002, up=0.0, stagger=0.0):
+        """Landed in the squat from `drop` m, `up` m over the floor, the left foot `stagger` m
+        ahead; the arrival takes her up."""
         self.getup = getup.GetUp(self.machine)
-        self.arrival.land(drop)
+        self.arrival.land(drop, up, stagger)
         self.stage, self.fallen_at, self.since = self.arrival.stage, None, 0.0
         self.walker.cadence = gait.CADENCE
         self.walker.reset()
@@ -148,6 +146,7 @@ class Director:
         self.tucked, self.down = None, None
         self.dropped, self.armed, self.tries = {}, {}, 0
         self.cause, self.tried, self.planning = '', [], None
+        self.treads, self.calm, self.hang = 0, 0.0, {}
 
     def halt(self):
         """Walking, to a stop and down into the squat."""
@@ -156,10 +155,8 @@ class Director:
             self.stage = 'halt'
 
     def _planned(self, now):
-        """The house's plan for her as `now` says, at once; a model, if any, asked meanwhile -
-        its plan taken at a step's end (`_asked`). Waited on, she lay still 4-9 s on the page,
-        and a failed step's plan stalled the loop as long; the chain leaves a model only whether
-        to straighten out first (`planner.chained`)."""
+        """The house's plan for `now`, at once; a model, if any, asked meanwhile, its plan
+        taken at a step's end (`_asked`): waited on, she lay still 4-9 s on the page."""
         if self.local is not None or self.server is not None:
             self.planning = _PLANNERS.submit(planner.plan, now, self.local, self.server,
                                              list(self.tried))
@@ -179,7 +176,7 @@ class Director:
         self.getup.begin(*planner.stream(steps, now))
 
     def spent(self, joints=None):
-        """The most spent of `joints`' drives (the legs'), as their boards last said."""
+        """The most spent of `joints`' drives (the legs'), as their boards said."""
         bus = self.machine.loop.bus
         return max(bus.get(self.drives[j] + 'spent', 0.0) for j in (joints or self.legs))
 
@@ -256,9 +253,7 @@ class Director:
             if self.getup.done:
                 frames = self.getup.handed()
                 self.arrival.play(frames)
-                # on along the way she rose facing: up from a fall she faces where she lay; the
-                # walk as before the first - kept from the fall, it began in its catch or read her
-                # speed from where she fell (`Walker.reset`)
+                # facing where she lay; the walk as before the first (`Walker.reset`)
                 self.walker.reset()
                 self.walker.face(math.radians(frames[0][2]['yaw']))
                 self.stage, self.blend, self.age, self.since = 'squat', out, 0.0, 0.0
@@ -269,6 +264,12 @@ class Director:
             if self.arrival.stage != self.stage and self.arrival.stage == 'rest':
                 self.since = 0.0
             self.stage = self.arrival.stage
+            if self.stage == 'stand':
+                frames = stand.needed(self, bus, dt, out)
+                if frames is not None:
+                    self.arrival.play(frames)
+                    self.treads += 1
+                    out, self.stage = self.arrival.step(0.0), self.arrival.stage
             if self.blend is not None:
                 self.age += dt
                 k = gait.eased(self.age / BLEND_S)
@@ -308,7 +309,7 @@ class Director:
         return out
 
     def _arm(self, bus):
-        """Each drive heard with its gates dropped armed again when its wait is out."""
+        """Each drive heard with its gates dropped, armed again after its wait."""
         t = bus['t']
         for joint, name in self.drives.items():
             if int(bus.get(name + 'status', 1)) & heat.GATES_ON or (
@@ -323,8 +324,8 @@ class Director:
                 self.armed[joint] = (t, self.dropped.pop(joint)[1])
 
     def _lain(self, bus, dt, out, d):
-        """Down (`d`): braked - drawn in tumbling on (`falls.TUCKED`) -, cut, checked and up;
-        given up, cut. Cut, each setpoint where its joint is: armed again, none jumps."""
+        """Down (`d`): braked, tucked (`falls.TUCKED`), cut, checked and up; given up, cut.
+        Cut, each setpoint where its joint is: armed again, none jumps."""
         if d.step(dt, bus):
             out = {j: bus.get(j + '.deg', 0.0) for j in figure.JOINTS}
         elif falls.TUCKED and bus['t'] - self.fallen_at >= falls.TUCK_AFTER_S:
@@ -363,19 +364,19 @@ class Director:
 
     def _falling(self, bus):
         """Past recovery, walking (FALLING_DEG ..)."""
-        if self.stage in arrival.STAGES or self.stage in getup.STAGES:
+        if (self.stage in arrival.STAGES and self.stage not in STANDING
+                or self.stage in getup.STAGES):
             self.tilt_was = None
             return False
         tilt, t = self._tilt(bus), bus['t']
         self.fall_rate = 0.0 if self.tilt_was is None else (
             (tilt - self.tilt_was[0]) / max(1e-6, t - self.tilt_was[1]))
         self.tilt_was = (tilt, t)
-        return bus['pelvis.pose.y'] < FALLING_M or (tilt > FALLING_DEG
-                                                    and self.fall_rate > FALLING_DEG_S)
+        deg = TREAD_DEG if self.stage == 'tread' else FALLING_DEG
+        return bus['pelvis.pose.y'] < FALLING_M or (tilt > deg and self.fall_rate > FALLING_DEG_S)
 
     def _fall_way(self, bus):
-        """Which way the trunk tips, deg about the vertical from the pelvis's forward, + to its
-        left."""
+        """Which way the trunk tips, deg from the pelvis's forward, + to its left."""
         turn, head = self._pelvis(bus)[1], self._trunk(bus)
         up = (head[0][1], head[2][1])
         ahead, left = ((turn[0][k], turn[2][k]) for k in (2, 0))
@@ -384,7 +385,7 @@ class Director:
 
     def _fallen(self, bus):
         """Down (FALLEN_M ..)."""
-        if self.stage in arrival.STAGES:
+        if self.stage in arrival.STAGES and self.stage not in STANDING:
             return bus['pelvis.pose.y'] < SQUAT_FALLEN_M
         if self.stage in getup.STAGES:
             return False
@@ -416,8 +417,8 @@ class Director:
                              bus['pelvis.pose.qy'], bus['pelvis.pose.qz']))
 
     def _now(self, bus, out):
-        """Her pose as the loop read it, as a keyframe: the pelvis tipped but not rolled or
-        turned, the feet where they stand, the upper body as last set."""
+        """Her pose as read, a keyframe: the pelvis tipped, not rolled or turned; the feet
+        where they stand; the upper body as last set."""
         pel, turn = self._pelvis(bus)
         yaw = math.degrees(math.atan2(turn[0][2], turn[2][2]))
         local = figure.mul(figure.ry(-math.radians(yaw)), turn)

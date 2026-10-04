@@ -1,4 +1,4 @@
-"""The floor and what befalls her on it: a slab in two, a sill, a patch, a rug, a stair.
+"""The floor and what befalls her on it: a slab, a sill, a patch, a rug, a stair, bricks, a board.
 
 The model's bodies (`ground` before her figure, `rug` after it), each event placed on the
 walk's line (`place`) or parked out of her way (`park`), and drawn as boxes (`props`) -
@@ -35,6 +35,20 @@ DEEP_M, SLIP_TOP_M = 0.2, 0.001
 #: fit her steps to it - and TOP_M of landing at the top: a box a step, mocap bodies too.
 STEPS, RISE_M, RUN_M, TOP_M = 5, 0.08, 0.425, 1.5
 
+#: Two bricks, BRICK half sizes (250 long along her way, 120 wide, 62 high), one under each
+#: sole as she lands (`bricks`); one taken away (`take`) is parked under the plane. A balance
+#: board (`place` 'board'): a plank BOARD half sizes, BOARD_KG, hinged BOARD_HINGE_M over the
+#: plane in a gap of the slab, its top at the floor, rocking about her way - turned a quarter,
+#: across it - until an edge meets the plane; its hinge sprung BOARD_K N m/rad - stiff, it
+#: gives a little (the user, 2026-10-04); free at 0 - and damped BOARD_C N m s/rad (`board`).
+BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20), 0.02, 1.2
+BOARD_K, BOARD_C = 3000.0, 20.0
+
+
+def _rock():
+    """How far the board rocks either way, degrees: an edge on the plane."""
+    return math.degrees(math.atan(BOARD_HINGE_M / BOARD[0]))
+
 
 def _steps():
     """Each step's (name, half sizes, centre over the first riser): up from the floor."""
@@ -65,12 +79,22 @@ def ground(contacts, give, torsion):
             (SLIP_TOP_M + DEEP_M) / 2.0, SLIP_LONG_M / 2.0, (SLIP_TOP_M - DEEP_M) / 2.0,
             SLIP_FRICTION, torsion, give, contacts)] + [
         '<body name="%s" mocap="true" pos="0 -2 0"><geom type="box" size="%g %g %g"%s/></body>'
-        % ((name,) + half + (contacts,)) for name, half, _at in _steps()]
+        % ((name,) + half + (contacts,)) for name, half, _at in _steps()] + [
+        '<body name="brick_%s" mocap="true" pos="0 -1 0"><geom type="box" size="%g %g %g"%s/>'
+        '</body>' % ((side,) + BRICK + (contacts,)) for side in ('left', 'right')]
 
 
 def rug(give, friction, torsion):
-    """The rug's body, after her figure: a free box, its underside sliding on the floor."""
-    return ['<body name="rug" pos="0 0.1 %g"><freejoint name="rug"/>' % PARKED_M,
+    """The rug's body and the board's, after her figure - their joints after hers, the
+    pelvis's first (`World.reset`): a free box, its underside sliding on the floor; the plank
+    hinged on its parked base."""
+    return ['<body name="board_base" mocap="true" pos="0 -1 0"><body name="board" pos="0 %g 0">'
+            '<joint name="board" type="hinge" axis="0 0 1" limited="true" range="%g %g" '
+            'stiffness="%g" damping="%g"/><geom type="box" size="%g %g %g" pos="0 %g 0" '
+            'mass="%g" contype="1" conaffinity="2"/></body></body>' % (
+                (BOARD_HINGE_M, -_rock(), _rock(), BOARD_K, BOARD_C) + BOARD
+                + (BOARD[1], BOARD_KG)),
+            '<body name="rug" pos="0 0.1 %g"><freejoint name="rug"/>' % PARKED_M,
             '<geom name="rug_under" type="box" size="0.3 %g %g" pos="0 %g 0" mass="%g" '
             'priority="1" friction="%g 0.005 0.0001" contype="3" conaffinity="3"/>' % (
                 RUG_M / 4.0, RUG_LONG_M / 2.0, -RUG_M / 4.0, RUG_KG / 2.0, RUG_FRICTION),
@@ -93,7 +117,7 @@ def park(world):
     """The floor whole, its events out of the way: the sill and the patch under the plane,
     the rug on the floor PARKED_M back."""
     slab(world, SEAM_M, SEAM_M)
-    for name in ('sill', 'slip'):
+    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board_base'):
         mocap(world, name, (0.0, -1.0, 0.0))
     for name, _half, _at in _steps():
         mocap(world, name, (0.0, -2.0, 0.0))
@@ -130,8 +154,9 @@ def lay_rug(world, at, heading=0.0):
 def place(world, kind, z, x=0.0, heading=0.0):
     """The floor's event `kind` on the walk's line, `heading` radians from the world's z, (x, z)
     across and along it: a 'hole', a 'sill' or a 'slip' patch centred there, a 'rug' with its
-    front edge there, 'stairs' their first riser. The hole's gap crosses the world's z where
-    her way does: the slab's halves turned off their compiled bounds would be missed."""
+    front edge there, 'stairs' their first riser, a 'board' centred there. The hole's gap
+    crosses the world's z where her way does: the slab's halves turned off their compiled
+    bounds would be missed."""
     c, s = math.cos(heading), math.sin(heading)
     at = (x * c + z * s, -x * s + z * c)
     if kind == 'hole':
@@ -146,14 +171,36 @@ def place(world, kind, z, x=0.0, heading=0.0):
     elif kind == 'stairs':
         for name, _half, (dx, y, dz) in _steps():
             mocap(world, name, _on(at, heading, dx, y, dz), heading)
+    elif kind == 'board':
+        gap = max(BOARD[0], BOARD[2]) + 0.02
+        slab(world, at[1] - gap, at[1] + gap)
+        world.hole_x = at[0]
+        mocap(world, 'board_base', (at[0], -HOLE_M, at[1]), heading)
     else:
-        raise MachineError('no floor event %r: hole, sill, slip, rug or stairs' % kind)
+        raise MachineError('no floor event %r: hole, sill, slip, rug, stairs or board' % kind)
+
+
+def bricks(world, soles, heading=0.0):
+    """Two bricks under her soles, their centres at `soles` [(x, z)] world, along `heading`."""
+    for name, at in zip(('brick_left', 'brick_right'), soles):
+        mocap(world, name, (at[0], BRICK[1], at[1]), heading)
+
+
+def take(world, name):
+    """The brick `name` ('brick_left', 'brick_right') taken away: parked under the plane."""
+    mocap(world, name, (0.0, -1.0, 0.0))
+
+
+def board(world, k, c):
+    """The board's hinge sprung `k` N m/rad and damped `c` N m s/rad."""
+    m, j = world.model, world.model.joint('board').id
+    m.jnt_stiffness[j], m.dof_damping[m.jnt_dofadr[j]] = k, c
 
 
 def props(world):
     """What lies on the floor: [(kind, centre, half sizes, turn 3x3)] world, a box each - the
-    hole's gap, a sill, a slip patch, a stair's steps, the rug - what of it stands above the
-    floor."""
+    hole's gap, a sill, a slip patch, a brick, the board, a stair's steps, the rug - what of it
+    stands above the floor."""
     m, d = world.model, world.data
     out = []
     a = m.geom('slab_a').id
@@ -162,14 +209,16 @@ def props(world):
     if gap[1] - gap[0] > 1e-6:
         out.append(('hole', (getattr(world, 'hole_x', 0.0), -HOLE_M / 2.0, sum(gap) / 2.0),
                     (0.5, HOLE_M / 2.0, (gap[1] - gap[0]) / 2.0), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
-    for name in ('sill', 'slip') + tuple(n for n, _h, _a in _steps()):
+    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board') + tuple(
+            n for n, _h, _a in _steps()):
         body = m.body(name).id
         at = d.xpos[body]
         if at[1] > -0.5:
             g = m.body_geomadr[body]
             c, half = d.geom_xpos[g], m.geom_size[g]
-            top, low = c[1] + half[1], max(0.0, c[1] - half[1])
-            out.append(('stairs' if name.startswith('step') else name,
+            top, low = c[1] + half[1], c[1] - half[1] if name == 'board' else max(
+                0.0, c[1] - half[1])
+            out.append(('stairs' if name.startswith('step') else name.split('_')[0],
                         (c[0], (top + low) / 2.0, c[2]), (half[0], (top - low) / 2.0, half[2]),
                         tuple(map(tuple, d.xmat[body].reshape(3, 3)))))
     rug = m.body('rug').id
