@@ -212,4 +212,6 @@ board's in [FINDINGS](../FINDINGS.md).
   made it the peak, T 3.75): at 1.5x the hips' and knees' amps 1.26 and power
   1.20-1.23, the spine's amps 1.05 - the parries' peaks, unmoved -; the
   ankle roll's amps 1.08 and box 1.04, the gym's (0.93 and 0.90 before);
-  the rest under 1 (2026-10-04).
+  the rest under 1. The ankle roll on A instead (`fit.py`): its stack 12
+  mm past her shell and 11 into the ankle's gearbox (7 on B), so it stays
+  on B - 0.72 and 0.69 at 1.0x, the margin rule's call (2026-10-04).
