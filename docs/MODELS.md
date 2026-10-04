@@ -29,6 +29,19 @@ Reserve = max(quarter of card, 2 GB, used + 2 GB); override
 32-bit: read `qwMemorySize`. `python -m coaxial_ollama.pull TAG` is the one
 pull (daemon stream drawn as a bar); every entry point pulls a missing tag.
 
+### Decision model (`coaxial_ollama/decide.py`)
+
+Ollama's `/v1/systemone` (0.35.1): a state and typed questions in, one
+forward pass, a probability an option out; no text, no tools.
+`decide(state, {key: choice() | noul() | score()})`; the first of `MODELS`
+pulled answers. The grinder (`tools/sim/gym.py`) asks it the suite.
+
+| Tag | GB | Measured 2026-10-04 |
+| --- | --- | --- |
+| clef:4k | 17 | `ollama create clef:4k -f` a Modelfile `FROM clef:27b-q4_k_m`, `PARAMETER num_ctx 4096`: 53/65 layers on the 16 GB card, 21 s cold, 5.3 s a decision warm, the same answer every pass; over three faults rounds it picked stand 0.57, faults 0.28 |
+| clef:27b-q4_k_m | 17 | at its 16384 the runner wants a 5.4 GB compute buffer beside 11.7 GB of weights: OOM; `options.num_ctx` and OLLAMA_CONTEXT_LENGTH ignored |
+| clef-flash | 10 | every request "non-finite logit" on 0.35.1 (ollama issue 18769) |
+
 ## Daemon and client
 
 ### Tuning (`board_chat/Tuning.ps1`)

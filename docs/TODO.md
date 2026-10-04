@@ -12,7 +12,12 @@ variants of the many-part, toleranced components - gearboxes, electronics
 bearings are cheap. A DOD runs from the LLM to the metal (the user,
 2026-10-04): a pattern written in prose, picked by the model, driven by
 the director over the bus to the boards' firmware and the drives - on the
-emulator or the bench, not the simulated director alone. Every item below
+emulator or the bench, not the simulated director alone. The platform
+layer under the patterns (the user, 2026-10-04): classical IK - the
+arrival's keyframes, the capture point placing each foot - hybrid with
+reinforcement learning, the learned part a residual on the IK's setpoints
+trained against MuJoCo by the grinder's loop (item 2), a table the
+director reads, not a controller a hypothesis. Every item below
 serves that; the first first. A line is a gap and its DOD
 (done when), numbers where they are the criterion; the measurements behind
 each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
@@ -39,7 +44,12 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    rule line with a suite to score them on; a loop that scores each on
    the relay (CMA-ES sized to it, RL against MuJoCo later), logs the
    record and feeds it back; I reason and smoke-test, the tokens mine
-   stay few. DOD: `tools/sim/gym.py` runs unattended an hour on the look
+   stay few. The grinder's choices - the suite, the knobs, a repeat, how
+   she lies - a decision model's (Cloudflare's Clef 27B as `clef:4k`,
+   Ollama's `/v1/systemone`: a state and typed questions in, a probability
+   an option out in one pass, 5.3 s; the 9B refuses on 0.35.1;
+   docs/MODELS.md; the user, 2026-10-04), the hypothesis text a chat
+   model's. DOD: `tools/sim/gym.py` runs unattended an hour on the look
    suite from a prompt, every candidate a line in its log with the
    scoreboard's numbers, the best quoted in balance.md.
 3. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the

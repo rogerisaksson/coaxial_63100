@@ -40,13 +40,14 @@ STOP_M = 0.05
 #: The speed's filter, s.
 SPEED_S = 0.01
 
-#: A keyframe's `swing` foot, lifted LIFTED_M over where it began, is pinned where it bears.
-LIFTED_M = 0.01
+#: A keyframe's `swing` foot, lifted LIFTED_M over where it began, is pinned where it bears,
+#: reaching PRESS_M under it for what it does not bear: solved from the pelvis as it is, it sat
+#: on the floor at 0 N as the capture point passed over it (60 N shove, 2026-10-04).
+LIFTED_M, PRESS_M = 0.01, 0.01
 
 #: How far a leg is a stance leg, by what it bears, moves no faster than BEAR_S from none to all:
-#: taken at once, its load flickering about `stance.LANDED_N` as the foot lifted into the first
-#: step switched the leg between the pelvis's target and the pelvis, the knee 2-8 deg a pass
-#: (2026-10-01).
+#: at once, its load flickering about `stance.LANDED_N` as the foot lifted into the first step
+#: switched the leg between target and pelvis, the knee 2-8 deg a pass (2026-10-01).
 BEAR_S = 0.05
 
 #: Over the feet: the centre of their soles, m ahead of the ankles.
@@ -78,19 +79,17 @@ SOFT_KNEE = 8.0
 RISE_MID, RISE_MID_S = 0.8, 0.85
 
 #: The squat held SQUAT_S, the look LOOK_S, pushed up PUSH_S, risen over RISE_S, stood STAND_S,
-#: shifted over SHIFT_S. At 1.5, 0.8, 1.0, 2.0, 1.0, 1.2, 8.4 s to her first step, the holds read
-#: as pauses; the rises held at a quarter of the holds and two thirds of the moves, a tenth and
-#: a half held 23 % (2026-10-01).
-#: Stood 0.05 and shifted over 0.6, leant over 0.45 (LEAN_S): its setpoints still 1.65 s before
-#: the step at 0.25, 0.8, 0.6; every rise held, but stood 0.05, shifted 0.4, leant 0.3 (2026-10-01).
+#: At 1.5, 0.8, 1.0, 2.0, 1.0, 1.2 - 8.4 s to her first step - the holds read as pauses; a
+#: quarter of the holds and two thirds of the moves held every rise, a tenth and a half 23 %;
+#: at 0.25, 0.8, 0.6 the setpoints stood still 1.65 s before the step (2026-10-01).
 SQUAT_S, LOOK_S, PUSH_S, RISE_S, STAND_S, SHIFT_S = 0.4, 0.2, 0.65, 1.3, 0.05, 0.6
 
 #: Before the right foot lifts her weight is brought LEAN_M ahead of the ankles over LEAN_S s -
 #: she leans forward, then steps - and LIFT_ON_M further as the foot lifts LIFT_UP_M over
 #: LIFT_S: falling on over the left foot's ball as the walk takes her. Brought forward as the
-#: foot lifted, the pelvis tipped back 2 degrees then 5 forward; handed on still, 2 cm further,
-#: she tipped over backwards; landed 16 cm out, the next step went 20 cm out to catch her
-#: (2026-09-27). The torso straight till the step, the lean's tilt in it (`lifted`): 7 cm before
+#: foot lifted, the pelvis tipped back 2 deg then 5 forward; handed on still 2 cm further she
+#: tipped backwards, landing 16 cm out, the next step 20 (2026-09-27). The torso straight till
+#: the step, the lean's tilt in it (`lifted`): 7 cm before
 #: the lift locked the standing knee; 3 cm, the rest as the foot lifts, the pelvis 5.8 mm down
 #: in the first step, not 13 (2026-09-28); retuned (`physics.STAGED`).
 #: LIFT_UP_M 0.06 -> 0.04 on the stacks (2026-10-03): their ankles' and hip rolls' rotors
@@ -380,13 +379,13 @@ class Arrival:
         local = mul(ry(-math.radians(frame.get('yaw', 0.0))), now)
         out['spine'] += walker.PLUMB * (frame['tilt']
                                         - math.degrees(math.atan2(local[2][1], local[1][1])))
-        # A leg bearing under `stance.LANDED_N` reaches from where the pelvis is, as the walker's
-        # swinging leg: reached from the pelvis's target, moved by the feedback, the stepping foot
-        # landed 8 cm off its mark (2026-09-26). A keyframe's `planted` feet are stance whatever
-        # they bear: crouched with her hands down, both read light and she was flung up. Its
-        # `swing` foot (1 the left, -1 the right, eased out) reaches whatever it bears - stance
-        # for 50 ms, a standing step pushed her off the other foot - and is `pinned` where it
-        # lands: driven 2 cm under where it met the floor, its leg hopped her 4 cm up (2026-10-04).
+        # A leg bearing under `stance.LANDED_N` reaches from the pelvis as it is, as the walker's
+        # swinging leg: from the pelvis's target, moved by the feedback, the stepping foot landed
+        # 8 cm off (2026-09-26). A keyframe's `planted` feet are stance whatever they bear:
+        # crouched with her hands down, both read light and she was flung up. Its `swing` foot
+        # (1 left, -1 right) reaches whatever it bears - stance for 50 ms, a standing step pushed
+        # her off the other foot - and is `pinned` where it lands, PRESS_M under: 2 cm under
+        # hopped her 4 cm up (2026-10-04).
         pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
         for side, sign in walkplan.SIDES:
             load = bus['pelvis.pose.%s_load' % side]
@@ -409,7 +408,9 @@ class Arrival:
             b = self.borne[side] = max(was - dt / BEAR_S, min(was + dt / BEAR_S, b))
             if b < 1.0:
                 ankle, pitch = frame[side]
-                ankle = self.pinned.get(side, ankle)
+                p = self.pinned.get(side)
+                if p:
+                    ankle = (p[0], p[1] - PRESS_M * (1.0 - b), p[2])
                 hip_from = tuple(b * a + (1.0 - b) * c for a, c in zip(frame['pelvis'], pel))
                 reach = figure.mul(walkplan.turned(tuple(b * c for c in walkplan.vee(
                     figure.mul(turn, figure.t(now))))), now)

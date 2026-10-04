@@ -6,7 +6,8 @@
     python tools/sim/gym.py --dry                     # the prompt and one proposal, nothing run
 
 The model reads BRIEF - her kinematics, the knobs it may move (KNOBS, a span and a clause each),
-the suites and the log's last results - and answers SCHEMA: a hypothesis in a sentence, the
+the suites and the log's last results - a decision model picking the suite when one is pulled
+(`coaxial_ollama.decide`) - and answers SCHEMA: a hypothesis in a sentence, the
 knobs' spans to search, the suite, the search's size, held to RUNS runs at most (the relay's). The
 search runs as `gait_montecarlo --search` runs it; its best - cost, held, values - goes to LOG
 and into the next prompt. The model and the relay grind; the reasoning and the smoke tests stay
@@ -41,8 +42,10 @@ KNOBS = {
     'arrival.LIFT_UP_M': (0.03, 0.07, 'the first foot lifted this high, m'),
     'arrival.FIRST': (0.4, 0.8, "the first stride, of a stride's"),
     'arrival.PULL_UP_M': (0.05, 0.2, 'the pelvis target within this of the pelvis rising, m'),
+    'arrival.PRESS_M': (0.0, 0.02, 'a landed foot reaching this far under the floor until it bears, m'),
     'stance.HALT': (0.3, 0.8, "halting, the stride down to this of its own"),
     'stand.STEP_M': (0.02, 0.1, 'standing: out of the support by this she steps, m'),
+    'stand.DWELL_S': (0.15, 0.6, 'no second step sooner than this after one, s'),
     'stand.GAIN': (0.0, 1.0, 'the step past the predicted capture point, of what it is out'),
     'stand.STEP_MAX_M': (0.05, 0.3, 'a step no further than this, m'),
     'stand.HANG_S': (0.05, 0.3, 'a foot unloaded this long is no support, s'),
@@ -111,8 +114,24 @@ def record(n=12):
         for r in rows[-n:])
 
 
+def decided(suite=None):
+    """The suite a decision model picks from the record (`coaxial_ollama.decide`, Clef Flash
+    when pulled), else `suite`."""
+    from coaxial_ollama import decide
+    if suite or not decide.available():
+        return suite
+    try:
+        got = decide.decide('the record so far:\n' + record(), {'suite': decide.choice(
+            'Which suite should the next search score: where her numbers are worst and no '
+            'search has moved them?', {n: what for n, (what, _runs) in SUITES.items()})})
+        return got['suite']['choice']
+    except (RuntimeError, KeyError):
+        return suite
+
+
 def propose(model, suite=None):
     """The model's proposal, read and held to KNOBS, SUITES and RUNS; None if it gave none."""
+    suite = decided(suite)
     asked = 'the record so far:\n%s\n%s' % (
         record(), 'score it on the %s suite.' % suite if suite else 'choose the suite.')
     messages = [{'role': 'system', 'content': brief()}, {'role': 'user', 'content': asked}]
@@ -137,7 +156,7 @@ def propose(model, suite=None):
 
 
 def grind(proposal):
-    """The proposal searched on the relay (`gait_montecarlo`), its best logged and returned."""
+    """The proposal searched on the relay (`gait_montecarlo`), its best logged, printed, returned."""
     from tools.sim import gait_montecarlo
     argv = (['--suite', proposal['suite'], '--generations', str(proposal['generations']),
              '--population', str(proposal['population']), '--log',
@@ -150,13 +169,17 @@ def grind(proposal):
     gait_montecarlo.suite('all')
     text = out.getvalue()
     best = re.search(r'^BEST ([\d.]+) (\{.*\})', text, re.M)
-    held = re.search(r'cost\s+[\d.]+\s+held\s+([\d.]+) %', text)
-    result = dict(proposal, at=time.strftime('%Y-%m-%d %H:%M'), seconds=round(time.time() - began),
-                  cost=float(best.group(1)) if best else float('inf'),
-                  values=json.loads(best.group(2)) if best else {},
-                  held=float(held.group(1)) / 100.0 if held else float('nan'))
+    kept = re.search(r'cost\s+[\d.]+\s+held\s+([\d.]+) %', text)
+    seconds = round(time.time() - began)
+    cost = float(best.group(1)) if best else float('inf')
+    values = json.loads(best.group(2)) if best else {}
+    held = float(kept.group(1)) / 100.0 if kept else float('nan')
+    result = dict(proposal, at=time.strftime('%Y-%m-%d %H:%M'), seconds=seconds, cost=cost,
+                  values=values, held=held)
     with open(LOG, 'a', encoding='utf-8') as f:
         f.write(json.dumps(result) + '\n')
+    print('  cost %.1f held %.1f %% in %d s: %s' % (
+        cost, 100.0 * held, seconds, ', '.join('%s=%.4g' % kv for kv in values.items())), flush=True)
     return result
 
 
@@ -185,10 +208,7 @@ def main(argv=None):
             time.strftime('%H:%M'), proposal['hypothesis'], proposal['suite'],
             proposal['generations'], proposal['population'],
             ', '.join(proposal['knobs'])), flush=True)
-        result = grind(proposal)
-        print('  cost %.1f held %.1f %% in %d s: %s' % (
-            float(result['cost']), 100.0 * float(result['held']), int(result['seconds']),
-            ', '.join('%s=%.4g' % kv for kv in dict(result['values']).items())), flush=True)
+        grind(proposal)
         rounds += 1
     return 0
 

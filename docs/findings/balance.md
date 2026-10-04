@@ -228,3 +228,19 @@ shoves, the scoreboard and its searches. The board's own are in
   newtons a knob): 60, 80 and 100 N for 0.12 s all fell her at 6.2-6.5 s,
   two or three steps taken; 38 N she holds without a step. Past saving
   standing lies between 38 and 60 N (2026-10-04).
+- The grinder's first round (`tools/sim/gym.py`, gemma4:12b proposing,
+  2026-10-04): its own pick, capture.MARGIN 0.03-0.06 and GAIN 1.1-1.3 on
+  the faults suite, 1 x 10 in 698 s; the best 296.9 and 53.2 % at 0.0319
+  and 1.10, the built 178 and 54.9 staying. Its rounds 2 and 3:
+  landing.PARRY_M 0.02 and PARRY_HURRY 0.234 on faults 317.3 and 58.5 %;
+  stand.GAIN and STEP_MAX_M on faults 178.2 and 54.9, a no-op - standing's
+  knobs reach no walk.
+- A pinned foot's press (`arrival.PRESS_M` 0.01, the lab, 2026-10-04): a
+  foot bearing nothing is solved from the pelvis as it is, put exactly on
+  the floor and bears nothing - after the step the stepped foot hung 2 mm
+  up at 0 N while the capture point passed over it, and she fell at 6.2 s.
+  Reaching 1 cm under for what it does not bear: the 60 N standing shove
+  stood from either side, one step, the landing a 1.3 kN spike and a 1.4 cm
+  hop; 100 N fell from either side after two cross-over steps. The stand
+  suite 74.9 % and 207 against the built 74.7 and 215 (its shove 120 N);
+  the whole scoreboard 721.4 and 65.8 % against 729 and 65.7: built.
