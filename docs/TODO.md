@@ -70,7 +70,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    17 cm on her 35 kg) as a torque - a lean on the spine's setpoints did
    nothing; a ready crouch as the capture point strays - her standing
    legs are straight, 3.8 cm of reach along the floor. Then walking: a
-   hole, a sill, a slope, a tilt, a brick gone. The way (the user, 2026-10-04): little
+   hole, a sill, a slope, a tilt, a brick gone. The way (the user,
+   2026-10-04): little
    Python - the reflexes a prose stream encoded into meta-movement
    patterns over a small vocabulary of moves (step, lean, crouch, hold,
    catch; `machine.planner`'s way), a table of when and what the local

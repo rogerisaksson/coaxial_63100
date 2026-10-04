@@ -140,6 +140,12 @@ def record(n=12):
         for r in rows()[-n:]) or 'no search yet'
 
 
+def unmoved(suite):
+    """The knobs reaching `suite` that no search on it has moved yet."""
+    moved = {n for r in rows() if r['suite'] == suite for n in r['knobs']}
+    return [n for n in KNOBS if reaches(n, suite) and n not in moved]
+
+
 def schema(suite=None):
     """SCHEMA for a search on `suite`: its knobs those that reach it and no search on it has
     moved - every one that reaches it once all have been - the first of them required. Left to
@@ -147,9 +153,7 @@ def schema(suite=None):
     gave a hypothesis already in the record (2026-10-04)."""
     if suite is None:
         return SCHEMA
-    reach = [n for n in KNOBS if reaches(n, suite)]
-    moved = {n for r in rows() if r['suite'] == suite for n in r['knobs']}
-    names = [n for n in reach if n not in moved] or reach
+    names = unmoved(suite) or [n for n in KNOBS if reaches(n, suite)]
     span = {'type': 'array', 'items': {'type': 'number'}, 'minItems': 2, 'maxItems': 2}
     return dict(SCHEMA, properties=dict(
         SCHEMA['properties'], suite={'enum': [suite]},
@@ -160,12 +164,15 @@ def decided(suite=None):
     """The suite a decision model picks from the record (`coaxial_ollama.decide`, Clef Flash
     when pulled), else `suite`."""
     from coaxial_ollama import decide
-    if suite or not decide.available():
-        return suite
+    # Of the suites with a knob left to move: every knob of the stand suite moved, the same
+    # search ran three times over, 135.6 and 81.4 % each (2026-10-04).
+    left = {n: what for n, (what, _runs) in SUITES.items() if unmoved(n)}
+    if suite or len(left) == 1 or not decide.available():
+        return suite or (next(iter(left)) if len(left) == 1 else None)
     try:
         got = decide.decide('the record so far:\n' + record(), {'suite': decide.choice(
             'Which suite should the next search score: where her numbers are worst and no '
-            'search has moved them?', {n: what for n, (what, _runs) in SUITES.items()})})
+            'search has moved them?', left or {n: what for n, (what, _runs) in SUITES.items()})})
         return got['suite']['choice']
     except (RuntimeError, KeyError):
         return suite
