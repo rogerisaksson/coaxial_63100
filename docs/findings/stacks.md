@@ -112,7 +112,7 @@ were sized on, the candidates, and what the one stack leaves open
   ankle roll on B (0.62, 0.93 and 0.97 of their amps; on A the hip roll's
   stack stood 19 mm into the pelvis frame and the hip yaw's inverter 15
   into the spine's); the rest on B with B's box, box C gone with frame C.
-- One stack on every drive (2026-10-05, the candidate; the user: the most
+- One stack on every drive (2026-10-05, laid; the user: the most
   simplicity, the fewest gearbox and electronics variants): 60 x 20 mm at
   KV 90, the 64 mm box at 1:30, the 70 mm 50 A inverter - 21 of each, 20
   part types against 23, her 28.4 kg against 32.3, the drives 12.3 of it
@@ -128,9 +128,16 @@ were sized on, the candidates, and what the one stack leaves open
   the hips', knees' and spine's peaks its 124 N m clamp (A 1.50, P
   1.24-1.35, S 1.45); the knee's 1034 deg/s 1.20 of its volts; the elbow,
   the neck and the head feel their rotors 7.8, 2.9 and 33 times their
-  loads. Not laid yet: on it she does not get up. Felled by the shove she
-  comes from the sit into the crouch pitched 9 deg where 24, her centre of
-  mass 52 mm ahead of the pelvis where 134, bears 236 of her 279 N on her
-  feet in the squat and falls forward out of it, 3 tries
-  (`tests/test_gynoid_falls.py`): the keyframes onto her feet searched on
-  it (`getup_search --table f`); and test_gynoid's fold meets other pairs.
+  loads. On it her get-up as it stood left her down: felled by the shove
+  she came from the sit into the crouch pitched 9 deg where 24, her centre
+  of mass 52 mm ahead of the pelvis where 134, bore 236 of her 279 N on
+  her feet in the squat and fell forward out of it, 3 tries, from each of
+  five lying states. The keyframes onto her feet searched on it
+  (`getup_search --table f`, 96 candidates): 2 walked, from all five, the
+  rest from none; the best walking again at 23.6-25.4 s, 1 try, her hands
+  out 5.3 s, bowed 5.5, the arms thrown up to 170 deg. Folded to 170 deg
+  the ankle roll's drum meets the femur where it met the knee's board
+  (test_gynoid). Its fit: 9 and 3 mm past her skin at the ankle and the
+  knee against 21 and 14, 6 mm past her shell at the elbow against 5, 2 at
+  the hip roll. As laid the scoreboard 318.7 and 84.9 %, every rise and
+  walk; felled by the shove she is up and walking at 33.0 s, 2 tries.

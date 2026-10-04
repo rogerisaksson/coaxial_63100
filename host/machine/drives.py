@@ -1,6 +1,6 @@
 """Her drives: each a coaxial stack of an inverter disc, a pancake outrunner, a one-stage gearbox.
 
-Two frames, three boxes and two inverters at one ratio, each winding picked per joint.
+One frame, one box and one inverter at one ratio: every drive the same stack.
 
     size = drives.of('left_knee')      # (frame, Size)
     drives.kt('left_knee')             # N m of joint torque an amp of q current
@@ -61,24 +61,30 @@ GEAR_J = 0.05
 #: stator Ds the rotor less 6 mm, mm), kg 2.52e-6 Ds^2 (L + 6) + 0.039, its peak 1.1e-4 Ds^2 L N m
 #: (2.5x its 180 s), the can L + 18.5 mm tall, 0.45 of the kg turning at its rotor's radius less
 #: 3 mm, the winding 310 J/K a kg and to the air the 5230SL's 2.2 K/W over 60 x 45 mm as 1/(D H).
-#: Two frames (the user, 2026-10-04: as few motor types as can be, each a sourcing nightmare): a
-#: C of 40 x 12 for the elbow, the neck and the head took the elbow's reflected inertia 4.2 ->
-#: 0.76 and 0.7 kg off her for a day (docs/findings/drives.md); on B direct the elbow's drum is
-#: 72 mm across the elbow with its collars.
-FRAMES = {'A': (0.068, 0.030), 'B': (0.060, 0.016)}
+#: One frame (the user, 2026-10-04: as few motor types as can be, each a sourcing nightmare), its
+#: stack what the hip's pitch asks: at 16 mm its winding held 52 N m, at 18 59 and at 20 66
+#: where the hip's rms is 37-42 (T 1.13-1.15 at 1.5x on 16 and 18). A, 68 x 30 on an 84 mm box
+#: and the 100 A inverter, went from the spine, hips, knees and ankles with the demand it was
+#: sized on, the controller's own (docs/findings/stacks.md). A C of 40 x 12 for the elbow, the
+#: neck and the head took the elbow's reflected inertia 4.2 -> 0.76 and 0.7 kg off her for a day
+#: (docs/findings/drives.md); on B direct the elbow's drum is 72 mm across the elbow with its
+#: collars.
+FRAMES = {'B': (0.060, 0.020)}
 
-#: The gearboxes' diameters, m: a rolling-element box's momentary 250 N m at 80 mm, five times its
+#: The gearbox's diameter, m: a rolling-element box's momentary 250 N m at 80 mm, five times its
 #: rated, 0.45 kg, its drag at its input - its rollers' start, the motor's cogging - 0.08 N m, all
-#: as D^3, and 0.28 D long (estimated).
-BOXES = {'A': 0.084, 'B': 0.064}
+#: as D^3, and 0.28 D long (estimated). A fall asked a knee's 763 N m of its 128, a 60 x 30's
+#: rotor spun up through it by the blow (docs/findings/stacks.md).
+BOXES = {'B': 0.064}
 #: Each box's torsional stiffness at its output, N m/rad (estimated: a harmonic drive of 70 mm
 #: gives 16-25 kN m/rad; a roller stage on a lobed ring, no flexspline, the same order), as D^3.
-BOX_K = {'A': 2.0e4, 'B': 9.0e3}
+BOX_K = {'B': 9.0e3}
 
-#: The inverters by disc mm: (disc D m, amps, kg, its laminate's K/W to the air through the
-#: housing it is bolted to): the 63100's, parts' centres 92 x 93 mm, the housing's skin at
-#: 10 W/m^2 K still and the pad 0.3; a 70 mm at 50 A (estimated).
-INVERTERS = {100: (0.100, 100.0, 0.2, 3.6), 70: (0.070, 50.0, 0.08, 6.5)}
+#: The inverter by its disc mm: (disc D m, amps, kg, its laminate's K/W to the air through the
+#: housing it is bolted to): a 70 mm at 50 A, estimated from the 63100's 100 mm, 100 A, 0.2 kg and
+#: 3.6 K/W (parts' centres 92 x 93 mm, the housing's skin at 10 W/m^2 K still and the pad 0.3) -
+#: no joint asks its 100 A: the hips and knees rise and walk within 83 N m, 34 A.
+INVERTERS = {70: (0.070, 50.0, 0.08, 6.5)}
 
 #: The drives' cooling: each winding's and laminate's K/W to the air times this - 1 in air. Her
 #: electronics in an enclosure of transformer oil or the like, each stator bolted onto its
@@ -86,33 +92,18 @@ INVERTERS = {100: (0.100, 100.0, 0.2, 3.6), 70: (0.070, 50.0, 0.08, 6.5)}
 #: temperatures (the user, 2026-10-04): an assumed 0.3, measured when the enclosure exists.
 COOLING = 0.3
 
-#: Each kind's stack: (frame, box, inverter), its winding its frame's one KV (the fewest
-#: variants, the user, 2026-10-03), each KV in its window of 1.5x on the walk's torque at its
-#: speed, each box's momentary 1.5x its peak and its rated over its rms. At 1:30 frame B's
-#: windows met at KV 76-95 but the ankles' (x1.43-1.48), their copper 1.05x their rms and the
-#: hip roll's 1.17x; A's spine on 100 A to KV 104, hip 52-85, knee none - x1.41 at KV 90, its
-#: first step's 144 N m at 704 deg/s, 2.0 kW, on 100 A at 48 V. The hip's and the knee's at KV
-#: 120, x1.09 over her clamp, 960 deg/s: at 90 and 70 she held 70.7 % of the gait Monte Carlo,
-#: its knee run into its SOA felled her 2 of 3; at 120 74.2 %, 1 of 3; at 125 71.8 %. The spine
-#: at KV 40 on 50 A, 360 deg/s, felled her in the knee's SOA (docs/findings/drives.md,
-#: 2026-10-03). One KV for A: the spine's amps at its clamp 1.05 at 110, 1.15 at 120; the hip's
-#: and the knee's 1.26 at 110 (volts 1.15 and 1.23), 1.38 at 120 (1.06, 1.13). The waist's and
-#: the shoulder's 44 mm boxes stood 2.79 and 1.44 times their momentary rating: the 64 mm 0.91
-#: and 0.47 (`tools/sim/drive_sizes.py`, 2026-10-03). The ankles on A with its box and
-#: inverter for a run's headroom (`drive_sizes --run`, 2026-10-04: on B 1.32 of its amps, 5.3 of
-#: its heat, 1.27 of its box; on A 0.80, 0.73 and 0.56); the hip yaw, the hip roll and the ankle
-#: roll on B (0.62, 0.93 and 0.97 of their amps; on A the hip roll's stack stood 19 mm into the
-#: pelvis frame and the hip yaw's inverter 15 into the spine's); the rest on B with B's box, box
-#: C gone with frame C.
-#: A at 100 the hips' and knees' volts 1.31 against 1.19: a parry's 1259 deg/s binds, not the
-#: run (docs/findings/drives.md, 2026-10-04).
-KV = {'A': 110.0, 'B': 90.0}
-STACKS = {'spine': ('A', 'A', 100), 'spine_roll': ('B', 'B', 70), 'waist': ('B', 'B', 70),
-          'neck': ('B', 'B', 70), 'head': ('B', 'B', 70), 'shoulder': ('B', 'B', 70),
-          'elbow': ('B', 'B', 70), 'wrist': ('B', 'B', 70), 'gripper': ('B', 'B', 70),
-          'hip_yaw': ('B', 'B', 70), 'hip_roll': ('B', 'B', 70), 'hip': ('A', 'A', 100),
-          'knee': ('A', 'A', 100), 'ankle': ('A', 'A', 100), 'ankle_roll': ('B', 'B', 70),
-          'foot': ('B', 'B', 70)}
+#: Each kind's stack: (frame, box, inverter), its winding its frame's KV. One stack on every
+#: drive (2026-10-04; the user: the most simplicity, the fewest gearbox and electronics
+#: variants): on the walk without the slip, the soles' load through its band, the scoreboard
+#: 318.7 and 84.9 % against 250.5 and 82.9 on the two frames, boxes and inverters before it,
+#: every rise and walk on both; her 28.4 kg against 32.3, 20 part types against 23. On its own
+#: demand at 1.5x (`drive_sizes`): T 0.90 at the hip and under it everywhere, the hips', knees'
+#: and spine's peaks its 124 N m clamp, the knee's parry 1034 deg/s, 1.20 of KV 90's at 48 V.
+#: What it replaced and why each stood: docs/findings/stacks.md.
+KV = {'B': 90.0}
+STACKS = dict.fromkeys(
+    ('spine', 'spine_roll', 'waist', 'neck', 'head', 'shoulder', 'elbow', 'wrist', 'gripper',
+     'hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll', 'foot'), ('B', 'B', 70))
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
 #: else in its stack. The knee's and the ankle's split (the user, 2026-10-02), two discs facing

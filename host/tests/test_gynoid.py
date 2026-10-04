@@ -241,8 +241,7 @@ def test_a_style_eases_in(report):
 def test_her_skeleton_collides(report):
     """Her skeleton switched on (`physics.SKELETON`, `machine.skeleton`): her model with it, the
     same weight; standing and in the squat it touches nothing; the knee folded to 170 degrees the
-    calf's ankle drives meet the femur and the knee's board, her skins next to each other still
-    not."""
+    calf's two ankle drives meet the femur, her skins next to each other still not."""
     import importlib
     import math
     from machine import mjcf, physics, skeleton
@@ -270,9 +269,11 @@ def test_her_skeleton_collides(report):
     met = {tuple(sorted((model.body(model.geom_bodyid[d.contact[i].geom1]).name,
                          model.body(model.geom_bodyid[d.contact[i].geom2]).name)))
            for i in range(d.ncon)}
-    report.check("folded, the ankle's drives meet the femur and the knee's board, the skins not "
-                 "each other", ('left_ankle_drum', 'left_thigh_bone') in met
-                 and ('left_ankle_roll_drum', 'left_knee_board') in met
+    # On the 68 mm stacks the ankle roll's drum met the knee's board first; on the one 60 mm
+    # stack, the femur, the board at 175 deg (2026-10-05).
+    report.check("folded, the ankle's drives meet the femur, the skins not each other",
+                 ('left_ankle_drum', 'left_thigh_bone') in met
+                 and ('left_ankle_roll_drum', 'left_thigh_bone') in met
                  and ('left_shank', 'left_thigh') not in met, '%s' % sorted(met)[:4])
 
 

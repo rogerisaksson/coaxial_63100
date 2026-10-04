@@ -27,33 +27,29 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 ## Gynoid, in order
 
 1. **The leg stack on the run** (the user, 2026-10-04: the most simplicity,
-   the fewest gearbox and electronics variants; as built two frames, two
-   boxes and two inverters, 23 part types, `tools/sim/bom.py`). The
-   candidate (docs/findings/stacks.md): one stack on every drive - 60 x 20
-   mm at KV 90, a 64 mm box at 1:30, a 70 mm 50 A inverter; 20 part types,
-   her 28.4 kg against 32.3; the scoreboard 318.7 and 84.9 % against 250.5
-   and 82.9; on its own demand (`drive_sizes`, MARGIN 1.5, the run at her
-   weight) T 0.90 at the hip and under it everywhere. It waits on her
-   get-up - on it she falls forward out of the squat, 3 tries
-   (`getup_search --table f` on it) - and on test_gynoid's fold pairs;
-   then `drives.STACKS` and docs/DIMENSIONS.md (the user, 2026-10-04:
-   every axis by its drive's type, edited when a candidate better for DFM
-   and less complex is found - written as built; the example of a row did
-   not arrive). Left on it: the hips', knees' and spine's peaks are its
-   124 N m clamp (A 1.50, P 1.24-1.35, S 1.45) - the margin as the clamp,
-   every servo's its drive's peak / 1.5, rose and walked as far and held
-   81.7 % against 83.7 on 16 mm; the knee's parry 1034 deg/s, 1.20 of KV
-   90's at 48 V - the pack's lowest volts and the KV; a fall asked a
-   knee's box 763 N m of its 128 (item 6); the 70 mm inverter is an
-   estimate from the 63100's, on no joint itself then; every inverter in
-   its own stack stands the elbow 8 mm past her shell; the elbow, the neck
-   and the head feel their rotors 7.8, 2.9 and 33 times their loads on the
+   the fewest gearbox and electronics variants). One stack on every drive
+   since 2026-10-05 (docs/DIMENSIONS.md, docs/findings/stacks.md): 60 x 20
+   mm at KV 90, a 64 mm box at 1:30, a 70 mm 50 A inverter; 21 of each, 20
+   part types, her 28.4 kg; T 0.90 at the hip and under it everywhere at
+   1.5x. Left: the hips', knees' and spine's peaks are its 124 N m clamp (A
+   1.50, P 1.24-1.35, S 1.45) - the margin as the clamp, every servo's its
+   drive's peak / 1.5, rose and walked as far and held 81.7 % of the
+   scoreboard against 83.7 on a 16 mm stack; the knee's parry 1034 deg/s,
+   1.20 of KV 90's at 48 V - the pack's lowest volts and the KV; her get-up
+   on it is 2 keyframe sets of 96 searched, the rest leaving her down -
+   the crouch solved for her centre of mass over her feet, not a pose
+   searched on a build; a fall asked a knee's box 763 N m of its 128
+   (item 6); the 70 mm inverter is an estimate from the 63100's, itself on
+   no joint; every inverter in its own stack stands the elbow 8 mm past
+   her shell (four stand apart, `drives.BOARDS`); the elbow, the neck and
+   the head feel their rotors 7.8, 2.9 and 33 times their loads on the
    1:30 box - a belt stage 1:4-1:6 in its place, decided 2026-10-04,
    pending a ratio a stack (`drives.RATIO` is one for all); the governor
-   on the setpoints, 911 and 61.0 % of the scoreboard - its form. DOD:
-   every leg joint's A, P, T and V under 1 on the run and the gym's scenes
-   at the settled margin, no joint's J over 1; the pack's volts, the KV
-   and the stages baked.
+   on the setpoints, 911 and 61.0 % of the scoreboard - its form; the
+   example of a row for docs/DIMENSIONS.md did not arrive. DOD: every leg
+   joint's A, P, T and V under 1 on the run and the gym's scenes at the
+   settled margin, no joint's J over 1; the pack's volts, the KV and the
+   stages baked.
 2. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the
    support a point under each stance ball, nothing of the sole's shape to
    the controller, a small quick step toward the capture point whenever it

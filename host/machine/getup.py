@@ -70,12 +70,17 @@ SIT_BACK = (('ease', 'sit', 0.6, _pose(-130.0, 158.2, 12.2, 60.0, -20.0, 54.3, 1
 #: With the arms held low (the shoulders 30, the elbows straight; the user's wish is down) the
 #: best of 96 stood her up from none of 5, hot or cold (hands out 1.4 s, bowed 5.9): the throw
 #: is what lifts her off her heels.
-ONTO_FEET = (('ease', 'lift', 1.22, dict(_pose(-25.82, 140.36, -37.9, 34.86, -20.0, 62.41, -13.81),
-                                         left_foot=28.34, right_foot=28.34)),
-             ('ease', 'lift', 0.5, dict(_pose(-127.02, 139.07, -52.0, 44.91, -20.0, 150.72, -24.93),
-                                        left_foot=24.84, right_foot=24.84)),
-             ('ease', 'crouch', 2.03, dict(_pose(-131.71, 121.01, -33.48, 31.09, -20.0, 76.46, 2.98),
-                                           left_foot=1.55, right_foot=1.55)),
+#: On the one stack (2026-10-05, her 28.4 kg) those left her down from 0 of 5, 3 tries each -
+#: into the crouch pitched 9 deg where 24, her centre of mass 52 mm ahead of the pelvis where
+#: 134, falling forward out of the squat. These, the best of 96 searched on it, 5 of 5 at
+#: 23.6-25.4 s, 1 try, hands out 5.3 s, bowed 5.5, the arms thrown up to 170 deg; 2 of the 96
+#: walked, from all five - the rest from none.
+ONTO_FEET = (('ease', 'lift', 1.72, dict(_pose(-15.67, 138.88, -33.84, 40.72, -20.0, 71.14, -4.14),
+                                         left_foot=24.24, right_foot=24.24)),
+             ('ease', 'lift', 0.3, dict(_pose(-140.11, 148.12, -48.3, 51.46, -20.0, 170.45, -9.34),
+                                        left_foot=14.53, right_foot=14.53)),
+             ('ease', 'crouch', 2.04, dict(_pose(-123.13, 110.35, -33.57, 37.39, -20.0, 59.2, -19.17),
+                                           left_foot=3.88, right_foot=3.88)),
              ('ease', 'crouch', 2.23, arrival.angles_of(arrival._squat())),
              ('ease', 'crouch', 0.3, {}))
 

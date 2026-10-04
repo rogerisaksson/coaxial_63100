@@ -14,7 +14,7 @@ FAILED_RDS, FAILED_S, FAILED_AT = 500.0, 0.15, 0.05
 
 
 def test_a_drive_keeps_its_heat(report):
-    """A drive's board keeps its heat (`machine.heat`): stalled at its board's 100 A it derates
+    """A drive's board keeps its heat (`machine.heat`): stalled at its board's amps it derates
     from THROTTLE_AT of its envelope and drops its gates at a ceiling; armed and idle it cools,
     its derate given back at RECOVER_PER_S; its report goes on the wire and back whole."""
     from machine import drives, heat, rtu
@@ -29,7 +29,7 @@ def test_a_drive_keeps_its_heat(report):
             derated_at = (k, h.spent[0])
         if not h.gates[0] and tripped_at is None:
             tripped_at = (k, h.derate[0], h.trips[0])
-    report.check('stalled at 100 A: derated past %.2f spent, then its gates dropped' %
+    report.check('stalled at its amps: derated past %.2f spent, then its gates dropped' %
                  heat.THROTTLE_AT,
                  derated_at is not None and tripped_at is not None
                  and derated_at[0] < tripped_at[0] and derated_at[1] > heat.THROTTLE_AT
@@ -111,7 +111,7 @@ def test_fantasy_boards_never_bind(report):
         for _ in range(10):
             h.load(0, stall)
         h.step(0.01, [1.0], [1.0])
-    report.check('stalled at 100 A for 300 heat s: spent, never derated, its gates on',
+    report.check('stalled at its amps for 300 heat s: spent, never derated, its gates on',
                  h.spent[0] >= 1.0 and h.derate[0] == 1.0 and h.gates[0],
                  '%.0f C, spent %.2f' % (h.t[0][h.worst[0]], h.spent[0]))
     from machine.director import Director
