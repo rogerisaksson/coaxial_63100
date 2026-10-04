@@ -303,3 +303,10 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   mm down and 15 up in the walk's first second. `arrival.LIFT_UP_M` 0.06 ->
   0.04: 18 down and 4; the Monte Carlo held 74.1 % with every rise 100 %,
   `FIRST` 0.5 lost rises.
+- The toes springy but damped (the user, 2026-10-04: a thin carbon-fibre
+  sandwich with TPU, or TPU printed round carbon rods glued with silicone):
+  `drives.TOE_C` = loss factor 0.3 x TOE_K / 20 rad/s = 0.375 N m s/rad.
+  Sprung so, the look suite held 35.9 % against 69.9 driven - the rises
+  44, 57 and 38 %, the walks 91, 12, 5 and 4 at 0.65-1.0, every fast walk
+  down within 0.8 s; the toes stay driven until the push-off is reworked
+  (TODO 5) (2026-10-04).

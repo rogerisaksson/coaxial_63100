@@ -9,7 +9,9 @@ tongue over the instep, the laces down to the ball; the toe cap's from the ball,
 SPRING_M up at its tip `figure.TOE_M` ahead; its sole SOLE_M deep at the heel and at the ball
 (the drop), gum. A 38's (the user, 2026-10-04): 237 long, 94 wide at the ball, 76 tall at the
 heel, 15 of toe spring, the sole 28 and 18. Its mass `build.HOLDS`, its grip and give
-`machine.mjcf`, its sole's box `figure.CONTACTS`, its forefoot's bend `drives.TOE_K`.
+`machine.mjcf`, its sole's box `figure.CONTACTS`, its forefoot's bend `drives.TOE_K`. Built, the
+sole is printed in TPU with air pockets and the shoe goes over it, so nothing breaks (the user,
+2026-10-04).
 """
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import loft

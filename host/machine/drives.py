@@ -156,9 +156,13 @@ def flex(joint):
 #: 1337 and 12.1.
 WAYS = {'foot': 0.0, 'gripper': 2.0, 'wrist': 2.0}
 PASSIVE = {'gripper': (40.0, 1.0, 80.0)}
-#: The toes' spring, N m/rad and N m s/rad about flat, knobs: a sneaker's forefoot, 0.2-0.5 N m
-#: a degree (2026-10-04); a plated one's past 200 stood her on her toe tips.
-TOE_K, TOE_C = 25.0, 0.5
+#: The toes' spring about flat, N m/rad, and its damping, N m s/rad: a sneaker's forefoot, 0.2-0.5
+#: N m a degree (a plated one's past 200 stood her on her toe tips, 2026-10-04) - a thin
+#: carbon-fibre sandwich with a TPU core, or TPU printed round carbon rods glued in with silicone
+#: (the user, 2026-10-04): springy but damped, the TPU's loss factor TOE_LOSS at the push-off's
+#: TOE_RAD_S, c = loss k / omega.
+TOE_K, TOE_LOSS, TOE_RAD_S = 25.0, 0.3, 20.0
+TOE_C = TOE_LOSS * TOE_K / TOE_RAD_S
 
 
 def _stack(kind):

@@ -206,3 +206,9 @@ board's in [FINDINGS](../FINDINGS.md).
   on her heels for a derated leg drive never fired, and was cut. The
   onto-feet keyframes re-searched hot stand her up 5 of 5
   (docs/findings/body.md).
+- The gym's scenes in the sizing (the user, 2026-10-04; `drive_sizes.SCENES`
+  'stand:brick', 'stand:shove', 'stand:rocker': standing on the rig, it
+  befalling her at 8 s): at 1.5x the hips' and knees' amps 1.26 and power
+  1.20-1.23, the spine's amps 1.05 - the parries' peaks, unmoved -; the
+  ankle roll's amps 1.08 and box 1.04, the gym's (0.93 and 0.90 before);
+  the rest under 1 (2026-10-04).

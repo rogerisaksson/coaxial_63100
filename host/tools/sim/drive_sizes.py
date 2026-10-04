@@ -38,8 +38,10 @@ MARGIN = 1.5
 CACHE = os.path.join(REPO, 'build', 'drive_demand.json')
 #: The demand's scenes, each from the squat: the walk alone, then a slip, a nudge, a hole and
 #: the page's shove laid at SCENE_S - her parries and falls ask the peaks (one walk's knee asked
-#: 1231 deg/s with a catch in it, 561 without, 2026-10-03).
-SCENES, SCENE_S = (None, 'slip', 'nudge', 'hole', 'shove'), 8.0
+#: 1231 deg/s with a catch in it, 561 without, 2026-10-03) - and the gym's, standing (the user,
+#: 2026-10-04; `events.STANDING` after 'stand:'): a brick taken away, a shove, the free rocker.
+SCENES, SCENE_S = (None, 'slip', 'nudge', 'hole', 'shove', 'stand:brick', 'stand:shove',
+                   'stand:rocker'), 8.0
 #: A run's demand a kind, the literature's at 3-3.5 m/s a kg of her (Novacheck 1998, Schache
 #: 2011, Dorn 2012): (peak N m, peak deg/s, peak W) a kg, the rms RUN_RMS of the peak - the aim
 #: is that she runs, with headroom (the user, 2026-10-04); folded in with `--run`.
@@ -88,9 +90,9 @@ def held(joint):
 
 def asked(to_s, values, scene=None, cadence=0.85):
     """{joint: (peak N m, the walk's rms N m, peak deg/s, peak W motoring, J_load kg m^2)} from
-    the squat, `to_s` seconds, a `scene` laid at SCENE_S - a floor event (`machine.events`) or
-    'shove', the page's P -; the load's inertia the mass matrix's diagonal less the armature,
-    meaned every 0.1 s."""
+    the squat, `to_s` seconds, a `scene` laid at SCENE_S - a floor event (`machine.events`),
+    'shove', the page's P, or 'stand:' a rig she stands on (`events.STANDING`) -; the load's
+    inertia the mass matrix's diagonal less the armature, meaned every 0.1 s."""
     from tools.sim import knobs
     knobs.set_(values)
     mujoco = importlib.import_module('mujoco')
@@ -101,10 +103,14 @@ def asked(to_s, values, scene=None, cadence=0.85):
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     body.arm()
-    director = Director(body, cadence)
-    director.begin()
+    world = body.nodes['pelvis'].world
+    rig = scene[6:] if scene and scene.startswith('stand:') else None
+    director = Director(body, cadence, stand_s=math.inf if rig else 0.0)
+    director.begin(*((0.002,) + events.rigged(rig) if rig else ()))
+    if rig:
+        events.rig(rig, director, world)
     body.loop.step(0.0)
-    world, bus = body.nodes['pelvis'].world, body.loop.bus
+    bus = body.loop.bus
     laid, was = scene is None, 0.0
     m, d, v = world.model, world.data, np.array(world.vadr)
     full, n = np.zeros((m.nv, m.nv)), len(JOINTS)
@@ -116,7 +122,10 @@ def asked(to_s, values, scene=None, cadence=0.85):
                if drives.kind(j) in linkage.RODS or drives.kind(j) in linkage.PLANAR]
     while bus['t'] < to_s and (not laid or director.stage != 'fallen'):
         if not laid and bus['t'] >= SCENE_S:
-            if scene == 'shove':
+            if rig:
+                events.befall(rig, director, world)
+                laid = True
+            elif scene == 'shove':
                 world.push((events.SHOVES['shove'], 0.0, 0.0), events.SHOVE_S)
                 laid = True
             elif was < events.at(scene) <= director.walker.phase:
@@ -131,7 +140,7 @@ def asked(to_s, values, scene=None, cadence=0.85):
             tau[i], w[i] = tau[i] / s, w[i] * s
         peak, speed = np.maximum(peak, np.abs(tau)), np.maximum(speed, np.abs(w))
         watts = np.maximum(watts, tau * w)
-        if director.stage in ('walk', 'catch'):
+        if director.stage in ('walk', 'catch', 'stand', 'tread'):
             square += tau * tau
             count += 1
         steps += 1
