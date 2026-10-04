@@ -73,11 +73,17 @@ SEGMENTS = tuple([
      (0.075, 0.07, 0.075))] + _sides())
 
 #: The sole's half-width, metres.
-SOLE_HALF = 0.038
+SOLE_HALF = 0.045
 
-#: The soles and the toes, their undersides: (segment, 'box', half sizes, centre), its frame.
-CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL) / 2.0), (0.0, -ANKLE_H + 0.03, (BALL - HEEL) / 2.0)),
-            ('toes', 'box', (0.036, 0.015, TOE_M / 2.0), (0.0, 0.001, TOE_M / 2.0)))
+#: The soles and the toes, their undersides: (segment, shape, sizes, centre), its frame - a
+#: sneaker's: the sole's box from HEEL_R ahead of the heel, the heel's edge two spheres HEEL_R
+#: round at its corners, so a strike rolls on, not on a box's edge (2026-10-04).
+HEEL_R = 0.012
+CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL - HEEL_R) / 2.0),
+             (0.0, -ANKLE_H + 0.03, (BALL - HEEL + HEEL_R) / 2.0)),
+            ('foot', 'sphere', (HEEL_R,), (0.03, -ANKLE_H + HEEL_R, -HEEL + HEEL_R)),
+            ('foot', 'sphere', (HEEL_R,), (-0.03, -ANKLE_H + HEEL_R, -HEEL + HEEL_R)),
+            ('toes', 'box', (0.045, 0.015, TOE_M / 2.0), (0.0, 0.001, TOE_M / 2.0)))
 
 #: The seat's two buttocks, capsules along her way SEAT_R round at SEAT_Y from SEAT_Z to SEAT_Z:
 #: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, she rolled onto her back;

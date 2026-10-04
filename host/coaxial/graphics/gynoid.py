@@ -20,12 +20,13 @@ from coaxial.graphics import drums, engine, mechanism, panels
 from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
+from coaxial.graphics import sneaker
 from coaxial.graphics.raster import DOTS_X
 from coaxial.graphics.shapes import (ellipsoid, limb, loft, moved, sampled, smooth, turn_about,
                                      view)
 from machine import ansi, figure
-from machine.figure import FOREARM, HAIR_AT, HEM_AT, TOE_M, TOE_RY, UPPER_ARM
-from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
+from machine.figure import FOREARM, HAIR_AT, HEM_AT, UPPER_ARM
+from machine.gait import ANKLE_H, SHANK, THIGH
 
 #: The camera: its distance in the engine's units, the point it turns about (her middle, metres
 #: over the floor), and how far out she reaches from it.
@@ -44,7 +45,7 @@ def _np():
 #: HEM_UP up at its sides, leaning HEM_LEAN onto the sneaker's vamp: 88 mm across and level, the
 #: other foot passed 16 mm into it, the toe box 35 mm out of it (2026-09-28); deeper at the
 #: calves, the ankle's rod 21 mm out.
-DENIM, TEE, SNEAKER = (118, 150, 182), (230, 230, 226), (236, 236, 232)
+DENIM, TEE = (118, 150, 182), (230, 230, 226)
 LOOSE_M, FIT_M, BAGGY_M, HEM_R = 0.02, 0.008, 0.02, (0.074, 0.08, 0.004)
 HEM_UP, HEM_LEAN = 0.029, 0.26
 JEANS_LEG = ((0.01, 0.07, 0.076, -0.008), (-0.1, 0.072, 0.088, -0.016), (-0.2, 0.074, 0.092, -0.018),
@@ -243,12 +244,8 @@ def _meshes():
                                   out=x * SCULPT_M, ahead=THIGH_AHEAD, behind=THIGH_BEHIND),
             side + '_shank': limb(SHANK, 0.06 + PAD_FULL_M, 0.062, 0.034, PLATE, bulge_at=0.3,
                                   ahead=0.008),
-            side + '_foot': loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SHOE],
-                                  paint(SNEAKER), poles=(-HEEL, BALL + 0.006), along='z'),
-            side + '_toes': loft([(z, rx, rv, -(rv - TOE_RY + _spring(z)))
-                                   for z, rx, rv in _TOE_CAP],
-                                  paint(SNEAKER), poles=(-0.006, TOE_M + 0.002), along='z')})
-        extra += _soles(side)
+            **sneaker.feet(side)})
+        extra += sneaker.soles(side)
     return meshes, extra + drums.stages() + drums.drums() + _wear()
 
 
@@ -278,35 +275,6 @@ def _split(rest) -> tuple[Any, Any, Any]:
     if len(rest) == 3:
         return rest[0], rest[1], rest[2]
     return (), rest[0], rest[1]
-
-
-#: A sneaker, size 37-38: the shoe's rings forward of the ankle, (z, half width, half height),
-#: each hung so its bottom is the sole, flat ANKLE_H under the ankle, as the walk plants it - the
-#: collar round the ankle, the tongue over the instep, the laces down to the ball; the toe cap's
-#: from the ball, its sole sprung SPRING_M up at its tip `figure.TOE_M` ahead. Its sole SOLE_M
-#: deep, gum.
-_SHOE = ((-0.05, 0.027, 0.031), (-0.028, 0.03, 0.03), (0.0, 0.033, 0.029),
-         (0.033, 0.035, 0.031), (0.066, 0.038, 0.025), (0.095, 0.04, 0.02), (BALL, 0.04, 0.0175))
-_TOE_CAP = ((0.0, 0.04, 0.0175), (0.019, 0.039, 0.0165), (0.035, 0.035, 0.0145),
-            (0.049, 0.028, 0.012), (0.056, 0.018, 0.008))
-SPRING_M, SOLE_M, SOLE_PROUD, GUM = 0.012, 0.02, 0.002, (196, 150, 100)
-
-
-def _spring(z):
-    """How far the toe cap's sole lifts off the floor `z` m ahead of the ball."""
-    return SPRING_M * max(0.0, z / TOE_M) ** 2
-
-
-def _soles(side):
-    """[(name, parent, offset, mesh)]: the sneaker's gum sole under the shoe and under the toe
-    cap, SOLE_M deep and SOLE_PROUD wider than the white above it."""
-    gum, h = paint(GUM), SOLE_M / 2.0
-    return [(side + '_sole', side + '_foot', (0.0, 0.0, 0.0), loft(
-        [(z, rx + SOLE_PROUD, h, ANKLE_H - h) for z, rx, _rv in _SHOE], gum,
-        poles=(-HEEL - SOLE_PROUD, BALL + 0.006), along='z')),
-            (side + '_toe_sole', side + '_toes', (0.0, 0.0, 0.0), loft(
-                [(z, rx + SOLE_PROUD, h, -(h - TOE_RY + _spring(z))) for z, rx, _rv in _TOE_CAP],
-                gum, poles=(-0.006, TOE_M + SOLE_PROUD), along='z'))]
 
 
 class Body:

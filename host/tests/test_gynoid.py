@@ -23,7 +23,7 @@ def test_dressed_or_bare(report):
     """Her clothes come off at a key (`gynoid.render`, dressed): the bare body is the dressed one
     without what she wears - her clothes, her hair, her soles - her feet plated, her limbs' quick-
     releases banded on her shell."""
-    from coaxial.graphics import gynoid, lit
+    from coaxial.graphics import gynoid, lit, sneaker
     dressed, bare = gynoid.body(), gynoid.body(dressed=False)
     worn = [p[0] for p in dressed.parts if gynoid._worn(p[0])]
     bands = [p[0] for p in bare.parts if p[0].startswith('release_')]
@@ -38,7 +38,7 @@ def test_dressed_or_bare(report):
     report.check('her feet plated bare, sneakers dressed',
                  all((bare.materials[slice(*bare.spans[i])] == lit.PLATE).all() for i in feet)
                  and all((dressed.materials[slice(*dressed.spans[i])]
-                          == lit.paint(gynoid.SNEAKER)).all() for i in feet))
+                          == lit.paint(sneaker.SNEAKER)).all() for i in feet))
 
 
 def test_her_views_draw(report):

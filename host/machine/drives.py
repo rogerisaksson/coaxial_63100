@@ -155,7 +155,8 @@ def flex(joint):
 #: 71.2 (a rise), the waist 727 and 71.6 (a rise), the spine's roll 1293 and 23.0, the hips' yaw
 #: 1337 and 12.1.
 WAYS = {'foot': 0.0, 'gripper': 2.0, 'wrist': 2.0}
-PASSIVE = {'foot': (40.0, 1.0, 0.0), 'gripper': (40.0, 1.0, 80.0)}
+#: The toes' spring a sneaker's forefoot, 0.2-0.5 N m a degree about the ball (2026-10-04).
+PASSIVE = {'foot': (25.0, 0.5, 0.0), 'gripper': (40.0, 1.0, 80.0)}
 
 
 def _stack(kind):

@@ -30,11 +30,11 @@ JOINTS = ('pelvis', 'waist', 'neck', 'head',
 #: below the pelvis's centre, thigh and shank, the ankle over the sole, the ball ahead of it
 #: (the toes' joint) and the heel behind; the tracks the feet walk on, either side of the line.
 HIP_HALF, HIP_DROP, THIGH, SHANK = 0.095, 0.055, 0.39, 0.38
-#: A 23 cm sole with the toes (`figure.CONTACTS`), a sneaker in size 36-37: 27 cm read as boats,
-#: 24 still big (2026-09-28).
-ANKLE_H, BALL, HEEL = 0.075, 0.117, 0.055
+#: A 24 cm sole with the toes (`figure.CONTACTS`), a sneaker in size 37-38 - 27 cm read as boats
+#: (2026-09-28); a 38's 240 (the user, 2026-10-04).
+ANKLE_H, BALL, HEEL = 0.075, 0.117, 0.058
 #: The toes' joint over the sole, and the toes' length from it.
-TOE_RY, TOE_M = 0.014, 0.058
+TOE_RY, TOE_M = 0.014, 0.065
 
 #: The feet walk a beam: each planted TRACK_M off the line, swung WIDEN_M further out round the
 #: standing foot at mid-swing, the stand's STAND_M apart (half).
