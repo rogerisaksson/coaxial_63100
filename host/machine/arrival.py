@@ -23,9 +23,10 @@ FEET_X = 0.08
 
 #: The centre of mass fed back through the pelvis's target: its error, 1, and its speed's, s -
 #: against the keyframes' own: against none, it braked her into the settling and she fell back
-#: (2026-09-26). The target within PULL_M of the pelvis in the squat (12.7 cm of error at a
-#: get-up's hand-over flung her to 1.04 m), PULL_UP_M from the push on (at 0.05 the free rocker
-#: felled every rise: the stand suite 65.2 -> 74.7 %, the look 69.9 -> 64.2) (2026-10-04).
+#: (2026-09-26). The target within PULL_M of the pelvis, PULL_UP_M through the push, the rise and
+#: the stand: 12.7 cm of error at a get-up's hand-over flung her to 1.04 m; at 0.05 the free
+#: rocker felled every rise (the stand suite 65.2 -> 74.7 %); let out into the first strides,
+#: the flat rises 91.8 -> 78.5 % (2026-10-04).
 COM_K, COM_D, PULL_M, PULL_UP_M = 1.5, 0.15, 0.05, 0.15
 
 #: Entered moving, the first keyframe is reached slowing from her speed, over as long as that
@@ -136,9 +137,8 @@ def angles_of(frame, turn=None):
 
 
 def _foot(frame, pitch):
-    """A keyframe's foot's turn: pitched toes-up `pitch` deg, facing its `yaw`. Unturned, a foot
-    faced the walk's line whichever way she faced - up from a fall facing back, the legs were
-    solved half a turn twisted and she sank out of the squat (2026-09-30)."""
+    """A keyframe's foot's turn: pitched toes-up `pitch` deg, facing its `yaw` - unturned, up
+    from a fall facing back, the legs were solved half a turn twisted (2026-09-30)."""
     return mul(ry(math.radians(frame.get('yaw', 0.0))), rx(math.radians(pitch)))
 
 
@@ -230,7 +230,7 @@ def keyframes(cadence=gait.CADENCE, stand_s=0.0) -> list[tuple[str, float, dict[
 
 
 def moved(frame, dx, dz, yaw=0.0, dy=0.0) -> dict[str, Any]:
-    """`frame` turned `yaw` degrees about the walk's line, moved `dx` across, `dz` on, `dy` up."""
+    """`frame` turned `yaw` degrees, moved `dx` across, `dz` on, `dy` up."""
     def put(p):
         return add(figure.apply(ry(math.radians(yaw)), p), (dx, dy, dz))
     return dict(frame, pelvis=put(frame['pelvis']), yaw=yaw,
@@ -361,7 +361,7 @@ class Arrival:
                                           + (bus['pelvis.pose.z'] - z) * way[1])
         x, z = x + on * way[0], z + on * way[1]
         far = math.hypot(x - bus['pelvis.pose.x'], z - bus['pelvis.pose.z'])
-        pull = PULL_M if self.stage in ('squat', 'look') else PULL_UP_M
+        pull = PULL_UP_M if self.stage in ('push', 'rise', 'stand', 'tread') else PULL_M
         if far > pull:
             x = bus['pelvis.pose.x'] + (x - bus['pelvis.pose.x']) * pull / far
             z = bus['pelvis.pose.z'] + (z - bus['pelvis.pose.z']) * pull / far

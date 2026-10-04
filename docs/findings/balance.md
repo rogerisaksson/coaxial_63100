@@ -200,3 +200,6 @@ shoves, the scoreboard and its searches. The board's own are in
   85), the look suite 69.9 -> 64.2 (the rises 76, 100, 99 -> 90, 75, 71 at
   0.6-0.9); both get-ups after P's shove walk again. Standing first:
   0.15 (2026-10-04).
+- The 15 cm pull through the push, the rise and the stand alone, the first
+  strides at 5 cm as the squat: the rises 76, 100, 99 % again (91.8) with
+  the stand suite's 74.7 kept (2026-10-04).
