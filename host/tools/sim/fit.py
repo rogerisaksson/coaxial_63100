@@ -8,13 +8,11 @@ the fall's catch, crouch and tuck.
     python tools/sim/fit.py
     python tools/sim/fit.py --worst 20       # that many of the closest pairs
 
-A drum is her drive's assembly as drawn (`coaxial.graphics.drums`), a cylinder; the hip's turn with
-the yokes they ride - the pitch's with the yaw and the roll, the roll's with the yaw - about the
-hip. A bone is its carbon tube from its joint to the next; a rod its tube from its crank's pin to
-its ball (`machine.linkage`). Parts in segments neither the same nor neighbours are not a pair -
-their shells keep them apart, the physics colliding those - nor parts bolted together: a drum
-and its own segment's bone, a bone and its neighbour's at their joint, a rod within a ball of its
-ends.
+A drum is a drive's assembly as drawn (`coaxial.graphics.drums`), a cylinder, the hip's with the
+yokes they ride; a bone its carbon tube from joint to joint; a rod its tube from its crank's pin
+to its ball (`machine.linkage`). Parts in segments neither the same nor neighbours are not a
+pair - their shells keep them apart - nor parts bolted together: a drum and its segment's bone,
+neighbouring bones at their joint, a rod within a ball of its ends.
 """
 import argparse
 import math
@@ -455,6 +453,8 @@ def main(argv=None):
             '%s %+.0f' % (j, v * 1e3) for j, v in sorted(got.items(), key=lambda kv: -kv[1])
             if j.startswith(('left_', 'board_left', 'rod_left', 'spine', 'waist', 'neck', 'head'))
             and v > -0.03))
+    from tools.sim import seams
+    seams.main()
     print('closest pairs over %d poses, mm:' % len(poses(args.csv)))
     for g, a, b, pose in clearances(args.worst, args.csv):
         print('  %+6.0f  %-26s %-26s %s' % (g * 1e3, a, b, pose))

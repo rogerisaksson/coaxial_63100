@@ -169,11 +169,15 @@ def parts(bare=False):
     out += [('gimbal%d_%s' % (k, side + stage), side + stage, (), at, 0.0, mesh)
             for side in ('left_', 'right_') for stage in ('hip_yaw', 'hip_roll')
             for k, (at, mesh) in enumerate(_gimbal(side, stage))]
-    for joint in [j for kind in linkage.GEARS for j in linkage.joints(kind)]:
+    # A held joint (`drives.WAYS`) has no drum: no pair on it - the wrists' bevels, held,
+    # crashed the page (2026-10-04).
+    for joint in [j for kind in linkage.GEARS for j in linkage.joints(kind)
+                  if not drives.passive(j)]:
         seg, pinion, r, wheel, big = _spurs(joint)
         out += [('pinion_' + joint, seg, (), pinion, 0.0, drum(r, SPUR_T, 'z', steel)),
                 ('spur_' + joint, seg, (), wheel, 0.0, drum(big, SPUR_T, 'z', steel))]
-    for joint in [side + kind for kind in linkage.BEVELS for side in ('left_', 'right_')]:
+    for joint in [side + kind for kind in linkage.BEVELS for side in ('left_', 'right_')
+                  if not drives.passive(side + kind)]:
         seg, drive, letter, driven, r = _bevel(joint)
         out += [('bevel_' + joint, seg, (), drive, 0.0, drum(r, linkage.BEVEL_T, letter, steel)),
                 ('bevelo_' + joint, seg, (), driven, 0.0, drum(r, linkage.BEVEL_T, 'x', steel))]

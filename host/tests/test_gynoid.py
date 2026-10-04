@@ -41,6 +41,18 @@ def test_dressed_or_bare(report):
                           == lit.paint(gynoid.SNEAKER)).all() for i in feet))
 
 
+def test_her_views_draw(report):
+    """The page's mechanism and actuators views draw: a held drive (`drives.WAYS`) has no drum,
+    so no spur or bevel pair on it - the wrists' bevels crashed the page (2026-10-04)."""
+    from coaxial.graphics import gynoid
+    for see in ('mechanism', 'actuators'):
+        seen = gynoid.body(see=see)
+        report.check('her %s drawn, nothing on a held wrist' % see,
+                     len(seen.parts) > 20 and not any(
+                         p[0].startswith(('bevel', 'pinion', 'spur')) and p[0].endswith('_wrist')
+                         for p in seen.parts), '%d parts' % len(seen.parts))
+
+
 def test_the_floor_outlasts_a_walk(report):
     """The floor's slab ends past an hour's walk at her fastest pace: at 80 m she stepped off it
     100 s in (2026-09-28)."""
@@ -282,7 +294,8 @@ def test_each_drive_is_held(report):
 
 ROSTER = (test_a_virtual_body_walks, test_a_leg_by_its_foot, test_a_body_with_mass_walks,
           test_the_pendulum_between_her_ears, test_she_rises_and_walks, test_dressed_or_bare,
-          test_the_floor_outlasts_a_walk, test_a_style_eases_in, test_her_skeleton_collides,
+          test_her_views_draw, test_the_floor_outlasts_a_walk, test_a_style_eases_in,
+          test_her_skeleton_collides,
           test_each_drive_turns_from_its_gearbox, test_each_drive_is_held)
 
 

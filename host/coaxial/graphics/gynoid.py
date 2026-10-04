@@ -52,11 +52,11 @@ JEANS_LEG = ((0.01, 0.07, 0.076, -0.008), (-0.1, 0.072, 0.088, -0.016), (-0.2, 0
 
 
 #: The thighs' radii, m: at the hip, at their fullest and at the knee; their middle SCULPT_M out,
-#: the inside drawn in off the other's, the outside full; their upper backs THIGH_BEHIND deeper,
-#: the seat's fold onto them 52 mm in 10 of height (2026-10-02). The hip and the knee, the elbow's ends
-#: and the knee under the jeans PAD_FULL_M fuller over her pads (`figure.PADS`).
+#: the inside drawn in off the other's; their upper backs THIGH_BEHIND deeper, the seat's fold
+#: onto them 52 mm in 10 of height (2026-10-02). The hip's, the knee's and the elbow's ends
+#: PAD_FULL_M fuller over her pads (`figure.PADS`).
 PAD_FULL_M = 0.002
-THIGH_R, SCULPT_M, THIGH_AHEAD = (0.09 + PAD_FULL_M, 0.08, 0.056 + PAD_FULL_M), 0.018, 0.0
+THIGH_R, SCULPT_M, THIGH_AHEAD = (0.09 + PAD_FULL_M, 0.08, 0.058 + PAD_FULL_M), 0.018, 0.0
 THIGH_BEHIND = 0.04
 
 #: The inner thigh's fullness high under the seat, 6 mm proud of the thigh (INNER_AT the left's,
@@ -78,8 +78,9 @@ def _wear():
         + [(0.307, 0.150 + b, 0.082 + b), (0.344, 0.152 + b, 0.074 + b), (0.366, 0.112, 0.064)],
         tee, poles=(-0.036, 0.378))),
            ('cloth_seat', 'pelvis', (0.0, 0.0, 0.0), loft(
-               [(-0.10, 0.072, 0.065)] + [_hung(*ring) for ring in _SEAT]
-               + [(0.11, 0.112, 0.082)], denim, poles=(-0.12, 0.118)))]
+               [_hung(-0.12, 0.095, 0.05, 0.13), _hung(-0.10, 0.11, 0.06, 0.13)]
+               + [_hung(*ring) for ring in _SEAT] + [(0.11, 0.118, 0.084)], denim,
+               poles=(-0.135, 0.118)))]
     for side, x in (('left', 1.0), ('right', -1.0)):
         out += [('cloth_%s_bust' % side, 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2] + b),
                  ellipsoid((0.0, 0.0, 0.0), tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee,
@@ -111,12 +112,12 @@ def _wear():
 #: the belly, full over the seat.
 _TANK = ((-0.03, 0.108, 0.106, 0.081), (0.047, 0.114, 0.112, 0.086), (0.093, 0.124, 0.116, 0.092),
          (0.149, 0.134, 0.116, 0.093), (0.205, 0.138, 0.116, 0.094), (0.26, 0.142, 0.104, 0.090))
-_SEAT = ((-0.07, 0.148, 0.084, 0.132), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178, 0.096, 0.159),
-         (0.07, 0.142, 0.088, 0.116))
+_SEAT = ((-0.07, 0.148, 0.084, 0.134), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178, 0.096, 0.159),
+         (0.07, 0.146, 0.088, 0.116))
 
 
 def _hung(y, rx, front, back):
-    """A loft's ring at `y`, `rx` wide (half), reaching `front` m forward and `back` m back."""
+    """A loft's ring at `y`: its half width, its `front` and `back` reach, m."""
     return (y, rx, (front + back) / 2.0, (front - back) / 2.0)
 
 
@@ -209,9 +210,9 @@ def _core(corners):
 def _meshes():
     """{segment: mesh} for the figure's segments, and the parts it has no joint for:
     [(name, parent, offset, mesh)]."""
-    pelvis = loft([(-0.10, 0.06, 0.05), (-0.07, 0.135, 0.095, -0.0195),
-                    (-0.03, 0.168, 0.115, -0.0275), (0.02, 0.166, 0.117, -0.0295), (0.07, 0.13, 0.092, -0.012),
-                    (0.11, 0.106, 0.074), (0.13, 0.098, 0.068)], PLATE, poles=(-0.115, 0.14))
+    pelvis = loft([(-0.10, 0.06, 0.05), (-0.07, 0.135, 0.097, -0.0215),
+                    (-0.03, 0.168, 0.115, -0.0275), (0.02, 0.166, 0.117, -0.0295), (0.07, 0.14, 0.092, -0.012),
+                    (0.11, 0.114, 0.074), (0.13, 0.098, 0.068)], PLATE, poles=(-0.115, 0.14))
     # From 4.5 cm inside the pelvis, so the waist does not open as the spine bends.
     torso = loft([(-0.045, 0.094, 0.066), (0.0, 0.098, 0.069), (0.047, 0.102, 0.072),
                    (0.093, 0.112, 0.079),
@@ -219,7 +220,7 @@ def _meshes():
                    (0.307, 0.138, 0.07), (0.344, 0.14, 0.062), (0.372, 0.1, 0.055),
                    (0.39, 0.05, 0.045)], _core, poles=(-0.055, 0.40))
     meshes = {'pelvis': pelvis, 'torso': torso,
-              'neck': loft([(0.0, 0.05, 0.047), (0.035, 0.045, 0.043), (0.07, 0.045, 0.043)],
+              'neck': loft([(0.0, 0.055, 0.052), (0.035, 0.05, 0.048), (0.07, 0.05, 0.048)],
                             SKIN, poles=(-0.01, 0.075)),
               'head': ellipsoid((0.0, HEAD_Y, 0.012), (0.07, 0.104, 0.09), _face, rows=12)}
     extra = [('jaw', 'head', (0.0, 0.0, 0.0),
@@ -240,7 +241,7 @@ def _meshes():
             side + '_fingers': ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
             side + '_thigh': limb(THIGH, THIGH_R[0], THIGH_R[1], THIGH_R[2], MESH, bulge_at=0.22,
                                   out=x * SCULPT_M, ahead=THIGH_AHEAD, behind=THIGH_BEHIND),
-            side + '_shank': limb(SHANK, 0.058 + PAD_FULL_M, 0.062, 0.034, PLATE, bulge_at=0.3,
+            side + '_shank': limb(SHANK, 0.06 + PAD_FULL_M, 0.062, 0.034, PLATE, bulge_at=0.3,
                                   ahead=0.008),
             side + '_foot': loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in _SHOE],
                                   paint(SNEAKER), poles=(-HEEL, BALL + 0.006), along='z'),

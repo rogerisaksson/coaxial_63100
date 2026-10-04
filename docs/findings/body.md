@@ -227,6 +227,18 @@ her clothes; her drives in [drives](drives.md). The board's own are in
   now 120 mm up the torso, its gearbox down - the mass model had it at the
   pivot, inside the pitch's L. Over spine -30..85, roll +-35, waist +-50 the
   closest 2 mm; every drive held (`fit.held_by`).
+- Her shell fitted to her skeleton as sized and her clothes over it (the
+  user, 2026-10-03; `tools/sim/fit.py`, 2026-10-04). Standing, past her
+  shell: the hips' yaw inverters +6 -> -1 mm (the pelvis's rings at 0.07
+  and 0.11 130 and 106 -> 140 and 114 wide), the head's turn +4 -> -1
+  (the neck 5 mm fuller), the knee +1 -> -1 (the femur's and the tibia's
+  ends 2 mm fuller); left the toes' stack +20 in her shoe and the elbow
+  +2. Her shell past her clothes, a measure since (`tools/sim/seams.py`): the
+  cheeks 19 mm out of the jeans between the seat and the thighs' legs ->
+  the seat's crotch 20 mm lower, its bottom rings 110 and 95 wide, 130
+  back: within 1 mm, the rest 3-27 inside. A held drive's bevel pair
+  crashed the page's mechanism view (no drum on the wrist): skipped,
+  in test_render.
 - Her get-up re-searched hot (the user, 2026-10-03: she spasms and falls
   restarting after a shove, and prays to Mecca with her arms out on the
   way up; `getup_search`, 2026-10-04): the starts her five falls after a

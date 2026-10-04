@@ -70,11 +70,6 @@ Open work. Measured results are in FINDINGS.
   a URL bus, the limb keeping t3.5 for them; not yet the fallback where
   nothing answers (Renode is).
 - Gynoid, open (a line goes when done):
-  + Her shell fitted to her skeleton as sized, and her jeans and tee on
-    over everything with nothing catching or chafing at a seam (the user,
-    2026-10-03): standing, past her skin the shoulder +22 mm, the hip yaw
-    +20, the knee +14, the wrist +10, the ankle +8; past her shell the toes'
-    stack +20, the hip yaw +6 (`tools/sim/fit.py`).
   + Her kinematics for printing (the user, 2026-10-03): every holder and
     lever a 2.5D print in PAHT-CF; the purchased parts few - the tubes
     seven stock sizes in one grade (docs/findings/body.md), one bearing
@@ -317,8 +312,9 @@ Open work. Measured results are in FINDINGS.
     toes, 16 mm crank and horn, lever 0.97-1.03, transmission 54 deg over
     -10..60, stood 5 mm out of her shoe: beside the S the forefoot is 22 mm
     tall, a horn under 8 mm pulls 1.5 kN (2026-10-03) - a smaller drive
-    there, or gears. The elbow and the wrist past 160 deg: coupling rods,
-    two cranks a shaft 90 deg apart, a locomotive's.
+    there, or gears; its stack +20 mm out of her shoe (`fit.py`). The elbow
+    and the wrist past 160 deg: coupling rods, two cranks a shaft 90 deg
+    apart, a locomotive's.
   + Her transmissions sourced as a bicycle's, a motorcycle's or a car's
     maker would (the user, 2026-10-02): rod ends, cardan and Rzeppa joints,
     gear pairs, belts and bearings off the shelf, a part list a joint.
