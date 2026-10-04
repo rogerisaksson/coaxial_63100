@@ -13,6 +13,7 @@ most SLICE_S of it at once, and says how much faster than real time it can run (
 she does is the director's (`machine.director`): the arrival, the walk, a catch, fallen and up
 by herself.
 """
+import math
 import multiprocessing
 import queue
 import time
@@ -35,6 +36,16 @@ LEAD = 1
 RECOVER_S, LIE_MAX_S = 3.0, 15.0
 
 
+def _landed(director, world, rig):
+    """Landed anew: on `rig` (`events.STANDING`), standing on it; None the floor, walking."""
+    from machine import events
+    director.arrival.stand_s = math.inf if rig else 0.0
+    director.begin(*((0.002,) + events.rigged(rig) if rig else ()))
+    if rig:
+        events.rig(rig, director, world)
+    director.machine.loop.step(0.0)
+
+
 def _run(commands, states, cadence, local):
     """The worker: the machine, the director, the loop paced to the clock."""
     import numpy as np
@@ -54,9 +65,10 @@ def _run(commands, states, cadence, local):
     watts = 0.0
     peak = dict(zip(JOINTS, world.peak.tolist()))
 
+    floor = {'rig': None}
+
     def begin():
-        director.begin()
-        machine.loop.step(0.0)
+        _landed(director, world, floor['rig'])
     begin()
     bus = machine.loop.bus
     wall0, sim0 = time.perf_counter(), bus['t']
@@ -74,6 +86,11 @@ def _run(commands, states, cadence, local):
                     director.cadence = float(command['cadence'])
                 if 'push' in command:
                     world.push(command['push'], command.get('seconds', 0.1))
+                if 'befall' in command:
+                    events.befall(command['befall'][0], director, world, command['befall'][1])
+                if 'rig' in command:
+                    floor['rig'] = command['rig']
+                    command = dict(command, restart=True)
                 if 'glitch' in command:
                     world.glitch(*command['glitch'])
                 if 'event' in command:
@@ -142,6 +159,7 @@ def _run(commands, states, cadence, local):
                                   int(bus[n + 'status']) & GATES_ON)
                               for j, n in director.drives.items()},
                      'props': world.props(), 'armed': tuple(event) if event else None,
+                     'rig': floor['rig'],
                      'buses': ([(tuple(JOINTS[i] for i in b.indices), int(world.block.written[b.link]),
                                  int(world.block.sent[b.link]), b.bad) for b in world.buses.each]
                                if world.buses is not None else []),
@@ -173,9 +191,11 @@ class Running:
     def send(self, **command):
         """{'cadence': strides/s} | {'push': (x, y, z) N, 'seconds': s} | {'glitch': (joint,
         kind, s)} | {'event': one of `events.EVENTS`, laid where her walk meets it} |
-        {'style': (knob, steps)}: a knob of `machine.style` trimmed, the walk eased over to it |
-        {'sway': s}: every knob at s on `style.SWAY`'s axis, -1 catwalk to 1 swagger |
-        {'restart': True}: landed in the squat again."""
+        {'befall': (one of `events.STANDING`, k)}: on her now | {'rig': one of them or
+        None}: landed anew on it, standing | {'style': (knob, steps)}: a knob of
+        `machine.style` trimmed, the walk eased over to it | {'sway': s}: every knob at s on
+        `style.SWAY`'s axis, -1 catwalk to 1 swagger | {'restart': True}: landed in the squat
+        again."""
         self._commands.put(command)
 
     def latest(self, into=None):

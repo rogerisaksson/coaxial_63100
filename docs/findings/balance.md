@@ -179,6 +179,6 @@ shoves, the scoreboard and its searches. The board's own are in
   0.89 -> 0.62 m over 0.4 s before FALLING_M calls the fall, fallen 0.12 s
   on, the hands down 0.27 s in with the arms 65 % into their catch, the
   head at 1.74 m/s (test_gynoid_falls' crouch, 1 of 16; green before the
-  merge). Not the toes: driven, the same numbers. Called 0.14 s earlier on
-  a sink past 0.6 m/s, two falls struck, 1.68 and 3.41; the curl over 0.25
-  s, 3.22 (2026-10-04).
+  merge; the toes driven in this build). Called 0.14 s earlier on a sink
+  past 0.6 m/s, two falls struck, 1.68 and 3.41; the curl over 0.25 s,
+  3.22 (2026-10-04).

@@ -317,6 +317,64 @@ def footer(pairs, width=0):
     return bar
 
 
+#: The key help: a page's keys by group on a panel that slides up from the bar on TAB or ? over
+#: SLIDE_S and down again HELP_S after the last key, by itself - the old taskbar (the user,
+#: 2026-10-04).
+HELP_KEYS, SLIDE_S, HELP_S = ('\t', '?'), 0.25, 8.0
+
+
+def helped(state, typed, now):
+    """How much of the help is up, 0 to 1: `state['help']` [to, up, last key at, last frame at]
+    moved by `typed` this frame and the clock `now` (HELP_KEYS, SLIDE_S, HELP_S)."""
+    to, up, keyed, framed = state.setdefault('help', [0.0, 0.0, now, now])
+    if typed:
+        keyed = now
+        if any(key in HELP_KEYS for key in typed):
+            to = 0.0 if to else 1.0
+    if to and now - keyed > HELP_S:
+        to = 0.0
+    step = (now - framed) / SLIDE_S
+    up = max(0.0, min(1.0, up + max(-step, min(step, to - up))))
+    state['help'] = [to, up, keyed, now]
+    return up
+
+
+def help_rows(groups, up):
+    """How many rows of the help are up: `up` of a title row and its longest group's."""
+    return round(up * (1 + max(len(pairs) for _title, pairs in groups)))
+
+
+def help_panel(groups, up, width=150):
+    """(the help's top `up` of its rows on the bar's strip, how many rows): `groups` ((title,
+    ((key, what), ..)), ..) in equal columns across `width`, a title over each, nothing
+    wrapped - None and 0 with nothing up."""
+    rows = help_rows(groups, up)
+    if rows <= 0:
+        return None, 0
+    column = max(12, (width - 2) // len(groups))
+    columns = [column] * (len(groups) - 1) + [max(column, width - 2 - column * (len(groups) - 1))]
+    grid = Table.grid(padding=0)
+    grid.add_column(width=2)
+    for wide in columns:
+        grid.add_column(width=wide)
+    for r in range(rows):
+        cells = [Text('  ', style='keys')]
+        for (title, pairs), wide in zip(groups, columns):
+            keys = max(len(key) for key, _what in pairs) + 1
+            cell = Text(style='keys', no_wrap=True, overflow='ellipsis')
+            if r == 0:
+                cell.append(title, style='keys.key')
+            elif r - 1 < len(pairs):
+                key, what = pairs[r - 1]
+                cell.append(key.ljust(keys), style='keys.key')
+                cell.append(what, style='keys')
+            cell.pad_right(wide - cell.cell_len)
+            cells.append(cell)
+        grid.add_row(*cells)
+    grid.style = 'keys'
+    return grid, rows
+
+
 def hud(title, rows):
     """One instrument: labels recede, values glow, rounded frame. Lines of one Text, not a
     grid: seven grids measured their columns every frame, a third of the rotor page's
@@ -357,15 +415,16 @@ def viewport(title, art, corner='', page=None):
 
 
 def frame_of(console, origin, title, art, boxes, keys, art_title=None,
-             under=None, dressed=True, gauges=None, wrap=False):
+             under=None, dressed=True, gauges=None, wrap=False, help=None):
     """The template: title band (its `gauges` a Text after the name), viewport left,
-    instruments right, key bar - on two rows `wrap`ped; `dressed` False for a drawing with a HUD
-    of its own."""
+    instruments right, key bar - on two rows `wrap`ped, the key `help` (groups, up) over it
+    (`help_panel`); `dressed` False for a drawing with a HUD of its own."""
+    panel, rows = help_panel(*help, width=console.width) if help else (None, 0)
     if not _fills(console):
         return Group(header(title, origin, gauges),
                      viewport(art_title or title, art),
                      *([under] if under is not None else []),
-                     *boxes, footer(keys))
+                     *boxes, *([panel] if panel is not None else []), footer(keys))
 
     # The column is paged here, for every view at once; the key bar says so
     # only while there is something to scroll to.
@@ -389,8 +448,8 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
     whole['hud'].update(Group(*boxes) if boxes else Text(''))
     whole['header'].update(header(title, origin, gauges))
     bar = footer(keys, console.width if wrap else 0)
-    whole['footer'].update(bar)
-    whole['footer'].size = bar.row_count
+    whole['footer'].update(Group(panel, bar) if panel is not None else bar)
+    whole['footer'].size = bar.row_count + rows
     return whole
 
 
