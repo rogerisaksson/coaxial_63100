@@ -85,3 +85,15 @@ on them. Her walk is in [walk](walk.md); the board's own are in
   35, 37, 38 and 42 deg and at 0.52 and 0.55 - chance; the suite's soa
   event 54 %. A derated knee taken as a shove (the catch armed, the phase
   25-80 % faster) fell every time.
+- How low (`look.py` from the squat, the walk's row, 2026-10-04): on driven
+  toes the pelvis 8.7-28.8 mm under her stand and the left knee to 52 deg;
+  on sprung ones with the heel off at 0.5, 14.2-53.2 mm and 74 deg.
+- A toe spring (`drives.TOE_REST`, the toes' rest up 5 and 10 deg) under
+  the driven toes' push-off, the heel off at 0.36 and 50 deg (the lab, a
+  grid of 8 on the look and the faults suites, 2026-10-04): the walk back
+  at the driven height, 7.2-30.8 mm under her stand, 14 s with no catch,
+  every rise standing; the look suite 176-189 and 88.4-90.5 % against the
+  baked 197 and 91.2, but the faults 257-508 and 54.6-60.6 % against 217
+  and 71.5 and the walk at 1.0 strides/s 33 % against 80. The rest alone,
+  the heel off at 0.5: the dip stays, 51.6 mm at 10 deg. Not baked: the
+  height and the faults both are the grinder's to find.

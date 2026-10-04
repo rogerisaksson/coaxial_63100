@@ -154,3 +154,9 @@ board's own are in [FINDINGS](../FINDINGS.md).
   fell every time, 100 N along her way stood without it and fell with it
   3 of 4. Not taken: a setpoint is not a moment; the centroidal moment
   wants the spine's torque, or the pelvis's own tilt, in the law.
+- The grinder's rounds on the stand suite, the day's build (`gym.py`,
+  2026-10-04; each a best of 8-10 beside the built 77.5 %): `dcm.HOLD_M`
+  along, `STANCE_M`, `STEP_S` 155.4 and 79.1 % at the built values;
+  `dcm.CLEAR_M` along with `drives.TOE_K`, `TOE_LOSS` 132.3 and 81.2 % at
+  the toes' spring 42 N m/rad - stiffer toes hold her standing where the
+  walk wants them at 10.

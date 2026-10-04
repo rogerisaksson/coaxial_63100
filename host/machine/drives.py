@@ -163,7 +163,8 @@ PASSIVE = {'gripper': (40.0, 1.0, 80.0)}
 #: carbon-fibre sandwich with a TPU core, or TPU printed round carbon rods glued in with silicone
 #: (the user, 2026-10-04): springy but damped, the TPU's loss factor TOE_LOSS at the push-off's
 #: TOE_RAD_S, c = loss k / omega (`passive`). The motors off them (the user, 2026-10-04).
-TOE_K, TOE_LOSS, TOE_RAD_S = 10.0, 0.3, 20.0
+#: TOE_REST deg its rest, toes up under 0 - a sneaker's toe spring (docs/findings/feet.md).
+TOE_K, TOE_LOSS, TOE_RAD_S, TOE_REST = 10.0, 0.3, 20.0, 0.0
 
 
 def _stack(kind):
@@ -395,7 +396,7 @@ def passive(joint):
     way = WAYS.get(kind(joint), 0.0)
     if not way:
         return None
-    stiffness, damping, rest = ((TOE_K, TOE_LOSS * TOE_K / TOE_RAD_S, 0.0) if kind(joint) == 'foot'
+    stiffness, damping, rest = ((TOE_K, TOE_LOSS * TOE_K / TOE_RAD_S, TOE_REST) if kind(joint) == 'foot'
                                 else PASSIVE.get(kind(joint), (40.0, 1.0, 0.0)))
     return (stiffness if way == 1.0 else None), damping, rest
 

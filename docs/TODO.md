@@ -104,10 +104,12 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    walks lower for it: no heel's rise as the other foot lands, the landing
    knee at 35-38 deg where it stood straight, the pelvis 2-3 cm down - a
    knee's board in its SOA folds it (the soa event 54 %), and the knees'
-   heat is unmeasured. Next: a toe spring (the toes' rest angle, a rocker)
-   for a heel's rise without a motor, or a shorter stride at a higher
-   cadence; the grinder on `gait.HEEL_OFF`, `TOE_DEG`, `RISE_DEG`,
-   `drives.TOE_K`, `TOE_LOSS`. DOD: every rise and walk standing; the
+   heat is unmeasured. A toe spring (`drives.TOE_REST` 5-10 deg up) under
+   the driven push-off walks at the driven height, every rise standing,
+   and loses the faults suite, 54.6-60.6 % against 71.5 (feet.md): the
+   grinder on `gait.HEEL_OFF`, `TOE_DEG`, `drives.TOE_REST`, `TOE_K`,
+   `TOE_LOSS` for both; else a shorter stride at a higher cadence. DOD:
+   every rise and walk standing; the
    standing knee under 10 deg at mid-stance; the knees' T in `drive_sizes`
    as on driven toes; the damping from the sandwich's numbers.
 5. **A real sneaker** (the user, 2026-10-04; the sole printed in TPU with

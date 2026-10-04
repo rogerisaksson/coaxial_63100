@@ -58,6 +58,8 @@ KNOBS = {
     'stand.HANG_SHARE': (0.3, 0.6, "the share of her weight asked of it, of the centre of mass's"),
     'drives.TOE_K': (10.0, 60.0, "the toes' spring, N m/rad - no motor on them"),
     'drives.TOE_LOSS': (0.1, 0.6, "its damping, the sole's loss factor"),
+    'drives.TOE_REST': (-15.0, 0.0, 'their rest, deg: under 0 a toe spring, the toes up'),
+    'gait.TOE_DEG': (-50.0, -25.0, 'the foot pitched this far at toe-off, deg heel up'),
 }
 
 #: The suites and what they score; the runs a candidate makes on each (3 a trial).
