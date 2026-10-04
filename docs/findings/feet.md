@@ -102,3 +102,29 @@ on them. Her walk is in [walk](walk.md); the board's own are in
   stand against 14.2-53.2 at 0.85 m, but 36 catches; 0.45 m at 1.1, 6.0-17.1
   mm and 3 catches. The height is the stride's; the walk wants its knobs
   searched at it (the grinder's `gait.STRIDE_M`).
+- The rear foot slips back before its swing (the user, 2026-10-04;
+  `look.py`'s toes back at lift, from where the toes stood as the foot
+  last bore her alone): 92 mm as baked, 90 with the load's band - at 1 kHz
+  64-127 mm over 90 ms, the toes 14-34 mm up, the foot bearing nothing
+  from 20 ms after the other lands (phase 0.52) to its toe-off at 0.66.
+  The stance leg runs out of reach before the heel rises at 0.5: the knee
+  set straight at 520 deg/s and the hip back at 350, the other foot lands,
+  and the leg, let go still extending, throws the foot back - the hip to
+  26 deg where 17 was asked, the knee to -7. A leg bearing nothing late in
+  its stance solved from the pelvis as it is: 69 mm. The heel off at 0.40
+  (`gait.HEEL_OFF`): 5 mm, the landing knee 23 deg from 37, the pelvis
+  7.6-29.4 mm under her stand from 13.4-48.2 - and the scoreboard 798.8
+  and 75.4 % against 229.0 and 86.4, the walks at 1.0 strides/s down at
+  4.5 s (0.38 and 0.42 alike; 0.46-0.49 erratic, 6-16 mm, one fall). The
+  toe-off at 0.54-0.58: down at 4.6-9.3 s. The heel by reach instead
+  (`stance.rolled`: a stance foot behind the hip rolled up on its ball
+  until the ankle is within 0.99 of the leg's reach, 45 deg at most): 8
+  mm, the ball within 6 mm of where it stood from 0.42 to the toe-off and
+  bearing 20-170 N, the knee's setpoint still at 16 deg; the walk's power
+  560 -> 369 W, the hip's and knee's rms 56 and 49 -> 43 and 42 N m, the
+  touchdown 253 -> 222 N - and the walk at 1.0 strides/s down at 6.3 s
+  (catches from 9 s where the baked catches from 10.4), her feet landing
+  125 mm ahead of the hip where 175, lifted 272 behind where 359, 40 mm
+  apart where 19: the stride was the dipping pelvis's. In, off
+  (`stance.HEEL_UP_DEG` 0), its two constants and the slip's cost
+  (`tools/sim/looks.py`) the grinder's.

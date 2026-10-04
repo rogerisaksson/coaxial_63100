@@ -119,9 +119,6 @@ def _knots(stride):
             (TOE_OFF, TOE_DEG * stride, TOE_RATE * stride, TOE_ACC * stride),) + swing + (
             (1.0, LAND_DEG, LAND_RATE, 0.0), (1.0 + SETTLE, 0.0, 0.0, 0.0))
 
-#: The middle of a leg's single support: from the other's toe-off to its own landing.
-MID_STANCE = 0.5 * TOE_OFF
-
 #: Where the ball is planted: the ankle over it at STANCE_AT, early, so the leg's reach is
 #: behind her; centred, the thigh never passed upright and her feet were always in front. At
 #: 0.24 with the toe-off at 0.66 the thigh leaves 12.2 degrees behind upright, the toes 297 mm
@@ -201,7 +198,7 @@ def planted(q, stride=1.0):
 
 
 def _roll(p):
-    return ROLL_DEG * math.cos(2.0 * math.pi * (p - MID_STANCE))
+    return ROLL_DEG * math.cos(2.0 * math.pi * (p - 0.5 * TOE_OFF))
 
 
 def _yaw(p, stride):
@@ -423,7 +420,7 @@ def sway(t, cadence=CADENCE, stride=None, phase=None):
     Not a joint: what the floor does."""
     stride = pace(cadence) if stride is None else stride
     p = (t * cadence if phase is None else phase) % 1.0
-    mid = math.cos(2.0 * math.pi * (p - MID_STANCE))
+    mid = math.cos(2.0 * math.pi * (p - 0.5 * TOE_OFF))
     roll = _roll(p) * stride
     level = sum(_hips(k / 48.0, stride) for k in range(48)) / 48.0 + HIP_DROP
     return (SHIFT_M * stride * mid, roll,

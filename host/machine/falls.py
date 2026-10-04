@@ -115,6 +115,35 @@ def aimed(to, start, bus, tilt, tip, rate):
     return True
 
 
+#: Aimed anew, the arms begin again from where they are and are there by when the first aim
+#: would have had them, AIM_S at least: begun again over CURL_S, a fall called as she sank
+#: upright and aimed again 0.14 s on had her hand down 0.22 s later, the shoulders at 41 of
+#: their 115 deg, the arm folded under her and her head at the floor at 2.78 m/s (a shove to
+#: her right at phase 0.26, the soles' load through its band, 2026-10-04).
+AIM_S = 0.15
+
+
+def curled(d, bus):
+    """The fall's setpoints {joint: deg}, `d` the director: its `curl_to` from `curl_from`,
+    eased from `curl_at`, the trunk and the legs at once (AT_ONCE); aimed anew as she tips till
+    an arm lands (`aimed`), the arms yielding from then (`yielded`)."""
+    t = bus['t']
+    if d.curl_at == d.falling_at:
+        d.curl_s = CURL_S
+    if d.touched_at is None:
+        tilt = d._tilt(bus)
+        rate = (tilt - d.tilt_was[0]) / max(1e-6, t - d.tilt_was[1]) if d.tilt_was else 0.0
+        d.tilt_was = (tilt, t)
+        if aimed(d.curl_to, d.curl_from, bus, tilt, d._fall_way(bus), max(rate, d.fall_rate)):
+            d.curl_at, d.curl_s = t, max(AIM_S, d.curl_at + d.curl_s - t)
+    k = gait.eased((t - d.curl_at) / d.curl_s)
+    out = {j: d.curl_from[j] + (v - d.curl_from[j]) * k for j, v in d.curl_to.items()}
+    out.update({j: d.curl_to[j] for j in AT_ONCE if j in d.curl_to})
+    if d.touched_at is None and d.world.lifted(ARM_PARTS) < TOUCH_M:
+        d.touched_at = t
+    return yielded(out, bus) if d.touched_at is not None else out
+
+
 def crouch(tip):
     """{joint: deg} her legs and trunk go to past saving, tipping `tip` deg off her forward (+ to
     her left): the side she tips to lunges, out by how far aside, the other kneels."""

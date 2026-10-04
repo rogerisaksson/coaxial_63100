@@ -367,6 +367,7 @@ class Walker:
         if self.side is not None:
             off = [max(-SIDE_TURN_RAD, min(SIDE_TURN_RAD, c)) for c in off]
         turn = mul(walkplan.turned(tuple(off)), turn)
+        feet, held = stance.rolled(self, qs, legs, feet, held, target, turn)
         target = stance.reachable(self, target, turn, held, qs)
         self.planned, self.target = planned, target
         out = dict(zip(walkplan.UPPER, upper))

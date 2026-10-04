@@ -24,7 +24,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np  # noqa: E402
 from numpy.typing import NDArray  # noqa: E402
 
-from machine.gait import TOE_OFF  # noqa: E402
+from machine import gait  # noqa: E402
 
 #: The capture point's course out from the standing foot toward the swinging one, m, by the swing's
 #: progress: the walk on this law at 0.65, 0.85 and 0.9 strides/s, meaned (2026-09-26, spread
@@ -70,9 +70,10 @@ def landing(s: NDArray, u) -> tuple:
     (strides/s), omega - a row a leg. (x the lateral to land at, swapping, catch, off - what
     the capture point is off the walk's course, m, out toward the swinging foot) a row."""
     q, sign, xi, standing, sep, rate, omega = (np.asarray(v, float) for v in u)
-    swinging = q >= TOE_OFF
-    prog = np.where(swinging, (q - TOE_OFF) / (1.0 - TOE_OFF), 1.0)
-    tau = (1.0 - prog) * (1.0 - TOE_OFF) / np.maximum(rate, 0.1)
+    off = gait.TOE_OFF
+    swinging = q >= off
+    prog = np.where(swinging, (q - off) / (1.0 - off), 1.0)
+    tau = (1.0 - prog) * (1.0 - off) / np.maximum(rate, 0.1)
     nom = np.interp(prog, U_NOM, XI_NOM)
     off = sign * (xi - standing) - nom
     e = np.sign(off) * np.maximum(0.0, np.abs(off) - s['dead'])

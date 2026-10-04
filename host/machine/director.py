@@ -97,7 +97,7 @@ class Director:
         #: pass, (deg, s), and its rate, deg/s; when an arm met the floor; since when she tucks and
         #: from where, (s, {joint: deg}); her drives down.
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
-        self.curl_at = 0.0
+        self.curl_at, self.curl_s = 0.0, falls.CURL_S
         self.fall_rate, self.touched_at, self.tucked, self.down = 0.0, None, None, None
         #: The get-up and the get-ups since she landed; what felled her, as the observer says it;
         #: the plans tried since, [(steps, why)], and one being made.
@@ -212,21 +212,7 @@ class Director:
             if falls.CROUCH:
                 self._short(falls.SHORT_FALLING)
         if self.falling_at is not None:
-            if self.touched_at is None:
-                tilt, t = self._tilt(bus), bus['t']
-                rate = (tilt - self.tilt_was[0]) / max(1e-6, t - self.tilt_was[1]) if self.tilt_was else 0.0
-                self.tilt_was = (tilt, t)
-                if falls.aimed(self.curl_to, self.curl_from, bus, tilt, self._fall_way(bus),
-                               max(rate, self.fall_rate)):
-                    self.curl_at = t
-            k = gait.eased((bus['t'] - self.curl_at) / falls.CURL_S)
-            out = {j: self.curl_from[j] + (v - self.curl_from[j]) * k
-                   for j, v in self.curl_to.items()}
-            out.update({j: self.curl_to[j] for j in falls.AT_ONCE if j in self.curl_to})
-            if self.touched_at is None and self.world.lifted(falls.ARM_PARTS) < falls.TOUCH_M:
-                self.touched_at = bus['t']
-            if self.touched_at is not None:
-                out = falls.yielded(out, bus)
+            out = falls.curled(self, bus)
             return out if self.down is None else self._lain(bus, dt, out, self.down)
         self.since += dt
         if self.stage in getup.STAGES:

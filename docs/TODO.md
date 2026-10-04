@@ -46,6 +46,34 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    (`drives.RATIO` is one for all). DOD: every leg joint's A, P
    and V under 1 on the run and the gym's scenes at the settled margin, no
    joint's J over 1; the pack's volts, the frames' KV and the stages baked.
+   One box and one inverter (the user, 2026-10-04: prototype on for the
+   most simplicity and the fewest gearbox and electronics variants, a
+   smoke test deciding whether a candidate bears): the demand the stacks
+   were sized on is the controller's own - the walk's setpoints jump 3-8
+   deg a pass at the swap of feet and chatter at toe-off, a leg's stance
+   share following its sole's load a pass at a time; the hip and the knee
+   at their clamps 5.3 and 7.4 % of the walk's passes, 45 and 64 % of
+   their heat over 50 Hz (docs/findings/drives.md). The soles' load read
+   through a 20 ms band (`physics.LOAD_S`, the lab's): the walk's power
+   683 -> 560 W, its touchdown 769 -> 253 N, 5 walks of 5 against 4; its
+   scoreboard 229 and 86.4 % against 538 and 82.8, baked. On it box B and
+   the 50 A inverter on every drive rise and walk 5 of 5 as tuned: the
+   short stack (60 x 16) on all, 27.7 kg and 11.6 of it drives against
+   32.3 and 16.2, the scoreboard 264.6 and 84.8 %, its winding holding 52
+   N m where the hip's rms is 39-45 (T 1.26 at 1.5x); frame B's lamination
+   at two lengths (60 x 30 for the hips, knees, ankles and spine), 28.5
+   kg, 533.6 and 85.7 %, T 0.76; the long on all, past her shell at the
+   elbow and the hip roll. The margin as the clamp - every servo's its
+   drive's peak / 1.5, 83 N m at the hips and knees: 282.8 and 82.1 %, and
+   526.5 and 82.2. Next: one of them laid in `drives.STACKS` and
+   docs/DIMENSIONS.md (the user, 2026-10-04: every axis by its drive's
+   type, edited when a candidate better for DFM and less complex is found
+   - written as built; the example of a row did not arrive) with the walk
+   ground on it; the hip's heat on the short stack (the heel by reach
+   took the walk's power 560 -> 369 W, item 4); a fall asks 5 times any
+   box (the knee's 763 N m on box B's 128); every inverter in its stack
+   (the elbow 8 mm past her shell); the governor's scoreboard 911 and
+   61.0 % - its form.
 2. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the
    support a point under each stance ball, nothing of the sole's shape to
    the controller, a small quick step toward the capture point whenever it
@@ -66,10 +94,13 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    behind and from the front, on one step), 120 N none. Each foot bearing
    its share of her weight (`bearing.shared`): 32 - 100 N 9 of 12, from
    her sides on the loaded leg's side step, 120 N 3, 60 N 9 - and the
-   bricks 96 and 63 %, the rockers 100. Next, in the same plane: 60 N from
-   behind lost to the law's chatter (the lack filtered, its polar); the
-   stance back at her standing height after a step - she stays 5-12 cm
-   down on bent knees; the trunk
+   bricks 96 and 63 %, the rockers 100. The soles' load through its
+   sensor's band and the stepping foot one that can land where the capture
+   point goes (2026-10-04): 30 - 60 N 12 of 12, 80 N 11, 100 N 7, 120 N
+   none -, the bricks 100 and 84 %, the rockers 100. Next, in the same
+   plane: the 120 N pushes (the share's rate against the band,
+   standing.md); the stance back at her standing height after a step - she
+   stays 5-12 cm down on bent knees; the trunk
    thrown into the fall (the angular momentum, a CMP past the sole, 60 N m
    17 cm on her 35 kg) as a torque - a lean on the spine's setpoints did
    nothing; a ready crouch as the capture point strays - her standing
@@ -112,7 +143,17 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    `TOE_LOSS` for both; else a shorter stride at a higher cadence. DOD:
    every rise and walk standing; the
    standing knee under 10 deg at mid-stance; the knees' T in `drive_sizes`
-   as on driven toes; the damping from the sandwich's numbers.
+   as on driven toes; the damping from the sandwich's numbers. The rear
+   foot slips back a little before its swing begins (the user, 2026-10-04):
+   the step ends with the foot lifted and moving forward at once. Measured
+   (`look.py`'s toes back at lift): 92 mm, the leg run out of reach before
+   the heel rises and let go still extending. The heel by reach
+   (`stance.rolled`, `stance.HEEL_UP_DEG` 45): 8 mm and the walk's power
+   560 -> 369 W, but the walk at 1.0 strides/s falls at 6.3 s, its stride
+   the dipping pelvis's (feet.md): in and off, the grinder on it with
+   `gait.STRIDE_M` and the slip in the cost (`tools/sim/looks.py`). DOD:
+   the toes back at lift under 2 mm on every walk, the scoreboard at or
+   over 229 and 86.4 %.
 5. **A real sneaker** (the user, 2026-10-04; the sole printed in TPU with
    air pockets, the shoe over it so nothing breaks): a 37-38's length, width,
    heel and toe spring; its sole's give, its forefoot's bend as the sprung

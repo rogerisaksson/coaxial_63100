@@ -188,6 +188,48 @@ def held(w, qs, legs):
                   for p in ((SOLE_HEEL if pitch > 0.0 and foot is not FLAT else SOLE_BALL),)}
 
 
+#: The heel rises as the leg runs out of reach: a stance foot whose ball stands behind the hip
+#: rolls up on it until its ankle is within HEEL_REACH of the leg's reach of the hip,
+#: HEEL_UP_DEG at most; 0, by the plan's phase alone (`gait.HEEL_OFF`) - the knee snapped
+#: straight at 520 deg/s before the heel rose and the foot, bearing nothing 20 ms after the
+#: other landed, slid back 92 mm before its swing (the user's; `look.py`'s toes back at lift).
+#: At 45 deg and 0.99: 8 mm, the walk's power 560 -> 369 W, the hip's rms 56 -> 43 N m, and the
+#: walk at 1.0 strides/s down at 6.3 s, its feet landing 5 cm less ahead: off, the grinder's to
+#: turn on with the stride (2026-10-04, docs/findings/feet.md).
+HEEL_UP_DEG, HEEL_REACH = 0.0, 0.99
+
+
+def rolled(w, qs, legs, feet, held, target, turn):
+    """(`feet`, `held`) with each stance foot behind the hip rolled up on its ball as far as its
+    leg's reach asks (HEEL_UP_DEG): its turn and its ankle (`held`'s)."""
+    if not HEEL_UP_DEG:
+        return feet, held
+    feet, held = list(feet), dict(held)
+    reach = gait.REACH * HEEL_REACH
+    for k, ((side, sign), q, (_ankle, twist, pitch, _toes)) in enumerate(zip(walkplan.SIDES, qs,
+                                                                             legs)):
+        if side not in held or feet[k] is FLAT or pitch > 0.0 or flat(w, side, q):
+            continue
+        hip, ahead = figure.hip(sign, target, turn), apply(ry(twist), (0.0, 0.0, 1.0))
+        ball = w.anchor[side]
+
+        def ankle(up):
+            return sub(ball, apply(mul(ry(twist), rx(math.radians(up))), SOLE_BALL))
+
+        def far(up):
+            return math.dist(hip, ankle(up)) - reach
+        lo = -pitch
+        if (hip[0] - ball[0]) * ahead[0] + (hip[2] - ball[2]) * ahead[2] <= 0.0 or far(lo) <= 0.0:
+            continue
+        hi = max(lo, HEEL_UP_DEG)
+        if far(hi) < 0.0:
+            for _ in range(12):
+                mid = 0.5 * (lo + hi)
+                lo, hi = (mid, hi) if far(mid) > 0.0 else (lo, mid)
+        feet[k], held[side] = mul(ry(twist), rx(math.radians(hi))), ankle(hi)
+    return feet, held
+
+
 def flat(w, side, q):
     """Whether a foot is laid flat: in a side step, the one stepping out or not standing. Its
     ankle held where the plan's pitched foot kept its ball down, the flat foot hung 2 cm over

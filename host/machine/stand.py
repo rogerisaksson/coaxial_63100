@@ -108,18 +108,25 @@ def needed(director, bus, dt, out_):
     setpoints."""
     xi, q, _off, feet, h, pel, turn = out(director, bus, dt)
     omega = math.sqrt(9.81 / max(0.3, bus['pelvis.pose.com_y']))
-    if not dcm.due(_plane(xi, q, h)):
+    z = _plane(xi, q, h)
+    if not dcm.due(z):
         return None
-    # The foot that steps: one hanging, else the one bearing less - the other stands. Lifted
-    # bearing the more, the leg drew up under her and she dropped, the pelvis rolling 27 deg
-    # in 0.2 s (100 N from a side); the farther from the landing, it crossed the nearer
-    # (2026-10-04).
-    side, sign = min(walkplan.SIDES, key=lambda ss: (director.hang[ss[0]] < HANG_S,
-                                                     feet[ss[0]][2]))
+    # The foot that steps: one that can land where the capture point goes (`dcm.landing`); of
+    # two, one hanging, else the one bearing less. By what each bore alone, read a pass at a
+    # time, a push from her side was stood on the loaded leg's side step only where its load
+    # flickered to 0 N that pass: through its sensor's band the lighter foot's landing lay
+    # across the other and she took no step (80-100 N from her sides 0 of 6). Before each foot
+    # bore its share (`bearing.shared`), lifted bearing the more the leg drew up under her and
+    # she dropped, the pelvis rolling 27 deg in 0.2 s; the farther from the landing, it crossed
+    # the nearer (2026-10-04).
+    can = [(director.hang[side] < HANG_S, feet[side][2], side, sign, at)
+           for side, sign in walkplan.SIDES
+           for at in (dcm.landing(z, _plane(feet[walkplan._OTHER[side]][1], q, h), omega,
+                                  dcm.STEP_S, sign),) if at is not None]
+    if not can:
+        return None
+    _stands, _load, side, sign, at = min(can)
     other = feet[walkplan._OTHER[side]][1]
-    at = dcm.landing(_plane(xi, q, h), _plane(other, q, h), omega, dcm.STEP_S, sign)
-    if at is None:
-        return None
     was = feet[side][0]
     land = _within(_world(at, q, h), figure.hip(sign, pel, turn))
     director.stepping = {'side': side, 'sign': sign, 'land': land, 'q': q, 'h': h}

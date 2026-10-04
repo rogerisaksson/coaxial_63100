@@ -193,3 +193,24 @@ board's own are in [FINDINGS](../FINDINGS.md).
   and 20 - the rockers 100 % under every one, the bricks 66-96. By probe
   her quiet standing chatters under it, a foot at 0 N one row in two; the
   lack filtered over 50 ms the feet bear 161 and 162 N (its polar next).
+- The loads as a sensor has them (2026-10-04). The lack filtered over 50
+  and 150 ms (the lab's `SHARE_S`): the polar 26 and 25 of 48 against 32 -
+  60 N 12 and 11 of 12 against 9, the bricks 100 and 87 % against 96 and
+  63, 80-120 N 14 of 36 against 23: not taken. The soles' load itself
+  through a band (`physics.LOAD_S`): standing still its sd 131 and 98 N ->
+  13 at 10 ms and 0.02 at 20, no pass at 0 N against 104 and 88 a second;
+  the polar 24 and 26 of 48 at 10 and 20 ms - 60 N 12 of 12, from her sides
+  at 80-100 N 1 and 0 of 6. The foot that stepped was the lighter that pass,
+  and the loaded leg's side step that stood those pushes was called only where
+  its load flickered to 0 N; read calm, the lighter foot's landing lies
+  across the other and she takes no step. The foot that steps one that can
+  land where the capture point goes (`stand.needed`): the polar 29, 30, 32
+  and 30 of 48 at 0, 5, 10 and 20 ms; at 20 ms 60 N 12, 80 N 11, 100 N 7,
+  120 N none, the bricks 100 and 84 %, the rockers 100. Baked at 20 ms:
+  the scoreboard 229.0 and 86.4 % against 538.0 and 82.8 (408.6 and 85.2
+  at 5 ms) - every rise and walk 100 %, the soa event 100 from 54, the
+  nudge 100 from 77, the rug 54 from 77, the 120 N shoves 53 and 48 from
+  66 and 67. By probe at 100 N: from behind she stands at 20 ms with the
+  share's rate at 0.1 m/s and falls at 0.3; from a side at 0.1 she falls
+  and at 0.3 stands - at 5 ms and 0.3 both stand. The 120 N pushes are the
+  rate's and the band's to find together.

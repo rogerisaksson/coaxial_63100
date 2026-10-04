@@ -44,6 +44,15 @@ SERVO = {'spine': (142.5, 800.0, 30.0, 0.05), 'spine_roll': (77.4, 800.0, 30.0, 
 #: The world's step, s.
 STEP_S = 0.001
 
+#: Each sole's load as its sensor has it: the solver's through a first-order band of LOAD_S s.
+#: As the solver had it a pass, standing still it flickered 0-950 N, a foot at 0 N 104 passes
+#: a second - each let down for its share on it (`bearing.shared`) - and walking a leg's
+#: stance share with it (`stance.legs`), its setpoints 1.5-7 deg a pass to and fro. At 20 ms
+#: the feet stand on 159 and 160 N, sd 0.02; the walk's touchdown 769 -> 253 N, its power
+#: 683 -> 560 W; the scoreboard 229.0 and 86.4 % against 538.0 and 82.8, at 5 ms 408.6 and
+#: 85.2 (2026-10-04, docs/findings/standing.md, drives.md).
+LOAD_S = 0.02
+
 #: A drive's reading, in `World.reading`'s order.
 READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 
@@ -178,6 +187,8 @@ class World:
         #: (`drives.shock` what it takes).
         self.armature = m.dof_armature[self.vadr].copy()
         self.geared = np.zeros(len(JOINTS))
+        #: Each sole's load as last read (`pose`, LOAD_S), and when; None since the reset.
+        self.borne, self.borne_at = [0.0, 0.0], None
         #: Where the world has stepped to, s: `advance` returns on it without touching MjData.
         self.at = 0.0
         self.clock = lambda: self.data.time
@@ -240,6 +251,7 @@ class World:
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
         self.geared[:] = 0.0
+        self.borne_at = None
         self.stamp, self.at, self.glitch_at, self.pending = d.time, d.time, None, {}
         self.push_until, self.laced = -1.0, False
         self.model.tendon_range[self.lace_at] = (0.0, 10.0)
@@ -479,6 +491,10 @@ class World:
                 for i in np.flatnonzero(on[:, side]).tolist():
                     self._mj.mj_contactForce(m, d, i, force)
                     loads[side] += float(force[0])
+        if LOAD_S and self.borne_at is not None:
+            k = 1.0 - math.exp(-(d.time - self.borne_at) / LOAD_S)
+            loads = [w + k * (v - w) for w, v in zip(self.borne, loads)]
+        self.borne, self.borne_at = loads, d.time
         com, v = d.subtree_com[self.pelvis].tolist(), d.qvel[0:3].tolist()
         return dict(zip(('x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'), d.qpos[0:7].tolist()),
                     **dict(zip(('head_qw', 'head_qx', 'head_qy', 'head_qz'),
