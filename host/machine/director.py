@@ -103,7 +103,7 @@ class Director:
         self.getup, self.tries = getup.GetUp(machine), 0
         self.cause, self.tried, self.planning = '', [], None
         #: Standing: the steps since she landed, seconds since the last, each foot's hang.
-        self.treads, self.calm, self.hang = 0, 0.0, {}
+        self.treads, self.hang, self.stepping = 0, {}, None
         #: Each joint's drive by its node's channels, the legs'; a dropped drive's (heard at,
         #: wait) and when each was last armed.
         self.world = machine.nodes['pelvis'].world
@@ -146,7 +146,7 @@ class Director:
         self.tucked, self.down = None, None
         self.dropped, self.armed, self.tries = {}, {}, 0
         self.cause, self.tried, self.planning = '', [], None
-        self.treads, self.calm, self.hang = 0, 0.0, {}
+        self.treads, self.hang, self.stepping = 0, {}, None
 
     def halt(self):
         """Walking, to a stop and down into the squat."""
@@ -264,7 +264,9 @@ class Director:
             if self.arrival.stage != self.stage and self.arrival.stage == 'rest':
                 self.since = 0.0
             self.stage = self.arrival.stage
-            if self.stage == 'stand':
+            if self.stage == 'tread':
+                stand.retarget(self, bus)
+            if self.stage == 'stand' and self.arrival.stand_s:
                 frames = stand.needed(self, bus, dt, out)
                 if frames is not None:
                     self.arrival.play(frames)

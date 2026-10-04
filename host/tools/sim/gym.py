@@ -45,13 +45,17 @@ KNOBS = {
     'arrival.LIFT_UP_M': (0.03, 0.07, 'the first foot lifted this high, m'),
     'arrival.FIRST': (0.4, 0.8, "the first stride, of a stride's"),
     'arrival.PULL_UP_M': (0.05, 0.2, 'the pelvis target within this of the pelvis rising, m'),
-    'arrival.PRESS_M': (0.0, 0.02, 'a landed foot reaching this far under the floor until it bears, m'),
+    'bearing.PRESS_M': (0.0, 0.02, 'standing, a foot reaching this far under its mark until it bears, m'),
+    'bearing.SEEK_M_S': (0.1, 0.6, 'a landed foot seeking the floor this fast until it bears, m/s'),
     'stance.HALT': (0.3, 0.8, "halting, the stride down to this of its own"),
-    'stand.STEP_M': (0.02, 0.1, 'standing: out of the support by this she steps, m'),
-    'stand.DWELL_S': (0.15, 0.6, 'no second step sooner than this after one, s'),
-    'stand.GAIN': (0.0, 1.0, 'the step past the predicted capture point, of what it is out'),
-    'stand.STEP_MAX_M': (0.05, 0.3, 'a step no further than this, m'),
-    'stand.HANG_S': (0.05, 0.3, 'a foot unloaded this long is no support, s'),
+    'dcm.HOLD_M.across': (0.02, 0.06, "standing: the sole's hold across, past its point, m"),
+    'dcm.HOLD_M.along': (0.04, 0.12, 'its hold along, m'),
+    'dcm.STANCE_M': (0.0, 0.05, 'the step past the capture point as it will be at landing, m'),
+    'dcm.CLEAR_M.across': (0.09, 0.16, "the stepping foot's point clear of the standing one's across, m"),
+    'dcm.CLEAR_M.along': (0.2, 0.3, 'or along, m'),
+    'dcm.STEP_S': (0.15, 0.35, "a step's time from its call to bearing, s"),
+    'stand.HANG_S': (0.05, 0.3, 'a foot bearing nothing this long where its share is asked hangs, s'),
+    'stand.HANG_SHARE': (0.3, 0.6, "the share of her weight asked of it, of the centre of mass's"),
     'drives.TOE_K': (10.0, 60.0, "the toes' spring, N m/rad - no motor on them"),
     'drives.TOE_LOSS': (0.1, 0.6, "its damping, the sole's loss factor"),
 }
@@ -70,7 +74,9 @@ BRIEF = """You tune the balance of a walking humanoid robot simulated in MuJoCo:
 build, 27 joints each a drive holding a setpoint. From a squat she rises, steps off and walks;
 each foot lands on the capture point (the centre of mass plus its speed over omega, 3.3/s),
 the ankle holds it within the sole, a catch or a side step takes over when it runs off; standing,
-a point under each sole is her support and a step toward the capture point is her reflex. A
+a point under each sole is her support and one law her reflex (dcm): a step is due only with the
+capture point outside the sole's hold; the foot bearing less lands on the ray from the standing
+foot through the capture point as it will be at landing, STANCE_M past it. A
 scoreboard scores a candidate's knobs on a suite of trials: the share she stays up (held) and
 a cost (lower is better: falls 300 each, the walk's look, the landings' force). The scoreboard
 scores chance: near-identical builds 150 apart, so a span searched beats one value.

@@ -74,10 +74,12 @@ def lay(event, director, world, k=0, strides=0):
 #: ('brick') or the left BRICK_STAGGER_M ahead ('brick_on'); a nudge on a balance board, stiff
 #: ('board', rocking about her way; 'board_on', across it) or free ('rocker', 'rocker_on').
 #: Toward her left, from behind, the left brick, on an even `k`. `rigged` says how she lands
-#: for one, `rig` sets its floor under her landed, `befall` lays it.
+#: for one, `rig` sets its floor under her landed, `befall` lays it. A push's way is an angle
+#: in her plane (`machine.dcm`'s: 0 toward her left, 90 ahead), PUSH_DEG on: a knob, the
+#: circle swept by it.
 STANDING = ('nudge', 'nudge_on', 'shove', 'shove_on', 'brick', 'brick_on', 'board', 'board_on',
             'rocker', 'rocker_on')
-BRICK_STAGGER_M = 0.1
+BRICK_STAGGER_M, PUSH_DEG = 0.1, 0.0
 
 
 def rigged(event):
@@ -107,12 +109,11 @@ def befall(event, director, world, k=0):
     """`event` befalls her standing: a step `k` of its spread."""
     turn = director._pelvis(director.machine.loop.bus)[1]
     h = math.atan2(turn[0][2], turn[2][2])
-    sign = 1.0 if k % 2 == 0 else -1.0
     if event.startswith('brick'):
-        floor.take(world, 'brick_left' if sign > 0.0 else 'brick_right')
+        floor.take(world, 'brick_right' if k % 2 else 'brick_left')
         return
-    n = sign * SHOVES['shove' if event.startswith('shove') else 'nudge']
-    if event.endswith('_on'):
-        world.push((n * math.sin(h), 0.0, n * math.cos(h)), SHOVE_S)
-    else:
-        world.push((n * math.cos(h), 0.0, -n * math.sin(h)), SHOVE_S)
+    n = SHOVES['shove' if event.startswith('shove') else 'nudge']
+    a = math.radians(PUSH_DEG + (90.0 if event.endswith('_on') else 0.0) + 180.0 * (k % 2))
+    left, ahead = n * math.cos(a), n * math.sin(a)
+    world.push((left * math.cos(h) + ahead * math.sin(h), 0.0,
+                ahead * math.cos(h) - left * math.sin(h)), SHOVE_S)

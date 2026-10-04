@@ -43,6 +43,11 @@ CACHE = os.path.join(REPO, 'build', 'drive_demand.json')
 #: of `events.STANDING` after 'stand:' (the user, 2026-10-04).
 SCENES = (None, 'slip', 'nudge', 'hole', 'shove') + tuple('stand:' + e for e in events.STANDING)
 SCENE_S = 8.0
+#: A scene's margin where it is not MARGIN: the parries' and the falls' 1.2 (the user's call,
+#: taken 2026-10-04: a catch's 171 N m and 1259 deg/s at the hip bound the hips and knees at
+#: 1.5 - 1.26 of A's amps, 1.19 of its volts - where the walk, the gym and the run ask less).
+#: Each scene's peaks, speeds and watts go into the cache at its margin over MARGIN.
+MARGINS = {'slip': 1.2, 'nudge': 1.2, 'hole': 1.2, 'shove': 1.2}
 #: A run's demand a kind at the 2 m/s the running item asks (peak N m, peak deg/s, peak W) a kg,
 #: the rms RUN_RMS of the peak; folded in with `--run`. Estimated from the literature's 3-3.5 m/s
 #: peaks (Novacheck 1998, Schache 2011, Dorn 2012: hip 2.7, knee 3.0, ankle 3.6 N m; 450, 650,
@@ -191,7 +196,9 @@ def main(argv=None):
     else:
         # The scenes' demands folded: the peaks, the rms and the power their most, the load
         # its mean.
-        runs = [asked(args.to, values, scene) for scene in SCENES]
+        runs = [{j: (p * k, rms, s * k, w * k, load) for j, (p, rms, s, w, load) in
+                 asked(args.to, values, scene).items()}
+                for scene in SCENES for k in (MARGINS.get(scene or '', MARGIN) / MARGIN,)]
         got = {j: [max(r[j][i] for r in runs) if i != 4 else sum(r[j][4] for r in runs) / len(runs)
                    for i in range(5)] for j in runs[0]}
         os.makedirs(os.path.dirname(CACHE), exist_ok=True)

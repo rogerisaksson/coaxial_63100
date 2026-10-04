@@ -10,7 +10,7 @@ name two modules hold sets the first: TURN_DEG meant for the fall turned the wal
 """
 import importlib
 
-MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'falls', 'parry',
+MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'falls', 'parry', 'dcm', 'bearing',
            'getup', 'observer',
            'capture', 'physics', 'mjcf', 'build', 'buses', 'events', 'drives', 'stand', 'floor',
            'figure')

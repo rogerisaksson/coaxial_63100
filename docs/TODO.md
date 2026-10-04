@@ -17,8 +17,10 @@ layer under the patterns (the user, 2026-10-04): classical IK - the
 arrival's keyframes, the capture point placing each foot - hybrid with
 reinforcement learning, the learned part a residual on the IK's setpoints
 trained against MuJoCo by the grinder's loop (item 2), a table the
-director reads, not a controller a hypothesis. Every item below
-serves that; the first first. A line is a gap and its DOD
+director reads, not a controller a hypothesis. Every special case is a
+sign the problem wants a more general form - a space it lives in, the
+capture point's plane for standing (the user, 2026-10-04). Every item
+below serves that; the first first. A line is a gap and its DOD
 (done when), numbers where they are the criterion; the measurements behind
 each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
@@ -54,14 +56,24 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    perturbed a little under her, then walking. Standing rigged and scored
    (`events.STANDING`, the 'stand' suite, test_gynoid_stand.py; the
    board stiff and free, the bricks abreast and staggered): the nudges and
-   the stiff board 100 %, the shoves 48-50 at 120 N, the bricks 50-53, the
-   free rocker 62-86 (docs/findings/balance.md). The step (`machine.stand`)
-   with the landed foot's press stands a 60 N shove, not 100: the cross-over
-   lands and she still goes over; the brick's step down lands and she
-   leans back off both feet. P's shove at phase 0.14 to her left: the catch
-   overshoots and her head strikes at 1.74 m/s (the falls suite's crouch,
-   red since the merge; balance.md). Then walking: a hole, a sill, a
-   slope, a tilt, a brick gone. The way (the user, 2026-10-04): little
+   the stiff board 100 %, the shoves 45-49 at 120 N, the bricks 55-60, the
+   free rocker 63-90 (docs/findings/balance.md). The reflex one law
+   (`machine.dcm`, 2026-10-04: the capture point in the sole's hold, a step
+   due only outside it, the foot bearing less landing on the ray from the
+   standing foot through the capture point as it will be; no case for a
+   side or a rig), measured on the push polar (`events.PUSH_DEG`, 48
+   pushes over 8 ways): 25 stood - 60 N 12 of 12, 80 N 10, 100 N 3 (from
+   behind and from the front, on one step), 120 N none. Next, in the same
+   plane: a push with a side to it past the loaded foot - a cross-step in
+   front, or the loaded leg's side step off a quick crouch; the trunk
+   thrown into the fall (the angular momentum, a CMP past the sole, 60 N m
+   17 cm on her 35 kg); a ready crouch as the capture point strays - her
+   standing legs are straight, 3.8 cm of reach along the floor. P's shove
+   at phase 0.14 to her left: the catch
+   overshoots and her head strikes the floor (the falls suite's crouch,
+   red since the merge: 1.74 m/s once on driven toes, 4.31 m/s twice on
+   sprung ones at 40 deg, none at 30; balance.md). Then walking: a hole,
+   a sill, a slope, a tilt, a brick gone. The way (the user, 2026-10-04): little
    Python - the reflexes a prose stream encoded into meta-movement
    patterns over a small vocabulary of moves (step, lean, crouch, hold,
    catch; `machine.planner`'s way), a table of when and what the local
@@ -83,16 +95,20 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 4. **The push-off without toe motors** (the user, 2026-10-04: the motors
    off the feet, 21 drives; the toes alone flex, at the ball, a thin
    carbon-fibre sandwich with TPU or TPU round carbon rods glued with
-   silicone, `TOE_K` 25 and `TOE_LOSS` 0.3; the whole sole's foam and TPU
-   the contact's give, `mjcf.SOLE_S`): the scoreboard's walks and events
-   now start standing through the arrival's lean as the page starts her
-   (a dead start through the walker fell the first stride, 2026-10-04):
-   1452.7 and 49.0 % against 721.4 and 65.8 driven - the 0.65 walks 100 %,
-   the 0.85-1.0 walks 4-6 s before they fall, veering: the pelvis turned
-   79 deg over 16 s against 25 driven (docs/findings/walk.md); the grinder
-   on `gait.HEEL_OFF`, `TOE_OFF`, `LAND_DEG`, `drives.TOE_K`, `TOE_LOSS`.
-   DOD: the scoreboard at or over 65.8 % with the toes sprung; every rise
-   and walk standing; the damping from the sandwich's numbers.
+   silicone, `TOE_K` 10 and `TOE_LOSS` 0.3; the whole sole's foam and TPU
+   the contact's give, `mjcf.SOLE_S`): the heel off at 0.5 of the stride
+   and the foot 40 deg down at toe-off, the scoreboard 641.7 and 78.6 %
+   against 721.4 and 65.8 on driven toes - the walks 100, 100, 90 and 80 %
+   at 0.65-1.0, the rises 100, 100 and 69 (docs/findings/feet.md). She
+   walks lower for it: no heel's rise as the other foot lands, the landing
+   knee at 35-38 deg where it stood straight, the pelvis 2-3 cm down - a
+   knee's board in its SOA folds it (the soa event 54 %), and the knees'
+   heat is unmeasured. Next: a toe spring (the toes' rest angle, a rocker)
+   for a heel's rise without a motor, or a shorter stride at a higher
+   cadence; the grinder on `gait.HEEL_OFF`, `TOE_DEG`, `RISE_DEG`,
+   `drives.TOE_K`, `TOE_LOSS`. DOD: every rise and walk standing; the
+   standing knee under 10 deg at mid-stance; the knees' T in `drive_sizes`
+   as on driven toes; the damping from the sandwich's numbers.
 5. **A real sneaker** (the user, 2026-10-04; the sole printed in TPU with
    air pockets, the shoe over it so nothing breaks): a 37-38's length, width,
    heel and toe spring; its sole's give, its forefoot's bend as the sprung
@@ -199,10 +215,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 25. **MuJoCo Warp** on the RTX 4080 SUPER (the user, 2026-10-02): the
     scoreboard's worlds batched. DOD: its step against the CPU's 0.31 ms
     measured first; the boards at 1 kHz beside it.
-26. **`machine/` in subpackages**; `arrival.py` and `gait_montecarlo.py`
-    stand at their 6 k caps (2026-10-04): the trial into its own module,
-    the arrival's keyframes from its player. DOD: `test_structure` on the
-    layout, each file under 5 k.
+26. **`machine/` in subpackages**; `gait_montecarlo.py` stands at its 6 k
+    cap, `director.py` at 5.9 (2026-10-04; `arrival.py` 5.2 with its legs'
+    bearing out in `bearing.py`): the trial into its own module. DOD:
+    `test_structure` on the layout, each file under 5 k.
 
 ## Bench
 

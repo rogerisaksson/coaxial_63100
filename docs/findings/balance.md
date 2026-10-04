@@ -261,3 +261,71 @@ shoves, the scoreboard and its searches. The board's own are in
   the dropped side faster than the second step at any cap 0.1-0.3, gain
   0.1-0.8, dwell 0.25-0.4: not taken either. The drop's momentum, not the
   step, is the gap.
+- One law for standing (`machine.dcm`, 2026-10-04; the user: every
+  special case a sign the problem wants a more general form): the capture
+  point in the sole's hold - an ellipse 4 cm across and 8 along about the
+  support's point nearest it -, a step due only outside it, landing on the
+  ray from the measured centre of pressure through the capture point as it
+  will be at STEP_S 0.22, STANCE_M 2 cm beyond; the foot that steps the
+  hung one, else the farther from the landing; a foot hangs bearing
+  nothing 0.15 s where the centre of mass asks 45 % of it; any foot
+  reaches 1 cm under for what it does not bear. The stand suite 76.5 % and
+  177.9 against the nine-constant reflex's 74.7 and 215.2: the nudges, the
+  boards and the staggered rocker 100 %, the free rocker 73, the shoves and
+  the bricks 45-49; the nudges and the 60 N shoves stand with no step at
+  all. On the way: a landing 8 cm beyond a round 4 cm hold returned every
+  step as the next; a step called inside the hold by the time to leave
+  fired on 2 cm with the ankle already bringing it back; run from the
+  hold's edge rather than the centre of pressure every step on a 120 N
+  push landed short; a foot hung by its load alone made the foot a push
+  unloads no support, and she stepped inward for nothing.
+- The push polar (`events.PUSH_DEG`, a push's way an angle in her plane;
+  `gait_montecarlo --suite stand --grid events.PUSH_DEG=0,45
+  events.SHOVES.shove=60,80,100,120`, 48 pushes over 8 ways, 2026-10-04),
+  the one law as first built: 20 of 48 stood - 60 N 11 of 12, 80 N 9 of 12
+  (none of 3 along her way), 100 and 120 N none of 24. She stood what the
+  hold alone holds - 6.2 cm of capture point at 60 N, 8.3 at 80, the sole
+  8.6 along and 11 across from her middle - and no push that asks a step.
+- Why no step stood, traced a row every 25 ms (2026-10-04): on sprung toes
+  the stepping foot was pinned as it left the floor, the ankle 1-2 cm up
+  and the toes still pressing 60-157 N, and never went to its landing -
+  pinned now only coming down (a keyframe's `land`); pinned at its first
+  touch, toes first and the ankle 1.2 cm up, it levelled 2 mm over the
+  floor at 0 N - it seeks the floor from there until it bears
+  (`bearing.SEEK_M_S`); her standing legs are straight - the hip 0.769 m
+  over the ankle of a 0.770 m reach, 3.8 cm of it along the floor, 17.8 at
+  2 cm down, 24.8 at 4, 30.0 at 6 - so over the front foot after a step the
+  rear leg hung 2.4 cm off the floor and she stood on one foot's toes: the
+  pelvis no higher than both legs reach (`bearing.height`); called 30 ms
+  into a 120 ms push the landing fell 5 cm short - aimed anew in flight
+  (`stand.retarget`); the hold as an ellipse called a second step with the
+  capture point on the landed sole - a box; pushed from the front, both
+  feet's loads chattering 0-850 N on her heels, neither leg held the
+  pelvis and it pitched 54-65 deg back in 0.15 s under a plumb torso.
+- The landing's three forms on the polar (2026-10-04). On the ray from the
+  centre of pressure through the capture point, the steps' mechanics
+  mended: 80-120 N 14 of 36, a push from behind stood at 80, 100 and 120 N
+  on one step; the pelvis height's variants beside it - the stepping foot
+  in the reach limit or not, the target held within 1 cm of the pelvis or
+  not - 11-14 of 36, chance. The support carried past the capture point
+  along the way it left, the feet kept apart (a half-plane): wrong - on
+  point feet the capture point is held only on the line between them -
+  and every push with a side to it fell. On the ray from the standing
+  foot's point (`dcm.landing`; the foot bearing less steps, the capture
+  point running from the other alone, so a push from behind lands the foot
+  in its own lane): 25 of 48 - 60 N 12 of 12, 80 N 10, 100 N 3 (from
+  behind 1 of 1, from the front 2 of 2), 120 N none - and the bricks 55-60
+  % from 48-51, the boards and the nudges 100, the rockers 63 and 90.
+  Still down: 120 N any way, and 100 N with a side to it - the capture
+  point passes the loaded foot, the free foot's landing lies across it
+  (none, by `dcm.landing`), and the loaded one lifted from under her
+  drops her, the pelvis rolling 27 deg in 0.2 s.
+- The day's build (2026-10-04: the toes sprung at `TOE_K` 10, the heel off
+  at 0.5 and 40 deg, the one law standing): the scoreboard 641.7 and 78.6
+  % over 28 trials against the morning's 729 and 65.7 on driven toes - the
+  sill and the slips 100 %, hot 93, the rug and the nudge 77, soa 54, the
+  hole 33, the lace 26, the stand suite 77.5, the walks 100, 100, 90 and
+  80. Fallen at 10.5 s to P's shove she walks again at 33.2 s. The tests'
+  single runs flip with the push-off: at 30 deg the falls suite 44 of 44
+  and the faults' walk-on down; at 40 the faults 9 of 9 and her head on
+  the floor twice, 4.31 m/s at most.

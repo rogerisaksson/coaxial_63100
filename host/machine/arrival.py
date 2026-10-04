@@ -14,10 +14,10 @@ feet carry her (2026-09-25).
 import math
 from typing import Any
 
-from machine import figure, gait, walker, walkplan, stance
+from machine import bearing, figure, gait, walker, walkplan
 from machine.figure import LEG, add, mul, rx, ry, sub
 
-#: The ankles FEET_X either side of the line, at z 0, squatting and standing.
+#: The ankles FEET_X either side of the line, at z 0.
 FEET_X = 0.08
 
 #: The centre of mass fed back through the pelvis's target: its error, 1, and its speed's, s -
@@ -37,16 +37,6 @@ STOP_M = 0.05
 
 #: The speed's filter, s.
 SPEED_S = 0.01
-
-#: A keyframe's `swing` foot, lifted LIFTED_M over where it began, is pinned where it bears,
-#: reaching PRESS_M under it for what it does not bear: solved from the pelvis as it is, it sat
-#: on the floor at 0 N as the capture point passed over it (60 N shove, 2026-10-04).
-LIFTED_M, PRESS_M = 0.01, 0.01
-
-#: How far a leg is a stance leg, by what it bears, moves no faster than BEAR_S from none to all:
-#: at once, its load flickering about `stance.LANDED_N` as the foot lifted into the first step
-#: switched the leg between target and pelvis, the knee 2-8 deg a pass (2026-10-01).
-BEAR_S = 0.05
 
 #: Over the feet: the centre of their soles, m ahead of the ankles.
 FEET_Z = (gait.BALL - gait.HEEL) / 2.0
@@ -128,15 +118,9 @@ def angles_of(frame, turn=None):
     out.update(frame['joints'])
     for side, sign in (('left', 1.0), ('right', -1.0)):
         ankle, pitch = frame[side]
-        for k, v in zip(LEG, figure.leg(sign, frame['pelvis'], turn, ankle, _foot(frame, pitch))):
+        for k, v in zip(LEG, figure.leg(sign, frame['pelvis'], turn, ankle, bearing.foot(frame, pitch))):
             out[side + k] = math.degrees(v)
     return out
-
-
-def _foot(frame, pitch):
-    """A keyframe's foot's turn: pitched toes-up `pitch` deg, facing its `yaw` - unturned, up
-    from a fall facing back, the legs were solved half a turn twisted (2026-09-30)."""
-    return mul(ry(math.radians(frame.get('yaw', 0.0))), rx(math.radians(pitch)))
 
 
 def com_of(frame):
@@ -294,7 +278,7 @@ class Arrival:
             span = 2.0 * abs(self.coms[1][2] - self.coms[0][2]) / speed
             self.frames[1] = (stage, min(ENTER_S[1], max(ENTER_S[0], span)), frame)
         self.t, self.stage, self.com_was, self.v = 0.0, frames[0][0], None, (0.0, speed)
-        self.want_was, self.borne, self.pinned, self.lifted = None, {}, {}, {}
+        self.want_was, self.borne, self.pinned = None, {}, {}
 
     def land(self, drop=0.002, up=0.0, stagger=0.0, stage='squat'):
         """The body placed still at `stage`'s first keyframe - the squat, or 'stand' -, `drop` m
@@ -364,7 +348,8 @@ class Arrival:
         if far > pull:
             x = bus['pelvis.pose.x'] + (x - bus['pelvis.pose.x']) * pull / far
             z = bus['pelvis.pose.z'] + (z - bus['pelvis.pose.z']) * pull / far
-        frame = dict(frame, pelvis=(x, p[1], z))
+        frame = dict(frame, pelvis=(
+            x, bearing.height(self.pinned, frame, _turn(frame), bus, p[1], self.stand_s), z))
         # The pelvis's attitude turned back past its error, as the walker turns it: held by the
         # legs' servos alone, it tipped back as she rolled onto the stepping foot.
         turn = _turn(frame)
@@ -379,42 +364,5 @@ class Arrival:
         local = mul(ry(-math.radians(frame.get('yaw', 0.0))), now)
         out['spine'] += walker.PLUMB * (frame['tilt']
                                         - math.degrees(math.atan2(local[2][1], local[1][1])))
-        # A leg bearing under `stance.LANDED_N` reaches from the pelvis as it is, as the walker's
-        # swinging leg: from the pelvis's target, moved by the feedback, the stepping foot landed
-        # 8 cm off (2026-09-26). A keyframe's `planted` feet are stance whatever they bear:
-        # crouched with her hands down, both read light and she was flung up. Its `swing` foot
-        # (1 left, -1 right) reaches whatever it bears - stance for 50 ms, a standing step pushed
-        # her off the other foot - and is `pinned` where it lands, PRESS_M under: 2 cm under
-        # hopped her 4 cm up (2026-10-04).
-        pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
-        for side, sign in walkplan.SIDES:
-            load = bus['pelvis.pose.%s_load' % side]
-            swing = frame.get('swing', 0.0) * sign
-            b = min(1.0, max(frame.get('planted', 0.0), load / stance.LANDED_N))
-            b *= max(0.0, min(1.0, 1.0 - swing))
-            if swing > 0.5 and side not in self.pinned:
-                # Lifted by height: by load, a foot hanging on a brick was pinned at once.
-                at = figure.foot_of(sign, pel, now, tuple(
-                    math.radians(bus.get(side + k + '.deg', 0.0)) for k in LEG))[0]
-                lifted = self.lifted.setdefault(side, at[1])
-                if at[1] > lifted + LIFTED_M:
-                    self.lifted[side] = math.inf
-                elif lifted == math.inf and load >= stance.LANDED_N:
-                    self.pinned[side] = at
-            elif swing <= 0.0:
-                self.pinned.pop(side, None)
-                self.lifted.pop(side, None)
-            was = self.borne.get(side, b)
-            b = self.borne[side] = max(was - dt / BEAR_S, min(was + dt / BEAR_S, b))
-            if b < 1.0:
-                ankle, pitch = frame[side]
-                p = self.pinned.get(side)
-                if p:
-                    ankle = (p[0], p[1] - PRESS_M * (1.0 - b), p[2])
-                hip_from = tuple(b * a + (1.0 - b) * c for a, c in zip(frame['pelvis'], pel))
-                reach = figure.mul(walkplan.turned(tuple(b * c for c in walkplan.vee(
-                    figure.mul(turn, figure.t(now))))), now)
-                for k, v in zip(LEG, figure.leg(sign, hip_from, reach, ankle,
-                                                  _foot(frame, pitch))):
-                    out[side + k] = math.degrees(v)
+        bearing.legs(self.borne, self.pinned, frame, turn, now, bus, dt, bool(self.stand_s), out)
         return out

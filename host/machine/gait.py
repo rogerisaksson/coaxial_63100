@@ -76,13 +76,13 @@ KNEE_MIN_DEG = 4.0
 #: still stood 1 degree ahead of upright as the toes left the floor, 196 mm behind the hip -
 #: her feet in front (`STANCE_AT`); at 0.66, 8.5 behind, 235 mm; 0.68, 11.7 and the head's bob
 #: 31 mm; 0.7, 22.9 and her head 140 mm fore and aft (2026-09-28).
-SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.36, 0.66, 15.0, -75.0
+SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.5, 0.66, 15.0, -75.0
 
 #: The foot's pitch at toe-off, degrees toes-up, and its rate and acceleration there, a stride
 #: and a stride squared: the heel rises fastest at toe-off and on into the air. Eased to a stop
 #: there, the whole foot stood still, the knee straightened -180 deg/s and then bent +409
 #: (2026-09-25).
-TOE_DEG, TOE_RATE, TOE_ACC = -50.0, -300.0, 4000.0
+TOE_DEG, TOE_RATE, TOE_ACC = -40.0, -300.0, 4000.0
 
 #: The heel up RISE_DEG toes-down as the other foot lands (RISE_AT), turning RISE_RATE a stride:
 #: up 4 there, the trailing leg held the hips at 822 mm where the landing leg needed 841 to land

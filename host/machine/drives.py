@@ -163,7 +163,7 @@ PASSIVE = {'gripper': (40.0, 1.0, 80.0)}
 #: carbon-fibre sandwich with a TPU core, or TPU printed round carbon rods glued in with silicone
 #: (the user, 2026-10-04): springy but damped, the TPU's loss factor TOE_LOSS at the push-off's
 #: TOE_RAD_S, c = loss k / omega (`passive`). The motors off them (the user, 2026-10-04).
-TOE_K, TOE_LOSS, TOE_RAD_S = 25.0, 0.3, 20.0
+TOE_K, TOE_LOSS, TOE_RAD_S = 10.0, 0.3, 20.0
 
 
 def _stack(kind):
