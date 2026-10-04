@@ -3,6 +3,7 @@
 
     python tools/sim/drive_sizes.py              # the rise and 24 s of walk, simulated
     python tools/sim/drive_sizes.py --cached RATIO=36   # the last run's demand, the stacks as set
+    python tools/sim/drive_sizes.py --cached --run      # with a run's demand folded in (RUN)
 
 A row a joint kind (the worse side), from the squat through the walk as the page runs her, the
 drive's numbers at MARGIN times what she asked, each 1 where its part binds (docs/findings/drives.md):
@@ -39,6 +40,26 @@ CACHE = os.path.join(REPO, 'build', 'drive_demand.json')
 #: the page's shove laid at SCENE_S - her parries and falls ask the peaks (one walk's knee asked
 #: 1231 deg/s with a catch in it, 561 without, 2026-10-03).
 SCENES, SCENE_S = (None, 'slip', 'nudge', 'hole', 'shove'), 8.0
+#: A run's demand a kind, the literature's at 3-3.5 m/s a kg of her (Novacheck 1998, Schache
+#: 2011, Dorn 2012): (peak N m, peak deg/s, peak W) a kg, the rms RUN_RMS of the peak - the aim
+#: is that she runs, with headroom (the user, 2026-10-04); folded in with `--run`.
+RUN = {'hip': (2.7, 450.0, 7.0), 'knee': (3.0, 650.0, 10.0), 'ankle': (3.6, 850.0, 12.0),
+       'hip_roll': (1.8, 300.0, 3.0), 'hip_yaw': (0.6, 300.0, 1.0), 'ankle_roll': (0.8, 300.0, 1.5),
+       'spine': (1.5, 200.0, 2.0), 'spine_roll': (1.2, 200.0, 1.5), 'waist': (0.5, 200.0, 1.0)}
+RUN_RMS = 0.4
+
+
+def running(got):
+    """`got` {joint: (peak, rms, speed, watts, load)} with a run's demand (RUN) folded in: each
+    the larger, the load hers."""
+    from machine import drives
+    from machine.figure import MASS_KG
+    out = {}
+    for joint, (peak, rms, speed, watts, load) in got.items():
+        nm_kg, deg_s, w_kg = RUN.get(drives.kind(joint), (0.0, 0.0, 0.0))
+        out[joint] = (max(peak, nm_kg * MASS_KG), max(rms, RUN_RMS * nm_kg * MASS_KG),
+                      max(speed, deg_s), max(watts, w_kg * MASS_KG), load)
+    return out
 
 
 def held(joint):
@@ -139,6 +160,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--to', type=float, default=28.0, help='seconds simulated from the squat')
     parser.add_argument('--cached', action='store_true', help="the last run's demand")
+    parser.add_argument('--run', action='store_true', help="a run's demand folded in (RUN)")
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
@@ -146,6 +168,7 @@ def main(argv=None):
         from tools.sim.gait_montecarlo import _set
         _set(values)
         got = json.load(open(CACHE))
+        got = running(got) if args.run else got
     else:
         # The scenes' demands folded: the peaks, the rms and the power their most, the load
         # its mean.

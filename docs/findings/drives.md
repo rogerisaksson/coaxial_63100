@@ -152,6 +152,15 @@ board's in [FINDINGS](../FINDINGS.md).
   the 64 mm 0.91 and 0.47 - B, the shoulder's stack +23 mm past her skin
   standing (+22 before). With the wrists held and the boxes B, A at KV
   110 scored 623 and 72.7 %, at 120 763 and 72.9: 110 kept, two windings.
+- A run's demand folded into the sizing (`drive_sizes --run`, the
+  literature's peaks a kg at 3-3.5 m/s: hip 2.7, knee 3.0, ankle 3.6 N m,
+  the rms 0.4 of them, 7-12 W a kg; the aim, the user, 2026-10-04): the
+  hips' and knees' numbers unchanged - the walk's parries ask more than a
+  run -; the ankle binds, 147 -> 198 N m peak, on B A 1.32, T 5.26, S
+  1.27, V 1.15, the hip roll's T 2.92 as before. On frame A with its box
+  and inverter the ankle 0.80, 0.73, 0.56, 0.94, the ankle roll 0.59 and
+  0.20, the hip roll 0.57 and 0.41: every leg joint on A is 3.9 kg more
+  drive (14.2 -> 18.1 of 55).
 - A third frame, C, 40 mm round and 12 deep at KV 200, for the elbow, the
   neck, the head and the toes (the fewest parts, the user, 2026-10-04):
   on B the elbow's rotor reflected 4.2 times its load's inertia
