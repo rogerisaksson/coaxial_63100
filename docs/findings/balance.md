@@ -221,3 +221,10 @@ shoves, the scoreboard and its searches. The board's own are in
   gearbox past its rating -; 1.0 and 0.25 442 and 64.6, 1.108 and 0.15
   311 and 60.3. The built values stay; a blind 6-knob search at 8 x 12
   overbooked the relay and was stopped unlogged.
+- Point feet (`figure.POINT_FEET`, a sphere under each sole's centre): from
+  the squat she falls in the rise at 1.77 s - the arrival's feedback is
+  the ankle's, nothing on a point; stilts need a step to rise (2026-10-04).
+- Shoved standing from her side (`look.py --stand shove`, the shove's
+  newtons a knob): 60, 80 and 100 N for 0.12 s all fell her at 6.2-6.5 s,
+  two or three steps taken; 38 N she holds without a step. Past saving
+  standing lies between 38 and 60 N (2026-10-04).
