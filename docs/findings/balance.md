@@ -203,3 +203,15 @@ shoves, the scoreboard and its searches. The board's own are in
 - The 15 cm pull through the push, the rise and the stand alone, the first
   strides at 5 cm as the squat: the rises 76, 100, 99 % again (91.8) with
   the stand suite's 74.7 kept (2026-10-04).
+- The scoreboard at the day's end (`--suite all`, 28 trials, 2026-10-04):
+  729 and 65.7 % - the rises 76, 100, 99; the walks 71, 100, 31, 12 at
+  0.65-1.0; the events hole 77, sill 100, slip 76, rug 29, the sill at
+  0.65 19, the slip at 0.9 18, SOA 77, hot 100, lace 26, nudge 54; the
+  shove 27; standing nudges and the stiff board 100, shoves 49, bricks
+  49 and 53, the rocker 62 and 85. The fast walks and the catches are
+  the gap.
+- The brick, read closer (2026-10-04): after the step down her loads bounce
+  0-1100 N a foot for 0.4 s (stood 4 cm lower the same); the second step
+  takes the brick's foot 10 cm back onto the brick's rear edge - the
+  controller knows no brick - where, pinned, it bears 0-8 N, and she goes
+  on one leg to a third step and a fall at 6.7-6.9 s.

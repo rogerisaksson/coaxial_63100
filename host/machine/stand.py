@@ -41,7 +41,8 @@ STEP_M, DWELL_S, GAIN, CLEAR_M, CROSS_M, LUNGE, HANG_S = 0.06, 0.4, 0.1, 0.16, 0
 STEP_MAX_M = 0.1
 
 #: A step: the foot lifted LIFT_M over LIFT_S, down over DOWN_S or at DOWN_M_S from higher;
-#: stood again over STOOD_S, the landed leg eased into stance over it.
+#: stood again over STOOD_S, the landed leg eased into stance over it. Stood 4 cm lower after
+#: a step the hop stayed, 0-1114 N a foot (2026-10-04).
 LIFT_M, LIFT_S, DOWN_S, DOWN_M_S, STOOD_S = 0.04, 0.1, 0.12, 0.6, 0.3
 
 #: The sole's centre, m ahead of the ankle: the point a foot stands on.
