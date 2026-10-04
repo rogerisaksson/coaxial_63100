@@ -192,3 +192,11 @@ shoves, the scoreboard and its searches. The board's own are in
   (`stand.STEP_MAX_M`), four of them, the body backward-left at 1 m/s by
   the fourth, down at 6.6. Standing on the lower foot after the step, her
   weight runs back whatever the stood target: not understood yet.
+- The free rocker felled every rise with the pelvis target held within 5
+  cm (`arrival.PULL_M`): the pull by stage - 5 cm in the squat and the
+  look, where the get-up's hand-over flung her, `PULL_UP_M` from the push
+  on. At 0.15 she rises on the rocker and stands through the nudge: the
+  stand suite 65.2 -> 74.7 % (the rocker 27 -> 62, rocking ahead 21 ->
+  85), the look suite 69.9 -> 64.2 (the rises 76, 100, 99 -> 90, 75, 71 at
+  0.6-0.9); both get-ups after P's shove walk again. Standing first:
+  0.15 (2026-10-04).

@@ -9,8 +9,11 @@ Sized in the gym (the user, 2026-10-04: `drive_sizes`' scenes, the page's
 rigs) for the most mechatronic simplicity, DFM and printability: few
 variants of the many-part, toleranced components - gearboxes, electronics
 -, which drive complexity and cost; stock lengths, linkages and ball
-bearings are cheap. Every item below serves that; the first first. A line
-is a gap and its DOD
+bearings are cheap. A DOD runs from the LLM to the metal (the user,
+2026-10-04): a pattern written in prose, picked by the model, driven by
+the director over the bus to the boards' firmware and the drives - on the
+emulator or the bench, not the simulated director alone. Every item below
+serves that; the first first. A line is a gap and its DOD
 (done when), numbers where they are the criterion; the measurements behind
 each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
@@ -45,15 +48,22 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    fells the rise. P's shove at phase 0.14 to her left: the catch
    overshoots and her head strikes at 1.74 m/s (the falls suite's crouch,
    red since the merge; balance.md). Then walking: a hole, a sill, a
-   slope, a tilt, a brick gone. The aim a meta-control-law that learns a
-   hard surface and keeps
-   her balance on it. DOD: a 'stand' suite on the
+   slope, a tilt, a brick gone. The way (the user, 2026-10-04): little
+   Python - the reflexes a prose stream encoded into meta-movement
+   patterns over a small vocabulary of moves (step, lean, crouch, hold,
+   catch; `machine.planner`'s way), a table of when and what the local
+   model and the observer pick from, each hypothesis a line, not a
+   controller. The aim a meta-control-law that learns a hard surface and
+   keeps her balance on it. DOD, from the LLM to the metal: a 'stand'
+   suite on the
    scoreboard - the nudges, the bricks, the board - 100 % standing, on the
    board still but for micro-adjustments under the walk's stir; point feet
    (`figure`'s contacts a sphere at each ball, a knob) and the box sole
    alike; the walk's events joined by the slope, the tilt and the brick,
    the scoreboard at or over today's; the first stride stands with the
-   heel and the toes moved +-1 cm; the sprung toes (item 4) held by it.
+   heel and the toes moved +-1 cm; the sprung toes (item 4) held by it;
+   the patterns driven over the bus to the emulated boards (`emulator://`,
+   `native://`), the drives turning, not the simulated director alone.
 3. **Running**: a gait with flight, from the walk's search. DOD: 2 m/s
    standing on the scoreboard, no strike over 2 kN, the parries, falls and
    get-ups of the biped's suite held as walking.
@@ -80,7 +90,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    (`figure.PADS`), the joints covered. DOD: the floor's force on a drum, a
    board or a tube in the falls suite and the scoreboard's falls measured
    and 0; the look practical and technological, no chrome, no lit lines,
-   judged on a PNG.
+   the plates under her jeans and T-shirt and read through them as shape
+   only (the user, 2026-10-04), judged on a PNG.
 7. **Fewest parts** (the user; `tools/sim/bom.py` 27 types): every holder
    and lever a 2.5D print. DOD: one bearing size, one rod end; the hip
    roll's spur pair and the ankles' bent rods each kept only where its cut

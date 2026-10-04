@@ -23,9 +23,10 @@ FEET_X = 0.08
 
 #: The centre of mass fed back through the pelvis's target: its error, 1, and its speed's, s -
 #: against the keyframes' own: against none, it braked her into the settling and she fell back
-#: (2026-09-26). The target within PULL_M of the pelvis along the floor: 12.7 cm of error at a
-#: get-up's hand-over sent it 19 cm off and the legs flung her to 1.04 m (2026-10-04).
-COM_K, COM_D, PULL_M = 1.5, 0.15, 0.05
+#: (2026-09-26). The target within PULL_M of the pelvis in the squat (12.7 cm of error at a
+#: get-up's hand-over flung her to 1.04 m), PULL_UP_M from the push on (at 0.05 the free rocker
+#: felled every rise: the stand suite 65.2 -> 74.7 %, the look 69.9 -> 64.2) (2026-10-04).
+COM_K, COM_D, PULL_M, PULL_UP_M = 1.5, 0.15, 0.05, 0.15
 
 #: Entered moving, the first keyframe is reached slowing from her speed, over as long as that
 #: takes, within ENTER_S seconds.
@@ -229,8 +230,7 @@ def keyframes(cadence=gait.CADENCE, stand_s=0.0) -> list[tuple[str, float, dict[
 
 
 def moved(frame, dx, dz, yaw=0.0, dy=0.0) -> dict[str, Any]:
-    """`frame` turned `yaw` degrees about the walk's line and moved `dx` sideways, `dz` on
-    along the floor and `dy` up."""
+    """`frame` turned `yaw` degrees about the walk's line, moved `dx` across, `dz` on, `dy` up."""
     def put(p):
         return add(figure.apply(ry(math.radians(yaw)), p), (dx, dy, dz))
     return dict(frame, pelvis=put(frame['pelvis']), yaw=yaw,
@@ -239,17 +239,16 @@ def moved(frame, dx, dz, yaw=0.0, dy=0.0) -> dict[str, Any]:
 
 
 def staggered(frame, m) -> dict[str, Any]:
-    """`frame` with its left foot `m` / 2 ahead and its right as far behind."""
+    """`frame`, the left foot `m` / 2 ahead and the right as far behind."""
     return dict(frame, left=(add(frame['left'][0], (0.0, 0.0, m / 2.0)), frame['left'][1]),
                 right=(add(frame['right'][0], (0.0, 0.0, -m / 2.0)), frame['right'][1]))
 
 
 def settling(now, front, cadence=gait.CADENCE) -> list[tuple[str, float, dict[str, Any]]]:
-    """[(stage, seconds, keyframe)] from `now`, a keyframe of her in mid-step on both feet, to the
-    squat beside the front foot: her weight onto the front foot, laid flat at `front` (its
-    ankle), STOP_M ahead of it as the rear foot swings up, the rear set down beside it on the
-    squat's stance, her weight back between them, stood up, the arms down, crouched, squatted -
-    `rest`. The arrival's own step, backwards."""
+    """[(stage, seconds, keyframe)] from `now`, her mid-step on both feet, to the squat beside
+    the front foot: her weight onto it, laid flat at `front` (its ankle), STOP_M ahead as the
+    rear swings up and is set down beside it on the squat's stance, her weight back between
+    them, stood, the arms down, crouched, squatted - `rest`. The arrival's step, backwards."""
     frames = keyframes(cadence)
     squat, push, rise = (frames[k][2] for k in (0, 3, 5))
     ahead = 'left' if now['left'][0][2] >= now['right'][0][2] else 'right'
@@ -301,8 +300,8 @@ class Arrival:
         self.want_was, self.borne, self.pinned, self.lifted = None, {}, {}, {}
 
     def land(self, drop=0.002, up=0.0, stagger=0.0):
-        """The body placed in the squat, still, `drop` m over a floor `up` m above the world's,
-        the left foot `stagger` m ahead."""
+        """The body placed in the squat, still, `drop` m over a floor `up` m high, the left
+        foot `stagger` m ahead."""
         self.play([(s, t, moved(staggered(f, stagger), 0.0, 0.0, 0.0, up))
                    for s, t, f in keyframes(self.cadence, self.stand_s)])
         frame = self.frames[0][2]
@@ -362,9 +361,10 @@ class Arrival:
                                           + (bus['pelvis.pose.z'] - z) * way[1])
         x, z = x + on * way[0], z + on * way[1]
         far = math.hypot(x - bus['pelvis.pose.x'], z - bus['pelvis.pose.z'])
-        if far > PULL_M:
-            x = bus['pelvis.pose.x'] + (x - bus['pelvis.pose.x']) * PULL_M / far
-            z = bus['pelvis.pose.z'] + (z - bus['pelvis.pose.z']) * PULL_M / far
+        pull = PULL_M if self.stage in ('squat', 'look') else PULL_UP_M
+        if far > pull:
+            x = bus['pelvis.pose.x'] + (x - bus['pelvis.pose.x']) * pull / far
+            z = bus['pelvis.pose.z'] + (z - bus['pelvis.pose.z']) * pull / far
         frame = dict(frame, pelvis=(x, p[1], z))
         # The pelvis's attitude turned back past its error, as the walker turns it: held by the
         # legs' servos alone, it tipped back as she rolled onto the stepping foot.
@@ -385,9 +385,8 @@ class Arrival:
         # landed 8 cm off its mark (2026-09-26). A keyframe's `planted` feet are stance whatever
         # they bear: crouched with her hands down, both read light and she was flung up. Its
         # `swing` foot (1 the left, -1 the right, eased out) reaches whatever it bears - stance
-        # for the 50 ms its load took to read lifted, a standing step pushed her off the other
-        # foot - and is `pinned` where it lands: driven on to a floor 2 cm under where it met
-        # it, its leg hopped her 4 cm up (`machine.stand`, 2026-10-04).
+        # for 50 ms, a standing step pushed her off the other foot - and is `pinned` where it
+        # lands: driven 2 cm under where it met the floor, its leg hopped her 4 cm up (2026-10-04).
         pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
         for side, sign in walkplan.SIDES:
             load = bus['pelvis.pose.%s_load' % side]
