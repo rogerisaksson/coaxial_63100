@@ -235,8 +235,8 @@ def _meshes():
                   ('%s_cap' % side, 'torso', (0.135 * x, 0.335, -0.004),
                    ellipsoid((0.0, 0.0, 0.0), (0.05, 0.042, 0.046), PLATE, rows=8))]
         meshes.update({
-            side + '_upper_arm': limb(UPPER_ARM, 0.04, 0.035, 0.026 + PAD_FULL_M, MESH, flat=0.95),
-            side + '_forearm': limb(FOREARM, 0.028 + PAD_FULL_M, 0.028, 0.02, MESH, flat=0.9),
+            side + '_upper_arm': limb(UPPER_ARM, 0.04, 0.037, 0.034 + PAD_FULL_M, MESH, flat=0.95),
+            side + '_forearm': limb(FOREARM, 0.034 + PAD_FULL_M, 0.028, 0.02, MESH, flat=0.9),
             side + '_hand': ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
             side + '_fingers': ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
             side + '_thigh': limb(THIGH, THIGH_R[0], THIGH_R[1], THIGH_R[2], MESH, bulge_at=0.22,

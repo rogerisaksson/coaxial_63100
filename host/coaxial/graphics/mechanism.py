@@ -27,7 +27,7 @@ CARBON, ROD, STEEL, POLYMER = (92, 94, 106), (214, 214, 224), (246, 246, 246), (
 SPUR_T = 0.008
 #: A board apart from its drive: its laminate's green, BOARD_T thick with its parts, m.
 PCB, BOARD_T = (40, 120, 70), 0.012
-SIZED = {'A': (72, 140, 224), 'B': (60, 190, 170)}
+SIZED = {'A': (72, 140, 224), 'B': (60, 190, 170), 'C': (200, 170, 60)}
 
 #: Bare, a drive's stack drawn as its parts (`drives.along`): its inverter in the laminate's green,
 #: its motor in its frame's colour, its gearbox in the gearbox's steel grey.

@@ -15,7 +15,7 @@ import math
 from typing import Any
 
 from machine import drives, linkage
-from machine.figure import SEGMENTS
+from machine.figure import SEGMENTS, UPPER_ARM
 from machine.gait import SHANK, THIGH
 
 #: The femur and the tibia, her left's, their tubes through these points of their segments'
@@ -26,11 +26,10 @@ from machine.gait import SHANK, THIGH
 #: drives to the ankle, between their rods - two tubes 46 mm apart round one rod were wider than
 #: her calf with two. Each drum they hang from or reach clamped by a collar
 #: (`coaxial.graphics.mechanism`): (joint, its gearbox or motor, y on the segment).
-#: The tibia ends in a clevis round the ankle's cross; the humerus and the forearm, their drums
-#: filling them (M 30 mm round in 34, S 21 in 25), from a flange on the joint above to their drum's
-#: collars (`HELD`), on from under its bevel behind its belt to a clevis round the joint below; the
-#: foot a keel from the heel to the toes' axle, cheeks on the cross's roll pins, a bar for the rods'
-#: balls. Every tube one of seven stock sizes in one high-modulus carbon - 12x1, 20x1, 25x1,
+#: The tibia ends in a clevis round the ankle's cross; the humerus from a flange on the shoulder
+#: to a collar on the elbow's motor, the forearm from a collar on its gearbox by a strut to its
+#: own axis and down to the wrist (the elbow on its axis, 2026-10-04); the foot a keel from the
+#: heel to the toes' axle, cheeks on the cross's roll pins, a bar for the rods' balls. Every tube one of seven stock sizes in one high-modulus carbon - 12x1, 20x1, 25x1,
 #: 30x2, 35x2, 40x2, 50x2 mm - the fewest passing every member (`tools/sim/members.py
 #: --family`, the user's fewest variants, 2026-10-03): the femur's lower run 50 -> 40 in the
 #: shanks' high-modulus grade (flex 0.25 deg), the boom 50 (0.30 at 40), the tibia's lower run
@@ -49,15 +48,14 @@ HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
                   (0.020, 0.0175, 0.010, 0.010, 0.010),
                   (('knee', 'gear', 0.0),)),
         'upper_arm': ((((0.032, -0.004, 0.0), (0.032, -0.05, 0.0), (0.0, -0.077, 0.0)),
-                       ((-0.014, -0.145, -0.016), (-0.012, -0.19, -0.012), (-0.012, -0.25, -0.01),
-                        (-0.024, -0.28, 0.0)),
-                       ((-0.012, -0.25, -0.01), (0.018, -0.25, -0.012), (0.018, -0.28, 0.0))),
-                      (0.0125, 0.0125, 0.010), ()),
-        'forearm': ((((-0.02, 0.0, 0.0), (0.014, 0.0, 0.0)), ((0.0, 0.0, 0.0), (0.0, -0.089, 0.0)),
+                       ((-0.014, -0.145, -0.016), (-0.012, -0.19, -0.012), (-0.012, -0.235, -0.01),
+                        (-0.024, 0.042 - UPPER_ARM, 0.0))),
+                      (0.0125, 0.0125), (('elbow', 'motor', -UPPER_ARM),)),
+        'forearm': ((((0.03, -0.03, 0.0), (0.0, -0.05, 0.0)), ((0.0, -0.05, 0.0), (0.0, -0.089, 0.0)),
                      ((0.0, -0.142, -0.015), (0.0, -0.18, -0.012), (0.0, -0.215, -0.008),
                       (-0.016, -0.235, 0.0), (-0.016, -0.25, 0.0)),
                      ((0.0, -0.215, -0.008), (0.013, -0.235, 0.0), (0.013, -0.25, 0.0))),
-                    (0.010, 0.0125, 0.010, 0.010), ()),
+                    (0.010, 0.0125, 0.010, 0.010), (('elbow', 'gear', 0.0),)),
         'foot': ((((0.0, 0.0, -0.026), (0.0, -0.035, -0.032), (0.0, -0.066, -0.045),
                    (0.0, -0.066, 0.105), (0.0, -0.061, 0.117)),
                   ((0.0, 0.0, 0.026), (0.0, -0.03, 0.018), (0.0, -0.066, 0.015)),
@@ -139,7 +137,6 @@ HELD = {'hip_yaw': (((-0.014, 0.008),), ()),
         'ankle': (((0.0185, 0.006),), (((0.0205, -0.08, -0.019), (0.0205, -0.08, -0.037)),)),
         'ankle_roll': (((-0.0086, 0.006),),
                        (((0.0046, -0.15, -0.034), (0.0046, -0.15, -0.047), 0.007),)),
-        'elbow': (((-0.03, 0.005), (0.03, 0.005)), ()),
         'wrist': (((-0.022, 0.005), (0.022, 0.005)), ()),
         'foot': (((0.0, 0.006),), ()),
         'spine_roll': (((-0.025, 0.006),), ()),

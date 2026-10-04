@@ -52,11 +52,10 @@ BENDS = {'ankle': (0.045, 0.180, 0.0139), 'ankle_roll': (-0.047, 0.205, 0.0193)}
 #: Each belt, toothed steel cord: its drive's pulley's radius and its joint's, m - the ratio
 #: theirs, constant - and how far out to her side of the limb's axis it runs. None where its give
 #: under her weight would show in her walk - the knee's 141 N m was a 3.4 kN pull (the user,
-#: 2026-10-02). The elbow's from its M under the arm's quick-release, its 165 degrees past a
-#: rod's; the wrist's and the toes' from their own, the toes' 36 mm out, past their stack's
-#: gearbox (`drives.STACKS`).
-BELTS = {'elbow': (0.018, 0.018, 0.034), 'wrist': (0.012, 0.012, 0.026),
-         'foot': (0.010, 0.010, 0.036)}
+#: 2026-10-02). The toes' from their own stack, 36 mm out, past its gearbox (`drives.STACKS`).
+#: The elbow's and the wrist's went (the user's fewest parts, 2026-10-04): the elbow's stack on
+#: its own axis, 68 mm across an elbow of 56 - a human's breadth -, the wrist held.
+BELTS = {'foot': (0.010, 0.010, 0.036)}
 
 #: Each spur pair after its drive's gearbox, its ratio: the gearbox takes its joint's torque over
 #: it. The hip roll's M at 1:100 on two stages put its 126 N m peak through a box rated 100, and
@@ -85,7 +84,8 @@ PLANAR = {'spine_roll': ((0.0, 0.02), (0.0, 0.12), 0.018, math.radians(20.0), 0.
 #: motorcycle's shaft drive's, turning an output along its limb onto its joint's axis - across her
 #: arms the elbow's M and the wrist's S stood 3-26 mm out of her shell, their belts 8-27, along
 #: them 1 mm in (2026-10-03). Each BEVEL_T thick, BEVEL_EFF of the torque through it (estimated).
-BEVELS = {'elbow': 0.012, 'wrist': 0.009}
+#: None since 2026-10-04 (`BELTS`).
+BEVELS = {}
 BEVEL_T, BEVEL_EFF = 0.006, 0.97
 
 #: A rod's lever tabled every GRID deg over SPAN, interpolated: worked out each step the ankle's

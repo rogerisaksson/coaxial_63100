@@ -61,7 +61,11 @@ GEAR_J = 0.05
 #: stator Ds the rotor less 6 mm, mm), kg 2.52e-6 Ds^2 (L + 6) + 0.039, its peak 1.1e-4 Ds^2 L N m
 #: (2.5x its 180 s), the can L + 18.5 mm tall, 0.45 of the kg turning at its rotor's radius less
 #: 3 mm, the winding 310 J/K a kg and to the air the 5230SL's 2.2 K/W over 60 x 45 mm as 1/(D H).
-FRAMES = {'A': (0.068, 0.030), 'B': (0.060, 0.016)}
+#: C, a third for the elbow, the neck, the head and the toes (2026-10-04): on B the elbow's rotor
+#: reflected 4.2 times its load's inertia (`drive_sizes` J), the neck's 2.7, the toes' 775; on C
+#: 0.7 and 0.45, the elbow's amps at stall 1.09 at a 10 mm stack and under 1 at 12, 0.7 kg off her.
+#: Across the elbow's 56 mm it fits where B's 68 asked a bevel pair and a belt.
+FRAMES = {'A': (0.068, 0.030), 'B': (0.060, 0.016), 'C': (0.040, 0.012)}
 
 #: The gearboxes' diameters, m: a rolling-element box's momentary 250 N m at 80 mm, five times its
 #: rated, 0.45 kg, its drag at its input - its rollers' start, the motor's cogging - 0.08 N m, all
@@ -89,13 +93,13 @@ INVERTERS = {100: (0.100, 100.0, 0.2, 3.6), 70: (0.070, 50.0, 0.08, 6.5)}
 #: and the knee's 1.26 at 110 (volts 1.15 and 1.23), 1.38 at 120 (1.06, 1.13). The waist's and
 #: the shoulder's 44 mm boxes stood 2.79 and 1.44 times their momentary rating: the 64 mm 0.91
 #: and 0.47 (`tools/sim/drive_sizes.py`, 2026-10-03).
-KV = {'A': 110.0, 'B': 90.0}
+KV = {'A': 110.0, 'B': 90.0, 'C': 200.0}
 STACKS = {'spine': ('A', 'A', 100), 'spine_roll': ('B', 'B', 70), 'waist': ('B', 'B', 70),
-          'neck': ('B', 'C', 70), 'head': ('B', 'C', 70), 'shoulder': ('B', 'B', 70),
-          'elbow': ('B', 'C', 70), 'wrist': ('B', 'C', 70), 'gripper': ('B', 'C', 70),
+          'neck': ('C', 'C', 70), 'head': ('C', 'C', 70), 'shoulder': ('B', 'B', 70),
+          'elbow': ('C', 'C', 70), 'wrist': ('C', 'C', 70), 'gripper': ('C', 'C', 70),
           'hip_yaw': ('B', 'B', 70), 'hip_roll': ('B', 'B', 70), 'hip': ('A', 'A', 100),
           'knee': ('A', 'A', 100), 'ankle': ('B', 'B', 70), 'ankle_roll': ('B', 'B', 70),
-          'foot': ('B', 'C', 70)}
+          'foot': ('C', 'C', 70)}
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
 #: else in its stack. The knee's and the ankle's split (the user, 2026-10-02), two discs facing
@@ -106,7 +110,8 @@ STACKS = {'spine': ('A', 'A', 100), 'spine_roll': ('B', 'B', 70), 'waist': ('B',
 #: her, beside the knee's 6, lower on the thigh 16 mm into the shank folded (2026-10-03).
 BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
           'ankle': ('thigh', (0.049, -0.18, 0.01), 'x'),
-          'spine': ('torso', (0.0, 0.22, -0.066), 'z')}
+          'spine': ('torso', (0.0, 0.22, -0.066), 'z'),
+          'elbow': ('upper_arm', (0.0, -0.11, 0.0), 'y')}
 
 #: Each gearbox's play at its output, deg (estimated: a rolling-element wave drive's few arcmin,
 #: worn a little).
@@ -203,13 +208,14 @@ def size(kind):
 #: waist's on its axis 120 mm up the torso, its gearbox down to the spine's bracket - at the
 #: torso's foot sits the pitch's,
 #: and its bracket clears the roll's bearings to 85 deg; the shoulder's 15 mm in from its joint
-#: (`skeleton.TRUNK`, 2026-10-03).
+#: (`skeleton.TRUNK`, 2026-10-03). The elbow's on its own axis, its belt and bevel pair gone
+#: (2026-10-04, `linkage.BELTS`).
 JOINTS = {
     'spine': ('spine_roll', (0.0, 0.0, 0.0)), 'spine_roll': ('pelvis', (0.0, 0.02, 0.005)),
     'waist': ('torso', (0.0, 0.12, 0.0), '-y'),
     'neck': None, 'head': None,
     'shoulder': ('torso', (0.133, 0.325, -0.005)),
-    'elbow': ('upper_arm', (0.0, -0.115, 0.0), '-y'),
+    'elbow': None,
     'wrist': ('forearm', (0.0, -0.12, 0.0), '-y'),
     'gripper': ('forearm', (0.0, -0.165, 0.0)),
     'hip_yaw': ('pelvis', (HIP_HALF, 0.103 - HIP_DROP, 0.0), '-y'),

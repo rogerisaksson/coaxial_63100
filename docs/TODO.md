@@ -75,11 +75,14 @@ Open work. Measured results are in FINDINGS.
     seven stock sizes in one grade (docs/findings/body.md), one bearing
     size and one rod end to go; the fewest drives (the wrists went, 23;
     the head's turn, the neck and the waist each lost a rise or a walk
-    held) in the fewest variants - two windings, three boxes (C while the
-    elbow and the toes are driven in her arm and foot), two inverters -
-    and the fewest special parts (the hip roll's spur pair, the foot's
-    belt, the ankles' ball screws); her walk and get-up held on the Monte
-    Carlo, no flex past `members.py`'s 0.25 deg.
+    held) in the fewest variants - three frames since 2026-10-04 (C, 40
+    mm, for the elbow, neck, head and toes: the elbow on its own axis, its
+    belt and bevel gone), three boxes, two inverters - and the fewest
+    special parts (the hip roll's spur pair, the foot's belt, the ankles'
+    bent rods: 27 types, `tools/sim/bom.py`); her walk and get-up held on
+    the Monte Carlo, no flex past `members.py`'s 0.25 deg. Her mechanics
+    simpler and fewer with nothing lost (the user, 2026-10-04): each cut
+    measured on the Monte Carlo and the fit.
   + R in the tty crashes it at once (the user, 2026-10-03): headless the
     page takes R, the 22:36 recording saved 97 rows of 129 fields; a page
     started before `buses.FIELDS` gained `flex` suspected - its traceback
@@ -96,22 +99,19 @@ Open work. Measured results are in FINDINGS.
     off her heels (the user's call): hands pushing on the knees, or the
     hip's torque up (the margin's rule).
   + Her get-up's end (the user, 2026-10-03, humanoid_20261003_203813):
-    restarting after a fall - on the stacks 3 of 5 restarts fell again
-    within 1 s, 0 of 5 on the drives as they stood; rocking side to side up
-    on her feet before she stands - each foot 85-246 N every 0.5 s in the
-    squat, the split's rms 0.44-0.67 against 0.21, cured only by the old
-    heat model and drive masses together, her right hip derated to 0.78 at
-    117 C in the crouch; kneeling before she rises her arms down, her
-    centre of mass lower, not held forward praying - sat back on her heels
-    her hands 692 mm out (541 standing), `getup.SIT_BACK`'s shoulder 72.7
-    and elbow 65.2 deg: at 0 and 10 she stayed down felled to her right, 3
-    tries, up at 31.2 s to her left (2 tries); the arrival's squat with
-    both arms' knuckles down, no forearm on the knee, got up (23.1-23.6 s)
-    but rocked more restarting, split rms 0.46-0.71, 3 of 4 never walked
-    - the forearm on the knee steadies her there (2026-10-03); her feet a
-    little apart fore and aft as she rolls
-    onto them, a minimal step, two legs bearing - now 174-186 mm across,
-    -2..+22 fore and aft.
+    rocking side to side up on her feet before she stands - each foot
+    85-246 N every 0.5 s in the squat, the split's rms 0.44-0.67 against
+    0.21, cured only by the old heat model and drive masses together;
+    kneeling before she rises her arms down, not held forward praying -
+    sat back on her heels her hands 692 mm out (541 standing),
+    `getup.SIT_BACK`'s shoulder 72.7 and elbow 65.2 deg: at 0 and 10 she
+    stayed down felled to her right, 3 tries, up at 31.2 s to her left (2
+    tries); the arrival's squat with both arms' knuckles down, no forearm
+    on the knee, got up (23.1-23.6 s) but rocked more restarting, split
+    rms 0.46-0.71, 3 of 4 never walked - the forearm on the knee steadies
+    her; her feet a little apart fore and aft as she rolls onto them, a
+    minimal step, two legs bearing - now 174-186 mm across, -2..+22 fore
+    and aft.
   + Past saving (P's 120 N, held 0 of 48) she crouches as she goes, a shank
     first (`falls.crouch`), but ends on a side: the fall is called 0.06-0.25
     s before the floor, too late for a hand and a knee to take her - an
@@ -134,18 +134,15 @@ Open work. Measured results are in FINDINGS.
     on the stairs untried. Kneeling over the hole's edge, one knee 3 cm down,
     knees under and sitting back roll her 50-89 degrees, 5 tries of 5.
   + A softer walk: fewer strikes (1272 N), less power (work 254 W, copper
-    160 W of the 482 drawn). The ears bob 11 mm a stride and go 56 mm fore
-    and aft, the pelvis's 30 doubled by the torso's 3 degrees of pitch; the
-    stance knee 15-20 degrees through mid-stance, latched 10-12 mm low at
-    each landing. To try: a stiffer spine drive or a rightly signed gyro lead
-    on the torso; a shorter stride at a higher cadence; a landing that does
-    not sag, on the ball (LAND_DEG below 0 under the landing's cost);
-    softer soles, then a compressible sole layer; the pendulum between the
-    ears placing the next step (PEND_K fell at 1.5, 2026-09-27).
-    The stance legs' weight by load flickers about LANDED_N, a hip's setpoint
-    2-5 deg a pass 4-10 times a second: rate-limited over 0.1 s the strike
-    1231 -> 1024 N and the jumps 109 -> 44 in 16 s, but shoves past saving
-    then brought her head down 2 times of 16 and a shank first 9, not 14.
+    160 of 482 drawn); the ears bob 11 mm a stride, 56 fore and aft; the
+    stance knee 15-20 deg through mid-stance, 10-12 mm low at each landing.
+    To try: a stiffer spine drive or a gyro lead on the torso; a shorter
+    stride at a higher cadence; a landing on the ball (LAND_DEG below 0);
+    softer soles; the pendulum between the ears placing the step (PEND_K
+    fell at 1.5). The stance weight by load flickers about LANDED_N, a
+    hip's setpoint 2-5 deg a pass: rate-limited over 0.1 s the strike 1231
+    -> 1024 N, the jumps 109 -> 44 in 16 s, but shoves past saving then
+    brought her head down 2 of 16, a shank first 9, not 14.
   + The halt falls in its settle wherever tried: her centre of mass stands
     off the feet's line as it takes over.
   + Lying, her arms point straight out. A fall taken on the arms, legs,
@@ -159,19 +156,10 @@ Open work. Measured results are in FINDINGS.
     the arrival's runaway guard. The loop at 0.82 x real time through a fall
     and its get-up, 0.73 walking: the host spins 0.20 ms of a 1.22 ms pass
     on the boards' tick, the walker takes 0.46 ms of a walking pass.
-  + Fewer drives, for weight and BOM: of the 27 on 5 buses (the axis 5, an
-    arm 4, a leg 7): the head's turn held rigid changed nothing in 5
-    scenarios. The fingers a fist without drives (`drives.WAYS`), their
-    boards still on the arms' buses, their limit 0. The toes on a spring
-    every walk falls within 0.8 s: the walker's push-off asks them and its
-    legs' reach counts on them - reworked for a passive toe. The elbow's M
-    drive, 70 mm, stands wider than her 56 mm arm: at the shoulder, a rod to
-    the forearm. M's and S's motors are estimates; the quick-releases' give
-    at the shoulders and hips is not modelled. The shoulder has no stop: the
-    roll re-searched as built asks 219 degrees. High torque through a
-    gearbox and a rod; the rest direct drive where its torque stays
-    reasonable: as built only the head's turn asks little enough (2.7 N m
-    getting up).
+  + Fewer drives, for weight and BOM: the fingers a fist without drives
+    (`drives.WAYS`), their boards still on the arms' buses; the
+    quick-releases' give at the shoulders and hips not modelled; the
+    shoulder has no stop: the roll re-searched as built asks 219 degrees.
   + Her boards on their buses (`machine.buses`): an emulated limb in a
     process's place on its port and block; the firmware's map wanting the
     walk's registers (`machine.rtu`); the IMU on the axis bus, not the
@@ -312,9 +300,22 @@ Open work. Measured results are in FINDINGS.
     toes, 16 mm crank and horn, lever 0.97-1.03, transmission 54 deg over
     -10..60, stood 5 mm out of her shoe: beside the S the forefoot is 22 mm
     tall, a horn under 8 mm pulls 1.5 kN (2026-10-03) - a smaller drive
-    there, or gears; its stack +20 mm out of her shoe (`fit.py`). The elbow
-    and the wrist past 160 deg: coupling rods, two cranks a shaft 90 deg
-    apart, a locomotive's.
+    there, or gears; its stack +20 mm out of her shoe (`fit.py`). The toes'
+    motors out (the user, 2026-10-04: they break at once, weigh the step
+    down and keep ordinary shoes off): a sprung forefoot (`drives.WAYS`
+    foot 1), the walker's push-off reworked for it - sprung at 40 N m/rad
+    she held 15 %, 33 with the heel rise 50 -> 30 deg. Then a real
+    sneaker, shape and physics (the user): a 37-38's length, width, heel
+    and toe spring; its sole's give, its forefoot's bend as the sprung
+    toe, its grip, its heel's roll at the strike, its mass.
+  + Her shell as armour (the user, 2026-10-04): plates and cops over what
+    a fall lands on - the knees', hips', elbows' and shoulders' stacks,
+    the seat, the head - so nothing breaks, each a printed panel over its
+    gel pad (`figure.PADS`), the joints covered, not open; measured as the
+    floor's force on a drum, a board or a tube in the falls suite and the
+    Monte Carlo's falls (none today: the pads' kN only). The look practical
+    and technological, hers, without anime's or Hollywood's excess: no
+    chrome, no lit lines; judged on a PNG.
   + Her transmissions sourced as a bicycle's, a motorcycle's or a car's
     maker would (the user, 2026-10-02): rod ends, cardan and Rzeppa joints,
     gear pairs, belts and bearings off the shelf, a part list a joint.

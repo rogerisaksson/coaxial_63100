@@ -152,6 +152,18 @@ board's in [FINDINGS](../FINDINGS.md).
   the 64 mm 0.91 and 0.47 - B, the shoulder's stack +23 mm past her skin
   standing (+22 before). With the wrists held and the boxes B, A at KV
   110 scored 623 and 72.7 %, at 120 763 and 72.9: 110 kept, two windings.
+- A third frame, C, 40 mm round and 12 deep at KV 200, for the elbow, the
+  neck, the head and the toes (the fewest parts, the user, 2026-10-04):
+  on B the elbow's rotor reflected 4.2 times its load's inertia
+  (`drive_sizes` J), the neck's 2.7, the toes' 775; on C 0.76 and 0.48,
+  the elbow's amps at stall 0.91 (1.09 at a 10 mm stack), 0.7 kg off her
+  drives. Across the elbow's 56 mm the C stack fits on the joint's own
+  axis, -1 mm inside her shell, where B's 68 asked a bevel pair and a
+  belt: both gone, the wrist's too (held), the elbow's inverter a ring
+  round the humerus at mid-arm facing along it (0 mm). The humerus ends
+  at a collar on the elbow's motor, the forearm hangs from one on its
+  gearbox by a strut to its axis (`skeleton.HUNG`). Parts: 28 -> 27
+  types (`tools/sim/bom.py`).
 - Restarting after a fall she spasms and falls (the user, 2026-10-03,
   humanoid_20261003_231619, 232719): headless from the squat with P's
   shove at 60 s (`look.py --push 60 --to 100`) she collapses in the

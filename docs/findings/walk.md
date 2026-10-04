@@ -277,6 +277,10 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   the median 468 -> 335. The board 578 -> 299, held 76.8 % against main's
   495; the same knobs to 17, 6 and 3 digits 263, 306 and 420 - its chance.
   `landing.PARRY_HURRY` 0.29 (2026-10-03).
+- The parry's hurry 0.29 -> 0.25 with the elbow's stack on its axis
+  (2026-10-04): the test's 38 N held, left and right of 8, 0.25 2 and 3,
+  0.27 1 and 3, 0.29 2 and 1, 0.32 2 and 2; the faults scoreboard 428 and
+  65.2 % at 0.25, 482 and 62.2 at 0.32.
 - Into her walk from the squat she staggered on the stacks (the user,
   2026-10-03): their ankles' and hip rolls' rotors reflect half the inertia
   the first step was tuned on (0.103 and 0.173 kg m^2 against 0.282 and
