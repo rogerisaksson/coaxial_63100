@@ -215,3 +215,9 @@ shoves, the scoreboard and its searches. The board's own are in
   takes the brick's foot 10 cm back onto the brick's rear edge - the
   controller knows no brick - where, pinned, it bears 0-8 N, and she goes
   on one leg to a third step and a fall at 6.7-6.9 s.
+- The catch's gain and hurry on the faults suite (2026-10-04, 33 runs a
+  cell): as built (1.108, 0.25) cost 178 and held 54.9 %; the gain 1.0 and
+  the hurry 0.15 held 64.8 but cost 375 - the shove's fall landing on a
+  gearbox past its rating -; 1.0 and 0.25 442 and 64.6, 1.108 and 0.15
+  311 and 60.3. The built values stay; a blind 6-knob search at 8 x 12
+  overbooked the relay and was stopped unlogged.
