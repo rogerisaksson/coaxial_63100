@@ -97,3 +97,8 @@ on them. Her walk is in [walk](walk.md); the board's own are in
   and 71.5 and the walk at 1.0 strides/s 33 % against 80. The rest alone,
   the heel off at 0.5: the dip stays, 51.6 mm at 10 deg. Not baked: the
   height and the faults both are the grinder's to find.
+- A shorter stride (`gait.STRIDE_M`, `look.py` from the squat, 14 s,
+  2026-10-04): 0.5 m at 1.0 strides/s the pelvis 5.7-19.2 mm under her
+  stand against 14.2-53.2 at 0.85 m, but 36 catches; 0.45 m at 1.1, 6.0-17.1
+  mm and 3 catches. The height is the stride's; the walk wants its knobs
+  searched at it (the grinder's `gait.STRIDE_M`).

@@ -160,3 +160,25 @@ board's own are in [FINDINGS](../FINDINGS.md).
   `dcm.CLEAR_M` along with `drives.TOE_K`, `TOE_LOSS` 132.3 and 81.2 % at
   the toes' spring 42 N m/rad - stiffer toes hold her standing where the
   walk wants them at 10.
+- Walking on the standing law (the lab, 2026-10-04): her weight asked ahead
+  of her feet's middle, ramped 5 cm/s, for the law to step her on. She
+  pivots over her forefeet as one piece - straight legs, the heels up, the
+  feet's loads to 38 and 0 N by 4.5 s - and the step called at 8 cm comes
+  0.15 s before she is down. Not a walk: a step planned before the hold is
+  lost wants a reference for the capture point, not a lean.
+- Each foot bears its share (the lab, `bearing.shared`, 2026-10-04):
+  standing to stay every leg a stance leg, its foot let down 0.3 m/s a
+  share of her weight it lacks and drawn up as fast a share too many, the
+  share what her centre of mass asks of it between the feet, all of it
+  while the other steps. The polar 32 of 48 against 25 - 100 N 9 of 12
+  against 3, from her sides 3 of 3 where none stood, 120 N 3 against 0, 60
+  N 9 against 12 - and the rigs: the bricks 96 and 63 % against 60 and 55,
+  the rockers 100 and 93 against 63 and 90. From behind it falls at 60,
+  100 and 120 N: tipped over the standing foot's toes its load reads 0,
+  the leg is let down for its lack and throws her on, the foot 20 cm in
+  the air. From a side the same throw is the push-off of a side step: the
+  loaded foot lands 31 cm out, the other follows, three more steps and she
+  stands, 5 cm down on knees bent 40 deg. Two variants by probe: the
+  shares on both feet standing only, a step as before - the rockers and a
+  brick stand, 80 N from a side falls on five steps; a foot let down only
+  where it has lost its floor - a nudge falls.

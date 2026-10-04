@@ -38,6 +38,7 @@ KNOBS = {
     'landing.PARRY_M': (0.0, 0.05, 'shoved: the capture point this far past the feet, m'),
     'landing.PARRY_HURRY': (0.1, 0.4, 'the phase run this much faster catching'),
     'gait.LEAN_DEG': (2.0, 6.0, 'the lean into the first step, deg'),
+    'gait.STRIDE_M': (0.45, 0.85, "a stride's length at the base cadence, m"),
     'gait.HEEL_OFF': (0.25, 0.5, "the stance heel rising from this phase, of the stride's"),
     'gait.TOE_OFF': (0.55, 0.75, 'the stance foot leaving the floor at this phase'),
     'gait.LAND_DEG': (5.0, 25.0, 'the foot landing on its heel this far toes-up, deg'),
