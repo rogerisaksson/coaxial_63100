@@ -70,7 +70,7 @@ def text():
            'Her axes by their drive\'s type: %d driven on %d type%s, %d without a drive. The'
            % (len(driven), len(rows), '' if len(rows) == 1 else 's', len(JOINTS) - len(driven)),
            'candidate of record, laid in `machine/drives.py` and written by',
-           '`tools/sim/dimensions.py --write`; why it is this one, docs/findings/drives.md.', '',
+           '`tools/sim/dimensions.py --write`; why it is this one, docs/findings/stacks.md.', '',
            '## Types', '',
            '| type | drives | motor | gearbox | inverter | stack mm | kg | peak N m | holds N m '
            '| deg/s | rotor kg m2 |',

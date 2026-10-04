@@ -2,7 +2,7 @@
 
 Her axes by their drive's type: 21 driven on 2 types, 6 without a drive. The
 candidate of record, laid in `machine/drives.py` and written by
-`tools/sim/dimensions.py --write`; why it is this one, docs/findings/drives.md.
+`tools/sim/dimensions.py --write`; why it is this one, docs/findings/stacks.md.
 
 ## Types
 

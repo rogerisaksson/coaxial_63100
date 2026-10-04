@@ -229,6 +229,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 | The gynoid standing: the rigs under her, the one law in the capture point's plane, the push polar | [findings/standing.md](findings/standing.md) |
 | The gynoid's build, her buses, her falls and her get-up, her drawing and her clothes | [findings/body.md](findings/body.md) |
 | The gynoid's drives: motors, gearboxes, inverters, the numbers that size them | [findings/drives.md](findings/drives.md) |
+| One stack for every drive: the demand behind it, the candidates, the stacks as built | [findings/stacks.md](findings/stacks.md) |
 | The drive and its observers on the stand-in, the emulator and native://, the rotor's pages and their demos | [findings/drive.md](findings/drive.md) |
 | Renode, native:// and CI: the image emulated, its peripherals, its speed | [findings/emulation.md](findings/emulation.md) |
 | The host's pages, tooling, suites and the local model's runner | [findings/host.md](findings/host.md) |

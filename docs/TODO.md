@@ -26,55 +26,34 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
 ## Gynoid, in order
 
-1. **The leg stack on the run** (the user, 2026-10-04; two frames, two
-   boxes and two inverters stand in `tools/sim/bom.py`: 23 drives, 25 part
-   types; the grinder `tools/sim/gym.py` grinds the balance's knobs, Clef
-   picking the suite): at 48 V the hip's and the knee's amps 1.26, power
-   1.21 and volts 1.19 (`drive_sizes --cached --run`, MARGIN 1.5) - a
-   parry's peaks, 171 N m and 1259 deg/s, not the run's (the 2 m/s jog
-   `RUN` asks less; docs/findings/drives.md) -, the ankle roll's amps 1.08
-   and box 1.04 from the gym's scenes. Amps x volts is the pack's volts x
-   the inverter's amps, no ratio or KV moves it; heat is under 1 everywhere
-   (0.84). Next: the demand kept a scene in build/drive_demand.json and a
-   margin a scene - the parries' and the falls' 1.2 (the user's call, taken
-   2026-10-04), the rest 1.5 -, then the pack's lowest volts and the
-   frames' KV baked. The
-   elbow, the neck and the head on box B's 1:30 feel their rotors 6.8, 2.6
-   and 28.8 times their loads; their windows 3..11, 2..19 and 0..6 - frame
-   B direct overheats the elbow (its rms 4 N m, B holds 1.7): a belt stage
-   1:4-1:6 in box B's place, decided 2026-10-04, pending a ratio a stack
-   (`drives.RATIO` is one for all). DOD: every leg joint's A, P
-   and V under 1 on the run and the gym's scenes at the settled margin, no
-   joint's J over 1; the pack's volts, the frames' KV and the stages baked.
-   One box and one inverter (the user, 2026-10-04: prototype on for the
-   most simplicity and the fewest gearbox and electronics variants, a
-   smoke test deciding whether a candidate bears): the demand the stacks
-   were sized on is the controller's own - the walk's setpoints jump 3-8
-   deg a pass at the swap of feet and chatter at toe-off, a leg's stance
-   share following its sole's load a pass at a time; the hip and the knee
-   at their clamps 5.3 and 7.4 % of the walk's passes, 45 and 64 % of
-   their heat over 50 Hz (docs/findings/drives.md). The soles' load read
-   through a 20 ms band (`physics.LOAD_S`, the lab's): the walk's power
-   683 -> 560 W, its touchdown 769 -> 253 N, 5 walks of 5 against 4; its
-   scoreboard 229 and 86.4 % against 538 and 82.8, baked. On it box B and
-   the 50 A inverter on every drive rise and walk 5 of 5 as tuned: the
-   short stack (60 x 16) on all, 27.7 kg and 11.6 of it drives against
-   32.3 and 16.2, the scoreboard 264.6 and 84.8 %, its winding holding 52
-   N m where the hip's rms is 39-45 (T 1.26 at 1.5x); frame B's lamination
-   at two lengths (60 x 30 for the hips, knees, ankles and spine), 28.5
-   kg, 533.6 and 85.7 %, T 0.76; the long on all, past her shell at the
-   elbow and the hip roll. The margin as the clamp - every servo's its
-   drive's peak / 1.5, 83 N m at the hips and knees: 282.8 and 82.1 %, and
-   526.5 and 82.2. Next: one of them laid in `drives.STACKS` and
-   docs/DIMENSIONS.md (the user, 2026-10-04: every axis by its drive's
-   type, edited when a candidate better for DFM and less complex is found
-   - written as built; the example of a row did not arrive) with the walk
-   ground on it; the hip's heat on the short stack (on the walk with the
-   slip gone its rms 37 of 52 N m, T 1.13, the knee's 0.84); the knee's
-   1059 deg/s 1.23 of its volts; a fall asks 5 times any
-   box (the knee's 763 N m on box B's 128); every inverter in its stack
-   (the elbow 8 mm past her shell); the governor's scoreboard 911 and
-   61.0 % - its form.
+1. **The leg stack on the run** (the user, 2026-10-04: the most simplicity,
+   the fewest gearbox and electronics variants; as built two frames, two
+   boxes and two inverters, 23 part types, `tools/sim/bom.py`). The
+   candidate (docs/findings/stacks.md): one stack on every drive - 60 x 20
+   mm at KV 90, a 64 mm box at 1:30, a 70 mm 50 A inverter; 20 part types,
+   her 28.4 kg against 32.3; the scoreboard 318.7 and 84.9 % against 250.5
+   and 82.9; on its own demand (`drive_sizes`, MARGIN 1.5, the run at her
+   weight) T 0.90 at the hip and under it everywhere. It waits on her
+   get-up - on it she falls forward out of the squat, 3 tries
+   (`getup_search --table f` on it) - and on test_gynoid's fold pairs;
+   then `drives.STACKS` and docs/DIMENSIONS.md (the user, 2026-10-04:
+   every axis by its drive's type, edited when a candidate better for DFM
+   and less complex is found - written as built; the example of a row did
+   not arrive). Left on it: the hips', knees' and spine's peaks are its
+   124 N m clamp (A 1.50, P 1.24-1.35, S 1.45) - the margin as the clamp,
+   every servo's its drive's peak / 1.5, rose and walked as far and held
+   81.7 % against 83.7 on 16 mm; the knee's parry 1034 deg/s, 1.20 of KV
+   90's at 48 V - the pack's lowest volts and the KV; a fall asked a
+   knee's box 763 N m of its 128 (item 6); the 70 mm inverter is an
+   estimate from the 63100's, on no joint itself then; every inverter in
+   its own stack stands the elbow 8 mm past her shell; the elbow, the neck
+   and the head feel their rotors 7.8, 2.9 and 33 times their loads on the
+   1:30 box - a belt stage 1:4-1:6 in its place, decided 2026-10-04,
+   pending a ratio a stack (`drives.RATIO` is one for all); the governor
+   on the setpoints, 911 and 61.0 % of the scoreboard - its form. DOD:
+   every leg joint's A, P, T and V under 1 on the run and the gym's scenes
+   at the settled margin, no joint's J over 1; the pack's volts, the KV
+   and the stages baked.
 2. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the
    support a point under each stance ball, nothing of the sole's shape to
    the controller, a small quick step toward the capture point whenever it

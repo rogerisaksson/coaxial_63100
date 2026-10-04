@@ -50,7 +50,7 @@ STEP_S = 0.001
 #: stance share with it (`stance.legs`), its setpoints 1.5-7 deg a pass to and fro. At 20 ms
 #: the feet stand on 159 and 160 N, sd 0.02; the walk's touchdown 769 -> 253 N, its power
 #: 683 -> 560 W; the scoreboard 229.0 and 86.4 % against 538.0 and 82.8, at 5 ms 408.6 and
-#: 85.2 (2026-10-04, docs/findings/standing.md, drives.md).
+#: 85.2 (2026-10-04, docs/findings/standing.md, stacks.md).
 LOAD_S = 0.02
 
 #: A drive's reading, in `World.reading`'s order.
