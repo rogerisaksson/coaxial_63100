@@ -227,6 +227,18 @@ her clothes; her drives in [drives](drives.md). The board's own are in
   now 120 mm up the torso, its gearbox down - the mass model had it at the
   pivot, inside the pitch's L. Over spine -30..85, roll +-35, waist +-50 the
   closest 2 mm; every drive held (`fit.held_by`).
+- A sneaker, size 38, in shape and physics (the user, 2026-10-04;
+  `coaxial/graphics/sneaker.py`): 240 long - the heel 58 behind the
+  ankle, the ball 117 ahead, the toes 65 -, 94 wide at the ball, 76 tall
+  at the heel, 15 mm of toe spring, the gum sole 28 mm at the heel and 18
+  at the ball; its sole's box 90 wide from 12 mm ahead of the heel with
+  two 12 mm spheres at the heel's corners, so a strike rolls on; the
+  forefoot's bend the toes' spring, 25 N m/rad (a sneaker's 0.2-0.5 N m a
+  degree); its grip and give as before (`mjcf`), 0.25 kg (`build.HOLDS`).
+  From a bare quarter render it reads as a low-top sneaker, the toe box
+  rounded, the sole band seen. On it with the toes sprung she walked 8 s
+  from the squat with catches at 7.3-7.9 s, the walker unretuned (fell at
+  7.0 on the old shoe at 40 N m/rad).
 - Her shell fitted to her skeleton as sized and her clothes over it (the
   user, 2026-10-03; `tools/sim/fit.py`, 2026-10-04). Standing, past her
   shell: the hips' yaw inverters +6 -> -1 mm (the pelvis's rings at 0.07
