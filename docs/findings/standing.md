@@ -182,3 +182,14 @@ board's own are in [FINDINGS](../FINDINGS.md).
   shares on both feet standing only, a step as before - the rockers and a
   brick stand, 80 N from a side falls on five steps; a foot let down only
   where it has lost its floor - a nudge falls.
+- The share law baked (`bearing.shared`, 2026-10-04): the stand suite 99.3
+  and 89.2 % against 237.9 and 77.5 - the 120 N shoves 66 and 67 % from 50
+  and 58, the bricks 96 and 63 from 60 and 55, the rockers 100 and 100
+  from 63 and 90 -, the scoreboard 538.0 and 82.8 % against 641.7 and 78.6,
+  the rises, the walks and the events as they were. Its forms on the polar,
+  six of 48 pushes each: as baked 32; the standing foot's let-down held
+  still through a step 30; the share what the capture point asks 24 and 23;
+  a step run as before the law, the shares on both feet standing only, 18
+  and 20 - the rockers 100 % under every one, the bricks 66-96. By probe
+  her quiet standing chatters under it, a foot at 0 N one row in two; the
+  lack filtered over 50 ms the feet bear 161 and 162 N (its polar next).

@@ -349,7 +349,8 @@ class Arrival:
             x = bus['pelvis.pose.x'] + (x - bus['pelvis.pose.x']) * pull / far
             z = bus['pelvis.pose.z'] + (z - bus['pelvis.pose.z']) * pull / far
         frame = dict(frame, pelvis=(
-            x, bearing.height(self.pinned, frame, _turn(frame), bus, p[1], self.stand_s), z))
+            x, bearing.height(self.borne, self.pinned, frame, _turn(frame), bus, p[1],
+                              self.stand_s), z))
         # The pelvis's attitude turned back past its error, as the walker turns it: held by the
         # legs' servos alone, it tipped back as she rolled onto the stepping foot.
         turn = _turn(frame)

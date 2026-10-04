@@ -56,16 +56,20 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    perturbed a little under her, then walking. Standing rigged and scored
    (`events.STANDING`, the 'stand' suite, test_gynoid_stand.py; the
    board stiff and free, the bricks abreast and staggered): the nudges and
-   the stiff board 100 %, the shoves 45-49 at 120 N, the bricks 55-60, the
-   free rocker 63-90 (docs/findings/standing.md). The reflex one law
+   the stiff board 100 %, the shoves 66-67 at 120 N, the bricks 96 and 63,
+   the free rocker 100 (docs/findings/standing.md). The reflex one law
    (`machine.dcm`, 2026-10-04: the capture point in the sole's hold, a step
    due only outside it, the foot bearing less landing on the ray from the
    standing foot through the capture point as it will be; no case for a
    side or a rig), measured on the push polar (`events.PUSH_DEG`, 48
    pushes over 8 ways): 25 stood - 60 N 12 of 12, 80 N 10, 100 N 3 (from
-   behind and from the front, on one step), 120 N none. Next, in the same
-   plane: a push with a side to it past the loaded foot - a cross-step in
-   front, or the loaded leg's side step off a quick crouch; the trunk
+   behind and from the front, on one step), 120 N none. Each foot bearing
+   its share of her weight (`bearing.shared`): 32 - 100 N 9 of 12, from
+   her sides on the loaded leg's side step, 120 N 3, 60 N 9 - and the
+   bricks 96 and 63 %, the rockers 100. Next, in the same plane: 60 N from
+   behind lost to the law's chatter (the lack filtered, its polar); the
+   stance back at her standing height after a step - she stays 5-12 cm
+   down on bent knees; the trunk
    thrown into the fall (the angular momentum, a CMP past the sole, 60 N m
    17 cm on her 35 kg) as a torque - a lean on the spine's setpoints did
    nothing; a ready crouch as the capture point strays - her standing
