@@ -160,6 +160,14 @@ def legs(w, out, bus, qs, legs, feet, held, swings, target, turn, turn_now, pel)
         at = held[side] if side in held else swings[side]
         if flat(w, side, q):
             foot, toes = FLAT, 0.0
+        if side in held:
+            w.let[side] = (sub(at, pel), foot, q)
+        elif side in w.let and (q - w.let[side][2]) % 1.0 < LET_Q:
+            was, turned, q0 = w.let[side]
+            k = gait.eased(((q - q0) % 1.0) / LET_Q)
+            at = tuple(p + a + (s - p - a) * k for p, a, s in zip(pel, was, at))
+            up = [math.atan2(-r[1][2], r[1][1]) for r in (turned, foot)]
+            foot = mul(ry(math.atan2(-foot[2][0], foot[0][0])), rx(up[0] + (up[1] - up[0]) * k))
         load = bus['pelvis.pose.%s_load' % side]
         if q < gait.TOE_OFF + BEARS_UNTIL and load > LANDED_N:
             b = max(b, min(1.0, load / BEARS_N))
@@ -193,10 +201,16 @@ def held(w, qs, legs):
 #: HEEL_UP_DEG at most; 0, by the plan's phase alone (`gait.HEEL_OFF`) - the knee snapped
 #: straight at 520 deg/s before the heel rose and the foot, bearing nothing 20 ms after the
 #: other landed, slid back 92 mm before its swing (the user's; `look.py`'s toes back at lift).
-#: At 45 deg and 0.99: 8 mm, the walk's power 560 -> 369 W, the hip's rms 56 -> 43 N m, and the
-#: walk at 1.0 strides/s down at 6.3 s, its feet landing 5 cm less ahead: off, the grinder's to
-#: turn on with the stride (2026-10-04, docs/findings/feet.md).
-HEEL_UP_DEG, HEEL_REACH = 0.0, 0.99
+#: At 45 deg and 0.99: 8 mm, the walk's power 560 -> 369 W, and the walk at 1.0 strides/s down
+#: at 6.3 s, its feet landing 5 cm less ahead - held at a stride of 0.75 m (`gait.STRIDE_M`);
+#: at 0.97, 73-78 % of the scoreboard. Let go, the foot goes with the pelvis from where it
+#: stood and eases into its swing over LET_Q of the stride: asked from 16 to 42 deg of knee in
+#: a pass it still went back 10 mm; over 0.1, 1-4 mm at 0.65-1.0 strides/s, over 0.06 11-20.
+#: With the swing 45 mm up (`gait.LIFT_M`; at 25 the rug felled her 3 of 3) the scoreboard
+#: 250.5 and 82.9 % against 265.9 and 86.4: every rise and walk, the walks' power 317-487 W
+#: against 507-882; a sill at 0.65 strides/s and a nudge fell her 2 of 3 each, none before
+#: (2026-10-04, docs/findings/feet.md).
+HEEL_UP_DEG, HEEL_REACH, LET_Q = 45.0, 0.99, 0.1
 
 
 def rolled(w, qs, legs, feet, held, target, turn):

@@ -136,7 +136,7 @@ class Walker:
         #: The walk's line, radians from the world's z about the vertical (`view`).
         self.heading = 0.0
         self.phase = 0.0
-        self.anchor, self.was_q = {}, {}
+        self.anchor, self.was_q, self.let = {}, {}, {}
         self.x_was, self.v_side, self.z_was, self.v_on = None, 0.0, None, 0.0
         self.scale, self.age, self.held, self.wide, self.first = 1.0, 0.0, None, 0.0, 1.0
         #: The lean she began from, deg ahead of the plumb line, let out over gait.LEAN_OUT_S.
@@ -218,7 +218,7 @@ class Walker:
         and the torso `lean` deg ahead of the plumb line, let out over gait.LEAN_OUT_S; `again`
         after a catch, which may catch again (`landing.SIDE_AGAIN_S`)."""
         self.blend_s, self.lean = blend_s, float(lean)
-        self.anchor, self.was_q = {}, {}
+        self.anchor, self.was_q, self.let = {}, {}, {}
         self.stood, self.x_was, self.v_side = {}, None, 0.0
         self.age, self.held, self.wide = 0.0, dict(held), float(wide)
         self.first = stance.BEGIN if scale is None else float(scale)

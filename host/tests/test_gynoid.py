@@ -126,7 +126,7 @@ def test_a_leg_by_its_foot(report):
 def test_a_body_with_mass_walks(report):
     """DYNAMIC: the gynoid's 27 joints each a drive on a body with mass; the walker sets them
     every millisecond from what the loop reads, and she walks on the line without falling."""
-    from machine import Machine
+    from machine import Machine, gait
     from machine.modes import DYNAMIC
     from machine.dynamic import DriveJoint
     from machine.walker import Walker
@@ -149,10 +149,13 @@ def test_a_body_with_mass_walks(report):
         if body.loop.bus['t'] >= 2.0:
             borne.append(sum(body.loop.bus['pelvis.pose.%s_load' % s] for s in ('left', 'right')))
     bus = body.loop.bus
-    report.check('3 s at 0.85 strides/s: on her feet, over 2 m on, within 0.2 m of the line',
-                 lowest > 0.7 and bus['pelvis.pose.z'] > 2.0 and abs(bus['pelvis.pose.x']) < 0.2,
-                 'lowest %.2f m, %.2f m on, %+.2f m off' % (lowest, bus['pelvis.pose.z'],
-                                                           bus['pelvis.pose.x']))
+    # 0.9 of what her strides make of 3 s: 2 m of the 0.85 m stride's 2.17 was past the 0.75 m
+    # stride's 1.91 (2026-10-04).
+    far = 0.9 * 3.0 * 0.85 * gait.STRIDE_M
+    report.check('3 s at 0.85 strides/s: on her feet, 0.9 of her strides on, within 0.2 m of the line',
+                 lowest > 0.7 and bus['pelvis.pose.z'] > far and abs(bus['pelvis.pose.x']) < 0.2,
+                 'lowest %.2f m, %.2f m on of %.2f, %+.2f m off' % (
+                     lowest, bus['pelvis.pose.z'], far, bus['pelvis.pose.x']))
     mean = sum(borne) / len(borne)
     report.check('her weight is on her soles: 539 N between them, meaned over her last second',
                  abs(mean - 539.0) < 270.0, '%.0f N' % mean)

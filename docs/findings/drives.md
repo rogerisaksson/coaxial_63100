@@ -310,3 +310,12 @@ board's in [FINDINGS](../FINDINGS.md).
   at 1x), the knee's 38 and 32. The governor on the setpoints at 1000/s:
   911.4 and 61.0 %, at half its clamp's acceleration 960.2 and 56.5, the
   walks 35-72 % - not taken.
+- On the walk with the slip gone (feet.md, 2026-10-04; smoke at 0.85
+  strides/s): as built the hip's, knee's and ankle's rms 39, 41 and 35 N m,
+  332 W; the short stack on every drive 30, 25 and 26 (the hip roll's 42 of
+  the 87 it holds), within its peaks / 1.5 28, 24 and 26. Sized on its own
+  demand over the scenes (`drive_sizes`, the run at her 27.7 kg folded in):
+  the hip's rms 37 of the winding's 52 N m (T 1.13 at 1.5x, 0.50 at 1x),
+  the knee's 32 (0.84), the ankle's 33 of 95 (0.28), the hip roll's 46 of
+  87 (0.64); the knee's 1059 deg/s 1.23 of its volts at KV 90 and 48 V; the
+  peaks the 124 N m clamp.

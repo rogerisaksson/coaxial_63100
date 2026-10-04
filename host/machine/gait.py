@@ -43,8 +43,9 @@ TRACK_M, WIDEN_M, STAND_M = 0.03, 0.01, HIP_HALF
 #: The walk: metres a stride (two steps) at `stride` 1 - 1.15 was more than her 0.77 m legs
 #: reach behind at toe-off, and the hips sank to let them. At 1.0 (the toe-off at 0.66) the
 #: pelvis dipped 49 mm under the stand and the head went 56 mm fore and aft; at 0.85, 34 and 35,
-#: the scoreboard's cost 7.74 -> 7.18, held 83.7 %, the stir 3.4 -> 2.3 mm (2026-09-28).
-STRIDE_M = 0.85
+#: the scoreboard's cost 7.74 -> 7.18, held 83.7 %, the stir 3.4 -> 2.3 mm (2026-09-28); 0.75
+#: with the heel by reach (`stance.rolled`).
+STRIDE_M = 0.75
 
 #: The cadence a stride of 1 goes with, strides a second; faster, the steps lengthen as the
 #: cadence to PACE_POWER (`pace`); the hips are fitted every PACE_STEP of stride and weighed
@@ -324,7 +325,7 @@ def _ik(x, y, hip, ahead):
 #: (`_least`, soft within LIFT_SOFT_M) LIFT_M, taken from the planted foot's pivot over
 #: LIFT_RISE of the swing and handed to the landing's over LIFT_FALL. Lifted by a bump over a
 #: path, the foot went 135 mm up and the knee to 75 degrees: she trod the air (2026-09-28).
-LIFT_M, LIFT_RISE, LIFT_FALL, LIFT_SOFT_M = 0.025, 0.25, 0.4, 0.003
+LIFT_M, LIFT_RISE, LIFT_FALL, LIFT_SOFT_M = 0.045, 0.25, 0.4, 0.003
 
 #: The step the swing's end conditions are differenced over, of a stride.
 DIFF = 1e-4

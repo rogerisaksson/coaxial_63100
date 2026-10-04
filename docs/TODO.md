@@ -69,8 +69,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    docs/DIMENSIONS.md (the user, 2026-10-04: every axis by its drive's
    type, edited when a candidate better for DFM and less complex is found
    - written as built; the example of a row did not arrive) with the walk
-   ground on it; the hip's heat on the short stack (the heel by reach
-   took the walk's power 560 -> 369 W, item 4); a fall asks 5 times any
+   ground on it; the hip's heat on the short stack (on the walk with the
+   slip gone its rms 37 of 52 N m, T 1.13, the knee's 0.84); the knee's
+   1059 deg/s 1.23 of its volts; a fall asks 5 times any
    box (the knee's 763 N m on box B's 128); every inverter in its stack
    (the elbow 8 mm past her shell); the governor's scoreboard 911 and
    61.0 % - its form.
@@ -144,16 +145,16 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    every rise and walk standing; the
    standing knee under 10 deg at mid-stance; the knees' T in `drive_sizes`
    as on driven toes; the damping from the sandwich's numbers. The rear
-   foot slips back a little before its swing begins (the user, 2026-10-04):
-   the step ends with the foot lifted and moving forward at once. Measured
-   (`look.py`'s toes back at lift): 92 mm, the leg run out of reach before
-   the heel rises and let go still extending. The heel by reach
-   (`stance.rolled`, `stance.HEEL_UP_DEG` 45): 8 mm and the walk's power
-   560 -> 369 W, but the walk at 1.0 strides/s falls at 6.3 s, its stride
-   the dipping pelvis's (feet.md): in and off, the grinder on it with
-   `gait.STRIDE_M` and the slip in the cost (`tools/sim/looks.py`). DOD:
-   the toes back at lift under 2 mm on every walk, the scoreboard at or
-   over 229 and 86.4 %.
+   foot slipped back 92 mm before its swing (the user, 2026-10-04): gone
+   to 0.8 mm (`look.py`'s toes back at lift) with the heel rising by the
+   leg's reach, the stride 0.75 m, the foot let go easing into its swing
+   and the swing 45 mm up - the walks' power 317-487 W from 507-882
+   (feet.md). Left: a sill at 0.65 strides/s and a nudge walking fell her
+   2 of 3 each, none before (the scoreboard 250.5 and 82.9 % against 265.9
+   and 86.4, the slip in its cost); the slip 3 and 4 mm at 0.65 and 1.0
+   strides/s. DOD: the toes back at lift under 2 mm on every walk, the
+   scoreboard's held at or over 86.4 %; the grinder on the faults suite
+   with `stance.LET_Q`, `gait.LIFT_M`, `stance.HEEL_REACH`.
 5. **A real sneaker** (the user, 2026-10-04; the sole printed in TPU with
    air pockets, the shoe over it so nothing breaks): a 37-38's length, width,
    heel and toe spring; its sole's give, its forefoot's bend as the sprung

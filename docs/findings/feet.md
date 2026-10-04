@@ -125,6 +125,23 @@ on them. Her walk is in [walk](walk.md); the board's own are in
   touchdown 253 -> 222 N - and the walk at 1.0 strides/s down at 6.3 s
   (catches from 9 s where the baked catches from 10.4), her feet landing
   125 mm ahead of the hip where 175, lifted 272 behind where 359, 40 mm
-  apart where 19: the stride was the dipping pelvis's. In, off
-  (`stance.HEEL_UP_DEG` 0), its two constants and the slip's cost
-  (`tools/sim/looks.py`) the grinder's.
+  apart where 19: the stride was the dipping pelvis's.
+- The slip gone (2026-10-04, baked): the heel by reach (45 deg, 0.99), the
+  stride 0.75 m (`gait.STRIDE_M`; at 0.85 the walk at 1.0 strides/s falls,
+  at 0.8 it holds 69 %), the foot let go travelling with the pelvis from
+  where it stood and easing into its swing over 0.1 of the stride
+  (`stance.LET_Q` - at toe-off its leg was asked from 16 to 42 deg of knee
+  in a pass and the toes still went back 10 mm), the swing 45 mm up
+  (`gait.LIFT_M`). `look.py` from the squat: toes back at lift 0.8 mm from
+  92, the head's bob 21 mm from 24, the strike 388 N from 430, the landing
+  knee 32 deg from 37, the pelvis 11.6-38.1 mm under her stand from
+  13.4-48.2. On the scoreboard's walks at 0.65-1.0 strides/s: the slip 3,
+  1, 1 and 4 mm from 31, 85, 92 and 92; the power 317, 342, 356 and 487 W
+  from 507, 554, 624 and 882; a drive at its clamp 0.24-0.94 % of the
+  passes from 0.82-1.73. The scoreboard, the slip in its cost, 250.5 and
+  82.9 % against 265.9 and 86.4: every rise and walk; a sill at 0.65
+  strides/s and a nudge walking fell her 2 of 3 each, none before; the rug
+  1 of 3 from 2. Its forms: the let-go over 0.06, 11-20 mm, 368.0 and
+  85.5 %; the swing 25 mm up, the rug 3 of 3, 400.2 and 82.3; no let-go,
+  10 mm, 374.0 and 84.7; the reach at 0.97, 634-679 and 73-78. Felled by
+  the scoreboard's shove at 5.0 s she is up and walking at 28.4 s.
