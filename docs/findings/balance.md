@@ -190,3 +190,11 @@ shoves, the scoreboard and its searches. The board's own are in
   `bearing.PRESS_M`, `SEEK_M_S`, `stand.HANG_S`, `HANG_SHARE`, best 146.8
   and 80.9 % at 0.0078, 0.294, 0.130 and 0.453 - the built values' own
   neighbourhood (0.01, 0.3, 0.15, 0.45; built 77.5 %), a best of eight.
+- Her arms aimed as she tips (`falls.aimed`, 2026-10-04). P's shove to her
+  left at phase 0.14 had put her head on the floor at 4.31 m/s: the catch
+  folded her knees, the fall was called at 0.65 m of pelvis with her trunk
+  3 deg off plumb, the way read behind her and the arms went back, the
+  shoulders to -46 deg; called down 0.07 s on, she pitched onto her face
+  0.37 s later. Aimed anew every pass past 12 deg of tip until an arm
+  lands: of the 16 crouch falls her head never on the floor in 14, at 0.71
+  and 0.87 m/s in two, the peaks' medians 4.1 and 3.7 kN.

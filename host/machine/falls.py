@@ -30,7 +30,7 @@ CURL_S = 0.4
 #: - with the chin down 40 her head met the floor at 0.85 m/s, up 20, 40 or 60 the chest and the
 #: hips took it (2026-09-28); tipping more than BEHIND_DEG from her forward, the arms down behind
 #: her and the chin tucked. Declared at 18-341 deg/s: the hole, the lace, the stairs, the rug.
-HEAD_UP_DEG, BEHIND_DEG, GUARD_DEG_S = 40.0, 120.0, 150.0
+HEAD_UP_DEG, BEHIND_DEG, GUARD_DEG_S, AIM_DEG = 40.0, 120.0, 150.0, 12.0
 #: Ahead or guarded, the waist turns her torso - the arms, a shoulder's one axis in its plane -
 #: toward the way she tips, from none AHEAD_DEG off her front to all of it SIDE_DEG off, WAIST_DEG
 #: at most, at once (AT_ONCE: its drive's peak the ease). Turned toward the lace's dive, 23
@@ -97,6 +97,22 @@ def reach(tip, rate):
     director turns it on as the tip moves, till an arm lands."""
     way = 'guard' if rate > GUARD_DEG_S else 'behind' if abs(tip) > BEHIND_DEG else 'ahead'
     return dict(CATCH[way]) if way == 'behind' else dict(CATCH[way], waist=turn(tip))
+
+
+def aimed(to, start, bus, tilt, tip, rate):
+    """The curl's `to` and `start` {joint: deg} aimed where she tips now, till an arm lands: the
+    waist turned on with it; tipped `tilt` past AIM_DEG, the arms' way read anew (`reach`), and
+    True when it changed - they begin again from where they are. Aimed once, as the fall was
+    called while she sank upright 3 deg off plumb, the way read behind her, the arms went back
+    and she pitched onto her face, her head at 4.31 m/s (P's shove at phase 0.14, 2026-10-04)."""
+    if 'waist' in to:
+        to['waist'] = turn(tip)
+    new = reach(tip, rate) if tilt > AIM_DEG else to
+    if new['left_shoulder'] == to.get('left_shoulder'):
+        return False
+    start.update({j: bus.get(j + '.deg', 0.0) for j in new})
+    to.update(new)
+    return True
 
 
 def crouch(tip):

@@ -69,12 +69,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    thrown into the fall (the angular momentum, a CMP past the sole, 60 N m
    17 cm on her 35 kg) as a torque - a lean on the spine's setpoints did
    nothing; a ready crouch as the capture point strays - her standing
-   legs are straight, 3.8 cm of reach along the floor. P's shove
-   at phase 0.14 to her left: the catch
-   overshoots and her head strikes the floor (the falls suite's crouch,
-   red since the merge: 1.74 m/s once on driven toes, 4.31 m/s twice on
-   sprung ones at 40 deg, none at 30; balance.md). Then walking: a hole,
-   a sill, a slope, a tilt, a brick gone. The way (the user, 2026-10-04): little
+   legs are straight, 3.8 cm of reach along the floor. Then walking: a
+   hole, a sill, a slope, a tilt, a brick gone. The way (the user, 2026-10-04): little
    Python - the reflexes a prose stream encoded into meta-movement
    patterns over a small vocabulary of moves (step, lean, crouch, hold,
    catch; `machine.planner`'s way), a table of when and what the local

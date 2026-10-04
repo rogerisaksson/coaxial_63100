@@ -97,6 +97,7 @@ class Director:
         #: pass, (deg, s), and its rate, deg/s; when an arm met the floor; since when she tucks and
         #: from where, (s, {joint: deg}); her drives down.
         self.falling_at, self.curl_from, self.curl_to, self.tilt_was = None, {}, {}, None
+        self.curl_at = 0.0
         self.fall_rate, self.touched_at, self.tucked, self.down = 0.0, None, None, None
         #: The get-up and the get-ups since she landed; what felled her, as the observer says it;
         #: the plans tried since, [(steps, why)], and one being made.
@@ -200,7 +201,7 @@ class Director:
         if self.falling_at is None and (self._falling(bus) or self._fallen(bus)):
             tip = self._fall_way(bus)
             self.cause = falls.cause(tip, self.fall_rate, self.stage == 'catch')
-            self.falling_at, self.stage = bus['t'], 'falling'
+            self.falling_at, self.curl_at, self.stage = bus['t'], bus['t'], 'falling'
             self.curl_to = dict(falls.reach(tip, self.fall_rate),
                                 **(falls.crouch(tip) if falls.CROUCH else {}))
             self.curl_from = {j: bus.get(j + '.deg', 0.0) for j in self.curl_to}
@@ -211,9 +212,14 @@ class Director:
             if falls.CROUCH:
                 self._short(falls.SHORT_FALLING)
         if self.falling_at is not None:
-            if self.touched_at is None and 'waist' in self.curl_to:
-                self.curl_to['waist'] = falls.turn(self._fall_way(bus))
-            k = gait.eased((bus['t'] - self.falling_at) / falls.CURL_S)
+            if self.touched_at is None:
+                tilt, t = self._tilt(bus), bus['t']
+                rate = (tilt - self.tilt_was[0]) / max(1e-6, t - self.tilt_was[1]) if self.tilt_was else 0.0
+                self.tilt_was = (tilt, t)
+                if falls.aimed(self.curl_to, self.curl_from, bus, tilt, self._fall_way(bus),
+                               max(rate, self.fall_rate)):
+                    self.curl_at = t
+            k = gait.eased((bus['t'] - self.curl_at) / falls.CURL_S)
             out = {j: self.curl_from[j] + (v - self.curl_from[j]) * k
                    for j, v in self.curl_to.items()}
             out.update({j: self.curl_to[j] for j in falls.AT_ONCE if j in self.curl_to})
@@ -241,6 +247,7 @@ class Director:
                     self.tried.append((self.plan, why))
                     if self.tries >= GETUP_TRIES:
                         self.stage, self.fallen_at, self.falling_at = 'fallen', bus['t'], bus['t']
+                        self.curl_at = bus['t']
                         self.curl_to, self.down = {}, down.Down(self.world, check=False)
                         return out
                     self._begin(self._planned(now), now)
