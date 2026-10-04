@@ -57,7 +57,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    (`events.STANDING`, the 'stand' suite, test_gynoid_stand.py; the
    board stiff and free, the bricks abreast and staggered): the nudges and
    the stiff board 100 %, the shoves 45-49 at 120 N, the bricks 55-60, the
-   free rocker 63-90 (docs/findings/balance.md). The reflex one law
+   free rocker 63-90 (docs/findings/standing.md). The reflex one law
    (`machine.dcm`, 2026-10-04: the capture point in the sole's hold, a step
    due only outside it, the foot bearing less landing on the ray from the
    standing foot through the capture point as it will be; no case for a
@@ -67,8 +67,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    plane: a push with a side to it past the loaded foot - a cross-step in
    front, or the loaded leg's side step off a quick crouch; the trunk
    thrown into the fall (the angular momentum, a CMP past the sole, 60 N m
-   17 cm on her 35 kg); a ready crouch as the capture point strays - her
-   standing legs are straight, 3.8 cm of reach along the floor. P's shove
+   17 cm on her 35 kg) as a torque - a lean on the spine's setpoints did
+   nothing; a ready crouch as the capture point strays - her standing
+   legs are straight, 3.8 cm of reach along the floor. P's shove
    at phase 0.14 to her left: the catch
    overshoots and her head strikes the floor (the falls suite's crouch,
    red since the merge: 1.74 m/s once on driven toes, 4.31 m/s twice on

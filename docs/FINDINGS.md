@@ -226,6 +226,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 | The gynoid walking: her plan, its shape and her look, the start from the squat | [findings/walk.md](findings/walk.md) |
 | The gynoid's feet: the toes without a motor, the sole's give, the push-off on them | [findings/feet.md](findings/feet.md) |
 | The gynoid kept up: the capture law and the side step, the floor's events and shoves, the scoreboard and its searches | [findings/balance.md](findings/balance.md) |
+| The gynoid standing: the rigs under her, the one law in the capture point's plane, the push polar | [findings/standing.md](findings/standing.md) |
 | The gynoid's build, her buses, her falls and her get-up, her drawing and her clothes | [findings/body.md](findings/body.md) |
 | The gynoid's drives: motors, gearboxes, inverters, the numbers that size them | [findings/drives.md](findings/drives.md) |
 | The drive and its observers on the stand-in, the emulator and native://, the rotor's pages and their demos | [findings/drive.md](findings/drive.md) |
