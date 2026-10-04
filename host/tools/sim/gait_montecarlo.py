@@ -13,20 +13,19 @@ terminal page runs her:
   (`physics.World.glitch`): its gate dropped for a moment, or derated hot for seconds; a nudge
   from her side (`machine.events`); each laid at a spread of places (SPREAD), the trial held
   their mean,
-- fall: a shove past saving, the page's P (`machine.events`).
+- fall: a shove past saving (`machine.events`).
 
-Two suites (`--suite`): the look - the rises and the walks on fantasy boards, whose SOA never
-binds (`physics.ENVELOPE` 0) - and the faults - the events and the falls on the boards as built.
-`held`, the share of the trials' time she stood, shown; `stir`, the pendulum's mean over the
+SUITES (`--suite`): look, the rises and the walks on fantasy boards, SOA never binding
+(`physics.ENVELOPE` 0); walk; faults, the events and the falls on the boards as built; stand; all.
+`held`, the share of the trials' time she stood; `stir`, the pendulum's mean over the
 walks, mm. The cost in four, the bench's (2026-10-01): a walk on its look and its power
 (`look_of`, `stir` with it), a fall in it ignored; an event on its parry and a rise on its start,
 a fall the heaviest, FALL_K the share fallen; a fall past saving on its landing's peak, her
-body's and her head's.
-A candidate with no walking to judge ranks last. A single run a candidate scores chance - the
+body's and her head's. A single run scores chance - the
 rise flips on 0.5 % of any knob (docs/findings/walk.md, 2026-09-26) - a spread of them scores
 it.
 
-    python tools/sim/gait_montecarlo.py                                  # the walk as it is
+    python tools/sim/gait_montecarlo.py                      # as built
     python tools/sim/gait_montecarlo.py --grid SURGE_DEG=0,1,2 SWAY_K=0,0.5,1
     python tools/sim/gait_montecarlo.py --search SURGE_DEG=0:4 SWAY_K=0:2 --generations 12
 """
@@ -139,12 +138,16 @@ LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'fee
 LANDS = ('impact', 'touch', 'rate', 'load', 'power')
 
 
+#: Every trial and job: `suite()` narrows from them, not from itself (2026-10-04).
+ALL_TRIALS, ALL_JOBS = TRIALS, list(JOBS)
+
+
 def suite(name):
-    """TRIALS and JOBS narrowed to suite `name`'s kinds."""
+    """TRIALS and JOBS: suite `name`'s kinds."""
     global TRIALS, JOBS, SUITE
     SUITE = name
-    TRIALS = tuple(t for t in TRIALS if t[0] in SUITES[name])
-    JOBS = [(t, k) for t, k in JOBS if t[0] in SUITES[name]]
+    TRIALS = tuple(t for t in ALL_TRIALS if t[0] in SUITES[name])
+    JOBS = [(t, k) for t, k in ALL_JOBS if t[0] in SUITES[name]]
 
 
 #: The suite the runs are on; a run's commit on the relay, GB (a world and its five buses).

@@ -234,7 +234,10 @@ shoves, the scoreboard and its searches. The board's own are in
   and 1.10, the built 178 and 54.9 staying. Its rounds 2 and 3:
   landing.PARRY_M 0.02 and PARRY_HURRY 0.234 on faults 317.3 and 58.5 %;
   stand.GAIN and STEP_MAX_M on faults 178.2 and 54.9, a no-op - standing's
-  knobs reach no walk.
+  knobs reach no walk. Its second run, Clef picking the suite: stand.DWELL_S
+  0.15-0.6 and HANG_S 0.05-0.3 on the stand suite, 1 x 10 in 273 s, the
+  best 178.2 and 76.0 % at 0.368 and 0.15 against the built 215 and 74.7
+  (0.4 and 0.1); one round, not baked.
 - A pinned foot's press (`arrival.PRESS_M` 0.01, the lab, 2026-10-04): a
   foot bearing nothing is solved from the pelvis as it is, put exactly on
   the floor and bears nothing - after the step the stepped foot hung 2 mm
@@ -244,3 +247,8 @@ shoves, the scoreboard and its searches. The board's own are in
   hop; 100 N fell from either side after two cross-over steps. The stand
   suite 74.9 % and 207 against the built 74.7 and 215 (its shove 120 N);
   the whole scoreboard 721.4 and 65.8 % against 729 and 65.7: built.
+- The 100 N standing shove (the lab, 2026-10-04): the cross-over's foot
+  never came down - the step cap scaled its CROSS_M ahead to 10 cm, the
+  foot hung 2.7 cm up 12 cm short of its mark at 0 N. Clipped before the
+  clearances it lands 24 cm ahead, and she still falls from either side in
+  two steps, at the cap 0.1 or 0.2, DWELL_S 0.15-0.4: not taken.
