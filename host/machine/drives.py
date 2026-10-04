@@ -104,6 +104,8 @@ COOLING = 0.3
 #: roll on B (0.62, 0.93 and 0.97 of their amps; on A the hip roll's stack stood 19 mm into the
 #: pelvis frame and the hip yaw's inverter 15 into the spine's); the rest on B with B's box, box
 #: C gone with frame C.
+#: A at 100 the hips' and knees' volts 1.31 against 1.19: a parry's 1259 deg/s binds, not the
+#: run (docs/findings/drives.md, 2026-10-04).
 KV = {'A': 110.0, 'B': 90.0}
 STACKS = {'spine': ('A', 'A', 100), 'spine_roll': ('B', 'B', 70), 'waist': ('B', 'B', 70),
           'neck': ('B', 'B', 70), 'head': ('B', 'B', 70), 'shoulder': ('B', 'B', 70),
@@ -154,15 +156,14 @@ def flex(joint):
 #: rise and walk standing - held; the head's turn 699 and 69.4 (a walk fell), the neck 628 and
 #: 71.2 (a rise), the waist 727 and 71.6 (a rise), the spine's roll 1293 and 23.0, the hips' yaw
 #: 1337 and 12.1.
-WAYS = {'foot': 0.0, 'gripper': 2.0, 'wrist': 2.0}
+WAYS = {'foot': 1.0, 'gripper': 2.0, 'wrist': 2.0}
 PASSIVE = {'gripper': (40.0, 1.0, 80.0)}
 #: The toes' spring about flat, N m/rad, and its damping, N m s/rad: a sneaker's forefoot, 0.2-0.5
 #: N m a degree (a plated one's past 200 stood her on her toe tips, 2026-10-04) - a thin
 #: carbon-fibre sandwich with a TPU core, or TPU printed round carbon rods glued in with silicone
 #: (the user, 2026-10-04): springy but damped, the TPU's loss factor TOE_LOSS at the push-off's
-#: TOE_RAD_S, c = loss k / omega.
+#: TOE_RAD_S, c = loss k / omega (`passive`). The motors off them (the user, 2026-10-04).
 TOE_K, TOE_LOSS, TOE_RAD_S = 25.0, 0.3, 20.0
-TOE_C = TOE_LOSS * TOE_K / TOE_RAD_S
 
 
 def _stack(kind):
@@ -394,7 +395,7 @@ def passive(joint):
     way = WAYS.get(kind(joint), 0.0)
     if not way:
         return None
-    stiffness, damping, rest = ((TOE_K, TOE_C, 0.0) if kind(joint) == 'foot'
+    stiffness, damping, rest = ((TOE_K, TOE_LOSS * TOE_K / TOE_RAD_S, 0.0) if kind(joint) == 'foot'
                                 else PASSIVE.get(kind(joint), (40.0, 1.0, 0.0)))
     return (stiffness if way == 1.0 else None), damping, rest
 

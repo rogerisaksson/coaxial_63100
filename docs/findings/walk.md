@@ -310,3 +310,22 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   44, 57 and 38 %, the walks 91, 12, 5 and 4 at 0.65-1.0, every fast walk
   down within 0.8 s; the toes stay driven until the push-off is reworked
   (TODO 5) (2026-10-04).
+- The motors off the feet (the user, 2026-10-04; `drives.WAYS` foot 1, the
+  damping from TOE_LOSS at the call): 21 drives, 16.2 kg of drives from
+  17.3; the whole scoreboard 1503.8 and 39.6 % against 721.4 and 65.8
+  driven. The walks and the events start dead from a stand
+  (`walker.start()`, `gait_montecarlo.trial`) and fall in the first stride
+  at 0.85 +-2 %: 0.7, 2.6 and 1.8 s in; at 0.65 they hold 90.8 %. From the
+  squat through the arrival's lean (`look.py`, the page's way) she walks at
+  0.85 and 1.0 with a catch at 8.3 and 7.7 s, the pelvis turned 79 and 49
+  deg over 16 s against 25 driven; the toes bend to -23 and -27 deg at the
+  push-off. The sole's give (`mjcf.SOLE_S` 0.02, 1.5 of critical, 5 mm) is
+  the whole foot's foam and TPU; the carbon flex is the toe hinge alone
+  (the user, 2026-10-04).
+- The scoreboard's walks and events started standing through the
+  arrival's shift, lean and step (`Director.begin(stage='stand')`,
+  2026-10-04), as the page starts her: with the toes sprung 1452.7 and
+  49.0 % against the dead start's 1503.8 and 39.6; the 0.65 walks 100 %,
+  the 0.85-1.0 walks 4-6 s and 2.4-5.1 m before they fall, the events at
+  0.85 falling at 5.4-6.1 s. The veer, not the launch, is the sprung
+  walk's gap.

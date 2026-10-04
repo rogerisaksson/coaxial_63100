@@ -38,6 +38,9 @@ KNOBS = {
     'landing.PARRY_M': (0.0, 0.05, 'shoved: the capture point this far past the feet, m'),
     'landing.PARRY_HURRY': (0.1, 0.4, 'the phase run this much faster catching'),
     'gait.LEAN_DEG': (2.0, 6.0, 'the lean into the first step, deg'),
+    'gait.HEEL_OFF': (0.25, 0.5, "the stance heel rising from this phase, of the stride's"),
+    'gait.TOE_OFF': (0.55, 0.75, 'the stance foot leaving the floor at this phase'),
+    'gait.LAND_DEG': (5.0, 25.0, 'the foot landing on its heel this far toes-up, deg'),
     'arrival.SHIFT_IN': (0.02, 0.06, 'her weight inside the standing ankle before the step, m'),
     'arrival.LIFT_UP_M': (0.03, 0.07, 'the first foot lifted this high, m'),
     'arrival.FIRST': (0.4, 0.8, "the first stride, of a stride's"),
@@ -49,6 +52,8 @@ KNOBS = {
     'stand.GAIN': (0.0, 1.0, 'the step past the predicted capture point, of what it is out'),
     'stand.STEP_MAX_M': (0.05, 0.3, 'a step no further than this, m'),
     'stand.HANG_S': (0.05, 0.3, 'a foot unloaded this long is no support, s'),
+    'drives.TOE_K': (10.0, 60.0, "the toes' spring, N m/rad - no motor on them"),
+    'drives.TOE_LOSS': (0.1, 0.6, "its damping, the sole's loss factor"),
 }
 
 #: The suites and what they score; the runs a candidate makes on each (3 a trial).
@@ -74,7 +79,9 @@ Answer JSON: {"hypothesis": one sentence, what you expect and why; "knobs": {nam
 for 1 to 4 knobs from the list, spans inside the ones given; "suite": one of the suites;
 "generations": 2-6; "population": 4-12}. Each search costs generations x population x the
 suite's runs, %d at most. Prefer the suite whose numbers are worst, prefer knobs no search has
-moved yet, and do not repeat a hypothesis in the record.
+moved yet, and do not repeat a hypothesis in the record. The stand.* knobs reach the stand suite
+alone, the walker's, gait's, capture's, landing's and arrival's the walks, the look and the faults,
+the drives' every suite: a knob on a suite it does not reach scores nothing.
 
 Knobs (name: low..high, what it is):
 %s

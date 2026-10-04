@@ -252,3 +252,12 @@ shoves, the scoreboard and its searches. The board's own are in
   foot hung 2.7 cm up 12 cm short of its mark at 0 N. Clipped before the
   clearances it lands 24 cm ahead, and she still falls from either side in
   two steps, at the cap 0.1 or 0.2, DWELL_S 0.15-0.4: not taken.
+- The brick taken away (the lab, 2026-10-04): the freed foot steps 11 cm
+  out and 6 cm down at 0.6 m/s, lands at 1.0-1.35 kN, she bounces off both
+  feet and goes over after a second step; slowed to 0.3 or 0.2 m/s the
+  capture point has run 25-50 cm before it lands. Dropped straight down
+  where it hangs (its own point still holding the capture point between
+  the two) it lands at 1.2-1.3 kN and bears, and the body tips on toward
+  the dropped side faster than the second step at any cap 0.1-0.3, gain
+  0.1-0.8, dwell 0.25-0.4: not taken either. The drop's momentum, not the
+  step, is the gap.

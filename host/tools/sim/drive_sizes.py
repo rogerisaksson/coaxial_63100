@@ -43,12 +43,16 @@ CACHE = os.path.join(REPO, 'build', 'drive_demand.json')
 #: of `events.STANDING` after 'stand:' (the user, 2026-10-04).
 SCENES = (None, 'slip', 'nudge', 'hole', 'shove') + tuple('stand:' + e for e in events.STANDING)
 SCENE_S = 8.0
-#: A run's demand a kind, the literature's at 3-3.5 m/s a kg of her (Novacheck 1998, Schache
-#: 2011, Dorn 2012): (peak N m, peak deg/s, peak W) a kg, the rms RUN_RMS of the peak - the aim
-#: is that she runs, with headroom (the user, 2026-10-04); folded in with `--run`.
-RUN = {'hip': (2.7, 450.0, 7.0), 'knee': (3.0, 650.0, 10.0), 'ankle': (3.6, 850.0, 12.0),
-       'hip_roll': (1.8, 300.0, 3.0), 'hip_yaw': (0.6, 300.0, 1.0), 'ankle_roll': (0.8, 300.0, 1.5),
-       'spine': (1.5, 200.0, 2.0), 'spine_roll': (1.2, 200.0, 1.5), 'waist': (0.5, 200.0, 1.0)}
+#: A run's demand a kind at the 2 m/s the running item asks (peak N m, peak deg/s, peak W) a kg,
+#: the rms RUN_RMS of the peak; folded in with `--run`. Estimated from the literature's 3-3.5 m/s
+#: peaks (Novacheck 1998, Schache 2011, Dorn 2012: hip 2.7, knee 3.0, ankle 3.6 N m; 450, 650,
+#: 850 deg/s; 7, 10, 12 W): the hip's moment near-linear in speed, the knee's and the ankle's
+#: nearly flat, the speeds 0.75 of them. At those peaks and 1.5x, amps x volts outran the pack's
+#: volts x the inverter's amps - 1.26 x 1.19 at 48 V, 1.07 x 1.07 at 63 V - with no ratio or KV
+#: to move it (2026-10-04).
+RUN = {'hip': (1.6, 330.0, 4.0), 'knee': (2.6, 500.0, 6.0), 'ankle': (3.0, 650.0, 8.0),
+       'hip_roll': (1.4, 220.0, 2.0), 'hip_yaw': (0.5, 220.0, 0.7), 'ankle_roll': (0.7, 220.0, 1.0),
+       'spine': (1.2, 150.0, 1.5), 'spine_roll': (1.0, 150.0, 1.0), 'waist': (0.4, 150.0, 0.7)}
 RUN_RMS = 0.4
 
 
@@ -107,9 +111,12 @@ def asked(to_s, values, scene=None, cadence=0.85):
     world = body.nodes['pelvis'].world
     rig = scene[6:] if scene and scene.startswith('stand:') else None
     director = Director(body, cadence, stand_s=math.inf if rig else 0.0)
-    director.begin(*((0.002,) + events.rigged(rig) if rig else ()))
     if rig:
+        up, stagger = events.rigged(rig)
+        director.begin(0.002, up=up, stagger=stagger)
         events.rig(rig, director, world)
+    else:
+        director.begin()
     body.loop.step(0.0)
     bus = body.loop.bus
     laid, was = scene is None, 0.0

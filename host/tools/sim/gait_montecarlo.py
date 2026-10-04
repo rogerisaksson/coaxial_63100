@@ -11,22 +11,19 @@ terminal page runs her:
 - event: from mid-stride, the floor's event under her next left step (`physics.World.terrain`):
   a hole, a sill, a slip patch, a loose rug; the left knee's drive glitched in its stance
   (`physics.World.glitch`): its gate dropped for a moment, or derated hot for seconds; a nudge
-  from her side (`machine.events`); each laid at a spread of places (SPREAD), the trial held
-  their mean,
+  from her side (`machine.events`); each laid at SPREAD places, the trial held their mean,
 - fall: a shove past saving (`machine.events`).
 
 SUITES (`--suite`): look, the rises and the walks on fantasy boards, SOA never binding
 (`physics.ENVELOPE` 0); walk; faults, the events and the falls on the boards as built; stand; all.
 `held`, the share of the trials' time she stood; `stir`, the pendulum's mean over the
-walks, mm. The cost in four, the bench's (2026-10-01): a walk on its look and its power
-(`look_of`, `stir` with it), a fall in it ignored; an event on its parry and a rise on its start,
-a fall the heaviest, FALL_K the share fallen; a fall past saving on its landing's peak, her
-body's and her head's. A single run scores chance - the
-rise flips on 0.5 % of any knob (docs/findings/walk.md, 2026-09-26) - a spread of them scores
-it.
+walks, mm. The cost (2026-10-01): a walk on its look and power (`look_of`, `stir` with it), a
+fall in it ignored; an event on its parry, a rise on its start, a fall the heaviest, FALL_K the
+share fallen; a fall past saving on its landing's peak, body and head. A single run scores
+chance - the rise flips on 0.5 % of any knob (docs/findings/walk.md, 2026-09-26) - a spread of
+them scores it.
 
     python tools/sim/gait_montecarlo.py                      # as built
-    python tools/sim/gait_montecarlo.py --grid SURGE_DEG=0,1,2 SWAY_K=0,0.5,1
     python tools/sim/gait_montecarlo.py --search SURGE_DEG=0:4 SWAY_K=0:2 --generations 12
 """
 import argparse
@@ -138,7 +135,7 @@ LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'fee
 LANDS = ('impact', 'touch', 'rate', 'load', 'power')
 
 
-#: Every trial and job: `suite()` narrows from them, not from itself (2026-10-04).
+#: Every trial and job, `suite()` narrowing from them, not itself (2026-10-04).
 ALL_TRIALS, ALL_JOBS = TRIALS, list(JOBS)
 
 
@@ -205,9 +202,10 @@ def trial(job):
         director.begin(drop=0.002 + RISE_DROP_M * (k + 1), up=up, stagger=stagger)
         events.rig(event, director, body.nodes['pelvis'].world)
     else:
+        # Standing, through the arrival's lean, as the page starts her: started dead through
+        # the walker, the first stride fell at 0.85 on sprung toes (2026-10-04).
+        director.begin(drop=0.002 + RISE_DROP_M * (k + 1), stage='stand')
         director.cadence = director.walker.cadence = pace * (1.0 + WALK_SPREAD * k)
-        director.walker.start()
-        director.stage = 'walk'
     body.loop.step(0.0)
     bus, world = body.loop.bus, body.nodes['pelvis'].world
     seconds = SECONDS[kind]

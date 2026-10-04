@@ -28,15 +28,22 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    boxes and two inverters stand in `tools/sim/bom.py`: 23 drives, 25 part
    types; the grinder `tools/sim/gym.py` grinds the balance's knobs, Clef
    picking the suite): at 48 V the hip's and the knee's amps 1.26, power
-   1.21 and volts 1.19 on the run's demand (`drive_sizes --cached --run`,
-   MARGIN 1.5), the ankle roll's amps 1.08 and box 1.04 from the gym's
-   scenes. Amps x volts is the pack's volts x the inverter's amps - no
-   ratio or KV moves it: at 54 V (15S nominal) and KV 100 both 1.15, at
-   63 V and KV 93 both 1.07; heat is under 1 everywhere (0.84). The user's
-   call (asked 2026-10-04): the run's margin 1.3, the run a 2 m/s jog's
-   demand rather than the sprint's peaks, or an inverter past 100 A. DOD:
-   every leg joint's A, P and V under 1 on the run and the gym's scenes at
-   the settled margin; the pack's volts and the frames' KV baked.
+   1.21 and volts 1.19 (`drive_sizes --cached --run`, MARGIN 1.5) - a
+   parry's peaks, 171 N m and 1259 deg/s, not the run's (the 2 m/s jog
+   `RUN` asks less; docs/findings/drives.md) -, the ankle roll's amps 1.08
+   and box 1.04 from the gym's scenes. Amps x volts is the pack's volts x
+   the inverter's amps, no ratio or KV moves it; heat is under 1 everywhere
+   (0.84). Next: the demand kept a scene in build/drive_demand.json and a
+   margin a scene - the parries' and the falls' 1.2 (the user's call, taken
+   2026-10-04), the rest 1.5 -, then the pack's lowest volts and the
+   frames' KV baked. The
+   elbow, the neck and the head on box B's 1:30 feel their rotors 6.8, 2.6
+   and 28.8 times their loads; their windows 3..11, 2..19 and 0..6 - frame
+   B direct overheats the elbow (its rms 4 N m, B holds 1.7): a belt stage
+   1:4-1:6 in box B's place, decided 2026-10-04, pending a ratio a stack
+   (`drives.RATIO` is one for all). DOD: every leg joint's A, P
+   and V under 1 on the run and the gym's scenes at the settled margin, no
+   joint's J over 1; the pack's volts, the frames' KV and the stages baked.
 2. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the
    support a point under each stance ball, nothing of the sole's shape to
    the controller, a small quick step toward the capture point whenever it
@@ -73,17 +80,19 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 3. **Running**: a gait with flight, from the walk's search. DOD: 2 m/s
    standing on the scoreboard, no strike over 2 kN, the parries, falls and
    get-ups of the biped's suite held as walking.
-4. **The toes' motors out** (the user, 2026-10-04: they break at once,
-   weigh the step down, keep ordinary shoes off): a sprung forefoot
-   (`drives.WAYS` foot 1, `TOE_K` 25 - a sneaker's forefoot; stiffer stood
-   her on her toe tips), springy but damped - a thin carbon-fibre sandwich
-   with TPU, or TPU printed with carbon rods poked into the print and
-   glued with silicone (the user, 2026-10-04): `TOE_C` from TPU's loss
-   factor -, the
-   push-off reworked: searched, the rises 45-79 % and the walks 82, 89, 18
-   and 6 at 0.65-1.0 (docs/findings/walk.md). DOD: the scoreboard at or
-   over 73.7 % with the toes sprung; every rise and walk standing; the
-   damping from the sandwich's numbers.
+4. **The push-off without toe motors** (the user, 2026-10-04: the motors
+   off the feet, 21 drives; the toes alone flex, at the ball, a thin
+   carbon-fibre sandwich with TPU or TPU round carbon rods glued with
+   silicone, `TOE_K` 25 and `TOE_LOSS` 0.3; the whole sole's foam and TPU
+   the contact's give, `mjcf.SOLE_S`): the scoreboard's walks and events
+   now start standing through the arrival's lean as the page starts her
+   (a dead start through the walker fell the first stride, 2026-10-04):
+   1452.7 and 49.0 % against 721.4 and 65.8 driven - the 0.65 walks 100 %,
+   the 0.85-1.0 walks 4-6 s before they fall, veering: the pelvis turned
+   79 deg over 16 s against 25 driven (docs/findings/walk.md); the grinder
+   on `gait.HEEL_OFF`, `TOE_OFF`, `LAND_DEG`, `drives.TOE_K`, `TOE_LOSS`.
+   DOD: the scoreboard at or over 65.8 % with the toes sprung; every rise
+   and walk standing; the damping from the sandwich's numbers.
 5. **A real sneaker** (the user, 2026-10-04; the sole printed in TPU with
    air pockets, the shoe over it so nothing breaks): a 37-38's length, width,
    heel and toe spring; its sole's give, its forefoot's bend as the sprung
@@ -190,7 +199,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 25. **MuJoCo Warp** on the RTX 4080 SUPER (the user, 2026-10-02): the
     scoreboard's worlds batched. DOD: its step against the CPU's 0.31 ms
     measured first; the boards at 1 kHz beside it.
-26. **`machine/` in subpackages**. DOD: `test_structure` on the layout.
+26. **`machine/` in subpackages**; `arrival.py` and `gait_montecarlo.py`
+    stand at their 6 k caps (2026-10-04): the trial into its own module,
+    the arrival's keyframes from its player. DOD: `test_structure` on the
+    layout, each file under 5 k.
 
 ## Bench
 

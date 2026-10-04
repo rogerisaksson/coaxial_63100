@@ -223,3 +223,15 @@ board's in [FINDINGS](../FINDINGS.md).
   and the hip roll's 13; all on B, 12.7 kg, the hips and knees at 2.07 of
   their amps and 2.4 of their power, the spine 1.72. Two it is: A for the
   spine, hips, knees and ankles, B for the rest (2026-10-04).
+- What binds the hips and knees is a parry, not the run (`drive_sizes
+  --cached --run`, 2026-10-04): their 171 N m and 1259 deg/s peaks are the
+  scenes' - a catch's - and stand at 1.26 of A's amps, 1.21 of its power
+  and 1.19 of its volts at the pack's lowest 48 V and 1.5x; the literature's
+  3-3.5 m/s run asks less (148 N m), the 2 m/s jog `RUN` is now sized on
+  less still. Amps x volts is the pack's volts x the inverter's amps: 1.15
+  at 54 V and KV 100, 1.07 at 63 V and KV 93, no ratio or KV moves it. KV A
+  100 tried: the volts 1.31 - back to 110. The toes' motors out: 21
+  drives, 16.2 kg of 55; the elbow, the neck and the head feel their rotors
+  6.8, 2.6 and 28.8 times their loads through box B's 1:30 (their windows
+  3..11, 2..19, 0..6; B direct overheats the elbow, its rms 4 N m against
+  1.7 held).

@@ -133,11 +133,11 @@ class Director:
         """Down with no get-up left: GETUP_TRIES of them failed."""
         return self.stage == 'fallen' and self.tries >= GETUP_TRIES
 
-    def begin(self, drop=0.002, up=0.0, stagger=0.0):
-        """Landed in the squat from `drop` m, `up` m over the floor, the left foot `stagger` m
-        ahead; the arrival takes her up."""
+    def begin(self, drop=0.002, up=0.0, stagger=0.0, stage='squat'):
+        """Landed in the squat - or standing, `stage` 'stand' - from `drop` m, `up` m over the
+        floor, the left foot `stagger` m ahead; the arrival takes her on."""
         self.getup = getup.GetUp(self.machine)
-        self.arrival.land(drop, up, stagger)
+        self.arrival.land(drop, up, stagger, stage)
         self.stage, self.fallen_at, self.since = self.arrival.stage, None, 0.0
         self.walker.cadence = gait.CADENCE
         self.walker.reset()

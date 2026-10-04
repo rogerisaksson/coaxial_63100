@@ -1,16 +1,15 @@
 """The gynoid's arrival: huddled in a deep squat as a T-800 lands, rising, stepping off into the walk.
 
     arrival = Arrival(machine)             # a DYNAMIC gynoid
-    arrival.land()                         # the body placed in the squat, still
-    machine.loop.write(**arrival.step(dt)) # every pass; `arrival.stage` names where she is
+    arrival.land()                         # placed in the squat, still
+    machine.loop.write(**arrival.step(dt)) # every pass; `arrival.stage` where she is
 
 Keyframes in the task space - the pelvis and its tilt, each ankle and its foot's pitch, the
 spine, head and arms - eased from one to the next, the legs by IK; her centre of mass held to
 each keyframe's own, the pelvis's target moved against its error. She rises over her feet, shifts
-onto the left and swings the right a short step ahead, falling forward over the left foot's ball
-as it lands: `ready` for `machine.walker` to take her on at the landing. On a
-knee, four points on the floor fought the feedback and threw her; from a squat her feet carry her
-(2026-09-25).
+onto the left and swings the right a short step ahead: `ready` for `machine.walker` at the
+landing. On a knee, four points on the floor fought the feedback and threw her; from a squat her
+feet carry her (2026-09-25).
 """
 import math
 from typing import Any
@@ -18,7 +17,7 @@ from typing import Any
 from machine import figure, gait, walker, walkplan, stance
 from machine.figure import LEG, add, mul, rx, ry, sub
 
-#: Her feet in the squat and standing: the ankles FEET_X either side of the line, at z 0.
+#: The ankles FEET_X either side of the line, at z 0, squatting and standing.
 FEET_X = 0.08
 
 #: The centre of mass fed back through the pelvis's target: its error, 1, and its speed's, s -
@@ -29,12 +28,11 @@ FEET_X = 0.08
 #: the flat rises 91.8 -> 78.5 % (2026-10-04).
 COM_K, COM_D, PULL_M, PULL_UP_M = 1.5, 0.15, 0.05, 0.15
 
-#: Entered moving, the first keyframe is reached slowing from her speed, over as long as that
-#: takes, within ENTER_S seconds.
+#: Entered moving, the first keyframe is reached slowing from her speed, within ENTER_S s.
 ENTER_S = (0.4, 1.5)
 
-#: Stopping, her weight is brought STOP_M ahead of the front ankle, m: over the sole's middle,
-#: the rear leg still pushing, she came on over the ball and tipped (2026-09-26).
+#: Stopping, her weight STOP_M ahead of the front ankle, m: over the sole's middle, the rear
+#: leg still pushing, she came on over the ball and tipped (2026-09-26).
 STOP_M = 0.05
 
 #: The speed's filter, s.
@@ -298,11 +296,13 @@ class Arrival:
         self.t, self.stage, self.com_was, self.v = 0.0, frames[0][0], None, (0.0, speed)
         self.want_was, self.borne, self.pinned, self.lifted = None, {}, {}, {}
 
-    def land(self, drop=0.002, up=0.0, stagger=0.0):
-        """The body placed in the squat, still, `drop` m over a floor `up` m high, the left
-        foot `stagger` m ahead."""
-        self.play([(s, t, moved(staggered(f, stagger), 0.0, 0.0, 0.0, up))
-                   for s, t, f in keyframes(self.cadence, self.stand_s)])
+    def land(self, drop=0.002, up=0.0, stagger=0.0, stage='squat'):
+        """The body placed still at `stage`'s first keyframe - the squat, or 'stand' -, `drop` m
+        over a floor `up` m high, the left foot `stagger` m ahead."""
+        frames = [(s, t, moved(staggered(f, stagger), 0.0, 0.0, 0.0, up))
+                  for s, t, f in keyframes(self.cadence, self.stand_s)]
+        first = next(i for i, (s, _t, _f) in enumerate(frames) if s == stage)
+        self.play([(stage, 0.0, frames[first][2])] + frames[first:])
         frame = self.frames[0][2]
         h = math.radians(frame['tilt']) / 2.0
         self.world.reset(angles_of(frame), where=add(frame['pelvis'], (0.0, drop, 0.0)),
