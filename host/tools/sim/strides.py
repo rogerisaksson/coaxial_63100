@@ -171,6 +171,7 @@ WALK = (
         _p(b, 'left_foot')[2] - _p(b, 'left_thigh')[2] for a, b in _landings(rs)) * 1e3),
     ('toes behind at lift', 'mm', lambda rs: _mean(
         _p(a, 'left_thigh')[2] - _p(a, 'left_toes')[2] for a, b in _lifts(rs)) * 1e3),
+    ('toes back at lift', 'mm', lambda rs: _mean(_slips(rs)) * 1e3),
     ('thigh behind at lift', 'deg', lambda rs: _mean(
         _lean(_p(a, 'left_shank'), _p(a, 'left_thigh')) for a, b in _lifts(rs))),
     ('thigh ahead at landing', 'deg', lambda rs: _mean(
@@ -215,6 +216,24 @@ def _landings(rs):
 def _lifts(rs):
     return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
             if float(a['left_load']) > BEARS_N >= float(b['left_load']) and _held(rs, k, False)]
+
+
+def _slips(rs):
+    """How far back the left toes go, each stride, from where they stood as the foot last bore
+    her alone before they go ahead of it, m: a foot let go still pushing slides back along the
+    floor (the user, 2026-10-04). From the row its load read under BEARS_N, a load read through
+    20 ms came after the slide and the measure said 0 of 93 mm."""
+    out, alone = [], {id(r) for r in _alone(rs)}
+    for k, r in enumerate(rs[:-1]):
+        if id(r) in alone and id(rs[k + 1]) not in alone:
+            z0, back = _p(r, 'left_toes')[2], 0.0
+            for n in rs[k + 1:]:
+                z = _p(n, 'left_toes')[2] - z0
+                if z > 0.05 or float(n['t']) - float(r['t']) > 0.6:
+                    break
+                back = min(back, z)
+            out.append(-back)
+    return out
 
 
 def _alone(rs):

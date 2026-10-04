@@ -63,14 +63,15 @@ RUN_RMS = 0.4
 
 def running(got):
     """`got` {joint: (peak, rms, speed, watts, load)} with a run's demand (RUN) folded in: each
-    the larger, the load hers."""
-    from machine import drives
-    from machine.figure import MASS_KG
+    the larger, the load hers; a kg of her as built (`figure.mass`) - of the woman's 55 the knee
+    was asked 143 N m where her 32.3 kg ask 84 (2026-10-04)."""
+    from machine import drives, figure
+    kg = figure.mass()
     out = {}
     for joint, (peak, rms, speed, watts, load) in got.items():
         nm_kg, deg_s, w_kg = RUN.get(drives.kind(joint), (0.0, 0.0, 0.0))
-        out[joint] = (max(peak, nm_kg * MASS_KG), max(rms, RUN_RMS * nm_kg * MASS_KG),
-                      max(speed, deg_s), max(watts, w_kg * MASS_KG), load)
+        out[joint] = (max(peak, nm_kg * kg), max(rms, RUN_RMS * nm_kg * kg),
+                      max(speed, deg_s), max(watts, w_kg * kg), load)
     return out
 
 
@@ -203,8 +204,8 @@ def main(argv=None):
                    for i in range(5)] for j in runs[0]}
         os.makedirs(os.path.dirname(CACHE), exist_ok=True)
         json.dump(got, open(CACHE, 'w'), indent=1)
-    from machine import drives
-    from machine.figure import JOINTS, MASS_KG
+    from machine import drives, figure
+    from machine.figure import JOINTS
     print('%-11s %-3s %-26s | %-11s %-10s %-10s | %5s %5s %5s %5s %5s %5s %5s | %s' % (
         'kind', 'frm', 'stack', 'peak/has', 'rms/holds', 'deg/s/has', 'A', 'P', 'T', 'J', 'Q',
         'S', 'V', 'ratio window'))
@@ -226,10 +227,10 @@ def main(argv=None):
                   n / math.sqrt(j)))
     stacks = [drives.STACKS[drives.kind(j)] for j in JOINTS if not drives.passive(j)]
     kg = sum(drives.mass(j) + drives.of(j)[1].board[0] for j in JOINTS if not drives.passive(j))
-    print('BOM: %d drives - %d frames (a winding each), %d boxes, %d inverters; %.1f kg of %.0f; '
+    print('BOM: %d drives - %d frames (a winding each), %d boxes, %d inverters; %.1f kg of %.1f; '
           'stacks %s mm round' % (len(stacks), len({s[0] for s in stacks}),
                                   len({s[1] for s in stacks}), len({s[2] for s in stacks}), kg,
-                                  MASS_KG, '/'.join('%.0f' % (1e3 * d) for d in sorted(
+                                  figure.mass(), '/'.join('%.0f' % (1e3 * d) for d in sorted(
                                       {drives.size(s).diameter for s in drives.STACKS},
                                       reverse=True))))
     return 0

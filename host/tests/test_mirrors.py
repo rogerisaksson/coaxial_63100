@@ -230,7 +230,17 @@ def test_mirrors_agree(r):
             '; '.join(off[:3]) or '%d by name' % len(pairs))
 
 
-ROSTER = (test_subsystem_calls_resolve, test_limits_live_in_one_file, test_mirrors_agree)
+def test_dimensions_page_is_the_drives(r):
+    """docs/DIMENSIONS.md is what `tools/sim/dimensions.py` writes from the drives as stacked."""
+    from tools.sim import dimensions
+    with open(dimensions.PAGE, encoding='utf-8') as f:
+        page = f.read()
+    r.check("the dimensions page is its tool's output", page == dimensions.text(),
+            'python tools/sim/dimensions.py --write')
+
+
+ROSTER = (test_subsystem_calls_resolve, test_limits_live_in_one_file, test_mirrors_agree,
+          test_dimensions_page_is_the_drives)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

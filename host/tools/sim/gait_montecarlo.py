@@ -17,7 +17,7 @@ terminal page runs her:
 SUITES (`--suite`): look, the rises and the walks on fantasy boards, SOA never binding
 (`physics.ENVELOPE` 0); walk; faults, the events and the falls on the boards as built; stand; all.
 `held`, the share of the trials' time she stood; `stir`, the pendulum's mean over the
-walks, mm. The cost (2026-10-01): a walk on its look and power (`look_of`, `stir` with it), a
+walks, mm. The cost (2026-10-01): a walk on its look and power (`looks.cost`, `stir` with it), a
 fall in it ignored; an event on its parry, a rise on its start, a fall the heaviest, FALL_K the
 share fallen; a fall past saving on its landing's peak, body and head. A single run scores
 chance - the rise flips on 0.5 % of any knob (docs/findings/walk.md, 2026-09-26) - a spread of
@@ -37,6 +37,7 @@ import time
 from machine import events
 from tools.dev import background
 from tools.sim import cmaes, knobs
+from tools.sim.looks import LOOKS, cost as look_of, shown
 
 #: (kind, pace, event): the trials. The floor's events took the shoves' place (a shove hardly
 #: ever happens to a walker; a hole, a sill, a rug, a slippery patch, a lace and a drive's
@@ -73,51 +74,9 @@ JOBS = [(t, k) for t in TRIALS for k in SPREAD]
 #: her three rises were one start - all three fell at 6.4 s (2026-10-02).
 RISE_DROP_M = 0.002
 
-#: The look's cost, a walk's: the thigh's reach ahead of upright at the landing past its reach
-#: behind at the lift by more than BALANCE_DEG, BALANCE_K a degree; the head fore and aft past
-#: SURGE_MM, SURGE_K a mm; the feet nearer than CLEAR_MM as they pass, CLEAR_K a mm. A walk is
-#: looked at LOOK_HZ. Her legs a little further back, straight, graceful - not the trudge, the
-#: feet far out in front and none behind (2026-09-28): the knee landing bent past KNEE_DEG, the
-#: thigh swung out past where it lands by more than OVER_DEG, KNEE_K and OVER_K a degree.
-BALANCE_DEG, BALANCE_K = 0.0, 0.2
-KNEE_DEG, KNEE_K, OVER_DEG, OVER_K = 10.0, 0.5, 3.0, 0.5
-
-#: The step taken out: the thigh short of REACH_DEG behind upright at the lift, REACH_K a degree,
-#: the heaviest of the look - weighed light, the searches came to tiptoeing, the legs always in
-#: front, the easiest balance (2026-09-28).
-REACH_DEG, REACH_K = 10.0, 1.0
-SURGE_MM, SURGE_K = 30.0, 0.15
-
-#: The upper body's bob: the torso pitching past TORSO_DEG, TORSO_K a degree. The feet: the
-#: stance's toes out of TOE_OUT degrees or the swinging foot's turned in, TOE_K a degree; the
-#: ankle rolled past PRONATE_DEG under the shin, PRONATE_K a degree - pigeon-toed, the swinging
-#: foot in 6.5, and overpronated at 4.9, to the eye (2026-09-28).
-TORSO_DEG, TORSO_K = 2.0, 1.0
-TOE_OUT, TOE_K, PRONATE_DEG, PRONATE_K = (5.0, 15.0), 0.5, 3.0, 0.5
-CLEAR_MM, CLEAR_K = 5.0, 0.2
-LOOK_HZ = 50.0
-
-#: The landing's cost, a walk's, heavy - a soft walk keeps the drives whole, copper lost before
-#: anything broken (2026-09-28): the sole's peak over IMPACT_S from its touch past IMPACT_N,
-#: IMPACT_K a newton; the ankle falling past TOUCH_MS as it touches, TOUCH_K a m/s. A touch: the
-#: sole bearing TOUCH_N after QUIET_S of none, read every millisecond.
-IMPACT_S, IMPACT_N, IMPACT_K = 0.03, 700.0, 0.01
-TOUCH_MS, TOUCH_K = 0.15, 20.0
-
-#: The landing's loading rate, the clonk heard: the sole's steepest rise over a millisecond in
-#: the impact's window past RATE_KN_S kN/s, RATE_K a kN/s - she should be as quiet as a person,
-#: only her clothes heard against her (2026-09-28).
-RATE_KN_S, RATE_K = 20.0, 0.02
-TOUCH_N, QUIET_S = 30.0, 0.1
-
-#: The drives' load: the share of drive-ms at a drive's peak past LOAD_PCT %, LOAD_K a percent -
-#: at 0.85 strides/s 0.47 % of all, the ankles 1.78, the knees 1.40, the hips 0.95: at each
-#: landing and as each leg is snapped into its swing (2026-09-30).
-LOAD_PCT, LOAD_K = 0.0, 4.0
-
-#: Her power walking, W - the page's sum (`machine.running`): the work done, the copper's heat,
-#: the boards' own - ENERGY_K a watt past ENERGY_W; 482 W at 0.85 strides/s (2026-10-01).
-ENERGY_W, ENERGY_K = 300.0, 0.05
+#: A walk is looked at LOOK_HZ. A touch: the sole bearing TOUCH_N after QUIET_S of none, read
+#: every millisecond, its peak taken over IMPACT_S (the cost of each: `tools.sim.looks`).
+LOOK_HZ, IMPACT_S, TOUCH_N, QUIET_S = 50.0, 0.03, 30.0, 0.1
 
 #: An event's fall, FALL_K the share of its runs that fell: the heaviest - one more of 30 is 10. A
 #: fall past saving, its landing over LAND_S from the fall: LAND_K a kN of the peak her body bears
@@ -127,13 +86,6 @@ FALL_K, LAND_S, LAND_K, HEAD_K, GEAR_K = 300.0, 1.5, 2.0, 10.0, 100.0
 
 #: A stand's cost: its stir, mm, from its event on, TREAD_K a step taken, a fall FALL_K.
 TREAD_K = 1.0
-
-#: The look's measures, by `strides.WALK`'s names, and the landing's and the power's.
-LOOKS = ('thigh ahead at landing', 'thigh behind at lift', 'head fore-aft', 'feet clear',
-         'torso pitch', 'toe out', 'toe out swinging', 'ankle roll', 'knee at landing',
-         'thigh most ahead')
-LANDS = ('impact', 'touch', 'rate', 'load', 'power')
-
 
 #: Every trial and job, `suite()` narrowing from them, not itself (2026-10-04).
 ALL_TRIALS, ALL_JOBS = TRIALS, list(JOBS)
@@ -150,23 +102,6 @@ def suite(name):
 #: The suite the runs are on; a run's commit on the relay, GB (a world and its five buses).
 SUITE, RUN_GB = 'all', 1.2
 
-
-def look_of(looks):
-    """The look's cost of a walk's measures {name: value} (`LOOKS`)."""
-    (ahead, behind, surge, clear, torso, out, swinging, roll, knee, most, impact, touch,
-     rate, load, power) = (looks.get(n, math.nan) for n in LOOKS + LANDS)
-    terms = (BALANCE_K * max(0.0, ahead - behind - BALANCE_DEG),
-             REACH_K * max(0.0, REACH_DEG - behind),
-             SURGE_K * max(0.0, surge - SURGE_MM), CLEAR_K * max(0.0, CLEAR_MM - clear),
-             TORSO_K * max(0.0, torso - TORSO_DEG),
-             TOE_K * (max(0.0, TOE_OUT[0] - out) + max(0.0, out - TOE_OUT[1])
-                      + max(0.0, -swinging)),
-             PRONATE_K * max(0.0, roll - PRONATE_DEG), KNEE_K * max(0.0, knee - KNEE_DEG),
-             OVER_K * max(0.0, most - ahead - OVER_DEG),
-             IMPACT_K * max(0.0, impact - IMPACT_N), TOUCH_K * max(0.0, touch - TOUCH_MS),
-             RATE_K * max(0.0, rate - RATE_KN_S), LOAD_K * max(0.0, load - LOAD_PCT),
-             ENERGY_K * max(0.0, power - ENERGY_W))
-    return sum(t for t in terms if t == t)
 
 #: A trial's seconds, by kind; a walk's stir is meaned from SETTLE_S; events laid from
 #: EVENT_AT_S.
@@ -375,10 +310,7 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
             kind, pace, event or '', 100 * h, ' | '.join(whats),
             '  stir %.2f mm' % s if kind == 'walk' else
             '  stir %.2f mm, %d treads' % (s, looks.get('treads', 0)) if kind == 'stand' else '',
-            '  ahead %.1f behind %.1f deg, surge %.1f, clear %.1f mm, torso %.1f, toes %.1f'
-            ' swinging %.1f, roll %.1f, knee %.1f, most %.1f deg, impact %.0f N, touch %.2f m/s,'
-            ' rate %.0f kN/s, load %.2f %%, power %.0f W'
-            % tuple(looks.get(n, math.nan) for n in LOOKS + LANDS) if kind == 'walk' and looks
+            '  ' + shown(looks) if kind == 'walk' and looks
             else '  landing %.1f kN, head %.2f, bare %.2f' % (looks['landing'], looks['head'],
                                                              looks.get('bare', math.nan))
             if kind == 'fall' else ''))

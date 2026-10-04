@@ -50,6 +50,8 @@ KNOBS = {
     'bearing.SHARE_LEAK': (0.0, 2.0, 'its let-down easing home, a second'),
     'bearing.PRESS_M': (0.0, 0.02, 'a stepping foot reaching this far under its mark, m'),
     'stance.HALT': (0.3, 0.8, "halting, the stride down to this of its own"),
+    'stance.HEEL_UP_DEG': (0.0, 60.0, "the stance heel rising as its leg runs out of reach, deg at most; 0 off"),
+    'stance.HEEL_REACH': (0.95, 1.0, "rising once its ankle is this of the leg's reach from the hip"),
     'dcm.HOLD_M.across': (0.02, 0.06, "standing: the sole's hold across, past its point, m"),
     'dcm.HOLD_M.along': (0.04, 0.12, 'its hold along, m'),
     'dcm.STANCE_M': (0.0, 0.05, 'the step past the capture point as it will be at landing, m'),

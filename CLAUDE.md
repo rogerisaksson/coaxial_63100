@@ -47,6 +47,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 | docs/BOOT.md | bootloader, flash map |
 | docs/HARDWARE.md | interpreting a measurement |
 | docs/MODELS.md | the local model |
+| docs/DIMENSIONS.md | a drive, an axis, a stack |
 | docs/FINDINGS.md | **investigating anything**: the board's, the rest by subject in docs/findings/ |
 | docs/TODO.md | picking up work |
 
