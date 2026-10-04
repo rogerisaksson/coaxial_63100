@@ -215,3 +215,11 @@ board's in [FINDINGS](../FINDINGS.md).
   the rest under 1. The ankle roll on A instead (`fit.py`): its stack 12
   mm past her shell and 11 into the ankle's gearbox (7 on B), so it stays
   on B - 0.72 and 0.69 at 1.0x, the margin rule's call (2026-10-04).
+- One frame, one box, one inverter for every drive (the DFM extreme, the
+  user's few variants, 2026-10-04; `drive_sizes --cached`, `fit.py`): all
+  on A, 27.6 kg of drives against 17.3 (+10.3 of her 55), every joint
+  under 1 but the hips and knees at A's own 1.26, and the stacks past her
+  shell - the toes' 32 mm, the elbow's 19, the head's 14, the shoulder's
+  and the hip roll's 13; all on B, 12.7 kg, the hips and knees at 2.07 of
+  their amps and 2.4 of their power, the spine 1.72. Two it is: A for the
+  spine, hips, knees and ankles, B for the rest (2026-10-04).

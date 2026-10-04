@@ -36,6 +36,10 @@ from machine.figure import LEG, add, apply
 #: catch (2026-10-04).
 STEP_M, DWELL_S, GAIN, CLEAR_M, CROSS_M, LUNGE, HANG_S = 0.06, 0.4, 0.1, 0.16, 0.25, 0.8, 0.1
 
+#: A step no further than STEP_MAX_M from where the foot stood: micro-steps, as many as it takes
+#: (the user), none a lunge.
+STEP_MAX_M = 0.1
+
 #: A step: the foot lifted LIFT_M over LIFT_S, down over DOWN_S or at DOWN_M_S from higher;
 #: stood again over STOOD_S, the landed leg eased into stance over it.
 LIFT_M, LIFT_S, DOWN_S, DOWN_M_S, STOOD_S = 0.04, 0.1, 0.12, 0.6, 0.3
@@ -116,17 +120,26 @@ def needed(director, bus, dt, out_):
         across = sign * max(sign * across, CLEAR_M)
     land = (other[0] + across * left[0] + along * ahead[0],
             other[1] + across * left[1] + along * ahead[1])
+    mine = feet[side][1]
+    far = math.dist(land, mine)
+    if far > STEP_MAX_M:
+        land = (mine[0] + (land[0] - mine[0]) * STEP_MAX_M / far,
+                mine[1] + (land[1] - mine[1]) * STEP_MAX_M / far)
     ankle, lunge = _reached(figure.hip(sign, pel, turn), (
         land[0] - POINT_Z * ahead[0], gait.ANKLE_H, land[1] - POINT_Z * ahead[1]))
     now = dict(director._now(bus, out_), swing=sign)
+    # Lowered for the reach now, for a stance foot above the floor only once stood again: the
+    # pelvis dropped 6 cm on the brick's leg as the other reached down, the landing bounced
+    # 0-600 N and she went on over the landed foot (2026-10-04).
+    base = dict(now, tilt=0.0, pelvis=(pel[0], pel[1] - lunge, pel[2]))
     drop = max(lunge, feet[walkplan._OTHER[side]][0][1] - gait.ANKLE_H)
-    base = dict(now, tilt=0.0, pelvis=(pel[0], pel[1] - drop, pel[2]))
     mid = ((was[0] + ankle[0]) / 2.0, max(was[1], ankle[1]) + LIFT_M, (was[2] + ankle[2]) / 2.0)
     v = director.arrival.v
     com = (bus['pelvis.pose.com_x'] + v[0] * (LIFT_S + DOWN_S),
            bus['pelvis.pose.com_z'] + v[1] * (LIFT_S + DOWN_S))
     down = dict(base, **{side: (ankle, 0.0)})
-    stood = arrival.over(dict(down, swing=0.0), (other[0] + land[0]) / 2.0,
+    stood = arrival.over(dict(down, swing=0.0, pelvis=(pel[0], pel[1] - drop, pel[2])),
+                         (other[0] + land[0]) / 2.0,
                          (other[1] + land[1]) / 2.0)
     down_s = max(DOWN_S, (mid[1] - ankle[1]) / DOWN_M_S)
     return [('tread', 0.0, now),

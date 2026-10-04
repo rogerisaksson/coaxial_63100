@@ -182,3 +182,13 @@ shoves, the scoreboard and its searches. The board's own are in
   merge; the toes driven in this build). Called 0.14 s earlier on a sink
   past 0.6 m/s, two falls struck, 1.68 and 3.41; the curl over 0.25 s,
   3.22 (2026-10-04).
+- The brick's step down, three ways (2026-10-04): stood again over 0.6 s
+  instead of 0.3, or the pelvis target let 10 cm out, the second step a
+  31 cm cross-over out of reach, down at 6.1-6.7 s; the pelvis lowered
+  for the brick's 6 cm only once stood again (before, dropped on the
+  brick's leg as the other reached down, the landing bounced 0-600 N),
+  the landing holds at 150-250 N a foot but she leans back off both,
+  0.17 -> 0.36 m/s, down at 6.75; steps of 10 cm at most 0.15 s apart
+  (`stand.STEP_MAX_M`), four of them, the body backward-left at 1 m/s by
+  the fourth, down at 6.6. Standing on the lower foot after the step, her
+  weight runs back whatever the stood target: not understood yet.
