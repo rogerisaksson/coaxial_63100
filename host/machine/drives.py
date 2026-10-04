@@ -61,24 +61,30 @@ GEAR_J = 0.05
 #: stator Ds the rotor less 6 mm, mm), kg 2.52e-6 Ds^2 (L + 6) + 0.039, its peak 1.1e-4 Ds^2 L N m
 #: (2.5x its 180 s), the can L + 18.5 mm tall, 0.45 of the kg turning at its rotor's radius less
 #: 3 mm, the winding 310 J/K a kg and to the air the 5230SL's 2.2 K/W over 60 x 45 mm as 1/(D H).
-#: C, a third for the elbow, the neck, the head and the toes (2026-10-04): on B the elbow's rotor
-#: reflected 4.2 times its load's inertia (`drive_sizes` J), the neck's 2.7, the toes' 775; on C
-#: 0.7 and 0.45, the elbow's amps at stall 1.09 at a 10 mm stack and under 1 at 12, 0.7 kg off her.
-#: Across the elbow's 56 mm it fits where B's 68 asked a bevel pair and a belt.
-FRAMES = {'A': (0.068, 0.030), 'B': (0.060, 0.016), 'C': (0.040, 0.012)}
+#: Two frames (the user, 2026-10-04: as few motor types as can be, each a sourcing nightmare): a
+#: C of 40 x 12 for the elbow, the neck and the head took the elbow's reflected inertia 4.2 ->
+#: 0.76 and 0.7 kg off her for a day (docs/findings/drives.md); on B direct the elbow's drum is
+#: 72 mm across the elbow with its collars.
+FRAMES = {'A': (0.068, 0.030), 'B': (0.060, 0.016)}
 
 #: The gearboxes' diameters, m: a rolling-element box's momentary 250 N m at 80 mm, five times its
 #: rated, 0.45 kg, its drag at its input - its rollers' start, the motor's cogging - 0.08 N m, all
 #: as D^3, and 0.28 D long (estimated).
-BOXES = {'A': 0.084, 'B': 0.064, 'C': 0.044}
+BOXES = {'A': 0.084, 'B': 0.064}
 #: Each box's torsional stiffness at its output, N m/rad (estimated: a harmonic drive of 70 mm
 #: gives 16-25 kN m/rad; a roller stage on a lobed ring, no flexspline, the same order), as D^3.
-BOX_K = {'A': 2.0e4, 'B': 9.0e3, 'C': 3.0e3}
+BOX_K = {'A': 2.0e4, 'B': 9.0e3}
 
 #: The inverters by disc mm: (disc D m, amps, kg, its laminate's K/W to the air through the
 #: housing it is bolted to): the 63100's, parts' centres 92 x 93 mm, the housing's skin at
 #: 10 W/m^2 K still and the pad 0.3; a 70 mm at 50 A (estimated).
 INVERTERS = {100: (0.100, 100.0, 0.2, 3.6), 70: (0.070, 50.0, 0.08, 6.5)}
+
+#: The drives' cooling: each winding's and laminate's K/W to the air times this - 1 in air. Her
+#: electronics in an enclosure of transformer oil or the like, each stator bolted onto its
+#: inverter through a thermal interface, the oil and the stator's metal evening their
+#: temperatures (the user, 2026-10-04): an assumed 0.3, measured when the enclosure exists.
+COOLING = 0.3
 
 #: Each kind's stack: (frame, box, inverter), its winding its frame's one KV (the fewest
 #: variants, the user, 2026-10-03), each KV in its window of 1.5x on the walk's torque at its
@@ -92,14 +98,19 @@ INVERTERS = {100: (0.100, 100.0, 0.2, 3.6), 70: (0.070, 50.0, 0.08, 6.5)}
 #: 2026-10-03). One KV for A: the spine's amps at its clamp 1.05 at 110, 1.15 at 120; the hip's
 #: and the knee's 1.26 at 110 (volts 1.15 and 1.23), 1.38 at 120 (1.06, 1.13). The waist's and
 #: the shoulder's 44 mm boxes stood 2.79 and 1.44 times their momentary rating: the 64 mm 0.91
-#: and 0.47 (`tools/sim/drive_sizes.py`, 2026-10-03).
-KV = {'A': 110.0, 'B': 90.0, 'C': 200.0}
+#: and 0.47 (`tools/sim/drive_sizes.py`, 2026-10-03). The ankles on A with its box and
+#: inverter for a run's headroom (`drive_sizes --run`, 2026-10-04: on B 1.32 of its amps, 5.3 of
+#: its heat, 1.27 of its box; on A 0.80, 0.73 and 0.56); the hip yaw, the hip roll and the ankle
+#: roll on B (0.62, 0.93 and 0.97 of their amps; on A the hip roll's stack stood 19 mm into the
+#: pelvis frame and the hip yaw's inverter 15 into the spine's); the rest on B with B's box, box
+#: C gone with frame C.
+KV = {'A': 110.0, 'B': 90.0}
 STACKS = {'spine': ('A', 'A', 100), 'spine_roll': ('B', 'B', 70), 'waist': ('B', 'B', 70),
-          'neck': ('C', 'C', 70), 'head': ('C', 'C', 70), 'shoulder': ('B', 'B', 70),
-          'elbow': ('C', 'C', 70), 'wrist': ('C', 'C', 70), 'gripper': ('C', 'C', 70),
+          'neck': ('B', 'B', 70), 'head': ('B', 'B', 70), 'shoulder': ('B', 'B', 70),
+          'elbow': ('B', 'B', 70), 'wrist': ('B', 'B', 70), 'gripper': ('B', 'B', 70),
           'hip_yaw': ('B', 'B', 70), 'hip_roll': ('B', 'B', 70), 'hip': ('A', 'A', 100),
-          'knee': ('A', 'A', 100), 'ankle': ('B', 'B', 70), 'ankle_roll': ('B', 'B', 70),
-          'foot': ('C', 'C', 70)}
+          'knee': ('A', 'A', 100), 'ankle': ('A', 'A', 100), 'ankle_roll': ('B', 'B', 70),
+          'foot': ('B', 'B', 70)}
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
 #: else in its stack. The knee's and the ankle's split (the user, 2026-10-02), two discs facing
@@ -145,9 +156,9 @@ def flex(joint):
 #: 1337 and 12.1.
 WAYS = {'foot': 0.0, 'gripper': 2.0, 'wrist': 2.0}
 PASSIVE = {'gripper': (40.0, 1.0, 80.0)}
-#: The toes' spring, N m/rad and N m s/rad about flat: knobs - a sneaker's forefoot 11-29, a
-#: plated one's past 200.
-TOE_K, TOE_C = 40.0, 1.0
+#: The toes' spring, N m/rad and N m s/rad about flat, knobs: a sneaker's forefoot, 0.2-0.5 N m
+#: a degree (2026-10-04); a plated one's past 200 stood her on her toe tips.
+TOE_K, TOE_C = 25.0, 0.5
 
 
 def _stack(kind):
@@ -225,7 +236,7 @@ JOINTS = {
     'hip_roll': ('hip_yaw', (-0.025, 0.035, -0.078)),
     'hip': ('hip_roll', (0.0, 0.0, 0.0)),
     'knee': None,
-    'ankle': ('shank', (0.002, -0.080, 0.015), 'x'),
+    'ankle': ('shank', (0.002, -0.090, 0.015), 'x'),
     'ankle_roll': ('shank', (-0.004, -0.150, 0.0), '-x'),
     'foot': ('foot', (0.0, -0.04, 0.045)),
 }
@@ -410,4 +421,5 @@ def heat(joint):
     """(kt N m/A, winding ohm, the board's amps against the 100 A board's, the winding's J/K and
     K/W, the laminate's K/W to the air): what `machine.heat` keeps a joint's drive by."""
     s = of(joint)[1]
-    return (kt(joint), r_ohm(joint), 100.0 / s.amps) + tuple(s.winding) + (s.housing_k_w,)
+    return (kt(joint), r_ohm(joint), 100.0 / s.amps, s.winding[0], s.winding[1] * COOLING,
+            s.housing_k_w * COOLING)

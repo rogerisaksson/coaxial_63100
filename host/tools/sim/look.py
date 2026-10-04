@@ -52,13 +52,13 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
     from machine.events import SHOVE_S as PUSH_S, SHOVES
     PUSH_N = SHOVES['shove']
     from machine import physics
-    from tools.sim.gait_montecarlo import _set
+    from tools.sim import knobs
     values = dict(values)
     gain = values.pop('LEG_GAIN', 1.0)
     for kind in LEG_KINDS:
         peak, kp, kd, armature = physics.SERVO[kind]
         physics.SERVO[kind] = (peak, kp * gain, kd * math.sqrt(gain), armature)
-    _set(values)
+    knobs.set_(values)
     from machine import Machine, events
     from machine.director import Director
     from machine.figure import SEGMENTS
