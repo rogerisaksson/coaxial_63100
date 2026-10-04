@@ -144,7 +144,10 @@ def flex(joint):
 #: 71.2 (a rise), the waist 727 and 71.6 (a rise), the spine's roll 1293 and 23.0, the hips' yaw
 #: 1337 and 12.1.
 WAYS = {'foot': 0.0, 'gripper': 2.0, 'wrist': 2.0}
-PASSIVE = {'foot': (40.0, 1.0, 0.0), 'gripper': (40.0, 1.0, 80.0)}
+PASSIVE = {'gripper': (40.0, 1.0, 80.0)}
+#: The toes' spring, N m/rad and N m s/rad about flat: knobs - a sneaker's forefoot 11-29, a
+#: plated one's past 200.
+TOE_K, TOE_C = 40.0, 1.0
 
 
 def _stack(kind):
@@ -376,7 +379,8 @@ def passive(joint):
     way = WAYS.get(kind(joint), 0.0)
     if not way:
         return None
-    stiffness, damping, rest = PASSIVE.get(kind(joint), (40.0, 1.0, 0.0))
+    stiffness, damping, rest = ((TOE_K, TOE_C, 0.0) if kind(joint) == 'foot'
+                                else PASSIVE.get(kind(joint), (40.0, 1.0, 0.0)))
     return (stiffness if way == 1.0 else None), damping, rest
 
 
