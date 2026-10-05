@@ -8,8 +8,17 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - AFE_ON (PB2) powers the ADC reference: off, every channel reads exact
   mid-scale and the NTC exactly 25.00 C. It also powers the BNO085 and A1335.
 - PE15 follows AFE_ON inversely; reads as a fault with the AFE on. Cause open.
-- ADC offset calibration runs with AFE_ON low: offsets vary ~100 mV boot to
-  boot.
+- The converters calibrated at boot with AFE_ON low, without their reference:
+  CALFACT 0, no linearity words. Every single-ended code read ~1000 high (a
+  dead Vgate 1049; the NTC +1.9 K at 35 C; the MCU's die +20 K; the link's
+  -32 418 ppm its offset) and stuck 70 under every 512. With the rail up 100
+  ms for it (the link within its noise 25 ms after the rail): CALFACT
+  989-1068, a count boot to boot, no wide code. The phases' zeros moved 448-539
+  codes, 3 A: every board is zeroed again (2026-10-05).
+- The self test's image CRC ran from 0x08000000 to `_etext`, in D2 SRAM since
+  the bootloader: a bus fault at 0x08200000. From the vector table now. Its
+  PCSEL count took the injected group's rank 2 for the accumulation; the group
+  arms on a cleared PCSEL and is counted its three (2026-10-05).
 - HAL only ORs PCSEL: ADC3 PCSEL read 0xC03 (four channels live). Every read
   path clears it (invariant 6).
 - Phase noise floor, AFE on: 0.35-0.41 A rms per phase.
@@ -58,6 +67,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   VERY_HIGH since. Found by a 600-sample pin count and a register dump.
 - Gate short probe: neighbour follows within 76 ns; pull-down ~40 k.
 - Alternate (op 10) proven 2026-08-30: 12 mid-run reads, both triples, scope.
+  A zero triple every other period is no half frequency: the pulse sits on
+  the underflow, two quarter pulses a period, the same edges (2026-10-05).
+- The unmodified board arms with the break in circuit: AFE_ON low, PE15 high
+  at once, the latch its low left cleared (op 5), MOE. 300 s and twenty 60 s
+  runs, no trip; `switch.py` does so (2026-10-05).
 - STO interlock: Cinj 0.77 V, Clevel 0.06 V against 3 V (2026-08-27). The
   keepalive latch holds a few hundred microseconds.
 - The STO chain modelled from `sto.asc` (`world_sto.c`): on the nominal
@@ -112,6 +126,15 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 - R/W bit: read is 0 (datasheet silent). Two frames per read; one returns the
   previous register.
+- A read on demand answered the register asked the read before it, its CRC
+  good, at any gap from a few instructions to 200 us: the observer's AFE die
+  was ANG's twelve bits, -241.77 C, its AFE node -196 C and its legs 80-250
+  C, the envelope throttling at rest. A reply is two packets behind its
+  request; the manual has it one. A read asks four times, the poll drops two
+  replies behind another register's, a die's reply carries TSEN's identifier:
+  10 of 10 their own, the die 34.59 C beside an NTC of 34.41. The emulated
+  parts answer two packets on, and the old driver reads -273.15 C there
+  (2026-10-05).
 - TSEN is the die, reset whenever AFE_ON breaks; 0.125 K steps. FIELD ~2 G
   with no magnet.
 

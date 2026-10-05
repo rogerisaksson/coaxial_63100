@@ -50,6 +50,21 @@ def test_the_bench_conformance_holds(report, emu):
                  done.returncode == 0, '; '.join([lines[-1]] + failed[:3]))
 
 
+def test_the_image_proves_itself(report, rig, emu):
+    """The board's self test where the image runs: none of it failed, its code's CRC the
+    build's own."""
+    from machine.rtu import crc16
+
+    checks = {c['name']: c for c in rig.board.system.self_test()}
+    failed = sorted(name for name, c in checks.items() if c['status'] == 'fail')
+    report.check('the self test answers, none of it failed', bool(checks) and not failed,
+                 ', '.join(failed) or '%d checks' % len(checks))
+    length = checks['image_len']['value']
+    report.check("its code's CRC is the build's",
+                 checks['image_crc']['value'] == crc16(boot.image_of(ELF)[:length]),
+                 '%d bytes' % length)
+
+
 def test_the_front_end_feeds_the_image(report, rig, emu):
     """The DC link fed through the front end, read back through the image's own scan: the
     reading follows what is fed. Recorded, not judged against a number."""
@@ -288,7 +303,8 @@ def sto_seen(board):
 #: too; the acquisition's last - its boot.stay resets the board 50 ms on.
 BOARD = (wire.test_every_read_decodes, wire.test_settings_are_taken, wire.test_the_wire_refuses,
          wire.test_every_verb_answers_or_refuses, wire.test_the_acquisition_records_decode,
-         wire.test_the_record_survives_a_save, test_the_front_end_feeds_the_image,
+         wire.test_the_record_survives_a_save, test_the_image_proves_itself,
+         test_the_front_end_feeds_the_image,
          test_the_injected_triple_runs, test_the_angle_sensor_reads, test_the_imu_answers,
          test_the_sto_chain_follows_the_pilot, wire.test_acquisition_answers_or_refuses)
 

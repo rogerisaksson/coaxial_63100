@@ -155,21 +155,28 @@ int main(void)
      link_init() derives the RTU silences from it. */
   (void)dev_uart_set_rs485_baud(Board_Cal()->link_baud);
 
-  /* Differential-mode offset calibration, recommended before first use for
-     absolute accuracy rather than mere repeatability. */
-  if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK ||
-      HAL_ADCEx_Calibration_Start(&hadc2, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK ||
-      HAL_ADCEx_Calibration_Start(&hadc3, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK)
+  /* Each converter's linearity and both its offsets, once, on the reference:
+     that is AFE_ON's, so the rail is up for them. */
+  ADC_HandleTypeDef *const converters[] = { &hadc1, &hadc2, &hadc3 };
+
+  Board_SetAfeOn(true);
+  HAL_Delay(ADC_REFERENCE_SETTLE_MS);
+  for (uint32_t i = 0U; i < (sizeof(converters) / sizeof(converters[0])); i++)
   {
-    Error_Handler();
+    if (HAL_ADCEx_Calibration_Start(converters[i], ADC_CALIB_OFFSET_LINEARITY, ADC_SINGLE_ENDED) != HAL_OK ||
+        HAL_ADCEx_Calibration_Start(converters[i], ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK)
+    {
+      Error_Handler();
+    }
   }
 
   Board_TimebaseInit();
   link_init();
   Console_Banner();
 
-  /* The thermal observer. */
+  /* The thermal observer, started on the thermistor while its reference is up. */
   Board_ThermalInit();
+  Board_SetAfeOn(false);
 
   /* The control law: parameters out of the record, the period off TIM1. */
   Board_DriveInit();

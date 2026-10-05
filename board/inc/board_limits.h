@@ -65,6 +65,11 @@
 
 /* ---- Acquisition ------------------------------------------------------- */
 
+/** The reference up behind AFE_ON before the converters calibrate on it: the
+    link's code is within its noise 25 ms after the rail (bench, 2026-10-05).
+    Uncalibrated, a code sticks 70 under every 512. */
+#define ADC_REFERENCE_SETTLE_MS 100U
+
 /* The acquisition ring, in the AXI SRAM rather than DTCM. At one channel
    that is 45 875 records, at all ten 9 972 (`DAQ_RECORD_BYTES`, no pins or
    sensors). */

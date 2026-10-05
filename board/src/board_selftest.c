@@ -3,10 +3,10 @@
 #include "board_hw.h"
 #include "modbus_crc.h"
 
-/* End of code and read-only data in flash, from the linker script. */
+/* The image where it runs: the startup's first word, the linker script's end of code. */
+extern const uint32_t g_pfnVectors[];
 extern uint32_t _etext;
 
-#define FLASH_IMAGE_BASE 0x08000000UL
 #define TIMEBASE_SETTLE_SPINS 1000U   /* the cycle counter moves in these at any plausible clock */
 
 static void add(board_check_t *out, uint8_t *n, uint8_t capacity,
@@ -29,7 +29,8 @@ static uint8_t verdict(bool ok)
 }
 
 /* Every configured channel should leave at most its own bit and, for a
-   differential channel, its negative input's bit in PCSEL. */
+   differential channel, its negative input's bit in PCSEL; the injected
+   group its phase's pair and its rank 2. */
 static bool pcsel_clean(const ADC_TypeDef *adc)
 {
   uint32_t bits = adc->PCSEL;
@@ -41,7 +42,7 @@ static bool pcsel_clean(const ADC_TypeDef *adc)
     count++;
   }
 
-  return count <= 2U;
+  return count <= (Board_SyncArmed() ? 3U : 2U);
 }
 
 /* Differential calibration factor. */
@@ -94,7 +95,7 @@ uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity)
   add(out, &n, capacity, "adc_pcsel", verdict(clean == 7), clean);
 
   /* ---- firmware integrity ---- */
-  const uint8_t *image = (const uint8_t *)FLASH_IMAGE_BASE;
+  const uint8_t *image = (const uint8_t *)g_pfnVectors;
   const uint32_t length = (uint32_t)((const uint8_t *)&_etext - image);
 
   /* Reported, not judged: the board has nothing to compare these against. */

@@ -264,6 +264,11 @@ const char *Board_SyncArm(void)
     return refused;
   }
 
+  /* The group's own channels and no meter's last one beside them. */
+  hadc1.Instance->PCSEL = 0U;
+  hadc2.Instance->PCSEL = 0U;
+  hadc3.Instance->PCSEL = 0U;
+
   if (!SYNC_ConfigPhase(&hadc3, SYNC_U_CHANNEL, ADC_INJECTED_RANK_1, 2U,
                         ADC_DIFFERENTIAL_ENDED)
       || !SYNC_ConfigPhase(&hadc3, SYNC_DCBUS_CHANNEL, ADC_INJECTED_RANK_2, 2U,
@@ -310,6 +315,9 @@ void Board_SyncDisarm(void)
     (void)HAL_ADCEx_InjectedStop_IT(&hadc3);
     (void)HAL_ADCEx_InjectedStop(&hadc1);
     (void)HAL_ADCEx_InjectedStop(&hadc2);
+    hadc1.Instance->PCSEL = 0U;
+    hadc2.Instance->PCSEL = 0U;
+    hadc3.Instance->PCSEL = 0U;
   }
 }
 

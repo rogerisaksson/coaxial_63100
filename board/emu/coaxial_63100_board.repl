@@ -18,6 +18,10 @@ adc3: Analog.Coaxial63100_ADC @ sysbus <0x58026000, +0x100>
 adc3Common: Memory.ArrayMemory @ sysbus 0x58026300
     size: 0x100
 
+// VREFBUF as memory: the firmware leaves VREF+ to the board, and its self test reads that back.
+vrefbuf: Memory.ArrayMemory @ sysbus 0x58003C00
+    size: 0x400
+
 // The front end (Coaxial63100_AFE.cs) on AFE_ON, PB2, and the pins it drives, as board_adc.c's
 // table wires them; its phase transfer is coaxial_63100_afe.repl's, from LTspice.
 afe: Analog.Coaxial63100_AFE @ gpioPortB 2

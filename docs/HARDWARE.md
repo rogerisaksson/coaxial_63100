@@ -30,8 +30,9 @@ tabled here. Nothing is measured against an instrument unless it says so.
 - Phase: 2x 7 mOhm shunts = 3.5 mOhm, THS4551 gain 4.5455 -> 15.909 mV/A;
   100 A = 48 % of span. Schematic arithmetic (2026-08-26), not spanned.
   Noise floor 0.35-0.41 A rms. Group delay 60 ns (simulation).
-- DC link: 49.9 k / 2.2 k = 78.15 V FS (invariant 11). Spanned vs DMM
-  2026-08-30: -32 418 ppm on channel 5.
+- DC link: 49.9 k / 2.2 k = 78.15 V FS (invariant 11). Not spanned: the
+  -32 418 ppm of 2026-08-30 was the converter's offset; 33.84 V at a supply's
+  34 (2026-10-05).
 - NTC: Murata NCU18XH103D60RB, R25 10 k, B 3380 K, vs 10 k 0.1 %. 30 mK
   resolution.
 - +5V sense 10 k / 10 k; Vgate 57 k / 10 k (ratio 6.70), traced 2026-08-27.
@@ -46,7 +47,9 @@ unmodified (R93 on +5, not 3V3D): there AFE_ON removes the gate drivers'
 supply and PE15 follows it inversely. Off:
 mid-scale everywhere, NTC 25.00 C (invariant 9). The rail is reference
 counted (`board_power.c`): host claim dropped after 10 s silence, others
-hold 3 s leases.
+hold 3 s leases. main() raises it 100 ms at boot: each converter's linearity
+and both offsets calibrate on the reference (CALFACT ~1000), and the thermal
+observer starts on the thermistor.
 
 ## Gate stage
 
@@ -55,9 +58,10 @@ hold 3 s leases.
   update at the overflow alone, its interrupt off, the triples written from
   ADC3's interrupt 15 ticks past the overflow. BKIN = PE15 active low, AOE off,
   OSSI/OSSR on. Gate pins VERY_HIGH speed.
-- Dead time: record `deadtime_ns` 30 -> DTG 8 = 33.7 ns (floor 20 ns, DTG
-  max 127 = 535 ns). `.ioc` DTG 19 holds until the record loads. Trimmed
-  against the supply's OCP.
+- Dead time: record `deadtime_ns` 60 -> DTG 15 = 63.2 ns (floor 20 ns, DTG
+  max 127 = 535 ns). `.ioc` DTG 19 holds until the record loads. DTG 8's
+  33.7 ns shot through dry, 42 ns did not (2026-10-05); the simulation's
+  worst corner is 65.4 ns.
 - Op 1 alone sets MOE, at zero duty. Op 2 [+ period count], op 8 Q16.16
   dither, op 10 alternate, op 6 break bypass (reset restores). The thermal
   envelope drops MOE by the break's path.
@@ -83,7 +87,9 @@ pilot, Cinj 3.70 V, Clevel 2.86 V (keepalive every 5 us; 2.49 V every 50 us),
 0.13, PGD at once. `rig.pilot(volts, hz)` sets an emulated or simulated
 master's. `GateStage.interlock()` wants Cinj >= 3.0 V, Clevel >= 2.0 V; the
 unmodified board reads 0.77 / 0.06 V (2026-08-27), so its sessions arm with
-`ignore_interlock=True, bypass_sto=True`. `tools/bench/sto_probe.py` reads it.
+`ignore_interlock=True`; the break stays in circuit once the latch its low
+PE15 left with the AFE on is cleared (`gates.clear()`, the AFE off, 2026-10-05).
+`tools/bench/sto_probe.py` reads it.
 
 ## SPI sensors
 
@@ -92,9 +98,10 @@ unmodified board reads 0.77 / 0.06 V (2026-08-27), so its sessions arm with
   before every transfer; WAKE (PS0) required for writes. Reports: 0x01 accel
   Q8, 0x02 gyro Q9, 0x03 mag Q4, 0x05 rotation vector Q14.
 - A1335 (SPI4, /64 = 1.86 MHz, CS PE4; DMA1 streams 0/1, buffers in AXI SRAM).
-  20-bit packet, two frames per read, stepped from main(). ANG
-  12 bits x 360/4096; TSEN 1/8 K; FIELD gauss. Register map from a reference
-  implementation.
+  20-bit packet, stepped from main(). A reply is the register asked two
+  packets before (the bench; the manual has it one): the poll asks ANG over
+  and over, a read on demand four times. ANG 12 bits x 360/4096; TSEN 1/8 K,
+  identifier 0xF; FIELD gauss. Register map from a reference implementation.
 
 ## Serial
 

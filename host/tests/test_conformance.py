@@ -36,9 +36,10 @@ class Bus:
     def __init__(self, port=PORT, baud=BAUD):
         from coaxial.comm import broker
 
+        # This port's broker; a URL has none.
         said = broker.serving() or {}
         where = (said.get('host', broker.HOST), said.get('tcp', broker.PORT))
-        if said and not broker.stand_down(where):
+        if said.get('serial') == port and not broker.stand_down(where):
             raise RuntimeError(
                 'a session broker still holds %s - conformance needs the '
                 'port raw, so close the sessions using it first' % port)
@@ -660,8 +661,7 @@ def board_answers(port=PORT, baud=BAUD, unit=SLAVE):
 if __name__ == '__main__':
     print(selftest_crc())
     offline = len(sys.argv) > 1 and sys.argv[1] == '--offline'
-    # --port fakeboard:// conforms the firmware's comms/ built for this host
-    # (tools.cores.fakeboard); any other port is a board's.
+    # fakeboard:// is comms/ for this host; no --port, where a board answers.
     if '--port' in sys.argv:
         PORT = sys.argv[sys.argv.index('--port') + 1]
         if PORT.startswith('fakeboard://'):
@@ -670,14 +670,16 @@ if __name__ == '__main__':
         if PORT.startswith('frames://'):
             sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             import tools.emu.emulator  # noqa: F401 - the scheme
+    elif not offline:
+        from tools.target import find_board
+        PORT = find_board.discover(PORT, BAUD, SLAVE)[0] or PORT
     if not offline and not board_answers(PORT):
         offline = True
         print('no board on %s - the bus tests need firmware to conform to '
               'and cannot be simulated' % PORT)
     if offline:
         print('harness self-test only; skipping bus tests')
-        # A tally either way: without one, run_tests.py reads the suite as
-        # having crashed before it could print its own numbers.
+        # A tally either way: run_tests.py reads a suite without one as crashed.
         print(chr(10) + '1 passed, 0 failed')
         sys.exit(0)
     bus = Bus(PORT)
