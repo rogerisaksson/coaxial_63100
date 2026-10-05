@@ -386,9 +386,12 @@ def walked(rows, take=None):
     print('\n9 walk from %.2f s to %.2f s' % (float(walk[0]['t']), float(walk[-1]['t'])))
     print('  ' + ' | '.join('%s %.1f %s' % (name, got[name], unit) for name, unit, _f in WALK)
           + ' | catches %d | energy %.0f J/m' % (got['catches'], got.get('energy', math.nan)))
-    far, out = normal.off(normal.measured(*fbx.joints(walk)))
+    by_place = normal.measured(*fbx.joints(walk))
+    far, out = normal.off(by_place)
     print("  off a woman's walk %.2f%s" % (far, ''.join(
         ' | %s %.3g (%g)' % o for o in out)))
+    print('  in words: %s%s' % (', '.join('%s %.2f' % w for w in normal.said(by_place))
+                                or 'none', ''.join(' - ' + n for n in normal.named(by_place))))
     if take:
         fbx.wrote(take, walk)
         print('  written %s: %d frames' % (take, len(walk)))

@@ -254,17 +254,14 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     bearing out in `bearing.py`): the trial into its own module. DOD:
     `test_structure` on the layout, each file under 5 k.
 
-28. **One law for her going, S and F on it** (the user, 2026-10-05: no scenario
-    a moment; intent a stream of setpoints). In (`machine/going.py`,
-    `tools/sim/ways.py`, docs/findings/going.md), on the page under J. Left:
-    its walk a woman's and then the page's own - on stilts, the user: 4.1 off
-    `normal.BAND` where the walk as built 2.0, the swinging knee 26 deg of 52,
-    no heel's rise, the pelvis level, her feet 0.29 legs apart; her ways 77 of
-    104, the page's 20 of 24; a shove's parry; her turns; the floor's events
-    and her style on the law; a run past 1.5 m/s; the runner and the walk's
-    modules gone into it. DOD: F to her fastest run and S back on the page, 10
-    of 10; its walk on `looks.FORM` and `normal.BAND` at no more J/m; shoved,
-    up as the walk as built.
+28. **One law for her going, S and F on it** (the user, 2026-10-05). In
+    (`machine/going.py`, docs/findings/going.md), on the page under J. Left:
+    its walk a woman's (4.1 off `normal.BAND`, the walk as built 2.0) and the
+    page's own; her ways 77 of 104, the page's 20 of 24; a shove's parry; her
+    turns; the floor's events and her style on the law; a run past 1.5 m/s; the
+    runner and the walk's modules gone into it. DOD: F to her fastest run and S
+    back on the page, 10 of 10; its walk on `looks.FORM` and `normal.BAND` at
+    no more J/m; shoved, up as the walk as built.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a
@@ -281,6 +278,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     on a chair one leg over the other, up and the sequence again; each a row or
     a keyframe, a track its choreography. DOD: twice round on the page, no
     fall.
+31. **A language for how she moves** (the user, 2026-10-05: stiff, Groucho,
+    catwalk, run, sit, rise each on a reference, transitions too). In:
+    `normal.WORDS`. DOD: a row's setpoints answering each word; sitting and
+    rising; a passage judged against a take's.
 
 ## Bench
 

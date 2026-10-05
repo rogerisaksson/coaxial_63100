@@ -39,6 +39,10 @@ WITHIN = 0.1
 KNOWN = {'walk ratio': 0.98, 'stance': 77.0, 'knee at landing': 31.0,
          'thigh ahead at landing': 33.5, 'pelvis bob': 0.012}
 
+#: The words her walk as built may be said to be (`normal.said`): its knee lands bent, its
+#: feet are long on the floor. Stiff, crouched, tripping, wide: not hers.
+WORDS = ('landing bent', 'shuffling')
+
 _ROBOT, _STEADY = [], []
 
 
@@ -154,6 +158,12 @@ def test_her_walk_beside_a_womans(report):
     report.check('nothing of KNOWN is back in her band unnoticed',
                  all(not least <= now[name] <= most for name, _u, least, most in normal.BAND
                      if name in KNOWN), 'off it %.2f' % normal.off(now)[0])
+    said, named = normal.said(now), normal.named(now)
+    report.check('in words, none but %s' % ', '.join(WORDS),
+                 all(word in WORDS for word, _far in said),
+                 ', '.join('%s %.2f' % w for w in said) or 'none')
+    report.check("neither on stilts nor Groucho's", not set(named) & {'on stilts', "Groucho's"},
+                 ', '.join(named) or 'no gait named')
 
 
 ROSTER = [test_her_walk_holds_its_form, test_gone_back_she_walks_the_same,

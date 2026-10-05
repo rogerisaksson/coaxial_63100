@@ -40,3 +40,21 @@ Her walk as built is in [walk](walk.md), the one law's in
   test_gynoid_going.py: the law's arms on the band, its walk no further
   off than 4.5. `mocap.py A.fbx B.fbx ..`, a column a take: off the
   band, and from the first.
+- In words (2026-10-05; the user: what is a stiff walk without a soft
+  one to hold it to, and Groucho's, a catwalk, a run; `normal.WORDS`,
+  `GAITS`). A word is how far its measures are out of their bands on its
+  side, by the bands' widths, said from 0.1: stiff - the swinging knee,
+  the knee and the heel as the toes leave, under; crouched - the
+  standing knee never straight; landing bent; still-hipped, still-armed,
+  arms carried; tripping and striding - the step for its time; wide and
+  on a line; swaying, swinging; shuffling; flying - the pelvis lowest
+  over the standing foot where a walk's is highest (`vault`); slow,
+  brisk. A gait is its words: on stilts stiff, Groucho's crouched, a
+  catwalk swaying and not wide, a run flying. Read off 19 walks: four
+  mocap walks no word, a woman's walk; a crouch walk crouched 4.3,
+  Groucho's; six jogs and runs flying 0.4-1.6, a run; a runway's take
+  swaying 0.8 and swinging 0.5, a catwalk; two limping runs crouched 1.0
+  and wide 0.8. Her walk as built: landing bent 1.45, shuffling 0.37, no
+  gait's name. The one law's: stiff 2.38, shuffling 0.78, still-hipped
+  0.48, landing bent 0.45, tripping 0.42, wide 0.37 - on stilts, the
+  user's word for it.

@@ -3,6 +3,7 @@
 
     measures = normal.measured(times, joints)     # a take's (`fbx.take`), her rows' (`fbx.joints`)
     off, out = normal.off(measures)               # 0.0 on BAND, else what is out of it
+    normal.said(measures)                         # in words: [('stiff', 2.4), ('wide', 0.4)]
     far, most = normal.apart(measures, other)     # two walks, a law's and a reference's
 
 Places alone, so her rows, a recording, a mocap take and an animation read alike: a knee the
@@ -33,7 +34,8 @@ G = 9.81
 #: one law's 4.0, on stilts (the user): the swinging knee 26 deg, no heel's rise, the pelvis
 #: level, her feet 22 cm apart. Zeni's lift reads 3-6 % of a stride late: `stance` to 70.
 #: `walk ratio` is a step, legs, times its seconds, sqrt(leg / g): her step for its time,
-#: whatever her pace.
+#: whatever her pace. `vault` is the pelvis over the standing foot above where it was as that
+#: foot landed: a walk's rises over its leg, a run's sinks onto it.
 BAND = (
     ('pace', 'sqrt(g leg)', 0.15, 0.55),
     ('stride', 'sqrt(leg/g)', 3.3, 5.2),
@@ -56,9 +58,45 @@ BAND = (
     ('pelvis roll', 'deg', 5.0, 15.0),
     ('pelvis turn', 'deg', 4.0, 22.0),
     ('pelvis bob', 'leg', 0.02, 0.07),
+    ('vault', 'leg', 0.0, 0.07),
     ('hips wag', 'leg', 0.02, 0.13),
     ('feet apart', 'leg', 0.02, 0.22),
 )
+
+#: A walk in words (the user, 2026-10-05: what is a stiff walk without a soft one to hold it
+#: to): (word, ((measure, side), ..)) - how far those measures are out of their bands on that
+#: side, -1 under and 1 over, by the bands' widths; 0 on a woman's walk, said from SAID. Stiff:
+#: the leg goes by unbent, its foot lifted flat - stilts. Crouched: never on a straight leg,
+#: Groucho's. Tripping: a step short for its time. Flying: the pelvis lowest over the standing
+#: foot where a walk's is highest (`vault`) - a run's bounce.
+WORDS = (
+    ('stiff', (('knee swinging', -1), ('knee at lift', -1), ('heel at lift', -1))),
+    ('crouched', (('knee straightest', 1),)),
+    ('landing bent', (('knee at landing', 1),)),
+    ('still-hipped', (('pelvis roll', -1), ('pelvis turn', -1), ('pelvis bob', -1))),
+    ('still-armed', (('arm', -1), ('elbow', -1))),
+    ('arms carried', (('elbow bent', 1),)),
+    ('tripping', (('walk ratio', -1),)),
+    ('striding', (('walk ratio', 1),)),
+    ('wide', (('feet apart', 1),)),
+    ('on a line', (('feet apart', -1),)),
+    ('swaying', (('pelvis roll', 1), ('pelvis turn', 1), ('hips wag', 1))),
+    ('swinging', (('arm', 1), ('elbow', 1), ('knee swinging', 1))),
+    ('shuffling', (('stance', 1), ('toes up at landing', -1), ('heel at lift', -1))),
+    ('flying', (('vault', -1),)),
+    ('slow', (('pace', -1),)),
+    ('brisk', (('pace', 1),)),
+)
+SAID = 0.1
+
+#: A gait by name: (name, the words it is, the words it is not) - a run first, a walk's
+#: words not its own. Stilts and Groucho's are what her walk is not to be (CLAUDE.md), a
+#: catwalk and a run what it may be asked.
+GAITS = (('a run', ('flying',), ()), ('on stilts', ('stiff',), ('flying',)),
+         ("Groucho's", ('crouched',), ('flying',)),
+         ('a catwalk', ('swaying',), ('wide', 'flying')),
+         ('a waddle', ('wide', 'swaying'), ('flying',)),
+         ('a shuffle', ('shuffling', 'tripping'), ('flying',)))
 
 #: A take no longer than LOOP_S whose last pose is its first within LOOP_LEG legs is a loop:
 #: three of it, the seam out.
@@ -156,11 +194,17 @@ def measured(times, joints):
     for s, o in (SIDES, SIDES[::-1]):
         for a, b in zip(lands[s], lands[s][1:]):
             lift = next((x for x in lifts[s] if a < x < b), None)
-            o_lift = next((x for x in lifts[o] if a <= x < b), None)
             o_land = next((x for x in lands[o] if a < x < b), None)
-            if lift is None or o_lift is None or o_land is None or not o_lift < o_land <= lift:
+            o_lift = max((x for x in lifts[o] if o_land is not None and x < o_land), default=None)
+            if lift is None or o_land is None or o_lift is None:
                 continue
-            knee, alone = sig['knee' + s], slice(o_lift, o_land + 1)
+            # the foot alone under her: a walk's from the other's lift to its landing, a run's
+            # from this one's landing to its lift
+            o_lift, last = max(a, o_lift), min(lift, o_land)
+            if last <= o_lift:
+                continue
+            knee, alone = sig['knee' + s], slice(o_lift, last + 1)
+            over = next((i for i in range(a, lift) if sig['behind' + s][i] <= 0.0), None)
             back = sig['behind' + s][alone] < 0.0
             # a stride: the other foot's step and this one's, landing to landing
             speed = (sig['ankle' + o][o_land] - sig['ankle' + s][o_land] + sig['ankle' + s][b]
@@ -172,7 +216,7 @@ def measured(times, joints):
                     ('walk ratio', (sig['ankle' + s][a] - sig['ankle' + o][a]) / leg
                      * (b - a) / rate / 2.0 * math.sqrt(G / leg)),
                     ('stance', 100.0 * (lift - a) / (b - a)), ('knee at landing', knee[a]),
-                    ('knee loaded', knee[a:(o_lift + o_land) // 2 + 1].max()),
+                    ('knee loaded', knee[a:(o_lift + last) // 2 + 1].max()),
                     ('knee straightest', knee[alone].min()), ('knee at lift', knee[lift]),
                     ('knee swinging', knee[lift:b + 1].max()),
                     ('thigh behind at lift', -sig['thigh' + s][lift]),
@@ -185,6 +229,8 @@ def measured(times, joints):
                     ('pelvis roll', np.ptp(sig['roll'][a:b])),
                     ('pelvis turn', np.ptp(sig['turn'][a:b])),
                     ('pelvis bob', np.ptp(sig['height'][a:o_land + 1]) / leg),
+                    ('vault', math.nan if over is None else
+                     (sig['height'][over] - sig['height'][a]) / leg),
                     ('hips wag', np.ptp(sway[a:b]) / leg),
                     ('feet apart', abs(sig['aside' + s][a] - sig['aside' + o][a]) / leg)):
                 out[name].append(float(value))
@@ -210,6 +256,30 @@ def off(measures):
     return far, out
 
 
+def said(measures):
+    """[(word, how far)] of WORDS a walk is, the furthest first: each word's measures out of
+    their bands on its side, by the bands' widths, SAID or more together."""
+    bands = {name: (least, most) for name, _unit, least, most in BAND}
+    out = []
+    for word, sides in WORDS:
+        far = 0.0
+        for name, side in sides:
+            v, (least, most) = measures.get(name, math.nan), bands[name]
+            if v == v:
+                far += max(0.0, side * (v - (most if side > 0 else least))) / (most - least)
+        if far >= SAID:
+            out.append((word, far))
+    return sorted(out, key=lambda w: -w[1])
+
+
+def named(measures):
+    """The gaits of GAITS a walk is, by name: 'a woman's walk' with no word said."""
+    words = {word for word, _far in said(measures)}
+    return [name for name, needs, never in GAITS
+            if all(w in words for w in needs) and not any(w in words for w in never)] or (
+        [] if words else ["a woman's walk"])
+
+
 def apart(a, b):
     """(how far two walks are apart, [(widths, measure, a's, b's)] the furthest first): each
     of BAND's measures both have, by the band's width."""
@@ -233,6 +303,9 @@ def table(walks):
         lines.append(('%s, %s' % (name, unit)).rstrip(', ').ljust(wide)
                      + '%13s' % ('%g..%g' % (least, most)) + cells)
     lines.append('off her band'.ljust(wide + 13) + ''.join('%9.2f' % off(m)[0] for _l, m in walks))
+    for label, m in walks:
+        lines.append('%s: %s%s' % (label, ', '.join('%s %.2f' % w for w in said(m)) or 'no word',
+                                   ''.join(' - ' + n for n in named(m))))
     if len(walks) > 1:
         lines.append(('from %s' % walks[0][0]).ljust(wide + 13)
                      + ''.join('%9.2f' % apart(m, walks[0][1])[0] for _l, m in walks))

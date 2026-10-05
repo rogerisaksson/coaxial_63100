@@ -129,6 +129,8 @@ def test_its_walk_beside_a_womans(report):
                      '%.3g' % now.get(name, float('nan')))
     report.check('no further off a woman\'s walk than %g' % OFF_BAND, far <= OFF_BAND,
                  '%.2f: %s' % (far, ', '.join('%s %.3g (%g)' % o for o in out)))
+    report.check('in words, as it is (item 28: not on stilts)', True, '%s - %s' % (
+        ', '.join('%s %.2f' % w for w in normal.said(now)), ', '.join(normal.named(now))))
 
 
 ROSTER = [test_a_gait_is_a_row_of_the_same_names, test_her_rows_go_on,
