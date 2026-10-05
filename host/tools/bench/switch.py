@@ -6,10 +6,11 @@
     python tools/bench/switch.py -P U,V                # only those legs
     python tools/bench/switch.py --stop                # stop a run, disarmed
 
-Turns the AFE off and bypasses the STO break before arming: on this bench
-board AFE_ON high takes the supply off the gate drivers, so measuring and
-switching are mutually exclusive. It reads no temperature and settles no
-baseline.
+Turns the AFE off and clears the break's latch before arming: on this bench
+board AFE_ON high takes the supply off the gate drivers and holds PE15 low,
+so measuring and switching are mutually exclusive, and the latch that low
+left refuses MOE until cleared. The break stays in circuit (2026-10-05).
+It reads no temperature and settles no baseline.
 
 `--stop` exists because killing a switching run from outside leaves the
 stage armed. It drops a file the run watches for, so the run exits through
@@ -41,8 +42,8 @@ def main():
                    help='ask a running switch.py to disarm and exit')
     p.add_argument('--keep-afe', action='store_true',
                    help='leave the AFE on, which leaves the drivers unpowered')
-    p.add_argument('--keep-break', action='store_true',
-                   help='leave the STO break in circuit')
+    p.add_argument('--bypass-break', action='store_true',
+                   help='take the STO break out of circuit')
     p.add_argument('--interlock', action='store_true',
                    help='honour the arming interlock')
     a = p.parse_args()
@@ -71,8 +72,10 @@ def main():
     try:
         if not a.keep_afe:
             rig.board.afe.off()
-        rig.gates.on(bypass_sto=not a.keep_break,
-                             ignore_interlock=not a.interlock)
+            time.sleep(0.4)                 # PE15 up behind AFE_ON
+        if not a.bypass_break:
+            rig.gates.clear()
+        rig.gates.on(bypass_sto=a.bypass_break, ignore_interlock=not a.interlock)
         what = ('sweep %.0f-%.0f %% every %.0fs' % (lo * 100, hi * 100, a.period)
                 if a.sweep else '%.0f %%' % (a.duty * 100))
         print('LIVE: %s at %s for %.0f s   (stop: python tools/bench/switch.py --stop)'

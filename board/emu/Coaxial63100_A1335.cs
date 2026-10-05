@@ -1,6 +1,7 @@
 // Coaxial63100_A1335.cs - The Allegro A1335 angle sensor on SPI4, its chip select PE4: 20-bit
-// packets as board_angle.c sends them, four 5-bit words, MSB first. A read is answered in the
-// next packet - the register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG is the
+// packets as board_angle.c sends them, four 5-bit words, MSB first. A read is answered two
+// packets on, as the bench's part does (2026-10-05; the manual's read cycle has it one) - the
+// register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG is the
 // shaft's mechanical angle in twelve bits: the plant's once a world turns it, `Degrees` once the
 // monitor sets it, else an invented turn every `TurnSeconds` of virtual time, as the stand-in's -
 // one angle for ever looks like a dead link. TSEN its die's temperature in eighths of a
@@ -29,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             words = 0;
             command = 0;
             reply = AllOnes;
+            any = false;
         }
 
         /// <summary>The magnet's mechanical angle, degrees: the plant writes it each period, and
@@ -64,7 +66,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
             if(words == Words)
             {
-                Packet(command);
+                if(any)
+                {
+                    Packet(asked);
+                }
+                asked = command;
+                any = true;
             }
             words = 0;
         }
@@ -130,6 +137,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private int words;
         private uint command;
         private uint reply;
+        private uint asked;
+        private bool any;
 
         private const int Words = 4;
         private const int WordBits = 5;

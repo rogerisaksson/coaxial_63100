@@ -31,6 +31,17 @@
 #define ANGLE_REG_MASK   0x3FU    /* a 6-bit register address */
 #define ANGLE_CRC_MASK   0x0FU    /* the 4-bit CRC a reply ends with */
 #define ANGLE_TEMP_MASK  0x0FFFU  /* TSEN's 12-bit count */
+#define ANGLE_ID_SHIFT   12U      /* a reply's top four bits name its register */
+#define ANGLE_ID_TSEN    0xFU
+
+/* A reply is the register asked up to three packets before it, not the one
+   before as the manual's read cycle has it: on the bench a read's second
+   packet answered the read before it, a few instructions behind its first,
+   1 us or 200 us - TSEN with ANG's twelve bits, a die at -241.77 C
+   (2026-10-05). A read asks four times; the poll drops its first two replies
+   behind another register's. */
+#define ANGLE_ASKS       4U
+#define ANGLE_STALE      2U
 #define ANGLE_SPI_TIMEOUT_MS 100U
 
 /** The angle sensor's state: the link, the latest word and its register, and
@@ -59,10 +70,17 @@ static uint32_t prescaler_under(uint32_t limit_hz)
   return board_spi_prescaler(s.kernel_hz, limit_hz, &s.bitrate_hz);
 }
 
+/* When chip select last went up: tCS_IDLE between frames. */
+static uint32_t s_up_at;
+
 static void cs(bool low)
 {
   HAL_GPIO_WritePin(ANGLE_CS_PORT, ANGLE_CS_PIN,
                     low ? GPIO_PIN_RESET : GPIO_PIN_SET);
+  if (!low)
+  {
+    s_up_at = Board_Cycles();
+  }
 }
 
 static void settle(void)
@@ -174,6 +192,12 @@ static uint32_t settle_cycles(void)
   return ANGLE_SETTLE_US * (SystemCoreClock / US_PER_S);
 }
 
+/* Chip select up a settle: the next packet is a frame of its own. */
+static bool up_a_settle(void)
+{
+  return (uint32_t)(Board_Cycles() - s_up_at) >= settle_cycles();
+}
+
 /* The 20 bits the last packet brought back. */
 static uint32_t word_in(void)
 {
@@ -210,8 +234,9 @@ static struct
   angle_step_t step;
   uint8_t  packet;
   uint8_t  reg;
+  uint8_t  stale;     /* replies still another register's, dropped */
   uint32_t at;
-} r;
+} r = { .stale = ANGLE_STALE };
 
 static bool waited(uint32_t cycles)
 {
@@ -239,6 +264,10 @@ static bool read_step(uint32_t *got, bool *failed)
     switch (r.step)
     {
     case STEP_IDLE:
+      if (!up_a_settle())
+      {
+        return false;
+      }
       r.reg = s.poll_reg;
       r.packet = 0U;
       cs(true);
@@ -284,12 +313,17 @@ static bool read_step(uint32_t *got, bool *failed)
         r.step = STEP_GAP;
         break;
       }
-      *got = word_in();
       r.step = STEP_IDLE;
+      if (r.stale > 0U)
+      {
+        r.stale--;
+        break;
+      }
+      *got = word_in();
       return true;
 
     case STEP_GAP:
-      if (!waited(settle_cycles()))
+      if (!up_a_settle())
       {
         return false;
       }
@@ -378,6 +412,10 @@ static bool packet(uint32_t out, uint32_t *in)
     return false;
   }
   read_abort();
+  r.stale = ANGLE_STALE;
+  while (!up_a_settle())
+  {
+  }
 
   cs(true);
   settle();
@@ -412,10 +450,12 @@ bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc)
 
   const uint32_t frame = read_frame(reg);
 
-  /* Two frames, not one. */
-  if (!packet(frame, NULL) || !packet(frame, &got))
+  for (uint8_t ask = 0U; ask < ANGLE_ASKS; ask++)
   {
-    return false;
+    if (!packet(frame, (ask == (ANGLE_ASKS - 1U)) ? &got : NULL))
+    {
+      return false;
+    }
   }
 
   if (value != NULL)
@@ -439,7 +479,9 @@ bool Board_AngleDie(int32_t *centidegc)
   {
     return false;
   }
-  if (!Board_AngleRead(ANGLE_REG_TSEN, &counts, NULL))
+  /* Another register's reply is no temperature. */
+  if (!Board_AngleRead(ANGLE_REG_TSEN, &counts, NULL)
+      || ((counts >> ANGLE_ID_SHIFT) != ANGLE_ID_TSEN))
   {
     return false;
   }

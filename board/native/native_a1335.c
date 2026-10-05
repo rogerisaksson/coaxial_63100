@@ -1,7 +1,8 @@
 /** native_a1335.c - The Allegro A1335 on SPI4 natively: Coaxial63100_A1335.cs in C. */
 
 /* 20-bit packets as board_angle.c sends them, four 5-bit words, MSB first. A read is answered
-   in the next packet - the register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG
+   two packets on, as the bench's part does (2026-10-05; the manual's read cycle has it one) -
+   the register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG
    is the shaft's mechanical angle in twelve bits (native.c's), TSEN its die's temperature in
    eighths of a kelvin, FIELD the stand-in's magnet; the high four bits each register's
    identifier, the stand-in's (5, F, E); the rest reads zero. Unpowered - AFE_ON low - it
@@ -31,6 +32,8 @@ static struct
   uint32_t words;
   uint32_t command;
   uint32_t reply;
+  uint32_t asked;       /* the packet before the last: the next reply's */
+  bool     any;
 } a;
 
 void a1335_open(void)
@@ -38,6 +41,7 @@ void a1335_open(void)
   a.words = 0U;
   a.command = 0U;
   a.reply = A1335_ALL_ONES;
+  a.any = false;
 }
 
 static uint16_t a1335_register(uint32_t reg)
@@ -106,7 +110,12 @@ void a1335_select(bool level)
   }
   if (a.words == A1335_WORDS)
   {
-    a1335_packet(a.command);
+    if (a.any)
+    {
+      a1335_packet(a.asked);
+    }
+    a.asked = a.command;
+    a.any = true;
   }
   a.words = 0U;
 }
