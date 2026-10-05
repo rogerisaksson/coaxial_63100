@@ -1,6 +1,6 @@
 """The gynoid's run: a bounce a foot, flight between.
 
-    runner = Runner(machine, speed=2.0)
+    runner = Runner(machine, speed=1.5)
     runner.start()                              # placed in flight at its speed (a tool's)
     machine.loop.write(**runner.step(dt))       # every pass
 
@@ -23,8 +23,11 @@ from machine.stance import length
 
 #: A stance's and a flight's seconds; she leaves the floor TAKE_M higher than she landed, her
 #: leg longer there; the stance's height begins START_G of a free fall's acceleration - in free
-#: fall, 1, her sole bore 360 N at 24 ms, 68 at 60 and 648 at 110.
-CONTACT_S, FLIGHT_S, TAKE_M, START_G = 0.22, 0.10, 0.0, 1.0
+#: fall, 1, her sole bore 360 N at 24 ms, 68 at 60 and 648 at 110. A stance of 0.22 s ran her
+#: 1.94 m/s at 253 J/m on a rotor 0.4 of the U8's; on the U8's it holds 1.4 m/s at 403-451 J/m
+#: and is down at 1.75 asked, where 0.30 s runs 1.66 at 266. At 0.32 she is down at 10.6 s; at
+#: 0.26, asked 2.0 from 1.5, she ran 30 s at 1.91 (2026-10-05).
+CONTACT_S, FLIGHT_S, TAKE_M, START_G = 0.30, 0.10, 0.0, 1.0
 
 #: The knee as the foot lands, deg. The foot lands on its ball, the heel HEEL_DEG up; standing,
 #: the heel gives ABSORB of what she sinks, never quite to the floor, and rises as her hip
@@ -116,7 +119,7 @@ class Runner:
 
     """The setpoints of a run for a DYNAMIC gynoid, every pass, from what the loop read."""
 
-    def __init__(self, machine, speed=2.0):
+    def __init__(self, machine, speed=1.5):
         self.machine, self.speed = machine, float(speed)
         self.world = machine.nodes['pelvis'].world
         self.heading = 0.0

@@ -25,9 +25,9 @@ CARBON, ROD, STEEL, POLYMER = (92, 94, 106), (214, 214, 224), (246, 246, 246), (
 #: A spur pair's face width, m (`linkage.GEARS`): its pinion on its drive's output face, its wheel
 #: on the joint's axis, their pitch circles meeting.
 SPUR_T = 0.008
-#: A board apart from its drive: its laminate's green, BOARD_T thick with its parts, m.
-PCB, BOARD_T = (40, 120, 70), 0.012
-SIZED = {'A': (72, 140, 224), 'B': (60, 190, 170), 'C': (200, 170, 60)}
+#: A board's laminate, green; a motor by its frame.
+PCB = (40, 120, 70)
+SIZED = {'U8': (72, 140, 224), 'MN6007': (60, 190, 170)}
 
 #: Bare, a drive's stack drawn as its parts (`drives.along`): its inverter in the laminate's green,
 #: its motor in its frame's colour, its gearbox in the gearbox's steel grey.
@@ -144,13 +144,9 @@ def parts(bare=False):
     out = [(s[0], s[1], s[2], s[3], s[4], bones[s[0]]) for s in figure.SEGMENTS]
     out += [(name, parent, joints, at, 0.0, mesh)
             for name, parent, joints, at, mesh in drums.stages()]
-    for name, parent, offset, (c, t, u, m) in drums.drums():
+    for name, parent, offset, _mesh in drums.drums():
         joint = name[len('drive_'):]
-        size = drives.of(joint)[1]
         sized = paint(SIZED[drives.of(joint)[0]])
-        if not bare:
-            out.append((name, parent, (), offset, 0.0, (c, t, u, m * 0 + sized)))
-            continue
         axis, _half = drums.AXES[joint]
         letter = 'xyz'[[abs(a) for a in axis].index(1.0)]
         ink = {'board': paint(PCB), 'motor': sized, 'gear': paint(GEARBOX)}
@@ -165,7 +161,8 @@ def parts(bare=False):
         out += [(name, rides, (), at, 0.0, mesh) for side in ('left_', 'right_')
                 for name, rides, at, mesh in _held(side)]
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
-        out.append(('board_' + joint, seg, (), at, 0.0, drum(radius, BOARD_T, faces, paint(PCB))))
+        out.append(('board_' + joint, seg, (), at, 0.0,
+                    drum(radius, drives.tall(joint), faces, paint(PCB))))
     out += [('gimbal%d_%s' % (k, side + stage), side + stage, (), at, 0.0, mesh)
             for side in ('left_', 'right_') for stage in ('hip_yaw', 'hip_roll')
             for k, (at, mesh) in enumerate(_gimbal(side, stage))]

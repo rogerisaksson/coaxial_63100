@@ -52,33 +52,26 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    test_gynoid_gait.py asserting fewer J/m than the same walk crouched to
    12, 18, 24 and 30 deg at each pace; the stance knee at 4.5 or on its
    stop; the stride at 1.0 m or over.
-2. **The leg stack on the run** (the user, 2026-10-04: the most simplicity,
-   the fewest gearbox and electronics variants). One stack on every drive
-   since 2026-10-05 (docs/DIMENSIONS.md, docs/findings/stacks.md): 60 x 20
-   mm at KV 90, a 64 mm box at 1:30, a 70 mm 50 A inverter; T 0.87 at the
-   hip at 1.5x on the walk, 1.17 on her run at 1.94 m/s, which she runs
-   the same on 40 A and on 36 V (docs/findings/run.md). Left: the hips',
-   knees' and spine's peaks are
-   its 124 N m clamp (A 1.50, P 1.24-1.35, S 1.45); the knee's parry 1007
-   deg/s, 1.17 of KV 90's at 48 V - the pack's lowest volts and the KV;
-   her get-up on it is 2 keyframe sets of 96 searched - the crouch solved
-   for her centre of mass over her feet, not a pose searched on a build;
-   a fall asked a knee's box 763 N m of its 128 (item 11); the 70 mm
-   inverter is an estimate from the 63100's, itself on no joint, 10 mm
-   thick in a stack and 12 apart (`skeleton.BOARD_T`) where the 63100 is
-   14.7 by its model (docs/HARDWARE.md); her boards' types - one, two or
-   three (the user, 2026-10-05: the 63100's 100 mm, 63 V and 100 A stands
-   ready, a smaller and a still smaller thought of; one or two is the
-   aim, the run's demand decides); every inverter in its own stack stands
-   the elbow 8 mm past her shell (four stand apart, `drives.BOARDS`); the
-   elbow, the neck and the head feel their rotors 7.8, 2.9 and 33 times
-   their loads on the 1:30 box - a belt stage 1:4-1:6 in its place,
-   decided 2026-10-04, pending a ratio a stack; the governor on the
-   setpoints, 911 and 61.0 % of the scoreboard - its form; the example of
-   a row for docs/DIMENSIONS.md did not arrive. DOD: every leg joint's A,
-   P, T and V under 1 on the run and the gym's scenes at the settled
-   margin, no joint's J over 1; the pack's volts, the KV and the stages
-   baked; her boards' types settled.
+2. **Her drives as bought** (the user, 2026-10-05: motors off the shelf,
+   complete, two for their cost; one gearbox and one board, their variants
+   the pain). Laid 2026-10-05 (docs/DIMENSIONS.md, docs/findings/stacks.md):
+   the U8 II Lite at KV 100 on the legs' and the trunk's 15, the MN6007 II
+   on the arms' and the head's 6, a 64 mm box at 1:30, the 63100 on all
+   21; her 30.8 kg. Left, at 1.5x (`drive_sizes`): the hips', knees' and
+   spine's peaks their 108 N m clamp (A 1.50, S 1.27), the shoulder's 40
+   of 51 (A 1.17); the knee's parry 1028 deg/s and the ankle's 1073, 1.07
+   and 1.02 of their volts at 48; T 0.94 at the hip walking, 0.99 at the
+   knee running - in oil (`drives.COOLING` 0.3, assumed), where a grille
+   or a heat sink on the FETs in air is now the thought (item 29); the
+   U8's peak, 4 N m, is CubeMars' for its stator, on no page of its own;
+   the rotors seen at their joints 74 and 93 times the foot at the ankle,
+   29 the head, 7 the elbow - a ratio a joint; past her clothes the
+   elbow's stack 20 mm, the shoulder's 15, the hip's yaw's 6 - a smaller
+   box and board for the arms, if it comes to it (the user); a fall asked
+   a knee's box 763 N m of its 128 (item 11).
+   DOD: every joint's A, P, T and V under 1 on the run and the gym's
+   scenes at the settled margin, no joint's J over 1; the pack's volts,
+   the cooling and each joint's ratio baked.
 3. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the
    support a point under each stance ball, nothing of the sole's shape to
    the controller, a small quick step toward the capture point whenever it
@@ -128,15 +121,14 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    the patterns driven over the bus to the emulated boards (`emulator://`,
    `native://`), the drives turning, not the simulated director alone.
 4. **Running** (`machine/runner.py`, test_gynoid_run.py,
-   docs/findings/run.md): from a flight at her speed she holds 1.27-1.94
-   m/s a minute, a sole 866 N at most. Left: asked 2.25 she is down in
-   10-16 s - her foot lands 0.3-1.1 m/s on over the floor and slides, her
-   weight on it 60 ms late; her speed wanders 0.5 m/s landing to landing
-   from 1.75 up; 253 J/m where her walk has 384; her walk into it, her
-   turns, the director and the tty; every smoother swing tried has her
-   down, its kinks holding her up. DOD: 2 m/s standing on the scoreboard,
-   no strike over 2 kN, the parries, falls and get-ups of the biped's
-   suite held as walking.
+   docs/findings/run.md): from a flight at her speed she holds 0.72-1.65
+   m/s half a minute on her motors as bought, 357-267 J/m, a sole 665 N at
+   most. Left: asked 2.0 she is down in 8-25 s (1.94 m/s on a rotor 0.4 of
+   theirs) - the stance wants to shorten with her speed, 0.26 s ran 1.91;
+   her foot lands 0.3-1.1 m/s on over the floor and slides, her weight on
+   it 60 ms late; every smoother swing tried has her down; her turns.
+   DOD: 2 m/s standing on the scoreboard, no strike over 2 kN, the
+   parries, falls and get-ups of the biped's suite held as walking.
 5. **The push-off without toe motors** (the user, 2026-10-04: the motors
    off the feet, 21 drives; the toes alone flex, at the ball, a thin
    carbon-fibre sandwich with TPU or TPU round carbon rods glued with
@@ -276,6 +268,21 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     cap, `director.py` at 5.9 (2026-10-04; `arrival.py` 5.2 with its legs'
     bearing out in `bearing.py`): the trial into its own module. DOD:
     `test_structure` on the layout, each file under 5 k.
+
+28. **S and F: her walk into the run and back** (the user, 2026-10-05).
+    In the lab the standing leg pushes her off into the run
+    (`Runner.enter`): on in 3 timings of 4; back at a landing she is down
+    at once. DOD: F to her fastest run and S back, 10 of 10 over a spread
+    of timings, on the page.
+29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
+    tubes cut to length, epoxied into printed corners; a gearbox on a
+    flange, its output through it; motor, box and board outermost, a
+    grille or a heat sink on the FETs; every print 2.5D; a quick-release
+    a limb, one interface, the hands their own; carbon panels over it.
+    The holders are the 70 mm stacks': on the U8s her frame's parts are
+    19 mm into each other at the hips where 9 (`tools/sim/fit.py`). DOD:
+    no pair closer than before, each tube in its holder, each board on
+    its flange; the motors' heat in air against the walk and the run.
 
 ## Bench
 

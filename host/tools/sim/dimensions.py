@@ -77,18 +77,18 @@ def text():
            '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |']
     for name, (frame, box, inverter), kinds in rows:
         size = drives.size(kinds[0])
-        rotor, stack = drives.FRAMES[frame]
+        rotor, stack = drives.FRAMES[frame][:2]
         count = sum(1 for j in driven if drives.kind(j) in kinds)
         # one on its own axis, alone on its joint: the type's numbers at its gearbox's output
         plain = next((k for k in kinds if drives.ratio(_joint(k)) == drives.RATIO
                       and drives.motors(_joint(k)) == 1), kinds[0])
         lever = drives.ratio(_joint(plain)) / drives.RATIO * drives.motors(_joint(plain))
         long = sum(length for _part, _r, length in size.parts) + (
-            0.010 if plain in drives.BOARDS else 0.0)
+            drives.tall(_joint(plain)) if plain in drives.BOARDS else 0.0)
         out.append('| %s | %d | %.0f x %.0f mm, KV %.0f | %.0f mm, 1:%.0f | %d mm, %.0f A | '
                    '%.0f x %.0f | %.2f | %.0f | %.0f | %.0f | %.3f |' % (
                        name, count, rotor * 1e3, stack * 1e3, size.kv, drives.BOXES[box] * 1e3,
-                       drives.RATIO, inverter, size.amps,
+                       drives.RATIO, inverter, size.rated,
                        max(size.diameter, 2e3 * size.board[1] / 1e3) * 1e3, long * 1e3,
                        size.mass + size.board[0], drives.peak(_joint(plain)) / lever,
                        drive_sizes.held(_joint(plain))[0] / lever,

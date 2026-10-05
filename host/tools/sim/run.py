@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Her run, simulated and measured: a row a step, then her drives against what it asked.
 
-    python tools/sim/run.py                      # 2 m/s, 6 s, from a flight
-    python tools/sim/run.py --speed 2.5 --to 10 runner.CONTACT_S=0.2
+    python tools/sim/run.py                      # 1.5 m/s, 6 s, from a flight
+    python tools/sim/run.py --speed 1.75 --to 10 runner.CONTACT_S=0.28
 
 A row a landing: when, the foot, her speed and sink as it came down, the pelvis's height, the
 ball ahead of the hip, the stance's and the flight's seconds, her trunk's pitch. Then each leg
@@ -18,9 +18,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 #: Her run's form on a flat floor, (measure, least, most), held by test_gynoid_run.py: her speed's
-#: share off the one asked, her shortest flight, s, her trunk's tip, deg, a sole's load, N. A
-#: minute at 1.25-2.0 m/s asked she ran 1.27-1.94, her flights 43 ms at least, tipped 9.0 deg,
-#: a sole 888 N (2026-10-05).
+#: share off the one asked, her shortest flight, s, her trunk's tip, deg, a sole's load, N. Half
+#: a minute at 0.75-1.75 m/s asked she ran 0.72-1.66, tipped 8.2 deg, a sole 636 N (2026-10-05).
 FORM = (('off', None, 0.10), ('flight', 0.02, None), ('pitch', None, 12.0), ('load', None, 1000.0))
 
 #: Fallen: the pelvis under FELL_M or her trunk tipped past FELL_DEG.
@@ -154,7 +153,7 @@ def shown(measures, steps, asked, rows=True):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--speed', type=float, default=2.0, help='m/s asked')
+    parser.add_argument('--speed', type=float, default=1.5, help='m/s asked')
     parser.add_argument('--to', type=float, default=6.0, help='seconds simulated')
     parser.add_argument('--json', action='store_true', help='the measures and the demand, a line')
     parser.add_argument('--swap', nargs='*', default=None, metavar='NAME=V',

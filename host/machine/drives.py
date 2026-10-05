@@ -1,6 +1,7 @@
 """Her drives: each a coaxial stack of an inverter disc, a pancake outrunner, a one-stage gearbox.
 
-One frame, one box and one inverter at one ratio: every drive the same stack.
+Two motors as bought, one box at one ratio, one board - the 63100: a stack for the legs and the
+trunk, one for the arms and the head.
 
     size = drives.of('left_knee')      # (frame, Size)
     drives.kt('left_knee')             # N m of joint torque an amp of q current
@@ -33,11 +34,13 @@ class Size:
     from its input end, (part, radius m, length m)."""
 
     __slots__ = ('amps', 'kt_motor', 'r', 'kv', 'rotor', 'winding', 'efficiency', 'housing_k_w',
-                 'diameter', 'length', 'mass', 'drag', 'shock', 'board', 'parts', 'source')
+                 'diameter', 'length', 'mass', 'drag', 'shock', 'board', 'parts', 'source',
+                 'rated')
 
     def __init__(self, amps, kt_motor, r, kv, rotor, winding, efficiency, housing_k_w,
-                 diameter, length, mass, drag, shock, board, parts, source):
+                 diameter, length, mass, drag, shock, board, parts, source, rated):
         self.amps, self.kt_motor, self.r, self.kv, self.rotor = amps, kt_motor, r, kv, rotor
+        self.rated = rated
         self.winding, self.efficiency, self.housing_k_w = winding, efficiency, housing_k_w
         self.diameter, self.length, self.mass, self.source = diameter, length, mass, source
         self.drag, self.shock, self.board, self.parts = drag, shock, board, parts
@@ -56,20 +59,20 @@ class Size:
 RATIO = 30.0
 GEAR_J = 0.05
 
-#: The pancake frames, (rotor's D, stack) m. Their law fitted on the makers' pages (MN3508,
-#: MN5008, MN6007 II, M8108, M8110, U12 II; R line to line halved): Km 1.6e-5 Ds^1.8 L^0.8 (the
-#: stator Ds the rotor less 6 mm, mm), kg 2.52e-6 Ds^2 (L + 6) + 0.039, its peak 1.1e-4 Ds^2 L N m
-#: (2.5x its 180 s), the can L + 18.5 mm tall, 0.45 of the kg turning at its rotor's radius less
-#: 3 mm, the winding 310 J/K a kg and to the air the 5230SL's 2.2 K/W over 60 x 45 mm as 1/(D H).
-#: One frame (the user, 2026-10-04: as few motor types as can be, each a sourcing nightmare), its
-#: stack what the hip's pitch asks: at 16 mm its winding held 52 N m, at 18 59 and at 20 66
-#: where the hip's rms is 37-42 (T 1.13-1.15 at 1.5x on 16 and 18). A, 68 x 30 on an 84 mm box
-#: and the 100 A inverter, went from the spine, hips, knees and ankles with the demand it was
-#: sized on, the controller's own (docs/findings/stacks.md). A C of 40 x 12 for the elbow, the
-#: neck and the head took the elbow's reflected inertia 4.2 -> 0.76 and 0.7 kg off her for a day
-#: (docs/findings/drives.md); on B direct the elbow's drum is 72 mm across the elbow with its
-#: collars.
-FRAMES = {'B': (0.060, 0.020)}
+#: The motors as bought, a row a part: (the can's D m, its height m, kg, ohm line to line, N m
+#: at its peak, its rotor's kg m^2) - T-Motor's U8 II Lite and MN6007 II, complete with their
+#: bearings (the user, 2026-10-05: no frameless kit; motors cost, so two): 87.1 x 27 mm, 253 g
+#: and 134-141 mohm at KV 100, USD 300; 67.2 x 26.1 mm, 159 g and 178 mohm at KV 160, USD 130
+#: (the maker's pages, 2026-10-05; the U8's can by its model, docs/HARDWARE.md). Neither page
+#: gives a peak: the U8's 4 N m is CubeMars' for the same 36N42P stator in the R80 at 50 A, the
+#: MN6007's 1.9 that maker's RO60's 2.4 by its stack, 7 mm of 8.7; the rotors 0.45 of the kg at
+#: the can's radius less 3 mm (so reckoned, the RO60 and the RO80 10 and 14 % over their pages'
+#: 1.16e-4 and 2.61e-4). The frame
+#: before them, 60 x 20 mm at KV 90 by a law fitted on T-Motor's pages, is no part, its rotor
+#: 0.4 of the U8's (docs/findings/stacks.md). The winding 310 J/K a kg and to the air the
+#: 5230SL's 2.2 K/W over 60 x 45 mm as 1/(D H).
+FRAMES = {'U8': (0.0871, 0.0270, 0.253, 0.1375, 4.0, 1.87e-4),
+          'MN6007': (0.0672, 0.0261, 0.159, 0.178, 1.9, 0.67e-4)}
 
 #: The gearbox's diameter, m: a rolling-element box's momentary 250 N m at 80 mm, five times its
 #: rated, 0.45 kg, its drag at its input - its rollers' start, the motor's cogging - 0.08 N m, all
@@ -81,10 +84,12 @@ BOXES = {'B': 0.064}
 BOX_K = {'B': 9.0e3}
 
 #: The inverter by its disc mm: (disc D m, amps, kg, its laminate's K/W to the air through the
-#: housing it is bolted to): a 70 mm at 50 A, estimated from the 63100's 100 mm, 100 A, 0.2 kg and
-#: 3.6 K/W (parts' centres 92 x 93 mm, the housing's skin at 10 W/m^2 K still and the pad 0.3) -
-#: no joint asks its 100 A: the hips and knees rise and walk within 83 N m, 34 A.
-INVERTERS = {70: (0.070, 50.0, 0.08, 6.5)}
+#: housing it is bolted to, its height m): the 63100 as built - 100 mm, 100 A, 0.2 kg, 3.6 K/W
+#: (parts' centres 92 x 93 mm, the housing's skin at 10 W/m^2 K still and the pad 0.3), 14.7 mm
+#: over all by its model (docs/HARDWARE.md) - on every drive (the user, 2026-10-05: boards and
+#: gearboxes in variants are the pain, motors are bought): behind the U8's 87 mm, and 33 mm
+#: wider than the MN6007. A motor's peak is under its amps: the clamp is the motor's.
+INVERTERS = {100: (0.100, 100.0, 0.2, 3.6, 0.015)}
 
 #: The drives' cooling: each winding's and laminate's K/W to the air times this - 1 in air. Her
 #: electronics in an enclosure of transformer oil or the like, each stator bolted onto its
@@ -92,30 +97,35 @@ INVERTERS = {70: (0.070, 50.0, 0.08, 6.5)}
 #: temperatures (the user, 2026-10-04): an assumed 0.3, measured when the enclosure exists.
 COOLING = 0.3
 
-#: Each kind's stack: (frame, box, inverter), its winding its frame's KV. One stack on every
-#: drive (2026-10-04; the user: the most simplicity, the fewest gearbox and electronics
-#: variants): on the walk without the slip, the soles' load through its band, the scoreboard
-#: 318.7 and 84.9 % against 250.5 and 82.9 on the two frames, boxes and inverters before it,
-#: every rise and walk on both; her 28.4 kg against 32.3, 20 part types against 23. On its own
-#: demand at 1.5x (`drive_sizes`): T 0.90 at the hip and under it everywhere, the hips', knees'
-#: and spine's peaks its 124 N m clamp, the knee's parry 1034 deg/s, 1.20 of KV 90's at 48 V.
-#: What it replaced and why each stood: docs/findings/stacks.md.
-KV = {'B': 90.0}
-STACKS = dict.fromkeys(
-    ('spine', 'spine_roll', 'waist', 'neck', 'head', 'shoulder', 'elbow', 'wrist', 'gripper',
-     'hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll', 'foot'), ('B', 'B', 70))
+#: Each kind's stack: (frame, box, inverter), its winding its frame's KV: 100 turns the knee
+#: 960 deg/s at 48 V where it asks 860-1007, 85 would 816 - a joint's torque times its speed over
+#: the pack's volts is its amps whatever the winding. The U8 where a joint asks over 50 N m -
+#: the legs, the trunk -, the MN6007 for the arms and the head: 15 and 6 of her 21; her 30.8 kg
+#: where 28.4, a hip's rotor 0.177 kg m^2 at its joint where 0.071. What they replaced and why
+#: each stood: docs/findings/stacks.md.
+KV = {'U8': 100.0, 'MN6007': 160.0}
+STACKS = {**dict.fromkeys(('spine', 'spine_roll', 'waist', 'hip_yaw', 'hip_roll', 'hip', 'knee',
+                           'ankle', 'ankle_roll'), ('U8', 'B', 100)),
+          **dict.fromkeys(('neck', 'head', 'shoulder', 'elbow', 'wrist', 'gripper', 'foot'),
+                          ('MN6007', 'B', 100))}
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
 #: else in its stack. The knee's and the ankle's split (the user, 2026-10-02), two discs facing
 #: out on the femur's outer side: round the tibia under the knee the folded femur met them,
 #: 10-16 mm, round the femur over it the folded tibia, 13-14; facing forward 15 cm over the knee
-#: they stood 12 mm out of her (`tools/sim/fit.py`). The spine's 100 mm on the torso's back; the
-#: hip's in its stack, 100 mm round - on the pelvis's or the torso's back it stood 14-35 mm out of
-#: her, beside the knee's 6, lower on the thigh 16 mm into the shank folded (2026-10-03).
+#: they stood 12 mm out of her (`tools/sim/fit.py`). The spine's and the neck's flush in her
+#: back on its middle line, the one over the other: a hand's breadth off it a 100 mm disc
+#: stands 17-20 mm out of her shell, at her shoulders' height 13-28 on the line itself; the
+#: head's under the neck's - in her skull, 0.2 kg more of head, a fall put her head on the
+#: floor at 1.49 m/s. The hip's in its stack - on the pelvis's or the torso's back it stood
+#: 14-35 mm out of her, lower on the thigh 16 mm into the shank folded (2026-10-03). In their
+#: stacks, standing, the elbow's is 20 mm past her shell, the shoulder's 15, the hip's yaw's 9
+#: (2026-10-05).
 BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
-          'ankle': ('thigh', (0.049, -0.18, 0.01), 'x'),
-          'spine': ('torso', (0.0, 0.22, -0.066), 'z'),
-          'elbow': ('upper_arm', (0.0, -0.11, 0.0), 'y')}
+          'ankle': ('thigh', (0.051, -0.18, 0.01), 'x'),
+          'spine': ('torso', (0.0, 0.14, -0.066), 'z'),
+          'neck': ('torso', (0.0, 0.245, -0.066), 'z'),
+          'head': ('torso', (0.0, 0.245, -0.049), 'z')}
 
 #: Each gearbox's play at its output, deg (estimated: a rolling-element wave drive's few arcmin,
 #: worn a little).
@@ -163,24 +173,20 @@ def _stack(kind):
     its inverter in it or apart (`BOARDS`)."""
     frame, box, inverter = STACKS[kind]
     kv = KV[frame]
-    rotor, stack = FRAMES[frame]
-    ds, mm = (rotor - 0.006) * 1e3, stack * 1e3
-    km = 1.6e-5 * ds ** 1.8 * mm ** 0.8
-    kg = 2.52e-6 * ds * ds * (mm + 6.0) + 0.039
-    can = stack + 0.0185
+    rotor, can, kg, ohm, top, inertia = FRAMES[frame]
+    # N m an amp of q current, a sine's peak; a phase's ohm, half the pair's
     kt = 8.27 / kv
-    disc, amps, b_kg, laminate = INVERTERS[inverter]
+    disc, amps, b_kg, laminate, tall = INVERTERS[inverter]
     scale = (BOXES[box] / 0.08) ** 3
-    parts = ((() if kind in BOARDS else (('board', disc / 2.0, 0.010),))
+    parts = ((() if kind in BOARDS else (('board', disc / 2.0, tall),))
              + (('motor', rotor / 2.0 + 0.002, can),
                 ('gear', BOXES[box] / 2.0 + 0.002, 0.28 * BOXES[box] + 0.004)))
-    return Size(min(amps, 1.1e-4 * ds * ds * mm / kt), kt, (kt / km) ** 2 / TORQUE_FACTOR, kv,
-                0.45 * kg * (rotor / 2.0 - 0.003) ** 2,
+    return Size(min(amps, top / kt), kt, 0.5 * ohm, kv, inertia,
                 (310.0 * kg, 2.2 * 0.060 * 0.045 / (rotor * can)), 0.9, laminate,
                 2.0 * max(r for _p, r, _l in parts), sum(l for _p, _r, l in parts),
                 1.1 * (kg + 0.45 * scale), 0.08 * scale, 250.0 * scale, (b_kg, disc / 2.0),
-                parts, 'frame %s %.0f x %.0f mm KV %.0f, box %.0f mm, %.0f A' % (
-                    frame, rotor * 1e3, stack * 1e3, kv, BOXES[box] * 1e3, amps))
+                parts, 'motor %s %.0f x %.0f mm KV %.0f, box %.0f mm, %.0f A' % (
+                    frame, rotor * 1e3, can * 1e3, kv, BOXES[box] * 1e3, amps), amps)
 
 
 _SIZED = {}
@@ -226,7 +232,7 @@ JOINTS = {
     'waist': ('torso', (0.0, 0.12, 0.0), '-y'),
     'neck': None, 'head': None,
     'shoulder': ('torso', (0.133, 0.325, -0.005)),
-    'elbow': None,
+    'elbow': ('upper_arm', (0.0, -0.28, 0.0), '-x'),
     'wrist': ('forearm', (0.0, -0.12, 0.0), '-y'),
     'gripper': ('forearm', (0.0, -0.165, 0.0)),
     'hip_yaw': ('pelvis', (HIP_HALF, 0.103 - HIP_DROP, 0.0), '-y'),
@@ -365,6 +371,11 @@ def board(joint):
     return (seg, (-x if side == 'right_' else x, y, z)) + of(joint)[1].board + (where[2],)
 
 
+def tall(joint):
+    """Its board's height with its parts, m."""
+    return INVERTERS[STACKS[kind(joint)][2]][4]
+
+
 def boards():
     """{joint: its board apart (`board`)}, both sides'."""
     from machine.figure import JOINTS
@@ -418,5 +429,5 @@ def heat(joint):
     """(kt N m/A, winding ohm, the board's amps against the 100 A board's, the winding's J/K and
     K/W, the laminate's K/W to the air): what `machine.heat` keeps a joint's drive by."""
     s = of(joint)[1]
-    return (kt(joint), r_ohm(joint), 100.0 / s.amps, s.winding[0], s.winding[1] * COOLING,
+    return (kt(joint), r_ohm(joint), 100.0 / s.rated, s.winding[0], s.winding[1] * COOLING,
             s.housing_k_w * COOLING)

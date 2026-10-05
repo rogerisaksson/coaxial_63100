@@ -66,7 +66,12 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: 50-60 mm inside her shins met the other's walking and she fell in 1-3 s; on the parallel pair
 #: the scoreboard 542 against 495 without, chance's 150, but shoved past saving into the crouch
 #: her head met the floor at 1.03-1.66 m/s in 3 of 64 falls, off at 0.66-0.81 in 2 (2026-10-03).
-REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 1.0, 1.0, 1.0, 1.0, 0.0
+#: Fed forward whole on the U8's rotor, 0.177 kg m^2 at a hip where the frame before had 0.071,
+#: a standing start's setpoints asked the knees and hips their clamps in its first 50 ms and
+#: she fell back in 3 starts of 12; at none, no fall and no parry in 12. The look's suite:
+#: -274.2 at 0, -271.9 at 0.25, off its form at 0.5 and 0.75, down at 1; her knee lands at 30.0
+#: deg at 0.65 strides/s at 0, 30.3 at 0.12, 29.7 at 0.25, the form's 30 (2026-10-05).
+REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 0.25, 1.0, 1.0, 1.0, 0.0
 #: How much of its gearbox's and its structure's wind-up (`drives.flex`) a board sees its joint
 #: moved by under its last torque - 1 its encoder on the motor, 0 on the joint. Measured on the
 #: members as sized (2026-10-03, the user's: the trunk's bob): at 1 her walk from the squat fell

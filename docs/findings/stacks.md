@@ -147,3 +147,49 @@ were sized on, the candidates, and what the one stack leaves open
   and 0.45, the rms 41, 36 and 41 N m where 42, 39 and 49; the knee's
   parry 1007 deg/s, 1.17 of its volts, where 1034; the peaks its clamp as
   before (A 1.50, P 1.24-1.35, S 1.45 at the hips, knees and spine).
+- Her motors as bought (2026-10-05; the user: complete units off the
+  shelf, no frameless kit; motors cost, so two; boards and gearboxes in
+  variants are the pain, so one of each). The frame before, 60 x 20 mm at
+  KV 90 by a law fitted on T-Motor's pages, is no part: at its 4.1 N m its
+  rotor was 0.75e-4 kg m^2 where every outrunner found with that torque
+  has 1.6-2.6e-4.
+
+  | motor | mm | g | KV | mohm | N m, 180 s or rated | peak | USD |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | T-Motor U8 II Lite | 87 x 27 | 253 | 85, 100 | 134-141 at 100 | 3.0 at 31 A | - | 300 |
+  | T-Motor U8 Lite | 87 x 27 | 243 | 85 | 225 | 2.1 at 19.1 A | - | - |
+  | CubeMars R80 | 87 x 27.5 | 354 | 110 | 125 | 1.3 | 4.0 | 259 |
+  | CubeMars RO80, a kit | 93 x 26 | 352 | 105 | 120 | 1.3 at 15 A | 4.0 at 50 A | 115 |
+  | EaglePower LA8308 | 92 x 28.5 | 336 | 90 | 186 | 2.3 at 22 A | - | 45-90 |
+  | T-Motor MN6007 II | 67 x 26 | 159 | 160 | 178 | 1.2 at 23.7 A | - | 130 |
+  | CubeMars R60 | 69 x 26 | 248 | 115 | 300 | 0.8 | 2.4 at 40 A | 178 |
+
+  The U8 II Lite at KV 100 on the 15 drives a joint asks over 50 N m of -
+  the legs, the trunk -, the MN6007 II on the arms' and the head's 6: USD
+  5 280 of motors where 21 U8s are 6 300; the LA8308 in the U8's place, 1
+  680 and 1.2 kg more. No page of T-Motor's gives a peak: the U8's 4 N m
+  is CubeMars' for the same 36N42P stator, the MN6007's 1.9 the RO60's by
+  its stack. KV 100: the knee asks 860-1007 deg/s and at 1:30 has 960 at
+  48 V, at KV 85 816 - a joint's torque times its speed over the pack's
+  volts is its amps whatever the winding; 42 poles at 5 000 rpm are 1.75
+  kHz under 50 kHz of PWM, no room for a higher ratio. On them
+  (docs/DIMENSIONS.md): 108 N m and 0.177 kg m^2 at a hip where 124 and
+  0.071, holding 74 N m where 66 - Km 0.26 against the law's 0.23 -, 51 N
+  m at an arm's joint; her 30.8 kg where 28.4, 14.7 of it drives.
+- The 63100 on every drive (2026-10-05): 100 mm behind the U8's 87, 33
+  wider than the MN6007. Past her clothes standing (`tools/sim/fit.py`):
+  the elbow's stack 20 mm, the shoulder's 15, the hip's yaw's 6, where the
+  70 mm stacks had the elbow's 6 and nothing else. The spine's, the
+  neck's and the head's lie in her back on its middle line, flush - a
+  hand's breadth off it a 100 mm disc is 17-20 mm out of her shell -, the
+  head's under the neck's: in her skull, 0.2 kg more of head, one fall of
+  the suite's put her head on the floor at 1.49 m/s.
+- What their rotors asked of her (2026-10-05): fed forward whole by its
+  board (`physics.ROTOR_FF` 1), a standing start's first 50 ms had the
+  knees and hips at their clamps and she fell back in 3 starts of 12;
+  with the old rotor on the same body, none. At a quarter of it: no
+  parry in 5 starts, her form at three paces - the knee 7.1, 6.9 and 9.6
+  deg behind the plumb line, landing at 28.6, 29.7 and 26.4 -, 428, 388
+  and 623 J/m where the frame before had 393, 384 and 604; at none, the
+  landing knee 30.0 at 0.65 strides/s, the form's 30. Her run on them:
+  docs/findings/run.md.

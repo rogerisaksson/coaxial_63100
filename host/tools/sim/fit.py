@@ -203,7 +203,8 @@ def parts(angles):
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
         R, p = fr[seg]
         out['board_' + joint] = ('drum', p + R @ np.array(at, float),
-                                 R @ np.eye(3)['xyz'.index(faces)], radius, 0.006)
+                                 R @ np.eye(3)['xyz'.index(faces)], radius,
+                                 drives.tall(joint) / 2.0)
         rides['board_' + joint] = seg
     for joint in [j for kind in linkage.PLANAR for j in linkage.joints(kind)]:
         R, p = fr[(drives.mount(joint) or ('pelvis',))[0]]

@@ -140,3 +140,6 @@ numbers to the C. Observer steps 100 ms, NTC sampled every 30 s.
   quarter turn on; two 4.6 x 6.8 mm parts beside each phase's, r 34-45 mm.
   The power on the rim, the MCU inside 70 mm; the parts' boxes 4 338 mm^2
   on top, 860 under - a 70 mm disc is 3 848 a side.
+- `electronic_simulations/3d_models/U8IILite 85KV.glb` (2026-10-05; mm,
+  16 parts): T-Motor's U8 II Lite, its can 87.1 x 26.95 mm, the stator
+  80.5 x 9.6 mm, its windings 11.1 mm tall.

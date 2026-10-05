@@ -52,3 +52,13 @@ The gynoid running: a bounce a foot, flight between (`machine/runner.py`,
   1.0-2.6 m/s. Her speed's law without its integral: 1.57 m/s asked 2.0,
   her feet's neutral point 0.13-0.16 m ahead at 1.2-2.0 m/s where the law
   has half her way over it, 0.13-0.22.
+- On her motors as bought (2026-10-05; the U8's rotor 2.5 times the frame's
+  the run was found on): a stance of 0.22 s holds 1.23-1.46 m/s at 403-451
+  J/m and is down at 1.75 and 2.0 asked, whatever of its rotor the board
+  feeds forward and at 1.15-1.6 of its peak torque; on the old rotor alone
+  she ran 1.83. At 0.30 s she runs half a minute at 0.72, 1.01, 1.22, 1.41
+  and 1.65 m/s asked 0.75-1.75, 357-267 J/m, the knee 635 deg/s of 960 and
+  its rms 49 N m of 74 (T 0.99 at 1.5x); asked 2.0 she is down in 8-25 s.
+  At 0.26 s, taken from 1.5 to 2.0, she ran 30 s at 1.91 m/s, 282 J/m; at
+  0.32, down at 10.6 s: the stance wants to shorten with her speed, about
+  half a metre of floor a stance.

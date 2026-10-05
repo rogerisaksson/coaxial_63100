@@ -51,8 +51,9 @@ MARGINS = {'slip': 1.2, 'nudge': 1.2, 'hole': 1.2, 'shove': 1.2}
 #: A run's demand, folded in with `--run`: RUN_S s at RUN_MPS asked, simulated as she runs
 #: (`tools.sim.run`), her fastest held. The literature's a kg at 2 m/s (Novacheck 1998, Schache
 #: 2011, Dorn 2012: hip 1.6, knee 2.6, ankle 3.0 N m, the rms 0.4 of it; 330, 500, 650 deg/s)
-#: asked her hip, knee and ankle 18, 30 and 34 N m rms; her run asks 47, 40 and 51 (2026-10-05).
-RUN_MPS, RUN_S = 2.0, 12.0
+#: asked her hip, knee and ankle 18, 30 and 34 N m rms; her run on the frame before her motors
+#: asked 47, 40 and 51 at 1.94 m/s (2026-10-05).
+RUN_MPS, RUN_S = 1.75, 12.0
 
 
 def running(got, values):

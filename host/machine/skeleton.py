@@ -62,8 +62,8 @@ HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
                   ((0.012, 0.0047, -0.0174), (0.0, 0.004, -0.024), (-0.016, 0.0057, -0.0213)),
                   ((-0.03, -0.061, 0.117), (0.03, -0.061, 0.117))), 0.006, ())}
 
-#: A board's thickness with its parts, m; a crank's radius (a rod's `linkage.ROD_R`).
-BOARD_T, CRANK_R = 0.012, 0.012
+#: A crank's radius (a rod's `linkage.ROD_R`).
+CRANK_R = 0.012
 
 #: The pelvis's boom, its radius and the points it runs through, m: its middle 60 mm long, an arm
 #: up to each hip's yaw drive - across, it lay on the hips' L, their inner corners 16 mm higher
@@ -299,7 +299,8 @@ def bodies():
             for _part, r, c, long in drives.along(joint)]))
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
         out.append((joint + '_board', seg, [_geom('cylinder', radius,
-                                                  *_along(at, AXES[faces], BOARD_T / 2.0))]))
+                                                  *_along(at, AXES[faces],
+                                                          drives.tall(joint) / 2.0))]))
     out.append(('pelvis_boom', 'pelvis', [_geom('capsule', BOOM[0], a, b)
                                           for a, b in zip(BOOM[1], BOOM[1][1:])]))
     for joint in [j for kind in linkage.PLANAR for j in linkage.joints(kind)]:
