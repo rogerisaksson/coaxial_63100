@@ -228,14 +228,17 @@ in [walk](walk.md), the run in [run](run.md), the page's standing law in
   her going to the law at its walk - landed anew, risen, standing, then
   on - and S and F step the row asked: her stand, two slow walks, her
   walk, her jog, two faster, the run; J again, the walk as built, S and
-  F its cadence - 0.60-0.90 strides/s, 0.39-0.72 m/s: the meter two
-  cells down and none up (the user). The law's was the page's own for an
-  evening: on stilts, her arms bent and not swinging at her sides (the
-  user) - the walk as built's again till the law's is a woman's. Driven
-  as the keys drive it: walked 0.6-0.8 m/s, her jog, the run 1.3-1.7 m/s
-  for 10 s, stood again at 60 s; walking 200 s her hips' laminate 60 C,
-  0.37 of its span spent, nothing derated. The floor's events hand her
-  to the walk as built; its style does nothing on the law.
+  F its cadence. The law's was the page's own for an evening: on stilts,
+  her arms bent and not swinging at her sides (the user) - the walk as
+  built's again till the law's is a woman's. On the walk as built the
+  keys moved its cadence 0.60-0.90 strides/s, 0.39-0.72 m/s: the meter
+  two cells down and one up (the user); to 1.0 since 2026-10-06 - 0.90
+  m/s, four minutes on at it with her hottest drive at 0.35 of its span,
+  1.0-1.08 m/s at 1.05, down in 2 s at 1.10. On the law, driven as the
+  keys drive it: walked 0.6-0.8 m/s, her jog, the run 1.3-1.7 m/s for 10
+  s, stood again at 60 s; walking 200 s her hips' laminate 60 C, 0.37 of
+  its span spent, nothing derated. The floor's events hand her to the
+  walk as built; its style does nothing on the law.
 - Its walk beside a woman's (2026-10-05; `tools/sim/normal.py`,
   [normal](normal.md)): 4.1 off her band where the walk as built 2.0 - the
   swinging knee 26 deg (52-78), 12 as its toes leave (30-60), the heel

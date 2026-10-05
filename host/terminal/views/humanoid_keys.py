@@ -17,8 +17,10 @@ from terminal.views import viewpoint
 from tools import REPO
 
 #: The cadence's bounds and a key's step, strides a second: under 0.6 she fell from her first
-#: stride, at 0.95 within two seconds (2026-09-25).
-CADENCE, CADENCE_STEP = (0.6, 0.9), 0.05
+#: stride (2026-09-25). At 1.0 she walks 0.90 m/s, four minutes on with her hottest drive at
+#: 0.35 of its span; at 1.05 1.0-1.08 m/s, at 1.10 down in 2 s (2026-10-06) - 0.9 till then:
+#: the meter one cell up (the user).
+CADENCE, CADENCE_STEP = (0.6, 1.0), 0.05
 
 #: J: her going on the one law (`machine.pace`), S and F then a step of LEVELS on her way
 #: (`gaits.between`): her stand, two slow walks, her walk, her jog, two faster, the run. On the
